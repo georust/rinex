@@ -3,19 +3,18 @@
 //! url:
 
 use thiserror::Error;
+use std::str::FromStr;
+use scan_fmt::scan_fmt;
 extern crate geo_types;
 
-/// Max. RINEX version currently supported
-const VERSION: &str = "2.10";
+/// Max. RINEX version supported
+const VERSION: &str = "2.10"; 
 
-/// Describes all known Rinex file format 
-enum Format {
-    Observation,
-    Meteo,
-    MeteoData,
-    GpsEphemeris,
-    GloEphemeris,
-    GalEphemeris,
+/// Version parsing related error
+#[derive(Error, Debug)]
+enum VersionFormatError {
+    #[error("Version string does not match expected format")]
+    ParseIntError(#[from] std::num::ParseIntError),
 }
 
 /// Describes all known GNSS constellations
@@ -52,6 +51,17 @@ impl std::str::FromStr for Constellation {
         }
     }
 }
+
+/// Describes all known Rinex file format 
+enum Format {
+    Observation,
+    Meteo,
+    MeteoData,
+    GpsEphemeris,
+    GloEphemeris,
+    GalEphemeris,
+}
+
 /// Header Parsing / formatting errors
 enum HeaderError {
     HeaderError,
@@ -59,18 +69,31 @@ enum HeaderError {
     UnknownFormat,
 }
 
-/// Version parsing related error
-#[derive(Error, Debug)]
-enum VersionFormatError {
-    #[error("Version string does not match expected format")]
-    ParseIntError(#[from] std::num::ParseIntError),
+/// Receiver used in recording
+#[derive(Debug, PartialEq)]
+struct Rcvr {
+    model: String, 
+    sn: String, // serial #
+    firmware: String, // firmware #
 }
 
-/// Receiver used in recording
-struct Rcvr {
-    model: &'static str,
-    sn: &'static str, // serial #
-    firmware: &'static str, // firmware #
+#[derive(Debug)]
+enum RcvrError {
+    FormatError,
+}
+
+impl std::str::FromStr for Rcvr {
+    type Err = RcvrError;
+    fn from_str (s: &str) -> Result<Self, Self::Err> {
+        match scan_fmt!(s, "{} {} {} {}", String, String, String, String) {
+            (Some(sn), Some(maker), Some(model), Some(firmware)) => {
+                Ok(Rcvr{model: String::from(maker.to_owned() + " " + &model), sn, firmware})
+            }
+            _ => {
+                Err(RcvrError::FormatError)
+            }
+        }
+    }
 }
 
 /// Antenna description
@@ -112,12 +135,17 @@ struct RinexHeader {
     sat_number: Option<u32>, // nb of sat for which we have data
 }
 
-/*
-impl std::str::FromStr for RinexHeader {
-    fn from_str (s: &str) -> Result<Format, FormatError> {
-        readln!("{:f}           {:s}", version, trail);         
+//match scan_fmt! (&content, "RCR = {} {} {d}", String, String,)
+
+/// RinexHeader displayer
+impl std::fmt::Display for RinexHeader {
+    fn fmt (&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f,
+            "RINEX Version: {}",
+            self.version
+        )
     }
-}*/
+}
 
 fn version_is_supported (version: &str) -> Result<bool, VersionFormatError> {
     let supported_digits: Vec<&str> = VERSION.split(".").collect();
@@ -174,7 +202,6 @@ fn version_is_supported (version: &str) -> Result<bool, VersionFormatError> {
 //}
 
 mod test {
-
     use super::*;
 
     #[test]
@@ -184,5 +211,19 @@ mod test {
         assert_eq!(version_is_supported("1.0").unwrap(), true); // OK old
         assert_eq!(version_is_supported(VERSION).unwrap(), true); // OK current 
         assert_eq!(version_is_supported("4.0").unwrap(), false); // NOK too recent 
+    }
+
+    #[test]
+    fn rcvr_from_str() {
+        /* correct format #1 */
+        let rcvr = Rcvr::from_str("82205 LEICA RS500 4.20/1.39");
+        println!("{:?}", rcvr);
+        assert_eq!(
+            rcvr.unwrap(),
+            Rcvr{
+                sn: String::from("82205"),
+                model: String::from("LEICA RS500"),
+                firmware: String::from("4.20/1.39")
+            });
     }
 }
