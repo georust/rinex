@@ -2,8 +2,12 @@
 //! Current supported RINEX Version is 2.10.
 //! Supported the following RINEX files format
 //! 
+//! The lib is not sensitive to white space, whether they
+//! be trailing or missing whitespaces
+//!
 //! url:
 
+use regex::Regex;
 use thiserror::Error;
 use std::str::FromStr;
 use scan_fmt::scan_fmt;
@@ -60,15 +64,9 @@ impl std::str::FromStr for Constellation {
 /// Describes all known RINEX file types
 #[derive(Debug)]
 enum DataType {
-    Observation,
-/*
-    Navigation,
-    Meteo,
-    MeteoData,
-    GpsEphemeris,
-    GloEphemeris,
-    GalEphemeris,
-*/
+    ObservationData,
+    NavigationData,
+    MeteoData
 }
 
 #[derive(Error, Debug)]
@@ -80,8 +78,12 @@ enum DataTypeError {
 impl std::str::FromStr for DataType {
     type Err = DataTypeError;
     fn from_str (s: &str) -> Result<Self, Self::Err> {
-        if s.starts_with("OBSERVATION DATA") {
-            Ok(DataType::Observation)
+        if s.eq("OBSERVATION DATA") {
+            Ok(DataType::ObservationData)
+        } else if s.eq("NAVIGATION DATA") {
+            Ok(DataType::NavigationData)
+        } else if s.eq("METEOROLOGICAL DATA") {
+            Ok(DataType::MeteoData)
         } else {
             Err(DataTypeError::UnknownDataType(String::from(s)))
         }
@@ -93,9 +95,9 @@ enum HeaderError {
     #[error("RINEX version is not supported '{0}'")]
     VersionNotSupported(String),
     #[error("Non supported header format")]
-    FmtError,
-    #[error("Unknown RINEX file type '{0}'")]
-    UnknownRinexType(String),
+    FormatError,
+    #[error("Version string does not match X.YY format")]
+    VersionFormatError(#[from] VersionFormatError),
     #[error("Unknown GNSS Constellation '{0}'")]
     UnknownConstellation(#[from] ConstellationError),
     #[error("Unknown Data Type '{0}'")]
@@ -184,17 +186,30 @@ impl std::fmt::Display for Header {
 
 impl std::str::FromStr for Header {
     type Err = HeaderError;
-    fn from_str (s: &str) -> Result<Self, Self::Err> {
-        let (version, fmt1, fmt2, gnss) = match scan_fmt!(s, 
-            "{[0-9].[0-9][0-9]} {} {} {}", String, String, String, String)
-        {
-            (Some(version), Some(fmt1), Some(fmt2), Some(gnss)) => (version,fmt1,fmt2,gnss),
-            _ => return Err(HeaderError::FmtError),
-        };
+    fn from_str (content: &str) -> Result<Self, Self::Err> {
+        // standard header #1:
+        // X.YY (data type) 'DATA' [A-Z] (xxnot cared)
+        let line1_re = Regex::new(r"(\d\.\d{2}) (OBSERVATION|NAVIGATION) DATA [A-Z]")
+            .unwrap();
 
-        Ok(Header{
+        match line1_re.is_match(content) {
+            false => return Err(HeaderError::FormatError),
+            _ => {},
+        }
+
+        let mut items = content.split_whitespace(); 
+        let version = items.next().unwrap();
+        match version_is_supported(version) {
+            Ok(true) => {},
+            Ok(false) => return Err(HeaderError::VersionNotSupported(version.to_string())),
+            Err(e) => return Err(HeaderError::VersionFormatError(e)),
+        }
+
+        return Err(HeaderError::VersionNotSupported(String::from("abc")))
+
+        /*Ok(Header{
             version,
-            data: DataType::from_str(&(String::from(&fmt1).to_owned() + &fmt2))?,
+            data: DataType::from_str(&(String::from(&fmt1).to_owned() + " " + &fmt2))?,
             gnss: Constellation::from_str(&gnss)?,
             marker_name: "",
             marker_number: "",
@@ -224,10 +239,12 @@ impl std::str::FromStr for Header {
             comments: None,
             gps_utc_delta: None,
             sat_number: None,
-        })
+        })*/
     }
 }
 
+/// Checks whether this lib supports the given RINEX revision number
+/// Revision number matches expected format already
 fn version_is_supported (version: &str) -> Result<bool, VersionFormatError> {
     let supported_digits: Vec<&str> = VERSION.split(".").collect();
     let digit0 = u32::from_str_radix(supported_digits.get(0)
@@ -320,22 +337,29 @@ mod test {
     }
 
     #[test]
-    /// tests Header fromStr method
+    /// tests Header::from_str method
     fn header_from_str() {
-        // should crash triple digit
+        // X.YY format error
         assert_eq!(
-            Header::from_str("2.100 OBSERVATION DATA G (GPS)").is_err(),
+            Header::from_str("2.0 NAVIGATION DATA G").is_err(),
             true);
-        // should crash missing .XX
         assert_eq!(
-            Header::from_str("2. OBSERVATION DATA G (GPS)").is_err(),
+            Header::from_str("2. NAVIGATION DATA M").is_err(),
             true);
-        // should crash missing .XX
         assert_eq!(
-            Header::from_str("2 OBSERVATION DATA G (GPS)").is_err(),
+            Header::from_str("2.10 OBSERVATION DATA M").is_err(),
             true);
-        // should pass
-        let hd = Header::from_str("2.00 OBSERVATION DATA G (GPS)");
-        println!("{:?}", hd);
+        // OK: 
+        //assert_eq!(
+        //    Header::from_str("2.10 OBSERVATION DATA G").is_err(),
+        //    false);
+        // OK: whitespace insensitive
+        //assert_eq!(
+        //    Header::from_str("  2.10 OBSERVATION DATA G (GPS)").is_err(),
+        //    false);
+        let hd = Header::from_str("2.00 NAVIGATION DATA G (GPS)");
+        println!("Header: {:?}", hd);
+        let hd = Header::from_str("2.10 OBSERVATION DATA M");
+        println!("Header: {:?}", hd);
     }
 }
