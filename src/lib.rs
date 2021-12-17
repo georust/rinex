@@ -336,11 +336,14 @@ struct Rinex {
 
 #[derive(Error, Debug)]
 enum RinexError {
+    #[error("File does not follow naming conventions")]
     FileNamingConvention,
+    #[error("Header delimiter not found")]
     MissingHeaderDelimiter,
-    UnknownFileFormat,
     #[error("Header parsing error")]
     HeaderError(#[from] HeaderError), 
+    #[error("Unknown file format '{0}'")]
+    UnknownFileFormat(String),
 }
 
 impl Rinex {
@@ -359,26 +362,12 @@ impl Rinex {
         Ok(parsed[0].to_string())
     }
 
-    /// builds `Rinex` from observation file 
-    /// implementation for .o files
+    /// builds `Rinex` from observation (.o) file 
     fn from_observation_file (fp: &std::path::Path) -> Result<Rinex, RinexError> {
         let header_str = Rinex::grab_header(fp)?;
         let header = Header::from_str(&header_str)?;
         Err(RinexError::MissingHeaderDelimiter)
     }
-
-    /// builds `Rinex` from GPS nav
-    /// implementation for .n files
-    //fn from_gps_navigation_file (fp: &std::path::Path) -> Result<Rinex, RinexError> {
-    //    let header_content = Rinex::grab_header(fp);
-    //    Err(RinexError::RinexE)
-    //}
-
-    /// builds `Rinex` from GLO navigation 
-    /// implementation for .g files
-    //fn from_glonass_navigation_file (fp: &std::path::Path) -> Result<Rinex, RinexError> {
-    //    Err(RinexError::RinexE) 
-    //}
 
     /// `Rinex` constructor
     pub fn from (fp: &std::path::Path) -> Result<Rinex, RinexError> {
@@ -386,24 +375,20 @@ impl Rinex {
             .unwrap();
         let extension = extension.to_str()
             .unwrap();
-        let extension_re = Regex::new(r"[a-z][a-z][o|m|n|g|l|h|b|c|s]")
+        /*
+         * TODO @ GBR
+         * check for naming convention plz
+        println!("'{}'", extension);
+         * let extension_re = Regex::new(r"\d\d.")
             .unwrap();
         if extension_re.is_match(extension) {
             return Err(RinexError::FileNamingConvention)
-        }
+        }*/
 
         if extension.ends_with("o") {
             Rinex::from_observation_file(fp)
         } else {
-            //
-            // M meteo data file
-            // G glonass file
-            // L future Gal file
-            // H geostationnary GPS payload nav message
-            // B Geo SBAS
-            // C: clock file
-            // S: Summary file
-            Err(RinexError::UnknownFileFormat)
+            Err(RinexError::UnknownFileFormat(extension.to_string()))
         }
     }
 }
@@ -469,23 +454,4 @@ mod test {
             }
         }
     }
-/*
-                let file_name = path.to_str()
-                    .unwrap_or("");
-                // grab file content
-                let content: String = std::fs::read_to_string(file_name)
-                    .unwrap()
-                        .parse()
-                        .unwrap();
-                // focus on header content only
-                let parsed: Vec<&str> = content.split_inclusive("END OF HEADER").collect();
-                let header = parsed[0];
-                assert_eq!(
-                    Header::from_str(header).is_err(),
-                    false,
-                    "header::from_str test failed for '{}' with '{:?}'",
-                    file_name, Header::from_str(header))
-            }
-        }
-*/
 }
