@@ -214,8 +214,8 @@ impl std::str::FromStr for Header {
         let line = lines.get(0)
             .unwrap();
         // X.YY (data type) 'DATA' [A-Z] (xxnot cared)
-     2.11           G: GLONASS NAV DATA                     RINEX VERSION / TYPE
-     2.11           OBSERVATION DATA    M (MIXED)           RINEX VERSION / TYPE
+     //2.11           G: GLONASS NAV DATA                     RINEX VERSION / TYPE
+     //2.11           OBSERVATION DATA    M (MIXED)           RINEX VERSION / TYPE
         let re = Regex::new(r"(\d\.\d{2}) (OBSERVATION|NAVIGATION) DATA [A-Z]")
             .unwrap();
         match re.is_match(line) {
@@ -327,6 +327,87 @@ fn version_is_supported (version: &str) -> Result<bool, VersionFormatError> {
 // yy: aneee 2 digit
 // t: type de fichier
 
+/// `Rinex` main work structure
+/// describes a RINEX file
+#[derive(Debug)]
+struct Rinex {
+    header: Header,
+}
+
+#[derive(Error, Debug)]
+enum RinexError {
+    FileNamingConvention,
+    MissingHeaderDelimiter,
+    UnknownFileFormat,
+    #[error("Header parsing error")]
+    HeaderError(#[from] HeaderError), 
+}
+
+impl Rinex {
+
+    /// grabs header content of given file
+    fn grab_header (fp: &std::path::Path) -> Result<String, RinexError> {
+        let content: String = std::fs::read_to_string(fp)
+            .unwrap()
+                .parse()
+                .unwrap();
+        if !content.contains("END OF HEADER") {
+            return Err(RinexError::MissingHeaderDelimiter)
+        }
+        let parsed: Vec<&str> = content.split_inclusive("END OF HEADER")
+            .collect();
+        Ok(parsed[0].to_string())
+    }
+
+    /// builds `Rinex` from observation file 
+    /// implementation for .o files
+    fn from_observation_file (fp: &std::path::Path) -> Result<Rinex, RinexError> {
+        let header_str = Rinex::grab_header(fp)?;
+        let header = Header::from_str(&header_str)?;
+        Err(RinexError::MissingHeaderDelimiter)
+    }
+
+    /// builds `Rinex` from GPS nav
+    /// implementation for .n files
+    //fn from_gps_navigation_file (fp: &std::path::Path) -> Result<Rinex, RinexError> {
+    //    let header_content = Rinex::grab_header(fp);
+    //    Err(RinexError::RinexE)
+    //}
+
+    /// builds `Rinex` from GLO navigation 
+    /// implementation for .g files
+    //fn from_glonass_navigation_file (fp: &std::path::Path) -> Result<Rinex, RinexError> {
+    //    Err(RinexError::RinexE) 
+    //}
+
+    /// `Rinex` constructor
+    pub fn from (fp: &std::path::Path) -> Result<Rinex, RinexError> {
+        let extension = fp.extension()
+            .unwrap();
+        let extension = extension.to_str()
+            .unwrap();
+        let extension_re = Regex::new(r"[a-z][a-z][o|m|n|g|l|h|b|c|s]")
+            .unwrap();
+        if extension_re.is_match(extension) {
+            return Err(RinexError::FileNamingConvention)
+        }
+
+        if extension.ends_with("o") {
+            Rinex::from_observation_file(fp)
+        } else {
+            //
+            // M meteo data file
+            // G glonass file
+            // L future Gal file
+            // H geostationnary GPS payload nav message
+            // B Geo SBAS
+            // C: clock file
+            // S: Summary file
+            Err(RinexError::UnknownFileFormat)
+        }
+    }
+}
+
 mod test {
     use super::*;
 
@@ -365,8 +446,9 @@ mod test {
     }
 
     #[test]
-    /// tests Header::from_str
-    fn header_from_str() {
+    /// Test `Rinex` constructor
+    /// against all valid data resources
+    fn rinex_constructor() {
         // open test resources
         let test_resources = std::path::PathBuf::from(
             env!("CARGO_MANIFEST_DIR").to_owned() + "/data");
@@ -377,6 +459,17 @@ mod test {
                 .unwrap();
             let path = entry.path();
             if !path.is_dir() { // only files..
+                let fp = std::path::Path::new(&path);
+                assert_eq!(
+                    Rinex::from(&fp).is_err(),
+                    false,
+                    "Rinex::from() failed for '{:?}' with '{:?}'",
+                    path, 
+                    Rinex::from(&fp))
+            }
+        }
+    }
+/*
                 let file_name = path.to_str()
                     .unwrap_or("");
                 // grab file content
@@ -394,34 +487,5 @@ mod test {
                     file_name, Header::from_str(header))
             }
         }
-/*
-        // X.YY format error
-        assert_eq!(
-            Header::from_str("2.0 NAVIGATION DATA G").is_err(),
-            true);
-        assert_eq!(
-            Header::from_str("2. NAVIGATION DATA M").is_err(),
-            true);
-        // Too recent version
-        assert_eq!(
-            Header::from_str("10.10 OBSERVATION DATA M").is_err(),
-            true);
-        // Data Type Error
-        assert_eq!(
-            Header::from_str("1.00 OBS DATA M").is_err(),
-            true);
-        assert_eq!(
-            Header::from_str("1.00 OBSERVATION DAT M").is_err(),
-            true);
-        // Missing GNSS descriptor
-        assert_eq!(
-            Header::from_str("1.00 OBSERVATION DATA").is_err(),
-            true);
-        
-        let hd = Header::from_str("2.00 NAVIGATION DATA G (GPS)");
-        println!("Header: {:?}", hd);
-        let hd = Header::from_str("2.10 OBSERVATION DATA M");
-        println!("Header: {:?}", hd);
 */
-    }
 }
