@@ -1,2 +1,2 @@
-# rinex
-Rust package to manage Rinex files
+# RINEX 
+Rust package to parse and analyze Rinex files
