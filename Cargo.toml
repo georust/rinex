@@ -1,0 +1,14 @@
+[package]
+name = "rinex"
+version = "0.0.1"
+authors = ["Guillaume W. Bres <guillaume.bressaix@gmail.com>"]
+homepage = "https://github.com/gwbres/rinex"
+readme = "README.md"
+keywords = ["rinex", "positionning", "timing", "gps"]
+edition = "2018"
+
+[dependencies]
+thiserror          = "1"
+chrono             = "0.4"
+scan_fmt           = "0.1"
+geo-types          = "0.7.2"
