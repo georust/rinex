@@ -68,35 +68,6 @@ impl std::str::FromStr for Constellation {
     }
 }
 
-/// Describes all known RINEX file types
-#[derive(Debug)]
-enum DataType {
-    ObservationData,
-    NavigationData,
-    MeteoData
-}
-
-#[derive(Error, Debug)]
-enum DataTypeError {
-    #[error("Unknown RINEX data '{0}'")]
-    UnknownDataType(String),
-}
-
-impl std::str::FromStr for DataType {
-    type Err = DataTypeError;
-    fn from_str (s: &str) -> Result<Self, Self::Err> {
-        if s.eq("OBSERVATION") {
-            Ok(DataType::ObservationData)
-        } else if s.eq("NAVIGATION") {
-            Ok(DataType::NavigationData)
-        } else if s.eq("METEOROLOGICAL") {
-            Ok(DataType::MeteoData)
-        } else {
-            Err(DataTypeError::UnknownDataType(String::from(s)))
-        }
-    }
-}
-
 #[derive(Error, Debug)]
 enum HeaderError {
     #[error("RINEX version is not supported '{0}'")]
@@ -107,8 +78,6 @@ enum HeaderError {
     VersionFormatError(#[from] VersionFormatError),
     #[error("Unknown GNSS Constellation '{0}'")]
     UnknownConstellation(#[from] ConstellationError),
-    #[error("Unknown Data Type '{0}'")]
-    DataTypeError(#[from] DataTypeError),
 }
 
 /// GNSS receiver description
@@ -160,7 +129,6 @@ struct GnssTime {
 #[derive(Debug)]
 struct Header {
     version: String, // Rinex format version
-    data: DataType, // file format (observation, data..)
     constellation: Constellation, // GNSS constellation being used
     program: String, // `PGM` program name 
     run_by: String, // marker number
@@ -204,43 +172,47 @@ impl std::fmt::Display for Header {
  * • The # OF SATELLITES record (if present) should be immediately followed by the
  * corresponding number of PRN / # OF OBS records.
 */
-impl std::str::FromStr for Header {
-    type Err = HeaderError;
-    /// expects all header content as str reference
-    fn from_str (content: &str) -> Result<Self, Self::Err> {
-        // work on EOL basis
-        let lines: Vec<&str> = content.split_terminator('\n').collect(); 
+impl Header {
+    /// Builds header from extracted header description
+    fn from (content: &str, data_type: DataType) -> Result<Header, HeaderError> {
+        let lines: Vec<&str> = content.split_terminator('\n')
+            .collect();
         // line #1 always expected 
         let line = lines.get(0)
             .unwrap();
-        // X.YY (data type) 'DATA' [A-Z] (xxnot cared)
-     //2.11           G: GLONASS NAV DATA                     RINEX VERSION / TYPE
-     //2.11           OBSERVATION DATA    M (MIXED)           RINEX VERSION / TYPE
-        let re = Regex::new(r"(\d\.\d{2}) (OBSERVATION|NAVIGATION) DATA [A-Z]")
-            .unwrap();
-        match re.is_match(line) {
-            false => return Err(HeaderError::FormatError),
+        let (version, constellation) : (String, String) = match data_type {
+            DataType::ObservationData => {
+                match scan_fmt!(line,
+                    "{} {} {} {}",
+                    String, String, String, String
+                ) {
+                    (Some(version),
+                    _, // 'OBSERVATION'
+                    _, // 'DATA'
+                    Some(constellation)) => (version,constellation),
+                    _ => return Err(HeaderError::FormatError),
+                }
+            }
+        };
+        
+        /* Version X.YY verification */
+        match version_is_supported(&version) {
+            Ok(false) => return Err(HeaderError::VersionNotSupported(version.to_string())),
+            Err(e) => return Err(HeaderError::VersionFormatError(e)),
             _ => {},
         }
 
-        /* Version X.YY verification */
-        let mut items = line.split_whitespace(); 
-        let version = items.next().unwrap();
-        match version_is_supported(version) {
-            Ok(true) => {},
-            Ok(false) => return Err(HeaderError::VersionNotSupported(version.to_string())),
-            Err(e) => return Err(HeaderError::VersionFormatError(e)),
-        }
-
-        let data_type = items.next().unwrap();
-        let _ = items.next().unwrap(); // discard 'DATA'
-        let constellation = items.next().unwrap(); // 'G/M.. constellation descriptor
-
         // line #2 always expected 
-        let line = lines.get(1).unwrap();
-        // `Pgm` [str], `Run By` [str], `Date` [yyyymmdd hhmmss], `TZ`
-        let re = Regex::new(r"{} {} {}")
+        let line = lines.get(1)
             .unwrap();
+        let (pgm, run_by) : (String, String) = match scan_fmt!(line,
+            // TODO@
+            // on peut pas attendre forcement 2 string
+            // sur le nom ici
+            "{} {} {} {} {} {}",
+            String, String, String
+        ) {
+            (Some(pgm),Some(run_by),
 
         let mut items = line.split_whitespace(); 
         let pgm = items.next().unwrap();
@@ -249,13 +221,12 @@ impl std::str::FromStr for Header {
         let tz = items.next().unwrap();
 
         // starting from there we have several options
-
+*/
         Ok(Header{
             version: version.to_string(),
-            data: DataType::from_str(data_type)?,
-            constellation: Constellation::from_str(constellation)?,
-            program: pgm.to_string(),
-            run_by: run_by.to_string(),
+            constellation: Constellation::from_str(&constellation)?,
+            program: String::from("test"), 
+            run_by: String::from("test"),
             station: None,
             observer: "",
             agency: "",
@@ -320,18 +291,19 @@ fn version_is_supported (version: &str) -> Result<bool, VersionFormatError> {
     }
 }
 
-// ssssdddf.yyt
-// ssss: acronyme de la station
-// ddd: jour de l'annee du premier record
-// f: numero de la session dans le jour avec 0 pour une journee complete
-// yy: aneee 2 digit
-// t: type de fichier
 
 /// `Rinex` main work structure
 /// describes a RINEX file
 #[derive(Debug)]
 struct Rinex {
     header: Header,
+    data_type: DataType,
+}
+
+/// Describes all known RINEX file types
+#[derive(Debug)]
+enum DataType {
+    ObservationData,
 }
 
 #[derive(Error, Debug)]
@@ -359,18 +331,29 @@ impl Rinex {
         }
         let parsed: Vec<&str> = content.split_inclusive("END OF HEADER")
             .collect();
+        // TODO @ GBR
+        // faudrait virer les commentaires en utilisant le nb de col
+        // car ils font plus chier qu'autre chose
         Ok(parsed[0].to_string())
     }
 
     /// builds `Rinex` from observation (.o) file 
     fn from_observation_file (fp: &std::path::Path) -> Result<Rinex, RinexError> {
         let header_str = Rinex::grab_header(fp)?;
-        let header = Header::from_str(&header_str)?;
+        let header = Header::from(&header_str, DataType::ObservationData)?;
         Err(RinexError::MissingHeaderDelimiter)
     }
 
     /// `Rinex` constructor
     pub fn from (fp: &std::path::Path) -> Result<Rinex, RinexError> {
+        /*
+         * TODO @GBR
+         * checker debut egalement plz
+         */
+        // ssssdddf.yyt
+        // ssss: acronyme de la station
+        // ddd: jour de l'annee du premier record
+        // f: numero de la session dans le jour avec 0 pour une journee complete
         let extension = fp.extension()
             .unwrap();
         let extension = extension.to_str()
@@ -384,7 +367,6 @@ impl Rinex {
         if extension_re.is_match(extension) {
             return Err(RinexError::FileNamingConvention)
         }*/
-
         if extension.ends_with("o") {
             Rinex::from_observation_file(fp)
         } else {
