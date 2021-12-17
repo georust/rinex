@@ -1,9 +1,16 @@
-//! RINEX library to parse and analyze RINEX files.
-//! Current supported RINEX Version is 2.10.
-//! Supported the following RINEX files format
+//! This package provides a set of tools to parse 
+//! and analyze RINEX files.
 //! 
-//! The lib is not sensitive to white space, whether they
-//! be trailing or missing whitespaces
+//! Current supported RINEX Version is 2.11.
+//! 
+//! The lib is not sensitive to white spaces, whether they
+//! be trailing or missing whitespaces. Therefore
+//! the lib would accept files that do not respect standard
+//! specifications.
+//!
+//! The lib does not care about end of line description
+//! that is most of the time integrated to the header section.
+//! exceptions: ?
 //!
 //! url:
 
@@ -119,6 +126,8 @@ enum RcvrError {
 
 impl std::str::FromStr for Rcvr {
     type Err = RcvrError;
+    // TODO @GBR
+    // use regex here too plz
     fn from_str (s: &str) -> Result<Self, Self::Err> {
         match scan_fmt!(s, "{} {} {} {}", String, String, String, String) {
             (Some(sn), Some(maker), Some(model), Some(firmware)) => {
@@ -153,8 +162,8 @@ struct Header {
     version: String, // Rinex format version
     data: DataType, // file format (observation, data..)
     constellation: Constellation, // GNSS constellation being used
-    marker_name: &'static str, // marker name 
-    marker_number: &'static str, // marker number
+    program: String, // `PGM` program name 
+    run_by: String, // marker number
     //date: strtime, // file date of creation
     station: Option<&'static str>, // station label
     observer: &'static str, // observer label
@@ -184,21 +193,38 @@ impl std::fmt::Display for Header {
     }
 }
 
+/* NOTES
+ * The RINEX VERSION / TYPE record must be the first record in a file.
+ * • The PGM / RUN BY / DATE line must be the second record(line) in all RINEX
+ * files. In RINEX Observation files additional records of this type from previous file
+ * modifications or updates can be stored if needed as the lines immediately following
+ * the second line.
+ * • The SYS / # / OBS TYPES record(s) should precede any SYS / DCBS
+ * APPLIED and SYS / SCALE FACTOR records.
+ * • The # OF SATELLITES record (if present) should be immediately followed by the
+ * corresponding number of PRN / # OF OBS records.
+*/
 impl std::str::FromStr for Header {
     type Err = HeaderError;
+    /// expects all header content as str reference
     fn from_str (content: &str) -> Result<Self, Self::Err> {
-        // standard header #1:
-        // X.YY (data type) 'DATA' [A-Z] (xxnot cared)
-        let line1_re = Regex::new(r"(\d\.\d{2}) (OBSERVATION|NAVIGATION) DATA [A-Z]")
+        // work on EOL basis
+        let lines: Vec<&str> = content.split_terminator('\n').collect(); 
+        // line #1 always expected 
+        let line = lines.get(0)
             .unwrap();
-
-        match line1_re.is_match(content) {
+        // X.YY (data type) 'DATA' [A-Z] (xxnot cared)
+     2.11           G: GLONASS NAV DATA                     RINEX VERSION / TYPE
+     2.11           OBSERVATION DATA    M (MIXED)           RINEX VERSION / TYPE
+        let re = Regex::new(r"(\d\.\d{2}) (OBSERVATION|NAVIGATION) DATA [A-Z]")
+            .unwrap();
+        match re.is_match(line) {
             false => return Err(HeaderError::FormatError),
             _ => {},
         }
 
         /* Version X.YY verification */
-        let mut items = content.split_whitespace(); 
+        let mut items = line.split_whitespace(); 
         let version = items.next().unwrap();
         match version_is_supported(version) {
             Ok(true) => {},
@@ -210,13 +236,26 @@ impl std::str::FromStr for Header {
         let _ = items.next().unwrap(); // discard 'DATA'
         let constellation = items.next().unwrap(); // 'G/M.. constellation descriptor
 
+        // line #2 always expected 
+        let line = lines.get(1).unwrap();
+        // `Pgm` [str], `Run By` [str], `Date` [yyyymmdd hhmmss], `TZ`
+        let re = Regex::new(r"{} {} {}")
+            .unwrap();
+
+        let mut items = line.split_whitespace(); 
+        let pgm = items.next().unwrap();
+        let run_by = items.next().unwrap();
+        let date = items.next().unwrap();
+        let tz = items.next().unwrap();
+
+        // starting from there we have several options
+
         Ok(Header{
             version: version.to_string(),
             data: DataType::from_str(data_type)?,
-            //DataType::from_str(&(String::from(&fmt1).to_owned() + " " + &fmt2))?,
             constellation: Constellation::from_str(constellation)?,
-            marker_name: "",
-            marker_number: "",
+            program: pgm.to_string(),
+            run_by: run_by.to_string(),
             station: None,
             observer: "",
             agency: "",
@@ -287,21 +326,6 @@ fn version_is_supported (version: &str) -> Result<bool, VersionFormatError> {
 // f: numero de la session dans le jour avec 0 pour une journee complete
 // yy: aneee 2 digit
 // t: type de fichier
-//RinexObservation:
-//2.10           OBSERVATION DATA    M(MIXED)           RINEX VERSION / TYPE
-
-//impl From<std::Path> for Rinex {
-//    fn from (path: std::Path) -> Result<Rinex, Error> {
-//        let fmt = match Format::from(path) {
-//            Err(e) => return Err(e),
-//            Ok(Format::Observation) => {
-//                // 
-//            },
-//            Ok(Format::
-//        }
-//       
-//    }
-//}
 
 mod test {
     use super::*;
@@ -321,7 +345,7 @@ mod test {
     fn rcvr_from_str() {
         /* standard format #1 */
         assert_eq!(
-            Rcvr::from_str("82205               LEICA RS500         4.20/1.39")
+            Rcvr::from_str("82205 LEICA RS500 4.20/1.39")
                 .unwrap(),
             Rcvr{
                 sn: String::from("82205"),
@@ -341,8 +365,36 @@ mod test {
     }
 
     #[test]
-    /// tests Header::from_str method
+    /// tests Header::from_str
     fn header_from_str() {
+        // open test resources
+        let test_resources = std::path::PathBuf::from(
+            env!("CARGO_MANIFEST_DIR").to_owned() + "/data");
+        // walk test resources
+        for entry in std::fs::read_dir(test_resources)
+            .unwrap() {
+            let entry = entry
+                .unwrap();
+            let path = entry.path();
+            if !path.is_dir() { // only files..
+                let file_name = path.to_str()
+                    .unwrap_or("");
+                // grab file content
+                let content: String = std::fs::read_to_string(file_name)
+                    .unwrap()
+                        .parse()
+                        .unwrap();
+                // focus on header content only
+                let parsed: Vec<&str> = content.split_inclusive("END OF HEADER").collect();
+                let header = parsed[0];
+                assert_eq!(
+                    Header::from_str(header).is_err(),
+                    false,
+                    "header::from_str test failed for '{}' with '{:?}'",
+                    file_name, Header::from_str(header))
+            }
+        }
+/*
         // X.YY format error
         assert_eq!(
             Header::from_str("2.0 NAVIGATION DATA G").is_err(),
@@ -370,5 +422,6 @@ mod test {
         println!("Header: {:?}", hd);
         let hd = Header::from_str("2.10 OBSERVATION DATA M");
         println!("Header: {:?}", hd);
+*/
     }
 }
