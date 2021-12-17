@@ -119,9 +119,8 @@ impl std::str::FromStr for RinexHeader {
     }
 }*/
 
-/*
-fn version_supported (version: &str) -> Result<bool, VersionFormatError> {
-    let supported_digits: Vec<&str> Version.split(".").collect();
+fn version_is_supported (version: &str) -> Result<bool, VersionFormatError> {
+    let supported_digits: Vec<&str> = VERSION.split(".").collect();
     let digit0 = u32::from_str_radix(supported_digits.get(0)
         .unwrap(), 
             10)
@@ -131,9 +130,12 @@ fn version_supported (version: &str) -> Result<bool, VersionFormatError> {
             10)
             .unwrap();
     let digits: Vec<&str> = version.split(".").collect();
-    let target_digit0 = u32::from_str_radix(digits.get(0)?, 10)?;
-    let target_digit1 = u32::from_str_radix(digits.get(1)?, 10)?;
-
+    let target_digit0 = u32::from_str_radix(digits.get(0)
+        .unwrap_or(&"?"), 
+            10)?;
+    let target_digit1 = u32::from_str_radix(digits.get(1)
+        .unwrap_or(&"?"), 
+            10)?;
     if target_digit0 > digit0 {
         Ok(false)
     } else {
@@ -144,10 +146,10 @@ fn version_supported (version: &str) -> Result<bool, VersionFormatError> {
                Ok(false)
             }
         } else {
-            Ok(True)
+            Ok(true)
         }
     }
-}*/
+}
 
 // ssssdddf.yyt
 // ssss: acronyme de la station
@@ -171,13 +173,16 @@ fn version_supported (version: &str) -> Result<bool, VersionFormatError> {
 //    }
 //}
 
-/*
 mod test {
 
     use super::*;
 
     #[test]
-    fn test_version_tool_with_supported_vers() {
-        
+    fn test_version_tool() {
+        assert_eq!(version_is_supported("a.b").is_err(), true); // fmt error
+        assert_eq!(version_is_supported("1.0").unwrap(), true); // OK basic
+        assert_eq!(version_is_supported("1.0").unwrap(), true); // OK old
+        assert_eq!(version_is_supported(VERSION).unwrap(), true); // OK current 
+        assert_eq!(version_is_supported("4.0").unwrap(), false); // NOK too recent 
     }
-} */
+}
