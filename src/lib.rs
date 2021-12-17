@@ -78,11 +78,11 @@ enum DataTypeError {
 impl std::str::FromStr for DataType {
     type Err = DataTypeError;
     fn from_str (s: &str) -> Result<Self, Self::Err> {
-        if s.eq("OBSERVATION DATA") {
+        if s.eq("OBSERVATION") {
             Ok(DataType::ObservationData)
-        } else if s.eq("NAVIGATION DATA") {
+        } else if s.eq("NAVIGATION") {
             Ok(DataType::NavigationData)
-        } else if s.eq("METEOROLOGICAL DATA") {
+        } else if s.eq("METEOROLOGICAL") {
             Ok(DataType::MeteoData)
         } else {
             Err(DataTypeError::UnknownDataType(String::from(s)))
@@ -152,7 +152,7 @@ struct GnssTime {
 struct Header {
     version: String, // Rinex format version
     data: DataType, // file format (observation, data..)
-    gnss: Constellation, // GNSS constellation being used
+    constellation: Constellation, // GNSS constellation being used
     marker_name: &'static str, // marker name 
     marker_number: &'static str, // marker number
     //date: strtime, // file date of creation
@@ -197,6 +197,7 @@ impl std::str::FromStr for Header {
             _ => {},
         }
 
+        /* Version X.YY verification */
         let mut items = content.split_whitespace(); 
         let version = items.next().unwrap();
         match version_is_supported(version) {
@@ -205,12 +206,15 @@ impl std::str::FromStr for Header {
             Err(e) => return Err(HeaderError::VersionFormatError(e)),
         }
 
-        return Err(HeaderError::VersionNotSupported(String::from("abc")))
+        let data_type = items.next().unwrap();
+        let _ = items.next().unwrap(); // discard 'DATA'
+        let constellation = items.next().unwrap(); // 'G/M.. constellation descriptor
 
-        /*Ok(Header{
-            version,
-            data: DataType::from_str(&(String::from(&fmt1).to_owned() + " " + &fmt2))?,
-            gnss: Constellation::from_str(&gnss)?,
+        Ok(Header{
+            version: version.to_string(),
+            data: DataType::from_str(data_type)?,
+            //DataType::from_str(&(String::from(&fmt1).to_owned() + " " + &fmt2))?,
+            constellation: Constellation::from_str(constellation)?,
             marker_name: "",
             marker_number: "",
             station: None,
@@ -239,7 +243,7 @@ impl std::str::FromStr for Header {
             comments: None,
             gps_utc_delta: None,
             sat_number: None,
-        })*/
+        })
     }
 }
 
@@ -346,17 +350,22 @@ mod test {
         assert_eq!(
             Header::from_str("2. NAVIGATION DATA M").is_err(),
             true);
+        // Too recent version
         assert_eq!(
-            Header::from_str("2.10 OBSERVATION DATA M").is_err(),
+            Header::from_str("10.10 OBSERVATION DATA M").is_err(),
             true);
-        // OK: 
-        //assert_eq!(
-        //    Header::from_str("2.10 OBSERVATION DATA G").is_err(),
-        //    false);
-        // OK: whitespace insensitive
-        //assert_eq!(
-        //    Header::from_str("  2.10 OBSERVATION DATA G (GPS)").is_err(),
-        //    false);
+        // Data Type Error
+        assert_eq!(
+            Header::from_str("1.00 OBS DATA M").is_err(),
+            true);
+        assert_eq!(
+            Header::from_str("1.00 OBSERVATION DAT M").is_err(),
+            true);
+        // Missing GNSS descriptor
+        assert_eq!(
+            Header::from_str("1.00 OBSERVATION DATA").is_err(),
+            true);
+        
         let hd = Header::from_str("2.00 NAVIGATION DATA G (GPS)");
         println!("Header: {:?}", hd);
         let hd = Header::from_str("2.10 OBSERVATION DATA M");
