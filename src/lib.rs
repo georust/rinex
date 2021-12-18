@@ -135,9 +135,9 @@ struct GnssTime {
 /// Describes `Compact RINEX` specific information
 #[derive(Debug)]
 struct CrinexInfo {
-    version: String,
-    prog: String,
-    date: chrono::NaiveDateTime,
+    version: String, // compression version
+    prog: String, // compression program
+    date: chrono::NaiveDateTime, // date of compression
 }
 
 /// Describes `RINEX` file header
@@ -202,21 +202,21 @@ impl std::str::FromStr for Header {
             false => None,
             true => {
                 let version = match scan_fmt!(&line, "{}", String) {
-                    (Some(version)) => version,
+                    Some(version) => version,
                     _ => return Err(HeaderError::CrinexFormatError),
                 };
-                println!("Version {}", version);
+                println!("CRINEX | Version {}", version);
                 let line = lines.next()
                     .unwrap();
-                let (prog, ymd, hm) = match scan_fmt!(&line, "{} {} {}", String, String, String) {
-                    (Some(prog),Some(ymd),Some(hm)) => (prog,ymd,hm),
+                let (prog1, prog2, ymd, hm) = match scan_fmt!(&line, "{} ver.{} {} {}", String, String, String, String) {
+                    (Some(prog1),Some(prog2),Some(ymd),Some(hm)) => (prog1,prog2,ymd,hm),
                     _ => return Err(HeaderError::CrinexFormatError),
                 };
-                println!("PROG {} YMD {}", prog, ymd);
+                let prog_str = prog1.to_owned() + " ver." + &prog2;
                 let date_str = ymd.to_owned() + &hm;
                 Some(CrinexInfo {
                     version: version.to_string(),
-                    prog: prog.to_string(),
+                    prog: prog_str,
                     date: chrono::NaiveDateTime::parse_from_str(
                         &date_str,
                         "%d-%b-%y %H:%M"
