@@ -20,10 +20,13 @@ use std::str::FromStr;
 use scan_fmt::scan_fmt;
 extern crate geo_types;
 
-/// Max. RINEX version supported
-const VERSION: &str = "2.10"; 
+/// Max. `RINEX` version supported
+const VERSION: &str = "3.04"; 
 
-/// Version parsing related error
+/// Special `Compact RINEX` marker 
+const COMPACT_RINEX_HEADER: &str = "COMPACT RINEX FORMAT";
+
+/// Version parsing related error(s)
 #[derive(Error, Debug)]
 enum VersionFormatError {
     #[error("Version string does not match expected format")]
@@ -70,6 +73,8 @@ impl std::str::FromStr for Constellation {
 
 #[derive(Error, Debug)]
 enum HeaderError {
+    #[error("Compact RINEX related content mismatch")]
+    CrinexFormatError,
     #[error("RINEX version is not supported '{0}'")]
     VersionNotSupported(String),
     #[error("Non supported header format")]
@@ -78,6 +83,8 @@ enum HeaderError {
     VersionFormatError(#[from] VersionFormatError),
     #[error("Unknown GNSS Constellation '{0}'")]
     UnknownConstellation(#[from] ConstellationError),
+    #[error("Date parsing error")]
+    DateParsingError(#[from] chrono::ParseError),
 }
 
 /// GNSS receiver description
@@ -125,10 +132,19 @@ struct GnssTime {
     gnss: Constellation,
 }
 
-/// Describes RINEX file header
+/// Describes `Compact RINEX` specific information
+#[derive(Debug)]
+struct CrinexInfo {
+    version: String,
+    prog: String,
+    date: chrono::NaiveDateTime,
+}
+
+/// Describes `RINEX` file header
 #[derive(Debug)]
 struct Header {
-    version: String, // Rinex format version
+    version: String, // version description
+    crinex: Option<CrinexInfo>, // if this is a CRINEX
     constellation: Constellation, // GNSS constellation being used
     program: String, // `PGM` program name 
     run_by: String, // marker number
@@ -145,8 +161,8 @@ struct Header {
     sampling_interval: f32, // sampling
     first_epoch: GnssTime, // date of first observation
     last_epoch: Option<GnssTime>, // date of last observation
-    comments: Option<&'static str>, // optionnal comments
     epoch_corrected: bool, // true if epochs are already corrected
+    comments: Option<String>, // optionnal header comments
     gps_utc_delta: Option<u32>, // optionnal GPS / UTC time difference
     sat_number: Option<u32>, // nb of sat for which we have data
 }
@@ -172,18 +188,49 @@ impl std::fmt::Display for Header {
  * • The # OF SATELLITES record (if present) should be immediately followed by the
  * corresponding number of PRN / # OF OBS records.
 */
-impl Header {
+impl std::str::FromStr for Header {
+    type Err = HeaderError;
     /// Builds header from extracted header description
-    fn from (content: &str, data_type: DataType) -> Result<Header, HeaderError> {
-        let lines: Vec<&str> = content.split_terminator('\n')
-            .collect();
-        // is this V >= 3 and possible compact Rinex ?
-        // line #1 always expected 
-        let line = lines.get(0)
+    fn from_str (content: &str) -> Result<Self, Self::Err> {
+        let mut content_split: Vec<&str> = content.split_terminator("\n").collect();
+        let mut lines = content_split.iter_mut();
+        let line = lines.next()
             .unwrap();
+        // is a 'compact rinex'?
+        let is_crinex = line.contains(COMPACT_RINEX_HEADER);
+        let crinex_infos: Option<CrinexInfo> = match is_crinex {
+            false => None,
+            true => {
+                let version = match scan_fmt!(&line, "{}", String) {
+                    (Some(version)) => version,
+                    _ => return Err(HeaderError::CrinexFormatError),
+                };
+                let line = lines.next()
+                    .unwrap();
+                let (prog, date) = match scan_fmt!(&line, "{} {}", String, String) {
+                    (Some(prog),Some(date)) => (prog,date),
+                    _ => return Err(HeaderError::CrinexFormatError),
+                };
+                Some(CrinexInfo {
+                    version: version.to_string(),
+                    prog: prog.to_string(),
+                    date: chrono::NaiveDateTime::parse_from_str(
+                        &date,
+                        "%d-%b-%y %H:%M"
+                    )?,
+                })
+            }
+        };
+
+        let line = match is_crinex {
+            true => lines.next()
+                .unwrap(),
+            false => line
+        };
+/*
         let (version, constellation) : (String, String) = match data_type {
             DataType::ObservationData => {
-                match scan_fmt!(line,
+                match scan_fmt!(&line,
                     "{} {} {} {}",
                     String, String, String, String
                 ) {
@@ -203,7 +250,6 @@ impl Header {
             _ => {},
         }
 
-/*
         // line #2 always expected 
         let line = lines.get(1)
             .unwrap();
@@ -226,8 +272,9 @@ impl Header {
         // starting from there we have several options
 */
         Ok(Header{
-            version: version.to_string(),
-            constellation: Constellation::from_str(&constellation)?,
+            version: String::from("Unknown"), 
+            crinex: crinex_infos, 
+            constellation: Constellation::GPS,
             program: String::from("test"), 
             run_by: String::from("test"),
             station: None,
@@ -257,6 +304,33 @@ impl Header {
             gps_utc_delta: None,
             sat_number: None,
         })
+    }
+}
+
+impl Header {
+    /// Returns true if self is a `Compact RINEX`
+    pub fn is_crinex (&self) -> bool { self.crinex.is_some() }
+
+    /// Returns `Compact RINEX` version (if any) 
+    pub fn get_crinex_version (&self) -> Option<&str> { 
+        match &self.crinex {
+            Some(crinex) => Some(&crinex.version),
+            _ => None,
+        }
+    }
+    /// Returns `Compact RINEX` prog (if any) 
+    pub fn get_crinex_prog (&self) -> Option<&str> { 
+        match &self.crinex {
+            Some(crinex) => Some(&crinex.prog),
+            _ => None,
+        }
+    }
+    /// Returns `Compact RINEX` date (if any) 
+    pub fn get_crinex_date (&self) -> Option<chrono::NaiveDateTime> { 
+        match &self.crinex {
+            Some(crinex) => Some(crinex.date),
+            _ => None,
+        }
     }
 }
 
@@ -319,12 +393,14 @@ enum RinexError {
     HeaderError(#[from] HeaderError), 
     #[error("Unknown file format '{0}'")]
     UnknownFileFormat(String),
+    #[error("TO BE REMOVED")]
+    WorkInProgress,
 }
 
 impl Rinex {
 
     /// grabs header content of given file
-    fn grab_header (fp: &std::path::Path) -> Result<String, RinexError> {
+    fn parse_header_content (fp: &std::path::Path) -> Result<String, RinexError> {
         let content: String = std::fs::read_to_string(fp)
             .unwrap()
                 .parse()
@@ -334,25 +410,11 @@ impl Rinex {
         }
         let parsed: Vec<&str> = content.split_inclusive("END OF HEADER")
             .collect();
-        // TODO @ GBR
-        // faudrait virer les commentaires en utilisant le nb de col
-        // car ils font plus chier qu'autre chose
         Ok(parsed[0].to_string())
-    }
-
-    /// builds `Rinex` from observation (.o) file 
-    fn from_observation_file (fp: &std::path::Path) -> Result<Rinex, RinexError> {
-        let header_str = Rinex::grab_header(fp)?;
-        let header = Header::from(&header_str, DataType::ObservationData)?;
-        Err(RinexError::MissingHeaderDelimiter)
     }
 
     /// `Rinex` constructor
     pub fn from (fp: &std::path::Path) -> Result<Rinex, RinexError> {
-        /*
-         * TODO @GBR
-         * checker debut egalement plz
-         */
         // ssssdddf.yyt
         // ssss: acronyme de la station
         // ddd: jour de l'annee du premier record
@@ -370,11 +432,13 @@ impl Rinex {
         if extension_re.is_match(extension) {
             return Err(RinexError::FileNamingConvention)
         }*/
-        if extension.ends_with("o") {
-            Rinex::from_observation_file(fp)
-        } else {
-            Err(RinexError::UnknownFileFormat(extension.to_string()))
-        }
+
+        // build header
+        let header = Header::from_str(&Rinex::parse_header_content(fp)?)?;
+        Ok(Rinex{
+            header,
+            data_type: DataType::ObservationData,
+        })
     }
 }
 
