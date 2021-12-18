@@ -1,11 +1,13 @@
 [package]
 name = "rinex"
-version = "0.0.1"
+version = "0.0.1-pre"
+license-file = "LICENSE"
 authors = ["Guillaume W. Bres <guillaume.bressaix@gmail.com>"]
+description = "Package to parse and analyze RINEX data"
 homepage = "https://github.com/gwbres/rinex"
-readme = "README.md"
 keywords = ["rinex", "positionning", "timing", "gps"]
 edition = "2018"
+readme = "README.md"
 
 [dependencies]
 thiserror = "1"
