@@ -205,17 +205,20 @@ impl std::str::FromStr for Header {
                     (Some(version)) => version,
                     _ => return Err(HeaderError::CrinexFormatError),
                 };
+                println!("Version {}", version);
                 let line = lines.next()
                     .unwrap();
-                let (prog, date) = match scan_fmt!(&line, "{} {}", String, String) {
-                    (Some(prog),Some(date)) => (prog,date),
+                let (prog, ymd, hm) = match scan_fmt!(&line, "{} {} {}", String, String, String) {
+                    (Some(prog),Some(ymd),Some(hm)) => (prog,ymd,hm),
                     _ => return Err(HeaderError::CrinexFormatError),
                 };
+                println!("PROG {} YMD {}", prog, ymd);
+                let date_str = ymd.to_owned() + &hm;
                 Some(CrinexInfo {
                     version: version.to_string(),
                     prog: prog.to_string(),
                     date: chrono::NaiveDateTime::parse_from_str(
-                        &date,
+                        &date_str,
                         "%d-%b-%y %H:%M"
                     )?,
                 })
@@ -494,12 +497,14 @@ mod test {
             let path = entry.path();
             if !path.is_dir() { // only files..
                 let fp = std::path::Path::new(&path);
+                let rinex = Rinex::from(&fp);
                 assert_eq!(
-                    Rinex::from(&fp).is_err(),
+                    rinex.is_err(), 
                     false,
                     "Rinex::from() failed for '{:?}' with '{:?}'",
                     path, 
-                    Rinex::from(&fp))
+                    rinex);
+                println!("File: {:?}\n{:?}", &fp, rinex)
             }
         }
     }
