@@ -3,16 +3,16 @@
 //! 
 //! Current supported RINEX Version is 2.11.
 //! 
+//! Homepage: <https://github.com/gwbres/rinex>
+//!
 //! The lib is not sensitive to white spaces, whether they
 //! be trailing or missing whitespaces. Therefore
-//! the lib would accept files that do not respect standard
-//! specifications.
+//! the lib would accept files that do not strictly respect 
+//! RINEX standards in terms of white spaces. 
 //!
 //! The lib does not care about end of line description
 //! that is most of the time integrated to the header section.
-//! exceptions: ?
-//!
-//! url:
+//! Exceptions: ?
 
 use regex::Regex;
 use thiserror::Error;
@@ -177,6 +177,7 @@ impl Header {
     fn from (content: &str, data_type: DataType) -> Result<Header, HeaderError> {
         let lines: Vec<&str> = content.split_terminator('\n')
             .collect();
+        // is this V >= 3 and possible compact Rinex ?
         // line #1 always expected 
         let line = lines.get(0)
             .unwrap();
@@ -202,6 +203,7 @@ impl Header {
             _ => {},
         }
 
+/*
         // line #2 always expected 
         let line = lines.get(1)
             .unwrap();
@@ -213,6 +215,7 @@ impl Header {
             String, String, String
         ) {
             (Some(pgm),Some(run_by),
+        }
 
         let mut items = line.split_whitespace(); 
         let pgm = items.next().unwrap();
