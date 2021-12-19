@@ -23,6 +23,43 @@ extern crate geo_types;
 /// Max. `RINEX` version supported
 const VERSION: &str = "3.04"; 
 
+/// Checks whether this lib supports the given RINEX revision number
+/// Revision number matches expected format already
+fn version_is_supported (version: &str) -> Result<bool, std::num::ParseIntError> {
+    let supported_digits: Vec<&str> = VERSION.split(".").collect();
+    let digit0 = u32::from_str_radix(supported_digits.get(0)
+        .unwrap(), 
+            10)
+            .unwrap();
+    let digit1 = u32::from_str_radix(supported_digits.get(1)
+        .unwrap(),
+            10)
+            .unwrap();
+    let digits: Vec<&str> = version.split(".").collect();
+    let target_digit0 = u32::from_str_radix(digits.get(0)
+        .unwrap_or(&"?"), 
+            10)?;
+    let target_digit1 = u32::from_str_radix(digits.get(1)
+        .unwrap_or(&"?"), 
+            10)?;
+    if target_digit0 > digit0 {
+        Ok(false)
+    } else {
+        if target_digit0 == digit0 {
+           if target_digit1 <= digit1 {
+                Ok(true)
+           } else {
+               Ok(false)
+            }
+        } else {
+            Ok(true)
+        }
+    }
+}
+
+/// Checks whether this (header) line is a comment or not
+fn is_comment (line: &str) -> bool { line.contains("COMMENT") }
+
 /// Describes all known `GNSS constellations`
 #[derive(Clone, PartialEq, Debug)]
 pub enum Constellation {
@@ -170,12 +207,12 @@ struct Header {
     crinex: Option<CrinexInfo>, // if this is a CRINEX
     rinex_type: RinexType, // type of Rinex
     constellation: Constellation, // GNSS constellation being used
-    program: String, // `PGM` program name 
-    run_by: String, // marker number
+    program: String, // program name 
+    run_by: Option<String>, // program run by
     //date: strtime, // file date of creation
-    station: Option<&'static str>, // station label
-    observer: &'static str, // observer label
-    agency: &'static str, // observer/agency
+    station: Option<String>, // station label
+    observer: String, // observer label
+    agency: String, // observer/agency
     rcvr: Rcvr, // receiver used for this recording
     ant: Antenna, // antenna used for this recording
     coords: geo_types::Point<f32>, // station approx. coords
@@ -186,13 +223,13 @@ struct Header {
     first_epoch: GnssTime, // date of first observation
     last_epoch: Option<GnssTime>, // date of last observation
     epoch_corrected: bool, // true if epochs are already corrected
-    comments: Option<String>, // optionnal header comments
     gps_utc_delta: Option<u32>, // optionnal GPS / UTC time difference
     sat_number: Option<u32>, // nb of sat for which we have data
 }
 
 const RINEX_CRINEX_HEADER_COMMENT : &str = "COMPACT RINEX FORMAT";
 const RINEX_HEADER_LINE1_COMMENT  : &str = "RINEX VERSION / TYPE";
+const RINEX_HEADER_LINE2_COMMENT  : &str = "PGM / RUN BY / DATE";
 const RINEX_HEADER_END_COMMENT    : &str = "END OF HEADER";
 
 #[derive(Error, Debug)]
@@ -205,8 +242,10 @@ enum HeaderError {
     VersionFormatError(String),
     #[error("Failed to parse Rinex version from line \"{0}\"")]
     VersionParsingError(String),
-    #[error("Missing expected header comment/label on line #1")]
+    #[error("Missing expected label on line #1")]
     MissingRinexVersionTypeComment,
+    #[error("Missing expected label on line #2")]
+    MissingRinexPgmRunByComment,
     #[error("Failed to identify data type in \"{0}\"")]
     RinexTypeIdentificationError(String),
     #[error("Rine type error")]
@@ -233,8 +272,13 @@ impl std::str::FromStr for Header {
             .collect();
         let mut lines = content_split
             .iter_mut();
-        let line = lines.next()
+        let mut line = lines.next()
             .unwrap();
+        // comments ?
+        while is_comment(line) {
+            line = lines.next()
+                .unwrap();
+        }
         // 'compact rinex'?
         let is_crinex = line.contains(RINEX_CRINEX_HEADER_COMMENT);
         let crinex_infos: Option<CrinexInfo> = match is_crinex {
@@ -262,13 +306,17 @@ impl std::str::FromStr for Header {
                 })
             }
         };
-
-        let line = match is_crinex {
-            true => lines.next()
-                .unwrap(),
-            false => line
-        };
-
+        
+        if is_crinex {
+            line = lines.next()
+                .unwrap();
+            // comments ?
+            while is_comment(line) {
+                line = lines.next()
+                    .unwrap();
+            }
+        }
+        
         // line1
         let cleanedup = String::from(line.trim()); // rm trailing 
         // must match X.YY pattern
@@ -320,6 +368,44 @@ impl std::str::FromStr for Header {
                 }
             },
         };
+
+        // line2
+        line = lines.next()
+            .unwrap();
+        // comments ?
+        while is_comment(line) {
+            line = lines.next()
+                .unwrap();
+        }
+
+        // {} {}        yyyymmdd HH:MM:SSUTC
+        // {} {}        yyyymmdd HH:MM:SSLCL
+        // {} {}        yyyymmdd HHMMSS UTC
+        // {}           yyyymmdd HHMMSS UTC
+        // 0. remove label cause its most of the time 
+        //    right next to UTC/LCL
+        println!("{}", line);
+        let cleanedup = match line.strip_suffix(RINEX_HEADER_LINE2_COMMENT) {
+            Some(s) => s.trim(),
+            _ => return Err(HeaderError::MissingRinexPgmRunByComment),
+        };
+        // 1. start with date cause it's always there
+        //    identify date format
+        let utc_regex = vec![
+            r"\d\d\d\d\d\d\d\d \d\d:\d\d:\d\dUTC$",
+            r"\d\d\d\d\d\d\d\d \d\d\d\d\d\dUTC$",
+        ];
+        let lcl_regex = vec![
+            r"\d\d\d\d\d\d\d\d \d\d:\d\d:\d\dLCL$",
+            r"\d\d\d\d\d\d\d\d \d\d\d\d\d\dLCL$",
+        ];
+        //    parse date & remove it
+
+        // 2. then PGM is always there
+        //    parse PGM & remove it
+
+        // 3. `run by` is sometimes not provided,
+        //    do we have a remainder? 
         
         Ok(Header{
             version,
@@ -327,10 +413,10 @@ impl std::str::FromStr for Header {
             rinex_type,
             constellation,
             program: String::from("test"), 
-            run_by: String::from("test"),
+            run_by: None, 
             station: None,
-            observer: "",
-            agency: "",
+            observer: String::from("?"),
+            agency: String::from("?"),
             rcvr: Rcvr {
                 model: String::from("test"),
                 sn: String::from("test"),
@@ -351,7 +437,6 @@ impl std::str::FromStr for Header {
             },
             last_epoch: None,
             epoch_corrected: false,
-            comments: None,
             gps_utc_delta: None,
             sat_number: None,
         })
@@ -384,41 +469,6 @@ impl Header {
         }
     }
 }
-
-/// Checks whether this lib supports the given RINEX revision number
-/// Revision number matches expected format already
-fn version_is_supported (version: &str) -> Result<bool, std::num::ParseIntError> {
-    let supported_digits: Vec<&str> = VERSION.split(".").collect();
-    let digit0 = u32::from_str_radix(supported_digits.get(0)
-        .unwrap(), 
-            10)
-            .unwrap();
-    let digit1 = u32::from_str_radix(supported_digits.get(1)
-        .unwrap(),
-            10)
-            .unwrap();
-    let digits: Vec<&str> = version.split(".").collect();
-    let target_digit0 = u32::from_str_radix(digits.get(0)
-        .unwrap_or(&"?"), 
-            10)?;
-    let target_digit1 = u32::from_str_radix(digits.get(1)
-        .unwrap_or(&"?"), 
-            10)?;
-    if target_digit0 > digit0 {
-        Ok(false)
-    } else {
-        if target_digit0 == digit0 {
-           if target_digit1 <= digit1 {
-                Ok(true)
-           } else {
-               Ok(false)
-            }
-        } else {
-            Ok(true)
-        }
-    }
-}
-
 
 /// `Rinex` main work structure
 /// describes a RINEX file
