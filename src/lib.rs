@@ -411,7 +411,7 @@ impl Rinex {
         if !content.contains("END OF HEADER") {
             return Err(RinexError::MissingHeaderDelimiter)
         }
-        let parsed: Vec<&str> = content.split_inclusive("END OF HEADER")
+        let parsed: Vec<&str> = content.split("END OF HEADER")
             .collect();
         Ok(parsed[0].to_string())
     }
@@ -422,19 +422,25 @@ impl Rinex {
         // ssss: acronyme de la station
         // ddd: jour de l'annee du premier record
         // f: numero de la session dans le jour avec 0 pour une journee complete
+        let name = fp.file_name()
+            .unwrap();
+        println!("NAME '{:?}'", name);
         let extension = fp.extension()
             .unwrap();
         let extension = extension.to_str()
             .unwrap();
-        /*
-         * TODO @ GBR
-         * check for naming convention plz
-        println!("'{}'", extension);
-         * let extension_re = Regex::new(r"\d\d.")
-            .unwrap();
-        if extension_re.is_match(extension) {
-            return Err(RinexError::FileNamingConvention)
-        }*/
+        
+        match extension {
+            "crx" => {}, // crinex, could have a regex prior "."
+            "rnx" => {}, // decompressed crinex ?
+            _ => {
+                let convention_re = Regex::new(r"\d\d\d\d\.\d\d[o|O|g|G|i|I|d|D|s|S]$")
+                    .unwrap();
+                if !convention_re.is_match(name.to_str().unwrap()) {
+                    return Err(RinexError::FileNamingConvention)
+                }
+           }
+        }
 
         // build header
         let header = Header::from_str(&Rinex::parse_header_content(fp)?)?;
