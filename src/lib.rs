@@ -424,12 +424,10 @@ impl Rinex {
         // f: numero de la session dans le jour avec 0 pour une journee complete
         let name = fp.file_name()
             .unwrap();
-        println!("NAME '{:?}'", name);
         let extension = fp.extension()
             .unwrap();
         let extension = extension.to_str()
             .unwrap();
-        
         match extension {
             "crx" => {}, // crinex, could have a regex prior "."
             "rnx" => {}, // decompressed crinex ?
@@ -510,7 +508,7 @@ mod test {
                     "Rinex::from() failed for '{:?}' with '{:?}'",
                     path, 
                     rinex);
-                println!("File: {:?}\n{:?}", &fp, rinex)
+                println!("File: {:?}\n{:#?}", &fp, rinex)
             }
         }
     }
