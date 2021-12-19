@@ -1,7 +1,8 @@
 //! This package provides a set of tools to parse 
 //! and analyze RINEX files.
 //! 
-//! Current supported RINEX Version is 2.11.
+//! This lib is work in progress, working towards
+//! `RINEX` 3.04 support
 //! 
 //! Homepage: <https://github.com/gwbres/rinex>
 //!
@@ -9,10 +10,6 @@
 //! be trailing or missing whitespaces. Therefore
 //! the lib would accept files that do not strictly respect 
 //! RINEX standards in terms of white spaces. 
-//!
-//! The lib does not care about end of line description
-//! that is most of the time integrated to the header section.
-//! Exceptions: ?
 
 use regex::Regex;
 use thiserror::Error;
