@@ -9,6 +9,8 @@ keywords = ["rinex", "positionning", "timing", "gps"]
 edition = "2018"
 readme = "README.md"
 
+exclude = ["data/",]
+
 [dependencies]
 thiserror = "1"
 chrono = "0.4"
