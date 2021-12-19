@@ -20,13 +20,13 @@ use std::str::FromStr;
 use scan_fmt::scan_fmt;
 extern crate geo_types;
 
-/// Max. `RINEX` version supported
-const VERSION: &str = "3.04"; 
+/// Current `RINEX` version supported
+const SUPPORTED_VERSION: &str = "3.04"; 
 
 /// Checks whether this lib supports the given RINEX revision number
 /// Revision number matches expected format already
 fn version_is_supported (version: &str) -> Result<bool, std::num::ParseIntError> {
-    let supported_digits: Vec<&str> = VERSION.split(".").collect();
+    let supported_digits: Vec<&str> = SUPPORTED_VERSION.split(".").collect();
     let digit0 = u32::from_str_radix(supported_digits.get(0)
         .unwrap(), 
             10)
@@ -46,9 +46,9 @@ fn version_is_supported (version: &str) -> Result<bool, std::num::ParseIntError>
         Ok(false)
     } else {
         if target_digit0 == digit0 {
-           if target_digit1 <= digit1 {
+            if target_digit1 <= digit1 {
                 Ok(true)
-           } else {
+            } else {
                Ok(false)
             }
         } else {
@@ -106,6 +106,17 @@ struct Rcvr {
     firmware: String, // firmware #
 }
 
+impl Default for Rcvr {
+    /// Builds a `default` Receiver
+    fn default() -> Rcvr {
+        Rcvr {
+            model: String::from("Unknown"),
+            sn: String::from("?"),
+            firmware: String::from("?"),
+        }
+    }
+}
+
 #[derive(Debug)]
 enum RcvrError {
     FormatError,
@@ -135,12 +146,33 @@ struct Antenna {
     coords: geo_types::Point<f32>, // ANT approx. coordinates
 }
 
+impl Default for Antenna {
+    /// Builds default `Antenna` structure
+    fn default() -> Antenna {
+        Antenna {
+            model: String::from("Unknown"),
+            sn: String::from("?"),
+            coords: geo_types::Point::<f32>::new(0.0,0.0),
+        }
+    }
+}
+
 /// GnssTime struct is a `UTC` time tied to a 
 /// `GNSS` constellation that produced this realization
 #[derive(Debug)]
 struct GnssTime {
     utc: chrono::DateTime<chrono::Utc>, /// UTC time
     gnss: Constellation,
+}
+
+impl Default for GnssTime {
+    /// Builds default `GnssTime` structure
+    fn default() -> GnssTime {
+        GnssTime {
+            utc: chrono::Utc::now(),
+            gnss: Constellation::GPS,
+        }
+    }
 }
 
 /// Describes `Compact RINEX` specific information
@@ -254,6 +286,33 @@ enum HeaderError {
     UnknownConstellation(#[from] ConstellationError),
     #[error("Failed to parse date")]
     DateParsingError(#[from] chrono::ParseError),
+}
+
+impl Default for Header {
+    fn default() -> Header {
+        Header {
+            version: String::from(SUPPORTED_VERSION),
+            crinex: None,
+            rinex_type: RinexType::ObservationData,
+            constellation: Constellation::GPS,
+            program: String::from("pgm"),
+            run_by: None,
+            station: None,
+            agency: String::from("me"),
+            observer: String::from("myself"),
+            rcvr: Rcvr::default(),
+            ant: Antenna::default(),
+            coords: geo_types::Point::new(0.0, 0.0),
+            wavelengths: None,
+            nb_observations: 0,
+            sampling_interval: 1.0,
+            first_epoch: GnssTime::default(),
+            last_epoch: None,
+            epoch_corrected: false,
+            gps_utc_delta: None,
+            sat_number: Some(0)
+        }
+    }
 }
 
 /* NOTES
@@ -488,6 +547,13 @@ enum RinexError {
 }
 
 impl Rinex {
+    /// Builds a Rinex struct
+    pub fn new (header: Header) -> Rinex {
+        Rinex {
+            header
+        }
+    }
+
     /// grabs header content of given file
     fn parse_header_content (fp: &std::path::Path) -> Result<String, RinexError> {
         let content: String = std::fs::read_to_string(fp)
@@ -503,7 +569,7 @@ impl Rinex {
     }
 
     /// `Rinex` constructor
-    pub fn from (fp: &std::path::Path) -> Result<Rinex, RinexError> {
+    pub fn from_file (fp: &std::path::Path) -> Result<Rinex, RinexError> {
         let name = fp.file_name()
             .unwrap();
         let extension = fp.extension()
@@ -546,7 +612,7 @@ mod test {
         assert_eq!(version_is_supported("a.b").is_err(), true); // fmt error
         assert_eq!(version_is_supported("1.0").unwrap(), true); // OK basic
         assert_eq!(version_is_supported("1.0").unwrap(), true); // OK old
-        assert_eq!(version_is_supported(VERSION).unwrap(), true); // OK current 
+        assert_eq!(version_is_supported(SUPPORTED_VERSION).unwrap(), true); // OK current 
         assert_eq!(version_is_supported("4.0").unwrap(), false); // NOK too recent 
     }
 
@@ -589,11 +655,11 @@ mod test {
             let path = entry.path();
             if !path.is_dir() { // only files..
                 let fp = std::path::Path::new(&path);
-                let rinex = Rinex::from(&fp);
+                let rinex = Rinex::from_file(&fp);
                 assert_eq!(
                     rinex.is_err(), 
                     false,
-                    "Rinex::from() failed for '{:?}' with '{:?}'",
+                    "Rinex::from_file() failed for '{:?}' with '{:?}'",
                     path, 
                     rinex);
                 println!("File: {:?}\n{:#?}", &fp, rinex)
