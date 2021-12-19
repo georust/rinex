@@ -25,5 +25,5 @@ to test the lib against more data:
 
 ```shell
 cargo test
-cargo est -- --nocapture
+cargo test -- --nocapture
 ```
