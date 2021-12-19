@@ -23,16 +23,6 @@ extern crate geo_types;
 /// Max. `RINEX` version supported
 const VERSION: &str = "3.04"; 
 
-/// Special `Compact RINEX` marker 
-const COMPACT_RINEX_HEADER: &str = "COMPACT RINEX FORMAT";
-
-/// Version parsing related error(s)
-#[derive(Error, Debug)]
-enum VersionFormatError {
-    #[error("Version string does not match expected format")]
-    ParseIntError(#[from] std::num::ParseIntError),
-}
-
 /// Describes all known `GNSS constellations`
 #[derive(Clone, PartialEq, Debug)]
 pub enum Constellation {
@@ -69,22 +59,6 @@ impl std::str::FromStr for Constellation {
             Err(ConstellationError::UnknownConstellation(s.to_string()))
         }
     }
-}
-
-#[derive(Error, Debug)]
-enum HeaderError {
-    #[error("Compact RINEX related content mismatch")]
-    CrinexFormatError,
-    #[error("RINEX version is not supported '{0}'")]
-    VersionNotSupported(String),
-    #[error("Non supported header format")]
-    FormatError,
-    #[error("Version string does not match X.YY format")]
-    VersionFormatError(#[from] VersionFormatError),
-    #[error("Unknown GNSS Constellation '{0}'")]
-    UnknownConstellation(#[from] ConstellationError),
-    #[error("Date parsing error")]
-    DateParsingError(#[from] chrono::ParseError),
 }
 
 /// GNSS receiver description
@@ -140,6 +114,55 @@ struct CrinexInfo {
     date: chrono::NaiveDateTime, // date of compression
 }
 
+/// Describes all known RINEX file types
+#[derive(Debug)]
+enum RinexType {
+    ObservationData,
+    NavigationMessage,
+    MeteorologicalData,
+    ClockData,
+}
+
+#[derive(Error, Debug)]
+enum RinexTypeError {
+    #[error("Unknown RINEX type identifier \"{0}\"")]
+    UnknownType(String),
+}
+
+/// Describes known marker types
+enum MarkerType {
+    Geodetic, // earth fixed high precision
+    NonGeodetic, // earth fixed low prcesion
+    NonPhysical, // generated from network
+    Spaceborne, // orbiting space vehicule
+    Airborne, // aircraft, balloon, ...
+    WaterCraft, // mobile water craft
+    GroundCraft, // mobile terrestrial vehicule
+    FixedBuoy, // fixed on water surface
+    FloatingBuoy, // floating on water surface
+    FloatingIce, // floating on ice sheet
+    Glacier, // fixed on a glacier
+    Ballistic, // rockets, shells, etc..
+    Animal, // animal carrying a receiver
+    Human, // human being
+}
+
+impl std::str::FromStr for RinexType {
+    type Err = RinexTypeError;
+    fn from_str (s: &str) -> Result<Self, Self::Err> {
+        if s.contains("OBSERVATION") {
+            Ok(RinexType::ObservationData)
+        } else if s.contains("NAVIGATION") {
+            Ok(RinexType::NavigationMessage)
+        } else if s.contains("METEOROLOGICAL") {
+            Ok(RinexType::MeteorologicalData)
+        } else if s.contains("CLOCK") {
+            Ok(RinexType::ClockData)
+        } else {
+            Err(RinexTypeError::UnknownType(String::from(s)))
+        }
+    }
+}
 /// Describes `RINEX` file header
 #[derive(Debug)]
 struct Header {
@@ -167,37 +190,52 @@ struct Header {
     sat_number: Option<u32>, // nb of sat for which we have data
 }
 
-/// Header displayer
-impl std::fmt::Display for Header {
-    fn fmt (&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f,
-            "RINEX Version: {}",
-            self.version
-        )
-    }
+const RINEX_CRINEX_HEADER_COMMENT : &str = "COMPACT RINEX FORMAT";
+const RINEX_HEADER_LINE1_COMMENT  : &str = "RINEX VERSION / TYPE";
+const RINEX_HEADER_END_COMMENT    : &str = "END OF HEADER";
+
+#[derive(Error, Debug)]
+enum HeaderError {
+    #[error("Compact RINEX related content mismatch")]
+    CrinexFormatError,
+    #[error("RINEX version is not supported '{0}'")]
+    VersionNotSupported(String),
+    #[error("Line \"{0}\" should begin with Rinex version \"x.yy\"")]
+    VersionFormatError(String),
+    #[error("Failed to parse Rinex version from line \"{0}\"")]
+    VersionParsingError(String),
+    #[error("Missing expected header comment/label on line #1")]
+    MissingRinexVersionTypeComment,
+    #[error("Failed to identify data type in \"{0}\"")]
+    RinexTypeIdentificationError(String),
+    #[error("Rine type error")]
+    RinexTypeError(#[from] RinexTypeError),
+    #[error("Unknown GNSS Constellation '{0}'")]
+    UnknownConstellation(#[from] ConstellationError),
+    #[error("Failed to parse date")]
+    DateParsingError(#[from] chrono::ParseError),
 }
 
 /* NOTES
- * The RINEX VERSION / TYPE record must be the first record in a file.
  * • The PGM / RUN BY / DATE line must be the second record(line) in all RINEX
- * files. In RINEX Observation files additional records of this type from previous file
- * modifications or updates can be stored if needed as the lines immediately following
- * the second line.
+ * files. 
+ * <o customization in RINEX Obs described on line #3 ??
  * • The SYS / # / OBS TYPES record(s) should precede any SYS / DCBS
  * APPLIED and SYS / SCALE FACTOR records.
- * • The # OF SATELLITES record (if present) should be immediately followed by the
- * corresponding number of PRN / # OF OBS records.
+ * • The # OF SATELLITES record (if present) should be immediately followed by the corresponding number of PRN / # OF OBS records.
 */
 impl std::str::FromStr for Header {
     type Err = HeaderError;
     /// Builds header from extracted header description
     fn from_str (content: &str) -> Result<Self, Self::Err> {
-        let mut content_split: Vec<&str> = content.split_terminator("\n").collect();
-        let mut lines = content_split.iter_mut();
+        let mut content_split: Vec<&str> = content.split_terminator("\n")
+            .collect();
+        let mut lines = content_split
+            .iter_mut();
         let line = lines.next()
             .unwrap();
-        // is a 'compact rinex'?
-        let is_crinex = line.contains(COMPACT_RINEX_HEADER);
+        // 'compact rinex'?
+        let is_crinex = line.contains(RINEX_CRINEX_HEADER_COMMENT);
         let crinex_infos: Option<CrinexInfo> = match is_crinex {
             false => None,
             true => {
@@ -205,7 +243,6 @@ impl std::str::FromStr for Header {
                     Some(version) => version,
                     _ => return Err(HeaderError::CrinexFormatError),
                 };
-                println!("CRINEX | Version {}", version);
                 let line = lines.next()
                     .unwrap();
                 let (prog1, prog2, ymd, hm) = match scan_fmt!(&line, "{} ver.{} {} {}", String, String, String, String) {
@@ -230,49 +267,59 @@ impl std::str::FromStr for Header {
                 .unwrap(),
             false => line
         };
-/*
-        let (version, constellation) : (String, String) = match data_type {
-            DataType::ObservationData => {
-                match scan_fmt!(&line,
-                    "{} {} {} {}",
-                    String, String, String, String
-                ) {
-                    (Some(version),
-                    _, // 'OBSERVATION'
-                    _, // 'DATA'
-                    Some(constellation)) => (version,constellation),
-                    _ => return Err(HeaderError::FormatError),
-                }
-            }
+
+        // line1
+        let cleanedup = String::from(line.trim()); // rm trailing 
+        // must match X.YY pattern
+        let line1_regex = Regex::new(r"^\d\.\d\d ")
+            .unwrap();
+        if !line1_regex.is_match(&cleanedup) {
+            return Err(HeaderError::VersionFormatError(String::from(cleanedup)))
+        }
+        // map x.yy
+        let version = match scan_fmt!(&cleanedup, "{} ", String) {
+            Some(version) => version,
+            _ => return Err(HeaderError::VersionParsingError(String::from(cleanedup))),
         };
-        
+        // drop previously identified version
+        let pos: usize = cleanedup.find(&version)
+            .unwrap(); // already matching 
+        let cleanedup_r = cleanedup.split_at(pos).1;
+        // remove comment @ end of line
+        let pos: usize = match cleanedup_r.rfind(RINEX_HEADER_LINE1_COMMENT) {
+            Some(offset) => offset,
+            _ => return Err(HeaderError::MissingRinexVersionTypeComment),
+        };
+        let cleanedup_rr = cleanedup_r.split_at(pos).0;
+        println!("CLEANED UP \"{}\"", cleanedup_rr);
+        // remainder is data type descriptor
+        let (data_type, constellation): (RinexType, Constellation)
+                = match cleanedup.contains("G: GLONASS NAV DATA")
+        {
+            true => {
+                // GLONASS NAV. DATA (.g): special case
+                (RinexType::ObservationData,
+                Constellation::GPS)
+            },
+            false => {
+                // nominal case, .d, .o
+                // {} {DATA/MAPS} {} (type0, _, constellation)
+                match scan_fmt!(&cleanedup, "{} {} {}", String, String, String) {
+                    (Some(data),_,Some(constellation)) => {
+                        (RinexType::from_str(&data)?,
+                        Constellation::from_str(&constellation)?)
+                    },
+                    _ => return Err(HeaderError::RinexTypeIdentificationError(String::from(cleanedup))),
+                }
+            },
+        };
+/* 
         /* Version X.YY verification */
         match version_is_supported(&version) {
             Ok(false) => return Err(HeaderError::VersionNotSupported(version.to_string())),
             Err(e) => return Err(HeaderError::VersionFormatError(e)),
             _ => {},
         }
-
-        // line #2 always expected 
-        let line = lines.get(1)
-            .unwrap();
-        let (pgm, run_by) : (String, String) = match scan_fmt!(line,
-            // TODO@
-            // on peut pas attendre forcement 2 string
-            // sur le nom ici
-            "{} {} {} {} {} {}",
-            String, String, String
-        ) {
-            (Some(pgm),Some(run_by),
-        }
-
-        let mut items = line.split_whitespace(); 
-        let pgm = items.next().unwrap();
-        let run_by = items.next().unwrap();
-        let date = items.next().unwrap();
-        let tz = items.next().unwrap();
-
-        // starting from there we have several options
 */
         Ok(Header{
             version: String::from("Unknown"), 
@@ -339,7 +386,7 @@ impl Header {
 
 /// Checks whether this lib supports the given RINEX revision number
 /// Revision number matches expected format already
-fn version_is_supported (version: &str) -> Result<bool, VersionFormatError> {
+fn version_is_supported (version: &str) -> Result<bool, std::num::ParseIntError> {
     let supported_digits: Vec<&str> = VERSION.split(".").collect();
     let digit0 = u32::from_str_radix(supported_digits.get(0)
         .unwrap(), 
@@ -377,13 +424,6 @@ fn version_is_supported (version: &str) -> Result<bool, VersionFormatError> {
 #[derive(Debug)]
 struct Rinex {
     header: Header,
-    data_type: DataType,
-}
-
-/// Describes all known RINEX file types
-#[derive(Debug)]
-enum DataType {
-    ObservationData,
 }
 
 #[derive(Error, Debug)]
@@ -393,58 +433,55 @@ enum RinexError {
     #[error("Header delimiter not found")]
     MissingHeaderDelimiter,
     #[error("Header parsing error")]
-    HeaderError(#[from] HeaderError), 
-    #[error("Unknown file format '{0}'")]
-    UnknownFileFormat(String),
-    #[error("TO BE REMOVED")]
-    WorkInProgress,
+    HeaderError(#[from] HeaderError),
 }
 
 impl Rinex {
-
     /// grabs header content of given file
     fn parse_header_content (fp: &std::path::Path) -> Result<String, RinexError> {
         let content: String = std::fs::read_to_string(fp)
             .unwrap()
                 .parse()
                 .unwrap();
-        if !content.contains("END OF HEADER") {
+        if !content.contains(RINEX_HEADER_END_COMMENT) {
             return Err(RinexError::MissingHeaderDelimiter)
         }
-        let parsed: Vec<&str> = content.split("END OF HEADER")
+        let parsed: Vec<&str> = content.split(RINEX_HEADER_END_COMMENT)
             .collect();
         Ok(parsed[0].to_string())
     }
 
     /// `Rinex` constructor
     pub fn from (fp: &std::path::Path) -> Result<Rinex, RinexError> {
-        // ssssdddf.yyt
-        // ssss: acronyme de la station
-        // ddd: jour de l'annee du premier record
-        // f: numero de la session dans le jour avec 0 pour une journee complete
         let name = fp.file_name()
             .unwrap();
         let extension = fp.extension()
             .unwrap();
         let extension = extension.to_str()
             .unwrap();
-        match extension {
-            "crx" => {}, // crinex, could have a regex prior "."
-            "rnx" => {}, // decompressed crinex ?
-            _ => {
-                let convention_re = Regex::new(r"\d\d\d\d\.\d\d[o|O|g|G|i|I|d|D|s|S]$")
-                    .unwrap();
-                if !convention_re.is_match(name.to_str().unwrap()) {
-                    return Err(RinexError::FileNamingConvention)
-                }
-           }
-        }
+        //TODO
+        //TODO .s (summary files) not supported 
+        // standard pour le nom est
+        // ssssdddf.yyt
+        // ssss: acronyme de la station
+        // ddd: jour de l'annee du premier record
+        // f: numero de la session dans le jour avec 0 pour une journee complete
+        /*if !extension.eq("crx") && !extension.eq("rnx") {
+            // crinex, could have a regex prior "."
+            // decompressed crinex ?
+            let convention_re = Regex::new(r"\d\d\d\d\.\d\d[o|O|g|G|i|I|d|D|s|S]$")
+                .unwrap();
+            if !convention_re.is_match(
+                name.to_str()
+                    .unwrap()) {
+                return Err(RinexError::FileNamingConvention)
+            }
+        }*/
 
         // build header
         let header = Header::from_str(&Rinex::parse_header_content(fp)?)?;
         Ok(Rinex{
-            header,
-            data_type: DataType::ObservationData,
+            header
         })
     }
 }
