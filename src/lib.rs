@@ -282,6 +282,14 @@ impl std::str::FromStr for Header {
             Some(version) => version,
             _ => return Err(HeaderError::VersionParsingError(String::from(cleanedup))),
         };
+        
+        // version x.yy verification
+        match version_is_supported(&version) {
+            Ok(false) => return Err(HeaderError::VersionNotSupported(version.to_string())),
+            Err(e) => return Err(HeaderError::VersionFormatError(e.to_string())),
+            _ => {},
+        }
+
         // rm previously matched version
         let cleanedup = cleanedup.strip_prefix(&version)
             .unwrap(); // already matching..
@@ -312,16 +320,9 @@ impl std::str::FromStr for Header {
                 }
             },
         };
-/* 
-        /* Version X.YY verification */
-        match version_is_supported(&version) {
-            Ok(false) => return Err(HeaderError::VersionNotSupported(version.to_string())),
-            Err(e) => return Err(HeaderError::VersionFormatError(e)),
-            _ => {},
-        }
-*/
+        
         Ok(Header{
-            version: String::from("Unknown"), 
+            version,
             crinex: crinex_infos, 
             rinex_type,
             constellation,
