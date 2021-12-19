@@ -168,6 +168,7 @@ impl std::str::FromStr for RinexType {
 struct Header {
     version: String, // version description
     crinex: Option<CrinexInfo>, // if this is a CRINEX
+    rinex_type: RinexType, // type of Rinex
     constellation: Constellation, // GNSS constellation being used
     program: String, // `PGM` program name 
     run_by: String, // marker number
@@ -281,19 +282,17 @@ impl std::str::FromStr for Header {
             Some(version) => version,
             _ => return Err(HeaderError::VersionParsingError(String::from(cleanedup))),
         };
-        // drop previously identified version
-        let pos: usize = cleanedup.find(&version)
-            .unwrap(); // already matching 
-        let cleanedup_r = cleanedup.split_at(pos).1;
-        // remove comment @ end of line
-        let pos: usize = match cleanedup_r.rfind(RINEX_HEADER_LINE1_COMMENT) {
-            Some(offset) => offset,
+        // rm previously matched version
+        let cleanedup = cleanedup.strip_prefix(&version)
+            .unwrap(); // already matching..
+        // rm end of line label
+        let cleanedup = match cleanedup.strip_suffix(RINEX_HEADER_LINE1_COMMENT) {
+            Some(s) => s.trim(),
             _ => return Err(HeaderError::MissingRinexVersionTypeComment),
         };
-        let cleanedup_rr = cleanedup_r.split_at(pos).0;
-        println!("CLEANED UP \"{}\"", cleanedup_rr);
+        println!("CLEANED UP \"{}\"", cleanedup);
         // remainder is data type descriptor
-        let (data_type, constellation): (RinexType, Constellation)
+        let (rinex_type, constellation): (RinexType, Constellation)
                 = match cleanedup.contains("G: GLONASS NAV DATA")
         {
             true => {
@@ -324,7 +323,8 @@ impl std::str::FromStr for Header {
         Ok(Header{
             version: String::from("Unknown"), 
             crinex: crinex_infos, 
-            constellation: Constellation::GPS,
+            rinex_type,
+            constellation,
             program: String::from("test"), 
             run_by: String::from("test"),
             station: None,
