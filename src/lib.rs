@@ -135,8 +135,8 @@ struct Antenna {
     coords: geo_types::Point<f32>, // ANT approx. coordinates
 }
 
-/// GnssTime struct is a `UTC` time 
-/// realized from given associated `GNSS constellation`
+/// GnssTime struct is a `UTC` time tied to a 
+/// `GNSS` constellation that produced this realization
 #[derive(Debug)]
 struct GnssTime {
     utc: chrono::DateTime<chrono::Utc>, /// UTC time
@@ -354,7 +354,7 @@ impl std::str::FromStr for Header {
             true => {
                 // GLONASS NAV. DATA (.g): special case
                 (RinexType::ObservationData,
-                Constellation::GPS)
+                Constellation::Glonass)
             },
             false => {
                 // nominal case, .d, .o
