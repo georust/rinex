@@ -68,9 +68,15 @@ pub enum Constellation {
     Mixed, // mixed constellation records
 }
 
+impl Default for Constellation {
+    fn default() -> Constellation {
+        Constellation::GPS
+    }
+}
+
 #[derive(Error, Debug)]
 pub enum ConstellationError {
-    #[error("unknown constellation '{0}'")]
+    #[error("unknown constellation \"{0}\"")]
     UnknownConstellation(String),
 }
 
@@ -91,6 +97,19 @@ impl std::str::FromStr for Constellation {
             Ok(Constellation::Mixed)
         } else {
             Err(ConstellationError::UnknownConstellation(s.to_string()))
+        }
+    }
+}
+
+impl std::fmt::Display for Constellation {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Constellation::GPS => fmt.write_str("GPS"),
+            Constellation::Glonass => fmt.write_str("GLO"),
+            Constellation::Beidou => fmt.write_str("BDS"),
+            Constellation::QZSS => fmt.write_str("QZS"),
+            Constellation::Galileo => fmt.write_str("GAL"),
+            _ => fmt.write_str("M"),
         }
     }
 }
@@ -195,6 +214,25 @@ enum RinexTypeError {
     UnknownType(String),
 }
 
+impl Default for RinexType {
+    fn default() -> RinexType { RinexType::ObservationData }
+}
+
+impl std::str::FromStr for RinexType {
+    type Err = RinexTypeError;
+    fn from_str (s: &str) -> Result<Self, Self::Err> {
+        if s.eq("NAVIGATION DATA") {
+            Ok(RinexType::NavigationMessage)
+        } else if s.eq("OBSERVATION DATA") {
+            Ok(RinexType::ObservationData)
+        } else if s.contains("G: GLONASS NAV DATA") {
+            Ok(RinexType::NavigationMessage)
+        } else {
+            Err(RinexTypeError::UnknownType(String::from(s)))
+        }
+    }
+}
+
 /// Describes known marker types
 enum MarkerType {
     Geodetic, // earth fixed high precision
@@ -213,22 +251,6 @@ enum MarkerType {
     Human, // human being
 }
 
-impl std::str::FromStr for RinexType {
-    type Err = RinexTypeError;
-    fn from_str (s: &str) -> Result<Self, Self::Err> {
-        if s.contains("OBSERVATION") {
-            Ok(RinexType::ObservationData)
-        } else if s.contains("NAVIGATION") {
-            Ok(RinexType::NavigationMessage)
-        } else if s.contains("METEOROLOGICAL") {
-            Ok(RinexType::MeteorologicalData)
-        } else if s.contains("CLOCK") {
-            Ok(RinexType::ClockData)
-        } else {
-            Err(RinexTypeError::UnknownType(String::from(s)))
-        }
-    }
-}
 /// Describes `RINEX` file header
 #[derive(Debug)]
 struct Header {
@@ -333,76 +355,51 @@ impl std::str::FromStr for Header {
         // comments ?
         while is_comment(line) {
             line = lines.next()
-                .unwrap();
+                .unwrap()
         }
         // 'compact rinex'?
         let is_crinex = line.contains(RINEX_CRINEX_HEADER_COMMENT);
         let crinex_infos: Option<CrinexInfo> = match is_crinex {
             false => None,
             true => {
-                let version = match scan_fmt!(&line, "{}", String) {
-                    Some(version) => version,
-                    _ => return Err(HeaderError::CrinexFormatError),
-                };
+                let version = line.split_at(20).0.trim();
                 let line = lines.next()
                     .unwrap();
-                let (prog1, prog2, ymd, hm) = match scan_fmt!(&line, "{} ver.{} {} {}", String, String, String, String) {
-                    (Some(prog1),Some(prog2),Some(ymd),Some(hm)) => (prog1,prog2,ymd,hm),
-                    _ => return Err(HeaderError::CrinexFormatError),
-                };
-                let prog_str = prog1.to_owned() + " ver." + &prog2;
-                let date_str = ymd.to_owned() + &hm;
+                let (pgm, remainder) = line.split_at(20);
+                let (_, remainder) = remainder.split_at(20);
+                let date = remainder.split_at(20).0.trim();
+                println!("CRINEX: VERSION \"{}\" | PGM \"{}\" | DATE \"{}\"", version.trim(), pgm.trim(), date); 
                 Some(CrinexInfo {
-                    version: version.to_string(),
-                    prog: prog_str,
-                    date: chrono::NaiveDateTime::parse_from_str(
-                        &date_str,
-                        "%d-%b-%y %H:%M"
-                    )?,
+                    version: version.trim().to_string(),
+                    prog: pgm.trim().to_string(),
+                    date: chrono::NaiveDateTime::parse_from_str(date, "%d-%b-%y %H:%M")?
                 })
             }
         };
         
         if is_crinex {
             line = lines.next()
-                .unwrap();
-            // comments ?
-            while is_comment(line) {
-                line = lines.next()
-                    .unwrap();
-            }
+                .unwrap()
+        }
+        // comments ?
+        while is_comment(line) {
+            line = lines.next()
+                .unwrap()
         }
         
-        // line1
-        let cleanedup = String::from(line.trim()); // rm trailing 
-        // must match X.YY pattern
-        let line1_regex = Regex::new(r"^\d\.\d\d ")
-            .unwrap();
-        if !line1_regex.is_match(&cleanedup) {
-            return Err(HeaderError::VersionFormatError(String::from(cleanedup)))
-        }
-        // map x.yy
-        let version = match scan_fmt!(&cleanedup, "{} ", String) {
-            Some(version) => version,
-            _ => return Err(HeaderError::VersionParsingError(String::from(cleanedup))),
-        };
-        
+        // line1 {} {} {} // label [VERSION/TYPE/GNSS] 
+        let (version, remainder) = line.split_at(20);
+        let (rinex_type, remainder) = remainder.trim().split_at(20);
+        let (constellation, remainder) = remainder.trim().split_at(20);
+        println!("RINEX | VERSION \"{}\" | TYPE \"{}\" | OTHER \"{}\"", version, rinex_type, constellation);
+
         // version x.yy verification
-        match version_is_supported(&version) {
+        match version_is_supported(version.trim()) {
             Ok(false) => return Err(HeaderError::VersionNotSupported(version.to_string())),
             Err(e) => return Err(HeaderError::VersionFormatError(e.to_string())),
             _ => {},
         }
-
-        // rm previously matched version
-        let cleanedup = cleanedup.strip_prefix(&version)
-            .unwrap(); // already matching..
-        // rm end of line label
-        let cleanedup = match cleanedup.strip_suffix(RINEX_HEADER_LINE1_COMMENT) {
-            Some(s) => s.trim(),
-            _ => return Err(HeaderError::MissingRinexVersionTypeComment),
-        };
-        println!("CLEANED UP \"{}\"", cleanedup);
+/*
         // remainder is data type descriptor
         let (rinex_type, constellation): (RinexType, Constellation)
                 = match cleanedup.contains("G: GLONASS NAV DATA")
@@ -424,50 +421,77 @@ impl std::str::FromStr for Header {
                 }
             },
         };
-
+*/
         // line2
         line = lines.next()
             .unwrap();
         // comments ?
         while is_comment(line) {
             line = lines.next()
-                .unwrap();
+                .unwrap()
         }
 
-        // {} {}        yyyymmdd HH:MM:SSUTC
-        // {} {}        yyyymmdd HH:MM:SSLCL
-        // {} {}        yyyymmdd HHMMSS UTC
-        // {}           yyyymmdd HHMMSS UTC
-        // 0. remove label cause its most of the time 
-        //    right next to UTC/LCL
-        println!("{}", line);
-        let cleanedup = match line.strip_suffix(RINEX_HEADER_LINE2_COMMENT) {
-            Some(s) => s.trim(),
-            _ => return Err(HeaderError::MissingRinexPgmRunByComment),
+        //          | 20      |20
+        // {}       {}        yyyymmdd HH:MM:SSUTC
+        // {}       {}        yyyymmdd HH:MM:SSLCL
+        // {}       {}        yyyymmdd HHMMSS UTC
+        // {}                 yyyymmdd HHMMSS LCL
+        let (pgm, remainder) = line.split_at(20);
+        let (run_by, remainder) = remainder.split_at(20);
+        let (date_str, _) = remainder.split_at(20);
+        // identify date format (UTC/LCL)
+        println!("date str \"{}\"", date_str);
+        let is_utc = date_str.contains("UTC");
+        let date_str: &str = match is_utc {
+            true => {
+                let offset = date_str.rfind("UTC")
+                    .unwrap();
+                date_str.split_at(offset).0.trim() 
+            },
+            false => {
+                let offset = date_str.rfind("LCL")
+                    .unwrap();
+                date_str.split_at(offset).0.trim() 
+            }
         };
-        // 1. start with date cause it's always there
-        //    identify date format
-        let utc_regex = vec![
-            r"\d\d\d\d\d\d\d\d \d\d:\d\d:\d\dUTC$",
-            r"\d\d\d\d\d\d\d\d \d\d\d\d\d\dUTC$",
+        // identify date format (YMDHMS)
+        println!("date str \"{}\"", date_str);
+        let regex: Vec<Regex> = vec![
+            Regex::new(r"\d\d\d\d\d\d\d\d \d\d:\d\d:\d\d$")
+                .unwrap(),
+            Regex::new(r"\d\d\d\d\d\d\d\d \d\d\d\d\d\d$")
+                .unwrap(),
         ];
-        let lcl_regex = vec![
-            r"\d\d\d\d\d\d\d\d \d\d:\d\d:\d\dLCL$",
-            r"\d\d\d\d\d\d\d\d \d\d\d\d\d\dLCL$",
+        let date_fmt: Vec<&str> = vec![
+            "%Y%m%d %H:%M:%S",
+            "%Y%m%d %H%M%S",
         ];
-        //    parse date & remove it
 
-        // 2. then PGM is always there
-        //    parse PGM & remove it
+/*
+         * for i in 0..regex.len() {
+            if regex[i].is_match(cleanedup) {
+                if is_utc {
+                   let date = chrono::Utc::parse_from_str(cleanedup)
+                } else {
+                    let date = chrono::NaiveDate::parse_from_str( 
+                }
+            }
+        }
+*/
 
-        // 3. `run by` is sometimes not provided,
-        //    do we have a remainder? 
+        line = lines.next()
+            .unwrap();
+        // comments ?
+        while is_comment(line) {
+            line = lines.next()
+                .unwrap()
+        }
         
         Ok(Header{
-            version,
+            version: version.trim().to_string(),
             crinex: crinex_infos, 
-            rinex_type,
-            constellation,
+            rinex_type: RinexType::from_str(rinex_type.trim())?,
+            constellation: Constellation::from_str(constellation.trim())?, 
             program: String::from("test"), 
             run_by: None, 
             station: None,
