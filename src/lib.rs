@@ -9,6 +9,7 @@ use regex::Regex;
 use thiserror::Error;
 use std::str::FromStr;
 use scan_fmt::scan_fmt;
+use chrono::{Timelike, Datelike};
 extern crate geo_types;
 
 /// Current `RINEX` version supported
@@ -143,7 +144,6 @@ impl std::str::FromStr for Rcvr {
 struct Antenna {
     model: String,
     sn: String, // serial #
-    coords: geo_types::Point<f32>, // ANT approx. coordinates
 }
 
 impl Default for Antenna {
@@ -152,7 +152,6 @@ impl Default for Antenna {
         Antenna {
             model: String::from("Unknown"),
             sn: String::from("?"),
-            coords: geo_types::Point::<f32>::new(0.0,0.0),
         }
     }
 }
@@ -169,20 +168,39 @@ impl std::str::FromStr for Antenna {
             coords:*/
     }
 }
-/// GnssTime struct is a `UTC` time tied to a 
-/// `GNSS` constellation that produced this realization
+/// GnssTime struct is a time realization,
+/// and the `GNSS` constellation that produced it
 #[derive(Debug)]
 struct GnssTime {
-    utc: chrono::DateTime<chrono::Utc>, /// UTC time
+    time: chrono::NaiveDateTime,
     gnss: Constellation,
 }
 
 impl Default for GnssTime {
     /// Builds default `GnssTime` structure
     fn default() -> GnssTime {
+        let now = chrono::Utc::now();
         GnssTime {
-            utc: chrono::Utc::now(),
+            time: chrono::NaiveDate::from_ymd(
+                now.date().year(),
+                now.date().month(),
+                now.date().day(),
+            ).and_hms(
+                now.time().hour(),
+                now.time().minute(),
+                now.time().second()
+            ),
             gnss: Constellation::GPS,
+        }
+    }
+}
+
+impl GnssTime {
+    /// Builds a new `GnssTime` object
+    fn new(time: chrono::NaiveDateTime, gnss: Constellation) -> GnssTime {
+        GnssTime {
+            time, 
+            gnss
         }
     }
 }
@@ -268,9 +286,9 @@ struct Header {
     wavelengths: Option<(u32,u32)>, // L1/L2 wavelengths
     nb_observations: u64,
     sampling_interval: Option<f32>, // sampling
-    first_epoch: GnssTime, // date of first observation
-    last_epoch: Option<GnssTime>, // date of last observation
-    epoch_corrected: bool, // true if epochs are already corrected
+    epochs: (Option<GnssTime>, Option<GnssTime>), // first , last observations
+    // true if epochs & data compensate for local clock drift 
+    rcvr_clock_offset_applied: Option<bool>, 
     gps_utc_delta: Option<u32>, // optionnal GPS / UTC time difference
     sat_number: Option<u32>, // nb of sat for which we have data
 }
@@ -317,12 +335,11 @@ impl Default for Header {
             ant: None, 
             coords: None, 
             leap: None,
+            rcvr_clock_offset_applied: None,
             wavelengths: None,
             nb_observations: 0,
             sampling_interval: None,
-            first_epoch: GnssTime::default(),
-            last_epoch: None,
-            epoch_corrected: false,
+            epochs: (None, None),
             gps_utc_delta: None,
             sat_number: Some(0)
         }
@@ -456,7 +473,9 @@ impl std::str::FromStr for Header {
         let mut agency     : Option<String>  = None;
         let mut leap       : Option<u32>     = None;
         let mut sampling_interval: Option<f32> = None;
+        let mut rcvr_clock_offset_applied: Option<bool> = None;
         let mut coords     : Option<geo_types::Point<f32>> = None;
+        let mut epochs: (Option<GnssTime>, Option<GnssTime>) = (None, None);
         loop {
             if line.contains("MARKER NAME") {
                 station = Some(String::from(line.split_at(20).0.trim()))
@@ -479,11 +498,35 @@ impl std::str::FromStr for Header {
                 leap = Some(u32::from_str_radix(leap_str, 10)?)
             
             } else if line.contains("TIME OF FIRST OBS") {
-                //TODO
+                let items: Vec<&str> = line.split_ascii_whitespace()
+                    .collect();
+                let (y, month, d, h, min, s, constel): (i32,u32,u32,u32,u32,f32,Constellation) =
+                    (i32::from_str_radix(items[0].trim(),10)?,
+                    u32::from_str_radix(items[1].trim(),10)?,
+                    u32::from_str_radix(items[2].trim(),10)?,
+                    u32::from_str_radix(items[3].trim(),10)?,
+                    u32::from_str_radix(items[4].trim(),10)?,
+                    f32::from_str(items[5].trim())?,
+                    Constellation::from_str(items[6].trim())?);
+                let utc = chrono::NaiveDate::from_ymd(y,month,d).and_hms(h,min,s as u32);
+                epochs.0 = Some(GnssTime::new(utc, constel)) 
+
             } else if line.contains("TIME OF LAST OBS") {
-                //TODO
+                let items: Vec<&str> = line.split_ascii_whitespace()
+                    .collect();
+                let (y, month, d, h, min, s, constel): (i32,u32,u32,u32,u32,f32,Constellation) =
+                    (i32::from_str_radix(items[0].trim(),10)?,
+                    u32::from_str_radix(items[1].trim(),10)?,
+                    u32::from_str_radix(items[2].trim(),10)?,
+                    u32::from_str_radix(items[3].trim(),10)?,
+                    u32::from_str_radix(items[4].trim(),10)?,
+                    f32::from_str(items[5].trim())?,
+                    Constellation::from_str(items[6].trim())?);
+                let utc = chrono::NaiveDate::from_ymd(y,month,d).and_hms(h,min,s as u32);
+                epochs.1 = Some(GnssTime::new(utc, constel)) 
+            
             } else if line.contains("WAVELENGTH FACT L1/2") {
-                //TODO
+            
             } else if line.contains("APPROX POSITION XYZ") {
                 let items: Vec<&str> = line.split_ascii_whitespace()
                     .collect();
@@ -496,7 +539,9 @@ impl std::str::FromStr for Header {
             } else if line.contains("ANTENNA: DELTA H/E/N") {
                 //TODO
             } else if line.contains("RCV CLOCK OFFS APPL") {
-                //TODO
+                let ok_str = line.split_at(20).0.trim();
+                rcvr_clock_offset_applied = Some(i32::from_str_radix(ok_str, 10)? != 0)
+
             } else if line.contains("# OF SATELLITES") {
                 //TODO
             } else if line.contains("PRN / # OF OBS") {
@@ -517,8 +562,20 @@ impl std::str::FromStr for Header {
                 //TODO
             } else if line.contains("GLONASS COD/PHS/BIS") {
                 //TODO
-            }
+
+            } else if line.contains("ION ALPHA") { 
+                //TODO
+                //0.7451D-08 -0.1490D-07 -0.5960D-07  0.1192D-06          ION ALPHA           
+
+            } else if line.contains("ION BETA") {
+                //TODO
+                //0.9011D+05 -0.6554D+05 -0.1311D+06  0.4588D+06          ION BETA            
             
+            } else if line.contains("DELTA-UTC") {
+                //TODO
+                //0.931322574615D-09 0.355271367880D-14   233472     1930 DELTA-UTC: A0,A1,T,W
+            }
+
             if let Some(l) = lines.next() {
                 line = l
             } else {
@@ -546,16 +603,12 @@ impl std::str::FromStr for Header {
             rcvr: rcvr, 
             ant: ant, 
             leap: leap,
+            rcvr_clock_offset_applied: rcvr_clock_offset_applied,
             coords: coords,
             wavelengths: None,
             nb_observations: 0,
             sampling_interval: sampling_interval,
-            first_epoch: GnssTime {
-                utc: chrono::Utc::now(),
-                gnss: Constellation::GPS,
-            },
-            last_epoch: None,
-            epoch_corrected: false,
+            epochs: epochs,
             gps_utc_delta: None,
             sat_number: None,
         })
