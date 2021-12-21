@@ -1,15 +1,9 @@
 //! This package provides a set of tools to parse 
 //! and analyze RINEX files.
 //! 
-//! This lib is work in progress, working towards
-//! `RINEX` 3.04 support
+//! This lib is work in progress
 //! 
 //! Homepage: <https://github.com/gwbres/rinex>
-//!
-//! The lib is not sensitive to white spaces, whether they
-//! be trailing or missing whitespaces. Therefore
-//! the lib would accept files that do not strictly respect 
-//! RINEX standards in terms of white spaces. 
 
 use regex::Regex;
 use thiserror::Error;
@@ -133,24 +127,14 @@ impl Default for Rcvr {
     }
 }
 
-#[derive(Debug)]
-enum RcvrError {
-    FormatError,
-}
-
 impl std::str::FromStr for Rcvr {
-    type Err = RcvrError;
-    // TODO @GBR
-    // use regex here too plz
-    fn from_str (s: &str) -> Result<Self, Self::Err> {
-        match scan_fmt!(s, "{} {} {} {}", String, String, String, String) {
-            (Some(sn), Some(maker), Some(model), Some(firmware)) => {
-                Ok(Rcvr{model: String::from(maker.to_owned() + " " + &model), sn, firmware})
-            }
-            _ => {
-                Err(RcvrError::FormatError)
-            }
-        }
+    type Err = std::io::Error;
+    fn from_str (line: &str) -> Result<Self, Self::Err> {
+        let (id, remainder) = line.split_at(20);
+        let (make, version) = remainder.split_at(20);
+        println!("RCVR | ID \"{}\" | MAKE \"{}\" | VERSION \"{}\"",
+            id, make, version);
+        Ok(Rcvr::default())
     }
 }
 
@@ -173,6 +157,18 @@ impl Default for Antenna {
     }
 }
 
+impl std::str::FromStr for Antenna {
+    type Err = std::io::Error;
+    fn from_str (line: &str) -> Result<Self, Self::Err> {
+        let (id, remainder) = line.split_at(20);
+        let (make, remainder) = remainder.trim().split_at(20);
+        println!("ANTENNA | ID \"{}\" | MAKE \"{}\"", id, make);
+        Ok(Antenna::default())/*{
+            model: make,
+            id: sn,
+            coords:*/
+    }
+}
 /// GnssTime struct is a `UTC` time tied to a 
 /// `GNSS` constellation that produced this realization
 #[derive(Debug)]
@@ -262,15 +258,16 @@ struct Header {
     run_by: Option<String>, // program run by
     //date: strtime, // file date of creation
     station: Option<String>, // station label
-    observer: String, // observer label
-    agency: String, // observer/agency
-    rcvr: Rcvr, // receiver used for this recording
-    ant: Antenna, // antenna used for this recording
-    coords: geo_types::Point<f32>, // station approx. coords
+    station_id: Option<String>, // station id
+    observer: Option<String>, // observer
+    agency: Option<String>, // agency
+    rcvr: Option<Rcvr>, // receiver used for this recording
+    ant: Option<Antenna>, // antenna used for this recording
+    leap: Option<u32>, // leap seconds
+    coords: Option<geo_types::Point<f32>>, // station approx. coords
     wavelengths: Option<(u32,u32)>, // L1/L2 wavelengths
     nb_observations: u64,
-    //observations: Observation,
-    sampling_interval: f32, // sampling
+    sampling_interval: Option<f32>, // sampling
     first_epoch: GnssTime, // date of first observation
     last_epoch: Option<GnssTime>, // date of last observation
     epoch_corrected: bool, // true if epochs are already corrected
@@ -279,8 +276,6 @@ struct Header {
 }
 
 const RINEX_CRINEX_HEADER_COMMENT : &str = "COMPACT RINEX FORMAT";
-const RINEX_HEADER_LINE1_COMMENT  : &str = "RINEX VERSION / TYPE";
-const RINEX_HEADER_LINE2_COMMENT  : &str = "PGM / RUN BY / DATE";
 const RINEX_HEADER_END_COMMENT    : &str = "END OF HEADER";
 
 #[derive(Error, Debug)]
@@ -291,19 +286,17 @@ enum HeaderError {
     VersionNotSupported(String),
     #[error("Line \"{0}\" should begin with Rinex version \"x.yy\"")]
     VersionFormatError(String),
-    #[error("Failed to parse Rinex version from line \"{0}\"")]
-    VersionParsingError(String),
-    #[error("Missing expected label on line #1")]
-    MissingRinexVersionTypeComment,
-    #[error("Missing expected label on line #2")]
-    MissingRinexPgmRunByComment,
-    #[error("Failed to identify data type in \"{0}\"")]
-    RinexTypeIdentificationError(String),
-    #[error("Rine type error")]
+    #[error("rinex type error")]
     RinexTypeError(#[from] RinexTypeError),
-    #[error("Unknown GNSS Constellation '{0}'")]
+    #[error("unknown GNSS Constellation '{0}'")]
     UnknownConstellation(#[from] ConstellationError),
-    #[error("Failed to parse date")]
+    #[error("failed to parse antenna / receiver infos")]
+    AntennaRcvrError(#[from] std::io::Error),
+    #[error("failed to parse integer value")]
+    ParseIntError(#[from] std::num::ParseIntError),
+    #[error("failed to parse float value")]
+    ParseFloatError(#[from] std::num::ParseFloatError),
+    #[error("failed to parse date")]
     DateParsingError(#[from] chrono::ParseError),
 }
 
@@ -317,14 +310,16 @@ impl Default for Header {
             program: String::from("pgm"),
             run_by: None,
             station: None,
-            agency: String::from("me"),
-            observer: String::from("myself"),
-            rcvr: Rcvr::default(),
-            ant: Antenna::default(),
-            coords: geo_types::Point::new(0.0, 0.0),
+            station_id: None,
+            observer: None,
+            agency: None,
+            rcvr: None, 
+            ant: None, 
+            coords: None, 
+            leap: None,
             wavelengths: None,
             nb_observations: 0,
-            sampling_interval: 1.0,
+            sampling_interval: None,
             first_epoch: GnssTime::default(),
             last_epoch: None,
             epoch_corrected: false,
@@ -334,22 +329,11 @@ impl Default for Header {
     }
 }
 
-/* NOTES
- * • The PGM / RUN BY / DATE line must be the second record(line) in all RINEX
- * files. 
- * <o customization in RINEX Obs described on line #3 ??
- * • The SYS / # / OBS TYPES record(s) should precede any SYS / DCBS
- * APPLIED and SYS / SCALE FACTOR records.
- * • The # OF SATELLITES record (if present) should be immediately followed by the corresponding number of PRN / # OF OBS records.
-*/
 impl std::str::FromStr for Header {
     type Err = HeaderError;
     /// Builds header from extracted header description
     fn from_str (content: &str) -> Result<Self, Self::Err> {
-        let mut content_split: Vec<&str> = content.split_terminator("\n")
-            .collect();
-        let mut lines = content_split
-            .iter_mut();
+        let mut lines = content.lines();
         let mut line = lines.next()
             .unwrap();
         // comments ?
@@ -386,7 +370,7 @@ impl std::str::FromStr for Header {
             line = lines.next()
                 .unwrap()
         }
-        
+
         // line1 {} {} {} // label [VERSION/TYPE/GNSS] 
         let (version, remainder) = line.split_at(20);
         let (rinex_type, remainder) = remainder.trim().split_at(20);
@@ -399,29 +383,7 @@ impl std::str::FromStr for Header {
             Err(e) => return Err(HeaderError::VersionFormatError(e.to_string())),
             _ => {},
         }
-/*
-        // remainder is data type descriptor
-        let (rinex_type, constellation): (RinexType, Constellation)
-                = match cleanedup.contains("G: GLONASS NAV DATA")
-        {
-            true => {
-                // GLONASS NAV. DATA (.g): special case
-                (RinexType::ObservationData,
-                Constellation::Glonass)
-            },
-            false => {
-                // nominal case, .d, .o
-                // {} {DATA/MAPS} {} (type0, _, constellation)
-                match scan_fmt!(&cleanedup, "{} {} {}", String, String, String) {
-                    (Some(data),_,Some(constellation)) => {
-                        (RinexType::from_str(&data)?,
-                        Constellation::from_str(&constellation)?)
-                    },
-                    _ => return Err(HeaderError::RinexTypeIdentificationError(String::from(cleanedup))),
-                }
-            },
-        };
-*/
+        
         // line2
         line = lines.next()
             .unwrap();
@@ -440,7 +402,6 @@ impl std::str::FromStr for Header {
         let (run_by, remainder) = remainder.split_at(20);
         let (date_str, _) = remainder.split_at(20);
         // identify date format (UTC/LCL)
-        println!("date str \"{}\"", date_str);
         let is_utc = date_str.contains("UTC");
         let date_str: &str = match is_utc {
             true => {
@@ -478,7 +439,6 @@ impl std::str::FromStr for Header {
             }
         }
 */
-
         line = lines.next()
             .unwrap();
         // comments ?
@@ -486,31 +446,110 @@ impl std::str::FromStr for Header {
             line = lines.next()
                 .unwrap()
         }
+
+        // order may vary from now on
+        let mut ant        : Option<Antenna> = None;
+        let mut rcvr       : Option<Rcvr>    = None;
+        let mut station    : Option<String>  = None;
+        let mut station_id : Option<String>  = None;
+        let mut observer   : Option<String>  = None;
+        let mut agency     : Option<String>  = None;
+        let mut leap       : Option<u32>     = None;
+        let mut sampling_interval: Option<f32> = None;
+        let mut coords     : Option<geo_types::Point<f32>> = None;
+        loop {
+            if line.contains("MARKER NAME") {
+                station = Some(String::from(line.split_at(20).0.trim()))
+            } else if line.contains("MARKER NUMBER") {
+                station_id = Some(String::from(line.split_at(20).0.trim())) 
+            
+            } else if line.contains("OBSERVER / AGENCY") {
+                let (obs, ag) = line.split_at(20);
+                let ag = ag.split_at(20).0;
+                observer = Some(String::from(obs.trim()));
+                agency = Some(String::from(ag.trim()))
+
+            } else if line.contains("REC # / TYPE / VERS") {
+                rcvr = Some(Rcvr::from_str(line)?) 
+            } else if line.contains("ANT # / TYPE") {
+                ant = Some(Antenna::from_str(line)?) 
+            
+            } else if line.contains("LEAP SECOND") {
+                let leap_str = line.split_at(20).0.trim();
+                leap = Some(u32::from_str_radix(leap_str, 10)?)
+            
+            } else if line.contains("TIME OF FIRST OBS") {
+                //TODO
+            } else if line.contains("TIME OF LAST OBS") {
+                //TODO
+            } else if line.contains("WAVELENGTH FACT L1/2") {
+                //TODO
+            } else if line.contains("APPROX POSITION XYZ") {
+                let items: Vec<&str> = line.split_ascii_whitespace()
+                    .collect();
+                let (x, y, z): (f32,f32,f32) = 
+                    (f32::from_str(items[0].trim())?,
+                    f32::from_str(items[1].trim())?,
+                    f32::from_str(items[2].trim())?);
+                coords = Some(geo_types::Point::new(x, y)) // Z! pas le bon objet 
+
+            } else if line.contains("ANTENNA: DELTA H/E/N") {
+                //TODO
+            } else if line.contains("RCV CLOCK OFFS APPL") {
+                //TODO
+            } else if line.contains("# OF SATELLITES") {
+                //TODO
+            } else if line.contains("PRN / # OF OBS") {
+                //TODO
+            } else if line.contains("SYS / PHASE SHIFT") {
+                //TODO
+            } else if line.contains("SYS / # / OBS TYPES") {
+                //TODO
+            } else if line.contains("SYS / PHASE SHIFT") {
+                //TODO
+            } else if line.contains("SIGNAL STRENGHT UNIT") {
+                //TODO
+            } else if line.contains("INTERVAL") {
+                let intv = line.split_at(20).0.trim();
+                sampling_interval = Some(f32::from_str(intv)?)
+
+            } else if line.contains("GLONASS SLOT / FRQ #") {
+                //TODO
+            } else if line.contains("GLONASS COD/PHS/BIS") {
+                //TODO
+            }
+            
+            if let Some(l) = lines.next() {
+                line = l
+            } else {
+                break
+            }
+            // comments ?
+            while is_comment(line) {
+                line = lines.next()
+                    .unwrap()
+            }
+            //end_of_header = line.contains("END OF HEADER")
+        }
         
         Ok(Header{
             version: version.trim().to_string(),
             crinex: crinex_infos, 
             rinex_type: RinexType::from_str(rinex_type.trim())?,
             constellation: Constellation::from_str(constellation.trim())?, 
-            program: String::from("test"), 
-            run_by: None, 
-            station: None,
-            observer: String::from("?"),
-            agency: String::from("?"),
-            rcvr: Rcvr {
-                model: String::from("test"),
-                sn: String::from("test"),
-                firmware: String::from("test"),
-            },
-            ant: Antenna {
-                model: String::from("test"),
-                sn: String::from("test"),
-                coords: geo_types::Point::new(0.0, 0.0),
-            },
-            coords: geo_types::Point::new(0.0,0.0),
+            program: String::from(pgm.trim()),
+            run_by: Some(String::from(run_by.trim())),
+            station: station,
+            station_id: station_id,
+            agency: agency,
+            observer: observer,
+            rcvr: rcvr, 
+            ant: ant, 
+            leap: leap,
+            coords: coords,
             wavelengths: None,
             nb_observations: 0,
-            sampling_interval: 0.0,
+            sampling_interval: sampling_interval,
             first_epoch: GnssTime {
                 utc: chrono::Utc::now(),
                 gnss: Constellation::GPS,
@@ -559,8 +598,6 @@ struct Rinex {
 
 #[derive(Error, Debug)]
 enum RinexError {
-    #[error("File does not follow naming conventions")]
-    FileNamingConvention,
     #[error("Header delimiter not found")]
     MissingHeaderDelimiter,
     #[error("Header parsing error")]
@@ -589,7 +626,10 @@ impl Rinex {
         Ok(parsed[0].to_string())
     }
 
-    /// `Rinex` constructor
+    /// Builds a `Rinex` from given file.
+    /// Input file must respect the whitespace specifications
+    /// for the entire header section.   
+    /// The header section must respect the labelization standard too.
     pub fn from_file (fp: &std::path::Path) -> Result<Rinex, RinexError> {
         let name = fp.file_name()
             .unwrap();
@@ -638,21 +678,11 @@ mod test {
     }
 
     #[test]
+/*
     /// tests Rcvr object fromStr method
     fn rcvr_from_str() {
-        /* standard format #1 */
         assert_eq!(
-            Rcvr::from_str("82205 LEICA RS500 4.20/1.39")
-                .unwrap(),
-            Rcvr{
-                sn: String::from("82205"),
-                model: String::from("LEICA RS500"),
-                firmware: String::from("4.20/1.39")
-            });
-        
-        /* faulty whitespaces but passes */
-        assert_eq!(
-            Rcvr::from_str("82205 LEICA RS500 4.20/1.39")
+            Rcvr::from_str("82205               LEICA RS500         4.20/1.39  ")
                 .unwrap(),
             Rcvr{
                 sn: String::from("82205"),
@@ -660,7 +690,7 @@ mod test {
                 firmware: String::from("4.20/1.39")
             });
     }
-
+*/
     #[test]
     /// Test `Rinex` constructor
     /// against all valid data resources
@@ -677,12 +707,7 @@ mod test {
             if !path.is_dir() { // only files..
                 let fp = std::path::Path::new(&path);
                 let rinex = Rinex::from_file(&fp);
-                assert_eq!(
-                    rinex.is_err(), 
-                    false,
-                    "Rinex::from_file() failed for '{:?}' with '{:?}'",
-                    path, 
-                    rinex);
+                assert_eq!(rinex.is_err(), false);
                 println!("File: {:?}\n{:#?}", &fp, rinex)
             }
         }

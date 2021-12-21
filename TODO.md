@@ -5,9 +5,7 @@ RINEX Rust package todo list
 - [ ] file naming convention 
 
 ### Rinex::header 
-- [ ] parse file Header correctly 
- - [ ] detect data types
- - [ ] comply with all caracteristics 
+- [ ] leap second might have 2 formats? 
 
 ### Rinex::observation 
 
