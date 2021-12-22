@@ -1,7 +1,7 @@
 # RINEX 
 Rust package to parse and analyze Rinex files
 
-
+[![crates.io](https://img.shields.io/crates/v/rinex.svg)](https://crates.io/crates/rinex)
 [![Rust](https://github.com/gwbres/rinex/actions/workflows/rust.yml/badge.svg)](https://github.com/gwbres/rinex/actions/workflows/rust.yml)
 [![codecov](https://codecov.io/gh/gwbres/rinex/branch/main/graph/badge.svg)](https://codecov.io/gh/gwbres/rinex)
 
