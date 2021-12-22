@@ -1,6 +1,14 @@
 use thiserror::Error;
 use std::str::FromStr;
 
+pub const GPS_IDENTIFIER: char     = 'G'; 
+pub const GLONASS_IDENTIFIER: char = 'R'; 
+pub const GALILEO_IDENTIFIER: char = 'E'; 
+pub const QZSS_IDENTIFIER: char    = 'J';
+pub const BEIDOU_IDENTIFIER: char  = 'J';
+pub const MIXED_IDENTIFIER: char   = 'M';
+pub const SBAS_IDENTIFIER: char    = 'S';
+
 /// Describes all known `GNSS` constellations
 /// when manipulating `RINEX`
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -10,10 +18,12 @@ pub enum Constellation {
     Beidou,
     QZSS,
     Galileo,
-    Mixed, // mixed constellation records
+    Mixed,
+    Sbas,
 }
 
 impl Default for Constellation {
+    /// Builds a default `GNSS` constellation
     fn default() -> Constellation {
         Constellation::GPS
     }
@@ -28,20 +38,16 @@ pub enum ConstellationError {
 impl std::str::FromStr for Constellation {
     type Err = ConstellationError;
     fn from_str (s: &str) -> Result<Self, Self::Err> {
-        if s.starts_with("G") {
-            Ok(Constellation::GPS)
-        } else if s.starts_with("E") {
-            Ok(Constellation::Galileo)
-        } else if s.starts_with("R") {
-            Ok(Constellation::Glonass)
-        } else if s.starts_with("J") {
-            Ok(Constellation::QZSS)
-        } else if s.starts_with("C") {
-            Ok(Constellation::Beidou)
-        } else if s.starts_with("M") {
-            Ok(Constellation::Mixed)
-        } else {
-            Err(ConstellationError::UnknownConstellation(s.to_string()))
+        match s.chars().nth(0)
+            .unwrap() {
+            GPS_IDENTIFIER => Ok(Constellation::GPS),
+            GLONASS_IDENTIFIER => Ok(Constellation::Glonass),
+            GALILEO_IDENTIFIER => Ok(Constellation::Galileo),
+            QZSS_IDENTIFIER => Ok(Constellation::QZSS),
+            BEIDOU_IDENTIFIER => Ok(Constellation::Beidou),
+            MIXED_IDENTIFIER => Ok(Constellation::Mixed),
+            SBAS_IDENTIFIER => Ok(Constellation::Sbas),
+            _ => Ok(Constellation::Glonass),
         }
     }
 }

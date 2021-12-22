@@ -2,49 +2,14 @@ use regex::Regex;
 use thiserror::Error;
 use chrono::{Timelike, Datelike};
 
+use crate::version;
+use crate::constellation;
 use crate::is_rinex_comment;
-use crate::constellation::{Constellation, ConstellationError};
 
-/// Current `RINEX` version supported
-pub const SUPPORTED_VERSION: &str = "3.04"; 
 /// Describes a `CRINEX` (compact rinex) 
 pub const CRINEX_MARKER_COMMENT : &str = "COMPACT RINEX FORMAT";
 /// End of Header section reached
 pub const HEADER_END_MARKER : &str = "END OF HEADER";
-
-/// Checks whether this lib supports the given RINEX revision number
-/// Revision number matches expected format already
-fn version_is_supported (version: &str) -> Result<bool, std::num::ParseIntError> {
-    let supported_digits: Vec<&str> = SUPPORTED_VERSION.split(".").collect();
-    let digit0 = u32::from_str_radix(supported_digits.get(0)
-        .unwrap(), 
-            10)
-            .unwrap();
-    let digit1 = u32::from_str_radix(supported_digits.get(1)
-        .unwrap(),
-            10)
-            .unwrap();
-    let digits: Vec<&str> = version.split(".").collect();
-    let target_digit0 = u32::from_str_radix(digits.get(0)
-        .unwrap_or(&"?"), 
-            10)?;
-    let target_digit1 = u32::from_str_radix(digits.get(1)
-        .unwrap_or(&"?"), 
-            10)?;
-    if target_digit0 > digit0 {
-        Ok(false)
-    } else {
-        if target_digit0 == digit0 {
-            if target_digit1 <= digit1 {
-                Ok(true)
-            } else {
-               Ok(false)
-            }
-        } else {
-            Ok(true)
-        }
-    }
-}
 
 /// GNSS receiver description
 #[derive(Debug, PartialEq)]
@@ -107,7 +72,7 @@ impl Default for Antenna {
 #[derive(Debug)]
 struct GnssTime {
     time: chrono::NaiveDateTime,
-    gnss: Constellation,
+    gnss: constellation::Constellation,
 }
 
 impl Default for GnssTime {
@@ -124,14 +89,14 @@ impl Default for GnssTime {
                 now.time().minute(),
                 now.time().second()
             ),
-            gnss: Constellation::GPS,
+            gnss: constellation::Constellation::default(),
         }
     }
 }
 
 impl GnssTime {
     /// Builds a new `GnssTime` object
-    fn new(time: chrono::NaiveDateTime, gnss: Constellation) -> GnssTime {
+    fn new(time: chrono::NaiveDateTime, gnss: constellation::Constellation) -> GnssTime {
         GnssTime {
             time, 
             gnss
@@ -148,7 +113,7 @@ struct LeapSecond {
         // delta time between GPS and UTC due to leap second
         // can be future or past ΔtLSF(BNK) depending
         // wether (week,day) are in future or past
-    constellation: Constellation, // system time identifier
+    constellation: constellation::Constellation, // system time identifier
 }
 
 impl Default for LeapSecond {
@@ -158,7 +123,7 @@ impl Default for LeapSecond {
             week: 0,
             day: 0,
             delta: 0,
-            constellation: Constellation::GPS,
+            constellation: constellation::Constellation::default(),
         }
     }
 }
@@ -166,14 +131,14 @@ impl Default for LeapSecond {
 impl LeapSecond {
     // Builds a new leap second
     pub fn new (leap: u32, week: Option<u32>, day: Option<u32>, delta: Option<u32>,
-        constellation: Option<Constellation>)
+        constellation: Option<constellation::Constellation>)
             -> LeapSecond {
         LeapSecond {
             leap: leap,
             week: week.unwrap_or(0),
             day: day.unwrap_or(0),
             delta: delta.unwrap_or(0),
-            constellation: constellation.unwrap_or(Constellation::GPS),
+            constellation: constellation.unwrap_or(constellation::Constellation::GPS),
         }
     }
 }
@@ -289,10 +254,10 @@ enum SignalStrength {
 /// Describes `RINEX` file header
 #[derive(Debug)]
 pub struct Header {
-    version: String, // version description
+    version: version::Version, // version description
     crinex: Option<CrinexInfo>, // if this is a CRINEX
     rinex_type: RinexType, // type of Rinex
-    constellation: Constellation, // GNSS constellation being used
+    constellation: constellation::Constellation, // GNSS constellation being used
     program: String, // program name 
     run_by: Option<String>, // program run by
     //date: strtime, // file date of creation
@@ -325,7 +290,7 @@ pub enum HeaderError {
     #[error("rinex type error")]
     RinexTypeError(#[from] RinexTypeError),
     #[error("unknown GNSS Constellation '{0}'")]
-    UnknownConstellation(#[from] ConstellationError),
+    UnknownConstellation(#[from] constellation::ConstellationError),
     #[error("failed to parse antenna / receiver infos")]
     AntennaRcvrError(#[from] std::io::Error),
     #[error("failed to parse integer value")]
@@ -341,10 +306,10 @@ pub enum HeaderError {
 impl Default for Header {
     fn default() -> Header {
         Header {
-            version: String::from(SUPPORTED_VERSION),
+            version: version::Version::default(), 
             crinex: None,
-            rinex_type: RinexType::ObservationData,
-            constellation: Constellation::GPS,
+            rinex_type: RinexType::default(),
+            constellation: constellation::Constellation::default(),
             program: String::from("pgm"),
             run_by: None,
             station: None,
@@ -414,13 +379,6 @@ impl std::str::FromStr for Header {
         let (constellation, remainder) = remainder.trim().split_at(20);
         println!("RINEX | VERSION \"{}\" | TYPE \"{}\" | OTHER \"{}\"", version, rinex_type, constellation);
 
-        // version x.yy verification
-        match version_is_supported(version.trim()) {
-            Ok(false) => return Err(HeaderError::VersionNotSupported(version.to_string())),
-            Err(e) => return Err(HeaderError::VersionFormatError(e.to_string())),
-            _ => {},
-        }
-        
         // line2
         line = lines.next()
             .unwrap();
@@ -439,17 +397,23 @@ impl std::str::FromStr for Header {
         let (run_by, remainder) = remainder.split_at(20);
         let (date_str, _) = remainder.split_at(20);
         // identify date format (UTC/LCL)
-        let is_utc = date_str.contains("UTC");
-        let date_str: &str = match is_utc {
+        let date_str: &str = match date_str.contains("UTC") {
             true => {
                 let offset = date_str.rfind("UTC")
                     .unwrap();
                 date_str.split_at(offset).0.trim() 
             },
             false => {
-                let offset = date_str.rfind("LCL")
-                    .unwrap();
-                date_str.split_at(offset).0.trim() 
+                match date_str.contains("LCL") {
+                    true => {
+                        let offset = date_str.rfind("LCL")
+                            .unwrap();
+                        date_str.split_at(offset).0.trim() 
+                    },
+                    false => { // some files do not exhibit UTC/LCL marker
+                        date_str.trim()
+                    }
+                }
             }
         };
         // identify date format (YMDHMS)
@@ -525,28 +489,28 @@ impl std::str::FromStr for Header {
             } else if line.contains("TIME OF FIRST OBS") {
                 let items: Vec<&str> = line.split_ascii_whitespace()
                     .collect();
-                let (y, month, d, h, min, s, constel): (i32,u32,u32,u32,u32,f32,Constellation) =
+                let (y, month, d, h, min, s, constel): (i32,u32,u32,u32,u32,f32,constellation::Constellation) =
                     (i32::from_str_radix(items[0].trim(),10)?,
                     u32::from_str_radix(items[1].trim(),10)?,
                     u32::from_str_radix(items[2].trim(),10)?,
                     u32::from_str_radix(items[3].trim(),10)?,
                     u32::from_str_radix(items[4].trim(),10)?,
                     f32::from_str(items[5].trim())?,
-                    Constellation::from_str(items[6].trim())?);
+                    constellation::Constellation::from_str(items[6].trim())?);
                 let utc = chrono::NaiveDate::from_ymd(y,month,d).and_hms(h,min,s as u32);
                 epochs.0 = Some(GnssTime::new(utc, constel)) 
 
             } else if line.contains("TIME OF LAST OBS") {
                 let items: Vec<&str> = line.split_ascii_whitespace()
                     .collect();
-                let (y, month, d, h, min, s, constel): (i32,u32,u32,u32,u32,f32,Constellation) =
+                let (y, month, d, h, min, s, constel): (i32,u32,u32,u32,u32,f32,constellation::Constellation) =
                     (i32::from_str_radix(items[0].trim(),10)?,
                     u32::from_str_radix(items[1].trim(),10)?,
                     u32::from_str_radix(items[2].trim(),10)?,
                     u32::from_str_radix(items[3].trim(),10)?,
                     u32::from_str_radix(items[4].trim(),10)?,
                     f32::from_str(items[5].trim())?,
-                    Constellation::from_str(items[6].trim())?);
+                    constellation::Constellation::from_str(items[6].trim())?);
                 let utc = chrono::NaiveDate::from_ymd(y,month,d).and_hms(h,min,s as u32);
                 epochs.1 = Some(GnssTime::new(utc, constel)) 
             
@@ -656,10 +620,10 @@ impl std::str::FromStr for Header {
         }
         
         Ok(Header{
-            version: version.trim().to_string(),
+            version: version::Version::from_str(version.trim())?,
             crinex: crinex_infos, 
             rinex_type: RinexType::from_str(rinex_type.trim())?,
-            constellation: Constellation::from_str(constellation.trim())?, 
+            constellation: constellation::Constellation::from_str(constellation.trim())?, 
             program: String::from(pgm.trim()),
             run_by: Some(String::from(run_by.trim())),
             station: station,
@@ -708,22 +672,9 @@ impl Header {
     }
 
     /// Returns `Rinex` Version number
-    pub fn get_rinex_version (&self) -> &str { &self.version }
+    pub fn get_rinex_version (&self) -> version::Version { self.version }
     /// Returns `Rinex` type 
     pub fn get_rinex_type (&self) -> RinexType { self.rinex_type }
     /// Returns `GNSS` constellation
-    pub fn get_constellation (&self) -> Constellation { self.constellation }
-}
-
-mod test {
-    use super::*;
-    #[test]
-    /// tests version support identification tool
-    fn test_version_tool() {
-        assert_eq!(version_is_supported("a.b").is_err(), true); // fmt error
-        assert_eq!(version_is_supported("1.0").unwrap(), true); // OK basic
-        assert_eq!(version_is_supported("1.0").unwrap(), true); // OK old
-        assert_eq!(version_is_supported(SUPPORTED_VERSION).unwrap(), true); // OK current 
-        assert_eq!(version_is_supported("4.0").unwrap(), false); // NOK too recent 
-    }
+    pub fn get_constellation (&self) -> constellation::Constellation { self.constellation }
 }

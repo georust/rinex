@@ -10,33 +10,12 @@ use std::str::FromStr;
 use scan_fmt::scan_fmt;
 
 mod header;
+mod version;
 mod constellation;
-
-use header::RinexType;
 
 #[macro_export]
 macro_rules! is_rinex_comment  {
     ($line: expr) => { $line.contains("COMMENT") };
-}
-
-macro_rules! version_major {
-    ($version: expr) => {
-        u8::from_str_radix(
-            $version.split_at(
-                $version.find(".")
-                    .unwrap())
-                        .0, 10).unwrap()
-    };
-}
-
-macro_rules! version_minor {
-    ($version: expr) => {
-        u8::from_str_radix(
-            $version.split_at(
-                $version.find(".")
-                    .unwrap()+1)
-                        .1, 10).unwrap()
-    };
 }
 
 /// `Rinex` main structure,
@@ -76,9 +55,6 @@ impl Rinex {
         };
         let (header, body) = content.split_at(offset);
         Ok((String::from(header),String::from(body)))
-        //let parsed: Vec<&str> = content.split(header::HEADER_END_MARKER)
-        //    .collect();
-        //Ok(parsed[0].to_string())
     }
 
     /// Builds a `Rinex` from given file.
@@ -95,6 +71,11 @@ impl Rinex {
 
         let (header, body) = Rinex::split_rinex_content(fp)?;
         let header = header::Header::from_str(&header)?;
+
+        if !header.get_rinex_version().is_supported() {
+            //TODO
+        }
+
         let mut body = body.lines();
         let mut line = body.next()
             .unwrap(); // ''END OF HEADER'' /BLANK
@@ -106,8 +87,8 @@ impl Rinex {
 
         let rtype = header.get_rinex_type();
         let version = header.get_rinex_version();
-        let version_major = version_major!(version);
-        let version_minor = version_minor!(version);
+        let version_major = version.get_major(); 
+        let version_minor = version.get_minor(); 
         let constellation = header.get_constellation();
         
         let mut record = String::with_capacity(256*1024);
@@ -116,7 +97,7 @@ impl Rinex {
         let mut first = true;
 
         let nav_message_to_match: &'static [char]  = &
-            ['R','G','E','B','J','C']; 
+            ['R','G','E','B','J','C','S']; 
 
         loop {
             //let parsed: Vec<&str> = line.split_ascii_whitespace()
@@ -124,7 +105,7 @@ impl Rinex {
 
             /* builds record grouping */
             match rtype {
-                RinexType::NavigationMessage => {
+                header::RinexType::NavigationMessage => {
                     match constellation {
                         constellation::Constellation::Glonass => {},
                         _ => {
@@ -133,7 +114,7 @@ impl Rinex {
                         },
                     }
                 },
-                RinexType::ObservationData => {
+                header::RinexType::ObservationData => {
                     // uses nb of float numbers
                     if version_major < 3 {
                         if version_minor < 11 {
