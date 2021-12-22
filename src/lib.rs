@@ -10,7 +10,6 @@ use thiserror::Error;
 use std::str::FromStr;
 use scan_fmt::scan_fmt;
 use chrono::{Timelike, Datelike};
-extern crate geo_types;
 
 /// Current `RINEX` version supported
 const SUPPORTED_VERSION: &str = "3.04"; 
@@ -144,6 +143,12 @@ impl std::str::FromStr for Rcvr {
 struct Antenna {
     model: String,
     sn: String, // serial #
+    coords: Option<rust_3d::Point3D>, // ref. point position
+        // for recordings generated onboard a vehicule
+    height: Option<f32>, // height in comparison to 
+        // reference point (ARP) above marker
+    delta_h_e_n: Option<f32>, // horizontal eccentricity (ARP) 
+        // relative to marker (EAST/NORTH) 
 }
 
 impl Default for Antenna {
@@ -152,22 +157,13 @@ impl Default for Antenna {
         Antenna {
             model: String::from("Unknown"),
             sn: String::from("?"),
+            coords: None,
+            height: None,
+            delta_h_e_n: None,
         }
     }
 }
 
-impl std::str::FromStr for Antenna {
-    type Err = std::io::Error;
-    fn from_str (line: &str) -> Result<Self, Self::Err> {
-        let (id, remainder) = line.split_at(20);
-        let (make, remainder) = remainder.trim().split_at(20);
-        println!("ANTENNA | ID \"{}\" | MAKE \"{}\"", id, make);
-        Ok(Antenna::default())/*{
-            model: make,
-            id: sn,
-            coords:*/
-    }
-}
 /// GnssTime struct is a time realization,
 /// and the `GNSS` constellation that produced it
 #[derive(Debug)]
@@ -202,6 +198,69 @@ impl GnssTime {
             time, 
             gnss
         }
+    }
+}
+
+/// `LeapSecond` to describe leap seconds
+struct LeapSecond {
+    leap: u32, // current amount of leap secs
+    week: u32, // week number 
+    day: u32,
+    delta: u32, // ΔtLSF(BNK) [s]
+        // delta time between GPS and UTC due to leap second
+        // can be future or past ΔtLSF(BNK) depending
+        // wether (week,day) are in future or past
+    constellation: Constellation, // system time identifier
+}
+
+impl Default for LeapSecond {
+    fn default() -> LeapSecond {
+        LeapSecond {
+            leap: 0,
+            week: 0,
+            day: 0,
+            delta: 0,
+            constellation: Constellation::GPS,
+        }
+    }
+}
+
+impl LeapSecond {
+    // Builds a new leap second
+    pub fn new (leap: u32, week: Option<u32>, day: Option<u32>, delta: Option<u32>,
+        constellation: Option<Constellation>)
+            -> LeapSecond {
+        LeapSecond {
+            leap: leap,
+            week: week.unwrap_or(0),
+            day: day.unwrap_or(0),
+            delta: delta.unwrap_or(0),
+            constellation: constellation.unwrap_or(Constellation::GPS),
+        }
+    }
+}
+
+impl std::str::FromStr for LeapSecond {
+    type Err = HeaderError; 
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut ls = LeapSecond::default();
+        // leap seconds might have either simple or complex format
+        let items: Vec<&str> = s.split_ascii_whitespace()
+            .collect();
+        match items.len() {
+            1 => {
+                ls.leap = u32::from_str_radix(items[0].trim(),10)?
+            },
+            4 => {
+                ls.leap = u32::from_str_radix(items[0].trim(),10)?;
+                ls.week = u32::from_str_radix(items[1].trim(),10)?;
+                ls.day = u32::from_str_radix(items[2].trim(),10)?
+                //ls.constellation = Constellation: //TODO
+                //18    18  2185     7GPS             LEAP SECONDS        
+            },
+            _ => return Err(HeaderError::LeapSecondParsingError(String::from(s)))
+        }
+        Ok(ls)
     }
 }
 
@@ -241,6 +300,9 @@ impl std::str::FromStr for RinexType {
             Ok(RinexType::ObservationData)
         } else if s.contains("G: GLONASS NAV DATA") {
             Ok(RinexType::NavigationMessage)
+        } else if s.contains("N: GNSS NAV DATA") {
+            Ok(RinexType::NavigationMessage)
+
         } else {
             Err(RinexTypeError::UnknownType(String::from(s)))
         }
@@ -265,6 +327,27 @@ enum MarkerType {
     Human, // human being
 }
 
+/// Clock Data types
+enum ClockDataType {
+    ClockDataAr, // recvr clocks derived from a network
+    ClockDataAs, // sat clocks derived from a network
+    ClockDataCr, // Calibration measurements for a single GNSS rcvr
+    ClockDataDr, // Discontinuity measurements for a single GPS receiver
+    ClockDataMs, // Monitor measurements for broadcast sat clocks
+}
+
+enum SignalStrength {
+    DbHz12, // < 12 dBc/Hz
+    DbHz12_17, // 12 <= x < 17 dBc/Hz
+    DbHz18_23, // 18 <= x < 23 dBc/Hz
+    DbHz21_29, // 24 <= x < 29 dBc/Hz
+    DbHz30_35, // 30 <= x < 35 dBc/Hz
+    DbHz36_41, // 36 <= x < 41 dBc/Hz
+    DbHz42_47, // 42 <= x < 47 dBc/Hz
+    DbHz48_53, // 48 <= x < 53 dBc/Hz
+    DbHz54, // >= 54 dBc/Hz 
+}
+
 /// Describes `RINEX` file header
 #[derive(Debug)]
 struct Header {
@@ -280,9 +363,9 @@ struct Header {
     observer: Option<String>, // observer
     agency: Option<String>, // agency
     rcvr: Option<Rcvr>, // receiver used for this recording
-    ant: Option<Antenna>, // antenna used for this recording
+    ant: Option<Antenna>, // optionnal antenna infos
     leap: Option<u32>, // leap seconds
-    coords: Option<geo_types::Point<f32>>, // station approx. coords
+    coords: Option<rust_3d::Point3D>, // station approx. coords
     wavelengths: Option<(u32,u32)>, // L1/L2 wavelengths
     nb_observations: u64,
     sampling_interval: Option<f32>, // sampling
@@ -316,6 +399,8 @@ enum HeaderError {
     ParseFloatError(#[from] std::num::ParseFloatError),
     #[error("failed to parse date")]
     DateParsingError(#[from] chrono::ParseError),
+    #[error("failed to parse leap second from \"{0}\"")]
+    LeapSecondParsingError(String),
 }
 
 impl Default for Header {
@@ -472,9 +557,10 @@ impl std::str::FromStr for Header {
         let mut observer   : Option<String>  = None;
         let mut agency     : Option<String>  = None;
         let mut leap       : Option<u32>     = None;
+        let mut ant_coords : Option<rust_3d::Point3D> = None;
         let mut sampling_interval: Option<f32> = None;
         let mut rcvr_clock_offset_applied: Option<bool> = None;
-        let mut coords     : Option<geo_types::Point<f32>> = None;
+        let mut coords     : Option<rust_3d::Point3D> = None;
         let mut epochs: (Option<GnssTime>, Option<GnssTime>) = (None, None);
         loop {
             if line.contains("MARKER NAME") {
@@ -485,17 +571,21 @@ impl std::str::FromStr for Header {
             } else if line.contains("OBSERVER / AGENCY") {
                 let (obs, ag) = line.split_at(20);
                 let ag = ag.split_at(20).0;
-                observer = Some(String::from(obs.trim()));
                 agency = Some(String::from(ag.trim()))
 
             } else if line.contains("REC # / TYPE / VERS") {
                 rcvr = Some(Rcvr::from_str(line)?) 
+            
             } else if line.contains("ANT # / TYPE") {
-                ant = Some(Antenna::from_str(line)?) 
+                let (id, remainder) = line.split_at(20);
+                let (make, remainder) = remainder.trim().split_at(20);
+                println!("ANTENNA | ID \"{}\" | MAKE \"{}\"", id, make);
             
             } else if line.contains("LEAP SECOND") {
-                let leap_str = line.split_at(20).0.trim();
-                leap = Some(u32::from_str_radix(leap_str, 10)?)
+                // TODO
+                // LEAP SECOND might have complex format
+                //let leap_str = line.split_at(20).0.trim();
+                //leap = Some(u32::from_str_radix(leap_str, 10)?)
             
             } else if line.contains("TIME OF FIRST OBS") {
                 let items: Vec<&str> = line.split_ascii_whitespace()
@@ -530,14 +620,32 @@ impl std::str::FromStr for Header {
             } else if line.contains("APPROX POSITION XYZ") {
                 let items: Vec<&str> = line.split_ascii_whitespace()
                     .collect();
-                let (x, y, z): (f32,f32,f32) = 
-                    (f32::from_str(items[0].trim())?,
-                    f32::from_str(items[1].trim())?,
-                    f32::from_str(items[2].trim())?);
-                coords = Some(geo_types::Point::new(x, y)) // Z! pas le bon objet 
+                let (x, y, z): (f64,f64,f64) = 
+                    (f64::from_str(items[0].trim())?,
+                    f64::from_str(items[1].trim())?,
+                    f64::from_str(items[2].trim())?);
+                coords = Some(rust_3d::Point3D::new(x,y,z))
 
             } else if line.contains("ANTENNA: DELTA H/E/N") {
                 //TODO
+            } else if line.contains("ANTENNA: DELTA X/Y/Z") {
+                let items: Vec<&str> = line.split_ascii_whitespace()
+                    .collect();
+                let (x, y, z): (f64,f64,f64) = 
+                    (f64::from_str(items[0].trim())?,
+                    f64::from_str(items[1].trim())?,
+                    f64::from_str(items[2].trim())?);
+                ant_coords = Some(rust_3d::Point3D::new(x,y,z))
+
+            } else if line.contains("ANTENNA: B.SIGHT XYZ") {
+                //TODO
+            } else if line.contains("ANTENNA: ZERODIR XYZ") {
+                //TODO
+            } else if line.contains("CENTER OF MASS: XYZ") {
+                //TODO
+            } else if line.contains("ANTENNA: PHASECENTER") {
+                //TODO
+            
             } else if line.contains("RCV CLOCK OFFS APPL") {
                 let ok_str = line.split_at(20).0.trim();
                 rcvr_clock_offset_applied = Some(i32::from_str_radix(ok_str, 10)? != 0)
@@ -552,6 +660,18 @@ impl std::str::FromStr for Header {
                 //TODO
             } else if line.contains("SYS / PHASE SHIFT") {
                 //TODO
+            } else if line.contains("SYS / PVCS APPLIED") {
+                // RINEX::ClockData specific 
+                // + satellite system (G/R/E/C/I/J/S)
+                // + programe name to apply Phase Center Variation
+                // + source of corrections (url)
+                // <o repeated for each satellite system
+                // <o blank field when no corrections applied
+            } else if line.contains("# / TYPES OF DATA") {
+                // RINEX::ClockData specific 
+                // + number of different clock data types stored
+                // + list of clock data  types
+            
             } else if line.contains("SIGNAL STRENGHT UNIT") {
                 //TODO
             } else if line.contains("INTERVAL") {
@@ -570,6 +690,14 @@ impl std::str::FromStr for Header {
             } else if line.contains("ION BETA") {
                 //TODO
                 //0.9011D+05 -0.6554D+05 -0.1311D+06  0.4588D+06          ION BETA            
+            } else if line.contains("IONOSPHERIC CORR") {
+                // TODO
+                // GPSA 0.1025E-07 0.7451E-08 -0.5960E-07 -0.5960E-07
+                // GPSB 0.1025E-07 0.7451E-08 -0.5960E-07 -0.5960E-07
+
+            } else if line.contains("TIME SYSTEM CORR") {
+                // TODO
+                // GPUT 0.2793967723E-08 0.000000000E+00 147456 1395
             
             } else if line.contains("DELTA-UTC") {
                 //TODO

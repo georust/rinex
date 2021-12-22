@@ -14,7 +14,7 @@ exclude = ["data/",]
 
 [dependencies]
 thiserror = "1"
+rust-3d = "0.34.0"
 chrono = "0.4"
 scan_fmt = "0.1"
-geo-types = "0.7.2"
 regex = "1"
