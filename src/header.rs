@@ -1,6 +1,6 @@
+use regex::Regex;
 use thiserror::Error;
 use chrono::{Timelike, Datelike};
-use regex::Regex;
 
 use crate::is_rinex_comment;
 use crate::constellation::{Constellation, ConstellationError};
@@ -711,6 +711,8 @@ impl Header {
     pub fn get_rinex_version (&self) -> &str { &self.version }
     /// Returns `Rinex` type 
     pub fn get_rinex_type (&self) -> RinexType { self.rinex_type }
+    /// Returns `GNSS` constellation
+    pub fn get_constellation (&self) -> Constellation { self.constellation }
 }
 
 mod test {

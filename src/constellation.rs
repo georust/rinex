@@ -3,7 +3,7 @@ use std::str::FromStr;
 
 /// Describes all known `GNSS` constellations
 /// when manipulating `RINEX`
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub enum Constellation {
     GPS,
     Glonass,
