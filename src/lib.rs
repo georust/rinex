@@ -118,33 +118,42 @@ impl Rinex {
         
         let mut record = String::with_capacity(256*1024);
         let (mut record_start, mut record_end) = (true, false);
+        let mut eof = false;
 
         loop {
             
             record.push_str(&line);
+
             let parsed: Vec<&str> = line.split_ascii_whitespace()
+                .collect();
+
+            let parsed_next: Vec<&str> = next_line.split_ascii_whitespace()
                 .collect();
 
             /* builds record grouping */
             match header.get_rinex_type() {
                 RinexType::ObservationData => {
                     if version_major < 3 {
-                        record_start = (parsed.len() == 10)
-                        
-                    } else {
-                        // MODERN RINEX
-                    }
-// 17  1  1  0  0  0.0000000  0 10G31G27G 3G32G16G 8G14G23G22G26
-// -14746974.73049 -11440396.20948  22513484.6374   22513484.7724   22513487.3704
+                        if version_minor < 11 {
+                            // 17  1  1  0  0  0.0000000  0 10G31G27G 3G32G16G 8G14G23G22G26
+                            // -14746974.73049 -11440396.20948  22513484.6374   22513484.7724   22513487.3704
+                            record_start = parsed.len() == 9;
+                            record_end = parsed_next.len() == 5 
+                        } else {
 
+                            
+                        }
+
+                    } 
                 },
                 _ => {}
             }
 
             if record_end {
-
                 record_end = false;
-                record_start = true
+                record_start = true;
+                println!("RECORD: \"{}\"", record);
+                break
             }
 
             if record_start {
@@ -153,14 +162,23 @@ impl Rinex {
             }
 
             if let Some(l) = body.next() {
-                line = l
+                line = next_line;
+                next_line = l
             } else {
                 break
             }
 
-            while is_rinex_comment!(line) {
-                line = body.next()
-                    .unwrap()
+            while is_rinex_comment!(next_line) {
+                if let Some(l) = body.next() {
+                    next_line = l
+                } else {
+                    eof = true; 
+                    break 
+                }
+            }
+
+            if (eof) {
+                break
             }
         }
 
