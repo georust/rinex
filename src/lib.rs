@@ -11,8 +11,33 @@ use scan_fmt::scan_fmt;
 
 mod header;
 mod constellation;
-//mod navigation; 
-//mod observation; 
+
+use header::RinexType;
+
+#[macro_export]
+macro_rules! is_rinex_comment  {
+    ($line: expr) => { $line.contains("COMMENT") };
+}
+
+macro_rules! version_major {
+    ($version: expr) => {
+        u8::from_str_radix(
+            $version.split_at(
+                $version.find(".")
+                    .unwrap())
+                        .0, 10).unwrap()
+    };
+}
+
+macro_rules! version_minor {
+    ($version: expr) => {
+        u8::from_str_radix(
+            $version.split_at(
+                $version.find(".")
+                    .unwrap()+1)
+                        .1, 10).unwrap()
+    };
+}
 
 /// `Rinex` main structure,
 /// describes a `RINEX` file
@@ -38,18 +63,22 @@ impl Rinex {
         }
     }
 
-    /// grabs header content of given file
-    fn parse_header_content (fp: &std::path::Path) -> Result<String, RinexError> {
+    /// splits rinex file into two
+    /// (header, body) as strings
+    fn split_rinex_content (fp: &std::path::Path) -> Result<(String, String), RinexError> {
         let content: String = std::fs::read_to_string(fp)
             .unwrap()
                 .parse()
                 .unwrap();
-        if !content.contains(header::HEADER_END_MARKER) {
-            return Err(RinexError::MissingHeaderDelimiter)
-        }
-        let parsed: Vec<&str> = content.split(header::HEADER_END_MARKER)
-            .collect();
-        Ok(parsed[0].to_string())
+        let offset = match content.find(header::HEADER_END_MARKER) {
+            Some(offset) => offset,
+            _ => return Err(RinexError::MissingHeaderDelimiter)
+        };
+        let (header, body) = content.split_at(offset);
+        Ok((String::from(header),String::from(body)))
+        //let parsed: Vec<&str> = content.split(header::HEADER_END_MARKER)
+        //    .collect();
+        //Ok(parsed[0].to_string())
     }
 
     /// Builds a `Rinex` from given file.
@@ -63,29 +92,77 @@ impl Rinex {
             .unwrap();
         let extension = extension.to_str()
             .unwrap();
-        //TODO
-        //TODO .s (summary files) not supported 
-        // standard pour le nom est
-        // ssssdddf.yyt
-        // ssss: acronyme de la station
-        // ddd: jour de l'annee du premier record
-        // f: numero de la session dans le jour avec 0 pour une journee complete
-        /*if !extension.eq("crx") && !extension.eq("rnx") {
-            // crinex, could have a regex prior "."
-            // decompressed crinex ?
-            let convention_re = Regex::new(r"\d\d\d\d\.\d\d[o|O|g|G|i|I|d|D|s|S]$")
-                .unwrap();
-            if !convention_re.is_match(
-                name.to_str()
-                    .unwrap()) {
-                return Err(RinexError::FileNamingConvention)
-            }
-        }*/
 
-        // parse header
-        let header = header::Header::from_str(&Rinex::parse_header_content(fp)?)?;
-        // parse body 
-        //let body = RinexBody::from_str(&Rinex::parse_body_content(fp)?)?;
+        let (header, body) = Rinex::split_rinex_content(fp)?;
+        let header = header::Header::from_str(&header)?;
+        let mut body = body.lines();
+        let mut line = body.next()
+            .unwrap(); // ''END OF HEADER'' /BLANK
+
+        while is_rinex_comment!(line) {
+            line = body.next()
+                .unwrap()
+        }
+
+        let mut next_line = body.next()
+            .unwrap();
+
+        while is_rinex_comment!(next_line) {
+            next_line = body.next()
+                .unwrap()
+        }
+
+        let version = header.get_rinex_version();
+        let version_major = version_major!(version);
+        let version_minor = version_minor!(version);
+        
+        let mut record = String::with_capacity(256*1024);
+        let (mut record_start, mut record_end) = (true, false);
+
+        loop {
+            
+            record.push_str(&line);
+            let parsed: Vec<&str> = line.split_ascii_whitespace()
+                .collect();
+
+            /* builds record grouping */
+            match header.get_rinex_type() {
+                RinexType::ObservationData => {
+                    if version_major < 3 {
+                        record_start = (parsed.len() == 10)
+                        
+                    } else {
+                        // MODERN RINEX
+                    }
+// 17  1  1  0  0  0.0000000  0 10G31G27G 3G32G16G 8G14G23G22G26
+// -14746974.73049 -11440396.20948  22513484.6374   22513484.7724   22513487.3704
+
+                },
+                _ => {}
+            }
+
+            if record_end {
+
+                record_end = false;
+                record_start = true
+            }
+
+            if record_start {
+                record.clear(); 
+                record_start = false
+            }
+
+            if let Some(l) = body.next() {
+                line = l
+            } else {
+                break
+            }
+
+            while is_rinex_comment!(line) {
+                line = body.next()
+                    .unwrap()
+            }
+        }
 
         Ok(Rinex{
             header, 

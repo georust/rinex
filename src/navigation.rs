@@ -22,4 +22,5 @@ impl std::FromStr for NavigationBlock {
 /// Rinex body frames when
 /// Rinex::Header::type::NavigationMessage
 struct NavigationFrame {
+
 }

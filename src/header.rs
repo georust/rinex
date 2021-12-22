@@ -2,6 +2,7 @@ use thiserror::Error;
 use chrono::{Timelike, Datelike};
 use regex::Regex;
 
+use crate::is_rinex_comment;
 use crate::constellation::{Constellation, ConstellationError};
 
 /// Current `RINEX` version supported
@@ -44,10 +45,6 @@ fn version_is_supported (version: &str) -> Result<bool, std::num::ParseIntError>
         }
     }
 }
-
-/// Checks whether this (header) line is a comment or not
-fn is_comment (line: &str) -> bool { line.contains("COMMENT") }
-//[macro_rules!] 
 
 /// GNSS receiver description
 #[derive(Debug, PartialEq)]
@@ -214,8 +211,8 @@ struct CrinexInfo {
 }
 
 /// Describes all known `RINEX` file types
-#[derive(Debug)]
-enum RinexType {
+#[derive(Copy, Clone, Debug)]
+pub enum RinexType {
     ObservationData,
     NavigationMessage,
     MeteorologicalData,
@@ -223,7 +220,7 @@ enum RinexType {
 }
 
 #[derive(Error, Debug)]
-enum RinexTypeError {
+pub enum RinexTypeError {
     #[error("Unknown RINEX type identifier \"{0}\"")]
     UnknownType(String),
 }
@@ -377,7 +374,7 @@ impl std::str::FromStr for Header {
         let mut line = lines.next()
             .unwrap();
         // comments ?
-        while is_comment(line) {
+        while is_rinex_comment!(line) {
             line = lines.next()
                 .unwrap()
         }
@@ -406,7 +403,7 @@ impl std::str::FromStr for Header {
                 .unwrap()
         }
         // comments ?
-        while is_comment(line) {
+        while is_rinex_comment!(line) {
             line = lines.next()
                 .unwrap()
         }
@@ -428,7 +425,7 @@ impl std::str::FromStr for Header {
         line = lines.next()
             .unwrap();
         // comments ?
-        while is_comment(line) {
+        while is_rinex_comment!(line) {
             line = lines.next()
                 .unwrap()
         }
@@ -482,7 +479,7 @@ impl std::str::FromStr for Header {
         line = lines.next()
             .unwrap();
         // comments ?
-        while is_comment(line) {
+        while is_rinex_comment!(line) {
             line = lines.next()
                 .unwrap()
         }
@@ -554,6 +551,7 @@ impl std::str::FromStr for Header {
                 epochs.1 = Some(GnssTime::new(utc, constel)) 
             
             } else if line.contains("WAVELENGTH FACT L1/2") {
+     //1     1                                                WAVELENGTH FACT L1/2
             
             } else if line.contains("APPROX POSITION XYZ") {
                 let items: Vec<&str> = line.split_ascii_whitespace()
@@ -566,6 +564,7 @@ impl std::str::FromStr for Header {
 
             } else if line.contains("ANTENNA: DELTA H/E/N") {
                 //TODO
+        //0.0000        0.0000        0.0000                  ANTENNA: DELTA H/E/N
             } else if line.contains("ANTENNA: DELTA X/Y/Z") {
                 let items: Vec<&str> = line.split_ascii_whitespace()
                     .collect();
@@ -609,6 +608,8 @@ impl std::str::FromStr for Header {
                 // RINEX::ClockData specific 
                 // + number of different clock data types stored
                 // + list of clock data  types
+            } else if line.contains("# / TYPES OF OBSERV") {
+     //5    L1    L2    C1    P1    P2                        # / TYPES OF OBSERV
             
             } else if line.contains("SIGNAL STRENGHT UNIT") {
                 //TODO
@@ -648,11 +649,10 @@ impl std::str::FromStr for Header {
                 break
             }
             // comments ?
-            while is_comment(line) {
+            while is_rinex_comment!(line) {
                 line = lines.next()
                     .unwrap()
             }
-            //end_of_header = line.contains("END OF HEADER")
         }
         
         Ok(Header{
@@ -706,6 +706,11 @@ impl Header {
             _ => None,
         }
     }
+
+    /// Returns `Rinex` Version number
+    pub fn get_rinex_version (&self) -> &str { &self.version }
+    /// Returns `Rinex` type 
+    pub fn get_rinex_type (&self) -> RinexType { self.rinex_type }
 }
 
 mod test {
