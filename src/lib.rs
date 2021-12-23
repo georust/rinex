@@ -11,6 +11,7 @@ use scan_fmt::scan_fmt;
 
 mod header;
 mod version;
+mod navigation;
 mod constellation;
 
 #[macro_export]
@@ -100,14 +101,16 @@ impl Rinex {
             ['R','G','E','B','J','C','S']; 
 
         loop {
-            //let parsed: Vec<&str> = line.split_ascii_whitespace()
-            //    .collect();
+            let parsed: Vec<&str> = line.split_ascii_whitespace()
+                .collect();
 
             /* builds record grouping */
             match rtype {
                 header::RinexType::NavigationMessage => {
                     match constellation {
-                        constellation::Constellation::Glonass => {},
+                        constellation::Constellation::Glonass => {
+                            record_start = parsed.len() > 4
+                        },
                         _ => {
                             record_start = nav_message_to_match.contains(&line.chars().nth(0)
                                 .unwrap())
@@ -131,9 +134,16 @@ impl Rinex {
                 if first {
                     first = false
                 } else {
-                    //TODO
-                    //process previous block
-                    println!("RECORD: \"{}\"", record)
+                    //process record 
+                    match rtype {
+						header::RinexType::NavigationMessage => {
+                            let msg = navigation::NavigationFrame::from_str(&record);
+                            //println!("{:#?}", msg)
+						},
+                        _ => {
+                    	    println!("RECORD: \"{}\"", record)
+                        },
+                    }
                 }
 
                 record_start = false;
@@ -141,6 +151,7 @@ impl Rinex {
             }
                 
             record.push_str(&line);
+            record.push_str(" ");
 
             if let Some(l) = body.next() {
                 line = l
