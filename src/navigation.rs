@@ -5,6 +5,7 @@ use thiserror::Error;
 use chrono::Timelike;
 use std::str::FromStr;
 
+use crate::version;
 use crate::constellation;
 
 /// Describes NAV records specific errors
@@ -18,28 +19,78 @@ pub enum Error {
     ParseConstellationError(#[from] constellation::ConstellationError),
 }
 
-/// ̀`NavigationRecordType` V > 4 prevision
+#[derive(Debug)]
+/// `NavigationRecordType` describes type of record
+/// for NAV files
 pub enum NavigationRecordType {
     Ephemeride,
 }
 
 impl Default for NavigationRecordType {
+    /// Builds a default `NavigationRecordType`
     fn default() -> NavigationRecordType {
         NavigationRecordType::Ephemeride
     }
 }
 
-/// `NavigationMessageType` V > 4 prevision
+impl std::str::FromStr for NavigationRecordType {
+    type Err = std::num::ParseIntError;
+    fn from_str (s: &str) -> Result<Self, Self::Err> {
+        if s.contains("LNAV") {
+            Ok(NavigationRecordType::Ephemeride)
+        } else {
+            Ok(NavigationRecordType::Ephemeride)
+        }
+    }
+}
+
+#[derive(Debug)]
+/// `NavigationMsgType`
+/// describes messages type for NAV files
 pub enum NavigationMsgType {
-    Cnav,
     Lnav,
+    Cnav,
+    Cnav2,
+    Fdma,
+    Inav,
+    Fnav,
 }
 
 impl Default for NavigationMsgType {
+    /// Builds a default `NavigationMsgType`
     fn default() -> NavigationMsgType {
         NavigationMsgType::Cnav
     }
 }
+
+impl std::str::FromStr for NavigationMsgType {
+    type Err = std::num::ParseIntError;
+    /// Builds a `NavigationMsgType` from a string
+    fn from_str (s: &str) -> Result<Self, Self::Err> {
+        if s.contains("LNAV") {
+            Ok(NavigationMsgType::Lnav)
+        } else if s.contains("CNAV") {
+            Ok(NavigationMsgType::Cnav) 
+        } else if s.contains("CNAV2") {
+            Ok(NavigationMsgType::Cnav2)
+        } else if s.contains("INAV") {
+            Ok(NavigationMsgType::Inav)
+        } else if s.contains("FNAV") {
+            Ok(NavigationMsgType::Fnav)
+        } else if s.contains("FDMA") {
+            Ok(NavigationMsgType::Fdma)
+        } else {
+            Ok(NavigationMsgType::Cnav)
+        }
+    }
+}
+
+/// Maximal nb of `Orbits` to this day (V4)
+pub const MaxOrbitCount: usize = 9;
+
+/// `Orbit` quadruplet is the main
+/// payload of a NAV record
+type Orbit = (f64, f64, f64, f64);
 
 /// `NavigationRecord` describes a NAV message frame.   
 /// constellation: GNSS for this particular frame,
@@ -51,18 +102,22 @@ impl Default for NavigationMsgType {
 /// sv_clock_drift_rate: (s.s⁻²)
 #[derive(Debug)]
 pub struct NavigationRecord {
+    record_type: NavigationRecordType,
+    msg_type: NavigationMsgType,
     constellation: constellation::Constellation,
     sv_id: u8, // Vehicule #ID 
     epoch: chrono::NaiveDateTime, // timestamp
     sv_clock_bias: f64, // (s)
     sv_clock_drift: f64, // (s.s⁻¹)
     sv_clock_drift_rate: f64, // (s.s⁻²)
-    data: std::collections::HashMap<String,f64> // constellation dependent 
+    orbits: Vec<Orbit>, // orbits (constellation + vers. dependent)
 }
 
 impl Default for NavigationRecord {
     fn default() -> NavigationRecord {
         NavigationRecord {
+            record_type: NavigationRecordType::default(),
+            msg_type: NavigationMsgType::default(),
             constellation: constellation::Constellation::default(),
             sv_id: 0,
             epoch: chrono::NaiveDate::from_ymd(2000,01,01)
@@ -70,11 +125,10 @@ impl Default for NavigationRecord {
             sv_clock_bias: 0.0_f64,    
             sv_clock_drift: 0.0_f64,    
             sv_clock_drift_rate: 0.0_f64,    
-            data: std::collections::HashMap::new(),
+            orbits: Vec::with_capacity(MaxOrbitCount),
         }
     }
 }
-
 
 impl NavigationRecord {
     /// Builds date (timestamp) from raw str items
@@ -93,11 +147,22 @@ impl NavigationRecord {
             .and_hms(h,min,s as u32))
     }
     
-    /// Builds NavigationRecord from raw record content
-    pub fn from_string (s: &str, constellation: &constellation::Constellation) -> Result<NavigationRecord, Error> {
+    /// Builds `NavigationRecord` from raw record content
+    pub fn from_string (version: &version::Version, constellation: &constellation::Constellation, s: &str) -> Result<NavigationRecord, Error> {
         let mut lines = s.lines();
         let mut line = lines.next()
             .unwrap();
+
+        let mut msg_type = NavigationMsgType::default();
+        let mut record_type = NavigationRecordType::default();
+        if version.get_major() > 3 {
+            let items: Vec<&str> = line.split_ascii_whitespace()
+                .collect();
+            record_type = NavigationRecordType::from_str(&items[3])?; 
+            msg_type = NavigationMsgType::from_str(&items[1])?;
+            line = lines.next()
+                .unwrap()
+        }
         
         // line 1 always contains 
         // [+] SV#ID
@@ -142,29 +207,12 @@ impl NavigationRecord {
         };
 
         let epoch = NavigationRecord::parse_date(&items[1..7])?;
-        let sv_clock_bias = 0.0_f64;//f64::from_str(bias)?;
-        let sv_clock_drift = 0.0_f64;//f64::from_str(drift)?;
-        let sv_clock_drift_rate = 0.0_f64;//f64::from_str(drift_rate)?;
+        println!("BIAS \"{}\" DRIFT \"{}\" RATE \"{}\"",&bias.replace("D","e"),drift,drift_rate);
+        let sv_clock_bias = f64::from_str(&bias.replace("D","e"))?;
+        let sv_clock_drift = f64::from_str(&drift.replace("D","e"))?;
+        let sv_clock_drift_rate = f64::from_str(&drift_rate.replace("D","e"))?;
 
-/*
-        let gps_ids: {
-            ["Crs", "DeltaN", "M0"],
-            ["Cuc","e","Cus","Sqrta"],
-            ["Toe","Cic","Omega0","Cis"],
-            ["i0","Crc","omega","OmegaDot"],
-            ["Idot","L2Codes","GpsWeek","L2pFlag"],
-            ["SvAcc","SvHealt","Tgd","Iodc"],
-            ["TransTime","FitInterval",]
-        };
-
-        let gal_ids: {
-            ["Crs", "Delta n", "M0"],
-            ["Cuc","e","Cus","sqrta"],
-            ["Toe","Cic","OMEGA0","Cis"],
-            ["IDOT",
-            ["TransTime",]
-        };
-*/            
+        // orbits parsing
         loop {
             if let Some(l) = lines.next() {
                 line = l;   
@@ -176,14 +224,17 @@ impl NavigationRecord {
             let (data3, rem) = rem.split_at(19);
             let (data4, rem) = rem.split_at(19);
         }
+        
         Ok(NavigationRecord {
+            record_type: NavigationRecordType::default(),
+            msg_type: NavigationMsgType::default(),
             constellation: constel,
             sv_id,
             epoch,
             sv_clock_bias,
             sv_clock_drift,
             sv_clock_drift_rate,
-            data: std::collections::HashMap::new(),
+            orbits: Vec::new(),
         })
     }
 }
