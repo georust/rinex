@@ -19,7 +19,30 @@ pub enum Error {
     ParseConstellationError(#[from] constellation::ConstellationError),
 }
 
-/// `NavigationFrame` describes a NAV message frame.   
+/// ̀`NavigationRecordType` V > 4 prevision
+pub enum NavigationRecordType {
+    Ephemeride,
+}
+
+impl Default for NavigationMsgType {
+    fn default() -> NavigationMsgType {
+        NavigationType::Ephemeride
+    }
+}
+
+/// `NavigationMessageType` V > 4 prevision
+pub enum NavigationMsgType {
+    Cnav,
+    Lnav,
+}
+
+impl Default for NavigationMsgType {
+    fn default() -> NavigationMsgType {
+        NavigationType::Cnav
+    }
+}
+
+/// `NavigationRecord` describes a NAV message frame.   
 /// constellation: GNSS for this particular frame,
 ///       identical accross entire file for unique RINEX NAV files.   
 /// sv_id: Sat. Vehicule ID#   
@@ -28,7 +51,7 @@ pub enum Error {
 /// sv_clock_drift: (s.s⁻¹)   
 /// sv_clock_drift_rate: (s.s⁻²)
 #[derive(Debug)]
-pub struct NavigationFrame {
+pub struct NavigationRecord {
     constellation: constellation::Constellation,
     sv_id: u8, // Vehicule #ID 
     epoch: chrono::NaiveDateTime, // timestamp
