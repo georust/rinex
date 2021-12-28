@@ -59,31 +59,6 @@ assert_eq!(header.get_pgm(), "teqc  2019Feb25");
 assert_eq!(header.run_by(),  "Unknown");
 ```
 
-## Data interface
-
-This lib builds a dictionnary interface to interact, sort and retrieve
-RINEX files payloads. Some restrictions may apply to certains GNSS constellations,
-refer to specific paragraphs down below.
-
-To determine the key of interest, refer to the specific RINEX payload documentation.
-The key will be the "official" denomination without white space/underscore. 
-Some restrictions will apply for complex key names, they will be explained in the related
-sections down below.
-
-Here is an example of the labelization used for GPS Navigation Message payload
-
-### GPS Navigation example
-TODO
-
-### Glonass Navigation example  
-TODO
-
-### Mixed Navigation example
-TODO
-
-### Mixed Observation example
-TODO
-
 ### GPS Observation example
 TODO
 
@@ -96,8 +71,9 @@ manipulate the file content.
 
 ### Navigation Message data
 
-Navigation Messages are Constellation dependent. Three main constellations
-are currently supported 
+NAV messages share _NavigationFrame_ content in common.   
+The rest is GNSS constellation depedent (refer to _data indexing_ section).    
+Three main constellations are currently supported 
 
 + GPS
 + Glonass
@@ -107,4 +83,28 @@ are currently supported
 That means the lib will not build internal data against other unique GNSS constellation files.
 
 ### Observation data
+TODO
+
+
+## Data indexing interface
+
+This lib builds a dictionnary interface to interact, sort and retrieve
+RINEX files payloads. Some restrictions may apply to certains GNSS constellations,
+refer to specific paragraphs down below.
+
+All known keys are referenced in the /keys folder.  
+For key and related data specifications, refer toe the related "DATA RECORD" description
+in the `RINEX` specifications
+
+
+### GPS Navigation analysis example
+TODO
+
+### Glonass Navigation analysis example  
+TODO
+
+### Mixed Navigation example
+TODO
+
+### Mixed Observation example
 TODO
