@@ -59,6 +59,9 @@ assert_eq!(header.get_pgm(), "teqc  2019Feb25");
 assert_eq!(header.run_by(),  "Unknown");
 ```
 
+### GPS Observation example
+TODO
+
 ## RINEX Types
 
 Many RINEX file types exists, `RinexType` (refer to API) describes some of them.  
@@ -68,8 +71,9 @@ manipulate the file content.
 
 ### Navigation Message data
 
-Navigation Messages are Constellation dependent. Three main constellations
-are currently supported 
+NAV messages share _NavigationFrame_ content in common.   
+The rest is GNSS constellation depedent (refer to _data indexing_ section).    
+Three main constellations are currently supported 
 
 + GPS
 + Glonass
@@ -81,28 +85,26 @@ That means the lib will not build internal data against other unique GNSS conste
 ### Observation data
 TODO
 
-### Data interface
+
+## Data indexing interface
 
 This lib builds a dictionnary interface to interact, sort and retrieve
 RINEX files payloads. Some restrictions may apply to certains GNSS constellations,
 refer to specific paragraphs down below.
 
-In any case, for a supported GNSS constellation & Rinex type, this lib will build
-Rinex Type specific payloads as a dictionnary and each items will be retrieve
-with their "official" key. To determine the "key" you are interested in,
-refer to the RINEX payload specification
+All known keys are referenced in the /keys folder.  
+For key and related data specifications, refer toe the related "DATA RECORD" description
+in the `RINEX` specifications
 
-#### GPS Navigation example
+
+### GPS Navigation analysis example
 TODO
 
-#### Glonass Navigation example  
+### Glonass Navigation analysis example  
 TODO
 
-#### Mixed Navigation example
+### Mixed Navigation example
 TODO
 
-#### Mixed Observation example
-TODO
-
-#### GPS Observation example
+### Mixed Observation example
 TODO
