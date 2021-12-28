@@ -497,6 +497,20 @@ impl std::str::FromStr for Header {
                 // LEAP SECOND might have complex format
                 //let leap_str = line.split_at(20).0.trim();
                 //leap = Some(u32::from_str_radix(leap_str, 10)?)
+
+            } else if line.contains("DOI") {
+                // TODO digital object identifier
+                // v> 4.0
+            } else if line.contains("MERGED FILE") {
+                //TODO nb# of merged files
+                // v>4.0
+            } else if line.contains("STATION INFORMATION") {
+                // TODO station URL
+                // v>4
+            } else if line.contains("LICENSE OF USE") {
+                // TODO license in use
+                // v>4
+            
             
             } else if line.contains("TIME OF FIRST OBS") {
                 let items: Vec<&str> = line.split_ascii_whitespace()
