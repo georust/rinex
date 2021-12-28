@@ -6,10 +6,9 @@ Rust package to parse and analyze Rinex files
 [![crates.io](https://img.shields.io/crates/d/rinex.svg)](https://crates.io/crates/rinex)
 [![codecov](https://codecov.io/gh/gwbres/rinex/branch/main/graph/badge.svg)](https://codecov.io/gh/gwbres/rinex)
 
-This package is **Work in Progress**, its main objective being
-able to parse .g and .o observations file, hopefully V3 RINEX standard.
+## Getting started
 
-### Getting started
+Use ::from_file to parse a RINEX file:
 
 ```rust
 let rinex = Rinex::from_file("data/amel0010.21g");
@@ -19,12 +18,91 @@ let rinex = Rinex::from_file("data/aopr0010.17o");
 println!("{:#?}", rinex);
 ```
 
-### Developments
+All "Comments" are currently discarded and not treated.   
 
-You can add some more RINEX files to the "/data" folder
-to test the lib against more data:
+`length` of a Rinex file returns the number of payload items:
 
-```shell
-cargo test
-cargo test -- --nocapture
++ Total number of Observations for `RinexType::ObservationData`
++ Total number of Nav Messages for `RinexType::NavigationMessage`
+
+```rust
+let rinex = Rinex::from_file("data/amel0010.21g");
+println!("{}", rinex.len());
 ```
+
+### Supported versions
+
+2.04 <= v <= 3.11 has been extensively tested and should work on most RINEX files.   
+Refer to /data to see the database against which this lib is automatically tested.
+
+## RINEX Header
+
+The `Rinex Header` inner object contains all
+general and high level information 
+
+```rust
+let rinex = Rinex::from_file("data/AMEL00NLD_R_20210010000_01D_MN.rnx");
+let header = rinex.get_header();
+println!("{:#?}", header);
+assert_eq!(header.get_type(), RinexType::NavigationMessage);
+assert_eq!(header.get_constellation(), constellation::Constellation::Mixed);
+```
+
+Other example
+
+```rust
+let rinex = Rinex::from_file("data/dlf10010.21g");
+let header = rinex.get_header();
+println!("{:#?}", header);
+assert_eq!(header.get_version().to_string(), "2.11"); 
+assert_eq!(header.get_pgm(), "teqc  2019Feb25");
+assert_eq!(header.run_by(),  "Unknown");
+```
+
+## RINEX Types
+
+Many RINEX file types exists, `RinexType` (refer to API) describes some of them.  
+The payload of a RINEX file depends on the Rinex type.  
+For each supported type this library provides a convenient interface to 
+manipulate the file content.
+
+### Navigation Message data
+
+Navigation Messages are Constellation dependent. Three main constellations
+are currently supported 
+
++ GPS
++ Glonass
++ Galileo
++ Mixed (GPS,Glonass,Galileo)
+
+That means the lib will not build internal data against other unique GNSS constellation files.
+
+### Observation data
+TODO
+
+### Data interface
+
+This lib builds a dictionnary interface to interact, sort and retrieve
+RINEX files payloads. Some restrictions may apply to certains GNSS constellations,
+refer to specific paragraphs down below.
+
+In any case, for a supported GNSS constellation & Rinex type, this lib will build
+Rinex Type specific payloads as a dictionnary and each items will be retrieve
+with their "official" key. To determine the "key" you are interested in,
+refer to the RINEX payload specification
+
+#### GPS Navigation example
+TODO
+
+#### Glonass Navigation example  
+TODO
+
+#### Mixed Navigation example
+TODO
+
+#### Mixed Observation example
+TODO
+
+#### GPS Observation example
+TODO
