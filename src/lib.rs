@@ -140,8 +140,8 @@ impl Rinex {
                     //process record 
                     match rtype {
 						header::RinexType::NavigationMessage => {
-                            let fr = navigation::NavigationFrame::from_string(&record, &constellation);
-                            println!("FRAME {:#?}", fr)
+                            let rec = navigation::NavigationRecord::from_string(&record, &constellation);
+                            println!("FRAME {:#?}", rec)
 						},
                         _ => {
                     	    println!("RECORD: \"{}\"", record)

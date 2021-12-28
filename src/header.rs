@@ -35,14 +35,10 @@ impl std::str::FromStr for RinexType {
     fn from_str (s: &str) -> Result<Self, Self::Err> {
         if s.eq("NAVIGATION DATA") {
             Ok(RinexType::NavigationMessage)
+        } else if s.contains("NAV DATA") {
+            Ok(RinexType::NavigationMessage)
         } else if s.eq("OBSERVATION DATA") {
             Ok(RinexType::ObservationData)
-        } else if s.contains("G: GLONASS NAV DATA") {
-            Ok(RinexType::NavigationMessage)
-        } else if s.contains("N: GPS NAV DATA") {
-            Ok(RinexType::NavigationMessage)
-        } else if s.contains("N: GNSS NAV DATA") {
-            Ok(RinexType::NavigationMessage)
         } else {
             Err(RinexTypeError::UnknownType(String::from(s)))
         }
