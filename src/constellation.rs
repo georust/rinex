@@ -5,7 +5,7 @@ pub const GPS_IDENTIFIER: char     = 'G';
 pub const GLONASS_IDENTIFIER: char = 'R'; 
 pub const GALILEO_IDENTIFIER: char = 'E'; 
 pub const QZSS_IDENTIFIER: char    = 'J';
-pub const BEIDOU_IDENTIFIER: char  = 'J';
+pub const BEIDOU_IDENTIFIER: char  = 'C';
 pub const MIXED_IDENTIFIER: char   = 'M';
 pub const SBAS_IDENTIFIER: char    = 'S';
 
