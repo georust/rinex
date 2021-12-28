@@ -7,8 +7,7 @@ use std::str::FromStr;
 
 use crate::constellation;
 
-/// `NavigationFrameError` describes
-/// navigation frames specific errors
+/// Describes NAV records specific errors
 #[derive(Error, Debug)]
 pub enum Error {
     #[error("failed to parse int value")]
@@ -24,9 +23,9 @@ pub enum NavigationRecordType {
     Ephemeride,
 }
 
-impl Default for NavigationMsgType {
-    fn default() -> NavigationMsgType {
-        NavigationType::Ephemeride
+impl Default for NavigationRecordType {
+    fn default() -> NavigationRecordType {
+        NavigationRecordType::Ephemeride
     }
 }
 
@@ -38,7 +37,7 @@ pub enum NavigationMsgType {
 
 impl Default for NavigationMsgType {
     fn default() -> NavigationMsgType {
-        NavigationType::Cnav
+        NavigationMsgType::Cnav
     }
 }
 
@@ -61,9 +60,9 @@ pub struct NavigationRecord {
     data: std::collections::HashMap<String,f64> // constellation dependent 
 }
 
-impl Default for NavigationFrame {
-    fn default() -> NavigationFrame {
-        NavigationFrame {
+impl Default for NavigationRecord {
+    fn default() -> NavigationRecord {
+        NavigationRecord {
             constellation: constellation::Constellation::default(),
             sv_id: 0,
             epoch: chrono::NaiveDate::from_ymd(2000,01,01)
@@ -77,8 +76,7 @@ impl Default for NavigationFrame {
 }
 
 
-impl NavigationFrame {
-
+impl NavigationRecord {
     /// Builds date (timestamp) from raw str items
     fn parse_date (items: &[&str]) -> Result<chrono::NaiveDateTime, Error> {
         let (mut y,mon,day,h,min,s): (i32,u32,u32,u32,u32,f64) =
@@ -95,8 +93,8 @@ impl NavigationFrame {
             .and_hms(h,min,s as u32))
     }
     
-    /// Builds NavigationFrame from string (record content).   
-    pub fn from_string (s: &str, constellation: &constellation::Constellation) -> Result<NavigationFrame, Error> {
+    /// Builds NavigationRecord from raw record content
+    pub fn from_string (s: &str, constellation: &constellation::Constellation) -> Result<NavigationRecord, Error> {
         let mut lines = s.lines();
         let mut line = lines.next()
             .unwrap();
@@ -115,20 +113,35 @@ impl NavigationFrame {
         let items: Vec<&str> = sat_id_and_date.split_ascii_whitespace()
             .collect();
 
-        let (constel, sv_id): (constellation::Constellation, u8) = match constellation {
-            constellation::Constellation::Glonass => {
-                // assumes Glonass dedicated NAV (old fashion?)
-                (constellation::Constellation::Glonass,
-                u8::from_str_radix(&items[0], 10)?)
-            },
-            constellation::Constellation::Mixed => {
+        let nav_message_known_sv_identifiers: &'static [char] =
+            &['R','G','E','B','J','C','S']; 
+
+        let (constel, sv_id): (constellation::Constellation, u8) = match nav_message_known_sv_identifiers
+                .contains(&items[0].chars().nth(0).unwrap()) 
+        {
+            true => {
+                // V > 3 contains satid#PRN, and not PRN only
                 (constellation::Constellation::from_str(items[0])?,
                 u8::from_str_radix(&items[0][1..], 10)?)
             },
-            c => (*c, u8::from_str_radix(&items[0], 10)?)
+            false => {
+                match constellation {
+                    constellation::Constellation::Glonass => {
+                        // Glonass dedicated NAV + old fashion: no 'G'
+                        (constellation::Constellation::from_str(items[0])?,
+                        u8::from_str_radix(&items[0], 10)?)
+                    },
+                    constellation::Constellation::Mixed => {
+                        // Mixed requires 'ID' + PRN#
+                        (constellation::Constellation::from_str(items[0])?,
+                        u8::from_str_radix(&items[0][1..], 10)?)
+                    },
+                    c => (*c, u8::from_str_radix(&items[0], 10)?)
+                }
+            }
         };
-        
-        let epoch = NavigationFrame::parse_date(&items[1..7])?;
+
+        let epoch = NavigationRecord::parse_date(&items[1..7])?;
         let sv_clock_bias = 0.0_f64;//f64::from_str(bias)?;
         let sv_clock_drift = 0.0_f64;//f64::from_str(drift)?;
         let sv_clock_drift_rate = 0.0_f64;//f64::from_str(drift_rate)?;
@@ -163,7 +176,7 @@ impl NavigationFrame {
             let (data3, rem) = rem.split_at(19);
             let (data4, rem) = rem.split_at(19);
         }
-        Ok(NavigationFrame {
+        Ok(NavigationRecord {
             constellation: constel,
             sv_id,
             epoch,
