@@ -1,8 +1,6 @@
 //! This package provides a set of tools to parse 
 //! and analyze RINEX files.
 //! 
-//! This lib is work in progress
-//! 
 //! Homepage: <https://github.com/gwbres/rinex>
 
 use thiserror::Error;
@@ -15,20 +13,25 @@ mod navigation;
 mod constellation;
 
 #[macro_export]
-macro_rules! is_rinex_comment  {
+macro_rules! is_rinex_comment {
     ($line: expr) => { $line.contains("COMMENT") };
+}
+
+#[derive(Debug)]
+pub enum RinexRecord {
+    RinexNavRecord(navigation::NavigationRecord),
 }
 
 /// `Rinex` main structure,
 /// describes a `RINEX` file
 #[derive(Debug)]
-struct Rinex {
+pub struct Rinex {
     header: header::Header,
-//    body: Vec<T>, // body frames
+    records: Vec<RinexRecord>,
 }
 
 #[derive(Error, Debug)]
-enum RinexError {
+pub enum RinexError {
     #[error("Header delimiter not found")]
     MissingHeaderDelimiter,
     #[error("Header parsing error")]
@@ -37,9 +40,10 @@ enum RinexError {
 
 impl Rinex {
     /// Builds a Rinex struct
-    pub fn new (header: header::Header) -> Rinex {
+    pub fn new (header: header::Header, records: Vec<RinexRecord>) -> Rinex {
         Rinex {
-            header
+            header,
+            records,
         }
     }
 
@@ -73,6 +77,12 @@ impl Rinex {
         let (header, body) = Rinex::split_rinex_content(fp)?;
         let header = header::Header::from_str(&header)?;
 
+        let rinex_type = header.get_rinex_type();
+        let version = header.get_rinex_version();
+        let version_major = version.get_major(); 
+        let version_minor = version.get_minor(); 
+        let constellation = header.get_constellation();
+
         let mut body = body.lines();
         let mut line = body.next()
             .unwrap(); // ''END OF HEADER'' /BLANK
@@ -82,16 +92,12 @@ impl Rinex {
                 .unwrap()
         }
 
-        let rtype = header.get_rinex_type();
-        let version = header.get_rinex_version();
-        let version_major = version.get_major(); 
-        let version_minor = version.get_minor(); 
-        let constellation = header.get_constellation();
-        
         let mut record = String::with_capacity(256*1024);
         let (mut record_start, mut record_end) = (false, false);
         let mut eof = false;
         let mut first = true;
+        
+        let mut records: Vec<RinexRecord> = Vec::new();
         
         // NAV
         let nav_message_known_sv_identifiers: &'static [char] = 
@@ -103,7 +109,7 @@ impl Rinex {
                 .collect();
 
             /* builds record grouping */
-            match rtype {
+            match rinex_type {
                 header::RinexType::NavigationMessage => {
                     match constellation {
                         constellation::Constellation::Glonass => {
@@ -133,26 +139,33 @@ impl Rinex {
                 _ => {}
             }
 
+            if record_start && !first {
+                let record: Option<RinexRecord> = match rinex_type {
+                    header::RinexType::NavigationMessage => {
+                        if let Ok(record) = navigation::NavigationRecord::from_string(&version, &constellation, &record) {
+                            Some(RinexRecord::RinexNavRecord(record))
+                        } else {
+                            None
+                        }
+                    },
+                    //header::RinexType::ObservationData => {
+                    //}
+                    _ => None,
+                };
+                
+                if record.is_some() {
+                    records.push(record.unwrap())
+                }
+            }
+
             if record_start {
                 if first {
                     first = false
-                } else {
-                    //process record 
-                    match rtype {
-						header::RinexType::NavigationMessage => {
-                            let rec = navigation::NavigationRecord::from_string(&version, &constellation, &record);
-                            println!("FRAME {:#?}", rec)
-						},
-                        _ => {
-                    	    println!("RECORD: \"{}\"", record)
-                        },
-                    }
                 }
-
                 record_start = false;
                 record.clear()
             }
-                
+
             record.push_str(&line);
             record.push_str(" ");
 
@@ -178,6 +191,7 @@ impl Rinex {
 
         Ok(Rinex{
             header, 
+            records,
         })
     }
 }

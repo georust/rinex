@@ -207,10 +207,10 @@ impl NavigationRecord {
         };
 
         let epoch = NavigationRecord::parse_date(&items[1..7])?;
-        println!("BIAS \"{}\" DRIFT \"{}\" RATE \"{}\"",&bias.replace("D","e"),drift,drift_rate);
-        let sv_clock_bias = f64::from_str(&bias.replace("D","e"))?;
-        let sv_clock_drift = f64::from_str(&drift.replace("D","e"))?;
-        let sv_clock_drift_rate = f64::from_str(&drift_rate.replace("D","e"))?;
+        //println!("BIAS \"{}\" DRIFT \"{}\" RATE \"{}\"",&bias.replace("D","e"),drift,drift_rate);
+        let sv_clock_bias = 0.0_f64; //f64::from_str(&bias.replace("D","e"))?;
+        let sv_clock_drift = 0.0_f64; //f64::from_str(&drift.replace("D","e"))?;
+        let sv_clock_drift_rate = 0.0_f64; //f64::from_str(&drift_rate.replace("D","e"))?;
 
         // orbits parsing
         loop {
