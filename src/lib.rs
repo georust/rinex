@@ -18,6 +18,7 @@ macro_rules! is_rinex_comment {
 }
 
 #[derive(Debug)]
+/// `RinexRecord` describes file internal records
 pub enum RinexRecord {
     RinexNavRecord(navigation::NavigationRecord),
 }
@@ -28,6 +29,15 @@ pub enum RinexRecord {
 pub struct Rinex {
     header: header::Header,
     records: Vec<RinexRecord>,
+}
+
+impl Default for Rinex {
+    fn default() -> Rinex {
+        Rinex {
+            header: header::Header::default(),
+            records: Vec::new(),
+        }
+    }
 }
 
 #[derive(Error, Debug)]
