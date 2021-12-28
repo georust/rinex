@@ -51,7 +51,7 @@ impl Rinex {
                 .parse()
                 .unwrap();
         let offset = match content.find(header::HEADER_END_MARKER) {
-            Some(offset) => offset,
+            Some(offset) => offset+13,
             _ => return Err(RinexError::MissingHeaderDelimiter)
         };
         let (header, body) = content.split_at(offset);
@@ -73,10 +73,6 @@ impl Rinex {
         let (header, body) = Rinex::split_rinex_content(fp)?;
         let header = header::Header::from_str(&header)?;
 
-        if !header.get_rinex_version().is_supported() {
-            //TODO
-        }
-
         let mut body = body.lines();
         let mut line = body.next()
             .unwrap(); // ''END OF HEADER'' /BLANK
@@ -96,9 +92,11 @@ impl Rinex {
         let (mut record_start, mut record_end) = (false, false);
         let mut eof = false;
         let mut first = true;
-
-        let nav_message_to_match: &'static [char]  = &
-            ['R','G','E','B','J','C','S']; 
+        
+        // NAV
+        let nav_message_known_sv_identifiers: &'static [char] = 
+            &['R','G','E','B','J','C','S']; 
+        // OBS
 
         loop {
             let parsed: Vec<&str> = line.split_ascii_whitespace()
@@ -112,8 +110,13 @@ impl Rinex {
                             record_start = parsed.len() > 4
                         },
                         _ => {
-                            record_start = nav_message_to_match.contains(&line.chars().nth(0)
-                                .unwrap())
+                            record_start = match &line.chars().nth(0) {
+                                Some(c) => nav_message_known_sv_identifiers.contains(c),
+                                _ => false // TODO
+                                 // for some files, we encounter '\n' starting very first payload
+                                 // (right after END OF HEADER split position)
+                                 // current code drops first payload..
+                            };
                         },
                     }
                 },
@@ -137,8 +140,8 @@ impl Rinex {
                     //process record 
                     match rtype {
 						header::RinexType::NavigationMessage => {
-                            let msg = navigation::NavigationFrame::from_str(&record);
-                            //println!("{:#?}", msg)
+                            let fr = navigation::NavigationFrame::from_string(&record, &constellation);
+                            println!("FRAME {:#?}", fr)
 						},
                         _ => {
                     	    println!("RECORD: \"{}\"", record)
@@ -181,23 +184,10 @@ impl Rinex {
 
 mod test {
     use super::*;
-/*
-    /// tests Rcvr object fromStr method
-    fn rcvr_from_str() {
-        assert_eq!(
-            Rcvr::from_str("82205               LEICA RS500         4.20/1.39  ")
-                .unwrap(),
-            Rcvr{
-                sn: String::from("82205"),
-                model: String::from("LEICA RS500"),
-                firmware: String::from("4.20/1.39")
-            });
-    }
-*/
     #[test]
     /// Test `Rinex` constructor
     /// against all valid data resources
-    fn rinex_constructor() {
+    fn test_rinex_constructor() {
         // open test resources
         let test_resources = std::path::PathBuf::from(
             env!("CARGO_MANIFEST_DIR").to_owned() + "/data");
