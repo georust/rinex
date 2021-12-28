@@ -11,6 +11,44 @@ pub const CRINEX_MARKER_COMMENT : &str = "COMPACT RINEX FORMAT";
 /// End of Header section reached
 pub const HEADER_END_MARKER : &str = "END OF HEADER";
 
+/// Describes all known `RINEX` file types
+#[derive(Copy, Clone, Debug)]
+pub enum RinexType {
+    ObservationData,
+    NavigationMessage,
+    MeteorologicalData,
+    ClockData,
+}
+
+#[derive(Error, Debug)]
+pub enum RinexTypeError {
+    #[error("Unknown RINEX type identifier \"{0}\"")]
+    UnknownType(String),
+}
+
+impl Default for RinexType {
+    fn default() -> RinexType { RinexType::ObservationData }
+}
+
+impl std::str::FromStr for RinexType {
+    type Err = RinexTypeError;
+    fn from_str (s: &str) -> Result<Self, Self::Err> {
+        if s.eq("NAVIGATION DATA") {
+            Ok(RinexType::NavigationMessage)
+        } else if s.eq("OBSERVATION DATA") {
+            Ok(RinexType::ObservationData)
+        } else if s.contains("G: GLONASS NAV DATA") {
+            Ok(RinexType::NavigationMessage)
+        } else if s.contains("N: GPS NAV DATA") {
+            Ok(RinexType::NavigationMessage)
+        } else if s.contains("N: GNSS NAV DATA") {
+            Ok(RinexType::NavigationMessage)
+        } else {
+            Err(RinexTypeError::UnknownType(String::from(s)))
+        }
+    }
+}
+
 /// GNSS receiver description
 #[derive(Debug, PartialEq)]
 struct Rcvr {
@@ -175,43 +213,6 @@ struct CrinexInfo {
     date: chrono::NaiveDateTime, // date of compression
 }
 
-/// Describes all known `RINEX` file types
-#[derive(Copy, Clone, Debug)]
-pub enum RinexType {
-    ObservationData,
-    NavigationMessage,
-    MeteorologicalData,
-    ClockData,
-}
-
-#[derive(Error, Debug)]
-pub enum RinexTypeError {
-    #[error("Unknown RINEX type identifier \"{0}\"")]
-    UnknownType(String),
-}
-
-impl Default for RinexType {
-    fn default() -> RinexType { RinexType::ObservationData }
-}
-
-impl std::str::FromStr for RinexType {
-    type Err = RinexTypeError;
-    fn from_str (s: &str) -> Result<Self, Self::Err> {
-        if s.eq("NAVIGATION DATA") {
-            Ok(RinexType::NavigationMessage)
-        } else if s.eq("OBSERVATION DATA") {
-            Ok(RinexType::ObservationData)
-        } else if s.contains("G: GLONASS NAV DATA") {
-            Ok(RinexType::NavigationMessage)
-        } else if s.contains("N: GNSS NAV DATA") {
-            Ok(RinexType::NavigationMessage)
-
-        } else {
-            Err(RinexTypeError::UnknownType(String::from(s)))
-        }
-    }
-}
-
 /// Describes known marker types
 enum MarkerType {
     Geodetic, // earth fixed high precision
@@ -259,12 +260,12 @@ pub struct Header {
     rinex_type: RinexType, // type of Rinex
     constellation: constellation::Constellation, // GNSS constellation being used
     program: String, // program name 
-    run_by: Option<String>, // program run by
+    run_by: String, // program run by
     //date: strtime, // file date of creation
-    station: Option<String>, // station label
-    station_id: Option<String>, // station id
-    observer: Option<String>, // observer
-    agency: Option<String>, // agency
+    station: String, // station label
+    station_id: String, // station id
+    observer: String, // observer
+    agency: String, // agency
     rcvr: Option<Rcvr>, // receiver used for this recording
     ant: Option<Antenna>, // optionnal antenna infos
     leap: Option<u32>, // leap seconds
@@ -310,12 +311,12 @@ impl Default for Header {
             crinex: None,
             rinex_type: RinexType::default(),
             constellation: constellation::Constellation::default(),
-            program: String::from("pgm"),
-            run_by: None,
-            station: None,
-            station_id: None,
-            observer: None,
-            agency: None,
+            program: String::from("Unknown"),
+            run_by: String::from("Unknown"),
+            station: String::from("Unknown"),
+            station_id: String::from("Unknown"),
+            observer: String::from("Unknown"),
+            agency: String::from("Unknown"),
             rcvr: None, 
             ant: None, 
             coords: None, 
@@ -374,10 +375,15 @@ impl std::str::FromStr for Header {
         }
 
         // line1 {} {} {} // label [VERSION/TYPE/GNSS] 
-        let (version, remainder) = line.split_at(20);
+        let (version_str, remainder) = line.split_at(20);
         let (rinex_type, remainder) = remainder.trim().split_at(20);
         let (constellation, remainder) = remainder.trim().split_at(20);
-        println!("RINEX | VERSION \"{}\" | TYPE \"{}\" | OTHER \"{}\"", version, rinex_type, constellation);
+        println!("RINEX | VERSION \"{}\" | TYPE \"{}\" | OTHER \"{}\"", version_str, rinex_type, constellation);
+        
+        let version = version::Version::from_str(version_str.trim())?;
+        if !version.is_supported() {
+            return Err(HeaderError::VersionNotSupported(String::from(version_str)))
+        }
 
         // line2
         line = lines.next()
@@ -395,6 +401,10 @@ impl std::str::FromStr for Header {
         // {}                 yyyymmdd HHMMSS LCL
         let (pgm, remainder) = line.split_at(20);
         let (run_by, remainder) = remainder.split_at(20);
+        let run_by: String = match run_by.trim().eq("") {
+            true => String::from("Unknown"),
+            false => String::from(run_by.trim()) 
+        };
         let (date_str, _) = remainder.split_at(20);
         // identify date format (UTC/LCL)
         let date_str: &str = match date_str.contains("UTC") {
@@ -449,28 +459,30 @@ impl std::str::FromStr for Header {
         }
 
         // order may vary from now on
+        // indentifiers
+        let mut station    = String::from("Unknown");
+        let mut station_id = String::from("Unknown");
+        let mut observer   = String::from("Unknwon");
+        let mut agency     = String::from("Unknwown");
+        // hardware
         let mut ant        : Option<Antenna> = None;
-        let mut rcvr       : Option<Rcvr>    = None;
-        let mut station    : Option<String>  = None;
-        let mut station_id : Option<String>  = None;
-        let mut observer   : Option<String>  = None;
-        let mut agency     : Option<String>  = None;
-        let mut leap       : Option<u32>     = None;
         let mut ant_coords : Option<rust_3d::Point3D> = None;
+        let mut rcvr       : Option<Rcvr>    = None;
+        // other
+        let mut leap       : Option<u32>     = None;
         let mut sampling_interval: Option<f32> = None;
         let mut rcvr_clock_offset_applied: Option<bool> = None;
         let mut coords     : Option<rust_3d::Point3D> = None;
         let mut epochs: (Option<GnssTime>, Option<GnssTime>) = (None, None);
         loop {
             if line.contains("MARKER NAME") {
-                station = Some(String::from(line.split_at(20).0.trim()))
+                station = String::from(line.split_at(20).0.trim())
             } else if line.contains("MARKER NUMBER") {
-                station_id = Some(String::from(line.split_at(20).0.trim())) 
-            
+                station_id = String::from(line.split_at(20).0.trim()) 
             } else if line.contains("OBSERVER / AGENCY") {
                 let (obs, ag) = line.split_at(20);
                 let ag = ag.split_at(20).0;
-                agency = Some(String::from(ag.trim()))
+                agency = String::from(ag.trim())
 
             } else if line.contains("REC # / TYPE / VERS") {
                 rcvr = Some(Rcvr::from_str(line)?) 
@@ -620,12 +632,12 @@ impl std::str::FromStr for Header {
         }
         
         Ok(Header{
-            version: version::Version::from_str(version.trim())?,
+            version: version,
             crinex: crinex_infos, 
             rinex_type: RinexType::from_str(rinex_type.trim())?,
             constellation: constellation::Constellation::from_str(constellation.trim())?, 
             program: String::from(pgm.trim()),
-            run_by: Some(String::from(run_by.trim())),
+            run_by: run_by,
             station: station,
             station_id: station_id,
             agency: agency,
