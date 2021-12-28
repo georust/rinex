@@ -4,10 +4,10 @@
 
 use std::str::FromStr;
 
-/// Current (max) `RINEX` version supported
+/// Current `RINEX` version supported to this day
 pub const SUPPORTED_VERSION: Version = Version {
-    major: 3,
-    minor: 4
+    major: 4,
+    minor: 0
 };
 
 #[derive(Copy, Clone, PartialEq, Debug)]
@@ -16,7 +16,8 @@ pub struct Version {
     minor: u8
 }
 
-impl Default for Version {
+impl Default for Version  {
+    /// Builds a default `Version` object 
     fn default() -> Version {
         Version {
             major: 1,
