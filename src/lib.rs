@@ -7,6 +7,7 @@ use thiserror::Error;
 use std::str::FromStr;
 use scan_fmt::scan_fmt;
 
+mod keys;
 mod header;
 mod record;
 mod version;
@@ -64,9 +65,10 @@ pub fn new_record_block (line: &str,
                         Some(c) => known_sv_identifiers.contains(&c), 
                         _ => false
                             //TODO
-                            // for some file we end but with "\nxxx"
-                            // as the very first item,
-                            // current code will drop first payload item
+                            // <o 
+                            //   for some files we end up with "\n xxxx" as first frame items 
+                            // current code will discard first payload item in such scenario
+                            // => need to cleanup (split(head,body) method)
                     }
                 }
             }
@@ -86,8 +88,7 @@ impl Rinex {
         }
     }
 
-    /// splits rinex file into two
-    /// (header, body) as strings
+    /// splits rinex file into two (header, body) contents
     fn split_rinex_content (fp: &std::path::Path) -> Result<(String, String), RinexError> {
         let content: String = std::fs::read_to_string(fp)
             .unwrap()
@@ -121,6 +122,10 @@ impl Rinex {
         let version_major = version.get_major(); 
         let version_minor = version.get_minor(); 
         let constellation = header.get_constellation();
+
+        // build key listing for this context
+        let keys = keys::KeyBank::new(&version, &rinex_type); 
+        println!("KEYS {:#?}", keys);
 
         let mut body = body.lines();
         let mut line = body.next()
@@ -199,8 +204,7 @@ impl Rinex {
 mod test {
     use super::*;
     #[test]
-    /// Test `Rinex` constructor
-    /// against all valid data resources
+    /// Tests `Rinex` constructor against all known test resources
     fn test_rinex_constructor() {
         // open test resources
         let test_resources = std::path::PathBuf::from(
