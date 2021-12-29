@@ -27,7 +27,20 @@ pub enum RinexTypeError {
 }
 
 impl Default for RinexType {
+    /// Builds a default `RinexType`
     fn default() -> RinexType { RinexType::ObservationData }
+}
+
+impl RinexType {
+    /// Converts `Self` to string
+    pub fn to_string(&self) -> &str {
+        match *self {
+            RinexType::ObservationData => "ObservationData",
+            RinexType::NavigationMessage => "NavigationMessage",
+            RinexType::MeteorologicalData => "MeteorologicalData",
+            RinexType::ClockData => "ClockData",
+        }
+    }
 }
 
 impl std::str::FromStr for RinexType {
