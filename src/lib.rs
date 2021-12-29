@@ -102,6 +102,11 @@ impl Rinex {
         Ok((String::from(header),String::from(body)))
     }
 
+    /// Returns `Rinex` length, ie.,
+    ///   nb of observations for `RinexType::ObservationData`   
+    ///   nb of ephemerides  for `RinexType::NavigationMessage`   
+    pub fn len (&self) -> usize { self.records.len() }
+    
     /// Builds a `Rinex` from given file.
     /// Input file must respect the whitespace specifications
     /// for the entire header section.   
@@ -151,7 +156,7 @@ impl Rinex {
                 let record: Option<RinexRecord> = match rinex_type {
                     header::RinexType::NavigationMessage => {
                         if let Ok(record) = 
-                            navigation::NavigationRecord::from_string(&version, &constellation, &keys, &block) {
+                            navigation::NavigationRecord::from_string(version, constellation, &keys, &block) {
                                 Some(RinexRecord::RinexNavRecord(record))
                         } else {
                             None
