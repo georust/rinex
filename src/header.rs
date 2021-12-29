@@ -280,7 +280,6 @@ pub struct Header {
     leap: Option<u32>, // leap seconds
     coords: Option<rust_3d::Point3D>, // station approx. coords
     wavelengths: Option<(u32,u32)>, // L1/L2 wavelengths
-    nb_observations: u64,
     sampling_interval: Option<f32>, // sampling
     epochs: (Option<GnssTime>, Option<GnssTime>), // first , last observations
     // true if epochs & data compensate for local clock drift 
@@ -332,7 +331,6 @@ impl Default for Header {
             leap: None,
             rcvr_clock_offset_applied: None,
             wavelengths: None,
-            nb_observations: 0,
             sampling_interval: None,
             epochs: (None, None),
             gps_utc_delta: None,
@@ -689,7 +687,6 @@ impl std::str::FromStr for Header {
             rcvr_clock_offset_applied: rcvr_clock_offset_applied,
             coords: coords,
             wavelengths: None,
-            nb_observations: 0,
             sampling_interval: sampling_interval,
             epochs: epochs,
             gps_utc_delta: None,
