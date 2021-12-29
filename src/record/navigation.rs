@@ -5,6 +5,7 @@ use thiserror::Error;
 use chrono::Timelike;
 use std::str::FromStr;
 
+use crate::keys;
 use crate::record;
 use crate::version;
 use crate::constellation;
@@ -91,9 +92,6 @@ impl std::str::FromStr for NavigationMsgType {
     }
 }
 
-/// Maximal nb of items to be stored 
-pub const MaxMapSize: usize = 16;
-
 /// `NavigationRecord` describes a NAV message frame.   
 /// constellation: GNSS for this particular record,
 ///       identical accross entire file for unique RINEX NAV files.   
@@ -103,8 +101,6 @@ pub const MaxMapSize: usize = 16;
 pub struct NavigationRecord {
     record_type: NavigationRecordType,
     msg_type: NavigationMsgType,
-    constellation: constellation::Constellation,
-    sv_id: u8, // Vehicule #ID 
     items: std::collections::HashMap<String, RecordItem>,
 }
 
@@ -113,9 +109,7 @@ impl Default for NavigationRecord {
         NavigationRecord {
             record_type: NavigationRecordType::default(),
             msg_type: NavigationMsgType::default(),
-            constellation: constellation::Constellation::default(),
-            sv_id: 0,
-            items: std::collections::HashMap::with_capacity(MaxMapSize),
+            items: std::collections::HashMap::with_capacity(keys::KeyBankMaxSize),
         }
     }
 }
@@ -123,7 +117,8 @@ impl Default for NavigationRecord {
 impl NavigationRecord {
     /// Builds `NavigationRecord` from raw record content
     pub fn from_string (version: &version::Version, 
-            constellation: &constellation::Constellation, s: &str) 
+            constellation: &constellation::Constellation, 
+                key_listing: &keys::KeyBank, s: &str) 
                 -> Result<NavigationRecord, Error> 
     {
         let mut lines = s.lines();
@@ -141,83 +136,38 @@ impl NavigationRecord {
                 .unwrap()
         }
 
-        //let keys: Vec<String>  match version.get_major() {
-            //match constellation {
-            //}
-        //};
-        
-        // line 1 always contains 
-        // [+] SV#ID
-        // [+] epoch 
-        // [+] sv clock bias
-        // [+] sv clock drift
-        // [+] sv clock drift rate
-        let (sat_id, rem) = line.split_at(3);
-        let (date, rem) = rem.split_at(19);
-        let (bias, rem) = rem.split_at(19);
-        let (drift, rem) = rem.split_at(19);
-        let (drift_rate, rem) = rem.split_at(19);
+        let mut offset: usize = 0;
+        let mut map = std::collections::HashMap::with_capacity(keys::KeyBankMaxSize);
 
-        let nav_message_known_sv_identifiers: &'static [char] =
-            &['R','G','E','B','J','C','S']; 
+        for key in &key_listing.keys { 
+            let (key, type_descriptor) = key; 
 
-        let mut map = std::collections::HashMap::with_capacity(MaxMapSize);
-        
-        let item = RecordItem::from_string("epoch", date)?; 
-        map.insert(String::from("Epoch"), item);
-        
-        let item = RecordItem::from_string("f64", bias.trim())?; 
-        map.insert(String::from("SvClockBias"), item);
-        
-        let item = RecordItem::from_string("f64", drift.trim())?; 
-        map.insert(String::from("SvClockDrift"), item);
-        
-        let item = RecordItem::from_string("f64", drift_rate.trim())?; 
-        map.insert(String::from("SvClockDriftRate"), item);
+            match type_descriptor.as_str() {
+                "sv" => offset += 3,
+                "epoch" => offset += 12,
+                _ => offset += 19,
+            }
 
-        let (constel, sv_id): (constellation::Constellation, u8) = match nav_message_known_sv_identifiers
-                .contains(&sat_id.trim().chars().nth(0).unwrap()) 
-        {
-            true => {
-                // V ≥ 4 contains #Sat#PRN, not PRN only
-                (constellation::Constellation::from_char(sat_id.chars().nth(0).unwrap())?,
-                u8::from_str_radix(&sat_id.trim()[1..], 10)?)
-            },
-            false => {
-                // V < 4 contains #Sat#PRN, or ' '#PRN
-                match constellation {
-                    constellation::Constellation::Glonass => {
-                        // Glonass dedicated NAV + old fashion: no 'G'
-                        (constellation::Constellation::Glonass,
-                        u8::from_str_radix(&sat_id.trim(), 10)?)
-                    },
-                    constellation::Constellation::Mixed => {
-                        // Mixed requires 'ID' + PRN#
-                        (constellation::Constellation::from_char(sat_id.chars().nth(0).unwrap())?,
-                        u8::from_str_radix(&sat_id.trim()[1..], 10)?)
-                    },
-                    c => (*c, u8::from_str_radix(&sat_id.trim(), 10)?)
+            let (content, rem) = line.split_at(offset); 
+            line = rem;
+            let content = content.trim(); 
+            let item = RecordItem::from_string(type_descriptor, content)?;
+            map.insert(String::from(key), item); 
+
+            if (offset >= 19*3+22) {
+                // time to grab a new line
+                offset = 23;
+                if let Some(l) = lines.next() {
+                    line = l;   
+                } else {
+                    break
                 }
             }
-        };
-
-        loop {
-            if let Some(l) = lines.next() {
-                line = l;   
-            } else {
-                break
-            }
-            let (data1, rem) = line.split_at(23);
-            let (data2, rem) = rem.split_at(19);
-            let (data3, rem) = rem.split_at(19);
-            let (data4, rem) = rem.split_at(19);
         }
-        
+
         Ok(NavigationRecord {
             record_type: NavigationRecordType::default(),
             msg_type: NavigationMsgType::default(),
-            constellation: constel,
-            sv_id,
             items: map, 
         })
     }

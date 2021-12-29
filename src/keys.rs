@@ -1,20 +1,22 @@
 use crate::version::Version;
 use crate::header::RinexType;
+use crate::constellation::Constellation;
 
-/// Maximal Key listing ever
+/// Biggest Key listing ever
 pub const KeyBankMaxSize: usize = 64;
 
+/// Keybank item alias
 type KeyBankItem = (String, String); // Key, Type
 
 #[derive(Debug)]
 pub struct KeyBank {
-    keys: Vec<KeyBankItem> // key, type
+    pub keys: Vec<KeyBankItem> // key, type
 }
 
 impl KeyBank {
     /// Builds known list of item keys
     /// for this particular Rinex release & type
-    pub fn new (version: &Version, rtype: &RinexType) -> Result<KeyBank, std::io::Error> {
+    pub fn new (version: &Version, rtype: &RinexType, constel: &Constellation) -> Result<KeyBank, std::io::Error> {
         let mut keys: Vec<KeyBankItem> = Vec::with_capacity(KeyBankMaxSize);
         let key_listing = std::path::PathBuf::from(
             env!("CARGO_MANIFEST_DIR").to_owned()
@@ -26,7 +28,8 @@ impl KeyBank {
         
         let mut version_matched = false;
         let version_to_match = format!("V{}", version.get_major());
-
+        let mut constel_matched = false;
+        let constel_to_match = constel.to_string();
         let mut type_matched = false;
         let type_to_match = rtype.to_string();
 
@@ -37,16 +40,23 @@ impl KeyBank {
         loop {
             
             if type_matched {
-                if version_matched {
-                    let cleanedup = line.replace(":","");
-                    let cleanedup = cleanedup.replace(",","");
-                    let cleanedup = cleanedup.replace("\"","");
-                    let items: Vec<&str> = cleanedup.split_ascii_whitespace()
-                        .collect();
-                    println!("ITEMS \"{}\" \"{}\"", items[0], items[1]);
-                    keys.push((String::from(items[0]),String::from(items[1])))
+                if constel_matched {
+                    if version_matched {
+                        if line.contains("}") {
+                            break // DONE
+                        }
+
+                        let cleanedup = line.replace(":","");
+                        let cleanedup = cleanedup.replace(",","");
+                        let cleanedup = cleanedup.replace("\"","");
+                        let items: Vec<&str> = cleanedup.split_ascii_whitespace()
+                            .collect();
+                        keys.push((String::from(items[0]),String::from(items[1])))
+                    } else {
+                        version_matched = line.contains(&version_to_match)
+                    }
                 } else {
-                    version_matched = line.contains(&version_to_match)
+                    constel_matched = line.contains(&constel_to_match)    
                 }
             } else {
                 type_matched = line.contains(&type_to_match)
