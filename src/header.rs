@@ -458,8 +458,8 @@ impl std::str::FromStr for Header {
         // indentifiers
         let mut station    = String::from("Unknown");
         let mut station_id = String::from("Unknown");
-        let mut observer   = String::from("Unknwon");
-        let mut agency     = String::from("Unknwown");
+        let mut observer   = String::from("Unknown");
+        let mut agency     = String::from("Unknown");
         // hardware
         let mut ant        : Option<Antenna> = None;
         let mut ant_coords : Option<rust_3d::Point3D> = None;
