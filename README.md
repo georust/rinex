@@ -8,16 +8,62 @@ Rust package to parse and analyze Rinex files
 
 ## Getting started
 
-Use ::from_file to parse a RINEX file:
+Many RINEX file types exist, 
+the `RinexType` enum (refer to API) 
+describes the types of RINEX currently supported:
+
+* RinexType::NavigationMessage: Ephemeride NAV messages
+* RinexType::ObservationData:   Observations
+
+RINEX files contain a lot of information,
+and this library exposes all data contained by supported
+`Rinex Types`, that is: a lot.  
+
+To determine how to operate this library, refer to:
+* basic examples provided in this page
+* basic examples delivered with the library (see down below)
+* basic autotest method delivered by _src/lib.rs_ 
+
+```shell
+cargo run --example basic
+```
+
+If you're using this library, you probably want more
+than that and actually retrieve your data of interest
+and manipulate it.
+To learn how to do this, refer to:
+* more advanced examples described in this page:
+ * basic data parsing, identification, extraction..
+ * basic data sorting, 
+ * data plotting..
+* advanced examples delivered with the library (see down below)
+* specific autotest methods delviered by _src/lib.rs_ 
+
+```shell
+cargo run --example nav-1
+cargo run --example nav-2
+```
+
+### Supported RINEX revisions
+
+2.04 <= v <= 4.0 
+
+## Parsing a RINEX 
+
+The __::from\_file__ method is how to parse a local ̀`RINEX` file: 
 
 ```rust
 let rinex = Rinex::from_file("data/amel0010.21g");
 println!("{:#?}", rinex);
+```
 
+```rust
 let rinex = Rinex::from_file("data/aopr0010.17o");
 println!("{:#?}", rinex);
 ```
 
+### RINEX Header
+The RINEX Header contains
 All "Comments" are currently discarded and not treated.   
 
 `length` of a Rinex file returns the number of payload items:
@@ -29,11 +75,6 @@ All "Comments" are currently discarded and not treated.
 let rinex = Rinex::from_file("data/amel0010.21g");
 println!("{}", rinex.len());
 ```
-
-### Supported versions
-
-2.04 <= v <= 3.11 has been extensively tested and should work on most RINEX files.   
-Refer to /data to see the database against which this lib is automatically tested.
 
 ## RINEX Header
 
@@ -62,17 +103,10 @@ assert_eq!(header.run_by(),  "Unknown");
 ### GPS Observation example
 TODO
 
-## RINEX Types
+## RINEX File Types
 
-Many RINEX file types exists, `RinexType` (refer to API) describes some of them.  
-The payload of a RINEX file depends on the Rinex type.  
-For each supported type this library provides a convenient interface to 
-manipulate the file content.
+### RINEX: Navigation Message (NAV)
 
-### Navigation Message data
-
-NAV messages share _NavigationFrame_ content in common.   
-The rest is GNSS constellation depedent (refer to _data indexing_ section).    
 Three main constellations are currently supported 
 
 + GPS
@@ -80,11 +114,8 @@ Three main constellations are currently supported
 + Galileo
 + Mixed (GPS,Glonass,Galileo)
 
-That means the lib will not build internal data against other unique GNSS constellation files.
-
-### Observation data
+### RINEX: Observation Data (OBS)
 TODO
-
 
 ## Data indexing interface
 
@@ -108,3 +139,13 @@ TODO
 
 ### Mixed Observation example
 TODO
+
+## Supporting new RINEX Revisions
+
+For all currently supported `RinexTypes` 
+1: go through all possible record modifications:
+ * new types
+ * new values..
+2: add a new entry to keys.json
+3: add some new test resources 
+4: add new specific test method
