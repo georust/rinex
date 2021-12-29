@@ -1,5 +1,5 @@
 ## RINEX 
 RINEX Rust package todo list 
 
-### Rinex::header 
-- [ ] leap second might have 2 formats? 
+- [ ] Leap Seconds sometimes seem to come
+tied to a GNSS, what is that? see specifications
