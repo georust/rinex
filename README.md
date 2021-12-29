@@ -141,10 +141,11 @@ TODO
 
 ## Supporting new RINEX Revisions
 
-For all currently supported `RinexTypes` 
-1: go through all possible record modifications:
- * new types
- * new values..
-2: add a new entry to keys.json
-3: add some new test resources 
-4: add new specific test method
+To support a new RINEX revision, for all currently supported `RinexTypes`:
+
+* go through all possible record modifications:
+  * new record types would require a new src/record.rs RecordItem entry
+  * this implies a new construction & parsing method
+* add a new entry to keys.json file
+* add new test resources 
+* add new specific test method
