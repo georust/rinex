@@ -9,6 +9,8 @@ use crate::record;
 use crate::version;
 use crate::constellation;
 
+use record::*;
+
 /// Describes NAV records specific errors
 #[derive(Error, Debug)]
 pub enum Error {
@@ -18,12 +20,14 @@ pub enum Error {
     ParseFloatError(#[from] std::num::ParseFloatError),
     #[error("failed to identify constellation")]
     ParseConstellationError(#[from] constellation::ConstellationError),
+    #[error("failed to build record item")]
+    RecordItemError(#[from] RecordItemError),
 }
 
 #[derive(Debug)]
 /// `NavigationRecordType` describes type of record
 /// for NAV files
-pub enum NavigationRecordType {
+enum NavigationRecordType {
     Ephemeride,
 }
 
@@ -86,12 +90,8 @@ impl std::str::FromStr for NavigationMsgType {
     }
 }
 
-/// Maximal nb of `Orbits` to this day (V4)
-pub const MaxOrbitCount: usize = 9;
-
-/// `Orbit` quadruplet is the main
-/// payload of a NAV record
-type Orbit = (f64, f64, f64, f64);
+/// Maximal nb of items to be stored 
+pub const MaxMapSize: usize = 16;
 
 /// `NavigationRecord` describes a NAV message frame.   
 /// constellation: GNSS for this particular frame,
@@ -108,10 +108,9 @@ pub struct NavigationRecord {
     constellation: constellation::Constellation,
     sv_id: u8, // Vehicule #ID 
     epoch: chrono::NaiveDateTime, // timestamp
-    sv_clock_bias: f64, // (s)
-    sv_clock_drift: f64, // (s.s⁻¹)
-    sv_clock_drift_rate: f64, // (s.s⁻²)
-    orbits: Vec<Orbit>, // orbits (constellation + vers. dependent)
+    // orbit items (constellation + vers. dependent)
+    // SV#ID , epoch, SVClock (bias (s), drift (s.s⁻¹) rate (s.s⁻²)
+    items: std::collections::HashMap<String, RecordItem>,
 }
 
 impl Default for NavigationRecord {
@@ -123,10 +122,7 @@ impl Default for NavigationRecord {
             sv_id: 0,
             epoch: chrono::NaiveDate::from_ymd(2000,01,01)
                 .and_hms(0,0,0),
-            sv_clock_bias: 0.0_f64,    
-            sv_clock_drift: 0.0_f64,    
-            sv_clock_drift_rate: 0.0_f64,    
-            orbits: Vec::with_capacity(MaxOrbitCount),
+            items: std::collections::HashMap::with_capacity(MaxMapSize),
         }
     }
 }
@@ -209,9 +205,16 @@ impl NavigationRecord {
 
         let epoch = NavigationRecord::parse_date(&items[1..7])?;
         //println!("BIAS \"{}\" DRIFT \"{}\" RATE \"{}\"",&bias.replace("D","e"),drift,drift_rate);
-        let sv_clock_bias = 0.0_f64; //f64::from_str(&bias.replace("D","e"))?;
-        let sv_clock_drift = 0.0_f64; //f64::from_str(&drift.replace("D","e"))?;
-        let sv_clock_drift_rate = 0.0_f64; //f64::from_str(&drift_rate.replace("D","e"))?;
+        //let sv_clock_bias = 0.0_f64; //f64::from_str(&bias.replace("D","e"))?;
+        //let sv_clock_drift = 0.0_f64; //f64::from_str(&drift.replace("D","e"))?;
+        //let sv_clock_drift_rate = 0.0_f64; //f64::from_str(&drift_rate.replace("D","e"))?;
+
+        let mut map = std::collections::HashMap::with_capacity(MaxMapSize);
+        let item = RecordItem::from_string(RecordItemType::Float64, bias)?; 
+        map.insert(String::from("SvClockBias"), item);
+        //map.insert(String::from("SvClockDrift"), sv_clock_drift);
+        //map.insert(String::from("SvClockDriftRate"), sv_clock_drift_rate);
+        //map.insert(String::from("Epoch"), epoch);
 
         // orbits parsing
         loop {
@@ -232,10 +235,7 @@ impl NavigationRecord {
             constellation: constel,
             sv_id,
             epoch,
-            sv_clock_bias,
-            sv_clock_drift,
-            sv_clock_drift_rate,
-            orbits: Vec::new(),
+            items: map, 
         })
     }
 }
