@@ -46,7 +46,9 @@ cargo run --example nav-2
 
 ### Supported RINEX revisions
 
-2.04 <= v <= 4.0 
+* 2.00 ⩽ v < 4.0    Tested 
+*             v < 2.0    should work
+*             v = 4.0    should work, not garanteed
 
 ## Parsing a RINEX 
 
