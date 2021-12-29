@@ -14,7 +14,7 @@ type Epoch = chrono::NaiveDateTime;
 #[derive(Debug)]
 pub enum RecordItemType {
     Float64,
-    FixedPoint(String),
+    //FixedPoint(String),
     //Epoch,
 }
 
