@@ -55,9 +55,8 @@ impl std::str::FromStr for Sv {
     type Err = SvError;
     /// Builds an `Sv` from string content
     fn from_str (s: &str) -> Result<Self, Self::Err> {
-        let mut constellation = constellation::Constellation::default();
         let mut prn: u8 = 0;
-
+        let mut constellation = constellation::Constellation::default();
         if s.starts_with('G') {
             constellation = constellation::Constellation::GPS;
             prn = u8::from_str_radix(&s[1..], 10)?;
@@ -88,8 +87,9 @@ impl std::str::FromStr for Sv {
 pub enum RecordItem {
     Sv(Sv),
     Float64(f64),
-    FixedPoint(f64),
     Epoch(Epoch),
+    Unsigned(u32),
+    Flag(u8),
 }
 
 #[derive(Error, Debug)]
@@ -117,12 +117,7 @@ impl RecordItem {
             // un type binary peut aider pour les mask..
             // u32 doit suffir
             "sv" => Ok(RecordItem::Sv(Sv::from_str(&content)?)),
-            "f64" => Ok(RecordItem::Float64(f64::from_str(&content.replace("D","e"))?)),
-            "d19.12" => {
-                let value = f64::from_str(&content.replace("D","e"))?;
-                let scaling = 2.0_f64.powf(13.0);
-                Ok(RecordItem::FixedPoint(value * scaling))
-            },
+            "d19.12" => Ok(RecordItem::Float64(f64::from_str(&content.replace("D","e"))?)),
              "epoch" => {
                 let items: Vec<&str> = content.split_ascii_whitespace()
                     .collect();
@@ -140,6 +135,7 @@ impl RecordItem {
                     chrono::NaiveDate::from_ymd(y,mon,day)
                         .and_hms(h,min,s as u32)))
             },
+            "i1" => Ok(RecordItem::Flag(u8::from_str_radix(&content, 10)?)),
             _ => Err(RecordItemError::UnknownTypeDescriptor(type_descriptor.to_string())),
         }
     }

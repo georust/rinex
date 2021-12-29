@@ -138,7 +138,7 @@ impl NavigationRecord {
                 .unwrap()
         }
 
-        let mut item_count: u8 = 0;
+        let mut total: usize = 0;
         let mut map = std::collections::HashMap::with_capacity(keys::KEY_BANK_MAX_SIZE);
 
         for key in &key_listing.keys { 
@@ -146,8 +146,14 @@ impl NavigationRecord {
 
             let offset: usize = match type_descriptor.as_str() {
                 "sv" => 3,
-                _ => 19,
+                "epoch" => 19,
+                "d19.12" => 19,
+                "f14.3" => 14,
+                "i1" => 1,
+                _ => 0
             };
+
+            total += offset;
 
             let (content, rem) = line.split_at(offset); 
             line = rem.trim();
@@ -155,7 +161,7 @@ impl NavigationRecord {
             let mut item = RecordItem::from_string(type_descriptor, content)?;
 
             // special case: GLONASS NAV
-            // special case: faulty Rinex producer
+            // special case: Unique constellation with faulty Rinex producers
             //   GLONASS NAV (ok) and faulty producers
             //   do not prepend 'Sv' identifier with constellation
             //   identifier
@@ -167,7 +173,7 @@ impl NavigationRecord {
 
             map.insert(String::from(key), item); 
 
-            if map.len() % 4 == 0 {
+            if total >= 23+3*19 { 
                 // time to grab a new line
                 println!("new line");
                 if let Some(l) = lines.next() {
