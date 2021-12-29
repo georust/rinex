@@ -42,6 +42,7 @@ impl Default for Sv {
 }
 
 impl Sv {
+    /// Creates a new `Sv` Satellite vehicule descriptor
     fn new (constellation: constellation::Constellation, prn: u8) -> Sv {
         Sv {
             constellation,

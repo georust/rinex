@@ -109,15 +109,15 @@ impl Default for NavigationRecord {
         NavigationRecord {
             record_type: NavigationRecordType::default(),
             msg_type: NavigationMsgType::default(),
-            items: std::collections::HashMap::with_capacity(keys::KeyBankMaxSize),
+            items: std::collections::HashMap::with_capacity(keys::KEY_BANK_MAX_SIZE),
         }
     }
 }
 
 impl NavigationRecord {
     /// Builds `NavigationRecord` from raw record content
-    pub fn from_string (version: &version::Version, 
-            constellation: &constellation::Constellation, 
+    pub fn from_string (version: version::Version, 
+            constellation: constellation::Constellation, 
                 key_listing: &keys::KeyBank, s: &str) 
                 -> Result<NavigationRecord, Error> 
     {
@@ -136,27 +136,38 @@ impl NavigationRecord {
                 .unwrap()
         }
 
-        let mut offset: usize = 0;
-        let mut map = std::collections::HashMap::with_capacity(keys::KeyBankMaxSize);
+        let mut item_count: u8 = 0;
+        let mut map = std::collections::HashMap::with_capacity(keys::KEY_BANK_MAX_SIZE);
 
         for key in &key_listing.keys { 
             let (key, type_descriptor) = key; 
 
-            match type_descriptor.as_str() {
-                "sv" => offset += 3,
-                "epoch" => offset += 12,
-                _ => offset += 19,
-            }
+            let offset: usize = match type_descriptor.as_str() {
+                "sv" => 3,
+                _ => 19,
+            };
 
             let (content, rem) = line.split_at(offset); 
-            line = rem;
+            line = rem.trim();
             let content = content.trim(); 
-            let item = RecordItem::from_string(type_descriptor, content)?;
+            let mut item = RecordItem::from_string(type_descriptor, content)?;
+
+            // special case: GLONASS NAV
+            // special case: faulty Rinex producer
+            //   GLONASS NAV (ok) and faulty producers
+            //   do not prepend 'Sv' identifier with constellation
+            //   identifier
+            //   -> manual assignment in this case
+            if type_descriptor.eq("sv") && constellation != constellation::Constellation::Mixed {
+                let prn = u8::from_str_radix(&content, 10)?;  
+                item = RecordItem::Sv(Sv::new(constellation, prn))
+            }
+
             map.insert(String::from(key), item); 
 
-            if (offset >= 19*3+22) {
+            if map.len() % 4 == 0 {
                 // time to grab a new line
-                offset = 23;
+                println!("new line");
                 if let Some(l) = lines.next() {
                     line = l;   
                 } else {
