@@ -1,5 +1,4 @@
 use thiserror::Error;
-use std::str::FromStr;
 
 pub const GPS_IDENTIFIER: char     = 'G'; 
 pub const GLONASS_IDENTIFIER: char = 'R'; 
