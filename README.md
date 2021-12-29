@@ -52,7 +52,7 @@ cargo run --example nav-2
 
 ## Parsing a RINEX 
 
-The __::from\_file__ method is how to parse a local ̀`RINEX` file: 
+The __::from\_file__ method is how to parse a local `RINEX` file: 
 
 ```rust
 let rinex = Rinex::from_file("data/amel0010.21g");
@@ -64,24 +64,9 @@ let rinex = Rinex::from_file("data/aopr0010.17o");
 println!("{:#?}", rinex);
 ```
 
-### RINEX Header
-The RINEX Header contains
-All "Comments" are currently discarded and not treated.   
-
-`length` of a Rinex file returns the number of payload items:
-
-+ Total number of Observations for `RinexType::ObservationData`
-+ Total number of Nav Messages for `RinexType::NavigationMessage`
-
-```rust
-let rinex = Rinex::from_file("data/amel0010.21g");
-println!("{}", rinex.len());
-```
-
 ## RINEX Header
 
-The `Rinex Header` inner object contains all
-general and high level information 
+The `Rinex Header` contains high level information
 
 ```rust
 let rinex = Rinex::from_file("data/AMEL00NLD_R_20210010000_01D_MN.rnx");
@@ -100,6 +85,18 @@ println!("{:#?}", header);
 assert_eq!(header.get_version().to_string(), "2.11"); 
 assert_eq!(header.get_pgm(), "teqc  2019Feb25");
 assert_eq!(header.run_by(),  "Unknown");
+```
+
+"Comments" are currently discarded and not exposed by the parser.   
+
+`length` of a Rinex file returns the number of payload items:
+
++ Total number of Observations for `RinexType::ObservationData`
++ Total number of Nav Messages for `RinexType::NavigationMessage`
+
+```rust
+let rinex = Rinex::from_file("data/amel0010.21g");
+println!("{}", rinex.len());
 ```
 
 ### GPS Observation example
@@ -144,10 +141,11 @@ TODO
 
 ## Supporting new RINEX Revisions
 
-For all currently supported `RinexTypes` 
-1: go through all possible record modifications:
- * new types
- * new values..
-2: add a new entry to keys.json
-3: add some new test resources 
-4: add new specific test method
+To support a new RINEX revision, for all currently supported `RinexTypes`:
+
+* go through all possible record modifications:
+  * new record types would require a new src/record.rs RecordItem entry
+  * this implies a new construction & parsing method
+* add a new entry to keys.json file
+* add new test resources 
+* add new specific test method
