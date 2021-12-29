@@ -180,16 +180,18 @@ impl GnssTime {
     }
 }
 
-/// `LeapSecond` to describe leap seconds
+/// `LeapSecond` to describe leap seconds.
+/// leap: ΔtLS (s)
+/// week: week counter sometimes present.   
+/// day: week counter sometimes present.   
+/// GnssTimes:   
+/// GLO = UTC = GPS - ΔtLS   
+/// GPS = GPS = UTC + ΔtLS   
+#[derive(Debug)]
 struct LeapSecond {
-    leap: u32, // current amount of leap secs
+    leap: u32, // ΔtLS [s]
     week: u32, // week number 
-    day: u32,
-    delta: u32, // ΔtLSF(BNK) [s]
-        // delta time between GPS and UTC due to leap second
-        // can be future or past ΔtLSF(BNK) depending
-        // wether (week,day) are in future or past
-    constellation: constellation::Constellation, // system time identifier
+    day: u32, // day number
 }
 
 impl Default for LeapSecond {
@@ -198,23 +200,6 @@ impl Default for LeapSecond {
             leap: 0,
             week: 0,
             day: 0,
-            delta: 0,
-            constellation: constellation::Constellation::default(),
-        }
-    }
-}
-
-impl LeapSecond {
-    // Builds a new leap second
-    pub fn new (leap: u32, week: Option<u32>, day: Option<u32>, delta: Option<u32>,
-        constellation: Option<constellation::Constellation>)
-            -> LeapSecond {
-        LeapSecond {
-            leap: leap,
-            week: week.unwrap_or(0),
-            day: day.unwrap_or(0),
-            delta: delta.unwrap_or(0),
-            constellation: constellation.unwrap_or(constellation::Constellation::GPS),
         }
     }
 }
@@ -226,16 +211,18 @@ impl std::str::FromStr for LeapSecond {
         // leap seconds might have either simple or complex format
         let items: Vec<&str> = s.split_ascii_whitespace()
             .collect();
-        match items.len() {
-            1 => {
+        match items.len() > 2 {
+            false => {
                 ls.leap = u32::from_str_radix(items[0].trim(),10)?
             },
-            4 => {
-                ls.leap = u32::from_str_radix(items[0].trim(),10)?;
-                ls.week = u32::from_str_radix(items[1].trim(),10)?;
-                ls.day = u32::from_str_radix(items[2].trim(),10)?
-                //ls.constellation = Constellation: //TODO
-                //18    18  2185     7GPS             LEAP SECONDS        
+            true => {
+                let (leap, rem) = s.split_at(6);
+                let (leap, rem) = rem.split_at(6);
+                let (week, rem) = rem.split_at(6);
+                let (day, rem) = rem.split_at(6);
+                ls.leap = u32::from_str_radix(leap.trim(),10)?;
+                ls.week = u32::from_str_radix(week.trim(),10)?;
+                ls.day = u32::from_str_radix(day.trim(),10)?
             },
             _ => return Err(HeaderError::LeapSecondParsingError(String::from(s)))
         }
@@ -307,7 +294,7 @@ pub struct Header {
     agency: String, // agency
     rcvr: Option<Rcvr>, // optionnal hardware infos
     ant: Option<Antenna>, // optionnal antenna infos
-    leap: Option<u32>, // leap seconds
+    leap: Option<LeapSecond>, // optionnal leap seconds infos
     coords: Option<rust_3d::Point3D>, // station approx. coords
     wavelengths: Option<(u32,u32)>, // L1/L2 wavelengths
     sampling_interval: Option<f32>, // sampling
@@ -522,7 +509,7 @@ impl std::str::FromStr for Header {
         let mut ant_hen    : Option<(f32,f32,f32)> = None;
         let mut rcvr       : Option<Rcvr>    = None;
         // other
-        let mut leap       : Option<u32>     = None;
+        let mut leap       : Option<LeapSecond> = None;
         let mut sampling_interval: Option<f32> = None;
         let mut rcvr_clock_offset_applied: Option<bool> = None;
         let mut coords     : Option<rust_3d::Point3D> = None;
@@ -555,26 +542,21 @@ impl std::str::FromStr for Header {
                 ant = Some(Antenna::from_str(line)?)
             
             } else if line.contains("LEAP SECOND") {
-                // TODO
-                // LEAP SECOND might have complex format
-                //let leap_str = line.split_at(20).0.trim();
-                //leap = Some(u32::from_str_radix(leap_str, 10)?)
+                leap = Some(LeapSecond::from_str(line.split_at(40).0)?)
 
             } else if line.contains("DOI") {
                 // TODO digital object identifier
                 // v> 4.0
+
             } else if line.contains("MERGED FILE") {
                 //TODO nb# of merged files
                 // v>4.0
+
             } else if line.contains("STATION INFORMATION") {
-                // TODO station URL
-                // v>4
                 let (url, _) = line.split_at(20);//TODO revoir
                 station_url = Some(String::from(url.trim()))
 
             } else if line.contains("LICENSE OF USE") {
-                // TODO license in use
-                // v>4
                 let (lic, _) = line.split_at(20);//TODO revoir
                 license = Some(String::from(lic.trim()))
             
@@ -751,9 +733,9 @@ impl std::str::FromStr for Header {
             station_id: station_id,
             agency: agency,
             observer: observer,
-            rcvr: rcvr, 
-            ant: ant, 
-            leap: leap,
+            rcvr, 
+            ant, 
+            leap,
             rcvr_clock_offset_applied: rcvr_clock_offset_applied,
             coords: coords,
             wavelengths: None,
