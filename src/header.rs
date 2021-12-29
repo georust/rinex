@@ -385,10 +385,20 @@ impl std::str::FromStr for Header {
 
         // line1 {} {} {} // label [VERSION/TYPE/GNSS] 
         let (version_str, remainder) = line.split_at(20);
-        let (rinex_type, remainder) = remainder.trim().split_at(20);
-        let (constellation, remainder) = remainder.trim().split_at(20);
-        println!("RINEX | VERSION \"{}\" | TYPE \"{}\" | OTHER \"{}\"", version_str, rinex_type, constellation);
+        let (type_str, remainder) = remainder.trim().split_at(20);
+        let (constellation_str, remainder) = remainder.trim().split_at(20);
+
+        let rinex_type = RinexType::from_str(type_str.trim())?;
+        let mut constellation: constellation::Constellation;
         
+        if type_str.trim().contains("GLONASS") {
+            // special case, sometimes GLONASS NAV
+            // drops the constellation field cause it's implied
+            constellation = constellation::Constellation::Glonass
+        } else {
+            constellation = constellation::Constellation::from_str(constellation_str.trim())?
+        }
+
         let version = version::Version::from_str(version_str.trim())?;
         if !version.is_supported() {
             return Err(HeaderError::VersionNotSupported(String::from(version_str)))
@@ -665,8 +675,8 @@ impl std::str::FromStr for Header {
         Ok(Header{
             version: version,
             crinex: crinex_infos, 
-            rinex_type: RinexType::from_str(rinex_type.trim())?,
-            constellation: constellation::Constellation::from_str(constellation.trim())?, 
+            rinex_type,
+            constellation,
             program: String::from(pgm.trim()),
             run_by: run_by,
             station: station,
