@@ -1,13 +1,5 @@
 use thiserror::Error;
 
-const GPS_CHAR_IDENTIFIER     : char = 'G';
-const GLONASS_CHAR_IDENTIFIER : char = 'R'; 
-const GALILEO_CHAR_IDENTIFIER : char = 'E'; 
-const QZSS_CHAR_IDENTIFIER    : char = 'J';
-const BEIDOU_CHAR_IDENTIFIER  : char = 'C';
-const SBAS_CHAR_IDENTIFIER    : char = 'S';
-const MIXED_CHAR_IDENTIFIER   : char = 'M';
-
 const GPS_STR_IDENTIFIER     : &str = "GPS";
 const GLONASS_STR_IDENTIFIER : &str = "GLO"; 
 const GALILEO_STR_IDENTIFIER : &str = "GAL"; 
@@ -42,63 +34,41 @@ pub enum ConstellationError {
     UnknownConstellation(String),
 }
 
-impl Constellation {
-    pub fn from_char (c: char) -> Result<Constellation, ConstellationError> {
-        match c {
-            GPS_CHAR_IDENTIFIER => Ok(Constellation::GPS),
-            GLONASS_CHAR_IDENTIFIER => Ok(Constellation::Glonass),
-            GALILEO_CHAR_IDENTIFIER => Ok(Constellation::Galileo),
-            QZSS_CHAR_IDENTIFIER => Ok(Constellation::QZSS),
-            BEIDOU_CHAR_IDENTIFIER => Ok(Constellation::Beidou),
-            MIXED_CHAR_IDENTIFIER => Ok(Constellation::Mixed),
-            SBAS_CHAR_IDENTIFIER => Ok(Constellation::Sbas),
-            _ => Err(ConstellationError::UnknownConstellation(c.to_string())),
-        }
-    }
-}
-
 impl std::str::FromStr for Constellation {
     type Err = ConstellationError;
     fn from_str (s: &str) -> Result<Self, Self::Err> {
-        if s.contains(GPS_STR_IDENTIFIER) {
+        println!("constent \"{}\"", s);
+        if s.to_lowercase().contains("gps") {
             Ok(Constellation::GPS)
-        } else if s.contains(GLONASS_STR_IDENTIFIER) {
+        } else if s.to_lowercase().contains("glonass") {
             Ok(Constellation::Glonass)
-        } else if s.contains(GALILEO_STR_IDENTIFIER) {
+        } else if s.to_lowercase().contains("galileo") {
             Ok(Constellation::Galileo)
-        } else if s.contains(QZSS_STR_IDENTIFIER) {
+        } else if s.to_lowercase().contains("qzss") {
             Ok(Constellation::QZSS)
-        } else if s.contains(BEIDOU_STR_IDENTIFIER) {
+        } else if s.to_lowercase().contains("beidou") {
             Ok(Constellation::Beidou)
-        } else if s.contains(SBAS_STR_IDENTIFIER) {
-            Ok(Constellation::Sbas)
-        } else if s.contains(MIXED_STR_IDENTIFIER) {
+        } else if s.to_lowercase().contains("mixed") {
+            Ok(Constellation::Mixed)
+        } else if s.to_lowercase().starts_with("m") {
             Ok(Constellation::Mixed)
         } else {
-            match s.chars().nth(0)
-                .unwrap() {
-                GPS_CHAR_IDENTIFIER => Ok(Constellation::GPS),
-                GLONASS_CHAR_IDENTIFIER => Ok(Constellation::Glonass),
-                GALILEO_CHAR_IDENTIFIER => Ok(Constellation::Galileo),
-                QZSS_CHAR_IDENTIFIER => Ok(Constellation::QZSS),
-                BEIDOU_CHAR_IDENTIFIER => Ok(Constellation::Beidou),
-                MIXED_CHAR_IDENTIFIER => Ok(Constellation::Mixed),
-                SBAS_CHAR_IDENTIFIER => Ok(Constellation::Sbas),
-                _ => Err(ConstellationError::UnknownConstellation(s.to_string())),
-            }
+            Err(ConstellationError::UnknownConstellation(s.to_string()))
         }
     }
 }
 
 impl std::fmt::Display for Constellation {
-    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt (&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            Constellation::GPS => fmt.write_str("GPS"),
-            Constellation::Glonass => fmt.write_str("GLO"),
-            Constellation::Beidou => fmt.write_str("BDS"),
-            Constellation::QZSS => fmt.write_str("QZS"),
-            Constellation::Galileo => fmt.write_str("GAL"),
-            _ => fmt.write_str("M"),
+            Constellation::GPS => fmt.write_str(GPS_STR_IDENTIFIER),
+            Constellation::Glonass => fmt.write_str(GLONASS_STR_IDENTIFIER),
+            Constellation::Galileo => fmt.write_str(GALILEO_STR_IDENTIFIER),
+            Constellation::Beidou => fmt.write_str(BEIDOU_STR_IDENTIFIER),
+            Constellation::QZSS => fmt.write_str(QZSS_STR_IDENTIFIER),
+            Constellation::Sbas => fmt.write_str(SBAS_STR_IDENTIFIER),
+            Constellation::Mixed => fmt.write_str(MIXED_STR_IDENTIFIER),
+            _ => fmt.write_str("Unknown"),
         }
     }
 }
