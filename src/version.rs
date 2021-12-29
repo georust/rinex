@@ -62,8 +62,10 @@ impl Version {
     pub fn is_supported (&self) -> bool {
         if self.major < SUPPORTED_VERSION.major {
             true
-        } else {
+        } else if self.major == SUPPORTED_VERSION.major {
             self.minor <= SUPPORTED_VERSION.minor
+        } else {
+            false
         }
     }
 }
@@ -86,8 +88,6 @@ mod test {
     #[test]
     fn test_version_non_support() {
         let version = Version::new(5, 0);
-        assert_eq!(version.is_supported(), false);
-        let version = SUPPORTED_VERSION; 
         assert_eq!(version.is_supported(), false);
     }
 }
