@@ -471,6 +471,14 @@ impl std::str::FromStr for Header {
         let mut coords     : Option<rust_3d::Point3D> = None;
         let mut epochs: (Option<GnssTime>, Option<GnssTime>) = (None, None);
         loop {
+            /*
+            <o
+                the "number of satellites" also corresponds
+                to the number of records of the same epoch
+                following the 'epoch' record.
+                If may be used to skip appropriate number of data records if the event flags are not to be evaluated in detail
+
+            */
             if line.contains("MARKER NAME") {
                 station = String::from(line.split_at(20).0.trim())
             } else if line.contains("MARKER NUMBER") {
