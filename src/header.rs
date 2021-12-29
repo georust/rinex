@@ -59,7 +59,7 @@ impl std::str::FromStr for RinexType {
 }
 
 /// GNSS receiver description
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 struct Rcvr {
     model: String, 
     sn: String, // serial #
@@ -71,8 +71,8 @@ impl Default for Rcvr {
     fn default() -> Rcvr {
         Rcvr {
             model: String::from("Unknown"),
-            sn: String::from("?"),
-            firmware: String::from("?"),
+            sn: String::from("Unknown"),
+            firmware: String::from("Unknown"),
         }
     }
 }
@@ -80,11 +80,14 @@ impl Default for Rcvr {
 impl std::str::FromStr for Rcvr {
     type Err = std::io::Error;
     fn from_str (line: &str) -> Result<Self, Self::Err> {
-        let (id, remainder) = line.split_at(20);
-        let (make, version) = remainder.split_at(20);
-        println!("RCVR | ID \"{}\" | MAKE \"{}\" | VERSION \"{}\"",
-            id, make, version);
-        Ok(Rcvr::default())
+        let (id, rem) = line.split_at(20);
+        let (make, rem) = rem.split_at(20);
+        let (version, rem) = rem.split_at(20);
+        Ok(Rcvr{
+            sn: String::from(id.trim()),
+            model: String::from(make.trim()),
+            firmware: String::from(version.trim()),
+        })
     }
 }
 
@@ -94,11 +97,9 @@ struct Antenna {
     model: String,
     sn: String, // serial #
     coords: Option<rust_3d::Point3D>, // ref. point position
-        // for recordings generated onboard a vehicule
-    height: Option<f32>, // height in comparison to 
-        // reference point (ARP) above marker
-    delta_h_e_n: Option<f32>, // horizontal eccentricity (ARP) 
-        // relative to marker (EAST/NORTH) 
+    height: Option<f32>, // height in comparison to ref. point
+    eastern_eccentricity: Option<f32>, // in comparison to ref. point
+    northern_eccentricity: Option<f32>, // in comparison to ref. point
 }
 
 impl Default for Antenna {
@@ -106,12 +107,40 @@ impl Default for Antenna {
     fn default() -> Antenna {
         Antenna {
             model: String::from("Unknown"),
-            sn: String::from("?"),
+            sn: String::from("Unknown"),
             coords: None,
             height: None,
-            delta_h_e_n: None,
+            eastern_eccentricity: None,
+            northern_eccentricity: None,
         }
     }
+}
+
+impl std::str::FromStr for Antenna {
+    type Err = std::io::Error;
+    fn from_str (line: &str) -> Result<Self, Self::Err> {
+        let (id, rem) = line.split_at(20);
+        let (make, rem) = rem.split_at(20);
+        Ok(Antenna{
+            sn: String::from(id.trim()),
+            model: String::from(make.trim()),
+            coords: None,
+            height: None,
+            eastern_eccentricity: None,
+            northern_eccentricity : None,
+        })
+    }
+}
+
+impl Antenna {
+    /// Assigns antenna coordinates
+    pub fn set_coords (&mut self, coords: rust_3d::Point3D) { self.coords = Some(coords) }
+    /// Sets Antenna height compared to reference point
+    pub fn set_height (&mut self, height: f32) { self.height = Some(height) }
+    /// Sets Eastern eccentricity (m)
+    pub fn set_eastern_eccentricity (&mut self, e: f32) { self.eastern_eccentricity = Some(e) }
+    /// Sets Northern eccentricity (m)
+    pub fn set_northern_eccentricity (&mut self, e: f32) { self.northern_eccentricity = Some(e) }
 }
 
 /// GnssTime struct is a time realization,
@@ -273,15 +302,17 @@ pub struct Header {
     //date: strtime, // file date of creation
     station: String, // station label
     station_id: String, // station id
+    station_url: Option<String>, // station url
     observer: String, // observer
     agency: String, // agency
-    rcvr: Option<Rcvr>, // receiver used for this recording
+    rcvr: Option<Rcvr>, // optionnal hardware infos
     ant: Option<Antenna>, // optionnal antenna infos
     leap: Option<u32>, // leap seconds
     coords: Option<rust_3d::Point3D>, // station approx. coords
     wavelengths: Option<(u32,u32)>, // L1/L2 wavelengths
     sampling_interval: Option<f32>, // sampling
     epochs: (Option<GnssTime>, Option<GnssTime>), // first , last observations
+    license: Option<String>, // optionnal license
     // true if epochs & data compensate for local clock drift 
     rcvr_clock_offset_applied: Option<bool>, 
     gps_utc_delta: Option<u32>, // optionnal GPS / UTC time difference
@@ -325,8 +356,10 @@ impl Default for Header {
             station_id: String::from("Unknown"),
             observer: String::from("Unknown"),
             agency: String::from("Unknown"),
+            station_url: None,
+            license: None,
             rcvr: None, 
-            ant: None, 
+            ant: None,
             coords: None, 
             leap: None,
             rcvr_clock_offset_applied: None,
@@ -481,9 +514,12 @@ impl std::str::FromStr for Header {
         let mut station_id = String::from("Unknown");
         let mut observer   = String::from("Unknown");
         let mut agency     = String::from("Unknown");
+        let mut license     : Option<String> = None;
+        let mut station_url : Option<String> = None;
         // hardware
         let mut ant        : Option<Antenna> = None;
         let mut ant_coords : Option<rust_3d::Point3D> = None;
+        let mut ant_hen    : Option<(f32,f32,f32)> = None;
         let mut rcvr       : Option<Rcvr>    = None;
         // other
         let mut leap       : Option<u32>     = None;
@@ -491,6 +527,9 @@ impl std::str::FromStr for Header {
         let mut rcvr_clock_offset_applied: Option<bool> = None;
         let mut coords     : Option<rust_3d::Point3D> = None;
         let mut epochs: (Option<GnssTime>, Option<GnssTime>) = (None, None);
+        // RinexType::ObservationData
+        let mut obs_nb_sat : u32 = 0;
+        let mut obs_sat_count: u32 = 0;
         loop {
             /*
             <o
@@ -513,9 +552,7 @@ impl std::str::FromStr for Header {
                 rcvr = Some(Rcvr::from_str(line)?) 
             
             } else if line.contains("ANT # / TYPE") {
-                let (id, remainder) = line.split_at(20);
-                let (make, remainder) = remainder.trim().split_at(20);
-                println!("ANTENNA | ID \"{}\" | MAKE \"{}\"", id, make);
+                ant = Some(Antenna::from_str(line)?)
             
             } else if line.contains("LEAP SECOND") {
                 // TODO
@@ -532,10 +569,14 @@ impl std::str::FromStr for Header {
             } else if line.contains("STATION INFORMATION") {
                 // TODO station URL
                 // v>4
+                let (url, _) = line.split_at(20);//TODO revoir
+                station_url = Some(String::from(url.trim()))
+
             } else if line.contains("LICENSE OF USE") {
                 // TODO license in use
                 // v>4
-            
+                let (lic, _) = line.split_at(20);//TODO revoir
+                license = Some(String::from(lic.trim()))
             
             } else if line.contains("TIME OF FIRST OBS") {
                 let items: Vec<&str> = line.split_ascii_whitespace()
@@ -578,8 +619,14 @@ impl std::str::FromStr for Header {
                 coords = Some(rust_3d::Point3D::new(x,y,z))
 
             } else if line.contains("ANTENNA: DELTA H/E/N") {
-                //TODO
-        //0.0000        0.0000        0.0000                  ANTENNA: DELTA H/E/N
+                let (h, rem) = line.split_at(15);
+                let (e, rem) = rem.split_at(15);
+                let (n, rem) = rem.split_at(15);
+                ant_hen = Some((
+                    f32::from_str(h.trim())?,
+                    f32::from_str(e.trim())?,
+                    f32::from_str(n.trim())?))
+
             } else if line.contains("ANTENNA: DELTA X/Y/Z") {
                 let items: Vec<&str> = line.split_ascii_whitespace()
                     .collect();
@@ -603,9 +650,21 @@ impl std::str::FromStr for Header {
                 rcvr_clock_offset_applied = Some(i32::from_str_radix(ok_str, 10)? != 0)
 
             } else if line.contains("# OF SATELLITES") {
-                //TODO
+                // will always appear prior PRN/#OBS
+                // determines nb of satellites in observation file
+                let (nb, _) = line.split_at(10);
+                obs_nb_sat = u32::from_str_radix(nb.trim(), 10)?
+
             } else if line.contains("PRN / # OF OBS") {
-                //TODO
+                let (sv, rem) = line.split_at(7);
+                if sv.trim().len() > 0 {
+                    
+                }
+                // lists all Sv
+                let items: Vec<&str> = line.split_ascii_whitespace()
+                    .collect();
+                 
+
             } else if line.contains("SYS / PHASE SHIFT") {
                 //TODO
             } else if line.contains("SYS / # / OBS TYPES") {
@@ -670,6 +729,17 @@ impl std::str::FromStr for Header {
             }
         }
         
+        if ant.is_some() { // whatever.. but will avoid hypothetical crash
+            if ant_coords.is_some() { // in case of faulty producer
+                ant.as_mut().unwrap().set_coords(ant_coords.unwrap())
+            }
+            if (ant_hen.is_some()) {
+                ant.as_mut().unwrap().set_height(ant_hen.unwrap().0);
+                ant.as_mut().unwrap().set_eastern_eccentricity(ant_hen.unwrap().1);
+                ant.as_mut().unwrap().set_northern_eccentricity(ant_hen.unwrap().2);
+            }
+        }
+        
         Ok(Header{
             version: version,
             crinex: crinex_infos, 
@@ -688,6 +758,8 @@ impl std::str::FromStr for Header {
             coords: coords,
             wavelengths: None,
             sampling_interval: sampling_interval,
+            license,
+            station_url,
             epochs: epochs,
             gps_utc_delta: None,
             sat_number: None,
