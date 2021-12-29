@@ -52,7 +52,10 @@ impl std::str::FromStr for NavigationRecordType {
 
 #[derive(Debug)]
 /// `NavigationMsgType`
-/// describes messages type for NAV files
+/// describes messages type for NAV files   
+///  Lnav: Legacy NAV Messsage   
+///  Cnav: Civilian NAV Messsage   
+///  Cnav2: Civilian NAV Messsage   
 pub enum NavigationMsgType {
     Lnav,
     Cnav,
@@ -60,13 +63,12 @@ pub enum NavigationMsgType {
     Fdma,
     Inav,
     Fnav,
-    Unknown,
 }
 
 impl Default for NavigationMsgType {
     /// Builds a default `NavigationMsgType`
     fn default() -> NavigationMsgType {
-        NavigationMsgType::Unknown
+        NavigationMsgType::Lnav
     }
 }
 
