@@ -11,6 +11,7 @@ mod keys;
 mod header;
 mod record;
 mod version;
+mod gnss_time;
 mod constellation;
 
 #[macro_export]
@@ -126,7 +127,6 @@ impl Rinex {
         let rinex_type = header.get_rinex_type();
         let version = header.get_rinex_version();
         let version_major = version.get_major(); 
-        let version_minor = version.get_minor(); 
         let constellation = header.get_constellation();
 
         // build key listing for this context
