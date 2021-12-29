@@ -117,6 +117,7 @@ impl Rinex {
         let (header, body) = Rinex::split_rinex_content(fp)?;
         let header = header::Header::from_str(&header)?;
 
+        // helpful information
         let rinex_type = header.get_rinex_type();
         let version = header.get_rinex_version();
         let version_major = version.get_major(); 
@@ -124,8 +125,8 @@ impl Rinex {
         let constellation = header.get_constellation();
 
         // build key listing for this context
-        let keys = keys::KeyBank::new(&version, &rinex_type); 
-        println!("KEYS {:#?}", keys);
+        let keys = keys::KeyBank::new(&version, &rinex_type, &constellation)
+            .unwrap();
 
         let mut body = body.lines();
         let mut line = body.next()
@@ -150,7 +151,7 @@ impl Rinex {
                 let record: Option<RinexRecord> = match rinex_type {
                     header::RinexType::NavigationMessage => {
                         if let Ok(record) = 
-                            navigation::NavigationRecord::from_string(&version, &constellation, &block) {
+                            navigation::NavigationRecord::from_string(&version, &constellation, &keys, &block) {
                                 Some(RinexRecord::RinexNavRecord(record))
                         } else {
                             None
