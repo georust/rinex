@@ -88,6 +88,7 @@ impl std::str::FromStr for Sv {
 pub enum RecordItem {
     Sv(Sv),
     Float64(f64),
+    FixedPoint(f64),
     Epoch(Epoch),
 }
 
@@ -116,10 +117,12 @@ impl RecordItem {
             // un type binary peut aider pour les mask..
             // u32 doit suffir
             "sv" => Ok(RecordItem::Sv(Sv::from_str(&content)?)),
-            "f64" => {
-                Ok(RecordItem::Float64(
-                    f64::from_str(&content.replace("D","e"))?))
-             },
+            "f64" => Ok(RecordItem::Float64(f64::from_str(&content.replace("D","e"))?)),
+            "d19.12" => {
+                let value = f64::from_str(&content.replace("D","e"))?;
+                let scaling = 2.0_f64.powf(13.0);
+                Ok(RecordItem::FixedPoint(value * scaling))
+            },
              "epoch" => {
                 let items: Vec<&str> = content.split_ascii_whitespace()
                     .collect();
