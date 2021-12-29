@@ -1,12 +1,20 @@
 use thiserror::Error;
 
-pub const GPS_IDENTIFIER: char     = 'G'; 
-pub const GLONASS_IDENTIFIER: char = 'R'; 
-pub const GALILEO_IDENTIFIER: char = 'E'; 
-pub const QZSS_IDENTIFIER: char    = 'J';
-pub const BEIDOU_IDENTIFIER: char  = 'C';
-pub const MIXED_IDENTIFIER: char   = 'M';
-pub const SBAS_IDENTIFIER: char    = 'S';
+const GPS_CHAR_IDENTIFIER     : char = 'G';
+const GLONASS_CHAR_IDENTIFIER : char = 'R'; 
+const GALILEO_CHAR_IDENTIFIER : char = 'E'; 
+const QZSS_CHAR_IDENTIFIER    : char = 'J';
+const BEIDOU_CHAR_IDENTIFIER  : char = 'C';
+const SBAS_CHAR_IDENTIFIER    : char = 'S';
+const MIXED_CHAR_IDENTIFIER   : char = 'M';
+
+const GPS_STR_IDENTIFIER     : &str = "GPS";
+const GLONASS_STR_IDENTIFIER : &str = "GLO"; 
+const GALILEO_STR_IDENTIFIER : &str = "GAL"; 
+const QZSS_STR_IDENTIFIER    : &str = "QZS";
+const BEIDOU_STR_IDENTIFIER  : &str = "BDS";
+const SBAS_STR_IDENTIFIER    : &str = "SBS";
+const MIXED_STR_IDENTIFIER   : &str = "M";
 
 /// Describes all known `GNSS` constellations
 /// when manipulating `RINEX`
@@ -17,8 +25,8 @@ pub enum Constellation {
     Beidou,
     QZSS,
     Galileo,
-    Mixed,
     Sbas,
+    Mixed,
 }
 
 impl Default for Constellation {
@@ -34,19 +42,50 @@ pub enum ConstellationError {
     UnknownConstellation(String),
 }
 
+impl Constellation {
+    pub fn from_char (c: char) -> Result<Constellation, ConstellationError> {
+        match c {
+            GPS_CHAR_IDENTIFIER => Ok(Constellation::GPS),
+            GLONASS_CHAR_IDENTIFIER => Ok(Constellation::Glonass),
+            GALILEO_CHAR_IDENTIFIER => Ok(Constellation::Galileo),
+            QZSS_CHAR_IDENTIFIER => Ok(Constellation::QZSS),
+            BEIDOU_CHAR_IDENTIFIER => Ok(Constellation::Beidou),
+            MIXED_CHAR_IDENTIFIER => Ok(Constellation::Mixed),
+            SBAS_CHAR_IDENTIFIER => Ok(Constellation::Sbas),
+            _ => Err(ConstellationError::UnknownConstellation(c.to_string())),
+        }
+    }
+}
+
 impl std::str::FromStr for Constellation {
     type Err = ConstellationError;
     fn from_str (s: &str) -> Result<Self, Self::Err> {
-        match s.chars().nth(0)
-            .unwrap() {
-            GPS_IDENTIFIER => Ok(Constellation::GPS),
-            GLONASS_IDENTIFIER => Ok(Constellation::Glonass),
-            GALILEO_IDENTIFIER => Ok(Constellation::Galileo),
-            QZSS_IDENTIFIER => Ok(Constellation::QZSS),
-            BEIDOU_IDENTIFIER => Ok(Constellation::Beidou),
-            MIXED_IDENTIFIER => Ok(Constellation::Mixed),
-            SBAS_IDENTIFIER => Ok(Constellation::Sbas),
-            _ => Ok(Constellation::Glonass),
+        if s.contains(GPS_STR_IDENTIFIER) {
+            Ok(Constellation::GPS)
+        } else if s.contains(GLONASS_STR_IDENTIFIER) {
+            Ok(Constellation::Glonass)
+        } else if s.contains(GALILEO_STR_IDENTIFIER) {
+            Ok(Constellation::Galileo)
+        } else if s.contains(QZSS_STR_IDENTIFIER) {
+            Ok(Constellation::QZSS)
+        } else if s.contains(BEIDOU_STR_IDENTIFIER) {
+            Ok(Constellation::Beidou)
+        } else if s.contains(SBAS_STR_IDENTIFIER) {
+            Ok(Constellation::Sbas)
+        } else if s.contains(MIXED_STR_IDENTIFIER) {
+            Ok(Constellation::Mixed)
+        } else {
+            match s.chars().nth(0)
+                .unwrap() {
+                GPS_CHAR_IDENTIFIER => Ok(Constellation::GPS),
+                GLONASS_CHAR_IDENTIFIER => Ok(Constellation::Glonass),
+                GALILEO_CHAR_IDENTIFIER => Ok(Constellation::Galileo),
+                QZSS_CHAR_IDENTIFIER => Ok(Constellation::QZSS),
+                BEIDOU_CHAR_IDENTIFIER => Ok(Constellation::Beidou),
+                MIXED_CHAR_IDENTIFIER => Ok(Constellation::Mixed),
+                SBAS_CHAR_IDENTIFIER => Ok(Constellation::Sbas),
+                _ => Err(ConstellationError::UnknownConstellation(s.to_string())),
+            }
         }
     }
 }
