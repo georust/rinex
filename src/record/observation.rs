@@ -5,8 +5,8 @@ use thiserror::Error;
 use std::str::FromStr;
 
 use crate::keys;
-use crate::version;
 use crate::record::*;
+use crate::version::RinexVersion;
 use crate::constellation::{Constellation, ConstellationError};
 
 #[macro_export]
@@ -66,7 +66,7 @@ impl Default for ObservationRecord {
 
 impl ObservationRecord {
     /// Builds an `ObservationRecord` from raw record content 
-    pub fn from_string (version: version::Version, 
+    pub fn from_string (version: RinexVersion, 
             constellation: Constellation, s: &str) 
                 -> Result<ObservationRecord, Error> 
     {

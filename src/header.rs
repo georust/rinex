@@ -2,10 +2,10 @@ use regex::Regex;
 use thiserror::Error;
 use chrono::Timelike;
 
-use crate::version;
 use crate::gnss_time;
 use crate::constellation;
 use crate::is_rinex_comment;
+use crate::version::RinexVersion;
 
 /// Describes a `CRINEX` (compact rinex) 
 pub const CRINEX_MARKER_COMMENT : &str = "COMPACT RINEX FORMAT";
@@ -251,7 +251,7 @@ enum SignalStrength {
 /// Describes `RINEX` file header
 #[derive(Debug)]
 pub struct Header {
-    version: version::Version, // version description
+    version: RinexVersion, // version description
     crinex: Option<CrinexInfo>, // if this is a CRINEX
     rinex_type: RinexType, // type of Rinex
     constellation: constellation::Constellation, // GNSS constellation being used
@@ -309,7 +309,7 @@ pub enum HeaderError {
 impl Default for Header {
     fn default() -> Header {
         Header {
-            version: version::Version::default(), 
+            version: RinexVersion::default(), 
             crinex: None,
             rinex_type: RinexType::default(),
             constellation: constellation::Constellation::default(),
@@ -400,7 +400,7 @@ impl std::str::FromStr for Header {
             constellation = constellation::Constellation::from_str(constellation_str.trim())?
         }
 
-        let version = version::Version::from_str(version_str.trim())?;
+        let version = RinexVersion::from_str(version_str.trim())?;
         if !version.is_supported() {
             return Err(HeaderError::VersionNotSupported(String::from(version_str)))
         }
@@ -764,7 +764,7 @@ impl Header {
     }
 
     /// Returns `Rinex` Version number
-    pub fn get_rinex_version (&self) -> version::Version { self.version }
+    pub fn get_rinex_version (&self) -> RinexVersion { self.version }
     /// Returns `Rinex` type 
     pub fn get_rinex_type (&self) -> RinexType { self.rinex_type }
     /// Returns `GNSS` constellation

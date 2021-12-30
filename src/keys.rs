@@ -1,4 +1,4 @@
-use crate::version::Version;
+use crate::version::RinexVersion;
 use crate::header::RinexType;
 use crate::constellation::Constellation;
 
@@ -16,7 +16,7 @@ pub struct KeyBank {
 impl KeyBank {
     /// Builds known list of item keys
     /// for this particular Rinex release & type
-    pub fn new (version: &Version, rtype: &RinexType, constel: &Constellation) -> Result<KeyBank, std::io::Error> {
+    pub fn new (version: &RinexVersion, rtype: &RinexType, constel: &Constellation) -> Result<KeyBank, std::io::Error> {
         let mut keys: Vec<KeyBankItem> = Vec::with_capacity(KEY_BANK_MAX_SIZE);
         let key_listing = std::path::PathBuf::from(
             env!("CARGO_MANIFEST_DIR").to_owned()

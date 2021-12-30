@@ -6,9 +6,9 @@ use chrono::Timelike;
 use std::str::FromStr;
 
 use crate::keys::*;
-use crate::version;
 use crate::record::*;
 use crate::header::RinexType;
+use crate::version::RinexVersion;
 use crate::constellation::{Constellation, ConstellationError};
 
 /// Describes NAV records specific errors
@@ -120,7 +120,7 @@ impl Default for NavigationRecord {
 
 impl NavigationRecord {
     /// Builds `NavigationRecord` from raw record content
-    pub fn from_string (version: version::Version, 
+    pub fn from_string (version: RinexVersion, 
             constellation: Constellation, s: &str) 
                 -> Result<NavigationRecord, Error> 
     {

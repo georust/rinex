@@ -16,6 +16,7 @@ use scan_fmt::scan_fmt;
 
 use record::*;
 use header::RinexType;
+use version::RinexVersion;
 use constellation::Constellation;
 
 #[macro_export]
@@ -55,7 +56,7 @@ pub enum RinexError {
 pub fn new_record_block (line: &str,
     rinex_type: &header::RinexType,
         constellation: &Constellation, 
-            version: &version::Version) -> bool
+            version: &RinexVersion) -> bool
 {
     let major = version.get_major();
     let parsed: Vec<&str> = line.split_ascii_whitespace()
