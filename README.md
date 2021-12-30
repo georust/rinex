@@ -17,7 +17,7 @@ describes the types of RINEX currently supported:
 
 RINEX files contain a lot of information,
 and this library exposes all data contained by supported
-`Rinex Types`, that is: a lot.  
+`Rinex Types`, that means: a lot.
 
 To determine how to operate this library, refer to:
 * basic examples provided in this page
