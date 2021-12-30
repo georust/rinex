@@ -56,7 +56,8 @@ impl GnssTime {
 
     /// Corrects self to given reference using given correction parameters    
     /// correction: correction to be applied   
-    /// reference: reference time (must match expected reference)
+    /// reference: reference time (must match expected reference)   
+    /// TODO: refer to p39
     pub fn correct (&mut self, correction: &GnssTimeCorrection, reference: &GnssTime) -> Result<(), Error> {
         // check this is the expected reference time
         match correction.corr_type {
