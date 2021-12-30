@@ -208,38 +208,28 @@ impl NavigationRecord {
         let kbank = KeyBank::new(&version, &RinexType::NavigationMessage, &constellation)
             .unwrap();
 
-        let mut new_line = false;
-        let mut total: usize = 0;
+        let mut total: usize = 0; 
+        let mut new_line = true;
+
+        line = lines.next()
+            .unwrap();
 
         for key in &kbank.keys { 
             let (k_name, k_type) = key; 
-            /*let mut offset: usize = match k_type.as_str() {
-                "sv" => 3,
-                "epoch" => 19,
-                "d19.12" => {
-                    if new_line {
-                        22
-                    } else {
-                        19
-                    }
-                },
-                "f14.3" => 14,
-                "i1" => 1,
-                _ => 0
+            let offset: usize = match new_line {
+                false => 19,
+                true => {
+                    new_line = false;
+                    22
+                }
             };
-
             total += offset;
-            println!("offset {} new line {}", total, new_line);
-
-            if new_line {
-                new_line = false
-            }
-            
             let (content, rem) = line.split_at(offset); 
             line = rem;
-            let content = content.trim(); 
-            //let mut item = RecordItem::from_string(type_descriptor, content)?;
-            //map.insert(String::from(key), item); 
+
+            // build item 
+            let item = RecordItem::from_string(k_type, content.trim())?;
+            map.insert(String::from(k_name), item); 
 
             if total >= 76 { 
                 new_line = true;
@@ -249,7 +239,7 @@ impl NavigationRecord {
                 } else {
                     break
                 }
-            }*/
+            }
         }
 
         Ok(NavigationRecord {

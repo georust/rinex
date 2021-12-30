@@ -113,7 +113,7 @@ impl RecordItem {
     fn from_string (type_descriptor: &str, content: &str) 
             -> Result<RecordItem, RecordItemError> 
     {
-        println!("Building \'{}\' from \"{}\"", type_descriptor, content);
+        //println!("Building \'{}\' from \"{}\"", type_descriptor, content);
         match type_descriptor {
             //TODO
             // normalement pas besoin du replace D->E pour f64
