@@ -11,6 +11,10 @@ pub enum Error {
     InvalidTimeSystem(String),
     #[error("unknown augmentation system \"{0}\"")]
     UnknownAugmentationSystem(String),
+    #[error("time system mismatch")]
+    CorrectionTimeSystemError,
+    #[error("reference time system is not the expected")]
+    CorrectionTimeReferenceError,
 }
 
 /// GnssTime struct is a time realization,
@@ -48,6 +52,71 @@ impl GnssTime {
             time, 
             gnss
         }
+    }
+
+    /// Corrects self to given reference using given correction parameters    
+    /// correction: correction to be applied   
+    /// reference: reference time (must match expected reference)
+    pub fn correct (&mut self, correction: &GnssTimeCorrection, reference: &GnssTime) -> Result<(), Error> {
+        // check this is the expected reference time
+        match correction.corr_type {
+            TimeCorrectionType::GPUT => {
+                // check time system matches the expected one
+                match self.gnss {
+                    constellation::Constellation::GPS => {},
+                    _ => return Err(Error::CorrectionTimeSystemError),
+                }
+            },
+            TimeCorrectionType::GAUT => {
+                // check time system matches the expected one
+                match self.gnss {
+                    constellation::Constellation::Galileo => {},
+                    _ => return Err(Error::CorrectionTimeSystemError),
+                }
+            },
+            TimeCorrectionType::SBUT => {
+                // check time system matches the expected one
+                match self.gnss {
+                    constellation::Constellation::Sbas => {},
+                    _ => return Err(Error::CorrectionTimeSystemError),
+                }
+            },
+            TimeCorrectionType::GLUT => {
+                // check time system matches the expected one
+                match self.gnss {
+                    constellation::Constellation::Glonass => {},
+                    _ => return Err(Error::CorrectionTimeSystemError),
+                }
+            },
+            TimeCorrectionType::GPGA => {
+                if reference.gnss != constellation::Constellation::Galileo {
+                    return Err(Error::CorrectionTimeReferenceError)
+                }
+                // check time system matches the expected one
+                match self.gnss {
+                    constellation::Constellation::GPS => {},
+                    _ => return Err(Error::CorrectionTimeSystemError),
+                }
+            },
+            TimeCorrectionType::GLGP => {
+                if reference.gnss != constellation::Constellation::GPS {
+                    return Err(Error::CorrectionTimeReferenceError)
+                }
+                // check time system matches the expected one
+                match self.gnss {
+                    constellation::Constellation::Glonass => {},
+                    _ => return Err(Error::CorrectionTimeSystemError),
+                }
+            },
+            TimeCorrectionType::GZUT => {
+                // check time system matches the expected one
+                match self.gnss {
+                    constellation::Constellation::QZSS => {},
+                    _ => return Err(Error::CorrectionTimeSystemError),
+                }
+            },
+        }
+        Ok(())
     }
 }
 
