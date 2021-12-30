@@ -2,14 +2,19 @@
 use thiserror::Error;
 use std::str::FromStr;
 
+pub mod navigation;
+pub mod observation;
+
 use crate::constellation;
 
-pub mod navigation;
+/// Maximal record size possible
+pub const RECORD_MAX_SIZE: usize = 64;
 
 #[derive(Debug)]
 /// `RinexRecord` describes file internal records
 pub enum RinexRecord {
     RinexNavRecord(navigation::NavigationRecord),
+    RinexObsRecord(observation::ObservationRecord),
 }
 
 /// `Epoch` describes a timestamp, observation realization

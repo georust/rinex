@@ -3,10 +3,6 @@
 //! 
 //! Homepage: <https://github.com/gwbres/rinex>
 
-use thiserror::Error;
-use std::str::FromStr;
-use scan_fmt::scan_fmt;
-
 mod keys;
 mod header;
 mod record;
@@ -14,7 +10,16 @@ mod version;
 mod gnss_time;
 mod constellation;
 
+use thiserror::Error;
+use std::str::FromStr;
+use scan_fmt::scan_fmt;
+
+use record::*;
+use header::RinexType;
+use constellation::Constellation;
+
 #[macro_export]
+/// Returns `true` if given `Rinex` line is a comment
 macro_rules! is_rinex_comment {
     ($line: expr) => { $line.contains("COMMENT") };
 }
@@ -49,36 +54,53 @@ pub enum RinexError {
 /// has been identified
 pub fn new_record_block (line: &str,
     rinex_type: &header::RinexType,
-        constellation: &constellation::Constellation, 
+        constellation: &Constellation, 
             version: &version::Version) -> bool
 {
+    let major = version.get_major();
     let parsed: Vec<&str> = line.split_ascii_whitespace()
         .collect();
     
-    match rinex_type {
-        header::RinexType::NavigationMessage => {
-            let known_sv_identifiers: &'static [char] = 
-                &['R','G','E','B','J','C','S']; 
-            match constellation {
-                constellation::Constellation::Glonass => parsed.len() > 4,
-                _ => {
-                    match line.chars().nth(0) {
-                        Some(c) => known_sv_identifiers.contains(&c), 
-                        _ => false
-                            //TODO
-                            // <o 
-                            //   for some files we end up with "\n xxxx" as first frame items 
-                            // current code will discard first payload item in such scenario
-                            // => need to cleanup (split(head,body) method)
+    match major < 4 {
+        true => {
+            // RinexType:: dependent
+            match rinex_type {
+                header::RinexType::NavigationMessage => {
+                    let known_sv_identifiers: &'static [char] = 
+                        &['R','G','E','B','J','C','S']; 
+                    match constellation {
+                        Constellation::Glonass => parsed.len() > 4,
+                        _ => {
+                            match line.chars().nth(0) {
+                                Some(c) => known_sv_identifiers.contains(&c), 
+                                _ => false
+                                    //TODO
+                                    // <o 
+                                    //   for some files we end up with "\n xxxx" as first frame items 
+                                    // current code will discard first payload item in such scenario
+                                    // => need to cleanup (split(head,body) method)
+                            }
+                        }
                     }
-                }
+                },
+                header::RinexType::ObservationData => parsed.len() > 8,
+                _ => false, 
             }
         },
-        _ => false,
+        false => {      
+            // V4: OBS blocks have a '>' delimiter
+            match line.chars().nth(0) {
+                Some(c) => c == '>',
+                _ => false,
+                    //TODO
+                    // <o 
+                    //   for some files we end up with "\n xxxx" as first frame items 
+                    // current code will discard first payload item in such scenario
+                    // => need to cleanup (split(head,body) method)
+            }
+        },
     }
 }
-
-use record::*;
 
 impl Rinex {
     /// Builds a Rinex struct
@@ -129,10 +151,6 @@ impl Rinex {
         let version_major = version.get_major(); 
         let constellation = header.get_constellation();
 
-        // build key listing for this context
-        let keys = keys::KeyBank::new(&version, &rinex_type, &constellation)
-            .unwrap();
-
         let mut body = body.lines();
         let mut line = body.next()
             .unwrap(); // ''END OF HEADER'' /BLANK
@@ -152,12 +170,22 @@ impl Rinex {
                 .collect();
             
             let new_block = new_record_block(&line, &rinex_type, &constellation, &version); 
+
+            // Build new record
             if new_block && !first {
                 let record: Option<RinexRecord> = match rinex_type {
                     header::RinexType::NavigationMessage => {
                         if let Ok(record) = 
-                            navigation::NavigationRecord::from_string(version, constellation, &keys, &block) {
+                            navigation::NavigationRecord::from_string(version, constellation, &block) {
                                 Some(RinexRecord::RinexNavRecord(record))
+                        } else {
+                            None
+                        }
+                    },
+                    header::RinexType::ObservationData => {
+                        if let Ok(record) =
+                            observation::ObservationRecord::from_string(version, constellation, &block) {
+                                Some(RinexRecord::RinexObsRecord(record))
                         } else {
                             None
                         }
@@ -178,7 +206,7 @@ impl Rinex {
             }
 
             block.push_str(&line);
-            block.push_str(" ");
+            block.push_str("\n");
 
             if let Some(l) = body.next() {
                 line = l

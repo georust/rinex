@@ -2,11 +2,6 @@
     "NavigationMessage": {
         "GPS": {
             "V1": {
-                "svId": "sv",
-                "epoch": "epoch",
-                "svClockBias": "d19.12",
-                "svClockDrift": "d19.12",
-                "svClockDriftRate": "d19.12",
                 "iode": "d19.12",
                 "crs": "d19.12",
                 "deltaN": "d19.12",
@@ -34,11 +29,6 @@
                 "fitInt": "d19.12"
             },
             "V2": {
-                "svId": "sv",
-                "epoch": "epoch",
-                "svClockBias": "d19.12",
-                "svClockDrift": "d19.12",
-                "svClockDriftRate": "d19.12",
                 "iode": "d19.12",
                 "crs": "d19.12",
                 "deltaN": "d19.12",
@@ -66,11 +56,6 @@
                 "fitInt": "d19.12"
             },
             "V3": {
-                "svId": "sv",
-                "epoch": "epoch",
-                "svClockBias": "d19.12",
-                "svClockDrift": "d19.12",
-                "svClockDriftRate": "d19.12",
                 "iode": "d19.12",
                 "crs": "d19.12",
                 "deltaN": "d19.12",
@@ -98,11 +83,6 @@
                 "fitInt": "d19.12"
             },
             "V4": {
-                "svId": "sv",
-                "epoch": "epoch",
-                "svClockBias": "d19.12",
-                "svClockDrift": "d19.12",
-                "svClockDriftRate": "d19.12",
                 "adot": "d19.12",
                 "crs": "d19.12",
                 "deltaN": "d19.12",
@@ -138,11 +118,6 @@
         },
         "GLO": {
             "V1": {
-                "svId": "sv",
-                "epoch": "epoch",
-                "svClockBias": "d19.12",
-                "svClockDrift": "d19.12",
-                "svClockDriftRate": "d19.12",
                 "satPosX": "d19.12",
                 "VelX": "d19.12",
                 "AccelX": "d19.12",
@@ -157,11 +132,6 @@
                 "ageOp": "d19.12"
             },
             "V2": {
-                "svId": "sv",
-                "epoch": "epoch",
-                "svClockBias": "d19.12",
-                "svClockDrift": "d19.12",
-                "svClockDriftRate": "d19.12",
                 "satPosX": "d19.12",
                 "VelX": "d19.12",
                 "AccelX": "d19.12",
@@ -176,11 +146,6 @@
                 "ageOp": "d19.12"
             },
             "V3": {
-                "svId": "sv",
-                "epoch": "epoch",
-                "svClockBias": "d19.12",
-                "svClockDrift": "d19.12",
-                "svClockDriftRate": "d19.12",
                 "satPosX": "d19.12",
                 "VelX": "d19.12",
                 "AccelX": "d19.12",
@@ -195,11 +160,6 @@
                 "ageOp": "d19.12"
             },
             "V4": {
-                "svId": "sv",
-                "epoch": "epoch",
-                "svClockBias": "d19.12",
-                "svClockDrift": "d19.12",
-                "svClockDriftRate": "d19.12",
                 "satPosX": "d19.12",
                 "VelX": "d19.12",
                 "AccelX": "d19.12",
