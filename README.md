@@ -105,12 +105,58 @@ TODO
 
 ### RINEX: Navigation Message (NAV)
 
-Three main constellations are currently supported 
+We have to cases for `RinexType::NavigationMessage`:
++ Unique constellation (e.g `Constellation::GPS`) 
++ Mixed constellations (more modern?)
 
-+ GPS
-+ Glonass
-+ Galileo
-+ Mixed (GPS,Glonass,Galileo)
+In case of Mixed constellation, you the `Rinex Header` does not tell
+you which record is tied to what. You need to determine that information
+at the `RinexRecord` level:
+
+```rust
+    // extracted from 'example --nav-simple'
+    use rinex;
+    use rinex::record::*;
+    use rinex::constellation::Constellation;
+
+    let rinex = Rinex::from_file("data/amel0010.21g"); // GLONASS NAV <-> unique
+    assert_eq!(rinex.header.get_constellation(), Constellation::Glonass);
+
+    // each record were recorded against an "RXX" Sat. Vehicule
+    let record = rinex.get_record(0); // first entry
+    println!("{:#?}", record);
+
+    // RXX filter
+    let rxx_vehicules = rinex.match_filter(Constellation::Glonass);
+    
+    // R01 filter 
+    let to_match = RinexRecordItem::Sv(Sv::new(Constellation::Glonass, 0x01));
+    let records = rinex.match_filter(to_match);
+```
+
+In `Constellation::Mixed` scenario, isolating a specific Constellation comes handy
+
+```rust
+    // extracted from 'example --nav-mixed
+    use rinex;
+    use rinex::record::*;
+    use rinex::constellation::Constellation;
+
+    // MIXED / V3 Modern / 
+    // MIXED GPS/GAL/GLO mainly - V3(modern)
+    let rinex = Rinex::from_file("data/AMEL00NLD_R_20210010000_01D_MN.rnx"); 
+    assert_eq(rinex.header.get_constellation(), Constellation::Glonass); // nope
+    assert_eq!(rinex.header.get_constellation(), Constellation::Mixed);  // yes
+
+    let record = rinex.get_record(0); // first entry
+    println!("{:#?}", record);
+    
+    // GPS filter 
+    let records = rinex.match_filter(Constellation::GPS);
+    // G01 filter
+    let to_match = RinexRecordItem::Sv(Sv::new(Constellation::GPS, 0x01));
+    let records = gxx_records.match_filter(to_match);
+```
 
 ### RINEX: Observation Data (OBS)
 TODO
