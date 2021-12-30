@@ -105,13 +105,8 @@ TODO
 
 ### RINEX: Navigation Message (NAV)
 
-We have to cases for `RinexType::NavigationMessage`:
+Two main cases for `RinexType::NavigationMessage`:
 + Unique constellation (e.g `Constellation::GPS`) 
-+ Mixed constellations (more modern?)
-
-In case of Mixed constellation, you the `Rinex Header` does not tell
-you which record is tied to what. You need to determine that information
-at the `RinexRecord` level:
 
 ```rust
     // extracted from 'example --nav-simple'
@@ -126,15 +121,17 @@ at the `RinexRecord` level:
     let record = rinex.get_record(0); // first entry
     println!("{:#?}", record);
 
-    // RXX filter
+    // RXX filter is pointless
     let rxx_vehicules = rinex.match_filter(Constellation::Glonass);
-    
-    // R01 filter 
+    // R01 filter is convenient 
     let to_match = RinexRecordItem::Sv(Sv::new(Constellation::Glonass, 0x01));
     let records = rinex.match_filter(to_match);
 ```
 
-In `Constellation::Mixed` scenario, isolating a specific Constellation comes handy
++ Mixed constellations (modern use case?)
+
+In thise context, the constellation information must be retrieved
+at the `RecordItem` level. Filtering comes handy:
 
 ```rust
     // extracted from 'example --nav-mixed
