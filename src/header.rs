@@ -145,7 +145,9 @@ impl Antenna {
 }
 
 /// `LeapSecond` to describe leap seconds.
-/// leap: ΔtLS (s)
+/// leap: current number of leap seconds 
+/// past_future: future or past leap seconds ΔtLS,   
+/// ie., future leap second if week and day number are in future   
 /// week: week counter sometimes present.   
 /// day: week counter sometimes present.   
 /// GnssTimes:   
@@ -153,7 +155,8 @@ impl Antenna {
 /// GPS = GPS = UTC + ΔtLS   
 #[derive(Debug)]
 struct LeapSecond {
-    leap: u32, // ΔtLS [s]
+    leap: u32, // current number
+    past_future: u32, // future or past leap seconds ΔtLS   
     week: u32, // week number 
     day: u32, // day number
 }
@@ -163,6 +166,7 @@ impl Default for LeapSecond {
     fn default() -> LeapSecond {
         LeapSecond {
             leap: 0,
+            past_future: 0,
             week: 0,
             day: 0,
         }
@@ -183,10 +187,11 @@ impl std::str::FromStr for LeapSecond {
             },
             true => {
                 let (leap, rem) = s.split_at(6);
-                let (leap, rem) = rem.split_at(6);
+                let (past, rem) = rem.split_at(6);
                 let (week, rem) = rem.split_at(6);
                 let (day, rem) = rem.split_at(6);
                 ls.leap = u32::from_str_radix(leap.trim(),10)?;
+                ls.past_future = u32::from_str_radix(past.trim(),10)?;
                 ls.week = u32::from_str_radix(week.trim(),10)?;
                 ls.day = u32::from_str_radix(day.trim(),10)?
             },
@@ -262,10 +267,13 @@ pub struct Header {
     ant: Option<Antenna>, // optionnal antenna infos
     leap: Option<LeapSecond>, // optionnal leap seconds infos
     coords: Option<rust_3d::Point3D>, // station approx. coords
-    wavelengths: Option<(u32,u32)>, // L1/L2 wavelengths
+    wavelengths: Option<(u32,u32)>, // observations wavelengths
     sampling_interval: Option<f32>, // sampling
     epochs: (Option<gnss_time::GnssTime>, Option<gnss_time::GnssTime>), // first , last observations
     license: Option<String>, // optionnal license
+    // processing
+    scaling_factor: Option<f64>, // optionnal data scaling
+
     //ionospheric_corr: Option<Vec<IonoCorr>>, // optionnal corrections
     //gnsstime_corr: Option<Vec<gnss_time::GnssTimeCorr>>, // optionnal corrections
     // true if epochs & data compensate for local clock drift 
@@ -312,19 +320,24 @@ impl Default for Header {
             observer: String::from("Unknown"),
             agency: String::from("Unknown"),
             station_url: None,
+            leap: None,
             license: None,
-            //ionospheric_corr: None,
-            //gnsstime_corr: None,
-            rcvr: None, 
+            gps_utc_delta: None,
+            // hardware
+            rcvr: None,
+            // antenna
             ant: None,
             coords: None, 
-            leap: None,
-            rcvr_clock_offset_applied: None,
-            wavelengths: None,
-            sampling_interval: None,
+            // observations
             epochs: (None, None),
-            gps_utc_delta: None,
-            sat_number: Some(0)
+            sat_number: Some(0),
+            wavelengths: None,
+            // processing
+            rcvr_clock_offset_applied: None,
+            scaling_factor: None,
+            //ionospheric_corr: None,
+            //gnsstime_corr: None,
+            sampling_interval: None,
         }
     }
 }
@@ -698,25 +711,28 @@ impl std::str::FromStr for Header {
             rinex_type,
             constellation,
             program: String::from(pgm.trim()),
-            run_by: run_by,
-            station: station,
-            station_id: station_id,
-            agency: agency,
-            observer: observer,
+            run_by,
+            station,
+            station_id,
+            agency,
+            observer,
+            license,
+            station_url,
             rcvr, 
             ant, 
             leap,
-            rcvr_clock_offset_applied: rcvr_clock_offset_applied,
             coords: coords,
+            // observations
             wavelengths: None,
-            sampling_interval: sampling_interval,
-            license,
-            station_url,
-            //ionospheric_corr: None,
-            //gnsstime_corr: None,
             epochs: epochs,
             gps_utc_delta: None,
             sat_number: None,
+            // processing
+            sampling_interval: sampling_interval,
+            scaling_factor: None,
+            //ionospheric_corr: None,
+            //gnsstime_corr: None,
+            rcvr_clock_offset_applied,
         })
     }
 }
