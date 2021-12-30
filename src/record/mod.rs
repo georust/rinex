@@ -2,6 +2,7 @@
 use thiserror::Error;
 use std::str::FromStr;
 
+mod keys;
 pub mod navigation;
 pub mod observation;
 

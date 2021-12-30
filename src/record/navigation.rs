@@ -5,8 +5,8 @@ use thiserror::Error;
 use chrono::Timelike;
 use std::str::FromStr;
 
-use crate::keys::*;
 use crate::record::*;
+use crate::record::keys::*;
 use crate::header::RinexType;
 use crate::version::RinexVersion;
 use crate::constellation::{Constellation, ConstellationError};

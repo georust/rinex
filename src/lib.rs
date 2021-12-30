@@ -3,7 +3,6 @@
 //! 
 //! Homepage: <https://github.com/gwbres/rinex>
 
-mod keys;
 mod header;
 mod record;
 mod version;

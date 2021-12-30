@@ -4,7 +4,6 @@
 use thiserror::Error;
 use std::str::FromStr;
 
-use crate::keys;
 use crate::record::*;
 use crate::version::RinexVersion;
 use crate::constellation::{Constellation, ConstellationError};
