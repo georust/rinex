@@ -24,8 +24,8 @@
                 "omegaDot": "d19.12",
                 "idot": "d19.12",
                 "l2Codes": "d19.12",
-                "gpsWeek": "u32",
-                "l2pDataFlag": "u32",
+                "gpsWeek": "d19.12",
+                "l2pDataFlag": "d19.12",
                 "svAccuracy": "d19.12",
                 "svHealth": "d19.12",
                 "tgd": "d19.12",
@@ -56,8 +56,8 @@
                 "omegaDot": "d19.12",
                 "idot": "d19.12",
                 "l2Codes": "d19.12",
-                "gpsWeek": "i32",
-                "l2pDataFlag": "u32",
+                "gpsWeek": "d19.12",
+                "l2pDataFlag": "d19.12",
                 "svAccuracy": "d19.12",
                 "svHealth": "d19.12",
                 "tgd": "d19.12",
@@ -88,8 +88,8 @@
                 "omegaDot": "d19.12",
                 "idot": "d19.12",
                 "l2Codes": "d19.12",
-                "gpsWeek": "i32",
-                "l2pDataFlag": "u32",
+                "gpsWeek": "d19.12",
+                "l2pDataFlag": "d19.12",
                 "svAccuracy": "d19.12",
                 "svHealth": "d19.12",
                 "tgd": "d19.12",
@@ -120,8 +120,8 @@
                 "omegaDot": "d19.12",
                 "idot": "d19.12",
                 "deltaNoDot": "d19.12",
-                "uraiNed0": "i32",
-                "uraiNed1": "u32",
+                "uraiNed0": "d19.12",
+                "uraiNed1": "d19.12",
                 "uraiNed": "d19.12",
                 "svHealth": "d19.12",
                 "tgd": "d19.12",
@@ -223,19 +223,27 @@
         "GPS": {
             "V1": {
                 "epoch": "epoch",
-                "epoch-flag": "i1"
+                "phase": "f14.3",
+                "lli": "u1",
+                "sigstrenth": "u1"
             },
             "V2": {
                 "epoch": "epoch",
-                "epoch-flag": "i1"
+                "phase": "f14.3",
+                "lli": "u1",
+                "sigstrenth": "u1"
             },
             "V3": {
                 "epoch": "epoch",
-                "epoch-flag": "i1"
+                "phase": "f14.3",
+                "lli": "u1",
+                "sigstrenth": "u1"
             },
             "V4": {
                 "epoch": "epoch",
-                "epoch-flag": "i1"
+                "phase": "f14.3",
+                "lli": "u1",
+                "sigstrenth": "u1"
             }
         }
     }
