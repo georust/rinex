@@ -54,6 +54,24 @@ impl std::str::FromStr for Constellation {
             Ok(Constellation::Mixed)
         } else if s.to_lowercase().starts_with("m") {
             Ok(Constellation::Mixed)
+        } else if s.len() == 1 {
+            // Special case:
+            // 1 letter very cleaned up..
+            if s.starts_with("G") {
+                Ok(Constellation::GPS)
+            } else if s.starts_with("E") {
+                Ok(Constellation::Galileo)
+            } else if s.starts_with("C") {
+                Ok(Constellation::Beidou)
+            } else if s.starts_with("R") {
+                Ok(Constellation::Glonass)
+            } else if s.starts_with("J") {
+                Ok(Constellation::QZSS)
+            } else if s.starts_with("S") {
+                Ok(Constellation::Sbas)
+            } else {
+                Err(ConstellationError::UnknownConstellation(s.to_string()))
+            }
         } else {
             Err(ConstellationError::UnknownConstellation(s.to_string()))
         }
