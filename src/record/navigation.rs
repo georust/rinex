@@ -31,6 +31,7 @@ pub enum Error {
 /// for NAV files
 enum NavigationRecordType {
     Ephemeride,
+    Ionospheric,
 }
 
 impl Default for NavigationRecordType {
@@ -43,8 +44,10 @@ impl Default for NavigationRecordType {
 impl std::str::FromStr for NavigationRecordType {
     type Err = std::num::ParseIntError;
     fn from_str (s: &str) -> Result<Self, Self::Err> {
-        if s.contains("LNAV") {
+        if s.contains("EPH") {
             Ok(NavigationRecordType::Ephemeride)
+        } else if s.contains("ION") {
+            Ok(NavigationRecordType::Ionospheric)
         } else {
             Ok(NavigationRecordType::Ephemeride)
         }
