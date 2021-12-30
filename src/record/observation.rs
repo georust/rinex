@@ -1,64 +1,78 @@
+//! Observation.rs
+//! to describe `Rinex` file body content
+//! for ObservationData files
 use thiserror::Error;
-use create::constellation::{Constellation, ConstellationError};
+use std::str::FromStr;
 
-/// ObservationRecord specific (optionnal) marker
-const SPECIFIC_RECORD_MARKER: &str = "SYS / # / OBS TYPES";
+use crate::keys;
+use crate::version;
+use crate::record::*;
+use crate::constellation::{Constellation, ConstellationError};
 
-/// Specific `Errors` descriptor
+#[macro_export]
+/// Returns True if 3 letter code 
+/// matches a pseudo range obs. code
+macro_rules! is_pseudo_range_obs_code {
+    ($code: expr) => { $code.starts_with("C") };
+}
+
+#[macro_export]
+/// Returns True if 3 letter code 
+/// matches a phase obs. code
+macro_rules! is_phase_carrier_obs_code {
+    ($code: expr) => { $code.starts_with("L") };
+}
+
+#[macro_export]
+/// Returns True if 3 letter code 
+/// matches a doppler obs. code
+macro_rules! is_doppler_obs_code {
+    ($code: expr) => { $code.starts_with("D") };
+}
+
+#[macro_export]
+/// Returns True if 3 letter code 
+/// matches a signal strenght obs. code
+macro_rules! is_sig_strength_obs_code {
+    ($code: expr) => { $code.starts_with("S") };
+}
+
+/// Describes OBS records specific errors
+#[derive(Error, Debug)]
 pub enum Error {
-
+    #[error("failed to parse int value")]
+    ParseIntError(#[from] std::num::ParseIntError),
+    #[error("failed to parse float value")]
+    ParseFloatError(#[from] std::num::ParseFloatError),
+    #[error("failed to identify constellation")]
+    ParseConstellationError(#[from] ConstellationError),
+    #[error("failed to build record item")]
+    RecordItemError(#[from] RecordItemError),
 }
 
-/// Specific `Epoch` record
-struct EpochRecord {
-    // si la ligne commence par >
-    //  year (2 digit)
-    //  month day hour min
-    //  sec
-    // epoch flag: 0 = OK
-    //             1 = power failure between prev. epoch & self
-    // number of sats in current epoch
-    // list of PRNs
-    // rcvr clock offset
+/// `ObservationRecord` describes an OBS message frame.   
+#[derive(Debug)]
+pub struct ObservationRecord {
+    items: std::collections::HashMap<String, RecordItem>,
 }
 
-/// Specific `Data` record contained in observation files 
-struct DataRecord {
-    sat_id: u8, // sat PRN
-    data: Vec<f64>, // raw phase data
-}
-
-impl str::FromStr for DataRecord {
-    /// builds `DataRecord` from parsed block content.
-    /// Block content should be group of lines for 1 entire packet.
-    fn from_str (block: &str, Option<epoch>) -> Result<Self, Self::Err> {
-        let mut lines = block.lines();
-        let line1_items = lines.next()?
-            .split_ascii_whitespace()
-            .collect();
-        let (sat_id, year, mon, day, h, min, sec) :
-            (u8, u16, u16, u16, u16, u16, f32) =
-            (u32::from_str_radix(line1_items[0],10)?,
-            u8::from_str_radix(line1_items[0],10)?,
-            u16::from_str_radix(line1_items[1],10)?,
-            u16::from_str_radix(line1_items[2],10)?,
-            u16::from_str_radix(line1_items[3],10)?,
-            u16::from_str_radix(line1_items[4],10)?,
-            u16::from_str_radix(line1_items[5],10)?,
-            f32::from_str(line1_items[6])?);
-        
-        let 
+impl Default for ObservationRecord {
+    fn default() -> ObservationRecord {
+        ObservationRecord {
+            items: std::collections::HashMap::with_capacity(RECORD_MAX_SIZE),
+        }
     }
 }
 
-pub struct Observation {
-    epochs: Option<Vec<Epoch>>,
-    data: Vec<DataRecord>,
-}
-
-impl std::FromStr for Observation {
-    /// Builds Observation from entire record file
-    fn from_str (content: &str) -> Observation {
-        let lines: Vec<&str> =    
+impl ObservationRecord {
+    /// Builds an `ObservationRecord` from raw record content 
+    pub fn from_string (version: version::Version, 
+            constellation: Constellation, s: &str) 
+                -> Result<ObservationRecord, Error> 
+    {
+        let mut lines = s.lines();
+        let mut line = lines.next()
+            .unwrap();
+        Ok(ObservationRecord::default())
     }
 }
