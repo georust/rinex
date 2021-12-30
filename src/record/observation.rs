@@ -36,6 +36,15 @@ macro_rules! is_sig_strength_obs_code {
     ($code: expr) => { $code.starts_with("S") };
 }
 
+/// Describes different kind of `Observations`
+#[derive(Debug)]
+pub enum ObservationType {
+    ObservationPhase,
+    ObservationDoppler,
+    ObservationPseudoRange,
+    ObservationSigStrength,
+}
+
 /// Describes OBS records specific errors
 #[derive(Error, Debug)]
 pub enum Error {
