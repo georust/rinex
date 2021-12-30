@@ -28,7 +28,7 @@ macro_rules! is_rinex_comment {
 /// describes a `RINEX` file
 #[derive(Debug)]
 pub struct Rinex {
-    header: header::Header,
+    header: header::RinexHeader,
     records: Vec<record::RinexRecord>,
 }
 
@@ -36,7 +36,7 @@ impl Default for Rinex {
     /// Builds a default `RINEX`
     fn default() -> Rinex {
         Rinex {
-            header: header::Header::default(),
+            header: header::RinexHeader::default(),
             records: Vec::new(),
         }
     }
@@ -47,7 +47,7 @@ pub enum RinexError {
     #[error("Header delimiter not found")]
     MissingHeaderDelimiter,
     #[error("Header parsing error")]
-    HeaderError(#[from] header::HeaderError),
+    HeaderError(#[from] header::Error),
 }
 
 /// macro to return true when a new block record
@@ -104,7 +104,7 @@ pub fn new_record_block (line: &str,
 
 impl Rinex {
     /// Builds a Rinex struct
-    pub fn new (header: header::Header, records: Vec<record::RinexRecord>) -> Rinex {
+    pub fn new (header: header::RinexHeader, records: Vec<record::RinexRecord>) -> Rinex {
         Rinex {
             header,
             records,
@@ -129,6 +129,9 @@ impl Rinex {
     ///   nb of observations for `RinexType::ObservationData`   
     ///   nb of ephemerides  for `RinexType::NavigationMessage`   
     pub fn len (&self) -> usize { self.records.len() }
+
+    /// Returns `RinexHeader` 
+    pub fn get_header (&self) -> &header::RinexHeader { &self.header }
     
     /// Builds a `Rinex` from given file.
     /// Input file must respect the whitespace specifications
@@ -143,7 +146,7 @@ impl Rinex {
             .unwrap();
 
         let (header, body) = Rinex::split_rinex_content(fp)?;
-        let header = header::Header::from_str(&header)?;
+        let header = header::RinexHeader::from_str(&header)?;
 
         // helpful information
         let rinex_type = header.get_rinex_type();

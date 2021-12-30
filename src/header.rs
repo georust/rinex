@@ -3,9 +3,10 @@ use thiserror::Error;
 use chrono::Timelike;
 
 use crate::gnss_time;
-use crate::constellation;
 use crate::is_rinex_comment;
 use crate::version::RinexVersion;
+use crate::record::observation::ObservationType;
+use crate::constellation::{Constellation, ConstellationError};
 
 /// Describes a `CRINEX` (compact rinex) 
 pub const CRINEX_MARKER_COMMENT : &str = "COMPACT RINEX FORMAT";
@@ -174,7 +175,7 @@ impl Default for LeapSecond {
 }
 
 impl std::str::FromStr for LeapSecond {
-    type Err = HeaderError; 
+    type Err = Error; 
     /// Builds `LeapSecond` from string descriptor
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut ls = LeapSecond::default();
@@ -195,7 +196,7 @@ impl std::str::FromStr for LeapSecond {
                 ls.week = u32::from_str_radix(week.trim(),10)?;
                 ls.day = u32::from_str_radix(day.trim(),10)?
             },
-            _ => return Err(HeaderError::LeapSecondParsingError(String::from(s)))
+            _ => return Err(Error::LeapSecondParsingError(String::from(s)))
         }
         Ok(ls)
     }
@@ -250,11 +251,11 @@ enum SignalStrength {
 
 /// Describes `RINEX` file header
 #[derive(Debug)]
-pub struct Header {
+pub struct RinexHeader {
     version: RinexVersion, // version description
     crinex: Option<CrinexInfo>, // if this is a CRINEX
     rinex_type: RinexType, // type of Rinex
-    constellation: constellation::Constellation, // GNSS constellation being used
+    constellation: Constellation, // GNSS constellation being used
     program: String, // program name 
     run_by: String, // program run by
     //date: strtime, // file date of creation
@@ -271,19 +272,23 @@ pub struct Header {
     sampling_interval: Option<f32>, // sampling
     epochs: (Option<gnss_time::GnssTime>, Option<gnss_time::GnssTime>), // first , last observations
     license: Option<String>, // optionnal license
+    doi: Option<String>, // optionnal Object Idenfier ("IoT")
+    gps_utc_delta: Option<u32>, // optionnal GPS / UTC time difference
     // processing
     scaling_factor: Option<f64>, // optionnal data scaling
-
-    //ionospheric_corr: Option<Vec<IonoCorr>>, // optionnal corrections
-    //gnsstime_corr: Option<Vec<gnss_time::GnssTimeCorr>>, // optionnal corrections
+    // optionnal ionospheric compensation param(s)
+    //ionospheric_corr: Option<Vec<IonoCorr>>,
+    // possible time system correction(s)
+    //gnsstime_corr: Option<Vec<gnss_time::GnssTimeCorr>>,
     // true if epochs & data compensate for local clock drift 
     rcvr_clock_offset_applied: Option<bool>, 
-    gps_utc_delta: Option<u32>, // optionnal GPS / UTC time difference
-    sat_number: Option<u32>, // nb of sat for which we have data
+    // observation (specific)
+    // obs_types: lists all types of observations contained in this `Rinex`
+    obs_types: Option<std::collections::HashMap<Constellation, Vec<ObservationType>>>,
 }
 
 #[derive(Error, Debug)]
-pub enum HeaderError {
+pub enum Error {
     #[error("Compact RINEX related content mismatch")]
     CrinexFormatError,
     #[error("RINEX version is not supported '{0}'")]
@@ -293,7 +298,7 @@ pub enum HeaderError {
     #[error("rinex type error")]
     RinexTypeError(#[from] RinexTypeError),
     #[error("unknown GNSS Constellation '{0}'")]
-    UnknownConstellation(#[from] constellation::ConstellationError),
+    UnknownConstellation(#[from] ConstellationError),
     #[error("failed to parse antenna / receiver infos")]
     AntennaRcvrError(#[from] std::io::Error),
     #[error("failed to parse integer value")]
@@ -306,13 +311,13 @@ pub enum HeaderError {
     LeapSecondParsingError(String),
 }
 
-impl Default for Header {
-    fn default() -> Header {
-        Header {
+impl Default for RinexHeader {
+    fn default() -> RinexHeader {
+        RinexHeader {
             version: RinexVersion::default(), 
             crinex: None,
             rinex_type: RinexType::default(),
-            constellation: constellation::Constellation::default(),
+            constellation: Constellation::default(),
             program: String::from("Unknown"),
             run_by: String::from("Unknown"),
             station: String::from("Unknown"),
@@ -322,6 +327,7 @@ impl Default for Header {
             station_url: None,
             leap: None,
             license: None,
+            doi: None,
             gps_utc_delta: None,
             // hardware
             rcvr: None,
@@ -330,8 +336,8 @@ impl Default for Header {
             coords: None, 
             // observations
             epochs: (None, None),
-            sat_number: Some(0),
             wavelengths: None,
+            obs_types: None,
             // processing
             rcvr_clock_offset_applied: None,
             scaling_factor: None,
@@ -342,8 +348,8 @@ impl Default for Header {
     }
 }
 
-impl std::str::FromStr for Header {
-    type Err = HeaderError;
+impl std::str::FromStr for RinexHeader {
+    type Err = Error;
     /// Builds header from extracted header description
     fn from_str (content: &str) -> Result<Self, Self::Err> {
         let mut lines = content.lines();
@@ -390,19 +396,19 @@ impl std::str::FromStr for Header {
         let (constellation_str, remainder) = remainder.trim().split_at(20);
 
         let rinex_type = RinexType::from_str(type_str.trim())?;
-        let mut constellation: constellation::Constellation;
+        let mut constellation: Constellation;
         
         if type_str.trim().contains("GLONASS") {
             // special case, sometimes GLONASS NAV
             // drops the constellation field cause it's implied
-            constellation = constellation::Constellation::Glonass
+            constellation = Constellation::Glonass
         } else {
-            constellation = constellation::Constellation::from_str(constellation_str.trim())?
+            constellation = Constellation::from_str(constellation_str.trim())?
         }
 
         let version = RinexVersion::from_str(version_str.trim())?;
         if !version.is_supported() {
-            return Err(HeaderError::VersionNotSupported(String::from(version_str)))
+            return Err(Error::VersionNotSupported(String::from(version_str)))
         }
 
         // line2
@@ -485,6 +491,7 @@ impl std::str::FromStr for Header {
         let mut observer   = String::from("Unknown");
         let mut agency     = String::from("Unknown");
         let mut license     : Option<String> = None;
+        let mut doi         : Option<String> = None;
         let mut station_url : Option<String> = None;
         // hardware
         let mut ant        : Option<Antenna> = None;
@@ -499,7 +506,10 @@ impl std::str::FromStr for Header {
         let mut epochs: (Option<gnss_time::GnssTime>, Option<gnss_time::GnssTime>) = (None, None);
         // RinexType::ObservationData
         let mut obs_nb_sat : u32 = 0;
-        let mut obs_sat_count: u32 = 0;
+        let mut obs_types: 
+            Option<std::collections::HashMap<Constellation, Vec<ObservationType>>> 
+                = None;
+
         loop {
             /*
             <o
@@ -528,46 +538,45 @@ impl std::str::FromStr for Header {
                 leap = Some(LeapSecond::from_str(line.split_at(40).0)?)
 
             } else if line.contains("DOI") {
-                // TODO digital object identifier
-                // v> 4.0
+                let (content, _) = line.split_at(40); //  TODO: confirm please
+                doi = Some(String::from(content.trim()))
 
             } else if line.contains("MERGED FILE") {
-                //TODO nb# of merged files
-                // v>4.0
+                //TODO V > 3 nb# of merged files
 
             } else if line.contains("STATION INFORMATION") {
-                let (url, _) = line.split_at(20);//TODO revoir
+                let (url, _) = line.split_at(40); //TODO confirm please 
                 station_url = Some(String::from(url.trim()))
 
             } else if line.contains("LICENSE OF USE") {
-                let (lic, _) = line.split_at(20);//TODO revoir
+                let (lic, _) = line.split_at(40); //TODO confirm please 
                 license = Some(String::from(lic.trim()))
             
             } else if line.contains("TIME OF FIRST OBS") {
                 let items: Vec<&str> = line.split_ascii_whitespace()
                     .collect();
-                let (y, month, d, h, min, s, constel): (i32,u32,u32,u32,u32,f32,constellation::Constellation) =
+                let (y, month, d, h, min, s, constel): (i32,u32,u32,u32,u32,f32,Constellation) =
                     (i32::from_str_radix(items[0].trim(),10)?,
                     u32::from_str_radix(items[1].trim(),10)?,
                     u32::from_str_radix(items[2].trim(),10)?,
                     u32::from_str_radix(items[3].trim(),10)?,
                     u32::from_str_radix(items[4].trim(),10)?,
                     f32::from_str(items[5].trim())?,
-                    constellation::Constellation::from_str(items[6].trim())?);
+                    Constellation::from_str(items[6].trim())?);
                 let utc = chrono::NaiveDate::from_ymd(y,month,d).and_hms(h,min,s as u32);
                 epochs.0 = Some(gnss_time::GnssTime::new(utc, constel)) 
 
             } else if line.contains("TIME OF LAST OBS") {
                 let items: Vec<&str> = line.split_ascii_whitespace()
                     .collect();
-                let (y, month, d, h, min, s, constel): (i32,u32,u32,u32,u32,f32,constellation::Constellation) =
+                let (y, month, d, h, min, s, constel): (i32,u32,u32,u32,u32,f32,Constellation) =
                     (i32::from_str_radix(items[0].trim(),10)?,
                     u32::from_str_radix(items[1].trim(),10)?,
                     u32::from_str_radix(items[2].trim(),10)?,
                     u32::from_str_radix(items[3].trim(),10)?,
                     u32::from_str_radix(items[4].trim(),10)?,
                     f32::from_str(items[5].trim())?,
-                    constellation::Constellation::from_str(items[6].trim())?);
+                    Constellation::from_str(items[6].trim())?);
                 let utc = chrono::NaiveDate::from_ymd(y,month,d).and_hms(h,min,s as u32);
                 epochs.1 = Some(gnss_time::GnssTime::new(utc, constel)) 
             
@@ -629,11 +638,6 @@ impl std::str::FromStr for Header {
                 let items: Vec<&str> = line.split_ascii_whitespace()
                     .collect();
                  
-
-            } else if line.contains("SYS / PHASE SHIFT") {
-                //TODO
-            } else if line.contains("SYS / # / OBS TYPES") {
-                //TODO
             } else if line.contains("SYS / PHASE SHIFT") {
                 //TODO
             } else if line.contains("SYS / PVCS APPLIED") {
@@ -647,7 +651,44 @@ impl std::str::FromStr for Header {
                 // RINEX::ClockData specific 
                 // + number of different clock data types stored
                 // + list of clock data  types
-            } else if line.contains("# / TYPES OF OBSERV") {
+            } else if line.contains("TYPES OF OBS") {
+                // Rinex::ObservationData specific
+                // types of observation enumeration
+                // but it's not a per constellation enumeration
+                // => we set a flag and we will post process
+                //    to provide high level information in the end (sorting capacity)
+                //5    L1    L2    C1    P1    P2                        # / TYPES OF OBSERV
+                /*unspecified_obs_system = true;
+                let (num, rem) = line.split_at(6);
+                for i in 0..num {
+                    let (code, rem) = rem.split_at(6);
+                    if code.trim().len() == 0 {
+                        break
+                    }
+                    
+                }*/
+
+            } else if line.contains("SYS / # / OBS TYPES") {
+                // Rinex::ObservationData 
+                // types of observation for specified constellation
+                
+                // grab Constellation info:
+                //   [+] if constellation info exists: new entry
+                //   [+] otherwise: adding some more to a previous entry
+                let (sys, rem) = line.split_at(3);
+                let (nb, rem) = rem.split_at(3);
+                if sys.trim().len() > 0 {
+                    println!("SYS \"{}\" NB \"{}\" REM \"{}\"", sys.trim(), nb.trim(), rem.trim());
+                } else {
+                    println!("REM \"{}\"", rem.trim());
+                }
+//G   22 C1C L1C D1C S1C C1W S1W C2W L2W D2W S2W C2L L2L D2L  SYS / # / OBS TYPES
+//       S2L C5Q L5Q D5Q S5Q C1L L1L D1L S1L                  SYS / # / OBS TYPES
+//E   20 C1C L1C D1C S1C C6C L6C D6C S6C C5Q L5Q D5Q S5Q C7Q  SYS / # / OBS TYPES
+//       L7Q D7Q S7Q C8Q L8Q D8Q S8Q                          SYS / # / OBS TYPES
+//S    8 C1C L1C D1C S1C C5I L5I D5I S5I                      SYS / # / OBS TYPES
+            } else if line.contains("TYPES OF OBS") || 
+                line.contains("SYS / # / OBS TYPES") {
      //5    L1    L2    C1    P1    P2                        # / TYPES OF OBSERV
             
             } else if line.contains("SIGNAL STRENGHT UNIT") {
@@ -705,7 +746,7 @@ impl std::str::FromStr for Header {
             }
         }
         
-        Ok(Header{
+        Ok(RinexHeader{
             version: version,
             crinex: crinex_infos, 
             rinex_type,
@@ -717,16 +758,18 @@ impl std::str::FromStr for Header {
             agency,
             observer,
             license,
+            doi,
             station_url,
             rcvr, 
             ant, 
             leap,
             coords: coords,
-            // observations
+            // ?
             wavelengths: None,
-            epochs: epochs,
             gps_utc_delta: None,
-            sat_number: None,
+            // observations
+            epochs: epochs,
+            obs_types: None,
             // processing
             sampling_interval: sampling_interval,
             scaling_factor: None,
@@ -737,7 +780,7 @@ impl std::str::FromStr for Header {
     }
 }
 
-impl Header {
+impl RinexHeader {
     /// Returns true if self is a `Compact RINEX`
     pub fn is_crinex (&self) -> bool { self.crinex.is_some() }
 
@@ -768,5 +811,5 @@ impl Header {
     /// Returns `Rinex` type 
     pub fn get_rinex_type (&self) -> RinexType { self.rinex_type }
     /// Returns `GNSS` constellation
-    pub fn get_constellation (&self) -> constellation::Constellation { self.constellation }
+    pub fn get_constellation (&self) -> Constellation { self.constellation }
 }
