@@ -8,6 +8,9 @@ const BEIDOU_STR_IDENTIFIER  : &str = "BDS";
 const SBAS_STR_IDENTIFIER    : &str = "SBS";
 const MIXED_STR_IDENTIFIER   : &str = "M";
 
+/// Number of known ̀`GNSS` constellations
+pub const CONSTELLATION_NUMBER: u8 = 6;
+
 /// Describes all known `GNSS` constellations
 /// when manipulating `RINEX`
 #[derive(Clone, Copy, PartialEq, Debug)]
