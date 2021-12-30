@@ -698,7 +698,7 @@ impl std::str::FromStr for Header {
             if ant_coords.is_some() { // in case of faulty producer
                 ant.as_mut().unwrap().set_coords(ant_coords.unwrap())
             }
-            if (ant_hen.is_some()) {
+            if ant_hen.is_some() {
                 ant.as_mut().unwrap().set_height(ant_hen.unwrap().0);
                 ant.as_mut().unwrap().set_eastern_eccentricity(ant_hen.unwrap().1);
                 ant.as_mut().unwrap().set_northern_eccentricity(ant_hen.unwrap().2);
