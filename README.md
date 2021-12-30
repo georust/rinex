@@ -12,8 +12,8 @@ Many RINEX file types exist,
 the `RinexType` enum (refer to API) 
 describes the types of RINEX currently supported:
 
-* RinexType::NavigationMessage: Ephemeride NAV messages
-* RinexType::ObservationData:   Observations
+* RinexType::NavigationMessage: Ephemeride (NAV) messages
+* RinexType::ObservationData:   Observations (OBS) data
 
 RINEX files contain a lot of information,
 and this library exposes all data contained by supported
@@ -47,8 +47,7 @@ cargo run --example nav-2
 ### Supported RINEX revisions
 
 * 2.00 ⩽ v < 4.0    Tested 
-*             v < 2.0    should work
-*             v = 4.0    should work, not garanteed
+*             v = 4.0    should work, not garanteed at the moment
 
 ## Parsing a RINEX 
 
