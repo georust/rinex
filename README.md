@@ -98,9 +98,6 @@ let rinex = Rinex::from_file("data/amel0010.21g");
 println!("{}", rinex.len());
 ```
 
-### GPS Observation example
-TODO
-
 ## RINEX File Types
 
 ### RINEX: Navigation Message (NAV)
