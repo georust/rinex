@@ -128,10 +128,10 @@ Two main cases for `RinexType::NavigationMessage`:
     let records = rinex.match_filter(to_match);
 ```
 
-+ Mixed constellations (modern use case?)
++ `Constellation::Mixed` (modern use case?)
 
-In thise context, the constellation information must be retrieved
-at the `RecordItem` level. Filtering comes handy:
+In this context, the constellation information must be retrieved
+at the `RecordItem` level. A pre filter comes handy:
 
 ```rust
     // extracted from 'example --nav-mixed
