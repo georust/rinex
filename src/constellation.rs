@@ -40,7 +40,6 @@ pub enum ConstellationError {
 impl std::str::FromStr for Constellation {
     type Err = ConstellationError;
     fn from_str (s: &str) -> Result<Self, Self::Err> {
-        println!("constent \"{}\"", s);
         if s.to_lowercase().contains("gps") {
             Ok(Constellation::GPS)
         } else if s.to_lowercase().contains("glonass") {
