@@ -3,18 +3,23 @@
 //! 
 //! Homepage: <https://github.com/gwbres/rinex>
 
+mod keys;
 mod header;
+mod record;
 mod version;
 mod gnss_time;
+mod navigation;
+mod observation;
 
-pub mod record;
 pub mod constellation;
 
 use thiserror::Error;
 use std::str::FromStr;
 use scan_fmt::scan_fmt;
+use std::collections::HashMap;
 
-use record::*;
+use header::RinexHeader;
+use record::{RinexRecord, RecordItem, RecordItemError};
 use version::RinexVersion;
 use constellation::Constellation;
 
@@ -46,8 +51,8 @@ impl Default for RinexType {
 }
 
 impl RinexType {
-    /// Converts `Self` to string
-    pub fn to_string (&self) -> &str {
+    /// Converts `Self` to str
+    pub fn to_str (&self) -> &str {
         match *self {
             RinexType::ObservationData => "ObservationData",
             RinexType::NavigationMessage => "NavigationMessage",
@@ -55,6 +60,8 @@ impl RinexType {
             RinexType::ClockData => "ClockData",
         }
     }
+    /// Converts `Self` to string
+    pub fn to_string (&self) -> String { String::from(self.to_str()) }
 }
 
 impl std::str::FromStr for RinexType {
@@ -76,16 +83,16 @@ impl std::str::FromStr for RinexType {
 /// describes a `RINEX` file
 #[derive(Debug)]
 pub struct Rinex {
-    header: header::RinexHeader,
-    records: Vec<record::RinexRecord>,
+    header: RinexHeader,
+    record: RinexRecord,
 }
 
 impl Default for Rinex {
     /// Builds a default `RINEX`
     fn default() -> Rinex {
         Rinex {
-            header: header::RinexHeader::default(),
-            records: Vec::new(),
+            header: RinexHeader::default(),
+            record: Vec::new(),
         }
     }
 }
@@ -98,64 +105,12 @@ pub enum RinexError {
     HeaderError(#[from] header::Error),
 }
 
-/// macro to return true when a new block record
-/// has been identified
-pub fn new_record_block (line: &str,
-    rinex_type: &RinexType,
-        constellation: &Constellation, 
-            version: &RinexVersion) -> bool
-{
-    let major = version.get_major();
-    let parsed: Vec<&str> = line.split_ascii_whitespace()
-        .collect();
-    
-    match major < 4 {
-        true => {
-            // RinexType:: dependent
-            match rinex_type {
-                RinexType::NavigationMessage => {
-                    let known_sv_identifiers: &'static [char] = 
-                        &['R','G','E','B','J','C','S']; 
-                    match constellation {
-                        Constellation::Glonass => parsed.len() > 4,
-                        _ => {
-                            match line.chars().nth(0) {
-                                Some(c) => known_sv_identifiers.contains(&c), 
-                                _ => false
-                                    //TODO
-                                    // <o 
-                                    //   for some files we end up with "\n xxxx" as first frame items 
-                                    // current code will discard first payload item in such scenario
-                                    // => need to cleanup (split(head,body) method)
-                            }
-                        }
-                    }
-                },
-                RinexType::ObservationData => parsed.len() > 8,
-                _ => false, 
-            }
-        },
-        false => {      
-            // V4: OBS blocks have a '>' delimiter
-            match line.chars().nth(0) {
-                Some(c) => c == '>',
-                _ => false,
-                    //TODO
-                    // <o 
-                    //   for some files we end up with "\n xxxx" as first frame items 
-                    // current code will discard first payload item in such scenario
-                    // => need to cleanup (split(head,body) method)
-            }
-        },
-    }
-}
-
 impl Rinex {
     /// Builds a Rinex struct
-    pub fn new (header: header::RinexHeader, records: Vec<record::RinexRecord>) -> Rinex {
+    pub fn new (header: RinexHeader, record: RinexRecord) -> Rinex {
         Rinex {
             header,
-            records,
+            record,
         }
     }
 
@@ -176,16 +131,10 @@ impl Rinex {
     /// Returns `Rinex` length, ie.,
     ///   nb of observations for `RinexType::ObservationData`   
     ///   nb of ephemerides  for `RinexType::NavigationMessage`   
-    pub fn len (&self) -> usize { self.records.len() }
+    pub fn len (&self) -> usize { self.record.len() }
 
     /// Returns self's `header` section
-    pub fn get_header (&self) -> &header::RinexHeader { &self.header }
-
-    /// Returns entire Rinex Record
-    pub fn get_records (&self) -> &Vec<record::RinexRecord> { &self.records }
-
-    /// Returns nth record identified in self
-    pub fn get_record (&self, nth: usize) -> &record::RinexRecord { &self.records[nth] }
+    pub fn get_header (&self) -> &RinexHeader { &self.header }
 
     /// Builds a `Rinex` from given file.
     /// Input file must respect the whitespace specifications
@@ -200,7 +149,7 @@ impl Rinex {
             .unwrap();
 
         let (header, body) = Rinex::split_rinex_content(fp)?;
-        let header = header::RinexHeader::from_str(&header)?;
+        let header = RinexHeader::from_str(&header)?;
 
         // helpful information
         let rinex_type = header.get_rinex_type();
@@ -220,42 +169,21 @@ impl Rinex {
         let mut eof = false;
         let mut first = true;
         let mut block = String::with_capacity(256*1024); // max. block size
-        let mut records: Vec<RinexRecord> = Vec::new();
+        let mut record: RinexRecord = Vec::new();
 
         loop {
             let parsed: Vec<&str> = line.split_ascii_whitespace()
                 .collect();
             
-            let new_block = new_record_block(&line, &rinex_type, &constellation, &version); 
-
-            // Build new record
-            if new_block && !first {
-                let record: Option<RinexRecord> = match rinex_type {
-                    RinexType::NavigationMessage => {
-                        if let Ok(record) = 
-                            navigation::NavigationRecord::from_string(version, constellation, &block) {
-                                Some(RinexRecord::RinexNavRecord(record))
-                        } else {
-                            None
-                        }
-                    },
-                    RinexType::ObservationData => {
-                        if let Ok(record) =
-                            observation::ObservationRecord::from_string(version, constellation, &block) {
-                                Some(RinexRecord::RinexObsRecord(record))
-                        } else {
-                            None
-                        }
-                    },
-                    _ => None,
-                };
-                
-                if record.is_some() {
-                    records.push(record.unwrap())
+            let is_new_block = record::block_record_start(&line, &rinex_type, &constellation, &version); 
+            
+            if is_new_block && !first {
+                if let Ok(entry) = record::build_record_entry(version, rinex_type, constellation, &block) {
+                    record.push(entry)
                 }
             }
 
-            if new_block {
+            if is_new_block {
                 if first {
                     first = false
                 }
@@ -287,7 +215,7 @@ impl Rinex {
 
         Ok(Rinex{
             header, 
-            records,
+            record,
         })
     }
 }

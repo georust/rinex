@@ -1,5 +1,4 @@
 use rinex::*;
-use rinex::record::*;
 use rinex::constellation::Constellation;
 
 fn main() {
@@ -23,8 +22,8 @@ fn main() {
     //let records = rinex.get_records().iter()
     //    .filter();
 
-    if let RinexRecord::RinexNavRecord(nav) = rinex.get_record(0) {
+    /*if let RinexRecord::RinexNavRecord(nav) = rinex.get_record(0) {
         let sv = &nav.items["sv"];
         println!("Sv {:#?}", sv);
-    }
+    }*/
 }

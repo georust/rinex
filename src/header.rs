@@ -4,8 +4,8 @@ use chrono::Timelike;
 
 use crate::gnss_time;
 use crate::version::RinexVersion;
+use crate::observation::ObservationType;
 use crate::{is_rinex_comment, RinexType, RinexTypeError};
-use crate::record::observation::ObservationType;
 use crate::constellation::{Constellation, ConstellationError};
 
 /// Describes a `CRINEX` (compact rinex) 
