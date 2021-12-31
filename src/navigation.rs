@@ -170,8 +170,6 @@ pub fn build_nav_entry (version: RinexVersion,
         false => (sv_str.unwrap(), line), // V ≥ 4
     };
 
-    println!("SV \"{}\" rem \"{}\"", sv_str, rem);
-
     let (epoch, rem) = rem.split_at(20);
     let (svbias, rem) = rem.split_at(19);
     let (svdrift, svdriftr) = rem.split_at(19);
