@@ -107,8 +107,8 @@ impl Antenna {
 /// GnssTimes:   
 /// GLO = UTC = GPS - ΔtLS   
 /// GPS = GPS = UTC + ΔtLS   
-#[derive(Debug)]
-struct LeapSecond {
+#[derive(Copy, Clone, Debug)]
+pub struct LeapSecond {
     leap: u32, // current number
     past_future: u32, // future or past leap seconds ΔtLS   
     week: u32, // week number 
@@ -765,4 +765,7 @@ impl RinexHeader {
     pub fn get_rinex_type (&self) -> RinexType { self.rinex_type }
     /// Returns `GNSS` constellation
     pub fn get_constellation (&self) -> Constellation { self.constellation }
+
+    /// Returns `LeapSecond` infos (if any)
+    pub fn get_leap_second (&self) -> Option<LeapSecond> { self.leap }
 }
