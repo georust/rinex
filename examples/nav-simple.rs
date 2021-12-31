@@ -6,7 +6,7 @@ fn main() {
     println!("RINEX: example: nav-simple");
 
     let navigation_file = std::path::PathBuf::from(
-        env!("CARGO_MANIFEST_DIR").to_owned() + "/data/shortened/NAV/amel0010.21g");
+        env!("CARGO_MANIFEST_DIR").to_owned() + "/examples/navsmall1.rinex");
     let rinex = Rinex::from_file(&navigation_file).unwrap();
 
     // header informations
