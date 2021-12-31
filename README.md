@@ -61,7 +61,7 @@ println!("{:#?}", header);
 assert_eq!(header.get_type(), RinexType::NavigationMessage);
 assert_eq!(header.get_constellation(), constellation::Constellation::Mixed);
 println!("{:#?}", header.get_rinex_version());
-println!("Nb NAV frames: {}", rinex.len(); 
+println!("Record size: {}", rinex.len(); 
 ```
 
 "Comments" are currently discarded and not exposed by the parser.   
