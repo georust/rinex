@@ -149,7 +149,7 @@ OBS records expose mainly:
 First thing to do is to determine which
 data a given file actually contains
 
-``̀`rust
+```rust
     // 'example --obs-simple'
     let obs_types = header.get_obs_types();
 ```
