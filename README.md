@@ -33,10 +33,11 @@ To determine how to operate this library, refer to:
 
 ```shell
 cargo run --example nav-simple
+cargo run --example nav-mixed
 ```
 
-* basic: basic parser using header information
 * nav-simple: simple NAV file manipulation
+* nav-mixed: simple NAV::Mixed file manipulation
 
 ## Parsing a RINEX 
 
