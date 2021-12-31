@@ -19,9 +19,9 @@ RINEX files contain a lot of information,
 and this library exposes all data contained by supported
 `Rinex Types`, that means: a lot.
 
-To determine how to operate this library, refer to:
-* examples provided in this page
-* examples delivered with the library (see down below)
+To learn how to operate this library, refer to:
+* the examples delivered with the library are detailed and compelling
+* extracted examples on this page 
 * autotest methods delivered by _src/lib.rs_ 
 
 ### Supported RINEX revisions
@@ -44,36 +44,24 @@ cargo run --example nav-mixed
 The __::from\_file__ method is how to parse a local `RINEX` file: 
 
 ```rust
-let rinex = Rinex::from_file("data/amel0010.21g");
-println!("{:#?}", rinex);
+use rinex::*;
+let path = std::path::PathBuf::from("amel0010.21g);
+let rinex = Rinex::from_file(&path).unwrap();
 ```
 
-```rust
-let rinex = Rinex::from_file("data/aopr0010.17o");
-println!("{:#?}", rinex);
-```
-
-## RINEX Header
+### RINEX Header
 
 The `Rinex Header` contains high level information
 
 ```rust
-let rinex = Rinex::from_file("data/AMEL00NLD_R_20210010000_01D_MN.rnx");
+use rinex::*;
+let rinex = Rinex::from_file(path);
 let header = rinex.get_header();
 println!("{:#?}", header);
 assert_eq!(header.get_type(), RinexType::NavigationMessage);
 assert_eq!(header.get_constellation(), constellation::Constellation::Mixed);
-```
-
-Other example
-
-```rust
-let rinex = Rinex::from_file("data/dlf10010.21g");
-let header = rinex.get_header();
-println!("{:#?}", header);
-assert_eq!(header.get_version().to_string(), "2.11"); 
-assert_eq!(header.get_pgm(), "teqc  2019Feb25");
-assert_eq!(header.run_by(),  "Unknown");
+println!("{:#?}", header.get_rinex_version());
+println!("Nb NAV frames: {}", rinex.len(); 
 ```
 
 "Comments" are currently discarded and not exposed by the parser.   
@@ -83,18 +71,13 @@ assert_eq!(header.run_by(),  "Unknown");
 + Total number of Observations for `RinexType::ObservationData`
 + Total number of Nav Messages for `RinexType::NavigationMessage`
 
-```rust
-let rinex = Rinex::from_file("data/amel0010.21g");
-println!("{}", rinex.len());
-```
-
 ## RINEX Record and File types
 
 The Record (file content) depends on the file type and constellation.   
 To learn how to operate the library for the Rinex type you are interested in,
 refer to the following section.
 
-### Navigation Message (NAV)
+## Navigation Message (NAV)
 
 NAV records expose the following keys to manipulate & search through the records:
 * "sv" : Satellite Vehicule ID (_src/record.rs::Sv_)
@@ -105,54 +88,116 @@ NAV records expose the following keys to manipulate & search through the records
 
 Two main cases for `RinexType::NavigationMessage`:
 + Unique constellation (e.g `Constellation::GPS`) 
-
-```rust
-    // extracted from 'example --nav-simple'
-    use rinex;
-    use rinex::record::*;
-    use rinex::constellation::Constellation;
-
-    let rinex = Rinex::from_file("data/amel0010.21g"); // GLONASS NAV <-> unique
-    assert_eq!(rinex.header.get_constellation(), Constellation::Glonass);
-
-    // each record were recorded against an "RXX" Sat. Vehicule
-    let record = rinex.get_record(0); // first entry
-    println!("{:#?}", record);
-
-    // RXX filter is pointless
-    let rxx_vehicules = rinex.match_filter(Constellation::Glonass);
-    // R01 filter is convenient 
-    let to_match = RinexRecordItem::Sv(Sv::new(Constellation::Glonass, 0x01));
-    let records = rinex.match_filter(to_match);
-```
-
 + `Constellation::Mixed` (modern use case?)
 
-In this context, the constellation information must be retrieved
-at the `RecordItem` level. A pre filter comes handy:
+### NAV: determine encountered Sattelite Vehicules (`Sv`) 
 
 ```rust
-    // extracted from 'example --nav-mixed
-    use rinex;
-    use rinex::record::*;
-    use rinex::constellation::Constellation;
-
-    // MIXED / V3 Modern / 
-    // MIXED GPS/GAL/GLO mainly - V3(modern)
-    let rinex = Rinex::from_file("data/AMEL00NLD_R_20210010000_01D_MN.rnx"); 
-    assert_eq(rinex.header.get_constellation(), Constellation::Glonass); // nope
-    assert_eq!(rinex.header.get_constellation(), Constellation::Mixed);  // yes
-
-    let record = rinex.get_record(0); // first entry
-    println!("{:#?}", record);
-    
-    // GPS filter 
-    let records = rinex.match_filter(Constellation::GPS);
-    // G01 filter
-    let to_match = RinexRecordItem::Sv(Sv::new(Constellation::GPS, 0x01));
-    let records = gxx_records.match_filter(to_match);
+    // 'example --nav-simple'
+    let vehicules: Vec<_> = rinex.get_record().iter()
+        .map(|s| s["sv"])
+        .collect();
 ```
 
-### Observation Date (OBS)
+### NAV (mixed): extract all `Sv` tied to `Glonass`
 
+```rust
+    // 'example --nav-simple'
+    let vehicules: Vec<_> = rinex.get_record().iter()
+        .map(|s| s["sv"])
+        .collect();
+
+    let glo_vehicules: Vec<_> = vehicules.iter()
+        .filter(|s| s.Sv().unwrap()
+            .get_constellation() == Constellation::Glonass)
+        .collecr();
+```
+
+### NAV (mixed): extract `svClockBias`(s) and `svClockDrift` (s.s⁻¹) for `R03`
+
+```rust
+    // 'example --nav-simple'
+    let sv = Sv::new(Constellation::Glonass, 0x03); // `R03`
+    let sv_to_match = RecordItem::Sv(sv); // filter item
+    let r03_data: Vec<_> = rinex.get_record().iter()
+        .map(|s| s["sv"] == sv_to_match)
+        .collect();
+    
+    let (clk_bias, clk_drift) = (r03_data["svClockBias"], r03_data["svClockDrift"]);
+```
+
+### NAV (mixed): extract specific data
+>>WorkInProgress
+`svHealth` exists for GPS for instance (_keys.json_) and
+is a binary word:
+
+```rust
+    // 'example --nav-mixed'
+```
+
+## Observation data (OBS)
+>>WorkInProgress
+
+OBS records expose mainly:
+* raw carrier phase measurements
+* pseudo ranges estimates
+* doppler measurements
+
+### OBS: determine which measurements we have
+>>WorkInProgress
+
+First thing to do is to determine which
+data a given file actually contains
+
+``̀`rust
+    // 'example --obs-simple'
+    let obs_types = header.get_obs_types();
+```
+
+### OBS (GPS): extract pseudo range
+>>WorkInProgress
+
+Extract pseudo range for a unique vehicule
+
+``̀`rust
+    // 'example --obs-simple'
+    let sv = Sv::new(Constellation::GPS, 0x01); // "G01"
+    let to_match = RecordItem::Sv(sv); // filter item
+    let matching: Vec<_> = rinex.get_record().iter()
+        .filter(|s| s["sv"] == to_match)
+        .collect();
+    let (pseudo_range, raw_phase) = matching["C1C"];
+```
+
+<!> Sometimes data is scaled:  
 TODO
+
+```rust
+    // 'example --obs-mixed'
+```
+
+### OBS: complex data extract on `SigStrength` condition
+>>WorkInProgress
+
+Extract phase + pseudo range
+
+### Use `LeapSecond` information
+>>WorkInProgress
+
+```rust
+    // 'example --nav-mixed'
+```
+
+### Ionosphere compensation 
+>>WorkInProgress
+
+```rust
+    // 'example --nav-mixed'
+```
+
+### System time compensation
+>>WorkInProgress
+
+```rust
+    // 'example --'
+```
