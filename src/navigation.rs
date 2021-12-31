@@ -11,7 +11,7 @@ use crate::version::RinexVersion;
 use crate::record::{RecordItem, Sv, RecordItemError};
 use crate::constellation::{Constellation, ConstellationError};
 
-#[derive(Debug)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 /// `NavigationRecordType` describes type of record
 /// for NAV files
 pub enum NavigationRecordType {
@@ -49,7 +49,7 @@ impl NavigationRecordType {
     }
 }
 
-#[derive(Debug)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 /// `NavigationMsgType`
 /// describes messages type for NAV files   
 ///  Lnav: Legacy NAV Messsage   

@@ -5,12 +5,12 @@
 
 mod keys;
 mod header;
-mod record;
 mod version;
 mod gnss_time;
 mod navigation;
 mod observation;
 
+pub mod record;
 pub mod constellation;
 
 use thiserror::Error;
@@ -135,6 +135,13 @@ impl Rinex {
 
     /// Returns self's `header` section
     pub fn get_header (&self) -> &RinexHeader { &self.header }
+
+    /// Returns entire RINEX record
+    pub fn get_record (&self) -> &RinexRecord { &self.record }
+
+    /// Returns Record nth' entry
+    pub fn get_record_nth (&self, nth: usize) 
+        -> &std::collections::HashMap<String, record::RecordItem> { &self.record[nth] }
 
     /// Builds a `Rinex` from given file.
     /// Input file must respect the whitespace specifications

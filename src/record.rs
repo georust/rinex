@@ -8,7 +8,9 @@ use crate::keys;
 use crate::RinexType;
 use crate::version::RinexVersion;
 use crate::constellation::Constellation;
-use crate::navigation::*; //{NavigationRecordType, NavigationMsgType};
+use crate::navigation::*; 
+
+pub use crate::navigation::{NavigationRecordType, NavigationMsgType};
 
 /// Record describes Rinex File content.    
 /// A record entry is a hashmap.
@@ -26,7 +28,7 @@ pub enum RecordError {
 type Epoch = chrono::NaiveDateTime;
 
 /// ̀`Sv` describes a Satellite Vehicule
-#[derive(Debug)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 pub struct Sv {
     constellation: Constellation,
     prn: u8,
@@ -54,6 +56,13 @@ impl Default for Sv {
 impl Sv {
     /// Creates a new `Sv` Satellite vehicule descriptor
     pub fn new (constellation: Constellation, prn: u8) -> Sv { Sv {constellation, prn }}
+
+    /// Returns `GNSS` constellation from which this
+    /// `Sv` is part of
+    pub fn get_constellation (&self) -> Constellation { self.constellation }
+
+    /// Returns `PRN#ID` of this particular `Sv`
+    pub fn get_prn (&self) -> u8 { self.prn }
 }
 
 impl std::str::FromStr for Sv {
@@ -87,7 +96,7 @@ impl std::str::FromStr for Sv {
     }
 }
 
-#[derive(Debug)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 /// `RecordItem` describes all known Rinex Records items
 pub enum RecordItem {
     Sv(Sv),
@@ -99,6 +108,20 @@ pub enum RecordItem {
     NavRecType(NavigationRecordType),
     NavMsgType(NavigationMsgType),
 }
+
+/*
+impl PartialEq for RecordItem {
+    fn eq (&self, other: &Self) -> bool {
+        if let RecordItem::Sv(s) = self {
+            if let RecordItem::Sv(o) = other {
+                return s.get_constellation() == o.get_constellation()
+            }
+        }
+        false
+    }
+}
+
+impl Eq for RecordItem {} */
 
 #[derive(Error, Debug)]
 /// `RecordItem` related errors
