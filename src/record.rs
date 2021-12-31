@@ -109,20 +109,6 @@ pub enum RecordItem {
     NavMsgType(NavigationMsgType),
 }
 
-/*
-impl PartialEq for RecordItem {
-    fn eq (&self, other: &Self) -> bool {
-        if let RecordItem::Sv(s) = self {
-            if let RecordItem::Sv(o) = other {
-                return s.get_constellation() == o.get_constellation()
-            }
-        }
-        false
-    }
-}
-
-impl Eq for RecordItem {} */
-
 #[derive(Error, Debug)]
 /// `RecordItem` related errors
 pub enum RecordItemError {
@@ -172,6 +158,14 @@ impl RecordItem {
             "navRecType" => Ok(RecordItem::NavRecType(NavigationRecordType::from_str(&content)?)),
             "navMsgType" => Ok(RecordItem::NavMsgType(NavigationMsgType::from_str(&content)?)),
             _ => Err(RecordItemError::UnknownTypeDescriptor(type_descriptor.to_string())),
+        }
+    }
+
+    /// Extracts Sv information if feasible
+    pub fn Sv (&self) -> Option<Sv> {
+        match self {
+            RecordItem::Sv(e) => Some(*e),
+            _ => None,
         }
     }
 }
