@@ -11,10 +11,19 @@ fn main() {
 
     // header informations
     let header = rinex.get_header();
-    println!("Version: {:#?}", header.get_rinex_version());
     assert_eq!(header.is_crinex(), false);
     assert_eq!(header.get_rinex_type(), RinexType::NavigationMessage);
-    
+
+    assert_eq!(header.get_rinex_version().get_major(), 3);
+    // ----> 😀
+    //       modern stuff!
+    assert_eq!(header.get_leap_second().is_some(), true); // wow 😀
+    println!("`LeapSecond` : {:#?}", header.get_leap_second().unwrap());
+
+    /* if let Some(iono_corr) = header.get_ionospheric_correction() {
+        // DO something
+    } */
+
     assert_eq!(header.get_constellation(), Constellation::Mixed); 
     // ----> 😢😢 
     //       this isꞥŧ going to be easy 😢
