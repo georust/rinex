@@ -170,38 +170,37 @@ pub fn build_nav_entry (version: RinexVersion,
         false => (sv_str.unwrap(), line), // V ≥ 4
     };
 
+    println!("SV \"{}\" rem \"{}\"", sv_str, rem);
+
     let (epoch, rem) = rem.split_at(20);
     let (svbias, rem) = rem.split_at(19);
     let (svdrift, svdriftr) = rem.split_at(19);
 
-    let sv: Sv = match constellation {
+    let sv: RecordItem = match constellation {
         // SV identification problem
         //  (+) GLONASS NAV special case
         //      SV'X' is omitted 
         //  (+) faulty RINEX producer with unique constellation
         //      SV'X' is omitted
-        Constellation::Mixed => Sv::from_str(sv_str.trim())?,
+        Constellation::Mixed => RecordItem::from_string("sv", sv_str.trim())?,
         _ => {
             let prn = u8::from_str_radix(sv_str.trim(), 10)?;  
-            Sv::new(constellation, prn)
+            RecordItem::Sv(Sv::new(constellation, prn))
         },
     };
+    map.insert(String::from("sv"), sv); 
 
-    let sv = RecordItem::from_string("sv", sv_str)?;
     let epoch = RecordItem::from_string("epoch", epoch.trim())?;
     let clk_bias = RecordItem::from_string("d19.12", svbias.trim())?;
     let clk_drift = RecordItem::from_string("d19.12", svdrift.trim())?;
     let clk_drift_r = RecordItem::from_string("d19.12", svdriftr.trim())?;
-    map.insert(String::from("sv"), sv); 
     map.insert(String::from("epoch"), epoch); 
     map.insert(String::from("svClockBias"), clk_bias); 
     map.insert(String::from("svClockDrift"), clk_drift); 
     map.insert(String::from("svClockDriftRate"), clk_drift_r); 
     
-    // from now one, everything is mapped
-    // as it is fixed and constant
-    // but it depends on the rinex context (release, constellation)
-    /*let kbank = KeyBank::new(&version, &RinexType::NavigationMessage, &constellation)
+    // from now one, everything is described in key mapping
+    let kbank = KeyBank::new(&version, &RinexType::NavigationMessage, &constellation)
         .unwrap();
 
     let mut total: usize = 0; 
@@ -236,6 +235,6 @@ pub fn build_nav_entry (version: RinexVersion,
                 break
             }
         }
-    }*/
+    }
     Ok(map)
 }
