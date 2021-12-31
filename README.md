@@ -96,7 +96,7 @@ refer to the following section.
 ### Navigation Message (NAV)
 
 NAV records expose the following keys to manipulate & search through the records:
-* "sv" : Satellite Vehicule ID (_src/record.rs::Sv)
+* "sv" : Satellite Vehicule ID (_src/record.rs::Sv_)
 * "svClockBias": clock bias (s)
 * "svClockDrift": clock drift (s.s⁻¹)
 * "svClockDriftRate": clock drift (s.s⁻²)
