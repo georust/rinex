@@ -41,7 +41,7 @@ cargo run --example nav-mixed
 
 ## Parsing a RINEX 
 
-The __::from\_file__ method is how to parse a local `RINEX` file: 
+The __::from\_file__ method lets you parse a local `RINEX` file: 
 
 ```rust
 use rinex::*;
