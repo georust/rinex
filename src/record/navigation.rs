@@ -5,9 +5,9 @@ use thiserror::Error;
 use chrono::Timelike;
 use std::str::FromStr;
 
+use crate::RinexType;
 use crate::record::*;
 use crate::record::keys::*;
-use crate::header::RinexType;
 use crate::version::RinexVersion;
 use crate::constellation::{Constellation, ConstellationError};
 
@@ -107,7 +107,7 @@ impl std::str::FromStr for NavigationMsgType {
 pub struct NavigationRecord {
     record_type: NavigationRecordType,
     msg_type: NavigationMsgType,
-    items: std::collections::HashMap<String, RecordItem>,
+    pub items: std::collections::HashMap<String, RecordItem>,
 }
 
 impl Default for NavigationRecord {

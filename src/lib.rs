@@ -4,17 +4,17 @@
 //! Homepage: <https://github.com/gwbres/rinex>
 
 mod header;
-mod record;
 mod version;
 mod gnss_time;
-mod constellation;
+
+pub mod record;
+pub mod constellation;
 
 use thiserror::Error;
 use std::str::FromStr;
 use scan_fmt::scan_fmt;
 
 use record::*;
-use header::RinexType;
 use version::RinexVersion;
 use constellation::Constellation;
 
@@ -22,6 +22,54 @@ use constellation::Constellation;
 /// Returns `true` if given `Rinex` line is a comment
 macro_rules! is_rinex_comment {
     ($line: expr) => { $line.contains("COMMENT") };
+}
+
+/// Describes all known `RINEX` file types
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub enum RinexType {
+    ObservationData,
+    NavigationMessage,
+    MeteorologicalData,
+    ClockData,
+}
+
+#[derive(Error, Debug)]
+/// `RinexType` related errors
+pub enum RinexTypeError {
+    #[error("Unknown RINEX type identifier \"{0}\"")]
+    UnknownType(String),
+}
+
+impl Default for RinexType {
+    /// Builds a default `RinexType`
+    fn default() -> RinexType { RinexType::ObservationData }
+}
+
+impl RinexType {
+    /// Converts `Self` to string
+    pub fn to_string (&self) -> &str {
+        match *self {
+            RinexType::ObservationData => "ObservationData",
+            RinexType::NavigationMessage => "NavigationMessage",
+            RinexType::MeteorologicalData => "MeteorologicalData",
+            RinexType::ClockData => "ClockData",
+        }
+    }
+}
+
+impl std::str::FromStr for RinexType {
+    type Err = RinexTypeError;
+    fn from_str (s: &str) -> Result<Self, Self::Err> {
+        if s.eq("NAVIGATION DATA") {
+            Ok(RinexType::NavigationMessage)
+        } else if s.contains("NAV DATA") {
+            Ok(RinexType::NavigationMessage)
+        } else if s.eq("OBSERVATION DATA") {
+            Ok(RinexType::ObservationData)
+        } else {
+            Err(RinexTypeError::UnknownType(String::from(s)))
+        }
+    }
 }
 
 /// `Rinex` main structure,
@@ -53,7 +101,7 @@ pub enum RinexError {
 /// macro to return true when a new block record
 /// has been identified
 pub fn new_record_block (line: &str,
-    rinex_type: &header::RinexType,
+    rinex_type: &RinexType,
         constellation: &Constellation, 
             version: &RinexVersion) -> bool
 {
@@ -65,7 +113,7 @@ pub fn new_record_block (line: &str,
         true => {
             // RinexType:: dependent
             match rinex_type {
-                header::RinexType::NavigationMessage => {
+                RinexType::NavigationMessage => {
                     let known_sv_identifiers: &'static [char] = 
                         &['R','G','E','B','J','C','S']; 
                     match constellation {
@@ -83,7 +131,7 @@ pub fn new_record_block (line: &str,
                         }
                     }
                 },
-                header::RinexType::ObservationData => parsed.len() > 8,
+                RinexType::ObservationData => parsed.len() > 8,
                 _ => false, 
             }
         },
@@ -130,9 +178,15 @@ impl Rinex {
     ///   nb of ephemerides  for `RinexType::NavigationMessage`   
     pub fn len (&self) -> usize { self.records.len() }
 
-    /// Returns `RinexHeader` 
+    /// Returns self's `header` section
     pub fn get_header (&self) -> &header::RinexHeader { &self.header }
-    
+
+    /// Returns entire Rinex Record
+    pub fn get_records (&self) -> &Vec<record::RinexRecord> { &self.records }
+
+    /// Returns nth record identified in self
+    pub fn get_record (&self, nth: usize) -> &record::RinexRecord { &self.records[nth] }
+
     /// Builds a `Rinex` from given file.
     /// Input file must respect the whitespace specifications
     /// for the entire header section.   
@@ -177,7 +231,7 @@ impl Rinex {
             // Build new record
             if new_block && !first {
                 let record: Option<RinexRecord> = match rinex_type {
-                    header::RinexType::NavigationMessage => {
+                    RinexType::NavigationMessage => {
                         if let Ok(record) = 
                             navigation::NavigationRecord::from_string(version, constellation, &block) {
                                 Some(RinexRecord::RinexNavRecord(record))
@@ -185,7 +239,7 @@ impl Rinex {
                             None
                         }
                     },
-                    header::RinexType::ObservationData => {
+                    RinexType::ObservationData => {
                         if let Ok(record) =
                             observation::ObservationRecord::from_string(version, constellation, &block) {
                                 Some(RinexRecord::RinexObsRecord(record))

@@ -22,7 +22,7 @@ pub enum RinexRecord {
 type Epoch = chrono::NaiveDateTime;
 
 /// ̀`Sv` describes a Satellite Vehicule
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct Sv {
     constellation: constellation::Constellation,
     prn: u8,

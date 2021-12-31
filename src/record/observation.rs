@@ -61,7 +61,7 @@ pub enum Error {
 /// `ObservationRecord` describes an OBS message frame.   
 #[derive(Debug)]
 pub struct ObservationRecord {
-    items: std::collections::HashMap<String, RecordItem>,
+    pub items: std::collections::HashMap<String, RecordItem>,
 }
 
 impl Default for ObservationRecord {

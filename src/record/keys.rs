@@ -1,5 +1,5 @@
+use crate::RinexType;
 use crate::version::RinexVersion;
-use crate::header::RinexType;
 use crate::constellation::Constellation;
 
 /// Biggest Key listing ever

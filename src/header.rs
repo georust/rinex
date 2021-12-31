@@ -3,8 +3,8 @@ use thiserror::Error;
 use chrono::Timelike;
 
 use crate::gnss_time;
-use crate::is_rinex_comment;
 use crate::version::RinexVersion;
+use crate::{is_rinex_comment, RinexType, RinexTypeError};
 use crate::record::observation::ObservationType;
 use crate::constellation::{Constellation, ConstellationError};
 
@@ -12,53 +12,6 @@ use crate::constellation::{Constellation, ConstellationError};
 pub const CRINEX_MARKER_COMMENT : &str = "COMPACT RINEX FORMAT";
 /// End of Header section reached
 pub const HEADER_END_MARKER : &str = "END OF HEADER";
-
-/// Describes all known `RINEX` file types
-#[derive(Copy, Clone, Debug)]
-pub enum RinexType {
-    ObservationData,
-    NavigationMessage,
-    MeteorologicalData,
-    ClockData,
-}
-
-#[derive(Error, Debug)]
-pub enum RinexTypeError {
-    #[error("Unknown RINEX type identifier \"{0}\"")]
-    UnknownType(String),
-}
-
-impl Default for RinexType {
-    /// Builds a default `RinexType`
-    fn default() -> RinexType { RinexType::ObservationData }
-}
-
-impl RinexType {
-    /// Converts `Self` to string
-    pub fn to_string(&self) -> &str {
-        match *self {
-            RinexType::ObservationData => "ObservationData",
-            RinexType::NavigationMessage => "NavigationMessage",
-            RinexType::MeteorologicalData => "MeteorologicalData",
-            RinexType::ClockData => "ClockData",
-        }
-    }
-}
-
-impl std::str::FromStr for RinexType {
-    type Err = RinexTypeError;
-    fn from_str (s: &str) -> Result<Self, Self::Err> {
-        if s.eq("NAVIGATION DATA") {
-            Ok(RinexType::NavigationMessage)
-        } else if s.contains("NAV DATA") {
-            Ok(RinexType::NavigationMessage)
-        } else if s.eq("OBSERVATION DATA") {
-            Ok(RinexType::ObservationData)
-        } else {
-            Err(RinexTypeError::UnknownType(String::from(s)))
-        }
-    }
-}
 
 /// GNSS receiver description
 #[derive(Debug)]
