@@ -20,34 +20,23 @@ and this library exposes all data contained by supported
 `Rinex Types`, that means: a lot.
 
 To determine how to operate this library, refer to:
-* basic examples provided in this page
-* basic examples delivered with the library (see down below)
-* basic autotest method delivered by _src/lib.rs_ 
-
-```shell
-cargo run --example basic
-```
-
-If you're using this library, you probably want more
-than that and actually retrieve your data of interest
-and manipulate it.
-To learn how to do this, refer to:
-* more advanced examples described in this page:
- * basic data parsing, identification, extraction..
- * basic data sorting, 
- * data plotting..
-* advanced examples delivered with the library (see down below)
-* specific autotest methods delviered by _src/lib.rs_ 
-
-```shell
-cargo run --example nav-1
-cargo run --example nav-2
-```
+* examples provided in this page
+* examples delivered with the library (see down below)
+* autotest methods delivered by _src/lib.rs_ 
 
 ### Supported RINEX revisions
 
 * 2.00 ⩽ v < 4.0    Tested 
 *             v = 4.0    should work, not garanteed at the moment
+
+## Running the examples
+
+```shell
+cargo run --example nav-simple
+```
+
+* basic: basic parser using header information
+* nav-simple: simple NAV file manipulation
 
 ## Parsing a RINEX 
 
@@ -98,9 +87,20 @@ let rinex = Rinex::from_file("data/amel0010.21g");
 println!("{}", rinex.len());
 ```
 
-## RINEX File Types
+## RINEX Record and File types
 
-### RINEX: Navigation Message (NAV)
+The Record (file content) depends on the file type and constellation.   
+To learn how to operate the library for the Rinex type you are interested in,
+refer to the following section.
+
+### Navigation Message (NAV)
+
+NAV records expose the following keys to manipulate & search through the records:
+* "sv" : Satellite Vehicule ID (_src/record.rs::Sv)
+* "svClockBias": clock bias (s)
+* "svClockDrift": clock drift (s.s⁻¹)
+* "svClockDriftRate": clock drift (s.s⁻²)
+* all keys contained in _keys.json_ for related Rinex revision & constellation
 
 Two main cases for `RinexType::NavigationMessage`:
 + Unique constellation (e.g `Constellation::GPS`) 
@@ -152,39 +152,6 @@ at the `RecordItem` level. A pre filter comes handy:
     let records = gxx_records.match_filter(to_match);
 ```
 
-### RINEX: Observation Data (OBS)
+### Observation Date (OBS)
+
 TODO
-
-## Data indexing interface
-
-This lib builds a dictionnary interface to interact, sort and retrieve
-RINEX files payloads. Some restrictions may apply to certains GNSS constellations,
-refer to specific paragraphs down below.
-
-All known keys are referenced in the /keys folder.  
-For key and related data specifications, refer toe the related "DATA RECORD" description
-in the `RINEX` specifications
-
-
-### GPS Navigation analysis example
-TODO
-
-### Glonass Navigation analysis example  
-TODO
-
-### Mixed Navigation example
-TODO
-
-### Mixed Observation example
-TODO
-
-## Supporting new RINEX Revisions
-
-To support a new RINEX revision, for all currently supported `RinexTypes`:
-
-* go through all possible record modifications:
-  * new record types would require a new src/record.rs RecordItem entry
-  * this implies a new construction & parsing method
-* add a new entry to keys.json file
-* add new test resources 
-* add new specific test method
