@@ -2,6 +2,12 @@ use rinex::*;
 use rinex::record::*;
 use rinex::constellation::*;
 
+// .unique() is quite convenient filter
+use itertools::Itertools;
+
+// .filter() advanced filter combination
+//TODO
+
 fn main() {
     println!("RINEX: example: nav-simple");
 
@@ -30,24 +36,27 @@ fn main() {
     
     //   ---> extract all Sv 
     let vehicules: Vec<_> = rinex.get_record().iter()
-        .map(|s| s["sv"]).collect();
+        .map(|s| s["sv"])
+        .collect();
     println!("Extracting all `Sv` : {:#?}", vehicules);
     
-    //   ---> extract all Constellations
+    //   ---> extract all encountered Constellations
     let constellations: Vec<_> = rinex.get_record().iter()
-        .filter_map(|s| Some(s["sv"].Sv().unwrap().get_constellation())).collect();
+        .filter_map(|s| Some(s["sv"].as_sv().unwrap().get_constellation()))
+        .unique()
+        .collect();
     println!("Constellation : {:#?}", constellations);
 
     //   ----> extract all `Sv` tied to GPS 
     let gps_vehicules: Vec<_>  = vehicules.iter()
-        .filter(|s| s.Sv().unwrap().get_constellation() == Constellation::GPS)
+        .filter(|s| s.as_sv().unwrap().get_constellation() == Constellation::GPS)
         .collect();
     assert_eq!(gps_vehicules.len(), 0); // wait what?
     println!("GPS Vehicules : {:#?}", gps_vehicules);
 
     //   ----> extract all `Sv` tied to Glonass 
     let glo_vehicules: Vec<_>  = vehicules.iter()
-        .filter(|s| s.Sv().unwrap().get_constellation() == Constellation::Glonass)
+        .filter(|s| s.as_sv().unwrap().get_constellation() == Constellation::Glonass)
         .collect();
     assert_eq!(glo_vehicules.len(), nb_nav_frames); // wait what?
     println!("GLO Vehicules : {:#?}", glo_vehicules);
