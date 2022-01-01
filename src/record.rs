@@ -2,12 +2,14 @@
 use thiserror::Error;
 use std::str::FromStr;
 use std::collections::HashMap;
+use chrono::{Timelike, Datelike};
 
 use crate::keys;
 use crate::RinexType;
 use crate::version::RinexVersion;
 use crate::constellation::Constellation;
 use crate::navigation::*; 
+use crate::observation::*;
 
 pub use crate::navigation::{NavigationRecordType, NavigationMsgType};
 
@@ -24,10 +26,10 @@ pub enum RecordError {
 }
 
 /// `Epoch` is the timestamp of an observation
-type Epoch = chrono::NaiveDateTime;
+pub type Epoch = chrono::NaiveDateTime;
 
 /// ̀`Sv` describes a Satellite Vehicule
-#[derive(Copy, Clone, PartialEq, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Sv {
     constellation: Constellation,
     prn: u8,
@@ -98,14 +100,18 @@ impl std::str::FromStr for Sv {
 #[derive(Copy, Clone, PartialEq, Debug)]
 /// `RecordItem` describes all known Rinex Records items
 pub enum RecordItem {
-    Sv(Sv),
-    Float64(f64),
-    Epoch(Epoch),
-    Unsigned(u32),
-    Flag(u8),
-    // (NAV)
-    NavRecType(NavigationRecordType),
-    NavMsgType(NavigationMsgType),
+    /// Satellite Vehicule (̀`Sv`) identifier
+    Sv(Sv), 
+    /// D19.12 as float value
+    D19P12(f64), 
+    /// `Epoch` is an observation timestamp
+    Epoch(Epoch), 
+    /// (NAV) Record type
+    NavRecType(NavigationRecordType), 
+    /// (NAV) Message type
+    NavMsgType(NavigationMsgType), 
+    /// (OBS) observation
+    Observation(Observation),
 }
 
 #[derive(Error, Debug)]
@@ -135,7 +141,7 @@ impl RecordItem {
             // un type binary peut aider pour les mask..
             // u32 doit suffir
             "sv" => Ok(RecordItem::Sv(Sv::from_str(&content)?)),
-            "d19.12" => Ok(RecordItem::Float64(f64::from_str(&content.replace("D","e"))?)),
+            "d19.12" => Ok(RecordItem::D19P12(f64::from_str(&content.replace("D","e"))?)),
              "epoch" => {
                 let items: Vec<&str> = content.split_ascii_whitespace()
                     .collect();
@@ -153,7 +159,6 @@ impl RecordItem {
                     chrono::NaiveDate::from_ymd(y,mon,day)
                         .and_hms(h,min,s as u32)))
             },
-            "i1" => Ok(RecordItem::Flag(u8::from_str_radix(&content, 10)?)),
             "navRecType" => Ok(RecordItem::NavRecType(NavigationRecordType::from_str(&content)?)),
             "navMsgType" => Ok(RecordItem::NavMsgType(NavigationMsgType::from_str(&content)?)),
             _ => Err(RecordItemError::UnknownTypeDescriptor(type_descriptor.to_string())),
@@ -161,9 +166,30 @@ impl RecordItem {
     }
 
     /// Extracts Sv information if feasible
-    pub fn Sv (&self) -> Option<Sv> {
+    pub fn as_sv (&self) -> Option<Sv> {
         match self {
-            RecordItem::Sv(e) => Some(*e),
+            RecordItem::Sv(s) => Some(*s),
+            _ => None,
+        }
+    }
+    /// Extracts Epoch informat if feasible
+    pub fn as_epoch (&self) -> Option<Epoch> {
+        match self {
+            RecordItem::Epoch(e) => Some(*e),
+            _ => None,
+        }
+    }
+    /// Extracts NavigationRecordType information if feasible
+    pub fn as_nav_record_type (&self) -> Option<NavigationRecordType> {
+        match self {
+            RecordItem::NavRecType(r) => Some(*r),
+            _ => None,
+        }
+    }
+    /// Extracts NavigationMsgType information if feasible
+    pub fn as_nav_message_type (&self) -> Option<NavigationMsgType> {
+        match self {
+            RecordItem::NavMsgType(m) => Some(*m),
             _ => None,
         }
     }
