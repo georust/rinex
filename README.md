@@ -70,7 +70,7 @@ println!("Record size: {}", rinex.len());
 
 "Comments" are currently discarded and not exposed by the parser.   
 
-`length` of a Rinex file returns the number of payload items:
+`length` of a Rinex file returns the record size:
 
 + Total number of Observations for `RinexType::ObservationData`
 + Total number of Nav Messages for `RinexType::NavigationMessage`
