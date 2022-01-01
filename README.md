@@ -139,6 +139,9 @@ is a binary word:
     // 'example --nav-mixed'
 ```
 
+### NAV (mixed): complex pattern 
+>>WorkInProgress
+
 ## Observation data (OBS)
 >>WorkInProgress
 
