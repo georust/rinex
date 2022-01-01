@@ -57,13 +57,15 @@ The `Rinex Header` contains high level information
 
 ```rust
 use rinex::*;
+
 let rinex = Rinex::from_file(&PathBuf::from("amel0010.21g")).unwrap();
 let header = rinex.get_header();
 println!("{:#?}", header);
-assert_eq!(header.get_type(), RinexType::NavigationMessage);
+
+assert_eq!(header.get_rinex_type(), RinexType::NavigationMessage);
 assert_eq!(header.get_constellation(), constellation::Constellation::Mixed);
 println!("{:#?}", header.get_rinex_version());
-println!("Record size: {}", rinex.len(); 
+println!("Record size: {}", rinex.len()); 
 ```
 
 "Comments" are currently discarded and not exposed by the parser.   
