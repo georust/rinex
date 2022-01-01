@@ -32,12 +32,14 @@ To learn how to operate this library, refer to:
 ## Running the examples
 
 ```shell
+cargo run --example basic
 cargo run --example nav-simple
 cargo run --example nav-mixed
 ```
 
-* nav-simple: simple NAV file manipulation
-* nav-mixed: simple NAV::Mixed file manipulation
+* basic: basic parser use case
+* nav-simple: NAV file manipulation
+* nav-mixed: NAV(mixed) file manipulation
 
 ## Parsing a RINEX 
 
