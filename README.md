@@ -87,8 +87,8 @@ Most data is labelized by _keys.json_ refer to that list to determine which fiel
 
 Situation may vary depending on the Rinex File type, this is precisely explained in the following sections.
 
-&#9888; &#9888; _keys.json_ is partial: &#10145; contributions are welcomed,
-as the current content might not fully match your need (missing keys, etc..)
+&#9888; &#9888; _keys.json_ is partial   
+&#10145; contributions are welcomed, current description might not match your needs (missing keys, etc..)
 
 &#9888; &#9888; _keys.json_ might include some mistakes that lead to
 
@@ -134,7 +134,7 @@ Item types:
 Remember:
 
 * most items currently described are validated 
-* it's better to not parse than describing improperly IMO
+* not parsing it better than badly describing, IMO
 
 ## Navigation Message (NAV)
 
