@@ -205,39 +205,61 @@ enum SignalStrength {
 /// Describes `RINEX` file header
 #[derive(Debug)]
 pub struct RinexHeader {
-    version: RinexVersion, // version description
-    crinex: Option<CrinexInfo>, // if this is a CRINEX
-    rinex_type: RinexType, // type of Rinex
-    constellation: Constellation, // GNSS constellation being used
-    program: String, // program name 
+    /// revision for this `RINEX`
+    version: RinexVersion, 
+    /// optionnal `CRINEX` (compact `RINEX` infos), 
+    /// if this is a CRINEX
+    crinex: Option<CrinexInfo>, 
+    /// type of `RINEX` file
+    rinex_type: RinexType, 
+    /// `GNSS` constellation being used
+    constellation: Constellation, 
+    /// program name
+    program: String, 
+    /// program `run by`
     run_by: String, // program run by
-    //date: strtime, // file date of creation
-    station: String, // station label
-    station_id: String, // station id
-    station_url: Option<String>, // station url
-    observer: String, // observer
-    agency: String, // agency
-    rcvr: Option<Rcvr>, // optionnal hardware infos
-    ant: Option<Antenna>, // optionnal antenna infos
-    leap: Option<LeapSecond>, // optionnal leap seconds infos
-    coords: Option<rust_3d::Point3D>, // station approx. coords
-    wavelengths: Option<(u32,u32)>, // observations wavelengths
-    sampling_interval: Option<f32>, // sampling
-    epochs: (Option<gnss_time::GnssTime>, Option<gnss_time::GnssTime>), // first , last observations
-    license: Option<String>, // optionnal license
-    doi: Option<String>, // optionnal Object Idenfier ("IoT")
-    gps_utc_delta: Option<u32>, // optionnal GPS / UTC time difference
-    // processing
-    scaling_factor: Option<f64>, // optionnal data scaling
+    /// station label
+    station: String, 
+    /// station identifier
+    station_id: String, 
+    /// optionnal station URL 
+    station_url: Option<String>, 
+    /// name of observer
+    observer: String, 
+    /// name of production agency
+    agency: String, 
+    /// optionnal hardware (receiver) infos
+    rcvr: Option<Rcvr>, 
+    /// optionnal antenna infos
+    ant: Option<Antenna>, 
+    /// optionnal leap seconds infos
+    leap: Option<LeapSecond>, 
+    /// station approxiamte coordinates
+    coords: Option<rust_3d::Point3D>, 
+    /// optionnal observation wavelengths
+    wavelengths: Option<(u32,u32)>, 
+    /// optionnal sampling interval (s)
+    sampling_interval: Option<f32>, 
+    /// optionnal (first, last) epochs
+    epochs: (Option<gnss_time::GnssTime>, Option<gnss_time::GnssTime>),
+    /// optionnal file license
+    license: Option<String>,
+    /// optionnal Object Identifier (IoT)
+    doi: Option<String>,
+    /// optionnal GPS/UTC time difference
+    gps_utc_delta: Option<u32>,
+    /// optionnal data scaling
+    data_scaling: Option<f64>,
     // optionnal ionospheric compensation param(s)
     //ionospheric_corr: Option<Vec<IonoCorr>>,
     // possible time system correction(s)
     //gnsstime_corr: Option<Vec<gnss_time::GnssTimeCorr>>,
-    // true if epochs & data compensate for local clock drift 
+    /// true if epochs & data compensate for local clock drift 
     rcvr_clock_offset_applied: Option<bool>, 
     // observation (specific)
-    // obs_types: lists all types of observations contained in this `Rinex`
-    obs_types: Option<std::collections::HashMap<Constellation, Vec<ObservationType>>>,
+    /// lists all types of observations contained in this `Rinex` OBS file
+    obs_types: Vec<String>, 
+    //obs_types: std::collections::HashMap<Constellation, Vec<ObservationType>>>,
 }
 
 #[derive(Error, Debug)]
@@ -290,10 +312,10 @@ impl Default for RinexHeader {
             // observations
             epochs: (None, None),
             wavelengths: None,
-            obs_types: None,
+            obs_types: Vec::new(),
             // processing
             rcvr_clock_offset_applied: None,
-            scaling_factor: None,
+            data_scaling: None,
             //ionospheric_corr: None,
             //gnsstime_corr: None,
             sampling_interval: None,
@@ -459,9 +481,9 @@ impl std::str::FromStr for RinexHeader {
         let mut epochs: (Option<gnss_time::GnssTime>, Option<gnss_time::GnssTime>) = (None, None);
         // RinexType::ObservationData
         let mut obs_nb_sat : u32 = 0;
-        let mut obs_types: 
-            Option<std::collections::HashMap<Constellation, Vec<ObservationType>>> 
-                = None;
+        let mut obs_types  : Vec<String> = Vec::new(); 
+            //Option<std::collections::HashMap<Constellation, Vec<ObservationType>>> 
+            //    = None;
 
         loop {
             /*
@@ -722,10 +744,10 @@ impl std::str::FromStr for RinexHeader {
             gps_utc_delta: None,
             // observations
             epochs: epochs,
-            obs_types: None,
+            obs_types,
             // processing
             sampling_interval: sampling_interval,
-            scaling_factor: None,
+            data_scaling: None,
             //ionospheric_corr: None,
             //gnsstime_corr: None,
             rcvr_clock_offset_applied,
@@ -768,4 +790,16 @@ impl RinexHeader {
 
     /// Returns `LeapSecond` infos (if any)
     pub fn get_leap_second (&self) -> Option<LeapSecond> { self.leap }
+    
+    /// Returns OBS codes contained in Self,   
+    /// this only make sense if type is an OBS rinex
+    pub fn get_obs_types (&self) -> &Vec<String> { &self.obs_types }
+
+    /// Returns true if contained data (usually raw phase cycles)
+    /// need to be scaled by a precise factor
+    pub fn data_needs_to_be_scaled (&self) -> bool { self.data_scaling.is_some() }
+
+    /// Returns data scaling that needs to imply 
+    /// (usually to raw phase data), if any
+    pub fn data_scaling (&self) -> Option<f64> { self.data_scaling }
 }
