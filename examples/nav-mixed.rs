@@ -36,20 +36,18 @@ fn main() {
     let vehicules: Vec<_> = rinex.get_record().iter()
         .map(|s| s["sv"]).collect();
     let glo_vehicules: Vec<_> = vehicules.iter()
-        .filter(|s| s.Sv().unwrap().get_constellation() == Constellation::Glonass)
+        .filter(|s| s.as_sv().unwrap().get_constellation() == Constellation::Glonass)
         .collect();
     assert_eq!(glo_vehicules.len(), 0);
     
     // ----> no Glonass? 
     //       😢😢 what else? 
     let gal_vehicules: Vec<_> = vehicules.iter()
-        .filter(|s| s.Sv().unwrap().get_constellation() == Constellation::Galileo)
+        .filter(|s| s.as_sv().unwrap().get_constellation() == Constellation::Galileo)
         .collect();
     assert_eq!(gal_vehicules.len(), 5);
     
-    // ----> Cool we have something ! 
-    //       😢😢 what is that "europe"? 😀
-    //       how good is this thing doing
-
+    // ----> Cool we have something !! 😀
+    // TODO
     // -----> keys.json [NavigationMessage][V3][GAL]
 }
