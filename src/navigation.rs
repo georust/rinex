@@ -1,6 +1,4 @@
-//! Navigation.rs: `RinexType::NavigationMessage` specific
-//! set of tools and macros
-
+//! `RinexType::NavigationMessage` specific module
 use chrono::Timelike;
 use std::str::FromStr;
 use std::collections::HashMap;

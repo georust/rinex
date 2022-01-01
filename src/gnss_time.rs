@@ -1,5 +1,4 @@
-//! GNSS Time to describe time realizations
-//! produced from a GNSS constellation
+//! This module describes a `GNSS` time realization
 use thiserror::Error;
 use chrono::{Timelike, Datelike};
 

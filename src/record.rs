@@ -1,5 +1,4 @@
-//! record.rs describes RINEX file content
-
+//! record.rs describes `RINEX` file content
 use thiserror::Error;
 use std::str::FromStr;
 use std::collections::HashMap;

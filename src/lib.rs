@@ -1,8 +1,8 @@
 //! This package provides a set of tools to parse 
-//! and analyze RINEX files.
+//! `RINEX` files.
 //! 
+//! Refer to README for example of use.  
 //! Homepage: <https://github.com/gwbres/rinex>
-
 mod keys;
 mod header;
 mod version;
@@ -32,10 +32,12 @@ macro_rules! is_rinex_comment {
 /// Describes all known `RINEX` file types
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum RinexType {
-    ObservationData,
+    /// Describes Observation Data (OBS),
+    /// Phase & Pseudo range measurements
+    ObservationData, 
+    /// Describes Navigation Message (NAV)
+    /// Ephemeride file
     NavigationMessage,
-    MeteorologicalData,
-    ClockData,
 }
 
 #[derive(Error, Debug)]
@@ -56,8 +58,6 @@ impl RinexType {
         match *self {
             RinexType::ObservationData => "ObservationData",
             RinexType::NavigationMessage => "NavigationMessage",
-            RinexType::MeteorologicalData => "MeteorologicalData",
-            RinexType::ClockData => "ClockData",
         }
     }
     /// Converts `Self` to string
@@ -98,6 +98,7 @@ impl Default for Rinex {
 }
 
 #[derive(Error, Debug)]
+/// `RINEX` Parsing related errors
 pub enum RinexError {
     #[error("Header delimiter not found")]
     MissingHeaderDelimiter,
@@ -106,7 +107,7 @@ pub enum RinexError {
 }
 
 impl Rinex {
-    /// Builds a Rinex struct
+    /// Builds a new `RINEX` struct from given:
     pub fn new (header: RinexHeader, record: RinexRecord) -> Rinex {
         Rinex {
             header,

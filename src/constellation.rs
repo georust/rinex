@@ -1,3 +1,4 @@
+//! `GNSS` constellations & associated methods
 use thiserror::Error;
 
 const GPS_STR_IDENTIFIER     : &str = "GPS";
@@ -32,6 +33,7 @@ impl Default for Constellation {
 }
 
 #[derive(Error, Debug)]
+/// Constellation parsing & identification errors
 pub enum ConstellationError {
     #[error("unknown constellation \"{0}\"")]
     UnknownConstellation(String),
