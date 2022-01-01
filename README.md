@@ -45,7 +45,7 @@ The __::from\_file__ method lets you parse a local `RINEX` file:
 
 ```rust
 use rinex::*;
-let path = std::path::PathBuf::from("amel0010.21g);
+let path = std::path::PathBuf::from("amel0010.21g");
 let rinex = Rinex::from_file(&path).unwrap();
 ```
 
@@ -55,7 +55,7 @@ The `Rinex Header` contains high level information
 
 ```rust
 use rinex::*;
-let rinex = Rinex::from_file(path);
+let rinex = Rinex::from_file(&PathBuf::from("amel0010.21g")).unwrap();
 let header = rinex.get_header();
 println!("{:#?}", header);
 assert_eq!(header.get_type(), RinexType::NavigationMessage);
