@@ -9,7 +9,7 @@ use crate::version::RinexVersion;
 use crate::record::{RecordItem, Sv, RecordItemError};
 use crate::constellation::{Constellation, ConstellationError};
 
-#[derive(Copy, Clone, PartialEq, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 /// `NavigationRecordType` describes type of record
 /// for NAV files
 pub enum NavigationRecordType {
@@ -47,7 +47,7 @@ impl NavigationRecordType {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 /// `NavigationMsgType`
 /// describes messages type for NAV files   
 ///  Lnav: Legacy NAV Messsage   
@@ -198,7 +198,7 @@ pub fn build_nav_entry (version: RinexVersion,
     // from now one, everything is described in key mapping
     //   ---> refer to Sv identified constell,
     //        because we simply cannot search for "Mixed"
-    let kbank = KeyBank::new(&version, &RinexType::NavigationMessage, &sv.Sv().unwrap().get_constellation())
+    let kbank = KeyBank::new(&version, &RinexType::NavigationMessage, &sv.as_sv().unwrap().get_constellation())
         .unwrap();
 
     let mut total: usize = 0; 
