@@ -225,7 +225,7 @@ pub fn build_nav_entry (version: RinexVersion,
         line = rem;
 
         // build item 
-        if !k_type.eq("spare") {
+        if !k_name.eq("spare") {
             let item = RecordItem::from_string(k_type, content.trim())?;
             map.insert(String::from(k_name), item); 
         }
