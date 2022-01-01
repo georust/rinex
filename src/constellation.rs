@@ -14,7 +14,7 @@ pub const CONSTELLATION_NUMBER: u8 = 6;
 
 /// Describes all known `GNSS` constellations
 /// when manipulating `RINEX`
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Constellation {
     GPS,
     Glonass,
