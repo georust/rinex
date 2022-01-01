@@ -13,8 +13,14 @@ readme = "README.md"
 exclude = ["data/",]
 
 [dependencies]
-thiserror = "1"
-rust-3d = "0.34.0"
-chrono = "0.4"
-scan_fmt = "0.1"
 regex = "1"
+chrono = "0.4"
+thiserror = "1"
+scan_fmt = "0.1"
+rust-3d = "0.34.0"
+strum = "0.23.0"
+strum_macros = "0.23.0"
+physical_constants = "0.4.1"
+
+[dev-dependencies]
+itertools = "0.10.3"
