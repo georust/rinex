@@ -41,11 +41,11 @@ cargo run --example nav-mixed
 
 ## Parsing a RINEX 
 
-The __::from\_file__ method is how to parse a local `RINEX` file: 
+The __::from\_file__ method lets you parse a local `RINEX` file: 
 
 ```rust
 use rinex::*;
-let path = std::path::PathBuf::from("amel0010.21g);
+let path = std::path::PathBuf::from("amel0010.21g");
 let rinex = Rinex::from_file(&path).unwrap();
 ```
 
@@ -55,13 +55,13 @@ The `Rinex Header` contains high level information
 
 ```rust
 use rinex::*;
-let rinex = Rinex::from_file(path);
+let rinex = Rinex::from_file(&PathBuf::from("amel0010.21g")).unwrap();
 let header = rinex.get_header();
 println!("{:#?}", header);
 assert_eq!(header.get_type(), RinexType::NavigationMessage);
 assert_eq!(header.get_constellation(), constellation::Constellation::Mixed);
 println!("{:#?}", header.get_rinex_version());
-println!("Nb NAV frames: {}", rinex.len(); 
+println!("Record size: {}", rinex.len(); 
 ```
 
 "Comments" are currently discarded and not exposed by the parser.   
@@ -80,10 +80,10 @@ refer to the following section.
 ## Navigation Message (NAV)
 
 NAV records expose the following keys to manipulate & search through the records:
-* "sv" : Satellite Vehicule ID (_src/record.rs::Sv_)
-* "svClockBias": clock bias (s)
-* "svClockDrift": clock drift (s.s⁻¹)
-* "svClockDriftRate": clock drift (s.s⁻²)
+* `sv` : Satellite Vehicule ID (_src/record.rs::Sv_)
+* `svClockBias`: clock bias (s)
+* `svClockDrift`: clock drift (s.s⁻¹)
+* `svClockDriftRate`: clock drift (s.s⁻²)
 * all keys contained in _keys.json_ for related Rinex revision & constellation
 
 Two main cases for `RinexType::NavigationMessage`:
@@ -149,7 +149,7 @@ OBS records expose mainly:
 First thing to do is to determine which
 data a given file actually contains
 
-``̀`rust
+```rust
     // 'example --obs-simple'
     let obs_types = header.get_obs_types();
 ```
