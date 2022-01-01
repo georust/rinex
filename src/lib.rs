@@ -144,6 +144,11 @@ impl Rinex {
     pub fn get_record_nth (&self, nth: usize) 
         -> &std::collections::HashMap<String, record::RecordItem> { &self.record[nth] }
 
+    /// Retruns true if this is an NAV rinex
+    pub fn is_navigation_rinex (&self) -> bool { self.header.get_rinex_type() == RinexType::NavigationMessage }
+    /// Retruns true if this is an OBS rinex
+    pub fn is_observation_rinex (&self) -> bool { self.header.get_rinex_type() == RinexType::ObservationData }
+
     /// Builds a `Rinex` from given file.
     /// Input file must respect the whitespace specifications
     /// for the entire header section.   
