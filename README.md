@@ -81,6 +81,61 @@ The Record (file content) depends on the file type and constellation.
 To learn how to operate the library for the Rinex type you are interested in,
 refer to the following section.
 
+### Data identification
+
+Most data is labelized by _keys.json_ refer to that list to determine which fields are available for which Constellation & RINEX revision. Refer to RINEX specifications to interpret each field correctly.
+
+Situation may vary depending on the Rinex File type, this is precisely explained in the following sections.
+
+&#9888; &#9888; _keys.json_ is partial: &#10145; contributions are welcomed,
+as the current content might not fully match your need (missing keys, etc..)
+
+&#9888; &#9888; _keys.json_ might include some mistakes that lead to
+
+* misleading field names
+* dropped items by the parser
+
+&#10145; corrections are welcomed,
+
+### keys.json: data identification
+
+```json
+keys.json
+
+    "NavigationMessage": { <<-- rinex type
+      "LNVA": <-- a new category should be introduced
+                  to describe V ≥ 4 correctly
+        "GPS": { <<-- constellation
+            format is "id": "type",
+            // this one describes how item1 is identified
+            "iode": "d19.12", // follow RINEX specifications
+            "crs": "d19.12", // item2
+            // [..]
+            "idot": "d19.12", // item10
+            "spare": "xxxx", // orbit empty field, 
+                           // but continue parsing..
+            "tgd": "d19.12" // item11
+            // parsing stops there
+        }
+    }
+```
+
+Item labelization: follow naming convention & match RINEX specifications closely.
+
+Item types: 
+
+* "d19.12": ends up as float value (unscaled)
+* "sv": Satellite Vehicule identifcation: "G01","R25"
+* "epoch": timestamp for this observation, two formats are encountered
+* * "YYYY mm dd ss mm ff.f"  4 digit year style
+* * "  YY mm dd ss mm ff.f"  seconds are always a floating point value
+* * refer to NAV::Orbit#1 specifications
+
+Remember:
+
+* most items currently described are validated 
+* it's better to not parse than describing improperly IMO
+
 ## Navigation Message (NAV)
 
 NAV records expose the following keys to manipulate & search through the records:
