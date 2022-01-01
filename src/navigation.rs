@@ -196,7 +196,9 @@ pub fn build_nav_entry (version: RinexVersion,
     map.insert(String::from("svClockDriftRate"), clk_drift_r); 
     
     // from now one, everything is described in key mapping
-    let kbank = KeyBank::new(&version, &RinexType::NavigationMessage, &constellation)
+    //   ---> refer to Sv identified constell,
+    //        because we simply cannot search for "Mixed"
+    let kbank = KeyBank::new(&version, &RinexType::NavigationMessage, &sv.Sv().unwrap().get_constellation())
         .unwrap();
 
     let mut total: usize = 0; 
@@ -211,7 +213,11 @@ pub fn build_nav_entry (version: RinexVersion,
             false => 19,
             true => {
                 new_line = false;
-                22
+                if version_major >= 3 {
+                    22 + 1
+                } else {
+                    22
+                }
             }
         };
         total += offset;
@@ -219,8 +225,10 @@ pub fn build_nav_entry (version: RinexVersion,
         line = rem;
 
         // build item 
-        let item = RecordItem::from_string(k_type, content.trim())?;
-        map.insert(String::from(k_name), item); 
+        if !k_type.eq("spare") {
+            let item = RecordItem::from_string(k_type, content.trim())?;
+            map.insert(String::from(k_name), item); 
+        }
 
         if total >= 76 { 
             new_line = true;
