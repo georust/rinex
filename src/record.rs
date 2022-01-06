@@ -106,6 +106,9 @@ pub enum RecordItem {
     D19P12(f64), 
     /// `Epoch` is an observation timestamp
     Epoch(Epoch), 
+    /// `Binary` is an interpreted binary word
+    /// up to 32 bit long
+    Binary(u32),
     /// (NAV) Record type
     NavRecType(NavigationRecordType), 
     /// (NAV) Message type
@@ -141,6 +144,7 @@ impl RecordItem {
             // un type binary peut aider pour les mask..
             // u32 doit suffir
             "sv" => Ok(RecordItem::Sv(Sv::from_str(&content)?)),
+            "binary" => Ok(RecordItem::Binary(f64::from_str(&content.replace("D","e"))? as u32)),
             "d19.12" => Ok(RecordItem::D19P12(f64::from_str(&content.replace("D","e"))?)),
              "epoch" => {
                 let items: Vec<&str> = content.split_ascii_whitespace()
