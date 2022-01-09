@@ -4,15 +4,17 @@ use std::str::FromStr;
 use strum_macros::EnumString;
 use physical_constants::SPEED_OF_LIGHT_IN_VACUUM;
 
-use crate::record::{Epoch, Sv};
 use crate::version::RinexVersion;
-use crate::constellation::{Constellation, ConstellationError};
+use crate::constellation::Constellation;
+use crate::record::{Epoch, Sv, RecordItemError};
 
 #[macro_export]
 /// Returns True if 3 letter code 
 /// matches a pseudo range (OBS) code
 macro_rules! is_pseudo_range_obs_code {
-    ($code: expr) => { $code.starts_with("C") };
+    ($code: expr) => { 
+        $code.starts_with("C") || $code.starts_with("P") // non gps old fashion
+    };
 }
 
 #[macro_export]
@@ -136,6 +138,29 @@ impl CarrierFrequency {
     }
 }
 
+pub enum SignalStrength {
+    DbHz12, // < 12 dBc/Hz
+    DbHz12_17, // 12 <= x < 17 dBc/Hz
+    DbHz18_23, // 18 <= x < 23 dBc/Hz
+    DbHz21_29, // 24 <= x < 29 dBc/Hz
+    DbHz30_35, // 30 <= x < 35 dBc/Hz
+    DbHz36_41, // 36 <= x < 41 dBc/Hz
+    DbHz42_47, // 42 <= x < 47 dBc/Hz
+    DbHz48_53, // 48 <= x < 53 dBc/Hz
+    DbHz54, // >= 54 dBc/Hz 
+}
+
+/*impl SignalStrength {
+    from f64::
+}*/
+
+/// `ObservationType` related errors
+#[derive(Error, Debug)]
+pub enum ObservationTypeError {
+    #[error("obs code not recognized \"{0}\"")]
+    UnknownObsCode(String),
+}
+
 /// Describes different kind of `Observations`
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum ObservationType {
@@ -161,28 +186,29 @@ impl Default for ObservationType {
     fn default() -> ObservationType { ObservationType::ObservationPseudoRange }
 }
 
-/// Describes an observation for a given Satellite Vehicule
-#[derive(Copy, Clone, PartialEq, Debug)]
-pub struct Observation {
-    /// Sv for which this observation was made
-    sv: Sv,
-    /// timestamp for this observation
-    epoch: Epoch,
-    /// type of observation
-    obs_type: ObservationType,
-    /// raw value
-    value: f64,
-}
-
-impl Default for Observation {
-    fn default() -> Observation {
-        Observation {
-            epoch: chrono::Utc::now().naive_utc(),
-            obs_type: ObservationType::default(),
-            sv: Sv::default(),
-            value: 0.0_f64,
+impl std::str::FromStr for ObservationType {
+    type Err = ObservationTypeError;
+    fn from_str (s: &str) -> Result<Self, Self::Err> {
+        if is_pseudo_range_obs_code!(s) { 
+            Ok(ObservationType::ObservationPseudoRange)
+        } else if is_phase_carrier_obs_code!(s) {
+            Ok(ObservationType::ObservationPhase)
+        } else if is_doppler_obs_code!(s) {
+            Ok(ObservationType::ObservationDoppler)
+        } else if is_sig_strength_obs_code!(s) {
+            Ok(ObservationType::ObservationSigStrength)
+        } else {
+            Err(ObservationTypeError::UnknownObsCode(s.to_string()))
         }
     }
+}
+
+/// Returns Observation record entries from given string content
+pub fn build_obs_entry (version: RinexVersion,
+    constellation: Constellation, content: &str)
+        -> Result<(Sv,Epoch,Vec<f64>), RecordItemError> 
+{
+    Err(RecordItemError::UnknownTypeDescriptor(String::from("null")))
 }
 
 mod test {

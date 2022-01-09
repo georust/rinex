@@ -1,12 +1,14 @@
+//! Describes a `RINEX` header, includes
+//! rinex header parser and associated methods
 use regex::Regex;
 use thiserror::Error;
-use chrono::Timelike;
 
 use crate::gnss_time;
 use crate::version::RinexVersion;
-use crate::observation::ObservationType;
 use crate::{is_rinex_comment, RinexType, RinexTypeError};
 use crate::constellation::{Constellation, ConstellationError};
+use crate::observation::{ObservationType, ObservationTypeError};
+use crate::meteo::{MeteoObservationType, MeteoObservationTypeError};
 
 /// Describes a `CRINEX` (compact rinex) 
 pub const CRINEX_MARKER_COMMENT : &str = "COMPACT RINEX FORMAT";
@@ -49,12 +51,18 @@ impl std::str::FromStr for Rcvr {
 /// Antenna description 
 #[derive(Debug)]
 struct Antenna {
+    /// Hardware model / make descriptor
     model: String,
-    sn: String, // serial #
-    coords: Option<rust_3d::Point3D>, // ref. point position
-    height: Option<f32>, // height in comparison to ref. point
-    eastern_eccentricity: Option<f32>, // in comparison to ref. point
-    northern_eccentricity: Option<f32>, // in comparison to ref. point
+    /// Serial number / identification number
+    sn: String,
+    /// 3D coordinates of reference point
+    coords: Option<rust_3d::Point3D>,
+    /// height in comparison to ref. point
+    height: Option<f32>,
+    /// eastern eccentricity compared to ref. point
+    eastern_eccentricity: Option<f32>,
+    /// northern eccentricity compare to ref. point
+    northern_eccentricity: Option<f32>,
 }
 
 impl Default for Antenna {
@@ -99,20 +107,18 @@ impl Antenna {
 }
 
 /// `LeapSecond` to describe leap seconds.
-/// leap: current number of leap seconds 
-/// past_future: future or past leap seconds ΔtLS,   
-/// ie., future leap second if week and day number are in future   
-/// week: week counter sometimes present.   
-/// day: week counter sometimes present.   
-/// GnssTimes:   
 /// GLO = UTC = GPS - ΔtLS   
 /// GPS = GPS = UTC + ΔtLS   
 #[derive(Copy, Clone, Debug)]
 pub struct LeapSecond {
-    leap: u32, // current number
-    past_future: u32, // future or past leap seconds ΔtLS   
-    week: u32, // week number 
-    day: u32, // day number
+    /// current number
+    leap: u32,
+    /// future or past leap seconds (ΔtLS)   
+    past_future: u32,
+    /// week number
+    week: u32,
+    /// day number
+    day: u32,
 }
 
 impl Default for LeapSecond {
@@ -165,41 +171,34 @@ struct CrinexInfo {
 
 /// Describes known marker types
 enum MarkerType {
-    Geodetic, // earth fixed high precision
-    NonGeodetic, // earth fixed low prcesion
-    NonPhysical, // generated from network
-    Spaceborne, // orbiting space vehicule
-    Airborne, // aircraft, balloon, ...
-    WaterCraft, // mobile water craft
-    GroundCraft, // mobile terrestrial vehicule
-    FixedBuoy, // fixed on water surface
-    FloatingBuoy, // floating on water surface
-    FloatingIce, // floating on ice sheet
-    Glacier, // fixed on a glacier
-    Ballistic, // rockets, shells, etc..
-    Animal, // animal carrying a receiver
-    Human, // human being
-}
-
-/// Clock Data types
-enum ClockDataType {
-    ClockDataAr, // recvr clocks derived from a network
-    ClockDataAs, // sat clocks derived from a network
-    ClockDataCr, // Calibration measurements for a single GNSS rcvr
-    ClockDataDr, // Discontinuity measurements for a single GPS receiver
-    ClockDataMs, // Monitor measurements for broadcast sat clocks
-}
-
-enum SignalStrength {
-    DbHz12, // < 12 dBc/Hz
-    DbHz12_17, // 12 <= x < 17 dBc/Hz
-    DbHz18_23, // 18 <= x < 23 dBc/Hz
-    DbHz21_29, // 24 <= x < 29 dBc/Hz
-    DbHz30_35, // 30 <= x < 35 dBc/Hz
-    DbHz36_41, // 36 <= x < 41 dBc/Hz
-    DbHz42_47, // 42 <= x < 47 dBc/Hz
-    DbHz48_53, // 48 <= x < 53 dBc/Hz
-    DbHz54, // >= 54 dBc/Hz 
+    /// Earth fixed & high precision
+    Geodetic,
+    /// Earth fixed & low precision
+    NonGeodetic,
+    /// Generated from network
+    NonPhysical,
+    /// Orbiting space vehicule
+    Spaceborne,
+    /// Aircraft, balloon..
+    Airborne,
+    /// Mobile water craft
+    WaterCraft,
+    /// Mobile terrestrial vehicule
+    GroundCraft,
+    /// Fixed on water surface
+    FixedBuoy,
+    /// Floating on water surface
+    FloatingBuoy,
+    /// Floating on ice
+    FloatingIce, 
+    /// Fixed on glacier
+    Glacier,
+    /// Rockets, shells, etc..
+    Ballistic,
+    /// Animal carrying a receiver
+    Animal,
+    /// Human being carrying a receiver
+    Human,
 }
 
 /// Describes `RINEX` file header
@@ -248,18 +247,20 @@ pub struct RinexHeader {
     doi: Option<String>,
     /// optionnal GPS/UTC time difference
     gps_utc_delta: Option<u32>,
+    /// processing:   
     /// optionnal data scaling
     data_scaling: Option<f64>,
     // optionnal ionospheric compensation param(s)
     //ionospheric_corr: Option<Vec<IonoCorr>>,
     // possible time system correction(s)
     //gnsstime_corr: Option<Vec<gnss_time::GnssTimeCorr>>,
+    /// Observations:   
     /// true if epochs & data compensate for local clock drift 
     rcvr_clock_offset_applied: Option<bool>, 
     // observation (specific)
-    /// lists all types of observations contained in this `Rinex` OBS file
-    obs_types: Vec<String>, 
-    //obs_types: std::collections::HashMap<Constellation, Vec<ObservationType>>>,
+    /// lists all types of observations 
+    /// contained in this `Rinex` OBS file
+    obs_codes: Option<Vec<String>>, 
 }
 
 #[derive(Error, Debug)]
@@ -284,6 +285,10 @@ pub enum Error {
     DateParsingError(#[from] chrono::ParseError),
     #[error("failed to parse leap second from \"{0}\"")]
     LeapSecondParsingError(String),
+    #[error("observation type code not recognized \"{0}\"")]
+    ObservationTypeCodeError(#[from] ObservationTypeError),
+    #[error("meteo type code not recognized \"{0}\"")]
+    MeteoObservationTypeCodeError(#[from] MeteoObservationTypeError),
 }
 
 impl Default for RinexHeader {
@@ -312,7 +317,7 @@ impl Default for RinexHeader {
             // observations
             epochs: (None, None),
             wavelengths: None,
-            obs_types: Vec::new(),
+            obs_codes: None,
             // processing
             rcvr_clock_offset_applied: None,
             data_scaling: None,
@@ -371,7 +376,7 @@ impl std::str::FromStr for RinexHeader {
         let (constellation_str, remainder) = remainder.trim().split_at(20);
 
         let rinex_type = RinexType::from_str(type_str.trim())?;
-        let mut constellation: Constellation;
+        let constellation: Constellation;
         
         if type_str.trim().contains("GLONASS") {
             // special case, sometimes GLONASS NAV
@@ -463,7 +468,7 @@ impl std::str::FromStr for RinexHeader {
         // indentifiers
         let mut station    = String::from("Unknown");
         let mut station_id = String::from("Unknown");
-        let mut observer   = String::from("Unknown");
+        let observer   = String::from("Unknown");
         let mut agency     = String::from("Unknown");
         let mut license     : Option<String> = None;
         let mut doi         : Option<String> = None;
@@ -479,11 +484,9 @@ impl std::str::FromStr for RinexHeader {
         let mut rcvr_clock_offset_applied: Option<bool> = None;
         let mut coords     : Option<rust_3d::Point3D> = None;
         let mut epochs: (Option<gnss_time::GnssTime>, Option<gnss_time::GnssTime>) = (None, None);
-        // RinexType::ObservationData
+        // (OBS) 
         let mut obs_nb_sat : u32 = 0;
-        let mut obs_types  : Vec<String> = Vec::new(); 
-            //Option<std::collections::HashMap<Constellation, Vec<ObservationType>>> 
-            //    = None;
+        let mut obs_codes  : Vec<String> = Vec::new();
 
         loop {
             /*
@@ -626,24 +629,55 @@ impl std::str::FromStr for RinexHeader {
                 // RINEX::ClockData specific 
                 // + number of different clock data types stored
                 // + list of clock data  types
-            } else if line.contains("TYPES OF OBS") {
-                // Rinex::ObservationData specific
-                // types of observation enumeration
-                // but it's not a per constellation enumeration
-                // => we set a flag and we will post process
-                //    to provide high level information in the end (sorting capacity)
-                //5    L1    L2    C1    P1    P2                        # / TYPES OF OBSERV
-                /*unspecified_obs_system = true;
-                let (num, rem) = line.split_at(6);
-                for i in 0..num {
-                    let (code, rem) = rem.split_at(6);
-                    if code.trim().len() == 0 {
-                        break
-                    }
-                    
-                }*/
-
+            } else if line.contains("TYPES OF OBS") { 
+                // Rinex V < 3 : old fashion obs data
+                // ⚠ ⚠ could either be observation or meteo data
+                let (rem, _) = line.split_at(60);
+                match rinex_type {
+                    RinexType::ObservationData => {
+                        let (_, mut rem) = rem.split_at(6);
+                        loop {
+                            let (code, r) = rem.split_at(6);
+                            if code.trim().len() == 0 {
+                                break
+                            }
+                            let ob = ObservationType::from_str(code.trim())?;
+                            obs_codes.push(code.trim().to_string());
+                            if r.len() == 0 {
+                                break
+                            }
+                            rem = r
+                        }
+                    },
+                    RinexType::MeteorologicalData => {
+                        let (_, mut rem) = rem.split_at(6);
+                        loop {
+                            let (code, r) = rem.split_at(6);
+                            if code.trim().len() == 0 {
+                                break
+                            }
+                            let ob = MeteoObservationType::from_str(code)?;
+                            obs_codes.push(code.trim().to_string());
+                            if r.len() == 0 {
+                                break
+                            }
+                            rem = r
+                        }
+                    },
+                    _ => {},
+                }
             } else if line.contains("SYS / # / OBS TYPES") {
+                let content = line.split_at(60).0;
+/*G   22 C1C L1C D1C S1C C1W S1W C2W L2W D2W S2W C2L L2L D2L  SYS / # / OBS TYPES
+       S2L C5Q L5Q D5Q S5Q C1L L1L D1L S1L                  SYS / # / OBS TYPES
+E   20 C1C L1C D1C S1C C6C L6C D6C S6C C5Q L5Q D5Q S5Q C7Q  SYS / # / OBS TYPES
+       L7Q D7Q S7Q C8Q L8Q D8Q S8Q                          SYS / # / OBS TYPES
+S    8 C1C L1C D1C S1C C5I L5I D5I S5I                      SYS / # / OBS TYPES
+R   20 C1C L1C D1C S1C C1P L1P D1P S1P C2P L2P D2P S2P C2C  SYS / # / OBS TYPES
+       L2C D2C S2C C3Q L3Q D3Q S3Q                          SYS / # / OBS TYPES
+C   20 C1P L1P D1P S1P C5P L5P D5P S5P C2I L2I D2I S2I C7I  SYS / # / OBS TYPES
+       L7I D7I S7I C6I L6I D6I S6I                          SYS / # / OBS TYPES
+I    4 C5A L5A D5A S5A                                      SYS / # / OBS TYPES*/
                 // Rinex::ObservationData 
                 // types of observation for specified constellation
                 
@@ -657,15 +691,6 @@ impl std::str::FromStr for RinexHeader {
                 } else {
                     println!("REM \"{}\"", rem.trim());
                 }
-//G   22 C1C L1C D1C S1C C1W S1W C2W L2W D2W S2W C2L L2L D2L  SYS / # / OBS TYPES
-//       S2L C5Q L5Q D5Q S5Q C1L L1L D1L S1L                  SYS / # / OBS TYPES
-//E   20 C1C L1C D1C S1C C6C L6C D6C S6C C5Q L5Q D5Q S5Q C7Q  SYS / # / OBS TYPES
-//       L7Q D7Q S7Q C8Q L8Q D8Q S8Q                          SYS / # / OBS TYPES
-//S    8 C1C L1C D1C S1C C5I L5I D5I S5I                      SYS / # / OBS TYPES
-            } else if line.contains("TYPES OF OBS") || 
-                line.contains("SYS / # / OBS TYPES") {
-     //5    L1    L2    C1    P1    P2                        # / TYPES OF OBSERV
-            
             } else if line.contains("SIGNAL STRENGHT UNIT") {
                 //TODO
             } else if line.contains("INTERVAL") {
@@ -720,6 +745,11 @@ impl std::str::FromStr for RinexHeader {
                 ant.as_mut().unwrap().set_northern_eccentricity(ant_hen.unwrap().2);
             }
         }
+
+        let obs_codes: Option<Vec<String>> = match obs_codes.len() {
+            0 => None,
+            _ => Some(obs_codes)
+        };
         
         Ok(RinexHeader{
             version: version,
@@ -744,7 +774,7 @@ impl std::str::FromStr for RinexHeader {
             gps_utc_delta: None,
             // observations
             epochs: epochs,
-            obs_types,
+            obs_codes,
             // processing
             sampling_interval: sampling_interval,
             data_scaling: None,
@@ -793,7 +823,7 @@ impl RinexHeader {
     
     /// Returns OBS codes contained in Self,   
     /// this only make sense if type is an OBS rinex
-    pub fn get_obs_types (&self) -> &Vec<String> { &self.obs_types }
+    pub fn get_obs_codes (&self) -> &Option<Vec<String>> { &self.obs_codes }
 
     /// Returns true if contained data (usually raw phase cycles)
     /// need to be scaled by a precise factor

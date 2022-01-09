@@ -2,23 +2,57 @@
 use thiserror::Error;
 use std::str::FromStr;
 use std::collections::HashMap;
-use chrono::{Timelike, Datelike};
 
-use crate::keys;
 use crate::RinexType;
-use crate::version::RinexVersion;
-use crate::constellation::Constellation;
+use crate::meteo::*;
 use crate::navigation::*; 
 use crate::observation::*;
+use crate::header::RinexHeader;
+use crate::version::RinexVersion;
+use crate::constellation::Constellation;
 
 pub use crate::navigation::{NavigationRecordType, NavigationMsgType};
 
-/// Record describes Rinex File content.    
-/// A record entry is a hashmap.
-pub type RinexRecord = Vec<HashMap<String, RecordItem>>;
+/// RinexRecord describes the file body's content
+pub type RinexRecord = Vec<RecordEntry>;
+
+/// RinexRecordEntry
+#[derive(Debug)]
+pub enum RecordEntry {
+    /// NavRecordEntry is a hashmap ("key", recordItem)
+    NavRecordEntry(HashMap<String, RecordItem>),
+    /// ObsRecordEntry is a list of observations
+    /// realized at certain `Epoch` for particular `Sv`
+    ObsRecordEntry((Sv,Epoch,Vec<f64>)),
+    /// MeteoRecordEntry is a (temperature, pressure, moisture)
+    /// measurement realized at certain `Epoch`
+    MeteoRecordEntry((Epoch,Vec<f64>)),
+}
+
+impl RecordEntry {
+    pub fn as_nav (&self) -> Option<HashMap<String, RecordItem>> {
+        match self {
+            RecordEntry::NavRecordEntry(e) => Some(e.clone()),
+            _ => None,
+        }
+    }
+    pub fn as_obs (&self) -> Option<(Sv, Epoch, Vec<f64>)> {
+        match self {
+            RecordEntry::ObsRecordEntry(e) => Some(e.clone()),
+            _ => None,
+        }
+    }
+    pub fn as_meteo (&self) -> Option<(Epoch, Vec<f64>)> {
+        match self {
+            RecordEntry::MeteoRecordEntry(e) => Some(e.clone()),
+            _ => None,
+        }
+    }
+}
 
 #[derive(Error, Debug)]
-pub enum RecordError {
+/// RecordEntry related error
+pub enum RecordEntryError {
     #[error("rinex file \"{0}\" is not supported")]
     NonSupportedRinexType(String),
     #[error("failed to build record item")]
@@ -110,8 +144,6 @@ pub enum RecordItem {
     NavRecType(NavigationRecordType), 
     /// (NAV) Message type
     NavMsgType(NavigationMsgType), 
-    /// (OBS) observation
-    Observation(Observation),
 }
 
 #[derive(Error, Debug)]
@@ -121,6 +153,8 @@ pub enum RecordItemError {
     ParseIntError(#[from] std::num::ParseIntError),
     #[error("failed to parse float value")]
     ParseFloatError(#[from] std::num::ParseFloatError),
+    #[error("failed to parse epoch")]
+    ParseEpochError(#[from] chrono::ParseError),
     #[error("unknown type descriptor \"{0}\"")]
     UnknownTypeDescriptor(String),
     #[error("failed to parse sv")]
@@ -248,17 +282,25 @@ pub fn block_record_start (line: &str,
 }
 
 /// Builds a record entry from block record content.   
-/// Entry of a record is a hashmap
-pub fn build_record_entry (version: RinexVersion, 
-        rtype: RinexType, 
-            constellation: Constellation, block: &str) 
-                -> Result<HashMap<String,RecordItem>, RecordError> 
+pub fn build_record_entry (block: &str, header: &RinexHeader)
+    -> Result<RecordEntry, RecordEntryError> 
 {
-    match rtype {
-        RinexType::NavigationMessage => {
-            let entry = build_nav_entry(version, constellation, block)?;
-            Ok(entry)
+    let t = header.get_rinex_type();
+    let v = header.get_rinex_version();
+    let c = header.get_constellation();
+    match t {
+        RinexType::ObservationData => {
+            let e = build_obs_entry(v, c, block)?;
+            Ok(RecordEntry::ObsRecordEntry(e))
         },
-        _ => Err(RecordError::NonSupportedRinexType(rtype.to_string())), 
+        RinexType::NavigationMessage => {
+            let e = build_nav_entry(v, c, block)?;
+            Ok(RecordEntry::NavRecordEntry(e))
+        },
+        RinexType::MeteorologicalData => {
+            let e = build_meteo_entry(block, header)?;
+            Ok(RecordEntry::MeteoRecordEntry(e))
+        },
+        _ => Err(RecordEntryError::NonSupportedRinexType(t.to_string()))
     }
 }
