@@ -48,16 +48,18 @@ impl NavigationRecordType {
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 /// `NavigationMsgType`
 /// describes messages type for NAV files   
-///  Lnav: Legacy NAV Messsage   
-///  Cnav: Civilian NAV Messsage   
-///  Cnav2: Civilian NAV Messsage   
 pub enum NavigationMsgType {
+    /// `Lnav` : Legacy NAV messages (V < 3)
     Lnav,
+    /// `Cnav` : Civilian NAV messages
     Cnav,
+    /// `Cnav2` : Civilian NAV messages
     Cnav2,
-    Fdma,
+    /// `Inav` : Integrity NAV messages
     Inav,
+    /// `Fnav` : Freely Accessible NAV messages
     Fnav,
+    Fdma,
 }
 
 impl Default for NavigationMsgType {
