@@ -2,8 +2,6 @@
 //! aswell as a set of macros to manipulate and describe
 //! RINEX File versionning
 
-use std::str::FromStr;
-
 /// Current `RINEX` version supported to this day
 pub const SUPPORTED_VERSION: RinexVersion = RinexVersion {
     major: 4,
