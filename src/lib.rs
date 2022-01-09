@@ -5,6 +5,7 @@
 //! Homepage: <https://github.com/gwbres/rinex>
 mod keys;
 mod header;
+mod meteo;
 mod version;
 mod gnss_time;
 mod navigation;
@@ -15,13 +16,9 @@ pub mod constellation;
 
 use thiserror::Error;
 use std::str::FromStr;
-use scan_fmt::scan_fmt;
-use std::collections::HashMap;
 
 use header::RinexHeader;
-use record::{RinexRecord, RecordItem, RecordItemError};
-use version::RinexVersion;
-use constellation::Constellation;
+use record::RinexRecord;
 
 #[macro_export]
 /// Returns `true` if given `Rinex` line is a comment
@@ -38,6 +35,8 @@ pub enum RinexType {
     /// Describes Navigation Message (NAV)
     /// Ephemeride file
     NavigationMessage,
+    /// Describes Meteorological data (Meteo)
+    MeteorologicalData,
 }
 
 #[derive(Error, Debug)]
@@ -58,6 +57,7 @@ impl RinexType {
         match *self {
             RinexType::ObservationData => "ObservationData",
             RinexType::NavigationMessage => "NavigationMessage",
+            RinexType::MeteorologicalData => "MeteorologicalData",
         }
     }
     /// Converts `Self` to string
@@ -73,14 +73,15 @@ impl std::str::FromStr for RinexType {
             Ok(RinexType::NavigationMessage)
         } else if s.eq("OBSERVATION DATA") {
             Ok(RinexType::ObservationData)
+        } else if s.eq("METEOROLOGICAL DATA") {
+            Ok(RinexType::MeteorologicalData)
         } else {
             Err(RinexTypeError::UnknownType(String::from(s)))
         }
     }
 }
 
-/// `Rinex` main structure,
-/// describes a `RINEX` file
+/// `Rinex` describes a `RINEX` file
 #[derive(Debug)]
 pub struct Rinex {
     header: RinexHeader,
@@ -129,25 +130,24 @@ impl Rinex {
         Ok((String::from(header),String::from(body)))
     }
 
-    /// Returns `Rinex` length, ie.,
-    ///   nb of observations for `RinexType::ObservationData`   
-    ///   nb of ephemerides  for `RinexType::NavigationMessage`   
+    /// Returns `Rinex` length, ie., number of record entries
     pub fn len (&self) -> usize { self.record.len() }
-
     /// Returns self's `header` section
     pub fn get_header (&self) -> &RinexHeader { &self.header }
 
     /// Returns entire RINEX record
     pub fn get_record (&self) -> &RinexRecord { &self.record }
 
-    /// Returns Record nth' entry
-    pub fn get_record_nth (&self, nth: usize) 
-        -> &std::collections::HashMap<String, record::RecordItem> { &self.record[nth] }
+    // Returns Record nth' entry
+    //pub fn get_record_nth (&self, nth: usize) 
+    //    -> &std::collections::HashMap<String, record::RecordItem> { &self.record[nth] }
 
     /// Retruns true if this is an NAV rinex
     pub fn is_navigation_rinex (&self) -> bool { self.header.get_rinex_type() == RinexType::NavigationMessage }
     /// Retruns true if this is an OBS rinex
     pub fn is_observation_rinex (&self) -> bool { self.header.get_rinex_type() == RinexType::ObservationData }
+    /// Returns true if this is a METEO rinex
+    pub fn is_meteo_rinex (&self) -> bool { self.header.get_rinex_type() == RinexType::MeteorologicalData }
 
     /// Builds a `Rinex` from given file.
     /// Input file must respect the whitespace specifications
@@ -191,7 +191,7 @@ impl Rinex {
             let is_new_block = record::block_record_start(&line, &rinex_type, &constellation, &version); 
             
             if is_new_block && !first {
-                if let Ok(entry) = record::build_record_entry(version, rinex_type, constellation, &block) {
+                if let Ok(entry) = record::build_record_entry(&block, &header) {
                     record.push(entry)
                 }
             }
