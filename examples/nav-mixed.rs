@@ -1,6 +1,6 @@
 use rinex::*;
 use rinex::record::*;
-use rinex::constellation::*;
+use rinex::constellation::Constellation;
 
 fn main() {
     println!("RINEX: example: nav-mixed");
@@ -33,21 +33,22 @@ fn main() {
 
     // (NAV) manipulation
     //   --> do we have some Glonass? 
-    let vehicules: Vec<_> = rinex.get_record().iter()
-        .map(|s| s["sv"]).collect();
-    let glo_vehicules: Vec<_> = vehicules.iter()
-        .filter(|s| s.as_sv().unwrap().get_constellation() == Constellation::Glonass)
-        .collect();
-    assert_eq!(glo_vehicules.len(), 0);
-    
-    // ----> no Glonass? 
-    //       😢😢 what else? 
-    let gal_vehicules: Vec<_> = vehicules.iter()
-        .filter(|s| s.as_sv().unwrap().get_constellation() == Constellation::Galileo)
-        .collect();
-    assert_eq!(gal_vehicules.len(), 5);
-    
-    // ----> Cool we have something !! 😀
-    // TODO
-    // -----> keys.json [NavigationMessage][V3][GAL]
+    //let vehicules: Vec<_> = rinex.get_record().iter()
+    //    .map(|s| s.as_nav().unwrap())
+    //        .map(|s| ["sv"]).collect();
+    //let glo_vehicules: Vec<_> = vehicules.iter()
+    //    .filter(|s| s.as_sv().unwrap().get_constellation() == Constellation::Glonass)
+    //    .collect();
+    //assert_eq!(glo_vehicules.len(), 0);
+    //
+    //// ----> no Glonass? 
+    ////       😢😢 what else? 
+    //let gal_vehicules: Vec<_> = vehicules.iter()
+    //    .filter(|s| s.as_sv().unwrap().get_constellation() == Constellation::Galileo)
+    //    .collect();
+    //assert_eq!(gal_vehicules.len(), 5);
+    //
+    //// ----> Cool we have something !! 😀
+    //// TODO
+    //// -----> keys.json [NavigationMessage][V3][GAL]
 }

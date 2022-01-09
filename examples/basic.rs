@@ -1,6 +1,5 @@
 use rinex::*;
 use std::path::PathBuf;
-use rinex::constellation::*;
 
 fn main() {
     println!("RINEX: example: basic");
