@@ -1,13 +1,11 @@
 //! `RinexType::NavigationMessage` specific module
-use chrono::Timelike;
-use std::str::FromStr;
-use std::collections::HashMap;
-
 use crate::RinexType;
 use crate::keys::*;
 use crate::version::RinexVersion;
 use crate::record::{RecordItem, Sv, RecordItemError};
-use crate::constellation::{Constellation, ConstellationError};
+use crate::constellation::Constellation;
+
+use std::collections::HashMap;
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 /// `NavigationRecordType` describes type of record
@@ -105,8 +103,7 @@ impl NavigationMsgType {
     }
 }
 
-/// Builds a RinexType::NavigationMessage specific record entry, 
-/// from given string content
+/// Returns Navigation record entry from given string content
 pub fn build_nav_entry (version: RinexVersion, 
     constellation: Constellation, content: &str) 
         -> Result<HashMap<String, RecordItem>, RecordItemError> 
