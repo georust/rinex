@@ -20,6 +20,7 @@ pub enum Error {
 /// tied to the related `GNSS` constellation producing
 /// that realization
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct GnssTime {
     time: chrono::NaiveDateTime,
     gnss: constellation::Constellation,
@@ -225,6 +226,7 @@ impl std::str::FromStr for AugmentationSystem {
 /// week: week number counter   
 /// `augmentation system`: (EGNOS,WAAS,MSAS)   
 /// utc_provider: provider identifier
+#[allow(dead_code)]
 pub struct GnssTimeCorrection {
     corr_type: TimeCorrectionType,
     params: (f64,f64),
