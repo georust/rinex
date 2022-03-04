@@ -44,3 +44,7 @@ todo
 ### Decimate `Phase` data of a specific `Sv` using epoch /sampling interval
 
 todo
+
+### Observation data specific scaling
+
+todo
