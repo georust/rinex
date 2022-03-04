@@ -84,7 +84,7 @@ Refer to related API and
 Refer to related API and
 [Observation Data documentation](https://github.com/gwbres/rinex/blob/main/doc/observation.md)
 
-## GNSS Time
+## GNSS Time specific operations
 
 wip
 
