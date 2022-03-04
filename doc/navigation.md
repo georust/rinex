@@ -1,4 +1,4 @@
-# RINEX:: Navigation Data
+# RINEX Navigation Data
 
 Navigation (NAV) `RINEX` is amongst the two most standard `RINEX` formats.  
 
