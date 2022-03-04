@@ -76,12 +76,12 @@ println!("{:#?}", rinex.header.coords);
 
 ## Navigation Data
 
-Refer to related API 
+Refer to related API and
 [Navigation Data documentation](https://github.com/gwbres/rinex/blob/main/doc/navigation.md)
 
 ## Observation Data
 
-Refer to related API 
+Refer to related API and
 [Observation Data documentation](https://github.com/gwbres/rinex/blob/main/doc/observation.md)
 
 ## GNSS Time
