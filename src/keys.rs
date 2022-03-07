@@ -27,7 +27,7 @@ impl KeyBank {
             .unwrap();
         
         let mut version_matched = false;
-        let version_to_match = format!("V{}", version.get_major());
+        let version_to_match = format!("V{}", version.major);
         let mut constel_matched = false;
         let constel_to_match = format!("{}", constel);
         let mut type_matched = false;

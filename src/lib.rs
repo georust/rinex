@@ -4,21 +4,21 @@
 //! Refer to README for example of use.  
 //! Homepage: <https://github.com/gwbres/rinex>
 mod keys;
-mod header;
 mod meteo;
+mod epoch;
+mod header;
+mod record;
 mod version;
 mod gnss_time;
 mod navigation;
 mod observation;
-
-pub mod record;
 pub mod constellation;
-
-use thiserror::Error;
-use std::str::FromStr;
 
 use header::RinexHeader;
 use record::RinexRecord;
+
+use thiserror::Error;
+use std::str::FromStr;
 
 #[macro_export]
 /// Returns `true` if given `Rinex` line is a comment
@@ -84,8 +84,8 @@ impl std::str::FromStr for RinexType {
 /// `Rinex` describes a `RINEX` file
 #[derive(Debug)]
 pub struct Rinex {
-    header: RinexHeader,
-    record: RinexRecord,
+    pub header: RinexHeader,
+    pub record: RinexRecord,
 }
 
 impl Default for Rinex {
@@ -93,7 +93,7 @@ impl Default for Rinex {
     fn default() -> Rinex {
         Rinex {
             header: RinexHeader::default(),
-            record: Vec::new(),
+            record: RinexRecord::default(), 
         }
     }
 }
@@ -105,6 +105,8 @@ pub enum RinexError {
     MissingHeaderDelimiter,
     #[error("Header parsing error")]
     HeaderError(#[from] header::Error),
+    #[error("Rinex type error")]
+    TypeError(#[from] RinexTypeError),
 }
 
 impl Rinex {
@@ -130,24 +132,16 @@ impl Rinex {
         Ok((String::from(header),String::from(body)))
     }
 
-    /// Returns `Rinex` length, ie., number of record entries
-    pub fn len (&self) -> usize { self.record.len() }
-    /// Returns self's `header` section
-    pub fn get_header (&self) -> &RinexHeader { &self.header }
-
-    /// Returns entire RINEX record
-    pub fn get_record (&self) -> &RinexRecord { &self.record }
-
     // Returns Record nth' entry
     //pub fn get_record_nth (&self, nth: usize) 
     //    -> &std::collections::HashMap<String, record::RecordItem> { &self.record[nth] }
 
     /// Retruns true if this is an NAV rinex
-    pub fn is_navigation_rinex (&self) -> bool { self.header.get_rinex_type() == RinexType::NavigationMessage }
+    pub fn is_navigation_rinex (&self) -> bool { self.header.rinex_type == RinexType::NavigationMessage }
     /// Retruns true if this is an OBS rinex
-    pub fn is_observation_rinex (&self) -> bool { self.header.get_rinex_type() == RinexType::ObservationData }
+    pub fn is_observation_rinex (&self) -> bool { self.header.rinex_type == RinexType::ObservationData }
     /// Returns true if this is a METEO rinex
-    pub fn is_meteo_rinex (&self) -> bool { self.header.get_rinex_type() == RinexType::MeteorologicalData }
+    pub fn is_meteo_rinex (&self) -> bool { self.header.rinex_type == RinexType::MeteorologicalData }
 
     /// Builds a `Rinex` from given file.
     /// Input file must respect the whitespace specifications
@@ -162,73 +156,11 @@ impl Rinex {
             .unwrap();
 
         let (header, body) = Rinex::split_rinex_content(fp)?;
-        let header = RinexHeader::from_str(&header)?;
-
-        // helpful information
-        let rinex_type = header.get_rinex_type();
-        let version = header.get_rinex_version();
-        let version_major = version.get_major(); 
-        let constellation = header.get_constellation();
-
-        let mut body = body.lines();
-        let mut line = body.next()
-            .unwrap(); // ''END OF HEADER'' /BLANK
-
-        while is_rinex_comment!(line) {
-            line = body.next()
-                .unwrap()
-        }
-
-        let mut eof = false;
-        let mut first = true;
-        let mut block = String::with_capacity(256*1024); // max. block size
-        let mut record: RinexRecord = Vec::new();
-
-        loop {
-            let parsed: Vec<&str> = line.split_ascii_whitespace()
-                .collect();
-            
-            let is_new_block = record::block_record_start(&line, &rinex_type, &constellation, &version); 
-            
-            if is_new_block && !first {
-                if let Ok(entry) = record::build_record_entry(&block, &header) {
-                    record.push(entry)
-                }
-            }
-
-            if is_new_block {
-                if first {
-                    first = false
-                }
-                block.clear()
-            }
-
-            block.push_str(&line);
-            block.push_str("\n");
-
-            if let Some(l) = body.next() {
-                line = l
-            } else {
-                break
-            }
-
-            while is_rinex_comment!(line) {
-                if let Some(l) = body.next() {
-                    line = l
-                } else {
-                    eof = true; 
-                    break 
-                }
-            }
-
-            if eof {
-                break
-            }
-        }
-
+        let hd = RinexHeader::from_str(&header)?;
+        let rec = record::build_record(&hd, &body)?;
         Ok(Rinex{
-            header, 
-            record,
+            header: hd,
+            record: rec,
         })
     }
 }

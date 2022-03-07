@@ -3,78 +3,25 @@ use thiserror::Error;
 use std::str::FromStr;
 use std::collections::HashMap;
 
-use crate::RinexType;
-use crate::meteo::*;
-use crate::navigation::*; 
-use crate::observation::*;
+use crate::epoch::Epoch;
+use crate::is_rinex_comment;
 use crate::header::RinexHeader;
-use crate::version::RinexVersion;
+use crate::{RinexType, RinexTypeError};
 use crate::constellation::Constellation;
 
-pub use crate::navigation::{NavigationRecordType, NavigationMsgType};
-
-/// RinexRecord describes the file body's content
-pub type RinexRecord = Vec<RecordEntry>;
-
-/// RinexRecordEntry
-#[derive(Debug)]
-pub enum RecordEntry {
-    /// NavRecordEntry is a hashmap ("key", recordItem)
-    NavRecordEntry(HashMap<String, RecordItem>),
-    /// ObsRecordEntry is a list of observations
-    /// realized at certain `Epoch` for particular `Sv`
-    ObsRecordEntry((Sv,Epoch,Vec<f64>)),
-    /// MeteoRecordEntry is a (temperature, pressure, moisture)
-    /// measurement realized at certain `Epoch`
-    MeteoRecordEntry((Epoch,Vec<f64>)),
-}
-
-impl RecordEntry {
-    pub fn as_nav (&self) -> Option<HashMap<String, RecordItem>> {
-        match self {
-            RecordEntry::NavRecordEntry(e) => Some(e.clone()),
-            _ => None,
-        }
-    }
-    pub fn as_obs (&self) -> Option<(Sv, Epoch, Vec<f64>)> {
-        match self {
-            RecordEntry::ObsRecordEntry(e) => Some(e.clone()),
-            _ => None,
-        }
-    }
-    pub fn as_meteo (&self) -> Option<(Epoch, Vec<f64>)> {
-        match self {
-            RecordEntry::MeteoRecordEntry(e) => Some(e.clone()),
-            _ => None,
-        }
-    }
-}
-
-#[derive(Error, Debug)]
-/// RecordEntry related error
-pub enum RecordEntryError {
-    #[error("rinex file \"{0}\" is not supported")]
-    NonSupportedRinexType(String),
-    #[error("failed to build record item")]
-    RecordItemError(#[from] RecordItemError),
-}
-
-/// `Epoch` is the timestamp of an observation
-pub type Epoch = chrono::NaiveDateTime;
-
-/// ̀`Sv` describes a Satellite Vehicule
+/// ̀`Sv` describes a Satellite Vehiculee
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Sv {
-    constellation: Constellation,
-    prn: u8,
+    pub prn: u8,
+    pub constellation: Constellation,
 }
 
-/// ̀ Sv` parsing / identification related errors
+/// ̀ Sv` related errors
 #[derive(Error, Debug)]
-pub enum SvError {
-    #[error("unknown constellation marker \"{0}\"")]
+pub enum ParseSvError {
+    #[error("unknown constellation \"{0}\"")]
     UnidentifiedConstellation(char),
-    #[error("failed to parse Sv #PRN")]
+    #[error("failed to parse prn")]
     ParseIntError(#[from] std::num::ParseIntError),
 }
 
@@ -89,19 +36,12 @@ impl Default for Sv {
 }
 
 impl Sv {
-    /// Creates a new `Sv` Satellite vehicule descriptor
+    /// Creates a new `Sv` descriptor
     pub fn new (constellation: Constellation, prn: u8) -> Sv { Sv {constellation, prn }}
-
-    /// Returns `GNSS` constellation from which this
-    /// `Sv` is part of
-    pub fn get_constellation (&self) -> Constellation { self.constellation }
-
-    /// Returns `PRN#ID` of this particular `Sv`
-    pub fn get_prn (&self) -> u8 { self.prn }
 }
 
 impl std::str::FromStr for Sv {
-    type Err = SvError;
+    type Err = ParseSvError;
     /// Builds an `Sv` from string content
     fn from_str (s: &str) -> Result<Self, Self::Err> {
         let mut prn: u8 = 0;
@@ -131,127 +71,59 @@ impl std::str::FromStr for Sv {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Debug)]
-/// `RecordItem` describes all known Rinex Records items
-pub enum RecordItem {
-    /// Satellite Vehicule (̀`Sv`) identifier
-    Sv(Sv), 
-    /// D19.12 as float value
-    D19P12(f64), 
-    /// `Epoch` is an observation timestamp
-    Epoch(Epoch), 
-    /// `Binary` is an interpreted binary word
-    /// up to 32 bit long
-    Binary(u32),
-    /// (NAV) Record type
-    NavRecType(NavigationRecordType), 
-    /// (NAV) Message type
-    NavMsgType(NavigationMsgType), 
+/// `RinexRecord`
+#[derive(Debug)]
+pub enum RinexRecord {
+    NavRecord(HashMap<Epoch, HashMap<Sv, HashMap<String, ComplexEnum>>>),
+    ObsRecord(HashMap<Epoch, HashMap<Sv, HashMap<String, ComplexEnum>>>),
+    MeteoRecord(HashMap<Epoch, HashMap<String, ComplexEnum>>),
+}
+
+impl RinexRecord {
+    fn as_nav (&self) -> Option<&HashMap<Epoch, HashMap<Sv, HashMap<String, ComplexEnum>>>> {
+        match self {
+            RinexRecord::NavRecord(e) => Some(e.clone()),
+            _ => None,
+        }
+    }
+    fn as_obs (&self) -> Option<&HashMap<Epoch, HashMap<Sv, HashMap<String, ComplexEnum>>>> {
+        match self {
+            RinexRecord::ObsRecord(e) => Some(e.clone()),
+            _ => None,
+        }
+    }
+    fn as_meteo (&self) -> Option<&HashMap<Epoch, HashMap<String, ComplexEnum>>> {
+        match self {
+            RinexRecord::MeteoRecord(e) => Some(e.clone()),
+            _ => None,
+        }
+    }
+}
+
+impl Default for RinexRecord {
+    fn default() -> RinexRecord {
+        let r : HashMap<Epoch, HashMap<Sv, HashMap<String, ComplexEnum>>> = HashMap::new();
+        RinexRecord::NavRecord(r)
+    }
 }
 
 #[derive(Error, Debug)]
-/// `RecordItem` related errors
-pub enum RecordItemError {
-    #[error("failed to parse int value")]
-    ParseIntError(#[from] std::num::ParseIntError),
-    #[error("failed to parse float value")]
-    ParseFloatError(#[from] std::num::ParseFloatError),
-    #[error("failed to parse epoch")]
-    ParseEpochError(#[from] chrono::ParseError),
-    #[error("unknown type descriptor \"{0}\"")]
-    UnknownTypeDescriptor(String),
-    #[error("failed to parse sv")]
-    SvParsingError(#[from] SvError), 
+pub enum RinexRecordError {
+    #[error("record parsing not supported for type \"{0}\"")]
+    TypeError(String),
 }
 
-impl RecordItem {
-    /// Builds a `RecordItem` from type descriptor and string content
-    pub fn from_string (type_descriptor: &str, content: &str) 
-            -> Result<RecordItem, RecordItemError> 
-    {
-        //println!("Building \'{}\' from \"{}\"", type_descriptor, content);
-        match type_descriptor {
-            //TODO
-            // normalement pas besoin du replace D->E pour f64
-            // introduire un type fixed point (scaled integer)
-            //TODO
-            // un type binary peut aider pour les mask..
-            // u32 doit suffir
-            "sv" => Ok(RecordItem::Sv(Sv::from_str(&content)?)),
-            "binary" => Ok(RecordItem::Binary(f64::from_str(&content.replace("D","e"))? as u32)),
-            "d19.12" => Ok(RecordItem::D19P12(f64::from_str(&content.replace("D","e"))?)),
-             "epoch" => {
-                let items: Vec<&str> = content.split_ascii_whitespace()
-                    .collect();
-                let (mut y,mon,day,h,min,s): (i32,u32,u32,u32,u32,f64) =
-                    (i32::from_str_radix(items[0], 10)?,
-                    u32::from_str_radix(items[1], 10)?,
-                    u32::from_str_radix(items[2], 10)?,
-                    u32::from_str_radix(items[3], 10)?,
-                    u32::from_str_radix(items[4], 10)?,
-                    f64::from_str(items[5])?);
-                if y < 100 {
-                    y += 2000 // 2 digit nb case
-                }
-                Ok(RecordItem::Epoch(
-                    chrono::NaiveDate::from_ymd(y,mon,day)
-                        .and_hms(h,min,s as u32)))
-            },
-            "navRecType" => Ok(RecordItem::NavRecType(NavigationRecordType::from_str(&content)?)),
-            "navMsgType" => Ok(RecordItem::NavMsgType(NavigationMsgType::from_str(&content)?)),
-            _ => Err(RecordItemError::UnknownTypeDescriptor(type_descriptor.to_string())),
-        }
-    }
-
-    /// Extracts Sv information if feasible
-    pub fn as_sv (&self) -> Option<Sv> {
-        match self {
-            RecordItem::Sv(s) => Some(*s),
-            _ => None,
-        }
-    }
-    /// Extracts Epoch informat if feasible
-    pub fn as_epoch (&self) -> Option<Epoch> {
-        match self {
-            RecordItem::Epoch(e) => Some(*e),
-            _ => None,
-        }
-    }
-    /// Extracts NavigationRecordType information if feasible
-    pub fn as_nav_record_type (&self) -> Option<NavigationRecordType> {
-        match self {
-            RecordItem::NavRecType(r) => Some(*r),
-            _ => None,
-        }
-    }
-    /// Extracts NavigationMsgType information if feasible
-    pub fn as_nav_message_type (&self) -> Option<NavigationMsgType> {
-        match self {
-            RecordItem::NavMsgType(m) => Some(*m),
-            _ => None,
-        }
-    }
-}
-
-/// Identifies starting point of a new block record content,
-/// from which we will build a RinexRecord entry afterwards 
-pub fn block_record_start (line: &str,
-    rinex_type: &RinexType,
-        constellation: &Constellation, 
-            version: &RinexVersion) -> bool
-{
-    let major = version.get_major();
+/// Splits block record sections 
+fn block_record_start (line: &str, header: &RinexHeader) -> bool {
     let parsed: Vec<&str> = line.split_ascii_whitespace()
         .collect();
-    
-    match major < 4 {
+    match header.version.major < 4 {
         true => {
-            // RinexType:: dependent
-            match rinex_type {
+            match &header.rinex_type {
                 RinexType::NavigationMessage => {
                     let known_sv_identifiers: &'static [char] = 
                         &['R','G','E','B','J','C','S']; 
-                    match constellation {
+                    match &header.constellation {
                         Constellation::Glonass => parsed.len() > 4,
                         _ => {
                             match line.chars().nth(0) {
@@ -285,26 +157,113 @@ pub fn block_record_start (line: &str,
     }
 }
 
-/// Builds a record entry from block record content.   
-pub fn build_record_entry (block: &str, header: &RinexHeader)
-    -> Result<RecordEntry, RecordEntryError> 
-{
-    let t = header.get_rinex_type();
-    let v = header.get_rinex_version();
-    let c = header.get_constellation();
-    match t {
-        RinexType::ObservationData => {
-            let e = build_obs_entry(v, c, block)?;
-            Ok(RecordEntry::ObsRecordEntry(e))
-        },
-        RinexType::NavigationMessage => {
-            let e = build_nav_entry(v, c, block)?;
-            Ok(RecordEntry::NavRecordEntry(e))
-        },
-        RinexType::MeteorologicalData => {
-            let e = build_meteo_entry(block, header)?;
-            Ok(RecordEntry::MeteoRecordEntry(e))
-        },
-        _ => Err(RecordEntryError::NonSupportedRinexType(t.to_string()))
+pub fn build_record (header: &RinexHeader, body: &str) -> Result<RinexRecord, RinexTypeError> { 
+    let mut body = body.lines();
+    let mut line = body.next()
+        .unwrap();
+    while is_rinex_comment!(line) {
+        line = body.next()
+            .unwrap()
+    }
+    let mut eof = false;
+    let mut first = true;
+    let mut block = String::with_capacity(256*1024); // max. block size
+
+    let mut rec : HashMap<Epoch, HashMap<Sv, HashMap<String, ComplexEnum>>> = HashMap::new();
+    
+    loop {
+        let parsed: Vec<&str> = line.split_ascii_whitespace()
+            .collect();
+        
+        let is_new_block = block_record_start(&line, &header);
+        if is_new_block && !first {
+            match &header.rinex_type {
+                RinexType::NavigationMessage => {
+                    if let Ok((e, sv, map)) = crate::navigation::build_record_entry(&header, &block) {
+                        let mut smap : HashMap<Sv, HashMap<String, ComplexEnum>> = HashMap::with_capacity(10);
+                        smap.insert(sv, map);
+                        rec.insert(e, smap);
+                        println!("e: {:?}", e)
+                    }
+                },
+                _ => {},
+            }
+        }
+
+        if is_new_block {
+            if first {
+                first = false
+            }
+            block.clear()
+        }
+
+        block.push_str(&line);
+        block.push_str("\n");
+
+        if let Some(l) = body.next() {
+            line = l
+        } else {
+            break
+        }
+
+        while is_rinex_comment!(line) {
+            if let Some(l) = body.next() {
+                line = l
+            } else {
+                eof = true; 
+                break 
+            }
+        }
+
+        if eof {
+            break
+        }
+    }
+    match &header.rinex_type {
+        RinexType::NavigationMessage => Ok(RinexRecord::NavRecord(rec)), 
+        RinexType::ObservationData => Ok(RinexRecord::ObsRecord(rec)), 
+        _ => Err(RinexTypeError::UnknownType(header.rinex_type.to_string())),
+    }
+}
+
+/// `ComplexEnum` is record payload 
+#[derive(Debug)]
+pub enum ComplexEnum {
+    U8(u8),
+    Str(String), 
+    F32(f32),
+    F64(f64),
+}
+
+/// `ComplexEnum` related errors
+#[derive(Error, Debug)]
+pub enum ComplexEnumError {
+    #[error("failed to parse int value")]
+    ParseIntError(#[from] std::num::ParseIntError),
+    #[error("failed to parse float value")]
+    ParseFloatError(#[from] std::num::ParseFloatError),
+    #[error("unknown type descriptor \"{0}\"")]
+    UnknownTypeDescriptor(String),
+}
+
+impl ComplexEnum {
+    /// Builds a `ComplexEnum` from type descriptor and string content
+    pub fn new (desc: &str, content: &str) -> Result<ComplexEnum, ComplexEnumError> {
+        //println!("Building \'{}\' from \"{}\"", desc, content);
+        match desc {
+            "f32" => {
+                Ok(ComplexEnum::F32(f32::from_str(&content.replace("D","e"))?))
+            },
+            "f64" => {
+                Ok(ComplexEnum::F64(f64::from_str(&content.replace("D","e"))?))
+            },
+            "u8" => {
+                Ok(ComplexEnum::U8(u8::from_str_radix(&content, 16)?))
+            },
+            "str" => {
+                Ok(ComplexEnum::Str(String::from(content)))
+            },
+            _ => Err(ComplexEnumError::UnknownTypeDescriptor(desc.to_string())),
+        }
     }
 }

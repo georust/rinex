@@ -7,8 +7,8 @@ use crate::gnss_time;
 use crate::version::RinexVersion;
 use crate::{is_rinex_comment, RinexType, RinexTypeError};
 use crate::constellation::{Constellation, ConstellationError};
-use crate::observation::{ObservationType, ObservationTypeError};
-use crate::meteo::{MeteoObservationType, MeteoObservationTypeError};
+use crate::meteo::{MeteoDataCode, MeteoDataCodeError};
+use crate::observation::{ObservationCode, ObservationCodeError};
 
 /// Describes a `CRINEX` (compact rinex) 
 pub const CRINEX_MARKER_COMMENT : &str = "COMPACT RINEX FORMAT";
@@ -17,7 +17,7 @@ pub const HEADER_END_MARKER : &str = "END OF HEADER";
 
 /// GNSS receiver description
 #[derive(Debug)]
-struct Rcvr {
+pub struct Rcvr {
     model: String, 
     sn: String, // serial #
     firmware: String, // firmware #
@@ -50,7 +50,7 @@ impl std::str::FromStr for Rcvr {
 
 /// Antenna description 
 #[derive(Debug)]
-struct Antenna {
+pub struct Antenna {
     /// Hardware model / make descriptor
     model: String,
     /// Serial number / identification number
@@ -163,7 +163,7 @@ impl std::str::FromStr for LeapSecond {
 
 /// Describes `Compact RINEX` specific information
 #[derive(Debug)]
-struct CrinexInfo {
+pub struct CrinexInfo {
     version: String, // compression version
     prog: String, // compression program
     date: chrono::NaiveDateTime, // date of compression
@@ -205,62 +205,62 @@ enum MarkerType {
 #[derive(Debug)]
 pub struct RinexHeader {
     /// revision for this `RINEX`
-    version: RinexVersion, 
+    pub version: RinexVersion, 
     /// optionnal `CRINEX` (compact `RINEX` infos), 
     /// if this is a CRINEX
-    crinex: Option<CrinexInfo>, 
+    pub crinex: Option<CrinexInfo>, 
     /// type of `RINEX` file
-    rinex_type: RinexType, 
+    pub rinex_type: RinexType, 
     /// `GNSS` constellation being used
-    constellation: Constellation, 
+    pub constellation: Constellation, 
     /// program name
-    program: String, 
+    pub program: String, 
     /// program `run by`
-    run_by: String, // program run by
+    pub run_by: String, // program run by
     /// station label
-    station: String, 
+    pub station: String, 
     /// station identifier
-    station_id: String, 
+    pub station_id: String, 
     /// optionnal station URL 
-    station_url: Option<String>, 
+    pub station_url: Option<String>, 
     /// name of observer
-    observer: String, 
+    pub observer: String, 
     /// name of production agency
-    agency: String, 
+    pub agency: String, 
     /// optionnal hardware (receiver) infos
-    rcvr: Option<Rcvr>, 
+    pub rcvr: Option<Rcvr>, 
     /// optionnal antenna infos
-    ant: Option<Antenna>, 
+    pub ant: Option<Antenna>, 
     /// optionnal leap seconds infos
-    leap: Option<LeapSecond>, 
+    pub leap: Option<LeapSecond>, 
     /// station approxiamte coordinates
-    coords: Option<rust_3d::Point3D>, 
+    pub coords: Option<rust_3d::Point3D>, 
     /// optionnal observation wavelengths
-    wavelengths: Option<(u32,u32)>, 
+    pub wavelengths: Option<(u32,u32)>, 
     /// optionnal sampling interval (s)
-    sampling_interval: Option<f32>, 
+    pub sampling_interval: Option<f32>, 
     /// optionnal (first, last) epochs
-    epochs: (Option<gnss_time::GnssTime>, Option<gnss_time::GnssTime>),
+    pub epochs: (Option<gnss_time::GnssTime>, Option<gnss_time::GnssTime>),
     /// optionnal file license
-    license: Option<String>,
+    pub license: Option<String>,
     /// optionnal Object Identifier (IoT)
-    doi: Option<String>,
+    pub doi: Option<String>,
     /// optionnal GPS/UTC time difference
-    gps_utc_delta: Option<u32>,
+    pub gps_utc_delta: Option<u32>,
     /// processing:   
     /// optionnal data scaling
-    data_scaling: Option<f64>,
+    pub data_scaling: Option<f64>,
     // optionnal ionospheric compensation param(s)
     //ionospheric_corr: Option<Vec<IonoCorr>>,
     // possible time system correction(s)
     //gnsstime_corr: Option<Vec<gnss_time::GnssTimeCorr>>,
     /// Observations:   
     /// true if epochs & data compensate for local clock drift 
-    rcvr_clock_offset_applied: Option<bool>, 
+    pub rcvr_clock_offset_applied: Option<bool>, 
     // observation (specific)
     /// lists all types of observations 
     /// contained in this `Rinex` OBS file
-    obs_codes: Option<Vec<String>>, 
+    pub obs_codes: Option<Vec<String>>, 
 }
 
 #[derive(Error, Debug)]
@@ -286,9 +286,9 @@ pub enum Error {
     #[error("failed to parse leap second from \"{0}\"")]
     LeapSecondParsingError(String),
     #[error("observation type code not recognized \"{0}\"")]
-    ObservationTypeCodeError(#[from] ObservationTypeError),
-    #[error("meteo type code not recognized \"{0}\"")]
-    MeteoObservationTypeCodeError(#[from] MeteoObservationTypeError),
+    ObservationTypeCodeError(#[from] ObservationCodeError),
+    #[error("meteo data code not recognized \"{0}\"")]
+    MeteoDataCodeError(#[from] MeteoDataCodeError),
 }
 
 impl Default for RinexHeader {
@@ -641,7 +641,7 @@ impl std::str::FromStr for RinexHeader {
                             if code.trim().len() == 0 {
                                 break
                             }
-                            let ob = ObservationType::from_str(code.trim())?;
+                            let ob = ObservationCode::from_str(code.trim())?;
                             obs_codes.push(code.trim().to_string());
                             if r.len() == 0 {
                                 break
@@ -656,7 +656,7 @@ impl std::str::FromStr for RinexHeader {
                             if code.trim().len() == 0 {
                                 break
                             }
-                            let ob = MeteoObservationType::from_str(code)?;
+                            let ob = MeteoDataCode::from_str(code)?;
                             obs_codes.push(code.trim().to_string());
                             if r.len() == 0 {
                                 break
@@ -810,26 +810,4 @@ impl RinexHeader {
             _ => None,
         }
     }
-
-    /// Returns `Rinex` Version number
-    pub fn get_rinex_version (&self) -> RinexVersion { self.version }
-    /// Returns `Rinex` type 
-    pub fn get_rinex_type (&self) -> RinexType { self.rinex_type }
-    /// Returns `GNSS` constellation
-    pub fn get_constellation (&self) -> Constellation { self.constellation }
-
-    /// Returns `LeapSecond` infos (if any)
-    pub fn get_leap_second (&self) -> Option<LeapSecond> { self.leap }
-    
-    /// Returns OBS codes contained in Self,   
-    /// this only make sense if type is an OBS rinex
-    pub fn get_obs_codes (&self) -> &Option<Vec<String>> { &self.obs_codes }
-
-    /// Returns true if contained data (usually raw phase cycles)
-    /// need to be scaled by a precise factor
-    pub fn data_needs_to_be_scaled (&self) -> bool { self.data_scaling.is_some() }
-
-    /// Returns data scaling that needs to imply 
-    /// (usually to raw phase data), if any
-    pub fn data_scaling (&self) -> Option<f64> { self.data_scaling }
 }

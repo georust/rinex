@@ -10,8 +10,8 @@ pub const SUPPORTED_VERSION: RinexVersion = RinexVersion {
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub struct RinexVersion {
-    major: u8,
-    minor: u8
+    pub major: u8,
+    pub minor: u8
 }
 
 impl Default for RinexVersion  {
@@ -51,11 +51,6 @@ impl std::str::FromStr for RinexVersion {
 impl RinexVersion {
     /// Builds a new `RinexVersion` object
     fn new (major: u8, minor: u8) -> RinexVersion { RinexVersion { major, minor }}
-    /// Returns version major #
-    pub fn get_major (&self) -> u8 { self.major }
-    /// Returns version minor #
-    pub fn get_minor (&self) -> u8 { self.major }
-    
     /// Returns true if this version is supported
     pub fn is_supported (&self) -> bool {
         if self.major < SUPPORTED_VERSION.major {
@@ -73,8 +68,8 @@ mod test {
     #[test]
     fn test_version_object() {
         let version = RinexVersion::default();
-        assert_eq!(version.get_major(), 1);
-        assert_eq!(version.get_minor(), 1);
+        assert_eq!(version.major, 1);
+        assert_eq!(version.minor, 0);
     }
     #[test]
     fn test_version_support() {

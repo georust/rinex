@@ -4,10 +4,6 @@ use std::str::FromStr;
 use strum_macros::EnumString;
 use physical_constants::SPEED_OF_LIGHT_IN_VACUUM;
 
-use crate::version::RinexVersion;
-use crate::constellation::Constellation;
-use crate::record::{Epoch, Sv, RecordItemError};
-
 #[macro_export]
 /// Returns True if 3 letter code 
 /// matches a pseudo range (OBS) code
@@ -46,8 +42,7 @@ macro_rules! is_sig_strength_obs_code {
 /// biases: other additive biases
 pub fn distance_from_pseudo_range (pr: f64, 
     rcvr_clock_offset: f64, sat_clock_offset: f64, biases: Vec<f64>)
-        -> f64
-{
+        -> f64 {
     pr - SPEED_OF_LIGHT_IN_VACUUM * (rcvr_clock_offset - sat_clock_offset)
     // modulo leap second?
     // p17 table 4
@@ -154,62 +149,74 @@ pub enum SignalStrength {
     from f64::
 }*/
 
-/// `ObservationType` related errors
+/// `ObservationCode` related errors
 #[derive(Error, Debug)]
-pub enum ObservationTypeError {
-    #[error("obs code not recognized \"{0}\"")]
+pub enum ObservationCodeError {
+    #[error("code not recognized \"{0}\"")]
     UnknownObsCode(String),
 }
 
 /// Describes different kind of `Observations`
 #[derive(Copy, Clone, PartialEq, Debug)]
-pub enum ObservationType {
+pub enum ObservationCode {
     /// Carrier phase range from antenna
     /// to Sv measured in whole cycles.    
     // 5.2.13
     /// Phase observations between epochs
     /// must be connected by including # integer cycles.   
     /// Phase obs. must be corrected for phase shifts
-    ObservationPhase,
+    PhaseCode,
     /// Positive doppler means Sv is approaching
-    ObservationDoppler,
+    DopplerCode,
     /// Pseudo Range is distance (m) from the
     /// receiver antenna to the Sv antenna,
     /// including clock offsets and other biases
     /// such as delays induced by atmosphere
-    ObservationPseudoRange,
+    PseudoRangeCode,
     /// Carrier signal strength observation
-    ObservationSigStrength,
+    SigStrengthCode,
 }
 
-impl Default for ObservationType {
-    fn default() -> ObservationType { ObservationType::ObservationPseudoRange }
+impl Default for ObservationCode {
+    fn default() -> ObservationCode { ObservationCode::PseudoRangeCode }
 }
 
-impl std::str::FromStr for ObservationType {
-    type Err = ObservationTypeError;
+impl std::str::FromStr for ObservationCode {
+    type Err = ObservationCodeError;
     fn from_str (s: &str) -> Result<Self, Self::Err> {
-        if is_pseudo_range_obs_code!(s) { 
-            Ok(ObservationType::ObservationPseudoRange)
+        if is_pseudo_range_obs_code!(s) {
+            Ok(ObservationCode::PseudoRangeCode)
         } else if is_phase_carrier_obs_code!(s) {
-            Ok(ObservationType::ObservationPhase)
+            Ok(ObservationCode::PhaseCode)
         } else if is_doppler_obs_code!(s) {
-            Ok(ObservationType::ObservationDoppler)
+            Ok(ObservationCode::DopplerCode)
         } else if is_sig_strength_obs_code!(s) {
-            Ok(ObservationType::ObservationSigStrength)
+            Ok(ObservationCode::SigStrengthCode)
         } else {
-            Err(ObservationTypeError::UnknownObsCode(s.to_string()))
+            Err(ObservationCodeError::UnknownObsCode(s.to_string()))
         }
     }
 }
 
 /// Returns Observation record entries from given string content
-pub fn build_obs_entry (version: RinexVersion,
-    constellation: Constellation, content: &str)
-        -> Result<(Sv,Epoch,Vec<f64>), RecordItemError> 
+/*pub fn build_obs_entries (header: &RinexHeader, content: &str)
+        -> Result<Vec<HashMap<String, RecordItem>>, RecordItemError>
 {
-    Err(RecordItemError::UnknownTypeDescriptor(String::from("null")))
-}
+    let obs_codes = match &header.obs_codes {
+        Some(c) => c,
+        _ => return Err(RecordItemError::NoObservationCode)
+    };
+
+    let mut lines = content.lines();
+    let (epoch, rem) = content.split_at(24);
+    let (flag, rem) = rem.split_at(3);
+    let (n, rem) = rem.split_at(3);
+
+    let mut obs: Vec<HashMap<String, RecordItem>>
+        = Vec::new(HashMap::with_capacity(3 + obs_codes.len())); // Sv, Epoch, Flag, Data
+    
+    Ok(obs)
+}*/
 
 mod test {
     use super::*;

@@ -1,116 +1,33 @@
-//! `RinexType::NavigationMessage` specific module
-use crate::RinexType;
+//! `RinexType::NavigationMessage` parser & related types
+use thiserror::Error;
+use std::str::FromStr;
+
+use crate::epoch;
 use crate::keys::*;
+use crate::RinexType;
+use crate::header::RinexHeader;
 use crate::version::RinexVersion;
-use crate::record::{RecordItem, Sv, RecordItemError};
 use crate::constellation::Constellation;
+use crate::record::{Sv, ComplexEnum};
 
 use std::collections::HashMap;
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
-/// `NavigationRecordType` describes type of record
-/// for NAV files
-pub enum NavigationRecordType {
-    Ephemeride,
-    Ionospheric,
+#[derive(Error, Debug)]
+pub enum RecordError {
+    #[error("failed to parse msg type")]
+    ParseSvError(#[from] crate::record::ParseSvError),
+    #[error("failed to parse cplx data")]
+    ParseComplexError(#[from] crate::record::ComplexEnumError),
+    #[error("failed to parse sv::prn")]
+    ParseIntError(#[from] std::num::ParseIntError), 
+    #[error("failed to parse epoch")]
+    ParseEpochError(#[from] epoch::ParseEpochError), 
 }
 
-impl Default for NavigationRecordType {
-    /// Builds a default `NavigationRecordType`
-    fn default() -> NavigationRecordType {
-        NavigationRecordType::Ephemeride
-    }
-}
-
-impl std::str::FromStr for NavigationRecordType {
-    type Err = std::num::ParseIntError;
-    fn from_str (s: &str) -> Result<Self, Self::Err> {
-        if s.contains("EPH") {
-            Ok(NavigationRecordType::Ephemeride)
-        } else if s.contains("ION") {
-            Ok(NavigationRecordType::Ionospheric)
-        } else {
-            Ok(NavigationRecordType::Ephemeride)
-        }
-    }
-}
-
-impl NavigationRecordType {
-    /// Converts Self to &str
-    fn to_string (&self) -> &str {
-        match self {
-            NavigationRecordType::Ephemeride  => "EPH",
-            NavigationRecordType::Ionospheric => "ION",
-        }
-    }
-}
-
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
-/// `NavigationMsgType`
-/// describes messages type for NAV files   
-pub enum NavigationMsgType {
-    /// `Lnav` : Legacy NAV messages (V < 3)
-    Lnav,
-    /// `Cnav` : Civilian NAV messages
-    Cnav,
-    /// `Cnav2` : Civilian NAV messages
-    Cnav2,
-    /// `Inav` : Integrity NAV messages
-    Inav,
-    /// `Fnav` : Freely Accessible NAV messages
-    Fnav,
-    Fdma,
-}
-
-impl Default for NavigationMsgType {
-    /// Builds a default `NavigationMsgType`
-    fn default() -> NavigationMsgType {
-        NavigationMsgType::Lnav
-    }
-}
-
-impl std::str::FromStr for NavigationMsgType {
-    type Err = std::num::ParseIntError;
-    /// Builds a `NavigationMsgType` from a string
-    fn from_str (s: &str) -> Result<Self, Self::Err> {
-        if s.contains("LNAV") {
-            Ok(NavigationMsgType::Lnav)
-        } else if s.contains("CNAV") {
-            Ok(NavigationMsgType::Cnav) 
-        } else if s.contains("CNAV2") {
-            Ok(NavigationMsgType::Cnav2)
-        } else if s.contains("INAV") {
-            Ok(NavigationMsgType::Inav)
-        } else if s.contains("FNAV") {
-            Ok(NavigationMsgType::Fnav)
-        } else if s.contains("FDMA") {
-            Ok(NavigationMsgType::Fdma)
-        } else {
-            Ok(NavigationMsgType::Cnav)
-        }
-    }
-}
-
-impl NavigationMsgType {
-    /// Converts Self to &str
-    fn to_string (&self) -> &str {
-        match self {
-            NavigationMsgType::Lnav =>  "LNAV",
-            NavigationMsgType::Cnav =>  "CNAV",
-            NavigationMsgType::Cnav2 => "CNAV2",
-            NavigationMsgType::Inav =>  "INAV",
-            NavigationMsgType::Fnav =>  "FNAV",
-            NavigationMsgType::Fdma =>  "FDMA",
-        }
-    }
-}
-
-/// Returns Navigation record entry from given string content
-pub fn build_nav_entry (version: RinexVersion, 
-    constellation: Constellation, content: &str) 
-        -> Result<HashMap<String, RecordItem>, RecordItemError> 
+/// Builds `RinexRecord` entry for `NavigationMessage` file
+pub fn build_record_entry (header: &RinexHeader, content: &str)
+        -> Result<(epoch::Epoch, Sv, HashMap<String, ComplexEnum>), RecordError>
 {
-    // NAV 
     //  <o 
     //     SV + Epoch + SvClock infos + RecType + MsgType are always there
     //     Other items are constellation dependent => key map
@@ -119,12 +36,10 @@ pub fn build_nav_entry (version: RinexVersion,
     //           (*) nb of items fixed
     let mut lines = content.lines();
 
-    let mut msg_type = NavigationMsgType::default();
-    let mut record_type = NavigationRecordType::default();
-    let mut map: HashMap<String, RecordItem> 
+    let mut map: HashMap<String, ComplexEnum> 
         = std::collections::HashMap::with_capacity(KEY_BANK_MAX_SIZE);
 
-    let version_major = version.get_major();
+    let version_major = header.version.major;
 
     let mut line = lines.next()
         .unwrap();
@@ -135,7 +50,7 @@ pub fn build_nav_entry (version: RinexVersion,
     //                   ^-------> deduce constellation identification keys
     //                             as we didn't get this information from file header
     //         ^-----------------> newly introduced
-    let (rectype, sv_str, msgtype): (RecordItem, Option<&str>, RecordItem)
+    let (rectype, sv, msgtype): (ComplexEnum, Option<&str>, ComplexEnum)
             = match version_major >= 4 
     {
         true => {
@@ -143,17 +58,19 @@ pub fn build_nav_entry (version: RinexVersion,
                 .collect();
             line = lines.next()
                 .unwrap();
-            (RecordItem::from_string("navRecType", &items[0])?,
+            (ComplexEnum::new("str", &items[0].trim())?,
             Some(items[1].trim()),
-            RecordItem::from_string("navMsgType", &items[2])?)
+            ComplexEnum::new("str", &items[2].trim())?)
         },
-        false => (RecordItem::from_string("navRecType", NavigationRecordType::default().to_string())?, 
-            None, 
-            RecordItem::from_string("navMsgType", NavigationMsgType::default().to_string())?),
+        false => {
+            (ComplexEnum::new("str", "EPH")?, // ephemeride, default
+            None,
+            ComplexEnum::new("str", "LNAV")?) // legacy, default
+        },
     };
 
-    map.insert(String::from("navRecType"), rectype);
-    map.insert(String::from("navMsgType"), msgtype);
+    map.insert(String::from("msg"), msgtype);
+    map.insert(String::from("type"), rectype);
 
     // parse a 2nd line
     // V < 4
@@ -162,42 +79,37 @@ pub fn build_nav_entry (version: RinexVersion,
     //             as we didn't get this information from file header
     // V ≥ 4
     //    [+]  Epoch ; SvClock infos
-    let (sv_str, rem) : (&str, &str) = match sv_str.is_none() {
+    let (sv, rem) : (&str, &str) = match sv.is_none() {
         true => line.split_at(3), // V < 4
-        false => (sv_str.unwrap(), line), // V ≥ 4
+        false => (sv.unwrap(), line), // V ≥ 4
     };
 
     let (epoch, rem) = rem.split_at(20);
     let (svbias, rem) = rem.split_at(19);
     let (svdrift, svdriftr) = rem.split_at(19);
 
-    let sv: RecordItem = match constellation {
+    let sv: Sv = match header.constellation {
         // SV identification problem
         //  (+) GLONASS NAV special case
         //      SV'X' is omitted 
         //  (+) faulty RINEX producer with unique constellation
         //      SV'X' is omitted
-        Constellation::Mixed => RecordItem::from_string("sv", sv_str.trim())?,
+        Constellation::Mixed => Sv::from_str(sv.trim())?,
         _ => {
-            let prn = u8::from_str_radix(sv_str.trim(), 10)?;  
-            RecordItem::Sv(Sv::new(constellation, prn))
+            let prn = u8::from_str_radix(sv.trim(), 10)?;  
+            Sv::new(header.constellation, prn)
         },
     };
-    map.insert(String::from("sv"), sv); 
 
-    let epoch = RecordItem::from_string("epoch", epoch.trim())?;
-    let clk_bias = RecordItem::from_string("d19.12", svbias.trim())?;
-    let clk_drift = RecordItem::from_string("d19.12", svdrift.trim())?;
-    let clk_drift_r = RecordItem::from_string("d19.12", svdriftr.trim())?;
-    map.insert(String::from("epoch"), epoch); 
-    map.insert(String::from("svClockBias"), clk_bias); 
-    map.insert(String::from("svClockDrift"), clk_drift); 
-    map.insert(String::from("svClockDriftRate"), clk_drift_r); 
+    map.insert("ClockBias".into(), ComplexEnum::new("f32", svbias.trim())?); 
+    map.insert("ClockDrift".into(), ComplexEnum::new("f32", svdrift.trim())?); 
+    map.insert("ClockDriftRate".into(), ComplexEnum::new("f32", svdriftr.trim())?); 
     
     // from now one, everything is described in key mapping
     //   ---> refer to Sv identified constell,
     //        because we simply cannot search for "Mixed"
-    let kbank = KeyBank::new(&version, &RinexType::NavigationMessage, &sv.as_sv().unwrap().get_constellation())
+    /*let kbank = KeyBank::new(&header.version, 
+        &sv.as_sv().unwrap().get_constellation())
         .unwrap();
 
     let mut total: usize = 0; 
@@ -206,7 +118,7 @@ pub fn build_nav_entry (version: RinexVersion,
     line = lines.next()
         .unwrap();
 
-    for key in &kbank.keys { 
+    for key in &kbank.keys {
         let (k_name, k_type) = key; 
         let offset: usize = match new_line {
             false => 19,
@@ -238,6 +150,7 @@ pub fn build_nav_entry (version: RinexVersion,
                 break
             }
         }
-    }
-    Ok(map)
+    }*/
+    //println!("sv: {:#?}, epoch: \"{}\"", sv, epoch);
+    Ok((epoch::from_string(epoch)?, sv, map))
 }

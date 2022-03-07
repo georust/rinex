@@ -1,45 +1,46 @@
 use thiserror::Error;
-use std::str::FromStr;
+//use std::str::FromStr;
+use std::collections::HashMap;
 
-use crate::header::RinexHeader;
-use crate::record::{Epoch, RecordItemError};
+/// `MeteoData` describes rinex record content
+pub type MeteoData = HashMap<String, f64>;
 
-/// MeteoObservationType related errors
+/// `MeteoDataCodeError`
 #[derive(Error, Debug)]
-pub enum MeteoObservationTypeError {
-    #[error("unknown type of meteo obs \"{0}\"")]
-    UnknownMeteoObsType(String),
+pub enum MeteoDataCodeError {
+    #[error("unknown meteo data code \"{0}\"")]
+    UnknownMeteoDataCode(String),
 }
 
-/// Describes different kind of `Meteo` Observations
+/// `MeteoDataCode` describes `Meteo` data
 #[derive(Copy, Clone, PartialEq, Debug)]
-pub enum MeteoObservationType {
+pub enum MeteoDataCode {
     Temperature,
     Moisture,
     Pressure,
 }
 
-impl std::str::FromStr for MeteoObservationType {
-    type Err = MeteoObservationTypeError;
+impl std::str::FromStr for MeteoDataCode {
+    type Err = MeteoDataCodeError;
     fn from_str (s: &str) -> Result<Self, Self::Err> {
         if s.eq("PR") {
-            Ok(MeteoObservationType::Pressure)
+            Ok(MeteoDataCode::Pressure)
         } else if s.eq("TD") {
-            Ok(MeteoObservationType::Temperature)
+            Ok(MeteoDataCode::Temperature)
         } else if s.eq("HR") {
-            Ok(MeteoObservationType::Moisture)
+            Ok(MeteoDataCode::Moisture)
         } else {
-            Err(MeteoObservationTypeError::UnknownMeteoObsType(s.to_string()))
+            Err(MeteoDataCodeError::UnknownMeteoDataCode(s.to_string()))
         }
     }
 }
 
-impl Default for MeteoObservationType {
-    fn default() -> MeteoObservationType { MeteoObservationType::Temperature }
+impl Default for MeteoDataCode {
+    fn default() -> MeteoDataCode { MeteoDataCode::Temperature }
 }
 
-pub fn build_meteo_entry (content: &str, header: &RinexHeader)
-    -> Result<(Epoch,Vec<f64>), RecordItemError> 
+/*pub fn build_meteo_entry (content: &str, header: &RinexHeader)
+    -> Result<Vec<MeteoData>, RecordItemError> 
 {
     let measurements: Vec<f64> = Vec::with_capacity(4);
     let (e_str, rem) = content.split_at(23);
@@ -50,4 +51,4 @@ pub fn build_meteo_entry (content: &str, header: &RinexHeader)
     //    measurements.push(f64::from_str(items[i].trim())?)
     //}
     Ok((e, measurements))
-}
+}*/
