@@ -6,295 +6,92 @@ Rust package to parse and analyze Rinex files
 [![crates.io](https://img.shields.io/crates/d/rinex.svg)](https://crates.io/crates/rinex)
 [![codecov](https://codecov.io/gh/gwbres/rinex/branch/main/graph/badge.svg)](https://codecov.io/gh/gwbres/rinex)
 
-## Getting started
-
 Many RINEX file types exist, 
 the `RinexType` enum (refer to API) 
 describes the types of RINEX currently supported:
 
-* `RinexType::NavigationMessage`: Ephemeride (NAV) messages
-* `RinexType::ObservationData`:   Observations (OBS) data
+* `RinexType::NavigationMessage` (NAV) messages
+* `RinexType::ObservationData` (OBS) data
+* `RinexType::MeteoData` (Meteo) data
 
-RINEX files contain a lot of information,
-and this library exposes all data contained by supported
-`Rinex Types`, that means: a lot.
+`RINEX` files contain a lot of data and this library is capable of parsing all of it.   
+To fully understand how to operate this lib, refer to the `RinexType` section you are interested in.
 
-To learn how to operate this library, refer to:
-* the examples delivered with the library are detailed and compelling
-* extracted examples on this page 
-* autotest methods delivered by _src/lib.rs_ 
+Link to the [official API](https://docs.rs/rinex/0.0.10/rinex/)
 
 ### Supported RINEX revisions
 
 * 2.00 ⩽ v < 4.0    Tested 
 *             v = 4.0    should work, not garanteed at the moment
 
-## Running the examples
+## Getting started 
 
-```shell
-cargo run --example basic
-cargo run --example nav-simple
-cargo run --example nav-mixed
-```
-
-* basic: basic parser use case
-* nav-simple: NAV file manipulation
-* nav-mixed: NAV(mixed) file manipulation
-
-## Parsing a RINEX 
-
-The __::from\_file__ method lets you parse a local `RINEX` file: 
+Use ``Rinex::from_file`` to parse a local `RINEX` file:
 
 ```rust
-use rinex::*;
 let path = std::path::PathBuf::from("amel0010.21g");
 let rinex = Rinex::from_file(&path).unwrap();
 ```
 
-### RINEX Header & general information
+The `data/` folder contains a bunch of `RINEX` files, spanning almost all revisions
+and all supported file types, mainly
+for CI purposes: you can refer to them.
+
+For data analysis and manipulation, you must refer to the
+[official RINEX definition](https://files.igs.org/pub/data/format/)
+
+This [interactive portal](https://gage.upc.edu/gFD/) 
+is also a nice interface to
+discover or figure things out. 
+
+### Header & general information
 
 The `header` contains high level information.   
-"Comments" are currently discarded and not exposed by the parser.   
+`Comments` are currently discarded and not exposed by the parser.   
 
 ```rust
-use rinex::*;
-
-let rinex = Rinex::from_file(&PathBuf::from("amel0010.21g")).unwrap();
 println!("{:#?}", rinex.header);
 ```
 
-This includes revision (refer to API):
+This includes `Rinex`:
+* revision number
+* GNSS constellation
+* possible file compression infos
+* recorder & station infos
+* physical, RF and other infos
+
+Once again, refer to complete API
 
 ```rust
-println!("{:#?}", rinex.version);
-```
-
-Constellation for this particular file - refer to API:
-
-```rust
-assert_eq!(rinex.constellation, Constellation::Glonass)
-```
-
-File compression info - refer to API:
-```rust
-println!("{:#?}, rinex.header.crinex)
-```
-
-General purpose info - refer to API for complete set:
-
-```rust
+println!("{:#?}", rinex.header.version);
+assert_eq!(rinex.header.constellation, Constellation::Glonass)
+println!("{:#?}", rinex.header.crinex)
 println!("pgm: \"{}\"", rinex.header.program);
 println!("run by: \"{}\"", rinex.header.run_by);
 println!("station: \"{}\"", rinex.header.station);
 println!("observer: \"{}\"", rinex.header.observer);
-```
-
-Leap second info - refer to API: 
-```rust
 println!("{:#?}", rinex.header.leap);
-```
-
-Station approx. coordinates - refer to API
-```rust
 println!("{:#?}", rinex.header.coords);
 ```
 
-Observation codes : in case 
-`rinex.header.type == RinexType::ObservationData` 
-- refer to ObservationData specific page :
-```rust
-println!("{:#?}", rinex.header.obs_codes);
-```
+## Navigation Data
 
-Types of observation for modern `RinexType::ObservationData`,
-refer to API & ObservationData specific page :
-```rust
-println!("{:#?}", rinex.header.obs_types);
-```
+Refer to related API and
+[Navigation Data documentation](https://github.com/gwbres/rinex/blob/main/doc/navigation.md)
 
-The Record (file content) depends on the file type and constellation.   
-To learn how to operate the library for the Rinex type you are interested in,
-refer to the following section.
+## Observation Data
 
-### Data identification
+Refer to related API and
+[Observation Data documentation](https://github.com/gwbres/rinex/blob/main/doc/observation.md)
 
-Most data is labelized by _keys.json_ refer to that list to determine which fields are available for which Constellation & RINEX revision. Refer to RINEX specifications to interpret each field correctly.
+## GNSS Time specific operations
 
-Situation may vary depending on the Rinex File type, this is precisely explained in the following sections.
+wip
 
-&#9888; &#9888; _keys.json_ is partial   
-&#10145; contributions are welcomed, current description might not match your needs (missing keys, etc..)
+## Meteo Data
 
-&#9888; &#9888; _keys.json_ might include some mistakes that lead to
+wip
 
-* misleading field names
-* dropped items by the parser
+## Clocks data
 
-&#10145; corrections are welcomed,
-
-### keys.json: data identification
-
-```json
-keys.json
-
-    "NavigationMessage": { <<-- rinex type
-      "LNVA": <-- a new category should be introduced
-                  to describe V ≥ 4 correctly
-        "GPS": { <<-- constellation
-            format is "id": "type",
-            // this one describes how item1 is identified
-            "iode": "d19.12", // follow RINEX specifications
-            "crs": "d19.12", // item2
-            // [..]
-            "idot": "d19.12", // item10
-            "spare": "xxxx", // orbit empty field, 
-                           // but continue parsing..
-            "tgd": "d19.12" // item11
-            // parsing stops there
-        }
-    }
-```
-
-Item labelization: follow naming convention & match RINEX specifications closely.
-
-Item types: 
-
-* "d19.12": ends up as float value (unscaled)
-* "sv": Satellite Vehicule identifcation: "G01","R25"
-* "epoch": timestamp for this observation, two formats are encountered
-* * "YYYY mm dd ss mm ff.f"  4 digit year style
-* * "  YY mm dd ss mm ff.f"  seconds are always a floating point value
-* * refer to NAV::Orbit#1 specifications
-
-Remember:
-
-* most items currently described are validated 
-* not parsing it better than badly describing, IMO
-
-## Navigation Message (NAV)
-
-NAV records expose the following keys to manipulate & search through the records:
-* `sv` : Satellite Vehicule ID (_src/record.rs::Sv_)
-* `svClockBias`: clock bias (s)
-* `svClockDrift`: clock drift (s.s⁻¹)
-* `svClockDriftRate`: clock drift (s.s⁻²)
-* all keys contained in _keys.json_ for related Rinex revision & constellation
-
-Two main cases for `RinexType::NavigationMessage`:
-+ Unique constellation (e.g `Constellation::GPS`) 
-+ `Constellation::Mixed` (modern use case?)
-
-### NAV: determine encountered Sattelite Vehicules (`Sv`) 
-
-```rust
-    // 'example --nav-simple'
-    let vehicules: Vec<_> = rinex.get_record().iter()
-        .map(|s| s["sv"])
-        .collect();
-```
-
-### NAV (mixed): extract all `Sv` tied to `Glonass`
-
-```rust
-    // 'example --nav-simple'
-    let vehicules: Vec<_> = rinex.get_record().iter()
-        .map(|s| s["sv"])
-        .collect();
-
-    let glo_vehicules: Vec<_> = vehicules.iter()
-        .filter(|s| s.Sv().unwrap()
-            .get_constellation() == Constellation::Glonass)
-        .collecr();
-```
-
-### NAV (mixed): extract `svClockBias`(s) and `svClockDrift` (s.s⁻¹) for `R03`
-
-```rust
-    // 'example --nav-simple'
-    let sv = Sv::new(Constellation::Glonass, 0x03); // `R03`
-    let sv_to_match = RecordItem::Sv(sv); // filter item
-    let r03_data: Vec<_> = rinex.get_record().iter()
-        .map(|s| s["sv"] == sv_to_match)
-        .collect();
-    
-    let (clk_bias, clk_drift) = (r03_data["svClockBias"], r03_data["svClockDrift"]);
-```
-
-### NAV (mixed): extract specific data
->>WorkInProgress
-`svHealth` exists for GPS for instance (_keys.json_) and
-is a binary word:
-
-```rust
-    // 'example --nav-mixed'
-```
-
-### NAV (mixed): complex pattern 
->>WorkInProgress
-
-## Observation data (OBS)
->>WorkInProgress
-
-OBS records expose mainly:
-* raw carrier phase measurements
-* pseudo ranges estimates
-* doppler measurements
-
-### OBS: determine which measurements we have
->>WorkInProgress
-
-First thing to do is to determine which
-data a given file actually contains
-
-```rust
-    // 'example --obs-simple'
-    let obs_types = header.get_obs_types();
-```
-
-### OBS (GPS): extract pseudo range
->>WorkInProgress
-
-Extract pseudo range for a unique vehicule
-
-``̀`rust
-    // 'example --obs-simple'
-    let sv = Sv::new(Constellation::GPS, 0x01); // "G01"
-    let to_match = RecordItem::Sv(sv); // filter item
-    let matching: Vec<_> = rinex.get_record().iter()
-        .filter(|s| s["sv"] == to_match)
-        .collect();
-    let (pseudo_range, raw_phase) = matching["C1C"];
-```
-
-<!> Sometimes data is scaled:  
-TODO
-
-```rust
-    // 'example --obs-mixed'
-```
-
-### OBS: complex data extract on `SigStrength` condition
->>WorkInProgress
-
-Extract phase + pseudo range
-
-### Use `LeapSecond` information
->>WorkInProgress
-
-```rust
-    // 'example --nav-mixed'
-```
-
-### Ionosphere compensation 
->>WorkInProgress
-
-```rust
-    // 'example --nav-mixed'
-```
-
-### System time compensation
->>WorkInProgress
-
-```rust
-    // 'example --'
-```
+wip
