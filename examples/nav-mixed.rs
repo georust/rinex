@@ -1,5 +1,4 @@
 use rinex::*;
-use rinex::record::*;
 use rinex::constellation::Constellation;
 
 fn main() {
@@ -10,26 +9,24 @@ fn main() {
     let rinex = Rinex::from_file(&navigation_file).unwrap();
 
     // header informations
-    let header = rinex.get_header();
-    assert_eq!(header.is_crinex(), false);
-    assert_eq!(header.get_rinex_type(), RinexType::NavigationMessage);
-
-    assert_eq!(header.get_rinex_version().get_major(), 3);
+    assert_eq!(rinex.header.is_crinex(), false);
+    assert_eq!(rinex.header.rinex_type, RinexType::NavigationMessage);
+    assert_eq!(rinex.header.version.major, 3);
     // ----> 😀
     //       modern stuff!
-    assert_eq!(header.get_leap_second().is_some(), true); // wow 😀
-    println!("`LeapSecond` : {:#?}", header.get_leap_second().unwrap());
+    assert_eq!(rinex.header.leap.is_some(), true); // wow 😀
+    println!("`LeapSecond` : {:#?}", rinex.header.leap.unwrap());
 
     /* if let Some(iono_corr) = header.get_ionospheric_correction() {
         // DO something
     } */
 
-    assert_eq!(header.get_constellation(), Constellation::Mixed); 
+    assert_eq!(rinex.header.constellation, Constellation::Mixed); 
     // ----> 😢😢 
     //       this isꞥŧ going to be easy 😢
     
     // useful information
-    let nb_nav_frames = rinex.len();
+    //let nb_nav_frames = rinex.len();
 
     // (NAV) manipulation
     //   --> do we have some Glonass? 

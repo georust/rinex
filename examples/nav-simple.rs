@@ -1,5 +1,4 @@
 use rinex::*;
-use rinex::record::*;
 use rinex::constellation::*;
 
 // .unique() is quite convenient filter
@@ -16,14 +15,13 @@ fn main() {
     let rinex = Rinex::from_file(&navigation_file).unwrap();
 
     // header informations
-    let header = rinex.get_header();
-    println!("Version: {:#?}", header.get_rinex_version());
-    assert_eq!(header.is_crinex(), false);
-    assert_eq!(header.get_rinex_type(), RinexType::NavigationMessage);
+    println!("Version: {:#?}", rinex.header.version);
+    assert_eq!(rinex.header.is_crinex(), false);
+    assert_eq!(rinex.header.rinex_type, RinexType::NavigationMessage);
     
     // (NAV) manipulation
     //      ➡ Extract all different `Sv` encountered in this record
-    let vehicules: Vec<_> = rinex.get_record()
+    /*let vehicules: Vec<_> = rinex.record
         .iter()                   //  (1) get a (NAV) record iter  
         .map(|s| s.as_nav().unwrap()) 
             .map(|s| Some(s["sv"].as_sv())) // (2) retaining only this item
@@ -36,7 +34,7 @@ fn main() {
     //        1) build item to match
     let sv = Sv::new(Constellation::Glonass, 0x03);
     let to_match = RecordItem::Sv(sv); 
-    let r03_data: Vec<_> = rinex.get_record()
+    let r03_data: Vec<_> = rinex.record
         .iter()                   //  (2) get a (NAV) record iter  
         .map(|s| s.as_nav().unwrap()) 
             .filter(|s| s["sv"] == to_match) // (3) filter by field
@@ -45,7 +43,7 @@ fn main() {
     
     // (NAV) manipulation
     //      ➡ extract all constellations encountered 
-    let constellations: Vec<_> = rinex.get_record()
+    let constellations: Vec<_> = rinex.record
         .iter()     // (1) get (NAV) record iterator
         .map(|s| s.as_nav().unwrap())
             .map(|s| s["sv"].as_sv().unwrap().get_constellation())
@@ -55,7 +53,7 @@ fn main() {
 
     // (NAV) manipulation
     //      ➡ extract all `Sv` tied to GPS
-    let gps_data: Vec<_> = rinex.get_record()
+    let gps_data: Vec<_> = rinex.record
         .iter()
         .map(|s| s.as_nav().unwrap())
             .filter(|s| s["sv"].as_sv().unwrap().get_constellation() == Constellation::GPS)
@@ -72,5 +70,5 @@ fn main() {
             .collect(); 
     assert_eq!(glo_data.len(), rinex.len());
     assert_eq!(header.get_constellation(), Constellation::Glonass);
-    println!("GLO Data : {:#?}", glo_data);
+    println!("GLO Data : {:#?}", glo_data);*/
 }
