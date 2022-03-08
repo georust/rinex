@@ -57,8 +57,7 @@ impl std::str::FromStr for Constellation {
         } else if s.to_lowercase().starts_with("m") {
             Ok(Constellation::Mixed)
         } else if s.len() == 1 {
-            // Special case:
-            // 1 letter very cleaned up..
+            // RINEX pre defined 1 letter identifiers
             if s.starts_with("G") {
                 Ok(Constellation::GPS)
             } else if s.starts_with("E") {
@@ -75,7 +74,22 @@ impl std::str::FromStr for Constellation {
                 Err(ConstellationError::UnknownConstellation(s.to_string()))
             }
         } else {
-            Err(ConstellationError::UnknownConstellation(s.to_string()))
+            // standard 3 letter identifiers
+            if s.to_lowercase().eq("gps") {
+                Ok(Constellation::GPS)
+            } else if s.to_lowercase().eq("glo") {
+                Ok(Constellation::Glonass)
+            } else if s.to_lowercase().eq("bds") {
+                Ok(Constellation::Beidou)
+            } else if s.to_lowercase().eq("gal") {
+                Ok(Constellation::Galileo)
+            } else if s.to_lowercase().eq("qzs") {
+                Ok(Constellation::QZSS)
+            } else if s.to_lowercase().eq("sba") {
+                Ok(Constellation::Sbas)
+            } else {
+                Err(ConstellationError::UnknownConstellation(s.to_string()))
+            }
         }
     }
 }
