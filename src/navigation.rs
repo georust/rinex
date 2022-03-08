@@ -1,16 +1,22 @@
-//! `RinexType::NavigationMessage` parser & related types
+//! `NavigationMessage` parser and related methods
 use thiserror::Error;
 use std::str::FromStr;
+use std::collections::HashMap;
 
 use crate::epoch;
-use crate::keys::*;
-use crate::RinexType;
+use crate::record;
+use crate::version;
+use crate::constellation;
 use crate::header::RinexHeader;
-use crate::version::RinexVersion;
-use crate::constellation::Constellation;
 use crate::record::{Sv, ComplexEnum};
 
-use std::collections::HashMap;
+include!(concat!(env!("OUT_DIR"),"/nav_data.rs"));
+
+//pub fn parse_nav_frames() -> Result<String, Box<dyn std::error::Error>> {
+//    let data = std::fs::read_to_string("navigation.json")?;
+    //let frames: Vec<NavFrame> = 
+//    serde_json::from_str(&data)?
+//}
 
 #[derive(Error, Debug)]
 pub enum RecordError {
@@ -35,10 +41,7 @@ pub fn build_record_entry (header: &RinexHeader, content: &str)
     //           (*) listing is fixed
     //           (*) nb of items fixed
     let mut lines = content.lines();
-
-    let mut map: HashMap<String, ComplexEnum> 
-        = std::collections::HashMap::with_capacity(KEY_BANK_MAX_SIZE);
-
+    let mut map: HashMap<String, ComplexEnum> = HashMap::new(); 
     let version_major = header.version.major;
 
     let mut line = lines.next()
@@ -94,7 +97,7 @@ pub fn build_record_entry (header: &RinexHeader, content: &str)
         //      SV'X' is omitted 
         //  (+) faulty RINEX producer with unique constellation
         //      SV'X' is omitted
-        Constellation::Mixed => Sv::from_str(sv.trim())?,
+        constellation::Constellation::Mixed => Sv::from_str(sv.trim())?,
         _ => {
             let prn = u8::from_str_radix(sv.trim(), 10)?;  
             Sv::new(header.constellation, prn)
@@ -104,53 +107,80 @@ pub fn build_record_entry (header: &RinexHeader, content: &str)
     map.insert("ClockBias".into(), ComplexEnum::new("f32", svbias.trim())?); 
     map.insert("ClockDrift".into(), ComplexEnum::new("f32", svdrift.trim())?); 
     map.insert("ClockDriftRate".into(), ComplexEnum::new("f32", svdriftr.trim())?); 
-    
-    // from now one, everything is described in key mapping
-    //   ---> refer to Sv identified constell,
-    //        because we simply cannot search for "Mixed"
-    /*let kbank = KeyBank::new(&header.version, 
-        &sv.as_sv().unwrap().get_constellation())
-        .unwrap();
-
-    let mut total: usize = 0; 
-    let mut new_line = true;
 
     line = lines.next()
         .unwrap();
 
-    for key in &kbank.keys {
-        let (k_name, k_type) = key; 
-        let offset: usize = match new_line {
-            false => 19,
-            true => {
-                new_line = false;
-                if version_major >= 3 {
-                    22 + 1
-                } else {
-                    22
+    let mut total: usize = 0; 
+    let mut new_line = true;
+    
+    // database
+    let db : Vec<_> = NAV_MESSAGES.iter().collect();
+    for nav in db {
+        let to_match = constellation::Constellation::from_str(nav.constellation)
+            .unwrap();
+        //   ---> refer to Sv identified constell,
+        //        because header.constellation might be `Mixed`
+        if sv.constellation == to_match {
+            for rev in nav.revisions.iter() {
+                let major = u8::from_str_radix(rev.major,10)
+                    .unwrap();
+                let minor = u8::from_str_radix(rev.minor,10)
+                    .unwrap();
+                // TODO:
+                // improve revision matching
+                // minor should be used: use closest revision
+                if major == header.version.major {
+                    for item in rev.items.iter() {
+                        let (k,v) = item;
+                        let offset: usize = match new_line {
+                            false => 19,
+                            true => {
+                                new_line = false;
+                                if header.version.major >= 3 {
+                                    22+1
+                                } else {
+                                    22
+                                }
+                            }
+                        };
+                        total += offset;
+                        let (content, rem) = line.split_at(offset);
+                        line = rem;
+                        if !item.0.eq("spare") {
+                            let rec_item = ComplexEnum::new(item.1, content.trim())?;
+                            map.insert(String::from(item.0), rec_item);
+                        }
+
+                        if total >= 76 {
+                            new_line = true;
+                            total = 0;
+                            if let Some(l) = lines.next() {
+                                line = l;
+                            } else {
+                                break
+                            }
+                        }
+                    }
                 }
             }
-        };
-        total += offset;
-        let (content, rem) = line.split_at(offset); 
-        line = rem;
-
-        // build item 
-        if !k_name.eq("spare") {
-            let item = RecordItem::from_string(k_type, content.trim())?;
-            map.insert(String::from(k_name), item); 
         }
-
-        if total >= 76 { 
-            new_line = true;
-            total = 0;
-            if let Some(l) = lines.next() {
-                line = l;   
-            } else {
-                break
-            }
-        }
-    }*/
-    //println!("sv: {:#?}, epoch: \"{}\"", sv, epoch);
+    }
     Ok((epoch::from_string(epoch)?, sv, map))
+}
+
+mod test {
+    use super::*;
+    #[test]
+    /// Tests static NAV database
+    /// used in dedicated parser
+    fn test_nav_database() {
+        let nav: Vec<_> = NAV_MESSAGES.iter().collect();
+        for n in nav { 
+            //println!("{:#?}", NAV_MESSAGES[nav].constellation)
+            let constellation = constellation::Constellation::from_str(
+                n.constellation
+            ).unwrap();
+        }
+    }
 }
