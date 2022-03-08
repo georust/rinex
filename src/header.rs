@@ -3,8 +3,8 @@
 use regex::Regex;
 use thiserror::Error;
 
+use crate::version;
 use crate::gnss_time;
-use crate::version::RinexVersion;
 use crate::{is_rinex_comment, RinexType, RinexTypeError};
 use crate::constellation::{Constellation, ConstellationError};
 use crate::meteo::{MeteoDataCode, MeteoDataCodeError};
@@ -205,7 +205,7 @@ enum MarkerType {
 #[derive(Debug)]
 pub struct RinexHeader {
     /// revision for this `RINEX`
-    pub version: RinexVersion, 
+    pub version: version::Version, 
     /// optionnal `CRINEX` (compact `RINEX` infos), 
     /// if this is a CRINEX
     pub crinex: Option<CrinexInfo>, 
@@ -294,7 +294,7 @@ pub enum Error {
 impl Default for RinexHeader {
     fn default() -> RinexHeader {
         RinexHeader {
-            version: RinexVersion::default(), 
+            version: version::Version::default(), 
             crinex: None,
             rinex_type: RinexType::default(),
             constellation: Constellation::default(),
@@ -386,7 +386,7 @@ impl std::str::FromStr for RinexHeader {
             constellation = Constellation::from_str(constellation_str.trim())?
         }
 
-        let version = RinexVersion::from_str(version_str.trim())?;
+        let version = version::Version::from_str(version_str.trim())?;
         if !version.is_supported() {
             return Err(Error::VersionNotSupported(String::from(version_str)))
         }
