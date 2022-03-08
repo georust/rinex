@@ -3,7 +3,6 @@
 //! 
 //! Refer to README for example of use.  
 //! Homepage: <https://github.com/gwbres/rinex>
-mod keys;
 mod meteo;
 mod epoch;
 mod header;
