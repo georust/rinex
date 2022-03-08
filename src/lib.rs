@@ -4,17 +4,15 @@
 //! Refer to README for example of use.  
 //! Homepage: <https://github.com/gwbres/rinex>
 mod meteo;
-mod epoch;
 mod header;
-mod record;
 mod version;
 mod gnss_time;
 mod navigation;
 mod observation;
-pub mod constellation;
 
-use header::RinexHeader;
-use record::RinexRecord;
+pub mod epoch;
+pub mod record;
+pub mod constellation;
 
 use thiserror::Error;
 use std::str::FromStr;
@@ -83,16 +81,16 @@ impl std::str::FromStr for RinexType {
 /// `Rinex` describes a `RINEX` file
 #[derive(Debug)]
 pub struct Rinex {
-    pub header: RinexHeader,
-    pub record: RinexRecord,
+    pub header: header::RinexHeader,
+    pub record: record::Record,
 }
 
 impl Default for Rinex {
     /// Builds a default `RINEX`
     fn default() -> Rinex {
         Rinex {
-            header: RinexHeader::default(),
-            record: RinexRecord::default(), 
+            header: header::RinexHeader::default(),
+            record: record::Record::default(), 
         }
     }
 }
@@ -110,7 +108,7 @@ pub enum RinexError {
 
 impl Rinex {
     /// Builds a new `RINEX` struct from given:
-    pub fn new (header: RinexHeader, record: RinexRecord) -> Rinex {
+    pub fn new (header: header::RinexHeader, record: record::Record) -> Rinex {
         Rinex {
             header,
             record,
@@ -155,7 +153,7 @@ impl Rinex {
             .unwrap();
 
         let (header, body) = Rinex::split_rinex_content(fp)?;
-        let hd = RinexHeader::from_str(&header)?;
+        let hd = header::RinexHeader::from_str(&header)?;
         let rec = record::build_record(&hd, &body)?;
         Ok(Rinex{
             header: hd,

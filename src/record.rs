@@ -1,12 +1,13 @@
 //! record.rs describes `RINEX` file content
 use thiserror::Error;
 use std::str::FromStr;
+use std::borrow::BorrowMut;
 use std::collections::HashMap;
 
+use crate::header;
 use crate::navigation;
 use crate::epoch::Epoch;
 use crate::is_rinex_comment;
-use crate::header::RinexHeader;
 use crate::{RinexType, RinexTypeError};
 use crate::constellation::Constellation;
 
@@ -72,50 +73,81 @@ impl std::str::FromStr for Sv {
     }
 }
 
-/// `RinexRecord`
-#[derive(Debug)]
-pub enum RinexRecord {
+/// `Record`
+#[derive(Clone, Debug)]
+pub enum Record {
     NavRecord(HashMap<Epoch, HashMap<Sv, HashMap<String, ComplexEnum>>>),
     ObsRecord(HashMap<Epoch, HashMap<Sv, HashMap<String, ComplexEnum>>>),
     MeteoRecord(HashMap<Epoch, HashMap<String, ComplexEnum>>),
 }
 
-impl RinexRecord {
-    fn as_nav (&self) -> Option<&HashMap<Epoch, HashMap<Sv, HashMap<String, ComplexEnum>>>> {
+impl Record {
+    /// Returns navigation record
+    pub fn as_nav (&self) -> Option<&HashMap<Epoch, HashMap<Sv, HashMap<String, ComplexEnum>>>> {
         match self {
-            RinexRecord::NavRecord(e) => Some(e.clone()),
+            Record::NavRecord(e) => Some(e),
             _ => None,
         }
     }
-    fn as_obs (&self) -> Option<&HashMap<Epoch, HashMap<Sv, HashMap<String, ComplexEnum>>>> {
+    /// Returns mutable navigation record
+    pub fn as_mut_nav (&mut self) -> Option<&mut HashMap<Epoch, HashMap<Sv, HashMap<String, ComplexEnum>>>> {
         match self {
-            RinexRecord::ObsRecord(e) => Some(e.clone()),
+            Record::NavRecord(e) => Some(e.borrow_mut()),
             _ => None,
         }
     }
-    fn as_meteo (&self) -> Option<&HashMap<Epoch, HashMap<String, ComplexEnum>>> {
+    pub fn as_obs (&self) -> Option<&HashMap<Epoch, HashMap<Sv, HashMap<String, ComplexEnum>>>> {
         match self {
-            RinexRecord::MeteoRecord(e) => Some(e.clone()),
+            Record::ObsRecord(e) => Some(e),
+            _ => None,
+        }
+    }
+    pub fn as_meteo (&self) -> Option<&HashMap<Epoch, HashMap<String, ComplexEnum>>> {
+        match self {
+            Record::MeteoRecord(e) => Some(e),
             _ => None,
         }
     }
 }
 
-impl Default for RinexRecord {
-    fn default() -> RinexRecord {
+impl Default for Record {
+    fn default() -> Record {
         let r : HashMap<Epoch, HashMap<Sv, HashMap<String, ComplexEnum>>> = HashMap::new();
-        RinexRecord::NavRecord(r)
+        Record::NavRecord(r)
     }
 }
+
+impl std::iter::IntoIterator for Record {
+    type Item = HashMap<Sv, HashMap<String, ComplexEnum>>;
+    type IntoIter = std::vec::IntoIter<Self::Item>;
+    fn into_iter (self) -> Self::IntoIter {
+        self.into_iter()
+    }
+}
+
+/*
+ * 
+     = note: the following trait bounds were not satisfied:
+         `&HashMap<chrono::naive::datetime::NaiveDateTime, HashMap<Sv, HashMap<String, ComplexEnum>>>: Iterator`
+             which is required by `&mut &HashMap<chrono::naive::datetime::NaiveDateTime, HashMap<Sv, HashMap<String, ComplexEnum>>>: Iterator`
+         `HashMap<chrono::naive::datetime::NaiveDateTime, HashMap<Sv, HashMap<String, ComplexEnum>>>: Iterator`
+         which is required by `&mut HashMap<chrono::naive::datetime::NaiveDateTime, HashMap<Sv, HashMap<String, ComplexEnum>>>: Iterator`
+*/
+
+/*impl Iterator for Record {
+    type Item = HashMap<Sv, HashMap<String, ComplexEnum>>;
+    fn next (&mut self) -> Option<Self::Item> {
+        let next = 
+    }*/
 
 #[derive(Error, Debug)]
-pub enum RinexRecordError {
+pub enum RecordError {
     #[error("record parsing not supported for type \"{0}\"")]
     TypeError(String),
 }
 
 /// Splits block record sections 
-fn block_record_start (line: &str, header: &RinexHeader) -> bool {
+fn block_record_start (line: &str, header: &header::RinexHeader) -> bool {
     let parsed: Vec<&str> = line.split_ascii_whitespace()
         .collect();
     match header.version.major < 4 {
@@ -158,7 +190,7 @@ fn block_record_start (line: &str, header: &RinexHeader) -> bool {
     }
 }
 
-pub fn build_record (header: &RinexHeader, body: &str) -> Result<RinexRecord, RinexTypeError> { 
+pub fn build_record (header: &header::RinexHeader, body: &str) -> Result<Record, RinexTypeError> { 
     let mut body = body.lines();
     let mut line = body.next()
         .unwrap();
@@ -220,14 +252,14 @@ pub fn build_record (header: &RinexHeader, body: &str) -> Result<RinexRecord, Ri
         }
     }
     match &header.rinex_type {
-        RinexType::NavigationMessage => Ok(RinexRecord::NavRecord(rec)), 
-        RinexType::ObservationData => Ok(RinexRecord::ObsRecord(rec)), 
+        RinexType::NavigationMessage => Ok(Record::NavRecord(rec)), 
+        RinexType::ObservationData => Ok(Record::ObsRecord(rec)), 
         _ => Err(RinexTypeError::UnknownType(header.rinex_type.to_string())),
     }
 }
 
 /// `ComplexEnum` is record payload 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum ComplexEnum {
     U8(u8),
     Str(String), 
