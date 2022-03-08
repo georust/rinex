@@ -1,0 +1,424 @@
+[{
+    "constellation": "GPS",
+    "revisions": [{
+        "revision": {
+            "major": 1
+        },
+        "content": {
+            "iode": "f32",
+            "crs": "f32",
+            "deltaN": "f32",
+            "m0": "f32",
+            "cuc": "f32",
+            "e": "f32",
+            "sqrta": "f32",
+            "toe": "f32",
+            "cic": "f32",
+            "omage0": "f32",
+            "cis": "f32",
+            "i0": "f32",
+            "crc": "f32",
+            "omega": "f32",
+            "omegaDot": "f32",
+            "idot": "f32",
+            "l2Codes": "f32",
+            "gpsWeek": "f32",
+            "l2pDataFlag": "f32",
+            "svAccuracy": "f32",
+            "svHealth": "f32",
+            "tgd": "f32",
+            "iodc": "f32",
+            "t_tm": "f32",
+            "fitInt": "f32"
+        }
+    },
+    {
+        "revision": {
+            "major": 2
+        },
+        "content": {
+            "iode": "f32",
+            "crs": "f32",
+            "deltaN": "f32",
+            "m0": "f32",
+            "cuc": "f32",
+            "e": "f32",
+            "sqrta": "f32",
+            "toe": "f32",
+            "cic": "f32",
+            "omage0": "f32",
+            "cis": "f32",
+            "i0": "f32",
+            "crc": "f32",
+            "omega": "f32",
+            "omegaDot": "f32",
+            "idot": "f32",
+            "l2Codes": "f32",
+            "gpsWeek": "f32",
+            "l2pDataFlag": "f32",
+            "svAccuracy": "f32",
+            "svHealth": "f32",
+            "tgd": "f32",
+            "iodc": "f32",
+            "t_tm": "f32",
+            "fitInt": "f32"
+        }
+    },
+    {
+        "revision": {
+            "major": 3
+        },
+        "content": {
+            "iode": "f32",
+            "crs": "f32",
+            "deltaN": "f32",
+            "m0": "f32",
+            "cuc": "f32",
+            "e": "f32",
+            "sqrta": "f32",
+            "toe": "f32",
+            "cic": "f32",
+            "omage0": "f32",
+            "cis": "f32",
+            "i0": "f32",
+            "crc": "f32",
+            "omega": "f32",
+            "omegaDot": "f32",
+            "idot": "f32",
+            "l2Codes": "f32",
+            "gpsWeek": "f32",
+            "l2pDataFlag": "f32",
+            "svAccuracy": "f32",
+            "svHealth": "f32",
+            "tgd": "f32",
+            "iodc": "f32",
+            "t_tm": "f32",
+            "fitInt": "f32"
+        }
+    },
+    {
+        "revision": {
+            "major": 4
+        },
+        "content": {
+            "adot": "f32",
+            "crs": "f32",
+            "deltaN": "f32",
+            "m0": "f32",
+            "cuc": "f32",
+            "e": "f32",
+            "sqrta": "f32",
+            "t_op": "f32",
+            "cic": "f32",
+            "omage0": "f32",
+            "cis": "f32",
+            "i0": "f32",
+            "crc": "f32",
+            "omega": "f32",
+            "omegaDot": "f32",
+            "idot": "f32",
+            "deltaNoDot": "f32",
+            "uraiNed0": "f32",
+            "uraiNed1": "f32",
+            "uraiNed": "f32",
+            "svHealth": "f32",
+            "tgd": "f32",
+            "uraiNed": "f32",
+            "iscL1Ca": "f32",
+            "iscL1C": "f32",
+            "iscL5I5": "f32",
+            "iscL5Q5": "f32",
+            "iscL1Cd": "f32",
+            "iscL1cCp": "f32",
+            "t_tm": "f32",
+            "wn_op": "f32"
+        }
+    }]
+},
+{
+    "constellation": "GLO",
+    "revisions": [{
+        "revision": {
+            "major": 1
+        },
+        "content": {
+            "satPosX": "f32",
+            "VelX": "f32",
+            "AccelX": "f32",
+            "health": "f32",
+            "satPosY": "f32",
+            "VelY": "f32",
+            "AccelY": "f32",
+            "freqNum": "f32",
+            "satPosZ": "f32",
+            "VelZ": "f32",
+            "AccelZ": "f32",
+            "ageOp": "f32"
+        }
+    },
+    {
+        "revision": {
+            "major": 2
+        },
+        "content": {
+            "satPosX": "f32",
+            "VelX": "f32",
+            "AccelX": "f32",
+            "health": "f32",
+            "satPosY": "f32",
+            "VelY": "f32",
+            "AccelY": "f32",
+            "freqNum": "f32",
+            "satPosZ": "f32",
+            "VelZ": "f32",
+            "AccelZ": "f32",
+            "ageOp": "f32"
+        }
+    },
+    {
+        "revision": {
+            "major": 3
+        },
+        "content": {
+            "satPosX": "f32",
+            "VelX": "f32",
+            "AccelX": "f32",
+            "health": "f32",
+            "satPosY": "f32",
+            "VelY": "f32",
+            "AccelY": "f32",
+            "freqNum": "f32",
+            "satPosZ": "f32",
+            "VelZ": "f32",
+            "AccelZ": "f32",
+            "ageOp": "f32"
+        }
+    },
+    {
+        "revision": {
+            "major": 4
+        },
+        "content": {
+            "satPosX": "f32",
+            "VelX": "f32",
+            "AccelX": "f32",
+            "health": "f32",
+            "satPosY": "f32",
+            "VelY": "f32",
+            "AccelY": "f32",
+            "freqNum": "f32",
+            "satPosZ": "f32",
+            "VelZ": "f32",
+            "AccelZ": "f32",
+            "ageOp": "f32",
+            "status": "f32",
+            "L1L2GrpDelay": "f32",
+            "urai": "f32",
+            "health": "f32"
+        }
+    }]
+},
+{
+    "constellation": "GAL",
+    "revisions": [{
+        "revision": {
+            "major": 3
+        },
+        "content": {
+            "iodnav": "f32",
+            "crs": "f32",
+            "deltaN": "f32",
+            "m0": "f32",
+            "cuc": "f32",
+            "e": "f32",
+            "cus": "f32",
+            "sqrta": "f32",
+            "toe": "f32",
+            "cic": "f32",
+            "omage0": "f32",
+            "cis": "f32",
+            "i0": "f32",
+            "crc": "f32",
+            "omega": "f32",
+            "omegaDot": "f32",
+            "idot": "f32",
+            "dataSrc": "f32",
+            "galWeek": "f32",
+            "spare": "xxxx",
+            "sisa": "f32",
+            "bgdE5aE1": "f32",
+            "bgdE5bE1": "f32",
+            "t_tm": "f32"
+        }
+    },
+    {
+        "revision": {
+            "major": 4
+        },
+        "content": {
+            "iodnav": "f32",
+            "crs": "f32",
+            "deltaN": "f32",
+            "m0": "f32",
+            "cuc": "f32",
+            "e": "f32",
+            "cus": "f32",
+            "sqrta": "f32",
+            "toe": "f32",
+            "cic": "f32",
+            "omage0": "f32",
+            "cis": "f32",
+            "i0": "f32",
+            "crc": "f32",
+            "omega": "f32",
+            "omegaDot": "f32",
+            "idot": "f32",
+            "galWeek": "f32",
+            "spare": "xxxx",
+            "spare": "xxxx",
+            "sisa": "f32",
+            "bgdE5aE1": "f32",
+            "bgdE5bE1": "f32",
+            "spare": "xxxx",
+            "t_tm": "f32"
+        }
+    }]
+},
+{
+    "constellation": "GQZ",
+    "revisions": [{
+        "revision": {
+            "major": 3
+        },
+        "content": {
+            "iode": "f32",
+            "crs": "f32",
+            "deltaN": "f32",
+            "m0": "f32",
+            "cuc": "f32",
+            "e": "f32",
+            "cus": "f32",
+            "sqrta": "f32",
+            "toe": "f32",
+            "cic": "f32",
+            "omage0": "f32",
+            "cis": "f32",
+            "i0": "f32",
+            "crc": "f32",
+            "omega": "f32",
+            "omegaDot": "f32",
+            "idot": "f32",
+            "l2Codes": "f32",
+            "gpsWeek": "f32",
+            "l2pDataFlag": "f32",
+            "svAccuracy": "f32",
+            "svHealth": "f32",
+            "tgd": "f32",
+            "iodc": "f32",
+            "t_tm": "f32",
+            "fitInt": "f32"
+        }
+    },
+    {
+        "revision": {
+            "major": 4
+        },
+        "content": {
+            "iode": "f32",
+            "crs": "f32",
+            "deltaN": "f32",
+            "m0": "f32",
+            "cuc": "f32",
+            "e": "f32",
+            "cus": "f32",
+            "sqrta": "f32",
+            "toe": "f32",
+            "cic": "f32",
+            "omage0": "f32",
+            "cis": "f32",
+            "i0": "f32",
+            "crc": "f32",
+            "omega": "f32",
+            "omegaDot": "f32",
+            "idot": "f32",
+            "l2Codes": "f32",
+            "gpsWeek": "f32",
+            "l2pDataFlag": "f32",
+            "svAccuracy": "f32",
+            "svHealth": "f32",
+            "tgd": "f32",
+            "iodc": "f32",
+            "t_tm": "f32",
+            "fitInt": "f32"
+        }
+    }]
+},
+{
+    "constellation": "BDS",
+    "revisions": [{
+        "revision": {
+            "major": 3
+        },
+        "content": {
+            "aode": "f32",
+            "crs": "f32",
+            "deltaN": "f32",
+            "m0": "f32",
+            "cuc": "f32",
+            "e": "f32",
+            "cus": "f32",
+            "sqrta": "f32",
+            "toe": "f32",
+            "cic": "f32",
+            "omage0": "f32",
+            "cis": "f32",
+            "i0": "f32",
+            "crc": "f32",
+            "omega": "f32",
+            "omegaDot": "f32",
+            "idot": "f32",
+            "spare": "xxxx",
+            "bdtWeek": "f32",
+            "spare": "xxxx",
+            "svAccuracy": "f32",
+            "satH1": "f32",
+            "tgdb1b3": "f32",
+            "tgdb2b3": "f32",
+            "t_tm": "f32",
+            "oadc": "f32"
+        }
+    },
+    {
+        "revision": {
+            "major": 4
+        },
+        "content": {
+            "aode": "f32",
+            "crs": "f32",
+            "deltaN": "f32",
+            "m0": "f32",
+            "cuc": "f32",
+            "e": "f32",
+            "cus": "f32",
+            "sqrta": "f32",
+            "toe": "f32",
+            "cic": "f32",
+            "omage0": "f32",
+            "cis": "f32",
+            "i0": "f32",
+            "crc": "f32",
+            "omega": "f32",
+            "omegaDot": "f32",
+            "idot": "f32",
+            "spare": "xxxx",
+            "bdtWeek": "f32",
+            "spare": "xxxx",
+            "svAccuracy": "f32",
+            "satH1": "f32",
+            "tgdb1b3": "f32",
+            "tgdb2b3": "f32",
+            "t_tm": "f32",
+            "oadc": "f32"
+        }
+    }]
+}]
