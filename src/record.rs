@@ -3,6 +3,7 @@ use thiserror::Error;
 use std::str::FromStr;
 use std::collections::HashMap;
 
+use crate::navigation;
 use crate::epoch::Epoch;
 use crate::is_rinex_comment;
 use crate::header::RinexHeader;
@@ -179,11 +180,10 @@ pub fn build_record (header: &RinexHeader, body: &str) -> Result<RinexRecord, Ri
         if is_new_block && !first {
             match &header.rinex_type {
                 RinexType::NavigationMessage => {
-                    if let Ok((e, sv, map)) = crate::navigation::build_record_entry(&header, &block) {
+                    if let Ok((e, sv, map)) = navigation::build_record_entry(&header, &block) {
                         let mut smap : HashMap<Sv, HashMap<String, ComplexEnum>> = HashMap::with_capacity(10);
                         smap.insert(sv, map);
                         rec.insert(e, smap);
-                        println!("e: {:?}", e)
                     }
                 },
                 _ => {},
