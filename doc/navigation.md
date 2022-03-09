@@ -14,12 +14,12 @@ NAV message type description was also introduced in `RINEX > 3`,
 
 There are several types of NAV message:
 
-* `LNAV`  : legacy &  `RINEX < 3`
-* `CNAV`  : civilian nav
-* `CNAV2` : civilian nav
-* `INAV`  : integrity nav message
-* `FNAV`  : nav message
-* `FDMA`  :
+* `LNAV`   legacy &  `RINEX < 3`
+* `CNAV`   civilian nav
+* `CNAV2`  civilian nav
+* `INAV`   integrity nav message
+* `FNAV`   nav message
+* `FDMA`  
 
 ## Navigation Record content
 
@@ -42,71 +42,204 @@ All keys described by this file descriptor are exposed. Refer to the official RI
 of the keys you are interested in:
 
 ```json
-navigation.json
-    "NavigationMessage": { <<-- rinex type
-      "LNVA": <-- a new category should be introduced
-                  to describe V ≥ 4 correctly
-        "GPS": { <<-- constellation
-            format is "id": "type",
-            // this one describes how item1 is identified
-            "iode": "d19.12", // follow RINEX specifications
-            "crs": "d19.12", // item2
-            // [..]
-            "idot": "d19.12", // item10
-            "spare": "xxxx", // orbit empty field, 
-                           // but continue parsing..
-            "tgd": "d19.12" // item11
-            // parsing stops there
-        }
+[{
+   "constellation": "GPS", << GPS (NAV) descriptors
+   "revisions": [{ << revisions descriptor
+       "revision": {
+           "major": 1 << 1.0
+       },
+       "content": { << data fields
+           "iode": "f32",
+           "crs": "f32",
+          "deltaN": "f32",
+          "m0": "f32",
+          "cuc": "f32",
+          "e": "f32",
+          "sqrta": "f32",
+          "toe": "f32",
+          "cic": "f32",
+          "omage0": "f32",
+          "cis": "f32",
+          "i0": "f32",
+          "crc": "f32",
+          "omega": "f32",
+          "omegaDot": "f32",
+          "idot": "f32",
+          "l2Codes": "f32",
+          "gpsWeek": "f32",
+          "l2pDataFlag": "f32",
+          "svAccuracy": "f32",
+          "svHealth": "f32",
+          "tgd": "f32",
+          "iodc": "f32",
+          "cuc": "f32",
+          "iodc": "f32",
+          "t_tm": "f32",
+          "fitInt": "f32"
     }
+},
+{
+    "revision": { << revision 2
+        "major": 2
+    },
+    "content": {
+        "iode": "f32",
+        "crs": "f32",
 ```
 
-Item labelization type definition follow RINX specifications closely.
+Item labelization type definition follow RINEX specifications closely.
 
 Item types: 
 
-* "d19.12": ends up as float value (unscaled)
-* "iode": key example - as described in RINEX tables
-* "crs": key example - as described in RINEX tables
-
+* "f32": unscaled float value
+* "f64": unscaled double precision
+* "str": raw string value
+* "u8": 8 bit value
 
 ## Navigation Record analysis
 
-All records are sorted by observation `Epoch`
-
-### List all Epochs
+To grab the navigation record, simply do:
 
 ```rust
-let epochs = rinex.record.iter()
-    .unique()
-    .collect(); 
-println!("{:#?}", epochs);
+let record = rinex.record
+    .as_nav()
+    .unwrap();
 ```
-`unique()` to filter unique `Epoch` values is not really needed here,
-since a sane NAV Rinex will have a single realization per epoch,
-for a specific satellite vehicule.
 
-### Determine all encountered satellite vehicules
+### Basic manipulation - `epochs`
+`epoch` serves as keys() for first hashmap:
 
-Accross all epochs, we filter unique `Sv`
+```rust
+   let epochs: Vec<_> = record
+    .keys() // keys interator
+    .collect();
+```
 
-### Retain all data of specific `Sv`
+according to `hashmap` documentation: .keys() are exposed randomly/unsorted:
 
-Across all epochs we retain everything matching a specific `Sv`
+```rust
+epochs = [
+    2021-01-01T14:00:00,
+    2021-01-01T10:00:00,
+    2021-01-01T05:00:00,
+    2021-01-01T22:00:00,
+    ...
+]
+```
 
-### Retain all data tied to Glonass Constellation
+You can use `itertools` to sort hashmaps easily:
 
-Match a specific constellation amongst all epochs:
+```rust
+use itertools::Itertools;
 
-### Extract `Sv` clock bias and clock drift for `G01`
+let epochs: Vec<_> = record
+    .keys()
+    .sort()
+    .collect();
 
-Extract specific data for a specific satellite vehicule
+epochs = [
+    2021-01-01T00:00:00,
+    2021-01-01T01:00:00,
+    2021-01-01T03:59:44,
+    2021-01-01T04:00:00,
+    2021-01-01T05:00:00,
+    ...
+]
+```
 
-### Extract `Sv` clock bias sampled at a specific `Epoch`
+.unique() filter is not available to both `epoch` and `sv` hashmaps,
+due to `hashmap` .insert() behavior which always overwrites
+a previous value for a given key. 
+It is not needed in our case because:
+* `epochs` are unique, we only have one set of data per epoch
+* `sv` is tied to an epoch, therefore a previous set of data for that
+particular vehicule is stored at another epoch 
 
-Epoch filtering:
+### High level `hashmap` indexing
 
-### Decimate `Sv` clock bias for a specific `Epoch` /sampling interval
+`hashmap` allows high level indexing, it is possible to 
+grab an epoch directly :
 
-Decimating data using `Epoch` field:
+```rust
+// match a specific `epoch`
 
+let to_match = rinex::epoch::from_string("21 01 01 09 00 00")
+  .unwrap();
+//    ---> retrieve all data for desired `epoch`
+let matched_epoch = &record[&to_match];
+```
+
+`epoch` is a `chrono::NaiveDateTime` alias
+therefore one can use any method from that class
+
+Zoom in on vehicule `B07` (Beidou constellation, vehicule #7)
+from that particular by indexing the inner hashmap directly:
+
+```rust
+// zoom in on `B07`
+let to_match = rinex::record::Sv::new(
+    rinex::constellation::Constellation::Beidou,
+    0x07);
+let matched_b07 = &matched_epoch[&to_match];
+```
+
+Zoom in on `clockDrift` field for that particular vehicule,
+in that particular epoch using direct indexing:
+
+```rust
+let clkDrift = &matched_b07["ClockDrift"];
+```
+
+## Advanced manipulation using iterators & filters 
+
+Extract all `E04` vehicule data from record:
+
+```rust
+let to_match = rinex::record::Sv::new(
+    rinex::constellation::Constellation::Galileo,
+    0x04);
+let matched : Vec<_> = record
+    .iter() // epoch iterator
+    .map(|(_, sv)|{  // epoch is left out, we filter on sv
+        sv.iter() // sv iterator
+            .find(|(&sv, _)| sv == to_match)  // Sv value comparison
+    })
+    .flatten() // dump non matching data
+    .collect();
+```
+
+Extract `clockbias` and `clockdrift` fields
+for `E04` vehicules accross entire record
+
+```rust
+let to_match = rinex::record::Sv::new(
+    rinex::constellation::Constellation::Galileo,
+    0x04);
+let matched : Vec<_> = record
+    .iter() // epoch iterator
+    .map(|(_, sv)|{  // epoch is left out, we filter on sv
+        sv.iter() // sv iterator
+            .find(|(&sv, _)| sv == to_match)  // Sv value comparison
+            .map(|(_, data)| (&data["ClockBias"],&data["ClockDrift"])) // build a tuple
+    })
+    .flatten() // dump non matching data
+    .collect();
+```
+
+Extract all data tied to `Beidou` constellation
+```rust
+let to_match = rinex::constellation::Constellation::Galileo;
+let matched : Vec<_> = record
+    .iter() // epoch iterator
+    .map(|(_, sv)|{  // epoch is left out, we filter on sv
+        sv.iter() // sv iterator
+            .find(|(&sv, _)| sv.constellation == to_match)  // sv.constellation field comparison
+    })
+    .flatten() // dump non matching data
+    .collect();
+```
+
+Decimate `GPS` constellation data using a specific `epoch` interval
+```rust
+wip
+```
