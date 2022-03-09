@@ -14,7 +14,7 @@ fn main() {
 
     // header information
     assert_eq!(rinex.header.is_crinex(), false);
-    assert_eq!(rinex.header.rinex_type, rinex::RinexType::NavigationMessage);
+    assert_eq!(rinex.header.rinex_type, rinex::Type::NavigationMessage);
     assert_eq!(rinex.header.version.major, 3);
     assert_eq!(rinex.header.constellation, Constellation::Mixed); 
     // leap second field for instance
@@ -22,9 +22,10 @@ fn main() {
     assert_eq!(rinex.header.leap.is_some(), true);
 
     // (NAV) record analysis
-    let record = rinex.record.as_nav()
-        .unwrap();
-
+    if let Some(ref record) = rinex.record {
+        let record = record
+            .as_nav()
+            .unwrap();
     //////////////////////////////
     // basic record browsing
     //////////////////////////////
@@ -69,7 +70,8 @@ fn main() {
     // iterators + filters allow complex
     // pattern matching, data filtering and extraction
     ///////////////////////////////////////////////////
-    let record = rinex.record
+    let record = rinex.record.unwrap();
+    let record = record
         .as_nav()
         .unwrap();
 
@@ -99,12 +101,19 @@ fn main() {
         .map(|(_epoch, sv)| {
             sv.iter() // for all sv
                 .find(|(&sv, _)| sv == to_match) // match `R24`
-                .map(|(_, data)| (&data["ClockBias"],&data["ClockDrift"]))
+                .map(|(_, data)| ( // create a tuple
+                    data["ClockBias"]
+                        .as_f32()
+                        .unwrap(),
+                    data["ClockDrift"]
+                        .as_f32()
+                        .unwrap(),
+                ))
         })
         .flatten()
         .collect();
     println!("\n------------- \"{:?}\" (bias,drift)----------\n{:#?}", to_match, matched); 
-    
+/* 
     // extract all data tied to `Galileo` constellation
     let to_match = Constellation::Galileo;
     let matched : Vec<_> = record
@@ -116,4 +125,6 @@ fn main() {
         .flatten()
         .collect();
     println!("\n------------- Constellation: \"{:?}\" ----------\n{:#?}", to_match, matched); 
+    }*/
+    }
 }
