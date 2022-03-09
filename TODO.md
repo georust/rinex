@@ -1,18 +1,21 @@
 Constellation:
-[ ] 'geo' ?
+* [ ] constellation::Geo ?    
 p44   
-is almost identical to Constellation == glonass
-but the records contain the satellite position, velocity, accel, health..
+"is almost identical to Constellation == glonass
+but the records contain the satellite position, velocity, accel, health.."
 
-Navigation Message:
-[ ] improve database iteration,
-revision.minor might be passed & must be used
+Navigation Messages:
+* [ ] improve batabase usage. `revision.minor` might be passed and must be used.
+We should parse using the closest revision number
 
 Observation Data:
-[ ] TODO
+* [ ] parse OBS codes
+* [ ] get started with revision > 1
 
 Meteo Data:
-[ ] TODO
+* [ ] parse METEO codes
+* [ ] get started 
+
 
 Clocks Data:
-[ ] TODO
+* [ ] TODO
