@@ -76,12 +76,15 @@ println!("{:#?}", rinex.header.coords);
 ## RINEX record
 
 The `Rinex` structure comprises the header previously defined,
-and the `Record` which contains the payload data.
+and the `Record` which contains the data payload.
 
 The `Record` is optionnal at the moment and 
 set to _None_ in case of CRINEX Observation Data,
-as this lib is not able to decompress the file content, therefore
-unable to fully parse it. The header is still parsed though.
+as this lib is not able to decompress the file content. 
+In that scenario, only the header is gets parsed.
+Until this lib gets enhanced, you need to manually decompress
+your compressed OBS files prior using this parser, if you want
+your OBS file to be fully processed.
 
 The `Record` definition varies with the type of Rinex file,
 refer to its definition in the API and the specific documentation down below,
@@ -90,11 +93,10 @@ for the type of file you are interested in.
 `Record` is a complex structure of HashMap (_dictionaries_),
 which definition may vary. The first indexing at the moment, is always an `epoch`,
 that is, data is sorted by the sampling timestamp.
-moment, is always indexed by an `epoch`.
 
 ## `Epoch` object
 
-`epoch` is simply an alias of the `chrono::NaiveDateTime` structure,
+`epoch` is simply a `chrono::NaiveDateTime` alias,
 thefore all of its methods are available.
 
 To demonstrate how to operate the `epoch` API, we'll take 
@@ -119,7 +121,7 @@ which _epochs_ were idenfitied:
     .collect();
 ```
 
-according to `hashmap` documentation: `.keys()` are exposed randomly/unsorted:
+according to `hashmap` documentation: `.keys()` are randomly exposed (not sorted):
 
 ```rust
 epochs = [ // example
