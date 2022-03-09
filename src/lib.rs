@@ -12,6 +12,7 @@ mod observation;
 
 pub mod epoch;
 pub mod record;
+pub mod hatanaka;
 pub mod constellation;
 
 use thiserror::Error;

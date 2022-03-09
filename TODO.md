@@ -12,6 +12,9 @@ Observation Data:
 * [ ] parse OBS codes
 * [ ] get started with revision > 1
 
+Hatanaka:
+* [ ] provide a decompression method to decompress most OBS data files
+
 Meteo Data:
 * [ ] parse METEO codes
 * [ ] get started 
@@ -19,3 +22,4 @@ Meteo Data:
 
 Clocks Data:
 * [ ] TODO
+
