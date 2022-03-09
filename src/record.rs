@@ -109,29 +109,6 @@ impl Default for Record {
     }
 }
 
-impl std::iter::IntoIterator for Record {
-    type Item = HashMap<Sv, HashMap<String, ComplexEnum>>;
-    type IntoIter = std::vec::IntoIter<Self::Item>;
-    fn into_iter (self) -> Self::IntoIter {
-        self.into_iter()
-    }
-}
-
-/*
- * 
-     = note: the following trait bounds were not satisfied:
-         `&HashMap<chrono::naive::datetime::NaiveDateTime, HashMap<Sv, HashMap<String, ComplexEnum>>>: Iterator`
-             which is required by `&mut &HashMap<chrono::naive::datetime::NaiveDateTime, HashMap<Sv, HashMap<String, ComplexEnum>>>: Iterator`
-         `HashMap<chrono::naive::datetime::NaiveDateTime, HashMap<Sv, HashMap<String, ComplexEnum>>>: Iterator`
-         which is required by `&mut HashMap<chrono::naive::datetime::NaiveDateTime, HashMap<Sv, HashMap<String, ComplexEnum>>>: Iterator`
-*/
-
-/*impl Iterator for Record {
-    type Item = HashMap<Sv, HashMap<String, ComplexEnum>>;
-    fn next (&mut self) -> Option<Self::Item> {
-        let next = 
-    }*/
-
 #[derive(Error, Debug)]
 pub enum RecordError {
     #[error("record parsing not supported for type \"{0}\"")]
