@@ -21,6 +21,11 @@ There are several types of NAV message:
 * `FNAV`   nav message
 * `FDMA`  
 
+One example script is provided
+```bash
+cargo run --example navigation
+```
+
 ## Navigation Record content
 
 The Record content depends on the GNSS constellation (Mixed or Unique)
