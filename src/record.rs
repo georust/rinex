@@ -1,7 +1,6 @@
 //! record.rs describes `RINEX` file content
 use thiserror::Error;
 use std::str::FromStr;
-use std::borrow::BorrowMut;
 use std::collections::HashMap;
 
 use crate::header;
@@ -86,13 +85,6 @@ impl Record {
     pub fn as_nav (&self) -> Option<&HashMap<Epoch, HashMap<Sv, HashMap<String, ComplexEnum>>>> {
         match self {
             Record::NavRecord(e) => Some(e),
-            _ => None,
-        }
-    }
-    /// Returns mutable navigation record
-    pub fn as_mut_nav (&mut self) -> Option<&mut HashMap<Epoch, HashMap<Sv, HashMap<String, ComplexEnum>>>> {
-        match self {
-            Record::NavRecord(e) => Some(e.borrow_mut()),
             _ => None,
         }
     }
