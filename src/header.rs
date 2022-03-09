@@ -640,7 +640,7 @@ impl std::str::FromStr for RinexHeader {
                             if code.trim().len() == 0 {
                                 break
                             }
-                            obs_codes.push(code.trim().to_string());
+                            obs_codes.push(String::from(code.trim()));
                             if r.len() == 0 {
                                 break
                             }
@@ -654,7 +654,7 @@ impl std::str::FromStr for RinexHeader {
                             if code.trim().len() == 0 {
                                 break
                             }
-                            obs_codes.push(code.trim().to_string());
+                            obs_codes.push(String::from(code.trim()));
                             if r.len() == 0 {
                                 break
                             }
