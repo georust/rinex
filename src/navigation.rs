@@ -172,15 +172,32 @@ pub fn build_record_entry (header: &RinexHeader, content: &str)
 mod test {
     use super::*;
     #[test]
-    /// Tests static NAV database
-    /// used in dedicated parser
+    /// Tests static NAV database to be used in dedicated parser
     fn test_nav_database() {
-        let nav: Vec<_> = NAV_MESSAGES.iter().collect();
-        for n in nav { 
-            //println!("{:#?}", NAV_MESSAGES[nav].constellation)
+        for n in NAV_MESSAGES.iter() { 
             let constellation = constellation::Constellation::from_str(
                 n.constellation
             ).unwrap();
+            for r in n.revisions.iter() {
+                let major = u8::from_str_radix(r.major, 10).unwrap();
+                let minor = u8::from_str_radix(r.major, 10).unwrap();
+                for item in r.items.iter() {
+                    let (k, v) = item;
+                    if !k.eq(&"spare") {
+                        let mut test : String;
+                        if v.eq(&"f32") {
+                            test = String::from("0.0")
+                        } else if v.eq(&"f64") {
+                            test = String::from("0.0")
+                        } else if v.eq(&"u8") {
+                            test = String::from("10")
+                        } else {
+                            test = String::from("hello")
+                        }
+                        let record_item = ComplexEnum::new(v, &test).unwrap();
+                    }
+                }
+            }
         }
     }
 }
