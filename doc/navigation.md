@@ -94,71 +94,9 @@ of the keys you are interested in:
 
 Item labelization type definition follow RINEX specifications closely.
 
-Item types: 
 
-* "f32": unscaled float value
-* "f64": unscaled double precision
-* "str": raw string value
-* "u8": 8 bit value
 
 ## Navigation Record analysis
-
-To grab the navigation record, simply do:
-
-```rust
-let record = rinex.record
-    .as_nav()
-    .unwrap();
-```
-
-### Basic manipulation - `epochs`
-`epoch` serves as keys() for first hashmap:
-
-```rust
-   let epochs: Vec<_> = record
-    .keys() // keys interator
-    .collect();
-```
-
-according to `hashmap` documentation: .keys() are exposed randomly/unsorted:
-
-```rust
-epochs = [
-    2021-01-01T14:00:00,
-    2021-01-01T10:00:00,
-    2021-01-01T05:00:00,
-    2021-01-01T22:00:00,
-    ...
-]
-```
-
-You can use `itertools` to sort hashmaps easily:
-
-```rust
-use itertools::Itertools;
-
-let epochs: Vec<_> = record
-    .keys()
-    .sort()
-    .collect();
-
-epochs = [
-    2021-01-01T00:00:00,
-    2021-01-01T01:00:00,
-    2021-01-01T03:59:44,
-    2021-01-01T04:00:00,
-    2021-01-01T05:00:00,
-    ...
-]
-```
-
-.unique() filter is not available to both `epoch` and `sv` hashmaps,
-due to `hashmap` .insert() behavior which always overwrites
-a previous value for a given key. 
-It is not needed in our case because:
-* `epochs` are unique, we only have one set of data per epoch
-* `sv` is tied to an epoch, therefore a previous set of data for that
-particular vehicule is stored at another epoch 
 
 ### High level `hashmap` indexing
 
@@ -225,7 +163,14 @@ let matched : Vec<_> = record
     .map(|(_, sv)|{  // epoch is left out, we filter on sv
         sv.iter() // sv iterator
             .find(|(&sv, _)| sv == to_match)  // Sv value comparison
-            .map(|(_, data)| (&data["ClockBias"],&data["ClockDrift"])) // build a tuple
+            .map(|(_, data)| ( // build a tuple
+               data["ClockBias"] // field of interest
+                  .as_f32() // unwrap actual value
+                  .unwrap(),
+               data["ClockDrift"]
+                  .as_f32()
+                  .unwrap(),
+             )) // tuple
     })
     .flatten() // dump non matching data
     .collect();

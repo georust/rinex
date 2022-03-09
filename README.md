@@ -30,7 +30,7 @@ Use ``Rinex::from_file`` to parse a local `RINEX` file:
 
 ```rust
 let path = std::path::PathBuf::from("amel0010.21g");
-let rinex = Rinex::from_file(&path).unwrap();
+let rinex = rinex::Rinex::from_file(&path).unwrap();
 ```
 
 The `data/` folder contains a bunch of `RINEX` files, spanning almost all revisions
@@ -58,9 +58,8 @@ This includes `Rinex`:
 * GNSS constellation
 * possible file compression infos
 * recorder & station infos
-* physical, RF and other infos
-
-Once again, refer to complete API
+* hardware, RF infos
+* and much more
 
 ```rust
 println!("{:#?}", rinex.header.version);
@@ -73,6 +72,103 @@ println!("observer: \"{}\"", rinex.header.observer);
 println!("{:#?}", rinex.header.leap);
 println!("{:#?}", rinex.header.coords);
 ```
+
+## RINEX record
+
+The `Rinex` structure comprises the header previously defined,
+and the `Record` which contains the payload data.
+
+The `Record` is optionnal at the moment and 
+set to _None_ in case of CRINEX Observation Data,
+as this lib is not able to decompress the file content, therefore
+unable to fully parse it. The header is still parsed though.
+
+RINEX records uses hashmap collections (_dictionnaries_) 
+to expose the data,
+firstly indexed by `epoch` and secondly indexed by `sv` (Satellite Vehicule)
+in case of NAV and OBS data.
+
+Refer to the `Record` enum signature in the API, for the type of record you are
+interested in.
+
+`epoch` is simply an alias of the `chrono::NaiveDateTime` structure,
+thefore all of its methods are available.
+
+To grab the rinex record from a parsed file, in the example
+of a NAV file, one can do:
+
+```rust
+let rinex = rinex::Rinex::from_file("navigation-file.rnx")
+  .unwrap();
+let record = rinex.record
+  .unwrap() // option<record>, to still work in CRINEX context
+    .as_nav() // NAV record example
+    .unwrap(); // as_nav() expected to succeed
+```
+
+`epochs` serve as keys of the first hashmap. 
+The `keys()` iterator is then the easiest way to to determine
+which _epochs_ were idenfitied:
+
+```rust
+   let epochs: Vec<_> = record
+    .keys() // keys interator
+    .collect();
+```
+
+according to `hashmap` documentation: `.keys()` are exposed randomly/unsorted:
+
+```rust
+epochs = [ // example
+    2021-01-01T14:00:00,
+    2021-01-01T10:00:00,
+    2021-01-01T05:00:00,
+    2021-01-01T22:00:00,
+    ...
+]
+```
+
+You can use `itertools` to enhance the iterator methods and sort them easily:
+
+```rust
+use itertools::Itertools;
+let epochs: Vec<_> = record
+    .keys()
+    .sort() // unlocked
+    .collect();
+
+epochs = [ // example
+    2021-01-01T00:00:00,
+    2021-01-01T01:00:00,
+    2021-01-01T03:59:44,
+    2021-01-01T04:00:00,
+    2021-01-01T05:00:00,
+    ...
+]
+```
+
+.unique() filter is not available to hashmap,
+due to `hashmap.insert()` behavior which always overwrites
+a previous value for a given key.
+ 
+It is not needed in our case because:
+* `epochs` are unique, we only have one set of data per epoch
+* `sv` is tied to an epoch, therefore a previous set of data for that
+particular vehicule is stored at another epoch 
+
+## Data payload
+
+Data payload are described in the specific documentation pages down below,
+for each supported RINEX files.
+In any case, they are encapsulated in the `ComplexEnum` enum,
+which wraps:
+
+* "f32": unscaled float value
+* "f64": unscaled double precision
+* "str": raw string value
+* "u8": 8 bit value
+
+Refer to the `ComplexEnum` API and following detailed examples.
 
 ## Navigation Data
 
