@@ -2,49 +2,51 @@
 
 Observation (OBS) `RINEX` is amongst the two most standard `RINEX` formats.  
 
-Observation data comprises several kinds of data
+Observation files are made of physical measurements:
 
 * `Pseudo Range` estimates (m)
 * `Signal Strength` (dBm)
 * `Doppler` : doppler shift observation (n.a)
 * `Phase` : raw carrier phase measurements (n.a)
 
-## Observation Record analysis
+that may be avaiable at a certain `epoch` and some may only
+be evaluated for specific `sv`.
 
-All records are sorted by observation `Epoch`.  
-
-Measurements are exposed using standard Observation Codes, refer
-to official RINEX documentation.
-
-### List all Epochs
-
-```rust
-let epochs = rinex.record.iter()
-    .unique()
-    .collect(); 
-println!("{:#?}", epochs);
+One example script is provided
+```bash
+cargo run --example observation
 ```
 
-`unique()` to filter unique `Epoch` values is not really needed here,
-since a sane OBS Rinex will have a single realization per epoch,
-for a specific satellite vehicule and a specific measurement.
+## Observation Record content
 
-### Extract `Pseudo Ranges` for all `Sv` across all epochs
+The OBS record is sorted by `Epoch` and by `Sv`.  
+The actual observations (physical measurements) are indexed by using their standard RINEX codes,
+refer to their official definition.
 
-todo
+Grab an OBS record from a given file:
 
-### Extract `Pseudo Ranges` for specific `Sv` across all epochs
+```rust
+let rinex = rinex::Rinex::from_file("observation.rnx")
+    .unwrap();
+let record = rinex.record
+    .unwrap() // record is optional, is None in case of CRINEX
+        .as_obs() // observation record cast
+        .unwrap();
+```
 
-todo
+Retrieve all Pseudo Range measurements for one `E04` vehicule
+accross all epochs, by using the `L1C` standard code:
+```rust
+let data = rinex.record
+    .iter()
+    .map(|(_, sv)| {
+    
+    })
+    .flatten()
+    .unwrap();
+```
 
-Restraint to a specific epoch:
+[ ] data rescaling ?   
+[ ] decimation   
+[ ] carrier compensations ?   
 
-todo
-
-### Decimate `Phase` data of a specific `Sv` using epoch /sampling interval
-
-todo
-
-### Observation data specific scaling
-
-todo
