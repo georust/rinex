@@ -1,10 +1,5 @@
-use rinex::record::Sv;
-use rinex::epoch::Epoch;
-use rinex::record::ComplexEnum;
-use rinex::constellation::Constellation;
-
 use itertools::Itertools;
-use std::collections::HashMap;
+use rinex::constellation::Constellation;
 
 fn main() {
     println!("**************************");
@@ -79,7 +74,7 @@ fn main() {
         .unwrap();
 
     // list all epochs
-    let mut epochs: Vec<_> = record
+    let epochs: Vec<_> = record
         .keys()
         .sorted()
         .collect();
@@ -103,8 +98,8 @@ fn main() {
         .iter()
         .map(|(_epoch, sv)| {
             sv.iter() // for all sv
-                .find(|(&sv, data)| sv == to_match) // match `E04`
-                .map(|(&_sv, data)| (&data["ClockBias"],&data["ClockDrift"]))
+                .find(|(&sv, _)| sv == to_match) // match `E04`
+                .map(|(_, data)| (&data["ClockBias"],&data["ClockDrift"]))
         })
         .flatten()
         .collect();
