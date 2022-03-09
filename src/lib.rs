@@ -82,7 +82,7 @@ impl std::str::FromStr for Type {
 #[derive(Debug)]
 pub struct Rinex {
     pub header: header::RinexHeader,
-    pub record: record::Record,
+    pub record: Option<record::Record>,
 }
 
 impl Default for Rinex {
@@ -90,7 +90,7 @@ impl Default for Rinex {
     fn default() -> Rinex {
         Rinex {
             header: header::RinexHeader::default(),
-            record: record::Record::default(), 
+            record: None, 
         }
     }
 }
@@ -108,7 +108,7 @@ pub enum RinexError {
 
 impl Rinex {
     /// Builds a new `RINEX` struct from given:
-    pub fn new (header: header::RinexHeader, record: record::Record) -> Rinex {
+    pub fn new (header: header::RinexHeader, record: Option<record::Record>) -> Rinex {
         Rinex {
             header,
             record,
@@ -146,12 +146,12 @@ impl Rinex {
     /// The header section must respect the labelization standard too.
     pub fn from_file (fp: &std::path::Path) -> Result<Rinex, RinexError> {
         let (header, body) = Rinex::split_rinex_content(fp)?;
-        let hd = header::RinexHeader::from_str(&header)?;
-        let rec = record::build_record(&hd, &body)?;
-        Ok(Rinex{
-            header: hd,
-            record: rec,
-        })
+        let header = header::RinexHeader::from_str(&header)?;
+        let record : Option<record::Record> = match header.is_crinex() {
+            false => Some(record::build_record(&header,&body)?),
+            true => None,
+        };
+        Ok(Rinex { header, record })
     }
 }
 
