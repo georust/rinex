@@ -83,27 +83,30 @@ set to _None_ in case of CRINEX Observation Data,
 as this lib is not able to decompress the file content, therefore
 unable to fully parse it. The header is still parsed though.
 
-RINEX records uses hashmap collections (_dictionnaries_) 
-to expose the data,
-firstly indexed by `epoch` and secondly indexed by `sv` (Satellite Vehicule)
-in case of NAV and OBS data.
+The `Record` definition varies with the type of Rinex file,
+refer to its definition in the API and the specific documentation down below,
+for the type of file you are interested in.
 
-Refer to the `Record` enum signature in the API, for the type of record you are
-interested in.
+`Record` is a complex structure of HashMap (_dictionaries_),
+which definition may vary. The first indexing at the moment, is always an `epoch`,
+that is, data is sorted by the sampling timestamp.
+moment, is always indexed by an `epoch`.
+
+## `Epoch` object
 
 `epoch` is simply an alias of the `chrono::NaiveDateTime` structure,
 thefore all of its methods are available.
 
-To grab the rinex record from a parsed file, in the example
-of a NAV file, one can do:
+To demonstrate how to operate the `epoch` API, we'll take 
+a Navigation Rinex file as an example. First, grab the record:
 
 ```rust
 let rinex = rinex::Rinex::from_file("navigation-file.rnx")
   .unwrap();
 let record = rinex.record
-  .unwrap() // option<record>, to still work in CRINEX context
+  .unwrap() // option<record>, None in case of CRINEX
     .as_nav() // NAV record example
-    .unwrap(); // as_nav() expected to succeed
+    .unwrap();
 ```
 
 `epochs` serve as keys of the first hashmap. 
@@ -147,26 +150,40 @@ epochs = [ // example
 ]
 ```
 
-.unique() filter is not available to hashmap,
-due to `hashmap.insert()` behavior which always overwrites
+`unique()` filter is not available to hashmaps,
+due to the `hashmap.insert()` behavior which always overwrites
 a previous value for a given key.
  
-It is not needed in our case because:
-* `epochs` are unique, we only have one set of data per epoch
-* `sv` is tied to an epoch, therefore a previous set of data for that
-particular vehicule is stored at another epoch 
+It is not needed in our case because, because `epochs` are unique,
+we will always have a single set of data per epoch.
+
+## `Sv` object
+
+`Sv` for Satellite Vehicule, is also 
+used to sort and idenfity datasets.  
+For instance, in a NAV file,
+we have one set of NAV data per `Sv` per `epoch`.
+
+`Sv` is tied to a `rinex::constellation` and comprises an 8 bit
+identification number.
 
 ## Data payload
 
-Data payload are described in the specific documentation pages down below,
-for each supported RINEX files.
-In any case, they are encapsulated in the `ComplexEnum` enum,
+The final layer of a record is what we are interested in.
+
+The data payload are described in the specific documentation pages down below,
+they vary for each RINEX file types.
+
+In any case, data is encapsulated in the `ComplexEnum` enum,
 which wraps:
 
 * "f32": unscaled float value
 * "f64": unscaled double precision
-* "str": raw string value
-* "u8": 8 bit value
+* "str": string value
+* "u8": raw 8 bit value
+
+For example, to unwrap the actual data of a ComplexEnum::F32,
+one should call: `as_f32().unwrap()`.
 
 Refer to the `ComplexEnum` API and following detailed examples.
 
