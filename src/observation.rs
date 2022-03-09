@@ -2,7 +2,13 @@
 use thiserror::Error;
 use std::str::FromStr;
 use strum_macros::EnumString;
+use std::collections::HashMap;
 use physical_constants::SPEED_OF_LIGHT_IN_VACUUM;
+
+use crate::epoch;
+use crate::record;
+use crate::header::RinexHeader;
+use crate::record::{Sv, ComplexEnum};
 
 #[macro_export]
 /// Returns True if 3 letter code 
@@ -48,8 +54,53 @@ pub fn distance_from_pseudo_range (pr: f64,
     // p17 table 4
 }
 
-pub enum Error {
-    UnknownRinexCode(String),
+#[derive(Error, Debug)]
+pub enum RecordError {
+    #[error("failed to parse epoch")]
+    ParseEpochError(#[from] epoch::ParseEpochError),
+    #[error("failed to parse obs file")]
+    ParseError,
+}
+
+/// Builds `RinexRecord` entry for `ObservationData` file
+pub fn build_record_entry (header: &RinexHeader, content: &str)
+        -> Result<(epoch::Epoch, Sv, HashMap<String, ComplexEnum>), RecordError>
+{
+    let mut lines = content.lines();
+    let mut map : HashMap<String, ComplexEnum> = HashMap::new();
+    let version_major = header.version.major;
+
+    let mut line = lines.next()
+        .unwrap();
+
+    let (epoch, rem) = line.split_at(28);
+    let (lli, rem) = rem.split_at(1);
+    let (ssi, rem) = rem.split_at(1);
+    let (epoch_flag, rem) = rem.split_at(3);
+    // N nb de sat pour cette epoch
+    let (vehicules, rem) = rem.split_at(20);
+    // multi line case ?
+    //    --> oui si N > xxx
+
+    //let mut offset: usize 0;
+    loop {
+
+        let content : Vec<&str> = line.split_ascii_whitespace()
+            .collect();
+
+        for i in 0..content.len() {
+            //let item = ComplexEnum::new(content[i].trim(), "f32");
+            //map.insert(header.obs_codes[i], item); 
+            println!("obs content: \"{}\"", content[i])
+        }
+        if let Some(l) = lines.next() {
+            line = l;
+        } else {
+            break
+        }
+    }
+
+    return Err(RecordError::ParseError)
 }
 
 #[derive(EnumString)]
