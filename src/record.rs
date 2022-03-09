@@ -5,6 +5,7 @@ use std::collections::HashMap;
 
 use crate::header;
 use crate::navigation;
+use crate::observation;
 use crate::epoch::Epoch;
 use crate::is_comment;
 use crate::{Type, TypeError};
@@ -102,13 +103,6 @@ impl Record {
     }
 }
 
-impl Default for Record {
-    fn default() -> Record {
-        let r : HashMap<Epoch, HashMap<Sv, HashMap<String, ComplexEnum>>> = HashMap::new();
-        Record::NavRecord(r)
-    }
-}
-
 #[derive(Error, Debug)]
 pub enum RecordError {
     #[error("record parsing not supported for type \"{0}\"")]
@@ -179,7 +173,14 @@ pub fn build_record (header: &header::RinexHeader, body: &str) -> Result<Record,
             match &header.rinex_type {
                 Type::NavigationMessage => {
                     if let Ok((e, sv, map)) = navigation::build_record_entry(&header, &block) {
-                        let mut smap : HashMap<Sv, HashMap<String, ComplexEnum>> = HashMap::with_capacity(10);
+                        let mut smap : HashMap<Sv, HashMap<String, ComplexEnum>> = HashMap::with_capacity(1);
+                        smap.insert(sv, map);
+                        rec.insert(e, smap);
+                    }
+                },
+                Type::ObservationData => {
+                    if let Ok((e, sv, map)) = observation::build_record_entry(&header, &block) {
+                        let mut smap : HashMap<Sv, HashMap<String, ComplexEnum>> = HashMap::with_capacity(1);
                         smap.insert(sv, map);
                         rec.insert(e, smap);
                     }
@@ -262,6 +263,30 @@ impl ComplexEnum {
                 Ok(ComplexEnum::Str(String::from(content)))
             },
             _ => Err(ComplexEnumError::UnknownTypeDescriptor(desc.to_string())),
+        }
+    }
+    pub fn as_f32 (&self) -> Option<f32> {
+        match self {
+            ComplexEnum::F32(f) => Some(f.clone()),
+            _ => None,
+        }
+    }
+    pub fn as_f64 (&self) -> Option<f64> {
+        match self {
+            ComplexEnum::F64(f) => Some(f.clone()),
+            _ => None,
+        }
+    }
+    pub fn as_str (&self) -> Option<String> {
+        match self {
+            ComplexEnum::Str(s) => Some(s.clone()),
+            _ => None,
+        }
+    }
+    pub fn as_u8 (&self) -> Option<u8> {
+        match self {
+            ComplexEnum::U8(u) => Some(u.clone()),
+            _ => None,
         }
     }
 }
