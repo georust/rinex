@@ -17,6 +17,12 @@ One example script is provided
 cargo run --example observation
 ```
 
+### CRINEX - Compressed OBS records
+
+Compressed OBS records are not parsed at the moment because
+this lib is not able to decompress them. You have to manually
+decompress them prior parsing them for this lib to fully parse them.
+
 ## Observation Record content
 
 The OBS record is sorted by `Epoch` and by `Sv`.  
