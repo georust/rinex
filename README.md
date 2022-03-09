@@ -30,7 +30,7 @@ Use ``Rinex::from_file`` to parse a local `RINEX` file:
 
 ```rust
 let path = std::path::PathBuf::from("amel0010.21g");
-let rinex = Rinex::from_file(&path).unwrap();
+let rinex = rinex::Rinex::from_file(&path).unwrap();
 ```
 
 The `data/` folder contains a bunch of `RINEX` files, spanning almost all revisions
@@ -155,6 +155,20 @@ It is not needed in our case because:
 * `epochs` are unique, we only have one set of data per epoch
 * `sv` is tied to an epoch, therefore a previous set of data for that
 particular vehicule is stored at another epoch 
+
+## Data payload
+
+Data payload are described in the specific documentation pages down below,
+for each supported RINEX files.
+In any case, they are encapsulated in the `ComplexEnum` enum,
+which wraps:
+
+* "f32": unscaled float value
+* "f64": unscaled double precision
+* "str": raw string value
+* "u8": 8 bit value
+
+Refer to the `ComplexEnum` API and following detailed examples.
 
 ## Navigation Data
 
