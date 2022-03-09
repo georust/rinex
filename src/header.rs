@@ -5,7 +5,7 @@ use thiserror::Error;
 
 use crate::version;
 use crate::gnss_time;
-use crate::{is_rinex_comment, RinexType, RinexTypeError};
+use crate::{is_comment, Type, TypeError};
 use crate::constellation::{Constellation, ConstellationError};
 use crate::meteo::{MeteoDataCode, MeteoDataCodeError};
 use crate::observation::{ObservationCode, ObservationCodeError};
@@ -209,7 +209,7 @@ pub struct RinexHeader {
     /// if this is a CRINEX
     pub crinex: Option<CrinexInfo>, 
     /// type of `RINEX` file
-    pub rinex_type: RinexType, 
+    pub rinex_type: Type, 
     /// `GNSS` constellation being used
     pub constellation: Constellation, 
     /// program name
@@ -271,7 +271,7 @@ pub enum Error {
     #[error("Line \"{0}\" should begin with Rinex version \"x.yy\"")]
     VersionFormatError(String),
     #[error("rinex type error")]
-    RinexTypeError(#[from] RinexTypeError),
+    TypeError(#[from] TypeError),
     #[error("unknown GNSS Constellation '{0}'")]
     UnknownConstellation(#[from] ConstellationError),
     #[error("failed to parse antenna / receiver infos")]
@@ -295,7 +295,7 @@ impl Default for RinexHeader {
         RinexHeader {
             version: version::Version::default(), 
             crinex: None,
-            rinex_type: RinexType::default(),
+            rinex_type: Type::default(),
             constellation: Constellation::default(),
             program: String::from("Unknown"),
             run_by: String::from("Unknown"),
@@ -335,7 +335,7 @@ impl std::str::FromStr for RinexHeader {
         let mut line = lines.next()
             .unwrap();
         // comments ?
-        while is_rinex_comment!(line) {
+        while is_comment!(line) {
             line = lines.next()
                 .unwrap()
         }
@@ -364,7 +364,7 @@ impl std::str::FromStr for RinexHeader {
                 .unwrap()
         }
         // comments ?
-        while is_rinex_comment!(line) {
+        while is_comment!(line) {
             line = lines.next()
                 .unwrap()
         }
@@ -374,7 +374,7 @@ impl std::str::FromStr for RinexHeader {
         let (type_str, remainder) = remainder.trim().split_at(20);
         let (constellation_str, _) = remainder.trim().split_at(20);
 
-        let rinex_type = RinexType::from_str(type_str.trim())?;
+        let rinex_type = Type::from_str(type_str.trim())?;
         let constellation: Constellation;
         
         if type_str.trim().contains("GLONASS") {
@@ -394,7 +394,7 @@ impl std::str::FromStr for RinexHeader {
         line = lines.next()
             .unwrap();
         // comments ?
-        while is_rinex_comment!(line) {
+        while is_comment!(line) {
             line = lines.next()
                 .unwrap()
         }
@@ -458,7 +458,7 @@ impl std::str::FromStr for RinexHeader {
         line = lines.next()
             .unwrap();
         // comments ?
-        while is_rinex_comment!(line) {
+        while is_comment!(line) {
             line = lines.next()
                 .unwrap()
         }
@@ -633,7 +633,7 @@ impl std::str::FromStr for RinexHeader {
                 // ⚠ ⚠ could either be observation or meteo data
                 let (rem, _) = line.split_at(60);
                 match rinex_type {
-                    RinexType::ObservationData => {
+                    Type::ObservationData => {
                         let (_, mut rem) = rem.split_at(6);
                         loop {
                             let (code, r) = rem.split_at(6);
@@ -647,7 +647,7 @@ impl std::str::FromStr for RinexHeader {
                             rem = r
                         }
                     },
-                    RinexType::MeteorologicalData => {
+                    Type::MeteorologicalData => {
                         let (_, mut rem) = rem.split_at(6);
                         loop {
                             let (code, r) = rem.split_at(6);
@@ -726,7 +726,7 @@ I    4 C5A L5A D5A S5A                                      SYS / # / OBS TYPES*
                 break
             }
             // comments ?
-            while is_rinex_comment!(line) {
+            while is_comment!(line) {
                 line = lines.next()
                     .unwrap()
             }

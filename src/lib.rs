@@ -19,13 +19,13 @@ use std::str::FromStr;
 
 #[macro_export]
 /// Returns `true` if given `Rinex` line is a comment
-macro_rules! is_rinex_comment {
+macro_rules! is_comment {
     ($line: expr) => { $line.contains("COMMENT") };
 }
 
 /// Describes all known `RINEX` file types
 #[derive(Copy, Clone, PartialEq, Debug)]
-pub enum RinexType {
+pub enum Type {
     /// Describes Observation Data (OBS),
     /// Phase & Pseudo range measurements
     ObservationData, 
@@ -37,43 +37,43 @@ pub enum RinexType {
 }
 
 #[derive(Error, Debug)]
-/// `RinexType` related errors
-pub enum RinexTypeError {
+/// `Type` related errors
+pub enum TypeError {
     #[error("Unknown RINEX type identifier \"{0}\"")]
     UnknownType(String),
 }
 
-impl Default for RinexType {
-    /// Builds a default `RinexType`
-    fn default() -> RinexType { RinexType::ObservationData }
+impl Default for Type {
+    /// Builds a default `Type`
+    fn default() -> Type { Type::ObservationData }
 }
 
-impl RinexType {
+impl Type {
     /// Converts `Self` to str
     pub fn to_str (&self) -> &str {
         match *self {
-            RinexType::ObservationData => "ObservationData",
-            RinexType::NavigationMessage => "NavigationMessage",
-            RinexType::MeteorologicalData => "MeteorologicalData",
+            Type::ObservationData => "ObservationData",
+            Type::NavigationMessage => "NavigationMessage",
+            Type::MeteorologicalData => "MeteorologicalData",
         }
     }
     /// Converts `Self` to string
     pub fn to_string (&self) -> String { String::from(self.to_str()) }
 }
 
-impl std::str::FromStr for RinexType {
-    type Err = RinexTypeError;
+impl std::str::FromStr for Type {
+    type Err = TypeError;
     fn from_str (s: &str) -> Result<Self, Self::Err> {
         if s.eq("NAVIGATION DATA") {
-            Ok(RinexType::NavigationMessage)
+            Ok(Type::NavigationMessage)
         } else if s.contains("NAV DATA") {
-            Ok(RinexType::NavigationMessage)
+            Ok(Type::NavigationMessage)
         } else if s.eq("OBSERVATION DATA") {
-            Ok(RinexType::ObservationData)
+            Ok(Type::ObservationData)
         } else if s.eq("METEOROLOGICAL DATA") {
-            Ok(RinexType::MeteorologicalData)
+            Ok(Type::MeteorologicalData)
         } else {
-            Err(RinexTypeError::UnknownType(String::from(s)))
+            Err(TypeError::UnknownType(String::from(s)))
         }
     }
 }
@@ -103,7 +103,7 @@ pub enum RinexError {
     #[error("Header parsing error")]
     HeaderError(#[from] header::Error),
     #[error("Rinex type error")]
-    TypeError(#[from] RinexTypeError),
+    TypeError(#[from] TypeError),
 }
 
 impl Rinex {
@@ -134,11 +134,11 @@ impl Rinex {
     //    -> &std::collections::HashMap<String, record::RecordItem> { &self.record[nth] }
 
     /// Retruns true if this is an NAV rinex
-    pub fn is_navigation_rinex (&self) -> bool { self.header.rinex_type == RinexType::NavigationMessage }
+    pub fn is_navigation_rinex (&self) -> bool { self.header.rinex_type == Type::NavigationMessage }
     /// Retruns true if this is an OBS rinex
-    pub fn is_observation_rinex (&self) -> bool { self.header.rinex_type == RinexType::ObservationData }
+    pub fn is_observation_rinex (&self) -> bool { self.header.rinex_type == Type::ObservationData }
     /// Returns true if this is a METEO rinex
-    pub fn is_meteo_rinex (&self) -> bool { self.header.rinex_type == RinexType::MeteorologicalData }
+    pub fn is_meteo_rinex (&self) -> bool { self.header.rinex_type == Type::MeteorologicalData }
 
     /// Builds a `Rinex` from given file.
     /// Input file must respect the whitespace specifications

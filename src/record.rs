@@ -6,8 +6,8 @@ use std::collections::HashMap;
 use crate::header;
 use crate::navigation;
 use crate::epoch::Epoch;
-use crate::is_rinex_comment;
-use crate::{RinexType, RinexTypeError};
+use crate::is_comment;
+use crate::{Type, TypeError};
 use crate::constellation::Constellation;
 
 /// ̀`Sv` describes a Satellite Vehiculee
@@ -122,7 +122,7 @@ fn block_record_start (line: &str, header: &header::RinexHeader) -> bool {
     match header.version.major < 4 {
         true => {
             match &header.rinex_type {
-                RinexType::NavigationMessage => {
+                Type::NavigationMessage => {
                     let known_sv_identifiers: &'static [char] = 
                         &['R','G','E','B','J','C','S']; 
                     match &header.constellation {
@@ -140,7 +140,7 @@ fn block_record_start (line: &str, header: &header::RinexHeader) -> bool {
                         }
                     }
                 },
-                RinexType::ObservationData => parsed.len() > 8,
+                Type::ObservationData => parsed.len() > 8,
                 _ => false, 
             }
         },
@@ -159,11 +159,11 @@ fn block_record_start (line: &str, header: &header::RinexHeader) -> bool {
     }
 }
 
-pub fn build_record (header: &header::RinexHeader, body: &str) -> Result<Record, RinexTypeError> { 
+pub fn build_record (header: &header::RinexHeader, body: &str) -> Result<Record, TypeError> { 
     let mut body = body.lines();
     let mut line = body.next()
         .unwrap();
-    while is_rinex_comment!(line) {
+    while is_comment!(line) {
         line = body.next()
             .unwrap()
     }
@@ -177,7 +177,7 @@ pub fn build_record (header: &header::RinexHeader, body: &str) -> Result<Record,
         let is_new_block = block_record_start(&line, &header);
         if is_new_block && !first {
             match &header.rinex_type {
-                RinexType::NavigationMessage => {
+                Type::NavigationMessage => {
                     if let Ok((e, sv, map)) = navigation::build_record_entry(&header, &block) {
                         let mut smap : HashMap<Sv, HashMap<String, ComplexEnum>> = HashMap::with_capacity(10);
                         smap.insert(sv, map);
@@ -204,7 +204,7 @@ pub fn build_record (header: &header::RinexHeader, body: &str) -> Result<Record,
             break
         }
 
-        while is_rinex_comment!(line) {
+        while is_comment!(line) {
             if let Some(l) = body.next() {
                 line = l
             } else {
@@ -218,9 +218,9 @@ pub fn build_record (header: &header::RinexHeader, body: &str) -> Result<Record,
         }
     }
     match &header.rinex_type {
-        RinexType::NavigationMessage => Ok(Record::NavRecord(rec)), 
-        RinexType::ObservationData => Ok(Record::ObsRecord(rec)), 
-        _ => Err(RinexTypeError::UnknownType(header.rinex_type.to_string())),
+        Type::NavigationMessage => Ok(Record::NavRecord(rec)), 
+        Type::ObservationData => Ok(Record::ObsRecord(rec)), 
+        _ => Err(TypeError::UnknownType(header.rinex_type.to_string())),
     }
 }
 
