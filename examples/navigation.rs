@@ -8,7 +8,7 @@ fn main() {
 
     // example file
     let navigation_file = std::path::PathBuf::from(
-        env!("CARGO_MANIFEST_DIR").to_owned() + "/examples/navigation.rinex");
+        env!("CARGO_MANIFEST_DIR").to_owned() + "/data/CBW100NLD_R_20210010000_01D_MN.rnx");
     // parse example file
     let rinex = rinex::Rinex::from_file(&navigation_file).unwrap();
 
@@ -49,15 +49,15 @@ fn main() {
     // match a specific `epoch`
     //  * `epoch` is a chrono::NaiveDateTime alias
     //     therefore one can use any chrono::NaiveDateTime method
-    let to_match = rinex::epoch::from_string("21 01 01 09 00 00")
+    let to_match = rinex::epoch::from_string("21 01 01 08 45 00")
         .unwrap();
     //    ---> retrieve all data for desired `epoch`
     //         using direct hashmap[indexing]
     let matched = &record[&to_match];
     println!("\n------------- Matching epoch \"{:?}\" ----------\n{:#?}", to_match, matched); 
     
-    // ----> zoom in on `B07` vehicule for that particular `epoch` 
-    let to_match = rinex::record::Sv::new(Constellation::Beidou, 0x07);
+    // ----> zoom in on `R24` vehicule for that particular `epoch` 
+    let to_match = rinex::record::Sv::new(Constellation::Glonass, 24);
     let matched = &matched[&to_match];
     println!("\n------------- Adding Sv filter \"{:?}\" to previous epoch filter ----------\n{:#?}", to_match, matched); 
     // ----> zoom in on `B07` clock drift for that `epoch`
@@ -80,8 +80,8 @@ fn main() {
         .collect();
     println!("\n------------- Epochs ----------\n{:#?}", epochs); 
     
-    // extract all data for `E04` vehicule 
-    let to_match = rinex::record::Sv::new(Constellation::Galileo, 0x04);
+    // extract all data for `R24` vehicule 
+    let to_match = rinex::record::Sv::new(Constellation::Glonass, 24);
     let matched : Vec<_> = record
         .iter()
         .map(|(_epoch, sv)| { // dont care about epoch, sv filter
@@ -93,20 +93,20 @@ fn main() {
     println!("\n------------- \"{:?}\" data ----------\n{:#?}", to_match, matched); 
     
     // extract `clockbias` & `clockdrift` fields
-    // for `E04` vehicule accross entire record
+    // for `R24` vehicule accross entire record
     let matched : Vec<_> = record
         .iter()
         .map(|(_epoch, sv)| {
             sv.iter() // for all sv
-                .find(|(&sv, _)| sv == to_match) // match `E04`
+                .find(|(&sv, _)| sv == to_match) // match `R24`
                 .map(|(_, data)| (&data["ClockBias"],&data["ClockDrift"]))
         })
         .flatten()
         .collect();
     println!("\n------------- \"{:?}\" (bias,drift)----------\n{:#?}", to_match, matched); 
     
-    // extract all data tied to `Beidou` constellation
-    let to_match = Constellation::Beidou;
+    // extract all data tied to `Galileo` constellation
+    let to_match = Constellation::Galileo;
     let matched : Vec<_> = record
         .iter()
         .map(|(_epoch, sv)| {
