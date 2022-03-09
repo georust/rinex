@@ -12,7 +12,7 @@ therefore `type` is fixed to `EPH` for `header.version <= 3`
 NAV message type description was also introduced in `RINEX > 3`,
 `msg` is fixed to `LNAV` for `header.version <= 3`.
 
-There are several types of NAV message:
+There are several types of NAV messages:
 
 * `LNAV`   legacy &  `RINEX < 3`
 * `CNAV`   civilian nav
@@ -28,10 +28,7 @@ cargo run --example navigation
 
 ## Navigation Record content
 
-The Record content depends on the GNSS constellation (Mixed or Unique)
-and Rinex revision.
-
-All NAV record are stored by `Epoch` and by `Sv` (sat. vehicule).   
+The NAV record is sorted by `Epoch` and by `Sv`.   
 All NAV record share the following attributes:
 
 * "msg": NAV message type
@@ -94,8 +91,6 @@ of the keys you are interested in:
 
 Item labelization type definition follow RINEX specifications closely.
 
-
-
 ## Navigation Record analysis
 
 ### High level `hashmap` indexing
@@ -105,18 +100,15 @@ grab an epoch directly :
 
 ```rust
 // match a specific `epoch`
-
-let to_match = rinex::epoch::from_string("21 01 01 09 00 00")
-  .unwrap();
+let to_match = rinex::epoch::from_string(
+   "21 01 01 09 00 00")
+      .unwrap();
 //    ---> retrieve all data for desired `epoch`
 let matched_epoch = &record[&to_match];
 ```
 
-`epoch` is a `chrono::NaiveDateTime` alias
-therefore one can use any method from that class
-
-Zoom in on vehicule `B07` (Beidou constellation, vehicule #7)
-from that particular by indexing the inner hashmap directly:
+Zoom in on `B07` vehicule (Beidou constellation, vehicule #7)
+from that particular _epoch_ by indexing the inner hashmap directly:
 
 ```rust
 // zoom in on `B07`
@@ -135,7 +127,8 @@ let clkDrift = &matched_b07["ClockDrift"];
 
 ## Advanced manipulation using iterators & filters 
 
-Extract all `E04` vehicule data from record:
+Extract all `E04` vehicule data from record,
+by using the `Sv` object comparison method
 
 ```rust
 let to_match = rinex::record::Sv::new(
@@ -143,26 +136,26 @@ let to_match = rinex::record::Sv::new(
     0x04);
 let matched : Vec<_> = record
     .iter() // epoch iterator
-    .map(|(_, sv)|{  // epoch is left out, we filter on sv
+    .map(|(_, sv)|{  // all epochs, about to filter sv
         sv.iter() // sv iterator
-            .find(|(&sv, _)| sv == to_match)  // Sv value comparison
+            .find(|(&sv, _)| sv == to_match) // comparison
     })
     .flatten() // dump non matching data
     .collect();
 ```
 
 Extract `clockbias` and `clockdrift` fields
-for `E04` vehicules accross entire record
+for `E04` vehicule accross entire record
 
 ```rust
 let to_match = rinex::record::Sv::new(
     rinex::constellation::Constellation::Galileo,
     0x04);
 let matched : Vec<_> = record
-    .iter() // epoch iterator
-    .map(|(_, sv)|{  // epoch is left out, we filter on sv
-        sv.iter() // sv iterator
-            .find(|(&sv, _)| sv == to_match)  // Sv value comparison
+    .iter()
+    .map(|(_, sv)|{
+        sv.iter()
+            .find(|(&sv, _)| sv == to_match)  // comparison
             .map(|(_, data)| ( // build a tuple
                data["ClockBias"] // field of interest
                   .as_f32() // unwrap actual value
@@ -170,13 +163,14 @@ let matched : Vec<_> = record
                data["ClockDrift"]
                   .as_f32()
                   .unwrap(),
-             )) // tuple
+             ))
     })
     .flatten() // dump non matching data
     .collect();
 ```
 
-Extract all data tied to `Beidou` constellation
+Extract all data tied to `Galileo` constellation.
+This time we only match one field of the `Sv` object
 ```rust
 let to_match = rinex::constellation::Constellation::Galileo;
 let matched : Vec<_> = record
