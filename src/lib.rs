@@ -145,13 +145,6 @@ impl Rinex {
     /// for the entire header section.   
     /// The header section must respect the labelization standard too.
     pub fn from_file (fp: &std::path::Path) -> Result<Rinex, RinexError> {
-        let name = fp.file_name()
-            .unwrap();
-        let extension = fp.extension()
-            .unwrap();
-        let extension = extension.to_str()
-            .unwrap();
-
         let (header, body) = Rinex::split_rinex_content(fp)?;
         let hd = header::RinexHeader::from_str(&header)?;
         let rec = record::build_record(&hd, &body)?;

@@ -1,6 +1,6 @@
 //! Describes a `RINEX` header, includes
 //! rinex header parser and associated methods
-use regex::Regex;
+//use regex::Regex;
 use thiserror::Error;
 
 use crate::version;
@@ -39,7 +39,7 @@ impl std::str::FromStr for Rcvr {
     fn from_str (line: &str) -> Result<Self, Self::Err> {
         let (id, rem) = line.split_at(20);
         let (make, rem) = rem.split_at(20);
-        let (version, rem) = rem.split_at(20);
+        let (version, _) = rem.split_at(20);
         Ok(Rcvr{
             sn: String::from(id.trim()),
             model: String::from(make.trim()),
@@ -83,7 +83,7 @@ impl std::str::FromStr for Antenna {
     type Err = std::io::Error;
     fn from_str (line: &str) -> Result<Self, Self::Err> {
         let (id, rem) = line.split_at(20);
-        let (make, rem) = rem.split_at(20);
+        let (make, _) = rem.split_at(20);
         Ok(Antenna{
             sn: String::from(id.trim()),
             model: String::from(make.trim()),
@@ -149,13 +149,12 @@ impl std::str::FromStr for LeapSecond {
                 let (leap, rem) = s.split_at(6);
                 let (past, rem) = rem.split_at(6);
                 let (week, rem) = rem.split_at(6);
-                let (day, rem) = rem.split_at(6);
+                let (day, _) = rem.split_at(6);
                 ls.leap = u32::from_str_radix(leap.trim(),10)?;
                 ls.past_future = u32::from_str_radix(past.trim(),10)?;
                 ls.week = u32::from_str_radix(week.trim(),10)?;
                 ls.day = u32::from_str_radix(day.trim(),10)?
             },
-            _ => return Err(Error::LeapSecondParsingError(String::from(s)))
         }
         Ok(ls)
     }
@@ -373,7 +372,7 @@ impl std::str::FromStr for RinexHeader {
         // line1 {} {} {} // label [VERSION/TYPE/GNSS] 
         let (version_str, remainder) = line.split_at(20);
         let (type_str, remainder) = remainder.trim().split_at(20);
-        let (constellation_str, remainder) = remainder.trim().split_at(20);
+        let (constellation_str, _) = remainder.trim().split_at(20);
 
         let rinex_type = RinexType::from_str(type_str.trim())?;
         let constellation: Constellation;
@@ -433,6 +432,7 @@ impl std::str::FromStr for RinexHeader {
             }
         };
         // identify date format (YMDHMS)
+/*
         println!("date str \"{}\"", date_str);
         let regex: Vec<Regex> = vec![
             Regex::new(r"\d\d\d\d\d\d\d\d \d\d:\d\d:\d\d$")
@@ -445,7 +445,6 @@ impl std::str::FromStr for RinexHeader {
             "%Y%m%d %H%M%S",
         ];
 
-/*
          * for i in 0..regex.len() {
             if regex[i].is_match(cleanedup) {
                 if is_utc {
@@ -468,7 +467,7 @@ impl std::str::FromStr for RinexHeader {
         // indentifiers
         let mut station    = String::from("Unknown");
         let mut station_id = String::from("Unknown");
-        let observer   = String::from("Unknown");
+        let mut observer   = String::from("Unknown");
         let mut agency     = String::from("Unknown");
         let mut license     : Option<String> = None;
         let mut doi         : Option<String> = None;
@@ -485,7 +484,7 @@ impl std::str::FromStr for RinexHeader {
         let mut coords     : Option<rust_3d::Point3D> = None;
         let mut epochs: (Option<gnss_time::GnssTime>, Option<gnss_time::GnssTime>) = (None, None);
         // (OBS) 
-        let mut obs_nb_sat : u32 = 0;
+        let obs_nb_sat : u32 = 0;
         let mut obs_codes  : Vec<String> = Vec::new();
 
         loop {
@@ -503,7 +502,7 @@ impl std::str::FromStr for RinexHeader {
                 station_id = String::from(line.split_at(20).0.trim()) 
             } else if line.contains("OBSERVER / AGENCY") {
                 let (obs, ag) = line.split_at(20);
-                let ag = ag.split_at(20).0;
+                observer = String::from(obs.trim());
                 agency = String::from(ag.trim())
 
             } else if line.contains("REC # / TYPE / VERS") {
@@ -604,17 +603,17 @@ impl std::str::FromStr for RinexHeader {
             } else if line.contains("# OF SATELLITES") {
                 // will always appear prior PRN/#OBS
                 // determines nb of satellites in observation file
-                let (nb, _) = line.split_at(10);
-                obs_nb_sat = u32::from_str_radix(nb.trim(), 10)?
+                //let (nb, _) = line.split_at(10);
+                //obs_nb_sat = u32::from_str_radix(nb.trim(), 10)?
 
             } else if line.contains("PRN / # OF OBS") {
-                let (sv, rem) = line.split_at(7);
+                let (sv, _) = line.split_at(7);
                 if sv.trim().len() > 0 {
                     
                 }
                 // lists all Sv
-                let items: Vec<&str> = line.split_ascii_whitespace()
-                    .collect();
+                //let items: Vec<&str> = line.split_ascii_whitespace()
+                //    .collect();
                  
             } else if line.contains("SYS / PHASE SHIFT") {
                 //TODO
@@ -641,7 +640,6 @@ impl std::str::FromStr for RinexHeader {
                             if code.trim().len() == 0 {
                                 break
                             }
-                            let ob = ObservationCode::from_str(code.trim())?;
                             obs_codes.push(code.trim().to_string());
                             if r.len() == 0 {
                                 break
@@ -656,7 +654,6 @@ impl std::str::FromStr for RinexHeader {
                             if code.trim().len() == 0 {
                                 break
                             }
-                            let ob = MeteoDataCode::from_str(code)?;
                             obs_codes.push(code.trim().to_string());
                             if r.len() == 0 {
                                 break
@@ -667,7 +664,7 @@ impl std::str::FromStr for RinexHeader {
                     _ => {},
                 }
             } else if line.contains("SYS / # / OBS TYPES") {
-                let content = line.split_at(60).0;
+                //let content = line.split_at(60).0;
 /*G   22 C1C L1C D1C S1C C1W S1W C2W L2W D2W S2W C2L L2L D2L  SYS / # / OBS TYPES
        S2L C5Q L5Q D5Q S5Q C1L L1L D1L S1L                  SYS / # / OBS TYPES
 E   20 C1C L1C D1C S1C C6C L6C D6C S6C C5Q L5Q D5Q S5Q C7Q  SYS / # / OBS TYPES

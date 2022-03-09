@@ -1,9 +1,5 @@
 use thiserror::Error;
 //use std::str::FromStr;
-use std::collections::HashMap;
-
-/// `MeteoData` describes rinex record content
-pub type MeteoData = HashMap<String, f64>;
 
 /// `MeteoDataCodeError`
 #[derive(Error, Debug)]

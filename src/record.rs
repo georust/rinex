@@ -45,7 +45,7 @@ impl std::str::FromStr for Sv {
     type Err = ParseSvError;
     /// Builds an `Sv` from string content
     fn from_str (s: &str) -> Result<Self, Self::Err> {
-        let mut prn: u8 = 0;
+        let prn: u8;
         let mut constellation = Constellation::default();
         if s.starts_with('G') {
             constellation = Constellation::GPS;
@@ -174,9 +174,6 @@ pub fn build_record (header: &header::RinexHeader, body: &str) -> Result<Record,
     let mut rec : HashMap<Epoch, HashMap<Sv, HashMap<String, ComplexEnum>>> = HashMap::new();
     
     loop {
-        let parsed: Vec<&str> = line.split_ascii_whitespace()
-            .collect();
-        
         let is_new_block = block_record_start(&line, &header);
         if is_new_block && !first {
             match &header.rinex_type {

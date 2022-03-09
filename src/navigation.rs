@@ -21,9 +21,9 @@ include!(concat!(env!("OUT_DIR"),"/nav_data.rs"));
 #[derive(Error, Debug)]
 pub enum RecordError {
     #[error("failed to parse msg type")]
-    ParseSvError(#[from] crate::record::ParseSvError),
+    ParseSvError(#[from] record::ParseSvError),
     #[error("failed to parse cplx data")]
-    ParseComplexError(#[from] crate::record::ComplexEnumError),
+    ParseComplexError(#[from] record::ComplexEnumError),
     #[error("failed to parse sv::prn")]
     ParseIntError(#[from] std::num::ParseIntError), 
     #[error("failed to parse epoch")]
@@ -125,14 +125,14 @@ pub fn build_record_entry (header: &RinexHeader, content: &str)
             for rev in nav.revisions.iter() {
                 let major = u8::from_str_radix(rev.major,10)
                     .unwrap();
-                let minor = u8::from_str_radix(rev.minor,10)
-                    .unwrap();
                 // TODO:
                 // improve revision matching
                 // minor should be used: use closest revision
+                //let minor = u8::from_str_radix(rev.minor,10)
+                //    .unwrap();
                 if major == header.version.major {
                     for item in rev.items.iter() {
-                        let (k,v) = item;
+                        let (k, v) = item;
                         let offset: usize = match new_line {
                             false => 19,
                             true => {
@@ -147,11 +147,10 @@ pub fn build_record_entry (header: &RinexHeader, content: &str)
                         total += offset;
                         let (content, rem) = line.split_at(offset);
                         line = rem;
-                        if !item.0.eq("spare") {
-                            let rec_item = ComplexEnum::new(item.1, content.trim())?;
-                            map.insert(String::from(item.0), rec_item);
+                        if !k.eq(&"spare") {
+                            let rec_item = ComplexEnum::new(v, content.trim())?;
+                            map.insert(String::from(*k), rec_item);
                         }
-
                         if total >= 76 {
                             new_line = true;
                             total = 0;
@@ -175,16 +174,16 @@ mod test {
     /// Tests static NAV database to be used in dedicated parser
     fn test_nav_database() {
         for n in NAV_MESSAGES.iter() { 
-            let constellation = constellation::Constellation::from_str(
+            constellation::Constellation::from_str(
                 n.constellation
             ).unwrap();
             for r in n.revisions.iter() {
-                let major = u8::from_str_radix(r.major, 10).unwrap();
-                let minor = u8::from_str_radix(r.major, 10).unwrap();
+                u8::from_str_radix(r.major, 10).unwrap();
+                u8::from_str_radix(r.major, 10).unwrap();
                 for item in r.items.iter() {
                     let (k, v) = item;
                     if !k.eq(&"spare") {
-                        let mut test : String;
+                        let test : String;
                         if v.eq(&"f32") {
                             test = String::from("0.0")
                         } else if v.eq(&"f64") {
@@ -194,7 +193,7 @@ mod test {
                         } else {
                             test = String::from("hello")
                         }
-                        let record_item = ComplexEnum::new(v, &test).unwrap();
+                        ComplexEnum::new(v, &test).unwrap();
                     }
                 }
             }

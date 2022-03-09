@@ -104,7 +104,6 @@ impl std::fmt::Display for Constellation {
             Constellation::QZSS => fmt.write_str(QZSS_STR_IDENTIFIER),
             Constellation::Sbas => fmt.write_str(SBAS_STR_IDENTIFIER),
             Constellation::Mixed => fmt.write_str(MIXED_STR_IDENTIFIER),
-            _ => fmt.write_str("Unknown"),
         }
     }
 }
