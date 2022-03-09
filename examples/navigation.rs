@@ -2,6 +2,8 @@ use rinex::record::Sv;
 use rinex::epoch::Epoch;
 use rinex::record::ComplexEnum;
 use rinex::constellation::Constellation;
+
+use itertools::Itertools;
 use std::collections::HashMap;
 
 fn main() {
@@ -75,6 +77,13 @@ fn main() {
     let record = rinex.record
         .as_nav()
         .unwrap();
+
+    // list all epochs
+    let mut epochs: Vec<_> = record
+        .keys()
+        .sorted()
+        .collect();
+    println!("\n------------- Epochs ----------\n{:#?}", epochs); 
     
     // extract all data for `E04` vehicule 
     let to_match = rinex::record::Sv::new(Constellation::Galileo, 0x04);
@@ -87,7 +96,7 @@ fn main() {
         .flatten() // dump non matching data
         .collect();
     println!("\n------------- \"{:?}\" data ----------\n{:#?}", to_match, matched); 
-
+    
     // extract `clockbias` & `clockdrift` fields
     // for `E04` vehicule accross entire record
     let matched : Vec<_> = record
