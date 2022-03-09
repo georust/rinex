@@ -163,7 +163,14 @@ let matched : Vec<_> = record
     .map(|(_, sv)|{  // epoch is left out, we filter on sv
         sv.iter() // sv iterator
             .find(|(&sv, _)| sv == to_match)  // Sv value comparison
-            .map(|(_, data)| (&data["ClockBias"],&data["ClockDrift"])) // build a tuple
+            .map(|(_, data)| ( // build a tuple
+               data["ClockBias"] // field of interest
+                  .as_f32() // unwrap actual value
+                  .unwrap(),
+               data["ClockDrift"]
+                  .as_f32()
+                  .unwrap(),
+             )) // tuple
     })
     .flatten() // dump non matching data
     .collect();
