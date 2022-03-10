@@ -58,15 +58,24 @@ impl Default for Epoch {
     }
 }
 
+impl Epoch {
+    pub fn new (date: chrono::NaiveDateTime, flag: EpochFlag) -> Epoch {
+        Epoch { 
+            date,
+            flag,
+        }
+    }
+}
+
 #[derive(Error, Debug)]
-pub enum ParseEpochError {
-    #[error("failed to parse seconds")]
+pub enum ParseDateError {
+    #[error("failed to parse seconds field")]
     ParseFloatError(#[from] std::num::ParseFloatError),
-    #[error("failed to parse y:m:d-h:m")]
+    #[error("failed to parse y/m/d h:m fields")]
     ParseIntError(#[from] std::num::ParseIntError),
 }
 
-pub fn from_string (s: &str) -> Result<Epoch, ParseEpochError> {
+pub fn str2date (s: &str) -> Result<chrono::NaiveDateTime, ParseDateError> {
     let items : Vec<&str> = s.split_ascii_whitespace().collect();
     let (mut y,m,d,h,min,s) : (i32,u32,u32,u32,u32,f64) =
         (i32::from_str_radix(items[0],10)?,
@@ -78,9 +87,6 @@ pub fn from_string (s: &str) -> Result<Epoch, ParseEpochError> {
     if y < 100 {
         y += 2000
     }
-    Ok(Epoch{
-        date: chrono::NaiveDate::from_ymd(y,m,d)
-                .and_hms(h,min,s as u32),
-        flag: EpochFlag::default(),
-    })
+    Ok(chrono::NaiveDate::from_ymd(y,m,d)
+        .and_hms(h,min,s as u32))
 }

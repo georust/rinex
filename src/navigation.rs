@@ -20,8 +20,8 @@ pub enum RecordError {
     ParseComplexError(#[from] record::ComplexEnumError),
     #[error("failed to parse sv::prn")]
     ParseIntError(#[from] std::num::ParseIntError), 
-    #[error("failed to parse epoch")]
-    ParseEpochError(#[from] epoch::ParseEpochError), 
+    #[error("failed to parse date")]
+    ParseDateError(#[from] epoch::ParseDateError), 
 }
 
 /// Builds `RinexRecord` entry for `NavigationMessage` file
@@ -81,7 +81,7 @@ pub fn build_record_entry (header: &RinexHeader, content: &str)
         false => (sv.unwrap(), line), // V ≥ 4
     };
 
-    let (epoch, rem) = rem.split_at(20);
+    let (date, rem) = rem.split_at(20);
     let (svbias, rem) = rem.split_at(19);
     let (svdrift, svdriftr) = rem.split_at(19);
 
@@ -159,7 +159,13 @@ pub fn build_record_entry (header: &RinexHeader, content: &str)
             }
         }
     }
-    Ok((epoch::from_string(epoch)?, sv, map))
+    Ok((
+        epoch::Epoch::new(
+            epoch::str2date(date)?,
+            epoch::EpochFlag::default(),
+        ),
+        sv, 
+        map))
 }
 
 mod test {
