@@ -174,6 +174,10 @@ pub fn build_record_entry (header: &RinexHeader, content: &str)
         let content : Vec<&str> = line.split_ascii_whitespace()
             .collect();
 
+        if line_count == n_sat.into() {
+            break
+        }
+
         // sv will serve as code_map identifier
         let (sv, offset) : (Sv, usize) = match header.version.major < 3 {
             true => {
