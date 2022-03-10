@@ -99,7 +99,8 @@ that is, data is sorted by the sampling timestamp.
 [Epoch structure](https://docs.rs/rinex/latest/rinex/epoch/index.html)
 
 `epoch` is a `chrono::NaiveDateTime` object validated by an
-`EpochFlag`.
+`EpochFlag`. A valid epoch is validated with `EpochFlag::Ok`,
+refer to specific API.
 
 To demonstrate how to operate the `epoch` API, we'll take 
 a Navigation Rinex file as an example. First, grab the record:
@@ -115,11 +116,13 @@ let record = rinex.record
 
 `epochs` serve as keys of the first hashmap. 
 The `keys()` iterator is then the easiest way to to determine
-which _epochs_ were idenfitied:
+which _epochs_ were idenfitied. 
+We need to grab the `.date` field of an `epoch`.
 
 ```rust
    let epochs: Vec<_> = record
     .keys() // keys interator
+    .map(|k| k.date) // building a key.date vector
     .collect();
 ```
 
@@ -160,6 +163,12 @@ a previous value for a given key.
  
 It is not needed in our case because, because `epochs` are unique,
 we will always have a single set of data per epoch.
+
+Keep in mind `epochs` are fixed to `EpochFlag::Ok` in NAV files.
+The other values are only available in OBS file.
+Refer to specific
+[Observation files documentation](https://github.com/gwbres/rinex/blob/main/doc/observation.md)
+to see how filtering using epoch flags is powerful and relevant.
 
 ## `Sv` object
 

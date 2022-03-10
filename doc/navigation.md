@@ -29,6 +29,12 @@ cargo run --example navigation
 ## Navigation Record content
 
 The NAV record is sorted by `Epoch` and by `Sv`.   
+
+`Epoch.flag` is not contained in a NAV file, as opposed to say an OBS file.
+Therefore, all _epochs_ contained in a NAV file are supposed sane / valid
+and have a constant `epoch.flag::Ok` value. That also means 
+filtering epoch.flags makes no sence for a NAV file.
+
 All NAV record share the following attributes:
 
 * "msg": NAV message type

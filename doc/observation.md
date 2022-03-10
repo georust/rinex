@@ -55,4 +55,7 @@ let data = rinex.record
 [ ] data rescaling ?   
 [ ] decimation   
 [ ] carrier compensations ?   
+[ ] epoch filters
+[ ] only Ok
+[ ] power failures etc..etc..
 
