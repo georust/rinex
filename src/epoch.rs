@@ -1,9 +1,62 @@
 //! `Epoch` description
 use thiserror::Error;
 use std::str::FromStr;
+use chrono::{Datelike,Timelike};
+
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
+pub enum EpochFlag {
+    Ok,
+    PowerFailure,
+    NewSiteOccupation,
+    HeaderInformationFollows,
+    ExternalEvent,
+    CycleSlip,
+}
+
+impl Default for EpochFlag {
+    fn default() -> EpochFlag { EpochFlag::Ok }
+}
+
+impl std::str::FromStr for EpochFlag {
+    type Err = std::io::Error;
+    fn from_str (s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "0" => Ok(EpochFlag::Ok),
+            "1" => Ok(EpochFlag::PowerFailure),
+            "3" => Ok(EpochFlag::NewSiteOccupation),
+            "4" => Ok(EpochFlag::HeaderInformationFollows),
+            "5" => Ok(EpochFlag::ExternalEvent),
+            "6" => Ok(EpochFlag::CycleSlip),
+            _ => Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "invalid epoch flag value")),
+        }
+    }
+}
 
 /// An `Epoch` is an observation timestamp
-pub type Epoch = chrono::NaiveDateTime;
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Epoch {
+    /// `flag` validates or not this particular `epoch`
+    pub flag: EpochFlag,
+    /// `date`: sampling time stamp
+    pub date: chrono::NaiveDateTime,
+}
+
+impl Default for Epoch {
+    fn default() -> Epoch {
+        let now = chrono::Utc::now();
+        Epoch {
+            flag: EpochFlag::default(),
+            date: chrono::NaiveDate::from_ymd(
+                now.naive_utc().date().year(),
+                now.naive_utc().date().month(),
+                now.naive_utc().date().day())
+                    .and_hms(
+                        now.time().hour(),
+                        now.time().minute(),
+                        now.time().second())
+        }
+    }
+}
 
 #[derive(Error, Debug)]
 pub enum ParseEpochError {
@@ -25,6 +78,9 @@ pub fn from_string (s: &str) -> Result<Epoch, ParseEpochError> {
     if y < 100 {
         y += 2000
     }
-    Ok(chrono::NaiveDate::from_ymd(y,m,d)
-        .and_hms(h,min,s as u32))
+    Ok(Epoch{
+        date: chrono::NaiveDate::from_ymd(y,m,d)
+                .and_hms(h,min,s as u32),
+        flag: EpochFlag::default(),
+    })
 }
