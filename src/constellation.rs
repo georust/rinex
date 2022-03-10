@@ -10,7 +10,7 @@ const SBAS_STR_IDENTIFIER    : &str = "SBS";
 const MIXED_STR_IDENTIFIER   : &str = "M";
 
 /// Number of known ̀`GNSS` constellations
-pub const CONSTELLATION_NUMBER: u8 = 6;
+pub const CONSTELLATION_LENGTH: usize = 6;
 
 /// Describes all known `GNSS` constellations
 /// when manipulating `RINEX`
