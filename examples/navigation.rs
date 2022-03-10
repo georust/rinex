@@ -1,4 +1,7 @@
 use itertools::Itertools;
+
+use rinex::Type;
+use rinex::epoch;
 use rinex::constellation::Constellation;
 
 fn main() {
@@ -14,7 +17,7 @@ fn main() {
 
     // header information
     assert_eq!(rinex.header.is_crinex(), false);
-    assert_eq!(rinex.header.rinex_type, rinex::Type::NavigationMessage);
+    assert_eq!(rinex.header.rinex_type, Type::NavigationMessage);
     assert_eq!(rinex.header.version.major, 3);
     assert_eq!(rinex.header.constellation, Constellation::Mixed); 
     // leap second field for instance
@@ -50,8 +53,9 @@ fn main() {
     // match a specific `epoch`
     //  * `epoch` is a chrono::NaiveDateTime alias
     //     therefore one can use any chrono::NaiveDateTime method
-    let to_match = rinex::epoch::from_string("21 01 01 08 45 00")
-        .unwrap();
+    let to_match = epoch::Epoch::new(
+        epoch::str2date("21 01 01 08 45 00").unwrap(),
+        epoch::EpochFlag::default());
     //    ---> retrieve all data for desired `epoch`
     //         using direct hashmap[indexing]
     let matched = &record[&to_match];
@@ -78,6 +82,7 @@ fn main() {
     // list all epochs
     let epochs: Vec<_> = record
         .keys()
+        .map(|k| k.date)
         .sorted()
         .collect();
     println!("\n------------- Epochs ----------\n{:#?}", epochs); 
