@@ -33,6 +33,9 @@ let path = std::path::PathBuf::from("amel0010.21g");
 let rinex = rinex::Rinex::from_file(&path).unwrap();
 ```
 
+This parser does not check whether the provided local file
+follows the RINEX naming convention or not.
+
 The `data/` folder contains a bunch of `RINEX` files, spanning almost all revisions
 and all supported file types, mainly
 for CI purposes: you can refer to them.
