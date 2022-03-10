@@ -4,6 +4,10 @@ p44
 "is almost identical to Constellation == glonass
 but the records contain the satellite position, velocity, accel, health.."
 
+Doc:
+* [ ] epoch: determine smallest epoch for a given constellation or sv
+* [ ] epoch: determine longest epoch for a given constellation or sv
+
 Header:
 * [ ] coords [m] system ?
 * [ ] clock_offset_applied ? --> compensation
