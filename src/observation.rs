@@ -58,41 +58,77 @@ pub fn distance_from_pseudo_range (pr: f64,
 pub enum RecordError {
     #[error("failed to parse epoch")]
     ParseEpochError(#[from] epoch::ParseEpochError),
-    #[error("failed to parse obs file")]
-    ParseError,
+    #[error("failed to parse epoch flag")]
+    ParseEpochFlagError(#[from] std::io::Error), 
+    #[error("failed to integer number")]
+    ParseIntError(#[from] std::num::ParseIntError), 
+    #[error("failed to float number")]
+    ParseFloatError(#[from] std::num::ParseFloatError), 
+    #[error("failed to parse this file")]
+    ParseRecordError,
 }
 
 /// Builds `RinexRecord` entry for `ObservationData` file
 pub fn build_record_entry (header: &RinexHeader, content: &str)
-        -> Result<(epoch::Epoch, Sv, HashMap<String, ComplexEnum>), RecordError>
+        -> Result<(epoch::Epoch, HashMap<Sv, HashMap<String, ComplexEnum>>), RecordError> 
 {
     let mut lines = content.lines();
-    let mut map : HashMap<String, ComplexEnum> = HashMap::new();
+    let mut map : HashMap<Sv, HashMap<String, ComplexEnum>> = HashMap::new();
     let version_major = header.version.major;
 
     let mut line = lines.next()
         .unwrap();
 
-    let (epoch, rem) = line.split_at(28);
-    let (lli, rem) = rem.split_at(1);
-    let (ssi, rem) = rem.split_at(1);
-    let (epoch_flag, rem) = rem.split_at(3);
-    // N nb de sat pour cette epoch
-    let (vehicules, rem) = rem.split_at(20);
+    // epoch::Y might be 4 digit number
+    let mut offset : usize = 
+        2+1 // Y
+        +2+1 // d
+        +2+1 // m
+        +2+1 // h
+        +2+1 // m
+        +11; // secs
+    
+    // might start with a ">" marker, 
+    // is this V>2 specific ?
+    if let Some(i) = line.find(">") {
+        offset += 1
+    }
+
+    // V>2 epoch::Y is a 4 digit number
+    if header.version.major > 2 {
+        offset += 2
+    }
+
+    let (epoch, rem) = line.split_at(offset);
+    let (flag, rem) = rem.split_at(3);
+    let (n_sat, rem) = rem.split_at(3);
+    let n_sat = u16::from_str_radix(n_sat.trim(), 10)?;
+    let epoch_flag = epoch::EpochFlag::from_str(flag.trim())?;
+
+    println!("epoch \"{}\", flag \"{:#?}\", n \"{}\"", epoch, epoch_flag, n_sat);
+    
+    let mut sv : Vec<Sv> = Vec::new();
+
+    if header.version.major > 2 {
+        if rem.trim().len() > 0 {
+            let clock_offset = f32::from_str(rem.trim())?;
+        }
+    }
+
     // multi line case ?
     //    --> oui si N > xxx
+    line = lines.next()
+        .unwrap();
 
     //let mut offset: usize 0;
     loop {
-
-        let content : Vec<&str> = line.split_ascii_whitespace()
+    /*    let content : Vec<&str> = line.split_ascii_whitespace()
             .collect();
-
         for i in 0..content.len() {
             //let item = ComplexEnum::new(content[i].trim(), "f32");
             //map.insert(header.obs_codes[i], item); 
             println!("obs content: \"{}\"", content[i])
-        }
+        }*/
         if let Some(l) = lines.next() {
             line = l;
         } else {
@@ -100,7 +136,7 @@ pub fn build_record_entry (header: &RinexHeader, content: &str)
         }
     }
 
-    return Err(RecordError::ParseError)
+    Err(RecordError::ParseRecordError)
 }
 
 #[derive(EnumString)]
@@ -248,26 +284,6 @@ impl std::str::FromStr for ObservationCode {
         }
     }
 }
-
-/// Returns Observation record entries from given string content
-/*pub fn build_obs_entries (header: &RinexHeader, content: &str)
-        -> Result<Vec<HashMap<String, RecordItem>>, RecordItemError>
-{
-    let obs_codes = match &header.obs_codes {
-        Some(c) => c,
-        _ => return Err(RecordItemError::NoObservationCode)
-    };
-
-    let mut lines = content.lines();
-    let (epoch, rem) = content.split_at(24);
-    let (flag, rem) = rem.split_at(3);
-    let (n, rem) = rem.split_at(3);
-
-    let mut obs: Vec<HashMap<String, RecordItem>>
-        = Vec::new(HashMap::with_capacity(3 + obs_codes.len())); // Sv, Epoch, Flag, Data
-    
-    Ok(obs)
-}*/
 
 mod test {
     use super::*;

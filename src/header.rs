@@ -259,7 +259,7 @@ pub struct RinexHeader {
     // observation (specific)
     /// lists all types of observations 
     /// contained in this `Rinex` OBS file
-    pub obs_codes: Option<Vec<String>>, 
+    pub obs_codes: Option<Vec<(Constellation, Vec<String>)>>, 
 }
 
 #[derive(Error, Debug)]
@@ -485,7 +485,7 @@ impl std::str::FromStr for RinexHeader {
         let mut epochs: (Option<gnss_time::GnssTime>, Option<gnss_time::GnssTime>) = (None, None);
         // (OBS) 
         let obs_nb_sat : u32 = 0;
-        let mut obs_codes  : Vec<String> = Vec::new();
+        let mut obs_codes  : Vec<(Constellation, Vec<String>)> = Vec::new();
 
         loop {
             /*
@@ -632,37 +632,38 @@ impl std::str::FromStr for RinexHeader {
                 // Rinex V < 3 : old fashion obs data
                 // ⚠ ⚠ could either be observation or meteo data
                 let (rem, _) = line.split_at(60);
-                match rinex_type {
-                    Type::ObservationData => {
-                        let (_, mut rem) = rem.split_at(6);
-                        loop {
-                            let (code, r) = rem.split_at(6);
-                            if code.trim().len() == 0 {
-                                break
-                            }
-                            obs_codes.push(String::from(code.trim()));
-                            if r.len() == 0 {
-                                break
-                            }
-                            rem = r
-                        }
-                    },
-                    Type::MeteorologicalData => {
-                        let (_, mut rem) = rem.split_at(6);
-                        loop {
-                            let (code, r) = rem.split_at(6);
-                            if code.trim().len() == 0 {
-                                break
-                            }
-                            obs_codes.push(String::from(code.trim()));
-                            if r.len() == 0 {
-                                break
-                            }
-                            rem = r
-                        }
-                    },
-                    _ => {},
+                let mut codes : Vec<String> = Vec::new();
+                let (_, mut rem) = rem.split_at(6);
+                loop {
+                    let (code, r) = rem.split_at(6);
+                    if code.trim().len() == 0 {
+                        break
+                    }
+                    codes.push(String::from(code.trim()));
+                    if r.len() == 0 {
+                        break
+                    }
+                    rem = r
                 }
+                // build code map 
+                // to be used later on when parsing payload
+                let constell : Vec<Constellation> = match constellation {
+                    Constellation::Mixed => {
+                        Vec::from([
+                            Constellation::GPS,
+                            Constellation::Glonass,
+                            Constellation::Galileo,
+                            Constellation::Beidou,
+                            Constellation::Sbas,
+                            Constellation::QZSS,
+                        ])
+                    },
+                    c => Vec::from([c]), 
+                };
+                for i in 0..constell.len() {
+                //    obs_codes.push((constell[i], obs_codes))
+                }
+
             } else if line.contains("SYS / # / OBS TYPES") {
                 //let content = line.split_at(60).0;
 /*G   22 C1C L1C D1C S1C C1W S1W C2W L2W D2W S2W C2L L2L D2L  SYS / # / OBS TYPES
@@ -743,9 +744,9 @@ I    4 C5A L5A D5A S5A                                      SYS / # / OBS TYPES*
             }
         }
 
-        let obs_codes: Option<Vec<String>> = match obs_codes.len() {
-            0 => None,
-            _ => Some(obs_codes)
+        let obs_codes: Option<Vec<(Constellation, Vec<String>)>> = match obs_codes.is_empty() {
+            true => None,
+            false => None, //Some(obs_codes)
         };
         
         Ok(RinexHeader{

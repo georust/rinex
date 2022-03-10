@@ -179,10 +179,8 @@ pub fn build_record (header: &header::RinexHeader, body: &str) -> Result<Record,
                     }
                 },
                 Type::ObservationData => {
-                    if let Ok((e, sv, map)) = observation::build_record_entry(&header, &block) {
-                        let mut smap : HashMap<Sv, HashMap<String, ComplexEnum>> = HashMap::with_capacity(1);
-                        smap.insert(sv, map);
-                        rec.insert(e, smap);
+                    if let Ok((e, map)) = observation::build_record_entry(&header, &block) {
+                        rec.insert(e, map);
                     }
                 },
                 _ => {},
