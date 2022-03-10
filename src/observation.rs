@@ -46,7 +46,7 @@ macro_rules! is_sig_strength_obs_code {
 /// rcvr_clock_offset: receiver clock offset (s)    
 /// sat_clock_offset: Sv clock offset (s)    
 /// biases: other additive biases
-pub fn distance_from_pseudo_range (pr: f64, 
+pub fn distance_from_pseudo_range (pr: f64,
     rcvr_clock_offset: f64, sat_clock_offset: f64, biases: Vec<f64>)
         -> f64 {
     pr - SPEED_OF_LIGHT_IN_VACUUM * (rcvr_clock_offset - sat_clock_offset)
@@ -56,14 +56,18 @@ pub fn distance_from_pseudo_range (pr: f64,
 
 #[derive(Error, Debug)]
 pub enum RecordError {
-    #[error("failed to parse epoch")]
-    ParseEpochError(#[from] epoch::ParseEpochError),
+    #[error("failed to parse date")]
+    ParseDateError(#[from] epoch::ParseDateError),
     #[error("failed to parse epoch flag")]
-    ParseEpochFlagError(#[from] std::io::Error), 
+    ParseEpochFlagError(#[from] std::io::Error),
+    #[error("failed to parse sv")]
+    ParseSvError(#[from] record::ParseSvError),
+    #[error("failed to parse cplx data")]
+    ParseComplexError(#[from] record::ComplexEnumError),
     #[error("failed to integer number")]
-    ParseIntError(#[from] std::num::ParseIntError), 
+    ParseIntError(#[from] std::num::ParseIntError),
     #[error("failed to float number")]
-    ParseFloatError(#[from] std::num::ParseFloatError), 
+    ParseFloatError(#[from] std::num::ParseFloatError),
     #[error("failed to parse this file")]
     ParseRecordError,
 }
@@ -89,54 +93,129 @@ pub fn build_record_entry (header: &RinexHeader, content: &str)
         +11; // secs
     
     // might start with a ">" marker, 
-    // is this V>2 specific ?
+    // is this V > 2 specific ?
     if let Some(i) = line.find(">") {
         offset += 1
     }
 
-    // V>2 epoch::Y is a 4 digit number
+    // V > 2 epoch::Y is a 4 digit number
     if header.version.major > 2 {
         offset += 2
     }
 
-    let (epoch, rem) = line.split_at(offset);
+    let (date, rem) = line.split_at(offset);
     let (flag, rem) = rem.split_at(3);
     let (n_sat, rem) = rem.split_at(3);
     let n_sat = u16::from_str_radix(n_sat.trim(), 10)?;
-    let epoch_flag = epoch::EpochFlag::from_str(flag.trim())?;
+    let flag = epoch::EpochFlag::from_str(flag.trim())?;
+    let date = epoch::str2date(date)?; 
+    let epoch = epoch::Epoch::new(date, flag);
+    println!("epoch {:#?}\nn_sat \"{}\"\n", date, n_sat);
 
-    println!("epoch \"{}\", flag \"{:#?}\", n \"{}\"", epoch, epoch_flag, n_sat);
-    
-    let mut sv : Vec<Sv> = Vec::new();
+    let mut line_count : usize = 0;
+    let mut sv_list : Vec<Sv> = Vec::with_capacity(24);
+    let mut clock_offset : Option<f32> = None;
 
-    if header.version.major > 2 {
-        if rem.trim().len() > 0 {
-            let clock_offset = f32::from_str(rem.trim())?;
+    if header.version.major < 3 {
+        // old fashion:
+        //   Sv list is passed on 1st and possibly 2nd line (n_sat > 12)
+        let mut offset : usize = 0;
+        //println!("sv_list payload \"{}\"", rem);
+        loop {
+            if let Ok(sv) = Sv::from_str(&rem[offset..offset+3]) {
+                sv_list.push(sv);
+                offset += 3;
+            } else {
+                break
+            }
+            if offset == rem.len() {
+                break
+            }
         }
-    }
 
-    // multi line case ?
-    //    --> oui si N > xxx
+        // clock offset
+        //if rem.trim().len() > 0 {
+        //    let clock_offset = f32::from_str(rem.trim())?;
+        //}
+        
+        if n_sat > 12 {
+            line = lines.next()
+                .unwrap();
+
+            let rem = line.trim();
+            let mut offset : usize = 0;
+            loop {
+                if let Ok(sv) = Sv::from_str(&rem[offset..offset+3]) {
+                    sv_list.push(sv)
+                } else {
+                    break
+                }
+                if offset == rem.len() {
+                    break
+                }
+            }
+        }
+    } else {
+        // modern rinex:
+        //   Sv is specified @ every single epoch
+        // what about clock offset ?
+    }
+    
+    //println!("clockoffset {:#?}\n", clock_offset);
+    
     line = lines.next()
         .unwrap();
 
-    //let mut offset: usize 0;
+    let mut map : HashMap<Sv, HashMap<String, ComplexEnum>> = HashMap::new();
+
+    //println!("sv_list: {:#?}", sv_list);
+
     loop {
-    /*    let content : Vec<&str> = line.split_ascii_whitespace()
+        let content : Vec<&str> = line.split_ascii_whitespace()
             .collect();
+
+        // sv will serve as code_map identifier
+        let (sv, offset) : (Sv, usize) = match header.version.major < 3 {
+            true => {
+                // old fashion : 
+                //  using previously identified Sv 
+                (sv_list[line_count], 0)
+                /*if let Some(list) = sv_list {
+                    (list[line_count], 0) 
+                } else {
+                    (Sv::default(), 0) // unreachable() on sane RINEX
+                }*/
+            },
+            false => {
+                // modern :
+                //  sv is specified @ each line
+                (Sv::from_str(content[0].trim())?, 1)
+            },
+        };
+
+        //println!("Identified Sv: {:?}", sv);
+
+        let mut code_map : HashMap<String, ComplexEnum> = HashMap::new();
+        let constell = &header.obs_codes
+            .as_ref()
+                .unwrap()
+                [&sv.constellation];
+        
         for i in 0..content.len() {
-            //let item = ComplexEnum::new(content[i].trim(), "f32");
-            //map.insert(header.obs_codes[i], item); 
-            println!("obs content: \"{}\"", content[i])
-        }*/
+            let code = &constell[i];
+            let item = ComplexEnum::new("f32", content[i+offset])?;
+            code_map.insert(code.to_string(), item);
+        }
+        map.insert(sv, code_map);
+        
         if let Some(l) = lines.next() {
             line = l;
+            line_count += 1;
         } else {
             break
         }
     }
-
-    Err(RecordError::ParseRecordError)
+    Ok((epoch, map))
 }
 
 #[derive(EnumString)]
@@ -220,6 +299,7 @@ impl CarrierFrequency {
     }
 }
 
+/*
 pub enum SignalStrength {
     DbHz12, // < 12 dBc/Hz
     DbHz12_17, // 12 <= x < 17 dBc/Hz
@@ -232,9 +312,9 @@ pub enum SignalStrength {
     DbHz54, // >= 54 dBc/Hz 
 }
 
-/*impl SignalStrength {
+impl SignalStrength {
     from f64::
-}*/
+}
 
 /// `ObservationCode` related errors
 #[derive(Error, Debug)]
@@ -283,7 +363,7 @@ impl std::str::FromStr for ObservationCode {
             Err(ObservationCodeError::UnknownObsCode(s.to_string()))
         }
     }
-}
+} */
 
 mod test {
     use super::*;
