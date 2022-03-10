@@ -12,12 +12,6 @@ use crate::record::{Sv, ComplexEnum};
 
 include!(concat!(env!("OUT_DIR"),"/nav_data.rs"));
 
-//pub fn parse_nav_frames() -> Result<String, Box<dyn std::error::Error>> {
-//    let data = std::fs::read_to_string("navigation.json")?;
-    //let frames: Vec<NavFrame> = 
-//    serde_json::from_str(&data)?
-//}
-
 #[derive(Error, Debug)]
 pub enum RecordError {
     #[error("failed to parse msg type")]
