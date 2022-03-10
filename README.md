@@ -102,25 +102,28 @@ that is, data is sorted by the sampling timestamp.
 [Epoch structure](https://docs.rs/rinex/latest/rinex/epoch/index.html)
 
 `epoch` is a `chrono::NaiveDateTime` object validated by an
-`EpochFlag`. A valid epoch is validated with `EpochFlag::Ok`,
-refer to specific API.
+`EpochFlag`.    
+A valid epoch is validated with `EpochFlag::Ok`, refer to specific API.
 
 To demonstrate how to operate the `epoch` API, we'll take 
-a Navigation Rinex file as an example. First, grab the record:
+a Navigation Rinex file as an example. 
+
+First, let's grab the record:
 
 ```rust
-let rinex = rinex::Rinex::from_file("navigation-file.rnx")
+let rinex = rinex::Rinex::from_file("data/amel0010.21g")
   .unwrap();
 let record = rinex.record
-  .unwrap() // option<record>, None in case of CRINEX
-    .as_nav() // NAV record example
+  .unwrap() // option<record> unwrapping, None in case of CRINEX
+    .as_nav() // NAV record unwrapping
     .unwrap();
 ```
 
-`epochs` serve as keys of the first hashmap. 
-The `keys()` iterator is then the easiest way to to determine
-which _epochs_ were idenfitied. 
-We need to grab the `.date` field of an `epoch`.
+`epochs` serve as keys of the first hashmap.  
+The `keys()` iterator is the easiest way to to determine
+which _epochs_ were idenfitied.   
+Here we are only interested in the `.date` field of an `epoch`, to determine
+the encountered timestamps:
 
 ```rust
    let epochs: Vec<_> = record
@@ -162,13 +165,12 @@ epochs = [ // example
 
 `unique()` filter is not available to hashmaps,
 due to the `hashmap.insert()` behavior which always overwrites
-a previous value for a given key.
- 
+a previous value for a given key.   
 It is not needed in our case because, because `epochs` are unique,
 we will always have a single set of data per epoch.
 
-Keep in mind `epochs` are fixed to `EpochFlag::Ok` in NAV files.
-EpochFlags are provided in OBS files for examples.
+Keep in mind `epochs` are fixed to `EpochFlag::Ok` in NAV files.   
+EpochFlags are provided in OBS files for examples.   
 Refer to specific
 [Observation files documentation](https://github.com/gwbres/rinex/blob/main/doc/observation.md)
 to see how filtering using epoch flags is powerful and relevant.
