@@ -2,13 +2,15 @@
 //! rinex header parser and associated methods
 //use regex::Regex;
 use thiserror::Error;
+use std::collections::HashMap;
 
 use crate::version;
 use crate::gnss_time;
 use crate::{is_comment, Type, TypeError};
+use crate::constellation;
 use crate::constellation::{Constellation, ConstellationError};
 use crate::meteo::{MeteoDataCode, MeteoDataCodeError};
-use crate::observation::{ObservationCode, ObservationCodeError};
+//use crate::observation::{ObservationCode, ObservationCodeError};
 
 /// Describes a `CRINEX` (compact rinex) 
 pub const CRINEX_MARKER_COMMENT : &str = "COMPACT RINEX FORMAT";
@@ -259,7 +261,7 @@ pub struct RinexHeader {
     // observation (specific)
     /// lists all types of observations 
     /// contained in this `Rinex` OBS file
-    pub obs_codes: Option<Vec<(Constellation, Vec<String>)>>, 
+    pub obs_codes: Option<HashMap<Constellation, Vec<String>>>, 
 }
 
 #[derive(Error, Debug)]
@@ -284,8 +286,8 @@ pub enum Error {
     DateParsingError(#[from] chrono::ParseError),
     #[error("failed to parse leap second from \"{0}\"")]
     LeapSecondParsingError(String),
-    #[error("observation type code not recognized \"{0}\"")]
-    ObservationTypeCodeError(#[from] ObservationCodeError),
+    //#[error("observation type code not recognized \"{0}\"")]
+    //ObservationTypeCodeError(#[from] ObservationCodeError),
     #[error("meteo data code not recognized \"{0}\"")]
     MeteoDataCodeError(#[from] MeteoDataCodeError),
 }
@@ -485,7 +487,8 @@ impl std::str::FromStr for RinexHeader {
         let mut epochs: (Option<gnss_time::GnssTime>, Option<gnss_time::GnssTime>) = (None, None);
         // (OBS) 
         let obs_nb_sat : u32 = 0;
-        let mut obs_codes  : Vec<(Constellation, Vec<String>)> = Vec::new();
+        let mut obs_codes  : HashMap<Constellation, Vec<String>> 
+            = HashMap::with_capacity(constellation::CONSTELLATION_LENGTH);
 
         loop {
             /*
@@ -501,7 +504,8 @@ impl std::str::FromStr for RinexHeader {
             } else if line.contains("MARKER NUMBER") {
                 station_id = String::from(line.split_at(20).0.trim()) 
             } else if line.contains("OBSERVER / AGENCY") {
-                let (obs, ag) = line.split_at(20);
+                let (content, _) = line.split_at(60);
+                let (obs, ag) = content.split_at(20);
                 observer = String::from(obs.trim());
                 agency = String::from(ag.trim())
 
@@ -661,10 +665,13 @@ impl std::str::FromStr for RinexHeader {
                     c => Vec::from([c]), 
                 };
                 for i in 0..constell.len() {
-                //    obs_codes.push((constell[i], obs_codes))
+                    obs_codes.insert(constell[i], codes.clone());
                 }
 
             } else if line.contains("SYS / # / OBS TYPES") {
+                // modern obs codes descriptor 
+                // this time SYS/Constellation is specified
+                println!("SYS / # OBS TYPES :modern <TODO>");
                 //let content = line.split_at(60).0;
 /*G   22 C1C L1C D1C S1C C1W S1W C2W L2W D2W S2W C2L L2L D2L  SYS / # / OBS TYPES
        S2L C5Q L5Q D5Q S5Q C1L L1L D1L S1L                  SYS / # / OBS TYPES
@@ -676,9 +683,6 @@ R   20 C1C L1C D1C S1C C1P L1P D1P S1P C2P L2P D2P S2P C2C  SYS / # / OBS TYPES
 C   20 C1P L1P D1P S1P C5P L5P D5P S5P C2I L2I D2I S2I C7I  SYS / # / OBS TYPES
        L7I D7I S7I C6I L6I D6I S6I                          SYS / # / OBS TYPES
 I    4 C5A L5A D5A S5A                                      SYS / # / OBS TYPES*/
-                // Rinex::ObservationData 
-                // types of observation for specified constellation
-                
                 // grab Constellation info:
                 //   [+] if constellation info exists: new entry
                 //   [+] otherwise: adding some more to a previous entry
@@ -744,9 +748,9 @@ I    4 C5A L5A D5A S5A                                      SYS / # / OBS TYPES*
             }
         }
 
-        let obs_codes: Option<Vec<(Constellation, Vec<String>)>> = match obs_codes.is_empty() {
+        let obs_codes: Option<HashMap<Constellation, Vec<String>>> = match obs_codes.is_empty() {
             true => None,
-            false => None, //Some(obs_codes)
+            false => Some(obs_codes),
         };
         
         Ok(RinexHeader{
@@ -767,13 +771,10 @@ I    4 C5A L5A D5A S5A                                      SYS / # / OBS TYPES*
             ant, 
             leap,
             coords: coords,
-            // ?
             wavelengths: None,
             gps_utc_delta: None,
-            // observations
-            epochs: epochs,
+            epochs,
             obs_codes,
-            // processing
             sampling_interval: sampling_interval,
             data_scaling: None,
             //ionospheric_corr: None,
