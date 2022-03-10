@@ -16,12 +16,21 @@ pub const CONSTELLATION_NUMBER: u8 = 6;
 /// when manipulating `RINEX`
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Constellation {
+    /// `GPS` american consellation,
+    /// also servers as default constellation
     GPS,
+    /// `Glonass` russian consellation
     Glonass,
+    /// `Beidou` chinese consellation
     Beidou,
+    /// `QZSS` japanese consellation
     QZSS,
+    /// `Galileo` european consellation
     Galileo,
+    /// `Sbas` consellation
     Sbas,
+    /// `Mixed` for Mixed constellations 
+    /// RINEX files description
     Mixed,
 }
 

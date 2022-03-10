@@ -17,7 +17,7 @@ describes the types of RINEX currently supported:
 `RINEX` files contain a lot of data and this library is capable of parsing all of it.   
 To fully understand how to operate this lib, refer to the `RinexType` section you are interested in.
 
-Link to the [official API](https://docs.rs/rinex/0.0.10/rinex/)
+Link to the [official API](https://docs.rs/rinex/latest/rinex/index.html)
 
 ### Supported RINEX revisions
 
@@ -96,8 +96,10 @@ that is, data is sorted by the sampling timestamp.
 
 ## `Epoch` object
 
-`epoch` is simply a `chrono::NaiveDateTime` alias,
-thefore all of its methods are available.
+[Epoch structure](https://docs.rs/rinex/latest/rinex/epoch/index.html)
+
+`epoch` is a `chrono::NaiveDateTime` object validated by an
+`EpochFlag`.
 
 To demonstrate how to operate the `epoch` API, we'll take 
 a Navigation Rinex file as an example. First, grab the record:
