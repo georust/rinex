@@ -46,29 +46,23 @@ impl std::str::FromStr for Sv {
     type Err = ParseSvError;
     /// Builds an `Sv` from string content
     fn from_str (s: &str) -> Result<Self, Self::Err> {
-        let prn: u8;
-        let mut constellation = Constellation::default();
+        let constellation : Constellation;
         if s.starts_with('G') {
             constellation = Constellation::GPS;
-            prn = u8::from_str_radix(&s[1..], 10)?;
         } else if s.starts_with('E') {
             constellation = Constellation::Galileo;
-            prn = u8::from_str_radix(&s[1..], 10)?;
         } else if s.starts_with('R') {
             constellation = Constellation::Glonass;
-            prn = u8::from_str_radix(&s[1..], 10)?;
         } else if s.starts_with('S') {
             constellation = Constellation::Sbas;
-            prn = u8::from_str_radix(&s[1..], 10)?;
         } else if s.starts_with('J') {
             constellation = Constellation::QZSS;
-            prn = u8::from_str_radix(&s[1..], 10)?;
         } else if s.starts_with('C') {
             constellation = Constellation::Beidou;
-            prn = u8::from_str_radix(&s[1..], 10)?;
         } else {
-            prn = u8::from_str_radix(&s, 10)?;
+            return Err(ParseSvError::UnidentifiedConstellation(s.chars().nth(0).unwrap()));
         }
+        let prn = u8::from_str_radix(&s[1..].trim(), 10)?;
         Ok(Sv{constellation, prn})
     }
 }
