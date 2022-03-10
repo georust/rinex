@@ -165,7 +165,7 @@ It is not needed in our case because, because `epochs` are unique,
 we will always have a single set of data per epoch.
 
 Keep in mind `epochs` are fixed to `EpochFlag::Ok` in NAV files.
-The other values are only available in OBS file.
+EpochFlags are provided in OBS files for examples.
 Refer to specific
 [Observation files documentation](https://github.com/gwbres/rinex/blob/main/doc/observation.md)
 to see how filtering using epoch flags is powerful and relevant.
