@@ -4,6 +4,15 @@ p44
 "is almost identical to Constellation == glonass
 but the records contain the satellite position, velocity, accel, health.."
 
+Header:
+* [ ] coords [m] system ?
+* [ ] clock_offset_applied ? --> compensation
+* [ ] GnssTime + possible conversion needed ?
+* [ ] WaveLength fact L1/2 ?
+
+Record :
+* [ ] ObsRecord: add clockoffsets to epoch record
+
 Navigation Messages:
 * [ ] improve batabase usage. `revision.minor` might be passed and must be used.
 We should parse using the closest revision number
@@ -18,7 +27,6 @@ Hatanaka:
 Meteo Data:
 * [ ] parse METEO codes
 * [ ] get started 
-
 
 Clocks Data:
 * [ ] TODO
