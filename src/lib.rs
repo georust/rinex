@@ -161,20 +161,26 @@ mod test {
     #[test]
     /// Tests `Rinex` constructor against all known test resources
     fn test_rinex_constructor() {
-        // open test resources
-        let test_resources = std::path::PathBuf::from(
-            env!("CARGO_MANIFEST_DIR").to_owned() + "/data");
-        // walk test resources
-        for entry in std::fs::read_dir(test_resources)
-            .unwrap() {
-            let entry = entry
-                .unwrap();
-            let path = entry.path();
-            if !path.is_dir() { // only files..
-                let fp = std::path::Path::new(&path);
-                let rinex = Rinex::from_file(&fp);
-                println!("File: {:?}\n{:#?}", &fp, rinex);
-                assert_eq!(rinex.is_err(), false)
+        let test_dir = env!("CARGO_MANIFEST_DIR").to_owned() + "/data";
+        let types = vec!["NAV","OBS"];
+        for t in types {
+            let versions = vec!["V2","V3"];
+            for v in versions {
+                let dir_path = std::path::PathBuf::from(
+                    test_dir.to_owned() + "/"+t + "/"+v
+                );
+                for entry in std::fs::read_dir(dir_path)
+                    .unwrap() {
+                    let entry = entry
+                        .unwrap();
+                    let path = entry.path();
+                    if !path.is_dir() { // only files..
+                        let fp = std::path::Path::new(&path);
+                        let rinex = Rinex::from_file(&fp);
+                        println!("File: {:?}\n{:#?}", &fp, rinex);
+                        assert_eq!(rinex.is_err(), false)
+                    }
+                }
             }
         }
     }
