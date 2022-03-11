@@ -12,7 +12,7 @@ Header:
 * [ ] time of first and last obs parsing is faulty
 * [ ] header.antenna.model sometimes appear as dirty, check this out
 * [ ] coords [m] system ?
-* [ ] rcvr-clock-offset_applied ? --> compensation ??
+* [ ] rcvr-clock-offset-applied ? --> compensation ??
 * [ ] GnssTime + possible conversion needed ?
 * [ ] WaveLength fact L1/2 ?
 * [ ] Glonass SLOT /freq channel ?
@@ -30,6 +30,7 @@ Observation Data:
 * [x] get started with revision >= 1
 * [ ] V > 2
 * [ ] clock offsets
+* [ ] last epoch always missed
 
 Hatanaka:
 * [ ] provide a decompression method to decompress most OBS data files
