@@ -71,8 +71,8 @@ impl std::str::FromStr for Sv {
 #[derive(Clone, Debug)]
 pub enum Record {
     NavRecord(HashMap<Epoch, HashMap<Sv, HashMap<String, ComplexEnum>>>),
-    ObsRecord(HashMap<Epoch, HashMap<Sv, HashMap<String, ComplexEnum>>>),
-    MeteoRecord(HashMap<Epoch, HashMap<String, ComplexEnum>>),
+    ObsRecord(HashMap<Epoch, HashMap<Sv, HashMap<String, f32>>>),
+    MeteoRecord(HashMap<Epoch, HashMap<String, f32>>),
 }
 
 impl Record {
@@ -83,13 +83,13 @@ impl Record {
             _ => None,
         }
     }
-    pub fn as_obs (&self) -> Option<&HashMap<Epoch, HashMap<Sv, HashMap<String, ComplexEnum>>>> {
+    pub fn as_obs (&self) -> Option<&HashMap<Epoch, HashMap<Sv, HashMap<String, f32>>>> {
         match self {
             Record::ObsRecord(e) => Some(e),
             _ => None,
         }
     }
-    pub fn as_meteo (&self) -> Option<&HashMap<Epoch, HashMap<String, ComplexEnum>>> {
+    pub fn as_meteo (&self) -> Option<&HashMap<Epoch, HashMap<String, f32>>> {
         match self {
             Record::MeteoRecord(e) => Some(e),
             _ => None,
@@ -128,7 +128,7 @@ fn block_record_start (line: &str, header: &header::RinexHeader) -> bool {
                         }
                     }
                 },
-                Type::ObservationData => parsed.len() > 8,
+                Type::ObservationData => parsed.len() > 7,
                 _ => false, 
             }
         },
@@ -159,7 +159,8 @@ pub fn build_record (header: &header::RinexHeader, body: &str) -> Result<Record,
     let mut first = true;
     let mut block = String::with_capacity(256*1024); // max. block size
 
-    let mut rec : HashMap<Epoch, HashMap<Sv, HashMap<String, ComplexEnum>>> = HashMap::new();
+    let mut nav_rec : HashMap<Epoch, HashMap<Sv, HashMap<String, ComplexEnum>>> = HashMap::new();
+    let mut obs_rec : HashMap<Epoch, HashMap<Sv, HashMap<String, f32>>> = HashMap::new();
     
     loop {
         let is_new_block = block_record_start(&line, &header);
@@ -169,12 +170,12 @@ pub fn build_record (header: &header::RinexHeader, body: &str) -> Result<Record,
                     if let Ok((e, sv, map)) = navigation::build_record_entry(&header, &block) {
                         let mut smap : HashMap<Sv, HashMap<String, ComplexEnum>> = HashMap::with_capacity(1);
                         smap.insert(sv, map);
-                        rec.insert(e, smap);
+                        nav_rec.insert(e, smap);
                     }
                 },
                 Type::ObservationData => {
                     if let Ok((e, map)) = observation::build_record_entry(&header, &block) {
-                        rec.insert(e, map);
+                        obs_rec.insert(e, map);
                     }
                 },
                 _ => {},
@@ -211,8 +212,8 @@ pub fn build_record (header: &header::RinexHeader, body: &str) -> Result<Record,
         }
     }
     match &header.rinex_type {
-        Type::NavigationMessage => Ok(Record::NavRecord(rec)), 
-        Type::ObservationData => Ok(Record::ObsRecord(rec)), 
+        Type::NavigationMessage => Ok(Record::NavRecord(nav_rec)),
+        Type::ObservationData => Ok(Record::ObsRecord(obs_rec)), 
         _ => Err(TypeError::UnknownType(header.rinex_type.to_string())),
     }
 }
