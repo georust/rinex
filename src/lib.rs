@@ -173,8 +173,8 @@ mod test {
             if !path.is_dir() { // only files..
                 let fp = std::path::Path::new(&path);
                 let rinex = Rinex::from_file(&fp);
-                assert_eq!(rinex.is_err(), false);
-                println!("File: {:?}\n{:#?}", &fp, rinex)
+                println!("File: {:?}\n{:#?}", &fp, rinex);
+                assert_eq!(rinex.is_err(), false)
             }
         }
     }
