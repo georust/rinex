@@ -669,30 +669,50 @@ impl std::str::FromStr for RinexHeader {
                 }
 
             } else if line.contains("SYS / # / OBS TYPES") {
-                // modern obs codes descriptor 
-                // this time SYS/Constellation is specified
-                println!("SYS / # OBS TYPES :modern <TODO>");
-                //let content = line.split_at(60).0;
-/*G   22 C1C L1C D1C S1C C1W S1W C2W L2W D2W S2W C2L L2L D2L  SYS / # / OBS TYPES
-       S2L C5Q L5Q D5Q S5Q C1L L1L D1L S1L                  SYS / # / OBS TYPES
-E   20 C1C L1C D1C S1C C6C L6C D6C S6C C5Q L5Q D5Q S5Q C7Q  SYS / # / OBS TYPES
-       L7Q D7Q S7Q C8Q L8Q D8Q S8Q                          SYS / # / OBS TYPES
-S    8 C1C L1C D1C S1C C5I L5I D5I S5I                      SYS / # / OBS TYPES
-R   20 C1C L1C D1C S1C C1P L1P D1P S1P C2P L2P D2P S2P C2C  SYS / # / OBS TYPES
-       L2C D2C S2C C3Q L3Q D3Q S3Q                          SYS / # / OBS TYPES
-C   20 C1P L1P D1P S1P C5P L5P D5P S5P C2I L2I D2I S2I C7I  SYS / # / OBS TYPES
-       L7I D7I S7I C6I L6I D6I S6I                          SYS / # / OBS TYPES
-I    4 C5A L5A D5A S5A                                      SYS / # / OBS TYPES*/
-                // grab Constellation info:
-                //   [+] if constellation info exists: new entry
-                //   [+] otherwise: adding some more to a previous entry
-                let (sys, rem) = line.split_at(3);
-                let (nb, rem) = rem.split_at(3);
-                if sys.trim().len() > 0 {
-                    println!("SYS \"{}\" NB \"{}\" REM \"{}\"", sys.trim(), nb.trim(), rem.trim());
-                } else {
-                    println!("REM \"{}\"", rem.trim());
+                // modern obs code descriptor 
+                let (line, _) = line.split_at(60); // remove header
+                let (identifier, rem) = line.split_at(1);
+                let (n_codes, content) = rem.split_at(5);
+                println!("identifier \"{}\" n_codes \"{}\"", identifier, n_codes);
+                let n_codes = u8::from_str_radix(n_codes.trim(), 10)?;
+                let n_lines : usize = match n_codes > 13 {
+                    true => (n_codes / 13+1).into(),
+                    false => 1,
+                };
+
+                let mut codes : Vec<String> = Vec::with_capacity(n_codes.into());
+                let constell : constellation::Constellation = match identifier {
+                    "G" => constellation::Constellation::GPS,
+                    "R" => constellation::Constellation::Glonass,
+                    "B" => constellation::Constellation::Beidou,
+                    "J" => constellation::Constellation::QZSS,
+                    "E" => constellation::Constellation::Galileo,
+                    "C" => constellation::Constellation::Beidou,
+                    "S" => constellation::Constellation::Sbas,
+                    _ => continue, // should never happen 
+                };
+
+                for i in 0..n_lines {
+                    let mut offset : usize = 0;
+                    let mut rem = content.clone();
+                    loop {
+                        let (code, remainder) = rem.split_at(offset+3+1);
+                        rem = remainder.clone();
+                        if code.trim().len() == 0 {
+                            rem = lines.next()
+                                .unwrap();
+                            break
+                        }
+                        codes.push(String::from(code.trim()));
+                        if offset >= rem.len() {
+                            rem = lines.next()
+                                .unwrap();
+                            break
+                        }
+                    }
                 }
+                obs_codes.insert(constell, codes);
+            
             } else if line.contains("SIGNAL STRENGHT UNIT") {
                 //TODO
             } else if line.contains("INTERVAL") {
