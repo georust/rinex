@@ -379,7 +379,7 @@ impl std::str::FromStr for RinexHeader {
         let rinex_type = Type::from_str(type_str.trim())?;
         let constellation: Constellation;
         
-        if type_str.trim().contains("GLONASS") {
+        if type_str.contains("GLONASS") {
             // special case, sometimes GLONASS NAV
             // drops the constellation field cause it's implied
             constellation = Constellation::Glonass
@@ -534,7 +534,7 @@ impl std::str::FromStr for RinexHeader {
                 license = Some(String::from(lic.trim()))
             
             } else if line.contains("TIME OF FIRST OBS") {
-                let items: Vec<&str> = line.split_ascii_whitespace()
+                /*let items: Vec<&str> = line.split_ascii_whitespace()
                     .collect();
                 let (y, month, d, h, min, s, constel): (i32,u32,u32,u32,u32,f32,Constellation) =
                     (i32::from_str_radix(items[0].trim(),10)?,
@@ -545,10 +545,10 @@ impl std::str::FromStr for RinexHeader {
                     f32::from_str(items[5].trim())?,
                     Constellation::from_str(items[6].trim())?);
                 let utc = chrono::NaiveDate::from_ymd(y,month,d).and_hms(h,min,s as u32);
-                epochs.0 = Some(gnss_time::GnssTime::new(utc, constel)) 
+                epochs.0 = Some(gnss_time::GnssTime::new(utc, constel)) */
 
             } else if line.contains("TIME OF LAST OBS") {
-                let items: Vec<&str> = line.split_ascii_whitespace()
+               /* let items: Vec<&str> = line.split_ascii_whitespace()
                     .collect();
                 let (y, month, d, h, min, s, constel): (i32,u32,u32,u32,u32,f32,Constellation) =
                     (i32::from_str_radix(items[0].trim(),10)?,
@@ -559,7 +559,7 @@ impl std::str::FromStr for RinexHeader {
                     f32::from_str(items[5].trim())?,
                     Constellation::from_str(items[6].trim())?);
                 let utc = chrono::NaiveDate::from_ymd(y,month,d).and_hms(h,min,s as u32);
-                epochs.1 = Some(gnss_time::GnssTime::new(utc, constel)) 
+                epochs.1 = Some(gnss_time::GnssTime::new(utc, constel))*/ 
             
             } else if line.contains("WAVELENGTH FACT L1/2") {
      //1     1                                                WAVELENGTH FACT L1/2
