@@ -10,6 +10,7 @@ Doc:
 
 Header:
 * [ ] time of first and last obs parsing is faulty
+* [ ] header.antenna.model sometimes appear as dirty, check this out
 * [ ] coords [m] system ?
 * [ ] clock_offset_applied ? --> compensation
 * [ ] GnssTime + possible conversion needed ?
