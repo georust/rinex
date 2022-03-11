@@ -94,14 +94,15 @@ pub fn build_record_entry (header: &RinexHeader, content: &str)
         +2+1 // m
         +11; // secs
     
-    // V > 2 might start with a ">" marker
-    if let Some(i) = line.find(">") {
-        offset += 1
-    }
-
     // V > 2 epoch::year is a 4 digit number
     if header.version.major > 2 {
         offset += 2
+    }
+
+    // V > 2 might start with a ">" marker
+    if line.starts_with(">") {
+        let (_, c) = line.split_at(1);
+        line = c.clone();
     }
 
     let (date, rem) = line.split_at(offset);
@@ -160,10 +161,16 @@ pub fn build_record_entry (header: &RinexHeader, content: &str)
                     rem = line.trim();
                     offset = 0;
                     break
-                } 
+                }
             }
         }
-        
+    
+        // verify identified sv_list
+        // against parsed epoch definition
+        if sv_list.len() != n_sat.into() {
+            return Err(RecordError::EpochParsingError) // mismatch
+        }
+    
     } else {
         // modern rinex:
         //   Sv is specified @ every single epoch
@@ -171,17 +178,13 @@ pub fn build_record_entry (header: &RinexHeader, content: &str)
     
     //println!("clockoffset {:#?}\n", clock_offset);
     //println!("sv_list: {:#?}", sv_list);
-    // verify identified sv_list
-    // against parsed epoch definition
-    if sv_list.len() != n_sat.into() {
-        return Err(RecordError::EpochParsingError) // mismatch
-    }
 
     let mut map : HashMap<Sv, HashMap<String, f32>> = HashMap::new();
-
+    
     for i in 0..sv_list.len() {
         let mut obs_map : HashMap<String, f32> = HashMap::new();
 
+        println!("line \"{}\"", line);
         // sv serves as obs_map identifier
         let sv : Sv = match header.version.major < 3 {
             true => {
@@ -196,7 +199,6 @@ pub fn build_record_entry (header: &RinexHeader, content: &str)
                 Sv::from_str(line[0..3].trim())?
             },
         };
-        //println!("Identified Sv: {:?}", sv);
         
         let obs_codes = &header.obs_codes
             .as_ref()
@@ -212,7 +214,7 @@ pub fn build_record_entry (header: &RinexHeader, content: &str)
                 Ok(f) => Some(f),
                 Err(_) => None,
             };
-            
+ 
             let (lli, ssi) : (Option<u8>,Option<u8>) = match line.len() == offset+14 {
                 true => {
                     // can't parse (lli,ssi) on this subset
