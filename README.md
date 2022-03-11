@@ -204,3 +204,7 @@ wip
 ## Clocks data
 
 wip
+
+## Contribute
+
+[How to contribute](https://github.com/gwbres/rinex/blob/main/doc/contribute.md)
