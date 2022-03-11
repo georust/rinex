@@ -9,6 +9,7 @@ Doc:
 * [ ] epoch: determine longest epoch for a given constellation or sv
 
 Header:
+* [ ] time of first and last obs parsing is faulty
 * [ ] coords [m] system ?
 * [ ] clock_offset_applied ? --> compensation
 * [ ] GnssTime + possible conversion needed ?
