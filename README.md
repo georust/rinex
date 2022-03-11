@@ -185,34 +185,12 @@ we have one set of NAV data per `Sv` per `epoch`.
 `Sv` is tied to a `rinex::constellation` and comprises an 8 bit
 identification number.
 
-## Data payload
-
-The final layer of a record is what we are interested in.
-
-The data payload are described in the specific documentation pages down below,
-they vary for each RINEX file types.
-
-In any case, data is encapsulated in the `ComplexEnum` enum,
-which wraps:
-
-* "f32": unscaled float value
-* "f64": unscaled double precision
-* "str": string value
-* "u8": raw 8 bit value
-
-For example, to unwrap the actual data of a ComplexEnum::F32,
-one should call: `as_f32().unwrap()`.
-
-Refer to the `ComplexEnum` API and following detailed examples.
-
 ## Navigation Data
 
-Refer to related API and
 [Navigation Data documentation](https://github.com/gwbres/rinex/blob/main/doc/navigation.md)
 
 ## Observation Data
 
-Refer to related API and
 [Observation Data documentation](https://github.com/gwbres/rinex/blob/main/doc/observation.md)
 
 ## GNSS Time specific operations

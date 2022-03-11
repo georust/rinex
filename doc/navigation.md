@@ -37,11 +37,11 @@ filtering epoch.flags makes no sence for a NAV file.
 
 All NAV record share the following attributes:
 
-* "msg": NAV message type
-* "type": NAV message type
-* "svClockBias": `Sv` Clock Bias (s) - refer to RINEX definitions
-* "svClockDrift": `Sv` Clock Drift (s.s⁻¹) - refer to RINEX definitions
-* "svClockDriftRate": `Sv` Clock Drift Rate (s.s⁻²) - refer to RINEX definitions
+* "msg": NAV message type (str)
+* "type": NAV message type (str)
+* "svClockBias": `Sv` Clock Bias [s] (f32)
+* "svClockDrift": `Sv` Clock Drift [s.s⁻¹] (f32)
+* "svClockDriftRate": `Sv` Clock Drift Rate [s.s⁻²] (f32)
 
 All remaining NAV record content is GNSS & revision dependent and is described in 
 _navigation.json_ descriptor. 
@@ -96,6 +96,21 @@ of the keys you are interested in:
 ```
 
 Item labelization type definition follow RINEX specifications closely.
+
+Every single data contained in a NAV record is wrapped in a `ComplexEnum` enum.   
+Even the five first ones that are not constellation and revision dependent.   
+`ComplexEnum` wrapper allows flexible and efficient parsing, of all
+NAV revisions and type descriptions.
+
+* "f32": unscaled float value
+* "f64": unscaled double precision
+* "str": string value
+* "u8": raw 8 bit value
+
+For example, to unwrap the actual data of a ComplexEnum::F32,
+one should call: `as_f32().unwrap()`.
+
+Refer to the examples down below when data fields are unwrapped.
 
 ## Navigation Record analysis
 

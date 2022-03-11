@@ -4,20 +4,86 @@ use std::str::FromStr;
 use std::collections::HashMap;
 
 use crate::epoch;
-use crate::record;
 use crate::version;
+use crate::record;
+use crate::record::Sv;
 use crate::constellation;
 use crate::header::RinexHeader;
-use crate::record::{Sv, ComplexEnum};
 
 include!(concat!(env!("OUT_DIR"),"/nav_data.rs"));
+
+/// `ComplexEnum` is record payload 
+#[derive(Clone, Debug)]
+pub enum ComplexEnum {
+    U8(u8),
+    Str(String), 
+    F32(f32),
+    F64(f64),
+}
+
+/// `ComplexEnum` related errors
+#[derive(Error, Debug)]
+pub enum ComplexEnumError {
+    #[error("failed to parse int value")]
+    ParseIntError(#[from] std::num::ParseIntError),
+    #[error("failed to parse float value")]
+    ParseFloatError(#[from] std::num::ParseFloatError),
+    #[error("unknown type descriptor \"{0}\"")]
+    UnknownTypeDescriptor(String),
+}
+
+impl ComplexEnum {
+    /// Builds a `ComplexEnum` from type descriptor and string content
+    pub fn new (desc: &str, content: &str) -> Result<ComplexEnum, ComplexEnumError> {
+        //println!("Building \'{}\' from \"{}\"", desc, content);
+        match desc {
+            "f32" => {
+                Ok(ComplexEnum::F32(f32::from_str(&content.replace("D","e"))?))
+            },
+            "f64" => {
+                Ok(ComplexEnum::F64(f64::from_str(&content.replace("D","e"))?))
+            },
+            "u8" => {
+                Ok(ComplexEnum::U8(u8::from_str_radix(&content, 16)?))
+            },
+            "str" => {
+                Ok(ComplexEnum::Str(String::from(content)))
+            },
+            _ => Err(ComplexEnumError::UnknownTypeDescriptor(desc.to_string())),
+        }
+    }
+    pub fn as_f32 (&self) -> Option<f32> {
+        match self {
+            ComplexEnum::F32(f) => Some(f.clone()),
+            _ => None,
+        }
+    }
+    pub fn as_f64 (&self) -> Option<f64> {
+        match self {
+            ComplexEnum::F64(f) => Some(f.clone()),
+            _ => None,
+        }
+    }
+    pub fn as_str (&self) -> Option<String> {
+        match self {
+            ComplexEnum::Str(s) => Some(s.clone()),
+            _ => None,
+        }
+    }
+    pub fn as_u8 (&self) -> Option<u8> {
+        match self {
+            ComplexEnum::U8(u) => Some(u.clone()),
+            _ => None,
+        }
+    }
+}
 
 #[derive(Error, Debug)]
 pub enum RecordError {
     #[error("failed to parse msg type")]
     ParseSvError(#[from] record::ParseSvError),
     #[error("failed to parse cplx data")]
-    ParseComplexError(#[from] record::ComplexEnumError),
+    ParseComplexError(#[from] ComplexEnumError),
     #[error("failed to parse sv::prn")]
     ParseIntError(#[from] std::num::ParseIntError), 
     #[error("failed to parse date")]

@@ -70,14 +70,14 @@ impl std::str::FromStr for Sv {
 /// `Record`
 #[derive(Clone, Debug)]
 pub enum Record {
-    NavRecord(HashMap<Epoch, HashMap<Sv, HashMap<String, ComplexEnum>>>),
+    NavRecord(HashMap<Epoch, HashMap<Sv, HashMap<String, navigation::ComplexEnum>>>),
     ObsRecord(HashMap<Epoch, HashMap<Sv, HashMap<String, f32>>>),
     MeteoRecord(HashMap<Epoch, HashMap<String, f32>>),
 }
 
 impl Record {
     /// Returns navigation record
-    pub fn as_nav (&self) -> Option<&HashMap<Epoch, HashMap<Sv, HashMap<String, ComplexEnum>>>> {
+    pub fn as_nav (&self) -> Option<&HashMap<Epoch, HashMap<Sv, HashMap<String, navigation::ComplexEnum>>>> {
         match self {
             Record::NavRecord(e) => Some(e),
             _ => None,
@@ -159,7 +159,7 @@ pub fn build_record (header: &header::RinexHeader, body: &str) -> Result<Record,
     let mut first = true;
     let mut block = String::with_capacity(256*1024); // max. block size
 
-    let mut nav_rec : HashMap<Epoch, HashMap<Sv, HashMap<String, ComplexEnum>>> = HashMap::new();
+    let mut nav_rec : HashMap<Epoch, HashMap<Sv, HashMap<String, navigation::ComplexEnum>>> = HashMap::new();
     let mut obs_rec : HashMap<Epoch, HashMap<Sv, HashMap<String, f32>>> = HashMap::new();
     
     loop {
@@ -168,7 +168,7 @@ pub fn build_record (header: &header::RinexHeader, body: &str) -> Result<Record,
             match &header.rinex_type {
                 Type::NavigationMessage => {
                     if let Ok((e, sv, map)) = navigation::build_record_entry(&header, &block) {
-                        let mut smap : HashMap<Sv, HashMap<String, ComplexEnum>> = HashMap::with_capacity(1);
+                        let mut smap : HashMap<Sv, HashMap<String, navigation::ComplexEnum>> = HashMap::with_capacity(1);
                         smap.insert(sv, map);
                         nav_rec.insert(e, smap);
                     }
@@ -215,71 +215,5 @@ pub fn build_record (header: &header::RinexHeader, body: &str) -> Result<Record,
         Type::NavigationMessage => Ok(Record::NavRecord(nav_rec)),
         Type::ObservationData => Ok(Record::ObsRecord(obs_rec)), 
         _ => Err(TypeError::UnknownType(header.rinex_type.to_string())),
-    }
-}
-
-/// `ComplexEnum` is record payload 
-#[derive(Clone, Debug)]
-pub enum ComplexEnum {
-    U8(u8),
-    Str(String), 
-    F32(f32),
-    F64(f64),
-}
-
-/// `ComplexEnum` related errors
-#[derive(Error, Debug)]
-pub enum ComplexEnumError {
-    #[error("failed to parse int value")]
-    ParseIntError(#[from] std::num::ParseIntError),
-    #[error("failed to parse float value")]
-    ParseFloatError(#[from] std::num::ParseFloatError),
-    #[error("unknown type descriptor \"{0}\"")]
-    UnknownTypeDescriptor(String),
-}
-
-impl ComplexEnum {
-    /// Builds a `ComplexEnum` from type descriptor and string content
-    pub fn new (desc: &str, content: &str) -> Result<ComplexEnum, ComplexEnumError> {
-        //println!("Building \'{}\' from \"{}\"", desc, content);
-        match desc {
-            "f32" => {
-                Ok(ComplexEnum::F32(f32::from_str(&content.replace("D","e"))?))
-            },
-            "f64" => {
-                Ok(ComplexEnum::F64(f64::from_str(&content.replace("D","e"))?))
-            },
-            "u8" => {
-                Ok(ComplexEnum::U8(u8::from_str_radix(&content, 16)?))
-            },
-            "str" => {
-                Ok(ComplexEnum::Str(String::from(content)))
-            },
-            _ => Err(ComplexEnumError::UnknownTypeDescriptor(desc.to_string())),
-        }
-    }
-    pub fn as_f32 (&self) -> Option<f32> {
-        match self {
-            ComplexEnum::F32(f) => Some(f.clone()),
-            _ => None,
-        }
-    }
-    pub fn as_f64 (&self) -> Option<f64> {
-        match self {
-            ComplexEnum::F64(f) => Some(f.clone()),
-            _ => None,
-        }
-    }
-    pub fn as_str (&self) -> Option<String> {
-        match self {
-            ComplexEnum::Str(s) => Some(s.clone()),
-            _ => None,
-        }
-    }
-    pub fn as_u8 (&self) -> Option<u8> {
-        match self {
-            ComplexEnum::U8(u) => Some(u.clone()),
-            _ => None,
-        }
     }
 }
