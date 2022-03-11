@@ -24,8 +24,10 @@ Navigation Messages:
 We should parse using the closest revision number
 
 Observation Data:
-* [ ] parse OBS codes
-* [ ] get started with revision > 1
+* [x] parse OBS codes
+* [x] get started with revision >= 1
+* [ ] V > 2
+* [ ] clock offsets
 
 Hatanaka:
 * [ ] provide a decompression method to decompress most OBS data files
