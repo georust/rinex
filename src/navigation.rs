@@ -12,6 +12,9 @@ use crate::header::RinexHeader;
 
 include!(concat!(env!("OUT_DIR"),"/nav_data.rs"));
 
+/// Record definition for NAV files
+pub type Record = HashMap<epoch::Epoch, HashMap<Sv, HashMap<String, ComplexEnum>>>;
+
 /// `ComplexEnum` is record payload 
 #[derive(Clone, Debug)]
 pub enum ComplexEnum {

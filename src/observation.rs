@@ -4,7 +4,7 @@ use std::str::FromStr;
 use strum_macros::EnumString;
 use std::collections::HashMap;
 use physical_constants::SPEED_OF_LIGHT_IN_VACUUM;
-
+    
 use crate::epoch;
 use crate::record;
 use crate::record::Sv;
@@ -40,6 +40,9 @@ macro_rules! is_doppler_obs_code {
 macro_rules! is_sig_strength_obs_code {
     ($code: expr) => { $code.starts_with("S") };
 }
+
+/// `Record` content for OBS data files
+pub type Record = HashMap<epoch::Epoch, HashMap<Sv, HashMap<String, f32>>>;
 
 /// Calculates distance from given Pseudo Range value,
 /// by compensating clock offsets    

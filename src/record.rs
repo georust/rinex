@@ -70,20 +70,20 @@ impl std::str::FromStr for Sv {
 /// `Record`
 #[derive(Clone, Debug)]
 pub enum Record {
-    NavRecord(HashMap<Epoch, HashMap<Sv, HashMap<String, navigation::ComplexEnum>>>),
-    ObsRecord(HashMap<Epoch, HashMap<Sv, HashMap<String, f32>>>),
+    NavRecord(navigation::Record),
+    ObsRecord(observation::Record),
     MeteoRecord(HashMap<Epoch, HashMap<String, f32>>),
 }
 
 impl Record {
     /// Returns navigation record
-    pub fn as_nav (&self) -> Option<&HashMap<Epoch, HashMap<Sv, HashMap<String, navigation::ComplexEnum>>>> {
+    pub fn as_nav (&self) -> Option<&navigation::Record> {
         match self {
             Record::NavRecord(e) => Some(e),
             _ => None,
         }
     }
-    pub fn as_obs (&self) -> Option<&HashMap<Epoch, HashMap<Sv, HashMap<String, f32>>>> {
+    pub fn as_obs (&self) -> Option<&observation::Record> {
         match self {
             Record::ObsRecord(e) => Some(e),
             _ => None,
