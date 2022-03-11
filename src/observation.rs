@@ -7,8 +7,9 @@ use physical_constants::SPEED_OF_LIGHT_IN_VACUUM;
 
 use crate::epoch;
 use crate::record;
+use crate::record::Sv;
+use crate::constellation;
 use crate::header::RinexHeader;
-use crate::record::{Sv, ComplexEnum};
 
 #[macro_export]
 /// Returns True if 3 letter code 
@@ -62,27 +63,25 @@ pub enum RecordError {
     ParseEpochFlagError(#[from] std::io::Error),
     #[error("failed to parse sv")]
     ParseSvError(#[from] record::ParseSvError),
-    #[error("failed to parse cplx data")]
-    ParseComplexError(#[from] record::ComplexEnumError),
     #[error("failed to integer number")]
     ParseIntError(#[from] std::num::ParseIntError),
     #[error("failed to float number")]
     ParseFloatError(#[from] std::num::ParseFloatError),
-    #[error("failed to parse this file")]
-    ParseRecordError,
+    #[error("failed to parse vehicules properly (n_sat mismatch)")]
+    EpochParsingError,
 }
 
 /// Builds `RinexRecord` entry for `ObservationData` file
 pub fn build_record_entry (header: &RinexHeader, content: &str)
-        -> Result<(epoch::Epoch, HashMap<Sv, HashMap<String, ComplexEnum>>), RecordError> 
+        -> Result<(epoch::Epoch, HashMap<Sv, HashMap<String, f32>>), RecordError> 
 {
     let mut lines = content.lines();
-    let mut map : HashMap<Sv, HashMap<String, ComplexEnum>> = HashMap::new();
+    let mut map : HashMap<Sv, HashMap<String, f32>> = HashMap::new();
     let version_major = header.version.major;
 
     let mut line = lines.next()
         .unwrap();
-
+    
     // epoch::Y might be 4 digit number
     let mut offset : usize = 
         2+1 // Y
@@ -92,132 +91,173 @@ pub fn build_record_entry (header: &RinexHeader, content: &str)
         +2+1 // m
         +11; // secs
     
-    // might start with a ">" marker, 
-    // is this V > 2 specific ?
+    // V > 2 might start with a ">" marker
     if let Some(i) = line.find(">") {
         offset += 1
     }
 
-    // V > 2 epoch::Y is a 4 digit number
+    // V > 2 epoch::year is a 4 digit number
     if header.version.major > 2 {
         offset += 2
     }
 
     let (date, rem) = line.split_at(offset);
     let (flag, rem) = rem.split_at(3);
-    let (n_sat, rem) = rem.split_at(3);
+    let (n_sat, mut rem) = rem.split_at(3);
     let n_sat = u16::from_str_radix(n_sat.trim(), 10)?;
+    let n_sat_iter: usize = match n_sat > 12 {
+        true => (n_sat/12+1).into(),
+        false => 1
+    };
     let flag = epoch::EpochFlag::from_str(flag.trim())?;
     let date = epoch::str2date(date)?; 
     let epoch = epoch::Epoch::new(date, flag);
-    println!("epoch {:#?}\nn_sat \"{}\"\n", date, n_sat);
 
-    let mut line_count : usize = 0;
+    let mut sat_count : usize = 0;
     let mut sv_list : Vec<Sv> = Vec::with_capacity(24);
     let mut clock_offset : Option<f32> = None;
 
+    //println!("sv_list + clock offset content to parse\n\"{}\"", rem);
     if header.version.major < 3 {
         // old fashion:
         //   Sv list is passed on 1st and possibly 2nd line (n_sat > 12)
         let mut offset : usize = 0;
-        //println!("sv_list payload \"{}\"", rem);
-        loop {
-            if let Ok(sv) = Sv::from_str(&rem[offset..offset+3]) {
+        for i in 0..n_sat_iter {
+            println!("rem \"{}\"", rem);
+            loop {
+                let sv_str = &rem[offset..offset+3];
+                let identifier = sv_str.chars().nth(0)
+                    .unwrap(); 
+                let prn = u8::from_str(&sv_str[1..])?;
+                // build `sv` 
+                let sv : Sv = match identifier.is_ascii_whitespace() {
+                    true => Sv::new(header.constellation, prn),
+                    false => {
+                        let constell : constellation::Constellation = match identifier {
+                            'G' => constellation::Constellation::GPS,
+                            'R' => constellation::Constellation::Glonass,
+                            'B' => constellation::Constellation::Beidou,
+                            'J' => constellation::Constellation::QZSS,
+                            'E' => constellation::Constellation::Galileo,
+                            'C' => constellation::Constellation::Beidou,
+                            'S' => constellation::Constellation::Sbas,
+                            _ => return Err(
+                                RecordError::ParseSvError(
+                                    record::ParseSvError::UnidentifiedConstellation(identifier))),
+                        };
+                        Sv::new(constell, prn)
+                    },
+                };
+                
                 sv_list.push(sv);
                 offset += 3;
-            } else {
-                break
-            }
-            if offset == rem.len() {
-                break
-            }
-        }
-
-        // clock offset
-        //if rem.trim().len() > 0 {
-        //    let clock_offset = f32::from_str(rem.trim())?;
-        //}
-        
-        if n_sat > 12 {
-            line = lines.next()
-                .unwrap();
-
-            let rem = line.trim();
-            let mut offset : usize = 0;
-            loop {
-                if let Ok(sv) = Sv::from_str(&rem[offset..offset+3]) {
-                    sv_list.push(sv)
-                } else {
-                    break
-                }
                 if offset == rem.len() {
+                    line = lines.next()
+                        .unwrap();
+                    rem = line.trim();
+                    offset = 0;
                     break
-                }
+                } 
             }
         }
+        
     } else {
         // modern rinex:
         //   Sv is specified @ every single epoch
-        // what about clock offset ?
     }
     
     //println!("clockoffset {:#?}\n", clock_offset);
-    
-    line = lines.next()
-        .unwrap();
-
-    let mut map : HashMap<Sv, HashMap<String, ComplexEnum>> = HashMap::new();
-
     //println!("sv_list: {:#?}", sv_list);
+    // verify identified sv_list
+    // against parsed epoch definition
+    if sv_list.len() != n_sat.into() {
+        return Err(RecordError::EpochParsingError) // mismatch
+    }
 
-    loop {
-        let content : Vec<&str> = line.split_ascii_whitespace()
-            .collect();
+    let mut map : HashMap<Sv, HashMap<String, f32>> = HashMap::new();
 
-        if line_count == n_sat.into() {
-            break
-        }
+    for i in 0..sv_list.len() {
+        let mut obs_map : HashMap<String, f32> = HashMap::new();
 
-        // sv will serve as code_map identifier
-        let (sv, offset) : (Sv, usize) = match header.version.major < 3 {
+        // sv serves as obs_map identifier
+        let sv : Sv = match header.version.major < 3 {
             true => {
                 // old fashion : 
                 //  using previously identified Sv 
-                (sv_list[line_count], 0)
-                /*if let Some(list) = sv_list {
-                    (list[line_count], 0) 
-                } else {
-                    (Sv::default(), 0) // unreachable() on sane RINEX
-                }*/
+                sv_list[i]
             },
             false => {
                 // modern :
                 //  sv is specified @ each line
-                (Sv::from_str(content[0].trim())?, 1)
+                offset += 3;
+                Sv::from_str(line[0..3].trim())?
             },
         };
-
         //println!("Identified Sv: {:?}", sv);
-
-        let mut code_map : HashMap<String, ComplexEnum> = HashMap::new();
-        let constell = &header.obs_codes
+        
+        let obs_codes = &header.obs_codes
             .as_ref()
                 .unwrap()
                 [&sv.constellation];
         
-        for i in 0..content.len() {
-            let code = &constell[i];
-            let item = ComplexEnum::new("f32", content[i+offset])?;
-            code_map.insert(code.to_string(), item);
+        let mut offset : usize = 0;
+        for j in 0..obs_codes.len() {
+            
+            let code = &obs_codes[j];
+            let obs = &line[offset..offset+14];
+            let obs : Option<f32> = match f32::from_str(&obs.trim()) {
+                Ok(f) => Some(f),
+                Err(_) => None,
+            };
+            
+            let (lli, ssi) : (Option<u8>,Option<u8>) = match line.len() == offset+14 {
+                true => {
+                    // can't parse (lli,ssi) on this subset
+                    // because line is terminated by an OBS code that
+                    // does not have those fields
+                    (None, None)
+                },
+                false => {
+                    let lli = &line[offset+14..offset+14+1];
+                    println!("lli \"{}\"", lli);
+                    let lli = match u8::from_str_radix(&lli, 10) {
+                        Ok(lli) => Some(lli),
+                        Err(_) => None,
+                    };
+
+                    let ssi = &line[offset+14+1..offset+14+2];
+                    println!("ssi \"{}\"", ssi);
+                    let ssi = match u8::from_str_radix(&ssi, 10) {
+                        Ok(ssi) => Some(ssi),
+                        Err(_) => None,
+                    };
+                    (lli, ssi)
+                },
+            };
+            
+            println!("offset {}", offset);
+            println!("obs \"{:?}\" | lli \"{:?}\" | ssi \"{:?}\"", obs, lli, ssi);
+
+            if obs.is_some() { // did find an OBS
+                obs_map.insert(code.to_string(), obs.unwrap());
+            }
+
+            offset += 14 // F14.3
+                +1 // +lli
+                +1; // +ssi
+
+            if offset >= line.len() {
+                // overflowing this line content
+                //  --> try to grab a new one
+                offset = 0; // reset
+                if let Some(l) = lines.next() {
+                    line = l
+                } else {
+                    break
+                }
+            }
         }
-        map.insert(sv, code_map);
-        
-        if let Some(l) = lines.next() {
-            line = l;
-            line_count += 1;
-        } else {
-            break
-        }
+        map.insert(sv, obs_map);
     }
     Ok((epoch, map))
 }
