@@ -2,15 +2,6 @@ use std::env;
 use std::io::Write;
 use std::path::Path;
 
-struct NavFrame {
-    constellation: String,
-    revisions: Vec<NavRevision>,
-}
-struct NavRevision {
-    revision: (String, String),
-    items: Vec<(String,String)>,
-}
-
 fn main() {
     let out_dir = env::var("OUT_DIR")
         .unwrap();
