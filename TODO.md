@@ -15,6 +15,8 @@ Header:
 * [ ] rcvr_clock_offset_applied ? --> compensation ??
 * [ ] GnssTime + possible conversion needed ?
 * [ ] WaveLength fact L1/2 ?
+* [ ] Glonass SLOT /freq channel ?
+* [ ] Glonass COD/PHS/BIS ?
 
 Record :
 * [ ] ObsRecord: add clockoffsets to epoch record
