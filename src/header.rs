@@ -673,7 +673,6 @@ impl std::str::FromStr for RinexHeader {
                 let (line, _) = line.split_at(60); // remove header
                 let (identifier, rem) = line.split_at(1);
                 let (n_codes, content) = rem.split_at(5);
-                println!("identifier \"{}\" n_codes \"{}\"", identifier, n_codes);
                 let n_codes = u8::from_str_radix(n_codes.trim(), 10)?;
                 let n_lines : usize = match n_codes > 13 {
                     true => (n_codes / 13+1).into(),
