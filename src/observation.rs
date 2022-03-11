@@ -176,15 +176,12 @@ pub fn build_record_entry (header: &RinexHeader, content: &str)
         //   Sv is specified @ every single epoch
     }
     
-    //println!("clockoffset {:#?}\n", clock_offset);
-    //println!("sv_list: {:#?}", sv_list);
-
+    //println!("clockoffset {:#?}", clock_offset);
     let mut map : HashMap<Sv, HashMap<String, f32>> = HashMap::new();
     
     for i in 0..sv_list.len() {
         let mut obs_map : HashMap<String, f32> = HashMap::new();
 
-        println!("line \"{}\"", line);
         // sv serves as obs_map identifier
         let sv : Sv = match header.version.major < 3 {
             true => {
@@ -196,7 +193,9 @@ pub fn build_record_entry (header: &RinexHeader, content: &str)
                 // modern :
                 //  sv is specified @ each line
                 offset += 3;
+                println!("line \"{}\" offset {}", line, offset);
                 Sv::from_str(line[0..3].trim())?
+                //Sv::default()
             },
         };
         
