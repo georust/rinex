@@ -205,17 +205,9 @@ identification number.
 
 [Observation Data documentation](https://github.com/gwbres/rinex/blob/main/doc/observation.md)
 
-## GNSS Time specific operations
-
-wip
-
 ## Meteo Data
 
 [Meteo Data documentation](https://github.com/gwbres/rinex/blob/main/doc/meteo.md)
-
-## Clocks data
-
-wip
 
 ## Contribute
 
