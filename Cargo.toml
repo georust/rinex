@@ -10,7 +10,7 @@ categories = ["science", "parsing"]
 edition = "2018"
 readme = "README.md"
 
-exclude = ["data/",]
+exclude = ["/data",]
 
 [build-dependencies]
 serde_json = "1.0"
