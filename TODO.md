@@ -48,9 +48,10 @@ Hatanaka:
 * [ ] provide a decompression method to decompress most OBS data files
 
 Meteo Data:
-* [ ] parse METEO codes
-* [ ] parse METEO V < 3
-* [ ] parse METEO V > 2
+* [x] parse METEO codes
+* [x] parse METEO V < 3
+* [x] parse METEO V > 2
+* [ ] Sensor Geo position (x,y,z)
 
 Clocks Data:
 * [ ] TODO 
