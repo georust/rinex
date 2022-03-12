@@ -17,7 +17,19 @@ One example script is provided
 cargo run --example observation
 ```
 
-### CRINEX - Compressed OBS records
+### V3 and other modern Observation records
+
+<!> This parser expects single line epochs,
+that is line length larger than 60 caracters,
+which is against V < 3 specifications
+but is allowed in modern RINEX.
+
+If V > 2 Observation Records with
+multi line epochs do exist,
+this lib will not parse them properly
+at the moment.
+
+### CRINEX - Compressed Observation records
 
 Compressed OBS records are not fully parsed at the moment because
 this lib is not able to decompress them.  
