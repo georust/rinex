@@ -118,7 +118,7 @@ pub fn build_record_entry (header: &RinexHeader, content: &str)
     let clock_offset : Option<f32> = None;
 		
 	// TODO: clockoffset
-	println!("clockoffset {:#?}", clock_offset);
+	//println!("clockoffset {:#?}", clock_offset);
 		
     if header.version.major < 3 {
         // old fashion:
@@ -294,7 +294,6 @@ pub fn build_record_entry (header: &RinexHeader, content: &str)
 			let mut offset : usize = 0;
 			let mut code_index : usize = 0;
 			let mut obs_map : HashMap<String, f32> = HashMap::new();
-			println!("rem \"{}\"", rem);
 			loop { // per obs code
 				let code = &obs_codes[code_index];
 				let obs = &rem[offset..offset+14];
@@ -333,9 +332,6 @@ pub fn build_record_entry (header: &RinexHeader, content: &str)
 					},
 				};
 
-				println!("code \"{}\" - offset {}", code, offset);
-				println!("obs {:?} | lli {:?} | ssi {:?}", obs, lli,ssi);
-			
 				if let Some(obs) = obs { // parsed something
 					obs_map.insert(code.to_string(), obs);
 					code_index += 1;
