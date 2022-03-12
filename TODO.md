@@ -28,7 +28,7 @@ Header:
 
 Record :
 * [ ] ObsRecord : add clockoffsets to epoch record
-* [ ] ObsRecord : introduce Observation(f32,lli,ssi) as payload
+* [x] ObsRecord : introduce Observation(f32,lli,ssi) as payload
 
 Navigation Messages:
 * [ ] improve database usage.   

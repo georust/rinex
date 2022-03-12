@@ -41,8 +41,28 @@ macro_rules! is_sig_strength_obs_code {
     ($code: expr) => { $code.starts_with("S") };
 }
 
+#[derive(PartialEq, Copy, Clone, Debug)]
+pub struct ObservationData {
+	/// physical measurement
+	obs: f32,
+	/// Lock loss indicator 
+	lli: Option<u8>,
+	/// Signal strength indicator
+	ssi: Option<u8>,
+}
+
+impl ObservationData {
+	pub fn new (obs: f32, lli: Option<u8>, ssi: Option<u8>) -> ObservationData {
+		ObservationData {
+			obs,
+			lli,
+			ssi,
+		}
+	}
+}
+
 /// `Record` content for OBS data files
-pub type Record = HashMap<epoch::Epoch, HashMap<Sv, HashMap<String, f32>>>;
+pub type Record = HashMap<epoch::Epoch, HashMap<Sv, HashMap<String, ObservationData>>>;
 
 /// Calculates distance from given Pseudo Range value,
 /// by compensating clock offsets    
@@ -77,7 +97,7 @@ pub enum RecordError {
 
 /// Builds `RINEX` record entry for `Observation` Data files
 pub fn build_record_entry (header: &RinexHeader, content: &str)
-        -> Result<(epoch::Epoch, HashMap<Sv, HashMap<String, f32>>), RecordError> 
+        -> Result<(epoch::Epoch, HashMap<Sv, HashMap<String, ObservationData>>), RecordError> 
 {
     let mut lines = content.lines();
     let mut line = lines.next()
@@ -113,7 +133,7 @@ pub fn build_record_entry (header: &RinexHeader, content: &str)
     let epoch = epoch::Epoch::new(date, flag);
 
     let mut sv_list : Vec<Sv> = Vec::with_capacity(24);
-	let mut map : HashMap<Sv, HashMap<String, f32>> = HashMap::new();
+	let mut map : HashMap<Sv, HashMap<String, ObservationData>> = HashMap::new();
     let clock_offset : Option<f32> = None;
 		
 	// TODO: clockoffset
@@ -167,7 +187,7 @@ pub fn build_record_entry (header: &RinexHeader, content: &str)
 
 		for i in 0..sv_list.len() { // per vehicule
 			let mut offset : usize = 0;
-			let mut obs_map : HashMap<String, f32> = HashMap::new();
+			let mut obs_map : HashMap<String, ObservationData> = HashMap::new();
 
 			// old RINEX revision : using previously identified Sv 
 			let sv : Sv = sv_list[i]; 
@@ -231,6 +251,7 @@ pub fn build_record_entry (header: &RinexHeader, content: &str)
 				};
 				
 				if let Some(obs) = obs { // parsed something
+					let obs = ObservationData::new(obs, lli, ssi);
 					obs_map.insert(code.to_string(), obs); 
 				}
 				
@@ -292,7 +313,7 @@ pub fn build_record_entry (header: &RinexHeader, content: &str)
 					[&sv.constellation];
 			let mut offset : usize = 0;
 			let mut code_index : usize = 0;
-			let mut obs_map : HashMap<String, f32> = HashMap::new();
+			let mut obs_map : HashMap<String, ObservationData> = HashMap::new();
 			loop { // per obs code
 				let code = &obs_codes[code_index];
 				let obs = &rem[offset..offset+14];
@@ -332,6 +353,7 @@ pub fn build_record_entry (header: &RinexHeader, content: &str)
 				};
 
 				if let Some(obs) = obs { // parsed something
+					let obs = ObservationData::new(obs, lli, ssi);
 					obs_map.insert(code.to_string(), obs);
 					code_index += 1;
 				}
