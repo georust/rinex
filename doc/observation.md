@@ -17,15 +17,14 @@ One example script is provided
 cargo run --example observation
 ```
 
-### V3 and other modern Observation records
+### V3 and following revisions
 
-<!> This parser expects single line epochs,
-that is line length larger than 60 caracters,
-which is against V < 3 specifications
-but is allowed in modern RINEX.
+&#9888; &#9888; This parser expects single line epochs,   
+that is line length larger than 60 caracters,    
+which is against V < 3 specifications (only allowed in modern RINEX).
 
-If V > 2 Observation Records with
-multi line epochs do exist,
+&#9888; &#9888; If V > 2 Observation Records with
+multi line epochs do exist,    
 this lib will not parse them properly
 at the moment.
 
@@ -64,9 +63,16 @@ let record = rinex.record
 The `record` is first indexed by `epoch` then by `Sv` and finally
 by Observation codes.   
 
-Therefore it is very important to determine which observation
-codes we might encounter for a given constellation system.
+### Observation Codes
 
+It is very to be familiar with Observation Codes to manipulate
+OBS data:
+
+* understand what they represent (see RINEX specifications)
+* determine which one(s) you are interested in
+
+Observation Codes are contained in the `rinex.header` structure,
+and are sorted by `Constellation` systems.   
 For example, let's determine which observation codes
 are available to `Glonass` system in this record:
 
