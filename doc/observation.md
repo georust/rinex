@@ -46,7 +46,7 @@ This parser can deal with that scenario and should parse every sane epoch.
 
 The OBS records are sorted by `Epoch` : observation timestamps and `EpochFlags`.   
 An `Epoch` comprises all observations per `Sv` and a clock offset (f32) value.   
-Observations per _Sv_ are finally sorter per standard RINEX observation codes.
+Observations per _Sv_ are finally sorted per standard RINEX observation codes.
 
 Grab an OBS record from a given file:
 
@@ -59,28 +59,89 @@ let record = rinex.record
         .unwrap();
 ```
 
-Retrieve all `L1C` Pseudo Range measurements for `E04` specific vehicule
-accross all epochs, by using the standard code:
+## Record manipulations
+
+The `record` is first indexed by `epoch` then by `Sv` and finally
+by Observation codes.   
+
+Therefore it is very important to determine which observation
+codes we might encounter for a given constellation system.
+
+For example, let's determine which observation codes
+are available to `Glonass` system in this record:
 
 ```rust
-let data = rinex.record
-    .iter()
-    .map(|(_, sv)| {
-    
-    })
-    .flatten()
-    .unwrap();
+let obs_codes = &rinex.header.obs_codes
+	.unwrap() // obs_codes are optionnal,
+		// because they're not available
+		// to other RINEX types
+	[&Constellation::Glonass]; // obs_codes are sorted
+		// by constellation system
+
+[ // example
+    "C1C",
+    "L1C",
+    "D1C",
+    "S1C",
+    "C2P",
+    "L2P",
+    "D2P",
+    "S2P",
+    "C2C",
+    "L2C",
+    "D2C",
+    "S2C",
+]
 ```
 
-Retrieve all Pseudo Range measurements (all matching standard RINEX codes),
-for the same vehicule, accross all epochs:
+These codes are then used to retrieve data of interest.   
+It is important to understand which type of measurement
+these codes represent.
 
+### Basic but direct `HashMap` indexing
 
+`hashmaps` allow direct indexing. First retrieve a given `epoch`:
 
-[ ] data rescaling ?   
-[ ] decimation   
-[ ] carrier compensations ?   
-[ ] epoch filters
-[ ] only Ok
-[ ] power failures etc..etc..
+```rust
+let epoch_to_match = epoch::Epoch::new(
+	epoch::str2date("22 03 04 00 00 00").unwrap() // 2022 03 04 midnight
+	epoch::EpochFlag::Ok); // epoch flag
+let matched_epoch = &record[&epoch_to_match];
 
+{ // example: 2022/03/04 00:00:00
+    Sv { // got 1 SV
+        prn: 17, // R17
+        constellation: Glonass,
+    }: {
+        "D2P": 3143.093,
+        "D1C": 4041.114,
+		[..] // got some measurements
+    },
+    Sv { // got another Sv
+        prn: 2, // R02
+        constellation: Glonass,
+    }: {
+        "D1C": 2936.229,
+        "D2P": 2283.736,
+		[..]
+    },
+[..]
+```
+
+Within that epoch, retrieve all data for `R24` vehicule:
+```rust
+let sv_to_match = record::Sv::new(
+	constellation::Constellation::Glonass, 
+	24); // R24
+let matched_sv = &matched_epoch[&sv_to_match];
+```
+
+For that vehicule, retrieve "C1C" : raw carrier phase measurement:
+
+```rust
+let data = &matched_sv["C1C"];
+```
+
+## Advanced manipulation using iterators & filters 
+
+TODO
