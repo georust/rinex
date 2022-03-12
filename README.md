@@ -26,19 +26,18 @@ Link to the [official API](https://docs.rs/rinex/latest/rinex/index.html)
 
 ## Getting started 
 
-Use ``Rinex::from_file`` to parse a local `RINEX` file:
+The ``Rinex::from_file`` parses a local `RINEX` file:
 
 ```rust
-let path = std::path::PathBuf::from("amel0010.21g");
+let path = std::path::PathBuf::from("data/NAV/V2/amel0010.21g");
 let rinex = rinex::Rinex::from_file(&path).unwrap();
 ```
 
 This parser does not check whether the provided local file
 follows the RINEX naming convention or not.
 
-The `data/` folder contains a bunch of `RINEX` files, spanning almost all revisions
-and all supported file types, mainly
-for CI purposes: you can refer to them.
+The `data/` folder contains short but relevant RINEX files, 
+spanning almost all revisions and supported types, mainly for CI purposes.
 
 For data analysis and manipulation, you must refer to the
 [official RINEX definition](https://files.igs.org/pub/data/format/)
@@ -77,6 +76,9 @@ println!("{:#?}", rinex.header.coords);
 ```
 
 ## RINEX record
+
+This parser is currently not able to build a RINEX record
+if the provided RINEX file only contains a single epoch.
 
 The `Rinex` structure comprises the header previously defined,
 and the `Record` which contains the data payload.
