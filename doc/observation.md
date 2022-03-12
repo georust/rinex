@@ -150,4 +150,5 @@ let data = &matched_sv["C1C"];
 
 ## Advanced manipulation using iterators & filters 
 
-TODO
+Refer to doc/navigation section as they are fairly similar,   
+until this section gets created.
