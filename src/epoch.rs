@@ -84,9 +84,12 @@ pub fn str2date (s: &str) -> Result<chrono::NaiveDateTime, ParseDateError> {
          u32::from_str_radix(items[3],10)?,
          u32::from_str_radix(items[4],10)?,
          f64::from_str(items[5])?);
-    if y < 100 {
-        y += 2000
-    }
+	// 2 digit nb case
+    if y > 90 {
+        y += 1900
+    } else {
+		y += 2000
+	}
     Ok(chrono::NaiveDate::from_ymd(y,m,d)
         .and_hms(h,min,s as u32))
 }
