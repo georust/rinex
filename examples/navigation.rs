@@ -19,7 +19,7 @@ fn main() {
     assert_eq!(rinex.header.is_crinex(), false);
     assert_eq!(rinex.header.rinex_type, Type::NavigationMessage);
     assert_eq!(rinex.header.version.major, 3);
-    assert_eq!(rinex.header.constellation, Constellation::Mixed); 
+    assert_eq!(rinex.header.constellation, Some(Constellation::Mixed)); 
     // leap second field for instance
     // is a major > 3 optionnal field
     assert_eq!(rinex.header.leap.is_some(), true);
