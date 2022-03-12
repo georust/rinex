@@ -160,11 +160,12 @@ pub fn build_record_entry (header: &RinexHeader, content: &str)
         //      SV'X' is omitted 
         //  (+) faulty RINEX producer with unique constellation
         //      SV'X' is omitted
-        constellation::Constellation::Mixed => Sv::from_str(sv.trim())?,
-        _ => {
+        Some(constellation::Constellation::Mixed) => Sv::from_str(sv.trim())?,
+        Some(c) => {
             let prn = u8::from_str_radix(sv.trim(), 10)?;  
-            Sv::new(header.constellation, prn)
+            Sv::new(c, prn)
         },
+		_ => unreachable!(), // RINEX::NAV body while Type!=NAV
     };
 
     map.insert("ClockBias".into(), ComplexEnum::new("f32", svbias.trim())?); 

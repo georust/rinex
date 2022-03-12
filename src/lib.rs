@@ -130,10 +130,6 @@ impl Rinex {
         Ok((String::from(header),String::from(body)))
     }
 
-    // Returns Record nth' entry
-    //pub fn get_record_nth (&self, nth: usize) 
-    //    -> &std::collections::HashMap<String, record::RecordItem> { &self.record[nth] }
-
     /// Retruns true if this is an NAV rinex
     pub fn is_navigation_rinex (&self) -> bool { self.header.rinex_type == Type::NavigationMessage }
     /// Retruns true if this is an OBS rinex
@@ -162,9 +158,16 @@ mod test {
     /// Tests `Rinex` constructor against all known test resources
     fn test_rinex_constructor() {
         let test_dir = env!("CARGO_MANIFEST_DIR").to_owned() + "/data";
-        let types = vec!["NAV","OBS"];
+        let types = vec![
+			//"NAV",
+			//"OBS",
+			"MET"
+		];
         for t in types {
-            let versions = vec!["V2","V3"];
+            let versions = vec![
+				"V2",
+				"V3"
+			];
             for v in versions {
                 let dir_path = std::path::PathBuf::from(
                     test_dir.to_owned() + "/"+t + "/"+v
@@ -174,7 +177,11 @@ mod test {
                     let entry = entry
                         .unwrap();
                     let path = entry.path();
-                    if !path.is_dir() { // only files..
+					let is_hidden = entry.file_name()
+						.to_str()
+							.unwrap()
+							.starts_with(".");
+                    if !path.is_dir() && !is_hidden { // only relevant files..
                         let fp = std::path::Path::new(&path);
                         let rinex = Rinex::from_file(&fp);
                         assert_eq!(rinex.is_err(), false);
@@ -183,6 +190,7 @@ mod test {
 						match t {
 							"NAV" => assert_eq!(rinex.is_navigation_rinex(), true),
 							"OBS" => assert_eq!(rinex.is_observation_rinex(), true),
+							"MET" => assert_eq!(rinex.is_meteo_rinex(), true),
 							_ => {},
 						}
                     }

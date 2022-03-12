@@ -9,7 +9,7 @@ use crate::{is_comment, Type, TypeError};
 use crate::constellation;
 use crate::constellation::{Constellation, ConstellationError};
 
-/// Describes a `CRINEX` (compact rinex) 
+/// Describes a `CRINEX` (compressed rinex) 
 pub const CRINEX_MARKER_COMMENT : &str = "COMPACT RINEX FORMAT";
 /// End of Header section reached
 pub const HEADER_END_MARKER : &str = "END OF HEADER";
@@ -45,6 +45,32 @@ impl std::str::FromStr for Rcvr {
             firmware: String::from(version.trim()),
         })
     }
+}
+
+/// Meteo Observation Sensor
+#[derive(Debug)]
+pub struct Sensor {
+	/// Model of this sensor
+	model: String,
+	/// Type of sensor
+	sens_type: String,
+	/// Sensor accuracy [°C,..]
+	accuracy: f32,
+	/// Physics measured by this sensor
+	physics: String,
+}
+
+impl Sensor {
+	/// Builds a new Meteo Obs sensor,
+	/// with given `model`, `sensor type` `accuracy` and `physics` fields
+	pub fn new (model: &str, sens_type: &str, accuracy: f32, physics: &str) -> Sensor {
+		Sensor {
+			model: String::from(model),
+			sens_type: String::from(sens_type),
+			accuracy,
+			physics: String::from(physics),
+		}
+	}
 }
 
 /// Antenna description 
@@ -204,13 +230,14 @@ enum MarkerType {
 pub struct RinexHeader {
     /// revision for this `RINEX`
     pub version: version::Version, 
-    /// optionnal `CRINEX` (compact `RINEX` infos), 
+    /// optionnal `CRINEX` (compressed `RINEX` infos), 
     /// if this is a CRINEX
     pub crinex: Option<CrinexInfo>, 
     /// type of `RINEX` file
     pub rinex_type: Type, 
-    /// `GNSS` constellation being used
-    pub constellation: Constellation, 
+    /// specific `GNSS` constellation system,
+	/// may not exist for RINEX files 
+    pub constellation: Option<Constellation>, 
     /// program name
     pub program: String, 
     /// program `run by`
@@ -229,6 +256,8 @@ pub struct RinexHeader {
     pub rcvr: Option<Rcvr>, 
     /// optionnal antenna infos
     pub ant: Option<Antenna>, 
+	/// optionnal meteo sensors infos
+	pub sensors: Option<Vec<Sensor>>,
     /// optionnal leap seconds infos
     pub leap: Option<LeapSecond>, 
     /// station approxiamte coordinates
@@ -259,11 +288,14 @@ pub struct RinexHeader {
     /// lists all types of observations 
     /// contained in this `Rinex` OBS file
     pub obs_codes: Option<HashMap<Constellation, Vec<String>>>, 
+	/// lists all types of observations
+	/// contains in this `RINEX` Meteo file
+    pub met_codes: Option<Vec<String>>, 
 }
 
 #[derive(Error, Debug)]
 pub enum Error {
-    #[error("Compact RINEX related content mismatch")]
+    #[error("CRINEX related content mismatch")]
     CrinexFormatError,
     #[error("RINEX version is not supported '{0}'")]
     VersionNotSupported(String),
@@ -291,7 +323,7 @@ impl Default for RinexHeader {
             version: version::Version::default(), 
             crinex: None,
             rinex_type: Type::default(),
-            constellation: Constellation::default(),
+            constellation: Some(Constellation::default()),
             program: String::from("Unknown"),
             run_by: String::from("Unknown"),
             station: String::from("Unknown"),
@@ -305,13 +337,14 @@ impl Default for RinexHeader {
             gps_utc_delta: None,
             // hardware
             rcvr: None,
-            // antenna
             ant: None,
+			sensors: None,
             coords: None, 
             // observations
             epochs: (None, None),
             wavelengths: None,
             obs_codes: None,
+			met_codes: None,
             // processing
             rcvr_clock_offset_applied: None,
             data_scaling: None,
@@ -334,7 +367,7 @@ impl std::str::FromStr for RinexHeader {
             line = lines.next()
                 .unwrap()
         }
-        // 'compact rinex'?
+        // 'compressed rinex'?
         let is_crinex = line.contains(CRINEX_MARKER_COMMENT);
         let crinex_infos: Option<CrinexInfo> = match is_crinex {
             false => None,
@@ -370,14 +403,19 @@ impl std::str::FromStr for RinexHeader {
         let (constellation_str, _) = remainder.trim().split_at(20);
 
         let rinex_type = Type::from_str(type_str.trim())?;
-        let constellation: Constellation;
+        let constellation: Option<Constellation>;
         
         if type_str.contains("GLONASS") {
             // special case, sometimes GLONASS NAV
             // drops the constellation field cause it's implied
-            constellation = Constellation::Glonass
-        } else {
-            constellation = Constellation::from_str(constellation_str.trim())?
+            constellation = Some(Constellation::Glonass)
+        } else if type_str.contains("METEOROLOGICAL DATA") {
+			// these files are not tied to a constellation system,
+			// therefore, do not have this field
+			constellation = None
+
+		} else { // regular files
+            constellation = Some(Constellation::from_str(constellation_str.trim())?)
         }
 
         let version = version::Version::from_str(version_str.trim())?;
@@ -472,6 +510,7 @@ impl std::str::FromStr for RinexHeader {
         let mut ant_coords : Option<rust_3d::Point3D> = None;
         let mut ant_hen    : Option<(f32,f32,f32)> = None;
         let mut rcvr       : Option<Rcvr>    = None;
+		let mut sensors    : Vec<Sensor> = Vec::with_capacity(3);
         // other
         let mut leap       : Option<LeapSecond> = None;
         let mut sampling_interval: Option<f32> = None;
@@ -482,6 +521,7 @@ impl std::str::FromStr for RinexHeader {
         let obs_nb_sat : u32 = 0;
         let mut obs_codes  : HashMap<Constellation, Vec<String>> 
             = HashMap::with_capacity(constellation::CONSTELLATION_LENGTH);
+		let mut met_codes  : Vec<String> = Vec::with_capacity(3);
 
         loop {
             /*
@@ -503,6 +543,17 @@ impl std::str::FromStr for RinexHeader {
 
             } else if line.contains("REC # / TYPE / VERS") {
                 rcvr = Some(Rcvr::from_str(line)?) 
+
+			} else if line.contains("SENSOR MOD/TYPE/ACC") {
+				let (content, _) = line.split_at(60);
+				let (model, rem) = content.split_at(20);
+				let (stype, rem) = rem.split_at(20+6);
+				let (accuracy, rem) = rem.split_at(7+4);
+				//println!("model \"{}\" stype \"{}\" accuracy \"{}\"", model, stype, accuracy);
+				let accuracy = f32::from_str(accuracy.trim())?;
+				let (physics, _) = rem.split_at(2);
+				sensors.push(Sensor::new(model.trim(),stype.trim(),accuracy,physics.trim()));
+				//println!("sensor {:#?}", sensors)
             
             } else if line.contains("ANT # / TYPE") {
                 ant = Some(Antenna::from_str(line)?)
@@ -648,22 +699,36 @@ impl std::str::FromStr for RinexHeader {
 
                 // build code map 
                 // to be used later on when parsing payload
-                let constell : Vec<Constellation> = match constellation {
-                    Constellation::Mixed => {
-                        Vec::from([
+                match constellation {
+                    Some(Constellation::Mixed) => {
+						// Multi constell:
+						//  trick to later identify, in all cases
+                        let constells : Vec<Constellation> =
+						Vec::from([
                             Constellation::GPS,
                             Constellation::Glonass,
                             Constellation::Galileo,
                             Constellation::Beidou,
                             Constellation::Sbas,
                             Constellation::QZSS,
-                        ])
+                        ]);
+                		for i in 0..constells.len() {
+                    		obs_codes.insert(constells[i], codes.clone());
+                		}
                     },
-                    c => Vec::from([c]), 
+                    Some(c) => {
+						// Single constellation system
+						obs_codes.insert(c, codes.clone());
+					},
+					_ => {
+						// this is a meteo file,
+						// meteo observations are not tied to a specific
+						// constellation system
+						for i in 0..codes.len() {
+							met_codes.push(codes[i].clone())
+						}
+					},
                 };
-                for i in 0..constell.len() {
-                    obs_codes.insert(constell[i], codes.clone());
-                }
 
             } else if line.contains("SYS / # / OBS TYPES") {
                 // modern obs code descriptor 
@@ -752,10 +817,23 @@ impl std::str::FromStr for RinexHeader {
             }
         }
 
+		let sensors : Option<Vec<Sensor>> = match sensors.len() > 0 {
+			true => {
+				// identified some sensors
+				Some(sensors)
+			},
+			false => None
+		};
+
         let obs_codes: Option<HashMap<Constellation, Vec<String>>> = match obs_codes.is_empty() {
             true => None,
             false => Some(obs_codes),
         };
+
+		let met_codes : Option<Vec<String>> = match met_codes.is_empty() {
+			true => None,
+			false => Some(met_codes),
+		};
         
         Ok(RinexHeader{
             version: version,
@@ -773,12 +851,14 @@ impl std::str::FromStr for RinexHeader {
             station_url,
             rcvr, 
             ant, 
+			sensors,
             leap,
             coords: coords,
             wavelengths: None,
             gps_utc_delta: None,
             epochs,
             obs_codes,
+			met_codes,
             sampling_interval: sampling_interval,
             data_scaling: None,
             //ionospheric_corr: None,
@@ -789,24 +869,24 @@ impl std::str::FromStr for RinexHeader {
 }
 
 impl RinexHeader {
-    /// Returns true if self is a `Compact RINEX`
+    /// Returns true if self is a `Compressed RINEX`
     pub fn is_crinex (&self) -> bool { self.crinex.is_some() }
 
-    /// Returns `Compact RINEX` version (if any) 
+    /// Returns Compressed `RINEX` version (if any) 
     pub fn get_crinex_version (&self) -> Option<&str> { 
         match &self.crinex {
             Some(crinex) => Some(&crinex.version),
             _ => None,
         }
     }
-    /// Returns `Compact RINEX` prog (if any) 
+    /// Returns `RINEX` compression program name (if any) 
     pub fn get_crinex_prog (&self) -> Option<&str> { 
         match &self.crinex {
             Some(crinex) => Some(&crinex.prog),
             _ => None,
         }
     }
-    /// Returns `Compact RINEX` date (if any) 
+    /// Returns `RINEX` compression date (if any) 
     pub fn get_crinex_date (&self) -> Option<chrono::NaiveDateTime> { 
         match &self.crinex {
             Some(crinex) => Some(crinex.date),

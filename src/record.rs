@@ -5,6 +5,7 @@ use std::collections::HashMap;
 
 use crate::epoch;
 use crate::header;
+use crate::meteo;
 use crate::navigation;
 use crate::observation;
 use crate::epoch::Epoch;
@@ -73,24 +74,26 @@ impl std::str::FromStr for Sv {
 pub enum Record {
     NavRecord(navigation::Record),
     ObsRecord(observation::Record),
-    MeteoRecord(HashMap<Epoch, HashMap<String, f32>>),
+    MeteoRecord(meteo::Record),
 }
 
 impl Record {
-    /// Returns navigation record
+	/// Returns Navigation `record`
     pub fn as_nav (&self) -> Option<&navigation::Record> {
         match self {
             Record::NavRecord(e) => Some(e),
             _ => None,
         }
     }
+	/// Returns Observation `record`
     pub fn as_obs (&self) -> Option<&observation::Record> {
         match self {
             Record::ObsRecord(e) => Some(e),
             _ => None,
         }
     }
-    pub fn as_meteo (&self) -> Option<&HashMap<Epoch, HashMap<String, f32>>> {
+	/// Returns Meteo Observation `record`
+    pub fn as_meteo (&self) -> Option<&meteo::Record> {
         match self {
             Record::MeteoRecord(e) => Some(e),
             _ => None,
@@ -119,13 +122,11 @@ fn block_record_start (line: &str, header: &header::RinexHeader) -> bool {
 					// old NAV: epoch block
 					//  is constellation dependent
 					match &header.constellation {
-						Constellation::Glonass => {
-							// GLONASS NAV special case
+						Some(Constellation::Glonass) => { // GLONASS NAV special case
 							//  constellation ID is implied
 							parsed.len() > 4
 						},
-						_ => {
-							// other constellations
+						Some(_) => { // other constellations
                     		let known_sv_identifiers: &'static [char] = 
                         		&['R','G','E','B','J','C','S']; 
                             match line.chars().nth(0) {
@@ -137,9 +138,10 @@ fn block_record_start (line: &str, header: &header::RinexHeader) -> bool {
                                 _ => false
                             }
 						},
+						_ => unreachable!(), // RINEX::NAV body while Type!=NAV
 					}
 				},
-				Type::ObservationData => {
+				Type::ObservationData | Type::MeteorologicalData => {
 					match header.version.major {
 						1|2 => {
 							if parsed.len() > 6 {
@@ -180,12 +182,23 @@ fn block_record_start (line: &str, header: &header::RinexHeader) -> bool {
 		},
 		_ => {
 			// modern V > 3 RINEX
-            match line.chars().nth(0) {
-                Some(c) => {
-					c == '>' // epochs always delimited 
-						// by this new identifier
+			// mostly easy, but Meteo seems still follow
+			// an old fashion
+			match &header.rinex_type {
+				Type::MeteorologicalData => {
+					unreachable!()
 				},
-                _ => false,
+				_ => {
+					// modern, easy parsing,
+					// similar to OBS V3
+            		match line.chars().nth(0) {
+                		Some(c) => {
+							c == '>' // epochs always delimited 
+								// by this new identifier
+						},
+                		_ => false,
+					}
+				}
 			}
 		}
 	}
@@ -203,8 +216,9 @@ pub fn build_record (header: &header::RinexHeader, body: &str) -> Result<Record,
     let mut first = true;
     let mut block = String::with_capacity(256*1024); // max. block size
 
-    let mut nav_rec : HashMap<Epoch, HashMap<Sv, HashMap<String, navigation::ComplexEnum>>> = HashMap::new();
-    let mut obs_rec : HashMap<Epoch, HashMap<Sv, HashMap<String, f32>>> = HashMap::new();
+    let mut nav_rec : navigation::Record = HashMap::new();
+    let mut obs_rec : observation::Record = HashMap::new();
+	let mut met_rec : meteo::Record = HashMap::new();
     
     loop {
         let is_new_block = block_record_start(&line, &header);
@@ -222,7 +236,12 @@ pub fn build_record (header: &header::RinexHeader, body: &str) -> Result<Record,
                         obs_rec.insert(e, map);
                     }
                 },
-                _ => {},
+				Type::MeteorologicalData => {
+					if let Ok((e, map)) = meteo::build_record_entry(&header, &block) {
+						met_rec.insert(e, map);
+					}
+				},
+                _ => unreachable!(), // unknown file type
             }
         }
 
@@ -258,6 +277,8 @@ pub fn build_record (header: &header::RinexHeader, body: &str) -> Result<Record,
     match &header.rinex_type {
         Type::NavigationMessage => Ok(Record::NavRecord(nav_rec)),
         Type::ObservationData => Ok(Record::ObsRecord(obs_rec)), 
-        _ => Err(TypeError::UnknownType(header.rinex_type.to_string())),
+		Type::MeteorologicalData => Ok(Record::MeteoRecord(met_rec)),
+		_ => unreachable!(),
+        //_ => Err(TypeError::UnknownType(header.rinex_type.to_string())),
     }
 }

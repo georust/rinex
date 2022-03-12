@@ -75,17 +75,15 @@ pub enum RecordError {
     EpochParsingError,
 }
 
-/// Builds `RinexRecord` entry for `ObservationData` file
+/// Builds `RINEX` record entry for `Observation` Data files
 pub fn build_record_entry (header: &RinexHeader, content: &str)
         -> Result<(epoch::Epoch, HashMap<Sv, HashMap<String, f32>>), RecordError> 
 {
     let mut lines = content.lines();
-    let version_major = header.version.major;
-
     let mut line = lines.next()
         .unwrap();
     
-    // epoch::Y might be 4 digit number
+    // epoch::
     let mut offset : usize = 
         2+1 // Y
         +2+1 // d
@@ -133,7 +131,7 @@ pub fn build_record_entry (header: &RinexHeader, content: &str)
                 let prn = u8::from_str(&sv_str[1..].trim())?;
                 // build `sv` 
                 let sv : Sv = match identifier.is_ascii_whitespace() {
-                    true => Sv::new(header.constellation, prn),
+                    true => Sv::new(header.constellation.unwrap(), prn),
                     false => {
                         let constell : constellation::Constellation = match identifier {
                             'G' => constellation::Constellation::GPS,
