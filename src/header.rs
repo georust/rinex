@@ -1,6 +1,5 @@
 //! Describes a `RINEX` header, includes
 //! rinex header parser and associated methods
-//use regex::Regex;
 use thiserror::Error;
 use std::collections::HashMap;
 
@@ -497,7 +496,6 @@ impl std::str::FromStr for RinexHeader {
                 to the number of records of the same epoch
                 following the 'epoch' record.
                 If may be used to skip appropriate number of data records if the event flags are not to be evaluated in detail
-
             */
             if line.contains("MARKER NAME") {
                 station = String::from(line.split_at(20).0.trim())
@@ -562,8 +560,8 @@ impl std::str::FromStr for RinexHeader {
                 epochs.1 = Some(gnss_time::GnssTime::new(utc, constel))*/ 
             
             } else if line.contains("WAVELENGTH FACT L1/2") {
-     //1     1                                                WAVELENGTH FACT L1/2
-            
+                //TODO
+
             } else if line.contains("APPROX POSITION XYZ") {
                 let items: Vec<&str> = line.split_ascii_whitespace()
                     .collect();
@@ -636,19 +634,24 @@ impl std::str::FromStr for RinexHeader {
                 // Rinex V < 3 : old fashion obs data
                 // ⚠ ⚠ could either be observation or meteo data
                 let (rem, _) = line.split_at(60);
+				let (n_codes, mut line) = rem.split_at(6);
+				let n_codes = u8::from_str_radix(n_codes.trim(), 10)?;
+				let n_lines : usize = num_integer::div_ceil(n_codes, 9).into();
                 let mut codes : Vec<String> = Vec::new();
-                let (_, mut rem) = rem.split_at(6);
-                loop {
-                    let (code, r) = rem.split_at(6);
-                    if code.trim().len() == 0 {
-                        break
-                    }
-                    codes.push(String::from(code.trim()));
-                    if r.len() == 0 {
-                        break
-                    }
-                    rem = r
-                }
+
+				for i in 0..n_lines {
+					let content : Vec<&str> = line.split_ascii_whitespace()
+						.collect();
+					for j in 0..content.len() { 
+                    	codes.push(String::from(content[j].trim()));
+					}
+					if i < n_lines-1 { // takes more than one line
+						line = lines.next() // --> need to grab new content
+							.unwrap();
+						line = line.split_at(60).0 // remove comments
+					}
+				}
+
                 // build code map 
                 // to be used later on when parsing payload
                 let constell : Vec<Constellation> = match constellation {
@@ -674,10 +677,8 @@ impl std::str::FromStr for RinexHeader {
                 let (identifier, rem) = line.split_at(1);
                 let (n_codes, content) = rem.split_at(5);
                 let n_codes = u8::from_str_radix(n_codes.trim(), 10)?;
-                let n_lines : usize = match n_codes > 13 {
-                    true => (n_codes / 13+1).into(),
-                    false => 1,
-                };
+				let n_lines : usize = num_integer::div_ceil(n_codes, 13).into(); 
+				println!("N LINES : {}", n_lines);
 
                 let mut codes : Vec<String> = Vec::with_capacity(n_codes.into());
                 let constell : constellation::Constellation = match identifier {
@@ -691,7 +692,7 @@ impl std::str::FromStr for RinexHeader {
                     _ => continue, // should never happen 
                 };
 
-                for i in 0..n_lines {
+                for i in 0..n_lines-1 {
                     let mut offset : usize = 0;
                     let mut rem = content.clone();
                     loop {
