@@ -177,8 +177,14 @@ mod test {
                     if !path.is_dir() { // only files..
                         let fp = std::path::Path::new(&path);
                         let rinex = Rinex::from_file(&fp);
+                        assert_eq!(rinex.is_err(), false);
+						let rinex = rinex.unwrap();
                         println!("File: {:?}\n{:#?}", &fp, rinex);
-                        assert_eq!(rinex.is_err(), false)
+						match t {
+							"NAV" => assert_eq!(rinex.is_navigation_rinex(), true),
+							"OBS" => assert_eq!(rinex.is_observation_rinex(), true),
+							_ => {},
+						}
                     }
                 }
             }
