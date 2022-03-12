@@ -41,6 +41,7 @@ Observation Data:
 * [x] parse OBS record V < 3
 * [ ] parse OBS record V > 2
 * [ ] parse clock offsets and classify them properly
+* [ ] rescale raw phase data exceeding F14.3 format by +/- 10E9 accordingly
 
 Hatanaka:
 * [ ] provide a decompression method to decompress most OBS data files
