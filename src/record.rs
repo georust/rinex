@@ -3,6 +3,7 @@ use thiserror::Error;
 use std::str::FromStr;
 use std::collections::HashMap;
 
+use crate::epoch;
 use crate::header;
 use crate::navigation;
 use crate::observation;
@@ -103,48 +104,78 @@ pub enum RecordError {
     TypeError(String),
 }
 
-/// Splits block record sections 
+/// Returns true if a new block record section
+/// is encountered at given line.
+/// Block record section represents an epoch for most RINEX files
 fn block_record_start (line: &str, header: &header::RinexHeader) -> bool {
     let parsed: Vec<&str> = line.split_ascii_whitespace()
         .collect();
-    match header.version.major < 4 {
-        true => {
-            match &header.rinex_type {
-                Type::NavigationMessage => {
-                    let known_sv_identifiers: &'static [char] = 
-                        &['R','G','E','B','J','C','S']; 
-                    match &header.constellation {
-                        Constellation::Glonass => parsed.len() > 4,
-                        _ => {
+	match header.version.major {
+		1|2|3 => {
+			// old RINEX
+			// epoch block is type dependent
+			match &header.rinex_type {
+				Type::NavigationMessage => {
+					// old NAV: epoch block
+					//  is constellation dependent
+					match &header.constellation {
+						Constellation::Glonass => {
+							// GLONASS NAV special case
+							//  constellation ID is implied
+							parsed.len() > 4
+						},
+						_ => {
+							// other constellations
+                    		let known_sv_identifiers: &'static [char] = 
+                        		&['R','G','E','B','J','C','S']; 
                             match line.chars().nth(0) {
-                                Some(c) => known_sv_identifiers.contains(&c), 
+                                Some(c) => {
+									// epochs start with a known 
+									//  constellation identifier
+									known_sv_identifiers.contains(&c)
+								},
                                 _ => false
-                                    //TODO
-                                    // <o 
-                                    //   for some files we end up with "\n xxxx" as first frame items 
-                                    // current code will discard first payload item in such scenario
-                                    // => need to cleanup (split(head,body) method)
                             }
-                        }
-                    }
-                },
-                Type::ObservationData => parsed.len() > 7,
-                _ => false, 
-            }
-        },
-        false => {      
-            // V4: OBS blocks have a '>' delimiter
+						},
+					}
+				},
+				Type::ObservationData => {
+					if parsed.len() > 6 {
+						//  * contains at least 6 items
+						let mut datestr = parsed[0].to_owned(); // Y
+						datestr.push_str(" ");
+						datestr.push_str(parsed[1]); // m
+						datestr.push_str(" ");
+						datestr.push_str(parsed[2]); // d
+						datestr.push_str(" ");
+						datestr.push_str(parsed[3]); // h
+						datestr.push_str(" ");
+						datestr.push_str(parsed[4]); // m
+						datestr.push_str(" ");
+						datestr.push_str(parsed[5]); // s
+						println!("DATESTR \"{}\"", datestr);
+						//  * and items[0..5] do match an epoch descriptor
+						epoch::str2date(&datestr).is_ok()
+					} else {
+						false  // does not match
+							// an epoch descriptor
+					}
+				},
+				_ => false, // non supported, 
+					// unknown RINEX types
+			}
+		},
+		_ => {
+			// modern V > 3 RINEX
             match line.chars().nth(0) {
-                Some(c) => c == '>',
+                Some(c) => {
+					c == '>' // epochs always delimited 
+						// by this new identifier
+				},
                 _ => false,
-                    //TODO
-                    // <o 
-                    //   for some files we end up with "\n xxxx" as first frame items 
-                    // current code will discard first payload item in such scenario
-                    // => need to cleanup (split(head,body) method)
-            }
-        },
-    }
+			}
+		}
+	}
 }
 
 pub fn build_record (header: &header::RinexHeader, body: &str) -> Result<Record, TypeError> { 
@@ -164,6 +195,7 @@ pub fn build_record (header: &header::RinexHeader, body: &str) -> Result<Record,
     
     loop {
         let is_new_block = block_record_start(&line, &header);
+		println!("NEW BLOCK {}", is_new_block);
         if is_new_block && !first {
             match &header.rinex_type {
                 Type::NavigationMessage => {

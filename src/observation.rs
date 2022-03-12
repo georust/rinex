@@ -79,8 +79,9 @@ pub fn build_record_entry (header: &RinexHeader, content: &str)
         -> Result<(epoch::Epoch, HashMap<Sv, HashMap<String, f32>>), RecordError> 
 {
     let mut lines = content.lines();
-    let mut map : HashMap<Sv, HashMap<String, f32>> = HashMap::new();
     let version_major = header.version.major;
+
+	println!("CONTENT : {:#?}", content); 
 
     let mut line = lines.next()
         .unwrap();
@@ -101,38 +102,34 @@ pub fn build_record_entry (header: &RinexHeader, content: &str)
 
     // V > 2 might start with a ">" marker
     if line.starts_with(">") {
-        let (_, c) = line.split_at(1);
-        line = c.clone();
+        line = line.split_at(1).1.clone();
     }
 
     let (date, rem) = line.split_at(offset);
     let (flag, rem) = rem.split_at(3);
     let (n_sat, mut rem) = rem.split_at(3);
     let n_sat = u16::from_str_radix(n_sat.trim(), 10)?;
-    let n_sat_iter: usize = match n_sat > 12 {
-        true => (n_sat/12+1).into(),
-        false => 1
-    };
+    let n_sv_line : usize = num_integer::div_ceil(n_sat, 12).into();
+
     let flag = epoch::EpochFlag::from_str(flag.trim())?;
     let date = epoch::str2date(date)?; 
     let epoch = epoch::Epoch::new(date, flag);
 
     let mut sat_count : usize = 0;
     let mut sv_list : Vec<Sv> = Vec::with_capacity(24);
+	let mut map : HashMap<Sv, HashMap<String, f32>> = HashMap::new();
     let mut clock_offset : Option<f32> = None;
 
-    //println!("sv_list + clock offset content to parse\n\"{}\"", rem);
     if header.version.major < 3 {
         // old fashion:
-        //   Sv list is passed on 1st and possibly 2nd line (n_sat > 12)
+        //   Sv list is passed on 1st and possible several lines
         let mut offset : usize = 0;
-        for i in 0..n_sat_iter {
-            println!("rem \"{}\"", rem);
+        for i in 0..n_sv_line {
             loop {
                 let sv_str = &rem[offset..offset+3];
                 let identifier = sv_str.chars().nth(0)
                     .unwrap(); 
-                let prn = u8::from_str(&sv_str[1..])?;
+                let prn = u8::from_str(&sv_str[1..].trim())?;
                 // build `sv` 
                 let sv : Sv = match identifier.is_ascii_whitespace() {
                     true => Sv::new(header.constellation, prn),
@@ -162,107 +159,125 @@ pub fn build_record_entry (header: &RinexHeader, content: &str)
                     offset = 0;
                     break
                 }
-            }
-        }
+            } // sv systems content 
+        } // sv system ID
     
-        // verify identified sv_list
-        // against parsed epoch definition
+        // verify identified list sanity
         if sv_list.len() != n_sat.into() {
             return Err(RecordError::EpochParsingError) // mismatch
         }
-    
-    } else {
-        // modern rinex:
-        //   Sv is specified @ every single epoch
-    }
-    
-    //println!("clockoffset {:#?}", clock_offset);
-    let mut map : HashMap<Sv, HashMap<String, f32>> = HashMap::new();
-    
-    for i in 0..sv_list.len() {
-        let mut obs_map : HashMap<String, f32> = HashMap::new();
 
-        // sv serves as obs_map identifier
-        let sv : Sv = match header.version.major < 3 {
-            true => {
-                // old fashion : 
-                //  using previously identified Sv 
-                sv_list[i]
-            },
-            false => {
-                // modern :
-                //  sv is specified @ each line
-                offset += 3;
-                println!("line \"{}\" offset {}", line, offset);
-                Sv::from_str(line[0..3].trim())?
-                //Sv::default()
-            },
-        };
-        
-        let obs_codes = &header.obs_codes
-            .as_ref()
-                .unwrap()
-                [&sv.constellation];
-        
-        let mut offset : usize = 0;
-        for j in 0..obs_codes.len() {
-            
-            let code = &obs_codes[j];
-            let obs = &line[offset..offset+14];
-            let obs : Option<f32> = match f32::from_str(&obs.trim()) {
-                Ok(f) => Some(f),
-                Err(_) => None,
-            };
- 
-            let (lli, ssi) : (Option<u8>,Option<u8>) = match line.len() == offset+14 {
-                true => {
-                    // can't parse (lli,ssi) on this subset
-                    // because line is terminated by an OBS code that
-                    // does not have those fields
-                    (None, None)
-                },
-                false => {
-                    let lli = &line[offset+14..offset+14+1];
-                    println!("lli \"{}\"", lli);
-                    let lli = match u8::from_str_radix(&lli, 10) {
-                        Ok(lli) => Some(lli),
-                        Err(_) => None,
-                    };
+		// TODO: clockoffset
+		println!("clockoffset {:#?}", clock_offset);
+		
+		for i in 0..sv_list.len() { // per vehicule
+			let mut offset : usize = 0;
+			let mut obs_map : HashMap<String, f32> = HashMap::new();
 
-                    let ssi = &line[offset+14+1..offset+14+2];
-                    println!("ssi \"{}\"", ssi);
-                    let ssi = match u8::from_str_radix(&ssi, 10) {
-                        Ok(ssi) => Some(ssi),
-                        Err(_) => None,
-                    };
-                    (lli, ssi)
-                },
-            };
-            
-            println!("offset {}", offset);
-            println!("obs \"{:?}\" | lli \"{:?}\" | ssi \"{:?}\"", obs, lli, ssi);
+			// old RINEX revision : using previously identified Sv 
+			let sv : Sv = sv_list[i]; 
+			let obs_codes = &header.obs_codes
+				.as_ref()
+					.unwrap()
+					[&sv.constellation];
+			
+			let mut code_index : usize = 0;
+			loop { // per obs code
+				let code = &obs_codes[code_index];
+				println!("code {} | index {}", code, code_index);
+				let obs : Option<f32> = match line.len() < offset+14 { 
+					true => {
+						// cant' grab a new measurement
+						//  * line is empty: contains only empty measurements
+						//  * end of line is reached
+						None
+					},
+					false => {
+						let obs = &line[offset..offset+14];
+						if let Ok(f) = f32::from_str(&obs.trim()) {
+							Some(f)
+						} else {
+							None // parsing failed for some reason
+						}
+					},
+				};
 
-            if obs.is_some() { // did find an OBS
-                obs_map.insert(code.to_string(), obs.unwrap());
-            }
+				let lli : Option<u8> = match line.len() < offset+14+1 {
+					true => {
+						// can't parse lli here
+						// 	* line is over and this measurement
+						//    does not have lli nor ssi 
+						None
+					},
+					false => {
+						let lli = &line[offset+14..offset+14+1];
+						let lli = match u8::from_str_radix(&lli, 10) {
+							Ok(lli) => Some(lli),
+							Err(_) => {
+								// lli field is empty
+								None
+							}
+						};
+						lli
+					},
+				};
 
-            offset += 14 // F14.3
-                +1 // +lli
-                +1; // +ssi
+				let ssi : Option<u8> = match line.len() < offset+14+2 {
+					true => {
+						// can't parse ssi here
+						// 	* line is over and this measurement
+						//    does not have ssi 
+						None
+					},
+					false => {
+						let ssi = &line[offset+14+1..offset+14+2];
+						let ssi = match u8::from_str_radix(&ssi, 10) {
+							Ok(ssi) => Some(ssi),
+							Err(_) => {
+								// ssi field is empty
+								None
+							}
+						};
+						ssi
+					},
+				};
+				
+				println!("offset {}", offset);
+				println!("obs \"{:?}\" | lli \"{:?}\" | ssi \"{:?}\"", obs, lli, ssi);
 
-            if offset >= line.len() {
-                // overflowing this line content
-                //  --> try to grab a new one
-                offset = 0; // reset
-                if let Some(l) = lines.next() {
-                    line = l
-                } else {
-                    break
-                }
-            }
-        }
-        map.insert(sv, obs_map);
-    }
+				if let Some(obs) = obs { // parsed something
+					obs_map.insert(code.to_string(), obs); 
+				}
+				
+				code_index += 1;
+				if code_index == obs_codes.len() {
+					break // last code that system sv
+				}
+				
+				offset += 14 // F14.3
+					+1 // +lli
+					+1; // +ssi
+
+				if offset >= line.len() {
+					// we just parsed the last
+					// code for this line
+					offset = 0;
+					if let Some(l) = lines.next() {
+						line = l;
+					}
+				}
+			} // for all obs code
+            map.insert(sv, obs_map);
+			if let Some(l) = lines.next() {
+				line = l;
+			} else {
+				break
+			}
+		} // for all systems
+    } // V < 3 old fashion
+	else { // V > 2 modern RINEX
+
+	}
     Ok((epoch, map))
 }
 

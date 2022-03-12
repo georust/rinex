@@ -684,7 +684,6 @@ impl std::str::FromStr for RinexHeader {
                 let constell : constellation::Constellation = match identifier {
                     "G" => constellation::Constellation::GPS,
                     "R" => constellation::Constellation::Glonass,
-                    "B" => constellation::Constellation::Beidou,
                     "J" => constellation::Constellation::QZSS,
                     "E" => constellation::Constellation::Galileo,
                     "C" => constellation::Constellation::Beidou,
