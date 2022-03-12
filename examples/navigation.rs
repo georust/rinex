@@ -11,7 +11,7 @@ fn main() {
 
     // example file
     let navigation_file = std::path::PathBuf::from(
-        env!("CARGO_MANIFEST_DIR").to_owned() + "/data/CBW100NLD_R_20210010000_01D_MN.rnx");
+        env!("CARGO_MANIFEST_DIR").to_owned() + "/data/NAV/V3/CBW100NLD_R_20210010000_01D_MN.rnx");
     // parse example file
     let rinex = rinex::Rinex::from_file(&navigation_file).unwrap();
 
@@ -54,18 +54,18 @@ fn main() {
     //  * `epoch` is a chrono::NaiveDateTime alias
     //     therefore one can use any chrono::NaiveDateTime method
     let to_match = epoch::Epoch::new(
-        epoch::str2date("21 01 01 08 45 00").unwrap(),
+        epoch::str2date("21 01 01 00 00 00").unwrap(),
         epoch::EpochFlag::default());
     //    ---> retrieve all data for desired `epoch`
     //         using direct hashmap[indexing]
     let matched = &record[&to_match];
     println!("\n------------- Matching epoch \"{:?}\" ----------\n{:#?}", to_match, matched); 
     
-    // ----> zoom in on `R24` vehicule for that particular `epoch` 
-    let to_match = rinex::record::Sv::new(Constellation::Glonass, 24);
+    // ----> zoom in on `E01` vehicule for that particular `epoch` 
+    let to_match = rinex::record::Sv::new(Constellation::Galileo, 1);
     let matched = &matched[&to_match];
     println!("\n------------- Adding Sv filter \"{:?}\" to previous epoch filter ----------\n{:#?}", to_match, matched); 
-    // ----> zoom in on `B07` clock drift for that `epoch`
+    // ----> zoom in on `E01` clock drift for that `epoch`
     let matched = &matched["ClockDrift"];
     println!("\n------------- \"clockDrift\" data from previous set ----------\n{:#?}", matched); 
     
