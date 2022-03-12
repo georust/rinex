@@ -9,7 +9,6 @@ keywords = ["rinex", "timing", "gps", "glonass", "galileo"]
 categories = ["science", "parsing"]
 edition = "2018"
 readme = "README.md"
-
 exclude = ["/data",]
 
 [build-dependencies]
