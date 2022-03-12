@@ -47,7 +47,7 @@ the header is fully parsed.
 
 ## Getting started 
 
-The ``Rinex::from_file`` parses a local `RINEX` file:
+The ``Rinex::from_file`` method parses a local `RINEX` file:
 
 ```rust
 let path = std::path::PathBuf::from("data/NAV/V2/amel0010.21g");
@@ -95,18 +95,18 @@ println!("{:#?}", rinex.header.coords);
 
 ## RINEX record
 
-The `Rinex` structure comprises the header previously defined,
-and the `Record` which contains the data payload.
+The `Rinex` structure comprises the `header` previously defined,
+and the `record` which contains the data payload.
 
-The `Record` is optionnal at the moment to handle CRINEX
-Obs data that we are not able to parse directly.
+The _record_ is optionnal at the moment to handle `CRINEX`
+Observation Data that we are not able to parse directly.
 
-The `Record` definition varies with the type of Rinex file,
-refer to its definition in the API and the specific documentation down below,
+The `record` is a complex structure of HashMap (_dictionaries_)
+whose definition varies with the type of RINEX file.   
+Refer to its definition in the API and the specific documentation down below,
 for the type of file you are interested in.
 
-`Record` is a complex structure of HashMap (_dictionaries_),
-which definition may vary. The first indexing at the moment, is always an `epoch`,
+`record` is always first indexed by an `epoch`,
 that is, data is sorted by the sampling timestamp.
 
 ## `Epoch` object
