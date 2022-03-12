@@ -24,6 +24,27 @@ Link to the [official API](https://docs.rs/rinex/latest/rinex/index.html)
 * 2.00 ⩽ v < 4.0    Tested 
 *             v = 4.0    should work, not garanteed at the moment
 
+### RINEX file naming convention
+
+This parser does not check whether the provided local file
+follows the RINEX naming convention or not.
+You can parse anything and behavior adapts to the actual file content.
+
+### Known weaknesses
+
+* Compressed RINEX (**CRINEX**)   
+this lib is not able to decompress CRINEX files at the moment.   
+you should manually decompress your RINEX files prior attempting
+parsing.   
+In that scenario, `rinex.record` is set to _None_, and
+the header is fully parsed.
+
+* Weird RINEX content:    
+this parser is not able to parse the RINEX body if the provided
+RINEX content only has a single epoch.
+In that scenario, `rinex.record` is set to _None_, and
+the header is fully parsed.
+
 ## Getting started 
 
 The ``Rinex::from_file`` parses a local `RINEX` file:
@@ -32,9 +53,6 @@ The ``Rinex::from_file`` parses a local `RINEX` file:
 let path = std::path::PathBuf::from("data/NAV/V2/amel0010.21g");
 let rinex = rinex::Rinex::from_file(&path).unwrap();
 ```
-
-This parser does not check whether the provided local file
-follows the RINEX naming convention or not.
 
 The `data/` folder contains short but relevant RINEX files, 
 spanning almost all revisions and supported types, mainly for CI purposes.
@@ -77,19 +95,11 @@ println!("{:#?}", rinex.header.coords);
 
 ## RINEX record
 
-This parser is currently not able to build a RINEX record
-if the provided RINEX file only contains a single epoch.
-
 The `Rinex` structure comprises the header previously defined,
 and the `Record` which contains the data payload.
 
-The `Record` is optionnal at the moment and 
-set to _None_ in case of CRINEX Observation Data,
-as this lib is not able to decompress the file content. 
-In that scenario, only the header is gets parsed.
-Until this lib gets enhanced, you need to manually decompress
-your compressed OBS files prior using this parser, if you want
-your OBS file to be fully processed.
+The `Record` is optionnal at the moment to handle CRINEX
+Obs data that we are not able to parse directly.
 
 The `Record` definition varies with the type of Rinex file,
 refer to its definition in the API and the specific documentation down below,
