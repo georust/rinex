@@ -159,8 +159,8 @@ mod test {
     fn test_rinex_constructor() {
         let test_dir = env!("CARGO_MANIFEST_DIR").to_owned() + "/data";
         let types = vec![
-			//"NAV",
-			//"OBS",
+			"NAV",
+			"OBS",
 			"MET"
 		];
         for t in types {
