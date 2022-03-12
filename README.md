@@ -211,7 +211,7 @@ wip
 
 ## Meteo Data
 
-wip
+[Meteo Data documentation](https://github.com/gwbres/rinex/blob/main/doc/meteo.md)
 
 ## Clocks data
 
