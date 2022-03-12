@@ -675,11 +675,9 @@ impl std::str::FromStr for RinexHeader {
                 // modern obs code descriptor 
                 let (line, _) = line.split_at(60); // remove header
                 let (identifier, rem) = line.split_at(1);
-                let (n_codes, content) = rem.split_at(5);
+                let (n_codes, mut line) = rem.split_at(5);
                 let n_codes = u8::from_str_radix(n_codes.trim(), 10)?;
 				let n_lines : usize = num_integer::div_ceil(n_codes, 13).into(); 
-				println!("N LINES : {}", n_lines);
-
                 let mut codes : Vec<String> = Vec::with_capacity(n_codes.into());
                 let constell : constellation::Constellation = match identifier {
                     "G" => constellation::Constellation::GPS,
@@ -691,24 +689,17 @@ impl std::str::FromStr for RinexHeader {
                     _ => continue, // should never happen 
                 };
 
-                for i in 0..n_lines-1 {
-                    let mut offset : usize = 0;
-                    let mut rem = content.clone();
-                    loop {
-                        let (code, remainder) = rem.split_at(offset+3+1);
-                        rem = remainder.clone();
-                        if code.trim().len() == 0 {
-                            rem = lines.next()
-                                .unwrap();
-                            break
-                        }
-                        codes.push(String::from(code.trim()));
-                        if offset >= rem.len() {
-                            rem = lines.next()
-                                .unwrap();
-                            break
-                        }
-                    }
+                for i in 0..n_lines {
+					let content : Vec<&str> = line.split_ascii_whitespace()
+						.collect();
+					for j in 0..content.len() { 
+                    	codes.push(String::from(content[j].trim()));
+					}
+					if i < n_lines-1 { // takes more than one line
+						line = lines.next() // --> need to grab new content
+							.unwrap();
+						line = line.split_at(60).0 // remove comments
+					}
                 }
                 obs_codes.insert(constell, codes);
             

@@ -140,25 +140,38 @@ fn block_record_start (line: &str, header: &header::RinexHeader) -> bool {
 					}
 				},
 				Type::ObservationData => {
-					if parsed.len() > 6 {
-						//  * contains at least 6 items
-						let mut datestr = parsed[0].to_owned(); // Y
-						datestr.push_str(" ");
-						datestr.push_str(parsed[1]); // m
-						datestr.push_str(" ");
-						datestr.push_str(parsed[2]); // d
-						datestr.push_str(" ");
-						datestr.push_str(parsed[3]); // h
-						datestr.push_str(" ");
-						datestr.push_str(parsed[4]); // m
-						datestr.push_str(" ");
-						datestr.push_str(parsed[5]); // s
-						println!("DATESTR \"{}\"", datestr);
-						//  * and items[0..5] do match an epoch descriptor
-						epoch::str2date(&datestr).is_ok()
-					} else {
-						false  // does not match
-							// an epoch descriptor
+					match header.version.major {
+						1|2 => {
+							if parsed.len() > 6 {
+								//  * contains at least 6 items
+								let mut datestr = parsed[0].to_owned(); // Y
+								datestr.push_str(" ");
+								datestr.push_str(parsed[1]); // m
+								datestr.push_str(" ");
+								datestr.push_str(parsed[2]); // d
+								datestr.push_str(" ");
+								datestr.push_str(parsed[3]); // h
+								datestr.push_str(" ");
+								datestr.push_str(parsed[4]); // m
+								datestr.push_str(" ");
+								datestr.push_str(parsed[5]); // s
+								//  * and items[0..5] do match an epoch descriptor
+								epoch::str2date(&datestr).is_ok()
+							} else {
+								false  // does not match
+									// an epoch descriptor
+							}
+						},
+						_ => {
+							// OBS::V3 behaves like all::V4
+							match line.chars().nth(0) {
+								Some(c) => {
+									c == '>' // epochs always delimited
+										// by this new identifier
+								},
+								_ => false,
+							}
+						},
 					}
 				},
 				_ => false, // non supported, 
@@ -195,7 +208,6 @@ pub fn build_record (header: &header::RinexHeader, body: &str) -> Result<Record,
     
     loop {
         let is_new_block = block_record_start(&line, &header);
-		println!("NEW BLOCK {}", is_new_block);
         if is_new_block && !first {
             match &header.rinex_type {
                 Type::NavigationMessage => {
