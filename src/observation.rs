@@ -1,4 +1,4 @@
-//! `RinexType::ObservationData` specific module
+//! `ObservationData` parser and related methods
 use thiserror::Error;
 use std::str::FromStr;
 use strum_macros::EnumString;
@@ -59,6 +59,7 @@ pub fn distance_from_pseudo_range (pr: f64,
 }
 
 #[derive(Error, Debug)]
+/// OBS Data `Record` parsing specific errors
 pub enum RecordError {
     #[error("failed to parse date")]
     ParseDateError(#[from] epoch::ParseDateError),
