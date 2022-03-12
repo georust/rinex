@@ -35,13 +35,13 @@ You can parse anything and behavior adapts to the actual file content.
 * Compressed RINEX (**CRINEX**)   
 this lib is not able to decompress CRINEX files at the moment.   
 you should manually decompress your RINEX files prior attempting
-parsing.   
+parsing.    
 In that scenario, `rinex.record` is set to _None_, and
 the header is fully parsed.
 
 * Weird RINEX content:    
 this parser is not able to parse the RINEX body if the provided
-RINEX content only has a single epoch.
+RINEX content only has a single epoch.    
 In that scenario, `rinex.record` is set to _None_, and
 the header is fully parsed.
 
