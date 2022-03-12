@@ -9,6 +9,12 @@ Doc:
 * [ ] epoch: determine longest epoch for a given constellation or sv
 * [ ] epoch: time spanning
 
+Parsing :
+* [ ] cleanup split(head, body) ?   
+for some file with start the rinex body with "\n xxxxxx"
+causing some issues when identifying 1st epoch.
+* [ ] last epoch seems to always be missed
+
 Header:
 * [ ] time of first and last obs parsing is faulty
 * [ ] header.antenna.model sometimes appear as dirty, check this out
@@ -35,7 +41,6 @@ Observation Data:
 * [x] parse OBS record V < 3
 * [ ] parse OBS record V > 2
 * [ ] parse clock offsets and classify them properly
-* [ ] last epoch always missed : block content extractor ?
 
 Hatanaka:
 * [ ] provide a decompression method to decompress most OBS data files
