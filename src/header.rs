@@ -8,8 +8,6 @@ use crate::gnss_time;
 use crate::{is_comment, Type, TypeError};
 use crate::constellation;
 use crate::constellation::{Constellation, ConstellationError};
-use crate::meteo::{MeteoDataCode, MeteoDataCodeError};
-//use crate::observation::{ObservationCode, ObservationCodeError};
 
 /// Describes a `CRINEX` (compact rinex) 
 pub const CRINEX_MARKER_COMMENT : &str = "COMPACT RINEX FORMAT";
@@ -285,10 +283,6 @@ pub enum Error {
     DateParsingError(#[from] chrono::ParseError),
     #[error("failed to parse leap second from \"{0}\"")]
     LeapSecondParsingError(String),
-    //#[error("observation type code not recognized \"{0}\"")]
-    //ObservationTypeCodeError(#[from] ObservationCodeError),
-    #[error("meteo data code not recognized \"{0}\"")]
-    MeteoDataCodeError(#[from] MeteoDataCodeError),
 }
 
 impl Default for RinexHeader {
