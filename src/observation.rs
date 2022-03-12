@@ -81,8 +81,6 @@ pub fn build_record_entry (header: &RinexHeader, content: &str)
     let mut lines = content.lines();
     let version_major = header.version.major;
 
-	println!("CONTENT : {:#?}", content); 
-
     let mut line = lines.next()
         .unwrap();
     
@@ -184,7 +182,6 @@ pub fn build_record_entry (header: &RinexHeader, content: &str)
 			let mut code_index : usize = 0;
 			loop { // per obs code
 				let code = &obs_codes[code_index];
-				println!("code {} | index {}", code, code_index);
 				let obs : Option<f32> = match line.len() < offset+14 { 
 					true => {
 						// cant' grab a new measurement
@@ -242,9 +239,6 @@ pub fn build_record_entry (header: &RinexHeader, content: &str)
 					},
 				};
 				
-				println!("offset {}", offset);
-				println!("obs \"{:?}\" | lli \"{:?}\" | ssi \"{:?}\"", obs, lli, ssi);
-
 				if let Some(obs) = obs { // parsed something
 					obs_map.insert(code.to_string(), obs); 
 				}
