@@ -4,7 +4,6 @@ use std::str::FromStr;
 use std::collections::HashMap;
 
 use crate::epoch;
-use crate::record;
 use crate::header::RinexHeader;
 
 #[macro_export]

@@ -1,6 +1,5 @@
 //! record.rs describes `RINEX` file content
 use thiserror::Error;
-use std::str::FromStr;
 use std::collections::HashMap;
 
 use crate::epoch;
