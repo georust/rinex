@@ -7,6 +7,7 @@ use crate::epoch;
 use crate::header;
 use crate::meteo;
 use crate::navigation;
+use crate::navigation::ComplexEnum;
 use crate::observation;
 use crate::epoch::Epoch;
 use crate::is_comment;
@@ -72,8 +73,17 @@ impl std::str::FromStr for Sv {
 /// `Record`
 #[derive(Clone, Debug)]
 pub enum Record {
+	/// `navigation::Record` : Navigation Data file content.    
+	/// `record` is a list of `navigation::ComplexEnum` sorted
+	/// by `epoch` and by `Sv`
     NavRecord(navigation::Record),
+	/// `observation::Record` : Observation Data file content.   
+	/// `record` is a list of `observation::ObservationData` indexed
+	/// by Observation code, sorted by `epoch` and by `Sv`
     ObsRecord(observation::Record),
+	/// `meteo::Record` : Meteo Data file content.   
+	/// `record` is a hashmap of f32 indexed by Observation Code,
+	/// sorted by `epoch`
     MeteoRecord(meteo::Record),
 }
 
@@ -204,6 +214,8 @@ fn block_record_start (line: &str, header: &header::RinexHeader) -> bool {
 	}
 }
 
+/// Builds a `Record`, `RINEX` file body content,
+/// which is constellation and `RINEX` file type dependent
 pub fn build_record (header: &header::RinexHeader, body: &str) -> Result<Record, TypeError> { 
     let mut body = body.lines();
     let mut line = body.next()
