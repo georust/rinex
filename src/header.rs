@@ -283,7 +283,7 @@ pub struct RinexHeader {
     //gnsstime_corr: Option<Vec<gnss_time::GnssTimeCorr>>,
     /// Observations:   
     /// true if epochs & data compensate for local clock drift 
-    pub rcvr_clock_offset_applied: Option<bool>, 
+    pub rcvr_clock_offset_applied: bool, 
     // observation (specific)
     /// lists all types of observations 
     /// contained in this `Rinex` OBS file
@@ -346,7 +346,7 @@ impl Default for RinexHeader {
             obs_codes: None,
 			met_codes: None,
             // processing
-            rcvr_clock_offset_applied: None,
+            rcvr_clock_offset_applied: false,
             data_scaling: None,
             //ionospheric_corr: None,
             //gnsstime_corr: None,
@@ -514,7 +514,7 @@ impl std::str::FromStr for RinexHeader {
         // other
         let mut leap       : Option<LeapSecond> = None;
         let mut sampling_interval: Option<f32> = None;
-        let mut rcvr_clock_offset_applied: Option<bool> = None;
+        let mut rcvr_clock_offset_applied: bool = false;
         let mut coords     : Option<rust_3d::Point3D> = None;
         let mut epochs: (Option<gnss_time::GnssTime>, Option<gnss_time::GnssTime>) = (None, None);
         // (OBS) 
@@ -645,7 +645,7 @@ impl std::str::FromStr for RinexHeader {
             
             } else if line.contains("RCV CLOCK OFFS APPL") {
                 let ok_str = line.split_at(20).0.trim();
-                rcvr_clock_offset_applied = Some(i32::from_str_radix(ok_str, 10)? != 0)
+                rcvr_clock_offset_applied = i32::from_str_radix(ok_str, 10)? != 0
 
             } else if line.contains("# OF SATELLITES") {
                 // will always appear prior PRN/#OBS

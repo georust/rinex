@@ -241,8 +241,8 @@ pub fn build_record (header: &header::RinexHeader, body: &str) -> Result<Record,
                     }
                 },
                 Type::ObservationData => {
-                    if let Ok((e, map)) = observation::build_record_entry(&header, &block) {
-                        obs_rec.insert(e, map);
+                    if let Ok((e, offset, map)) = observation::build_record_entry(&header, &block) {
+                        obs_rec.insert(e, (offset, map));
                     }
                 },
 				Type::MeteorologicalData => {

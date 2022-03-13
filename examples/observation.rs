@@ -36,13 +36,17 @@ fn main() {
     for entry in record.iter() { // over all epochs
         let epoch = entry.0;
         println!("Found epoch: `{:#?}`", epoch); 
-                                        // epoch = HashMap<Sv, ()>
-        for vehicule in entry.1.iter() { // over all sat. vehicules
+        // epochs are 2D (1 per epoch)
+        //   clock offsets (if any) : Some(f32)
+        //   HashMap<Sv, HashMap<String, ObservationData>> 
+        //   : list of observation data, indexed by Observation Code
+        //     and sorted by Satellite Vehicule
+        /*for vehicule in entry.1.iter() { // over all sat. vehicules
             let sv = vehicule.0;
             println!("Found sat vehicule: `{:#?}`", sv); 
             let data = vehicule.1;
             println!("Data: `{:#?}`", data); 
-        }
+        }*/
     }
     //////////////////////////////////////
     // basic hashmap [indexing] 
@@ -69,10 +73,10 @@ fn main() {
     
     // ----> zoom in on `R24` vehicule for that particular `epoch` 
     let to_match = rinex::record::Sv::new(Constellation::Glonass, 24);
-    let matched = &matched[&to_match];
+    //let matched = &matched[&to_match];
     println!("\n------------- Adding Sv filter \"{:?}\" to previous epoch filter ----------\n{:#?}", to_match, matched); 
     // ----> grab `R24` "C1C" phase observation for that  `epoch`
-    let matched = &matched["C1C"];
+    //let matched = &matched["C1C"];
     println!("\n------------- \"C1C\" data from previous set ----------\n{:#?}", matched); 
     
 /*

@@ -61,8 +61,15 @@ impl ObservationData {
 	}
 }
 
-/// `Record` content for OBS data files
-pub type Record = HashMap<epoch::Epoch, HashMap<Sv, HashMap<String, ObservationData>>>;
+/// `Record` content for OBS data files.   
+/// Measurements are sorted by `epoch` (timestamps + flags).    
+/// Measurements are of two kinds:
+///  + Option<f32>: receiver clock offsets for OBS data files where   
+///    receiver clock offsets are 'applied'    
+///  + map of ObservationData (physical measurements) sorted by `Sv` 
+pub type Record = HashMap<epoch::Epoch, 
+    (Option<f32>, 
+    HashMap<Sv, HashMap<String, ObservationData>>)>;
 
 /// Calculates distance from given Pseudo Range value,
 /// by compensating clock offsets    
@@ -95,14 +102,16 @@ pub enum RecordError {
     EpochParsingError,
 }
 
-/// Builds `RINEX` record entry for `Observation` Data files
+/// Builds `RINEX` record entry for `Observation` Data files.    
+/// Returns identified `epoch` to later sort data efficiently.    
+/// Returns 2D data as described in `record` definition
 pub fn build_record_entry (header: &RinexHeader, content: &str)
-        -> Result<(epoch::Epoch, HashMap<Sv, HashMap<String, ObservationData>>), RecordError> 
+        -> Result<(epoch::Epoch, Option<f32>, HashMap<Sv, HashMap<String, ObservationData>>), RecordError> 
 {
     let mut lines = content.lines();
     let mut line = lines.next()
         .unwrap();
-    
+
     // epoch::
     let mut offset : usize = 
         2+1 // Y
@@ -134,11 +143,47 @@ pub fn build_record_entry (header: &RinexHeader, content: &str)
 
     let mut sv_list : Vec<Sv> = Vec::with_capacity(24);
 	let mut map : HashMap<Sv, HashMap<String, ObservationData>> = HashMap::new();
-    let clock_offset : Option<f32> = None;
-		
-	// TODO: clockoffset
-	//println!("clockoffset {:#?}", clock_offset);
-		
+    
+    // grabbing possible clock_offsets content
+    let offs : Option<&str> = match header.version.major < 2 {
+        true => {
+            // old fashion RINEX:
+            // clock offsets are last 12 characters
+            if line.len() > 60-12 {
+                Some(line.split_at(60-12).1.trim())
+            } else {
+                None
+            }
+        },
+        false => {
+            // modern RINEX:
+            let min_len : usize = 
+                 4+1 // y
+                +2+1 // m
+                +2+1 // d
+                +2+1 // h
+                +2+1 // m
+                +11+1// s
+                +3   // flag
+                +3;   // n_sat
+            if line.len() > min_len {
+                Some(line.split_at(min_len).1.trim()) // increased precision
+            } else {
+                None
+            }
+        },
+    };
+    let clock_offset : Option<f32> = match offs.is_some() {
+        true => {
+            if let Ok(f) = f32::from_str(offs.unwrap()) {
+                Some(f)
+            } else {
+                None // parsing failed for some reason
+            }
+        },
+        false => None, // empty field
+    };
+
     if header.version.major < 3 {
         // old fashion:
         //   Sv list is passed on 1st and possible several lines
@@ -369,7 +414,7 @@ pub fn build_record_entry (header: &RinexHeader, content: &str)
 			} // per obs code
 		} // per sat
 	} // V>2
-    Ok((epoch, map))
+    Ok((epoch, clock_offset, map))
 }
 
 #[derive(EnumString)]

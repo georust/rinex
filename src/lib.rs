@@ -192,9 +192,24 @@ mod test {
 						let rinex = rinex.unwrap();
                         println!("File: {:?}\n{:#?}", &fp, rinex);
 						match t {
-							"NAV" => assert_eq!(rinex.is_navigation_rinex(), true),
-							"OBS" => assert_eq!(rinex.is_observation_rinex(), true),
-							"MET" => assert_eq!(rinex.is_meteo_rinex(), true),
+							"NAV" => {
+                                // NAV files sanity checks
+                                assert_eq!(rinex.is_navigation_rinex(), true);
+                            },
+							"OBS" => {
+                                // OBS files sanity checks
+                                assert_eq!(rinex.is_observation_rinex(), true);
+                                assert_eq!(rinex.header.obs_codes.is_some(), true);
+                                if rinex.header.rcvr_clock_offset_applied {
+                                    // epochs should always have a RCVR clock offset
+                                    // test that with iterator
+                                }
+                            },
+							"MET" => {
+                                // METEO files sanity checks
+                                assert_eq!(rinex.is_meteo_rinex(), true);
+                                assert_eq!(rinex.header.met_codes.is_some(), true);
+                            },
 							_ => {},
 						}
                     }
