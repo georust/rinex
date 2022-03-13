@@ -90,7 +90,6 @@ pub enum RecordError {
     ParseIntError(#[from] std::num::ParseIntError),
     #[error("failed to float number")]
     ParseFloatError(#[from] std::num::ParseFloatError),
-	#[error("testing purposes")]
 }
 
 /// Builds `RINEX` record entry for `Meteo` Data files
