@@ -16,18 +16,17 @@ pub const CONSTELLATION_LENGTH: usize = 6;
 /// when manipulating `RINEX`
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Constellation {
-    /// `GPS` american consellation,
-    /// also servers as default constellation
+    /// `GPS` american constellation,
     GPS,
-    /// `Glonass` russian consellation
+    /// `Glonass` russian constellation
     Glonass,
-    /// `Beidou` chinese consellation
+    /// `Beidou` chinese constellation
     Beidou,
-    /// `QZSS` japanese consellation
+    /// `QZSS` japanese constellation
     QZSS,
-    /// `Galileo` european consellation
+    /// `Galileo` european constellation
     Galileo,
-    /// `Sbas` consellation
+    /// `Sbas` constellation
     Sbas,
     /// `Mixed` for Mixed constellations 
     /// RINEX files description
@@ -35,7 +34,7 @@ pub enum Constellation {
 }
 
 impl Default for Constellation {
-    /// Builds a default `GNSS` constellation
+    /// Builds a default `GNSS::GPS` constellation
     fn default() -> Constellation {
         Constellation::GPS
     }
