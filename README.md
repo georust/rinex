@@ -6,7 +6,7 @@ Rust package to parse and analyze Rinex files
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square)](https://github.com/gwbres/rinex/blob/main/LICENSE-APACHE)
 [![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](https://github.com/gwbres/rinex/blob/main/LICENSE-MIT)     
 [![crates.io](https://img.shields.io/crates/d/rinex.svg)](https://crates.io/crates/rinex)
-[![Coverage Status](https://img.shields.io/coveralls/github/gwbres/rinex/master?style=flat-square)](https://coveralls.io/github/gwbres/rinex?branch=master)
+[![Coverage Status](https://img.shields.io/coveralls/github/gwbres/rinex/main?style=flat-square)](https://coveralls.io/github/gwbres/rinex?branch=main)
 
 [![codecov](https://codecov.io/gh/gwbres/rinex/branch/main/graph/badge.svg)](https://codecov.io/gh/gwbres/rinex)
 
