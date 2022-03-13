@@ -13,7 +13,7 @@ Parsing :
 * [ ] cleanup split(head, body) ?   
 for some file with start the rinex body with "\n xxxxxx"
 causing some issues when identifying 1st epoch.
-* [ ] last epoch seems to always be missed
+* [x] last epoch seems to always be missed
 
 Header:
 * [ ] time of first and last obs parsing is faulty

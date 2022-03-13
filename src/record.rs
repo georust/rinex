@@ -267,10 +267,14 @@ pub fn build_record (header: &header::RinexHeader, body: &str) -> Result<Record,
         block.push_str(&line);
         block.push_str("\n");
 
+        if eof {
+            break
+        }
+
         if let Some(l) = body.next() {
             line = l
         } else {
-            break
+            eof = true;
         }
 
         while is_comment!(line) {
@@ -278,12 +282,7 @@ pub fn build_record (header: &header::RinexHeader, body: &str) -> Result<Record,
                 line = l
             } else {
                 eof = true; 
-                break 
             }
-        }
-
-        if eof {
-            break
         }
     }
     match &header.rinex_type {
