@@ -1,5 +1,5 @@
 # RINEX 
-Rust package to parse and analyze Rinex files
+Rust library to parse and analyze RINEX files
 
 [![crates.io](https://img.shields.io/crates/v/rinex.svg)](https://crates.io/crates/rinex)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square)](https://github.com/gwbres/rinex/blob/main/LICENSE-APACHE)
