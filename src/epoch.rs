@@ -4,6 +4,8 @@ use std::str::FromStr;
 use chrono::{Datelike,Timelike};
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
+/// `EpochFlag` validates or describes events
+/// that occured during an `epoch`
 pub enum EpochFlag {
     Ok,
     PowerFailure,
@@ -32,8 +34,9 @@ impl std::str::FromStr for EpochFlag {
     }
 }
 
-/// An `Epoch` is an observation timestamp
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
+/// An `Epoch` is an observation timestamp associated
+/// to an `EpochFlag`
 pub struct Epoch {
     /// `flag` validates or not this particular `epoch`
     pub flag: EpochFlag,
@@ -59,6 +62,8 @@ impl Default for Epoch {
 }
 
 impl Epoch {
+    /// Builds a new `Epoch` structure using given
+    /// timestamp and `EpochFlag` 
     pub fn new (date: chrono::NaiveDateTime, flag: EpochFlag) -> Epoch {
         Epoch { 
             date,
@@ -68,6 +73,7 @@ impl Epoch {
 }
 
 #[derive(Error, Debug)]
+/// `epoch.date` field parsing related errors
 pub enum ParseDateError {
     #[error("failed to parse seconds field")]
     ParseFloatError(#[from] std::num::ParseFloatError),
@@ -75,6 +81,8 @@ pub enum ParseDateError {
     ParseIntError(#[from] std::num::ParseIntError),
 }
 
+/// Builds an `epoch.date` field from passed "yyyy mm dd hh mm ss.sssss"
+/// content, as generally found in `RINEX` epoch descriptors
 pub fn str2date (s: &str) -> Result<chrono::NaiveDateTime, ParseDateError> {
     let items : Vec<&str> = s.split_ascii_whitespace().collect();
     let (mut y,m,d,h,min,s) : (i32,u32,u32,u32,u32,f64) =
