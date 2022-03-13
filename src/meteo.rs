@@ -91,7 +91,6 @@ pub enum RecordError {
     #[error("failed to float number")]
     ParseFloatError(#[from] std::num::ParseFloatError),
 	#[error("testing purposes")]
-	FakeError,
 }
 
 /// Builds `RINEX` record entry for `Meteo` Data files
@@ -160,7 +159,7 @@ pub fn build_record_entry (header: &RinexHeader, content: &str)
 	let mut code_index : usize = 0;
 
 	for i in 0..nb_lines {
-		for j in 0..8 {
+		for _ in 0..8 {
 			let code = &obs_codes[code_index];
 			let obs : Option<f32> = match f32::from_str(&line[offset..offset+7].trim()) {
 				Ok(f) => Some(f),

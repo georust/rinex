@@ -143,7 +143,7 @@ pub fn build_record_entry (header: &RinexHeader, content: &str)
         // old fashion:
         //   Sv list is passed on 1st and possible several lines
         let mut offset : usize = 0;
-        for i in 0..n_sv_line {
+        for _ in 0..n_sv_line {
             loop {
                 let sv_str = &rem[offset..offset+3];
                 let identifier = sv_str.chars().nth(0)

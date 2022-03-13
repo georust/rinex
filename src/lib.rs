@@ -155,6 +155,7 @@ impl Rinex {
     }
 }
 
+#[cfg(test)]
 mod test {
     use super::*;
     #[test]
