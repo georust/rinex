@@ -7,7 +7,6 @@ Rust package to parse and analyze Rinex files
 [![crates.io](https://img.shields.io/crates/d/rinex.svg)](https://crates.io/crates/rinex)   
 
 [![Rust](https://github.com/gwbres/rinex/actions/workflows/rust.yml/badge.svg)](https://github.com/gwbres/rinex/actions/workflows/rust.yml)
-[![codecov](https://codecov.io/gh/gwbres/rinex/branch/main/graph/badge.svg?token=JZSLS8Y0RN)](https://codecov.io/gh/gwbres/rinex)
 
 Many RINEX file types exist, 
 the `RinexType` enum (refer to API) 
