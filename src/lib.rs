@@ -82,7 +82,10 @@ impl std::str::FromStr for Type {
 /// `Rinex` describes a `RINEX` file
 #[derive(Debug)]
 pub struct Rinex {
+    /// `header` field contains general information
     pub header: header::RinexHeader,
+    /// `record` contains `RINEX` file body
+    /// and is type and constellation dependent 
     pub record: Option<record::Record>,
 }
 
