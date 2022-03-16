@@ -8,6 +8,17 @@ Rust library to parse and analyze RINEX files
 [![Rust](https://github.com/gwbres/rinex/actions/workflows/rust.yml/badge.svg)](https://github.com/gwbres/rinex/actions/workflows/rust.yml)
 [![crates.io](https://docs.rs/rinex/badge.svg)](https://docs.rs/rinex/badge.svg)
 
+This library lets you access complex RINEX data easily and build your application
+around it.    
+If you are only interested in RINEX data extraction and visualization,   
+you should rather look into the
+[command line tool](https://github.com/gwbres/rinex-cli) that I am working
+on, based off this library.    
+I will also dedicate a command line tool to RINEX decompression and hopefully
+compression too,    
+to be named 
+[hatanaka](https://github.com/gwbres/hatanaka) (WIP). 
+
 Many RINEX file types exist, 
 the `RinexType` enum (refer to API) 
 describes the types of RINEX currently supported:
