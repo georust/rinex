@@ -1,5 +1,6 @@
 //! `GNSS` constellations & associated methods
 use thiserror::Error;
+use serde::{Serialize, Deserialize};
 
 const GPS_STR_IDENTIFIER     : &str = "GPS";
 const GLONASS_STR_IDENTIFIER : &str = "GLO"; 
@@ -15,6 +16,7 @@ pub const CONSTELLATION_LENGTH: usize = 6;
 /// Describes all known `GNSS` constellations
 /// when manipulating `RINEX`
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+#[derive(Serialize, Deserialize)]
 pub enum Constellation {
     /// `GPS` american constellation,
     GPS,
