@@ -1,6 +1,6 @@
 //! `GNSS` constellations & associated methods
 use thiserror::Error;
-use serde::{Serialize, Deserialize};
+use serde_derive::{Deserialize, Serialize};
 
 const GPS_STR_IDENTIFIER     : &str = "GPS";
 const GLONASS_STR_IDENTIFIER : &str = "GLO"; 
