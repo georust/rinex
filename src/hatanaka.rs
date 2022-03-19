@@ -177,5 +177,43 @@ mod test {
                 .unwrap();
             assert_eq!(recovered, expected[i]);
         }
+        // test re-init
+        let init : i64 = 24701300559;
+        krn.init(3, Dtype::Numerical(init))
+            .unwrap();
+        let data : Vec<i64> = vec![
+            -19542118,
+            29235,
+            -38,
+            1592,
+            -931,
+            645,
+            1001,
+            -1038,
+            2198,
+            -2679,
+            2804,
+            -892,
+        ];
+        let expected : Vec<i64> = vec![
+            24681758441,
+            24662245558,
+            24642761872,
+            24623308975,
+            24603885936,
+            24584493400,
+            24565132368,
+            24545801802,
+            24526503900,
+            24507235983,
+            24488000855,
+            24468797624,
+        ];
+        for i in 0..data.len() {
+            let recovered = krn.recover(Dtype::Numerical(data[i]))
+                .as_numerical()
+                .unwrap();
+            assert_eq!(recovered, expected[i]);
+        }
     }
 }
