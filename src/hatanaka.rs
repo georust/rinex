@@ -42,9 +42,9 @@ impl Dtype {
             _ => None,
         }
     }
-    fn as_text (&self) -> Option<&str> {
+    fn as_text (&self) -> Option<String> {
         match self {
-            Dtype::Text(s) => Some(&s),
+            Dtype::Text(s) => Some(s.to_string()),
             _ => None,
         }
     }
@@ -65,6 +65,8 @@ pub struct Kernel {
     state: Vec<i64>,
     /// previous state vector 
     p_state: Vec<i64>,
+    /// previous text vector
+    p_text : String,
 }
 
 /// Fills given i64 vector with '0'
@@ -78,12 +80,13 @@ impl Kernel {
     ///    m=5 is hardcoded in CRN2RNX official tool
     pub fn new (m: usize) -> Kernel {
         let mut state : Vec<i64> = Vec::with_capacity(m+1);
-        for i in 0..m+1 { state.push(0) }
+        for _ in 0..m+1 { state.push(0) }
         Kernel {
             n: 0,
             order: 0,
             state: state.clone(),
             p_state: state.clone(),
+            p_text : String::from(""),
         }
     }
 
@@ -99,8 +102,8 @@ impl Kernel {
         zeros(&mut self.state);
         zeros(&mut self.p_state);
         // init
-        self.p_state[0]
-            = data.as_numerical().unwrap_or(0);
+        self.p_state[0] = data.as_numerical().unwrap_or(0);
+        self.p_text = data.as_text().unwrap_or(String::from(""));
         self.order = order;
         Ok(())
     }
@@ -128,9 +131,26 @@ impl Kernel {
         self.p_state = self.state.clone();
         Dtype::Numerical(self.state[0])
     }
-    /// TextDiff is simplistic
+    /// Text is very simple
     fn text_data_recovery (&mut self, data: String) -> Dtype {
-        Dtype::Numerical(0)    
+        let l = self.p_text.len();
+        let mut recovered = String::from("");
+        let mut p = self.p_text.as_mut_str().chars();
+        let mut data = data.as_str().chars();
+        for _ in 0..l {
+            let next_c = p.next().unwrap();
+            if let Some(c) = data.next() {
+                if c.is_ascii_alphanumeric() {
+                    recovered.push_str(&c.to_string())
+                } else {
+                    recovered.push_str(&next_c.to_string())
+                }
+            } else {
+                recovered.push_str(&next_c.to_string())
+            }
+        }
+        self.p_text = recovered.clone();
+        Dtype::Text(String::from(&recovered))
     }
 }
 
@@ -214,6 +234,58 @@ mod test {
                 .as_numerical()
                 .unwrap();
             assert_eq!(recovered, expected[i]);
+        }
+    }
+    #[test]
+    /// Tests Hatanaka Text Recovery algorithm
+    fn test_text_recovery() {
+        let init = "ABCDEFG 12 000 33 XXACQmpLf";
+        let mut krn = Kernel::new(5);
+        let masks : Vec<&str> = vec![
+            "        13   1 44 xxACq   F",
+            " 11 22   x   0 4  y     p  ",
+            "              1     ",
+            "                   z",
+            " ",
+        ];
+        let expected : Vec<&str> = vec![
+            "ABCDEFG 13 001 44 xxACqmpLF",
+            "A11D22G 1x 000 44 yxACqmpLF",
+            "A11D22G 1x 000144 yxACqmpLF",
+            "A11D22G 1x 000144 yzACqmpLF",
+            "A11D22G 1x 000144 yzACqmpLF",
+        ];
+        krn.init(3, Dtype::Text(String::from(init)))
+            .unwrap();
+        for i in 0..masks.len() {
+            let mask = masks[i];
+            let result = krn.recover(Dtype::Text(String::from(mask)))
+                .as_text()
+                .unwrap();
+            assert_eq!(result, String::from(expected[i]));
+        }
+        // test re-init
+        let init = " 2200 123      G 07G08G09G   XX XX";
+        krn.init(3, Dtype::Text(String::from(init)))
+            .unwrap();
+        let masks : Vec<&str> = vec![
+            "        F       1  3",
+            " x    1 f  f   p",
+            " ",
+            "  3       4       ",
+        ];
+        let expected : Vec<&str> = vec![
+            " 2200 12F      G107308G09G   XX XX",
+            " x200 12f  f   p107308G09G   XX XX",
+            " x200 12f  f   p107308G09G   XX XX",
+            " x300 12f 4f   p107308G09G   XX XX",
+        ];
+        for i in 0..masks.len() {
+            let mask = masks[i];
+            let result = krn.recover(Dtype::Text(String::from(mask)))
+                .as_text()
+                .unwrap();
+            assert_eq!(result, String::from(expected[i]));
         }
     }
 }
