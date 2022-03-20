@@ -10,9 +10,9 @@ Doc:
 * [ ] epoch: time spanning
 
 Parsing :
-* [ ] cleanup split(head, body) ?   
-for some file with start the rinex body with "\n xxxxxx"
-causing some issues when identifying 1st epoch.
+* [ ] move to buffered reader instead of fs::to\_string() for better
+performances
+* [x] cleanup (head, body) splitting
 * [x] last epoch seems to always be missed
 
 Header:
