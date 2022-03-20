@@ -20,6 +20,8 @@ use thiserror::Error;
 pub enum Error {
     #[error("order cannot be greater than {0}")]
     OrderTooBig(usize),
+    #[error("cannot recover a different type than init type!")]
+    TypeMismatch,
 }
 
 /// `Dtype` describes the type of data
@@ -34,6 +36,10 @@ pub enum Dtype {
     /// observation flags..
     Text(String),
 }
+
+impl Default for Dtype {
+    fn default() -> Dtype { Dtype::Numerical(0) }
+ }
 
 impl Dtype {
     pub fn as_numerical (&self) -> Option<i64> {
@@ -61,12 +67,12 @@ pub struct Kernel {
     n: usize,
     /// compression order
     order: usize,
+    /// kernel initializer
+    init: Dtype,
     /// state vector 
     state: Vec<i64>,
     /// previous state vector 
     p_state: Vec<i64>,
-    /// previous text vector
-    p_text : String,
 }
 
 /// Fills given i64 vector with '0'
@@ -84,9 +90,9 @@ impl Kernel {
         Kernel {
             n: 0,
             order: 0,
+            init: Dtype::default(),
             state: state.clone(),
             p_state: state.clone(),
-            p_text : String::from(""),
         }
     }
 
@@ -102,18 +108,30 @@ impl Kernel {
         zeros(&mut self.state);
         zeros(&mut self.p_state);
         // init
+        self.init = data.clone();
         self.p_state[0] = data.as_numerical().unwrap_or(0);
-        self.p_text = data.as_text().unwrap_or(String::from(""));
         self.order = order;
         Ok(())
     }
 
     /// Recovers data by computing
     /// recursive differential equation
-    pub fn recover (&mut self, data: Dtype) -> Dtype {
+    pub fn recover (&mut self, data: Dtype) -> Result<Dtype, Error> {
         match data {
-            Dtype::Numerical(data) => self.numerical_data_recovery(data),
-            Dtype::Text(data) => self.text_data_recovery(data),
+            Dtype::Numerical(data) => {
+                if let Some(_) = self.init.as_numerical() {
+                    Ok(self.numerical_data_recovery(data))
+                } else {
+                    Err(Error::TypeMismatch)
+                }
+            },
+            Dtype::Text(data) => {
+                if let Some(_) = self.init.as_text() {
+                   Ok(self.text_data_recovery(data))
+                } else {
+                    Err(Error::TypeMismatch)
+                }
+            },
         }
     }
     /// Runs Differential Equation
@@ -133,9 +151,10 @@ impl Kernel {
     }
     /// Text is very simple
     fn text_data_recovery (&mut self, data: String) -> Dtype {
-        let l = self.p_text.len();
+        let mut init = self.init.as_text().unwrap();
+        let l = init.len();
         let mut recovered = String::from("");
-        let mut p = self.p_text.as_mut_str().chars();
+        let mut p = init.as_mut_str().chars();
         let mut data = data.as_str().chars();
         for _ in 0..l {
             let next_c = p.next().unwrap();
@@ -149,7 +168,7 @@ impl Kernel {
                 recovered.push_str(&next_c.to_string())
             }
         }
-        self.p_text = recovered.clone();
+        self.init = Dtype::Text(recovered.clone()); // for next time
         Dtype::Text(String::from(&recovered))
     }
 }
@@ -193,8 +212,9 @@ mod test {
         ];
         for i in 0..data.len() {
             let recovered = krn.recover(Dtype::Numerical(data[i]))
-                .as_numerical()
-                .unwrap();
+                .unwrap()
+                    .as_numerical()
+                    .unwrap();
             assert_eq!(recovered, expected[i]);
         }
         // test re-init
@@ -231,8 +251,9 @@ mod test {
         ];
         for i in 0..data.len() {
             let recovered = krn.recover(Dtype::Numerical(data[i]))
-                .as_numerical()
-                .unwrap();
+                .unwrap()
+                    .as_numerical()
+                    .unwrap();
             assert_eq!(recovered, expected[i]);
         }
     }
@@ -260,8 +281,9 @@ mod test {
         for i in 0..masks.len() {
             let mask = masks[i];
             let result = krn.recover(Dtype::Text(String::from(mask)))
-                .as_text()
-                .unwrap();
+                .unwrap()
+                    .as_text()
+                    .unwrap();
             assert_eq!(result, String::from(expected[i]));
         }
         // test re-init
@@ -283,8 +305,9 @@ mod test {
         for i in 0..masks.len() {
             let mask = masks[i];
             let result = krn.recover(Dtype::Text(String::from(mask)))
-                .as_text()
-                .unwrap();
+                .unwrap()
+                    .as_text()
+                    .unwrap();
             assert_eq!(result, String::from(expected[i]));
         }
     }
