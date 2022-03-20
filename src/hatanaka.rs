@@ -151,7 +151,9 @@ impl Kernel {
     }
     /// Text is very simple
     fn text_data_recovery (&mut self, data: String) -> Dtype {
-        let mut init = self.init.as_text().unwrap();
+        let mut init = self.init
+            .as_text()
+            .unwrap();
         let l = init.len();
         let mut recovered = String::from("");
         let mut p = init.as_mut_str().chars();
@@ -159,17 +161,28 @@ impl Kernel {
         for _ in 0..l {
             let next_c = p.next().unwrap();
             if let Some(c) = data.next() {
-                if c.is_ascii_alphanumeric() {
-                    if c == '&' {
-                        recovered.push_str(" ")
-                    } else {
-                        recovered.push_str(&c.to_string())
-                    }
+                if c == '&' {
+                    recovered.push_str(" ")
+                } else if c.is_ascii_alphanumeric() {
+                    recovered.push_str(&c.to_string())
                 } else {
                     recovered.push_str(&next_c.to_string())
                 }
             } else {
                 recovered.push_str(&next_c.to_string())
+            }
+        }
+        // mask might be longer than self
+        // in case we need to extend current value
+        loop {
+            if let Some(c) = data.next() {
+                if c == '&' {
+                    recovered.push_str(" ")
+                } else if c.is_ascii_alphanumeric() {
+                    recovered.push_str(&c.to_string())
+                }
+            } else {
+                break
             }
         }
         self.init = Dtype::Text(recovered.clone()); // for next time
