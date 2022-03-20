@@ -160,7 +160,11 @@ impl Kernel {
             let next_c = p.next().unwrap();
             if let Some(c) = data.next() {
                 if c.is_ascii_alphanumeric() {
-                    recovered.push_str(&c.to_string())
+                    if c == '&' {
+                        recovered.push_str(" ")
+                    } else {
+                        recovered.push_str(&c.to_string())
+                    }
                 } else {
                     recovered.push_str(&next_c.to_string())
                 }
