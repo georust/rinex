@@ -36,13 +36,13 @@ pub enum Dtype {
 }
 
 impl Dtype {
-    fn as_numerical (&self) -> Option<i64> {
+    pub fn as_numerical (&self) -> Option<i64> {
         match self {
             Dtype::Numerical(n) => Some(n.clone()),
             _ => None,
         }
     }
-    fn as_text (&self) -> Option<String> {
+    pub fn as_text (&self) -> Option<String> {
         match self {
             Dtype::Text(s) => Some(s.to_string()),
             _ => None,
