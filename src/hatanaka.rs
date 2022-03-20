@@ -3,17 +3,6 @@
 //! RINEX OBS files compression and decompression.   
 use thiserror::Error;
 
-/* notes sur les preicions numeriques
-    RINEX < 3
-        OBS = F14.3
-        CLOCKS = F12.9
-
-    RINEX > 2
-        OBS = F14.3 inchange'
-        CLOCKS = F15.12 increased
-
-*/
-
 #[derive(Error, Debug)]
 /// Hatanaka Kernel, compression
 /// and decompression related errors
