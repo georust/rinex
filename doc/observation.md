@@ -17,29 +17,33 @@ One example script is provided
 cargo run --example observation
 ```
 
-### V3 and following revisions
+### Special note for modern (V>2) Observation Data files
 
-&#9888; &#9888; This parser expects single line epochs,   
-that is line length larger than 60 caracters,    
-which is against V < 3 specifications (only allowed in modern RINEX).
+&#9888; &#9888; This parser currently works
+on single line epochs in this scenario, which is against the standard
+RINEX definitions.  
+This is because most observation files are compressed files (`RNX2CRX`)
+and the decompression tool (`CRX2RNX`) does not respect the
+RINEX standard in that particular scenario.    
+In other words, this parser only works with Observation Data
+that has been uncompressed with `CRX2RNX` at the moment.
 
-&#9888; &#9888; If V > 2 Observation Records with
-multi line epochs do exist,    
-this lib will not parse them properly
-at the moment.
+In the next release, I will support both cases:
+* make the standard properly parsed (wrapped lines)
+* and maintain current behavior, so non matching but very common
+files are still parsed correctly
 
 ### CRINEX - Compressed Observation records
 
-Compressed OBS records are not fully parsed at the moment because
-this lib is not able to decompress them.  
-You have to manually decompress them prior anything.  
+Compressed OBS records are not parsed at the moment because
+this lib is not able to decompress them.   
+You have to manually decompress them prior parsing.    
 If you pass a compressed RINEX to this lib, only the header
 will be parsed and the record is set to _None_.  
 Link to CRX2RNX [official decompressoin tool](https://terras.gsi.go.jp/ja/crx2rnx.html)
 
-Some uncompressed V3 OBS files result in format violations,
-where _epochs_ are described in a single line longer than 60 characters.   
-This parser can deal with that scenario and should parse every sane epoch.
+In the next release, the parse will be able to uncompress
+compressed Observation Data files, so you don't have to do anything.
 
 ## Observation Record content
 
@@ -152,3 +156,34 @@ let data = &matched_sv["C1C"];
 
 Refer to doc/navigation section as they are fairly similar,   
 until this section gets created.
+
+Grab an OBS record:
+
+List all observation codes to be expected:
+You can see those are modern V >= 3 observation codes.
+
+List all epochs encountered in this file
+
+(A) Retrieve all Carrier L1 phase and Carrier L1 signal strength,
+from all vehicules:
+To do so, we use retrieve all L1C and S1C measured data. 
+
+(B) Same thing but we also grab L2 so we get a group of 4 vector,
+Carrier phase and signal strength for both L1 and L2 carriers.
+
+Grab all L1 carrier signal strength from E04 sattelite vehicule:
+To do so, we use the (A) filter but add an `Sv` filter on top of it.
+
+Grab all data for E04 vehicule that corresponds to
+a Doppler Observation code. To do so,
+we use one of the `is_doppler_obs_code!()` maccro
+and test each observation code against it. We
+only retain the payload on test match.
+
+Decimate L1 phase carrier by using a minimum epoch interval.
+To do so, &#9888; we first sort the epochs,
+this is very important &#9888; because the `.keys()`
+iterator exposes them randomly, and we would be unable to
+efficiently filter epoch intervals.
+Then we apply a simple conditions on adjacent epochs,
+to filter a minimin time interval.

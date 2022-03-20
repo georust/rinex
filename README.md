@@ -35,7 +35,7 @@ Link to the [official API](https://docs.rs/rinex/latest/rinex/index.html)
 ### Supported RINEX revisions
 
 * 2.00 ⩽ v < 4.0    Tested 
-*             v = 4.0    should work, not garanteed at the moment
+*             v = 4.0    refer to file type specific pages
 
 ### RINEX file naming convention
 
