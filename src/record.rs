@@ -3,8 +3,8 @@ use thiserror::Error;
 use std::collections::HashMap;
 
 use crate::epoch;
-use crate::header;
 use crate::meteo;
+use crate::header;
 use crate::navigation;
 use crate::observation;
 use crate::is_comment;
