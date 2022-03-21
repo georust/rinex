@@ -188,9 +188,9 @@ impl std::str::FromStr for LeapSecond {
 /// Describes `Compact RINEX` specific information
 #[derive(Debug)]
 pub struct CrinexInfo {
-    version: String, // compression version
-    prog: String, // compression program
-    date: chrono::NaiveDateTime, // date of compression
+    pub version: version::Version, // compression version
+    pub prog: String, // compression program
+    pub date: chrono::NaiveDateTime, // date of compression
 }
 
 /// Describes known marker types
@@ -380,7 +380,7 @@ impl std::str::FromStr for RinexHeader {
                 let date = remainder.split_at(20).0.trim();
                 println!("CRINEX: VERSION \"{}\" | PGM \"{}\" | DATE \"{}\"", version.trim(), pgm.trim(), date); 
                 Some(CrinexInfo {
-                    version: version.trim().to_string(),
+                    version: version::Version::from_str(version.trim())?,
                     prog: pgm.trim().to_string(),
                     date: chrono::NaiveDateTime::parse_from_str(date, "%d-%b-%y %H:%M")?
                 })
@@ -871,26 +871,4 @@ impl std::str::FromStr for RinexHeader {
 impl RinexHeader {
     /// Returns true if self is a `Compressed RINEX`
     pub fn is_crinex (&self) -> bool { self.crinex.is_some() }
-
-    /// Returns Compressed `RINEX` version (if any) 
-    pub fn get_crinex_version (&self) -> Option<&str> { 
-        match &self.crinex {
-            Some(crinex) => Some(&crinex.version),
-            _ => None,
-        }
-    }
-    /// Returns `RINEX` compression program name (if any) 
-    pub fn get_crinex_prog (&self) -> Option<&str> { 
-        match &self.crinex {
-            Some(crinex) => Some(&crinex.prog),
-            _ => None,
-        }
-    }
-    /// Returns `RINEX` compression date (if any) 
-    pub fn get_crinex_date (&self) -> Option<chrono::NaiveDateTime> { 
-        match &self.crinex {
-            Some(crinex) => Some(crinex.date),
-            _ => None,
-        }
-    }
 }
