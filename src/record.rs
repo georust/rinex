@@ -114,12 +114,15 @@ pub enum RecordError {
     TypeError(String),
 }
 
-/// Returns true if a new block record section
-/// is encountered at given line.
-/// Block record section represents an epoch for most RINEX files
-fn block_record_start (line: &str, header: &header::RinexHeader) -> bool {
+/// Returns true if given line matches the start   
+/// of a new epoch, inside a RINEX record.    
+/// Do not used with CRINEX content
+pub fn is_new_epoch (line: &str, header: &header::RinexHeader) -> bool {
     let parsed: Vec<&str> = line.split_ascii_whitespace()
         .collect();
+    if header.is_crinex() {
+        panic!("is_new_epoch() for CRINEX record is not supported")
+    }
 	match header.version.major {
 		1|2|3 => {
 			// old RINEX
@@ -230,7 +233,7 @@ pub fn build_record (header: &header::RinexHeader, body: &str) -> Result<Record,
 	let mut met_rec : meteo::Record = HashMap::new();
     
     loop {
-        let is_new_block = block_record_start(&line, &header);
+        let is_new_block = is_new_epoch(&line, &header);
         if is_new_block && !first {
             match &header.rinex_type {
                 Type::NavigationMessage => {
