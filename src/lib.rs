@@ -4,14 +4,14 @@
 //! Refer to README for example of use.  
 //! Homepage: <https://github.com/gwbres/rinex>
 mod meteo;
-mod header;
-mod version;
 mod gnss_time;
 mod navigation;
 mod observation;
 
 pub mod epoch;
+pub mod header;
 pub mod record;
+pub mod version;
 pub mod hatanaka;
 pub mod constellation;
 
