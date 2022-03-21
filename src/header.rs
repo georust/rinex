@@ -77,17 +77,17 @@ impl Sensor {
 #[derive(Debug)]
 pub struct Antenna {
     /// Hardware model / make descriptor
-    model: String,
+    pub model: String,
     /// Serial number / identification number
-    sn: String,
+    pub sn: String,
     /// 3D coordinates of reference point
-    coords: Option<rust_3d::Point3D>,
+    pub coords: Option<rust_3d::Point3D>,
     /// height in comparison to ref. point
-    height: Option<f32>,
+    pub height: Option<f32>,
     /// eastern eccentricity compared to ref. point
-    eastern_eccentricity: Option<f32>,
+    pub eastern_eccentricity: Option<f32>,
     /// northern eccentricity compare to ref. point
-    northern_eccentricity: Option<f32>,
+    pub northern_eccentricity: Option<f32>,
 }
 
 impl Default for Antenna {
@@ -121,14 +121,18 @@ impl std::str::FromStr for Antenna {
 }
 
 impl Antenna {
-    /// Assigns antenna coordinates
-    pub fn set_coords (&mut self, coords: rust_3d::Point3D) { self.coords = Some(coords) }
-    /// Sets Antenna height compared to reference point
-    pub fn set_height (&mut self, height: f32) { self.height = Some(height) }
-    /// Sets Eastern eccentricity (m)
-    pub fn set_eastern_eccentricity (&mut self, e: f32) { self.eastern_eccentricity = Some(e) }
-    /// Sets Northern eccentricity (m)
-    pub fn set_northern_eccentricity (&mut self, e: f32) { self.northern_eccentricity = Some(e) }
+    pub fn new (sn: &str, model: &str, 
+        coords: Option<rust_3d::Point3D>,
+            h : Option<f32>, e: Option<f32>, n: Option<f32>) -> Antenna {
+        Antenna {
+            sn: sn.to_string(),
+            model: model.to_string(),
+            coords: coords,
+            height: h,
+            northern_eccentricity: n,
+            eastern_eccentricity: e,
+        }
+    }
 }
 
 /// `LeapSecond` to describe leap seconds.
@@ -186,7 +190,7 @@ impl std::str::FromStr for LeapSecond {
 }
 
 /// Describes `Compact RINEX` specific information
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct CrinexInfo {
     pub version: version::Version, // compression version
     pub prog: String, // compression program
@@ -413,7 +417,6 @@ impl std::str::FromStr for RinexHeader {
 			// these files are not tied to a constellation system,
 			// therefore, do not have this field
 			constellation = None
-
 		} else { // regular files
             constellation = Some(Constellation::from_str(constellation_str.trim())?)
         }
@@ -806,16 +809,19 @@ impl std::str::FromStr for RinexHeader {
             }
         }
         
-        if ant.is_some() { // whatever.. but will avoid hypothetical crash
-            if ant_coords.is_some() { // in case of faulty producer
-                ant.as_mut().unwrap().set_coords(ant_coords.unwrap())
-            }
-            if ant_hen.is_some() {
-                ant.as_mut().unwrap().set_height(ant_hen.unwrap().0);
-                ant.as_mut().unwrap().set_eastern_eccentricity(ant_hen.unwrap().1);
-                ant.as_mut().unwrap().set_northern_eccentricity(ant_hen.unwrap().2);
-            }
-        }
+        let ant : Option<Antenna> = match ant {
+            Some(antenna) => {
+                Some(Antenna::new(
+                    &antenna.sn, 
+                    &antenna.model, 
+                    ant_coords, 
+                    Some(ant_hen.unwrap_or((0.0_f32,0.0_f32,0.0_f32)).0), 
+                    Some(ant_hen.unwrap_or((0.0_f32,0.0_f32,0.0_f32)).1), 
+                    Some(ant_hen.unwrap_or((0.0_f32,0.0_f32,0.0_f32)).2), 
+                ))
+            },
+            _ => None,
+        };
 
 		let sensors : Option<Vec<Sensor>> = match sensors.len() > 0 {
 			true => {
