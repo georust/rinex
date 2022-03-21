@@ -5,15 +5,16 @@ p44
 but the records contain the satellite position, velocity, accel, health.."
 
 Doc:
-* [ ] epoch: determine smallest epoch for a given constellation or sv
-* [ ] epoch: determine longest epoch for a given constellation or sv
+* [ ] epoch: determine longest dead time for a given constellation or sv
 * [ ] epoch: time spanning
 
-Parsing :
+General :
 * [ ] move to buffered reader instead of fs::to\_string() for better
-performances
+performances, pass BufReader pointer to build\_record method
 * [x] cleanup (head, body) splitting
 * [x] last epoch seems to always be missed
+* [ ] add to::file production method
+* [ ] simplify line interations with "for line in lines.next()"
 
 Header:
 * [ ] time of first and last obs parsing is faulty
