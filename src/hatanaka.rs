@@ -21,7 +21,7 @@ pub enum KernelError {
 /// `Dtype` describes the type of data
 /// we can compress / decompress
 #[derive(Clone, Debug)]
-enum Dtype {
+pub enum Dtype {
     /// Numerical is intended to be used    
     /// for observation data and clock offsets
     Numerical(i64),
@@ -78,7 +78,7 @@ impl Kernel {
     /// Builds a new kernel structure.    
     /// m: maximal Hatanaka order for this kernel to ever support,    
     ///    m=5 is hardcoded in CRN2RNX official tool
-    fn new (m: usize) -> Kernel {
+    pub fn new (m: usize) -> Kernel {
         let mut state : Vec<i64> = Vec::with_capacity(m+1);
         for _ in 0..m+1 { state.push(0) }
         Kernel {
@@ -93,7 +93,7 @@ impl Kernel {
     /// Initializes kernel.   
     /// order: compression order   
     /// data: kernel initializer
-    fn init (&mut self, order: usize, data: Dtype) -> Result<(), KernelError> { 
+    pub fn init (&mut self, order: usize, data: Dtype) -> Result<(), KernelError> { 
         if order > self.state.len() {
             return Err(KernelError::OrderTooBig(self.state.len()))
         }
@@ -110,7 +110,7 @@ impl Kernel {
 
     /// Recovers data by computing
     /// recursive differential equation
-    fn recover (&mut self, data: Dtype) -> Result<Dtype, KernelError> {
+    pub fn recover (&mut self, data: Dtype) -> Result<Dtype, KernelError> {
         match data {
             Dtype::Numerical(data) => {
                 if let Some(_) = self.init.as_numerical() {
@@ -182,196 +182,6 @@ impl Kernel {
         self.init = Dtype::Text(recovered.clone()); // for next time
         Dtype::Text(String::from(&recovered))
     }
-}
-
-#[derive(Error, Debug)]
-pub enum Error {
-    #[error("kernel error")]
-    KernelError(#[from] KernelError),
-    #[error("invalid crinex format")]
-    CrinexFormatError,
-    #[error("failed to parse integer number")]
-    ParseIntError(#[from] std::num::ParseIntError),
-    #[error("failed to parse sat. vehicule")]
-    ParseSvError(#[from] record::ParseSvError), 
-}
-
-/// `Hatanaka` structure can compress   
-/// or decompress entire epochs inside a RINEX record    
-/// using `Hatanaka` algorithm
-pub struct Hatanaka {
-    pub epo_krn_init: bool,
-    pub epo_krn: Kernel,
-    pub clk_krn: Kernel,
-    pub obs_krn: HashMap<Sv, HashMap<String, (Kernel,Kernel,Kernel)>>,
-}
-
-impl Hatanaka {
-    /// Creates a new `Hatanaka` core 
-    /// m : maximal compression / decompression order
-    pub fn new (m: usize) -> Hatanaka {
-        Hatanaka {
-            epo_krn_init: true,
-            epo_krn : Kernel::new(m),
-            clk_krn : Kernel::new(m),
-            obs_krn : HashMap::new(),
-        }
-    }
-}
-
-/// Decompresses entire block content from a record.   
-/// header: previous parsed `RinexHeader`   
-/// core : decompression `Hatanaka` core    
-/// content: entire epoch content    
-/// Returns recovered epoch content
-pub fn decompress (header: &header::RinexHeader, core: &mut Hatanaka, content: &str)
-        -> Result<String, Error> {
-/* TODO
-    1) manage comments:
-       always preserved
-       manage weird case where line#1 is a comment,
-         although should never happen
-  
-    2) e_flag > 2 must be preserved !
-        revoir dans la publi, l'exemple ou ca arrive
-*/
-    let mut result = String::new();
-    let mut lines = content.lines();
-    let mut line = lines.next()
-        .unwrap();
-    let crinex = header.crinex
-        .as_ref()
-        .unwrap();
-    if core.epo_krn_init {
-        match crinex.version.major { // sanity checks
-            1 | 2 => { // old CRINEX
-                if !line.starts_with("&") {
-                    return Err(Error::CrinexFormatError)
-                }
-            },
-            _ => { // modern CRINEX
-                if !line.starts_with("> ") {
-                    return Err(Error::CrinexFormatError)
-                }
-            },
-        }
-        // init epoch kernel
-        core.epo_krn.init(0, Dtype::Text(line.to_string()))
-            .unwrap();
-    }
-    let recover = core.epo_krn.recover(Dtype::Text(line.to_string()))?;
-    let recovered_epoch = recover.as_text()
-        .unwrap();
-
-    let obs_codes = header.obs_codes
-        .as_ref()
-        .unwrap();
-    // recovered epoch description
-    //  * identify epoch flag for further logic
-    //  * build OBS/flags kernel (3 per Sv)
-    let e_str = recovered_epoch.as_str(); 
-    let mut offset : usize =
-        2     // Y
-        +2+1 // m
-        +2+1 // d
-        +2+1 // h
-        +2+1 // m
-        +11  // s
-        +1;  // ">" or "&"
-    if header.version.major > 2 {
-        offset += 2 // Y is 4 digit
-    }
-    if crinex.version.major > 2 { // CRINEX3
-        offset += 1 // has 1 extra whitespace
-    }
-    let (_, rem) = e_str.split_at(offset); // (epoch, )
-    let (e_flag, rem) = rem.split_at(3); // (flag, )
-    let (e_len, rem) = rem.split_at(3); // (len, )
-    let e_flag = u8::from_str_radix(e_flag.trim(), 10)?;
-    let e_len = u8::from_str_radix(e_len.trim(), 10)?;
-
-    let (_, rem) = rem.split_at(7);
-    for i in 0..e_len {
-         let (sv, rem) = rem.split_at(3);
-         let sv = Sv::from_str(sv)?;
-         if !core.obs_krn.contains_key(&sv) { 
-            // sat system, never seen before
-            let codes = &obs_codes[&sv.constellation];
-            // ==> create new kernel entries
-            //     one per OBS code
-            //     with same compression capacity as other kernels
-            let mut map : HashMap<String, (Kernel,Kernel,Kernel)> = HashMap::with_capacity(16);
-            for code in codes {
-                let kernels = ( 
-                    Kernel::new(core.epo_krn.state.len()-1),
-                    Kernel::new(core.epo_krn.state.len()-1),
-                    Kernel::new(core.epo_krn.state.len()-1),
-                );
-                map.insert(code.to_string(), kernels); 
-            }
-            core.obs_krn.insert(sv, map);
-         }
-    }
-
-    // clock offset
-    line = lines.next().unwrap();
-    let clock_offset : Option<i64> = match line.contains("&") { 
-        true => {
-            // kernel (re)init
-            let (n, rem) = line.split_at(1);
-            let n = u8::from_str_radix(n, 10)?;
-            let (_, num) = rem.split_at(1);
-            let num = i64::from_str_radix(num, 10)?;
-            core.clk_krn.init(n.into(), Dtype::Numerical(num))
-                .unwrap();
-            Some(num)
-        },
-        false => {
-            // clock offset is optionnal
-            if let Ok(num) = i64::from_str_radix(line.trim(), 10) {
-                let recovered = core.clk_krn.recover(Dtype::Numerical(num))
-                    .unwrap();
-                Some(recovered.as_numerical().unwrap())
-            } else {
-                None
-            }
-        }
-    };
-
-    // recover epoch descriptor
-    /*let epoch = recovered_epoch.as_str();
-    let epoch = epoch.split_at(35).0;
-    match header.version.major {
-        1 | 2 => { // Old RINEX
-            // TODO
-            // il faut wrapper tous les sat de cette epoch
-            // sur autant de ligne que necessaire,
-            // revoir dans src/observation.rs 
-            // le nb de Sv permis par lignes
-            // TODO
-            // clock offset est a squeezer en ligne #1
-        },
-        _ => { // Modern RINEX
-            result.push_str(epoch);
-            if let Some(offset) = clock_offset {
-                result.push_str(&format!("          {}\n", (offset as f64)/1000.0_f64))
-            }
-        },
-    }*/
-     
-    // recover epoch content
-    /*let sv_index : usize = 0; // to index Sv
-    for line in lines.next() {
-        let mut content : String;
-        match header.version.major {
-            1 | 2 => { // Old RINEX
-            },
-            _ => { // Modern RINEX
-            },
-        }
-        result.push_str(&format!("{}\n", content)) //TODO ce \n en derniere ligne va faire chier par la suite
-    }*/
-    Ok(result)
 }
 
 #[cfg(test)]
