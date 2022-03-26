@@ -1,12 +1,14 @@
 //! hatanaka.rs   
 //! structures and macros suites for
 //! RINEX OBS files compression and decompression.   
+use crate::Type;
 use crate::header;
 use crate::record;
-use crate::record::Sv;
+use crate::is_comment;
 use thiserror::Error;
-use std::collections::HashMap;
 use std::str::FromStr;
+use crate::record::Sv;
+use std::collections::HashMap;
 
 #[derive(Error, Debug)]
 /// Hatanaka Kernel, compression
@@ -50,12 +52,18 @@ impl Dtype {
     }
 }
 
+/// Fills given i64 vector with '0'
+fn zeros (array : &mut Vec<i64>) {
+    for i in 0..array.len() { array[i] = 0 }
+}
+
 /// `Kernel` is a structure to compress    
 /// or recover data using recursive defferential     
 /// equations as defined by Y. Hatanaka.   
 /// No compression limitations but maximal order   
 /// to be supported must be defined on structure     
 /// creation for memory allocation efficiency.
+#[derive(Clone)]
 pub struct Kernel {
     /// internal counter
     n: usize,
@@ -67,11 +75,6 @@ pub struct Kernel {
     state: Vec<i64>,
     /// previous state vector 
     p_state: Vec<i64>,
-}
-
-/// Fills given i64 vector with '0'
-fn zeros (array : &mut Vec<i64>) {
-    for i in 0..array.len() { array[i] = 0 }
 }
 
 impl Kernel {
@@ -90,7 +93,7 @@ impl Kernel {
         }
     }
 
-    /// Initializes kernel.   
+    /// (re)initializes kernel    
     /// order: compression order   
     /// data: kernel initializer
     pub fn init (&mut self, order: usize, data: Dtype) -> Result<(), KernelError> { 
@@ -181,6 +184,319 @@ impl Kernel {
         }
         self.init = Dtype::Text(recovered.clone()); // for next time
         Dtype::Text(String::from(&recovered))
+    }
+}
+
+/// Structure to decompress an observation
+/// for one satellite vehicule
+pub struct ObsDecompressor {
+    /// obs data kernel
+    obs_krn : Kernel,
+    /// SSI flag kernel
+    ssi_krn : Kernel,
+    /// LLI flag kernel
+    lli_krn : Kernel,
+}
+
+impl ObsDecompressor {
+    pub fn new (m : usize) -> ObsDecompressor {
+        ObsDecompressor {
+            obs_krn: Kernel::new(m),
+            ssi_krn : Kernel::new(0),
+            lli_krn: Kernel::new(0),
+        }
+    }
+    /// (re)initializes self for decompression algorithm
+    pub fn init_obs (&mut self, order: usize, data: Dtype) -> Result<(), KernelError> { 
+        self.obs_krn.init(order, data)
+    }
+    /// (re)initializes self for decompression algorithm
+    pub fn init_ssi (&mut self, order: usize, data: Dtype) -> Result<(), KernelError> { 
+        self.ssi_krn.init(order, data)
+    }
+    /// (re)initializes self for decompression algorithm
+    pub fn init_lli (&mut self, order: usize, data: Dtype) -> Result<(), KernelError> { 
+        self.lli_krn.init(order, data)
+    }
+}
+
+/// Compression / Decompression related errors
+#[derive(Error, Debug)]
+pub enum Error {
+    #[error("io error")]
+    IoError(#[from] std::io::Error),
+    #[error("this is not a crinex file")]
+    NotACrinexError,
+    #[error("this is not an observation file")]
+    NotObsRinexData,
+    #[error("non supported crinex revision")]
+    NonSupportedCrinexRevision,
+    #[error("CRINEX1 standard mismatch")]
+    FaultyCrinex1Format,
+    #[error("CRINEX3 standard mismatch")]
+    FaultyCrinex3Format,
+    #[error("failed to identify sat. vehicule")]
+    ParseSvError(#[from] record::ParseSvError),
+    #[error("failed to parse integer number")]
+    ParseIntError(#[from] std::num::ParseIntError),
+    #[error("data recovery failed")]
+    KernelError(#[from] KernelError),
+    #[error("data recovery error")]
+    DataRecoveryError,
+}
+
+/// Structure to decompress a CRINEX file
+pub struct Decompressor {
+    /// to identify very first few bytes passed
+    first_epo : bool,
+    /// to determine where we are in the record
+    header : bool,
+    /// to determine where we are in the record
+    clock_offset : bool,
+    /// to determine where we are in the record
+    pointer : u16,
+    /// Epoch decompressor
+    epo_krn : Kernel,
+    /// Clock offset decompressor
+    clk_krn : Kernel,
+    /// decompressors
+    sv_krn  : HashMap<Sv, Vec<ObsDecompressor>>,
+}
+
+impl Decompressor {
+    /// Creates a new `CRINEX` decompressor tool
+    pub fn new (max_order: usize) -> Decompressor {
+        Decompressor {
+            first_epo : true,
+            header : true,
+            clock_offset : false,
+            pointer : 0,
+            epo_krn : Kernel::new(0),
+            clk_krn : Kernel::new(max_order),
+            sv_krn  : HashMap::new()
+        }
+    }
+    /// Decompresses (recovers) given CRINEX content.   
+    /// `header` : previously identified RINEX `header` section
+    /// `content`: string reference extracted from a CRINEX record.    
+    ///           This method is very convenient because `content` can have any shape you can think of.    
+    ///           You can feed single CRINEX epoch lines, one at a time.     
+    ///           You can pass epochs one at a time (line groupings).   
+    ///           You can also pass an entire CRINEX record at once.    
+    ///           You can even pass unevenly grouped chunks of epochs, even with COMMENTS unevenly inserted.    
+    ///           Just make sure that `content` is never an empty string (at least 1 character),
+    ///           which easily happens if you iterate through a CRINEX record with .lines() for instance.   
+    ///           And also make sure to follow a standard CRINEX structure, which should always be the case   
+    ///           if you iterate over a valid CRINEX.
+    /// `result`: returns decompressed (recovered) block from provided block content
+    pub fn recover (&mut self, header: &header::RinexHeader, content : &str) -> Result<String, Error> {
+        // Context sanity checks
+        if !header.is_crinex() {
+            return Err(Error::NotACrinexError)
+        }
+        if header.rinex_type != Type::ObservationData {
+            return Err(Error::NotObsRinexData)
+        }
+        // grab useful information for later
+        let rnx_version = &header.version;
+        let crx_version = header.crinex
+            .as_ref()
+            .unwrap()
+            .version;
+        let obs_codes = header.obs_codes
+            .as_ref()
+            .unwrap();
+        // pre defined maximal compression order
+        // when user created self
+        //  ===> used to adapt all other kernels accordingly
+        let m = self.clk_krn.state.len()-1; 
+        let mut result : String = String::new();
+        let mut lines = content.lines();
+        let mut clock_offset : Option<i64> = None;
+        loop {
+            let line : &str = match lines.next() {
+                Some(l) => l,
+                None => break,
+            };
+            println!(" HEADER {} | CLOCK OFFS {}", self.header, self.clock_offset);
+            println!("LINE : \"{}\"", line);
+            // [0] : COMMENTS remain untouched
+            if is_comment!(line) {
+                result.push_str(line); // feed as is..
+                result.push_str("\n");
+                continue
+            }
+            // [0*] : special epoch events
+            //        with uncompressed descriptor
+            if line.starts_with("> ") && !self.first_epo {
+                result.push_str(line); // feed as is..
+                result.push_str("\n");
+                continue
+            }
+            // [1] recover epoch descriptor 
+            if self.header {
+                self.recover_epoch_descriptor(crx_version.major, &line)?; 
+                self.header = false;
+                self.clock_offset = true;
+                continue
+            };
+            // [2] recover clock offset, if any
+            if self.clock_offset {
+                clock_offset = match line.contains("&") {
+                    false => {
+                        if let Ok(num) = i64::from_str_radix(line.trim(),10) {
+                            Some(num)
+                        } else {
+                            None // parsing fails on empty line
+                        }
+                    },
+                    true => {
+                        // kernel (re)init
+                        let (n, rem) = line.split_at(1);
+                        let n = u8::from_str_radix(n, 10)?;
+                        let (_, num) = rem.split_at(1);
+                        let num = i64::from_str_radix(num, 10)?;
+                        self.clk_krn.init(
+                            n.into(), 
+                            Dtype::Numerical(num))
+                            .unwrap();
+                        Some(num)
+                    },
+                };
+                // now we can fully recover the descriptor line
+                // TODO : this is RINEX>2 compliant only
+                // TODO : for RINEX < 3: need to wrapp all system #IDs
+                //        into as many lines as needed (see src/observation.rs)
+                let recovered_epoch =  // trick to recover textdiff
+                    self.epo_krn.recover(Dtype::Text(String::from("      ")))?
+                    .as_text()
+                    .unwrap();
+                result.push_str(&recovered_epoch);
+                if let Some(offset) = clock_offset {
+                    result.push_str(&format!("         {}", (offset as f64)/1000.0_f64))
+                }
+                self.clock_offset = false;
+                continue
+            }
+            // [3] inside epoch content
+            let recovered_epoch =  // trick to recover textdiff
+                self.epo_krn.recover(Dtype::Text(String::from("      ")))?
+                .as_text()
+                .unwrap();
+            let epo = recovered_epoch.as_str();
+            println!("EPO : \"{}\"", epo);
+            let mut offset : usize =
+                2    // Y
+                +2+1 // m
+                +2+1 // d
+                +2+1 // h
+                +2+1 // m
+                +11  // s
+                +1;  // ">" or "&" init marker
+            if rnx_version.major > 2 { offset += 2 } // Y is 4 digit
+            if epo.starts_with("> ") { offset += 1 } // CRINEX3 has 1 extra whitespace
+            let (_, rem) = epo.split_at(offset);
+            let (_, rem) = rem.split_at(3); // _ is epoch flag
+            let (n, _) = rem.split_at(3);
+            let nb_sv = u16::from_str_radix(n.trim(), 10)?;
+            println!("{}/{}", self.pointer+1,nb_sv);
+            //     ---> identify nb of satellite vehicules
+            //     ---> identify which system we're dealing with
+            //          using recovered header
+            //TODO <!> Attention a cet offset 41 en cas de CRINEX1
+            let offset : usize = std::cmp::min((41 + 3*(self.pointer+1)).into(), epo.len());
+            let system = epo.split_at(offset.into()).0;
+            let system = system.split_at(system.len()-3).1; // last 3 XXX
+            println!("SYSTEM: \"{}\"", system); 
+            let sv = Sv::from_str(system)?;
+            let codes = &obs_codes[&sv.constellation];
+            if self.sv_krn.contains_key(&sv) {
+                // first time dealing with this system
+                // add an entry for each obscode
+                let mut v : Vec<ObsDecompressor> = Vec::with_capacity(12);
+                for code in codes {
+                    v.push(ObsDecompressor::new(m)) // match previously defined
+                                // maximal compression order
+                }
+                self.sv_krn.insert(sv, v); // creates new entry
+            }
+            
+            // try to grab all data,
+            // might fail in case it's truncated by compression
+            let mut obs_count : usize = 0;
+            let mut rem = line.clone();
+            loop {
+                if obs_count == codes.len() {
+                    println!("FLAGS! \"{}\"", rem);
+                }
+                let next_wsp = match rem.find(' ') {
+                    Some(ofs) => ofs+1,
+                    None => break, // EOL
+                };
+                let (roi, r) = rem.split_at(next_wsp);
+                rem = r;
+                println!("CODE : \"{}\" - ROI \"{}\"", codes[obs_count], roi);
+                if roi == " " {
+                    obs_count += 1; // do not proceed here,
+                    continue // this is a compressed non existing obs 
+                }
+                let (init_order, data) : (Option<u16>, i64) = match roi.contains("&") {
+                    false => {
+                        (None, i64::from_str_radix(roi.trim(),10)?)
+                    },
+                    true => {
+                        let (init_order, remainder) = roi.split_at(1);
+                        let (_, data) = remainder.split_at(1);
+                        (Some(u16::from_str_radix(init_order, 10)?),
+                        i64::from_str_radix(data.trim(), 10)?)
+                    },
+                };
+                if let Some(order) = init_order {
+                    //(re)init that kernel
+                    /*self.sv_krn[&sv][obs_count]
+                        .init_obs(
+                            order.into(),
+                            Dtype::Numerical(data))
+                            .unwrap()*/
+                }
+                obs_count +=1
+            } // for all OBS
+            self.pointer += 1;
+            if self.pointer == nb_sv { // nothing else to parse
+                self.pointer = 0; // reset
+                self.header = true // reset FSM
+            }
+        }
+
+        Ok(result)
+    }
+    /// Recovers epoch descriptor from given content
+    fn recover_epoch_descriptor (&mut self, revision_major: u8, line: &str) -> Result<String, Error> {
+        // CRINEX sanity checks
+        if self.first_epo {
+            match revision_major {
+                1 => {
+                    if !line.starts_with("&") {
+                        return Err(Error::FaultyCrinex1Format)
+                    }
+                },
+                3 => {
+                    if !line.starts_with("> ") {
+                        return Err(Error::FaultyCrinex3Format)
+                    }
+                },
+                _ => return Err(Error::NonSupportedCrinexRevision),
+            }
+        }
+        if self.first_epo {
+            self.epo_krn.init( // init this kernel
+                0, // is always a textdiff
+                Dtype::Text(line.to_string()))?;
+            self.first_epo = false
+        }
+        Ok(self.epo_krn.recover(Dtype::Text(line.to_string()))?
+            .as_text()
+            .unwrap())
     }
 }
 
