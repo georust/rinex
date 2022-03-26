@@ -51,7 +51,13 @@ Ci:
 * [ ] OBS: if rcvr clock offsets applied: check epochs do have this field
 
 Hatanaka:
-* [ ] provide a decompression method to decompress most OBS data files
+* [x] numerical decompression
+* [x] text decompression
+* [x] epoch decompression
+* [ ] CRINEX 1 + epoch with flag > 2 (special events)
+will not be identified correctly
+* [ ] CRINEX 1|3 special epoch content (flag>2)
+will be mishandled / corrupted if they are not only made of COMMENTS
 
 Meteo Data:
 * [x] parse METEO codes
