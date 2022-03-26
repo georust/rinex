@@ -116,12 +116,15 @@ pub enum RecordError {
 
 /// Returns true if given line matches the start   
 /// of a new epoch, inside a RINEX record.    
-/// Do not used with CRINEX content
+/// Will panic on CRINEX data - unable to hanle it
 pub fn is_new_epoch (line: &str, header: &header::RinexHeader) -> bool {
     let parsed: Vec<&str> = line.split_ascii_whitespace()
         .collect();
     if header.is_crinex() {
         panic!("is_new_epoch() for CRINEX record is not supported")
+    }
+    if is_comment!(line) {
+        return false
     }
 	match header.version.major {
 		1|2|3 => {
