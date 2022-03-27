@@ -436,7 +436,7 @@ impl Decompressor {
                     //     to previously provided/recovered OBS data
                     //for i in 0..num_integer::div_ceil(rem.len(), 2) { // {lli,ssi}
                     for i in 0..rem.len() / 2 { // {lli,ssi}
-                        let mut obs = self.sv_krn.get_mut(&sv)
+                        let obs = self.sv_krn.get_mut(&sv)
                             .unwrap();
                         obs_flags.push((
                         obs[i]
@@ -484,7 +484,7 @@ impl Decompressor {
                             let (_, data) = rem.split_at(1);
                             println!("ATTENTION ICI trim ??");
                             let data = i64::from_str_radix(data.trim(), 10)?;
-                            let mut obs = self.sv_krn.get_mut(&sv)
+                            let obs = self.sv_krn.get_mut(&sv)
                                 .unwrap();
                             obs[obs_count]
                                 .0 // OBS
@@ -497,7 +497,7 @@ impl Decompressor {
                         } else {
                             // regular compression
                             if let Ok(num) = i64::from_str_radix(rem.trim(),10) {
-                                let mut obs = self.sv_krn.get_mut(&sv)
+                                let obs = self.sv_krn.get_mut(&sv)
                                     .unwrap();
                                 let recovered = obs[obs_count]
                                     .0 // OBS
@@ -515,7 +515,7 @@ impl Decompressor {
                                 // --> data field was found & recovered
                                 result.push_str(&format!(" {:13.3}", data as f64 /1000_f64)); // F14.3
                                 // ---> related flag content
-                                let mut obs = self.sv_krn.get_mut(&sv)
+                                let obs = self.sv_krn.get_mut(&sv)
                                     .unwrap();
                                 let lli = obs[i]
                                     .1 // LLI
@@ -562,7 +562,7 @@ impl Decompressor {
                 };
                 if let Some(order) = init_order {
                     //(re)init that kernel
-                    let mut obs = self.sv_krn.get_mut(&sv)
+                    let obs = self.sv_krn.get_mut(&sv)
                         .unwrap();
                     obs[obs_count]
                         .0 // OBS
@@ -572,7 +572,7 @@ impl Decompressor {
                             .unwrap();
                     obs_data.push(Some(data))
                 } else {
-                    let mut obs = self.sv_krn.get_mut(&sv)
+                    let obs = self.sv_krn.get_mut(&sv)
                         .unwrap();
                     let recovered = obs[obs_count]
                         .0 // OBS
