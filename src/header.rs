@@ -895,8 +895,12 @@ impl std::fmt::Display for RinexHeader {
         }*/
         /*write!(f,"F9.2{}           ", self.version)?;*/
         match self.rinex_type {
-            Type::ObservationData => write!(f,"OBSERVATION DATA    ")?,
-            Type::ObservationData => write!(f,"METEOROLOGICAL DATA ")?,
+            Type::ObservationData => {
+                write!(f,"OBSERVATION DATA    ")?
+            },
+            Type::ObservationData => {
+                write!(f,"METEOROLOGICAL DATA ")?
+            },
             Type::NavigationMessage => {
                 match self.constellation {
                     Some(Constellation::Glonass) => write!(f,"GLONASS NAV        ")?,
@@ -907,11 +911,21 @@ impl std::fmt::Display for RinexHeader {
                 panic!("non supported rinex type")
             }
         }
+        // PGM / RUN BY / DATE
+        write!(f, "{:<20}", self.program)?;
+        write!(f, "{:<20}", self.run_by)?; // TODO date field parsing
+        write!(f, "{:<20}", "PGM / RUN BY / DATE\n")?; 
+        // OBSERVER / AGENCY
+        write!(f, "{:<20}", self.observer)?;
+        write!(f, "{:<40}", self.agency)?;
+        write!(f, "{:<18}", "OBSERVER / AGENCY\n")?; 
+        // COMMENTS 
         for comment in self.comments.iter() {
-            write!(f, "{:>60}", comment)?;
+            write!(f, "{:<60}", comment)?;
             write!(f, "COMMENT\n")?
         }
-        write!(f, "\n{:>80}", "END OF HEADER")
+        // END OF HEADER
+        write!(f, "{:>73}", "END OF HEADER")
     }
 }
 
