@@ -367,7 +367,7 @@ impl Decompressor {
                 self.epo_krn.recover(Dtype::Text(String::from(" ")))?
                 .as_text()
                 .unwrap();
-            let epo = recovered_epoch.as_str();
+            let epo = recovered_epoch.as_str().trim_end();
             println!("EPO : \"{}\"", epo);
             let mut offset : usize =
                 2    // Y
