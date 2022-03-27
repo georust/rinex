@@ -395,10 +395,10 @@ impl Decompressor {
                     );
                     // init with BLANK 
                     kernels.1 // LLI
-                        .init(0, Dtype::Text(String::from(" ")))
+                        .init(0, Dtype::Text(String::from(" "))) // textdiff
                         .unwrap();
                     kernels.2 // SSI
-                        .init(0, Dtype::Text(String::from(" ")))
+                        .init(0, Dtype::Text(String::from(" "))) // textdiff
                         .unwrap();
                     v.push(kernels)
                 }
@@ -420,8 +420,6 @@ impl Decompressor {
                     for i in 0..rem.len()/2 { // {ssi,lli}
                         let mut obs = self.sv_krn.get_mut(&sv)
                             .unwrap();
-                        let lli_offset = i*2;
-                        let ssi_offset = i*2+1;
                         let lli = obs[i]
                             .1 // LLI
                             .recover(Dtype::Text(rem[i*2..i*2+1].to_string()))?
@@ -452,6 +450,33 @@ impl Decompressor {
                         // case where all other data sets are empty and cleaned out
                         // by compression algorithm
                         //  --> format this line correctly
+                        for i in 0..obs_data.len() {
+                            if let Some(data) = obs_data[i] {
+                                // --> data field was found & recovered
+                                result.push_str(&format!(" {:13.3}", data as f64 /1000_f64)); // F14.3
+                                // ---> related flag content
+                                let mut obs = self.sv_krn.get_mut(&sv)
+                                    .unwrap();
+                                let lli = obs[i]
+                                    .1 // LLI
+                                    .recover(Dtype::Text(String::from(" "))) // trick to recover
+                                    .unwrap()
+                                    .as_text()
+                                    .unwrap();
+                                let ssi = obs[i]
+                                    .2 // SSI
+                                    .recover(Dtype::Text(String::from(" "))) // trick to recover
+                                    .unwrap()
+                                    .as_text()
+                                    .unwrap();
+                                result.push_str(&lli); // FLAG
+                                result.push_str(&ssi); // FLAG 
+                            } else {
+                                result.push_str("              "); // BLANK data
+                                result.push_str(" "); // BLANK lli
+                                result.push_str(" "); // BLANK ssi
+                            }
+                        }
                         result.push_str("\n");
                         break // EOL
                     },
@@ -493,7 +518,8 @@ impl Decompressor {
                         .0 // OBS
                         .recover(Dtype::Numerical(data))
                         .unwrap();
-                    let recovered = recovered.as_numerical()
+                    let recovered = recovered
+                        .as_numerical()
                         .unwrap();
                     obs_data.push(Some(recovered))
                 }
