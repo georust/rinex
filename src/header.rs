@@ -18,8 +18,11 @@ pub const HEADER_END_MARKER : &str = "END OF HEADER";
 /// GNSS receiver description
 #[derive(Debug)]
 pub struct Rcvr {
+    /// Receiver (hardware) model
     model: String, 
+    /// Receiver (hardware) identification info
     sn: String, // serial #
+    /// Receiver embedded software info
     firmware: String, // firmware #
 }
 
