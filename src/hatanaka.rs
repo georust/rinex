@@ -63,7 +63,7 @@ fn zeros (array : &mut Vec<i64>) {
 /// No compression limitations but maximal order   
 /// to be supported must be defined on structure     
 /// creation for memory allocation efficiency.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Kernel {
     /// internal counter
     n: usize,
@@ -187,39 +187,6 @@ impl Kernel {
     }
 }
 
-/// Structure to decompress an observation
-/// for one satellite vehicule
-pub struct ObsDecompressor {
-    /// obs data kernel
-    obs_krn : Kernel,
-    /// SSI flag kernel
-    ssi_krn : Kernel,
-    /// LLI flag kernel
-    lli_krn : Kernel,
-}
-
-impl ObsDecompressor {
-    pub fn new (m : usize) -> ObsDecompressor {
-        ObsDecompressor {
-            obs_krn: Kernel::new(m),
-            ssi_krn : Kernel::new(0),
-            lli_krn: Kernel::new(0),
-        }
-    }
-    /// (re)initializes self for decompression algorithm
-    pub fn init_obs (&mut self, order: usize, data: Dtype) -> Result<(), KernelError> { 
-        self.obs_krn.init(order, data)
-    }
-    /// (re)initializes self for decompression algorithm
-    pub fn init_ssi (&mut self, order: usize, data: Dtype) -> Result<(), KernelError> { 
-        self.ssi_krn.init(order, data)
-    }
-    /// (re)initializes self for decompression algorithm
-    pub fn init_lli (&mut self, order: usize, data: Dtype) -> Result<(), KernelError> { 
-        self.lli_krn.init(order, data)
-    }
-}
-
 /// Compression / Decompression related errors
 #[derive(Error, Debug)]
 pub enum Error {
@@ -260,7 +227,7 @@ pub struct Decompressor {
     /// Clock offset decompressor
     clk_krn : Kernel,
     /// decompressors
-    sv_krn  : HashMap<Sv, Vec<ObsDecompressor>>,
+    sv_krn  : HashMap<Sv, Vec<(Kernel, Kernel, Kernel)>>,
 }
 
 impl Decompressor {
@@ -276,7 +243,8 @@ impl Decompressor {
             sv_krn  : HashMap::new()
         }
     }
-    /// Decompresses (recovers) given CRINEX content.   
+    /// Decompresses (recovers) given CRINEX record content.   
+    /// Do not feed header data - header must be previously parsed separetely.    
     /// `header` : previously identified RINEX `header` section
     /// `content`: string reference extracted from a CRINEX record.    
     ///           This method is very convenient because `content` can have any shape you can think of.    
@@ -307,8 +275,7 @@ impl Decompressor {
             .as_ref()
             .unwrap();
         // pre defined maximal compression order
-        // when user created self
-        //  ===> used to adapt all other kernels accordingly
+        //  ===> to adapt all other kernels accordingly
         let m = self.clk_krn.state.len()-1; 
         let mut result : String = String::new();
         let mut lines = content.lines();
@@ -318,9 +285,7 @@ impl Decompressor {
                 Some(l) => l,
                 None => break,
             };
-            println!(" HEADER {} | CLOCK OFFS {}", self.header, self.clock_offset);
-            println!("LINE : \"{}\"", line);
-            // [0] : COMMENTS remain untouched
+            // [0] : COMMENTS
             if is_comment!(line) {
                 result.push_str(line); // feed as is..
                 result.push_str("\n");
@@ -363,24 +328,32 @@ impl Decompressor {
                         Some(num)
                     },
                 };
-                // now we can fully recover the descriptor line
-                // TODO : this is RINEX>2 compliant only
-                // TODO : for RINEX < 3: need to wrapp all system #IDs
-                //        into as many lines as needed (see src/observation.rs)
+                // we can now fully recover the descriptor line
                 let recovered_epoch =  // trick to recover textdiff
-                    self.epo_krn.recover(Dtype::Text(String::from("      ")))?
+                    self.epo_krn.recover(Dtype::Text(String::from(" ")))?
                     .as_text()
                     .unwrap();
-                result.push_str(&recovered_epoch);
+                match rnx_version.major {
+                    1|2 => { // old RINEX
+                        //TODO use as many lines as needed
+                        // refer to src/observation.rs
+                        result.push_str(&recovered_epoch)
+                    },
+                    _ => { // modern RINEX
+                        result.push_str(recovered_epoch.split_at(35).0)
+                    }
+                };
+                //TODO squeeze clock offset correctly
                 if let Some(offset) = clock_offset {
                     result.push_str(&format!("         {}", (offset as f64)/1000.0_f64))
                 }
+                result.push_str("\n");
                 self.clock_offset = false;
                 continue
             }
             // [3] inside epoch content
             let recovered_epoch =  // trick to recover textdiff
-                self.epo_krn.recover(Dtype::Text(String::from("      ")))?
+                self.epo_krn.recover(Dtype::Text(String::from(" ")))?
                 .as_text()
                 .unwrap();
             let epo = recovered_epoch.as_str();
@@ -407,16 +380,22 @@ impl Decompressor {
             let offset : usize = std::cmp::min((41 + 3*(self.pointer+1)).into(), epo.len());
             let system = epo.split_at(offset.into()).0;
             let system = system.split_at(system.len()-3).1; // last 3 XXX
-            println!("SYSTEM: \"{}\"", system); 
+            result.push_str(&system.to_string());
+            result.push_str(" ");
+
             let sv = Sv::from_str(system)?;
             let codes = &obs_codes[&sv.constellation];
-            if self.sv_krn.contains_key(&sv) {
+            if !self.sv_krn.contains_key(&sv) {
                 // first time dealing with this system
                 // add an entry for each obscode
-                let mut v : Vec<ObsDecompressor> = Vec::with_capacity(12);
+                let mut v : Vec<(Kernel,Kernel,Kernel)> = Vec::with_capacity(12);
                 for code in codes {
-                    v.push(ObsDecompressor::new(m)) // match previously defined
-                                // maximal compression order
+                    let kernels = (
+                        Kernel::new(m), // OBS
+                        Kernel::new(0), // SSI
+                        Kernel::new(0), // LLI
+                    );
+                    v.push(kernels)
                 }
                 self.sv_krn.insert(sv, v); // creates new entry
             }
@@ -428,16 +407,22 @@ impl Decompressor {
             loop {
                 if obs_count == codes.len() {
                     println!("FLAGS! \"{}\"", rem);
+                    result.push_str("\n");
+                    break
                 }
                 let next_wsp = match rem.find(' ') {
                     Some(ofs) => ofs+1,
-                    None => break, // EOL
+                    None => {
+                        result.push_str("\n");
+                        break // EOL
+                    },
                 };
                 let (roi, r) = rem.split_at(next_wsp);
                 rem = r;
                 println!("CODE : \"{}\" - ROI \"{}\"", codes[obs_count], roi);
                 if roi == " " {
                     obs_count += 1; // do not proceed here,
+                    result.push_str("             ");
                     continue // this is a compressed non existing obs 
                 }
                 let (init_order, data) : (Option<u16>, i64) = match roi.contains("&") {
@@ -453,18 +438,40 @@ impl Decompressor {
                 };
                 if let Some(order) = init_order {
                     //(re)init that kernel
-                    /*self.sv_krn[&sv][obs_count]
-                        .init_obs(
+                    let mut obs = self.sv_krn.get_mut(&sv)
+                        .unwrap();
+                    obs[obs_count]
+                        .0 // OBS
+                        .init(
                             order.into(),
                             Dtype::Numerical(data))
-                            .unwrap()*/
+                            .unwrap();
+                    result.push_str(&format!("{:13.3}", data as f64 /1000_f64)); // F14.3
+                    //TODO manage flags correctly
+                    result.push_str(" "); // flags currently missing
+                    result.push_str(" "); // flags currently missing
+                } else {
+                    let mut obs = self.sv_krn.get_mut(&sv)
+                        .unwrap();
+                    let recovered = obs[obs_count]
+                        .0 // OBS
+                        .recover(Dtype::Numerical(data))
+                        .unwrap();
+                    let recovered = recovered.as_numerical()
+                        .unwrap();
+                    result.push_str(&format!("{:>13.3}", recovered as f64 /1000_f64)); // F14.3
+                    //TODO manage flags correctly
+                    result.push_str(" "); // flags currently missing
+                    result.push_str(" "); // flags currently missing
                 }
+                result.push_str(" ");
                 obs_count +=1
             } // for all OBS
             self.pointer += 1;
             if self.pointer == nb_sv { // nothing else to parse
                 self.pointer = 0; // reset
-                self.header = true // reset FSM
+                self.header = true; // reset FSM
+                result.push_str("\n");
             }
         }
 
