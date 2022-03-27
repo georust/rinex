@@ -372,7 +372,6 @@ impl Decompressor {
             let (_, rem) = rem.split_at(3); // _ is epoch flag
             let (n, _) = rem.split_at(3);
             let nb_sv = u16::from_str_radix(n.trim(), 10)?;
-            println!("{}/{}", self.pointer+1,nb_sv);
             //     ---> identify nb of satellite vehicules
             //     ---> identify which system we're dealing with
             //          using recovered header
@@ -381,7 +380,6 @@ impl Decompressor {
             let system = epo.split_at(offset.into()).0;
             let system = system.split_at(system.len()-3).1; // last 3 XXX
             result.push_str(&system.to_string());
-            result.push_str(" ");
 
             let sv = Sv::from_str(system)?;
             let codes = &obs_codes[&sv.constellation];
@@ -390,11 +388,18 @@ impl Decompressor {
                 // add an entry for each obscode
                 let mut v : Vec<(Kernel,Kernel,Kernel)> = Vec::with_capacity(12);
                 for code in codes {
-                    let kernels = (
+                    let mut kernels = (
                         Kernel::new(m), // OBS
                         Kernel::new(0), // SSI
                         Kernel::new(0), // LLI
                     );
+                    // init with BLANK 
+                    kernels.1 // LLI
+                        .init(0, Dtype::Text(String::from(" ")))
+                        .unwrap();
+                    kernels.2 // SSI
+                        .init(0, Dtype::Text(String::from(" ")))
+                        .unwrap();
                     v.push(kernels)
                 }
                 self.sv_krn.insert(sv, v); // creates new entry
@@ -404,15 +409,49 @@ impl Decompressor {
             // might fail in case it's truncated by compression
             let mut obs_count : usize = 0;
             let mut rem = line.clone();
+            let mut obs_data : Vec<Option<i64>> = Vec::with_capacity(12);
             loop {
                 if obs_count == codes.len() {
+                    // got some flags data
+                    //  ---> parse & run textdiff on each individual character
+                    //   --> then format final output line
                     println!("FLAGS! \"{}\"", rem);
+                    let mut index = 0;
+                    for i in 0..rem.len()/2 { // {ssi,lli}
+                        let mut obs = self.sv_krn.get_mut(&sv)
+                            .unwrap();
+                        let lli_offset = i*2;
+                        let ssi_offset = i*2+1;
+                        let lli = obs[i]
+                            .1 // LLI
+                            .recover(Dtype::Text(rem[i*2..i*2+1].to_string()))?
+                            .as_text()
+                            .unwrap();
+                        let ssi = obs[i]
+                            .2 // SSI
+                            .recover(Dtype::Text(rem[i*2+1..i*2+2].to_string()))?
+                            .as_text()
+                            .unwrap();
+                        if let Some(data) = obs_data[i] {
+                            // --> data field was found & recovered
+                            result.push_str(&format!(" {:13.3}", data as f64 /1000_f64)); // F14.3
+                            result.push_str(&lli);
+                            result.push_str(&ssi);
+                        } else {
+                            result.push_str("              "); // BLANK data
+                            result.push_str(" "); // BLANK lli
+                            result.push_str(" "); // BLANK ssi
+                        }
+                    }
                     result.push_str("\n");
                     break
                 }
                 let next_wsp = match rem.find(' ') {
-                    Some(ofs) => ofs+1,
+                    Some(l_off) => l_off+1,
                     None => {
+                        // case where all other data sets are empty and cleaned out
+                        // by compression algorithm
+                        //  --> format this line correctly
                         result.push_str("\n");
                         break // EOL
                     },
@@ -420,10 +459,10 @@ impl Decompressor {
                 let (roi, r) = rem.split_at(next_wsp);
                 rem = r;
                 println!("CODE : \"{}\" - ROI \"{}\"", codes[obs_count], roi);
-                if roi == " " {
-                    obs_count += 1; // do not proceed here,
-                    result.push_str("                ");
-                    continue // this is a compressed non existing obs 
+                if roi == " " { // BLANK field
+                    obs_count += 1;
+                    obs_data.push(None);
+                    continue // compressed non existing obs 
                 }
                 let (init_order, data) : (Option<u16>, i64) = match roi.contains("&") {
                     false => {
@@ -446,10 +485,7 @@ impl Decompressor {
                             order.into(),
                             Dtype::Numerical(data))
                             .unwrap();
-                    result.push_str(&format!("{:13.3}", data as f64 /1000_f64)); // F14.3
-                    //TODO manage flags correctly
-                    result.push_str(" "); // flags currently missing
-                    result.push_str(" "); // flags currently missing
+                    obs_data.push(Some(data))
                 } else {
                     let mut obs = self.sv_krn.get_mut(&sv)
                         .unwrap();
@@ -459,12 +495,8 @@ impl Decompressor {
                         .unwrap();
                     let recovered = recovered.as_numerical()
                         .unwrap();
-                    result.push_str(&format!("{:>13.3}", recovered as f64 /1000_f64)); // F14.3
-                    //TODO manage flags correctly
-                    result.push_str(" "); // flags currently missing
-                    result.push_str(" "); // flags currently missing
+                    obs_data.push(Some(recovered))
                 }
-                result.push_str(" ");
                 obs_count +=1
             } // for all OBS
             self.pointer += 1;
