@@ -189,8 +189,6 @@ pub fn is_new_epoch (line: &str, header: &header::RinexHeader) -> bool {
 						},
 					}
 				},
-				_ => false, // non supported, 
-					// unknown RINEX types
 			}
 		},
 		_ => {
@@ -256,7 +254,6 @@ pub fn build_record (header: &header::RinexHeader, body: &str) -> Result<Record,
 						met_rec.insert(e, map);
 					}
 				},
-                _ => unreachable!(), // unknown file type
             }
         }
 
@@ -292,7 +289,6 @@ pub fn build_record (header: &header::RinexHeader, body: &str) -> Result<Record,
         Type::NavigationMessage => Ok(Record::NavRecord(nav_rec)),
         Type::ObservationData => Ok(Record::ObsRecord(obs_rec)), 
 		Type::MeteorologicalData => Ok(Record::MeteoRecord(met_rec)),
-		_ => unreachable!(),
         //_ => Err(TypeError::UnknownType(header.rinex_type.to_string())),
     }
 }

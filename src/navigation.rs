@@ -4,7 +4,6 @@ use std::str::FromStr;
 use std::collections::HashMap;
 
 use crate::epoch;
-use crate::version;
 use crate::record;
 use crate::record::Sv;
 use crate::constellation;

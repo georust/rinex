@@ -77,9 +77,7 @@ pub type Record = HashMap<epoch::Epoch,
 /// rcvr_clock_offset: receiver clock offset (s)    
 /// sat_clock_offset: Sv clock offset (s)    
 /// biases: other additive biases
-pub fn distance_from_pseudo_range (pr: f64,
-    rcvr_clock_offset: f64, sat_clock_offset: f64, biases: Vec<f64>)
-        -> f64 {
+pub fn distance_from_pseudo_range (pr: f64, rcvr_clock_offset: f64, sat_clock_offset: f64, biases: Vec<f64>) -> f64 {
     pr - SPEED_OF_LIGHT_IN_VACUUM * (rcvr_clock_offset - sat_clock_offset)
     // modulo leap second?
     // p17 table 4
