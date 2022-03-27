@@ -424,43 +424,68 @@ impl Decompressor {
             let mut rem = line.clone();
             let mut obs_data : Vec<Option<i64>> = Vec::with_capacity(12);
             loop {
+                println!("SYSTEM ! {:?}", system);
                 if obs_count == codes.len() {
                     // FLAGS fields
                     //  ---> parse & run textdiff on each individual character
                     //   --> then format final output line
                     println!("FLAGS! \"{}\" | {}", rem, rem.len());
-                    let mut obs_flags : Vec<(String,String)> = Vec::with_capacity(obs_data.len());
-                    // [+] grab all provided and aplly textdiff
+                    let mut obs_flags : Vec<String> = Vec::with_capacity(obs_data.len()*2);
+                    // [+] grab all provided and apply textdiff
                     //     append BLANK in case not provided,
                     //     this approach produces 1 flag (either blank or provided/recovered) 
                     //     to previously provided/recovered OBS data
+                    let obs = self.sv_krn.get_mut(&sv)
+                        .unwrap();
                     //for i in 0..num_integer::div_ceil(rem.len(), 2) { // {lli,ssi}
-                    for i in 0..rem.len() / 2 { // {lli,ssi}
-                        let obs = self.sv_krn.get_mut(&sv)
-                            .unwrap();
-                        obs_flags.push((
-                        obs[i]
-                            .1 // LLI
-                            .recover(Dtype::Text(rem[i*2..i*2+1].to_string()))?
-                            .as_text()
-                            .unwrap(),
-                        obs[i]
-                            .2 // SSI
-                            .recover(Dtype::Text(rem[i*2+1..i*2+2].to_string()))?
-                            .as_text()
-                            .unwrap()))
+                    for i in 0..rem.len() { // 1 character at a time
+                        let flag = i%2;
+                        if (flag == 0) {
+                            obs_flags.push(
+                                obs[i/2] // two flags per OBS
+                                    .1 // lli
+                                    .recover(Dtype::Text(rem[i..i+1].to_string()))
+                                    .unwrap()
+                                        .as_text()
+                                        .unwrap())
+                        } else {
+                            obs_flags.push(
+                                obs[i/2] // two flags per OBS
+                                    .2 // ssii
+                                    .recover(Dtype::Text(rem[i..i+1].to_string()))
+                                    .unwrap()
+                                        .as_text()
+                                        .unwrap())
+                        }
                     }
-                    for _ in 0..obs_data.len() - obs_flags.len() {
+                    for i in obs_flags.len()..obs_data.len()*2 {
                         // some flags were not provided
-                        // because BLANKED out by compression algorithm
-                        obs_flags.push((String::from(" "),String::from(" ")))
+                        // meaning text is maintained
+                        let flag = i%2;
+                        if flag == 0 {
+                            obs_flags.push(
+                                obs[i/2]
+                                    .1 // lli
+                                    .recover(Dtype::Text(String::from(" ")))
+                                    .unwrap()
+                                        .as_text()
+                                        .unwrap())
+                        } else {
+                            obs_flags.push(
+                                obs[i/2]
+                                    .2 // lli
+                                    .recover(Dtype::Text(String::from(" ")))
+                                    .unwrap()
+                                        .as_text()
+                                        .unwrap())
+                        }
                     }
                     for i in 0..obs_data.len() {
                         if let Some(data) = obs_data[i] {
                             // --> data field was found & recovered
                             result.push_str(&format!(" {:13.3}", data as f64 /1000_f64)); // F14.3
-                            result.push_str(&obs_flags[i].0); // lli
-                            result.push_str(&obs_flags[i].1) // ssi
+                            result.push_str(&obs_flags[i*2]); // lli
+                            result.push_str(&obs_flags[i*2+1]) // ssi
                         } else {
                             result.push_str("              "); // BLANK data
                             result.push_str(" "); // BLANK lli

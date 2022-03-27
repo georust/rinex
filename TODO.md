@@ -17,8 +17,7 @@ performances, pass BufReader pointer to build\_record method
 * [ ] simplify line interations with "for line in lines.next()"
 
 Header:
-* [ ] some files crash when parsing 
-REC or ANT or ANTENNA or APPROX POSITION XYZ with ParseIntError
+* [ ] some (V3) files crash when parsing LEAP SECOND field 
 * [ ] time of first and last obs parsing is faulty
 * [ ] header.antenna.model sometimes appear as dirty, check this out
 * [ ] coords [m] system ?
@@ -48,6 +47,8 @@ Observation Data:
 * [x] parse clock offsets and classify them properly
 * [ ] rescale raw phase data exceeding F14.3 format by +/- 10E9 accordingly
 * [ ] SYS PHASE Shift ?
+* [ ] process a CRINEX 1 directly
+* [ ] process a CRINEX 3 directly
 
 Ci:
 * [ ] OBS: if rcvr clock offsets applied: check epochs do have this field
