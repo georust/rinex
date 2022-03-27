@@ -341,13 +341,16 @@ impl Decompressor {
                         result.push_str(epoch);
                         let mut begin = 0;
                         //while begin < systems.len() {
-                        for i in 0..num_integer::div_ceil(systems.len(), 12*3) { //max sv per line
+                        let n = num_integer::div_ceil(systems.len(), 12*3); // max sv per line
+                        for i in 0..n {
                             let end = std::cmp::min(begin+12*3, systems.len());
                             if i > 0 {
                                 result.push_str("                                ")
                             }
                             result.push_str(&systems[begin..end]);
-                            result.push_str("\n");
+                            if i < n-1 {
+                                result.push_str("\n");
+                            }
                             begin += 12*3
                         }
                     },
@@ -437,7 +440,6 @@ impl Decompressor {
                     //     to previously provided/recovered OBS data
                     let obs = self.sv_krn.get_mut(&sv)
                         .unwrap();
-                    //for i in 0..num_integer::div_ceil(rem.len(), 2) { // {lli,ssi}
                     for i in 0..rem.len() { // 1 character at a time
                         let flag = i%2;
                         if (flag == 0) {
@@ -485,11 +487,23 @@ impl Decompressor {
                             // --> data field was found & recovered
                             result.push_str(&format!(" {:13.3}", data as f64 /1000_f64)); // F14.3
                             result.push_str(&obs_flags[i*2]); // lli
-                            result.push_str(&obs_flags[i*2+1]) // ssi
+                            result.push_str(&obs_flags[i*2+1]); // ssi
+                            if rnx_version.major < 3 { // old RINEX
+                                //TODO also strict RINEX3 please
+                                if (i+1).rem_euclid(5) == 0 { // maximal nb of OBS per line
+                                    result.push_str("\n")
+                                }
+                            }
                         } else {
                             result.push_str("              "); // BLANK data
                             result.push_str(" "); // BLANK lli
                             result.push_str(" "); // BLANK ssi
+                            if rnx_version.major < 3 { // old RINEX
+                                //TODO and also on strict RINEX3 compatibility please
+                                if (i+1).rem_euclid(5) == 0 { // maximal nb of OBS per line
+                                    result.push_str("\n")
+                                }
+                            }
                         }
                     }
                     result.push_str("\n");
@@ -556,10 +570,22 @@ impl Decompressor {
                                     .unwrap();
                                 result.push_str(&lli); // FLAG
                                 result.push_str(&ssi); // FLAG 
+                                if rnx_version.major < 3 { // old RINEX
+                                    //TODO and also on strict RINEX3 compatibility please
+                                    if (i+1).rem_euclid(5) == 0 { // maximal nb of OBS per line
+                                        result.push_str("\n")
+                                    }
+                                }
                             } else {
                                 result.push_str("              "); // BLANK data
                                 result.push_str(" "); // BLANK lli
                                 result.push_str(" "); // BLANK ssi
+                                if rnx_version.major < 3 { // old RINEX
+                                    //TODO and also on strict RINEX3 compatibility please
+                                    if (i+1).rem_euclid(5) == 0 { // maximal nb of OBS per line
+                                        result.push_str("\n")
+                                    }
+                                }
                             }
                         }
                         result.push_str("\n");
