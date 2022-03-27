@@ -10,22 +10,28 @@ Rust library to parse and analyze RINEX files
 
 This library lets you access complex RINEX data easily and build your application
 around it.    
+
 If you are only interested in RINEX data extraction and visualization,   
 you should rather look into the
-[command line tool](https://github.com/gwbres/rinex-cli) that I am working
+[RINEX tool](https://github.com/gwbres/rinex-cli) that I am working
 on, based off this library.    
-I will also dedicate a command line tool to RINEX decompression and hopefully
-compression too,    
-to be named 
-[hatanaka](https://github.com/gwbres/hatanaka) (WIP). 
+
+If you are only interested in RINEX file compression and decompression,   
+you should use the 
+[Hatanaka tool](https://github.com/gwbres/hatanaka) to perform such operations quickly.   
+For more information on the compression algorithm, the 
+[Hatanaka documentation page](https://github.com/gwbres/rinex/blob/main/doc/hatanaka.md)
+is the way to go.
+
+## Supported `RINEX` files
 
 Many RINEX file types exist, 
-the `RinexType` enum (refer to API) 
+the `rinex::types::Type` enum
 describes the types of RINEX currently supported:
 
-* `RinexType::NavigationMessage` (NAV) messages
-* `RinexType::ObservationData` (OBS) data
-* `RinexType::MeteoData` (Meteo) data
+* `Type::NavigationMessage` (NAV) messages
+* `Type::ObservationData` (OBS) data
+* `Type::MeteoData` (Meteo) data
 
 `RINEX` files contain a lot of data and this library is capable of parsing all of it.   
 To fully understand how to operate this lib, refer to the `RinexType` section you are interested in.
