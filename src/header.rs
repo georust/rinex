@@ -256,6 +256,9 @@ pub struct RinexHeader {
     pub observer: String, 
     /// name of production agency
     pub agency: String, 
+    /// optionnal comments encountered in header section, 
+    /// exposed as is
+    pub comments : Vec<String>,
     /// optionnal hardware (receiver) infos
     pub rcvr: Option<Rcvr>, 
     /// optionnal antenna infos
@@ -335,6 +338,7 @@ impl Default for RinexHeader {
             observer: String::from("Unknown"),
             agency: String::from("Unknown"),
             station_url: None,
+            comments: Vec::with_capacity(4),
             leap: None,
             license: None,
             doi: None,
@@ -363,11 +367,13 @@ impl std::str::FromStr for RinexHeader {
     type Err = Error;
     /// Builds header from extracted header description
     fn from_str (content: &str) -> Result<Self, Self::Err> {
+        let mut comments : Vec<String> = Vec::with_capacity(4);
         let mut lines = content.lines();
         let mut line = lines.next()
             .unwrap();
         // comments ?
         while is_comment!(line) {
+            comments.push(String::from(line.split_at(60).0));
             line = lines.next()
                 .unwrap()
         }
@@ -397,6 +403,7 @@ impl std::str::FromStr for RinexHeader {
         }
         // comments ?
         while is_comment!(line) {
+            comments.push(String::from(line.split_at(60).0));
             line = lines.next()
                 .unwrap()
         }
@@ -431,6 +438,7 @@ impl std::str::FromStr for RinexHeader {
             .unwrap();
         // comments ?
         while is_comment!(line) {
+            comments.push(String::from(line.split_at(60).0));
             line = lines.next()
                 .unwrap()
         }
@@ -495,6 +503,7 @@ impl std::str::FromStr for RinexHeader {
             .unwrap();
         // comments ?
         while is_comment!(line) {
+            comments.push(String::from(line.split_at(60).0));
             line = lines.next()
                 .unwrap()
         }
@@ -804,6 +813,7 @@ impl std::str::FromStr for RinexHeader {
             }
             // comments ?
             while is_comment!(line) {
+                comments.push(String::from(line.split_at(60).0));
                 line = lines.next()
                     .unwrap()
             }
@@ -846,6 +856,7 @@ impl std::str::FromStr for RinexHeader {
             crinex: crinex_infos, 
             rinex_type,
             constellation,
+            comments,
             program: String::from(pgm.trim()),
             run_by,
             station,
