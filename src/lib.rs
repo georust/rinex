@@ -8,6 +8,7 @@ mod gnss_time;
 mod navigation;
 mod observation;
 
+pub mod types;
 pub mod epoch;
 pub mod header;
 pub mod record;
@@ -23,61 +24,6 @@ use std::io::Write;
 /// Returns `true` if given `Rinex` line is a comment
 macro_rules! is_comment {
     ($line: expr) => { $line.contains("COMMENT") };
-}
-
-/// Describes all known `RINEX` file types
-#[derive(Copy, Clone, PartialEq, Debug)]
-pub enum Type {
-    /// Describes Observation Data (OBS),
-    /// Phase & Pseudo range measurements
-    ObservationData, 
-    /// Describes Navigation Message (NAV)
-    /// Ephemeride file
-    NavigationMessage,
-    /// Describes Meteorological data (Meteo)
-    MeteorologicalData,
-}
-
-#[derive(Error, Debug)]
-/// `Type` related errors
-pub enum TypeError {
-    #[error("Unknown RINEX type identifier \"{0}\"")]
-    UnknownType(String),
-}
-
-impl Default for Type {
-    /// Builds a default `Type`
-    fn default() -> Type { Type::ObservationData }
-}
-
-impl Type {
-    /// Converts `Self` to str
-    pub fn to_str (&self) -> &str {
-        match *self {
-            Type::ObservationData => "ObservationData",
-            Type::NavigationMessage => "NavigationMessage",
-            Type::MeteorologicalData => "MeteorologicalData",
-        }
-    }
-    /// Converts `Self` to string
-    pub fn to_string (&self) -> String { String::from(self.to_str()) }
-}
-
-impl std::str::FromStr for Type {
-    type Err = TypeError;
-    fn from_str (s: &str) -> Result<Self, Self::Err> {
-        if s.eq("NAVIGATION DATA") {
-            Ok(Type::NavigationMessage)
-        } else if s.contains("NAV DATA") {
-            Ok(Type::NavigationMessage)
-        } else if s.eq("OBSERVATION DATA") {
-            Ok(Type::ObservationData)
-        } else if s.eq("METEOROLOGICAL DATA") {
-            Ok(Type::MeteorologicalData)
-        } else {
-            Err(TypeError::UnknownType(String::from(s)))
-        }
-    }
 }
 
 /// `Rinex` describes a `RINEX` file
@@ -108,7 +54,7 @@ pub enum RinexError {
     #[error("Header parsing error")]
     HeaderError(#[from] header::Error),
     #[error("Rinex type error")]
-    TypeError(#[from] TypeError),
+    TypeError(#[from] types::TypeError),
 }
 
 impl Rinex {
@@ -135,11 +81,11 @@ impl Rinex {
     }
 
     /// Retruns true if this is an NAV rinex
-    pub fn is_navigation_rinex (&self) -> bool { self.header.rinex_type == Type::NavigationMessage }
+    pub fn is_navigation_rinex (&self) -> bool { self.header.rinex_type == types::Type::NavigationMessage }
     /// Retruns true if this is an OBS rinex
-    pub fn is_observation_rinex (&self) -> bool { self.header.rinex_type == Type::ObservationData }
+    pub fn is_observation_rinex (&self) -> bool { self.header.rinex_type == types::Type::ObservationData }
     /// Returns true if this is a METEO rinex
-    pub fn is_meteo_rinex (&self) -> bool { self.header.rinex_type == Type::MeteorologicalData }
+    pub fn is_meteo_rinex (&self) -> bool { self.header.rinex_type == types::Type::MeteorologicalData }
 
     /// Builds a `RINEX` from given file.
     /// Header section must respect labelization standards,   

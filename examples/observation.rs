@@ -1,7 +1,7 @@
 use itertools::Itertools;
 
-use rinex::Type;
 use rinex::epoch;
+use rinex::types::Type;
 use rinex::constellation::Constellation;
 
 fn main() {

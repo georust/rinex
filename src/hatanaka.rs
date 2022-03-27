@@ -1,10 +1,10 @@
 //! hatanaka.rs   
 //! structures and macros suites for
 //! RINEX OBS files compression and decompression.   
-use crate::Type;
 use crate::header;
 use crate::record;
 use crate::is_comment;
+use crate::types::Type;
 use thiserror::Error;
 use std::str::FromStr;
 use crate::record::Sv;

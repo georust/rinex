@@ -5,7 +5,8 @@ use std::collections::HashMap;
 
 use crate::version;
 use crate::gnss_time;
-use crate::{is_comment, Type, TypeError};
+use crate::{is_comment};
+use crate::types::{Type, TypeError};
 use crate::constellation;
 use crate::constellation::{Constellation, ConstellationError};
 

@@ -8,7 +8,7 @@ use crate::header;
 use crate::navigation;
 use crate::observation;
 use crate::is_comment;
-use crate::{Type, TypeError};
+use crate::types::{Type, TypeError};
 use crate::constellation::Constellation;
 
 /// ̀`Sv` describes a Satellite Vehiculee
