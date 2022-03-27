@@ -17,6 +17,8 @@ performances, pass BufReader pointer to build\_record method
 * [ ] simplify line interations with "for line in lines.next()"
 
 Header:
+* [ ] some files crash when parsing 
+REC or ANT or ANTENNA or APPROX POSITION XYZ with ParseIntError
 * [ ] time of first and last obs parsing is faulty
 * [ ] header.antenna.model sometimes appear as dirty, check this out
 * [ ] coords [m] system ?
@@ -54,6 +56,7 @@ Hatanaka:
 * [x] numerical decompression
 * [x] text decompression
 * [x] epoch decompression
+* [x] double \n inserted on my recovered epochs
 * [ ] CRINEX 1 + epoch with flag > 2 (special events)
 will not be identified correctly
 * [ ] CRINEX 1|3 special epoch content (flag>2)
