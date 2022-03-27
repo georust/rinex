@@ -4,7 +4,7 @@ p44
 "is almost identical to Constellation == glonass
 but the records contain the satellite position, velocity, accel, health.."
 
-Doc:
+Examples :
 * [ ] epoch: determine longest dead time for a given constellation or sv
 * [ ] epoch: time spanning
 
