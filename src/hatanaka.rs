@@ -422,7 +422,7 @@ impl Decompressor {
                 println!("CODE : \"{}\" - ROI \"{}\"", codes[obs_count], roi);
                 if roi == " " {
                     obs_count += 1; // do not proceed here,
-                    result.push_str("             ");
+                    result.push_str("                ");
                     continue // this is a compressed non existing obs 
                 }
                 let (init_order, data) : (Option<u16>, i64) = match roi.contains("&") {
