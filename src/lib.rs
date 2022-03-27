@@ -17,6 +17,7 @@ pub mod constellation;
 
 use thiserror::Error;
 use std::str::FromStr;
+use std::io::Write;
 
 #[macro_export]
 /// Returns `true` if given `Rinex` line is a comment
@@ -140,10 +141,10 @@ impl Rinex {
     /// Returns true if this is a METEO rinex
     pub fn is_meteo_rinex (&self) -> bool { self.header.rinex_type == Type::MeteorologicalData }
 
-    /// Builds a `Rinex` from given file.
-    /// Input file must respect the whitespace specifications
-    /// for the entire header section.   
-    /// The header section must respect the labelization standard too.
+    /// Builds a `RINEX` from given file.
+    /// Header section must respect labelization standards,   
+    /// some are mandatory.   
+    /// Parses record for supported `RINEX` types
     pub fn from_file (fp: &std::path::Path) -> Result<Rinex, RinexError> {
         let (header, body) = Rinex::split_rinex_content(fp)?;
         let header = header::RinexHeader::from_str(&header)?;
@@ -152,6 +153,12 @@ impl Rinex {
             true => None,
         };
         Ok(Rinex { header, record })
+    }
+
+    /// Writes self into given file
+    pub fn to_file (&self, path: &str) -> std::io::Result<()> {
+        let mut writer = std::fs::File::create(path)?;
+        write!(writer, "{}", self.header.to_string())
     }
 }
 
@@ -216,5 +223,14 @@ mod test {
                 }
             }
         }
+    }
+    #[test]
+    /// Tests `Rinex` production method 
+    fn test_rinex_production() {
+        let mut header = header::RinexHeader::default();
+        header.comments.push(String::from("THIS FILE WAS PRODUCED BY SELFTESTS"));
+        header.comments.push(String::from("     for testing purposes"));
+        let rinex = Rinex::new(header, None);
+        rinex.to_file("test").unwrap()
     }
 }

@@ -885,6 +885,36 @@ impl std::str::FromStr for RinexHeader {
     }
 }
 
+impl std::fmt::Display for RinexHeader {
+    /// `header` formatter, mainly for 
+    /// `RINEX` file production purposes
+    fn fmt (&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        /*if self.is_crinex() {
+            write!(f,"F9.2{}           ", self.version)?;
+            write!(f,"F9.2{}           ", self.version)?;
+        }*/
+        /*write!(f,"F9.2{}           ", self.version)?;*/
+        match self.rinex_type {
+            Type::ObservationData => write!(f,"OBSERVATION DATA    ")?,
+            Type::ObservationData => write!(f,"METEOROLOGICAL DATA ")?,
+            Type::NavigationMessage => {
+                match self.constellation {
+                    Some(Constellation::Glonass) => write!(f,"GLONASS NAV        ")?,
+                    _ => write!(f,"NAVIGATION DATA    ")?
+                }
+            },
+            _ => {
+                panic!("non supported rinex type")
+            }
+        }
+        for comment in self.comments.iter() {
+            write!(f, "{:>60}", comment)?;
+            write!(f, "COMMENT\n")?
+        }
+        write!(f, "\n{:>80}", "END OF HEADER")
+    }
+}
+
 impl RinexHeader {
     /// Returns true if self is a `Compressed RINEX`
     pub fn is_crinex (&self) -> bool { self.crinex.is_some() }
