@@ -4,7 +4,7 @@ use std::str::FromStr;
 use std::collections::HashMap;
 
 use crate::epoch;
-use crate::header::RinexHeader;
+use crate::header::Header;
 
 #[macro_export]
 /// Returns True if 3 letter code
@@ -93,7 +93,7 @@ pub enum RecordError {
 }
 
 /// Builds `RINEX` record entry for `Meteo` Data files
-pub fn build_record_entry (header: &RinexHeader, content: &str)
+pub fn build_record_entry (header: &Header, content: &str)
     -> Result<(epoch::Epoch, HashMap<String, f32>), RecordError> 
 {
     let mut lines = content.lines();

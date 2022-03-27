@@ -117,7 +117,7 @@ pub enum RecordError {
 /// Returns true if given line matches the start   
 /// of a new epoch, inside a RINEX record.    
 /// Will panic on CRINEX data - unable to hanle it
-pub fn is_new_epoch (line: &str, header: &header::RinexHeader) -> bool {
+pub fn is_new_epoch (line: &str, header: &header::Header) -> bool {
     let parsed: Vec<&str> = line.split_ascii_whitespace()
         .collect();
     if header.is_crinex() {
@@ -217,7 +217,7 @@ pub fn is_new_epoch (line: &str, header: &header::RinexHeader) -> bool {
 
 /// Builds a `Record`, `RINEX` file body content,
 /// which is constellation and `RINEX` file type dependent
-pub fn build_record (header: &header::RinexHeader, body: &str) -> Result<Record, TypeError> { 
+pub fn build_record (header: &header::Header, body: &str) -> Result<Record, TypeError> { 
     let mut body = body.lines();
     let mut line = body.next()
         .unwrap();

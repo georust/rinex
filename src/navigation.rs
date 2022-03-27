@@ -7,7 +7,7 @@ use crate::epoch;
 use crate::record;
 use crate::record::Sv;
 use crate::constellation;
-use crate::header::RinexHeader;
+use crate::header::Header;
 
 include!(concat!(env!("OUT_DIR"),"/nav_data.rs"));
 
@@ -93,7 +93,7 @@ pub enum RecordError {
 }
 
 /// Builds `RinexRecord` entry for `NavigationMessage` file
-pub fn build_record_entry (header: &RinexHeader, content: &str)
+pub fn build_record_entry (header: &Header, content: &str)
         -> Result<(epoch::Epoch, Sv, HashMap<String, ComplexEnum>), RecordError>
 {
     //  <o 

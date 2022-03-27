@@ -257,7 +257,7 @@ impl Decompressor {
     ///           And also make sure to follow a standard CRINEX structure, which should always be the case   
     ///           if you iterate over a valid CRINEX.
     /// `result`: returns decompressed (recovered) block from provided block content
-    pub fn recover (&mut self, header: &header::RinexHeader, content : &str) -> Result<String, Error> {
+    pub fn recover (&mut self, header: &header::Header, content : &str) -> Result<String, Error> {
         // Context sanity checks
         if !header.is_crinex() {
             return Err(Error::NotACrinexError)

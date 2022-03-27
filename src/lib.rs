@@ -84,7 +84,7 @@ impl std::str::FromStr for Type {
 #[derive(Debug)]
 pub struct Rinex {
     /// `header` field contains general information
-    pub header: header::RinexHeader,
+    pub header: header::Header,
     /// `record` contains `RINEX` file body
     /// and is type and constellation dependent 
     pub record: Option<record::Record>,
@@ -94,7 +94,7 @@ impl Default for Rinex {
     /// Builds a default `RINEX`
     fn default() -> Rinex {
         Rinex {
-            header: header::RinexHeader::default(),
+            header: header::Header::default(),
             record: None, 
         }
     }
@@ -113,7 +113,7 @@ pub enum RinexError {
 
 impl Rinex {
     /// Builds a new `RINEX` struct from given:
-    pub fn new (header: header::RinexHeader, record: Option<record::Record>) -> Rinex {
+    pub fn new (header: header::Header, record: Option<record::Record>) -> Rinex {
         Rinex {
             header,
             record,
@@ -147,7 +147,7 @@ impl Rinex {
     /// Parses record for supported `RINEX` types
     pub fn from_file (fp: &std::path::Path) -> Result<Rinex, RinexError> {
         let (header, body) = Rinex::split_rinex_content(fp)?;
-        let header = header::RinexHeader::from_str(&header)?;
+        let header = header::Header::from_str(&header)?;
         let record : Option<record::Record> = match header.is_crinex() {
             false => Some(record::build_record(&header,&body)?),
             true => None,
@@ -227,7 +227,7 @@ mod test {
     #[test]
     /// Tests `Rinex` production method 
     fn test_rinex_production() {
-        let mut header = header::RinexHeader::default();
+        let mut header = header::Header::default();
         header.comments.push(String::from("THIS FILE WAS PRODUCED BY SELFTESTS"));
         header.comments.push(String::from("     for testing purposes"));
         let rinex = Rinex::new(header, None);

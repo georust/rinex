@@ -9,7 +9,7 @@ use crate::epoch;
 use crate::record;
 use crate::record::Sv;
 use crate::constellation;
-use crate::header::RinexHeader;
+use crate::header::Header;
 
 #[macro_export]
 /// Returns True if 3 letter code 
@@ -103,7 +103,7 @@ pub enum RecordError {
 /// Builds `RINEX` record entry for `Observation` Data files.    
 /// Returns identified `epoch` to later sort data efficiently.    
 /// Returns 2D data as described in `record` definition
-pub fn build_record_entry (header: &RinexHeader, content: &str)
+pub fn build_record_entry (header: &Header, content: &str)
         -> Result<(epoch::Epoch, Option<f32>, HashMap<Sv, HashMap<String, ObservationData>>), RecordError> 
 {
     let mut lines = content.lines();

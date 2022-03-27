@@ -231,7 +231,7 @@ enum MarkerType {
 
 /// Describes `RINEX` file header
 #[derive(Debug)]
-pub struct RinexHeader {
+pub struct Header {
     /// revision for this `RINEX`
     pub version: version::Version, 
     /// optionnal `CRINEX` (compressed `RINEX` infos), 
@@ -324,9 +324,9 @@ pub enum Error {
     LeapSecondParsingError(String),
 }
 
-impl Default for RinexHeader {
-    fn default() -> RinexHeader {
-        RinexHeader {
+impl Default for Header {
+    fn default() -> Header {
+        Header {
             version: version::Version::default(), 
             crinex: None,
             rinex_type: Type::default(),
@@ -363,7 +363,7 @@ impl Default for RinexHeader {
     }
 }
 
-impl std::str::FromStr for RinexHeader {
+impl std::str::FromStr for Header {
     type Err = Error;
     /// Builds header from extracted header description
     fn from_str (content: &str) -> Result<Self, Self::Err> {
@@ -850,7 +850,7 @@ impl std::str::FromStr for RinexHeader {
 			false => Some(met_codes),
 		};
         
-        Ok(RinexHeader{
+        Ok(Header{
             version: version,
             crinex: crinex_infos, 
             rinex_type,
@@ -884,7 +884,7 @@ impl std::str::FromStr for RinexHeader {
     }
 }
 
-impl std::fmt::Display for RinexHeader {
+impl std::fmt::Display for Header {
     /// `header` formatter, mainly for 
     /// `RINEX` file production purposes
     fn fmt (&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -928,7 +928,7 @@ impl std::fmt::Display for RinexHeader {
     }
 }
 
-impl RinexHeader {
+impl Header {
     /// Returns true if self is a `Compressed RINEX`
     pub fn is_crinex (&self) -> bool { self.crinex.is_some() }
 }
