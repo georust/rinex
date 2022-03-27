@@ -897,7 +897,7 @@ impl std::fmt::Display for RinexHeader {
             Type::ObservationData => {
                 write!(f,"OBSERVATION DATA    ")?
             },
-            Type::ObservationData => {
+            Type::MeteorologicalData => {
                 write!(f,"METEOROLOGICAL DATA ")?
             },
             Type::NavigationMessage => {
