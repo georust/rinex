@@ -371,7 +371,7 @@ impl Decompressor {
                 .as_text()
                 .unwrap();
             let epo = recovered_epoch.as_str().trim_end();
-            println!("EPO : \"{}\"", epo);
+            //println!("EPO : \"{}\"", epo);
             let mut offset : usize =
                 2    // Y
                 +2+1 // m
@@ -427,12 +427,12 @@ impl Decompressor {
             let mut rem = line.clone();
             let mut obs_data : Vec<Option<i64>> = Vec::with_capacity(12);
             loop {
-                println!("SYSTEM ! {:?}", system);
+                //println!("SYSTEM ! {:?}", system);
                 if obs_count == codes.len() {
                     // FLAGS fields
                     //  ---> parse & run textdiff on each individual character
                     //   --> then format final output line
-                    println!("FLAGS! \"{}\" | {}", rem, rem.len());
+                    //println!("FLAGS! \"{}\" | {}", rem, rem.len());
                     let mut obs_flags : Vec<String> = Vec::with_capacity(obs_data.len()*2);
                     // [+] grab all provided and apply textdiff
                     //     append BLANK in case not provided,
@@ -521,7 +521,7 @@ impl Decompressor {
                             let (order, rem) = rem.split_at(index);
                             let order = u8::from_str_radix(order.trim(),10)?;
                             let (_, data) = rem.split_at(1);
-                            println!("ATTENTION ICI trim ??");
+                            //println!("ATTENTION ICI trim ??");
                             let data = i64::from_str_radix(data.trim(), 10)?;
                             let obs = self.sv_krn.get_mut(&sv)
                                 .unwrap();
@@ -594,7 +594,7 @@ impl Decompressor {
                 };
                 let (roi, r) = rem.split_at(next_wsp);
                 rem = r;
-                println!("CODE : \"{}\" - ROI \"{}\"", codes[obs_count], roi);
+                //println!("CODE : \"{}\" - ROI \"{}\"", codes[obs_count], roi);
                 if roi == " " { // BLANK field
                     obs_count += 1;
                     obs_data.push(None);
