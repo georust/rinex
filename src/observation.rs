@@ -327,7 +327,7 @@ pub fn build_record_entry (header: &RinexHeader, content: &str)
 		} // for all systems
     } // V < 3 old fashion
 	else { // V > 2 modern RINEX
-		for i in 0..n_sat {
+		for _ in 0..n_sat {
 			if let Some(l) = lines.next() {
 				line = l;
 			} else {

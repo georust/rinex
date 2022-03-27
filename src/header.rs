@@ -530,7 +530,6 @@ impl std::str::FromStr for RinexHeader {
         let mut coords     : Option<rust_3d::Point3D> = None;
         let mut epochs: (Option<gnss_time::GnssTime>, Option<gnss_time::GnssTime>) = (None, None);
         // (OBS) 
-        let obs_nb_sat : u32 = 0;
         let mut obs_codes  : HashMap<Constellation, Vec<String>> 
             = HashMap::with_capacity(constellation::CONSTELLATION_LENGTH);
 		let mut met_codes  : Vec<String> = Vec::with_capacity(3);

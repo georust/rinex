@@ -400,7 +400,7 @@ impl Decompressor {
                 // first time dealing with this system
                 // add an entry for each obscode
                 let mut v : Vec<(Kernel,Kernel,Kernel)> = Vec::with_capacity(12);
-                for code in codes {
+                for _ in codes {
                     let mut kernels = (
                         Kernel::new(m), // OBS
                         Kernel::new(0), // SSI
@@ -450,7 +450,7 @@ impl Decompressor {
                             .as_text()
                             .unwrap()))
                     }
-                    for i in 0..obs_data.len() - obs_flags.len() {
+                    for _ in 0..obs_data.len() - obs_flags.len() {
                         // some flags were not provided
                         // because BLANKED out by compression algorithm
                         obs_flags.push((String::from(" "),String::from(" ")))
