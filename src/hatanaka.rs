@@ -335,17 +335,28 @@ impl Decompressor {
                     .unwrap();
                 match rnx_version.major {
                     1|2 => { // old RINEX
-                        //TODO use as many lines as needed
-                        // refer to src/observation.rs
-                        result.push_str(&recovered_epoch)
+                        // system # id is appended
+                        // and wrapped on as many lines as needed
+                        let (epoch, systems) = recovered_epoch.split_at(32);
+                        result.push_str(epoch);
+                        let mut begin = 0;
+                        //while begin < systems.len() {
+                        for i in 0..num_integer::div_ceil(systems.len(), 12*3) { //max sv per line
+                            let end = std::cmp::min(begin+12*3, systems.len());
+                            if i > 0 {
+                                result.push_str("                                ")
+                            }
+                            result.push_str(&systems[begin..end]);
+                            result.push_str("\n");
+                            begin += 12*3
+                        }
                     },
                     _ => { // modern RINEX
                         result.push_str(recovered_epoch.split_at(35).0)
                     }
                 };
-                //TODO squeeze clock offset correctly
                 if let Some(offset) = clock_offset {
-                    result.push_str(&format!("         {}", (offset as f64)/1000.0_f64))
+                    result.push_str(&format!("         {:3.12}", (offset as f64)/1000.0_f64))
                 }
                 result.push_str("\n");
                 self.clock_offset = false;
@@ -379,7 +390,9 @@ impl Decompressor {
             let offset : usize = std::cmp::min((41 + 3*(self.pointer+1)).into(), epo.len());
             let system = epo.split_at(offset.into()).0;
             let system = system.split_at(system.len()-3).1; // last 3 XXX
-            result.push_str(&system.to_string());
+            if rnx_version.major > 2 {
+                result.push_str(&system.to_string()); // Modern Rinex Needs this
+            }
 
             let sv = Sv::from_str(system)?;
             let codes = &obs_codes[&sv.constellation];
@@ -575,8 +588,7 @@ impl Decompressor {
             self.pointer += 1;
             if self.pointer == nb_sv { // nothing else to parse
                 self.pointer = 0; // reset
-                self.header = true; // reset FSM
-                result.push_str("\n");
+                self.header = true // reset FSM
             }
         }
 
