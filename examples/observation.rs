@@ -1,5 +1,3 @@
-use itertools::Itertools;
-
 use rinex::epoch;
 use rinex::types::Type;
 use rinex::constellation::Constellation;

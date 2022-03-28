@@ -1,6 +1,5 @@
 //! `RINEX` files type description 
 use thiserror::Error;
-use std::str::FromStr;
 
 /// Describes all known `RINEX` file types
 #[derive(Copy, Clone, PartialEq, Debug)]

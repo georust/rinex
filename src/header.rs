@@ -460,7 +460,7 @@ impl std::str::FromStr for Header {
         };
         let (date_str, _) = remainder.split_at(20);
         // identify date format (UTC/LCL)
-        let date_str: &str = match date_str.contains("UTC") {
+        let _date_str: &str = match date_str.contains("UTC") {
             true => {
                 let offset = date_str.rfind("UTC")
                     .unwrap();
@@ -532,7 +532,7 @@ impl std::str::FromStr for Header {
         let mut sampling_interval: Option<f32> = None;
         let mut rcvr_clock_offset_applied: bool = false;
         let mut coords     : Option<rust_3d::Point3D> = None;
-        let mut epochs: (Option<gnss_time::GnssTime>, Option<gnss_time::GnssTime>) = (None, None);
+        let epochs: (Option<gnss_time::GnssTime>, Option<gnss_time::GnssTime>) = (None, None);
         // (OBS) 
         let mut obs_codes  : HashMap<Constellation, Vec<String>> 
             = HashMap::with_capacity(constellation::CONSTELLATION_LENGTH);
@@ -910,9 +910,6 @@ impl std::fmt::Display for Header {
                     _ => write!(f,"NAVIGATION DATA    ")?
                 }
             },
-            _ => {
-                panic!("non supported rinex type")
-            }
         }
         // PGM / RUN BY / DATE
         write!(f, "{:<20}", self.program)?;
