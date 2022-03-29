@@ -9,21 +9,21 @@ use crate::navigation;
 use crate::observation;
 use crate::is_comment;
 use crate::types::{Type, TypeError};
-use crate::constellation::Constellation;
+use crate::constellation;
 
 /// ̀`Sv` describes a Satellite Vehiculee
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Sv {
     pub prn: u8,
-    pub constellation: Constellation,
+    pub constellation: constellation::Constellation,
 }
 
 /// ̀ Sv` related errors
 #[derive(Error, Debug)]
 pub enum ParseSvError {
-    #[error("unknown constellation \"{0}\"")]
-    UnidentifiedConstellation(char),
-    #[error("failed to parse prn")]
+    #[error("constellation identification error")]
+    ConstellationIdError(#[from] constellation::ConstellationError),
+    #[error("failed to parse prn number")]
     ParseIntError(#[from] std::num::ParseIntError),
 }
 
@@ -31,7 +31,7 @@ impl Default for Sv {
     /// Builds a default `Sv`
     fn default() -> Sv {
         Sv {
-            constellation: Constellation::default(),
+            constellation: constellation::Constellation::default(),
             prn: 0
         }
     }
@@ -39,30 +39,15 @@ impl Default for Sv {
 
 impl Sv {
     /// Creates a new `Sv` descriptor
-    pub fn new (constellation: Constellation, prn: u8) -> Sv { Sv {constellation, prn }}
+    pub fn new (constellation: constellation::Constellation, prn: u8) -> Sv { Sv {constellation, prn }}
 }
 
 impl std::str::FromStr for Sv {
     type Err = ParseSvError;
     /// Builds an `Sv` from string content
-    fn from_str (s: &str) -> Result<Self, Self::Err> {
-        let constellation : Constellation;
-        if s.starts_with('G') {
-            constellation = Constellation::GPS;
-        } else if s.starts_with('E') {
-            constellation = Constellation::Galileo;
-        } else if s.starts_with('R') {
-            constellation = Constellation::Glonass;
-        } else if s.starts_with('S') {
-            constellation = Constellation::Sbas;
-        } else if s.starts_with('J') {
-            constellation = Constellation::QZSS;
-        } else if s.starts_with('C') {
-            constellation = Constellation::Beidou;
-        } else {
-            return Err(ParseSvError::UnidentifiedConstellation(s.chars().nth(0).unwrap()));
-        }
-        let prn = u8::from_str_radix(&s[1..].trim(), 10)?;
+    fn from_str (code: &str) -> Result<Self, Self::Err> {
+        let constellation = constellation::Constellation::from_1_letter_code(code)?;
+        let prn = u8::from_str_radix(&code[1..].trim(), 10)?;
         Ok(Sv{constellation, prn})
     }
 }
@@ -135,7 +120,7 @@ pub fn is_new_epoch (line: &str, header: &header::Header) -> bool {
 					// old NAV: epoch block
 					//  is constellation dependent
 					match &header.constellation {
-						Some(Constellation::Glonass) => { // GLONASS NAV special case
+						Some(constellation::Constellation::Glonass) => { // GLONASS NAV special case
 							//  constellation ID is implied
 							parsed.len() > 4
 						},
