@@ -58,8 +58,9 @@ Hatanaka:
 * [x] text decompression
 * [x] epoch decompression
 * [x] double \n inserted on my recovered epochs
-* [ ] CRINEX 1 + epoch with flag > 2 (special events)
-will not be identified correctly
+* [x] CRINEX1
+* [x] CRINEX3
+* [ ] find some CRINEX with special epoch events (flag>2) and test them
 * [ ] CRINEX 1|3 special epoch content (flag>2)
 will be mishandled / corrupted if they are not only made of COMMENTS
 
