@@ -203,7 +203,9 @@ pub fn build_record_entry (header: &Header, content: &str)
                             'E' => constellation::Constellation::Galileo,
                             'C' => constellation::Constellation::Beidou,
                             'S' => constellation::Constellation::Sbas,
-                            _ => panic!("constell id error"),
+                            _ => return Err(
+                                RecordError::ParseSvError(
+                                    record::ParseSvError::UnidentifiedConstellation(identifier))),
                         };
                         Sv::new(constell, prn)
                     },
@@ -342,7 +344,9 @@ pub fn build_record_entry (header: &Header, content: &str)
 				'E' => constellation::Constellation::Galileo,
 				'C' => constellation::Constellation::Beidou,
 				'S' => constellation::Constellation::Sbas,
-				_ => panic!("constellation id error"), 
+				_ => return Err(
+					RecordError::ParseSvError(
+						record::ParseSvError::UnidentifiedConstellation(identifier))),
 			};
 			let sv = Sv::new(constell, prn);
 			// retrieve obs code for that system

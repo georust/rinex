@@ -45,95 +45,66 @@ impl Default for Constellation {
 #[derive(Error, Debug)]
 /// Constellation parsing & identification errors
 pub enum ConstellationError {
-    /// unable to identify constellation from str content
-    #[error("unknown constellation code \"{0}\"")]
-    UnknownConstellationCode(String),
-}
-
-impl Constellation {
-    /// Builds a GNSS constellation from given
-    /// three letter identiication code.
-    /// This method is case insensitive
-    pub fn from_3_letter_code (code: &str) -> Result<Constellation, ConstellationError> {
-        if code.to_lowercase().eq("gps") {
-            Ok(Constellation::GPS)
-        } else if code.to_lowercase().eq("glo") {
-            Ok(Constellation::Glonass)
-        } else if code.to_lowercase().eq("bds") {
-            Ok(Constellation::Beidou)
-        } else if code.to_lowercase().eq("gal") {
-            Ok(Constellation::Galileo)
-        } else if code.to_lowercase().eq("qzs") {
-            Ok(Constellation::QZSS)
-        } else if code.to_lowercase().eq("sbs") {
-            Ok(Constellation::Sbas)
-        } else {
-            Err(ConstellationError::UnknownConstellationCode(code.to_string()))
-        }
-    }
-    /// Builds a GNSS constellation from given
-    /// one letter identiication code.
-    /// This method is case insensitive 
-    /// and discards all but first character in given code
-    pub fn from_1_letter_code (code: &str) -> Result<Constellation, ConstellationError> {
-        if code.to_lowercase().starts_with("g") {
-            Ok(Constellation::GPS)
-        } else if code.to_lowercase().starts_with("c") {
-            Ok(Constellation::Beidou)
-        } else if code.to_lowercase().starts_with("r") {
-            Ok(Constellation::Glonass)
-        } else if code.to_lowercase().starts_with("j") {
-            Ok(Constellation::QZSS)
-        } else if code.to_lowercase().starts_with("s") {
-            Ok(Constellation::Sbas)
-        } else if code.to_lowercase().starts_with("e") {
-            Ok(Constellation::Galileo)
-        } else if code.to_lowercase().starts_with("m") {
-            Ok(Constellation::Mixed)
-        } else {
-            Err(ConstellationError::UnknownConstellationCode(code.to_string()))
-        }
-    }
+    #[error("unknown constellation \"{0}\"")]
+    UnknownConstellation(String),
 }
 
 impl std::str::FromStr for Constellation {
     type Err = ConstellationError;
-    /// Builds a GNSS Constellation from an str,
-    /// either from a 3 letter code if strictly given 3 letters,
-    /// or from total given content
-    /// and finally trying to identify a 1 letter code.
-    /// All xx letter code methods are case insensitive
-    fn from_str (code: &str) -> Result<Self, Self::Err> {
-        if code.len() == 3 {
-            Self::from_3_letter_code(code)
-        } else if code.len() == 1 {
-            Self::from_1_letter_code(code)
-        } else {
-            if code.to_lowercase().contains("gps") {
+    fn from_str (s: &str) -> Result<Self, Self::Err> {
+        if s.to_lowercase().contains("gps") {
+            Ok(Constellation::GPS)
+        } else if s.to_lowercase().contains("glonass") {
+            Ok(Constellation::Glonass)
+        } else if s.to_lowercase().contains("galileo") {
+            Ok(Constellation::Galileo)
+        } else if s.to_lowercase().contains("qzss") {
+            Ok(Constellation::QZSS)
+        } else if s.to_lowercase().contains("beidou") {
+            Ok(Constellation::Beidou)
+        } else if s.to_lowercase().contains("mixed") {
+            Ok(Constellation::Mixed)
+        } else if s.to_lowercase().starts_with("m") {
+            Ok(Constellation::Mixed)
+        } else if s.len() == 1 {
+            // RINEX pre defined 1 letter identifiers
+            if s.starts_with("G") {
                 Ok(Constellation::GPS)
-            } else if code.to_lowercase().contains("glonass") {
-                Ok(Constellation::Glonass)
-            } else if code.to_lowercase().contains("galileo") {
+            } else if s.starts_with("E") {
                 Ok(Constellation::Galileo)
-            } else if code.to_lowercase().contains("qzss") {
-                Ok(Constellation::QZSS)
-            } else if code.to_lowercase().contains("beidou") {
+            } else if s.starts_with("C") {
                 Ok(Constellation::Beidou)
-            } else if code.to_lowercase().contains("sbas") {
+            } else if s.starts_with("R") {
+                Ok(Constellation::Glonass)
+            } else if s.starts_with("J") {
+                Ok(Constellation::QZSS)
+            } else if s.starts_with("S") {
                 Ok(Constellation::Sbas)
-            } else if code.to_lowercase().contains("mixed") {
-                Ok(Constellation::Mixed)
-            } else if code.to_lowercase().starts_with("m") {
-                Ok(Constellation::Mixed)
             } else {
-                Err(ConstellationError::UnknownConstellationCode(code.to_string()))
+                Err(ConstellationError::UnknownConstellation(s.to_string()))
+            }
+        } else {
+            // standard 3 letter identifiers
+            if s.to_lowercase().eq("gps") {
+                Ok(Constellation::GPS)
+            } else if s.to_lowercase().eq("glo") {
+                Ok(Constellation::Glonass)
+            } else if s.to_lowercase().eq("bds") {
+                Ok(Constellation::Beidou)
+            } else if s.to_lowercase().eq("gal") {
+                Ok(Constellation::Galileo)
+            } else if s.to_lowercase().eq("qzs") {
+                Ok(Constellation::QZSS)
+            } else if s.to_lowercase().eq("sba") {
+                Ok(Constellation::Sbas)
+            } else {
+                Err(ConstellationError::UnknownConstellation(s.to_string()))
             }
         }
     }
 }
 
 impl std::fmt::Display for Constellation {
-    /// formats a `GNSS` Constellation with single character identifier
     fn fmt (&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             Constellation::GPS => fmt.write_str(GPS_STR_IDENTIFIER),
