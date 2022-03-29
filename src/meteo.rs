@@ -101,18 +101,6 @@ pub fn build_record_entry (header: &Header, content: &str)
 
 	let mut map : HashMap<String, f32> = HashMap::with_capacity(3);
 
-	//let mut offset : usize = 
-    //    2+1 // Y
-    //    +2+1 // d
-    //    +2+1 // m
-    //    +2+1 // h
-    //    +2+1 // m
-    //    +2+1; // secs is not f32 as usual
-    
-	//if header.version.major > 2 {
-	//	offset += 2;
-	//}
-
 	// epoch.secs is not f32 as usual
 	// Y is 4 digit number as usual for V > 2
 	//let (date, rem) = line.split_at(offset);
