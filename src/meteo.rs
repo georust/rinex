@@ -94,8 +94,7 @@ pub enum RecordError {
 
 /// Builds `RINEX` record entry for `Meteo` Data files
 pub fn build_record_entry (header: &Header, content: &str)
-    -> Result<(epoch::Epoch, HashMap<String, f32>), RecordError> 
-{
+    -> Result<(epoch::Epoch, HashMap<String, f32>), RecordError> {
     let mut lines = content.lines();
     let mut line = lines.next()
         .unwrap();
@@ -187,6 +186,19 @@ pub fn build_record_entry (header: &Header, content: &str)
 			}
 		}
 	} // nb lines
-
 	Ok((epoch, map))
 }
+
+// Pushes meteo record into given file writer
+/*pub fn to_file (record: Record, mut writer: std::fs::File) -> Result<(), > {
+    for epoch in record.keys() {
+        write!(writer, " {}", epoch)?;
+        for (code, obs) in record[epoch] {
+            for o in obs {
+                write!(writer, "{}", o)?
+            }
+            write!(writer, "\n")?
+        }
+    }
+    Ok(())
+}*/

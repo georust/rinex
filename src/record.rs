@@ -107,6 +107,20 @@ impl Record {
             _ => None,
         }
     }
+
+    // writes self into given file writer
+/*    fn to_file (&self, header: &header::Header, mut writer: std::fs::File) -> Result<(), Error> {
+        /*match &header.rinex_type {
+            Type::MeteorologicalData => {
+                let record = self.as_meteo()
+                    .unwrap();
+                meteo::to_file(record)?
+            },
+            _ => {
+            },
+        }*/
+        Ok(())
+    }*/
 }
 
 #[derive(Error, Debug)]
@@ -306,6 +320,5 @@ pub fn build_record (header: &header::Header, body: &str) -> Result<Record, Type
         Type::NavigationMessage => Ok(Record::NavRecord(nav_rec)),
         Type::ObservationData => Ok(Record::ObsRecord(obs_rec)), 
 		Type::MeteorologicalData => Ok(Record::MeteoRecord(met_rec)),
-        //_ => Err(TypeError::UnknownType(header.rinex_type.to_string())),
     }
 }

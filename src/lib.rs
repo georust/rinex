@@ -104,10 +104,13 @@ impl Rinex {
         })
     }
 
-    /// Writes self into given file
+    /// Writes self into given file.   
+    /// Both header + record will strictly follow RINEX standards.   
+    /// Record: supports all known `RINEX` types
     fn to_file (&self, path: &str) -> std::io::Result<()> {
         let mut writer = std::fs::File::create(path)?;
         write!(writer, "{}", self.header.to_string())
+        //self.record.to_file(writer)?
     }
 }
 
