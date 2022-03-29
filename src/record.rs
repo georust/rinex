@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use crate::epoch;
 use crate::meteo;
 use crate::header;
+use crate::hatanaka;
 use crate::navigation;
 use crate::observation;
 use crate::is_comment;
@@ -115,14 +116,10 @@ pub enum RecordError {
 }
 
 /// Returns true if given line matches the start   
-/// of a new epoch, inside a RINEX record.    
-/// Will panic on CRINEX data - unable to hanle it
+/// of a new epoch, inside a RINEX record.
 pub fn is_new_epoch (line: &str, header: &header::Header) -> bool {
     let parsed: Vec<&str> = line.split_ascii_whitespace()
         .collect();
-    if header.is_crinex() {
-        panic!("is_new_epoch() for CRINEX record is not supported")
-    }
     if is_comment!(line) {
         return false
     }
@@ -229,48 +226,68 @@ pub fn build_record (header: &header::Header, body: &str) -> Result<Record, Type
     let mut first = true;
     let mut block = String::with_capacity(256*1024); // max. block size
 
-    let mut nav_rec : navigation::Record = HashMap::new();
-    let mut obs_rec : observation::Record = HashMap::new();
-	let mut met_rec : meteo::Record = HashMap::new();
+    // for CRINEX record, process is special
+    // we need the decompression algorithm to run in rolling fashion
+    // and feed the decompressed result to the `new epoch` detection method
+    let crx_info = header.crinex.as_ref();
+    let mut decompressor = hatanaka::Decompressor::new(8);
+    
+    let mut nav_rec : navigation::Record = HashMap::new();  // NAV
+    let mut obs_rec : observation::Record = HashMap::new(); // OBS
+    let mut met_rec : meteo::Record = HashMap::new();       // MET
     
     loop {
-        let is_new_block = is_new_epoch(&line, &header);
-        if is_new_block && !first {
-            match &header.rinex_type {
-                Type::NavigationMessage => {
-                    if let Ok((e, sv, map)) = navigation::build_record_entry(&header, &block) {
-                        let mut smap : HashMap<Sv, HashMap<String, navigation::ComplexEnum>> = HashMap::with_capacity(1);
-                        smap.insert(sv, map);
-                        nav_rec.insert(e, smap);
-                    }
-                },
-                Type::ObservationData => {
-                    if let Ok((e, offset, map)) = observation::build_record_entry(&header, &block) {
-                        obs_rec.insert(e, (offset, map));
-                    }
-                },
-				Type::MeteorologicalData => {
-					if let Ok((e, map)) = meteo::build_record_entry(&header, &block) {
-						met_rec.insert(e, map);
-					}
-				},
-            }
-        }
+        let content : Option<String> = match crx_info {
+            None => Some(line.to_string()), // RINEX : pass raw content
+            Some(_) => { // CRINEX special context
+                // uncompress content in rolling fashion
+                if let Ok(content) = decompressor.recover(&header, &line) {
+                    Some(content)
+                } else {
+                    None
+                }
+            },
+        };
 
-        if is_new_block {
-            if first {
-                first = false
+        if let Some(content) = content {
+            let is_new_block = is_new_epoch(&content, &header);
+            if is_new_block && !first {
+                match &header.rinex_type {
+                    Type::NavigationMessage => {
+                        if let Ok((e, sv, map)) = navigation::build_record_entry(&header, &block) {
+                            let mut smap : HashMap<Sv, HashMap<String, navigation::ComplexEnum>> = HashMap::with_capacity(1);
+                            smap.insert(sv, map);
+                            nav_rec.insert(e, smap);
+                        }
+                    },
+                    Type::ObservationData => {
+                        if let Ok((e, offset, map)) = observation::build_record_entry(&header, &block) {
+                            obs_rec.insert(e, (offset, map));
+                        }
+                    },
+                    Type::MeteorologicalData => {
+                        if let Ok((e, map)) = meteo::build_record_entry(&header, &block) {
+                            met_rec.insert(e, map);
+                        }
+                    },
+                }
             }
-            block.clear()
-        }
 
-        block.push_str(&line);
-        block.push_str("\n");
+            if is_new_block {
+                if first {
+                    first = false
+                }
+                block.clear()
+            }
+
+            block.push_str(&line);
+            block.push_str("\n");
+        }
 
         if eof {
             break
         }
-
+        
         if let Some(l) = body.next() {
             line = l
         } else {
