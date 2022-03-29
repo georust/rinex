@@ -66,8 +66,8 @@ impl Rinex {
         }
     }
 
-    /// splits rinex file into two (header, body) contents
-    fn split_rinex_content (fp: &std::path::Path) -> Result<(String, String), RinexError> {
+    /// splits file into two (header, body) contents
+    fn split_body_header (fp: &std::path::Path) -> Result<(String, String), RinexError> {
         let content: String = std::fs::read_to_string(fp)
             .unwrap()
                 .parse()
@@ -92,17 +92,20 @@ impl Rinex {
     /// some are mandatory.   
     /// Parses record for supported `RINEX` types
     pub fn from_file (fp: &std::path::Path) -> Result<Rinex, RinexError> {
-        let (header, body) = Rinex::split_rinex_content(fp)?;
+        let (header, body) = Rinex::split_body_header(fp)?;
         let header = header::Header::from_str(&header)?;
-        let record : Option<record::Record> = match header.is_crinex() {
-            false => Some(record::build_record(&header,&body)?),
+        let record = match &header.is_crinex() {
             true => None,
+            false => Some(record::build_record(&header, &body)?),
         };
-        Ok(Rinex { header, record })
+        Ok(Rinex { 
+            header,
+            record,
+        })
     }
 
     /// Writes self into given file
-    pub fn to_file (&self, path: &str) -> std::io::Result<()> {
+    fn to_file (&self, path: &str) -> std::io::Result<()> {
         let mut writer = std::fs::File::create(path)?;
         write!(writer, "{}", self.header.to_string())
     }
@@ -114,57 +117,75 @@ mod test {
     #[test]
     /// Tests `Rinex` constructor against all known test resources
     fn test_rinex_constructor() {
-        let test_dir = env!("CARGO_MANIFEST_DIR").to_owned() + "/data";
-        let types = vec![
+        let data_dir = env!("CARGO_MANIFEST_DIR").to_owned() + "/data";
+        let test_data = vec![
 			"NAV",
 			"OBS",
-			"MET"
+            "CRNX",
+			"MET",
 		];
-        for t in types {
-            let versions = vec![
-				"V2",
-				"V3"
-			];
-            for v in versions {
-                let dir_path = std::path::PathBuf::from(
-                    test_dir.to_owned() + "/"+t + "/"+v
-                );
-                for entry in std::fs::read_dir(dir_path)
+        for data in test_data {
+            let data_path = std::path::PathBuf::from(
+                data_dir.to_owned() +"/" + data
+            );
+            for revision in std::fs::read_dir(data_path)
+                .unwrap() {
+                let rev = revision.unwrap();
+                let rev_path = rev.path();
+                let rev_fullpath = &rev_path.to_str().unwrap(); 
+                for entry in std::fs::read_dir(rev_fullpath)
                     .unwrap() {
-                    let entry = entry
-                        .unwrap();
+                    let entry = entry.unwrap();
                     let path = entry.path();
-					let is_hidden = entry.file_name()
-						.to_str()
-							.unwrap()
-							.starts_with(".");
-                    if !path.is_dir() && !is_hidden { // only relevant files..
+                    let full_path = &path.to_str().unwrap();
+                    let is_hidden = entry
+                        .file_name()
+                        .to_str()
+                        .unwrap()
+                        .starts_with(".");
+                    if !is_hidden {
+                        println!("Parsing file: \"{}\"", full_path);
                         let fp = std::path::Path::new(&path);
                         let rinex = Rinex::from_file(&fp);
-                        assert_eq!(rinex.is_err(), false);
-						let rinex = rinex.unwrap();
-                        println!("File: {:?}\n{:#?}", &fp, rinex);
-						match t {
-							"NAV" => {
-                                // NAV files sanity checks
+                        assert_eq!(rinex.is_err(), false); // 1st basic test
+                        let rinex = rinex.unwrap();
+                        println!("{:#?}", rinex.header);
+                        // rinex record
+                        match data {
+                            "NAV" => {
+                                // NAV files checks
+                                assert_eq!(rinex.header.crinex.is_none(), true);
                                 assert_eq!(rinex.is_navigation_rinex(), true);
+                                assert_eq!(rinex.header.obs_codes.is_none(), true);
+                                assert_eq!(rinex.header.met_codes.is_none(), true);
                             },
-							"OBS" => {
-                                // OBS files sanity checks
+                            "OBS" => {
+                                // OBS files checks
+                                assert_eq!(rinex.header.crinex.is_none(), true);
                                 assert_eq!(rinex.is_observation_rinex(), true);
                                 assert_eq!(rinex.header.obs_codes.is_some(), true);
+                                assert_eq!(rinex.header.met_codes.is_none(), true);
                                 if rinex.header.rcvr_clock_offset_applied {
                                     // epochs should always have a RCVR clock offset
                                     // test that with iterator
                                 }
                             },
+                            "CRNX" => {
+                                // compressed OBS files checks
+                                assert_eq!(rinex.header.crinex.is_some(), true);
+                                assert_eq!(rinex.is_observation_rinex(), true);
+                                assert_eq!(rinex.header.obs_codes.is_some(), true);
+                                assert_eq!(rinex.header.met_codes.is_none(), true);
+                            },
 							"MET" => {
-                                // METEO files sanity checks
+                                // METEO files checks
+                                assert_eq!(rinex.header.crinex.is_none(), true);
                                 assert_eq!(rinex.is_meteo_rinex(), true);
                                 assert_eq!(rinex.header.met_codes.is_some(), true);
+                                assert_eq!(rinex.header.obs_codes.is_none(), true);
                             },
-							_ => {},
-						}
+                            _ => {}
+                        }
                     }
                 }
             }
