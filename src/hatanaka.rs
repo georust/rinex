@@ -279,7 +279,7 @@ impl Decompressor {
         let m = self.clk_krn.state.len()-1; 
         let mut result : String = String::new();
         let mut lines = content.lines();
-        let mut clock_offset : Option<i64>;
+        let mut clock_offset : Option<i64> = None;
         loop {
             let line : &str = match lines.next() {
                 Some(l) => l,
@@ -442,7 +442,7 @@ impl Decompressor {
                         .unwrap();
                     for i in 0..rem.len() { // 1 character at a time
                         let flag = i%2;
-                        if flag == 0 {
+                        if (flag == 0) {
                             obs_flags.push(
                                 obs[i/2] // two flags per OBS
                                     .1 // lli
@@ -532,6 +532,7 @@ impl Decompressor {
                                     Dtype::Numerical(data))
                                     .unwrap();
                             obs_data.push(Some(data));
+                            obs_count += 1
                         } else {
                             // regular compression
                             if let Ok(num) = i64::from_str_radix(rem.trim(),10) {
@@ -633,6 +634,7 @@ impl Decompressor {
                         .unwrap();
                     obs_data.push(Some(recovered))
                 }
+                obs_count +=1
             } // for all OBS
             self.pointer += 1;
             if self.pointer == nb_sv { // nothing else to parse
