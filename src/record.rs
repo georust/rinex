@@ -241,8 +241,8 @@ pub fn build_record (header: &header::Header, body: &str) -> Result<Record, Type
             None => Some(line.to_string()), // RINEX : pass raw content
             Some(_) => { // CRINEX special context
                 // uncompress content in rolling fashion
-                if let Ok(content) = decompressor.recover(&header, &line) {
-                    Some(content)
+                if let Ok(recovered) = decompressor.recover(&header, &line) {
+                    Some(recovered)
                 } else {
                     None
                 }
