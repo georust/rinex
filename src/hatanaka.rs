@@ -287,6 +287,13 @@ impl Decompressor {
             };
             // [0] : COMMENTS
             if is_comment!(line) {
+                if line.contains("RINEX FILE SPLICE") {
+                    // [0*] SPLICE special comments
+                    //      merged RINEX Files
+                    //  --> reset FSM
+                    self.header = true;
+                    self.pointer = 0
+                }
                 result.push_str(line); // feed as is..
                 result.push_str("\n");
                 continue
