@@ -389,12 +389,15 @@ impl Decompressor {
             //     ---> identify nb of satellite vehicules
             //     ---> identify which system we're dealing with
             //          using recovered header
-            //TODO <!> Attention a cet offset 41 en cas de CRINEX1
-            let offset : usize = std::cmp::min((41 + 3*(self.pointer+1)).into(), epo.len());
+            let offset : usize = match crx_version.major {
+                1 => std::cmp::min((32 + 3*(self.pointer+1)).into(), epo.len()),
+                3 => std::cmp::min((41 + 3*(self.pointer+1)).into(), epo.len()),
+                _ => return Err(Error::NonSupportedCrinexRevision)
+            };
             let system = epo.split_at(offset.into()).0;
             let system = system.split_at(system.len()-3).1; // last 3 XXX
             if rnx_version.major > 2 {
-                result.push_str(&system.to_string()); // Modern Rinex Needs this
+                result.push_str(&system.to_string()); // Modern rinex needs XXX on every line
             }
 
             let sv = Sv::from_str(system)?;
