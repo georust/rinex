@@ -445,7 +445,7 @@ impl Decompressor {
                         .unwrap();
                     for i in 0..rem.len() { // 1 character at a time
                         let flag = i%2;
-                        if (flag == 0) {
+                        if flag == 0 {
                             obs_flags.push(
                                 obs[i/2] // two flags per OBS
                                     .1 // lli
