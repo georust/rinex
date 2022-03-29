@@ -8,6 +8,7 @@ const GALILEO_STR_IDENTIFIER : &str = "GAL";
 const QZSS_STR_IDENTIFIER    : &str = "QZS";
 const BEIDOU_STR_IDENTIFIER  : &str = "BDS";
 const SBAS_STR_IDENTIFIER    : &str = "SBS";
+const IRNSS_STR_IDENTIFIER   : &str = "IRN";
 const MIXED_STR_IDENTIFIER   : &str = "M";
 
 /// Number of known ̀`GNSS` constellations
@@ -30,6 +31,8 @@ pub enum Constellation {
     Galileo,
     /// `Sbas` constellation
     Sbas,
+    /// `IRNSS` constellation
+    Irnss,
     /// `Mixed` for Mixed constellations 
     /// RINEX files description
     Mixed,
@@ -62,6 +65,10 @@ impl std::str::FromStr for Constellation {
             Ok(Constellation::QZSS)
         } else if s.to_lowercase().contains("beidou") {
             Ok(Constellation::Beidou)
+        } else if s.to_lowercase().contains("sbas") {
+            Ok(Constellation::Sbas)
+        } else if s.to_lowercase().contains("irnss") {
+            Ok(Constellation::Irnss)
         } else if s.to_lowercase().contains("mixed") {
             Ok(Constellation::Mixed)
         } else if s.to_lowercase().starts_with("m") {
@@ -80,6 +87,8 @@ impl std::str::FromStr for Constellation {
                 Ok(Constellation::QZSS)
             } else if s.starts_with("H") {
                 Ok(Constellation::Sbas)
+            } else if s.starts_with("I") {
+                Ok(Constellation::Irnss)
             } else {
                 Err(ConstellationError::UnknownConstellation(s.to_string()))
             }
@@ -95,8 +104,10 @@ impl std::str::FromStr for Constellation {
                 Ok(Constellation::Galileo)
             } else if s.to_lowercase().eq("qzs") {
                 Ok(Constellation::QZSS)
-            } else if s.to_lowercase().eq("sba") {
+            } else if s.to_lowercase().eq("sbs") {
                 Ok(Constellation::Sbas)
+            } else if s.to_lowercase().eq("irn") {
+                Ok(Constellation::Irnss)
             } else {
                 Err(ConstellationError::UnknownConstellation(s.to_string()))
             }
@@ -113,6 +124,7 @@ impl std::fmt::Display for Constellation {
             Constellation::Beidou => fmt.write_str(BEIDOU_STR_IDENTIFIER),
             Constellation::QZSS => fmt.write_str(QZSS_STR_IDENTIFIER),
             Constellation::Sbas => fmt.write_str(SBAS_STR_IDENTIFIER),
+            Constellation::Irnss => fmt.write_str(IRNSS_STR_IDENTIFIER),
             Constellation::Mixed => fmt.write_str(MIXED_STR_IDENTIFIER),
         }
     }
