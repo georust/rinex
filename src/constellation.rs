@@ -78,7 +78,7 @@ impl std::str::FromStr for Constellation {
                 Ok(Constellation::Glonass)
             } else if s.starts_with("J") {
                 Ok(Constellation::QZSS)
-            } else if s.starts_with("S") {
+            } else if s.starts_with("H") {
                 Ok(Constellation::Sbas)
             } else {
                 Err(ConstellationError::UnknownConstellation(s.to_string()))
