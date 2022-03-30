@@ -5,9 +5,9 @@ use strum_macros::EnumString;
 use std::collections::HashMap;
 use physical_constants::SPEED_OF_LIGHT_IN_VACUUM;
     
+use crate::sv;
 use crate::epoch;
 use crate::record;
-use crate::record::Sv;
 use crate::constellation;
 use crate::header::Header;
 
@@ -69,7 +69,7 @@ impl ObservationData {
 ///  + map of ObservationData (physical measurements) sorted by `Sv` 
 pub type Record = HashMap<epoch::Epoch, 
     (Option<f32>, 
-    HashMap<Sv, HashMap<String, ObservationData>>)>;
+    HashMap<sv::Sv, HashMap<String, ObservationData>>)>;
 
 /// Calculates distance from given Pseudo Range value,
 /// by compensating clock offsets    
@@ -91,7 +91,7 @@ pub enum RecordError {
     #[error("failed to parse epoch flag")]
     ParseEpochFlagError(#[from] std::io::Error),
     #[error("failed to parse sv")]
-    ParseSvError(#[from] record::ParseSvError),
+    SvError(#[from] sv::Error),
     #[error("failed to integer number")]
     ParseIntError(#[from] std::num::ParseIntError),
     #[error("failed to float number")]
@@ -104,7 +104,7 @@ pub enum RecordError {
 /// Returns identified `epoch` to later sort data efficiently.    
 /// Returns 2D data as described in `record` definition
 pub fn build_record_entry (header: &Header, content: &str)
-        -> Result<(epoch::Epoch, Option<f32>, HashMap<Sv, HashMap<String, ObservationData>>), RecordError> 
+        -> Result<(epoch::Epoch, Option<f32>, HashMap<sv::Sv, HashMap<String, ObservationData>>), RecordError> 
 {
     let mut lines = content.lines();
     let mut line = lines.next()
@@ -139,8 +139,8 @@ pub fn build_record_entry (header: &Header, content: &str)
     let date = epoch::str2date(date)?; 
     let epoch = epoch::Epoch::new(date, flag);
 
-    let mut sv_list : Vec<Sv> = Vec::with_capacity(24);
-	let mut map : HashMap<Sv, HashMap<String, ObservationData>> = HashMap::new();
+    let mut sv_list : Vec<sv::Sv> = Vec::with_capacity(24);
+	let mut map : HashMap<sv::Sv, HashMap<String, ObservationData>> = HashMap::new();
     
     // grabbing possible clock_offsets content
     let offs : Option<&str> = match header.version.major < 2 {
@@ -193,8 +193,8 @@ pub fn build_record_entry (header: &Header, content: &str)
                     .unwrap(); 
                 let prn = u8::from_str(&sv_str[1..].trim())?;
                 // build `sv` 
-                let sv : Sv = match identifier.is_ascii_whitespace() {
-                    true => Sv::new(header.constellation.unwrap(), prn),
+                let sv : sv::Sv = match identifier.is_ascii_whitespace() {
+                    true => sv::Sv::new(header.constellation.unwrap(), prn),
                     false => {
                         let constell : constellation::Constellation = match identifier {
                             'G' => constellation::Constellation::GPS,
@@ -204,10 +204,11 @@ pub fn build_record_entry (header: &Header, content: &str)
                             'C' => constellation::Constellation::Beidou,
                             'S' => constellation::Constellation::Sbas,
                             _ => return Err(
-                                RecordError::ParseSvError(
-                                    record::ParseSvError::UnidentifiedConstellation(identifier))),
+                                RecordError::SvError(
+                                    sv::Error::ConstellationError(
+                                        constellation::Error::UnknownCode(identifier.to_string())))),
                         };
-                        Sv::new(constell, prn)
+                        sv::Sv::new(constell, prn)
                     },
                 };
                 
@@ -233,7 +234,7 @@ pub fn build_record_entry (header: &Header, content: &str)
 			let mut obs_map : HashMap<String, ObservationData> = HashMap::new();
 
 			// old RINEX revision : using previously identified Sv 
-			let sv : Sv = sv_list[i]; 
+			let sv : sv::Sv = sv_list[i]; 
 			let obs_codes = &header.obs_codes
 				.as_ref()
 					.unwrap()
@@ -345,10 +346,11 @@ pub fn build_record_entry (header: &Header, content: &str)
 				'C' => constellation::Constellation::Beidou,
 				'S' => constellation::Constellation::Sbas,
 				_ => return Err(
-					RecordError::ParseSvError(
-						record::ParseSvError::UnidentifiedConstellation(identifier))),
+                        RecordError::SvError(
+                            sv::Error::ConstellationError(
+                                constellation::Error::UnknownCode(identifier.to_string())))),
 			};
-			let sv = Sv::new(constell, prn);
+			let sv = sv::Sv::new(constell, prn);
 			// retrieve obs code for that system
 			let obs_codes = &header.obs_codes
 				.as_ref()

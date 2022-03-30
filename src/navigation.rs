@@ -4,15 +4,15 @@ use std::str::FromStr;
 use std::collections::HashMap;
 
 use crate::epoch;
+use crate::sv;
 use crate::record;
-use crate::record::Sv;
 use crate::constellation;
 use crate::header::Header;
 
 include!(concat!(env!("OUT_DIR"),"/nav_data.rs"));
 
 /// Record definition for NAV files
-pub type Record = HashMap<epoch::Epoch, HashMap<Sv, HashMap<String, ComplexEnum>>>;
+pub type Record = HashMap<epoch::Epoch, HashMap<sv::Sv, HashMap<String, ComplexEnum>>>;
 
 /// `ComplexEnum` is record payload 
 #[derive(Clone, Debug)]
@@ -83,7 +83,7 @@ impl ComplexEnum {
 #[derive(Error, Debug)]
 pub enum RecordError {
     #[error("failed to parse msg type")]
-    ParseSvError(#[from] record::ParseSvError),
+    SvError(#[from] sv::Error),
     #[error("failed to parse cplx data")]
     ParseComplexError(#[from] ComplexEnumError),
     #[error("failed to parse sv::prn")]
@@ -92,9 +92,11 @@ pub enum RecordError {
     ParseDateError(#[from] epoch::ParseDateError), 
 }
 
-/// Builds `RinexRecord` entry for `NavigationMessage` file
+/// Builds `RinexRecord` entry for `NavigationMessage` file.    
+/// `header` : previously parsed Header    
+/// `content`: should comprise entire epoch content
 pub fn build_record_entry (header: &Header, content: &str)
-        -> Result<(epoch::Epoch, Sv, HashMap<String, ComplexEnum>), RecordError>
+        -> Result<(epoch::Epoch, sv::Sv, HashMap<String, ComplexEnum>), RecordError>
 {
     //  <o 
     //     SV + Epoch + SvClock infos + RecType + MsgType are always there
@@ -153,16 +155,16 @@ pub fn build_record_entry (header: &Header, content: &str)
     let (svbias, rem) = rem.split_at(19);
     let (svdrift, svdriftr) = rem.split_at(19);
 
-    let sv: Sv = match header.constellation {
+    let sv: sv::Sv = match header.constellation {
         // SV identification problem
         //  (+) GLONASS NAV special case
         //      SV'X' is omitted 
         //  (+) faulty RINEX producer with unique constellation
         //      SV'X' is omitted
-        Some(constellation::Constellation::Mixed) => Sv::from_str(sv.trim())?,
+        Some(constellation::Constellation::Mixed) => sv::Sv::from_str(sv.trim())?,
         Some(c) => {
             let prn = u8::from_str_radix(sv.trim(), 10)?;  
-            Sv::new(c, prn)
+            sv::Sv::new(c, prn)
         },
 		_ => unreachable!(), // RINEX::NAV body while Type!=NAV
     };

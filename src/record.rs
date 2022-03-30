@@ -2,6 +2,7 @@
 use thiserror::Error;
 use std::collections::HashMap;
 
+use crate::sv;
 use crate::epoch;
 use crate::meteo;
 use crate::header;
@@ -11,62 +12,6 @@ use crate::observation;
 use crate::is_comment;
 use crate::types::{Type, TypeError};
 use crate::constellation::Constellation;
-
-/// ̀`Sv` describes a Satellite Vehiculee
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Sv {
-    pub prn: u8,
-    pub constellation: Constellation,
-}
-
-/// ̀ Sv` related errors
-#[derive(Error, Debug)]
-pub enum ParseSvError {
-    #[error("unknown constellation \"{0}\"")]
-    UnidentifiedConstellation(char),
-    #[error("failed to parse prn")]
-    ParseIntError(#[from] std::num::ParseIntError),
-}
-
-impl Default for Sv {
-    /// Builds a default `Sv`
-    fn default() -> Sv {
-        Sv {
-            constellation: Constellation::default(),
-            prn: 0
-        }
-    }
-}
-
-impl Sv {
-    /// Creates a new `Sv` descriptor
-    pub fn new (constellation: Constellation, prn: u8) -> Sv { Sv {constellation, prn }}
-}
-
-impl std::str::FromStr for Sv {
-    type Err = ParseSvError;
-    /// Builds an `Sv` from string content
-    fn from_str (s: &str) -> Result<Self, Self::Err> {
-        let constellation : Constellation;
-        if s.starts_with('G') {
-            constellation = Constellation::GPS;
-        } else if s.starts_with('E') {
-            constellation = Constellation::Galileo;
-        } else if s.starts_with('R') {
-            constellation = Constellation::Glonass;
-        } else if s.starts_with('S') {
-            constellation = Constellation::Sbas;
-        } else if s.starts_with('J') {
-            constellation = Constellation::QZSS;
-        } else if s.starts_with('C') {
-            constellation = Constellation::Beidou;
-        } else {
-            return Err(ParseSvError::UnidentifiedConstellation(s.chars().nth(0).unwrap()));
-        }
-        let prn = u8::from_str_radix(&s[1..].trim(), 10)?;
-        Ok(Sv{constellation, prn})
-    }
-}
 
 /// `Record`
 #[derive(Clone, Debug)]
@@ -107,7 +52,6 @@ impl Record {
             _ => None,
         }
     }
-
     // writes self into given file writer
 /*    fn to_file (&self, header: &header::Header, mut writer: std::fs::File) -> Result<(), Error> {
         /*match &header.rinex_type {
@@ -121,6 +65,12 @@ impl Record {
         }*/
         Ok(())
     }*/
+}
+
+impl Default for Record {
+    fn default() -> Record {
+        Record::NavRecord(navigation::Record::new())
+    }
 }
 
 #[derive(Error, Debug)]
@@ -162,7 +112,7 @@ pub fn is_new_epoch (line: &str, header: &header::Header) -> bool {
                                 _ => false
                             }
 						},
-						_ => unreachable!(), // RINEX::NAV body while Type!=NAV
+                        _ => panic!("undefined constellation system")
 					}
 				},
 				Type::ObservationData | Type::MeteorologicalData => {
@@ -184,7 +134,7 @@ pub fn is_new_epoch (line: &str, header: &header::Header) -> bool {
 								//  * and items[0..5] do match an epoch descriptor
 								epoch::str2date(&datestr).is_ok()
 							} else {
-								false  // does not match
+								false // does not match
 									// an epoch descriptor
 							}
 						},
@@ -204,11 +154,10 @@ pub fn is_new_epoch (line: &str, header: &header::Header) -> bool {
 		},
 		_ => {
 			// modern V > 3 RINEX
-			// mostly easy, but Meteo seems still follow
-			// an old fashion
+			// mostly easy, but Meteo seems to still follow previous format
 			match &header.rinex_type {
 				Type::MeteorologicalData => {
-					unreachable!()
+					panic!("meteo + V4 is not fully supported yet")
 				},
 				_ => {
 					// modern, easy parsing,
@@ -229,90 +178,89 @@ pub fn is_new_epoch (line: &str, header: &header::Header) -> bool {
 /// Builds a `Record`, `RINEX` file body content,
 /// which is constellation and `RINEX` file type dependent
 pub fn build_record (header: &header::Header, body: &str) -> Result<Record, TypeError> { 
+    let mut line;
+    let mut first_epoch = true;
     let mut body = body.lines();
-    let mut line = body.next()
-        .unwrap();
-    while is_comment!(line) {
-        line = body.next()
-            .unwrap()
-    }
-    let mut eof = false;
-    let mut first = true;
-    let mut block = String::with_capacity(256*1024); // max. block size
+    let mut epoch_content = String::with_capacity(6*64);
 
     // for CRINEX record, process is special
     // we need the decompression algorithm to run in rolling fashion
     // and feed the decompressed result to the `new epoch` detection method
     let crx_info = header.crinex.as_ref();
     let mut decompressor = hatanaka::Decompressor::new(8);
-    
+    // record 
     let mut nav_rec : navigation::Record = HashMap::new();  // NAV
     let mut obs_rec : observation::Record = HashMap::new(); // OBS
     let mut met_rec : meteo::Record = HashMap::new();       // MET
     
-    loop {
+    loop { // iterates over each line
+        if let Some(l) = body.next() {
+            line = l;
+        } else {
+            break // EOF
+        }
+        
+        if is_comment!(line) {
+            continue  // SKIP
+        }
+
+        // manage CRINEX case
+        //  [1]  RINEX : pass content as is
+        //  [2] CRINEX : decompress
+        //           --> decompressed content may wind up as more than one line
         let content : Option<String> = match crx_info {
-            None => Some(line.to_string()), // RINEX : pass raw content
-            Some(_) => { // CRINEX special context
-                // uncompress content in rolling fashion
-                if let Ok(recovered) = decompressor.recover(&header, &line) {
-                    Some(recovered)
+            None => Some(line.to_string()), 
+            Some(_) => {
+                let mut l = line.to_owned();
+                l.push_str("\n"); // body.next() has stripped the "\n" that recover expects
+                if let Ok(recovered) = decompressor.recover(&header, &l) {
+                    Some(recovered.lines().collect::<String>())
                 } else {
                     None
                 }
             },
         };
-
-        if let Some(content) = content {
-            let is_new_block = is_new_epoch(&content, &header);
-            if is_new_block && !first {
-                match &header.rinex_type {
-                    Type::NavigationMessage => {
-                        if let Ok((e, sv, map)) = navigation::build_record_entry(&header, &block) {
-                            let mut smap : HashMap<Sv, HashMap<String, navigation::ComplexEnum>> = HashMap::with_capacity(1);
-                            smap.insert(sv, map);
-                            nav_rec.insert(e, smap);
-                        }
-                    },
-                    Type::ObservationData => {
-                        if let Ok((e, offset, map)) = observation::build_record_entry(&header, &block) {
-                            obs_rec.insert(e, (offset, map));
-                        }
-                    },
-                    Type::MeteorologicalData => {
-                        if let Ok((e, map)) = meteo::build_record_entry(&header, &block) {
-                            met_rec.insert(e, map);
-                        }
-                    },
-                }
-            }
-
-            if is_new_block {
-                if first {
-                    first = false
-                }
-                block.clear()
-            }
-
-            block.push_str(&line);
-            block.push_str("\n");
-        }
-
-        if eof {
-            break
-        }
         
-        if let Some(l) = body.next() {
-            line = l
-        } else {
-            eof = true;
-        }
+        // pack content into epoch str
+        if let Some(content) = content {
+            for line in content.lines() {
+                let new_epoch = is_new_epoch(line, &header);
+                if new_epoch && !first_epoch {
+                    match &header.rinex_type {
+                        Type::NavigationMessage => {
+                            if let Ok((e, sv, map)) = navigation::build_record_entry(&header, &epoch_content) {
+                                let mut smap : HashMap<sv::Sv, HashMap<String, navigation::ComplexEnum>> = HashMap::with_capacity(1);
+                                smap.insert(sv, map);
+                                nav_rec.insert(e, smap);
+                            }
+                        },
+                        Type::ObservationData => {
+                            if let Ok((e, ck_offset, map)) = observation::build_record_entry(&header, &epoch_content) {
+                                /*println!("all good");
+                                println!("\"{}\"", epoch_content);*/
+                                obs_rec.insert(e, (ck_offset, map));
+                            } /*else {
+                                println!("oops");
+                                println!("\"{}\"", epoch_content)
+                            }*/
+                        },
+                        Type::MeteorologicalData => {
+                            if let Ok((e, map)) = meteo::build_record_entry(&header, &epoch_content) {
+                                met_rec.insert(e, map);
+                            }
+                        },
+                    }
+                }
 
-        while is_comment!(line) {
-            if let Some(l) = body.next() {
-                line = l
-            } else {
-                eof = true; 
+                if new_epoch {
+                    if !first_epoch {
+                        epoch_content.clear()
+                    }
+                    first_epoch = false;
+                }
+                // epoch content builder
+                epoch_content.push_str(&line); //.trim_end());
+                epoch_content.push_str("\n")
             }
         }
     }

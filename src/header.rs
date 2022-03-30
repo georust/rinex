@@ -8,7 +8,6 @@ use crate::gnss_time;
 use crate::{is_comment};
 use crate::types::{Type, TypeError};
 use crate::constellation;
-use crate::constellation::{Constellation, ConstellationError};
 
 /// Describes a `CRINEX` (compressed rinex) 
 pub const CRINEX_MARKER_COMMENT : &str = "COMPACT RINEX FORMAT";
@@ -245,7 +244,7 @@ pub struct Header {
     pub rinex_type: Type, 
     /// specific `GNSS` constellation system,
 	/// may not exist for RINEX files 
-    pub constellation: Option<Constellation>, 
+    pub constellation: Option<constellation::Constellation>, 
     /// program name
     pub program: String, 
     /// program `run by`
@@ -298,7 +297,7 @@ pub struct Header {
     // observation (specific)
     /// lists all types of observations 
     /// contained in this `Rinex` OBS file
-    pub obs_codes: Option<HashMap<Constellation, Vec<String>>>, 
+    pub obs_codes: Option<HashMap<constellation::Constellation, Vec<String>>>, 
 	/// lists all types of observations
 	/// contains in this `RINEX` Meteo file
     pub met_codes: Option<Vec<String>>, 
@@ -314,8 +313,8 @@ pub enum Error {
     VersionFormatError(String),
     #[error("rinex type error")]
     TypeError(#[from] TypeError),
-    #[error("unknown GNSS Constellation '{0}'")]
-    UnknownConstellation(#[from] ConstellationError),
+    #[error("constellation error")]
+    ConstellationError(#[from] constellation::Error),
     #[error("failed to parse antenna / receiver infos")]
     AntennaRcvrError(#[from] std::io::Error),
     #[error("failed to parse integer value")]
@@ -334,7 +333,7 @@ impl Default for Header {
             version: version::Version::default(), 
             crinex: None,
             rinex_type: Type::default(),
-            constellation: Some(Constellation::default()),
+            constellation: Some(constellation::Constellation::default()),
             program: String::from("Unknown"),
             run_by: String::from("Unknown"),
             station: String::from("Unknown"),
@@ -418,18 +417,18 @@ impl std::str::FromStr for Header {
         let (constellation_str, _) = remainder.trim().split_at(20);
 
         let rinex_type = Type::from_str(type_str.trim())?;
-        let constellation: Option<Constellation>;
+        let constellation: Option<constellation::Constellation>;
         
         if type_str.contains("GLONASS") {
             // special case, sometimes GLONASS NAV
             // drops the constellation field cause it's implied
-            constellation = Some(Constellation::Glonass)
+            constellation = Some(constellation::Constellation::Glonass)
         } else if type_str.contains("METEOROLOGICAL DATA") {
 			// these files are not tied to a constellation system,
 			// therefore, do not have this field
 			constellation = None
 		} else { // regular files
-            constellation = Some(Constellation::from_str(constellation_str.trim())?)
+            constellation = Some(constellation::Constellation::from_str(constellation_str.trim())?)
         }
 
         let version = version::Version::from_str(version_str.trim())?;
@@ -534,7 +533,7 @@ impl std::str::FromStr for Header {
         let mut coords     : Option<rust_3d::Point3D> = None;
         let mut epochs: (Option<gnss_time::GnssTime>, Option<gnss_time::GnssTime>) = (None, None);
         // (OBS) 
-        let mut obs_codes  : HashMap<Constellation, Vec<String>> 
+        let mut obs_codes  : HashMap<constellation::Constellation, Vec<String>> 
             = HashMap::with_capacity(constellation::CONSTELLATION_LENGTH);
 		let mut met_codes  : Vec<String> = Vec::with_capacity(3);
 
@@ -715,17 +714,17 @@ impl std::str::FromStr for Header {
                 // build code map 
                 // to be used later on when parsing payload
                 match constellation {
-                    Some(Constellation::Mixed) => {
+                    Some(constellation::Constellation::Mixed) => {
 						// Multi constell:
 						//  trick to later identify, in all cases
-                        let constells : Vec<Constellation> =
+                        let constells : Vec<constellation::Constellation> =
 						Vec::from([
-                            Constellation::GPS,
-                            Constellation::Glonass,
-                            Constellation::Galileo,
-                            Constellation::Beidou,
-                            Constellation::Sbas,
-                            Constellation::QZSS,
+                            constellation::Constellation::GPS,
+                            constellation::Constellation::Glonass,
+                            constellation::Constellation::Galileo,
+                            constellation::Constellation::Beidou,
+                            constellation::Constellation::Sbas,
+                            constellation::Constellation::QZSS,
                         ]);
                 		for i in 0..constells.len() {
                     		obs_codes.insert(constells[i], codes.clone());
@@ -844,7 +843,7 @@ impl std::str::FromStr for Header {
 			false => None
 		};
 
-        let obs_codes: Option<HashMap<Constellation, Vec<String>>> = match obs_codes.is_empty() {
+        let obs_codes: Option<HashMap<constellation::Constellation, Vec<String>>> = match obs_codes.is_empty() {
             true => None,
             false => Some(obs_codes),
         };
@@ -906,7 +905,7 @@ impl std::fmt::Display for Header {
             },
             Type::NavigationMessage => {
                 match self.constellation {
-                    Some(Constellation::Glonass) => write!(f,"GLONASS NAV        ")?,
+                    Some(constellation::Constellation::Glonass) => write!(f,"GLONASS NAV        ")?,
                     _ => write!(f,"NAVIGATION DATA    ")?
                 }
             },

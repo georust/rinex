@@ -1,13 +1,13 @@
 //! hatanaka.rs   
 //! structures and macros suites for
 //! RINEX OBS files compression and decompression.   
+use crate::sv;
 use crate::header;
 use crate::record;
 use crate::is_comment;
 use crate::types::Type;
 use thiserror::Error;
 use std::str::FromStr;
-use crate::record::Sv;
 use std::collections::HashMap;
 
 #[derive(Error, Debug)]
@@ -203,7 +203,7 @@ pub enum Error {
     #[error("CRINEX3 standard mismatch")]
     FaultyCrinex3Format,
     #[error("failed to identify sat. vehicule")]
-    ParseSvError(#[from] record::ParseSvError),
+    SvError(#[from] sv::Error),
     #[error("failed to parse integer number")]
     ParseIntError(#[from] std::num::ParseIntError),
     #[error("data recovery failed")]
@@ -227,7 +227,7 @@ pub struct Decompressor {
     /// Clock offset decompressor
     clk_krn : Kernel,
     /// decompressors
-    sv_krn  : HashMap<Sv, Vec<(Kernel, Kernel, Kernel)>>,
+    sv_krn  : HashMap<sv::Sv, Vec<(Kernel, Kernel, Kernel)>>,
 }
 
 impl Decompressor {
@@ -244,13 +244,15 @@ impl Decompressor {
         }
     }
     /// Decompresses (recovers) given CRINEX record content.   
-    /// Do not feed header data - header must be previously parsed separetely.    
+    /// This method will decompress an manage CRINEX comments or weird events properly.   
+    /// Do not feed header section data - header must be previously & separately parsed.    
     /// `header` : previously identified RINEX `header` section
     /// `content`: string reference extracted from a CRINEX record.    
     ///           This method is very convenient because `content` can have any shape you can think of.    
-    ///           You can feed single CRINEX epoch lines, one at a time.     
-    ///           You can pass epochs one at a time (line groupings).   
-    ///           You can also pass an entire CRINEX record at once.    
+    ///           You can feed single CRINEX epoch lines, one at a time, just make sure it's
+    ///           terminated with an \n     
+    ///           You can pass epochs one at a time (line groupings, several lines at once)    
+    ///           You can also pass an entire CRINEX record at once      
     ///           You can even pass unevenly grouped chunks of epochs, even with COMMENTS unevenly inserted.    
     ///           Just make sure that `content` is never an empty string (at least 1 character),
     ///           which easily happens if you iterate through a CRINEX record with .lines() for instance.   
@@ -407,7 +409,7 @@ impl Decompressor {
                 result.push_str(&system.to_string()); // Modern rinex needs XXX on every line
             }
 
-            let sv = Sv::from_str(system)?;
+            let sv = sv::Sv::from_str(system)?;
             let codes = &obs_codes[&sv.constellation];
             if !self.sv_krn.contains_key(&sv) {
                 // first time dealing with this system

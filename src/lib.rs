@@ -8,6 +8,7 @@ mod gnss_time;
 mod navigation;
 mod observation;
 
+pub mod sv;
 pub mod types;
 pub mod epoch;
 pub mod header;
@@ -33,7 +34,7 @@ pub struct Rinex {
     pub header: header::Header,
     /// `record` contains `RINEX` file body
     /// and is type and constellation dependent 
-    pub record: Option<record::Record>,
+    pub record: record::Record,
 }
 
 impl Default for Rinex {
@@ -41,7 +42,7 @@ impl Default for Rinex {
     fn default() -> Rinex {
         Rinex {
             header: header::Header::default(),
-            record: None, 
+            record: record::Record::default(), 
         }
     }
 }
@@ -59,7 +60,7 @@ pub enum RinexError {
 
 impl Rinex {
     /// Builds a new `RINEX` struct from given:
-    pub fn new (header: header::Header, record: Option<record::Record>) -> Rinex {
+    pub fn new (header: header::Header, record: record::Record) -> Rinex {
         Rinex {
             header,
             record,
@@ -94,10 +95,7 @@ impl Rinex {
     pub fn from_file (fp: &std::path::Path) -> Result<Rinex, RinexError> {
         let (header, body) = Rinex::split_body_header(fp)?;
         let header = header::Header::from_str(&header)?;
-        let record = match &header.is_crinex() {
-            true => None,
-            false => Some(record::build_record(&header, &body)?),
-        };
+        let record = record::build_record(&header, &body)?;
         Ok(Rinex { 
             header,
             record,
@@ -124,7 +122,7 @@ mod test {
         let test_data = vec![
 			"NAV",
 			"OBS",
-            "CRNX",
+            //"CRNX",
 			"MET",
 		];
         for data in test_data {
@@ -153,7 +151,6 @@ mod test {
                         assert_eq!(rinex.is_err(), false); // 1st basic test
                         let rinex = rinex.unwrap();
                         println!("{:#?}", rinex.header);
-                        // rinex record
                         match data {
                             "NAV" => {
                                 // NAV files checks
@@ -161,6 +158,9 @@ mod test {
                                 assert_eq!(rinex.is_navigation_rinex(), true);
                                 assert_eq!(rinex.header.obs_codes.is_none(), true);
                                 assert_eq!(rinex.header.met_codes.is_none(), true);
+                                let record = rinex.record.as_nav().unwrap();
+                                let mut epochs = record.keys();
+                                println!("----- EPOCH #1 ----- \n{:#?}", record[epochs.nth(0).unwrap()]);
                             },
                             "OBS" => {
                                 // OBS files checks
@@ -172,6 +172,10 @@ mod test {
                                     // epochs should always have a RCVR clock offset
                                     // test that with iterator
                                 }
+                                let record = rinex.record.as_obs().unwrap();
+                                let record = rinex.record.as_obs().unwrap();
+                                let mut epochs = record.keys();
+                                println!("----- EPOCH #1 ----- \n{:#?}", record[epochs.nth(0).unwrap()]);
                             },
                             "CRNX" => {
                                 // compressed OBS files checks
@@ -179,6 +183,10 @@ mod test {
                                 assert_eq!(rinex.is_observation_rinex(), true);
                                 assert_eq!(rinex.header.obs_codes.is_some(), true);
                                 assert_eq!(rinex.header.met_codes.is_none(), true);
+                                let record = rinex.record.as_obs().unwrap();
+                                println!("----- RECORD ----- \n{:#?}", record);
+                                let mut epochs = record.keys();
+                                println!("----- EPOCH #1 ----- \n{:#?}", record[epochs.nth(0).unwrap()]);
                             },
 							"MET" => {
                                 // METEO files checks
@@ -186,6 +194,9 @@ mod test {
                                 assert_eq!(rinex.is_meteo_rinex(), true);
                                 assert_eq!(rinex.header.met_codes.is_some(), true);
                                 assert_eq!(rinex.header.obs_codes.is_none(), true);
+                                let record = rinex.record.as_meteo().unwrap();
+                                let mut epochs = record.keys();
+                                println!("----- EPOCH #1 ----- \n{:#?}", record[epochs.nth(0).unwrap()]);
                             },
                             _ => {}
                         }
@@ -200,7 +211,8 @@ mod test {
         let mut header = header::Header::default();
         header.comments.push(String::from("THIS FILE WAS PRODUCED BY SELFTESTS"));
         header.comments.push(String::from("     for testing purposes"));
-        let rinex = Rinex::new(header, None);
+        let mut record = record::Record::default();
+        let rinex = Rinex::new(header, record);
         rinex.to_file("test").unwrap()
     }
 }

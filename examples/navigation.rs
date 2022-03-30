@@ -1,5 +1,6 @@
 use itertools::Itertools;
 
+use rinex::sv;
 use rinex::epoch;
 use rinex::types::Type;
 use rinex::constellation::Constellation;
@@ -25,10 +26,9 @@ fn main() {
     assert_eq!(rinex.header.leap.is_some(), true);
 
     // (NAV) record analysis
-    if let Some(ref record) = rinex.record {
-        let record = record
-            .as_nav()
-            .unwrap();
+    let record = rinex.record
+        .as_nav()
+        .unwrap();
     //////////////////////////////
     // basic record browsing
     //////////////////////////////
@@ -62,7 +62,7 @@ fn main() {
     println!("\n------------- Matching epoch \"{:?}\" ----------\n{:#?}", to_match, matched); 
     
     // ----> zoom in on `E01` vehicule for that particular `epoch` 
-    let to_match = rinex::record::Sv::new(Constellation::Galileo, 1);
+    let to_match = sv::Sv::new(Constellation::Galileo, 1);
     let matched = &matched[&to_match];
     println!("\n------------- Adding Sv filter \"{:?}\" to previous epoch filter ----------\n{:#?}", to_match, matched); 
     // ----> zoom in on `E01` clock drift for that `epoch`
@@ -74,8 +74,7 @@ fn main() {
     // iterators + filters allow complex
     // pattern matching, data filtering and extraction
     ///////////////////////////////////////////////////
-    let record = rinex.record.unwrap();
-    let record = record
+    let record = rinex.record
         .as_nav()
         .unwrap();
 
@@ -88,7 +87,7 @@ fn main() {
     println!("\n------------- Epochs ----------\n{:#?}", epochs); 
     
     // extract all data for `R24` vehicule 
-    let to_match = rinex::record::Sv::new(Constellation::Glonass, 24);
+    let to_match = sv::Sv::new(Constellation::Glonass, 24);
     let matched : Vec<_> = record
         .iter()
         .map(|(_epoch, sv)| { // dont care about epoch, sv filter
@@ -131,5 +130,4 @@ fn main() {
         .collect();
     println!("\n------------- Constellation: \"{:?}\" ----------\n{:#?}", to_match, matched); 
     }*/
-    }
 }

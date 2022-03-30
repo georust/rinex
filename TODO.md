@@ -15,6 +15,7 @@ performances, pass BufReader pointer to build\_record method
 * [x] last epoch seems to always be missed
 * [ ] add to::file production method
 * [ ] simplify line interations with "for line in lines.next()"
+* [x] Sv / Constellation : improve constellation parsing & identification methods
 
 Header:
 * [ ] some (V3) files crash when parsing LEAP SECOND field 

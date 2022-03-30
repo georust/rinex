@@ -1,3 +1,4 @@
+use rinex::sv;
 use rinex::epoch;
 use rinex::types::Type;
 use rinex::constellation::Constellation;
@@ -23,10 +24,9 @@ fn main() {
     assert_eq!(rinex.header.leap.is_some(), true);
 
     // (OBS) record analysis
-    if let Some(ref record) = rinex.record {
-        let record = record
-            .as_obs()
-            .unwrap();
+    let record = rinex.record
+        .as_obs()
+        .unwrap();
 	
 	//////////////////////////////
     // basic record browsing
@@ -70,7 +70,7 @@ fn main() {
 	println!("\n----------- OBS codes for {} system-------\n{:#?}", Constellation::Glonass, obs_codes);
     
     // ----> zoom in on `R24` vehicule for that particular `epoch` 
-    let to_match = rinex::record::Sv::new(Constellation::Glonass, 24);
+    let to_match = sv::Sv::new(Constellation::Glonass, 24);
     //let matched = &matched[&to_match];
     println!("\n------------- Adding Sv filter \"{:?}\" to previous epoch filter ----------\n{:#?}", to_match, matched); 
     // ----> grab `R24` "C1C" phase observation for that  `epoch`
@@ -139,6 +139,4 @@ fn main() {
         .collect();
     println!("\n------------- Constellation: \"{:?}\" ----------\n{:#?}", to_match, matched); 
     }*/
-    }
-
 }
