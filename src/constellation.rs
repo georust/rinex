@@ -76,6 +76,8 @@ impl Constellation {
             Ok(Constellation::Sbas)
         } else if code.to_lowercase().eq("i") {
             Ok(Constellation::Irnss)
+        } else if code.to_lowercase().eq("m") {
+            Ok(Constellation::Mixed)
         } else {
             Err(Error::UnknownCode(code.to_string()))
         }
