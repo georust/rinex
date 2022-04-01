@@ -48,8 +48,8 @@ Observation Data:
 * [x] parse clock offsets and classify them properly
 * [ ] rescale raw phase data exceeding F14.3 format by +/- 10E9 accordingly
 * [ ] SYS PHASE Shift ?
-* [ ] process a CRINEX 1 directly
-* [ ] process a CRINEX 3 directly
+* [x] process a CRINEX 1 directly
+* [x] process a CRINEX 3 directly
 
 Ci:
 * [ ] OBS: if rcvr clock offsets applied: check epochs do have this field

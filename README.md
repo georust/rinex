@@ -23,7 +23,12 @@ For more information on the compression algorithm, the
 [Hatanaka documentation page](https://github.com/gwbres/rinex/blob/main/doc/hatanaka.md)
 is the way to go.
 
-## Supported `RINEX` files
+### Supported RINEX revisions
+
+* 2.00 ⩽ v < 4.0    Tested 
+*             v = 4.0    refer to file type specific pages
+
+## Supported `RINEX` format
 
 Many RINEX file types exist, 
 the `rinex::types::Type` enum
@@ -33,15 +38,18 @@ describes the types of RINEX currently supported:
 * `Type::ObservationData` (OBS) data
 * `Type::MeteoData` (Meteo) data
 
+### CRINEX special case
+
+CRINEX V1 and V3 are now fully supported.   
+You can pass compressed OBS RINEX directly to this parser.   
+Uncompressed record is extracted and can be analyzed directly.
+
+## Parser 
+
 `RINEX` files contain a lot of data and this library is capable of parsing all of it.   
 To fully understand how to operate this lib, refer to the `RinexType` section you are interested in.
 
 Link to the [official API](https://docs.rs/rinex/latest/rinex/index.html)
-
-### Supported RINEX revisions
-
-* 2.00 ⩽ v < 4.0    Tested 
-*             v = 4.0    refer to file type specific pages
 
 ### RINEX file naming convention
 

@@ -122,7 +122,7 @@ mod test {
         let test_data = vec![
 			"NAV",
 			"OBS",
-            //"CRNX",
+			"CRNX",
 			"MET",
 		];
         for data in test_data {
@@ -184,7 +184,6 @@ mod test {
                                 assert_eq!(rinex.header.obs_codes.is_some(), true);
                                 assert_eq!(rinex.header.met_codes.is_none(), true);
                                 let record = rinex.record.as_obs().unwrap();
-                                println!("----- RECORD ----- \n{:#?}", record);
                                 let mut epochs = record.keys();
                                 println!("----- EPOCH #1 ----- \n{:#?}", record[epochs.nth(0).unwrap()]);
                             },
