@@ -213,8 +213,13 @@ pub fn build_record (header: &header::Header, body: &str) -> Result<Record, Type
             Some(_) => {
                 let mut l = line.to_owned();
                 l.push_str("\n"); // body.next() has stripped the "\n" that recover expects
-                if let Ok(recovered) = decompressor.recover(&header, &l) {
-                    Some(recovered.lines().collect::<String>())
+                if let Ok(recovered) = decompressor.decompress(&header, &l) {
+                    let mut result = String::with_capacity(4*80);
+                    for line in recovered.lines() {
+                        result.push_str(line);
+                        result.push_str("\n")
+                    }
+                    Some(result)
                 } else {
                     None
                 }
@@ -236,13 +241,13 @@ pub fn build_record (header: &header::Header, body: &str) -> Result<Record, Type
                         },
                         Type::ObservationData => {
                             if let Ok((e, ck_offset, map)) = observation::build_record_entry(&header, &epoch_content) {
-                                /*println!("all good");
-                                println!("\"{}\"", epoch_content);*/
+                                println!("all good");
+                                println!("\"{}\"", epoch_content);
                                 obs_rec.insert(e, (ck_offset, map));
-                            } /*else {
+                            } else {
                                 println!("oops");
                                 println!("\"{}\"", epoch_content)
-                            }*/
+                            }
                         },
                         Type::MeteorologicalData => {
                             if let Ok((e, map)) = meteo::build_record_entry(&header, &epoch_content) {
