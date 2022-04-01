@@ -44,27 +44,20 @@ CRINEX V1 and V3 are now fully supported.
 You can pass compressed OBS RINEX directly to this parser.   
 Uncompressed record is extracted and can be analyzed directly.
 
-## Parser 
+### Parser 
 
 `RINEX` files contain a lot of data and this library is capable of parsing all of it.   
 To fully understand how to operate this lib, refer to the `RinexType` section you are interested in.
 
 Link to the [official API](https://docs.rs/rinex/latest/rinex/index.html)
 
-### RINEX file naming convention
+### File naming convention
 
 This parser does not check whether the provided local file
 follows the RINEX naming convention or not.
 You can parse anything and behavior adapts to the actual file content.
 
 ### Known weaknesses
-
-* Compressed RINEX (**CRINEX**)   
-this lib is not able to decompress CRINEX files at the moment.   
-you should manually decompress your RINEX files prior attempting
-parsing.    
-In that scenario, `rinex.record` is set to _None_, and
-the header is fully parsed.
 
 * Weird RINEX content:    
 this parser is not able to parse the RINEX body if the provided
@@ -125,9 +118,6 @@ println!("{:#?}", rinex.header.coords);
 The `Rinex` structure comprises the `header` previously defined,
 and the `record` which contains the data payload.
 
-The _record_ is optionnal at the moment to handle `CRINEX`
-Observation Data that we are not able to parse directly.
-
 The `record` is a complex structure of HashMap (_dictionaries_)
 whose definition varies with the type of RINEX file.   
 Refer to its definition in the API and the specific documentation down below,
@@ -153,7 +143,6 @@ First, let's grab the record:
 let rinex = rinex::Rinex::from_file("data/amel0010.21g")
   .unwrap();
 let record = rinex.record
-  .unwrap() // option<record> unwrapping, None in case of CRINEX
     .as_nav() // NAV record unwrapping
     .unwrap();
 ```
