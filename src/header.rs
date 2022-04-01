@@ -718,14 +718,14 @@ impl std::str::FromStr for Header {
 						// Multi constell:
 						//  trick to later identify, in all cases
                         let constells : Vec<constellation::Constellation> =
-						Vec::from([
+						vec![
                             constellation::Constellation::GPS,
                             constellation::Constellation::Glonass,
                             constellation::Constellation::Galileo,
                             constellation::Constellation::Beidou,
                             constellation::Constellation::Sbas,
                             constellation::Constellation::QZSS,
-                        ]);
+                        ];
                 		for i in 0..constells.len() {
                     		obs_codes.insert(constells[i], codes.clone());
                 		}
