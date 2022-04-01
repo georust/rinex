@@ -243,14 +243,13 @@ impl Decompressor {
             sv_krn  : HashMap::new()
         }
     }
-    /// Decompresses (recovers) given CRINEX record content.   
-    /// This method will decompress an manage CRINEX comments or weird events properly.   
-    /// Do not feed header section data - header must be previously & separately parsed.    
+    /// Decompresses (recovers) RINEX from given CRINEX record block.   
+    /// This method will decompress and manage CRINEX comments or weird events properly.    
+    /// This method will crash on header data: header section should be previously / separately parsed.    
     /// `header` : previously identified RINEX `header` section
     /// `content`: string reference extracted from a CRINEX record.    
     ///           This method is very convenient because `content` can have any shape you can think of.    
-    ///           You can feed single CRINEX epoch lines, one at a time, just make sure it's
-    ///           terminated with an \n     
+    ///           You can feed single CRINEX epoch lines, one at a time, just make sure it's terminated with an \n     
     ///           You can pass epochs one at a time (line groupings, several lines at once)    
     ///           You can also pass an entire CRINEX record at once      
     ///           You can even pass unevenly grouped chunks of epochs, even with COMMENTS unevenly inserted.    
@@ -259,7 +258,7 @@ impl Decompressor {
     ///           And also make sure to follow a standard CRINEX structure, which should always be the case   
     ///           if you iterate over a valid CRINEX.
     /// `result`: returns decompressed (recovered) block from provided block content
-    pub fn recover (&mut self, header: &header::Header, content : &str) -> Result<String, Error> {
+    pub fn decompress (&mut self, header: &header::Header, content : &str) -> Result<String, Error> {
         // Context sanity checks
         if !header.is_crinex() {
             return Err(Error::NotACrinexError)
@@ -349,27 +348,34 @@ impl Decompressor {
                         let (epoch, systems) = recovered_epoch.split_at(32);
                         result.push_str(epoch);
                         let mut begin = 0;
-                        //while begin < systems.len() {
                         let n = num_integer::div_ceil(systems.len(), 12*3); // max sv per line
-                        for i in 0..n {
+                        // terminate first line with required content
+                        let end = std::cmp::min(begin+12*3, systems.len());
+                        result.push_str(&systems[begin..end]);
+                        // squeeze clock offset here, if any
+                        if let Some(offset) = clock_offset {
+                            result.push_str(&format!("         {:3.12}", (offset as f64)/1000.0_f64))
+                        }
+                        result.push_str("\n");
+                        begin += 12*3; // `systems` pointer
+                        for i in 1..n { // nb of missing lines, to fit remaining systems 
                             let end = std::cmp::min(begin+12*3, systems.len());
-                            if i > 0 {
-                                result.push_str("                                ")
-                            }
+                            result.push_str("                                ");
                             result.push_str(&systems[begin..end]);
                             if i < n-1 {
-                                result.push_str("\n");
+                                result.push_str("\n"); // otherwise,
+                                                // last line is terminated at the end of this block
                             }
                             begin += 12*3
                         }
                     },
                     _ => { // modern RINEX
-                        result.push_str(recovered_epoch.split_at(35).0)
+                        result.push_str(recovered_epoch.split_at(35).0);
+                        if let Some(offset) = clock_offset {
+                            result.push_str(&format!("         {:3.12}", (offset as f64)/1000.0_f64))
+                        }
                     }
                 };
-                if let Some(offset) = clock_offset {
-                    result.push_str(&format!("         {:3.12}", (offset as f64)/1000.0_f64))
-                }
                 result.push_str("\n");
                 self.clock_offset = false;
                 continue
@@ -380,7 +386,6 @@ impl Decompressor {
                 .as_text()
                 .unwrap();
             let epo = recovered_epoch.as_str().trim_end();
-            //println!("EPO : \"{}\"", epo);
             let mut offset : usize =
                 2    // Y
                 +2+1 // m
@@ -439,12 +444,10 @@ impl Decompressor {
             let mut rem = line.clone();
             let mut obs_data : Vec<Option<i64>> = Vec::with_capacity(12);
             loop {
-                //println!("SYSTEM ! {:?}", system);
                 if obs_count == codes.len() {
                     // FLAGS fields
                     //  ---> parse & run textdiff on each individual character
                     //   --> then format final output line
-                    //println!("FLAGS! \"{}\" | {}", rem, rem.len());
                     let mut obs_flags : Vec<String> = Vec::with_capacity(obs_data.len()*2);
                     // [+] grab all provided and apply textdiff
                     //     append BLANK in case not provided,
@@ -533,7 +536,6 @@ impl Decompressor {
                             let (order, rem) = rem.split_at(index);
                             let order = u8::from_str_radix(order.trim(),10)?;
                             let (_, data) = rem.split_at(1);
-                            //println!("ATTENTION ICI trim ??");
                             let data = i64::from_str_radix(data.trim(), 10)?;
                             let obs = self.sv_krn.get_mut(&sv)
                                 .unwrap();
@@ -606,7 +608,6 @@ impl Decompressor {
                 };
                 let (roi, r) = rem.split_at(next_wsp);
                 rem = r;
-                //println!("CODE : \"{}\" - ROI \"{}\"", codes[obs_count], roi);
                 if roi == " " { // BLANK field
                     obs_count += 1;
                     obs_data.push(None);
