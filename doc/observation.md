@@ -1,6 +1,6 @@
 # RINEX Observation Data
 
-Observation (OBS) `RINEX` is amongst the two most standard `RINEX` formats.  
+Observation (OBS) `RINEX` is amongst the two standard `RINEX` formats.  
 
 Observation files are made of physical measurements:
 
@@ -17,33 +17,27 @@ One example script is provided
 cargo run --example observation
 ```
 
-### Special note for modern (V>2) Observation Data files
-
-&#9888; &#9888; This parser currently works
-on single line epochs in this scenario, which is against the standard
-RINEX definitions.  
-This is because most observation files are compressed files (`RNX2CRX`)
-and the decompression tool (`CRX2RNX`) does not respect the
-RINEX standard in that particular scenario.    
-In other words, this parser only works with Observation Data
-that has been uncompressed with `CRX2RNX` at the moment.
-
-In the next release, I will support both cases:
-* make the standard properly parsed (wrapped lines)
-* and maintain current behavior, so non matching but very common
-files are still parsed correctly
-
 ### CRINEX - Compressed Observation records
 
-Compressed OBS records are not parsed at the moment because
-this lib is not able to decompress them.   
-You have to manually decompress them prior parsing.    
-If you pass a compressed RINEX to this lib, only the header
-will be parsed and the record is set to _None_.  
-Link to CRX2RNX [official decompressoin tool](https://terras.gsi.go.jp/ja/crx2rnx.html)
+Compressed OBS records can now be parsed directly.   
+You can pass a CRINEX (V1 or V3) directly to this parser and
+it will directly evaluate its content.   
+This use case is the less efficient of any other format or combination,
+because the CRINEX must be decompressed internally prior parsing.  
 
-In the next release, the parse will be able to uncompress
-compressed Observation Data files, so you don't have to do anything.
+### Special note for modern (V3+) Observation Data files
+
+&#9888; &#9888; This parser only works with modern OBS files
+that either were decompressed with `CRX2RNX` (official tool) 
+or my 
+[Hatanaka command line tool](https://github.com/gwbres/hatanaka).   
+Indeed, `CRX2RNX` does not respect RINEX definitions, because
+its producess unwrapped (>80) lines for V3 decompression. 
+
+In the next release, I will support both cases:
+* make the standard definition properly parsed (wrapped lines)
+* and maintain current behavior, so non matching but very common
+files produced by `CRX2NRNX` are still parsed correctly
 
 ## Observation Record content
 
@@ -57,9 +51,8 @@ Grab an OBS record from a given file:
 let rinex = rinex::Rinex::from_file("observation.rnx")
     .unwrap();
 let record = rinex.record
-    .unwrap() // record is optional, is None in case of CRINEX
-        .as_obs() // observation record cast
-        .unwrap();
+    .as_obs() // observation record cast
+    .unwrap();
 ```
 
 ## Record manipulations
