@@ -241,12 +241,7 @@ pub fn build_record (header: &header::Header, body: &str) -> Result<Record, Type
                         },
                         Type::ObservationData => {
                             if let Ok((e, ck_offset, map)) = observation::build_record_entry(&header, &epoch_content) {
-                                println!("all good");
-                                println!("\"{}\"", epoch_content);
                                 obs_rec.insert(e, (ck_offset, map));
-                            } else {
-                                println!("oops");
-                                println!("\"{}\"", epoch_content)
                             }
                         },
                         Type::MeteorologicalData => {
