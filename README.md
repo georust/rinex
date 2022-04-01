@@ -21,7 +21,7 @@ you should use the
 [Hatanaka tool](https://github.com/gwbres/hatanaka) to perform such operations quickly.   
 For more information on the compression algorithm, the 
 [Hatanaka documentation page](https://github.com/gwbres/rinex/blob/main/doc/hatanaka.md)
-is the way to go.
+is the where to look at.
 
 ### Supported RINEX revisions
 
@@ -87,7 +87,6 @@ discover or figure things out.
 ### Header & general information
 
 The `header` contains high level information.   
-`Comments` are currently discarded and not exposed by the parser.   
 
 ```rust
 println!("{:#?}", rinex.header);
@@ -99,6 +98,7 @@ This includes `Rinex`:
 * possible file compression infos
 * recorder & station infos
 * hardware, RF infos
+* `comments` are exposed in a string array, by order of appearance 
 * and much more
 
 ```rust
@@ -118,13 +118,20 @@ println!("{:#?}", rinex.header.coords);
 The `Rinex` structure comprises the `header` previously defined,
 and the `record` which contains the data payload.
 
+Record data is always sorted by `epoch`,
+that is, sampling timestamps.
+
 The `record` is a complex structure of HashMap (_dictionaries_)
 whose definition varies with the type of RINEX file.   
 Refer to its definition in the API and the specific documentation down below,
 for the type of file you are interested in.
 
-`record` is always first indexed by an `epoch`,
-that is, data is sorted by the sampling timestamp.
+`comments` identified in the record are currently dropped out
+because they are not considered as `epoch` data directly.   
+In the next release, `recods` will be able to expose `comments` 
+sorted by `epochs`. This will allow complex post-processing,
+and also allow the user to determine what happened in case of special
+epoch events.
 
 ## `Epoch` object
 

@@ -34,6 +34,8 @@ Header:
 Record :
 * [x] ObsRecord : add clockoffsets to epoch record
 * [x] ObsRecord : introduce Observation(f32,lli,ssi) as payload
+* [ ] preserve encountered `comments` and tie them to the related `epoch`,
+for advanced manipulations & recovery
 
 Navigation Messages:
 * [ ] improve database usage.   
@@ -72,4 +74,5 @@ Meteo Data:
 * [ ] Sensor Geo position (x,y,z)
 
 Clocks Data:
-* [ ] introduce 
+* [ ] V1, V2 
+* [ ] V3, V4
