@@ -1,9 +1,10 @@
 //! `MeteorologicalData` parser and related methods
+use std::io::Write;
 use thiserror::Error;
 use std::str::FromStr;
 use std::collections::HashMap;
-
 use crate::epoch;
+use crate::header;
 use crate::header::Header;
 
 #[macro_export]
@@ -93,8 +94,9 @@ pub enum RecordError {
 }
 
 /// Builds `RINEX` record entry for `Meteo` Data files
-pub fn build_record_entry (header: &Header, content: &str)
-    -> Result<(epoch::Epoch, HashMap<String, f32>), RecordError> {
+pub fn build_record_entry (header: &Header, content: &str) 
+        -> Result<(epoch::Epoch, HashMap<String, f32>), RecordError> 
+{
     let mut lines = content.lines();
     let mut line = lines.next()
         .unwrap();
@@ -177,16 +179,15 @@ pub fn build_record_entry (header: &Header, content: &str)
 	Ok((epoch, map))
 }
 
-// Pushes meteo record into given file writer
-/*pub fn to_file (record: Record, mut writer: std::fs::File) -> Result<(), > {
+/// Pushes meteo record into given file writer
+pub fn to_file (header: &header::Header, record: &Record, mut writer: std::fs::File) -> std::io::Result<()> {
+    let obs_codes = header.met_codes.as_ref().unwrap();
     for epoch in record.keys() {
-        write!(writer, " {}", epoch)?;
-        for (code, obs) in record[epoch] {
-            for o in obs {
-                write!(writer, "{}", o)?
-            }
-            write!(writer, "\n")?
+        write!(writer, " {} ", epoch.date.format("%y %_m %_d %_H %_M %_S").to_string())?;
+        for code in obs_codes { 
+            write!(writer, "{:.1}   ", record[epoch].get(code).unwrap())?;
         }
+        write!(writer, "\n")?
     }
     Ok(())
-}*/
+}
