@@ -158,7 +158,12 @@ mod test {
                         .to_str()
                         .unwrap()
                         .starts_with(".");
-                    if !is_hidden {
+                    let is_test_file = !entry
+                        .file_name()
+                        .to_str()
+                        .unwrap()
+                        .ends_with("-copy");
+                    if !is_hidden && is_test_file {
                         println!("Parsing file: \"{}\"", full_path);
                         let fp = std::path::Path::new(&path);
                         let rinex = Rinex::from_file(&fp);
