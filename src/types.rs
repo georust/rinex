@@ -1,6 +1,5 @@
 //! `RINEX` files type description 
 use thiserror::Error;
-use std::str::FromStr;
 use crate::constellation;
 
 /// Describes all known `RINEX` file types

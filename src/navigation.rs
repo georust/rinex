@@ -3,9 +3,8 @@ use thiserror::Error;
 use std::str::FromStr;
 use std::collections::HashMap;
 
-use crate::epoch;
 use crate::sv;
-use crate::record;
+use crate::epoch;
 use crate::constellation;
 use crate::header::Header;
 
@@ -240,12 +239,12 @@ pub fn build_record_entry (header: &Header, content: &str)
 }
 
 mod test {
-    use super::*;
+    use std::str::FromStr;
     #[test]
     /// Tests static NAV database to be used in dedicated parser
     fn test_nav_database() {
-        for n in NAV_MESSAGES.iter() { 
-            constellation::Constellation::from_str(
+        for n in super::NAV_MESSAGES.iter() { 
+            super::constellation::Constellation::from_str(
                 n.constellation
             ).unwrap();
             for r in n.revisions.iter() {
@@ -264,7 +263,7 @@ mod test {
                         } else {
                             test = String::from("hello")
                         }
-                        ComplexEnum::new(v, &test).unwrap();
+                        super::ComplexEnum::new(v, &test).unwrap();
                     }
                 }
             }

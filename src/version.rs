@@ -64,23 +64,22 @@ impl Version {
 }
 
 mod test {
-    use super::*;
     #[test]
     fn test_version_object() {
-        let version = Version::default();
+        let version = super::Version::default();
         assert_eq!(version.major, 1);
         assert_eq!(version.minor, 0);
     }
     #[test]
     fn test_version_support() {
-        let version = Version::default();
+        let version = super::Version::default();
         assert_eq!(version.is_supported(), true);
-        let version = SUPPORTED_VERSION; 
+        let version = super::SUPPORTED_VERSION; 
         assert_eq!(version.is_supported(), true);
     }
     #[test]
     fn test_version_non_support() {
-        let version = Version::new(5, 0);
+        let version = super::Version::new(5, 0);
         assert_eq!(version.is_supported(), false);
     }
 }
