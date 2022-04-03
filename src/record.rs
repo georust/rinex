@@ -52,19 +52,19 @@ impl Record {
             _ => None,
         }
     }
-    // writes self into given file writer
-/*    fn to_file (&self, header: &header::Header, mut writer: std::fs::File) -> Result<(), Error> {
-        /*match &header.rinex_type {
+    /// streams self into given file writer
+    pub fn to_file (&self, header: &header::Header, mut writer: std::fs::File) -> std::io::Result<()> {
+        match &header.rinex_type {
             Type::MeteorologicalData => {
                 let record = self.as_meteo()
                     .unwrap();
-                meteo::to_file(record)?
+                Ok(meteo::to_file(header, &record, writer)?)
             },
             _ => {
+                Ok(())
             },
-        }*/
-        Ok(())
-    }*/
+        }
+    }
 }
 
 impl Default for Record {
