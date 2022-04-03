@@ -752,15 +752,7 @@ impl std::str::FromStr for Header {
                 let n_codes = u8::from_str_radix(n_codes.trim(), 10)?;
 				let n_lines : usize = num_integer::div_ceil(n_codes, 13).into(); 
                 let mut codes : Vec<String> = Vec::with_capacity(n_codes.into());
-                let constell : constellation::Constellation = match identifier {
-                    "G" => constellation::Constellation::GPS,
-                    "R" => constellation::Constellation::Glonass,
-                    "J" => constellation::Constellation::QZSS,
-                    "E" => constellation::Constellation::Galileo,
-                    "C" => constellation::Constellation::Beidou,
-                    "S" => constellation::Constellation::Sbas,
-                    _ => continue, // should never happen 
-                };
+                let constell = constellation::Constellation::from_1_letter_code(identifier)?; 
 
                 for i in 0..n_lines {
 					let content : Vec<&str> = line.split_ascii_whitespace()
@@ -898,18 +890,22 @@ impl std::fmt::Display for Header {
         write!(f, "{:6}.{:02}", self.version.major, self.version.minor)?;
         match self.rinex_type {
             Type::NavigationMessage => {
-                match self.constellation { // describes both type + constellation
-                    Some(constellation::Constellation::Glonass) => write!(f,"            GLONASS NAV        ")?,
+                match self.constellation {
+                    Some(constellation::Constellation::Glonass) => { // comprises constellation
+                        write!(f,"            GLONASS NAV        ")?;
+                        write!(f, "                     {}", "RINEX VERSION / TYPE\n")?
+                    },
                     _ => { // type + constell separate fields
                         write!(f,"            NAVIGATION DATA    ")?;
-                        write!(f, "{:>5}", self.constellation.unwrap_or(constellation::Constellation::default()))?
+                        write!(f, "{:>5}", self.constellation.unwrap().to_3_letter_code())?;
+                        write!(f, "                     {}", "RINEX VERSION / TYPE\n")?
                     },
                 }
             },
             Type::MeteorologicalData => { // has no constellation tied to it
                 write!(f, "           {}", self.rinex_type.to_string(self.constellation))?; 
                 write!(f, "                     {}", "RINEX VERSION / TYPE\n")?;
-                // TYPES OF OBSERV 
+                // OBS CODES 
                 let obs_codes = self.met_codes.as_ref().unwrap();
                 write!(f, "{:6}     ", obs_codes.len())?; 
                 for i in 0..obs_codes.len() {
@@ -928,10 +924,32 @@ impl std::fmt::Display for Header {
                 }
             },
             Type::ObservationData => { // type + constell separate fields 
-                write!(f, "          {}", self.rinex_type.to_string(self.constellation))?; 
-                write!(f, "     {}", self.constellation.unwrap_or(constellation::Constellation::default()))?
-                //TODO OBS CODES 
-            },
+                write!(f,"            OBSERVATION DATA")?;
+                write!(f, "{:>5}", self.constellation.unwrap().to_3_letter_code())?;
+                write!(f, "                     {}", "RINEX VERSION / TYPE\n")?;
+                // OBS CODES 
+                let obs_codes = self.obs_codes.as_ref().unwrap();
+                match self.version.major {
+                    1|2 => { // old RINEX
+                        //TODO
+                        //list all obs codes using GPS ?
+                        // or build a list of uniques obs code
+                        write!(f, "                     {}", "# / TYPES OF OBSERV\n")?
+                    },
+                    _ => { // modern RINEX
+                        // is constellation dependent
+                        // use new header title 
+                        for (constell, codes) in obs_codes.iter() {
+                            write!(f, "{}   ", constell.to_1_letter_code())?;
+                            write!(f, "{} ", codes.len())?;
+                            for code in codes { 
+                                write!(f, "{} ", code)?
+                            } 
+                            write!(f, "                     {}", "SYS / # / OBS TYPES\n")?
+                        } 
+                    }
+                }
+            }
         }
         // COMMENTS 
         for comment in self.comments.iter() {
