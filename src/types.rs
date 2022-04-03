@@ -1,6 +1,7 @@
 //! `RINEX` files type description 
 use thiserror::Error;
 use std::str::FromStr;
+use crate::constellation;
 
 /// Describes all known `RINEX` file types
 #[derive(Copy, Clone, PartialEq, Debug)]
@@ -28,16 +29,19 @@ impl Default for Type {
 }
 
 impl Type {
-    /// Converts `Self` to str
-    pub fn to_str (&self) -> &str {
+    /// Converts `Self` to RINEX file format
+    pub fn to_string (&self, constell: Option<constellation::Constellation>) -> String { 
         match *self {
-            Type::ObservationData => "ObservationData",
-            Type::NavigationMessage => "NavigationMessage",
-            Type::MeteorologicalData => "MeteorologicalData",
+            Type::ObservationData => String::from("OBSERVATION DATA"),
+            Type::NavigationMessage => {
+                match constell {
+                    Some(constellation::Constellation::Glonass) => String::from("Glonass NAV"),
+                    _ => String::from("NAV DATA"),
+                }
+            },
+            Type::MeteorologicalData => String::from("METEOROLOGICAL DATA"),
         }
     }
-    /// Converts `Self` to string
-    pub fn to_string (&self) -> String { String::from(self.to_str()) }
 }
 
 impl std::str::FromStr for Type {
