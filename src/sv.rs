@@ -49,6 +49,13 @@ impl std::str::FromStr for Sv {
     }
 }
 
+impl std::fmt::Display for Sv {
+    /// Formats self as XYY RINEX three letter code
+    fn fmt (&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(fmt, "{}{:02}", self.constellation.to_1_letter_code(), self.prn)
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;

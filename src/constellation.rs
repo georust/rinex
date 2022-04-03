@@ -2,15 +2,6 @@
 use thiserror::Error;
 use serde_derive::{Deserialize, Serialize};
 
-const GPS_STR_IDENTIFIER     : &str = "GPS";
-const GLONASS_STR_IDENTIFIER : &str = "GLO"; 
-const GALILEO_STR_IDENTIFIER : &str = "GAL"; 
-const QZSS_STR_IDENTIFIER    : &str = "QZS";
-const BEIDOU_STR_IDENTIFIER  : &str = "BDS";
-const SBAS_STR_IDENTIFIER    : &str = "SBS";
-const IRNSS_STR_IDENTIFIER   : &str = "IRN";
-const MIXED_STR_IDENTIFIER   : &str = "M (Mixed)";
-
 /// Number of known ̀`GNSS` constellations
 pub const CONSTELLATION_LENGTH: usize = 6;
 
@@ -82,6 +73,19 @@ impl Constellation {
             Err(Error::UnknownCode(code.to_string()))
         }
     }
+    /// Converts self to 1 letter code (RINEX standard code)
+    pub fn to_1_letter_code (&self) -> &str {
+        match self {
+            Constellation::GPS => "G",
+            Constellation::Glonass => "R",
+            Constellation::Galileo => "E",
+            Constellation::Beidou => "C",
+            Constellation::Sbas => "S",
+            Constellation::QZSS => "J",
+            Constellation::Irnss => "I",
+            Constellation::Mixed => "M",
+        } 
+    }
     /// Identifies `gnss` constellation from given 3 letter code.    
     /// Given code should match official RINEX codes.    
     /// This method is case insensitive though
@@ -106,6 +110,19 @@ impl Constellation {
         } else {
             Err(Error::UnknownCode(code.to_string()))
         }
+    }
+    /// Converts self to 3 letter code (RINEX standard code)
+    pub fn to_3_letter_code (&self) -> &str {
+        match self {
+            Constellation::GPS => "GPS",
+            Constellation::Glonass => "GLO",
+            Constellation::Galileo => "GAL",
+            Constellation::Beidou => "BDS",
+            Constellation::Sbas => "SBS",
+            Constellation::QZSS => "QZS",
+            Constellation::Irnss => "IRN",
+            Constellation::Mixed => "MIX",
+        } 
     }
     /// Identifies `gnss` constellation from given standard plain code name
     pub fn from_plain_name (code: &str) -> Result<Constellation, Error> {
@@ -144,21 +161,6 @@ impl std::str::FromStr for Constellation {
             Ok(Constellation::from_1_letter_code(code)?)
         } else {
             Ok(Constellation::from_plain_name(code)?)
-        }
-    }
-}
-
-impl std::fmt::Display for Constellation {
-    fn fmt (&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match self {
-            Constellation::GPS => fmt.write_str(GPS_STR_IDENTIFIER),
-            Constellation::Glonass => fmt.write_str(GLONASS_STR_IDENTIFIER),
-            Constellation::Galileo => fmt.write_str(GALILEO_STR_IDENTIFIER),
-            Constellation::Beidou => fmt.write_str(BEIDOU_STR_IDENTIFIER),
-            Constellation::QZSS => fmt.write_str(QZSS_STR_IDENTIFIER),
-            Constellation::Sbas => fmt.write_str(SBAS_STR_IDENTIFIER),
-            Constellation::Irnss => fmt.write_str(IRNSS_STR_IDENTIFIER),
-            Constellation::Mixed => fmt.write_str(MIXED_STR_IDENTIFIER),
         }
     }
 }
