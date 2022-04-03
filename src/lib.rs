@@ -107,8 +107,8 @@ impl Rinex {
     /// Record: supports all known `RINEX` types
     fn to_file (&self, path: &str) -> std::io::Result<()> {
         let mut writer = std::fs::File::create(path)?;
-        write!(writer, "{}", self.header.to_string())
-        //self.record.to_file(writer)?
+        write!(writer, "{}", self.header.to_string())?;
+        self.record.to_file(&self.header, writer)
     }
 }
 
@@ -204,14 +204,72 @@ mod test {
             }
         }
     }
+    use std::process::Command;
+    /// Runs `diff` to determines whether f1 & f2 
+    /// are strictly identical or not
+    fn diff_is_strictly_identical (f1: &str, f2: &str) -> Result<bool, std::string::FromUtf8Error> {
+        let output = Command::new("diff")
+            .arg("-q")
+            .arg("-Z")
+            .arg(f1)
+            .arg(f2)
+            .output()
+            .expect("failed to execute \"diff\"");
+        let output = String::from_utf8(output.stdout)?;
+        Ok(output.len()==0)
+    }
+    use std::collections::HashMap;
     #[test]
-    /// Tests `Rinex` production method 
-    fn test_rinex_production() {
+    /// Tests METEO `Rinex` (V2) production method 
+    fn test_meteo_v2_rinex_production() {
+        // test header
         let mut header = header::Header::default();
-        header.comments.push(String::from("THIS FILE WAS PRODUCED BY SELFTESTS"));
-        header.comments.push(String::from("     for testing purposes"));
-        let mut record = record::Record::default();
+        header.version.major = 2;
+        header.version.minor = 11;
+        header.rinex_type = types::Type::MeteorologicalData;
+        header.comments.push(String::from("Solaris x86 5.10|AMD64|cc SC5.8 -xarch=amd64|=+|=+"));
+        header.station = String::from("ABVI");
+        header.station_id = String::from(" "); 
+        // sensors
+        let mut sensors : Vec<header::Sensor> = vec![ 
+            header::Sensor::new(" ", " ", 0.0, "PR"),
+            header::Sensor::new(" ", " ", 0.0, "TD"),
+            header::Sensor::new(" ", " ", 0.0, "HR"),
+            header::Sensor::new(" ", " ", 0.0, "WS"),
+            header::Sensor::new(" ", " ", 0.0, "WD"),
+            header::Sensor::new(" ", " ", 0.0, "RI"),
+            header::Sensor::new(" ", " ", 0.0, "HI"),
+        ];
+        header.sensors = Some(sensors);
+        // OBS codes
+        let met_codes = vec![
+            String::from("PR"),
+            String::from("TD"),
+            String::from("HR"),
+            String::from("WS"),
+            String::from("WD"),
+            String::from("RI"),
+            String::from("HI"),
+        ];
+        header.met_codes = Some(met_codes);
+        // RECORD 
+        let mut record = meteo::Record::with_capacity(10);
+        let epoch = epoch::Epoch::new(
+            epoch::str2date("15  1  1  0  0  0").unwrap(),
+            epoch::EpochFlag::Ok);
+        let mut content : HashMap<String, f32> = HashMap::with_capacity(7);
+        content.insert(String::from("PR"), 1018.6);
+        content.insert(String::from("TD"), 25.6);
+        content.insert(String::from("HR"), 78.9);
+        content.insert(String::from("WS"), 3.1);
+        content.insert(String::from("WD"), 10.0);
+        content.insert(String::from("RI"), 0.0);
+        content.insert(String::from("HI"), 0.0);
+        record.insert(epoch, content);
+        let record = record::Record::MeteoRecord(record);
         let rinex = Rinex::new(header, record);
-        rinex.to_file("test").unwrap()
+        rinex.to_file("test").unwrap();
+        //let identical = diff_is_strictly_identical("test", "data/MET/V2/abvi0010.15m").unwrap();
+        //assert_eq!(identical, true)
     }
 }
