@@ -67,7 +67,7 @@ fn main() {
 	let obs_codes = &rinex.header.obs_codes
 		.unwrap()
 		[&Constellation::Glonass];
-	println!("\n----------- OBS codes for {} system-------\n{:#?}", Constellation::Glonass, obs_codes);
+	println!("\n----------- OBS codes for {} system-------\n{:#?}", Constellation::Glonass.to_3_letter_code(), obs_codes);
     
     // ----> zoom in on `R24` vehicule for that particular `epoch` 
     let to_match = sv::Sv::new(Constellation::Glonass, 24);
