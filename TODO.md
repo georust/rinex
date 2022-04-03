@@ -55,6 +55,7 @@ Observation Data:
 
 Ci:
 * [ ] OBS: if rcvr clock offsets applied: check epochs do have this field
+* [ ] move src/lib.rs tests to dedicated tests/ folder 
 
 Hatanaka:
 * [x] numerical decompression
@@ -76,3 +77,6 @@ Meteo Data:
 Clocks Data:
 * [ ] V1, V2 
 * [ ] V3, V4
+
+Epoch:
+* [x] date2string : use strptime instead for correct 2/4 digit Y formatting
