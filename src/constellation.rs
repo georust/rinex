@@ -9,7 +9,7 @@ const QZSS_STR_IDENTIFIER    : &str = "QZS";
 const BEIDOU_STR_IDENTIFIER  : &str = "BDS";
 const SBAS_STR_IDENTIFIER    : &str = "SBS";
 const IRNSS_STR_IDENTIFIER   : &str = "IRN";
-const MIXED_STR_IDENTIFIER   : &str = "M";
+const MIXED_STR_IDENTIFIER   : &str = "M (Mixed)";
 
 /// Number of known ̀`GNSS` constellations
 pub const CONSTELLATION_LENGTH: usize = 6;
