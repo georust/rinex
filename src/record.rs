@@ -60,6 +60,11 @@ impl Record {
                     .unwrap();
                 Ok(meteo::to_file(header, &record, writer)?)
             },
+            Type::ObservationData => {
+                let record = self.as_obs()
+                    .unwrap();
+                Ok(observation::to_file(header, &record, writer)?)
+            },
             _ => {
                 Ok(())
             },

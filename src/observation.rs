@@ -1,4 +1,5 @@
 //! `ObservationData` parser and related methods
+use std::io::Write;
 use thiserror::Error;
 use std::str::FromStr;
 use strum_macros::EnumString;
@@ -7,9 +8,8 @@ use physical_constants::SPEED_OF_LIGHT_IN_VACUUM;
     
 use crate::sv;
 use crate::epoch;
-use crate::record;
+use crate::header;
 use crate::constellation;
-use crate::header::Header;
 
 #[macro_export]
 /// Returns True if 3 letter code 
@@ -103,7 +103,7 @@ pub enum RecordError {
 /// Builds `RINEX` record entry for `Observation` Data files.    
 /// Returns identified `epoch` to later sort data efficiently.    
 /// Returns 2D data as described in `record` definition
-pub fn build_record_entry (header: &Header, content: &str)
+pub fn build_record_entry (header: &header::Header, content: &str)
         -> Result<(epoch::Epoch, Option<f32>, HashMap<sv::Sv, HashMap<String, ObservationData>>), RecordError> 
 {
     let mut lines = content.lines();
@@ -417,6 +417,46 @@ pub fn build_record_entry (header: &Header, content: &str)
     Ok((epoch, clock_offset, map))
 }
 
+/// Pushes observation record into given file writer
+pub fn to_file (header: &header::Header, record: &Record, mut writer: std::fs::File) -> std::io::Result<()> {
+    let obs_codes = header.obs_codes.as_ref().unwrap();
+    for (epoch, (clock_offset, observations)) in record.iter() {
+        match header.version.major {
+            1|2 => {
+                write!(writer, " {} ",  epoch.date.format("%y %m %d %H %M %.6f").to_string())?;
+                //TODO wrapp systems on as many lines as needed
+                if let Some(clock_offset) = clock_offset {
+                    write!(writer, "{:.12}", clock_offset)?
+                }
+            },
+            _ => {
+                write!(writer, "> {} ", epoch.date.format("%Y %m %d %H %M %.6f").to_string())?;
+                if let Some(clock_offset) = clock_offset {
+                    write!(writer, "{:.12}", clock_offset)?
+                }
+                write!(writer, "\n")?
+            }
+        }
+        for (sv, obs) in observations.iter() {
+            if header.version.major > 2 {
+                // modern RINEX
+                write!(writer, "{} ", sv)?
+            }
+            for code in &obs_codes[&sv.constellation] { 
+                let data = obs[code];
+                write!(writer, "{:14.3} ", data.obs)?;
+                if let Some(lli) = data.lli {
+                    write!(writer, "{} ", lli)?
+                } else {
+                    write!(writer, " ")?
+                }
+            }
+            write!(writer, "\n")?
+        }
+    }
+    Ok(())
+}
+
 #[derive(EnumString)]
 pub enum CarrierFrequency {
     /// L1 is a GPS/QZSS/Sbas carrier
@@ -565,14 +605,14 @@ impl std::str::FromStr for ObservationCode {
 } */
 
 mod test {
-    use super::*;
+    use std::str::FromStr;
     #[test]
     /// Tests `CarrierFrequency` constructor
     fn test_carrier_frequency() {
-        assert_eq!(CarrierFrequency::from_str("L1").is_err(),  false);
-        assert_eq!(CarrierFrequency::from_str("E5a").is_err(), false);
-        assert_eq!(CarrierFrequency::from_str("E7").is_err(),  true);
-        assert_eq!(CarrierFrequency::from_str("L1").unwrap().frequency(), 1575.42_f64);
-        assert_eq!(CarrierFrequency::from_str("G1a").unwrap().frequency(), 1600.995_f64);
+        assert_eq!(super::CarrierFrequency::from_str("L1").is_err(),  false);
+        assert_eq!(super::CarrierFrequency::from_str("E5a").is_err(), false);
+        assert_eq!(super::CarrierFrequency::from_str("E7").is_err(),  true);
+        assert_eq!(super::CarrierFrequency::from_str("L1").unwrap().frequency(), 1575.42_f64);
+        assert_eq!(super::CarrierFrequency::from_str("G1a").unwrap().frequency(), 1600.995_f64);
     }
 }
