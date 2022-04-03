@@ -442,7 +442,7 @@ pub fn to_file (header: &header::Header, record: &Record, mut writer: std::fs::F
                 // modern RINEX
                 write!(writer, "{} ", sv)?
             }
-            for code in &obs_codes[&sv.constellation] { 
+            /*for code in &obs_codes[&sv.constellation] { 
                 let data = obs[code];
                 write!(writer, "{:14.3} ", data.obs)?;
                 if let Some(lli) = data.lli {
@@ -450,7 +450,7 @@ pub fn to_file (header: &header::Header, record: &Record, mut writer: std::fs::F
                 } else {
                     write!(writer, " ")?
                 }
-            }
+            }*/
             write!(writer, "\n")?
         }
     }
