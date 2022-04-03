@@ -891,43 +891,72 @@ impl std::fmt::Display for Header {
     /// `header` formatter, mainly for 
     /// `RINEX` file production purposes
     fn fmt (&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        /*if self.is_crinex() {
-            write!(f,"F9.2{}           ", self.version)?;
-            write!(f,"F9.2{}           ", self.version)?;
-        }*/
-        /*write!(f,"F9.2{}           ", self.version)?;*/
+        if self.is_crinex() {
+            // two special header lines
+        }
+        // RINEX VERSION / TYPE 
+        write!(f, "{:6}.{:02}", self.version.major, self.version.minor)?;
         match self.rinex_type {
-            Type::ObservationData => {
-                write!(f,"OBSERVATION DATA    ")?
-            },
-            Type::MeteorologicalData => {
-                write!(f,"METEOROLOGICAL DATA ")?
-            },
             Type::NavigationMessage => {
-                match self.constellation {
-                    Some(constellation::Constellation::Glonass) => write!(f,"GLONASS NAV        ")?,
-                    _ => write!(f,"NAVIGATION DATA    ")?
+                match self.constellation { // describes both type + constellation
+                    Some(constellation::Constellation::Glonass) => write!(f,"            GLONASS NAV        ")?,
+                    _ => { // type + constell separate fields
+                        write!(f,"            NAVIGATION DATA    ")?;
+                        write!(f, "{:>5}", self.constellation.unwrap_or(constellation::Constellation::default()))?
+                    },
                 }
             },
-            _ => {
-                panic!("non supported rinex type")
-            }
+            Type::MeteorologicalData => { // has no constellation tied to it
+                write!(f, "           {}", self.rinex_type.to_string(self.constellation))?; 
+                write!(f, "                     {}", "RINEX VERSION / TYPE\n")?;
+                // TYPES OF OBSERV 
+                let obs_codes = self.met_codes.as_ref().unwrap();
+                write!(f, "{:6}     ", obs_codes.len())?; 
+                for i in 0..obs_codes.len() {
+                    write!(f, "{}   ", obs_codes[i])?
+                }
+                write!(f, "                     {}", "# / TYPES OF OBSERV\n")?;
+                // METEO SENSORS
+                if let Some(sensors) = &self.sensors {
+                    for sensor in sensors {
+                        write!(f, "{:<20} ", sensor.model)?;
+                        write!(f, "{:<30} ", sensor.sens_type)?;
+                        write!(f, "{:.1} ", sensor.accuracy)?;
+                        write!(f, " {} ", sensor.physics)?;
+                        write!(f, "SENSOR MOD/TYPE/ACC\n")?
+                    }
+                }
+            },
+            Type::ObservationData => { // type + constell separate fields 
+                write!(f, "          {}", self.rinex_type.to_string(self.constellation))?; 
+                write!(f, "     {}", self.constellation.unwrap_or(constellation::Constellation::default()))?
+                //TODO OBS CODES 
+            },
         }
-        // PGM / RUN BY / DATE
-        write!(f, "{:<20}", self.program)?;
-        write!(f, "{:<20}", self.run_by)?; // TODO date field parsing
-        write!(f, "{:<20}", "PGM / RUN BY / DATE\n")?; 
-        // OBSERVER / AGENCY
-        write!(f, "{:<20}", self.observer)?;
-        write!(f, "{:<40}", self.agency)?;
-        write!(f, "{:<18}", "OBSERVER / AGENCY\n")?; 
         // COMMENTS 
         for comment in self.comments.iter() {
             write!(f, "{:<60}", comment)?;
             write!(f, "COMMENT\n")?
         }
+        // PGM / RUN BY / DATE
+        write!(f, "{:<20}", self.program)?;
+        write!(f, "{:<40}", self.run_by)?;
+        //TODO DATE field
+        write!(f, "{:<20}", "PGM / RUN BY / DATE\n")?; 
+        // OBSERVER / AGENCY
+        write!(f, "{:<20}", self.observer)?;
+        write!(f, "{:<40}", self.agency)?;
+        write!(f, "{:<18}", "OBSERVER / AGENCY\n")?; 
+        // MARKER NAME
+        write!(f, "{:<20}", self.station)?;
+        write!(f, "{:<40}", " ")?;
+        write!(f, "{}", "MARKER NAME\n")?;
+        // MARKER NUMBER
+        write!(f, "{:<20}", self.station_id)?;
+        write!(f, "{:<40}", " ")?;
+        write!(f, "{}", "MARKER NUMBER\n")?;
         // END OF HEADER
-        write!(f, "{:>73}", "END OF HEADER")
+        write!(f, "{:>74}", "END OF HEADER\n")
     }
 }
 
