@@ -3,7 +3,6 @@
 //! RINEX OBS files compression and decompression.   
 use crate::sv;
 use crate::header;
-use crate::record;
 use crate::is_comment;
 use crate::types::Type;
 use thiserror::Error;
@@ -690,7 +689,7 @@ impl Decompressor {
 
 #[cfg(test)]
 mod test {
-    use super::*;
+    use super::{Kernel,Dtype};
     #[test]
     /// Tests numerical data recovery    
     /// through Hatanaka decompression.   
