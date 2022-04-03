@@ -65,8 +65,10 @@ impl Record {
                     .unwrap();
                 Ok(observation::to_file(header, &record, writer)?)
             },
-            _ => {
-                Ok(())
+            Type::NavigationMessage => {
+                let record = self.as_nav()
+                    .unwrap();
+                Ok(navigation::to_file(header, &record, writer)?)
             },
         }
     }

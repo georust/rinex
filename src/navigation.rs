@@ -1,12 +1,13 @@
 //! `NavigationMessage` parser and related methods
+use std::io::Write;
 use thiserror::Error;
 use std::str::FromStr;
 use std::collections::HashMap;
 
 use crate::sv;
 use crate::epoch;
+use crate::header;
 use crate::constellation;
-use crate::header::Header;
 
 include!(concat!(env!("OUT_DIR"),"/nav_data.rs"));
 
@@ -94,7 +95,7 @@ pub enum RecordError {
 /// Builds `RinexRecord` entry for `NavigationMessage` file.    
 /// `header` : previously parsed Header    
 /// `content`: should comprise entire epoch content
-pub fn build_record_entry (header: &Header, content: &str)
+pub fn build_record_entry (header: &header::Header, content: &str)
         -> Result<(epoch::Epoch, sv::Sv, HashMap<String, ComplexEnum>), RecordError>
 {
     //  <o 
@@ -236,6 +237,17 @@ pub fn build_record_entry (header: &Header, content: &str)
         ),
         sv, 
         map))
+}
+
+/// Pushes observation record into given file writer
+pub fn to_file (header: &header::Header, record: &Record, mut writer: std::fs::File) -> std::io::Result<()> {
+    for epoch in record.keys() {
+        match header.version.major {
+            1|2 => write!(writer, " {} ",  epoch.date.format("%y %m %d %H %M %.6f").to_string())?,
+              _ => write!(writer, "> {} ", epoch.date.format("%Y %m %d %H %M %.6f").to_string())?,
+        }
+    }
+    Ok(())
 }
 
 mod test {
