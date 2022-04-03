@@ -25,7 +25,7 @@ is the where to look at.
 
 ### Supported RINEX revisions
 
-* 2.00 ⩽ v < 4.0    Tested 
+* 1.00 ⩽ v < 4.0    Tested 
 *             v = 4.0    refer to file type specific pages
 
 ## Supported `RINEX` format
@@ -231,6 +231,14 @@ identification number.
 ## Meteo Data
 
 [Meteo Data documentation](https://github.com/gwbres/rinex/blob/main/doc/meteo.md)
+
+## Work in progress
+
+Topics to be unlocked by next releases
+
+* RINEX file production : provide `to_file` methods
+to produce supported RINEX formats
+* RINEX Clock data type
 
 ## Contribute
 
