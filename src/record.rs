@@ -190,7 +190,7 @@ pub fn build_record (header: &header::Header, body: &str) -> Result<Record, Type
     let mut body = body.lines();
     let mut epoch_content = String::with_capacity(6*64);
 
-    // for CRINEX record, process is special
+    // CRINEX record special process is special
     // we need the decompression algorithm to run in rolling fashion
     // and feed the decompressed result to the `new epoch` detection method
     let crx_info = header.crinex.as_ref();
