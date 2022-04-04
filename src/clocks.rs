@@ -1,10 +1,29 @@
 //! clocks.rs   
 //! macros and structures for RINEX Clocks files
-use crate::sv;
-use crate::epoch;
-use crate::header;
-use thiserror::error;
+//use crate::sv;
+//use crate::epoch;
+//use crate::header;
+//use thiserror::error;
 
+/// Describes a clock analysis center / agency
+#[derive(Debug)]
+pub struct AnalysisCenter {
+    /// IGS AC 3 letter code
+    code: String,
+    /// agency name
+    agency: String,
+}
+
+impl AnalysisCenter {
+    pub fn new (code: &str, agency: &str) -> AnalysisCenter {
+        AnalysisCenter {
+            code: code.to_string(),
+            agency: agency.to_string(),
+        }
+    }
+}
+
+/*
 #[derive(Error, Debug)]
 /// Clocks file parsing & identification errors
 pub enum Error {
@@ -21,7 +40,7 @@ pub enum System {
 
 impl System {
     /// Unwraps self as a `satellite vehicule`
-    pub fn as_sv (&self) -> Option<sv::Sv) {
+    pub fn as_sv (&self) -> Option<sv::Sv> {
         match self {
             System::Sv(s) => Some(*s),
             _ => None,
@@ -66,7 +85,7 @@ impl std::str::FromStr for ClockDataType {
     type Err = Error;
     /// Builds a ClockData type from given official code
     fn from_str (code: &str) -> Result<Self, Self::Err> {
-        match code => {
+        match code {
             "AR" => Ok(ClockDataType::Ar),
             "AS" => Ok(ClockDataType::As),
             "CR" => Ok(ClockDataType::Cr),
@@ -78,12 +97,12 @@ impl std::str::FromStr for ClockDataType {
 } 
 
 /// RINEX record for CLOCKS files
-pub type Record = HashMap<epoch::Epoch, HashMap<ClockDataType, HashMap<System, ClockData>>;
+pub type Record = HashMap<epoch::Epoch, HashMap<ClockDataType, HashMap<System, ClockData>>>;
 
 /// Builds `RINEX` record entry for `Clocks` data files.   
 /// Returns identified `epoch` to sort data efficiently.  
 /// Returns 2D data as described in `record` definition
-pub fn build_record_entry (header: &Header, content: &str) -> Result<epoch::Epoch, HashMap<ClocDataType, ClockData>, Error> {
+pub fn build_record_entry (header: &Header, content: &str) -> Result<(epoch::Epoch, HashMap<ClocDataType, ClockData>), Error> {
     let mut lines = content.lines();
     let mut line = lines.next()
         .unwrap();
@@ -146,4 +165,4 @@ pub fn build_record_entry (header: &Header, content: &str) -> Result<epoch::Epoc
             line = lines.next().unwrap()
         }
     }
-}
+}*/

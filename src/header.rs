@@ -3,6 +3,7 @@
 use thiserror::Error;
 use std::collections::HashMap;
 
+use crate::clocks;
 use crate::version;
 use crate::gnss_time;
 use crate::{is_comment};
@@ -294,13 +295,18 @@ pub struct Header {
     /// Observations:   
     /// true if epochs & data compensate for local clock drift 
     pub rcvr_clock_offset_applied: bool, 
-    // observation (specific)
+    // observation - specific
     /// lists all types of observations 
     /// contained in this `Rinex` OBS file
     pub obs_codes: Option<HashMap<constellation::Constellation, Vec<String>>>, 
 	/// lists all types of observations
 	/// contains in this `RINEX` Meteo file
     pub met_codes: Option<Vec<String>>, 
+    // clocks - specific
+    /// Clock Data analysis production center
+    pub analysis_center: Option<clocks::AnalysisCenter>,
+    /// Clock Data observation codes
+    pub clk_codes: Option<Vec<String>>,
 }
 
 #[derive(Error, Debug)]
@@ -356,6 +362,9 @@ impl Default for Header {
             wavelengths: None,
             obs_codes: None,
 			met_codes: None,
+            // clocks
+            analysis_center: None,
+            clk_codes: None,
             // processing
             rcvr_clock_offset_applied: false,
             data_scaling: None,
@@ -520,6 +529,7 @@ impl std::str::FromStr for Header {
         let mut license     : Option<String> = None;
         let mut doi         : Option<String> = None;
         let mut station_url : Option<String> = None;
+        let mut analysis_center : Option<clocks::AnalysisCenter> = None;
         // hardware
         let mut ant        : Option<Antenna> = None;
         let mut ant_coords : Option<rust_3d::Point3D> = None;
@@ -767,7 +777,24 @@ impl std::str::FromStr for Header {
 					}
                 }
                 obs_codes.insert(constell, codes);
-            
+
+            } else if line.contains("ANALYSIS CENTER") {
+                let line = line.split_at(60).0;
+                let (code, agency) = line.split_at(3);
+                analysis_center = Some(clocks::AnalysisCenter::new(code.trim(), agency.trim()));
+
+            } else if line.contains("# / TYPES OF DATA") {
+                //TODO
+                /*let line = line.split_at(60).0;
+                let (n, rem) = line.split_at(10); // TODO
+                let n = u8::from_str_radix(n,10)?;
+                let mut line = rem.clone();
+                for i in 0..n { // parse CLOCKS codes
+                    let (code, rem) = line.split_at(10); // TODO
+                    clocks_code.push(code);
+                    line = rem.clone()
+                }*/
+         
             } else if line.contains("SIGNAL STRENGHT UNIT") {
                 //TODO
             } else if line.contains("INTERVAL") {
@@ -864,6 +891,8 @@ impl std::str::FromStr for Header {
             ant, 
 			sensors,
             leap,
+            analysis_center,
+            clk_codes: None,
             coords: coords,
             wavelengths: None,
             gps_utc_delta: None,

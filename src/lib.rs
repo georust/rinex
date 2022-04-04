@@ -4,6 +4,7 @@
 //! Refer to README for example of use.  
 //! Homepage: <https://github.com/gwbres/rinex>
 mod meteo;
+mod clocks;
 mod gnss_time;
 mod navigation;
 mod observation;
@@ -191,7 +192,6 @@ mod test {
                                     // epochs should always have a RCVR clock offset
                                     // test that with iterator
                                 }
-                                let record = rinex.record.as_obs().unwrap();
                                 let record = rinex.record.as_obs().unwrap();
                                 let mut epochs = record.keys();
                                 println!("----- EPOCH #1 ----- \n{:#?}", record[epochs.nth(0).unwrap()]);
