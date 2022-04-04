@@ -26,6 +26,4 @@ strum = "0.23.0"
 strum_macros = "0.23.0"
 physical_constants = "0.4.1"
 num-integer = "0.1.44"
-
-[dev-dependencies]
 itertools = "0.10.3"

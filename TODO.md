@@ -35,12 +35,13 @@ Record :
 * [x] ObsRecord : add clockoffsets to epoch record
 * [x] ObsRecord : introduce Observation(f32,lli,ssi) as payload
 * [ ] preserve encountered `comments` and tie them to the related `epoch`,
-for advanced manipulations & recovery
+for advanced manipulations & recovery. 
+Should differienate between header comments (indexed by line position - or dont care),
+and record comments (indexed by epoch / timestamp)
 
 Navigation Messages:
-* [ ] improve database usage.   
-`revision.minor` might be passed and must be used.   
-We should parse using the closest revision number
+* [x] improve database usage.   
+* [x] move db revision identification 
 
 Observation Data:
 * [x] parse OBS codes V < 3

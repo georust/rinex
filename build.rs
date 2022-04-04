@@ -17,10 +17,16 @@ fn main() {
         .write_all("use lazy_static::lazy_static;\n\n".as_bytes())
         .unwrap();
     nav_file
-        .write_all("pub struct NavMessage {\n   constellation: &'static str,\n   revisions: Vec<NavRevision>,\n}\n\n".as_bytes())
+        .write_all("#[derive(Debug)]\n".as_bytes())
         .unwrap();
     nav_file
-        .write_all("pub struct NavRevision {\n   major: &'static str,\n   minor: &'static str,\n   items: Vec<(&'static str,&'static str)>,\n}\n\n".as_bytes())
+        .write_all("struct NavMessage {\n   pub constellation: &'static str,\n   pub revisions: Vec<NavRevision>,\n}\n\n".as_bytes())
+        .unwrap();
+    nav_file
+        .write_all("#[derive(Debug)]\n".as_bytes())
+        .unwrap();
+    nav_file
+        .write_all("struct NavRevision {\n   major: &'static str,\n   minor: &'static str,\n   items: Vec<(&'static str,&'static str)>,\n}\n\n".as_bytes())
         .unwrap();
     nav_file
         .write_all("lazy_static! {\n".as_bytes())

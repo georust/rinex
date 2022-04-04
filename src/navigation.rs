@@ -180,51 +180,58 @@ pub fn build_record_entry (header: &header::Header, content: &str)
     let mut total: usize = 0; 
     let mut new_line = true;
     
-    // NAV database
-    let db : Vec<_> = NAV_MESSAGES.iter().collect();
-    for nav in &db {
-        //   ---> refer to Sv identified constell,
-        //        because header.constellation might be `Mixed`
-        let to_match = constellation::Constellation::from_str(nav.constellation)
-            .unwrap();
-        if sv.constellation == to_match {
-            for rev in nav.revisions.iter() {
-                let major = u8::from_str_radix(rev.major, 10)
-                    .unwrap();
-                let minor = u8::from_str_radix(rev.minor, 10)
-                    .unwrap();
-                if major == header.version.major {
-                    // use closest matching minor revision
-                    for item in rev.items.iter() {
-                        let (k, v) = item;
-                        let offset: usize = match new_line {
-                            false => 19,
-                            true => {
-                                new_line = false;
-                                if header.version.major >= 3 {
-                                    22+1
-                                } else {
-                                    22
-                                }
-                            }
-                        };
-                        total += offset;
-                        let (content, rem) = line.split_at(offset);
-                        line = rem;
-                        if !k.eq(&"spare") {
-                            let rec_item = ComplexEnum::new(v, content.trim())?;
-                            map.insert(String::from(*k), rec_item);
-                        }
-                        if total >= 76 {
-                            new_line = true;
-                            total = 0;
-                            if let Some(l) = lines.next() {
-                                line = l;
-                            } else {
-                                break
-                            }
-                        }
+    // NAV database for all following items
+    // [1] identify revision for given satellite vehicule constellation
+    //     (not using header.revision because it could be Constellation::Mixed
+    let db_revision =  db_closest_revision(
+        sv.constellation,
+        header.version
+    );
+    if let Some(revision) = db_revision { // contained in db
+        // [2] retrieve db items to parse
+        let items : Vec<_> = NAV_MESSAGES
+            .iter()
+            .filter(|r| r.constellation == sv.constellation.to_3_letter_code())
+            .map(|r| {
+                r.revisions
+                    .iter()
+                    .filter(|r| // identified db revision
+                        u8::from_str_radix(r.major,10).unwrap() == revision.major
+                        && u8::from_str_radix(r.minor,10).unwrap() == revision.minor
+                    )
+                    .map(|r| &r.items)
+                    .flatten()
+            })
+            .flatten()
+            .collect();
+        // parse items
+        for item in items.iter() {
+            let (k, v) = item;
+            let offset: usize = match new_line {
+                false => 19,
+                true => {
+                    new_line = false;
+                    if header.version.major >= 3 {
+                        22+1
+                    } else {
+                        22
                     }
+                }
+            };
+            total += offset;
+            let (content, rem) = line.split_at(offset);
+            line = rem;
+            if !k.eq(&"spare") {
+                let rec_item = ComplexEnum::new(v, content.trim())?;
+                map.insert(String::from(*k), rec_item);
+            }
+            if total >= 76 {
+                new_line = true;
+                total = 0;
+                if let Some(l) = lines.next() {
+                    line = l;
+                } else {
+                    break
                 }
             }
         }
@@ -253,7 +260,7 @@ pub fn to_file (header: &header::Header, record: &Record, mut writer: std::fs::F
 /// Closest content is later used to identify data payload.    
 /// Returns None if no database entries found for requested constellation or   
 /// only newer revisions found for this constellation (older revisions are always prefered) 
-pub fn db_closest_revision (constell: constellation::Constellation, desired_rev: version::Version) -> Option<version::Version> {
+fn db_closest_revision (constell: constellation::Constellation, desired_rev: version::Version) -> Option<version::Version> {
     let db = &NAV_MESSAGES;
     let revisions : Vec<_> = db.iter() // match requested constellation
         .filter(|rev| rev.constellation == constell.to_3_letter_code())
