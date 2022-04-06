@@ -92,6 +92,53 @@ impl Rinex {
         &self.comments
     } 
 
+    /// Returns comments extracted from `header` section exclusively
+    pub fn get_header_comments (&self) -> Vec<&str> { 
+        let mut result : Vec<&str> = Vec::new();
+        let epochs : Vec<&epoch::Epoch> = match self.header.rinex_type {
+            types::Type::ObservationData => self.record.as_obs().unwrap().keys().collect(),
+            types::Type::NavigationMessage => self.record.as_nav().unwrap().keys().collect(),
+            types::Type::MeteoData => self.record.as_meteo().unwrap().keys().collect(),
+        };
+        let e_0 : &epoch::Epoch = match epochs.len() {
+            0 => {
+                // empty record field
+                // --> returns all comments (if any)
+                let epochs : Vec<_> = self.comments.keys().collect();
+                epochs[0]
+            },
+            _ => epochs[0],
+        };
+        for (epoch, content) in self.comments.iter() {
+            if epoch.date == e_0.date {
+                for c in content {
+                    result.push(c)
+                }
+            }
+        }
+        result
+    }
+
+    /// Returns comments that were encountered in `record` body.    
+    /// This method will crash if used on a RINEX with empty `record`
+    pub fn get_body_comments (&self) -> Vec<&str> {
+        let mut result : Vec<&str> = Vec::new();
+        let epochs : Vec<&epoch::Epoch> = match self.header.rinex_type {
+            types::Type::ObservationData => self.record.as_obs().unwrap().keys().collect(),
+            types::Type::NavigationMessage => self.record.as_nav().unwrap().keys().collect(),
+            types::Type::MeteoData => self.record.as_meteo().unwrap().keys().collect(),
+        };
+        let t0 = epochs[0].date;
+        for (epoch, content) in self.comments.iter() {
+            if epoch.date > t0 {
+                for c in content {
+                    result.push(c)
+                }
+            }
+        }
+        result
+    }
+
     /// Returns sampling interval for rinex record 
     /// + either directly from optionnal information contained in `header`   
     /// + or (if not provided by header), by computing the average time interval between two successive epochs,    
@@ -199,28 +246,42 @@ impl Rinex {
             .collect()
     }
 
+    /// Returns (if possible) event explanation / description by searching through identified comments,
+    /// and returning closest comment (inside record) in time.    
+    /// Usually, comments are associated to epoch events (anomalies) to describe what happened.   
+    /// This method tries to locate a list of comments that were associated to the given timestamp 
+    pub fn event_description (&self, event: epoch::Epoch) -> Option<&str> {
+        let comments : Vec<_> = self.comments
+            .iter()
+            .filter(|(k,v)| *k == &event)
+            .map(|(k,v)| v)
+            .flatten()
+            .collect();
+        if comments.len() > 0 {
+            Some(comments[0]) // TODO grab all content! by serializing into a single string
+        } else {
+            None
+        }
+    } 
+
     /// Returns `true` if self is a `merged` RINEX file,   
     /// that means results from two or more separate RINEX files merged toghether.   
     /// This is determined by the presence of a custom yet somewhat standardized `FILE MERGE` comments
     pub fn is_merged_rinex (&self) -> bool {
-        //TODO 
-        /*for c in &self.header.comments {
-            if c.contains("FILE MERGE") {
-                return true
+        for (_, content) in self.comments.iter() {
+            for c in content {
+                if c.contains("FILE MERGE") {
+                    return true
+                }
             }
         }
-        for c in self.record.comments {
-            if c.contains("FILE MERGE") {
-                return true
-            }
-        }*/
-        return false
+        false
     }
 
-    /// Returns list of epochs where RINEX merge operation(s) occurred.    
+    /// Returns list of epochs where RINEX merging operation(s) occurred.    
     /// Epochs are determined either by the pseudo standard `FILE MERGE` comment description,
     /// or by comment epochs inside the record
-    pub fn merging_epochs (&self) -> Vec<epoch::Epoch> {
+    pub fn merge_boundaries (&self) -> Vec<epoch::Epoch> {
         Vec::new()
     }    
 
@@ -317,6 +378,12 @@ mod test {
                                 assert_eq!(rinex.header.met_codes.is_none(), true);
                                 let record = rinex.record.as_nav().unwrap();
                                 println!("----- EPOCHs ----- \n{:#?}", record.keys());
+                                let mut epochs = record.keys();
+                                // Testing event description finder
+                                if let Some(event) = epochs.nth(0) {
+                                    // [1] with dummy t0 = epoch timestamp ==> should return header comments
+                                    println!("EVENT @ {:#?} - description: {:#?}", event, rinex.event_description(*event)); 
+                                }
                             },
                             "OBS" => {
                                 // OBS files checks
@@ -329,7 +396,13 @@ mod test {
                                     // test that with iterator
                                 }
                                 let record = rinex.record.as_obs().unwrap();
+                                let mut epochs = record.keys();
                                 println!("----- EPOCHs ----- \n{:#?}", record.keys());
+                                // Testing event description finder
+                                if let Some(event) = epochs.nth(0) {
+                                    // [1] with dummy t0 = epoch timestamp ==> should return header comments
+                                    println!("EVENT @ {:#?} - description: {:#?}", event, rinex.event_description(*event)); 
+                                }
                             },
                             "CRNX" => {
                                 // compressed OBS files checks
@@ -338,7 +411,13 @@ mod test {
                                 assert_eq!(rinex.header.obs_codes.is_some(), true);
                                 assert_eq!(rinex.header.met_codes.is_none(), true);
                                 let record = rinex.record.as_obs().unwrap();
-                                println!("----- EPOCHs ----- \n{:#?}", record.keys());
+                                let mut epochs = record.keys();
+                                println!("----- EPOCHs ----- \n{:#?}", epochs); 
+                                // Testing event description finder
+                                if let Some(event) = epochs.nth(0) {
+                                    // [1] with dummy t0 = epoch timestamp ==> should return header comments
+                                    println!("EVENT @ {:#?} - description: {:#?}", event, rinex.event_description(*event)); 
+                                }
                             },
 							"MET" => {
                                 // METEO files checks
@@ -347,7 +426,13 @@ mod test {
                                 assert_eq!(rinex.header.met_codes.is_some(), true);
                                 assert_eq!(rinex.header.obs_codes.is_none(), true);
                                 let record = rinex.record.as_meteo().unwrap();
-                                println!("----- EPOCHs ----- \n{:#?}", record.keys());
+                                let mut epochs = record.keys();
+                                println!("----- EPOCHs ----- \n{:#?}", epochs);
+                                // Testing event description finder
+                                if let Some(event) = epochs.nth(0) {
+                                    // [1] with dummy t0 = epoch timestamp ==> should return header comments
+                                    println!("EVENT @ {:#?} - description: {:#?}", event, rinex.event_description(*event)); 
+                                }
                             },
                             _ => {}
                         }
@@ -356,7 +441,10 @@ mod test {
                         println!("sampling dead time : {:#?}", rinex.sampling_dead_time());
                         println!("abnormal epochs    : {:#?}", rinex.epoch_anomalies(None));
                         // COMMENTS
-                        println!("---------- Comments ------- \n{:#?}", rinex.comments);
+                        println!("---------- Header Comments ----- \n{:#?}", rinex.get_header_comments());
+                        println!("---------- Body   Comments ------- \n{:#?}", rinex.get_body_comments());
+                        // MERGED RINEX special ops
+                        println!("is merged          : {}", rinex.is_merged_rinex());
                         // RINEX Productor
                         rinex.to_file(&format!("{}-copy", full_path)).unwrap();
                         //TODO test bench

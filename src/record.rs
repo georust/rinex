@@ -328,25 +328,35 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Com
             }
         }
     }
-    // --> try to an epoch out of current leftover
+    // --> try to build an epoch out of current residues
+    // this covers 
+    //   + final epoch (last epoch in record)
+    //   + comments parsing with empty record (empty file body)
     match &header.rinex_type {
         Type::NavigationMessage => {
             if let Ok((e, sv, map)) = navigation::build_record_entry(&header, &epoch_content) {
                 let mut smap : HashMap<sv::Sv, HashMap<String, navigation::ComplexEnum>> = HashMap::with_capacity(1);
                 smap.insert(sv, map);
                 nav_rec.insert(e, smap);
+                comment_ts = e.clone(); // for comments classification + management
             }
         },
         Type::ObservationData => {
             if let Ok((e, ck_offset, map)) = observation::build_record_entry(&header, &epoch_content) {
                 obs_rec.insert(e, (ck_offset, map));
+                comment_ts = e.clone(); // for comments classification + management
             }
         },
         Type::MeteoData => {
             if let Ok((e, map)) = meteo::build_record_entry(&header, &epoch_content) {
                 met_rec.insert(e, map);
+                comment_ts = e.clone(); // for comments classification + management
             }
         },
+    }
+    // new comments ?
+    if !comment_content.is_empty() {
+        comments.insert(comment_ts, comment_content.clone());
     }
     // wrap record
     let record = match &header.rinex_type {
