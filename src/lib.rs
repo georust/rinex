@@ -258,8 +258,8 @@ mod test {
         let test_data = vec![
 			"NAV",
 			"OBS",
-			//"CRNX",
-			//"MET",
+			"CRNX",
+			"MET",
 		];
         for data in test_data {
             let data_path = std::path::PathBuf::from(
