@@ -56,9 +56,15 @@ same epoch, new sv: .insert() overwrites previous entry
 * [x] ObsRecord : add clockoffsets to epoch record
 * [x] ObsRecord : introduce Observation(f32,lli,ssi) as payload
 
+Epochs:
+* [ ] epoch flag mask operation & special bitmask operations
+ * [ ] --> abnormal epochs masking 
+
 Observation Data:
 * [ ] rescale raw phase data exceeding F14.3 format by +/- 10E9 accordingly
 * [ ] SYS PHASE Shift ?
+* [ ] LLI proper identification method + usage 
+* [ ] SSI proper identification method + usage 
 
 Ci:
 * [ ] OBS: if rcvr clock offsets applied: check epochs do have this field

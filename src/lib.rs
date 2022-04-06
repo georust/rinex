@@ -95,46 +95,16 @@ impl Rinex {
                 types::Type::NavigationMessage => self.record.as_nav().unwrap().keys().collect(),
                 types::Type::MeteoData => self.record.as_meteo().unwrap().keys().collect(),
             };
-            /*if epochs.len() < 2 { // weird cases: 
-                    // record is empty 
-                    // or epoch is unique & calculation is not feasible
-                return None
-            }*/
-            if let Some(e) = epochs.get(1) {
-                let e_0 = epochs.get(0).unwrap();
-                if e.flag.is_ok() && e_0.flag.is_ok() {
-                    // delta(0, 1)
-                    let delta = (epochs.get(1).unwrap().date - epochs.get(0).unwrap().date).num_seconds();
-                    if histogram.contains_key(&delta) {
-                        let prev = histogram.get(&delta).unwrap();
-                        histogram.insert(delta, *prev +1); // increment population
-                    } else {
-                        histogram.insert(delta, 1); // new entry
-                    }
-                }
-            }
-            for i in 1..epochs.len() {
+            for i in 0..epochs.len()-1 {
                 let e_i = epochs.get(i).unwrap();
                 if e_i.flag.is_ok() {
-                    if let Some(e) = epochs.get(i-1) {
-                        if e.flag.is_ok() {
-                            // delta(i, i-1)
-                            let delta = (epochs.get(i).unwrap().date - e.date).num_seconds();
-                            if histogram.contains_key(&delta) {
-                                let prev = histogram.get(&delta).unwrap();
-                                histogram.insert(delta, *prev +1); // increment population
-                            } else {
-                                histogram.insert(delta, 1); // new entry
-                            }
-                        }
-                    }
                     if let Some(e) = epochs.get(i+1) {
                         if e.flag.is_ok() {
-                            // delta(i+1, i)
+                            // delta(i+1, i) --> positive deltas
                             let delta = (e.date - epochs.get(i).unwrap().date).num_seconds();
                             if histogram.contains_key(&delta) {
                                 let prev = histogram.get(&delta).unwrap();
-                                histogram.insert(delta, *prev +1); // increment population
+                                histogram.insert(delta, *prev +1); // overwrite 
                             } else {
                                 histogram.insert(delta, 1); // new entry
                             }
@@ -157,18 +127,63 @@ impl Rinex {
         }
     }
 
-    /// This method returns a list of epochs where unusual dead time without data appeared.   
-    /// This is determined by computing successive time difference betweeen epochs and
-    /// comparing this value to nominal time difference (`interval`) 
+    /// Returns a list of epochs that represent an unusual data gap (dead time: time without data in the record).   
+    /// This is determined by computing time difference between successive epochs and comparing this value   
+    /// to nominal time difference (`sampling interval`).    
+    /// Only epochs validated by an `Ok` flag are taken into account in these calculations.    
+    /// Granularity is 1 second.
     pub fn sampling_dead_time (&self) -> Vec<epoch::Epoch> {
-        let mut result : Vec<epoch::Epoch> = Vec::new();
         let sampling_interval = self.sampling_interval();
+        let mut result : Vec<epoch::Epoch> = Vec::new();
         let epochs : Vec<&epoch::Epoch> = match self.header.rinex_type {
             types::Type::ObservationData => self.record.as_obs().unwrap().keys().collect(),
             types::Type::NavigationMessage => self.record.as_nav().unwrap().keys().collect(),
             types::Type::MeteoData => self.record.as_meteo().unwrap().keys().collect(),
         };
+        if let Some(interval) = sampling_interval { // got a value to compare to
+            for i in 0..epochs.len()-1 {
+                let e_i = epochs.get(i).unwrap();
+                if e_i.flag.is_ok() {
+                    if let Some(e) = epochs.get(i+1) {
+                        if e.flag.is_ok() {
+                            let delta = (e.date - e_i.date).num_seconds() as u64;
+                            if delta > interval.as_secs() {
+                                result.push(**e)
+                            }
+                        }
+                    }
+                }
+            }
+        }
         result
+    }
+    
+    /// Returns list of epochs where unusual events happen,    
+    /// ie., epochs with an != Ok flag attached to them.    
+    /// Use `mask` to provide a specific epoch events filter.    
+    /// This method is very useful to determine when, in a given `record`,    
+    /// special events happened and their nature, like:    
+    ///   + locate power cycle failures in the record    
+    ///   + determine where the receiver was physically moved in the `record` with EpochFlag::NewSiteOccupation mask filter    
+    ///   + locate external events in the record
+    ///   + determine special indications contained in header information with EpochFlag::HeaderInformation mask filter    
+    ///   + much more
+    pub fn epoch_anomalies (&self, mask: Option<epoch::EpochFlag>) -> Vec<&epoch::Epoch> { 
+        let epochs : Vec<&epoch::Epoch> = match self.header.rinex_type {
+            types::Type::ObservationData => self.record.as_obs().unwrap().keys().collect(),
+            types::Type::NavigationMessage => self.record.as_nav().unwrap().keys().collect(),
+            types::Type::MeteoData => self.record.as_meteo().unwrap().keys().collect(),
+        };
+        epochs
+            .into_iter()
+            .filter(|e| {
+                let mut nok = !e.flag.is_ok(); // abnormal epoch
+                if let Some(mask) = mask {
+                    nok &= e.flag == mask // + match specific event mask
+                }
+                nok
+            })
+            .collect()
     }
 
     /// Returns `true` if self is a `merged` RINEX file,   
@@ -271,12 +286,14 @@ mod test {
                         .unwrap()
                         .ends_with("-copy");
                     if !is_hidden && is_test_file {
+                        // PARSER
                         println!("Parsing file: \"{}\"", full_path);
                         let rinex = Rinex::from_file(full_path);
                         assert_eq!(rinex.is_err(), false); // 1st basic test
+                        // HEADER
                         let rinex = rinex.unwrap();
                         println!("{:#?}", rinex.header);
-                        println!("sampling interval: {:#?}", rinex.sampling_interval());
+                        // RECORD
                         match data {
                             "NAV" => {
                                 // NAV files checks
@@ -320,8 +337,13 @@ mod test {
                             },
                             _ => {}
                         }
-                        // test file production
+                        // SPECIAL METHODS
+                        println!("sampling interval  : {:#?}", rinex.sampling_interval());
+                        println!("sampling dead time : {:#?}", rinex.sampling_dead_time());
+                        println!("abnormal epochs    : {:#?}", rinex.epoch_anomalies(None));
+                        // RINEX Productor
                         rinex.to_file(&format!("{}-copy", full_path)).unwrap();
+                        //TODO test bench
                         //let identical = diff_is_strictly_identical("test", "data/MET/V2/abvi0010.15m").unwrap();
                         //assert_eq!(identical, true)
                     }
