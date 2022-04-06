@@ -2,7 +2,7 @@
 use std::io::Write;
 use thiserror::Error;
 use std::str::FromStr;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use crate::epoch;
 use crate::header;
 use crate::header::Header;
@@ -80,7 +80,7 @@ macro_rules! is_hail_indicator_code {
 }
 
 /// `Record` content for Meteo data files
-pub type Record = HashMap<epoch::Epoch, HashMap<String, f32>>;
+pub type Record = BTreeMap<epoch::Epoch, HashMap<String, f32>>;
 
 #[derive(Error, Debug)]
 /// Meteo Data `Record` parsing specific errors
