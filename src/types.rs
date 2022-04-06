@@ -11,8 +11,8 @@ pub enum Type {
     /// Describes Navigation Message (NAV)
     /// Ephemeride file
     NavigationMessage,
-    /// Describes Meteorological data (Meteo)
-    MeteorologicalData,
+    /// Describes Meteorological data (MET)
+    MeteoData,
 }
 
 #[derive(Error, Debug)]
@@ -38,7 +38,7 @@ impl Type {
                     _ => String::from("NAV DATA"),
                 }
             },
-            Type::MeteorologicalData => String::from("METEOROLOGICAL DATA"),
+            Type::MeteoData => String::from("METEOROLOGICAL DATA"),
         }
     }
 }
@@ -53,7 +53,7 @@ impl std::str::FromStr for Type {
         } else if s.eq("OBSERVATION DATA") {
             Ok(Type::ObservationData)
         } else if s.eq("METEOROLOGICAL DATA") {
-            Ok(Type::MeteorologicalData)
+            Ok(Type::MeteoData)
         } else {
             Err(TypeError::UnknownType(String::from(s)))
         }
