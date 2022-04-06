@@ -134,8 +134,9 @@ impl Rinex {
         }
     }
 
-    /// Returns list of epochs (date + flag) for which sampling interval differed
-    /// from nominal sampling interval by a longer dead time without data
+    /// This method returns a list of epochs where unusual dead time without data appeared.   
+    /// This is determined by computing successive time difference betweeen epochs and
+    /// comparing this value to nominal time difference (`interval`) 
     pub fn sampling_dead_time (&self) -> Vec<epoch::Epoch> {
         let mut epochs : Vec<epoch::Epoch> = Vec::new();
         let sampling_interval = self.sampling_interval();
