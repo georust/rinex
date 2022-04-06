@@ -235,11 +235,11 @@ pub fn build_record_entry (header: &header::Header, content: &str)
 
 			// old RINEX revision : using previously identified Sv 
 			let sv : sv::Sv = sv_list[i]; 
-			let obs_codes = &header.obs_codes
+			let obs_codes = header.obs_codes
 				.as_ref()
 					.unwrap()
-					[&sv.constellation];
-			
+					.get(&sv.constellation)
+					.unwrap();
 			let mut code_index : usize = 0;
 			loop { // per obs code
 				let code = &obs_codes[code_index];
@@ -355,7 +355,8 @@ pub fn build_record_entry (header: &header::Header, content: &str)
 			let obs_codes = &header.obs_codes
 				.as_ref()
 					.unwrap()
-					[&sv.constellation];
+					.get(&sv.constellation)
+					.unwrap();
 			let mut offset : usize = 0;
 			let mut code_index : usize = 0;
 			let mut obs_map : HashMap<String, ObservationData> = HashMap::new();
