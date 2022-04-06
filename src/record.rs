@@ -196,11 +196,15 @@ pub fn is_new_epoch (line: &str, header: &header::Header) -> bool {
 pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Comments), Error> {
     let file = File::open(path)?;
     let reader = BufReader::new(file);
-    let mut comments : Comments = Comments::new();
     let mut inside_header = true;
     let mut first_epoch = true;
     let mut content : Option<String>; // epoch content to build
     let mut epoch_content = String::with_capacity(6*64);
+    
+    // to manage `record` comments
+    let mut comments : Comments = Comments::new();
+    let mut comment_ts = epoch::Epoch::default();
+    let mut comment_content : Vec<String> = Vec::with_capacity(4);
 
     // CRINEX record special process is special
     // we need the decompression algorithm to run in rolling fashion
@@ -214,14 +218,19 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Com
 
     for l in reader.lines() { // process one line at a time 
         let line = l.unwrap();
-        if inside_header { // still inside header
-            if line.contains("END OF HEADER") {
-                inside_header = false // header is terminating
-            }
+        // COMMENTS special case
+        // --> store
+        // ---> append later with epoch.timestamp attached to it
+        if is_comment!(line) {
+            let comment = line.split_at(60).0.trim_end();
+            comment_content.push(comment.to_string());
             continue
         }
-        if is_comment!(line) {
-            continue  // SKIP
+        if inside_header { // still inside header
+            if line.contains("END OF HEADER") {
+                inside_header = false // header is ending 
+            }
+            continue
         }
         // manage CRINEX case
         //  [1]  RINEX : pass content as is
@@ -275,6 +284,7 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Com
                                     sv_map.insert(sv, map);
                                     nav_rec.insert(e, sv_map);
                                 };
+                                comment_ts = e.clone(); // for comments classification + management
                             }
                         },
                         Type::ObservationData => {
@@ -284,6 +294,7 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Com
                                 // we should never face parsed epoch that were previously parsed
                                 // even in case of `merged` RINEX
                                 obs_rec.insert(e, (ck_offset, map));
+                                comment_ts = e.clone(); // for comments classification + management
                             }
                         },
                         Type::MeteoData => {
@@ -293,8 +304,15 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Com
                                 // we should never face parsed epoch that were previously parsed
                                 // even in case of `merged` RINEX
                                 met_rec.insert(e, map);
+                                comment_ts = e.clone(); // for comments classification + management
                             }
                         },
+                    }
+
+                    // new comments ?
+                    if !comment_content.is_empty() {
+                        comments.insert(comment_ts, comment_content.clone());
+                        comment_content.clear() // reset 
                     }
                 }
 

@@ -203,13 +203,13 @@ impl Rinex {
     /// that means results from two or more separate RINEX files merged toghether.   
     /// This is determined by the presence of a custom yet somewhat standardized `FILE MERGE` comments
     pub fn is_merged_rinex (&self) -> bool {
-        for c in &self.header.comments {
+        //TODO 
+        /*for c in &self.header.comments {
             if c.contains("FILE MERGE") {
                 return true
             }
         }
-        //TODO 
-        /*for c in self.record.comments {
+        for c in self.record.comments {
             if c.contains("FILE MERGE") {
                 return true
             }
@@ -355,6 +355,8 @@ mod test {
                         println!("sampling interval  : {:#?}", rinex.sampling_interval());
                         println!("sampling dead time : {:#?}", rinex.sampling_dead_time());
                         println!("abnormal epochs    : {:#?}", rinex.epoch_anomalies(None));
+                        // COMMENTS
+                        println!("---------- Comments ------- \n{:#?}", rinex.comments);
                         // RINEX Productor
                         rinex.to_file(&format!("{}-copy", full_path)).unwrap();
                         //TODO test bench

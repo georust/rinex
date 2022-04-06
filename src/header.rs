@@ -250,8 +250,6 @@ pub struct Header {
     //ionospheric_corr: Option<Vec<IonoCorr>>,
     // possible time system correction(s)
     //gnsstime_corr: Option<Vec<gnss_time::GnssTimeCorr>>,
-    /// List of comments encountered in header section
-    pub comments: Vec<String>,
     /// Observations:   
     /// true if epochs & data compensate for local clock drift 
     pub rcvr_clock_offset_applied: bool, 
@@ -308,7 +306,6 @@ impl Default for Header {
             observer: String::new(),
             agency: String::new(),
             station_url: String::new(),
-            comments: Vec::new(),
             doi: String::new(),
             license: String::new(),
             leap: None,
@@ -358,7 +355,6 @@ impl Header {
         let mut license    = String::new();
         let mut doi        = String::new();
         let mut station_url= String::new();
-        let mut comments   : Vec<String> = Vec::with_capacity(4); 
         // hardware
         let mut ant        : Option<Antenna> = None;
         let mut ant_coords : Option<rust_3d::Point3D> = None;
@@ -383,9 +379,7 @@ impl Header {
             let line = &l.unwrap();
             // [0] COMMENTS
             if is_comment!(line) {
-                let comment = line.split_at(60).0;
-                comments.push(comment.trim().to_string());
-                continue
+                continue // SKIP, comments are specifically managed in src/record.rs
             }
             // [1] CRINEX 
             else if line.contains("CRINEX VERS") {
@@ -787,7 +781,6 @@ impl Header {
             crinex: crnx_infos, 
             rinex_type,
             constellation,
-            comments,
             program,
             run_by,
             date,
@@ -891,10 +884,10 @@ impl std::fmt::Display for Header {
             }
         }
         // COMMENTS 
-        for comment in self.comments.iter() {
-            write!(f, "{:<60}", comment)?;
-            write!(f, "COMMENT\n")?
-        }
+        //for comment in self.comments.iter() {
+        //    write!(f, "{:<60}", comment)?;
+        //    write!(f, "COMMENT\n")?
+        //}
         // PGM / RUN BY / DATE
         write!(f, "{:<20}", self.program)?;
         write!(f, "{:<40}", self.run_by)?;
