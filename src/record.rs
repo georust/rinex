@@ -255,18 +255,39 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<Record, Erro
                     match &header.rinex_type {
                         Type::NavigationMessage => {
                             if let Ok((e, sv, map)) = navigation::build_record_entry(&header, &epoch_content) {
-                                let mut smap : HashMap<sv::Sv, HashMap<String, navigation::ComplexEnum>> = HashMap::with_capacity(1);
-                                smap.insert(sv, map);
-                                nav_rec.insert(e, smap);
+                                if nav_rec.contains_key(&e) {
+                                    // <o 
+                                    // NAV epoch provides a unique Sv for a given epoch
+                                    // it is possible to return an already existing epoch (previously parsed)
+                                    // in case of `merged` RINEX
+                                    // --> retrieve previous epoch
+                                    // ---> append new `sv` data 
+                                    let mut prev = nav_rec.remove(&e).unwrap(); // grab previous entry
+                                    prev.insert(sv, map); // insert 
+                                    nav_rec.insert(e, prev); // (re)insert
+                                } else {
+                                    // new epoch -> insert
+                                    let mut sv_map : HashMap<sv::Sv, HashMap<String, navigation::ComplexEnum>> = HashMap::with_capacity(1);
+                                    sv_map.insert(sv, map);
+                                    nav_rec.insert(e, sv_map);
+                                };
                             }
                         },
                         Type::ObservationData => {
                             if let Ok((e, ck_offset, map)) = observation::build_record_entry(&header, &epoch_content) {
+                                // <o 
+                                // OBS data provides all observations realized @ a given epoch
+                                // we should never face parsed epoch that were previously parsed
+                                // even in case of `merged` RINEX
                                 obs_rec.insert(e, (ck_offset, map));
                             }
                         },
                         Type::MeteoData => {
                             if let Ok((e, map)) = meteo::build_record_entry(&header, &epoch_content) {
+                                // <o 
+                                // OBS data provides all observations realized @ a given epoch
+                                // we should never face parsed epoch that were previously parsed
+                                // even in case of `merged` RINEX
                                 met_rec.insert(e, map);
                             }
                         },

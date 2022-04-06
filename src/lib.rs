@@ -213,9 +213,9 @@ mod test {
         let data_dir = env!("CARGO_MANIFEST_DIR").to_owned() + "/data";
         let test_data = vec![
 			"NAV",
-			//"OBS",
-			//"CRNX",
-			//"MET",
+			"OBS",
+			"CRNX",
+			"MET",
 		];
         for data in test_data {
             let data_path = std::path::PathBuf::from(
@@ -256,8 +256,7 @@ mod test {
                                 assert_eq!(rinex.header.obs_codes.is_none(), true);
                                 assert_eq!(rinex.header.met_codes.is_none(), true);
                                 let record = rinex.record.as_nav().unwrap();
-                                println!("----- EPOCHs ----- \n{:#?}", record);
-                                //println!("----- EPOCH #1 ----- \n{:#?}", record[epochs.nth(0).unwrap()]);
+                                println!("----- EPOCHs ----- \n{:#?}", record.keys());
                             },
                             "OBS" => {
                                 // OBS files checks
@@ -270,8 +269,7 @@ mod test {
                                     // test that with iterator
                                 }
                                 let record = rinex.record.as_obs().unwrap();
-                                let mut epochs = record.keys();
-                                //println!("----- EPOCH #1 ----- \n{:#?}", record[epochs.nth(0).unwrap()]);
+                                println!("----- EPOCHs ----- \n{:#?}", record.keys());
                             },
                             "CRNX" => {
                                 // compressed OBS files checks
@@ -280,8 +278,7 @@ mod test {
                                 assert_eq!(rinex.header.obs_codes.is_some(), true);
                                 assert_eq!(rinex.header.met_codes.is_none(), true);
                                 let record = rinex.record.as_obs().unwrap();
-                                let mut epochs = record.keys();
-                                //println!("----- EPOCH #1 ----- \n{:#?}", record[epochs.nth(0).unwrap()]);
+                                println!("----- EPOCHs ----- \n{:#?}", record.keys());
                             },
 							"MET" => {
                                 // METEO files checks
@@ -290,9 +287,7 @@ mod test {
                                 assert_eq!(rinex.header.met_codes.is_some(), true);
                                 assert_eq!(rinex.header.obs_codes.is_none(), true);
                                 let record = rinex.record.as_meteo().unwrap();
-                                let mut epochs = record.keys();
-                                //println!("----- EPOCHs ----- \n{:#?}", record);
-                                //println!("----- EPOCH #1 ----- \n{:#?}", record[epochs.nth(0).unwrap()]);
+                                println!("----- EPOCHs ----- \n{:#?}", record.keys());
                             },
                             _ => {}
                         }

@@ -29,6 +29,13 @@ Header:
 Comments :
 * [ ] move comments to a separate structure and attach an epoch to them
 
+Special operations:
+* [ ] Merged file: 
+ * [ ] methods based on comments for merging identification
+ * [x] merged NAV
+ * [ ] merged OBS
+* [ ] File merging (writer)
+
 Record :
 * [ ] problem in case of `merged` RINEX at least for NAV data: 
 same epoch, new sv: .insert() overwrites previous entry
