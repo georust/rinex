@@ -102,6 +102,8 @@ impl Rinex {
     pub fn is_observation_rinex (&self) -> bool { self.header.rinex_type == types::Type::ObservationData }
     /// Returns true if this is a METEO rinex
     pub fn is_meteo_rinex (&self) -> bool { self.header.rinex_type == types::Type::MeteoData }
+    // Returns true if this is a CLOCK rinex
+    //pub fn is_clock_rinex (&self) -> bool { self.header.rinex_type == types::Type::ClockData }
 
     /// Returns `epoch` (sampling timestamp) of first observation
     pub fn first_epoch (&self) -> Option<epoch::Epoch> {
