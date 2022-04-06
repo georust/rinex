@@ -9,8 +9,6 @@ General :
 * [ ] simplify line interations with "for line in lines.next()"
 
 Header:
-* [ ] some (V3) files crash when parsing LEAP SECOND field 
-* [ ] time of first and last obs parsing is faulty
 * [ ] header.antenna.model sometimes appear as dirty, check this out
 * [ ] coords [m] system ?
 * [x] rcvr - clock offset applied
@@ -27,6 +25,11 @@ Header:
  * [ ] First and Last epoch time stamps
  * [ ] Ionospheric compensation, conversions & operations
 
+Record:
+* [ ] improve object with a IntoIter trait implementation,
+for each record types and enable high level / efficiency interation.
+This will allow operations like self.merge(other) at the `Rinex` object level
+
 Leap + Time modules :
 * [x] move to separate modules
 * [ ] leap conversion / apply methods
@@ -34,15 +37,13 @@ Leap + Time modules :
 * [ ] gnss time related operations
 
 Comments :
-* [x] move comments to a separate structure and attach an epoch to them
-* [ ] re-read about FILE MERGE comments
+* [ ] read about FILE MERGE related comments
  * [ ] file merge comment always comprise merging timestamps ?
  * [ ] file merge comments always @ header ?
 
-Special operations:
-* [ ] Merged file: 
- * [ ] methods based on comments for merging identification
-* [ ] File merging (writer)
+Special operations (teqc):
+* [ ] implement Merge()
+ * [ ] merge boundaries
 
 Special methods:
 * [x] interval

@@ -103,6 +103,34 @@ impl Rinex {
     /// Returns true if this is a METEO rinex
     pub fn is_meteo_rinex (&self) -> bool { self.header.rinex_type == types::Type::MeteoData }
 
+    /// Returns `epoch` (sampling timestamp) of first observation
+    pub fn first_epoch (&self) -> Option<epoch::Epoch> {
+        let epochs : Vec<&epoch::Epoch> = match self.header.rinex_type {
+            types::Type::ObservationData => self.record.as_obs().unwrap().keys().collect(),
+            types::Type::NavigationMessage => self.record.as_nav().unwrap().keys().collect(),
+            types::Type::MeteoData => self.record.as_meteo().unwrap().keys().collect(),
+        };
+        if epochs.len() == 0 {
+            None
+        } else {
+            Some(*epochs[0])
+        }
+    }
+
+    /// Returns `epoch` (sampling timestamp) of last observation
+    pub fn last_epoch (&self) -> Option<epoch::Epoch> {
+        let epochs : Vec<&epoch::Epoch> = match self.header.rinex_type {
+            types::Type::ObservationData => self.record.as_obs().unwrap().keys().collect(),
+            types::Type::NavigationMessage => self.record.as_nav().unwrap().keys().collect(),
+            types::Type::MeteoData => self.record.as_meteo().unwrap().keys().collect(),
+        };
+        if epochs.len() == 0 {
+            None
+        } else {
+            Some(*epochs[epochs.len()-1])
+        }
+    }
+
     /// Returns sampling interval for rinex record 
     /// + either directly from optionnal information contained in `header`   
     /// + or (if not provided by header), by computing the average time interval between two successive epochs,    

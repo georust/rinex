@@ -481,34 +481,6 @@ impl Header {
                 let (lic, _) = line.split_at(40); //TODO confirm please 
                 license = lic.trim().to_string()
             
-            } else if line.contains("TIME OF FIRST OBS") {
-                /*let items: Vec<&str> = line.split_ascii_whitespace()
-                    .collect();
-                let (y, month, d, h, min, s, constel): (i32,u32,u32,u32,u32,f32,Constellation) =
-                    (i32::from_str_radix(items[0].trim(),10)?,
-                    u32::from_str_radix(items[1].trim(),10)?,
-                    u32::from_str_radix(items[2].trim(),10)?,
-                    u32::from_str_radix(items[3].trim(),10)?,
-                    u32::from_str_radix(items[4].trim(),10)?,
-                    f32::from_str(items[5].trim())?,
-                    Constellation::from_str(items[6].trim())?);
-                let utc = chrono::NaiveDate::from_ymd(y,month,d).and_hms(h,min,s as u32);
-                epochs.0 = Some(gnss_time::GnssTime::new(utc, constel)) */
-
-            } else if line.contains("TIME OF LAST OBS") {
-               /* let items: Vec<&str> = line.split_ascii_whitespace()
-                    .collect();
-                let (y, month, d, h, min, s, constel): (i32,u32,u32,u32,u32,f32,Constellation) =
-                    (i32::from_str_radix(items[0].trim(),10)?,
-                    u32::from_str_radix(items[1].trim(),10)?,
-                    u32::from_str_radix(items[2].trim(),10)?,
-                    u32::from_str_radix(items[3].trim(),10)?,
-                    u32::from_str_radix(items[4].trim(),10)?,
-                    f32::from_str(items[5].trim())?,
-                    Constellation::from_str(items[6].trim())?);
-                let utc = chrono::NaiveDate::from_ymd(y,month,d).and_hms(h,min,s as u32);
-                epochs.1 = Some(gnss_time::GnssTime::new(utc, constel))*/ 
-            
             } else if line.contains("WAVELENGTH FACT L1/2") {
                 //TODO
 
