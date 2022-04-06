@@ -36,8 +36,9 @@ macro_rules! is_comment {
 pub struct Rinex {
     /// `header` field contains general information
     pub header: header::Header,
-    /// `comments` : list of extra / readable information,
-    /// encountered in `record` section exclusively
+    /// `comments` : list of extra readable information,   
+    /// found in `record` section exclusively.    
+    /// Comments extracted from `header` sections are exposed in `header.comments`
     comments: record::Comments, 
     /// `record` contains `RINEX` file body
     /// and is type and constellation dependent 
@@ -58,14 +59,17 @@ impl Default for Rinex {
 #[derive(Error, Debug)]
 /// `RINEX` Parsing related errors
 pub enum Error {
-    #[error("header delimiter not found")]
-    MissingHeaderDelimiter,
     #[error("header parsing error")]
     HeaderError(#[from] header::Error),
     #[error("record parsing error")]
     RecordError(#[from] record::Error),
-    #[error("rinex type error")]
-    TypeError(#[from] types::TypeError),
+}
+
+#[derive(Error, Debug)]
+/// `RINEX` merge ops related errors
+pub enum MergeError {
+    #[error("file types mismatch: cannot merge different `rinex`")]
+    FileTypeMismatch,
 }
 
 impl Rinex {
@@ -78,66 +82,26 @@ impl Rinex {
         }
     }
 
+    /// Builds a `RINEX` from given file.
+    /// Header section must respect labelization standards,   
+    /// some are mandatory.   
+    /// Parses record for supported `RINEX` types
+    pub fn from_file (path: &str) -> Result<Rinex, Error> {
+        let header = header::Header::new(path)?;
+        let (record, comments) = record::build_record(path, &header)?;
+        Ok(Rinex {
+            header,
+            record,
+            comments,
+        })
+    }
+
     /// Retruns true if this is an NAV rinex
     pub fn is_navigation_rinex (&self) -> bool { self.header.rinex_type == types::Type::NavigationMessage }
     /// Retruns true if this is an OBS rinex
     pub fn is_observation_rinex (&self) -> bool { self.header.rinex_type == types::Type::ObservationData }
     /// Returns true if this is a METEO rinex
     pub fn is_meteo_rinex (&self) -> bool { self.header.rinex_type == types::Type::MeteoData }
-
-    /// Returns list of comments encountered in this `RINEX` file.   
-    /// Comments are sorted by epoch/timestamp of appearance.   
-    /// Comments encountered in `header` section are tied to record 1st epoch.
-    pub fn get_comments (&self) -> &record::Comments {
-        &self.comments
-    } 
-
-    /// Returns comments extracted from `header` section exclusively
-    pub fn get_header_comments (&self) -> Vec<&str> { 
-        let mut result : Vec<&str> = Vec::new();
-        let epochs : Vec<&epoch::Epoch> = match self.header.rinex_type {
-            types::Type::ObservationData => self.record.as_obs().unwrap().keys().collect(),
-            types::Type::NavigationMessage => self.record.as_nav().unwrap().keys().collect(),
-            types::Type::MeteoData => self.record.as_meteo().unwrap().keys().collect(),
-        };
-        let e_0 : &epoch::Epoch = match epochs.len() {
-            0 => {
-                // empty record field
-                // --> returns all comments (if any)
-                let epochs : Vec<_> = self.comments.keys().collect();
-                epochs[0]
-            },
-            _ => epochs[0],
-        };
-        for (epoch, content) in self.comments.iter() {
-            if epoch.date == e_0.date {
-                for c in content {
-                    result.push(c)
-                }
-            }
-        }
-        result
-    }
-
-    /// Returns comments that were encountered in `record` body.    
-    /// This method will crash if used on a RINEX with empty `record`
-    pub fn get_body_comments (&self) -> Vec<&str> {
-        let mut result : Vec<&str> = Vec::new();
-        let epochs : Vec<&epoch::Epoch> = match self.header.rinex_type {
-            types::Type::ObservationData => self.record.as_obs().unwrap().keys().collect(),
-            types::Type::NavigationMessage => self.record.as_nav().unwrap().keys().collect(),
-            types::Type::MeteoData => self.record.as_meteo().unwrap().keys().collect(),
-        };
-        let t0 = epochs[0].date;
-        for (epoch, content) in self.comments.iter() {
-            if epoch.date > t0 {
-                for c in content {
-                    result.push(c)
-                }
-            }
-        }
-        result
-    }
 
     /// Returns sampling interval for rinex record 
     /// + either directly from optionnal information contained in `header`   
@@ -296,18 +260,20 @@ impl Rinex {
             .collect()
     }    
 
-    /// Builds a `RINEX` from given file.
-    /// Header section must respect labelization standards,   
-    /// some are mandatory.   
-    /// Parses record for supported `RINEX` types
-    pub fn from_file (path: &str) -> Result<Rinex, Error> {
-        let header = header::Header::new(path)?;
-        let (record, comments) = record::build_record(path, &header)?;
-        Ok(Rinex {
-            header,
-            record,
-            comments,
-        })
+    /// Splits merged RINEX `records` into list of records 
+    pub fn split (&self) -> Vec<record::Record> {
+        let mut result : Vec<record::Record> = Vec::with_capacity(2);
+        result
+    }
+
+    /// Merges given RINEX into self, in teqc similar fashion.   
+    /// Header section are combined.    
+    /// Records are appended together at desired epoch boundary
+    pub fn merge (&mut self, rinex: &Self) -> Result<(), MergeError> {
+        if self.header.rinex_type != rinex.header.rinex_type {
+            return Err(MergeError::FileTypeMismatch)
+        }
+        Ok(())
     }
 
     /// Writes self into given file.   
@@ -343,9 +309,9 @@ mod test {
         let data_dir = env!("CARGO_MANIFEST_DIR").to_owned() + "/data";
         let test_data = vec![
 			"NAV",
-			"OBS",
-			"CRNX",
-			"MET",
+			//"OBS",
+			//"CRNX",
+			//"MET",
 		];
         for data in test_data {
             let data_path = std::path::PathBuf::from(
@@ -456,8 +422,8 @@ mod test {
                         println!("sampling dead time : {:#?}", rinex.sampling_dead_time());
                         println!("abnormal epochs    : {:#?}", rinex.epoch_anomalies(None));
                         // COMMENTS
-                        println!("---------- Header Comments ----- \n{:#?}", rinex.get_header_comments());
-                        println!("---------- Body   Comments ------- \n{:#?}", rinex.get_body_comments());
+                        println!("---------- Header Comments ----- \n{:#?}", rinex.header.comments);
+                        println!("---------- Body   Comments ------- \n{:#?}", rinex.comments);
                         // MERGED RINEX special ops
                         println!("---------- Merged RINEX special ops -----------\n");
                         println!("is merged          : {}", rinex.is_merged_rinex());

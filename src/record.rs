@@ -218,18 +218,19 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Com
 
     for l in reader.lines() { // process one line at a time 
         let line = l.unwrap();
+        // HEADER : already processed
+        if inside_header {
+            if line.contains("END OF HEADER") {
+                inside_header = false // header is ending 
+            }
+            continue
+        }
         // COMMENTS special case
         // --> store
         // ---> append later with epoch.timestamp attached to it
         if is_comment!(line) {
             let comment = line.split_at(60).0.trim_end();
             comment_content.push(comment.to_string());
-            continue
-        }
-        if inside_header { // still inside header
-            if line.contains("END OF HEADER") {
-                inside_header = false // header is ending 
-            }
             continue
         }
         // manage CRINEX case

@@ -207,6 +207,8 @@ pub struct Header {
     /// specific `GNSS` constellation system,
 	/// may not exist for RINEX files 
     pub constellation: Option<constellation::Constellation>, 
+    /// comments extracted from `header` section
+    pub comments : Vec<String>,
     /// program name
     pub program: String, 
     /// program `run by`
@@ -298,6 +300,7 @@ impl Default for Header {
             crinex: None,
             rinex_type: Type::default(),
             constellation: Some(constellation::Constellation::default()),
+            comments: Vec::new(),
             program: String::new(),
             run_by: String::new(),
             date: String::new(),
@@ -345,6 +348,7 @@ impl Header {
         let mut rinex_type = Type::default();
         let mut constellation : Option<constellation::Constellation> = None;
         let mut version = version::Version::default();
+        let mut comments   : Vec<String> = Vec::new();
         let mut program    = String::new();
         let mut run_by     = String::new();
         let mut date       = String::new();
@@ -379,7 +383,9 @@ impl Header {
             let line = &l.unwrap();
             // [0] COMMENTS
             if is_comment!(line) {
-                continue // SKIP, comments are specifically managed in src/record.rs
+                let comment = line.split_at(60).0;
+                comments.push(comment.trim_end().to_string());
+                continue
             }
             // [1] CRINEX 
             else if line.contains("CRINEX VERS") {
@@ -781,6 +787,7 @@ impl Header {
             crinex: crnx_infos, 
             rinex_type,
             constellation,
+            comments,
             program,
             run_by,
             date,
