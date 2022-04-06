@@ -3,6 +3,7 @@
 //! 
 //! Refer to README for example of use.  
 //! Homepage: <https://github.com/gwbres/rinex>
+mod leap;
 mod meteo;
 mod clocks;
 mod gnss_time;

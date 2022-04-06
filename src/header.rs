@@ -1,5 +1,6 @@
 //! Describes a `RINEX` header, includes
 //! rinex header parser and associated methods
+use crate::leap;
 use crate::clocks;
 use crate::version;
 use crate::gnss_time;
@@ -153,60 +154,6 @@ impl Antenna {
     }
 }
 
-/// `LeapSecond` to describe leap seconds.
-/// GLO = UTC = GPS - ΔtLS   
-/// GPS = GPS = UTC + ΔtLS   
-#[derive(Copy, Clone, Debug)]
-pub struct LeapSecond {
-    /// current number
-    leap: u32,
-    /// future or past leap seconds (ΔtLS)   
-    past_future: u32,
-    /// week number
-    week: u32,
-    /// day number
-    day: u32,
-}
-
-impl Default for LeapSecond {
-    /// Builds a default (null) `LeapSecond`
-    fn default() -> LeapSecond {
-        LeapSecond {
-            leap: 0,
-            past_future: 0,
-            week: 0,
-            day: 0,
-        }
-    }
-}
-
-impl std::str::FromStr for LeapSecond {
-    type Err = Error; 
-    /// Builds `LeapSecond` from string descriptor
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let mut ls = LeapSecond::default();
-        // leap seconds might have either simple or complex format
-        let items: Vec<&str> = s.split_ascii_whitespace()
-            .collect();
-        match items.len() > 2 {
-            false => {
-                ls.leap = u32::from_str_radix(items[0].trim(),10)?
-            },
-            true => {
-                let (leap, rem) = s.split_at(6);
-                let (past, rem) = rem.split_at(6);
-                let (week, rem) = rem.split_at(6);
-                let (day, _) = rem.split_at(6);
-                ls.leap = u32::from_str_radix(leap.trim(),10)?;
-                ls.past_future = u32::from_str_radix(past.trim(),10)?;
-                ls.week = u32::from_str_radix(week.trim(),10)?;
-                ls.day = u32::from_str_radix(day.trim(),10)?
-            },
-        }
-        Ok(ls)
-    }
-}
-
 /// Describes `Compact RINEX` specific information
 #[derive(Clone, Debug)]
 pub struct CrinexInfo {
@@ -286,7 +233,7 @@ pub struct Header {
 	/// optionnal meteo sensors infos
 	pub sensors: Option<Vec<Sensor>>,
     /// optionnal leap seconds infos
-    pub leap: Option<LeapSecond>, 
+    pub leap: Option<leap::Leap>, 
     /// station approxiamte coordinates
     pub coords: Option<rust_3d::Point3D>, 
     /// optionnal observation wavelengths
@@ -337,6 +284,8 @@ pub enum Error {
     TypeError(#[from] TypeError),
     #[error("constellation error")]
     ConstellationError(#[from] constellation::Error),
+    #[error("failed to parse leap from \"{0}\"")]
+    LeapParsingError(#[from] leap::Error),
     #[error("failed to parse antenna / receiver infos")]
     AntennaRcvrError(#[from] std::io::Error),
     #[error("failed to parse integer value")]
@@ -345,8 +294,6 @@ pub enum Error {
     ParseFloatError(#[from] std::num::ParseFloatError),
     #[error("failed to parse date")]
     DateParsingError(#[from] chrono::ParseError),
-    #[error("failed to parse leap second from \"{0}\"")]
-    LeapSecondParsingError(String),
 }
 
 impl Default for Header {
@@ -424,7 +371,7 @@ impl Header {
         let mut rcvr       : Option<Rcvr>    = None;
 		let mut sensors    : Vec<Sensor> = Vec::with_capacity(3);
         // other
-        let mut leap       : Option<LeapSecond> = None;
+        let mut leap       : Option<leap::Leap> = None;
         let mut sampling_interval: Option<f32> = None;
         let mut rcvr_clock_offset_applied: bool = false;
         let mut coords     : Option<rust_3d::Point3D> = None;
@@ -520,7 +467,7 @@ impl Header {
                 ant = Some(Antenna::from_str(&line)?)
             
             } else if line.contains("LEAP SECOND") {
-                leap = Some(LeapSecond::from_str(line.split_at(40).0)?)
+                leap = Some(leap::Leap::from_str(line.split_at(40).0)?)
 
             } else if line.contains("DOI") {
                 let (content, _) = line.split_at(40); //  TODO: confirm please
