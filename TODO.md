@@ -9,13 +9,14 @@ Examples :
 * [ ] epoch: time spanning
 
 General :
-* [ ] move to buffered reader instead of fs::to\_string() for better
+* [x] move to buffered reader instead of fs::to\_string() for better
 performances, pass BufReader pointer to build\_record method
 * [x] cleanup (head, body) splitting
 * [x] last epoch seems to always be missed
 * [ ] add to::file production method
 * [ ] simplify line interations with "for line in lines.next()"
 * [x] Sv / Constellation : improve constellation parsing & identification methods
+* [x] sort epoch by timestamp by default
 
 Header:
 * [ ] some (V3) files crash when parsing LEAP SECOND field 
@@ -29,15 +30,14 @@ Header:
 * [ ] WaveLength fact L1/2 ?
 * [ ] Glonass SLOT /freq channel ?
 * [ ] Glonass COD/PHS/BIS ?
-* [ ] interval ?
+* [x] interval
+
+Comments :
+* [ ] move comments to a separate structure and attach an epoch to them
 
 Record :
 * [x] ObsRecord : add clockoffsets to epoch record
 * [x] ObsRecord : introduce Observation(f32,lli,ssi) as payload
-* [ ] preserve encountered `comments` and tie them to the related `epoch`,
-for advanced manipulations & recovery. 
-Should differienate between header comments (indexed by line position - or dont care),
-and record comments (indexed by epoch / timestamp)
 
 Navigation Messages:
 * [x] improve database usage.   
@@ -68,6 +68,7 @@ Hatanaka:
 * [ ] find some CRINEX with special epoch events (flag>2) and test them
 * [ ] CRINEX 1|3 special epoch content (flag>2)
 will be mishandled / corrupted if they are not only made of COMMENTS
+* [ ] replace `zeros` by `intertools::fill_with()` 
 
 Meteo Data:
 * [x] parse METEO codes
