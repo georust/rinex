@@ -29,6 +29,7 @@ Header:
  * [ ] Glonass SLOT /freq channel ?
  * [ ] signal strength informations
  * [ ] First and Last epoch time stamps
+ * [ ] Ionospheric compensation, conversions & operations
 
 Leap + Time modules :
 * [x] move to separate modules
