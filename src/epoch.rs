@@ -19,6 +19,11 @@ impl Default for EpochFlag {
     fn default() -> EpochFlag { EpochFlag::Ok }
 }
 
+impl EpochFlag {
+    /// Returns True if self is a valid epoch
+    pub fn is_ok (self) -> bool { self == EpochFlag::Ok }
+}
+
 impl std::str::FromStr for EpochFlag {
     type Err = std::io::Error;
     fn from_str (s: &str) -> Result<Self, Self::Err> {
