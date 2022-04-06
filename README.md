@@ -40,30 +40,38 @@ describes the types of RINEX currently supported:
 
 ### CRINEX special case
 
-CRINEX V1 and V3 are now fully supported.   
+CRINEX V1 and V3 are fully supported.   
 You can pass compressed OBS RINEX directly to this parser.   
 Uncompressed record is extracted and can be analyzed directly.
 
-### Parser 
+### Parser (reader)
 
 `RINEX` files contain a lot of data and this library is capable of parsing all of it.   
 To fully understand how to operate this lib, refer to the `RinexType` section you are interested in.
 
 Link to the [official API](https://docs.rs/rinex/latest/rinex/index.html)
 
+### Production (writer)
+
+`RINEX` file production (writer) is work in progress and will be supported
+in next release
+
 ### File naming convention
 
-This parser does not check whether the provided local file
-follows the RINEX naming convention or not.
-You can parse anything and behavior adapts to the actual file content.
+This parser does not care for the RINEX file name, it is possible to parse a file    
+that does not respect standard naming conventions.
 
 ### Known weaknesses
 
-* Weird RINEX content:    
-this parser is not able to parse the RINEX body if the provided
-RINEX content only has a single epoch.    
-In that scenario, `rinex.record` is set to _None_, and
-the header is fully parsed.
+* Weird RINEX body with a unique epoch may not be parsed correctly in some cases
+* Only Observation Data V > 2 currently has a format restriction, see dedicated page
+
+### Advanced `RINEX` file operations
+
+Advanced operations like file Merging will be available in next releases.   
+Merged `RINEX` files will be parsed properly: meaning the `record` is built correctly.   
+Informations on the `merging` operation will be exposed either in the `.comments` structure,
+if "standard" comments were provided.
 
 ## Getting started 
 
@@ -118,8 +126,9 @@ println!("{:#?}", rinex.header.coords);
 The `Rinex` structure comprises the `header` previously defined,
 and the `record` which contains the data payload.
 
-Record data is always sorted by `epoch`,
-that is, sampling timestamps.
+Record data are always sorted by `epoch`,
+that means from oldest sampling timestamps to newest sampling timestamps.   
+A `RINEX` file usually spans 24h at a steady sampling interval.   
 
 The `record` is a complex structure of HashMap (_dictionaries_)
 whose definition varies with the type of RINEX file.   
@@ -165,30 +174,8 @@ the encountered timestamps:
     .keys() // keys interator
     .map(|k| k.date) // building a key.date vector
     .collect();
-```
 
-according to `hashmap` documentation: `.keys()` are randomly exposed (not sorted):
-
-```rust
-epochs = [ // example
-    2021-01-01T14:00:00,
-    2021-01-01T10:00:00,
-    2021-01-01T05:00:00,
-    2021-01-01T22:00:00,
-    ...
-]
-```
-
-You can use `itertools` to enhance the iterator methods and sort them easily:
-
-```rust
-use itertools::Itertools;
-let epochs: Vec<_> = record
-    .keys()
-    .sort() // unlocked
-    .collect();
-
-epochs = [ // example
+epochs = [ // <o epochs are sorted by ascending timestamps 
     2021-01-01T00:00:00,
     2021-01-01T01:00:00,
     2021-01-01T03:59:44,
@@ -198,14 +185,12 @@ epochs = [ // example
 ]
 ```
 
-`unique()` filter is not available to hashmaps,
-due to the `hashmap.insert()` behavior which always overwrites
-a previous value for a given key.   
-It is not needed in our case because, because `epochs` are unique,
-we will always have a single set of data per epoch.
+`unique()` to filter `epochs` makes no sense - and is not available,
+because a valid RINEX exposes a unique data set per `epoch`.   
 
-Keep in mind `epochs` are fixed to `EpochFlag::Ok` in NAV files.   
-EpochFlags are provided in OBS files for examples.   
+For RINEX files that do not expose an Epoch `flag`, like Navigation or Meteo data,
+we fix it to `Ok` (valid `epoch`) by default.
+
 Refer to specific
 [Observation files documentation](https://github.com/gwbres/rinex/blob/main/doc/observation.md)
 to see how filtering using epoch flags is powerful and relevant.
