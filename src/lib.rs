@@ -82,10 +82,11 @@ impl Rinex {
     /// Returns sampling interval for rinex record 
     /// + either directly from optionnal information contained in `header`   
     /// + or (if not provided by header), by computing the average time interval between two successive epochs,    
-    ///   in the `record`. Only valid epochs (EpochFlag::Ok) contribute to the calculation in this case 
-    pub fn sampling_interval (&self) -> std::time::Duration {
+    ///   in the extracted `record`. Only valid epochs (EpochFlag::Ok) contribute to the calculation in this case.   
+    ///   Returns None, in this case if record contains a unique epoch and calculation is not feasible.
+    pub fn sampling_interval (&self) -> Option<std::time::Duration> {
         if let Some(interval) = self.header.sampling_interval {
-            std::time::Duration::from_secs(interval as u64)
+            Some(std::time::Duration::from_secs(interval as u64))
         } else {
             // build epoch interval histogram 
             let mut histogram : HashMap<i64, u64> = HashMap::new(); // {internval, population}
@@ -94,43 +95,59 @@ impl Rinex {
                 types::Type::NavigationMessage => self.record.as_nav().unwrap().keys().collect(),
                 types::Type::MeteoData => self.record.as_meteo().unwrap().keys().collect(),
             };
+            if epochs.len() < 2 { // weird cases: 
+                    // record is empty 
+                    // or epoch is unique & calculation is not feasible
+                return None
+            }
             if let Some(e) = epochs.get(1) {
-                // delta(0, 1)
-                let delta = (epochs.get(1).unwrap().date - epochs.get(0).unwrap().date).num_seconds();
-                if histogram.contains_key(&delta) {
-                    let prev = histogram.get(&delta).unwrap();
-                    histogram.insert(delta, *prev +1); // increment population
-                } else {
-                    histogram.insert(delta, 1); // new entry
+                let e_0 = epochs.get(0).unwrap();
+                if e.flag.is_ok() && e_0.flag.is_ok() {
+                    // delta(0, 1)
+                    let delta = (epochs.get(1).unwrap().date - epochs.get(0).unwrap().date).num_seconds();
+                    if histogram.contains_key(&delta) {
+                        let prev = histogram.get(&delta).unwrap();
+                        histogram.insert(delta, *prev +1); // increment population
+                    } else {
+                        histogram.insert(delta, 1); // new entry
+                    }
                 }
             }
             for i in 1..epochs.len() {
-                if let Some(e) = epochs.get(i-1) {
-                    // delta(i, i-1)
-                    let delta = (epochs.get(i).unwrap().date - e.date).num_seconds();
-                    if histogram.contains_key(&delta) {
-                        let prev = histogram.get(&delta).unwrap();
-                        histogram.insert(delta, *prev +1); // increment population
-                    } else {
-                        histogram.insert(delta, 1); // new entry
+                let e_i = epochs.get(i).unwrap();
+                if e_i.flag.is_ok() {
+                    if let Some(e) = epochs.get(i-1) {
+                        if e.flag.is_ok() {
+                            // delta(i, i-1)
+                            let delta = (epochs.get(i).unwrap().date - e.date).num_seconds();
+                            if histogram.contains_key(&delta) {
+                                let prev = histogram.get(&delta).unwrap();
+                                histogram.insert(delta, *prev +1); // increment population
+                            } else {
+                                histogram.insert(delta, 1); // new entry
+                            }
+                        }
                     }
-                }
-                if let Some(e) = epochs.get(i+1) {
-                    // delta(i+1, i)
-                    let delta = (e.date - epochs.get(i).unwrap().date).num_seconds();
-                    if histogram.contains_key(&delta) {
-                        let prev = histogram.get(&delta).unwrap();
-                        histogram.insert(delta, *prev +1); // increment population
-                    } else {
-                        histogram.insert(delta, 1); // new entry
+                    if let Some(e) = epochs.get(i+1) {
+                        if e.flag.is_ok() {
+                            // delta(i+1, i)
+                            let delta = (e.date - epochs.get(i).unwrap().date).num_seconds();
+                            if histogram.contains_key(&delta) {
+                                let prev = histogram.get(&delta).unwrap();
+                                histogram.insert(delta, *prev +1); // increment population
+                            } else {
+                                histogram.insert(delta, 1); // new entry
+                            }
+                        }
                     }
                 }
             }
-            let sorted = histogram
+            let mut sorted = histogram
                 .iter()
                 .sorted_by(|a,b| b.cmp(a));
-            //println!("SORTED: {:#?}", sorted); 
-            std::time::Duration::from_secs(0) //*pop.nth(0).unwrap()) // largest pop
+            println!("Histogram sorted by Population: {:#?}", sorted); 
+            let largest_secs = sorted.nth(0).unwrap().0; // largest population
+            Some(std::time::Duration::from_secs(*largest_secs as u64))
         }
     }
 
@@ -215,8 +232,8 @@ mod test {
         let test_data = vec![
 			"NAV",
 			"OBS",
-			"CRNX",
-			"MET",
+			//"CRNX",
+			//"MET",
 		];
         for data in test_data {
             let data_path = std::path::PathBuf::from(
