@@ -66,13 +66,6 @@ that does not respect standard naming conventions.
 * Weird RINEX body with a unique epoch may not be parsed correctly in some cases
 * Only Observation Data V > 2 currently has a format restriction, see dedicated page
 
-### Advanced `RINEX` file operations
-
-Advanced operations like file Merging will be available in next releases.   
-Merged `RINEX` files will be parsed properly: meaning the `record` is built correctly.   
-Informations on the `merging` operation will be exposed either in the `.comments` structure,
-if "standard" comments were provided.
-
 ## Getting started 
 
 The ``Rinex::from_file`` method parses a local `RINEX` file:
@@ -212,17 +205,20 @@ between two successive epochs in this `record`. See API for more information
 * `sampling_dead_time`: returns a list of `epochs` for which time difference
 between epoch and previous epoch exceeded the nominal sampling interval.
 
-## Navigation Data
+### Advanced `RINEX` file operations
 
-[Navigation Data documentation](https://github.com/gwbres/rinex/blob/main/doc/navigation.md)
+Advanced operations like file Merging will be available in next releases.   
+Merged `RINEX` files will be parsed properly: meaning the `record` is built correctly.   
+Informations on the `merging` operation will be exposed either in the `.comments` structure,
+if "standard" comments were provided.
 
-## Observation Data
+## Specific documentation
 
-[Observation Data documentation](https://github.com/gwbres/rinex/blob/main/doc/observation.md)
+Documentation and example of use for specific `RINEX` formats 
 
-## Meteo Data
-
-[Meteo Data documentation](https://github.com/gwbres/rinex/blob/main/doc/meteo.md)
++ [Navigation Data](https://github.com/gwbres/rinex/blob/main/doc/navigation.md)
++ [Observation Data](https://github.com/gwbres/rinex/blob/main/doc/observation.md)
++ [Meteo Data](https://github.com/gwbres/rinex/blob/main/doc/meteo.md)
 
 ## Work in progress
 
@@ -231,6 +227,8 @@ Topics to be unlocked by next releases
 * RINEX file production : provide `to_file` methods
 to produce supported RINEX formats
 * RINEX Clock data type
+* RINEX special operations like `merging` when producing a new file
+* Merging + compression for OBS data
 
 ## Contribute
 
