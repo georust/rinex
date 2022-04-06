@@ -3,7 +3,7 @@ use thiserror::Error;
 use std::str::FromStr;
 use chrono::{Datelike,Timelike};
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 /// `EpochFlag` validates or describes events
 /// that occured during an `epoch`
 pub enum EpochFlag {
@@ -34,7 +34,7 @@ impl std::str::FromStr for EpochFlag {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 /// An `Epoch` is an observation timestamp associated
 /// to an `EpochFlag`
 pub struct Epoch {
