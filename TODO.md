@@ -30,10 +30,11 @@ Header:
  * [ ] signal strength informations
  * [ ] First and Last epoch time stamps
 
-Leap.rs :
-* [ ] move to separate module
-* [ ] time system associated to it -->read RINEX docs
-* [ ] gnss time related operation & conversions
+Leap + Time modules :
+* [x] move to separate modules
+* [ ] leap conversion / application methods
+* [ ] gnss-time conversion method 
+* [ ] gnss time related operations
 
 Comments :
 * [ ] move comments to a separate structure and attach an epoch to them

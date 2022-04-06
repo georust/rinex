@@ -1,8 +1,9 @@
-//! This module describes a `GNSS` time realization
+//! This module provides the `GnssTime` structure that attaches
+//! a `GNSS` constellation to the `chrono::naiveDateTime` structure.    
+//! This constellation is the time system that produced the given datetime
 use thiserror::Error;
-use chrono::{Timelike, Datelike};
-
 use crate::constellation;
+use chrono::{Timelike, Datelike};
 
 #[derive(Error, Debug)]
 pub enum Error {
