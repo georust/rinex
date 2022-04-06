@@ -1,14 +1,17 @@
 //! Describes a `RINEX` header, includes
 //! rinex header parser and associated methods
-use thiserror::Error;
-use std::collections::HashMap;
-
 use crate::clocks;
 use crate::version;
 use crate::gnss_time;
 use crate::{is_comment};
 use crate::types::{Type, TypeError};
 use crate::constellation;
+
+use std::fs::File;
+use thiserror::Error;
+use std::str::FromStr;
+use std::collections::HashMap;
+use std::io::{self, prelude::*, BufReader};
 
 /// Describes a `CRINEX` (compressed rinex) 
 pub const CRINEX_MARKER_COMMENT : &str = "COMPACT RINEX FORMAT";
@@ -30,9 +33,9 @@ impl Default for Rcvr {
     /// Builds a `default` Receiver
     fn default() -> Rcvr {
         Rcvr {
-            model: String::from("Unknown"),
-            sn: String::from("Unknown"),
-            firmware: String::from("Unknown"),
+            model: String::new(),
+            sn: String::new(),
+            firmware: String::new(),
         }
     }
 }
@@ -44,9 +47,9 @@ impl std::str::FromStr for Rcvr {
         let (make, rem) = rem.split_at(20);
         let (version, _) = rem.split_at(20);
         Ok(Rcvr{
-            sn: String::from(id.trim()),
-            model: String::from(make.trim()),
-            firmware: String::from(version.trim()),
+            sn: id.trim().to_string(),
+            model: make.trim().to_string(),
+            firmware: version.trim().to_string(),
         })
     }
 }
@@ -64,15 +67,26 @@ pub struct Sensor {
 	physics: String,
 }
 
+impl Default for Sensor {
+    fn default() -> Sensor {
+        Sensor {
+            model: String::new(),
+            sens_type: String::new(),
+            physics: String::new(),
+            accuracy: 0.0_f32,
+        }
+    }
+}
+
 impl Sensor {
 	/// Builds a new Meteo Obs sensor,
 	/// with given `model`, `sensor type` `accuracy` and `physics` fields
 	pub fn new (model: &str, sens_type: &str, accuracy: f32, physics: &str) -> Sensor {
 		Sensor {
-			model: String::from(model),
-			sens_type: String::from(sens_type),
+			model: model.to_string(),
+			sens_type: sens_type.to_string(),
 			accuracy,
-			physics: String::from(physics),
+			physics: physics.to_string(),
 		}
 	}
 }
@@ -98,8 +112,8 @@ impl Default for Antenna {
     /// Builds default `Antenna` structure
     fn default() -> Antenna {
         Antenna {
-            model: String::from("Unknown"),
-            sn: String::from("Unknown"),
+            model: String::new(),
+            sn: String::new(),
             coords: None,
             height: None,
             eastern_eccentricity: None,
@@ -249,13 +263,15 @@ pub struct Header {
     /// program name
     pub program: String, 
     /// program `run by`
-    pub run_by: String, // program run by
+    pub run_by: String,
+    /// program's `date`
+    pub date: String, 
     /// station label
     pub station: String, 
     /// station identifier
     pub station_id: String, 
     /// optionnal station URL 
-    pub station_url: Option<String>, 
+    pub station_url: String, 
     /// name of observer
     pub observer: String, 
     /// name of production agency
@@ -280,9 +296,9 @@ pub struct Header {
     /// optionnal (first, last) epochs
     pub epochs: (Option<gnss_time::GnssTime>, Option<gnss_time::GnssTime>),
     /// optionnal file license
-    pub license: Option<String>,
+    pub license: String,
     /// optionnal Object Identifier (IoT)
-    pub doi: Option<String>,
+    pub doi: String,
     /// optionnal GPS/UTC time difference
     pub gps_utc_delta: Option<u32>,
     /// processing:   
@@ -340,17 +356,18 @@ impl Default for Header {
             crinex: None,
             rinex_type: Type::default(),
             constellation: Some(constellation::Constellation::default()),
-            program: String::from("Unknown"),
-            run_by: String::from("Unknown"),
-            station: String::from("Unknown"),
-            station_id: String::from("Unknown"),
-            observer: String::from("Unknown"),
-            agency: String::from("Unknown"),
-            station_url: None,
+            program: String::new(),
+            run_by: String::new(),
+            date: String::new(),
+            station: String::new(),
+            station_id: String::new(),
+            observer: String::new(),
+            agency: String::new(),
+            station_url: String::new(),
             comments: Vec::with_capacity(4),
+            doi: String::new(),
+            license: String::new(),
             leap: None,
-            license: None,
-            doi: None,
             gps_utc_delta: None,
             // hardware
             rcvr: None,
@@ -375,160 +392,30 @@ impl Default for Header {
     }
 }
 
-impl std::str::FromStr for Header {
-    type Err = Error;
+impl Header {
+    /// Returns true if self is a `Compressed RINEX`
+    pub fn is_crinex (&self) -> bool { self.crinex.is_some() }
+    
     /// Builds header from extracted header description
-    fn from_str (content: &str) -> Result<Self, Self::Err> {
+    pub fn new (path: &str) -> Result<Header, Error> { 
+        let file = File::open(path)?;
+        let reader = BufReader::new(file);
         let mut comments : Vec<String> = Vec::with_capacity(4);
-        let mut lines = content.lines();
-        let mut line = lines.next()
-            .unwrap();
-        // comments ?
-        while is_comment!(line) {
-            comments.push(String::from(line.split_at(60).0));
-            line = lines.next()
-                .unwrap()
-        }
-        // 'compressed rinex'?
-        let is_crinex = line.contains(CRINEX_MARKER_COMMENT);
-        let crinex_infos: Option<CrinexInfo> = match is_crinex {
-            false => None,
-            true => {
-                let version = line.split_at(20).0.trim();
-                let line = lines.next()
-                    .unwrap();
-                let (pgm, remainder) = line.split_at(20);
-                let (_, remainder) = remainder.split_at(20);
-                let date = remainder.split_at(20).0.trim();
-                println!("CRINEX: VERSION \"{}\" | PGM \"{}\" | DATE \"{}\"", version.trim(), pgm.trim(), date); 
-                Some(CrinexInfo {
-                    version: version::Version::from_str(version.trim())?,
-                    prog: pgm.trim().to_string(),
-                    date: chrono::NaiveDateTime::parse_from_str(date, "%d-%b-%y %H:%M")?
-                })
-            }
-        };
-        
-        if is_crinex {
-            line = lines.next()
-                .unwrap()
-        }
-        // comments ?
-        while is_comment!(line) {
-            comments.push(String::from(line.split_at(60).0));
-            line = lines.next()
-                .unwrap()
-        }
-
-        // line1 {} {} {} // label [VERSION/TYPE/GNSS] 
-        let (version_str, remainder) = line.split_at(20);
-        let (type_str, remainder) = remainder.trim().split_at(20);
-        let (constellation_str, _) = remainder.trim().split_at(20);
-
-        let rinex_type = Type::from_str(type_str.trim())?;
-        let constellation: Option<constellation::Constellation>;
-        
-        if type_str.contains("GLONASS") {
-            // special case, sometimes GLONASS NAV
-            // drops the constellation field cause it's implied
-            constellation = Some(constellation::Constellation::Glonass)
-        } else if type_str.contains("METEOROLOGICAL DATA") {
-			// these files are not tied to a constellation system,
-			// therefore, do not have this field
-			constellation = None
-		} else { // regular files
-            constellation = Some(constellation::Constellation::from_str(constellation_str.trim())?)
-        }
-
-        let version = version::Version::from_str(version_str.trim())?;
-        if !version.is_supported() {
-            return Err(Error::VersionNotSupported(String::from(version_str)))
-        }
-
-        // line2
-        line = lines.next()
-            .unwrap();
-        // comments ?
-        while is_comment!(line) {
-            comments.push(String::from(line.split_at(60).0));
-            line = lines.next()
-                .unwrap()
-        }
-
-        //          | 20      |20
-        // {}       {}        yyyymmdd HH:MM:SSUTC
-        // {}       {}        yyyymmdd HH:MM:SSLCL
-        // {}       {}        yyyymmdd HHMMSS UTC
-        // {}                 yyyymmdd HHMMSS LCL
-        let (pgm, remainder) = line.split_at(20);
-        let (run_by, remainder) = remainder.split_at(20);
-        let run_by: String = match run_by.trim().eq("") {
-            true => String::from("Unknown"),
-            false => String::from(run_by.trim()) 
-        };
-        let (date_str, _) = remainder.split_at(20);
-        // identify date format (UTC/LCL)
-        let date_str: &str = match date_str.contains("UTC") {
-            true => {
-                let offset = date_str.rfind("UTC")
-                    .unwrap();
-                date_str.split_at(offset).0.trim() 
-            },
-            false => {
-                match date_str.contains("LCL") {
-                    true => {
-                        let offset = date_str.rfind("LCL")
-                            .unwrap();
-                        date_str.split_at(offset).0.trim() 
-                    },
-                    false => { // some files do not exhibit UTC/LCL marker
-                        date_str.trim()
-                    }
-                }
-            }
-        };
-        // identify date format (YMDHMS)
-/*
-        println!("date str \"{}\"", date_str);
-        let regex: Vec<Regex> = vec![
-            Regex::new(r"\d\d\d\d\d\d\d\d \d\d:\d\d:\d\d$")
-                .unwrap(),
-            Regex::new(r"\d\d\d\d\d\d\d\d \d\d\d\d\d\d$")
-                .unwrap(),
-        ];
-        let date_fmt: Vec<&str> = vec![
-            "%Y%m%d %H:%M:%S",
-            "%Y%m%d %H%M%S",
-        ];
-
-         * for i in 0..regex.len() {
-            if regex[i].is_match(cleanedup) {
-                if is_utc {
-                   let date = chrono::Utc::parse_from_str(cleanedup)
-                } else {
-                    let date = chrono::NaiveDate::parse_from_str( 
-                }
-            }
-        }
-*/
-        line = lines.next()
-            .unwrap();
-        // comments ?
-        while is_comment!(line) {
-            comments.push(String::from(line.split_at(60).0));
-            line = lines.next()
-                .unwrap()
-        }
-
-        // order may vary from now on
-        // indentifiers
-        let mut station    = String::from("Unknown");
-        let mut station_id = String::from("Unknown");
-        let mut observer   = String::from("Unknown");
-        let mut agency     = String::from("Unknown");
-        let mut license     : Option<String> = None;
-        let mut doi         : Option<String> = None;
-        let mut station_url : Option<String> = None;
+        let mut crnx_infos : Option<CrinexInfo> = None;
+        let mut crnx_version = version::Version::default(); 
+        let mut rinex_type = Type::default();
+        let mut constellation : Option<constellation::Constellation> = None;
+        let mut version = version::Version::default();
+        let mut program    = String::new();
+        let mut run_by     = String::new();
+        let mut date       = String::new();
+        let mut station    = String::new();
+        let mut station_id = String::new();
+        let mut observer   = String::new();
+        let mut agency     = String::new();
+        let mut license    = String::new();
+        let mut doi        = String::new();
+        let mut station_url= String::new();
         let mut analysis_center : Option<clocks::AnalysisCenter> = None;
         // hardware
         let mut ant        : Option<Antenna> = None;
@@ -542,31 +429,81 @@ impl std::str::FromStr for Header {
         let mut rcvr_clock_offset_applied: bool = false;
         let mut coords     : Option<rust_3d::Point3D> = None;
         let mut epochs: (Option<gnss_time::GnssTime>, Option<gnss_time::GnssTime>) = (None, None);
-        // (OBS) 
+        // (OBS)
+        let mut obs_code_lines : u8 = 0; 
         let mut obs_codes  : HashMap<constellation::Constellation, Vec<String>> 
             = HashMap::with_capacity(constellation::CONSTELLATION_LENGTH);
-		let mut met_codes  : Vec<String> = Vec::with_capacity(3);
+		let mut met_codes  : Vec<String> = Vec::new();
 
-        loop {
-            /*
-            <o
-                the "number of satellites" also corresponds
-                to the number of records of the same epoch
-                following the 'epoch' record.
-                If may be used to skip appropriate number of data records if the event flags are not to be evaluated in detail
-            */
-            if line.contains("MARKER NAME") {
-                station = String::from(line.split_at(20).0.trim())
+        for l in reader.lines() {
+            let line = &l.unwrap();
+            // [0] COMMENTS
+            if is_comment!(line) {
+                let comment = line.split_at(60).0;
+                comments.push(comment.trim().to_string());
+                continue
+            }
+            // [1] CRINEX 
+            else if line.contains("CRINEX VERS") {
+                let version = line.split_at(20).0;
+                crnx_version = version::Version::from_str(version.trim())?
+
+            } else if line.contains("CRINEX PROG / DATE") {
+                let (pgm, remainder) = line.split_at(20);
+                let (_, remainder) = remainder.split_at(20);
+                let date = remainder.split_at(20).0.trim();
+                crnx_infos = Some(
+                    CrinexInfo {
+                        version: crnx_version, 
+                        prog: pgm.trim().to_string(),
+                        date: chrono::NaiveDateTime::parse_from_str(date, "%d-%b-%y %H:%M")?
+                    })
+            }
+            // [2] RINEX
+            else if line.contains("RINEX VERSION / TYPE") {
+                let (vers, rem) = line.split_at(20);
+                let (type_str, rem) = rem.split_at(20); 
+                let (constell_str, _) = rem.split_at(20);
+                rinex_type = Type::from_str(type_str.trim())?;
+                if type_str.contains("GLONASS") {
+                    // special case, sometimes GLONASS NAV
+                    // drops the constellation field cause it's implied
+                    constellation = Some(constellation::Constellation::Glonass)
+                } else if type_str.contains("METEOROLOGICAL DATA") {
+                    // these files are not tied to a constellation system,
+                    // therefore, do not have this field
+                    constellation = None
+                } else { // regular files
+                    constellation = Some(constellation::Constellation::from_str(constell_str.trim())?)
+                }
+                version = version::Version::from_str(vers.trim())?;
+                if !version.is_supported() {
+                    return Err(Error::VersionNotSupported(vers.to_string()))
+                }
+            }
+            else if line.contains("PGM / RUN BY / DATE") {
+                let (pgm, rem) = line.split_at(20);
+                program = pgm.trim().to_string();
+                let (rb, rem) = rem.split_at(20);
+                run_by = match rb.trim().eq("") {
+                    true => String::from("Unknown"),
+                    false => rb.trim().to_string(), 
+                };
+                let (date_str, _) = rem.split_at(20);
+                date = date_str.trim().to_string()
+            }
+            else if line.contains("MARKER NAME") {
+                station = line.split_at(20).0.trim().to_string()
             } else if line.contains("MARKER NUMBER") {
-                station_id = String::from(line.split_at(20).0.trim()) 
+                station_id = line.split_at(20).0.trim().to_string()
             } else if line.contains("OBSERVER / AGENCY") {
                 let (content, _) = line.split_at(60);
                 let (obs, ag) = content.split_at(20);
-                observer = String::from(obs.trim());
-                agency = String::from(ag.trim())
+                observer = obs.trim().to_string();
+                agency = ag.trim().to_string()
 
             } else if line.contains("REC # / TYPE / VERS") {
-                rcvr = Some(Rcvr::from_str(line)?) 
+                rcvr = Some(Rcvr::from_str(&line)?) 
 
 			} else if line.contains("SENSOR MOD/TYPE/ACC") {
 				let (content, _) = line.split_at(60);
@@ -580,25 +517,25 @@ impl std::str::FromStr for Header {
 				//println!("sensor {:#?}", sensors)
             
             } else if line.contains("ANT # / TYPE") {
-                ant = Some(Antenna::from_str(line)?)
+                ant = Some(Antenna::from_str(&line)?)
             
             } else if line.contains("LEAP SECOND") {
                 leap = Some(LeapSecond::from_str(line.split_at(40).0)?)
 
             } else if line.contains("DOI") {
                 let (content, _) = line.split_at(40); //  TODO: confirm please
-                doi = Some(String::from(content.trim()))
+                doi = content.trim().to_string()
 
             } else if line.contains("MERGED FILE") {
                 //TODO V > 3 nb# of merged files
 
             } else if line.contains("STATION INFORMATION") {
                 let (url, _) = line.split_at(40); //TODO confirm please 
-                station_url = Some(String::from(url.trim()))
+                station_url = url.trim().to_string()
 
             } else if line.contains("LICENSE OF USE") {
                 let (lic, _) = line.split_at(40); //TODO confirm please 
-                license = Some(String::from(lic.trim()))
+                license = lic.trim().to_string()
             
             } else if line.contains("TIME OF FIRST OBS") {
                 /*let items: Vec<&str> = line.split_ascii_whitespace()
@@ -700,63 +637,70 @@ impl std::str::FromStr for Header {
                 // + number of different clock data types stored
                 // + list of clock data  types
             } else if line.contains("TYPES OF OBS") { 
-                // Rinex V < 3 : old fashion obs data
+                // RINEX OBS code descriptor (V < 3) 
                 // ⚠ ⚠ could either be observation or meteo data
-                let (rem, _) = line.split_at(60);
-				let (n_codes, mut line) = rem.split_at(6);
-				let n_codes = u8::from_str_radix(n_codes.trim(), 10)?;
-				let n_lines : usize = num_integer::div_ceil(n_codes, 9).into();
-                let mut codes : Vec<String> = Vec::new();
+                if obs_code_lines == 0 {
+                    // [x] OBS CODES 1st line 
+                    let (rem, _) = line.split_at(60); // cleanup
+                    let (n_codes, rem) = rem.split_at(6);
+                    let n_codes = u8::from_str_radix(n_codes.trim(), 10)?;
+                    obs_code_lines = num_integer::div_ceil(n_codes, 9); // max. per line
+                    // --> parse this line 
+                    let codes : Vec<String> = rem
+                        .split_ascii_whitespace()
+                        .map(|r| r.trim().to_string())
+                        .collect();
+                    if rinex_type == Type::ObservationData {
+                        match constellation {
+                            Some(constellation::Constellation::Mixed) => {
+                                // Old RINEX + Mixed Constellation:
+                                // description is not accurate enough to determine which
+                                // code will be measured for which constellation
+                                // ---> copy them for all known constellations 
+                                let constells : Vec<constellation::Constellation> = vec![
+                                    constellation::Constellation::GPS,
+                                    constellation::Constellation::Glonass,
+                                    constellation::Constellation::Galileo,
+                                    constellation::Constellation::Beidou,
+                                    constellation::Constellation::Sbas,
+                                    constellation::Constellation::QZSS,
+                                ];
+                                for i in 0..constells.len() {
+                                    obs_codes.insert(constells[i], codes.clone());
+                                } 
+                            },
+                            Some(constellation) => {
+                                obs_codes.insert(constellation, codes.clone());
+                            },
+                            _ => unreachable!("OBS Rinex with no constellation specified"),
+                        }
+                    } else if rinex_type == Type::MeteoData {
+                        for c in codes {
+                            met_codes.push(c);
+                        }
+                    }
+                    obs_code_lines -= 1
+                } else {
+                    // [*] OBS CODES following line(s) 
+                    // --> parse this line 
+                    let (rem, _) = line.split_at(60); // cleanup
+                    let codes : Vec<String> = rem
+                        .split_ascii_whitespace()
+                        .map(|r| r.trim().to_string())
+                        .collect(); 
+                    if rinex_type == Type::ObservationData {
 
-				for i in 0..n_lines {
-					let content : Vec<&str> = line.split_ascii_whitespace()
-						.collect();
-					for j in 0..content.len() { 
-                    	codes.push(String::from(content[j].trim()));
-					}
-					if i < n_lines-1 { // takes more than one line
-						line = lines.next() // --> need to grab new content
-							.unwrap();
-						line = line.split_at(60).0 // remove comments
-					}
-				}
-
-                // build code map 
-                // to be used later on when parsing payload
-                match constellation {
-                    Some(constellation::Constellation::Mixed) => {
-						// Multi constell:
-						//  trick to later identify, in all cases
-                        let constells : Vec<constellation::Constellation> =
-						vec![
-                            constellation::Constellation::GPS,
-                            constellation::Constellation::Glonass,
-                            constellation::Constellation::Galileo,
-                            constellation::Constellation::Beidou,
-                            constellation::Constellation::Sbas,
-                            constellation::Constellation::QZSS,
-                        ];
-                		for i in 0..constells.len() {
-                    		obs_codes.insert(constells[i], codes.clone());
-                		}
-                    },
-                    Some(c) => {
-						// Single constellation system
-						obs_codes.insert(c, codes.clone());
-					},
-					_ => {
-						// this is a meteo file,
-						// meteo observations are not tied to a specific
-						// constellation system
-						for i in 0..codes.len() {
-							met_codes.push(codes[i].clone())
-						}
-					},
-                };
+                    } else if rinex_type == Type::MeteoData {
+                        for c in codes {
+                            met_codes.push(c)
+                        }
+                    }
+                    obs_code_lines -= 1
+                }
 
             } else if line.contains("SYS / # / OBS TYPES") {
-                // modern obs code descriptor 
-                let (line, _) = line.split_at(60); // remove header
+                // RINEX OBS code descriptor (V > 2) 
+                /*let (line, _) = line.split_at(60); // remove header
                 let (identifier, rem) = line.split_at(1);
                 let (n_codes, mut line) = rem.split_at(5);
                 let n_codes = u8::from_str_radix(n_codes.trim(), 10)?;
@@ -777,7 +721,7 @@ impl std::str::FromStr for Header {
 					}
                 }
                 obs_codes.insert(constell, codes);
-
+            */
             } else if line.contains("ANALYSIS CENTER") {
                 let line = line.split_at(60).0;
                 let (code, agency) = line.split_at(3);
@@ -826,18 +770,6 @@ impl std::str::FromStr for Header {
                 //TODO
                 //0.931322574615D-09 0.355271367880D-14   233472     1930 DELTA-UTC: A0,A1,T,W
             }
-
-            if let Some(l) = lines.next() {
-                line = l
-            } else {
-                break
-            }
-            // comments ?
-            while is_comment!(line) {
-                comments.push(String::from(line.split_at(60).0));
-                line = lines.next()
-                    .unwrap()
-            }
         }
         
         let ant : Option<Antenna> = match ant {
@@ -874,12 +806,13 @@ impl std::str::FromStr for Header {
         
         Ok(Header{
             version: version,
-            crinex: crinex_infos, 
+            crinex: crnx_infos, 
             rinex_type,
             constellation,
             comments,
-            program: String::from(pgm.trim()),
+            program,
             run_by,
+            date,
             station,
             station_id,
             agency,
@@ -889,7 +822,7 @@ impl std::str::FromStr for Header {
             station_url,
             rcvr, 
             ant, 
-			sensors,
+			sensors: None,
             leap,
             analysis_center,
             clk_codes: None,
@@ -931,7 +864,7 @@ impl std::fmt::Display for Header {
                     },
                 }
             },
-            Type::MeteorologicalData => { // has no constellation tied to it
+            Type::MeteoData => { // has no constellation tied to it
                 write!(f, "           {}", self.rinex_type.to_string(self.constellation))?; 
                 write!(f, "                     {}", "RINEX VERSION / TYPE\n")?;
                 // OBS CODES 
@@ -1005,9 +938,4 @@ impl std::fmt::Display for Header {
         // END OF HEADER
         write!(f, "{:>74}", "END OF HEADER\n")
     }
-}
-
-impl Header {
-    /// Returns true if self is a `Compressed RINEX`
-    pub fn is_crinex (&self) -> bool { self.crinex.is_some() }
 }
