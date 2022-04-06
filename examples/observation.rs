@@ -9,10 +9,8 @@ fn main() {
     println!("**************************");
 
     // example file
-    let fp = std::path::PathBuf::from(
-        env!("CARGO_MANIFEST_DIR").to_owned() + "/data/OBS/V3/LARM0630.22O");
-    // parse example file
-    let rinex = rinex::Rinex::from_file(&fp).unwrap();
+    let path = env!("CARGO_MANIFEST_DIR").to_owned() + "/data/OBS/V3/LARM0630.22O";
+    let rinex = rinex::Rinex::from_file(&path).unwrap();
 
     // header information
     assert_eq!(rinex.header.is_crinex(), false);

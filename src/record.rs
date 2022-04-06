@@ -1,6 +1,10 @@
 //! record.rs describes `RINEX` file content
 use thiserror::Error;
-use std::collections::HashMap;
+use std::fs::File;
+use std::str::FromStr;
+use std::io::{self, prelude::*, BufReader};
+use itertools::Itertools;
+use std::collections::{BTreeMap, HashMap};
 
 use crate::sv;
 use crate::epoch;
@@ -10,7 +14,7 @@ use crate::hatanaka;
 use crate::navigation;
 use crate::observation;
 use crate::is_comment;
-use crate::types::{Type, TypeError};
+use crate::types::Type;
 use crate::constellation::Constellation;
 
 /// `Record`
@@ -55,7 +59,7 @@ impl Record {
     /// streams self into given file writer
     pub fn to_file (&self, header: &header::Header, mut writer: std::fs::File) -> std::io::Result<()> {
         match &header.rinex_type {
-            Type::MeteorologicalData => {
+            Type::MeteoData => {
                 let record = self.as_meteo()
                     .unwrap();
                 Ok(meteo::to_file(header, &record, writer)?)
@@ -81,9 +85,11 @@ impl Default for Record {
 }
 
 #[derive(Error, Debug)]
-pub enum RecordError {
+pub enum Error {
     #[error("record parsing not supported for type \"{0}\"")]
     TypeError(String),
+    #[error("file i/o error")]
+    IoError(#[from] std::io::Error),
 }
 
 /// Returns true if given line matches the start   
@@ -122,7 +128,7 @@ pub fn is_new_epoch (line: &str, header: &header::Header) -> bool {
                         _ => panic!("undefined constellation system")
 					}
 				},
-				Type::ObservationData | Type::MeteorologicalData => {
+				Type::ObservationData | Type::MeteoData => {
 					match header.version.major {
 						1|2 => {
 							if parsed.len() > 6 {
@@ -163,7 +169,7 @@ pub fn is_new_epoch (line: &str, header: &header::Header) -> bool {
 			// modern V > 3 RINEX
 			// mostly easy, but Meteo seems to still follow previous format
 			match &header.rinex_type {
-				Type::MeteorologicalData => {
+				Type::MeteoData => {
 					panic!("meteo + V4 is not fully supported yet")
 				},
 				_ => {
@@ -184,10 +190,12 @@ pub fn is_new_epoch (line: &str, header: &header::Header) -> bool {
 
 /// Builds a `Record`, `RINEX` file body content,
 /// which is constellation and `RINEX` file type dependent
-pub fn build_record (header: &header::Header, body: &str) -> Result<Record, TypeError> { 
-    let mut line;
+pub fn build_record (path: &str, header: &header::Header) -> Result<Record, Error> {
+    let file = File::open(path)?;
+    let reader = BufReader::new(file);
+    let mut inside_header = true;
     let mut first_epoch = true;
-    let mut body = body.lines();
+    let mut content : Option<String>; // epoch content to build
     let mut epoch_content = String::with_capacity(6*64);
 
     // CRINEX record special process is special
@@ -196,30 +204,34 @@ pub fn build_record (header: &header::Header, body: &str) -> Result<Record, Type
     let crx_info = header.crinex.as_ref();
     let mut decompressor = hatanaka::Decompressor::new(8);
     // record 
-    let mut nav_rec : navigation::Record = HashMap::new();  // NAV
-    let mut obs_rec : observation::Record = HashMap::new(); // OBS
-    let mut met_rec : meteo::Record = HashMap::new();       // MET
-    
-    loop { // iterates over each line
-        if let Some(l) = body.next() {
-            line = l;
-        } else {
-            break // EOF
+    let mut nav_rec : navigation::Record = BTreeMap::new();  // NAV
+    let mut obs_rec : observation::Record = BTreeMap::new(); // OBS
+    let mut met_rec : meteo::Record = BTreeMap::new();       // MET
+
+    for l in reader.lines() { // process one line at a time 
+        let line = l.unwrap();
+        if inside_header { // still inside header
+            if line.contains("END OF HEADER") {
+                inside_header = false // header is terminating
+            }
+            continue
         }
-        
         if is_comment!(line) {
             continue  // SKIP
         }
-
         // manage CRINEX case
         //  [1]  RINEX : pass content as is
         //  [2] CRINEX : decompress
         //           --> decompressed content may wind up as more than one line
-        let content : Option<String> = match crx_info {
+        content = match crx_info {
             None => Some(line.to_string()), 
             Some(_) => {
+                // decompressor::decompress()
+                // splits content on \n as it can work on several lines at once,
+                // here we iterate through each line, so add an extra \n
                 let mut l = line.to_owned();
-                l.push_str("\n"); // body.next() has stripped the "\n" that recover expects
+                l.push_str("\n");
+                // --> recover compressed data
                 if let Ok(recovered) = decompressor.decompress(&header, &l) {
                     let mut result = String::with_capacity(4*80);
                     for line in recovered.lines() {
@@ -232,10 +244,12 @@ pub fn build_record (header: &header::Header, body: &str) -> Result<Record, Type
                 }
             },
         };
-        
-        // pack content into epoch str
+
         if let Some(content) = content {
-            for line in content.lines() {
+            // CRINEX decompression passed
+            // or regular RINEX content passed
+            // --> epoch boundaries determination
+            for line in content.lines() { // may comprise several lines, in case of CRINEX
                 let new_epoch = is_new_epoch(line, &header);
                 if new_epoch && !first_epoch {
                     match &header.rinex_type {
@@ -251,7 +265,7 @@ pub fn build_record (header: &header::Header, body: &str) -> Result<Record, Type
                                 obs_rec.insert(e, (ck_offset, map));
                             }
                         },
-                        Type::MeteorologicalData => {
+                        Type::MeteoData => {
                             if let Ok((e, map)) = meteo::build_record_entry(&header, &epoch_content) {
                                 met_rec.insert(e, map);
                             }
@@ -266,14 +280,34 @@ pub fn build_record (header: &header::Header, body: &str) -> Result<Record, Type
                     first_epoch = false;
                 }
                 // epoch content builder
-                epoch_content.push_str(&line); //.trim_end());
+                epoch_content.push_str(&line);
                 epoch_content.push_str("\n")
             }
         }
     }
+    // --> try to an epoch out of current leftover
+    match &header.rinex_type {
+        Type::NavigationMessage => {
+            if let Ok((e, sv, map)) = navigation::build_record_entry(&header, &epoch_content) {
+                let mut smap : HashMap<sv::Sv, HashMap<String, navigation::ComplexEnum>> = HashMap::with_capacity(1);
+                smap.insert(sv, map);
+                nav_rec.insert(e, smap);
+            }
+        },
+        Type::ObservationData => {
+            if let Ok((e, ck_offset, map)) = observation::build_record_entry(&header, &epoch_content) {
+                obs_rec.insert(e, (ck_offset, map));
+            }
+        },
+        Type::MeteoData => {
+            if let Ok((e, map)) = meteo::build_record_entry(&header, &epoch_content) {
+                met_rec.insert(e, map);
+            }
+        },
+    }
     match &header.rinex_type {
         Type::NavigationMessage => Ok(Record::NavRecord(nav_rec)),
         Type::ObservationData => Ok(Record::ObsRecord(obs_rec)), 
-		Type::MeteorologicalData => Ok(Record::MeteoRecord(met_rec)),
+		Type::MeteoData => Ok(Record::MeteoRecord(met_rec)),
     }
 }
