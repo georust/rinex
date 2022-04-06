@@ -4,10 +4,6 @@ p44
 "is almost identical to Constellation == glonass
 but the records contain the satellite position, velocity, accel, health.."
 
-Examples :
-* [ ] epoch: determine longest dead time for a given constellation or sv
-* [ ] epoch: time spanning
-
 General :
 * [ ] add to::file production method
 * [ ] simplify line interations with "for line in lines.next()"
@@ -33,29 +29,24 @@ Header:
 
 Leap + Time modules :
 * [x] move to separate modules
-* [ ] leap conversion / application methods
+* [ ] leap conversion / apply methods
 * [ ] gnss-time conversion method 
 * [ ] gnss time related operations
 
 Comments :
-* [ ] move comments to a separate structure and attach an epoch to them
+* [x] move comments to a separate structure and attach an epoch to them
+* [ ] re-read about FILE MERGE comments
+ * [ ] file merge comment always comprise merging timestamps ?
+ * [ ] file merge comments always @ header ?
 
 Special operations:
 * [ ] Merged file: 
  * [ ] methods based on comments for merging identification
- * [x] merged NAV
- * [ ] merged OBS
 * [ ] File merging (writer)
 
 Special methods:
 * [x] interval
 * [ ] merged file related methods 
-
-Record :
-* [ ] problem in case of `merged` RINEX at least for NAV data: 
-same epoch, new sv: .insert() overwrites previous entry
-* [x] ObsRecord : add clockoffsets to epoch record
-* [x] ObsRecord : introduce Observation(f32,lli,ssi) as payload
 
 Epochs:
 * [ ] epoch flag mask operation & special bitmask operations
