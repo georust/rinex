@@ -431,8 +431,8 @@ impl Header {
         let mut epochs: (Option<gnss_time::GnssTime>, Option<gnss_time::GnssTime>) = (None, None);
         // (OBS)
         let mut obs_code_lines : u8 = 0; 
-        let mut obs_codes  : HashMap<constellation::Constellation, Vec<String>> 
-            = HashMap::with_capacity(constellation::CONSTELLATION_LENGTH);
+        let mut current_code_syst = constellation::Constellation::default(); // to keep track in multi line scenario + Mixed constell 
+        let mut obs_codes  : HashMap<constellation::Constellation, Vec<String>> = HashMap::with_capacity(constellation::CONSTELLATION_LENGTH);
 		let mut met_codes  : Vec<String> = Vec::new();
 
         for l in reader.lines() {
@@ -672,7 +672,7 @@ impl Header {
                             Some(constellation) => {
                                 obs_codes.insert(constellation, codes.clone());
                             },
-                            _ => unreachable!("OBS Rinex with no constellation specified"),
+                            None => unreachable!("OBS rinex with no constellation specified"),
                         }
                     } else if rinex_type == Type::MeteoData {
                         for c in codes {
@@ -689,8 +689,33 @@ impl Header {
                         .map(|r| r.trim().to_string())
                         .collect(); 
                     if rinex_type == Type::ObservationData {
-
+                        // retrieve correspond system and append codes with new values 
+                        let to_retrieve : Vec<constellation::Constellation> = match constellation {
+                            Some(constellation::Constellation::Mixed) => {
+                                vec![ // Old OBS Data + Mixed constellation ==> no means to differentiate
+                                    constellation::Constellation::GPS,
+                                    constellation::Constellation::Glonass,
+                                    constellation::Constellation::Galileo,
+                                    constellation::Constellation::Beidou,
+                                    constellation::Constellation::Sbas,
+                                    constellation::Constellation::QZSS,
+                                ]
+                            },
+                            Some(c) => vec![c],
+                            None => unreachable!("OBS rinex with no constellation specified"),
+                        };
+                        for r in to_retrieve {
+                            // retrieve map being built
+                            if let Some(mut prev) = obs_codes.remove(&r) {
+                                // increment obs code map
+                                for code in &codes {
+                                    prev.push(code.to_string());
+                                }
+                                obs_codes.insert(r, prev); // (re)insert
+                            } 
+                        }
                     } else if rinex_type == Type::MeteoData {
+                        // simple append, list is simpler
                         for c in codes {
                             met_codes.push(c)
                         }
@@ -700,28 +725,37 @@ impl Header {
 
             } else if line.contains("SYS / # / OBS TYPES") {
                 // RINEX OBS code descriptor (V > 2) 
-                /*let (line, _) = line.split_at(60); // remove header
-                let (identifier, rem) = line.split_at(1);
-                let (n_codes, mut line) = rem.split_at(5);
-                let n_codes = u8::from_str_radix(n_codes.trim(), 10)?;
-				let n_lines : usize = num_integer::div_ceil(n_codes, 13).into(); 
-                let mut codes : Vec<String> = Vec::with_capacity(n_codes.into());
-                let constell = constellation::Constellation::from_1_letter_code(identifier)?; 
-
-                for i in 0..n_lines {
-					let content : Vec<&str> = line.split_ascii_whitespace()
-						.collect();
-					for j in 0..content.len() { 
-                    	codes.push(String::from(content[j].trim()));
-					}
-					if i < n_lines-1 { // takes more than one line
-						line = lines.next() // --> need to grab new content
-							.unwrap();
-						line = line.split_at(60).0 // remove comments
-					}
-                }
-                obs_codes.insert(constell, codes);
-            */
+                if obs_code_lines == 0 {
+                    // [x] OBS CODES 1st line
+                    let (line, _) = line.split_at(60); // cleanup 
+                    let (identifier, rem) = line.split_at(1);
+                    let (n_codes, rem) = rem.split_at(5);
+                    let n_codes = u8::from_str_radix(n_codes.trim(), 10)?;
+                    obs_code_lines = num_integer::div_ceil(n_codes, 13); // max. per line
+                    // --> parse this line
+                    let codes : Vec<String> = rem
+                        .split_ascii_whitespace()
+                        .map(|r| r.trim().to_string())
+                        .collect();
+                    current_code_syst = constellation::Constellation::from_1_letter_code(identifier)?;
+                    obs_codes.insert(current_code_syst, codes);
+                } else {
+                    let rem = line.split_at(60).0; // cleanup
+                    // --> parse this line
+                    let codes : Vec<String> = rem
+                        .split_ascii_whitespace()
+                        .map(|r| r.trim().to_string())
+                        .collect();
+                    // retrieve map being built
+                    if let Some(mut prev) = obs_codes.remove(&current_code_syst) {
+                        // increment obs code map
+                        for code in codes {
+                            prev.push(code);
+                        }
+                        obs_codes.insert(current_code_syst, prev); // (re)insert)
+                    }
+                } 
+                obs_code_lines -= 1
             } else if line.contains("ANALYSIS CENTER") {
                 let line = line.split_at(60).0;
                 let (code, agency) = line.split_at(3);
