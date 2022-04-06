@@ -3,7 +3,7 @@ use std::io::Write;
 use thiserror::Error;
 use std::str::FromStr;
 use itertools::Itertools;
-use std::collections::HashMap;
+use std::collections::{BTreeMap,HashMap};
 
 use crate::sv;
 use crate::epoch;
@@ -13,11 +13,13 @@ use crate::constellation;
 
 include!(concat!(env!("OUT_DIR"),"/nav_data.rs"));
 
-/// Record definition for NAV files
-pub type Record = HashMap<epoch::Epoch, HashMap<sv::Sv, HashMap<String, ComplexEnum>>>;
+/// Record definition for NAV files,
+/// is a dictionnary (`ComplexEnum`) indexed by their standard code contained in navigation.json,   
+/// for a given realization (sampling timestamp) for a given `satellite vehicule` 
+pub type Record = BTreeMap<epoch::Epoch, HashMap<sv::Sv, HashMap<String, ComplexEnum>>>;
 
 /// `ComplexEnum` is record payload 
-#[derive(Clone, Debug)]
+#[derive(Clone, PartialEq, Debug)]
 pub enum ComplexEnum {
     U8(u8),
     Str(String), 
@@ -137,8 +139,8 @@ pub fn build_record_entry (header: &header::Header, content: &str)
         },
     };
 
-    map.insert(String::from("msg"), msgtype);
-    map.insert(String::from("type"), rectype);
+    map.insert("msg".to_string(), msgtype);
+    map.insert("type".to_string(), rectype);
 
     // parse a 2nd line
     // V < 4
@@ -170,9 +172,9 @@ pub fn build_record_entry (header: &header::Header, content: &str)
 		_ => unreachable!(), // RINEX::NAV body while Type!=NAV
     };
 
-    map.insert("ClockBias".into(), ComplexEnum::new("f32", svbias.trim())?); 
-    map.insert("ClockDrift".into(), ComplexEnum::new("f32", svdrift.trim())?); 
-    map.insert("ClockDriftRate".into(), ComplexEnum::new("f32", svdriftr.trim())?); 
+    map.insert("ClockBias".to_string(), ComplexEnum::new("f32", svbias.trim())?); 
+    map.insert("ClockDrift".to_string(), ComplexEnum::new("f32", svdrift.trim())?); 
+    map.insert("ClockDriftRate".to_string(), ComplexEnum::new("f32", svdriftr.trim())?); 
 
     line = lines.next()
         .unwrap();
@@ -239,10 +241,11 @@ pub fn build_record_entry (header: &header::Header, content: &str)
     Ok((
         epoch::Epoch::new(
             epoch::str2date(date)?,
-            epoch::EpochFlag::default(),
+            epoch::EpochFlag::default(), // always, for NAV
         ),
-        sv, 
-        map))
+        sv,
+        map,
+    ))
 }
 
 /// Pushes observation record into given file writer

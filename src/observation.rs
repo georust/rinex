@@ -3,7 +3,7 @@ use std::io::Write;
 use thiserror::Error;
 use std::str::FromStr;
 use strum_macros::EnumString;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use physical_constants::SPEED_OF_LIGHT_IN_VACUUM;
     
 use crate::sv;
@@ -66,8 +66,8 @@ impl ObservationData {
 /// Measurements are of two kinds:
 ///  + Option<f32>: receiver clock offsets for OBS data files where   
 ///    receiver clock offsets are 'applied'    
-///  + map of ObservationData (physical measurements) sorted by `Sv` 
-pub type Record = HashMap<epoch::Epoch, 
+///  + map of ObservationData (physical measurements) sorted by `Sv` and by observation codes 
+pub type Record = BTreeMap<epoch::Epoch, 
     (Option<f32>, 
     HashMap<sv::Sv, HashMap<String, ObservationData>>)>;
 
