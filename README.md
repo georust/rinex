@@ -126,8 +126,8 @@ println!("{:#?}", rinex.header.coords);
 The `Rinex` structure comprises the `header` previously defined,
 and the `record` which contains the data payload.
 
-Record data are always sorted by `epoch`,
-that means from oldest sampling timestamps to newest sampling timestamps.   
+Record data are always classified by `epoch` that means, by sampling timestamps.   
+The record is naturally sorted from oldest epochs to newest. 
 A `RINEX` file usually spans 24h at a steady sampling interval.   
 
 The `record` is a complex structure of HashMap (_dictionaries_)
@@ -204,6 +204,13 @@ we have one set of NAV data per `Sv` per `epoch`.
 
 `Sv` is tied to a `rinex::constellation` and comprises an 8 bit
 identification number.
+
+## Useful high level methods
+
+* `interval`: returns the nominal sampling interval - nominal time difference
+between two successive epochs in this `record`. See API for more information
+* `sampling_dead_time`: returns a list of `epochs` for which time difference
+between epoch and previous epoch exceeded the nominal sampling interval.
 
 ## Navigation Data
 

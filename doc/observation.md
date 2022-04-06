@@ -174,9 +174,3 @@ and test each observation code against it. We
 only retain the payload on test match.
 
 Decimate L1 phase carrier by using a minimum epoch interval.
-To do so, &#9888; we first sort the epochs,
-this is very important &#9888; because the `.keys()`
-iterator exposes them randomly, and we would be unable to
-efficiently filter epoch intervals.
-Then we apply a simple conditions on adjacent epochs,
-to filter a minimin time interval.
