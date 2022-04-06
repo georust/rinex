@@ -19,15 +19,14 @@ Header:
 * [ ] coords [m] system ?
 * [x] rcvr - clock offset applied
  * [ ] data compensation to do with this?
- * [x] simplify: set to simple boolean TRUE/FALSE
 * [ ] GnssTime + possible conversion needed ?
-* [ ] WaveLength fact L1/2 ?
-* [ ] Glonass SLOT /freq channel ?
-* [ ] Glonass COD/PHS/BIS ?
-* [ ] interval
+* [x] interval
 * [ ] missing fields: 
+ * [ ] WaveLength fact L1/2 ?
+ * [ ] Glonass COD/PHS/BIS ?
  * [ ] SYS / PHASE Shift
  * [ ] Glonass carriers related fields
+ * [ ] Glonass SLOT /freq channel ?
  * [ ] signal strength informations
  * [ ] First and Last epoch time stamps
 
