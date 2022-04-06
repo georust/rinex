@@ -47,7 +47,7 @@ Special operations:
 * [ ] File merging (writer)
 
 Special methods:
-* [ ] interval
+* [x] interval
 * [ ] merged file related methods 
 
 Record :
