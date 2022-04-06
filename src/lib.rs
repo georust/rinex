@@ -95,11 +95,11 @@ impl Rinex {
                 types::Type::NavigationMessage => self.record.as_nav().unwrap().keys().collect(),
                 types::Type::MeteoData => self.record.as_meteo().unwrap().keys().collect(),
             };
-            if epochs.len() < 2 { // weird cases: 
+            /*if epochs.len() < 2 { // weird cases: 
                     // record is empty 
                     // or epoch is unique & calculation is not feasible
                 return None
-            }
+            }*/
             if let Some(e) = epochs.get(1) {
                 let e_0 = epochs.get(0).unwrap();
                 if e.flag.is_ok() && e_0.flag.is_ok() {
@@ -145,9 +145,15 @@ impl Rinex {
             let mut sorted = histogram
                 .iter()
                 .sorted_by(|a,b| b.cmp(a));
-            println!("Histogram sorted by Population: {:#?}", sorted); 
-            let largest_secs = sorted.nth(0).unwrap().0; // largest population
-            Some(std::time::Duration::from_secs(*largest_secs as u64))
+            //println!("Histogram sorted by Population: {:#?}", sorted); 
+            if let Some(largest) = sorted.nth(0) { // largest population found
+                Some(std::time::Duration::from_secs(*largest.0 as u64))
+            } else { // histogram empty -> weird case(s)
+                // record is either empty
+                // or contained a unique epoch
+                // --> calculation was not feasible
+                None 
+            }
         }
     }
 
@@ -155,9 +161,14 @@ impl Rinex {
     /// This is determined by computing successive time difference betweeen epochs and
     /// comparing this value to nominal time difference (`interval`) 
     pub fn sampling_dead_time (&self) -> Vec<epoch::Epoch> {
-        let mut epochs : Vec<epoch::Epoch> = Vec::new();
+        let mut result : Vec<epoch::Epoch> = Vec::new();
         let sampling_interval = self.sampling_interval();
-        epochs
+        let epochs : Vec<&epoch::Epoch> = match self.header.rinex_type {
+            types::Type::ObservationData => self.record.as_obs().unwrap().keys().collect(),
+            types::Type::NavigationMessage => self.record.as_nav().unwrap().keys().collect(),
+            types::Type::MeteoData => self.record.as_meteo().unwrap().keys().collect(),
+        };
+        result
     }
 
     /// Returns `true` if self is a `merged` RINEX file,   
