@@ -281,8 +281,19 @@ impl Rinex {
     /// Returns list of epochs where RINEX merging operation(s) occurred.    
     /// Epochs are determined either by the pseudo standard `FILE MERGE` comment description,
     /// or by comment epochs inside the record
-    pub fn merge_boundaries (&self) -> Vec<epoch::Epoch> {
-        Vec::new()
+    pub fn merge_boundaries (&self) -> Vec<chrono::NaiveDateTime> {
+        let epochs : Vec<&epoch::Epoch> = match self.header.rinex_type {
+            types::Type::ObservationData => self.record.as_obs().unwrap().keys().collect(),
+            types::Type::NavigationMessage => self.record.as_nav().unwrap().keys().collect(),
+            types::Type::MeteoData => self.record.as_meteo().unwrap().keys().collect(),
+        };
+        self.comments
+            .iter()
+            .filter(|(k,v)| {
+                v[0].contains("FILE MERGE") // TODO: wrapp all lines into a single one for testing purposes
+            })
+            .map(|(k,v)| k.date) // retain only timestamps
+            .collect()
     }    
 
     /// Builds a `RINEX` from given file.
@@ -381,7 +392,8 @@ mod test {
                                 let mut epochs = record.keys();
                                 // Testing event description finder
                                 if let Some(event) = epochs.nth(0) {
-                                    // [1] with dummy t0 = epoch timestamp ==> should return header comments
+                                    // [!] with dummy t0 = 1st epoch timestamp
+                                    //     this will actually return `header section` timestamps
                                     println!("EVENT @ {:#?} - description: {:#?}", event, rinex.event_description(*event)); 
                                 }
                             },
@@ -400,7 +412,8 @@ mod test {
                                 println!("----- EPOCHs ----- \n{:#?}", record.keys());
                                 // Testing event description finder
                                 if let Some(event) = epochs.nth(0) {
-                                    // [1] with dummy t0 = epoch timestamp ==> should return header comments
+                                    // [!] with dummy t0 = 1st epoch timestamp
+                                    //     this will actually return `header section` timestamps
                                     println!("EVENT @ {:#?} - description: {:#?}", event, rinex.event_description(*event)); 
                                 }
                             },
@@ -415,7 +428,8 @@ mod test {
                                 println!("----- EPOCHs ----- \n{:#?}", epochs); 
                                 // Testing event description finder
                                 if let Some(event) = epochs.nth(0) {
-                                    // [1] with dummy t0 = epoch timestamp ==> should return header comments
+                                    // [!] with dummy t0 = 1st epoch timestamp
+                                    //     this will actually return `header section` timestamps
                                     println!("EVENT @ {:#?} - description: {:#?}", event, rinex.event_description(*event)); 
                                 }
                             },
@@ -430,7 +444,8 @@ mod test {
                                 println!("----- EPOCHs ----- \n{:#?}", epochs);
                                 // Testing event description finder
                                 if let Some(event) = epochs.nth(0) {
-                                    // [1] with dummy t0 = epoch timestamp ==> should return header comments
+                                    // [!] with dummy t0 = 1st epoch timestamp
+                                    //     this will actually return `header section` timestamps
                                     println!("EVENT @ {:#?} - description: {:#?}", event, rinex.event_description(*event)); 
                                 }
                             },
@@ -444,8 +459,10 @@ mod test {
                         println!("---------- Header Comments ----- \n{:#?}", rinex.get_header_comments());
                         println!("---------- Body   Comments ------- \n{:#?}", rinex.get_body_comments());
                         // MERGED RINEX special ops
+                        println!("---------- Merged RINEX special ops -----------\n");
                         println!("is merged          : {}", rinex.is_merged_rinex());
-                        // RINEX Productor
+                        println!("boundaries: \n{:#?}", rinex.merge_boundaries());
+                        // RINEX Production
                         rinex.to_file(&format!("{}-copy", full_path)).unwrap();
                         //TODO test bench
                         //let identical = diff_is_strictly_identical("test", "data/MET/V2/abvi0010.15m").unwrap();
