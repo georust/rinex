@@ -24,7 +24,17 @@ Header:
 * [ ] WaveLength fact L1/2 ?
 * [ ] Glonass SLOT /freq channel ?
 * [ ] Glonass COD/PHS/BIS ?
-* [x] interval
+* [ ] interval
+* [ ] missing fields: 
+ * [ ] SYS / PHASE Shift
+ * [ ] Glonass carriers related fields
+ * [ ] signal strength informations
+ * [ ] First and Last epoch time stamps
+
+Leap.rs :
+* [ ] move to separate module
+* [ ] time system associated to it -->read RINEX docs
+* [ ] gnss time related operation & conversions
 
 Comments :
 * [ ] move comments to a separate structure and attach an epoch to them
@@ -35,6 +45,10 @@ Special operations:
  * [x] merged NAV
  * [ ] merged OBS
 * [ ] File merging (writer)
+
+Special methods:
+* [ ] interval
+* [ ] merged file related methods 
 
 Record :
 * [ ] problem in case of `merged` RINEX at least for NAV data: 
