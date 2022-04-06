@@ -3,7 +3,7 @@
 use crate::leap;
 use crate::clocks;
 use crate::version;
-use crate::gnss_time;
+//use crate::gnss_time;
 use crate::{is_comment};
 use crate::types::{Type, TypeError};
 use crate::constellation;
@@ -223,9 +223,6 @@ pub struct Header {
     pub observer: String, 
     /// name of production agency
     pub agency: String, 
-    /// optionnal comments encountered in header section, 
-    /// exposed as is
-    pub comments : Vec<String>,
     /// optionnal hardware (receiver) infos
     pub rcvr: Option<Rcvr>, 
     /// optionnal antenna infos
@@ -240,8 +237,6 @@ pub struct Header {
     pub wavelengths: Option<(u32,u32)>, 
     /// optionnal sampling interval (s)
     pub sampling_interval: Option<f32>, 
-    /// optionnal (first, last) epochs
-    pub epochs: (Option<gnss_time::GnssTime>, Option<gnss_time::GnssTime>),
     /// optionnal file license
     pub license: String,
     /// optionnal Object Identifier (IoT)
@@ -255,6 +250,8 @@ pub struct Header {
     //ionospheric_corr: Option<Vec<IonoCorr>>,
     // possible time system correction(s)
     //gnsstime_corr: Option<Vec<gnss_time::GnssTimeCorr>>,
+    /// List of comments encountered in header section
+    pub comments: Vec<String>,
     /// Observations:   
     /// true if epochs & data compensate for local clock drift 
     pub rcvr_clock_offset_applied: bool, 
@@ -311,7 +308,7 @@ impl Default for Header {
             observer: String::new(),
             agency: String::new(),
             station_url: String::new(),
-            comments: Vec::with_capacity(4),
+            comments: Vec::new(),
             doi: String::new(),
             license: String::new(),
             leap: None,
@@ -321,9 +318,8 @@ impl Default for Header {
             ant: None,
 			sensors: None,
             coords: None, 
-            // observations
-            epochs: (None, None),
             wavelengths: None,
+            // observations
             obs_codes: None,
 			met_codes: None,
             // clocks
@@ -347,7 +343,6 @@ impl Header {
     pub fn new (path: &str) -> Result<Header, Error> { 
         let file = File::open(path)?;
         let reader = BufReader::new(file);
-        let mut comments : Vec<String> = Vec::with_capacity(4);
         let mut crnx_infos : Option<CrinexInfo> = None;
         let mut crnx_version = version::Version::default(); 
         let mut rinex_type = Type::default();
@@ -363,7 +358,7 @@ impl Header {
         let mut license    = String::new();
         let mut doi        = String::new();
         let mut station_url= String::new();
-        let mut analysis_center : Option<clocks::AnalysisCenter> = None;
+        let mut comments   : Vec<String> = Vec::with_capacity(4); 
         // hardware
         let mut ant        : Option<Antenna> = None;
         let mut ant_coords : Option<rust_3d::Point3D> = None;
@@ -375,12 +370,14 @@ impl Header {
         let mut sampling_interval: Option<f32> = None;
         let mut rcvr_clock_offset_applied: bool = false;
         let mut coords     : Option<rust_3d::Point3D> = None;
-        let mut epochs: (Option<gnss_time::GnssTime>, Option<gnss_time::GnssTime>) = (None, None);
         // (OBS)
         let mut obs_code_lines : u8 = 0; 
         let mut current_code_syst = constellation::Constellation::default(); // to keep track in multi line scenario + Mixed constell 
         let mut obs_codes  : HashMap<constellation::Constellation, Vec<String>> = HashMap::with_capacity(constellation::CONSTELLATION_LENGTH);
+        // (OBS/METEO)
 		let mut met_codes  : Vec<String> = Vec::new();
+        // (Clocks)
+        let mut analysis_center : Option<clocks::AnalysisCenter> = None;
 
         for l in reader.lines() {
             let line = &l.unwrap();
@@ -810,7 +807,6 @@ impl Header {
             coords: coords,
             wavelengths: None,
             gps_utc_delta: None,
-            epochs,
             obs_codes,
 			met_codes,
             sampling_interval: sampling_interval,

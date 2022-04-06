@@ -6,7 +6,7 @@
 mod leap;
 mod meteo;
 mod clocks;
-mod gnss_time;
+//mod gnss_time;
 mod navigation;
 mod observation;
 
@@ -36,6 +36,9 @@ macro_rules! is_comment {
 pub struct Rinex {
     /// `header` field contains general information
     pub header: header::Header,
+    /// `comments` : list of extra / readable information,
+    /// encountered in `record` section exclusively
+    comments: record::Comments, 
     /// `record` contains `RINEX` file body
     /// and is type and constellation dependent 
     pub record: record::Record,
@@ -46,6 +49,7 @@ impl Default for Rinex {
     fn default() -> Rinex {
         Rinex {
             header: header::Header::default(),
+            comments: record::Comments::new(), 
             record: record::Record::default(), 
         }
     }
@@ -65,11 +69,12 @@ pub enum Error {
 }
 
 impl Rinex {
-    /// Builds a new `RINEX` struct from given:
+    /// Builds a new `RINEX` struct from given header & body sections
     pub fn new (header: header::Header, record: record::Record) -> Rinex {
         Rinex {
             header,
             record,
+            comments: record::Comments::new(),
         }
     }
 
@@ -79,6 +84,13 @@ impl Rinex {
     pub fn is_observation_rinex (&self) -> bool { self.header.rinex_type == types::Type::ObservationData }
     /// Returns true if this is a METEO rinex
     pub fn is_meteo_rinex (&self) -> bool { self.header.rinex_type == types::Type::MeteoData }
+
+    /// Returns list of comments encountered in this `RINEX` file.   
+    /// Comments are sorted by epoch/timestamp of appearance.   
+    /// Comments encountered in `header` section are tied to record 1st epoch.
+    pub fn get_comments (&self) -> &record::Comments {
+        &self.comments
+    } 
 
     /// Returns sampling interval for rinex record 
     /// + either directly from optionnal information contained in `header`   
@@ -218,10 +230,11 @@ impl Rinex {
     /// Parses record for supported `RINEX` types
     pub fn from_file (path: &str) -> Result<Rinex, Error> {
         let header = header::Header::new(path)?;
-        let record = record::build_record(path, &header)?;
+        let (record, comments) = record::build_record(path, &header)?;
         Ok(Rinex {
             header,
-            record, 
+            record,
+            comments,
         })
     }
 

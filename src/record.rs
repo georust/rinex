@@ -34,6 +34,9 @@ pub enum Record {
     MeteoRecord(meteo::Record),
 }
 
+/// Comments: alias to describe comments encountered in `record` file section
+pub type Comments = BTreeMap<epoch::Epoch, Vec<String>>;
+
 impl Record {
 	/// Returns Navigation `record`
     pub fn as_nav (&self) -> Option<&navigation::Record> {
@@ -190,9 +193,10 @@ pub fn is_new_epoch (line: &str, header: &header::Header) -> bool {
 
 /// Builds a `Record`, `RINEX` file body content,
 /// which is constellation and `RINEX` file type dependent
-pub fn build_record (path: &str, header: &header::Header) -> Result<Record, Error> {
+pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Comments), Error> {
     let file = File::open(path)?;
     let reader = BufReader::new(file);
+    let mut comments : Comments = Comments::new();
     let mut inside_header = true;
     let mut first_epoch = true;
     let mut content : Option<String>; // epoch content to build
@@ -326,9 +330,11 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<Record, Erro
             }
         },
     }
-    match &header.rinex_type {
-        Type::NavigationMessage => Ok(Record::NavRecord(nav_rec)),
-        Type::ObservationData => Ok(Record::ObsRecord(obs_rec)), 
-		Type::MeteoData => Ok(Record::MeteoRecord(met_rec)),
-    }
+    // wrap record
+    let record = match &header.rinex_type {
+        Type::NavigationMessage => Record::NavRecord(nav_rec),
+        Type::ObservationData => Record::ObsRecord(obs_rec), 
+		Type::MeteoData => Record::MeteoRecord(met_rec),
+    };
+    Ok((record, comments))
 }
