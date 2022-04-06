@@ -28,26 +28,18 @@ Header:
 Record:
 * [ ] improve object with a IntoIter trait implementation,
 for each record types and enable high level / efficiency interation.
-This will allow operations like self.merge(other) at the `Rinex` object level
+This will allow operations like self.merge(other) at the `Rinex` object level.
+* [ ] provide keys() iterator
+* [ ] provide values() iterator
 
 Leap + Time modules :
-* [x] move to separate modules
 * [ ] leap conversion / apply methods
 * [ ] gnss-time conversion method 
 * [ ] gnss time related operations
 
-Comments :
-* [ ] read about FILE MERGE related comments
- * [ ] file merge comment always comprise merging timestamps ?
- * [ ] file merge comments always @ header ?
-
 Special operations (teqc):
 * [ ] implement Merge()
  * [ ] merge boundaries
-
-Special methods:
-* [x] interval
-* [ ] merged file related methods 
 
 Epochs:
 * [ ] epoch flag mask operation & special bitmask operations
