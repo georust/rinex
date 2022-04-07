@@ -1,9 +1,8 @@
-use itertools::Itertools;
-
 use rinex::sv;
 use rinex::epoch;
 use rinex::types::Type;
 use rinex::constellation::Constellation;
+use itertools::Itertools;
 
 fn main() {
     println!("**************************");
@@ -80,7 +79,6 @@ fn main() {
     let epochs: Vec<_> = record
         .keys()
         .map(|k| k.date)
-        .sorted()
         .collect();
     println!("\n------------- Epochs ----------\n{:#?}", epochs); 
     
