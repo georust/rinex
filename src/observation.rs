@@ -5,7 +5,7 @@ use std::str::FromStr;
 use strum_macros::EnumString;
 use std::collections::{BTreeMap, HashMap};
 use physical_constants::SPEED_OF_LIGHT_IN_VACUUM;
-    
+
 use crate::sv;
 use crate::epoch;
 use crate::header;
@@ -41,6 +41,86 @@ macro_rules! is_sig_strength_obs_code {
     ($code: expr) => { $code.starts_with("S") };
 }
 
+/// `Ssi` describes signals strength
+#[repr(u8)]
+#[derive(PartialOrd, Ord, PartialEq, Eq, Copy, Clone, Debug)]
+pub enum Ssi {
+    /// Ssi ~= 0 dB/Hz
+    DbHz0 = 0,
+    /// Ssi < 12 dB/Hz
+    DbHz12 = 1,
+    /// 12 dB/Hz <= Ssi < 17 dB/Hz
+    DbHz12_17 = 2, 
+    /// 18 dB/Hz <= Ssi < 23 dB/Hz
+    DbHz18_23 = 3, 
+    /// 24 dB/Hz <= Ssi < 29 dB/Hz
+    DbHz21_29 = 4, 
+    /// 30 dB/Hz <= Ssi < 35 dB/Hz
+    DbHz30_35 = 5, 
+    /// 36 dB/Hz <= Ssi < 41 dB/Hz
+    DbHz36_41 = 6, 
+    /// 42 dB/Hz <= Ssi < 47 dB/Hz
+    DbHz42_47 = 7, 
+    /// 48 dB/Hz <= Ssi < 53 dB/Hz
+    DbHz48_53 = 8, 
+    /// Ssi >= 54 dB/Hz 
+    DbHz54 = 9, 
+}
+
+impl std::str::FromStr for Ssi {
+    type Err = std::io::Error;
+    fn from_str (code: &str) -> Result<Self, Self::Err> {
+        match code {
+            "0" => Ok(Ssi::DbHz0),
+            "1" => Ok(Ssi::DbHz12),
+            "2" => Ok(Ssi::DbHz12_17),
+            "3" => Ok(Ssi::DbHz18_23),
+            "4" => Ok(Ssi::DbHz21_29),
+            "5" => Ok(Ssi::DbHz30_35),
+            "6" => Ok(Ssi::DbHz36_41),
+            "7" => Ok(Ssi::DbHz42_47),
+            "8" => Ok(Ssi::DbHz48_53),
+            "9" => Ok(Ssi::DbHz54),
+            _ =>  Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "invalid Ssi code")),
+        }
+    }
+}
+
+impl Ssi {
+    /// Returns true if `self` is a bad signal level, very poor quality,
+    /// measurements should be discarded
+    pub fn is_bad (self) -> bool {
+        self <= Ssi::DbHz18_23
+    }
+    /// Returns true if `self` is a weak signal level, poor quality
+    pub fn is_weak (self) -> bool {
+        self < Ssi::DbHz30_35
+    }
+    /// Returns true if `self` is a strong signal level, good quality as defined by standard
+    pub fn is_strong (self) -> bool {
+        self >= Ssi::DbHz30_35
+    }
+    /// Returns true if `self` is a very strong signal level, very high quality
+    pub fn is_excellent (self) -> bool {
+        self > Ssi::DbHz42_47
+    }
+}
+
+pub mod lli_flags {
+    /// Current epoch is marked Ok or Unknown status 
+    pub const OK_OR_UNKNOWN : u8 = 0x00;
+    /// Lock lost between previous observation and current observation,
+    /// cycle slip is possible
+    pub const LOCK_LOSS : u8 = 0x01;
+    /// Opposite wavelenght factor to the one defined
+    /// for the satellite by a previous WAVELENGTH FACT comment,
+    /// or opposite to default value, is not previous WAVELENFTH FACT comment
+    pub const HALF_CYCLE_SLIP : u8 = 0x02;
+    /// Observing under anti spoofing,
+    /// might suffer from decreased SNR - decreased signal quality
+    pub const UNDER_ANTI_SPOOFING : u8 = 0x04;
+}
+
 #[derive(PartialEq, Copy, Clone, Debug)]
 pub struct ObservationData {
 	/// physical measurement
@@ -48,11 +128,11 @@ pub struct ObservationData {
 	/// Lock loss indicator 
 	lli: Option<u8>,
 	/// Signal strength indicator
-	ssi: Option<u8>,
+	ssi: Option<Ssi>,
 }
 
 impl ObservationData {
-	pub fn new (obs: f32, lli: Option<u8>, ssi: Option<u8>) -> ObservationData {
+	pub fn new (obs: f32, lli: Option<u8>, ssi: Option<Ssi>) -> ObservationData {
 		ObservationData {
 			obs,
 			lli,
@@ -70,18 +150,6 @@ impl ObservationData {
 pub type Record = BTreeMap<epoch::Epoch, 
     (Option<f32>, 
     HashMap<sv::Sv, HashMap<String, ObservationData>>)>;
-
-/// Calculates distance from given Pseudo Range value,
-/// by compensating clock offsets    
-/// pr: raw pseudo range measurements   
-/// rcvr_clock_offset: receiver clock offset (s)    
-/// sat_clock_offset: Sv clock offset (s)    
-/// biases: other additive biases
-pub fn distance_from_pseudo_range (pr: f64, rcvr_clock_offset: f64, sat_clock_offset: f64, biases: Vec<f64>) -> f64 {
-    pr - SPEED_OF_LIGHT_IN_VACUUM * (rcvr_clock_offset - sat_clock_offset)
-    // modulo leap second?
-    // p17 table 4
-}
 
 #[derive(Error, Debug)]
 /// OBS Data `Record` parsing specific errors
@@ -277,7 +345,7 @@ pub fn build_record_entry (header: &header::Header, content: &str)
 					},
 				};
 
-				let ssi : Option<u8> = match line.len() < offset+14+2 {
+				let ssi : Option<Ssi> = match line.len() < offset+14+2 {
 					true => {
 						// can't parse ssi here
 						// 	* line is over and this measurement
@@ -286,7 +354,7 @@ pub fn build_record_entry (header: &header::Header, content: &str)
 					},
 					false => {
 						let ssi = &line[offset+14+1..offset+14+2];
-						let ssi = match u8::from_str_radix(&ssi, 10) {
+						let ssi = match Ssi::from_str(ssi) {
 							Ok(ssi) => Some(ssi),
 							Err(_) => None, // ssi field is empty
 						};
@@ -382,7 +450,7 @@ pub fn build_record_entry (header: &header::Header, content: &str)
 						lli
 					},
 				};
-				let ssi : Option<u8> = match rem.len() < offset+14+2 {
+				let ssi : Option<Ssi> = match rem.len() < offset+14+2 {
 					true => {
 						// can't parse ssi here,
 						// line is terminated by an OBS without ssi
@@ -390,7 +458,7 @@ pub fn build_record_entry (header: &header::Header, content: &str)
 					},
 					false => {
 						let ssi = &rem[offset+14+1..offset+14+2];
-						let ssi = match u8::from_str_radix(&ssi, 10) {
+						let ssi = match Ssi::from_str(ssi) {
 							Ok(ssi) => Some(ssi),
 							Err(_) => None, // ssi field is empty
 						};
@@ -509,7 +577,7 @@ pub enum CarrierFrequency {
 }
 
 impl CarrierFrequency {
-    /// Returns carrier frequency [MHz]
+    /// Returns frequency [MHz] of `self`
     pub fn frequency (&self) -> f64 {
         match self {
             CarrierFrequency::L1 => 1575.42_f64,
@@ -539,74 +607,42 @@ impl CarrierFrequency {
     }
 }
 
-/*
-pub enum SignalStrength {
-    DbHz12, // < 12 dBc/Hz
-    DbHz12_17, // 12 <= x < 17 dBc/Hz
-    DbHz18_23, // 18 <= x < 23 dBc/Hz
-    DbHz21_29, // 24 <= x < 29 dBc/Hz
-    DbHz30_35, // 30 <= x < 35 dBc/Hz
-    DbHz36_41, // 36 <= x < 41 dBc/Hz
-    DbHz42_47, // 42 <= x < 47 dBc/Hz
-    DbHz48_53, // 48 <= x < 53 dBc/Hz
-    DbHz54, // >= 54 dBc/Hz 
+/// Calculates distance from given Pseudo Range value,
+/// by compensating clock offsets    
+/// pseudo_rg: raw pseudo range measurements   
+/// rcvr_clock_offset: receiver clock offset (s)    
+/// sv_clock_offset: Sv clock offset (s)    
+/// biases: optionnal (additive) biases to compensate for and increase result accuracy 
+pub fn pseudo_range_to_distance (pseudo_rg: f64, rcvr_clock_offset: f64, sv_clock_offset: f64, biases: Vec<f64>) -> f64 {
+    pseudo_rg - SPEED_OF_LIGHT_IN_VACUUM * (rcvr_clock_offset - sv_clock_offset)
+    //TODO handle biases
+    // p17 table 4
 }
-
-impl SignalStrength {
-    from f64::
-}
-
-/// `ObservationCode` related errors
-#[derive(Error, Debug)]
-pub enum ObservationCodeError {
-    #[error("code not recognized \"{0}\"")]
-    UnknownObsCode(String),
-}
-
-/// Describes different kind of `Observations`
-#[derive(Copy, Clone, PartialEq, Debug)]
-pub enum ObservationCode {
-    /// Carrier phase range from antenna
-    /// to Sv measured in whole cycles.    
-    // 5.2.13
-    /// Phase observations between epochs
-    /// must be connected by including # integer cycles.   
-    /// Phase obs. must be corrected for phase shifts
-    PhaseCode,
-    /// Positive doppler means Sv is approaching
-    DopplerCode,
-    /// Pseudo Range is distance (m) from the
-    /// receiver antenna to the Sv antenna,
-    /// including clock offsets and other biases
-    /// such as delays induced by atmosphere
-    PseudoRangeCode,
-    /// Carrier signal strength observation
-    SigStrengthCode,
-}
-
-impl Default for ObservationCode {
-    fn default() -> ObservationCode { ObservationCode::PseudoRangeCode }
-}
-
-impl std::str::FromStr for ObservationCode {
-    type Err = ObservationCodeError;
-    fn from_str (s: &str) -> Result<Self, Self::Err> {
-        if is_pseudo_range_obs_code!(s) {
-            Ok(ObservationCode::PseudoRangeCode)
-        } else if is_phase_carrier_obs_code!(s) {
-            Ok(ObservationCode::PhaseCode)
-        } else if is_doppler_obs_code!(s) {
-            Ok(ObservationCode::DopplerCode)
-        } else if is_sig_strength_obs_code!(s) {
-            Ok(ObservationCode::SigStrengthCode)
-        } else {
-            Err(ObservationCodeError::UnknownObsCode(s.to_string()))
-        }
-    }
-} */
 
 mod test {
-    use std::str::FromStr;
+    use super::*;
+    #[test]
+    /// Tests `Ssi` constructor
+    fn test_ssi() {
+        let ssi = Ssi::from_str("0").unwrap(); 
+        assert_eq!(ssi, Ssi::DbHz0);
+        assert_eq!(ssi.is_bad(), true);
+        let ssi = Ssi::from_str("9").unwrap(); 
+        assert_eq!(ssi.is_excellent(), true);
+        let ssi = Ssi::from_str("10"); 
+        assert_eq!(ssi.is_err(), true);
+    }
+    #[test]
+    /// Tests `Lli` masking operation
+    fn test_lli_masking() {
+        let lli = 0;
+        assert_eq!(lli & lli_flags::OK_OR_UNKNOWN, 0);
+        let lli = 0x03;
+        assert_eq!(lli & lli_flags::LOCK_LOSS > 0, true); 
+        assert_eq!(lli & lli_flags::HALF_CYCLE_SLIP > 0, true); 
+        let lli = 0x04;
+        assert_eq!(lli & lli_flags::UNDER_ANTI_SPOOFING > 0, true); 
+    }
     #[test]
     /// Tests `CarrierFrequency` constructor
     fn test_carrier_frequency() {

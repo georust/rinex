@@ -1,7 +1,7 @@
-//! This package provides a set of tools to parse 
-//! `RINEX` files.
+//! This library provides a set of tools to parse, analyze
+//! and produce `RINEX` files.
 //! 
-//! Refer to README for example of use.  
+//! Refer to README for general documentation & examples of use.   
 //! Homepage: <https://github.com/gwbres/rinex>
 mod leap;
 mod meteo;
@@ -70,7 +70,37 @@ pub enum Error {
 pub enum MergeError {
     #[error("file types mismatch: cannot merge different `rinex`")]
     FileTypeMismatch,
+    #[error("not a \"standard\" File Merge Opts descriptor")]
+    MergeOptsDescriptionMismatch,
+    #[error("failed to parse File Merge boundary from Opts")]
+    ParseDateError(#[from] chrono::format::ParseError),
 }
+
+#[derive(Clone, Debug)]
+/// `RINEX` merging options
+pub struct MergeOpts {
+    /// optionnal program name
+    program: String,
+    /// timestamp where new file was appended
+    date: chrono::NaiveDateTime, 
+}
+
+/*impl std::str::FromStr for MergeOpts {
+    Err = MergeError;
+    /// Builds MergeOpts structure from "standard" RINEX comment line
+    fn from_str (line: &str) -> Result<Self, Self::Err> {
+        let (program, rem) = line.split_at(20);
+        let (ops, rem) = rem.split_at(20);
+        let (date, _) = rem.split_at(20);
+        if !opts.trim().eq("FILE MERGE") {
+            return Err(MergeError::MergeOptsDescriptionMismatch)
+        }
+        MergeOpts {
+            program: program.trim().to_string(),
+            date : chrono::DateTime::parse_from_str(date.split_at(16).0, "%Y%m%d %h%m%s")?, 
+        }
+    }
+}*/
 
 impl Rinex {
     /// Builds a new `RINEX` struct from given header & body sections
@@ -309,7 +339,7 @@ impl Rinex {
     /// Writes self into given file.   
     /// Both header + record will strictly follow RINEX standards.   
     /// Record: supports all known `RINEX` types
-    fn to_file (&self, path: &str) -> std::io::Result<()> {
+    pub fn to_file (&self, path: &str) -> std::io::Result<()> {
         let mut writer = std::fs::File::create(path)?;
         write!(writer, "{}", self.header.to_string())?;
         self.record.to_file(&self.header, writer)
