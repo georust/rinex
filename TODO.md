@@ -46,10 +46,9 @@ Epochs:
  * [ ] --> abnormal epochs masking 
 
 Observation Data:
+* [ ] Carrier code ->to measurement code conversion method
 * [ ] rescale raw phase data exceeding F14.3 format by +/- 10E9 accordingly
 * [ ] SYS PHASE Shift ?
-* [ ] LLI proper identification method + usage 
-* [ ] SSI proper identification method + usage 
 
 Ci:
 * [ ] OBS: if rcvr clock offsets applied: check epochs do have this field
