@@ -7,11 +7,19 @@ use chrono::{Datelike,Timelike};
 /// `EpochFlag` validates or describes events
 /// that occured during an `epoch`
 pub enum EpochFlag {
+    /// Epoch is sane
     Ok,
+    /// Power failure since previous epoch
     PowerFailure,
+    /// Antenna is being moved at current epoch
+    AntennaBeingMoved,
+    /// Site has changed, received has moved since last epoch
     NewSiteOccupation,
+    /// New information to come after this epoch
     HeaderInformationFollows,
+    /// External event - significant event in this epoch
     ExternalEvent,
+    /// Cycle slip at this epoch
     CycleSlip,
 }
 
@@ -30,6 +38,7 @@ impl std::str::FromStr for EpochFlag {
         match s {
             "0" => Ok(EpochFlag::Ok),
             "1" => Ok(EpochFlag::PowerFailure),
+            "2" => Ok(EpochFlag::AntennaBeingMoved),
             "3" => Ok(EpochFlag::NewSiteOccupation),
             "4" => Ok(EpochFlag::HeaderInformationFollows),
             "5" => Ok(EpochFlag::ExternalEvent),
@@ -80,16 +89,21 @@ impl Epoch {
 #[derive(Error, Debug)]
 /// `epoch.date` field parsing related errors
 pub enum ParseDateError {
+    #[error("format mismatch, expecting yy mm dd hh mm ss.ssss")]
+    FormatMismatch, 
     #[error("failed to parse seconds field")]
     ParseFloatError(#[from] std::num::ParseFloatError),
     #[error("failed to parse y/m/d h:m fields")]
     ParseIntError(#[from] std::num::ParseIntError),
 }
 
-/// Builds an `epoch.date` field from passed "yyyy mm dd hh mm ss.sssss"
+/// Builds an `epoch.date` field from "yyyy mm dd hh mm ss.sssss"
 /// content, as generally found in `RINEX` epoch descriptors
 pub fn str2date (s: &str) -> Result<chrono::NaiveDateTime, ParseDateError> {
     let items : Vec<&str> = s.split_ascii_whitespace().collect();
+    if items.len() != 6 {
+        return Err(ParseDateError::FormatMismatch)
+    }
     let (mut y,m,d,h,min,s) : (i32,u32,u32,u32,u32,f64) =
         (i32::from_str_radix(items[0],10)?,
          u32::from_str_radix(items[1],10)?,
@@ -98,7 +112,7 @@ pub fn str2date (s: &str) -> Result<chrono::NaiveDateTime, ParseDateError> {
          u32::from_str_radix(items[4],10)?,
          f64::from_str(items[5])?);
 	if y < 100 { // 2 digit nb case
-    	if y > 90 {
+    	if y > 90 { // old rinex
         	y += 1900
     	} else {
 			y += 2000
