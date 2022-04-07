@@ -9,7 +9,7 @@ fn main() {
     println!("**************************");
 
     // example file
-    let path = env!("CARGO_MANIFEST_DIR").to_owned() + "/data/OBS/V3/LARM0630.22O";
+    let path = env!("CARGO_MANIFEST_DIR").to_owned() + "/data/OBS/V3/ALAC00ESP_R_20220090000_01D_30S_MO.rnx";
     let rinex = rinex::Rinex::from_file(&path).unwrap();
 
     // header information
@@ -53,7 +53,7 @@ fn main() {
     //  * `epoch` is a chrono::NaiveDateTime alias
     //     therefore one can use any chrono::NaiveDateTime method
     let to_match = epoch::Epoch::new(
-        epoch::str2date("22 03 04 00 00 00").unwrap(),
+        epoch::str2date("22 01 09 00 00 00").unwrap(),
         epoch::EpochFlag::Ok);
     //    ---> retrieve all data for desired `epoch`
     //         using direct hashmap[indexing]
@@ -64,77 +64,151 @@ fn main() {
 	//       for Glonass system
 	let obs_codes = &rinex.header.obs_codes
 		.unwrap()
-		[&Constellation::Glonass];
-	println!("\n----------- OBS codes for {} system-------\n{:#?}", Constellation::Glonass.to_3_letter_code(), obs_codes);
+		[&Constellation::GPS];
+	println!("\n----------- OBS codes for {} system-------\n{:#?}", Constellation::GPS.to_3_letter_code(), obs_codes);
     
-    // ----> zoom in on `R24` vehicule for that particular `epoch` 
-    let to_match = sv::Sv::new(Constellation::Glonass, 24);
+    // ----> zoom in on `G01` vehicule for that particular `epoch` 
+    let to_match = sv::Sv::new(Constellation::GPS, 01);
     //let matched = &matched[&to_match];
     println!("\n------------- Adding Sv filter \"{:?}\" to previous epoch filter ----------\n{:#?}", to_match, matched); 
     // ----> grab `R24` "C1C" phase observation for that  `epoch`
     //let matched = &matched["C1C"];
     println!("\n------------- \"C1C\" data from previous set ----------\n{:#?}", matched); 
     
-/*
     ///////////////////////////////////////////////////
     // advanced:
     // iterators + filters allow complex
     // pattern matching, data filtering and extraction
     ///////////////////////////////////////////////////
-    let record = rinex.record.unwrap();
-    let record = record
-        .as_nav()
+    let record = rinex.record
+        .as_obs()
         .unwrap();
 
     // list all epochs
     let epochs: Vec<_> = record
         .keys()
         .map(|k| k.date)
-        .sorted()
         .collect();
     println!("\n------------- Epochs ----------\n{:#?}", epochs); 
     
-    // extract all data for `R24` vehicule 
-    let to_match = rinex::record::Sv::new(Constellation::Glonass, 24);
-    let matched : Vec<_> = record
+    // Build OBS record that contains only Pseudo Range measurements 
+    // --> use provided macro to test each obscode and retain only matching data
+    let epochs : Vec<_> = record
         .iter()
-        .map(|(_epoch, sv)| { // dont care about epoch, sv filter
-            sv.iter() // for all sv
-                .find(|(&sv, _)| sv == to_match) // match `E04`
+        .map(|(_epoch, (_clock_offset, sv))| { // record: {key: epochs, values: (array of clock offsets, array of sv data) }
+            sv.iter()
+                .map(|(_sv, obs)| { // array of sv data: {key: sv, values: array of data)
+                    obs.iter()
+                        .find(|(code, data)| { // array of data: {key: OBS code, values: ObsData}
+                            rinex::is_pseudo_range_obs_code!(code)
+                        })
+              })
         })
-        .flatten() // dump non matching data
         .collect();
-    println!("\n------------- \"{:?}\" data ----------\n{:#?}", to_match, matched); 
+    println!("\n------------- Epochs with PSEUDO RANGE only ----------\n{:#?}", epochs); 
+
+    // Build array of (epoch, Data) where Data is Pseudo Range data only, 
+    // for a particuliar vehicule
+    let to_match = sv::Sv::new(Constellation::Galileo, 2); // E02
+    let data : Vec<_> = record
+        .iter()
+        .map(|(epoch, (_, sv))| { // record: {key: epochs, values: (array of clock offsets, array of sv) }
+            sv.iter()
+                .find(|(k, v)| *k == &to_match) // match unique vehicule 
+                .map(|(_, obs)| { // from filtered content, apply previous filter
+                    obs.iter()
+                        .find(|(code, _)| { // obs code kind filter
+                            rinex::is_pseudo_range_obs_code!(code)
+                        })
+                        .map(|(code, data)| (epoch, code, data)) // build returned struct
+                })
+                .flatten()
+        })
+        .flatten()
+        .collect();
+    println!("\n------------- (timestamp + PSEUDO RANGE data) for {:?} vehicule ----------\n{:#?}", to_match, data); 
+
+    // Build array of (epoch, data) for a particular vehicule and a unique observation code
+    let data : Vec<_> = record
+        .iter()
+        .map(|(epoch, (_, sv))| { // record: {key: epochs, values: (array of clock offsets, array of sv) }
+            sv.iter()
+                .find(|(k, v)| *k == &to_match) // match unique vehicule 
+                .map(|(_, obs)| { // from filtered content, apply previous filter
+                    obs.iter()
+                        .find(|(code, _)| { // obs code kind filter
+                            code.as_str() == "C1C" // unique code 
+                        })
+                        .map(|(code, data)| (epoch, code, data)) // build returned struct
+                })
+                .flatten()
+        })
+        .flatten()
+        .collect();
+    println!("\n------------- (timestamp + PSEUDO RANGE data) for {:?} vehicule ----------\n{:#?}", to_match, data); 
+
+    // Same idea but retain only `valid` observations,
+    // meaning: observation that fit the ObservationData.is_ok() condition,
+    // refer to API doc 
+    let data : Vec<_> = record
+        .iter()
+        .map(|(epoch, (_, sv))| { // record: {key: epochs, values: (array of clock offsets, array of sv) }
+            sv.iter()
+                .find(|(k, v)| *k == &to_match) // match unique vehicule 
+                .map(|(_, obs)| { // from filtered content, apply previous filter
+                    obs.iter()
+                        .find(|(obsCode, obsData)| { // obs code kind filter
+                            obsCode.as_str() == "C1C" && obsData.is_ok() // unique code 
+                        })
+                        .map(|(code, data)| (epoch, code, data)) // build returned struct
+                })
+                .flatten()
+        })
+        .flatten()
+        .collect();
+    println!("\n------------- (timestamp + PSEUDO RANGE data) for {:?} vehicule with trusted/meaningful data ----------\n{:#?}", to_match, data); 
     
-    // extract `clockbias` & `clockdrift` fields
-    // for `R24` vehicule accross entire record
-    let matched : Vec<_> = record
+    // Grab all doppler data for R24 vehicule that have an LLI + SSI flag attached to it
+    // without checking their values 
+    // meaning: observation that fit the ObservationData.is_ok() condition,
+    // refer to API doc 
+    let data : Vec<_> = record
         .iter()
-        .map(|(_epoch, sv)| {
-            sv.iter() // for all sv
-                .find(|(&sv, _)| sv == to_match) // match `R24`
-                .map(|(_, data)| ( // create a tuple
-                    data["ClockBias"]
-                        .as_f32()
-                        .unwrap(),
-                    data["ClockDrift"]
-                        .as_f32()
-                        .unwrap(),
-                ))
+        .map(|(epoch, (_, sv))| { // record: {key: epochs, values: (array of clock offsets, array of sv) }
+            sv.iter()
+                .find(|(k, v)| *k == &to_match) // match unique vehicule 
+                .map(|(_, obs)| { // from filtered content, apply previous filter
+                    obs.iter()
+                        .find(|(obsCode, obsData)| { // obs code kind filter
+                            obsCode.as_str() == "C1C" && obsData.is_ok() // unique code 
+                        })
+                        .map(|(code, data)| (epoch, code, data)) // build returned struct
+                })
+                .flatten()
         })
         .flatten()
         .collect();
-    println!("\n------------- \"{:?}\" (bias,drift)----------\n{:#?}", to_match, matched); 
-    // extract all data tied to `Galileo` constellation
-    let to_match = Constellation::Galileo;
-    let matched : Vec<_> = record
+    println!("\n------------- (timestamp + PSEUDO RANGE data) for {:?} vehicule with trusted/meaningful data ----------\n{:#?}", to_match, data); 
+
+    // Grab (Epoch, ObsCode, ObsData) for all data that have a strong signal quality
+    let data : Vec<_> = record
         .iter()
-        .map(|(_epoch, sv)| {
-            sv.iter() // for all sv
-                .find(|(&sv, _)| sv.constellation == to_match) // match `Rxx`
+        .map(|(epoch, (_, sv))| { // record: {key: epochs, values: (array of clock offsets, array of sv) }
+            sv.iter()
+                .find(|(k, v)| *k == &to_match) // match unique vehicule 
+                .map(|(_, obs)| { // from filtered content, apply previous filter
+                    obs.iter()
+                        .find(|(_, obsData)| { // obs code kind filter
+                            if obsData.ssi.is_some() {
+                                obsData.ssi.unwrap().is_excellent()
+                            } else {
+                                false
+                            }
+                        })
+                        .map(|(code, data)| (epoch, code, data)) // build returned struct
+                })
+                .flatten()
         })
         .flatten()
         .collect();
-    println!("\n------------- Constellation: \"{:?}\" ----------\n{:#?}", to_match, matched); 
-    }*/
 }

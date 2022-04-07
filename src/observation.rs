@@ -2,6 +2,7 @@
 use std::io::Write;
 use thiserror::Error;
 use std::str::FromStr;
+use itertools::Itertools;
 use strum_macros::EnumString;
 use std::collections::{BTreeMap, HashMap};
 use physical_constants::SPEED_OF_LIGHT_IN_VACUUM;
@@ -10,36 +11,6 @@ use crate::sv;
 use crate::epoch;
 use crate::header;
 use crate::constellation;
-
-#[macro_export]
-/// Returns True if 3 letter code 
-/// matches a pseudo range (OBS) code
-macro_rules! is_pseudo_range_obs_code {
-    ($code: expr) => { 
-        $code.starts_with("C") || $code.starts_with("P") // non gps old fashion
-    };
-}
-
-#[macro_export]
-/// Returns True if 3 letter code 
-/// matches a phase (OBS) code
-macro_rules! is_phase_carrier_obs_code {
-    ($code: expr) => { $code.starts_with("L") };
-}
-
-#[macro_export]
-/// Returns True if 3 letter code 
-/// matches a doppler (OBS) code
-macro_rules! is_doppler_obs_code {
-    ($code: expr) => { $code.starts_with("D") };
-}
-
-#[macro_export]
-/// Returns True if 3 letter code 
-/// matches a signal strength (OBS) code
-macro_rules! is_sig_strength_obs_code {
-    ($code: expr) => { $code.starts_with("S") };
-}
 
 /// `Ssi` describes signals strength
 #[repr(u8)]
@@ -65,6 +36,10 @@ pub enum Ssi {
     DbHz48_53 = 8, 
     /// Ssi >= 54 dB/Hz 
     DbHz54 = 9, 
+}
+
+impl Default for Ssi {
+    fn default() -> Ssi { Ssi::DbHz54 }
 }
 
 impl std::str::FromStr for Ssi {
@@ -104,6 +79,8 @@ impl Ssi {
     pub fn is_excellent (self) -> bool {
         self > Ssi::DbHz42_47
     }
+    /// Returns true if `self` matches a strong signal level (defined by standard)
+    pub fn is_ok (self) -> bool { self.is_strong() }
 }
 
 pub mod lli_flags {
@@ -124,21 +101,34 @@ pub mod lli_flags {
 #[derive(PartialEq, Copy, Clone, Debug)]
 pub struct ObservationData {
 	/// physical measurement
-	obs: f32,
+	pub obs: f32,
 	/// Lock loss indicator 
-	lli: Option<u8>,
+	pub lli: Option<u8>,
 	/// Signal strength indicator
-	ssi: Option<Ssi>,
+	pub ssi: Option<Ssi>,
 }
 
 impl ObservationData {
-	pub fn new (obs: f32, lli: Option<u8>, ssi: Option<Ssi>) -> ObservationData {
+	/// Builds new ObservationData structure from given predicates
+    pub fn new (obs: f32, lli: Option<u8>, ssi: Option<Ssi>) -> ObservationData {
 		ObservationData {
 			obs,
 			lli,
 			ssi,
 		}
 	}
+    /// Returns `true` if self is determined as `ok`.    
+    /// self is declared `ok` if LLI and SSI flags are not provided,
+    /// because they are considered as unknown/ok if missing by default.   
+    /// If LLI exists:    
+    ///    + LLI must match the lli_flags::OkOrUnknown flag (strictly)    
+    /// if SSI exists:    
+    ///    + SSI must match the .is_ok() criteria, refer to API 
+    pub fn is_ok (self) -> bool {
+        let lli_ok = self.lli.unwrap_or(lli_flags::OK_OR_UNKNOWN) == lli_flags::OK_OR_UNKNOWN;
+        let ssi_ok = self.ssi.unwrap_or(Ssi::default()).is_ok();
+        lli_ok && ssi_ok
+    }
 }
 
 /// `Record` content for OBS data files.   
