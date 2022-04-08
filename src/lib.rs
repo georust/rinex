@@ -112,25 +112,25 @@ pub struct MergeOpts {
     /// optionnal program name
     program: String,
     /// timestamp where new file was appended
-    date: chrono::NaiveDateTime, 
+    date: chrono::NaiveDateTime,
 }
 
-/*impl std::str::FromStr for MergeOpts {
-    Err = MergeError;
+impl std::str::FromStr for MergeOpts {
+    type Err = MergeError;
     /// Builds MergeOpts structure from "standard" RINEX comment line
     fn from_str (line: &str) -> Result<Self, Self::Err> {
         let (program, rem) = line.split_at(20);
         let (ops, rem) = rem.split_at(20);
         let (date, _) = rem.split_at(20);
-        if !opts.trim().eq("FILE MERGE") {
+        if !ops.trim().eq("FILE MERGE") {
             return Err(MergeError::MergeOptsDescriptionMismatch)
         }
-        MergeOpts {
+        Ok(MergeOpts {
             program: program.trim().to_string(),
-            date : chrono::DateTime::parse_from_str(date.split_at(16).0, "%Y%m%d %h%m%s")?, 
-        }
+            date : chrono::NaiveDateTime::parse_from_str(date.split_at(16).0, "%Y%m%d %h%m%s")?,
+        })
     }
-}*/
+}
 
 impl Rinex {
     /// Builds a new `RINEX` struct from given header & body sections
@@ -351,21 +351,42 @@ impl Rinex {
     }    
 
     /// Splits merged RINEX `records` into list of records 
-    pub fn split (&self) -> Vec<record::Record> {
+    /*pub fn split (&self) -> Vec<record::Record> {
         let mut result : Vec<record::Record> = Vec::with_capacity(2);
         result
-    }
-
-    /// Merges given RINEX into self, in teqc similar fashion.   
+    }*/
+/*
+    /// Merges given RINEX into self (modifies self in place), in similar fashion as teqc program.
+    /// Use MergeOpts to describe / control the operation.     
     /// Header section are combined.    
-    /// Records are appended together at desired epoch boundary
-    pub fn merge (&mut self, rinex: &Self) -> Result<(), MergeError> {
-        if self.header.rinex_type != rinex.header.rinex_type {
+    /// Final record is controlled by `opts.date` : 
+    /// `opts.date` :   
+    ///     + if < self.record.epoch[0] : other is prepended before self   
+    ///     + else if > self.recrd.epoch[N] : other is appended to self   
+    ///     + else: { self.record.epochs[0..m]; other; self.record.epochs[m..N] }
+    pub fn merge (&mut self, other: &Self, opts: MergeOpts) -> Result<(), MergeError> {
+        if self.header.rinex_type != other.header.rinex_type {
             return Err(MergeError::FileTypeMismatch)
+        }
+        // add comment in similar fashion than teqc
+        self.header.comments.push("rust-rinex-1.0.0    FILE MERGE          {}      COMMENT");
+        let epoch_0 = self.record.keys().iter().nth(0);
+        let t_merge = opts.date;
+        if epoch_0.is_none() {
+            // self is empty record
+            // --> self.record becomes a simple `other.record` copy
+            self.record : HashMap<_>
+                other.record.iter()
+                    .filter(|(epoch, values)| {
+                        epoch > t_merge
+                    })
+                    .collect()
+        } else {
+            let epoch_0 = epoch_0.unwrap();
         }
         Ok(())
     }
-
+*/
     /// Writes self into given file.   
     /// Both header + record will strictly follow RINEX standards.   
     /// Record: supports all known `RINEX` types
