@@ -17,8 +17,6 @@ fn main() {
     assert_eq!(rinex.header.rinex_type, Type::ObservationData);
     assert_eq!(rinex.header.version.major, 3);
     assert_eq!(rinex.header.constellation, Some(Constellation::Mixed)); 
-    // leap second field for instance
-    // is a major > 3 optionnal field
     assert_eq!(rinex.header.leap.is_some(), true);
 
     // (OBS) record analysis
@@ -34,15 +32,17 @@ fn main() {
         println!("Found epoch: `{:#?}`", epoch); 
         // epochs are 2D (1 per epoch)
         //   clock offsets (if any) : Some(f32)
+        let clock_offset = entry.1.0;
+        println!("Clock offset: `{:#?}`", clock_offset);
         //   HashMap<Sv, HashMap<String, ObservationData>> 
         //   : list of observation data, indexed by Observation Code
         //     and sorted by Satellite Vehicule
-        /*for vehicule in entry.1.iter() { // over all sat. vehicules
+        let obs_data = &entry.1.1;
+        for vehicule in obs_data.iter() { // over all sat. vehicules
             let sv = vehicule.0;
-            println!("Found sat vehicule: `{:#?}`", sv); 
             let data = vehicule.1;
-            println!("Data: `{:#?}`", data); 
-        }*/
+            println!("Found sat vehicule: `{:#?}` - Data: `{:#?}`", sv, data); 
+        }
     }
     //////////////////////////////////////
     // basic hashmap [indexing] 
@@ -180,7 +180,7 @@ fn main() {
                 .map(|(_, obs)| { // from filtered content, apply previous filter
                     obs.iter()
                         .find(|(obsCode, obsData)| { // obs code kind filter
-                            obsCode.as_str() == "C1C" && obsData.is_ok() // unique code 
+                            rinex::is_doppler_obs_code!(obsCode) && obsData.is_ok()
                         })
                         .map(|(code, data)| (epoch, code, data)) // build returned struct
                 })
@@ -188,7 +188,7 @@ fn main() {
         })
         .flatten()
         .collect();
-    println!("\n------------- (timestamp + PSEUDO RANGE data) for {:?} vehicule with trusted/meaningful data ----------\n{:#?}", to_match, data); 
+    println!("\n------------- (timestamp + Doppler data) for {:?} vehicule with trusted/meaningful data ----------\n{:#?}", to_match, data); 
 
     // Grab (Epoch, ObsCode, ObsData) for all data that have a strong signal quality
     let data : Vec<_> = record
@@ -211,4 +211,21 @@ fn main() {
         })
         .flatten()
         .collect();
+    println!("\n------------- (timestamp + Doppler data) for {:?} vehicule with excellent signal quality  ----------\n{:#?}", to_match, data); 
+    
+    // Decimate data with an epoch interval
+    /*let min_interval = std::time::Duration::from_secs(10 * 60);
+    let data : Vec<_> = record
+        .iter()
+        .filter_by_key(|(k,v)| {
+        //.map(|(epoch, (_, sv))| { // record: {key: epochs, values: (array of clock offsets, array of sv) }
+            let iter = epoch.iter();
+            if let Some(next) = epoch.next() {
+
+            }
+        })
+        .collect();
+    println!("\n------------- Decimated Epochs  ----------\n{:#?}", data); 
+    // and convert pseudo range to distance [m] for given satellite vehicule
+    println!("\n------------- Decimated PR converted to distance [m] for vehicule {:?}  ----------\n{:#?}", to_match, data); */
 }
