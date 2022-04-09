@@ -23,7 +23,7 @@ use std::io::Write;
 use thiserror::Error;
 use std::str::FromStr;
 use itertools::Itertools;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 #[macro_export]
 /// Returns `true` if given `Rinex` line is a comment
@@ -96,42 +96,22 @@ pub enum Error {
 }
 
 #[derive(Error, Debug)]
-/// `RINEX` merge ops related errors
+/// `Merge` ops related errors
 pub enum MergeError {
     #[error("file types mismatch: cannot merge different `rinex`")]
     FileTypeMismatch,
-    #[error("not a \"standard\" File Merge Opts descriptor")]
-    MergeOptsDescriptionMismatch,
-    #[error("failed to parse File Merge boundary from Opts")]
+    #[error("failed to parse date field")] 
     ParseDateError(#[from] chrono::format::ParseError),
 }
 
-#[derive(Clone, Debug)]
-/// `RINEX` merging options
-pub struct MergeOpts {
-    /// optionnal program name
-    program: String,
-    /// timestamp where new file was appended
-    date: chrono::NaiveDateTime, 
+#[derive(Error, Debug)]
+/// `Split` ops related errors
+pub enum SplitError {
+    #[error("desired epoch is too early")]
+    EpochTooEarly,
+    #[error("desired epoch is too late")]
+    EpochTooLate,
 }
-
-impl std::str::FromStr for MergeOpts {
-    type Err = MergeError;
-    /// Builds MergeOpts structure from "standard" RINEX comment line
-    fn from_str (line: &str) -> Result<Self, Self::Err> {
-        let (program, rem) = line.split_at(20);
-        let (ops, rem) = rem.split_at(20);
-        let (date, _) = rem.split_at(20);
-        if !ops.trim().eq("FILE MERGE") {
-            return Err(MergeError::MergeOptsDescriptionMismatch)
-        }
-        Ok(MergeOpts {
-            program: program.trim().to_string(),
-            date: chrono::NaiveDateTime::parse_from_str(date.split_at(16).0.trim(), "%Y%m%d %h%m%s")?, 
-        })
-    }
-}
-
 impl Rinex {
     /// Builds a new `RINEX` struct from given header & body sections
     pub fn new (header: header::Header, record: record::Record) -> Rinex {
@@ -304,15 +284,16 @@ impl Rinex {
     /// and returning closest comment (inside record) in time.    
     /// Usually, comments are associated to epoch events (anomalies) to describe what happened.   
     /// This method tries to locate a list of comments that were associated to the given timestamp 
-    pub fn event_description (&self, event: epoch::Epoch) -> Option<&str> {
+    pub fn event_description (&self, event: epoch::Epoch) -> Option<String> {
         let comments : Vec<_> = self.comments
             .iter()
-            .filter(|(k,v)| *k == &event)
-            .map(|(k,v)| v)
+            .filter(|(k,_)| *k == &event)
+            .map(|(_,v)| v)
             .flatten()
             .collect();
         if comments.len() > 0 {
-            Some(comments[0]) // TODO grab all content! by serializing into a single string
+            let comments = itertools::join(&comments, ", ");
+            Some(comments)
         } else {
             None
         }
@@ -338,30 +319,93 @@ impl Rinex {
         self.header.comments
             .iter()
             .flat_map(|s| {
-                if let Ok(opts) = MergeOpts::from_str(s) {
-                    Some(opts)
+                if s.contains("FILE MERGE") {
+                    let content = s.split_at(40).1.trim();
+                    if let Ok(date) = chrono::NaiveDateTime::parse_from_str(content, "%Y%m%d %h%m%s") {
+                        Some(date)
+                    } else {
+                        None
+                    }
                 } else {
                     None
                 }
             })
-            .map(|s| s.date)
             .collect()
+    }
+
+    /// Splits self into two seperate records, at desired `epoch`
+    pub fn split_at_epoch (&self, epoch: epoch::Epoch) -> Result<(record::Record,record::Record), SplitError> {
+        let epochs : Vec<&epoch::Epoch> = match self.header.rinex_type {
+            types::Type::ObservationData => self.record.as_obs().unwrap().keys().collect(),
+            types::Type::NavigationMessage => self.record.as_nav().unwrap().keys().collect(),
+            types::Type::MeteoData => self.record.as_meteo().unwrap().keys().collect(),
+        };
+        if epoch.date < epochs[0].date {
+            return Err(SplitError::EpochTooEarly)
+        }
+        if epoch.date > epochs[0].date {
+            return Err(SplitError::EpochTooLate)
+        }
+        /*let rec0 : record::Record = match self.header.rinex_type {
+            types::Type::NavigationMessage => {
+                //let nav_rec : Vec<(&epoch::Epoch, &HashMap<sv::Sv, HashMap<String, navigation::ComplexEnum>>)> = self.record.as_nav()
+                let nav_rec = self.record.as_nav()
+                    .unwrap()
+                        .iter()
+                        .filter_map(|(e, data)| {
+                            if e.date <= epoch.date {
+                                Some((e, data))
+                            } else {
+                                None
+                            }
+                        });
+                let test = BTreeMap::from(nav_rec);
+                //record::Record::NavRecord(test)
+            },
+            _ => panic!("not yet"),
+        };*/
+        Ok((self.record.clone(),self.record.clone()))
     }
 
     /// Splits merged RINEX `records` into list of records 
     pub fn split (&self) -> Vec<record::Record> {
-        let mut result : Vec<record::Record> = Vec::with_capacity(2);
+        let result : Vec<record::Record> = Vec::with_capacity(2);
         result
     }
 
-    /// Merges given RINEX into self, in teqc similar fashion.   
-    /// Header section are combined.    
-    /// Records are appended together at desired epoch boundary
-    pub fn merge (&mut self, rinex: &Self) -> Result<(), MergeError> {
-        if self.header.rinex_type != rinex.header.rinex_type {
+    /// Merges given RINEX into self, in similar fashion as `teqc` program.  
+    /// Header section attributes are combined:    
+    ///   + self.attributes are preserved / preferred
+    ///   + if an attribute is not known to self, it gets created
+    /// Record sections are merged together, respecting epochs chronology. 
+    pub fn merge (&mut self, other: &Self) -> Result<(), MergeError> {
+        if self.header.rinex_type != other.header.rinex_type {
             return Err(MergeError::FileTypeMismatch)
         }
-        Ok(())
+        // grab Self:: + Other:: `epochs`
+        let (epochs, other_epochs) : (Vec<&epoch::Epoch>, Vec<&epoch::Epoch>) = match self.header.rinex_type {
+            types::Type::ObservationData => {
+                (self.record.as_obs().unwrap().keys().collect(),
+                other.record.as_obs().unwrap().keys().collect())
+            },
+            types::Type::NavigationMessage => {
+                (self.record.as_nav().unwrap().keys().collect(),
+                other.record.as_nav().unwrap().keys().collect())
+            },
+            types::Type::MeteoData => {
+                (self.record.as_meteo().unwrap().keys().collect(),
+                other.record.as_meteo().unwrap().keys().collect())
+            },
+        };
+        if epochs.len() == 0 { // self is empty
+            self.record = other.record.clone();
+            Ok(()) // --> self is overwritten
+        } else if other_epochs.len() == 0 { // nothing to merge
+            Ok(()) // --> self is untouched
+        } else {
+            // determine epoch intersections
+            Ok(())
+        }
     }
 
     /// Writes self into given file.   
