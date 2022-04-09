@@ -539,6 +539,12 @@ impl Rinex {
         } else if other_epochs.len() == 0 { // nothing to merge
             Ok(()) // --> self is untouched
         } else {
+            // add Merge op descriptor
+            let now = chrono::offset::Utc::now();
+            self.header.comments.push(format!(
+                "rustrnx-{:<20} FILE MERGE          {} UTC", 
+                env!("CARGO_PKG_VERSION"),
+                now.format("%Y%m%d %H%M%S")));
             // determine min commmon epoch
             // determine max common epoch
             Ok(())
