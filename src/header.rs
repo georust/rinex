@@ -20,7 +20,7 @@ pub const CRINEX_MARKER_COMMENT : &str = "COMPACT RINEX FORMAT";
 pub const HEADER_END_MARKER : &str = "END OF HEADER";
 
 /// GNSS receiver description
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Rcvr {
     /// Receiver (hardware) model
     model: String, 
@@ -56,7 +56,7 @@ impl std::str::FromStr for Rcvr {
 }
 
 /// Meteo Observation Sensor
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Sensor {
 	/// Model of this sensor
 	model: String,
@@ -93,7 +93,7 @@ impl Sensor {
 }
 
 /// Antenna description 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Antenna {
     /// Hardware model / make descriptor
     pub model: String,
@@ -195,7 +195,7 @@ enum MarkerType {
 }
 
 /// Describes `RINEX` file header
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Header {
     /// revision for this `RINEX`
     pub version: version::Version, 

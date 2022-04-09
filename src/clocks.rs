@@ -6,7 +6,7 @@
 //use thiserror::error;
 
 /// Describes a clock analysis center / agency
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct AnalysisCenter {
     /// IGS AC 3 letter code
     code: String,

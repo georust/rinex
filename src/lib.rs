@@ -333,42 +333,9 @@ impl Rinex {
             .collect()
     }
 
-    /// Splits self into two seperate records, at desired `epoch`
-    pub fn split_at_epoch (&self, epoch: epoch::Epoch) -> Result<(record::Record,record::Record), SplitError> {
-        let epochs : Vec<&epoch::Epoch> = match self.header.rinex_type {
-            types::Type::ObservationData => self.record.as_obs().unwrap().keys().collect(),
-            types::Type::NavigationMessage => self.record.as_nav().unwrap().keys().collect(),
-            types::Type::MeteoData => self.record.as_meteo().unwrap().keys().collect(),
-        };
-        if epoch.date < epochs[0].date {
-            return Err(SplitError::EpochTooEarly)
-        }
-        if epoch.date > epochs[0].date {
-            return Err(SplitError::EpochTooLate)
-        }
-        /*let rec0 : record::Record = match self.header.rinex_type {
-            types::Type::NavigationMessage => {
-                //let nav_rec : Vec<(&epoch::Epoch, &HashMap<sv::Sv, HashMap<String, navigation::ComplexEnum>>)> = self.record.as_nav()
-                let nav_rec = self.record.as_nav()
-                    .unwrap()
-                        .iter()
-                        .filter_map(|(e, data)| {
-                            if e.date <= epoch.date {
-                                Some((e, data))
-                            } else {
-                                None
-                            }
-                        });
-                let test = BTreeMap::from(nav_rec);
-                //record::Record::NavRecord(test)
-            },
-            _ => panic!("not yet"),
-        };*/
-        Ok((self.record.clone(),self.record.clone()))
-    }
-
-    /// Splits merged `records` into seperate `records`
-    pub fn split_merged_records (&self) -> Vec<record::Record> {
+    /// Splits merged `records` into seperate `records`.
+    /// Returns empty list if self is not a `Merged` file
+    pub fn split_records (&self) -> Vec<record::Record> {
         let boundaries = self.merge_boundaries();
         let mut result : Vec<record::Record> = Vec::with_capacity(boundaries.len());
         let epochs : Vec<&epoch::Epoch> = match self.header.rinex_type {
@@ -414,11 +381,123 @@ impl Rinex {
         result
     }
 
-    /// Splits merged `RINEX` into separate `RINEX` structures. 
-    /// Header sections are simply copied. 
-    /// Records are built using the .split_merged_records() method
+    /// Splits self into two seperate records, at desired `epoch`.
+    /// Self does not have to be a `Merged` file
+    pub fn split_records_at_epoch (&self, epoch: epoch::Epoch) -> Result<(record::Record,record::Record), SplitError> {
+        let epochs : Vec<&epoch::Epoch> = match self.header.rinex_type {
+            types::Type::ObservationData => self.record.as_obs().unwrap().keys().collect(),
+            types::Type::NavigationMessage => self.record.as_nav().unwrap().keys().collect(),
+            types::Type::MeteoData => self.record.as_meteo().unwrap().keys().collect(),
+        };
+        if epoch.date < epochs[0].date {
+            return Err(SplitError::EpochTooEarly)
+        }
+        if epoch.date > epochs[0].date {
+            return Err(SplitError::EpochTooLate)
+        }
+        let rec0 : record::Record = match self.header.rinex_type {
+            types::Type::NavigationMessage => {
+                let rec = self.record.as_nav()
+                    .unwrap()
+                        .iter()
+                        .flat_map(|(k, v)| {
+                            if k.date < epoch.date {
+                                Some((k, v))
+                            } else {
+                                None
+                            }
+                        })
+                        .map(|(k,v)| (k.clone(),v.clone())) // BTmap collect() derefencing 
+                        .collect();
+                record::Record::NavRecord(rec)
+            },
+            types::Type::ObservationData => {
+                let rec = self.record.as_obs()
+                    .unwrap()
+                        .iter()
+                        .flat_map(|(k, v)| {
+                            if k.date < epoch.date {
+                                Some((k, v))
+                            } else {
+                                None
+                            }
+                        })
+                        .map(|(k,v)| (k.clone(),v.clone())) // BTmap collect() derefencing 
+                        .collect();
+                record::Record::ObsRecord(rec)
+            },
+            types::Type::MeteoData => {
+                let rec = self.record.as_meteo()
+                    .unwrap()
+                        .iter()
+                        .flat_map(|(k, v)| {
+                            if k.date < epoch.date {
+                                Some((k, v))
+                            } else {
+                                None
+                            }
+                        })
+                        .map(|(k,v)| (k.clone(),v.clone())) // BTmap collect() derefencing 
+                        .collect();
+                record::Record::MeteoRecord(rec)
+            },
+        };
+        let rec1 : record::Record = match self.header.rinex_type {
+            types::Type::NavigationMessage => {
+                let rec = self.record.as_nav()
+                    .unwrap()
+                        .iter()
+                        .flat_map(|(k, v)| {
+                            if k.date >= epoch.date {
+                                Some((k, v))
+                            } else {
+                                None
+                            }
+                        })
+                        .map(|(k,v)| (k.clone(),v.clone())) // BTmap collect() derefencing 
+                        .collect();
+                record::Record::NavRecord(rec)
+            },
+            types::Type::ObservationData => {
+                let rec = self.record.as_obs()
+                    .unwrap()
+                        .iter()
+                        .flat_map(|(k, v)| {
+                            if k.date >= epoch.date {
+                                Some((k, v))
+                            } else {
+                                None
+                            }
+                        })
+                        .map(|(k,v)| (k.clone(),v.clone())) // BTmap collect() derefencing 
+                        .collect();
+                record::Record::ObsRecord(rec)
+            },
+            types::Type::MeteoData => {
+                let rec = self.record.as_meteo()
+                    .unwrap()
+                        .iter()
+                        .flat_map(|(k, v)| {
+                            if k.date >= epoch.date {
+                                Some((k, v))
+                            } else {
+                                None
+                            }
+                        })
+                        .map(|(k,v)| (k.clone(),v.clone())) // BTmap collect() derefencing 
+                        .collect();
+                record::Record::MeteoRecord(rec)
+            },
+        };
+        Ok((rec0,rec1))
+    }
+
+    /// Splits Self into separate `RINEX` structures. 
+    /// Self must be a `Merged` file.
+    /// Header sections are simply copied.
+    /// Records are built using the .split_records() method.
     pub fn split (&self) -> Vec<Self> {
-        let records = self.split_merged_records();
+        let records = self.split_records();
         let mut result : Vec<Self> = Vec::with_capacity(records.len());
         for rec in records {
             result.push(Self {
