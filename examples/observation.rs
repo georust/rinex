@@ -99,7 +99,7 @@ fn main() {
             sv.iter()
                 .map(|(_sv, obs)| { // array of sv data: {key: sv, values: array of data)
                     obs.iter()
-                        .find(|(code, data)| { // array of data: {key: OBS code, values: ObsData}
+                        .find(|(code, _)| { // array of data: {key: OBS code, values: ObsData}
                             rinex::is_pseudo_range_obs_code!(code)
                         })
               })
@@ -114,7 +114,7 @@ fn main() {
         .iter()
         .map(|(epoch, (_, sv))| { // record: {key: epochs, values: (array of clock offsets, array of sv) }
             sv.iter()
-                .find(|(k, v)| *k == &to_match) // match unique vehicule 
+                .find(|(k, _)| *k == &to_match) // Key: sv, Value: dont care
                 .map(|(_, obs)| { // from filtered content, apply previous filter
                     obs.iter()
                         .find(|(code, _)| { // obs code kind filter
@@ -133,7 +133,7 @@ fn main() {
         .iter()
         .map(|(epoch, (_, sv))| { // record: {key: epochs, values: (array of clock offsets, array of sv) }
             sv.iter()
-                .find(|(k, v)| *k == &to_match) // match unique vehicule 
+                .find(|(k, _)| *k == &to_match) // Key: sv, Value: dont care
                 .map(|(_, obs)| { // from filtered content, apply previous filter
                     obs.iter()
                         .find(|(code, _)| { // obs code kind filter
@@ -154,11 +154,11 @@ fn main() {
         .iter()
         .map(|(epoch, (_, sv))| { // record: {key: epochs, values: (array of clock offsets, array of sv) }
             sv.iter()
-                .find(|(k, v)| *k == &to_match) // match unique vehicule 
+                .find(|(k, _)| *k == &to_match) // Key: sv, Value: dont care
                 .map(|(_, obs)| { // from filtered content, apply previous filter
                     obs.iter()
-                        .find(|(obsCode, obsData)| { // obs code kind filter
-                            obsCode.as_str() == "C1C" && obsData.is_ok() // unique code 
+                        .find(|(obs_code, obs_data)| { // obs code kind filter
+                            obs_code.as_str() == "C1C" && obs_data.is_ok() // unique code 
                         })
                         .map(|(code, data)| (epoch, code, data)) // build returned struct
                 })
@@ -176,11 +176,11 @@ fn main() {
         .iter()
         .map(|(epoch, (_, sv))| { // record: {key: epochs, values: (array of clock offsets, array of sv) }
             sv.iter()
-                .find(|(k, v)| *k == &to_match) // match unique vehicule 
+                .find(|(k, _)| *k == &to_match) // Key: sv, Value: dont care 
                 .map(|(_, obs)| { // from filtered content, apply previous filter
                     obs.iter()
-                        .find(|(obsCode, obsData)| { // obs code kind filter
-                            rinex::is_doppler_obs_code!(obsCode) && obsData.is_ok()
+                        .find(|(obs_code, obs_data)| { // obs code kind filter
+                            rinex::is_doppler_obs_code!(obs_code) && obs_data.is_ok()
                         })
                         .map(|(code, data)| (epoch, code, data)) // build returned struct
                 })
@@ -195,12 +195,12 @@ fn main() {
         .iter()
         .map(|(epoch, (_, sv))| { // record: {key: epochs, values: (array of clock offsets, array of sv) }
             sv.iter()
-                .find(|(k, v)| *k == &to_match) // match unique vehicule 
+                .find(|(k, _)| *k == &to_match) // match unique vehicule 
                 .map(|(_, obs)| { // from filtered content, apply previous filter
                     obs.iter()
-                        .find(|(_, obsData)| { // obs code kind filter
-                            if obsData.ssi.is_some() {
-                                obsData.ssi.unwrap().is_excellent()
+                        .find(|(_, obs_data)| { // obs code kind filter
+                            if obs_data.ssi.is_some() {
+                                obs_data.ssi.unwrap().is_excellent()
                             } else {
                                 false
                             }
