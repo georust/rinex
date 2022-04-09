@@ -1,6 +1,5 @@
-//! hatanaka.rs   
-//! structures and macros suites for
-//! RINEX OBS files compression and decompression.   
+//! Structures and macros for
+//! RINEX OBS file compression and decompression.   
 use crate::sv;
 use crate::header;
 use crate::is_comment;

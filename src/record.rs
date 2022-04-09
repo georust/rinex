@@ -1,4 +1,4 @@
-//! record.rs describes `RINEX` file content
+//! `RINEX` file content description and parsing
 use thiserror::Error;
 use std::fs::File;
 use std::str::FromStr;

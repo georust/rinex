@@ -1,5 +1,4 @@
-//! Describes a `RINEX` header, includes
-//! rinex header parser and associated methods
+//! Describes `leap` second information, contained in `header` 
 use thiserror::Error;
 use crate::constellation;
 use crate::constellation::Constellation;

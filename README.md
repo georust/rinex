@@ -35,7 +35,7 @@ the `rinex::types::Type` enum
 describes the types of RINEX currently supported:
 
 * `Type::NavigationMessage` (NAV) messages
-* `Type::ObservationData` (OBS) data: `compressed` or not
+* `Type::ObservationData` (OBS) data
 * `Type::MeteoData` (Meteo) data
 
 ### CRINEX special case

@@ -1,4 +1,5 @@
-//! `Epoch` description
+//! `Epoch` is an observation timestamp with
+//! a `flag` associated to it
 use thiserror::Error;
 use std::str::FromStr;
 use chrono::{Datelike,Timelike};
