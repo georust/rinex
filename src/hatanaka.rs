@@ -22,12 +22,10 @@ pub enum KernelError {
 /// we can compress / decompress
 #[derive(Clone, Debug)]
 pub enum Dtype {
-    /// Numerical is intended to be used    
+    /// Numerical is intended to be used
     /// for observation data and clock offsets
     Numerical(i64),
-    /// Text represents epoch descriptors,   
-    /// GNSS descriptors,    
-    /// observation flags..
+    /// Text represents epoch descriptors, GNSS descriptors, observation flags..
     Text(String),
 }
 
