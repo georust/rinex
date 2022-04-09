@@ -115,22 +115,22 @@ pub struct MergeOpts {
     date: chrono::NaiveDateTime, 
 }
 
-/*impl std::str::FromStr for MergeOpts {
-    Err = MergeError;
+impl std::str::FromStr for MergeOpts {
+    type Err = MergeError;
     /// Builds MergeOpts structure from "standard" RINEX comment line
     fn from_str (line: &str) -> Result<Self, Self::Err> {
         let (program, rem) = line.split_at(20);
         let (ops, rem) = rem.split_at(20);
         let (date, _) = rem.split_at(20);
-        if !opts.trim().eq("FILE MERGE") {
+        if !ops.trim().eq("FILE MERGE") {
             return Err(MergeError::MergeOptsDescriptionMismatch)
         }
-        MergeOpts {
+        Ok(MergeOpts {
             program: program.trim().to_string(),
-            date : chrono::DateTime::parse_from_str(date.split_at(16).0, "%Y%m%d %h%m%s")?, 
-        }
+            date: chrono::NaiveDateTime::parse_from_str(date.split_at(16).0.trim(), "%Y%m%d %h%m%s")?, 
+        })
     }
-}*/
+}
 
 impl Rinex {
     /// Builds a new `RINEX` struct from given header & body sections
@@ -197,7 +197,7 @@ impl Rinex {
     /// + either directly from optionnal information contained in `header`   
     /// + or (if not provided by header), by computing the average time interval between two successive epochs,    
     ///   in the extracted `record`. Only valid epochs (EpochFlag::Ok) contribute to the calculation in this case.   
-    ///   Returns None, in this case if record contains a unique epoch and calculation is not feasible.
+    ///   In this case, we return _None_ if calculation was not feasible (empty or single epoch)
     pub fn sampling_interval (&self) -> Option<std::time::Duration> {
         if let Some(interval) = self.header.sampling_interval {
             Some(std::time::Duration::from_secs(interval as u64))
@@ -332,23 +332,21 @@ impl Rinex {
         false
     }
 
-    /// Returns list of epochs where RINEX merging operation(s) occurred.    
-    /// Epochs are determined either by the pseudo standard `FILE MERGE` comment description,
-    /// or by comment epochs inside the record
+    /// Returns list of epochs where RINEX merging operation(s) occurred.
+    /// Epochs are determined by the pseudo standard `FILE MERGE` comment description in header section.
     pub fn merge_boundaries (&self) -> Vec<chrono::NaiveDateTime> {
-        let epochs : Vec<&epoch::Epoch> = match self.header.rinex_type {
-            types::Type::ObservationData => self.record.as_obs().unwrap().keys().collect(),
-            types::Type::NavigationMessage => self.record.as_nav().unwrap().keys().collect(),
-            types::Type::MeteoData => self.record.as_meteo().unwrap().keys().collect(),
-        };
-        self.comments
+        self.header.comments
             .iter()
-            .filter(|(k,v)| {
-                v[0].contains("FILE MERGE") // TODO: wrapp all lines into a single one for testing purposes
+            .flat_map(|s| {
+                if let Ok(opts) = MergeOpts::from_str(s) {
+                    Some(opts)
+                } else {
+                    None
+                }
             })
-            .map(|(k,v)| k.date) // retain only timestamps
+            .map(|s| s.date)
             .collect()
-    }    
+    }
 
     /// Splits merged RINEX `records` into list of records 
     pub fn split (&self) -> Vec<record::Record> {

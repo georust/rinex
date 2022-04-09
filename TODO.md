@@ -37,9 +37,10 @@ Leap + Time modules :
 * [ ] gnss-time conversion method 
 * [ ] gnss time related operations
 
-Special operations (teqc):
+Merge op (teqc):
 * [ ] implement Merge()
- * [ ] merge boundaries
+* [ ] check behav. when parsing a merged file 
+* merge_boundaries() : will fail if op is described in the record, not in header
 
 Epochs:
 * [ ] epoch flag mask operation & special bitmask operations
