@@ -324,7 +324,7 @@ impl Rinex {
             .flat_map(|s| {
                 if s.contains("FILE MERGE") {
                     let content = s.split_at(40).1.trim();
-                    if let Ok(date) = chrono::NaiveDateTime::parse_from_str(content, "%Y%m%d %h%m%s") {
+                    if let Ok(date) = chrono::NaiveDateTime::parse_from_str(content, "%Y%m%d %h%m%s UTC") {
                         Some(date)
                     } else {
                         None
@@ -570,27 +570,57 @@ impl Rinex {
     }
 
     /// Decimates `record` data with a minimal sampling interval to match
-    /// (modifies Self in place). Decimation will not fail, 
-    /// record is left untouched if decimation was not feasible, due to
-    /// non realistic `interval`
-    pub fn decimate (&mut self, interval: std::time::Duration) {
-        /*match self.header.rinex_type {
-            types::Type::NavigationMessage => {
-                let mut record = self.record.as_nav().unwrap();
-                let mut iter = record.iter_mut(); 
-                for i in 0..iter.len() { 
-                }
+    pub fn decimate (&self, interval: std::time::Duration) -> record::Record {
+        let interval = chrono::Duration::from_std(interval).unwrap();
+        let epochs : Vec<&epoch::Epoch> = match self.header.rinex_type {
+            types::Type::ObservationData => self.record.as_obs().unwrap().keys().collect(),
+            types::Type::NavigationMessage => self.record.as_nav().unwrap().keys().collect(),
+            types::Type::MeteoData => self.record.as_meteo().unwrap().keys().collect(),
+        };
+        let nav_record = self.record.as_nav();
+        let obs_record = self.record.as_obs();
+        let met_record = self.record.as_meteo();
+        let mut met_result = meteo::Record::new();
+        let mut nav_result = navigation::Record::new();
+        let mut obs_result = observation::Record::new();
+        let mut curr = epochs[0]; 
+        let mut i : usize = 1;
+        match self.header.rinex_type {
+            types::Type::NavigationMessage => { 
+                nav_result.insert(*curr, nav_record.unwrap().get(curr).unwrap().clone());
             },
-            _ => panic!("youhou"),
-        };*/
-    }
-
-    /// Decimates `record` data with a minimal sampling interval to match
-    /// and returns resulting `record`.
-    /// Decimation will not fail, record is left untouched if decimation 
-    /// was not feasible, due to non realistic `interval`
-    pub fn decimate_copy (&self, interval: std::time::Duration) -> record::Record {
-        self.record.clone()
+            types::Type::ObservationData => { 
+                obs_result.insert(*curr, obs_record.unwrap().get(curr).unwrap().clone());
+            },
+            types::Type::MeteoData => { 
+                met_result.insert(*curr, met_record.unwrap().get(curr).unwrap().clone());
+            },
+        }
+        loop {
+            if i == epochs.len() {
+                break
+            }
+            if epochs[i].date - curr.date >= interval {
+                match self.header.rinex_type {
+                    types::Type::NavigationMessage => { 
+                        nav_result.insert(*epochs[i], nav_record.unwrap().get(epochs[i]).unwrap().clone());
+                    },
+                    types::Type::MeteoData => { 
+                        met_result.insert(*epochs[i], met_record.unwrap().get(epochs[i]).unwrap().clone());
+                    },
+                    types::Type::ObservationData => {
+                        obs_result.insert(*epochs[i], obs_record.unwrap().get(epochs[i]).unwrap().clone());
+                    },
+                }
+                curr = epochs[i]
+            }
+            i += 1
+        }
+        match self.header.rinex_type {
+            types::Type::NavigationMessage => record::Record::NavRecord(nav_result),
+            types::Type::ObservationData => record::Record::ObsRecord(obs_result),
+            types::Type::MeteoData => record::Record::MeteoRecord(met_result),
+        }
     }
 
     /// Writes self into given file.   
@@ -624,9 +654,25 @@ mod test {
     /// Tests record `Decimate()` ops 
     fn test_record_decimation() {
         let path = env!("CARGO_MANIFEST_DIR").to_owned() + "/data/NAV/V3/AMEL00NLD_R_20210010000_01D_MN.rnx";
-        let mut rinex = Rinex::from_file(&path).unwrap();
-        rinex.decimate(std::time::Duration::from_secs(60));
-        rinex.decimate(std::time::Duration::from_secs(3600));
+        let rinex = Rinex::from_file(&path).unwrap();
+        let original : Vec<&epoch::Epoch> = rinex.record.as_nav().unwrap().keys().collect();
+        println!("LEN {}", original.len());
+        
+        let record = rinex.decimate(std::time::Duration::from_secs(1));
+        let epochs : Vec<&epoch::Epoch> = record.as_nav().unwrap().keys().collect();
+        assert_eq!(original.len() - epochs.len(), 0); // same length because this duration is too short
+        
+        let record = rinex.decimate(std::time::Duration::from_secs(10*60));
+        let epochs : Vec<&epoch::Epoch> = record.as_nav().unwrap().keys().collect();
+        assert_eq!(original.len() - epochs.len(), 0); // same length because this duration is too short
+
+        let record = rinex.decimate(std::time::Duration::from_secs(30*60));
+        let epochs : Vec<&epoch::Epoch> = record.as_nav().unwrap().keys().collect();
+        assert_eq!(original.len() - epochs.len(), 2); // dropped 2 vehicules
+
+        let record = rinex.decimate(std::time::Duration::from_secs(10*3600));
+        let epochs : Vec<&epoch::Epoch> = record.as_nav().unwrap().keys().collect();
+        assert_eq!(epochs.len(), 2); // only 2 vehicules left
     }
     #[test]
     /// Tests `Merge()` ops
@@ -656,6 +702,8 @@ mod test {
         let path2 = manifest.to_owned() + "/data/NAV/V3/CBW100NLD_R_20210010000_01D_MN.rnx";
         let mut r2 = Rinex::from_file(&path2).unwrap();
         assert_eq!(r1.merge(&r2).is_ok(), true)
+        //println!("is merged          : {}", rinex.is_merged_rinex());
+        //println!("boundaries: \n{:#?}", rinex.merge_boundaries());
     }
     #[test]
     /// Tests `Rinex` constructor against all known test resources
