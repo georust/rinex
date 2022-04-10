@@ -616,9 +616,9 @@ mod test {
         let data_dir = env!("CARGO_MANIFEST_DIR").to_owned() + "/data";
         let test_data = vec![
 			"NAV",
-			//"OBS",
-			//"CRNX",
-			//"MET",
+			"OBS",
+			"CRNX",
+			"MET",
 		];
         for data in test_data {
             let data_path = std::path::PathBuf::from(

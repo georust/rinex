@@ -163,7 +163,8 @@ pub struct CrinexInfo {
 }
 
 /// Describes known marker types
-enum MarkerType {
+#[derive(Clone, Debug)]
+pub enum MarkerType {
     /// Earth fixed & high precision
     Geodetic,
     /// Earth fixed & low precision
@@ -175,9 +176,9 @@ enum MarkerType {
     /// Aircraft, balloon..
     Airborne,
     /// Mobile water craft
-    WaterCraft,
+    Watercraft,
     /// Mobile terrestrial vehicule
-    GroundCraft,
+    Groundcraft,
     /// Fixed on water surface
     FixedBuoy,
     /// Floating on water surface
@@ -192,6 +193,35 @@ enum MarkerType {
     Animal,
     /// Human being carrying a receiver
     Human,
+}
+
+impl Default for MarkerType {
+    fn default() -> MarkerType { MarkerType::Geodetic }
+}
+
+impl std::str::FromStr for MarkerType {
+    type Err = std::io::Error; 
+    /// Builds a MarkerType from given code descriptor.
+    /// This method is not case sensitive
+    fn from_str (code: &str) -> Result<Self, Self::Err> {
+        match code.to_uppercase().as_str() {
+            "GEODETIC" => Ok(Self::Geodetic),
+            "NON GEODETIC" => Ok(Self::NonGeodetic),
+            "NON_PHYSICAL" => Ok(Self::NonPhysical),
+            "SPACE BORNE" => Ok(Self::Spaceborne),
+            "AIR BORNE" => Ok(Self::Airborne),
+            "WATER CRAFT" => Ok(Self::Watercraft),
+            "GROUND CRAFT" => Ok(Self::Groundcraft),
+            "FIXED BUOY" => Ok(Self::FixedBuoy),
+            "FLOATING BUOY" => Ok(Self::FloatingBuoy),
+            "FLOATING ICE" => Ok(Self::FloatingIce),
+            "GLACIER" => Ok(Self::Glacier),
+            "BALLISTIC" => Ok(Self::Ballistic),
+            "ANIMAL" => Ok(Self::Animal),
+            "HUMAN" => Ok(Self::Human),
+            _ => Ok(Self::default()), 
+        }
+    }
 }
 
 /// Describes `RINEX` file header
@@ -225,6 +255,8 @@ pub struct Header {
     pub observer: String, 
     /// name of production agency
     pub agency: String, 
+    /// optionnal receiver placement infos
+    pub marker_type: Option<MarkerType>,
     /// optionnal hardware (receiver) infos
     pub rcvr: Option<Rcvr>, 
     /// optionnal antenna infos
@@ -308,6 +340,7 @@ impl Default for Header {
             station_id: String::new(),
             observer: String::new(),
             agency: String::new(),
+            marker_type: None,
             station_url: String::new(),
             doi: String::new(),
             license: String::new(),
@@ -359,6 +392,7 @@ impl Header {
         let mut license    = String::new();
         let mut doi        = String::new();
         let mut station_url= String::new();
+        let mut marker_type : Option<MarkerType> = None; 
         // hardware
         let mut ant        : Option<Antenna> = None;
         let mut ant_coords : Option<rust_3d::Point3D> = None;
@@ -440,6 +474,10 @@ impl Header {
                 station = line.split_at(20).0.trim().to_string()
             } else if line.contains("MARKER NUMBER") {
                 station_id = line.split_at(20).0.trim().to_string()
+            } else if line.contains("MARKER TYPE") {
+                let code = line.split_at(20).0.trim();
+                marker_type = Some(MarkerType::from_str(code).unwrap());
+            
             } else if line.contains("OBSERVER / AGENCY") {
                 let (content, _) = line.split_at(60);
                 let (obs, ag) = content.split_at(20);
@@ -753,6 +791,7 @@ impl Header {
 			true => None,
 			false => Some(met_codes),
 		};
+
         
         Ok(Header{
             version: version,
@@ -770,6 +809,7 @@ impl Header {
             license,
             doi,
             station_url,
+            marker_type,
             rcvr, 
             ant, 
 			sensors: None,
