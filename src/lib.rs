@@ -545,10 +545,42 @@ impl Rinex {
                 "rustrnx-{:<20} FILE MERGE          {} UTC", 
                 env!("CARGO_PKG_VERSION"),
                 now.format("%Y%m%d %H%M%S")));
-            // determine min commmon epoch
-            // determine max common epoch
+            // determine min epoch to begin with 
+            let min = (epochs.iter().min(), other_epochs.iter().min());
+            let other_rec : BTreeMap<_,_> = match self.header.rinex_type {
+                types::Type::NavigationMessage => other.record.as_nav().unwrap().iter().collect(),
+                _ => panic!("salut"),
+            };
+            match self.header.rinex_type {
+                /*types::Type::NavigationMessage => {
+                    for (entry, value) in other_rec {
+                        self.record.as_nav().unwrap().insert(*entry, value.clone());
+                    }
+                },*/
+                _ => panic!("salut"),
+            }
             Ok(())
         }
+    }
+
+    /// Decimates `record` data with a minimal sampling interval to match
+    /// (modifies Self in place)
+    pub fn decimate (&mut self, interval: std::time::Duration) {
+        /*match self.header.rinex_type {
+            types::Type::NavigationMessage => {
+                let mut record = self.record.as_nav().unwrap();
+                let mut iter = record.iter_mut(); 
+                for i in 0..iter.len() { 
+                }
+            },
+            _ => panic!("youhou"),
+        };*/
+    }
+
+    /// Decimates `record` data with a minimal sampling interval to match
+    /// and returns resulting `record` 
+    pub fn decimate_copy (&self, interval: std::time::Duration) -> record::Record {
+        self.record.clone()
     }
 
     /// Writes self into given file.   
