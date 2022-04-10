@@ -332,11 +332,12 @@ impl Decompressor {
                         Some(num)
                     },
                 };
-                // we can now fully recover the descriptor line
+                // we can now fully recover the epoch description 
                 let recovered_epoch =  // trick to recover textdiff
                     self.epo_krn.recover(Dtype::Text(String::from(" ")))?
                     .as_text()
                     .unwrap();
+                let recovered_epoch = recovered_epoch.as_str().trim_end();
                 match rnx_version.major {
                     1|2 => { // old RINEX
                         // system # id is appended
@@ -344,25 +345,21 @@ impl Decompressor {
                         let (epoch, systems) = recovered_epoch.split_at(32);
                         result.push_str(epoch);
                         let mut begin = 0;
-                        let n = num_integer::div_ceil(systems.len(), 12*3); // max sv per line
                         // terminate first line with required content
                         let end = std::cmp::min(begin+12*3, systems.len());
                         result.push_str(&systems[begin..end]);
                         // squeeze clock offset here, if any
                         if let Some(offset) = clock_offset {
-                            result.push_str(&format!("         {:3.12}", (offset as f64)/1000.0_f64))
+                            result.push_str(&format!("  {:3.9}", (offset as f64)/1000.0_f64))
                         }
-                        result.push_str("\n");
-                        begin += 12*3; // `systems` pointer
-                        for i in 1..n { // nb of missing lines, to fit remaining systems 
-                            let end = std::cmp::min(begin+12*3, systems.len());
-                            result.push_str("                                ");
-                            result.push_str(&systems[begin..end]);
-                            if i < n-1 {
-                                result.push_str("\n"); // otherwise,
-                                                // last line is terminated at the end of this block
+                        loop { // missing lines to fit remaining systems 
+                            begin += 12*3; // `systems` pointer
+                            if begin >= systems.len() {
+                                break
                             }
-                            begin += 12*3
+                            let end = std::cmp::min(begin+12*3, systems.len());
+                            result.push_str("\n                                ");
+                            result.push_str(&systems[begin..end]);
                         }
                     },
                     _ => { // modern RINEX
