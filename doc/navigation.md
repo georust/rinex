@@ -26,14 +26,20 @@ One example script is provided
 cargo run --example navigation
 ```
 
+Refer to this example to learn how to browse NAV `record, that includes:
+* [x] grab high level information
+* [x] enumerate epochs contained in record
+* [x] enumerate epochs for specific `Sv` contained in record
+* [x] retrieve specific data, for specific `Sv` and specific `epochs`..
+
 ## Navigation Record content
 
 The NAV record is sorted by `Epoch` and by `Sv`.   
 
-`Epoch.flag` is not contained in a NAV file, as opposed to say an OBS file.
-Therefore, all _epochs_ contained in a NAV file are supposed sane / valid
+`Epoch.flag` is not contained in a NAV file, as opposed to Observation Data.
+Therefore, all _epochs_ contained in a NAV file are supposed to be sane / valid
 and have a constant `epoch.flag::Ok` value. That also means 
-filtering epoch.flags makes no sence for a NAV file.
+filtering epoch.flags makes no sense for a NAV Data.
 
 All NAV record share the following attributes:
 
@@ -109,102 +115,3 @@ NAV revisions and type descriptions.
 
 For example, to unwrap the actual data of a ComplexEnum::F32,
 one should call: `as_f32().unwrap()`.
-
-Refer to the examples down below when data fields are unwrapped.
-
-## Navigation Record analysis
-
-### High level `hashmap` indexing
-
-`hashmap` allows high level indexing, it is possible to 
-grab an epoch directly :
-
-```rust
-// match a specific `epoch`
-let to_match = rinex::epoch::from_string(
-   "21 01 01 09 00 00")
-      .unwrap();
-//    ---> retrieve all data for desired `epoch`
-let matched_epoch = &record[&to_match];
-```
-
-Zoom in on `B07` vehicule (Beidou constellation, vehicule #7)
-from that particular _epoch_ by indexing the inner hashmap directly:
-
-```rust
-// zoom in on `B07`
-let to_match = rinex::record::Sv::new(
-    rinex::constellation::Constellation::Beidou,
-    0x07);
-let matched_b07 = &matched_epoch[&to_match];
-```
-
-Zoom in on `clockDrift` field for that particular vehicule,
-in that particular epoch using direct indexing:
-
-```rust
-let clkDrift = &matched_b07["ClockDrift"];
-```
-
-## Advanced manipulation using iterators & filters 
-
-Extract all `E04` vehicule data from record,
-by using the `Sv` object comparison method
-
-```rust
-let to_match = rinex::record::Sv::new(
-    rinex::constellation::Constellation::Galileo,
-    0x04);
-let matched : Vec<_> = record
-    .iter() // epoch iterator
-    .map(|(_, sv)|{  // all epochs, about to filter sv
-        sv.iter() // sv iterator
-            .find(|(&sv, _)| sv == to_match) // comparison
-    })
-    .flatten() // dump non matching data
-    .collect();
-```
-
-Extract `clockbias` and `clockdrift` fields
-for `E04` vehicule accross entire record
-
-```rust
-let to_match = rinex::record::Sv::new(
-    rinex::constellation::Constellation::Galileo,
-    0x04);
-let matched : Vec<_> = record
-    .iter()
-    .map(|(_, sv)|{
-        sv.iter()
-            .find(|(&sv, _)| sv == to_match)  // comparison
-            .map(|(_, data)| ( // build a tuple
-               data["ClockBias"] // field of interest
-                  .as_f32() // unwrap actual value
-                  .unwrap(),
-               data["ClockDrift"]
-                  .as_f32()
-                  .unwrap(),
-             ))
-    })
-    .flatten() // dump non matching data
-    .collect();
-```
-
-Extract all data tied to `Galileo` constellation.
-This time we only match one field of the `Sv` object
-```rust
-let to_match = rinex::constellation::Constellation::Galileo;
-let matched : Vec<_> = record
-    .iter() // epoch iterator
-    .map(|(_, sv)|{  // epoch is left out, we filter on sv
-        sv.iter() // sv iterator
-            .find(|(&sv, _)| sv.constellation == to_match)  // sv.constellation field comparison
-    })
-    .flatten() // dump non matching data
-    .collect();
-```
-
-Decimate `GPS` constellation data using a specific `epoch` interval
-```rust
-wip
-```
