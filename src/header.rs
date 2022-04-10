@@ -975,7 +975,19 @@ impl std::fmt::Display for Header {
             },
             Type::MeteoData => {
                 if let Some(codes) = &self.met_codes {
-
+                    let mut line = format!("{:6}", codes.len()); 
+                    for i in 0..codes.len() {
+                        if (i+1)%9 == 0 {
+                            line.push_str("# / TYPES OF OBS\n");
+                            write!(f, "{}", line);
+                            line.clear();
+                            line.push_str(&format!("{:<6}", ""));
+                        }
+                        line.push_str(&format!(" {:>5}", codes[i]));
+                    }
+                    line.push_str(&format!("{:<width$}", "", width=60-line.len()));
+                    line.push_str("# / TYPES OF OBS\n"); 
+                    write!(f, "{}", line)?;
                 } else {
                     panic!("Must specify `header.met_codes` field when producing MeteoData!")
                 }
@@ -998,6 +1010,16 @@ impl std::fmt::Display for Header {
                 write!(f, "{:<40}", " ")?
             }
             write!(f, "LEAP SECONDS\n")?
+        }
+        // SENSOR(s)
+        if let Some(sensors) = &self.sensors {
+            for sensor in sensors {
+                write!(f, "{:<20}", sensor.model)?; 
+                write!(f, "{:<30}", sensor.sens_type)?; 
+                write!(f, "{:1.1}", sensor.accuracy)?; 
+                write!(f, "{:<5}", sensor.physics)?; 
+                write!(f, "SENSOR MOD/TYPE/ACC\n")?
+            }
         }
         // END OF HEADER
         write!(f, "{:>74}", "END OF HEADER\n")
