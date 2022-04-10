@@ -9,15 +9,15 @@ use crate::constellation::Constellation;
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub struct Leap {
     /// current number
-    leap: u32,
+    pub leap: u32,
     /// ΔtLS : future or past leap second(s)  
-    delta_tls: Option<u32>,
+    pub delta_tls: Option<u32>,
     /// week counter 
-    week: Option<u32>,
+    pub week: Option<u32>,
     /// day counter
-    day: Option<u32>,
+    pub day: Option<u32>,
     /// system time
-    system: Option<Constellation>,
+    pub system: Option<Constellation>,
 }
 
 /// `Leap` parsing related errors
