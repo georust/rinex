@@ -36,7 +36,8 @@ macro_rules! is_comment {
 /// matches a pseudo range (OBS) code
 macro_rules! is_pseudo_range_obs_code {
     ($code: expr) => { 
-        $code.starts_with("C") || $code.starts_with("P") // non gps old fashion
+        $code.starts_with("C") // standard 
+        || $code.starts_with("P") // non gps old fashion
     };
 }
 
@@ -100,6 +101,8 @@ pub enum Error {
 pub enum MergeError {
     #[error("file types mismatch: cannot merge different `rinex`")]
     FileTypeMismatch,
+    #[error("files revision.major should match in order to `merge`")]
+    RevisionMismatch,
     #[error("failed to parse date field")] 
     ParseDateError(#[from] chrono::format::ParseError),
 }
@@ -518,6 +521,9 @@ impl Rinex {
         if self.header.rinex_type != other.header.rinex_type {
             return Err(MergeError::FileTypeMismatch)
         }
+        if self.header.version.major != other.header.version.major {
+            return Err(MergeError::RevisionMismatch)
+        }
         // grab Self:: + Other:: `epochs`
         let (epochs, other_epochs) : (Vec<&epoch::Epoch>, Vec<&epoch::Epoch>) = match self.header.rinex_type {
             types::Type::ObservationData => {
@@ -564,7 +570,9 @@ impl Rinex {
     }
 
     /// Decimates `record` data with a minimal sampling interval to match
-    /// (modifies Self in place)
+    /// (modifies Self in place). Decimation will not fail, 
+    /// record is left untouched if decimation was not feasible, due to
+    /// non realistic `interval`
     pub fn decimate (&mut self, interval: std::time::Duration) {
         /*match self.header.rinex_type {
             types::Type::NavigationMessage => {
@@ -578,7 +586,9 @@ impl Rinex {
     }
 
     /// Decimates `record` data with a minimal sampling interval to match
-    /// and returns resulting `record` 
+    /// and returns resulting `record`.
+    /// Decimation will not fail, record is left untouched if decimation 
+    /// was not feasible, due to non realistic `interval`
     pub fn decimate_copy (&self, interval: std::time::Duration) -> record::Record {
         self.record.clone()
     }
@@ -611,8 +621,45 @@ mod test {
         Ok(output.len()==0)
     }
     #[test]
+    /// Tests record `Decimate()` ops 
+    fn test_record_decimation() {
+        let path = env!("CARGO_MANIFEST_DIR").to_owned() + "/data/NAV/V3/AMEL00NLD_R_20210010000_01D_MN.rnx";
+        let mut rinex = Rinex::from_file(&path).unwrap();
+        rinex.decimate(std::time::Duration::from_secs(60));
+        rinex.decimate(std::time::Duration::from_secs(3600));
+    }
+    #[test]
+    /// Tests `Merge()` ops
+    fn test_merge_type_mismatch() {
+        let manifest = env!("CARGO_MANIFEST_DIR");
+        let path1 = manifest.to_owned() + "/data/NAV/V3/AMEL00NLD_R_20210010000_01D_MN.rnx";
+        let mut r1 = Rinex::from_file(&path1).unwrap();
+        let path2 = manifest.to_owned() + "/data/OBS/V3/LARM0630.22O";
+        let mut r2 = Rinex::from_file(&path2).unwrap();
+        assert_eq!(r1.merge(&r2).is_err(), true)
+    }
+    #[test]
+    /// Tests `Merge()` ops
+    fn test_merge_rev_mismatch() {
+        let manifest = env!("CARGO_MANIFEST_DIR");
+        let path1 = manifest.to_owned() + "/data/NAV/V3/AMEL00NLD_R_20210010000_01D_MN.rnx";
+        let mut r1 = Rinex::from_file(&path1).unwrap();
+        let path2 = manifest.to_owned() + "/data/NAV/V2/amel0010.21g";
+        let mut r2 = Rinex::from_file(&path2).unwrap();
+        assert_eq!(r1.merge(&r2).is_err(), true)
+    }
+    /// Tests `Merge()` ops
+    fn test_merge_basic() {
+        let manifest = env!("CARGO_MANIFEST_DIR");
+        let path1 = manifest.to_owned() + "/data/NAV/V3/AMEL00NLD_R_20210010000_01D_MN.rnx";
+        let mut r1 = Rinex::from_file(&path1).unwrap();
+        let path2 = manifest.to_owned() + "/data/NAV/V3/CBW100NLD_R_20210010000_01D_MN.rnx";
+        let mut r2 = Rinex::from_file(&path2).unwrap();
+        assert_eq!(r1.merge(&r2).is_ok(), true)
+    }
+    #[test]
     /// Tests `Rinex` constructor against all known test resources
-    fn test_lib() {
+    fn test_parser() {
         let data_dir = env!("CARGO_MANIFEST_DIR").to_owned() + "/data";
         let test_data = vec![
 			"NAV",

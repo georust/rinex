@@ -838,84 +838,54 @@ impl std::fmt::Display for Header {
             // two special header lines
         }
         // RINEX VERSION / TYPE 
-        write!(f, "{:6}.{:02}", self.version.major, self.version.minor)?;
+        write!(f, "{:6}.{:02}           ", self.version.major, self.version.minor)?;
         match self.rinex_type {
             Type::NavigationMessage => {
                 match self.constellation {
-                    Some(constellation::Constellation::Glonass) => { // comprises constellation
-                        write!(f,"            GLONASS NAV        ")?;
-                        write!(f, "                     {}", "RINEX VERSION / TYPE\n")?
+                    Some(constellation::Constellation::Glonass) => {
+                        // Glonass Special case
+                        write!(f,"{:<20}", "G: GLONASS NAV DATA")?;
+                        write!(f,"{:<20}", "")?;
+                        write!(f,"{}", "RINEX VERSION / TYPE\n")?
                     },
-                    _ => { // type + constell separate fields
-                        write!(f,"            NAVIGATION DATA    ")?;
-                        write!(f, "{:>5}", self.constellation.unwrap().to_3_letter_code())?;
-                        write!(f, "                     {}", "RINEX VERSION / TYPE\n")?
+                    Some(c) => {
+                        write!(f,"{:<20}", "NAVIGATION DATA")?;
+                        write!(f,"{:<20}", c.to_1_letter_code())?;
+                        write!(f,"{:<20}", "RINEX VERSION / TYPE\n")?
                     },
+                    _ => panic!("constellation must be specified when formatting a NavigationMessage") 
                 }
             },
-            Type::MeteoData => { // has no constellation tied to it
-                write!(f, "           {}", self.rinex_type.to_string(self.constellation))?; 
-                write!(f, "                     {}", "RINEX VERSION / TYPE\n")?;
-                // OBS CODES 
-                let obs_codes = self.met_codes.as_ref().unwrap();
-                write!(f, "{:6}     ", obs_codes.len())?; 
-                for i in 0..obs_codes.len() {
-                    write!(f, "{}   ", obs_codes[i])?
-                }
-                write!(f, "                     {}", "# / TYPES OF OBSERV\n")?;
-                // METEO SENSORS
-                if let Some(sensors) = &self.sensors {
-                    for sensor in sensors {
-                        write!(f, "{:<20} ", sensor.model)?;
-                        write!(f, "{:<30} ", sensor.sens_type)?;
-                        write!(f, "{:.1} ", sensor.accuracy)?;
-                        write!(f, " {} ", sensor.physics)?;
-                        write!(f, "SENSOR MOD/TYPE/ACC\n")?
-                    }
+            Type::ObservationData => {
+                match self.constellation {
+                    Some(c) => {
+                        write!(f,"{:<20}", "OBSERVATION DATA")?;
+                        write!(f,"{:<20}", c.to_1_letter_code())?;
+                        write!(f,"{:<20}", "RINEX VERSION / TYPE\n")?
+                    },
+                    _ => panic!("constellation must be specified when formatting ObservationData")
                 }
             },
-            Type::ObservationData => { // type + constell separate fields 
-                write!(f,"            OBSERVATION DATA")?;
-                write!(f, "{:>5}", self.constellation.unwrap().to_3_letter_code())?;
-                write!(f, "                     {}", "RINEX VERSION / TYPE\n")?;
-                // OBS CODES 
-                let obs_codes = self.obs_codes.as_ref().unwrap();
-                match self.version.major {
-                    1|2 => { // old RINEX
-                        //TODO
-                        //list all obs codes using GPS ?
-                        // or build a list of uniques obs code
-                        write!(f, "                     {}", "# / TYPES OF OBSERV\n")?
-                    },
-                    _ => { // modern RINEX
-                        // is constellation dependent
-                        // use new header title 
-                        for (constell, codes) in obs_codes.iter() {
-                            write!(f, "{}   ", constell.to_1_letter_code())?;
-                            write!(f, "{} ", codes.len())?;
-                            for code in codes { 
-                                write!(f, "{} ", code)?
-                            } 
-                            write!(f, "                     {}", "SYS / # / OBS TYPES\n")?
-                        } 
-                    }
-                }
+            Type::MeteoData => {
+                write!(f,"{:<20}", "METEOROLOGICAL DATA")?;
+                write!(f,"{:<20}", "")?;
+                write!(f,"{:<20}", "RINEX VERSION / TYPE\n")?
             }
         }
         // COMMENTS 
-        //for comment in self.comments.iter() {
-        //    write!(f, "{:<60}", comment)?;
-        //    write!(f, "COMMENT\n")?
-        //}
+        for comment in self.comments.iter() {
+            write!(f, "{:<60}", comment)?;
+            write!(f, "COMMENT\n")?
+        }
         // PGM / RUN BY / DATE
         write!(f, "{:<20}", self.program)?;
-        write!(f, "{:<40}", self.run_by)?;
-        //TODO DATE field
-        write!(f, "{:<20}", "PGM / RUN BY / DATE\n")?; 
+        write!(f, "{:<20}", self.run_by)?;
+        write!(f, "{:<20}", self.date)?; //TODO
+        write!(f, "{}", "PGM / RUN BY / DATE\n")?; 
         // OBSERVER / AGENCY
         write!(f, "{:<20}", self.observer)?;
         write!(f, "{:<40}", self.agency)?;
-        write!(f, "{:<18}", "OBSERVER / AGENCY\n")?; 
+        write!(f, "OBSERVER / AGENCY\n")?; 
         // MARKER NAME
         write!(f, "{:<20}", self.station)?;
         write!(f, "{:<40}", " ")?;
@@ -924,6 +894,92 @@ impl std::fmt::Display for Header {
         write!(f, "{:<20}", self.station_id)?;
         write!(f, "{:<40}", " ")?;
         write!(f, "{}", "MARKER NUMBER\n")?;
+        // ANT
+        if let Some(ant) = &self.ant {
+            write!(f, "{:<20}", ant.sn)?;
+            write!(f, "{:<40}", ant.model)?;
+            write!(f, "{}", "ANT # / TYPE\n")?;
+            if let Some(coords) = &ant.coords {
+                write!(f, "{:<20}", coords.x)?;
+                write!(f, "{:<20}", coords.y)?;
+                write!(f, "{:<20}", coords.z)?;
+                write!(f, "{}", "APPROX POSITION XYZ\n")?
+            }
+            if let Some(h) = &ant.height {
+                write!(f, "{:<20}", h)?;
+                write!(f, "{:<20}", ant.eastern_eccentricity.unwrap_or(0.0_f32))?;
+                write!(f, "{:<20}", ant.northern_eccentricity.unwrap_or(0.0_f32))?;
+                write!(f, "{}", "ANTENNA: DELTA H/E/N\n")?
+            }
+        }
+        // RCVR
+        if let Some(rcvr) = &self.rcvr {
+            write!(f, "{:<20}", rcvr.sn)?; 
+            write!(f, "{:<20}", rcvr.model)?; 
+            write!(f, "{:<20}", rcvr.firmware)?;
+            write!(f, "REC # / TYPE / VERS\n")?
+        }
+        // INTERVAL
+        if let Some(interval) = &self.sampling_interval {
+            write!(f, "{:10.3}", interval)?;
+            write!(f, "{:<50}", "")?;
+            write!(f, "INTERVAL\n")?
+        }
+        // OBS codes
+        match self.rinex_type {
+            Type::ObservationData => {
+                if let Some(codes) = &self.obs_codes {
+                    match self.version.major {
+                        1|2 => { // old
+                            //TODO
+                        },
+                        _ => { // modern
+                            for (constell, codes) in codes.iter() {
+                                write!(f, "{:<6}", constell.to_1_letter_code())?;
+                                write!(f, "{}", codes.len())?;
+                                let nb_lines = num_integer::div_ceil(codes.len(), 11);
+                                for i in 0..codes.len() {
+                                    if i%11 == 0 {
+                                        write!(f, "\n")?;
+                                        write!(f, "{:<10}", "")?
+                                    }
+                                    write!(f, "{:<6}", codes[i])?
+                                }
+
+                            }
+                            write!(f, "{}", "SYS / # / OBS TYPES\n")?
+                        },
+                    }
+                } else {
+                    panic!("Must specify `header.obs_codes` field when producing ObservationData!")
+                }
+            },
+            Type::MeteoData => {
+                if let Some(codes) = &self.met_codes {
+
+                } else {
+                    panic!("Must specify `header.met_codes` field when producing MeteoData!")
+                }
+            },
+            _ => {},
+        }
+        // LEAP
+        if let Some(leap) = &self.leap {
+            write!(f, "{:6}", leap.leap)?;
+            if let Some(delta) = &leap.delta_tls {
+                write!(f, "{:6}", delta)?;
+                write!(f, "{:6}", leap.week.unwrap_or(0))?;
+                write!(f, "{:6}", leap.day.unwrap_or(0))?;
+                if let Some(system) = &leap.system {
+                    write!(f, "{:<10}", system.to_3_letter_code())?
+                } else {
+                    write!(f, "{:<10}", " ")?
+                }
+            } else {
+                write!(f, "{:<40}", " ")?
+            }
+            write!(f, "LEAP SECONDS\n")?
+        }
         // END OF HEADER
         write!(f, "{:>74}", "END OF HEADER\n")
     }
