@@ -42,6 +42,9 @@ Merge op (teqc):
 * [ ] check behav. when parsing a merged file 
 * merge_boundaries() : will fail if op is described in the record, not in header
 
+Slice op (teqc):
+* ?
+
 Epochs:
 * [ ] epoch flag mask operation & special bitmask operations
  * [ ] --> abnormal epochs masking 
@@ -60,6 +63,7 @@ Hatanaka:
 * [ ] CRINEX 1|3 special epoch content (flag>2)
 will be mishandled / corrupted if they are not only made of COMMENTS
 * [ ] replace `zeros` by `intertools::fill_with()` 
+* [ ] decompress(): improve f32/f64 formatting to match standard 
 
 Meteo Data:
 * [ ] parse METEO V > 3
