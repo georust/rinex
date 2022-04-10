@@ -48,11 +48,6 @@ impl Dtype {
     }
 }
 
-/// Fills given i64 vector with '0'
-fn zeros (array : &mut Vec<i64>) {
-    for i in 0..array.len() { array[i] = 0 }
-}
-
 /// `Kernel` is a structure to compress    
 /// or recover data using recursive defferential     
 /// equations as defined by Y. Hatanaka.   
@@ -98,8 +93,8 @@ impl Kernel {
         }
         // reset
         self.n = 0;
-        zeros(&mut self.state);
-        zeros(&mut self.p_state);
+        self.state.iter_mut().map(|x| *x = 0).count();
+        self.p_state.iter_mut().map(|x| *x = 0).count();
         // init
         self.init = data.clone();
         self.p_state[0] = data.as_numerical().unwrap_or(0);
@@ -132,7 +127,7 @@ impl Kernel {
     fn numerical_data_recovery (&mut self, data: i64) -> Dtype {
         self.n += 1;
         self.n = std::cmp::min(self.n, self.order);
-        zeros(&mut self.state);
+        self.state.iter_mut().map(|x| *x = 0).count();
         self.state[self.n] = data;
         for index in (0..self.n).rev() {
             self.state[index] = 
