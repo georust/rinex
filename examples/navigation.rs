@@ -15,7 +15,7 @@ fn main() {
 
     // header information
     assert_eq!(rinex.header.is_crinex(), false);
-    assert_eq!(rinex.header.rinex_type, Type::NavigationMessage);
+    assert_eq!(rinex.header.rinex_type, Type::NavigationData);
     assert_eq!(rinex.header.version.major, 3);
     assert_eq!(rinex.header.constellation, Some(Constellation::Mixed)); 
     // leap second field for instance

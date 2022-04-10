@@ -140,7 +140,7 @@ impl Rinex {
     }
 
     /// Retruns true if this is an NAV rinex
-    pub fn is_navigation_rinex (&self) -> bool { self.header.rinex_type == types::Type::NavigationMessage }
+    pub fn is_navigation_rinex (&self) -> bool { self.header.rinex_type == types::Type::NavigationData }
     /// Retruns true if this is an OBS rinex
     pub fn is_observation_rinex (&self) -> bool { self.header.rinex_type == types::Type::ObservationData }
     /// Returns true if this is a METEO rinex
@@ -152,7 +152,7 @@ impl Rinex {
     pub fn first_epoch (&self) -> Option<epoch::Epoch> {
         let epochs : Vec<&epoch::Epoch> = match self.header.rinex_type {
             types::Type::ObservationData => self.record.as_obs().unwrap().keys().collect(),
-            types::Type::NavigationMessage => self.record.as_nav().unwrap().keys().collect(),
+            types::Type::NavigationData => self.record.as_nav().unwrap().keys().collect(),
             types::Type::MeteoData => self.record.as_meteo().unwrap().keys().collect(),
         };
         if epochs.len() == 0 {
@@ -166,7 +166,7 @@ impl Rinex {
     pub fn last_epoch (&self) -> Option<epoch::Epoch> {
         let epochs : Vec<&epoch::Epoch> = match self.header.rinex_type {
             types::Type::ObservationData => self.record.as_obs().unwrap().keys().collect(),
-            types::Type::NavigationMessage => self.record.as_nav().unwrap().keys().collect(),
+            types::Type::NavigationData => self.record.as_nav().unwrap().keys().collect(),
             types::Type::MeteoData => self.record.as_meteo().unwrap().keys().collect(),
         };
         if epochs.len() == 0 {
@@ -189,7 +189,7 @@ impl Rinex {
             let mut histogram : HashMap<i64, u64> = HashMap::new(); // {internval, population}
             let epochs : Vec<&epoch::Epoch> = match self.header.rinex_type {
                 types::Type::ObservationData => self.record.as_obs().unwrap().keys().collect(),
-                types::Type::NavigationMessage => self.record.as_nav().unwrap().keys().collect(),
+                types::Type::NavigationData => self.record.as_nav().unwrap().keys().collect(),
                 types::Type::MeteoData => self.record.as_meteo().unwrap().keys().collect(),
             };
             for i in 0..epochs.len()-1 {
@@ -234,7 +234,7 @@ impl Rinex {
         let mut result : Vec<epoch::Epoch> = Vec::new();
         let epochs : Vec<&epoch::Epoch> = match self.header.rinex_type {
             types::Type::ObservationData => self.record.as_obs().unwrap().keys().collect(),
-            types::Type::NavigationMessage => self.record.as_nav().unwrap().keys().collect(),
+            types::Type::NavigationData => self.record.as_nav().unwrap().keys().collect(),
             types::Type::MeteoData => self.record.as_meteo().unwrap().keys().collect(),
         };
         if let Some(interval) = sampling_interval { // got a value to compare to
@@ -268,7 +268,7 @@ impl Rinex {
     pub fn epoch_anomalies (&self, mask: Option<epoch::EpochFlag>) -> Vec<&epoch::Epoch> { 
         let epochs : Vec<&epoch::Epoch> = match self.header.rinex_type {
             types::Type::ObservationData => self.record.as_obs().unwrap().keys().collect(),
-            types::Type::NavigationMessage => self.record.as_nav().unwrap().keys().collect(),
+            types::Type::NavigationData => self.record.as_nav().unwrap().keys().collect(),
             types::Type::MeteoData => self.record.as_meteo().unwrap().keys().collect(),
         };
         epochs
@@ -343,7 +343,7 @@ impl Rinex {
         let mut result : Vec<record::Record> = Vec::with_capacity(boundaries.len());
         let epochs : Vec<&epoch::Epoch> = match self.header.rinex_type {
             types::Type::ObservationData => self.record.as_obs().unwrap().keys().collect(),
-            types::Type::NavigationMessage => self.record.as_nav().unwrap().keys().collect(),
+            types::Type::NavigationData => self.record.as_nav().unwrap().keys().collect(),
             types::Type::MeteoData => self.record.as_meteo().unwrap().keys().collect(),
         };
         let mut t_0 = epochs[0].date;
@@ -353,7 +353,7 @@ impl Rinex {
                 .filter(|e| e.date >= t_0 && e.date < boundary)
                 .collect();
             let rec = match self.header.rinex_type {
-                types::Type::NavigationMessage => {
+                types::Type::NavigationData => {
                     let rec : BTreeMap<_, _> = self.record.as_nav().unwrap()
                         .iter()
                         .filter(|(k, _)| k.date >= t_0 && k.date < boundary)
@@ -389,7 +389,7 @@ impl Rinex {
     pub fn split_records_at_epoch (&self, epoch: epoch::Epoch) -> Result<(record::Record,record::Record), SplitError> {
         let epochs : Vec<&epoch::Epoch> = match self.header.rinex_type {
             types::Type::ObservationData => self.record.as_obs().unwrap().keys().collect(),
-            types::Type::NavigationMessage => self.record.as_nav().unwrap().keys().collect(),
+            types::Type::NavigationData => self.record.as_nav().unwrap().keys().collect(),
             types::Type::MeteoData => self.record.as_meteo().unwrap().keys().collect(),
         };
         if epoch.date < epochs[0].date {
@@ -399,7 +399,7 @@ impl Rinex {
             return Err(SplitError::EpochTooLate)
         }
         let rec0 : record::Record = match self.header.rinex_type {
-            types::Type::NavigationMessage => {
+            types::Type::NavigationData => {
                 let rec = self.record.as_nav()
                     .unwrap()
                         .iter()
@@ -446,7 +446,7 @@ impl Rinex {
             },
         };
         let rec1 : record::Record = match self.header.rinex_type {
-            types::Type::NavigationMessage => {
+            types::Type::NavigationData => {
                 let rec = self.record.as_nav()
                     .unwrap()
                         .iter()
@@ -530,7 +530,7 @@ impl Rinex {
                 (self.record.as_obs().unwrap().keys().collect(),
                 other.record.as_obs().unwrap().keys().collect())
             },
-            types::Type::NavigationMessage => {
+            types::Type::NavigationData => {
                 (self.record.as_nav().unwrap().keys().collect(),
                 other.record.as_nav().unwrap().keys().collect())
             },
@@ -554,11 +554,11 @@ impl Rinex {
             // determine min epoch to begin with 
             let min = (epochs.iter().min(), other_epochs.iter().min());
             let other_rec : BTreeMap<_,_> = match self.header.rinex_type {
-                types::Type::NavigationMessage => other.record.as_nav().unwrap().iter().collect(),
+                types::Type::NavigationData => other.record.as_nav().unwrap().iter().collect(),
                 _ => panic!("salut"),
             };
             match self.header.rinex_type {
-                /*types::Type::NavigationMessage => {
+                /*types::Type::NavigationData => {
                     for (entry, value) in other_rec {
                         self.record.as_nav().unwrap().insert(*entry, value.clone());
                     }
@@ -574,7 +574,7 @@ impl Rinex {
         let interval = chrono::Duration::from_std(interval).unwrap();
         let epochs : Vec<&epoch::Epoch> = match self.header.rinex_type {
             types::Type::ObservationData => self.record.as_obs().unwrap().keys().collect(),
-            types::Type::NavigationMessage => self.record.as_nav().unwrap().keys().collect(),
+            types::Type::NavigationData => self.record.as_nav().unwrap().keys().collect(),
             types::Type::MeteoData => self.record.as_meteo().unwrap().keys().collect(),
         };
         let nav_record = self.record.as_nav();
@@ -586,7 +586,7 @@ impl Rinex {
         let mut curr = epochs[0]; 
         let mut i : usize = 1;
         match self.header.rinex_type {
-            types::Type::NavigationMessage => { 
+            types::Type::NavigationData => { 
                 nav_result.insert(*curr, nav_record.unwrap().get(curr).unwrap().clone());
             },
             types::Type::ObservationData => { 
@@ -602,7 +602,7 @@ impl Rinex {
             }
             if epochs[i].date - curr.date >= interval {
                 match self.header.rinex_type {
-                    types::Type::NavigationMessage => { 
+                    types::Type::NavigationData => { 
                         nav_result.insert(*epochs[i], nav_record.unwrap().get(epochs[i]).unwrap().clone());
                     },
                     types::Type::MeteoData => { 
@@ -617,7 +617,7 @@ impl Rinex {
             i += 1
         }
         match self.header.rinex_type {
-            types::Type::NavigationMessage => record::Record::NavRecord(nav_result),
+            types::Type::NavigationData => record::Record::NavRecord(nav_result),
             types::Type::ObservationData => record::Record::ObsRecord(obs_result),
             types::Type::MeteoData => record::Record::MeteoRecord(met_result),
         }

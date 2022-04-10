@@ -37,28 +37,28 @@ pub enum Record {
 pub type Comments = BTreeMap<epoch::Epoch, Vec<String>>;
 
 impl Record {
-	/// Returns Navigation `record`
+	/// Unwraps as NAV `record`
     pub fn as_nav (&self) -> Option<&navigation::Record> {
         match self {
             Record::NavRecord(e) => Some(e),
             _ => None,
         }
     }
-	/// Returns Observation `record`
+	/// Unwraps as OBS `record`
     pub fn as_obs (&self) -> Option<&observation::Record> {
         match self {
             Record::ObsRecord(e) => Some(e),
             _ => None,
         }
     }
-	/// Returns Meteo Observation `record`
+	/// Unwraps as MET `record`
     pub fn as_meteo (&self) -> Option<&meteo::Record> {
         match self {
             Record::MeteoRecord(e) => Some(e),
             _ => None,
         }
     }
-    /// streams self into given file writer
+    /// Streams into given file writer
     pub fn to_file (&self, header: &header::Header, mut writer: std::fs::File) -> std::io::Result<()> {
         match &header.rinex_type {
             Type::MeteoData => {
@@ -71,7 +71,7 @@ impl Record {
                     .unwrap();
                 Ok(observation::to_file(header, &record, writer)?)
             },
-            Type::NavigationMessage => {
+            Type::NavigationData => {
                 let record = self.as_nav()
                     .unwrap();
                 Ok(navigation::to_file(header, &record, writer)?)
@@ -107,7 +107,7 @@ pub fn is_new_epoch (line: &str, header: &header::Header) -> bool {
 			// old RINEX
 			// epoch block is type dependent
 			match &header.rinex_type {
-				Type::NavigationMessage => {
+				Type::NavigationData => {
 					// old NAV: epoch block
 					//  is constellation dependent
 					match &header.constellation {
@@ -266,7 +266,7 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Com
                 let new_epoch = is_new_epoch(line, &header);
                 if new_epoch && !first_epoch {
                     match &header.rinex_type {
-                        Type::NavigationMessage => {
+                        Type::NavigationData => {
                             if let Ok((e, sv, map)) = navigation::build_record_entry(&header, &epoch_content) {
                                 if nav_rec.contains_key(&e) {
                                     // <o 
@@ -333,7 +333,7 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Com
     //   + final epoch (last epoch in record)
     //   + comments parsing with empty record (empty file body)
     match &header.rinex_type {
-        Type::NavigationMessage => {
+        Type::NavigationData => {
             if let Ok((e, sv, map)) = navigation::build_record_entry(&header, &epoch_content) {
                 let mut smap : HashMap<sv::Sv, HashMap<String, navigation::ComplexEnum>> = HashMap::with_capacity(1);
                 smap.insert(sv, map);
@@ -360,7 +360,7 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Com
     }
     // wrap record
     let record = match &header.rinex_type {
-        Type::NavigationMessage => Record::NavRecord(nav_rec),
+        Type::NavigationData => Record::NavRecord(nav_rec),
         Type::ObservationData => Record::ObsRecord(obs_rec), 
 		Type::MeteoData => Record::MeteoRecord(met_rec),
     };

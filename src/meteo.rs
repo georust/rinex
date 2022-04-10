@@ -1,4 +1,4 @@
-//! `MeteorologicalData` parser and related methods
+//! `MeteoData` related structures & methods
 use std::io::Write;
 use thiserror::Error;
 use std::str::FromStr;
@@ -93,7 +93,7 @@ pub enum RecordError {
     ParseFloatError(#[from] std::num::ParseFloatError),
 }
 
-/// Builds `RINEX` record entry for `Meteo` Data files
+/// Builds `Record` entry for `MeteoData`
 pub fn build_record_entry (header: &Header, content: &str) 
         -> Result<(epoch::Epoch, HashMap<String, f32>), RecordError> 
 {

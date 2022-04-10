@@ -157,9 +157,7 @@ pub enum RecordError {
     EpochParsingError,
 }
 
-/// Builds `RINEX` record entry for `Observation` Data files.    
-/// Returns identified `epoch` to later sort data efficiently.    
-/// Returns 2D data as described in `record` definition
+/// Builds `Record` entry for `ObservationData`
 pub fn build_record_entry (header: &header::Header, content: &str)
         -> Result<(epoch::Epoch, Option<f32>, HashMap<sv::Sv, HashMap<String, ObservationData>>), RecordError> 
 {

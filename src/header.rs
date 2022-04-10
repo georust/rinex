@@ -840,7 +840,7 @@ impl std::fmt::Display for Header {
         // RINEX VERSION / TYPE 
         write!(f, "{:6}.{:02}           ", self.version.major, self.version.minor)?;
         match self.rinex_type {
-            Type::NavigationMessage => {
+            Type::NavigationData => {
                 match self.constellation {
                     Some(constellation::Constellation::Glonass) => {
                         // Glonass Special case
@@ -853,7 +853,7 @@ impl std::fmt::Display for Header {
                         write!(f,"{:<20}", c.to_1_letter_code())?;
                         write!(f,"{:<20}", "RINEX VERSION / TYPE\n")?
                     },
-                    _ => panic!("constellation must be specified when formatting a NavigationMessage") 
+                    _ => panic!("constellation must be specified when formatting a NavigationData") 
                 }
             },
             Type::ObservationData => {
