@@ -62,6 +62,78 @@ macro_rules! is_sig_strength_obs_code {
     ($code: expr) => { $code.starts_with("S") };
 }
 
+#[macro_export]
+/// Returns True if 3 letter code
+/// matches a temperature observation code
+macro_rules! is_temperature_obs_code {
+	($code: expr) => {
+		$code.eq("TD")
+	};
+}
+
+#[macro_export]
+/// Returns True if 3 letter code
+/// matches a pressure observation code
+macro_rules! is_pressure_obs_code {
+	($code: expr) => {
+		$code.eq("PR")
+	};
+}
+
+#[macro_export]
+/// Returns True if 3 letter code
+/// matches a moisture / humidity rate observation code
+macro_rules! is_humidity_obs_code {
+	($code: expr) => {
+		$code.eq("HR")
+	};
+}
+
+#[macro_export]
+/// Returns True if 3 letter code
+/// matches a wet zenith path delay obs code 
+macro_rules! is_wet_zenith_code {
+	($code: expr) => {
+		$code.eq("ZW")
+	};
+}
+
+#[macro_export]
+/// Returns True if 3 letter code
+/// matches a dry zenith path delay obs code 
+macro_rules! is_dry_zenith_code {
+	($code: expr) => {
+		$code.eq("ZD")
+	};
+}
+
+#[macro_export]
+/// Returns True if 3 letter code
+/// matches a wind speed obs code 
+macro_rules! is_wind_speed_code {
+	($code: expr) => {
+		$code.eq("WS")
+	};
+}
+
+#[macro_export]
+/// Returns True if 3 letter code
+/// matches a rain increment obs code 
+macro_rules! is_rain_increment_code {
+	($code: expr) => {
+		$code.eq("RI")
+	};
+}
+
+#[macro_export]
+/// Returns True if 3 letter code
+/// matches a rain increment obs code 
+macro_rules! is_hail_indicator_code {
+	($code: expr) => {
+		$code.eq("HI")
+	};
+}
+
 /// `Rinex` describes a `RINEX` file
 #[derive(Debug)]
 pub struct Rinex {
