@@ -930,24 +930,43 @@ impl std::fmt::Display for Header {
             Type::ObservationData => {
                 if let Some(codes) = &self.obs_codes {
                     match self.version.major {
-                        1|2 => { // old
-                            //TODO
-                        },
-                        _ => { // modern
+                        1|2 => { // old revisions
                             for (constell, codes) in codes.iter() {
-                                write!(f, "{:<6}", constell.to_1_letter_code())?;
-                                write!(f, "{}", codes.len())?;
+                                let mut line = format!("{:6}", codes.len()); 
+                                for i in 0..codes.len() {
+                                    if (i+1)%11 == 0 {
+                                        line.push_str("# / TYPES OF OBS\n");
+                                        write!(f, "{}", line);
+                                        line.clear();
+                                        line.push_str(&format!("{:<6}", ""));
+                                    }
+                                    line.push_str(&format!(" {:>5}", codes[i]));
+                                }
+                                line.push_str(&format!("{:<width$}", "", width=60-line.len()));
+                                line.push_str("# / TYPES OF OBS\n"); 
+                                write!(f, "{}", line)?;
+                                break // only once
+                            }
+                        },
+                        _ => { // modern revisions
+                            for (constell, codes) in codes.iter() {
+                                let mut line = format!("{:<4}", constell.to_1_letter_code());
+                                line.push_str(&format!("{:2}", codes.len())); 
                                 let nb_lines = num_integer::div_ceil(codes.len(), 11);
                                 for i in 0..codes.len() {
-                                    if i%11 == 0 {
-                                        write!(f, "\n")?;
-                                        write!(f, "{:<10}", "")?
+                                    if (i+1)%14 == 0 {
+                                        line.push_str(&format!("{:<width$}", "", width=60-line.len()));
+                                        line.push_str("SYS / # / OBS TYPES\n"); 
+                                        write!(f, "{}", line);
+                                        line.clear();
+                                        line.push_str(&format!("{:<6}", ""));
                                     }
-                                    write!(f, "{:<6}", codes[i])?
+                                    line.push_str(&format!(" {}", codes[i]))
                                 }
-
+                                line.push_str(&format!("{:<width$}", "", width=60-line.len()));
+                                line.push_str("SYS / # / OBS TYPES\n"); 
+                                write!(f, "{}", line)?
                             }
-                            write!(f, "{}", "SYS / # / OBS TYPES\n")?
                         },
                     }
                 } else {
