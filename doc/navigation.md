@@ -26,7 +26,7 @@ One example script is provided
 cargo run --example navigation
 ```
 
-Refer to this example to learn how to browse NAV `record, that includes:
+Refer to this example to learn how to browse NAV `records`, that includes:
 * [x] grab high level information
 * [x] enumerate epochs contained in record
 * [x] enumerate epochs for specific `Sv` contained in record
