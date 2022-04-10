@@ -2,7 +2,6 @@
 use std::io::Write;
 use thiserror::Error;
 use std::str::FromStr;
-use itertools::Itertools;
 use strum_macros::EnumString;
 use std::collections::{BTreeMap, HashMap};
 use physical_constants::SPEED_OF_LIGHT_IN_VACUUM;

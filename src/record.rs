@@ -3,7 +3,6 @@ use thiserror::Error;
 use std::fs::File;
 use std::str::FromStr;
 use std::io::{prelude::*, BufReader};
-use itertools::Itertools;
 use std::collections::{BTreeMap, HashMap};
 
 use crate::sv;
