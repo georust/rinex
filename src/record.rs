@@ -2,7 +2,7 @@
 use thiserror::Error;
 use std::fs::File;
 use std::str::FromStr;
-use std::io::{self, prelude::*, BufReader};
+use std::io::{prelude::*, BufReader};
 use itertools::Itertools;
 use std::collections::{BTreeMap, HashMap};
 
