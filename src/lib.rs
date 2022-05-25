@@ -690,6 +690,7 @@ impl Rinex {
         }
         result
     }
+
     /// Resamples self to desired sampling interval
     /// interval: desired new sampling interval (1/data rate)
     /// filter: optionnal lamba / function pointer
