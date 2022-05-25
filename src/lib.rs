@@ -666,6 +666,30 @@ impl Rinex {
         }
         self.record = record::Record::ObsRecord(rework)
     }
+    
+    /// Returns lock loss event timestamps from this Observation Data Record.
+    /// Convenient macro to determine timestamp where `lock` was lost
+    /// during this acquisition.
+    /// Calling this macro on another type of record will panic.
+    pub fn lock_loss_events (&self) -> Vec<epoch::Epoch> {
+        let mut result : Vec<epoch::Epoch> = Vec::new();
+        let mut rec : Vec<_> = self.record
+            .as_obs()
+            .unwrap()
+            .iter()
+            .collect();
+        for (e, (_, sv)) in rec {
+            for (_, obs) in sv {
+                for (code, data) in obs {
+                    let flag = data.lli.unwrap_or(observation::lli_flags::OK_OR_UNKNOWN);
+                    if flag == observation::lli_flags::LOCK_LOSS {
+                        result.push(*e)
+                    }
+                }
+            }
+        }
+        result
+    }
 /*
     // Decimates `record` data with a minimal sampling interval to match
     pub fn decimate (&self, interval: std::time::Duration) -> record::Record {
@@ -779,7 +803,6 @@ impl Rinex {
         //     compensate
     }
 
-    /*
     /// Convenient filter to only retain data
     /// from this Observation Record that match a given signal quality.
     /// Calling this macro on another type of record will panic.
@@ -797,39 +820,8 @@ impl Rinex {
 
                 })
             })
-    }
-    */
-
-    /// Returns lock loss event timestamps from this Observation Data Record.
-    /// Convenient macro to determine timestamp where `lock` was lost
-    /// during this acquisition.
-    /// Calling this macro on another type of record will panic.
-    pub fn lock_loss_events (&self) -> Vec<epoch::Epoch> {
-        self.record
-            .as_obs()
-            .unwrap()
-            .iter()
-            .map(|(e, (_, data))| { // epoch, (offset,sv)
-                data.iter()
-                    .map(|(_, sv)| { // clockoffset, sv
-                        sv.iter()
-                            .find(|(_, data)| { // code, data
-                                if let Some(flag) = data.lli {
-                                    //TODO relire dans les exemples d'en ce moment
-                                    // quelle opération de filtrage gere les option d'une maniere sympa
-                                    flag == observation::lli_flags::LOCK_LOSS
-                                } else {
-                                    false
-                                }
-                            })
-                            .map(|(_,_)| e)
-                    })
-            })
-            .flatten()
-            .collect()
-    }
-}
-*/
+    } */
+    
     /// Writes self into given file.   
     /// Both header + record will strictly follow RINEX standards.   
     /// Record: supports all known `RINEX` types
