@@ -645,7 +645,6 @@ impl Rinex {
         }
     }
     
-    /*
     /// ''cleans up'' self: removes `invalid` epochs
     /// which do not have an Epoch::Ok flag associated to them.
     /// It is only relevant to call this method on Observation Data
@@ -654,19 +653,19 @@ impl Rinex {
         if hd.rinex_type != types::Type::ObservationData {
             return;
         }
-        let rec = self.record
-            .as_obs()
-            .unwrap();
-        let filtered = rec
+        let mut rec : Vec<_> = self.record
+            .as_mut_obs()
+            .unwrap()
             .iter()
-            .find(|(k, v)| {
-                k.flag.is_ok()
-            })
-            .flatten()
             .collect();
-        
+        let mut rework = observation::Record::new();  
+        for (e, data) in rec {
+            if e.flag.is_ok() {
+                rework.insert(*e, data.clone());
+            }
+        }
+        self.record = record::Record::ObsRecord(rework)
     }
-    */
 /*
     // Decimates `record` data with a minimal sampling interval to match
     pub fn decimate (&self, interval: std::time::Duration) -> record::Record {
