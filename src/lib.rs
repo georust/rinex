@@ -690,60 +690,6 @@ impl Rinex {
         }
         result
     }
-/*
-    // Decimates `record` data with a minimal sampling interval to match
-    pub fn decimate (&self, interval: std::time::Duration) -> record::Record {
-        let interval = chrono::Duration::from_std(interval).unwrap();
-        let epochs : Vec<&epoch::Epoch> = match self.header.rinex_type {
-            types::Type::ObservationData => self.record.as_obs().unwrap().keys().collect(),
-            types::Type::NavigationData => self.record.as_nav().unwrap().keys().collect(),
-            types::Type::MeteoData => self.record.as_meteo().unwrap().keys().collect(),
-        };
-        let nav_record = self.record.as_nav();
-        let obs_record = self.record.as_obs();
-        let met_record = self.record.as_meteo();
-        let mut met_result = meteo::Record::new();
-        let mut nav_result = navigation::Record::new();
-        let mut obs_result = observation::Record::new();
-        let mut curr = epochs[0]; 
-        let mut i : usize = 1;
-        match self.header.rinex_type {
-            types::Type::NavigationData => { 
-                nav_result.insert(*curr, nav_record.unwrap().get(curr).unwrap().clone());
-            },
-            types::Type::ObservationData => { 
-                obs_result.insert(*curr, obs_record.unwrap().get(curr).unwrap().clone());
-            },
-            types::Type::MeteoData => { 
-                met_result.insert(*curr, met_record.unwrap().get(curr).unwrap().clone());
-            },
-        }
-        loop {
-            if i == epochs.len() {
-                break
-            }
-            if epochs[i].date - curr.date >= interval {
-                match self.header.rinex_type {
-                    types::Type::NavigationData => { 
-                        nav_result.insert(*epochs[i], nav_record.unwrap().get(epochs[i]).unwrap().clone());
-                    },
-                    types::Type::MeteoData => { 
-                        met_result.insert(*epochs[i], met_record.unwrap().get(epochs[i]).unwrap().clone());
-                    },
-                    types::Type::ObservationData => {
-                        obs_result.insert(*epochs[i], obs_record.unwrap().get(epochs[i]).unwrap().clone());
-                    },
-                }
-                curr = epochs[i]
-            }
-            i += 1
-        }
-        match self.header.rinex_type {
-            types::Type::NavigationData => record::Record::NavRecord(nav_result),
-            types::Type::ObservationData => record::Record::ObsRecord(obs_result),
-            types::Type::MeteoData => record::Record::MeteoRecord(met_result),
-        }
-    }
     /// Resamples self to desired sampling interval
     /// interval: desired new sampling interval (1/data rate)
     /// filter: optionnal lamba / function pointer
@@ -763,14 +709,110 @@ impl Rinex {
     /// To learn how to operate this method correctly, (mainly
     /// declare lambda correctly),
     /// refer to the provided example/resampling.rs
-    pub fn resample (&mut self, interval: std::time::Duration, filter: Option<lambda>) {
+    pub fn resample (&mut self, interval: std::time::Duration) {
         if let Some(sampling) = self.sampling_interval() {
-            if interval < sampling {
-                // upsampling
-
-            } else if interval > sampling {
-                // downsampling
-            }
+            let record : record::Record = match interval < sampling {
+                true => {
+                    // upsampling
+                    record::Record::ObsRecord(observation::Record::new())
+                },
+                false => {
+                    // downsampling
+                    let interval = chrono::Duration::from_std(interval).unwrap();
+                    let epochs : Vec<&epoch::Epoch> = match self.header.rinex_type {
+                        types::Type::ObservationData => self.record.as_obs().unwrap().keys().collect(),
+                        types::Type::NavigationData => self.record.as_nav().unwrap().keys().collect(),
+                        types::Type::MeteoData => self.record.as_meteo().unwrap().keys().collect(),
+                    };
+                    let nav_record = self.record.as_nav();
+                    let obs_record = self.record.as_obs();
+                    let met_record = self.record.as_meteo();
+                    let mut met_result = meteo::Record::new();
+                    let mut nav_result = navigation::Record::new();
+                    let mut obs_result = observation::Record::new();
+                    let mut curr = epochs[0]; 
+                    let mut i : usize = 1;
+                    match self.header.rinex_type {
+                        types::Type::NavigationData => { 
+                            nav_result.insert(
+                                *curr, 
+                                nav_record 
+                                    .unwrap()
+                                    .get(curr)
+                                    .unwrap()
+                                    .clone()
+                            );
+                        },
+                        types::Type::ObservationData => { 
+                            obs_result.insert(
+                                *curr, 
+                                obs_record
+                                    .unwrap()
+                                    .get(curr)
+                                    .unwrap()
+                                    .clone()
+                            );
+                        },
+                        types::Type::MeteoData => { 
+                            met_result.insert(
+                                *curr, 
+                                met_record
+                                    .unwrap()
+                                    .get(curr)
+                                    .unwrap()
+                                    .clone()
+                            );
+                        },
+                    }
+                    loop {
+                        if i == epochs.len() {
+                            break
+                        }
+                        if epochs[i].date - curr.date >= interval {
+                            match self.header.rinex_type {
+                                types::Type::NavigationData => { 
+                                    nav_result.insert(
+                                        *epochs[i], 
+                                        nav_record
+                                            .unwrap()
+                                            .get(epochs[i])
+                                            .unwrap()
+                                            .clone()
+                                    );
+                                },
+                                types::Type::MeteoData => { 
+                                    met_result.insert(
+                                        *epochs[i], 
+                                        met_record
+                                            .unwrap()
+                                            .get(epochs[i])
+                                            .unwrap()
+                                            .clone()
+                                    );
+                                },
+                                types::Type::ObservationData => {
+                                    obs_result.insert(
+                                        *epochs[i], 
+                                        obs_record
+                                            .unwrap()
+                                            .get(epochs[i])
+                                            .unwrap()
+                                            .clone()
+                                    );
+                                },
+                            }
+                            curr = epochs[i]
+                        }
+                        i += 1
+                    }
+                    match self.header.rinex_type {
+                        types::Type::NavigationData => record::Record::NavRecord(nav_result),
+                        types::Type::ObservationData => record::Record::ObsRecord(obs_result),
+                        types::Type::MeteoData => record::Record::MeteoRecord(met_result),
+                    }
+                },
+            };
+            self.record = record
         }
     }
 
@@ -790,7 +832,7 @@ impl Rinex {
             self.resample(interval * factor)
         }
     }
-
+/*
     /// Corrects all so called `cycle slip` events
     /// in this Observation record. 
     /// Calling this macro on another type of record will panic.
@@ -802,7 +844,8 @@ impl Rinex {
         // [2] iterate through the record
         //     compensate
     }
-
+*/
+/*
     /// Convenient filter to only retain data
     /// from this Observation Record that match a given signal quality.
     /// Calling this macro on another type of record will panic.
@@ -820,7 +863,8 @@ impl Rinex {
 
                 })
             })
-    } */
+    } 
+*/
     
     /// Writes self into given file.   
     /// Both header + record will strictly follow RINEX standards.   
