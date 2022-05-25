@@ -28,16 +28,15 @@ fn main() {
     // basic record browsing
     //////////////////////////////
     for entry in record.iter() { // over all epochs
-        let epoch = entry.0;
-        println!("Found epoch: `{:#?}`", epoch); 
+        let (epoch, data) = entry;
         // epochs are 2D (1 per epoch)
         //   clock offsets (if any) : Some(f32)
-        let clock_offset = entry.1.0;
-        println!("Clock offset: `{:#?}`", clock_offset);
+        let (clk_offset, obs_data) = data;
+        println!("Found epoch: `{:#?}`", epoch); 
+        println!("Clock offset: `{:#?}`", clk_offset);
         //   HashMap<Sv, HashMap<String, ObservationData>> 
         //   : list of observation data, indexed by Observation Code
         //     and sorted by Satellite Vehicule
-        let obs_data = &entry.1.1;
         for vehicule in obs_data.iter() { // over all sat. vehicules
             let sv = vehicule.0;
             let data = vehicule.1;

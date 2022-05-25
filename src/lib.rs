@@ -653,8 +653,8 @@ impl Rinex {
         if hd.rinex_type != types::Type::ObservationData {
             return;
         }
-        let mut rec : Vec<_> = self.record
-            .as_mut_obs()
+        let rec : Vec<_> = self.record
+            .as_obs()
             .unwrap()
             .iter()
             .collect();
@@ -673,7 +673,7 @@ impl Rinex {
     /// Calling this macro on another type of record will panic.
     pub fn lock_loss_events (&self) -> Vec<epoch::Epoch> {
         let mut result : Vec<epoch::Epoch> = Vec::new();
-        let mut rec : Vec<_> = self.record
+        let rec : Vec<_> = self.record
             .as_obs()
             .unwrap()
             .iter()
@@ -898,25 +898,12 @@ mod test {
     /// Tests record `Decimate()` ops 
     fn test_record_decimation() {
         let path = env!("CARGO_MANIFEST_DIR").to_owned() + "/data/NAV/V3/AMEL00NLD_R_20210010000_01D_MN.rnx";
-        let rinex = Rinex::from_file(&path).unwrap();
+        let mut rinex = Rinex::from_file(&path).unwrap();
         let original : Vec<&epoch::Epoch> = rinex.record.as_nav().unwrap().keys().collect();
         println!("LEN {}", original.len());
         
-        let record = rinex.decimate(std::time::Duration::from_secs(1));
-        let epochs : Vec<&epoch::Epoch> = record.as_nav().unwrap().keys().collect();
-        assert_eq!(original.len() - epochs.len(), 0); // same length because this duration is too short
-        
-        let record = rinex.decimate(std::time::Duration::from_secs(10*60));
-        let epochs : Vec<&epoch::Epoch> = record.as_nav().unwrap().keys().collect();
-        assert_eq!(original.len() - epochs.len(), 0); // same length because this duration is too short
-
-        let record = rinex.decimate(std::time::Duration::from_secs(30*60));
-        let epochs : Vec<&epoch::Epoch> = record.as_nav().unwrap().keys().collect();
-        assert_eq!(original.len() - epochs.len(), 2); // dropped 2 vehicules
-
-        let record = rinex.decimate(std::time::Duration::from_secs(10*3600));
-        let epochs : Vec<&epoch::Epoch> = record.as_nav().unwrap().keys().collect();
-        assert_eq!(epochs.len(), 2); // only 2 vehicules left
+        rinex.resample(std::time::Duration::from_secs(1));
+        rinex.resample(std::time::Duration::from_secs(10*60));
     }
     #[test]
     /// Tests `Merge()` ops
@@ -925,7 +912,7 @@ mod test {
         let path1 = manifest.to_owned() + "/data/NAV/V3/AMEL00NLD_R_20210010000_01D_MN.rnx";
         let mut r1 = Rinex::from_file(&path1).unwrap();
         let path2 = manifest.to_owned() + "/data/OBS/V3/LARM0630.22O";
-        let mut r2 = Rinex::from_file(&path2).unwrap();
+        let r2 = Rinex::from_file(&path2).unwrap();
         assert_eq!(r1.merge(&r2).is_err(), true)
     }
     #[test]
@@ -935,7 +922,7 @@ mod test {
         let path1 = manifest.to_owned() + "/data/NAV/V3/AMEL00NLD_R_20210010000_01D_MN.rnx";
         let mut r1 = Rinex::from_file(&path1).unwrap();
         let path2 = manifest.to_owned() + "/data/NAV/V2/amel0010.21g";
-        let mut r2 = Rinex::from_file(&path2).unwrap();
+        let r2 = Rinex::from_file(&path2).unwrap();
         assert_eq!(r1.merge(&r2).is_err(), true)
     }
     /// Tests `Merge()` ops
@@ -944,7 +931,7 @@ mod test {
         let path1 = manifest.to_owned() + "/data/NAV/V3/AMEL00NLD_R_20210010000_01D_MN.rnx";
         let mut r1 = Rinex::from_file(&path1).unwrap();
         let path2 = manifest.to_owned() + "/data/NAV/V3/CBW100NLD_R_20210010000_01D_MN.rnx";
-        let mut r2 = Rinex::from_file(&path2).unwrap();
+        let r2 = Rinex::from_file(&path2).unwrap();
         assert_eq!(r1.merge(&r2).is_ok(), true)
         //println!("is merged          : {}", rinex.is_merged_rinex());
         //println!("boundaries: \n{:#?}", rinex.merge_boundaries());
@@ -1065,7 +1052,7 @@ mod test {
                         }
                         // SPECIAL METHODS
                         println!("sampling interval  : {:#?}", rinex.sampling_interval());
-                        println!("sampling dead time : {:#?}", rinex.sampling_dead_time());
+                        println!("sampling dead time : {:#?}", rinex.dead_times());
                         println!("abnormal epochs    : {:#?}", rinex.epoch_anomalies(None));
                         // COMMENTS
                         println!("---------- Header Comments ----- \n{:#?}", rinex.header.comments);

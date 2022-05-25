@@ -10,7 +10,7 @@ fn main() {
 
     // example file
     let path = env!("CARGO_MANIFEST_DIR").to_owned() + "/data/MET/V2/abvi0010.15m";
-    let rinex = rinex::Rinex::from_file(&path).unwrap();
+    let mut rinex = rinex::Rinex::from_file(&path).unwrap();
 
     // header information
     assert_eq!(rinex.header.is_crinex(), false);
@@ -26,13 +26,15 @@ fn main() {
     println!("####### METEO Sensors #######\n{:#?}", sensors);
 
     // record analysis
-    let record = rinex.decimate(std::time::Duration::from_secs(30));
-	// ----> determine available observation codes
+    
+    // decimate record: retain data @ 30s interval
+    rinex.resample(std::time::Duration::from_secs(30));
+	
+    // ----> determine available observation codes
 	let obs_codes = &rinex.header.met_codes.unwrap();
 	println!("\n###### METEO OBS CODES #######\n{:#?}", obs_codes);
     
-    // decimate record: retain data @ 30s interval
-    let record = record.as_meteo().unwrap();
+    let record = rinex.record.as_meteo().unwrap();
 
     // list resulting epochs
     let epochs: Vec<_> = record
