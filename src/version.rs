@@ -7,7 +7,7 @@ pub const SUPPORTED_VERSION: Version = Version {
     minor: 0
 };
 
-#[derive(Copy, Clone, PartialEq, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub struct Version {
     pub major: u8,
     pub minor: u8

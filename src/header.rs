@@ -7,6 +7,7 @@ use crate::version;
 use crate::{is_comment};
 use crate::types::{Type, TypeError};
 use crate::constellation;
+use crate::merge::MergeError;
 
 use std::fs::File;
 use thiserror::Error;
@@ -56,7 +57,7 @@ impl std::str::FromStr for Rcvr {
 }
 
 /// Meteo Observation Sensor
-#[derive(Debug, Clone)]
+#[derive(Clone, PartialEq, Debug)]
 pub struct Sensor {
 	/// Model of this sensor
 	model: String,
@@ -827,6 +828,119 @@ impl Header {
             //gnsstime_corr: None,
             rcvr_clock_offset_applied,
         })
+    }
+    /// `Merges` self and given header
+    /// we call this maethod when merging two rinex record
+    /// to create the optimum combined/total RINEX file.
+    /// This is not a feature of teqc.
+    /// When merging:  
+    ///  + retains oldest revision number  
+    ///  + constellation remains identical if self & `b` share the same constellation,
+    ///   otherwise, self::constellation is upgraded to `mixed`.  
+    ///  + `b` comments are retained, header section comments are not analyzed   
+    ///  + prefers self::attriutes over `b` attributes  
+    ///  + appends (creates) `b` attributes that do not exist in self
+    ///TODO: sampling interval special case
+    ///TODO: rcvr_clock_offset_applied special case :
+    /// apply/modify accordingly
+    ///TODO: data scaling special case: apply/modify accordingly
+    pub fn merge (&mut self, header: &Self) -> Result<(), MergeError> {
+        if self.rinex_type != header.rinex_type {
+            return Err(MergeError::FileTypeMismatch)
+        }
+
+        let (a_rev, b_rev) = (self.version, header.version);
+        let (mut a_cst, b_cst) = (self.constellation, header.constellation);
+        // constellation upgrade ?
+        if a_cst != b_cst {
+            self.constellation = Some(constellation::Constellation::Mixed)
+        }
+        // retain oldest revision
+        self.version = std::cmp::min(a_rev, b_rev);
+        for c in &header.comments {
+            self.comments.push(c.to_string()) 
+        } 
+        // leap second new info ?
+        if let Some(leap) = header.leap {
+            if self.leap.is_none() {
+                self.leap = Some(leap)
+            }
+        }
+        if let Some(delta) = header.gps_utc_delta {
+            if self.gps_utc_delta.is_none() {
+                self.gps_utc_delta = Some(delta)
+            }
+        }
+        if let Some(rcvr) = &header.rcvr {
+            if self.rcvr.is_none() {
+                self.rcvr = Some(Rcvr {
+                    model: rcvr.model.clone(),
+                    sn: rcvr.sn.clone(),
+                    firmware: rcvr.firmware.clone(),
+                })
+            }
+        }
+        if let Some(ant) = &header.ant {
+            if self.ant.is_none() {
+                self.ant = Some(Antenna {
+                    model: ant.model.clone(),
+                    sn: ant.sn.clone(),
+                    coords: ant.coords.clone(),
+                    height: ant.height,
+                    eastern_eccentricity: ant.eastern_eccentricity,
+                    northern_eccentricity: ant.northern_eccentricity,
+                })
+            }
+        }
+        //TODO append new array
+        /*if let Some(a) = &header.sensors {
+            if let Some(b) = &self.sensors {
+                for sens in a {
+                    if !b.contains(sens) {
+                        b.push(*sens)
+                    }
+                }
+            } else {
+                self.sensors = Some(a.to_vec())
+            }
+        }*/
+        if let Some(coords) = &header.coords {
+            if self.coords.is_none() {
+                self.coords = Some(rust_3d::Point3D {
+                    x: coords.x,
+                    y: coords.y,
+                    z: coords.z,
+                })
+            }
+        }
+        if let Some(wavelengths) = header.wavelengths {
+            if self.wavelengths.is_none() {
+                self.wavelengths = Some(wavelengths)
+            }
+        }
+        //TODO as mut ref
+        /*if let Some(a) = &header.obs_codes {
+            if let Some(&mut b) = self.obs_codes.as_ref() {
+                for (k, v) in a {
+                    b.insert(*k, v.to_vec());
+                }
+            } else {
+                self.obs_codes = Some(a.clone())
+            }
+        }*/
+        //TODO pareil met codes & clock codes
+        if let Some(a) = header.data_scaling {
+            if let Some(b) = self.data_scaling {
+
+            } else {
+
+            }
+        } else {
+            if let Some(b) = self.data_scaling {
+
+            }
+        }
+        Ok(())
     }
 }
 

@@ -1,10 +1,11 @@
-//! This library provides a set of tools to parse, analyze
-//! and produce `RINEX` files.
-//! 
-//! Refer to README for general documentation & examples of use.   
+//! This library provides a set of tools to parse, analyze,
+//! produce and manipulate `RINEX` files.  
+//! Refer to README and official documentation, extensive examples of use
+//! are provided.  
 //! Homepage: <https://github.com/gwbres/rinex>
 mod leap;
 mod meteo;
+mod merge;
 mod clocks;
 //mod gnss_time;
 mod navigation;
@@ -169,17 +170,6 @@ pub enum Error {
 }
 
 #[derive(Error, Debug)]
-/// `Merge` ops related errors
-pub enum MergeError {
-    #[error("file types mismatch: cannot merge different `rinex`")]
-    FileTypeMismatch,
-    #[error("files revision.major should match in order to `merge`")]
-    RevisionMismatch,
-    #[error("failed to parse date field")] 
-    ParseDateError(#[from] chrono::format::ParseError),
-}
-
-#[derive(Error, Debug)]
 /// `Split` ops related errors
 pub enum SplitError {
     #[error("desired epoch is too early")]
@@ -248,11 +238,11 @@ impl Rinex {
         }
     }
 
-    /// Returns sampling interval for rinex record 
-    /// + either directly from optionnal information contained in `header`   
-    /// + or (if not provided by header), by computing the average time interval between two successive epochs,    
-    ///   in the extracted `record`. Only valid epochs (EpochFlag::Ok) contribute to the calculation in this case.   
-    ///   In this case, we return _None_ if calculation was not feasible (empty or single epoch)
+    /// Returns sampling interval for `record`:   
+    /// + either directly from `header` if such information was provided
+    /// + or by computing the average time interval between two successive epochs.    
+    ///   Only `valid` epochs contribute to the calculation in this case.   
+    ///   Returns None, in case record contains a unique epoch and calculation is not feasible.
     pub fn sampling_interval (&self) -> Option<std::time::Duration> {
         if let Some(interval) = self.header.sampling_interval {
             Some(std::time::Duration::from_secs(interval as u64))
@@ -296,12 +286,11 @@ impl Rinex {
         }
     }
 
-    /// Returns a list of epochs that represent an unusual data gap (dead time: time without data in the record).   
-    /// This is determined by computing time difference between successive epochs and comparing this value   
-    /// to nominal time difference (`sampling interval`).    
-    /// Only epochs validated by an `Ok` flag are taken into account in these calculations.    
+    /// Returns a list of epochs that present an data gap (dead time: time without data in the record).   
+    /// This is determined by comparing the time difference between adjacent epochs to the nominal sampling interval.   
+    /// Only `valid` epochs are taken into account in these calculations.    
     /// Granularity is 1 second.
-    pub fn sampling_dead_time (&self) -> Vec<epoch::Epoch> {
+    pub fn dead_times (&self) -> Vec<epoch::Epoch> {
         let sampling_interval = self.sampling_interval();
         let mut result : Vec<epoch::Epoch> = Vec::new();
         let epochs : Vec<&epoch::Epoch> = match self.header.rinex_type {
@@ -330,13 +319,11 @@ impl Rinex {
     /// Returns list of epochs where unusual events happen,    
     /// ie., epochs with an != Ok flag attached to them.    
     /// Use `mask` to provide a specific epoch events filter.    
-    /// This method is very useful to determine when, in a given `record`,    
-    /// special events happened and their nature, like:    
-    ///   + locate power cycle failures in the record    
-    ///   + determine where the receiver was physically moved in the `record` with EpochFlag::NewSiteOccupation mask filter    
-    ///   + locate external events in the record
-    ///   + determine special indications contained in header information with EpochFlag::HeaderInformation mask filter    
-    ///   + much more
+    /// This method is very useful to determine when special/external events happened
+    /// in this `record`, events such as:
+    ///   + power cycle failures
+    ///   + receiver physically moved (new site occupation)
+    ///   + other external events 
     pub fn epoch_anomalies (&self, mask: Option<epoch::EpochFlag>) -> Vec<&epoch::Epoch> { 
         let epochs : Vec<&epoch::Epoch> = match self.header.rinex_type {
             types::Type::ObservationData => self.record.as_obs().unwrap().keys().collect(),
@@ -359,23 +346,22 @@ impl Rinex {
     /// and returning closest comment (inside record) in time.    
     /// Usually, comments are associated to epoch events (anomalies) to describe what happened.   
     /// This method tries to locate a list of comments that were associated to the given timestamp 
-    pub fn event_description (&self, event: epoch::Epoch) -> Option<String> {
+    pub fn event_description (&self, event: epoch::Epoch) -> Option<&str> {
         let comments : Vec<_> = self.comments
             .iter()
-            .filter(|(k,_)| *k == &event)
-            .map(|(_,v)| v)
+            .filter(|(k,v)| *k == &event)
+            .map(|(k,v)| v)
             .flatten()
             .collect();
         if comments.len() > 0 {
-            let comments = itertools::join(&comments, ", ");
-            Some(comments)
+            Some(comments[0]) // TODO grab all content! by serializing into a single string
         } else {
             None
         }
-    }
+    } 
 
     /// Returns `true` if self is a `merged` RINEX file,   
-    /// that means results from two or more separate RINEX files merged toghether.   
+    /// meaning, this file is the combination of two RINEX files merged together.  
     /// This is determined by the presence of a custom yet somewhat standardized `FILE MERGE` comments
     pub fn is_merged_rinex (&self) -> bool {
         for (_, content) in self.comments.iter() {
@@ -388,8 +374,9 @@ impl Rinex {
         false
     }
 
-    /// Returns list of epochs where RINEX merging operation(s) occurred.
-    /// Epochs are determined by the pseudo standard `FILE MERGE` comment description in header section.
+    /// Returns list of epochs where RINEX merging operation(s) occurred.    
+    /// Epochs are determined either by the pseudo standard `FILE MERGE` comment description,
+    /// or by comment epochs inside the record
     pub fn merge_boundaries (&self) -> Vec<chrono::NaiveDateTime> {
         self.header.comments
             .iter()
@@ -410,7 +397,7 @@ impl Rinex {
 
     /// Splits merged `records` into seperate `records`.
     /// Returns empty list if self is not a `Merged` file
-    pub fn split_records (&self) -> Vec<record::Record> {
+    pub fn split_record (&self) -> Vec<record::Record> {
         let boundaries = self.merge_boundaries();
         let mut result : Vec<record::Record> = Vec::with_capacity(boundaries.len());
         let epochs : Vec<&epoch::Epoch> = match self.header.rinex_type {
@@ -458,7 +445,7 @@ impl Rinex {
 
     /// Splits self into two seperate records, at desired `epoch`.
     /// Self does not have to be a `Merged` file
-    pub fn split_records_at_epoch (&self, epoch: epoch::Epoch) -> Result<(record::Record,record::Record), SplitError> {
+    pub fn split_record_at_epoch (&self, epoch: epoch::Epoch) -> Result<(record::Record,record::Record), SplitError> {
         let epochs : Vec<&epoch::Epoch> = match self.header.rinex_type {
             types::Type::ObservationData => self.record.as_obs().unwrap().keys().collect(),
             types::Type::NavigationData => self.record.as_nav().unwrap().keys().collect(),
@@ -572,7 +559,7 @@ impl Rinex {
     /// Header sections are simply copied.
     /// Records are built using the .split_records() method.
     pub fn split (&self) -> Vec<Self> {
-        let records = self.split_records();
+        let records = self.split_record();
         let mut result : Vec<Self> = Vec::with_capacity(records.len());
         for rec in records {
             result.push(Self {
@@ -584,18 +571,13 @@ impl Rinex {
         result
     }
 
-    /// Merges given RINEX into self, in similar fashion as `teqc` program.  
-    /// Header section attributes are combined:    
-    ///   + self.attributes are preserved / preferred
-    ///   + if an attribute is not known to self, it gets created
-    /// Record sections are merged together, respecting epochs chronology. 
-    pub fn merge (&mut self, other: &Self) -> Result<(), MergeError> {
-        if self.header.rinex_type != other.header.rinex_type {
-            return Err(MergeError::FileTypeMismatch)
-        }
-        if self.header.version.major != other.header.version.major {
-            return Err(MergeError::RevisionMismatch)
-        }
+    /// Merges given RINEX into self, in teqc similar fashion.   
+    /// Header sections are combined (refer to header::merge Doc
+    /// to understand its behavior).
+    /// Resulting self.record (modified in place) remains sorted by 
+    /// sampling timestamps.
+    pub fn merge (&mut self, other: &Self) -> Result<(), merge::MergeError> {
+        self.header.merge(&other.header)?;
         // grab Self:: + Other:: `epochs`
         let (epochs, other_epochs) : (Vec<&epoch::Epoch>, Vec<&epoch::Epoch>) = match self.header.rinex_type {
             types::Type::ObservationData => {
@@ -623,25 +605,70 @@ impl Rinex {
                 "rustrnx-{:<20} FILE MERGE          {} UTC", 
                 env!("CARGO_PKG_VERSION"),
                 now.format("%Y%m%d %H%M%S")));
-            // determine min epoch to begin with 
-            let min = (epochs.iter().min(), other_epochs.iter().min());
-            let other_rec : BTreeMap<_,_> = match self.header.rinex_type {
-                types::Type::NavigationData => other.record.as_nav().unwrap().iter().collect(),
-                _ => panic!("salut"),
-            };
+            // merge op
             match self.header.rinex_type {
-                /*types::Type::NavigationData => {
-                    for (entry, value) in other_rec {
-                        self.record.as_nav().unwrap().insert(*entry, value.clone());
+                types::Type::NavigationData => {
+                    let a_rec = self.record
+                        .as_mut_nav()
+                        .unwrap();
+                    let b_rec = other.record
+                        .as_nav()
+                        .unwrap();
+                    for (k, v) in b_rec {
+                        a_rec.insert(*k, v.clone());
                     }
-                },*/
-                _ => panic!("salut"),
+                },
+                types::Type::ObservationData => {
+                    let a_rec = self.record
+                        .as_mut_obs()
+                        .unwrap();
+                    let b_rec = other.record
+                        .as_obs()
+                        .unwrap();
+                    for (k, v) in b_rec {
+                        a_rec.insert(*k, v.clone());
+                    }
+                },
+                types::Type::MeteoData => {
+                    let a_rec = self.record
+                        .as_mut_meteo()
+                        .unwrap();
+                    let b_rec = other.record
+                        .as_meteo()
+                        .unwrap();
+                    for (k, v) in b_rec {
+                        a_rec.insert(*k, v.clone());
+                    }
+                },
             }
             Ok(())
         }
     }
-
-    /// Decimates `record` data with a minimal sampling interval to match
+    
+    /*
+    /// ''cleans up'' self: removes `invalid` epochs
+    /// which do not have an Epoch::Ok flag associated to them.
+    /// It is only relevant to call this method on Observation Data
+    pub fn cleanup (&mut self) {
+        let hd = &self.header;
+        if hd.rinex_type != types::Type::ObservationData {
+            return;
+        }
+        let rec = self.record
+            .as_obs()
+            .unwrap();
+        let filtered = rec
+            .iter()
+            .find(|(k, v)| {
+                k.flag.is_ok()
+            })
+            .flatten()
+            .collect();
+        
+    }
+    */
+/*
+    // Decimates `record` data with a minimal sampling interval to match
     pub fn decimate (&self, interval: std::time::Duration) -> record::Record {
         let interval = chrono::Duration::from_std(interval).unwrap();
         let epochs : Vec<&epoch::Epoch> = match self.header.rinex_type {
@@ -694,7 +721,116 @@ impl Rinex {
             types::Type::MeteoData => record::Record::MeteoRecord(met_result),
         }
     }
+    /// Resamples self to desired sampling interval
+    /// interval: desired new sampling interval (1/data rate)
+    /// filter: optionnal lamba / function pointer
+    /// for user to compensate that resampling operation
+    /// and filter data accordingly. Filter lambda should be
+    /// a standard convolution operation, the only requirement is
+    /// the lambda must work on a f64 and return a f64
+    /// signature : lambda(f64) -> f64.
+    /// Also note that self.header.sampling_interval field is adaptated to
+    /// the operation we just performed.   
+    /// if interval < self.sampling_interval   
+    ///   + upsampling:
+    ///     when no filter operation is specified,
+    ///     we simply copy the previous data to increase the sample rate
+    /// else (interval >= self.sampling_interval): 
+    ///   + downsampling
+    /// To learn how to operate this method correctly, (mainly
+    /// declare lambda correctly),
+    /// refer to the provided example/resampling.rs
+    pub fn resample (&mut self, interval: std::time::Duration, filter: Option<lambda>) {
+        if let Some(sampling) = self.sampling_interval() {
+            if interval < sampling {
+                // upsampling
 
+            } else if interval > sampling {
+                // downsampling
+            }
+        }
+    }
+
+    /// Convenient macro to decimate self.record by given sampling factor
+    /// (user does not have to care for samplingInterval())
+    pub fn decimate (&mut self, factor : u32) {
+        if let Some(interval) = self.sampling_interval() {
+            self.resample(interval / factor)
+        }
+    }
+
+    /// Convenient macro to interpolate (upsample) self.record
+    /// by given sampling factor
+    /// (user does not have to care for samplingInterval())
+    pub fn interpolate (&mut self, factor : u32) {
+        if let Some(interval) = self.sampling_interval() {
+            self.resample(interval * factor)
+        }
+    }
+
+    /// Corrects all so called `cycle slip` events
+    /// in this Observation record. 
+    /// Calling this macro on another type of record will panic.
+    /// Cycle Slip event is compensated by correcting raw phase data
+    /// by the current wavelength factor
+    pub fn cycle_slip_correction (&mut self) {
+        // [1] grab initial wavelength factor
+        let w_0 = self.header.wavelengths.unwrap_or((0,0));
+        // [2] iterate through the record
+        //     compensate
+    }
+
+    /*
+    /// Convenient filter to only retain data
+    /// from this Observation Record that match a given signal quality.
+    /// Calling this macro on another type of record will panic.
+    /// You have 3 filter choices:
+    ///   + 'weak' will accept data with SNR >= 30 dB 
+    ///   + 'strong' will accept data with SNR >= 35 dB
+    ///   + 'excellent' will accept data with SNR >= 42 dB
+    pub fn signal_quality_filter (&mut self, filter: &str) {
+        self.record
+            .as_mut_obs()
+            .unwrap()
+            .iter()
+            .find(|k, v|) {
+                v.({ 
+
+                })
+            })
+    }
+    */
+
+    /// Returns lock loss event timestamps from this Observation Data Record.
+    /// Convenient macro to determine timestamp where `lock` was lost
+    /// during this acquisition.
+    /// Calling this macro on another type of record will panic.
+    pub fn lock_loss_events (&self) -> Vec<epoch::Epoch> {
+        self.record
+            .as_obs()
+            .unwrap()
+            .iter()
+            .map(|(e, (_, data))| { // epoch, (offset,sv)
+                data.iter()
+                    .map(|(_, sv)| { // clockoffset, sv
+                        sv.iter()
+                            .find(|(_, data)| { // code, data
+                                if let Some(flag) = data.lli {
+                                    //TODO relire dans les exemples d'en ce moment
+                                    // quelle opération de filtrage gere les option d'une maniere sympa
+                                    flag == observation::lli_flags::LOCK_LOSS
+                                } else {
+                                    false
+                                }
+                            })
+                            .map(|(_,_)| e)
+                    })
+            })
+            .flatten()
+            .collect()
+    }
+}
+*/
     /// Writes self into given file.   
     /// Both header + record will strictly follow RINEX standards.   
     /// Record: supports all known `RINEX` types

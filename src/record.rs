@@ -58,6 +58,27 @@ impl Record {
             _ => None,
         }
     }
+	/// Returns mutable reference to Navigation `record`
+    pub fn as_mut_nav (&mut self) -> Option<&mut navigation::Record> {
+        match self {
+            Record::NavRecord(e) => Some(e),
+            _ => None,
+        }
+    }
+    /// Returns mutable reference to Observation record
+    pub fn as_mut_obs (&mut self) -> Option<&mut observation::Record> {
+        match self {
+            Record::ObsRecord(e) => Some(e),
+            _ => None,
+        }
+    }
+    /// Returns mutable reference to Meteo record
+    pub fn as_mut_meteo (&mut self) -> Option<&mut meteo::Record> {
+        match self {
+            Record::MeteoRecord(e) => Some(e),
+            _ => None,
+        }
+    }
     /// Streams into given file writer
     pub fn to_file (&self, header: &header::Header, mut writer: std::fs::File) -> std::io::Result<()> {
         match &header.rinex_type {
