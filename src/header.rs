@@ -7,6 +7,7 @@ use crate::version;
 use crate::{is_comment};
 use crate::types::{Type, TypeError};
 use crate::constellation;
+use crate::merge::MergeError;
 
 use std::fs::File;
 use thiserror::Error;
@@ -20,7 +21,7 @@ pub const CRINEX_MARKER_COMMENT : &str = "COMPACT RINEX FORMAT";
 pub const HEADER_END_MARKER : &str = "END OF HEADER";
 
 /// GNSS receiver description
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Rcvr {
     /// Receiver (hardware) model
     model: String, 
@@ -56,7 +57,7 @@ impl std::str::FromStr for Rcvr {
 }
 
 /// Meteo Observation Sensor
-#[derive(Debug)]
+#[derive(Clone, PartialEq, Debug)]
 pub struct Sensor {
 	/// Model of this sensor
 	model: String,
@@ -93,7 +94,7 @@ impl Sensor {
 }
 
 /// Antenna description 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Antenna {
     /// Hardware model / make descriptor
     pub model: String,
@@ -163,7 +164,8 @@ pub struct CrinexInfo {
 }
 
 /// Describes known marker types
-enum MarkerType {
+#[derive(Clone, Debug)]
+pub enum MarkerType {
     /// Earth fixed & high precision
     Geodetic,
     /// Earth fixed & low precision
@@ -175,9 +177,9 @@ enum MarkerType {
     /// Aircraft, balloon..
     Airborne,
     /// Mobile water craft
-    WaterCraft,
+    Watercraft,
     /// Mobile terrestrial vehicule
-    GroundCraft,
+    Groundcraft,
     /// Fixed on water surface
     FixedBuoy,
     /// Floating on water surface
@@ -194,8 +196,37 @@ enum MarkerType {
     Human,
 }
 
+impl Default for MarkerType {
+    fn default() -> MarkerType { MarkerType::Geodetic }
+}
+
+impl std::str::FromStr for MarkerType {
+    type Err = std::io::Error; 
+    /// Builds a MarkerType from given code descriptor.
+    /// This method is not case sensitive
+    fn from_str (code: &str) -> Result<Self, Self::Err> {
+        match code.to_uppercase().as_str() {
+            "GEODETIC" => Ok(Self::Geodetic),
+            "NON GEODETIC" => Ok(Self::NonGeodetic),
+            "NON_PHYSICAL" => Ok(Self::NonPhysical),
+            "SPACE BORNE" => Ok(Self::Spaceborne),
+            "AIR BORNE" => Ok(Self::Airborne),
+            "WATER CRAFT" => Ok(Self::Watercraft),
+            "GROUND CRAFT" => Ok(Self::Groundcraft),
+            "FIXED BUOY" => Ok(Self::FixedBuoy),
+            "FLOATING BUOY" => Ok(Self::FloatingBuoy),
+            "FLOATING ICE" => Ok(Self::FloatingIce),
+            "GLACIER" => Ok(Self::Glacier),
+            "BALLISTIC" => Ok(Self::Ballistic),
+            "ANIMAL" => Ok(Self::Animal),
+            "HUMAN" => Ok(Self::Human),
+            _ => Ok(Self::default()), 
+        }
+    }
+}
+
 /// Describes `RINEX` file header
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Header {
     /// revision for this `RINEX`
     pub version: version::Version, 
@@ -225,6 +256,8 @@ pub struct Header {
     pub observer: String, 
     /// name of production agency
     pub agency: String, 
+    /// optionnal receiver placement infos
+    pub marker_type: Option<MarkerType>,
     /// optionnal hardware (receiver) infos
     pub rcvr: Option<Rcvr>, 
     /// optionnal antenna infos
@@ -308,6 +341,7 @@ impl Default for Header {
             station_id: String::new(),
             observer: String::new(),
             agency: String::new(),
+            marker_type: None,
             station_url: String::new(),
             doi: String::new(),
             license: String::new(),
@@ -359,6 +393,7 @@ impl Header {
         let mut license    = String::new();
         let mut doi        = String::new();
         let mut station_url= String::new();
+        let mut marker_type : Option<MarkerType> = None; 
         // hardware
         let mut ant        : Option<Antenna> = None;
         let mut ant_coords : Option<rust_3d::Point3D> = None;
@@ -440,6 +475,10 @@ impl Header {
                 station = line.split_at(20).0.trim().to_string()
             } else if line.contains("MARKER NUMBER") {
                 station_id = line.split_at(20).0.trim().to_string()
+            } else if line.contains("MARKER TYPE") {
+                let code = line.split_at(20).0.trim();
+                marker_type = Some(MarkerType::from_str(code).unwrap());
+            
             } else if line.contains("OBSERVER / AGENCY") {
                 let (content, _) = line.split_at(60);
                 let (obs, ag) = content.split_at(20);
@@ -753,6 +792,7 @@ impl Header {
 			true => None,
 			false => Some(met_codes),
 		};
+
         
         Ok(Header{
             version: version,
@@ -770,6 +810,7 @@ impl Header {
             license,
             doi,
             station_url,
+            marker_type,
             rcvr, 
             ant, 
 			sensors: None,
@@ -788,6 +829,119 @@ impl Header {
             rcvr_clock_offset_applied,
         })
     }
+    /// `Merges` self and given header
+    /// we call this maethod when merging two rinex record
+    /// to create the optimum combined/total RINEX file.
+    /// This is not a feature of teqc.
+    /// When merging:  
+    ///  + retains oldest revision number  
+    ///  + constellation remains identical if self & `b` share the same constellation,
+    ///   otherwise, self::constellation is upgraded to `mixed`.  
+    ///  + `b` comments are retained, header section comments are not analyzed   
+    ///  + prefers self::attriutes over `b` attributes  
+    ///  + appends (creates) `b` attributes that do not exist in self
+    ///TODO: sampling interval special case
+    ///TODO: rcvr_clock_offset_applied special case :
+    /// apply/modify accordingly
+    ///TODO: data scaling special case: apply/modify accordingly
+    pub fn merge (&mut self, header: &Self) -> Result<(), MergeError> {
+        if self.rinex_type != header.rinex_type {
+            return Err(MergeError::FileTypeMismatch)
+        }
+
+        let (a_rev, b_rev) = (self.version, header.version);
+        let (mut a_cst, b_cst) = (self.constellation, header.constellation);
+        // constellation upgrade ?
+        if a_cst != b_cst {
+            self.constellation = Some(constellation::Constellation::Mixed)
+        }
+        // retain oldest revision
+        self.version = std::cmp::min(a_rev, b_rev);
+        for c in &header.comments {
+            self.comments.push(c.to_string()) 
+        } 
+        // leap second new info ?
+        if let Some(leap) = header.leap {
+            if self.leap.is_none() {
+                self.leap = Some(leap)
+            }
+        }
+        if let Some(delta) = header.gps_utc_delta {
+            if self.gps_utc_delta.is_none() {
+                self.gps_utc_delta = Some(delta)
+            }
+        }
+        if let Some(rcvr) = &header.rcvr {
+            if self.rcvr.is_none() {
+                self.rcvr = Some(Rcvr {
+                    model: rcvr.model.clone(),
+                    sn: rcvr.sn.clone(),
+                    firmware: rcvr.firmware.clone(),
+                })
+            }
+        }
+        if let Some(ant) = &header.ant {
+            if self.ant.is_none() {
+                self.ant = Some(Antenna {
+                    model: ant.model.clone(),
+                    sn: ant.sn.clone(),
+                    coords: ant.coords.clone(),
+                    height: ant.height,
+                    eastern_eccentricity: ant.eastern_eccentricity,
+                    northern_eccentricity: ant.northern_eccentricity,
+                })
+            }
+        }
+        //TODO append new array
+        /*if let Some(a) = &header.sensors {
+            if let Some(b) = &self.sensors {
+                for sens in a {
+                    if !b.contains(sens) {
+                        b.push(*sens)
+                    }
+                }
+            } else {
+                self.sensors = Some(a.to_vec())
+            }
+        }*/
+        if let Some(coords) = &header.coords {
+            if self.coords.is_none() {
+                self.coords = Some(rust_3d::Point3D {
+                    x: coords.x,
+                    y: coords.y,
+                    z: coords.z,
+                })
+            }
+        }
+        if let Some(wavelengths) = header.wavelengths {
+            if self.wavelengths.is_none() {
+                self.wavelengths = Some(wavelengths)
+            }
+        }
+        //TODO as mut ref
+        /*if let Some(a) = &header.obs_codes {
+            if let Some(&mut b) = self.obs_codes.as_ref() {
+                for (k, v) in a {
+                    b.insert(*k, v.to_vec());
+                }
+            } else {
+                self.obs_codes = Some(a.clone())
+            }
+        }*/
+        //TODO pareil met codes & clock codes
+        if let Some(a) = header.data_scaling {
+            if let Some(b) = self.data_scaling {
+
+            } else {
+
+            }
+        } else {
+            if let Some(b) = self.data_scaling {
+
+            }
+        }
+        Ok(())
+    }
 }
 
 impl std::fmt::Display for Header {
@@ -798,84 +952,54 @@ impl std::fmt::Display for Header {
             // two special header lines
         }
         // RINEX VERSION / TYPE 
-        write!(f, "{:6}.{:02}", self.version.major, self.version.minor)?;
+        write!(f, "{:6}.{:02}           ", self.version.major, self.version.minor)?;
         match self.rinex_type {
-            Type::NavigationMessage => {
+            Type::NavigationData => {
                 match self.constellation {
-                    Some(constellation::Constellation::Glonass) => { // comprises constellation
-                        write!(f,"            GLONASS NAV        ")?;
-                        write!(f, "                     {}", "RINEX VERSION / TYPE\n")?
+                    Some(constellation::Constellation::Glonass) => {
+                        // Glonass Special case
+                        write!(f,"{:<20}", "G: GLONASS NAV DATA")?;
+                        write!(f,"{:<20}", "")?;
+                        write!(f,"{}", "RINEX VERSION / TYPE\n")?
                     },
-                    _ => { // type + constell separate fields
-                        write!(f,"            NAVIGATION DATA    ")?;
-                        write!(f, "{:>5}", self.constellation.unwrap().to_3_letter_code())?;
-                        write!(f, "                     {}", "RINEX VERSION / TYPE\n")?
+                    Some(c) => {
+                        write!(f,"{:<20}", "NAVIGATION DATA")?;
+                        write!(f,"{:<20}", c.to_1_letter_code())?;
+                        write!(f,"{:<20}", "RINEX VERSION / TYPE\n")?
                     },
+                    _ => panic!("constellation must be specified when formatting a NavigationData") 
                 }
             },
-            Type::MeteoData => { // has no constellation tied to it
-                write!(f, "           {}", self.rinex_type.to_string(self.constellation))?; 
-                write!(f, "                     {}", "RINEX VERSION / TYPE\n")?;
-                // OBS CODES 
-                let obs_codes = self.met_codes.as_ref().unwrap();
-                write!(f, "{:6}     ", obs_codes.len())?; 
-                for i in 0..obs_codes.len() {
-                    write!(f, "{}   ", obs_codes[i])?
-                }
-                write!(f, "                     {}", "# / TYPES OF OBSERV\n")?;
-                // METEO SENSORS
-                if let Some(sensors) = &self.sensors {
-                    for sensor in sensors {
-                        write!(f, "{:<20} ", sensor.model)?;
-                        write!(f, "{:<30} ", sensor.sens_type)?;
-                        write!(f, "{:.1} ", sensor.accuracy)?;
-                        write!(f, " {} ", sensor.physics)?;
-                        write!(f, "SENSOR MOD/TYPE/ACC\n")?
-                    }
+            Type::ObservationData => {
+                match self.constellation {
+                    Some(c) => {
+                        write!(f,"{:<20}", "OBSERVATION DATA")?;
+                        write!(f,"{:<20}", c.to_1_letter_code())?;
+                        write!(f,"{:<20}", "RINEX VERSION / TYPE\n")?
+                    },
+                    _ => panic!("constellation must be specified when formatting ObservationData")
                 }
             },
-            Type::ObservationData => { // type + constell separate fields 
-                write!(f,"            OBSERVATION DATA")?;
-                write!(f, "{:>5}", self.constellation.unwrap().to_3_letter_code())?;
-                write!(f, "                     {}", "RINEX VERSION / TYPE\n")?;
-                // OBS CODES 
-                let obs_codes = self.obs_codes.as_ref().unwrap();
-                match self.version.major {
-                    1|2 => { // old RINEX
-                        //TODO
-                        //list all obs codes using GPS ?
-                        // or build a list of uniques obs code
-                        write!(f, "                     {}", "# / TYPES OF OBSERV\n")?
-                    },
-                    _ => { // modern RINEX
-                        // is constellation dependent
-                        // use new header title 
-                        for (constell, codes) in obs_codes.iter() {
-                            write!(f, "{}   ", constell.to_1_letter_code())?;
-                            write!(f, "{} ", codes.len())?;
-                            for code in codes { 
-                                write!(f, "{} ", code)?
-                            } 
-                            write!(f, "                     {}", "SYS / # / OBS TYPES\n")?
-                        } 
-                    }
-                }
+            Type::MeteoData => {
+                write!(f,"{:<20}", "METEOROLOGICAL DATA")?;
+                write!(f,"{:<20}", "")?;
+                write!(f,"{:<20}", "RINEX VERSION / TYPE\n")?
             }
         }
         // COMMENTS 
-        //for comment in self.comments.iter() {
-        //    write!(f, "{:<60}", comment)?;
-        //    write!(f, "COMMENT\n")?
-        //}
+        for comment in self.comments.iter() {
+            write!(f, "{:<60}", comment)?;
+            write!(f, "COMMENT\n")?
+        }
         // PGM / RUN BY / DATE
         write!(f, "{:<20}", self.program)?;
-        write!(f, "{:<40}", self.run_by)?;
-        //TODO DATE field
-        write!(f, "{:<20}", "PGM / RUN BY / DATE\n")?; 
+        write!(f, "{:<20}", self.run_by)?;
+        write!(f, "{:<20}", self.date)?; //TODO
+        write!(f, "{}", "PGM / RUN BY / DATE\n")?; 
         // OBSERVER / AGENCY
         write!(f, "{:<20}", self.observer)?;
         write!(f, "{:<40}", self.agency)?;
-        write!(f, "{:<18}", "OBSERVER / AGENCY\n")?; 
+        write!(f, "OBSERVER / AGENCY\n")?; 
         // MARKER NAME
         write!(f, "{:<20}", self.station)?;
         write!(f, "{:<40}", " ")?;
@@ -884,6 +1008,133 @@ impl std::fmt::Display for Header {
         write!(f, "{:<20}", self.station_id)?;
         write!(f, "{:<40}", " ")?;
         write!(f, "{}", "MARKER NUMBER\n")?;
+        // ANT
+        if let Some(ant) = &self.ant {
+            write!(f, "{:<20}", ant.sn)?;
+            write!(f, "{:<40}", ant.model)?;
+            write!(f, "{}", "ANT # / TYPE\n")?;
+            if let Some(coords) = &ant.coords {
+                write!(f, "{:<20}", coords.x)?;
+                write!(f, "{:<20}", coords.y)?;
+                write!(f, "{:<20}", coords.z)?;
+                write!(f, "{}", "APPROX POSITION XYZ\n")?
+            }
+            if let Some(h) = &ant.height {
+                write!(f, "{:<20}", h)?;
+                write!(f, "{:<20}", ant.eastern_eccentricity.unwrap_or(0.0_f32))?;
+                write!(f, "{:<20}", ant.northern_eccentricity.unwrap_or(0.0_f32))?;
+                write!(f, "{}", "ANTENNA: DELTA H/E/N\n")?
+            }
+        }
+        // RCVR
+        if let Some(rcvr) = &self.rcvr {
+            write!(f, "{:<20}", rcvr.sn)?; 
+            write!(f, "{:<20}", rcvr.model)?; 
+            write!(f, "{:<20}", rcvr.firmware)?;
+            write!(f, "REC # / TYPE / VERS\n")?
+        }
+        // INTERVAL
+        if let Some(interval) = &self.sampling_interval {
+            write!(f, "{:10.3}", interval)?;
+            write!(f, "{:<50}", "")?;
+            write!(f, "INTERVAL\n")?
+        }
+        // OBS codes
+        match self.rinex_type {
+            Type::ObservationData => {
+                if let Some(codes) = &self.obs_codes {
+                    match self.version.major {
+                        1|2 => { // old revisions
+                            for (constell, codes) in codes.iter() {
+                                let mut line = format!("{:6}", codes.len()); 
+                                for i in 0..codes.len() {
+                                    if (i+1)%11 == 0 {
+                                        line.push_str("# / TYPES OF OBS\n");
+                                        write!(f, "{}", line);
+                                        line.clear();
+                                        line.push_str(&format!("{:<6}", ""));
+                                    }
+                                    line.push_str(&format!(" {:>5}", codes[i]));
+                                }
+                                line.push_str(&format!("{:<width$}", "", width=60-line.len()));
+                                line.push_str("# / TYPES OF OBS\n"); 
+                                write!(f, "{}", line)?;
+                                break // only once
+                            }
+                        },
+                        _ => { // modern revisions
+                            for (constell, codes) in codes.iter() {
+                                let mut line = format!("{:<4}", constell.to_1_letter_code());
+                                line.push_str(&format!("{:2}", codes.len())); 
+                                let nb_lines = num_integer::div_ceil(codes.len(), 11);
+                                for i in 0..codes.len() {
+                                    if (i+1)%14 == 0 {
+                                        line.push_str(&format!("{:<width$}", "", width=60-line.len()));
+                                        line.push_str("SYS / # / OBS TYPES\n"); 
+                                        write!(f, "{}", line);
+                                        line.clear();
+                                        line.push_str(&format!("{:<6}", ""));
+                                    }
+                                    line.push_str(&format!(" {}", codes[i]))
+                                }
+                                line.push_str(&format!("{:<width$}", "", width=60-line.len()));
+                                line.push_str("SYS / # / OBS TYPES\n"); 
+                                write!(f, "{}", line)?
+                            }
+                        },
+                    }
+                } else {
+                    panic!("Must specify `header.obs_codes` field when producing ObservationData!")
+                }
+            },
+            Type::MeteoData => {
+                if let Some(codes) = &self.met_codes {
+                    let mut line = format!("{:6}", codes.len()); 
+                    for i in 0..codes.len() {
+                        if (i+1)%9 == 0 {
+                            line.push_str("# / TYPES OF OBS\n");
+                            write!(f, "{}", line);
+                            line.clear();
+                            line.push_str(&format!("{:<6}", ""));
+                        }
+                        line.push_str(&format!(" {:>5}", codes[i]));
+                    }
+                    line.push_str(&format!("{:<width$}", "", width=60-line.len()));
+                    line.push_str("# / TYPES OF OBS\n"); 
+                    write!(f, "{}", line)?;
+                } else {
+                    panic!("Must specify `header.met_codes` field when producing MeteoData!")
+                }
+            },
+            _ => {},
+        }
+        // LEAP
+        if let Some(leap) = &self.leap {
+            write!(f, "{:6}", leap.leap)?;
+            if let Some(delta) = &leap.delta_tls {
+                write!(f, "{:6}", delta)?;
+                write!(f, "{:6}", leap.week.unwrap_or(0))?;
+                write!(f, "{:6}", leap.day.unwrap_or(0))?;
+                if let Some(system) = &leap.system {
+                    write!(f, "{:<10}", system.to_3_letter_code())?
+                } else {
+                    write!(f, "{:<10}", " ")?
+                }
+            } else {
+                write!(f, "{:<40}", " ")?
+            }
+            write!(f, "LEAP SECONDS\n")?
+        }
+        // SENSOR(s)
+        if let Some(sensors) = &self.sensors {
+            for sensor in sensors {
+                write!(f, "{:<20}", sensor.model)?; 
+                write!(f, "{:<30}", sensor.sens_type)?; 
+                write!(f, "{:1.1}", sensor.accuracy)?; 
+                write!(f, "{:<5}", sensor.physics)?; 
+                write!(f, "SENSOR MOD/TYPE/ACC\n")?
+            }
+        }
         // END OF HEADER
         write!(f, "{:>74}", "END OF HEADER\n")
     }

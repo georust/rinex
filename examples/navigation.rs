@@ -15,7 +15,7 @@ fn main() {
 
     // header information
     assert_eq!(rinex.header.is_crinex(), false);
-    assert_eq!(rinex.header.rinex_type, Type::NavigationMessage);
+    assert_eq!(rinex.header.rinex_type, Type::NavigationData);
     assert_eq!(rinex.header.version.major, 3);
     assert_eq!(rinex.header.constellation, Some(Constellation::Mixed)); 
     // leap second field for instance
@@ -90,7 +90,7 @@ fn main() {
             sv.iter() // for all sv
                 .find(|(&sv, _)| sv == to_match) // match `E04`
         })
-        .flatten() // dump non matching data
+        .flatten()
         .collect();
     println!("\n------------- \"{:?}\" data ----------\n{:#?}", to_match, matched); 
     
@@ -113,17 +113,28 @@ fn main() {
         .flatten()
         .collect();
     println!("\n------------- \"{:?}\" (bias,drift)----------\n{:#?}", to_match, matched); 
-/* 
-    // extract all data tied to `Galileo` constellation
-    let to_match = Constellation::Galileo;
-    let matched : Vec<_> = record
+
+    // build an array made of (satPosX,satPosY,satPosZ) for `R24` 
+    let data : Vec<_> = record
         .iter()
-        .map(|(_epoch, sv)| {
-            sv.iter() // for all sv
-                .find(|(&sv, _)| sv.constellation == to_match) // match `Rxx`
+        .map(|(_, sv)| {
+            sv.iter()
+                .find(|(&sv, _)| sv == to_match)
+                .map(|(_, data)| ( // create a tuple
+                    data["satPosX"]
+                        .as_f32()
+                        .unwrap(),
+                    data["satPosY"]
+                        .as_f32()
+                        .unwrap(),
+                    data["satPosZ"]
+                        .as_f32()
+                        .unwrap(),
+                ))
         })
         .flatten()
         .collect();
-    println!("\n------------- Constellation: \"{:?}\" ----------\n{:#?}", to_match, matched); 
-    }*/
+    println!("\n------------- \"{:?}\" (PosX,PosY,PosZ)----------\n{:#?}", to_match, data); 
+
+    //
 }

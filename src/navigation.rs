@@ -1,4 +1,4 @@
-//! `NavigationMessage` parser and related methods
+//! `NavigationData` parser and related methods
 use std::io::Write;
 use thiserror::Error;
 use std::str::FromStr;
@@ -95,9 +95,7 @@ pub enum RecordError {
     ParseDateError(#[from] epoch::ParseDateError), 
 }
 
-/// Builds `RinexRecord` entry for `NavigationMessage` file.    
-/// `header` : previously parsed Header    
-/// `content`: should comprise entire epoch content
+/// Builds `Record` entry for `NavigationData`
 pub fn build_record_entry (header: &header::Header, content: &str)
         -> Result<(epoch::Epoch, sv::Sv, HashMap<String, ComplexEnum>), RecordError>
 {

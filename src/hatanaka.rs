@@ -1,6 +1,5 @@
-//! hatanaka.rs   
-//! structures and macros suites for
-//! RINEX OBS files compression and decompression.   
+//! Structures and macros for
+//! RINEX OBS file compression and decompression.   
 use crate::sv;
 use crate::header;
 use crate::is_comment;
@@ -23,37 +22,33 @@ pub enum KernelError {
 /// we can compress / decompress
 #[derive(Clone, Debug)]
 pub enum Dtype {
-    /// Numerical is intended to be used    
+    /// Numerical is intended to be used
     /// for observation data and clock offsets
     Numerical(i64),
-    /// Text represents epoch descriptors,   
-    /// GNSS descriptors,    
-    /// observation flags..
+    /// Text represents epoch descriptors, GNSS descriptors, observation flags..
     Text(String),
 }
 
 impl Default for Dtype {
+    /// Generates a default numerical = 0 `Dtype`
     fn default() -> Dtype { Dtype::Numerical(0) }
  }
 
 impl Dtype {
+    /// Unwraps `Dtype` as numerical data
     pub fn as_numerical (&self) -> Option<i64> {
         match self {
             Dtype::Numerical(n) => Some(n.clone()),
             _ => None,
         }
     }
+    /// Unwraps `Dtype` as text data
     pub fn as_text (&self) -> Option<String> {
         match self {
             Dtype::Text(s) => Some(s.to_string()),
             _ => None,
         }
     }
-}
-
-/// Fills given i64 vector with '0'
-fn zeros (array : &mut Vec<i64>) {
-    for i in 0..array.len() { array[i] = 0 }
 }
 
 /// `Kernel` is a structure to compress    
@@ -78,8 +73,8 @@ pub struct Kernel {
 
 impl Kernel {
     /// Builds a new kernel structure.    
-    /// m: maximal Hatanaka order for this kernel to ever support,    
-    ///    m=5 is hardcoded in CRN2RNX official tool
+    /// + m: maximal Hatanaka order for this kernel to ever support, 
+    /// m=5 is hardcoded in `CRN2RNX` (official binary tool) and is enough
     pub fn new (m: usize) -> Kernel {
         let mut state : Vec<i64> = Vec::with_capacity(m+1);
         for _ in 0..m+1 { state.push(0) }
@@ -92,17 +87,17 @@ impl Kernel {
         }
     }
 
-    /// (re)initializes kernel    
-    /// order: compression order   
-    /// data: kernel initializer
+    /// (re)initializes kernel.  
+    /// + order: compression order   
+    /// + data: kernel initializer
     pub fn init (&mut self, order: usize, data: Dtype) -> Result<(), KernelError> { 
         if order > self.state.len() {
             return Err(KernelError::OrderTooBig(self.state.len()))
         }
         // reset
         self.n = 0;
-        zeros(&mut self.state);
-        zeros(&mut self.p_state);
+        self.state.iter_mut().map(|x| *x = 0).count();
+        self.p_state.iter_mut().map(|x| *x = 0).count();
         // init
         self.init = data.clone();
         self.p_state[0] = data.as_numerical().unwrap_or(0);
@@ -110,8 +105,7 @@ impl Kernel {
         Ok(())
     }
 
-    /// Recovers data by computing
-    /// recursive differential equation
+    /// Recovers data by computing recursive differential equation
     pub fn recover (&mut self, data: Dtype) -> Result<Dtype, KernelError> {
         match data {
             Dtype::Numerical(data) => {
@@ -130,12 +124,32 @@ impl Kernel {
             },
         }
     }
-    /// Runs Differential Equation
-    /// as defined in Hatanaka compression method
-    fn numerical_data_recovery (&mut self, data: i64) -> Dtype {
+    
+    /// Compresses data with differential equation
+    pub fn compress (&mut self, data: Dtype) -> Result<Dtype, KernelError> {
+        match data {
+            Dtype::Numerical(data) => {
+                if let Some(_) = self.init.as_numerical() {
+                    Ok(self.numerical_data_compression(data))
+                } else {
+                    Err(KernelError::TypeMismatch)
+                }
+            },
+            Dtype::Text(data) => {
+                if let Some(_) = self.init.as_text() {
+                    Ok(self.text_data_compression(data))
+                } else {
+                    Err(KernelError::TypeMismatch)
+                }
+            },
+        }
+    }
+
+    /// Computes Differential Equation as defined in Hatanaka compression method
+    pub fn numerical_data_recovery (&mut self, data: i64) -> Dtype {
         self.n += 1;
         self.n = std::cmp::min(self.n, self.order);
-        zeros(&mut self.state);
+        self.state.iter_mut().map(|x| *x = 0).count();
         self.state[self.n] = data;
         for index in (0..self.n).rev() {
             self.state[index] = 
@@ -145,7 +159,13 @@ impl Kernel {
         self.p_state = self.state.clone();
         Dtype::Numerical(self.state[0])
     }
-    /// Text is very simple
+    
+    /// Compresses numerical data using Hatanaka method
+    fn numerical_data_compression (&self, data: i64) -> Dtype {
+        Dtype::Numerical(0)
+    }
+
+    /// Performs TextDiff operation as defined in Hatanaka compression method 
     fn text_data_recovery (&mut self, data: String) -> Dtype {
         let mut init = self.init
             .as_text()
@@ -183,6 +203,11 @@ impl Kernel {
         }
         self.init = Dtype::Text(recovered.clone()); // for next time
         Dtype::Text(String::from(&recovered))
+    }
+    
+    /// Compresses text data using Hatanaka method
+    fn text_data_compression (&self, data: String) -> Dtype {
+        Dtype::Text(String::from("hello world"))
     }
 }
 
@@ -335,11 +360,12 @@ impl Decompressor {
                         Some(num)
                     },
                 };
-                // we can now fully recover the descriptor line
+                // we can now fully recover the epoch description 
                 let recovered_epoch =  // trick to recover textdiff
                     self.epo_krn.recover(Dtype::Text(String::from(" ")))?
                     .as_text()
                     .unwrap();
+                let recovered_epoch = recovered_epoch.as_str().trim_end();
                 match rnx_version.major {
                     1|2 => { // old RINEX
                         // system # id is appended
@@ -347,25 +373,21 @@ impl Decompressor {
                         let (epoch, systems) = recovered_epoch.split_at(32);
                         result.push_str(epoch);
                         let mut begin = 0;
-                        let n = num_integer::div_ceil(systems.len(), 12*3); // max sv per line
                         // terminate first line with required content
                         let end = std::cmp::min(begin+12*3, systems.len());
                         result.push_str(&systems[begin..end]);
                         // squeeze clock offset here, if any
                         if let Some(offset) = clock_offset {
-                            result.push_str(&format!("         {:3.12}", (offset as f64)/1000.0_f64))
+                            result.push_str(&format!("  {:3.9}", (offset as f64)/1000.0_f64))
                         }
-                        result.push_str("\n");
-                        begin += 12*3; // `systems` pointer
-                        for i in 1..n { // nb of missing lines, to fit remaining systems 
-                            let end = std::cmp::min(begin+12*3, systems.len());
-                            result.push_str("                                ");
-                            result.push_str(&systems[begin..end]);
-                            if i < n-1 {
-                                result.push_str("\n"); // otherwise,
-                                                // last line is terminated at the end of this block
+                        loop { // missing lines to fit remaining systems 
+                            begin += 12*3; // `systems` pointer
+                            if begin >= systems.len() {
+                                break
                             }
-                            begin += 12*3
+                            let end = std::cmp::min(begin+12*3, systems.len());
+                            result.push_str("\n                                ");
+                            result.push_str(&systems[begin..end]);
                         }
                     },
                     _ => { // modern RINEX
@@ -823,6 +845,35 @@ mod test {
                     .as_text()
                     .unwrap();
             assert_eq!(result, String::from(expected[i]));
+        }
+    }
+    #[test]
+    /// Tests Hatanaka Text compression algorithm
+    fn test_text_compression() {
+        let init = "ABCDEFG 12 000 33 XXACQmpLf";
+        let mut krn = Kernel::new(5);
+        krn.init(0, Dtype::Text(init.to_string()))
+            .unwrap();
+        let values : Vec<&str> = vec![
+            "ABCDEFG 1 1 1 33  XXABCQMPLF",
+            "Hello 1 1 1 33  blop",
+            "---> rien a voir  11--33!!<",
+            "---> Hello World", 
+            "---> Hello W0rld", 
+            "---> Hell0 W0rld", 
+            "---> H3ll0 W0rld", 
+            "--> H3ll0 W0rLd", 
+            "--> H3ll0 W0rLd", 
+            "--> H3ll0 W0rLd ", 
+        ];
+        for i in 0..values.len() {
+            let value = values[i];
+            let result = krn.compress(Dtype::Text(value.to_string()))
+                .unwrap()
+                    .as_text()
+                    .unwrap();
+            println!("VALUE -    \"{}\"", value);
+            println!("RESULT -   \"{}\"", result);
         }
     }
 }

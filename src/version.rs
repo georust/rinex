@@ -1,6 +1,5 @@
-//! This modules contains the supported `RINEX` Version, 
-//! aswell as a set of macros to manipulate and describe
-//! RINEX File versionning
+//! `RINEX` revision description and manipulation, 
+//! contained in `header`
 
 /// Current `RINEX` version supported to this day
 pub const SUPPORTED_VERSION: Version = Version {
@@ -8,7 +7,7 @@ pub const SUPPORTED_VERSION: Version = Version {
     minor: 0
 };
 
-#[derive(Copy, Clone, PartialEq, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub struct Version {
     pub major: u8,
     pub minor: u8

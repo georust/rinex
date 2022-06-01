@@ -1,4 +1,4 @@
-//! sv.rs describes a satellite vehicule 
+//! Structure to describe a satellite vehicule 
 use thiserror::Error;
 use std::str::FromStr;
 use crate::constellation;

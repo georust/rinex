@@ -8,9 +8,9 @@ pub enum Type {
     /// Describes Observation Data (OBS),
     /// Phase & Pseudo range measurements
     ObservationData, 
-    /// Describes Navigation Message (NAV)
+    /// Describes Navigation Data (NAV)
     /// Ephemeride file
-    NavigationMessage,
+    NavigationData,
     /// Describes Meteorological data (MET)
     MeteoData,
 }
@@ -32,7 +32,7 @@ impl Type {
     pub fn to_string (&self, constell: Option<constellation::Constellation>) -> String { 
         match *self {
             Type::ObservationData => String::from("OBSERVATION DATA"),
-            Type::NavigationMessage => {
+            Type::NavigationData => {
                 match constell {
                     Some(constellation::Constellation::Glonass) => String::from("Glonass NAV"),
                     _ => String::from("NAV DATA"),
@@ -47,9 +47,9 @@ impl std::str::FromStr for Type {
     type Err = TypeError;
     fn from_str (s: &str) -> Result<Self, Self::Err> {
         if s.eq("NAVIGATION DATA") {
-            Ok(Type::NavigationMessage)
+            Ok(Type::NavigationData)
         } else if s.contains("NAV DATA") {
-            Ok(Type::NavigationMessage)
+            Ok(Type::NavigationData)
         } else if s.eq("OBSERVATION DATA") {
             Ok(Type::ObservationData)
         } else if s.eq("METEOROLOGICAL DATA") {

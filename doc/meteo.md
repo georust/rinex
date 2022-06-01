@@ -1,37 +1,19 @@
 # RINEX Meteo Data
 
-Meteo Observation `RINEX` describes environmental
-related measurements.
+Meteo Observation `RINEX` describes environmental measurements.
 
-## Meteo Record content
+One example script is provided
 
-Grab an record from a given file:
-
-```rust
-let rinex = rinex::Rinex::from_file("data/MET/V2/cari0010.07m")
-    .unwrap();
-let record = rinex.record
-    .unwrap() // record is optional
-        .as_meteo() // meteo record cast
-        .unwrap();
+```bash
+cargo run --example meteo 
 ```
 
-## Meteorological sensors information
+Refer to this example to learn how to browse MET `record, that includes:
+* [x] grab high level information
+* [x] enumerate epochs contained in record
+* [x] retrieve specific data.. 
 
-`rinex.header` contains some sensor informations
-specific to these files:
-
-* `rinex.header.sensors` : a list of `Sensor` structure
-to describe the hardware responsible for a specific
-observation code
-
-## Record manipulation
-
-The observations are sorted by `Epoch` and by Observation Code.
-
-### Observation Codes
-
-It is very important to be familiar with Observation Codes to manipulate
+It is important to be familiar with Observation Codes to manipulate
 OBS data:
 
 * understand what they represent (see RINEX specifications)
@@ -53,6 +35,11 @@ let obs_codes = &rinex.header.met_codes
 ]
 ```
 
-These codes are then used to retrieve data of interest.   
-It is important to understand which type of measurement
-these codes represent.
+## Meteorological sensors information
+
+`rinex.header` contains some sensor informations
+specific to these files:
+
+* `rinex.header.sensors` : a list of `Sensor` structure
+to describe the hardware responsible for a specific
+observation code

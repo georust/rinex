@@ -17,8 +17,6 @@ fn main() {
     assert_eq!(rinex.header.rinex_type, Type::ObservationData);
     assert_eq!(rinex.header.version.major, 3);
     assert_eq!(rinex.header.constellation, Some(Constellation::Mixed)); 
-    // leap second field for instance
-    // is a major > 3 optionnal field
     assert_eq!(rinex.header.leap.is_some(), true);
 
     // (OBS) record analysis
@@ -30,19 +28,20 @@ fn main() {
     // basic record browsing
     //////////////////////////////
     for entry in record.iter() { // over all epochs
-        let epoch = entry.0;
-        println!("Found epoch: `{:#?}`", epoch); 
+        let (epoch, data) = entry;
         // epochs are 2D (1 per epoch)
         //   clock offsets (if any) : Some(f32)
+        let (clk_offset, obs_data) = data;
+        println!("Found epoch: `{:#?}`", epoch); 
+        println!("Clock offset: `{:#?}`", clk_offset);
         //   HashMap<Sv, HashMap<String, ObservationData>> 
         //   : list of observation data, indexed by Observation Code
         //     and sorted by Satellite Vehicule
-        /*for vehicule in entry.1.iter() { // over all sat. vehicules
+        for vehicule in obs_data.iter() { // over all sat. vehicules
             let sv = vehicule.0;
-            println!("Found sat vehicule: `{:#?}`", sv); 
             let data = vehicule.1;
-            println!("Data: `{:#?}`", data); 
-        }*/
+            println!("Found sat vehicule: `{:#?}` - Data: `{:#?}`", sv, data); 
+        }
     }
     //////////////////////////////////////
     // basic hashmap [indexing] 
@@ -99,7 +98,7 @@ fn main() {
             sv.iter()
                 .map(|(_sv, obs)| { // array of sv data: {key: sv, values: array of data)
                     obs.iter()
-                        .find(|(code, data)| { // array of data: {key: OBS code, values: ObsData}
+                        .find(|(code, _)| { // array of data: {key: OBS code, values: ObsData}
                             rinex::is_pseudo_range_obs_code!(code)
                         })
               })
@@ -114,7 +113,7 @@ fn main() {
         .iter()
         .map(|(epoch, (_, sv))| { // record: {key: epochs, values: (array of clock offsets, array of sv) }
             sv.iter()
-                .find(|(k, v)| *k == &to_match) // match unique vehicule 
+                .find(|(k, _)| *k == &to_match) // Key: sv, Value: dont care
                 .map(|(_, obs)| { // from filtered content, apply previous filter
                     obs.iter()
                         .find(|(code, _)| { // obs code kind filter
@@ -133,7 +132,7 @@ fn main() {
         .iter()
         .map(|(epoch, (_, sv))| { // record: {key: epochs, values: (array of clock offsets, array of sv) }
             sv.iter()
-                .find(|(k, v)| *k == &to_match) // match unique vehicule 
+                .find(|(k, _)| *k == &to_match) // Key: sv, Value: dont care
                 .map(|(_, obs)| { // from filtered content, apply previous filter
                     obs.iter()
                         .find(|(code, _)| { // obs code kind filter
@@ -154,11 +153,11 @@ fn main() {
         .iter()
         .map(|(epoch, (_, sv))| { // record: {key: epochs, values: (array of clock offsets, array of sv) }
             sv.iter()
-                .find(|(k, v)| *k == &to_match) // match unique vehicule 
+                .find(|(k, _)| *k == &to_match) // Key: sv, Value: dont care
                 .map(|(_, obs)| { // from filtered content, apply previous filter
                     obs.iter()
-                        .find(|(obsCode, obsData)| { // obs code kind filter
-                            obsCode.as_str() == "C1C" && obsData.is_ok() // unique code 
+                        .find(|(obs_code, obs_data)| { // obs code kind filter
+                            obs_code.as_str() == "C1C" && obs_data.is_ok() // unique code 
                         })
                         .map(|(code, data)| (epoch, code, data)) // build returned struct
                 })
@@ -176,11 +175,11 @@ fn main() {
         .iter()
         .map(|(epoch, (_, sv))| { // record: {key: epochs, values: (array of clock offsets, array of sv) }
             sv.iter()
-                .find(|(k, v)| *k == &to_match) // match unique vehicule 
+                .find(|(k, _)| *k == &to_match) // Key: sv, Value: dont care 
                 .map(|(_, obs)| { // from filtered content, apply previous filter
                     obs.iter()
-                        .find(|(obsCode, obsData)| { // obs code kind filter
-                            obsCode.as_str() == "C1C" && obsData.is_ok() // unique code 
+                        .find(|(obs_code, obs_data)| { // obs code kind filter
+                            rinex::is_doppler_obs_code!(obs_code) && obs_data.is_ok()
                         })
                         .map(|(code, data)| (epoch, code, data)) // build returned struct
                 })
@@ -188,19 +187,19 @@ fn main() {
         })
         .flatten()
         .collect();
-    println!("\n------------- (timestamp + PSEUDO RANGE data) for {:?} vehicule with trusted/meaningful data ----------\n{:#?}", to_match, data); 
+    println!("\n------------- (timestamp + Doppler data) for {:?} vehicule with trusted/meaningful data ----------\n{:#?}", to_match, data); 
 
     // Grab (Epoch, ObsCode, ObsData) for all data that have a strong signal quality
     let data : Vec<_> = record
         .iter()
         .map(|(epoch, (_, sv))| { // record: {key: epochs, values: (array of clock offsets, array of sv) }
             sv.iter()
-                .find(|(k, v)| *k == &to_match) // match unique vehicule 
+                .find(|(k, _)| *k == &to_match) // match unique vehicule 
                 .map(|(_, obs)| { // from filtered content, apply previous filter
                     obs.iter()
-                        .find(|(_, obsData)| { // obs code kind filter
-                            if obsData.ssi.is_some() {
-                                obsData.ssi.unwrap().is_excellent()
+                        .find(|(_, obs_data)| { // obs code kind filter
+                            if obs_data.ssi.is_some() {
+                                obs_data.ssi.unwrap().is_excellent()
                             } else {
                                 false
                             }
@@ -211,4 +210,21 @@ fn main() {
         })
         .flatten()
         .collect();
+    println!("\n------------- (timestamp + Doppler data) for {:?} vehicule with excellent signal quality  ----------\n{:#?}", to_match, data); 
+    
+    // Decimate data with an epoch interval
+    /*let min_interval = std::time::Duration::from_secs(10 * 60);
+    let data : Vec<_> = record
+        .iter()
+        .filter_by_key(|(k,v)| {
+        //.map(|(epoch, (_, sv))| { // record: {key: epochs, values: (array of clock offsets, array of sv) }
+            let iter = epoch.iter();
+            if let Some(next) = epoch.next() {
+
+            }
+        })
+        .collect();
+    println!("\n------------- Decimated Epochs  ----------\n{:#?}", data); 
+    // and convert pseudo range to distance [m] for given satellite vehicule
+    println!("\n------------- Decimated PR converted to distance [m] for vehicule {:?}  ----------\n{:#?}", to_match, data); */
 }
