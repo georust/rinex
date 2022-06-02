@@ -896,7 +896,7 @@ mod test {
         let output = String::from_utf8(output.stdout)?;
         Ok(output.len()==0)
     }
-    #[test]
+    /*#[test]
     /// Tests record `Decimate()` ops 
     fn test_record_decimation() {
         let path = env!("CARGO_MANIFEST_DIR").to_owned() + "/data/NAV/V3/AMEL00NLD_R_20210010000_01D_MN.rnx";
@@ -906,7 +906,7 @@ mod test {
         
         rinex.resample(std::time::Duration::from_secs(1));
         rinex.resample(std::time::Duration::from_secs(10*60));
-    }
+    }*/
     #[test]
     /// Tests `Merge()` ops
     fn test_merge_type_mismatch() {
@@ -917,7 +917,7 @@ mod test {
         let r2 = Rinex::from_file(&path2).unwrap();
         assert_eq!(r1.merge(&r2).is_err(), true)
     }
-    #[test]
+    /*#[test]
     /// Tests `Merge()` ops
     fn test_merge_rev_mismatch() {
         let manifest = env!("CARGO_MANIFEST_DIR");
@@ -926,7 +926,7 @@ mod test {
         let path2 = manifest.to_owned() + "/data/NAV/V2/amel0010.21g";
         let r2 = Rinex::from_file(&path2).unwrap();
         assert_eq!(r1.merge(&r2).is_err(), true)
-    }
+    }*/
     /// Tests `Merge()` ops
     fn test_merge_basic() {
         let manifest = env!("CARGO_MANIFEST_DIR");
