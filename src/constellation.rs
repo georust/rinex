@@ -63,7 +63,7 @@ impl Constellation {
             Ok(Constellation::Galileo)
         } else if code.to_lowercase().eq("j") {
             Ok(Constellation::QZSS)
-        } else if code.to_lowercase().eq("h") {
+        } else if code.to_lowercase().eq("s") {
             Ok(Constellation::Sbas)
         } else if code.to_lowercase().eq("i") {
             Ok(Constellation::Irnss)
