@@ -4,12 +4,9 @@
 //! are provided.  
 //! Homepage: <https://github.com/gwbres/rinex>
 mod leap;
-mod meteo;
 mod merge;
 mod clocks;
 //mod gnss_time;
-mod navigation;
-mod observation;
 
 pub mod sv;
 pub mod types;
@@ -19,6 +16,10 @@ pub mod record;
 pub mod version;
 pub mod hatanaka;
 pub mod constellation;
+
+pub mod meteo;
+pub mod navigation;
+pub mod observation;
 
 use std::io::Write;
 use thiserror::Error;
