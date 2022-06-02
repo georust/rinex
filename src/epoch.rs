@@ -53,10 +53,10 @@ impl std::str::FromStr for EpochFlag {
 /// An `Epoch` is an observation timestamp associated
 /// to an `EpochFlag`
 pub struct Epoch {
-    /// `flag` validates or not this particular `epoch`
-    pub flag: EpochFlag,
     /// `date`: sampling time stamp
     pub date: chrono::NaiveDateTime,
+    /// `flag` validates or not this particular `epoch`
+    pub flag: EpochFlag,
 }
 
 impl Default for Epoch {
