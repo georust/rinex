@@ -31,6 +31,8 @@ pub enum Constellation {
     Galileo,
     /// `Sbas` constellation
     Sbas,
+    /// `Geo` constellation
+    Geo,
     /// `IRNSS` constellation
     Irnss,
     /// `Mixed` for Mixed constellations 
@@ -63,8 +65,10 @@ impl Constellation {
             Ok(Constellation::Galileo)
         } else if code.to_lowercase().eq("j") {
             Ok(Constellation::QZSS)
-        } else if code.to_lowercase().eq("s") {
+        } else if code.to_lowercase().eq("h") {
             Ok(Constellation::Sbas)
+        } else if code.to_lowercase().eq("s") {
+            Ok(Constellation::Geo)
         } else if code.to_lowercase().eq("i") {
             Ok(Constellation::Irnss)
         } else if code.to_lowercase().eq("m") {
@@ -80,7 +84,8 @@ impl Constellation {
             Constellation::Glonass => "R",
             Constellation::Galileo => "E",
             Constellation::Beidou => "C",
-            Constellation::Sbas => "S",
+            Constellation::Sbas => "H",
+            Constellation::Geo => "S",
             Constellation::QZSS => "J",
             Constellation::Irnss => "I",
             Constellation::Mixed => "M",
@@ -105,6 +110,8 @@ impl Constellation {
             Ok(Constellation::QZSS)
         } else if code.to_lowercase().eq("sbs") {
             Ok(Constellation::Sbas)
+        } else if code.to_lowercase().eq("geo") {
+            Ok(Constellation::Geo)
         } else if code.to_lowercase().eq("irn") {
             Ok(Constellation::Irnss)
         } else {
@@ -119,6 +126,7 @@ impl Constellation {
             Constellation::Galileo => "GAL",
             Constellation::Beidou => "BDS",
             Constellation::Sbas => "SBS",
+            Constellation::Geo => "GEO",
             Constellation::QZSS => "QZS",
             Constellation::Irnss => "IRN",
             Constellation::Mixed => "MIX",
@@ -138,6 +146,8 @@ impl Constellation {
             Ok(Constellation::Beidou)
         } else if code.to_lowercase().contains("sbas") {
             Ok(Constellation::Sbas)
+        } else if code.to_lowercase().contains("geo") {
+            Ok(Constellation::Geo)
         } else if code.to_lowercase().contains("irnss") {
             Ok(Constellation::Irnss)
         } else if code.to_lowercase().contains("mixed") {
