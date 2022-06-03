@@ -2,9 +2,24 @@
 //! a `flag` associated to it
 use thiserror::Error;
 use std::str::FromStr;
+use serde::Serializer;
+use serde_derive::Serialize;
 use chrono::{Datelike,Timelike};
 
+mod datetime_formatter {
+	use serde::{Serializer};
+    //, Serialize, Deserializer, Deserialize, de::Error};
+    pub fn serialize<S>(datetime: &chrono::NaiveDateTime, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let s = format!("{}", datetime.format("%Y-%m-%d %H:%M:%S"));
+        serializer.serialize_str(&s)
+    }
+}
+
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+#[derive(Serialize)]
 /// `EpochFlag` validates or describes events
 /// that occured during an `epoch`
 pub enum EpochFlag {
@@ -50,10 +65,12 @@ impl std::str::FromStr for EpochFlag {
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+#[derive(Serialize)]
 /// An `Epoch` is an observation timestamp associated
 /// to an `EpochFlag`
 pub struct Epoch {
     /// `date`: sampling time stamp
+    #[serde(with = "datetime_formatter")]
     pub date: chrono::NaiveDateTime,
     /// `flag` validates or not this particular `epoch`
     pub flag: EpochFlag,
