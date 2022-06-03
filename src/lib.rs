@@ -456,7 +456,7 @@ impl Rinex {
         if epoch.date < epochs[0].date {
             return Err(SplitError::EpochTooEarly)
         }
-        if epoch.date > epochs[0].date {
+        if epoch.date > epochs[epochs.len()-1].date {
             return Err(SplitError::EpochTooLate)
         }
         let rec0 : record::Record = match self.header.rinex_type {
@@ -557,40 +557,41 @@ impl Rinex {
     }
 
     /// Splits Self into separate `RINEX` structures. 
-    /// Splits at Merging boundary if Self is a valid `Merged` RINEX.
-    /// Splits at given epoch otherwise (must be passed).
     /// Header sections are simply copied.
+    /// Splits at given epoch (if provided).
+    /// Splits at Merging boundary if Self is a valid `Merged` RINEX.
+    /// Will panic if no epochs are specified and Self is not a `Merged` RINEX.
     pub fn split (&self, epoch: Option<epoch::Epoch>) -> Result<Vec<Self>, SplitError> {
-        if self.is_merged() {
-            let records = self.split_record();
-            let mut result : Vec<Self> = Vec::with_capacity(records.len());
-            for rec in records {
-                result.push(Self {
+        if let Some(epoch) = epoch {
+            let (r1, r2) = self.split_record_at_epoch(epoch)?;
+            let mut result : Vec<Self> = Vec::with_capacity(2);
+            result.push(
+                Self {
                     header: self.header.clone(),
                     comments: self.comments.clone(),
-                    record: rec.clone(),
-                })
-            }
+                    record: r1.clone(),
+                });
+            result.push(
+                Self {
+                    header: self.header.clone(),
+                    comments: self.comments.clone(),
+                    record: r2.clone(),
+                });
             Ok(result)
         } else {
-            if let Some(epoch) = epoch {
-                let (r1, r2) = self.split_record_at_epoch(epoch)?;
-                let mut result : Vec<Self> = Vec::with_capacity(2);
-                result.push(
-                    Self {
+            if self.is_merged() {
+                let records = self.split_record();
+                let mut result : Vec<Self> = Vec::with_capacity(records.len());
+                for rec in records {
+                    result.push(Self {
                         header: self.header.clone(),
                         comments: self.comments.clone(),
-                        record: r1.clone(),
-                    });
-                result.push(
-                    Self {
-                        header: self.header.clone(),
-                        comments: self.comments.clone(),
-                        record: r2.clone(),
-                    });
+                        record: rec.clone(),
+                    })
+                }
                 Ok(result)
             } else {
-                panic!("Missing epoch boundary and self does not look like a merged RINEX")
+                panic!("This is not a merged RINEX")
             }
         }
     }
