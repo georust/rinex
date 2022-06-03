@@ -2,16 +2,27 @@
 use thiserror::Error;
 use std::str::FromStr;
 use crate::constellation;
-use serde_derive::Serialize;
+use serde::{Serializer, Serialize};
 
 /// ̀`Sv` describes a Satellite Vehiculee
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
-#[derive(Serialize)]
 pub struct Sv {
     /// prn identification # for this vehicule 
     pub prn: u8,
     /// `GNSS` Constellation to which this vehicule is tied to
     pub constellation: constellation::Constellation,
+}
+
+impl Serialize for Sv {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let s = format!("{}{}", 
+            self.constellation.to_3_letter_code(),
+            self.prn);
+        serializer.serialize_str(&s)
+    }
 }
 
 /// ̀`Sv` parsing & identification related errors

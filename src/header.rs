@@ -9,7 +9,6 @@ use crate::types::{Type, TypeError};
 use crate::constellation;
 use crate::merge::MergeError;
 use serde_derive::Serialize;
-use crate::datetime_fmt::datetime_formatter;
 
 use std::fs::File;
 use thiserror::Error;
@@ -173,6 +172,17 @@ impl Antenna {
             northern_eccentricity: n,
             eastern_eccentricity: e,
         }
+    }
+}
+
+pub mod datetime_formatter {
+    use serde::{Serializer};
+    pub fn serialize<S>(datetime: &chrono::NaiveDateTime, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let s = format!("{}", datetime.format("%Y-%m-%d %H:%M:%S"));
+        serializer.serialize_str(&s)
     }
 }
 

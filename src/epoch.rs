@@ -2,13 +2,10 @@
 //! a `flag` associated to it
 use thiserror::Error;
 use std::str::FromStr;
-use serde::Serializer;
-use serde_derive::Serialize;
+use serde::{Serializer, Serialize};
 use chrono::{Datelike,Timelike};
-use crate::datetime_fmt::datetime_formatter;
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-#[derive(Serialize)]
 /// `EpochFlag` validates or describes events
 /// that occured during an `epoch`
 pub enum EpochFlag {
@@ -53,17 +50,47 @@ impl std::str::FromStr for EpochFlag {
     }
 }
 
+impl std::fmt::Display for EpochFlag {
+    fn fmt (&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            EpochFlag::Ok => f.write_str("Ok"),
+            EpochFlag::PowerFailure => f.write_str("PowerFailure"),
+            EpochFlag::AntennaBeingMoved => f.write_str("AntennaBeingMoved"),
+            EpochFlag::NewSiteOccupation => f.write_str("NewSiteOccupation"),
+            EpochFlag::HeaderInformationFollows => f.write_str("HeaderInformationFollows"),
+            EpochFlag::ExternalEvent => f.write_str("ExternalEvent"),
+            EpochFlag::CycleSlip => f.write_str("CycleSlip"),
+        }
+    }
+}
+
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-#[derive(Serialize)]
 /// An `Epoch` is an observation timestamp associated
 /// to an `EpochFlag`
 pub struct Epoch {
     /// `date`: sampling time stamp
-    #[serde(with = "datetime_formatter")]
     pub date: chrono::NaiveDateTime,
     /// `flag` validates or not this particular `epoch`
     pub flag: EpochFlag,
 }
+
+impl Serialize for Epoch {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let s = format!("{} {}", 
+            self.date.format("%Y-%m-%d %H:%M:%S"),
+            self.flag.to_string());
+        serializer.serialize_str(&s)
+    }
+}
+
+/*impl std::fmt::Display for Epoch {
+    fn fmt (&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        f.write_str("salut")
+    }
+}*/
 
 impl Default for Epoch {
     fn default() -> Epoch {
@@ -91,6 +118,7 @@ impl Epoch {
             flag,
         }
     }
+    pub fn to_string (&self) -> &str { "hello" }
 }
 
 #[derive(Error, Debug)]
