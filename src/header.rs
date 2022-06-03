@@ -8,6 +8,8 @@ use crate::{is_comment};
 use crate::types::{Type, TypeError};
 use crate::constellation;
 use crate::merge::MergeError;
+use serde_derive::Serialize;
+use crate::datetime_fmt::datetime_formatter;
 
 use std::fs::File;
 use thiserror::Error;
@@ -21,7 +23,7 @@ pub const CRINEX_MARKER_COMMENT : &str = "COMPACT RINEX FORMAT";
 pub const HEADER_END_MARKER : &str = "END OF HEADER";
 
 /// GNSS receiver description
-#[derive(Clone, Debug)]
+#[derive(Clone, Serialize, Debug)]
 pub struct Rcvr {
     /// Receiver (hardware) model
     model: String, 
@@ -57,7 +59,7 @@ impl std::str::FromStr for Rcvr {
 }
 
 /// Meteo Observation Sensor
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Serialize, Debug)]
 pub struct Sensor {
 	/// Model of this sensor
 	model: String,
@@ -93,14 +95,33 @@ impl Sensor {
 	}
 }
 
+mod point3d_formatter {
+    use serde::Serializer;
+    pub fn serialize<S>(point3d: &Option<rust_3d::Point3D>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let p = point3d.as_ref().unwrap_or(
+            &rust_3d::Point3D {
+                x: 0.0_f64,
+                y: 0.0_f64,
+                z: 0.0_f64,
+            }
+        );
+        let s = format!("{},{},{}",p.x,p.y,p.z); 
+        serializer.serialize_str(&s)
+    }
+}
+
 /// Antenna description 
-#[derive(Debug, Clone)]
+#[derive(Debug, Serialize, Clone)]
 pub struct Antenna {
     /// Hardware model / make descriptor
     pub model: String,
     /// Serial number / identification number
     pub sn: String,
     /// 3D coordinates of reference point
+    #[serde(with = "point3d_formatter")]
     pub coords: Option<rust_3d::Point3D>,
     /// height in comparison to ref. point
     pub height: Option<f32>,
@@ -156,15 +177,16 @@ impl Antenna {
 }
 
 /// Describes `Compact RINEX` specific information
-#[derive(Clone, Debug)]
+#[derive(Clone, Serialize, Debug)]
 pub struct CrinexInfo {
     pub version: version::Version, // compression version
     pub prog: String, // compression program
+    #[serde(with = "datetime_formatter")]
     pub date: chrono::NaiveDateTime, // date of compression
 }
 
 /// Describes known marker types
-#[derive(Clone, Debug)]
+#[derive(Clone, Serialize, Debug)]
 pub enum MarkerType {
     /// Earth fixed & high precision
     Geodetic,
@@ -226,7 +248,7 @@ impl std::str::FromStr for MarkerType {
 }
 
 /// Describes `RINEX` file header
-#[derive(Clone, Debug)]
+#[derive(Clone, Serialize, Debug)]
 pub struct Header {
     /// revision for this `RINEX`
     pub version: version::Version, 
@@ -267,6 +289,7 @@ pub struct Header {
     /// optionnal leap seconds infos
     pub leap: Option<leap::Leap>, 
     /// station approxiamte coordinates
+    #[serde(with = "point3d_formatter")]
     pub coords: Option<rust_3d::Point3D>, 
     /// optionnal observation wavelengths
     pub wavelengths: Option<(u32,u32)>, 

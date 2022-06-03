@@ -6,6 +6,7 @@
 mod leap;
 mod merge;
 mod clocks;
+mod datetime_fmt;
 //mod gnss_time;
 
 pub mod sv;

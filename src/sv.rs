@@ -2,9 +2,11 @@
 use thiserror::Error;
 use std::str::FromStr;
 use crate::constellation;
+use serde_derive::Serialize;
 
 /// ̀`Sv` describes a Satellite Vehiculee
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Serialize)]
 pub struct Sv {
     /// prn identification # for this vehicule 
     pub prn: u8,

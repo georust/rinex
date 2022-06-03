@@ -3,6 +3,7 @@ use std::io::Write;
 use thiserror::Error;
 use std::str::FromStr;
 use itertools::Itertools;
+use serde_derive::Serialize;
 use std::collections::{BTreeMap,HashMap};
 
 use crate::sv;
@@ -19,7 +20,7 @@ include!(concat!(env!("OUT_DIR"),"/nav_data.rs"));
 pub type Record = BTreeMap<epoch::Epoch, HashMap<sv::Sv, HashMap<String, ComplexEnum>>>;
 
 /// `ComplexEnum` is record payload 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Serialize, Debug)]
 pub enum ComplexEnum {
     U8(u8),
     Str(String), 

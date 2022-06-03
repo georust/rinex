@@ -2,6 +2,7 @@
 use std::io::Write;
 use thiserror::Error;
 use std::str::FromStr;
+use serde_derive::Serialize;
 use strum_macros::EnumString;
 use std::collections::{BTreeMap, HashMap};
 use physical_constants::SPEED_OF_LIGHT_IN_VACUUM;
@@ -13,6 +14,7 @@ use crate::constellation;
 
 /// `Ssi` describes signals strength
 #[repr(u8)]
+#[derive(Serialize)]
 #[derive(PartialOrd, Ord, PartialEq, Eq, Copy, Clone, Debug)]
 pub enum Ssi {
     /// Ssi ~= 0 dB/Hz
@@ -97,6 +99,7 @@ pub mod lli_flags {
     pub const UNDER_ANTI_SPOOFING : u8 = 0x04;
 }
 
+#[derive(Serialize)]
 #[derive(PartialEq, Copy, Clone, Debug)]
 pub struct ObservationData {
 	/// physical measurement
