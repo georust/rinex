@@ -46,6 +46,8 @@ Slice op (teqc):
 * ?
 
 Epochs:
+* [ ] replace custom macro by datetime::from_str() 
+* [ ] replace custom macro by datetime::format!
 * [ ] epoch flag mask operation & special bitmask operations
  * [ ] --> abnormal epochs masking 
 
