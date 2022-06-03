@@ -137,7 +137,7 @@ macro_rules! is_hail_indicator_code {
 }
 
 /// `Rinex` describes a `RINEX` file
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Rinex {
     /// `header` field contains general information
     pub header: header::Header,
@@ -365,7 +365,7 @@ impl Rinex {
     /// Returns `true` if self is a `merged` RINEX file,   
     /// meaning, this file is the combination of two RINEX files merged together.  
     /// This is determined by the presence of a custom yet somewhat standardized `FILE MERGE` comments
-    pub fn is_merged_rinex (&self) -> bool {
+    pub fn is_merged (&self) -> bool {
         for (_, content) in self.comments.iter() {
             for c in content {
                 if c.contains("FILE MERGE") {
@@ -557,20 +557,42 @@ impl Rinex {
     }
 
     /// Splits Self into separate `RINEX` structures. 
-    /// Self must be a `Merged` file.
+    /// Splits at Merging boundary if Self is a valid `Merged` RINEX.
+    /// Splits at given epoch otherwise (must be passed).
     /// Header sections are simply copied.
-    /// Records are built using the .split_records() method.
-    pub fn split (&self) -> Vec<Self> {
-        let records = self.split_record();
-        let mut result : Vec<Self> = Vec::with_capacity(records.len());
-        for rec in records {
-            result.push(Self {
-                header: self.header.clone(),
-                comments: self.comments.clone(),
-                record: rec.clone(),
-            })
+    pub fn split (&self, epoch: Option<epoch::Epoch>) -> Result<Vec<Self>, SplitError> {
+        if self.is_merged() {
+            let records = self.split_record();
+            let mut result : Vec<Self> = Vec::with_capacity(records.len());
+            for rec in records {
+                result.push(Self {
+                    header: self.header.clone(),
+                    comments: self.comments.clone(),
+                    record: rec.clone(),
+                })
+            }
+            Ok(result)
+        } else {
+            if let Some(epoch) = epoch {
+                let (r1, r2) = self.split_record_at_epoch(epoch)?;
+                let mut result : Vec<Self> = Vec::with_capacity(2);
+                result.push(
+                    Self {
+                        header: self.header.clone(),
+                        comments: self.comments.clone(),
+                        record: r1.clone(),
+                    });
+                result.push(
+                    Self {
+                        header: self.header.clone(),
+                        comments: self.comments.clone(),
+                        record: r2.clone(),
+                    });
+                Ok(result)
+            } else {
+                panic!("Missing epoch boundary and self does not look like a merged RINEX")
+            }
         }
-        result
     }
 
     /// Merges given RINEX into self, in teqc similar fashion.   
@@ -1061,7 +1083,7 @@ mod test {
                         println!("---------- Body   Comments ------- \n{:#?}", rinex.comments);
                         // MERGED RINEX special ops
                         println!("---------- Merged RINEX special ops -----------\n");
-                        println!("is merged          : {}", rinex.is_merged_rinex());
+                        println!("is merged          : {}", rinex.is_merged());
                         println!("boundaries: \n{:#?}", rinex.merge_boundaries());
                         // RINEX Production
                         rinex.to_file(&format!("{}-copy", full_path)).unwrap();
