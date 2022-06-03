@@ -18,8 +18,8 @@ impl Serialize for Sv {
     where
         S: Serializer,
     {
-        let s = format!("{}{}", 
-            self.constellation.to_3_letter_code(),
+        let s = format!("{}{:02}", 
+            self.constellation.to_1_letter_code(),
             self.prn);
         serializer.serialize_str(&s)
     }
