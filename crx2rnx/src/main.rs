@@ -1,8 +1,7 @@
-//! hatanaka    
+//! crx2rnx: 
 //! command line tool to compress RINEX files   
 //! and decompress CRINEX files
-use rinex::header;
-use rinex::hatanaka;
+use rinex::{header, hatanaka};
 
 use clap::App;
 use clap::load_yaml;
