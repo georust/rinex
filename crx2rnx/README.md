@@ -34,7 +34,7 @@ RINEX Compression is an algorithm designed for **Observation Data**.
 Specify one file to decompress with `--filepath` or `-f`:
 
 ```bash
-hatanaka -f ../test_resoures/CRNX/V1/wsra0010.21d
+crx2rnx -f ../test_resoures/CRNX/V1/wsra0010.21d
 ```
 
 This generates `test_resoures/CRNX/V1/wsra0010.21o`, 
@@ -43,13 +43,13 @@ to follow `RINEX` naming conventions.
 To change that behavior and specify the output file, use `--output` or `-o`:
 
 ```bash
-hatanaka -f ../test_resoures/CRNX/V1/wsra0010.21d \
-  -o /tmp/output.rnx # custom location, does not follow naming conventions
+crx2rnx -f ../test_resoures/CRNX/V1/wsra0010.21d \
+    -o /tmp/output.rnx # custom location, does not follow naming conventions
 ```
 
 ```bash
-hatanaka -f ../test_resoures/CRNX/V3/ACOR00ESP_R_20213550000_01D_30S_MO.crx \
-  -o /tmp/output.rnx # custom location with standard V3 extension
+crx2rnx -f ../test_resoures/CRNX/V3/ACOR00ESP_R_20213550000_01D_30S_MO.crx \
+    -o /tmp/output.rnx # custom location with standard V3 extension
 ```
 
 ## :warning: File format restrictions
@@ -72,8 +72,8 @@ Unlike `CRX2RNX`, this tool is not limited to an hardcoded M value,
 you can increase the default value if you think higher   
 compression will be encountered in a given file: 
 ```bash
-hatanaka -M 10 \
-  --filepath ../test_resoures/CRNX/V3/KUNZ00CZE.cnx # increase maximal compression order
+crx2rnx -M 10 \
+    --filepath ../test_resoures/CRNX/V3/KUNZ00CZE.cnx # increase maximal compression order
 ```
 
 According to Y. Hatanaka's publication, 
