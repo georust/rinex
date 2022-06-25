@@ -403,10 +403,7 @@ impl Default for Header {
 }
 
 impl Header {
-    /// Returns true if self is a `Compressed RINEX`
-    pub fn is_crinex (&self) -> bool { self.crinex.is_some() }
-    
-    /// Builds header from extracted header description
+    /// Builds a `Header` from local file content
     pub fn new (path: &str) -> Result<Header, Error> { 
         let file = File::open(path)?;
         let reader = BufReader::new(file);
@@ -976,6 +973,10 @@ impl Header {
 
         Ok(())
     }
+    
+    /// Returns true if self is a `Compressed RINEX`
+    pub fn is_crinex (&self) -> bool { self.crinex.is_some() }
+
 }
 
 impl std::fmt::Display for Header {
