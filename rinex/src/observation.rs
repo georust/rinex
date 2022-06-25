@@ -479,7 +479,7 @@ pub fn build_record_entry (header: &header::Header, content: &str)
 
 /// Pushes observation record into given file writer
 pub fn to_file (header: &header::Header, record: &Record, mut writer: std::fs::File) -> std::io::Result<()> {
-    let obs_codes = header.obs_codes.as_ref().unwrap();
+    let _obs_codes = header.obs_codes.as_ref().unwrap();
     for (epoch, (clock_offset, observations)) in record.iter() {
         match header.version.major {
             1|2 => {
@@ -497,7 +497,7 @@ pub fn to_file (header: &header::Header, record: &Record, mut writer: std::fs::F
                 write!(writer, "\n")?
             }
         }
-        for (sv, obs) in observations.iter() {
+        for (sv, _obs) in observations.iter() {
             if header.version.major > 2 {
                 // modern RINEX
                 write!(writer, "{} ", sv)?
@@ -604,7 +604,7 @@ impl CarrierFrequency {
 /// rcvr_clock_offset: receiver clock offset (s)    
 /// sv_clock_offset: Sv clock offset (s)    
 /// biases: optionnal (additive) biases to compensate for and increase result accuracy 
-pub fn pseudo_range_to_distance (pseudo_rg: f64, rcvr_clock_offset: f64, sv_clock_offset: f64, biases: Vec<f64>) -> f64 {
+pub fn pseudo_range_to_distance (pseudo_rg: f64, rcvr_clock_offset: f64, sv_clock_offset: f64, _biases: Vec<f64>) -> f64 {
     pseudo_rg - SPEED_OF_LIGHT_IN_VACUUM * (rcvr_clock_offset - sv_clock_offset)
     //TODO handle biases
     // p17 table 4

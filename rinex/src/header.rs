@@ -846,7 +846,7 @@ impl Header {
             marker_type,
             rcvr, 
             ant, 
-			sensors: None,
+			sensors,
             leap,
             analysis_center,
             clk_codes: None,
@@ -883,7 +883,7 @@ impl Header {
         }
 
         let (a_rev, b_rev) = (self.version, header.version);
-        let (mut a_cst, b_cst) = (self.constellation, header.constellation);
+        let (a_cst, b_cst) = (self.constellation, header.constellation);
         // constellation upgrade ?
         if a_cst != b_cst {
             self.constellation = Some(constellation::Constellation::Mixed)
@@ -961,8 +961,8 @@ impl Header {
                 self.obs_codes = Some(a.clone())
             }
         }*/
-        //TODO pareil met codes & clock codes
-        if let Some(a) = header.data_scaling {
+        
+        /*if let Some(a) = header.data_scaling {
             if let Some(b) = self.data_scaling {
 
             } else {
@@ -972,7 +972,8 @@ impl Header {
             if let Some(b) = self.data_scaling {
 
             }
-        }
+        }*/
+
         Ok(())
     }
 }
@@ -1078,12 +1079,12 @@ impl std::fmt::Display for Header {
                 if let Some(codes) = &self.obs_codes {
                     match self.version.major {
                         1|2 => { // old revisions
-                            for (constell, codes) in codes.iter() {
+                            for (_constell, codes) in codes.iter() {
                                 let mut line = format!("{:6}", codes.len()); 
                                 for i in 0..codes.len() {
                                     if (i+1)%11 == 0 {
                                         line.push_str("# / TYPES OF OBS\n");
-                                        write!(f, "{}", line);
+                                        write!(f, "{}", line)?;
                                         line.clear();
                                         line.push_str(&format!("{:<6}", ""));
                                     }
@@ -1099,12 +1100,11 @@ impl std::fmt::Display for Header {
                             for (constell, codes) in codes.iter() {
                                 let mut line = format!("{:<4}", constell.to_1_letter_code());
                                 line.push_str(&format!("{:2}", codes.len())); 
-                                let nb_lines = num_integer::div_ceil(codes.len(), 11);
                                 for i in 0..codes.len() {
                                     if (i+1)%14 == 0 {
                                         line.push_str(&format!("{:<width$}", "", width=60-line.len()));
                                         line.push_str("SYS / # / OBS TYPES\n"); 
-                                        write!(f, "{}", line);
+                                        write!(f, "{}", line)?;
                                         line.clear();
                                         line.push_str(&format!("{:<6}", ""));
                                     }
@@ -1126,7 +1126,7 @@ impl std::fmt::Display for Header {
                     for i in 0..codes.len() {
                         if (i+1)%9 == 0 {
                             line.push_str("# / TYPES OF OBS\n");
-                            write!(f, "{}", line);
+                            write!(f, "{}", line)?;
                             line.clear();
                             line.push_str(&format!("{:<6}", ""));
                         }

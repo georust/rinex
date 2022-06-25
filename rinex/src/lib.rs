@@ -351,8 +351,8 @@ impl Rinex {
     pub fn event_description (&self, event: epoch::Epoch) -> Option<&str> {
         let comments : Vec<_> = self.comments
             .iter()
-            .filter(|(k,v)| *k == &event)
-            .map(|(k,v)| v)
+            .filter(|(k,_)| *k == &event)
+            .map(|(_,v)| v)
             .flatten()
             .collect();
         if comments.len() > 0 {
@@ -409,7 +409,7 @@ impl Rinex {
         };
         let mut t_0 = epochs[0].date;
         for boundary in boundaries {
-            let included : Vec<_> = epochs
+            let _included : Vec<_> = epochs
                 .iter()
                 .filter(|e| e.date >= t_0 && e.date < boundary)
                 .collect();
@@ -705,7 +705,7 @@ impl Rinex {
             .collect();
         for (e, (_, sv)) in rec {
             for (_, obs) in sv {
-                for (code, data) in obs {
+                for (_, data) in obs {
                     let flag = data.lli.unwrap_or(observation::lli_flags::OK_OR_UNKNOWN);
                     if flag == observation::lli_flags::LOCK_LOSS {
                         result.push(*e)
