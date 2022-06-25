@@ -1,26 +1,26 @@
 RINEX Cli 
 =========
 
-Command line tool to handle, manage and analyze RINEX files
-
-[![crates.io](https://img.shields.io/crates/v/rinex-cli.svg)](https://crates.io/crates/rinex-cli)
-[![License](https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square)](https://github.com/gwbres/rinex-cli/blob/main/LICENSE-APACHE)
-[![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](https://github.com/gwbres/rinex-cli/blob/main/LICENSE-MIT) 
-[![crates.io](https://img.shields.io/crates/d/rinex-cli.svg)](https://crates.io/crates/rinex-cli)    
 [![Rust](https://github.com/gwbres/rinex-cli/actions/workflows/rust.yml/badge.svg)](https://github.com/gwbres/rinex-cli/actions/workflows/rust.yml)
+[![crates.io](https://img.shields.io/crates/v/rinex-cli.svg)](https://crates.io/crates/rinex-cli)
+[![crates.io](https://img.shields.io/crates/d/rinex-cli.svg)](https://crates.io/crates/rinex-cli)   
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square)](https://github.com/gwbres/rinex/blob/main/LICENSE-APACHE)
+[![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](https://github.com/gwbres/rinex/blob/main/LICENSE-MIT) 
+
+Command line tool to handle, manage and analyze RINEX files
 
 ## RINEX
 
 Why this tool ?
 
-RINEX files are very common, they are used in 
+`RINEX` files are very common, they are used in 
 * GNSS applications :artificial_satellite:
 * Timing applications :clock1:
 * Astronomy :satellite:
 * Space applications :rocket: 
-* Navigation applications :earth_americas:
+* Navigation :earth_americas:
 
-RINEX files are complex, several kinds exist and they differ a lot from one another.  
+`RINEX` files are complex, several kinds exist and they differ a lot from one another.  
 This tool is powerful enough to manage almost all revisions and most common RINEX files,
 without compromising ease of use.
 
@@ -31,7 +31,7 @@ File names are disregarded by these tools, you can analyze
 
 ## Compressed files
 
-It is possible to directly analyze files that were previously
+It is possible to directly analyze Observation Data that previously was
 compressed using the official `RNX2CRX` tool.
 
 This tool does not support extra compression (like .gz for instance).
