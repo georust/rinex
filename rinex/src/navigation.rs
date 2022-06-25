@@ -14,9 +14,10 @@ use crate::constellation;
 
 include!(concat!(env!("OUT_DIR"),"/nav_data.rs"));
 
-/// Record definition for NAV files,
-/// is a dictionnary (`ComplexEnum`) indexed by their standard code contained in navigation.json,   
-/// for a given realization (sampling timestamp) for a given `satellite vehicule` 
+/// Record: NAV file content.
+/// Data is encapsulated in as a `ComplexEnum`.   
+/// Data is sorted by standardized identification code, contained in `navigation.json`,
+/// for a given Satellite vehicule and for a given Epoch.
 pub type Record = BTreeMap<epoch::Epoch, HashMap<sv::Sv, HashMap<String, ComplexEnum>>>;
 
 /// `ComplexEnum` is record payload 
