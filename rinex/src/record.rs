@@ -37,24 +37,10 @@ pub enum Record {
 pub type Comments = BTreeMap<epoch::Epoch, Vec<String>>;
 
 impl Record {
-	/// Unwraps as NAV `record`
+	/// Unwraps self as NAV `record`
     pub fn as_nav (&self) -> Option<&navigation::Record> {
         match self {
             Record::NavRecord(e) => Some(e),
-            _ => None,
-        }
-    }
-	/// Unwraps as OBS `record`
-    pub fn as_obs (&self) -> Option<&observation::Record> {
-        match self {
-            Record::ObsRecord(e) => Some(e),
-            _ => None,
-        }
-    }
-	/// Unwraps as MET `record`
-    pub fn as_meteo (&self) -> Option<&meteo::Record> {
-        match self {
-            Record::MeteoRecord(e) => Some(e),
             _ => None,
         }
     }
@@ -65,10 +51,24 @@ impl Record {
             _ => None,
         }
     }
+	/// Unwraps self as OBS `record`
+    pub fn as_obs (&self) -> Option<&observation::Record> {
+        match self {
+            Record::ObsRecord(e) => Some(e),
+            _ => None,
+        }
+    }
     /// Returns mutable reference to Observation record
     pub fn as_mut_obs (&mut self) -> Option<&mut observation::Record> {
         match self {
             Record::ObsRecord(e) => Some(e),
+            _ => None,
+        }
+    }
+	/// Unwraps self as MET `record`
+    pub fn as_meteo (&self) -> Option<&meteo::Record> {
+        match self {
+            Record::MeteoRecord(e) => Some(e),
             _ => None,
         }
     }
