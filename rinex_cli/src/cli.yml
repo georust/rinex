@@ -1,0 +1,102 @@
+name: rinex-cli
+version: "0.0.1"
+author: Guillaume W. Bres <guillaume.bressaix@gmail.com>
+args:
+    - filepath:
+        short: fp
+        long: filepath
+        required: true
+        takes_value: true
+        help: Comma separated RINEX files
+    - output:
+        long: output
+        required: false
+        takes_value: true
+        help: Comma separated output files, when producing data (special operations like split())
+    - header:
+        short: h
+        long: header
+        takes_value: false
+        help: Display (print) header fields (as is..)
+    - decim:
+        short: d
+        long: decim
+        takes_value: true
+        help: Decimate data record by this factor. For example, --decim 2 for epochs a,b,c,d,e,f retains a,c,e 
+    - resample:
+        short: r
+        long: resample
+        takes_value: true
+        help: Resample data record to match this duration
+    - epoch-ok:
+        long: epoch-ok 
+        takes_value: false 
+        help: Retain epoch that have an EpochFlag::ok value only 
+    - epoch-nok:
+        long: epoch-nok
+        takes_value: false
+        help: Retain epoch that do not have an EpochFlag::ok attached to them
+    - epoch:
+        short: e 
+        long: epoch 
+        takes_value: false 
+        help: Display (print) identified epochs
+    - obscodes:
+        short: o
+        long: obscodes
+        takes_value: false
+        help: Display (print) encountered OBS codes on a Satellite Vehicule basis
+    - sv:
+        long: sv
+        takes_value: true
+        help: Comma separated Satellite Vehicule filter. Retain only matching Satellite Vehicules.
+    - codes:
+        short: c
+        long: codes 
+        takes_value: true
+        help: Comma separated OBS code filter - retain only matching OBS codes (Meteo or OBS data)
+    - lli:
+        long: lli
+        takes_value: true 
+        help: Retain only OBS data that have these LLI flags asserted 
+    - ssi:
+        long: ssi
+        takes_value: true 
+        help: Retain only OBS data that have at least this SSI signal strength indication attached to them (x >= SSI is retained) 
+    - clockoffset:
+        long: clockoffset
+        takes_value: false
+        help: Display receiver clock offsets
+    - distance:
+        long: distance 
+        takes_value: true
+        help: Converts (all encountered) pseudo range measurements to physical distance. User must pass receiver clock offset for this calculation (refer to doc)
+    - events:
+        long: events
+        takes_value: false 
+        help: List all epoch events registered in the record, mostly relevant to OBS records
+    - event-filter:
+        long: event-filter
+        takes_value: true
+        help: Retain only data that match given Epoch Event flag
+    - merge:
+        short: m
+        long: merge
+        takes_value: false
+        help: Merge given files together. If analysis are performed, they will be performed on resulting record
+    - split:
+        short: s
+        long: split
+        takes_value: true
+        help: Split given file(s) into two at given epoch. Epoch must have YYYY-mm-dd:HH:MM:SS format.
+    - splice:
+        long: splice
+        takes_value: true
+        help: Retain only desired epoch interval from given file
+    - plot:
+        short: p
+        long: plot
+        help: Generate a plot (PNG) 
+    - pretty:
+        long: pretty
+        help: Make JSON structures more readable

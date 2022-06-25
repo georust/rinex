@@ -9,7 +9,7 @@ fn main() {
     println!("**************************");
 
     // example file
-    let path = env!("CARGO_MANIFEST_DIR").to_owned() + "/data/OBS/V3/ALAC00ESP_R_20220090000_01D_30S_MO.rnx";
+    let path = env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/OBS/V3/ALAC00ESP_R_20220090000_01D_30S_MO.rnx";
     let rinex = rinex::Rinex::from_file(&path).unwrap();
 
     // header information

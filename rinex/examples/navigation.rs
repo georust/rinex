@@ -10,7 +10,7 @@ fn main() {
     println!("**************************");
 
     // example file
-    let navigation_file = env!("CARGO_MANIFEST_DIR").to_owned() + "/data/NAV/V3/CBW100NLD_R_20210010000_01D_MN.rnx";
+    let navigation_file = env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/NAV/V3/CBW100NLD_R_20210010000_01D_MN.rnx";
     let rinex = rinex::Rinex::from_file(&navigation_file).unwrap();
 
     // header information

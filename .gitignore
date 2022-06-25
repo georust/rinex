@@ -1,3 +1,5 @@
 target/
-data/
+test_resources/
 Cargo.lock
+*.png
+*.jpg
