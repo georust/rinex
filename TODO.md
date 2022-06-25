@@ -74,3 +74,11 @@ Clocks Data:
 * [ ] V1, V2 
 * [ ] V3
 * [ ] V4
+
+Decompression : 
+* [ ] possibility to unzip if needed ? 
+
+Compression :
+* [ ] RNX2CRX V1, V2
+* [ ] RNX2CRX V3, V4
+* [ ] possibility to zip if desired ?
