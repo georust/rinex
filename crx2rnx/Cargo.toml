@@ -1,17 +1,17 @@
 [package]
-name = "hatanaka"
+name = "crx2rnx"
 version = "1.0.0"
 license = "MIT OR Apache-2.0"
 authors = ["Guillaume W. Bres <guillaume.bressaix@gmail.com>"]
 description = "RINEX decompression tool"
-homepage = "https://github.com/gwbres/hatanaka"
+homepage = "https://github.com/gwbres/rinex"
 keywords = ["rinex", "compression", "decompression", "crinex"] 
 categories = ["science", "command-line-interface", "command-line-utilities"]
 edition = "2018"
 readme = "README.md"
 
 [dependencies]
-rinex = "0.3.1" 
+rinex = "0.3.3" 
 clap = { version = "~2.27.0", features = ["yaml"] }
 thiserror = "1"
 
