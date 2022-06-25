@@ -10,7 +10,7 @@ RINEX crate
 
 ## Parser
 
-`RINEX` files contain a lot of data and this library is capable of parsing all of it.   
+`RINEX` files contain a lot of data and this library is capable of parsing most of it.   
 To fully understand how to operate this lib, refer to the `RinexType` section you are interested in.
 
 ## Production (writer)
