@@ -33,19 +33,18 @@ that does not respect standard naming conventions.
 The ``Rinex::from_file`` method parses a local `RINEX` file:
 
 ```rust
-let path = std::path::PathBuf::from("data/NAV/V2/amel0010.21g");
-let rinex = rinex::Rinex::from_file(&path).unwrap();
+let rinex = rinex::Rinex::from_file("test_resources/NAV/V2/amel0010.21g")
+  .unwrap();
 ```
 
-The `data/` folder contains short but relevant RINEX files, 
+The `test_resources/` folder contains short but relevant RINEX files, 
 spanning almost all revisions and supported types, mainly for CI purposes.
 
 For data analysis and manipulation, you must refer to the
 [official RINEX definition](https://files.igs.org/pub/data/format/)
 
 This [interactive portal](https://gage.upc.edu/gFD/) 
-is also a nice interface to
-discover or figure things out. 
+is also a nice interface to discover `RINEX`. 
 
 ### Header & general information
 
@@ -111,11 +110,11 @@ a Navigation Rinex file as an example.
 First, let's grab the record:
 
 ```rust
-let rinex = rinex::Rinex::from_file("data/amel0010.21g")
+let rinex = rinex::Rinex::from_file("test_resource/NAV/V2/amel0010.21g")
   .unwrap();
 let record = rinex.record
     .as_nav() // NAV record unwrapping
-    .unwrap();
+    .unwrap(); // would fail on other RINEX types
 ```
 
 `epochs` serve as keys of the first hashmap.  
@@ -125,12 +124,12 @@ Here we are only interested in the `.date` field of an `epoch`, to determine
 the encountered timestamps:
 
 ```rust
-   let epochs: Vec<_> = record
+let epochs: Vec<_> = record
     .keys() // keys interator
     .map(|k| k.date) // building a key.date vector
     .collect();
 
-epochs = [ // <o epochs are sorted by ascending timestamps 
+epochs = [ // epochs are sorted by timestamps 
     2021-01-01T00:00:00,
     2021-01-01T01:00:00,
     2021-01-01T03:59:44,
