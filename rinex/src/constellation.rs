@@ -132,7 +132,8 @@ impl Constellation {
             Constellation::Mixed => "MIX",
         } 
     }
-    /// Identifies `gnss` constellation from given standard plain code name
+    /// Identifies `gnss` constellation from given standard plain name,
+    /// like "GPS", or "Galileo". This method is not case sensitive.
     pub fn from_plain_name (code: &str) -> Result<Constellation, Error> {
         if code.to_lowercase().contains("gps") {
             Ok(Constellation::GPS)
