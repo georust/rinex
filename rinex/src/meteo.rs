@@ -7,7 +7,8 @@ use crate::epoch;
 use crate::header;
 use crate::header::Header;
 
-/// `Record` content for Meteo data files
+/// `Record`: Meteo data files content is
+/// raw data sorted by Observation Code and by Epoch.
 pub type Record = BTreeMap<epoch::Epoch, HashMap<String, f32>>;
 
 #[derive(Error, Debug)]
