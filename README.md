@@ -9,12 +9,12 @@ RINEX
 
 Rust tool suites to parse, analyze, manipulate `RINEX` files
 
-* [rinex](rinex/README.md) is the library /crate, 
+* [rinex](rinex/) is the library /crate, 
 it contains the parser and other objects. 
 
-* [crx2rnx](crx2rnx/README.md) is a command line application to decompress a `CRINEX` file
+* [crx2rnx](crx2rnx/) is a command line application to decompress a `CRINEX` file
 
-* [rinex-cli](rinex_cli/README.md) is a command line application
+* [rinex-cli](rinex_cli/) is a command line application
 to analyze data and perform operations (like `teqc`) on `RINEX` files
 
 * `rnx2crx`: `RINEX` file compressor is currently under development,
