@@ -21,6 +21,11 @@ pub mod meteo;
 pub mod navigation;
 pub mod observation;
 
+pub use crate::{
+    constellation::Constellation,
+    sv::Sv,
+};
+
 use std::io::Write;
 use thiserror::Error;
 use std::str::FromStr;
