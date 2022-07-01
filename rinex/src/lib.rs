@@ -17,6 +17,11 @@ pub mod version;
 pub mod hatanaka;
 pub mod constellation;
 
+pub use crate::{
+    constellation::Constellation,
+    sv::Sv,
+};
+
 pub mod meteo;
 pub mod navigation;
 pub mod observation;
