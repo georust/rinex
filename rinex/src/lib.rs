@@ -9,6 +9,7 @@ mod clocks;
 //mod gnss_time;
 
 pub mod sv;
+pub mod meteo;
 pub mod types;
 pub mod epoch;
 pub mod header;
@@ -16,20 +17,8 @@ pub mod record;
 pub mod version;
 pub mod hatanaka;
 pub mod constellation;
-
-pub use crate::{
-    constellation::Constellation,
-    sv::Sv,
-};
-
-pub mod meteo;
 pub mod navigation;
 pub mod observation;
-
-pub use crate::{
-    constellation::Constellation,
-    sv::Sv,
-};
 
 use std::io::Write;
 use thiserror::Error;
