@@ -1,5 +1,6 @@
 //! `GNSS` constellations & associated methods
 use thiserror::Error;
+use crate::constellation::Constellation;
 use serde_derive::{Deserialize, Serialize};
 
 /// Carrier code
@@ -90,6 +91,12 @@ pub enum Channel {
     G2(u8),
 }
 
+impl Default for Channel {
+    fn default() -> Channel {
+        Channel::L1
+    }
+}
+
 #[derive(Error, Debug)]
 pub enum ChannelError {
     /// Unable to parse Channel from given string content
@@ -163,11 +170,17 @@ impl Channel {
 
 mod test {
     use super::*;
+    use std::str::FromStr;
     #[test]
     fn test_code() {
-        assert_eq!(super::Code::from_str("L1").is_err(),  false);
-        assert_eq!(super::Code::from_str("E5a").is_err(), false);
-        assert_eq!(super::Code::from_str("E7").is_err(),  true);
-        assert_eq!(super::Code::from_str("L1").unwrap().frequency(), 1575.42_f64);
+        assert_eq!(Code::from_str("C1").is_ok(), true);
+        assert_eq!(Code::from_str("L1").is_err(), true);
+        assert_eq!(Code::from_str("P1").is_ok(),  true);
+    }
+    #[test]
+    fn test_channel() {
+        assert_eq!(Channel::from_str("L1").is_ok(), true);
+        assert_eq!(Channel::from_str("C1").is_err(), true);
+        assert_eq!(Channel::from_str("L5").is_ok(), true);
     }
 }
