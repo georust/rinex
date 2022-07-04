@@ -259,7 +259,7 @@ pub fn build_record_entry (header: &header::Header, content: &str)
                             'J' => constellation::Constellation::QZSS,
                             'E' => constellation::Constellation::Galileo,
                             'C' => constellation::Constellation::Beidou,
-                            'S' => constellation::Constellation::Sbas,
+                            'S' => constellation::Constellation::Sbas(constellation::Augmentation::default()),
                             _ => return Err(
                                 RecordError::SvError(
                                     sv::Error::ConstellationError(
@@ -401,7 +401,7 @@ pub fn build_record_entry (header: &header::Header, content: &str)
 				'J' => constellation::Constellation::QZSS,
 				'E' => constellation::Constellation::Galileo,
 				'C' => constellation::Constellation::Beidou,
-				'H' => constellation::Constellation::Sbas,
+				'H' => constellation::Constellation::Sbas(constellation::Augmentation::default()),
                 'S' => constellation::Constellation::Geo,
 				_ => return Err(
                         RecordError::SvError(

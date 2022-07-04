@@ -15,6 +15,21 @@ pub enum Error {
     UnknownCode(String),
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+#[derive(Serialize, Deserialize)]
+pub enum Augmentation {
+    Unknown,
+    WAAS,
+    EGNOS,
+    MSAS,
+}
+
+impl Default for Augmentation {
+    fn default() -> Augmentation {
+        Augmentation::Unknown
+    }
+}
+
 /// Describes all known `GNSS` constellations
 /// when manipulating `RINEX`
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
@@ -31,7 +46,7 @@ pub enum Constellation {
     /// `Galileo` european constellation
     Galileo,
     /// `Sbas` constellation
-    Sbas,
+    Sbas(Augmentation),
     /// `Geo` constellation
     Geo,
     /// `IRNSS` constellation
@@ -67,7 +82,7 @@ impl Constellation {
         } else if code.to_lowercase().eq("j") {
             Ok(Constellation::QZSS)
         } else if code.to_lowercase().eq("h") {
-            Ok(Constellation::Sbas)
+            Ok(Constellation::Sbas(Augmentation::default()))
         } else if code.to_lowercase().eq("s") {
             Ok(Constellation::Geo)
         } else if code.to_lowercase().eq("i") {
@@ -85,7 +100,7 @@ impl Constellation {
             Constellation::Glonass => "R",
             Constellation::Galileo => "E",
             Constellation::Beidou => "C",
-            Constellation::Sbas => "H",
+            Constellation::Sbas(_) => "H",
             Constellation::Geo => "S",
             Constellation::QZSS => "J",
             Constellation::Irnss => "I",
@@ -110,7 +125,7 @@ impl Constellation {
         } else if code.to_lowercase().eq("qzs") {
             Ok(Constellation::QZSS)
         } else if code.to_lowercase().eq("sbs") {
-            Ok(Constellation::Sbas)
+            Ok(Constellation::Sbas(Augmentation::default()))
         } else if code.to_lowercase().eq("geo") {
             Ok(Constellation::Geo)
         } else if code.to_lowercase().eq("irn") {
@@ -126,7 +141,7 @@ impl Constellation {
             Constellation::Glonass => "GLO",
             Constellation::Galileo => "GAL",
             Constellation::Beidou => "BDS",
-            Constellation::Sbas => "SBS",
+            Constellation::Sbas(_) => "SBS",
             Constellation::Geo => "GEO",
             Constellation::QZSS => "QZS",
             Constellation::Irnss => "IRN",
@@ -147,7 +162,7 @@ impl Constellation {
         } else if code.to_lowercase().contains("beidou") {
             Ok(Constellation::Beidou)
         } else if code.to_lowercase().contains("sbas") {
-            Ok(Constellation::Sbas)
+            Ok(Constellation::Sbas(Augmentation::default()))
         } else if code.to_lowercase().contains("geo") {
             Ok(Constellation::Geo)
         } else if code.to_lowercase().contains("irnss") {
