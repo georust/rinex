@@ -517,87 +517,6 @@ pub fn to_file (header: &header::Header, record: &Record, mut writer: std::fs::F
     Ok(())
 }
 
-#[derive(EnumString)]
-pub enum CarrierFrequency {
-    /// L1 is a GPS/QZSS/Sbas carrier
-    L1, 
-    /// L2 is a GPS/QZSS carrier
-    L2,
-    /// L5 is a GPS/QZSS/Sbas/IRNSS carrier
-    L5,
-    /// L6 is a QZSS carrier
-    L6,
-    /// S is a IRNSS carrier
-    S,
-    /// E1 is a Galileo carrier
-    E1,
-    /// E5a is a Galileo carrier
-    E5a,
-    /// E5b is a Galileo carrier
-    E5b,
-    /// E5(E5a+E5b) is a Galileo carrier
-    E5,
-    /// E6 is a Galileo carrier
-    E6,
-    /// B1 is a Beidou carrier
-    B1,
-    /// B1c is a Beidou carrier
-    B1c,
-    /// B1a is a Beidou carrier
-    B1a,
-    /// B2a is a Beidou carrier
-    B2a,
-    /// B2b is a Beidou carrier
-    B2b,
-    /// B2(B2a+B2b) is a Beidou carrier
-    B2,
-    /// B3 is a Beidou carrier
-    B3,
-    /// B3a is a Beidou carrier
-    B3a,
-    /// G1 is a Glonass channel,
-    G1(f64),
-    /// G1a is a Glonass channel,
-    G1a,
-    /// G2 is a Glonass channel,
-    G2(f64),
-    /// G2a is a Glonass channel,
-    G2a,
-    /// G3 is a Glonass channel,
-    G3,
-}
-
-impl CarrierFrequency {
-    /// Returns frequency [MHz] of `self`
-    pub fn frequency (&self) -> f64 {
-        match self {
-            CarrierFrequency::L1 => 1575.42_f64,
-            CarrierFrequency::L2 => 1227.60_f64,
-            CarrierFrequency::L5 => 1176.45_f64,
-            CarrierFrequency::L6 => 1278.75_f64,
-            CarrierFrequency::S => 2492.028_f64,
-            CarrierFrequency::E1 => 1575.42_f64,
-            CarrierFrequency::E5a => 1176.45_f64,
-            CarrierFrequency::E5b => 1207.140_f64,
-            CarrierFrequency::E5 => 1191.795_f64,
-            CarrierFrequency::E6 => 1278.75_f64,
-            CarrierFrequency::B1 => 1561.098_f64,
-            CarrierFrequency::B1c => 1575.42_f64,  
-            CarrierFrequency::B1a => 1575.42_f64, 
-            CarrierFrequency::B2a => 1176.45_f64, 
-            CarrierFrequency::B2b => 1207.140_f64, 
-            CarrierFrequency::B2 => 1191.795_f64, 
-            CarrierFrequency::B3 => 1268.52_f64,
-            CarrierFrequency::B3a => 1268.52_f64,
-            CarrierFrequency::G1(c) => 1602.0_f64 + c *9.0/16.0, 
-            CarrierFrequency::G1a => 1600.995_f64,
-            CarrierFrequency::G2(c) => 1246.06_f64 + c* 7.0/16.0,
-            CarrierFrequency::G2a => 1248.06_f64, 
-            CarrierFrequency::G3 => 1202.025_f64,
-        }
-    }
-}
-
 /// Calculates distance from given Pseudo Range value,
 /// by compensating clock offsets    
 /// pseudo_rg: raw pseudo range measurements   
@@ -633,14 +552,5 @@ mod test {
         assert_eq!(lli & lli_flags::HALF_CYCLE_SLIP > 0, true); 
         let lli = 0x04;
         assert_eq!(lli & lli_flags::UNDER_ANTI_SPOOFING > 0, true); 
-    }
-    #[test]
-    /// Tests `CarrierFrequency` constructor
-    fn test_carrier_frequency() {
-        assert_eq!(super::CarrierFrequency::from_str("L1").is_err(),  false);
-        assert_eq!(super::CarrierFrequency::from_str("E5a").is_err(), false);
-        assert_eq!(super::CarrierFrequency::from_str("E7").is_err(),  true);
-        assert_eq!(super::CarrierFrequency::from_str("L1").unwrap().frequency(), 1575.42_f64);
-        assert_eq!(super::CarrierFrequency::from_str("G1a").unwrap().frequency(), 1600.995_f64);
     }
 }

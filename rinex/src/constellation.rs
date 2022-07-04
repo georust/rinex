@@ -175,3 +175,94 @@ impl std::str::FromStr for Constellation {
         }
     }
 }
+
+#[derive(EnumString)]
+/// Carrier frequency representation
+pub enum CarrierCode {
+    /// L1 is a GPS/QZSS/Sbas carrier
+    L1, 
+    /// L2 is a GPS/QZSS carrier
+    L2,
+    /// L5 is a GPS/QZSS/Sbas/IRNSS carrier
+    L5,
+    /// L6 is a QZSS carrier
+    L6,
+    /// S is a IRNSS carrier
+    S,
+    /// E1 is a Galileo carrier
+    E1,
+    /// E5a is a Galileo carrier
+    E5a,
+    /// E5b is a Galileo carrier
+    E5b,
+    /// E5(E5a+E5b) is a Galileo carrier
+    E5,
+    /// E6 is a Galileo carrier
+    E6,
+    /// B1 is a Beidou carrier
+    B1,
+    /// B1c is a Beidou carrier
+    B1c,
+    /// B1a is a Beidou carrier
+    B1a,
+    /// B2a is a Beidou carrier
+    B2a,
+    /// B2b is a Beidou carrier
+    B2b,
+    /// B2(B2a+B2b) is a Beidou carrier
+    B2,
+    /// B3 is a Beidou carrier
+    B3,
+    /// B3a is a Beidou carrier
+    B3a,
+    /// Glonass C1 carrier for given channel 
+    /// use 0 for unknown ?
+    C1(u8),
+    /// C2 Glonass carrier for given channel
+    C2(u8),
+}
+
+impl CarrierCode {
+    /// Returns frequency of given CarrierCode
+    /// in Hz
+    pub fn to_frequency (&self) -> f64 {
+        self.to_frequency_mhz() * 1E6
+    }
+
+    /// Returns frequency of given Carrier
+    /// in MHz
+    pub fn to_frequency_mhz (&self) -> f64 {
+        match self {
+            CarrierCode::L1 | CarrierCode::E1 | CarrierCode::B1c | CarrierCode::B1a => 1575.42_f64,
+            CarrierCode::L5 | CarrierCode::E5a | CarrierCode::B2a => 1176.45_f64,
+            
+            CarrierCode::B2 | CarrierCode::E5 => 1191.795_f64, 
+            CarrierCode::E5b | CarrierCode::B2b => 1207.140_f64,
+            CarrierCode::L2  => 1227.60_f64,
+            CarrierCode::C2(c) => 1246.06_f64 + (*c as f64 * 7.0/16.0),
+            CarrierCode::B3 | CarrierCode::B3a => 1268.52_f64,
+            CarrierCode::L6 | CarrierCode::E6 => 1278.75_f64,
+            CarrierCode::B1 => 1561.098_f64,
+            CarrierCode::C1(c) => 1602.0_f64 + (*c as f64 *9.0/16.0), 
+            CarrierCode::S   => 2492.028_f64,
+        }
+    }
+    
+    /// Returns frequency of given CarrierCode
+    /// in Hz
+    pub fn to_frequency_ghz (&self) -> f64 {
+        self.to_frequency_mhz() * 1E-3
+    }
+}
+
+mod test {
+    use super::*;
+    #[test]
+    /// Tests `CarrierCode` constructor
+    fn test_carrier_code() {
+        assert_eq!(super::CarrierCode::from_str("L1").is_err(),  false);
+        assert_eq!(super::CarrierCode::from_str("E5a").is_err(), false);
+        assert_eq!(super::CarrierCode::from_str("E7").is_err(),  true);
+        assert_eq!(super::CarrierCode::from_str("L1").unwrap().frequency(), 1575.42_f64);
+    }
+}
