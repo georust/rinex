@@ -977,6 +977,63 @@ impl Header {
     /// Returns true if self is a `Compressed RINEX`
     pub fn is_crinex (&self) -> bool { self.crinex.is_some() }
 
+    /// Creates a Basic Header structure
+    /// for NAV RINEX
+    pub fn basic_nav() -> Self {
+        Self::default()
+            .with_type(Type::NavigationData)
+    }
+    
+    /// Creates a Basic Header structure
+    /// for OBS RINEX
+    pub fn basic_obs() -> Self {
+        Self::default()
+            .with_type(Type::ObservationData)
+    }
+
+    /// Returns Header structure with desired RINEX type
+    pub fn with_type(&self, t: Type) -> Self {
+        let mut s = self.clone();
+        s.rinex_type = t;
+        s
+    } 
+
+    /// Adds general information to Self
+    pub fn with_general_infos (&self, program: &str, run_by: &str, agency: &str) -> Self {
+        let mut s = self.clone();
+        s.program = program.to_string();
+        s.run_by = run_by.to_string();
+        s.agency = agency.to_string();
+        s
+    }
+
+    /// Adds receiver information to self
+    pub fn with_rcvr (&self, r: Rcvr) -> Self {
+        let mut s = self.clone();
+        s.rcvr = Some(r);
+        s
+    }
+    
+    /// Adds antenna information to self
+    pub fn with_antenna (&self, a: Antenna) -> Self {
+        let mut s = self.clone();
+        s.ant = Some(a);
+        s
+    }
+
+    /// Adds desired constellation to Self
+    pub fn with_constellation (&self, c: constellation::Constellation) -> Self {
+        let mut s = self.clone();
+        s.constellation = Some(c);
+        s
+    }
+
+    /// adds comments to Self
+    pub fn with_comments (&self, c: Vec<String>) -> Self {
+        let mut s = self.clone();
+        s.comments = c.clone();
+        s
+    }
 }
 
 impl std::fmt::Display for Header {

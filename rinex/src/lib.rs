@@ -208,6 +208,14 @@ impl Rinex {
         }
     }
 
+    pub fn with_header (&self, header: header::Header) -> Self {
+        Rinex {
+            header,
+            record: self.record.clone(),
+            comments: self.comments.clone(),
+        }
+    }
+
     /// Filename creation helper,
     /// to match standard specifications.
     pub fn filename (&self) -> String {
