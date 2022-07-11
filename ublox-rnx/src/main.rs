@@ -11,8 +11,6 @@ extern crate ublox;
 use ublox::*;
 use ublox::{CfgPrtUart, UartPortId};
 
-//use ublox::{UartPort, DataBits, Parity, StopBits};
-
 mod device;
 
 pub fn main () -> Result<(), Box<dyn std::error::Error>> {
@@ -88,6 +86,30 @@ pub fn main () -> Result<(), Box<dyn std::error::Error>> {
         .into_packet_bytes(),
     )?;
     device.wait_for_ack::<CfgPrtUart>()?;
+
+    // Enable GPS Ephemeris + GPS Iono
+    device
+        .write_all(
+            &CfgMsgAllPortsBuilder::set_rate_for::<MgaGpsEph>([0, 1, 0, 0, 0, 0])
+                .into_packet_bytes(),
+        )
+    .unwrap();
+    device.wait_for_ack::<CfgMsgAllPorts>().unwrap();
+    device
+        .write_all(
+            &CfgMsgAllPortsBuilder::set_rate_for::<MgaGpsEph>([0, 1, 0, 0, 0, 0])
+                .into_packet_bytes(),
+        )
+    .unwrap();
+    device.wait_for_ack::<CfgMsgAllPorts>().unwrap();
+
+    // Create OBS file
+    let mut obs = Rinex::default();
+    let mut header = header::Header::basic_obs(); 
+
+    loop {
+        
+    }
 
     Ok(())
 }
