@@ -15,6 +15,7 @@ chrono = "0.4"
 serde = "1.0"
 serde_json = "1.0"
 serialport = "4.2.0"
-ublox = "0.4.2"
+#ublox = "0.4.2"
+ublox = { git = "https://github.com/gwbres/ublox", branch = "gwbr/develop" }
 rinex = { path = "../rinex" }
 clap = { version = "~2.27.0", features = ["yaml"] }
