@@ -1,0 +1,31 @@
+name: ublox-rnx
+version: "0.0.1"
+author: Guillaume W. Bres <guillaume.bressaix@gmail.com>
+args:
+    - port:
+        short: p
+        long: port 
+        required: true
+        takes_value: true
+        help: UART Port 
+    - baud:
+        short: b
+        long: baud 
+        required: false
+        takes_value: true
+        help: UART port rate (default: 9600) 
+    - obs:
+        short: o
+        long: obs 
+        takes_value: false
+        help: Generate Observation Data 
+    - nav:
+        short: n
+        long: nav 
+        takes_value: false 
+        help: Generate Navigation Data 
+    - constellation:
+        short: c
+        long: constellation 
+        takes_value: true
+        help: Comma separated list of constellations to use 

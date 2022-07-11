@@ -1,0 +1,20 @@
+[package]
+name = "ublox-rnx"
+version = "0.0.1"
+license = "MIT OR Apache-2.0"
+authors = ["Guillaume W. Bres <guillaume.bressaix@gmail.com>"]
+description = "RINEX file production from a Ublox receiver"
+homepage = "https://github.com/gwbres/rinex"
+keywords = ["rinex", "gps", "glonass", "galileo", "timing"]
+categories = ["science", "command-line-interface", "command-line-utilities"]
+edition = "2018"
+readme = "README.md"
+
+[dependencies]
+chrono = "0.4"
+serde = "1.0"
+serde_json = "1.0"
+serialport = "4.2.0"
+ublox = "0.4.2"
+rinex = { path = "../rinex" }
+clap = { version = "~2.27.0", features = ["yaml"] }
