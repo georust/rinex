@@ -137,6 +137,24 @@ macro_rules! is_hail_indicator_code {
 	};
 }
 
+/// Returns `str` description, as one letter
+/// lowercase, used in RINEX file name to describe 
+/// the sampling period. RINEX specifications:   
+/// “a” = 00:00:00 - 00:59:59   
+/// “b” = 01:00:00 - 01:59:59   
+/// [...]   
+/// "x" = 23:00:00 - 23:59:59
+/// This method expects a chrono::NaiveDateTime as an input
+fn hourly_session_str (time: chrono::NaiveTime) -> String {
+    let h = time.hour() as u8;
+    if h == 23 {
+        String::from("x")
+    } else {
+        let c : char = (h+97).into();
+        String::from(c)
+    }
+}
+
 /// `Rinex` describes a `RINEX` file
 #[derive(Clone, Debug)]
 pub struct Rinex {
@@ -1199,5 +1217,37 @@ mod test {
                 }
             }
         }
+    }
+    #[test]
+    fn test_macros() {
+        assert_eq!(is_comment!("This is a comment COMMENT"), true);
+        assert_eq!(is_comment!("This is a comment"), false);
+        assert_eq!(is_pseudo_range_obs_code!("C1P"), true);
+        assert_eq!(is_pseudo_range_obs_code!("P1P"), true);
+        assert_eq!(is_pseudo_range_obs_code!("L1P"), false);
+        assert_eq!(is_phase_carrier_obs_code!("L1P"), true);
+        assert_eq!(is_phase_carrier_obs_code!("D1P"), false);
+        assert_eq!(is_doppler_obs_code!("D1P"), true);
+        assert_eq!(is_doppler_obs_code!("L1P"), false);
+        assert_eq!(is_sig_strength_obs_code!("S1P"), true);
+        assert_eq!(is_sig_strength_obs_code!("L1P"), false);
+        assert_eq!(is_temperature_obs_code!("TD"), true);
+        assert_eq!(is_temperature_obs_code!("td"), false);
+        assert_eq!(is_humidity_obs_code!("HR"), true);
+        assert_eq!(is_humidity_obs_code!("RH"), false);
+        assert_eq!(is_wet_zenith_code!("ZW"), true);
+        assert_eq!(is_wet_zenith_code!("RI"), false);
+        assert_eq!(is_wind_speed_code!("WS"), true);
+        assert_eq!(is_wind_speed_code!("HI"), false);
+        assert_eq!(is_rain_increment_code!("RI"), true);
+        assert_eq!(is_rain_increment_code!("HI"), false);
+        assert_eq!(is_hail_indicator_code!("HI"), true);
+        assert_eq!(is_hail_indicator_code!("RI"), false);
+    }
+    #[test]
+    fn test_shared_methods() {
+        let time = chrono::NaiveTime::from_str("00:00:00").unwrap();
+        assert_eq!(hourly_session_str(time), "a");
+        let time = chrono::NaiveTime::from_str("00:30:00").unwrap();
     }
 }
