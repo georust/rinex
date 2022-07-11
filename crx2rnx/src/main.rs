@@ -130,7 +130,7 @@ mod test {
             );
             if is_crinex && obs_counterpart.exists() {
                 println!("decompressing file \"{}\"", file_stem);
-                let mut cmd = Command::cargo_bin("hatanaka")?;
+                let mut cmd = Command::cargo_bin("crx2rnx")?;
                 cmd.arg("-f")
                    .arg(&path)
                    .arg("-o")
@@ -179,7 +179,7 @@ mod test {
             );
             if is_crinex && obs_counterpart.exists() {
                 println!("decompressing file \"{}\"", file_stem);
-                let mut cmd = Command::cargo_bin("hatanaka")?;
+                let mut cmd = Command::cargo_bin("crx2rnx")?;
                 cmd.arg("-f")
                    .arg(&path)
                    .arg("-o")
