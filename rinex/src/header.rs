@@ -25,11 +25,11 @@ pub const HEADER_END_MARKER : &str = "END OF HEADER";
 #[derive(Clone, Serialize, Debug)]
 pub struct Rcvr {
     /// Receiver (hardware) model
-    model: String, 
+    pub model: String, 
     /// Receiver (hardware) identification info
-    sn: String, // serial #
+    pub sn: String, // serial #
     /// Receiver embedded software info
-    firmware: String, // firmware #
+    pub firmware: String, // firmware #
 }
 
 impl Default for Rcvr {
