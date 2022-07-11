@@ -14,8 +14,12 @@ it contains the parser and other objects.
 
 * [crx2rnx](crx2rnx/) is a command line application to decompress a `CRINEX` file
 
-* [rinex-cli](rinex_cli/) is a command line application
+* [rinex-cli](rinex-cli/) is a command line application
 to analyze data and perform operations (like `teqc`) on `RINEX` files
+
+* [ublox-rnx](ublox-rnx) is an application that connects to a `Ublox`
+receiver and generates Observation and Navigation Data easily.
+It is based on the [ublox](https://github.com/lkolbly/ublox) crate.
 
 * `rnx2crx`: `RINEX` file compressor is currently under development,
 see `develop` branches
