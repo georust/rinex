@@ -26,6 +26,7 @@ use thiserror::Error;
 use std::str::FromStr;
 use itertools::Itertools;
 use std::collections::{BTreeMap, HashMap};
+use chrono::{Datelike, Timelike};
 
 #[macro_export]
 /// Returns `true` if given `Rinex` line is a comment
@@ -186,6 +187,107 @@ impl Rinex {
             header,
             record,
             comments: record::Comments::new(),
+        }
+    }
+
+    /// Filename creation helper,
+    /// to match standard specifications.
+    pub fn filename (&self) -> String {
+        let header = &self.header;
+        let rtype = header.rinex_type;
+        let nnnn = header.station.as_str()[0..4].to_lowercase(); 
+        //TODO:
+        //self.header.date should be a datetime object
+        //but it is complex to parse..
+        let ddd = String::from("DDD"); 
+        let epoch : epoch::Epoch = match rtype {
+            types::Type::ObservationData => {
+                let e : Vec<&epoch::Epoch> = self.record.as_obs()
+                    .unwrap()
+                    .keys()
+                    .collect();
+                *e[0]
+            },
+            types::Type::NavigationData => {
+                let e : Vec<&epoch::Epoch> = self.record.as_nav()
+                    .unwrap()
+                    .keys()
+                    .collect();
+                *e[0]
+            },
+            types::Type::MeteoData => {
+                let e : Vec<&epoch::Epoch> = self.record.as_meteo()
+                    .unwrap()
+                    .keys()
+                    .collect();
+                *e[0]
+            },
+        };
+        if header.version.major < 3 {
+            //TODO
+            //Hourly session ID letter corresponding to first epoch of data in the file.
+            //“a” = 00:00:00 - 00:59:59 (GPS time); “b” = 01:00:00 - 01:59:59; …. ;
+            //“x” = 23:00:00 - 23:59:59 
+            let s = "a"; 
+            let yy = format!("{:02}", epoch.date.year());
+            let t : String = match rtype {
+                types::Type::ObservationData => {
+                    if header.is_crinex() {
+                        String::from("d")
+                    } else {
+                        String::from("o")
+                    }
+                },
+                types::Type::NavigationData => {
+                    if let Some(c) = header.constellation {
+                        if c == constellation::Constellation::Glonass {
+                            String::from("g")
+                        } else { 
+                            String::from("n")
+                        }
+                    } else {
+                        String::from("x")
+                    }
+                },
+                types::Type::MeteoData => String::from("m"),
+            };
+            format!("{}{}{}.{}{}", nnnn, ddd, s, yy, t)
+        } else {
+            let m = String::from("0");
+            let r = String::from("0");
+            //TODO: 3 letter contry code, example: "GBR"
+            let ccc = String::from("CCC");
+            //TODO: data source
+            // R: Receiver (hw)
+            // S: Stream
+            // U: Unknown
+            let s = String::from("R");
+            let yyyy = format!("{:04}", epoch.date.year());
+            let hh = format!("{:02}", epoch.date.hour());
+            let mm = format!("{:02}", epoch.date.minute());
+            let pp = String::from("00"); //TODO 02d file period, interval ?
+            let up = String::from("H"); //TODO: file period unit
+            let ff = String::from("00"); //TODO: 02d observation frequency 02d
+            //TODO
+            //Units of frequency FF. “C” = 100Hz; “Z” = Hz; “S” = sec; “M” = min;
+            //“H” = hour; “D” = day; “U” = unspecified
+            //NB - _FFU is omitted for files containing navigation data
+            let uf = String::from("Z");
+            let c : String = match header.constellation {
+                Some(c) => c.to_1_letter_code().to_uppercase(),
+                _ => String::from("X"),
+            };
+            let t : String = match rtype {
+                types::Type::ObservationData => String::from("O"),
+                types::Type::NavigationData => String::from("N"),
+                types::Type::MeteoData => String::from("M"),
+            };
+            let fmt = match header.is_crinex() {
+                true => String::from("crx"),
+                false => String::from("rnx"),
+            };
+            format!("{}{}{}{}_{}_{}{}{}{}_{}{}_{}{}_{}{}.{}",
+                nnnn, m, r, ccc, s, yyyy, ddd, hh, mm, pp, up, ff, uf, c, t, fmt)
         }
     }
 
