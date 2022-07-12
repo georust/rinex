@@ -1,6 +1,5 @@
 //! Describes `leap` second information, contained in `header` 
 use thiserror::Error;
-use serde_derive::Serialize;
 use crate::constellation;
 use crate::constellation::Constellation;
 
@@ -8,7 +7,7 @@ use crate::constellation::Constellation;
 /// GLO = UTC = GPS - ΔtLS   
 /// GPS = GPS = UTC + ΔtLS   
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
-#[derive(Serialize)]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct Leap {
     /// current number
     pub leap: u32,

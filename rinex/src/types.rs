@@ -1,11 +1,10 @@
 //! `RINEX` files type description 
 use thiserror::Error;
 use crate::constellation;
-use serde_derive::{Serialize, Deserialize};
 
 /// Describes all known `RINEX` file types
 #[derive(Copy, Clone, PartialEq, Debug)]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub enum Type {
     /// Describes Observation Data (OBS),
     /// Phase & Pseudo range measurements

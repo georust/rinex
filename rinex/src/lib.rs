@@ -28,6 +28,10 @@ use itertools::Itertools;
 use std::collections::{BTreeMap, HashMap};
 use chrono::{Datelike, Timelike};
 
+#[cfg(feature = "with-serde")]
+#[macro_use]
+extern crate serde;
+
 #[macro_export]
 /// Returns `true` if given `Rinex` line is a comment
 macro_rules! is_comment {

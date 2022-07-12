@@ -1,10 +1,10 @@
 //! `GNSS` constellations & associated methods
 use thiserror::Error;
 use crate::constellation::Constellation;
-use serde_derive::{Deserialize, Serialize};
 
 /// Carrier code
 #[derive(Debug, Clone, PartialEq, Eq, Copy)]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub enum Code {
     /// GPS/GLONASS/QZSS/SBAS L1 C/A,
     C1, 

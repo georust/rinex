@@ -1,6 +1,5 @@
 //! `RINEX` revision description and manipulation, 
 //! contained in `header`
-use serde_derive::Serialize;
 
 /// Current `RINEX` version supported to this day
 pub const SUPPORTED_VERSION: Version = Version {
@@ -9,7 +8,7 @@ pub const SUPPORTED_VERSION: Version = Version {
 };
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
-#[derive(Serialize)]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct Version {
     pub major: u8,
     pub minor: u8

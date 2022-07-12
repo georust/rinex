@@ -8,7 +8,6 @@ use crate::{is_comment};
 use crate::types::{Type, TypeError};
 use crate::constellation;
 use crate::merge::MergeError;
-use serde_derive::Serialize;
 
 use std::fs::File;
 use thiserror::Error;
@@ -16,13 +15,17 @@ use std::str::FromStr;
 use std::collections::HashMap;
 use std::io::{self, prelude::*, BufReader};
 
+#[cfg(feature = "with-serde")]
+use serde::{Serialize, Deserialize};
+
 /// Describes a `CRINEX` (compressed rinex) 
 pub const CRINEX_MARKER_COMMENT : &str = "COMPACT RINEX FORMAT";
 /// End of Header section reached
 pub const HEADER_END_MARKER : &str = "END OF HEADER";
 
 /// GNSS receiver description
-#[derive(Clone, Serialize, Debug)]
+#[derive(Clone, Debug)]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct Rcvr {
     /// Receiver (hardware) model
     pub model: String, 
@@ -58,7 +61,8 @@ impl std::str::FromStr for Rcvr {
 }
 
 /// Meteo Observation Sensor
-#[derive(Clone, PartialEq, Serialize, Debug)]
+#[derive(Clone, PartialEq, Debug)]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct Sensor {
 	/// Model of this sensor
 	model: String,
@@ -94,11 +98,11 @@ impl Sensor {
 	}
 }
 
+#[cfg(feature = "with-serde")]
 mod point3d_formatter {
-    use serde::Serializer;
     pub fn serialize<S>(point3d: &Option<rust_3d::Point3D>, serializer: S) -> Result<S::Ok, S::Error>
     where
-        S: Serializer,
+        S: serde::Serializer,
     {
         let p = point3d.as_ref().unwrap_or(
             &rust_3d::Point3D {
@@ -113,14 +117,15 @@ mod point3d_formatter {
 }
 
 /// Antenna description 
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "with-serde", derive(Serialize))]
 pub struct Antenna {
     /// Hardware model / make descriptor
     pub model: String,
     /// Serial number / identification number
     pub sn: String,
     /// 3D coordinates of reference point
-    #[serde(with = "point3d_formatter")]
+    #[cfg_attr(feature = "with-serde", serde(with = "point3d_formatter"))]
     pub coords: Option<rust_3d::Point3D>,
     /// height in comparison to ref. point
     pub height: Option<f32>,
@@ -175,6 +180,7 @@ impl Antenna {
     }
 }
 
+#[cfg(feature = "with-serde")]
 pub mod datetime_formatter {
     use serde::{Serializer};
     pub fn serialize<S>(datetime: &chrono::NaiveDateTime, serializer: S) -> Result<S::Ok, S::Error>
@@ -184,19 +190,32 @@ pub mod datetime_formatter {
         let s = format!("{}", datetime.format("%Y-%m-%d %H:%M:%S"));
         serializer.serialize_str(&s)
     }
+
+    /*pub fn deserialize<'de, D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>, 
+    {
+        let s = String::deserialize(deserializer)?;
+        chrono::NaiveDateTime::parse_from_str(&s, "%Y-%m-%d %H:%M:%S")?
+    }*/
 }
 
 /// Describes `Compact RINEX` specific information
-#[derive(Clone, Serialize, Debug)]
+#[derive(Clone, Debug)]
+#[cfg_attr(feature = "with-serde", derive(Serialize))]
 pub struct CrinexInfo {
-    pub version: version::Version, // compression version
-    pub prog: String, // compression program
-    #[serde(with = "datetime_formatter")]
-    pub date: chrono::NaiveDateTime, // date of compression
+    /// Compression program version
+    pub version: version::Version,
+    /// Compression program name
+    pub prog: String,
+    /// Date of compression
+    #[cfg_attr(feature = "with-serde", serde(with = "datetime_formatter"))]
+    pub date: chrono::NaiveDateTime,
 }
 
 /// Describes known marker types
-#[derive(Clone, Serialize, Debug)]
+#[derive(Clone, Debug)]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub enum MarkerType {
     /// Earth fixed & high precision
     Geodetic,
@@ -258,7 +277,8 @@ impl std::str::FromStr for MarkerType {
 }
 
 /// Describes `RINEX` file header
-#[derive(Clone, Serialize, Debug)]
+#[derive(Clone, Debug)]
+#[cfg_attr(feature = "with-serde", derive(Serialize))]
 pub struct Header {
     /// revision for this `RINEX`
     pub version: version::Version, 
@@ -299,7 +319,7 @@ pub struct Header {
     /// optionnal leap seconds infos
     pub leap: Option<leap::Leap>, 
     /// station approxiamte coordinates
-    #[serde(with = "point3d_formatter")]
+    #[cfg_attr(feature = "with-serde", serde(with = "point3d_formatter"))]
     pub coords: Option<rust_3d::Point3D>, 
     /// optionnal observation wavelengths
     pub wavelengths: Option<(u32,u32)>, 

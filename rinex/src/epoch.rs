@@ -2,12 +2,15 @@
 //! a `flag` associated to it
 use thiserror::Error;
 use std::str::FromStr;
-use serde::{Serializer, Serialize};
 use chrono::{Datelike,Timelike};
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+#[cfg(feature = "with-serde")]
+use serde::{Serialize, Deserialize};
+
 /// `EpochFlag` validates or describes events
 /// that occured during an `epoch`
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub enum EpochFlag {
     /// Epoch is sane
     Ok,
@@ -74,10 +77,12 @@ pub struct Epoch {
     pub flag: EpochFlag,
 }
 
+#[cfg(feature = "with-serde")]
 impl Serialize for Epoch {
+
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
-        S: Serializer,
+        S: serde::Serializer,
     {
         let s = format!("{} {}", 
             self.date.format("%Y-%m-%d %H:%M:%S"),

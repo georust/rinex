@@ -2,7 +2,9 @@
 use thiserror::Error;
 use std::str::FromStr;
 use crate::constellation;
-use serde::{Serializer, Serialize};
+
+#[cfg(feature = "with-serde")]
+use serde::{Serialize, Serializer, Deserialize};
 
 /// ̀`Sv` describes a Satellite Vehiculee
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
@@ -13,6 +15,7 @@ pub struct Sv {
     pub constellation: constellation::Constellation,
 }
 
+#[cfg(feature = "with-serde")]
 impl Serialize for Sv {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where

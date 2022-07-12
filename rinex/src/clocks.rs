@@ -4,10 +4,10 @@
 //use crate::epoch;
 //use crate::header;
 //use thiserror::error;
-use serde_derive::Serialize;
 
 /// Describes a clock analysis center / agency
-#[derive(Clone, Serialize, Debug)]
+#[derive(Clone, Debug)]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct AnalysisCenter {
     /// IGS AC 3 letter code
     code: String,

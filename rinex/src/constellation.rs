@@ -1,7 +1,9 @@
 //! `GNSS` constellations & associated methods
 use thiserror::Error;
 use strum_macros::EnumString;
-use serde_derive::{Deserialize, Serialize};
+
+#[cfg(feature = "with-serde")]
+use serde::{Serialize, Deserialize};
 
 /// Number of known ̀`GNSS` constellations
 pub const CONSTELLATION_LENGTH: usize = 6;
@@ -16,8 +18,8 @@ pub enum Error {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-#[derive(Serialize, Deserialize)]
 #[derive(EnumString)]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 /// GNSS Augmentation systems,
 /// must be used based on current location
 pub enum Augmentation {
@@ -50,7 +52,7 @@ impl Default for Augmentation {
 /// Describes all known `GNSS` constellations
 /// when manipulating `RINEX`
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub enum Constellation {
     /// `GPS` american constellation,
     GPS,

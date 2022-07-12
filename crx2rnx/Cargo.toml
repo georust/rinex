@@ -11,7 +11,7 @@ edition = "2018"
 readme = "README.md"
 
 [dependencies]
-rinex = "0.3.3" 
+rinex = { path = "../rinex", features = ["with-serde"] }
 clap = { version = "~2.27.0", features = ["yaml"] }
 thiserror = "1"
 
