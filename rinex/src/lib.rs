@@ -15,6 +15,7 @@ pub mod types;
 pub mod epoch;
 pub mod header;
 pub mod record;
+pub mod hardware;
 //pub mod carrier;
 pub mod version;
 pub mod hatanaka;

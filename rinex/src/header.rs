@@ -5,6 +5,7 @@ use crate::antex;
 use crate::clocks;
 use crate::version;
 //use crate::gnss_time;
+use crate::hardware;
 use crate::{is_comment};
 use crate::types::{Type, TypeError};
 use crate::constellation;
@@ -27,43 +28,6 @@ pub const CRINEX_MARKER_COMMENT : &str = "COMPACT RINEX FORMAT";
 /// End of Header section reached
 pub const HEADER_END_MARKER : &str = "END OF HEADER";
 
-/// GNSS receiver description
-#[derive(Clone, Debug)]
-#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
-pub struct Rcvr {
-    /// Receiver (hardware) model
-    pub model: String, 
-    /// Receiver (hardware) identification info
-    pub sn: String, // serial #
-    /// Receiver embedded software info
-    pub firmware: String, // firmware #
-}
-
-impl Default for Rcvr {
-    /// Builds a `default` Receiver
-    fn default() -> Rcvr {
-        Rcvr {
-            model: String::new(),
-            sn: String::new(),
-            firmware: String::new(),
-        }
-    }
-}
-
-impl std::str::FromStr for Rcvr {
-    type Err = std::io::Error;
-    fn from_str (line: &str) -> Result<Self, Self::Err> {
-        let (id, rem) = line.split_at(20);
-        let (make, rem) = rem.split_at(20);
-        let (version, _) = rem.split_at(20);
-        Ok(Rcvr{
-            sn: id.trim().to_string(),
-            model: make.trim().to_string(),
-            firmware: version.trim().to_string(),
-        })
-    }
-}
-
 #[cfg(feature = "with-serde")]
 mod point3d_formatter {
     pub fn serialize<S>(point3d: &Option<rust_3d::Point3D>, serializer: S) -> Result<S::Ok, S::Error>
@@ -80,90 +44,6 @@ mod point3d_formatter {
         let s = format!("{},{},{}",p.x,p.y,p.z); 
         serializer.serialize_str(&s)
     }
-}
-
-/// Antenna description 
-#[derive(Debug, Clone)]
-#[cfg_attr(feature = "with-serde", derive(Serialize))]
-pub struct Antenna {
-    /// Hardware model / make descriptor
-    pub model: String,
-    /// Serial number / identification number
-    pub sn: String,
-    /// 3D coordinates of reference point
-    #[cfg_attr(feature = "with-serde", serde(with = "point3d_formatter"))]
-    pub coords: Option<rust_3d::Point3D>,
-    /// height in comparison to ref. point
-    pub height: Option<f32>,
-    /// eastern eccentricity compared to ref. point
-    pub eastern_eccentricity: Option<f32>,
-    /// northern eccentricity compare to ref. point
-    pub northern_eccentricity: Option<f32>,
-}
-
-impl Default for Antenna {
-    /// Builds default `Antenna` structure
-    fn default() -> Antenna {
-        Antenna {
-            model: String::new(),
-            sn: String::new(),
-            coords: None,
-            height: None,
-            eastern_eccentricity: None,
-            northern_eccentricity: None,
-        }
-    }
-}
-
-impl std::str::FromStr for Antenna {
-    type Err = std::io::Error;
-    fn from_str (line: &str) -> Result<Self, Self::Err> {
-        let (id, rem) = line.split_at(20);
-        let (make, _) = rem.split_at(20);
-        Ok(Antenna{
-            sn: String::from(id.trim()),
-            model: String::from(make.trim()),
-            coords: None,
-            height: None,
-            eastern_eccentricity: None,
-            northern_eccentricity : None,
-        })
-    }
-}
-
-impl Antenna {
-    pub fn new (sn: &str, model: &str, 
-        coords: Option<rust_3d::Point3D>,
-            h : Option<f32>, e: Option<f32>, n: Option<f32>) -> Antenna {
-        Antenna {
-            sn: sn.to_string(),
-            model: model.to_string(),
-            coords: coords,
-            height: h,
-            northern_eccentricity: n,
-            eastern_eccentricity: e,
-        }
-    }
-}
-
-#[cfg(feature = "with-serde")]
-pub mod datetime_formatter {
-    use serde::{Serializer};
-    pub fn serialize<S>(datetime: &chrono::NaiveDateTime, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let s = format!("{}", datetime.format("%Y-%m-%d %H:%M:%S"));
-        serializer.serialize_str(&s)
-    }
-
-    /*pub fn deserialize<'de, D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>, 
-    {
-        let s = String::deserialize(deserializer)?;
-        chrono::NaiveDateTime::parse_from_str(&s, "%Y-%m-%d %H:%M:%S")?
-    }*/
 }
 
 #[derive(Clone, Debug)]
@@ -259,10 +139,6 @@ pub struct Header {
     pub agency: String, 
     /// optionnal receiver placement infos
     pub marker_type: Option<MarkerType>,
-    /// optionnal hardware (receiver) infos
-    pub rcvr: Option<Rcvr>, 
-    /// optionnal antenna infos
-    pub ant: Option<Antenna>, 
     /// optionnal leap seconds infos
     pub leap: Option<leap::Leap>, 
     /// station approxiamte coordinates
@@ -285,6 +161,13 @@ pub struct Header {
     //ionospheric_corr: Option<Vec<IonoCorr>>,
     // possible time system correction(s)
     //gnsstime_corr: Option<Vec<gnss_time::GnssTimeCorr>>,
+    ////////////////////////////////////////
+    // Hardware
+    ////////////////////////////////////////
+    /// optionnal receiver infos
+    pub rcvr: Option<hardware::Rcvr>, 
+    /// optionnal antenna infos
+    pub ant: Option<hardware::Antenna>, 
     //////////////////////////////////
     // OBSERVATION
     //////////////////////////////////
@@ -406,11 +289,12 @@ impl Header {
         let mut doi        = String::new();
         let mut station_url= String::new();
         let mut marker_type : Option<MarkerType> = None; 
-        // hardware
-        let mut ant        : Option<Antenna> = None;
+        // Hardware 
+        let mut ant_model = String::new();
+        let mut ant_sn = String::new();
         let mut ant_coords : Option<rust_3d::Point3D> = None;
         let mut ant_hen    : Option<(f32,f32,f32)> = None;
-        let mut rcvr       : Option<Rcvr>    = None;
+        let mut rcvr       : Option<hardware::Rcvr> = None;
         // other
         let mut leap       : Option<leap::Leap> = None;
         let mut sampling_interval: Option<f32> = None;
@@ -536,7 +420,7 @@ impl Header {
                 agency = ag.trim().to_string()
 
             } else if line.contains("REC # / TYPE / VERS") {
-                rcvr = Some(Rcvr::from_str(&line)?) 
+                rcvr = Some(hardware::Rcvr::from_str(&line)?) 
 
 			} else if line.contains("SENSOR MOD/TYPE/ACC") {
 				let (content, _) = line.split_at(60);
@@ -555,7 +439,11 @@ impl Header {
                 )
             
             } else if line.contains("ANT # / TYPE") {
-                ant = Some(Antenna::from_str(&line)?)
+                let line = line.split_at(60).0;
+                let (model, rem) = line.split_at(20);
+                let (sn, rem) = line.split_at(20);
+                ant_model = model.trim().to_string();
+                ant_sn = sn.trim().to_string();
             
             } else if line.contains("LEAP SECOND") {
                 leap = Some(leap::Leap::from_str(line.split_at(40).0)?)
@@ -816,20 +704,6 @@ impl Header {
             }
         }
         
-        let ant : Option<Antenna> = match ant {
-            Some(antenna) => {
-                Some(Antenna::new(
-                    &antenna.sn, 
-                    &antenna.model, 
-                    ant_coords, 
-                    Some(ant_hen.unwrap_or((0.0_f32,0.0_f32,0.0_f32)).0), 
-                    Some(ant_hen.unwrap_or((0.0_f32,0.0_f32,0.0_f32)).1), 
-                    Some(ant_hen.unwrap_or((0.0_f32,0.0_f32,0.0_f32)).2), 
-                ))
-            },
-            _ => None,
-        };
-
         Ok(Header{
             version: version,
             rinex_type,
@@ -847,7 +721,6 @@ impl Header {
             station_url,
             marker_type,
             rcvr, 
-            ant, 
             leap,
             coords: coords,
             wavelengths: None,
@@ -856,6 +729,29 @@ impl Header {
             data_scaling: None,
             //ionospheric_corr: None,
             //gnsstime_corr: None,
+            ///////////////////////
+            // Hardware
+            ///////////////////////
+            ant: {
+                if ant_model.len() > 0 {
+                    Some(hardware::Antenna {
+                        model: ant_model.clone(),
+                        sn: ant_sn.clone(),
+                        coords: ant_coords.clone(),
+                        height: {
+                            if let Some((h,_,_)) = ant_hen {
+                                Some(h)
+                            } else {
+                                None
+                            }
+                        },
+                        eastern_ecc: None, 
+                        northern_ecc: None, //TODO ant_northern_ecc.clone(),
+                    })
+                } else {
+                    None
+                }
+            },
             ///////////////////////
             // OBSERVATION
             ///////////////////////
@@ -948,23 +844,27 @@ impl Header {
         }
         if let Some(rcvr) = &header.rcvr {
             if self.rcvr.is_none() {
-                self.rcvr = Some(Rcvr {
-                    model: rcvr.model.clone(),
-                    sn: rcvr.sn.clone(),
-                    firmware: rcvr.firmware.clone(),
-                })
+                self.rcvr = Some(
+                    hardware::Rcvr {
+                        model: rcvr.model.clone(),
+                        sn: rcvr.sn.clone(),
+                        firmware: rcvr.firmware.clone(),
+                    }
+                )
             }
         }
         if let Some(ant) = &header.ant {
             if self.ant.is_none() {
-                self.ant = Some(Antenna {
-                    model: ant.model.clone(),
-                    sn: ant.sn.clone(),
-                    coords: ant.coords.clone(),
-                    height: ant.height,
-                    eastern_eccentricity: ant.eastern_eccentricity,
-                    northern_eccentricity: ant.northern_eccentricity,
-                })
+                self.ant = Some(
+                    hardware::Antenna {
+                        model: ant.model.clone(),
+                        sn: ant.sn.clone(),
+                        coords: ant.coords.clone(),
+                        height: ant.height,
+                        eastern_ecc: ant.eastern_ecc,
+                        northern_ecc: ant.northern_ecc,
+                    }
+                )
             }
         }
         //TODO append new array
@@ -1059,14 +959,14 @@ impl Header {
     }
 
     /// Adds receiver information to self
-    pub fn with_rcvr (&self, r: Rcvr) -> Self {
+    pub fn with_rcvr (&self, r: hardware::Rcvr) -> Self {
         let mut s = self.clone();
         s.rcvr = Some(r);
         s
     }
     
     /// Adds antenna information to self
-    pub fn with_antenna (&self, a: Antenna) -> Self {
+    pub fn with_antenna (&self, a: hardware::Antenna) -> Self {
         let mut s = self.clone();
         s.ant = Some(a);
         s
@@ -1165,8 +1065,8 @@ impl std::fmt::Display for Header {
             }
             if let Some(h) = &ant.height {
                 write!(f, "{:<20}", h)?;
-                write!(f, "{:<20}", ant.eastern_eccentricity.unwrap_or(0.0_f32))?;
-                write!(f, "{:<20}", ant.northern_eccentricity.unwrap_or(0.0_f32))?;
+                write!(f, "{:<20}", ant.eastern_ecc.unwrap_or(0.0_f32))?;
+                write!(f, "{:<20}", ant.northern_ecc.unwrap_or(0.0_f32))?;
                 write!(f, "{}", "ANTENNA: DELTA H/E/N\n")?
             }
         }
