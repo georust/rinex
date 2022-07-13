@@ -5,7 +5,6 @@
 //! Homepage: <https://github.com/gwbres/rinex>
 mod leap;
 mod merge;
-mod clocks;
 //mod gnss_time;
 
 pub mod sv;
@@ -13,6 +12,7 @@ pub mod antex;
 pub mod meteo;
 pub mod types;
 pub mod epoch;
+pub mod clocks;
 pub mod header;
 pub mod record;
 pub mod hardware;

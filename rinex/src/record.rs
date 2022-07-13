@@ -8,6 +8,7 @@ use crate::sv;
 //use crate::antex;
 use crate::epoch;
 use crate::meteo;
+use crate::clocks;
 use crate::header;
 use crate::hatanaka;
 use crate::navigation;
@@ -31,6 +32,8 @@ pub enum Record {
 	/// `record` is a hashmap of f32 indexed by Observation Code,
 	/// sorted by `epoch`
     MeteoRecord(meteo::Record),
+    /// `clocks::Record` : Record file content for CLOCKS RINEX
+    ClockRecord(clocks::Record),
 /*
     /// `antex::Record` : Antenna Data file content.
     /// `record` is a hashmap of possible Antenna parameters
@@ -58,6 +61,20 @@ impl Record {
         }
     }
 */
+    /// Unwraps self as CLK `record`
+    pub fn as_clock (&self) -> Option<&clocks::Record> {
+        match self {
+            Record::ClockRecord(e) => Some(e),
+            _ => None,
+        }
+    }
+    /// Unwraps self as mutable CLK `record`
+    pub fn as_mut_clock (&mut self) -> Option<&mut clocks::Record> {
+        match self {
+            Record::ClockRecord(e) => Some(e),
+            _ => None,
+        }
+    }
 	/// Unwraps self as MET `record`
     pub fn as_meteo (&self) -> Option<&meteo::Record> {
         match self {

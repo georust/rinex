@@ -52,6 +52,7 @@ pub enum Error {
     ParseIntError(#[from] std::num::ParseIntError),
 }
 
+#[derive(Error, Clone, Debug)]
 pub enum System {
     /// Sv system for AS data
     Sv(sv::Sv),
@@ -73,6 +74,17 @@ impl System {
             System::Station(s) => Some(s.clone()),
             _ => None,
         }
+    }
+}
+
+impl std::fmt::Display for System {
+    fn fmt (&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        if let Some(sv) = self.as_sv() {
+            f.write_str(&sv.to_string())?
+        } else if let Some(station) = self.as_station() {
+            f.write_str(&station)?
+        }
+        Ok(())
     }
 }
 
