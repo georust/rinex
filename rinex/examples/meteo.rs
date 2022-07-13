@@ -22,18 +22,19 @@ fn main() {
     assert_eq!(rinex.header.leap.is_none(), true); //not provided
 
     // MeteoData specific information
-    let sensors = &rinex.header.sensors;
+    let meteo = &rinex.header.meteo
+        .as_ref()
+        .unwrap();
+    let codes = &meteo.codes;
+    let sensors = &meteo.sensors;
     println!("####### METEO Sensors #######\n{:#?}", sensors);
-
     // record analysis
+    // ----> determine available observation codes
+	println!("\n###### METEO OBS CODES #######\n{:#?}", codes);
     
     // decimate record: retain data @ 30s interval
     rinex.resample(std::time::Duration::from_secs(30));
 	
-    // ----> determine available observation codes
-	let obs_codes = &rinex.header.met_codes.unwrap();
-	println!("\n###### METEO OBS CODES #######\n{:#?}", obs_codes);
-    
     let record = rinex.record.as_meteo().unwrap();
 
     // list resulting epochs

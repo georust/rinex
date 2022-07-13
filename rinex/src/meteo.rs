@@ -7,6 +7,39 @@ use crate::epoch;
 use crate::header;
 use crate::header::Header;
 
+/// Observation Sensor
+#[derive(Clone, PartialEq, Debug)]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
+pub struct Sensor {
+	/// Model of this sensor
+	pub model: String,
+	/// Type of sensor
+	pub sens_type: String,
+	/// Sensor accuracy [°C,..]
+	pub accuracy: f32,
+	/// Physics measured by this sensor
+	pub physics: String,
+}
+
+impl Default for Sensor {
+    fn default() -> Sensor {
+        Sensor {
+            model: String::new(),
+            sens_type: String::new(),
+            physics: String::new(),
+            accuracy: 0.0_f32,
+        }
+    }
+}
+
+/// Meteo specific header fields
+#[derive(Debug, Clone)]
+pub struct HeaderFields {
+	/// Observation types contained in this file
+    pub codes: Vec<String>, 
+    pub sensors: Vec<Sensor>,
+}
+
 /// `Record`: Meteo data files content is
 /// raw data sorted by Observation Code and by Epoch.
 pub type Record = BTreeMap<epoch::Epoch, HashMap<String, f32>>;
@@ -68,16 +101,17 @@ pub fn build_record_entry (header: &Header, content: &str)
 	let flag = epoch::EpochFlag::default();
 	let epoch = epoch::Epoch::new(date, flag);
 
-	let obs_codes = &header.met_codes
-		.as_ref()
-		.unwrap();
-	let n_codes = obs_codes.len();
+	let codes = &header.meteo
+        .as_ref()
+        .unwrap()
+        .codes;
+	let n_codes = codes.len();
 	let nb_lines : usize = num_integer::div_ceil(n_codes, 8).into(); 
 	let mut code_index : usize = 0;
 
 	for i in 0..nb_lines {
 		for _ in 0..8 {
-			let code = &obs_codes[code_index];
+			let code = &codes[code_index];
 			let obs : Option<f32> = match f32::from_str(&line[offset..offset+7].trim()) {
 				Ok(f) => Some(f),
 				Err(_) => None,
@@ -110,10 +144,13 @@ pub fn build_record_entry (header: &Header, content: &str)
 
 /// Pushes meteo record into given file writer
 pub fn to_file (header: &header::Header, record: &Record, mut writer: std::fs::File) -> std::io::Result<()> {
-    let obs_codes = header.met_codes.as_ref().unwrap();
+    let codes = &header.meteo
+        .as_ref()
+        .unwrap()
+        .codes;
     for epoch in record.keys() {
         write!(writer, " {} ", epoch.date.format("%y %_m %_d %_H %_M %_S").to_string())?;
-        for code in obs_codes { 
+        for code in codes.iter() { 
             write!(writer, "{:.1}   ", record[epoch].get(code).unwrap())?;
         }
         write!(writer, "\n")?

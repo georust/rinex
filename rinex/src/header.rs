@@ -9,6 +9,8 @@ use crate::{is_comment};
 use crate::types::{Type, TypeError};
 use crate::constellation;
 use crate::merge::MergeError;
+
+use crate::meteo;
 use crate::observation;
 
 use std::fs::File;
@@ -60,44 +62,6 @@ impl std::str::FromStr for Rcvr {
             firmware: version.trim().to_string(),
         })
     }
-}
-
-/// Meteo Observation Sensor
-#[derive(Clone, PartialEq, Debug)]
-#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
-pub struct Sensor {
-	/// Model of this sensor
-	model: String,
-	/// Type of sensor
-	sens_type: String,
-	/// Sensor accuracy [°C,..]
-	accuracy: f32,
-	/// Physics measured by this sensor
-	physics: String,
-}
-
-impl Default for Sensor {
-    fn default() -> Sensor {
-        Sensor {
-            model: String::new(),
-            sens_type: String::new(),
-            physics: String::new(),
-            accuracy: 0.0_f32,
-        }
-    }
-}
-
-impl Sensor {
-	/// Builds a new Meteo Obs sensor,
-	/// with given `model`, `sensor type` `accuracy` and `physics` fields
-	pub fn new (model: &str, sens_type: &str, accuracy: f32, physics: &str) -> Sensor {
-		Sensor {
-			model: model.to_string(),
-			sens_type: sens_type.to_string(),
-			accuracy,
-			physics: physics.to_string(),
-		}
-	}
 }
 
 #[cfg(feature = "with-serde")]
@@ -299,8 +263,6 @@ pub struct Header {
     pub rcvr: Option<Rcvr>, 
     /// optionnal antenna infos
     pub ant: Option<Antenna>, 
-	/// optionnal meteo sensors infos
-	pub sensors: Option<Vec<Sensor>>,
     /// optionnal leap seconds infos
     pub leap: Option<leap::Leap>, 
     /// station approxiamte coordinates
@@ -330,10 +292,7 @@ pub struct Header {
     //////////////////////////////////
     // Meteo 
     //////////////////////////////////
-    //pub meteo: Option<meteo::HeaderFields>,
-	/// lists all types of observations
-	/// contains in this `RINEX` Meteo file
-    pub met_codes: Option<Vec<String>>, 
+    pub meteo: Option<meteo::HeaderFields>,
     //////////////////////////////////
     // Clocks fields 
     //////////////////////////////////
@@ -397,7 +356,6 @@ impl Default for Header {
             // hardware
             rcvr: None,
             ant: None,
-			sensors: None,
             coords: None, 
             wavelengths: None,
             // processing
@@ -409,7 +367,10 @@ impl Default for Header {
             // OBSERVATION
             /////////////////////////
             obs: None,
-			met_codes: None,
+            /////////////////////////
+            // OBSERVATION / METEO
+            /////////////////////////
+			meteo: None,
             /////////////////////////
             // Clocks
             /////////////////////////
@@ -450,7 +411,6 @@ impl Header {
         let mut ant_coords : Option<rust_3d::Point3D> = None;
         let mut ant_hen    : Option<(f32,f32,f32)> = None;
         let mut rcvr       : Option<Rcvr>    = None;
-		let mut sensors    : Vec<Sensor> = Vec::with_capacity(3);
         // other
         let mut leap       : Option<leap::Leap> = None;
         let mut sampling_interval: Option<f32> = None;
@@ -462,6 +422,7 @@ impl Header {
         let mut obs_codes  : HashMap<constellation::Constellation, Vec<String>> = HashMap::with_capacity(constellation::CONSTELLATION_LENGTH);
         // (OBS/METEO)
 		let mut met_codes  : Vec<String> = Vec::new();
+		let mut met_sensors: Vec<meteo::Sensor> = Vec::with_capacity(3);
         // CLOCKS
         let mut analysis_center : Option<clocks::AnalysisCenter> = None;
         // ANTEX
@@ -582,11 +543,16 @@ impl Header {
 				let (model, rem) = content.split_at(20);
 				let (stype, rem) = rem.split_at(20+6);
 				let (accuracy, rem) = rem.split_at(7+4);
-				//println!("model \"{}\" stype \"{}\" accuracy \"{}\"", model, stype, accuracy);
 				let accuracy = f32::from_str(accuracy.trim())?;
 				let (physics, _) = rem.split_at(2);
-				sensors.push(Sensor::new(model.trim(),stype.trim(),accuracy,physics.trim()));
-				//println!("sensor {:#?}", sensors)
+				met_sensors.push(
+                    meteo::Sensor {
+                        model: model.trim().to_string(),
+                        sens_type: stype.trim().to_string(),
+                        accuracy,
+                        physics: physics.trim().to_string(),
+                    }
+                )
             
             } else if line.contains("ANT # / TYPE") {
                 ant = Some(Antenna::from_str(&line)?)
@@ -864,19 +830,6 @@ impl Header {
             _ => None,
         };
 
-		let sensors : Option<Vec<Sensor>> = match sensors.len() > 0 {
-			true => {
-				// identified some sensors
-				Some(sensors)
-			},
-			false => None
-		};
-
-		let met_codes : Option<Vec<String>> = match met_codes.is_empty() {
-			true => None,
-			false => Some(met_codes),
-		};
-
         Ok(Header{
             version: version,
             rinex_type,
@@ -895,18 +848,16 @@ impl Header {
             marker_type,
             rcvr, 
             ant, 
-			sensors,
             leap,
             coords: coords,
             wavelengths: None,
             gps_utc_delta: None,
-			met_codes,
             sampling_interval: sampling_interval,
             data_scaling: None,
             //ionospheric_corr: None,
             //gnsstime_corr: None,
             ///////////////////////
-            // OBS 
+            // OBSERVATION
             ///////////////////////
             obs: {
                 if obs_codes.len() > 0 {
@@ -914,6 +865,19 @@ impl Header {
                         crinex: crinex.clone(),
                         codes: obs_codes.clone(),
                         clock_offset_applied: obs_clock_offset_applied,
+                    })
+                } else {
+                    None
+                }
+            },
+            ////////////////////////
+            // OBSERVATION / METEO
+            ////////////////////////
+            meteo: {
+                if met_codes.len() > 0 {
+                    Some(meteo::HeaderFields {
+                        codes: met_codes.clone(),
+                        sensors: met_sensors.clone(),
                     })
                 } else {
                     None
@@ -1267,7 +1231,8 @@ impl std::fmt::Display for Header {
                 }
             },
             Type::MeteoData => {
-                if let Some(codes) = &self.met_codes {
+                if let Some(obs) = &self.meteo {
+                    let codes = &obs.codes;
                     let mut line = format!("{:6}", codes.len()); 
                     for i in 0..codes.len() {
                         if (i+1)%9 == 0 {
@@ -1282,7 +1247,7 @@ impl std::fmt::Display for Header {
                     line.push_str("# / TYPES OF OBS\n"); 
                     write!(f, "{}", line)?;
                 } else {
-                    panic!("Must specify `header.met_codes` field when producing MeteoData!")
+                    panic!("Meteo RINEX with no `obs codes` specified")
                 }
             },
             _ => {},
@@ -1305,7 +1270,8 @@ impl std::fmt::Display for Header {
             write!(f, "LEAP SECONDS\n")?
         }
         // SENSOR(s)
-        if let Some(sensors) = &self.sensors {
+        if let Some(meteo) = &self.meteo {
+            let sensors = &meteo.sensors;
             for sensor in sensors {
                 write!(f, "{:<20}", sensor.model)?; 
                 write!(f, "{:<30}", sensor.sens_type)?; 

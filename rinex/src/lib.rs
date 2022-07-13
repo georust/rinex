@@ -1138,7 +1138,7 @@ mod test {
                                 // NAV files checks
                                 assert_eq!(rinex.header.obs.is_none(), true);
                                 assert_eq!(rinex.is_navigation_rinex(), true);
-                                assert_eq!(rinex.header.met_codes.is_none(), true);
+                                assert_eq!(rinex.header.meteo.is_none(), true);
                                 let record = rinex.record.as_nav().unwrap();
                                 println!("----- EPOCHs ----- \n{:#?}", record.keys());
                                 let mut epochs = record.keys();
@@ -1154,7 +1154,7 @@ mod test {
                                 let obs = rinex.header.obs.as_ref();
                                 assert_eq!(obs.is_some(), true);
                                 assert_eq!(rinex.is_observation_rinex(), true);
-                                assert_eq!(rinex.header.met_codes.is_none(), true);
+                                assert_eq!(rinex.header.meteo.is_none(), true);
                                 let obs = obs.unwrap();
                                 if obs.clock_offset_applied {
                                     // epochs should always have a RCVR clock offset
@@ -1176,7 +1176,7 @@ mod test {
                                 // compressed OBS files checks
                                 assert_eq!(rinex.header.obs.is_some(), true);
                                 assert_eq!(rinex.is_observation_rinex(), true);
-                                assert_eq!(rinex.header.met_codes.is_none(), true);
+                                assert_eq!(rinex.header.meteo.is_none(), true);
                                 let record = rinex.record.as_obs().unwrap();
                                 let mut epochs = record.keys();
                                 println!("----- EPOCHs ----- \n{:#?}", epochs); 
@@ -1191,7 +1191,7 @@ mod test {
                                 // METEO files checks
                                 assert_eq!(rinex.header.obs.is_none(), true);
                                 assert_eq!(rinex.is_meteo_rinex(), true);
-                                assert_eq!(rinex.header.met_codes.is_some(), true);
+                                assert_eq!(rinex.header.meteo.is_some(), true);
                                 assert_eq!(rinex.header.obs.is_none(), true);
                                 let record = rinex.record.as_meteo().unwrap();
                                 let mut epochs = record.keys();
