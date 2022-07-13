@@ -1,35 +1,55 @@
 //! clocks.rs   
 //! macros and structures for RINEX Clocks files
-//use crate::sv;
-//use crate::epoch;
-//use crate::header;
-//use thiserror::error;
+use crate::sv;
+use crate::epoch;
+use crate::header;
+use thiserror::Error;
+use std::str::FromStr;
+use std::collections::HashMap;
+
+/// Clocks `RINEX` specific header fields
+#[derive(Clone, Debug)]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
+pub struct HeaderFields {
+    /// Types of observation in this file
+    pub codes: Vec<DataType>,
+    /// Clock Data analysis production center
+    pub agency: Option<Agency>,
+    /// Reference station
+    pub station: Option<Station>,
+    /// Reference clock descriptor
+    pub clock_ref: Option<String>,
+}
+
+/// Describes a clock station 
+#[derive(Clone, Debug)]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
+pub struct Station {
+    /// Station name
+    pub name: String,
+    /// Station official ID#
+    pub id: String,
+}
 
 /// Describes a clock analysis center / agency
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
-pub struct AnalysisCenter {
+pub struct Agency {
     /// IGS AC 3 letter code
-    code: String,
+    pub code: String,
     /// agency name
-    agency: String,
+    pub name: String,
 }
 
-impl AnalysisCenter {
-    pub fn new (code: &str, agency: &str) -> AnalysisCenter {
-        AnalysisCenter {
-            code: code.to_string(),
-            agency: agency.to_string(),
-        }
-    }
-}
-
-/*
 #[derive(Error, Debug)]
 /// Clocks file parsing & identification errors
 pub enum Error {
     #[error("unknown data code \"{0}\"")]
     UnknownDataCode(String),
+    #[error("failed to parse epoch")]
+    ParseEpochError(#[from] epoch::ParseDateError),
+    #[error("failed to parse # of data fields")]
+    ParseIntError(#[from] std::num::ParseIntError),
 }
 
 pub enum System {
@@ -50,14 +70,17 @@ impl System {
     /// Unwraps self as a `station` identification code
     pub fn as_station (&self) -> Option<String> {
         match self {
-            System::Station(s) => Some(*s),
+            System::Station(s) => Some(s.clone()),
             _ => None,
         }
     }
 }
 
 /// Clocks file payload
-pub struct ClockData {
+#[derive(Clone, Debug)]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
+pub struct Data {
+    /// Clock bias
     pub bias: f64,
     pub bias_sigma: Option<f64>,
     pub rate: Option<f64>,
@@ -67,7 +90,9 @@ pub struct ClockData {
 }
 
 /// Types of clock data
-pub enum ClockDataType {
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
+pub enum DataType {
     /// Data analysis results for receiver clocks
     /// derived from a set of network receivers and satellites
     Ar,
@@ -82,88 +107,121 @@ pub enum ClockDataType {
     Ms
 }
 
-impl std::str::FromStr for ClockDataType {
+impl std::str::FromStr for DataType {
     type Err = Error;
-    /// Builds a ClockData type from given official code
     fn from_str (code: &str) -> Result<Self, Self::Err> {
         match code {
-            "AR" => Ok(ClockDataType::Ar),
-            "AS" => Ok(ClockDataType::As),
-            "CR" => Ok(ClockDataType::Cr),
-            "DR" => Ok(ClockDataType::Dr),
-            "MS" => Ok(ClockDataType::Ms),
-            _ => Err(Error::UnknownDataCode(code.to_string)),
+            "AR" => Ok(DataType::Ar),
+            "AS" => Ok(DataType::As),
+            "CR" => Ok(DataType::Cr),
+            "DR" => Ok(DataType::Dr),
+            "MS" => Ok(DataType::Ms),
+            _ => Err(Error::UnknownDataCode(code.to_string())),
         }
     }
 } 
 
-/// RINEX record for CLOCKS files
-pub type Record = HashMap<epoch::Epoch, HashMap<ClockDataType, HashMap<System, ClockData>>>;
+/// RINEX record for CLOCKS files,
+/// record is sorted by Epoch then by data type and finaly by `system`
+pub type Record = HashMap<epoch::Epoch, HashMap<DataType, HashMap<System, Data>>>;
 
 /// Builds `RINEX` record entry for `Clocks` data files.   
 /// Returns identified `epoch` to sort data efficiently.  
 /// Returns 2D data as described in `record` definition
-pub fn build_record_entry (header: &Header, content: &str) -> Result<(epoch::Epoch, HashMap<ClocDataType, ClockData>), Error> {
+pub fn build_record_entry (header: &header::Header, content: &str) -> 
+        Result<(epoch::Epoch, DataType, System, Data), Error> 
+{
     let mut lines = content.lines();
     let mut line = lines.next()
         .unwrap();
     // Data type code
     let (dtype, rem) = line.split_at(3);
-    let dtype = ClockDataType::from_str(dtype)?;
-    // System identification
-    let system = match dtype {
-        ClockDataType::As => {
-            // we expect an `sv` identifier for As data
-            let (sv, rem) = rem.split_at(3);
-            System::Sv(sv::from_str(sv)?)
-        },
-        _ => {
-            // stations identifier is expected for any other data types
-            let (syst, rem) = rem.split_at(4);
-            let mut system = syst.to_string();
-            if rinex.version.major > 2 {
-                // Modern RINEX
-                // 5 more characheters
-                let (syst, rem) = rem.split_at(6); 
-                system.push_str(syst)
-            }
-            System::Station(system.trim_end()) // trick to handle properly 
-                // missing extra characters on RINEX 3
-        }
+    let data_type = DataType::from_str(dtype)?;
+    let (system_str, rem) = rem.split_at(4);
+    let system = match sv::Sv::from_str(system_str) {
+        Ok(sv) => System::Sv(sv),
+        _ => System::Station(system_str.trim_end().to_string()),
     };
     // Epoch
     let offset = 
-        4+1, // Y always a 4 digit number, even on RINEX2
-       +2+1, // m
+        4+1 // Y always a 4 digit number, even on RINEX2
+       +2+1 // m
        +2+1  // d
        +2+1  // h
        +2+1  // m
         +11; // s
     let (epoch, rem) = rem.split_at(offset);
-    let epoch = epoch::from_str(epoch)?;
+    let date = epoch::str2date(epoch)?; 
     // n
     let (n, rem) = rem.split_at(5);
     let m = u8::from_str_radix(n.trim(), 10)?;
-    let mut data : Vec<f64> = Vec::with_capacity(6); // max clock data payload size
     line = rem.clone();
+    let mut offset = 0;
     let mut n : u8 = 0;
+    let mut bias: f64 = 0.0;
+    let mut bias_sigma: f64 = 0.0;
+    let mut rate: f64 = 0.0;
+    let mut rate_sigma: f64 = 0.0;
+    let mut accel: f64 = 0.0;
+    let mut accel_sigma: f64 = 0.0;
     loop {
         if n == m {
-            break //DONE
+            break
         }
-        // parsing all clock data payload
-        let (data, l) = line.split_at(13); //TODO
-        line = l;
+        if n == 2 && m > 2 {
+            if let Some(l) = lines.next() {
+                offset = 0;
+                line = l
+            } else {
+                break
+            }
+        }
+        n += 1;
+        offset += 20;
+        let (l, rem) = line.split_at(offset);
+        line = rem.clone()
     }
-    for i in 0..n {
-        let (data, rem) = line.split_at(offset);
-        let data = f64::from_str(content)?;
-        if i == 0 {
-            line = lines.next().unwrap();
-        }
-        offset += 12; // TODO
-        if offset >= 84 { // TODO
-            line = lines.next().unwrap()
-        }
-    }
-}*/
+    let data = Data {
+        bias,
+        bias_sigma: {
+            if m > 1 {
+                Some(bias_sigma)
+            } else {
+                None
+            }
+        },
+        rate: {
+            if m > 2 {
+                Some(rate)
+            } else {
+                None
+            }
+        },
+        rate_sigma: {
+            if m > 3 {
+                Some(rate_sigma)
+            } else {
+                None
+            }
+        },
+        accel: {
+            if m > 4 {
+                Some(accel)
+            } else {
+                None
+            }
+        },
+        accel_sigma: {
+            if m > 5 {
+                Some(accel_sigma)
+            } else {
+                None
+            }
+        },
+    };
+    let epoch = epoch::Epoch {
+        flag: epoch::EpochFlag::Ok,
+        date,
+    };
+    Ok((epoch, data_type, system, data))
+}

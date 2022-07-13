@@ -179,10 +179,7 @@ pub struct Header {
     //////////////////////////////////
     // Clocks fields 
     //////////////////////////////////
-    /// Clock Data analysis production center
-    pub analysis_center: Option<clocks::AnalysisCenter>,
-    /// Clock Data observation codes
-    pub clk_codes: Option<Vec<String>>,
+    pub clocks: Option<clocks::HeaderFields>,
     //////////////////////////////////
     // Antex
     //////////////////////////////////
@@ -257,8 +254,7 @@ impl Default for Header {
             /////////////////////////
             // Clocks
             /////////////////////////
-            analysis_center: None,
-            clk_codes: None,
+            clocks: None,
             /////////////////////////
             // Antex
             /////////////////////////
@@ -308,7 +304,12 @@ impl Header {
 		let mut met_codes  : Vec<String> = Vec::new();
 		let mut met_sensors: Vec<meteo::Sensor> = Vec::with_capacity(3);
         // CLOCKS
-        let mut analysis_center : Option<clocks::AnalysisCenter> = None;
+        let mut clk_ref = String::new();
+        let mut clk_codes: Vec<clocks::DataType> = Vec::new();
+        let mut clk_agency_code = String::new();
+        let mut clk_agency_name = String::new();
+        let mut clk_station_name = String::new();
+        let mut clk_station_id = String::new();
         // ANTEX
         let mut pcv : Option<antex::Pcv> = None;
         let mut ant_relative_values = String::from("AOAD/M_T");
@@ -530,10 +531,6 @@ impl Header {
                 // + source of corrections (url)
                 // <o repeated for each satellite system
                 // <o blank field when no corrections applied
-            } else if line.contains("# / TYPES OF DATA") {
-                // RINEX::ClockData specific 
-                // + number of different clock data types stored
-                // + list of clock data  types
             } else if line.contains("TYPES OF OBS") { 
                 // RINEX OBS code descriptor (V < 3) 
                 // ⚠ ⚠ could either be observation or meteo data
@@ -657,19 +654,21 @@ impl Header {
             } else if line.contains("ANALYSIS CENTER") {
                 let line = line.split_at(60).0;
                 let (code, agency) = line.split_at(3);
-                analysis_center = Some(clocks::AnalysisCenter::new(code.trim(), agency.trim()));
+                clk_agency_code = code.to_string();
+                clk_agency_name = agency.trim_end().to_string();
 
             } else if line.contains("# / TYPES OF DATA") {
-                //TODO
-                /*let line = line.split_at(60).0;
-                let (n, rem) = line.split_at(10); // TODO
+                let line = line.split_at(60).0;
+                let (n, r) = line.split_at(6); // TODO
                 let n = u8::from_str_radix(n,10)?;
-                let mut line = rem.clone();
-                for i in 0..n { // parse CLOCKS codes
-                    let (code, rem) = line.split_at(10); // TODO
-                    clocks_code.push(code);
-                    line = rem.clone()
-                }*/
+                let mut rem = r.clone();
+                for i in 0..n {
+                    let (code, r) = rem.split_at(6);
+                    if let Ok(c) = clocks::DataType::from_str(code) {
+                        clk_codes.push(c)
+                    }
+                    rem = r.clone()
+                }
          
             } else if line.contains("SIGNAL STRENGHT UNIT") {
                 //TODO
@@ -782,8 +781,42 @@ impl Header {
             ///////////////////////
             // CLOCKS
             ///////////////////////
-            clk_codes: None,
-            analysis_center,
+            clocks: {
+                if clk_codes.len() > 0 {
+                    Some(clocks::HeaderFields {
+                        codes: clk_codes.clone(),
+                        agency: { 
+                            if clk_agency_code.len() > 0 {
+                                Some(clocks::Agency {
+                                    code: clk_agency_code.clone(),
+                                    name: clk_agency_name.clone(),
+                                })
+                            } else {
+                                None
+                            }
+                        },
+                        station: { 
+                            if clk_station_name.len() > 0 {
+                                Some(clocks::Station {
+                                    name: clk_station_name.clone(),
+                                    id: clk_station_id.clone(),
+                                })
+                            } else {
+                                None
+                            }
+                        },
+                        clock_ref: {
+                            if clk_ref.len() > 0 {
+                                Some(clk_ref.clone())
+                            } else {
+                                None
+                            }
+                        },
+                    })
+                } else {
+                    None
+                }
+            },
             ///////////////////////
             // ANTEX
             ///////////////////////
