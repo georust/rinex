@@ -14,9 +14,9 @@ pub enum MergeError {
 /// `RINEX` merging options
 pub struct MergeOpts {
     /// optionnal program name
-    program: String,
+    pub program: String,
     /// timestamp where new file was appended
-    date: chrono::NaiveDateTime, 
+    pub date: chrono::NaiveDateTime, 
 }
 
 /*impl std::str::FromStr for MergeOpts {
