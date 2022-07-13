@@ -34,6 +34,7 @@ impl Default for Sensor {
 
 /// Meteo specific header fields
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct HeaderFields {
 	/// Observation types contained in this file
     pub codes: Vec<String>, 

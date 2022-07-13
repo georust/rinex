@@ -28,6 +28,7 @@ pub struct Crinex {
 /// Describes known marker types
 /// Observation Record specific header fields
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct HeaderFields {
     /// Optional CRINEX information,
     /// only present on compressed OBS
