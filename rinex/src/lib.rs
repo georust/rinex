@@ -1151,14 +1151,18 @@ mod test {
                             },
                             "OBS" => {
                                 // OBS files checks
-                                assert_eq!(rinex.header.obs.is_some(), true);
+                                let obs = rinex.header.obs.as_ref();
+                                assert_eq!(obs.is_some(), true);
                                 assert_eq!(rinex.is_observation_rinex(), true);
                                 assert_eq!(rinex.header.met_codes.is_none(), true);
-                                if rinex.header.rcvr_clock_offset_applied {
+                                let obs = obs.unwrap();
+                                if obs.clock_offset_applied {
                                     // epochs should always have a RCVR clock offset
                                     // test that with iterator
                                 }
-                                let record = rinex.record.as_obs().unwrap();
+                                let record = rinex.record
+                                    .as_obs()
+                                    .unwrap();
                                 let mut epochs = record.keys();
                                 println!("----- EPOCHs ----- \n{:#?}", record.keys());
                                 // Testing event description finder

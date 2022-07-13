@@ -327,9 +327,6 @@ pub struct Header {
     // OBSERVATION
     //////////////////////////////////
     pub obs: Option<observation::HeaderFields>,
-    /// Observations:   
-    /// true if epochs & data compensate for local clock drift 
-    pub rcvr_clock_offset_applied: bool, 
     //////////////////////////////////
     // Meteo 
     //////////////////////////////////
@@ -404,7 +401,6 @@ impl Default for Header {
             coords: None, 
             wavelengths: None,
             // processing
-            rcvr_clock_offset_applied: false,
             data_scaling: None,
             //ionospheric_corr: None,
             //gnsstime_corr: None,
@@ -458,9 +454,9 @@ impl Header {
         // other
         let mut leap       : Option<leap::Leap> = None;
         let mut sampling_interval: Option<f32> = None;
-        let mut rcvr_clock_offset_applied: bool = false;
         let mut coords     : Option<rust_3d::Point3D> = None;
         // (OBS)
+        let mut obs_clock_offset_applied = false;
         let mut obs_code_lines : u8 = 0; 
         let mut current_code_syst = constellation::Constellation::default(); // to keep track in multi line scenario + Mixed constell 
         let mut obs_codes  : HashMap<constellation::Constellation, Vec<String>> = HashMap::with_capacity(constellation::CONSTELLATION_LENGTH);
@@ -654,7 +650,7 @@ impl Header {
             
             } else if line.contains("RCV CLOCK OFFS APPL") {
                 let ok_str = line.split_at(20).0.trim();
-                rcvr_clock_offset_applied = i32::from_str_radix(ok_str, 10)? != 0
+                obs_clock_offset_applied = i32::from_str_radix(ok_str, 10)? != 0
 
             } else if line.contains("# OF SATELLITES") {
                 // will always appear prior PRN/#OBS
@@ -909,7 +905,6 @@ impl Header {
             data_scaling: None,
             //ionospheric_corr: None,
             //gnsstime_corr: None,
-            rcvr_clock_offset_applied,
             ///////////////////////
             // OBS 
             ///////////////////////
@@ -918,6 +913,7 @@ impl Header {
                     Some(observation::HeaderFields {
                         crinex: crinex.clone(),
                         codes: obs_codes.clone(),
+                        clock_offset_applied: obs_clock_offset_applied,
                     })
                 } else {
                     None

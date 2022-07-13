@@ -34,6 +34,8 @@ pub struct HeaderFields {
     pub crinex: Option<Crinex>, 
     /// Observation codes present in this file, by Constellation
     pub codes: HashMap<Constellation, Vec<String>>,
+    /// True if epochs & data compensate for local clock drift
+    pub clock_offset_applied: bool,
 }
 
 /// `Ssi` describes signals strength
