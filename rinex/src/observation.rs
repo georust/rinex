@@ -1,6 +1,7 @@
 //! `ObservationData` parser and related methods
 use std::io::Write;
 use thiserror::Error;
+use crate::version;
 use std::str::FromStr;
 use std::collections::{BTreeMap, HashMap};
 use physical_constants::SPEED_OF_LIGHT_IN_VACUUM;
@@ -9,6 +10,31 @@ use crate::sv;
 use crate::epoch;
 use crate::header;
 use crate::constellation;
+use crate::constellation::Constellation;
+
+/// Describes `Compact RINEX` specific information
+#[derive(Clone, Debug)]
+#[cfg_attr(feature = "with-serde", derive(Serialize))]
+pub struct Crinex {
+    /// Compression program version
+    pub version: version::Version,
+    /// Compression program name
+    pub prog: String,
+    /// Date of compression
+    #[cfg_attr(feature = "with-serde", serde(with = "datetime_formatter"))]
+    pub date: chrono::NaiveDateTime,
+}
+
+/// Describes known marker types
+/// Observation Record specific header fields
+#[derive(Debug, Clone)]
+pub struct HeaderFields {
+    /// Optional CRINEX information,
+    /// only present on compressed OBS
+    pub crinex: Option<Crinex>, 
+    /// Observation codes present in this file, by Constellation
+    pub codes: HashMap<Constellation, Vec<String>>,
+}
 
 /// `Ssi` describes signals strength
 #[repr(u8)]
@@ -159,6 +185,7 @@ pub enum RecordError {
 }
 
 /// Builds `Record` entry for `ObservationData`
+/// from given epoch content
 pub fn build_record_entry (header: &header::Header, content: &str)
         -> Result<(epoch::Epoch, Option<f32>, HashMap<sv::Sv, HashMap<String, ObservationData>>), RecordError> 
 {
@@ -197,6 +224,12 @@ pub fn build_record_entry (header: &header::Header, content: &str)
 
     let mut sv_list : Vec<sv::Sv> = Vec::with_capacity(24);
 	let mut map : HashMap<sv::Sv, HashMap<String, ObservationData>> = HashMap::new();
+	
+    // all encountered obs codes
+    let obs = header.obs
+        .as_ref()
+        .unwrap();
+    let obs_codes = &obs.codes;
     
     // grabbing possible clock_offsets content
     let offs : Option<&str> = match header.version.major < 2 {
@@ -291,14 +324,12 @@ pub fn build_record_entry (header: &header::Header, content: &str)
 
 			// old RINEX revision : using previously identified Sv 
 			let sv : sv::Sv = sv_list[i]; 
-			let obs_codes = header.obs_codes
-				.as_ref()
-					.unwrap()
-					.get(&sv.constellation)
-					.unwrap();
+			let codes =  obs_codes
+                .get(&sv.constellation)
+                .unwrap();
 			let mut code_index : usize = 0;
 			loop { // per obs code
-				let code = &obs_codes[code_index];
+				let code = &codes[code_index];
 				let obs : Option<f32> = match line.len() < offset+14 { 
 					true => {
 						// cant' grab a new measurement
@@ -409,16 +440,12 @@ pub fn build_record_entry (header: &header::Header, content: &str)
 			};
 			let sv = sv::Sv::new(constell, prn);
 			// retrieve obs code for that system
-			let obs_codes = &header.obs_codes
-				.as_ref()
-					.unwrap()
-					.get(&sv.constellation)
-					.unwrap();
+			let codes =  &obs_codes[&constell];
 			let mut offset : usize = 0;
 			let mut code_index : usize = 0;
 			let mut obs_map : HashMap<String, ObservationData> = HashMap::new();
 			loop { // per obs code
-				let code = &obs_codes[code_index];
+				let code = &codes[code_index];
 				let obs = &rem[offset..offset+14];
 				let obs : Option<f32> = match f32::from_str(&obs.trim()) {
 					Ok(f) => Some(f),
@@ -477,7 +504,10 @@ pub fn build_record_entry (header: &header::Header, content: &str)
 
 /// Pushes observation record into given file writer
 pub fn to_file (header: &header::Header, record: &Record, mut writer: std::fs::File) -> std::io::Result<()> {
-    let _obs_codes = header.obs_codes.as_ref().unwrap();
+    let obs = header.obs
+        .as_ref()
+        .unwrap();
+    let codes = &obs.codes;
     for (epoch, (clock_offset, observations)) in record.iter() {
         match header.version.major {
             1|2 => {

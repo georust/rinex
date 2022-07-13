@@ -6,6 +6,7 @@ use std::io::{prelude::*, BufReader};
 use std::collections::{BTreeMap, HashMap};
 
 use crate::sv;
+use crate::antex;
 use crate::epoch;
 use crate::meteo;
 use crate::header;
@@ -31,12 +32,47 @@ pub enum Record {
 	/// `record` is a hashmap of f32 indexed by Observation Code,
 	/// sorted by `epoch`
     MeteoRecord(meteo::Record),
+/*
+    /// `antex::Record` : Antenna Data file content.
+    /// `record` is a hashmap of possible Antenna parameters
+    AntexRecord(antex::Record),
+*/
 }
 
 /// Comments: alias to describe comments encountered in `record` file section
 pub type Comments = BTreeMap<epoch::Epoch, Vec<String>>;
 
 impl Record {
+/*	
+    /// Unwraps self as ANTEX `record`
+    pub fn as_antex (&self) -> Option<&antex::Record> {
+        match self {
+            Record::AntexRecord(e) => Some(e),
+            _ => None,
+        }
+    }
+    /// Unwraps self as mutable reference to ANTEX `record`
+    pub fn as_mut_antex (&mut self) -> Option<&mut antex::Record> {
+        match self {
+            Record::AntexRecord(e) => Some(e),
+            _ => None,
+        }
+    }
+*/
+	/// Unwraps self as MET `record`
+    pub fn as_meteo (&self) -> Option<&meteo::Record> {
+        match self {
+            Record::MeteoRecord(e) => Some(e),
+            _ => None,
+        }
+    }
+    /// Returns mutable reference to Meteo record
+    pub fn as_mut_meteo (&mut self) -> Option<&mut meteo::Record> {
+        match self {
+            Record::MeteoRecord(e) => Some(e),
+            _ => None,
+        }
+    }
 	/// Unwraps self as NAV `record`
     pub fn as_nav (&self) -> Option<&navigation::Record> {
         match self {
@@ -65,20 +101,6 @@ impl Record {
             _ => None,
         }
     }
-	/// Unwraps self as MET `record`
-    pub fn as_meteo (&self) -> Option<&meteo::Record> {
-        match self {
-            Record::MeteoRecord(e) => Some(e),
-            _ => None,
-        }
-    }
-    /// Returns mutable reference to Meteo record
-    pub fn as_mut_meteo (&mut self) -> Option<&mut meteo::Record> {
-        match self {
-            Record::MeteoRecord(e) => Some(e),
-            _ => None,
-        }
-    }
     /// Streams into given file writer
     pub fn to_file (&self, header: &header::Header, mut writer: std::fs::File) -> std::io::Result<()> {
         match &header.rinex_type {
@@ -97,6 +119,7 @@ impl Record {
                     .unwrap();
                 Ok(navigation::to_file(header, &record, writer)?)
             },
+            _ => panic!("Type of record not supported yet"),
         }
     }
 }
@@ -186,6 +209,7 @@ pub fn is_new_epoch (line: &str, header: &header::Header) -> bool {
 						},
 					}
 				},
+                _ => false, // Type of record not supported yet
 			}
 		},
 		_ => {
@@ -229,7 +253,11 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Com
     // CRINEX record special process is special
     // we need the decompression algorithm to run in rolling fashion
     // and feed the decompressed result to the `new epoch` detection method
-    let crx_info = header.crinex.as_ref();
+    let crinex = if let Some(obs) = &header.obs {
+        obs.crinex.is_some()
+    } else {
+        false
+    };
     let mut decompressor = hatanaka::Decompressor::new(8);
     // record 
     let mut nav_rec : navigation::Record = BTreeMap::new();  // NAV
@@ -257,9 +285,9 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Com
         //  [1]  RINEX : pass content as is
         //  [2] CRINEX : decompress
         //           --> decompressed content may wind up as more than one line
-        content = match crx_info {
-            None => Some(line.to_string()), 
-            Some(_) => {
+        content = match crinex {
+            false => Some(line.to_string()), 
+            true => {
                 // decompressor::decompress()
                 // splits content on \n as it can work on several lines at once,
                 // here we iterate through each line, so add an extra \n
@@ -328,6 +356,7 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Com
                                 comment_ts = e.clone(); // for comments classification + management
                             }
                         },
+                        _ => {}, // Type of record not supported yet
                     }
 
                     // new comments ?
@@ -374,6 +403,7 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Com
                 comment_ts = e.clone(); // for comments classification + management
             }
         },
+        _ => {}, // Type of record not supported yet
     }
     // new comments ?
     if !comment_content.is_empty() {
@@ -384,6 +414,7 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Com
         Type::NavigationData => Record::NavRecord(nav_rec),
         Type::ObservationData => Record::ObsRecord(obs_rec), 
 		Type::MeteoData => Record::MeteoRecord(met_rec),
+        _ => panic!("type of record not supported yet"), 
     };
     Ok((record, comments))
 }

@@ -61,8 +61,9 @@ fn main() {
 
 	// ----> determine available observation codes
 	//       for Glonass system
-	let obs_codes = &rinex.header.obs_codes
-		.unwrap()
+    let obs = rinex.header.obs
+        .unwrap();
+	let obs_codes = obs.codes; 
 		[&Constellation::GPS];
 	println!("\n----------- OBS codes for {} system-------\n{:#?}", Constellation::GPS.to_3_letter_code(), obs_codes);
     

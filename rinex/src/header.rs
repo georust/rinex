@@ -1,6 +1,7 @@
 //! Describes a `RINEX` header, includes
 //! rinex header parser and associated methods
 use crate::leap;
+use crate::antex;
 use crate::clocks;
 use crate::version;
 //use crate::gnss_time;
@@ -8,6 +9,7 @@ use crate::{is_comment};
 use crate::types::{Type, TypeError};
 use crate::constellation;
 use crate::merge::MergeError;
+use crate::observation;
 
 use std::fs::File;
 use thiserror::Error;
@@ -200,20 +202,6 @@ pub mod datetime_formatter {
     }*/
 }
 
-/// Describes `Compact RINEX` specific information
-#[derive(Clone, Debug)]
-#[cfg_attr(feature = "with-serde", derive(Serialize))]
-pub struct CrinexInfo {
-    /// Compression program version
-    pub version: version::Version,
-    /// Compression program name
-    pub prog: String,
-    /// Date of compression
-    #[cfg_attr(feature = "with-serde", serde(with = "datetime_formatter"))]
-    pub date: chrono::NaiveDateTime,
-}
-
-/// Describes known marker types
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub enum MarkerType {
@@ -282,9 +270,6 @@ impl std::str::FromStr for MarkerType {
 pub struct Header {
     /// revision for this `RINEX`
     pub version: version::Version, 
-    /// optionnal `CRINEX` (compressed `RINEX` infos), 
-    /// if this is a CRINEX
-    pub crinex: Option<CrinexInfo>, 
     /// type of `RINEX` file
     pub rinex_type: Type, 
     /// specific `GNSS` constellation system,
@@ -338,21 +323,32 @@ pub struct Header {
     //ionospheric_corr: Option<Vec<IonoCorr>>,
     // possible time system correction(s)
     //gnsstime_corr: Option<Vec<gnss_time::GnssTimeCorr>>,
+    //////////////////////////////////
+    // OBSERVATION
+    //////////////////////////////////
+    pub obs: Option<observation::HeaderFields>,
     /// Observations:   
     /// true if epochs & data compensate for local clock drift 
     pub rcvr_clock_offset_applied: bool, 
-    // observation - specific
-    /// lists all types of observations 
-    /// contained in this `Rinex` OBS file
-    pub obs_codes: Option<HashMap<constellation::Constellation, Vec<String>>>, 
+    //////////////////////////////////
+    // Meteo 
+    //////////////////////////////////
+    //pub meteo: Option<meteo::HeaderFields>,
 	/// lists all types of observations
 	/// contains in this `RINEX` Meteo file
     pub met_codes: Option<Vec<String>>, 
-    // clocks - specific
+    //////////////////////////////////
+    // Clocks fields 
+    //////////////////////////////////
     /// Clock Data analysis production center
     pub analysis_center: Option<clocks::AnalysisCenter>,
     /// Clock Data observation codes
     pub clk_codes: Option<Vec<String>>,
+    //////////////////////////////////
+    // Antex
+    //////////////////////////////////
+    /// Optionnal Antex fields
+    pub antex: Option<antex::HeaderFields>,
 }
 
 #[derive(Error, Debug)]
@@ -377,13 +373,14 @@ pub enum Error {
     ParseFloatError(#[from] std::num::ParseFloatError),
     #[error("failed to parse date")]
     DateParsingError(#[from] chrono::ParseError),
+    #[error("failed to parse ANTEX fields")]
+    AntexParsingError(#[from] antex::Error),
 }
 
 impl Default for Header {
     fn default() -> Header {
         Header {
             version: version::Version::default(), 
-            crinex: None,
             rinex_type: Type::default(),
             constellation: Some(constellation::Constellation::default()),
             comments: Vec::new(),
@@ -406,18 +403,26 @@ impl Default for Header {
 			sensors: None,
             coords: None, 
             wavelengths: None,
-            // observations
-            obs_codes: None,
-			met_codes: None,
-            // clocks
-            analysis_center: None,
-            clk_codes: None,
             // processing
             rcvr_clock_offset_applied: false,
             data_scaling: None,
             //ionospheric_corr: None,
             //gnsstime_corr: None,
             sampling_interval: None,
+            /////////////////////////
+            // OBSERVATION
+            /////////////////////////
+            obs: None,
+			met_codes: None,
+            /////////////////////////
+            // Clocks
+            /////////////////////////
+            analysis_center: None,
+            clk_codes: None,
+            /////////////////////////
+            // Antex
+            /////////////////////////
+            antex: None,
         }
     }
 }
@@ -427,7 +432,7 @@ impl Header {
     pub fn new (path: &str) -> Result<Header, Error> { 
         let file = File::open(path)?;
         let reader = BufReader::new(file);
-        let mut crnx_infos : Option<CrinexInfo> = None;
+        let mut crinex : Option<observation::Crinex> = None;
         let mut crnx_version = version::Version::default(); 
         let mut rinex_type = Type::default();
         let mut constellation : Option<constellation::Constellation> = None;
@@ -461,34 +466,72 @@ impl Header {
         let mut obs_codes  : HashMap<constellation::Constellation, Vec<String>> = HashMap::with_capacity(constellation::CONSTELLATION_LENGTH);
         // (OBS/METEO)
 		let mut met_codes  : Vec<String> = Vec::new();
-        // (Clocks)
+        // CLOCKS
         let mut analysis_center : Option<clocks::AnalysisCenter> = None;
+        // ANTEX
+        let mut pcv : Option<antex::Pcv> = None;
+        let mut ant_relative_values = String::from("AOAD/M_T");
+        let mut ref_ant_sn : Option<String> = None;
 
         for l in reader.lines() {
             let line = &l.unwrap();
+            ///////////////////////////////
             // [0] COMMENTS
+            ///////////////////////////////
             if is_comment!(line) {
                 let comment = line.split_at(60).0;
+                // --> storing might be useful
                 comments.push(comment.trim_end().to_string());
                 continue
             }
-            // [1] CRINEX 
+            //////////////////////////////////////
+            // [1] CRINEX Special field [1]
+            /////////////////////////////////////
             else if line.contains("CRINEX VERS") {
                 let version = line.split_at(20).0;
                 crnx_version = version::Version::from_str(version.trim())?
-
+            //////////////////////////////////////
+            // [1*] CRINEX Special field [2]
+            /////////////////////////////////////
             } else if line.contains("CRINEX PROG / DATE") {
                 let (pgm, remainder) = line.split_at(20);
                 let (_, remainder) = remainder.split_at(20);
                 let date = remainder.split_at(20).0.trim();
-                crnx_infos = Some(
-                    CrinexInfo {
+                crinex = Some(
+                    observation::Crinex {
                         version: crnx_version, 
                         prog: pgm.trim().to_string(),
                         date: chrono::NaiveDateTime::parse_from_str(date, "%d-%b-%y %H:%M")?
                     })
             }
-            // [2] RINEX
+            
+            ////////////////////////////////////////
+            // [2*] ANTEX special RINEX
+            ////////////////////////////////////////
+            else if line.contains("ANTEX VERSION / SYST") {
+                let line = line.split_at(60).0;
+                let (vers, system) = line.split_at(8);
+                version = version::Version::from_str(vers.trim())?;
+                constellation = Some(constellation::Constellation::from_str(system.trim())?);
+            } 
+            else if line.contains("PCV TYPE / REFANT") {
+                let line = line.split_at(60).0;
+                let (pcv_str, rem) = line.split_at(20);
+                let (ref_type, rem) = rem.split_at(20);
+                let (ref_sn, _) = rem.split_at(20);
+                pcv = Some(antex::Pcv::from_str(pcv_str)?);
+                if ref_type.trim().len() > 0 {
+                    ant_relative_values = ref_type.trim().to_string();
+                }
+                if ref_sn.trim().len() > 0 {
+                    ref_ant_sn = Some(ref_sn.trim().to_string())
+                }
+            }
+
+            ///////////////////////////////////////
+            // ==> from now on
+            // RINEX classical header attributes
+            ///////////////////////////////////////
             else if line.contains("RINEX VERSION / TYPE") {
                 let (vers, rem) = line.split_at(20);
                 let (type_str, rem) = rem.split_at(20); 
@@ -833,20 +876,13 @@ impl Header {
 			false => None
 		};
 
-        let obs_codes: Option<HashMap<constellation::Constellation, Vec<String>>> = match obs_codes.is_empty() {
-            true => None,
-            false => Some(obs_codes),
-        };
-
 		let met_codes : Option<Vec<String>> = match met_codes.is_empty() {
 			true => None,
 			false => Some(met_codes),
 		};
 
-        
         Ok(Header{
             version: version,
-            crinex: crnx_infos, 
             rinex_type,
             constellation,
             comments,
@@ -865,18 +901,47 @@ impl Header {
             ant, 
 			sensors,
             leap,
-            analysis_center,
-            clk_codes: None,
             coords: coords,
             wavelengths: None,
             gps_utc_delta: None,
-            obs_codes,
 			met_codes,
             sampling_interval: sampling_interval,
             data_scaling: None,
             //ionospheric_corr: None,
             //gnsstime_corr: None,
             rcvr_clock_offset_applied,
+            ///////////////////////
+            // OBS 
+            ///////////////////////
+            obs: {
+                if obs_codes.len() > 0 {
+                    Some(observation::HeaderFields {
+                        crinex: crinex.clone(),
+                        codes: obs_codes.clone(),
+                    })
+                } else {
+                    None
+                }
+            },
+            ///////////////////////
+            // CLOCKS
+            ///////////////////////
+            clk_codes: None,
+            analysis_center,
+            ///////////////////////
+            // ANTEX
+            ///////////////////////
+            antex: {
+                if let Some(pcv) = pcv {
+                    Some(antex::HeaderFields {
+                        pcv,
+                        relative_values: ant_relative_values,
+                        reference_sn: ref_ant_sn,
+                    })
+                } else {
+                    None
+                }
+            },
         })
     }
     /// `Merges` self and given header
@@ -995,7 +1060,13 @@ impl Header {
     }
     
     /// Returns true if self is a `Compressed RINEX`
-    pub fn is_crinex (&self) -> bool { self.crinex.is_some() }
+    pub fn is_crinex (&self) -> bool { 
+        if let Some(obs) = &self.obs {
+            obs.crinex.is_some()
+        } else {
+            false
+        }
+    }
 
     /// Creates a Basic Header structure
     /// for NAV RINEX
@@ -1096,7 +1167,8 @@ impl std::fmt::Display for Header {
                 write!(f,"{:<20}", "METEOROLOGICAL DATA")?;
                 write!(f,"{:<20}", "")?;
                 write!(f,"{:<20}", "RINEX VERSION / TYPE\n")?
-            }
+            },
+            Type::AntennaData => {}, //TODO
         }
         // COMMENTS 
         for comment in self.comments.iter() {
@@ -1154,10 +1226,10 @@ impl std::fmt::Display for Header {
         // OBS codes
         match self.rinex_type {
             Type::ObservationData => {
-                if let Some(codes) = &self.obs_codes {
+                if let Some(obs) = &self.obs {
                     match self.version.major {
                         1|2 => { // old revisions
-                            for (_constell, codes) in codes.iter() {
+                            for (_constell, codes) in obs.codes.iter() {
                                 let mut line = format!("{:6}", codes.len()); 
                                 for i in 0..codes.len() {
                                     if (i+1)%11 == 0 {
@@ -1175,7 +1247,7 @@ impl std::fmt::Display for Header {
                             }
                         },
                         _ => { // modern revisions
-                            for (constell, codes) in codes.iter() {
+                            for (constell, codes) in obs.codes.iter() {
                                 let mut line = format!("{:<4}", constell.to_1_letter_code());
                                 line.push_str(&format!("{:2}", codes.len())); 
                                 for i in 0..codes.len() {
@@ -1195,7 +1267,7 @@ impl std::fmt::Display for Header {
                         },
                     }
                 } else {
-                    panic!("Must specify `header.obs_codes` field when producing ObservationData!")
+                    panic!("Observation RINEX with no `obs codes` specified")
                 }
             },
             Type::MeteoData => {

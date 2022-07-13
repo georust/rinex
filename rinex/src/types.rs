@@ -10,10 +10,17 @@ pub enum Type {
     /// Phase & Pseudo range measurements
     ObservationData, 
     /// Describes Navigation Data (NAV)
-    /// Ephemeride file
+    /// Ephemeris file
     NavigationData,
     /// Describes Meteorological data (MET)
     MeteoData,
+    /// Antenna Data (ATX or Antex) special RINEX format,
+    /// with empty header and body describes several sets of
+    /// Antenna characterization coefficients.
+    /// No database is furnished by this lib (way too big).
+    /// Users interested in such calibrations / conversions / calculations,
+    /// should use this parser as a mean to extract the antenna coefficients solely
+    AntennaData,
 }
 
 #[derive(Error, Debug)]
@@ -40,6 +47,7 @@ impl Type {
                 }
             },
             Type::MeteoData => String::from("METEOROLOGICAL DATA"),
+            Type::AntennaData => String::from("ANTEX"),
         }
     }
 }
@@ -55,6 +63,8 @@ impl std::str::FromStr for Type {
             Ok(Type::ObservationData)
         } else if s.eq("METEOROLOGICAL DATA") {
             Ok(Type::MeteoData)
+        } else if s.eq("ANTEX") {
+            Ok(Type::AntennaData)
         } else {
             Err(TypeError::UnknownType(String::from(s)))
         }

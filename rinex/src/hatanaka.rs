@@ -292,13 +292,15 @@ impl Decompressor {
         }
         // grab useful information for later
         let rnx_version = &header.version;
-        let crx_version = header.crinex
-            .as_ref()
-            .unwrap()
-            .version;
-        let obs_codes = header.obs_codes
+        let obs = header.obs
             .as_ref()
             .unwrap();
+        let crinex = obs.crinex
+            .as_ref()
+            .unwrap();
+        let crx_version = crinex.version;
+        let obs_codes = &obs.codes; 
+        
         // pre defined maximal compression order
         //  ===> to adapt all other kernels accordingly
         let m = self.clk_krn.state.len()-1; 
