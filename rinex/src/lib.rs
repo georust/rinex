@@ -259,11 +259,7 @@ impl Rinex {
             },
         };
         if header.version.major < 3 {
-            //TODO
-            //Hourly session ID letter corresponding to first epoch of data in the file.
-            //“a” = 00:00:00 - 00:59:59 (GPS time); “b” = 01:00:00 - 01:59:59; …. ;
-            //“x” = 23:00:00 - 23:59:59 
-            let s = "a"; 
+            let s = hourly_session_str(epoch.date.time());
             let yy = format!("{:02}", epoch.date.year());
             let t : String = match rtype {
                 types::Type::ObservationData => {
