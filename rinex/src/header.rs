@@ -1061,7 +1061,8 @@ impl std::fmt::Display for Header {
                 write!(f,"{:<20}", "")?;
                 write!(f,"{:<20}", "RINEX VERSION / TYPE\n")?
             },
-            Type::AntennaData => {}, //TODO
+            Type::ClockData => todo!(),
+            Type::AntennaData => todo!(),
         }
         // COMMENTS 
         for comment in self.comments.iter() {

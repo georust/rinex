@@ -14,6 +14,8 @@ pub enum Type {
     NavigationData,
     /// Describes Meteorological data (MET)
     MeteoData,
+    /// Clock Data
+    ClockData,
     /// Antenna Data (ATX or Antex) special RINEX format,
     /// with empty header and body describes several sets of
     /// Antenna characterization coefficients.
@@ -47,6 +49,7 @@ impl Type {
                 }
             },
             Type::MeteoData => String::from("METEOROLOGICAL DATA"),
+            Type::ClockData => String::from("CLOCK DATA"),
             Type::AntennaData => String::from("ANTEX"),
         }
     }
@@ -63,6 +66,8 @@ impl std::str::FromStr for Type {
             Ok(Type::ObservationData)
         } else if s.eq("METEOROLOGICAL DATA") {
             Ok(Type::MeteoData)
+        } else if s.eq("CLOCK DATA") {
+            Ok(Type::ClockData)
         } else if s.eq("ANTEX") {
             Ok(Type::AntennaData)
         } else {

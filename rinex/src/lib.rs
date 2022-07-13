@@ -231,31 +231,12 @@ impl Rinex {
         //self.header.date should be a datetime object
         //but it is complex to parse..
         let ddd = String::from("DDD"); 
-        let epoch : epoch::Epoch = match rtype {
-            types::Type::ObservationData => {
-                let e : Vec<&epoch::Epoch> = self.record.as_obs()
-                    .unwrap()
-                    .keys()
-                    .collect();
-                *e[0]
-            },
-            types::Type::NavigationData => {
-                let e : Vec<&epoch::Epoch> = self.record.as_nav()
-                    .unwrap()
-                    .keys()
-                    .collect();
-                *e[0]
-            },
-            types::Type::MeteoData => {
-                let e : Vec<&epoch::Epoch> = self.record.as_meteo()
-                    .unwrap()
-                    .keys()
-                    .collect();
-                *e[0]
-            },
-            types::Type::AntennaData => {
-                epoch::Epoch::default()
-            },
+        let epoch : &epoch::Epoch = match rtype {
+              types::Type::ObservationData 
+            | types::Type::NavigationData 
+            | types::Type::MeteoData 
+            | types::Type::ClockData => self.epochs_iter()[0],
+            _ => todo!(), // other files require a dedicated procedure
         };
         if header.version.major < 3 {
             let s = hourly_session_str(epoch.date.time());
@@ -280,7 +261,8 @@ impl Rinex {
                     }
                 },
                 types::Type::MeteoData => String::from("m"),
-                types::Type::AntennaData => String::from("?"), //TODO
+                types::Type::ClockData => todo!(),
+                types::Type::AntennaData => todo!(), 
             };
             format!("{}{}{}.{}{}", nnnn, ddd, s, yy, t)
         } else {
@@ -312,7 +294,8 @@ impl Rinex {
                 types::Type::ObservationData => String::from("O"),
                 types::Type::NavigationData => String::from("N"),
                 types::Type::MeteoData => String::from("M"),
-                types::Type::AntennaData => String::from("?"), //TODO
+                types::Type::ClockData => todo!(),
+                types::Type::AntennaData => todo!(),
             };
             let fmt = match header.is_crinex() {
                 true => String::from("crx"),
