@@ -441,7 +441,7 @@ impl Header {
             } else if line.contains("ANT # / TYPE") {
                 let line = line.split_at(60).0;
                 let (model, rem) = line.split_at(20);
-                let (sn, rem) = line.split_at(20);
+                let (sn, _) = rem.split_at(20);
                 ant_model = model.trim().to_string();
                 ant_sn = sn.trim().to_string();
             

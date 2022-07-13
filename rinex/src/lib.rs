@@ -25,7 +25,6 @@ pub mod observation;
 
 use std::io::Write;
 use thiserror::Error;
-use std::str::FromStr;
 use itertools::Itertools;
 use std::collections::{BTreeMap, HashMap};
 use chrono::{Datelike, Timelike};
@@ -377,7 +376,8 @@ impl Rinex {
             Some(std::time::Duration::from_secs(interval as u64))
         } else {
             // build epoch interval histogram 
-            let mut histogram : HashMap<i64, u64> = HashMap::new(); // {internval, population}
+            /*
+            let mut histogram : Vec<i64, u64> = Vec::new(); // {internval, population}
             let epochs = self.epochs_iter();
             for i in 0..epochs.len()-1 {
                 let e_i = epochs.get(i).unwrap();
@@ -407,7 +407,8 @@ impl Rinex {
                 // or contained a unique epoch
                 // --> calculation was not feasible
                 None 
-            }
+            }*/
+            None
         }
     }
 
@@ -1031,6 +1032,7 @@ impl Rinex {
 #[cfg(test)]
 mod test {
     use super::*;
+    use std::str::FromStr;
     use std::process::Command;
     /// Runs `diff` to determines whether f1 & f2 
     /// are strictly identical or not
@@ -1256,5 +1258,8 @@ mod test {
         let time = chrono::NaiveTime::from_str("00:00:00").unwrap();
         assert_eq!(hourly_session_str(time), "a");
         let time = chrono::NaiveTime::from_str("00:30:00").unwrap();
+        assert_eq!(hourly_session_str(time), "a");
+        let time = chrono::NaiveTime::from_str("23:30:00").unwrap();
+        assert_eq!(hourly_session_str(time), "x");
     }
 }

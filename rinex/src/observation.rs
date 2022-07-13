@@ -555,6 +555,7 @@ pub fn pseudo_range_to_distance (pseudo_rg: f64, rcvr_clock_offset: f64, sv_cloc
     // p17 table 4
 }
 
+#[cfg(test)]
 mod test {
     use super::*;
     #[test]

@@ -345,8 +345,10 @@ fn db_closest_revision (constell: constellation::Constellation, desired_rev: ver
     }
 }
 
+#[cfg(test)]
 mod test {
     use std::str::FromStr;
+    use super::*;
     #[test]
     /// Tests static NAV database to be used in dedicated parser
     fn test_nav_database() {
@@ -376,9 +378,6 @@ mod test {
             }
         }
     }
-    use crate::version;
-    use crate::constellation;
-    use super::db_closest_revision;
     #[test]
     /// Tests closest revision identifier in db
     fn test_db_revision_finder() {

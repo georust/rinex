@@ -161,7 +161,7 @@ impl Kernel {
     }
     
     /// Compresses numerical data using Hatanaka method
-    fn numerical_data_compression (&self, data: i64) -> Dtype {
+    fn numerical_data_compression (&self, _data: i64) -> Dtype {
         Dtype::Numerical(0)
     }
 
@@ -206,7 +206,7 @@ impl Kernel {
     }
     
     /// Compresses text data using Hatanaka method
-    fn text_data_compression (&self, data: String) -> Dtype {
+    fn text_data_compression (&self, _data: String) -> Dtype {
         Dtype::Text(String::from("hello world"))
     }
 }

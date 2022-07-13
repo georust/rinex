@@ -1,12 +1,11 @@
 //! `RINEX` file content description and parsing
 use thiserror::Error;
 use std::fs::File;
-use std::str::FromStr;
 use std::io::{prelude::*, BufReader};
 use std::collections::{BTreeMap, HashMap};
 
 use crate::sv;
-use crate::antex;
+//use crate::antex;
 use crate::epoch;
 use crate::meteo;
 use crate::header;
@@ -102,7 +101,7 @@ impl Record {
         }
     }
     /// Streams into given file writer
-    pub fn to_file (&self, header: &header::Header, mut writer: std::fs::File) -> std::io::Result<()> {
+    pub fn to_file (&self, header: &header::Header, writer: std::fs::File) -> std::io::Result<()> {
         match &header.rinex_type {
             Type::MeteoData => {
                 let record = self.as_meteo()
