@@ -506,10 +506,6 @@ pub fn build_record_entry (header: &header::Header, content: &str)
 
 /// Pushes observation record into given file writer
 pub fn to_file (header: &header::Header, record: &Record, mut writer: std::fs::File) -> std::io::Result<()> {
-    let obs = header.obs
-        .as_ref()
-        .unwrap();
-    let codes = &obs.codes;
     for (epoch, (clock_offset, observations)) in record.iter() {
         match header.version.major {
             1|2 => {

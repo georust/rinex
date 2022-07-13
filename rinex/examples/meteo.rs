@@ -1,4 +1,3 @@
-use rinex::sv;
 use rinex::epoch;
 use rinex::types::Type;
 use rinex::constellation::Constellation;

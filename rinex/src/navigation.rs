@@ -273,7 +273,7 @@ fn db_closest_revision (constell: constellation::Constellation, desired_rev: ver
     if revisions.len() == 0 {
         return None // ---> constell not found in dB
     }
-    let mut major_matches : Vec<_> = revisions.iter()
+    let major_matches : Vec<_> = revisions.iter()
         .filter(|r| i8::from_str_radix(r.major,10).unwrap() - desired_rev.major as i8 == 0)
         .collect();
     if major_matches.len() > 0 {

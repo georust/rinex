@@ -18,7 +18,7 @@ use std::fs::File;
 use thiserror::Error;
 use std::str::FromStr;
 use std::collections::HashMap;
-use std::io::{self, prelude::*, BufReader};
+use std::io::{prelude::*, BufReader};
 
 #[cfg(feature = "with-serde")]
 use serde::{Serialize, Deserialize};
