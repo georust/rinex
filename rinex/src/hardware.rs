@@ -1,3 +1,8 @@
+//! Hardware and receiver related structures
+#[cfg(feature = "with-serde")]
+use crate::formatter::point3d;
+use serde::{Serialize, Deserialize};
+
 /// GNSS receiver description
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
@@ -44,7 +49,7 @@ pub struct Antenna {
     /// Serial number / identification number
     pub sn: String,
     /// 3D coordinates of reference point
-    #[cfg_attr(feature = "with-serde", serde(with = "point3d_formatter"))]
+    #[cfg_attr(feature = "with-serde", serde(with = "point3d"))]
     pub coords: Option<rust_3d::Point3D>,
     /// height in comparison to ref. point
     pub height: Option<f32>,
@@ -66,24 +71,4 @@ impl Default for Antenna {
             northern_ecc: None,
         }
     }
-}
-
-#[cfg(feature = "with-serde")]
-pub mod datetime_formatter {
-    use serde::{Serializer};
-    pub fn serialize<S>(datetime: &chrono::NaiveDateTime, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let s = format!("{}", datetime.format("%Y-%m-%d %H:%M:%S"));
-        serializer.serialize_str(&s)
-    }
-
-    /*pub fn deserialize<'de, D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>, 
-    {
-        let s = String::deserialize(deserializer)?;
-        chrono::NaiveDateTime::parse_from_str(&s, "%Y-%m-%d %H:%M:%S")?
-    }*/
 }

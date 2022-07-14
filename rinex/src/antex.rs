@@ -33,6 +33,7 @@ impl Default for HeaderFields {
 
 /// Antenna Phase Center Variation types
 #[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub enum Pcv {
     /// Given data is aboslute
     Absolute,

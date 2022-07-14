@@ -22,29 +22,12 @@ use std::io::{prelude::*, BufReader};
 
 #[cfg(feature = "with-serde")]
 use serde::{Serialize, Deserialize};
+use crate::formatter::point3d;
 
 /// Describes a `CRINEX` (compressed rinex) 
 pub const CRINEX_MARKER_COMMENT : &str = "COMPACT RINEX FORMAT";
 /// End of Header section reached
 pub const HEADER_END_MARKER : &str = "END OF HEADER";
-
-#[cfg(feature = "with-serde")]
-mod point3d_formatter {
-    pub fn serialize<S>(point3d: &Option<rust_3d::Point3D>, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let p = point3d.as_ref().unwrap_or(
-            &rust_3d::Point3D {
-                x: 0.0_f64,
-                y: 0.0_f64,
-                z: 0.0_f64,
-            }
-        );
-        let s = format!("{},{},{}",p.x,p.y,p.z); 
-        serializer.serialize_str(&s)
-    }
-}
 
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
@@ -142,7 +125,7 @@ pub struct Header {
     /// optionnal leap seconds infos
     pub leap: Option<leap::Leap>, 
     /// station approxiamte coordinates
-    #[cfg_attr(feature = "with-serde", serde(with = "point3d_formatter"))]
+    #[cfg_attr(feature = "with-serde", serde(with = "point3d"))]
     pub coords: Option<rust_3d::Point3D>, 
     /// optionnal observation wavelengths
     pub wavelengths: Option<(u32,u32)>, 

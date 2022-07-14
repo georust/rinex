@@ -12,6 +12,10 @@ use crate::header;
 use crate::constellation;
 use crate::constellation::Constellation;
 
+#[cfg(features = "with-serde")]
+use crate::formatter::point3d;
+use crate::formatter::datetime;
+
 /// Describes `Compact RINEX` specific information
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "with-serde", derive(Serialize))]
@@ -21,14 +25,14 @@ pub struct Crinex {
     /// Compression program name
     pub prog: String,
     /// Date of compression
-    #[cfg_attr(feature = "with-serde", serde(with = "datetime_formatter"))]
+    #[cfg_attr(feature = "with-serde", serde(with = "datetime"))]
     pub date: chrono::NaiveDateTime,
 }
 
 /// Describes known marker types
 /// Observation Record specific header fields
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "with-serde", derive(Serialize))]
 pub struct HeaderFields {
     /// Optional CRINEX information,
     /// only present on compressed OBS
@@ -42,7 +46,7 @@ pub struct HeaderFields {
 /// `Ssi` describes signals strength
 #[repr(u8)]
 #[derive(PartialOrd, Ord, PartialEq, Eq, Copy, Clone, Debug)]
-#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "with-serde", derive(Serialize))]
 pub enum Ssi {
     /// Ssi ~= 0 dB/Hz
     DbHz0 = 0,
@@ -127,7 +131,7 @@ pub mod lli_flags {
 }
 
 #[derive(PartialEq, Copy, Clone, Debug)]
-#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "with-serde", derive(Serialize))]
 pub struct ObservationData {
 	/// physical measurement
 	pub obs: f32,
