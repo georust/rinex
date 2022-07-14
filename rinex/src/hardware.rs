@@ -1,6 +1,8 @@
 //! Hardware and receiver related structures
 #[cfg(feature = "with-serde")]
 use crate::formatter::point3d;
+
+#[cfg(feature = "with-serde")]
 use serde::{Serialize, Deserialize};
 
 /// GNSS receiver description

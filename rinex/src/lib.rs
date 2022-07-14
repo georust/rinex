@@ -169,7 +169,7 @@ pub struct Rinex {
     /// `comments` : list of extra readable information,   
     /// found in `record` section exclusively.    
     /// Comments extracted from `header` sections are exposed in `header.comments`
-    comments: record::Comments, 
+    pub comments: record::Comments, 
     /// `record` contains `RINEX` file body
     /// and is type and constellation dependent 
     pub record: record::Record,
@@ -1015,6 +1015,8 @@ impl Rinex {
 
 #[cfg(test)]
 mod test {
+    use super::*;
+    use std::str::FromStr;
     #[test]
     fn test_macros() {
         assert_eq!(is_comment!("This is a comment COMMENT"), true);
