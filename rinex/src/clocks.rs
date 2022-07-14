@@ -22,7 +22,7 @@ pub struct HeaderFields {
 }
 
 /// Describes a clock station 
-#[derive(Clone, Debug)]
+#[derive(Clone, PartialEq, Debug)]
 #[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct Station {
     /// Station name
@@ -32,7 +32,7 @@ pub struct Station {
 }
 
 /// Describes a clock analysis center / agency
-#[derive(Clone, Debug)]
+#[derive(Clone, PartialEq, Debug)]
 #[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct Agency {
     /// IGS AC 3 letter code
@@ -50,6 +50,8 @@ pub enum Error {
     ParseEpochError(#[from] epoch::ParseDateError),
     #[error("failed to parse # of data fields")]
     ParseIntError(#[from] std::num::ParseIntError),
+    #[error("failed to parse data payload")]
+    ParseFloatError(#[from] std::num::ParseFloatError),
 }
 
 #[derive(Error, PartialEq, Eq, Hash, Clone, Debug)]
@@ -149,13 +151,12 @@ pub fn is_new_epoch (line: &str) -> bool {
 pub fn build_record_entry (header: &header::Header, content: &str) -> 
         Result<(epoch::Epoch, System, DataType, Data), Error> 
 {
-    println!("BUILD REC ENTRY \"{}\"", content);
     let mut lines = content.lines();
     let mut line = lines.next()
         .unwrap();
     // Data type code
     let (dtype, rem) = line.split_at(3);
-    let data_type = DataType::from_str(dtype)?;
+    let data_type = DataType::from_str(dtype.trim())?;
     let (system_str, rem) = rem.split_at(4);
     let system = match sv::Sv::from_str(system_str) {
         Ok(sv) => System::Sv(sv),
@@ -175,68 +176,51 @@ pub fn build_record_entry (header: &header::Header, content: &str) ->
     let (n, rem) = rem.split_at(5);
     let m = u8::from_str_radix(n.trim(), 10)?;
     line = rem.clone();
-    let mut offset = 0;
-    let mut n : u8 = 0;
-    let mut bias: f64 = 0.0;
-    let mut bias_sigma: f64 = 0.0;
-    let mut rate: f64 = 0.0;
-    let mut rate_sigma: f64 = 0.0;
-    let mut accel: f64 = 0.0;
-    let mut accel_sigma: f64 = 0.0;
-    loop {
-        if n == m {
-            break
-        }
-        if n == 2 && m > 2 {
-            if let Some(l) = lines.next() {
-                offset = 0;
-                line = l
-            } else {
-                break
-            }
-        }
-        n += 1;
-        offset += 20;
-        let (l, rem) = line.split_at(offset);
-        line = rem.clone()
-    }
+
+    let (content, rem) = rem.split_at(20);
+    let bias = f64::from_str(content.trim())?;
+    let bias_sigma :Option<f64> = match m > 1 {
+        true => {
+            let (content, rem) = rem.split_at(20);
+            Some(f64::from_str(content.trim())?)
+        },
+        _ => None,
+    };
+    let rate: Option<f64> = match m > 2 {
+        true => {
+            let (content, rem) = rem.split_at(20);
+            Some(f64::from_str(content.trim())?)
+        },
+        _ => None,
+    };
+    let rate_sigma :Option<f64> = match m > 3 {
+        true => {
+            let (content, rem) = rem.split_at(20);
+            Some(f64::from_str(content.trim())?)
+        },
+        _ => None,
+    };
+    let accel: Option<f64> = match m > 4 {
+        true => {
+            let (content, rem) = rem.split_at(20);
+            Some(f64::from_str(content.trim())?)
+        },
+        _ => None,
+    };
+    let accel_sigma :Option<f64> = match m > 5 {
+        true => {
+            let (content, rem) = rem.split_at(20);
+            Some(f64::from_str(content.trim())?)
+        },
+        _ => None,
+    };
     let data = Data {
         bias,
-        bias_sigma: {
-            if m > 1 {
-                Some(bias_sigma)
-            } else {
-                None
-            }
-        },
-        rate: {
-            if m > 2 {
-                Some(rate)
-            } else {
-                None
-            }
-        },
-        rate_sigma: {
-            if m > 3 {
-                Some(rate_sigma)
-            } else {
-                None
-            }
-        },
-        accel: {
-            if m > 4 {
-                Some(accel)
-            } else {
-                None
-            }
-        },
-        accel_sigma: {
-            if m > 5 {
-                Some(accel_sigma)
-            } else {
-                None
-            }
-        },
+        bias_sigma,
+        rate,
+        rate_sigma,
+        accel,
+        accel_sigma,
     };
     let epoch = epoch::Epoch {
         flag: epoch::EpochFlag::Ok,

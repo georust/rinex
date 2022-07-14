@@ -519,8 +519,7 @@ impl Header {
                 // ⚠ ⚠ could either be observation or meteo data
                 if obs_code_lines == 0 {
                     // [x] OBS CODES 1st line 
-                    let (rem, _) = content.split_at(60); // cleanup
-                    let (n_codes, rem) = rem.split_at(6);
+                    let (n_codes, rem) = content.split_at(6);
                     let n_codes = u8::from_str_radix(n_codes.trim(), 10)?;
                     obs_code_lines = num_integer::div_ceil(n_codes, 9); // max. per line
                     // --> parse this line 
@@ -616,9 +615,8 @@ impl Header {
                     current_code_syst = constellation::Constellation::from_1_letter_code(identifier)?;
                     obs_codes.insert(current_code_syst, codes);
                 } else {
-                    let rem = line.split_at(60).0; // cleanup
                     // --> parse this line
-                    let codes : Vec<String> = rem
+                    let codes : Vec<String> = content
                         .split_ascii_whitespace()
                         .map(|r| r.trim().to_string())
                         .collect();
@@ -633,28 +631,34 @@ impl Header {
                 } 
                 obs_code_lines -= 1
             } else if marker.contains("ANALYSIS CENTER") {
-                let line = line.split_at(60).0;
-                let (code, agency) = line.split_at(3);
-                clk_agency_code = code.to_string();
-                clk_agency_name = agency.trim_end().to_string();
+                let (code, agency) = content.split_at(3);
+                clk_agency_code = code.trim().to_string();
+                clk_agency_name = agency.trim().to_string();
 
             } else if marker.contains("# / TYPES OF DATA") {
-                let line = line.split_at(60).0;
-                let (n, r) = line.split_at(6); // TODO
+                let (n, r) = content.split_at(6);
                 let n = u8::from_str_radix(n.trim(),10)?;
                 let mut rem = r.clone();
                 for i in 0..n {
                     let (code, r) = rem.split_at(6);
-                    if let Ok(c) = clocks::DataType::from_str(code) {
+                    if let Ok(c) = clocks::DataType::from_str(code.trim()) {
                         clk_codes.push(c)
                     }
                     rem = r.clone()
                 }
+
+            } else if marker.contains("STATION NAME / NUM") {
+                let (name, num) = content.split_at(4);
+                clk_station_name = name.trim().to_string();
+                clk_station_id = num.trim().to_string();
+
+            } else if marker.contains("STATION CLK REF") {
+                clk_ref = content.trim().to_string()
          
             } else if marker.contains("SIGNAL STRENGHT UNIT") {
                 //TODO
             } else if marker.contains("INTERVAL") {
-                let intv = line.split_at(20).0.trim();
+                let intv = content.split_at(20).0.trim();
                 sampling_interval = Some(f32::from_str(intv)?)
 
             } else if marker.contains("GLONASS SLOT / FRQ #") {
@@ -683,7 +687,7 @@ impl Header {
                 //0.931322574615D-09 0.355271367880D-14   233472     1930 DELTA-UTC: A0,A1,T,W
             }
         }
-        
+
         Ok(Header{
             version: version,
             rinex_type,
