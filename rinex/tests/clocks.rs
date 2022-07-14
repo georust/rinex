@@ -3,15 +3,16 @@ mod test {
     use rinex::*;
     use std::str::FromStr;
     use std::process::Command;
-    //#[test]
+    #[test]
     fn v3_demo() {
         let test_resource = 
             env!("CARGO_MANIFEST_DIR").to_owned() 
             + "/../test_resources/CLK/V3/demo.txt";
         let rinex = Rinex::from_file(&test_resource);
-        assert_eq!(rinex.is_ok(), true);
-        let rinex = rinex.unwrap();
-        assert_eq!(rinex.is_clocks_rinex(), true);
+        println!("{:#?}", rinex.unwrap().header.clocks);
+        //assert_eq!(rinex.is_ok(), true);
+        //let rinex = rinex.unwrap();
+        //assert_eq!(rinex.is_clocks_rinex(), true);
     }
 
     #[test]

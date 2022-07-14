@@ -302,26 +302,29 @@ impl Header {
 
         for l in reader.lines() {
             let line = &l.unwrap();
+            if line.len() < 60 {
+                continue // --> invalid header content
+            }
+            let (content, marker) = line.split_at(60);
             ///////////////////////////////
             // [0] COMMENTS
             ///////////////////////////////
-            if is_comment!(line) {
-                let comment = line.split_at(60).0;
+            if marker.trim().eq("COMMENT") {
                 // --> storing might be useful
-                comments.push(comment.trim_end().to_string());
+                comments.push(content.trim_end().to_string());
                 continue
             }
             //////////////////////////////////////
             // [1] CRINEX Special field [1]
             /////////////////////////////////////
-            else if line.contains("CRINEX VERS") {
-                let version = line.split_at(20).0;
+            else if marker.contains("CRINEX VERS") {
+                let version = content.split_at(20).0;
                 crnx_version = version::Version::from_str(version.trim())?
             //////////////////////////////////////
             // [1*] CRINEX Special field [2]
             /////////////////////////////////////
-            } else if line.contains("CRINEX PROG / DATE") {
-                let (pgm, remainder) = line.split_at(20);
+            } else if marker.contains("CRINEX PROG / DATE") {
+                let (pgm, remainder) = content.split_at(20);
                 let (_, remainder) = remainder.split_at(20);
                 let date = remainder.split_at(20).0.trim();
                 crinex = Some(
@@ -335,15 +338,13 @@ impl Header {
             ////////////////////////////////////////
             // [2*] ANTEX special RINEX
             ////////////////////////////////////////
-            else if line.contains("ANTEX VERSION / SYST") {
-                let line = line.split_at(60).0;
-                let (vers, system) = line.split_at(8);
+            else if marker.contains("ANTEX VERSION / SYST") {
+                let (vers, system) = content.split_at(8);
                 version = version::Version::from_str(vers.trim())?;
                 constellation = Some(constellation::Constellation::from_str(system.trim())?);
             } 
-            else if line.contains("PCV TYPE / REFANT") {
-                let line = line.split_at(60).0;
-                let (pcv_str, rem) = line.split_at(20);
+            else if marker.contains("PCV TYPE / REFANT") {
+                let (pcv_str, rem) = content.split_at(20);
                 let (ref_type, rem) = rem.split_at(20);
                 let (ref_sn, _) = rem.split_at(20);
                 pcv = Some(antex::Pcv::from_str(pcv_str)?);
@@ -359,7 +360,7 @@ impl Header {
             // ==> from now on
             // RINEX classical header attributes
             ///////////////////////////////////////
-            else if line.contains("RINEX VERSION / TYPE") {
+            else if marker.contains("RINEX VERSION / TYPE") {
                 let (vers, rem) = line.split_at(20);
                 let (type_str, rem) = rem.split_at(20); 
                 let (constell_str, _) = rem.split_at(20);
@@ -380,7 +381,7 @@ impl Header {
                     return Err(Error::VersionNotSupported(vers.to_string()))
                 }
             }
-            else if line.contains("PGM / RUN BY / DATE") {
+            else if marker.contains("PGM / RUN BY / DATE") {
                 let (pgm, rem) = line.split_at(20);
                 program = pgm.trim().to_string();
                 let (rb, rem) = rem.split_at(20);
@@ -391,25 +392,23 @@ impl Header {
                 let (date_str, _) = rem.split_at(20);
                 date = date_str.trim().to_string()
             }
-            else if line.contains("MARKER NAME") {
-                station = line.split_at(20).0.trim().to_string()
-            } else if line.contains("MARKER NUMBER") {
-                station_id = line.split_at(20).0.trim().to_string()
-            } else if line.contains("MARKER TYPE") {
-                let code = line.split_at(20).0.trim();
+            else if marker.contains("MARKER NAME") {
+                station = content.split_at(20).0.trim().to_string()
+            } else if marker.contains("MARKER NUMBER") {
+                station_id = content.split_at(20).0.trim().to_string()
+            } else if marker.contains("MARKER TYPE") {
+                let code = content.split_at(20).0.trim();
                 marker_type = Some(MarkerType::from_str(code).unwrap());
             
-            } else if line.contains("OBSERVER / AGENCY") {
-                let (content, _) = line.split_at(60);
+            } else if marker.contains("OBSERVER / AGENCY") {
                 let (obs, ag) = content.split_at(20);
                 observer = obs.trim().to_string();
                 agency = ag.trim().to_string()
 
-            } else if line.contains("REC # / TYPE / VERS") {
+            } else if marker.contains("REC # / TYPE / VERS") {
                 rcvr = Some(hardware::Rcvr::from_str(&line)?) 
 
-			} else if line.contains("SENSOR MOD/TYPE/ACC") {
-				let (content, _) = line.split_at(60);
+			} else if marker.contains("SENSOR MOD/TYPE/ACC") {
 				let (model, rem) = content.split_at(20);
 				let (stype, rem) = rem.split_at(20+6);
 				let (accuracy, rem) = rem.split_at(7+4);
@@ -424,36 +423,35 @@ impl Header {
                     }
                 )
             
-            } else if line.contains("ANT # / TYPE") {
-                let line = line.split_at(60).0;
-                let (model, rem) = line.split_at(20);
+            } else if marker.contains("ANT # / TYPE") {
+                let (model, rem) = content.split_at(20);
                 let (sn, _) = rem.split_at(20);
                 ant_model = model.trim().to_string();
                 ant_sn = sn.trim().to_string();
             
-            } else if line.contains("LEAP SECOND") {
-                leap = Some(leap::Leap::from_str(line.split_at(40).0)?)
+            } else if marker.contains("LEAP SECOND") {
+                leap = Some(leap::Leap::from_str(content.split_at(40).0)?)
 
-            } else if line.contains("DOI") {
-                let (content, _) = line.split_at(40); //  TODO: confirm please
+            } else if marker.contains("DOI") {
+                let (content, _) = content.split_at(40); //  TODO: confirm please
                 doi = content.trim().to_string()
 
-            } else if line.contains("MERGED FILE") {
+            } else if marker.contains("MERGED FILE") {
                 //TODO V > 3 nb# of merged files
 
-            } else if line.contains("STATION INFORMATION") {
-                let (url, _) = line.split_at(40); //TODO confirm please 
+            } else if marker.contains("STATION INFORMATION") {
+                let (url, _) = content.split_at(40); //TODO confirm please 
                 station_url = url.trim().to_string()
 
-            } else if line.contains("LICENSE OF USE") {
-                let (lic, _) = line.split_at(40); //TODO confirm please 
+            } else if marker.contains("LICENSE OF USE") {
+                let (lic, _) = content.split_at(40); //TODO confirm please 
                 license = lic.trim().to_string()
             
-            } else if line.contains("WAVELENGTH FACT L1/2") {
+            } else if marker.contains("WAVELENGTH FACT L1/2") {
                 //TODO
 
-            } else if line.contains("APPROX POSITION XYZ") {
-                let items: Vec<&str> = line.split_ascii_whitespace()
+            } else if marker.contains("APPROX POSITION XYZ") {
+                let items: Vec<&str> = content.split_ascii_whitespace()
                     .collect();
                 let (x, y, z): (f64,f64,f64) = 
                     (f64::from_str(items[0].trim())?,
@@ -461,8 +459,8 @@ impl Header {
                     f64::from_str(items[2].trim())?);
                 coords = Some(rust_3d::Point3D::new(x,y,z))
 
-            } else if line.contains("ANTENNA: DELTA H/E/N") {
-                let (h, rem) = line.split_at(15);
+            } else if marker.contains("ANTENNA: DELTA H/E/N") {
+                let (h, rem) = content.split_at(15);
                 let (e, rem) = rem.split_at(15);
                 let (n, _) = rem.split_at(15);
                 ant_hen = Some((
@@ -470,8 +468,8 @@ impl Header {
                     f32::from_str(e.trim())?,
                     f32::from_str(n.trim())?))
 
-            } else if line.contains("ANTENNA: DELTA X/Y/Z") {
-                let items: Vec<&str> = line.split_ascii_whitespace()
+            } else if marker.contains("ANTENNA: DELTA X/Y/Z") {
+                let items: Vec<&str> = content.split_ascii_whitespace()
                     .collect();
                 let (x, y, z): (f64,f64,f64) = 
                     (f64::from_str(items[0].trim())?,
@@ -479,27 +477,27 @@ impl Header {
                     f64::from_str(items[2].trim())?);
                 ant_coords = Some(rust_3d::Point3D::new(x,y,z))
 
-            } else if line.contains("ANTENNA: B.SIGHT XYZ") {
+            } else if marker.contains("ANTENNA: B.SIGHT XYZ") {
                 //TODO
-            } else if line.contains("ANTENNA: ZERODIR XYZ") {
+            } else if marker.contains("ANTENNA: ZERODIR XYZ") {
                 //TODO
-            } else if line.contains("CENTER OF MASS: XYZ") {
+            } else if marker.contains("CENTER OF MASS: XYZ") {
                 //TODO
-            } else if line.contains("ANTENNA: PHASECENTER") {
+            } else if marker.contains("ANTENNA: PHASECENTER") {
                 //TODO
             
-            } else if line.contains("RCV CLOCK OFFS APPL") {
-                let ok_str = line.split_at(20).0.trim();
+            } else if marker.contains("RCV CLOCK OFFS APPL") {
+                let ok_str = content.split_at(20).0.trim();
                 obs_clock_offset_applied = i32::from_str_radix(ok_str, 10)? != 0
 
-            } else if line.contains("# OF SATELLITES") {
+            } else if marker.contains("# OF SATELLITES") {
                 // will always appear prior PRN/#OBS
                 // determines nb of satellites in observation file
                 //let (nb, _) = line.split_at(10);
                 //obs_nb_sat = u32::from_str_radix(nb.trim(), 10)?
 
-            } else if line.contains("PRN / # OF OBS") {
-                let (sv, _) = line.split_at(7);
+            } else if marker.contains("PRN / # OF OBS") {
+                let (sv, _) = content.split_at(7);
                 if sv.trim().len() > 0 {
                     
                 }
@@ -507,21 +505,21 @@ impl Header {
                 //let items: Vec<&str> = line.split_ascii_whitespace()
                 //    .collect();
                  
-            } else if line.contains("SYS / PHASE SHIFT") {
+            } else if marker.contains("SYS / PHASE SHIFT") {
                 //TODO
-            } else if line.contains("SYS / PVCS APPLIED") {
+            } else if marker.contains("SYS / PVCS APPLIED") {
                 // RINEX::ClockData specific 
                 // + satellite system (G/R/E/C/I/J/S)
                 // + programe name to apply Phase Center Variation
                 // + source of corrections (url)
                 // <o repeated for each satellite system
                 // <o blank field when no corrections applied
-            } else if line.contains("TYPES OF OBS") { 
+            } else if marker.contains("TYPES OF OBS") { 
                 // RINEX OBS code descriptor (V < 3) 
                 // ⚠ ⚠ could either be observation or meteo data
                 if obs_code_lines == 0 {
                     // [x] OBS CODES 1st line 
-                    let (rem, _) = line.split_at(60); // cleanup
+                    let (rem, _) = content.split_at(60); // cleanup
                     let (n_codes, rem) = rem.split_at(6);
                     let n_codes = u8::from_str_radix(n_codes.trim(), 10)?;
                     obs_code_lines = num_integer::div_ceil(n_codes, 9); // max. per line
@@ -563,8 +561,7 @@ impl Header {
                 } else {
                     // [*] OBS CODES following line(s) 
                     // --> parse this line 
-                    let (rem, _) = line.split_at(60); // cleanup
-                    let codes : Vec<String> = rem
+                    let codes : Vec<String> = content 
                         .split_ascii_whitespace()
                         .map(|r| r.trim().to_string())
                         .collect(); 
@@ -603,12 +600,11 @@ impl Header {
                     obs_code_lines -= 1
                 }
 
-            } else if line.contains("SYS / # / OBS TYPES") {
+            } else if marker.contains("SYS / # / OBS TYPES") {
                 // RINEX OBS code descriptor (V > 2) 
                 if obs_code_lines == 0 {
                     // [x] OBS CODES 1st line
-                    let (line, _) = line.split_at(60); // cleanup 
-                    let (identifier, rem) = line.split_at(1);
+                    let (identifier, rem) = content.split_at(1);
                     let (n_codes, rem) = rem.split_at(5);
                     let n_codes = u8::from_str_radix(n_codes.trim(), 10)?;
                     obs_code_lines = num_integer::div_ceil(n_codes, 13); // max. per line
@@ -636,16 +632,16 @@ impl Header {
                     }
                 } 
                 obs_code_lines -= 1
-            } else if line.contains("ANALYSIS CENTER") {
+            } else if marker.contains("ANALYSIS CENTER") {
                 let line = line.split_at(60).0;
                 let (code, agency) = line.split_at(3);
                 clk_agency_code = code.to_string();
                 clk_agency_name = agency.trim_end().to_string();
 
-            } else if line.contains("# / TYPES OF DATA") {
+            } else if marker.contains("# / TYPES OF DATA") {
                 let line = line.split_at(60).0;
                 let (n, r) = line.split_at(6); // TODO
-                let n = u8::from_str_radix(n,10)?;
+                let n = u8::from_str_radix(n.trim(),10)?;
                 let mut rem = r.clone();
                 for i in 0..n {
                     let (code, r) = rem.split_at(6);
@@ -655,34 +651,34 @@ impl Header {
                     rem = r.clone()
                 }
          
-            } else if line.contains("SIGNAL STRENGHT UNIT") {
+            } else if marker.contains("SIGNAL STRENGHT UNIT") {
                 //TODO
-            } else if line.contains("INTERVAL") {
+            } else if marker.contains("INTERVAL") {
                 let intv = line.split_at(20).0.trim();
                 sampling_interval = Some(f32::from_str(intv)?)
 
-            } else if line.contains("GLONASS SLOT / FRQ #") {
+            } else if marker.contains("GLONASS SLOT / FRQ #") {
                 //TODO
-            } else if line.contains("GLONASS COD/PHS/BIS") {
+            } else if marker.contains("GLONASS COD/PHS/BIS") {
                 //TODO
 
-            } else if line.contains("ION ALPHA") { 
+            } else if marker.contains("ION ALPHA") { 
                 //TODO
                 //0.7451D-08 -0.1490D-07 -0.5960D-07  0.1192D-06          ION ALPHA           
 
-            } else if line.contains("ION BETA") {
+            } else if marker.contains("ION BETA") {
                 //TODO
                 //0.9011D+05 -0.6554D+05 -0.1311D+06  0.4588D+06          ION BETA            
-            } else if line.contains("IONOSPHERIC CORR") {
+            } else if marker.contains("IONOSPHERIC CORR") {
                 // TODO
                 // GPSA 0.1025E-07 0.7451E-08 -0.5960E-07 -0.5960E-07
                 // GPSB 0.1025E-07 0.7451E-08 -0.5960E-07 -0.5960E-07
 
-            } else if line.contains("TIME SYSTEM CORR") {
+            } else if marker.contains("TIME SYSTEM CORR") {
                 // TODO
                 // GPUT 0.2793967723E-08 0.000000000E+00 147456 1395
             
-            } else if line.contains("DELTA-UTC") {
+            } else if marker.contains("DELTA-UTC") {
                 //TODO
                 //0.931322574615D-09 0.355271367880D-14   233472     1930 DELTA-UTC: A0,A1,T,W
             }

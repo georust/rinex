@@ -197,6 +197,7 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Com
     let mut nav_rec : navigation::Record = BTreeMap::new();  // NAV
     let mut obs_rec : observation::Record = BTreeMap::new(); // OBS
     let mut met_rec : meteo::Record = BTreeMap::new();       // MET
+    let mut clk_rec : clocks::Record = BTreeMap::new();      // CLK
 
     for l in reader.lines() { // process one line at a time 
         let line = l.unwrap();
@@ -267,7 +268,7 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Com
                                     sv_map.insert(sv, map);
                                     nav_rec.insert(e, sv_map);
                                 };
-                                comment_ts = e.clone(); // for comments classification + management
+                                comment_ts = e.clone(); // for comments classification & management
                             }
                         },
                         Type::ObservationData => {
@@ -277,7 +278,7 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Com
                                 // we should never face parsed epoch that were previously parsed
                                 // even in case of `merged` RINEX
                                 obs_rec.insert(e, (ck_offset, map));
-                                comment_ts = e.clone(); // for comments classification + management
+                                comment_ts = e.clone(); // for comments classification & management
                             }
                         },
                         Type::MeteoData => {
@@ -287,10 +288,37 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Com
                                 // we should never face parsed epoch that were previously parsed
                                 // even in case of `merged` RINEX
                                 met_rec.insert(e, map);
-                                comment_ts = e.clone(); // for comments classification + management
+                                comment_ts = e.clone(); // for comments classification & management
                             }
                         },
-                        _ => {}, // Type of record not supported yet
+                        Type::ClockData => {
+                            if let Ok((e, system, dtype, data)) = clocks::build_record_entry(&header, &epoch_content) {
+                                // Clocks `RINEX` files are handled a little different,
+                                // because we parse one line at a time, while we parsed one epoch at a time for other RINEXes.
+                                // One line may contribute to a previously existing epoch in the record 
+                                // (different type of measurements etc..etc..)
+                                if let Some(mut e) = clk_rec.get_mut(&e) {
+                                    if let Some(mut s) = e.get_mut(&system) {
+                                        s.insert(dtype, data);
+                                    } else {
+                                        // --> new system entry for this `epoch`
+                                        let mut inner: HashMap<clocks::DataType, clocks::Data> = HashMap::new();
+                                        let mut map: HashMap<clocks::System, HashMap<clocks::DataType, clocks::Data>> = HashMap::new();
+                                        inner.insert(dtype, data);
+                                        map.insert(system, inner);
+                                    }
+                                } else {
+                                    // --> new epoch entry
+                                    let mut inner:HashMap<clocks::DataType, clocks::Data> = HashMap::new();
+                                    inner.insert(dtype, data);
+                                    let mut map : HashMap<clocks::System, HashMap<clocks::DataType, clocks::Data>> = HashMap::new();
+                                    map.insert(system, inner);
+                                    clk_rec.insert(e, map);
+                                }
+                                comment_ts = e.clone(); // for comments classification & management
+                            }
+                        },
+                        _ => todo!("record type not fully supported yet"),
                     }
 
                     // new comments ?
@@ -337,7 +365,34 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Com
                 comment_ts = e.clone(); // for comments classification + management
             }
         },
-        _ => {}, // Type of record not supported yet
+        Type::ClockData => {
+            if let Ok((e, system, dtype, data)) = clocks::build_record_entry(&header, &epoch_content) {
+                // Clocks `RINEX` files are handled a little different,
+                // because we parse one line at a time, while we parsed one epoch at a time for other RINEXes.
+                // One line may contribute to a previously existing epoch in the record 
+                // (different type of measurements etc..etc..)
+                if let Some(mut e) = clk_rec.get_mut(&e) {
+                    if let Some(mut s) = e.get_mut(&system) {
+                        s.insert(dtype, data);
+                    } else {
+                        // --> new system entry for this `epoch`
+                        let mut inner: HashMap<clocks::DataType, clocks::Data> = HashMap::new();
+                        let mut map: HashMap<clocks::System, HashMap<clocks::DataType, clocks::Data>> = HashMap::new();
+                        inner.insert(dtype, data);
+                        map.insert(system, inner);
+                    }
+                } else {
+                    // --> new epoch entry
+                    let mut inner:HashMap<clocks::DataType, clocks::Data> = HashMap::new();
+                    inner.insert(dtype, data);
+                    let mut map : HashMap<clocks::System, HashMap<clocks::DataType, clocks::Data>> = HashMap::new();
+                    map.insert(system, inner);
+                    clk_rec.insert(e, map);
+                }
+                comment_ts = e.clone(); // for comments classification & management
+            }
+        },
+        _ => todo!("record type not fully supported yet"),
     }
     // new comments ?
     if !comment_content.is_empty() {
@@ -348,7 +403,8 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Com
         Type::NavigationData => Record::NavRecord(nav_rec),
         Type::ObservationData => Record::ObsRecord(obs_rec), 
 		Type::MeteoData => Record::MeteoRecord(met_rec),
-        _ => panic!("type of record not supported yet"), 
+        Type::ClockData => Record::ClockRecord(clk_rec),
+        _ => todo!("record type not fully supported yet"),
     };
     Ok((record, comments))
 }

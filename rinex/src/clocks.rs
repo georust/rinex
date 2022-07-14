@@ -5,7 +5,7 @@ use crate::epoch;
 use crate::header;
 use thiserror::Error;
 use std::str::FromStr;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 /// Clocks `RINEX` specific header fields
 #[derive(Clone, Debug)]
@@ -52,7 +52,7 @@ pub enum Error {
     ParseIntError(#[from] std::num::ParseIntError),
 }
 
-#[derive(Error, Clone, Debug)]
+#[derive(Error, PartialEq, Eq, Hash, Clone, Debug)]
 pub enum System {
     /// Sv system for AS data
     Sv(sv::Sv),
@@ -102,7 +102,7 @@ pub struct Data {
 }
 
 /// Types of clock data
-#[derive(Debug, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 #[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub enum DataType {
     /// Data analysis results for receiver clocks
@@ -135,7 +135,7 @@ impl std::str::FromStr for DataType {
 
 /// RINEX record for CLOCKS files,
 /// record is sorted by Epoch then by data type and finaly by `system`
-pub type Record = HashMap<epoch::Epoch, HashMap<DataType, HashMap<System, Data>>>;
+pub type Record = BTreeMap<epoch::Epoch, HashMap<System, HashMap<DataType, Data>>>;
 
 pub fn is_new_epoch (line: &str) -> bool {
     // first 3 bytes match a DataType code
@@ -147,8 +147,9 @@ pub fn is_new_epoch (line: &str) -> bool {
 /// Returns identified `epoch` to sort data efficiently.  
 /// Returns 2D data as described in `record` definition
 pub fn build_record_entry (header: &header::Header, content: &str) -> 
-        Result<(epoch::Epoch, DataType, System, Data), Error> 
+        Result<(epoch::Epoch, System, DataType, Data), Error> 
 {
+    println!("BUILD REC ENTRY \"{}\"", content);
     let mut lines = content.lines();
     let mut line = lines.next()
         .unwrap();
@@ -241,5 +242,5 @@ pub fn build_record_entry (header: &header::Header, content: &str) ->
         flag: epoch::EpochFlag::Ok,
         date,
     };
-    Ok((epoch, data_type, system, data))
+    Ok((epoch, system, data_type, data))
 }
