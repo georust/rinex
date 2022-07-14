@@ -5,6 +5,7 @@ use std::str::FromStr;
 use std::collections::{BTreeMap, HashMap};
 use crate::epoch;
 use crate::header;
+use crate::version;
 use crate::header::Header;
 
 /// Observation Sensor
@@ -44,6 +45,22 @@ pub struct HeaderFields {
 /// `Record`: Meteo data files content is
 /// raw data sorted by Observation Code and by Epoch.
 pub type Record = BTreeMap<epoch::Epoch, HashMap<String, f32>>;
+
+pub fn is_new_epoch (line: &str, v: version::Version) -> bool {
+    if v.major < 4 {
+        // modern, easy parsing,
+        // similar to OBS V3
+        match line.chars().nth(0) {
+            Some(c) => {
+                c == '>' // epochs always delimited 
+                    // by this new identifier
+            },
+            _ => false,
+        }
+    } else {
+        todo!("meteo + V4 is not fully supported yet")
+    }
+}
 
 #[derive(Error, Debug)]
 /// Meteo Data `Record` parsing specific errors

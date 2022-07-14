@@ -157,98 +157,16 @@ pub enum Error {
 /// Returns true if given line matches the start   
 /// of a new epoch, inside a RINEX record.
 pub fn is_new_epoch (line: &str, header: &header::Header) -> bool {
-    let parsed: Vec<&str> = line.split_ascii_whitespace()
-        .collect();
     if is_comment!(line) {
         return false
     }
-	match header.version.major {
-		1|2|3 => {
-			// old RINEX
-			// epoch block is type dependent
-			match &header.rinex_type {
-				Type::NavigationData => {
-					// old NAV: epoch block
-					//  is constellation dependent
-					match &header.constellation {
-						Some(Constellation::Glonass) => { // GLONASS NAV special case
-							//  constellation ID is implied
-							parsed.len() > 4
-						},
-						Some(_) => { // other constellations
-                    		let known_sv_identifiers: &'static [char] = 
-                        		&['R','G','E','B','J','C','S']; 
-                            match line.chars().nth(0) {
-                                Some(c) => {
-									// epochs start with a known 
-									//  constellation identifier
-									known_sv_identifiers.contains(&c)
-								},
-                                _ => false
-                            }
-						},
-                        _ => panic!("undefined constellation system")
-					}
-				},
-				Type::ObservationData | Type::MeteoData => {
-					match header.version.major {
-						1|2 => {
-							if parsed.len() > 6 {
-								//  * contains at least 6 items
-								let mut datestr = parsed[0].to_owned(); // Y
-								datestr.push_str(" ");
-								datestr.push_str(parsed[1]); // m
-								datestr.push_str(" ");
-								datestr.push_str(parsed[2]); // d
-								datestr.push_str(" ");
-								datestr.push_str(parsed[3]); // h
-								datestr.push_str(" ");
-								datestr.push_str(parsed[4]); // m
-								datestr.push_str(" ");
-								datestr.push_str(parsed[5]); // s
-								//  * and items[0..5] do match an epoch descriptor
-								epoch::str2date(&datestr).is_ok()
-							} else {
-								false // does not match
-									// an epoch descriptor
-							}
-						},
-						_ => {
-							// OBS::V3 behaves like all::V4
-							match line.chars().nth(0) {
-								Some(c) => {
-									c == '>' // epochs always delimited
-										// by this new identifier
-								},
-								_ => false,
-							}
-						},
-					}
-				},
-                _ => false, // Type of record not supported yet
-			}
-		},
-		_ => {
-			// modern V > 3 RINEX
-			// mostly easy, but Meteo seems to still follow previous format
-			match &header.rinex_type {
-				Type::MeteoData => {
-					panic!("meteo + V4 is not fully supported yet")
-				},
-				_ => {
-					// modern, easy parsing,
-					// similar to OBS V3
-            		match line.chars().nth(0) {
-                		Some(c) => {
-							c == '>' // epochs always delimited 
-								// by this new identifier
-						},
-                		_ => false,
-					}
-				}
-			}
-		}
-	}
+    match &header.rinex_type {
+        Type::ClockData => clocks::is_new_epoch(line),
+        Type::NavigationData => navigation::is_new_epoch(line, header.version, header.constellation.unwrap()),
+        Type::ObservationData => observation::is_new_epoch(line, header.version),
+        Type::MeteoData => meteo::is_new_epoch(line, header.version),
+        _ => todo!()
+    }
 }
 
 /// Builds a `Record`, `RINEX` file body content,

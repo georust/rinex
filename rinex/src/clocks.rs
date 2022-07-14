@@ -137,6 +137,12 @@ impl std::str::FromStr for DataType {
 /// record is sorted by Epoch then by data type and finaly by `system`
 pub type Record = HashMap<epoch::Epoch, HashMap<DataType, HashMap<System, Data>>>;
 
+pub fn is_new_epoch (line: &str) -> bool {
+    // first 3 bytes match a DataType code
+    let content = line.split_at(2).0;
+    DataType::from_str(content).is_ok()
+}
+
 /// Builds `RINEX` record entry for `Clocks` data files.   
 /// Returns identified `epoch` to sort data efficiently.  
 /// Returns 2D data as described in `record` definition

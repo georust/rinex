@@ -1,7 +1,6 @@
 //! `ObservationData` parser and related methods
 use std::io::Write;
 use thiserror::Error;
-use crate::version;
 use std::str::FromStr;
 use std::collections::{BTreeMap, HashMap};
 use physical_constants::SPEED_OF_LIGHT_IN_VACUUM;
@@ -9,6 +8,7 @@ use physical_constants::SPEED_OF_LIGHT_IN_VACUUM;
 use crate::sv;
 use crate::epoch;
 use crate::header;
+use crate::version;
 use crate::constellation;
 use crate::constellation::Constellation;
 
@@ -191,6 +191,45 @@ pub enum RecordError {
     ParseFloatError(#[from] std::num::ParseFloatError),
     #[error("failed to parse vehicules properly (n_sat mismatch)")]
     EpochParsingError,
+}
+
+/// Returns true if given content matches a new OBSERVATION data epoch
+pub fn is_new_epoch (line: &str, v: version::Version) -> bool {
+    let parsed: Vec<&str> = line
+        .split_ascii_whitespace()
+        .collect();
+	if v.major < 3 {
+        // old RINEX
+        // epoch block is type dependent
+        if parsed.len() > 6 {
+            //  * contains at least 6 items
+            let mut datestr = parsed[0].to_owned(); // Y
+            datestr.push_str(" ");
+            datestr.push_str(parsed[1]); // m
+            datestr.push_str(" ");
+            datestr.push_str(parsed[2]); // d
+            datestr.push_str(" ");
+            datestr.push_str(parsed[3]); // h
+            datestr.push_str(" ");
+            datestr.push_str(parsed[4]); // m
+            datestr.push_str(" ");
+            datestr.push_str(parsed[5]); // s
+            epoch::str2date(&datestr).is_ok()
+        } else {
+            false // does not match
+                // an epoch descriptor
+        }
+    } else {
+        // Modern RINEX
+        // OBS::V3 behaves like all::V4
+        match line.chars().nth(0) {
+            Some(c) => {
+                c == '>' // epochs always delimited
+                    // by this new identifier
+            },
+            _ => false,
+        }
+    }
 }
 
 /// Builds `Record` entry for `ObservationData`

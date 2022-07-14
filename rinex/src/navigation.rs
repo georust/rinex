@@ -19,6 +19,33 @@ include!(concat!(env!("OUT_DIR"),"/nav_data.rs"));
 /// for a given Satellite vehicule and for a given Epoch.
 pub type Record = BTreeMap<epoch::Epoch, HashMap<sv::Sv, HashMap<String, ComplexEnum>>>;
 
+pub fn is_new_epoch (line: &str, v: version::Version, c: constellation::Constellation) -> bool {
+    if v.major < 4 {
+        let parsed: Vec<&str> = line
+            .split_ascii_whitespace()
+            .collect();
+        if let constellation::Constellation::Glonass = c {
+            parsed.len() > 4
+        } else {
+            match line.chars().nth(0) {
+                Some(c) => {
+                    let table = vec!['R','G','E','B','J','C','S'];
+                    table.contains(&c)
+                },
+                _ => false
+            }
+        }
+    } else {
+        match line.chars().nth(0) {
+            Some(c) => {
+                c == '>' // epochs always delimited 
+                    // by this new identifier
+            },
+            _ => false,
+        }
+    }
+}
+
 /// `ComplexEnum` is record payload 
 #[derive(Clone, PartialEq, Debug)]
 #[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
