@@ -14,6 +14,8 @@ use crate::constellation::Constellation;
 
 #[cfg(feature = "with-serde")]
 use serde::{Serialize, Deserialize};
+
+#[cfg(feature = "with-serde")]
 use crate::formatter::datetime;
 
 /// Describes `Compact RINEX` specific information

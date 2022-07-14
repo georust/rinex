@@ -22,6 +22,8 @@ use std::io::{prelude::*, BufReader};
 
 #[cfg(feature = "with-serde")]
 use serde::{Serialize, Deserialize};
+
+#[cfg(feature = "with-serde")]
 use crate::formatter::point3d;
 
 /// Describes a `CRINEX` (compressed rinex) 
