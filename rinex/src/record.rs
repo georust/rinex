@@ -292,12 +292,12 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Com
                             }
                         },
                         Type::ClockData => {
-                            if let Ok((e, system, dtype, data)) = clocks::build_record_entry(&header, &epoch_content) {
+                            if let Ok((epoch, system, dtype, data)) = clocks::build_record_entry(&header, &epoch_content) {
                                 // Clocks `RINEX` files are handled a little different,
                                 // because we parse one line at a time, while we parsed one epoch at a time for other RINEXes.
                                 // One line may contribute to a previously existing epoch in the record 
                                 // (different type of measurements etc..etc..)
-                                if let Some(mut e) = clk_rec.get_mut(&e) {
+                                if let Some(mut e) = clk_rec.get_mut(&epoch) {
                                     if let Some(mut s) = e.get_mut(&system) {
                                         s.insert(dtype, data);
                                     } else {
@@ -305,7 +305,7 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Com
                                         let mut inner: HashMap<clocks::DataType, clocks::Data> = HashMap::new();
                                         let mut map: HashMap<clocks::System, HashMap<clocks::DataType, clocks::Data>> = HashMap::new();
                                         inner.insert(dtype, data);
-                                        map.insert(system, inner);
+                                        e.insert(system, inner);
                                     }
                                 } else {
                                     // --> new epoch entry
@@ -313,9 +313,9 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Com
                                     inner.insert(dtype, data);
                                     let mut map : HashMap<clocks::System, HashMap<clocks::DataType, clocks::Data>> = HashMap::new();
                                     map.insert(system, inner);
-                                    clk_rec.insert(e, map);
+                                    clk_rec.insert(epoch, map);
                                 }
-                                comment_ts = e.clone(); // for comments classification & management
+                                comment_ts = epoch.clone(); // for comments classification & management
                             }
                         },
                         _ => todo!("record type not fully supported yet"),
