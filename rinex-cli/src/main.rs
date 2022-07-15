@@ -330,6 +330,7 @@ for fp in &filepaths {
                 }
                 rinex.record = Record::NavRecord(rework)
             },
+            _ => todo!("Rinex type not fully supported yet"),
         }
     }
     //[4*] LLI filter
@@ -409,9 +410,10 @@ for fp in &filepaths {
        println!("splice is WIP"); 
     }
     
-    let obscodes = rinex.header.obs_codes
+    let obscodes = &rinex.header.obs
         .as_ref()
-        .unwrap();
+        .unwrap()
+        .codes;
 
     if !spec_ops {
         if header {
@@ -422,11 +424,7 @@ for fp in &filepaths {
             }
         }
         if epoch_display {
-            let e : Vec<_> = match rinex.header.rinex_type {
-                Type::ObservationData => rinex.record.as_obs().unwrap().keys().collect(),
-                Type::NavigationData => rinex.record.as_nav().unwrap().keys().collect(),
-                Type::MeteoData => rinex.record.as_meteo().unwrap().keys().collect(),
-            };
+            let e = rinex.epochs_iter();
             if pretty {
                 println!("{}", serde_json::to_string_pretty(&e).unwrap())
             } else {
@@ -443,7 +441,10 @@ for fp in &filepaths {
                     }
                 },
                 Type::MeteoData => {
-                    let codes = rinex.header.met_codes.unwrap();    
+                    let codes = &rinex.header.meteo
+                        .as_ref()
+                        .unwrap()
+                        .codes;
                     if pretty {
                         println!("{}", serde_json::to_string_pretty(&codes).unwrap())
                     } else {
@@ -471,6 +472,7 @@ for fp in &filepaths {
                         println!("{}", serde_json::to_string(&map).unwrap())
                     }
                 },
+                _ => todo!("RINEX type not fully supported yet"),
             };
         }
         if !epoch_display && !obscode_display && !header { 
@@ -583,6 +585,7 @@ for fp in &filepaths {
                         println!("{}", serde_json::to_string(r).unwrap())
                     }
                 },
+                _ => todo!("RINEX type not fully suppported yet"),
             }
         }
     }
@@ -604,9 +607,10 @@ for fp in &filepaths {
             }
         }
         if obscode_display {
-            let obs = merged.header.obs_codes
+            let obs = &merged.header.obs
                 .as_ref()
-                .unwrap();
+                .unwrap()
+                .codes;
             if pretty {
                 println!("{}", serde_json::to_string_pretty(&obs).unwrap())
             } else {
@@ -614,11 +618,7 @@ for fp in &filepaths {
             }
         }
         if epoch_display {
-            let e : Vec<_> = match merged.header.rinex_type {
-                Type::ObservationData => merged.record.as_obs().unwrap().keys().collect(),
-                Type::NavigationData => merged.record.as_nav().unwrap().keys().collect(),
-                Type::MeteoData => merged.record.as_meteo().unwrap().keys().collect(),
-            };
+            let e = merged.epochs_iter();
             if pretty {
                 println!("{}", serde_json::to_string_pretty(&e).unwrap())
             } else {
