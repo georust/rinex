@@ -7,7 +7,7 @@ mod test {
     fn v3_demo() {
         let test_resource = 
             env!("CARGO_MANIFEST_DIR").to_owned() 
-            + "/../test_resources/CLK/V3/demo.txt";
+            + "/../test_resources/CLK/V3/USNO1.txt";
         let rinex = Rinex::from_file(&test_resource);
         assert_eq!(rinex.is_ok(), true);
         let rinex = rinex.unwrap();
