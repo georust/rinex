@@ -37,7 +37,8 @@ The following RINEX files are currently supported:
 * `Type::NavigationData` (NAV) data
 * `Type::ObservationData` (OBS) data
 * `Type::MeteoData` (MET) data
-* `Type::ClockData`: Clocks RINEX
+* `Type::ClockData`: (CLK) RINEX: under development
+* `Type::AntennaData`: (ATX) RINEX: under development
 
 ## CRINEX special case
 
