@@ -1,7 +1,10 @@
 use thiserror::Error;
+use std::collections::HashMap;
+use rinex::constellation::Constellation;
 
 #[derive(Debug, PartialEq, Clone)]
-/// Bias mode description, for Header field
+/// Describes how the included GNSS
+/// bias values have to be interpreted and applied
 pub enum BiasMode {
     Relative,
     Absolute,
@@ -32,43 +35,96 @@ impl std::str::FromStr for BiasMode {
     }
 }
 
-/*pub struct Header {
-    pub input: String,
-    pub output: String,
-    pub contact: String,
-    pub hardware: String,
-    pub software: String,
-    pub reference_frame: String,
+#[derive(Debug, PartialEq, Clone)]
+pub enum TimeSystem {
+    /// Time system of given GNSS constellation
+    GNSS(Constellation),
+    /// Coordinates Universal Time
+    UTC,
+    /// International Atomic Time
+    TAI,
 }
 
-pub enum DataType {
-    ObsSampling,
-    ParmeterSpacing,
-    DeterminationMethod,
-    BiasMode,
-    TimeSystem,
-    ReceiverClockRef,
-    SatelliteClockReferenceObs,
+#[derive(Debug)]
+pub enum DeterminationMethodError {
+    UnknownMethod(String),
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn test_receiver() {
-        //"STATION__ C GROUP____ DATA_START____ DATA_END______ RECEIVER_TYPE_______ RECEIVER_FIRMWARE___"
-        let rcvr = Receiver::from_str(
-        "MAO0      G @MP0      2015:276:00000 2015:276:86399 JAVAD TRE-G3TH DELTA 3.6.4");
-        assert_eq!(rcvr.is_ok(), true);
-        let rcvr = rcvr.unwrap();
-        println!("{:?}", rcvr);
-        assert_eq!(rcvr.station, "MAO0");
-        assert_eq!(rcvr.group, "@MP0");
-        assert_eq!(rcvr.firmware, "3.6.4");
-        assert_eq!(rcvr.rtype, "JAVAD TRE-G3TH DELTA");
+#[derive(Debug, PartialEq, Clone)]
+pub enum DeterminationMethod {
+    /// Intra Frequency Bias estimation,
+    /// is the analysis of differences between
+    /// frequencies relying on a ionosphere
+    /// reduction model
+    IntraFrequencyEstimation,
+    /// Inter Frequency Bias estimation,
+    /// is the analysis of differences between
+    /// observables of different frequencyes,
+    /// relying on a ionosphere reduction model
+    InterFrequencyEstimation,
+    /// Analyzing the ionosphere free linear combination
+    ClockAnalysis,
+    /// Analyzing the geometry free linear combination
+    IonosphereAnalysis,
+    /// Results from Clock and Ionosphere analysis combination
+    CombinedAnalysis,
+}
+
+impl std::str::FromStr for DeterminationMethod {
+    type Err = DeterminationMethodError;
+    fn from_str (content: &str) -> Result<Self, Self::Err> {
+        if content.eq("CLOCK_ANALYSIS") {
+            Ok(Self::ClockAnalysis)
+        } else if content.eq("INTRA-FREQUENCY_BIAS_ESTIMATION") {
+            Ok(Self::IntraFrequencyEstimation)
+        } else if content.eq("INTER-FREQUENCY_BIAS_ESTIMATION") {
+            Ok(Self::InterFrequencyEstimation)
+        } else if content.eq("IONOSPHERE_ANALYSIS") {
+            Ok(Self::IonosphereAnalysis)
+        } else if content.eq("COMBINED_ANALYSIS") {
+            Ok(Self::CombinedAnalysis)
+        } else {
+            Err(DeterminationMethodError::UnknownMethod(content.to_string()))
+        }
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct Description {
+    /// Observation Sampling: sampling interval [s]
+    /// used for data analysis
+    pub sampling: Option<u32>,
+    /// Parameter Spacing: spacing interval [s]
+    /// used for parameter representation
+    pub spacing: Option<u32>,
+    /// Method used to generate the bias results
+    pub method: Option<DeterminationMethod>,
+    /// See [BiasMode]
+    pub bias_mode: BiasMode,
+    /// TimeSystem, see [TimeSystem]
+    pub system: TimeSystem,
+    /// Receiver clock reference GNSS
+    pub rcvr_clk_ref: Option<Constellation>,
+    /// Satellite clock reference observables:
+    /// list of observable codes (standard 3 letter codes),
+    /// for each GNSS in this file.
+    /// Must be provided if associated bias results are consistent
+    /// with the ionosphere free LC, otherwise, these might be missing
+    pub sat_clk_ref: HashMap<Constellation, Vec<String>>
+}
+
+#[derive(Debug, Clone)]
+pub struct Solution {
+
+}
+
+#[derive(Debug, Clone)]
+pub struct Bias {
+    pub description: Description,
+    pub solutions: Vec<Solution>,
+}
+
+/*
 #[derive(Debug, Clone)]
 //#[derive(StrumString)]
 pub enum BiasType {
@@ -88,22 +144,16 @@ pub struct Bias {
     pub start_time: chrono::NaiveDateTime,
     pub end_time: chrono::NaiveDateTime,
     pub unit: String,
-}
+}*/
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::str::FromStr;
     #[test]
-    fn test_receiver() {
-        //"STATION__ C GROUP____ DATA_START____ DATA_END______ RECEIVER_TYPE_______ RECEIVER_FIRMWARE___"
-        let rcvr = Receiver::from_str(
-        "MAO0      G @MP0      2015:276:00000 2015:276:86399 JAVAD TRE-G3TH DELTA 3.6.4");
-        assert_eq!(rcvr.is_ok(), true);
-        let rcvr = rcvr.unwrap();
-        println!("{:?}", rcvr);
-        assert_eq!(rcvr.station, "MAO0");
-        assert_eq!(rcvr.group, "@MP0");
-        assert_eq!(rcvr.firmware, "3.6.4");
-        assert_eq!(rcvr.rtype, "JAVAD TRE-G3TH DELTA");
+    fn test_determination_methods() {
+        let method = DeterminationMethod::from_str("COMBINED_ANALYSIS");
+        assert_eq!(method.is_ok(), true);
+        assert_eq!(method.unwrap(), DeterminationMethod::CombinedAnalysis);
     }
-}*/
+}

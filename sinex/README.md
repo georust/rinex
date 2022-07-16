@@ -11,3 +11,11 @@ SINEX
 ## Parse 
 
 `SINEX` special files parsing
+
+Known behavior:
+
+* this parser does not care about file naming conventions
+* the parser expects proper Header and SINEX structures
+* the parser only cares about the Header position,
+otherwise, it is capable of putting together two Bias Description and data,
+as long as they are consecutive

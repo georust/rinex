@@ -79,7 +79,15 @@ pub enum Error {
 }
 
 pub struct Sinex {
+    /// Header section
     pub header: header::Header,
+    /// Possible `Input` Acknowledgemet, especially for data providers
+    pub acknowledgments: Vec<String>,
+    /// Possible `File Comments`
+    pub comments: Vec<String>,
+    /// Bias measurements / estimates,
+    /// comprises a [Description] and a list of [Bias]
+    pub bias: Vec<bias::Bias>,
 }
 
 impl Sinex {
@@ -89,6 +97,9 @@ impl Sinex {
         let mut is_first = true;
         let mut header = header::Header::default();
         let mut section = String::new();
+        let mut comments : Vec<String> = Vec::new();
+        let mut acknowledgments : Vec<String> = Vec::new();
+        let mut bias: Vec<bias::Bias> = Vec::new();
         for line in reader.lines() {
             let line = &line.unwrap();
             if is_first {
@@ -115,13 +126,16 @@ impl Sinex {
             } else {
                 match section.as_str() {
                     "FILE/REFERENCE" => {
-                    
+                    },
+                    "FILE/COMMENT" => {
+                        comments.push(line.trim().to_string())
+                    },
+                    "INPUT/ACKNOWLEDGMENTS" => {
+                        acknowledgments.push(line.trim().to_string())
                     },
                     "BIAS/DESCRIPTION" => {
-
                     },
                     "BIAS/SOLUTION" => {
-
                     },
                     _ => return Err(Error::UnknownSection(section))
                 }
@@ -129,6 +143,9 @@ impl Sinex {
         }
         Ok(Self {
             header,
+            acknowledgments,
+            comments,
+            bias,
         })
     }
 }
