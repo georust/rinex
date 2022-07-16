@@ -259,7 +259,6 @@ impl Sinex {
                     },
                     "BIAS/DESCRIPTION" => {
                         let (descriptor, content) = line.split_at(41);
-                        println!("DESCRIPTION \"{}\"", descriptor);
                         match descriptor.trim() {
                             "OBSERVATION_SAMPLING" => {
                                 let sampling = u32::from_str_radix(content.trim(), 10)?;
@@ -301,6 +300,9 @@ impl Sinex {
                         }
                     },
                     "BIAS/SOLUTION" => {
+                        if let Ok(sol) = bias::Solution::from_str(line.trim()) {
+                            solutions.push(sol)
+                        }
                     },
                     _ => return Err(Error::UnknownSection(section))
                 }

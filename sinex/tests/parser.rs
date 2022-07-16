@@ -18,9 +18,8 @@ mod test {
                 .unwrap()
                 .starts_with(".");
             if !is_hidden {
-                println!("PARSING {}", full_path);
                 let sinex = Sinex::from_file(full_path);
-                println!("{:#?}", sinex);
+                assert_eq!(sinex.is_ok(), true);
             }
         }
     }
