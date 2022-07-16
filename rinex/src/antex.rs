@@ -1,11 +1,27 @@
 //! Antex - special RINEX type specific structures
 use thiserror::Error;
+use crate::channel;
+use std::collections::HashMap;
 
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("Unknown PCV \"{0}\"")]
     UnknownPcv(String),
 }
+
+/// Returns true if this line matches 
+/// the beginning of a `epoch` for ATX file (special files),
+/// this is not really an epoch but rather a group of dataset
+/// for this given antenna, there is no sampling data attached to it.
+pub fn is_new_epoch (content: &str) -> bool {
+    content.contains("START OF ANTENNA")
+}
+
+/// ANTEX Record content,
+/// is a list of Antenna with Several `Frequency` items in it.
+/// ATX record is not `epoch` iterable.
+/// All `epochs_()` related methods would fail.
+pub type Record = HashMap<Antenna, Vec<Frequency>>;
 
 /// ANTEX special RINEX fields
 #[derive(Clone, Debug)]
@@ -29,7 +45,6 @@ impl Default for HeaderFields {
         }
     }
 }
-
 
 /// Antenna Phase Center Variation types
 #[derive(Debug, PartialEq, Clone)]
@@ -58,4 +73,49 @@ impl std::str::FromStr for Pcv {
             Err(Error::UnknownPcv(content.to_string()))
         }
     }
+}
+
+/// Describes an Antenna section inside the ATX record
+pub struct Antenna {
+    /// TODO
+    pub ant_type: String,
+    /// TODO
+    pub sn: String,
+    /// TODO
+    pub method: Option<String>,
+    /// TODO
+    pub agency: Option<String>,
+    /// TODO
+    pub date: chrono::NaiveDate,
+    /// TODO
+    pub dazi: f64,
+    /// TODO
+    pub zen: (f64, f64),
+    /// TODO
+    pub dzen: f64,
+    /// TODO
+    pub valid_from: chrono::NaiveDateTime,
+    /// TODO
+    pub valid_until: chrono::NaiveDateTime,
+}
+
+pub enum Pattern {
+    /// Non azimuth dependent pattern
+    NonAzimuthDependent(Vec<f64>),
+    /// Azimuth dependent pattern
+    AzimuthDependent(Vec<f64>),
+}
+
+/// Describes a "frequency" section of the ATX record
+pub struct Frequency {
+    /// Channel, example: L1, L2 for GPS, E1, E5 for GAL...
+    pub channel: channel::Channel,
+    /// TODO
+    pub north: f64,
+    /// TODO
+    pub east: f64,
+    /// TODO
+    pub up: f64,
+    /// Possibly azimuth dependent pattern
+    pub pattern: Pattern, 
 }

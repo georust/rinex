@@ -1,7 +1,10 @@
-//! `GNSS` constellations & associated methods
+//! Carrier channels and associated methods 
 use thiserror::Error;
+use std::str::FromStr;
+use crate::sv;
 use crate::constellation::Constellation;
 
+/*
 /// Carrier code
 #[derive(Debug, Clone, PartialEq, Eq, Copy)]
 #[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
@@ -76,6 +79,7 @@ impl Default for Code {
         Code::C1
     }
 }
+*/
 
 #[derive(Debug, Clone, PartialEq, Copy)]
 pub enum Channel {
@@ -85,10 +89,16 @@ pub enum Channel {
     L2,
     /// L5 band
     L5,
-    /// Glonass 1 channel
-    G1(u8),
-    /// Glonass 2 channel
-    G2(u8),
+    /// Glonass channel 1 with possible channel offset
+    G1(Option<u8>),
+    /// Glonass channel 2 with possible channel offset
+    G2(Option<u8>),
+    /// E1 band
+    E1,
+    /// E2
+    E2,
+    /// E5 band
+    E5, 
 }
 
 impl Default for Channel {
@@ -98,16 +108,18 @@ impl Default for Channel {
 }
 
 #[derive(Error, Debug)]
-pub enum ChannelError {
+pub enum Error {
     /// Unable to parse Channel from given string content
     #[error("unable to parse channel from content \"{0}\"")]
     ParseError(String),
     #[error("unable to identify glonass channel from \"{0}\"")]
     ParseIntError(#[from] std::num::ParseIntError),
+    #[error("unable to identify constellation + carrier code")]
+    SvError(#[from] sv::Error),
 }
 
 impl std::str::FromStr for Channel {
-    type Err = ChannelError; 
+    type Err = Error; 
     fn from_str (s: &str) -> Result<Self, Self::Err> {
         if s.contains("L1") { 
             Ok(Channel::L1)
@@ -118,30 +130,30 @@ impl std::str::FromStr for Channel {
         
         } else if s.contains("G1") {
             if s.eq("G1") {
-                Ok(Channel::G1(0))
+                Ok(Channel::G1(None))
             } else if s.contains("G1(") {
                 let items : Vec<&str> = s.split("(").collect();
                 let item = items[1].replace(")","");
                 Ok(Channel::G1(
-                    u8::from_str_radix(&item, 10)?))
+                    Some(u8::from_str_radix(&item, 10)?)))
             } else {
-                Err(ChannelError::ParseError(s.to_string()))
+                Err(Error::ParseError(s.to_string()))
             }
         
         } else if s.contains("G2") {
             if s.eq("G2") {
-                Ok(Channel::G2(0))
+                Ok(Channel::G2(None))
             } else if s.contains("G2(") {
                 let items : Vec<&str> = s.split("(").collect();
                 let item = items[1].replace(")","");
                 Ok(Channel::G2(
-                    u8::from_str_radix(&item, 10)?))
+                    Some(u8::from_str_radix(&item, 10)?)))
             } else {
-                Err(ChannelError::ParseError(s.to_string()))
+                Err(Error::ParseError(s.to_string()))
             }
 
         } else {
-            Err(ChannelError::ParseError(s.to_string())) 
+            Err(Error::ParseError(s.to_string())) 
         }
     }
 }
@@ -150,20 +162,54 @@ impl Channel {
     /// Returns frequency associated to this channel in MHz 
     pub fn carrier_frequency_mhz (&self) -> f64 {
         match self {
-            Channel::L1 => 1575.42_f64,
-            Channel::L2 => 1227.60_f64,
-            Channel::L5 => 1176.45_f64,
-            Channel::G1(c) => 1602.0_f64 + (*c as f64 *9.0/16.0), 
-            Channel::G2(c) => 1246.06_f64 + (*c as f64 * 7.0/16.0),
+            Channel::L1 | Channel::E1 => 1575.42_f64,
+            Channel::L2 | Channel::E2 => 1227.60_f64,
+            Channel::L5 | Channel::E5 => 1176.45_f64,
+            Channel::G1(Some(c)) => 1602.0_f64 + (*c as f64 *9.0/16.0), 
+            Channel::G1(_) => 1602.0_f64,
+            Channel::G2(Some(c)) => 1246.06_f64 + (*c as f64 * 7.0/16.0),
+            Channel::G2(_) => 1246.06_f64,
         }
     }
     
     /// Returns channel bandwidth in MHz
     pub fn bandwidth_mhz (&self) -> f64 {
         match self {
-            Channel::L1 | Channel::G1(_) => 15.345_f64,
-            Channel::L2 | Channel::G2(_) => 11.0_f64,
-            Channel::L5 => 12.5_f64,
+            Channel::L1 | Channel::G1(_) | Channel::E1 => 15.345_f64,
+            Channel::L2 | Channel::G2(_) | Channel::E2 => 11.0_f64,
+            Channel::L5 | Channel::E5 => 12.5_f64,
+        }
+    }
+    
+    /// Builds a Channel Frequency from an `Sv` 3 letter code descriptor,
+    /// mainly used in `ATX` RINEX for so called `frequency` field
+    pub fn from_sv_code (code: &str) -> Result<Self, Error> {
+        let sv = sv::Sv::from_str(code)?;
+        match sv.constellation {
+            Constellation::GPS => {
+                match sv.prn {
+                    1 => Ok(Self::L1),
+                    2 => Ok(Self::L2),
+                    5 => Ok(Self::L5),
+                    _ => Ok(Self::L1),
+                }
+            },
+            Constellation::Glonass => {
+                match sv.prn {
+                    1 => Ok(Self::G1(None)),
+                    2 => Ok(Self::G2(None)),
+                    _ => Ok(Self::G1(None)),
+                }
+            },
+            Constellation::Galileo => { 
+                match sv.prn {
+                    1 => Ok(Self::E1),
+                    2 => Ok(Self::E2),
+                    5 => Ok(Self::E5),
+                    _ => Ok(Self::E1),
+                }
+            },
+            _ => todo!("handle this case"),
         }
     }
 }
@@ -171,12 +217,12 @@ impl Channel {
 mod test {
     use super::*;
     use std::str::FromStr;
-    #[test]
+    /*#[test]
     fn test_code() {
         assert_eq!(Code::from_str("C1").is_ok(), true);
         assert_eq!(Code::from_str("L1").is_err(), true);
         assert_eq!(Code::from_str("P1").is_ok(),  true);
-    }
+    }*/
     #[test]
     fn test_channel() {
         assert_eq!(Channel::from_str("L1").is_ok(), true);

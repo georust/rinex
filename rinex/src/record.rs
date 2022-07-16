@@ -5,7 +5,7 @@ use std::io::{prelude::*, BufReader};
 use std::collections::{BTreeMap, HashMap};
 
 use crate::sv;
-//use crate::antex;
+use crate::antex;
 use crate::epoch;
 use crate::meteo;
 use crate::clocks;
@@ -165,7 +165,7 @@ pub fn is_new_epoch (line: &str, header: &header::Header) -> bool {
         Type::NavigationData => navigation::is_new_epoch(line, header.version, header.constellation.unwrap()),
         Type::ObservationData => observation::is_new_epoch(line, header.version),
         Type::MeteoData => meteo::is_new_epoch(line, header.version),
-        _ => todo!()
+        Type::AntennaData => antex::is_new_epoch(line),
     }
 }
 

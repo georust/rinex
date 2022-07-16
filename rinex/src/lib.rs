@@ -17,7 +17,7 @@ pub mod clocks;
 pub mod header;
 pub mod record;
 pub mod hardware;
-//pub mod carrier;
+pub mod channel;
 pub mod version;
 pub mod hatanaka;
 pub mod constellation;
