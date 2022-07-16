@@ -116,7 +116,7 @@ pub struct Sinex {
     pub comments: Vec<String>,
     /// Bias Description
     pub description: bias::Description,
-    /// Bias solutions 
+    /// Bias estimate solutions 
     pub solutions: Vec<bias::Solution>,
 }
 

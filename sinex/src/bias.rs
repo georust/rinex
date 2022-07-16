@@ -1,6 +1,8 @@
 use thiserror::Error;
+use strum_macros::EnumString;
 use std::collections::HashMap;
 use rinex::constellation::Constellation;
+use crate::{parse_datetime, ParseDateTimeError};
 
 #[derive(Debug, PartialEq, Clone)]
 /// Describes how the included GNSS
@@ -133,13 +135,8 @@ impl Default for Description {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct Solution {
-
-}
-
-/*
-#[derive(Debug, Clone)]
+#[derive(Debug, PartialEq, Clone)]
+#[derive(EnumString)]
 //#[derive(StrumString)]
 pub enum BiasType {
     /// Differential Signal Bias (DSB)
@@ -147,18 +144,97 @@ pub enum BiasType {
     /// Ionosphere Free Signal bias (ISB)
     ISB,
     /// Observable Specific Signal bias (OSB)
-    OBS,
+    OSB,
 }
 
-pub struct Bias {
+#[derive(Debug, Error)]
+pub enum SolutionParsingError {
+    #[error("failed to parse BiasType")]
+    ParseBiasTypeError(#[from] strum::ParseError),
+    #[error("failed to parse bias estimate")]
+    ParseFloatError(#[from] std::num::ParseFloatError),
+    #[error("failed to parse datetime field")]
+    ParseDateTimeError(#[from] ParseDateTimeError),
+}
+
+#[derive(Debug, Clone)]
+pub struct Solution {
+    /// Bias type
     pub btype: BiasType,
-    pub sv: rinex::sv::Sv,
-    pub station: String,
-    pub obs_codes: (String, String),
+    /// Satellite SVN
+    pub svn: String,
+    /// Space Vehicule ID
+    pub prn: String,
+    /// Station codes
+    pub station: Option<String>,
+    /// Observable codes used for estimating the biases,
+    /// notes as (OBS1, OBS2) in standards
+    pub obs: (String, Option<String>),
+    /// Start time for the bias estimate
     pub start_time: chrono::NaiveDateTime,
+    /// End time for the bias estimate
     pub end_time: chrono::NaiveDateTime,
+    /// Bias parameter unit
     pub unit: String,
-}*/
+    /// Bias parameter estimate (offset)
+    pub estimate: f64,
+    /// Bias parameter stddev
+    pub stddev: f64,
+    /// Bias parameter slope estimate
+    pub slope: Option<f64>,
+    /// Bias parameter slope stddev estimate
+    pub slope_stddev: Option<f64>,
+}
+
+impl std::str::FromStr for Solution {
+    type Err = SolutionParsingError;
+    fn from_str (content: &str) -> Result<Self, Self::Err> {
+        let (bias_type, rem) = content.split_at(5);
+        let (svn, rem) = rem.split_at(5);
+        let (prn, rem) = rem.split_at(4);
+        let (station, rem) = rem.split_at(10);
+        let (obs1, rem) = rem.split_at(5);
+        let (obs2, rem) = rem.split_at(5);
+        let (start_time, rem) = rem.split_at(15);
+        let (end_time, rem) = rem.split_at(15);
+        let (unit, rem) = rem.split_at(5);
+        let (estimate, rem) = rem.split_at(22);
+        let (stddev, rem) = rem.split_at(12);
+        Ok(Solution {
+            btype: BiasType::from_str(bias_type.trim())?,
+            svn: svn.trim().to_string(),
+            prn: prn.trim().to_string(),
+            station: {
+                if station.trim().len() > 0 {
+                    Some(station.trim().to_string())
+                } else {
+                    None
+                }
+            },
+            unit: unit.trim().to_string(),
+            start_time: parse_datetime(start_time.trim())?,
+            end_time: parse_datetime(end_time.trim())?,
+            obs: {
+                if obs2.trim().len() > 0 {
+                    (obs1.trim().to_string(), Some(obs2.trim().to_string()))
+                } else {
+                    (obs1.trim().to_string(), None)
+                }
+            },
+            estimate: f64::from_str(estimate.trim())?,
+            stddev: f64::from_str(stddev.trim())?,
+            slope: None,
+            slope_stddev: None,
+        })
+    }
+}
+
+impl Solution {
+    /// Returns duration for this bias solution
+    pub fn duration (&self) -> chrono::Duration {
+        self.end_time - self.start_time
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -169,5 +245,41 @@ mod tests {
         let method = DeterminationMethod::from_str("COMBINED_ANALYSIS");
         assert_eq!(method.is_ok(), true);
         assert_eq!(method.unwrap(), DeterminationMethod::CombinedAnalysis);
+    }
+    #[test]
+    fn test_solution_parser() {
+        let solution = Solution::from_str(
+            "ISB   G    G   GIEN      C1W  C2W  2011:113:86385 2011:115:00285 ns   0.000000000000000E+00 .000000E+00");
+        assert_eq!(solution.is_ok(), true);
+        let solution = solution.unwrap();
+        assert_eq!(solution.btype, BiasType::ISB);
+        assert_eq!(solution.svn, "G");
+        assert_eq!(solution.prn, "G");
+        assert_eq!(solution.station, Some(String::from("GIEN")));
+        assert_eq!(solution.obs, (String::from("C1W"), Some(String::from("C2W"))));
+        assert_eq!(solution.estimate, 0.0);
+        assert_eq!(solution.stddev, 0.0);
+        let solution = Solution::from_str(
+            "ISB   E    E   GOUS      C1C  C7Q  2011:113:86385 2011:115:00285 ns   -.101593337222667E+03 .259439E+02");
+        assert_eq!(solution.is_ok(), true);
+        let solution = solution.unwrap();
+        assert_eq!(solution.btype, BiasType::ISB);
+        assert_eq!(solution.svn, "E");
+        assert_eq!(solution.prn, "E");
+        assert_eq!(solution.station, Some(String::from("GOUS")));
+        assert_eq!(solution.obs, (String::from("C1C"), Some(String::from("C7Q"))));
+        assert!((solution.estimate - -0.101593337222667E3) < 1E-6);
+        assert!((solution.stddev - 0.259439E+02) < 1E-6);
+        let solution = Solution::from_str(
+            "OSB   G063 G01           C1C       2016:296:00000 2016:333:00000 ns                 10.2472      0.0062");
+        assert_eq!(solution.is_ok(), true);
+        let solution = solution.unwrap();
+        assert_eq!(solution.btype, BiasType::OSB);
+        assert_eq!(solution.svn, "G063");
+        assert_eq!(solution.prn, "G01");
+        assert_eq!(solution.station, None);
+        assert_eq!(solution.obs, (String::from("C1C"), None));
+        assert!((solution.estimate - 10.2472) < 1E-4);
+        assert!((solution.stddev - 0.0062E+02) < 1E-4);
     }
 }

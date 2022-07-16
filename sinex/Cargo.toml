@@ -4,7 +4,8 @@ version = "0.0.1"
 license = "MIT OR Apache-2.0"
 authors = ["Guillaume W. Bres <guillaume.bressaix@gmail.com>"]
 description = "Package to parse and analyze SINEX data"
-homepage = "https://github.com/gwbres/rinex"
+homepage = "https://github.com/gwbres/rinex/sinex"
+repository = "https://github.com/gwbres/rinex/sinex"
 keywords = ["sinex", "timing", "gps", "glonass", "galileo"]
 categories = ["science", "parsing"]
 edition = "2018"
@@ -17,5 +18,6 @@ readme = "README.md"
 [dependencies]
 chrono = "0.4"
 thiserror = "1"
-rinex = "0.3.3"
-#rinex = { path = "../rinex" }
+strum = { version = "0.24", features = ["derive"] }
+strum_macros = "0.24"
+rinex = { path = "../rinex" }
