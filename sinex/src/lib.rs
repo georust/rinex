@@ -1,12 +1,17 @@
 use std::str::FromStr;
 use thiserror::Error;
-use rinex::constellation::Constellation;
+use std::io::{prelude::*, BufReader};
 
 pub mod bias;
+pub mod header;
 pub mod receiver;
 
 fn is_comment (line: &str) -> bool {
     line.starts_with("*")
+}
+
+fn is_header (line: &str) -> bool {
+    line.starts_with("%=BIA")
 }
 
 fn section_start (line: &str) -> Option<String> {
@@ -31,7 +36,6 @@ pub enum ParseDateTimeError {
     DatetimeError(#[from] chrono::format::ParseError),
     #[error("failed to parse SSSSS")]
     ParseSecondsError(#[from] std::num::ParseFloatError),
-
 }
 
 fn parse_datetime (content: &str) -> Result<chrono::NaiveDateTime, ParseDateTimeError> {
@@ -45,15 +49,6 @@ fn parse_datetime (content: &str) -> Result<chrono::NaiveDateTime, ParseDateTime
     Ok(dt.and_hms(h as u32, m as u32, s as u32))
 }
 
-pub struct Header {
-    pub input: String,
-    pub output: String,
-    pub contact: String,
-    pub hardware: String,
-    pub software: String,
-    pub reference_frame: String,
-}
-
 pub enum DataType {
     ObsSampling,
     ParmeterSpacing,
@@ -64,20 +59,76 @@ pub enum DataType {
     SatelliteClockReferenceObs,
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn test_receiver() {
-        //"STATION__ C GROUP____ DATA_START____ DATA_END______ RECEIVER_TYPE_______ RECEIVER_FIRMWARE___"
-        let rcvr = Receiver::from_str(
-        "MAO0      G @MP0      2015:276:00000 2015:276:86399 JAVAD TRE-G3TH DELTA 3.6.4");
-        assert_eq!(rcvr.is_ok(), true);
-        let rcvr = rcvr.unwrap();
-        println!("{:?}", rcvr);
-        assert_eq!(rcvr.station, "MAO0");
-        assert_eq!(rcvr.group, "@MP0");
-        assert_eq!(rcvr.firmware, "3.6.4");
-        assert_eq!(rcvr.rtype, "JAVAD TRE-G3TH DELTA");
+#[derive(Debug, Error)]
+pub enum Error {
+    /// SINEX file should start with proper header
+    #[error("missing header delimiter")]
+    MissingHeader,
+    /// Failed to parse Header section
+    #[error("invalid header content")]
+    InvalidHeader,
+    /// Closing incorrect section or structure is not correct
+    #[error("faulty file structure")]
+    FaultySection,
+    /// Unknown section / category
+    #[error("unknown type of section")]
+    UnknownSection(String),
+    /// Failed to open given file
+    #[error("failed to open given file")]
+    FileError(#[from] std::io::Error),
+}
+
+pub struct Sinex {
+    pub header: header::Header,
+}
+
+impl Sinex {
+    pub fn from_file (file: &str) -> Result<Self, Error> {
+        let file = std::fs::File::open(file)?;
+        let reader = BufReader::new(file);
+        let mut is_first = true;
+        let mut header = header::Header::default();
+        let mut section = String::new();
+        for line in reader.lines() {
+            let line = &line.unwrap();
+            if is_first {
+                if !is_header(line) {
+                    return Err(Error::MissingHeader)
+                }
+                if let Ok(hd) = header::Header::from_str(line) {
+                    header = hd.clone()
+                }
+                is_first = false;
+                continue
+            }
+
+            if is_comment(line) {
+                continue
+            }
+
+            if let Some(s) = section_start(line) {
+                section = s.clone();
+            } else if let Some(s) = section_end(line) {
+                if !s.eq(&section) {
+                    return Err(Error::FaultySection)
+                }
+            } else {
+                match section.as_str() {
+                    "FILE/REFERENCE" => {
+                    
+                    },
+                    "BIAS/DESCRIPTION" => {
+
+                    },
+                    "BIAS/SOLUTION" => {
+
+                    },
+                    _ => return Err(Error::UnknownSection(section))
+                }
+            }
+        }
+        Ok(Self {
+            header,
+        })
     }
 }

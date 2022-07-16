@@ -1,5 +1,5 @@
-use std::str::FromStr;
 use thiserror::Error;
+use std::str::FromStr;
 use rinex::constellation::Constellation;
 use crate::{parse_datetime, ParseDateTimeError};
 
@@ -66,7 +66,6 @@ mod tests {
         "MAO0      G @MP0      2015:276:00000 2015:276:86399 JAVAD TRE-G3TH DELTA 3.6.4");
         assert_eq!(rcvr.is_ok(), true);
         let rcvr = rcvr.unwrap();
-        println!("{:?}", rcvr);
         assert_eq!(rcvr.station, "MAO0");
         assert_eq!(rcvr.group, "@MP0");
         assert_eq!(rcvr.firmware, "3.6.4");
