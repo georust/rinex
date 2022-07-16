@@ -33,7 +33,7 @@ impl std::str::FromStr for BiasMode {
             Ok(BiasMode::Relative)
         } else if content.eq("A") {
             Ok(BiasMode::Absolute)
-        } else if content.eq("ASBOLUTE") {
+        } else if content.eq("ABSOLUTE") {
             Ok(BiasMode::Absolute)
         } else {
             Err(BiasModeError::UnknownBiasMode)
@@ -240,7 +240,7 @@ impl Description {
             rcvr_clock_ref: self.rcvr_clock_ref.clone(),
             sat_clock_ref: {
                 let mut map = self.sat_clock_ref.clone();
-                if let Some(mut codes) = map.get_mut(&c) {
+                if let Some(codes) = map.get_mut(&c) {
                     if !codes.contains(&observable.to_string()) {
                         codes.push(observable.to_string());
                     }
@@ -317,7 +317,7 @@ impl std::str::FromStr for Solution {
         let (end_time, rem) = rem.split_at(15);
         let (unit, rem) = rem.split_at(5);
         let (estimate, rem) = rem.split_at(22);
-        let (stddev, rem) = rem.split_at(12);
+        let (stddev, _) = rem.split_at(12);
         Ok(Solution {
             btype: BiasType::from_str(bias_type.trim())?,
             svn: svn.trim().to_string(),

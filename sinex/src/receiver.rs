@@ -1,5 +1,5 @@
 use thiserror::Error;
-use std::str::FromStr;
+//use std::str::FromStr;
 use rinex::constellation::Constellation;
 use crate::{parse_datetime, ParseDateTimeError};
 
@@ -59,6 +59,7 @@ impl std::str::FromStr for Receiver {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::str::FromStr;
     #[test]
     fn test_receiver() {
         //"STATION__ C GROUP____ DATA_START____ DATA_END______ RECEIVER_TYPE_______ RECEIVER_FIRMWARE___"
