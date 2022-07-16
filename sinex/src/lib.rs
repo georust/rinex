@@ -2,6 +2,9 @@ use std::str::FromStr;
 use thiserror::Error;
 use rinex::constellation::Constellation;
 
+pub mod bias;
+pub mod receiver;
+
 fn is_comment (line: &str) -> bool {
     line.starts_with("*")
 }
@@ -22,7 +25,16 @@ fn section_end (line: &str) -> Option<String> {
     }
 }
 
-fn parse_datetime (content: &str) -> Result<chrono::NaiveDateTime, ReceiverError> {
+#[derive(Debug, Error)]
+pub enum ParseDateTimeError {
+    #[error("failed to parse YYYY:DDD")]
+    DatetimeError(#[from] chrono::format::ParseError),
+    #[error("failed to parse SSSSS")]
+    ParseSecondsError(#[from] std::num::ParseFloatError),
+
+}
+
+fn parse_datetime (content: &str) -> Result<chrono::NaiveDateTime, ParseDateTimeError> {
     let ym = &content[0..8]; // "YYYY:DDD"
     let dt = chrono::NaiveDate::parse_from_str(&ym, "%Y:%j")?;
     let secs = &content[9..];
@@ -42,57 +54,14 @@ pub struct Header {
     pub reference_frame: String,
 }
 
-#[derive(Debug, Clone)]
-pub struct Receiver {
-    /// Station name
-    pub station: String,
-    /// Receiver constellation dependence
-    pub constellation: Option<Constellation>,
-    /// Receiver group name
-    pub group: String,
-    /// Receiver validity
-    pub valid_from: chrono::NaiveDateTime,
-    /// Receiver validity
-    pub valid_until: chrono::NaiveDateTime,
-    /// Receiver type
-    pub rtype: String,
-    /// Firmware descriptor
-    pub firmware: String,
-}
-
-#[derive(Debug, Error)]
-pub enum ReceiverError {
-    #[error("failed to parse datetime field")]
-    ParseDateError(#[from] chrono::format::ParseError),
-    #[error("failed to parse datetime:SSSS field")]
-    ParseFloatError(#[from] std::num::ParseFloatError),
-}
-
-impl std::str::FromStr for Receiver {
-    type Err = ReceiverError;
-    fn from_str (s: &str) -> Result<Self, Self::Err> {
-        let (station, rem) = s.split_at(10);
-        let (constellation, rem) = rem.split_at(2);
-        let (group, rem) = rem.split_at(10);
-        let (start, rem) = rem.split_at(15);
-        let (end, rem) = rem.split_at(15);
-        let (rtype, rem) = rem.split_at(21);
-        Ok(Receiver {
-            station: station.trim().to_string(),
-            constellation: {
-                if let Ok(c) = Constellation::from_1_letter_code(constellation.trim()) {
-                    Some(c)
-                } else {
-                    None
-                }
-            },
-            group: group.trim().to_string(),
-            valid_from: parse_datetime(start.trim())?, 
-            valid_until: parse_datetime(end.trim())?,
-            rtype: rtype.trim().to_string(),
-            firmware: rem.trim().to_string(),
-        })
-    }
+pub enum DataType {
+    ObsSampling,
+    ParmeterSpacing,
+    DeterminationMethod,
+    BiasMode,
+    TimeSystem,
+    ReceiverClockRef,
+    SatelliteClockReferenceObs,
 }
 
 #[cfg(test)]
