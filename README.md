@@ -16,7 +16,8 @@ Rust tool suites to parse, analyze, manipulate `RINEX` files
 * [sinex](sinex/) SINEX special files parser, core library
 
 * [rinex-cli](rinex-cli/) is a command line application
-to analyze data and perform operations (like `teqc`) on `RINEX` files
+to analyze data and perform operations (like `teqc`) on `RINEX`, `CRINEX` 
+and soon `SINEX` files
 
 * [ublox-rnx](ublox-rnx) is an application that connects to a `Ublox`
 receiver and generates Observation and Navigation Data easily.
