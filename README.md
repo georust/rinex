@@ -9,15 +9,14 @@ RINEX
 
 Rust tool suites to parse, analyze, manipulate `RINEX` files
 
-* [rinex](rinex/) is the library /crate, 
-it contains the parser and other objects. 
+* [rinex](rinex/) RINEX file parsing & production, core library
 
 * [crx2rnx](crx2rnx/) is a command line application to decompress a `CRINEX` file
 
+* [sinex](sinex/) SINEX special files parser, core library
+
 * [rinex-cli](rinex-cli/) is a command line application
 to analyze data and perform operations (like `teqc`) on `RINEX` files
-
-* [sinex](sinex/) SINEX special files parsing
 
 * [ublox-rnx](ublox-rnx) is an application that connects to a `Ublox`
 receiver and generates Observation and Navigation Data easily.

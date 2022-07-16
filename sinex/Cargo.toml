@@ -17,4 +17,5 @@ readme = "README.md"
 [dependencies]
 chrono = "0.4"
 thiserror = "1"
-rinex = { path = "../rinex" }
+rinex = "0.3.3"
+#rinex = { path = "../rinex" }
