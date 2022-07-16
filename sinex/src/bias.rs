@@ -29,7 +29,11 @@ impl std::str::FromStr for BiasMode {
     fn from_str (content: &str) -> Result<Self, Self::Err> {
         if content.eq("R") {
             Ok(BiasMode::Relative)
+        } else if content.eq("RELATIVE") {
+            Ok(BiasMode::Relative)
         } else if content.eq("A") {
+            Ok(BiasMode::Absolute)
+        } else if content.eq("ASBOLUTE") {
             Ok(BiasMode::Absolute)
         } else {
             Err(BiasModeError::UnknownBiasMode)
@@ -47,14 +51,38 @@ pub enum TimeSystem {
     TAI,
 }
 
+#[derive(Debug, Error)]
+pub enum TimeSystemError {
+    #[error("unknown time system \"{0}\"")]
+    UnknownSystem(String),
+}
+
+impl std::str::FromStr for TimeSystem {
+    type Err = TimeSystemError;
+    fn from_str (content: &str) -> Result<Self, Self::Err> {
+        if content.eq("UTC") {
+            Ok(Self::UTC)
+        } else if content.eq("TAI") {
+            Ok(Self::TAI)
+        } else {
+            if let Ok(c) = Constellation::from_1_letter_code(content) {
+                Ok(Self::GNSS(c))
+            } else {
+                Err(TimeSystemError::UnknownSystem(content.to_string()))
+            }
+        }
+    }
+}
+
 impl Default for TimeSystem {
     fn default() -> Self {
         Self::UTC
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum DeterminationMethodError {
+    #[error("unknown determination method \"{0}\"")]
     UnknownMethod(String),
 }
 
@@ -112,13 +140,13 @@ pub struct Description {
     /// TimeSystem, see [TimeSystem]
     pub system: TimeSystem,
     /// Receiver clock reference GNSS
-    pub rcvr_clk_ref: Option<Constellation>,
+    pub rcvr_clock_ref: Option<Constellation>,
     /// Satellite clock reference observables:
     /// list of observable codes (standard 3 letter codes),
     /// for each GNSS in this file.
     /// Must be provided if associated bias results are consistent
     /// with the ionosphere free LC, otherwise, these might be missing
-    pub sat_clk_ref: HashMap<Constellation, Vec<String>>
+    pub sat_clock_ref: HashMap<Constellation, Vec<String>>
 }
 
 impl Default for Description {
@@ -129,8 +157,98 @@ impl Default for Description {
             method: None,
             bias_mode: BiasMode::default(),
             system: TimeSystem::default(),
-            rcvr_clk_ref: None,
-            sat_clk_ref: HashMap::new(),
+            rcvr_clock_ref: None,
+            sat_clock_ref: HashMap::new(),
+        }
+    }
+}
+
+impl Description {
+    pub fn with_sampling (&self, sampling: u32) -> Self {
+        Self {
+            sampling: Some(sampling), 
+            spacing: self.spacing.clone(),
+            method: self.method.clone(),
+            bias_mode: self.bias_mode.clone(),
+            system: self.system.clone(),
+            rcvr_clock_ref: self.rcvr_clock_ref.clone(),
+            sat_clock_ref: self.sat_clock_ref.clone(),
+        }
+    }
+    pub fn with_spacing (&self, spacing: u32) -> Self {
+        Self {
+            sampling: self.sampling.clone(),
+            spacing: Some(spacing),
+            method: self.method.clone(),
+            bias_mode: self.bias_mode.clone(),
+            system: self.system.clone(),
+            rcvr_clock_ref: self.rcvr_clock_ref.clone(),
+            sat_clock_ref: self.sat_clock_ref.clone(),
+        }
+    }
+    pub fn with_method (&self, method: DeterminationMethod) -> Self {
+        Self {
+            sampling: self.sampling.clone(),
+            spacing: self.spacing.clone(),
+            method: Some(method),
+            bias_mode: self.bias_mode.clone(),
+            system: self.system.clone(),
+            rcvr_clock_ref: self.rcvr_clock_ref.clone(),
+            sat_clock_ref: self.sat_clock_ref.clone(),
+        }
+    }
+    pub fn with_bias_mode (&self, mode: BiasMode) -> Self {
+        Self {
+            sampling: self.sampling.clone(),
+            spacing: self.spacing.clone(),
+            method: self.method.clone(),
+            bias_mode: mode,
+            system: self.system.clone(),
+            rcvr_clock_ref: self.rcvr_clock_ref.clone(),
+            sat_clock_ref: self.sat_clock_ref.clone(),
+        }
+    }
+    pub fn with_time_system (&self, system: TimeSystem) -> Self {
+        Self {
+            sampling: self.sampling.clone(),
+            spacing: self.spacing.clone(),
+            method: self.method.clone(),
+            bias_mode: self.bias_mode.clone(),
+            system,
+            rcvr_clock_ref: self.rcvr_clock_ref.clone(),
+            sat_clock_ref: self.sat_clock_ref.clone(),
+        }
+    }
+    pub fn with_rcvr_clock_ref (&self, clock_ref: Constellation) -> Self {
+        Self {
+            sampling: self.sampling.clone(),
+            spacing: self.spacing.clone(),
+            method: self.method.clone(),
+            bias_mode: self.bias_mode.clone(),
+            system: self.system.clone(),
+            rcvr_clock_ref: Some(clock_ref),
+            sat_clock_ref: self.sat_clock_ref.clone(),
+        }
+    }
+    pub fn with_sat_clock_ref (&self, c: Constellation, observable: &str) -> Self {
+        Self {
+            sampling: self.sampling.clone(),
+            spacing: self.spacing.clone(),
+            method: self.method.clone(),
+            bias_mode: self.bias_mode.clone(),
+            system: self.system.clone(),
+            rcvr_clock_ref: self.rcvr_clock_ref.clone(),
+            sat_clock_ref: {
+                let mut map = self.sat_clock_ref.clone();
+                if let Some(mut codes) = map.get_mut(&c) {
+                    if !codes.contains(&observable.to_string()) {
+                        codes.push(observable.to_string());
+                    }
+                } else {
+                    map.insert(c, vec![observable.to_string()]);
+                }
+                map
+            },
         }
     }
 }

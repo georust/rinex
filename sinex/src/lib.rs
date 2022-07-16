@@ -1,6 +1,7 @@
 use std::str::FromStr;
 use thiserror::Error;
 use std::io::{prelude::*, BufReader};
+use rinex::constellation::Constellation;
 
 pub mod bias;
 pub mod header;
@@ -74,9 +75,21 @@ pub enum Error {
     /// Failed to open given file
     #[error("failed to open given file")]
     FileError(#[from] std::io::Error),
+    /// Failed to parse integer number
+    #[error("failed to parse integer number")]
+    ParseIntError(#[from] std::num::ParseIntError),
+    /// Failed to parse Bias Mode
+    #[error("failed to parse bias mode")]
+    ParseBiasModeError(#[from] bias::BiasModeError),
+    /// Failed to parse Determination Method
+    #[error("failed to parse determination method")]
+    ParseMethodError(#[from] bias::DeterminationMethodError),
+    /// Failed to parse time system field
+    #[error("failed to parse time system")]
+    ParseTimeSystemError(#[from] bias::TimeSystemError),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Reference {
     /// Organization(s) providing / gathering file content
     pub description: String,
@@ -92,6 +105,69 @@ pub struct Reference {
     pub hardware: String,
 }
 
+impl Reference {
+    pub fn with_description (&self, description: &str) -> Self {
+        Self {
+            description: description.to_string(),
+            input: self.input.clone(),
+            output: self.output.clone(),
+            contact: self.contact.clone(),
+            software: self.software.clone(),
+            hardware: self.hardware.clone(),
+        }
+    }
+    pub fn with_input (&self, input: &str) -> Self {
+        Self {
+            description: self.description.clone(),
+            input: input.to_string(),
+            output: self.output.clone(),
+            contact: self.contact.clone(),
+            software: self.software.clone(),
+            hardware: self.hardware.clone(),
+        }
+    }
+    pub fn with_output (&self, output: &str) -> Self {
+        Self {
+            description: self.description.clone(),
+            input: self.input.clone(),
+            output: output.to_string(),
+            contact: self.contact.clone(),
+            software: self.software.clone(),
+            hardware: self.hardware.clone(),
+        }
+    }
+    pub fn with_contact (&self, contact: &str) -> Self {
+        Self {
+            description: self.description.clone(),
+            input: self.input.clone(),
+            output: self.output.clone(),
+            contact: contact.to_string(),
+            software: self.software.clone(),
+            hardware: self.hardware.clone(),
+        }
+    }
+    pub fn with_software (&self, software: &str) -> Self {
+        Self {
+            description: self.description.clone(),
+            input: self.input.clone(),
+            output: self.output.clone(),
+            contact: self.contact.clone(),
+            software: software.to_string(),
+            hardware: self.hardware.clone(),
+        }
+    }
+    pub fn with_hardware (&self, hardware: &str) -> Self {
+        Self {
+            description: self.description.clone(),
+            input: self.input.clone(),
+            output: self.output.clone(),
+            contact: self.contact.clone(),
+            software: self.software.clone(),
+            hardware: hardware.to_string(),
+        }
+    }
+}
+
 impl Default for Reference {
     fn default() -> Self {
         Self {
@@ -105,6 +181,7 @@ impl Default for Reference {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct Sinex {
     /// Header section
     pub header: header::Header,
@@ -143,7 +220,6 @@ impl Sinex {
             if is_dotdotdot(line) {
                 continue
             }
-            println!("PROCESSING LINE \"{}\"", line); 
             if is_first {
                 if !is_header(line) {
                     return Err(Error::MissingHeader)
@@ -165,7 +241,15 @@ impl Sinex {
                 match section.as_str() {
                     "FILE/REFERENCE" => {
                         let (descriptor, content) = line.split_at(19);
-                        println!("DESCRIPTOR \"{}\", CONTENT \"{}", descriptor, content);
+                        match descriptor.trim() {
+                            "INPUT" => reference = reference.with_input(content.trim()),
+                           "OUTPUT" => reference = reference.with_output(content.trim()),
+                      "DESCRIPTION" => reference = reference.with_description(content.trim()),
+                         "SOFTWARE" => reference = reference.with_software(content.trim()),
+                         "HARDWARE" => reference = reference.with_hardware(content.trim()),
+                          "CONTACT" => reference = reference.with_contact(content.trim()),
+                          _ => {},
+                        }
                     },
                     "FILE/COMMENT" => {
                         comments.push(line.trim().to_string())
@@ -174,6 +258,47 @@ impl Sinex {
                         acknowledgments.push(line.trim().to_string())
                     },
                     "BIAS/DESCRIPTION" => {
+                        let (descriptor, content) = line.split_at(41);
+                        println!("DESCRIPTION \"{}\"", descriptor);
+                        match descriptor.trim() {
+                            "OBSERVATION_SAMPLING" => {
+                                let sampling = u32::from_str_radix(content.trim(), 10)?;
+                                description = description.with_sampling(sampling)
+                            },
+                            "PARAMETER_SPACING" => {
+                                let spacing = u32::from_str_radix(content.trim(), 10)?;
+                                description = description.with_spacing(spacing)
+                            },
+                            "DETERMINATION_METHOD" => {
+                                let method = bias::DeterminationMethod::from_str(content.trim())?;
+                                description = description.with_method(method)
+                            },
+                            "BIAS_MODE" => {
+                                let mode = bias::BiasMode::from_str(content.trim())?;
+                                description = description.with_bias_mode(mode)
+                            },
+                            "TIME_SYSTEM" => {
+                                let system = bias::TimeSystem::from_str(content.trim())?;
+                                description = description.with_time_system(system)
+                            },
+                            "RECEIVER_CLOCK_REFERENCE_GNSS" => {
+                                if let Ok(c) = Constellation::from_1_letter_code(content.trim()) {
+                                    description = description.with_rcvr_clock_ref(c)
+                                }
+                            },
+                    "SATELLITE_CLOCK_REFERENCE_OBSERVABLES" => {
+                                let items :Vec<&str> = content.trim()
+                                    .split_ascii_whitespace()
+                                    .collect();
+                                if let Ok(c) = Constellation::from_1_letter_code(items[0]) {
+                                    for i in 1..items.len() {
+                                        description = description
+                                            .with_sat_clock_ref(c, items[i])
+                                    }
+                                }
+                            },
+                            _ => {},
+                        }
                     },
                     "BIAS/SOLUTION" => {
                     },
