@@ -1,0 +1,20 @@
+[package]
+name = "sinex"
+version = "0.0.1"
+license = "MIT OR Apache-2.0"
+authors = ["Guillaume W. Bres <guillaume.bressaix@gmail.com>"]
+description = "Package to parse and analyze SINEX data"
+homepage = "https://github.com/gwbres/rinex"
+keywords = ["sinex", "timing", "gps", "glonass", "galileo"]
+categories = ["science", "parsing"]
+edition = "2018"
+readme = "README.md"
+
+[features]
+
+[build-dependencies]
+
+[dependencies]
+chrono = "0.4"
+thiserror = "1"
+rinex = { path = "../rinex" }
