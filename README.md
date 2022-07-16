@@ -49,6 +49,11 @@ CRINEX V2 does not exist.
 You can directly pass to the parser Observation `RINEX` files that were compressed with 
 the `RNX2CRX` official tool.
 
+## SINEX special files
+
+`SINEX` is now supported through a [separate crate](sinex/), it soon will be exposed
+to `rinex-cli` for file manipulation & analysis
+
 ## Features
 
 * `--with-serde` to enable `Serialization` and `Deserialization`,
