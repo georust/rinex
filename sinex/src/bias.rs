@@ -45,6 +45,12 @@ pub enum TimeSystem {
     TAI,
 }
 
+impl Default for TimeSystem {
+    fn default() -> Self {
+        Self::UTC
+    }
+}
+
 #[derive(Debug)]
 pub enum DeterminationMethodError {
     UnknownMethod(String),
@@ -113,15 +119,23 @@ pub struct Description {
     pub sat_clk_ref: HashMap<Constellation, Vec<String>>
 }
 
-#[derive(Debug, Clone)]
-pub struct Solution {
-
+impl Default for Description {
+    fn default() -> Self {
+        Self {
+            sampling: None,
+            spacing: None,
+            method: None,
+            bias_mode: BiasMode::default(),
+            system: TimeSystem::default(),
+            rcvr_clk_ref: None,
+            sat_clk_ref: HashMap::new(),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
-pub struct Bias {
-    pub description: Description,
-    pub solutions: Vec<Solution>,
+pub struct Solution {
+
 }
 
 /*

@@ -30,6 +30,14 @@ fn section_end (line: &str) -> Option<String> {
     }
 }
 
+fn is_end_bias (line: &str) -> bool {
+    line.starts_with("%=ENDBIA")
+}
+
+fn is_dotdotdot (line: &str) -> bool {
+    line.eq("...")
+}
+
 #[derive(Debug, Error)]
 pub enum ParseDateTimeError {
     #[error("failed to parse YYYY:DDD")]
@@ -47,16 +55,6 @@ fn parse_datetime (content: &str) -> Result<chrono::NaiveDateTime, ParseDateTime
     let m = (secs - h*3600.0)/60.0;
     let s = secs - h*3600.0 - m*60.0;
     Ok(dt.and_hms(h as u32, m as u32, s as u32))
-}
-
-pub enum DataType {
-    ObsSampling,
-    ParmeterSpacing,
-    DeterminationMethod,
-    BiasMode,
-    TimeSystem,
-    ReceiverClockRef,
-    SatelliteClockReferenceObs,
 }
 
 #[derive(Debug, Error)]
@@ -78,16 +76,48 @@ pub enum Error {
     FileError(#[from] std::io::Error),
 }
 
+#[derive(Debug)]
+pub struct Reference {
+    /// Organization(s) providing / gathering file content
+    pub description: String,
+    /// Brief description of the input used to generate the solution
+    pub input: String,
+    /// Description of the file contents
+    pub output: String,
+    /// Address of the relevant contact (email..)
+    pub contact: String,
+    /// Software used to generate this file
+    pub software: String,
+    /// Hardware used to genreate this file
+    pub hardware: String,
+}
+
+impl Default for Reference {
+    fn default() -> Self {
+        Self {
+            description: String::from("?"),
+            input: String::from("?"),
+            output: String::from("?"),
+            contact: String::from("unknown"),
+            software: String::from("unknown"),
+            hardware: String::from("unknown"),
+        }
+    }
+}
+
 pub struct Sinex {
     /// Header section
     pub header: header::Header,
+    /// File Reference section
+    pub reference: Reference,
     /// Possible `Input` Acknowledgemet, especially for data providers
     pub acknowledgments: Vec<String>,
     /// Possible `File Comments`
     pub comments: Vec<String>,
-    /// Bias measurements / estimates,
-    /// comprises a [Description] and a list of [Bias]
-    pub bias: Vec<bias::Bias>,
+    /// Bias Description
+    pub description: bias::Description,
+    /// Bias solutions 
+    pub solutions: Vec<bias::Solution>,
 }
 
 impl Sinex {
@@ -96,12 +126,24 @@ impl Sinex {
         let reader = BufReader::new(file);
         let mut is_first = true;
         let mut header = header::Header::default();
+        let mut reference: Reference = Reference::default();
         let mut section = String::new();
         let mut comments : Vec<String> = Vec::new();
         let mut acknowledgments : Vec<String> = Vec::new();
-        let mut bias: Vec<bias::Bias> = Vec::new();
+        let mut description = bias::Description::default();
+        let mut solutions: Vec<bias::Solution> = Vec::new();
         for line in reader.lines() {
             let line = &line.unwrap();
+            if is_comment(line) {
+                continue
+            }
+            if is_end_bias(line) {
+                break
+            }
+            if is_dotdotdot(line) {
+                continue
+            }
+            println!("PROCESSING LINE \"{}\"", line); 
             if is_first {
                 if !is_header(line) {
                     return Err(Error::MissingHeader)
@@ -110,10 +152,6 @@ impl Sinex {
                     header = hd.clone()
                 }
                 is_first = false;
-                continue
-            }
-
-            if is_comment(line) {
                 continue
             }
 
@@ -126,6 +164,8 @@ impl Sinex {
             } else {
                 match section.as_str() {
                     "FILE/REFERENCE" => {
+                        let (descriptor, content) = line.split_at(19);
+                        println!("DESCRIPTOR \"{}\", CONTENT \"{}", descriptor, content);
                     },
                     "FILE/COMMENT" => {
                         comments.push(line.trim().to_string())
@@ -143,9 +183,11 @@ impl Sinex {
         }
         Ok(Self {
             header,
+            reference,
             acknowledgments,
             comments,
-            bias,
+            description,
+            solutions,
         })
     }
 }
