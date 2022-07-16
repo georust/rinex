@@ -8,11 +8,11 @@ SINEX
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square)](https://github.com/gwbres/rinex/blob/main/LICENSE-APACHE)
 [![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](https://github.com/gwbres/rinex/blob/main/LICENSE-MIT)
 
-## Parse 
+## Parser
 
 `SINEX` special files parsing
 
-[data/](data/) contains several example SIGEX files, mainly for testing purposes
+[data/](data/) contains several example `SINEX files, mainly for testing purposes
 
 Known behavior:
 
