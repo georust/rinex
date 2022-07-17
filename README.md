@@ -37,7 +37,7 @@ see `develop` branches
 | `CRINEX` (Compressed OBS)| V1, :sparkles:V3  | :heavy_minus_sign: |  :heavy_check_mark:    | :construction:       | `.XXX.gz` data cannot be understood, <br /> user must manualy uncompress to `.XXX` first |
 | `MeteoData` (MET)        | V3, V4            | V2                 |  :heavy_check_mark:    | :heavy_minus_sign:   |  :heavy_minus_sign:     |  
 | `ClocksData` (CLK)       | V3                | V4                 |  :construction:        | :heavy_minus_sign:   |  :heavy_minus_sign:     |
-| `AntennaData` (ATX)      | V3                | V4                 |  :construction:        | :heavy_minus_sign:   |  :heavy_minus_sign:     |
+| `AntennaData` (ATX)      | V1                | :heavy_minus_sign: |  :construction:        | :heavy_minus_sign:   |  :heavy_minus_sign:     |
 | `SINEX` (SNX)            | V1                | :heavy_minus_sign: |  :construction:        | :heavy_minus_sign:   |  `SINEX` are special `RINEX`, they are managed by a dedicated <br /> [`core library`](sinex/) |
 
 **CLI** : means exposed to [`rinex-cli`](rinex-cli/) for easy parsing & quick analysis  
@@ -68,6 +68,5 @@ Note on `V4`:
 
 ## Features
 
-* `--with-serde` to enable `Serialization` and `Deserialization`,
-useful for applications that need to parse / control some of the
-RINEX attributes.
+* `--with-serde`   
+enables `Serialization` and `Deserialization` of main RINEX structures
