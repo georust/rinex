@@ -9,60 +9,65 @@ RINEX
 
 Rust tool suites to parse, analyze, manipulate `RINEX` files
 
-* [rinex](rinex/) `RINEX` file parsing & production and `teqc` similar ops, 
+* [`rinex`](rinex/) `RINEX` file parsing & production and `teqc` similar ops, 
 this is the core library
 
-* [crx2rnx](crx2rnx/) is a command line application to decompress `CRINEX` files
+* [`crx2rnx`](crx2rnx/) is a command line application to decompress `CRINEX` files
 
-* [sinex](sinex/) `SINEX` files parser, core library
+* [`sinex`](sinex/) `SINEX` files parser, core library
 
-* [rinex-cli](rinex-cli/) is a command line application
+* [`rinex-cli`](rinex-cli/) is a command line application
 to analyze data and perform operations (like `teqc`) on `RINEX`, `CRINEX` 
 and soon `SINEX` files
 
-* [ublox-rnx](ublox-rnx) is an application that connects to a `Ublox`
-receiver and generates Observation and Navigation Data easily.
-It is based on the [ublox](https://github.com/lkolbly/ublox) crate.
+* [`ublox-rnx`](ublox-rnx) is an application (CLI) that connects to a `Ublox`
+receiver and generates RINEX data quickly & easily.
+It is made possible by combining the [ublox](https://github.com/lkolbly/ublox) crate
+and [`rinex`](rinex/) library core.
 
 * `rnx2crx`: `RINEX` file compressor is currently under development,
 see `develop` branches
 
-## Supported RINEX revisions
-
-* 1.00 ⩽ v < 4.0    Tested 
-*             v = 4.0    refer to file type specific pages
-
 ## Supported `RINEX` files
 
-The following RINEX files are currently supported:
+| `types::Type`            | Trusted           | Untrusted          | CLI                    | UBX                  |          Notes          |
+|--------------------------|-------------------|--------------------|------------------------|----------------------|-------------------------|
+| `NavigationData` (NAV)   | V2, V3            |   V4               |  :heavy_check_mark:    | :construction:       |  :heavy_minus_sign:     |
+| `ObservationData` (OBS)  | V2, V3            |   V4               |  :heavy_check_mark:    | :construction:       |  :heavy_minus_sign:     |
+| `CRINEX` (Compressed OBS)| V1, :sparkles:V3  | :heavy_minus_sign: |  :heavy_check_mark:    | :construction:       | `.XXX.gz` data cannot be understood, <br /> user must manualy uncompress to `.XXX` first |
+| `MeteoData` (MET)        | V3, V4            | V2                 |  :heavy_check_mark:    | :heavy_minus_sign:   |  :heavy_minus_sign:     |  
+| `ClocksData` (CLK)       | V3                | V4                 |  :construction:        | :heavy_minus_sign:   |  :heavy_minus_sign:     |
+| `AntennaData` (ATX)      | V3                | V4                 |  :construction:        | :heavy_minus_sign:   |  :heavy_minus_sign:     |
+| `SINEX` (SNX)            | V1                | :heavy_minus_sign: |  :construction:        | :heavy_minus_sign:   |  `SINEX` are special `RINEX`, they are managed by a dedicated <br /> [`core library`](sinex/) |
 
-* `Type::NavigationData` (NAV) data
-* `Type::ObservationData` (OBS) data
-* `Type::MeteoData` (MET) data
-* `Type::ClockData`: (CLK) RINEX: under development
-* `Type::AntennaData`: (ATX) RINEX: under development
+**CLI** : means exposed to [`rinex-cli`](rinex-cli/) for easy parsing & quick analysis  
+**UBX** : means exposed to [`ublox-rnx`](ublox-rnx/) for to produce data with a UBLOX receiver  
+:sparkles: `CRINEX` V2 and V4 do not exist  
+:heavy_check_mark: supported   
+:heavy_minus_sign: not applicable   
+:construction: under development  
 
-## CRINEX special case
+Note on `V4`: 
+- I mark it `untrusted` because it is not under CI/CD (lack of data)
+- but parser has been written 
+- and format is easy and standardized enough between `types::Type` that there's a good chance it might work.  
+:arrow_right_hook: Data, tests, contributions are welcomed
 
-CRINEX V1 and V3 are fully supported.   
-CRINEX V2 does not exist.  
+## `teqc` special operations
 
-You can directly pass to the parser Observation `RINEX` files that were compressed with 
-the `RNX2CRX` official tool.
+| Ops      | Status          | 
+|----------|-----------------|
+| `Merge` | :construction:   |
+| `Splice` | :construction:  | 
 
-## SINEX special files
+## Custom special operations
 
-`SINEX` is now supported through a [separate crate](sinex/), it soon will be exposed
-to `rinex-cli` for file manipulation & analysis
+| Ops           | Status          | 
+|---------------|-----------------|
+| `Down sample` | :construction:  |
 
 ## Features
 
 * `--with-serde` to enable `Serialization` and `Deserialization`,
 useful for applications that need to parse / control some of the
-RINEX attributes. 
-
-## Coming in next releases
-
-* Improved Clocks RINEX support
-* Merge / Splice / Split record special operations
-* Antex (ATX) RINEX parsing
+RINEX attributes.
