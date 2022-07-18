@@ -1,18 +1,23 @@
 use std::str::FromStr;
 use thiserror::Error;
+use std::collections::HashMap;
 use std::io::{prelude::*, BufReader};
 use rinex::constellation::Constellation;
+
+mod reference;
+mod description;
 
 pub mod bias;
 pub mod header;
 pub mod receiver;
+pub mod datetime;
+pub mod troposphere;
+
+use header::Header;
+use reference::Reference;
 
 fn is_comment (line: &str) -> bool {
     line.starts_with("*")
-}
-
-fn is_header (line: &str) -> bool {
-    line.starts_with("%=BIA")
 }
 
 fn section_start (line: &str) -> Option<String> {
@@ -31,31 +36,8 @@ fn section_end (line: &str) -> Option<String> {
     }
 }
 
-fn is_end_bias (line: &str) -> bool {
-    line.starts_with("%=ENDBIA")
-}
-
 fn is_dotdotdot (line: &str) -> bool {
     line.eq("...")
-}
-
-#[derive(Debug, Error)]
-pub enum ParseDateTimeError {
-    #[error("failed to parse YYYY:DDD")]
-    DatetimeError(#[from] chrono::format::ParseError),
-    #[error("failed to parse SSSSS")]
-    ParseSecondsError(#[from] std::num::ParseFloatError),
-}
-
-fn parse_datetime (content: &str) -> Result<chrono::NaiveDateTime, ParseDateTimeError> {
-    let ym = &content[0..8]; // "YYYY:DDD"
-    let dt = chrono::NaiveDate::parse_from_str(&ym, "%Y:%j")?;
-    let secs = &content[9..];
-    let secs = f32::from_str(secs)?;
-    let h = secs /3600.0;
-    let m = (secs - h*3600.0)/60.0;
-    let s = secs - h*3600.0 - m*60.0;
-    Ok(dt.and_hms(h as u32, m as u32, s as u32))
 }
 
 #[derive(Debug, Error)]
@@ -89,112 +71,50 @@ pub enum Error {
     ParseTimeSystemError(#[from] bias::TimeSystemError),
 }
 
+/*
 #[derive(Debug, Clone)]
-pub struct Reference {
-    /// Organization(s) providing / gathering file content
-    pub description: String,
-    /// Brief description of the input used to generate the solution
-    pub input: String,
-    /// Description of the file contents
-    pub output: String,
-    /// Address of the relevant contact (email..)
-    pub contact: String,
-    /// Software used to generate this file
-    pub software: String,
-    /// Hardware used to genreate this file
-    pub hardware: String,
+pub enum Record {
+    /// Bias (BIA) record case
+    BiasSolutions(Vec<bias::Solution>),
+    /// Troposphere (TRO) record case
+    TropoRecord(troposphere::Record),
+    // /// SINEX (SNX) record case
+    //SinexRecord(sinex::Record)
 }
 
-impl Reference {
-    pub fn with_description (&self, description: &str) -> Self {
-        Self {
-            description: description.to_string(),
-            input: self.input.clone(),
-            output: self.output.clone(),
-            contact: self.contact.clone(),
-            software: self.software.clone(),
-            hardware: self.hardware.clone(),
+impl Record {
+    /// Unwraps Bias Solutions, if feasible
+    pub fn bias_solutions (&self) -> Option<&Vec<bias::Solution>> {
+        match self {
+            Self::BiasSolutions(r) => Some(r),
+            _ => None,
         }
     }
-    pub fn with_input (&self, input: &str) -> Self {
-        Self {
-            description: self.description.clone(),
-            input: input.to_string(),
-            output: self.output.clone(),
-            contact: self.contact.clone(),
-            software: self.software.clone(),
-            hardware: self.hardware.clone(),
-        }
-    }
-    pub fn with_output (&self, output: &str) -> Self {
-        Self {
-            description: self.description.clone(),
-            input: self.input.clone(),
-            output: output.to_string(),
-            contact: self.contact.clone(),
-            software: self.software.clone(),
-            hardware: self.hardware.clone(),
-        }
-    }
-    pub fn with_contact (&self, contact: &str) -> Self {
-        Self {
-            description: self.description.clone(),
-            input: self.input.clone(),
-            output: self.output.clone(),
-            contact: contact.to_string(),
-            software: self.software.clone(),
-            hardware: self.hardware.clone(),
-        }
-    }
-    pub fn with_software (&self, software: &str) -> Self {
-        Self {
-            description: self.description.clone(),
-            input: self.input.clone(),
-            output: self.output.clone(),
-            contact: self.contact.clone(),
-            software: software.to_string(),
-            hardware: self.hardware.clone(),
-        }
-    }
-    pub fn with_hardware (&self, hardware: &str) -> Self {
-        Self {
-            description: self.description.clone(),
-            input: self.input.clone(),
-            output: self.output.clone(),
-            contact: self.contact.clone(),
-            software: self.software.clone(),
-            hardware: hardware.to_string(),
+    /// Unwraps Troposphere Record, if feasible,
+    /// is [troposphere::Record] definition for more detail
+    pub fn tropo_record (&self) -> Option<&troposphere::Record> {
+        match self {
+            Self::TropoRecord(r) => Some(r),
+            _ => None,
         }
     }
 }
-
-impl Default for Reference {
-    fn default() -> Self {
-        Self {
-            description: String::from("?"),
-            input: String::from("?"),
-            output: String::from("?"),
-            contact: String::from("unknown"),
-            software: String::from("unknown"),
-            hardware: String::from("unknown"),
-        }
-    }
-}
+*/
 
 #[derive(Debug, Clone)]
 pub struct Sinex {
-    /// Header section
-    pub header: header::Header,
+    /// Header section, is Document Type dependent
+    pub header: Header,
     /// File Reference section
     pub reference: Reference,
     /// Possible `Input` Acknowledgemet, especially for data providers
     pub acknowledgments: Vec<String>,
     /// Possible `File Comments`
     pub comments: Vec<String>,
-    /// Bias Description
-    pub description: bias::Description,
-    /// Bias estimate solutions 
-    pub solutions: Vec<bias::Solution>,
+    /// File Description is Document Type dependent
+    pub description: Description, 
+    // /// Record
+    //pub record: Record,
 }
 
 impl Sinex {
@@ -202,20 +122,20 @@ impl Sinex {
         let file = std::fs::File::open(file)?;
         let reader = BufReader::new(file);
         let mut is_first = true;
-        let mut header = header::Header::default();
+        let mut bias_header = bias::header::Header::default();
+        let mut tropo_header = troposphere::header::Header::default();
         let mut reference: Reference = Reference::default();
         let mut section = String::new();
         let mut comments : Vec<String> = Vec::new();
         let mut acknowledgments : Vec<String> = Vec::new();
-        let mut description = bias::Description::default();
-        let mut solutions: Vec<bias::Solution> = Vec::new();
+        //let mut bias_description = bias::Description::default();
+        //let mut bias_solutions: Vec<bias::Solution> = Vec::new();
+        //let mut trop_description = troposphere::Description::default();
+        //let mut trop_coordinates : Vec<troposphere::Coordinates> = Vec::new();
         for line in reader.lines() {
             let line = &line.unwrap();
             if is_comment(line) {
                 continue
-            }
-            if is_end_bias(line) {
-                break
             }
             if is_dotdotdot(line) {
                 continue
@@ -233,10 +153,12 @@ impl Sinex {
 
             if let Some(s) = section_start(line) {
                 section = s.clone();
+            
             } else if let Some(s) = section_end(line) {
                 if !s.eq(&section) {
                     return Err(Error::FaultySection)
                 }
+            
             } else {
                 match section.as_str() {
                     "FILE/REFERENCE" => {
@@ -262,27 +184,27 @@ impl Sinex {
                         match descriptor.trim() {
                             "OBSERVATION_SAMPLING" => {
                                 let sampling = u32::from_str_radix(content.trim(), 10)?;
-                                description = description.with_sampling(sampling)
+                                bias_description = bias_description.with_sampling(sampling)
                             },
                             "PARAMETER_SPACING" => {
                                 let spacing = u32::from_str_radix(content.trim(), 10)?;
-                                description = description.with_spacing(spacing)
+                                bias_description = bias_description.with_spacing(spacing)
                             },
                             "DETERMINATION_METHOD" => {
                                 let method = bias::DeterminationMethod::from_str(content.trim())?;
-                                description = description.with_method(method)
+                                bias_description = bias_description.with_method(method)
                             },
                             "BIAS_MODE" => {
                                 let mode = bias::BiasMode::from_str(content.trim())?;
-                                description = description.with_bias_mode(mode)
+                                bias_description = bias_description.with_bias_mode(mode)
                             },
                             "TIME_SYSTEM" => {
                                 let system = bias::TimeSystem::from_str(content.trim())?;
-                                description = description.with_time_system(system)
+                                bias_description = bias_description.with_time_system(system)
                             },
                             "RECEIVER_CLOCK_REFERENCE_GNSS" => {
                                 if let Ok(c) = Constellation::from_1_letter_code(content.trim()) {
-                                    description = description.with_rcvr_clock_ref(c)
+                                    bias_description = bias_description.with_rcvr_clock_ref(c)
                                 }
                             },
                     "SATELLITE_CLOCK_REFERENCE_OBSERVABLES" => {
@@ -290,10 +212,55 @@ impl Sinex {
                                     .split_ascii_whitespace()
                                     .collect();
                                 if let Ok(c) = Constellation::from_1_letter_code(items[0]) {
-                                    for i in 1..items.len() {
-                                        description = description
-                                            .with_sat_clock_ref(c, items[i])
+                                    if items.len() == 1 {
+                                        // --> no observable given
+                                        let mut map: HashMap<Constellation, Vec<String>> = HashMap::new();
+                                        map.insert(c, Vec::new());
+                                        bias_description
+                                            .sat_clock_ref = map.clone()
+                                    } else {
+                                        for i in 1..items.len() {
+                                            bias_description = bias_description
+                                                .with_sat_clock_ref(c, items[i])
+                                        }
                                     }
+                                }
+                            },
+                            _ => {},
+                        }
+                    },
+                    "TROP/DESCRIPTION" => {
+                        let (descriptor, content) = line.split_at(41);
+                        match descriptor.trim() {
+                            "ELEVATION CUTOFF ANGLE" => {
+                                let angle = u32::from_str_radix(content.trim(), 10)?;              
+                            },
+                            "SAMPLING INTERVAL" => {
+                                let interval = u32::from_str_radix(content.trim(), 10)?;              
+                                trop_description = trop_description
+                                    .with_sampling_interval(interval)
+                            },
+                            "SAMPLING TROP" => {
+                                let interval = u32::from_str_radix(content.trim(), 10)?;              
+                                trop_description = trop_description
+                                    .with_tropo_sampling(interval)
+                            },
+                            "TROP MAPPING FUNCTION" => {
+                                let functions :Vec<&str> = content
+                                    .split_ascii_whitespace()
+                                    .collect();
+                                for func in functions {
+                                    trop_description = trop_description
+                                        .with_mapping_function(func)
+                                }
+                            },
+                            "SOLUTION_FIELDS_1" => {
+                                let fields :Vec<&str> = content
+                                    .split_ascii_whitespace()
+                                    .collect();
+                                for field in fields {
+                                    trop_description = trop_description
+                                        .with_solution_field(field)
                                 }
                             },
                             _ => {},
@@ -301,20 +268,41 @@ impl Sinex {
                     },
                     "BIAS/SOLUTION" => {
                         if let Ok(sol) = bias::Solution::from_str(line.trim()) {
-                            solutions.push(sol)
+                            bias_solutions.push(sol)
+                        }
+                    },
+                    "TROP/STA_COORDINATES" => {
+                        if let Ok(coords) = troposphere::Coordinates::from_str(line.trim()) {
+                            trop_coordinates.push(coords)
                         }
                     },
                     _ => return Err(Error::UnknownSection(section))
                 }
             }
         }
+        let doctype = header.doc_type.clone();
         Ok(Self {
-            header,
+            header: {
+                match doctype {
+                    header::DocumentType::BiasSolutions => header::BiasHeader(bias_header),
+                    header::DocumentType::TropoCoordinates => header::TropoHeader(tropo_header),
+                }
+            },
             reference,
             acknowledgments,
             comments,
-            description,
-            solutions,
+            description: {
+                match doctype {
+                    header::DocumentType::BiasSolutions => description::BiasDescription(bias_description),
+                    header::DocumentType::TropoCoordinates => description::TropoDescription(trop_description),
+                }
+            },
+            /*record: {
+                match ftype {
+                    header::DocumentType::BiasSolutions => Record::BiasSolutions(bias_solutions),
+                    header::DocumentType::TropoCoordinates => Record::TropoCoordinates(trop_coordinates),
+                }
+            },*/
         })
     }
 }
