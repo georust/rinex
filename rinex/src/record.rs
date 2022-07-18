@@ -32,88 +32,102 @@ pub enum Record {
 	/// `record` is a hashmap of f32 indexed by Observation Code,
 	/// sorted by `epoch`
     MeteoRecord(meteo::Record),
-    /// `clocks::Record` : Record file content for CLOCKS RINEX
+    /// `clocks::Record` : CLOCKS RINEX file content
     ClockRecord(clocks::Record),
-/*
+    /// `IONEX` record is a list of Ionosphere Maps,
+    /// indexed by `epoch`
+    IonexRecord(ionex::Record),
     /// `antex::Record` : Antenna Data file content.
-    /// `record` is a hashmap of possible Antenna parameters
+    /// `record` is a list of Antenna caracteristics sorted
+    /// by antenna model. `ATX` records are not `epoch` iterable
     AntexRecord(antex::Record),
-*/
 }
 
 /// Comments: alias to describe comments encountered in `record` file section
 pub type Comments = BTreeMap<epoch::Epoch, Vec<String>>;
 
 impl Record {
-/*	
     /// Unwraps self as ANTEX `record`
     pub fn as_antex (&self) -> Option<&antex::Record> {
         match self {
-            Record::AntexRecord(e) => Some(e),
+            Record::AntexRecord(r) => Some(r),
             _ => None,
         }
     }
     /// Unwraps self as mutable reference to ANTEX `record`
     pub fn as_mut_antex (&mut self) -> Option<&mut antex::Record> {
         match self {
-            Record::AntexRecord(e) => Some(e),
+            Record::AntexRecord(r) => Some(r),
             _ => None,
         }
     }
-*/
     /// Unwraps self as CLK `record`
     pub fn as_clock (&self) -> Option<&clocks::Record> {
         match self {
-            Record::ClockRecord(e) => Some(e),
+            Record::ClockRecord(r) => Some(r),
             _ => None,
         }
     }
     /// Unwraps self as mutable CLK `record`
     pub fn as_mut_clock (&mut self) -> Option<&mut clocks::Record> {
         match self {
-            Record::ClockRecord(e) => Some(e),
+            Record::ClockRecord(r) => Some(r),
+            _ => None,
+        }
+    }
+    /// Unwraps self as IONEX record
+    pub fn as_ionex (&self) -> Option<&ionex::Record> {
+        match self {
+            Record::IonexRecord(r) => Some(r),
+            _ => None,
+        }
+    }
+    /// Unwraps self as mutable IONEX record
+    pub fn as_mut_ionex (&mut self) -> Option<&mut ionex::Record> {
+        match self {
+            Record::IonexRecord(r) => Some(r),
             _ => None,
         }
     }
 	/// Unwraps self as MET `record`
     pub fn as_meteo (&self) -> Option<&meteo::Record> {
         match self {
-            Record::MeteoRecord(e) => Some(e),
+            Record::MeteoRecord(r) => Some(r),
             _ => None,
         }
     }
     /// Returns mutable reference to Meteo record
     pub fn as_mut_meteo (&mut self) -> Option<&mut meteo::Record> {
         match self {
-            Record::MeteoRecord(e) => Some(e),
+            Record::MeteoRecord(r) => Some(r),
             _ => None,
         }
     }
 	/// Unwraps self as NAV `record`
     pub fn as_nav (&self) -> Option<&navigation::Record> {
         match self {
-            Record::NavRecord(e) => Some(e),
+            Record::NavRecord(r) => Some(r),
             _ => None,
         }
     }
 	/// Returns mutable reference to Navigation `record`
     pub fn as_mut_nav (&mut self) -> Option<&mut navigation::Record> {
         match self {
-            Record::NavRecord(e) => Some(e),
+            Record::NavRecord(r) => Some(r),
             _ => None,
         }
     }
 	/// Unwraps self as OBS `record`
     pub fn as_obs (&self) -> Option<&observation::Record> {
         match self {
-            Record::ObsRecord(e) => Some(e),
+            Record::ObsRecord(r) => Some(r),
             _ => None,
         }
     }
     /// Returns mutable reference to Observation record
     pub fn as_mut_obs (&mut self) -> Option<&mut observation::Record> {
         match self {
-            Record::ObsRecord(e) => Some(e),
+            Record::ObsRecord(r) => Some(r),
             _ => None,
         }
     }
@@ -135,7 +149,7 @@ impl Record {
                     .unwrap();
                 Ok(navigation::to_file(header, &record, writer)?)
             },
-            _ => panic!("Type of record not supported yet"),
+            _ => panic!("record type not supported yet"),
         }
     }
 }
@@ -161,11 +175,12 @@ pub fn is_new_epoch (line: &str, header: &header::Header) -> bool {
         return false
     }
     match &header.rinex_type {
+        Type::AntennaData => antex::is_new_epoch(line),
         Type::ClockData => clocks::is_new_epoch(line),
+        Type::IonosphereMaps => ionex::is_new_tec_map(line),
         Type::NavigationData => navigation::is_new_epoch(line, header.version, header.constellation.unwrap()),
         Type::ObservationData => observation::is_new_epoch(line, header.version),
         Type::MeteoData => meteo::is_new_epoch(line, header.version),
-        Type::AntennaData => antex::is_new_epoch(line),
     }
 }
 
@@ -198,6 +213,7 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Com
     let mut obs_rec : observation::Record = BTreeMap::new(); // OBS
     let mut met_rec : meteo::Record = BTreeMap::new();       // MET
     let mut clk_rec : clocks::Record = BTreeMap::new();      // CLK
+    let mut atx_rec : antex::Record = BTreeMap::new();       // ATX
 
     for l in reader.lines() { // process one line at a time 
         let line = l.unwrap();
@@ -318,6 +334,15 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Com
                                 comment_ts = epoch.clone(); // for comments classification & management
                             }
                         },
+                        Type::AntennaData => {
+                            if let Ok((antenna, frequencies)) = antex::build_record_entry(&epoch_content) {
+                                if let Some((_, mut v) = atx_record.get_mut(antenna) {
+                                    v.push(frequencies) 
+                                } else {
+                                    atx_record.insert(antenna, frequencies)
+                                }
+                            }
+                        },
                         _ => todo!("record type not fully supported yet"),
                     }
 
@@ -326,7 +351,7 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Com
                         comments.insert(comment_ts, comment_content.clone());
                         comment_content.clear() // reset 
                     }
-                }
+                }//is_new_epoch() +!first
 
                 if new_epoch {
                     if !first_epoch {
