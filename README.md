@@ -53,7 +53,7 @@ see `develop` branches
 
 Notes on `V4`: 
 - marked `untrusted` to this day because it is not under CI/CD (due to lack of data)
-- but parser is written and there's a good chance it might work
+- but parser is written and there's a good chance it might work  
 :arrow_right_hook: Data, tests and contributions are welcomed
 
 ## `teqc` special operations
@@ -87,7 +87,7 @@ Follow the existing architecture:
 * provide new `record::Record` declination
 * create `rinex/src/foo` sub directory and provide at least a rinex/src/foo/record.rs for the file body
 * add new specific header fields if need be, define them in `rinex/src/foo`
-* attach unit tests to the new rinex/src/foo structures & methods
+* attach unit tests to the new `rinex/src/foo` structures & methods
 * provide relevant (but truncated, to keep repo size reasonnable) raw data, under `test_resources/`
 * add new type to `test_resources` testbench in `tests/parser.rs`
 * add a focused testbench, in `tests/foo.rs` with specific fields test
@@ -95,4 +95,4 @@ Follow the existing architecture:
 ### Adding more RINEX data
 
 * only introduce non existing RINEX declinations
-* truncate huge file to maintain a reasonnable repo size 
+* truncate huge files to maintain a reasonnable repo size 
