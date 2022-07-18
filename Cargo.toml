@@ -1,2 +1,2 @@
 [workspace]
-members = ["rinex", "crx2rnx", "rinex-cli", "ublox-rnx", "sinex"]
+members = ["rinex", "crx2rnx", "rinex-cli", "ublox-rnx",] # "sinex"]
