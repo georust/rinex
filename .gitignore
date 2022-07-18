@@ -3,3 +3,5 @@ test_resources/
 Cargo.lock
 *.png
 *.jpg
+*.swp
+*.swo
