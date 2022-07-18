@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod test {
     use sinex::*;
-    #[test]
+    // #[test]
     fn test_parser() {
         let resources = env!("CARGO_MANIFEST_DIR")
             .to_owned()

@@ -1,8 +1,8 @@
-use thiserror::Error;
-use strum_macros::EnumString;
+//use thiserror::Error;
+//use strum_macros::EnumString;
 use std::collections::HashMap;
 use rinex::constellation::Constellation;
-use crate::datetime::{parse_datetime, ParseDateTimeError};
+//use crate::datetime::{parse_datetime, ParseDateTimeError};
 
 #[derive(Debug, Clone)]
 pub struct Description {
@@ -130,10 +130,4 @@ impl Description {
             },
         }
     }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::str::FromStr;
 }

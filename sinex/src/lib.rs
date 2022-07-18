@@ -5,16 +5,17 @@ use std::io::{prelude::*, BufReader};
 use rinex::constellation::Constellation;
 
 mod reference;
-mod description;
+//mod description;
 
 pub mod bias;
 pub mod header;
 pub mod receiver;
 pub mod datetime;
-pub mod troposphere;
+//pub mod troposphere;
 
-use header::Header;
 use reference::Reference;
+//use description::Description;
+use header::{is_valid_header, Header, DocumentType};
 
 fn is_comment (line: &str) -> bool {
     line.starts_with("*")
@@ -62,7 +63,7 @@ pub enum Error {
     ParseIntError(#[from] std::num::ParseIntError),
     /// Failed to parse Bias Mode
     #[error("failed to parse bias mode")]
-    ParseBiasModeError(#[from] bias::BiasModeError),
+    ParseBiasModeError(#[from] bias::header::BiasModeError),
     /// Failed to parse Determination Method
     #[error("failed to parse determination method")]
     ParseMethodError(#[from] bias::DeterminationMethodError),
@@ -103,16 +104,16 @@ impl Record {
 
 #[derive(Debug, Clone)]
 pub struct Sinex {
-    /// Header section, is Document Type dependent
-    pub header: Header,
+    // /// Header section, is Document Type dependent
+    // pub header: Header,
     /// File Reference section
     pub reference: Reference,
     /// Possible `Input` Acknowledgemet, especially for data providers
     pub acknowledgments: Vec<String>,
     /// Possible `File Comments`
     pub comments: Vec<String>,
-    /// File Description is Document Type dependent
-    pub description: Description, 
+    // /// File Description is Document Type dependent
+    // pub description: Description, 
     // /// Record
     //pub record: Record,
 }
@@ -122,8 +123,7 @@ impl Sinex {
         let file = std::fs::File::open(file)?;
         let reader = BufReader::new(file);
         let mut is_first = true;
-        let mut bias_header = bias::header::Header::default();
-        let mut tropo_header = troposphere::header::Header::default();
+        let mut header = Header::default();
         let mut reference: Reference = Reference::default();
         let mut section = String::new();
         let mut comments : Vec<String> = Vec::new();
@@ -141,7 +141,7 @@ impl Sinex {
                 continue
             }
             if is_first {
-                if !is_header(line) {
+                if !is_valid_header(line) {
                     return Err(Error::MissingHeader)
                 }
                 if let Ok(hd) = header::Header::from_str(line) {
@@ -178,7 +178,7 @@ impl Sinex {
                     },
                     "INPUT/ACKNOWLEDGMENTS" => {
                         acknowledgments.push(line.trim().to_string())
-                    },
+                    },/*
                     "BIAS/DESCRIPTION" => {
                         let (descriptor, content) = line.split_at(41);
                         match descriptor.trim() {
@@ -228,10 +228,10 @@ impl Sinex {
                             },
                             _ => {},
                         }
-                    },
+                    },*/
                     "TROP/DESCRIPTION" => {
                         let (descriptor, content) = line.split_at(41);
-                        match descriptor.trim() {
+                        /*match descriptor.trim() {
                             "ELEVATION CUTOFF ANGLE" => {
                                 let angle = u32::from_str_radix(content.trim(), 10)?;              
                             },
@@ -263,10 +263,10 @@ impl Sinex {
                                         .with_solution_field(field)
                                 }
                             },
-                            _ => {},
-                        }
+                            _ => {}, 
+                        }*/
                     },
-                    "BIAS/SOLUTION" => {
+                    /*"BIAS/SOLUTION" => {
                         if let Ok(sol) = bias::Solution::from_str(line.trim()) {
                             bias_solutions.push(sol)
                         }
@@ -275,28 +275,28 @@ impl Sinex {
                         if let Ok(coords) = troposphere::Coordinates::from_str(line.trim()) {
                             trop_coordinates.push(coords)
                         }
-                    },
+                    },*/
                     _ => return Err(Error::UnknownSection(section))
                 }
             }
         }
-        let doctype = header.doc_type.clone();
+        //let doctype = header.doc_type.clone();
         Ok(Self {
-            header: {
+            /*header: {
                 match doctype {
-                    header::DocumentType::BiasSolutions => header::BiasHeader(bias_header),
-                    header::DocumentType::TropoCoordinates => header::TropoHeader(tropo_header),
+                    DocumentType::BiasSolutions => Header::BiasHeader(bias_header),
+                    DocumentType::TropoCoordinates => Header::TropoHeader(tropo_header),
                 }
-            },
+            },*/
             reference,
             acknowledgments,
             comments,
-            description: {
+            /*description: {
                 match doctype {
-                    header::DocumentType::BiasSolutions => description::BiasDescription(bias_description),
-                    header::DocumentType::TropoCoordinates => description::TropoDescription(trop_description),
+                    DocumentType::BiasSolutions => Description::BiasDescription(bias_description),
+                    DocumentType::TropoCoordinates => Description::TropoDescription(trop_description),
                 }
-            },
+            },*/
             /*record: {
                 match ftype {
                     header::DocumentType::BiasSolutions => Record::BiasSolutions(bias_solutions),

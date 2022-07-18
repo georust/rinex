@@ -1,8 +1,5 @@
 use std::str::FromStr;
 use thiserror::Error;
-use std::collections::HashMap;
-use std::io::{prelude::*, BufReader};
-use rinex::constellation::Constellation;
 
 #[derive(Debug, Error)]
 pub enum ParseDateTimeError {
@@ -12,7 +9,7 @@ pub enum ParseDateTimeError {
     ParseSecondsError(#[from] std::num::ParseFloatError),
 }
 
-fn parse_datetime (content: &str) -> Result<chrono::NaiveDateTime, ParseDateTimeError> {
+pub fn parse_datetime (content: &str) -> Result<chrono::NaiveDateTime, ParseDateTimeError> {
     let ym = &content[0..8]; // "YYYY:DDD"
     let dt = chrono::NaiveDate::parse_from_str(&ym, "%Y:%j")?;
     let secs = &content[9..];

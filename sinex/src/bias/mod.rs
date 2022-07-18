@@ -1,11 +1,11 @@
 use thiserror::Error;
 use strum_macros::EnumString;
-use std::collections::HashMap;
+//use std::collections::HashMap;
 use rinex::constellation::Constellation;
 use crate::datetime::{parse_datetime, ParseDateTimeError};
 
 pub mod header;
-pub mod description;
+//pub mod description;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum TimeSystem {

@@ -1,5 +1,6 @@
 use thiserror::Error;
 use crate::bias;
+use crate::header;
 use crate::header::is_valid_header;
 use crate::datetime::{parse_datetime, ParseDateTimeError};
 
@@ -52,13 +53,13 @@ pub enum Error {
     NonBiasHeader,
     /// Non recognized file type
     #[error("file type error")]
-    FileTypeError(#[from] FileTypeError),
+    FileTypeError(#[from] header::DocumentTypeError),
     #[error("failed to parse datetime")]
     ParseDateTimeError(#[from] ParseDateTimeError),
     #[error("failed to parse `length` field")]
     ParseIntError(#[from] std::num::ParseIntError),
     #[error("failed to parse `bias_mode` field")]
-    BiasModeError(#[from] bias::BiasModeError),
+    BiasModeError(#[from] BiasModeError),
 }
 
 #[derive(Debug, Clone)]
@@ -87,7 +88,7 @@ impl std::str::FromStr for Header {
         if !is_valid_header(content) {
             return Err(Error::MissingHeaderDelimiter)
         }
-        if !content.starts_with("=%BIA") {
+        if !content.starts_with("%=BIA") {
             return Err(Error::NonBiasHeader)
         }
 
@@ -102,7 +103,6 @@ impl std::str::FromStr for Header {
         let (bias_mode, rem) = rem.split_at(2);
         let length = u32::from_str_radix(rem.trim(), 10)?;
         Ok(Self {
-            ftype: FileType::from_str(identifier.trim())?,
             version: version.trim().to_string(),
             creator_code: file_code.trim().to_string(),
             date: parse_datetime(creation.trim())?,
@@ -110,8 +110,7 @@ impl std::str::FromStr for Header {
             start_time: parse_datetime(start_time.trim())?,
             end_time: parse_datetime(end_time.trim())?,
             length,
-            bias_mode: bias::BiasMode::from_str(bias_mode.trim())?,
-        
+            bias_mode: BiasMode::from_str(bias_mode.trim())?,
         })
     }
 }
@@ -120,7 +119,6 @@ impl Default for Header {
     fn default() -> Self {
         let now = chrono::Utc::now().naive_utc();
         Self {
-            ftype: FileType::default(),
             version: String::from("1.00"),
             creator_code: String::from("Unknown"),
             data_code: String::from("Unknown"),
@@ -128,7 +126,7 @@ impl Default for Header {
             date: now,
             start_time: now,
             end_time: now,
-            bias_mode: bias::BiasMode::default(),
+            bias_mode: BiasMode::default(),
         }
     }
 }
@@ -146,7 +144,7 @@ mod test {
         assert_eq!(header.version, "1.00");
         assert_eq!(header.creator_code, "PF2");
         assert_eq!(header.data_code, "PF2");
-        assert_eq!(header.bias_mode, bias::BiasMode::Relative);
+        assert_eq!(header.bias_mode, BiasMode::Relative);
         assert_eq!(header.length, 24);
     }
 }
