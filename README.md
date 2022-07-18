@@ -73,3 +73,26 @@ Notes on `V4`:
 
 * `--with-serde`   
 enables `Serialization` and `Deserialization` of main RINEX structures
+
+## Contributions
+
+Contributions, raw data and tests methods are welcomed.  
+There is still a lot to achieve with this lib, especially regarding the command line applications (high level usage of the library cores).
+
+### Introducing new RINEX types
+
+Follow the existing architecture:
+
+* introduce `types::Type::foo`
+* provide new `record::Record` declination
+* create `rinex/src/foo` sub directory and provide at least a rinex/src/foo/record.rs for the file body
+* add new specific header fields if need be, define them in `rinex/src/foo`
+* attach unit tests to the new rinex/src/foo structures & methods
+* provide relevant (but truncated, to keep repo size reasonnable) raw data, under `test_resources/`
+* add new type to `test_resources` testbench in `tests/parser.rs`
+* add a focused testbench, in `tests/foo.rs` with specific fields test
+
+### Adding more RINEX data
+
+* only introduce non existing RINEX declinations
+* truncate huge file to maintain a reasonnable repo size 
