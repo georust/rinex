@@ -150,7 +150,7 @@ pub fn str2date (s: &str) -> Result<chrono::NaiveDateTime, ParseDateError> {
          u32::from_str_radix(items[2],10)?,
          u32::from_str_radix(items[3],10)?,
          u32::from_str_radix(items[4],10)?,
-         f64::from_str(items[5])?);
+         f64::from_str(items[5].trim())?);
 	if y < 100 { // 2 digit nb case
     	if y > 90 { // old rinex
         	y += 1900
@@ -160,4 +160,33 @@ pub fn str2date (s: &str) -> Result<chrono::NaiveDateTime, ParseDateError> {
 	}
     Ok(chrono::NaiveDate::from_ymd(y,m,d)
         .and_hms(h,min,s as u32))
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[test]
+    fn test_str2date() {
+        assert_eq!(str2date("22 01 01 00 00 00").is_ok(), true);
+        assert_eq!(str2date("22 01 01 00 00").is_ok(), false);
+        let date = str2date("2022 01 01 00 00 00");
+        assert_eq!(date.is_ok(), true);
+        let date = date.unwrap();
+        assert_eq!(date.date().year(), 2022);
+        assert_eq!(date.date().month(), 01);
+        assert_eq!(date.date().day(), 01);
+        assert_eq!(date.time().hour(), 0);
+        assert_eq!(date.time().minute(), 0);
+        assert_eq!(date.time().second(), 0);
+        
+        let date = str2date("2021 08 07 13 00 00");
+        assert_eq!(date.is_ok(), true);
+        let date = date.unwrap();
+        assert_eq!(date.date().year(), 2021);
+        assert_eq!(date.date().month(), 08);
+        assert_eq!(date.date().day(), 07);
+        assert_eq!(date.time().hour(), 13);
+        assert_eq!(date.time().minute(), 0);
+        assert_eq!(date.time().second(), 0);
+    }
 }

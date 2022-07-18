@@ -20,19 +20,19 @@ fn main() {
         .write_all("#[derive(Debug)]\n".as_bytes())
         .unwrap();
     nav_file
-        .write_all("struct NavMessage {\n   pub constellation: &'static str,\n   pub revisions: Vec<NavRevision>,\n}\n\n".as_bytes())
+        .write_all("pub struct NavMessage {\n   pub constellation: &'static str,\n   pub revisions: Vec<NavRevision>,\n}\n\n".as_bytes())
         .unwrap();
     nav_file
         .write_all("#[derive(Debug)]\n".as_bytes())
         .unwrap();
     nav_file
-        .write_all("struct NavRevision {\n   major: &'static str,\n   minor: &'static str,\n   items: Vec<(&'static str,&'static str)>,\n}\n\n".as_bytes())
+        .write_all("pub struct NavRevision {\n   pub major: &'static str,\n   pub minor: &'static str,\n   pub items: Vec<(&'static str,&'static str)>,\n}\n\n".as_bytes())
         .unwrap();
     nav_file
         .write_all("lazy_static! {\n".as_bytes())
         .unwrap();
     nav_file
-        .write_all("   static ref NAV_MESSAGES: Vec<NavMessage> = vec![\n".as_bytes())
+        .write_all("   pub static ref NAV_MESSAGES: Vec<NavMessage> = vec![\n".as_bytes())
         .unwrap();
     for constellation in constellations {
         let c = constellation["constellation"].as_str()

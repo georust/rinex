@@ -23,7 +23,7 @@ pub enum Record {
 	/// `navigation::Record` : Navigation Data file content.    
 	/// `record` is a list of `navigation::ComplexEnum` sorted
 	/// by `epoch` and by `Sv`
-    NavRecord(navigation::Record),
+    NavRecord(navigation::record::Record),
 	/// `observation::Record` : Observation Data file content.   
 	/// `record` is a list of `observation::ObservationData` indexed
 	/// by Observation code, sorted by `epoch` and by `Sv`
@@ -106,14 +106,14 @@ impl Record {
         }
     }
 	/// Unwraps self as NAV `record`
-    pub fn as_nav (&self) -> Option<&navigation::Record> {
+    pub fn as_nav (&self) -> Option<&navigation::record::Record> {
         match self {
             Record::NavRecord(r) => Some(r),
             _ => None,
         }
     }
 	/// Returns mutable reference to Navigation `record`
-    pub fn as_mut_nav (&mut self) -> Option<&mut navigation::Record> {
+    pub fn as_mut_nav (&mut self) -> Option<&mut navigation::record::Record> {
         match self {
             Record::NavRecord(r) => Some(r),
             _ => None,
@@ -149,7 +149,7 @@ impl Record {
             Type::NavigationData => {
                 let record = self.as_nav()
                     .unwrap();
-                Ok(navigation::to_file(header, &record, writer)?)
+                Ok(navigation::record::to_file(header, &record, writer)?)
             },
             _ => panic!("record type not supported yet"),
         }
@@ -158,7 +158,7 @@ impl Record {
 
 impl Default for Record {
     fn default() -> Record {
-        Record::NavRecord(navigation::Record::new())
+        Record::NavRecord(navigation::record::Record::new())
     }
 }
 
@@ -180,7 +180,7 @@ pub fn is_new_epoch (line: &str, header: &header::Header) -> bool {
         Type::AntennaData => antex::is_new_epoch(line),
         Type::ClockData => clocks::is_new_epoch(line),
         //Type::IonosphereMaps => ionex::is_new_tec_map(line),
-        Type::NavigationData => navigation::is_new_epoch(line, header.version, header.constellation.unwrap()),
+        Type::NavigationData => navigation::record::is_new_epoch(line, header.version), 
         Type::ObservationData => observation::is_new_epoch(line, header.version),
         Type::MeteoData => meteo::is_new_epoch(line, header.version),
     }
@@ -211,7 +211,7 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Com
     };
     let mut decompressor = hatanaka::Decompressor::new(8);
     // record 
-    let mut nav_rec : navigation::Record = BTreeMap::new();  // NAV
+    let mut nav_rec : navigation::record::Record = BTreeMap::new();  // NAV
     let mut obs_rec : observation::Record = BTreeMap::new(); // OBS
     let mut met_rec : meteo::Record = BTreeMap::new();       // MET
     let mut clk_rec : clocks::Record = BTreeMap::new();      // CLK
@@ -269,7 +269,7 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Com
                 if new_epoch && !first_epoch {
                     match &header.rinex_type {
                         Type::NavigationData => {
-                            if let Ok((e, sv, map)) = navigation::build_record_entry(&header, &epoch_content) {
+                            if let Ok((e, sv, map)) = navigation::record::build_record_entry(&header, &epoch_content) {
                                 if nav_rec.contains_key(&e) {
                                     // <o 
                                     // NAV epoch provides a unique Sv for a given epoch
@@ -282,7 +282,7 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Com
                                     nav_rec.insert(e, prev); // (re)insert
                                 } else {
                                     // new epoch -> insert
-                                    let mut sv_map : HashMap<sv::Sv, HashMap<String, navigation::ComplexEnum>> = HashMap::with_capacity(1);
+                                    let mut sv_map : HashMap<sv::Sv, HashMap<String, navigation::record::ComplexEnum>> = HashMap::with_capacity(1);
                                     sv_map.insert(sv, map);
                                     nav_rec.insert(e, sv_map);
                                 };
@@ -373,8 +373,8 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Com
     //   + comments parsing with empty record (empty file body)
     match &header.rinex_type {
         Type::NavigationData => {
-            if let Ok((e, sv, map)) = navigation::build_record_entry(&header, &epoch_content) {
-                let mut smap : HashMap<sv::Sv, HashMap<String, navigation::ComplexEnum>> = HashMap::with_capacity(1);
+            if let Ok((e, sv, map)) = navigation::record::build_record_entry(&header, &epoch_content) {
+                let mut smap : HashMap<sv::Sv, HashMap<String, navigation::record::ComplexEnum>> = HashMap::with_capacity(1);
                 smap.insert(sv, map);
                 nav_rec.insert(e, smap);
                 comment_ts = e.clone(); // for comments classification + management

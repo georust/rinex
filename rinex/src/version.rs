@@ -7,20 +7,18 @@ pub const SUPPORTED_VERSION: Version = Version {
     minor: 0
 };
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[derive(Copy, Clone, Debug)]
+#[derive(PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct Version {
     pub major: u8,
-    pub minor: u8
+    pub minor: u8,
 }
 
 impl Default for Version  {
     /// Builds a default `Version` object 
     fn default() -> Version {
-        Version {
-            major: 1,
-            minor: 0
-        }
+        SUPPORTED_VERSION
     }
 }
 
@@ -64,22 +62,45 @@ impl Version {
 }
 
 mod test {
+    use super::*;
+    use std::str::FromStr;
     #[test]
-    fn test_version_object() {
-        let version = super::Version::default();
+    fn version() {
+        let version = Version::default();
+        assert_eq!(version.major, SUPPORTED_VERSION.major);
+        assert_eq!(version.minor, SUPPORTED_VERSION.minor);
+        
+        let version = Version::from_str("1");
+        assert_eq!(version.is_ok(), true);
+        let version = version.unwrap();
         assert_eq!(version.major, 1);
         assert_eq!(version.minor, 0);
+        
+        let version = Version::from_str("1.2");
+        assert_eq!(version.is_ok(), true);
+        let version = version.unwrap();
+        assert_eq!(version.major, 1);
+        assert_eq!(version.minor, 2);
+        
+        let version = Version::from_str("3.02");
+        assert_eq!(version.is_ok(), true);
+        let version = version.unwrap();
+        assert_eq!(version.major, 3);
+        assert_eq!(version.minor, 2);
+        
+        let version = Version::from_str("a.b");
+        assert_eq!(version.is_err(), true);
     }
     #[test]
-    fn test_version_support() {
-        let version = super::Version::default();
+    fn supported_version() {
+        let version = Version::default();
         assert_eq!(version.is_supported(), true);
-        let version = super::SUPPORTED_VERSION; 
+        let version = SUPPORTED_VERSION; 
         assert_eq!(version.is_supported(), true);
     }
     #[test]
-    fn test_version_non_support() {
-        let version = super::Version::new(5, 0);
+    fn non_supported_version() {
+        let version = Version::new(5, 0);
         assert_eq!(version.is_supported(), false);
     }
 }

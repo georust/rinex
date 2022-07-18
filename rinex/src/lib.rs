@@ -863,7 +863,7 @@ impl Rinex {
                     let obs_record = self.record.as_obs();
                     let met_record = self.record.as_meteo();
                     let mut met_result = meteo::Record::new();
-                    let mut nav_result = navigation::Record::new();
+                    let mut nav_result = navigation::record::Record::new();
                     let mut obs_result = observation::Record::new();
                     let mut curr = epochs[0]; 
                     let mut i : usize = 1;
