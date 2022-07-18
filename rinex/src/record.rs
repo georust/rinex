@@ -27,7 +27,7 @@ pub enum Record {
 	/// `observation::Record` : Observation Data file content.   
 	/// `record` is a list of `observation::ObservationData` indexed
 	/// by Observation code, sorted by `epoch` and by `Sv`
-    ObsRecord(observation::Record),
+    ObsRecord(observation::record::Record),
 	/// `meteo::Record` : Meteo Data file content.   
 	/// `record` is a hashmap of f32 indexed by Observation Code,
 	/// sorted by `epoch`
@@ -120,14 +120,14 @@ impl Record {
         }
     }
 	/// Unwraps self as OBS `record`
-    pub fn as_obs (&self) -> Option<&observation::Record> {
+    pub fn as_obs (&self) -> Option<&observation::record::Record> {
         match self {
             Record::ObsRecord(r) => Some(r),
             _ => None,
         }
     }
     /// Returns mutable reference to Observation record
-    pub fn as_mut_obs (&mut self) -> Option<&mut observation::Record> {
+    pub fn as_mut_obs (&mut self) -> Option<&mut observation::record::Record> {
         match self {
             Record::ObsRecord(r) => Some(r),
             _ => None,
@@ -144,7 +144,7 @@ impl Record {
             Type::ObservationData => {
                 let record = self.as_obs()
                     .unwrap();
-                Ok(observation::to_file(header, &record, writer)?)
+                Ok(observation::record::to_file(header, &record, writer)?)
             },
             Type::NavigationData => {
                 let record = self.as_nav()
@@ -181,7 +181,7 @@ pub fn is_new_epoch (line: &str, header: &header::Header) -> bool {
         Type::ClockData => clocks::is_new_epoch(line),
         //Type::IonosphereMaps => ionex::is_new_tec_map(line),
         Type::NavigationData => navigation::record::is_new_epoch(line, header.version), 
-        Type::ObservationData => observation::is_new_epoch(line, header.version),
+        Type::ObservationData => observation::record::is_new_epoch(line, header.version),
         Type::MeteoData => meteo::is_new_epoch(line, header.version),
     }
 }
@@ -211,11 +211,11 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Com
     };
     let mut decompressor = hatanaka::Decompressor::new(8);
     // record 
-    let mut nav_rec : navigation::record::Record = BTreeMap::new();  // NAV
-    let mut obs_rec : observation::Record = BTreeMap::new(); // OBS
-    let mut met_rec : meteo::Record = BTreeMap::new();       // MET
-    let mut clk_rec : clocks::Record = BTreeMap::new();      // CLK
-    let mut atx_rec : antex::Record = BTreeMap::new();       // ATX
+    let mut nav_rec = navigation::record::Record::new(); // NAV = BTreeMap::new();  // NAV
+    let mut obs_rec = observation::record::Record::new(); // OBS = BTreeMap::new(); // OBS
+    let mut met_rec : meteo::Record = BTreeMap::new(); // MET
+    let mut clk_rec : clocks::Record = BTreeMap::new(); // CLK
+    let mut atx_rec : antex::Record = BTreeMap::new(); // ATX
 
     for l in reader.lines() { // process one line at a time 
         let line = l.unwrap();
@@ -290,7 +290,7 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Com
                             }
                         },
                         Type::ObservationData => {
-                            if let Ok((e, ck_offset, map)) = observation::build_record_entry(&header, &epoch_content) {
+                            if let Ok((e, ck_offset, map)) = observation::record::build_record_entry(&header, &epoch_content) {
                                 // <o 
                                 // OBS data provides all observations realized @ a given epoch
                                 // we should never face parsed epoch that were previously parsed
@@ -381,7 +381,7 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Com
             }
         },
         Type::ObservationData => {
-            if let Ok((e, ck_offset, map)) = observation::build_record_entry(&header, &epoch_content) {
+            if let Ok((e, ck_offset, map)) = observation::record::build_record_entry(&header, &epoch_content) {
                 obs_rec.insert(e, (ck_offset, map));
                 comment_ts = e.clone(); // for comments classification + management
             }

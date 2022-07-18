@@ -18,33 +18,6 @@ use serde::{Serialize, Deserialize};
 #[cfg(feature = "with-serde")]
 use crate::formatter::datetime;
 
-/// Describes `Compact RINEX` specific information
-#[derive(Clone, Debug)]
-#[cfg_attr(feature = "with-serde", derive(Serialize))]
-pub struct Crinex {
-    /// Compression program version
-    pub version: version::Version,
-    /// Compression program name
-    pub prog: String,
-    /// Date of compression
-    #[cfg_attr(feature = "with-serde", serde(with = "datetime"))]
-    pub date: chrono::NaiveDateTime,
-}
-
-/// Describes known marker types
-/// Observation Record specific header fields
-#[derive(Debug, Clone)]
-#[cfg_attr(feature = "with-serde", derive(Serialize))]
-pub struct HeaderFields {
-    /// Optional CRINEX information,
-    /// only present on compressed OBS
-    pub crinex: Option<Crinex>, 
-    /// Observation codes present in this file, by Constellation
-    pub codes: HashMap<Constellation, Vec<String>>,
-    /// True if epochs & data compensate for local clock drift
-    pub clock_offset_applied: bool,
-}
-
 /// `Ssi` describes signals strength
 #[repr(u8)]
 #[derive(PartialOrd, Ord, PartialEq, Eq, Copy, Clone, Debug)]
@@ -605,8 +578,7 @@ pub fn pseudo_range_to_distance (pseudo_rg: f64, rcvr_clock_offset: f64, sv_cloc
 mod test {
     use super::*;
     #[test]
-    /// Tests `Ssi` constructor
-    fn test_ssi() {
+    fn ssi() {
         let ssi = Ssi::from_str("0").unwrap(); 
         assert_eq!(ssi, Ssi::DbHz0);
         assert_eq!(ssi.is_bad(), true);
@@ -616,8 +588,7 @@ mod test {
         assert_eq!(ssi.is_err(), true);
     }
     #[test]
-    /// Tests `Lli` masking operation
-    fn test_lli_masking() {
+    fn lli_masking() {
         let lli = 0;
         assert_eq!(lli & lli_flags::OK_OR_UNKNOWN, 0);
         let lli = 0x03;
@@ -625,5 +596,71 @@ mod test {
         assert_eq!(lli & lli_flags::HALF_CYCLE_SLIP > 0, true); 
         let lli = 0x04;
         assert_eq!(lli & lli_flags::UNDER_ANTI_SPOOFING > 0, true); 
+    }
+    #[test]
+    fn new_epoch() {
+        assert_eq!(        
+            is_new_epoch("95 01 01 00 00 00.0000000  0  7 06 17 21 22 23 28 31",
+                version::Version {
+                    major: 2,
+                    minor: 0,
+                }
+            ),
+            true
+        );
+        assert_eq!(        
+            is_new_epoch("21700656.31447  16909599.97044          .00041  24479973.67844  24479975.23247",
+                version::Version {
+                    major: 2,
+                    minor: 0,
+                }
+            ),
+            false
+        );
+        assert_eq!(        
+            is_new_epoch("95 01 01 11 00 00.0000000  0  8 04 16 18 19 22 24 27 29",
+                version::Version {
+                    major: 2,
+                    minor: 0,
+                }
+            ),
+            true
+        );
+        assert_eq!(        
+            is_new_epoch("95 01 01 11 00 00.0000000  0  8 04 16 18 19 22 24 27 29",
+                version::Version {
+                    major: 3,
+                    minor: 0,
+                }
+            ),
+            false 
+        );
+        assert_eq!(        
+            is_new_epoch("> 2022 01 09 00 00 30.0000000  0 40",
+                version::Version {
+                    major: 3,
+                    minor: 0,
+                }
+            ),
+            true 
+        );
+        assert_eq!(        
+            is_new_epoch("> 2022 01 09 00 00 30.0000000  0 40",
+                version::Version {
+                    major: 2,
+                    minor: 0,
+                }
+            ),
+            false
+        );
+        assert_eq!(        
+            is_new_epoch("G01  22331467.880   117352685.28208        48.950    22331469.28",
+                version::Version {
+                    major: 3,
+                    minor: 0,
+                }
+            ),
+            false
+        );
     }
 }

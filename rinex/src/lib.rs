@@ -796,7 +796,7 @@ impl Rinex {
             .unwrap()
             .iter()
             .collect();
-        let mut rework = observation::Record::new();  
+        let mut rework = observation::record::Record::new();  
         for (e, data) in rec {
             if e.flag.is_ok() {
                 rework.insert(*e, data.clone());
@@ -819,8 +819,8 @@ impl Rinex {
         for (e, (_, sv)) in rec {
             for (_, obs) in sv {
                 for (_, data) in obs {
-                    let flag = data.lli.unwrap_or(observation::lli_flags::OK_OR_UNKNOWN);
-                    if flag == observation::lli_flags::LOCK_LOSS {
+                    let flag = data.lli.unwrap_or(observation::record::lli_flags::OK_OR_UNKNOWN);
+                    if flag == observation::record::lli_flags::LOCK_LOSS {
                         result.push(*e)
                     }
                 }
@@ -853,7 +853,7 @@ impl Rinex {
             let record : record::Record = match interval < sampling {
                 true => {
                     // upsampling
-                    record::Record::ObsRecord(observation::Record::new())
+                    record::Record::ObsRecord(observation::record::Record::new())
                 },
                 false => {
                     // downsampling
@@ -864,7 +864,7 @@ impl Rinex {
                     let met_record = self.record.as_meteo();
                     let mut met_result = meteo::Record::new();
                     let mut nav_result = navigation::record::Record::new();
-                    let mut obs_result = observation::Record::new();
+                    let mut obs_result = observation::record::Record::new();
                     let mut curr = epochs[0]; 
                     let mut i : usize = 1;
                     match self.header.rinex_type {
