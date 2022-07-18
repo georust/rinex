@@ -206,8 +206,34 @@ impl Kernel {
     }
     
     /// Compresses text data using Hatanaka method
-    fn text_data_compression (&self, _data: String) -> Dtype {
-        Dtype::Text(String::from("hello world"))
+    fn text_data_compression (&mut self, data: String) -> String {
+        let current = self.init
+            .as_text()
+            .unwrap();
+        let ptr_data = data
+            .as_str()
+            .chars();     
+        let ptr_current = current
+            .as_str()
+            .chars();
+        let mut result = String::new();
+        for i in 0..data.len() {
+            let next = ptr_data
+                .next()
+                .unwrap();
+            if let Some(c) == ptr_current.next() {
+                if c == next {
+                    content.push_str(" ");
+                } else {
+                    content.push_str(next);
+                    hidden.push_str(next)
+                }
+             } else {
+                
+             }
+        }
+        self.init = Dtype(content.clone());
+        result
     }
 }
 
@@ -264,7 +290,7 @@ impl Decompressor {
             pointer : 0,
             epo_krn : Kernel::new(0),
             clk_krn : Kernel::new(max_order),
-            sv_krn  : HashMap::new()
+            sv_krn  : HashMap::new(),
         }
     }
     /// Decompresses (recovers) RINEX from given CRINEX record block.   
