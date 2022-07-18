@@ -16,7 +16,7 @@ pub mod epoch;
 pub mod hardware;
 pub mod hatanaka;
 pub mod header;
-pub mod ionex;
+//pub mod ionex;
 pub mod meteo;
 pub mod navigation;
 pub mod observation;

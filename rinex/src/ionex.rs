@@ -42,7 +42,7 @@ pub type Record = BTreeMap<(epoch::Epoch, Data)>;
 /// Builds a new ionex map
 /// from at least a group of TEC MAP,
 /// it may comprise an RMS map and a height map
-pub fn build_record_entry (content: &str) -> Result<(epoch::Epoch, Data)>, RecordError> {
+pub fn build_record_entry (content: &str) -> Result<(epoch::Epoch, Data), RecordError> {
     let mut epoch = epoch::default();
     let mut tec_map = Map::new();
     let mut rms_map = Map::new();

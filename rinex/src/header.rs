@@ -196,6 +196,8 @@ pub enum Error {
     DateParsingError(#[from] chrono::ParseError),
     #[error("failed to parse ANTEX fields")]
     AntexParsingError(#[from] antex::Error),
+    #[error("failed to parse PCV field")]
+    ParsePcvError(#[from] antex::pcv::Error),
 }
 
 impl Default for Header {
@@ -296,7 +298,7 @@ impl Header {
         let mut clk_station_name = String::new();
         let mut clk_station_id = String::new();
         // ANTEX
-        let mut pcv : Option<antex::Pcv> = None;
+        let mut pcv : Option<antex::pcv::Pcv> = None;
         let mut ant_relative_values = String::from("AOAD/M_T");
         let mut ref_ant_sn : Option<String> = None;
 
@@ -347,7 +349,7 @@ impl Header {
                 let (pcv_str, rem) = content.split_at(20);
                 let (ref_type, rem) = rem.split_at(20);
                 let (ref_sn, _) = rem.split_at(20);
-                pcv = Some(antex::Pcv::from_str(pcv_str)?);
+                pcv = Some(antex::pcv::Pcv::from_str(pcv_str)?);
                 if ref_type.trim().len() > 0 {
                     ant_relative_values = ref_type.trim().to_string();
                 }

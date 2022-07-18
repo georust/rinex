@@ -137,7 +137,7 @@ impl Kernel {
             },
             Dtype::Text(data) => {
                 if let Some(_) = self.init.as_text() {
-                    Ok(self.text_data_compression(data))
+                    Ok(Dtype::Text(self.text_data_compression(data)))
                 } else {
                     Err(KernelError::TypeMismatch)
                 }
@@ -207,7 +207,7 @@ impl Kernel {
     
     /// Compresses text data using Hatanaka method
     fn text_data_compression (&mut self, data: String) -> String {
-        let current = self.init
+        /*let current = self.init
             .as_text()
             .unwrap();
         let ptr_data = data
@@ -221,7 +221,7 @@ impl Kernel {
             let next = ptr_data
                 .next()
                 .unwrap();
-            if let Some(c) == ptr_current.next() {
+            if let Some(c) = ptr_current.next() {
                 if c == next {
                     content.push_str(" ");
                 } else {
@@ -233,7 +233,8 @@ impl Kernel {
              }
         }
         self.init = Dtype(content.clone());
-        result
+        result*/
+        String::from("Hello World")
     }
 }
 

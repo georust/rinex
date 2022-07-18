@@ -34,9 +34,9 @@ pub enum Record {
     MeteoRecord(meteo::Record),
     /// `clocks::Record` : CLOCKS RINEX file content
     ClockRecord(clocks::Record),
-    /// `IONEX` record is a list of Ionosphere Maps,
-    /// indexed by `epoch`
-    IonexRecord(ionex::Record),
+    // /// `IONEX` record is a list of Ionosphere Maps,
+    // /// indexed by `epoch`
+    // IonexRecord(ionex::Record),
     /// `antex::Record` : Antenna Data file content.
     /// `record` is a list of Antenna caracteristics sorted
     /// by antenna model. `ATX` records are not `epoch` iterable
@@ -75,6 +75,7 @@ impl Record {
             _ => None,
         }
     }
+/*
     /// Unwraps self as IONEX record
     pub fn as_ionex (&self) -> Option<&ionex::Record> {
         match self {
@@ -89,6 +90,7 @@ impl Record {
             _ => None,
         }
     }
+*/
 	/// Unwraps self as MET `record`
     pub fn as_meteo (&self) -> Option<&meteo::Record> {
         match self {
@@ -177,7 +179,7 @@ pub fn is_new_epoch (line: &str, header: &header::Header) -> bool {
     match &header.rinex_type {
         Type::AntennaData => antex::is_new_epoch(line),
         Type::ClockData => clocks::is_new_epoch(line),
-        Type::IonosphereMaps => ionex::is_new_tec_map(line),
+        //Type::IonosphereMaps => ionex::is_new_tec_map(line),
         Type::NavigationData => navigation::is_new_epoch(line, header.version, header.constellation.unwrap()),
         Type::ObservationData => observation::is_new_epoch(line, header.version),
         Type::MeteoData => meteo::is_new_epoch(line, header.version),
@@ -336,11 +338,11 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Com
                         },
                         Type::AntennaData => {
                             if let Ok((antenna, frequencies)) = antex::build_record_entry(&epoch_content) {
-                                if let Some((_, mut v) = atx_record.get_mut(antenna) {
+                            /*    if let Some((_, mut v)) = atx_rec.get_mut(antenna) {
                                     v.push(frequencies) 
                                 } else {
-                                    atx_record.insert(antenna, frequencies)
-                                }
+                                    atx_rec.insert(antenna, frequencies)
+                                }*/
                             }
                         },
                         _ => todo!("record type not fully supported yet"),
@@ -425,6 +427,7 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Com
     }
     // wrap record
     let record = match &header.rinex_type {
+        Type::AntennaData => Record::AntexRecord(atx_rec),
         Type::NavigationData => Record::NavRecord(nav_rec),
         Type::ObservationData => Record::ObsRecord(obs_rec), 
 		Type::MeteoData => Record::MeteoRecord(met_rec),
