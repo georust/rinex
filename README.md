@@ -30,28 +30,31 @@ see `develop` branches
 
 ## Supported `RINEX` files
 
-| `types::Type`            | Trusted           | Untrusted          | CLI                    | UBX                  |          Notes          |
-|--------------------------|-------------------|--------------------|------------------------|----------------------|-------------------------|
-| `NavigationData` (NAV)   | V2, V3            |   V4               |  :heavy_check_mark:    | :construction:       |  :heavy_minus_sign:     |
-| `ObservationData` (OBS)  | V2, V3            |   V4               |  :heavy_check_mark:    | :construction:       |  :heavy_minus_sign:     |
-| `CRINEX` (Compressed OBS)| V1, :sparkles:V3  | :heavy_minus_sign: |  :heavy_check_mark:    | :construction:       | `.XXX.gz` data cannot be understood, <br /> user must manualy uncompress to `.XXX` first |
-| `MeteoData` (MET)        | V3, V4            | V2                 |  :heavy_check_mark:    | :heavy_minus_sign:   |  :heavy_minus_sign:     |  
-| `ClocksData` (CLK)       | V3                | V4                 |  :construction:        | :heavy_minus_sign:   |  :heavy_minus_sign:     |
-| `AntennaData` (ATX)      | V1                | :heavy_minus_sign: |  :construction:        | :heavy_minus_sign:   |  :heavy_minus_sign:     |
-| `SINEX` (SNX)            | V1                | :heavy_minus_sign: |  :construction:        | :heavy_minus_sign:   |  `SINEX` are special `RINEX`, they are managed by a dedicated <br /> [`core library`](sinex/) |
+| `types::Type`            | Trusted           | Untrusted          | CLI                    | UBX                  | Production    |          Notes          |
+|--------------------------|-------------------|--------------------|------------------------|----------------------|---------------|-------------------------
+| `NavigationData` (NAV)   | V2, V3            |   V4               |  :heavy_check_mark:    | :construction:       |:construction: |                         |
+| `ObservationData` (OBS)  | V2, V3            |   V4               |  :heavy_check_mark:    | :construction:       |:construction: |                          |
+| `CRINEX` (Compressed OBS)| V1, :sparkles:V3  |                    |  :heavy_check_mark:    | :construction:       |:construction: |  `.XXX.gz` data cannot be understood, user must manualy <br /> uncompress to `.XXX` first |
+| `MeteoData` (MET)        | V3, V4            | V2                 |  :heavy_check_mark:    | :heavy_minus_sign:   |:construction: |                          |  
+| `ClocksData` (CLK)       | V3                | V4                 |  :construction:        | :question:           |:construction: |                          |
+| `AntennaData` (ATX)      | :construction:    |                    |  :construction:        | :heavy_minus_sign:   |:construction: |                          |
+| `IonosphereMaps` (Iono)  | :construction:    |                    |  :construction:        | :question:           |:construction: |                          |
+| `SINEX` (SNX)            | :construction:    |                    |  :construction:        | :heavy_minus_sign:   |:construction: |   `SINEX` are special `RINEX`, they are managed by a dedicated <br /> [`core library`](sinex/) |
+| `Troposphere` (TRO)      | :construction:    |                    |  :construction:        | :question:           |:construction: |   `Troposphere` are one possible declination of SINEX files |
+| `Bias` (BIA)             | :construction:    |                    |  :construction:        | :question:           |:construction: |   `Bias` solutions are one possible declination of SINEX files |
 
-**CLI** : means exposed to [`rinex-cli`](rinex-cli/) for easy parsing & quick analysis  
-**UBX** : means exposed to [`ublox-rnx`](ublox-rnx/) for to produce data with a UBLOX receiver  
+**Production** means file generation (_to_file()_) of `trusted` revisions  
+**CLI** means exposed to [`rinex-cli`](rinex-cli/) for easy parsing & quick analysis  
+**UBX** means exposed to [`ublox-rnx`](ublox-rnx/) for to produce data with a UBLOX receiver  
 :sparkles: `CRINEX` V2 and V4 do not exist  
 :heavy_check_mark: supported   
 :heavy_minus_sign: not applicable   
 :construction: under development  
 
-Note on `V4`: 
-- I mark it `untrusted` because it is not under CI/CD (lack of data)
-- but parser has been written 
-- and format is easy and standardized enough between `types::Type` that there's a good chance it might work.  
-:arrow_right_hook: Data, tests, contributions are welcomed
+Notes on `V4`: 
+- marked `untrusted` to this day because it is not under CI/CD (due to lack of data)
+- but parser is written and there's a good chance it might work
+:arrow_right_hook: Data, tests and contributions are welcomed
 
 ## `teqc` special operations
 
