@@ -14,8 +14,11 @@ pub enum Type {
     NavigationData,
     /// Describes Meteorological data (MET)
     MeteoData,
-    /// Clock Data
+    /// Clock Data (CLK)
     ClockData,
+    /// Ionsphere Maps (IONEX)
+    /// allows creating Global Ionspheric Map (cartography)
+    IonosphereMaps,
     /// Antenna Data (ATX or Antex) special RINEX format,
     /// with empty header and body describes several sets of
     /// Antenna characterization coefficients.
@@ -70,6 +73,8 @@ impl std::str::FromStr for Type {
             Ok(Type::ClockData)
         } else if s.eq("ANTEX") {
             Ok(Type::AntennaData)
+        } else if s.eq("IONOSPHERE MAPS") {
+            Ok(Type::IonosphereMaps)
         } else {
             Err(TypeError::UnknownType(String::from(s)))
         }
