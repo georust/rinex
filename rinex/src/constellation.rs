@@ -210,3 +210,51 @@ impl std::str::FromStr for Constellation {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::str::FromStr;
+    #[test]
+    fn test_from_1_letter_code() {
+        let c = Constellation::from_1_letter_code("G");
+        assert_eq!(c.is_ok(), true);
+        assert_eq!(c.unwrap(), Constellation::GPS);
+        
+        let c = Constellation::from_1_letter_code("R");
+        assert_eq!(c.is_ok(), true);
+        assert_eq!(c.unwrap(), Constellation::Glonass);
+        
+        let c = Constellation::from_1_letter_code("M");
+        assert_eq!(c.is_ok(), true);
+        assert_eq!(c.unwrap(), Constellation::Mixed);
+        
+        let c = Constellation::from_1_letter_code("J");
+        assert_eq!(c.is_ok(), true);
+        assert_eq!(c.unwrap(), Constellation::QZSS);
+        
+        let c = Constellation::from_1_letter_code("X");
+        assert_eq!(c.is_err(), true);
+    }
+    #[test]
+    fn test_from_3_letter_code() {
+        let c = Constellation::from_3_letter_code("GPS");
+        assert_eq!(c.is_ok(), true);
+        assert_eq!(c.unwrap(), Constellation::GPS);
+        let c = Constellation::from_3_letter_code("GLO");
+        assert_eq!(c.is_ok(), true);
+        assert_eq!(c.unwrap(), Constellation::Glonass);
+        let c = Constellation::from_3_letter_code("GPX");
+        assert_eq!(c.is_err(), true);
+        let c = Constellation::from_3_letter_code("X");
+        assert_eq!(c.is_err(), true);
+    }
+    #[test]
+    fn test_augmentation() {
+        let c = Augmentation::from_str("WAAS");
+        assert_eq!(c.is_ok(), true);
+        assert_eq!(c.unwrap(), Augmentation::WAAS);
+        let c = Augmentation::from_str("WASS");
+        assert_eq!(c.is_err(), true);
+    }
+}
