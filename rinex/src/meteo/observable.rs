@@ -8,12 +8,11 @@ use strum_macros::EnumString;
 #[derive(EnumString)]
 pub enum Observable {
     /// Pressure observation in [mbar]
-    #[strum(serialize = "PR", deserialize = "PR")]
+    #[strum(serialize = "PR")]
     Pressure,
     /// Dry temperature measurement in [°C]
-    #[strum(serialize = "TD", deserialize = "TD")]
+    #[strum(serialize = "TD")]
     Temperature,
-/*
     /// Relative humidity measurement in [%]
     #[strum(serialize = "HR")]
     HumidityRate,
@@ -39,7 +38,7 @@ pub enum Observable {
     /// Hail Indicator non zero, hail detected
     /// since last measurement
     #[strum(serialize = "HI")]
-    HailIndicator, */
+    HailIndicator,
 }
 
 impl Default for Observable {
@@ -48,11 +47,42 @@ impl Default for Observable {
     }
 }
 
+impl std::fmt::Display for Observable {
+    fn fmt (&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Self::Pressure => f.write_str("PR"),
+            Self::Temperature => f.write_str("TD"),
+            Self::HumidityRate => f.write_str("HR"),
+            Self::ZenithWetDelay => f.write_str("ZW"),
+            Self::ZenithDryDelay => f.write_str("ZD"),
+            Self::ZenithTotalDelay => f.write_str("ZT"),
+            Self::WindAzimuth => f.write_str("WD"),
+            Self::WindSpeed => f.write_str("WS"),
+            Self::RainIncrement => f.write_str("RI"),
+            Self::HailIndicator => f.write_str("HI"),
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
+    use std::str::FromStr;
+    #[test]
     fn test_parser() {
         let obs = Observable::from_str("PR");
         assert_eq!(obs.is_ok(), true);
+        let obs = obs.unwrap();
+        assert_eq!(obs, Observable::Pressure);
+        assert_eq!(obs.to_string(), "PR"); 
+        
+        let obs = Observable::from_str("WS");
+        assert_eq!(obs.is_ok(), true);
+        let obs = obs.unwrap();
+        assert_eq!(obs, Observable::WindSpeed);
+        assert_eq!(obs.to_string(), "WS"); 
+        
+        let obs = Observable::from_str("Wa");
+        assert_eq!(obs.is_ok(), false);
     }
 }

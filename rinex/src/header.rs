@@ -1155,7 +1155,7 @@ impl std::fmt::Display for Header {
                             line.clear();
                             line.push_str(&format!("{:<6}", ""));
                         }
-                        line.push_str(&format!(" {:>5?}", codes[i]));
+                        line.push_str(&format!(" {:>5}", codes[i]));
                     }
                     line.push_str(&format!("{:<width$}", "", width=60-line.len()));
                     line.push_str("# / TYPES OF OBS\n"); 

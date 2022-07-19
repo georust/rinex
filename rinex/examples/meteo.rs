@@ -1,6 +1,7 @@
 use rinex::epoch;
 use rinex::types::Type;
 use rinex::constellation::Constellation;
+use rinex::meteo::observable::Observable;
 
 fn main() {
     println!("**************************");
@@ -48,8 +49,8 @@ fn main() {
         .iter()
         .map(|(_epoch, obs)| { // record: {key: epochs, values: (array of data) }
             obs.iter() // for all observation
-                .filter(|(code, _data)| { // key: obscode, value: data 
-                    rinex::is_temperature_obs_code!(code.as_str())
+                .find(|(code, _data)| { // key: obscode, value: data 
+                    *code == &Observable::Temperature
               })
         })
         .flatten()
@@ -61,14 +62,8 @@ fn main() {
         .iter()
         .map(|(_epoch, obs)| { // record: {key: epochs, values: (array of data) }
             obs.iter() // for all observation
-                .flat_map(|(code, data)| { // key: obscode, value: data 
-                    if rinex::is_temperature_obs_code!(code) {
-                        Some(("temp",data))
-                    } else if rinex::is_pressure_obs_code!(code) {
-                        Some(("press",data))
-                    } else {
-                        None
-                    }
+                .find(|(code, _)| { // key: obscode, value: data 
+                    *code == &Observable::Temperature
               })
         })
         .flatten()

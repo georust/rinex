@@ -418,7 +418,7 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Com
                 comment_ts = e.clone(); // for comments classification & management
             }
         },
-        //_ => todo!("record type not fully supported yet"),
+        _ => todo!("record type not fully supported yet"),
     }
     // new comments ?
     if !comment_content.is_empty() {
