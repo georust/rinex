@@ -35,13 +35,22 @@ see `develop` branches
 | `NavigationData` (NAV)   | V2, V3            |   V4               |  :heavy_check_mark:    | :construction:       |:construction: |                         |
 | `ObservationData` (OBS)  | V2, V3            |   V4               |  :heavy_check_mark:    | :construction:       |:construction: |                          |
 | `CRINEX` (Compressed OBS)| V1, :sparkles:V3  |                    |  :heavy_check_mark:    | :construction:       |:construction: |  `.XXX.gz` data cannot be understood, user must manualy <br /> uncompress to `.XXX` first |
-| `MeteoData` (MET)        | V3, V4            | V2                 |  :heavy_check_mark:    | :heavy_minus_sign:   |:construction: |                          |  
-| `ClocksData` (CLK)       | V3                | V4                 |  :construction:        | :question:           |:construction: |                          |
+| `MeteoData` (MET)        | V2, V3            |   V4               |  :heavy_check_mark:    | :heavy_minus_sign:   |:construction: |                          |  
+| `ClocksData` (CLK)       | V3                |   V4               |  :construction:        | :question:           |:construction: |                          |
 | `AntennaData` (ATX)      | :construction:    |                    |  :construction:        | :heavy_minus_sign:   |:construction: |                          |
 | `IonosphereMaps` (Iono)  | :construction:    |                    |  :construction:        | :question:           |:construction: |                          |
 | `SINEX` (SNX)            | :construction:    |                    |  :construction:        | :heavy_minus_sign:   |:construction: |   `SINEX` are special `RINEX`, they are managed by a dedicated <br /> [`core library`](sinex/) |
 | `Troposphere` (TRO)      | :construction:    |                    |  :construction:        | :question:           |:construction: |   `Troposphere` are one possible declination of SINEX files |
 | `Bias` (BIA)             | :construction:    |                    |  :construction:        | :question:           |:construction: |   `Bias` solutions are one possible declination of SINEX files |
+
+`trusted`: means under CI/CD, user can parse safely   
+`untrusted`: means not under CI/CD, either due to lack of test data, partial (:construction:) or incomplete support   
+
+Notes on `V4`: 
+- always marked as `untrusted` to this day, due to lack of data
+- there's a good chance OBS/NAV/MET will work, because format is actually simpler
+and parser has been coded.
+:arrow_right_hook: Data, tests and contributions are welcomed
 
 **Production** means file generation (_to_file()_) of `trusted` revisions  
 **CLI** means exposed to [`rinex-cli`](rinex-cli/) for easy parsing & quick analysis  
@@ -51,10 +60,6 @@ see `develop` branches
 :heavy_minus_sign: not applicable   
 :construction: under development  
 
-Notes on `V4`: 
-- marked `untrusted` to this day because it is not under CI/CD (due to lack of data)
-- but parser is written and there's a good chance it might work  
-:arrow_right_hook: Data, tests and contributions are welcomed
 
 ## `teqc` special operations
 
@@ -73,6 +78,14 @@ Notes on `V4`:
 
 * `--with-serde`   
 enables `Serialization` and `Deserialization` of main RINEX structures
+
+* `--with-geo`  
+to be provided in 0.4.0, unlocks `constellation::augmentation::helper` method,
+to select the most appropriate `SBAS` augmentation system,
+depending on a given (/current) location on Earth
+
+* `--with-gzip`  
+to be provided in 0.5.0, allows parsing .gz compressed RINEX files directly
 
 ## Contributions
 
