@@ -958,18 +958,6 @@ mod test {
         assert_eq!(is_doppler_obs_code!("L1P"), false);
         assert_eq!(is_sig_strength_obs_code!("S1P"), true);
         assert_eq!(is_sig_strength_obs_code!("L1P"), false);
-        assert_eq!(is_temperature_obs_code!("TD"), true);
-        assert_eq!(is_temperature_obs_code!("td"), false);
-        assert_eq!(is_humidity_obs_code!("HR"), true);
-        assert_eq!(is_humidity_obs_code!("RH"), false);
-        assert_eq!(is_wet_zenith_code!("ZW"), true);
-        assert_eq!(is_wet_zenith_code!("RI"), false);
-        assert_eq!(is_wind_speed_code!("WS"), true);
-        assert_eq!(is_wind_speed_code!("HI"), false);
-        assert_eq!(is_rain_increment_code!("RI"), true);
-        assert_eq!(is_rain_increment_code!("HI"), false);
-        assert_eq!(is_hail_indicator_code!("HI"), true);
-        assert_eq!(is_hail_indicator_code!("RI"), false);
     }
     #[test]
     fn test_shared_methods() {
