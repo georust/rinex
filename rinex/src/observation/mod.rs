@@ -1,15 +1,8 @@
 //! `ObservationData` parser and related methods
-use std::io::Write;
-use thiserror::Error;
-use std::str::FromStr;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 use physical_constants::SPEED_OF_LIGHT_IN_VACUUM;
 
-use crate::sv;
-use crate::epoch;
-use crate::header;
 use crate::version;
-use crate::constellation;
 use crate::constellation::Constellation;
 
 pub mod record;

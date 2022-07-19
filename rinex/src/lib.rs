@@ -27,8 +27,7 @@ pub mod version;
 
 use std::io::Write;
 use thiserror::Error;
-use itertools::Itertools;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap};
 use chrono::{Datelike, Timelike};
 
 #[cfg(feature = "with-serde")]
@@ -70,78 +69,6 @@ macro_rules! is_doppler_obs_code {
 /// matches a signal strength (OBS) code
 macro_rules! is_sig_strength_obs_code {
     ($code: expr) => { $code.starts_with("S") };
-}
-
-#[macro_export]
-/// Returns True if 3 letter code
-/// matches a temperature observation code
-macro_rules! is_temperature_obs_code {
-	($code: expr) => {
-		$code.eq("TD")
-	};
-}
-
-#[macro_export]
-/// Returns True if 3 letter code
-/// matches a pressure observation code
-macro_rules! is_pressure_obs_code {
-	($code: expr) => {
-		$code.eq("PR")
-	};
-}
-
-#[macro_export]
-/// Returns True if 3 letter code
-/// matches a moisture / humidity rate observation code
-macro_rules! is_humidity_obs_code {
-	($code: expr) => {
-		$code.eq("HR")
-	};
-}
-
-#[macro_export]
-/// Returns True if 3 letter code
-/// matches a wet zenith path delay obs code 
-macro_rules! is_wet_zenith_code {
-	($code: expr) => {
-		$code.eq("ZW")
-	};
-}
-
-#[macro_export]
-/// Returns True if 3 letter code
-/// matches a dry zenith path delay obs code 
-macro_rules! is_dry_zenith_code {
-	($code: expr) => {
-		$code.eq("ZD")
-	};
-}
-
-#[macro_export]
-/// Returns True if 3 letter code
-/// matches a wind speed obs code 
-macro_rules! is_wind_speed_code {
-	($code: expr) => {
-		$code.eq("WS")
-	};
-}
-
-#[macro_export]
-/// Returns True if 3 letter code
-/// matches a rain increment obs code 
-macro_rules! is_rain_increment_code {
-	($code: expr) => {
-		$code.eq("RI")
-	};
-}
-
-#[macro_export]
-/// Returns True if 3 letter code
-/// matches a rain increment obs code 
-macro_rules! is_hail_indicator_code {
-	($code: expr) => {
-		$code.eq("HI")
-	};
 }
 
 /// Returns `str` description, as one letter
@@ -862,7 +789,7 @@ impl Rinex {
                     let nav_record = self.record.as_nav();
                     let obs_record = self.record.as_obs();
                     let met_record = self.record.as_meteo();
-                    let mut met_result = meteo::Record::new();
+                    let mut met_result = meteo::record::Record::new();
                     let mut nav_result = navigation::record::Record::new();
                     let mut obs_result = observation::record::Record::new();
                     let mut curr = epochs[0]; 

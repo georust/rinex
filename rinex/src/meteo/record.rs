@@ -8,46 +8,15 @@ use crate::header;
 use crate::version;
 use crate::header::Header;
 
-/// Observation Sensor
-#[derive(Clone, PartialEq, Debug)]
-#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
-pub struct Sensor {
-	/// Model of this sensor
-	pub model: String,
-	/// Type of sensor
-	pub sens_type: String,
-	/// Sensor accuracy [°C,..]
-	pub accuracy: f32,
-	/// Physics measured by this sensor
-	pub physics: String,
-}
+use crate::meteo::observable::Observable;
 
-impl Default for Sensor {
-    fn default() -> Sensor {
-        Sensor {
-            model: String::new(),
-            sens_type: String::new(),
-            physics: String::new(),
-            accuracy: 0.0_f32,
-        }
-    }
-}
+/// `MET` record comprises raw data sorted by observable code
+/// and by epoch
+pub type Record = BTreeMap<epoch::Epoch, HashMap<Observable, f32>>;
 
-/// Meteo specific header fields
-#[derive(Debug, Clone)]
-#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
-pub struct HeaderFields {
-	/// Observation types contained in this file
-    pub codes: Vec<String>, 
-    pub sensors: Vec<Sensor>,
-}
-
-/// `Record`: Meteo data files content is
-/// raw data sorted by Observation Code and by Epoch.
-pub type Record = BTreeMap<epoch::Epoch, HashMap<String, f32>>;
-
+/// Returns true if given line matches a new Meteo Record `epoch`
 pub fn is_new_epoch (line: &str, v: version::Version) -> bool {
-    if v.major < 4 {
+    if v.major > 3 {
         // modern, easy parsing,
         // similar to OBS V3
         match line.chars().nth(0) {
@@ -58,13 +27,18 @@ pub fn is_new_epoch (line: &str, v: version::Version) -> bool {
             _ => false,
         }
     } else {
-        todo!("meteo + V4 is not fully supported yet")
+        if line.len() < 10 {
+            return false
+        }
+        let datestr = &line[1..13];
+        println!("STR \"{}\"", datestr);
+        epoch::str2date(datestr).is_ok()
     }
 }
 
 #[derive(Error, Debug)]
 /// Meteo Data `Record` parsing specific errors
-pub enum RecordError {
+pub enum Error {
     #[error("failed to parse date")]
     ParseDateError(#[from] epoch::ParseDateError),
     #[error("failed to integer number")]
@@ -75,13 +49,13 @@ pub enum RecordError {
 
 /// Builds `Record` entry for `MeteoData`
 pub fn build_record_entry (header: &Header, content: &str) 
-        -> Result<(epoch::Epoch, HashMap<String, f32>), RecordError> 
+        -> Result<(epoch::Epoch, HashMap<Observable, f32>), Error> 
 {
     let mut lines = content.lines();
     let mut line = lines.next()
         .unwrap();
 
-	let mut map : HashMap<String, f32> = HashMap::with_capacity(3);
+	let mut map : HashMap<Observable, f32> = HashMap::with_capacity(3);
 
 	// epoch.secs is not f32 as usual
 	// Y is 4 digit number as usual for V > 2
@@ -136,7 +110,7 @@ pub fn build_record_entry (header: &Header, content: &str)
 			};
 
 			if let Some(obs) = obs {
-				map.insert(code.to_string(), obs); 
+				map.insert(code.clone(), obs); 
 			}
 			code_index += 1;
 			if code_index >= n_codes {
@@ -174,4 +148,11 @@ pub fn to_file (header: &header::Header, record: &Record, mut writer: std::fs::F
         write!(writer, "\n")?
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod test {
+    fn new_epoch() {
+
+    }
 }

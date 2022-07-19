@@ -1,8 +1,4 @@
 //! Antex - special RINEX type specific structures
-use crate::channel;
-use thiserror::Error;
-use std::collections::BTreeMap;
-
 use crate::antex::frequency::Frequency;
 
 /// Describes an Antenna section inside the ATX record

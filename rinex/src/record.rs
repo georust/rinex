@@ -15,7 +15,6 @@ use crate::navigation;
 use crate::observation;
 use crate::is_comment;
 use crate::types::Type;
-use crate::constellation::Constellation;
 
 /// `Record`
 #[derive(Clone, Debug)]
@@ -31,7 +30,7 @@ pub enum Record {
 	/// `meteo::Record` : Meteo Data file content.   
 	/// `record` is a hashmap of f32 indexed by Observation Code,
 	/// sorted by `epoch`
-    MeteoRecord(meteo::Record),
+    MeteoRecord(meteo::record::Record),
     /// `clocks::Record` : CLOCKS RINEX file content
     ClockRecord(clocks::Record),
     // /// `IONEX` record is a list of Ionosphere Maps,
@@ -92,14 +91,14 @@ impl Record {
     }
 */
 	/// Unwraps self as MET `record`
-    pub fn as_meteo (&self) -> Option<&meteo::Record> {
+    pub fn as_meteo (&self) -> Option<&meteo::record::Record> {
         match self {
             Record::MeteoRecord(r) => Some(r),
             _ => None,
         }
     }
     /// Returns mutable reference to Meteo record
-    pub fn as_mut_meteo (&mut self) -> Option<&mut meteo::Record> {
+    pub fn as_mut_meteo (&mut self) -> Option<&mut meteo::record::Record> {
         match self {
             Record::MeteoRecord(r) => Some(r),
             _ => None,
@@ -139,7 +138,7 @@ impl Record {
             Type::MeteoData => {
                 let record = self.as_meteo()
                     .unwrap();
-                Ok(meteo::to_file(header, &record, writer)?)
+                Ok(meteo::record::to_file(header, &record, writer)?)
             },
             Type::ObservationData => {
                 let record = self.as_obs()
@@ -182,7 +181,7 @@ pub fn is_new_epoch (line: &str, header: &header::Header) -> bool {
         //Type::IonosphereMaps => ionex::is_new_tec_map(line),
         Type::NavigationData => navigation::record::is_new_epoch(line, header.version), 
         Type::ObservationData => observation::record::is_new_epoch(line, header.version),
-        Type::MeteoData => meteo::is_new_epoch(line, header.version),
+        Type::MeteoData => meteo::record::is_new_epoch(line, header.version),
     }
 }
 
@@ -211,9 +210,9 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Com
     };
     let mut decompressor = hatanaka::Decompressor::new(8);
     // record 
-    let mut nav_rec = navigation::record::Record::new(); // NAV = BTreeMap::new();  // NAV
-    let mut obs_rec = observation::record::Record::new(); // OBS = BTreeMap::new(); // OBS
-    let mut met_rec : meteo::Record = BTreeMap::new(); // MET
+    let mut nav_rec = navigation::record::Record::new(); // NAV
+    let mut obs_rec = observation::record::Record::new(); // OBS
+    let mut met_rec = meteo::record::Record::new(); // MET
     let mut clk_rec : clocks::Record = BTreeMap::new(); // CLK
     let mut atx_rec : antex::Record = BTreeMap::new(); // ATX
 
@@ -300,7 +299,7 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Com
                             }
                         },
                         Type::MeteoData => {
-                            if let Ok((e, map)) = meteo::build_record_entry(&header, &epoch_content) {
+                            if let Ok((e, map)) = meteo::record::build_record_entry(&header, &epoch_content) {
                                 // <o 
                                 // OBS data provides all observations realized @ a given epoch
                                 // we should never face parsed epoch that were previously parsed
@@ -387,7 +386,7 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Com
             }
         },
         Type::MeteoData => {
-            if let Ok((e, map)) = meteo::build_record_entry(&header, &epoch_content) {
+            if let Ok((e, map)) = meteo::record::build_record_entry(&header, &epoch_content) {
                 met_rec.insert(e, map);
                 comment_ts = e.clone(); // for comments classification + management
             }
@@ -419,7 +418,7 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Com
                 comment_ts = e.clone(); // for comments classification & management
             }
         },
-        _ => todo!("record type not fully supported yet"),
+        //_ => todo!("record type not fully supported yet"),
     }
     // new comments ?
     if !comment_content.is_empty() {
@@ -432,7 +431,7 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Com
         Type::ObservationData => Record::ObsRecord(obs_rec), 
 		Type::MeteoData => Record::MeteoRecord(met_rec),
         Type::ClockData => Record::ClockRecord(clk_rec),
-        _ => todo!("record type not fully supported yet"),
+        //_ => todo!("record type not fully supported yet"),
     };
     Ok((record, comments))
 }

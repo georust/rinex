@@ -6,7 +6,6 @@ use crate::clocks;
 use crate::version;
 //use crate::gnss_time;
 use crate::hardware;
-use crate::{is_comment};
 use crate::types::{Type, TypeError};
 use crate::constellation;
 use crate::merge::MergeError;
@@ -17,6 +16,7 @@ use crate::observation;
 use std::fs::File;
 use thiserror::Error;
 use std::str::FromStr;
+use strum_macros::EnumString;
 use std::collections::HashMap;
 use std::io::{prelude::*, BufReader};
 
@@ -32,64 +32,56 @@ pub const CRINEX_MARKER_COMMENT : &str = "COMPACT RINEX FORMAT";
 pub const HEADER_END_MARKER : &str = "END OF HEADER";
 
 #[derive(Clone, Debug)]
+#[derive(EnumString)]
 #[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub enum MarkerType {
     /// Earth fixed & high precision
+    #[strum(serialize = "GEODETIC", serialize = "Geodetic")]
     Geodetic,
     /// Earth fixed & low precision
+    #[strum(serialize = "NON GEODETIC", serialize = "NonGeodetic")]
     NonGeodetic,
     /// Generated from network
+    #[strum(serialize = "NON PHYSICAL", serialize = "NonPhysical")]
     NonPhysical,
     /// Orbiting space vehicule
+    #[strum(serialize = "SPACE BORNE", serialize = "Spaceborne")]
     Spaceborne,
     /// Aircraft, balloon..
+    #[strum(serialize = "AIR BORNE", serialize = "Airborne")]
     Airborne,
     /// Mobile water craft
+    #[strum(serialize = "WATER CRAFT", serialize = "Watercraft")]
     Watercraft,
     /// Mobile terrestrial vehicule
+    #[strum(serialize = "GROUND CRAFT", serialize = "Groundcraft")]
     Groundcraft,
     /// Fixed on water surface
+    #[strum(serialize = "FXED BUOY", serialize = "FixedBuoy")]
     FixedBuoy,
     /// Floating on water surface
+    #[strum(serialize = "FLOATING BUOY", serialize = "FloatingBuoy")]
     FloatingBuoy,
     /// Floating on ice
+    #[strum(serialize = "FLOATING ICE", serialize = "FloatingIce")]
     FloatingIce, 
     /// Fixed on glacier
+    #[strum(serialize = "GLACIER", serialize = "Glacier")]
     Glacier,
     /// Rockets, shells, etc..
+    #[strum(serialize = "BALLISTIC", serialize = "Ballistic")]
     Ballistic,
     /// Animal carrying a receiver
+    #[strum(serialize = "ANIMAL", serialize = "Animal")]
     Animal,
     /// Human being carrying a receiver
+    #[strum(serialize = "HUMAN", serialize = "Human")]
     Human,
 }
 
 impl Default for MarkerType {
-    fn default() -> MarkerType { MarkerType::Geodetic }
-}
-
-impl std::str::FromStr for MarkerType {
-    type Err = std::io::Error; 
-    /// Builds a MarkerType from given code descriptor.
-    /// This method is not case sensitive
-    fn from_str (code: &str) -> Result<Self, Self::Err> {
-        match code.to_uppercase().as_str() {
-            "GEODETIC" => Ok(Self::Geodetic),
-            "NON GEODETIC" => Ok(Self::NonGeodetic),
-            "NON_PHYSICAL" => Ok(Self::NonPhysical),
-            "SPACE BORNE" => Ok(Self::Spaceborne),
-            "AIR BORNE" => Ok(Self::Airborne),
-            "WATER CRAFT" => Ok(Self::Watercraft),
-            "GROUND CRAFT" => Ok(Self::Groundcraft),
-            "FIXED BUOY" => Ok(Self::FixedBuoy),
-            "FLOATING BUOY" => Ok(Self::FloatingBuoy),
-            "FLOATING ICE" => Ok(Self::FloatingIce),
-            "GLACIER" => Ok(Self::Glacier),
-            "BALLISTIC" => Ok(Self::Ballistic),
-            "ANIMAL" => Ok(Self::Animal),
-            "HUMAN" => Ok(Self::Human),
-            _ => Ok(Self::default()), 
-        }
+    fn default() -> Self { 
+        Self::Geodetic 
     }
 }
 
@@ -288,8 +280,8 @@ impl Header {
         let mut current_code_syst = constellation::Constellation::default(); // to keep track in multi line scenario + Mixed constell 
         let mut obs_codes  : HashMap<constellation::Constellation, Vec<String>> = HashMap::with_capacity(constellation::CONSTELLATION_LENGTH);
         // (OBS/METEO)
-		let mut met_codes  : Vec<String> = Vec::new();
-		let mut met_sensors: Vec<meteo::Sensor> = Vec::with_capacity(3);
+		let mut met_codes  : Vec<meteo::observable::Observable> = Vec::new();
+		let mut met_sensors: Vec<meteo::sensor::Sensor> = Vec::with_capacity(3);
         // CLOCKS
         let mut clk_ref = String::new();
         let mut clk_codes: Vec<clocks::DataType> = Vec::new();
@@ -394,13 +386,18 @@ impl Header {
                 let (date_str, _) = rem.split_at(20);
                 date = date_str.trim().to_string()
             }
+            
             else if marker.contains("MARKER NAME") {
                 station = content.split_at(20).0.trim().to_string()
+            
             } else if marker.contains("MARKER NUMBER") {
                 station_id = content.split_at(20).0.trim().to_string()
+            
             } else if marker.contains("MARKER TYPE") {
                 let code = content.split_at(20).0.trim();
-                marker_type = Some(MarkerType::from_str(code).unwrap());
+                if let Ok(marker) = MarkerType::from_str(code) {
+                    marker_type = Some(marker)
+                }
             
             } else if marker.contains("OBSERVER / AGENCY") {
                 let (obs, ag) = content.split_at(20);
@@ -408,22 +405,14 @@ impl Header {
                 agency = ag.trim().to_string()
 
             } else if marker.contains("REC # / TYPE / VERS") {
-                rcvr = Some(hardware::Rcvr::from_str(&line)?) 
+                if let Ok(receiver) = hardware::Rcvr::from_str(content) {
+                    rcvr = Some(receiver)
+                }
 
 			} else if marker.contains("SENSOR MOD/TYPE/ACC") {
-				let (model, rem) = content.split_at(20);
-				let (stype, rem) = rem.split_at(20+6);
-				let (accuracy, rem) = rem.split_at(7+4);
-				let accuracy = f32::from_str(accuracy.trim())?;
-				let (physics, _) = rem.split_at(2);
-				met_sensors.push(
-                    meteo::Sensor {
-                        model: model.trim().to_string(),
-                        sens_type: stype.trim().to_string(),
-                        accuracy,
-                        physics: physics.trim().to_string(),
-                    }
-                )
+                if let Ok(sensor) = meteo::sensor::Sensor::from_str(content.trim()) {
+                    met_sensors.push(sensor)
+                }
             
             } else if marker.contains("ANT # / TYPE") {
                 let (model, rem) = content.split_at(20);
@@ -555,7 +544,9 @@ impl Header {
                         }
                     } else if rinex_type == Type::MeteoData {
                         for c in codes {
-                            met_codes.push(c);
+                            if let Ok(o) = meteo::observable::Observable::from_str(&c) {
+                                met_codes.push(o);
+                            }
                         }
                     }
                     obs_code_lines -= 1
@@ -595,7 +586,9 @@ impl Header {
                     } else if rinex_type == Type::MeteoData {
                         // simple append, list is simpler
                         for c in codes {
-                            met_codes.push(c)
+                            if let Ok(o) = meteo::observable::Observable::from_str(&c) {
+                                met_codes.push(o);
+                            }
                         }
                     }
                     obs_code_lines -= 1
@@ -1162,7 +1155,7 @@ impl std::fmt::Display for Header {
                             line.clear();
                             line.push_str(&format!("{:<6}", ""));
                         }
-                        line.push_str(&format!(" {:>5}", codes[i]));
+                        line.push_str(&format!(" {:>5?}", codes[i]));
                     }
                     line.push_str(&format!("{:<width$}", "", width=60-line.len()));
                     line.push_str("# / TYPES OF OBS\n"); 
@@ -1194,11 +1187,7 @@ impl std::fmt::Display for Header {
         if let Some(meteo) = &self.meteo {
             let sensors = &meteo.sensors;
             for sensor in sensors {
-                write!(f, "{:<20}", sensor.model)?; 
-                write!(f, "{:<30}", sensor.sens_type)?; 
-                write!(f, "{:1.1}", sensor.accuracy)?; 
-                write!(f, "{:<5}", sensor.physics)?; 
-                write!(f, "SENSOR MOD/TYPE/ACC\n")?
+                write!(f, "{}", sensor)?
             }
         }
         // END OF HEADER

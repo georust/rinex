@@ -1,13 +1,6 @@
 //! `NavigationData` parser and related methods
-use std::io::Write;
-use thiserror::Error;
-use std::str::FromStr;
 use itertools::Itertools;
-use std::collections::{BTreeMap,HashMap};
 
-use crate::sv;
-use crate::epoch;
-use crate::header;
 use crate::version;
 use crate::constellation::Constellation;
 

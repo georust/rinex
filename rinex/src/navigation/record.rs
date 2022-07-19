@@ -2,7 +2,6 @@
 use std::io::Write;
 use thiserror::Error;
 use std::str::FromStr;
-use itertools::Itertools;
 use std::collections::{BTreeMap,HashMap};
 
 use crate::sv;
@@ -127,7 +126,7 @@ pub fn is_new_epoch (line: &str, v: version::Version) -> bool {
 
 /// Navigation Record Parsing Error
 #[derive(Error, Debug)]
-pub enum RecordError {
+pub enum Error {
     #[error("failed to parse msg type")]
     SvError(#[from] sv::Error),
     #[error("failed to parse cplx data")]
@@ -140,7 +139,7 @@ pub enum RecordError {
 
 /// Builds `Record` entry for `NavigationData`
 pub fn build_record_entry (header: &header::Header, content: &str)
-        -> Result<(epoch::Epoch, sv::Sv, HashMap<String, ComplexEnum>), RecordError>
+        -> Result<(epoch::Epoch, sv::Sv, HashMap<String, ComplexEnum>), Error>
 {
     //  <o 
     //     SV + Epoch + SvClock infos + RecType + MsgType are always there

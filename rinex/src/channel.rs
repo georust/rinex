@@ -214,6 +214,7 @@ impl Channel {
     }
 }
 
+#[cfg(test)]
 mod test {
     use super::*;
     use std::str::FromStr;

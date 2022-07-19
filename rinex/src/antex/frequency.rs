@@ -1,7 +1,5 @@
 //! Antex - special RINEX type specific structures
 use crate::channel;
-use thiserror::Error;
-use std::collections::BTreeMap;
 
 #[derive(Debug, Clone)]
 pub enum Pattern {

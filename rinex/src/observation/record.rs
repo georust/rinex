@@ -151,7 +151,7 @@ pub type Record = BTreeMap<epoch::Epoch,
 
 #[derive(Error, Debug)]
 /// OBS Data `Record` parsing specific errors
-pub enum RecordError {
+pub enum Error {
     #[error("failed to parse date")]
     ParseDateError(#[from] epoch::ParseDateError),
     #[error("failed to parse epoch flag")]
@@ -208,7 +208,7 @@ pub fn is_new_epoch (line: &str, v: version::Version) -> bool {
 /// Builds `Record` entry for `ObservationData`
 /// from given epoch content
 pub fn build_record_entry (header: &header::Header, content: &str)
-        -> Result<(epoch::Epoch, Option<f32>, HashMap<sv::Sv, HashMap<String, ObservationData>>), RecordError> 
+        -> Result<(epoch::Epoch, Option<f32>, HashMap<sv::Sv, HashMap<String, ObservationData>>), Error> 
 {
     let mut lines = content.lines();
     let mut line = lines.next()
@@ -306,15 +306,15 @@ pub fn build_record_entry (header: &header::Header, content: &str)
                 let sv : sv::Sv = match identifier.is_ascii_whitespace() {
                     true => sv::Sv::new(header.constellation.unwrap(), prn),
                     false => {
-                        let constell : constellation::Constellation = match identifier {
-                            'G' => constellation::Constellation::GPS,
-                            'R' => constellation::Constellation::Glonass,
-                            'J' => constellation::Constellation::QZSS,
-                            'E' => constellation::Constellation::Galileo,
-                            'C' => constellation::Constellation::Beidou,
-                            'S' => constellation::Constellation::Sbas(constellation::Augmentation::default()),
+                        let constell : Constellation = match identifier {
+                            'G' => Constellation::GPS,
+                            'R' => Constellation::Glonass,
+                            'J' => Constellation::QZSS,
+                            'E' => Constellation::Galileo,
+                            'C' => Constellation::Beidou,
+                            'S' => Constellation::Sbas(constellation::Augmentation::default()),
                             _ => return Err(
-                                RecordError::SvError(
+                                Error::SvError(
                                     sv::Error::ConstellationError(
                                         constellation::Error::UnknownCode(identifier.to_string())))),
                         };
@@ -336,7 +336,7 @@ pub fn build_record_entry (header: &header::Header, content: &str)
     
         // verify identified list sanity
         if sv_list.len() != n_sat.into() {
-            return Err(RecordError::EpochParsingError) // mismatch
+            return Err(Error::EpochParsingError) // mismatch
         }
 
 		for i in 0..sv_list.len() { // per vehicule
@@ -455,7 +455,7 @@ pub fn build_record_entry (header: &header::Header, content: &str)
 				'H' => constellation::Constellation::Sbas(constellation::Augmentation::default()),
                 'S' => constellation::Constellation::Geo,
 				_ => return Err(
-                        RecordError::SvError(
+                        Error::SvError(
                             sv::Error::ConstellationError(
                                 constellation::Error::UnknownCode(identifier.to_string())))),
 			};
