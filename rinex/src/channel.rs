@@ -81,7 +81,8 @@ impl Default for Code {
 }
 */
 
-#[derive(Debug, Clone, PartialEq, Copy)]
+#[derive(Debug, Clone, Copy)]
+#[derive(PartialEq, PartialOrd)]
 pub enum Channel {
     /// L1 band
     L1,

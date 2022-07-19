@@ -1,29 +1,66 @@
-//! Antex - special RINEX type specific structures
+use strum_macros::EnumString;
 use crate::antex::frequency::Frequency;
+
+/// Known Calibration Methods
+#[derive(Clone, Debug)]
+#[derive(PartialEq, PartialOrd)]
+#[derive(EnumString)]
+pub enum Method {
+    #[strum(serialize = "CHAMBER")]
+    Chamber,
+    #[strum(serialize = "FIELD")]
+    Field,
+    #[strum(serialize = "ROBOT")]
+    Robot,
+    /// Copied from other antenna 
+    #[strum(serialize = "COPIED")]
+    Copied,
+    /// Converted from igs_01.pcv or blank
+    #[strum(serialize = "CONVERTED")]
+    Converted,
+}
+
+impl Default for Method {
+    fn default() -> Self {
+        Self::Chamber
+    }
+}
+
+/// Calibration information
+#[derive(Clone, Debug)]
+#[derive(PartialEq, PartialOrd)]
+pub struct Calibration {
+    /// Calibration method
+    pub method: Method,
+    /// Agency who performed the calibration
+    pub agency: String,
+    /// Date of calibration
+    pub date: String,
+}
+
+impl Default for Calibration {
+    fn default() -> Self {
+        Self {
+            method: Method::default(),
+            agency: String::from("Unknown"),
+            date: String::from("Unknown"),
+        }
+    }
+}
 
 /// Describes an Antenna section inside the ATX record
 #[derive(Clone, Debug)]
 #[derive(PartialEq, PartialOrd)]
 pub struct Antenna {
-    /// TODO
     pub ant_type: String,
-    /// TODO
     pub sn: String,
-    /// TODO
-    pub method: Option<String>,
-    /// TODO
-    pub agency: Option<String>,
-    /// TODO
-    pub date: chrono::NaiveDate,
-    /// TODO
+    /// Calibration informations
+    pub calibration: Calibration,
+    /// Increment of the azimuth, in degrees
     pub dazi: f64,
-    /// TODO
     pub zen: (f64, f64),
-    /// TODO
     pub dzen: f64,
-    /// TODO
     pub valid_from: chrono::NaiveDateTime,
-    /// TODO
     pub valid_until: chrono::NaiveDateTime,
 }
 
@@ -33,9 +70,7 @@ impl Default for Antenna {
         Self {
             ant_type: String::from("?"),
             sn: String::from("?"),
-            method: None,
-            agency: None,
-            date: now.date(),
+            calibration: Calibration::default(),
             dazi: 0.0_f64,
             zen: (0.0_f64, 0.0_f64),
             dzen: 0.0_f64,
@@ -46,9 +81,24 @@ impl Default for Antenna {
 }
 
 impl Antenna {
-    pub fn with_serial_num (&self, sn: String) -> Self {
+    pub fn with_type (&self, ant_type: &str) -> Self {
         let mut a = self.clone();
-        a.sn = sn.clone();
+        a.ant_type = ant_type.to_string();
+        a
+    }
+    pub fn with_serial_num (&self, sn: &str) -> Self {
+        let mut a = self.clone();
+        a.sn = sn.to_string();
+        a
+    }
+    pub fn with_calibration (&self, c: Calibration) -> Self {
+        let mut a = self.clone();
+        a.calibration = c.clone();
+        a
+    }
+    pub fn with_dazi (&self, dazi: f64) -> Self {
+        let mut a = self.clone();
+        a.dazi = dazi;
         a
     }
     pub fn with_valid_from (&self, v: chrono::NaiveDateTime) -> Self {

@@ -16,8 +16,8 @@ impl Default for Pattern {
 }
 
 /// Describes a "frequency" section of the ATX record
-/// Describes a "frequency" section of the ATX record
 #[derive(Debug, Clone)]
+#[derive(PartialEq, PartialOrd)]
 pub struct Frequency {
     /// Channel, example: L1, L2 for GPS, E1, E5 for GAL...
     pub channel: channel::Channel,
@@ -27,8 +27,8 @@ pub struct Frequency {
     pub east: f64,
     /// TODO
     pub up: f64,
-    /// Possibly azimuth dependent pattern
-    pub pattern: Pattern, 
+    // /// Possibly azimuth dependent pattern
+    // pub pattern: Pattern, 
 }
 
 impl Default for Frequency {
@@ -38,7 +38,7 @@ impl Default for Frequency {
             north: 0.0_f64,
             east: 0.0_f64,
             up: 0.0_f64,
-            pattern: Pattern::default(),
+            // pattern: Pattern::default(),
         }
     }
 }
