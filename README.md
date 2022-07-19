@@ -79,10 +79,11 @@ and parser has been coded.
 * `--with-serde`   
 enables `Serialization` and `Deserialization` of main RINEX structures
 
-* `--with-geo`  
-to be provided in 0.4.0, unlocks `constellation::augmentation::helper` method,
+* `--with-geo`   
+will be provided in 0.4.0. The feature
+includes the `rust::geo` crate, which unlocks the `constellation::augmentation::sbas_selection_helper()` method,
 to select the most appropriate `SBAS` augmentation system,
-depending on a given (/current) location on Earth
+depending on a given (usually current..) location on Earth
 
 * `--with-gzip`  
 to be provided in 0.5.0, allows parsing .gz compressed RINEX files directly

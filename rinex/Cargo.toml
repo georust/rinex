@@ -12,6 +12,7 @@ readme = "README.md"
 
 [features]
 with-serde = ["serde"]
+with-geo = ["geo"]
 
 [build-dependencies]
 serde_json = "1.0"
@@ -27,4 +28,5 @@ strum_macros = "0.10.0"
 physical_constants = "0.4.1"
 num-integer = "0.1.44"
 itertools = "0.10.3"
+geo = { version = "0.22.1", optional = true }
 serde = { version = "1.0.137", optional = true, features = ["derive"] }
