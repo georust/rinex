@@ -18,7 +18,6 @@ pub type Record = BTreeMap<epoch::Epoch, HashMap<Observable, f32>>;
 pub fn is_new_epoch (line: &str, v: version::Version) -> bool {
     if v.major > 3 {
         // modern, easy parsing,
-        // similar to OBS V3
         match line.chars().nth(0) {
             Some(c) => {
                 c == '>' // epochs always delimited 
@@ -27,10 +26,10 @@ pub fn is_new_epoch (line: &str, v: version::Version) -> bool {
             _ => false,
         }
     } else {
-        if line.len() < 10 {
+        if line.len() < 16 {
             return false
         }
-        let datestr = &line[1..13];
+        let datestr = &line[1..18];
         println!("STR \"{}\"", datestr);
         epoch::str2date(datestr).is_ok()
     }
@@ -152,7 +151,47 @@ pub fn to_file (header: &header::Header, record: &Record, mut writer: std::fs::F
 
 #[cfg(test)]
 mod test {
+    use super::*;
+    #[test]
     fn new_epoch() {
-
+        let content = " 22  1  4  0  0  0  993.4   -6.8   52.9    1.6  337.0    0.0    0.0";
+        assert_eq!(is_new_epoch(content, 
+            version::Version {
+                major: 2,
+                minor: 0,
+            }), true);
+        let content = " 22  1  4  0  0  0  993.4   -6.8   52.9    1.6  337.0    0.0    0.0";
+        assert_eq!(is_new_epoch(content, 
+            version::Version {
+                major: 2,
+                minor: 0,
+            }), true);
+        let content = " 22  1  4  9 55  0  997.9   -6.4   54.2    2.9  342.0    0.0    0.0";
+        assert_eq!(is_new_epoch(content, 
+            version::Version {
+                major: 2,
+                minor: 0,
+            }), true);
+        let content = " 22  1  4 10  0  0  997.9   -6.3   55.4    3.4  337.0    0.0    0.0";
+        assert_eq!(is_new_epoch(content, 
+            version::Version {
+                major: 2,
+                minor: 0,
+            }), true);
+        let content = " 08  1  1  0  0  1 1018.0   25.1   75.9    1.4   95.0    0.0    0.0";
+        assert_eq!(is_new_epoch(content, 
+            version::Version {
+                major: 2,
+                minor: 0,
+            }), true);
     }
+/*
+    #[test]
+    fn test_record_entry() {
+        let content = " 08  1  1  0  0  1 1018.0   25.1   75.9    1.4   95.0    0.0    0.0";
+        let entry = build_record_entry(content);
+pub fn build_record_entry (header: &Header, content: &str) 
+        -> Result<(epoch::Epoch, HashMap<Observable, f32>), Error> 
+
+    }*/
 }

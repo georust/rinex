@@ -97,5 +97,7 @@ mod test {
         assert_eq!(s.is_ok(), true);
         let s = Sensor::from_str("UNKNOWN             123-456                       a.b    TD ");
         assert_eq!(s.is_err(), true);
+        let s = Sensor::from_str("                                                  0.0    PR SENSOR MOD/TYPE/ACC");
+        assert_eq!(s.is_ok(), true);
     }
 }

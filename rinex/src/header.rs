@@ -410,7 +410,7 @@ impl Header {
                 }
 
 			} else if marker.contains("SENSOR MOD/TYPE/ACC") {
-                if let Ok(sensor) = meteo::sensor::Sensor::from_str(content.trim()) {
+                if let Ok(sensor) = meteo::sensor::Sensor::from_str(content) {
                     met_sensors.push(sensor)
                 }
             
