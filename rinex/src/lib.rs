@@ -249,14 +249,20 @@ impl Rinex {
         })
     }
 
-    /// Retruns true if this is an NAV rinex
-    pub fn is_navigation_rinex (&self) -> bool { self.header.rinex_type == types::Type::NavigationData }
-    /// Retruns true if this is an OBS rinex
-    pub fn is_observation_rinex (&self) -> bool { self.header.rinex_type == types::Type::ObservationData }
-    /// Returns true if this is a METEO rinex
-    pub fn is_meteo_rinex (&self) -> bool { self.header.rinex_type == types::Type::MeteoData }
-    /// Returns true if this is a CLOCK rinex
+    /// Returns true if this is an ATX RINEX 
+    pub fn is_antex_rinex (&self) -> bool { self.header.rinex_type == types::Type::AntennaData }
+    
+    /// Returns true if this is a CLOCK RINX
     pub fn is_clocks_rinex (&self) -> bool { self.header.rinex_type == types::Type::ClockData }
+
+    /// Returns true if this is a METEO RINEX
+    pub fn is_meteo_rinex (&self) -> bool { self.header.rinex_type == types::Type::MeteoData }
+    
+    /// Retruns true if this is an NAV RINX
+    pub fn is_navigation_rinex (&self) -> bool { self.header.rinex_type == types::Type::NavigationData }
+
+    /// Retruns true if this is an OBS RINX
+    pub fn is_observation_rinex (&self) -> bool { self.header.rinex_type == types::Type::ObservationData }
 
     /// Returns `epoch` (sampling timestamp) of first observation
     pub fn first_epoch (&self) -> Option<epoch::Epoch> {

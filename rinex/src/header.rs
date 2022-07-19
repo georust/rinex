@@ -7,11 +7,12 @@ use crate::version;
 //use crate::gnss_time;
 use crate::hardware;
 use crate::types::{Type, TypeError};
-use crate::constellation;
 use crate::merge::MergeError;
 
 use crate::meteo;
 use crate::observation;
+use crate::constellation;
+use crate::constellation::{Constellation, augmentation::Augmentation};
 
 use std::fs::File;
 use thiserror::Error;
@@ -95,7 +96,7 @@ pub struct Header {
     pub rinex_type: Type, 
     /// specific `GNSS` constellation system,
 	/// may not exist for RINEX files 
-    pub constellation: Option<constellation::Constellation>, 
+    pub constellation: Option<Constellation>, 
     /// comments extracted from `header` section
     pub comments : Vec<String>,
     /// program name
@@ -187,7 +188,7 @@ pub enum Error {
     #[error("failed to parse date")]
     DateParsingError(#[from] chrono::ParseError),
     #[error("failed to parse ANTEX fields")]
-    AntexParsingError(#[from] antex::Error),
+    AntexParsingError(#[from] antex::record::Error),
     #[error("failed to parse PCV field")]
     ParsePcvError(#[from] antex::pcv::Error),
 }
@@ -197,7 +198,7 @@ impl Default for Header {
         Header {
             version: version::Version::default(), 
             rinex_type: Type::default(),
-            constellation: Some(constellation::Constellation::default()),
+            constellation: Some(Constellation::default()),
             comments: Vec::new(),
             program: String::new(),
             run_by: String::new(),
@@ -250,7 +251,7 @@ impl Header {
         let mut crinex : Option<observation::Crinex> = None;
         let mut crnx_version = version::Version::default(); 
         let mut rinex_type = Type::default();
-        let mut constellation : Option<constellation::Constellation> = None;
+        let mut constellation : Option<Constellation> = None;
         let mut version = version::Version::default();
         let mut comments   : Vec<String> = Vec::new();
         let mut program    = String::new();
@@ -277,8 +278,8 @@ impl Header {
         // (OBS)
         let mut obs_clock_offset_applied = false;
         let mut obs_code_lines : u8 = 0; 
-        let mut current_code_syst = constellation::Constellation::default(); // to keep track in multi line scenario + Mixed constell 
-        let mut obs_codes  : HashMap<constellation::Constellation, Vec<String>> = HashMap::with_capacity(constellation::CONSTELLATION_LENGTH);
+        let mut current_code_syst = Constellation::default(); // to keep track in multi line scenario + Mixed constell 
+        let mut obs_codes  : HashMap<Constellation, Vec<String>> = HashMap::with_capacity(10);
         // (OBS/METEO)
 		let mut met_codes  : Vec<meteo::observable::Observable> = Vec::new();
 		let mut met_sensors: Vec<meteo::sensor::Sensor> = Vec::with_capacity(3);
@@ -335,13 +336,19 @@ impl Header {
             else if marker.contains("ANTEX VERSION / SYST") {
                 let (vers, system) = content.split_at(8);
                 version = version::Version::from_str(vers.trim())?;
-                constellation = Some(constellation::Constellation::from_str(system.trim())?);
+                if let Ok(constell) = Constellation::from_str(system.trim()) {
+                    constellation = Some(constell)
+                }
+                rinex_type = Type::AntennaData;
             } 
+
             else if marker.contains("PCV TYPE / REFANT") {
                 let (pcv_str, rem) = content.split_at(20);
                 let (ref_type, rem) = rem.split_at(20);
                 let (ref_sn, _) = rem.split_at(20);
-                pcv = Some(antex::pcv::Pcv::from_str(pcv_str)?);
+                if let Ok(p) = antex::pcv::Pcv::from_str(pcv_str.trim()) {
+                    pcv = Some(p)
+                }
                 if ref_type.trim().len() > 0 {
                     ant_relative_values = ref_type.trim().to_string();
                 }
@@ -362,13 +369,16 @@ impl Header {
                 if type_str.contains("GLONASS") {
                     // special case, sometimes GLONASS NAV
                     // drops the constellation field cause it's implied
-                    constellation = Some(constellation::Constellation::Glonass)
+                    constellation = Some(Constellation::Glonass)
                 } else if type_str.contains("METEOROLOGICAL DATA") {
                     // these files are not tied to a constellation system,
                     // therefore, do not have this field
                     constellation = None
                 } else { // regular files
-                    constellation = Some(constellation::Constellation::from_str(constell_str.trim())?)
+                    if let Ok(constell) = Constellation::from_str(constell_str.trim()) {
+                        
+                        constellation = Some(constell)
+                    }
                 }
                 version = version::Version::from_str(vers.trim())?;
                 if !version.is_supported() {
@@ -520,18 +530,18 @@ impl Header {
                         .collect();
                     if rinex_type == Type::ObservationData {
                         match constellation {
-                            Some(constellation::Constellation::Mixed) => {
+                            Some(Constellation::Mixed) => {
                                 // Old RINEX + Mixed Constellation:
                                 // description is not accurate enough to determine which
                                 // code will be measured for which constellation
                                 // ---> copy them for all known constellations 
-                                let constells : Vec<constellation::Constellation> = vec![
-                                    constellation::Constellation::GPS,
-                                    constellation::Constellation::Glonass,
-                                    constellation::Constellation::Galileo,
-                                    constellation::Constellation::Beidou,
-                                    constellation::Constellation::Sbas(constellation::Augmentation::default()),
-                                    constellation::Constellation::QZSS,
+                                let constells : Vec<Constellation> = vec![
+                                    Constellation::GPS,
+                                    Constellation::Glonass,
+                                    Constellation::Galileo,
+                                    Constellation::Beidou,
+                                    Constellation::Sbas(Augmentation::default()),
+                                    Constellation::QZSS,
                                 ];
                                 for i in 0..constells.len() {
                                     obs_codes.insert(constells[i], codes.clone());
@@ -559,15 +569,15 @@ impl Header {
                         .collect(); 
                     if rinex_type == Type::ObservationData {
                         // retrieve correspond system and append codes with new values 
-                        let to_retrieve : Vec<constellation::Constellation> = match constellation {
-                            Some(constellation::Constellation::Mixed) => {
+                        let to_retrieve : Vec<Constellation> = match constellation {
+                            Some(Constellation::Mixed) => {
                                 vec![ // Old OBS Data + Mixed constellation ==> no means to differentiate
-                                    constellation::Constellation::GPS,
-                                    constellation::Constellation::Glonass,
-                                    constellation::Constellation::Galileo,
-                                    constellation::Constellation::Beidou,
-                                    constellation::Constellation::Sbas(constellation::Augmentation::default()),
-                                    constellation::Constellation::QZSS,
+                                    Constellation::GPS,
+                                    Constellation::Glonass,
+                                    Constellation::Galileo,
+                                    Constellation::Beidou,
+                                    Constellation::Sbas(Augmentation::default()),
+                                    Constellation::QZSS,
                                 ]
                             },
                             Some(c) => vec![c],
@@ -607,7 +617,7 @@ impl Header {
                         .split_ascii_whitespace()
                         .map(|r| r.trim().to_string())
                         .collect();
-                    current_code_syst = constellation::Constellation::from_1_letter_code(identifier)?;
+                    current_code_syst = Constellation::from_1_letter_code(identifier)?;
                     obs_codes.insert(current_code_syst, codes);
                 } else {
                     // --> parse this line
@@ -837,7 +847,7 @@ impl Header {
         let (a_cst, b_cst) = (self.constellation, header.constellation);
         // constellation upgrade ?
         if a_cst != b_cst {
-            self.constellation = Some(constellation::Constellation::Mixed)
+            self.constellation = Some(Constellation::Mixed)
         }
         // retain oldest revision
         self.version = std::cmp::min(a_rev, b_rev);
@@ -986,7 +996,7 @@ impl Header {
     }
 
     /// Adds desired constellation to Self
-    pub fn with_constellation (&self, c: constellation::Constellation) -> Self {
+    pub fn with_constellation (&self, c: Constellation) -> Self {
         let mut s = self.clone();
         s.constellation = Some(c);
         s
@@ -1012,7 +1022,7 @@ impl std::fmt::Display for Header {
         match self.rinex_type {
             Type::NavigationData => {
                 match self.constellation {
-                    Some(constellation::Constellation::Glonass) => {
+                    Some(Constellation::Glonass) => {
                         // Glonass Special case
                         write!(f,"{:<20}", "G: GLONASS NAV DATA")?;
                         write!(f,"{:<20}", "")?;

@@ -19,6 +19,19 @@ use crate::types::Type;
 /// `Record`
 #[derive(Clone, Debug)]
 pub enum Record {
+    /// ATX record, list of Antenna caracteristics,
+    /// sorted by antenna model. ATX record is not
+    /// epoch iterable
+    AntexRecord(antex::record::Record),
+    /// `clocks::Record` : CLOCKS RINEX file content
+    ClockRecord(clocks::Record),
+    // /// `IONEX` record is a list of Ionosphere Maps,
+    // /// indexed by `epoch`
+    // IonexRecord(ionex::Record),
+    /// `meteo::Record` : Meteo Data file content.   
+	/// `record` is a list of raw data sorted by Observable,
+    /// and by `epoch`
+    MeteoRecord(meteo::record::Record),
 	/// `navigation::Record` : Navigation Data file content.    
 	/// `record` is a list of `navigation::ComplexEnum` sorted
 	/// by `epoch` and by `Sv`
@@ -27,19 +40,6 @@ pub enum Record {
 	/// `record` is a list of `observation::ObservationData` indexed
 	/// by Observation code, sorted by `epoch` and by `Sv`
     ObsRecord(observation::record::Record),
-	/// `meteo::Record` : Meteo Data file content.   
-	/// `record` is a hashmap of f32 indexed by Observation Code,
-	/// sorted by `epoch`
-    MeteoRecord(meteo::record::Record),
-    /// `clocks::Record` : CLOCKS RINEX file content
-    ClockRecord(clocks::Record),
-    // /// `IONEX` record is a list of Ionosphere Maps,
-    // /// indexed by `epoch`
-    // IonexRecord(ionex::Record),
-    /// `antex::Record` : Antenna Data file content.
-    /// `record` is a list of Antenna caracteristics sorted
-    /// by antenna model. `ATX` records are not `epoch` iterable
-    AntexRecord(antex::Record),
 }
 
 /// Comments: alias to describe comments encountered in `record` file section
@@ -47,14 +47,14 @@ pub type Comments = BTreeMap<epoch::Epoch, Vec<String>>;
 
 impl Record {
     /// Unwraps self as ANTEX `record`
-    pub fn as_antex (&self) -> Option<&antex::Record> {
+    pub fn as_antex (&self) -> Option<&antex::record::Record> {
         match self {
             Record::AntexRecord(r) => Some(r),
             _ => None,
         }
     }
     /// Unwraps self as mutable reference to ANTEX `record`
-    pub fn as_mut_antex (&mut self) -> Option<&mut antex::Record> {
+    pub fn as_mut_antex (&mut self) -> Option<&mut antex::record::Record> {
         match self {
             Record::AntexRecord(r) => Some(r),
             _ => None,
@@ -176,7 +176,7 @@ pub fn is_new_epoch (line: &str, header: &header::Header) -> bool {
         return false
     }
     match &header.rinex_type {
-        Type::AntennaData => antex::is_new_epoch(line),
+        Type::AntennaData => antex::record::is_new_epoch(line),
         Type::ClockData => clocks::is_new_epoch(line),
         //Type::IonosphereMaps => ionex::is_new_tec_map(line),
         Type::NavigationData => navigation::record::is_new_epoch(line, header.version), 
@@ -210,11 +210,11 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Com
     };
     let mut decompressor = hatanaka::Decompressor::new(8);
     // record 
+    let mut atx_rec = antex::record::Record::new(); // ATX
     let mut nav_rec = navigation::record::Record::new(); // NAV
     let mut obs_rec = observation::record::Record::new(); // OBS
     let mut met_rec = meteo::record::Record::new(); // MET
     let mut clk_rec : clocks::Record = BTreeMap::new(); // CLK
-    let mut atx_rec : antex::Record = BTreeMap::new(); // ATX
 
     for l in reader.lines() { // process one line at a time 
         let line = l.unwrap();
@@ -336,15 +336,22 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Com
                             }
                         },
                         Type::AntennaData => {
-                            if let Ok((antenna, frequencies)) = antex::build_record_entry(&epoch_content) {
-                            /*    if let Some((_, mut v)) = atx_rec.get_mut(antenna) {
-                                    v.push(frequencies) 
-                                } else {
-                                    atx_rec.insert(antenna, frequencies)
-                                }*/
+                            if let Ok((antenna, frequencies)) = antex::record::build_record_entry(&epoch_content) {
+                                let mut found = false;
+                                for (ant, freqz) in atx_rec.iter_mut() {
+                                    if *ant == antenna {
+                                        for f in frequencies.iter() {
+                                            freqz.push(f.clone());
+                                        }
+                                        found = true;
+                                        break
+                                    }
+                                }
+                                if !found {
+                                    atx_rec.push((antenna, frequencies));
+                                }
                             }
                         },
-                        _ => todo!("record type not fully supported yet"),
                     }
 
                     // new comments ?
@@ -416,6 +423,23 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Com
                     clk_rec.insert(e, map);
                 }
                 comment_ts = e.clone(); // for comments classification & management
+            }
+        },
+        Type::AntennaData => {
+            if let Ok((antenna, frequencies)) = antex::record::build_record_entry(&epoch_content) {
+                let mut found = false;
+                for (ant, freqz) in atx_rec.iter_mut() {
+                    if *ant == antenna {
+                        for f in frequencies.iter() {
+                            freqz.push(f.clone());
+                        }
+                        found = true;
+                        break
+                    }
+                }
+                if !found {
+                    atx_rec.push((antenna, frequencies));
+                }
             }
         },
         _ => todo!("record type not fully supported yet"),

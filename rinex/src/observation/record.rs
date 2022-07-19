@@ -11,6 +11,7 @@ use crate::header;
 use crate::version;
 use crate::constellation;
 use crate::constellation::Constellation;
+use crate::constellation::augmentation::Augmentation;
 
 #[cfg(feature = "with-serde")]
 use serde::{Serialize, Deserialize};
@@ -312,7 +313,7 @@ pub fn build_record_entry (header: &header::Header, content: &str)
                             'J' => Constellation::QZSS,
                             'E' => Constellation::Galileo,
                             'C' => Constellation::Beidou,
-                            'S' => Constellation::Sbas(constellation::Augmentation::default()),
+                            'S' => Constellation::Sbas(Augmentation::default()),
                             _ => return Err(
                                 Error::SvError(
                                     sv::Error::ConstellationError(
@@ -446,14 +447,14 @@ pub fn build_record_entry (header: &header::Header, content: &str)
 			let identifier = sv.chars().nth(0)
 				.unwrap();
 			let prn = u8::from_str_radix(&sv[1..].trim(),10)?;
-			let constell : constellation::Constellation = match identifier {
-				'G' => constellation::Constellation::GPS,
-				'R' => constellation::Constellation::Glonass,
-				'J' => constellation::Constellation::QZSS,
-				'E' => constellation::Constellation::Galileo,
-				'C' => constellation::Constellation::Beidou,
-				'H' => constellation::Constellation::Sbas(constellation::Augmentation::default()),
-                'S' => constellation::Constellation::Geo,
+			let constell : Constellation = match identifier {
+				'G' => Constellation::GPS,
+				'R' => Constellation::Glonass,
+				'J' => Constellation::QZSS,
+				'E' => Constellation::Galileo,
+				'C' => Constellation::Beidou,
+				'H' => Constellation::Sbas(Augmentation::default()),
+                'S' => Constellation::Geo,
 				_ => return Err(
                         Error::SvError(
                             sv::Error::ConstellationError(
