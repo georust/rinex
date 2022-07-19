@@ -77,16 +77,19 @@ and parser has been coded.
 ## Features
 
 * `--with-serde`   
-enables `Serialization` and `Deserialization` of main RINEX structures
+enables `Serialization` and `Deserialization` of key RINEX structures
+
+<img align="right" width="400" src="https://upload.wikimedia.org/wikipedia/commons/4/46/SBAS_Service_Areas.png">
 
 * `--with-geo`   
 will be provided in 0.4.0. The feature
-includes the `rust::geo` crate, which unlocks the `constellation::augmentation::sbas_selection_helper()` method,
-to select the most appropriate `SBAS` augmentation system,
-depending on a given (usually current..) location on Earth
+includes the `rust::geo` crate,   
+and unlocks the `constellation::augmentation::sbas_selection_helper()` method,
+to select the most appropriate `SBAS` augmentation system for  
+a given (usually current..) location on Earth.
 
 * `--with-gzip`  
-to be provided in 0.5.0, allows parsing .gz compressed RINEX files directly
+to be provided in future, allows parsing .gz compressed RINEX files directly
 
 ## Contributions
 
