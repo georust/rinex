@@ -111,10 +111,15 @@ fn load_database() -> Vec<(Augmentation, geo::Polygon)> {
 
 /// SBAS augmentation system selection helper,
 /// returns most approriate Augmentation system
-/// depending on given location (x,y) in ECEF [ddeg]
+/// depending on given location, latitude: in [ddeg]
+/// and longitude: in [ddeg]
 #[cfg(feature = "with-geo")]
-pub fn sbas_selection_helper (point: geo::Point<f64>) -> Option<Augmentation> {
+pub fn sbas_selection_helper (lat: f64, lon: f64) -> Option<Augmentation> {
     let db = load_database();
+    let point : geo::Point<f64> = point!(
+        x: lon,
+        y: lat,
+    );
     for (sbas, area) in db {
         if area.contains(&point) {
             return Some(sbas.clone())
@@ -130,15 +135,48 @@ mod test {
     #[cfg(feature = "with-geo")]
     fn test_sbas_selection() {
         // PARIS --> EGNOS
-        let point :geo::Point<f64> = point!(
-            x: 11.708425,
-            y: 61.283695, 
-        );
-        assert_eq!(sbas_selection_helper(point).is_some(), true);
-        let point :geo::Point<f64> = point!(
-            x: 12.575282, 
-            y: 60.330155,
-        );
-        assert_eq!(sbas_selection_helper(point).is_none(), true);
+        let sbas = sbas_selection_helper(48.808378, 2.382682);
+        assert_eq!(sbas.is_some(), true);
+        assert_eq!(sbas.unwrap(), Augmentation::EGNOS);
+        
+        // ANTARICA --> NONE
+        let sbas = sbas_selection_helper(-77.490631,  91.435181);
+        assert_eq!(sbas.is_none(), true);
+        
+        // LOS ANGELES --> WAAS
+        let sbas = sbas_selection_helper(33.981431, -118.193601);
+        assert_eq!(sbas.is_some(), true);
+        assert_eq!(sbas.unwrap(), Augmentation::WAAS);
+        
+        // ARGENTINA --> NONE
+        let sbas = sbas_selection_helper(-23.216639, -63.170983);
+        assert_eq!(sbas.is_none(), true);
+
+        // NIGER --> ASBAS
+        let sbas = sbas_selection_helper(10.714217, 17.087263);
+        assert_eq!(sbas.is_some(), true);
+        assert_eq!(sbas.unwrap(), Augmentation::ASBAS);
+        
+        // South AFRICA --> None
+        let sbas = sbas_selection_helper(-32.473320, 21.112770);
+        assert_eq!(sbas.is_none(), true);
+
+        // India --> GAGAN
+        let sbas = sbas_selection_helper(19.314290, 76.798953);
+        assert_eq!(sbas.is_some(), true);
+        assert_eq!(sbas.unwrap(), Augmentation::GAGAN);
+
+        // South Indian Ocean --> None
+        let sbas = sbas_selection_helper(-29.349172, 72.773447);
+        assert_eq!(sbas.is_none(), true);
+    
+        // Australia --> SPAN
+        let sbas = sbas_selection_helper(-27.579847, 131.334992);
+        assert_eq!(sbas.is_some(), true);
+        assert_eq!(sbas.unwrap(), Augmentation::SPAN);
+        // NZ --> SPAN
+        let sbas = sbas_selection_helper(-45.113525, 169.864842);
+        assert_eq!(sbas.is_some(), true);
+        assert_eq!(sbas.unwrap(), Augmentation::SPAN);
     }
 }
