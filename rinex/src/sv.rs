@@ -3,7 +3,7 @@ use thiserror::Error;
 use crate::constellation;
 
 #[cfg(feature = "with-serde")]
-use serde::{Serialize, Serializer, Deserialize};
+use serde::{Serialize, Serializer};
 
 /// ̀`Sv` describes a Satellite Vehiculee
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]

@@ -14,10 +14,7 @@ use crate::constellation::Constellation;
 use crate::constellation::augmentation::Augmentation;
 
 #[cfg(feature = "with-serde")]
-use serde::{Serialize, Deserialize};
-
-#[cfg(feature = "with-serde")]
-use crate::formatter::datetime;
+use serde::Serialize;
 
 /// `Ssi` describes signals strength
 #[repr(u8)]

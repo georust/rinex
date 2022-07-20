@@ -206,7 +206,7 @@ impl Kernel {
     }
     
     /// Compresses text data using Hatanaka method
-    fn text_data_compression (&mut self, data: String) -> String {
+    fn text_data_compression (&mut self, _data: String) -> String {
         /*let current = self.init
             .as_text()
             .unwrap();

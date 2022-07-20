@@ -8,7 +8,7 @@ use crate::constellation::Constellation;
 pub mod record;
 
 #[cfg(feature = "with-serde")]
-use serde::{Serialize, Deserialize};
+use serde::Serialize;
 
 #[cfg(feature = "with-serde")]
 use crate::formatter::datetime;
