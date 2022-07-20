@@ -92,7 +92,7 @@ pub fn is_new_epoch (line: &str, v: version::Version) -> bool {
             return false // not enough bytes 
                 // to describe a PRN and an Epoch
         }
-        let (prn, rem) = line.split_at(2);
+        let (prn, _) = line.split_at(2);
         // 1st entry is a valid integer number
         if u8::from_str_radix(prn.trim(), 10).is_err() {
             return false
@@ -107,7 +107,7 @@ pub fn is_new_epoch (line: &str, v: version::Version) -> bool {
                 // to describe an SVN and an Epoch
         }
         // 1st entry matches a valid SV description
-        let (sv, rem) = line.split_at(4);
+        let (sv, _) = line.split_at(4);
         if sv::Sv::from_str(sv).is_err() {
             return false
         }

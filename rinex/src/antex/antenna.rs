@@ -1,5 +1,4 @@
 use strum_macros::EnumString;
-use crate::antex::frequency::Frequency;
 
 /// Known Calibration Methods
 #[derive(Clone, Debug)]
@@ -71,7 +70,6 @@ pub struct Antenna {
 
 impl Default for Antenna {
     fn default() -> Self {
-        let now = chrono::Utc::now().naive_utc();
         Self {
             ant_type: String::from("?"),
             sn: String::from("?"),
@@ -126,10 +124,6 @@ impl Antenna {
     pub fn with_sinex_code (&self, code: &str) -> Self {
         let mut a = self.clone();
         a.sinex_code = Some(code.to_string());
-        a
-    }
-    pub fn with_frequency (&self, f: Frequency) -> Self {
-        let mut a = self.clone();
         a
     }
 }

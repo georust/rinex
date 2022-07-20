@@ -78,7 +78,7 @@ pub fn build_record_entry (content: &str) -> Result<(Antenna, Vec<Frequency>), E
         } else if marker.eq("ZEN1 / ZEN2 / DZEN") {
             let (zen1, rem) = content.split_at(8);
             let (zen2, rem) = rem.split_at(6);
-            let (dzen, rem) = rem.split_at(6);
+            let (dzen, _) = rem.split_at(6);
             if let Ok(zen1) = f64::from_str(zen1.trim()) {
                 if let Ok(zen2) = f64::from_str(zen2.trim()) {
                     if let Ok(dzen) = f64::from_str(dzen.trim()) {

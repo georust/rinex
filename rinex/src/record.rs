@@ -309,18 +309,17 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Com
                             }
                         },
                         Type::ClockData => {
-                            if let Ok((epoch, system, dtype, data)) = clocks::build_record_entry(&header, &epoch_content) {
+                            if let Ok((epoch, system, dtype, data)) = clocks::build_record_entry(&epoch_content) {
                                 // Clocks `RINEX` files are handled a little different,
                                 // because we parse one line at a time, while we parsed one epoch at a time for other RINEXes.
                                 // One line may contribute to a previously existing epoch in the record 
                                 // (different type of measurements etc..etc..)
-                                if let Some(mut e) = clk_rec.get_mut(&epoch) {
-                                    if let Some(mut s) = e.get_mut(&system) {
+                                if let Some(e) = clk_rec.get_mut(&epoch) {
+                                    if let Some(s) = e.get_mut(&system) {
                                         s.insert(dtype, data);
                                     } else {
                                         // --> new system entry for this `epoch`
                                         let mut inner: HashMap<clocks::DataType, clocks::Data> = HashMap::new();
-                                        let mut map: HashMap<clocks::System, HashMap<clocks::DataType, clocks::Data>> = HashMap::new();
                                         inner.insert(dtype, data);
                                         e.insert(system, inner);
                                     }
@@ -399,13 +398,13 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Com
             }
         },
         Type::ClockData => {
-            if let Ok((e, system, dtype, data)) = clocks::build_record_entry(&header, &epoch_content) {
+            if let Ok((e, system, dtype, data)) = clocks::build_record_entry(&epoch_content) {
                 // Clocks `RINEX` files are handled a little different,
                 // because we parse one line at a time, while we parsed one epoch at a time for other RINEXes.
                 // One line may contribute to a previously existing epoch in the record 
                 // (different type of measurements etc..etc..)
-                if let Some(mut e) = clk_rec.get_mut(&e) {
-                    if let Some(mut s) = e.get_mut(&system) {
+                if let Some(e) = clk_rec.get_mut(&e) {
+                    if let Some(s) = e.get_mut(&system) {
                         s.insert(dtype, data);
                     } else {
                         // --> new system entry for this `epoch`
@@ -442,7 +441,6 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Com
                 }
             }
         },
-        _ => todo!("record type not fully supported yet"),
     }
     // new comments ?
     if !comment_content.is_empty() {

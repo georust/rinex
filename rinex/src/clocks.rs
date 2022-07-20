@@ -2,7 +2,6 @@
 //! macros and structures for RINEX Clocks files
 use crate::sv;
 use crate::epoch;
-use crate::header;
 use thiserror::Error;
 use std::str::FromStr;
 use std::collections::{BTreeMap, HashMap};
@@ -148,12 +147,12 @@ pub fn is_new_epoch (line: &str) -> bool {
 /// Builds `RINEX` record entry for `Clocks` data files.   
 /// Returns identified `epoch` to sort data efficiently.  
 /// Returns 2D data as described in `record` definition
-pub fn build_record_entry (header: &header::Header, content: &str) -> 
+pub fn build_record_entry (content: &str) -> 
         Result<(epoch::Epoch, System, DataType, Data), Error> 
 {
     println!("WORKING ON \"{}\"", content);
     let mut lines = content.lines();
-    let mut line = lines.next()
+    let line = lines.next()
         .unwrap();
     // Data type code
     let (dtype, rem) = line.split_at(3);
@@ -176,41 +175,40 @@ pub fn build_record_entry (header: &header::Header, content: &str) ->
     // n
     let (n, rem) = rem.split_at(5);
     let m = u8::from_str_radix(n.trim(), 10)?;
-    line = rem.clone();
 
     let (content, rem) = rem.split_at(20);
     let bias = f64::from_str(content.trim())?;
     let bias_sigma :Option<f64> = match m > 1 {
         true => {
-            let (content, rem) = rem.split_at(20);
+            let (content, _) = rem.split_at(20);
             Some(f64::from_str(content.trim())?)
         },
         _ => None,
     };
     let rate: Option<f64> = match m > 2 {
         true => {
-            let (content, rem) = rem.split_at(20);
+            let (content, _) = rem.split_at(20);
             Some(f64::from_str(content.trim())?)
         },
         _ => None,
     };
     let rate_sigma :Option<f64> = match m > 3 {
         true => {
-            let (content, rem) = rem.split_at(20);
+            let (content, _) = rem.split_at(20);
             Some(f64::from_str(content.trim())?)
         },
         _ => None,
     };
     let accel: Option<f64> = match m > 4 {
         true => {
-            let (content, rem) = rem.split_at(20);
+            let (content, _) = rem.split_at(20);
             Some(f64::from_str(content.trim())?)
         },
         _ => None,
     };
     let accel_sigma :Option<f64> = match m > 5 {
         true => {
-            let (content, rem) = rem.split_at(20);
+            let (content, _) = rem.split_at(20);
             Some(f64::from_str(content.trim())?)
         },
         _ => None,

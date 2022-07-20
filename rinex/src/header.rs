@@ -644,7 +644,7 @@ impl Header {
                 let (n, r) = content.split_at(6);
                 let n = u8::from_str_radix(n.trim(),10)?;
                 let mut rem = r.clone();
-                for i in 0..n {
+                for _ in 0..n {
                     let (code, r) = rem.split_at(6);
                     if let Ok(c) = clocks::DataType::from_str(code.trim()) {
                         clk_codes.push(c)
