@@ -84,22 +84,26 @@ impl Default for Code {
 #[derive(Debug, Clone, Copy)]
 #[derive(PartialEq, PartialOrd)]
 pub enum Channel {
-    /// L1 band
+    /// L1 (GPS, SBAS, QZSS)
     L1,
-    /// L2 band
+    /// L2 (GPS, QZSS)
     L2,
-    /// L5 band
+    /// L5 (GPS, SBAS), QZSS 
     L5,
+    /// LEX (QZSS)
+    LEX, 
     /// Glonass channel 1 with possible channel offset
     G1(Option<u8>),
     /// Glonass channel 2 with possible channel offset
     G2(Option<u8>),
-    /// E1 band
+    /// E1: GAL
     E1,
-    /// E2
+    /// E2: GAL
     E2,
-    /// E5 band
+    /// E5: GAL E5a + E5b
     E5, 
+    /// E6: GAL military
+    E6
 }
 
 impl Default for Channel {
@@ -170,6 +174,7 @@ impl Channel {
             Channel::G1(_) => 1602.0_f64,
             Channel::G2(Some(c)) => 1246.06_f64 + (*c as f64 * 7.0/16.0),
             Channel::G2(_) => 1246.06_f64,
+            _ => 0.0, //TODO
         }
     }
     
@@ -179,6 +184,8 @@ impl Channel {
             Channel::L1 | Channel::G1(_) | Channel::E1 => 15.345_f64,
             Channel::L2 | Channel::G2(_) | Channel::E2 => 11.0_f64,
             Channel::L5 | Channel::E5 => 12.5_f64,
+            Channel::E6 => 0.0, //TODO
+            Channel::LEX => 0.0, //TODO
         }
     }
     
@@ -210,7 +217,39 @@ impl Channel {
                     _ => Ok(Self::E1),
                 }
             },
-            _ => todo!("handle this case"),
+            Constellation::SBAS(_) => {
+                match sv.prn {
+                    1 => Ok(Self::L1),
+                    5 => Ok(Self::L5),
+                    _ => Ok(Self::L1),
+                }
+            },
+            Constellation::Beidou => {
+                match sv.prn {
+                    1 => Ok(Self::E1),
+                    2 => Ok(Self::E2),
+                    5 => Ok(Self::E5),
+                    6 => Ok(Self::E6),
+                    _ => Ok(Self::E1),
+                }
+            },
+            Constellation::QZSS => {
+                match sv.prn {
+                    1 => Ok(Self::L1),
+                    2 => Ok(Self::L2),
+                    5 => Ok(Self::L5),
+                    6 => Ok(Self::LEX),
+                    _ => Ok(Self::L1),
+                }
+            },
+            Constellation::IRNSS => {
+                match sv.prn { // TODO: confirm!
+                    1 => Ok(Self::L1),
+                    5 => Ok(Self::L5),
+                    _ => Ok(Self::L1),
+                }
+            },
+            _ => panic!("non supported conversion from {}", sv.constellation.to_3_letter_code())
         }
     }
 }
