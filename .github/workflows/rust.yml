@@ -19,6 +19,6 @@ jobs:
     - name: Build
       run: |
         sudo apt-get install libudev-dev
-        cargo build --verbose
+        cargo build --all-features --verbose
     - name: Tests
       run: cargo test
