@@ -2,12 +2,14 @@ use std::env;
 use std::io::Write;
 use std::path::Path;
 
-fn main() {
+fn build_nav_database() {
     let out_dir = env::var("OUT_DIR")
         .unwrap();
-    let nav_path = Path::new(&out_dir).join("nav_data.rs");
-    let mut nav_file = std::fs::File::create(&nav_path).unwrap();
-    let nav_data = std::fs::read_to_string("navigation.json")
+    let nav_path = Path::new(&out_dir)
+        .join("nav_data.rs");
+    let mut nav_file = std::fs::File::create(&nav_path)
+        .unwrap();
+    let nav_data = std::fs::read_to_string("db/navigation.json")
         .unwrap();
     let json : serde_json::Value = serde_json::from_str(&nav_data)
         .unwrap();
@@ -89,3 +91,8 @@ fn main() {
         .write_all("}".as_bytes())
         .unwrap();
 }
+
+fn main() {
+    build_nav_database();
+}
+

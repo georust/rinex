@@ -50,7 +50,7 @@ All NAV record share the following attributes:
 * "svClockDriftRate": `Sv` Clock Drift Rate [s.s⁻²] (f32)
 
 All remaining NAV record content is GNSS & revision dependent and is described in 
-_navigation.json_ descriptor. 
+_db/navigation.json_ descriptor. 
 
 All keys described by this file descriptor are exposed. Refer to the official RINEX definition
 of the keys you are interested in:
