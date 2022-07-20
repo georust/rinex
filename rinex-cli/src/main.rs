@@ -107,8 +107,8 @@ pub fn main () -> Result<(), Box<dyn std::error::Error>> {
         Some(s) => Some(u8::from_str_radix(s,10).unwrap()),
         _ => None,
     };
-    let ssi : Option<observation::Ssi> = match matches.value_of("ssi") {
-        Some(s) => Some(observation::Ssi::from_str(s).unwrap()),
+    let ssi : Option<observation::record::Ssi> = match matches.value_of("ssi") {
+        Some(s) => Some(observation::record::Ssi::from_str(s).unwrap()),
         _ => None,
     };
 
@@ -172,7 +172,7 @@ for fp in &filepaths {
                         epoch.flag.is_ok()
                     })
                     .collect();
-                let mut rework = observation::Record::new();
+                let mut rework = observation::record::Record::new();
                 for (e, data) in filtered {
                     rework.insert(*e, data.clone());
                 }
@@ -187,7 +187,7 @@ for fp in &filepaths {
                         epoch.flag.is_ok()
                     })
                     .collect();
-                let mut rework = meteo::Record::new();
+                let mut rework = meteo::record::Record::new();
                 for (e, data) in filtered {
                     rework.insert(*e, data.clone());
                 }
@@ -208,7 +208,7 @@ for fp in &filepaths {
                         !epoch.flag.is_ok()
                     })
                     .collect();
-                let mut rework = observation::Record::new();
+                let mut rework = observation::record::Record::new();
                 for (e, data) in filtered {
                     rework.insert(*e, data.clone());
                 }
@@ -223,7 +223,7 @@ for fp in &filepaths {
                         !epoch.flag.is_ok()
                     })
                     .collect();
-                let mut rework = meteo::Record::new();
+                let mut rework = meteo::record::Record::new();
                 for (e, data) in filtered {
                     rework.insert(*e, data.clone());
                 }
@@ -237,9 +237,9 @@ for fp in &filepaths {
     if let Some(ref filter) = sv_filter {
         match &rinex.header.rinex_type {
             Type::ObservationData => {
-                let mut rework = observation::Record::new();
+                let mut rework = observation::record::Record::new();
                 for (epoch, (ck,data)) in rinex.record.as_obs().unwrap().iter() {
-                    let mut map : HashMap<Sv, HashMap<String, observation::ObservationData>> = HashMap::new();
+                    let mut map : HashMap<Sv, HashMap<String, observation::record::ObservationData>> = HashMap::new();
                     for (sv, data) in data.iter() {
                         if filter.contains(sv) {
                             map.insert(*sv, data.clone());
@@ -252,9 +252,9 @@ for fp in &filepaths {
                 rinex.record = Record::ObsRecord(rework)
             },
             Type::NavigationData => {
-                let mut rework = navigation::Record::new();
+                let mut rework = navigation::record::Record::new();
                 for (epoch, data) in rinex.record.as_nav().unwrap().iter() {
-                    let mut map : HashMap<Sv, HashMap<String, navigation::ComplexEnum>> = HashMap::new();
+                    let mut map : HashMap<Sv, HashMap<String, navigation::record::ComplexEnum>> = HashMap::new();
                     for (sv, data) in data.iter() {
                         if filter.contains(sv) {
                             map.insert(*sv, data.clone());
@@ -274,11 +274,11 @@ for fp in &filepaths {
     if let Some(ref filter) = obscode_filter {
         match &rinex.header.rinex_type {
             Type::ObservationData => {
-                let mut rework = observation::Record::new();
+                let mut rework = observation::record::Record::new();
                 for (epoch, (ck,data)) in rinex.record.as_obs().unwrap().iter() {
-                    let mut map : HashMap<Sv, HashMap<String, observation::ObservationData>> = HashMap::new();
+                    let mut map : HashMap<Sv, HashMap<String, observation::record::ObservationData>> = HashMap::new();
                     for (sv, data) in data.iter() {
-                        let mut inner : HashMap<String, observation::ObservationData> = HashMap::new();
+                        let mut inner : HashMap<String, observation::record::ObservationData> = HashMap::new();
                         for (code, data) in data.iter() {
                             if filter.contains(&code.as_str()) {
                                 inner.insert(code.clone(), data.clone());
@@ -295,11 +295,11 @@ for fp in &filepaths {
                 rinex.record = Record::ObsRecord(rework)
             },
             Type::MeteoData => {
-                let mut rework = meteo::Record::new();
+                let mut rework = meteo::record::Record::new();
                 for (epoch, data) in rinex.record.as_meteo().unwrap().iter() {
-                    let mut map : HashMap<String, f32> = HashMap::new(); 
+                    let mut map : HashMap<meteo::observable::Observable, f32> = HashMap::new(); 
                     for (code, data) in data.iter() {
-                        if filter.contains(&code.as_str()) {
+                        if filter.contains(&code.to_string().as_str()) {
                             map.insert(code.clone(), *data);
                         }
                     }
@@ -310,11 +310,11 @@ for fp in &filepaths {
                 rinex.record = Record::MeteoRecord(rework)
             },
             Type::NavigationData => {
-                let mut rework = navigation::Record::new();
+                let mut rework = navigation::record::Record::new();
                 for (epoch, data) in rinex.record.as_nav().unwrap().iter() {
-                    let mut map : HashMap<Sv, HashMap<String, navigation::ComplexEnum>> = HashMap::new();
+                    let mut map : HashMap<Sv, HashMap<String, navigation::record::ComplexEnum>> = HashMap::new();
                     for (sv, data) in data.iter() {
-                        let mut inner : HashMap<String, navigation::ComplexEnum> = HashMap::new();
+                        let mut inner : HashMap<String, navigation::record::ComplexEnum> = HashMap::new();
                         for (code, data) in data.iter() {
                             if filter.contains(&code.as_str()) {
                                 inner.insert(code.clone(), data.clone());
@@ -337,11 +337,11 @@ for fp in &filepaths {
     if let Some(lli) = lli {
         match &rinex.header.rinex_type {
             Type::ObservationData => {
-                let mut rework = observation::Record::new();
+                let mut rework = observation::record::Record::new();
                 for (epoch, (ck,data)) in rinex.record.as_obs().unwrap().iter() {
-                    let mut map : HashMap<Sv, HashMap<String, observation::ObservationData>> = HashMap::new();
+                    let mut map : HashMap<Sv, HashMap<String, observation::record::ObservationData>> = HashMap::new();
                     for (sv, data) in data.iter() {
-                        let mut inner : HashMap<String, observation::ObservationData> = HashMap::new();
+                        let mut inner : HashMap<String, observation::record::ObservationData> = HashMap::new();
                         for (code, data) in data.iter() {
                             if let Some(lli_flags) = data.lli {
                                 if lli_flags == lli { 
@@ -366,11 +366,11 @@ for fp in &filepaths {
     if let Some(ssi) = ssi {
         match &rinex.header.rinex_type {
             Type::ObservationData => {
-                let mut rework = observation::Record::new();
+                let mut rework = observation::record::Record::new();
                 for (epoch, (ck,data)) in rinex.record.as_obs().unwrap().iter() {
-                    let mut map : HashMap<Sv, HashMap<String, observation::ObservationData>> = HashMap::new();
+                    let mut map : HashMap<Sv, HashMap<String, observation::record::ObservationData>> = HashMap::new();
                     for (sv, data) in data.iter() {
-                        let mut inner : HashMap<String, observation::ObservationData> = HashMap::new();
+                        let mut inner : HashMap<String, observation::record::ObservationData> = HashMap::new();
                         for (code, data) in data.iter() {
                             if let Some(ssi_value) = data.ssi {
                                 if ssi_value >= ssi { 
