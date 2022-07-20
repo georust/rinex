@@ -38,33 +38,14 @@ impl Default for Augmentation {
 
 #[cfg(feature = "with-geo")]
 use std::str::FromStr;
+#[cfg(feature = "with-geo")]
 use std::iter::FromIterator;
+#[cfg(feature = "with-geo")]
 use wkt::{Geometry, Wkt, WktFloat};
+#[cfg(feature = "with-geo")]
 use geo::{polygon, point, Contains, LineString};
 
-/// SBAS augmentation system selection helper,
-/// returns most approriate Augmentation system
-/// depending on given location (x,y) in ECEF [ddeg]
 #[cfg(feature = "with-geo")]
-pub fn sbas_selection_helper (pos: (f64,f64)) -> Option<Augmentation> {
-    let point : geo::Point = pos.into();
-    let boundaries :Vec<(Augmentation, geo::Polygon)> = vec![
-        (Augmentation::WAAS, polygon![
-            (x: 0.0, y: 0.0),
-            (x: 1.0, y: 0.0),
-            (x: 1.0, y: 1.0),
-            (x: 0.0, y: 1.0),
-            (x: 0.0, y: 0.0),
-        ]),
-    ];
-    for (sbas, area) in boundaries.iter() {
-        if area.exterior().contains(&point) {
-            return Some(sbas.clone())
-        }
-    }
-    None
-}
-
 fn wkt_line_string_to_geo<T> (line_string: &wkt::types::LineString<T>) -> LineString<T>
 where
     T: WktFloat + Default + FromStr,
@@ -74,12 +55,14 @@ where
         .map(|coord| (coord.x, coord.y)))
 }
 
+#[cfg(feature = "with-geo")]
 fn line_string<T>(name: &str) -> LineString<T>
 where 
     T: WktFloat + Default + FromStr,
 {
     let mut res = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    res.push("fixtures");
+    res.push("db");
+    res.push("SBAS");
     res.push(name);
     let content = std::fs::read_to_string(res)
         .unwrap();
@@ -91,6 +74,55 @@ where
     }
 }
 
+#[cfg(feature = "with-geo")]
+fn load_database() -> Vec<(Augmentation, geo::Polygon)> {
+    let mut db :Vec<(Augmentation, geo::Polygon)> = Vec::new();
+    let db_path = env!("CARGO_MANIFEST_DIR")
+        .to_owned()
+        + "/db/SBAS/";
+    let db_path = std::path::PathBuf::from(db_path);
+    for entry in std::fs::read_dir(db_path)
+        .unwrap()
+    {
+        let entry = entry
+            .unwrap();
+        let path = entry.path();
+        let fullpath = &path.to_str()
+            .unwrap();
+        let extension = path.extension()
+            .unwrap()
+            .to_str()
+            .unwrap();
+        let name = path.file_stem()
+            .unwrap()
+            .to_str()
+            .unwrap();
+        if extension.eq("wkt") {
+            let poly = geo::Polygon::<f64>::new(
+                line_string(fullpath), // exterior boundaries
+                vec![]); // dont care about interior
+            if let Ok(sbas) = Augmentation::from_str(&name.to_uppercase()) {
+                db.push((sbas, poly))
+            }
+        }
+    }
+    db
+}
+
+/// SBAS augmentation system selection helper,
+/// returns most approriate Augmentation system
+/// depending on given location (x,y) in ECEF [ddeg]
+#[cfg(feature = "with-geo")]
+pub fn sbas_selection_helper (point: geo::Point<f64>) -> Option<Augmentation> {
+    let db = load_database();
+    for (sbas, area) in db {
+        if area.contains(&point) {
+            return Some(sbas.clone())
+        }
+    }
+    None
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -98,28 +130,15 @@ mod test {
     #[cfg(feature = "with-geo")]
     fn test_sbas_selection() {
         // PARIS --> EGNOS
-        //let pos = (0.5, 0.5);
-        //assert_eq!(sbas_selection_helper(pos).is_some(), true);
-        let norway = geo::Polygon::<f64>::new(
-            line_string("norway_main.wkt"), // exterior
-            vec![]); // interior
-
         let point :geo::Point<f64> = point!(
-            x: 9.789122, 
-            y: 62.418818,
+            x: 11.708425,
+            y: 61.283695, 
         );
-        assert_eq!(norway.contains(&point), true);
-        
-        let point :geo::Point<f64> = point!(
-            x: 12.542482, 
-            y: 60.382449,
-        );
-        assert_eq!(norway.contains(&point), true);
-        
+        assert_eq!(sbas_selection_helper(point).is_some(), true);
         let point :geo::Point<f64> = point!(
             x: 12.575282, 
             y: 60.330155,
         );
-        assert_eq!(norway.contains(&point), false);
+        assert_eq!(sbas_selection_helper(point).is_none(), true);
     }
 }

@@ -6,14 +6,15 @@ fn build_nav_database() {
     let out_dir = env::var("OUT_DIR")
         .unwrap();
     let nav_path = Path::new(&out_dir)
-        .join("nav_data.rs");
+        .join("nav_db.rs");
     let mut nav_file = std::fs::File::create(&nav_path)
         .unwrap();
-    let nav_data = std::fs::read_to_string("db/navigation.json")
+    let nav_data = std::fs::read_to_string("db/NAV/navigation.json")
         .unwrap();
     let json : serde_json::Value = serde_json::from_str(&nav_data)
         .unwrap();
-    let constellations = json.as_array()
+    let constellations = json
+        .as_array()
         .unwrap();
     nav_file
         .write_all("use lazy_static::lazy_static;\n\n".as_bytes())

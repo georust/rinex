@@ -4,7 +4,7 @@ use itertools::Itertools;
 use crate::version;
 use crate::constellation::Constellation;
 
-include!(concat!(env!("OUT_DIR"),"/nav_data.rs"));
+include!(concat!(env!("OUT_DIR"),"/nav_db.rs"));
 
 /// Identifies closest revision contained in NAV database.   
 /// Closest content is later used to identify data payload.    
