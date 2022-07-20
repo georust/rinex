@@ -82,7 +82,6 @@ enables `Serialization` and `Deserialization` of key RINEX structures
 <img align="right" width="400" src="https://upload.wikimedia.org/wikipedia/commons/4/46/SBAS_Service_Areas.png">
 
 * `--with-geo`   
-will be provided in 0.4.0. The feature
 includes the `rust::geo` crate, 
 and unlocks the    
 `augmentation::sbas_selection_helper()` method,
