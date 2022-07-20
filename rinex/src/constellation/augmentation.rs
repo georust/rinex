@@ -178,5 +178,21 @@ mod test {
         let sbas = sbas_selection_helper(-45.113525, 169.864842);
         assert_eq!(sbas.is_some(), true);
         assert_eq!(sbas.unwrap(), Augmentation::SPAN);
+
+        // Central China: BDSBAS
+        let sbas = sbas_selection_helper(34.462967, 98.172480);
+        assert_eq!(sbas, Some(Augmentation::BDSBAS));
+
+        // South Korea: KASS
+        let sbas = sbas_selection_helper(37.067846, 128.34);
+        assert_eq!(sbas, Some(Augmentation::KASS));
+        
+        // Japan: MSAS
+        let sbas = sbas_selection_helper(36.081095, 138.274859);
+        assert_eq!(sbas, Some(Augmentation::MSAS));
+
+        // Russia: SDCM
+        let sbas = sbas_selection_helper(60.004390, 89.090326);
+        assert_eq!(sbas, Some(Augmentation::SDCM));
     }
 }
