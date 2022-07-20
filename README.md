@@ -88,6 +88,7 @@ and unlocks the
 `augmentation::sbas_selection_helper()` method,
 to select the most appropriate `SBAS` augmentation system for
 a given (usually current..) location on Earth.
+See [constellation](doc/constellation.md) for example of use.
 
 * `--with-gzip`  
 to be provided in future, allows parsing .gz compressed RINEX files directly
