@@ -21,10 +21,11 @@ mod test {
     fn test_parser() {
         let test_resources = env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/";
         let test_data = vec![
-			"NAV",
-			"OBS",
+			"ATX",
 			"CRNX",
 			"MET",
+			"NAV",
+			"OBS",
 		];
         for data in test_data {
             let data_path = std::path::PathBuf::from(
@@ -60,6 +61,12 @@ mod test {
                         println!("{:#?}", rinex.header);
                         // RECORD
                         match data {
+                            "ATX" => { // ATX record
+                                assert_eq!(rinex.header.obs.is_none(), true);
+                                assert_eq!(rinex.is_navigation_rinex(), false);
+                                assert_eq!(rinex.header.meteo.is_none(), true);
+                                assert_eq!(rinex.is_antex_rinex(), true);
+                            },
                             "NAV" => {
                                 // NAV files checks
                                 assert_eq!(rinex.header.obs.is_none(), true);
@@ -131,7 +138,8 @@ mod test {
                             },
                             _ => {}
                         }
-                        // SPECIAL METHODS
+                        /*
+                         * // SPECIAL METHODS
                         println!("sampling interval  : {:#?}", rinex.sampling_interval());
                         println!("sampling dead time : {:#?}", rinex.dead_times());
                         println!("abnormal epochs    : {:#?}", rinex.epoch_anomalies(None));
@@ -148,7 +156,7 @@ mod test {
                         let _ = std::fs::remove_file("output");
                         //TODO test bench
                         //let identical = diff_is_strictly_identical("test", "data/MET/V2/abvi0010.15m").unwrap();
-                        //assert_eq!(identical, true)
+                        //assert_eq!(identical, true) */
                     }
                 }
             }
