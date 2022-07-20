@@ -86,7 +86,7 @@ will be provided in 0.4.0. The feature
 includes the `rust::geo` crate, 
 and unlocks the    
 `augmentation::sbas_selection_helper()` method,
-to select the most appropriate `SBAS` augmentation system for  
+to select the most appropriate `SBAS` augmentation system for
 a given (usually current..) location on Earth.
 
 * `--with-gzip`  
