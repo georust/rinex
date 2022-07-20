@@ -6,6 +6,7 @@ use strum_macros::EnumString;
 #[derive(PartialEq, PartialOrd)]
 #[derive(Hash, Eq)]
 #[derive(EnumString)]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub enum Observable {
     /// Pressure observation in [mbar]
     #[strum(serialize = "PR")]
