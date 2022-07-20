@@ -1,4 +1,4 @@
-//! Antex - special RINEX type specific structures
+//! Antex (ATX) - special RINEX, for antenna caracteristics
 pub mod pcv;
 pub mod record;
 pub mod antenna;

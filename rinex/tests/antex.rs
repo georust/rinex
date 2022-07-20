@@ -26,7 +26,6 @@ mod test {
         let record = rinex.record.as_antex();
         assert_eq!(record.is_some(), true);
         let record = record.unwrap();
-        println!("{:#?}", record);
         assert_eq!(record.len(), 1); // Only 1 antenna
         let (antenna, frequencies) = record.first()
             .unwrap();
@@ -37,5 +36,23 @@ mod test {
         assert_eq!(cal.agency, "IGG, Univ. Bonn");
         assert_eq!(cal.date, "23-SEP-20");
         assert_eq!(antenna.dazi, 5.0);
+        assert_eq!(antenna.zen, (0.0, 90.0));
+        assert_eq!(antenna.dzen, 5.0);
+        assert_eq!(antenna.valid_from.is_none(), true);
+        assert_eq!(antenna.valid_until.is_none(), true);
+        for freq in frequencies.iter() {
+            let first = freq.patterns.first();
+            assert_eq!(first.is_some(), true);
+            let first = first.unwrap();
+            assert_eq!(first.is_azimuth_dependent(), false);
+            let mut angle = 0.0_f64;
+            for i in 1..freq.patterns.len() {
+                let p = &freq.patterns[i];
+                assert_eq!(p.is_azimuth_dependent(), true);
+                let (a, _) = p.azimuth_pattern().unwrap();
+                assert_eq!(angle, a);
+                angle += antenna.dzen;
+            }
+        }
     }
 }

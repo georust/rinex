@@ -60,8 +60,13 @@ pub struct Antenna {
     pub dazi: f64,
     pub zen: (f64, f64),
     pub dzen: f64,
-    pub valid_from: chrono::NaiveDateTime,
-    pub valid_until: chrono::NaiveDateTime,
+    /// Optionnal SNX, standard IGS/SNX format,
+    /// used when referencing this model
+    pub sinex_code: Option<String>,
+    /// Optionnal validity: start date
+    pub valid_from: Option<chrono::NaiveDateTime>,
+    /// Optionnal end of validity
+    pub valid_until: Option<chrono::NaiveDateTime>,
 }
 
 impl Default for Antenna {
@@ -74,8 +79,9 @@ impl Default for Antenna {
             dazi: 0.0_f64,
             zen: (0.0_f64, 0.0_f64),
             dzen: 0.0_f64,
-            valid_from: now,
-            valid_until: now,
+            sinex_code: None,
+            valid_from: None,
+            valid_until: None,
         }
     }
 }
@@ -101,14 +107,25 @@ impl Antenna {
         a.dazi = dazi;
         a
     }
+    pub fn with_zenith (&self, zen1: f64, zen2: f64, dzen: f64) -> Self {
+        let mut a = self.clone();
+        a.zen = (zen1, zen2);
+        a.dzen = dzen;
+        a
+    }
     pub fn with_valid_from (&self, v: chrono::NaiveDateTime) -> Self {
         let mut a = self.clone();
-        a.valid_from = v.clone();
+        a.valid_from = Some(v.clone());
         a
     }
     pub fn with_valid_until (&self, v: chrono::NaiveDateTime) -> Self {
         let mut a = self.clone();
-        a.valid_until = v.clone();
+        a.valid_until = Some(v.clone());
+        a
+    }
+    pub fn with_sinex_code (&self, code: &str) -> Self {
+        let mut a = self.clone();
+        a.sinex_code = Some(code.to_string());
         a
     }
     pub fn with_frequency (&self, f: Frequency) -> Self {
