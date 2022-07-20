@@ -30,12 +30,10 @@ pub enum Constellation {
     QZSS,
     /// `Galileo` european constellation
     Galileo,
-    /// `Sbas` constellation
-    Sbas(Augmentation),
-    /// `Geo` constellation
-    Geo,
+    /// `SBAS` 
+    SBAS(Augmentation),
     /// `IRNSS` constellation
-    Irnss,
+    IRNSS,
     /// `Mixed` for Mixed constellations 
     /// RINEX files description
     Mixed,
@@ -66,12 +64,10 @@ impl Constellation {
             Ok(Constellation::Galileo)
         } else if code.to_lowercase().eq("j") {
             Ok(Constellation::QZSS)
-        } else if code.to_lowercase().eq("h") {
-            Ok(Constellation::Sbas(Augmentation::default()))
         } else if code.to_lowercase().eq("s") {
-            Ok(Constellation::Geo)
+            Ok(Constellation::SBAS(Augmentation::default()))
         } else if code.to_lowercase().eq("i") {
-            Ok(Constellation::Irnss)
+            Ok(Constellation::IRNSS)
         } else if code.to_lowercase().eq("m") {
             Ok(Constellation::Mixed)
         } else {
@@ -85,10 +81,9 @@ impl Constellation {
             Constellation::Glonass => "R",
             Constellation::Galileo => "E",
             Constellation::Beidou => "C",
-            Constellation::Sbas(_) => "H",
-            Constellation::Geo => "S",
+            Constellation::SBAS(_) => "S",
             Constellation::QZSS => "J",
-            Constellation::Irnss => "I",
+            Constellation::IRNSS => "I",
             Constellation::Mixed => "M",
         } 
     }
@@ -110,11 +105,9 @@ impl Constellation {
         } else if code.to_lowercase().eq("qzs") {
             Ok(Constellation::QZSS)
         } else if code.to_lowercase().eq("sbs") {
-            Ok(Constellation::Sbas(Augmentation::default()))
-        } else if code.to_lowercase().eq("geo") {
-            Ok(Constellation::Geo)
+            Ok(Constellation::SBAS(Augmentation::default()))
         } else if code.to_lowercase().eq("irn") {
-            Ok(Constellation::Irnss)
+            Ok(Constellation::IRNSS)
         } else {
             Err(Error::UnknownCode(code.to_string()))
         }
@@ -126,10 +119,9 @@ impl Constellation {
             Constellation::Glonass => "GLO",
             Constellation::Galileo => "GAL",
             Constellation::Beidou => "BDS",
-            Constellation::Sbas(_) => "SBS",
-            Constellation::Geo => "GEO",
+            Constellation::SBAS(_) => "GEO",
             Constellation::QZSS => "QZS",
-            Constellation::Irnss => "IRN",
+            Constellation::IRNSS => "IRN",
             Constellation::Mixed => "MIX",
         } 
     }
@@ -147,11 +139,9 @@ impl Constellation {
         } else if code.to_lowercase().contains("beidou") {
             Ok(Constellation::Beidou)
         } else if code.to_lowercase().contains("sbas") {
-            Ok(Constellation::Sbas(Augmentation::default()))
-        } else if code.to_lowercase().contains("geo") {
-            Ok(Constellation::Geo)
+            Ok(Constellation::SBAS(Augmentation::default()))
         } else if code.to_lowercase().contains("irnss") {
-            Ok(Constellation::Irnss)
+            Ok(Constellation::IRNSS)
         } else if code.to_lowercase().contains("mixed") {
             Ok(Constellation::Mixed)
         } else {
