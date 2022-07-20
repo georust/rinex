@@ -83,8 +83,9 @@ enables `Serialization` and `Deserialization` of key RINEX structures
 
 * `--with-geo`   
 will be provided in 0.4.0. The feature
-includes the `rust::geo` crate,   
-and unlocks the `constellation::augmentation::sbas_selection_helper()` method,
+includes the `rust::geo` crate, 
+and unlocks the    
+`augmentation::sbas_selection_helper()` method,
 to select the most appropriate `SBAS` augmentation system for  
 a given (usually current..) location on Earth.
 
