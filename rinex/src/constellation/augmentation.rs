@@ -43,7 +43,7 @@ use std::iter::FromIterator;
 #[cfg(feature = "with-geo")]
 use wkt::{Geometry, Wkt, WktFloat};
 #[cfg(feature = "with-geo")]
-use geo::{polygon, point, Contains, LineString};
+use geo::{point, Contains, LineString};
 
 #[cfg(feature = "with-geo")]
 fn wkt_line_string_to_geo<T> (line_string: &wkt::types::LineString<T>) -> LineString<T>
