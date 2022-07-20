@@ -1,5 +1,4 @@
 //! `GNSS` constellations & associated methods
-use thiserror::Error;
 use strum_macros::EnumString;
 
 #[cfg(feature = "with-serde")]
@@ -38,7 +37,10 @@ impl Default for Augmentation {
 }
 
 #[cfg(feature = "with-geo")]
-use geo::{polygon, Contains};
+use std::str::FromStr;
+use std::iter::FromIterator;
+use wkt::{Geometry, Wkt, WktFloat};
+use geo::{polygon, point, Contains, LineString};
 
 /// SBAS augmentation system selection helper,
 /// returns most approriate Augmentation system
@@ -49,8 +51,9 @@ pub fn sbas_selection_helper (pos: (f64,f64)) -> Option<Augmentation> {
     let boundaries :Vec<(Augmentation, geo::Polygon)> = vec![
         (Augmentation::WAAS, polygon![
             (x: 0.0, y: 0.0),
-            (x: 10.0, y: 10.0),
-            (x: -10.0, y: -10.0),
+            (x: 1.0, y: 0.0),
+            (x: 1.0, y: 1.0),
+            (x: 0.0, y: 1.0),
             (x: 0.0, y: 0.0),
         ]),
     ];
@@ -62,6 +65,32 @@ pub fn sbas_selection_helper (pos: (f64,f64)) -> Option<Augmentation> {
     None
 }
 
+fn wkt_line_string_to_geo<T> (line_string: &wkt::types::LineString<T>) -> LineString<T>
+where
+    T: WktFloat + Default + FromStr,
+{
+    LineString::from_iter(line_string.0
+        .iter()
+        .map(|coord| (coord.x, coord.y)))
+}
+
+fn line_string<T>(name: &str) -> LineString<T>
+where 
+    T: WktFloat + Default + FromStr,
+{
+    let mut res = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    res.push("fixtures");
+    res.push(name);
+    let content = std::fs::read_to_string(res)
+        .unwrap();
+    let wkt = Wkt::from_str(&content)
+        .unwrap();
+    match wkt.item {
+        Geometry::LineString(line) => wkt_line_string_to_geo(&line),
+        _ => unreachable!(),
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -69,7 +98,28 @@ mod test {
     #[cfg(feature = "with-geo")]
     fn test_sbas_selection() {
         // PARIS --> EGNOS
-        let pos = (100.0, 200.0);
-        assert_eq!(sbas_selection_helper(pos).is_some(), true);
+        //let pos = (0.5, 0.5);
+        //assert_eq!(sbas_selection_helper(pos).is_some(), true);
+        let norway = geo::Polygon::<f64>::new(
+            line_string("norway_main.wkt"), // exterior
+            vec![]); // interior
+
+        let point :geo::Point<f64> = point!(
+            x: 9.789122, 
+            y: 62.418818,
+        );
+        assert_eq!(norway.contains(&point), true);
+        
+        let point :geo::Point<f64> = point!(
+            x: 12.542482, 
+            y: 60.382449,
+        );
+        assert_eq!(norway.contains(&point), true);
+        
+        let point :geo::Point<f64> = point!(
+            x: 12.575282, 
+            y: 60.330155,
+        );
+        assert_eq!(norway.contains(&point), false);
     }
 }
