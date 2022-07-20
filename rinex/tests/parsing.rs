@@ -21,9 +21,9 @@ mod test {
     fn test_parser() {
         let test_resources = env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/";
         let test_data = vec![
-			//"NAV",
-			//"OBS",
-			//"CRNX",
+			"NAV",
+			"OBS",
+			"CRNX",
 			"MET",
 		];
         for data in test_data {
