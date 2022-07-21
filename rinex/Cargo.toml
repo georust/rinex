@@ -18,15 +18,15 @@ with-geo = ["geo", "wkt"]
 serde_json = "1.0"
 
 [dependencies]
-chrono = "0.4"
-thiserror = "1"
-scan_fmt = "0.1"
+chrono = "0.4.19"
+thiserror = "1.0.31"
+scan_fmt = "0.2.6"
 lazy_static = "1"
 rust-3d = "0.34.0"
-strum = "0.10.0"
-strum_macros = "0.10.0"
+strum = "0.24.1"
+strum_macros = "0.24.2"
 physical_constants = "0.4.1"
-num-integer = "0.1.44"
+num-integer = "0.1.45"
 itertools = "0.10.3"
 geo = { version = "0.22.1", optional = true }
 wkt = { version = "0.10.0", default-features = false, optional = true }
