@@ -22,6 +22,7 @@ mod test {
         let test_resources = env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/";
         let test_data = vec![
 			"ATX",
+			"CLK",
 			"CRNX",
 			"MET",
 			"NAV",
@@ -55,7 +56,7 @@ mod test {
                         // PARSER
                         println!("Parsing file: \"{}\"", full_path);
                         let rinex = Rinex::from_file(full_path);
-                        assert_eq!(rinex.is_err(), false); // 1st basic test
+                        assert_eq!(rinex.is_ok(), true);
                         // HEADER
                         let rinex = rinex.unwrap();
                         println!("{:#?}", rinex.header);
@@ -135,6 +136,12 @@ mod test {
                                     //     this will actually return `header section` timestamps
                                     println!("EVENT @ {:#?} - description: {:#?}", event, rinex.event_description(*event)); 
                                 }
+                            },
+                            "CLK" => {
+                                assert_eq!(rinex.is_clocks_rinex(), true);
+                                assert_eq!(rinex.header.meteo.is_none(), true);
+                                //assert_eq!(rinex.header.obs.is_none(), true);
+                                assert_eq!(rinex.header.clocks.is_some(), true);
                             },
                             _ => {}
                         }
