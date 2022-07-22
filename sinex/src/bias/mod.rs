@@ -145,7 +145,6 @@ pub struct Solution {
 impl std::str::FromStr for Solution {
     type Err = SolutionParsingError;
     fn from_str (content: &str) -> Result<Self, Self::Err> {
-        println!("CONTENT \"{}\"", content);
         let (bias_type, rem) = content.split_at(5);
         let (svn, rem) = rem.split_at(5);
         let (prn, rem) = rem.split_at(4);
@@ -245,11 +244,10 @@ mod tests {
     fn test_bia_v1_example1() {
         let file = env!("CARGO_MANIFEST_DIR")
             .to_owned()
-            + "/data/BIA/V1/example1.bia";
+            + "/data/BIA/V1/example-1a.bia";
         let sinex = Sinex::from_file(&file);
         assert_eq!(sinex.is_ok(), true);
         let sinex = sinex.unwrap();
-        println!("{:#?}", sinex);
         let reference = &sinex.reference;
         assert_eq!(reference.description, "CODE, Astronomical Institute, University of Bern");
         assert_eq!(reference.input, "CODE IGS 1-day final and rapid bias solutions for G/R");
@@ -282,5 +280,39 @@ mod tests {
         assert_eq!(solutions.is_some(), true);
         let solutions = solutions.unwrap();
         assert_eq!(solutions.len(), 50);
+    }
+    #[test]
+    fn test_bia_v1_example1b() {
+        let file = env!("CARGO_MANIFEST_DIR")
+            .to_owned()
+            + "/data/BIA/V1/example-1b.bia";
+        let sinex = Sinex::from_file(&file);
+        assert_eq!(sinex.is_ok(), true);
+        let sinex = sinex.unwrap();
+        let reference = &sinex.reference;
+        assert_eq!(sinex.acknowledgments.len(), 2);
+        assert_eq!(sinex.acknowledgments[0], "COD Center for Orbit Determination in Europe, AIUB, Switzerland");
+        assert_eq!(sinex.acknowledgments[1], "IGS International GNSS Service");
+
+        let description = &sinex.description;
+        let description = description.bias_description();
+        assert_eq!(description.is_some(), true);
+        let description = description.unwrap();
+        assert_eq!(description.sampling, Some(300));
+        assert_eq!(description.spacing, Some(86400));
+        assert_eq!(description.method, Some(DeterminationMethod::CombinedAnalysis));
+        assert_eq!(description.bias_mode, bias::header::BiasMode::Relative);
+        assert_eq!(description.system, bias::TimeSystem::GNSS(Constellation::GPS));
+        assert_eq!(description.rcvr_clock_ref, None);
+        assert_eq!(description.sat_clock_ref.len(), 2);
+
+        let solutions = sinex.record.bias_solutions();
+        assert_eq!(solutions.is_some(), true);
+        let solutions = solutions.unwrap();
+        assert_eq!(solutions.len(), 50);
+        for sol in solutions.iter() {
+            let obs = &sol.obs;
+            assert_eq!(obs.1.is_some(), true); // all came with OBS1+OBS2
+        }
     }
 }
