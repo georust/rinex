@@ -40,8 +40,8 @@ see `develop` branches
 | `AntennaData` (ATX)      | :heavy_check_mark:| :heavy_minus_sign: |  :construction:        | :heavy_minus_sign:   |:construction: | `ATX` records are not `epochs` iterable                         |
 | `IonosphereMaps` (Iono)  | :construction:    |                    |  :construction:        | :question:           |:construction: |                          |
 | `SINEX` (SNX)            | :construction:    |                    |  :construction:        | :heavy_minus_sign:   |:construction: |   `SINEX` are special `RINEX`, they are managed by a dedicated <br /> [`core library`](sinex/) |
-| `Troposphere` (TRO)      | :construction:    |                    |  :construction:        | :question:           |:construction: |   `Troposphere` are one possible declination of SINEX files |
-| `Bias` (BIA)             | :construction:    |                    |  :construction:        | :question:           |:construction: |   `Bias` solutions are one possible declination of SINEX files |
+| `Troposphere` (TRO)      | :construction:    |                    |  :construction:        | :question:           |:construction: |   `Troposphere` are one possible SINEX declination |
+| `Bias` (BIA)             | :heavy_check_mark:| :heavy_minus_sign: |  :construction:        | :question:           |:construction: |   `Bias` solutions are one possible SINEX declination |
 
 `trusted`: means under CI/CD, user can parse safely   
 `untrusted`: means not under CI/CD, either due to lack of test data, partial (:construction:) or incomplete support   
