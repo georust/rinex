@@ -69,7 +69,7 @@ impl std::str::FromStr for Type {
             Ok(Type::ObservationData)
         } else if s.eq("METEOROLOGICAL DATA") {
             Ok(Type::MeteoData)
-        } else if s.eq("CLOCK DATA") {
+        } else if s.eq("CLOCK DATA") || s.eq("C") {
             Ok(Type::ClockData)
         } else if s.eq("ANTEX") {
             Ok(Type::AntennaData)
