@@ -2,6 +2,7 @@
 //use strum_macros::EnumString;
 use std::collections::HashMap;
 use rinex::constellation::Constellation;
+use crate::bias;
 //use crate::datetime::{parse_datetime, ParseDateTimeError};
 
 #[derive(Debug, Clone)]
@@ -13,11 +14,11 @@ pub struct Description {
     /// used for parameter representation
     pub spacing: Option<u32>,
     /// Method used to generate the bias results
-    pub method: Option<DeterminationMethod>,
+    pub method: Option<bias::DeterminationMethod>,
     /// See [BiasMode]
-    pub bias_mode: BiasMode,
+    pub bias_mode: bias::header::BiasMode,
     /// TimeSystem, see [TimeSystem]
-    pub system: TimeSystem,
+    pub system: bias::TimeSystem,
     /// Receiver clock reference GNSS
     pub rcvr_clock_ref: Option<Constellation>,
     /// Satellite clock reference observables:
@@ -34,8 +35,8 @@ impl Default for Description {
             sampling: None,
             spacing: None,
             method: None,
-            bias_mode: BiasMode::default(),
-            system: TimeSystem::default(),
+            bias_mode: bias::header::BiasMode::default(),
+            system: bias::TimeSystem::default(),
             rcvr_clock_ref: None,
             sat_clock_ref: HashMap::new(),
         }
@@ -65,7 +66,7 @@ impl Description {
             sat_clock_ref: self.sat_clock_ref.clone(),
         }
     }
-    pub fn with_method (&self, method: DeterminationMethod) -> Self {
+    pub fn with_method (&self, method: bias::DeterminationMethod) -> Self {
         Self {
             sampling: self.sampling.clone(),
             spacing: self.spacing.clone(),
@@ -76,7 +77,7 @@ impl Description {
             sat_clock_ref: self.sat_clock_ref.clone(),
         }
     }
-    pub fn with_bias_mode (&self, mode: BiasMode) -> Self {
+    pub fn with_bias_mode (&self, mode: bias::header::BiasMode) -> Self {
         Self {
             sampling: self.sampling.clone(),
             spacing: self.spacing.clone(),
@@ -87,7 +88,7 @@ impl Description {
             sat_clock_ref: self.sat_clock_ref.clone(),
         }
     }
-    pub fn with_time_system (&self, system: TimeSystem) -> Self {
+    pub fn with_time_system (&self, system: bias::TimeSystem) -> Self {
         Self {
             sampling: self.sampling.clone(),
             spacing: self.spacing.clone(),

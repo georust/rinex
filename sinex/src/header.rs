@@ -82,16 +82,3 @@ impl Header {
         }
     }*/
 }
-
-#[cfg(test)]
-mod test {
-    use super::*;
-    use std::str::FromStr;
-    #[test]
-    fn test_header() {
-        let content = "%=BIA";
-        let header = Header::from_str(content);
-        assert_eq!(header.is_ok(), true);
-        let header = header.unwrap();
-    }
-}

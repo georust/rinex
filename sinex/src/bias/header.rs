@@ -146,5 +146,12 @@ mod test {
         assert_eq!(header.data_code, "PF2");
         assert_eq!(header.bias_mode, BiasMode::Relative);
         assert_eq!(header.length, 24);
+        let content = "%=BIA 1.00 COD 2016:327:30548 IGS 2016:296:00000 2016:333:00000 A 00000194";
+        let header = Header::from_str(content);
+        assert_eq!(header.is_ok(), true);
+        let header = header.unwrap();
+        assert_eq!(header.version, "1.00");
+        assert_eq!(header.creator_code, "COD");
+        assert_eq!(header.bias_mode, BiasMode::Absolute);
     }
 }

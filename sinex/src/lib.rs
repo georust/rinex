@@ -5,7 +5,7 @@ use std::io::{prelude::*, BufReader};
 use rinex::constellation::Constellation;
 
 mod reference;
-//mod description;
+mod description;
 
 pub mod bias;
 pub mod header;
@@ -14,7 +14,7 @@ pub mod datetime;
 //pub mod troposphere;
 
 use reference::Reference;
-//use description::Description;
+use description::Description;
 use header::{is_valid_header, Header, DocumentType};
 
 fn is_comment (line: &str) -> bool {
@@ -72,13 +72,12 @@ pub enum Error {
     ParseTimeSystemError(#[from] bias::TimeSystemError),
 }
 
-/*
 #[derive(Debug, Clone)]
 pub enum Record {
     /// Bias (BIA) record case
     BiasSolutions(Vec<bias::Solution>),
-    /// Troposphere (TRO) record case
-    TropoRecord(troposphere::Record),
+    // /// Troposphere (TRO) record case
+    // TropoRecord(troposphere::Record),
     // /// SINEX (SNX) record case
     //SinexRecord(sinex::Record)
 }
@@ -91,6 +90,7 @@ impl Record {
             _ => None,
         }
     }
+/*
     /// Unwraps Troposphere Record, if feasible,
     /// is [troposphere::Record] definition for more detail
     pub fn tropo_record (&self) -> Option<&troposphere::Record> {
@@ -99,23 +99,23 @@ impl Record {
             _ => None,
         }
     }
-}
 */
+}
 
 #[derive(Debug, Clone)]
 pub struct Sinex {
-    // /// Header section, is Document Type dependent
-    // pub header: Header,
+    /// Header section, is Document Type dependent
+    pub header: Header,
     /// File Reference section
     pub reference: Reference,
     /// Possible `Input` Acknowledgemet, especially for data providers
     pub acknowledgments: Vec<String>,
     /// Possible `File Comments`
     pub comments: Vec<String>,
-    // /// File Description is Document Type dependent
-    // pub description: Description, 
-    // /// Record
-    //pub record: Record,
+    /// File Description is Document Type dependent
+    pub description: Description, 
+    /// Record
+    pub record: Record,
 }
 
 impl Sinex {
@@ -128,8 +128,8 @@ impl Sinex {
         let mut section = String::new();
         let mut comments : Vec<String> = Vec::new();
         let mut acknowledgments : Vec<String> = Vec::new();
-        //let mut bias_description = bias::Description::default();
-        //let mut bias_solutions: Vec<bias::Solution> = Vec::new();
+        let mut bias_description = bias::description::Description::default();
+        let mut bias_solutions: Vec<bias::Solution> = Vec::new();
         //let mut trop_description = troposphere::Description::default();
         //let mut trop_coordinates : Vec<troposphere::Coordinates> = Vec::new();
         for line in reader.lines() {
@@ -159,6 +159,9 @@ impl Sinex {
                     return Err(Error::FaultySection)
                 }
             
+            } else if is_valid_header(line) {
+                break // EOF
+
             } else {
                 match section.as_str() {
                     "FILE/REFERENCE" => {
@@ -178,7 +181,7 @@ impl Sinex {
                     },
                     "INPUT/ACKNOWLEDGMENTS" => {
                         acknowledgments.push(line.trim().to_string())
-                    },/*
+                    },
                     "BIAS/DESCRIPTION" => {
                         let (descriptor, content) = line.split_at(41);
                         match descriptor.trim() {
@@ -195,7 +198,7 @@ impl Sinex {
                                 bias_description = bias_description.with_method(method)
                             },
                             "BIAS_MODE" => {
-                                let mode = bias::BiasMode::from_str(content.trim())?;
+                                let mode = bias::header::BiasMode::from_str(content.trim())?;
                                 bias_description = bias_description.with_bias_mode(mode)
                             },
                             "TIME_SYSTEM" => {
@@ -228,7 +231,8 @@ impl Sinex {
                             },
                             _ => {},
                         }
-                    },*/
+                    },
+                    /*
                     "TROP/DESCRIPTION" => {
                         let (descriptor, content) = line.split_at(41);
                         /*match descriptor.trim() {
@@ -265,12 +269,13 @@ impl Sinex {
                             },
                             _ => {}, 
                         }*/
-                    },
-                    /*"BIAS/SOLUTION" => {
+                    },*/
+                    "BIAS/SOLUTION" => {
                         if let Ok(sol) = bias::Solution::from_str(line.trim()) {
                             bias_solutions.push(sol)
                         }
                     },
+                    /*
                     "TROP/STA_COORDINATES" => {
                         if let Ok(coords) = troposphere::Coordinates::from_str(line.trim()) {
                             trop_coordinates.push(coords)
@@ -282,27 +287,12 @@ impl Sinex {
         }
         //let doctype = header.doc_type.clone();
         Ok(Self {
-            /*header: {
-                match doctype {
-                    DocumentType::BiasSolutions => Header::BiasHeader(bias_header),
-                    DocumentType::TropoCoordinates => Header::TropoHeader(tropo_header),
-                }
-            },*/
+            header, 
             reference,
             acknowledgments,
             comments,
-            /*description: {
-                match doctype {
-                    DocumentType::BiasSolutions => Description::BiasDescription(bias_description),
-                    DocumentType::TropoCoordinates => Description::TropoDescription(trop_description),
-                }
-            },*/
-            /*record: {
-                match ftype {
-                    header::DocumentType::BiasSolutions => Record::BiasSolutions(bias_solutions),
-                    header::DocumentType::TropoCoordinates => Record::TropoCoordinates(trop_coordinates),
-                }
-            },*/
+            description: Description::BiasDescription(bias_description),
+            record: Record::BiasSolutions(bias_solutions),
         })
     }
 }

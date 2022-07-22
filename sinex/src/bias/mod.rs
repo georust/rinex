@@ -5,7 +5,7 @@ use rinex::constellation::Constellation;
 use crate::datetime::{parse_datetime, ParseDateTimeError};
 
 pub mod header;
-//pub mod description;
+pub mod description;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum TimeSystem {
@@ -145,6 +145,7 @@ pub struct Solution {
 impl std::str::FromStr for Solution {
     type Err = SolutionParsingError;
     fn from_str (content: &str) -> Result<Self, Self::Err> {
+        println!("CONTENT \"{}\"", content);
         let (bias_type, rem) = content.split_at(5);
         let (svn, rem) = rem.split_at(5);
         let (prn, rem) = rem.split_at(4);
@@ -196,6 +197,8 @@ impl Solution {
 mod tests {
     use super::*;
     use std::str::FromStr;
+    use crate::{Sinex, bias};
+    use rinex::constellation::Constellation;
     #[test]
     fn test_determination_methods() {
         let method = DeterminationMethod::from_str("COMBINED_ANALYSIS");
@@ -237,5 +240,47 @@ mod tests {
         assert_eq!(solution.obs, (String::from("C1C"), None));
         assert!((solution.estimate - 10.2472) < 1E-4);
         assert!((solution.stddev - 0.0062E+02) < 1E-4);
+    }
+    #[test]
+    fn test_bia_v1_example1() {
+        let file = env!("CARGO_MANIFEST_DIR")
+            .to_owned()
+            + "/data/BIA/V1/example1.bia";
+        let sinex = Sinex::from_file(&file);
+        assert_eq!(sinex.is_ok(), true);
+        let sinex = sinex.unwrap();
+        println!("{:#?}", sinex);
+        let reference = &sinex.reference;
+        assert_eq!(reference.description, "CODE, Astronomical Institute, University of Bern");
+        assert_eq!(reference.input, "CODE IGS 1-day final and rapid bias solutions for G/R");
+        assert_eq!(reference.output, "CODE IGS 30-day bias solution for G/R satellites");
+        assert_eq!(reference.contact, "code@aiub.unibe.ch");
+        assert_eq!(reference.software, "Bernese GNSS Software Version 5.3");
+        assert_eq!(reference.hardware, "UBELIX: Linux, x86_64");
+        assert_eq!(sinex.acknowledgments.len(), 2);
+        assert_eq!(sinex.acknowledgments[0], "COD Center for Orbit Determination in Europe, AIUB, Switzerland");
+        assert_eq!(sinex.acknowledgments[1], "IGS International GNSS Service");
+        assert_eq!(sinex.comments.len(), 4);
+        assert_eq!(sinex.comments[0], "CODE final product series for the IGS.");
+        assert_eq!(sinex.comments[1], "Published by Astronomical Institute, University of Bern.");
+        assert_eq!(sinex.comments[2], "URL: http://www.aiub.unibe.ch/download/CODE");
+        assert_eq!(sinex.comments[3], "DOI: 10.7892/boris.75876");
+
+        let description = &sinex.description;
+        let description = description.bias_description();
+        assert_eq!(description.is_some(), true);
+        let description = description.unwrap();
+        assert_eq!(description.sampling, Some(300));
+        assert_eq!(description.spacing, Some(86400));
+        assert_eq!(description.method, Some(DeterminationMethod::CombinedAnalysis));
+        assert_eq!(description.bias_mode, bias::header::BiasMode::Absolute);
+        assert_eq!(description.system, bias::TimeSystem::GNSS(Constellation::GPS));
+        assert_eq!(description.rcvr_clock_ref, None);
+        assert_eq!(description.sat_clock_ref.len(), 2);
+
+        let solutions = sinex.record.bias_solutions();
+        assert_eq!(solutions.is_some(), true);
+        let solutions = solutions.unwrap();
+        assert_eq!(solutions.len(), 50);
     }
 }
