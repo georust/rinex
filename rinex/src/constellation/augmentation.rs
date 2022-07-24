@@ -1,4 +1,5 @@
-//! `GNSS` constellations & associated methods
+//! `GNSS` geostationary augmentation systems,
+//! mainly used for high precision positioning
 use strum_macros::EnumString;
 
 #[cfg(feature = "with-serde")]
