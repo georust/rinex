@@ -57,10 +57,7 @@ mod test {
                         println!("Parsing file: \"{}\"", full_path);
                         let rinex = Rinex::from_file(full_path);
                         assert_eq!(rinex.is_ok(), true);
-                        // HEADER
                         let rinex = rinex.unwrap();
-                        //println!("{:#?}", rinex.header);
-                        // RECORD
                         match data {
                             "ATX" => { // ATX record
                                 assert_eq!(rinex.header.obs.is_none(), true);
@@ -69,101 +66,40 @@ mod test {
                                 assert_eq!(rinex.is_antex_rinex(), true);
                             },
                             "NAV" => {
-                                // NAV files checks
                                 assert_eq!(rinex.header.obs.is_none(), true);
                                 assert_eq!(rinex.is_navigation_rinex(), true);
                                 assert_eq!(rinex.header.meteo.is_none(), true);
-                                let record = rinex.record.as_nav().unwrap();
-                                //println!("----- EPOCHs ----- \n{:#?}", record.keys());
-                                let mut epochs = record.keys();
-                                // Testing event description finder
-                                if let Some(event) = epochs.nth(0) {
-                                    // [!] with dummy t0 = 1st epoch timestamp
-                                    //     this will actually return `header section` timestamps
-                                    //println!("EVENT @ {:#?} - description: {:#?}", event, rinex.event_description(*event)); 
-                                }
+                                assert!(rinex.epochs_iter().len() > 0);
                             },
                             "OBS" => {
-                                // OBS files checks
-                                let obs = rinex.header.obs.as_ref();
-                                assert_eq!(obs.is_some(), true);
-                                assert_eq!(rinex.is_observation_rinex(), true);
+                                assert_eq!(rinex.header.obs.is_some(), true);
+                                assert_eq!(rinex.is_navigation_rinex(), false);
                                 assert_eq!(rinex.header.meteo.is_none(), true);
-                                let obs = obs.unwrap();
-                                if obs.clock_offset_applied {
-                                    // epochs should always have a RCVR clock offset
-                                    // test that with iterator
-                                }
-                                let record = rinex.record
-                                    .as_obs()
-                                    .unwrap();
-                                let mut epochs = record.keys();
-                                //println!("----- EPOCHs ----- \n{:#?}", record.keys());
-                                // Testing event description finder
-                                if let Some(event) = epochs.nth(0) {
-                                    // [!] with dummy t0 = 1st epoch timestamp
-                                    //     this will actually return `header section` timestamps
-                                    //println!("EVENT @ {:#?} - description: {:#?}", event, rinex.event_description(*event)); 
-                                }
+                                assert_eq!(rinex.is_antex_rinex(), false);
+                                assert!(rinex.epochs_iter().len() > 0);
                             },
                             "CRNX" => {
-                                // compressed OBS files checks
                                 assert_eq!(rinex.header.obs.is_some(), true);
                                 assert_eq!(rinex.is_observation_rinex(), true);
                                 assert_eq!(rinex.header.meteo.is_none(), true);
-                                let record = rinex.record.as_obs().unwrap();
-                                let mut epochs = record.keys();
-                                //println!("----- EPOCHs ----- \n{:#?}", epochs); 
-                                // Testing event description finder
-                                if let Some(event) = epochs.nth(0) {
-                                    // [!] with dummy t0 = 1st epoch timestamp
-                                    //     this will actually return `header section` timestamps
-                                    //println!("EVENT @ {:#?} - description: {:#?}", event, rinex.event_description(*event)); 
-                                }
+                                assert!(rinex.epochs_iter().len() > 0);
                             },
 							"MET" => {
-                                // METEO files checks
                                 assert_eq!(rinex.header.obs.is_none(), true);
                                 assert_eq!(rinex.is_meteo_rinex(), true);
                                 assert_eq!(rinex.header.meteo.is_some(), true);
                                 assert_eq!(rinex.header.obs.is_none(), true);
-                                let record = rinex.record.as_meteo().unwrap();
-                                let mut epochs = record.keys();
-                                //println!("----- EPOCHs ----- \n{:#?}", epochs);
-                                // Testing event description finder
-                                if let Some(event) = epochs.nth(0) {
-                                    // [!] with dummy t0 = 1st epoch timestamp
-                                    //     this will actually return `header section` timestamps
-                                    //println!("EVENT @ {:#?} - description: {:#?}", event, rinex.event_description(*event)); 
-                                }
+                                assert!(rinex.epochs_iter().len() > 0);
                             },
                             "CLK" => {
                                 assert_eq!(rinex.is_clocks_rinex(), true);
                                 assert_eq!(rinex.header.meteo.is_none(), true);
                                 //assert_eq!(rinex.header.obs.is_none(), true);
                                 assert_eq!(rinex.header.clocks.is_some(), true);
+                                //assert!(rinex.epochs_iter().len() > 0);
                             },
                             _ => {}
                         }
-                        /*
-                         * // SPECIAL METHODS
-                        println!("sampling interval  : {:#?}", rinex.sampling_interval());
-                        println!("sampling dead time : {:#?}", rinex.dead_times());
-                        println!("abnormal epochs    : {:#?}", rinex.epoch_anomalies(None));
-                        // COMMENTS
-                        println!("---------- Header Comments ----- \n{:#?}", rinex.header.comments);
-                        println!("---------- Body   Comments ------- \n{:#?}", rinex.comments);
-                        // MERGED RINEX special ops
-                        println!("---------- Merged RINEX special ops -----------\n");
-                        println!("is merged          : {}", rinex.is_merged());
-                        println!("boundaries: \n{:#?}", rinex.merge_boundaries());
-                        // Test RINEX writer 
-                        rinex.to_file("output").unwrap();
-                        // suppress 
-                        let _ = std::fs::remove_file("output");
-                        //TODO test bench
-                        //let identical = diff_is_strictly_identical("test", "data/MET/V2/abvi0010.15m").unwrap();
-                        //assert_eq!(identical, true) */
                     }
                 }
             }
