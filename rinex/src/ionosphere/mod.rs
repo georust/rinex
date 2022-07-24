@@ -1,5 +1,6 @@
 use std::str::FromStr;
 use strum_macros::EnumString;
+pub mod record;
 
 #[cfg(feature = "with-serde")]
 use serde::Serialize;
@@ -56,6 +57,7 @@ impl Default for System {
 /// start - end values with increment
 #[derive(Debug, Clone, Default)]
 #[derive(PartialEq, PartialOrd)]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct Grid3dElement {
     /// Grid start value
     pub start: f32,
@@ -79,13 +81,12 @@ impl From<(f32,f32,f32)> for Grid3dElement {
 /// latitude, longitude and altitude
 #[derive(Debug, Clone, Default)]
 #[derive(PartialEq, PartialOrd)]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct Grid3d {
     pub latitude: Grid3dElement,
     pub longitude: Grid3dElement,
     pub height: Grid3dElement,
 }
-
-pub mod record;
 
 /// `IONEX` specific header fields
 #[derive(Debug, Clone, Default)]

@@ -26,9 +26,9 @@ pub enum Record {
     AntexRecord(antex::record::Record),
     /// `clocks::Record` : CLOCKS RINEX file content
     ClockRecord(clocks::Record),
-    // /// `IONEX` record is a list of Ionosphere Maps,
-    // /// sorted by `epoch`
-    // IonexRecord(ionosphere::Record),
+    /// `IONEX` record is a list of Ionosphere Maps,
+    /// sorted by `epoch`
+    IonexRecord(ionosphere::record::Record),
     /// `meteo::Record` : Meteo Data file content.   
 	/// `record` is a list of raw data sorted by Observable,
     /// and by `epoch`

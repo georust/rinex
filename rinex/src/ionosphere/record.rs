@@ -16,34 +16,46 @@ pub fn is_new_map (line: &str) -> bool {
     || is_new_height_map(line)
 }
 
-/// Map is one entry of the record item,
-/// it is sorted by position: Lat/Long1/Long2/delta Longitude and altitude/height
-pub type Map = Vec<(f32,f32,f32,f32,Vec<i32>)>;
+/// `IONEX` record is a list of maps indexed by `epoch`
+pub type Record = HashMap<epoch::Epoch, Maps>;
 
-pub struct RecordItem {
-    /// Exponent / scaling attached to `tec` map
-    exponent: Option<i8>,
-    /// TEC map
+/// A Map represents either a TEC, RMS or H map,
+/// with associated lat/lon1/lon2/d/h values
+pub type Map = (f32,f32,f32,f32,f32,Vec<i32>);
+
+#[derive(Clone, Debug, Default)]
+pub struct Maps {
+    /// TEC maps
     pub tec: Vec<Map>,
-    /// Optionnal RMS map associated to `tec` map
-    pub rms: Option<Vec<Map>>,
+    /// Optionnal RMS maps associated to `tec` map,
+    /// most of the time not provided
+    pub rms: Vec<Map>,
     /// Optionnal height map associated to `tec` map
-    pub height: Option<Vec<Map>>,
+    /// most of the time not provided
+    pub height: Vec<Map>,
 }
 
-/// `IONEX` record is a list of maps
-pub type Record = HashMap<epoch::Epoch, RecordItem>;
-
-impl RecordItem {
-    fn get_exponent (&self) -> i8 {
-        if let Some(e) = self.exponent {
-            e
-        } else {
-            -1 // default value
-        }
-    }
-    pub fn with_eponent (&mut self, e: i8) {
-        self.exponent = Some(e)
+impl Maps {
+    /// Returns (properly scaled) TEC maps
+    pub fn tec_maps (&self) -> Vec<(f32, f32, f32, f32, f32, Vec<f32>)> {
+        self
+            .tec
+            .iter()
+            .map(|(lat, lon1, lon2, dlon, h, data)| {
+                (
+                *lat, 
+                *lon1, 
+                *lon2, 
+                *dlon, 
+                *h, 
+                data.iter()
+                    .map(|value| {
+                        *value as f32
+                    })
+                    .collect()
+                )
+            })
+            .collect()
     }
     /*pub fn add_rms_map (&mut self, map: Map) {
         if let Some(mut rms) = self.rms {
