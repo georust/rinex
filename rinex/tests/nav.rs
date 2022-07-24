@@ -1,8 +1,6 @@
 #[cfg(test)]
 mod test {
     use rinex::*;
-    use std::str::FromStr;
-    use std::process::Command;
     #[test]
     fn v2_amel0010_21g() {
         let test_resource = 
@@ -34,6 +32,8 @@ mod test {
             },
         }*/
     }
+    #[cfg(feature = "with-gzip")]
+    use std::str::FromStr;
     #[test]
     #[cfg(feature = "with-gzip")]
     fn v3_brdc00gop_r_2021_gz() {
@@ -52,9 +52,7 @@ mod test {
         assert_eq!(record.is_some(), true);
         let record = record
             .unwrap();
-        let passed = true;
-        let c01_found = false;
-        let e03_found = false;
+        let mut index = 0;
         let expected_epochs : Vec<&str> = vec![
             "2021 01 01 00 00 00",
             "2021 01 01 01 28 00",
@@ -65,7 +63,6 @@ mod test {
             rinex::sv::Sv::from_str("S36").unwrap(),
             rinex::sv::Sv::from_str("R10").unwrap(),
             rinex::sv::Sv::from_str("E03").unwrap()];
-        let mut index = 0;
         for (epoch, sv) in record.iter() {
             let expected_e = epoch::Epoch {
                 date: epoch::str2date(expected_epochs[index]).unwrap(),
@@ -74,13 +71,12 @@ mod test {
             if *epoch != expected_e {
                 panic!("decoded unexpected epoch {:#?}", epoch)
             }
-            for (sv, data) in sv.iter() {
+            for (sv, _) in sv.iter() {
                 if *sv != expected_vehicules[index] {
                     panic!("decoded unexpected sv {:#?}", sv)
                 }
             }
             index += 1;
         }
-        assert_eq!(passed, true);
     }
 }

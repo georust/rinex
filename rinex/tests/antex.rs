@@ -1,8 +1,6 @@
 #[cfg(test)]
 mod test {
     use rinex::*;
-    use std::str::FromStr;
-    use std::process::Command;
     use rinex::antex::pcv::Pcv;
     use rinex::antex::antenna::{Method};
     #[test]

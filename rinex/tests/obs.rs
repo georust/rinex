@@ -1,8 +1,6 @@
 #[cfg(test)]
 mod test {
     use rinex::*;
-    use std::str::FromStr;
-    use std::process::Command;
     #[test]
     fn v2_aopr0010_17o() {
         let test_resource = 

@@ -128,6 +128,7 @@ pub fn sbas_selection_helper (lat: f64, lon: f64) -> Option<Augmentation> {
     None
 }
 
+#[cfg(feature = "with-geo")]
 #[cfg(test)]
 mod test {
     use super::*;

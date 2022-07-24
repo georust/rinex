@@ -1,6 +1,5 @@
 //! Generic Buffered Reader
-use std::io::{prelude::*, BufReader};
-
+use std::io::BufReader;
 #[cfg(feature = "with-gzip")]
 use flate2::read::GzDecoder;
 
@@ -51,7 +50,6 @@ impl std::io::Read for BufferedReader {
             Self::PlainFile(h) => h.read(buf),
             #[cfg(feature = "with-gzip")]
             Self::GzFile(h) => h.read(buf),
-            _ => unreachable!(),
         }
     }
 }
@@ -62,7 +60,6 @@ impl std::io::BufRead for BufferedReader {
             Self::PlainFile(h) => h.fill_buf(),
             #[cfg(feature = "with-gzip")]
             Self::GzFile(h) => h.fill_buf(),
-            _ => unreachable!(),
         }
     }
     fn consume (&mut self, s: usize) { 
@@ -70,7 +67,6 @@ impl std::io::BufRead for BufferedReader {
             Self::PlainFile(h) => h.consume(s),
             #[cfg(feature = "with-gzip")]
             Self::GzFile(h) => h.consume(s),
-            _ => unreachable!(),
         }
     }
 }

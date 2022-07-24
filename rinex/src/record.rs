@@ -1,7 +1,6 @@
 //! `RINEX` file content description and parsing
 use thiserror::Error;
-use std::fs::File;
-use std::io::{prelude::*, BufReader};
+use std::io::{prelude::*};
 use std::collections::{BTreeMap, HashMap};
 
 use crate::sv;

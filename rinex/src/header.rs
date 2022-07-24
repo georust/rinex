@@ -15,12 +15,11 @@ use crate::ionosphere;
 use crate::constellation;
 use crate::constellation::{Constellation, augmentation::Augmentation};
 
-use std::fs::File;
 use thiserror::Error;
 use std::str::FromStr;
 use strum_macros::EnumString;
 use std::collections::HashMap;
-use std::io::{prelude::*, BufReader};
+use std::io::{prelude::*};
 
 #[cfg(feature = "with-serde")]
 use serde::{Serialize, Deserialize};
@@ -311,8 +310,8 @@ impl Header {
         let mut ionex = ionosphere::HeaderFields::default();
 
         // stream reader
-        let mut reader = BufferedReader::new(path)?;
-        let mut lines = reader.lines();
+        let reader = BufferedReader::new(path)?;
+        let lines = reader.lines();
         for l in lines { 
             let line = l.unwrap();
             if line.len() < 60 {
