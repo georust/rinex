@@ -104,4 +104,11 @@ mod test {
         let version = Version::new(5, 0);
         assert_eq!(version.is_supported(), false);
     }
+    #[test]
+    fn test_comparison() {
+        let v_a = Version::from_str("1.2").unwrap();
+        let v_b = Version::from_str("3.02").unwrap();
+        assert_eq!(v_b > v_a, true);
+        assert_eq!(v_b == v_a, false);
+    }
 }
