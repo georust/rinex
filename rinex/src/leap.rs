@@ -71,10 +71,10 @@ impl std::str::FromStr for Leap {
             },
             true => { 
                 // [2] complex format: advanced infos
-                let (leap, rem) = s.split_at(6);
-                let (tls, rem) = rem.split_at(6);
-                let (week, rem) = rem.split_at(6);
-                let (day, rem) = rem.split_at(6);
+                let (leap, rem) = s.split_at(5);
+                let (tls, rem) = rem.split_at(5);
+                let (week, rem) = rem.split_at(5);
+                let (day, rem) = rem.split_at(5);
                 let system = rem.trim();
                 ls.leap = u32::from_str_radix(leap.trim(),10)?;
                 ls.delta_tls = Some(u32::from_str_radix(tls.trim(),10)?);
@@ -88,5 +88,24 @@ impl std::str::FromStr for Leap {
             },
         }
         Ok(ls)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use std::str::FromStr;
+    #[test]
+    fn test_parser() {
+        let content = "18    18  2185     7GPS";
+        let leap = Leap::from_str(content); 
+        assert_eq!(leap.is_ok(), true);
+        let leap = leap.unwrap();
+        assert_eq!(leap.leap, 18);
+        assert_eq!(leap.week, Some(2185));
+        assert_eq!(leap.system, Some(Constellation::GPS));
+        let content = "18";
+        let leap = Leap::from_str(content); 
+        assert_eq!(leap.is_ok(), true);
     }
 }
