@@ -360,7 +360,7 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Com
                             }
                         },
                         Type::IonosphereMaps => {
-                            if let Ok((epoch, maps)) = ionosphere::record::build_record_entry(&epoch_content, exponent) {
+                            if let Ok((_epoch, _maps)) = ionosphere::record::build_record_entry(&epoch_content, exponent) {
 
 
                             }

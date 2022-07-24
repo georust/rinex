@@ -381,6 +381,7 @@ impl Header {
                 let (vers, rem) = line.split_at(20);
                 let (type_str, rem) = rem.split_at(20); 
                 let (system_str, _) = rem.split_at(20);
+                version = version::Version::from_str(vers.trim())?;
                 rinex_type = Type::from_str(type_str.trim())?;
                 if rinex_type != Type::IonosphereMaps {
                     return Err(Error::FaultyIonexDescription)

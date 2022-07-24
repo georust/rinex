@@ -1,17 +1,20 @@
 use crate::epoch;
 use thiserror::Error;
-use std::str::FromStr;
+//use std::str::FromStr;
 use std::collections::HashMap;
 
 fn is_new_tec_map (line: &str) -> bool {
     line.contains("START OF TEC MAP") 
 }
-fn is_new_rms_map (line: &str) -> bool {
+
+/*fn is_new_rms_map (line: &str) -> bool {
     line.contains("START OF RMS MAP") 
 }
+
 fn is_new_height_map (line: &str) -> bool {
     line.contains("START OF HEIGHT MAP") 
-}
+}*/
+
 pub fn is_new_map (line: &str) -> bool {
        is_new_tec_map(line) 
 //    || is_new_rms_map(line)
@@ -82,7 +85,8 @@ pub enum Error {
 }
 
 /// Builds list of identified maps and associated epoch 
-pub fn build_record_entry (content: &str, exponent: i8) -> Result<(epoch::Epoch, Maps), Error> {
+pub fn build_record_entry (_content: &str, _exponent: i8) -> Result<(epoch::Epoch, Maps), Error> {
+/*
     let lines = content.lines();
     let mut exp = exponent.clone();
     let mut epoch = epoch::Epoch::default();
@@ -139,6 +143,7 @@ pub fn build_record_entry (content: &str, exponent: i8) -> Result<(epoch::Epoch,
             // --> inside map
         }
     }
+ */
     Ok((epoch::Epoch::default(), Maps {
         tec: Vec::new(),
         rms: Vec::new(),
