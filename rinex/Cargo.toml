@@ -11,6 +11,8 @@ edition = "2018"
 readme = "README.md"
 
 [features]
+# no features by default
+default = []
 with-serde = ["serde"]
 with-geo = ["geo", "wkt"]
 
