@@ -28,17 +28,19 @@ and [`rinex`](rinex/) library core.
 * `rnx2crx`: `RINEX` file compressor is currently under development,
 see `develop` branches
 
-## Supported `RINEX` files
+Refer to the following tables for RINEX Types and file format/compression compatibilities:
+
+## Supported `RINEX` types
 
 | `types::Type`            | Trusted           | Untrusted          | CLI                    | UBX                  | Production    |          Notes          |
 |--------------------------|-------------------|--------------------|------------------------|----------------------|---------------|-------------------------
-| `NavigationData` (NAV)   | V2, V3            |   V4               |  :heavy_check_mark:    | :construction:       |:construction: |                         |
-| `ObservationData` (OBS)  | V2, V3            |   V4               |  :heavy_check_mark:    | :construction:       |:construction: |                          |
-| `CRINEX` (Compressed OBS)| :heavy_check_mark:| :heavy_minus_sign: |  :heavy_check_mark:    | :construction:       |:construction: |  `.XXX.gz` data cannot be understood, user must manualy uncompress to `.XXX` first |
-| `MeteoData` (MET)        | V2, V3            |   V4               |  :heavy_check_mark:    | :heavy_minus_sign:   |:construction: |                          |  
-| `ClocksData` (CLK)       | V3                |   V4               |  :construction:        | :question:           |:construction: |                          |
-| `AntennaData` (ATX)      | :heavy_check_mark:| :heavy_minus_sign: |  :construction:        | :heavy_minus_sign:   |:construction: | `ATX` records are not `epochs` iterable                         |
-| `IonosphereMaps` (Iono)  | :construction:    |                    |  :construction:        | :question:           |:construction: |                          |
+| `NavigationData` (NAV)   | V2, V3            |   V4               |  :heavy_check_mark:    | :construction:       |:construction: | |
+| `ObservationData` (OBS)  | V2, V3            |   V4               |  :heavy_check_mark:    | :construction:       |:construction: | |
+| `CRINEX` (Compressed OBS)| :heavy_check_mark:| :heavy_minus_sign: |  :heavy_check_mark:    | :construction:       |:construction: | |
+| `MeteoData` (MET)        | V2, V3            |   V4               |  :heavy_check_mark:    | :heavy_minus_sign:   |:construction: | |  
+| `ClocksData` (CLK)       | V3                |   V4               |  :construction:        | :question:           |:construction: | |
+| `AntennaData` (ATX)      | :heavy_check_mark:| :heavy_minus_sign: |  :construction:        | :heavy_minus_sign:   |:construction: | `ATX` records are not `epochs` iterable.     |
+| `IonosphereMaps` (Iono)  | :construction:    |                    |  :construction:        | :question:           |:construction: | |
 | `SINEX` (SNX)            | :construction:    |                    |  :construction:        | :heavy_minus_sign:   |:construction: |   `SINEX` are special `RINEX`, they are managed by a dedicated <br /> [`core library`](sinex/) |
 | `Troposphere` (TRO)      | :construction:    |                    |  :construction:        | :question:           |:construction: |   `Troposphere` are one possible declination of SINEX files |
 | `Bias` (BIA)             | :construction:    |                    |  :construction:        | :question:           |:construction: |   `Bias` solutions are one possible declination of SINEX files |
@@ -60,6 +62,23 @@ and parser has been coded.
 :heavy_minus_sign: not applicable   
 :construction: under development  
 
+## Supported file format / compressions
+
+Any supported or unlocked with a special features, become natively supported: parser can directly analyse data,
+even if not human readable 
+
+| Format   | File name restrictions  |    Support          |
+|----------|-------------------------|---------------------|
+| CRINEX   | :heavy_minus_sign: | :heavy_check_mark:  | 
+| Others   | :heavy_minus_sign: | Refer to first table |
+| CRINEX + `gzip` | Must end with `.gz` | Compile with `--with-gzip` or uncompress yourself |
+| Others + `gzip` | Must end with `.gz` | Refer to first table, compile with `--with-gzip` or uncompress yourself |
+| CRINEX + `zlib` | Must end with `.Z` | :construction:  |
+| Others + `zlib` | Must end with `.Z` | :construction:  |
+
+:heavy_minus_sign: no restrictions. We can parse a  CRINEX or a IONEX named foo.txt as long as it follows the standards.      
+:heavy_check_mark: natively supported   
+:construction: under development  
 
 ## `teqc` special operations
 
