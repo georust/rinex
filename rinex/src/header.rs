@@ -258,7 +258,7 @@ impl Default for Header {
 }
 
 impl Header {
-    /// Builds a `Header` from local file content
+    /// Builds a `Header` from local file
     pub fn new (path: &str) -> Result<Header, Error> { 
         let mut crinex : Option<observation::Crinex> = None;
         let mut crnx_version = version::Version::default(); 
@@ -325,16 +325,13 @@ impl Header {
                 // --> storing might be useful
                 comments.push(content.trim().to_string());
                 continue
-            }
+            
             //////////////////////////////////////
-            // [1] CRINEX Special field [1]
+            // [1] CRINEX Special fields
             /////////////////////////////////////
-            else if marker.contains("CRINEX VERS") {
+            } else if marker.contains("CRINEX VERS") {
                 let version = content.split_at(20).0;
                 crnx_version = version::Version::from_str(version.trim())?
-            //////////////////////////////////////
-            // [1*] CRINEX Special field [2]
-            /////////////////////////////////////
             } else if marker.contains("CRINEX PROG / DATE") {
                 let (pgm, remainder) = content.split_at(20);
                 let (_, remainder) = remainder.split_at(20);
@@ -345,21 +342,18 @@ impl Header {
                         prog: pgm.trim().to_string(),
                         date: chrono::NaiveDateTime::parse_from_str(date, "%d-%b-%y %H:%M")?
                     })
-            }
             
             ////////////////////////////////////////
-            // [2*] ANTEX special RINEX
+            // [2] ANTEX special header
             ////////////////////////////////////////
-            else if marker.contains("ANTEX VERSION / SYST") {
+            } else if marker.contains("ANTEX VERSION / SYST") {
                 let (vers, system) = content.split_at(8);
                 version = version::Version::from_str(vers.trim())?;
                 if let Ok(constell) = Constellation::from_str(system.trim()) {
                     constellation = Some(constell)
                 }
                 rinex_type = Type::AntennaData;
-            } 
-
-            else if marker.contains("PCV TYPE / REFANT") {
+            } else if marker.contains("PCV TYPE / REFANT") {
                 let (pcv_str, rem) = content.split_at(20);
                 let (ref_type, rem) = rem.split_at(20);
                 let (ref_sn, _) = rem.split_at(20);
@@ -373,11 +367,10 @@ impl Header {
                     ref_ant_sn = Some(ref_sn.trim().to_string())
                 }
             
-            } 
             //////////////////////////////////////
-            // [2*] IONEX special RINEX
+            // [2] IONEX special header 
             //////////////////////////////////////
-            else if marker.contains("IONEX VERSION / TYPE") {
+            } else if marker.contains("IONEX VERSION / TYPE") {
                 let (vers, rem) = line.split_at(20);
                 let (type_str, rem) = rem.split_at(20); 
                 let (system_str, _) = rem.split_at(20);
@@ -390,7 +383,7 @@ impl Header {
 
             ///////////////////////////////////////
             // ==> from now on
-            // RINEX classical header attributes
+            // RINEX standard / shared attributes
             ///////////////////////////////////////
             } else if marker.contains("RINEX VERSION / TYPE") {
                 let (vers, rem) = line.split_at(20);
@@ -415,8 +408,8 @@ impl Header {
                 if !version.is_supported() {
                     return Err(Error::VersionNotSupported(vers.to_string()))
                 }
-            }
-            else if marker.contains("PGM / RUN BY / DATE") {
+            
+            } else if marker.contains("PGM / RUN BY / DATE") {
                 let (pgm, rem) = line.split_at(20);
                 program = pgm.trim().to_string();
                 let (rb, rem) = rem.split_at(20);
@@ -426,9 +419,8 @@ impl Header {
                 };
                 let (date_str, _) = rem.split_at(20);
                 date = date_str.trim().to_string()
-            }
             
-            else if marker.contains("MARKER NAME") {
+            } else if marker.contains("MARKER NAME") {
                 station = content.split_at(20).0.trim().to_string()
             
             } else if marker.contains("MARKER NUMBER") {
@@ -462,14 +454,18 @@ impl Header {
                 ant_sn = sn.trim().to_string();
             
             } else if marker.contains("LEAP SECOND") {
-                leap = Some(leap::Leap::from_str(content.split_at(40).0)?)
+                let leap_str = content.split_at(40).0.trim();
+                if let Ok(lleap) = leap::Leap::from_str(leap_str) {
+                    leap = Some(lleap)
+                }
 
             } else if marker.contains("DOI") {
                 let (content, _) = content.split_at(40); //  TODO: confirm please
                 doi = content.trim().to_string()
 
             } else if marker.contains("MERGED FILE") {
-                //TODO V > 3 nb# of merged files
+                //TODO V > 3 
+                // nb# of merged files
 
             } else if marker.contains("STATION INFORMATION") {
                 let (url, _) = content.split_at(40); //TODO confirm please 
@@ -485,29 +481,36 @@ impl Header {
             } else if marker.contains("APPROX POSITION XYZ") {
                 let items: Vec<&str> = content.split_ascii_whitespace()
                     .collect();
-                let (x, y, z): (f64,f64,f64) = 
-                    (f64::from_str(items[0].trim())?,
-                    f64::from_str(items[1].trim())?,
-                    f64::from_str(items[2].trim())?);
-                coords = Some(rust_3d::Point3D::new(x,y,z))
+                if let Ok(x) = f64::from_str(items[0].trim()) {
+                    if let Ok(y) = f64::from_str(items[1].trim()) {
+                        if let Ok(z) = f64::from_str(items[2].trim()) {
+                            coords = Some(rust_3d::Point3D::new(x,y,z))
+                        }
+                    }
+                }
 
             } else if marker.contains("ANTENNA: DELTA H/E/N") {
                 let (h, rem) = content.split_at(15);
                 let (e, rem) = rem.split_at(15);
                 let (n, _) = rem.split_at(15);
-                ant_hen = Some((
-                    f32::from_str(h.trim())?,
-                    f32::from_str(e.trim())?,
-                    f32::from_str(n.trim())?))
+                if let Ok(h) = f32::from_str(h.trim()) {
+                    if let Ok(e) = f32::from_str(e.trim()) {
+                        if let Ok(n) = f32::from_str(n.trim()) {
+                            ant_hen = Some((h, e, n))
+                        }
+                    }
+                }
 
             } else if marker.contains("ANTENNA: DELTA X/Y/Z") {
                 let items: Vec<&str> = content.split_ascii_whitespace()
                     .collect();
-                let (x, y, z): (f64,f64,f64) = 
-                    (f64::from_str(items[0].trim())?,
-                    f64::from_str(items[1].trim())?,
-                    f64::from_str(items[2].trim())?);
-                ant_coords = Some(rust_3d::Point3D::new(x,y,z))
+                if let Ok(x) = f64::from_str(items[0].trim()) {
+                    if let Ok(y) = f64::from_str(items[1].trim()) {
+                        if let Ok(z) = f64::from_str(items[2].trim()) {
+                            ant_coords = Some(rust_3d::Point3D::new(x,y,z))
+                        }
+                    }
+                }
 
             } else if marker.contains("ANTENNA: B.SIGHT XYZ") {
                 //TODO
@@ -519,26 +522,22 @@ impl Header {
                 //TODO
             
             } else if marker.contains("RCV CLOCK OFFS APPL") {
-                let ok_str = content.split_at(20).0.trim();
-                obs_clock_offset_applied = i32::from_str_radix(ok_str, 10)? != 0
+                let value = content.split_at(20).0.trim();
+                if let Ok(n) = i32::from_str_radix(value, 10) {
+                    obs_clock_offset_applied = n > 0
+                }
 
             } else if marker.contains("# OF SATELLITES") {
-                // will always appear prior PRN/#OBS
-                // determines nb of satellites in observation file
-                //let (nb, _) = line.split_at(10);
-                //obs_nb_sat = u32::from_str_radix(nb.trim(), 10)?
+                // ---> we don't need this info,
+                //     user can determine it by analyzing the record
 
             } else if marker.contains("PRN / # OF OBS") {
-                let (sv, _) = content.split_at(7);
-                if sv.trim().len() > 0 {
-                    
-                }
-                // lists all Sv
-                //let items: Vec<&str> = line.split_ascii_whitespace()
-                //    .collect();
+                // ---> we don't need this info,
+                //     user can determine it by analyzing the record
                  
             } else if marker.contains("SYS / PHASE SHIFT") {
                 //TODO
+
             } else if marker.contains("SYS / PVCS APPLIED") {
                 // RINEX::ClockData specific 
                 // + satellite system (G/R/E/C/I/J/S)
@@ -546,15 +545,21 @@ impl Header {
                 // + source of corrections (url)
                 // <o repeated for each satellite system
                 // <o blank field when no corrections applied
+            
             } else if marker.contains("TYPES OF OBS") { 
-                // RINEX OBS code descriptor (V < 3) 
+                // --> parsing Observables (V<3 old fashion)
                 // ⚠ ⚠ could either be observation or meteo data
-                if obs_code_lines == 0 {
-                    // [x] OBS CODES 1st line 
-                    let (n_codes, rem) = content.split_at(6);
-                    let n_codes = u8::from_str_radix(n_codes.trim(), 10)?;
-                    obs_code_lines = num_integer::div_ceil(n_codes, 9); // max. per line
-                    // --> parse this line 
+                if obs_code_lines == 0 { // first line ever
+                    let (n, rem) = content.split_at(6);
+                    if let Ok(n) = u8::from_str_radix(n.trim(), 10) {
+                        obs_code_lines = num_integer::div_ceil(n, 9); // max. items per line
+
+                    } else {
+                        continue // failed to identify # of observables
+                            // --> we'll continue grabing some header infos
+                            //     record builder will not produce much
+                    }
+                    
                     let codes : Vec<String> = rem
                         .split_ascii_whitespace()
                         .map(|r| r.trim().to_string())
@@ -565,7 +570,8 @@ impl Header {
                                 // Old RINEX + Mixed Constellation:
                                 // description is not accurate enough to determine which
                                 // code will be measured for which constellation
-                                // ---> copy them for all known constellations 
+                                // ---> copy them for all major constellations...
+                                //      record builder will use the ones it needs
                                 let constells : Vec<Constellation> = vec![
                                     Constellation::GPS,
                                     Constellation::Glonass,
@@ -592,8 +598,7 @@ impl Header {
                     }
                     obs_code_lines -= 1
                 } else {
-                    // [*] OBS CODES following line(s) 
-                    // --> parse this line 
+                    // Observables, 2nd, 3rd.. lines 
                     let codes : Vec<String> = content 
                         .split_ascii_whitespace()
                         .map(|r| r.trim().to_string())
@@ -636,36 +641,44 @@ impl Header {
                 }
 
             } else if marker.contains("SYS / # / OBS TYPES") {
-                // RINEX OBS code descriptor (V > 2) 
+                // --> observable (V>2 modern fashion)
                 if obs_code_lines == 0 {
-                    // [x] OBS CODES 1st line
+                    // First line describing observables 
                     let (identifier, rem) = content.split_at(1);
-                    let (n_codes, rem) = rem.split_at(5);
-                    let n_codes = u8::from_str_radix(n_codes.trim(), 10)?;
-                    obs_code_lines = num_integer::div_ceil(n_codes, 13); // max. per line
-                    // --> parse this line
+                    let (n, rem) = rem.split_at(5);
+                    if let Ok(n) = u8::from_str_radix(n.trim(), 10) {
+                        obs_code_lines = num_integer::div_ceil(n, 13); // max. items per line
+                    } else {
+                        continue // failed to identify # of observables,
+                            // we'll continue parsing header section,
+                            // record builder won't produce much
+                    }
                     let codes : Vec<String> = rem
                         .split_ascii_whitespace()
                         .map(|r| r.trim().to_string())
                         .collect();
-                    current_code_syst = Constellation::from_1_letter_code(identifier)?;
-                    obs_codes.insert(current_code_syst, codes);
+                    if let Ok(constell) = Constellation::from_1_letter_code(identifier) {
+                        current_code_syst = constell.clone(); // to keep track,
+                            // on 2nd and 3rd line, system will not be reminded
+                        obs_codes.insert(constell, codes);
+                    }
                 } else {
-                    // --> parse this line
+                    // 2nd, 3rd.. line of observables 
                     let codes : Vec<String> = content
                         .split_ascii_whitespace()
                         .map(|r| r.trim().to_string())
                         .collect();
-                    // retrieve map being built
-                    if let Some(mut prev) = obs_codes.remove(&current_code_syst) {
+                    // increment list with new codes
+                    if let Some(list) = obs_codes.get_mut(&current_code_syst) {
                         // increment obs code map
                         for code in codes {
-                            prev.push(code);
+                            list.push(code);
                         }
-                        obs_codes.insert(current_code_syst, prev); // (re)insert)
+                        //obs_codes.insert(current_code_syst, prev); // (re)insert)
                     }
                 } 
                 obs_code_lines -= 1
+
             } else if marker.contains("ANALYSIS CENTER") {
                 let (code, agency) = content.split_at(3);
                 clk_agency_code = code.trim().to_string();
