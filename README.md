@@ -39,7 +39,7 @@ Refer to the following tables for RINEX Types and file format/compression compat
 | `CRINEX` (Compressed OBS)| :heavy_check_mark:| :heavy_minus_sign: |  :heavy_check_mark:    | :construction:       |:construction: | |
 | `MeteoData` (MET)        | V2, V3            |   V4               |  :heavy_check_mark:    | :heavy_minus_sign:   |:construction: | |  
 | `ClocksData` (CLK)       | V3                |   V4               |  :construction:        | :question:           |:construction: | |
-| `AntennaData` (ATX)      | :heavy_check_mark:| :heavy_minus_sign: |  :construction:        | :heavy_minus_sign:   |:construction: | `ATX` records are not `epochs` iterable.     |
+| `AntennaData` (ATX)      | :heavy_check_mark:| :heavy_minus_sign: |  :construction:        | :heavy_minus_sign:   |:construction: | `ATX` records are not `epochs` iterable :sparkle:     |
 | `IonosphereMaps` (Iono)  | :construction:    |                    |  :construction:        | :question:           |:construction: | |
 | `SINEX` (SNX)            | :construction:    |                    |  :construction:        | :heavy_minus_sign:   |:construction: |   `SINEX` are special `RINEX`, they are managed by a dedicated <br /> [`core library`](sinex/) |
 | `Troposphere` (TRO)      | :construction:    |                    |  :construction:        | :question:           |:construction: |   `Troposphere` are one possible SINEX declination |
@@ -58,6 +58,7 @@ Notes on `V4`:
 :heavy_check_mark: supported   
 :heavy_minus_sign: not applicable   
 :construction: under development  
+:sparkle: methods like _epoch\_iter()_ will panic
 
 ## Supported file format / compressions
 
@@ -106,7 +107,7 @@ a given (usually current..) location on Earth.
 See [constellation](doc/constellation.md) for example of use.
 
 * `--with-gzip`  
-to be provided in future, allows parsing .gz compressed RINEX files directly
+allow native parsing of .gz compressed RINEX files. Otherwise, user must uncompress manualy the `.gz` extension first.
 
 ## Contributions
 
