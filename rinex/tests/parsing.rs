@@ -20,12 +20,12 @@ mod test {
     fn test_parser() {
         let test_resources = env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/";
         let test_data = vec![
-			//"ATX",
-			//"CLK",
-			//"CRNX",
-			//"MET",
+			"ATX",
+			"CLK",
+			"CRNX",
+			"MET",
 			"NAV",
-			//"OBS",
+			"OBS",
 		];
         for data in test_data {
             let data_path = std::path::PathBuf::from(

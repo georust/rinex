@@ -2,13 +2,26 @@
 use std::io::{prelude::*, BufReader};
 
 #[cfg(feature = "with-gzip")]
-use flate2::read::{GzDecoder, ZlibDecoder};
+use flate2::read::GzDecoder;
 
 #[derive(Debug)]
 pub enum BufferedReader {
-    File(BufReader<std::fs::File>),
+    /// Readable `RINEX`
+    PlainFile(BufReader<std::fs::File>),
+    // /// Hatana Compressed RINEX
+    // Hatanaka(BufReader<std::fs::File>),
+    /// gzip compressed RINEX
     #[cfg(feature = "with-gzip")]
     GzFile(BufReader<GzDecoder<std::fs::File>>),
+    // /// zlib compressed RINEX
+    // #[cfg(feature = "with-gzip")]
+    // ZlibFile(BufReader<ZlibDecoder<std::fs::File>>),
+    // /// gzip + Hatanaka compressed RINEX
+    // #[cfg(feature = "with-gzip")]
+    // GzHatanakaFile(BufReader<GzDecoder<std::fs::File>>),
+    // /// zlib + Hatanaka compressed RINEX
+    // #[cfg(feature = "with-gzip")]
+    // ZlibHatanakaFile(BufReader<ZlibDecoder<std::fs::File>>),
 }
 
 impl BufferedReader {
@@ -16,15 +29,18 @@ impl BufferedReader {
         let f = std::fs::File::open(path)?;
         if path.ends_with(".gz") {
             // --> gzip encoded
-            if !cfg!(feature = "with-gzip") {
+            #[cfg(feature = "with-gzip")] {
+                Ok(Self::GzFile(BufReader::new(GzDecoder::new(f))))
+            }
+            #[cfg(not(feature = "with-gzip"))] {
                 panic!("gzip compressed data require the --with-gzip build feature")
             }
-            Ok(Self::GzFile(BufReader::new(GzDecoder::new(f))))
-        //} else if path.ends_with(".Z") {
-            // --> zlib encoded
-        } else {
-            // assume uncompress or hatanaka compressed
-            Ok(Self::File(BufReader::new(f)))
+        
+        } else if path.ends_with(".Z") { // unix/lz4??
+            panic!(".Z file not supported yet, uncompress manuallyl first")
+        
+        } else { // Assumes uncompressed file
+            Ok(Self::PlainFile(BufReader::new(f)))
         }
     }
 }
@@ -32,8 +48,10 @@ impl BufferedReader {
 impl std::io::Read for BufferedReader {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, std::io::Error> { 
         match self {
-            Self::File(h) => h.read(buf),
+            Self::PlainFile(h) => h.read(buf),
+            #[cfg(feature = "with-gzip")]
             Self::GzFile(h) => h.read(buf),
+            _ => unreachable!(),
         }
     }
 }
@@ -41,14 +59,18 @@ impl std::io::Read for BufferedReader {
 impl std::io::BufRead for BufferedReader {
     fn fill_buf (&mut self) -> Result<&[u8], std::io::Error> { 
         match self {
-            Self::File(h) => h.fill_buf(),
+            Self::PlainFile(h) => h.fill_buf(),
+            #[cfg(feature = "with-gzip")]
             Self::GzFile(h) => h.fill_buf(),
+            _ => unreachable!(),
         }
     }
     fn consume (&mut self, s: usize) { 
         match self {
-            Self::File(h) => h.consume(s),
+            Self::PlainFile(h) => h.consume(s),
+            #[cfg(feature = "with-gzip")]
             Self::GzFile(h) => h.consume(s),
+            _ => unreachable!(),
         }
     }
 }

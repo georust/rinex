@@ -34,4 +34,53 @@ mod test {
             },
         }*/
     }
+    #[test]
+    #[cfg(feature = "with-gzip")]
+    fn v3_brdc00gop_r_2021_gz() {
+        let test_resource = 
+            env!("CARGO_MANIFEST_DIR").to_owned() 
+            + "/../test_resources/NAV/V3/BRDC00GOP_R_20210010000_01D_MN.rnx.gz";
+        let rinex = Rinex::from_file(&test_resource);
+        assert_eq!(rinex.is_ok(), true);
+        let rinex = rinex.unwrap();
+        assert_eq!(rinex.is_navigation_rinex(), true);
+        assert_eq!(rinex.header.obs.is_none(), true);
+        assert_eq!(rinex.header.meteo.is_none(), true);
+        assert_eq!(rinex.epochs_iter().len(), 4); 
+        let record = rinex.record
+            .as_nav();
+        assert_eq!(record.is_some(), true);
+        let record = record
+            .unwrap();
+        let passed = true;
+        let c01_found = false;
+        let e03_found = false;
+        let expected_epochs : Vec<&str> = vec![
+            "2021 01 01 00 00 00",
+            "2021 01 01 01 28 00",
+            "2021 01 01 07 15 00",
+            "2021 01 01 08 20 00"];
+        let expected_vehicules : Vec<rinex::sv::Sv> = vec![
+            rinex::sv::Sv::from_str("C01").unwrap(),
+            rinex::sv::Sv::from_str("S36").unwrap(),
+            rinex::sv::Sv::from_str("R10").unwrap(),
+            rinex::sv::Sv::from_str("E03").unwrap()];
+        let mut index = 0;
+        for (epoch, sv) in record.iter() {
+            let expected_e = epoch::Epoch {
+                date: epoch::str2date(expected_epochs[index]).unwrap(),
+                flag: epoch::EpochFlag::default(),
+            };
+            if *epoch != expected_e {
+                panic!("decoded unexpected epoch {:#?}", epoch)
+            }
+            for (sv, data) in sv.iter() {
+                if *sv != expected_vehicules[index] {
+                    panic!("decoded unexpected sv {:#?}", sv)
+                }
+            }
+            index += 1;
+        }
+        assert_eq!(passed, true);
+    }
 }
