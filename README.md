@@ -34,7 +34,7 @@ see `develop` branches
 |--------------------------|-------------------|--------------------|------------------------|----------------------|---------------|-------------------------
 | `NavigationData` (NAV)   | V2, V3            |   V4               |  :heavy_check_mark:    | :construction:       |:construction: |                         |
 | `ObservationData` (OBS)  | V2, V3            |   V4               |  :heavy_check_mark:    | :construction:       |:construction: |                          |
-| `CRINEX` (Compressed OBS)| :heavy_check_mark:| :heavy_minus_sign: |  :heavy_check_mark:    | :construction:       |:construction: |  `.XXX.gz` data cannot be understood, user must manualy uncompress to `.XXX` first |
+| `CRINEX` (Compressed OBS)| :heavy_check_mark:| :heavy_minus_sign: |  :heavy_check_mark:    | :construction:       |:construction: |  `gzip` compressed data (usually *.Z or *.gz) data cannot be understood, user must manualy uncompress them first with `gzip -d` |
 | `MeteoData` (MET)        |:heavy_check_mark: | :heavy_minus_sign: | :heavy_check_mark:    | :heavy_minus_sign:   |:construction: |                          |  
 | `ClocksData` (CLK)       | V3                |   V4               |  :construction:        | :question:           |:construction: |                          |
 | `AntennaData` (ATX)      | :heavy_check_mark:| :heavy_minus_sign: |  :construction:        | :heavy_minus_sign:   |:construction: | `ATX` records are not `epochs` iterable :sparkles:          |
