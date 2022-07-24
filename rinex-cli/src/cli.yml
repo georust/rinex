@@ -43,9 +43,9 @@ args:
         help: Display (print) identified epochs
     - obscodes:
         short: o
-        long: obscodes
+        long: obscodes 
         takes_value: false
-        help: Display (print) encountered OBS codes on a Satellite Vehicule basis
+        help: Display (print) observable codes found in this file
     - sv:
         long: sv
         takes_value: true

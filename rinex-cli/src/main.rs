@@ -98,7 +98,7 @@ pub fn main () -> Result<(), Box<dyn std::error::Error>> {
     };
 
     // Data Filters 
-    let obscode_display = matches.is_present("obscodes");
+    let obscodes_display = matches.is_present("obscodes");
     let obscode_filter : Option<Vec<&str>> = match matches.value_of("codes") {
         Some(s) => Some(s.split(",").collect()),
         _ => None,
@@ -410,11 +410,6 @@ for fp in &filepaths {
        println!("splice is WIP"); 
     }
     
-    let obscodes = &rinex.header.obs
-        .as_ref()
-        .unwrap()
-        .codes;
-
     if !spec_ops {
         if header {
             if pretty {
@@ -431,9 +426,14 @@ for fp in &filepaths {
                 println!("{}", serde_json::to_string(&e).unwrap())
             }
         }
-        if obscode_display {
+        if obscodes_display {
             match rinex.header.rinex_type {
                 Type::ObservationData => {
+                    let obscodes = &rinex.header
+                        .obs
+                        .as_ref()
+                            .unwrap()
+                            .codes;
                     if pretty {
                         println!("{}", serde_json::to_string_pretty(&obscodes).unwrap())
                     } else {
@@ -441,17 +441,18 @@ for fp in &filepaths {
                     }
                 },
                 Type::MeteoData => {
-                    let codes = &rinex.header.meteo
+                    let obscodes = &rinex.header
+                        .meteo
                         .as_ref()
-                        .unwrap()
-                        .codes;
+                            .unwrap()
+                            .codes;
                     if pretty {
-                        println!("{}", serde_json::to_string_pretty(&codes).unwrap())
+                        println!("{}", serde_json::to_string_pretty(&obscodes).unwrap())
                     } else {
-                        println!("{}", serde_json::to_string(&codes).unwrap())
+                        println!("{}", serde_json::to_string(&obscodes).unwrap())
                     }
                 },
-                Type::NavigationData => { // (NAV) special procedure
+                Type::NavigationData => { // (NAV) special procedure: obscodes are not given by header fields
                     let r = rinex.record.as_nav().unwrap();
                     let mut map : HashMap<String, Vec<String>> = HashMap::new();
                     for (_, sv) in r.iter() {
@@ -475,7 +476,7 @@ for fp in &filepaths {
                 _ => todo!("RINEX type not fully supported yet"),
             };
         }
-        if !epoch_display && !obscode_display && !header { 
+        if !epoch_display && !obscodes_display && !header { 
             match rinex.header.rinex_type {
                 Type::ObservationData => {
                     let r = rinex.record.as_obs().unwrap();
@@ -606,7 +607,7 @@ for fp in &filepaths {
                 println!("{}", serde_json::to_string(&merged.header).unwrap())
             }
         }
-        if obscode_display {
+        if obscodes_display {
             let obs = &merged.header.obs
                 .as_ref()
                 .unwrap()
