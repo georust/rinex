@@ -6,9 +6,9 @@ use crate::clocks;
 use crate::version;
 //use crate::gnss_time;
 use crate::hardware;
+use crate::reader::BufferedReader;
 use crate::types::{Type, TypeError};
 use crate::merge::MergeError;
-
 use crate::meteo;
 use crate::observation;
 use crate::ionosphere;
@@ -261,8 +261,6 @@ impl Default for Header {
 impl Header {
     /// Builds a `Header` from local file content
     pub fn new (path: &str) -> Result<Header, Error> { 
-        let file = File::open(path)?;
-        let reader = BufReader::new(file);
         let mut crinex : Option<observation::Crinex> = None;
         let mut crnx_version = version::Version::default(); 
         let mut rinex_type = Type::default();
@@ -312,8 +310,11 @@ impl Header {
         // IONEX
         let mut ionex = ionosphere::HeaderFields::default();
 
-        for l in reader.lines() {
-            let line = &l.unwrap();
+        // stream reader
+        let mut reader = BufferedReader::new(path)?;
+        let mut lines = reader.lines();
+        for l in lines { 
+            let line = l.unwrap();
             if line.len() < 60 {
                 continue // --> invalid header content
             }

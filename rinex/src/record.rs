@@ -16,6 +16,7 @@ use crate::observation;
 use crate::ionosphere;
 use crate::is_comment;
 use crate::types::Type;
+use crate::reader::BufferedReader;
 
 /// `Record`
 #[derive(Clone, Debug)]
@@ -187,8 +188,8 @@ pub fn is_new_epoch (line: &str, header: &header::Header) -> bool {
 /// Builds a `Record`, `RINEX` file body content,
 /// which is constellation and `RINEX` file type dependent
 pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Comments), Error> {
-    let file = File::open(path)?;
-    let reader = BufReader::new(file);
+    println!("{:#?}", header);
+    let reader = BufferedReader::new(path)?;
     let mut inside_header = true;
     let mut first_epoch = true;
     let mut content : Option<String>; // epoch content to build
