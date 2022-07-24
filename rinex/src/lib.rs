@@ -8,6 +8,8 @@ mod merge;
 mod formatter;
 //mod gnss_time;
 
+mod reader;
+
 pub mod antex;
 pub mod channel;
 pub mod clocks;

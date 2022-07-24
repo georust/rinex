@@ -6,9 +6,9 @@ use crate::clocks;
 use crate::version;
 //use crate::gnss_time;
 use crate::hardware;
+use crate::reader::BufferedReader;
 use crate::types::{Type, TypeError};
 use crate::merge::MergeError;
-
 use crate::meteo;
 use crate::observation;
 use crate::ionosphere;
@@ -27,9 +27,6 @@ use serde::{Serialize, Deserialize};
 
 #[cfg(feature = "with-serde")]
 use crate::formatter::point3d;
-
-#[cfg(feature = "with-gzip")]
-use flate2::read::{GzDecoder, ZlibDecoder};
 
 /// Describes a `CRINEX` (compressed rinex) 
 pub const CRINEX_MARKER_COMMENT : &str = "COMPACT RINEX FORMAT";
@@ -264,7 +261,6 @@ impl Default for Header {
 impl Header {
     /// Builds a `Header` from local file content
     pub fn new (path: &str) -> Result<Header, Error> { 
-        let is_gzip_encoded = path.ends_with("gz") || path.ends_with(".Z");
         let mut crinex : Option<observation::Crinex> = None;
         let mut crnx_version = version::Version::default(); 
         let mut rinex_type = Type::default();
@@ -314,21 +310,9 @@ impl Header {
         // IONEX
         let mut ionex = ionosphere::HeaderFields::default();
 
-        if is_gzip_encoded {
-            if !cfg!(feature = "with-gzip") {
-                panic!("gzip compressed data require the --with-gzip build feature")
-            }
-        }
-        
         // stream reader
-        let file = File::open(path)?;
-        //if cfg!(feature = "with-gzip") && is_gzip_encoded {
-        let mut reader =  BufReader::new(GzDecoder::new(file));
-        //} else {
-            // BufReader::new(&file)
-        //};
+        let mut reader = BufferedReader::new(path)?;
         let mut lines = reader.lines();
-
         for l in lines { 
             let line = l.unwrap();
             if line.len() < 60 {
