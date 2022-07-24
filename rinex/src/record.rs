@@ -187,6 +187,8 @@ pub fn is_new_epoch (line: &str, header: &header::Header) -> bool {
 /// Builds a `Record`, `RINEX` file body content,
 /// which is constellation and `RINEX` file type dependent
 pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Comments), Error> {
+    println!("{:#?}", header);
+    let is_gzip_encoded = path.ends_with("gz") || path.ends_with(".Z"); 
     let file = File::open(path)?;
     let reader = BufReader::new(file);
     let mut inside_header = true;
@@ -199,6 +201,12 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Com
     let mut comments : Comments = Comments::new();
     let mut comment_ts = epoch::Epoch::default();
     let mut comment_content : Vec<String> = Vec::with_capacity(4);
+
+    if is_gzip_encoded {
+       if !cfg!(feature = "with-gzip") {
+            panic!("gzip compressed data require the --with-gzip build feature")
+       }
+    }
 
     // CRINEX record special process is special
     // we need the decompression algorithm to run in rolling fashion
