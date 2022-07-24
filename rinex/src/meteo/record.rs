@@ -30,7 +30,6 @@ pub fn is_new_epoch (line: &str, v: version::Version) -> bool {
             return false
         }
         let datestr = &line[1..18];
-        println!("STR \"{}\"", datestr);
         epoch::str2date(datestr).is_ok()
     }
 }

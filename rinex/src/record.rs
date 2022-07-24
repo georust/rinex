@@ -13,8 +13,10 @@ use crate::header;
 use crate::hatanaka;
 use crate::navigation;
 use crate::observation;
+use crate::ionosphere;
 use crate::is_comment;
 use crate::types::Type;
+use crate::reader::BufferedReader;
 
 /// `Record`
 #[derive(Clone, Debug)]
@@ -25,9 +27,9 @@ pub enum Record {
     AntexRecord(antex::record::Record),
     /// `clocks::Record` : CLOCKS RINEX file content
     ClockRecord(clocks::Record),
-    // /// `IONEX` record is a list of Ionosphere Maps,
-    // /// indexed by `epoch`
-    // IonexRecord(ionex::Record),
+    /// `IONEX` record is a list of Ionosphere Maps,
+    /// sorted by `epoch`
+    IonexRecord(ionosphere::record::Record),
     /// `meteo::Record` : Meteo Data file content.   
 	/// `record` is a list of raw data sorted by Observable,
     /// and by `epoch`
@@ -74,8 +76,7 @@ impl Record {
             _ => None,
         }
     }
-/*
-    /// Unwraps self as IONEX record
+    /* /// Unwraps self as IONEX record
     pub fn as_ionex (&self) -> Option<&ionex::Record> {
         match self {
             Record::IonexRecord(r) => Some(r),
@@ -88,8 +89,7 @@ impl Record {
             Record::IonexRecord(r) => Some(r),
             _ => None,
         }
-    }
-*/
+    } */
 	/// Unwraps self as MET `record`
     pub fn as_meteo (&self) -> Option<&meteo::record::Record> {
         match self {
@@ -178,7 +178,7 @@ pub fn is_new_epoch (line: &str, header: &header::Header) -> bool {
     match &header.rinex_type {
         Type::AntennaData => antex::record::is_new_epoch(line),
         Type::ClockData => clocks::is_new_epoch(line),
-        //Type::IonosphereMaps => ionex::is_new_tec_map(line),
+        Type::IonosphereMaps => todo!(), //ionex::is_new_tec_map(line),
         Type::NavigationData => navigation::record::is_new_epoch(line, header.version), 
         Type::ObservationData => observation::record::is_new_epoch(line, header.version),
         Type::MeteoData => meteo::record::is_new_epoch(line, header.version),
@@ -188,12 +188,13 @@ pub fn is_new_epoch (line: &str, header: &header::Header) -> bool {
 /// Builds a `Record`, `RINEX` file body content,
 /// which is constellation and `RINEX` file type dependent
 pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Comments), Error> {
-    let file = File::open(path)?;
-    let reader = BufReader::new(file);
+    println!("{:#?}", header);
+    let reader = BufferedReader::new(path)?;
     let mut inside_header = true;
     let mut first_epoch = true;
     let mut content : Option<String>; // epoch content to build
     let mut epoch_content = String::with_capacity(6*64);
+    let mut exponent: i8 = -1; //IONEX record scaling: this is the default value
     
     // to manage `record` comments
     let mut comments : Comments = Comments::new();
@@ -232,6 +233,14 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Com
             let comment = line.split_at(60).0.trim_end();
             comment_content.push(comment.to_string());
             continue
+        }
+        // IONEX exponent-->data scaling
+        // hidden to user and allows high level interactions
+        if line.contains("EXPONENT") {
+            let content = line.split_at(60).0;
+            if let Ok(e) = i8::from_str_radix(content.trim(), 10) {
+                exponent = e // --> update current exponent value
+            }
         }
         // manage CRINEX case
         //  [1]  RINEX : pass content as is
@@ -351,6 +360,12 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Com
                                 }
                             }
                         },
+                        Type::IonosphereMaps => {
+                            if let Ok((epoch, maps)) = ionosphere::record::build_record_entry(&epoch_content, exponent) {
+
+
+                            }
+                        }
                     }
 
                     // new comments ?
@@ -424,6 +439,7 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Com
                 comment_ts = e.clone(); // for comments classification & management
             }
         },
+        Type::IonosphereMaps => todo!(),
         Type::AntennaData => {
             if let Ok((antenna, frequencies)) = antex::record::build_record_entry(&epoch_content) {
                 let mut found = false;
@@ -449,10 +465,11 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Com
     // wrap record
     let record = match &header.rinex_type {
         Type::AntennaData => Record::AntexRecord(atx_rec),
+        Type::ClockData => Record::ClockRecord(clk_rec),
+        Type::IonosphereMaps => todo!(), //Record::IonexRecord(ionx_rec),
+		Type::MeteoData => Record::MeteoRecord(met_rec),
         Type::NavigationData => Record::NavRecord(nav_rec),
         Type::ObservationData => Record::ObsRecord(obs_rec), 
-		Type::MeteoData => Record::MeteoRecord(met_rec),
-        Type::ClockData => Record::ClockRecord(clk_rec),
         //_ => todo!("record type not fully supported yet"),
     };
     Ok((record, comments))

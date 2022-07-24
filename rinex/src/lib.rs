@@ -8,6 +8,8 @@ mod merge;
 mod formatter;
 //mod gnss_time;
 
+mod reader;
+
 pub mod antex;
 pub mod channel;
 pub mod clocks;
@@ -16,7 +18,7 @@ pub mod epoch;
 pub mod hardware;
 pub mod hatanaka;
 pub mod header;
-//pub mod ionex;
+pub mod ionosphere;
 pub mod meteo;
 pub mod navigation;
 pub mod observation;
@@ -151,7 +153,7 @@ impl Rinex {
     }
 
     /// Filename creation helper,
-    /// to match standard specifications.
+    /// to follow naming conventions 
     pub fn filename (&self) -> String {
         let header = &self.header;
         let rtype = header.rinex_type;
@@ -190,8 +192,7 @@ impl Rinex {
                     }
                 },
                 types::Type::MeteoData => String::from("m"),
-                types::Type::ClockData => todo!(),
-                types::Type::AntennaData => todo!(), 
+                _ => todo!(),
             };
             format!("{}{}{}.{}{}", nnnn, ddd, s, yy, t)
         } else {
@@ -225,6 +226,7 @@ impl Rinex {
                 types::Type::MeteoData => String::from("M"),
                 types::Type::ClockData => todo!(),
                 types::Type::AntennaData => todo!(),
+                types::Type::IonosphereMaps => todo!(),
             };
             let fmt = match header.is_crinex() {
                 true => String::from("crx"),
@@ -254,6 +256,9 @@ impl Rinex {
     
     /// Returns true if this is a CLOCK RINX
     pub fn is_clocks_rinex (&self) -> bool { self.header.rinex_type == types::Type::ClockData }
+
+    /// Returns true if this is an IONEX file
+    pub fn is_ionex (&self) -> bool { self.header.rinex_type == types::Type::IonosphereMaps }
 
     /// Returns true if this is a METEO RINEX
     pub fn is_meteo_rinex (&self) -> bool { self.header.rinex_type == types::Type::MeteoData }

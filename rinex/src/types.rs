@@ -16,9 +16,9 @@ pub enum Type {
     MeteoData,
     /// Clock Data (CLK)
     ClockData,
-    // /// Ionsphere Maps (IONEX)
-    // /// allows creating Global Ionspheric Map (cartography)
-    // IonosphereMaps,
+    /// Ionsphere Maps (IONEX)
+    /// allows creating Global Ionspheric Map (cartography)
+    IonosphereMaps,
     /// Antenna Data (ATX or Antex) special RINEX format,
     /// with empty header and body describes several sets of
     /// Antenna characterization coefficients.
@@ -54,6 +54,7 @@ impl Type {
             Type::MeteoData => String::from("METEOROLOGICAL DATA"),
             Type::ClockData => String::from("CLOCK DATA"),
             Type::AntennaData => String::from("ANTEX"),
+            Type::IonosphereMaps => String::from("IONOSPHERE MAPS"),
         }
     }
 }
@@ -73,8 +74,8 @@ impl std::str::FromStr for Type {
             Ok(Type::ClockData)
         } else if s.eq("ANTEX") {
             Ok(Type::AntennaData)
-        // } else if s.eq("IONOSPHERE MAPS") {
-        //    Ok(Type::IonosphereMaps)
+        } else if s.eq("IONOSPHERE MAPS") {
+            Ok(Type::IonosphereMaps)
         } else {
             Err(TypeError::UnknownType(String::from(s)))
         }

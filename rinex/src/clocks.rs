@@ -150,7 +150,6 @@ pub fn is_new_epoch (line: &str) -> bool {
 pub fn build_record_entry (content: &str) -> 
         Result<(epoch::Epoch, System, DataType, Data), Error> 
 {
-    println!("WORKING ON \"{}\"", content);
     let mut lines = content.lines();
     let line = lines.next()
         .unwrap();

@@ -42,16 +42,13 @@ Refer to the following tables for RINEX Types and file format/compression compat
 | `AntennaData` (ATX)      | :heavy_check_mark:| :heavy_minus_sign: |  :construction:        | :heavy_minus_sign:   |:construction: | `ATX` records are not `epochs` iterable.     |
 | `IonosphereMaps` (Iono)  | :construction:    |                    |  :construction:        | :question:           |:construction: | |
 | `SINEX` (SNX)            | :construction:    |                    |  :construction:        | :heavy_minus_sign:   |:construction: |   `SINEX` are special `RINEX`, they are managed by a dedicated <br /> [`core library`](sinex/) |
-| `Troposphere` (TRO)      | :construction:    |                    |  :construction:        | :question:           |:construction: |   `Troposphere` are one possible declination of SINEX files |
-| `Bias` (BIA)             | :construction:    |                    |  :construction:        | :question:           |:construction: |   `Bias` solutions are one possible declination of SINEX files |
-
-`trusted`: means under CI/CD, user can parse safely   
-`untrusted`: means not under CI/CD, either due to lack of test data, partial (:construction:) or incomplete support   
+| `Troposphere` (TRO)      | :construction:    |                    |  :construction:        | :question:           |:construction: |   `Troposphere` are one possible SINEX declination |
+| `Bias` (BIA)             | :heavy_check_mark:| :heavy_minus_sign: |  :construction:        | :question:           |:construction: |   `Bias` solutions are one possible SINEX declination |
 
 Notes on `V4`: 
-- marked as `untrusted` to this day, due to lack of data
-- there's a good chance OBS/NAV/MET will work, because format is actually simpler
-and parser has been coded.  
+- `OBS` should work: parsing and decoding is implemented but not tested due to lack of data
+- `NAV` should not fail but newer frame types decoding is not implemented
+- `MET` will work if indeed, only the Y/M/D H:M:S field differ   
 :arrow_right_hook: Data, tests and contributions are welcomed
 
 **Production** means file generation (_to_file()_) of `trusted` revisions  

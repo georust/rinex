@@ -62,6 +62,18 @@ In this case, we use comma separated enumeration like this:
 cargo run -f /tmp/amel010.21g,/mnt/CBW100NLD_R_20210010000_01D_MN.rnx
 ```
 
+## Build features
+
+Some build features will be available in near future
+
+* `--with-gzip` : allow .gz files to be passed directly,
+which makes internal double decompression (gz + hatanaka) 
+feasible
+
+* `--with-graphics` unlocks data plotting instead of stdout print
+ - plot Observables, Observation data, Navigation data,
+ - plot Ionosphere Heatmap in case of IONEX..
+
 ## Output format
 
 This tool display everything in the terminal (`stdout`).
