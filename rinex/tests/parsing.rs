@@ -59,7 +59,7 @@ mod test {
                         assert_eq!(rinex.is_ok(), true);
                         // HEADER
                         let rinex = rinex.unwrap();
-                        println!("{:#?}", rinex.header);
+                        //println!("{:#?}", rinex.header);
                         // RECORD
                         match data {
                             "ATX" => { // ATX record
@@ -74,13 +74,13 @@ mod test {
                                 assert_eq!(rinex.is_navigation_rinex(), true);
                                 assert_eq!(rinex.header.meteo.is_none(), true);
                                 let record = rinex.record.as_nav().unwrap();
-                                println!("----- EPOCHs ----- \n{:#?}", record.keys());
+                                //println!("----- EPOCHs ----- \n{:#?}", record.keys());
                                 let mut epochs = record.keys();
                                 // Testing event description finder
                                 if let Some(event) = epochs.nth(0) {
                                     // [!] with dummy t0 = 1st epoch timestamp
                                     //     this will actually return `header section` timestamps
-                                    println!("EVENT @ {:#?} - description: {:#?}", event, rinex.event_description(*event)); 
+                                    //println!("EVENT @ {:#?} - description: {:#?}", event, rinex.event_description(*event)); 
                                 }
                             },
                             "OBS" => {
@@ -98,12 +98,12 @@ mod test {
                                     .as_obs()
                                     .unwrap();
                                 let mut epochs = record.keys();
-                                println!("----- EPOCHs ----- \n{:#?}", record.keys());
+                                //println!("----- EPOCHs ----- \n{:#?}", record.keys());
                                 // Testing event description finder
                                 if let Some(event) = epochs.nth(0) {
                                     // [!] with dummy t0 = 1st epoch timestamp
                                     //     this will actually return `header section` timestamps
-                                    println!("EVENT @ {:#?} - description: {:#?}", event, rinex.event_description(*event)); 
+                                    //println!("EVENT @ {:#?} - description: {:#?}", event, rinex.event_description(*event)); 
                                 }
                             },
                             "CRNX" => {
@@ -113,12 +113,12 @@ mod test {
                                 assert_eq!(rinex.header.meteo.is_none(), true);
                                 let record = rinex.record.as_obs().unwrap();
                                 let mut epochs = record.keys();
-                                println!("----- EPOCHs ----- \n{:#?}", epochs); 
+                                //println!("----- EPOCHs ----- \n{:#?}", epochs); 
                                 // Testing event description finder
                                 if let Some(event) = epochs.nth(0) {
                                     // [!] with dummy t0 = 1st epoch timestamp
                                     //     this will actually return `header section` timestamps
-                                    println!("EVENT @ {:#?} - description: {:#?}", event, rinex.event_description(*event)); 
+                                    //println!("EVENT @ {:#?} - description: {:#?}", event, rinex.event_description(*event)); 
                                 }
                             },
 							"MET" => {
@@ -129,12 +129,12 @@ mod test {
                                 assert_eq!(rinex.header.obs.is_none(), true);
                                 let record = rinex.record.as_meteo().unwrap();
                                 let mut epochs = record.keys();
-                                println!("----- EPOCHs ----- \n{:#?}", epochs);
+                                //println!("----- EPOCHs ----- \n{:#?}", epochs);
                                 // Testing event description finder
                                 if let Some(event) = epochs.nth(0) {
                                     // [!] with dummy t0 = 1st epoch timestamp
                                     //     this will actually return `header section` timestamps
-                                    println!("EVENT @ {:#?} - description: {:#?}", event, rinex.event_description(*event)); 
+                                    //println!("EVENT @ {:#?} - description: {:#?}", event, rinex.event_description(*event)); 
                                 }
                             },
                             "CLK" => {
