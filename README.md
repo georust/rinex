@@ -35,21 +35,18 @@ see `develop` branches
 | `NavigationData` (NAV)   | V2, V3            |   V4               |  :heavy_check_mark:    | :construction:       |:construction: |                         |
 | `ObservationData` (OBS)  | V2, V3            |   V4               |  :heavy_check_mark:    | :construction:       |:construction: |                          |
 | `CRINEX` (Compressed OBS)| :heavy_check_mark:| :heavy_minus_sign: |  :heavy_check_mark:    | :construction:       |:construction: |  `.XXX.gz` data cannot be understood, user must manualy uncompress to `.XXX` first |
-| `MeteoData` (MET)        | V2, V3            |   V4               |  :heavy_check_mark:    | :heavy_minus_sign:   |:construction: |                          |  
+| `MeteoData` (MET)        |:heavy_check_mark: | :heavy_minus_sign: | :heavy_check_mark:    | :heavy_minus_sign:   |:construction: |                          |  
 | `ClocksData` (CLK)       | V3                |   V4               |  :construction:        | :question:           |:construction: |                          |
-| `AntennaData` (ATX)      | :heavy_check_mark:| :heavy_minus_sign: |  :construction:        | :heavy_minus_sign:   |:construction: | `ATX` records are not `epochs` iterable                         |
-| `IonosphereMaps` (Iono)  | :construction:    |                    |  :construction:        | :question:           |:construction: |                          |
+| `AntennaData` (ATX)      | :heavy_check_mark:| :heavy_minus_sign: |  :construction:        | :heavy_minus_sign:   |:construction: | `ATX` records are not `epochs` iterable :sparkles:          |
+| `IonosphereMaps` (IONEX) | :construction:    |                    |  :construction:        | :question:           |:construction: |                          |
 | `SINEX` (SNX)            | :construction:    |                    |  :construction:        | :heavy_minus_sign:   |:construction: |   `SINEX` are special `RINEX`, they are managed by a dedicated <br /> [`core library`](sinex/) |
 | `Troposphere` (TRO)      | :construction:    |                    |  :construction:        | :question:           |:construction: |   `Troposphere` are one possible SINEX declination |
 | `Bias` (BIA)             | :heavy_check_mark:| :heavy_minus_sign: |  :construction:        | :question:           |:construction: |   `Bias` solutions are one possible SINEX declination |
 
-`trusted`: means under CI/CD, user can parse safely   
-`untrusted`: means not under CI/CD, either due to lack of test data, partial (:construction:) or incomplete support   
-
 Notes on `V4`: 
-- marked as `untrusted` to this day, due to lack of data
-- there's a good chance OBS/NAV/MET will work, because format is actually simpler
-and parser has been coded.  
+- `OBS` should work: parsing and decoding is implemented but not tested due to lack of data
+- `NAV` should not fail but newer frame types decoding is not implemented
+- `MET` will work if indeed, only the Y/M/D H:M:S field differ   
 :arrow_right_hook: Data, tests and contributions are welcomed
 
 **Production** means file generation (_to_file()_) of `trusted` revisions  
@@ -58,8 +55,8 @@ and parser has been coded.
 
 :heavy_check_mark: supported   
 :heavy_minus_sign: not applicable   
-:construction: under development  
-
+:construction: under development    
+:sparkles: methods like _epochs\_iter()_ will panic
 
 ## `teqc` special operations
 
