@@ -255,6 +255,9 @@ impl Rinex {
     /// Returns true if this is a CLOCK RINX
     pub fn is_clocks_rinex (&self) -> bool { self.header.rinex_type == types::Type::ClockData }
 
+    /// Returns true if this is an IONEX file
+    pub fn is_ionex (&self) -> bool { self.header.rinex_type == types::Type::IonosphereMaps }
+
     /// Returns true if this is a METEO RINEX
     pub fn is_meteo_rinex (&self) -> bool { self.header.rinex_type == types::Type::MeteoData }
     

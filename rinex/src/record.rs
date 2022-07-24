@@ -193,6 +193,7 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Com
     let mut first_epoch = true;
     let mut content : Option<String>; // epoch content to build
     let mut epoch_content = String::with_capacity(6*64);
+    let mut exponent: i8 = -1; //IONEX record scaling: this is the default value
     
     // to manage `record` comments
     let mut comments : Comments = Comments::new();
@@ -231,6 +232,14 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Com
             let comment = line.split_at(60).0.trim_end();
             comment_content.push(comment.to_string());
             continue
+        }
+        // IONEX exponent-->data scaling
+        // hidden to user and allows high level interactions
+        if line.contains("EXPONENT") {
+            let content = line.split_at(60).0;
+            if let Ok(e) = i8::from_str_radix(content.trim(), 10) {
+                exponent = e // --> update current exponent value
+            }
         }
         // manage CRINEX case
         //  [1]  RINEX : pass content as is
@@ -333,7 +342,6 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Com
                                 comment_ts = epoch.clone(); // for comments classification & management
                             }
                         },
-                        Type::IonosphereMaps => todo!(),
                         Type::AntennaData => {
                             if let Ok((antenna, frequencies)) = antex::record::build_record_entry(&epoch_content) {
                                 let mut found = false;
@@ -351,6 +359,12 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Com
                                 }
                             }
                         },
+                        Type::IonosphereMaps => {
+                            if let Ok((epoch, maps)) = ionosphere::record::build_record_entry(&epoch_content, exponent) {
+
+
+                            }
+                        }
                     }
 
                     // new comments ?

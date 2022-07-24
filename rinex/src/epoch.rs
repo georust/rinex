@@ -9,7 +9,8 @@ use serde::{Serialize, Deserialize};
 
 /// `EpochFlag` validates or describes events
 /// that occured during an `epoch`
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+#[derive(Copy, Clone, Debug)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub enum EpochFlag {
     /// Epoch is sane
@@ -67,9 +68,10 @@ impl std::fmt::Display for EpochFlag {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 /// An `Epoch` is an observation timestamp associated
 /// to an `EpochFlag`
+#[derive(Copy, Clone, Debug)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Epoch {
     /// `date`: sampling time stamp
     pub date: chrono::NaiveDateTime,
@@ -144,13 +146,19 @@ pub fn str2date (s: &str) -> Result<chrono::NaiveDateTime, ParseDateError> {
     if items.len() != 6 {
         return Err(ParseDateError::FormatMismatch)
     }
-    let (mut y,m,d,h,min,s) : (i32,u32,u32,u32,u32,f64) =
+    let mut secs: u32 = 0;
+    let (mut y,m,d,h,min) : (i32,u32,u32,u32,u32) =
         (i32::from_str_radix(items[0],10)?,
          u32::from_str_radix(items[1],10)?,
          u32::from_str_radix(items[2],10)?,
          u32::from_str_radix(items[3],10)?,
-         u32::from_str_radix(items[4],10)?,
-         f64::from_str(items[5].trim())?);
+         u32::from_str_radix(items[4],10)?);
+    if let Ok(s) = f64::from_str(items[5].trim()) {
+        secs = s as u32
+    }
+    else if let Ok(s) = u32::from_str_radix(items[5].trim(), 10) {
+        secs = s 
+    }
 	if y < 100 { // 2 digit nb case
     	if y > 90 { // old rinex
         	y += 1900
@@ -159,7 +167,7 @@ pub fn str2date (s: &str) -> Result<chrono::NaiveDateTime, ParseDateError> {
 		}
 	}
     Ok(chrono::NaiveDate::from_ymd(y,m,d)
-        .and_hms(h,min,s as u32))
+        .and_hms(h,min,secs))
 }
 
 #[cfg(test)]

@@ -24,6 +24,7 @@ pub enum MappingFunction {
 #[derive(Debug, Clone)]
 #[derive(PartialEq, PartialOrd)]
 #[derive(EnumString)]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub enum System {
     /// BENt
     BEN,
