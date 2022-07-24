@@ -16,7 +16,7 @@ pub mod epoch;
 pub mod hardware;
 pub mod hatanaka;
 pub mod header;
-//pub mod ionex;
+pub mod ionosphere;
 pub mod meteo;
 pub mod navigation;
 pub mod observation;
@@ -151,7 +151,7 @@ impl Rinex {
     }
 
     /// Filename creation helper,
-    /// to match standard specifications.
+    /// to follow naming conventions 
     pub fn filename (&self) -> String {
         let header = &self.header;
         let rtype = header.rinex_type;
@@ -190,8 +190,7 @@ impl Rinex {
                     }
                 },
                 types::Type::MeteoData => String::from("m"),
-                types::Type::ClockData => todo!(),
-                types::Type::AntennaData => todo!(), 
+                _ => todo!(),
             };
             format!("{}{}{}.{}{}", nnnn, ddd, s, yy, t)
         } else {
@@ -225,6 +224,7 @@ impl Rinex {
                 types::Type::MeteoData => String::from("M"),
                 types::Type::ClockData => todo!(),
                 types::Type::AntennaData => todo!(),
+                types::Type::IonosphereMaps => todo!(),
             };
             let fmt = match header.is_crinex() {
                 true => String::from("crx"),

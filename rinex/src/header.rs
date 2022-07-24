@@ -11,6 +11,7 @@ use crate::merge::MergeError;
 
 use crate::meteo;
 use crate::observation;
+use crate::ionosphere;
 use crate::constellation;
 use crate::constellation::{Constellation, augmentation::Augmentation};
 
@@ -149,20 +150,28 @@ pub struct Header {
     //////////////////////////////////
     // OBSERVATION
     //////////////////////////////////
+    /// Observation record specific fields
     pub obs: Option<observation::HeaderFields>,
     //////////////////////////////////
     // Meteo 
     //////////////////////////////////
+    /// Meteo record specific fields
     pub meteo: Option<meteo::HeaderFields>,
     //////////////////////////////////
     // Clocks fields 
     //////////////////////////////////
+    /// Clocks record specific fields
     pub clocks: Option<clocks::HeaderFields>,
     //////////////////////////////////
     // Antex
     //////////////////////////////////
-    /// Optionnal Antex fields
+    /// ANTEX record specific fields
     pub antex: Option<antex::HeaderFields>,
+    /////////////////////////////////
+    // IONEX
+    /////////////////////////////////
+    /// IONEX record specific fields
+    pub ionex: Option<ionosphere::HeaderFields>,
 }
 
 #[derive(Error, Debug)]
@@ -191,6 +200,8 @@ pub enum Error {
     AntexParsingError(#[from] antex::record::Error),
     #[error("failed to parse PCV field")]
     ParsePcvError(#[from] antex::pcv::Error),
+    #[error("faulty ionex format")]
+    FaultyIonexDescription,
 }
 
 impl Default for Header {
@@ -239,6 +250,10 @@ impl Default for Header {
             // Antex
             /////////////////////////
             antex: None,
+            /////////////////////////
+            // IONEX 
+            /////////////////////////
+            ionex: None,
         }
     }
 }
@@ -294,6 +309,8 @@ impl Header {
         let mut pcv : Option<antex::pcv::Pcv> = None;
         let mut ant_relative_values = String::from("AOAD/M_T");
         let mut ref_ant_sn : Option<String> = None;
+        // IONEX
+        let mut ionex = ionosphere::HeaderFields::default();
 
         for l in reader.lines() {
             let line = &l.unwrap();
@@ -306,7 +323,7 @@ impl Header {
             ///////////////////////////////
             if marker.trim().eq("COMMENT") {
                 // --> storing might be useful
-                comments.push(content.trim_end().to_string());
+                comments.push(content.trim().to_string());
                 continue
             }
             //////////////////////////////////////
@@ -355,13 +372,26 @@ impl Header {
                 if ref_sn.trim().len() > 0 {
                     ref_ant_sn = Some(ref_sn.trim().to_string())
                 }
-            }
+            
+            } 
+            //////////////////////////////////////
+            // [2*] IONEX special RINEX
+            //////////////////////////////////////
+            else if marker.contains("IONEX VERSION / TYPE") {
+                let (vers, rem) = line.split_at(20);
+                let (type_str, rem) = rem.split_at(20); 
+                let (system_str, _) = rem.split_at(20);
+                rinex_type = Type::from_str(type_str.trim())?;
+                if rinex_type != Type::IonosphereMaps {
+                    return Err(Error::FaultyIonexDescription)
+                }
+                ionex = ionex.with_system(system_str.trim())
 
             ///////////////////////////////////////
             // ==> from now on
             // RINEX classical header attributes
             ///////////////////////////////////////
-            else if marker.contains("RINEX VERSION / TYPE") {
+            } else if marker.contains("RINEX VERSION / TYPE") {
                 let (vers, rem) = line.split_at(20);
                 let (type_str, rem) = rem.split_at(20); 
                 let (constell_str, _) = rem.split_at(20);
@@ -690,6 +720,23 @@ impl Header {
             } else if marker.contains("DELTA-UTC") {
                 //TODO
                 //0.931322574615D-09 0.355271367880D-14   233472     1930 DELTA-UTC: A0,A1,T,W
+            
+            } else if marker.contains("DESCRIPTION") { // IONEX description
+                ionex = ionex
+                    .with_description(content.trim())
+            } else if marker.contains("OBSERABLES USED") { // IONEX observables
+                ionex = ionex
+                    .with_observables(content.trim())
+            } else if marker.contains("# OF STATIONS") { // IONEX
+                if let Ok(u) = u32::from_str_radix(content.trim(), 10) {
+                    ionex = ionex
+                        .with_stations(u)
+                }
+            } else if marker.contains("# OF SATELLITES") { // IONEX
+                if let Ok(u) = u32::from_str_radix(content.trim(), 10) {
+                    ionex = ionex
+                        .with_satellites(u)
+                }
             }
         }
 
@@ -803,6 +850,16 @@ impl Header {
                             }
                         },
                     })
+                } else {
+                    None
+                }
+            },
+            ///////////////////////
+            // IONEX
+            ///////////////////////
+            ionex: {
+                if rinex_type == Type::IonosphereMaps {
+                    Some(ionex)
                 } else {
                     None
                 }
@@ -1053,6 +1110,7 @@ impl std::fmt::Display for Header {
             },
             Type::ClockData => todo!(),
             Type::AntennaData => todo!(),
+            Type::IonosphereMaps => todo!(),
         }
         // COMMENTS 
         for comment in self.comments.iter() {
