@@ -125,6 +125,8 @@ pub enum Error {
     HeaderError(#[from] header::Error),
     #[error("record parsing error")]
     RecordError(#[from] record::Error),
+    #[error("file i/o error")]
+    IoError(#[from] std::io::Error),
 }
 
 #[derive(Error, Debug)]
@@ -244,13 +246,14 @@ impl Rinex {
     /// some are mandatory.   
     /// Parses record for supported `RINEX` types
     pub fn from_file (path: &str) -> Result<Rinex, Error> {
-        // open file 
-        // grab first 80 bytes (standard entry descriptor)
-        let mut fd = std::fs::File::open(path)
-            .unwrap(); // open() must pass
-        let mut buffer = [0; 80]; // header size
+        // Create a first buffered reader (R wrapper)
+        // which allows hidding .gz / .Z decompression, if it is required and supported.
+        // We need to determine whether this is a RINEX 
+        //    or a CRINEX (which will require an extra decompression layer)
+        let mut reader = BufferedReader::new(path, false)?; // hatanaka encoding: not determined yet
+        let mut buffer = [0; 80]; // 1st line mandatory size
         let mut first_line = String::new();
-        if let Ok(n) = fd.read(&mut buffer[..]) {
+        if let Ok(n) = reader.read(&mut buffer[..]) {
             if n < 80 {
                 panic!("corrupt header 1st line")
             }
@@ -261,7 +264,7 @@ impl Rinex {
             }
         }
         
-        // now we build a BufferedReader (wrapper) object
+        // now we build the final BufferedReader object
         // to allow powerful file.lines() iteration,
         // with possible (and hidden) Gz / Hatanaka /  Gz+Hatanaka decompression
         let with_hatanaka = first_line.contains("CRINEX");
@@ -270,7 +273,7 @@ impl Rinex {
         // --> parse header fields
         //      First line gets actually processed twice..
         //      Not super efficient, but the efficient file iteration and
-        //      hidden decompression capacities compensate for that..
+        //      hidden decompression capacities compensate for it..
         let header = header::Header::new(&mut reader)?;
         // --> parse record (file body)
         //     we also grab encountered comments,
