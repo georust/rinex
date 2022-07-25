@@ -187,7 +187,6 @@ pub fn is_new_epoch (line: &str, header: &header::Header) -> bool {
 /// Builds a `Record`, `RINEX` file body content,
 /// which is constellation and `RINEX` file type dependent
 pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Comments), Error> {
-    println!("{:#?}", header);
     let reader = BufferedReader::new(path)?;
     let mut inside_header = true;
     let mut first_epoch = true;
