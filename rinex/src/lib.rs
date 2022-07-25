@@ -27,7 +27,9 @@ pub mod sv;
 pub mod types;
 pub mod version;
 
-use std::io::Write;
+use std::io::{Read, Write};
+use reader::BufferedReader;
+
 use thiserror::Error;
 use std::collections::{BTreeMap};
 use chrono::{Datelike, Timelike};
@@ -242,8 +244,38 @@ impl Rinex {
     /// some are mandatory.   
     /// Parses record for supported `RINEX` types
     pub fn from_file (path: &str) -> Result<Rinex, Error> {
-        let header = header::Header::new(path)?;
-        let (record, comments) = record::build_record(path, &header)?;
+        // open file 
+        // grab first 80 bytes (standard entry descriptor)
+        let mut fd = std::fs::File::open(path)
+            .unwrap(); // open() must pass
+        let mut buffer = [0; 80]; // header size
+        let mut first_line = String::new();
+        if let Ok(n) = fd.read(&mut buffer[..]) {
+            if n < 80 {
+                panic!("corrupt header 1st line")
+            }
+            if let Ok(s) = String::from_utf8(buffer.to_vec()) {
+                first_line = s.clone()
+            } else {
+                panic!("header 1st line is not UTF8 encoded")
+            }
+        }
+        
+        // now we build a BufferedReader (wrapper) object
+        // to allow powerful file.lines() iteration,
+        // with possible (and hidden) Gz / Hatanaka /  Gz+Hatanaka decompression
+        let with_hatanaka = first_line.contains("CRINEX");
+        let mut reader = BufferedReader::new(path, with_hatanaka)
+            .unwrap(); // must pass
+        // --> parse header fields
+        //      First line gets actually processed twice..
+        //      Not super efficient, but the efficient file iteration and
+        //      hidden decompression capacities compensate for that..
+        let header = header::Header::new(&mut reader)?;
+        // --> parse record (file body)
+        //     we also grab encountered comments,
+        //     they might serve some fileops like `splice` / `merge` 
+        let (record, comments) = record::build_record(&mut reader, &header)?;
         Ok(Rinex {
             header,
             record,

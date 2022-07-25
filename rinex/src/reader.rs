@@ -24,7 +24,7 @@ pub enum BufferedReader {
 }
 
 impl BufferedReader {
-    pub fn new (path: &str) -> std::io::Result<BufferedReader> {
+    pub fn new (path: &str, hatanaka: bool) -> std::io::Result<BufferedReader> {
         let f = std::fs::File::open(path)?;
         if path.ends_with(".gz") {
             // --> gzip encoded
