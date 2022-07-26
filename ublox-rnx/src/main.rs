@@ -3,7 +3,7 @@
 //! Homepage: <https://github.com/gwbres/rinex>
 use clap::App;
 use clap::load_yaml;
-use std::str::FromStr;
+//use std::str::FromStr;
 
 use rinex::*;
 
@@ -27,8 +27,8 @@ pub fn main () -> Result<(), Box<dyn std::error::Error>> {
         .unwrap();
 
     // Parameters
-    let obs = matches.is_present("obs");
-    let nav = matches.is_present("nav");
+    let _obs = matches.is_present("obs");
+    let _nav = matches.is_present("nav");
     //TODO: currently only supports GPS
     
     // open device
@@ -104,12 +104,11 @@ pub fn main () -> Result<(), Box<dyn std::error::Error>> {
     device.wait_for_ack::<CfgMsgAllPorts>().unwrap();
 
     // Create OBS file
-    let mut obs = Rinex::default();
-    let mut header = header::Header::basic_obs(); 
+    let _obs = Rinex::default();
+    let _header = header::Header::basic_obs(); 
 
     loop {
         
     }
-
-    Ok(())
+    //Ok(())
 }
