@@ -25,7 +25,7 @@ pub enum Record {
     /// epoch iterable
     AntexRecord(antex::record::Record),
     /// `clocks::Record` : CLOCKS RINEX file content
-    ClockRecord(clocks::Record),
+    ClockRecord(clocks::record::Record),
     /// `IONEX` record is a list of Ionosphere Maps,
     /// sorted by `epoch`
     IonexRecord(ionosphere::record::Record),
@@ -62,33 +62,33 @@ impl Record {
         }
     }
     /// Unwraps self as CLK `record`
-    pub fn as_clock (&self) -> Option<&clocks::Record> {
+    pub fn as_clock (&self) -> Option<&clocks::record::Record> {
         match self {
             Record::ClockRecord(r) => Some(r),
             _ => None,
         }
     }
     /// Unwraps self as mutable CLK `record`
-    pub fn as_mut_clock (&mut self) -> Option<&mut clocks::Record> {
+    pub fn as_mut_clock (&mut self) -> Option<&mut clocks::record::Record> {
         match self {
             Record::ClockRecord(r) => Some(r),
             _ => None,
         }
     }
-    /* /// Unwraps self as IONEX record
-    pub fn as_ionex (&self) -> Option<&ionex::Record> {
+    /// Unwraps self as IONEX record
+    pub fn as_ionex (&self) -> Option<&ionosphere::record::Record> {
         match self {
             Record::IonexRecord(r) => Some(r),
             _ => None,
         }
     }
     /// Unwraps self as mutable IONEX record
-    pub fn as_mut_ionex (&mut self) -> Option<&mut ionex::Record> {
+    pub fn as_mut_ionex (&mut self) -> Option<&mut ionosphere::record::Record> {
         match self {
             Record::IonexRecord(r) => Some(r),
             _ => None,
         }
-    } */
+    }
 	/// Unwraps self as MET `record`
     pub fn as_meteo (&self) -> Option<&meteo::record::Record> {
         match self {
@@ -176,8 +176,8 @@ pub fn is_new_epoch (line: &str, header: &header::Header) -> bool {
     }
     match &header.rinex_type {
         Type::AntennaData => antex::record::is_new_epoch(line),
-        Type::ClockData => clocks::is_new_epoch(line),
-        Type::IonosphereMaps => todo!(), //ionex::is_new_tec_map(line),
+        Type::ClockData => clocks::record::is_new_epoch(line),
+        Type::IonosphereMaps => ionosphere::record::is_new_map(line),
         Type::NavigationData => navigation::record::is_new_epoch(line, header.version), 
         Type::ObservationData => observation::record::is_new_epoch(line, header.version),
         Type::MeteoData => meteo::record::is_new_epoch(line, header.version),
@@ -213,7 +213,8 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Com
     let mut nav_rec = navigation::record::Record::new(); // NAV
     let mut obs_rec = observation::record::Record::new(); // OBS
     let mut met_rec = meteo::record::Record::new(); // MET
-    let mut clk_rec : clocks::Record = BTreeMap::new(); // CLK
+    let mut clk_rec = clocks::record::Record::new(); // CLK
+    let mut ionx_rec = ionosphere::record::Record::new(); //IONEX
 
     for l in reader.lines() { // process one line at a time 
         let line = l.unwrap();
@@ -316,7 +317,7 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Com
                             }
                         },
                         Type::ClockData => {
-                            if let Ok((epoch, system, dtype, data)) = clocks::build_record_entry(&epoch_content) {
+                            if let Ok((epoch, system, dtype, data)) = clocks::record::build_record_entry(&epoch_content) {
                                 // Clocks `RINEX` files are handled a little different,
                                 // because we parse one line at a time, while we parsed one epoch at a time for other RINEXes.
                                 // One line may contribute to a previously existing epoch in the record 
@@ -326,15 +327,15 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Com
                                         s.insert(dtype, data);
                                     } else {
                                         // --> new system entry for this `epoch`
-                                        let mut inner: HashMap<clocks::DataType, clocks::Data> = HashMap::new();
+                                        let mut inner: HashMap<clocks::record::DataType, clocks::record::Data> = HashMap::new();
                                         inner.insert(dtype, data);
                                         e.insert(system, inner);
                                     }
                                 } else {
                                     // --> new epoch entry
-                                    let mut inner:HashMap<clocks::DataType, clocks::Data> = HashMap::new();
+                                    let mut inner:HashMap<clocks::record::DataType, clocks::record::Data> = HashMap::new();
                                     inner.insert(dtype, data);
-                                    let mut map : HashMap<clocks::System, HashMap<clocks::DataType, clocks::Data>> = HashMap::new();
+                                    let mut map : HashMap<clocks::record::System, HashMap<clocks::record::DataType, clocks::record::Data>> = HashMap::new();
                                     map.insert(system, inner);
                                     clk_rec.insert(epoch, map);
                                 }
@@ -359,9 +360,8 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Com
                             }
                         },
                         Type::IonosphereMaps => {
-                            if let Ok((_epoch, _maps)) = ionosphere::record::build_record_entry(&epoch_content, exponent) {
-
-
+                            if let Ok((epoch, map)) = ionosphere::record::build_record_entry(&epoch_content, exponent) {
+                                ionx_rec.insert(epoch, (map, None, None));
                             }
                         }
                     }
@@ -411,7 +411,7 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Com
             }
         },
         Type::ClockData => {
-            if let Ok((e, system, dtype, data)) = clocks::build_record_entry(&epoch_content) {
+            if let Ok((e, system, dtype, data)) = clocks::record::build_record_entry(&epoch_content) {
                 // Clocks `RINEX` files are handled a little different,
                 // because we parse one line at a time, while we parsed one epoch at a time for other RINEXes.
                 // One line may contribute to a previously existing epoch in the record 
@@ -421,23 +421,26 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Com
                         s.insert(dtype, data);
                     } else {
                         // --> new system entry for this `epoch`
-                        let mut inner: HashMap<clocks::DataType, clocks::Data> = HashMap::new();
-                        let mut map: HashMap<clocks::System, HashMap<clocks::DataType, clocks::Data>> = HashMap::new();
+                        let mut inner: HashMap<clocks::record::DataType, clocks::record::Data> = HashMap::new();
+                        let mut map: HashMap<clocks::record::System, HashMap<clocks::record::DataType, clocks::record::Data>> = HashMap::new();
                         inner.insert(dtype, data);
                         map.insert(system, inner);
                     }
                 } else {
                     // --> new epoch entry
-                    let mut inner:HashMap<clocks::DataType, clocks::Data> = HashMap::new();
+                    let mut inner:HashMap<clocks::record::DataType, clocks::record::Data> = HashMap::new();
                     inner.insert(dtype, data);
-                    let mut map : HashMap<clocks::System, HashMap<clocks::DataType, clocks::Data>> = HashMap::new();
+                    let mut map : HashMap<clocks::record::System, HashMap<clocks::record::DataType, clocks::record::Data>> = HashMap::new();
                     map.insert(system, inner);
                     clk_rec.insert(e, map);
                 }
                 comment_ts = e.clone(); // for comments classification & management
             }
         },
-        Type::IonosphereMaps => todo!(),
+        Type::IonosphereMaps => {
+            if let Ok((_epoch, _maps)) = ionosphere::record::build_record_entry(&epoch_content, exponent) {
+            }
+        }
         Type::AntennaData => {
             if let Ok((antenna, frequencies)) = antex::record::build_record_entry(&epoch_content) {
                 let mut found = false;
@@ -464,11 +467,10 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Com
     let record = match &header.rinex_type {
         Type::AntennaData => Record::AntexRecord(atx_rec),
         Type::ClockData => Record::ClockRecord(clk_rec),
-        Type::IonosphereMaps => todo!(), //Record::IonexRecord(ionx_rec),
+        Type::IonosphereMaps => Record::IonexRecord(ionx_rec),
 		Type::MeteoData => Record::MeteoRecord(met_rec),
         Type::NavigationData => Record::NavRecord(nav_rec),
         Type::ObservationData => Record::ObsRecord(obs_rec), 
-        //_ => todo!("record type not fully supported yet"),
     };
     Ok((record, comments))
 }

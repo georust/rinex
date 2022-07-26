@@ -1,45 +1,45 @@
 use crate::epoch;
 use thiserror::Error;
-//use std::str::FromStr;
-use std::collections::HashMap;
+use std::str::FromStr;
+use std::collections::BTreeMap;
 
-fn is_new_tec_map (line: &str) -> bool {
+pub fn is_new_tec_map (line: &str) -> bool {
     line.contains("START OF TEC MAP") 
 }
 
-/*fn is_new_rms_map (line: &str) -> bool {
+pub fn is_new_rms_map (line: &str) -> bool {
     line.contains("START OF RMS MAP") 
 }
 
-fn is_new_height_map (line: &str) -> bool {
+pub fn is_new_height_map (line: &str) -> bool {
     line.contains("START OF HEIGHT MAP") 
-}*/
+}
 
 pub fn is_new_map (line: &str) -> bool {
-       is_new_tec_map(line) 
-//    || is_new_rms_map(line)
-//    || is_new_height_map(line)
+    is_new_tec_map(line)
+    || is_new_rms_map(line)
+    || is_new_height_map(line)
 }
 
-/// `IONEX` record is a list of maps indexed by `epoch`
-pub type Record = HashMap<epoch::Epoch, Maps>;
+/// `IONEX` record is, for a given epoch,
+/// a TEC map (always given), an optionnal RMS map
+/// and an optionnal height map
+pub type Record = BTreeMap<epoch::Epoch, (Map, Option<Map>, Option<Map>)>;
 
-/// A Map represents either a TEC, RMS or H map,
-/// with associated lat/lon1/lon2/d/h values
-pub type Map = (f32,f32,f32,f32,f32,Vec<i32>);
-
-#[derive(Clone, Debug, Default)]
-pub struct Maps {
-    /// TEC maps
-    pub tec: Vec<Map>,
-    /// Optionnal RMS maps associated to `tec` map,
-    /// most of the time not provided
-    pub rms: Vec<Map>,
-    /// Optionnal height map associated to `tec` map
-    /// most of the time not provided
-    pub height: Vec<Map>,
+#[derive(Debug, Clone, Default)]
+#[derive(PartialEq, PartialOrd)]
+pub struct Coordinates {
+    pub lat: f32,
+    pub lon1: f32,
+    pub lon2: f32,
+    pub dlon: f32,
+    pub h: f32,
 }
 
+/// A map is a list of data indexed by Coordinates
+pub type Map = Vec<(Coordinates, Vec<i32>)>;
+
+/*
 impl Maps {
     /// Returns (properly scaled) TEC maps
     pub fn tec_maps (&self) -> Vec<(f32, f32, f32, f32, f32, Vec<f32>)> {
@@ -76,7 +76,7 @@ impl Maps {
             self.height = Some(vec![map])
         }
     }*/
-}
+}*/
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -85,34 +85,42 @@ pub enum Error {
 }
 
 /// Builds list of identified maps and associated epoch 
-pub fn build_record_entry (_content: &str, _exponent: i8) -> Result<(epoch::Epoch, Maps), Error> {
-/*
+pub fn build_record_entry (content: &str, exponent: i8) -> Result<(epoch::Epoch, Map), Error> {
     let lines = content.lines();
     let mut exp = exponent.clone();
     let mut epoch = epoch::Epoch::default();
-    let (mut lat, mut lon1, mut lon2, mut dlon, mut h) = (0.0_f32, 0.0_f32, 0.0_f32, 0.0_f32, 0.0_f32);
+    let mut coords = Coordinates::default();
+    let mut map = Map::new();
+    let mut data :Vec<i32> = Vec::new();
     for line in lines {
         let (content, marker) = line.split_at(60);
-        println!("line: {}\n", marker);
         if marker.contains("LAT/LON1/LON2/DLON/H") {
+            if data.len() > 0 {
+                // got some data buffered
+                // --> append to map being built 
+                map.push((coords.clone(), data.clone()));
+            }
             let items : Vec<&str> = content
                 .split_ascii_whitespace()
                 .collect();
-            if let Ok(f) = f32::from_str(items[0].trim()) {
-                lat = f
+            if let Ok(lat) = f32::from_str(items[0].trim()) {
+                if let Ok(lon1) = f32::from_str(items[1].trim()) {
+                    if let Ok(lon2) = f32::from_str(items[2].trim()) {
+                        if let Ok(dlon) = f32::from_str(items[3].trim()) {
+                            if let Ok(h) = f32::from_str(items[3].trim()) {
+                                coords = Coordinates {
+                                    lat,
+                                    lon1,
+                                    lon2,
+                                    dlon,
+                                    h
+                                }
+                            }
+                        }
+                    }
+                }
             }
-            if let Ok(f) = f32::from_str(items[1].trim()) {
-                lon1 = f
-            }
-            if let Ok(f) = f32::from_str(items[2].trim()) {
-                lon2 = f
-            }
-            if let Ok(f) = f32::from_str(items[3].trim()) {
-                dlon = f
-            }
-            if let Ok(f) = f32::from_str(items[4].trim()) {
-                h = f
-            }
+            data.clear(); // clear for next time
 
         } else if marker.contains("EPOCH OF CURRENT MAP") {
             let items : Vec<&str> = content
@@ -130,25 +138,39 @@ pub fn build_record_entry (_content: &str, _exponent: i8) -> Result<(epoch::Epoc
             datestr.push_str(items[4]); // m
             datestr.push_str(" ");
             datestr.push_str(items[5]); // s
-            println!("DATESTR \"{}\"", datestr);
             if let Ok(e) = epoch::str2date(&datestr) {
                 epoch.date = e
             }
+
         } else if marker.contains("EXPONENT") {
             if let Ok(e) = i8::from_str_radix(content.trim(), 10) {
                 exp = e
             }
 
-        } else {
-            // --> inside map
+        } else if content.contains("...") { // actually, this only exists in example files..
+            continue
+
+        } else if marker.contains("END OF") && marker.contains("MAP") {
+            // got some residues?
+            // --> terminate map being built
+            if data.len() > 0 {
+                map.push((coords.clone(), data.clone()))
+            }
+            break
+
+        } else { // inside map; parse data from this line, append to current list
+            for item in line
+                    .split_ascii_whitespace()
+                    .into_iter() 
+            {
+                if let Ok(value) = i32::from_str_radix(item, 10) {
+                    data.push(value)
+                }
+            }
         }
     }
- */
-    Ok((epoch::Epoch::default(), Maps {
-        tec: Vec::new(),
-        rms: Vec::new(),
-        height: Vec::new(),
-    }))
+
+    Ok((epoch, map))
 }
 
 
@@ -156,9 +178,9 @@ pub fn build_record_entry (_content: &str, _exponent: i8) -> Result<(epoch::Epoc
 mod test {
     use super::*;
     #[test]
-    fn test_new_map() {
-        assert_eq!(is_new_map("1                                                      START OF TEC MAP   "), true); 
-        assert_eq!(is_new_map("1                                                      START OF RMS MAP   "), false); 
+    fn test_new_tec_map() {
+        assert_eq!(is_new_tec_map("1                                                      START OF TEC MAP   "), true); 
+        assert_eq!(is_new_tec_map("1                                                      START OF RMS MAP   "), false); 
     }
 
     #[test]
