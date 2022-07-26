@@ -1,69 +1,20 @@
-//! clocks.rs   
-//! macros and structures for RINEX Clocks files
-use crate::sv;
+use std::str::FromStr;
+use crate::sv::Sv;
 use crate::epoch;
 use thiserror::Error;
-use std::str::FromStr;
 use std::collections::{BTreeMap, HashMap};
-
-/// Clocks `RINEX` specific header fields
-#[derive(Clone, Debug)]
-#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
-pub struct HeaderFields {
-    /// Types of observation in this file
-    pub codes: Vec<DataType>,
-    /// Clock Data analysis production center
-    pub agency: Option<Agency>,
-    /// Reference station
-    pub station: Option<Station>,
-    /// Reference clock descriptor
-    pub clock_ref: Option<String>,
-}
-
-/// Describes a clock station 
-#[derive(Clone, PartialEq, Debug)]
-#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
-pub struct Station {
-    /// Station name
-    pub name: String,
-    /// Station official ID#
-    pub id: String,
-}
-
-/// Describes a clock analysis center / agency
-#[derive(Clone, PartialEq, Debug)]
-#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
-pub struct Agency {
-    /// IGS AC 3 letter code
-    pub code: String,
-    /// agency name
-    pub name: String,
-}
-
-#[derive(Error, Debug)]
-/// Clocks file parsing & identification errors
-pub enum Error {
-    #[error("unknown data code \"{0}\"")]
-    UnknownDataCode(String),
-    #[error("failed to parse epoch")]
-    ParseEpochError(#[from] epoch::ParseDateError),
-    #[error("failed to parse # of data fields")]
-    ParseIntError(#[from] std::num::ParseIntError),
-    #[error("failed to parse data payload")]
-    ParseFloatError(#[from] std::num::ParseFloatError),
-}
 
 #[derive(Error, PartialEq, Eq, Hash, Clone, Debug)]
 pub enum System {
     /// Sv system for AS data
-    Sv(sv::Sv),
+    Sv(Sv),
     /// Stations or Receiver name for other types of data 
     Station(String),
 }
 
 impl System {
     /// Unwraps self as a `satellite vehicule`
-    pub fn as_sv (&self) -> Option<sv::Sv> {
+    pub fn as_sv (&self) -> Option<Sv> {
         match self {
             System::Sv(s) => Some(*s),
             _ => None,
@@ -87,6 +38,19 @@ impl std::fmt::Display for System {
         }
         Ok(())
     }
+}
+
+#[derive(Error, Debug)]
+/// Clocks file parsing & identification errors
+pub enum Error {
+    #[error("unknown data code \"{0}\"")]
+    UnknownDataCode(String),
+    #[error("failed to parse epoch")]
+    ParseEpochError(#[from] epoch::ParseDateError),
+    #[error("failed to parse # of data fields")]
+    ParseIntError(#[from] std::num::ParseIntError),
+    #[error("failed to parse data payload")]
+    ParseFloatError(#[from] std::num::ParseFloatError),
 }
 
 /// Clocks file payload
@@ -157,7 +121,7 @@ pub fn build_record_entry (content: &str) ->
     let (dtype, rem) = line.split_at(3);
     let data_type = DataType::from_str(dtype.trim())?;
     let (system_str, rem) = rem.split_at(4);
-    let system = match sv::Sv::from_str(system_str) {
+    let system = match Sv::from_str(system_str) {
         Ok(sv) => System::Sv(sv),
         _ => System::Station(system_str.trim_end().to_string()),
     };
@@ -225,4 +189,23 @@ pub fn build_record_entry (content: &str) ->
         date,
     };
     Ok((epoch, system, data_type, data))
+}
+    
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[test]
+    fn test_is_new_epoch() {
+        let l = "AR AREQ 1994 07 14 20 59  0.000000  6   -0.123456789012E+00 -0.123456789012E+01"; 
+        assert_eq!(is_new_epoch(l), true);
+        let l = "RA AREQ 1994 07 14 20 59  0.000000  6   -0.123456789012E+00 -0.123456789012E+01"; 
+        assert_eq!(is_new_epoch(l), false);
+        let l = "DR AREQ 1994 07 14 20 59  0.000000  6   -0.123456789012E+00 -0.123456789012E+01"; 
+        assert_eq!(is_new_epoch(l), true);
+        let l = "CR AREQ 1994 07 14 20 59  0.000000  6   -0.123456789012E+00 -0.123456789012E+01"; 
+        assert_eq!(is_new_epoch(l), true);
+        let l = "AS AREQ 1994 07 14 20 59  0.000000  6   -0.123456789012E+00 -0.123456789012E+01"; 
+        assert_eq!(is_new_epoch(l), true);
+    }
 }

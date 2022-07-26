@@ -1,4 +1,4 @@
-//! Structure to describe a satellite vehicule 
+//! Satellite vehicule representation 
 use thiserror::Error;
 use crate::constellation;
 

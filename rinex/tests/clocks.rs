@@ -1,6 +1,8 @@
 #[cfg(test)]
 mod test {
     use rinex::*;
+    use rinex::clocks;
+    use rinex::clocks::record::DataType;
     #[test]
     fn v3_demo() {
         let test_resource = 
@@ -14,10 +16,10 @@ mod test {
             .as_ref()
             .unwrap();
         assert_eq!(clocks.codes, vec![
-            clocks::DataType::As,
-            clocks::DataType::Ar,
-            clocks::DataType::Cr,
-            clocks::DataType::Dr]);
+            DataType::As,
+            DataType::Ar,
+            DataType::Cr,
+            DataType::Dr]);
         assert_eq!(clocks.agency, Some(clocks::Agency {
             code: String::from("USN"),
             name: String::from("USNO USING GIPSY/OASIS-II"),
@@ -30,19 +32,5 @@ mod test {
         //assert_eq!(rinex.is_ok(), true);
         //let rinex = rinex.unwrap();
         //assert_eq!(rinex.is_clocks_rinex(), true);
-    }
-
-    #[test]
-    fn is_new_epoch() {
-        let l = "AR AREQ 1994 07 14 20 59  0.000000  6   -0.123456789012E+00 -0.123456789012E+01"; 
-        assert_eq!(clocks::is_new_epoch(l), true);
-        let l = "RA AREQ 1994 07 14 20 59  0.000000  6   -0.123456789012E+00 -0.123456789012E+01"; 
-        assert_eq!(clocks::is_new_epoch(l), false);
-        let l = "DR AREQ 1994 07 14 20 59  0.000000  6   -0.123456789012E+00 -0.123456789012E+01"; 
-        assert_eq!(clocks::is_new_epoch(l), true);
-        let l = "CR AREQ 1994 07 14 20 59  0.000000  6   -0.123456789012E+00 -0.123456789012E+01"; 
-        assert_eq!(clocks::is_new_epoch(l), true);
-        let l = "AS AREQ 1994 07 14 20 59  0.000000  6   -0.123456789012E+00 -0.123456789012E+01"; 
-        assert_eq!(clocks::is_new_epoch(l), true);
     }
 }

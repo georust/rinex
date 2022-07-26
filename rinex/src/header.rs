@@ -297,7 +297,7 @@ impl Header {
 		let mut met_sensors: Vec<meteo::sensor::Sensor> = Vec::with_capacity(3);
         // CLOCKS
         let mut clk_ref = String::new();
-        let mut clk_codes: Vec<clocks::DataType> = Vec::new();
+        let mut clk_codes: Vec<clocks::record::DataType> = Vec::new();
         let mut clk_agency_code = String::new();
         let mut clk_agency_name = String::new();
         let mut clk_station_name = String::new();
@@ -690,7 +690,7 @@ impl Header {
                 let mut rem = r.clone();
                 for _ in 0..n {
                     let (code, r) = rem.split_at(6);
-                    if let Ok(c) = clocks::DataType::from_str(code.trim()) {
+                    if let Ok(c) = clocks::record::DataType::from_str(code.trim()) {
                         clk_codes.push(c)
                     }
                     rem = r.clone()
