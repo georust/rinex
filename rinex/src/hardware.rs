@@ -7,6 +7,7 @@ use serde::{Serialize, Deserialize};
 
 /// GNSS receiver description
 #[derive(Clone, Debug)]
+#[derive(PartialEq)]
 #[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct Rcvr {
     /// Receiver (hardware) model
