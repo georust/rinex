@@ -2,11 +2,12 @@
 //! command line tool to compress RINEX files   
 //! and decompress CRINEX files
 use rinex::{header, hatanaka};
+use rinex::reader::BufferedReader;
 
 use clap::App;
 use clap::load_yaml;
 use thiserror::Error;
-use std::io::{Write, BufRead, BufReader};
+use std::io::{Write, BufRead};
 
 #[derive(Error, Debug)]
 enum Error {
@@ -52,9 +53,8 @@ fn main() -> Result<(), Error> {
 /// m : maximal compression order for core algorithm    
 /// writer: stream
 fn decompress (fp: &str, m: u16, mut writer: std::fs::File) -> Result<(), Error> {
-    let input = std::fs::File::open(fp)?;
-    let reader = BufReader::new(input);
-    let header = header::Header::new(fp)?;
+    let mut reader = BufferedReader::new(fp)?;
+    let header = header::Header::new(&mut reader)?;
     let mut end_of_header = false;
     let mut decompressor = hatanaka::Decompressor::new(m.into());
     println!("Decompressing file \"{}\"", fp);
