@@ -17,12 +17,34 @@ mod sampling {
         // 10:10:00
         // 15:40:00
         ////////////////////////
-        rinex.decimate_by_interval(std::time::Duration::from_secs(1));
+        let interval = std::time::Duration::from_secs(1);
+        rinex.decimate_by_interval(interval);
         let epochs = rinex.epochs();
         assert_eq!(epochs.len(), origin_len); // interval too small: nothing changed
 
-        rinex.decimate_by_interval(std::time::Duration::from_secs(3600)); // removes 2nd epoch
+        let interval = std::time::Duration::from_secs(3600); 
+        // will drop 00:00:00->00:15:00
+        // will drop 09:45:00->10:10:00
+        rinex.decimate_by_interval(interval);
         let epochs = rinex.epochs();
-        assert_eq!(epochs.len(), origin_len -1);
+        ////////////////////////
+        // Epochs in this file:
+        // 00:00:00
+        // 05:00:00
+        // 09:45:00
+        // 15:40:00
+        ////////////////////////
+        assert_eq!(epochs.len(), origin_len -2);
+
+        let interval = std::time::Duration::from_secs(5*3600);
+        rinex.decimate_by_interval(interval);
+        let epochs = rinex.epochs();
+        ////////////////////////
+        // Epochs in this file:
+        // 00:00:00
+        // 05:00:00
+        // 15:40:00
+        ////////////////////////
+        assert_eq!(epochs.len(), 3); 
     }
 }

@@ -30,7 +30,6 @@ use reader::BufferedReader;
 use std::io::{Read, Write};
 
 use thiserror::Error;
-use std::collections::{BTreeMap};
 use chrono::{Datelike, Timelike};
 
 #[cfg(feature = "with-serde")]
@@ -334,11 +333,11 @@ impl Rinex {
     }
 
     /// Returns a list of epochs that present a data gap.
-    /// Data gap is determined by comparing e(k)-e(k-1): successive epoch intervals,
+    /// Data gap is determined by comparing |e(k)-e(k-1)|: successive epoch intervals,
     /// to the INTERVAL field found in the header.
-    /// Granularity is 1 second. This method will not produce anything
-    /// if header does not an INTERVAL field.
-    pub fn dead_times (&self) -> Vec<epoch::Epoch> {
+    /// Granularity is currently limited to 1 second. 
+    /// This method will not produce anything if header does not an INTERVAL field.
+    pub fn data_gap (&self) -> Vec<epoch::Epoch> {
         if let Some(interval) = self.header.sampling_interval {
             let interval = interval as u64;
             let mut epochs = self.epochs();
@@ -346,10 +345,10 @@ impl Rinex {
             epochs
                 .retain(|e| {
                     let delta = (e.date - prev).num_seconds() as u64; 
-                    if delta > interval {
+                    if delta <= interval {
+                        prev = e.date;
                         true
                     } else {
-                        prev = e.date;
                         false
                     }
             });
@@ -413,10 +412,10 @@ impl Rinex {
     }
 
     /// Returns list of epochs where RINEX merging operation(s) occurred.    
-    /// Epochs are determined either by the pseudo standard `FILE MERGE` comment description,
-    /// or by comment epochs inside the record
+    /// Epochs are determined either by the pseudo standard `FILE MERGE` comment description.
     pub fn merge_boundaries (&self) -> Vec<chrono::NaiveDateTime> {
-        self.header.comments
+        self.header
+            .comments
             .iter()
             .flat_map(|s| {
                 if s.contains("FILE MERGE") {
@@ -439,47 +438,51 @@ impl Rinex {
         let boundaries = self.merge_boundaries();
         let mut result : Vec<record::Record> = Vec::with_capacity(boundaries.len());
         let epochs = self.epochs();
-        let mut t_0 = epochs[0].date;
+        let mut e0 = epochs[0].date;
         for boundary in boundaries {
-            let _included : Vec<_> = epochs
-                .iter()
-                .filter(|e| e.date >= t_0 && e.date < boundary)
-                .collect();
-            let rec = match self.header.rinex_type {
+            let rec : record::Record = match self.header.rinex_type {
                 types::Type::NavigationData => {
-                    let rec : BTreeMap<_, _> = self.record.as_nav().unwrap()
-                        .iter()
-                        .filter(|(k, _)| k.date >= t_0 && k.date < boundary)
-                        .map(|(k, v)| (k.clone(),v.clone()))
-                        .collect();
-                    record::Record::NavRecord(rec)
+                    let mut record = self.record
+                        .as_nav()
+                        .unwrap()
+                        .clone();
+                    record.retain(|e, _| e.date >= e0 && e.date < boundary);
+                    record::Record::NavRecord(record.clone())
                 },
                 types::Type::ObservationData => {
-                    let rec : BTreeMap<_, _> = self.record.as_obs().unwrap()
-                        .iter()
-                        .filter(|(k, _)| k.date >= t_0 && k.date < boundary)
-                        .map(|(k, v)| (k.clone(),v.clone()))
-                        .collect();
-                    record::Record::ObsRecord(rec)
+                    let mut record = self.record
+                        .as_obs()
+                        .unwrap()
+                        .clone();
+                    record.retain(|e, _| e.date >= e0 && e.date < boundary);
+                    record::Record::ObsRecord(record.clone())
                 },
                 types::Type::MeteoData => {
-                    let rec : BTreeMap<_, _> = self.record.as_meteo().unwrap()
-                        .iter()
-                        .filter(|(k, _)| k.date >= t_0 && k.date < boundary)
-                        .map(|(k, v)| (k.clone(),v.clone()))
-                        .collect();
-                    record::Record::MeteoRecord(rec)
+                    let mut record = self.record
+                        .as_meteo()
+                        .unwrap()
+                        .clone();
+                    record.retain(|e, _| e.date >= e0 && e.date < boundary);
+                    record::Record::MeteoRecord(record.clone())
                 },
-                _ => unreachable!("epochs::iter()"),
+                types::Type::IonosphereMaps => {
+                    let mut record = self.record
+                        .as_ionex()
+                        .unwrap()
+                        .clone();
+                    record.retain(|e, _| e.date >= e0 && e.date < boundary);
+                    record::Record::IonexRecord(record.clone())
+                },
+                _ => todo!("implement other record types"),
             };
             result.push(rec);
-            t_0 = boundary 
+            e0 = boundary 
         }
         result
     }
 
-    /// Splits self into two seperate records, at desired `epoch`.
-    /// Self does not have to be a `Merged` file
+    /// Splits record into two at desired `epoch`.
+    /// Self does not have to be a `Merged` file.
     pub fn split_at_epoch (&self, epoch: epoch::Epoch) -> Result<(record::Record,record::Record), SplitError> {
         let epochs = self.epochs();
         if epoch.date < epochs[0].date {
@@ -689,9 +692,10 @@ impl Rinex {
         }
     }
     
-    /// ''cleans up'' file record in place, by removing all epochs
+    /// ''cleans up'' record in place, by removing all epochs
     /// that do not have an Epoch::Ok flag attached to them.
-    /// This method does not do anything, if this is not an Observation RINEX
+    /// This method does not do anything if this is not an Observation RINEX,
+    /// because flag is not given.
     pub fn cleanup_mut (&mut self) {
         let hd = &self.header;
         if hd.rinex_type != types::Type::ObservationData {
@@ -723,7 +727,7 @@ impl Rinex {
     
     /// Returns epochs where a loss of lock event happened.
     /// This method does not return anything if this is not an Observation RINEX
-    pub fn lock_loss_events (&self) -> Vec<epoch::Epoch> {
+    pub fn lock_loss_epochs (&self) -> Vec<epoch::Epoch> {
         if !self.is_observation_rinex() {
             return Vec::new()
         }
@@ -757,19 +761,82 @@ impl Rinex {
         let mut last_preserved = self.epochs()[0].date;
         match self.header.rinex_type {
             types::Type::NavigationData => {
-                let record = self.record.as_mut_nav()
+                let record = self.record
+                    .as_mut_nav()
                     .unwrap();
                 record.retain(|e, _| {
                     let delta = (e.date - last_preserved).num_seconds();
-                    if delta <= min_requirement {
-                        true
-                    } else{
+                    if e.date != last_preserved { // trick to avoid 1st entry..
+                        if delta > min_requirement {
+                            last_preserved = e.date;
+                            true
+                        } else {
+                            false
+                        }
+                    } else {
                         last_preserved = e.date;
-                        false
+                        true
                     }
                 });
             },
-            _ => todo!("implement other record types"),
+            types::Type::ObservationData => {
+                let record = self.record
+                    .as_mut_obs()
+                    .unwrap();
+                record.retain(|e, _| {
+                    let delta = (e.date - last_preserved).num_seconds();
+                    if e.date != last_preserved { // trick to avoid 1st entry..
+                        if delta > min_requirement {
+                            last_preserved = e.date;
+                            true
+                        } else {
+                            false
+                        }
+                    } else {
+                        last_preserved = e.date;
+                        true
+                    }
+                });
+            },
+            types::Type::MeteoData => {
+                let record = self.record
+                    .as_mut_meteo()
+                    .unwrap();
+                record.retain(|e, _| {
+                    let delta = (e.date - last_preserved).num_seconds();
+                    if e.date != last_preserved { // trick to avoid 1st entry..
+                        if delta > min_requirement {
+                            last_preserved = e.date;
+                            true
+                        } else {
+                            false
+                        }
+                    } else {
+                        last_preserved = e.date;
+                        true
+                    }
+                });
+            },
+            types::Type::IonosphereMaps => {
+                let record = self.record
+                    .as_mut_ionex()
+                    .unwrap();
+                record.retain(|e, _| {
+                    let delta = (e.date - last_preserved).num_seconds();
+                    if e.date != last_preserved { // trick to avoid 1st entry..
+                        if delta > min_requirement {
+                            last_preserved = e.date;
+                            true
+                        } else {
+                            false
+                        }
+                    } else {
+                        last_preserved = e.date;
+                        true
+                    }
+                });
+            },
+            _ => todo!("implement other record types")
         }
     }
 
