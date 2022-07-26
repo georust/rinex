@@ -2,7 +2,7 @@ use rinex::sv;
 use rinex::epoch;
 use rinex::types::Type;
 use rinex::constellation::Constellation;
-use itertools::Itertools;
+//use itertools::Itertools;
 
 fn main() {
     println!("**************************");

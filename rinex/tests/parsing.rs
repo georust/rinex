@@ -1,8 +1,8 @@
 #[cfg(test)]
 mod test {
     use rinex::*;
-    use std::str::FromStr;
-    use std::process::Command;
+    //use std::str::FromStr;
+    //use std::process::Command;
 /*
     /// Runs `diff` to determines whether f1 & f2 
     /// are strictly identical or not

@@ -37,7 +37,7 @@ pub struct Coordinates {
 }
 
 /// A map is a list of data indexed by Coordinates
-pub type Map = Vec<(Coordinates, Vec<i32>)>;
+pub type Map = Vec<(Coordinates, Vec<f32>)>;
 
 /*
 impl Maps {
@@ -91,7 +91,7 @@ pub fn build_record_entry (content: &str, exponent: i8) -> Result<(epoch::Epoch,
     let mut epoch = epoch::Epoch::default();
     let mut coords = Coordinates::default();
     let mut map = Map::new();
-    let mut data :Vec<i32> = Vec::new();
+    let mut data :Vec<f32> = Vec::new();
     for line in lines {
         let (content, marker) = line.split_at(60);
         if marker.contains("LAT/LON1/LON2/DLON/H") {
@@ -164,12 +164,12 @@ pub fn build_record_entry (content: &str, exponent: i8) -> Result<(epoch::Epoch,
                     .into_iter() 
             {
                 if let Ok(value) = i32::from_str_radix(item, 10) {
-                    data.push(value)
+                    let v = (value as f32) * 10.0_f32.powf(exp as f32);
+                    data.push(v)
                 }
             }
         }
     }
-
     Ok((epoch, map))
 }
 
