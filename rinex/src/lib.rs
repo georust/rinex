@@ -754,7 +754,7 @@ impl Rinex {
     /// |e(k).date - e(k-1).date| <= interval (included), get thrown away.
     /// Also note we adjust the INTERVAL field,
     /// meaning, further file production will be correct.
-    pub fn decimate_by_interval (&mut self, interval: std::time::Duration) {
+    pub fn decimate_by_interval_mut (&mut self, interval: std::time::Duration) {
         let min_requirement = chrono::Duration::from_std(interval)
             .unwrap()
             .num_seconds();
@@ -837,6 +837,106 @@ impl Rinex {
                 });
             },
             _ => todo!("implement other record types")
+        }
+    }
+
+    /// Refer to [decimate_by_interval], non mutable implementation
+    pub fn decimate_by_interval(&self, interval: std::time::Duration) -> Self {
+        let min_requirement = chrono::Duration::from_std(interval)
+            .unwrap()
+            .num_seconds();
+        let mut last_preserved = self.epochs()[0].date;
+        let record: record::Record = match self.header.rinex_type {
+            types::Type::NavigationData => {
+                let mut record = self.record
+                    .as_nav()
+                    .unwrap()
+                    .clone();
+                record.retain(|e, _| {
+                    let delta = (e.date - last_preserved).num_seconds();
+                    if e.date != last_preserved { // trick to avoid 1st entry..
+                        if delta > min_requirement {
+                            last_preserved = e.date;
+                            true
+                        } else {
+                            false
+                        }
+                    } else {
+                        last_preserved = e.date;
+                        true
+                    }
+                });
+                record::Record::NavRecord(record)
+            },
+            types::Type::ObservationData => {
+                let mut record = self.record
+                    .as_obs()
+                    .unwrap()
+                    .clone();
+                record.retain(|e, _| {
+                    let delta = (e.date - last_preserved).num_seconds();
+                    if e.date != last_preserved { // trick to avoid 1st entry..
+                        if delta > min_requirement {
+                            last_preserved = e.date;
+                            true
+                        } else {
+                            false
+                        }
+                    } else {
+                        last_preserved = e.date;
+                        true
+                    }
+                });
+                record::Record::ObsRecord(record)
+            },
+            types::Type::MeteoData => {
+                let mut record = self.record
+                    .as_meteo()
+                    .unwrap()
+                    .clone();
+                record.retain(|e, _| {
+                    let delta = (e.date - last_preserved).num_seconds();
+                    if e.date != last_preserved { // trick to avoid 1st entry..
+                        if delta > min_requirement {
+                            last_preserved = e.date;
+                            true
+                        } else {
+                            false
+                        }
+                    } else {
+                        last_preserved = e.date;
+                        true
+                    }
+                });
+                record::Record::MeteoRecord(record)
+            },
+            types::Type::IonosphereMaps => {
+                let mut record = self.record
+                    .as_ionex()
+                    .unwrap()
+                    .clone();
+                record.retain(|e, _| {
+                    let delta = (e.date - last_preserved).num_seconds();
+                    if e.date != last_preserved { // trick to avoid 1st entry..
+                        if delta > min_requirement {
+                            last_preserved = e.date;
+                            true
+                        } else {
+                            false
+                        }
+                    } else {
+                        last_preserved = e.date;
+                        true
+                    }
+                });
+                record::Record::IonexRecord(record)
+            },
+            _ => todo!("implement other record types"),
+        };
+        Self {
+            header: self.header.clone(),
+            comments: self.comments.clone(),
+            record,
         }
     }
 
