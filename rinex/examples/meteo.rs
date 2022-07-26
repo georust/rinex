@@ -31,8 +31,8 @@ fn main() {
     // ----> determine available observation codes
 	println!("\n###### METEO OBS CODES #######\n{:#?}", codes);
     
-    // decimate record: retain data @ 30s interval
-    rinex.resample(std::time::Duration::from_secs(30));
+    // // decimate record: retain data @ 30s interval
+    // rinex.resample(std::time::Duration::from_secs(30));
 	
     let record = rinex.record.as_meteo().unwrap();
 

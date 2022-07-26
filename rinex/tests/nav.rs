@@ -46,7 +46,7 @@ mod test {
         assert_eq!(rinex.is_navigation_rinex(), true);
         assert_eq!(rinex.header.obs.is_none(), true);
         assert_eq!(rinex.header.meteo.is_none(), true);
-        assert_eq!(rinex.epochs_iter().len(), 4); 
+        assert_eq!(rinex.epochs().len(), 4); 
         let record = rinex.record
             .as_nav();
         assert_eq!(record.is_some(), true);
