@@ -6,9 +6,9 @@ use clap::App;
 use clap::load_yaml;
 use std::str::FromStr;
 use std::collections::HashMap;
-use gnuplot::{Figure, Caption};
-use gnuplot::{Color, PointSymbol, LineStyle, DashType};
-use gnuplot::{PointSize, AxesCommon, LineWidth};
+use gnuplot::{Figure}; // Caption};
+//use gnuplot::{Color, PointSymbol, LineStyle, DashType};
+//use gnuplot::{PointSize, LineWidth}; // AxesCommon};
 
 use rinex::Rinex;
 use rinex::sv::Sv;
@@ -32,7 +32,8 @@ pub fn main () -> Result<(), Box<dyn std::error::Error>> {
         .unwrap()
             .split(",")
             .collect();
-    let output : Option<Vec<&str>> = match matches.is_present("output") {
+
+    let _output : Option<Vec<&str>> = match matches.is_present("output") {
         true => {
             Some(matches.value_of("output")
                 .unwrap()
@@ -456,7 +457,7 @@ for fp in &filepaths {
                     let r = rinex.record.as_nav().unwrap();
                     let mut map : HashMap<String, Vec<String>> = HashMap::new();
                     for (_, sv) in r.iter() {
-                        let mut codes : Vec<String> = Vec::new();
+                        let _codes : Vec<String> = Vec::new();
                         for (sv, data) in sv {
                             let codes : Vec<String> = data
                                 .keys()
@@ -503,11 +504,11 @@ for fp in &filepaths {
                                     })
                                 });
                         for code in codes { // for all remaining OBS/physics
-                            let mut data: Vec<Vec<Vec<f32>>> = Vec::new();// PerSV,PerEpoch,Data
+                            let _data: Vec<Vec<Vec<f32>>> = Vec::new();// PerSV,PerEpoch,Data
                             r.iter()
-                                .for_each(|(e, (_, sv))| {
+                                .for_each(|(_e, (_, sv))| {
                                     sv.iter()
-                                        .for_each(|(sv, data)| {
+                                        .for_each(|(_sv, _data)| {
                                             
                                         })
                                 });
