@@ -27,8 +27,8 @@ pub mod sv;
 pub mod types;
 pub mod version;
 
-use std::io::{Read, Write};
 use reader::BufferedReader;
+use std::io::{Read, BufReader, Write, SeekFrom};
 
 use thiserror::Error;
 use std::collections::{BTreeMap};
@@ -242,43 +242,53 @@ impl Rinex {
     }
 
     /// Builds a `RINEX` from given file.
-    /// Header section must respect labelization standards,   
+    /// Header section must respect labelization standards, 
     /// some are mandatory.   
-    /// Parses record for supported `RINEX` types
+    /// Parses record (file body) for supported `RINEX` types.
     pub fn from_file (path: &str) -> Result<Rinex, Error> {
-        // Create a first buffered reader (R wrapper)
-        // which allows hidding .gz / .Z decompression, if it is required and supported.
-        // We need to determine whether this is a RINEX 
-        //    or a CRINEX (which will require an extra decompression layer)
-        let mut reader = BufferedReader::new(path, false)?; // hatanaka encoding: not determined yet
+        // Grab first 80 bytes to fully determine the BufferedReader attributes.
+        // We use the `BufferedReader` wrapper for efficient file browsing (.lines())
+        // and at the same time, integrated (hidden in .lines() iteration) decompression.
+        let mut reader = BufferedReader::new(path)?;
         let mut buffer = [0; 80]; // 1st line mandatory size
-        let mut first_line = String::new();
+        let mut line = String::new(); // first line
         if let Ok(n) = reader.read(&mut buffer[..]) {
             if n < 80 {
                 panic!("corrupt header 1st line")
             }
             if let Ok(s) = String::from_utf8(buffer.to_vec()) {
-                first_line = s.clone()
+                line = s.clone()
             } else {
-                panic!("header 1st line is not UTF8 encoded")
+                panic!("header 1st line is not valid Utf8 encoding")
             }
         }
+
+/*
+ *      deflate (.gzip) fd pointer does not work / is not fully supported
+ *      at the moment. Let's recreate a new object, it's a little bit
+ *      silly, because we actually analyze the 1st line twice,
+ *      but Header builder already deduces several things from this line.
         
-        // now we build the final BufferedReader object
-        // to allow powerful file.lines() iteration,
-        // with possible (and hidden) Gz / Hatanaka /  Gz+Hatanaka decompression
-        let with_hatanaka = first_line.contains("CRINEX");
-        let mut reader = BufferedReader::new(path, with_hatanaka)
-            .unwrap(); // must pass
-        // --> parse header fields
-        //      First line gets actually processed twice..
-        //      Not super efficient, but the efficient file iteration and
-        //      hidden decompression capacities compensate for it..
-        let header = header::Header::new(&mut reader)?;
+        reader.seek(SeekFrom::Start(0))
+            .unwrap();
+*/        
+        let mut reader = BufferedReader::new(path)?;
+
+        // create buffered reader
+        if line.contains("CRINEX") {
+            // --> enhance buffered reader
+            //     with hatanaka M capacity
+            reader = reader.with_hatanaka(8)?; // M = 8 is more than enough
+        }
+
+        // --> parse header fields 
+        let header = header::Header::new(&mut reader)
+            .unwrap();
         // --> parse record (file body)
         //     we also grab encountered comments,
         //     they might serve some fileops like `splice` / `merge` 
-        let (record, comments) = record::build_record(&mut reader, &header)?;
+        let (record, comments) = record::build_record(&mut reader, &header)
+            .unwrap();
         Ok(Rinex {
             header,
             record,

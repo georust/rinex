@@ -27,11 +27,6 @@ use serde::{Serialize, Deserialize};
 #[cfg(feature = "with-serde")]
 use crate::formatter::point3d;
 
-/// Describes a `CRINEX` (compressed rinex) 
-pub const CRINEX_MARKER_COMMENT : &str = "COMPACT RINEX FORMAT";
-/// End of Header section reached
-pub const HEADER_END_MARKER : &str = "END OF HEADER";
-
 #[derive(Clone, Debug)]
 #[derive(EnumString)]
 #[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
@@ -258,7 +253,7 @@ impl Default for Header {
 }
 
 impl Header {
-    /// Builds a `Header` from local file
+    /// Builds a `Header` from local file and previously grabbed 1st line
     pub fn new (reader: &mut BufferedReader) -> Result<Header, Error> { 
         let mut crinex : Option<observation::Crinex> = None;
         let mut crnx_version = version::Version::default(); 
