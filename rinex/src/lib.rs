@@ -8,8 +8,6 @@ mod merge;
 mod formatter;
 //mod gnss_time;
 
-mod reader;
-
 pub mod antex;
 pub mod channel;
 pub mod clocks;
@@ -26,6 +24,7 @@ pub mod record;
 pub mod sv;
 pub mod types;
 pub mod version;
+pub mod reader;
 
 use reader::BufferedReader;
 use std::io::{Read, Write};
