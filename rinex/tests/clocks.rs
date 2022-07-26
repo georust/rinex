@@ -26,7 +26,6 @@ mod test {
             name: String::from("USNO"),
             id: String::from("40451S003"),
         }));
-        println!("{:#?}", rinex.record);
         //assert_eq!(rinex.is_ok(), true);
         //let rinex = rinex.unwrap();
         //assert_eq!(rinex.is_clocks_rinex(), true);
