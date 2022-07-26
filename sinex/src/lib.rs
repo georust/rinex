@@ -15,7 +15,7 @@ pub mod datetime;
 
 use reference::Reference;
 use description::Description;
-use header::{is_valid_header, Header, DocumentType};
+use header::{is_valid_header, Header};
 
 fn is_comment (line: &str) -> bool {
     line.starts_with("*")
@@ -87,7 +87,6 @@ impl Record {
     pub fn bias_solutions (&self) -> Option<&Vec<bias::Solution>> {
         match self {
             Self::BiasSolutions(r) => Some(r),
-            _ => None,
         }
     }
 /*

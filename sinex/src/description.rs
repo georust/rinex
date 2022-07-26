@@ -12,7 +12,6 @@ impl Description {
     pub fn bias_description (&self) -> Option<&bias::description::Description> {
         match self {
             Self::BiasDescription(d) => Some(d),
-            _ => None,
         }
     }
     /*pub fn tropo_description (&self) -> Option<&troposphere::description::Description> {

@@ -1,5 +1,4 @@
 use thiserror::Error;
-use crate::bias;
 use crate::header;
 use crate::header::is_valid_header;
 use crate::datetime::{parse_datetime, ParseDateTimeError};
@@ -93,7 +92,7 @@ impl std::str::FromStr for Header {
         }
 
         let (_, rem) = content.split_at(2); // marker
-        let (identifier, rem) = rem.split_at(4);
+        let (_identifier, rem) = rem.split_at(4);
         let (version, rem) = rem.split_at(5);
         let (file_code, rem) = rem.split_at(4);
         let (creation, rem) = rem.split_at(15);

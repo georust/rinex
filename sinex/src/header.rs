@@ -72,7 +72,6 @@ impl Header {
     pub fn bias_header (&self) -> Option<&bias::header::Header> {
         match self {
             Self::BiasHeader(h) => Some(h),
-            _ => None,
         }
     }
     /*pub fn tropo_header (&self) -> Option<&troposhere::header::Header> {
