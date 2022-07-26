@@ -28,7 +28,7 @@ pub mod types;
 pub mod version;
 
 use reader::BufferedReader;
-use std::io::{Read, BufReader, Write, SeekFrom};
+use std::io::{Read, Write};
 
 use thiserror::Error;
 use std::collections::{BTreeMap};

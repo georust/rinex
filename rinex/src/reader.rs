@@ -1,6 +1,6 @@
 //! Generic Buffered Reader, for efficient record iteration,
 //! with powerful internal Hatanaka / Gz decompression.
-use std::io::{BufReader, Seek, SeekFrom};
+use std::io::{BufReader}; // Seek, SeekFrom};
 use crate::hatanaka::Decompressor;
 #[cfg(feature = "with-gzip")]
 use flate2::read::GzDecoder;
@@ -13,9 +13,6 @@ pub enum ReaderWrapper {
     /// gzip compressed RINEX
     #[cfg(feature = "with-gzip")]
     GzFile(BufReader<GzDecoder<std::fs::File>>),
-    // /// zlib compressed RINEX
-    // #[cfg(feature = "with-gzip")]
-    // ZlibFile(BufReader<ZlibDecoder<std::fs::File>>),
 }
 
 pub struct BufferedReader {
@@ -45,8 +42,8 @@ impl BufferedReader {
                 panic!("gzip compressed data require the --with-gzip build feature")
             }
         
-        } else if path.ends_with(".Z") { // unix/lz4??
-            panic!(".Z file not supported yet, uncompress manuallyl first")
+        } else if path.ends_with(".Z") {
+            panic!(".z compressed files not supported yet, uncompress manually")
         
         } else { // Assumes no extra compression
             Ok(Self {
@@ -78,6 +75,7 @@ impl BufferedReader {
             },
         }
     }
+/*
     /// Modifies inner file pointer position
     pub fn seek (&mut self, pos: SeekFrom) -> Result<u64, std::io::Error> {
         match self.reader {
@@ -86,7 +84,6 @@ impl BufferedReader {
             ReaderWrapper::GzFile(ref mut bufreader) => bufreader.seek(pos),
         }
     }
-/*
     /// rewind filer inner pointer, to offset = 0 
     pub fn rewind (&mut self) -> Result<(), std::io::Error> {
         match self.reader {
