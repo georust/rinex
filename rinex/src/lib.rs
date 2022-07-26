@@ -28,6 +28,7 @@ pub mod reader;
 
 use reader::BufferedReader;
 use std::io::{Read, Write};
+use std::collections::BTreeMap;
 
 use thiserror::Error;
 use chrono::{Datelike, Timelike};
@@ -312,7 +313,7 @@ impl Rinex {
     /// Retruns true if this is an OBS RINX
     pub fn is_observation_rinex (&self) -> bool { self.header.rinex_type == types::Type::ObservationData }
 
-    /// Returns `epoch` (sampling timestamp) of first observation
+    /// Returns `epoch` of first observation
     pub fn first_epoch (&self) -> Option<epoch::Epoch> {
         let epochs = self.epochs();
         if epochs.len() == 0 {
@@ -322,7 +323,7 @@ impl Rinex {
         }
     }
 
-    /// Returns `epoch` (sampling timestamp) of last observation
+    /// Returns `epoch` of last observation
     pub fn last_epoch (&self) -> Option<epoch::Epoch> {
         let epochs = self.epochs();
         if epochs.len() == 0 {
@@ -360,6 +361,7 @@ impl Rinex {
     
     /// Returns list of epochs where unusual events happened,
     /// ie., epochs with an != Ok flag attached to them. 
+    /// This method does not filter anything on non Observation Records. 
     /// This method is very useful to determine when special/external events happened
     /// and what kind of events happened, such as:  
     ///  -  power cycle failures
@@ -692,11 +694,10 @@ impl Rinex {
         }
     }
     
-    /// ''cleans up'' record in place, by removing all epochs
-    /// that do not have an Epoch::Ok flag attached to them.
-    /// This method does not do anything if this is not an Observation RINEX,
-    /// because flag is not given.
-    pub fn cleanup_mut (&mut self) {
+    /// Filters out epochs in record that do not have
+    /// an Epoch::Ok flag attached to them.
+    /// Has no effects on non Observation Records.
+    pub fn epoch_ok_filter_mut (&mut self) {
         let hd = &self.header;
         if hd.rinex_type != types::Type::ObservationData {
             return;
@@ -707,9 +708,8 @@ impl Rinex {
         record.retain(|e, _| !e.flag.is_ok());
     }
 
-    /// Returns a "cleaned up" copy of self,
-    /// works like cleanup_mut() but does not modify in place
-    pub fn cleanup (&self) -> Self {
+    /// see [epoch_ok_filter_mut]
+    pub fn epoch_ok_filter (&self) -> Self {
         if self.header.rinex_type != types::Type::ObservationData {
             return self.clone()
         }
@@ -726,7 +726,7 @@ impl Rinex {
     }
     
     /// Returns epochs where a loss of lock event happened.
-    /// This method does not return anything if this is not an Observation RINEX
+    /// Has no effects on non Observation Records.
     pub fn lock_loss_epochs (&self) -> Vec<epoch::Epoch> {
         if !self.is_observation_rinex() {
             return Vec::new()
@@ -748,10 +748,91 @@ impl Rinex {
         }
         epochs
     }
+/*
+    /// Cleans up, in place, epochs where `loss of lock` events happened.
+    /// Has no effect on non Observation Records.
+    pub fn lock_loss_cleanup (&mut self) {
+        if !self.is_observation_rinex() {
+            return; // nothing we can do
+        }
+        let record = self.record
+            .as_mut_obs()
+            .unwrap();
+        record.retain(|e, (clk, sv)| {
+            sv.iter()
+              .map(|(_vehicule, obs)| {
+                obs.iter()
+                   .map(|(_, data)| {
+                      if let Some(lli) = data.lli {
+                        lli == observation::record::lli_flags::LOCK_LOSS
+                      } else {
+                        true // lli not provided --> nothing we can do
+                      }
+                   })
+              })
+        });
+    }
+*/
+    /// Executes in place given lli mask filter,
+    /// filters out all data in the record that does not
+    /// have a matching LLI mask attached to it.
+    /// This has no effect on non observation records.
+    pub fn lli_filter_mut (&mut self, mask: u8) {
+        if !self.is_observation_rinex() {
+            return ; // nothing we can do
+        }
+        let record = self.record
+            .as_mut_obs()
+            .unwrap();
+        record.iter_mut()
+            .map(|(_e, (_clk, sv))| {
+                sv.iter_mut()
+                    .map(|(_sv, obs)| {
+                        obs.retain(|_, data| {
+                            if let Some(lli) = data.lli {
+                                lli == mask
+                            } else {
+                                false // drops data with no LLI attached
+                            }
+                        })
+                    })
+            });
+    }
+
+    /// See [lli_filter_mut]
+    pub fn lli_filter (&self, mask: u8) -> Self {
+        if !self.is_observation_rinex() {
+            return self.clone(); // nothing we can do
+        }
+        let mut record = self.record
+            .as_obs()
+            .unwrap()
+            .clone();
+        //let record : observation::record::Record = record.iter_mut()
+        record.iter_mut()
+            .map(|(_e, (_clk, sv))| {
+                sv.iter()
+                    .map(|(_sv, obs)| {
+                        obs.iter()
+                            .filter(|(_, data)| {
+                                if let Some(lli) = data.lli {
+                                    lli == mask
+                                } else {
+                                    false // drops data with no LLI attached
+                                }
+                            })
+                    })
+            }); //.collect();
+        Self {
+            record: record::Record::ObsRecord(record),
+            comments: self.comments.clone(),
+            header: self.header.clone(),
+        }
+    }
 
     /// Decimates record to fit minimum required epoch interval.
     /// All epochs that do not match the requirement
-    /// |e(k).date - e(k-1).date| <= interval (included), get thrown away.
+    /// |e(k).date - e(k-1).date| < interval, get thrown away.
     /// Also note we adjust the INTERVAL field,
     /// meaning, further file production will be correct.
     pub fn decimate_by_interval_mut (&mut self, interval: std::time::Duration) {
@@ -767,7 +848,7 @@ impl Rinex {
                 record.retain(|e, _| {
                     let delta = (e.date - last_preserved).num_seconds();
                     if e.date != last_preserved { // trick to avoid 1st entry..
-                        if delta > min_requirement {
+                        if delta >= min_requirement {
                             last_preserved = e.date;
                             true
                         } else {
@@ -786,7 +867,7 @@ impl Rinex {
                 record.retain(|e, _| {
                     let delta = (e.date - last_preserved).num_seconds();
                     if e.date != last_preserved { // trick to avoid 1st entry..
-                        if delta > min_requirement {
+                        if delta >= min_requirement {
                             last_preserved = e.date;
                             true
                         } else {
@@ -805,7 +886,7 @@ impl Rinex {
                 record.retain(|e, _| {
                     let delta = (e.date - last_preserved).num_seconds();
                     if e.date != last_preserved { // trick to avoid 1st entry..
-                        if delta > min_requirement {
+                        if delta >= min_requirement {
                             last_preserved = e.date;
                             true
                         } else {
@@ -824,7 +905,7 @@ impl Rinex {
                 record.retain(|e, _| {
                     let delta = (e.date - last_preserved).num_seconds();
                     if e.date != last_preserved { // trick to avoid 1st entry..
-                        if delta > min_requirement {
+                        if delta >= min_requirement {
                             last_preserved = e.date;
                             true
                         } else {
@@ -855,7 +936,7 @@ impl Rinex {
                 record.retain(|e, _| {
                     let delta = (e.date - last_preserved).num_seconds();
                     if e.date != last_preserved { // trick to avoid 1st entry..
-                        if delta > min_requirement {
+                        if delta >= min_requirement {
                             last_preserved = e.date;
                             true
                         } else {
@@ -876,7 +957,7 @@ impl Rinex {
                 record.retain(|e, _| {
                     let delta = (e.date - last_preserved).num_seconds();
                     if e.date != last_preserved { // trick to avoid 1st entry..
-                        if delta > min_requirement {
+                        if delta >= min_requirement {
                             last_preserved = e.date;
                             true
                         } else {
@@ -897,7 +978,7 @@ impl Rinex {
                 record.retain(|e, _| {
                     let delta = (e.date - last_preserved).num_seconds();
                     if e.date != last_preserved { // trick to avoid 1st entry..
-                        if delta > min_requirement {
+                        if delta >= min_requirement {
                             last_preserved = e.date;
                             true
                         } else {
@@ -918,7 +999,7 @@ impl Rinex {
                 record.retain(|e, _| {
                     let delta = (e.date - last_preserved).num_seconds();
                     if e.date != last_preserved { // trick to avoid 1st entry..
-                        if delta > min_requirement {
+                        if delta >= min_requirement {
                             last_preserved = e.date;
                             true
                         } else {
@@ -930,6 +1011,150 @@ impl Rinex {
                     }
                 });
                 record::Record::IonexRecord(record)
+            },
+            _ => todo!("implement other record types"),
+        };
+        Self {
+            header: self.header.clone(),
+            comments: self.comments.clone(),
+            record,
+        }
+    }
+    
+    /// Decimates (reduce record quantity) by given ratio.
+    /// For example, ratio = 2, we keep one out of two entry,
+    /// regardless of epoch interval and interval values.
+    /// This works on any time of record, since we do not care,
+    /// about the internal information, just the number of entries in the record. 
+    pub fn decimate_by_ratio_mut (&mut self, ratio: u32) {
+        let mut counter = 0;
+        match self.header.rinex_type {
+            types::Type::NavigationData => {
+                let mut record = self.record
+                    .as_mut_nav()
+                    .unwrap();
+                record.retain(|e, _| {
+                    let retain = (counter % ratio) == 0;
+                    counter += 1;
+                    retain
+                });
+            },
+            types::Type::ObservationData => {
+                let mut record = self.record
+                    .as_mut_obs()
+                    .unwrap();
+                record.retain(|e, _| {
+                    let retain = (counter % ratio) == 0;
+                    counter += 1;
+                    retain
+                });
+            },
+            types::Type::MeteoData => {
+                let mut record = self.record
+                    .as_mut_meteo()
+                    .unwrap();
+                record.retain(|e, _| {
+                    let retain = (counter % ratio) == 0;
+                    counter += 1;
+                    retain
+                });
+            },
+            types::Type::ClockData => {
+                let mut record = self.record
+                    .as_mut_clock()
+                    .unwrap();
+                record.retain(|e, _| {
+                    let retain = (counter % ratio) == 0;
+                    counter += 1;
+                    retain
+                });
+            },
+            types::Type::IonosphereMaps => {
+                let mut record = self.record
+                    .as_mut_ionex()
+                    .unwrap();
+                record.retain(|e, _| {
+                    let retain = (counter % ratio) == 0;
+                    counter += 1;
+                    retain
+                });
+            },
+            types::Type::AntennaData => {
+                let mut record = self.record
+                    .as_mut_antex()
+                    .unwrap();
+                record.retain(|e| {
+                    let retain = (counter % ratio) == 0;
+                    counter += 1;
+                    retain
+                });
+            },
+        }
+    }
+
+    /// See [decimate_by_ratio_mut]
+    pub fn decimate_by_ratio (&self, ratio: u32) -> Self {
+        let mut counter = 0;
+        let record :record::Record = match self.header.rinex_type {
+            types::Type::NavigationData => {
+                let mut record = self.record
+                    .as_nav()
+                    .unwrap()
+                    .clone();
+                record.retain(|e, _| {
+                    let retain = (counter % ratio) == 0;
+                    counter += 1;
+                    retain
+                });
+                record::Record::NavRecord(record)
+            },
+            types::Type::ObservationData => {
+                let mut record = self.record
+                    .as_obs()
+                    .unwrap()
+                    .clone();
+                record.retain(|e, _| {
+                    let retain = (counter % ratio) == 0;
+                    counter += 1;
+                    retain
+                });
+                record::Record::ObsRecord(record)
+            },
+            types::Type::MeteoData => {
+                let mut record = self.record
+                    .as_meteo()
+                    .unwrap()
+                    .clone();
+                record.retain(|e, _| {
+                    let retain = (counter % ratio) == 0;
+                    counter += 1;
+                    retain
+                });
+                record::Record::MeteoRecord(record)
+            },
+            types::Type::IonosphereMaps => {
+                let mut record = self.record
+                    .as_ionex()
+                    .unwrap()
+                    .clone();
+                record.retain(|e, _| {
+                    let retain = (counter % ratio) == 0;
+                    counter += 1;
+                    retain
+                });
+                record::Record::IonexRecord(record)
+            },
+            types::Type::AntennaData => {
+                let mut record = self.record
+                    .as_antex()
+                    .unwrap()
+                    .clone();
+                record.retain(|e| {
+                    let retain = (counter % ratio) == 0;
+                    counter += 1;
+                    retain
+                });
+                record::Record::AntexRecord(record)
             },
             _ => todo!("implement other record types"),
         };
