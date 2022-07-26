@@ -3,6 +3,7 @@ mod test {
     use rinex::*;
     use std::str::FromStr;
     use std::process::Command;
+/*
     /// Runs `diff` to determines whether f1 & f2 
     /// are strictly identical or not
     fn diff_is_strictly_identical (f1: &str, f2: &str) -> Result<bool, std::string::FromUtf8Error> {
@@ -16,6 +17,7 @@ mod test {
         let output = String::from_utf8(output.stdout)?;
         Ok(output.len()==0)
     }
+*/
     #[test]
     fn test_parser() {
         let test_resources = env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/";
@@ -23,6 +25,7 @@ mod test {
 			"ATX",
 			"CLK",
 			"CRNX",
+            //"IONEX",
 			"MET",
 			"NAV",
 			"OBS",
