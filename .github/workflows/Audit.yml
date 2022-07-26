@@ -1,0 +1,20 @@
+name: Audit
+
+on:
+  release:
+    types: [published]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  audit:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Audit
+      run: |
+        cargo install cargo-audit
+        cargo audit
