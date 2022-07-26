@@ -289,10 +289,11 @@ mod tests {
         let sinex = Sinex::from_file(&file);
         assert_eq!(sinex.is_ok(), true);
         let sinex = sinex.unwrap();
-        let reference = &sinex.reference;
         assert_eq!(sinex.acknowledgments.len(), 2);
         assert_eq!(sinex.acknowledgments[0], "COD Center for Orbit Determination in Europe, AIUB, Switzerland");
         assert_eq!(sinex.acknowledgments[1], "IGS International GNSS Service");
+        
+        let _reference = &sinex.reference;
 
         let description = &sinex.description;
         let description = description.bias_description();
