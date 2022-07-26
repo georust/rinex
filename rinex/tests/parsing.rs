@@ -78,7 +78,6 @@ mod test {
                     let rinex = Rinex::from_file(full_path);
                     assert_eq!(rinex.is_ok(), true);
                     let rinex = rinex.unwrap();
-                    println!("{:#?}", rinex.header);
                     match data {
                         "ATX" => { // ATX record
                             assert_eq!(rinex.header.obs.is_none(), true);
