@@ -27,11 +27,6 @@ use serde::{Serialize, Deserialize};
 #[cfg(feature = "with-serde")]
 use crate::formatter::point3d;
 
-/// Describes a `CRINEX` (compressed rinex) 
-pub const CRINEX_MARKER_COMMENT : &str = "COMPACT RINEX FORMAT";
-/// End of Header section reached
-pub const HEADER_END_MARKER : &str = "END OF HEADER";
-
 #[derive(Clone, Debug)]
 #[derive(EnumString)]
 #[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
@@ -258,8 +253,8 @@ impl Default for Header {
 }
 
 impl Header {
-    /// Builds a `Header` from local file
-    pub fn new (path: &str) -> Result<Header, Error> { 
+    /// Builds a `Header` from local file and previously grabbed 1st line
+    pub fn new (reader: &mut BufferedReader) -> Result<Header, Error> { 
         let mut crinex : Option<observation::Crinex> = None;
         let mut crnx_version = version::Version::default(); 
         let mut rinex_type = Type::default();
@@ -308,9 +303,7 @@ impl Header {
         let mut ref_ant_sn : Option<String> = None;
         // IONEX
         let mut ionex = ionosphere::HeaderFields::default();
-
-        // stream reader
-        let reader = BufferedReader::new(path)?;
+        // iterate on a line basis
         let lines = reader.lines();
         for l in lines { 
             let line = l.unwrap();
@@ -319,9 +312,15 @@ impl Header {
             }
             let (content, marker) = line.split_at(60);
             ///////////////////////////////
-            // [0] COMMENTS
+            // [0] END OF HEADER  
+            //     --> done parsing
             ///////////////////////////////
-            if marker.trim().eq("COMMENT") {
+            if marker.trim().eq("END OF HEADER") {
+                break
+            ///////////////////////////////
+            // [0*] COMMENTS
+            ///////////////////////////////
+            } if marker.trim().eq("COMMENT") {
                 // --> storing might be useful
                 comments.push(content.trim().to_string());
                 continue

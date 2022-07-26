@@ -186,9 +186,7 @@ pub fn is_new_epoch (line: &str, header: &header::Header) -> bool {
 
 /// Builds a `Record`, `RINEX` file body content,
 /// which is constellation and `RINEX` file type dependent
-pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Comments), Error> {
-    let reader = BufferedReader::new(path)?;
-    let mut inside_header = true;
+pub fn build_record (reader: &mut BufferedReader, header: &header::Header) -> Result<(Record, Comments), Error> {
     let mut first_epoch = true;
     let mut content : Option<String>; // epoch content to build
     let mut epoch_content = String::with_capacity(6*64);
@@ -216,15 +214,8 @@ pub fn build_record (path: &str, header: &header::Header) -> Result<(Record, Com
     let mut clk_rec = clocks::record::Record::new(); // CLK
     let mut ionx_rec = ionosphere::record::Record::new(); //IONEX
 
-    for l in reader.lines() { // process one line at a time 
+    for l in reader.lines() { // iterates one line at a time 
         let line = l.unwrap();
-        // HEADER : already processed
-        if inside_header {
-            if line.contains("END OF HEADER") {
-                inside_header = false // header is ending 
-            }
-            continue
-        }
         // COMMENTS special case
         // --> store
         // ---> append later with epoch.timestamp attached to it

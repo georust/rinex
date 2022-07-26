@@ -27,7 +27,9 @@ pub mod sv;
 pub mod types;
 pub mod version;
 
-use std::io::Write;
+use reader::BufferedReader;
+use std::io::{Read, Write};
+
 use thiserror::Error;
 use std::collections::{BTreeMap};
 use chrono::{Datelike, Timelike};
@@ -123,6 +125,8 @@ pub enum Error {
     HeaderError(#[from] header::Error),
     #[error("record parsing error")]
     RecordError(#[from] record::Error),
+    #[error("file i/o error")]
+    IoError(#[from] std::io::Error),
 }
 
 #[derive(Error, Debug)]
@@ -238,12 +242,53 @@ impl Rinex {
     }
 
     /// Builds a `RINEX` from given file.
-    /// Header section must respect labelization standards,   
+    /// Header section must respect labelization standards, 
     /// some are mandatory.   
-    /// Parses record for supported `RINEX` types
+    /// Parses record (file body) for supported `RINEX` types.
     pub fn from_file (path: &str) -> Result<Rinex, Error> {
-        let header = header::Header::new(path)?;
-        let (record, comments) = record::build_record(path, &header)?;
+        // Grab first 80 bytes to fully determine the BufferedReader attributes.
+        // We use the `BufferedReader` wrapper for efficient file browsing (.lines())
+        // and at the same time, integrated (hidden in .lines() iteration) decompression.
+        let mut reader = BufferedReader::new(path)?;
+        let mut buffer = [0; 80]; // 1st line mandatory size
+        let mut line = String::new(); // first line
+        if let Ok(n) = reader.read(&mut buffer[..]) {
+            if n < 80 {
+                panic!("corrupt header 1st line")
+            }
+            if let Ok(s) = String::from_utf8(buffer.to_vec()) {
+                line = s.clone()
+            } else {
+                panic!("header 1st line is not valid Utf8 encoding")
+            }
+        }
+
+/*
+ *      deflate (.gzip) fd pointer does not work / is not fully supported
+ *      at the moment. Let's recreate a new object, it's a little bit
+ *      silly, because we actually analyze the 1st line twice,
+ *      but Header builder already deduces several things from this line.
+        
+        reader.seek(SeekFrom::Start(0))
+            .unwrap();
+*/        
+        let mut reader = BufferedReader::new(path)?;
+
+        // create buffered reader
+        if line.contains("CRINEX") {
+            // --> enhance buffered reader
+            //     with hatanaka M capacity
+            reader = reader.with_hatanaka(8)?; // M = 8 is more than enough
+        }
+
+        // --> parse header fields 
+        let header = header::Header::new(&mut reader)
+            .unwrap();
+        // --> parse record (file body)
+        //     we also grab encountered comments,
+        //     they might serve some fileops like `splice` / `merge` 
+        let (record, comments) = record::build_record(&mut reader, &header)
+            .unwrap();
         Ok(Rinex {
             header,
             record,
