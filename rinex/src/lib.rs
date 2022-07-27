@@ -448,7 +448,7 @@ impl Rinex {
         }
         result
     }
-
+    
     /// Splits merged `records` into seperate `records`.
     /// Returns empty list if self is not a `Merged` file
     pub fn split_merged_records (&self) -> Vec<record::Record> {
@@ -497,6 +497,25 @@ impl Rinex {
         }
         result
     }
+
+    /// Splits self into two RINEXes, at desired epoch.
+    /// Header sections are simply copied.
+    pub fn split_at_epoch (&self, epoch: epoch::Epoch) -> Result<(Self, Self), SplitError> {
+        let (r0, r1) = self.split_record_at_epoch(epoch)?;
+        Ok((
+            Self {
+                header: self.header.clone(),
+                comments: self.comments.clone(),
+                record: r0,
+            },
+            Self {
+                header: self.header.clone(),
+                comments: self.comments.clone(),
+                record: r1,
+            },
+        ))
+    }
+
 
     /// Splits record into two at desired `epoch`.
     /// Self does not have to be a `Merged` file.
