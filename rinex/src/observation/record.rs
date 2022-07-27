@@ -2,6 +2,7 @@
 use std::io::Write;
 use thiserror::Error;
 use std::str::FromStr;
+use bitflags::bitflags;
 use std::collections::{BTreeMap, HashMap};
 use physical_constants::SPEED_OF_LIGHT_IN_VACUUM;
 
@@ -88,19 +89,22 @@ impl Ssi {
     pub fn is_ok (self) -> bool { self.is_strong() }
 }
 
-pub mod lli_flags {
-    /// Current epoch is marked Ok or Unknown status 
-    pub const OK_OR_UNKNOWN : u8 = 0x00;
-    /// Lock lost between previous observation and current observation,
-    /// cycle slip is possible
-    pub const LOCK_LOSS : u8 = 0x01;
-    /// Opposite wavelenght factor to the one defined
-    /// for the satellite by a previous WAVELENGTH FACT comment,
-    /// or opposite to default value, is not previous WAVELENFTH FACT comment
-    pub const HALF_CYCLE_SLIP : u8 = 0x02;
-    /// Observing under anti spoofing,
-    /// might suffer from decreased SNR - decreased signal quality
-    pub const UNDER_ANTI_SPOOFING : u8 = 0x04;
+bitflags! {
+    #[cfg_attr(feature = "with-serde", derive(Serialize))]
+    pub struct LliFlags: u8 {
+        /// Current epoch is marked Ok or Unknown status 
+        const OK_OR_UNKNOWN = 0x00;
+        /// Lock lost between previous observation and current observation,
+        /// cycle slip is possible
+        const LOCK_LOSS = 0x01;
+        /// Opposite wavelenght factor to the one defined
+        /// for the satellite by a previous WAVELENGTH FACT comment,
+        /// or opposite to default value, is not previous WAVELENFTH FACT comment
+        const HALF_CYCLE_SLIP = 0x02;
+        /// Observing under anti spoofing,
+        /// might suffer from decreased SNR - decreased signal quality
+        const UNDER_ANTI_SPOOFING = 0x04;
+    }
 }
 
 #[derive(PartialEq, Copy, Clone, Debug)]
@@ -109,14 +113,14 @@ pub struct ObservationData {
 	/// physical measurement
 	pub obs: f32,
 	/// Lock loss indicator 
-	pub lli: Option<u8>,
+	pub lli: Option<LliFlags>,
 	/// Signal strength indicator
 	pub ssi: Option<Ssi>,
 }
 
 impl ObservationData {
 	/// Builds new ObservationData structure from given predicates
-    pub fn new (obs: f32, lli: Option<u8>, ssi: Option<Ssi>) -> ObservationData {
+    pub fn new (obs: f32, lli: Option<LliFlags>, ssi: Option<Ssi>) -> ObservationData {
 		ObservationData {
 			obs,
 			lli,
@@ -127,11 +131,11 @@ impl ObservationData {
     /// self is declared `ok` if LLI and SSI flags are not provided,
     /// because they are considered as unknown/ok if missing by default.   
     /// If LLI exists:    
-    ///    + LLI must match the lli_flags::OkOrUnknown flag (strictly)    
+    ///    + LLI must match the LliFlags::OkOrUnknown flag (strictly)    
     /// if SSI exists:    
     ///    + SSI must match the .is_ok() criteria, refer to API 
     pub fn is_ok (self) -> bool {
-        let lli_ok = self.lli.unwrap_or(lli_flags::OK_OR_UNKNOWN) == lli_flags::OK_OR_UNKNOWN;
+        let lli_ok = self.lli.unwrap_or(LliFlags::OK_OR_UNKNOWN) == LliFlags::OK_OR_UNKNOWN;
         let ssi_ok = self.ssi.unwrap_or(Ssi::default()).is_ok();
         lli_ok && ssi_ok
     }
@@ -366,7 +370,7 @@ pub fn build_record_entry (header: &header::Header, content: &str)
 					},
 				};
 
-				let lli : Option<u8> = match line.len() < offset+14+1 {
+				let lli : Option<LliFlags> = match line.len() < offset+14+1 {
 					true => {
 						// can't parse lli here
 						// 	* line is over and this measurement
@@ -375,11 +379,11 @@ pub fn build_record_entry (header: &header::Header, content: &str)
 					},
 					false => {
 						let lli = &line[offset+14..offset+14+1];
-						let lli = match u8::from_str_radix(&lli, 10) {
-							Ok(lli) => Some(lli),
-							Err(_) => None, // lli field is empty
-						};
-						lli
+						if let Ok(lli) = u8::from_str_radix(&lli, 10) {
+                            LliFlags::from_bits(lli)
+                        } else {
+                            None
+                        }
 					},
 				};
 
@@ -470,7 +474,7 @@ pub fn build_record_entry (header: &header::Header, content: &str)
 					Ok(f) => Some(f),
 					Err(_) => None, // empty field
 				};
-				let lli : Option<u8> = match rem.len() < offset+14+1 {
+				let lli : Option<LliFlags> = match rem.len() < offset+14+1 {
 					true => {
 						// can't parse lli here,
 						// line is terminated by an OBS without lli nor ssi
@@ -478,11 +482,11 @@ pub fn build_record_entry (header: &header::Header, content: &str)
 					},
 					false => {
 						let lli = &rem[offset+14..offset+14+1];
-						let lli = match u8::from_str_radix(&lli, 10) {
-							Ok(lli) => Some(lli),
-							Err(_) => None, // lli field is empty
-						};
-						lli
+						if let Ok(lli) = u8::from_str_radix(&lli, 10) {
+                            LliFlags::from_bits(lli)
+                        } else {
+                            None
+                        }
 					},
 				};
 				let ssi : Option<Ssi> = match rem.len() < offset+14+2 {
@@ -584,16 +588,6 @@ mod test {
         assert_eq!(ssi.is_excellent(), true);
         let ssi = Ssi::from_str("10"); 
         assert_eq!(ssi.is_err(), true);
-    }
-    #[test]
-    fn lli_masking() {
-        let lli = 0;
-        assert_eq!(lli & lli_flags::OK_OR_UNKNOWN, 0);
-        let lli = 0x03;
-        assert_eq!(lli & lli_flags::LOCK_LOSS > 0, true); 
-        assert_eq!(lli & lli_flags::HALF_CYCLE_SLIP > 0, true); 
-        let lli = 0x04;
-        assert_eq!(lli & lli_flags::UNDER_ANTI_SPOOFING > 0, true); 
     }
     #[test]
     fn new_epoch() {

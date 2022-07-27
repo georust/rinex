@@ -23,6 +23,7 @@ serde_json = "1.0"
 [dependencies]
 chrono = "0.4"
 thiserror = "1"
+bitflags = "1.2.1"
 scan_fmt = "0.1"
 lazy_static = "1"
 rust-3d = "0.34.0"
