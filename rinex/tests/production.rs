@@ -84,6 +84,8 @@ mod test {
             // produce a copy
             let copy_path = fp.to_owned() + "-copy";
             assert_eq!(rinex.to_file(&copy_path).is_ok(), true);
+            // remove copy to not disturb other tests browser
+            let _ = std::fs::remove_file(copy_path);
         }
     }
 }
