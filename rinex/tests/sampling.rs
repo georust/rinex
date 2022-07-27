@@ -51,7 +51,7 @@ mod sampling {
     fn test_decimate_nav_by_interval() {
         let path = env!("CARGO_MANIFEST_DIR").to_owned() 
             + "/../test_resources/NAV/V3/AMEL00NLD_R_20210010000_01D_MN.rnx";
-        let mut rinex = Rinex::from_file(&path).unwrap();
+        let rinex = Rinex::from_file(&path).unwrap();
         let epochs = rinex.epochs();
         let origin = epochs.len();
         ////////////////////////
@@ -104,7 +104,7 @@ mod sampling {
     fn test_decimate_obs_by_interval_mut() {
         let path = env!("CARGO_MANIFEST_DIR").to_owned() 
             + "/../test_resources/OBS/V2/zegv0010.21o";
-        let mut rinex = Rinex::from_file(&path).unwrap();
+        let rinex = Rinex::from_file(&path).unwrap();
         ////////////////////////
         // Epochs in this file:
         // 21 01 01 00 00 00.0000000
@@ -161,7 +161,7 @@ mod sampling {
     fn test_decimate_obs_by_ratio() {
         let path = env!("CARGO_MANIFEST_DIR").to_owned() 
             + "/../test_resources/OBS/V2/zegv0010.21o";
-        let mut rinex = Rinex::from_file(&path).unwrap();
+        let rinex = Rinex::from_file(&path).unwrap();
         ////////////////////////
         // Epochs in this file:
         // 21 01 01 00 00 00.0000000
@@ -265,4 +265,24 @@ mod sampling {
         let epochs = rinex.epochs();
         assert_eq!(epochs.len(), 4);
     }
+/* is this a rounding issue? ...
+    #[test]
+    fn test_average_epoch_duration() {
+        let path = env!("CARGO_MANIFEST_DIR").to_owned() 
+            + "/../test_resources/OBS/V2/zegv0010.21o";
+        let rinex = Rinex::from_file(&path).unwrap();
+        println!("{:#?}", rinex.epochs());
+        println!("{:#?}", rinex.epochs().len());
+        ////////////////////////
+        // 21 01 01 00 08 00.0000000 
+        // 21 01 01 00 08 30.0000000 
+        // 21 01 01 00 09 00.0000000
+        ////////////////////////
+        let header = &rinex.header;
+        assert_eq!(header.sampling_interval.is_some(), true);
+        let interval = header.sampling_interval.unwrap();
+        let expected = std::time::Duration::from_secs(interval as u64);
+        assert_eq!(rinex.average_epoch_duration(), expected);
+    }
+*/
 }
