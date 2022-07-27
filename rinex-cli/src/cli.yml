@@ -80,7 +80,11 @@ args:
     - ssi:
         long: ssi
         takes_value: true 
-        help: Retain only OBS data that have at least this SSI signal strength indication attached to them (x > SSI is retained) 
+        help: |
+            Retain only Observations that have at least this SSI signal strength indication attached to them (x > SSI is retained).
+            For example: --ssi 5 for "Ok" filter
+            For example: --ssi 7 for "Very Good" quality filter
+            For example: --ssi 8 for "Ultra high" quality filter
     - distance:
         long: distance 
         takes_value: true
