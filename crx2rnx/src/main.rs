@@ -56,7 +56,7 @@ fn decompress (fp: &str, m: u16, mut writer: std::fs::File) -> Result<(), Error>
     // BufferedReader is not efficient enough (at the moment) to
     // perform the Hatanaka decompression by itself, but we'll get there..
     // BufferedReader supports .gzip stream decompression and efficient .line() browsing.
-    let mut reader = BufferedReader::new(fp)?;
+    let reader = BufferedReader::new(fp)?;
     let mut inside_crinex = true;
     for line in reader.lines() {
         let l = &line.unwrap();

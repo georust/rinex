@@ -54,7 +54,7 @@ pub fn main () -> Result<(), Box<dyn std::error::Error>> {
     let merge = matches.is_present("merge");
 
     let split = matches.is_present("split");
-    let split_epoch : Option<epoch::Epoch> = match matches.value_of("split") {
+    let _split_epoch : Option<epoch::Epoch> = match matches.value_of("split") {
         Some(date) => {
             let offset = 4 +2+1 +2+1 +2+1 +2+1 +2+1; // YYYY-mm-dd-HH:MM:SS 
             let datetime = date[0..offset].to_string();
