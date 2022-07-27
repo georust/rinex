@@ -792,6 +792,26 @@ impl Rinex {
         self
             .lli_filter_mut(observation::record::LliFlags::LOCK_LOSS)
     }
+    
+    /// Retains data that was recorded along given constellation(s).
+    /// This has no effect on ATX, CLK, MET and IONEX records. 
+    pub fn constellation_filter_mut (&mut self, filter: Vec<constellation::Constellation>) {
+        if self.is_observation_rinex() {
+            let record = self.record
+                .as_mut_obs()
+                .unwrap();
+            for (_e, (_clk, sv)) in record.iter_mut() {
+                sv.retain(|sv, _| filter.contains(&sv.constellation))
+            }
+        } else if self.is_navigation_rinex() {
+            let record = self.record
+                .as_mut_nav()
+                .unwrap();
+            for (_e, sv) in record.iter_mut() {
+                sv.retain(|sv, _| filter.contains(&sv.constellation))
+            }
+        }
+    }
 
     /// Retains data that were recorded only for given list of 
     /// space vehicules. This has no effect on ATX, CLK, MET
