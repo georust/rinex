@@ -144,7 +144,6 @@ for fp in &filepaths {
 
     // [1] resampling
     if resampling {
-       println!("resampling is WIP"); 
         let hms = matches.value_of("resampling").unwrap();
         let hms : Vec<_> = hms.split(":").collect();
         let (h,m,s) = (
@@ -153,85 +152,22 @@ for fp in &filepaths {
             u64::from_str_radix(hms[2], 10).unwrap(),
         );
         let interval = std::time::Duration::from_secs(h*3600 + m*60 +s);
-        rinex.resample(interval)
+        rinex.decimate_by_interval_mut(interval)
     }
     if decimate {
-       println!("resampling is WIP"); 
         let r = u32::from_str_radix(matches.value_of("decimate").unwrap(), 10).unwrap();
-        rinex.decimate(r)
+        rinex.decimate_by_ratio_mut(r)
     }
 
     // [2] epoch::ok filter
     if epoch_ok_filter {
-        match &rinex.header.rinex_type {
-            Type::ObservationData => {
-                let filtered : Vec<_> = rinex.record
-                    .as_obs()
-                    .unwrap()
-                    .iter()
-                    .filter(|(epoch, (_, _))| {
-                        epoch.flag.is_ok()
-                    })
-                    .collect();
-                let mut rework = observation::record::Record::new();
-                for (e, data) in filtered {
-                    rework.insert(*e, data.clone());
-                }
-                rinex.record = Record::ObsRecord(rework)
-            },
-            Type::MeteoData => {
-                let filtered : Vec<_> = rinex.record
-                    .as_meteo()
-                    .unwrap()
-                    .iter()
-                    .filter(|(epoch, _)| {
-                        epoch.flag.is_ok()
-                    })
-                    .collect();
-                let mut rework = meteo::record::Record::new();
-                for (e, data) in filtered {
-                    rework.insert(*e, data.clone());
-                }
-                rinex.record = Record::MeteoRecord(rework)
-            },
-            _ => {},
-        }
+        rinex
+            .epoch_ok_filter_mut()
     }
     // [2*] !epoch::ok filter
     if epoch_nok_filter {
-        match &rinex.header.rinex_type {
-            Type::ObservationData => {
-                let filtered : Vec<_> = rinex.record
-                    .as_obs()
-                    .unwrap()
-                    .iter()
-                    .filter(|(epoch, (_, _))| {
-                        !epoch.flag.is_ok()
-                    })
-                    .collect();
-                let mut rework = observation::record::Record::new();
-                for (e, data) in filtered {
-                    rework.insert(*e, data.clone());
-                }
-                rinex.record = Record::ObsRecord(rework)
-            },
-            Type::MeteoData => {
-                let filtered : Vec<_> = rinex.record
-                    .as_meteo()
-                    .unwrap()
-                    .iter()
-                    .filter(|(epoch, _)| {
-                        !epoch.flag.is_ok()
-                    })
-                    .collect();
-                let mut rework = meteo::record::Record::new();
-                for (e, data) in filtered {
-                    rework.insert(*e, data.clone());
-                }
-                rinex.record = Record::MeteoRecord(rework)
-            },
-            _ => {},
-        }
+        rinex
+            .epoch_nok_filter_mut()
     }
 
     // [3] sv filter
@@ -336,32 +272,10 @@ for fp in &filepaths {
     }
     //[4*] LLI filter
     if let Some(lli) = lli {
-        match &rinex.header.rinex_type {
-            Type::ObservationData => {
-                let mut rework = observation::record::Record::new();
-                for (epoch, (ck,data)) in rinex.record.as_obs().unwrap().iter() {
-                    let mut map : HashMap<Sv, HashMap<String, observation::record::ObservationData>> = HashMap::new();
-                    for (sv, data) in data.iter() {
-                        let mut inner : HashMap<String, observation::record::ObservationData> = HashMap::new();
-                        for (code, data) in data.iter() {
-                            if let Some(lli_flags) = data.lli {
-                                if lli_flags == lli { 
-                                    inner.insert(code.clone(), data.clone());
-                                }
-                            }
-                        }
-                        if inner.len() > 0 {
-                            map.insert(*sv, inner);
-                        }
-                    }
-                    if map.len() > 0 {
-                        rework.insert(*epoch, (*ck, map));
-                    }
-                }
-                rinex.record = Record::ObsRecord(rework)
-            },
-            _ => {},
-        }
+        let mask = rinex::observation::record::LliFlags::from_bits(lli)
+            .unwrap();
+        rinex
+            .lli_filter_mut(mask)
     }
     //[4*] SSI filter
     if let Some(ssi) = ssi {
@@ -394,6 +308,7 @@ for fp in &filepaths {
     }
         
     if split {
+    /*
         match rinex.split(split_epoch) {
             Ok(files) => {
                 println!("{}", files.len());
@@ -405,6 +320,7 @@ for fp in &filepaths {
             },
             Err(e) => println!("Split() ops failed with {:?}", e),
         }
+    */
     }
 
     if splice {
@@ -420,62 +336,20 @@ for fp in &filepaths {
             }
         }
         if epoch_display {
-            let e = rinex.epochs_iter();
+            let epochs = rinex.epochs();
             if pretty {
-                println!("{}", serde_json::to_string_pretty(&e).unwrap())
+                println!("{}", serde_json::to_string_pretty(&epochs).unwrap())
             } else {
-                println!("{}", serde_json::to_string(&e).unwrap())
+                println!("{}", serde_json::to_string(&epochs).unwrap())
             }
         }
         if obscodes_display {
-            match rinex.header.rinex_type {
-                Type::ObservationData => {
-                    let obscodes = &rinex.header
-                        .obs
-                        .as_ref()
-                            .unwrap()
-                            .codes;
-                    if pretty {
-                        println!("{}", serde_json::to_string_pretty(&obscodes).unwrap())
-                    } else {
-                        println!("{}", serde_json::to_string(&obscodes).unwrap())
-                    }
-                },
-                Type::MeteoData => {
-                    let obscodes = &rinex.header
-                        .meteo
-                        .as_ref()
-                            .unwrap()
-                            .codes;
-                    if pretty {
-                        println!("{}", serde_json::to_string_pretty(&obscodes).unwrap())
-                    } else {
-                        println!("{}", serde_json::to_string(&obscodes).unwrap())
-                    }
-                },
-                Type::NavigationData => { // (NAV) special procedure: obscodes are not given by header fields
-                    let r = rinex.record.as_nav().unwrap();
-                    let mut map : HashMap<String, Vec<String>> = HashMap::new();
-                    for (_, sv) in r.iter() {
-                        let _codes : Vec<String> = Vec::new();
-                        for (sv, data) in sv {
-                            let codes : Vec<String> = data
-                                .keys()
-                                .map(|k| k.to_string())
-                                .collect();
-                            map.insert(
-                                sv.constellation.to_3_letter_code().to_string(), 
-                                codes);
-                        }
-                    }
-                    if pretty {
-                        println!("{}", serde_json::to_string_pretty(&map).unwrap())
-                    } else {
-                        println!("{}", serde_json::to_string(&map).unwrap())
-                    }
-                },
-                _ => todo!("RINEX type not fully supported yet"),
-            };
+            let observables = rinex.list_observables();
+            if pretty {
+                println!("{}", serde_json::to_string_pretty(&observables).unwrap())
+            } else {
+                println!("{}", serde_json::to_string(&observables).unwrap())
+            }
         }
         if !epoch_display && !obscodes_display && !header { 
             match rinex.header.rinex_type {
@@ -595,7 +469,7 @@ for fp in &filepaths {
     
     // Merge() opt
     for i in 0..to_merge.len() {
-        if merged.merge(&to_merge[i]).is_err() {
+        if merged.merge_mut(&to_merge[i]).is_err() {
             println!("Failed to merge {} into {}", filepaths[i], filepaths[0])
         }
     }
@@ -620,7 +494,7 @@ for fp in &filepaths {
             }
         }
         if epoch_display {
-            let e = merged.epochs_iter();
+            let e = merged.epochs();
             if pretty {
                 println!("{}", serde_json::to_string_pretty(&e).unwrap())
             } else {

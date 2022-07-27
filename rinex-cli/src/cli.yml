@@ -22,12 +22,11 @@ args:
         short: d
         long: decim
         takes_value: true
-        help: Decimate data record by this factor. For example, --decim 2 for epochs a,b,c,d,e,f retains a,c,e 
-    - resample:
-        short: r
-        long: resample
+        help: Decimate data quantity by a factor. For example, --decim 2 for epochs a,b,c,d,e,f retains a,c,e 
+    - decim-interval:
+        long: decim-interval 
         takes_value: true
-        help: Resample data record to match this duration
+        help: Decimate data record to minimum interval duration 
     - epoch-ok:
         long: epoch-ok 
         takes_value: false 
