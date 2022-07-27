@@ -16,6 +16,19 @@ use rinex::types::Type;
 use rinex::epoch;
 use rinex::constellation::{Constellation, augmentation::sbas_selection_helper};
 
+/// Parses an std::time::Duration from user input
+fn parse_duration (content: &str) -> Result<std::time::Duration, std::io::Error> {
+    let hms : Vec<_> = content.split(":").collect();
+    if let Ok(h) =  u64::from_str_radix(hms[0], 10) {
+        if let Ok(m) =  u64::from_str_radix(hms[1], 10) {
+            if let Ok(s) =  u64::from_str_radix(hms[2], 10) {
+                return Ok(std::time::Duration::from_secs(h*3600 + m*60 +s))
+            }
+        }
+    }
+    Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "failed to parse %HH:%MM:%SS"))
+}
+
 pub fn main () -> Result<(), Box<dyn std::error::Error>> {
 	let yaml = load_yaml!("cli.yml");
     let app = App::from_yaml(yaml);
@@ -208,13 +221,7 @@ for fp in &filepaths {
     ///////////////////////////////////////////////////
     if decimate_interval {
         let hms = matches.value_of("decim-interval").unwrap();
-        let hms : Vec<_> = hms.split(":").collect();
-        let (h,m,s) = (
-            u64::from_str_radix(hms[0], 10).unwrap(),
-            u64::from_str_radix(hms[1], 10).unwrap(),
-            u64::from_str_radix(hms[2], 10).unwrap(),
-        );
-        let interval = std::time::Duration::from_secs(h*3600 + m*60 +s);
+        let interval = parse_duration(hms)?;
         rinex.decimate_by_interval_mut(interval)
     }
     if decimate_ratio {
