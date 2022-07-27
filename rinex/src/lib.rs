@@ -805,7 +805,12 @@ impl Rinex {
                 sv.retain(|sv, _| filter.contains(sv))
             }
         } else if self.is_navigation_rinex() {
-
+            let record = self.record
+                .as_mut_nav()
+                .unwrap();
+            for (_e, sv) in record.iter_mut() {
+                sv.retain(|sv, _| filter.contains(sv))
+            }
         }
     }
 
