@@ -847,7 +847,7 @@ impl Rinex {
     /// Returns list of observables, in the form 
     /// of standardized 3 letter codes, that can be found in this record.
     /// This does not produce anything in case of ATX records.
-    pub fn list_observables (&self) -> Vec<String> {
+    pub fn observables (&self) -> Vec<String> {
         let mut result :Vec<String> = Vec::new();
         if let Some(obs) = &self.header.obs {
             for (constell, codes) in obs.codes.iter() {
