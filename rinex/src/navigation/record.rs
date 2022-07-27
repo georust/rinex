@@ -22,6 +22,17 @@ pub enum ComplexEnum {
     F64(f64),
 }
 
+impl std::fmt::Display for ComplexEnum {
+    fn fmt (&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            ComplexEnum::U8(u)  => write!(fmt, "{:X}", u),
+            ComplexEnum::Str(s) => write!(fmt, "{}", s),
+            ComplexEnum::F32(f) => write!(fmt, "{:.10e}", f),
+            ComplexEnum::F64(f) => write!(fmt, "{:.10e}", f),
+        }
+    }
+}
+
 /// `ComplexEnum` related errors
 #[derive(Error, Debug)]
 pub enum ComplexEnumError {
@@ -290,10 +301,25 @@ pub fn build_record_entry (header: &header::Header, content: &str)
 
 /// Pushes observation record into given file writer
 pub fn to_file (header: &header::Header, record: &Record, mut writer: std::fs::File) -> std::io::Result<()> {
-    for epoch in record.keys() {
+    for (epoch, sv) in record.iter() {
+        let nb_sv = sv.keys().len();
         match header.version.major {
-            1|2 => write!(writer, " {} ",  epoch.date.format("%y %m %d %H %M %.6f").to_string())?,
-              _ => write!(writer, "> {} ", epoch.date.format("%Y %m %d %H %M %.6f").to_string())?,
+            1|2 => {
+                let _ = write!(writer, " {} {} ", nb_sv, epoch.date.format("%y %m %d %H %M %.6f").to_string());
+            },
+            _ => {
+                let _ = write!(writer, "> {} {} ", nb_sv, epoch.date.format("%Y %m %d %H %M %.6f").to_string());
+            }
+        }
+        let mut index = 1;
+        for (_sv, data) in sv.iter() {
+            for (_obs, data) in data.iter() {
+                let _ = write!(writer, "{}", data);
+            }
+            if (index+1)%4 == 0 {
+                let _ = write!(writer, "\n    ");
+            }
+            index += 1
         }
     }
     Ok(())
