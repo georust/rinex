@@ -3,11 +3,15 @@ version: "0.0.1"
 author: Guillaume W. Bres <guillaume.bressaix@gmail.com>
 args:
     - filepath:
-        short: fp
+        short: f
         long: filepath
-        required: true
+        required: false 
         takes_value: true
-        help: Comma separated RINEX files
+        help: |
+            List of local RINEX files:
+            Example: --filepath AMEL00NLD_R_20210010000_01D_MN.rnx
+            Use comma separation to process several files at once:
+            Example: -f amel0010.21g, BRDC00GOP_R_20210010000_01D_MN.rnx.gz 
     - output:
         long: output
         required: false
@@ -22,19 +26,26 @@ args:
         short: d
         long: decim-ratio
         takes_value: true
-        help: Decimate data quantity by a factor. For example, --decim 2 for epochs a,b,c,d,e,f retains a,c,e 
+        help: |
+            Decimate data quantity by an integer ratio. 
+            For example, --decim-ratio 2 for epochs a,b,c,d,e,f retains epochs a,c,e
     - decim-interval:
         long: decim-interval 
         takes_value: true
-        help: Decimate data record to minimum interval duration 
+        help: |
+            Decimate data record to minimum interval duration.
+            Duration must be specified in %HH:%MM:%SS format, example:
+            --decim-interval 00:01:00 for a 1 minute minimum interval 
+            --decim-interval 12:00:00 for a 12 hour minimum interval 
+            --decim-interval 72:00:00 for a 3 day minimum interval 
     - epoch-ok:
         long: epoch-ok 
         takes_value: false 
-        help: Retain epoch that have an EpochFlag::ok value only 
+        help: Retains epochs that have an EpochFlag::ok value only 
     - epoch-nok:
         long: epoch-nok
         takes_value: false
-        help: Retain epoch that do not have an EpochFlag::ok attached to them
+        help: Retains epochs that do not have an EpochFlag::ok attached to them
     - epoch:
         short: e 
         long: epoch 
@@ -45,6 +56,14 @@ args:
         long: obscodes 
         takes_value: false
         help: Display (print) observable codes found in this file
+    - clock-offsets:
+        long: clock-offsets
+        takes_value: false
+        help: Display receiver clock offsets, for epochs that came with such information
+    - constellation:
+        long: constellation
+        takes_value: true
+        help: Comma seperated list of constellation. Retain data that was measured against these constellations.
     - sv:
         long: sv
         takes_value: true
@@ -53,19 +72,15 @@ args:
         short: c
         long: codes 
         takes_value: true
-        help: Comma separated OBS code filter - retain only matching OBS codes (Meteo or OBS data)
+        help: Comma separated Observable code filter - retain only matching Observables 
     - lli:
         long: lli
         takes_value: true 
-        help: Retain only OBS data that have these LLI flags asserted 
+        help: Apply LLI And() mask to entire record 
     - ssi:
         long: ssi
         takes_value: true 
-        help: Retain only OBS data that have at least this SSI signal strength indication attached to them (x >= SSI is retained) 
-    - clockoffset:
-        long: clockoffset
-        takes_value: false
-        help: Display receiver clock offsets
+        help: Retain only OBS data that have at least this SSI signal strength indication attached to them (x > SSI is retained) 
     - distance:
         long: distance 
         takes_value: true
@@ -92,6 +107,16 @@ args:
         long: splice
         takes_value: true
         help: Retain only desired epoch interval from given file
+    - sbas:
+        long: sbas
+        allow_hyphen_values: true
+        takes_value: true
+        help: |
+            Determines which SBAS augmentation system to use 
+            for given --sbas "latitude, longitude" coordinates, both expressed in decimal degrees. 
+            Example: --sbas "-45.113525, 169.864842"
+            This is the only command line option that does not require the --filepath argument
+            and disregards any other arguments.
     - plot:
         short: p
         long: plot

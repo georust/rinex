@@ -14,7 +14,7 @@ use rinex::sv::Sv;
 use rinex::observation;
 use rinex::types::Type;
 use rinex::epoch;
-use rinex::constellation::Constellation;
+use rinex::constellation::{Constellation, augmentation::sbas_selection_helper};
 
 pub fn main () -> Result<(), Box<dyn std::error::Error>> {
 	let yaml = load_yaml!("cli.yml");
@@ -24,10 +24,17 @@ pub fn main () -> Result<(), Box<dyn std::error::Error>> {
     // General 
     let plot = matches.is_present("plot");
     let pretty = matches.is_present("pretty");
-    let filepaths : Vec<&str> = matches.value_of("filepath")
-        .unwrap()
-            .split(",")
-            .collect();
+
+    // files
+    let filepaths : Option<Vec<&str>> = match matches.is_present("filepath") {
+        true => {
+            Some(matches.value_of("filepath")
+                .unwrap()
+                    .split(",")
+                    .collect())
+        },
+        false => None,
+    };
 
     let _output : Option<Vec<&str>> = match matches.is_present("output") {
         true => {
@@ -45,10 +52,11 @@ pub fn main () -> Result<(), Box<dyn std::error::Error>> {
     let header = matches.is_present("header");
     let decimate_ratio = matches.is_present("decim-ratio");
     let decimate_interval = matches.is_present("decim-interval");
+    let obscodes_display = matches.is_present("obscodes");
 
-    // SPEC ops
+    // teqc ops
     let merge = matches.is_present("merge");
-
+    let splice = matches.is_present("splice");
     let split = matches.is_present("split");
     let _split_epoch : Option<epoch::Epoch> = match matches.value_of("split") {
         Some(date) => {
@@ -68,14 +76,32 @@ pub fn main () -> Result<(), Box<dyn std::error::Error>> {
         None => None,
     };
     
-    let splice = matches.is_present("splice");
-
-    let spec_ops = merge | split | splice;
+    let teqc_ops = merge | split | splice;
     
+    ///////////////////////////////////////////////////////////////
+    // Filters 
+    ///////////////////////////////////////////////////////////////
     // `Epoch`
     let epoch_display = matches.is_present("epoch");
     let epoch_ok_filter = matches.is_present("epoch-ok");
     let epoch_nok_filter = matches.is_present("epoch-nok");
+    
+    // Constell
+    let constell_filter : Option<Vec<Constellation>> = match matches.value_of("constellation") {
+        Some(s) => {
+            let constellations: Vec<&str> = s.split(",").collect();
+            let mut c_filters : Vec<Constellation> = Vec::new();
+            for c in constellations {
+                if let Ok(constell) = Constellation::from_3_letter_code(c) {
+                    c_filters.push(constell)
+                } else if let Ok(constell) = Constellation::from_1_letter_code(c) {
+                    c_filters.push(constell)
+                }
+            }
+            Some(c_filters)
+        },
+        _ => None,
+    };
     
     // `Sv`
     let sv_filter : Option<Vec<Sv>> = match matches.value_of("sv") {
@@ -94,8 +120,6 @@ pub fn main () -> Result<(), Box<dyn std::error::Error>> {
         _ => None,
     };
 
-    // Data Filters 
-    let obscodes_display = matches.is_present("obscodes");
     let obscode_filter : Option<Vec<&str>> = match matches.value_of("codes") {
         Some(s) => Some(s.split(",").collect()),
         _ => None,
@@ -108,6 +132,47 @@ pub fn main () -> Result<(), Box<dyn std::error::Error>> {
         Some(s) => Some(observation::record::Ssi::from_str(s).unwrap()),
         _ => None,
     };
+    
+    // Other
+    let sbas = matches.is_present("sbas"); 
+
+    ////////////////////////////////////////
+    // Process arguments that do not require 
+    // the parser
+    //   - sbas
+    ////////////////////////////////////////
+    if sbas {
+        let sbas = matches.value_of("sbas")
+            .unwrap();
+        let items :Vec<&str> = sbas.split(",").collect();
+        if items.len() != 2 {
+            panic!("Command line error: \"--sbas latitude, longitude\" expected");
+        }
+        let coordinates :Vec<f64> = items
+            .iter()
+            .map(|s| {
+                if let Ok(f) = f64::from_str(s.trim()) {
+                    f
+                } else {
+                    panic!("Command line error: expecting coordinates in decimal degrees")
+                }
+            })
+            .collect();
+        let sbas = sbas_selection_helper(coordinates[0], coordinates[1]);
+        if let Some(sbas) = sbas {
+            println!("SBAS for given coordinates: {:?}", sbas);
+        } else {
+            println!("No SBAS augmentation for given coordinates");
+        }
+        return Ok(()); // interrupt before parser section
+            // to make --fp optional
+    }
+
+    /////////////////////////////////////////
+    // from now on: parser is always involved
+    //  --fp is a requirement
+    /////////////////////////////////////////
+    let filepaths = filepaths.unwrap();
 
     let mut index : usize = 0;
     let mut merged: Rinex = Rinex::default();
@@ -171,6 +236,10 @@ for fp in &filepaths {
         rinex
             .epoch_nok_filter_mut()
     }
+    if let Some(ref filter) = constell_filter {
+        rinex
+            .constellation_filter_mut(filter.to_vec())
+    }
     if let Some(ref filter) = sv_filter {
         rinex
             .space_vehicule_filter_mut(filter.to_vec())
@@ -210,7 +279,9 @@ for fp in &filepaths {
        println!("splice is WIP"); 
     }
     
-    if !spec_ops {
+    if !teqc_ops {
+        // User did not request a `teqc` like / special ops
+        // We generate desired output on each --fp entry
         if header {
             if pretty {
                 println!("{}", serde_json::to_string_pretty(&rinex.header).unwrap())
@@ -227,7 +298,7 @@ for fp in &filepaths {
             }
         }
         if obscodes_display {
-            let observables = rinex.list_observables();
+            let observables = rinex.observables();
             if pretty {
                 println!("{}", serde_json::to_string_pretty(&observables).unwrap())
             } else {
@@ -356,11 +427,13 @@ for fp in &filepaths {
     // Merge() opt
     for i in 0..to_merge.len() {
         if merged.merge_mut(&to_merge[i]).is_err() {
-            println!("Failed to merge {} into {}", filepaths[i], filepaths[0])
+            panic!("Failed to merge {} into {}", filepaths[i], filepaths[0])
         }
     }
 
     if merge {
+        // User requested teqc::merge()
+        // we extract desired information off the merged record
         if header {
             if pretty {
                 println!("{}", serde_json::to_string_pretty(&merged.header).unwrap())
@@ -369,14 +442,11 @@ for fp in &filepaths {
             }
         }
         if obscodes_display {
-            let obs = &merged.header.obs
-                .as_ref()
-                .unwrap()
-                .codes;
+            let observables = merged.observables();
             if pretty {
-                println!("{}", serde_json::to_string_pretty(&obs).unwrap())
+                println!("{}", serde_json::to_string_pretty(&observables).unwrap())
             } else {
-                println!("{}", serde_json::to_string(&obs).unwrap())
+                println!("{}", serde_json::to_string(&observables).unwrap())
             }
         }
         if epoch_display {
@@ -387,10 +457,8 @@ for fp in &filepaths {
                 println!("{}", serde_json::to_string(&e).unwrap())
             }
         }
-        if merge {
-            if merged.to_file("merged.txt").is_err() {
-                println!("Failed to write MERGED RINEX to \"merged.txt\"")
-            }
+        if merged.to_file("merged.txt").is_err() {
+            panic!("Failed to write MERGED RINEX to \"merged.txt\"")
         }
     }
     Ok(())
