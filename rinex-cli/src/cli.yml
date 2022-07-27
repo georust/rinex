@@ -101,8 +101,19 @@ args:
     - split:
         short: s
         long: split
+        min_values: 0
         takes_value: true
-        help: Split given file(s) into two at given epoch. Epoch must have YYYY-mm-dd:HH:MM:SS format.
+        help: |
+            Split RINEX into two.
+            If no epoch specified (empty argument), we assume this is a merged RINEX,
+            and we split at the epoch boundary.
+            Example: --split
+            If an epoch is specified, we split at the given epoch.
+            Epoch is specified in "%Y-%m-%d %H:%M:%S" format.
+            Example: --split "2000-01-01 00:00:00"
+            Example: --split "2022-01-01 12:00:00"
+            If an epoch flag must be matched, specify it also, 
+            Example: --split "2022-01-01 12:00:00 Ok"
     - splice:
         long: splice
         takes_value: true

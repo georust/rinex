@@ -9,6 +9,7 @@ use gnuplot::{Figure}; // Caption};
 //use gnuplot::{Color, PointSymbol, LineStyle, DashType};
 //use gnuplot::{PointSize, LineWidth}; // AxesCommon};
 
+use thiserror::Error;
 use rinex::Rinex;
 use rinex::sv::Sv;
 use rinex::observation;
@@ -16,20 +17,52 @@ use rinex::types::Type;
 use rinex::epoch;
 use rinex::constellation::{Constellation, augmentation::sbas_selection_helper};
 
+#[derive(Error, Debug)]
+pub enum Error {
+    #[error("failed to parse datetime")]
+    ChronoParseError(#[from] chrono::format::ParseError),
+    #[error("std::io error")]
+    IoError(#[from] std::io::Error),
+}
+
 /// Parses an std::time::Duration from user input
 fn parse_duration (content: &str) -> Result<std::time::Duration, std::io::Error> {
     let hms : Vec<_> = content.split(":").collect();
-    if let Ok(h) =  u64::from_str_radix(hms[0], 10) {
-        if let Ok(m) =  u64::from_str_radix(hms[1], 10) {
-            if let Ok(s) =  u64::from_str_radix(hms[2], 10) {
-                return Ok(std::time::Duration::from_secs(h*3600 + m*60 +s))
+    if hms.len() == 3 {
+        if let Ok(h) =  u64::from_str_radix(hms[0], 10) {
+            if let Ok(m) =  u64::from_str_radix(hms[1], 10) {
+                if let Ok(s) =  u64::from_str_radix(hms[2], 10) {
+                    return Ok(std::time::Duration::from_secs(h*3600 + m*60 +s))
+                }
             }
         }
     }
     Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "failed to parse %HH:%MM:%SS"))
 }
 
-pub fn main () -> Result<(), Box<dyn std::error::Error>> {
+/// Parses an chrono::NaiveDateTime from user input
+fn parse_datetime (content: &str) -> Result<chrono::NaiveDateTime, chrono::format::ParseError> {
+    chrono::NaiveDateTime::parse_from_str(content, "%Y-%m-%d %H:%M:%S")
+}
+
+/// Parses an `epoch` from user input
+fn parse_epoch (content: &str) -> Result<epoch::Epoch, Error> {
+    let format = "YYYY-MM-DD HH:MM:SS";
+    if content.len() > format.len() { // an epoch flag was given
+        Ok(epoch::Epoch {
+            date: parse_datetime(&content[0..format.len()])?,
+            flag: epoch::EpochFlag::from_str(&content[format.len()..].trim())?,
+        })
+    } else { // no epoch flag given
+        // --> we associate an Ok flag
+        Ok(epoch::Epoch {
+            date: parse_datetime(content)?,
+            flag: epoch::EpochFlag::Ok,
+        })
+    }
+}
+
+pub fn main () -> Result<(), Error> {
 	let yaml = load_yaml!("cli.yml");
     let app = App::from_yaml(yaml);
 	let matches = app.get_matches();
@@ -71,20 +104,13 @@ pub fn main () -> Result<(), Box<dyn std::error::Error>> {
     let merge = matches.is_present("merge");
     let splice = matches.is_present("splice");
     let split = matches.is_present("split");
-    let _split_epoch : Option<epoch::Epoch> = match matches.value_of("split") {
-        Some(date) => {
-            let offset = 4 +2+1 +2+1 +2+1 +2+1 +2+1; // YYYY-mm-dd-HH:MM:SS 
-            let datetime = date[0..offset].to_string();
-            let flag : Option<epoch::EpochFlag> = match date.len() > offset {
-                true => Some(epoch::EpochFlag::from_str(&date[offset+1..])
-                    .unwrap_or(epoch::EpochFlag::Ok)),
-                false => None,
-            };
-            Some(epoch::Epoch {
-                date : chrono::NaiveDateTime::parse_from_str(&datetime, "%Y-%m-%d %H:%M:%S")
-                    .unwrap(), 
-                flag : flag.unwrap_or(epoch::EpochFlag::Ok),
-            })
+    let split_epoch : Option<epoch::Epoch> = match matches.value_of("split") {
+        Some(s) => {
+            if let Ok(e) = parse_epoch(s) {
+                Some(e)
+            } else {
+                None
+            }
         },
         None => None,
     };
@@ -267,19 +293,19 @@ for fp in &filepaths {
     }
         
     if split {
-    /*
-        match rinex.split(split_epoch) {
-            Ok(files) => {
-                println!("{}", files.len());
-                for f in files {
-                    if f.to_file("split.txt").is_err() {
-                        println!("Failed to write Split record to \"split.txt\"")
-                    }
+        if let Some(epoch) = split_epoch {
+            let s = rinex.split_at_epoch(epoch);
+            if let Ok((r0, r1)) = s {
+                if r0.to_file("split1.txt").is_err() {
+                    panic!("failed to produce split1.txt")
                 }
-            },
-            Err(e) => println!("Split() ops failed with {:?}", e),
+                if r1.to_file("split2.txt").is_err() {
+                    panic!("failed to produce split1.txt")
+                }
+            } else {
+                panic!("split_at_epoch failed with {:#?}", s);
+            }
         }
-    */
     }
 
     if splice {
@@ -470,3 +496,29 @@ for fp in &filepaths {
     }
     Ok(())
 }// main
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[test]
+    fn test_duration_parser() {
+        let duration = parse_duration("00:30:00");
+        assert_eq!(duration.is_ok(), true);
+        let duration = duration.unwrap();
+        assert_eq!(duration, std::time::Duration::from_secs(30*60));
+        let duration = parse_duration("30:00");
+        assert_eq!(duration.is_err(), true);
+        let duration = parse_duration("00 30 00");
+        assert_eq!(duration.is_err(), true);
+    }
+    #[test]
+    fn test_epoch_parser() {
+        let epoch = parse_epoch("2022-03-01 00:30:00");
+        assert_eq!(epoch.is_ok(), true);
+        let epoch = epoch.unwrap();
+        assert_eq!(epoch, epoch::Epoch {
+            date: parse_datetime("2022-03-01 00:30:00").unwrap(),
+            flag: epoch::EpochFlag::Ok,
+        });
+    }
+}
