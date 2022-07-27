@@ -146,7 +146,7 @@ impl Rinex {
         }
     }
 
-	/// Returns a copy of self but with given header attributes
+    /// Returns a copy of self but with given header attributes
     pub fn with_header (&self, header: header::Header) -> Self {
         Rinex {
             header,
@@ -722,22 +722,50 @@ impl Rinex {
     
     /// Filters out epochs in record that do not have
     /// an Epoch::Ok flag attached to them.
-    /// Has no effects on non Observation Records.
+    /// Has no effect on non Observation Records.
     pub fn epoch_ok_filter_mut (&mut self) {
-        let hd = &self.header;
-        if hd.rinex_type != types::Type::ObservationData {
-            return;
+        if !self.is_observation_rinex() {
+            return ; // nothing we can do
         }
         let record = self.record
             .as_mut_obs()
             .unwrap();
-        record.retain(|e, _| !e.flag.is_ok());
+        record.retain(|e, _| e.flag.is_ok());
+    }
+
+    /// Filters out epochs marker with an Ok flag.
+    /// This has no effect on non observation data.
+    pub fn epoch_nok_filter_mut (&mut self) {
+        if !self.is_observation_rinex() {
+            return ; // nothing we can do
+        }
+        let record = self.record
+            .as_mut_obs()
+            .unwrap();
+        record.retain(|e, _| !e.flag.is_ok())
     }
     
     /// see [epoch_ok_filter_mut]
     pub fn epoch_ok_filter (&self) -> Self {
-        if self.header.rinex_type != types::Type::ObservationData {
-            return self.clone()
+        if !self.is_observation_rinex() {
+            return self.clone() // nothing we can do
+        }
+        let header = self.header.clone();
+        let mut record = self.record.as_obs()
+            .unwrap()
+            .clone();
+        record.retain(|e,_| e.flag.is_ok());
+        Self {
+            header,
+            comments: self.comments.clone(),
+            record: record::Record::ObsRecord(record.clone()),
+        }
+    }
+    
+    /// see [epoch_nok_filter_mut]
+    pub fn epoch_nok_filter (&self) -> Self {
+        if !self.is_observation_rinex() {
+            return self.clone() // nothing we can do
         }
         let header = self.header.clone();
         let mut record = self.record.as_obs()
@@ -765,6 +793,22 @@ impl Rinex {
             .lli_filter_mut(observation::record::LliFlags::LOCK_LOSS)
     }
 
+    /// Retains data that were recorded only for given list of 
+    /// space vehicules. This has no effect on ATX, CLK, MET
+    /// and IONEX records. 
+    pub fn space_vehicule_filter_mut (&mut self, filter: Vec<sv::Sv>) {
+        if self.is_observation_rinex() {
+            let record = self.record
+                .as_mut_obs()
+                .unwrap();
+            for (_e, (_clk, sv)) in record.iter_mut() {
+                sv.retain(|sv, _| filter.contains(sv))
+            }
+        } else if self.is_navigation_rinex() {
+
+        }
+    }
+
     /// Computes average epoch duration
     pub fn average_epoch_duration (&self) -> std::time::Duration {
         let mut sum = 0;
@@ -773,6 +817,46 @@ impl Rinex {
             sum += (epochs[i].date - epochs[i-1].date).num_seconds() as u64
         }
         std::time::Duration::from_secs(sum / epochs.len() as u64)
+    }
+
+    /// Returns list of observables, in the form 
+    /// of standardized 3 letter codes, that can be found in this record.
+    /// This does not produce anything in case of ATX records.
+    pub fn list_observables (&self) -> Vec<String> {
+        let mut result :Vec<String> = Vec::new();
+        if let Some(obs) = &self.header.obs {
+            for (constell, codes) in obs.codes.iter() {
+                for code in codes {
+                    result.push(format!("{}:{}", 
+                        constell.to_3_letter_code(),
+                        code.to_string()))
+                }
+            }
+        } else if let Some(obs) = &self.header.meteo {
+            for code in obs.codes.iter() {
+                result.push(code.to_string())
+            }
+        } else if let Some(obs) = &self.header.clocks {
+            for code in obs.codes.iter() {
+                result.push(code.to_string())
+            }
+        } else if self.is_navigation_rinex() {
+            let record = self.record
+                .as_nav()
+                .unwrap();
+            for (_, sv) in record {
+                for (sv, data) in sv {
+                    for (k, _) in data {
+                        result.push(format!("{}:{}", 
+                            sv.constellation.to_3_letter_code(),
+                            k.to_string()))
+                    }
+                }
+            }
+        } else if self.is_ionex() {
+
+        }
+        result
     }
 /*
     /// Cleans up, in place, epochs where `loss of lock` events happened.

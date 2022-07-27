@@ -8,8 +8,9 @@ pub mod observable;
 #[derive(PartialEq)]
 #[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct HeaderFields {
-	/// Observation types contained in this file
+    /// Observation types contained in this file
     pub codes: Vec<observable::Observable>, 
+    /// Sensors that produced the following observables
     pub sensors: Vec<sensor::Sensor>,
 }
 

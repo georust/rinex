@@ -2,6 +2,7 @@ use std::str::FromStr;
 use crate::sv::Sv;
 use crate::epoch;
 use thiserror::Error;
+use strum_macros::EnumString;
 use std::collections::{BTreeMap, HashMap};
 
 #[derive(Error, PartialEq, Eq, Hash, Clone, Debug)]
@@ -51,6 +52,8 @@ pub enum Error {
     ParseIntError(#[from] std::num::ParseIntError),
     #[error("failed to parse data payload")]
     ParseFloatError(#[from] std::num::ParseFloatError),
+    #[error("failed to identify observable")]
+    ParseObservableError(#[from] strum::ParseError),
 }
 
 /// Clocks file payload
@@ -66,37 +69,41 @@ pub struct Data {
     pub accel_sigma: Option<f64>,
 }
 
-/// Types of clock data
+/// Clock data observables
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
+#[derive(EnumString)]
 #[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub enum DataType {
     /// Data analysis results for receiver clocks
     /// derived from a set of network receivers and satellites
+    #[strum(serialize = "AR")]
     Ar,
     /// Data analysis results for satellites clocks
     /// derived from a set of network receivers and satellites
+    #[strum(serialize = "AS")]
     As,
     /// Calibration measurements for a single GNSS receiver
+    #[strum(serialize = "CR")]
     Cr,
     /// Discontinuity measurements for a single GNSS receiver
+    #[strum(serialize = "DR")]
     Dr,
     /// Monitor measurements for the broadcast sallite clocks
+    #[strum(serialize = "MS")]
     Ms
 }
 
-impl std::str::FromStr for DataType {
-    type Err = Error;
-    fn from_str (code: &str) -> Result<Self, Self::Err> {
-        match code {
-            "AR" => Ok(DataType::Ar),
-            "AS" => Ok(DataType::As),
-            "CR" => Ok(DataType::Cr),
-            "DR" => Ok(DataType::Dr),
-            "MS" => Ok(DataType::Ms),
-            _ => Err(Error::UnknownDataCode(code.to_string())),
+impl std::fmt::Display for DataType {
+    fn fmt (&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Self::Ar => f.write_str("AR"),
+            Self::As => f.write_str("AS"),
+            Self::Cr => f.write_str("CR"),
+            Self::Dr => f.write_str("DR"),
+            Self::Ms => f.write_str("MS"),
         }
     }
-} 
+}
 
 /// RINEX record for CLOCKS files,
 /// record is sorted by Epoch then by data type and finaly by `system`
