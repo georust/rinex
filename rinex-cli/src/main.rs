@@ -9,14 +9,60 @@ use gnuplot::{Figure}; // Caption};
 //use gnuplot::{Color, PointSymbol, LineStyle, DashType};
 //use gnuplot::{PointSize, LineWidth}; // AxesCommon};
 
+use thiserror::Error;
 use rinex::Rinex;
 use rinex::sv::Sv;
 use rinex::observation;
 use rinex::types::Type;
 use rinex::epoch;
-use rinex::constellation::Constellation;
+use rinex::constellation::{Constellation, augmentation::sbas_selection_helper};
 
-pub fn main () -> Result<(), Box<dyn std::error::Error>> {
+#[derive(Error, Debug)]
+pub enum Error {
+    #[error("failed to parse datetime")]
+    ChronoParseError(#[from] chrono::format::ParseError),
+    #[error("std::io error")]
+    IoError(#[from] std::io::Error),
+}
+
+/// Parses an std::time::Duration from user input
+fn parse_duration (content: &str) -> Result<std::time::Duration, std::io::Error> {
+    let hms : Vec<_> = content.split(":").collect();
+    if hms.len() == 3 {
+        if let Ok(h) =  u64::from_str_radix(hms[0], 10) {
+            if let Ok(m) =  u64::from_str_radix(hms[1], 10) {
+                if let Ok(s) =  u64::from_str_radix(hms[2], 10) {
+                    return Ok(std::time::Duration::from_secs(h*3600 + m*60 +s))
+                }
+            }
+        }
+    }
+    Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "failed to parse %HH:%MM:%SS"))
+}
+
+/// Parses an chrono::NaiveDateTime from user input
+fn parse_datetime (content: &str) -> Result<chrono::NaiveDateTime, chrono::format::ParseError> {
+    chrono::NaiveDateTime::parse_from_str(content, "%Y-%m-%d %H:%M:%S")
+}
+
+/// Parses an `epoch` from user input
+fn parse_epoch (content: &str) -> Result<epoch::Epoch, Error> {
+    let format = "YYYY-MM-DD HH:MM:SS";
+    if content.len() > format.len() { // an epoch flag was given
+        Ok(epoch::Epoch {
+            date: parse_datetime(&content[0..format.len()])?,
+            flag: epoch::EpochFlag::from_str(&content[format.len()..].trim())?,
+        })
+    } else { // no epoch flag given
+        // --> we associate an Ok flag
+        Ok(epoch::Epoch {
+            date: parse_datetime(content)?,
+            flag: epoch::EpochFlag::Ok,
+        })
+    }
+}
+
+pub fn main () -> Result<(), Error> {
 	let yaml = load_yaml!("cli.yml");
     let app = App::from_yaml(yaml);
 	let matches = app.get_matches();
@@ -24,10 +70,17 @@ pub fn main () -> Result<(), Box<dyn std::error::Error>> {
     // General 
     let plot = matches.is_present("plot");
     let pretty = matches.is_present("pretty");
-    let filepaths : Vec<&str> = matches.value_of("filepath")
-        .unwrap()
-            .split(",")
-            .collect();
+
+    // files
+    let filepaths : Option<Vec<&str>> = match matches.is_present("filepath") {
+        true => {
+            Some(matches.value_of("filepath")
+                .unwrap()
+                    .split(",")
+                    .collect())
+        },
+        false => None,
+    };
 
     let _output : Option<Vec<&str>> = match matches.is_present("output") {
         true => {
@@ -45,37 +98,49 @@ pub fn main () -> Result<(), Box<dyn std::error::Error>> {
     let header = matches.is_present("header");
     let decimate_ratio = matches.is_present("decim-ratio");
     let decimate_interval = matches.is_present("decim-interval");
+    let obscodes_display = matches.is_present("obscodes");
 
-    // SPEC ops
+    // teqc ops
     let merge = matches.is_present("merge");
-
+    let splice = matches.is_present("splice");
     let split = matches.is_present("split");
-    let _split_epoch : Option<epoch::Epoch> = match matches.value_of("split") {
-        Some(date) => {
-            let offset = 4 +2+1 +2+1 +2+1 +2+1 +2+1; // YYYY-mm-dd-HH:MM:SS 
-            let datetime = date[0..offset].to_string();
-            let flag : Option<epoch::EpochFlag> = match date.len() > offset {
-                true => Some(epoch::EpochFlag::from_str(&date[offset+1..])
-                    .unwrap_or(epoch::EpochFlag::Ok)),
-                false => None,
-            };
-            Some(epoch::Epoch {
-                date : chrono::NaiveDateTime::parse_from_str(&datetime, "%Y-%m-%d %H:%M:%S")
-                    .unwrap(), 
-                flag : flag.unwrap_or(epoch::EpochFlag::Ok),
-            })
+    let split_epoch : Option<epoch::Epoch> = match matches.value_of("split") {
+        Some(s) => {
+            if let Ok(e) = parse_epoch(s) {
+                Some(e)
+            } else {
+                None
+            }
         },
         None => None,
     };
     
-    let splice = matches.is_present("splice");
-
-    let spec_ops = merge | split | splice;
+    let teqc_ops = merge | split | splice;
     
+    ///////////////////////////////////////////////////////////////
+    // Filters 
+    ///////////////////////////////////////////////////////////////
     // `Epoch`
     let epoch_display = matches.is_present("epoch");
     let epoch_ok_filter = matches.is_present("epoch-ok");
     let epoch_nok_filter = matches.is_present("epoch-nok");
+    
+    // Constell
+    let constell_filter : Option<Vec<Constellation>> = match matches.value_of("constellation") {
+        Some(s) => {
+            let constellations: Vec<&str> = s.split(",").collect();
+            let mut c_filters : Vec<Constellation> = Vec::new();
+            for c in constellations {
+                if let Ok(constell) = Constellation::from_3_letter_code(c) {
+                    c_filters.push(constell)
+                } else if let Ok(constell) = Constellation::from_1_letter_code(c) {
+                    c_filters.push(constell)
+                }
+            }
+            Some(c_filters)
+        },
+        _ => None,
+    };
     
     // `Sv`
     let sv_filter : Option<Vec<Sv>> = match matches.value_of("sv") {
@@ -94,8 +159,6 @@ pub fn main () -> Result<(), Box<dyn std::error::Error>> {
         _ => None,
     };
 
-    // Data Filters 
-    let obscodes_display = matches.is_present("obscodes");
     let obscode_filter : Option<Vec<&str>> = match matches.value_of("codes") {
         Some(s) => Some(s.split(",").collect()),
         _ => None,
@@ -108,6 +171,47 @@ pub fn main () -> Result<(), Box<dyn std::error::Error>> {
         Some(s) => Some(observation::record::Ssi::from_str(s).unwrap()),
         _ => None,
     };
+    
+    // Other
+    let sbas = matches.is_present("sbas"); 
+
+    ////////////////////////////////////////
+    // Process arguments that do not require 
+    // the parser
+    //   - sbas
+    ////////////////////////////////////////
+    if sbas {
+        let sbas = matches.value_of("sbas")
+            .unwrap();
+        let items :Vec<&str> = sbas.split(",").collect();
+        if items.len() != 2 {
+            panic!("Command line error: \"--sbas latitude, longitude\" expected");
+        }
+        let coordinates :Vec<f64> = items
+            .iter()
+            .map(|s| {
+                if let Ok(f) = f64::from_str(s.trim()) {
+                    f
+                } else {
+                    panic!("Command line error: expecting coordinates in decimal degrees")
+                }
+            })
+            .collect();
+        let sbas = sbas_selection_helper(coordinates[0], coordinates[1]);
+        if let Some(sbas) = sbas {
+            println!("SBAS for given coordinates: {:?}", sbas);
+        } else {
+            println!("No SBAS augmentation for given coordinates");
+        }
+        return Ok(()); // interrupt before parser section
+            // to make --fp optional
+    }
+
+    /////////////////////////////////////////
+    // from now on: parser is always involved
+    //  --fp is a requirement
+    /////////////////////////////////////////
+    let filepaths = filepaths.unwrap();
 
     let mut index : usize = 0;
     let mut merged: Rinex = Rinex::default();
@@ -143,13 +247,7 @@ for fp in &filepaths {
     ///////////////////////////////////////////////////
     if decimate_interval {
         let hms = matches.value_of("decim-interval").unwrap();
-        let hms : Vec<_> = hms.split(":").collect();
-        let (h,m,s) = (
-            u64::from_str_radix(hms[0], 10).unwrap(),
-            u64::from_str_radix(hms[1], 10).unwrap(),
-            u64::from_str_radix(hms[2], 10).unwrap(),
-        );
-        let interval = std::time::Duration::from_secs(h*3600 + m*60 +s);
+        let interval = parse_duration(hms)?;
         rinex.decimate_by_interval_mut(interval)
     }
     if decimate_ratio {
@@ -171,6 +269,10 @@ for fp in &filepaths {
         rinex
             .epoch_nok_filter_mut()
     }
+    if let Some(ref filter) = constell_filter {
+        rinex
+            .constellation_filter_mut(filter.to_vec())
+    }
     if let Some(ref filter) = sv_filter {
         rinex
             .space_vehicule_filter_mut(filter.to_vec())
@@ -191,26 +293,28 @@ for fp in &filepaths {
     }
         
     if split {
-    /*
-        match rinex.split(split_epoch) {
-            Ok(files) => {
-                println!("{}", files.len());
-                for f in files {
-                    if f.to_file("split.txt").is_err() {
-                        println!("Failed to write Split record to \"split.txt\"")
-                    }
+        if let Some(epoch) = split_epoch {
+            let s = rinex.split_at_epoch(epoch);
+            if let Ok((r0, r1)) = s {
+                if r0.to_file("split1.txt").is_err() {
+                    panic!("failed to produce split1.txt")
                 }
-            },
-            Err(e) => println!("Split() ops failed with {:?}", e),
+                if r1.to_file("split2.txt").is_err() {
+                    panic!("failed to produce split1.txt")
+                }
+            } else {
+                panic!("split_at_epoch failed with {:#?}", s);
+            }
         }
-    */
     }
 
     if splice {
        println!("splice is WIP"); 
     }
     
-    if !spec_ops {
+    if !teqc_ops {
+        // User did not request a `teqc` like / special ops
+        // We generate desired output on each --fp entry
         if header {
             if pretty {
                 println!("{}", serde_json::to_string_pretty(&rinex.header).unwrap())
@@ -227,7 +331,7 @@ for fp in &filepaths {
             }
         }
         if obscodes_display {
-            let observables = rinex.list_observables();
+            let observables = rinex.observables();
             if pretty {
                 println!("{}", serde_json::to_string_pretty(&observables).unwrap())
             } else {
@@ -356,11 +460,13 @@ for fp in &filepaths {
     // Merge() opt
     for i in 0..to_merge.len() {
         if merged.merge_mut(&to_merge[i]).is_err() {
-            println!("Failed to merge {} into {}", filepaths[i], filepaths[0])
+            panic!("Failed to merge {} into {}", filepaths[i], filepaths[0])
         }
     }
 
     if merge {
+        // User requested teqc::merge()
+        // we extract desired information off the merged record
         if header {
             if pretty {
                 println!("{}", serde_json::to_string_pretty(&merged.header).unwrap())
@@ -369,14 +475,11 @@ for fp in &filepaths {
             }
         }
         if obscodes_display {
-            let obs = &merged.header.obs
-                .as_ref()
-                .unwrap()
-                .codes;
+            let observables = merged.observables();
             if pretty {
-                println!("{}", serde_json::to_string_pretty(&obs).unwrap())
+                println!("{}", serde_json::to_string_pretty(&observables).unwrap())
             } else {
-                println!("{}", serde_json::to_string(&obs).unwrap())
+                println!("{}", serde_json::to_string(&observables).unwrap())
             }
         }
         if epoch_display {
@@ -387,11 +490,35 @@ for fp in &filepaths {
                 println!("{}", serde_json::to_string(&e).unwrap())
             }
         }
-        if merge {
-            if merged.to_file("merged.txt").is_err() {
-                println!("Failed to write MERGED RINEX to \"merged.txt\"")
-            }
+        if merged.to_file("merged.txt").is_err() {
+            panic!("Failed to write MERGED RINEX to \"merged.txt\"")
         }
     }
     Ok(())
 }// main
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[test]
+    fn test_duration_parser() {
+        let duration = parse_duration("00:30:00");
+        assert_eq!(duration.is_ok(), true);
+        let duration = duration.unwrap();
+        assert_eq!(duration, std::time::Duration::from_secs(30*60));
+        let duration = parse_duration("30:00");
+        assert_eq!(duration.is_err(), true);
+        let duration = parse_duration("00 30 00");
+        assert_eq!(duration.is_err(), true);
+    }
+    #[test]
+    fn test_epoch_parser() {
+        let epoch = parse_epoch("2022-03-01 00:30:00");
+        assert_eq!(epoch.is_ok(), true);
+        let epoch = epoch.unwrap();
+        assert_eq!(epoch, epoch::Epoch {
+            date: parse_datetime("2022-03-01 00:30:00").unwrap(),
+            flag: epoch::EpochFlag::Ok,
+        });
+    }
+}
