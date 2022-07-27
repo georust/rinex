@@ -908,7 +908,7 @@ impl Header {
     ///TODO: rcvr_clock_offset_applied special case :
     /// apply/modify accordingly
     ///TODO: data scaling special case: apply/modify accordingly
-    pub fn merge (&mut self, header: &Self) -> Result<(), MergeError> {
+    pub fn merge_mut (&mut self, header: &Self) -> Result<(), MergeError> {
         if self.rinex_type != header.rinex_type {
             return Err(MergeError::FileTypeMismatch)
         }

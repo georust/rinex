@@ -28,7 +28,6 @@ pub mod reader;
 
 use reader::BufferedReader;
 use std::io::{Read, Write};
-use std::collections::BTreeMap;
 
 use thiserror::Error;
 use chrono::{Datelike, Timelike};
@@ -147,6 +146,7 @@ impl Rinex {
         }
     }
 
+	/// Returns a copy of self but with given header attributes
     pub fn with_header (&self, header: header::Header) -> Self {
         Rinex {
             header,
@@ -155,8 +155,8 @@ impl Rinex {
         }
     }
 
-    /// Filename creation helper,
-    /// to follow naming conventions 
+    /// Returns filename that would respect naming conventions,
+    /// based on self attributes
     pub fn filename (&self) -> String {
         let header = &self.header;
         let rtype = header.rinex_type;
@@ -434,9 +434,24 @@ impl Rinex {
             .collect()
     }
 
+    /// Splits self into several RINEXes if self is a Merged Rinex. 
+    /// Header sections are simply copied.
+    pub fn split (&self) -> Vec<Self> {
+        let records = self.split_merged_records();
+        let mut result :Vec<Self> = Vec::with_capacity(records.len());
+        for r in records {
+            result.push(Self {
+                header: self.header.clone(),
+                record: r.clone(),
+                comments: self.comments.clone(),
+            })
+        }
+        result
+    }
+
     /// Splits merged `records` into seperate `records`.
     /// Returns empty list if self is not a `Merged` file
-    pub fn split (&self) -> Vec<record::Record> {
+    pub fn split_merged_records (&self) -> Vec<record::Record> {
         let boundaries = self.merge_boundaries();
         let mut result : Vec<record::Record> = Vec::with_capacity(boundaries.len());
         let epochs = self.epochs();
@@ -485,7 +500,7 @@ impl Rinex {
 
     /// Splits record into two at desired `epoch`.
     /// Self does not have to be a `Merged` file.
-    pub fn split_at_epoch (&self, epoch: epoch::Epoch) -> Result<(record::Record,record::Record), SplitError> {
+    pub fn split_record_at_epoch (&self, epoch: epoch::Epoch) -> Result<(record::Record,record::Record), SplitError> {
         let epochs = self.epochs();
         if epoch.date < epochs[0].date {
             return Err(SplitError::EpochTooEarly)
@@ -637,8 +652,8 @@ impl Rinex {
     /// to understand its behavior).
     /// Resulting self.record (modified in place) remains sorted by 
     /// sampling timestamps.
-    pub fn merge (&mut self, other: &Self) -> Result<(), merge::MergeError> {
-        self.header.merge(&other.header)?;
+    pub fn merge_mut (&mut self, other: &Self) -> Result<(), merge::MergeError> {
+        self.header.merge_mut(&other.header)?;
         // grab Self:: + Other:: `epochs`
         let (epochs, other_epochs) = (self.epochs(), other.epochs());
         if epochs.len() == 0 { // self is empty
@@ -688,6 +703,17 @@ impl Rinex {
                         a_rec.insert(*k, v.clone());
                     }
                 },
+                types::Type::IonosphereMaps => {
+                    let a_rec = self.record
+                        .as_mut_ionex()
+                        .unwrap();
+                    let b_rec = other.record
+                        .as_ionex()
+                        .unwrap();
+                    for (k, v) in b_rec {
+                        a_rec.insert(*k, v.clone());
+                    }
+                },
                 _ => unreachable!("epochs::iter()"),
             }
             Ok(())
@@ -707,7 +733,7 @@ impl Rinex {
             .unwrap();
         record.retain(|e, _| !e.flag.is_ok());
     }
-
+    
     /// see [epoch_ok_filter_mut]
     pub fn epoch_ok_filter (&self) -> Self {
         if self.header.rinex_type != types::Type::ObservationData {
@@ -727,26 +753,26 @@ impl Rinex {
     
     /// Returns epochs where a loss of lock event happened.
     /// Has no effects on non Observation Records.
-    pub fn lock_loss_epochs (&self) -> Vec<epoch::Epoch> {
-        if !self.is_observation_rinex() {
-            return Vec::new()
+    pub fn lock_loss_events (&self) -> Vec<epoch::Epoch> {
+        self
+            .lli_filter(observation::record::LliFlags::LOCK_LOSS)
+            .epochs()
+    }
+
+    /// Removes in place, epochs where Lock was lost
+    pub fn lock_loss_filter (&mut self) {
+        self
+            .lli_filter_mut(observation::record::LliFlags::LOCK_LOSS)
+    }
+
+    /// Computes average epoch duration
+    pub fn average_epoch_duration (&self) -> std::time::Duration {
+        let mut sum = 0;
+        let epochs = self.epochs();
+        for i in 1..epochs.len() {
+            sum += (epochs[i].date - epochs[i-1].date).num_seconds() as u64
         }
-        let mut epochs = self.epochs();
-        let record = self.record.as_obs().unwrap();
-        let mut index = 0;
-        for (_, (_, sv)) in record {
-            for (_, obs) in sv {
-                for (_, data) in obs {
-                    if let Some(lli) = data.lli {
-                        if lli == observation::record::lli_flags::LOCK_LOSS {
-                            epochs.remove(index);
-                        }
-                    }
-                }
-            }
-            index += 1;
-        }
-        epochs
+        std::time::Duration::from_secs(sum / epochs.len() as u64)
     }
 /*
     /// Cleans up, in place, epochs where `loss of lock` events happened.
@@ -773,34 +799,33 @@ impl Rinex {
         });
     }
 */
-    /// Executes in place given lli mask filter,
-    /// filters out all data in the record that does not
-    /// have a matching LLI mask attached to it.
+    /// Executes in place given LLI AND mask filter.
+    /// This method is very useful to determine where
+    /// loss of lock or external events happened and their nature.
     /// This has no effect on non observation records.
-    pub fn lli_filter_mut (&mut self, mask: u8) {
+    /// Data that do not have an LLI attached to them get also dropped out.
+    pub fn lli_filter_mut (&mut self, mask: observation::record::LliFlags) {
         if !self.is_observation_rinex() {
             return ; // nothing we can do
         }
         let record = self.record
             .as_mut_obs()
             .unwrap();
-        record.iter_mut()
-            .map(|(_e, (_clk, sv))| {
-                sv.iter_mut()
-                    .map(|(_sv, obs)| {
-                        obs.retain(|_, data| {
-                            if let Some(lli) = data.lli {
-                                lli == mask
-                            } else {
-                                false // drops data with no LLI attached
-                            }
-                        })
-                    })
-            });
+        for (_e, (_clk, sv)) in record.iter_mut() {
+            for (_sv, obs) in sv.iter_mut() {
+                obs.retain(|_, data| {
+                    if let Some(lli) = data.lli {
+                        lli.intersects(mask)
+                    } else {
+                        false // drops data with no LLI attached
+                    }
+                })
+            }
+        }
     }
 
     /// See [lli_filter_mut]
-    pub fn lli_filter (&self, mask: u8) -> Self {
+    pub fn lli_filter (&self, mask: observation::record::LliFlags) -> Self {
         if !self.is_observation_rinex() {
             return self.clone(); // nothing we can do
         }
@@ -808,21 +833,17 @@ impl Rinex {
             .as_obs()
             .unwrap()
             .clone();
-        //let record : observation::record::Record = record.iter_mut()
-        record.iter_mut()
-            .map(|(_e, (_clk, sv))| {
-                sv.iter()
-                    .map(|(_sv, obs)| {
-                        obs.iter()
-                            .filter(|(_, data)| {
-                                if let Some(lli) = data.lli {
-                                    lli == mask
-                                } else {
-                                    false // drops data with no LLI attached
-                                }
-                            })
-                    })
-            }); //.collect();
+        for (_e, (_clk, sv)) in record.iter_mut() {
+            for (_sv, obs) in sv.iter_mut() {
+                obs.retain(|_, data| {
+                    if let Some(lli) = data.lli {
+                        lli.intersects(mask)
+                    } else {
+                        false // drops data with no LLI attached
+                    }
+                })
+            }
+        }
         Self {
             record: record::Record::ObsRecord(record),
             comments: self.comments.clone(),
@@ -1030,60 +1051,60 @@ impl Rinex {
         let mut counter = 0;
         match self.header.rinex_type {
             types::Type::NavigationData => {
-                let mut record = self.record
+                let record = self.record
                     .as_mut_nav()
                     .unwrap();
-                record.retain(|e, _| {
+                record.retain(|_, _| {
                     let retain = (counter % ratio) == 0;
                     counter += 1;
                     retain
                 });
             },
             types::Type::ObservationData => {
-                let mut record = self.record
+                let record = self.record
                     .as_mut_obs()
                     .unwrap();
-                record.retain(|e, _| {
+                record.retain(|_, _| {
                     let retain = (counter % ratio) == 0;
                     counter += 1;
                     retain
                 });
             },
             types::Type::MeteoData => {
-                let mut record = self.record
+                let record = self.record
                     .as_mut_meteo()
                     .unwrap();
-                record.retain(|e, _| {
+                record.retain(|_, _| {
                     let retain = (counter % ratio) == 0;
                     counter += 1;
                     retain
                 });
             },
             types::Type::ClockData => {
-                let mut record = self.record
+                let record = self.record
                     .as_mut_clock()
                     .unwrap();
-                record.retain(|e, _| {
+                record.retain(|_, _| {
                     let retain = (counter % ratio) == 0;
                     counter += 1;
                     retain
                 });
             },
             types::Type::IonosphereMaps => {
-                let mut record = self.record
+                let record = self.record
                     .as_mut_ionex()
                     .unwrap();
-                record.retain(|e, _| {
+                record.retain(|_, _| {
                     let retain = (counter % ratio) == 0;
                     counter += 1;
                     retain
                 });
             },
             types::Type::AntennaData => {
-                let mut record = self.record
+                let record = self.record
                     .as_mut_antex()
                     .unwrap();
-                record.retain(|e| {
+                record.retain(|_| {
                     let retain = (counter % ratio) == 0;
                     counter += 1;
                     retain
@@ -1101,7 +1122,7 @@ impl Rinex {
                     .as_nav()
                     .unwrap()
                     .clone();
-                record.retain(|e, _| {
+                record.retain(|_, _| {
                     let retain = (counter % ratio) == 0;
                     counter += 1;
                     retain
@@ -1113,7 +1134,7 @@ impl Rinex {
                     .as_obs()
                     .unwrap()
                     .clone();
-                record.retain(|e, _| {
+                record.retain(|_, _| {
                     let retain = (counter % ratio) == 0;
                     counter += 1;
                     retain
@@ -1125,7 +1146,7 @@ impl Rinex {
                     .as_meteo()
                     .unwrap()
                     .clone();
-                record.retain(|e, _| {
+                record.retain(|_, _| {
                     let retain = (counter % ratio) == 0;
                     counter += 1;
                     retain
@@ -1137,7 +1158,7 @@ impl Rinex {
                     .as_ionex()
                     .unwrap()
                     .clone();
-                record.retain(|e, _| {
+                record.retain(|_, _| {
                     let retain = (counter % ratio) == 0;
                     counter += 1;
                     retain
@@ -1149,7 +1170,7 @@ impl Rinex {
                     .as_antex()
                     .unwrap()
                     .clone();
-                record.retain(|e| {
+                record.retain(|_| {
                     let retain = (counter % ratio) == 0;
                     counter += 1;
                     retain
