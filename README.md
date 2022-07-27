@@ -9,26 +9,21 @@ RINEX
 
 Rust tool suites to parse, analyze, manipulate `RINEX` files
 
-* [`rinex`](rinex/) `RINEX` file parsing & production and `teqc` similar ops, 
-this is the core library
+* [`rinex`](rinex/) files parser, this is the core library
+* [`crx2rnx`](crx2rnx/) is a command line application to decompress CRINEX files
+* [`sinex`](sinex/) files parser, core library
 
-* [`crx2rnx`](crx2rnx/) is a command line application to decompress `CRINEX` files
-
-* [`sinex`](sinex/) `SINEX` files parser, core library
-
-* [`rinex-cli`](rinex-cli/) is a command line application
-to analyze data and perform operations (like `teqc`) on `RINEX`, `CRINEX` 
-and soon `SINEX` files
+* [`rinex-cli`](rinex-cli/) is a command line application that intends to expose
+all the core libraries capacities to the end user, in an easy to user and efficient fashion.
+It can be used to analyze files, perform operations like `teqc`, etc.. See the **CLI**
+table down below for
 
 * [`ublox-rnx`](ublox-rnx) is an application (CLI) that connects to a `Ublox`
 receiver and generates RINEX data quickly & easily.
 It is made possible by combining the [ublox](https://github.com/lkolbly/ublox) crate
-and [`rinex`](rinex/) library core.
+and the [rinex](rinex/) crate.
 
-* `rnx2crx`: `RINEX` file compressor is currently under development,
-see `develop` branches
-
-Refer to the following tables for RINEX Types and file format/compression compatibilities:
+* `rnx2crx`: RINEX file compressor is currently under development
 
 ## Supported `RINEX` types
 
@@ -37,16 +32,15 @@ Refer to the following tables for RINEX Types and file format/compression compat
 | `NavigationData` (NAV)   | V2, V3            |   V4               |  :heavy_check_mark:    | :construction:       |:construction: | `epoch` iteration |
 | `ObservationData` (OBS)  | :heavy_check_mark:| :heavy_minus_sign: |  :heavy_check_mark:    | :construction:       |:construction: | `epoch` iteration |
 | `CRINEX` (Compressed OBS)| :heavy_check_mark:| :heavy_minus_sign: |  :heavy_check_mark:    | :construction:       |:construction: | `epoch` iteration |
-| `MeteoData` (MET)        | V2, V3            |   V4               |  :heavy_check_mark:    | :heavy_minus_sign:   |:construction: | `epoch` iteration |  
+| `MeteoData` (MET)        | V2, V3            |   V4               |  :heavy_check_mark:    | :heavy_minus_sign:   |:heavy_check_mark: | `epoch` iteration |  
 | `ClocksData` (CLK)       | V3                |   V4               |  :construction:        | :question:           |:construction: | `epoch` iteration |
-| `AntennaData` (ATX)      | :heavy_check_mark:| :heavy_minus_sign: |  :construction:        | :heavy_minus_sign:   |:construction: | `ATX` records are not index by `epochs` :sparkle:     |
+| `AntennaData` (ATX)      | :heavy_check_mark:| :heavy_minus_sign: |  :construction:        | :heavy_minus_sign:   |:construction: | `ATX` records are not indexed by `epochs` |
 | `IonosphereMaps` (IONEX) | :construction:    |                    |  :construction:        | :question:           |:construction: | `epoch` iteration |
-| `SINEX` (SNX)            | :construction:    |                    |  :construction:        | :heavy_minus_sign:   |:construction: |   `SINEX` are special `RINEX`, they are managed by a dedicated <br /> [`core library`](sinex/) |
+| `SINEX` (SNX)            | :construction:    |                    |  :construction:        | :heavy_minus_sign:   |:construction: |   `SINEX` are special `RINEX`, they are managed by a dedicated [core library](sinex/) |
 | `Troposphere` (TRO)      | :construction:    |                    |  :construction:        | :question:           |:construction: |   `Troposphere` are one possible SINEX declination |
 | `Bias` (BIA)             | :heavy_check_mark:| :heavy_minus_sign: |  :construction:        | :question:           |:construction: |   `Bias` solutions are one possible SINEX declination |
 
 Notes on `V4`: 
-- `OBS` should work: parsing and decoding is implemented but not tested due to lack of data
 - `NAV` should not fail but newer frame types decoding is not implemented
 - `MET` will work if indeed, only the Y/M/D H:M:S field differ   
 :arrow_right_hook: Data, tests and contributions are welcomed
@@ -58,12 +52,8 @@ Notes on `V4`:
 :heavy_check_mark: supported   
 :heavy_minus_sign: not applicable   
 :construction: under development  
-:sparkle: methods like _epoch\_iter()_ will panic
 
 ## Supported file format / compressions
-
-Any supported or unlocked with a special features, become natively supported: parser can directly analyse data,
-even if not human readable 
 
 | Format   | File name restrictions  |    Support          |
 |----------|-------------------------|---------------------|
