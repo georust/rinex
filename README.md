@@ -35,7 +35,7 @@ Refer to the following tables for RINEX Types and file format/compression compat
 | `types::Type`            | Trusted           | Untrusted          | CLI                    | UBX                  | Production    |          Notes          |
 |--------------------------|-------------------|--------------------|------------------------|----------------------|---------------|-------------------------
 | `NavigationData` (NAV)   | V2, V3            |   V4               |  :heavy_check_mark:    | :construction:       |:construction: | `epoch` iteration |
-| `ObservationData` (OBS)  | V2, V3            |   V4               |  :heavy_check_mark:    | :construction:       |:construction: | `epoch` iteration |
+| `ObservationData` (OBS)  | :heavy_check_mark:| :heavy_minus_sign: |  :heavy_check_mark:    | :construction:       |:construction: | `epoch` iteration |
 | `CRINEX` (Compressed OBS)| :heavy_check_mark:| :heavy_minus_sign: |  :heavy_check_mark:    | :construction:       |:construction: | `epoch` iteration |
 | `MeteoData` (MET)        | V2, V3            |   V4               |  :heavy_check_mark:    | :heavy_minus_sign:   |:construction: | `epoch` iteration |  
 | `ClocksData` (CLK)       | V3                |   V4               |  :construction:        | :question:           |:construction: | `epoch` iteration |
@@ -78,18 +78,28 @@ even if not human readable
 :heavy_check_mark: natively supported   
 :construction: under development  
 
+## Record (high level) operations
+
+| Rinex::method          | Status            | 
+|------------------------|-------------------|
+| `decimate_by_interval` | :heavy_check_mark:|
+| `decimate_by_ratio`    | :heavy_check_mark:|
+| `data_gaps`            ||
+| `lli_mask_filter`      ||
+| `epoch_ok_filter`      | :heavy_check_mark:|
+| `epoch_nok_filter`     | :heavy_check_mark:|
+| `epoch_anomalies`      ||
+| `constellation_filter` |:heavy_check_mark:|
+| `space_vehicule_filter` |:heavy_check_mark:|
+
 ## `teqc` special operations
 
-| Ops      | Status          | 
-|----------|-----------------|
-| `Merge` | :construction:   |
-| `Splice` | :construction:  | 
+|Rinex::method | Status          | 
+|--------------|-----------------|
+| `Merge`      | :construction:   |
+| `Splice`     | :construction:  | 
 
-## Custom special operations
 
-| Ops           | Status          | 
-|---------------|-----------------|
-| `Down sample` | :construction:  |
 
 ## Features
 
