@@ -11,10 +11,9 @@ jobs:
   audit:
 
     runs-on: ubuntu-latest
-    
+    continue-on-error: true
     steps:
     - uses: actions/checkout@v2
-    - continue-on-error: true
     - name: Audit
       run: |
         cargo install cargo-audit
