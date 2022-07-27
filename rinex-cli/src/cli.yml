@@ -18,9 +18,9 @@ args:
         long: header
         takes_value: false
         help: Display (print) header fields (as is..)
-    - decim:
+    - decim-ratio:
         short: d
-        long: decim
+        long: decim-ratio
         takes_value: true
         help: Decimate data quantity by a factor. For example, --decim 2 for epochs a,b,c,d,e,f retains a,c,e 
     - decim-interval:

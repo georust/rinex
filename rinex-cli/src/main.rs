@@ -47,8 +47,8 @@ pub fn main () -> Result<(), Box<dyn std::error::Error>> {
 
     // RINEX 
     let header = matches.is_present("header");
-    let resampling = matches.is_present("resampling");
-    let decimate = matches.is_present("decimate");
+    let decimate_ratio = matches.is_present("decim-ratio");
+    let decimate_interval = matches.is_present("decim-interval");
 
     // SPEC ops
     let merge = matches.is_present("merge");
@@ -142,9 +142,9 @@ for fp in &filepaths {
     }
     index += 1;
 
-    // [1] resampling
-    if resampling {
-        let hms = matches.value_of("resampling").unwrap();
+    // [1] record decimation
+    if decimate_interval {
+        let hms = matches.value_of("decim-interval").unwrap();
         let hms : Vec<_> = hms.split(":").collect();
         let (h,m,s) = (
             u64::from_str_radix(hms[0], 10).unwrap(),
@@ -154,8 +154,8 @@ for fp in &filepaths {
         let interval = std::time::Duration::from_secs(h*3600 + m*60 +s);
         rinex.decimate_by_interval_mut(interval)
     }
-    if decimate {
-        let r = u32::from_str_radix(matches.value_of("decimate").unwrap(), 10).unwrap();
+    if decimate_ratio {
+        let r = u32::from_str_radix(matches.value_of("decim-ratio").unwrap(), 10).unwrap();
         rinex.decimate_by_ratio_mut(r)
     }
 
