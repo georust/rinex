@@ -170,41 +170,10 @@ for fp in &filepaths {
             .epoch_nok_filter_mut()
     }
 
-    // [3] sv filter
+    // [3] apply sv filter ?
     if let Some(ref filter) = sv_filter {
-        match &rinex.header.rinex_type {
-            Type::ObservationData => {
-                let mut rework = observation::record::Record::new();
-                for (epoch, (ck,data)) in rinex.record.as_obs().unwrap().iter() {
-                    let mut map : HashMap<Sv, HashMap<String, observation::record::ObservationData>> = HashMap::new();
-                    for (sv, data) in data.iter() {
-                        if filter.contains(sv) {
-                            map.insert(*sv, data.clone());
-                        }
-                    }
-                    if map.len() > 0 {
-                        rework.insert(*epoch, (*ck, map));
-                    }
-                }
-                rinex.record = Record::ObsRecord(rework)
-            },
-            Type::NavigationData => {
-                let mut rework = navigation::record::Record::new();
-                for (epoch, data) in rinex.record.as_nav().unwrap().iter() {
-                    let mut map : HashMap<Sv, HashMap<String, navigation::record::ComplexEnum>> = HashMap::new();
-                    for (sv, data) in data.iter() {
-                        if filter.contains(sv) {
-                            map.insert(*sv, data.clone());
-                        }
-                    }
-                    if map.len() > 0 {
-                        rework.insert(*epoch, map);
-                    }
-                }
-                rinex.record = Record::NavRecord(rework)
-            },
-            _ => {},
-        }
+        rinex
+            .space_vehicule_filter_mut(filter.to_vec())
     }
 
     // [4] OBS code filter
