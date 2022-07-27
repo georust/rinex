@@ -134,14 +134,24 @@ pub fn build_record_entry (header: &Header, content: &str)
 
 /// Pushes meteo record into given file writer
 pub fn to_file (header: &header::Header, record: &Record, mut writer: std::fs::File) -> std::io::Result<()> {
-    let codes = &header.meteo
-        .as_ref()
-        .unwrap()
-        .codes;
-    for epoch in record.keys() {
-        write!(writer, " {} ", epoch.date.format("%y %_m %_d %_H %_M %_S").to_string())?;
-        for code in codes.iter() { 
-            write!(writer, "{:.1}   ", record[epoch].get(code).unwrap())?;
+    let obscodes = &header.meteo.as_ref().unwrap().codes;
+    for (epoch, obs) in record.iter() {
+        if header.version.major > 3 {
+            let _ = write!(writer, " {}", epoch.date.format("%Y %_m %_d %_H %_M %_S").to_string());
+        } else {
+            let _ = write!(writer, " {}", epoch.date.format("%y %_m %_d %_H %_M %_S").to_string());
+        }
+        let mut index = 0;
+        for code in obscodes.iter() { 
+            if let Some(data) = obs.get(code) {
+                let _ = write!(writer, "{:7.1}", data);
+            } else {
+                let _ = write!(writer, "       ");
+            }
+            if (index+1) %8 == 0 {
+                let _ = write!(writer, "\n");
+            }
+            index += 1;
         }
         write!(writer, "\n")?
     }

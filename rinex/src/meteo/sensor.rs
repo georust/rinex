@@ -62,11 +62,11 @@ impl std::fmt::Display for Sensor {
         write!(f, "{:<20}", self.model)?; 
         write!(f, "{:<30}", self.sensor_type)?; 
         write!(f, "{:1.1}", self.accuracy)?; 
-        write!(f, "{:<5?}", self.observable)?;
+        write!(f, "    {} ", self.observable)?;
         write!(f, "SENSOR MOD/TYPE/ACC\n")?;
         if let Some((x,y,z,h)) = self.position {
             write!(f, "        {:.4}        {:.4}        {:.4}        {:.4}", x, y, z, h)?;
-            write!(f, "{:?} SENSOR POS XYZ/H", self.observable)?
+            write!(f, "{} SENSOR POS XYZ/H", self.observable)?
         }
         Ok(())
     }
