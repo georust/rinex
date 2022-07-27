@@ -883,6 +883,75 @@ impl Rinex {
         }
         result
     }
+
+    /// Filters out data records that do not correspond
+    /// to the given Observable list. Observable
+    /// should be standard 3 letter codes.
+    /// If one or more fields are not recognized as an observable,
+    /// we simply ignore it in the filter operation.
+    /// This has no effect if self is an ATX or a IONEX record.
+    pub fn observable_filter_mut (&mut self, filter: Vec<&str>) {
+        if self.is_navigation_rinex() {
+            let record = self.record
+                .as_mut_nav()
+                .unwrap();
+            for (_e, sv) in record.iter_mut() {
+                for (_sv, data) in sv.iter_mut() {
+                    data.retain(|code, _| { 
+                        let mut found = false;
+                        for f in filter.iter() {
+                            found |= code.eq(f)
+                        }
+                        found
+                    })
+                }
+            }
+        } else if self.is_observation_rinex() {
+            let record = self.record
+                .as_mut_obs()
+                .unwrap();
+            for (_e, (_clk, sv)) in record.iter_mut() {
+                for (_sv, data) in sv.iter_mut() {
+                    data.retain(|code, _| {
+                        let mut found = false;
+                        for f in filter.iter() {
+                            found |= code.eq(f)
+                        }
+                        found
+                    })
+                }
+            }
+        } else if self.is_meteo_rinex() {
+            let record = self.record
+                .as_mut_meteo()
+                .unwrap();
+            for (_e, data) in record.iter_mut() {
+                data.retain(|code, _| {
+                    let mut found = false;
+                    for f in filter.iter() {
+                        found |= code.to_string().eq(f)
+                    }
+                    found
+                })
+            }
+        } else if self.is_clocks_rinex() {
+            let record = self.record
+                .as_mut_clock()
+                .unwrap();
+            for (_e, data) in record.iter_mut() {
+                for (_system, data) in data.iter_mut() {
+                    data.retain(|dtype, _| {
+                        let mut found = false;
+                        for f in filter.iter() {
+                            found |= dtype.to_string().eq(f)
+                        }
+                        found
+                    })
+                }
+            }
+        }
+    }
+
 /*
     /// Cleans up, in place, epochs where `loss of lock` events happened.
     /// Has no effect on non Observation Records.
@@ -957,6 +1026,32 @@ impl Rinex {
             record: record::Record::ObsRecord(record),
             comments: self.comments.clone(),
             header: self.header.clone(),
+        }
+    }
+
+    /// Retains data with a minimum SSI Signal Strength requirement.
+    /// All observation that do not match the |s| > ssi (excluded) predicate,
+    /// get thrown away. All observation that did not come with an SSI attached
+    /// to them get thrown away too (can't make a decision).
+    /// This serves as an easy to use signal quality filter.
+    /// This has no effect on non Observation Data.
+    pub fn minimum_sig_strength_filter_mut (&mut self, minimum: observation::record::Ssi) {
+        if !self.is_observation_rinex() {
+            return ; // nothing we can do
+        }
+        let record = self.record
+            .as_mut_obs()
+            .unwrap();
+        for (_e, (_clk, sv)) in record.iter_mut() {
+            for (_sv, obs) in sv.iter_mut() {
+                obs.retain(|_, data| {
+                    if let Some(ssi) = data.ssi {
+                        ssi > minimum
+                    } else {
+                        false // no SSI: gets dropped out
+                    }
+                })
+            }
         }
     }
 
