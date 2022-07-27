@@ -2,6 +2,7 @@
 use std::io::Write;
 use thiserror::Error;
 use std::str::FromStr;
+use chrono::Timelike;
 use bitflags::bitflags;
 use std::collections::{BTreeMap, HashMap};
 use physical_constants::SPEED_OF_LIGHT_IN_VACUUM;
@@ -149,7 +150,7 @@ impl ObservationData {
 ///  + map of ObservationData (physical measurements) sorted by `Sv` and by observation codes 
 pub type Record = BTreeMap<epoch::Epoch, 
     (Option<f32>, 
-    HashMap<sv::Sv, HashMap<String, ObservationData>>)>;
+    BTreeMap<sv::Sv, HashMap<String, ObservationData>>)>;
 
 #[derive(Error, Debug)]
 /// OBS Data `Record` parsing specific errors
@@ -210,7 +211,7 @@ pub fn is_new_epoch (line: &str, v: version::Version) -> bool {
 /// Builds `Record` entry for `ObservationData`
 /// from given epoch content
 pub fn build_record_entry (header: &header::Header, content: &str)
-        -> Result<(epoch::Epoch, Option<f32>, HashMap<sv::Sv, HashMap<String, ObservationData>>), Error> 
+        -> Result<(epoch::Epoch, Option<f32>, BTreeMap<sv::Sv, HashMap<String, ObservationData>>), Error> 
 {
     let mut lines = content.lines();
     let mut line = lines.next()
@@ -246,7 +247,7 @@ pub fn build_record_entry (header: &header::Header, content: &str)
     let epoch = epoch::Epoch::new(date, flag);
 
     let mut sv_list : Vec<sv::Sv> = Vec::with_capacity(24);
-	let mut map : HashMap<sv::Sv, HashMap<String, ObservationData>> = HashMap::new();
+	let mut map : BTreeMap<sv::Sv, HashMap<String, ObservationData>> = BTreeMap::new();
 	
     // all encountered obs codes
     let obs = header.obs
@@ -527,37 +528,90 @@ pub fn build_record_entry (header: &header::Header, content: &str)
 
 /// Pushes observation record into given file writer
 pub fn to_file (header: &header::Header, record: &Record, mut writer: std::fs::File) -> std::io::Result<()> {
-    for (epoch, (clock_offset, observations)) in record.iter() {
+    for (epoch, (clock_offset, sv)) in record.iter() {
+        let date = epoch.date;
+        let flag = epoch.flag;
+        let vehicules = sv.keys();
+        let nb_sv = vehicules.len(); 
+        let obscodes = &header.obs.as_ref().unwrap().codes;
+        // first line(s)
+        //   Epoch + flag + svnn + possible clock offset
         match header.version.major {
             1|2 => {
-                write!(writer, " {} ",  epoch.date.format("%y %m %d %H %M %.6f").to_string())?;
-                //TODO wrapp systems on as many lines as needed
-                if let Some(clock_offset) = clock_offset {
-                    write!(writer, "{:.12}", clock_offset)?
+                write!(writer, " {} ",  date.format("%y %m %d %H %M").to_string())?;
+                write!(writer, " {}         ", date.time().second())?;
+                write!(writer, " {}", flag)?; 
+                write!(writer, " {}", nb_sv)?; 
+                let nb_extra = nb_sv / 12;
+                let mut index = 0;
+                for vehicule in vehicules.into_iter() {
+                    write!(writer, "{}", vehicule)?; 
+                    if (index+1) % 12 == 0 {
+                        if let Some(clock_offset) = clock_offset {
+                            write!(writer, "{:3.9}", clock_offset)?
+                        }
+                        write!(writer, "\n                                ")?
+                    }
+                    index += 1
+                }
+                if nb_extra == 0 {
+                    if let Some(clock_offset) = clock_offset {
+                        let _ = write!(writer, "{:3.9}\n", clock_offset);
+                    } else {
+                        let _ = write!(writer, "\n");
+                    }
                 }
             },
-            _ => {
-                write!(writer, "> {} ", epoch.date.format("%Y %m %d %H %M %.6f").to_string())?;
+            _ => { // Modern revisions 
+                write!(writer, "> {} ",  date.format("%Y %m %d %H %M").to_string())?;
+                write!(writer, " {}         ", date.time().second())?;
+                write!(writer, " {} ", flag)?; 
+                write!(writer, " {}", nb_sv)?; 
                 if let Some(clock_offset) = clock_offset {
                     write!(writer, "{:.12}", clock_offset)?
                 }
                 write!(writer, "\n")?
             }
         }
-        for (sv, _obs) in observations.iter() {
+        // epoch body
+        let mut index = 0;
+        for (sv, obs) in sv.iter() {
+            let mut modulo = 5;
             if header.version.major > 2 {
                 // modern RINEX
-                write!(writer, "{} ", sv)?
+                modulo = 100000; // 'infinite': no wrapping
+                    // we behave like CRX2RNX which does not respect the standards,
+                    // we should wrap @ 80 once again
+                let _ = write!(writer, "{} ", sv);
+            } else {
+                let _ = write!(writer, " ");
             }
-            /*for code in &obs_codes[&sv.constellation] { 
-                let data = obs[code];
-                write!(writer, "{:14.3} ", data.obs)?;
-                if let Some(lli) = data.lli {
-                    write!(writer, "{} ", lli)?
+            // observables for this constellation
+            // --> respect header order and data might be missing
+            let codes = &obscodes[&sv.constellation];
+            for code in codes.iter() {
+                if let Some(data) = obs.get(code) {
+                    let _ = write!(writer, "{:13.3}", data.obs);
+                    if let Some(lli) = data.lli {
+                        let _ = write!(writer, "{}", lli.bits());
+                    } else {
+                        let _ = write!(writer, " ");
+                    }
+                    if let Some(ssi) = data.ssi {
+                        let _ = write!(writer, "{}", ssi as u8);
+                    } else {
+                        let _ = write!(writer, " ");
+                    }
+                    if (index+1) % modulo == 0 {
+                        let _ = write!(writer, "\n");
+                    }
+                    let _ = write!(writer, " ");
                 } else {
-                    write!(writer, " ")?
+                    // obs is missing, simply fill with whitespace
+                    let _ = write!(writer, "                ");
                 }
-            }*/
+                index += 1
+            }
             write!(writer, "\n")?
         }
     }

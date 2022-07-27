@@ -1051,6 +1051,16 @@ impl Header {
         s
     }
 
+    /// Adds crinex generation attributes to self,
+    /// has no effect if this is not an Observation Data header.
+    pub fn with_crinex (&self, c: observation::Crinex) -> Self {
+        let mut s = self.clone();
+        if let Some(ref mut obs) = s.obs {
+            obs.crinex = Some(c)
+        }
+        s
+    }
+
     /// Adds receiver information to self
     pub fn with_rcvr (&self, r: hardware::Rcvr) -> Self {
         let mut s = self.clone();
@@ -1187,7 +1197,7 @@ impl std::fmt::Display for Header {
                             for (_constell, codes) in obs.codes.iter() {
                                 let mut line = format!("{:6}", codes.len()); 
                                 for i in 0..codes.len() {
-                                    if (i+1)%11 == 0 {
+                                    if (i+1)%10 == 0 {
                                         line.push_str("# / TYPES OF OBS\n");
                                         write!(f, "{}", line)?;
                                         line.clear();

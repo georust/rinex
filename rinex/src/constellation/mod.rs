@@ -17,7 +17,9 @@ pub enum Error {
 
 /// Describes all known `GNSS` constellations
 /// when manipulating `RINEX`
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+#[derive(Clone, Copy, Debug)]
+#[derive(PartialEq, Eq)]
+#[derive(PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub enum Constellation {
     /// `GPS` american constellation,

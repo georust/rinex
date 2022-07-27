@@ -6,12 +6,35 @@ use crate::constellation;
 use serde::{Serialize, Serializer};
 
 /// ̀`Sv` describes a Satellite Vehiculee
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Copy, Clone, Debug)]
+#[derive(PartialEq, Eq, Hash)]
 pub struct Sv {
     /// prn identification # for this vehicule 
     pub prn: u8,
     /// `GNSS` Constellation to which this vehicule is tied to
     pub constellation: constellation::Constellation,
+}
+
+impl std::cmp::PartialOrd for Sv {
+    fn partial_cmp (&self, rhs: &Self) -> Option<std::cmp::Ordering> {
+        let (c1, c2) = (self.constellation, rhs.constellation); 
+        if c1 == c2 { // same constellation: PRN # differientiates
+            self.prn.partial_cmp(&rhs.prn)
+        } else { // By alphabetical order
+            c1.to_1_letter_code().partial_cmp(c2.to_1_letter_code())
+        }
+    }
+}
+
+impl std::cmp::Ord for Sv {
+    fn cmp (&self, rhs: &Self) -> std::cmp::Ordering {
+        let (c1, c2) = (self.constellation, rhs.constellation); 
+        if c1 == c2 { // same constellation: PRN # differentiates
+            self.prn.cmp(&rhs.prn)
+        } else { // By alphabetical order
+            c1.to_1_letter_code().cmp(c2.to_1_letter_code())
+        }
+    }
 }
 
 #[cfg(feature = "with-serde")]

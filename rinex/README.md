@@ -97,8 +97,8 @@ The only difference is basically how you reference the internal data:
 * Map (hash or btree): by an object. This provides efficient data classification right away.
 
 The difference between a Hash and a BTree map, is that the btreemap
-is naturally sorted. This is why we usually use, to this day, a btreemap
-as a first record entry: we naturally sort the record by ascending timestamps.
+is naturally sorted. This is the type we use anytime we need to guarantee classification
+at all times. For example, in epochs so the record is chronologically sorted.
 
 * Navigation Record browsing
 

@@ -155,6 +155,28 @@ impl Rinex {
         }
     }
 
+    /// Converts self to CRINEX compatible format.
+    /// This is useful in case we parsed some compressed
+    /// data that we want to uncompress.
+    /// This has no effect if self is not an Observation RINEX,
+    /// because it is not clear to this day, if CRINEX compression
+    /// is feasible on other types of RINEX.
+    pub fn crx2rnx (&mut self) {
+        if self.is_observation_rinex() {
+            let now = chrono::Utc::now().naive_utc();
+            self.header = self.header
+                .with_crinex(
+                    observation::Crinex {
+                        version: version::Version {
+                            major: 3, // latest CRINEX
+                            minor: 0, // latest CRINEX
+                        },
+                        prog: "rustcrx".to_string(),
+                        date: now.date().and_time(now.time()),
+                    })
+        }
+    }
+
     /// Returns filename that would respect naming conventions,
     /// based on self attributes
     pub fn filename (&self) -> String {
@@ -1411,7 +1433,7 @@ impl Rinex {
 
     /// Writes self into given file.   
     /// Both header + record will strictly follow RINEX standards.   
-    /// Record: supports all known `RINEX` types
+    /// Record: refer to supported RINEX types
     pub fn to_file (&self, path: &str) -> std::io::Result<()> {
         let mut writer = std::fs::File::create(path)?;
         write!(writer, "{}", self.header.to_string())?;
