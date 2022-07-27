@@ -80,21 +80,73 @@ println!("{:#?}", rinex.header.coords);
 The `Rinex` structure comprises the `header` previously defined,
 and the `record` which contains the data payload.
 
-Record data are always classified by `epoch` that means, by sampling timestamps.   
-The record is naturally sorted from oldest epochs to newest. 
-A `RINEX` file usually spans 24h at a steady sampling interval.   
+Most record content are sorted by epochs, but that is RINEX dependent:
+refer to the main page for more information. When a record
+is indexed by epochs, that means it is sorted by sampling timestamps
+and an `epoch::Flag` validating this epoch.
+Note that epochs Flags are only relevant in Observation Data;
+it is fixed to "Ok" in other records.
+RINEX files usually span 24h at a steady sampling interval.   
 
-The `record` is a complex structure of HashMap (_dictionaries_)
-whose definition varies with the type of RINEX file.   
-Refer to its definition in the API and the specific documentation down below,
-for the type of file you are interested in.
+`record` is a complex structure, which depends 
+on the RINEX type. In this paragraph, we expose how to iterate (browse)
+every supported record types. Advanced users
+must differentiate between Vector inner data and Map (Hash or BTree) inner data.
+The only difference is basically how you reference the internal data:
+* Vector: by position index (integer)
+* Map (hash or btree): by an object. This provides efficient data classification right away.
 
-`comments` identified in the record are currently dropped out
-because they are not considered as `epoch` data directly.   
-In the next release, `recods` will be able to expose `comments` 
-sorted by `epochs`. This will allow complex post-processing,
-and also allow the user to determine what happened in case of special
-epoch events.
+The difference between a Hash and a BTree map, is that the btreemap
+is naturally sorted. This is why we usually use, to this day, a btreemap
+as a first record entry: we naturally sort the record by ascending timestamps.
+
+* Navigation Record browsing
+
+```rust
+let record = record.as_nav()
+    .unwrap(); // user must verify this is feasible
+for (epoch, sv) in record.iter() { // Complex struct, on an `Epoch` basis
+    for (sv, data) in sv.iter() { // Complex struct, on a `Space Vehicule` basis
+        for (code, data) in data.iter() {
+           // code is an observable,
+           // user can refer to the RINEX fields specifications,
+           // or the navigation database
+           // Data is wrapped as a Complex Enum,
+           // to this day, we can encounter floating point data, or string data,
+        }
+    }
+}
+```
+
+* Observation Record browsing
+
+```rust
+let record = record.as_obs()
+    .unwrap(); // user must verify this is feasible
+for (epoch, (clk, sv)) in record.iter() { // Complex structures, on an `Epoch` basis
+    // clk : is an optionnal (f32) clock offset for this epoch,
+    for (sv, data) in sv.iter() { // Complex struct, on a `Space Vehicule` basis
+        for (code, data) in data.iter() {
+           // code is an observable: use this to determine the physics measured
+           // data is an ObservationData,
+           // which comprises the raw data, and possible an LLI flag and an SSI value
+        }
+    }
+}
+```
+
+* Meteo Record browsing
+
+```rust
+let record = record.as_nav()
+    .unwrap(); // user must verify this is feasible
+for (epoch, data) in record.iter() { // Complex structures, on an `Epoch` basis
+    for (obs, data) in data.iter() { 
+        // obs: is a Meteo Observable: determines the physics measured
+        // data: f32 raw data
+    }
+}
+```
 
 ## `Epoch` object
 
