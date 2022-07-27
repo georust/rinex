@@ -9,7 +9,7 @@ fn main() {
 
     // example file
     let path = env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/MET/V2/abvi0010.15m";
-    let mut rinex = rinex::Rinex::from_file(&path).unwrap();
+    let rinex = rinex::Rinex::from_file(&path).unwrap();
 
     // header information
     assert_eq!(rinex.header.is_crinex(), false);
