@@ -11,11 +11,13 @@ use crate::constellation::Constellation;
 pub struct Leap {
     /// current number
     pub leap: u32,
-    /// ΔtLS : future or past leap second(s)  
+    /// ΔtLS : "future or past leap second(s)", 
+    /// actual number of leap seconds between GPS/GAL and GLO,
+    /// or BDS and UTC.
     pub delta_tls: Option<u32>,
-    /// week counter 
+    /// weeks counter 
     pub week: Option<u32>,
-    /// day counter
+    /// days counter
     pub day: Option<u32>,
     /// system time
     pub system: Option<Constellation>,
