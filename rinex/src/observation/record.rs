@@ -5,7 +5,6 @@ use std::str::FromStr;
 use chrono::Timelike;
 use bitflags::bitflags;
 use std::collections::{BTreeMap, HashMap};
-use physical_constants::SPEED_OF_LIGHT_IN_VACUUM;
 
 use crate::sv;
 use crate::epoch;
@@ -112,7 +111,7 @@ bitflags! {
 #[cfg_attr(feature = "with-serde", derive(Serialize))]
 pub struct ObservationData {
 	/// physical measurement
-	pub obs: f32,
+	pub obs: f64,
 	/// Lock loss indicator 
 	pub lli: Option<LliFlags>,
 	/// Signal strength indicator
@@ -121,7 +120,7 @@ pub struct ObservationData {
 
 impl ObservationData {
 	/// Builds new ObservationData structure from given predicates
-    pub fn new (obs: f32, lli: Option<LliFlags>, ssi: Option<Ssi>) -> ObservationData {
+    pub fn new (obs: f64, lli: Option<LliFlags>, ssi: Option<Ssi>) -> ObservationData {
 		ObservationData {
 			obs,
 			lli,
@@ -140,16 +139,27 @@ impl ObservationData {
         let ssi_ok = self.ssi.unwrap_or(Ssi::default()).is_ok();
         lli_ok && ssi_ok
     }
+
+    /// Returns Real Distance, by converting observed pseudo range,
+    /// and compensating for distant and local clock offsets.
+    /// See [p17-p18 of the RINEX specifications]. It makes only
+    /// sense to apply this method on Pseudo Range observations.
+    /// - rcvr_offset: receiver clock offset for this epoch, given in file
+    /// - sv_offset: sv clock offset
+    /// - bias: other (optionnal..) additive biases
+    pub fn pr_real_distance (&self, rcvr_offset: f64, sv_offset: f64, biases: f64) -> f64 {
+        self.obs + 299_792_458.0_f64 * (rcvr_offset - sv_offset) + biases
+    }
 }
 
 /// `Record` content for OBS data files.   
 /// Measurements are sorted by `epoch` (timestamps + flags).    
 /// Measurements are of two kinds:
-///  + Option<f32>: receiver clock offsets for OBS data files where   
+///  + Option<f64>: receiver clock offsets for OBS data files where   
 ///    receiver clock offsets are 'applied'    
 ///  + map of ObservationData (physical measurements) sorted by `Sv` and by observation codes 
 pub type Record = BTreeMap<epoch::Epoch, 
-    (Option<f32>, 
+    (Option<f64>, 
     BTreeMap<sv::Sv, HashMap<String, ObservationData>>)>;
 
 #[derive(Error, Debug)]
@@ -211,7 +221,7 @@ pub fn is_new_epoch (line: &str, v: version::Version) -> bool {
 /// Builds `Record` entry for `ObservationData`
 /// from given epoch content
 pub fn build_record_entry (header: &header::Header, content: &str)
-        -> Result<(epoch::Epoch, Option<f32>, BTreeMap<sv::Sv, HashMap<String, ObservationData>>), Error> 
+        -> Result<(epoch::Epoch, Option<f64>, BTreeMap<sv::Sv, HashMap<String, ObservationData>>), Error> 
 {
     let mut lines = content.lines();
     let mut line = lines.next()
@@ -284,9 +294,9 @@ pub fn build_record_entry (header: &header::Header, content: &str)
             }
         },
     };
-    let clock_offset : Option<f32> = match offs.is_some() {
+    let clock_offset : Option<f64> = match offs.is_some() {
         true => {
-            if let Ok(f) = f32::from_str(offs.unwrap()) {
+            if let Ok(f) = f64::from_str(offs.unwrap()) {
                 Some(f)
             } else {
                 None // parsing failed for some reason
@@ -354,7 +364,7 @@ pub fn build_record_entry (header: &header::Header, content: &str)
 			let mut code_index : usize = 0;
 			loop { // per obs code
 				let code = &codes[code_index];
-				let obs : Option<f32> = match line.len() < offset+14 { 
+				let obs : Option<f64> = match line.len() < offset+14 { 
 					true => {
 						// cant' grab a new measurement
 						//  * line is empty: contains only empty measurements
@@ -363,7 +373,7 @@ pub fn build_record_entry (header: &header::Header, content: &str)
 					},
 					false => {
 						let obs = &line[offset..offset+14];
-						if let Ok(f) = f32::from_str(&obs.trim()) {
+						if let Ok(f) = f64::from_str(&obs.trim()) {
 							Some(f)
 						} else {
 							None // empty field
@@ -471,7 +481,7 @@ pub fn build_record_entry (header: &header::Header, content: &str)
 			loop { // per obs code
 				let code = &codes[code_index];
 				let obs = &rem[offset..offset+14];
-				let obs : Option<f32> = match f32::from_str(&obs.trim()) {
+				let obs : Option<f64> = match f64::from_str(&obs.trim()) {
 					Ok(f) => Some(f),
 					Err(_) => None, // empty field
 				};
@@ -616,18 +626,6 @@ pub fn to_file (header: &header::Header, record: &Record, mut writer: std::fs::F
         }
     }
     Ok(())
-}
-
-/// Calculates distance from given Pseudo Range value,
-/// by compensating clock offsets    
-/// pseudo_rg: raw pseudo range measurements   
-/// rcvr_clock_offset: receiver clock offset (s)    
-/// sv_clock_offset: Sv clock offset (s)    
-/// biases: optionnal (additive) biases to compensate for and increase result accuracy 
-pub fn pseudo_range_to_distance (pseudo_rg: f64, rcvr_clock_offset: f64, sv_clock_offset: f64, _biases: Vec<f64>) -> f64 {
-    pseudo_rg - SPEED_OF_LIGHT_IN_VACUUM * (rcvr_clock_offset - sv_clock_offset)
-    //TODO handle biases
-    // p17 table 4
 }
 
 #[cfg(test)]

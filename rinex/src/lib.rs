@@ -31,6 +31,7 @@ use std::io::{Read, Write};
 
 use thiserror::Error;
 use chrono::{Datelike, Timelike};
+use std::collections::BTreeMap;
 
 #[cfg(feature = "with-serde")]
 #[macro_use]
@@ -1094,6 +1095,74 @@ impl Rinex {
                 })
             }
         }
+    }
+
+    /// Returns all Pseudo Range observations
+    /// converted to Real Distance (in [m], 
+    /// by compensating for clock offsets and other biases),
+    /// on an epoch and vehicule basis.
+    /// This method has no effect on non observation data.
+    /// 
+    /// You basically have two options to retain the data of interest
+    ///  - either by filtering Self prior invoking this method
+    ///  - or by filtering the results yourself
+    /// Example:
+    /// ```
+    /// use rinex::*;
+    /// use rinex::sv::Sv;
+    /// use rinex::constellation::Constellation;
+    /// let rinex = Rinex::from_file("../test_resources/OBS/V2/zegv0010.21o");
+    /// let mut rinex = rinex.unwrap();
+    /// // Retain G07 + G08 vehicules 
+    /// // to perform further calculations on these vehicules data (GPS + Svnn filter)
+    /// let filter = vec![
+    ///     Sv {
+    ///         constellation: Constellation::GPS,
+    ///         prn: 7,
+    ///     },
+    ///     Sv {
+    ///         constellation: Constellation::GPS,
+    ///         prn: 8,
+    ///     },
+    /// ];
+    /// rinex
+    ///     .space_vehicule_filter_mut(filter);
+    /// let distances = rinex.pseudo_range_to_distance();
+    /// // exploit distances
+    /// for (e, sv) in distances.iter() { // (epoch, vehicules)
+    ///     for (sv, obs) in sv.iter() { // (vehicule, distance)
+    ///         for ((code, distance)) in obs.iter() { // obscode, distance
+    ///             // use the 3 letter code here, 
+    ///             // to determine the carrier you're dealing with.
+    ///             let d = distance * 10.0; // consume, post process...
+    ///         }
+    ///     }
+    /// }
+    /// ```
+    pub fn pseudo_range_to_distance (&self) -> BTreeMap<epoch::Epoch, BTreeMap<sv::Sv, Vec<(String, f64)>>> {
+        if !self.is_observation_rinex() {
+            return BTreeMap::new()
+        }
+        let mut results :BTreeMap<epoch::Epoch, BTreeMap<sv::Sv, Vec<(String, f64)>>> = BTreeMap::new();
+        let record = self.record
+            .as_obs()
+            .unwrap();
+        for (e, (clk, sv)) in record.iter() {
+            if let Some(clk) = clk { // only if local clock offset was provided
+                let mut map : BTreeMap<sv::Sv, Vec<(String, f64)>> = BTreeMap::new();
+                for (sv, obs) in sv.iter() {
+                    let mut v : Vec<(String, f64)> = Vec::new();
+                    for (code, data) in obs.iter() {
+                        if is_pseudo_range_obs_code!(code) {
+                            v.push((code.clone(), data.pr_real_distance(*clk, 0.0, 0.0)));
+                        }
+                    }
+                    map.insert(*sv, v); 
+                }
+                results.insert(*e, map);
+            }
+        }
+        results
     }
 
     /// Decimates record to fit minimum required epoch interval.

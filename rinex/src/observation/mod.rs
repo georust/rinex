@@ -1,7 +1,5 @@
 //! `ObservationData` parser and related methods
 use std::collections::HashMap;
-use physical_constants::SPEED_OF_LIGHT_IN_VACUUM;
-
 use crate::version;
 use crate::constellation::Constellation;
 
@@ -38,16 +36,4 @@ pub struct HeaderFields {
     pub codes: HashMap<Constellation, Vec<String>>,
     /// True if epochs & data compensate for local clock drift
     pub clock_offset_applied: bool,
-}
-
-/// Calculates distance from given Pseudo Range value,
-/// by compensating clock offsets    
-/// pseudo_rg: raw pseudo range measurements   
-/// rcvr_clock_offset: receiver clock offset (s)    
-/// sv_clock_offset: Sv clock offset (s)    
-/// biases: optionnal (additive) biases to compensate for and increase result accuracy 
-pub fn pseudo_range_to_distance (pseudo_rg: f64, rcvr_clock_offset: f64, sv_clock_offset: f64, _biases: Vec<f64>) -> f64 {
-    pseudo_rg - SPEED_OF_LIGHT_IN_VACUUM * (rcvr_clock_offset - sv_clock_offset)
-    //TODO handle biases
-    // p17 table 4
 }
