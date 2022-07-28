@@ -875,6 +875,147 @@ impl Rinex {
             }
         }
     }
+    
+    /// Extracts distant clock offsets 
+    /// (also refered to as "clock biases") in [s],
+    /// on an epoch basis and per space vehicule,
+    /// from this Navigation record.
+    /// This does not produce anything if self is not a NAV RINEX.
+    /// Use this to process [pseudo_range_to_distance]
+    ///
+    /// Example:
+    /// ```
+    /// use rinex::*;
+    /// use rinex::sv::Sv;
+    /// use rinex::constellation::Constellation;
+    /// let rinex = Rinex::from_file("../test_resources/NAV/V3/CBW100NLD_R_20210010000_01D_MN.rnx");
+    /// let mut rinex = rinex.unwrap();
+    /// // Retain G07 + G08 vehicules 
+    /// // to perform further calculations on these vehicules data (GPS + Svnn filter)
+    /// let filter = vec![
+    ///     Sv {
+    ///         constellation: Constellation::GPS,
+    ///         prn: 7,
+    ///     },
+    ///     Sv {
+    ///         constellation: Constellation::GPS,
+    ///         prn: 8,
+    ///     },
+    /// ];
+    /// rinex
+    ///     .space_vehicule_filter_mut(filter.clone());
+    /// let mut offsets = rinex.space_vehicule_clocks_offset();
+    /// // example: apply a static offset to all clock offsets
+    /// for (e, sv) in offsets.iter_mut() { // (epoch, vehicules)
+    ///     for (sv, offset) in sv.iter_mut() { // vehicule, clk_offset
+    ///         *offset += 10.0_f64 // do something..
+    ///     }
+    /// }
+    /// 
+    /// // use these distant clock offsets,
+    /// // to convert pseudo ranges to real distances,
+    /// // in an associated OBS data set
+    /// let rinex = Rinex::from_file("../test_resources/OBS/V3/ACOR00ESP_R_20213550000_01D_30S_MO.rnx");
+    /// let mut rinex = rinex.unwrap();
+    /// // apply same filter, we're still only interested in G07 + G08
+    /// rinex
+    ///     .space_vehicule_filter_mut(filter.clone());
+    /// // apply conversion
+    /// let distances = rinex.pseudo_range_to_distance(offsets);
+    /// ```
+    pub fn space_vehicule_clocks_offset (&self) -> BTreeMap<epoch::Epoch, BTreeMap<sv::Sv, f64>> {
+        if !self.is_navigation_rinex() {
+            return BTreeMap::new(); // nothing to extract
+        }
+        let mut results: BTreeMap<epoch::Epoch, BTreeMap<sv::Sv, f64>> = BTreeMap::new();
+        let record = self.record
+            .as_nav()
+            .unwrap();
+        for (e, sv) in record.iter() {
+            let mut map :BTreeMap<sv::Sv, f64> = BTreeMap::new();
+            for (sv, obs) in sv.iter() {
+                for (code, data) in obs.iter() {
+                    if code.eq("clockBias") {
+                        if let Some(data) = data.as_f64() {
+                            map.insert(*sv, data);
+                        }
+                    }
+                }
+            }
+            results.insert(*e, map);
+        }
+        results
+    }
+
+    /// Extracts distant clock (offset[s], drift [s.s⁻¹], drift rate [s.s⁻²]) triplet,
+    /// on an epoch basis and per space vehicule,
+    /// from this Navigation record.
+    /// This does not produce anything if self is not a NAV RINEX.
+    /// Use this to process [pseudo_range_to_distance]
+    ///
+    /// Example:
+    /// ```
+    /// use rinex::*;
+    /// use rinex::sv::Sv;
+    /// use rinex::constellation::Constellation;
+    /// let rinex = Rinex::from_file("../test_resources/NAV/V3/CBW100NLD_R_20210010000_01D_MN.rnx");
+    /// let mut rinex = rinex.unwrap();
+    /// // Retain G07 + G08 vehicules 
+    /// // to perform further calculations on these vehicules data (GPS + Svnn filter)
+    /// let filter = vec![
+    ///     Sv {
+    ///         constellation: Constellation::GPS,
+    ///         prn: 7,
+    ///     },
+    ///     Sv {
+    ///         constellation: Constellation::GPS,
+    ///         prn: 8,
+    ///     },
+    /// ];
+    /// rinex
+    ///     .space_vehicule_filter_mut(filter.clone());
+    /// let mut drifts = rinex.space_vehicule_clocks_drift();
+    /// // example: adjust clock offsets and drifts
+    /// for (e, sv) in drifts.iter_mut() { // (epoch, vehicules)
+    ///     for (sv, (offset, dr, drr)) in sv.iter_mut() { // vehicule, (offset, drift, drift/dt)
+    ///         *offset += 10.0_f64; // do something..
+    ///         *dr = dr.powf(0.25); // do something..
+    ///     }
+    /// }
+    /// ```
+    pub fn space_vehicule_clocks_drift (&self) -> BTreeMap<epoch::Epoch, BTreeMap<sv::Sv, (f64,f64,f64)>> {
+        if !self.is_navigation_rinex() {
+            return BTreeMap::new(); // nothing to extract
+        }
+        let mut results: BTreeMap<epoch::Epoch, BTreeMap<sv::Sv, (f64,f64,f64)>> = BTreeMap::new();
+        let record = self.record
+            .as_nav()
+            .unwrap();
+        for (e, sv) in record.iter() {
+            let mut map :BTreeMap<sv::Sv, (f64,f64,f64)> = BTreeMap::new();
+            for (sv, obs) in sv.iter() {
+                let mut triplet = (0.0_f64, 0.0_f64, 0.0_f64);
+                for (code, data) in obs.iter() {
+                    if code.eq("clockBias") {
+                        if let Some(data) = data.as_f64() {
+                            triplet.0 = data
+                        }
+                    } else if code.eq("clockDrift") {
+                        if let Some(data) = data.as_f64() {
+                            triplet.1 = data
+                        }
+                    } else if code.eq("clockDriftRate") {
+                        if let Some(data) = data.as_f64() {
+                            triplet.2 = data
+                        }
+                    }
+                }
+                map.insert(*sv, triplet);
+            }
+            results.insert(*e, map);
+        }
+        results
+    }
 
     /// Computes average epoch duration
     pub fn average_epoch_duration (&self) -> std::time::Duration {
@@ -1098,20 +1239,23 @@ impl Rinex {
     }
 
     /// Returns all Pseudo Range observations
-    /// converted to Real Distance (in [m], 
-    /// by compensating for clock offsets and other biases),
-    /// on an epoch and vehicule basis.
+    /// converted to Real Distance (in [m]),
+    /// by compensating for the difference between
+    /// local clock offset and distant clock offsets.
+    /// We can only produce such data if local clock offset was found
+    /// for a given epoch, and related distant clock offsets were given.
+    /// Distant clock offsets can be obtained with [space_vehiculte_clocks_offset].
+    /// Real distances are extracted on an epoch basis, and per space vehicule.
     /// This method has no effect on non observation data.
     /// 
-    /// You basically have two options to retain the data of interest
-    ///  - either by filtering Self prior invoking this method
-    ///  - or by filtering the results yourself
     /// Example:
     /// ```
     /// use rinex::*;
     /// use rinex::sv::Sv;
     /// use rinex::constellation::Constellation;
-    /// let rinex = Rinex::from_file("../test_resources/OBS/V2/zegv0010.21o");
+    /// // obtain distance clock offsets, by analyzing a related NAV file
+    /// // (this is only an example..)
+    /// let rinex = Rinex::from_file("../test_resources/NAV/V3/CBW100NLD_R_20210010000_01D_MN.rnx");
     /// let mut rinex = rinex.unwrap();
     /// // Retain G07 + G08 vehicules 
     /// // to perform further calculations on these vehicules data (GPS + Svnn filter)
@@ -1126,8 +1270,15 @@ impl Rinex {
     ///     },
     /// ];
     /// rinex
-    ///     .space_vehicule_filter_mut(filter);
-    /// let distances = rinex.pseudo_range_to_distance();
+    ///     .space_vehicule_filter_mut(filter.clone());
+    /// // extract distant clock offsets
+    /// let sv_clk_offsets = rinex.space_vehicule_clocks_offset();
+    /// let rinex = Rinex::from_file("../test_resources/OBS/V3/ACOR00ESP_R_20213550000_01D_30S_MO.rnx");
+    /// let mut rinex = rinex.unwrap();
+    /// // apply the same filter
+    /// rinex
+    ///     .space_vehicule_filter_mut(filter.clone());
+    /// let distances = rinex.pseudo_range_to_distance(sv_clk_offsets);
     /// // exploit distances
     /// for (e, sv) in distances.iter() { // (epoch, vehicules)
     ///     for (sv, obs) in sv.iter() { // (vehicule, distance)
@@ -1139,7 +1290,7 @@ impl Rinex {
     ///     }
     /// }
     /// ```
-    pub fn pseudo_range_to_distance (&self) -> BTreeMap<epoch::Epoch, BTreeMap<sv::Sv, Vec<(String, f64)>>> {
+    pub fn pseudo_range_to_distance (&self, sv_clk_offsets: BTreeMap<epoch::Epoch, BTreeMap<sv::Sv, f64>>) -> BTreeMap<epoch::Epoch, BTreeMap<sv::Sv, Vec<(String, f64)>>> {
         if !self.is_observation_rinex() {
             return BTreeMap::new()
         }
@@ -1148,18 +1299,22 @@ impl Rinex {
             .as_obs()
             .unwrap();
         for (e, (clk, sv)) in record.iter() {
-            if let Some(clk) = clk { // only if local clock offset was provided
-                let mut map : BTreeMap<sv::Sv, Vec<(String, f64)>> = BTreeMap::new();
-                for (sv, obs) in sv.iter() {
-                    let mut v : Vec<(String, f64)> = Vec::new();
-                    for (code, data) in obs.iter() {
-                        if is_pseudo_range_obs_code!(code) {
-                            v.push((code.clone(), data.pr_real_distance(*clk, 0.0, 0.0)));
+            if let Some(distant_e) = sv_clk_offsets.get(e) { // got related distant epoch
+                if let Some(clk) = clk { // got local clock offset 
+                    let mut map : BTreeMap<sv::Sv, Vec<(String, f64)>> = BTreeMap::new();
+                    for (sv, obs) in sv.iter() {
+                        if let Some(sv_offset) = distant_e.get(sv) { // got related distant offset
+                            let mut v : Vec<(String, f64)> = Vec::new();
+                            for (code, data) in obs.iter() {
+                                if is_pseudo_range_obs_code!(code) {
+                                    v.push((code.clone(), data.pr_real_distance(*clk, *sv_offset, 0.0)));
+                                }
+                            }
+                            map.insert(*sv, v); 
                         }
                     }
-                    map.insert(*sv, v); 
+                    results.insert(*e, map);
                 }
-                results.insert(*e, map);
             }
         }
         results

@@ -223,9 +223,9 @@ pub fn build_record_entry (header: &header::Header, content: &str)
 		_ => unreachable!(), // RINEX::NAV body while Type!=NAV
     };
 
-    map.insert("ClockBias".to_string(), ComplexEnum::new("f32", svbias.trim())?); 
-    map.insert("ClockDrift".to_string(), ComplexEnum::new("f32", svdrift.trim())?); 
-    map.insert("ClockDriftRate".to_string(), ComplexEnum::new("f32", svdriftr.trim())?); 
+    map.insert("clockBias".to_string(), ComplexEnum::new("f64", svbias.trim())?); 
+    map.insert("clockDrift".to_string(), ComplexEnum::new("f64", svdrift.trim())?); 
+    map.insert("clockDriftRate".to_string(), ComplexEnum::new("f64", svdriftr.trim())?); 
 
     line = lines.next()
         .unwrap();
@@ -350,6 +350,14 @@ mod test {
         assert_eq!(e.as_str().is_some(), false);
         let u = e.as_f32().unwrap();
         assert_eq!(u, 10.0_f32);
+        
+        let e = ComplexEnum::F64(10.0);
+        assert_eq!(e.as_u8().is_some(), false);
+        assert_eq!(e.as_f32().is_some(), false);
+        assert_eq!(e.as_f64().is_some(), true);
+        assert_eq!(e.as_str().is_some(), false);
+        let u = e.as_f64().unwrap();
+        assert_eq!(u, 10.0_f64);
     }
 
     #[test]
