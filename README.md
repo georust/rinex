@@ -131,3 +131,9 @@ Follow the existing architecture:
 
 * only introduce non existing RINEX declinations
 * truncate huge files to maintain a reasonnable repo size 
+
+### TODO 
+
+- [ ] Something to do with EpochFlag::HeaderInformationFollows flag
+and smart header update ?
+- [ ] Cycle Slip Events ?
