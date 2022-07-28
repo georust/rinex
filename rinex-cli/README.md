@@ -14,6 +14,7 @@ Command line tool to handle, manage and analyze RINEX files
 Why this tool ?
 
 `RINEX` files are very common, they are used in 
+
 * GNSS applications :artificial_satellite:
 * Timing applications :clock1:
 * Astronomy :satellite:
@@ -31,11 +32,11 @@ File names are disregarded by these tools, you can analyze
 
 ## Compressed files
 
+This tool supports gzip compressed files, as long as their name is terminated
+by `.gz`.
+
 It is possible to directly analyze Observation Data that previously was
 compressed using the official `RNX2CRX` tool.
-
-This tool does not support extra compression (like .gz for instance).
-It is up to the user to decompress these files prior analysis.
 
 ## Getting started
 
@@ -121,7 +122,28 @@ flag to identify NAV data field also !
 
 ## Record resampling
 
-Record resampling is work in progress !
+* Decimate by ratio:
+
+```bash
+# Reduce by factor of 4 the record content
+cargo run -- -fp /tmp/data.obs --decimate-ratio 4
+```
+
+* Decimate to minimum epoch interval
+
+```bash
+# epochs in this file:
+# 00:00:00
+# 00:00:30
+# 00:01:00
+# ..
+cargon run -- -fp test_resources/OBS/V2/zegv0010.21o \
+    --decimate-interval 00:00:30
+# epochs after such operations
+# 00:00:00
+# 00:01:00
+# ..
+```
 
 ## Epoch filter
 
