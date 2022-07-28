@@ -121,6 +121,8 @@ pub enum Error {
     ParseIntError(#[from] std::num::ParseIntError),
     #[error("unable to identify constellation + carrier code")]
     SvError(#[from] sv::Error),
+    #[error("non recognized observable \"{0}\"")]
+    InvalidObservable(String),
 }
 
 impl std::str::FromStr for Channel {
@@ -186,6 +188,78 @@ impl Channel {
             Channel::L5 | Channel::E5 => 12.5_f64,
             Channel::E6 => 0.0, //TODO
             Channel::LEX => 0.0, //TODO
+        }
+    }
+
+    /// Identifies Frequency channel, from given observable, related
+    /// to given Constellation
+    pub fn from_observable (constellation: Constellation, observable: &str) -> Result<Self, Error> {
+        match constellation {
+            Constellation::GPS => {
+                if observable.contains("1") {
+                    Ok(Self::L1)
+                } else if observable.contains("2") {
+                    Ok(Self::L2)
+                } else if observable.contains("5") {
+                    Ok(Self::L5)
+                } else {
+                    Err(Error::InvalidObservable(observable.to_string()))
+                }
+            },
+            Constellation::Glonass => {
+                if observable.contains("1") {
+                    Ok(Self::G1(None))
+                } else if observable.contains("2") {
+                    Ok(Self::G2(None))
+                } else {
+                    Err(Error::InvalidObservable(observable.to_string()))
+                }
+            },
+            Constellation::Galileo => {
+                if observable.contains("1") {
+                    Ok(Self::E1)
+                } else if observable.contains("2") {
+                    Ok(Self::E2)
+                } else if observable.contains("5") {
+                    Ok(Self::E5)
+                } else if observable.contains("6") {
+                    Ok(Self::E6)
+                } else {
+                    Err(Error::InvalidObservable(observable.to_string()))
+                }
+            },
+            Constellation::SBAS(_) => {
+                if observable.contains("1") {
+                    Ok(Self::L1)
+                } else if observable.contains("5") {
+                    Ok(Self::L5)
+                } else {
+                    Err(Error::InvalidObservable(observable.to_string()))
+                }
+            },
+            Constellation::QZSS => {
+                if observable.contains("1") {
+                    Ok(Self::L1)
+                } else if observable.contains("2") {
+                    Ok(Self::L2)
+                } else if observable.contains("5") {
+                    Ok(Self::L5)
+                } else if observable.contains("7") {
+                    Ok(Self::LEX) // TODO confirm !
+                } else {
+                    Err(Error::InvalidObservable(observable.to_string()))
+                }
+            },
+            Constellation::IRNSS => {
+                if observable.contains("1") {
+                    Ok(Self::L1)
+                } else if observable.contains("5") {
+                    Ok(Self::L5)
+                } else {
+                    Err(Error::InvalidObservable(observable.to_string()))
+                }
+            },
+            _ => todo!("not implemented for constellation \"{}\" yet..", constellation.to_3_letter_code()),
         }
     }
     

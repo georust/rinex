@@ -762,9 +762,7 @@ impl Rinex {
         }
     }
     
-    /// Filters out epochs in record that do not have
-    /// an Epoch::Ok flag attached to them.
-    /// Has no effect on non Observation Records.
+    /// Retains only data that have an Ok flag associated to them. 
     pub fn epoch_ok_filter_mut (&mut self) {
         if !self.is_observation_rinex() {
             return ; // nothing we can do
@@ -775,8 +773,9 @@ impl Rinex {
         record.retain(|e, _| e.flag.is_ok());
     }
 
-    /// Filters out epochs marker with an Ok flag.
-    /// This has no effect on non observation data.
+    /// Filters out epochs that do not have an Ok flag associated
+    /// to them. This can be due to events like Power Failure,
+    /// Receiver or antenna being moved.. See [epoch::EpochFlag].
     pub fn epoch_nok_filter_mut (&mut self) {
         if !self.is_observation_rinex() {
             return ; // nothing we can do
@@ -829,12 +828,12 @@ impl Rinex {
             .epochs()
     }
 
-    /// Removes in place, epochs where Lock was lost
+    /// Removes in place, observables where Lock was declared as lost.
     pub fn lock_loss_filter (&mut self) {
         self
             .lli_filter_mut(observation::record::LliFlags::LOCK_LOSS)
     }
-    
+
     /// Retains data that was recorded along given constellation(s).
     /// This has no effect on ATX, CLK, MET and IONEX records. 
     pub fn constellation_filter_mut (&mut self, filter: Vec<constellation::Constellation>) {
@@ -1010,14 +1009,14 @@ impl Rinex {
                         }
                     }
                 }
-                map.insert(*sv, triplet);
+                map.insert(*sv, triplet); // (clk, dr, drr) are always there
             }
             results.insert(*e, map);
         }
         results
     }
 
-    /// Computes average epoch duration
+    /// Computes average epoch duration of this record
     pub fn average_epoch_duration (&self) -> std::time::Duration {
         let mut sum = 0;
         let epochs = self.epochs();
@@ -1027,9 +1026,10 @@ impl Rinex {
         std::time::Duration::from_secs(sum / epochs.len() as u64)
     }
 
+
     /// Returns list of observables, in the form 
     /// of standardized 3 letter codes, that can be found in this record.
-    /// This does not produce anything in case of ATX records.
+    /// This does not produce anything in case of ATX and IONEX records.
     pub fn observables (&self) -> Vec<String> {
         let mut result :Vec<String> = Vec::new();
         if let Some(obs) = &self.header.obs {
@@ -1061,8 +1061,6 @@ impl Rinex {
                     }
                 }
             }
-        } else if self.is_ionex() {
-
         }
         result
     }
@@ -1135,31 +1133,6 @@ impl Rinex {
         }
     }
 
-/*
-    /// Cleans up, in place, epochs where `loss of lock` events happened.
-    /// Has no effect on non Observation Records.
-    pub fn lock_loss_cleanup (&mut self) {
-        if !self.is_observation_rinex() {
-            return; // nothing we can do
-        }
-        let record = self.record
-            .as_mut_obs()
-            .unwrap();
-        record.retain(|e, (clk, sv)| {
-            sv.iter()
-              .map(|(_vehicule, obs)| {
-                obs.iter()
-                   .map(|(_, data)| {
-                      if let Some(lli) = data.lli {
-                        lli == observation::record::lli_flags::LOCK_LOSS
-                      } else {
-                        true // lli not provided --> nothing we can do
-                      }
-                   })
-              })
-        });
-    }
-*/
     /// Executes in place given LLI AND mask filter.
     /// This method is very useful to determine where
     /// loss of lock or external events happened and their nature.
@@ -1216,7 +1189,7 @@ impl Rinex {
     /// All observation that do not match the |s| > ssi (excluded) predicate,
     /// get thrown away. All observation that did not come with an SSI attached
     /// to them get thrown away too (can't make a decision).
-    /// This serves as an easy to use signal quality filter.
+    /// This can act as a simple signal quality filter.
     /// This has no effect on non Observation Data.
     pub fn minimum_sig_strength_filter_mut (&mut self, minimum: observation::record::Ssi) {
         if !self.is_observation_rinex() {
@@ -1238,13 +1211,181 @@ impl Rinex {
         }
     }
 
+    /// Extracts Pseudo Range data from this
+    /// Observation record, on an epoch basis an per space vehicule. 
+    /// Does not produce anything if self is not an Observation RINEX.
+    pub fn pseudo_ranges (&self) -> BTreeMap<epoch::Epoch, BTreeMap<sv::Sv, Vec<(String, f64)>>> {
+        if !self.is_observation_rinex() {
+            return BTreeMap::new() ; // nothing we can do
+        }
+        let mut results: BTreeMap<epoch::Epoch, BTreeMap<sv::Sv, Vec<(String, f64)>>> = BTreeMap::new();
+        let record = self.record
+            .as_obs()
+            .unwrap();
+        for (e, (_, sv)) in record.iter() {
+            let mut map: BTreeMap<sv::Sv, Vec<(String, f64)>> = BTreeMap::new();
+            for (sv, obs) in sv.iter() {
+                let mut v : Vec<(String, f64)> = Vec::new();
+                for (code, data) in obs.iter() {
+                    if is_pseudo_range_obs_code!(code) {
+                        v.push((code.clone(), data.obs));
+                    }
+                }
+                if v.len() > 0 { // did come with at least 1 PR
+                    map.insert(*sv, v);
+                }
+            }
+            if map.len() > 0 { // did produce something
+                results.insert(*e, map);
+            }
+        }
+        results
+    }
+    
+    /// Extracts Pseudo Ranges without Ionospheric path delay contributions,
+    /// by extracting [pseudo_ranges] and using the differential (dual frequency) compensation.
+    /// We can only compute such information if pseudo range was evaluted
+    /// on at least two seperate carrier frequencies, for a given space vehicule at a certain epoch.
+    /// Does not produce anything if self is not an Observation RINEX.
+    pub fn iono_free_pseudo_ranges (&self) -> BTreeMap<epoch::Epoch, BTreeMap<sv::Sv, f64>> {
+        let pr = self.pseudo_ranges();
+        let mut results : BTreeMap<epoch::Epoch, BTreeMap<sv::Sv, f64>> = BTreeMap::new();
+        for (e, sv) in pr.iter() {
+            let mut map :BTreeMap<sv::Sv, f64> = BTreeMap::new();
+            for (sv, obs) in sv.iter() {
+                let mut result :Option<f64> = None; 
+                let mut retained : Vec<(String, f64)> = Vec::new();
+                for (code, value) in obs.iter() {
+                    if is_pseudo_range_obs_code!(code) {
+                        retained.push((code.clone(), *value));
+                    }
+                }
+                if retained.len() > 1 { // got a dual frequency scenario
+                    // we only care about 2 carriers
+                    let retained = &retained[0..2]; 
+                    // only left with two observables at this point
+                    // (obscode, data) mapping 
+                    let codes :Vec<String> = retained.iter().map(|r| r.0.clone()).collect();
+                    let data :Vec<f64> = retained.iter().map(|r| r.1).collect();
+                    // need to determine frequencies involved
+                    let mut channels :Vec<channel::Channel> = Vec::with_capacity(2);
+                    for i in 0..codes.len() {
+                        if let Ok(channel) = channel::Channel::from_observable(sv.constellation, &codes[i]) {
+                            channels.push(channel)
+                        }
+                    }
+                    if channels.len() == 2 { // frequency identification passed, twice
+                        // --> compute 
+                        let f0 = (channels[0].carrier_frequency_mhz() *1.0E6).powf(2.0_f64);
+                        let f1 = (channels[1].carrier_frequency_mhz() *1.0E6).powf(2.0_f64);
+                        let diff = (f0 * data[0] - f1 * data[1] ) / (f0 - f1) ;
+                        result = Some(diff)
+                    }
+                }
+                if let Some(result) = result {
+                    // conditions were met for this vehicule
+                    // at this epoch
+                    map.insert(*sv, result);
+                }
+            }
+            if map.len() > 0 { // did produce something
+                results.insert(*e, map);
+            }
+        }
+        results
+    }
+    
+    /// Extracts Raw Carrier Phase observations,
+    /// from this Observation record, on an epoch basis an per space vehicule. 
+    /// Does not produce anything if self is not an Observation RINEX.
+    pub fn carrier_phases (&self) -> BTreeMap<epoch::Epoch, BTreeMap<sv::Sv, Vec<(String, f64)>>> {
+        if !self.is_observation_rinex() {
+            return BTreeMap::new() ; // nothing we can do
+        }
+        let mut results: BTreeMap<epoch::Epoch, BTreeMap<sv::Sv, Vec<(String, f64)>>> = BTreeMap::new();
+        let record = self.record
+            .as_obs()
+            .unwrap();
+        for (e, (_, sv)) in record.iter() {
+            let mut map: BTreeMap<sv::Sv, Vec<(String, f64)>> = BTreeMap::new();
+            for (sv, obs) in sv.iter() {
+                let mut v : Vec<(String, f64)> = Vec::new();
+                for (code, data) in obs.iter() {
+                    if is_phase_carrier_obs_code!(code) {
+                        v.push((code.clone(), data.obs));
+                    }
+                }
+                if v.len() > 0 { // did come with at least 1 Phase obs
+                    map.insert(*sv, v);
+                }
+            }
+            if map.len() > 0 { // did produce something
+                results.insert(*e, map);
+            }
+        }
+        results
+    }
+    
+    /// Extracts Carrier phases without Ionospheric path delay contributions,
+    /// by extracting [carrier_phases] and using the differential (dual frequency) compensation.
+    /// We can only compute such information if carrier phase was evaluted
+    /// on at least two seperate carrier frequencies, for a given space vehicule at a certain epoch.
+    /// Does not produce anything if self is not an Observation RINEX.
+    pub fn iono_free_carrier_phases (&self) -> BTreeMap<epoch::Epoch, BTreeMap<sv::Sv, f64>> {
+        let pr = self.pseudo_ranges();
+        let mut results : BTreeMap<epoch::Epoch, BTreeMap<sv::Sv, f64>> = BTreeMap::new();
+        for (e, sv) in pr.iter() {
+            let mut map :BTreeMap<sv::Sv, f64> = BTreeMap::new();
+            for (sv, obs) in sv.iter() {
+                let mut result :Option<f64> = None; 
+                let mut retained : Vec<(String, f64)> = Vec::new();
+                for (code, value) in obs.iter() {
+                    if is_phase_carrier_obs_code!(code) {
+                        retained.push((code.clone(), *value));
+                    }
+                }
+                if retained.len() > 1 { // got a dual frequency scenario
+                    // we only care about 2 carriers
+                    let retained = &retained[0..2]; 
+                    // only left with two observables at this point
+                    // (obscode, data) mapping 
+                    let codes :Vec<String> = retained.iter().map(|r| r.0.clone()).collect();
+                    let data :Vec<f64> = retained.iter().map(|r| r.1).collect();
+                    // need to determine frequencies involved
+                    let mut channels :Vec<channel::Channel> = Vec::with_capacity(2);
+                    for i in 0..codes.len() {
+                        if let Ok(channel) = channel::Channel::from_observable(sv.constellation, &codes[i]) {
+                            channels.push(channel)
+                        }
+                    }
+                    if channels.len() == 2 { // frequency identification passed, twice
+                        // --> compute 
+                        let f0 = (channels[0].carrier_frequency_mhz() *1.0E6).powf(2.0_f64);
+                        let f1 = (channels[1].carrier_frequency_mhz() *1.0E6).powf(2.0_f64);
+                        let diff = (f0 * data[0] - f1 * data[1] ) / (f0 - f1) ;
+                        result = Some(diff)
+                    }
+                }
+                if let Some(result) = result {
+                    // conditions were met for this vehicule
+                    // at this epoch
+                    map.insert(*sv, result);
+                }
+            }
+            if map.len() > 0 { // did produce something
+                results.insert(*e, map);
+            }
+        }
+        results
+    }
+
     /// Returns all Pseudo Range observations
     /// converted to Real Distance (in [m]),
     /// by compensating for the difference between
     /// local clock offset and distant clock offsets.
     /// We can only produce such data if local clock offset was found
     /// for a given epoch, and related distant clock offsets were given.
-    /// Distant clock offsets can be obtained with [space_vehiculte_clocks_offset].
+    /// Distant clock offsets can be obtained with [space_vehicule_clocks_offset].
     /// Real distances are extracted on an epoch basis, and per space vehicule.
     /// This method has no effect on non observation data.
     /// 
@@ -1307,16 +1448,22 @@ impl Rinex {
                             let mut v : Vec<(String, f64)> = Vec::new();
                             for (code, data) in obs.iter() {
                                 if is_pseudo_range_obs_code!(code) {
+                                    // We currently do not support the compensation for biases
+                                    // than clock induced ones. ie., Ionospheric delays ??
                                     v.push((code.clone(), data.pr_real_distance(*clk, *sv_offset, 0.0)));
                                 }
                             }
-                            map.insert(*sv, v); 
-                        }
+                            if v.len() > 0 { // did come with at least 1 PR
+                                map.insert(*sv, v);
+                            }
+                        } // got related distant offset
+                    } // per sv
+                    if map.len() > 0 { // did produce something
+                        results.insert(*e, map);
                     }
-                    results.insert(*e, map);
-                }
-            }
-        }
+                } // got local clock offset attached to this epoch
+            }//got related distance epoch
+        } // per epoch
         results
     }
 
@@ -1412,7 +1559,7 @@ impl Rinex {
     }
 
     /// Refer to [decimate_by_interval], non mutable implementation
-    pub fn decimate_by_interval(&self, interval: std::time::Duration) -> Self {
+    pub fn decimate_by_interval (&self, interval: std::time::Duration) -> Self {
         let min_requirement = chrono::Duration::from_std(interval)
             .unwrap()
             .num_seconds();
