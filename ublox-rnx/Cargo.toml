@@ -18,4 +18,4 @@ serialport = "4.2.0"
 #ublox = "0.4.2"
 ublox = { git = "https://github.com/gwbres/ublox", branch = "gwbr/develop" }
 rinex = { path = "../rinex", features = ["with-serde"] }
-clap = { version = "3.2.15", features = ["yaml"] }
+clap = { version = "~2.34.0", features = ["yaml"] }
