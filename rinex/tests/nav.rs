@@ -807,13 +807,22 @@ mod test {
                             _ => panic!("got unexpected sv identifier for ION message \"{:?}\"", key)
                         }
                     }
+                } else if *class == FrameClass::Ephemeris {
+                    for (key, frame) in frames.iter() {
+                        let key = key.as_sv().unwrap();
+                        let eph = frame.as_eph().unwrap();
+                        if key.constellation == Constellation::QZSS {
+                            if key.prn != 4 {
+                                panic!("got unexpected QZSS vehicule \"{}\"", key.prn)
+                            }
+                        }
+                    }
                 }
             }
         }
         assert_eq!(sto_count, 3);
         assert_eq!(ion_count, 3);
         assert_eq!(eop_count, 0); // no EOP in this file
-        // test some specific epochs
     }
     #[cfg(feature = "with-gzip")]
     use std::str::FromStr;
