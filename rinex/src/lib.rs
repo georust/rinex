@@ -1264,7 +1264,7 @@ impl Rinex {
     }
 
     /// Filters out all Legacy Ephemeris freames from this Navigation record.
-    /// This is inteded to be used only on modern (V>3) Navigation record,
+    /// This is intended to be used only on modern (V>3) Navigation record,
     /// which are the only records expected to contain other frame types.
     /// This has no effect if self is not a Navigation record.
     pub fn legacy_nav_filter_mut (&mut self) {
@@ -1288,7 +1288,7 @@ impl Rinex {
     
     /// Filters out all Modern Ephemeris freames from this Navigation record,
     /// keeping only Legacy Ephemeris Frames.
-    /// This is inteded to be used only on modern (V>3) Navigation record,
+    /// This is intended to be used only on modern (V>3) Navigation record,
     /// as previous revision only contained frames marked as Legacy.
     /// This has no effect if self is not a Navigation record.
     pub fn modern_nav_filter_mut (&mut self) {
