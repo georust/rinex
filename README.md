@@ -29,26 +29,27 @@ and the [rinex](rinex/) crate.
 
 ## Supported `RINEX` types
 
-| `types::Type`            | Trusted           | Untrusted          | CLI                    | UBX                  | Production    |          Notes          |
-|--------------------------|-------------------|--------------------|------------------------|----------------------|---------------|-------------------------
-| `NavigationData` (NAV)   | V2, V3            |   V4               |  :heavy_check_mark:    | :construction:       |:construction: | `epoch` iteration |
-| `ObservationData` (OBS)  | :heavy_check_mark:| :heavy_minus_sign: |  :heavy_check_mark:    | :construction:       |:construction: | `epoch` iteration |
-| `CRINEX` (Compressed OBS)| :heavy_check_mark:| :heavy_minus_sign: |  :heavy_check_mark:    | :construction:       |:construction: | `epoch` iteration |
-| `MeteoData` (MET)        | :heavy_check_mark:| :heavy_minus_sign: |  :heavy_check_mark:    | :heavy_minus_sign:   |:heavy_check_mark: | `epoch` iteration |  
-| `ClocksData` (CLK)       | V3                |   V4               |  :construction:        | :question:           |:construction: | `epoch` iteration |
-| `AntennaData` (ATX)      | :heavy_check_mark:| :heavy_minus_sign: |  :construction:        | :heavy_minus_sign:   |:construction: | `ATX` records are not indexed by `epochs` |
-| `IonosphereMaps` (IONEX) | :construction:    |                    |  :construction:        | :question:           |:construction: | `epoch` iteration |
-| `SINEX` (SNX)            | :construction:    |                    |  :construction:        | :heavy_minus_sign:   |:construction: |   `SINEX` are special `RINEX`, they are managed by a dedicated [core library](sinex/) |
-| `Troposphere` (TRO)      | :construction:    |                    |  :construction:        | :question:           |:construction: |   `Troposphere` are one possible SINEX declination |
-| `Bias` (BIA)             | :heavy_check_mark:| :heavy_minus_sign: |  :construction:        | :question:           |:construction: |   `Bias` solutions are one possible SINEX declination |
+| `types::Type`            | Support           | CLI                 | UBX                  | Production        |          Notes          |
+|--------------------------|-------------------|---------------------|----------------------|-------------------|-------------------------
+| `NavigationData` (NAV)   | :heavy_check_mark:|  :heavy_check_mark: | :construction:       |:construction:     | `epoch` iteration |
+| `ObservationData` (OBS)  | :heavy_check_mark:|  :heavy_check_mark: | :construction:       | :construction:    | `epoch` iteration |
+| `CRINEX` (Compressed OBS)| :heavy_check_mark:|  :heavy_check_mark: | :construction:       | :construction:    | `epoch` iteration |
+| `MeteoData` (MET)        | :heavy_check_mark:| :heavy_check_mark:  | :construction:       |:heavy_check_mark: | `epoch` iteration |  
+| `ClocksData` (CLK)       | :sparkle:         | :sparkle:           | :question:        |:construction: | `epoch` iteration |
+| `AntennaData` (ATX)      | :heavy_check_mark:| :sparkle:           | :heavy_minus_sign:   |:construction: | `ATX` records are not indexed by `epochs` |
+| `IonosphereMaps` (IONEX) | :sparkle:         |  :sparkle:          | :question:           |:construction: | `epoch` iteration |
+| `SINEX` (SNX)            | :construction:    |  :construction:     | :heavy_minus_sign:   |:construction: |   `SINEX` are special `RINEX`, they are managed by a dedicated [core library](sinex/)  |
+| `Troposphere` (TRO)      | :construction:    |  :construction:     | :question:           |:construction: |   `Troposphere` are one possible SINEX declination |
+| `Bias` (BIA)             | :heavy_check_mark: |  :construction:        | :question:           |:construction: |   `Bias` solutions are one possible SINEX declination |
 
-**Production** means file generation (_to_file()_) of `trusted` revisions  
+**Production** means file generation (_to_file()_)    
 **CLI** means exposed to [`rinex-cli`](rinex-cli/) for easy parsing & quick analysis  
-**UBX** means exposed to [`ublox-rnx`](ublox-rnx/) for to produce data with a UBLOX receiver  
+**UBX** means exposed to [`ublox-rnx`](ublox-rnx/) for quick and easy data production from a UBLOX receiver  
 
 :heavy_check_mark: supported   
 :heavy_minus_sign: not applicable   
-:construction: under development  
+:sparkle: parser will work, not fully stabilized: don't expect something extraordinary   
+:construction: under development: parser will fail
 
 ## Supported file format / compressions
 
@@ -63,7 +64,7 @@ and the [rinex](rinex/) crate.
 
 :heavy_minus_sign: no restrictions. We can parse a  CRINEX or a IONEX named foo.txt as long as it follows the standards.      
 :heavy_check_mark: natively supported   
-:construction: under development  
+:construction, under development  
 
 ## Record (high level) operations
 
