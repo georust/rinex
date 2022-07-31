@@ -311,8 +311,8 @@ mod test {
             index += 1
         }
     }
-    #[cfg(feature = "with-gzip")]
-    use itertools::*;
+    //#[cfg(feature = "with-gzip")]
+    //use itertools::*;
     #[test]
     #[cfg(feature = "with-gzip")]
     fn v4_kms300dnk_r_202215910() {
@@ -327,7 +327,6 @@ mod test {
         assert_eq!(rinex.header.meteo.is_none(), true);
         let record = rinex.record.as_nav();
         assert_eq!(record.is_some(), true);
-        let record = record.unwrap();
         let epochs : Vec<&str> = vec![
 "2022 06 08 10 00 00",
 "2022 06 08 10 00 00",
@@ -704,7 +703,7 @@ mod test {
             }
         }
         expected_epochs.sort(); // like the parser will
-        let epochs = rinex.epochs();
+        //let epochs = rinex.epochs();
         //assert_eq!(epochs.len(), expected_epochs.len());
         let record = rinex.record.as_nav();
         assert_eq!(record.is_some(), true);
@@ -834,13 +833,21 @@ mod test {
             rinex::sv::Sv::from_str("S36").unwrap(),
             rinex::sv::Sv::from_str("R10").unwrap(),
             rinex::sv::Sv::from_str("E03").unwrap()];
-        for (epoch, frames) in record.iter() {
+        for (epoch, classes) in record.iter() {
             let expected_e = epoch::Epoch {
                 date: epoch::str2date(expected_epochs[index]).unwrap(),
                 flag: epoch::EpochFlag::default(),
             };
             assert_eq!(*epoch, expected_e);
-            index += 1;
+            for (class, frames) in classes.iter() {
+                if *class == navigation::record::FrameClass::Ephemeris {
+                    for frame in frames.iter() {
+                        let (_, sv, _, _, _, _) = frame.as_eph().unwrap();
+                        assert_eq!(sv, expected_vehicules[index]);
+                        index += 1;
+                    }
+                }
+            }
         }
     }
 }

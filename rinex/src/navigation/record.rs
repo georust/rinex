@@ -344,7 +344,7 @@ fn build_modern_record_entry (content: &str) ->
         _ => return Err(Error::MissingData),
     };
 
-    let (marker, rem) = line.split_at(2);
+    let (_, rem) = line.split_at(2);
     let (frame_class, rem) = rem.split_at(4);
     let (svnn, rem) = rem.split_at(4);
 
@@ -385,7 +385,7 @@ fn build_modern_record_entry (content: &str) ->
             };
             
             let (epoch, rem) = line.split_at(23);
-            let (system, rem) = rem.split_at(5);
+            let (system, _) = rem.split_at(5);
             let epoch = Epoch {
                 date: epoch::str2date(epoch.trim())?,
                 flag: epoch::EpochFlag::Ok,
@@ -455,8 +455,7 @@ fn build_v2_v3_record_entry (version: Version, constell: Constellation, content:
         _ => return Err(Error::MissingData), 
     };
     
-    let version_major = version.major;
-    let svnn_offset :usize = match version.major {
+    let svnn_offset: usize = match version.major {
         1|2 => 2, // Y
         3 => 4, // XYY
         _ => unreachable!(),
@@ -596,7 +595,7 @@ pub fn to_file (header: &header::Header, record: &Record, mut writer: std::fs::F
                 let _ = write!(writer, "> {} {} ", nb_sv, epoch.date.format("%Y %m %d %H %M %.6f").to_string());
             }
         }
-        let mut index = 1;
+        //let mut index = 1;
         /*for (_sv, data) in sv.iter() {
             for (_obs, data) in data.iter() {
                 let _ = write!(writer, "{}", data);

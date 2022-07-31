@@ -221,7 +221,7 @@ impl BdModel {
             Some(l) => l,
             _ => return Err(Error::KbModelMissing3rdLine)
         };
-        let (a7, a8) = rem.split_at(23);
+        let (a7, a8) = line.split_at(23);
         
         let date = epoch::str2date(epoch.trim())?;
         let alpha = (

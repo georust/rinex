@@ -1274,7 +1274,7 @@ impl Rinex {
         let record = self.record
             .as_mut_nav()
             .unwrap();
-        for (e, classes) in record.iter_mut() {
+        for (_, classes) in record.iter_mut() {
             for (class, frames) in classes.iter_mut() {
                 if *class == navigation::record::FrameClass::Ephemeris {
                     frames.retain(|fr| {
@@ -1298,7 +1298,7 @@ impl Rinex {
         let record = self.record
             .as_mut_nav()
             .unwrap();
-        for (e, classes) in record.iter_mut() {
+        for (_, classes) in record.iter_mut() {
             for (class, frames) in classes.iter_mut() {
                 if *class == navigation::record::FrameClass::Ephemeris {
                     frames.retain(|fr| {

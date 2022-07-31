@@ -185,7 +185,7 @@ mod test {
 
     #[test]
     fn test_ionex_v1_example1() {
-        let content =
+        let _content =
 "     1                                                      START OF TEC MAP    
   1995    10    15     0     0     0                        EPOCH OF CURRENT MAP
     -3                                                      EXPONENT            
@@ -209,7 +209,7 @@ mod test {
  1000 1000 1000 1000 1000 1000 1000 1000 1000 1000 1000 1000 1000 1000 1000 1000
  1000 1000 1000 1000 1000 1000 1000 1000                                        
      5                                                      END OF TEC MAP     "; 
-        let entry = build_record_entry(content, -1);
+        //let entry = build_record_entry(content, -1);
         //println!("{:#?}", entry);
     }
 }
