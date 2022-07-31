@@ -32,7 +32,7 @@ pub enum Error {
 }
 
 /// Klobuchar Parameters region
-#[derive(Debug, Clone)]
+#[derive(Debug, Copy, Clone)]
 #[derive(PartialEq, PartialOrd)]
 #[cfg_attr(feature = "with-serde", derive(Serialize))]
 pub enum KbRegionCode {
@@ -51,7 +51,7 @@ impl Default for KbRegionCode {
 /// Klobuchar model payload,
 /// we don't know how to parse the possible extra Region Code yet
 #[derive(Default)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Copy, Clone)]
 #[derive(PartialEq, PartialOrd)]
 #[cfg_attr(feature = "with-serde", derive(Serialize))]
 pub struct KbModel {
@@ -145,7 +145,7 @@ bitflags! {
 
 /// Nequick-G Model payload
 #[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Default, Copy)]
 #[derive(PartialEq, PartialOrd)]
 #[cfg_attr(feature = "with-serde", derive(Serialize))]
 pub struct NgModel {
@@ -190,7 +190,7 @@ impl NgModel {
 }
 
 /// BDGIM Model payload
-#[derive(Debug, Clone)]
+#[derive(Debug, Copy, Clone)]
 #[derive(Default)]
 #[derive(PartialEq, PartialOrd)]
 #[cfg_attr(feature = "with-serde", derive(Serialize))]

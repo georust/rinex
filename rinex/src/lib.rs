@@ -31,7 +31,7 @@ use std::io::{Read, Write};
 
 use thiserror::Error;
 use chrono::{Datelike, Timelike};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 
 #[cfg(feature = "with-serde")]
 #[macro_use]
@@ -765,7 +765,7 @@ impl Rinex {
     /// Retains only data that have an Ok flag associated to them. 
     pub fn epoch_ok_filter_mut (&mut self) {
         if !self.is_observation_rinex() {
-            return ; // nothing we can do
+            return ; // nothing to browse
         }
         let record = self.record
             .as_mut_obs()
@@ -778,7 +778,7 @@ impl Rinex {
     /// Receiver or antenna being moved.. See [epoch::EpochFlag].
     pub fn epoch_nok_filter_mut (&mut self) {
         if !self.is_observation_rinex() {
-            return ; // nothing we can do
+            return ; // nothing to browse
         }
         let record = self.record
             .as_mut_obs()
@@ -789,7 +789,7 @@ impl Rinex {
     /// see [epoch_ok_filter_mut]
     pub fn epoch_ok_filter (&self) -> Self {
         if !self.is_observation_rinex() {
-            return self.clone() // nothing we can do
+            return self.clone() // nothing to browse
         }
         let header = self.header.clone();
         let mut record = self.record.as_obs()
@@ -806,7 +806,7 @@ impl Rinex {
     /// see [epoch_nok_filter_mut]
     pub fn epoch_nok_filter (&self) -> Self {
         if !self.is_observation_rinex() {
-            return self.clone() // nothing we can do
+            return self.clone() // nothing to browse
         }
         let header = self.header.clone();
         let mut record = self.record.as_obs()
@@ -1163,7 +1163,7 @@ impl Rinex {
     /// Data that do not have an LLI attached to them get also dropped out.
     pub fn lli_filter_mut (&mut self, mask: observation::record::LliFlags) {
         if !self.is_observation_rinex() {
-            return ; // nothing we can do
+            return ; // nothing to browse
         }
         let record = self.record
             .as_mut_obs()
@@ -1184,7 +1184,7 @@ impl Rinex {
     /// See [lli_filter_mut]
     pub fn lli_filter (&self, mask: observation::record::LliFlags) -> Self {
         if !self.is_observation_rinex() {
-            return self.clone(); // nothing we can do
+            return self.clone(); // nothing to browse
         }
         let mut record = self.record
             .as_obs()
@@ -1216,7 +1216,7 @@ impl Rinex {
     /// This has no effect on non Observation Data.
     pub fn minimum_sig_strength_filter_mut (&mut self, minimum: observation::record::Ssi) {
         if !self.is_observation_rinex() {
-            return ; // nothing we can do
+            return ; // nothing to browse
         }
         let record = self.record
             .as_mut_obs()
@@ -1234,12 +1234,235 @@ impl Rinex {
         }
     }
 
+    /// Extracts all Ephemeris from this Navigation record,
+    /// drops out possible STO / EOP / ION modern NAV frames.
+    /// This does not produce anything if self is not a Navigation RINEX.
+    pub fn ephemeris (&self) -> BTreeMap<epoch::Epoch, BTreeMap<sv::Sv, (f64,f64,f64, HashMap<String, navigation::record::ComplexEnum>)>> {
+        if !self.is_navigation_rinex() {
+            return BTreeMap::new() ; // nothing to browse
+        }
+        let mut results: BTreeMap<epoch::Epoch, BTreeMap<sv::Sv, (f64,f64,f64, HashMap<String, navigation::record::ComplexEnum>)>>
+            = BTreeMap::new();
+        let record = self.record
+            .as_nav()
+            .unwrap();
+        for (e, classes) in record.iter() {
+            for (class, frames) in classes.iter() {
+                if *class == navigation::record::FrameClass::Ephemeris {
+                    let mut inner: BTreeMap<sv::Sv,  (f64,f64,f64, HashMap<String, navigation::record::ComplexEnum>)> = BTreeMap::new();
+                    for frame in frames.iter() {
+                        let (_, sv, clk, clk_dr, clk_drr, map) = frame.as_eph().unwrap();
+                        inner.insert(sv, (clk, clk_dr, clk_drr, map.clone()));
+                    }
+                    if inner.len() > 0 {
+                        results.insert(*e, inner);
+                    }
+                }
+            }
+        }
+        results
+    }
+
+    /// Filters out all Legacy Ephemeris freames from this Navigation record.
+    /// This is inteded to be used only on modern (V>3) Navigation record,
+    /// which are the only records expected to contain other frame types.
+    /// This has no effect if self is not a Navigation record.
+    pub fn legacy_nav_filter_mut (&mut self) {
+        if !self.is_navigation_rinex() {
+            return ; // nothing to do
+        }
+        let record = self.record
+            .as_mut_nav()
+            .unwrap();
+        for (e, classes) in record.iter_mut() {
+            for (class, frames) in classes.iter_mut() {
+                if *class == navigation::record::FrameClass::Ephemeris {
+                    frames.retain(|fr| {
+                        let (msgtype, _, _, _, _, _) = fr.as_eph().unwrap();
+                        msgtype != navigation::record::MsgType::LNAV
+                    })
+                }
+            }
+        }
+    }
+    
+    /// Filters out all Modern Ephemeris freames from this Navigation record,
+    /// keeping only Legacy Ephemeris Frames.
+    /// This is inteded to be used only on modern (V>3) Navigation record,
+    /// as previous revision only contained frames marked as Legacy.
+    /// This has no effect if self is not a Navigation record.
+    pub fn modern_nav_filter_mut (&mut self) {
+        if !self.is_navigation_rinex() {
+            return ; // nothing to do
+        }
+        let record = self.record
+            .as_mut_nav()
+            .unwrap();
+        for (e, classes) in record.iter_mut() {
+            for (class, frames) in classes.iter_mut() {
+                if *class == navigation::record::FrameClass::Ephemeris {
+                    frames.retain(|fr| {
+                        let (msgtype, _, _, _, _, _) = fr.as_eph().unwrap();
+                        msgtype == navigation::record::MsgType::LNAV
+                    })
+                }
+            }
+        }
+    }
+
+    /// Extracts all System Time Offset data
+    /// on a epoch basis, from this Navigation record.
+    /// This does not produce anything if self is not a modern Navigation record
+    /// that contains such frames.
+    pub fn system_time_offsets (&self) -> BTreeMap<epoch::Epoch, Vec<navigation::stomessage::Message>> {
+        if !self.is_navigation_rinex() {
+            return BTreeMap::new(); // nothing to browse
+        }
+        let mut results: BTreeMap<epoch::Epoch, Vec<navigation::stomessage::Message>> = BTreeMap::new();
+        let record = self.record
+            .as_nav()
+            .unwrap();
+        for (e, classes) in record.iter() {
+            for (class, frames) in classes.iter() {
+                if *class == navigation::record::FrameClass::SystemTimeOffset {
+                    let mut inner :Vec<navigation::stomessage::Message> = Vec::new();
+                    for frame in frames.iter() {
+                        let fr = frame.as_sto().unwrap();
+                        inner.push(fr.clone())
+                    }
+                    if inner.len() > 0 {
+                        results.insert(*e, inner);
+                    }
+                }
+            }
+        }
+        results
+    }
+
+    /// Extracts from this Navigation record all Ionospheric Models, on a epoch basis,
+    /// regardless of their kind. This does not produce anything if 
+    /// self is not a modern Navigation record that contains such models.
+    pub fn ionospheric_models (&self) -> BTreeMap<epoch::Epoch, Vec<navigation::ionmessage::Message>> {
+        if !self.is_navigation_rinex() {
+            return BTreeMap::new(); // nothing to browse
+        }
+        let mut results: BTreeMap<epoch::Epoch, Vec<navigation::ionmessage::Message>> = BTreeMap::new();
+        let record = self.record
+            .as_nav()
+            .unwrap();
+        for (e, classes) in record.iter() {
+            for (class, frames) in classes.iter() {
+                if *class == navigation::record::FrameClass::IonosphericModel {
+                    let mut inner :Vec<navigation::ionmessage::Message> = Vec::new();
+                    for frame in frames.iter() {
+                        let fr = frame.as_ion().unwrap();
+                        inner.push(fr.clone())
+                    }
+                    if inner.len() > 0 {
+                        results.insert(*e, inner);
+                    }
+                }
+            }
+        }
+        results
+    }
+
+    /// Extracts all Klobuchar Ionospheric models from this Navigation record.
+    /// This does not produce anything if self is not a modern Navigation record
+    /// that contains such models.
+    pub fn klobuchar_ionospheric_models (&self) -> BTreeMap<epoch::Epoch, Vec<navigation::ionmessage::KbModel>> {
+        if !self.is_navigation_rinex() {
+            return BTreeMap::new() ; // nothing to browse
+        }
+        let mut results: BTreeMap<epoch::Epoch, Vec<navigation::ionmessage::KbModel>> = BTreeMap::new();
+        let record = self.record
+            .as_nav()
+            .unwrap();
+        for (e, classes) in record.iter() {
+            for (class, frames) in classes.iter() {
+                if *class == navigation::record::FrameClass::IonosphericModel {
+                    let mut inner :Vec<navigation::ionmessage::KbModel> = Vec::new();
+                    for frame in frames.iter() {
+                        let fr = frame.as_ion().unwrap();
+                        if let Some(model) = fr.as_klobuchar() {
+                            inner.push(*model);
+                        }
+                    }
+                    if inner.len() > 0 {
+                        results.insert(*e, inner);
+                    }
+                }
+            }
+        }
+        results
+    }
+    
+    /// Extracts all Nequick-G Ionospheric models from this Navigation record.
+    /// This does not produce anything if self is not a modern Navigation record
+    /// that contains such models.
+    pub fn nequick_g_ionospheric_models (&self) -> BTreeMap<epoch::Epoch, Vec<navigation::ionmessage::NgModel>> {
+        if !self.is_navigation_rinex() {
+            return BTreeMap::new() ; // nothing to browse
+        }
+        let mut results: BTreeMap<epoch::Epoch, Vec<navigation::ionmessage::NgModel>> = BTreeMap::new();
+        let record = self.record
+            .as_nav()
+            .unwrap();
+        for (e, classes) in record.iter() {
+            for (class, frames) in classes.iter() {
+                if *class == navigation::record::FrameClass::IonosphericModel {
+                    let mut inner :Vec<navigation::ionmessage::NgModel> = Vec::new();
+                    for frame in frames.iter() {
+                        let fr = frame.as_ion().unwrap();
+                        if let Some(model) = fr.as_nequick_g() {
+                            inner.push(*model);
+                        }
+                    }
+                    if inner.len() > 0 {
+                        results.insert(*e, inner);
+                    }
+                }
+            }
+        }
+        results
+    }
+
+    /// Extracts all BDGIM Ionospheric models from this Navigation record.
+    /// This does not produce anything if self is not a modern Navigation record
+    /// that contains such models.
+    pub fn bdgim_ionospheric_models (&self) -> BTreeMap<epoch::Epoch, Vec<navigation::ionmessage::BdModel>> {
+        if !self.is_navigation_rinex() {
+            return BTreeMap::new() ; // nothing to browse
+        }
+        let mut results: BTreeMap<epoch::Epoch, Vec<navigation::ionmessage::BdModel>> = BTreeMap::new();
+        let record = self.record
+            .as_nav()
+            .unwrap();
+        for (e, classes) in record.iter() {
+            for (class, frames) in classes.iter() {
+                if *class == navigation::record::FrameClass::IonosphericModel {
+                    let mut inner :Vec<navigation::ionmessage::BdModel> = Vec::new();
+                    for frame in frames.iter() {
+                        let fr = frame.as_ion().unwrap();
+                        if let Some(model) = fr.as_bdgim() {
+                            inner.push(*model);
+                        }
+                    }
+                    if inner.len() > 0 {
+                        results.insert(*e, inner);
+                    }
+                }
+            }
+        }
+        results
+    }
+
     /// Extracts Pseudo Range data from this
     /// Observation record, on an epoch basis an per space vehicule. 
     /// Does not produce anything if self is not an Observation RINEX.
     pub fn pseudo_ranges (&self) -> BTreeMap<epoch::Epoch, BTreeMap<sv::Sv, Vec<(String, f64)>>> {
         if !self.is_observation_rinex() {
-            return BTreeMap::new() ; // nothing we can do
+            return BTreeMap::new() ; // nothing to browse
         }
         let mut results: BTreeMap<epoch::Epoch, BTreeMap<sv::Sv, Vec<(String, f64)>>> = BTreeMap::new();
         let record = self.record
@@ -1323,7 +1546,7 @@ impl Rinex {
     /// Does not produce anything if self is not an Observation RINEX.
     pub fn carrier_phases (&self) -> BTreeMap<epoch::Epoch, BTreeMap<sv::Sv, Vec<(String, f64)>>> {
         if !self.is_observation_rinex() {
-            return BTreeMap::new() ; // nothing we can do
+            return BTreeMap::new() ; // nothing to browse
         }
         let mut results: BTreeMap<epoch::Epoch, BTreeMap<sv::Sv, Vec<(String, f64)>>> = BTreeMap::new();
         let record = self.record
