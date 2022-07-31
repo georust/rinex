@@ -137,6 +137,7 @@ impl std::fmt::Display for FrameClass {
 #[derive(PartialEq, PartialOrd)]
 #[derive(Eq, Ord)]
 #[derive(Hash)]
+#[cfg_attr(feature = "with-serde", derive(Serialize))]
 pub enum FrameKey {
     /// Reference Space Vehicule is used to sort Ephemeris, Earth Orientation Parameters
     /// and Ionospheric Models
