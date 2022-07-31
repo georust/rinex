@@ -130,6 +130,35 @@ impl std::fmt::Display for FrameClass {
     }
 }
 
+/// Frame Key (Identifier),
+/// allows having the same kind of frame for a given epoch.
+/// Frame identifiers differs depending on the Frame Class
+#[derive(Debug, Clone)]
+#[derive(PartialEq, PartialOrd)]
+#[derive(Eq, Ord)]
+#[derive(Hash)]
+pub enum FrameKey {
+    /// Reference Space Vehicule is used to sort Ephemeris, Earth Orientation Parameters
+    /// and Ionospheric Models
+    Sv(sv::Sv),
+    /// System Time is used to differentiate Systime Time Offsets
+    SystemTime(String),
+}
+
+impl FrameKey {
+    pub fn as_sv(&self) -> Option<&sv::Sv> {
+        match self {
+            Self::Sv(sv) => Some(sv),
+            _ => None,
+        }
+    }
+    pub fn as_system_time(&self) -> Option<String> {
+        match self {
+            Self::SystemTime(s) => Some(s.clone()),
+            _ => None,
+        }
+    }
+}
 
 /// Navigation Message Types 
 #[derive(Debug, Copy, Clone)]
@@ -228,7 +257,7 @@ impl Frame {
 
 /// Navigation Record.
 /// Data is sorted by epoch, and by Frame class.
-pub type Record = BTreeMap<Epoch, BTreeMap<FrameClass, Vec<Frame>>>;
+pub type Record = BTreeMap<Epoch, BTreeMap<FrameClass, HashMap<FrameKey, Frame>>>;
 
 /// Returns true if given content matches the beginning of a 
 /// Navigation record epoch
@@ -297,7 +326,7 @@ pub enum Error {
 
 /// Builds `Record` entry for `NavigationData`
 pub fn build_record_entry (version: Version, constell: Constellation, content: &str) ->
-        Result<(Epoch, FrameClass, Frame), Error>
+        Result<(Epoch, FrameClass, FrameKey, Frame), Error>
 {
     if content.starts_with(">") {
         build_modern_record_entry(content)
@@ -308,7 +337,7 @@ pub fn build_record_entry (version: Version, constell: Constellation, content: &
 
 /// Builds `Record` entry for Modern NAV frames
 fn build_modern_record_entry (content: &str) ->
-        Result<(Epoch, FrameClass, Frame), Error>
+        Result<(Epoch, FrameClass, FrameKey, Frame), Error>
 {
     let mut lines = content.lines();
     let line = match lines.next() {
@@ -324,7 +353,7 @@ fn build_modern_record_entry (content: &str) ->
     let sv = Sv::from_str(svnn.trim())?;
     let msg_type = MsgType::from_str(rem.trim())?;
 
-    let (epoch, fr): (epoch::Epoch, Frame) = match frame_class {
+    let (epoch, key, fr): (epoch::Epoch, FrameKey, Frame) = match frame_class {
         FrameClass::Ephemeris => {
             let line = match lines.next() {
                 Some(l) => l,
@@ -344,12 +373,11 @@ fn build_modern_record_entry (content: &str) ->
             let clk = f64::from_str(clk_bias.replace("D","E").trim())?;
             let clk_dr = f64::from_str(clk_dr.replace("D","E").trim())?;
             let clk_drr = f64::from_str(clk_drr.replace("D","E").trim())?;
-            println!("EPH {:?} | {} {} {}", sv, clk, clk_dr, clk_drr);
             let map = parse_complex_map(
                 Version { major: 4, minor: 0 },
                 sv.constellation,
                 lines)?;
-            (epoch, Frame::Eph(msg_type, sv, clk, clk_dr, clk_drr, map))
+            (epoch, FrameKey::Sv(sv), Frame::Eph(msg_type, sv, clk, clk_dr, clk_drr, map))
         },
         FrameClass::SystemTimeOffset => {
             let line = match lines.next() {
@@ -358,7 +386,7 @@ fn build_modern_record_entry (content: &str) ->
             };
             
             let (epoch, rem) = line.split_at(23);
-            let (system, rem) = line.split_at(5);
+            let (system, rem) = rem.split_at(5);
             let epoch = Epoch {
                 date: epoch::str2date(epoch.trim())?,
                 flag: epoch::EpochFlag::Ok,
@@ -374,7 +402,6 @@ fn build_modern_record_entry (content: &str) ->
 
             let t_tm = f64::from_str(time.trim())?;
             let msg = stomessage::Message {
-                system: system.trim().to_string(),
                 t_tm: t_tm as u32,
                 a: (
                     f64::from_str(a0.trim()).unwrap_or(0.0_f64),
@@ -383,11 +410,11 @@ fn build_modern_record_entry (content: &str) ->
                 ),
                 utc: rem.trim().to_string(),
             };
-            (epoch, Frame::Sto(msg))
+            (epoch, FrameKey::SystemTime(system.trim().to_string()), Frame::Sto(msg))
         },
         FrameClass::EarthOrientation => {
             let (epoch, msg) = eopmessage::Message::parse(lines)?;
-            (epoch, Frame::Eop(msg))
+            (epoch, FrameKey::Sv(sv), Frame::Eop(msg))
         },
         FrameClass::IonosphericModel => {
             let (epoch, msg): (epoch::Epoch, ionmessage::Message) = match msg_type {
@@ -412,16 +439,15 @@ fn build_modern_record_entry (content: &str) ->
                     (epoch, ionmessage::Message::KlobucharModel(model))
                 }
             };
-            (epoch, Frame::Ion(msg))
+            (epoch, FrameKey::Sv(sv), Frame::Ion(msg))
         },
     };
-
-    Ok((epoch, frame_class, fr))
+    Ok((epoch, frame_class, key, fr))
 }
 
 /// Builds `Record` entry for Old NAV frames
 fn build_v2_v3_record_entry (version: Version, constell: Constellation, content: &str) ->
-        Result<(Epoch, FrameClass, Frame), Error>
+        Result<(Epoch, FrameClass, FrameKey, Frame), Error>
 {
     let mut lines = content.lines();
     let line = match lines.next() {
@@ -470,6 +496,7 @@ fn build_v2_v3_record_entry (version: Version, constell: Constellation, content:
             epoch::EpochFlag::default(), // flag never given in NAV 
         ),
         FrameClass::Ephemeris, // legacy: Only Ephemeris exist
+        FrameKey::Sv(sv), // Sv is ephemeris identifier
         fr, // ephemeris frame
     ))
 }
@@ -511,7 +538,6 @@ fn parse_complex_map (version: Version, constell: Constellation, mut lines: std:
     let mut map :HashMap<String, ComplexEnum> = HashMap::new();
     for item in items.iter() {
         let (k, v) = item;
-        println!("key {}", k);
         let offset :usize = match new_line {
             false => 19,
             true => {
@@ -555,7 +581,6 @@ fn parse_complex_map (version: Version, constell: Constellation, mut lines: std:
             }
         }
     }
-    println!(""); // DEBUG!!
     Ok(map)
 }
 
@@ -668,7 +693,7 @@ mod test {
         let version = Version::new(2, 0);
         let entry = build_record_entry(version, Constellation::Glonass, content);
         assert_eq!(entry.is_ok(), true);
-        let (epoch, class, frame) = entry.unwrap();
+        let (epoch, class, _, frame) = entry.unwrap();
         assert_eq!(epoch, Epoch {
             date: epoch::str2date("20 12 31 23 45  0.0").unwrap(),
             flag: epoch::EpochFlag::Ok,
@@ -766,7 +791,7 @@ mod test {
         let version = Version::new(3, 0);
         let entry = build_record_entry(version, Constellation::Mixed, content);
         assert_eq!(entry.is_ok(), true);
-        let (epoch, class, frame) = entry.unwrap();
+        let (epoch, class, _, frame) = entry.unwrap();
         assert_eq!(epoch, Epoch {
             date: epoch::str2date("2021 01 01 00 00 00").unwrap(),
             flag: epoch::EpochFlag::Ok,
@@ -932,7 +957,7 @@ mod test {
         let version = Version::new(3, 0);
         let entry = build_record_entry(version, Constellation::Mixed, content);
         assert_eq!(entry.is_ok(), true);
-        let (epoch, class, frame) = entry.unwrap();
+        let (epoch, class, _, frame) = entry.unwrap();
         assert_eq!(epoch, Epoch {
             date: epoch::str2date("2021 01 01 10 10 00").unwrap(),
             flag: epoch::EpochFlag::Ok,
@@ -1094,7 +1119,7 @@ mod test {
         let version = Version::new(3, 0);
         let entry = build_record_entry(version, Constellation::Mixed, content);
         assert_eq!(entry.is_ok(), true);
-        let (epoch, class, frame) = entry.unwrap();
+        let (epoch, class, _, frame) = entry.unwrap();
         assert_eq!(epoch, Epoch {
             date: epoch::str2date("2021 01 01 09 45 00").unwrap(),
             flag: epoch::EpochFlag::Ok,

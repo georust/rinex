@@ -266,21 +266,23 @@ pub fn build_record (reader: &mut BufferedReader, header: &header::Header) -> Re
                 if new_epoch && !first_epoch {
                     match &header.rinex_type {
                         Type::NavigationData => {
-                            if let Ok((e, class, fr)) = navigation::record::build_record_entry(header.version, header.constellation.unwrap(), &epoch_content) {
+                            if let Ok((e, class, key, fr)) = navigation::record::build_record_entry(header.version, header.constellation.unwrap(), &epoch_content) {
                                 if let Some(e) = nav_rec.get_mut(&e) {
+                                    // epoch already encountered
                                     if let Some(frames) = e.get_mut(&class) {
-                                        // got already some frames, for this epoch and this message class
-                                        frames.push(fr);
+                                        // class already encountered, for this epoch
+                                        frames.insert(key, fr);
                                     } else {
-                                        let mut frames: Vec<navigation::record::Frame> = Vec::new();
-                                        frames.push(fr);
-                                        e.insert(class, frames);
+                                        // new class entry, for this epoch
+                                        let mut inner: HashMap<navigation::record::FrameKey, navigation::record::Frame> = HashMap::with_capacity(1);
+                                        inner.insert(key, fr);
+                                        e.insert(class, inner);
                                     }
-                                } else { // new epoch entry
-                                    let mut map: BTreeMap<navigation::record::FrameClass, Vec<navigation::record::Frame>> = BTreeMap::new();
-                                    let mut frames: Vec<navigation::record::Frame> = Vec::new();
-                                    frames.push(fr);
-                                    map.insert(class, frames);
+                                } else { // new epoch: create entry entry
+                                    let mut map: BTreeMap<navigation::record::FrameClass, HashMap<navigation::record::FrameKey, navigation::record::Frame>> = BTreeMap::new();
+                                    let mut inner: HashMap<navigation::record::FrameKey, navigation::record::Frame> = HashMap::with_capacity(1);
+                                    inner.insert(key, fr);
+                                    map.insert(class, inner);
                                     nav_rec.insert(e, map);
                                 }
                                 comment_ts = e.clone(); // for comments classification & management
@@ -373,25 +375,6 @@ pub fn build_record (reader: &mut BufferedReader, header: &header::Header) -> Re
     //   + comments parsing with empty record (empty file body)
     match &header.rinex_type {
         Type::NavigationData => {
-            if let Ok((e, class, fr)) = navigation::record::build_record_entry(header.version, header.constellation.unwrap(), &epoch_content) {
-                if let Some(e) = nav_rec.get_mut(&e) {
-                    if let Some(frames) = e.get_mut(&class) {
-                        // got already some frames, for this epoch and this message class
-                        frames.push(fr);
-                    } else {
-                        let mut frames: Vec<navigation::record::Frame> = Vec::new();
-                        frames.push(fr);
-                        e.insert(class, frames);
-                    }
-                } else { // new epoch entry
-                    let mut map: BTreeMap<navigation::record::FrameClass, Vec<navigation::record::Frame>> = BTreeMap::new();
-                    let mut frames: Vec<navigation::record::Frame> = Vec::new();
-                    frames.push(fr);
-                    map.insert(class, frames);
-                    nav_rec.insert(e, map);
-                }
-                comment_ts = e.clone(); // for comments classification & management
-            }
         },
         Type::ObservationData => {
             if let Ok((e, ck_offset, map)) = observation::record::build_record_entry(&header, &epoch_content) {

@@ -6,8 +6,7 @@
 #[derive(PartialEq, PartialOrd)]
 #[cfg_attr(feature = "with-serde", derive(Serialize))]
 pub struct Message {
-    /// Time system
-    pub system: String,
+    /// UTC ID
     pub utc: String,
     /// Message transmmission time [s] of GNSS week
     pub t_tm: u32,
