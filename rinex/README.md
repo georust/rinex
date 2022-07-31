@@ -205,6 +205,36 @@ for (epoch, data) in record.iter() { // Complex structures, on an `Epoch` basis
 }
 ```
 
+* Antex Record browsing
+
+```rust
+let record = record.as_antex()
+  .unwrap(); // user must verify this is feasible
+for (antenna, frequencies) in record.iter() {
+  // several calibration methods exist
+  assert_eq!(antenna.calibration.method, antex::record::Method::Chamber);
+  assert_eq!(antenna.calibration.agency, "Some Agency");
+  assert_eq!(antenna.calibration.date, "Some DateTime description");
+  assert_eq!(antenna.sn, "Some Serial Number");
+  assert_eq!(antenna.dazi, 1.0);
+  assert_eq!(antenna.valid_from, Some(chrono::NaiveDateTime));
+  assert_eq!(antenna.valid_until, Some(chrono::NaiveDateTime));
+  for frequency in frequencies.iter() {
+    assert_eq!(frequency.channel, channel::Channel::L1);
+    assert_eq!(frequency.north, 10.0);
+    assert_eq!(frequency.up, 20.0);
+    for pattern in frequency.patterns {
+      assert_eq!(pattern.is_azimuth_dependent(), true);
+      let Some((azimuth, phase_pattern)) = pattern.azimuth_pattern() {
+        for raw_phase in phase_pattern.iter() {
+        
+        }
+      }
+    }
+  }
+}
+```
+
 ## `Epoch` object
 
 [Epoch structure](https://docs.rs/rinex/latest/rinex/epoch/index.html)
