@@ -272,8 +272,8 @@ impl Message {
             _ => None,
         }
     }
-    /// Unwraps self as Nequick Model
-    pub fn as_nequick (&self) -> Option<&NgModel> {
+    /// Unwraps self as Nequick-G Model
+    pub fn as_nequick_g (&self) -> Option<&NgModel> {
         match self {
             Self::NequickGModel(model) => Some(model),
             _ => None,

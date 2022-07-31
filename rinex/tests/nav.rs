@@ -717,17 +717,86 @@ mod test {
                 if *class == FrameClass::SystemTimeOffset {
                     sto_count += frames.len(); // STO testbench
                     for (key, frame) in frames.iter() {
+                        let key = key.as_system_time().unwrap();
+                        if key.eq("GAUT") {
+                            assert_eq!(*e, epoch::Epoch {
+                                date: epoch::str2date("2022 06 08 00 00 00").unwrap(),
+                                flag: epoch::EpochFlag::Ok,
+                            });
 
+                        } else if key.eq("GAGP") {
+                            assert_eq!(*e, epoch::Epoch {
+                                date: epoch::str2date("2022 06 08 00 00 00").unwrap(),
+                                flag: epoch::EpochFlag::Ok,
+                            });
+
+                        } else if key.eq("GPUT") {
+                            assert_eq!(*e, epoch::Epoch {
+                                date: epoch::str2date("2022 06 10 19 56 48").unwrap(),
+                                flag: epoch::EpochFlag::Ok
+                            });
+                        } else {
+                            panic!("got unexpected system time \"{}\"", key)
+                        }
                     }
                 } else if *class == FrameClass::EarthOrientation {
                     eop_count += frames.len(); // EOP testbench
-                    for (key, frame) in frames.iter() {
-
-                    }
+                
                 } else if *class == FrameClass::IonosphericModel {
                     ion_count += frames.len(); // ION testbench
                     for (key, frame) in frames.iter() {
-
+                        let key = key.as_sv().unwrap();
+                        let model = frame.as_ion().unwrap();
+                        match key.constellation {
+                            Constellation::GPS => {
+                                if key.prn == 29 {
+                                    assert_eq!(*e, epoch::Epoch {
+                                        date: epoch::str2date("2022 06 08 09 59 48").unwrap(),
+                                        flag: epoch::EpochFlag::Ok
+                                    });
+                                } else {
+                                    panic!("got unexpected sv identifier for ION message \"{:?}\"", key)
+                                }
+                                let model = model.as_klobuchar();
+                                assert_eq!(model.is_some(), true);
+                                let model = model.unwrap();
+                                assert_eq!(model.alpha, (1.024454832077E-08, 2.235174179077E-08, -5.960464477539E-08, -1.192092895508E-07));
+                                assert_eq!(model.beta, (9.625600000000E+04, 1.310720000000E+05, -6.553600000000E+04, -5.898240000000E+05));
+                                assert_eq!(model.region, navigation::ionmessage::KbRegionCode::WideArea);
+                            },
+                            Constellation::Galileo => {
+                                if key.prn == 1 {
+                                    assert_eq!(*e, epoch::Epoch {
+                                        date: epoch::str2date("2022 06 08 09 59 57").unwrap(),
+                                        flag: epoch::EpochFlag::Ok
+                                    });
+                                } else {
+                                    panic!("got unexpected sv identifier for ION message \"{:?}\"", key)
+                                }
+                                let model = model.as_nequick_g();
+                                assert_eq!(model.is_some(), true);
+                                let model = model.unwrap();
+                                assert_eq!(model.a, (7.850000000000E+01, 5.390625000000E-01, 2.713012695312E-02));
+                                assert_eq!(model.region, navigation::ionmessage::NgRegionFlags::empty());
+                            },
+                            Constellation::BeiDou => {
+                                if key.prn == 8 {
+                                    assert_eq!(*e, epoch::Epoch {
+                                        date: epoch::str2date("2022 06 08 09 59 50").unwrap(),
+                                        flag: epoch::EpochFlag::Ok
+                                    });
+                                } else {
+                                    panic!("got unexpected sv identifier for ION message \"{:?}\"", key)
+                                }
+                                let model = model.as_klobuchar();
+                                assert_eq!(model.is_some(), true);
+                                let model = model.unwrap();
+                                assert_eq!(model.alpha, (2.142041921616E-08, 1.192092895508E-07, -1.013278961182E-06, 1.549720764160E-06));
+                                assert_eq!(model.beta, (1.208320000000E+05, 1.474560000000E+05, -1.310720000000E+05, -6.553600000000E+04));
+                                assert_eq!(model.region, navigation::ionmessage::KbRegionCode::WideArea);
+                            },
+                            _ => panic!("got unexpected sv identifier for ION message \"{:?}\"", key)
+                        }
                     }
                 }
             }
@@ -735,6 +804,7 @@ mod test {
         assert_eq!(sto_count, 3);
         assert_eq!(ion_count, 3);
         assert_eq!(eop_count, 0); // no EOP in this file
+        // test some specific epochs
     }
     #[cfg(feature = "with-gzip")]
     use std::str::FromStr;
