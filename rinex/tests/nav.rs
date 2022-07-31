@@ -723,18 +723,27 @@ mod test {
                                 date: epoch::str2date("2022 06 08 00 00 00").unwrap(),
                                 flag: epoch::EpochFlag::Ok,
                             });
+                            let frame = frame.as_sto().unwrap();
+                            assert_eq!(frame.t_tm, 295207);
+                            assert_eq!(frame.a, (-1.862645149231E-09, 8.881784197001E-16, 0.000000000000E+00));
 
                         } else if key.eq("GAGP") {
                             assert_eq!(*e, epoch::Epoch {
                                 date: epoch::str2date("2022 06 08 00 00 00").unwrap(),
                                 flag: epoch::EpochFlag::Ok,
                             });
+                            let frame = frame.as_sto().unwrap();
+                            assert_eq!(frame.a, (3.201421350241E-09, -4.440892098501E-15, 0.000000000000E+00));
+                            assert_eq!(frame.t_tm, 295240);
 
                         } else if key.eq("GPUT") {
                             assert_eq!(*e, epoch::Epoch {
                                 date: epoch::str2date("2022 06 10 19 56 48").unwrap(),
                                 flag: epoch::EpochFlag::Ok
                             });
+                            let frame = frame.as_sto().unwrap();
+                            assert_eq!(frame.a, (9.313225746155E-10, 2.664535259100E-15, 0.000000000000E+00));
+                            assert_eq!(frame.t_tm, 295284);
                         } else {
                             panic!("got unexpected system time \"{}\"", key)
                         }

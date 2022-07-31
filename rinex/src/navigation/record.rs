@@ -254,6 +254,20 @@ impl Frame {
             _ => None,
         }
     }
+    /// Unwraps self as System Time Offset frame
+    pub fn as_sto (&self) -> Option<&stomessage::Message> {
+        match self {
+            Self::Sto(fr) => Some(fr),
+            _ => None,
+        }
+    }
+    /// Unwraps self as mutable System Time Offset frame reference
+    pub fn as_mut_sto (&mut self) -> Option<&mut stomessage::Message> {
+        match self {
+            Self::Sto(fr) => Some(fr),
+            _ => None,
+        }
+    }
 }
 
 /// Navigation Record.
