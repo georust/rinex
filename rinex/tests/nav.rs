@@ -311,11 +311,13 @@ mod test {
             index += 1
         }
     }
+    #[cfg(feature = "with-gzip")]
     #[test]
+    #[cfg(feature = "with-gzip")]
     fn v4_kms300dnk_r_202215910() {
         let test_resource = 
             env!("CARGO_MANIFEST_DIR").to_owned() 
-            + "/../test_resources/NAV/V4/KMS300DNK_R_20221591000_01H_MN.rnx";
+            + "/../test_resources/NAV/V4/KMS300DNK_R_20221591000_01H_MN.rnx.gz";
         let rinex = Rinex::from_file(&test_resource);
         assert_eq!(rinex.is_ok(), true);
         let rinex = rinex.unwrap();
