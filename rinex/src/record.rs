@@ -266,22 +266,22 @@ pub fn build_record (reader: &mut BufferedReader, header: &header::Header) -> Re
                 if new_epoch && !first_epoch {
                     match &header.rinex_type {
                         Type::NavigationData => {
-                            if let Ok((e, class, key, fr)) = navigation::record::build_record_entry(header.version, header.constellation.unwrap(), &epoch_content) {
+                            if let Ok((e, class, fr)) = navigation::record::build_record_entry(header.version, header.constellation.unwrap(), &epoch_content) {
                                 if let Some(e) = nav_rec.get_mut(&e) {
                                     // epoch already encountered
                                     if let Some(frames) = e.get_mut(&class) {
                                         // class already encountered for this epoch
-                                        frames.insert(key, fr);
+                                        frames.push(fr);
                                     } else {
                                         // new class entry, for this epoch
-                                        let mut inner: HashMap<navigation::record::FrameKey, navigation::record::Frame> = HashMap::with_capacity(1);
-                                        inner.insert(key, fr);
+                                        let mut inner: Vec<navigation::record::Frame> = Vec::with_capacity(1);
+                                        inner.push(fr);
                                         e.insert(class, inner);
                                     }
                                 } else { // new epoch: create entry entry
-                                    let mut map: BTreeMap<navigation::record::FrameClass, HashMap<navigation::record::FrameKey, navigation::record::Frame>> = BTreeMap::new();
-                                    let mut inner: HashMap<navigation::record::FrameKey, navigation::record::Frame> = HashMap::with_capacity(1);
-                                    inner.insert(key, fr);
+                                    let mut map: BTreeMap<navigation::record::FrameClass, Vec<navigation::record::Frame>> = BTreeMap::new();
+                                    let mut inner: Vec< navigation::record::Frame> = Vec::with_capacity(1);
+                                    inner.push(fr);
                                     map.insert(class, inner);
                                     nav_rec.insert(e, map);
                                 }
@@ -375,22 +375,22 @@ pub fn build_record (reader: &mut BufferedReader, header: &header::Header) -> Re
     //   + comments parsing with empty record (empty file body)
     match &header.rinex_type {
         Type::NavigationData => {
-            if let Ok((e, class, key, fr)) = navigation::record::build_record_entry(header.version, header.constellation.unwrap(), &epoch_content) {
+            if let Ok((e, class, fr)) = navigation::record::build_record_entry(header.version, header.constellation.unwrap(), &epoch_content) {
                 if let Some(e) = nav_rec.get_mut(&e) {
                     // epoch already encountered
                     if let Some(frames) = e.get_mut(&class) {
                         // class already encountered for this epoch
-                        frames.insert(key, fr);
+                        frames.push(fr);
                     } else {
                         // new class entry, for this epoch
-                        let mut inner: HashMap<navigation::record::FrameKey, navigation::record::Frame> = HashMap::with_capacity(1);
-                        inner.insert(key, fr);
+                        let mut inner: Vec<navigation::record::Frame> = Vec::with_capacity(1);
+                        inner.push(fr);
                         e.insert(class, inner);
                     }
                 } else { // new epoch: create entry entry
-                    let mut map: BTreeMap<navigation::record::FrameClass, HashMap<navigation::record::FrameKey, navigation::record::Frame>> = BTreeMap::new();
-                    let mut inner: HashMap<navigation::record::FrameKey, navigation::record::Frame> = HashMap::with_capacity(1);
-                    inner.insert(key, fr);
+                    let mut map: BTreeMap<navigation::record::FrameClass, Vec<navigation::record::Frame>> = BTreeMap::new();
+                    let mut inner: Vec<navigation::record::Frame> = Vec::with_capacity(1);
+                    inner.push(fr);
                     map.insert(class, inner);
                     nav_rec.insert(e, map);
                 }
