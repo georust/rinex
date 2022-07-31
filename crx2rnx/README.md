@@ -55,7 +55,7 @@ crx2rnx -f ../test_resoures/CRNX/V3/ACOR00ESP_R_20213550000_01D_30S_MO.crx \
 ## :warning: File format restrictions
 
 This tool currently follows the official `CRX2RNX` behavior, which does not follow
-`RINEX` specifications. `CRN2RNX` produces unwrapped epochs that occupy only one line.
+`RINEX` specifications, in the sense that is produces epochs that exceed the 80 character width limitation
 
 ## Epoch events 
 
