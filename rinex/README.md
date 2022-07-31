@@ -105,14 +105,71 @@ at all times. For example, in epochs so the record is chronologically sorted.
 ```rust
 let record = record.as_nav()
     .unwrap(); // user must verify this is feasible
-for (epoch, sv) in record.iter() { // Complex struct, on an `Epoch` basis
-    for (sv, data) in sv.iter() { // Complex struct, on a `Space Vehicule` basis
-        for (code, data) in data.iter() {
-           // code is an observable,
-           // user can refer to the RINEX fields specifications,
-           // or the navigation database
-           // Data is wrapped as a Complex Enum,
-           // to this day, we can encounter floating point data, or string data,
+for (epoch, classes) in record.iter() { // Navigation frame classes, per epoch
+    for (class, frames) in classes.iter() { // Per frame class
+        for frame in frames.iter() { // all frames for this epoch and this kind of frame
+          // several frame classes exist
+          if *class = navigation::record::FrameClass::Ephemeris {
+              // Ephemeris are the most common NAV frames
+              // Until V < 4, their the only ones provided.
+              let (msgtype, sv, clk, clk_dr, clk_drr, map) = frame.as_eph() // Unwrap as Ephemeris
+                .unwrap(); // you're fine, thanks to the previous == check
+              
+              // several MsgTypes exist, 
+              // up until V < 4, they are marked as Legacy NAV whatever happens.
+              // Modern NAV can also contain Legacy frames.
+              assert_eq!(msgtype, navigation::record::MsgType::LNAV);
+
+              // All ephemeris contain a satellite vehicule,
+              // its internal clock bias [s], clock drift [s/s] and clock drift rate [s/s^2]
+              assert_eq!(sv.constellation, Constellation::GPS);
+              assert_eq!(clk, 1.0);
+              asssert_eq!(clk_dr, 2.0);
+              asssert_eq!(clk_drr, 3.0);
+
+              // Remaining data is integrated to a complex map,
+              // as it depends on the File Revision & the current Constellation.
+              // Index keys can be found in the db/NAV/navigation.json descriptor,
+              // it follows RINEX specifications. 
+              // All data is currently interprated a floating point double precision (f64),
+              // other interpratation like Binary Flags remain to do to this day
+              let iode = map["iode"].as_f64();
+              assert_eq!(iode, 12345.0);
+              let satPosX = map["satPosX"].as_f64();
+              assert_eq!(satPosX, 5678.0);
+          
+          } else if *class == navigation::record::FrameClass::IonosphericMdodel {
+            // Ionospheric models can be found in Modern NAV RINEX.
+            let model = frame.as_ion() // unwrap as Ionospheric Model
+              .unwrap(); // you're fine, thanks to the previous == check
+              
+            // Several Ionospheric models exist,
+            // refer to RINEX specifications to understand the inner data and their units
+            if let Some(model) = model.as_klobuchar() {
+              assert_eq!(model.alpha.0, 0.0);
+              assert_eq!(model.beta.3, 1.0);
+              assert_eq!(model.region, navigation::ionmessage::KbRegionCode::WideArea);
+              
+            } else if let Some(model) = model.as_nequick_g() {
+              assert_eq!(model.a.0, 0.0);
+              assert_eq!(model.a.1, 1.0);
+              // NG model region is a rust bitflag object, which allows convenient bit masking
+              assert_eq!(model.region, navigation::ionmessage::NgRegionFlags::REGION5);
+              assert_eq!(model.region.intersects(navigation::ionmessage::NgRegionlags::REGION1), true); // AND mask
+
+            } else if let Some(model) = model.as_bdgim() {
+              assert_eq!(model.alpha.0, 0.0);
+              assert_eq!(model.alpha.1, 1.0);
+            }
+          
+          } else if *class == navigation::record::FrameClass::SystemTimeOffset {
+            let sto = frame.as_sto() // unwrap as STO message
+              .unwrap(); // you're fine, thanks to the previous == check
+            assert_eq!(sto.system, "GPUT"); // Time System descriptor
+            assert_eq!(a.0, 1.0);
+            assert_eq!(a.1, 2.0);
+            assert_eq!(a.t_tm, 10000); // GNSS week counter
+          }
         }
     }
 }
