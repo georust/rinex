@@ -835,7 +835,8 @@ impl Rinex {
     }
 
     /// Retains data that was recorded along given constellation(s).
-    /// This has no effect on ATX, CLK, MET and IONEX records. 
+    /// This has no effect on ATX, CLK, MET and IONEX records and NAV 
+    /// record frames other than Ephemeris.
     pub fn constellation_filter_mut (&mut self, filter: Vec<constellation::Constellation>) {
         if self.is_observation_rinex() {
             let record = self.record
@@ -844,19 +845,26 @@ impl Rinex {
             for (_e, (_clk, sv)) in record.iter_mut() {
                 sv.retain(|sv, _| filter.contains(&sv.constellation))
             }
-        } /* else if self.is_navigation_rinex() {
+        } else if self.is_navigation_rinex() {
             let record = self.record
                 .as_mut_nav()
                 .unwrap();
-            for (_e, sv) in record.iter_mut() {
-                sv.retain(|sv, _| filter.contains(&sv.constellation))
+            for (_e, classes) in record.iter_mut() {
+                for (class, frames) in classes.iter_mut() {
+                    if *class == navigation::record::FrameClass::Ephemeris {
+                        frames.retain(|fr| {
+                            let (_, sv, _, _, _, _) = fr.as_eph().unwrap();
+                            filter.contains(&sv.constellation)
+                        })
+                    }
+                }
             }
-        } */
+        }
     }
 
-    /// Retains data that were recorded only for given list of 
-    /// space vehicules. This has no effect on ATX, CLK, MET
-    /// and IONEX records. 
+    /// Retains data that was generated / recorded against given list of 
+    /// space vehicules. This has no effect on ATX, CLK, MET, IONEX records,
+    /// and NAV record frames other than Ephemeris.
     pub fn space_vehicule_filter_mut (&mut self, filter: Vec<sv::Sv>) {
         if self.is_observation_rinex() {
             let record = self.record
@@ -865,14 +873,21 @@ impl Rinex {
             for (_e, (_clk, sv)) in record.iter_mut() {
                 sv.retain(|sv, _| filter.contains(sv))
             }
-        } /* else if self.is_navigation_rinex() {
+        } else if self.is_navigation_rinex() {
             let record = self.record
                 .as_mut_nav()
                 .unwrap();
-            for (_e, sv) in record.iter_mut() {
-                sv.retain(|sv, _| filter.contains(sv))
+            for (_e, classes) in record.iter_mut() {
+                for (class, frames) in classes.iter_mut() {
+                    if *class == navigation::record::FrameClass::Ephemeris {
+                        frames.retain(|fr| {
+                                let (_, sv, _, _, _, _) = fr.as_eph().unwrap();
+                                filter.contains(&sv)
+                            })
+                    }
+                }
             }
-        } */
+        } 
     }
     
     /// Extracts distant clock offsets 
@@ -927,29 +942,31 @@ impl Rinex {
             return BTreeMap::new(); // nothing to extract
         }
         let mut results: BTreeMap<epoch::Epoch, BTreeMap<sv::Sv, f64>> = BTreeMap::new();
-        /*let record = self.record
+        let record = self.record
             .as_nav()
             .unwrap();
-        for (e, sv) in record.iter() {
-            let mut map :BTreeMap<sv::Sv, f64> = BTreeMap::new();
-            for (sv, obs) in sv.iter() {
-                for (code, data) in obs.iter() {
-                    if code.eq("clockBias") {
-                        if let Some(data) = data.as_f64() {
-                            map.insert(*sv, data);
-                        }
+        for (e, classes) in record.iter() {
+            for (class, frames) in classes.iter() {
+                if *class == navigation::record::FrameClass::Ephemeris {
+                    let mut map: BTreeMap<sv::Sv, f64> = BTreeMap::new();
+                    for frame in frames.iter() {
+                        let (_, sv, clk, _, _, _) = frame.as_eph().unwrap();
+                        map.insert(sv, clk);
+                    }
+                    if map.len() > 0 {
+                        results.insert(*e, map);
                     }
                 }
             }
-            results.insert(*e, map);
-        }*/
+        }
         results
     }
 
     /// Extracts distant clock (offset[s], drift [s.s⁻¹], drift rate [s.s⁻²]) triplet,
     /// on an epoch basis and per space vehicule,
-    /// from this Navigation record.
-    /// This does not produce anything if self is not a NAV RINEX.
+    /// from all Ephemeris contained in this Navigation record.
+    /// This does not produce anything if self is not a NAV RINEX
+    /// or if this NAV RINEX does not contain any Ephemeris frames.
     /// Use this to process [pseudo_range_to_distance]
     ///
     /// Example:
@@ -987,32 +1004,23 @@ impl Rinex {
             return BTreeMap::new(); // nothing to extract
         }
         let mut results: BTreeMap<epoch::Epoch, BTreeMap<sv::Sv, (f64,f64,f64)>> = BTreeMap::new();
-        /*let record = self.record
+        let record = self.record
             .as_nav()
             .unwrap();
-        for (e, sv) in record.iter() {
-            let mut map :BTreeMap<sv::Sv, (f64,f64,f64)> = BTreeMap::new();
-            for (sv, obs) in sv.iter() {
-                let mut triplet = (0.0_f64, 0.0_f64, 0.0_f64);
-                for (code, data) in obs.iter() {
-                    if code.eq("clockBias") {
-                        if let Some(data) = data.as_f64() {
-                            triplet.0 = data
-                        }
-                    } else if code.eq("clockDrift") {
-                        if let Some(data) = data.as_f64() {
-                            triplet.1 = data
-                        }
-                    } else if code.eq("clockDriftRate") {
-                        if let Some(data) = data.as_f64() {
-                            triplet.2 = data
-                        }
+        for (e, classes) in record.iter() {
+            for (class, frames) in classes.iter() {
+                if *class == navigation::record::FrameClass::Ephemeris {
+                    let mut map :BTreeMap<sv::Sv, (f64,f64,f64)> = BTreeMap::new();
+                    for frame in frames.iter() {
+                        let (_, sv, clk, clk_dr, clk_drr, _) = frame.as_eph().unwrap();
+                        map.insert(sv, (clk, clk_dr, clk_drr));
+                    }
+                    if map.len() > 0 { // got something
+                        results.insert(*e, map);
                     }
                 }
-                map.insert(*sv, triplet); // (clk, dr, drr) are always there
             }
-            results.insert(*e, map);
-        }*/
+        }
         results
     }
 
@@ -1026,10 +1034,13 @@ impl Rinex {
         std::time::Duration::from_secs(sum / epochs.len() as u64)
     }
 
-
     /// Returns list of observables, in the form 
     /// of standardized 3 letter codes, that can be found in this record.
     /// This does not produce anything in case of ATX and IONEX records.
+    /// In case of NAV record:
+    ///    - Ephemeris: returns list of Msg Types ("LNAV","FDMA"..)
+    ///    - System Time Offsets: list of Time Systems ("GAUT", "GAGP"..)
+    ///    - Ionospheric Models: does not apply
     pub fn observables (&self) -> Vec<String> {
         let mut result :Vec<String> = Vec::new();
         if let Some(obs) = &self.header.obs {
@@ -1048,46 +1059,58 @@ impl Rinex {
             for code in obs.codes.iter() {
                 result.push(code.to_string())
             }
-        } /* else if self.is_navigation_rinex() {
+        } else if self.is_navigation_rinex() {
             let record = self.record
                 .as_nav()
                 .unwrap();
-            for (_, sv) in record {
-                for (sv, data) in sv {
-                    for (k, _) in data {
-                        result.push(format!("{}:{}", 
-                            sv.constellation.to_3_letter_code(),
-                            k.to_string()))
+            for (_, classes) in record.iter() {
+                for (class, frames) in classes.iter() {
+                    if *class == navigation::record::FrameClass::Ephemeris {
+                        for frame in frames.iter() {
+                            let (msgtype, _, _, _, _, _) = frame.as_eph().unwrap();
+                            result.push(msgtype.to_string())
+                        }
+                    } else if *class == navigation::record::FrameClass::SystemTimeOffset {
+                        for frame in frames.iter() {
+                            let sto = frame.as_sto().unwrap();
+                            result.push(sto.system.clone())
+                        }
                     }
                 }
             }
-        } */
+        }
         result
     }
 
-    /// Filters out data records that do not correspond
-    /// to the given Observable list. Observable
-    /// should be standard 3 letter codes.
-    /// If one or more fields are not recognized as an observable,
-    /// we simply ignore it in the filter operation.
-    /// This has no effect if self is an ATX or a IONEX record.
+    /// Filters out data records that do not contained in the given Observable list. 
+    /// For Observation record: "C1C", "L1C", ..., any valid 3 letter observable.
+    /// For Meteo record: "PR", "HI", ..., any valid 2 letter sensor physics.
+    /// For Navigation record:
+    ///   - Ephemeris: MsgType filter: "LNAV", "FDMA", "D1D2", "CNVX, ... any valid [MsgType]
+    ///   - Ionospheric Model: does not apply
+    ///   - System Time offset: "GPUT", "GAGP", ..., any valid system time
+    /// This has no effect if on ATX and IONEX records.
     pub fn observable_filter_mut (&mut self, filter: Vec<&str>) {
-        /* if self.is_navigation_rinex() {
+        if self.is_navigation_rinex() {
             let record = self.record
                 .as_mut_nav()
                 .unwrap();
-            for (_e, sv) in record.iter_mut() {
-                for (_sv, data) in sv.iter_mut() {
-                    data.retain(|code, _| { 
-                        let mut found = false;
-                        for f in filter.iter() {
-                            found |= code.eq(f)
-                        }
-                        found
-                    })
+            for (_e, classes) in record.iter_mut() {
+                for (class, frames) in classes.iter_mut() {
+                    if *class == navigation::record::FrameClass::Ephemeris {
+                        frames.retain(|fr| {
+                            let (msg_type, _, _, _, _, _) = fr.as_eph().unwrap();
+                            filter.contains(&msg_type.to_string().as_str())
+                        })
+                    } else if *class == navigation::record::FrameClass::SystemTimeOffset {
+                        frames.retain(|fr| {
+                            let fr = fr.as_sto().unwrap();
+                            filter.contains(&fr.system.as_str())
+                        })
+                    }
                 }
             }
-        } else*/ if self.is_observation_rinex() {
+        } else if self.is_observation_rinex() {
             let record = self.record
                 .as_mut_obs()
                 .unwrap();

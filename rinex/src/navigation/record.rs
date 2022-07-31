@@ -161,6 +161,21 @@ impl Default for MsgType {
     }
 }
 
+impl std::fmt::Display for MsgType {
+    fn fmt (&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Self::LNAV => f.write_str("LNAV"),
+            Self::FDMA => f.write_str("FDMA"),
+            Self::IFNV => f.write_str("IFNV"),
+            Self::D1 => f.write_str("D1"),
+            Self::D2 => f.write_str("D2"),
+            Self::D1D2 => f.write_str("D1D2"),
+            Self::SBAS => f.write_str("SBAS"),
+            Self::CNVX => f.write_str("CNVX"),
+        }
+    }
+}
+
 /// Navigation Frame for a given epoch
 #[derive(Debug, Clone)]
 #[derive(PartialEq)]
