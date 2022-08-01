@@ -5,6 +5,8 @@ use strum_macros::EnumString;
 #[derive(PartialEq, PartialOrd)]
 #[derive(EnumString)]
 pub enum Method {
+    #[strum(serialize = "")]
+    Unknown,
     #[strum(serialize = "CHAMBER")]
     Chamber,
     #[strum(serialize = "FIELD")]
