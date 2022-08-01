@@ -266,7 +266,8 @@ pub fn build_record (reader: &mut BufferedReader, header: &header::Header) -> Re
                 if new_epoch && !first_epoch {
                     match &header.rinex_type {
                         Type::NavigationData => {
-                            if let Ok((e, class, fr)) = navigation::record::build_record_entry(header.version, header.constellation.unwrap(), &epoch_content) {
+                            let constellation = &header.constellation.unwrap();
+                            if let Ok((e, class, fr)) = navigation::record::build_record_entry(header.version, *constellation, &epoch_content) {
                                 if let Some(e) = nav_rec.get_mut(&e) {
                                     // epoch already encountered
                                     if let Some(frames) = e.get_mut(&class) {
@@ -375,7 +376,8 @@ pub fn build_record (reader: &mut BufferedReader, header: &header::Header) -> Re
     //   + comments parsing with empty record (empty file body)
     match &header.rinex_type {
         Type::NavigationData => {
-            if let Ok((e, class, fr)) = navigation::record::build_record_entry(header.version, header.constellation.unwrap(), &epoch_content) {
+            let constellation = &header.constellation.unwrap();
+            if let Ok((e, class, fr)) = navigation::record::build_record_entry(header.version, *constellation, &epoch_content) {
                 if let Some(e) = nav_rec.get_mut(&e) {
                     // epoch already encountered
                     if let Some(frames) = e.get_mut(&class) {
