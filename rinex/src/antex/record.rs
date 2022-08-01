@@ -129,7 +129,6 @@ pub fn build_record_entry (content: &str) -> Result<(Antenna, Vec<Frequency>), E
         
         } else { // Inside frequency
             // Determine type of pattern
-            let (content, marker) = line.split_at(60);
             let (content, rem) = line.split_at(8);
             let values :Vec<f64> = rem
                 .split_ascii_whitespace()
