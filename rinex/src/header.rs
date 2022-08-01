@@ -390,16 +390,18 @@ impl Header {
                 let (constell_str, _) = rem.split_at(20);
                 rinex_type = Type::from_str(type_str.trim())?;
                 if type_str.contains("GLONASS") {
-                    // special case, sometimes GLONASS NAV
-                    // drops the constellation field cause it's implied
+                    // old GLONASS NAV : no constellation field
                     constellation = Some(Constellation::Glonass)
+                } else if type_str.contains("GPS NAV DATA") {
+                    // old GPS NAV: no constellation field
+                    constellation = Some(Constellation::GPS)
+
                 } else if type_str.contains("METEOROLOGICAL DATA") {
                     // these files are not tied to a constellation system,
                     // therefore, do not have this field
                     constellation = None
                 } else { // regular files
                     if let Ok(constell) = Constellation::from_str(constell_str.trim()) {
-                        
                         constellation = Some(constell)
                     }
                 }
