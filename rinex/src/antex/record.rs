@@ -75,7 +75,7 @@ pub fn build_record_entry (content: &str) -> Result<(Antenna, Vec<Frequency>), E
             if let Ok(dazi) = f64::from_str(dazi) {
                 antenna = antenna.with_dazi(dazi)
             }
-        } else if marker.eq("ZEN1 / ZEN2 / DZEN") {
+        } else if marker.contains("ZEN1 / ZEN2 / DZEN") {
             let (zen1, rem) = content.split_at(8);
             let (zen2, rem) = rem.split_at(6);
             let (dzen, _) = rem.split_at(6);
@@ -103,13 +103,13 @@ pub fn build_record_entry (content: &str) -> Result<(Antenna, Vec<Frequency>), E
             let sinex = content.split_at(10).0;
             antenna = antenna.with_sinex_code(sinex.trim())
 
-        } else if marker.eq("START OF FREQUENCY") {
+        } else if marker.contains("START OF FREQUENCY") {
             let svnn = content.split_at(10).0;
             let channel = channel::Channel::from_sv_code(svnn.trim())?;
             frequency = Frequency::default()
                 .with_channel(channel);
         
-        } else if marker.eq("NORTH / EAST / UP") { 
+        } else if marker.contains("NORTH / EAST / UP") { 
             let (north, rem) = content.split_at(10);
             let (east, rem) = rem.split_at(10);
             let (up, _) = rem.split_at(10);
@@ -124,16 +124,21 @@ pub fn build_record_entry (content: &str) -> Result<(Antenna, Vec<Frequency>), E
                 }
             }
 
-        } else if marker.eq("END OF FREQUENCY") {
+        } else if marker.contains("END OF FREQUENCY") {
             frequencies.push(frequency.clone())
         
         } else { // Inside frequency
             // Determine type of pattern
+            let (content, marker) = line.split_at(60);
             let (content, rem) = line.split_at(8);
             let values :Vec<f64> = rem
                 .split_ascii_whitespace()
                 .map(|item| {
-                    f64::from_str(item.trim()).unwrap()
+                    if let Ok(f) = f64::from_str(item.trim()) {
+                        f
+                    } else {
+                        panic!("failed to \"{}\" \"{}\"", content, marker);
+                    }
                 })
                 .collect();
             if line.contains("NOAZI") {
