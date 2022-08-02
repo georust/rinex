@@ -32,7 +32,6 @@ mod test {
             name: String::from("USNO"),
             id: String::from("40451S003"),
         }));
-        println!("{:#?}", rinex.record);
         assert_eq!(rinex.epochs().len(), 1);
         let record = rinex.record.as_clock();
         assert_eq!(record.is_some(), true);
@@ -68,6 +67,76 @@ mod test {
                 } else if *data_type == DataType::DR {
                     for (system, data) in systems.iter() {
                         assert_eq!(*system, System::Station("USNO".to_string()));
+                    }
+
+                } else {
+                    panic!("identified unexpected data type \"{}\"", data_type);
+                }
+            }
+        }
+    }
+    #[test]
+    fn v3_04_example1() {
+        let test_resource = 
+            env!("CARGO_MANIFEST_DIR").to_owned() 
+            + "/../test_resources/CLK/V3/example1.txt";
+        let rinex = Rinex::from_file(&test_resource);
+        assert_eq!(rinex.is_ok(), true);
+        let rinex = rinex.unwrap();
+        assert_eq!(rinex.is_clocks_rinex(), true);
+        assert_eq!(rinex.header.clocks.is_some(), true);
+        let clocks = rinex.header.clocks
+            .as_ref()
+            .unwrap();
+        assert_eq!(clocks.codes, vec![DataType::AS, DataType::AR]);
+        assert_eq!(clocks.agency, Some(clocks::Agency {
+            code: String::from("USN"),
+            name: String::from("USNO USING GIPSY/OASIS-II"),
+        }));
+        assert_eq!(rinex.epochs().len(), 1);
+        let record = rinex.record.as_clock();
+        assert_eq!(record.is_some(), true);
+        let record = record.unwrap();
+        for (e, data_types) in record.iter() {
+            assert_eq!(*e, epoch::Epoch {
+                date: epoch::str2date("1994 07 14 20 59  0.000000").unwrap(),
+                flag: epoch::EpochFlag::Ok,
+            });
+            for (data_type, systems) in data_types.iter() {
+                if *data_type == DataType::AR {
+                    assert_eq!(systems.len(), 4);
+                    for (system, data) in systems.iter() {
+                        let areq_usa = System::Station("AREQ00USA".to_string());
+                        let gold = System::Station("GOLD".to_string());
+                        let tidb = System::Station("TIDB".to_string());
+                        let hark = System::Station("HARK".to_string());
+                        if *system == areq_usa {
+                            assert_eq!(data.bias,  -0.123456789012);
+                            assert_eq!(data.bias_sigma, Some( -0.123456789012E+01));
+                        } else if *system == gold { 
+                            assert_eq!(data.bias, -0.123456789012E-01);
+                            assert_eq!(data.bias_sigma, Some( -0.123456789012E-02));
+                            assert_eq!(data.rate, Some(-0.123456789012E-03));
+                            assert_eq!(data.rate_sigma, Some(-0.123456789012E-04));
+                        } else if *system == tidb { 
+                            assert_eq!(data.bias,  0.123456789012E+00);
+                            assert_eq!(data.bias_sigma, Some( 0.123456789012E+00));
+                        } else if *system == hark { 
+                            assert_eq!(data.bias, 0.123456789012E+00);
+                            assert_eq!(data.bias_sigma, Some( 0.123456789012E+00));
+                        } else {
+                            panic!("falsely identified system \"{}\"", *system);
+                        }
+                    }
+                } else if *data_type == DataType::AS {
+                    assert_eq!(systems.len(), 1);
+                    for (system, data) in systems.iter() {
+                        assert_eq!(*system, System::Sv(Sv {
+                            constellation: Constellation::GPS,
+                            prn: 16
+                        }));
+                        assert_eq!(data.bias, -0.123456789012E+00);
+                        assert_eq!(data.bias_sigma, Some( -0.123456789012E-01));
                     }
 
                 } else {

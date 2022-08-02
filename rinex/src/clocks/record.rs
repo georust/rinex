@@ -149,17 +149,17 @@ pub fn build_record_entry (version: Version, content: &str) ->
             }
         },
         false => { // modern fashion
-            let (system_str, r) = rem.split_at(5);
+            let (system_str, r) = rem.split_at(4);
             if let Ok(svnn) = Sv::from_str(system_str.trim()) {
-                let (_, r) = rem.split_at(6);
+                let (_, r) = r.split_at(6);
                 rem = r.clone();
                 System::Sv(svnn)
             } else {
                 let mut content = system_str.to_owned();
-                let (remainder, r) = rem.split_at(6);
+                let (remainder, r) = r.split_at(6);
                 rem = r.clone();
                 content.push_str(remainder);
-                System::Station(content.clone())
+                System::Station(content.trim().to_string())
             }
         },
     };
