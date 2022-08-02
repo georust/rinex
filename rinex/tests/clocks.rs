@@ -145,4 +145,42 @@ mod test {
             }
         }
     }
+    #[test]
+    fn v3_04_example12() {
+        let test_resource = 
+            env!("CARGO_MANIFEST_DIR").to_owned() 
+            + "/../test_resources/CLK/V3/example2.txt";
+        let rinex = Rinex::from_file(&test_resource);
+        assert_eq!(rinex.is_ok(), true);
+        let rinex = rinex.unwrap();
+        assert_eq!(rinex.is_clocks_rinex(), true);
+        assert_eq!(rinex.header.clocks.is_some(), true);
+        let clocks = rinex.header.clocks
+            .as_ref()
+            .unwrap();
+        assert_eq!(clocks.codes, vec![DataType::AS, DataType::AR]);
+        assert_eq!(clocks.agency, Some(clocks::Agency {
+            code: String::from("USN"),
+            name: String::from("USNO USING GIPSY/OASIS-II"),
+        }));
+        assert_eq!(rinex.epochs().len(), 1);
+        let record = rinex.record.as_clock();
+        assert_eq!(record.is_some(), true);
+        let record = record.unwrap();
+        for (e, data_types) in record.iter() {
+            assert_eq!(*e, epoch::Epoch {
+                date: epoch::str2date("2017 03 11 00 00  0.000000").unwrap(),
+                flag: epoch::EpochFlag::Ok,
+            });
+            for (data_type, systems) in data_types.iter() {
+                if *data_type == DataType::AR {
+                    assert_eq!(systems.len(), 4);
+                } else if *data_type == DataType::AS {
+                    assert_eq!(systems.len(), 2);
+                } else {
+                    panic!("identified unexpected data type \"{}\"", data_type);
+                }
+            }
+        }
+    }
 }
