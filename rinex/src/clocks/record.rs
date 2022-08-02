@@ -2,6 +2,7 @@ use std::str::FromStr;
 use crate::sv::Sv;
 use crate::epoch;
 use thiserror::Error;
+use crate::version::Version;
 use strum_macros::EnumString;
 use std::collections::{BTreeMap, HashMap};
 
@@ -11,6 +12,12 @@ pub enum System {
     Sv(Sv),
     /// Stations or Receiver name for other types of data 
     Station(String),
+}
+
+impl Default for System {
+    fn default() -> Self {
+        Self::Station(String::from("Unknown"))
+    }
 }
 
 impl System {
@@ -58,6 +65,7 @@ pub enum Error {
 
 /// Clocks file payload
 #[derive(Clone, Debug)]
+#[derive(Default)]
 #[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct Data {
     /// Clock bias
@@ -76,41 +84,36 @@ pub struct Data {
 pub enum DataType {
     /// Data analysis results for receiver clocks
     /// derived from a set of network receivers and satellites
-    #[strum(serialize = "AR")]
-    Ar,
+    AR,
     /// Data analysis results for satellites clocks
     /// derived from a set of network receivers and satellites
-    #[strum(serialize = "AS")]
-    As,
+    AS,
     /// Calibration measurements for a single GNSS receiver
-    #[strum(serialize = "CR")]
-    Cr,
+    CR,
     /// Discontinuity measurements for a single GNSS receiver
-    #[strum(serialize = "DR")]
-    Dr,
+    DR,
     /// Monitor measurements for the broadcast sallite clocks
-    #[strum(serialize = "MS")]
-    Ms
+    MS,
 }
 
 impl std::fmt::Display for DataType {
     fn fmt (&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            Self::Ar => f.write_str("AR"),
-            Self::As => f.write_str("AS"),
-            Self::Cr => f.write_str("CR"),
-            Self::Dr => f.write_str("DR"),
-            Self::Ms => f.write_str("MS"),
+            Self::AR => f.write_str("AR"),
+            Self::AS => f.write_str("AS"),
+            Self::CR => f.write_str("CR"),
+            Self::DR => f.write_str("DR"),
+            Self::MS => f.write_str("MS"),
         }
     }
 }
 
 /// RINEX record for CLOCKS files,
-/// record is sorted by Epoch then by data type and finaly by `system`
-pub type Record = BTreeMap<epoch::Epoch, HashMap<System, HashMap<DataType, Data>>>;
+/// record is sorted by Epoch, by Clock data type and finally by system
+pub type Record = BTreeMap<epoch::Epoch, HashMap<DataType, HashMap<System, Data>>>;
 
 pub fn is_new_epoch (line: &str) -> bool {
-    // first 3 bytes match a DataType code
+    // first 2 bytes match a DataType code
     let content = line.split_at(2).0;
     DataType::from_str(content).is_ok()
 }
@@ -118,20 +121,49 @@ pub fn is_new_epoch (line: &str) -> bool {
 /// Builds `RINEX` record entry for `Clocks` data files.   
 /// Returns identified `epoch` to sort data efficiently.  
 /// Returns 2D data as described in `record` definition
-pub fn build_record_entry (content: &str) -> 
-        Result<(epoch::Epoch, System, DataType, Data), Error> 
+pub fn build_record_entry (version: Version, content: &str) -> 
+        Result<(epoch::Epoch, DataType, System, Data), Error> 
 {
     let mut lines = content.lines();
     let line = lines.next()
         .unwrap();
     // Data type code
     let (dtype, rem) = line.split_at(3);
-    let data_type = DataType::from_str(dtype.trim())?;
-    let (system_str, rem) = rem.split_at(4);
-    let system = match Sv::from_str(system_str) {
-        Ok(sv) => System::Sv(sv),
-        _ => System::Station(system_str.trim_end().to_string()),
+    let data_type = DataType::from_str(dtype.trim())?; // must pass
+    
+    let mut rem = rem.clone();
+    
+    let limit = Version {
+        major: 3,
+        minor: 04,
     };
+
+    let system : System = match version < limit {
+        true => { // old fashion
+            let (system_str, r) = rem.split_at(5);
+            rem = r.clone();
+            if let Ok(svnn) = Sv::from_str(system_str.trim()) {
+                System::Sv(svnn)
+            } else {
+                System::Station(system_str.trim().to_string())
+            }
+        },
+        false => { // modern fashion
+            let (system_str, r) = rem.split_at(5);
+            if let Ok(svnn) = Sv::from_str(system_str.trim()) {
+                let (_, r) = rem.split_at(6);
+                rem = r.clone();
+                System::Sv(svnn)
+            } else {
+                let mut content = system_str.to_owned();
+                let (remainder, r) = rem.split_at(6);
+                rem = r.clone();
+                content.push_str(remainder);
+                System::Station(content.clone())
+            }
+        },
+    };
+    
     // Epoch
     let offset = 
         4+1 // Y always a 4 digit number, even on RINEX2
@@ -141,61 +173,50 @@ pub fn build_record_entry (content: &str) ->
        +2+1  // m
         +11; // s
     let (epoch, rem) = rem.split_at(offset);
-    let date = epoch::str2date(epoch)?; 
+    let date = epoch::str2date(epoch.trim())?; 
+
     // n
-    let (n, rem) = rem.split_at(5);
+    let (n, rem) = rem.split_at(4);
     let m = u8::from_str_radix(n.trim(), 10)?;
 
     let (content, rem) = rem.split_at(20);
-    let bias = f64::from_str(content.trim())?;
-    let bias_sigma :Option<f64> = match m > 1 {
-        true => {
-            let (content, _) = rem.split_at(20);
-            Some(f64::from_str(content.trim())?)
-        },
-        _ => None,
-    };
-    let rate: Option<f64> = match m > 2 {
-        true => {
-            let (content, _) = rem.split_at(20);
-            Some(f64::from_str(content.trim())?)
-        },
-        _ => None,
-    };
-    let rate_sigma :Option<f64> = match m > 3 {
-        true => {
-            let (content, _) = rem.split_at(20);
-            Some(f64::from_str(content.trim())?)
-        },
-        _ => None,
-    };
-    let accel: Option<f64> = match m > 4 {
-        true => {
-            let (content, _) = rem.split_at(20);
-            Some(f64::from_str(content.trim())?)
-        },
-        _ => None,
-    };
-    let accel_sigma :Option<f64> = match m > 5 {
-        true => {
-            let (content, _) = rem.split_at(20);
-            Some(f64::from_str(content.trim())?)
-        },
-        _ => None,
-    };
-    let data = Data {
-        bias,
-        bias_sigma,
-        rate,
-        rate_sigma,
-        accel,
-        accel_sigma,
-    };
+    let bias = f64::from_str(content.trim())?; // bias must pass
+
+    let mut data = Data::default();
+    data.bias = bias;
+    let mut offset :usize = 20;
+    let mut rem = rem.clone();
+    for i in 1..m { // all other datas are totally optionnal
+        let (content, r) = rem.split_at(offset);
+        if let Ok(f) = f64::from_str(content.trim()) {
+            if i == 1 {
+                data.bias_sigma = Some(f);
+            } else if i == 2 {
+                data.rate = Some(f);
+            } else if i == 3 {
+                data.rate_sigma = Some(f);
+            } else if i == 4 {
+                data.accel = Some(f);
+            } else if i == 5 {
+                data.accel_sigma = Some(f);
+            }
+        }
+        if i == 1 {
+            if let Some(l) = lines.next() {
+                rem = l.clone();
+                offset = 23;
+            }
+        } else {
+            rem = r.clone();
+            offset = 20;
+        }
+
+    }
     let epoch = epoch::Epoch {
         flag: epoch::EpochFlag::Ok,
         date,
     };
-    Ok((epoch, system, data_type, data))
+    Ok((epoch, data_type, system, data))
 }
     
 
@@ -204,15 +225,21 @@ mod test {
     use super::*;
     #[test]
     fn test_is_new_epoch() {
-        let l = "AR AREQ 1994 07 14 20 59  0.000000  6   -0.123456789012E+00 -0.123456789012E+01"; 
-        assert_eq!(is_new_epoch(l), true);
-        let l = "RA AREQ 1994 07 14 20 59  0.000000  6   -0.123456789012E+00 -0.123456789012E+01"; 
-        assert_eq!(is_new_epoch(l), false);
-        let l = "DR AREQ 1994 07 14 20 59  0.000000  6   -0.123456789012E+00 -0.123456789012E+01"; 
-        assert_eq!(is_new_epoch(l), true);
-        let l = "CR AREQ 1994 07 14 20 59  0.000000  6   -0.123456789012E+00 -0.123456789012E+01"; 
-        assert_eq!(is_new_epoch(l), true);
-        let l = "AS AREQ 1994 07 14 20 59  0.000000  6   -0.123456789012E+00 -0.123456789012E+01"; 
-        assert_eq!(is_new_epoch(l), true);
+        let c = "AR AREQ 1994 07 14 20 59  0.000000  6   -0.123456789012E+00 -0.123456789012E+01"; 
+        assert_eq!(is_new_epoch(c), true);
+        let c = "RA AREQ 1994 07 14 20 59  0.000000  6   -0.123456789012E+00 -0.123456789012E+01"; 
+        assert_eq!(is_new_epoch(c), false);
+        let c = "DR AREQ 1994 07 14 20 59  0.000000  6   -0.123456789012E+00 -0.123456789012E+01"; 
+        assert_eq!(is_new_epoch(c), true);
+        let c = "CR AREQ 1994 07 14 20 59  0.000000  6   -0.123456789012E+00 -0.123456789012E+01"; 
+        assert_eq!(is_new_epoch(c), true);
+        let c = "AS AREQ 1994 07 14 20 59  0.000000  6   -0.123456789012E+00 -0.123456789012E+01"; 
+        assert_eq!(is_new_epoch(c), true);
+        let c = "CR USNO      1995 07 14 20 59 50.000000  2    0.123456789012E+00  -0.123456789012E-01";
+        assert_eq!(is_new_epoch(c), true);
+        let c = "AS G16  1994 07 14 20 59  0.000000  2   -0.123456789012E+00 -0.123456789012E+01"; 
+        assert_eq!(is_new_epoch(c), true);
+        let c = "A  G16  1994 07 14 20 59  0.000000  2   -0.123456789012E+00 -0.123456789012E+01"; 
+        assert_eq!(is_new_epoch(c), false);
     }
 }

@@ -302,26 +302,22 @@ pub fn build_record (reader: &mut BufferedReader, header: &header::Header) -> Re
                             }
                         },
                         Type::ClockData => {
-                            if let Ok((epoch, system, dtype, data)) = clocks::record::build_record_entry(&epoch_content) {
-                                // Clocks `RINEX` files are handled a little different,
-                                // because we parse one line at a time, while we parsed one (unique) epoch at a time other RINEXes.
-                                // One line may contribute to a previously existing epoch in the record 
-                                // (different type of measurements etc..etc..)
+                            if let Ok((epoch, dtype, system, data)) = clocks::record::build_record_entry(header.version, &epoch_content) {
                                 if let Some(e) = clk_rec.get_mut(&epoch) {
-                                    if let Some(s) = e.get_mut(&system) {
-                                        s.insert(dtype, data);
+                                    if let Some(d) = e.get_mut(&dtype) {
+                                        d.insert(system, data);
                                     } else {
                                         // --> new system entry for this `epoch`
-                                        let mut inner: HashMap<clocks::record::DataType, clocks::record::Data> = HashMap::new();
-                                        inner.insert(dtype, data);
-                                        e.insert(system, inner);
+                                        let mut inner: HashMap<clocks::record::System, clocks::record::Data> = HashMap::new();
+                                        inner.insert(system, data);
+                                        e.insert(dtype, inner);
                                     }
                                 } else {
                                     // --> new epoch entry
-                                    let mut inner:HashMap<clocks::record::DataType, clocks::record::Data> = HashMap::new();
-                                    inner.insert(dtype, data);
-                                    let mut map : HashMap<clocks::record::System, HashMap<clocks::record::DataType, clocks::record::Data>> = HashMap::new();
-                                    map.insert(system, inner);
+                                    let mut inner: HashMap<clocks::record::System, clocks::record::Data> = HashMap::new();
+                                    inner.insert(system, data);
+                                    let mut map : HashMap<clocks::record::DataType, HashMap<clocks::record::System, clocks::record::Data>> = HashMap::new();
+                                    map.insert(dtype, inner);
                                     clk_rec.insert(epoch, map);
                                 }
                                 comment_ts = epoch.clone(); // for comments classification & management
@@ -412,27 +408,27 @@ pub fn build_record (reader: &mut BufferedReader, header: &header::Header) -> Re
             }
         },
         Type::ClockData => {
-            if let Ok((e, system, dtype, data)) = clocks::record::build_record_entry(&epoch_content) {
+            if let Ok((e, dtype, system, data)) = clocks::record::build_record_entry(header.version, &epoch_content) {
                 // Clocks `RINEX` files are handled a little different,
                 // because we parse one line at a time, while we parsed one epoch at a time for other RINEXes.
                 // One line may contribute to a previously existing epoch in the record 
                 // (different type of measurements etc..etc..)
                 if let Some(e) = clk_rec.get_mut(&e) {
-                    if let Some(s) = e.get_mut(&system) {
-                        s.insert(dtype, data);
+                    if let Some(d) = e.get_mut(&dtype) {
+                        d.insert(system, data);
                     } else {
                         // --> new system entry for this `epoch`
-                        let mut inner: HashMap<clocks::record::DataType, clocks::record::Data> = HashMap::new();
-                        let mut map: HashMap<clocks::record::System, HashMap<clocks::record::DataType, clocks::record::Data>> = HashMap::new();
-                        inner.insert(dtype, data);
-                        map.insert(system, inner);
+                        let mut map: HashMap<clocks::record::DataType, HashMap<clocks::record::System, clocks::record::Data>> = HashMap::new();
+                        let mut inner: HashMap<clocks::record::System, clocks::record::Data> = HashMap::new();
+                        inner.insert(system, data);
+                        map.insert(dtype, inner);
                     }
                 } else {
                     // --> new epoch entry
-                    let mut inner:HashMap<clocks::record::DataType, clocks::record::Data> = HashMap::new();
-                    inner.insert(dtype, data);
-                    let mut map : HashMap<clocks::record::System, HashMap<clocks::record::DataType, clocks::record::Data>> = HashMap::new();
-                    map.insert(system, inner);
+                    let mut map: HashMap<clocks::record::DataType, HashMap<clocks::record::System, clocks::record::Data>> = HashMap::new();
+                    let mut inner: HashMap<clocks::record::System, clocks::record::Data> = HashMap::new();
+                    inner.insert(system, data);
+                    map.insert(dtype, inner);
                     clk_rec.insert(e, map);
                 }
                 comment_ts = e.clone(); // for comments classification & management
