@@ -1154,7 +1154,7 @@ impl Rinex {
             let record = self.record
                 .as_nav()
                 .unwrap();
-            for (epoch, classes) in record.iter() {
+            for (_, classes) in record.iter() {
                 for (class, frames) in classes.iter() {
                     if *class == navigation::record::FrameClass::Ephemeris {
                         for frame in frames {
@@ -1171,7 +1171,7 @@ impl Rinex {
             let record = self.record
                 .as_obs()
                 .unwrap();
-            for (epoch, (_, vehicules)) in record.iter() {
+            for (_, (_, vehicules)) in record.iter() {
                 for (sv, _) in vehicules.iter() {
                     if !map.contains(&sv) {
                         map.push(sv.clone());

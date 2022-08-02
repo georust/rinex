@@ -176,7 +176,7 @@ pub fn build_record_entry (version: Version, content: &str) ->
     let date = epoch::str2date(epoch.trim())?; 
 
     // n
-    let (n, rem) = rem.split_at(4);
+    let (n, _) = rem.split_at(4);
     let m = u8::from_str_radix(n.trim(), 10)?;
 
     // data fields
