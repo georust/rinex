@@ -179,39 +179,40 @@ pub fn build_record_entry (version: Version, content: &str) ->
     let (n, rem) = rem.split_at(4);
     let m = u8::from_str_radix(n.trim(), 10)?;
 
-    let (content, rem) = rem.split_at(20);
-    let bias = f64::from_str(content.trim())?; // bias must pass
-
+    // data fields
     let mut data = Data::default();
-    data.bias = bias;
-    let mut offset :usize = 20;
-    let mut rem = rem.clone();
-    for i in 1..m { // all other datas are totally optionnal
-        let (content, r) = rem.split_at(offset);
-        if let Ok(f) = f64::from_str(content.trim()) {
-            if i == 1 {
-                data.bias_sigma = Some(f);
-            } else if i == 2 {
-                data.rate = Some(f);
-            } else if i == 3 {
-                data.rate_sigma = Some(f);
-            } else if i == 4 {
-                data.accel = Some(f);
-            } else if i == 5 {
-                data.accel_sigma = Some(f);
-            }
+    let items :Vec<&str> = line
+        .split_ascii_whitespace()
+        .collect();
+    data.bias = f64::from_str(items[9].trim())?; // bias must pass
+    if m > 1 {
+        if let Ok(f) = f64::from_str(items[10].trim()) {
+            data.bias_sigma = Some(f)
         }
-        if i == 1 {
-            if let Some(l) = lines.next() {
-                rem = l.clone();
-                offset = 23;
-            }
-        } else {
-            rem = r.clone();
-            offset = 20;
-        }
-
     }
+
+    if m > 2 {
+        if let Some(l) = lines.next() {
+            let line = l.clone();
+            let items :Vec<&str> = line
+                .split_ascii_whitespace()
+                .collect();
+            for i in 0..items.len() {
+                if let Ok(f) = f64::from_str(items[i].trim()) {
+                    if i == 0 {
+                        data.rate = Some(f);
+                    } else if i == 1 {
+                        data.rate_sigma = Some(f);
+                    } else if i == 2 {
+                        data.accel = Some(f);
+                    } else if i == 3 {
+                        data.accel_sigma = Some(f);
+                    }
+                }
+            }
+        }
+    }
+    
     let epoch = epoch::Epoch {
         flag: epoch::EpochFlag::Ok,
         date,

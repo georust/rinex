@@ -113,6 +113,8 @@ mod test {
                         if *system == areq_usa {
                             assert_eq!(data.bias,  -0.123456789012);
                             assert_eq!(data.bias_sigma, Some( -0.123456789012E+01));
+                            assert_eq!(data.rate, Some(-0.123456789012E+02));
+                            assert_eq!(data.rate_sigma, Some( -0.123456789012E+03));
                         } else if *system == gold { 
                             assert_eq!(data.bias, -0.123456789012E-01);
                             assert_eq!(data.bias_sigma, Some( -0.123456789012E-02));
@@ -146,7 +148,7 @@ mod test {
         }
     }
     #[test]
-    fn v3_04_example12() {
+    fn v3_04_example2() {
         let test_resource = 
             env!("CARGO_MANIFEST_DIR").to_owned() 
             + "/../test_resources/CLK/V3/example2.txt";
@@ -158,10 +160,10 @@ mod test {
         let clocks = rinex.header.clocks
             .as_ref()
             .unwrap();
-        assert_eq!(clocks.codes, vec![DataType::AS, DataType::AR]);
+        assert_eq!(clocks.codes, vec![DataType::AR, DataType::AS]);
         assert_eq!(clocks.agency, Some(clocks::Agency {
-            code: String::from("USN"),
-            name: String::from("USNO USING GIPSY/OASIS-II"),
+            code: String::from("IGS"),
+            name: String::from("IGSACC @ GA and MIT"),
         }));
         assert_eq!(rinex.epochs().len(), 1);
         let record = rinex.record.as_clock();
