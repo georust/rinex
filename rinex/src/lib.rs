@@ -677,6 +677,14 @@ impl Rinex {
                     .map(|(k, _)| *k)
                     .collect()
             },
+            types::Type::ClockData => {
+                self.record
+                    .as_clock()
+                    .unwrap()
+                    .into_iter()
+                    .map(|(k, _)| *k)
+                    .collect()
+            },
             types::Type::IonosphereMaps => {
                 self.record
                     .as_ionex()
@@ -890,6 +898,24 @@ impl Rinex {
         } 
     }
     
+    /// Returns receiver clock offset, for all epoch such information
+    /// was provided by this Observation record.
+    /// Does not produce anything if self is not an OBS record.
+    pub fn receiver_clock_offsets (&self) -> BTreeMap<epoch::Epoch, f64> {
+        let mut map: BTreeMap<epoch::Epoch, f64> = BTreeMap::new();
+        if self.is_observation_rinex() {
+            let record = self.record
+                .as_obs()
+                .unwrap();
+            for (epoch, (clk, _)) in record.iter() {
+                if let Some(clk) = clk {
+                    map.insert(*epoch, *clk);
+                }
+            }
+        }
+        map
+    }
+
     /// Extracts distant clock offsets 
     /// (also refered to as "clock biases") in [s],
     /// on an epoch basis and per space vehicule,
@@ -1080,6 +1106,81 @@ impl Rinex {
             }
         }
         result
+    }
+
+    /// Returns list of space vehicules encountered per epoch
+    pub fn space_vehicules_per_epoch (&self) -> BTreeMap<epoch::Epoch, Vec<sv::Sv>> {
+        let mut map: BTreeMap<epoch::Epoch, Vec<sv::Sv>> = BTreeMap::new();
+        if self.is_navigation_rinex() {
+            let record = self.record
+                .as_nav()
+                .unwrap();
+            for (epoch, classes) in record.iter() {
+                let mut inner: Vec<sv::Sv> = Vec::new();
+                for (class, frames) in classes.iter() {
+                    if *class == navigation::record::FrameClass::Ephemeris {
+                        for frame in frames {
+                            let (_, sv, _, _, _, _) = frame.as_eph().unwrap();
+                            inner.push(sv);
+                        }
+                    }
+                }
+                if inner.len() > 0 {
+                    map.insert(*epoch, inner);
+                }
+            }
+
+        } else if self.is_observation_rinex() {
+            let record = self.record
+                .as_obs()
+                .unwrap();
+            for (epoch, (_, vehicules)) in record.iter() {
+                let mut inner: Vec<sv::Sv> = Vec::new();
+                for (sv, _) in vehicules.iter() {
+                    inner.push(*sv);
+                }
+                if inner.len() > 0 {
+                    map.insert(*epoch, inner);
+                }
+            }
+        }
+        map
+    }
+
+    /// Returns list of space vehicules encountered in this file
+    pub fn space_vehicules (&self) -> Vec<sv::Sv> {
+        let mut map: Vec<sv::Sv> = Vec::new();
+        if self.is_navigation_rinex() {
+            let record = self.record
+                .as_nav()
+                .unwrap();
+            for (epoch, classes) in record.iter() {
+                for (class, frames) in classes.iter() {
+                    if *class == navigation::record::FrameClass::Ephemeris {
+                        for frame in frames {
+                            let (_, sv, _, _, _, _) = frame.as_eph().unwrap();
+                            if !map.contains(&sv) {
+                                map.push(sv.clone());
+                            }
+                        }
+                    }
+                }
+            }
+
+        } else if self.is_observation_rinex() {
+            let record = self.record
+                .as_obs()
+                .unwrap();
+            for (epoch, (_, vehicules)) in record.iter() {
+                for (sv, _) in vehicules.iter() {
+                    if !map.contains(&sv) {
+                        map.push(sv.clone());
+                    }
+                }
+            }
+        }
+        map.sort();
+        map
     }
 
     /// Filters out data records that do not contained in the given Observable list. 
@@ -2041,6 +2142,46 @@ impl Rinex {
             },
             _ => todo!("implement other record types"),
         };
+        Self {
+            header: self.header.clone(),
+            comments: self.comments.clone(),
+            record,
+        }
+    }
+
+    /// Filter restrain epochs in this record to specified epoch interval,
+    /// starting from start (included) to end (included).
+    pub fn time_window (&mut self, start: chrono::NaiveDateTime, end: chrono::NaiveDateTime) {
+        if self.is_observation_rinex() {
+            let record = self.record
+                .as_mut_obs()
+                .unwrap();
+            record.retain(|e, _| e.date >= start && e.date <= end);
+        } else if self.is_navigation_rinex() {
+            let record = self.record
+                .as_mut_nav()
+                .unwrap();
+            record.retain(|e, _| e.date >= start && e.date <= end);
+        }
+    }
+
+    /// Returns a time windowed version of this record,
+    /// starting from start (included) to end (included).
+    pub fn time_windowed (&self, start: chrono::NaiveDateTime, end: chrono::NaiveDateTime) -> Self {
+        let mut record = record::Record::default();
+        if self.is_observation_rinex() {
+            let mut r = self.record.as_obs()
+                .unwrap()
+                .clone();
+            r.retain(|e, _| e.date >= start && e.date <= end);
+            record = record::Record::ObsRecord(r);
+        } else if self.is_navigation_rinex() {
+            let mut r = self.record.as_nav()
+                .unwrap()
+                .clone();
+            r.retain(|e, _| e.date >= start && e.date <= end);
+            record = record::Record::NavRecord(r);
+        }
         Self {
             header: self.header.clone(),
             comments: self.comments.clone(),
