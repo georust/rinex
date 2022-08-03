@@ -7,6 +7,7 @@ use strum_macros::EnumString;
 use std::collections::{BTreeMap, HashMap};
 
 #[derive(Error, PartialEq, Eq, Hash, Clone, Debug)]
+#[derive(PartialOrd, Ord)]
 pub enum System {
     /// Sv system for AS data
     Sv(Sv),
