@@ -16,7 +16,7 @@ Rust tool suites to parse, analyze, manipulate `RINEX` files
 * [`sinex`](sinex/) files parser, core library
 
 * [`rinex-cli`](rinex-cli/) is a command line application that intends to expose
-all the core libraries capacities to the end user, in an easy to use and efficient fashion.
+all the core libraries capacities to the end user, in an easy-to-use and efficient fashion.
 It can be used to analyze files or perform operations like `teqc`. See the **CLI**
 table down below for more information.
 
@@ -105,7 +105,7 @@ a given (usually current..) location on Earth.
 See [constellation](doc/constellation.md) for example of use.
 
 * `--with-gzip`  
-allow native parsing of .gz compressed RINEX files. Otherwise, user must uncompress manualy the `.gz` extension first.
+allow native parsing of .gz compressed RINEX files. Otherwise, user must uncompress manually the `.gz` extension first.
 
 ## Contributions
 
@@ -118,17 +118,17 @@ Follow the existing architecture:
 
 * introduce `types::Type::foo`
 * provide new `record::Record` declination
-* create `rinex/src/foo` sub directory and provide at least a rinex/src/foo/record.rs for the file body
+* create `rinex/src/foo` subdirectory and provide at least a rinex/src/foo/record.rs for the file body
 * add new specific header fields if need be, define them in `rinex/src/foo`
 * attach unit tests to the new `rinex/src/foo` structures & methods
-* provide relevant (but truncated, to keep repo size reasonnable) raw data, under `test_resources/`
+* provide relevant (but truncated, to keep repo size reasonable) raw data, under `test_resources/`
 * add new type to `test_resources` testbench in `tests/parser.rs`
 * add a focused testbench, in `tests/foo.rs` with specific fields test
 
 ### Adding more RINEX data
 
-* only introduce non existing RINEX declinations
-* truncate huge files to maintain a reasonnable repo size 
+* only introduce non-existing RINEX declinations
+* truncate huge files to maintain a reasonable repo size 
 
 ### TODO 
 

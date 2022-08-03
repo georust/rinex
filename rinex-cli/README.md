@@ -21,7 +21,7 @@ Why this tool ?
 * Space applications :rocket: 
 * Navigation :earth_americas:
 
-`RINEX` files are complex, several kinds exist and they differ a lot from one another.  
+`RINEX` files are complex, several kinds exist, and they differ a lot from one another.  
 This tool is powerful enough to manage almost all revisions and most common RINEX files,
 without compromising ease of use.
 
@@ -47,9 +47,9 @@ cargo run -- --help
 ```
 
 Command line arguments order does not matter.  
-(Input) `filepath` is the only mandatory argument, other flags are optionnal.
-`Help` menu tells you which argument has a shortenned version,
-here is an example on how to use a shortenned argument:
+(Input) `filepath` is the only mandatory argument, other flags are optional.
+`Help` menu tells you which argument has a shortened version,
+here is an example on how to use a shortened argument:
 
 ```bash
 cargo run --filepath /tmp/amel010.21g
@@ -73,7 +73,7 @@ feasible
 
 * `--with-graphics` unlocks data plotting instead of stdout print
  - plot Observables, Observation data, Navigation data,
- - plot Ionosphere Heatmap in case of IONEX..
+ - plot Ionosphere Heatmap in case of IONEX.
 
 ## Output format
 
@@ -106,10 +106,10 @@ cargo run -- -f /tmp/data.obs -e > /tmp/epochs.json
 ## OBS / DATA code identification
 
 `--obscodes` or `-o`
-is used to identify which data codes (not necesarily OBS..) 
+is used to identify which data codes (not necessarily OBS..) 
 are present in the given records.
 This macro is very useful because it lets the user
-understand which data (physics) is present and we can build
+understand which data (physics) is present, and we can build
 efficient data filter from that information
 
 ```bash
@@ -150,7 +150,7 @@ cargon run -- -fp test_resources/OBS/V2/zegv0010.21o \
 Some RINEX files like Observation Data 
 associate an epoch flag to each epoch.  
 A non `Ok` epoch flag describes a special event
-or external pertubations that happened at that sampling
+or external perturbations that happened at that sampling
 date. We provide the following arguments to
 easily discard unusual events or focus on them to
 figure things out:
@@ -228,9 +228,9 @@ Example:
 cargo run -f CBW100NLD_R_20210010000_01D_MN.rnx -c L1C,S1P 
 ```
 
-## Cummulated filters
+## Cumulated filters
 
-Because all arguments can be cummulated, one can 
+Because all arguments can be cumulated, one can 
 create efficient data filter and focus on data of interest: 
 
 ```bash
@@ -244,7 +244,7 @@ cargo run -f CBW100NLD_R_20210010000_01D_MN.rnx \
 ## `teqc` operations
 
 This tool supports special operations that only
-`teqc` supports at the moment. Therefore
+`teqc` supports at the moment. Therefore,
 it can be an efficient alternative to this program.
 
 All of the special operations actually create an output file.
@@ -276,7 +276,7 @@ at which we will split the record.
 ### Splitting a previously merged record
 
 ```bash
-# Merge two RINEX toghether
+# Merge two RINEX together
 cargo run -f /tmp/file1.rnx,/tmp/file2.rnx -m --output /tmp/merged.rnx
 # Split resulting RINEX
 cargon run -f /tmp/merged.rnx --split --output /tmp/split1.rnx,/tmp/split2.rnx 
