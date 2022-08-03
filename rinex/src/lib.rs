@@ -1094,12 +1094,16 @@ impl Rinex {
                     if *class == navigation::record::FrameClass::Ephemeris {
                         for frame in frames.iter() {
                             let (msgtype, _, _, _, _, _) = frame.as_eph().unwrap();
-                            result.push(msgtype.to_string())
+                            if !result.contains(&msgtype.to_string()) {
+                                result.push(msgtype.to_string())
+                            }
                         }
                     } else if *class == navigation::record::FrameClass::SystemTimeOffset {
                         for frame in frames.iter() {
                             let sto = frame.as_sto().unwrap();
-                            result.push(sto.system.clone())
+                            if !result.contains(&sto.system.to_string()) {
+                                result.push(sto.system.clone())
+                            }
                         }
                     }
                 }
@@ -1180,6 +1184,53 @@ impl Rinex {
             }
         }
         map.sort();
+        map
+    }
+
+    /// List systems contained in this Clocks RINEX,
+    /// system can either a station or a space vehicule
+    pub fn systems (&self) -> Vec<clocks::record::System> {
+        let mut map: Vec<clocks::record::System> = Vec::new();
+        if !self.is_clocks_rinex() {
+            return map;
+        }
+        let record = self.record
+            .as_clock()
+            .unwrap();
+        for (_, dtypes) in record.iter() {
+            for (dtype, systems) in dtypes.iter() {
+                for (system, _) in systems.iter() {
+                    if !map.contains(&system) {
+                        map.push(system.clone())
+                    }
+                }
+            }
+        }
+        map.sort();
+        map
+    }
+
+    /// Lists systems contained in this Clocks RINEX,
+    /// on an epoch basis. Systems can either be a station or a space vehicule.
+    pub fn systems_per_epoch (&self) -> BTreeMap<epoch::Epoch, Vec<clocks::record::System>> {
+        let mut map: BTreeMap<epoch::Epoch, Vec<clocks::record::System>> = BTreeMap::new();
+        if !self.is_clocks_rinex() {
+            return map;
+        }
+        let record = self.record
+            .as_clock()
+            .unwrap();
+        for (epoch, dtypes) in record.iter() {
+            for (dtype, systems) in dtypes.iter() {
+                for (system, _) in systems.iter() {
+                    if let Some(e) = map.get_mut(epoch) {
+                        e.push(system.clone());
+                    } else {
+                        map.insert(*epoch, vec![system.clone()]);
+                    }
+                }
+            }
+        }
         map
     }
 
