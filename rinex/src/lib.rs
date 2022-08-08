@@ -1415,6 +1415,119 @@ impl Rinex {
         results
     }
 
+    /// Extracts elevation angle for all vehicules per epoch,
+    /// useful as you don't have to care for record fields and NAV revision.
+    /// Does not produce anything if this is not an NAV record,
+    /// or NAV record does not contain any ephemeris frame
+    pub fn elevation_angles (&self) -> BTreeMap<epoch::Epoch, BTreeMap<sv::Sv, f64>> {
+        let mut ret : BTreeMap<epoch::Epoch, BTreeMap<sv::Sv, f64>> = BTreeMap::new();
+        if !self.is_navigation_rinex() {
+            return ret ;
+        }
+        let record = self.record
+            .as_nav()
+            .unwrap();
+        for (epoch, classes) in record.iter() {
+            let mut inner: BTreeMap<sv::Sv, f64> = BTreeMap::new();
+            for (class, frames) in classes.iter() {
+                if *class == navigation::record::FrameClass::Ephemeris {
+                    for frame in frames.iter() {
+                        let (_, sv, _, _, _, map) = frame.as_eph()
+                            .unwrap();
+                        // test all well known elevation mask fields
+                        if let Some(elev) = map.get("e") {
+                            inner.insert(sv.clone(), elev.as_f64().unwrap());
+                        } else {
+                            if let Some(posx) = map.get("satPosX") {
+                                if let Some(posy) = map.get("satPosY") {
+                                    if let Some(posz) = map.get("satPosY") {
+                                        let e = posx.as_f64().unwrap() * posy.as_f64().unwrap() * posz.as_f64().unwrap(); //TODO
+                                        inner.insert(sv.clone(), e);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            if inner.len() > 0 {
+                ret.insert(*epoch, inner);
+            }
+        }
+        ret
+    }
+
+    /// Filters out all vehicules that exhibit an elevation angle below given mask (a < min_angle).
+    /// Has no effect if self is not a NAV record containing at least 1 Ephemeris frame.
+    pub fn eleavation_angle_filter_mut (&mut self, min_angle: f64) {
+        if !self.is_navigation_rinex() {
+            return ;
+        }
+        let record = self.record
+            .as_mut_nav()
+            .unwrap();
+        record
+            .retain(|e, classes| {
+                classes.retain(|class, frames| {
+                    if *class == navigation::record::FrameClass::Ephemeris {
+                        frames.retain(|fr| {
+                            let (_, _, _, _, _, map) = fr.as_eph()
+                                .unwrap();
+                            if let Some(elev) = map.get("e") {
+                                elev.as_f64().unwrap() < min_angle
+                            } else { // TODO
+                                false
+                            }
+                        });
+                        frames.len() > 0 
+                    } else { // not an EPH
+                        true // keep it anyway
+                    }
+                });
+                classes.len() > 0
+            })
+    }
+
+    /// Returns a new NAV RINEX with only EPH frames and for each epoch
+    /// each vehicule was spotted at an elevation angle above given mask (a >= min_angle).
+    /// Returns a strictly identical copy (has no effect) if
+    ///  - self is not a NAV RINEX
+    ///  - or does not contain at least 1 EPH frame
+    pub fn elevation_angle_filter (&self, min_angle: f64) -> Self {
+        if !self.is_navigation_rinex() {
+            return self.clone()
+        }
+        let mut record = self.record
+            .as_nav()
+            .unwrap()
+            .clone();
+        record
+            .retain(|e, classes| {
+                classes.retain(|class, frames| {
+                    if *class == navigation::record::FrameClass::Ephemeris {
+                        frames.retain(|fr| {
+                            let (_, _, _, _, _, map) = fr.as_eph()
+                                .unwrap();
+                            if let Some(elev) = map.get("e") {
+                                elev.as_f64().unwrap() < min_angle
+                            } else { // TODO
+                                false
+                            }
+                        });
+                        frames.len() > 0 
+                    } else { // not an EPH
+                        false // drop it 
+                    }
+                });
+                classes.len() > 0
+            });
+        Self {
+            header: self.header.clone(),
+            comments: self.comments.clone(),
+            record: record::Record::NavRecord(record),
+        }
+    }
+
     /// Filters out all Legacy Ephemeris freames from this Navigation record.
     /// This is intended to be used only on modern (V>3) Navigation record,
     /// which are the only records expected to contain other frame types.
@@ -1426,16 +1539,18 @@ impl Rinex {
         let record = self.record
             .as_mut_nav()
             .unwrap();
-        for (_, classes) in record.iter_mut() {
-            for (class, frames) in classes.iter_mut() {
+        record.retain(|_, classes| {
+            classes.retain(|class, frames| {
                 if *class == navigation::record::FrameClass::Ephemeris {
                     frames.retain(|fr| {
                         let (msgtype, _, _, _, _, _) = fr.as_eph().unwrap();
                         msgtype != navigation::record::MsgType::LNAV
                     })
                 }
-            }
-        }
+                frames.len() > 0
+            });
+            classes.len() > 0
+        })
     }
     
     /// Filters out all Modern Ephemeris freames from this Navigation record,
@@ -1450,16 +1565,18 @@ impl Rinex {
         let record = self.record
             .as_mut_nav()
             .unwrap();
-        for (_, classes) in record.iter_mut() {
-            for (class, frames) in classes.iter_mut() {
+        record.retain(|_, classes| {
+            classes.retain(|class, frames| {
                 if *class == navigation::record::FrameClass::Ephemeris {
                     frames.retain(|fr| {
                         let (msgtype, _, _, _, _, _) = fr.as_eph().unwrap();
                         msgtype == navigation::record::MsgType::LNAV
                     })
                 }
-            }
-        }
+                frames.len() > 0
+            });
+            classes.len() > 0
+        })
     }
 
     /// Extracts all System Time Offset data
