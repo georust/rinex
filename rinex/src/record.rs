@@ -42,32 +42,34 @@ pub enum Record {
     ObsRecord(observation::record::Record),
 }
 
-/// Comments: alias to describe comments encountered in `record` file section
+/// Record comments are high level informations, sorted by epoch
+/// (timestamp) of appearance. We deduce the "associated" timestamp from the
+/// previosuly parsed epoch, when parsing the record.
 pub type Comments = BTreeMap<epoch::Epoch, Vec<String>>;
 
 impl Record {
-    /// Unwraps self as ANTEX `record`
+    /// Unwraps self as ANTEX record
     pub fn as_antex (&self) -> Option<&antex::record::Record> {
         match self {
             Record::AntexRecord(r) => Some(r),
             _ => None,
         }
     }
-    /// Unwraps self as mutable reference to ANTEX `record`
+    /// Unwraps self as mutable reference to ANTEX record
     pub fn as_mut_antex (&mut self) -> Option<&mut antex::record::Record> {
         match self {
             Record::AntexRecord(r) => Some(r),
             _ => None,
         }
     }
-    /// Unwraps self as CLK `record`
+    /// Unwraps self as CLK record
     pub fn as_clock (&self) -> Option<&clocks::record::Record> {
         match self {
             Record::ClockRecord(r) => Some(r),
             _ => None,
         }
     }
-    /// Unwraps self as mutable CLK `record`
+    /// Unwraps self as mutable CLK record
     pub fn as_mut_clock (&mut self) -> Option<&mut clocks::record::Record> {
         match self {
             Record::ClockRecord(r) => Some(r),
@@ -88,7 +90,7 @@ impl Record {
             _ => None,
         }
     }
-	/// Unwraps self as MET `record`
+	/// Unwraps self as MET record
     pub fn as_meteo (&self) -> Option<&meteo::record::Record> {
         match self {
             Record::MeteoRecord(r) => Some(r),
@@ -102,21 +104,21 @@ impl Record {
             _ => None,
         }
     }
-	/// Unwraps self as NAV `record`
+	/// Unwraps self as NAV record
     pub fn as_nav (&self) -> Option<&navigation::record::Record> {
         match self {
             Record::NavRecord(r) => Some(r),
             _ => None,
         }
     }
-	/// Returns mutable reference to Navigation `record`
+	/// Returns mutable reference to Navigation record
     pub fn as_mut_nav (&mut self) -> Option<&mut navigation::record::Record> {
         match self {
             Record::NavRecord(r) => Some(r),
             _ => None,
         }
     }
-	/// Unwraps self as OBS `record`
+	/// Unwraps self as OBS record
     pub fn as_obs (&self) -> Option<&observation::record::Record> {
         match self {
             Record::ObsRecord(r) => Some(r),
@@ -435,7 +437,8 @@ pub fn build_record (reader: &mut BufferedReader, header: &header::Header) -> Re
             }
         },
         Type::IonosphereMaps => {
-            if let Ok((_epoch, _maps)) = ionosphere::record::build_record_entry(&epoch_content, exponent) {
+            if let Ok((epoch, maps)) = ionosphere::record::build_record_entry(&epoch_content, exponent) {
+                ionx_rec.insert(epoch, (maps, None, None));
             }
         }
         Type::AntennaData => {
