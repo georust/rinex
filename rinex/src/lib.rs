@@ -40,7 +40,7 @@ extern crate serde;
 #[macro_export]
 /// Returns `true` if given `Rinex` line is a comment
 macro_rules! is_comment {
-    ($line: expr) => { $line.contains("COMMENT") };
+    ($line: expr) => { $line.trim_end().ends_with("COMMENT") };
 }
 
 #[macro_export]
@@ -356,12 +356,33 @@ impl Rinex {
         }
     }
 
+    /// Returns duration of largest data gap in this record and previous timestamp.
+    /// Returns None if no data gap was found (ie., all epochs comprised within expected sampling interval)
+    pub fn largest_data_gap_duration (&self) -> Option<(chrono::NaiveDateTime, chrono::Duration)> {
+        if let Some(interval) = self.header.sampling_interval {
+            let epochs = self.epochs();
+            let mut prev_epoch = epochs[0];
+            let mut epoch = epochs[0].date.clone();
+            let mut largest_dt = prev_epoch.date - prev_epoch.date;
+            for e in epochs.iter().skip(1) {
+                if e.date - prev_epoch.date > largest_dt {
+                    epoch = e.date.clone();
+                    largest_dt = e.date - prev_epoch.date; 
+                }
+                prev_epoch = e.clone(); 
+            }
+            Some((epoch, largest_dt))
+        } else {
+            None
+        }
+    }
+
     /// Returns a list of epochs that present a data gap.
     /// Data gap is determined by comparing |e(k)-e(k-1)|: successive epoch intervals,
     /// to the INTERVAL field found in the header.
     /// Granularity is currently limited to 1 second. 
     /// This method will not produce anything if header does not an INTERVAL field.
-    pub fn data_gap (&self) -> Vec<epoch::Epoch> {
+    pub fn data_gaps (&self) -> Vec<epoch::Epoch> {
         if let Some(interval) = self.header.sampling_interval {
             let interval = interval as u64;
             let mut epochs = self.epochs();
@@ -871,8 +892,9 @@ impl Rinex {
     }
 
     /// Retains data that was generated / recorded against given list of 
-    /// space vehicules. This has no effect on ATX, CLK, MET, IONEX records,
-    /// and NAV record frames other than Ephemeris.
+    /// space vehicules. This has no effect on ATX, MET, IONEX records,
+    /// and NAV record frames other than Ephemeris. On CLK records,
+    /// we filter out data not measured against space vehicules and different vehicules.
     pub fn space_vehicule_filter_mut (&mut self, filter: Vec<sv::Sv>) {
         if self.is_observation_rinex() {
             let record = self.record
@@ -885,17 +907,40 @@ impl Rinex {
             let record = self.record
                 .as_mut_nav()
                 .unwrap();
-            for (_e, classes) in record.iter_mut() {
-                for (class, frames) in classes.iter_mut() {
-                    if *class == navigation::record::FrameClass::Ephemeris {
-                        frames.retain(|fr| {
+            record
+                .retain(|e, classes| {
+                    classes.retain(|class, frames| {
+                        if *class == navigation::record::FrameClass::Ephemeris {
+                            frames.retain(|fr| {
                                 let (_, sv, _, _, _, _) = fr.as_eph().unwrap();
                                 filter.contains(&sv)
-                            })
-                    }
-                }
-            }
-        } 
+                            });
+                            frames.len() > 0
+                        } else {
+                            true // keeps non ephemeris as is
+                        }
+                    });
+                    classes.len() > 0
+                })
+        } else if self.is_clocks_rinex() {
+            let record = self.record
+                .as_mut_clock()
+                .unwrap();
+            record
+                .retain(|_, data_types| {
+                    data_types.retain(|dtype, systems| {
+                        systems.retain(|system, _| {
+                            if let Some(sv) = system.as_sv() {
+                                filter.contains(&sv)
+                            } else {
+                                false
+                            }
+                        });
+                        systems.len() > 0
+                    });
+                    data_types.len() > 0
+                })
+        }
     }
     
     /// Returns receiver clock offset, for all epoch such information
@@ -1241,6 +1286,7 @@ impl Rinex {
     ///   - Ephemeris: MsgType filter: "LNAV", "FDMA", "D1D2", "CNVX, ... any valid [MsgType]
     ///   - Ionospheric Model: does not apply
     ///   - System Time offset: "GPUT", "GAGP", ..., any valid system time
+    /// For Clock record: we consider filter items as Data Type Codes "AR","AS"...
     /// This has no effect if on ATX and IONEX records.
     pub fn observable_filter_mut (&mut self, filter: Vec<&str>) {
         if self.is_navigation_rinex() {
@@ -2317,8 +2363,8 @@ impl Rinex {
         }
     }
 
-    /// Filter restrain epochs in this record to specified epoch interval,
-    /// starting from start (included) to end (included).
+    /// Restrain epochs to given interval, starting from `start` (included)
+    /// and ending on `end` (included).
     pub fn time_window (&mut self, start: chrono::NaiveDateTime, end: chrono::NaiveDateTime) {
         if self.is_observation_rinex() {
             let record = self.record
