@@ -356,7 +356,64 @@ impl Rinex {
         }
     }
 
-    /// Returns duration of largest data gap in this record and previous timestamp.
+    /// Returns sampling interval of this record
+    /// either directly from header section, if such information was provided,
+    /// or the most encountered epoch interval.
+    /// TODO improve this not to lose fractions of second 
+    ///
+    /// Example:
+    /// ```
+    /// use rinex::*;
+    /// let rnx = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O").unwrap();
+    /// // in this file, header section contains desired information directly
+    /// assert_eq!(rnx.sampling_interval().num_seconds(), rnx.header.sampling_interval.unwrap() as i64);
+    /// let rnx = Rinex::from_file("../test_resources/NAV/V3/AMEL00NLD_R_20210010000_01D_MN.rnx").unwrap();
+    /// // in that file, we had to compute that information ourselves
+    /// assert_eq!(rnx.header.sampling_interval, None);
+    /// //01 00 00 00
+    /// //01 00 15 00 --> 15'
+    /// //01 05 00 00 --> 4h45
+    /// //01 09 45 00 --> 4h45
+    /// //01 10 00 00 --> 15'
+    /// //01 15 40 00 --> 5h40
+    /// //--------------> 15' is the most "plausible"
+    /// let expected = chrono::Duration::from_std(std::time::Duration::from_secs(15*60)).unwrap();
+    /// //assert_eq!(rnx.sampling_interval(), expected);
+    /// ```
+    pub fn sampling_interval (&self) -> chrono::Duration {
+        if let Some(interval) = self.header.sampling_interval {
+            chrono::Duration::from_std(std::time::Duration::from_secs(interval as u64)).unwrap()
+        } else {
+            let epochs = self.epochs();
+            let mut prev_epoch = epochs[0];
+            let mut histogram : HashMap<chrono::Duration, u64> = HashMap::new();
+            for epoch in epochs.iter().skip(1) {
+                let dt = epoch.date - prev_epoch.date;
+                if let Some(counter) = histogram.get_mut(&dt) {
+                    *counter += 1
+                } else {
+                    histogram.insert(dt, 1);
+                }
+                prev_epoch = epoch.clone();
+            }
+            // largest hist population
+            let mut largest = 0;
+            let mut dt = chrono::Duration::from_std(std::time::Duration::from_secs(0)).unwrap(); 
+            for (d, counter) in histogram.iter() {
+                if counter > &largest {
+                    largest = *counter;
+                    dt = d.clone()
+                } else if counter == &largest {
+                    if d < &dt { // on population equality --> smallest epoch interval is preferred
+                        dt = d.clone()
+                    }
+                }
+            }
+            dt
+        }
+    }
+
+    /// Returns start date and duration of largest data gap in this record.
     /// Returns None if no data gap was found (ie., all epochs comprised within expected sampling interval)
     pub fn largest_data_gap_duration (&self) -> Option<(chrono::NaiveDateTime, chrono::Duration)> {
         if let Some(interval) = self.header.sampling_interval {
