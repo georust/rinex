@@ -85,6 +85,10 @@ args:
         long: constellation
         takes_value: true
         help: Comma seperated list of constellation. Retain data that was measured against these constellations.
+    - sampling-interval:
+        long: sampling_interval
+        takes_value: false
+        help: Print sampling interval of this record
     - sv:
         long: sv
         takes_value: true
@@ -109,7 +113,9 @@ args:
     - distance:
         long: distance 
         takes_value: true
-        help: Converts (all encountered) pseudo range measurements to physical distance. User must pass receiver clock offset for this calculation (refer to doc)
+        help: |
+            Converts (all encountered) pseudo range measurements to physical distance. 
+            User must pass receiver clock offset for this calculation (refer to doc)
     - events:
         long: events
         takes_value: false 
@@ -118,6 +124,15 @@ args:
         long: event-filter
         takes_value: true
         help: Retain only data that match given Epoch Event flag
+    - gaps:
+        long: gaps
+        takes_value: false
+        help: |
+            List all data gaps (larger than expected sampling interval)
+    - largest-gap:
+        long: largest-gap
+        takes_value: false
+        help: Print largest data gap encountered in record
     - merge:
         short: m
         long: merge

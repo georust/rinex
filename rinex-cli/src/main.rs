@@ -105,6 +105,9 @@ pub fn main () -> Result<(), Error> {
     let sv_display = matches.is_present("list-sv");
     let sv_per_epoch_display = matches.is_present("list-sv-epoch");
     let clock_offsets = matches.is_present("clock-offsets");
+    let gaps = matches.is_present("gaps");
+    let largest_gap = matches.is_present("largest-gap");
+    let sampling_interval = matches.is_present("sampling-interval");
 
     // teqc ops
     let teqc_plot = matches.is_present("teqc-plot");
@@ -298,7 +301,7 @@ for fp in &filepaths {
         rinex // apply desired sig strength filter
             .minimum_sig_strength_filter_mut(ssi)
     }
-        
+
     if split {
         if let Some(epoch) = split_epoch {
             let s = rinex.split_at_epoch(epoch);
@@ -368,6 +371,18 @@ for fp in &filepaths {
             } else {
                 println!("{}", serde_json::to_string(&offsets).unwrap())
             }
+        }
+        if sampling_interval {
+            let interval = rinex.sampling_interval();
+            println!("{}", interval);
+        }
+        if gaps {
+            let gaps = rinex.data_gaps();
+            println!("{:#?}", gaps);
+        }
+        if largest_gap {
+            let gap = rinex.largest_data_gap_duration();
+            println!("{:#?}", gap);
         }
         if !epoch_display && !observables_display && !header { 
             // TODO

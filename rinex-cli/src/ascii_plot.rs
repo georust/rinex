@@ -93,9 +93,9 @@ pub fn ascii_plot (x_width: u32, obs_rinex: &Rinex, nav_rinex: Option<Rinex>) ->
                 // use them to determine elevation angle
                 for (e, vvehicules) in elev_angles.iter() {
                     if *e == *epoch {
-                        for (vvehicules, angle) in vvehicules.iter() {
-                            if *vvehicule == sv {
-                                above_elev &= 30.0 ; // TODO
+                        for (vvehicule, angle) in vvehicules.iter() {
+                            if *vvehicule == *sv {
+                                above_elev = (*angle > 30.0) ; // TODO
                             }
                         }
                     }
