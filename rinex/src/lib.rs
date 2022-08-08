@@ -973,15 +973,15 @@ impl Rinex {
     /// was provided by this Observation record.
     /// Does not produce anything if self is not an OBS record.
     pub fn receiver_clock_offsets (&self) -> BTreeMap<epoch::Epoch, f64> {
-        let mut map: BTreeMap<epoch::Epoch, f64> = BTreeMap::new();
-        if self.is_observation_rinex() {
-            let record = self.record
-                .as_obs()
-                .unwrap();
-            for (epoch, (clk, _)) in record.iter() {
-                if let Some(clk) = clk {
-                    map.insert(*epoch, *clk);
-                }
+        if !self.is_observation_rinex() {
+            return BTreeMap::new() ;
+        }
+        let record = self.record
+            .as_obs()
+            .unwrap();
+        for (epoch, (clk, _)) in record.iter() {
+            if let Some(clk) = clk {
+                map.insert(*epoch, *clk);
             }
         }
         map
