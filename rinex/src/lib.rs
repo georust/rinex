@@ -550,7 +550,7 @@ impl Rinex {
         result
     }
     
-    /// Splits merged `records` into seperate `records`.
+    /// Splits `merged` records into seperate records.
     /// Returns empty list if self is not a `Merged` file
     pub fn split_merged_records (&self) -> Vec<record::Record> {
         let boundaries = self.merge_boundaries();
