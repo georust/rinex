@@ -17,6 +17,9 @@ use rinex::types::Type;
 use rinex::epoch;
 use rinex::constellation::{Constellation, augmentation::sbas_selection_helper};
 
+mod ascii_plot;
+use ascii_plot::ascii_plot;
+
 #[derive(Error, Debug)]
 pub enum Error {
     #[error("failed to parse datetime")]
@@ -71,7 +74,7 @@ pub fn main () -> Result<(), Error> {
     let plot = matches.is_present("plot");
     let pretty = matches.is_present("pretty");
 
-    // files
+    // files (in)
     let filepaths : Option<Vec<&str>> = match matches.is_present("filepath") {
         true => {
             Some(matches.value_of("filepath")
@@ -81,7 +84,7 @@ pub fn main () -> Result<(), Error> {
         },
         false => None,
     };
-
+    // files (out)
     let _output : Option<Vec<&str>> = match matches.is_present("output") {
         true => {
             Some(matches.value_of("output")
@@ -98,9 +101,13 @@ pub fn main () -> Result<(), Error> {
     let header = matches.is_present("header");
     let decimate_ratio = matches.is_present("decim-ratio");
     let decimate_interval = matches.is_present("decim-interval");
-    let obscodes_display = matches.is_present("obscodes");
+    let observables_display = matches.is_present("observables");
+    let sv_display = matches.is_present("list-sv");
+    let sv_per_epoch_display = matches.is_present("list-sv-epoch");
+    let clock_offsets = matches.is_present("clock-offsets");
 
     // teqc ops
+    let teqc_plot = matches.is_present("teqc-plot");
     let merge = matches.is_present("merge");
     let splice = matches.is_present("splice");
     let split = matches.is_present("split");
@@ -330,7 +337,7 @@ for fp in &filepaths {
                 println!("{}", serde_json::to_string(&epochs).unwrap())
             }
         }
-        if obscodes_display {
+        if observables_display {
             let observables = rinex.observables();
             if pretty {
                 println!("{}", serde_json::to_string_pretty(&observables).unwrap())
@@ -338,8 +345,35 @@ for fp in &filepaths {
                 println!("{}", serde_json::to_string(&observables).unwrap())
             }
         }
-        if !epoch_display && !obscodes_display && !header { 
-            match rinex.header.rinex_type {
+        if sv_display {
+            let vehicules = rinex.space_vehicules();
+            if pretty {
+                println!("{}", serde_json::to_string_pretty(&vehicules).unwrap())
+            } else {
+                println!("{}", serde_json::to_string(&vehicules).unwrap())
+            }
+        }
+        if sv_per_epoch_display {
+            let vehicules = rinex.space_vehicules_per_epoch();
+            if pretty {
+                println!("{}", serde_json::to_string_pretty(&vehicules).unwrap())
+            } else {
+                println!("{}", serde_json::to_string(&vehicules).unwrap())
+            }
+        }
+        if clock_offsets {
+            let offsets = rinex.receiver_clock_offsets();
+            if pretty {
+                println!("{}", serde_json::to_string_pretty(&offsets).unwrap())
+            } else {
+                println!("{}", serde_json::to_string(&offsets).unwrap())
+            }
+        }
+        if !epoch_display && !observables_display && !header { 
+            // TODO
+            // provide somehow a graphical view
+            // if compilation opts are there
+            /*match rinex.header.rinex_type {
                 // display somehow (either graphically or print())
                 // remaining data
                 // TODO: improve please
@@ -452,8 +486,12 @@ for fp in &filepaths {
                     }
                 },
                 _ => todo!("RINEX type not fully suppported yet"),
-            }
+            } */
         }
+    } //teqc ops
+
+    if teqc_plot {
+        println!("{}", ascii_plot(ascii_plot::DEFAULT_X_WIDTH, &rinex, None));
     }
 }// for all files
     
@@ -474,7 +512,7 @@ for fp in &filepaths {
                 println!("{}", serde_json::to_string(&merged.header).unwrap())
             }
         }
-        if obscodes_display {
+        if observables_display {
             let observables = merged.observables();
             if pretty {
                 println!("{}", serde_json::to_string_pretty(&observables).unwrap())

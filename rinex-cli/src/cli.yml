@@ -38,6 +38,14 @@ args:
             --decim-interval 00:01:00 for a 1 minute minimum interval 
             --decim-interval 12:00:00 for a 12 hour minimum interval 
             --decim-interval 72:00:00 for a 3 day minimum interval 
+    - time-window:
+        short: t
+        long: time-window
+        help: |
+            Shrink RINEX record to specified epoch interval,
+            Example: -t "2022-08-01-12:00:00-2022-08-10-13:00:00"
+            will retain epochs after 2022/08/01 12:00:00 included
+            and prior 2022/08/01 13:00:00 included.
     - epoch-ok:
         long: epoch-ok 
         takes_value: false 
@@ -51,11 +59,24 @@ args:
         long: epoch 
         takes_value: false 
         help: Display (print) identified epochs
-    - obscodes:
+    - observables:
         short: o
-        long: obscodes 
+        long: observables 
         takes_value: false
-        help: Display (print) observable codes found in this file
+        help: |
+            Display (print) observables encountered in this file. For Clocks RINEX, returns list of Clock Data types.
+    - list-sv:
+        long: list-sv
+        takes_value: false
+        help: List encountered vehicules in this file
+    - list-sv-epoch:
+        long: list-sv-epoch
+        takes_value: false
+        help: List encountered vehicules on an epoch basis, encountered in this file
+    - clock-systems-per-epoch:
+        long: clock-systems-per-epoch
+        takes_value: false
+        help: List encountered Clock Data Systems on an epoch basis. Use on Clock RINEX.
     - clock-offsets:
         long: clock-offsets
         takes_value: false
@@ -139,3 +160,12 @@ args:
     - pretty:
         long: pretty
         help: Make JSON structures more readable
+    - teqc-plot:
+        long: teqc-plot
+        help: |
+            Generates a `teqc` like ASCII plot that showcases all satellite vehicules status, rx clock and much more..
+            over the course of this file. X axis will span all epochs contained in this file (can be longer than 24h).
+    - teqc-report:
+        long: teqc-report
+        help: |
+            Generates a `teqc` like report where you can find similar information.
