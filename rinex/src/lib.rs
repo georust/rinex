@@ -973,8 +973,9 @@ impl Rinex {
     /// was provided by this Observation record.
     /// Does not produce anything if self is not an OBS record.
     pub fn receiver_clock_offsets (&self) -> BTreeMap<epoch::Epoch, f64> {
+        let mut map : BTreeMap<epoch::Epoch, f64> = BTreeMap::new();
         if !self.is_observation_rinex() {
-            return BTreeMap::new() ;
+            return map ;
         }
         let record = self.record
             .as_obs()
@@ -1647,6 +1648,35 @@ impl Rinex {
             comments: self.comments.clone(),
             record: record::Record::NavRecord(record),
         }
+    }
+
+    /// Filters out vehicules for each epoch where they did not exhibit
+    /// an elevation angle that is contained in (min_angle <= a <= max_angle)
+    /// both included.
+    /// This has no effect on RINEX records other than NAV records
+    pub fn elevation_angle_interval_mut (&mut self, min_max: (f64,f64)) {
+        if !self.is_navigation_rinex() {
+            return ;
+        }
+        let (min, max) = min_max;
+        let record = self.record
+            .as_mut_nav()
+            .unwrap();
+        record.retain(|_, classes| {
+            classes.retain(|class, frames| {
+                frames.retain(|fr| {
+                    let (_, _, _, _, _, map) = fr.as_eph().unwrap();
+                    if let Some(elev) = map.get("e") {
+                        let elev = elev.as_f64().unwrap();
+                        elev >= min && elev <= max 
+                    } else { //TODO do other keys exist? what about GLO?
+                        false
+                    }
+                });
+                frames.len() > 0
+            });
+            classes.len() > 0
+        })
     }
 
     /// Filters out all Legacy Ephemeris freames from this Navigation record.
