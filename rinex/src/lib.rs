@@ -330,7 +330,7 @@ impl Rinex {
     /// Returns true if this is a METEO RINEX
     pub fn is_meteo_rinex (&self) -> bool { self.header.rinex_type == types::Type::MeteoData }
     
-    /// Retruns true if this is an NAV RINX
+    /// Retruns true if this is a NAV RINEX
     pub fn is_navigation_rinex (&self) -> bool { self.header.rinex_type == types::Type::NavigationData }
 
     /// Retruns true if this is an OBS RINX
@@ -864,30 +864,55 @@ impl Rinex {
     }
 
     /// Retains data that was recorded along given constellation(s).
-    /// This has no effect on ATX, CLK, MET and IONEX records and NAV 
-    /// record frames other than Ephemeris.
+    /// This has no effect on ATX, MET and IONEX records, NAV 
+    /// record frames other than Ephemeris, Clock frames not measured
+    /// against space vehicule.
     pub fn constellation_filter_mut (&mut self, filter: Vec<constellation::Constellation>) {
         if self.is_observation_rinex() {
             let record = self.record
                 .as_mut_obs()
                 .unwrap();
-            for (_e, (_clk, sv)) in record.iter_mut() {
-                sv.retain(|sv, _| filter.contains(&sv.constellation))
-            }
+            record
+                .retain(|_, (_, vehicules)| {
+                    vehicules.retain(|sv, _| filter.contains(&sv.constellation));
+                    vehicules.len() > 0
+                })
         } else if self.is_navigation_rinex() {
             let record = self.record
                 .as_mut_nav()
                 .unwrap();
-            for (_e, classes) in record.iter_mut() {
-                for (class, frames) in classes.iter_mut() {
-                    if *class == navigation::record::FrameClass::Ephemeris {
-                        frames.retain(|fr| {
-                            let (_, sv, _, _, _, _) = fr.as_eph().unwrap();
+            record
+                .retain(|_, classes| {
+                    classes.retain(|class, frames| {
+                        if *class == navigation::record::FrameClass::Ephemeris {
+                            frames.retain(|fr| {
+                                let (_, sv, _, _, _, _) = fr.as_eph().unwrap();
+                                filter.contains(&sv.constellation)
+                            });
+                            frames.len() > 0
+                        } else {
+                            true // retains non EPH 
+                        }
+                    });
+                    classes.len() > 0
+                })
+        } else if self.is_clocks_rinex() {
+            let record = self.record
+                .as_mut_clock()
+                .unwrap();
+            record.retain(|_, dtypes| {
+                dtypes.retain(|dtype, systems| {
+                    systems.retain(|system, _| {
+                        if let Some(sv) = system.as_sv() {
                             filter.contains(&sv.constellation)
-                        })
-                    }
-                }
-            }
+                        } else {
+                            true // retain other system types
+                        }
+                    });
+                    systems.len() > 0
+                });
+                dtypes.len() > 0
+            })
         }
     }
 
@@ -900,9 +925,10 @@ impl Rinex {
             let record = self.record
                 .as_mut_obs()
                 .unwrap();
-            for (_e, (_clk, sv)) in record.iter_mut() {
-                sv.retain(|sv, _| filter.contains(sv))
-            }
+            record.retain(|_, (_, vehicules)| { 
+                vehicules.retain(|sv, _| filter.contains(sv));
+                vehicules.len() > 0
+            })
         } else if self.is_navigation_rinex() {
             let record = self.record
                 .as_mut_nav()
@@ -1288,6 +1314,22 @@ impl Rinex {
     ///   - System Time offset: "GPUT", "GAGP", ..., any valid system time
     /// For Clock record: we consider filter items as Data Type Codes "AR","AS"...
     /// This has no effect if on ATX and IONEX records.
+    ///
+    /// Observation record example:
+    /// ```
+    /// use rinex::*;
+    /// let mut rinex = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O").unwrap();
+    /// rinex
+    ///     .observable_filter_mut(vec!["C1C","C2P"]);
+    /// ```
+/*    ///
+    /// Navigation record example:
+    /// ```
+    /// use rinex::*;
+    /// let mut rinex = Rinex::from_file("../test_resources/NAV/V4/KMS300DNK_R_20221591000_01H_MN.rnx.gz").unwrap();
+    /// rinex
+    ///     .observable_filter_mut(vec!["FDMA","LNAV"]);
+    /// ```*/
     pub fn observable_filter_mut (&mut self, filter: Vec<&str>) {
         if self.is_navigation_rinex() {
             let record = self.record
@@ -1352,6 +1394,39 @@ impl Rinex {
                 }
             }
         }
+    }
+
+    /// Filters out Non ephemeris data and ephemeris data
+    /// we're not interested in.
+    /// This has no effect if self is not a NAV RINEX.
+    /// Example:
+    /// ```
+    /// use rinex::*;
+    /// let mut rnx = Rinex::from_file("../test_resources/NAV/V3/AMEL00NLD_R_20210010000_01D_MN.rnx").unwrap();
+    /// rnx
+    ///     .ephemeris_filter_mut(vec!["satPosX","satPosY","satPosZ"]);
+    /// ```
+    pub fn ephemeris_filter_mut (&mut self, filter: Vec<&str>) {
+        if !self.is_navigation_rinex() {
+            return ;
+        }
+        let record = self.record
+            .as_mut_nav()
+            .unwrap();
+        record.retain(|_, classes| {
+            classes.retain(|class, frames| {
+                if *class == navigation::record::FrameClass::Ephemeris {
+                    frames.retain(|fr| {
+                        let (_, _, _, _, _, map) = fr.as_eph().unwrap();
+                        true //TODO map.filter_by_key()
+                    });
+                    frames.len() > 0
+                } else {
+                    false
+                }
+            });
+            classes.len() > 0
+        })
     }
 
     /// Executes in place given LLI AND mask filter.
@@ -2401,6 +2476,38 @@ impl Rinex {
             comments: self.comments.clone(),
             record,
         }
+    }
+
+    /// Filters out data that was not produced by given agency / station.
+    /// This has no effect on records other than CLK RINEX.
+    /// Example:
+    /// ```
+    /// use rinex::*;
+    /// let mut rinex = Rinex::from_file("../test_resources/CLK/V2/COD20352.CLK")
+    ///     .unwrap();
+    /// rinex
+    ///     .agency_filter_mut(vec!["GUAM","GODE","USN7"]);
+    /// ```
+    pub fn agency_filter_mut (&mut self, filter: Vec<&str>) {
+        if !self.is_clocks_rinex() {
+            return ;
+        }
+        let record = self.record
+            .as_mut_clock()
+            .unwrap();
+        record.retain(|_, dtypes| {
+            dtypes.retain(|dtype, systems| {
+                systems.retain(|system, _| {
+                    if let Some(agency) = system.as_station() {
+                        filter.contains(&agency.as_str())
+                    } else {
+                        false
+                    }
+                });
+                systems.len() > 0
+            });
+            dtypes.len() > 0
+        })
     }
 
     /// Writes self into given file.   
