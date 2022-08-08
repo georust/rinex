@@ -269,33 +269,33 @@ for fp in &filepaths {
     //  makes merge() or production work on the resulting data
     ///////////////////////////////////////////////////////////
     if epoch_ok_filter {
-        rinex
+        rinex // OK filter
             .epoch_ok_filter_mut()
     }
     if epoch_nok_filter {
-        rinex
+        rinex // NOK filter
             .epoch_nok_filter_mut()
     }
     if let Some(ref filter) = constell_filter {
-        rinex
+        rinex // apply desired constellation filter
             .constellation_filter_mut(filter.to_vec())
     }
     if let Some(ref filter) = sv_filter {
-        rinex
+        rinex // apply desired vehicule filter
             .space_vehicule_filter_mut(filter.to_vec())
     }
     if let Some(ref filter) = obscode_filter {
-        rinex
+        rinex // filters out undesired observables
             .observable_filter_mut(filter.to_vec())
     }
     if let Some(lli) = lli {
         let mask = rinex::observation::record::LliFlags::from_bits(lli)
             .unwrap();
-        rinex
+        rinex // apply desired LLI filter
             .lli_filter_mut(mask)
     }
     if let Some(ssi) = ssi {
-        rinex
+        rinex // apply desired sig strength filter
             .minimum_sig_strength_filter_mut(ssi)
     }
         
