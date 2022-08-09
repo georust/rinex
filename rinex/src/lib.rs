@@ -379,7 +379,6 @@ impl Rinex {
     /// Returns sampling interval of this record
     /// either directly from header section, if such information was provided,
     /// or the most encountered epoch interval.
-    /// TODO improve this not to lose fractions of second 
     ///
     /// Example:
     /// ```
@@ -397,12 +396,20 @@ impl Rinex {
     /// //01 10 00 00 --> 15'
     /// //01 15 40 00 --> 5h40
     /// //--------------> 15' is the most "plausible"
-    /// let expected = chrono::Duration::from_std(std::time::Duration::from_secs(15*60)).unwrap();
+    /// let expected = chrono::Duration {
+    ///     secs: 15*60,
+    ///     nanos: 0,
+    /// };
     /// //assert_eq!(rnx.sampling_interval(), expected);
     /// ```
     pub fn sampling_interval (&self) -> chrono::Duration {
         if let Some(interval) = self.header.sampling_interval {
-            chrono::Duration::from_std(std::time::Duration::from_secs(interval as u64)).unwrap()
+            let secs = interval.round() as i64;
+            let nanos = interval.fract() as i32;
+            chrono::Duration {
+                secs,
+                nanos,
+            }
         } else {
             let epochs = self.epochs();
             let mut prev_epoch = epochs[0];
@@ -418,7 +425,10 @@ impl Rinex {
             }
             // largest hist population
             let mut largest = 0;
-            let mut dt = chrono::Duration::from_std(std::time::Duration::from_secs(0)).unwrap(); 
+            let mut dt = chrono::Duration {
+                secs : 0,
+                nanos: 0,
+            };
             for (d, counter) in histogram.iter() {
                 if counter > &largest {
                     largest = *counter;
@@ -1200,13 +1210,18 @@ impl Rinex {
     }
 
     /// Computes average epoch duration of this record
-    pub fn average_epoch_duration (&self) -> std::time::Duration {
-        let mut sum = 0;
+    pub fn average_epoch_duration (&self) -> chrono::Duration {
+        let mut sum_secs = 0_i64;
+        let mut sum_nanos = 0;
         let epochs = self.epochs();
         for i in 1..epochs.len() {
-            sum += (epochs[i].date - epochs[i-1].date).num_seconds() as u64
+            let dt = epochs[i].date - epochs[i-1].date;
+            sum_secs += dt.num_seconds();
         }
-        std::time::Duration::from_secs(sum / epochs.len() as u64)
+        chrono::Duration {
+            secs: sum_secs / epochs.len() as i64,
+            nanos: 0, 
+        }
     }
 
     /// Returns list of observables, in the form 
@@ -2215,10 +2230,7 @@ impl Rinex {
     /// |e(k).date - e(k-1).date| < interval, get thrown away.
     /// Also note we adjust the INTERVAL field,
     /// meaning, further file production will be correct.
-    pub fn decimate_by_interval_mut (&mut self, interval: std::time::Duration) {
-        let min_requirement = chrono::Duration::from_std(interval)
-            .unwrap()
-            .num_seconds();
+    pub fn decimate_by_interval_mut (&mut self, interval: chrono::Duration) {
         let mut last_preserved = self.epochs()[0].date;
         match self.header.rinex_type {
             types::Type::NavigationData => {
@@ -2226,9 +2238,9 @@ impl Rinex {
                     .as_mut_nav()
                     .unwrap();
                 record.retain(|e, _| {
-                    let delta = (e.date - last_preserved).num_seconds();
+                    let delta = e.date - last_preserved;
                     if e.date != last_preserved { // trick to avoid 1st entry..
-                        if delta >= min_requirement {
+                        if delta >= interval {
                             last_preserved = e.date;
                             true
                         } else {
@@ -2245,9 +2257,9 @@ impl Rinex {
                     .as_mut_obs()
                     .unwrap();
                 record.retain(|e, _| {
-                    let delta = (e.date - last_preserved).num_seconds();
+                    let delta = e.date - last_preserved;
                     if e.date != last_preserved { // trick to avoid 1st entry..
-                        if delta >= min_requirement {
+                        if delta >= interval {
                             last_preserved = e.date;
                             true
                         } else {
@@ -2264,9 +2276,28 @@ impl Rinex {
                     .as_mut_meteo()
                     .unwrap();
                 record.retain(|e, _| {
-                    let delta = (e.date - last_preserved).num_seconds();
+                    let delta = e.date - last_preserved;
                     if e.date != last_preserved { // trick to avoid 1st entry..
-                        if delta >= min_requirement {
+                        if delta >= interval {
+                            last_preserved = e.date;
+                            true
+                        } else {
+                            false
+                        }
+                    } else {
+                        last_preserved = e.date;
+                        true
+                    }
+                });
+            },
+            types::Type::ClockData => {
+                let record = self.record
+                    .as_mut_clock()
+                    .unwrap();
+                record.retain(|e, _| {
+                    let delta = e.date - last_preserved;
+                    if e.date != last_preserved { // trick to avoid 1st entry..
+                        if delta >= interval {
                             last_preserved = e.date;
                             true
                         } else {
@@ -2283,9 +2314,9 @@ impl Rinex {
                     .as_mut_ionex()
                     .unwrap();
                 record.retain(|e, _| {
-                    let delta = (e.date - last_preserved).num_seconds();
+                    let delta = e.date - last_preserved;
                     if e.date != last_preserved { // trick to avoid 1st entry..
-                        if delta >= min_requirement {
+                        if delta >= interval {
                             last_preserved = e.date;
                             true
                         } else {
@@ -2297,15 +2328,12 @@ impl Rinex {
                     }
                 });
             },
-            _ => todo!("implement other record types")
+            _ => panic!("operation is not feasible"),
         }
     }
 
     /// Refer to [decimate_by_interval], non mutable implementation
-    pub fn decimate_by_interval (&self, interval: std::time::Duration) -> Self {
-        let min_requirement = chrono::Duration::from_std(interval)
-            .unwrap()
-            .num_seconds();
+    pub fn decimate_by_interval (&self, interval: chrono::Duration) -> Self {
         let mut last_preserved = self.epochs()[0].date;
         let record: record::Record = match self.header.rinex_type {
             types::Type::NavigationData => {
@@ -2314,9 +2342,9 @@ impl Rinex {
                     .unwrap()
                     .clone();
                 record.retain(|e, _| {
-                    let delta = (e.date - last_preserved).num_seconds();
+                    let delta = e.date - last_preserved;
                     if e.date != last_preserved { // trick to avoid 1st entry..
-                        if delta >= min_requirement {
+                        if delta >= interval {
                             last_preserved = e.date;
                             true
                         } else {
@@ -2335,9 +2363,9 @@ impl Rinex {
                     .unwrap()
                     .clone();
                 record.retain(|e, _| {
-                    let delta = (e.date - last_preserved).num_seconds();
+                    let delta = e.date - last_preserved;
                     if e.date != last_preserved { // trick to avoid 1st entry..
-                        if delta >= min_requirement {
+                        if delta >= interval {
                             last_preserved = e.date;
                             true
                         } else {
@@ -2356,9 +2384,9 @@ impl Rinex {
                     .unwrap()
                     .clone();
                 record.retain(|e, _| {
-                    let delta = (e.date - last_preserved).num_seconds();
+                    let delta = e.date - last_preserved;
                     if e.date != last_preserved { // trick to avoid 1st entry..
-                        if delta >= min_requirement {
+                        if delta >= interval {
                             last_preserved = e.date;
                             true
                         } else {
@@ -2377,9 +2405,9 @@ impl Rinex {
                     .unwrap()
                     .clone();
                 record.retain(|e, _| {
-                    let delta = (e.date - last_preserved).num_seconds();
+                    let delta = e.date - last_preserved;
                     if e.date != last_preserved { // trick to avoid 1st entry..
-                        if delta >= min_requirement {
+                        if delta >= interval {
                             last_preserved = e.date;
                             true
                         } else {
@@ -2392,7 +2420,28 @@ impl Rinex {
                 });
                 record::Record::IonexRecord(record)
             },
-            _ => todo!("implement other record types"),
+            types::Type::ClockData => {
+                let mut record = self.record
+                    .as_clock()
+                    .unwrap()
+                    .clone();
+                record.retain(|e, _| {
+                    let delta = e.date - last_preserved;
+                    if e.date != last_preserved { // trick to avoid 1st entry..
+                        if delta >= interval {
+                            last_preserved = e.date;
+                            true
+                        } else {
+                            false
+                        }
+                    } else {
+                        last_preserved = e.date;
+                        true
+                    }
+                });
+                record::Record::ClockRecord(record)
+            },
+            _ => panic!("ops is not feasible"),
         };
         Self {
             header: self.header.clone(),
