@@ -404,12 +404,9 @@ impl Rinex {
     /// ```
     pub fn sampling_interval (&self) -> chrono::Duration {
         if let Some(interval) = self.header.sampling_interval {
-            let secs = interval.round() as i64;
+            let secs = interval.round() as u64;
             let nanos = interval.fract() as i32;
-            chrono::Duration {
-                secs,
-                nanos,
-            }
+            chrono::Duration::from_std(std::time::Duration::from_secs(secs)).unwrap()
         } else {
             let epochs = self.epochs();
             let mut prev_epoch = epochs[0];
@@ -425,10 +422,7 @@ impl Rinex {
             }
             // largest hist population
             let mut largest = 0;
-            let mut dt = chrono::Duration {
-                secs : 0,
-                nanos: 0,
-            };
+            let mut dt = chrono::Duration::from_std(std::time::Duration::from_secs(0)).unwrap();
             for (d, counter) in histogram.iter() {
                 if counter > &largest {
                     largest = *counter;
@@ -1211,17 +1205,14 @@ impl Rinex {
 
     /// Computes average epoch duration of this record
     pub fn average_epoch_duration (&self) -> chrono::Duration {
-        let mut sum_secs = 0_i64;
+        let mut sum_secs = 0_u64;
         let mut sum_nanos = 0;
         let epochs = self.epochs();
         for i in 1..epochs.len() {
             let dt = epochs[i].date - epochs[i-1].date;
-            sum_secs += dt.num_seconds();
+            sum_secs += dt.num_seconds() as u64;
         }
-        chrono::Duration {
-            secs: sum_secs / epochs.len() as i64,
-            nanos: 0, 
-        }
+        chrono::Duration::from_std(std::time::Duration::from_secs(sum_secs / epochs.len() as u64)).unwrap()
     }
 
     /// Returns list of observables, in the form 
@@ -2593,7 +2584,7 @@ impl Rinex {
             record,
         }
     }
-
+/*
     /// "Upsamples" to match desired epoch interval
     pub fn upsample_by_interval_mut (&mut self, interval: chrono::Duration) {
         let epochs = self.epochs();
@@ -2603,7 +2594,7 @@ impl Rinex {
                     .as_mut_nav()
                     .unwrap();
                 let mut prev_epoch = epochs[0];
-                for (e, data) in record.iter_mut() {
+                for (e, data) in record.iter() {
                     let n = (e.date - prev_epoch.date).num_seconds() / interval.num_seconds(); // nb of epoch to insert
                     for i in 0..n {
                         record.insert(
@@ -2623,7 +2614,7 @@ impl Rinex {
                     .as_mut_obs()
                     .unwrap();
                 let mut prev_epoch = epochs[0];
-                for (e, data) in record.iter_mut() {
+                for (e, data) in record.iter() {
                     let n = (e.date - prev_epoch.date).num_seconds() / interval.num_seconds(); // nb of epoch to insert
                     for i in 0..n {
                         record.insert(
@@ -2643,7 +2634,7 @@ impl Rinex {
                     .as_mut_meteo()
                     .unwrap();
                 let mut prev_epoch = epochs[0];
-                for (e, data) in record.iter_mut() {
+                for (e, data) in record.iter() {
                     let n = (e.date - prev_epoch.date).num_seconds() / interval.num_seconds(); // nb of epoch to insert
                     for i in 0..n {
                         record.insert(
@@ -2663,7 +2654,7 @@ impl Rinex {
                     .as_mut_clock()
                     .unwrap();
                 let mut prev_epoch = epochs[0];
-                for (e, data) in record.iter_mut() {
+                for (e, data) in record.iter() {
                     let n = (e.date - prev_epoch.date).num_seconds() / interval.num_seconds(); // nb of epoch to insert
                     for i in 0..n {
                         record.insert(
@@ -2683,7 +2674,7 @@ impl Rinex {
                     .as_mut_ionex()
                     .unwrap();
                 let mut prev_epoch = epochs[0];
-                for (e, data) in record.iter_mut() {
+                for (e, data) in record.iter() {
                     let n = (e.date - prev_epoch.date).num_seconds() / interval.num_seconds(); // nb of epoch to insert
                     for i in 0..n {
                         record.insert(
@@ -2713,7 +2704,7 @@ impl Rinex {
                     .as_mut_nav()
                     .unwrap();
                 let mut prev_epoch = epochs[0];
-                for (e, classes) in record.iter_mut().skip(1) {
+                for (e, classes) in record.iter().skip(1) {
                     let dt = (e.date - prev_epoch.date) / ratio as i32;
                     for j in 1..ratio {
                         record.insert(
@@ -2730,7 +2721,7 @@ impl Rinex {
                     .as_mut_obs()
                     .unwrap();
                 let mut prev_epoch = epochs[0];
-                for (e, data) in record.iter_mut().skip(1) {
+                for (e, data) in record.iter().skip(1) {
                     let dt = (e.date - prev_epoch.date) / ratio as i32;
                     for j in 1..ratio {
                         record.insert(
@@ -2747,7 +2738,7 @@ impl Rinex {
                     .as_mut_meteo()
                     .unwrap();
                 let mut prev_epoch = epochs[0];
-                for (e, data) in record.iter_mut().skip(1) {
+                for (e, data) in record.iter().skip(1) {
                     let dt = (e.date - prev_epoch.date) / ratio as i32;
                     for j in 1..ratio {
                         record.insert(
@@ -2764,7 +2755,7 @@ impl Rinex {
                     .as_mut_clock()
                     .unwrap();
                 let mut prev_epoch = epochs[0];
-                for (e, data) in record.iter_mut().skip(1) {
+                for (e, data) in record.iter().skip(1) {
                     let dt = (e.date - prev_epoch.date) / ratio as i32;
                     for j in 1..ratio {
                         record.insert(
@@ -2781,7 +2772,7 @@ impl Rinex {
                     .as_mut_ionex()
                     .unwrap();
                 let mut prev_epoch = epochs[0];
-                for (e, data) in record.iter_mut().skip(1) {
+                for (e, data) in record.iter().skip(1) {
                     let dt = (e.date - prev_epoch.date) / ratio as i32;
                     for j in 1..ratio {
                         record.insert(
@@ -2796,6 +2787,7 @@ impl Rinex {
             _ => {} // does not apply, not epoch iterable
         }
     }
+*/
 
     /// Differentiates self and other RINEX, intended to be used on two OBS RINEX
     /// recorded by two seperate receivers, to remove their biases;
@@ -2806,11 +2798,11 @@ impl Rinex {
             return Err(DiffError::NotObsRinex)
         }
         let (r0, r1) = (self.record.as_mut_obs().unwrap(),rhs.record.as_obs().unwrap());
-        for (e, (_, vehicules)) in r0.iter() {
+        for (e, (_, vehicules)) in r0.iter_mut() {
             if let Some((_, vvehicules)) = r1.get(e) { // same epoch ; contained
-                for (vehicule, obs) in vehicules.iter() {
+                for (vehicule, obs) in vehicules.iter_mut() {
                     if let Some(oobs) = vvehicules.get(vehicule) { // same vehicule ; contained
-                        for (obscode, data) in obs.iter() {
+                        for (obscode, data) in obs.iter_mut() {
                             if let Some(ddata) = oobs.get(obscode) { // same observable ; contained
                                 data.obs -= ddata.obs 
                             }
