@@ -36,3 +36,19 @@ pub mod datetime {
         chrono::NaiveDateTime::parse_from_str(&s, "%Y-%m-%d %H:%M:%S")?
     }*/
 }
+
+#[cfg(feature = "with-serde")]
+pub mod opt_datetime {
+    use serde::Serializer;
+    pub fn serialize<S>(datetime: &Option<chrono::NaiveDateTime>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        if let Some(datetime) = datetime {
+            let s = format!("{}", datetime.format("%Y-%m-%d %H:%M:%S"));
+            serializer.serialize_str(&s)
+        } else {
+            serializer.serialize_str("")
+        }
+    }
+}

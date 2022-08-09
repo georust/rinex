@@ -5,29 +5,29 @@ use crate::constellation::Constellation;
 
 pub mod record;
 
-#[cfg(feature = "with-serde")]
+#[cfg(feature = "serde")]
 use serde::Serialize;
 
-#[cfg(feature = "with-serde")]
+#[cfg(feature = "serde")]
 use crate::formatter::datetime;
 
 /// Describes `Compact RINEX` specific information
 #[derive(Clone, Debug)]
-#[cfg_attr(feature = "with-serde", derive(Serialize))]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Crinex {
     /// Compression program version
     pub version: version::Version,
     /// Compression program name
     pub prog: String,
     /// Date of compression
-    #[cfg_attr(feature = "with-serde", serde(with = "datetime"))]
+    #[cfg_attr(feature = "serde", serde(with = "datetime"))]
     pub date: chrono::NaiveDateTime,
 }
 
 /// Describes known marker types
 /// Observation Record specific header fields
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "with-serde", derive(Serialize))]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct HeaderFields {
     /// Optional CRINEX information,
     /// only present on compressed OBS

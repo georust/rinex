@@ -38,6 +38,29 @@ args:
             --decim-interval 00:01:00 for a 1 minute minimum interval 
             --decim-interval 12:00:00 for a 12 hour minimum interval 
             --decim-interval 72:00:00 for a 3 day minimum interval 
+    - diff:
+        long: diff
+        takes_value: false
+        help: |
+            Run single RINEX differentiation.
+            With this flag, we expect two Observation RINEX to be
+            given with --filepath
+    - ddiff:
+        long: ddiff
+        takes_value: false
+        help: |
+            Run double RINEX differentiation.
+            With this flag, we expect two Observation RINEX to be
+            given with --filepath
+    - cycle-slips:
+        long: cycle-slips
+        help: Display epochs where clock cycle slips are possible.
+    - confirmed-cycle-slips:
+        long: |
+            Perform dual difference processing on two Observation RINEX
+            to exhibit epoch where a clock cycle slip is confirmed.
+            This will print all epochs where slip was confirmed by processing.
+            With this flag we expect two Observation RINEX to be given.
     - time-window:
         short: t
         long: time-window
@@ -158,16 +181,6 @@ args:
         long: splice
         takes_value: true
         help: Retain only desired epoch interval from given file
-    - sbas:
-        long: sbas
-        allow_hyphen_values: true
-        takes_value: true
-        help: |
-            Determines which SBAS augmentation system to use 
-            for given --sbas "latitude, longitude" coordinates, both expressed in decimal degrees. 
-            Example: --sbas "-45.113525, 169.864842"
-            This is the only command line option that does not require the --filepath argument
-            and disregards any other arguments.
     - plot:
         short: p
         long: plot

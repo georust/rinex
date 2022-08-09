@@ -6,7 +6,7 @@ pub mod frequency;
 
 /// ANTEX special RINEX fields
 #[derive(Clone, Debug)]
-#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct HeaderFields {
     /// Antenna Phase Center Variations type 
     pub pcv: pcv::Pcv, 

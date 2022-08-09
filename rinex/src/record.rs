@@ -16,8 +16,12 @@ use crate::is_comment;
 use crate::types::Type;
 use crate::reader::BufferedReader;
 
+#[cfg(feature = "serde")]
+use serde::Serialize;
+
 /// `Record`
 #[derive(Clone, Debug)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum Record {
     /// ATX record, list of Antenna caracteristics,
     /// sorted by antenna model. ATX record is not

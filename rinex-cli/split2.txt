@@ -1,0 +1,223 @@
+     2.11           OBSERVATION DATA    M                   RINEX VERSION / TYPE
+-------------------------------------                       COMMENT
+ssrcrin-13.4.4x     Unknown             20210101 000000 UTC PGM / RUN BY / DATE
+Hans van der Marel  TU Delft for Deltares                   OBSERVER / AGENCY
+ZEGV                                                        MARKER NAME
+13543M001                                                   MARKER NUMBER
+SEPCHOKE_B3E6   SPKE5461                                    ANT # / TYPE
+0                   0                   0                   ANTENNA: DELTA H/E/N
+3046503             SEPT POLARX5        5.3.2               REC # / TYPE / VERS
+    30.000                                                  INTERVAL
+    11    C1    C2    C5    L1    L2    L5    P1    P2    S1    S2# / TYPES OF OBS
+          S5                                                # / TYPES OF OBS
+                                                            END OF HEADER
+ 21 01 01 00 01 .000000 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 21 01 01 00 02 .000000 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 21 01 01 00 03 .000000 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 21 01 01 00 04 .000000 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 21 01 01 00 05 .000000 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 21 01 01 00 06 .000000 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 21 01 01 00 07 .000000 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 21 01 01 00 08 .000000 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 21 01 01 00 09 .000000 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

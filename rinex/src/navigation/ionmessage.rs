@@ -34,7 +34,7 @@ pub enum Error {
 /// Klobuchar Parameters region
 #[derive(Debug, Copy, Clone)]
 #[derive(PartialEq, PartialOrd)]
-#[cfg_attr(feature = "with-serde", derive(Serialize))]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum KbRegionCode {
     /// Coefficients apply to wide area
     WideArea = 0,
@@ -53,7 +53,7 @@ impl Default for KbRegionCode {
 #[derive(Default)]
 #[derive(Debug, Copy, Clone)]
 #[derive(PartialEq, PartialOrd)]
-#[cfg_attr(feature = "with-serde", derive(Serialize))]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct KbModel {
     /// Alpha coefficients 
     /// ([sec], [sec.semi-circle⁻¹], [sec.semi-circle⁻²], [sec.semi-circle⁻³])
@@ -133,7 +133,7 @@ impl KbModel {
 
 bitflags! {
     #[derive(Default)]
-    #[cfg_attr(feature = "with-serde", derive(Serialize))]
+    #[cfg_attr(feature = "serde", derive(Serialize))]
     pub struct NgRegionFlags: u16 {
         const REGION5 = 0x01;
         const REGION4 = 0x02;
@@ -147,7 +147,7 @@ bitflags! {
 #[derive(Debug, Clone)]
 #[derive(Default, Copy)]
 #[derive(PartialEq, PartialOrd)]
-#[cfg_attr(feature = "with-serde", derive(Serialize))]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct NgModel {
     /// a_i coefficients
     /// ([sfu], [sfu.semi-circle⁻¹], [sfu.semi-circle⁻²])
@@ -193,7 +193,7 @@ impl NgModel {
 #[derive(Debug, Copy, Clone)]
 #[derive(Default)]
 #[derive(PartialEq, PartialOrd)]
-#[cfg_attr(feature = "with-serde", derive(Serialize))]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct BdModel {
     /// Alpha coefficients [TECu]
     pub alpha: (f64,f64,f64,f64,f64,f64,f64,f64,f64),
@@ -248,7 +248,7 @@ impl BdModel {
 /// Existing ION Message declinations
 #[derive(Debug, Clone)]
 #[derive(PartialEq, PartialOrd)]
-#[cfg_attr(feature = "with-serde", derive(Serialize))]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum Message {
     /// Klobuchar Model
     KlobucharModel(KbModel),

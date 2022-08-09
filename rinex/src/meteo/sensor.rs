@@ -5,7 +5,7 @@ use crate::meteo::observable::Observable;
 /// Meteo Observation Sensor
 #[derive(Clone, Debug)]
 #[derive(PartialEq)]
-#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Sensor {
 	/// Model of this sensor
 	pub model: String,

@@ -28,6 +28,7 @@ pub type Record = BTreeMap<epoch::Epoch, (Map, Option<Map>, Option<Map>)>;
 
 #[derive(Debug, Clone, Default)]
 #[derive(PartialEq, PartialOrd)]
+#[cfg_attr(feature = "with-serde", derive(Serialize))]
 pub struct Coordinates {
     pub lat: f32,
     pub lon1: f32,

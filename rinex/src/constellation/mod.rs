@@ -3,7 +3,7 @@ use thiserror::Error;
 pub mod augmentation;
 use augmentation::Augmentation;
 
-#[cfg(feature = "with-serde")]
+#[cfg(feature = "serde")]
 use serde::{Serialize, Deserialize};
 
 #[derive(Error, Debug)]
@@ -20,7 +20,7 @@ pub enum Error {
 #[derive(Clone, Copy, Debug)]
 #[derive(PartialEq, Eq)]
 #[derive(PartialOrd, Ord, Hash)]
-#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum Constellation {
     /// `GPS` american constellation,
     GPS,

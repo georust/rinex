@@ -3,6 +3,7 @@ use crate::channel;
 
 #[derive(Debug, Clone)]
 #[derive(PartialEq, PartialOrd)]
+#[cfg_attr(feature = "with-serde", derive(Serialize))]
 pub enum Pattern {
     /// Non azimuth dependent pattern
     NonAzimuthDependent(Vec<f64>),
@@ -46,6 +47,7 @@ impl Pattern {
 /// in the ATX record
 #[derive(Debug, Clone)]
 #[derive(PartialEq, PartialOrd)]
+#[cfg_attr(feature = "with-serde", derive(Serialize))]
 pub struct Frequency {
     /// Channel, example: L1, L2 for GPS, E1, E5 for GAL...
     pub channel: channel::Channel,

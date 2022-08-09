@@ -83,6 +83,7 @@ impl Default for Code {
 
 #[derive(Debug, Clone, Copy)]
 #[derive(PartialEq, PartialOrd)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum Channel {
     /// L1 (GPS, SBAS, QZSS)
     L1,

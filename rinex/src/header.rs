@@ -21,15 +21,15 @@ use strum_macros::EnumString;
 use std::collections::HashMap;
 use std::io::{prelude::*};
 
-#[cfg(feature = "with-serde")]
+#[cfg(feature = "serde")]
 use serde::{Serialize, Deserialize};
 
-#[cfg(feature = "with-serde")]
+#[cfg(feature = "serde")]
 use crate::formatter::point3d;
 
 #[derive(Clone, Debug)]
 #[derive(EnumString)]
-#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum MarkerType {
     /// Earth fixed & high precision
     #[strum(serialize = "GEODETIC", serialize = "Geodetic")]
@@ -83,7 +83,7 @@ impl Default for MarkerType {
 
 /// Describes `RINEX` file header
 #[derive(Clone, Debug)]
-#[cfg_attr(feature = "with-serde", derive(Serialize))]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Header {
     /// revision for this `RINEX`
     pub version: version::Version, 
@@ -115,7 +115,7 @@ pub struct Header {
     /// optionnal leap seconds infos
     pub leap: Option<leap::Leap>, 
     /// station approxiamte coordinates
-    #[cfg_attr(feature = "with-serde", serde(with = "point3d"))]
+    #[cfg_attr(feature = "serde", serde(with = "point3d"))]
     pub coords: Option<rust_3d::Point3D>, 
     /// optionnal observation wavelengths
     pub wavelengths: Option<(u32,u32)>, 

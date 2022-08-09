@@ -15,7 +15,7 @@ use rinex::sv::Sv;
 use rinex::observation;
 use rinex::types::Type;
 use rinex::epoch;
-use rinex::constellation::{Constellation, augmentation::sbas_selection_helper};
+use rinex::constellation::{Constellation};
 
 mod ascii_plot;
 use ascii_plot::ascii_plot;
@@ -95,7 +95,7 @@ pub fn main () -> Result<(), Error> {
         false => None,
     };
 
-    let mut fig = Figure::new();
+    //let mut fig = Figure::new();
 
     // RINEX 
     let header = matches.is_present("header");
@@ -108,6 +108,12 @@ pub fn main () -> Result<(), Error> {
     let gaps = matches.is_present("gaps");
     let largest_gap = matches.is_present("largest-gap");
     let sampling_interval = matches.is_present("sampling-interval");
+    let cycle_slips = matches.is_present("cycle-slips");
+
+    // processing ops
+    let diff = matches.is_present("diff");
+    let ddiff = matches.is_present("ddiff");
+    let confirmed_cycle_slips = matches.is_present("confirmed-cycle-slips");
 
     // teqc ops
     let teqc_plot = matches.is_present("teqc-plot");
@@ -182,54 +188,16 @@ pub fn main () -> Result<(), Error> {
         _ => None,
     };
     
-    // Other
-    let sbas = matches.is_present("sbas"); 
-
-    ////////////////////////////////////////
-    // Process arguments that do not require 
-    // the parser
-    //   - sbas
-    ////////////////////////////////////////
-    if sbas {
-        let sbas = matches.value_of("sbas")
-            .unwrap();
-        let items :Vec<&str> = sbas.split(",").collect();
-        if items.len() != 2 {
-            panic!("Command line error: \"--sbas latitude, longitude\" expected");
-        }
-        let coordinates :Vec<f64> = items
-            .iter()
-            .map(|s| {
-                if let Ok(f) = f64::from_str(s.trim()) {
-                    f
-                } else {
-                    panic!("Command line error: expecting coordinates in decimal degrees")
-                }
-            })
-            .collect();
-        let sbas = sbas_selection_helper(coordinates[0], coordinates[1]);
-        if let Some(sbas) = sbas {
-            println!("SBAS for given coordinates: {:?}", sbas);
-        } else {
-            println!("No SBAS augmentation for given coordinates");
-        }
-        return Ok(()); // interrupt before parser section
-            // to make --fp optional
-    }
-
     /////////////////////////////////////////
-    // from now on: parser is always involved
-    //  --fp is a requirement
+    // parse every --fp entry,
+    // apply desired filter ops
     /////////////////////////////////////////
     let filepaths = filepaths.unwrap();
-
-    let mut index : usize = 0;
-    let mut merged: Rinex = Rinex::default();
-    let mut to_merge : Vec<Rinex> = Vec::new(); 
+    let mut queue : Vec<Rinex> = Vec::new();
 
 for fp in &filepaths {
     let path = std::path::PathBuf::from(fp);
-    fig.set_title(path.file_name().unwrap().to_str().unwrap());
+    //fig.set_title(path.file_name().unwrap().to_str().unwrap());
     let mut rinex = match path.exists() {
         true => {
             if let Ok(r) = Rinex::from_file(fp) {
@@ -245,24 +213,17 @@ for fp in &filepaths {
         },
     };
 
-    if index == 0 {
-        merged = rinex.clone()
-    } else {
-        to_merge.push(rinex.clone())
-    }
-    index += 1;
-
     ///////////////////////////////////////////////////
     // [1] resampling: reduce data quantity 
     ///////////////////////////////////////////////////
     if decimate_interval {
         let hms = matches.value_of("decim-interval").unwrap();
         let interval = parse_duration(hms)?;
-        rinex.decimate_by_interval_mut(interval)
+        //rinex.decimate_by_interval_mut(interval)
     }
     if decimate_ratio {
         let r = u32::from_str_radix(matches.value_of("decim-ratio").unwrap(), 10).unwrap();
-        rinex.decimate_by_ratio_mut(r)
+        //rinex.decimate_by_ratio_mut(r)
     }
 
     ///////////////////////////////////////////////////////////
@@ -302,251 +263,129 @@ for fp in &filepaths {
             .minimum_sig_strength_filter_mut(ssi)
     }
 
-    if split {
-        if let Some(epoch) = split_epoch {
-            let s = rinex.split_at_epoch(epoch);
-            if let Ok((r0, r1)) = s {
-                if r0.to_file("split1.txt").is_err() {
-                    panic!("failed to produce split1.txt")
+    // push into work queue
+    queue.push(rinex);
+}// for all files
+
+    /////////////////////////////////////
+    // ops that require only 1 file
+    /////////////////////////////////////
+    for i in 0..queue.len() {
+        if split {
+            if let Some(epoch) = split_epoch {
+                let s = queue[i].split_at_epoch(epoch);
+                if let Ok((r0, r1)) = s {
+                    if r0.to_file("split1.txt").is_err() {
+                        panic!("failed to produce split1.txt")
+                    }
+                    if r1.to_file("split2.txt").is_err() {
+                        panic!("failed to produce split1.txt")
+                    }
+                } else {
+                    panic!("split_at_epoch failed with {:#?}", s);
                 }
-                if r1.to_file("split2.txt").is_err() {
-                    panic!("failed to produce split1.txt")
-                }
-            } else {
-                panic!("split_at_epoch failed with {:#?}", s);
             }
         }
-    }
+        
+        if splice {
 
-    if splice {
-       println!("splice is WIP"); 
-    }
-    
-    if !teqc_ops {
-        // User did not request a `teqc` like / special ops
-        // We generate desired output on each --fp entry
+        }
+        
+        //////////////////////////////////////////
+        // ops that might run on a single file
+        //////////////////////////////////////////
+        let mut at_least_one_op = false;
         if header {
+            at_least_one_op = true;
             if pretty {
-                println!("{}", serde_json::to_string_pretty(&rinex.header).unwrap())
+                println!("{}", serde_json::to_string_pretty(&queue[i].header).unwrap())
             } else {
-                println!("{}", serde_json::to_string_pretty(&rinex.header).unwrap())
+                println!("{}", serde_json::to_string_pretty(&queue[i].header).unwrap())
             }
         }
         if epoch_display {
-            let epochs = rinex.epochs();
+            at_least_one_op = true;
             if pretty {
-                println!("{}", serde_json::to_string_pretty(&epochs).unwrap())
+                println!("{}", serde_json::to_string_pretty(&queue[i].epochs()).unwrap())
             } else {
-                println!("{}", serde_json::to_string(&epochs).unwrap())
+                println!("{}", serde_json::to_string(&queue[i].epochs()).unwrap())
             }
         }
         if observables_display {
-            let observables = rinex.observables();
+            at_least_one_op = true;
             if pretty {
-                println!("{}", serde_json::to_string_pretty(&observables).unwrap())
+                println!("{}", serde_json::to_string_pretty(&queue[i].observables()).unwrap())
             } else {
-                println!("{}", serde_json::to_string(&observables).unwrap())
+                println!("{}", serde_json::to_string(&queue[i].observables()).unwrap())
             }
         }
         if sv_display {
-            let vehicules = rinex.space_vehicules();
+            at_least_one_op = true;
             if pretty {
-                println!("{}", serde_json::to_string_pretty(&vehicules).unwrap())
+                println!("{}", serde_json::to_string_pretty(&queue[i].space_vehicules()).unwrap())
             } else {
-                println!("{}", serde_json::to_string(&vehicules).unwrap())
-            }
-        }
-        if sv_per_epoch_display {
-            let vehicules = rinex.space_vehicules_per_epoch();
-            if pretty {
-                println!("{}", serde_json::to_string_pretty(&vehicules).unwrap())
-            } else {
-                println!("{}", serde_json::to_string(&vehicules).unwrap())
+                println!("{}", serde_json::to_string(&queue[i].space_vehicules()).unwrap())
             }
         }
         if clock_offsets {
-            let offsets = rinex.receiver_clock_offsets();
+            at_least_one_op = true;
             if pretty {
-                println!("{}", serde_json::to_string_pretty(&offsets).unwrap())
+                println!("{}", serde_json::to_string_pretty(&queue[i].receiver_clock_offsets()).unwrap())
             } else {
-                println!("{}", serde_json::to_string(&offsets).unwrap())
+                println!("{}", serde_json::to_string(&queue[i].receiver_clock_offsets()).unwrap())
             }
         }
-        if sampling_interval {
-            let interval = rinex.sampling_interval();
-            println!("{}", interval);
+        if sv_per_epoch_display {
+            at_least_one_op = true;
+            if pretty {
+            //    println!("{}", serde_json::to_string_pretty(&queue[i].space_vehicules_per_epoch()).unwrap())
+            } else {
+            //    println!("{}", serde_json::to_string(&queue[i].space_vehicules_per_epoch()).unwrap())
+            }
         }
         if gaps {
-            let gaps = rinex.data_gaps();
-            println!("{:#?}", gaps);
+            at_least_one_op = true;
+            println!("{:#?}", queue[i].data_gaps());
         }
         if largest_gap {
-            let gap = rinex.largest_data_gap_duration();
-            println!("{:#?}", gap);
+            at_least_one_op = true;
+            println!("{:#?}", queue[i].largest_data_gap_duration());
         }
-        if !epoch_display && !observables_display && !header { 
-            // TODO
-            // provide somehow a graphical view
-            // if compilation opts are there
-            /*match rinex.header.rinex_type {
-                // display somehow (either graphically or print())
-                // remaining data
-                // TODO: improve please
-                Type::ObservationData => {
-                    let r = rinex.record.as_obs().unwrap();
-                    if pretty {
-                        println!("{}", serde_json::to_string_pretty(r).unwrap())
-                    } else {
-                        println!("{}", serde_json::to_string(r).unwrap())
-                    }
-                    if plot {
-                        ///////////////////////////////////
-                        // determine remaining OBS codes
-                        ///////////////////////////////////
-                        let mut codes : Vec<String> = Vec::new();
-                        r.iter()
-                            .for_each(|(_, (_,data))| {
-                                data.iter()
-                                    .for_each(|(_, data)| {
-                                        data.iter()
-                                            .for_each(|(code, _)| {
-                                                if !codes.contains(code) {
-                                                    codes.push(code.to_string())
-                                                }
-                                            })
-                                    })
-                                });
-                        for code in codes { // for all remaining OBS/physics
-                            let _data: Vec<Vec<Vec<f32>>> = Vec::new();// PerSV,PerEpoch,Data
-                            r.iter()
-                                .for_each(|(_e, (_, sv))| {
-                                    sv.iter()
-                                        .for_each(|(_sv, _data)| {
-                                            
-                                        })
-                                });
-                            fig.save_to_png(&format!("{}.png", code),640,480).unwrap()
-                        } // for all remaining OBS/physics
-                        /*
-                        // for all constellations 
-                        for constellation in constellations {
-                            // all codes available for this constellation
-                            let codes = &obscodes[&constellation]; 
-                            // [1] Determine available (remaining) 
-                            // types of OBS for this constellation
-                            let mut obs_types : Vec<String> = Vec::new();
-                            r.iter()
-                                .for_each(|(e, (ck, sv))| {
-                                    sv.iter()
-                                        .for_each(|(sv, data)| {
-                                        if sv.constellation == constellation {
-                                            data.iter()
-                                                .for_each(|(code, _)| {
-                                                if !obs_types.contains(code) {
-                                                    obs_types.push(code.to_string())
-                                                }
-                                            })
-                                        }
-                                    })
-                                });
-                            for obs_type in obs_types { // for all available OBS
-                                // grab OBS raw data
-                                let data : HashMap<Sv, f32> = HashMap::new();
-                                 r
-                                    .iter()
-                                    .map(|(_, (_, sv))| {
-                                        sv.iter()
-                                            .find(|(k,_)| k.constellation == constellation)
-                                            .map(|(sv, data)| {
-                                                data.iter()
-                                                    .find(|(code, _)| *code == &obs_type)
-                                                    .map(|(_, data)| {
-                                                        data.obs
-                                                    })
-                                            })
-                                            .flatten()
-                                    })
-                                    .flatten()
-                                    .collect();
-                                let y : Vec<f32> = (0..z.len()).map(|x| x as f32).collect();
-                                let mut axes = fig.axes3d()
-                                    .set_x_grid(true)
-                                    .set_y_grid(true)
-                                    .set_z_grid(true);
-                                axes
-                                    .lines(x, y.clone(), y.clone(), &[
-                                        Caption(&obs_type),
-                                        Color("blue"),
-                                        PointSize(10.0),
-                                        PointSymbol('x'),
-                                    ]);
-                            }
-                        }*/
-                    }
-                },
-                Type::NavigationData => {
-                    let r = rinex.record.as_nav().unwrap();
-                    if pretty {
-                        println!("{}", serde_json::to_string_pretty(r).unwrap())
-                    } else {
-                        println!("{}", serde_json::to_string(r).unwrap())
-                    }
-                },
-                Type::MeteoData => {
-                    let r = rinex.record.as_meteo().unwrap();
-                    if pretty {
-                        println!("{}", serde_json::to_string_pretty(r).unwrap())
-                    } else {
-                        println!("{}", serde_json::to_string(r).unwrap())
-                    }
-                },
-                _ => todo!("RINEX type not fully suppported yet"),
-            } */
-        }
-    } //teqc ops
-
-    if teqc_plot {
-        println!("{}", ascii_plot(ascii_plot::DEFAULT_X_WIDTH, &rinex, None));
-    }
-}// for all files
     
-    // Merge() opt
-    for i in 0..to_merge.len() {
-        if merged.merge_mut(&to_merge[i]).is_err() {
-            panic!("Failed to merge {} into {}", filepaths[i], filepaths[0])
+        if teqc_plot {
+            at_least_one_op = true;
+            println!("{}", ascii_plot(ascii_plot::DEFAULT_X_WIDTH, &queue[i], None));
         }
-    }
+    
+        if !at_least_one_op {
+            // print remaining record data
+            if pretty {
+                println!("{}", serde_json::to_string_pretty(&queue[i].record).unwrap())
+            } else {
+                println!("{}", serde_json::to_string(&queue[i].record).unwrap())
+            }
+        }
+    } // 1file ops
 
-    if merge {
-        // User requested teqc::merge()
-        // we extract desired information off the merged record
-        if header {
-            if pretty {
-                println!("{}", serde_json::to_string_pretty(&merged.header).unwrap())
-            } else {
-                println!("{}", serde_json::to_string(&merged.header).unwrap())
-            }
-        }
-        if observables_display {
-            let observables = merged.observables();
-            if pretty {
-                println!("{}", serde_json::to_string_pretty(&observables).unwrap())
-            } else {
-                println!("{}", serde_json::to_string(&observables).unwrap())
-            }
-        }
-        if epoch_display {
-            let e = merged.epochs();
-            if pretty {
-                println!("{}", serde_json::to_string_pretty(&e).unwrap())
-            } else {
-                println!("{}", serde_json::to_string(&e).unwrap())
-            }
-        }
-        if merged.to_file("merged.txt").is_err() {
-            panic!("Failed to write MERGED RINEX to \"merged.txt\"")
-        }
-    }
+    /////////////////////////////////////
+    // ops that require 2 files
+    /////////////////////////////////////
+    for i in 0..queue.len() / 2 {
+        /*let q0 = queue.get_mut(i*2).unwrap();
+        let q2 = queue.get_mut(i*2+1).unwrap();
+        if diff {
+            q0.diff_mut(&q2);
+        } else if ddiff {
+        //    &queue[i*2].double_diff_mut(&queue[i*2+1]);
+        } 
+        if merge {
+        //    &queue[i*2].merge_mut(&queue[i*2+1]);
+            //.is_err() {
+            //    panic!("Failed to merge {} into {}", filepaths[i*2], filepaths[i*2+1]);
+            //}
+        }*/
+    }//2file ops
+    
     Ok(())
 }// main
 

@@ -95,7 +95,7 @@ pub fn ascii_plot (x_width: u32, obs_rinex: &Rinex, nav_rinex: Option<Rinex>) ->
                     if *e == *epoch {
                         for (vvehicule, angle) in vvehicules.iter() {
                             if *vvehicule == *sv {
-                                above_elev = (*angle > 30.0) ; // TODO
+                                above_elev = *angle > 30.0 ; // TODO
                             }
                         }
                     }

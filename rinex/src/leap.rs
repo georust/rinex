@@ -7,7 +7,7 @@ use crate::constellation::Constellation;
 /// GLO = UTC = GPS - ΔtLS   
 /// GPS = GPS = UTC + ΔtLS   
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
-#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Leap {
     /// current number
     pub leap: u32,

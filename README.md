@@ -76,7 +76,7 @@ or through the command line interface. Refer either
 
 ## Features
 
-* `--serde` enables main RINEX structures serialization and deserialization 
+* `--with-serde` enables main RINEX structures serialization and deserialization 
 
 <img align="right" width="400" src="https://upload.wikimedia.org/wikipedia/commons/4/46/SBAS_Service_Areas.png">
 
