@@ -1606,8 +1606,30 @@ impl Rinex {
     }
 
     /// Extracts all Ephemeris from this Navigation record,
-    /// drops out possible STO / EOP / ION modern NAV frames.
-    /// This does not produce anything if self is not a Navigation RINEX.
+    /// drops out possible STO / EOP / ION modern NAV frames.  
+    /// This does not produce anything if self is not a Navigation RINEX.  
+    /// Ephemeris are sorted by epoch and per space vehicule, and comprise
+    /// vehicule clock offset, drift, drift rate and other complex data.
+    ///
+    /// ```
+    /// use rinex::*;
+    /// // parse a NAV file
+    /// let rnx = Rinex::from_file("../test_resources/NAV/V3/CBW100NLD_R_20210010000_01D_MN.rnx").unwrap();
+    /// // extract ephemeris
+    /// let ephemeris = rnx.ephemeris();
+    /// // browse and exploit ephemeris
+    /// for (epoch, vehicules) in ephemeris.iter() {
+    ///     for (vehicule, (clk, clk_dr, clk_drr, map)) in vehicules.iter() {
+    ///         // clk is the embedded clock bias
+    ///         // clk_dr is the embedded clock drift
+    ///         // clk_drr is the embedded clock drift rate
+    ///         // other data are constellation dependant, refer to db/NAV/navigation.json listing
+    ///         let posx = map["satPosX"];
+    ///         if let Some(elevation) = map.get("e") {
+    ///         }   
+    ///     } 
+    /// }
+    /// ```
     pub fn ephemeris (&self) -> BTreeMap<epoch::Epoch, BTreeMap<sv::Sv, (f64,f64,f64, HashMap<String, navigation::record::ComplexEnum>)>> {
         if !self.is_navigation_rinex() {
             return BTreeMap::new() ; // nothing to browse
@@ -2807,12 +2829,11 @@ impl Rinex {
     /// This fails if both are not Observation RINEX files.
     /// This is indented to be used on same data recorded through two seperate devices,
     /// devices ideally in stationnary position and held stationnary during all measurements.
-    /// We compute the difference in raw phase carrier data.
-    /// The single difference op minimizes the atmospheric and satellite vehicule
+    /// We compute the difference between raw phase carrier data, other observables are preserved.
+    /// The single difference minimizes the atmospheric and satellite vehicule
     /// induced biases.
-    /// We can only compute the difference for when same observables we measured at the same epoch.
+    /// We can only compute the difference when same observables were measured at the same epoch.
     /// Ideally, the same sampling period was used in both measurements.
-    /// Only the (raw) phase observables are modified.
     ///
     /// Example:
     /// ```
@@ -2820,23 +2841,25 @@ impl Rinex {
     /// let mut rnx_a = Rinex::from_file("../test_resources/OBS/V2/aopr0010.17o").unwrap();
     /// let rnx_b = Rinex::from_file("../test_resources/OBS/V2/rovn0010.21o").unwrap();
     /// // compute the single difference, to cancel out ionospheric/atmospheric induced biases
-    /// rnx_a -= rnx_b; // this op is feasible, but not recommeded,
+    /// rnx_a -= rnx_b; // this is actually feasible but not recommended,
     ///               // as it may panic of file type mismatch
     /// rnx_a
-    ///     .diff_mut(rnx_b); // is recommended
+    ///     .diff_mut(rnx_b) // is recommended
+    ///     .unwrap();
     ///
-    /// // Remember only phase data gets differenced out,
-    /// // other observables are untouched.
-    /// // To acceess raw phase data, you then have two options
-    /// // 1: [carrier_phase()]
+    /// // Remember only phase observables are modified, other observables are preserved. 
+    /// // To access raw phase data, you then have two options
+    /// // 1: [carrier_phases]
     /// let raw_phase = rnx_a.carrier_phases();
+    ///
     /// // 2: browsing `rnx_a` 
     /// for (epoch, (_clk_offset, vehicules)) in rnx_a.iter() {
     ///     for (vehicule, obs) in vehicules.iter() {
     ///         for (obscode, data) in obs.iter() {
-    ///             if is_phase_carrier_obs_code!(obscode) { // with this test
-    ///                let mut phase = data.obs;         // we know this is data of interest, ie.,
-    ///                phase += std::f64::consts::PI;       // it has been modified (in place) by previous op
+    ///             if is_carrier_phase_obs_code!(obscode) { // this is a phase observation
+    ///                 // --> you know the differential op was applied to it
+    ///                 let mut diff_phase = data.obs; // this is no low raw phase data
+    ///                 phase += std::f64::consts::PI; // do something with it
     ///             }
     ///         }
     ///     }
@@ -2866,7 +2889,7 @@ impl Rinex {
     }
 
     /// See [diff_mut], immutable implementation.
-    pub fn diff (self, rhs: Self) -> Result<Self, DiffError> {
+    pub fn diff (&self, rhs: Self) -> Result<Self, DiffError> {
         if !self.is_observation_rinex() || !rhs.is_observation_rinex() {
             return Err(DiffError::NotObsRinex) 
         }
@@ -2901,10 +2924,11 @@ impl Rinex {
     /// from the same constellation. We can only compute the double difference,
     /// if at least two vehicules were recorded 
     /// for a given constellation at a given epoch. We consider
-    /// the first encountered vehicule, for a given constellation, the 
-    /// reference vehicule. 
+    /// the first encountered vehicule of a given epoch as the reference vehicule.
+    /// If you want to control the reference vehicule yourself, 
+    /// use [double_diff_mut_ref_sv] instead.
     /// This operation cancels out the local receiver clock effects.
-    /// Once again, only carrier phase data are impacted, other observables are preserved.
+    /// Once again, only carrier phase data are impacted.
     ///
     /// Example:
     /// ```
@@ -2930,13 +2954,60 @@ impl Rinex {
             .as_mut_obs()
             .unwrap();
         for (e, (_, svs)) in record.iter_mut() {
-            let (ref_sv, ref_obs) = svs[0];
-            for (sv, obs) in svs.iter_mut().skip(1) {
+            // for each epoch, we designate for each constellation the first encountered vehicule
+            // as the reference vehicule for all other vehicules
+            let mut references
+                : HashMap<constellation::Constellation, (sv::Sv, HashMap<String, observation::record::ObservationData>)> 
+                    = HashMap::new(); 
+            // designate a reference vehicule for each constellation
+            // --> 1st encountered gets picked out
+            for (sv, obs) in svs.iter_mut() {
+                if references.get(&sv.constellation).is_none() {
+                    references.insert(
+                        sv.constellation.clone(),
+                        (sv.clone(), obs.clone()));
+                }
             }
-            // [3] remove Sv used as ref,
-            // so we only have double differenced phase data remaining
+            // remove all phase data from vehicules designated as reference
+            // vehicule. By doing this, we only preserve data ready to differentiate,
+            // as far as phase data is concerned
+            for (_, (ref_sv, _)) in references.iter() {
+                svs.retain(|vehicule, obs| {
+                    obs.retain(|obscode, _| {
+                        !is_phase_carrier_obs_code!(obscode)
+                    });
+                    obs.len() > 0
+                });
+            }
+            // at this point, we're only left with data that is ready to
+            // be differentiated, as far as phase data is concerned
+            for (sv, obs) in svs.iter_mut() {
+                if let Some((ref_sv, ref_observations)) = references.get(&sv.constellation) {
+                    // we have designated a ref. vehicule for this constellation
+                    // --> compute difference for all identical obscodes
+                    for (obscode, data) in obs.iter_mut() {
+                        if is_phase_carrier_obs_code!(obscode) {
+                            // this is raw phase data
+                            if let Some(ref_data) = ref_observations.get(obscode) {
+                                // we have similar observable as reference
+                                // --> compute
+                                data.obs -= ref_data.obs
+                            }
+                        }
+                    }
+                }
+            }
         }
         Ok(())
+    }
+
+    /// Immutable implementation of [double_diff_mut].
+    pub fn double_diff (&self, rhs: Self) -> Result<Self, DiffError> {
+        if !self.is_observation_rinex() || !rhs.is_observation_rinex() {
+            return Err(DiffError::NotObsRinex)
+        }
+        let c = self.diff(rhs)?;
+        Ok(c.clone())
     }
 
     /// Computes the double difference between self and `rhs` Observation RINEX,
@@ -2949,12 +3020,12 @@ impl Rinex {
     /// If desired reference vehicule is not present at a certain epoch,
     /// we will not produce the double difference for that epoch.
     /// Only raw phase data is modified, other observables are preserved.
-    pub fn double_diff_mut_preferred_sv (&mut self, rhs: Self, refs_sv: Vec<Sv>) -> Result<(), DiffError> {
+    pub fn double_diff_mut_preferred_sv (&mut self, rhs: Self, refs_sv: Vec<sv::Sv>) -> Result<(), DiffError> {
         if !self.is_observation_rinex() || !rhs.is_observation_rinex() {
             return Err(DiffError::NotObsRinex)
         }
         self.diff_mut(rhs)?;
-        let record = self.record
+        /*let record = self.record
             .as_mut_obs()
             .unwrap();
         for (e, (_, svs)) in record.iter_mut() {
@@ -2974,7 +3045,7 @@ impl Rinex {
             if !found {
                 // --> drop this epoch
             }
-        }
+        }*/
         Ok(())
     }
 
