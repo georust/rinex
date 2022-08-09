@@ -137,6 +137,26 @@ pub enum SplitError {
     EpochTooLate,
 }
 
+#[derive(Error, Debug)]
+/// `Split` ops related errors
+pub enum DiffError {
+    #[error("not an observation rinex")]
+    NotObsRinex,
+}
+
+impl std::ops::Sub<Rinex> for Rinex {
+    type Output = Self;
+    fn sub (self, rhs: Self) -> Self {
+        self.diff(rhs).unwrap()
+    }
+}
+
+impl std::ops::SubAssign<Rinex> for Rinex {
+    fn sub_assign (&mut self, rhs: Self) {
+        self.diff_mut(rhs).unwrap()
+    }
+}
+
 impl Rinex {
     /// Builds a new `RINEX` struct from given header & body sections
     pub fn new (header: header::Header, record: record::Record) -> Rinex {
@@ -2523,6 +2543,57 @@ impl Rinex {
             comments: self.comments.clone(),
             record,
         }
+    }
+
+    /// Differentiates self and other RINEX, intended to be used on two OBS RINEX
+    /// recorded by two seperate receivers, to remove their biases;
+    /// We only differentiat similar quantities recorded at similar epochs,
+    /// ideally you want `rhs` to comprise all epochs contained in `self`
+    pub fn diff_mut (&mut self, rhs: Self) -> Result<(), DiffError> {
+        if !self.is_observation_rinex() || !rhs.is_observation_rinex() {
+            return Err(DiffError::NotObsRinex)
+        }
+        let (r0, r1) = (self.record.as_mut_obs().unwrap(),rhs.record.as_obs().unwrap());
+        for (e, (_, vehicules)) in r0.iter() {
+            if let Some((_, vvehicules)) = r1.get(e) { // same epoch ; contained
+                for (vehicule, obs) in vehicules.iter() {
+                    if let Some(oobs) = vvehicules.get(vehicule) { // same vehicule ; contained
+                        for (obscode, data) in obs.iter() {
+                            if let Some(ddata) = oobs.get(obscode) { // same observable ; contained
+                                data.obs -= ddata.obs 
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// See [diff_mut]. `rhs` header section is lost
+    pub fn diff (self, rhs: Self) -> Result<Self, DiffError> {
+        if !self.is_observation_rinex() || !rhs.is_observation_rinex() {
+            return Err(DiffError::NotObsRinex) 
+        }
+        let (mut r0, r1) = (self.record.as_obs().unwrap().clone(),rhs.record.as_obs().unwrap());
+        for (e, (_clk, vehicules)) in r0.iter_mut() {
+            if let Some((_clk, vvehicules)) = r1.get(e) { // same epoch ; contained
+                for (sv, obs) in vehicules.iter_mut() {
+                    if let Some(oobs) = vvehicules.get(sv) { // same vehicule ; contained
+                        for (obscode, data) in obs.iter_mut() {
+                            if let Some(ddata) = oobs.get(obscode) { // same observable ; containd
+                                data.obs -= ddata.obs
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Ok(Self {
+            header: self.header.clone(),
+            comments: self.comments.clone(),
+            record: record::Record::ObsRecord(r0), 
+        })
     }
 
     /// Restrain epochs to given interval, starting from `start` (included)
