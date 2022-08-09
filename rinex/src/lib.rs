@@ -2545,6 +2545,209 @@ impl Rinex {
         }
     }
 
+    /// "Upsamples" to match desired epoch interval
+    pub fn upsample_by_interval_mut (&mut self, interval: chrono::Duration) {
+        let epochs = self.epochs();
+        match self.header.rinex_type {
+            types::Type::NavigationData => {
+                let record = self.record
+                    .as_mut_nav()
+                    .unwrap();
+                let mut prev_epoch = epochs[0];
+                for (e, data) in record.iter_mut() {
+                    let n = (e.date - prev_epoch.date).num_seconds() / interval.num_seconds(); // nb of epoch to insert
+                    for i in 0..n {
+                        record.insert(
+                            epoch::Epoch {
+                                date: e.date + chrono::Duration {
+                                    secs: i * interval.num_seconds(),
+                                    nanos: 0,
+                                },
+                                flag: e.flag,
+                            },
+                            data.clone());
+                    }
+                }
+            },
+            types::Type::ObservationData => {
+                let record = self.record
+                    .as_mut_obs()
+                    .unwrap();
+                let mut prev_epoch = epochs[0];
+                for (e, data) in record.iter_mut() {
+                    let n = (e.date - prev_epoch.date).num_seconds() / interval.num_seconds(); // nb of epoch to insert
+                    for i in 0..n {
+                        record.insert(
+                            epoch::Epoch {
+                                date: e.date + chrono::Duration {
+                                    secs: i * interval.num_seconds(),
+                                    nanos: 0,
+                                },
+                                flag: e.flag,
+                            },
+                            data.clone());
+                    }
+                }
+            },
+            types::Type::MeteoData => {
+                let record = self.record
+                    .as_mut_meteo()
+                    .unwrap();
+                let mut prev_epoch = epochs[0];
+                for (e, data) in record.iter_mut() {
+                    let n = (e.date - prev_epoch.date).num_seconds() / interval.num_seconds(); // nb of epoch to insert
+                    for i in 0..n {
+                        record.insert(
+                            epoch::Epoch {
+                                date: e.date + chrono::Duration {
+                                    secs: i * interval.num_seconds(),
+                                    nanos: 0,
+                                },
+                                flag: e.flag,
+                            },
+                            data.clone());
+                    }
+                }
+            },
+            types::Type::ClockData => {
+                let record = self.record
+                    .as_mut_clock()
+                    .unwrap();
+                let mut prev_epoch = epochs[0];
+                for (e, data) in record.iter_mut() {
+                    let n = (e.date - prev_epoch.date).num_seconds() / interval.num_seconds(); // nb of epoch to insert
+                    for i in 0..n {
+                        record.insert(
+                            epoch::Epoch {
+                                date: e.date + chrono::Duration {
+                                    secs: i * interval.num_seconds(),
+                                    nanos: 0,
+                                },
+                                flag: e.flag,
+                            },
+                            data.clone());
+                    }
+                }
+            },
+            types::Type::IonosphereMaps => {
+                let record = self.record
+                    .as_mut_ionex()
+                    .unwrap();
+                let mut prev_epoch = epochs[0];
+                for (e, data) in record.iter_mut() {
+                    let n = (e.date - prev_epoch.date).num_seconds() / interval.num_seconds(); // nb of epoch to insert
+                    for i in 0..n {
+                        record.insert(
+                            epoch::Epoch {
+                                date: e.date + chrono::Duration {
+                                    secs: i * interval.num_seconds(),
+                                    nanos: 0,
+                                },
+                                flag: e.flag,
+                            },
+                            data.clone());
+                    }
+                }
+            },
+            _ => {},
+        }
+    }
+
+    /// "Upsamples" self by given ratio by copying each epoch
+    /// ratio-1 times. Let say self had 10 epochs and ratio is 2, we copy all epochs
+    /// once. There is no filtering operation involved, just plain copies.
+    pub fn upsample_by_ratio_mut (&mut self, ratio: u32) {
+        let epochs = self.epochs();
+        match self.header.rinex_type {
+            types::Type::NavigationData => {
+                let record = self.record
+                    .as_mut_nav()
+                    .unwrap();
+                let mut prev_epoch = epochs[0];
+                for (e, classes) in record.iter_mut().skip(1) {
+                    let dt = (e.date - prev_epoch.date) / ratio as i32;
+                    for j in 1..ratio {
+                        record.insert(
+                            epoch::Epoch {
+                                date: prev_epoch.date +dt*j as i32,
+                                flag: prev_epoch.flag,
+                            },
+                            classes.clone());    
+                    }
+                }
+            },
+            types::Type::ObservationData => {
+                let record = self.record
+                    .as_mut_obs()
+                    .unwrap();
+                let mut prev_epoch = epochs[0];
+                for (e, data) in record.iter_mut().skip(1) {
+                    let dt = (e.date - prev_epoch.date) / ratio as i32;
+                    for j in 1..ratio {
+                        record.insert(
+                            epoch::Epoch {
+                                date: prev_epoch.date +dt *j as i32,
+                                flag: prev_epoch.flag,
+                            },
+                            data.clone());
+                    }
+                }
+            },
+            types::Type::MeteoData => {
+                let record = self.record
+                    .as_mut_meteo()
+                    .unwrap();
+                let mut prev_epoch = epochs[0];
+                for (e, data) in record.iter_mut().skip(1) {
+                    let dt = (e.date - prev_epoch.date) / ratio as i32;
+                    for j in 1..ratio {
+                        record.insert(
+                            epoch::Epoch {
+                                date: prev_epoch.date +dt *j as i32,
+                                flag: prev_epoch.flag,
+                            },
+                            data.clone());
+                    }
+                }
+            },
+            types::Type::ClockData => {
+                let record = self.record
+                    .as_mut_clock()
+                    .unwrap();
+                let mut prev_epoch = epochs[0];
+                for (e, data) in record.iter_mut().skip(1) {
+                    let dt = (e.date - prev_epoch.date) / ratio as i32;
+                    for j in 1..ratio {
+                        record.insert(
+                            epoch::Epoch {
+                                date: prev_epoch.date +dt *j as i32,
+                                flag: prev_epoch.flag,
+                            },
+                            data.clone());
+                    }
+                }
+            },
+            types::Type::IonosphereMaps => {
+                let record = self.record
+                    .as_mut_ionex()
+                    .unwrap();
+                let mut prev_epoch = epochs[0];
+                for (e, data) in record.iter_mut().skip(1) {
+                    let dt = (e.date - prev_epoch.date) / ratio as i32;
+                    for j in 1..ratio {
+                        record.insert(
+                            epoch::Epoch {
+                                date: prev_epoch.date +dt *j as i32,
+                                flag: prev_epoch.flag,
+                            },
+                            data.clone());
+                    }
+                }
+            },
+            _ => {} // does not apply, not epoch iterable
+        }
+    }
+
     /// Differentiates self and other RINEX, intended to be used on two OBS RINEX
     /// recorded by two seperate receivers, to remove their biases;
     /// We only differentiat similar quantities recorded at similar epochs,
