@@ -52,7 +52,7 @@ mod test {
                         assert_eq!(data.rate_sigma, Some(-123.456789012));
                     }
                 } else if *data_type == DataType::AS {
-                    for (system, data) in systems.iter() {
+                    for (system, _) in systems.iter() {
                         assert_eq!(*system, System::Sv(Sv {
                             constellation: Constellation::GPS,
                             prn: 16
@@ -60,12 +60,12 @@ mod test {
                     }
 
                 } else if *data_type == DataType::CR {
-                    for (system, data) in systems.iter() {
+                    for (system, _) in systems.iter() {
                         assert_eq!(*system, System::Station("USNO".to_string()));
                     }
 
                 } else if *data_type == DataType::DR {
-                    for (system, data) in systems.iter() {
+                    for (system, _) in systems.iter() {
                         assert_eq!(*system, System::Station("USNO".to_string()));
                     }
 

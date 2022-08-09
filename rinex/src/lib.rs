@@ -187,10 +187,12 @@ impl Rinex {
     /// ```
     /// use rinex::*;
     /// // grab a CRINEX (compressed RINEX file)
-    /// let mut rnx = Rinex::from_file("../test_resources/CRX/V3/KUNZ00CZE.crx").unwrap();
+    /// let mut rnx = Rinex::from_file("../test_resources/CRNX/V3/KUNZ00CZE.crx").unwrap();
     /// // let's assume you are interested in file production
-    /// // here we customize crx a little bit
-    /// rnx.header.with_agency("MyAgency");
+    /// // here we customize rnx` a little bit
+    /// rnx
+    ///     .header
+    ///         .with_general_infos("my_prog", "runby", "my_agency");
     /// rnx.to_file("/tmp/KUNZ00CSZ.crx"); // this will produce the same format, 
     ///                               // --> data is compressed
     /// rnx.crx2rnx(); // by doing this we move to uncompressed data production all CRINEX attributes 
@@ -410,10 +412,7 @@ impl Rinex {
     /// //01 10 00 00 --> 15'
     /// //01 15 40 00 --> 5h40
     /// //--------------> 15' is the most "plausible"
-    /// let expected = chrono::Duration {
-    ///     secs: 15*60,
-    ///     nanos: 0,
-    /// };
+    /// let expected = chrono::Duration::from_std(std::time::Duration::from_secs(15*60)).unwrap();
     /// //assert_eq!(rnx.sampling_interval(), expected);
     /// ```
     pub fn sampling_interval (&self) -> chrono::Duration {
@@ -1619,7 +1618,7 @@ impl Rinex {
     ///         // clk_dr is the embedded clock drift
     ///         // clk_drr is the embedded clock drift rate
     ///         // other data are constellation dependant, refer to db/NAV/navigation.json listing
-    ///         let posx = map["satPosX"];
+    ///         let elevation = &map["e"];
     ///         if let Some(elevation) = map.get("e") {
     ///         }   
     ///     } 
@@ -2824,10 +2823,10 @@ impl Rinex {
     /// let mut rnx_a = Rinex::from_file("../test_resources/OBS/V2/aopr0010.17o").unwrap();
     /// let rnx_b = Rinex::from_file("../test_resources/OBS/V2/rovn0010.21o").unwrap();
     /// // compute the single difference, to cancel out ionospheric/atmospheric induced biases
-    /// rnx_a -= rnx_b; // this is actually feasible but not recommended,
+    /// // rnx_a -= rnx_b; is actually feasible but not recommended,
     ///               // as it may panic of file type mismatch
     /// rnx_a
-    ///     .diff_mut(rnx_b) // is recommended
+    ///     .diff_mut(&rnx_b) // is recommended
     ///     .unwrap();
     ///
     /// // Remember only phase observables are modified, other observables are preserved. 
@@ -2836,13 +2835,14 @@ impl Rinex {
     /// let raw_phase = rnx_a.carrier_phases();
     ///
     /// // 2: browsing `rnx_a` 
-    /// for (epoch, (_clk_offset, vehicules)) in rnx_a.iter() {
+    /// let record = rnx_a.record.as_obs().unwrap();
+    /// for (epoch, (_clk_offset, vehicules)) in record.iter() {
     ///     for (vehicule, obs) in vehicules.iter() {
     ///         for (obscode, data) in obs.iter() {
-    ///             if is_carrier_phase_obs_code!(obscode) { // this is a phase observation
+    ///             if is_phase_carrier_obs_code!(obscode) { // this is a phase observation
     ///                 // --> you know the differential op was applied to it
     ///                 let mut diff_phase = data.obs; // this is no low raw phase data
-    ///                 phase += std::f64::consts::PI; // do something with it
+    ///                 diff_phase += std::f64::consts::PI; // do something with it
     ///             }
     ///         }
     ///     }
@@ -2920,7 +2920,7 @@ impl Rinex {
     /// let mut rnx_b = Rinex::from_file("../test_resources/OBS/V2/rovn0010.21o").unwrap();
     /// // compute the double difference, to cancel out ionospheric/atmospheric and local induced biases
     /// rnx_a
-    ///     .double_diff_mut(rnx_b);
+    ///     .double_diff_mut(&rnx_b);
     /// // Remember only phase data get modified, other observables are untouched
     /// // To access phase data, you then have two options:
     /// // 1: [carrier_phases()]
@@ -3102,6 +3102,7 @@ impl Rinex {
     ///
     /// Example:
     /// ```
+    /// use rinex::*;
     /// // grab an observation rinex
     /// let rnx = Rinex::from_file("../test_resources/OBS/V2/aopr0010.17o").unwrap();
     /// let cycle_slips = rnx.cycle_slips();
@@ -3109,7 +3110,7 @@ impl Rinex {
     /// // now we will confirm those cycle slip events by computing the double diff,
     /// // assuming this secondary rinex recorded the same data
     /// let rnx_b = Rinex::from_file("../test_resources/OBS/V2/rovn0010.21o").unwrap();
-    /// let confirmed_slips = rnx.confirmed_cycle_slips(rnx, rnx_b);
+    /// let confirmed_slips = rnx.confirmed_cycle_slips(rnx_b);
     /// ```
     pub fn confirmed_cycle_slips (&self, rhs: Self) -> Result<Vec<epoch::Epoch>, DiffError> {
         if !self.is_observation_rinex() || !rhs.is_observation_rinex() {
