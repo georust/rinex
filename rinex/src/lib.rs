@@ -456,13 +456,17 @@ impl Rinex {
     pub fn largest_data_gap_duration (&self) -> Option<(chrono::NaiveDateTime, chrono::Duration)> {
         if let Some(interval) = self.header.sampling_interval {
             let epochs = self.epochs();
+            let interval = chrono::Duration::from_std(std::time::Duration::from_secs(interval as u64)).unwrap();
             let mut prev_epoch = epochs[0];
             let mut epoch = epochs[0].date.clone();
             let mut largest_dt = prev_epoch.date - prev_epoch.date;
             for e in epochs.iter().skip(1) {
-                if e.date - prev_epoch.date > largest_dt {
-                    epoch = e.date.clone();
-                    largest_dt = e.date - prev_epoch.date; 
+                let dt = e.date - prev_epoch.date;
+                if dt > interval {
+                    if dt > largest_dt { 
+                        epoch = e.date.clone();
+                        largest_dt = e.date - prev_epoch.date; 
+                    }
                 }
                 prev_epoch = e.clone(); 
             }
@@ -976,7 +980,7 @@ impl Rinex {
                 .as_mut_clock()
                 .unwrap();
             record.retain(|_, dtypes| {
-                dtypes.retain(|dtype, systems| {
+                dtypes.retain(|_, systems| {
                     systems.retain(|system, _| {
                         if let Some(sv) = system.as_sv() {
                             filter.contains(&sv.constellation)
@@ -1009,7 +1013,7 @@ impl Rinex {
                 .as_mut_nav()
                 .unwrap();
             record
-                .retain(|e, classes| {
+                .retain(|_, classes| {
                     classes.retain(|class, frames| {
                         if *class == navigation::record::FrameClass::Ephemeris {
                             frames.retain(|fr| {
@@ -1029,7 +1033,7 @@ impl Rinex {
                 .unwrap();
             record
                 .retain(|_, data_types| {
-                    data_types.retain(|dtype, systems| {
+                    data_types.retain(|_, systems| {
                         systems.retain(|system, _| {
                             if let Some(sv) = system.as_sv() {
                                 filter.contains(&sv)
@@ -1354,7 +1358,7 @@ impl Rinex {
             .as_clock()
             .unwrap();
         for (_, dtypes) in record.iter() {
-            for (dtype, systems) in dtypes.iter() {
+            for (_dtype, systems) in dtypes.iter() {
                 for (system, _) in systems.iter() {
                     if !map.contains(&system) {
                         map.push(system.clone())
@@ -1377,7 +1381,7 @@ impl Rinex {
             .as_clock()
             .unwrap();
         for (epoch, dtypes) in record.iter() {
-            for (dtype, systems) in dtypes.iter() {
+            for (_dtype, systems) in dtypes.iter() {
                 for (system, _) in systems.iter() {
                     if let Some(e) = map.get_mut(epoch) {
                         e.push(system.clone());
@@ -1510,7 +1514,9 @@ impl Rinex {
                 if *class == navigation::record::FrameClass::Ephemeris {
                     frames.retain(|fr| {
                         let (_, _, _, _, _, map) = fr.as_eph().unwrap();
-                        true //TODO map.filter_by_key()
+                        //TODO: conclude please
+                        //map.retain(|k,_| filter.contains(&k.as_str()));
+                        map.len() > 0
                     });
                     frames.len() > 0
                 } else {
@@ -1697,7 +1703,7 @@ impl Rinex {
             .as_mut_nav()
             .unwrap();
         record
-            .retain(|e, classes| {
+            .retain(|_, classes| {
                 classes.retain(|class, frames| {
                     if *class == navigation::record::FrameClass::Ephemeris {
                         frames.retain(|fr| {
@@ -1738,7 +1744,7 @@ impl Rinex {
             .as_mut_nav()
             .unwrap();
         record.retain(|_, classes| {
-            classes.retain(|class, frames| {
+            classes.retain(|_, frames| {
                 frames.retain(|fr| {
                     let (_, _, _, _, _, map) = fr.as_eph().unwrap();
                     if let Some(elev) = map.get("e") {
@@ -2930,7 +2936,7 @@ impl Rinex {
         let record = self.record
             .as_mut_obs()
             .unwrap();
-        for (e, (_, svs)) in record.iter_mut() {
+        for (_, (_, svs)) in record.iter_mut() {
             // for each epoch, we designate for each constellation the first encountered vehicule
             // as the reference vehicule for all other vehicules
             let mut references
@@ -2965,7 +2971,7 @@ impl Rinex {
             // at this point, we're only left with data that is ready to
             // be differentiated, as far as phase data is concerned
             for (sv, obs) in svs.iter_mut() {
-                if let Some((ref_sv, ref_observations)) = references.get(&sv.constellation) {
+                if let Some((_, ref_observations)) = references.get(&sv.constellation) {
                     // we have designated a ref. vehicule for this constellation
                     // --> compute difference for all identical obscodes
                     for (obscode, data) in obs.iter_mut() {
@@ -3001,7 +3007,7 @@ impl Rinex {
         let record = self.record
             .as_mut_obs()
             .unwrap();
-        for (e, (_, svs)) in record.iter_mut() {
+        for (_, (_, svs)) in record.iter_mut() {
             // grab reference data first
             let mut references
                 : HashMap<sv::Sv, HashMap<String, observation::record::ObservationData>> 
@@ -3020,7 +3026,7 @@ impl Rinex {
                     if *vehicule == *sv { 
                         // designated as ref. vehicule
                         // --> retain everything but phase data
-                        obs.retain(|obscode, data| {
+                        obs.retain(|obscode, _| {
                             !is_phase_carrier_obs_code!(obscode)
                         });
                         obs.len() > 0 
@@ -3112,7 +3118,7 @@ impl Rinex {
         //TODO
         //compute double diff
         //let rnx = self.double_diff(rhs);
-        let mut vec : Vec<epoch::Epoch> = Vec::new();
+        let vec : Vec<epoch::Epoch> = Vec::new();
         Ok(vec)
     }
 
@@ -3158,7 +3164,7 @@ impl Rinex {
             .as_mut_clock()
             .unwrap();
         record.retain(|_, dtypes| {
-            dtypes.retain(|dtype, systems| {
+            dtypes.retain(|_dtype, systems| {
                 systems.retain(|system, _| {
                     if let Some(agency) = system.as_station() {
                         filter.contains(&agency.as_str())
