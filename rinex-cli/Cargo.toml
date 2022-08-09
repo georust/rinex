@@ -17,3 +17,4 @@ rinex = { path = "../rinex", features = ["with-serde", "with-gzip", "with-geo"] 
 clap = { version = "~2.34.0", features = ["yaml"] }
 gnuplot = "0.0.37"
 thiserror = "1"
+itertools = "0.10"

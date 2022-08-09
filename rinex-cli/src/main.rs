@@ -6,6 +6,7 @@ use clap::App;
 use clap::load_yaml;
 use std::str::FromStr;
 use gnuplot::{Figure}; // Caption};
+use itertools::Itertools;
 //use gnuplot::{Color, PointSymbol, LineStyle, DashType};
 //use gnuplot::{PointSize, LineWidth}; // AxesCommon};
 
@@ -370,19 +371,18 @@ for fp in &filepaths {
     /////////////////////////////////////
     // ops that require 2 files
     /////////////////////////////////////
-    for i in 0..queue.len() / 2 {
-        /*let q0 = queue.get_mut(i*2).unwrap();
-        let q2 = queue.get_mut(i*2+1).unwrap();
+    for i in 0..queue.len()/2 {
+        let q_2p = &queue[i*2];
+        let q_2p1 = &queue[i*2+1]; 
         if diff {
-            q0.diff_mut(&q2);
+            let q = q_2p.diff(q_2p1);
         } else if ddiff {
-        //    &queue[i*2].double_diff_mut(&queue[i*2+1]);
-        } 
-        if merge {
-        //    &queue[i*2].merge_mut(&queue[i*2+1]);
-            //.is_err() {
-            //    panic!("Failed to merge {} into {}", filepaths[i*2], filepaths[i*2+1]);
-            //}
+            let q = q_2p.double_diff(q_2p1);
+        }
+        /*if merge {
+            if q0.merge(q1).is_err() {
+                panic!("Failed to merge {} into {}", filepaths[i*2], filepaths[i*2+1]);
+            }
         }*/
     }//2file ops
     
