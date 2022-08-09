@@ -204,9 +204,9 @@ impl Frame {
         }
     }
     /// Unwraps self as mutable Ephemeris frame reference
-    pub fn as_mut_eph (&mut self) -> Option<(MsgType, Sv, f64, f64, f64, &HashMap<String, ComplexEnum>)> {
+    pub fn as_mut_eph (&mut self) -> Option<(&mut MsgType, &mut Sv, &mut f64, &mut f64, &mut f64, &mut HashMap<String, ComplexEnum>)> {
         match self {
-            Self::Eph(msg, sv, clk, clk_dr, clk_drr, map) => Some((*msg, *sv, *clk, *clk_dr, *clk_drr, map)),
+            Self::Eph(msg, sv, clk, clk_dr, clk_drr, map) => Some((msg, sv, clk, clk_dr, clk_drr, map)),
             _ => None,
         }
     }
