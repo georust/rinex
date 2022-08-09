@@ -182,6 +182,20 @@ impl Rinex {
     /// This has no effect if self is not an Observation RINEX,
     /// because it is not clear to this day, if CRINEX compression
     /// is feasible on other types of RINEX.
+    ///
+    /// Example
+    /// ```
+    /// use rinex::*;
+    /// // grab a CRINEX (compressed RINEX file)
+    /// let mut rnx = Rinex::from_file("../test_resources/CRX/V3/KUNZ00CZE.crx").unwrap();
+    /// // let's assume you are interested in file production
+    /// // here we customize crx a little bit
+    /// rnx.header.with_agency("MyAgency");
+    /// rnx.to_file("/tmp/KUNZ00CSZ.crx"); // this will produce the same format, 
+    ///                               // --> data is compressed
+    /// rnx.crx2rnx(); // by doing this we move to uncompressed data production all CRINEX attributes 
+    /// rnx.to_file("/tmp/KUNZ00CSZ.rnx"); // --> data is readable 
+    /// ```
     pub fn crx2rnx (&mut self) {
         if self.is_observation_rinex() {
             let now = chrono::Utc::now().naive_utc();
@@ -1694,7 +1708,7 @@ impl Rinex {
     }
 
     /// Returns a new NAV RINEX with only EPH frames and for each epoch
-    /// each vehicule was spotted at an elevation angle above given mask (a >= min_angle).
+    /// each vehicule has an elevation angle above minimum angle (a >= min_angle).
     /// Returns a strictly identical copy (has no effect) if
     ///  - self is not a NAV RINEX
     ///  - or does not contain at least 1 EPH frame
@@ -1715,13 +1729,13 @@ impl Rinex {
                                 .unwrap();
                             if let Some(elev) = map.get("e") {
                                 elev.as_f64().unwrap() < min_angle
-                            } else { // TODO
+                            } else { // TODO, Glonass ??
                                 false
                             }
                         });
                         frames.len() > 0 
                     } else { // not an EPH
-                        false // drop it 
+                        true // drop it 
                     }
                 });
                 classes.len() > 0
@@ -2789,10 +2803,45 @@ impl Rinex {
     }
 */
 
-    /// Differentiates self and other RINEX, intended to be used on two OBS RINEX
-    /// recorded by two seperate receivers, to remove their biases;
-    /// We only differentiat similar quantities recorded at similar epochs,
-    /// ideally you want `rhs` to comprise all epochs contained in `self`
+    /// Computes the single difference between self and rhs Observation RINEX.
+    /// This fails if both are not Observation RINEX files.
+    /// This is indented to be used on same data recorded through two seperate devices,
+    /// devices ideally in stationnary position and held stationnary during all measurements.
+    /// We compute the difference in raw phase carrier data.
+    /// The single difference op minimizes the atmospheric and satellite vehicule
+    /// induced biases.
+    /// We can only compute the difference for when same observables we measured at the same epoch.
+    /// Ideally, the same sampling period was used in both measurements.
+    /// Only the (raw) phase observables are modified.
+    ///
+    /// Example:
+    /// ```
+    /// use rinex::*;
+    /// let mut rnx_a = Rinex::from_file("../test_resources/OBS/V2/aopr0010.17o").unwrap();
+    /// let rnx_b = Rinex::from_file("../test_resources/OBS/V2/rovn0010.21o").unwrap();
+    /// // compute the single difference, to cancel out ionospheric/atmospheric induced biases
+    /// rnx_a -= rnx_b; // this op is feasible, but not recommeded,
+    ///               // as it may panic of file type mismatch
+    /// rnx_a
+    ///     .diff_mut(rnx_b); // is recommended
+    ///
+    /// // Remember only phase data gets differenced out,
+    /// // other observables are untouched.
+    /// // To acceess raw phase data, you then have two options
+    /// // 1: [carrier_phase()]
+    /// let raw_phase = rnx_a.carrier_phases();
+    /// // 2: browsing `rnx_a` 
+    /// for (epoch, (_clk_offset, vehicules)) in rnx_a.iter() {
+    ///     for (vehicule, obs) in vehicules.iter() {
+    ///         for (obscode, data) in obs.iter() {
+    ///             if is_phase_carrier_obs_code!(obscode) { // with this test
+    ///                let mut phase = data.obs;         // we know this is data of interest, ie.,
+    ///                phase += std::f64::consts::PI;       // it has been modified (in place) by previous op
+    ///             }
+    ///         }
+    ///     }
+    /// }
+    /// ```
     pub fn diff_mut (&mut self, rhs: Self) -> Result<(), DiffError> {
         if !self.is_observation_rinex() || !rhs.is_observation_rinex() {
             return Err(DiffError::NotObsRinex)
@@ -2803,8 +2852,10 @@ impl Rinex {
                 for (vehicule, obs) in vehicules.iter_mut() {
                     if let Some(oobs) = vvehicules.get(vehicule) { // same vehicule ; contained
                         for (obscode, data) in obs.iter_mut() {
-                            if let Some(ddata) = oobs.get(obscode) { // same observable ; contained
-                                data.obs -= ddata.obs 
+                            if is_phase_carrier_obs_code!(obscode) {
+                                if let Some(ddata) = oobs.get(obscode) { // same observable ; contained
+                                    data.obs -= ddata.obs 
+                                }
                             }
                         }
                     }
@@ -2814,7 +2865,7 @@ impl Rinex {
         Ok(())
     }
 
-    /// See [diff_mut]. `rhs` header section is lost
+    /// See [diff_mut], immutable implementation.
     pub fn diff (self, rhs: Self) -> Result<Self, DiffError> {
         if !self.is_observation_rinex() || !rhs.is_observation_rinex() {
             return Err(DiffError::NotObsRinex) 
@@ -2825,8 +2876,10 @@ impl Rinex {
                 for (sv, obs) in vehicules.iter_mut() {
                     if let Some(oobs) = vvehicules.get(sv) { // same vehicule ; contained
                         for (obscode, data) in obs.iter_mut() {
-                            if let Some(ddata) = oobs.get(obscode) { // same observable ; containd
-                                data.obs -= ddata.obs
+                            if is_phase_carrier_obs_code!(obscode) {
+                                if let Some(ddata) = oobs.get(obscode) { // same observable ; containd
+                                    data.obs -= ddata.obs
+                                }
                             }
                         }
                     }
@@ -2838,6 +2891,91 @@ impl Rinex {
             comments: self.comments.clone(),
             record: record::Record::ObsRecord(r0), 
         })
+    }
+    
+    /// Computes the double difference between self and rhs Observation RINEX.
+    /// This fails if both are not Observation RINEX files.
+    /// We first compute (in place) the single difference between self and `rhs`,
+    /// see [diff_mut]. From that result, we compute the difference
+    /// between phase data measured against two different vehicules,
+    /// from the same constellation. We can only compute the double difference,
+    /// if at least two vehicules were recorded 
+    /// for a given constellation at a given epoch. We consider
+    /// the first encountered vehicule, for a given constellation, the 
+    /// reference vehicule. 
+    /// This operation cancels out the local receiver clock effects.
+    /// Once again, only carrier phase data are impacted, other observables are preserved.
+    ///
+    /// Example:
+    /// ```
+    /// use rinex::*;
+    /// let mut rnx_a = Rinex::from_file("../test_resources/OBS/V2/aopr0010.17o").unwrap();
+    /// let mut rnx_b = Rinex::from_file("../test_resources/OBS/V2/rovn0010.21o").unwrap();
+    /// // compute the double difference, to cancel out ionospheric/atmospheric and local induced biases
+    /// rnx_a
+    ///     .double_diff_mut(rnx_b);
+    /// // Remember only phase data get modified, other observables are untouched
+    /// // To access phase data, you then have two options:
+    /// // 1: [carrier_phases()]
+    /// let phase_data = rnx_a.carrier_phases();
+    /// // 2: browsing `rnx_a`
+    /// 
+    /// ```
+    pub fn double_diff_mut (&mut self, rhs: Self) -> Result<(), DiffError> {
+        if !self.is_observation_rinex() || !rhs.is_observation_rinex() {
+            return Err(DiffError::NotObsRinex)
+        }
+        self.diff_mut(rhs)?;
+        let record = self.record
+            .as_mut_obs()
+            .unwrap();
+        for (e, (_, svs)) in record.iter_mut() {
+            let (ref_sv, ref_obs) = svs[0];
+            for (sv, obs) in svs.iter_mut().skip(1) {
+            }
+            // [3] remove Sv used as ref,
+            // so we only have double differenced phase data remaining
+        }
+        Ok(())
+    }
+
+    /// Computes the double difference between self and `rhs` Observation RINEX,
+    /// refer to [double_diff_mut] for further explantions.
+    /// With this implementation, we let the user select the vehicule
+    /// used as reference in the double difference op. One vehicule
+    /// per constellation contained in `self` should be given. 
+    /// If no vehicule is given for an encountered constellation,
+    /// we drop this constellation completely in resulting data.
+    /// If desired reference vehicule is not present at a certain epoch,
+    /// we will not produce the double difference for that epoch.
+    /// Only raw phase data is modified, other observables are preserved.
+    pub fn double_diff_mut_preferred_sv (&mut self, rhs: Self, refs_sv: Vec<Sv>) -> Result<(), DiffError> {
+        if !self.is_observation_rinex() || !rhs.is_observation_rinex() {
+            return Err(DiffError::NotObsRinex)
+        }
+        self.diff_mut(rhs)?;
+        let record = self.record
+            .as_mut_obs()
+            .unwrap();
+        for (e, (_, svs)) in record.iter_mut() {
+            let mut found = false;
+            for ref_sv in refs_sv {
+                if let Some((ref_sv, obs)) = svs.get(ref_sv) {
+                    found = true;
+                    for (sv, obs) in svs.iter_mut() {
+                        if sv == ref_sv {
+                            // drop this vehicule data, used as ref
+                        } else {
+                            // compute double diff
+                        }
+                    }
+                }
+            }
+            if !found {
+                // --> drop this epoch
+            }
+        }
+        Ok(())
     }
 
     /// Restrain epochs to given interval, starting from `start` (included)
@@ -2854,6 +2992,48 @@ impl Rinex {
                 .unwrap();
             record.retain(|e, _| e.date >= start && e.date <= end);
         }
+    }
+
+    /// Returns list of epochs where cycles slips might have happened.
+    /// This information is directly given by the receiver that produced
+    /// this Observation RINEX. Does not produce anything if self
+    /// is not an Observation RINEX. This information can only be confirmed 
+    /// using the double difference post processing, refer to [confirmed_cycle_slips]
+    pub fn cycle_slips (&self) -> Vec<epoch::Epoch> {
+        if !self.is_observation_rinex() {
+            return Vec::new() ;
+        }
+        let retained = self.lli_filter(observation::record::LliFlags::HALF_CYCLE_SLIP);
+        retained.epochs()
+    }
+
+    /// Returns epochs where a so called "cycle slip" has been confirmed.
+    /// We confirm a cycle slip by computing the double difference
+    /// between self and `rhs` Observation RINEX.
+    /// This does not produce anything if both are not
+    /// Observation RINEX files, ideally sampled at same epochs,
+    /// by two seperate but stationnary receivers. Refer to [diff_mut]
+    /// for further explanations on those computations.
+    ///
+    /// Example:
+    /// ```
+    /// // grab an observation rinex
+    /// let rnx = Rinex::from_file("../test_resources/OBS/V2/aopr0010.17o").unwrap();
+    /// let cycle_slips = rnx.cycle_slips();
+    ///
+    /// // now we will confirm those cycle slip events by computing the double diff,
+    /// // assuming this secondary rinex recorded the same data
+    /// let rnx_b = Rinex::from_file("../test_resources/OBS/V2/rovn0010.21o").unwrap();
+    /// let confirmed_slips = rnx.confirmed_cycle_slips(rnx, rnx_b);
+    /// ```
+    pub fn confirmed_cycle_slips (&self, rhs: Self) -> Result<Vec<epoch::Epoch>, DiffError> {
+        if !self.is_observation_rinex() || !rhs.is_observation_rinex() {
+            return Err(DiffError::NotObsRinex) ;
+        }
+        // compute double diff
+        let rnx = self.double_diff(rhs);
+        let mut vec : Vec<epoch::Epoch> = Vec::new();
+        Ok(vec)
     }
 
     /// Returns a time windowed version of this record,
