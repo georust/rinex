@@ -68,31 +68,15 @@ and the [rinex](rinex/) crate.
 
 ## Record (high level) operations
 
-| Rinex::method          | Status            | 
-|------------------------|-------------------|
-| `decimate_by_interval` | :heavy_check_mark:|
-| `decimate_by_ratio`    | :heavy_check_mark:|
-| `data_gaps`            ||
-| `lli_mask_filter`      ||
-| `epoch_ok_filter`      | :heavy_check_mark:|
-| `epoch_nok_filter`     | :heavy_check_mark:|
-| `epoch_anomalies`      ||
-| `constellation_filter` |:heavy_check_mark:|
-| `space_vehicule_filter` |:heavy_check_mark:|
+High level operation can be performed using the `Rinex` structure,
+or through the command line interface. Refer either
 
-## `teqc` special operations
-
-|Rinex::method | Status          | 
-|--------------|-----------------|
-| `Merge`      | :construction:   |
-| `Splice`     | :construction:  | 
-
-
+- to the [API](https://docs.rs/rinex/0.6.0/rinex/struct.Rinex.html) documentation
+- to the [command-line interface](rinex-cli/README.md) documentation
 
 ## Features
 
-* `--with-serde`   
-enables `Serialization` and `Deserialization` of key RINEX structures
+* `--serde` enables main RINEX structures serialization and deserialization 
 
 <img align="right" width="400" src="https://upload.wikimedia.org/wikipedia/commons/4/46/SBAS_Service_Areas.png">
 
@@ -110,29 +94,15 @@ allow native parsing of .gz compressed RINEX files. Otherwise, user must uncompr
 ## Contributions
 
 Contributions, raw data and tests methods are welcomed.  
-There is still a lot to achieve with this lib, especially regarding the command line applications (high level usage of the library cores).
+There is still a lot to achieve with this lib, 
+especially regarding the command line applications (high level usage of the library cores).
 
-### Introducing new RINEX types
-
-Follow the existing architecture:
-
-* introduce `types::Type::foo`
-* provide new `record::Record` declination
-* create `rinex/src/foo` subdirectory and provide at least a rinex/src/foo/record.rs for the file body
-* add new specific header fields if need be, define them in `rinex/src/foo`
-* attach unit tests to the new `rinex/src/foo` structures & methods
-* provide relevant (but truncated, to keep repo size reasonable) raw data, under `test_resources/`
-* add new type to `test_resources` testbench in `tests/parser.rs`
-* add a focused testbench, in `tests/foo.rs` with specific fields test
-
-### Adding more RINEX data
-
-* only introduce non-existing RINEX declinations
-* truncate huge files to maintain a reasonable repo size 
+Add only truncated but meaningful RINEX data to the `test_resources/` to maintain
+a reasonable repo size.
 
 ### TODO 
 
 - [ ] Something to do with EpochFlag::HeaderInformationFollows flag
 and smart header update ?
-- [ ] Cycle Slip Events ?
-- [ ] NAV/GAL Orbit5/ComplexEnum: provide a flag like type for "data-source"
+- [ ] NAV data map: provide complex types, like Orbit5 Data source and other
+useful fields
