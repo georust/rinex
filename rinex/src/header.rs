@@ -142,7 +142,7 @@ pub struct Header {
     /// optionnal antenna infos
     pub ant: Option<hardware::Antenna>, 
     //////////////////////////////////
-    // OBSERVATION
+    // Observation 
     //////////////////////////////////
     /// Observation record specific fields
     pub obs: Option<observation::HeaderFields>,
@@ -152,7 +152,7 @@ pub struct Header {
     /// Meteo record specific fields
     pub meteo: Option<meteo::HeaderFields>,
     //////////////////////////////////
-    // Clocks fields 
+    // Clock 
     //////////////////////////////////
     /// Clocks record specific fields
     pub clocks: Option<clocks::HeaderFields>,
@@ -162,7 +162,7 @@ pub struct Header {
     /// ANTEX record specific fields
     pub antex: Option<antex::HeaderFields>,
     /////////////////////////////////
-    // IONEX
+    // Ionosphere Maps
     /////////////////////////////////
     /// IONEX record specific fields
     pub ionex: Option<ionosphere::HeaderFields>,
@@ -1033,6 +1033,336 @@ impl Header {
         }*/
 
         Ok(())
+    }
+
+    /// Combines self and rhs header into a new header.
+    /// Self's attribute are always preferred.
+    /// Behavior:
+    ///  - self's attributes are always preferred (in case of unique attributes)
+    ///  - observables are concatenated
+    /// This fails if :
+    ///  - RINEX types do not match
+    ///  - IONEX: map dimensions do not match and grid definitions do not strictly match
+    pub fn merge (&self, header: &Self) -> Result<Self, MergeError> {
+        if self.rinex_type != header.rinex_type {
+            return Err(MergeError::FileTypeMismatch)
+        }
+        if self.rinex_type == Type::IonosphereMaps {
+            if let Some(i0) = &self.ionex {
+                if let Some(i1) = &header.ionex {
+                    if i0.map_dimension != i1.map_dimension {
+                        panic!("can only merge ionex files with identical map dimensions")
+                    }
+                }
+            }
+        }
+        Ok(Self {
+            version: { // retains oldest rev
+                if self.version < header.version {
+                    self.version.clone()
+                } else {
+                    header.version.clone()
+                }
+            },
+            rinex_type: self.rinex_type.clone(),
+            comments: {
+                self.comments.clone() //TODO: append rhs too!
+            },
+            leap: {
+                if let Some(leap) = self.leap {
+                    Some(leap.clone())
+                } else if let Some(leap) = header.leap {
+                    Some(leap.clone())
+                } else {
+                    None
+                }
+            },
+            run_by: self.run_by.clone(),
+            program: self.program.clone(),
+            observer: self.observer.clone(),
+            date: self.date.clone(),
+            station: self.station.clone(),
+            station_id: self.station_id.clone(),
+            station_url: self.station_url.clone(),
+            agency: self.agency.clone(),
+            license: self.license.clone(),
+            doi: self.doi.clone(),
+            marker_type: {
+                if let Some(mtype) = &self.marker_type {
+                    Some(mtype.clone())
+                } else if let Some(mtype) = &header.marker_type {
+                    Some(mtype.clone())
+                } else {
+                    None
+                }
+            },
+            gps_utc_delta: {
+                if let Some(d) = self.gps_utc_delta {
+                    Some(d)
+                } else if let Some(d) = header.gps_utc_delta {
+                    Some(d)
+                } else {
+                    None
+                }
+            },
+            data_scaling: {
+                if let Some(d) = self.data_scaling {
+                    Some(d)
+                } else if let Some(d) = header.data_scaling {
+                    Some(d)
+                } else {
+                    None
+                }
+            },
+            constellation: {
+                if let Some(c0) = self.constellation {
+                    if let Some(c1) = header.constellation {
+                        if c0 != c1 {
+                            Some(Constellation::Mixed)
+                        } else {
+                            Some(c0.clone())
+                        }
+                    } else {
+                        Some(c0.clone())
+                    }
+                } else if let Some(constellation) = header.constellation {
+                    Some(constellation.clone())
+                } else {
+                    None
+                }
+            },
+            rcvr: {
+                if let Some(rcvr) = &self.rcvr {
+                    Some(rcvr.clone())
+                } else if let Some(rcvr) = &header.rcvr {
+                    Some(rcvr.clone())
+                } else {
+                    None
+                }
+            },
+            ant: {
+                if let Some(ant) = &self.ant {
+                    Some(ant.clone())
+                } else if let Some(ant) = &header.ant {
+                    Some(ant.clone())
+                } else {
+                    None
+                }
+            },
+            wavelengths: {
+                if let Some(wv) = &self.wavelengths {
+                    Some(wv.clone())
+                } else if let Some(wv) = &header.wavelengths {
+                    Some(wv.clone())
+                } else {
+                    None
+                }
+            },
+            sampling_interval: {
+                if let Some(interval) = self.sampling_interval {
+                    Some(interval.clone())
+                } else if let Some(interval) = header.sampling_interval {
+                    Some(interval.clone())
+                } else {
+                    None
+                }
+            },
+            coords: {
+                if let Some(coords) = &self.coords {
+                    Some(coords.clone())
+                } else if let Some(coords) = &header.coords {
+                    Some(coords.clone())
+                } else {
+                    None
+                }
+            },
+            obs: {
+                if let Some(d0) = &self.obs {
+                    if let Some(d1) = &header.obs {
+                        Some(observation::HeaderFields {
+                            crinex: d0.crinex.clone(),
+                            codes: {
+                                let mut map = d0.codes.clone();
+                                for (constellation, obscodes) in d1.codes.iter() {
+                                    if let Some(codes) = map.get_mut(&constellation) {
+                                        for obs in obscodes {
+                                            if !codes.contains(&obs) {
+                                                codes.push(obs.clone());
+                                            }
+                                        }
+                                    } else {
+                                        map.insert(constellation.clone(), obscodes.clone());
+                                    }
+                                }
+                                map
+                            },
+                            clock_offset_applied: d0.clock_offset_applied && d1.clock_offset_applied,
+                        })
+                    } else {
+                        Some(d0.clone())
+                    }
+                } else if let Some(data) = &header.obs {
+                    Some(data.clone())
+                } else {
+                    None
+                }
+            },
+            meteo: {
+                if let Some(m0) = &self.meteo {
+                    if let Some(m1) = &header.meteo {
+                        Some(meteo::HeaderFields {
+                            sensors: {
+                                let mut sensors = m0.sensors.clone();
+                                for sens in m1.sensors.iter() {
+                                    if !sensors.contains(&sens) {
+                                        sensors.push(sens.clone())
+                                    }
+                                }
+                                sensors
+                            },
+                            codes: {
+                                let mut observables = m0.codes.clone();
+                                for obs in m1.codes.iter() {
+                                    if !observables.contains(&obs) {
+                                        observables.push(obs.clone())
+                                    }
+                                }
+                                observables
+                            },
+                        })
+                    } else {
+                        Some(m0.clone())
+                    }
+                } else if let Some(meteo) = &header.meteo {
+                    Some(meteo.clone())
+                } else {
+                    None
+                }
+            },
+            clocks: {
+                if let Some(d0) = &self.clocks {
+                    if let Some(d1) = &header.clocks {
+                        Some(clocks::HeaderFields {
+                            codes: {
+                                let mut codes = d0.codes.clone();
+                                for code in d1.codes.iter() {
+                                    if !codes.contains(&code) {
+                                        codes.push(code.clone())
+                                    }
+                                }
+                                codes
+                            },
+                            agency: {
+                                if let Some(agency) = &d0.agency {
+                                    Some(agency.clone())
+                                } else if let Some(agency) = &d1.agency {
+                                    Some(agency.clone())
+                                } else {
+                                    None
+                                }
+                            },
+                            station: {
+                                if let Some(station) = &d0.station {
+                                    Some(station.clone())
+                                } else if let Some(station) = &d1.station {
+                                    Some(station.clone())
+                                } else {
+                                    None
+                                }
+                            },
+                            clock_ref: {
+                                if let Some(clk) = &d0.clock_ref {
+                                    Some(clk.clone())
+                                } else if let Some(clk) = &d1.clock_ref {
+                                    Some(clk.clone())
+                                } else {
+                                    None
+                                }
+                            },
+                        })
+                    } else {
+                        Some(d0.clone())
+                    }
+                } else if let Some(d1) = &header.clocks {
+                    Some(d1.clone())
+                } else {
+                    None
+                }
+            },
+            antex: {
+                if let Some(d0) = &self.antex {
+                    Some(d0.clone())
+                } else if let Some(data) = &header.antex {
+                    Some(data.clone())
+                } else {
+                    None
+                }
+            },
+            ionex: {
+                if let Some(d0) = &self.ionex {
+                    if let Some(d1) = &header.ionex {
+                        Some(ionosphere::HeaderFields {
+                            system: d0.system.clone(),
+                            description: {
+                                if let Some(description) = &d0.description {
+                                    Some(description.clone())
+                                } else if let Some(description) = &d1.description {
+                                    Some(description.clone())
+                                } else {
+                                    None
+                                }
+                            },
+                            mapping: {
+                                if let Some(map) = &d0.mapping {
+                                    Some(map.clone())
+                                } else if let Some(map) = &d1.mapping {
+                                    Some(map.clone())
+                                } else {
+                                    None
+                                }
+                            },
+                            map_dimension: d0.map_dimension,
+                            base_radius: d0.base_radius,
+                            grid: d0.grid.clone(),
+                            elevation_cutoff: d0.elevation_cutoff,
+                            observables: {
+                                if let Some(obs) = &d0.observables {
+                                    Some(obs.clone())
+                                } else if let Some(obs) = &d1.observables {
+                                    Some(obs.clone())
+                                } else {
+                                    None
+                                }
+                            },
+                            n_stations: {
+                                if let Some(n) = d0.n_stations {
+                                    Some(n)
+                                } else if let Some(n) = d1.n_stations {
+                                    Some(n)
+                                } else {
+                                    None
+                                }
+                            },
+                            n_satellites: {
+                                if let Some(n) = d0.n_satellites {
+                                    Some(n)
+                                } else if let Some(n) = d1.n_satellites {
+                                    Some(n)
+                                } else {
+                                    None
+                                }
+                            },
+                        })
+                    } else {
+                        Some(d0.clone())
+                    }
+                } else if let Some(d1) = &header.ionex {
+                    Some(d1.clone())
+                } else {
+                    None
+                }
+            },
+        })
     }
     
     /// Returns true if self is a `Compressed RINEX`
