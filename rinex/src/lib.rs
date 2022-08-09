@@ -147,13 +147,13 @@ pub enum DiffError {
 impl std::ops::Sub<Rinex> for Rinex {
     type Output = Self;
     fn sub (self, rhs: Self) -> Self {
-        self.diff(rhs).unwrap()
+        self.diff(&rhs).unwrap()
     }
 }
 
 impl std::ops::SubAssign<Rinex> for Rinex {
     fn sub_assign (&mut self, rhs: Self) {
-        self.diff_mut(rhs).unwrap()
+        self.diff_mut(&rhs).unwrap()
     }
 }
 
@@ -910,38 +910,18 @@ impl Rinex {
         record.retain(|e, _| !e.flag.is_ok())
     }
     
-    /// see [epoch_ok_filter_mut]
+    /// Immutable implementation of [epoch_ok_filter_mut]
     pub fn epoch_ok_filter (&self) -> Self {
-        if !self.is_observation_rinex() {
-            return self.clone() // nothing to browse
-        }
-        let header = self.header.clone();
-        let mut record = self.record.as_obs()
-            .unwrap()
-            .clone();
-        record.retain(|e,_| e.flag.is_ok());
-        Self {
-            header,
-            comments: self.comments.clone(),
-            record: record::Record::ObsRecord(record.clone()),
-        }
+        let mut s = self.clone();
+        s.epoch_ok_filter_mut();
+        s
     }
     
-    /// see [epoch_nok_filter_mut]
+    /// Immutable implementation [epoch_nok_filter_mut]
     pub fn epoch_nok_filter (&self) -> Self {
-        if !self.is_observation_rinex() {
-            return self.clone() // nothing to browse
-        }
-        let header = self.header.clone();
-        let mut record = self.record.as_obs()
-            .unwrap()
-            .clone();
-        record.retain(|e,_| !e.flag.is_ok());
-        Self {
-            header,
-            comments: self.comments.clone(),
-            record: record::Record::ObsRecord(record.clone()),
-        }
+        let mut s = self.clone();
+        s.epoch_nok_filter_mut();
+        s
     }
     
     /// Returns epochs where a loss of lock event happened.
@@ -953,7 +933,7 @@ impl Rinex {
     }
 
     /// Removes in place, observables where Lock was declared as lost.
-    pub fn lock_loss_filter (&mut self) {
+    pub fn lock_loss_filter_mut (&mut self) {
         self
             .lli_filter_mut(observation::record::LliFlags::LOCK_LOSS)
     }
@@ -1062,6 +1042,13 @@ impl Rinex {
                     data_types.len() > 0
                 })
         }
+    }
+
+    /// Immutable implementation of [space_vehicule_filter_mut]
+    pub fn space_vehicule_filter (&self, filter: Vec<sv::Sv>) -> Self {
+        let mut s = self.clone();
+        s.space_vehicule_filter_mut(filter);
+        s
     }
     
     /// Returns receiver clock offset, for all epoch such information
@@ -1494,6 +1481,13 @@ impl Rinex {
         }
     }
 
+    /// Immutable implementation of [observable_filter_mut]
+    pub fn observable_filter (&self, filter: Vec<&str>) -> Self {
+        let mut s = self.clone();
+        s.observable_filter_mut(filter);
+        s
+    }
+
     /// Filters out Non ephemeris data and ephemeris data
     /// we're not interested in.
     /// This has no effect if self is not a NAV RINEX.
@@ -1527,6 +1521,13 @@ impl Rinex {
         })
     }
 
+    /// Immutable implementation of [ephemeris_filter_mut]
+    pub fn ephemeris_filter (&self, filter: Vec<&str>) -> Self {
+        let mut s = self.clone();
+        s.ephemeris_filter_mut(filter);
+        s
+    }
+
     /// Executes in place given LLI AND mask filter.
     /// This method is very useful to determine where
     /// loss of lock or external events happened and their nature.
@@ -1552,31 +1553,11 @@ impl Rinex {
         }
     }
 
-    /// See [lli_filter_mut]
+    /// Immutable implementation of [lli_filter_mut]
     pub fn lli_filter (&self, mask: observation::record::LliFlags) -> Self {
-        if !self.is_observation_rinex() {
-            return self.clone(); // nothing to browse
-        }
-        let mut record = self.record
-            .as_obs()
-            .unwrap()
-            .clone();
-        for (_e, (_clk, sv)) in record.iter_mut() {
-            for (_sv, obs) in sv.iter_mut() {
-                obs.retain(|_, data| {
-                    if let Some(lli) = data.lli {
-                        lli.intersects(mask)
-                    } else {
-                        false // drops data with no LLI attached
-                    }
-                })
-            }
-        }
-        Self {
-            record: record::Record::ObsRecord(record),
-            comments: self.comments.clone(),
-            header: self.header.clone(),
-        }
+        let mut c = self.clone();
+        c.lli_filter_mut(mask);
+        c
     }
 
     /// Retains data with a minimum SSI Signal Strength requirement.
@@ -1603,6 +1584,14 @@ impl Rinex {
                 })
             }
         }
+    }
+
+    /// Immutable implementation of [minimum_sig_strength_filter_mut]
+    pub fn minimum_sig_strength_filter (&self, minimum: observation::record::Ssi) -> Self {
+        let mut filtered = self.clone();
+        filtered
+            .minimum_sig_strength_filter_mut(minimum);
+        filtered
     }
 
     /// Extracts all Ephemeris from this Navigation record,
@@ -1700,7 +1689,7 @@ impl Rinex {
 
     /// Filters out all vehicules that exhibit an elevation angle below given mask (a < min_angle).
     /// Has no effect if self is not a NAV record containing at least 1 Ephemeris frame.
-    pub fn eleavation_angle_filter_mut (&mut self, min_angle: f64) {
+    pub fn elevation_angle_filter_mut (&mut self, min_angle: f64) {
         if !self.is_navigation_rinex() {
             return ;
         }
@@ -1729,44 +1718,11 @@ impl Rinex {
             })
     }
 
-    /// Returns a new NAV RINEX with only EPH frames and for each epoch
-    /// each vehicule has an elevation angle above minimum angle (a >= min_angle).
-    /// Returns a strictly identical copy (has no effect) if
-    ///  - self is not a NAV RINEX
-    ///  - or does not contain at least 1 EPH frame
+    /// Immutable implementation of [elevation_angle_filter_mut]
     pub fn elevation_angle_filter (&self, min_angle: f64) -> Self {
-        if !self.is_navigation_rinex() {
-            return self.clone()
-        }
-        let mut record = self.record
-            .as_nav()
-            .unwrap()
-            .clone();
-        record
-            .retain(|e, classes| {
-                classes.retain(|class, frames| {
-                    if *class == navigation::record::FrameClass::Ephemeris {
-                        frames.retain(|fr| {
-                            let (_, _, _, _, _, map) = fr.as_eph()
-                                .unwrap();
-                            if let Some(elev) = map.get("e") {
-                                elev.as_f64().unwrap() < min_angle
-                            } else { // TODO, Glonass ??
-                                false
-                            }
-                        });
-                        frames.len() > 0 
-                    } else { // not an EPH
-                        true // drop it 
-                    }
-                });
-                classes.len() > 0
-            });
-        Self {
-            header: self.header.clone(),
-            comments: self.comments.clone(),
-            record: record::Record::NavRecord(record),
-        }
+        let mut s = self.clone();
+        s.elevation_angle_filter_mut(min_angle);
+        s
     }
 
     /// Filters out vehicules for each epoch where they did not exhibit
@@ -1798,6 +1754,13 @@ impl Rinex {
         })
     }
 
+    /// Immutable implementation of [elevation_angle_interval_mut]
+    pub fn elevation_angle_interval (&self, min_max: (f64,f64)) -> Self {
+        let mut s = self.clone();
+        s.elevation_angle_interval_mut(min_max);
+        s
+    }
+
     /// Filters out all Legacy Ephemeris frames from this Navigation record.
     /// This is intended to be used only on modern (V>3) Navigation record,
     /// which are the only records expected to contain other frame types.
@@ -1821,6 +1784,13 @@ impl Rinex {
             });
             classes.len() > 0
         })
+    }
+    
+    /// Immutable implementation of [legacy_nav_filter_mut]
+    pub fn legacy_nav_filter (&self) -> Self {
+        let mut s = self.clone();
+        s.legacy_nav_filter_mut();
+        s
     }
     
     /// Filters out all Modern Ephemeris frames from this Navigation record,
@@ -1847,6 +1817,13 @@ impl Rinex {
             });
             classes.len() > 0
         })
+    }
+
+    /// Immutable implementation of [modern_nav_filter_mut]
+    pub fn modern_nav_filter (&self) -> Self {
+        let mut s = self.clone();
+        s.modern_nav_filter_mut();
+        s
     }
 
     /// Extracts all System Time Offset data
@@ -2865,7 +2842,7 @@ impl Rinex {
     ///     }
     /// }
     /// ```
-    pub fn diff_mut (&mut self, rhs: Self) -> Result<(), DiffError> {
+    pub fn diff_mut (&mut self, rhs: &Self) -> Result<(), DiffError> {
         if !self.is_observation_rinex() || !rhs.is_observation_rinex() {
             return Err(DiffError::NotObsRinex)
         }
@@ -2889,7 +2866,7 @@ impl Rinex {
     }
 
     /// See [diff_mut], immutable implementation.
-    pub fn diff (&self, rhs: Self) -> Result<Self, DiffError> {
+    pub fn diff (&self, rhs: &Self) -> Result<Self, DiffError> {
         if !self.is_observation_rinex() || !rhs.is_observation_rinex() {
             return Err(DiffError::NotObsRinex) 
         }
@@ -2945,7 +2922,7 @@ impl Rinex {
     /// // 2: browsing `rnx_a`
     /// 
     /// ```
-    pub fn double_diff_mut (&mut self, rhs: Self) -> Result<(), DiffError> {
+    pub fn double_diff_mut (&mut self, rhs: &Self) -> Result<(), DiffError> {
         if !self.is_observation_rinex() || !rhs.is_observation_rinex() {
             return Err(DiffError::NotObsRinex)
         }
@@ -2973,10 +2950,16 @@ impl Rinex {
             // as far as phase data is concerned
             for (_, (ref_sv, _)) in references.iter() {
                 svs.retain(|vehicule, obs| {
-                    obs.retain(|obscode, _| {
-                        !is_phase_carrier_obs_code!(obscode)
-                    });
-                    obs.len() > 0
+                    if *vehicule == *ref_sv {
+                        // designated as ref. vehicule
+                        //  --> retain everything but phase data
+                        obs.retain(|obscode, _| {
+                            !is_phase_carrier_obs_code!(obscode)
+                        });
+                        obs.len() > 0
+                    } else { // not designated as ref. vehicule
+                        true // --> retain everything
+                    }
                 });
             }
             // at this point, we're only left with data that is ready to
@@ -3001,52 +2984,77 @@ impl Rinex {
         Ok(())
     }
 
-    /// Immutable implementation of [double_diff_mut].
-    pub fn double_diff (&self, rhs: Self) -> Result<Self, DiffError> {
-        if !self.is_observation_rinex() || !rhs.is_observation_rinex() {
-            return Err(DiffError::NotObsRinex)
-        }
-        let c = self.diff(rhs)?;
-        Ok(c.clone())
-    }
-
     /// Computes the double difference between self and `rhs` Observation RINEX,
-    /// refer to [double_diff_mut] for further explantions.
-    /// With this implementation, we let the user select the vehicule
-    /// used as reference in the double difference op. One vehicule
-    /// per constellation contained in `self` should be given. 
+    /// but with option to design the reference vehicule to use for each constellation.
+    /// One vehicule per constellation is expected.
     /// If no vehicule is given for an encountered constellation,
     /// we drop this constellation completely in resulting data.
     /// If desired reference vehicule is not present at a certain epoch,
     /// we will not produce the double difference for that epoch.
+    /// Refer to [double_diff_mut] for further explantions on the performed operation.
     /// Only raw phase data is modified, other observables are preserved.
-    pub fn double_diff_mut_preferred_sv (&mut self, rhs: Self, refs_sv: Vec<sv::Sv>) -> Result<(), DiffError> {
+    pub fn double_diff_mut_ref_sv (&mut self, rhs: &Self, refs_sv: Vec<sv::Sv>) -> Result<(), DiffError> {
         if !self.is_observation_rinex() || !rhs.is_observation_rinex() {
             return Err(DiffError::NotObsRinex)
         }
         self.diff_mut(rhs)?;
-        /*let record = self.record
+        let record = self.record
             .as_mut_obs()
             .unwrap();
         for (e, (_, svs)) in record.iter_mut() {
-            let mut found = false;
-            for ref_sv in refs_sv {
-                if let Some((ref_sv, obs)) = svs.get(ref_sv) {
-                    found = true;
-                    for (sv, obs) in svs.iter_mut() {
-                        if sv == ref_sv {
-                            // drop this vehicule data, used as ref
-                        } else {
-                            // compute double diff
+            // grab reference data first
+            let mut references
+                : HashMap<sv::Sv, HashMap<String, observation::record::ObservationData>> 
+                    = HashMap::new();
+            for (sv, data) in svs.iter_mut() {
+                if refs_sv.contains(&sv) {
+                    references
+                        .insert(sv.clone(), data.clone());
+                }
+            }
+            // drop referenced phase data, so we're only left 
+            // with data ready to be dual differenced,
+            // as far as phase data is concerned
+            for (sv, _) in references.iter() {
+                svs.retain(|vehicule, obs| {
+                    if *vehicule == *sv { 
+                        // designated as ref. vehicule
+                        // --> retain everything but phase data
+                        obs.retain(|obscode, data| {
+                            !is_phase_carrier_obs_code!(obscode)
+                        });
+                        obs.len() > 0 
+                    } else { // not designated as ref. vehicule
+                        true // --> retain everything
+                    }
+                });
+            }
+            // we have grabbed our reference observations,
+            // and we're only left with phase data ready to be dual differenced,
+            // proceed
+            for (sv, obs) in svs.iter_mut() {
+                if let Some(ref_data) = references.get(&sv) {
+                    for (obscode, data) in obs.iter_mut() {
+                        if is_phase_carrier_obs_code!(obscode) {
+                            if let Some(ref_data) = ref_data.get(obscode) {
+                                data.obs -= ref_data.obs
+                            }
                         }
                     }
                 }
             }
-            if !found {
-                // --> drop this epoch
-            }
-        }*/
+        }
         Ok(())
+    }
+
+    /// Immutable implementation of [double_diff_mut].
+    pub fn double_diff (&self, rhs: &Self) -> Result<Self, DiffError> {
+        if !self.is_observation_rinex() || !rhs.is_observation_rinex() {
+            return Err(DiffError::NotObsRinex)
+        }
+        let mut c = self.diff(rhs)?.clone();
+        c.double_diff_mut(rhs)?;
+        Ok(c)
     }
 
     /// Restrain epochs to given interval, starting from `start` (included)
@@ -3101,8 +3109,9 @@ impl Rinex {
         if !self.is_observation_rinex() || !rhs.is_observation_rinex() {
             return Err(DiffError::NotObsRinex) ;
         }
-        // compute double diff
-        let rnx = self.double_diff(rhs);
+        //TODO
+        //compute double diff
+        //let rnx = self.double_diff(rhs);
         let mut vec : Vec<epoch::Epoch> = Vec::new();
         Ok(vec)
     }
