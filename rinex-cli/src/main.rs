@@ -357,7 +357,12 @@ for fp in &filepaths {
             at_least_one_op = true;
             println!("{}", ascii_plot(ascii_plot::DEFAULT_X_WIDTH, &queue[i], None));
         }
-    
+        
+        if cycle_slips {
+            at_least_one_op = true;
+            println!("{:#?}", queue[i].cycle_slips());
+        }
+
         if !at_least_one_op {
             // print remaining record data
             if pretty {
@@ -375,9 +380,33 @@ for fp in &filepaths {
         let q_2p = &queue[i*2];
         let q_2p1 = &queue[i*2+1]; 
         if diff {
-            let q = q_2p.diff(q_2p1);
-        } else if ddiff {
-            let q = q_2p.double_diff(q_2p1);
+            if let Ok(q) = q_2p.double_diff(q_2p1) {
+                // print remaining record data
+                if pretty {
+                    println!("{}", serde_json::to_string_pretty(&q.record).unwrap())
+                } else {
+                    println!("{}", serde_json::to_string(&q.record).unwrap())
+                }
+            } 
+        }
+        if ddiff {
+            if let Ok(q) = q_2p.double_diff(q_2p1) {
+                // print remaining record data
+                if pretty {
+                    println!("{}", serde_json::to_string_pretty(&q.record).unwrap())
+                } else {
+                    println!("{}", serde_json::to_string(&q.record).unwrap())
+                }
+            }
+        } 
+        if confirmed_cycle_slips {
+            if let Ok(slips) = q_2p.confirmed_cycle_slips(q_2p1) {
+                if pretty {
+                    println!("{}", serde_json::to_string_pretty(&slips).unwrap())
+                } else {
+                    println!("{}", serde_json::to_string(&slips).unwrap())
+                }
+            }
         }
         /*if merge {
             if q0.merge(q1).is_err() {
