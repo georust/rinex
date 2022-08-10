@@ -3112,7 +3112,7 @@ impl Rinex {
     /// // now we will confirm those cycle slip events by computing the double diff,
     /// // assuming this secondary rinex recorded the same data
     /// let rnx_b = Rinex::from_file("../test_resources/OBS/V2/rovn0010.21o").unwrap();
-    /// let confirmed_slips = rnx.confirmed_cycle_slips(rnx_b);
+    /// let confirmed_slips = rnx.confirmed_cycle_slips(&rnx_b);
     /// ```
     pub fn confirmed_cycle_slips (&self, rhs: &Self) -> Result<Vec<epoch::Epoch>, DiffError> {
         if !self.is_observation_rinex() || !rhs.is_observation_rinex() {
