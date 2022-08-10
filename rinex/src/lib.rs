@@ -1423,64 +1423,63 @@ impl Rinex {
             let record = self.record
                 .as_mut_nav()
                 .unwrap();
-            for (_e, classes) in record.iter_mut() {
-                for (class, frames) in classes.iter_mut() {
-                    if *class == navigation::record::FrameClass::Ephemeris {
-                        frames.retain(|fr| {
-                            let (msg_type, _, _, _, _, _) = fr.as_eph().unwrap();
-                            filter.contains(&msg_type.to_string().as_str())
-                        })
-                    } else if *class == navigation::record::FrameClass::SystemTimeOffset {
-                        frames.retain(|fr| {
-                            let fr = fr.as_sto().unwrap();
-                            filter.contains(&fr.system.as_str())
-                        })
-                    }
-                }
-            }
+            record
+                .retain(|_, classes| {
+                    classes.retain(|class, frames| {
+                        if *class == navigation::record::FrameClass::Ephemeris {
+                            frames.retain(|fr| {
+                                let (msg_type, _, _, _, _, _) = fr.as_eph().unwrap();
+                                filter.contains(&msg_type.to_string().as_str())
+                            });
+                        } else if *class == navigation::record::FrameClass::SystemTimeOffset {
+                            frames.retain(|fr| {
+                                let fr = fr.as_sto().unwrap();
+                                filter.contains(&fr.system.as_str())
+                            });
+                        }
+                        frames.len() > 0
+                    });
+                    classes.len() > 0
+                })
         } else if self.is_observation_rinex() {
             let record = self.record
                 .as_mut_obs()
                 .unwrap();
-            for (_e, (_clk, sv)) in record.iter_mut() {
-                for (_sv, data) in sv.iter_mut() {
-                    data.retain(|code, _| {
-                        let mut found = false;
-                        for f in filter.iter() {
-                            found |= code.eq(f)
-                        }
-                        found
-                    })
-                }
-            }
+            record
+                .retain(|_, (_clk, vehicules)| {
+                    vehicules.retain(|sv, obs| {
+                        obs.retain(|code, _| {
+                            filter.contains(&code.as_str())
+                        });
+                        obs.len() > 0
+                    });
+                    vehicules.len() > 0
+                });
         } else if self.is_meteo_rinex() {
             let record = self.record
                 .as_mut_meteo()
                 .unwrap();
-            for (_e, data) in record.iter_mut() {
-                data.retain(|code, _| {
-                    let mut found = false;
-                    for f in filter.iter() {
-                        found |= code.to_string().eq(f)
-                    }
-                    found
-                })
-            }
+            record
+                .retain(|_, data| {
+                    data.retain(|code, _| {
+                        filter.contains(&code.to_string().as_str())
+                    });
+                    data.len() > 0
+                });
         } else if self.is_clocks_rinex() {
             let record = self.record
                 .as_mut_clock()
                 .unwrap();
-            for (_e, data) in record.iter_mut() {
-                for (_system, data) in data.iter_mut() {
-                    data.retain(|dtype, _| {
-                        let mut found = false;
-                        for f in filter.iter() {
-                            found |= dtype.to_string().eq(f)
-                        }
-                        found
-                    })
-                }
-            }
+            record
+                .retain(|_, data| {
+                    data.retain(|_, data| {
+                        data.retain(|dtype, _| {
+                            filter.contains(&dtype.to_string().as_str()) 
+                        });
+                        data.len() > 0
+                    });
+                    data.len() > 0
+                });
         }
     }
 
@@ -1578,17 +1577,20 @@ impl Rinex {
         let record = self.record
             .as_mut_obs()
             .unwrap();
-        for (_e, (_clk, sv)) in record.iter_mut() {
-            for (_sv, obs) in sv.iter_mut() {
-                obs.retain(|_, data| {
-                    if let Some(ssi) = data.ssi {
-                        ssi > minimum
-                    } else {
-                        false // no SSI: gets dropped out
-                    }
-                })
-            }
-        }
+        record
+            .retain(|e, (_clk, vehicules)| {
+                vehicules.retain(|sv, obs| {
+                    obs.retain(|_, data| {
+                        if let Some(ssi) = data.ssi {
+                            ssi > minimum
+                        } else {
+                            false // no ssi: drop out
+                        }
+                    });
+                    obs.len() > 0
+                });
+                vehicules.len() > 0
+            });
     }
 
     /// Immutable implementation of [minimum_sig_strength_filter_mut]
@@ -3112,13 +3114,11 @@ impl Rinex {
     /// let rnx_b = Rinex::from_file("../test_resources/OBS/V2/rovn0010.21o").unwrap();
     /// let confirmed_slips = rnx.confirmed_cycle_slips(rnx_b);
     /// ```
-    pub fn confirmed_cycle_slips (&self, rhs: Self) -> Result<Vec<epoch::Epoch>, DiffError> {
+    pub fn confirmed_cycle_slips (&self, rhs: &Self) -> Result<Vec<epoch::Epoch>, DiffError> {
         if !self.is_observation_rinex() || !rhs.is_observation_rinex() {
             return Err(DiffError::NotObsRinex) ;
         }
-        //TODO
-        //compute double diff
-        //let rnx = self.double_diff(rhs);
+        let rnx = self.double_diff(rhs);
         let vec : Vec<epoch::Epoch> = Vec::new();
         Ok(vec)
     }
