@@ -51,12 +51,13 @@ args:
         help: |
             Run double RINEX differentiation.
             With this flag, we expect two Observation RINEX to be
-            given with --filepath
+            given with --filepath.
     - cycle-slips:
         long: cycle-slips
         help: Display epochs where clock cycle slips are possible.
     - confirmed-cycle-slips:
-        long: |
+        long: confirmed-cycle-slips
+        help: |
             Perform dual difference processing on two Observation RINEX
             to exhibit epoch where a clock cycle slip is confirmed.
             This will print all epochs where slip was confirmed by processing.
@@ -195,5 +196,4 @@ args:
             over the course of this file. X axis will span all epochs contained in this file (can be longer than 24h).
     - teqc-report:
         long: teqc-report
-        help: |
-            Generates a `teqc` like report where you can find similar information.
+        help: Generates a `teqc` like report where you can find similar information.
