@@ -221,8 +221,8 @@ args:
     - pretty:
         long: pretty
         help: Make displayed structures more readable
-    - teqc-plot:
-        long: teqc-plot
+    - ascii-plot:
+        long: ascii-plot
         help: |
             Generates a `teqc` like ASCII plot that showcases all satellite vehicules status, rx clock and much more..
             over the course of this file. X axis will span all epochs contained in this file (can be longer than 24h).

@@ -19,7 +19,6 @@ use rinex::epoch;
 use rinex::constellation::{Constellation};
 
 mod ascii_plot;
-use ascii_plot::ascii_plot;
 
 #[derive(Error, Debug)]
 pub enum Error {
@@ -306,7 +305,7 @@ fn run_single_file_op (rnx: &rinex::Rinex, matches: clap::ArgMatches, print_allo
 
 /// Execute `teqc` ops on a single file
 fn run_single_file_teqc_op (rnx: &rinex::Rinex, matches: clap::ArgMatches) {
-    let teqc_plot = matches.is_present("teqc-plot");
+    let ascii_plot = matches.is_present("ascii-plot");
     let merge = matches.is_present("merge");
     let split = matches.is_present("split");
     let split_epoch : Option<epoch::Epoch> = match matches.value_of("split") {
@@ -319,8 +318,8 @@ fn run_single_file_teqc_op (rnx: &rinex::Rinex, matches: clap::ArgMatches) {
         },
         None => None,
     };
-    if teqc_plot {
-        println!("{}", ascii_plot(ascii_plot::DEFAULT_X_WIDTH, &rnx, None));
+    if ascii_plot {
+        println!("{}", ascii_plot::ascii_plot(ascii_plot::DEFAULT_X_WIDTH, &rnx, None));
     }
 }
 
@@ -436,7 +435,9 @@ pub fn main () -> Result<(), Error> {
         print_allowed &= !matches.is_present("merge");
         print_allowed &= !matches.is_present("diff");
         print_allowed &= !matches.is_present("ddiff");
+        print_allowed &= !matches.is_present("ascii-plot");
         run_single_file_op(&queue[i], matches.clone(), print_allowed);
+        run_single_file_teqc_op(&queue[i], matches.clone());
     }
 
     /////////////////////////////////////
