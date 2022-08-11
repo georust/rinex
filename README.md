@@ -105,3 +105,5 @@ When submitting new RINEX data, please truncate them to maintain reasonnable rep
 and smart header update ?
 - [ ] NAV data map: provide complex types, like Orbit5 Data source and other
 useful fields
+- [ ] handle chrono::duration better, in sampling related methods,
+for fractionnal second - sub second interval management
