@@ -418,7 +418,7 @@ impl Rinex {
     pub fn sampling_interval (&self) -> chrono::Duration {
         if let Some(interval) = self.header.sampling_interval {
             let secs = interval.round() as u64;
-            let nanos = interval.fract() as i32;
+            //let nanos = interval.fract() as i32;
             chrono::Duration::from_std(std::time::Duration::from_secs(secs)).unwrap()
         } else {
             let epochs = self.epochs();
@@ -1270,7 +1270,7 @@ impl Rinex {
     /// Computes average epoch duration of this record
     pub fn average_epoch_duration (&self) -> chrono::Duration {
         let mut sum_secs = 0_u64;
-        let mut sum_nanos = 0;
+        //let mut sum_nanos = 0;
         let epochs = self.epochs();
         for i in 1..epochs.len() {
             let dt = epochs[i].date - epochs[i-1].date;
@@ -1507,7 +1507,7 @@ impl Rinex {
                 .unwrap();
             record
                 .retain(|_, (_clk, vehicules)| {
-                    vehicules.retain(|sv, obs| {
+                    vehicules.retain(|_, obs| {
                         obs.retain(|code, _| {
                             filter.contains(&code.as_str())
                         });
@@ -1570,10 +1570,9 @@ impl Rinex {
         record.retain(|_, classes| {
             classes.retain(|class, frames| {
                 if *class == navigation::record::FrameClass::Ephemeris {
-                    frames.retain(|fr| {
-                        let (_, _, _, _, _, map) = fr.as_eph().unwrap();
-                        //TODO: conclude please
-                        //map.retain(|k,_| filter.contains(&k.as_str()));
+                    frames.retain_mut(|fr| {
+                        let (_, _, _, _, _, map) = fr.as_mut_eph().unwrap();
+                        map.retain(|k,_| filter.contains(&k.as_str()));
                         map.len() > 0
                     });
                     frames.len() > 0
@@ -1638,8 +1637,8 @@ impl Rinex {
             .as_mut_obs()
             .unwrap();
         record
-            .retain(|e, (_clk, vehicules)| {
-                vehicules.retain(|sv, obs| {
+            .retain(|_, (_clk, vehicules)| {
+                vehicules.retain(|_, obs| {
                     obs.retain(|_, data| {
                         if let Some(ssi) = data.ssi {
                             ssi > minimum
@@ -1670,8 +1669,8 @@ impl Rinex {
                 .as_obs()
                 .unwrap();
             for (_, (_, vehicules)) in record.iter() {
-                for (sv, observation) in vehicules.iter() {
-                    for (code, data) in observation.iter() {
+                for (_, observation) in vehicules.iter() {
+                    for (_, data) in observation.iter() {
                         if let Some(ssi) = data.ssi {
                             if ssi < min {
                                 min = ssi
@@ -3159,7 +3158,7 @@ impl Rinex {
         let retained = self.lli_filter(observation::record::LliFlags::HALF_CYCLE_SLIP);
         retained.epochs()
     }
-
+/*
     /// Returns epochs where a so called "cycle slip" has been confirmed.
     /// We confirm a cycle slip by computing the double difference
     /// between self and `rhs` Observation RINEX.
@@ -3187,7 +3186,7 @@ impl Rinex {
         let rnx = self.double_diff(rhs);
         let vec : Vec<epoch::Epoch> = Vec::new();
         Ok(vec)
-    }
+    } */
 
     /// Returns a time windowed version of this record,
     /// starting from start (included) to end (included).
