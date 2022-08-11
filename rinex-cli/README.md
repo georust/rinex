@@ -12,10 +12,11 @@ in a high level and easy to use fashion.
 The application will be able to parse all RINEX formats supported by the library, refer to its documentation.
 
 The application knows a few `teqc` operations, refer to the
-[dedicated paragraph](https://github.com/gwbres/rinex/edit/main/rinex-cli/README.md#teqc-operations)
+[dedicated paragraph](https://github.com/gwbres/rinex/blob/main/rinex-cli/README.md#teqc-operations)
 down below.
 
-This tool will eventually be able to perform most common RINEX processing.
+This tool will eventually be able to perform most common RINEX 
+[post-processing](https://github.com/gwbres/rinex/blob/main/rinex-cli/README.md#post-processing).
 
 ## File formats
 
@@ -252,6 +253,50 @@ rinex-cli -f test_resources/OBS/V3/CBW100NLD_R_20210010000_01D_MN.rnx --observ
 # extract raw phase data and pseudo range only
 rinex-cli -f test_resources/OBS/V2/zegv0010.21o  \
     --observ-filter C1
+```
+
+## Post processing
+
+Some post processing operations are being developped. People usually perform them with tools like `rtklib`.
+This application does not aim at matching what `rtklib` is capable of, but it can be a powerful and efficient
+alternative to similarly supported operations
+
+## Differential RINEX
+
+Differential RINEX is the operation rnx(a) - rnx(b) where both are Observation RINEX
+assumed to be sampled by stationnary and close to each other different receivers.
+This simple operation cancels out ionospheric biases.
+
+Provide at least two OBS files for this operation to work.  
+Here we differentiante zegv0010.21o using delf0010.21o.  
+This is only a command line example, it does not produce anything meaningful because delf0010.21o does not share
+any common epoch with zegv0010.21o
+
+```bash
+rinex-cli --diff -f test_resources/OBS/V2/zegv0010.21o,test_resources/OBS/V2/delf0010.21o
+```
+
+## Double Differential RINEX
+
+Double Differential RINEX is first a rnx(a) - rnx(b) operation, previously described,
+then another differentiation where we select a reference space vehicule and compute 
+the phase difference of other vehicules against this one.
+
+Provide at least two OBS files for this operation to work.  
+Here we differentiate zegv0010.21o using delf0010.21o
+and dual differentiate zegv0010.21o 
+
+```bash
+rinex-cli --ddiff -f test_resources/OBS/V2/zegv0010.21o,test_resources/OBS/V2/delf0010.21o
+```
+
+## Cycle slips
+
+Possible cycle slip events are described by the GNSS receiver.  
+Print such information like this
+
+```bash
+rinex-cli --cycle-slips -f test_resources/OBS/V2/zegv0010.21o
 ```
 
 ## Merge
