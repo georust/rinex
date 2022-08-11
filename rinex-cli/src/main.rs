@@ -350,13 +350,13 @@ fn run_double_file_op (rnx_a: &rinex::Rinex, rnx_b: &rinex::Rinex, matches: clap
         }
     } 
     if confirm_cycle_slips {
-        if let Ok(slips) = rnx_a.confirmed_cycle_slips(rnx_b) {
-            /*if pretty {
+        /*if let Ok(slips) = rnx_a.confirmed_cycle_slips(rnx_b) {
+            if pretty {
                 println!("{}", serde_json::to_string_pretty(&slips).unwrap())
             } else {
                 println!("{}", serde_json::to_string(&slips).unwrap())
-            }*/
-        }
+            }
+        }*/
     }
     /*if merge {
         if q0.merge(q1).is_err() {
@@ -460,7 +460,7 @@ mod test {
         let duration = parse_duration("00:30:00");
         assert_eq!(duration.is_ok(), true);
         let duration = duration.unwrap();
-        assert_eq!(duration, std::time::Duration::from_secs(30*60));
+        assert_eq!(duration, chrono::Duration::minutes(30));
         let duration = parse_duration("30:00");
         assert_eq!(duration.is_err(), true);
         let duration = parse_duration("00 30 00");
