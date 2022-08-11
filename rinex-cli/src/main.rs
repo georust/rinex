@@ -164,7 +164,7 @@ fn apply_filters (rinex: &mut rinex::Rinex, matches: clap::ArgMatches) {
 }
 
 /// Execute user requests on a single file
-fn run_single_file_op (rnx: &rinex::Rinex, matches: clap::ArgMatches) {
+fn run_single_file_op (rnx: &rinex::Rinex, matches: clap::ArgMatches, print_allowed: bool) {
     let pretty = matches.is_present("pretty");
     let header = matches.is_present("header");
     let decimate_ratio = matches.is_present("decim-ratio");
@@ -185,80 +185,102 @@ fn run_single_file_op (rnx: &rinex::Rinex, matches: clap::ArgMatches) {
 
     if header {
         at_least_one_op = true;
-        if pretty {
-            println!("{}", serde_json::to_string_pretty(&rnx.header).unwrap())
-        } else {
-            println!("{}", serde_json::to_string_pretty(&rnx.header).unwrap())
+        if print_allowed {
+            if pretty {
+                println!("{}", serde_json::to_string_pretty(&rnx.header).unwrap())
+            } else {
+                println!("{}", serde_json::to_string_pretty(&rnx.header).unwrap())
+            }
         }
     }
     if epoch {
         at_least_one_op = true;
-        if pretty {
-            println!("{}", serde_json::to_string_pretty(&rnx.epochs()).unwrap())
-        } else {
-            println!("{}", serde_json::to_string(&rnx.epochs()).unwrap())
+        if print_allowed {
+            if pretty {
+                println!("{}", serde_json::to_string_pretty(&rnx.epochs()).unwrap())
+            } else {
+                println!("{}", serde_json::to_string(&rnx.epochs()).unwrap())
+            }
         }
     }
     if observables {
         at_least_one_op = true;
-        if pretty {
-            println!("{}", serde_json::to_string_pretty(&rnx.observables()).unwrap())
-        } else {
-            println!("{}", serde_json::to_string(&rnx.observables()).unwrap())
+        if print_allowed {
+            if pretty {
+                println!("{}", serde_json::to_string_pretty(&rnx.observables()).unwrap())
+            } else {
+                println!("{}", serde_json::to_string(&rnx.observables()).unwrap())
+            }
         }
     }
     if sv {
         at_least_one_op = true;
-        if pretty {
-            println!("{}", serde_json::to_string_pretty(&rnx.space_vehicules()).unwrap())
-        } else {
-            println!("{}", serde_json::to_string(&rnx.space_vehicules()).unwrap())
+        if print_allowed {
+            if pretty {
+                println!("{}", serde_json::to_string_pretty(&rnx.space_vehicules()).unwrap())
+            } else {
+                println!("{}", serde_json::to_string(&rnx.space_vehicules()).unwrap())
+            }
         }
     }
     if ssi_range {
         at_least_one_op = true;
-        if pretty {
-            println!("{}", serde_json::to_string_pretty(&rnx.sig_strength_range()).unwrap())
-        } else {
-            println!("{}", serde_json::to_string(&rnx.sig_strength_range()).unwrap())
+        if print_allowed {
+            if pretty {
+                println!("{}", serde_json::to_string_pretty(&rnx.sig_strength_range()).unwrap())
+            } else {
+                println!("{}", serde_json::to_string(&rnx.sig_strength_range()).unwrap())
+            }
         }
     }
     if clock_offsets {
         at_least_one_op = true;
-        if pretty {
-            println!("{}", serde_json::to_string_pretty(&rnx.receiver_clock_offsets()).unwrap())
-        } else {
-            println!("{}", serde_json::to_string(&rnx.receiver_clock_offsets()).unwrap())
+        if print_allowed {
+            if pretty {
+                println!("{}", serde_json::to_string_pretty(&rnx.receiver_clock_offsets()).unwrap())
+            } else {
+                println!("{}", serde_json::to_string(&rnx.receiver_clock_offsets()).unwrap())
+            }
         }
     }
     if sv_per_epoch {
         at_least_one_op = true;
-        if pretty {
-        //    println!("{}", serde_json::to_string_pretty(&rnx.space_vehicules_per_epoch()).unwrap())
-        } else {
-        //    println!("{}", serde_json::to_string(&rnx.space_vehicules_per_epoch()).unwrap())
+        if print_allowed {
+            if pretty {
+            //    println!("{}", serde_json::to_string_pretty(&rnx.space_vehicules_per_epoch()).unwrap())
+            } else {
+            //    println!("{}", serde_json::to_string(&rnx.space_vehicules_per_epoch()).unwrap())
+            }
         }
     }
     if gaps {
         at_least_one_op = true;
-        println!("{:#?}", rnx.data_gaps());
+        if print_allowed {
+            println!("{:#?}", rnx.data_gaps());
+        }
     }
     if largest_gap {
         at_least_one_op = true;
-        println!("{:#?}", rnx.largest_data_gap_duration());
+        if print_allowed {
+            println!("{:#?}", rnx.largest_data_gap_duration());
+        }
     }
 
     if cycle_slips {
         at_least_one_op = true;
-        println!("{:#?}", rnx.cycle_slips());
+        if print_allowed {
+            println!("{:#?}", rnx.cycle_slips());
+        }
     }
 
     if !at_least_one_op {
         // print remaining record data
-        if pretty {
-            println!("{}", serde_json::to_string_pretty(&rnx.record).unwrap())
-        } else {
-            println!("{}", serde_json::to_string(&rnx.record).unwrap())
+        if print_allowed {
+            if pretty {
+                println!("{}", serde_json::to_string_pretty(&rnx.record).unwrap())
+            } else {
+                println!("{}", serde_json::to_string(&rnx.record).unwrap())
+            }
         }
     }
 }
@@ -285,18 +307,18 @@ fn run_single_file_teqc_op (rnx: &rinex::Rinex, matches: clap::ArgMatches) {
 
 /// Execute user requests on two files
 fn run_double_file_op (rnx_a: &rinex::Rinex, rnx_b: &rinex::Rinex, matches: clap::ArgMatches) {
+    let pretty = matches.is_present("pretty");
     let diff = matches.is_present("diff");
     let ddiff = matches.is_present("ddiff");
     let confirm_cycle_slips = matches.is_present("confirm-cycle-slips");
     if diff {
         if let Ok(rnx) = rnx_a.double_diff(rnx_b) {
             // print remaining record data
-            /*
             if pretty {
-                println!("{}", serde_json::to_string_pretty(&q.record).unwrap())
+                println!("{}", serde_json::to_string_pretty(&rnx.record).unwrap())
             } else {
-                println!("{}", serde_json::to_string(&q.record).unwrap())
-            }*/
+                println!("{}", serde_json::to_string(&rnx.record).unwrap())
+            }
         } 
     }
     if ddiff {
@@ -337,7 +359,6 @@ pub fn main () -> Result<(), Error> {
     // files (in)
     let filepaths : Option<Vec<&str>> = match matches.is_present("filepath") {
         true => {
-            println!("filepath: {}", matches.value_of("filepath").unwrap());
             Some(matches.value_of("filepath")
                 .unwrap()
                     .split(",")
@@ -393,7 +414,11 @@ pub fn main () -> Result<(), Error> {
     // ops that require only 1 file
     /////////////////////////////////////
     for i in 0..queue.len() {
-        run_single_file_op(&queue[i], matches.clone());
+        let mut print_allowed = true;
+        print_allowed &= !matches.is_present("merge");
+        print_allowed &= !matches.is_present("diff");
+        print_allowed &= !matches.is_present("ddiff");
+        run_single_file_op(&queue[i], matches.clone(), print_allowed);
     }
 
     /////////////////////////////////////
