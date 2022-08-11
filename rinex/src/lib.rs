@@ -2902,30 +2902,9 @@ impl Rinex {
 
     /// See [diff_mut], immutable implementation.
     pub fn diff (&self, rhs: &Self) -> Result<Self, DiffError> {
-        if !self.is_observation_rinex() || !rhs.is_observation_rinex() {
-            return Err(DiffError::NotObsRinex) 
-        }
-        let (mut r0, r1) = (self.record.as_obs().unwrap().clone(),rhs.record.as_obs().unwrap());
-        for (e, (_clk, vehicules)) in r0.iter_mut() {
-            if let Some((_clk, vvehicules)) = r1.get(e) { // same epoch ; contained
-                for (sv, obs) in vehicules.iter_mut() {
-                    if let Some(oobs) = vvehicules.get(sv) { // same vehicule ; contained
-                        for (obscode, data) in obs.iter_mut() {
-                            if is_phase_carrier_obs_code!(obscode) {
-                                if let Some(ddata) = oobs.get(obscode) { // same observable ; containd
-                                    data.obs -= ddata.obs
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        Ok(Self {
-            header: self.header.clone(),
-            comments: self.comments.clone(),
-            record: record::Record::ObsRecord(r0), 
-        })
+        let mut s = self.clone();
+        s.diff_mut(rhs)?;
+        Ok(s)
     }
     
     /// Computes the double difference between self and rhs Observation RINEX.

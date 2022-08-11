@@ -312,7 +312,7 @@ fn run_double_file_op (rnx_a: &rinex::Rinex, rnx_b: &rinex::Rinex, matches: clap
     let ddiff = matches.is_present("ddiff");
     let confirm_cycle_slips = matches.is_present("confirm-cycle-slips");
     if diff {
-        if let Ok(rnx) = rnx_a.double_diff(rnx_b) {
+        if let Ok(rnx) = rnx_a.diff(rnx_b) {
             // print remaining record data
             if pretty {
                 println!("{}", serde_json::to_string_pretty(&rnx.record).unwrap())
@@ -324,12 +324,11 @@ fn run_double_file_op (rnx_a: &rinex::Rinex, rnx_b: &rinex::Rinex, matches: clap
     if ddiff {
         if let Ok(rnx) = rnx_a.double_diff(rnx_b) {
             // print remaining record data
-            /*
             if pretty {
-                println!("{}", serde_json::to_string_pretty(&q.record).unwrap())
+                println!("{}", serde_json::to_string_pretty(&rnx.record).unwrap())
             } else {
-                println!("{}", serde_json::to_string(&q.record).unwrap())
-            }*/
+                println!("{}", serde_json::to_string(&rnx.record).unwrap())
+            }
         }
     } 
     if confirm_cycle_slips {
