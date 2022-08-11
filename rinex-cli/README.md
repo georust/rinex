@@ -333,4 +333,6 @@ rinex-cli -f test_resources/OBS/V2/zegv0010.21o --ascii-plot
 Like other requests, this one cancels the record exposure, with the previous command,
 a single tiny plot is to be generated.
 
-<img align="right" width="400" src="doc/ascii-plot.png">
+<img align="center" width="400" src="https://github.com/gwbres/rinex/blob/main/doc/ascii-plot.png">
+
+To understand the meaning of this plot, please currently refer to the `teqc` documentation
