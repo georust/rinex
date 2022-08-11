@@ -1601,6 +1601,33 @@ impl Rinex {
         filtered
     }
 
+    /// Returns receiver signal strength in the (min, max) form.
+    /// Only relevant on Observation Data.
+    pub fn sig_strength_range (&self) -> Option<(observation::record::Ssi, observation::record::Ssi)> {
+        if self.is_observation_rinex() {
+            let (mut min, mut max) = (observation::record::Ssi::DbHz54, observation::record::Ssi::DbHz0);
+            let record = self.record
+                .as_obs()
+                .unwrap();
+            for (_, (_, vehicules)) in record.iter() {
+                for (sv, observation) in vehicules.iter() {
+                    for (code, data) in observation.iter() {
+                        if let Some(ssi) = data.ssi {
+                            if ssi < min {
+                                min = ssi
+                            } else if ssi > max {
+                                max = ssi
+                            }
+                        }
+                    }
+                }
+            }
+            Some((min,max))
+        } else {
+            None
+        }
+    }
+
     /// Extracts all Ephemeris from this Navigation record,
     /// drops out possible STO / EOP / ION modern NAV frames.  
     /// This does not produce anything if self is not a Navigation RINEX.  

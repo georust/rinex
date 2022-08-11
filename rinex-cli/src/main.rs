@@ -102,7 +102,7 @@ fn apply_filters (rinex: &mut rinex::Rinex, matches: clap::ArgMatches) {
         _ => None,
     };
     
-    let sv_filter : Option<Vec<Sv>> = match matches.value_of("sv") {
+    let sv_filter : Option<Vec<Sv>> = match matches.value_of("sv-filter") {
         Some(s) => {
             let sv: Vec<&str> = s.split(",").collect();
             let mut sv_filters : Vec<Sv> = Vec::new();
@@ -172,6 +172,7 @@ fn run_single_file_op (rnx: &rinex::Rinex, matches: clap::ArgMatches) {
     let observables = matches.is_present("observ");
     let epoch = matches.is_present("epoch");
     let sv = matches.is_present("sv");
+    let ssi_range = matches.is_present("ssi-range");
     let constellations = matches.is_present("constellation");
     let sv_per_epoch = matches.is_present("sv-per-epoch");
     let clock_offsets = matches.is_present("clock-offsets");
@@ -212,6 +213,14 @@ fn run_single_file_op (rnx: &rinex::Rinex, matches: clap::ArgMatches) {
             println!("{}", serde_json::to_string_pretty(&rnx.space_vehicules()).unwrap())
         } else {
             println!("{}", serde_json::to_string(&rnx.space_vehicules()).unwrap())
+        }
+    }
+    if ssi_range {
+        at_least_one_op = true;
+        if pretty {
+            println!("{}", serde_json::to_string_pretty(&rnx.sig_strength_range()).unwrap())
+        } else {
+            println!("{}", serde_json::to_string(&rnx.sig_strength_range()).unwrap())
         }
     }
     if clock_offsets {
@@ -328,6 +337,7 @@ pub fn main () -> Result<(), Error> {
     // files (in)
     let filepaths : Option<Vec<&str>> = match matches.is_present("filepath") {
         true => {
+            println!("filepath: {}", matches.value_of("filepath").unwrap());
             Some(matches.value_of("filepath")
                 .unwrap()
                     .split(",")
