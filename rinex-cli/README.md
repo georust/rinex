@@ -292,10 +292,24 @@ and dual differentiate zegv0010.21o
 rinex-cli --ddiff -f test_resources/OBS/V2/zegv0010.21o,test_resources/OBS/V2/delf0010.21o
 ```
 
-With this implementation, the user has no mean to select the vehicule that gets designated as the "reference"
-in the last differentiation operation. 
-
 The operation is described in the API [right here](https://docs.rs/rinex/latest/rinex/struct.Rinex.html#method.double_diff_mut).
+
+With this implementation, the user has no mean to select the vehicule that gets designated as the "reference"
+in the last differentiation operation. In the implementation, we designate the first vehicule ever encountered
+for each constellation, as the reference for the current epoch.
+
+To designate reference vehicules, the user should add a `--ref-sv` list.  
+We expect one reference vehicule per constellation encountered in the left over record.  
+That means
+
+- if you provide a single reference vehicule, you should make sure you filtered out other
+constellations, otherwise data gets dropped out automatically
+- if you want to process every single constellation, but forgot to specify a reference vehicule for
+one of them, data for this constellation gets dropped out
+
+- there is no mean currently to change the reference vehicule in between epochs,
+the reference vehicule will be the designated one across all epochs
+
 
 ## Cycle slips
 
