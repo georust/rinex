@@ -130,8 +130,8 @@ args:
         help: |
             Display receiver clock offsets for each epoch that came with such information, 
             in given Observation RINEX file(s)
-    - constellation:
-        long: constellation
+    - constellations:
+        long: constellations
         takes_value: false
         help: Display identified Constellations in this file
     - constellation-filter:

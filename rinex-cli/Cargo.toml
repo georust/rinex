@@ -11,6 +11,7 @@ edition = "2018"
 readme = "README.md"
 
 [dependencies]
+time = "0.1"
 chrono = "0.4"
 serde_json = "1"
 rinex = { path = "../rinex", features = ["with-serde", "with-gzip", "with-geo"] }

@@ -29,19 +29,28 @@ pub enum Error {
     IoError(#[from] std::io::Error),
 }
 
+#[derive(Debug, Error)]
+enum ParseDurationError {
+    #[error("format should be %HH:%MM:%SS")]
+    InvalidFormat,
+    #[error("time internal overflow!")]
+    TimeOutOfRange(#[from] time::OutOfRangeError),
+}
+
 /// Parses an std::time::Duration from user input
-fn parse_duration (content: &str) -> Result<std::time::Duration, std::io::Error> {
+fn parse_duration (content: &str) -> Result<chrono::Duration, ParseDurationError> {
     let hms : Vec<_> = content.split(":").collect();
     if hms.len() == 3 {
         if let Ok(h) =  u64::from_str_radix(hms[0], 10) {
             if let Ok(m) =  u64::from_str_radix(hms[1], 10) {
                 if let Ok(s) =  u64::from_str_radix(hms[2], 10) {
-                    return Ok(std::time::Duration::from_secs(h*3600 + m*60 +s))
+                    let std = std::time::Duration::from_secs(h*3600 + m*60 +s);
+                    return Ok(chrono::Duration::from_std(std)?)
                 }
             }
         }
     }
-    Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "failed to parse %HH:%MM:%SS"))
+    Err(ParseDurationError::InvalidFormat)
 }
 
 /// Parses an chrono::NaiveDateTime from user input
@@ -67,16 +76,16 @@ fn parse_epoch (content: &str) -> Result<epoch::Epoch, Error> {
 }
 
 /// Resample given file as possibly requested
-fn resample_single_file (rinex: &mut rinex::Rinex, matches: clap::ArgMatches) {
+fn resample_single_file (rnx: &mut rinex::Rinex, matches: clap::ArgMatches) {
     if let Some(interval) = matches.value_of("decim-interval") {
         let hms = matches.value_of("decim-interval").unwrap();
         if let Ok(interval) = parse_duration(hms) {
-            //rinex.decimate_by_interval_mut(interval)
+            rnx.decimate_by_interval_mut(interval)
         }
     }
     if let Some(r) = matches.value_of("decim-ratio") {
         if let Ok(r) = u32::from_str_radix(r, 10) {
-            //rinex.decimate_by_ratio_mut(r)
+            rnx.decimate_by_ratio_mut(r)
         }
     }
 }
@@ -173,7 +182,7 @@ fn run_single_file_op (rnx: &rinex::Rinex, matches: clap::ArgMatches, print_allo
     let epoch = matches.is_present("epoch");
     let sv = matches.is_present("sv");
     let ssi_range = matches.is_present("ssi-range");
-    let constellations = matches.is_present("constellation");
+    let constellations = matches.is_present("constellations");
     let sv_per_epoch = matches.is_present("sv-per-epoch");
     let clock_offsets = matches.is_present("clock-offsets");
     let gaps = matches.is_present("gaps");
@@ -210,6 +219,16 @@ fn run_single_file_op (rnx: &rinex::Rinex, matches: clap::ArgMatches, print_allo
                 println!("{}", serde_json::to_string_pretty(&rnx.observables()).unwrap())
             } else {
                 println!("{}", serde_json::to_string(&rnx.observables()).unwrap())
+            }
+        }
+    }
+    if constellations {
+        at_least_one_op = true;
+        if print_allowed {
+            if pretty {
+                println!("{}", serde_json::to_string_pretty(&rnx.constellations()).unwrap())
+            } else {
+                println!("{}", serde_json::to_string(&rnx.constellations()).unwrap())
             }
         }
     }
