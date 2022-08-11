@@ -35,7 +35,7 @@ and the [rinex](rinex/) crate.
 | `ObservationData` (OBS)  | :heavy_check_mark:|  :heavy_check_mark: | :construction:       | :construction:    | `epoch` iteration |
 | `CRINEX` (Compressed OBS)| :heavy_check_mark:|  :heavy_check_mark: | :construction:       | :construction:    | `epoch` iteration |
 | `MeteoData` (MET)        | :heavy_check_mark:| :heavy_check_mark:  | :construction:       |:heavy_check_mark: | `epoch` iteration |  
-| `ClocksData` (CLK)       | :heavy_check_mark:| :sparkle:           | :question:        |:construction: | `epoch` iteration |
+| `ClocksData` (CLK)       | :heavy_check_mark:|  :heavy_check_mark: | :question:        |:construction: | `epoch` iteration |
 | `AntennaData` (ATX)      | :heavy_check_mark:| :sparkle:           | :heavy_minus_sign:   |:construction: | `ATX` records are not indexed by `epochs` |
 | `IonosphereMaps` (IONEX) | :sparkle:         |  :sparkle:          | :question:           |:construction: | `epoch` iteration |
 | `SINEX` (SNX)            | :construction:    |  :construction:     | :heavy_minus_sign:   |:construction: |   `SINEX` are special `RINEX`, they are managed by a dedicated [core library](sinex/)  |
@@ -97,8 +97,7 @@ Contributions, raw data and tests methods are welcomed.
 There is still a lot to achieve with this lib, 
 especially regarding the command line applications (high level usage of the library cores).
 
-Add only truncated but meaningful RINEX data to the `test_resources/` to maintain
-a reasonable repo size.
+When submitting new RINEX data, please truncate them to maintain reasonnable repo size.
 
 ### TODO 
 
