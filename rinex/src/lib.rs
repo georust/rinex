@@ -941,6 +941,66 @@ impl Rinex {
             .lli_filter_mut(observation::record::LliFlags::LOCK_LOSS)
     }
 
+    /// List all constellations contained in record
+    pub fn constellations (&self) -> Vec<constellation::Constellation> {
+        let mut ret: Vec<constellation::Constellation> = Vec::new();
+        match self.header.constellation {
+            Some(constellation::Constellation::Mixed) => {
+                match self.header.rinex_type {
+                    types::Type::ObservationData => {
+                        let record = self.record
+                            .as_obs()
+                            .unwrap();
+                        for (_e, (_clk, vehicules)) in record.iter() {
+                            for (sv, _) in vehicules.iter() {
+                                if !ret.contains(&sv.constellation) {
+                                    ret.push(sv.constellation.clone());
+                                }
+                            }
+                        }
+                    },
+                    types::Type::NavigationData => {
+                        let record = self.record
+                            .as_nav()
+                            .unwrap();
+                        for (_, classes) in record.iter() {
+                            for (class, frames) in classes.iter() {
+                                if *class == navigation::record::FrameClass::Ephemeris {
+                                    for frame in frames.iter() {
+                                        let (_, sv, _, _, _, _) = frame.as_eph().unwrap();
+                                        if !ret.contains(&sv.constellation) {
+                                            ret.push(sv.constellation.clone());
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    types::Type::ClockData => {
+                        let record = self.record
+                            .as_clock()
+                            .unwrap();
+                        for (_, types) in record.iter() {
+                            for (_, systems) in types.iter() {
+                                for (system, _) in systems.iter() {
+                                    if let Some(sv) = system.as_sv() {
+                                        if !ret.contains(&sv.constellation) {
+                                            ret.push(sv.constellation.clone());
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    _ => {},
+                }
+            },
+            Some(c) => ret.push(c),
+            None => {},
+        }
+        ret
+    }
+
     /// Retains data that was recorded along given constellation(s).
     /// This has no effect on ATX, MET and IONEX records, NAV 
     /// record frames other than Ephemeris, Clock frames not measured
