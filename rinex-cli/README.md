@@ -318,3 +318,19 @@ cargo run -f /tmp/data.rnx --split "2022-06-03 16:00:00" \
 cargo run -f /tmp/data.rnx --split "2022-06-03 16:00:00 1" \
     --output /tmp/file1.rnx,/tmp/file2.rnx
 ```
+
+## ascii-plot
+
+The ascii-plot emulates the quite interesting tiny plot that `teqc` attaches to its verbose report.
+
+The ascii plot is currently generated for every given Observation RINEX file.
+
+```bash
+rinex-cli -f test_resources/OBS/V2/zegv0010.21o --ascii-plot
+
+```
+
+Like other requests, this one cancels the record exposure, with the previous command,
+a single tiny plot is to be generated.
+
+<img align="right" width="400" src="doc/ascii-plot.png">
