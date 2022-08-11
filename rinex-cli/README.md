@@ -256,11 +256,13 @@ rinex-cli -f test_resources/OBS/V2/zegv0010.21o  \
 
 ## Merge
 
-Merge several RINEX toghether. We use the `teqc` identifiers to describe the merge operatio
+Merge several RINEX toghether. We use the `teqc` identifiers to describe the merge operation
 
 ```bash
-rinex-cli -f file1.rnx,/tmp/file2.rnx
+rinex-cli -m -f test_resources/OBS/V2/zegv0010.21o,test_resources/OBS/V2/delf0010.21o
 ```
+
+This generates a new RINEX file "merged.rnx"
 
 ## `Split` special operation
 
