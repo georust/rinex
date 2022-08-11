@@ -1,5 +1,5 @@
 name: rinex-cli
-version: "0.0.1"
+version: "0.3.0"
 author: Guillaume W. Bres <guillaume.bressaix@gmail.com>
 args:
     - filepath:
@@ -8,60 +8,77 @@ args:
         required: false 
         takes_value: true
         help: |
-            List of local RINEX files:
+            List of local RINEX files, seperated by a comma.
             Example: --filepath AMEL00NLD_R_20210010000_01D_MN.rnx
-            Use comma separation to process several files at once:
-            Example: -f amel0010.21g, BRDC00GOP_R_20210010000_01D_MN.rnx.gz 
+            Example: -f amel0010.21g,BRDC00GOP_R_20210010000_01D_MN.rnx.gz 
     - output:
         long: output
         required: false
         takes_value: true
-        help: Comma separated output files, when producing data (special operations like split())
+        help: |
+            Comma separated list of file to generate. 
+            This is only used when requested operations will generate a new RINEX.
+            Example: --output brdcxx01.21g
+            Use a list when generate several files in a row:
+            Example: --output brdcxx01.21g,brdcxx02.21g
     - header:
         short: h
         long: header
         takes_value: false
-        help: Display (print) header fields (as is..)
+        help: Display identified header information 
     - decim-ratio:
         short: d
         long: decim-ratio
         takes_value: true
         help: |
             Decimate data quantity by an integer ratio. 
-            For example, --decim-ratio 2 for epochs a,b,c,d,e,f retains epochs a,c,e
+            For example, --decim-ratio 2 will shrink a,b,c,d,e,f epochs to a,c,e
     - decim-interval:
         long: decim-interval 
         takes_value: true
         help: |
             Decimate data record to minimum interval duration.
             Duration must be specified in %HH:%MM:%SS format, example:
-            --decim-interval 00:01:00 for a 1 minute minimum interval 
-            --decim-interval 12:00:00 for a 12 hour minimum interval 
-            --decim-interval 72:00:00 for a 3 day minimum interval 
+            Example: 1' interval: --decim-interval 00:01:00
+            Example: 12h interval: --decim-interval 12:00:00
+            Example: 3d interval: --decim-interval 72:00:00
     - diff:
         long: diff
         takes_value: false
         help: |
-            Run single RINEX differentiation.
-            With this flag, we expect two Observation RINEX to be
-            given with --filepath
+            Process RINEX differentiation (rnx = rnx(a)-rnx(b))
+            to cancel ionospheric biases.
+            User must provide at least two Observation RINEX files for this op to work.
+            Example: differentiate brdc01.g with brdc02.g: 
+            rinex-cli --diff -f brdc01.g,brdc02.g
+            Example: same differentiation, but also differentiate brdc03.g with brdc04g 
+            rinex-cli --diff -f brdc01.g,brdc02.g,brdc03.g,brdc04.g
     - ddiff:
         long: ddiff
         takes_value: false
         help: |
-            Run double RINEX differentiation.
-            With this flag, we expect two Observation RINEX to be
-            given with --filepath.
+            Process double RINEX differentiation (rnx = rnx(a)-rnx(b))
+            with inner space vehicule differentiation,
+            to cancel ionospheric biases and clock induced biases. 
+            User must provide at least two Observation RINEX files for this op to work.
+            Example: differentiate brdc01.g with brdc02.g and double differentiate brdc01.g: 
+            rinex-cli --ddiff -f brdc01.g,brdc02.g
+            Example: same differentiation, but compute also on brdc03.g with brdc04g 
+            rinex-cli --ddiff -f brdc01.g,brdc02.g,brdc03.g,brdc04.g
     - cycle-slips:
         long: cycle-slips
-        help: Display epochs where clock cycle slips are possible.
-    - confirmed-cycle-slips:
-        long: confirmed-cycle-slips
+        help: Display epochs where clock cycle slip event possibly happened.
+    - confirm-cycle-slips:
+        long: confirm-cycle-slips
         help: |
-            Perform dual difference processing on two Observation RINEX
-            to exhibit epoch where a clock cycle slip is confirmed.
-            This will print all epochs where slip was confirmed by processing.
-            With this flag we expect two Observation RINEX to be given.
+            Perform dual RINEX differentiation and post-processing,
+            to confirm cycle slip events. For this op, we expect the 
+            same restriction than the --ddiff requirements.
+            User must provide at least two Observation RINEX files for this op to work.
+            Example: confirm cycle slips in brdc01.g using brdc02.g:
+            rinex-cli --confirm-cycle-slips -f brdc01.g,brdc02.g
+            Example: same processing, but also confirm cycle slips in brdc03.g using brdc04.g:
+            rinex-cli --confirm-cycle-slips -f brdc00.g,brdc02.g,brdc03.g,brdc04.g
     - time-window:
         short: t
         long: time-window
@@ -70,62 +87,75 @@ args:
             Example: -t "2022-08-01-12:00:00-2022-08-10-13:00:00"
             will retain epochs after 2022/08/01 12:00:00 included
             and prior 2022/08/01 13:00:00 included.
-    - epoch-ok:
-        long: epoch-ok 
+    - epoch-ok-filter:
+        long: epoch-ok-filter 
         takes_value: false 
-        help: Retains epochs that have an EpochFlag::ok value only 
-    - epoch-nok:
-        long: epoch-nok
+        help: Retains epochs that have an EpochFlag::Ok value only 
+    - epoch-nok-filter:
+        long: epoch-nok-filter
         takes_value: false
-        help: Retains epochs that do not have an EpochFlag::ok attached to them
+        help: |
+            Retains epochs that do not have an EpochFlag::Ok attached to them.
+            Epoch NOK can mean power failure, or antenna movement, etc..
     - epoch:
         short: e 
         long: epoch 
         takes_value: false 
-        help: Display (print) identified epochs
-    - observables:
+        help: Display identified epochs in given file(s) 
+    - observ:
         short: o
-        long: observables 
+        long: observ
         takes_value: false
-        help: |
-            Display (print) observables encountered in this file. For Clocks RINEX, returns list of Clock Data types.
-    - list-sv:
-        long: list-sv
+        help: Display observables epochs in given file(s) 
+    - observ-filter:
+        long: observ-filter 
+        takes_value: true
+        help: Comma separated list of Observables - retain only matching Observable codes 
+    - sv:
+        long: sv
         takes_value: false
-        help: List encountered vehicules in this file
-    - list-sv-epoch:
-        long: list-sv-epoch
+        help: Display vehicules identified in this file
+    - sv-per-epoch:
+        long: sv-per-epoch
         takes_value: false
-        help: List encountered vehicules on an epoch basis, encountered in this file
+        help: Display vehicules identified for each epoch in this file
     - clock-systems-per-epoch:
         long: clock-systems-per-epoch
         takes_value: false
-        help: List encountered Clock Data Systems on an epoch basis. Use on Clock RINEX.
+        help: Display Clock Data systems identified in given Clock RINEX file(s)
     - clock-offsets:
         long: clock-offsets
         takes_value: false
-        help: Display receiver clock offsets, for epochs that came with such information
+        help: |
+            Display receiver clock offsets for each epoch that came with such information, 
+            in given Observation RINEX file(s)
     - constellation:
         long: constellation
+        takes_value: false
+        help: Display identified Constellations in this file
+    - constellation-filter:
+        long: constellation-filter
         takes_value: true
-        help: Comma seperated list of constellation. Retain data that was measured against these constellations.
+        help: Comma seperated list of Constellations - retain only data recorded against those constellations
     - sampling-interval:
         long: sampling_interval
         takes_value: false
         help: Print sampling interval of this record
-    - sv:
-        long: sv
+    - sv-filter:
+        long: sv-filter
         takes_value: true
-        help: Comma separated Satellite Vehicule filter. Retain only matching Satellite Vehicules.
-    - codes:
-        short: c
-        long: codes 
-        takes_value: true
-        help: Comma separated Observable code filter - retain only matching Observables 
-    - lli:
-        long: lli
+        help: |
+            Comma separated Satellite Vehicule filter. Retain only matching Satellite Vehicules.
+            Example focus on R01: rinex-cli --sv-filter R01 -f rinex.txt
+            Example focus on R01,G26: rinex-cli --sv-filter R01,G26 -f rinex.txt
+    - lli-mask:
+        long: lli-mask
         takes_value: true 
         help: Apply LLI And() mask to entire record 
+    - ssi-range:
+        long: ssi-range
+        takes_value: false
+        help: Display range of SSI (RX signal strength) for given Observation File(s)
     - ssi:
         long: ssi
         takes_value: true 
@@ -143,7 +173,7 @@ args:
     - events:
         long: events
         takes_value: false 
-        help: List all epoch events registered in the record, mostly relevant to OBS records
+        help: Display epoch events registered in the record, only releavant on Observation Data records
     - event-filter:
         long: event-filter
         takes_value: true
@@ -151,17 +181,19 @@ args:
     - gaps:
         long: gaps
         takes_value: false
-        help: |
-            List all data gaps (larger than expected sampling interval)
+        help: Display (unexpected) data gaps - period without any data larger than expected sampling interval
     - largest-gap:
         long: largest-gap
         takes_value: false
-        help: Print largest data gap encountered in record
+        help: Display largest data gap encountered in given records
     - merge:
         short: m
         long: merge
         takes_value: false
-        help: Merge given files together. If analysis are performed, they will be performed on resulting record
+        help: |
+            Merge given files together. Avoid combining this one with other operations.
+            Example merge brdc01g with brdc02g into "rinex.txt": rinex-cli -m -f brdc01.g,brdc02.g
+            Example merge brdc01g with brdc02g into "brdc03.g": rinex-cli -m -f brdc01.g,brdc02.g -o brdc03.g
     - split:
         short: s
         long: split
@@ -178,17 +210,16 @@ args:
             Example: --split "2022-01-01 12:00:00"
             If an epoch flag must be matched, specify it also, 
             Example: --split "2022-01-01 12:00:00 Ok"
-    - splice:
-        long: splice
-        takes_value: true
-        help: Retain only desired epoch interval from given file
     - plot:
         short: p
         long: plot
-        help: Generate a plot (PNG) 
+        help: |
+            When no display arguments are given (like --observ for instance), 
+            the inner record(s) (possibly filtered and cleanedup) gets printed.
+            Use --plot to convert this into a graphical view instead of a terminal output.
     - pretty:
         long: pretty
-        help: Make JSON structures more readable
+        help: Make displayed structures more readable
     - teqc-plot:
         long: teqc-plot
         help: |
@@ -196,4 +227,5 @@ args:
             over the course of this file. X axis will span all epochs contained in this file (can be longer than 24h).
     - teqc-report:
         long: teqc-report
-        help: Generates a `teqc` like report where you can find similar information.
+        help: |
+            Generates a `teqc` like report where you can find similar information.
