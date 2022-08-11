@@ -276,6 +276,8 @@ any common epoch with zegv0010.21o
 rinex-cli --diff -f test_resources/OBS/V2/zegv0010.21o,test_resources/OBS/V2/delf0010.21o
 ```
 
+The operation is described in the API [right here](https://docs.rs/rinex/latest/rinex/struct.Rinex.html#method.diff_mut).
+
 ## Double Differential RINEX
 
 Double Differential RINEX is first a rnx(a) - rnx(b) operation, previously described,
@@ -290,6 +292,11 @@ and dual differentiate zegv0010.21o
 rinex-cli --ddiff -f test_resources/OBS/V2/zegv0010.21o,test_resources/OBS/V2/delf0010.21o
 ```
 
+With this implementation, the user has no mean to select the vehicule that gets designated as the "reference"
+in the last differentiation operation. 
+
+The operation is described in the API [right here](https://docs.rs/rinex/latest/rinex/struct.Rinex.html#method.double_diff_mut).
+
 ## Cycle slips
 
 Possible cycle slip events are described by the GNSS receiver.  
@@ -298,6 +305,14 @@ Print such information like this
 ```bash
 rinex-cli --cycle-slips -f test_resources/OBS/V2/zegv0010.21o
 ```
+
+Cycle slips determination is under development, by adding more data processing on top of the
+previously defined Double Differential RINEX algorithm.
+
+## RTK resolution
+
+RTK resolution (rover/base) is under development, by combining the previous double differential RINEX post processing,
+and adding a Navigation data analysis on top of it.
 
 ## Merge
 
