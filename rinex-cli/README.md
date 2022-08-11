@@ -91,9 +91,9 @@ cargo run -- --help
 ``` 
 
 Command line arguments order does not matter for the application.   
-(Input) `filepath` is the only mandatory argument, other flags are optional.
+`filepath` is the only mandatory argument, other flags are optional.
 
-Some arguments have an abbreviation:
+Major arguments have an abbreviation:
 
 ```bash
 cargo run --filepath /tmp/amel010.21g
@@ -101,19 +101,12 @@ cargo run -f /tmp/amel010.21g
 ```
 
 Some arguments support an array of values to be given.
-In this case, we use a comma seperated format to this day to describe the values.
+In this case, we use a comma seperated format to describe the values.
 Whitespaces are not allowed in the description
 
 ```bash
-rinex-cli --filepath /tmp/amel010.21g
-rinex-cli -f test_resources/OBS/V2/rovn0010.21o,test_resources/OBS/V3/DUTH0630.22O
-```
-
-Some arguments, like `filepath` for example, can take an array of values.
-In this case, we use comma separated enumeration like this:
-
-```bash
-cargo run -f /tmp/amel010.21g,/mnt/CBW100NLD_R_20210010000_01D_MN.rnx
+rinex-cli \
+     -f test_resources/OBS/V2/rovn0010.21o,test_resources/OBS/V3/DUTH0630.22O
 ```
 
 ## Tool philosophy
@@ -136,8 +129,9 @@ If no specific data or fields are requested to be displayed, then we expose the 
 rinex-cli -f /tmp/amel010.21g
 ``` 
 
-`-filter` operations can be conbimed to all operations, and will apply
-to all given file(s). For example running this command
+Several filtering operations exist, and they can be conbimed to all other operations.  
+This applies to all command line arguments terminated by `-filter`.  
+For example running this command
 will perform the previous operation but on reduced data
 
 ```bash
@@ -147,10 +141,13 @@ rinex-cli -f /tmp/amel010.21g --epoch --sv-filter R01,G01
 And this command gives a more meaningful record visualization
 
 ```bash
-rinex-cli -f /tmp/amel010.21g \
+rinex-cli --pretty -f test_resources/OBS/V2/amel010.21g \
       --decimate-interval 00:05:00 \
             --sv-filter G01
 ``` 
+
+When several files are given through `-fp`, we simply apply the previous
+to every single file.
 
 ## Output format
 
@@ -175,132 +172,94 @@ To reduce the record size, we use decimation
 - either by an integer ratio
 - or by a minimum epoch interval ("sampling interval") to respect
 
-Here is an example 
-every 30 second, we can reduce the data quantity by 2 with this command
-
+With this command, we reduce the record size by 2 :
 ```bash
 # print initial epochs
 rinex-cli --epoch --pretty -f test_resources/OBS/V2/zegv0010.21o
 
-# reduce
+# reduce by 2
 rinex-cli -f test_resources/OBS/V2/zegv0010.21o \
-    --decimate-interval 00:01:00
+    --decimate-interval 00:01:00 # 1' interval, 00:00:30 epochs get dropped out
+
+# with is actually equivalent to    
+rinex-cli -f test_resources/OBS/V2/zegv0010.21o \
+       --decimate-ratio 2 # but no knowledge of the resulting "sample" rate 
 ```
 
-## Epoch filter
+## Epoch events filter
 
 Some RINEX files like Observation Data 
 associate an epoch flag to each epoch.  
-A non `Ok` epoch flag describes a special event
-or external perturbations that happened at that sampling
-date. We provide the following arguments to
-easily discard unusual events or focus on them to
-figure things out:
+Filtering on epoch events is an easy and meaningful way to reduce the record size
 
-* --epoch-ok : will retain only valid epochs (EpochFlag::Ok).
-This can be a quick way to reduce the amount of data
-
-* --epoch-nok : will retain only non valid epoch (!EpochFlag::Ok). 
-
-Example :
-
-```bash
-cargo run -- -f /tmp/data.obs -c C1C,C2C # huge set
-cargo run -- -f /tmp/data.obs --epoch-ok -c C1C,C2C # reduce set 
-cargo run -- -f /tmp/data.obs --epoch-nok -c C1C,C2C # focus on weird events 
-```
+* --epoch-ok-filter : will only retain valid epochs
+* --epoch-nok-filter : will only retain epochs
+where the associated flag is not Ok (> 0)
 
 ## Satellite vehicule filter
 
-`--sv` is one way to focus on specific Satellite Vehicule or constellation of interest.
-Use comma separated description!
-
-Example:
-
-```shell
-cargo run -- --filepath /tmp/data.obs --epoch-ok \
-    --sv G01,G2,E06,E24,R24
-```
-
-Will only retain (all) data that has a EpochFlag::Ok 
-from GPS 1+2, GAL 6+24 and GLO 24 vehicules.
-
-## Constellation filter
-
-Constellation filter is not feasible at the moment.
-User can only use `sv` filter to do that at the moment.
-
-## LLI : RX condition filter
-
-Observation data might have LLI flags attached to them.  
-It is possible to filter data that have a matching LLI flag,
-for instance 0x01 means Loss of Lock at given epoch:
-
-```shell
-cargo run -- -f /tmp/data.obs --lli 1 --sv R01 > output.txt
-```
-
-## SSI: signal "quality" filter
-
-Observation data might have an SSI indication attached to them.
-It is possible to filter data according to this value and
-retain only data with a certain "quality" attached to them.
-
-For example, with this value, we only retain data with SSI >= 5
-that means at least 30 dB SNR 
-
-```shell
-cargo run -- -f /tmp/data.obs --ssi 1 --sv R01 > output.txt
-```
-
-## Data filter
-
-We use the -c or --code argument to filter data out
-and only retain data of interest.
-
-* Observation / meteo data: we use the OBS code directly
-* Navigation data: we use the official identification keyword,
-refer to the known
-[NAV database](https://github.com/gwbres/rinex/blob/main/navigation.json)
-
-
-Example:
+It is possible to filter by constellation or by vehicule of interest
 
 ```bash
-cargo run -f CBW100NLD_R_20210010000_01D_MN.rnx -c L1C,S1P 
+# display encountered constellations and space vehicules
+rinex-cli --constellations --sv \
+       -f test_resources/OBS/V2/zegv0010.21o
+
+# focus on Glonnass
+rinex-cli  --pretty  --constellation-filter GLO \
+             -f test_resources/OBS/V2/zegv0010.21o
+
+# focus on G10, R09 and R08
+crinex-cli  --pretty --sv-filter G10,R09,R08 \
+     -f test_resources/OBS/V2/zegv0010.21o
 ```
 
-## Cumulated filters
+## Signal condition filters
 
-Because all arguments can be cumulated, one can 
-create efficient data filter and focus on data of interest: 
+Observation data might have an "LLI" flag attached to them.
+It is possible to apply an And() mask on this field. In this case,
+all epochs that did not come with an LLI flag get also dropped out.
 
-```bash
-cargo run -f CBW100NLD_R_20210010000_01D_MN.rnx \
-    --lli 0 # "OK" \
-        --ssi 5 # not bad \
-            -c C1C,C2C,C1X # PR measurements only :) \
-                --sv G01,G2,G24,G25 # GPS focus !
+In this example, we focus on epochs where a `Loss of Lock` event happened
+
+```shell
+rinex-cli --pretty --lli-mask 1 --sv R01 \ 
+          -f test_resources/OBS/V2/zegv0010.21o
 ```
 
-## `teqc` operations
+SSI field is another data field that might come with an observation
+and it gives the estimated receiver power / SNR at the sampling instant.
 
-This tool supports special operations that only
-`teqc` supports at the moment. Therefore,
-it can be an efficient alternative to this program.
+It is possible to filter data on minimum signal strength, which
+is equivalent to a data "quality" filter
 
-All of the special operations actually create an output file.
+With the following command, we only retain data with SSI >= 5
+that means at least 30 dB SNR. 
 
-## `Merge` special operation
+```shell
+rinex-cli --pretty -f test_resources/OBS/V2/zegv0010.21o \
+        --ssi-filter 5 --sv-filter R01
+```
 
-It is possible to perform merging operations with `-m` or `--merge`, in `teqc` similar fashion.
+## Observables
 
-When merging, if analysis are to be performed, they will be performed on the resulting record.
-
-For example:
+It is possible to filter on "observables", ie., physics or data of interest.
 
 ```bash
-cargo run -f file1.rnx,/tmp/file2.rnx
+# list encountered "observables"
+rinex-cli -f test_resources/OBS/V3/CBW100NLD_R_20210010000_01D_MN.rnx --observ
+
+# extract raw phase data and pseudo range only
+rinex-cli -f test_resources/OBS/V2/zegv0010.21o  \
+    --observ-filter C1
+```
+
+## Merge
+
+Merge several RINEX toghether. We use the `teqc` identifiers to describe the merge operatio
+
+```bash
+rinex-cli -f file1.rnx,/tmp/file2.rnx
 ```
 
 ## `Split` special operation
