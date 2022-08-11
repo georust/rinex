@@ -889,6 +889,13 @@ impl Rinex {
         }
     }
     
+    /// [merge] immutable implementation
+    pub fn merge (&self, rhs: &Self) -> Result<Self, merge::MergeError> {
+        let mut s = self.clone();
+        s.merge_mut(rhs)?;
+        Ok(s)
+    }
+    
     /// Retains only data that have an Ok flag associated to them. 
     pub fn epoch_ok_filter_mut (&mut self) {
         if !self.is_observation_rinex() {
