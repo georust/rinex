@@ -8,8 +8,9 @@ args:
         required: false 
         takes_value: true
         help: |
-            List of local RINEX files, seperated by a comma.
+            Local RINEX file. 
             Example: --filepath AMEL00NLD_R_20210010000_01D_MN.rnx
+            To pass several files at once, use a comma separated descriptor
             Example: -f amel0010.21g,BRDC00GOP_R_20210010000_01D_MN.rnx.gz 
     - output:
         long: output
