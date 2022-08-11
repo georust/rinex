@@ -5,7 +5,7 @@
 use clap::App;
 use clap::load_yaml;
 use std::str::FromStr;
-use gnuplot::{Figure}; // Caption};
+//use gnuplot::{Figure}; // Caption};
 use itertools::Itertools;
 //use gnuplot::{Color, PointSymbol, LineStyle, DashType};
 //use gnuplot::{PointSize, LineWidth}; // AxesCommon};
@@ -306,7 +306,6 @@ fn run_single_file_op (rnx: &rinex::Rinex, matches: clap::ArgMatches, print_allo
 /// Execute `teqc` ops on a single file
 fn run_single_file_teqc_op (rnx: &rinex::Rinex, matches: clap::ArgMatches) {
     let ascii_plot = matches.is_present("ascii-plot");
-    let merge = matches.is_present("merge");
     let split = matches.is_present("split");
     let split_epoch : Option<epoch::Epoch> = match matches.value_of("split") {
         Some(s) => {
@@ -326,6 +325,7 @@ fn run_single_file_teqc_op (rnx: &rinex::Rinex, matches: clap::ArgMatches) {
 /// Execute user requests on two files
 fn run_double_file_op (rnx_a: &rinex::Rinex, rnx_b: &rinex::Rinex, matches: clap::ArgMatches) {
     let pretty = matches.is_present("pretty");
+    let merge = matches.is_present("merge");
     let diff = matches.is_present("diff");
     let ddiff = matches.is_present("ddiff");
     let confirm_cycle_slips = matches.is_present("confirm-cycle-slips");
@@ -358,11 +358,15 @@ fn run_double_file_op (rnx_a: &rinex::Rinex, rnx_b: &rinex::Rinex, matches: clap
             }
         }*/
     }
-    /*if merge {
-        if q0.merge(q1).is_err() {
-            panic!("Failed to merge {} into {}", filepaths[i*2], filepaths[i*2+1]);
+    if merge {
+        if let Ok(rnx_c) = rnx_a.merge(rnx_b) {
+            if rnx_c.to_file("merge.rnx").is_err() {
+                panic!("failed to generate new file");
+            }
+        } else {
+            panic!("merge() failed");
         }
-    }*/
+    }
 }
 
 pub fn main () -> Result<(), Error> {
@@ -403,7 +407,6 @@ pub fn main () -> Result<(), Error> {
     ////////////////////////////////////////
     // Parse, filter, resample
     ////////////////////////////////////////
-    let mut index = 0;
     for fp in &filepaths {
         let path = std::path::PathBuf::from(fp);
         //fig.set_title(path.file_name().unwrap().to_str().unwrap());
@@ -424,7 +427,6 @@ pub fn main () -> Result<(), Error> {
         resample_single_file(&mut rinex, matches.clone());
         apply_filters(&mut rinex, matches.clone());
         queue.push(rinex);
-        index += 1
     }
 
     /////////////////////////////////////

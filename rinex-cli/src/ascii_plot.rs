@@ -11,7 +11,7 @@ pub const DEFAULT_X_WIDTH :u32 = 72;
 
 fn copy (x_width: u32, s: &str) -> String {
     let mut result= String::new();
-    for i in 0..x_width {
+    for _ in 0..x_width {
         result.push_str(s);
     }
     result
@@ -65,8 +65,8 @@ pub fn ascii_plot (x_width: u32, obs_rinex: &Rinex, nav_rinex: Option<Rinex>) ->
         let mut code_is_l1 = false;
         let mut code_is_l2 = false;
         let mut clock_slip = false;
-        let mut no_obs = true;
-        let mut above_elev = true;
+        //let no_obs = true;
+        //let mut above_elev = true;
         let mut has_data = false;
         let mut data_missing = false;
         // "C" : clock slip
@@ -93,9 +93,9 @@ pub fn ascii_plot (x_width: u32, obs_rinex: &Rinex, nav_rinex: Option<Rinex>) ->
                 // use them to determine elevation angle
                 for (e, vvehicules) in elev_angles.iter() {
                     if *e == *epoch {
-                        for (vvehicule, angle) in vvehicules.iter() {
+                        for (vvehicule, _angle) in vvehicules.iter() {
                             if *vvehicule == *sv {
-                                above_elev = *angle > 30.0 ; // TODO
+                                //above_elev = *angle > 30.0 ; // TODO
                             }
                         }
                     }
