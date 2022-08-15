@@ -3126,12 +3126,16 @@ impl Rinex {
         }
         Ok(())
     }
+    
+    /// Immutable implementation of [double_diff_mut_ref_sv].
+    pub fn double_diff_ref_sv (&self, rhs: &Self, refs_sv: Vec<sv::Sv>) -> Result<Self, DiffError> {
+        let mut s = self.clone();
+        s.double_diff_mut_ref_sv(rhs, refs_sv);
+        Ok(s)
+    }
 
     /// Immutable implementation of [double_diff_mut].
     pub fn double_diff (&self, rhs: &Self) -> Result<Self, DiffError> {
-        if !self.is_observation_rinex() || !rhs.is_observation_rinex() {
-            return Err(DiffError::NotObsRinex)
-        }
         let mut c = self.diff(rhs)?.clone();
         c.double_diff_mut(rhs)?;
         Ok(c)
