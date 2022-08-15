@@ -6,6 +6,7 @@ use rinex::constellation::Constellation;
 use rinex::observation::record::LliFlags;
 
 use itertools::Itertools;
+use std::convert::TryInto;
 use std::collections::BTreeMap;
 
 pub const DEFAULT_X_WIDTH :u32 = 72;
@@ -18,12 +19,20 @@ fn copy (x_width: u32, s: &str) -> String {
     result
 }
 
-fn x_axis (x_width: u32) -> String {
-    copy(x_width, "-")
-}
-
 fn blank (x_width: u32) -> String {
     copy(x_width, " ")
+}
+
+fn x_axis (x_width: u32) -> String {
+    let mut string = copy(x_width, "-");
+    let nb_spacing = 8;
+    let spacing_width = x_width / nb_spacing;
+    for i in 1..nb_spacing {
+        let min : usize = (i*spacing_width).try_into().unwrap();
+        let max : usize = (i*spacing_width +1).try_into().unwrap();
+        string.replace_range(min..max, "|");
+    }
+    string.clone()
 }
 
 pub fn ascii_plot (x_width: u32, obs_rinex: &Rinex, nav_rinex: Option<Rinex>) -> String {
@@ -256,7 +265,7 @@ pub fn ascii_plot (x_width: u32, obs_rinex: &Rinex, nav_rinex: Option<Rinex>) ->
     // bottom axis
     result.push_str("   +");
     result.push_str(&x_axis(x_width));
-    result.push_str("\n");
+    result.push_str("+\n");
     ///////////////////////////////////////////////////
 
     ///////////////////////////////////////////////////
