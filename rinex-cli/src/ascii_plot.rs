@@ -5,6 +5,7 @@ use rinex::channel::Channel;
 use rinex::constellation::Constellation;
 use rinex::observation::record::LliFlags;
 
+use itertools::Itertools;
 use std::collections::BTreeMap;
 
 pub const DEFAULT_X_WIDTH :u32 = 72;
@@ -37,8 +38,11 @@ pub fn ascii_plot (x_width: u32, obs_rinex: &Rinex, nav_rinex: Option<Rinex>) ->
     }
     
     // epochs list
-    let epochs = obs_rinex.epochs();
+    let mut epochs = obs_rinex.epochs();
+    epochs.sort();
     let time_span = epochs[epochs.len()-1].date - epochs[0].date;
+    let px_secs = time_span.num_seconds() as u32 / x_width; // nb of secs per px
+    let dt_granularity = chrono::Duration::from_std(std::time::Duration::from_secs(px_secs.into())).unwrap();
     
     // list vehicules, on an epoch basis
     let mut vehicules = obs_rinex.space_vehicules();
@@ -48,12 +52,11 @@ pub fn ascii_plot (x_width: u32, obs_rinex: &Rinex, nav_rinex: Option<Rinex>) ->
     let record = obs_rinex.record
         .as_obs()
         .unwrap();
-    let px_secs = time_span.num_seconds() as u32 / x_width; // nb of secs per px
-    let granularity_dt = chrono::Duration::from_std(std::time::Duration::from_secs(px_secs.into())).unwrap();
     
     // print Sv Header / upper axis
-    result.push_str(" SV+");
+    result.push_str(" Sv+");
     result.push_str(&x_axis(x_width));
+    result.push_str("+Sv");
     result.push_str("\n");
 
     for sv in vehicules.iter() {
@@ -67,8 +70,7 @@ pub fn ascii_plot (x_width: u32, obs_rinex: &Rinex, nav_rinex: Option<Rinex>) ->
         let mut clock_slip = false;
         //let no_obs = true;
         //let mut above_elev = true;
-        let mut has_data = false;
-        let mut data_missing = false;
+        let mut epoch_empty = false;
         // "C" : clock slip
         // "I" : iono delay phase slip
         // "-" satellite was above elevation mask, but no data was apparently recorded by the receiver
@@ -80,15 +82,15 @@ pub fn ascii_plot (x_width: u32, obs_rinex: &Rinex, nav_rinex: Option<Rinex>) ->
         // "*" phase and/or code data for SV is L1, P1, L2, P2 & A/S is off; if qc full, satellite was above elevation mask 
         // "," phase and/or code data for SV is L1 and C/A only & A/S is on; if qc full, satellite was above elevation mask 
         // ";" phase and/or code data for SV is L1 and P1 only & A/S is on; if qc full, satellite was above elevation mask 
-        // "o" phase and/or code data for SV is L1, C/A, L2, P2 & A/S is on; if qc full, satellite was above elevation mask 
-        // "y" phase and/or code data for SV is L1, P1, L2, P2 & A/S is on; if qc full, satellite was above elevation mask 
+
         // "L" Loss of Lock indicator was set by receiver for L1 and/or L2; detection is turned off with -lli option 
         //  _ satellite between horizon and elevation mask with no data collected by receiver; indicator is turned off with -hor option 
         // (blank) qc lite: no satellite tracked
         // --> browse epochs
         for (epoch, (_, vehicules)) in record.iter() {
+            epoch_empty = true;
             if let Some(map) = vehicules.get(sv) {
-                has_data |= true;
+                epoch_empty = false;
                 // if we do have ephemeris attached
                 // use them to determine elevation angle
                 for (e, vvehicules) in elev_angles.iter() {
@@ -100,6 +102,8 @@ pub fn ascii_plot (x_width: u32, obs_rinex: &Rinex, nav_rinex: Option<Rinex>) ->
                         }
                     }
                 }
+                // determine observable related info:
+                // L1/L2 code? LLI flag..
                 for (obscode, data) in map.iter() {
                     if let Ok(channel) = Channel::from_observable(Constellation::GPS, obscode) {
                         match channel {
@@ -118,28 +122,19 @@ pub fn ascii_plot (x_width: u32, obs_rinex: &Rinex, nav_rinex: Option<Rinex>) ->
                         anti_spoofing |= lli.intersects(LliFlags::UNDER_ANTI_SPOOFING);
                     }
                 }
-            } else {
-                data_missing |= true;
             }
             
-            if epoch.date - prev_epoch.date >= granularity_dt {
-                // end of time granularity
-                // make decision of which marker to use
-                let mut marker = " ";
-                if !has_data {
-                    // period completely empty
-                    marker = " "
-                } else {
-                    if data_missing {
-                        // period was partial
-                        marker = "^"
-
-                    } else {
-                        // complete period
+            let dt = epoch.date - prev_epoch.date;
+            if dt >= dt_granularity { // time to place new marker(s)
+                let n_markers = dt.num_seconds() / dt_granularity.num_seconds(); // nb of markers to place
+                                                // this covers smaller files, with few epochs
+                for _ in 0..n_markers {
+                    let mut marker = " "; // epoch assumed empty
+                    if !epoch_empty {
                         if loss_of_lock { // loss of lock prevails
                             marker = "L";
                         } else {
-                            if clock_slip { // clock slip prevails
+                            if clock_slip { // possible clock slip prevails
                                 marker = "C";
                             } else { // OBS
                                if anti_spoofing { // A/S ?
@@ -150,24 +145,96 @@ pub fn ascii_plot (x_width: u32, obs_rinex: &Rinex, nav_rinex: Option<Rinex>) ->
                             }
                         }
                     }
-                }
-                result.push_str(marker);
-                prev_epoch = epoch.clone();
-            } // marker granularity
-        } // OBS record browsing
-        // conclude svnn line
+                    result.push_str(marker);
+                } // markers
+            } // epoch granularity
+            prev_epoch = epoch.clone();
+        } // epochs browsing
+        // --> conclude svnn line
         result.push_str(&format!("|{}{:>2}\n", sv.constellation.to_1_letter_code(), sv.prn));
     }// all vehicules in record
 
-    // final, "Clk" line
+    ///////////////////////////////////////////////////
+    // "-dn" line
+    // emphasizes missing sv per epoch
+    result.push_str("-dn|");
+    let mut prev_epoch = epochs[0];
+    for (e, (_, vvehicules)) in record.iter() {
+        let mut n_missing = 0;
+        for sv in vehicules.iter() {
+            if !vvehicules.keys().contains(&sv) {
+                n_missing += 1;
+            }
+        }
+        let dt = e.date - prev_epoch.date;
+        if dt >= dt_granularity { // time to place new marker(s)
+            let n_markers = dt.num_seconds() / dt_granularity.num_seconds();
+            for _ in 0..n_markers {
+                result.push_str(&n_missing.to_string());
+            } // markers
+        } // epoch granularity
+        prev_epoch = e.clone();
+    } // epochs browsing
+    result.push_str("|-dn\n");
+    ///////////////////////////////////////////////////
+    
+    ///////////////////////////////////////////////////
+    // +dn line: ??
+    ///////////////////////////////////////////////////
+    result.push_str("+dn|");
+    let mut prev_epoch = epochs[0];
+    for (e, (_, _)) in record.iter() {
+        let dt = e.date - prev_epoch.date;
+        if dt >= dt_granularity { // time to place new marker(s)
+            let n_markers = dt.num_seconds() / dt_granularity.num_seconds();
+            for _ in 0..n_markers {
+                result.push_str(" ");
+            } // markers
+        } // epoch granularity
+        prev_epoch = e.clone();
+    } // epochs browsing
+    result.push_str("|+dn\n");
+
+/*
++10|ba8abbaabb9aa99999899876988888788788bbaabbbbbba89889988787677668887999ab|+10
+*/
+    ///////////////////////////////////////////////////
+    // +DD line: emphasize receiver capacity
+    //     versus vehicules currently seen
+    //      Currently we assume a +12 receiver capacity
+    //      which is the default teqc value,
+    //      but we should have some interface for the user
+    //      to set this value
+    ///////////////////////////////////////////////////
+    result.push_str("+12|");
+    let mut prev_epoch = epochs[0];
+    for (e, (_, vehicules)) in record.iter() {
+        let n_seen = vehicules.len();
+        let dt = e.date - prev_epoch.date;
+        if dt >= dt_granularity { // time to place new marker(s)
+            let n_markers = dt.num_seconds() / dt_granularity.num_seconds();
+            for _ in 0..n_markers {
+                result.push_str(&format!("{:x}", std::cmp::min(12, n_seen)));
+            } // markers
+        } // epoch granularity
+        prev_epoch = e.clone();
+    } // epochs browsing
+    result.push_str("|+12\n");
+
+    ///////////////////////////////////////////////////
+    // "Clk" line
     result.push_str("Clk|");
     result.push_str("|Clk\n");
-    
+    ///////////////////////////////////////////////////
+
+    ///////////////////////////////////////////////////
     // bottom axis
     result.push_str("   +");
     result.push_str(&x_axis(x_width));
     result.push_str("\n");
+    ///////////////////////////////////////////////////
 
+    ///////////////////////////////////////////////////
     // time span reminder
     result.push_str(&epochs[0].date.format("    %H:%M:%S").to_string());
     result.push_str(&blank(x_width - 16));
@@ -177,6 +244,6 @@ pub fn ascii_plot (x_width: u32, obs_rinex: &Rinex, nav_rinex: Option<Rinex>) ->
     result.push_str(&blank(x_width - 22));
     result.push_str(&epochs[epochs.len()-1].date.format("%Y %b %d").to_string());
     result.push_str("\n");
-
+    ///////////////////////////////////////////////////
     result 
 }

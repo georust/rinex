@@ -329,6 +329,23 @@ fn run_double_file_op (rnx_a: &rinex::Rinex, rnx_b: &rinex::Rinex, matches: clap
     let diff = matches.is_present("diff");
     let ddiff = matches.is_present("ddiff");
     let confirm_cycle_slips = matches.is_present("confirm-cycle-slips");
+
+    let ref_sv: Option<Vec<Sv>> = match matches.value_of("ref_sv") {
+        Some(s) => {
+            let sv: Vec<&str> = s.split(",").collect();
+            let mut sv_filters : Vec<Sv> = Vec::new();
+            for s in sv {
+                let constell = Constellation::from_str(&s[0..1])
+                    .unwrap();
+                let prn = u8::from_str_radix(&s[1..], 10)
+                    .unwrap();
+                sv_filters.push(Sv::new(constell,prn))
+            }
+            Some(sv_filters)
+        },
+        _ => None,
+    };
+
     if diff {
         if let Ok(rnx) = rnx_a.diff(rnx_b) {
             // print remaining record data
@@ -340,12 +357,23 @@ fn run_double_file_op (rnx_a: &rinex::Rinex, rnx_b: &rinex::Rinex, matches: clap
         } 
     }
     if ddiff {
-        if let Ok(rnx) = rnx_a.double_diff(rnx_b) {
-            // print remaining record data
-            if pretty {
-                println!("{}", serde_json::to_string_pretty(&rnx.record).unwrap())
-            } else {
-                println!("{}", serde_json::to_string(&rnx.record).unwrap())
+        if let Some(references) = ref_sv {
+            if let Ok(rnx) = rnx_a.double_diff_ref_sv(rnx_b, references) {
+                // print remaining record data
+                if pretty {
+                    println!("{}", serde_json::to_string_pretty(&rnx.record).unwrap())
+                } else {
+                    println!("{}", serde_json::to_string(&rnx.record).unwrap())
+                }
+            }
+        } else {
+            if let Ok(rnx) = rnx_a.double_diff(rnx_b) {
+                // print remaining record data
+                if pretty {
+                    println!("{}", serde_json::to_string_pretty(&rnx.record).unwrap())
+                } else {
+                    println!("{}", serde_json::to_string(&rnx.record).unwrap())
+                }
             }
         }
     } 
