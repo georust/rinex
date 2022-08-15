@@ -195,9 +195,6 @@ pub fn ascii_plot (x_width: u32, obs_rinex: &Rinex, nav_rinex: Option<Rinex>) ->
     } // epochs browsing
     result.push_str("|+dn\n");
 
-/*
-+10|ba8abbaabb9aa99999899876988888788788bbaabbbbbba89889988787677668887999ab|+10
-*/
     ///////////////////////////////////////////////////
     // +DD line: emphasize receiver capacity
     //     versus vehicules currently seen
@@ -222,8 +219,36 @@ pub fn ascii_plot (x_width: u32, obs_rinex: &Rinex, nav_rinex: Option<Rinex>) ->
     result.push_str("|+12\n");
 
     ///////////////////////////////////////////////////
+    // The "Pos" line records the success or non-success 
+    // of calculated code positions for the antenna at the different epochs. 
+    // Generally, you should see an o recorded for each bin in which a position calculation was successful.
+    ///////////////////////////////////////////////////
+    result.push_str("Pos|");
+    for (e, (_, _)) in record.iter() {
+        let dt = e.date - prev_epoch.date;
+        if dt >= dt_granularity { // time to place new marker(s)
+            let n_markers = dt.num_seconds() / dt_granularity.num_seconds();
+            for _ in 0..n_markers {
+                result.push_str("o");
+            } // markers
+        } // epoch granularity
+        prev_epoch = e.clone();
+    } // epochs browsing
+    result.push_str("|Pos\n");
+
+    ///////////////////////////////////////////////////
     // "Clk" line
     result.push_str("Clk|");
+    for (e, (_, _)) in record.iter() {
+        let dt = e.date - prev_epoch.date;
+        if dt >= dt_granularity { // time to place new marker(s)
+            let n_markers = dt.num_seconds() / dt_granularity.num_seconds();
+            for _ in 0..n_markers {
+                result.push_str(" ");
+            } // markers
+        } // epoch granularity
+        prev_epoch = e.clone();
+    } // epochs browsing
     result.push_str("|Clk\n");
     ///////////////////////////////////////////////////
 
