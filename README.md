@@ -17,8 +17,8 @@ Rust tool suites to parse, analyze, manipulate `RINEX` files
 
 * [`rinex-cli`](rinex-cli/) is a command line application that intends to expose
 all the core libraries capacities to the end user, in an easy-to-use and efficient fashion.
-It can be used to analyze files or perform operations like `teqc`. See the **CLI**
-table down below for more information.
+It can be used to analyze files or perform some of the `teqc` operations, RINEX post processing
+with this tool is currently under development.
 
 * [`ublox-rnx`](ublox-rnx) is an application (CLI) that connects to a `Ublox`
 receiver and generates RINEX data quickly & easily.
@@ -64,7 +64,7 @@ and the [rinex](rinex/) crate.
 
 :heavy_minus_sign: no restrictions. We can parse a  CRINEX or a IONEX named foo.txt as long as it follows the standards.      
 :heavy_check_mark: natively supported   
-:construction, under development  
+:construction:, under development  
 
 ## Record (high level) operations
 
@@ -81,8 +81,7 @@ or through the command line interface. Refer either
 <img align="right" width="400" src="https://upload.wikimedia.org/wikipedia/commons/4/46/SBAS_Service_Areas.png">
 
 * `--with-geo`   
-includes the `rust::geo` crate, 
-and unlocks the    
+unlocks the 
 `augmentation::sbas_selection_helper()` method,
 to select the most appropriate `SBAS` augmentation system for
 a given (usually current..) location on Earth.
