@@ -49,7 +49,7 @@ Here is the list of operations that this tool is capable of performing,
 that usually people use `teqc` almost exclusively to perform, to this day
 
 - [merge](https://github.com/gwbres/rinex/blob/main/rinex-cli/README.md#merge)
-several RINEX toghether into a single file.
+several RINEX together into a single file.
 
 - [decimate](https://github.com/gwbres/rinex/blob/main/rinex-cli/README.md#decimate)
 RINEX record to reduce the quantity of data to analyze
@@ -330,7 +330,7 @@ and adding a Navigation data analysis on top of it.
 
 ## Merge
 
-Merge several RINEX toghether. We use the `teqc` identifiers to describe the merge operation
+Merge several RINEX together. We use the `teqc` identifiers to describe the merge operation
 
 ```bash
 rinex-cli -m -f test_resources/OBS/V2/zegv0010.21o,test_resources/OBS/V2/delf0010.21o
