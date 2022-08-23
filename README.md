@@ -46,7 +46,7 @@ and the [rinex](rinex/) crate.
 **CLI** means exposed to [`rinex-cli`](rinex-cli/) for easy parsing & quick analysis  
 **UBX** means exposed to [`ublox-rnx`](ublox-rnx/) for quick and easy data production from a UBLOX receiver  
 
-:heavy_check_mark: supported   
+:heavy_check_mark: all revisions supported   
 :heavy_minus_sign: not applicable   
 :sparkle: parser will work, not fully stabilized: don't expect something extraordinary   
 :construction: under development: parser will fail
