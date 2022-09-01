@@ -3,6 +3,7 @@
 //! Based on crate <https://github.com/gwbres/rinex>     
 //! Homepage: <https://github.com/gwbres/rinex-cli>
 use clap::App;
+use clap::AppSettings;
 use clap::load_yaml;
 use std::str::FromStr;
 //use gnuplot::{Figure}; // Caption};
@@ -399,7 +400,8 @@ fn run_double_file_op (rnx_a: &rinex::Rinex, rnx_b: &rinex::Rinex, matches: clap
 
 pub fn main () -> Result<(), Error> {
 	let yaml = load_yaml!("cli.yml");
-    let app = App::from_yaml(yaml);
+    let app = App::from_yaml(yaml)
+.setting(AppSettings::ArgRequiredElseHelp);
 	let matches = app.get_matches();
 
     // General 
