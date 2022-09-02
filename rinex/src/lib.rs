@@ -167,13 +167,32 @@ impl Rinex {
         }
     }
 
-    /// Returns a copy of self but with given header attributes
+    /// Returns a copy of self with given header attributes
     pub fn with_header (&self, header: header::Header) -> Self {
         Rinex {
             header,
             record: self.record.clone(),
             comments: self.comments.clone(),
         }
+    }
+
+    /// Replaces header section
+    pub fn replace_header (&mut self, header: header::Header) {
+        self.header = header.clone();
+    }
+
+    /// Returns a copy of self with given internal record
+    pub fn with_record (&self, record: record::Record) -> Self {
+        Rinex {
+            header: self.header.clone(),
+            comments: self.comments.clone(),
+            record: record,
+        }
+    }
+
+    /// Replaces internal record
+    pub fn replace_record (&mut self, record: record::Record) {
+        self.record = record.clone();
     }
 
     /// Converts self to CRINEX compatible format.
@@ -1187,7 +1206,7 @@ impl Rinex {
     /// // apply conversion
     /// let distances = rinex.pseudo_range_to_distance(offsets);
     /// ```
-    pub fn space_vehicule_clocks_offset (&self) -> BTreeMap<epoch::Epoch, BTreeMap<sv::Sv, f64>> {
+    pub fn space_vehicules_clock_offset (&self) -> BTreeMap<epoch::Epoch, BTreeMap<sv::Sv, f64>> {
         if !self.is_navigation_rinex() {
             return BTreeMap::new(); // nothing to extract
         }
@@ -1249,7 +1268,7 @@ impl Rinex {
     ///     }
     /// }
     /// ```
-    pub fn space_vehicule_clocks_drift (&self) -> BTreeMap<epoch::Epoch, BTreeMap<sv::Sv, (f64,f64,f64)>> {
+    pub fn space_vehicules_clock_drift (&self) -> BTreeMap<epoch::Epoch, BTreeMap<sv::Sv, (f64,f64,f64)>> {
         if !self.is_navigation_rinex() {
             return BTreeMap::new(); // nothing to extract
         }
@@ -3130,7 +3149,7 @@ impl Rinex {
     /// Immutable implementation of [double_diff_mut_ref_sv].
     pub fn double_diff_ref_sv (&self, rhs: &Self, refs_sv: Vec<sv::Sv>) -> Result<Self, DiffError> {
         let mut s = self.clone();
-        s.double_diff_mut_ref_sv(rhs, refs_sv);
+        s.double_diff_mut_ref_sv(rhs, refs_sv)?;
         Ok(s)
     }
 
