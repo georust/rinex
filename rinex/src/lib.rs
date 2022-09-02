@@ -325,7 +325,7 @@ impl Rinex {
     pub fn from_file (path: &str) -> Result<Rinex, Error> {
         // Grab first 80 bytes to fully determine the BufferedReader attributes.
         // We use the `BufferedReader` wrapper for efficient file browsing (.lines())
-        // and at the same time, integrated (hidden in .lines() iteration) decompression.
+        // and builtin CRINEX decompression 
         let mut reader = BufferedReader::new(path)?;
         let mut buffer = [0; 80]; // 1st line mandatory size
         let mut line = String::new(); // first line
@@ -356,6 +356,7 @@ impl Rinex {
             // --> enhance buffered reader
             //     with hatanaka M capacity
             reader = reader.with_hatanaka(8)?; // M = 8 is more than enough
+                                            // `CRX2RNX` has M=5 builtin
         }
 
         // --> parse header fields 
@@ -376,7 +377,7 @@ impl Rinex {
     /// Returns true if this is an ATX RINEX 
     pub fn is_antex_rinex (&self) -> bool { self.header.rinex_type == types::Type::AntennaData }
     
-    /// Returns true if this is a CLOCK RINX
+    /// Returns true if this is a CLOCK RINEX
     pub fn is_clocks_rinex (&self) -> bool { self.header.rinex_type == types::Type::ClockData }
 
     /// Returns true if this is an IONEX file
@@ -388,7 +389,7 @@ impl Rinex {
     /// Retruns true if this is a NAV RINEX
     pub fn is_navigation_rinex (&self) -> bool { self.header.rinex_type == types::Type::NavigationData }
 
-    /// Retruns true if this is an OBS RINX
+    /// Retruns true if this is an OBS RINEX
     pub fn is_observation_rinex (&self) -> bool { self.header.rinex_type == types::Type::ObservationData }
 
     /// Returns `epoch` of first observation
