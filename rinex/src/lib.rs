@@ -1188,7 +1188,7 @@ impl Rinex {
     /// ];
     /// rinex
     ///     .space_vehicule_filter_mut(filter.clone());
-    /// let mut offsets = rinex.space_vehicule_clocks_offset();
+    /// let mut offsets = rinex.space_vehicules_clock_offset();
     /// // example: apply a static offset to all clock offsets
     /// for (e, sv) in offsets.iter_mut() { // (epoch, vehicules)
     ///     for (sv, offset) in sv.iter_mut() { // vehicule, clk_offset
@@ -1260,7 +1260,7 @@ impl Rinex {
     /// ];
     /// rinex
     ///     .space_vehicule_filter_mut(filter.clone());
-    /// let mut drifts = rinex.space_vehicule_clocks_drift();
+    /// let mut drifts = rinex.space_vehicules_clock_drift();
     /// // example: adjust clock offsets and drifts
     /// for (e, sv) in drifts.iter_mut() { // (epoch, vehicules)
     ///     for (sv, (offset, dr, drr)) in sv.iter_mut() { // vehicule, (offset, drift, drift/dt)
@@ -2267,7 +2267,7 @@ impl Rinex {
     /// local clock offset and distant clock offsets.
     /// We can only produce such data if local clock offset was found
     /// for a given epoch, and related distant clock offsets were given.
-    /// Distant clock offsets can be obtained with [space_vehicule_clocks_offset].
+    /// Distant clock offsets can be obtained with [space_vehicules_clock_offset].
     /// Real distances are extracted on an epoch basis, and per space vehicule.
     /// This method has no effect on non observation data.
     /// 
@@ -2295,7 +2295,7 @@ impl Rinex {
     /// rinex
     ///     .space_vehicule_filter_mut(filter.clone());
     /// // extract distant clock offsets
-    /// let sv_clk_offsets = rinex.space_vehicule_clocks_offset();
+    /// let sv_clk_offsets = rinex.space_vehicules_clock_offset();
     /// let rinex = Rinex::from_file("../test_resources/OBS/V3/ACOR00ESP_R_20213550000_01D_30S_MO.rnx");
     /// let mut rinex = rinex.unwrap();
     /// // apply the same filter
