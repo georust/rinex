@@ -328,8 +328,6 @@ fn run_double_file_op (rnx_a: &rinex::Rinex, rnx_b: &rinex::Rinex, matches: clap
     let pretty = matches.is_present("pretty");
     let merge = matches.is_present("merge");
     let diff = matches.is_present("diff");
-    let ddiff = matches.is_present("ddiff");
-    let confirm_cycle_slips = matches.is_present("confirm-cycle-slips");
 
     let ref_sv: Option<Vec<Sv>> = match matches.value_of("ref_sv") {
         Some(s) => {
@@ -356,36 +354,6 @@ fn run_double_file_op (rnx_a: &rinex::Rinex, rnx_b: &rinex::Rinex, matches: clap
                 println!("{}", serde_json::to_string(&rnx.record).unwrap())
             }
         } 
-    }
-    if ddiff {
-        if let Some(references) = ref_sv {
-            if let Ok(rnx) = rnx_a.double_diff_ref_sv(rnx_b, references) {
-                // print remaining record data
-                if pretty {
-                    println!("{}", serde_json::to_string_pretty(&rnx.record).unwrap())
-                } else {
-                    println!("{}", serde_json::to_string(&rnx.record).unwrap())
-                }
-            }
-        } else {
-            if let Ok(rnx) = rnx_a.double_diff(rnx_b) {
-                // print remaining record data
-                if pretty {
-                    println!("{}", serde_json::to_string_pretty(&rnx.record).unwrap())
-                } else {
-                    println!("{}", serde_json::to_string(&rnx.record).unwrap())
-                }
-            }
-        }
-    } 
-    if confirm_cycle_slips {
-        /*if let Ok(slips) = rnx_a.confirmed_cycle_slips(rnx_b) {
-            if pretty {
-                println!("{}", serde_json::to_string_pretty(&slips).unwrap())
-            } else {
-                println!("{}", serde_json::to_string(&slips).unwrap())
-            }
-        }*/
     }
     if merge {
         if let Ok(rnx_c) = rnx_a.merge(rnx_b) {

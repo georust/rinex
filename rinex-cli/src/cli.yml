@@ -230,10 +230,3 @@ args:
         long: teqc-report
         help: |
             Generates a `teqc` like report where you can find similar information.
-    - ref-sv:
-        long: ref-sv
-        help: |
-            Designate yourself which reference vehicule to use in the Double Differential RINEX operation.
-            Ideally you should specify one vehicule per constellation left out in the record
-            at the moment we initiate the operation, otherwise constellations for which
-            we do not have a reference vehicule designated get dropped out.
