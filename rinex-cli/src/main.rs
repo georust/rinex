@@ -22,12 +22,6 @@ use rinex::constellation::{Constellation};
 mod parser; // user input parser
 mod ascii_plot; // `teqc` tiny plot
 
-/*#[derive(Error, Debug)]
-pub enum Error {
-    #[error("std::io error")]
-    IoError(#[from] std::io::Error),
-}*/
-
 /// Resample given file as possibly requested
 fn resample_single_file (rnx: &mut rinex::Rinex, matches: clap::ArgMatches) {
     if let Some(interval) = matches.value_of("decim-interval") {
@@ -402,6 +396,50 @@ pub fn main () -> Result<(), std::io::Error> {
         let q_2p = &queue[i*2];
         let q_2p1 = &queue[i*2+1]; 
         run_double_file_op(&q_2p, &q_2p1, matches.clone());
+    }
+
+    let pretty = matches.is_present("pretty");
+
+    // `ddiff` special ops,
+    // is processed at very last, because it will eventuelly drop
+    // all non Observation RINEX.
+    // This requires 2 OBS and 1 NAV files
+    if matches.is_present("ddiff") {
+        let mut nav : Option<Rinex> = None;
+        // tries to identify a NAV file in provided list 
+        // this stupidly grabs the first one encountered
+        for i in 0..queue.len() {
+            if queue[i].is_navigation_rinex() {
+                nav = Some(queue[i].clone());
+            }
+        }
+        // 
+        if let Some(nav) = nav { // got something
+            // drop all other RNX
+            queue.retain(|q| q.is_observation_rinex());
+            // --> apply `ddiff` related to this NAV
+            //     on each remaining --file a,b duplets
+            for i in 0..queue.len() /2 {
+                let q_2p = &queue[i*2];
+                let q_2p1 = &queue[i*2+1];
+                let ddiff = q_2p.double_diff(q_2p1, &nav);
+                if ddiff.is_ok() {
+                    // currently just prints the record
+                    // but we'll unlock plotting in next releases
+                    let rnx = ddiff.unwrap();
+                    let rec = rnx.record.as_obs().unwrap();
+                    if pretty {
+                        println!("{}", serde_json::to_string_pretty(&rec).unwrap())
+                    } else {
+                        println!("{}", serde_json::to_string(&rec).unwrap())
+                    }
+                } else {
+                    panic!("--ddiff panic'ed with {:?}", ddiff);
+                }
+            }
+        } else {
+            panic!("--ddiff requires NAV ephemeris to be provided!");
+        }
     }
     
     Ok(())

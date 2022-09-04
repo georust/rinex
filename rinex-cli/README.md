@@ -281,35 +281,56 @@ The operation is described in the API [right here](https://docs.rs/rinex/latest/
 ## Double Differential RINEX
 
 Double Differential RINEX is first a rnx(a) - rnx(b) operation, previously described,
-then another differentiation where we select a reference space vehicule and compute 
-the phase difference of other vehicules against this one.
+then another differentiation where a specific satellite vehicule is defined
+as reference, for a given epoch and a given constellation.
+We define the reference vehicule as the one closest to zenith.
+To determine such information, we need Navigation ephemeris to be provided too.
 
-Provide at least two OBS files for this operation to work.  
-Here we differentiate zegv0010.21o using delf0010.21o
-and dual differentiate zegv0010.21o 
+This operation requires at least 2 OBS files and 1 NAV file to be provided.
+The (A) and (B) role in the `diff` operation is determined by order of appearance
+of the Observation files in the command line: 
+* first encountered is (A)
+* last encountered is (B)
+
+The order of appearance of the NAV file does not matter.
+
+For example, this command will expose 
+zegv0010.21o - delf0010.21o using NAV.d as reference.
 
 ```bash
-rinex-cli --ddiff -f test_resources/OBS/V2/zegv0010.21o,test_resources/OBS/V2/delf0010.21o
+rinex-cli --ddiff \
+    -f zegv0010.21o,delf0010.21o,nav.d
 ```
 
-The operation is described in the API [right here](https://docs.rs/rinex/latest/rinex/struct.Rinex.html#method.double_diff_mut).
+But this command will also work
+```bash
+rinex-cli --ddiff \
+    -f zegv0010.21o,nav.d,delf0010.21o
+```
 
-With this implementation, the user has no mean to select the vehicule that gets designated as the "reference"
-in the last differentiation operation. In the implementation, we designate the first vehicule ever encountered
-for each constellation, as the reference for the current epoch.
+While this one will invert roles, and compute
+del0010.21o - zegv0010.21o
+```bash
+rinex-cli --ddiff \
+    -f delf0010.21o,zegv0010.21o,nav.d
+```
 
-To designate reference vehicules, the user should add a `--ref-sv` list.  
-We expect one reference vehicule per constellation encountered in the left over record.  
-That means
+Finally, requesting `ddiff` without providing Ephemeris will cause a panic:
+```bash
+rinex-cli --ddiff \
+    -f delf0010.21o,zegv0010.21o
+```
 
-- if you provide a single reference vehicule, you should make sure you filtered out other
-constellations, otherwise data gets dropped out automatically
-- if you want to process every single constellation, but forgot to specify a reference vehicule for
-one of them, data for this constellation gets dropped out
+And it is possible to perform N double differentiation at once,
+but we currently only support 1 reference Ephemeris to be specified
+```bash
+rinex-cli --ddiff \
+    -f nav.d,obs_a1.o,obs_b1.o,obs_a2.o,obs_b2.o
+```
 
-- there is no mean currently to change the reference vehicule in between epochs,
-the reference vehicule will be the designated one across all epochs
-
+Refer
+[to the API](https://docs.rs/rinex/latest/rinex/struct.Rinex.html#method.double_diff_mut).
+for more detail about this operation.
 
 ## Cycle slips
 

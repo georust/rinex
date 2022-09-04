@@ -58,14 +58,13 @@ args:
         long: ddiff
         takes_value: false
         help: |
-            Process double RINEX differentiation (rnx = rnx(a)-rnx(b))
-            with inner space vehicule differentiation,
+            Computes double RINEX differentiation (rnx = rnx(a)-rnx(b)),
             to cancel ionospheric biases and clock induced biases. 
-            User must provide at least two Observation RINEX files for this op to work.
-            Example: differentiate brdc01.g with brdc02.g and double differentiate brdc01.g: 
-            rinex-cli --ddiff -f brdc01.g,brdc02.g
-            Example: same differentiation, but compute also on brdc03.g with brdc04g 
-            rinex-cli --ddiff -f brdc01.g,brdc02.g,brdc03.g,brdc04.g
+            User must provide at least two Observation RINEX files and one Navigation RINEX 
+            for this op to be feasible. Refer to README.md file for -f constraints
+            that are specific to this operation.
+            The (A) and (B) role in the ddiff op are dictaded by the order of appearance
+            of the Observation file.
     - cycle-slips:
         long: cycle-slips
         help: Display epochs where clock cycle slip event possibly happened.
@@ -73,13 +72,8 @@ args:
         long: confirm-cycle-slips
         help: |
             Perform dual RINEX differentiation and post-processing,
-            to confirm cycle slip events. For this op, we expect the 
-            same restriction than the --ddiff requirements.
-            User must provide at least two Observation RINEX files for this op to work.
-            Example: confirm cycle slips in brdc01.g using brdc02.g:
-            rinex-cli --confirm-cycle-slips -f brdc01.g,brdc02.g
-            Example: same processing, but also confirm cycle slips in brdc03.g using brdc04.g:
-            rinex-cli --confirm-cycle-slips -f brdc00.g,brdc02.g,brdc03.g,brdc04.g
+            to confirm cycle slip events. Cycle slip confirmation
+            is currently under development
     - time-window:
         short: t
         long: time-window
