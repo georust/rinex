@@ -21,6 +21,7 @@ with-gzip = ["flate2"]
 serde_json = { version = "1.0", features = ["preserve_order"] }
 
 [dependencies]
+time = "0.1.44"
 chrono = "0.4"
 thiserror = "1"
 bitflags = "1.2.1"
