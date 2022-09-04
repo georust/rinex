@@ -70,13 +70,13 @@ mod test {
     use super::*;
     #[test]
     fn test_duration_parser() {
-        let duration = parser::parse_duration("00:30:00");
+        let duration = parse_duration("00:30:00");
         assert_eq!(duration.is_ok(), true);
         let duration = duration.unwrap();
         assert_eq!(duration, chrono::Duration::minutes(30));
-        let duration = parser::parse_duration("30:00");
+        let duration = parse_duration("30:00");
         assert_eq!(duration.is_err(), true);
-        let duration = parser::parse_duration("00 30 00");
+        let duration = parse_duration("00 30 00");
         assert_eq!(duration.is_err(), true);
     }
     #[test]
