@@ -3215,14 +3215,14 @@ impl Rinex {
         }
         Ok(())
     }
-/*
+    
     /// Immutable implementation of [double_diff_mut].
-    pub fn double_diff (&self, rhs: &Self) -> Result<Self, DiffError> {
-        let mut c = self.diff(rhs)?.clone();
-        c.double_diff_mut(rhs)?;
+    pub fn double_diff (&self, rhs: &Self, nav: &Self) -> Result<Self, DiffError> {
+        let mut c = self.clone();
+        c.double_diff_mut(rhs, nav)?;
         Ok(c)
     }
-*/
+    
     /// Restrain epochs to interval |start <= e <= end| (both included)
     pub fn time_window_mut (&mut self, start: chrono::NaiveDateTime, end: chrono::NaiveDateTime) {
         if self.is_observation_rinex() {
