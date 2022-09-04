@@ -19,73 +19,28 @@ use rinex::types::Type;
 use rinex::epoch;
 use rinex::constellation::{Constellation};
 
-mod ascii_plot;
+mod parser; // user input parser
+mod ascii_plot; // `teqc` tiny plot
 
-#[derive(Error, Debug)]
+/*#[derive(Error, Debug)]
 pub enum Error {
-    #[error("failed to parse datetime")]
-    ChronoParseError(#[from] chrono::format::ParseError),
     #[error("std::io error")]
     IoError(#[from] std::io::Error),
-}
-
-#[derive(Debug, Error)]
-enum ParseDurationError {
-    #[error("format should be %HH:%MM:%SS")]
-    InvalidFormat,
-    #[error("time internal overflow!")]
-    TimeOutOfRange(#[from] time::OutOfRangeError),
-}
-
-/// Parses an std::time::Duration from user input
-fn parse_duration (content: &str) -> Result<chrono::Duration, ParseDurationError> {
-    let hms : Vec<_> = content.split(":").collect();
-    if hms.len() == 3 {
-        if let Ok(h) =  u64::from_str_radix(hms[0], 10) {
-            if let Ok(m) =  u64::from_str_radix(hms[1], 10) {
-                if let Ok(s) =  u64::from_str_radix(hms[2], 10) {
-                    let std = std::time::Duration::from_secs(h*3600 + m*60 +s);
-                    return Ok(chrono::Duration::from_std(std)?)
-                }
-            }
-        }
-    }
-    Err(ParseDurationError::InvalidFormat)
-}
-
-/// Parses an chrono::NaiveDateTime from user input
-fn parse_datetime (content: &str) -> Result<chrono::NaiveDateTime, chrono::format::ParseError> {
-    chrono::NaiveDateTime::parse_from_str(content, "%Y-%m-%d %H:%M:%S")
-}
-
-/// Parses an `epoch` from user input
-fn parse_epoch (content: &str) -> Result<epoch::Epoch, Error> {
-    let format = "YYYY-MM-DD HH:MM:SS";
-    if content.len() > format.len() { // an epoch flag was given
-        Ok(epoch::Epoch {
-            date: parse_datetime(&content[0..format.len()])?,
-            flag: epoch::EpochFlag::from_str(&content[format.len()..].trim())?,
-        })
-    } else { // no epoch flag given
-        // --> we associate an Ok flag
-        Ok(epoch::Epoch {
-            date: parse_datetime(content)?,
-            flag: epoch::EpochFlag::Ok,
-        })
-    }
-}
+}*/
 
 /// Resample given file as possibly requested
 fn resample_single_file (rnx: &mut rinex::Rinex, matches: clap::ArgMatches) {
     if let Some(interval) = matches.value_of("decim-interval") {
         let hms = matches.value_of("decim-interval").unwrap();
-        if let Ok(interval) = parse_duration(hms) {
-            rnx.decimate_by_interval_mut(interval)
+        if let Ok(interval) = parser::parse_duration(hms) {
+            rnx
+                .decimate_by_interval_mut(interval)
         }
     }
     if let Some(r) = matches.value_of("decim-ratio") {
         if let Ok(r) = u32::from_str_radix(r, 10) {
-            rnx.decimate_by_ratio_mut(r)
+            rnx
+                .decimate_by_ratio_mut(r)
         }
     }
 }
@@ -310,7 +265,7 @@ fn run_single_file_teqc_op (rnx: &rinex::Rinex, matches: clap::ArgMatches) {
     let split = matches.is_present("split");
     let split_epoch : Option<epoch::Epoch> = match matches.value_of("split") {
         Some(s) => {
-            if let Ok(e) = parse_epoch(s) {
+            if let Ok(e) = parser::parse_epoch(s) {
                 Some(e)
             } else {
                 None
@@ -366,7 +321,7 @@ fn run_double_file_op (rnx_a: &rinex::Rinex, rnx_b: &rinex::Rinex, matches: clap
     }
 }
 
-pub fn main () -> Result<(), Error> {
+pub fn main () -> Result<(), std::io::Error> {
 	let yaml = load_yaml!("cli.yml");
     let app = App::from_yaml(yaml)
 .setting(AppSettings::ArgRequiredElseHelp);
@@ -451,29 +406,3 @@ pub fn main () -> Result<(), Error> {
     
     Ok(())
 }// main
-
-#[cfg(test)]
-mod test {
-    use super::*;
-    #[test]
-    fn test_duration_parser() {
-        let duration = parse_duration("00:30:00");
-        assert_eq!(duration.is_ok(), true);
-        let duration = duration.unwrap();
-        assert_eq!(duration, chrono::Duration::minutes(30));
-        let duration = parse_duration("30:00");
-        assert_eq!(duration.is_err(), true);
-        let duration = parse_duration("00 30 00");
-        assert_eq!(duration.is_err(), true);
-    }
-    #[test]
-    fn test_epoch_parser() {
-        let epoch = parse_epoch("2022-03-01 00:30:00");
-        assert_eq!(epoch.is_ok(), true);
-        let epoch = epoch.unwrap();
-        assert_eq!(epoch, epoch::Epoch {
-            date: parse_datetime("2022-03-01 00:30:00").unwrap(),
-            flag: epoch::EpochFlag::Ok,
-        });
-    }
-}
