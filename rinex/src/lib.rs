@@ -1141,6 +1141,58 @@ impl Rinex {
         s
     }
     
+    /// Returns list of vehicules per constellation and on an epoch basis
+    /// that are closest to Zenith. This is basically a max() operation
+    /// on the elevation angle, per epoch and constellation.
+    /// This can only be computed on Navigation ephemeris. 
+    pub fn space_vehicules_closest_to_zenith (&self) 
+            -> BTreeMap<epoch::Epoch, Vec<sv::Sv>> 
+    {
+        if !self.is_navigation_rinex() {
+            return BTreeMap::new();
+        }
+        let record = self.record
+            .as_nav()
+            .unwrap();
+        let mut ret : BTreeMap<epoch::Epoch, Vec<sv::Sv>>
+            = BTreeMap::new();
+        for (e, classes) in record.iter() {
+            let mut work: BTreeMap<constellation::Constellation, (f64, sv::Sv)> = BTreeMap::new();
+            for (class, frames) in classes.iter() {
+                if *class == navigation::record::FrameClass::Ephemeris {
+                    for frame in frames.iter() {
+                        let (_, sv, _, _, _, map) = frame.as_eph()
+                            .unwrap();
+                        if let Some(elev) = map.get("e") {
+                            // got an elevation angle
+                            let elev = elev
+                                .as_f64()
+                                .unwrap();
+                            if let Some((angle, v)) = work.get_mut(&sv.constellation) {
+                                // already have data for this constellation
+                                // how does this compare ?
+                                if *angle < elev {
+                                    *angle = elev; // overwrite 
+                                    *v = sv.clone(); // overwrite
+                                }
+                            } else {
+                                // new entry
+                                work.insert(sv.constellation.clone(), (elev, sv.clone()));
+                            }
+                        }
+                    }
+                }
+            }
+            // build result for this epoch 
+            let mut inner : Vec<sv::Sv> = Vec::new();
+            for (_, (_, sv)) in work.iter() {
+                inner.push(*sv);
+            }
+            ret.insert(*e, inner.clone());
+        }
+        ret 
+    }
+
     /// Returns receiver clock offset, for all epoch such information
     /// was provided by this Observation record.
     /// Does not produce anything if self is not an OBS record.
@@ -1207,7 +1259,9 @@ impl Rinex {
     /// // apply conversion
     /// let distances = rinex.pseudo_range_to_distance(offsets);
     /// ```
-    pub fn space_vehicules_clock_offset (&self) -> BTreeMap<epoch::Epoch, BTreeMap<sv::Sv, f64>> {
+    pub fn space_vehicules_clock_offset (&self) 
+            -> BTreeMap<epoch::Epoch, BTreeMap<sv::Sv, f64>> 
+    {
         if !self.is_navigation_rinex() {
             return BTreeMap::new(); // nothing to extract
         }
@@ -1269,7 +1323,9 @@ impl Rinex {
     ///     }
     /// }
     /// ```
-    pub fn space_vehicules_clock_drift (&self) -> BTreeMap<epoch::Epoch, BTreeMap<sv::Sv, (f64,f64,f64)>> {
+    pub fn space_vehicules_clock_drift (&self) 
+            -> BTreeMap<epoch::Epoch, BTreeMap<sv::Sv, (f64,f64,f64)>> 
+    {
         if !self.is_navigation_rinex() {
             return BTreeMap::new(); // nothing to extract
         }
@@ -1295,7 +1351,7 @@ impl Rinex {
     }
 
     /// Computes average epoch duration of this record
-    pub fn average_epoch_duration (&self) -> chrono::Duration {
+    pub fn average_epoch_duration (&self) -> Result<chrono::Duration, time::OutOfRangeError> {
         let mut sum_secs = 0_u64;
         //let mut sum_nanos = 0;
         let epochs = self.epochs();
@@ -1303,7 +1359,8 @@ impl Rinex {
             let dt = epochs[i].date - epochs[i-1].date;
             sum_secs += dt.num_seconds() as u64;
         }
-        chrono::Duration::from_std(std::time::Duration::from_secs(sum_secs / epochs.len() as u64)).unwrap()
+        let duration = std::time::Duration::from_secs(sum_secs / epochs.len() as u64);
+        chrono::Duration::from_std(duration)
     }
 
     /// Returns list of observables, in the form 
@@ -2924,13 +2981,13 @@ impl Rinex {
 
     /// Computes the single difference between self and rhs Observation RINEX.
     /// This fails if both are not Observation RINEX files.
-    /// This is indented to be used on same data recorded through two seperate devices,
-    /// devices ideally in stationnary position and held stationnary during all measurements.
+    /// This is intended to be used on shared epochs recorded through seperate devices,
+    /// both ideally in stationnary position and held stationnary during entire measurement.
+    /// Ideally, the same sampling period was used in both measurements.
+    /// Only shared epochs and shared vehicules are retained in `self`!.
     /// We compute the difference between raw phase carrier data, other observables are preserved.
     /// The single difference minimizes the atmospheric and satellite vehicule
     /// induced biases.
-    /// We can only compute the difference when same observables were measured at the same epoch.
-    /// Ideally, the same sampling period was used in both measurements.
     ///
     /// Example:
     /// ```
@@ -2967,18 +3024,56 @@ impl Rinex {
         if !self.is_observation_rinex() || !rhs.is_observation_rinex() {
             return Err(DiffError::NotObsRinex)
         }
-        let (r0, r1) = (self.record.as_mut_obs().unwrap(),rhs.record.as_obs().unwrap());
-        for (e, (_, vehicules)) in r0.iter_mut() {
-            if let Some((_, vvehicules)) = r1.get(e) { // same epoch ; contained
-                for (vehicule, obs) in vehicules.iter_mut() {
-                    if let Some(oobs) = vvehicules.get(vehicule) { // same vehicule ; contained
-                        for (obscode, data) in obs.iter_mut() {
-                            if is_phase_carrier_obs_code!(obscode) {
-                                if let Some(ddata) = oobs.get(obscode) { // same observable ; contained
-                                    data.obs -= ddata.obs 
-                                }
-                            }
-                        }
+        let (a, b) = (
+            self.record
+                .as_mut_obs()
+                .unwrap(),
+            rhs.record
+                .as_obs()
+                .unwrap());
+        let b_epochs = rhs.epochs();
+        a.retain(|e, _|  b_epochs.contains(e)); // retain shared epochs only!
+        a.retain(|e, (_, vehicules)| { // retain shared vehicules only !
+            if let Some((_, vvehicules)) = b.get(e) { 
+                // shared epoch 
+                vehicules.retain(|sv, _| { // drop non shared vehicules
+                    vvehicules.get(sv).is_some()
+                });
+                vehicules.len() > 0 // at least 1 common vehicule
+            } else { // no epoch in common
+                false
+            }
+        });
+        a.retain(|e, (_, vehicules)| { // retain shared observables, as far as Phase is concerned
+            let (_, vehicules_b) = b.get(e)
+                .unwrap(); // already filtered out
+            vehicules.retain(|sv, observables| {
+                let observables_b = vehicules_b.get(sv)
+                    .unwrap(); // already filtered out
+                observables.retain(|obscode, _| {
+                    if is_phase_carrier_obs_code!(obscode) {
+                        // this is phase observable: preserve if only shared by B
+                        observables_b.get(obscode).is_some()
+                    } else {
+                        // not a phase observable: preserve by default
+                        true
+                    }
+                });
+                observables.len() > 0
+            });
+            vehicules.len() > 0
+        });
+        for (e, (_, vehicules_a)) in a.iter_mut() {
+            let (_, vehicules_b) = b.get(e)
+                .unwrap(); // already filtered out
+            for (vehicule_a, obs_a) in vehicules_a.iter_mut() {
+                let obs_b = vehicules_b.get(vehicule_a)
+                    .unwrap(); // already filtered out
+                for (obscode_a, data_a) in obs_a.iter_mut() {
+                    if is_phase_carrier_obs_code!(obscode_a) {
+                        let data_b = obs_b.get(obscode_a)
+                            .unwrap(); // already filtered out
+                        data_a.obs -= data_b.obs
                     }
                 }
             }
@@ -2993,8 +3088,11 @@ impl Rinex {
         Ok(s)
     }
     
+/*
     /// Computes the double difference between self and rhs Observation RINEX.
-    /// This fails if both are not Observation RINEX files.
+    /// This fails if Self and `rhs` are not Observation RINEX files.
+    /// Navigation Ephemeris must also be attached, otherwise we can only compute
+    /// the single difference.
     /// We first compute (in place) the single difference between self and `rhs`,
     /// see [diff_mut]. From that result, we compute the difference
     /// between phase data measured against two different vehicules,
@@ -3010,63 +3108,55 @@ impl Rinex {
     /// Example:
     /// ```
     /// use rinex::*;
-    /// let mut rnx_a = Rinex::from_file("../test_resources/OBS/V2/aopr0010.17o").unwrap();
-    /// let mut rnx_b = Rinex::from_file("../test_resources/OBS/V2/rovn0010.21o").unwrap();
+    /// // this only serves as an API demonstration
+    /// // ideally all files involved share common epochs and identical sample rate
+    /// let mut rnx_a = 
+    ///     Rinex::from_file("../test_resources/OBS/V2/aopr0010.17o")
+    ///         .unwrap();
+    /// let mut rnx_b = 
+    ///     Rinex::from_file("../test_resources/OBS/V2/rovn0010.21o")
+    ///         .unwrap();
+    /// let nav =
+    ///     Rinex::from_file("../test_resources/NAV/V2/amel0010.21g")
+    ///         .unwrap();
     /// // compute the double difference, to cancel out ionospheric/atmospheric and local induced biases
     /// rnx_a
-    ///     .double_diff_mut(&rnx_b);
+    ///     .double_diff_mut(&rnx_b, &nav);
     /// // Remember only phase data get modified, other observables are untouched
-    /// // To access phase data, you then have two options:
-    /// // 1: [carrier_phases()]
-    /// let phase_data = rnx_a.carrier_phases();
-    /// // 2: browsing `rnx_a`
-    /// 
     /// ```
-    pub fn double_diff_mut (&mut self, rhs: &Self) -> Result<(), DiffError> {
+    pub fn double_diff_mut (&mut self, rhs: &Self, nav: &Self) -> Result<(), DiffError> {
         if !self.is_observation_rinex() || !rhs.is_observation_rinex() {
             return Err(DiffError::NotObsRinex)
         }
-        self.diff_mut(rhs)?;
-        let record = self.record
+        self.diff_mut(rhs)?; // compute single diff (in place)
+        let record = self.record // grab `self` record
             .as_mut_obs()
             .unwrap();
-        for (_, (_, svs)) in record.iter_mut() {
-            // for each epoch, we designate for each constellation the first encountered vehicule
-            // as the reference vehicule for all other vehicules
-            let mut references
-                : HashMap<constellation::Constellation, (sv::Sv, HashMap<String, observation::record::ObservationData>)> 
-                    = HashMap::new(); 
-            // designate a reference vehicule for each constellation
-            // --> 1st encountered gets picked out
+        // grab vehicules closest to zenith
+        let zenith = nav
+            .space_vehicules_closest_to_zenith();
+        // browse `self` 
+        for (e, (_, svs)) in record.iter_mut() {
+            // `references` holds reference values for this epoch
+            let references: HashMap<sv::Sv, f64> = HashMap::new(); 
             for (sv, obs) in svs.iter_mut() {
-                if references.get(&sv.constellation).is_none() {
-                    references.insert(
-                        sv.constellation.clone(),
-                        (sv.clone(), obs.clone()));
-                }
-            }
-            // remove all phase data from vehicules designated as reference
-            // vehicule. By doing this, we only preserve data ready to differentiate,
-            // as far as phase data is concerned
-            for (_, (ref_sv, _)) in references.iter() {
-                svs.retain(|vehicule, obs| {
-                    if *vehicule == *ref_sv {
-                        // designated as ref. vehicule
-                        //  --> retain everything but phase data
-                        obs.retain(|obscode, _| {
-                            !is_phase_carrier_obs_code!(obscode)
-                        });
-                        obs.len() > 0
-                    } else { // not designated as ref. vehicule
-                        true // --> retain everything
-                    }
-                });
-            }
-            // at this point, we're only left with data that is ready to
-            // be differentiated, as far as phase data is concerned
-            for (sv, obs) in svs.iter_mut() {
-                if let Some((_, ref_observations)) = references.get(&sv.constellation) {
-                    // we have designated a ref. vehicule for this constellation
+                // now we need a reference vehicule for the double diff.
+                // We use the previously determined closest to zenith,
+                // for this epoch, and for this constellation
+                if let Some(ee) = zenith.get(e) { // epoch was sampled
+                    
+                    if let Some(ssv) = ee.get(&sv.constellation) { // constell was encountered
+                        // --> compute ddiff
+                        for (obscode, data) in obs.iter_mut() {
+                            if is_phase_carrier_obs_code!(obscode) {
+                                 
+                            }
+                        }
+                    } //else: provided NAV, for this epoch did not encounter this constellation
+                    // -> we cannot compute
+                } // else: provided NAV does not contain this epoch
+                // -> we cannot compute
+
                     // --> compute difference for all identical obscodes
                     for (obscode, data) in obs.iter_mut() {
                         if is_phase_carrier_obs_code!(obscode) {
@@ -3083,7 +3173,6 @@ impl Rinex {
         }
         Ok(())
     }
-
     /// Computes the double difference between self and `rhs` Observation RINEX,
     /// but with option to design the reference vehicule to use for each constellation.
     /// One vehicule per constellation is expected.
@@ -3146,7 +3235,7 @@ impl Rinex {
         }
         Ok(())
     }
-    
+   
     /// Immutable implementation of [double_diff_mut_ref_sv].
     pub fn double_diff_ref_sv (&self, rhs: &Self, refs_sv: Vec<sv::Sv>) -> Result<Self, DiffError> {
         let mut s = self.clone();
@@ -3160,21 +3249,43 @@ impl Rinex {
         c.double_diff_mut(rhs)?;
         Ok(c)
     }
+*/
 
-    /// Restrain epochs to given interval, starting from `start` (included)
-    /// and ending on `end` (included).
-    pub fn time_window (&mut self, start: chrono::NaiveDateTime, end: chrono::NaiveDateTime) {
+    /// Restrain epochs to interval |start <= e <= end| (both included)
+    pub fn time_window_mut (&mut self, start: chrono::NaiveDateTime, end: chrono::NaiveDateTime) {
         if self.is_observation_rinex() {
             let record = self.record
                 .as_mut_obs()
                 .unwrap();
-            record.retain(|e, _| e.date >= start && e.date <= end);
+            record
+                .retain(|e, _| e.date >= start && e.date <= end);
         } else if self.is_navigation_rinex() {
             let record = self.record
                 .as_mut_nav()
                 .unwrap();
-            record.retain(|e, _| e.date >= start && e.date <= end);
+            record
+                .retain(|e, _| e.date >= start && e.date <= end);
+        } else if self.is_meteo_rinex() {
+            let record = self.record
+                .as_mut_meteo()
+                .unwrap();
+            record
+                .retain(|e, _| e.date >= start && e.date <= end);
+        } else if self.is_clocks_rinex() {
+            let record = self.record
+                .as_mut_clock()
+                .unwrap();
+            record
+                .retain(|e, _| e.date >= start && e.date <= end);
         }
+    }
+    
+    /// Returns a copy version of `self` where epochs were constrained
+    /// to |start <= e <= end| interval (both included)
+    pub fn time_window (&self, start: chrono::NaiveDateTime, end: chrono::NaiveDateTime) -> Self {
+        let mut s = self.clone();
+        s.time_window_mut(start, end);
+        s
     }
 
     /// Returns list of epochs where cycles slips might have happened.
@@ -3219,43 +3330,20 @@ impl Rinex {
         Ok(vec)
     } */
 
-    /// Returns a time windowed version of this record,
-    /// starting from start (included) to end (included).
-    pub fn time_windowed (&self, start: chrono::NaiveDateTime, end: chrono::NaiveDateTime) -> Self {
-        let mut record = record::Record::default();
-        if self.is_observation_rinex() {
-            let mut r = self.record.as_obs()
-                .unwrap()
-                .clone();
-            r.retain(|e, _| e.date >= start && e.date <= end);
-            record = record::Record::ObsRecord(r);
-        } else if self.is_navigation_rinex() {
-            let mut r = self.record.as_nav()
-                .unwrap()
-                .clone();
-            r.retain(|e, _| e.date >= start && e.date <= end);
-            record = record::Record::NavRecord(r);
-        }
-        Self {
-            header: self.header.clone(),
-            comments: self.comments.clone(),
-            record,
-        }
-    }
-
     /// Filters out data that was not produced by given agency / station.
     /// This has no effect on records other than CLK RINEX.
     /// Example:
     /// ```
     /// use rinex::*;
-    /// let mut rinex = Rinex::from_file("../test_resources/CLK/V2/COD20352.CLK")
-    ///     .unwrap();
+    /// let mut rinex = 
+    ///     Rinex::from_file("../test_resources/CLK/V2/COD20352.CLK")
+    ///         .unwrap();
     /// rinex
     ///     .agency_filter_mut(vec!["GUAM","GODE","USN7"]);
     /// ```
     pub fn agency_filter_mut (&mut self, filter: Vec<&str>) {
         if !self.is_clocks_rinex() {
-            return ;
+            return ; // does not apply
         }
         let record = self.record
             .as_mut_clock()
@@ -3281,7 +3369,8 @@ impl Rinex {
     pub fn to_file (&self, path: &str) -> std::io::Result<()> {
         let mut writer = std::fs::File::create(path)?;
         write!(writer, "{}", self.header.to_string())?;
-        self.record.to_file(&self.header, writer)
+        self.record
+            .to_file(&self.header, writer)
     }
 }
 
