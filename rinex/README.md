@@ -241,14 +241,11 @@ for (antenna, frequencies) in record.iter() {
 
 [Epoch structure](https://docs.rs/rinex/latest/rinex/epoch/index.html)
 
-`epoch` is a `chrono::NaiveDateTime` object validated by an
-`EpochFlag`.    
-A valid epoch is validated with `EpochFlag::Ok`, refer to specific API.
+`epoch` is a `chrono::NaiveDateTime` object with an
+`EpochFlag` associated to it.
 
 To demonstrate how to operate the `epoch` API, we'll take 
-a Navigation Rinex file as an example. 
-
-First, let's grab the record:
+a Navigation Rinex file as an example: 
 
 ```rust
 let rinex = rinex::Rinex::from_file("test_resource/NAV/V2/amel0010.21g")
@@ -258,7 +255,7 @@ let record = rinex.record
     .unwrap(); // would fail on other RINEX types
 ```
 
-`epochs` serve as keys of the first hashmap.  
+`epochs` is used to browse most common RINEX files.
 The `keys()` iterator is the easiest way to to determine
 which _epochs_ were idenfitied.   
 Here we are only interested in the `.date` field of an `epoch`, to determine
@@ -284,43 +281,23 @@ epochs = [ // epochs are sorted by timestamps
 because a valid RINEX exposes a unique data set per `epoch`.   
 
 For RINEX files that do not expose an Epoch `flag`, like Navigation or Meteo data,
-we fix it to `Ok` (valid `epoch`) by default.
-
-Refer to specific
-[Observation files documentation](https://github.com/gwbres/rinex/blob/main/doc/observation.md)
-to see how filtering using epoch flags is powerful and relevant.
+we assign `Ok` (valid `epoch`) by default.
 
 ## `Sv` object
 
 `Sv` for Satellite Vehicule, is also 
 used to sort and idenfity datasets.  
-For instance, in a NAV file,
-we have one set of NAV data per `Sv` per `epoch`.
+For instance, in a NAV file we have on set of data per vehicule and per epoch.
 
 `Sv` is tied to a `rinex::constellation` and comprises an 8 bit
-identification number.
+identification number ("prn").
 
-## Useful high level methods
+## High level methods
 
-* `interval`: returns the nominal sampling interval - nominal time difference
-between two successive epochs in this `record`. See API for more information
-* `sampling_dead_time`: returns a list of `epochs` for which time difference
-between epoch and previous epoch exceeded the nominal sampling interval.
-
-### Advanced `RINEX` file operations
-
-Advanced operations like file Merging will be available in next releases.   
-Merged `RINEX` files will be parsed properly: meaning the `record` is built correctly.   
-Informations on the `merging` operation will be exposed either in the `.comments` structure,
-if "standard" comments were provided.
+It is possible to perform several operations on the `Rinex` structure,
+refer to the [API](https://docs.rs/rinex/0.6.0/rinex/struct.Rinex.html).
 
 ## Specific documentation
-
-Documentation and example of use for specific `RINEX` formats 
-
-+ [Navigation Data](https://github.com/gwbres/rinex/blob/main/doc/navigation.md)
-+ [Observation Data](https://github.com/gwbres/rinex/blob/main/doc/observation.md)
-+ [Meteo Data](https://github.com/gwbres/rinex/blob/main/doc/meteo.md)
 
 ## Work in progress
 
@@ -328,7 +305,6 @@ Topics to be unlocked by next releases
 
 * RINEX file production : provide `to_file` methods
 to produce supported RINEX formats
-* RINEX Clock data type
 * RINEX special operations like `merging` when producing a new file
 * Merging + compression for OBS data
 

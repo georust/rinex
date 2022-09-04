@@ -7,8 +7,8 @@ use chrono::{Datelike,Timelike};
 #[cfg(feature = "with-serde")]
 use serde::{Serialize, Deserialize};
 
-/// `EpochFlag` validates or describes events
-/// that occured during an `epoch`
+/// `EpochFlag` validates an epoch, 
+/// or describes possible events that occurred
 #[derive(Copy, Clone, Debug)]
 #[derive(PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
@@ -68,20 +68,19 @@ impl std::fmt::Display for EpochFlag {
     }
 }
 
-/// An `Epoch` is an observation timestamp associated
-/// to an `EpochFlag`
+/// An `Epoch` is an observation timestamp 
+/// with an [epoch::EpochFlag] associated to it
 #[derive(Copy, Clone, Debug)]
 #[derive(PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Epoch {
-    /// `date`: sampling time stamp
+    /// Sampling timestamp
     pub date: chrono::NaiveDateTime,
-    /// `flag` validates or not this particular `epoch`
+    /// Associated flag
     pub flag: EpochFlag,
 }
 
 #[cfg(feature = "with-serde")]
 impl Serialize for Epoch {
-
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -117,15 +116,16 @@ impl Default for Epoch {
 }
 
 impl Epoch {
-    /// Builds a new `Epoch` structure using given
-    /// timestamp and `EpochFlag` 
+    /// Builds a new `Epoch` from given flag & timestamp
     pub fn new (date: chrono::NaiveDateTime, flag: EpochFlag) -> Epoch {
         Epoch { 
             date,
             flag,
         }
     }
-    pub fn to_string (&self) -> &str { "hello" }
+    /// Converts self to string in standard format,
+    /// this is mainly used in file production [rinex::to_file]
+    pub fn to_string (&self) -> &str { "TODO" }
 }
 
 #[derive(Error, Debug)]
@@ -141,7 +141,9 @@ pub enum ParseDateError {
 
 /// Builds an `epoch.date` field from "yyyy mm dd hh mm ss.sssss"
 /// content, as generally found in `RINEX` epoch descriptors
-pub fn str2date (s: &str) -> Result<chrono::NaiveDateTime, ParseDateError> {
+pub fn str2date (s: &str) 
+        -> Result<chrono::NaiveDateTime, ParseDateError> 
+{
     let items : Vec<&str> = s.split_ascii_whitespace().collect();
     if items.len() != 6 {
         return Err(ParseDateError::FormatMismatch)
