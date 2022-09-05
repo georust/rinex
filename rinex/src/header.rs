@@ -122,9 +122,9 @@ pub struct Header {
     /// optionnal sampling interval (s)
     pub sampling_interval: Option<f32>, 
     /// optionnal file license
-    pub license: String,
+    pub license: Option<String>,
     /// optionnal Object Identifier (IoT)
-    pub doi: String,
+    pub doi: Option<String>,
     /// optionnal GPS/UTC time difference
     pub gps_utc_delta: Option<u32>,
     /// processing:   
@@ -221,8 +221,8 @@ impl Default for Header {
             agency: String::new(),
             marker_type: None,
             station_url: String::new(),
-            doi: String::new(),
-            license: String::new(),
+            doi: None, 
+            license: None, 
             leap: None,
             gps_utc_delta: None,
             // hardware
@@ -275,8 +275,8 @@ impl Header {
         let mut station_id = String::new();
         let mut observer   = String::new();
         let mut agency     = String::new();
-        let mut license    = String::new();
-        let mut doi        = String::new();
+        let mut license    : Option<String> = None;
+        let mut doi        : Option<String> = None;
         let mut station_url= String::new();
         let mut marker_type : Option<MarkerType> = None; 
         // Hardware 
@@ -490,7 +490,7 @@ impl Header {
 
             } else if marker.contains("DOI") {
                 let (content, _) = content.split_at(40); //  TODO: confirm please
-                doi = content.trim().to_string()
+                doi = Some(content.trim().to_string())
 
             } else if marker.contains("MERGED FILE") {
                 //TODO V > 3 
@@ -502,7 +502,7 @@ impl Header {
 
             } else if marker.contains("LICENSE OF USE") {
                 let (lic, _) = content.split_at(40); //TODO confirm please 
-                license = lic.trim().to_string()
+                license = Some(lic.trim().to_string())
             
             } else if marker.contains("WAVELENGTH FACT L1/2") {
                 //TODO
