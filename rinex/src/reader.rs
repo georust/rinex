@@ -2,7 +2,7 @@
 //! with powerful internal Hatanaka / Gz decompression.
 use std::io::{BufReader}; // Seek, SeekFrom};
 use crate::hatanaka::Decompressor;
-#[cfg(feature = "with-gzip")]
+#[cfg(feature = "flate2")]
 use flate2::read::GzDecoder;
 
 
@@ -11,7 +11,7 @@ pub enum ReaderWrapper {
     /// Readable `RINEX`
     PlainFile(BufReader<std::fs::File>),
     /// gzip compressed RINEX
-    #[cfg(feature = "with-gzip")]
+    #[cfg(feature = "flate2")]
     GzFile(BufReader<GzDecoder<std::fs::File>>),
 }
 
@@ -30,7 +30,7 @@ impl BufferedReader {
         let f = std::fs::File::open(path)?;
         if path.ends_with(".gz") {
             // --> gzip encoded
-            #[cfg(feature = "with-gzip")] {
+            #[cfg(feature = "flate2")] {
                 // .gz
                 // example : i.gz, .n.gz, .crx.gz 
                 Ok(Self {
@@ -38,8 +38,8 @@ impl BufferedReader {
                     decompressor: None,
                 })
             }
-            #[cfg(not(feature = "with-gzip"))] {
-                panic!("gzip compressed data require the --with-gzip build feature")
+            #[cfg(not(feature = "flate2"))] {
+                panic!("gzip compressed data require the --flate2 build feature")
             }
         
         } else if path.ends_with(".Z") {
@@ -64,7 +64,7 @@ impl BufferedReader {
                     decompressor: Some(Decompressor::new(m)),
                 })
             },
-            #[cfg(feature = "with-gzip")]
+            #[cfg(feature = "flate2")]
             ReaderWrapper::GzFile(bufreader) => {
                 let inner = bufreader.get_ref().get_ref();
                 let fd = inner.try_clone()?; // preserves pointer
@@ -80,7 +80,7 @@ impl BufferedReader {
     pub fn seek (&mut self, pos: SeekFrom) -> Result<u64, std::io::Error> {
         match self.reader {
             ReaderWrapper::PlainFile(ref mut bufreader) => bufreader.seek(pos),
-            #[cfg(feature = "with-gzip")]
+            #[cfg(feature = "flate2")]
             ReaderWrapper::GzFile(ref mut bufreader) => bufreader.seek(pos),
         }
     }
@@ -88,7 +88,7 @@ impl BufferedReader {
     pub fn rewind (&mut self) -> Result<(), std::io::Error> {
         match self.reader {
             ReaderWrapper::PlainFile(ref mut bufreader) => bufreader.rewind(),
-            #[cfg(feature = "with-gzip")]
+            #[cfg(feature = "flate2")]
             ReaderWrapper::GzFile(ref mut bufreader) => bufreader.rewind(),
         }
     }
@@ -99,7 +99,7 @@ impl std::io::Read for BufferedReader {
     fn read (&mut self, buf: &mut [u8]) -> Result<usize, std::io::Error> { 
         match self.reader {
             ReaderWrapper::PlainFile(ref mut h) => h.read(buf),
-            #[cfg(feature = "with-gzip")]
+            #[cfg(feature = "flate2")]
             ReaderWrapper::GzFile(ref mut h) => h.read(buf),
         }
     }
@@ -109,7 +109,7 @@ impl std::io::BufRead for BufferedReader {
     fn fill_buf (&mut self) -> Result<&[u8], std::io::Error> { 
         match self.reader {
             ReaderWrapper::PlainFile(ref mut bufreader) => bufreader.fill_buf(),
-            #[cfg(feature = "with-gzip")]
+            #[cfg(feature = "flate2")]
             ReaderWrapper::GzFile(ref mut bufreader) => bufreader.fill_buf(),
         }
     }
@@ -117,7 +117,7 @@ impl std::io::BufRead for BufferedReader {
     fn consume (&mut self, s: usize) { 
         match self.reader {
             ReaderWrapper::PlainFile(ref mut bufreader) => bufreader.consume(s),
-            #[cfg(feature = "with-gzip")]
+            #[cfg(feature = "flate2")]
             ReaderWrapper::GzFile(ref mut bufreader) => bufreader.consume(s),
         }
     }

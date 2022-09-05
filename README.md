@@ -57,8 +57,8 @@ and the [rinex](rinex/) crate.
 |----------|-------------------------|---------------------|
 | CRINEX   | :heavy_minus_sign: | :heavy_check_mark:  | 
 | Others   | :heavy_minus_sign: | Refer to first table |
-| CRINEX + `gzip` | Must end with `.gz` | Compile with `--with-gzip` or uncompress yourself |
-| Others + `gzip` | Must end with `.gz` | Refer to first table, compile with `--with-gzip` or uncompress yourself |
+| CRINEX + `gzip` | Must end with `.gz` | Compile with `--flate2` feature, or uncompress yourself |
+| Others + `gzip` | Must end with `.gz` | Refer to first table and compile with `--flate2` feature, or uncompress yourself |
 | CRINEX + `zlib` | Must end with `.Z` | :construction:  |
 | Others + `zlib` | Must end with `.Z` | :construction:  |
 
@@ -87,7 +87,7 @@ to select the most appropriate `SBAS` augmentation system for
 a given (usually current..) location on Earth.
 See [constellation](doc/constellation.md) for example of use.
 
-* `--with-gzip`  
+* `--flate2`  
 allow native parsing of .gz compressed RINEX files. Otherwise, user must uncompress manually the `.gz` extension first.
 
 ## Contributions

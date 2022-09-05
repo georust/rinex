@@ -71,7 +71,7 @@ mod test {
                         .to_str()
                         .unwrap()
                         .ends_with(".Z");
-                    if is_gzip_encoded && !cfg!(feature="with-gzip") {
+                    if is_gzip_encoded && !cfg!(feature="flate2") {
                         continue // do not run in this build configuration
                     }
                     println!("Parsing file: \"{}\"", full_path);

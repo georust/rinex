@@ -311,10 +311,10 @@ mod test {
             index += 1
         }
     }
-    //#[cfg(feature = "with-gzip")]
+    //#[cfg(feature = "flate2")]
     //use itertools::*;
     #[test]
-    #[cfg(feature = "with-gzip")]
+    #[cfg(feature = "flate2")]
     fn v4_kms300dnk_r_202215910() {
         let test_resource = 
             env!("CARGO_MANIFEST_DIR").to_owned() 
@@ -802,10 +802,10 @@ mod test {
         assert_eq!(ion_count, 3);
         assert_eq!(eop_count, 0); // no EOP in this file
     }
-    #[cfg(feature = "with-gzip")]
+    #[cfg(feature = "flate2")]
     use std::str::FromStr;
     #[test]
-    #[cfg(feature = "with-gzip")]
+    #[cfg(feature = "flate2")]
     fn v3_brdc00gop_r_2021_gz() {
         let test_resource = 
             env!("CARGO_MANIFEST_DIR").to_owned() 
