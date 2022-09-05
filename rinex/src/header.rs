@@ -25,7 +25,7 @@ use std::io::{prelude::*};
 use serde::{Serialize, Deserialize};
 
 #[cfg(feature = "serde")]
-use crate::formatter::point3d;
+use crate::formatter::opt_point3d;
 
 #[derive(Clone, Debug)]
 #[derive(EnumString)]
@@ -83,7 +83,7 @@ impl Default for MarkerType {
 
 /// Describes `RINEX` file header
 #[derive(Clone, Debug)]
-#[cfg_attr(feature = "serde", derive(Serialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Header {
     /// revision for this `RINEX`
     pub version: version::Version, 
@@ -115,7 +115,7 @@ pub struct Header {
     /// optionnal leap seconds infos
     pub leap: Option<leap::Leap>, 
     /// station approxiamte coordinates
-    #[cfg_attr(feature = "serde", serde(with = "point3d"))]
+    #[cfg_attr(feature = "serde", serde(default, with = "opt_point3d"))]
     pub coords: Option<rust_3d::Point3D>, 
     /// optionnal observation wavelengths
     pub wavelengths: Option<(u32,u32)>, 
@@ -138,33 +138,40 @@ pub struct Header {
     // Hardware
     ////////////////////////////////////////
     /// optionnal receiver infos
+    #[cfg_attr(feature = "serde", serde(default))]
     pub rcvr: Option<hardware::Rcvr>, 
     /// optionnal antenna infos
+    #[cfg_attr(feature = "serde", serde(default))]
     pub ant: Option<hardware::Antenna>, 
     //////////////////////////////////
     // Observation 
     //////////////////////////////////
     /// Observation record specific fields
+    #[cfg_attr(feature = "serde", serde(default))]
     pub obs: Option<observation::HeaderFields>,
     //////////////////////////////////
     // Meteo 
     //////////////////////////////////
     /// Meteo record specific fields
+    #[cfg_attr(feature = "serde", serde(default))]
     pub meteo: Option<meteo::HeaderFields>,
     //////////////////////////////////
     // Clock 
     //////////////////////////////////
     /// Clocks record specific fields
+    #[cfg_attr(feature = "serde", serde(default))]
     pub clocks: Option<clocks::HeaderFields>,
     //////////////////////////////////
     // Antex
     //////////////////////////////////
     /// ANTEX record specific fields
+    #[cfg_attr(feature = "serde", serde(default))]
     pub antex: Option<antex::HeaderFields>,
     /////////////////////////////////
     // Ionosphere Maps
     /////////////////////////////////
     /// IONEX record specific fields
+    #[cfg_attr(feature = "serde", serde(default))]
     pub ionex: Option<ionosphere::HeaderFields>,
 }
 
