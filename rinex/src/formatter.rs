@@ -1,5 +1,22 @@
+#[derive(Debug)]
+pub enum ParseError {
+    /// Failed to parse (x, y, z) triplet
+    Point3dXyz, 
+}
+
+impl std::fmt::Display for ParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Self::Point3dXyz => write!(f, "failed to parse (x,y,z) triplet"),
+        }
+    }
+}
+
 #[cfg(feature = "with-serde")]
 pub mod point3d {
+    use super::ParseError;
+    use std::str::FromStr;
+    use serde::{Serializer, Deserializer, Deserialize, de::Error};
     pub fn serialize<S>(point3d: &Option<rust_3d::Point3D>, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -13,6 +30,22 @@ pub mod point3d {
         );
         let s = format!("{},{},{}",p.x,p.y,p.z); 
         serializer.serialize_str(&s)
+    }
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<rust_3d::Point3D, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        let items: Vec<&str> = s.split(",").collect();
+        if let Ok(x) = f64::from_str(items[0]) {
+            if let Ok(y) = f64::from_str(items[1]) {
+                if let Ok(z) = f64::from_str(items[2]) {
+                    return Ok(rust_3d::Point3D {x, y, z })
+                }
+            }
+        }
+        Err(ParseError::Point3dXyz)
+            .map_err(D::Error::custom)
     }
 }
 
