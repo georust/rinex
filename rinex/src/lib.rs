@@ -138,7 +138,7 @@ pub enum SplitError {
 }
 
 #[derive(Error, Debug)]
-/// `Split` ops related errors
+/// `Diff` (RNX(A) - RNX(B)) related errors
 pub enum DiffError {
     #[error("not an observation rinex")]
     NotObsRinex,

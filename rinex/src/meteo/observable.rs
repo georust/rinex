@@ -1,7 +1,7 @@
 //! Meteo observable codes
 use strum_macros::EnumString;
 
-/// Known Meteo Observables
+/// Meteo Observables
 #[derive(Debug, Clone)]
 #[derive(PartialEq, PartialOrd)]
 #[derive(Hash, Eq)]
