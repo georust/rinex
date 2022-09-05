@@ -3,7 +3,8 @@ use thiserror::Error;
 use crate::constellation;
 
 #[cfg(feature = "with-serde")]
-use serde::{Serialize, Serializer};
+use std::str::FromStr;
+use serde::{Serialize, Serializer, Deserializer, Deserialize};
 
 /// ̀`Sv` describes a Satellite Vehiculee
 #[derive(Copy, Clone, Debug)]
@@ -39,6 +40,7 @@ impl std::cmp::Ord for Sv {
 
 #[cfg(feature = "with-serde")]
 impl Serialize for Sv {
+    /// Dumps an `Sv` structure in RINEX standard format
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -47,6 +49,19 @@ impl Serialize for Sv {
             self.constellation.to_1_letter_code(),
             self.prn);
         serializer.serialize_str(&s)
+    }
+}
+
+#[cfg(feature = "with-serde")]
+impl<'de> Deserialize<'de> for Sv {
+    /// Builds an `Sv` structure from usual String description
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        Self::from_str(&s)
+            .map_err(serde::de::Error::custom)
     }
 }
 
