@@ -21,7 +21,7 @@ use crate::navigation::eopmessage;
 /// `ComplexEnum` is record payload 
 #[derive(Clone, Debug)]
 #[derive(PartialEq, PartialOrd)]
-#[cfg_attr(feature = "with-serde", derive(Serialize))]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum ComplexEnum {
     U8(u8),
     Str(String), 
@@ -101,7 +101,7 @@ impl ComplexEnum {
 #[derive(PartialEq, PartialOrd)]
 #[derive(Eq, Ord)]
 #[derive(EnumString)]
-#[cfg_attr(feature = "with-serde", derive(Serialize))]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum FrameClass {
     #[strum(serialize = "EPH", deserialize = "EPH")]
     Ephemeris,
@@ -135,7 +135,7 @@ impl std::fmt::Display for FrameClass {
 #[derive(PartialEq, PartialOrd)]
 #[derive(Eq, Ord)]
 #[derive(EnumString)]
-#[cfg_attr(feature = "with-serde", derive(Serialize))]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum MsgType {
     /// Legacy NAV
     LNAV,
@@ -180,7 +180,7 @@ impl std::fmt::Display for MsgType {
 #[derive(Debug, Clone)]
 #[derive(PartialEq)]
 #[derive(EnumString)]
-#[cfg_attr(feature = "with-serde", derive(Serialize))]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum Frame {
     /// Ephemeris for a given Vehicule `Sv`,
     /// with vehicule internal clock bias, clock drift and clock drift rate.

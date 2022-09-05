@@ -7,7 +7,7 @@ use crate::constellation::Constellation;
 /*
 /// Carrier code
 #[derive(Debug, Clone, PartialEq, Eq, Copy)]
-#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum Code {
     /// GPS/GLONASS/QZSS/SBAS L1 C/A,
     C1, 

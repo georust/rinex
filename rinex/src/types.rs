@@ -4,7 +4,7 @@ use crate::constellation;
 
 /// Describes all known `RINEX` file types
 #[derive(Copy, Clone, PartialEq, Debug)]
-#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum Type {
     /// Describes Observation Data (OBS),
     /// Phase & Pseudo range measurements

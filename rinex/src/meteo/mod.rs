@@ -6,7 +6,7 @@ pub mod observable;
 /// Meteo specific header fields
 #[derive(Debug, Clone)]
 #[derive(PartialEq)]
-#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct HeaderFields {
     /// Observation types contained in this file
     pub codes: Vec<observable::Observable>, 

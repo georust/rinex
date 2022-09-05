@@ -12,7 +12,7 @@ impl std::fmt::Display for ParseError {
     }
 }
 
-#[cfg(feature = "with-serde")]
+#[cfg(feature = "serde")]
 pub mod point3d {
     use super::ParseError;
     use std::str::FromStr;
@@ -44,7 +44,7 @@ pub mod point3d {
     }
 }
 
-#[cfg(feature = "with-serde")]
+#[cfg(feature = "serde")]
 pub mod opt_point3d {
     use std::str::FromStr;
     use serde::{Serializer, Deserializer, Deserialize};
@@ -79,7 +79,7 @@ pub mod opt_point3d {
     }
 }
 
-#[cfg(feature = "with-serde")]
+#[cfg(feature = "serde")]
 pub mod datetime {
     use serde::{Serializer, Deserializer, Deserialize, de::Error};
     /// Dumps a chrono::NaiveDateTime structure
@@ -101,7 +101,7 @@ pub mod datetime {
     }
 }
 
-#[cfg(feature = "with-serde")]
+#[cfg(feature = "serde")]
 pub mod opt_datetime {
     use serde::{Serializer, Deserializer, Deserialize};
     /// Dumps an optionnal chrono::NaiveDateTime structure

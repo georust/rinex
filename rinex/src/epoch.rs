@@ -4,14 +4,14 @@ use thiserror::Error;
 use std::str::FromStr;
 use chrono::{Datelike,Timelike};
 
-#[cfg(feature = "with-serde")]
+#[cfg(feature = "serde")]
 use serde::{Serialize, Deserialize};
 
 /// `EpochFlag` validates an epoch, 
 /// or describes possible events that occurred
 #[derive(Copy, Clone, Debug)]
 #[derive(PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum EpochFlag {
     /// Epoch is sane
     Ok,
@@ -79,7 +79,7 @@ pub struct Epoch {
     pub flag: EpochFlag,
 }
 
-#[cfg(feature = "with-serde")]
+#[cfg(feature = "serde")]
 impl Serialize for Epoch {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where

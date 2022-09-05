@@ -2,7 +2,7 @@
 use thiserror::Error;
 use crate::constellation;
 
-#[cfg(feature = "with-serde")]
+#[cfg(feature = "serde")]
 use std::str::FromStr;
 use serde::{Serialize, Serializer, Deserializer, Deserialize};
 
@@ -38,7 +38,7 @@ impl std::cmp::Ord for Sv {
     }
 }
 
-#[cfg(feature = "with-serde")]
+#[cfg(feature = "serde")]
 impl Serialize for Sv {
     /// Dumps an `Sv` structure in RINEX standard format
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -52,7 +52,7 @@ impl Serialize for Sv {
     }
 }
 
-#[cfg(feature = "with-serde")]
+#[cfg(feature = "serde")]
 impl<'de> Deserialize<'de> for Sv {
     /// Builds an `Sv` structure from usual String description
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>

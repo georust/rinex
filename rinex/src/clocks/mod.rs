@@ -3,7 +3,7 @@ pub mod record;
 
 /// Clocks `RINEX` specific header fields
 #[derive(Clone, Debug)]
-#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct HeaderFields {
     /// Types of observation in this file
     pub codes: Vec<record::DataType>,
@@ -17,7 +17,7 @@ pub struct HeaderFields {
 
 /// Describes a clock station 
 #[derive(Clone, PartialEq, Debug)]
-#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Station {
     /// Station name
     pub name: String,
@@ -27,7 +27,7 @@ pub struct Station {
 
 /// Describes a clock analysis center / agency
 #[derive(Clone, PartialEq, Debug)]
-#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Agency {
     /// IGS AC 3 letter code
     pub code: String,

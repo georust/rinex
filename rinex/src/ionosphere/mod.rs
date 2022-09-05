@@ -2,13 +2,13 @@ use std::str::FromStr;
 use strum_macros::EnumString;
 pub mod record;
 
-#[cfg(feature = "with-serde")]
+#[cfg(feature = "serde")]
 use serde::Serialize;
 
 #[derive(Debug, Clone)]
 #[derive(PartialEq, PartialOrd)]
 #[derive(EnumString)]
-#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 /// Mapping function used in when determining this IONEX
 pub enum MappingFunction {
     /// 1/cos(z)
@@ -24,7 +24,7 @@ pub enum MappingFunction {
 #[derive(Debug, Clone)]
 #[derive(PartialEq, PartialOrd)]
 #[derive(EnumString)]
-#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum System {
     /// BENt
     BEN,
@@ -58,7 +58,7 @@ impl Default for System {
 /// start - end values with increment
 #[derive(Debug, Clone, Default)]
 #[derive(PartialEq, PartialOrd)]
-#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Grid3dElement {
     /// Grid start value
     pub start: f32,
@@ -82,7 +82,7 @@ impl From<(f32,f32,f32)> for Grid3dElement {
 /// latitude, longitude and altitude
 #[derive(Debug, Clone, Default)]
 #[derive(PartialEq, PartialOrd)]
-#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Grid3d {
     /// Latitude
     pub latitude: Grid3dElement,
@@ -94,7 +94,7 @@ pub struct Grid3d {
 
 /// `IONEX` specific header fields
 #[derive(Debug, Clone, Default)]
-#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct HeaderFields {
     /// System used or theoretical model used
     pub system: System,

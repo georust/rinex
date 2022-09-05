@@ -7,7 +7,7 @@ use crate::formatter::opt_datetime;
 #[derive(Clone, Debug)]
 #[derive(PartialEq, PartialOrd)]
 #[derive(EnumString)]
-#[cfg_attr(feature = "with-serde", derive(Serialize))]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum Method {
     #[strum(serialize = "")]
     Unknown,
@@ -34,7 +34,7 @@ impl Default for Method {
 /// Calibration information
 #[derive(Clone, Debug)]
 #[derive(PartialEq, PartialOrd)]
-#[cfg_attr(feature = "with-serde", derive(Serialize))]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Calibration {
     /// Calibration method
     pub method: Method,
@@ -57,7 +57,7 @@ impl Default for Calibration {
 /// Describes an Antenna section inside the ATX record
 #[derive(Clone, Debug)]
 #[derive(PartialEq, PartialOrd)]
-#[cfg_attr(feature = "with-serde", derive(Serialize))]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Antenna {
     pub ant_type: String,
     pub sn: String,

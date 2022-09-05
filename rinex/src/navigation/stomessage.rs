@@ -4,7 +4,7 @@
 #[derive(Debug, Clone)]
 #[derive(Default)]
 #[derive(PartialEq, PartialOrd)]
-#[cfg_attr(feature = "with-serde", derive(Serialize))]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Message {
     /// Time System
     pub system: String,

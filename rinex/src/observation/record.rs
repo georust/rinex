@@ -14,13 +14,13 @@ use crate::constellation;
 use crate::constellation::Constellation;
 use crate::constellation::augmentation::Augmentation;
 
-#[cfg(feature = "with-serde")]
+#[cfg(feature = "serde")]
 use serde::Serialize;
 
 /// `Ssi` describes signals strength
 #[repr(u8)]
 #[derive(PartialOrd, Ord, PartialEq, Eq, Copy, Clone, Debug)]
-#[cfg_attr(feature = "with-serde", derive(Serialize))]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum Ssi {
     /// Ssi ~= 0 dB/Hz
     DbHz0 = 0,
@@ -90,7 +90,7 @@ impl Ssi {
 }
 
 bitflags! {
-    #[cfg_attr(feature = "with-serde", derive(Serialize))]
+    #[cfg_attr(feature = "serde", derive(Serialize))]
     pub struct LliFlags: u8 {
         /// Current epoch is marked Ok or Unknown status 
         const OK_OR_UNKNOWN = 0x00;
@@ -108,7 +108,7 @@ bitflags! {
 }
 
 #[derive(PartialEq, Copy, Clone, Debug)]
-#[cfg_attr(feature = "with-serde", derive(Serialize))]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct ObservationData {
 	/// physical measurement
 	pub obs: f64,

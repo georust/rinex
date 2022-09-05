@@ -9,7 +9,7 @@ pub const SUPPORTED_VERSION: Version = Version {
 
 #[derive(Copy, Clone, Debug)]
 #[derive(PartialEq, Eq, PartialOrd, Ord)]
-#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Version {
     pub major: u8,
     pub minor: u8,

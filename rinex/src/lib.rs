@@ -33,7 +33,7 @@ use thiserror::Error;
 use chrono::{Datelike, Timelike};
 use std::collections::{BTreeMap, HashMap};
 
-#[cfg(feature = "with-serde")]
+#[cfg(feature = "serde")]
 #[macro_use]
 extern crate serde;
 
