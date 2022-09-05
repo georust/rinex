@@ -4,6 +4,8 @@ use crate::constellation;
 
 #[cfg(feature = "serde")]
 use std::str::FromStr;
+
+#[cfg(feature = "serde")]
 use serde::{Serialize, Serializer, Deserializer, Deserialize};
 
 /// ̀`Sv` describes a Satellite Vehiculee
