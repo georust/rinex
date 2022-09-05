@@ -1,6 +1,6 @@
 //! Hardware and receiver related structures
 #[cfg(feature = "with-serde")]
-use crate::formatter::point3d;
+use crate::formatter::opt_point3d;
 
 #[cfg(feature = "with-serde")]
 use serde::{Serialize, Deserialize};
@@ -45,14 +45,14 @@ impl std::str::FromStr for Rcvr {
 
 /// Antenna description 
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "with-serde", derive(Serialize))]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct Antenna {
     /// Hardware model / make descriptor
     pub model: String,
     /// Serial number / identification number
     pub sn: String,
     /// 3D coordinates of reference point
-    #[cfg_attr(feature = "with-serde", serde(with = "point3d"))]
+    #[cfg_attr(feature = "with-serde", serde(with = "opt_point3d"))]
     pub coords: Option<rust_3d::Point3D>,
     /// height in comparison to ref. point
     pub height: Option<f32>,
