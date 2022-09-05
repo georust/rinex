@@ -27,6 +27,18 @@ args:
         long: header
         takes_value: false
         help: Display identified header information 
+    - header-json:
+        long: header-json
+        takes_value: true
+        help: |
+            Custom Header section attributes.
+            Custom attributes will be applied to all files to be parsed.
+            Use this to customize attributes when producing new files.
+            This command expects a valid Header description in JSON,
+            either directly or from a file.
+            Example: --header-json \"{agency: \"MyAgency\", ...}\"
+            Example: --header-json header.json
+
     - decim-ratio:
         short: d
         long: decim-ratio
@@ -146,11 +158,13 @@ args:
     - lli-mask:
         long: lli-mask
         takes_value: true 
-        help: Apply LLI And() mask to entire record 
+        help: |
+            Apply LLI And() mask to entire record 
     - ssi-range:
         long: ssi-range
         takes_value: false
-        help: Display range of SSI (RX signal strength) for given Observation File(s)
+        help: |
+            Display range of SSI (RX signal strength) for given Observation File(s)
     - ssi:
         long: ssi
         takes_value: true 

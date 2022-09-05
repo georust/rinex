@@ -17,6 +17,7 @@ use rinex::sv::Sv;
 use rinex::observation;
 use rinex::types::Type;
 use rinex::epoch;
+use rinex::header::Header;
 use rinex::constellation::{Constellation};
 
 mod parser; // user input parser
@@ -318,11 +319,35 @@ fn run_double_file_op (rnx_a: &rinex::Rinex, rnx_b: &rinex::Rinex, matches: clap
 pub fn main () -> Result<(), std::io::Error> {
 	let yaml = load_yaml!("cli.yml");
     let app = App::from_yaml(yaml)
-.setting(AppSettings::ArgRequiredElseHelp);
+        .setting(AppSettings::ArgRequiredElseHelp);
 	let matches = app.get_matches();
 
     // General 
     let plot = matches.is_present("plot");
+    let mut custom_header: Option<Header> = None;
+
+    if matches.is_present("header-json") {
+        let descriptor = matches.value_of("header-json")
+            .unwrap();
+        match serde_json::from_str::<Header>(descriptor) {
+            Ok(hd) => {
+                custom_header = Some(hd.clone());
+            },
+            Err(e) => {
+                match std::fs::read_to_string(descriptor) {
+                    Ok(content) => {
+                        match serde_json::from_str::<Header>(&content) {
+                            Ok(hd) => custom_header = Some(hd.clone()),
+                            Err(ee) => panic!("failed to interprate header: {:?}", ee),
+                        }
+                    },
+                    Err(_) => {
+                        panic!("failed to interprate header: {:?}", e)
+                    }
+                }
+            },
+        }
+    }
 
     // files (in)
     let filepaths : Option<Vec<&str>> = match matches.is_present("filepath") {
@@ -373,6 +398,9 @@ pub fn main () -> Result<(), std::io::Error> {
         };
         resample_single_file(&mut rinex, matches.clone());
         apply_filters(&mut rinex, matches.clone());
+        if let Some(ref hd) = custom_header {
+            rinex.replace_header(hd.clone())
+        }
         queue.push(rinex);
     }
 
