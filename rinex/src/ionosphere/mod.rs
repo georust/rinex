@@ -84,14 +84,17 @@ impl From<(f32,f32,f32)> for Grid3dElement {
 #[derive(PartialEq, PartialOrd)]
 #[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct Grid3d {
+    /// Latitude
     pub latitude: Grid3dElement,
+    /// Longitude
     pub longitude: Grid3dElement,
+    /// Height / altitude
     pub height: Grid3dElement,
 }
 
 /// `IONEX` specific header fields
 #[derive(Debug, Clone, Default)]
-#[cfg_attr(feature = "with-serde", derive(Serialize))]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub struct HeaderFields {
     /// System used or theoretical model used
     pub system: System,

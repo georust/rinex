@@ -13,7 +13,7 @@ use crate::formatter::datetime;
 
 /// Describes `Compact RINEX` specific information
 #[derive(Clone, Debug)]
-#[cfg_attr(feature = "serde", derive(Serialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Crinex {
     /// Compression program version
     pub version: version::Version,
@@ -27,7 +27,7 @@ pub struct Crinex {
 /// Describes known marker types
 /// Observation Record specific header fields
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct HeaderFields {
     /// Optional CRINEX information,
     /// only present on compressed OBS

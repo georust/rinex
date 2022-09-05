@@ -8,7 +8,7 @@ use std::collections::{BTreeMap, HashMap};
 
 #[derive(Error, PartialEq, Eq, Hash, Clone, Debug)]
 #[derive(PartialOrd, Ord)]
-#[cfg_attr(feature = "with-serde", derive(Serialize))]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub enum System {
     /// Sv system for AS data
     Sv(Sv),
@@ -82,7 +82,7 @@ pub struct Data {
 /// Clock data observables
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 #[derive(EnumString)]
-#[cfg_attr(feature = "with-serde", derive(Serialize))]
+#[cfg_attr(feature = "with-serde", derive(Serialize, Deserialize))]
 pub enum DataType {
     /// Data analysis results for receiver clocks
     /// derived from a set of network receivers and satellites
