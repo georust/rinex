@@ -10,9 +10,9 @@ categories = ["science", "parsing"]
 edition = "2018"
 readme = "README.md"
 rust-version = "1.61"
+
 [features]
-# no features by default
-default = []
+default = [] # no features by default
 with-geo = ["geo", "wkt"]
 
 [build-dependencies]
