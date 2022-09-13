@@ -92,17 +92,5 @@ allow native parsing of .gz compressed RINEX files. Otherwise, user must uncompr
 
 ## Contributions
 
-Contributions, raw data and tests methods are welcomed.  
-There is still a lot to achieve with this lib, 
-especially regarding the command line applications (high level usage of the library cores).
-
-When submitting new RINEX data, please truncate them to maintain reasonnable repo size.
-
-### TODO 
-
-- [ ] Something to do with EpochFlag::HeaderInformationFollows flag
-and smart header update ?
-- [ ] NAV data map: provide complex types, like Orbit5 Data source and other
-useful fields
-- [ ] handle chrono::duration better, in sampling related methods,
-for fractionnal second - sub second interval management
+Contributions are welcomed, do not hesitate to open new issues. 
+If you want to take part in active developments, checkout our [TODO list](TODO.md)
