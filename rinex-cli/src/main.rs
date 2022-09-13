@@ -24,7 +24,7 @@ mod parser; // user input parser
 mod ascii_plot; // `teqc` tiny plot
 
 /// Resample given file as possibly requested
-fn resample_single_file (rnx: &mut rinex::Rinex, matches: clap::ArgMatches) {
+fn resample_single_file (rnx: &mut Rinex, matches: clap::ArgMatches) {
     if let Some(interval) = matches.value_of("decim-interval") {
         let hms = matches.value_of("decim-interval").unwrap();
         if let Ok(interval) = parser::parse_duration(hms) {
@@ -41,7 +41,7 @@ fn resample_single_file (rnx: &mut rinex::Rinex, matches: clap::ArgMatches) {
 }
 
 /// Apply desired filters
-fn apply_filters (rinex: &mut rinex::Rinex, matches: clap::ArgMatches) {
+fn apply_filters (rinex: &mut Rinex, matches: clap::ArgMatches) {
     let epoch_ok_filter = matches.is_present("epoch-ok-filter");
     let epoch_nok_filter = matches.is_present("epoch-nok-filter");
     
@@ -111,7 +111,7 @@ fn apply_filters (rinex: &mut rinex::Rinex, matches: clap::ArgMatches) {
             .observable_filter_mut(filter.to_vec())
     }
     if let Some(lli) = lli_mask {
-        let mask = rinex::observation::record::LliFlags::from_bits(lli)
+        let mask = observation::record::LliFlags::from_bits(lli)
             .unwrap();
         rinex
             .lli_filter_mut(mask)
@@ -123,7 +123,7 @@ fn apply_filters (rinex: &mut rinex::Rinex, matches: clap::ArgMatches) {
 }
 
 /// Execute user requests on a single file
-fn run_single_file_op (rnx: &rinex::Rinex, matches: clap::ArgMatches, print_allowed: bool) {
+fn run_single_file_op (rnx: &Rinex, matches: clap::ArgMatches, print_allowed: bool) {
     let pretty = matches.is_present("pretty");
     let header = matches.is_present("header");
     let decimate_ratio = matches.is_present("decim-ratio");
@@ -255,7 +255,7 @@ fn run_single_file_op (rnx: &rinex::Rinex, matches: clap::ArgMatches, print_allo
 }
 
 /// Execute `teqc` ops on a single file
-fn run_single_file_teqc_op (rnx: &rinex::Rinex, matches: clap::ArgMatches) {
+fn run_single_file_teqc_op (rnx: &Rinex, matches: clap::ArgMatches) {
     let ascii_plot = matches.is_present("ascii-plot");
     let split = matches.is_present("split");
     let split_epoch : Option<epoch::Epoch> = match matches.value_of("split") {
@@ -274,7 +274,7 @@ fn run_single_file_teqc_op (rnx: &rinex::Rinex, matches: clap::ArgMatches) {
 }
 
 /// Execute user requests on two files
-fn run_double_file_op (rnx_a: &rinex::Rinex, rnx_b: &rinex::Rinex, matches: clap::ArgMatches) {
+fn run_double_file_op (rnx_a: &Rinex, rnx_b: &Rinex, matches: clap::ArgMatches) {
     let pretty = matches.is_present("pretty");
     let merge = matches.is_present("merge");
     let diff = matches.is_present("diff");

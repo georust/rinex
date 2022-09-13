@@ -789,7 +789,7 @@ mod test {
                                 date: epoch::str2date("2022 06 08 11 00 00").unwrap(),
                                 flag: epoch::EpochFlag::Ok,
                             });
-                            assert_eq!(msgtype, navigation::record::MsgType::LNAV);
+                            assert_eq!(msgtype, MsgType::LNAV);
                             assert_eq!(clk, 1.080981455743E-04);
                             assert_eq!(clk_dr, 3.751665644813E-12);
                             assert_eq!(clk_drr, 0.0);
@@ -828,11 +828,11 @@ mod test {
             "2021 01 01 01 28 00",
             "2021 01 01 07 15 00",
             "2021 01 01 08 20 00"];
-        let expected_vehicules : Vec<rinex::sv::Sv> = vec![
-            rinex::sv::Sv::from_str("C01").unwrap(),
-            rinex::sv::Sv::from_str("S36").unwrap(),
-            rinex::sv::Sv::from_str("R10").unwrap(),
-            rinex::sv::Sv::from_str("E03").unwrap()];
+        let expected_vehicules : Vec<Sv> = vec![
+            Sv::from_str("C01").unwrap(),
+            Sv::from_str("S36").unwrap(),
+            Sv::from_str("R10").unwrap(),
+            Sv::from_str("E03").unwrap()];
         for (epoch, classes) in record.iter() {
             let expected_e = epoch::Epoch {
                 date: epoch::str2date(expected_epochs[index]).unwrap(),
@@ -840,7 +840,7 @@ mod test {
             };
             assert_eq!(*epoch, expected_e);
             for (class, frames) in classes.iter() {
-                if *class == navigation::record::FrameClass::Ephemeris {
+                if *class == FrameClass::Ephemeris {
                     for frame in frames.iter() {
                         let (_, sv, _, _, _, _) = frame.as_eph().unwrap();
                         assert_eq!(sv, expected_vehicules[index]);
