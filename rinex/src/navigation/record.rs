@@ -352,7 +352,7 @@ fn build_modern_record_entry (content: &str) ->
     let sv = Sv::from_str(svnn.trim())?;
     let msg_type = MsgType::from_str(rem.trim())?;
 
-    let (epoch, fr): (epoch::Epoch, Frame) = match frame_class {
+    let (epoch, fr): (Epoch, Frame) = match frame_class {
         FrameClass::Ephemeris => {
             let line = match lines.next() {
                 Some(l) => l,
@@ -362,7 +362,7 @@ fn build_modern_record_entry (content: &str) ->
             let (svnn, rem) = line.split_at(4);
             let sv = Sv::from_str(svnn.trim())?;
             let (epoch, rem) = rem.split_at(20);
-            let epoch = epoch::Epoch {
+            let epoch = Epoch {
                 date: epoch::str2date(epoch.trim())?,
                 flag: epoch::EpochFlag::Ok,
             };
@@ -417,7 +417,7 @@ fn build_modern_record_entry (content: &str) ->
             (epoch, Frame::Eop(msg))
         },
         FrameClass::IonosphericModel => {
-            let (epoch, msg): (epoch::Epoch, ionmessage::Message) = match msg_type {
+            let (epoch, msg): (Epoch, ionmessage::Message) = match msg_type {
                 MsgType::IFNV => {
                     let (epoch, model) = ionmessage::NgModel::parse(lines)?;
                     (epoch, ionmessage::Message::NequickGModel(model))
@@ -490,7 +490,7 @@ fn build_v2_v3_record_entry (version: Version, constell: Constellation, content:
     let map = parse_complex_map(version, sv.constellation, lines)?;
     let fr = Frame::Eph(MsgType::LNAV, sv, clk, clk_dr, clk_drr, map); // indicate legacy frame
     Ok((
-        epoch::Epoch::new(
+        Epoch::new(
             epoch::str2date(date)?,
             epoch::EpochFlag::default(), // flag never given in NAV 
         ),

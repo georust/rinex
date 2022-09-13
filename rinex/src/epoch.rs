@@ -38,7 +38,7 @@ impl EpochFlag {
     pub fn is_ok (self) -> bool { self == EpochFlag::Ok }
 }
 
-impl std::str::FromStr for EpochFlag {
+impl FromStr for EpochFlag {
     type Err = std::io::Error;
     fn from_str (s: &str) -> Result<Self, Self::Err> {
         match s {

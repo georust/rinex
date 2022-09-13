@@ -40,7 +40,7 @@ pub mod point3d {
             }
         }
         Err(ParseError::Point3dXyz)
-            .map_err(D::Error::custom)
+            .map_err(Error::custom)
     }
 }
 
@@ -97,7 +97,7 @@ pub mod datetime {
     {
         let s = String::deserialize(deserializer)?;
         chrono::NaiveDateTime::parse_from_str(&s, "%Y-%m-%d %H:%M:%S")
-            .map_err(D::Error::custom)
+            .map_err(Error::custom)
     }
 }
 

@@ -48,7 +48,7 @@ impl Default for Ssi {
     fn default() -> Ssi { Ssi::DbHz54 }
 }
 
-impl std::str::FromStr for Ssi {
+impl FromStr for Ssi {
     type Err = std::io::Error;
     fn from_str (code: &str) -> Result<Self, Self::Err> {
         match code {

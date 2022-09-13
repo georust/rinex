@@ -132,7 +132,7 @@ pub fn build_record_entry (header: &Header, content: &str)
 }
 
 /// Pushes meteo record into given file writer
-pub fn to_file (header: &header::Header, record: &Record, mut writer: std::fs::File) -> std::io::Result<()> {
+pub fn to_file (header: &Header, record: &Record, mut writer: std::fs::File) -> std::io::Result<()> {
     let obscodes = &header.meteo.as_ref().unwrap().codes;
     for (epoch, obs) in record.iter() {
         if header.version.major > 3 {

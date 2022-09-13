@@ -78,7 +78,7 @@ mod postprocessing {
 
         // run tb
         // epoch1: 2022/01/01 midnight
-        let epoch = rinex::epoch::Epoch {
+        let epoch = epoch::Epoch {
             date: epoch::str2date("2022 01 01 00 00 0.0")
                 .unwrap(),
             flag: epoch::EpochFlag::Ok,
@@ -131,7 +131,7 @@ mod postprocessing {
         }
 
         // epoch2: epoch1 + 30'
-        let epoch = rinex::epoch::Epoch {
+        let epoch = epoch::Epoch {
             date: epoch::str2date("2022 01 01 00 00 30.0")
                 .unwrap(),
             flag: epoch::EpochFlag::Ok,
@@ -183,7 +183,7 @@ mod postprocessing {
         }
 
         // epoch3: epoch2 + 30'
-        let epoch = rinex::epoch::Epoch {
+        let epoch = epoch::Epoch {
             date: epoch::str2date("2022 01 01 00 01 00.0")
                 .unwrap(),
             flag: epoch::EpochFlag::Ok,
@@ -236,7 +236,7 @@ mod postprocessing {
 
         // epoch4: epoch3 +30'
         // only exists in RNX(A) (for testing purposes)
-        let epoch = rinex::epoch::Epoch {
+        let epoch = epoch::Epoch {
             date: epoch::str2date("2022 01 01 00 01 30.0")
                 .unwrap(),
             flag: epoch::EpochFlag::Ok,

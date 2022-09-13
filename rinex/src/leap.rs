@@ -85,7 +85,7 @@ impl std::str::FromStr for Leap {
                 if system.eq("") {
                     ls.system = None
                 } else {
-                    ls.system = Some(constellation::Constellation::from_3_letter_code(system)?)
+                    ls.system = Some(Constellation::from_3_letter_code(system)?)
                 }
             },
         }

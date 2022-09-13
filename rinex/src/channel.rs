@@ -126,7 +126,7 @@ pub enum Error {
     InvalidObservable(String),
 }
 
-impl std::str::FromStr for Channel {
+impl FromStr for Channel {
     type Err = Error; 
     fn from_str (s: &str) -> Result<Self, Self::Err> {
         if s.contains("L1") { 

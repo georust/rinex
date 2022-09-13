@@ -271,8 +271,8 @@ mod tests {
         assert_eq!(description.sampling, Some(300));
         assert_eq!(description.spacing, Some(86400));
         assert_eq!(description.method, Some(DeterminationMethod::CombinedAnalysis));
-        assert_eq!(description.bias_mode, bias::header::BiasMode::Absolute);
-        assert_eq!(description.system, bias::TimeSystem::GNSS(Constellation::GPS));
+        assert_eq!(description.bias_mode, header::BiasMode::Absolute);
+        assert_eq!(description.system, TimeSystem::GNSS(Constellation::GPS));
         assert_eq!(description.rcvr_clock_ref, None);
         assert_eq!(description.sat_clock_ref.len(), 2);
 
@@ -302,8 +302,8 @@ mod tests {
         assert_eq!(description.sampling, Some(300));
         assert_eq!(description.spacing, Some(86400));
         assert_eq!(description.method, Some(DeterminationMethod::CombinedAnalysis));
-        assert_eq!(description.bias_mode, bias::header::BiasMode::Relative);
-        assert_eq!(description.system, bias::TimeSystem::GNSS(Constellation::GPS));
+        assert_eq!(description.bias_mode, header::BiasMode::Relative);
+        assert_eq!(description.system, TimeSystem::GNSS(Constellation::GPS));
         assert_eq!(description.rcvr_clock_ref, None);
         assert_eq!(description.sat_clock_ref.len(), 2);
 

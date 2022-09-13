@@ -143,7 +143,7 @@ impl Sinex {
                 if !is_valid_header(line) {
                     return Err(Error::MissingHeader)
                 }
-                if let Ok(hd) = header::Header::from_str(line) {
+                if let Ok(hd) = Header::from_str(line) {
                     header = hd.clone()
                 }
                 is_first = false;

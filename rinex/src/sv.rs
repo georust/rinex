@@ -18,7 +18,7 @@ pub struct Sv {
     pub constellation: constellation::Constellation,
 }
 
-impl std::cmp::PartialOrd for Sv {
+impl PartialOrd for Sv {
     fn partial_cmp (&self, rhs: &Self) -> Option<std::cmp::Ordering> {
         let (c1, c2) = (self.constellation, rhs.constellation); 
         if c1 == c2 { // same constellation: PRN # differientiates
