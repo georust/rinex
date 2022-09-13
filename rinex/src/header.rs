@@ -53,7 +53,7 @@ pub enum MarkerType {
     #[strum(serialize = "GROUND CRAFT", serialize = "Groundcraft")]
     Groundcraft,
     /// Fixed on water surface
-    #[strum(serialize = "FXED BUOY", serialize = "FixedBuoy")]
+    #[strum(serialize = "FIXED BUOY", serialize = "FixedBuoy")]
     FixedBuoy,
     /// Floating on water surface
     #[strum(serialize = "FLOATING BUOY", serialize = "FloatingBuoy")]
