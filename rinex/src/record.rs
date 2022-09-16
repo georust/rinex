@@ -137,7 +137,7 @@ impl Record {
         }
     }
     /// Streams into given file writer
-    pub fn to_file (&self, header: &header::Header, writer: std::fs::File) -> std::io::Result<()> {
+    pub fn to_file (&self, header: &header::Header, writer: std::io::BufWriter<std::fs::File>) -> std::io::Result<()> {
         match &header.rinex_type {
             Type::MeteoData => {
                 let record = self.as_meteo()

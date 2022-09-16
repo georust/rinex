@@ -1,5 +1,6 @@
 //! `NavigationData` parser and related methods
-use std::io::Write;
+use std::fs::File;
+use std::io::{Write, BufWriter};
 use thiserror::Error;
 use std::str::FromStr;
 use strum_macros::EnumString;
@@ -584,7 +585,7 @@ fn parse_complex_map (version: Version, constell: Constellation, mut lines: std:
 
 
 /// Pushes observation record into given file writer
-pub fn to_file (header: &header::Header, record: &Record, mut writer: std::fs::File) -> std::io::Result<()> {
+pub fn to_file (header: &header::Header, record: &Record, mut writer: BufWriter<File>) -> std::io::Result<()> {
     for (epoch, sv) in record.iter() {
         let nb_sv = sv.keys().len();
         match header.version.major {

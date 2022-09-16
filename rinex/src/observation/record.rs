@@ -1,5 +1,6 @@
 //! `ObservationData` parser and related methods
-use std::io::Write;
+use std::fs::File;
+use std::io::{Write, BufWriter};
 use thiserror::Error;
 use std::str::FromStr;
 use chrono::Timelike;
@@ -537,7 +538,7 @@ pub fn build_record_entry (header: &header::Header, content: &str)
 }
 
 /// Pushes observation record into given file writer
-pub fn to_file (header: &header::Header, record: &Record, mut writer: std::fs::File) -> std::io::Result<()> {
+pub fn to_file (header: &header::Header, record: &Record, mut writer: BufWriter<File>) -> std::io::Result<()> {
     for (epoch, (clock_offset, sv)) in record.iter() {
         let date = epoch.date;
         let flag = epoch.flag;
