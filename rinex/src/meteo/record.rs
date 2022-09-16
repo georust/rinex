@@ -1,12 +1,13 @@
 //! `MeteoData` related structures & methods
-use std::fs::File;
-use std::io::{Write, BufWriter};
 use thiserror::Error;
 use std::str::FromStr;
 use std::collections::{BTreeMap, HashMap};
 use crate::epoch;
 use crate::version;
 use crate::header::Header;
+
+use std::io::Write;
+use crate::writer::BufferedWriter;
 
 use crate::meteo::observable::Observable;
 
@@ -132,7 +133,7 @@ pub fn build_record_entry (header: &Header, content: &str)
 }
 
 /// Pushes meteo record into given file writer
-pub fn to_file (header: &Header, record: &Record, mut writer: BufWriter<File>) -> std::io::Result<()> {
+pub fn to_file (header: &Header, record: &Record, writer: &mut BufferedWriter) -> std::io::Result<()> {
     let obscodes = &header.meteo.as_ref().unwrap().codes;
     for (epoch, obs) in record.iter() {
         if header.version.major > 3 {

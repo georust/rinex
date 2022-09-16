@@ -24,10 +24,13 @@ pub mod record;
 pub mod sv;
 pub mod types;
 pub mod version;
-pub mod reader;
 
+mod reader;
 use reader::BufferedReader;
-use std::io::{Read, Write, BufWriter};
+use std::io::{Read, Write};
+
+mod writer;
+use writer::BufferedWriter;
 
 use thiserror::Error;
 use chrono::{Datelike, Timelike};
@@ -3341,11 +3344,10 @@ CYCLE SLIPS CONFIRMATION
     /// Both header + record will strictly follow RINEX standards.   
     /// Record: refer to supported RINEX types
     pub fn to_file (&self, path: &str) -> std::io::Result<()> {
-        let file = std::fs::File::create(path)?;
-		let mut writer = BufWriter::new(file);
+		let mut writer = BufferedWriter::new(path)?;
         write!(writer, "{}", self.header.to_string())?;
         self.record
-            .to_file(&self.header, writer)
+            .to_file(&self.header, &mut writer)
     }
 }
 
