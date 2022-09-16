@@ -1,6 +1,7 @@
 //! Generic Buffered Reader, for efficient record iteration,
 //! with powerful internal Hatanaka / Gz decompression.
-use std::io::{BufReader}; // Seek, SeekFrom};
+use std::fs::File;
+use std::io::BufReader; // Seek, SeekFrom};
 use crate::hatanaka::Decompressor;
 #[cfg(feature = "flate2")]
 use flate2::read::GzDecoder;
@@ -8,10 +9,10 @@ use flate2::read::GzDecoder;
 #[derive(Debug)]
 pub enum ReaderWrapper {
     /// Readable `RINEX`
-    PlainFile(BufReader<std::fs::File>),
+    PlainFile(BufReader<File>),
     /// gzip compressed RINEX
     #[cfg(feature = "flate2")]
-    GzFile(BufReader<GzDecoder<std::fs::File>>),
+    GzFile(BufReader<GzDecoder<File>>),
 }
 
 pub struct BufferedReader {
@@ -26,7 +27,7 @@ impl BufferedReader {
     /// Builds a new BufferedReader for efficient file interation,
     /// with possible .gz and .gz + hatanaka decompression
     pub fn new (path: &str) -> std::io::Result<Self> {
-        let f = std::fs::File::open(path)?;
+        let f = File::open(path)?;
         if path.ends_with(".gz") {
             // --> gzip encoded
             #[cfg(feature = "flate2")] {
@@ -38,11 +39,11 @@ impl BufferedReader {
                 })
             }
             #[cfg(not(feature = "flate2"))] {
-                panic!("gzip compressed data require the --flate2 build feature")
+                panic!(".gz data requires --flate2 feature")
             }
         
         } else if path.ends_with(".Z") {
-            panic!(".z compressed files not supported yet, uncompress manually")
+            panic!(".z decompresion not supported yet, uncompress manually")
         
         } else { // Assumes no extra compression
             Ok(Self {
