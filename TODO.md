@@ -6,8 +6,10 @@ Roadmap
 - [ ] `epoch` : `EpochFlag::HeaderInformationFollows` is not exploited to this day.  
 We might want to update the Header structure, on the fly, with following information
 
-- [ ] `navigation`: data dictionary only supports floating point and string data to be parsed/described.  
-We should unlock other native types (like boolean or integer number) and ideally should have the ability to identify complex enum. An example of such complex enum would be `Satellite Health` in Orbit7 identification.
+- [ ] `navigation` - `dictionary`: currently only supports floating point and string data to be identified and parsed.
+  - [ ] we should allow other native types like boolean or integer numbers, as they are also specified in RINEX standards (at least of the latter)
+  - [ ] an interface for `bitflags!` mapping would be ideal for Binary fields
+  - [ ] an interface for complex and custom enums mapping would be also ideal and help data analysis 
 
 - [ ] `sampling`: `chrono::duration` is used most of the time to describe a duration.  
 The fractional parts ("nanos") is totally unused, we cannot handle periods smaller than 1 second to this day
