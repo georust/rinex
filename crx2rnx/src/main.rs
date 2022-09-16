@@ -1,6 +1,4 @@
-//! crx2rnx: 
-//! command line tool to compress RINEX files   
-//! and decompress CRINEX files
+//! Command line tool to decompress CRINEX files 
 use rinex::{header, hatanaka};
 use rinex::reader::BufferedReader;
 
