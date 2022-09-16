@@ -5,7 +5,6 @@ use crate::hatanaka::Decompressor;
 #[cfg(feature = "flate2")]
 use flate2::read::GzDecoder;
 
-
 #[derive(Debug)]
 pub enum ReaderWrapper {
     /// Readable `RINEX`
