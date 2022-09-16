@@ -60,6 +60,7 @@ track [opened issue](https://github.com/rust-lang/flate2-rs/issues/316)
 
 ## UBLOX application
 
+- [ ] Have an header field attributes customization interface similar to `cli` application
 - [ ] Generate Observation Data (requires `observation::to_file` to be completed)
 - [ ] Generate Ephemeris Data (requires `navigation::to_file` to be completed)
 
@@ -67,5 +68,3 @@ track [opened issue](https://github.com/rust-lang/flate2-rs/issues/316)
 
 - [x] Rinex Post Processing
   - [x] 1D post processing [1D diff()](https://github.com/gwbres/rinex/blob/main/rinex/src/lib.rs#L3023) 
-- [ ] UBLOX
-  - [ ] I just had the `End of Epoch` UBX frame merged
