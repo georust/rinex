@@ -15,6 +15,7 @@ use crate::ionosphere;
 use crate::is_comment;
 use crate::types::Type;
 use crate::reader::BufferedReader;
+use crate::writer::BufferedWriter;
 
 #[cfg(feature = "serde")]
 use serde::Serialize;
@@ -137,7 +138,7 @@ impl Record {
         }
     }
     /// Streams into given file writer
-    pub fn to_file (&self, header: &header::Header, writer: std::io::BufWriter<std::fs::File>) -> std::io::Result<()> {
+    pub fn to_file (&self, header: &header::Header, writer: &mut BufferedWriter) -> std::io::Result<()> {
         match &header.rinex_type {
             Type::MeteoData => {
                 let record = self.as_meteo()
