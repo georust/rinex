@@ -15,6 +15,10 @@ We might want to update the Header structure, on the fly, with following informa
 The fractional parts ("nanos") is totally unused, we cannot handle periods smaller than 1 second to this day
 
 - [ ] Data production
+  - [ ] Find an efficient data production testbench.
+  This takes place in `rinex/tests/production.rs`.
+  We can't use a `diff -z` like in `CRX2RNX` testbench (very efficient test method),
+  because the header fields order of appearance have no reason to match.
   - [ ]  Major data production
     - [ ] Observation data production
     - [ ] Navigation data production
@@ -26,8 +30,9 @@ The fractional parts ("nanos") is totally unused, we cannot handle periods small
 - [ ] Data compression
   - [ ] Conclude [numerical data compression](https://github.com/gwbres/rinex/blob/main/rinex/src/hatanaka.rs#L164)
   - [ ] Conclude [text data compression](https://github.com/gwbres/rinex/blob/main/rinex/src/hatanaka.rs#L209)
-  - [ ] Provide a Writer wrapper in similar fashion to existing Reader wrapper for efficient data compression
-  - [ ] Adjust production method to take advantage of newly available Writer wrapper
+  - [x] Provide a Writer wrapper in similar fashion to existing Reader wrapper for efficient data compression
+  - [x] Adjust production method to take advantage of newly available Writer wrapper
+  - [ ] Enhance Buffered writer with `Hatanaka` compression
   - [ ] Unlock `CRINEX` data production
   - [ ] `Gzip` decompression failure: understand current issue regarding files marked for `Post Processing`, 
 track [opened issue](https://github.com/rust-lang/flate2-rs/issues/316)
