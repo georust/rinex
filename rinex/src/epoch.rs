@@ -123,6 +123,17 @@ impl Epoch {
             flag,
         }
     }
+	/// Builds an `epoch` to describe current instant
+	pub fn now() -> Self {
+		Self::default()
+	}
+	/// Builds an `epoch` with desired customized flag
+	pub fn with_flag(&self, flag: EpochFlag) -> Self {
+		Self {
+			date: self.date,
+			flag,
+		}
+	}
     /// Converts self to string in standard format,
     /// this is mainly used in file production [rinex::to_file]
     pub fn to_string (&self) -> &str { "TODO" }
