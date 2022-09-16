@@ -25,7 +25,7 @@ fn main() -> Result<(), Error> {
     let matches = app.get_matches();
     let filepath = matches.value_of("filepath")
         .unwrap();
-    let m = u16::from_str_radix(matches.value_of("m")
+    let m = u16::from_str_radix(matches.value_of("max-compression-order")
         .unwrap_or("8"),10).unwrap();
     let _strict_flag = matches.is_present("strict");
 

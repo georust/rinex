@@ -12,7 +12,7 @@ readme = "README.md"
 
 [dependencies]
 rinex = { path = "../rinex", features = ["serde"] }
-clap = { version = "~2.34.0", features = ["yaml"] }
+clap = { version = "3.2.22", features = ["yaml"] }
 thiserror = "1"
 
 [dev-dependencies]
