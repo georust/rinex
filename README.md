@@ -92,5 +92,5 @@ allow native parsing of .gz compressed RINEX files. Otherwise, user must uncompr
 
 ## Contributions
 
-Contributions are welcomed, do not hesitate to open new issues. 
+Contributions are welcomed, do not hesitate to open new issues.  
 If you want to take part in active developments, checkout our [TODO list](TODO.md)
