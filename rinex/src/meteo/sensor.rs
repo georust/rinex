@@ -88,7 +88,7 @@ impl std::fmt::Display for Sensor {
         write!(f, "SENSOR MOD/TYPE/ACC\n")?;
         if let Some((x,y,z,h)) = self.position {
             write!(f, "        {:.4}        {:.4}        {:.4}        {:.4} ", x, y, z, h)?;
-            write!(f, "{} SENSOR POS XYZ/H", self.observable)?
+            write!(f, "{} SENSOR POS XYZ/H\n", self.observable)?
         }
         Ok(())
     }
