@@ -25,11 +25,11 @@ pub mod sv;
 pub mod types;
 pub mod version;
 
-mod reader;
+pub mod reader;
 use reader::BufferedReader;
 use std::io::{Read, Write};
 
-mod writer;
+pub mod writer;
 use writer::BufferedWriter;
 
 use thiserror::Error;
