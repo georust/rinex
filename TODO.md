@@ -6,10 +6,6 @@ Roadmap
 - [ ] `epoch` : `EpochFlag::HeaderInformationFollows` is not exploited to this day.  
 We might want to update the Header structure, on the fly, with following information
 
-- [ ] `navigation` - `dictionary`: currently only supports floating point and string data to be identified and parsed.
-  - [ ] find all Orbit/Sat health indication in standards,
-  and conclude `navigation/health.rs` so we have a powerful wrapper
-
 - [ ] `sampling`: `chrono::duration` is used most of the time to describe a duration.  
 The fractional parts ("nanos") is totally unused, we cannot handle periods smaller than 1 second to this day
 
@@ -66,5 +62,9 @@ track [opened issue](https://github.com/rust-lang/flate2-rs/issues/316)
 
 ## Done
 
-- [x] Rinex Post Processing
+- `navigation` - `dictionary`
+  - [x] General orbits health 
+  - [x] GLO/Orbit2 channel #
+  - [x] GLO/NAV4/Orbit7 status flag
+- Post Processing
   - [x] 1D post processing [1D diff()](https://github.com/gwbres/rinex/blob/main/rinex/src/lib.rs#L3023) 
