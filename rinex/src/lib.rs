@@ -1574,7 +1574,7 @@ impl Rinex {
 	///		.unwrap();
     /// rinex
     ///     .observable_filter_mut(vec!["idot","iode"]);
-    /// ```*/
+    /// ```
     pub fn observable_filter_mut (&mut self, filter: Vec<&str>) {
         if self.is_navigation_rinex() {
             let record = self.record
