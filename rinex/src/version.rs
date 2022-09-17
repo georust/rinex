@@ -22,6 +22,12 @@ impl Default for Version  {
     }
 }
 
+impl std::fmt::Display for Version {
+    fn fmt (&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}.{}", self.major, self.minor) 
+    }
+}
+
 impl std::str::FromStr for Version {
     type Err = std::num::ParseIntError;
     fn from_str (s: &str) -> Result<Self, Self::Err> {

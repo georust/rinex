@@ -1458,8 +1458,11 @@ impl std::fmt::Display for Header {
     /// `header` formatter, mainly for 
     /// `RINEX` file production purposes
     fn fmt (&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        if self.is_crinex() {
-			// TODO: special header please
+        // start with CRINEX attributes, if need be
+        if let Some(obs) = &self.obs {
+            if let Some(crinex) = &obs.crinex {
+                write!(f, "{}", crinex)?;
+            }
         }
         // RINEX VERSION / TYPE 
         write!(f, "{:6}.{:02}           ", self.version.major, self.version.minor)?;
