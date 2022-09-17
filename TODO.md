@@ -48,6 +48,7 @@ track [opened issue](https://github.com/rust-lang/flate2-rs/issues/316)
 - [ ] CLI
   - [ ] expose remaining interesting methods ?
   - [ ] conclude the `teqc` mini ascii plot 
+  - [ ] Find an efficient method to customize header fields
 - [ ]  Data production
   - [ ] provide some interface to efficiently customize the Header section
   - [ ] provide an efficient interface to manage file names to be generated 
