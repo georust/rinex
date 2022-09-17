@@ -11,8 +11,11 @@ use crate::sv::Sv;
 use crate::epoch::{Epoch, ParseDateError};
 use crate::version::Version;
 use crate::constellation::Constellation;
-use crate::navigation::{ionmessage, stomessage, eopmessage};
-use crate::navigation::{database, database::{NAV_MESSAGES, DbItem, DbItemError}};
+
+use crate::navigation::{
+    ionmessage, stomessage, eopmessage,
+    database, database::{NAV_MESSAGES, DbItem, DbItemError},
+};
 
 use std::io::Write;
 use crate::writer::BufferedWriter;
