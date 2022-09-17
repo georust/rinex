@@ -222,7 +222,7 @@ pub fn is_new_epoch (line: &str, v: version::Version) -> bool {
 
 /// Builds `Record` entry for `ObservationData`
 /// from given epoch content
-pub fn build_record_entry (header: &header::Header, content: &str)
+pub fn parse_epoch (header: &header::Header, content: &str)
         -> Result<(epoch::Epoch, Option<f64>, BTreeMap<sv::Sv, HashMap<String, ObservationData>>), Error> 
 {
     let mut lines = content.lines();

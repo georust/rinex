@@ -123,7 +123,7 @@ pub fn is_new_epoch (line: &str) -> bool {
 /// Builds `RINEX` record entry for `Clocks` data files.   
 /// Returns identified `epoch` to sort data efficiently.  
 /// Returns 2D data as described in `record` definition
-pub fn build_record_entry (version: Version, content: &str) -> 
+pub fn parse_epoch (version: Version, content: &str) -> 
         Result<(epoch::Epoch, DataType, System, Data), Error> 
 {
     let mut lines = content.lines();

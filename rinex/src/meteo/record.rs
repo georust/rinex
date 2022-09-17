@@ -46,7 +46,7 @@ pub enum Error {
 }
 
 /// Builds `Record` entry for `MeteoData`
-pub fn build_record_entry (header: &Header, content: &str) 
+pub fn parse_epoch (header: &Header, content: &str) 
         -> Result<(epoch::Epoch, HashMap<Observable, f32>), Error> 
 {
     let mut lines = content.lines();

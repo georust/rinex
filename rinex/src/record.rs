@@ -265,7 +265,7 @@ pub fn build_record (reader: &mut BufferedReader, header: &header::Header) -> Re
                     match &header.rinex_type {
                         Type::NavigationData => {
                             let constellation = &header.constellation.unwrap();
-                            if let Ok((e, class, fr)) = navigation::record::build_record_entry(header.version, *constellation, &epoch_content) {
+                            if let Ok((e, class, fr)) = navigation::record::parse_epoch(header.version, *constellation, &epoch_content) {
                                 if let Some(e) = nav_rec.get_mut(&e) {
                                     // epoch already encountered
                                     if let Some(frames) = e.get_mut(&class) {
@@ -288,19 +288,19 @@ pub fn build_record (reader: &mut BufferedReader, header: &header::Header) -> Re
                             }
                         },
                         Type::ObservationData => {
-                            if let Ok((e, ck_offset, map)) = observation::record::build_record_entry(&header, &epoch_content) {
+                            if let Ok((e, ck_offset, map)) = observation::record::parse_epoch(&header, &epoch_content) {
                                 obs_rec.insert(e, (ck_offset, map));
                                 comment_ts = e.clone(); // for comments classification & management
                             }
                         },
                         Type::MeteoData => {
-                            if let Ok((e, map)) = meteo::record::build_record_entry(&header, &epoch_content) {
+                            if let Ok((e, map)) = meteo::record::parse_epoch(&header, &epoch_content) {
                                 met_rec.insert(e, map);
                                 comment_ts = e.clone(); // for comments classification & management
                             }
                         },
                         Type::ClockData => {
-                            if let Ok((epoch, dtype, system, data)) = clocks::record::build_record_entry(header.version, &epoch_content) {
+                            if let Ok((epoch, dtype, system, data)) = clocks::record::parse_epoch(header.version, &epoch_content) {
                                 if let Some(e) = clk_rec.get_mut(&epoch) {
                                     if let Some(d) = e.get_mut(&dtype) {
                                         d.insert(system, data);
@@ -322,7 +322,7 @@ pub fn build_record (reader: &mut BufferedReader, header: &header::Header) -> Re
                             }
                         },
                         Type::AntennaData => {
-                            if let Ok((antenna, frequencies)) = antex::record::build_record_entry(&epoch_content) {
+                            if let Ok((antenna, frequencies)) = antex::record::parse_epoch(&epoch_content) {
                                 let mut found = false;
                                 for (ant, freqz) in atx_rec.iter_mut() {
                                     if *ant == antenna {
@@ -339,7 +339,7 @@ pub fn build_record (reader: &mut BufferedReader, header: &header::Header) -> Re
                             }
                         },
                         Type::IonosphereMaps => {
-                            if let Ok((epoch, map)) = ionosphere::record::build_record_entry(&epoch_content, exponent) {
+                            if let Ok((epoch, map)) = ionosphere::record::parse_epoch(&epoch_content, exponent) {
                                 ionx_rec.insert(epoch, (map, None, None));
                             }
                         }
@@ -371,7 +371,7 @@ pub fn build_record (reader: &mut BufferedReader, header: &header::Header) -> Re
     match &header.rinex_type {
         Type::NavigationData => {
             let constellation = &header.constellation.unwrap();
-            if let Ok((e, class, fr)) = navigation::record::build_record_entry(header.version, *constellation, &epoch_content) {
+            if let Ok((e, class, fr)) = navigation::record::parse_epoch(header.version, *constellation, &epoch_content) {
                 if let Some(e) = nav_rec.get_mut(&e) {
                     // epoch already encountered
                     if let Some(frames) = e.get_mut(&class) {
@@ -394,19 +394,19 @@ pub fn build_record (reader: &mut BufferedReader, header: &header::Header) -> Re
             }
         },
         Type::ObservationData => {
-            if let Ok((e, ck_offset, map)) = observation::record::build_record_entry(&header, &epoch_content) {
+            if let Ok((e, ck_offset, map)) = observation::record::parse_epoch(&header, &epoch_content) {
                 obs_rec.insert(e, (ck_offset, map));
                 comment_ts = e.clone(); // for comments classification + management
             }
         },
         Type::MeteoData => {
-            if let Ok((e, map)) = meteo::record::build_record_entry(&header, &epoch_content) {
+            if let Ok((e, map)) = meteo::record::parse_epoch(&header, &epoch_content) {
                 met_rec.insert(e, map);
                 comment_ts = e.clone(); // for comments classification + management
             }
         },
         Type::ClockData => {
-            if let Ok((e, dtype, system, data)) = clocks::record::build_record_entry(header.version, &epoch_content) {
+            if let Ok((e, dtype, system, data)) = clocks::record::parse_epoch(header.version, &epoch_content) {
                 // Clocks `RINEX` files are handled a little different,
                 // because we parse one line at a time, while we parsed one epoch at a time for other RINEXes.
                 // One line may contribute to a previously existing epoch in the record 
@@ -433,12 +433,12 @@ pub fn build_record (reader: &mut BufferedReader, header: &header::Header) -> Re
             }
         },
         Type::IonosphereMaps => {
-            if let Ok((epoch, maps)) = ionosphere::record::build_record_entry(&epoch_content, exponent) {
+            if let Ok((epoch, maps)) = ionosphere::record::parse_epoch(&epoch_content, exponent) {
                 ionx_rec.insert(epoch, (maps, None, None));
             }
         }
         Type::AntennaData => {
-            if let Ok((antenna, frequencies)) = antex::record::build_record_entry(&epoch_content) {
+            if let Ok((antenna, frequencies)) = antex::record::parse_epoch(&epoch_content) {
                 let mut found = false;
                 for (ant, freqz) in atx_rec.iter_mut() {
                     if *ant == antenna {

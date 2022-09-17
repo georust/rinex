@@ -248,7 +248,7 @@ pub enum Error {
 }
 
 /// Builds `Record` entry for `NavigationData`
-pub fn build_record_entry (version: Version, constell: Constellation, content: &str) ->
+pub fn parse_epoch (version: Version, constell: Constellation, content: &str) ->
         Result<(Epoch, FrameClass, Frame), Error>
 {
     if content.starts_with(">") {
@@ -580,7 +580,7 @@ mod test {
     1.292880712890D+04-2.049269676210D+00 0.000000000000D+00 1.000000000000D+00
     2.193169775390D+04 1.059645652770D+00-9.313225746150D-10 0.000000000000D+00";
         let version = Version::new(2, 0);
-        let entry = build_record_entry(version, Constellation::Glonass, content);
+        let entry = parse_epoch(version, Constellation::Glonass, content);
         assert_eq!(entry.is_ok(), true);
         let (epoch, class, frame) = entry.unwrap();
         assert_eq!(epoch, Epoch {
@@ -676,7 +676,7 @@ mod test {
       .200000000000e+01  .000000000000e+00 -.599999994133e-09 -.900000000000e-08
       .432000000000e+06  .000000000000e+00 0.000000000000e+00 0.000000000000e+00";
         let version = Version::new(3, 0);
-        let entry = build_record_entry(version, Constellation::Mixed, content);
+        let entry = parse_epoch(version, Constellation::Mixed, content);
         assert_eq!(entry.is_ok(), true);
         let (epoch, class, frame) = entry.unwrap();
         assert_eq!(epoch, Epoch {
@@ -842,7 +842,7 @@ mod test {
       .312000000000e+01  .000000000000e+00  .232830643654e-09  .000000000000e+00
       .469330000000e+06 0.000000000000e+00 0.000000000000e+00 0.000000000000e+00";
         let version = Version::new(3, 0);
-        let entry = build_record_entry(version, Constellation::Mixed, content);
+        let entry = parse_epoch(version, Constellation::Mixed, content);
         assert_eq!(entry.is_ok(), true);
         let (epoch, class, frame) = entry.unwrap();
         assert_eq!(epoch, Epoch {
@@ -1002,7 +1002,7 @@ mod test {
       .595546582031e+04  .278496932983e+01  .000000000000e+00  .500000000000e+01
       .214479208984e+05 -.131077289581e+01 -.279396772385e-08  .000000000000e+00";
         let version = Version::new(3, 0);
-        let entry = build_record_entry(version, Constellation::Mixed, content);
+        let entry = parse_epoch(version, Constellation::Mixed, content);
         assert_eq!(entry.is_ok(), true);
         let (epoch, class, frame) = entry.unwrap();
         assert_eq!(epoch, Epoch {

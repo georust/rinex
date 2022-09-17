@@ -86,7 +86,7 @@ pub enum Error {
 }
 
 /// Builds list of identified maps and associated epoch 
-pub fn build_record_entry (content: &str, exponent: i8) -> Result<(epoch::Epoch, Map), Error> {
+pub fn parse_epoch (content: &str, exponent: i8) -> Result<(epoch::Epoch, Map), Error> {
     let lines = content.lines();
     let mut exp = exponent.clone();
     let mut epoch = epoch::Epoch::default();
@@ -210,7 +210,7 @@ mod test {
  1000 1000 1000 1000 1000 1000 1000 1000 1000 1000 1000 1000 1000 1000 1000 1000
  1000 1000 1000 1000 1000 1000 1000 1000                                        
      5                                                      END OF TEC MAP     "; 
-        //let entry = build_record_entry(content, -1);
+        //let entry = parse_epoch(content, -1);
         //println!("{:#?}", entry);
     }
 }

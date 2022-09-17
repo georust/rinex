@@ -31,7 +31,7 @@ pub enum Error {
 
 /// Parses entire Antenna block
 /// and all inner frequency entries
-pub fn build_record_entry (content: &str) -> Result<(Antenna, Vec<Frequency>), Error> {
+pub fn parse_epoch (content: &str) -> Result<(Antenna, Vec<Frequency>), Error> {
     let lines = content.lines();
     let mut antenna = Antenna::default();
     let mut frequency = Frequency::default();
