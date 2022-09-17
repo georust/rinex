@@ -15,7 +15,10 @@ We might want to update the Header structure, on the fly, with following informa
 The fractional parts ("nanos") is totally unused, we cannot handle periods smaller than 1 second to this day
 
 - [ ] Data production
-  - [ ] Find an efficient data production test method.  
+  - [ ] Find an efficient data production test method (`rinex/tests/production.rs`).   
+  `CRX2RNX` test bench is based on official versus generated file comparison
+  using "diff -z" (sort of bitwise comparison). We can't use this option in case of data production,
+  because header fields order of appearance are very likely to differ.
   - [ ]  Major data production
     - [ ] Observation data production
     - [ ] Navigation data production
