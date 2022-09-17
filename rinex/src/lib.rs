@@ -374,7 +374,7 @@ impl Rinex {
         // --> parse record (file body)
         //     we also grab encountered comments,
         //     they might serve some fileops like `splice` / `merge` 
-        let (record, comments) = record::build_record(&mut reader, &header)
+        let (record, comments) = record::parse_record(&mut reader, &header)
             .unwrap();
         Ok(Rinex {
             header,

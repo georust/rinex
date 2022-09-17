@@ -183,7 +183,7 @@ pub fn is_new_epoch (line: &str, header: &header::Header) -> bool {
 
 /// Builds a `Record`, `RINEX` file body content,
 /// which is constellation and `RINEX` file type dependent
-pub fn build_record (reader: &mut BufferedReader, header: &header::Header) -> Result<(Record, Comments), Error> {
+pub fn parse_record (reader: &mut BufferedReader, header: &header::Header) -> Result<(Record, Comments), Error> {
     let mut first_epoch = true;
     let mut content : Option<String>; // epoch content to build
     let mut epoch_content = String::with_capacity(6*64);
