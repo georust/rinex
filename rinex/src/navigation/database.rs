@@ -1,9 +1,10 @@
 //! NAV database for efficient navigation ephemeris
 //! parsing, accross all revisions and constellations
-use std::str::FromStr;
-use itertools::Itertools;
 use crate::version;
 use thiserror::Error;
+use std::str::FromStr;
+use bitflags::bitflags;
+use itertools::Itertools;
 use crate::constellation::Constellation;
 
 use super::{
@@ -11,6 +12,23 @@ use super::{
 };
 
 include!(concat!(env!("OUT_DIR"),"/nav_db.rs"));
+
+bitflags! {
+    #[derive(Default)]
+    #[cfg_attr(feature = "serde", derive(Serialize))]
+	pub struct GloStatus: u32 {
+		const GROUND_GPS_ONBOARD_OFFSET = 0x01;
+		const ONBOARD_GPS_GROUND_OFFSET = 0x02;
+		const ONBOARD_OFFSET = 0x03;
+		const HALF_HOUR_VALIDITY = 0x04;
+		const THREE_QUARTER_HOUR_VALIDITY = 0x06;
+		const ONE_HOUR_VALIDITY = 0x07;
+		const ODD_TIME_INTERVAL = 0x08;
+		const SAT5_ALMANAC = 0x10;
+		const DATA_UPDATED = 0x20;
+		const MK = 0x40;
+	}
+}
 
 /// `DbItem` item is NAV record data base entry.
 /// It serves as the actual Navigation record payload.
@@ -34,6 +52,8 @@ pub enum DbItem {
 	Health(health::Health),
 	/// GLO orbit/sv health indication
 	GloHealth(health::GloHealth),
+	/// GLO NAV4 Orbit7 status mask
+	GloStatus(GloStatus),
 	/// GEO/SBAS orbit/sv health indication
 	GeoHealth(health::GeoHealth),
 	/// GAL orbit/sv health indication
@@ -54,6 +74,7 @@ impl std::fmt::Display for DbItem {
             DbItem::F64(f) => write!(fmt, "{:.10e}", f),
 			DbItem::Health(h) => write!(fmt, "{:?}", h),
 			DbItem::GloHealth(h) => write!(fmt, "{:?}", h),
+			DbItem::GloStatus(s) => write!(fmt, "{:?}", s),
 			DbItem::GeoHealth(h) => write!(fmt, "{:?}", h),
 			DbItem::GalHealth(h) => write!(fmt, "{:?}", h),
 			DbItem::IrnssHealth(h) => write!(fmt, "{:?}", h),
@@ -89,6 +110,14 @@ impl DbItem {
 			},
             "f32" => Ok(DbItem::F32(f32::from_str(&content.replace("D","e"))?)),
             "f64" => Ok(DbItem::F64(f64::from_str(&content.replace("D","e"))?)),
+			"gloStatus" => {
+				// float->unsigned conversion
+				let float = f64::from_str(&content.replace("D","e"))?;
+				let unsigned = float as u32;
+				let status = GloStatus::from_bits(unsigned)
+					.unwrap_or(GloStatus::empty());
+				Ok(DbItem::GloStatus(status))
+			},
 			"health" => {
 				// float->unsigned conversion
 				let float = f64::from_str(&content.replace("D","e"))?;

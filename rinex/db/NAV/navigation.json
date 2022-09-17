@@ -211,7 +211,7 @@
             "velZ": "f64",
             "accelZ": "f64",
             "ageOp": "f64",
-            "status": "f64",
+            "status": "gloStatus",
             "L1L2GrpDelay": "f64",
             "urai": "f64",
 			"almanacHealth": "health"
