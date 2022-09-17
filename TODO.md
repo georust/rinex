@@ -7,9 +7,8 @@ Roadmap
 We might want to update the Header structure, on the fly, with following information
 
 - [ ] `navigation` - `dictionary`: currently only supports floating point and string data to be identified and parsed.
-  - [ ] we should allow other native types like boolean or integer numbers, as they are also specified in RINEX standards (at least of the latter)
-  - [ ] an interface for `bitflags!` mapping would be ideal for Binary fields
-  - [ ] an interface for complex and custom enums mapping would be also ideal and help data analysis 
+  - [ ] find all Orbit/Sat health indication in standards,
+  and conclude `navigation/health.rs` so we have a powerful wrapper
 
 - [ ] `sampling`: `chrono::duration` is used most of the time to describe a duration.  
 The fractional parts ("nanos") is totally unused, we cannot handle periods smaller than 1 second to this day
