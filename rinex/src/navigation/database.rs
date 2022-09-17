@@ -22,6 +22,8 @@ include!(concat!(env!("OUT_DIR"),"/nav_db.rs"));
 pub enum DbItem {
 	/// unsigned byte
     U8(u8),
+	/// signed byte
+	I8(i8),
 	/// string / readable data
     Str(String), 
 	/// single precision data
@@ -46,6 +48,7 @@ impl std::fmt::Display for DbItem {
     fn fmt (&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             DbItem::U8(u)  => write!(fmt, "{:X}", u),
+            DbItem::I8(i)  => write!(fmt, "{}", i),
             DbItem::Str(s) => write!(fmt, "{}", s),
             DbItem::F32(f) => write!(fmt, "{:.10e}", f),
             DbItem::F64(f) => write!(fmt, "{:.10e}", f),
@@ -74,7 +77,16 @@ impl DbItem {
     pub fn new (type_desc: &str, content: &str, constellation: Constellation) -> Result<DbItem, DbItemError> {
         match type_desc {
             "str" => Ok(DbItem::Str(String::from(content))),
-            "u8" => Ok(DbItem::U8(u8::from_str_radix(&content, 16)?)),
+            "u8" => {
+				// float->unsigned conversion
+				let float = f64::from_str(&content.replace("D","e"))?;
+				Ok(DbItem::U8(float as u8))
+			},
+            "i8" => {
+				// float->signed conversion
+				let float = f64::from_str(&content.replace("D","e"))?;
+				Ok(DbItem::I8(float as i8))
+			},
             "f32" => Ok(DbItem::F32(f32::from_str(&content.replace("D","e"))?)),
             "f64" => Ok(DbItem::F64(f64::from_str(&content.replace("D","e"))?)),
 			"health" => {
