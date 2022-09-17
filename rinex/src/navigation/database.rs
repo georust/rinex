@@ -123,7 +123,7 @@ impl DbItem {
 				let float = f64::from_str(&content.replace("D","e"))?;
 				let unsigned = float as u32;
 				match constellation {
-					Constellation::GPS => { 
+					Constellation::GPS | Constellation::QZSS => { 
 						let flag: health::Health = num::FromPrimitive::from_u32(unsigned)
 							.unwrap_or(health::Health::default());
 						Ok(DbItem::Health(flag))
@@ -186,6 +186,13 @@ impl DbItem {
             _ => None,
         }
     }
+    /// Unwraps DbItem as i8
+    pub fn as_i8 (&self) -> Option<i8> {
+        match self {
+            DbItem::I8(i) => Some(i.clone()),
+            _ => None,
+        }
+    }
 	/// Unwraps Self as GPS/QZSS orbit Health indication 
 	pub fn as_gps_health (&self) -> Option<health::Health> {
 		match self {
@@ -197,6 +204,20 @@ impl DbItem {
 	pub fn as_geo_health (&self) -> Option<health::GeoHealth> {
 		match self {
 			DbItem::GeoHealth(h) => Some(h.clone()),
+			_ => None
+		}
+	}
+	/// Unwraps Self as GLO orbit Health indication 
+	pub fn as_glo_health (&self) -> Option<health::GloHealth> {
+		match self {
+			DbItem::GloHealth(h) => Some(h.clone()),
+			_ => None
+		}
+	}
+	/// Unwraps Self as GAL orbit Health indication 
+	pub fn as_gal_health (&self) -> Option<health::GalHealth> {
+		match self {
+			DbItem::GalHealth(h) => Some(h.clone()),
 			_ => None
 		}
 	}
@@ -304,6 +325,7 @@ mod test {
         for n in super::NAV_MESSAGES.iter() { 
             let c = Constellation::from_str(n.constellation);
             assert_eq!(c.is_ok(), true);
+            let c = c.unwrap();
             for r in n.revisions.iter() {
                 let major = u8::from_str_radix(r.major, 10);
                 assert_eq!(major.is_ok(), true);
@@ -312,17 +334,8 @@ mod test {
                 for item in r.items.iter() {
                     let (k, v) = item;
                     if !k.contains(&"spare") {
-                        let test : String;
-                        if v.eq(&"f32") {
-                            test = String::from("0.0")
-                        } else if v.eq(&"f64") {
-                            test = String::from("0.0")
-                        } else if v.eq(&"u8") {
-                            test = String::from("10")
-                        } else {
-                            test = String::from("hello")
-                        }
-                        let e = DbItem::new(v, &test);
+                        let test = String::from("0.000E0"); // testdata
+                        let e = DbItem::new(v, &test, c);
                         assert_eq!(e.is_ok(), true);
                     }
                 }

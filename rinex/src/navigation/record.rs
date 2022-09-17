@@ -614,10 +614,8 @@ mod test {
                 let v = v.unwrap();
                 assert_eq!(v, 3.725290298460E-09);
             } else if k.eq("health") {
-                let v = v.as_f64();
+                let v = v.as_glo_health();
                 assert_eq!(v.is_some(), true);
-                let v = v.unwrap();
-                assert_eq!(v, 0.0);
             } else if k.eq("satPosY") {
                 let v = v.as_f64();
                 assert_eq!(v.is_some(), true);
@@ -633,11 +631,11 @@ mod test {
                 assert_eq!(v.is_some(), true);
                 let v = v.unwrap();
                 assert_eq!(v, 0.0);
-            } else if k.eq("freqNum") {
-                let v = v.as_f64();
+            } else if k.eq("channel") {
+                let v = v.as_i8();
                 assert_eq!(v.is_some(), true);
                 let v = v.unwrap();
-                assert_eq!(v, 1.0);
+                assert_eq!(v, 1);
             } else if k.eq("satPosZ") {
                 let v = v.as_f64();
                 assert_eq!(v.is_some(), true);
@@ -968,11 +966,9 @@ mod test {
                 assert_eq!(v.is_some(), true);
                 let v = v.unwrap();
                 assert_eq!(v, 0.312000000000e+01);
-            } else if k.eq("svHealth") {
-                let v = v.as_f64();
+            } else if k.eq("health") {
+                let v = v.as_gal_health();
                 assert_eq!(v.is_some(), true);
-                let v = v.unwrap();
-                assert_eq!(v, 0.000000000000e+00);
             } else if k.eq("bgdE5aE1") {
                 let v = v.as_f64();
                 assert_eq!(v.is_some(), true);
@@ -1040,10 +1036,8 @@ mod test {
                 let v = v.unwrap();
                 assert_eq!(v, 0.000000000000e+00);
             } else if k.eq("health") {
-                let v = v.as_f64();
+                let v = v.as_glo_health();
                 assert_eq!(v.is_some(), true);
-                let v = v.unwrap();
-                assert_eq!(v, 0.000000000000e+00);
             } else if k.eq("satPosY") {
                 let v = v.as_f64();
                 assert_eq!(v.is_some(), true);
@@ -1059,11 +1053,11 @@ mod test {
                 assert_eq!(v.is_some(), true);
                 let v = v.unwrap();
                 assert_eq!(v, 0.000000000000e+00);
-            } else if k.eq("freqNum") {
-                let v = v.as_f64();
+            } else if k.eq("channel") {
+                let v = v.as_i8();
                 assert_eq!(v.is_some(), true);
                 let v = v.unwrap();
-                assert_eq!(v, 0.500000000000e+01);
+                assert_eq!(v, 5);
             } else if k.eq("satPosZ") {
                 let v = v.as_f64();
                 assert_eq!(v.is_some(), true);
