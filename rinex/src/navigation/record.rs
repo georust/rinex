@@ -474,9 +474,7 @@ fn parse_complex_map (version: Version, constell: Constellation, mut lines: std:
             line = rem.clone();
 
             if !k.contains(&"spare") { // --> got something to parse in db
-                if let Ok(cplx) = DbItem::new(v, content.trim()) {
-                    // parsing did work,
-                    // data is provided
+                if let Ok(cplx) = DbItem::new(v, content.trim(), constell) {
                     map.insert(k.to_string(), cplx);
                 }
             }

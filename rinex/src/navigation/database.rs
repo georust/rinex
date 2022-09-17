@@ -16,16 +16,22 @@ include!(concat!(env!("OUT_DIR"),"/nav_db.rs"));
 /// It serves as the actual Navigation record payload.
 /// It is a complex data wrapper, for high level
 /// record description, across all revisions and constellations 
-#[derive(Clone, Debug)]
+#[derive(Debug, Clone)]
 #[derive(PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum DbItem {
+	/// unsigned byte
     U8(u8),
+	/// string / readable data
     Str(String), 
+	/// single precision data
     F32(f32),
+	/// double precision data
     F64(f64),
 	/// GPS/QZSS orbit/sv health indication
 	Health(health::Health),
+	/// GLO orbit/sv health indication
+	GloHealth(health::GloHealth),
 	/// GEO/SBAS orbit/sv health indication
 	GeoHealth(health::GeoHealth),
 	/// GAL orbit/sv health indication
@@ -44,6 +50,7 @@ impl std::fmt::Display for DbItem {
             DbItem::F32(f) => write!(fmt, "{:.10e}", f),
             DbItem::F64(f) => write!(fmt, "{:.10e}", f),
 			DbItem::Health(h) => write!(fmt, "{:?}", h),
+			DbItem::GloHealth(h) => write!(fmt, "{:?}", h),
 			DbItem::GeoHealth(h) => write!(fmt, "{:?}", h),
 			DbItem::GalHealth(h) => write!(fmt, "{:?}", h),
 			DbItem::IrnssHealth(h) => write!(fmt, "{:?}", h),
@@ -64,37 +71,49 @@ pub enum DbItemError {
 
 impl DbItem {
     /// Builds a `DbItem` from type descriptor and string content
-    pub fn new (desc: &str, content: &str) -> Result<DbItem, DbItemError> {
-        match desc {
+    pub fn new (type_desc: &str, content: &str, constellation: Constellation) -> Result<DbItem, DbItemError> {
+        match type_desc {
             "str" => Ok(DbItem::Str(String::from(content))),
             "u8" => Ok(DbItem::U8(u8::from_str_radix(&content, 16)?)),
             "f32" => Ok(DbItem::F32(f32::from_str(&content.replace("D","e"))?)),
             "f64" => Ok(DbItem::F64(f64::from_str(&content.replace("D","e"))?)),
-			_ => { // complex descriptor
-				if desc.to_lowercase().contains("health") {
-					let unsigned = u32::from_str_radix(content, 10)?;
-					if desc.eq("health") {
-						let flag = health::Health::from_bits(unsigned)
-							.unwrap_or(health::Health::empty());
+			"health" => {
+				// float->unsigned conversion
+				let float = f64::from_str(&content.replace("D","e"))?;
+				let unsigned = float as u32;
+				match constellation {
+					Constellation::GPS => { 
+						let flag: health::Health = num::FromPrimitive::from_u32(unsigned)
+							.unwrap_or(health::Health::default());
 						Ok(DbItem::Health(flag))
-					} else if desc.eq("galHealth") {
-						let flag = health::GalHealth::from_bits(unsigned)
-							.unwrap_or(health::GalHealth::empty());
-						Ok(DbItem::GalHealth(flag))
-					} else if desc.eq("geoHealth") { 
-						let flag = health::GeoHealth::from_bits(unsigned)
-							.unwrap_or(health::GeoHealth::empty());
+					},
+					Constellation::Glonass => {
+						let flag: health::GloHealth = num::FromPrimitive::from_u32(unsigned)
+							.unwrap_or(health::GloHealth::default());
+						Ok(DbItem::GloHealth(flag))
+					},
+					Constellation::SBAS(_) => {
+						let flag: health::GeoHealth = num::FromPrimitive::from_u32(unsigned)
+							.unwrap_or(health::GeoHealth::default());
 						Ok(DbItem::GeoHealth(flag))
-					} else if desc.eq("irnssHealth") {
-						let flag = health::IrnssHealth::from_bits(unsigned)
-							.unwrap_or(health::IrnssHealth::empty());
+					},
+					Constellation::Galileo => {
+						let flag: health::GalHealth = num::FromPrimitive::from_u32(unsigned)
+							.unwrap_or(health::GalHealth::default());
+						Ok(DbItem::GalHealth(flag))
+					},
+					Constellation::IRNSS => {
+						let flag: health::IrnssHealth = num::FromPrimitive::from_u32(unsigned)
+							.unwrap_or(health::IrnssHealth::default());
 						Ok(DbItem::IrnssHealth(flag))
-					} else {
-            			Err(DbItemError::UnknownTypeDescriptor(desc.to_string()))
-					}
-				} else {
-            		Err(DbItemError::UnknownTypeDescriptor(desc.to_string()))
+					},
+					_ => unreachable!(), // MIXED is not feasible here
+						// as we use the current vehicule's constellation,
+						// which is always defined
 				}
+			}, // "health"
+			_ => {
+				Err(DbItemError::UnknownTypeDescriptor(type_desc.to_string()))
 			},
         }
     }

@@ -25,6 +25,10 @@ pub mod sv;
 pub mod types;
 pub mod version;
 
+extern crate num;
+#[macro_use]
+extern crate num_derive;
+
 pub mod reader;
 use reader::BufferedReader;
 use std::io::{Read, Write};

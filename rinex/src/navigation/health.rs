@@ -1,40 +1,90 @@
-use bitflags::bitflags;
+/// GNSS / GPS orbit health indication
+#[derive(Debug, Clone)]
+#[derive(FromPrimitive)]
+#[derive(PartialEq, PartialOrd)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
+pub enum Health {
+	Unhealthy = 0,
+	L1Healthy = 1,
+	L2Healthy = 2,
+	L1L2Healthy = 3,
+	L5Healthy = 4,
+	L1L5Healthy = 5,
+	L1L2L5Healthy = 7,
+}
 
-bitflags! {
-	/// GNSS / GPS orbit health indication
-	#[derive(Default)]
-	#[cfg_attr(feature = "serde", derive(Serialize))]
-	pub struct Health: u32 {
-		const L1_HEALTHY = 0x01;
-		const L2_HEALTHY = 0x02;
-		const L5_HEALTHY = 0x04;
+impl Default for Health {
+	fn default() -> Self {
+		Self::Unhealthy
 	}
+}
 	
-	/// IRNSS orbit health indication
-	#[derive(Default)]
-	#[cfg_attr(feature = "serde", derive(Serialize))]
-	pub struct IrnssHealth: u32 {
-		const UNKNOWN = 0x01;
+/// IRNSS orbit health indication
+#[derive(Debug, Clone)]
+#[derive(FromPrimitive)]
+#[derive(PartialEq, PartialOrd)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
+pub enum IrnssHealth {
+	Healthy = 0,
+	Unknown = 1,
+}
+
+impl Default for IrnssHealth {
+	fn default() -> Self {
+		Self::Unknown
 	}
-	
-	/// SBAS/GEO orbit health indication
-	#[derive(Default)]
-	#[cfg_attr(feature = "serde", derive(Serialize))]
-	pub struct GeoHealth: u32 {
-		const RESERVED = 0x08;
+}
+/// SBAS/GEO orbit health indication
+#[derive(Debug, Clone)]
+#[derive(FromPrimitive)]
+#[derive(PartialEq, PartialOrd)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
+pub enum GeoHealth {
+	Unknown = 0,
+	Reserved = 8,
+}
+
+impl Default for GeoHealth {
+	fn default() -> Self {
+		Self::Unknown
 	}
-	
-	/// GAL orbit health indication
-	#[derive(Default)]
-	#[cfg_attr(feature = "serde", derive(Serialize))]
-	pub struct GalHealth: u32 {
-		const E1B_DVS = 0x01;
-		const E1B_HS0 = 0x02;
-		const E1B_HS1 = 0x04;
-		const E5A_DVS = 0x08;
-		const E5A_HS0 = 0x10;
-		const E5A_HS1 = 0x20;
-		const E5B_HS0 = 0x40;
-		const E5B_HS1 = 0x80;
+}
+
+/// GLO orbit health indication
+#[derive(Debug, Clone)]
+#[derive(FromPrimitive)]
+#[derive(PartialEq, PartialOrd)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
+pub enum GloHealth {
+	Healthy = 0,
+	Unhealthy = 4,
+}
+
+impl Default for GloHealth {
+	fn default() -> Self {
+		Self::Healthy
+	}
+}
+
+/// GAL orbit health indication
+#[derive(Debug, Clone)]
+#[derive(FromPrimitive)]
+#[derive(PartialEq, PartialOrd)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
+pub enum GalHealth {
+	Healthy = 0,
+	E1bDvs = 0x01,
+	E1bHs0 = 0x02,
+	E1bHs1 = 0x04,
+	E5aDvs = 0x08,
+	E5aHs0 = 0x10,
+	E5aHs1 = 0x20,
+	E5bHs0 = 0x40,
+	E5bHs1 = 0x80,
+}
+
+impl Default for GalHealth {
+	fn default() -> Self {
+		Self::Healthy
 	}
 }
