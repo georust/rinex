@@ -5,15 +5,19 @@ use crate::antex;
 use crate::clocks;
 use crate::version;
 //use crate::gnss_time;
+
 use crate::hardware;
 use crate::reader::BufferedReader;
 use crate::types::{Type, TypeError};
 use crate::merge::MergeError;
 use crate::meteo;
-use crate::observation;
 use crate::ionosphere;
+use crate::observation;
+
 use crate::constellation;
-use crate::constellation::{Constellation, augmentation::Augmentation};
+use crate::constellation::{
+	Constellation, augmentation::Augmentation,
+};
 
 use thiserror::Error;
 use std::str::FromStr;
@@ -1455,7 +1459,7 @@ impl std::fmt::Display for Header {
     /// `RINEX` file production purposes
     fn fmt (&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         if self.is_crinex() {
-            // two special header lines
+			// TODO: special header please
         }
         // RINEX VERSION / TYPE 
         write!(f, "{:6}.{:02}           ", self.version.major, self.version.minor)?;
@@ -1548,7 +1552,7 @@ impl std::fmt::Display for Header {
             write!(f, "{:<50}", "")?;
             write!(f, "INTERVAL\n")?
         }
-        // OBS codes
+        // List of Observables
         match self.rinex_type {
             Type::ObservationData => {
                 if let Some(obs) = &self.obs {
@@ -1557,13 +1561,13 @@ impl std::fmt::Display for Header {
                             for (_constell, codes) in obs.codes.iter() {
                                 let mut line = format!("{:6}", codes.len()); 
                                 for i in 0..codes.len() {
-                                    if (i+1)%10 == 0 {
+                                    if (i+1)%10 == 0 { // wrap line
                                         line.push_str("# / TYPES OF OBS\n");
                                         write!(f, "{}", line)?;
                                         line.clear();
                                         line.push_str(&format!("{:<6}", ""));
                                     }
-                                    line.push_str(&format!(" {:>5}", codes[i]));
+                                    line.push_str(&format!(" {:<5}", codes[i]));
                                 }
                                 line.push_str(&format!("{:<width$}", "", width=60-line.len()));
                                 line.push_str("# / TYPES OF OBS\n"); 
