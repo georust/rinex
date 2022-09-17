@@ -1546,7 +1546,9 @@ impl Rinex {
     /// For Observation record: "C1C", "L1C", ..., any valid 3 letter observable.
     /// For Meteo record: "PR", "HI", ..., any valid 2 letter sensor physics.
     /// For Navigation record:
-    ///   - Ephemeris: MsgType filter: "LNAV", "FDMA", "D1D2", "CNVX, ... any valid [MsgType]
+    ///   - Ephemeris: this acts as a key/dictionary filter. 
+	///     Example of known keys would be "health", "idot", "iode"..
+	///     Any known data identifier is accepted.
     ///   - Ionospheric Model: does not apply
     ///   - System Time offset: "GPUT", "GAGP", ..., any valid system time
     /// For Clock record: we consider filter items as Data Type Codes "AR","AS"...
@@ -1559,13 +1561,15 @@ impl Rinex {
     /// rinex
     ///     .observable_filter_mut(vec!["C1C","C2P"]);
     /// ```
-/*    ///
+	///
     /// Navigation record example:
     /// ```
     /// use rinex::*;
-    /// let mut rinex = Rinex::from_file("../test_resources/NAV/V4/KMS300DNK_R_20221591000_01H_MN.rnx.gz").unwrap();
+    /// let mut rinex = Rinex::from_file(
+	///     "../test_resources/NAV/V4/KMS300DNK_R_20221591000_01H_MN.rnx.gz")
+	///		.unwrap();
     /// rinex
-    ///     .observable_filter_mut(vec!["FDMA","LNAV"]);
+    ///     .observable_filter_mut(vec!["idot","iode"]);
     /// ```*/
     pub fn observable_filter_mut (&mut self, filter: Vec<&str>) {
         if self.is_navigation_rinex() {
@@ -1576,16 +1580,20 @@ impl Rinex {
                 .retain(|_, classes| {
                     classes.retain(|class, frames| {
                         if *class == navigation::record::FrameClass::Ephemeris {
-                            frames.retain(|fr| {
-                                let (msg_type, _, _, _, _, _) = fr.as_eph().unwrap();
-                                filter.contains(&msg_type.to_string().as_str())
+                            frames.retain_mut(|fr| {
+                                let (_, _, _, _, _, map) = fr
+									.as_mut_eph()
+									.unwrap();
+								map.retain(|k, _| filter.contains(&k.as_str())); // dictionary key filter
+								map.len() > 0 // got some leftovers
                             });
-                        } else if *class == navigation::record::FrameClass::SystemTimeOffset {
+                        }/*  TODO: can this apply to non ephemeris data please ?
+						else if *class == navigation::record::FrameClass::SystemTimeOffset {
                             frames.retain(|fr| {
                                 let fr = fr.as_sto().unwrap();
                                 filter.contains(&fr.system.as_str())
                             });
-                        }
+                        }*/
                         frames.len() > 0
                     });
                     classes.len() > 0
