@@ -24,26 +24,17 @@ use serde::Serialize;
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum Record {
-    /// ATX record, list of Antenna caracteristics,
-    /// sorted by antenna model. ATX record is not
-    /// epoch iterable
+    /// ATX record, see [antex::record::Record] 
     AntexRecord(antex::record::Record),
-    /// `clocks::Record` : CLOCKS RINEX file content
+    /// Clock record, see [clocks::record::Record] 
     ClockRecord(clocks::record::Record),
-    /// `IONEX` record is a list of Ionosphere Maps,
-    /// sorted by `epoch`
+	/// IONEX (ionosphere maps) record
     IonexRecord(ionosphere::record::Record),
-    /// `meteo::Record` : Meteo Data file content.   
-	/// `record` is a list of raw data sorted by Observable,
-    /// and by `epoch`
+	/// Meteo record, see [meteo::record::Record]
     MeteoRecord(meteo::record::Record),
-	/// `navigation::Record` : Navigation Data file content.    
-	/// `record` is a list of `navigation::ComplexEnum` sorted
-	/// by `epoch` and by `Sv`
+	/// Navigation record, see [navigation::record::Record]
     NavRecord(navigation::record::Record),
-	/// `observation::Record` : Observation Data file content.   
-	/// `record` is a list of `observation::ObservationData` indexed
-	/// by Observation code, sorted by `epoch` and by `Sv`
+	/// Observation record, see [observation::record::Record]
     ObsRecord(observation::record::Record),
 }
 

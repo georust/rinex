@@ -36,6 +36,8 @@ use thiserror::Error;
 use chrono::{Datelike, Timelike};
 use std::collections::{BTreeMap, HashMap};
 
+use navigation::DbItem;
+
 #[cfg(feature = "serde")]
 #[macro_use]
 extern crate serde;
@@ -1799,11 +1801,11 @@ impl Rinex {
     ///     } 
     /// }
     /// ```
-    pub fn ephemeris (&self) -> BTreeMap<epoch::Epoch, BTreeMap<sv::Sv, (f64,f64,f64, HashMap<String, navigation::record::ComplexEnum>)>> {
+    pub fn ephemeris (&self) -> BTreeMap<epoch::Epoch, BTreeMap<sv::Sv, (f64,f64,f64, HashMap<String, DbItem>)>> {
         if !self.is_navigation_rinex() {
             return BTreeMap::new() ; // nothing to browse
         }
-        let mut results: BTreeMap<epoch::Epoch, BTreeMap<sv::Sv, (f64,f64,f64, HashMap<String, navigation::record::ComplexEnum>)>>
+        let mut results: BTreeMap<epoch::Epoch, BTreeMap<sv::Sv, (f64,f64,f64, HashMap<String, DbItem>)>>
             = BTreeMap::new();
         let record = self.record
             .as_nav()
@@ -1811,7 +1813,7 @@ impl Rinex {
         for (e, classes) in record.iter() {
             for (class, frames) in classes.iter() {
                 if *class == navigation::record::FrameClass::Ephemeris {
-                    let mut inner: BTreeMap<sv::Sv,  (f64,f64,f64, HashMap<String, navigation::record::ComplexEnum>)> = BTreeMap::new();
+                    let mut inner: BTreeMap<sv::Sv,  (f64,f64,f64, HashMap<String, DbItem>)> = BTreeMap::new();
                     for frame in frames.iter() {
                         let (_, sv, clk, clk_dr, clk_drr, map) = frame.as_eph().unwrap();
                         inner.insert(sv, (clk, clk_dr, clk_drr, map.clone()));

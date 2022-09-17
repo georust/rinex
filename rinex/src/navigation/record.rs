@@ -10,93 +10,12 @@ use crate::sv;
 use crate::sv::Sv;
 use crate::epoch::{Epoch, ParseDateError};
 use crate::version::Version;
-use crate::navigation::database;
 use crate::constellation::Constellation;
-use crate::navigation::database::NAV_MESSAGES;
-use crate::navigation::ionmessage;
-use crate::navigation::stomessage;
-use crate::navigation::eopmessage;
+use crate::navigation::{ionmessage, stomessage, eopmessage};
+use crate::navigation::{database, database::{NAV_MESSAGES, DbItem, DbItemError}};
 
 use std::io::Write;
 use crate::writer::BufferedWriter;
-
-/// `ComplexEnum` is record payload 
-#[derive(Clone, Debug)]
-#[derive(PartialEq, PartialOrd)]
-#[cfg_attr(feature = "serde", derive(Serialize))]
-pub enum ComplexEnum {
-    U8(u8),
-    Str(String), 
-    F32(f32),
-    F64(f64),
-}
-
-impl std::fmt::Display for ComplexEnum {
-    fn fmt (&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match self {
-            ComplexEnum::U8(u)  => write!(fmt, "{:X}", u),
-            ComplexEnum::Str(s) => write!(fmt, "{}", s),
-            ComplexEnum::F32(f) => write!(fmt, "{:.10e}", f),
-            ComplexEnum::F64(f) => write!(fmt, "{:.10e}", f),
-        }
-    }
-}
-
-/// `ComplexEnum` related errors
-#[derive(Error, Debug)]
-pub enum ComplexEnumError {
-    #[error("failed to parse int value")]
-    ParseIntError(#[from] std::num::ParseIntError),
-    #[error("failed to parse float value")]
-    ParseFloatError(#[from] std::num::ParseFloatError),
-    #[error("unknown type descriptor \"{0}\"")]
-    UnknownTypeDescriptor(String),
-}
-
-impl ComplexEnum {
-    /// Builds a `ComplexEnum` from type descriptor and string content
-    pub fn new (desc: &str, content: &str) -> Result<ComplexEnum, ComplexEnumError> {
-        match desc {
-            "f32" => {
-                Ok(ComplexEnum::F32(f32::from_str(&content.replace("D","e"))?))
-            },
-            "f64" => {
-                Ok(ComplexEnum::F64(f64::from_str(&content.replace("D","e"))?))
-            },
-            "u8" => {
-                Ok(ComplexEnum::U8(u8::from_str_radix(&content, 16)?))
-            },
-            "str" => {
-                Ok(ComplexEnum::Str(String::from(content)))
-            },
-            _ => Err(ComplexEnumError::UnknownTypeDescriptor(desc.to_string())),
-        }
-    }
-    pub fn as_f32 (&self) -> Option<f32> {
-        match self {
-            ComplexEnum::F32(f) => Some(f.clone()),
-            _ => None,
-        }
-    }
-    pub fn as_f64 (&self) -> Option<f64> {
-        match self {
-            ComplexEnum::F64(f) => Some(f.clone()),
-            _ => None,
-        }
-    }
-    pub fn as_str (&self) -> Option<String> {
-        match self {
-            ComplexEnum::Str(s) => Some(s.clone()),
-            _ => None,
-        }
-    }
-    pub fn as_u8 (&self) -> Option<u8> {
-        match self {
-            ComplexEnum::U8(u) => Some(u.clone()),
-            _ => None,
-        }
-    }
-}
 
 /// Possible Navigation Frame declinations for an epoch
 #[derive(Debug, Copy, Clone)]
@@ -188,7 +107,7 @@ pub enum Frame {
     /// with vehicule internal clock bias, clock drift and clock drift rate.
     /// Rest of data is constellation dependent, see
     /// RINEX specifications or db/NAV/navigation.json.
-    Eph(MsgType, Sv, f64, f64, f64, HashMap<String, ComplexEnum>),
+    Eph(MsgType, Sv, f64, f64, f64, HashMap<String, DbItem>),
     /// Earth Orientation Parameters message 
     Eop(eopmessage::Message),
     /// Ionospheric Model Message
@@ -199,14 +118,14 @@ pub enum Frame {
 
 impl Frame {
     /// Unwraps self as Ephemeris frame
-    pub fn as_eph (&self) -> Option<(MsgType, Sv, f64, f64, f64, &HashMap<String, ComplexEnum>)> {
+    pub fn as_eph (&self) -> Option<(MsgType, Sv, f64, f64, f64, &HashMap<String, DbItem>)> {
         match self {
             Self::Eph(msg, sv, clk, clk_dr, clk_drr, map) => Some((*msg, *sv, *clk, *clk_dr, *clk_drr, map)),
             _ => None,
         }
     }
     /// Unwraps self as mutable Ephemeris frame reference
-    pub fn as_mut_eph (&mut self) -> Option<(&mut MsgType, &mut Sv, &mut f64, &mut f64, &mut f64, &mut HashMap<String, ComplexEnum>)> {
+    pub fn as_mut_eph (&mut self) -> Option<(&mut MsgType, &mut Sv, &mut f64, &mut f64, &mut f64, &mut HashMap<String, DbItem>)> {
         match self {
             Self::Eph(msg, sv, clk, clk_dr, clk_drr, map) => Some((msg, sv, clk, clk_dr, clk_drr, map)),
             _ => None,
@@ -310,7 +229,7 @@ pub enum Error {
     #[error("failed to parse msg type")]
     SvError(#[from] sv::Error),
     #[error("failed to parse cplx data")]
-    ParseComplexError(#[from] ComplexEnumError),
+    ParseComplexError(#[from] DbItemError),
     #[error("failed to parse sv::prn")]
     ParseIntError(#[from] std::num::ParseIntError), 
     #[error("failed to parse sv clock fields")]
@@ -503,7 +422,7 @@ fn build_v2_v3_record_entry (version: Version, constell: Constellation, content:
 
 /// Parses constellation + revision dependent complex map 
 fn parse_complex_map (version: Version, constell: Constellation, mut lines: std::str::Lines<'_>) 
-        -> Result<HashMap<String, ComplexEnum>, Error>
+        -> Result<HashMap<String, DbItem>, Error>
 {
     // locate closest revision in db
     let db_revision = match database::closest_revision(constell, version) {
@@ -535,7 +454,7 @@ fn parse_complex_map (version: Version, constell: Constellation, mut lines: std:
     };
     let mut new_line = true;
     let mut total :usize = 0;
-    let mut map :HashMap<String, ComplexEnum> = HashMap::new();
+    let mut map :HashMap<String, DbItem> = HashMap::new();
     for item in items.iter() {
         let (k, v) = item;
         let offset :usize = match new_line {
@@ -555,7 +474,7 @@ fn parse_complex_map (version: Version, constell: Constellation, mut lines: std:
             line = rem.clone();
 
             if !k.contains(&"spare") { // --> got something to parse in db
-                if let Ok(cplx) = ComplexEnum::new(v, content.trim()) {
+                if let Ok(cplx) = DbItem::new(v, content.trim()) {
                     // parsing did work,
                     // data is provided
                     map.insert(k.to_string(), cplx);
@@ -614,37 +533,6 @@ pub fn to_file (header: &header::Header, record: &Record, writer: &mut BufferedW
 #[cfg(test)]
 mod test {
     use super::*;
-    #[test]
-    fn test_complex_enum() {
-        let e = ComplexEnum::U8(10);
-        assert_eq!(e.as_u8().is_some(), true);
-        assert_eq!(e.as_f32().is_some(), false);
-        assert_eq!(e.as_str().is_some(), false);
-        let u = e.as_u8().unwrap();
-        assert_eq!(u, 10);
-        
-        let e = ComplexEnum::Str(String::from("Hello World"));
-        assert_eq!(e.as_u8().is_some(), false);
-        assert_eq!(e.as_f32().is_some(), false);
-        assert_eq!(e.as_str().is_some(), true);
-        let u = e.as_str().unwrap();
-        assert_eq!(u, "Hello World");
-        
-        let e = ComplexEnum::F32(10.0);
-        assert_eq!(e.as_u8().is_some(), false);
-        assert_eq!(e.as_f32().is_some(), true);
-        assert_eq!(e.as_str().is_some(), false);
-        let u = e.as_f32().unwrap();
-        assert_eq!(u, 10.0_f32);
-        
-        let e = ComplexEnum::F64(10.0);
-        assert_eq!(e.as_u8().is_some(), false);
-        assert_eq!(e.as_f32().is_some(), false);
-        assert_eq!(e.as_f64().is_some(), true);
-        assert_eq!(e.as_str().is_some(), false);
-        let u = e.as_f64().unwrap();
-        assert_eq!(u, 10.0_f64);
-    }
     #[test]
     fn test_is_new_epoch() {
         // NAV V<3

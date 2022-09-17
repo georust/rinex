@@ -1,15 +1,158 @@
-//! `NavigationData` parser and related methods
+//! NAV database for efficient navigation ephemeris
+//! parsing, accross all revisions and constellations
+use std::str::FromStr;
 use itertools::Itertools;
-
 use crate::version;
+use thiserror::Error;
 use crate::constellation::Constellation;
+
+use super::{
+	health,
+};
 
 include!(concat!(env!("OUT_DIR"),"/nav_db.rs"));
 
-/// Identifies closest revision contained in NAV database.   
-/// Closest content is later used to identify data payload.    
-/// Returns None if no database entries found for requested constellation or   
-/// only newer revisions found for this constellation (older revisions are always prefered) 
+/// `DbItem` item is NAV record data base entry.
+/// It serves as the actual Navigation record payload.
+/// It is a complex data wrapper, for high level
+/// record description, across all revisions and constellations 
+#[derive(Clone, Debug)]
+#[derive(PartialEq, PartialOrd)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
+pub enum DbItem {
+    U8(u8),
+    Str(String), 
+    F32(f32),
+    F64(f64),
+	/// GPS/QZSS orbit/sv health indication
+	Health(health::Health),
+	/// GEO/SBAS orbit/sv health indication
+	GeoHealth(health::GeoHealth),
+	/// GAL orbit/sv health indication
+	GalHealth(health::GalHealth),
+	/// IRNSS orbit/sv health indication
+	IrnssHealth(health::IrnssHealth),
+}
+
+//TODO: this method should produce a string in RINEX standards
+// for easy data production
+impl std::fmt::Display for DbItem {
+    fn fmt (&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            DbItem::U8(u)  => write!(fmt, "{:X}", u),
+            DbItem::Str(s) => write!(fmt, "{}", s),
+            DbItem::F32(f) => write!(fmt, "{:.10e}", f),
+            DbItem::F64(f) => write!(fmt, "{:.10e}", f),
+			DbItem::Health(h) => write!(fmt, "{:?}", h),
+			DbItem::GeoHealth(h) => write!(fmt, "{:?}", h),
+			DbItem::GalHealth(h) => write!(fmt, "{:?}", h),
+			DbItem::IrnssHealth(h) => write!(fmt, "{:?}", h),
+        }
+    }
+}
+
+/// `DbItem` related errors
+#[derive(Error, Debug)]
+pub enum DbItemError {
+    #[error("failed to parse int value")]
+    ParseIntError(#[from] std::num::ParseIntError),
+    #[error("failed to parse float value")]
+    ParseFloatError(#[from] std::num::ParseFloatError),
+    #[error("unknown type descriptor \"{0}\"")]
+    UnknownTypeDescriptor(String),
+}
+
+impl DbItem {
+    /// Builds a `DbItem` from type descriptor and string content
+    pub fn new (desc: &str, content: &str) -> Result<DbItem, DbItemError> {
+        match desc {
+            "str" => Ok(DbItem::Str(String::from(content))),
+            "u8" => Ok(DbItem::U8(u8::from_str_radix(&content, 16)?)),
+            "f32" => Ok(DbItem::F32(f32::from_str(&content.replace("D","e"))?)),
+            "f64" => Ok(DbItem::F64(f64::from_str(&content.replace("D","e"))?)),
+			_ => { // complex descriptor
+				if desc.to_lowercase().contains("health") {
+					let unsigned = u32::from_str_radix(content, 10)?;
+					if desc.eq("health") {
+						let flag = health::Health::from_bits(unsigned)
+							.unwrap_or(health::Health::empty());
+						Ok(DbItem::Health(flag))
+					} else if desc.eq("galHealth") {
+						let flag = health::GalHealth::from_bits(unsigned)
+							.unwrap_or(health::GalHealth::empty());
+						Ok(DbItem::GalHealth(flag))
+					} else if desc.eq("geoHealth") { 
+						let flag = health::GeoHealth::from_bits(unsigned)
+							.unwrap_or(health::GeoHealth::empty());
+						Ok(DbItem::GeoHealth(flag))
+					} else if desc.eq("irnssHealth") {
+						let flag = health::IrnssHealth::from_bits(unsigned)
+							.unwrap_or(health::IrnssHealth::empty());
+						Ok(DbItem::IrnssHealth(flag))
+					} else {
+            			Err(DbItemError::UnknownTypeDescriptor(desc.to_string()))
+					}
+				} else {
+            		Err(DbItemError::UnknownTypeDescriptor(desc.to_string()))
+				}
+			},
+        }
+    }
+	/// Unwraps DbItem as f32
+    pub fn as_f32 (&self) -> Option<f32> {
+        match self {
+            DbItem::F32(f) => Some(f.clone()),
+            _ => None,
+        }
+    }
+	/// Unwraps DbItem as f64
+    pub fn as_f64 (&self) -> Option<f64> {
+        match self {
+            DbItem::F64(f) => Some(f.clone()),
+            _ => None,
+        }
+    }
+	/// Unwraps DbItem as str
+    pub fn as_str (&self) -> Option<String> {
+        match self {
+            DbItem::Str(s) => Some(s.clone()),
+            _ => None,
+        }
+    }
+	/// Unwraps DbItem as u8
+    pub fn as_u8 (&self) -> Option<u8> {
+        match self {
+            DbItem::U8(u) => Some(u.clone()),
+            _ => None,
+        }
+    }
+	/// Unwraps Self as GPS/QZSS orbit Health indication 
+	pub fn as_gps_health (&self) -> Option<health::Health> {
+		match self {
+			DbItem::Health(h) => Some(h.clone()),
+			_ => None
+		}
+	}
+	/// Unwraps Self as GEO/SBAS orbit Health indication 
+	pub fn as_geo_health (&self) -> Option<health::GeoHealth> {
+		match self {
+			DbItem::GeoHealth(h) => Some(h.clone()),
+			_ => None
+		}
+	}
+	/// Unwraps Self as IRNSS orbit Health indication 
+	pub fn as_irnss_health (&self) -> Option<health::IrnssHealth> {
+		match self {
+			DbItem::IrnssHealth(h) => Some(h.clone()),
+			_ => None
+		}
+	}
+}
+
+/// Identifies closest (but older) revision contained in NAV database.   
+/// Closest content (in time) is used during record parsing to identify and sort data.
+/// Returns None if no database entries were found for requested constellation.
+/// Returns None if only newer revisions were identified: we prefer older revisions.
 pub fn closest_revision (constell: Constellation, desired_rev: version::Version) -> Option<version::Version> {
     let db = &NAV_MESSAGES;
     let revisions : Vec<_> = db.iter() // match requested constellation
@@ -95,7 +238,6 @@ pub fn closest_revision (constell: Constellation, desired_rev: version::Version)
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::navigation::record::ComplexEnum;
     use std::str::FromStr;
     #[test]
     fn test_db_sanity() {
@@ -120,7 +262,7 @@ mod test {
                         } else {
                             test = String::from("hello")
                         }
-                        let e = ComplexEnum::new(v, &test);
+                        let e = DbItem::new(v, &test);
                         assert_eq!(e.is_ok(), true);
                     }
                 }
@@ -175,5 +317,36 @@ mod test {
         let target = version::Version::new(2, 0);
         let found = closest_revision(Constellation::BeiDou, target); 
         assert_eq!(found, None); 
+    }
+    #[test]
+    fn test_db_item() {
+        let e = DbItem::U8(10);
+        assert_eq!(e.as_u8().is_some(), true);
+        assert_eq!(e.as_f32().is_some(), false);
+        assert_eq!(e.as_str().is_some(), false);
+        let u = e.as_u8().unwrap();
+        assert_eq!(u, 10);
+        
+        let e = DbItem::Str(String::from("Hello World"));
+        assert_eq!(e.as_u8().is_some(), false);
+        assert_eq!(e.as_f32().is_some(), false);
+        assert_eq!(e.as_str().is_some(), true);
+        let u = e.as_str().unwrap();
+        assert_eq!(u, "Hello World");
+        
+        let e = DbItem::F32(10.0);
+        assert_eq!(e.as_u8().is_some(), false);
+        assert_eq!(e.as_f32().is_some(), true);
+        assert_eq!(e.as_str().is_some(), false);
+        let u = e.as_f32().unwrap();
+        assert_eq!(u, 10.0_f32);
+        
+        let e = DbItem::F64(10.0);
+        assert_eq!(e.as_u8().is_some(), false);
+        assert_eq!(e.as_f32().is_some(), false);
+        assert_eq!(e.as_f64().is_some(), true);
+        assert_eq!(e.as_str().is_some(), false);
+        let u = e.as_f64().unwrap();
+        assert_eq!(u, 10.0_f64);
     }
 }
