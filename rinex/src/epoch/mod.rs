@@ -8,7 +8,7 @@ mod flag;
 pub use flag::EpochFlag;
 
 #[cfg(feature = "serde")]
-use serde::{Serialize, Deserialize};
+use serde::{Serialize};
 
 /// An `Epoch` is an observation timestamp 
 /// with an [epoch::EpochFlag] associated to it
