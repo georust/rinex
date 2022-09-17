@@ -206,35 +206,38 @@ impl Kernel {
     }
     
     /// Compresses text data using Hatanaka method
-    fn text_data_compression (&mut self, _data: String) -> String {
-        /*let current = self.init
+    fn text_data_compression (&mut self, data: String) -> String {
+        let mut inner = self
+            .init
             .as_text()
             .unwrap();
-        let ptr_data = data
-            .as_str()
-            .chars();     
-        let ptr_current = current
-            .as_str()
-            .chars();
+        inner.truncate(data.len()); // shrink if need be
+        println!("INNER {}", inner);
         let mut result = String::new();
-        for i in 0..data.len() {
-            let next = ptr_data
-                .next()
-                .unwrap();
-            if let Some(c) = ptr_current.next() {
-                if c == next {
-                    content.push_str(" ");
+        let mut ptr_inner = inner
+            .chars();
+        let ptr_data = data
+            .chars();     
+
+        for c in ptr_data {
+            if c == '&' { // special whitespace insertion
+                result.push_str(" ");
+                let _ = ptr_inner.next(); // overwrite
+            } else {
+                if let Some(c_inner) = ptr_inner.next() {
+                    if c == c_inner {
+                        result.push_str(" ");
+                    } else {
+                        result.push(c);
+                    }
                 } else {
-                    content.push_str(next);
-                    hidden.push_str(next)
+                    result.push(c);
                 }
-             } else {
-                
-             }
+            }
         }
-        self.init = Dtype(content.clone());
-        result*/
-        String::from("Hello World")
+        self.init = Dtype::Text(data.replace("&"," ")
+            .clone());
+        result
     }
 }
 
@@ -879,30 +882,58 @@ mod test {
     #[test]
     /// Tests Hatanaka Text compression algorithm
     fn test_text_compression() {
-        let init = "ABCDEFG 12 000 33 XXACQmpLf";
         let mut krn = Kernel::new(5);
-        krn.init(0, Dtype::Text(init.to_string()))
+        let init = "Default Phrase 1234";
+        krn
+            .init(0, Dtype::Text(init.to_string()))
             .unwrap();
-        let values : Vec<&str> = vec![
-            "ABCDEFG 1 1 1 33  XXABCQMPLF",
-            "Hello 1 1 1 33  blop",
-            "---> rien a voir  11--33!!<",
-            "---> Hello World", 
-            "---> Hello W0rld", 
-            "---> Hell0 W0rld", 
-            "---> H3ll0 W0rld", 
-            "--> H3ll0 W0rLd", 
-            "--> H3ll0 W0rLd", 
-            "--> H3ll0 W0rLd ", 
-        ];
-        for i in 0..values.len() {
-            let value = values[i];
-            let result = krn.compress(Dtype::Text(value.to_string()))
-                .unwrap()
-                    .as_text()
-                    .unwrap();
-            println!("VALUE -    \"{}\"", value);
-            println!("RESULT -   \"{}\"", result);
-        }
+        let to_compress = "DEfault Phrase 1234";
+        let result = krn
+            .compress(Dtype::Text(to_compress.to_string()))
+            .unwrap()
+            .as_text()
+            .unwrap();
+        assert_eq!(result, " E                 ");
+        
+        let to_compress = "DEfault Phrase 1234";
+        let result = krn
+            .compress(Dtype::Text(to_compress.to_string()))
+            .unwrap()
+            .as_text()
+            .unwrap();
+        assert_eq!(result, "                   ");
+        
+        let to_compress = "DEFault Phrase 1234";
+        let result = krn
+            .compress(Dtype::Text(to_compress.to_string()))
+            .unwrap()
+            .as_text()
+            .unwrap();
+        assert_eq!(result, "  F                ");
+        
+        let to_compress = "DEFault Phrase 1234  ";
+        let result = krn
+            .compress(Dtype::Text(to_compress.to_string()))
+            .unwrap()
+            .as_text()
+            .unwrap();
+        assert_eq!(result, "                     ");
+        
+        let to_compress = "&EFault Phrase 1234  ";
+        let result = krn
+            .compress(Dtype::Text(to_compress.to_string()))
+            .unwrap()
+            .as_text()
+            .unwrap();
+        assert_eq!(result, "                     ");
+ /*       
+        let to_compress = "__&abcd  Phrase 1222    ";
+        let result = krn
+            .compress(Dtype::Text(to_compress.to_string()))
+            .unwrap()
+            .as_text()
+            .unwrap();
+        assert_eq!(result, "__ abcd          22    ");
+       */
     }
 }
