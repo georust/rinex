@@ -232,7 +232,7 @@ pub fn parse_record (reader: &mut BufferedReader, header: &header::Header) -> Re
         // manage CRINEX case
         //  [1]  RINEX : pass content as is
         //  [2] CRINEX : decompress
-        //           --> decompressed content may wind up as more than one line
+        //           --> decompressed content will probably wind up as more than one line
         content = match crinex {
             false => Some(line.to_string()), 
             true => {

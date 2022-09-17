@@ -38,6 +38,9 @@ track [opened issue](https://github.com/rust-lang/flate2-rs/issues/316)
     this is currently inquired in the `differential` branch
   - [ ] Calculations involved in RTK solver? I am not familiar with such calculations
 
+- [ ] Data reader: integrate Hatanaka decompression to simplfy reading process ?
+- [ ] Data writer: integrate Hatanaka decompression to simplfy writing process ?
+
 ## Command Line application
 
 - [ ] CLI

@@ -358,16 +358,8 @@ impl Rinex {
         reader.seek(SeekFrom::Start(0))
             .unwrap();
 */        
-        let mut reader = BufferedReader::new(path)?;
-
         // create buffered reader
-        if line.contains("CRINEX") {
-            // --> enhance buffered reader
-            //     with hatanaka M capacity
-            reader = reader.with_hatanaka(8)?; // M = 8 is more than enough
-                                            // `CRX2RNX` has M=5 builtin
-        }
-
+        let mut reader = BufferedReader::new(path)?;
         // --> parse header fields 
         let header = header::Header::new(&mut reader)
             .unwrap();
