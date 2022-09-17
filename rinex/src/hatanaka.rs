@@ -211,14 +211,11 @@ impl Kernel {
             .init
             .as_text()
             .unwrap();
-        inner.truncate(data.len()); // shrink if need be
-        println!("INNER {}", inner);
         let mut result = String::new();
         let mut ptr_inner = inner
             .chars();
         let ptr_data = data
             .chars();     
-
         for c in ptr_data {
             if c == '&' { // special whitespace insertion
                 result.push_str(" ");
@@ -926,14 +923,13 @@ mod test {
             .as_text()
             .unwrap();
         assert_eq!(result, "                     ");
- /*       
-        let to_compress = "__&abcd  Phrase 1222    ";
+        
+        let to_compress = "__&abcd Phrase 1222    ";
         let result = krn
             .compress(Dtype::Text(to_compress.to_string()))
             .unwrap()
             .as_text()
             .unwrap();
-        assert_eq!(result, "__ abcd          22    ");
-       */
+        assert_eq!(result, "__  bcd          22    ");
     }
 }
