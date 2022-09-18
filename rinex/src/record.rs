@@ -8,12 +8,13 @@ use crate::epoch;
 use crate::meteo;
 use crate::clocks;
 use crate::header;
-use crate::hatanaka;
 use crate::navigation;
 use crate::observation;
 use crate::ionosphere;
 use crate::is_comment;
 use crate::types::Type;
+
+use crate::hatanaka::Hatanaka;
 use crate::reader::BufferedReader;
 use crate::writer::BufferedWriter;
 
@@ -202,7 +203,7 @@ pub fn parse_record (reader: &mut BufferedReader, header: &header::Header) -> Re
     } else {
         false
     };
-    let mut decompressor = hatanaka::Decompressor::new(8);
+    let mut decompressor = Hatanaka::new(8);
     // record 
     let mut atx_rec = antex::record::Record::new(); // ATX
     let mut nav_rec = navigation::record::Record::new(); // NAV
