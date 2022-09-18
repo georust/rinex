@@ -1,5 +1,6 @@
 //! Command line tool to decompress CRINEX files 
 use rinex::{header, hatanaka};
+use rinex::hatanaka::Hatanaka;
 use rinex::reader::BufferedReader;
 
 use clap::App;
@@ -74,7 +75,7 @@ fn decompress (fp: &str, m: u16, mut writer: std::fs::File) -> Result<(), Error>
     let mut reader = BufferedReader::new(fp)?;
     let header = header::Header::new(&mut reader)?;
     // parse / decompress / produce file body
-    let mut decompressor = hatanaka::Decompressor::new(m.into());
+    let mut decompressor = Hatanaka::new(m.into());
     for l in reader.lines() {
         let line = &l.unwrap();
         let mut content = line.to_string();
