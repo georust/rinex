@@ -1386,17 +1386,19 @@ impl Header {
     }
 
     /// Creates a Basic Header structure
-    /// for NAV RINEX
+    /// for Mixed Constellation Navigation RINEX
     pub fn basic_nav() -> Self {
         Self::default()
             .with_type(Type::NavigationData)
+            .with_constellation(Constellation::Mixed)
     }
     
     /// Creates a Basic Header structure
-    /// for OBS RINEX
+    /// for Mixed Constellation Observation RINEX
     pub fn basic_obs() -> Self {
         Self::default()
             .with_type(Type::ObservationData)
+            .with_constellation(Constellation::Mixed)
     }
 
     /// Returns Header structure with desired RINEX type
