@@ -108,22 +108,24 @@ fn format_epoch (version: u8, content: &str, clock_offset: Option<i64>) -> Resul
             // we just split it to match standard definitions
             // .. and don't forget the tab
             for i in 0..num_integer::div_ceil(systems.len(), 36) {
-                if i == 0 {
-                    // squeeze clock offset here, if any
-                    if let Some(value) = clock_offset {
-                        result.push_str(&format!("  {:3.9}", (value as f64)/1000.0_f64))
-                    }
-                } else { // tab indent
+                if i > 0 { // tab indent
                     // TODO: improve please
                     result.push_str("\n                                ");
                 }
 
                 let max_offset = std::cmp::min( // avoids overflowing
-                    (i+1)*12*3,
+                    (i+1)*36,
                     systems.len(),
                 );
                 result.push_str(&systems[
-                    i*12*3 .. max_offset]);
+                    i*36 .. max_offset]);
+                
+                if i == 0 { // first line, 
+                    // squeeze clock offset here, if any
+                    if let Some(value) = clock_offset {
+                        result.push_str(&format!("  {:3.9}", (value as f64)/1000.0_f64))
+                    }
+                }
             }
         },
         _ => { // Modern RINEX case
