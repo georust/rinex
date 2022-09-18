@@ -1,4 +1,4 @@
-Roadmap 
+Roadmap
 =======
 
 ## RINEX library
@@ -22,12 +22,14 @@ The fractional parts ("nanos") is totally unused, we cannot handle periods small
     - [ ] Ionosphere maps production   
     - [ ] Antenna data production 
 
+- [ ] Data decompression
+  - [ ] CRX2RNX CRX3 thorough test
+
 - [ ] Data compression
   - [ ] Conclude [numerical data compression](https://github.com/gwbres/rinex/blob/main/rinex/src/hatanaka.rs#L164)
-  - [ ] Conclude [text data compression](https://github.com/gwbres/rinex/blob/main/rinex/src/hatanaka.rs#L209)
+  - [ ] Data conversion and scaling 
   - [x] Provide a Writer wrapper in similar fashion to existing Reader wrapper for efficient data compression
   - [x] Adjust production method to take advantage of newly available Writer wrapper
-  - [ ] Enhance Buffered writer with `Hatanaka` compression
   - [ ] Unlock `CRINEX` data production
   - [ ] `Gzip` decompression failure: understand current issue regarding files marked for `Post Processing`, 
 track [opened issue](https://github.com/rust-lang/flate2-rs/issues/316)
@@ -38,8 +40,7 @@ track [opened issue](https://github.com/rust-lang/flate2-rs/issues/316)
     this is currently inquired in the `differential` branch
   - [ ] Calculations involved in RTK solver? I am not familiar with such calculations
 
-- [ ] Data reader: integrate Hatanaka decompression to simplfy reading process ?
-- [ ] Data writer: integrate Hatanaka decompression to simplfy writing process ?
+- [ ] Enhance reader/writer with hatanaka capacity to simplify file operations ?
 
 ## Command Line application
 
@@ -65,6 +66,11 @@ track [opened issue](https://github.com/rust-lang/flate2-rs/issues/316)
 
 ## Done
 
+- Data decompression
+  - [x] CRX2RNX CRX1 thorough test
+- Data compression 
+  - [x] Conclude [text data compression](https://github.com/gwbres/rinex/blob/main/rinex/src/hatanaka.rs#L209)
+  - [x] Verify data scaling is correctly restablish in decompression
 - `navigation` - `dictionary`
   - [x] General orbits health 
   - [x] GLO/Orbit2 channel #
