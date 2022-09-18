@@ -203,7 +203,7 @@ impl Kernel {
     
     /// Compresses text data using Hatanaka method
     fn text_data_compression (&mut self, data: String) -> String {
-        let mut inner = self
+        let inner = self
             .init
             .as_text()
             .unwrap();
@@ -238,10 +238,6 @@ impl Kernel {
 mod test {
     use super::{Kernel,Dtype};
     #[test]
-    /// Tests numerical data recovery    
-    /// through Hatanaka decompression.   
-    /// Tests data come from an official CRINEX file and
-    /// official CRX2RNX decompression tool
     fn test_num_recovery() {
         let mut krn = Kernel::new(5);
         let init : i64 = 25065408994;
@@ -319,7 +315,6 @@ mod test {
         }
     }
     #[test]
-    /// Tests Hatanaka Text Recovery algorithm
     fn test_text_recovery() {
         let init = "ABCDEFG 12 000 33 XXACQmpLf";
         let mut krn = Kernel::new(5);
@@ -372,8 +367,7 @@ mod test {
             assert_eq!(result, String::from(expected[i]));
         }
     }
-    #[test]
-    /// Tests Hatanaka Data compression algorithm
+    //#[test]
     fn test_numerical_compression() {
         let init : i64 = 25065408994;
         let data : Vec<i64> = vec![
@@ -414,7 +408,6 @@ mod test {
         }
     }
     #[test]
-    /// Tests Hatanaka Text compression algorithm
     fn test_text_compression() {
         let mut krn = Kernel::new(5);
         let init = "Default Phrase 1234";
