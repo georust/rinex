@@ -1,22 +1,23 @@
-#[derive(Debug)]
-pub enum ParseError {
-    /// Failed to parse (x, y, z) triplet
-    Point3dXyz, 
-}
-
-impl std::fmt::Display for ParseError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match self {
-            Self::Point3dXyz => write!(f, "failed to parse (x,y,z) triplet"),
-        }
-    }
-}
-
 #[cfg(feature = "serde")]
 pub mod point3d {
-    use super::ParseError;
+    //use super::ParseError;
     use std::str::FromStr;
     use serde::{Deserializer, Deserialize, de::Error};
+    
+    pub enum ParseError {
+        /// Failed to parse (x, y, z) triplet
+        #[cfg(feature = "serde")]
+        Point3dXyz, 
+    }
+
+    impl std::fmt::Display for ParseError {
+        fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+            match self {
+                Self::Point3dXyz => write!(f, "failed to parse (x,y,z) triplet"),
+            }
+        }
+    }
+
     /// Dumps a rust_3d::Point3D structure
     pub fn serialize<S>(p: rust_3d::Point3D, serializer: S) -> Result<S::Ok, S::Error>
     where
