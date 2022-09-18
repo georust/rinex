@@ -3,7 +3,6 @@
 use crate::leap;
 use crate::antex;
 use crate::clocks;
-use crate::version;
 //use crate::gnss_time;
 
 use crate::hardware;
@@ -13,6 +12,7 @@ use crate::merge::MergeError;
 use crate::meteo;
 use crate::ionosphere;
 use crate::observation;
+use crate::version::Version;
 
 use crate::constellation;
 use crate::constellation::{
@@ -90,7 +90,7 @@ impl Default for MarkerType {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Header {
     /// revision for this `RINEX`
-    pub version: version::Version, 
+    pub version: Version, 
     /// type of `RINEX` file
     pub rinex_type: Type, 
     /// specific `GNSS` constellation system,
@@ -212,7 +212,7 @@ pub enum Error {
 impl Default for Header {
     fn default() -> Header {
         Header {
-            version: version::Version::default(), 
+            version: Version::default(), 
             rinex_type: Type::default(),
             constellation: Some(Constellation::default()),
             comments: Vec::new(),
@@ -267,10 +267,10 @@ impl Header {
     /// Builds a `Header` from local file and previously grabbed 1st line
     pub fn new (reader: &mut BufferedReader) -> Result<Header, Error> { 
         let mut crinex : Option<observation::Crinex> = None;
-        let mut crnx_version = version::Version::default(); 
+        let mut crnx_version = Version::default(); 
         let mut rinex_type = Type::default();
         let mut constellation : Option<Constellation> = None;
-        let mut version = version::Version::default();
+        let mut version = Version::default();
         let mut comments   : Vec<String> = Vec::new();
         let mut program    = String::new();
         let mut run_by     = String::new();
@@ -341,7 +341,7 @@ impl Header {
             /////////////////////////////////////
             } else if marker.contains("CRINEX VERS") {
                 let version = content.split_at(20).0;
-                crnx_version = version::Version::from_str(version.trim())?
+                crnx_version = Version::from_str(version.trim())?
             } else if marker.contains("CRINEX PROG / DATE") {
                 let (pgm, remainder) = content.split_at(20);
                 let (_, remainder) = remainder.split_at(20);
@@ -358,7 +358,7 @@ impl Header {
             ////////////////////////////////////////
             } else if marker.contains("ANTEX VERSION / SYST") {
                 let (vers, system) = content.split_at(8);
-                version = version::Version::from_str(vers.trim())?;
+                version = Version::from_str(vers.trim())?;
                 if let Ok(constell) = Constellation::from_str(system.trim()) {
                     constellation = Some(constell)
                 }
@@ -384,7 +384,7 @@ impl Header {
                 let (vers, rem) = line.split_at(20);
                 let (type_str, rem) = rem.split_at(20); 
                 let (system_str, _) = rem.split_at(20);
-                version = version::Version::from_str(vers.trim())?;
+                version = Version::from_str(vers.trim())?;
                 rinex_type = Type::from_str(type_str.trim())?;
                 if rinex_type != Type::IonosphereMaps {
                     return Err(Error::FaultyIonexDescription)
@@ -416,7 +416,7 @@ impl Header {
                         constellation = Some(constell)
                     }
                 }
-                version = version::Version::from_str(vers.trim())?;
+                version = Version::from_str(vers.trim())?;
                 if !version.is_supported() {
                     return Err(Error::VersionNotSupported(vers.to_string()))
                 }
@@ -1399,6 +1399,13 @@ impl Header {
         Self::default()
             .with_type(Type::ObservationData)
             .with_constellation(Constellation::Mixed)
+    }
+
+    /// Returns Header structure with specific RINEX revision
+    pub fn with_version(&self, version: Version) -> Self {
+        let mut s = self.clone();
+        s.version = version;
+        s
     }
 
     /// Returns Header structure with desired RINEX type
