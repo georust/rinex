@@ -59,6 +59,8 @@ pub enum Error {
     FaultyRecoveredEpoch,
     #[error("Failed to rework epoch to match standards")]
     EpochReworkFailure,
+    #[error("Failed to latch new epoch description")]
+    EpochLatchError,
 //TODO a revoir
     #[error("failed to identify sat. vehicule")]
     SvError(#[from] sv::Error),
@@ -255,8 +257,12 @@ impl Hatanaka {
                         self.first_epoch = false; //never to be re-initialized
                     
                     } else {
-                        //TODO manque un .compress ici ?
-                        // faut bien latcher la nouvelle ligne qui n'est pas une 1ere epoch
+                        // here we use "recover" just to latch
+                        // the new string to textdiff()
+                        if self.epoch_krn.recover(
+                            Dtype::Text(line.to_string())).is_err() {
+                            return Err(Error::EpochLatchError) ;
+                        }
                     }
                     
                     self.state = State::ClockOffsetDescriptor;
