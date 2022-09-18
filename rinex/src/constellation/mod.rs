@@ -108,6 +108,8 @@ impl Constellation {
             Ok(Constellation::QZSS)
         } else if code.to_lowercase().eq("sbs") {
             Ok(Constellation::SBAS(Augmentation::default()))
+        } else if code.to_lowercase().eq("geo") {
+            Ok(Constellation::SBAS(Augmentation::default()))
         } else if code.to_lowercase().eq("irn") {
             Ok(Constellation::IRNSS)
         } else {
@@ -121,7 +123,7 @@ impl Constellation {
             Constellation::Glonass => "GLO",
             Constellation::Galileo => "GAL",
             Constellation::BeiDou => "BDS",
-            Constellation::SBAS(_) => "SBS",
+            Constellation::SBAS(_) => "GEO",
             Constellation::QZSS => "QZS",
             Constellation::IRNSS => "IRN",
             Constellation::Mixed => "MIX",
@@ -141,6 +143,8 @@ impl Constellation {
         } else if code.to_lowercase().contains("beidou") {
             Ok(Constellation::BeiDou)
         } else if code.to_lowercase().contains("sbas") {
+            Ok(Constellation::SBAS(Augmentation::default()))
+        } else if code.to_lowercase().contains("geo") {
             Ok(Constellation::SBAS(Augmentation::default()))
         } else if code.to_lowercase().contains("irnss") {
             Ok(Constellation::IRNSS)
