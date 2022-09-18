@@ -15,18 +15,35 @@ use fsm::Fsm;
 
 #[derive(Error, Debug)]
 pub enum Error {
-    #[error("io error")]
+    #[error("I/O error")]
     IoError(#[from] std::io::Error),
-    #[error("this is not a crinex file")]
+    #[error("This is not a CRX file")]
     NotACrinexError,
-    #[error("this is not an observation file")]
+    #[error("This is not an Observation file")]
     NotObsRinexData,
-    #[error("non supported crinex revision")]
-    NonSupportedCrinexRevision,
-    #[error("CRINEX1 standard mismatch")]
-    FaultyCrinex1Format,
-    #[error("CRINEX3 standard mismatch")]
-    FaultyCrinex3Format,
+    #[error("Non supported CRX revision")]
+    NonSupportedCrxVersion,
+    #[error("First epoch not delimited by \"&\"")]
+    FaultyCrx1FirstEpoch,
+    #[error("First epoch not delimited by \">\"")]
+    FaultyCrx3FirstEpoch,
+    #[error("Failed to initialize epoch kernel")]
+    EpochKernelInitError,
+    #[error("Failed to parse clock offset init order")]
+    ClockOffsetOrderError,
+    #[error("Failed to parse clock offset value")]
+    ClockOffsetValueError,
+    #[error("Failed to init clock offset kernel")]
+    ClockOffsetInitError,
+    #[error("Failed to recover clock offset")]
+    ClockOffsetRecoveryFailure,
+    #[error("Failed to recover epoch description")]
+    EpochRecoveryFailure,
+    #[error("Recovered epoch content seems faulty")]
+    FaultyRecoveredEpoch,
+    #[error("Failed to rework epoch to match standards")]
+    EpochReworkFailure,
+//TODO a revoir
     #[error("failed to identify sat. vehicule")]
     SvError(#[from] sv::Error),
     #[error("failed to parse integer number")]
@@ -46,15 +63,74 @@ pub struct Hatanaka {
     /// True if header section is following 
     is_epoch_descriptor: bool,
     /// True if clock_offset line is following
-    clock_offset: bool,
+    is_clock_offset_descriptor: bool,
     /// line pointer
     pointer: u16,
     /// Epoch kernel
-    epo_krn: Kernel,
+    epoch_krn: Kernel,
     /// Clock offset kernel
     clk_krn: Kernel,
     /// Vehicule kernels
     sv_krn: HashMap<sv::Sv, Vec<(Kernel, Kernel, Kernel)>>,
+}
+    
+/// Reworks given content to match RINEX specifications
+/// of an epoch descriptor
+fn format_epoch (version: u8, content: &str, clock_offset: Option<i64>) -> Result<String, Error> {
+    let mut result = String::new();
+    println!("REWORKING \"{}\"", content);
+    match version {
+        1|2 => { // old RINEX
+            // append Systems #ID,
+            //  on as many lines as needed
+            let min_size = 32 + 3; // epoch descriptor
+                // +XX+XYY at least one vehicule
+            if content.len() < min_size { // parsing would fail
+                return Err(Error::FaultyRecoveredEpoch)
+            }
+            
+            let (epoch, systems) = content.split_at(32); // grab epoch
+            result.push_str(&epoch.replace("&", " ")); // rework
+            
+            //CRINEX has systems squashed in a single line
+            // we just split it to match standard definitions
+            // .. and don't forget the tab
+            for i in 0..num_integer::div_ceil(systems.len(), 36) {
+                if i > 0 {
+                    //TODO clock offset
+                    // squeeze clock offset here, if any
+                    /*if let Some(value) = clock_offset {
+                        result.push_str(&format!("  {:3.9}", (value as f64)/1000.0_f64))
+                    }*/
+                    // tab indent
+                    // TODO: improve please
+                    result.push_str("\n                                ");
+                }
+
+                let max_offset = std::cmp::min( // avoids overflowing
+                    (i+1)*12*3,
+                    systems.len(),
+                );
+                result.push_str(&systems[
+                    i*12*3 .. max_offset]);
+            }
+        },
+        _ => { // Modern RINEX case
+            // Systems #ID to be passed on future lines
+            if content.len() < 35 { // parsing would fail
+                return Err(Error::FaultyRecoveredEpoch)
+            }
+            let (epoch, _) = content.split_at(35); 
+            result.push_str(epoch);
+            
+            //TODO clock offset
+            //if let Some(offset) = is_clock_offset_descriptor {
+            //    result.push_str(&format!("         {:3.12}", (offset as f64)/1000.0_f64))
+            //}
+        },
+    }
+    result.push_str("\n"); // corret format
+    Ok(result)
 }
 
 impl Hatanaka {
@@ -64,27 +140,20 @@ impl Hatanaka {
             first_epoch: true,
             fsm: Fsm::default(),
             is_epoch_descriptor: true,
-            clock_offset: false,
+            is_clock_offset_descriptor: false,
             pointer: 0,
-            epo_krn: Kernel::new(0), // text
+            epoch_krn: Kernel::new(0), // text
             clk_krn: Kernel::new(max_order), // numerical
             sv_krn: HashMap::new(), // init. later
         }
     }
-    /// Decompresses (recovers) RINEX from given CRINEX record block.   
-    /// This method will decompress and manage CRINEX comments or weird events properly.    
-    /// This method will crash on header data: header section should be previously / separately parsed.    
-    /// `header` : previously identified RINEX `header` section
-    /// `content`: string reference extracted from a CRINEX record.    
-    ///           This method is very convenient because `content` can have any shape you can think of.    
-    ///           You can feed single CRINEX epoch lines, one at a time, just make sure it's terminated with an \n     
-    ///           You can pass epochs one at a time (line groupings, several lines at once)    
-    ///           You can also pass an entire CRINEX record at once      
-    ///           You can even pass unevenly grouped chunks of epochs, even with COMMENTS unevenly inserted.    
-    ///           Just make sure that `content` is never an empty string (at least 1 character),
-    ///           which easily happens if you iterate through a CRINEX record with .lines() for instance.   
-    ///           And also make sure to follow a standard CRINEX structure, which should always be the case   
-    ///           if you iterate over a valid CRINEX.
+    /// Decompresses (recovers) RINEX from given CRINEX content.
+    /// Content can be header / comments
+    /// they will be passed as is, as expected.
+    /// Content can be entire CRINEX epochs, group of lines, or a single line at a time. Content must be at least '\n', pay attention
+    /// to empty clock offset lines.
+    /// `header`: previously identified RINEX `header` section
+    /// `content`: CRINEX record content
     /// `result`: returns decompressed (recovered) block from provided block content
     pub fn decompress (&mut self, header: &header::Header, content : &str) -> Result<String, Error> {
         // Context sanity checks
@@ -113,106 +182,136 @@ impl Hatanaka {
         let mut result : String = String::new();
         let mut lines = content.lines();
         let mut clock_offset : Option<i64> = None;
+
         loop {
-            // consume lines, if many were fed
             let line: &str = match lines.next() {
                 Some(l) => l,
                 None => break,
             };
+
+            //TODO DEBUG
+            println!("Working from LINE : \"{}\"", line);
+            
             // [0] : COMMENTS (special case)
             if is_comment!(line) {
                 if line.contains("RINEX FILE SPLICE") {
                     // [0*] SPLICE special comments
                     //      merged RINEX Files
-                    //  --> reset FSM
+                    self.fsm.reset();
                     self.is_epoch_descriptor = true;
                     self.pointer = 0
                 }
-                result.push_str(line); // feed content as is
-                result.push_str("\n"); // dropped by .lines()
+                result // feed content as is
+                    .push_str(line);
+                result // \n dropped by .lines()
+                    .push_str("\n");
                 continue
             }
+
             // [0*]: special epoch events
             //       with uncompressed descriptor
+            //       (CRNX3)
             if line.starts_with("> ") && !self.first_epoch {
-                result.push_str(line); // feed as is..
-                result.push_str("\n"); // dropped by .lines()
+                result // feed content as is
+                    .push_str(line);
+                result // \n dropped by .lines()
+                    .push_str("\n");
                 continue
             }
-            // [1] recover epoch descriptor 
-            if self.header {
-                self.recover_epoch_descriptor(crx_version.major, &line)?; 
-                self.header = false;
-                self.clock_offset = true;
-                continue
-            };
-            // [2] recover clock offset, if any
-            if self.clock_offset {
-                clock_offset = match line.contains("&") {
-                    false => {
-                        if let Ok(num) = i64::from_str_radix(line.trim(),10) {
-                            Some(num)
-                        } else {
-                            None // parsing fails on empty line
-                        }
-                    },
-                    true => {
-                        // kernel (re)init
-                        let (n, rem) = line.split_at(1);
-                        let n = u8::from_str_radix(n, 10)?;
-                        let (_, num) = rem.split_at(1);
-                        let num = i64::from_str_radix(num, 10)?;
-                        self.clk_krn.init(
-                            n.into(), 
-                            Dtype::Numerical(num))
-                            .unwrap();
-                        Some(num)
-                    },
-                };
-                // we can now fully recover the epoch description 
-                let recovered_epoch =  // trick to recover textdiff
-                    self.epo_krn.recover(Dtype::Text(String::from(" ")))?
-                    .as_text()
-                    .unwrap();
-                let recovered_epoch = recovered_epoch.as_str().trim_end();
-                match rnx_version.major {
-                    1|2 => { // old RINEX
-                        // system # id is appended
-                        // and wrapped on as many lines as needed
-                        let (epoch, systems) = recovered_epoch.split_at(32);
-                        result.push_str(epoch);
-                        let mut begin = 0;
-                        // terminate first line with required content
-                        let end = std::cmp::min(begin+12*3, systems.len());
-                        result.push_str(&systems[begin..end]);
-                        // squeeze clock offset here, if any
-                        if let Some(offset) = clock_offset {
-                            result.push_str(&format!("  {:3.9}", (offset as f64)/1000.0_f64))
-                        }
-                        loop { // missing lines to fit remaining systems 
-                            begin += 12*3; // `systems` pointer
-                            if begin >= systems.len() {
-                                break
-                            }
-                            let end = std::cmp::min(begin+12*3, systems.len());
-                            result.push_str("\n                                ");
-                            result.push_str(&systems[begin..end]);
-                        }
-                    },
-                    _ => { // modern RINEX
-                        result.push_str(recovered_epoch.split_at(35).0);
-                        if let Some(offset) = clock_offset {
-                            result.push_str(&format!("         {:3.12}", (offset as f64)/1000.0_f64))
+
+            // epoch
+            if self.is_epoch_descriptor {
+                if self.first_epoch {
+                    if crx_version.major == 1 {
+                        if !line.starts_with("&") {
+                            return Err(Error::FaultyCrx1FirstEpoch) ;
                         }
                     }
-                };
-                result.push_str("\n");
-                self.clock_offset = false;
-                continue
+                    if crx_version.major == 3 {
+                        if !line.starts_with(">") {
+                            return Err(Error::FaultyCrx3FirstEpoch) ;
+                        }
+                    }
+                    
+                    //TODO DEBUG
+                    println!("Initializing EPOCH KERNEL with");
+                    println!("\"{}\"", line);
+                    
+                    // Kernel initialization,
+                    // only once, always text based
+                    if self.epoch_krn.init(
+                        0, // textdiff
+                        Dtype::Text(line.to_string())).is_err() {
+                        return Err(Error::EpochKernelInitError) ;
+                    }
+                    self.first_epoch = false; //never to be re-initialized
+                }
+
+                self.is_epoch_descriptor = false;
+                self.is_clock_offset_descriptor = true;
+                continue ;
             }
+            
+            // Clock Offset recovery 
+            if self.is_clock_offset_descriptor {
+                if line.contains("&") {
+                    // clock offset kernel (re)init
+                    //   parse init. parameters
+                    let (n, rem) = line.split_at(1);
+                    if let Ok(order) = u8::from_str_radix(n, 10) {
+                        let (_, value) = rem.split_at(1);
+                        if let Ok(value) = i64::from_str_radix(value, 10) {
+                            if self.clk_krn
+                                .init(
+                                    order.into(),
+                                    Dtype::Numerical(value)).is_err()
+                            {
+                                return Err(Error::ClockOffsetInitError)
+                            }
+                        } else {
+                            return Err(Error::ClockOffsetValueError)
+                        }
+                    } else {
+                        return Err(Error::ClockOffsetOrderError)
+                    }
+                } else {
+                    // --> nominal clock offset line
+                    //     value might be ommitted
+                    if let Ok(value) = i64::from_str_radix(line.trim(), 10) {
+                        //TODO hold on to this value please
+                    } 
+                }
+            }
+
+            // Epoch Recovery
+            if self.is_clock_offset_descriptor {
+                if let Ok(recover) = self
+                    .epoch_krn // trick: epoch description was previously stored
+                        // we're at clock offset description,
+                        // here I take advantage of the textdiff behavior
+                        .recover(Dtype::Text(String::from(" "))) {
+                    if let Some(recovered) = recover.as_text() {
+                        // now we must rebuild epoch description, according to standards
+                        let recovered = &recovered.trim_end();
+                        //TODO missing clock offset here please
+                        if let Ok(epoch) = format_epoch(rnx_version.major, &recovered, None) {
+                            println!("REWORKD   \"{}\"", epoch);
+                            result.push_str(&epoch); 
+                        } else {
+                            return Err(Error::EpochReworkFailure) ;
+                        }
+                    }
+                } else {
+                    return Err(Error::EpochRecoveryFailure) ;
+                }
+
+                self.is_clock_offset_descriptor = false ;
+                continue ;
+            }
+
             // [3] inside epoch content
             let recovered_epoch =  // trick to recover textdiff
-                self.epo_krn.recover(Dtype::Text(String::from(" ")))?
+                self.epoch_krn.recover(Dtype::Text(String::from(" ")))?
                 .as_text()
                 .unwrap();
             let epo = recovered_epoch.as_str().trim_end();
@@ -236,7 +335,7 @@ impl Hatanaka {
             let offset : usize = match crx_version.major {
                 1 => std::cmp::min((32 + 3*(self.pointer+1)).into(), epo.len()),
                 3 => std::cmp::min((41 + 3*(self.pointer+1)).into(), epo.len()),
-                _ => return Err(Error::NonSupportedCrinexRevision)
+                _ => return Err(Error::NonSupportedCrxVersion)
             };
             let system = epo.split_at(offset.into()).0;
             let system = system.split_at(system.len()-3).1; // last 3 XXX
@@ -487,33 +586,5 @@ impl Hatanaka {
         }
 
         Ok(result)
-    }
-    /// Recovers epoch descriptor from given content
-    fn recover_epoch_descriptor (&mut self, revision_major: u8, line: &str) -> Result<String, Error> {
-        // CRINEX sanity checks
-        if self.first_epoch {
-            match revision_major {
-                1 => {
-                    if !line.starts_with("&") {
-                        return Err(Error::FaultyCrinex1Format)
-                    }
-                },
-                3 => {
-                    if !line.starts_with("> ") {
-                        return Err(Error::FaultyCrinex3Format)
-                    }
-                },
-                _ => return Err(Error::NonSupportedCrinexRevision),
-            }
-        }
-        if self.first_epoch {
-            self.epo_krn.init( // init this kernel
-                0, // is always a textdiff
-                Dtype::Text(line.to_string()))?;
-            self.first_epoch = false
-        }
-        Ok(self.epo_krn.recover(Dtype::Text(line.to_string()))?
-            .as_text()
-            .unwrap())
     }
 }

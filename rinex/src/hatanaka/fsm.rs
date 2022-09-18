@@ -11,8 +11,7 @@ impl Default for Fsm {
 
 impl Fsm {
     /// Resets Finite State Machine
-    fn reset (&mut self) {
+    pub fn reset (&mut self) {
         *self = Self::default()
     }
 }
-
