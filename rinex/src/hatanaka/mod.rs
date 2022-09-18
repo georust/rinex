@@ -61,15 +61,12 @@ pub enum Error {
     EpochReworkFailure,
     #[error("Failed to latch new epoch description")]
     EpochLatchError,
-//TODO a revoir
     #[error("failed to identify sat. vehicule")]
     SvError(#[from] sv::Error),
     #[error("failed to parse integer number")]
     ParseIntError(#[from] std::num::ParseIntError),
     #[error("data recovery failed")]
     KernelError(#[from] kernel::Error),
-    #[error("data recovery error")]
-    DataRecoveryError,
 }
 
 /// Structure to compress / decompress RINEX data
@@ -92,7 +89,8 @@ pub struct Hatanaka {
 /// of an epoch descriptor
 fn format_epoch (version: u8, content: &str, clock_offset: Option<i64>) -> Result<String, Error> {
     let mut result = String::new();
-    println!("REWORKING \"{}\"", content);
+    //DEBUG
+    //println!("REWORKING \"{}\"", content);
     match version {
         1|2 => { // old RINEX
             // append Systems #ID,
@@ -111,11 +109,10 @@ fn format_epoch (version: u8, content: &str, clock_offset: Option<i64>) -> Resul
             // .. and don't forget the tab
             for i in 0..num_integer::div_ceil(systems.len(), 36) {
                 if i > 0 {
-                    //TODO clock offset
                     // squeeze clock offset here, if any
-                    /*if let Some(value) = clock_offset {
+                    if let Some(value) = clock_offset {
                         result.push_str(&format!("  {:3.9}", (value as f64)/1000.0_f64))
-                    }*/
+                    }
                     // tab indent
                     // TODO: improve please
                     result.push_str("\n                                ");
@@ -138,9 +135,9 @@ fn format_epoch (version: u8, content: &str, clock_offset: Option<i64>) -> Resul
             result.push_str(epoch);
             
             //TODO clock offset
-            //if let Some(offset) = is_clock_offset_descriptor {
-            //    result.push_str(&format!("         {:3.12}", (offset as f64)/1000.0_f64))
-            //}
+            if let Some(value) = clock_offset {
+                result.push_str(&format!("         {:3.12}", (value as f64)/1000.0_f64))
+            }
         },
     }
     result.push_str("\n"); // corret format
@@ -194,6 +191,7 @@ impl Hatanaka {
         let mut result : String = String::new();
         let mut lines = content.lines();
         let mut clock_offset : Option<i64> = None;
+        let mut obs_count : usize = 0;
 
         loop {
             let line: &str = match lines.next() {
@@ -201,8 +199,8 @@ impl Hatanaka {
                 None => break,
             };
 
-            //TODO DEBUG
-            println!("Working from LINE : \"{}\"", line);
+            //DEBUG
+            //println!("Working from LINE : \"{}\"", line);
             
             // [0] : COMMENTS (special case)
             if is_comment!(line) {
@@ -243,9 +241,9 @@ impl Hatanaka {
                                 return Err(Error::FaultyCrx3FirstEpoch) ;
                             }
                         }
-                        //TODO DEBUG
-                        println!("Initializing EPOCH KERNEL with");
-                        println!("\"{}\"", line);
+                        //DEBUG
+                        //println!("Initializing EPOCH KERNEL with");
+                        //println!("\"{}\"", line);
                         
                         // Kernel initialization,
                         // only once, always text based
@@ -289,11 +287,9 @@ impl Hatanaka {
                         } else {
                             return Err(Error::ClockOffsetOrderError)
                         }
-                    } else {
-                        // --> nominal clock offset line
-                        //     value might be ommitted
+                    } else { // --> nominal clock offset line
                         if let Ok(value) = i64::from_str_radix(line.trim(), 10) {
-                            //TODO hold on to this value please
+                            clock_offset = Some(value); // latch for later
                         } 
                     }
 
@@ -307,8 +303,9 @@ impl Hatanaka {
                             // now we must rebuild epoch description, according to standards
                             let recovered = &recovered.trim_end();
                             //TODO missing clock offset here please
-                            if let Ok(epoch) = format_epoch(rnx_version.major, &recovered, None) {
-                                println!("REWORKD   \"{}\"", epoch);
+                            if let Ok(epoch) = format_epoch(rnx_version.major, &recovered, clock_offset) {
+                                //DEBUG
+                                //println!("REWORKD   \"{}\"", epoch);
                                 result.push_str(&epoch); 
                             } else {
                                 return Err(Error::EpochReworkFailure) ;
@@ -382,7 +379,6 @@ impl Hatanaka {
                     
                     // try to grab all data,
                     // might fail in case it's truncated by compression
-                    let mut obs_count : usize = 0;
                     let mut rem = line.clone();
                     let mut obs_data : Vec<Option<i64>> = Vec::with_capacity(12);
                     loop {
@@ -446,7 +442,6 @@ impl Hatanaka {
                                     result.push_str(&obs_flags[i*2]); // lli
                                     result.push_str(&obs_flags[i*2+1]); // ssi
                                     if rnx_version.major < 3 { // old RINEX
-                                        //TODO also strict RINEX3 please
                                         if (i+1).rem_euclid(5) == 0 { // maximal nb of OBS per line
                                             result.push_str("\n")
                                         }
@@ -456,7 +451,6 @@ impl Hatanaka {
                                     result.push_str(" "); // BLANK lli
                                     result.push_str(" "); // BLANK ssi
                                     if rnx_version.major < 3 { // old RINEX
-                                        //TODO and also on strict RINEX3 compatibility please
                                         if (i+1).rem_euclid(5) == 0 { // maximal nb of OBS per line
                                             result.push_str("\n")
                                         }
@@ -527,7 +521,6 @@ impl Hatanaka {
                                         result.push_str(&lli); // FLAG
                                         result.push_str(&ssi); // FLAG 
                                         if rnx_version.major < 3 { // old RINEX
-                                            //TODO and also on strict RINEX3 compatibility please
                                             if (i+1).rem_euclid(5) == 0 { // maximal nb of OBS per line
                                                 result.push_str("\n")
                                             }
@@ -537,7 +530,6 @@ impl Hatanaka {
                                         result.push_str(" "); // BLANK lli
                                         result.push_str(" "); // BLANK ssi
                                         if rnx_version.major < 3 { // old RINEX
-                                            //TODO and also on strict RINEX3 compatibility please
                                             if (i+1).rem_euclid(5) == 0 { // maximal nb of OBS per line
                                                 result.push_str("\n")
                                             }
