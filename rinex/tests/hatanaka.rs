@@ -377,5 +377,157 @@ mod test {
         let result = decompressed.unwrap();
         assert_eq!(result, " 118606651.735 7  92249639.051 7  22195622.723    22195624.811    22195622.291  
         46.000          43.000  \n");
+
+        // epoch#3 data gets more compressed
+        let content = "              1 &";
+        let decompressed = decompressor.decompress(&header, content); 
+        assert_eq!(decompressed.is_ok(), true);
+        
+        let content = "\n";
+        let decompressed = decompressor.decompress(&header, content); 
+        assert_eq!(decompressed.is_ok(), true);
+        let result = decompressed.unwrap();
+        assert_eq!(result, " 21  1  1  0  1  0.0000000  0 20G07G23G26G20G21G18R24R09G08G27G10G16
+                                R18G13R01R16R17G15R02R15\n");
+
+        let content = "521089 406062 100164 98225 98271 2000 0";
+        let decompressed = decompressor.decompress(&header, content); 
+        assert_eq!(decompressed.is_ok(), true);
+        let result = decompressed.unwrap();
+        assert_eq!(result, " 126267372.371 6  98390169.86343  24027880.908    24027881.918    24027879.896  
+        40.000          22.0004 \n");
+        
+        let content = "609858 475212 116242 116012 116115 4000 -2000  8";
+        let decompressed = decompressor.decompress(&header, content); 
+        assert_eq!(decompressed.is_ok(), true);
+        let result = decompressed.unwrap();
+        assert_eq!(result, " 111951042.015 8  87234599.37346  21303572.357    21303575.010    21303571.950  
+        48.000          37.0004 \n");
+        
+        let content = "111109 86584 21163 21212 21363 3000 0";
+        let decompressed = decompressor.decompress(&header, content); 
+        assert_eq!(decompressed.is_ok(), true);
+        let result = decompressed.unwrap();
+        assert_eq!(result, " 125338036.190 6  97666014.22145  23851032.508    23851038.707    23851031.993  
+        39.000          35.0004 \n");
+        
+        let content = "566742 441617 107872 107743 107850 2000 0";
+        let decompressed = decompressor.decompress(&header, content); 
+        assert_eq!(decompressed.is_ok(), true);
+        let result = decompressed.unwrap();
+        assert_eq!(result, " 111571159.111 8  86938589.65246  21231283.322    21231285.530    21231282.289  
+        49.000          37.0004 \n");
+        
+        let content = "189405 147603 37458 37895 36854 0 0";
+        let decompressed = decompressor.decompress(&header, content); 
+        assert_eq!(decompressed.is_ok(), true);
+        let result = decompressed.unwrap();
+        assert_eq!(result, " 123706996.679 6  96395084.31943  23540659.034    23540661.741    23540657.573  
+        39.000          20.0004 \n");
+        
+        let content = "136034 105988 25870 25574 26379 -3000 -1000  6";
+        let decompressed = decompressor.decompress(&header, content); 
+        assert_eq!(decompressed.is_ok(), true);
+        let result = decompressed.unwrap();
+        assert_eq!(result, " 121567789.421 6  94728175.85344  23133579.286    23133582.109    23133578.996  
+        41.000          27.0004 \n");
+        
+        let content = "66853 51998 12691 12273 11789 0 2000";
+        let decompressed = decompressor.decompress(&header, content); 
+        assert_eq!(decompressed.is_ok(), true);
+        let result = decompressed.unwrap();
+        assert_eq!(result, " 123803096.383 6  96291323.331 6  23151801.676    23151805.086    23151802.503  
+        41.000          40.000  \n");
+        
+        let content = "584785 454803 108985 108662 110848 0 -1000";
+        let decompressed = decompressor.decompress(&header, content); 
+        assert_eq!(decompressed.is_ok(), true);
+        let result = decompressed.unwrap();
+        assert_eq!(result, " 119940631.105 7  93287180.473 7  22461029.215    22461028.349    22461028.981  
+        44.000          42.000  \n");
+        
+        let content = "258954 201780 49125 49244 49311 -2000 0";
+        let decompressed = decompressor.decompress(&header, content); 
+        assert_eq!(decompressed.is_ok(), true);
+        let result = decompressed.unwrap();
+        assert_eq!(result, " 113940878.600 7  88785118.81047  21682225.346    21682230.719    21682224.950  
+        46.000          47.0004 \n");
+        
+        let content = "447309 348555 84693 85091 85079 0 -2000";
+        let decompressed = decompressor.decompress(&header, content); 
+        assert_eq!(decompressed.is_ok(), true);
+        let result = decompressed.unwrap();
+        assert_eq!(result, " 105186320.332 8  81963394.31949  20016287.048    20016291.406    20016286.310  
+        53.000          56.0004 \n");
+        
+        let content = "528629 411917 100672 100687 100548 3000 -1000";
+        let decompressed = decompressor.decompress(&header, content); 
+        assert_eq!(decompressed.is_ok(), true);
+        let result = decompressed.unwrap();
+        assert_eq!(result, " 111977879.803 8  87255515.04148  21308680.905    21308685.922    21308680.328  
+        51.000          53.0004 \n");
+        
+        let content = "409272 318921 78128 77864 77853 -1000 1000";
+        let decompressed = decompressor.decompress(&header, content); 
+        assert_eq!(decompressed.is_ok(), true);
+        let result = decompressed.unwrap();
+        assert_eq!(result, " 113654392.158 8  88561873.21646  21627710.355    21627712.904    21627709.440  
+        48.000          37.0004 \n");
+        
+        let content = "356412 277209 66153 66924 66484 0 2000";
+        let decompressed = decompressor.decompress(&header, content); 
+        assert_eq!(decompressed.is_ok(), true);
+        let result = decompressed.unwrap();
+        assert_eq!(result, " 106662240.699 8  82959537.980 8  19981424.756    19981427.632    19981424.664  
+        53.000          50.000  \n");
+        
+        let content = "565640 440810 105412 109222 109538 -2000 2000    2";
+        let decompressed = decompressor.decompress(&header, content); 
+        assert_eq!(decompressed.is_ok(), true);
+        let result = decompressed.unwrap();
+        assert_eq!(result, " 131374853.466 6 102370030.20842  24999803.342    24999804.985    24999803.569  
+        36.000          12.0004 \n");
+        
+        let content = "748321 582041 138218 140738 139637 0 0";
+        let decompressed = decompressor.decompress(&header, content); 
+        assert_eq!(decompressed.is_ok(), true);
+        let result = decompressed.unwrap();
+        assert_eq!(result, " 116989557.807 7  90991903.697 6  21885311.397    21885315.075    21885311.490  
+        42.000          39.000  \n");
+        
+        let content = "815590 634344 153316 152881 152832 0 1000";
+        let decompressed = decompressor.decompress(&header, content); 
+        assert_eq!(decompressed.is_ok(), true);
+        let result = decompressed.unwrap();
+        assert_eq!(result, " 110132684.584 7  85658760.560 7  20617066.147    20617067.504    20617065.779  
+        46.000          43.000  \n");
+        
+        let content = "384203 298827 71632 71657 71623 1000 1000";
+        let decompressed = decompressor.decompress(&header, content); 
+        assert_eq!(decompressed.is_ok(), true);
+        let result = decompressed.unwrap();
+        assert_eq!(result, " 104357398.636 8  81166892.050 8  19501671.338    19501671.634    19501671.112  
+        53.000          50.000  \n");
+        
+        let content = "599215 466931 114210 113430 114161 4000 0";
+        let decompressed = decompressor.decompress(&header, content); 
+        assert_eq!(decompressed.is_ok(), true);
+        let result = decompressed.unwrap();
+        assert_eq!(result, " 126740781.514 6  98759072.69544  24117965.362    24117968.209    24117964.906  
+        38.000          29.0004 \n");
+        
+        let content = "576174 448136 108266 108219 108061 0 0";
+        let decompressed = decompressor.decompress(&header, content); 
+        assert_eq!(decompressed.is_ok(), true);
+        let result = decompressed.unwrap();
+        assert_eq!(result, " 113661403.664 8  88403339.633 7  21300098.037    21300101.842    21300098.586  
+        49.000          46.000  \n");
+        
+        let content = "284828 221531 51578 52840 53501 -1000 -1000";
+        let decompressed = decompressor.decompress(&header, content); 
+        assert_eq!(decompressed.is_ok(), true);
+        let result = decompressed.unwrap();
+        assert_eq!(result, " 118696815.992 7  92319766.796 7  22212494.650    22212497.561    22212495.399  
+        46.000          43.000  \n");
     }
 }
