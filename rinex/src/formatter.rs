@@ -1,6 +1,5 @@
 #[cfg(feature = "serde")]
 pub mod point3d {
-    //use super::ParseError;
     use std::str::FromStr;
     use serde::{Deserializer, Deserialize, de::Error};
     
@@ -26,6 +25,7 @@ pub mod point3d {
         let s = format!("{},{},{}",p.x,p.y,p.z); 
         serializer.serialize_str(&s)
     }
+    
     /// Parses a rust_3d::Point3D structure
     pub fn deserialize<'de, D>(deserializer: D) -> Result<rust_3d::Point3D, D::Error>
     where
@@ -49,6 +49,7 @@ pub mod point3d {
 pub mod opt_point3d {
     use std::str::FromStr;
     use serde::{Serializer, Deserializer, Deserialize};
+    
     /// Dumps an optionnal rust_3d::Point3D
     pub fn serialize<S>(p: &Option<rust_3d::Point3D>, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -61,6 +62,7 @@ pub mod opt_point3d {
             serializer.serialize_str("")
         }
     }
+    
     /// Parses an optionnal chrono::NaiveDateTime structure
     pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<rust_3d::Point3D>, D::Error>
     where
@@ -83,6 +85,7 @@ pub mod opt_point3d {
 #[cfg(feature = "serde")]
 pub mod datetime {
     use serde::{Serializer, Deserializer, Deserialize, de::Error};
+    
     /// Dumps a chrono::NaiveDateTime structure
     pub fn serialize<S>(datetime: &chrono::NaiveDateTime, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -91,6 +94,7 @@ pub mod datetime {
         let s = format!("{}", datetime.format("%Y-%m-%d %H:%M:%S"));
         serializer.serialize_str(&s)
     }
+    
     /// Parses a chrono::NaiveDateTime structure
     pub fn deserialize<'de, D>(deserializer: D) -> Result<chrono::NaiveDateTime, D::Error>
     where
@@ -105,6 +109,7 @@ pub mod datetime {
 #[cfg(feature = "serde")]
 pub mod opt_datetime {
     use serde::{Serializer, Deserializer, Deserialize};
+    
     /// Dumps an optionnal chrono::NaiveDateTime structure
     pub fn serialize<S>(datetime: &Option<chrono::NaiveDateTime>, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -117,6 +122,7 @@ pub mod opt_datetime {
             serializer.serialize_str("")
         }
     }
+    
     /// Parses an optionnal chrono::NaiveDateTime structure
     pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<chrono::NaiveDateTime>, D::Error>
     where
