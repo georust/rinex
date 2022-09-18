@@ -332,6 +332,7 @@ impl Rinex {
     /// some are mandatory.   
     /// Parses record (file body) for supported `RINEX` types.
     pub fn from_file (path: &str) -> Result<Rinex, Error> {
+        /* This will be required if we have make the BufferedReader Hatanaka compliant
         // Grab first 80 bytes to fully determine the BufferedReader attributes.
         // We use the `BufferedReader` wrapper for efficient file browsing (.lines())
         // and builtin CRINEX decompression 
@@ -347,7 +348,7 @@ impl Rinex {
             } else {
                 panic!("header 1st line is not valid Utf8 encoding")
             }
-        }
+        }*/
 
 /*
  *      deflate (.gzip) fd pointer does not work / is not fully supported
