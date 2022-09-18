@@ -9,7 +9,7 @@ mod test {
     use rinex::constellation::Constellation;
     use std::collections::HashMap;
     #[test]
-    fn test_rnx_decompression() {
+    fn test_crx1_decompression() {
         // object
         let mut decompressor = Hatanaka::new(8);
         // fake header
@@ -236,8 +236,10 @@ mod test {
         assert_eq!(result, " 21  1  1  0  0 30.0000000  0 20G07G23G26G20G21G18R24R09G08G27G10G16
                                 R18G13R01R16R17G15R02R15\n");
        
+        //////////////////////////////////////
         // epoch #2 data #1
         // first partially compressed data
+        //////////////////////////////////////
         let content = "-15603288 -12158423 -2969836 -2968829 -2968864 -1000 0";
         let decompressed = decompressor.decompress(&header, content); 
         assert_eq!(decompressed.is_ok(), true);
@@ -378,7 +380,9 @@ mod test {
         assert_eq!(result, " 118606651.735 7  92249639.051 7  22195622.723    22195624.811    22195622.291  
         46.000          43.000  \n");
 
+        //////////////////////////////////////
         // epoch#3 data gets more compressed
+        //////////////////////////////////////
         let content = "              1 &";
         let decompressed = decompressor.decompress(&header, content); 
         assert_eq!(decompressed.is_ok(), true);
