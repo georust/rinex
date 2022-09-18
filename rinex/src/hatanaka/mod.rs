@@ -108,12 +108,12 @@ fn format_epoch (version: u8, content: &str, clock_offset: Option<i64>) -> Resul
             // we just split it to match standard definitions
             // .. and don't forget the tab
             for i in 0..num_integer::div_ceil(systems.len(), 36) {
-                if i > 0 {
+                if i == 0 {
                     // squeeze clock offset here, if any
                     if let Some(value) = clock_offset {
                         result.push_str(&format!("  {:3.9}", (value as f64)/1000.0_f64))
                     }
-                    // tab indent
+                } else { // tab indent
                     // TODO: improve please
                     result.push_str("\n                                ");
                 }
