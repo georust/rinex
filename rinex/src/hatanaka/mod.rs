@@ -1,5 +1,4 @@
-//! Structures and macros for
-//! RINEX OBS file compression and decompression.   
+//! RINEX compression / decompression module
 use crate::sv;
 use crate::header;
 use crate::is_comment;
@@ -8,237 +7,12 @@ use thiserror::Error;
 use std::str::FromStr;
 use std::collections::HashMap;
 
-#[derive(Error, Debug)]
-/// Hatanaka Kernel, compression
-/// and decompression related errors
-pub enum KernelError {
-    #[error("order cannot be greater than {0}")]
-    OrderTooBig(usize),
-    #[error("cannot recover a different type than init type!")]
-    TypeMismatch,
-}
+mod kernel;
+use kernel::{Kernel, Dtype};
 
-/// `Dtype` describes the type of data
-/// we can compress / decompress
-#[derive(Clone, Debug)]
-pub enum Dtype {
-    /// Numerical is intended to be used
-    /// for observation data and clock offsets
-    Numerical(i64),
-    /// Text represents epoch descriptors, GNSS descriptors, observation flags..
-    Text(String),
-}
+mod fsm;
+use fsm::Fsm;
 
-impl Default for Dtype {
-    /// Generates a default numerical = 0 `Dtype`
-    fn default() -> Dtype { Dtype::Numerical(0) }
- }
-
-impl Dtype {
-    /// Unwraps `Dtype` as numerical data
-    pub fn as_numerical (&self) -> Option<i64> {
-        match self {
-            Dtype::Numerical(n) => Some(n.clone()),
-            _ => None,
-        }
-    }
-    /// Unwraps `Dtype` as text data
-    pub fn as_text (&self) -> Option<String> {
-        match self {
-            Dtype::Text(s) => Some(s.to_string()),
-            _ => None,
-        }
-    }
-}
-
-/// `Kernel` is a structure to compress    
-/// or recover data using recursive defferential     
-/// equations as defined by Y. Hatanaka.   
-/// No compression limitations but maximal order   
-/// to be supported must be defined on structure     
-/// creation for memory allocation efficiency.
-#[derive(Debug, Clone)]
-pub struct Kernel {
-    /// internal counter
-    n: usize,
-    /// compression order
-    order: usize,
-    /// kernel initializer
-    init: Dtype,
-    /// state vector 
-    state: Vec<i64>,
-    /// previous state vector 
-    p_state: Vec<i64>,
-}
-
-impl Kernel {
-    /// Builds a new kernel structure.    
-    /// + m: maximal Hatanaka order for this kernel to ever support, 
-    /// m=5 is hardcoded in `CRN2RNX` (official binary tool) and is enough
-    pub fn new (m: usize) -> Kernel {
-        let mut state : Vec<i64> = Vec::with_capacity(m+1);
-        for _ in 0..m+1 { state.push(0) }
-        Kernel {
-            n: 0,
-            order: 0,
-            init: Dtype::default(),
-            state: state.clone(),
-            p_state: state.clone(),
-        }
-    }
-
-    /// (re)initializes kernel.  
-    /// + order: compression order   
-    /// + data: kernel initializer
-    pub fn init (&mut self, order: usize, data: Dtype) -> Result<(), KernelError> { 
-        if order > self.state.len() {
-            return Err(KernelError::OrderTooBig(self.state.len()))
-        }
-        // reset
-        self.n = 0;
-        self.state.iter_mut().map(|x| *x = 0).count();
-        self.p_state.iter_mut().map(|x| *x = 0).count();
-        // init
-        self.init = data.clone();
-        self.p_state[0] = data.as_numerical().unwrap_or(0);
-        self.order = order;
-        Ok(())
-    }
-
-    /// Recovers data by computing recursive differential equation
-    pub fn recover (&mut self, data: Dtype) -> Result<Dtype, KernelError> {
-        match data {
-            Dtype::Numerical(data) => {
-                if let Some(_) = self.init.as_numerical() {
-                    Ok(self.numerical_data_recovery(data))
-                } else {
-                    Err(KernelError::TypeMismatch)
-                }
-            },
-            Dtype::Text(data) => {
-                if let Some(_) = self.init.as_text() {
-                   Ok(self.text_data_recovery(data))
-                } else {
-                    Err(KernelError::TypeMismatch)
-                }
-            },
-        }
-    }
-    
-    /// Compresses data with differential equation
-    pub fn compress (&mut self, data: Dtype) -> Result<Dtype, KernelError> {
-        match data {
-            Dtype::Numerical(data) => {
-                if let Some(_) = self.init.as_numerical() {
-                    Ok(self.numerical_data_compression(data))
-                } else {
-                    Err(KernelError::TypeMismatch)
-                }
-            },
-            Dtype::Text(data) => {
-                if let Some(_) = self.init.as_text() {
-                    Ok(Dtype::Text(self.text_data_compression(data)))
-                } else {
-                    Err(KernelError::TypeMismatch)
-                }
-            },
-        }
-    }
-
-    /// Computes Differential Equation as defined in Hatanaka compression method
-    pub fn numerical_data_recovery (&mut self, data: i64) -> Dtype {
-        self.n += 1;
-        self.n = std::cmp::min(self.n, self.order);
-        self.state.iter_mut().map(|x| *x = 0).count();
-        self.state[self.n] = data;
-        for index in (0..self.n).rev() {
-            self.state[index] = 
-                self.state[index+1] 
-                    + self.p_state[index] 
-        }
-        self.p_state = self.state.clone();
-        Dtype::Numerical(self.state[0])
-    }
-    
-    /// Compresses numerical data using Hatanaka method
-    fn numerical_data_compression (&self, _data: i64) -> Dtype {
-        Dtype::Numerical(0)
-    }
-
-    /// Performs TextDiff operation as defined in Hatanaka compression method 
-    fn text_data_recovery (&mut self, data: String) -> Dtype {
-        let mut init = self.init
-            .as_text()
-            .unwrap();
-        let l = init.len();
-        let mut recovered = String::from("");
-        let mut p = init.as_mut_str().chars();
-        let mut data = data.as_str().chars();
-        for _ in 0..l {
-            let next_c = p.next().unwrap();
-            if let Some(c) = data.next() {
-                if c == '&' { // special whitespace insertion
-                    recovered.push_str(" ")
-                } else if c.is_ascii_alphanumeric() {
-                    recovered.push_str(&c.to_string())
-                } else {
-                    recovered.push_str(&next_c.to_string())
-                }
-            } else {
-                recovered.push_str(&next_c.to_string())
-            }
-        }
-        // mask might be longer than self
-        // in case we need to extend current value
-        loop {
-            if let Some(c) = data.next() {
-                if c == '&' { // special whitespace insertion
-                    recovered.push_str(" ")
-                } else if c.is_ascii_alphanumeric() {
-                    recovered.push_str(&c.to_string())
-                }
-            } else {
-                break
-            }
-        }
-        self.init = Dtype::Text(recovered.clone()); // for next time
-        Dtype::Text(String::from(&recovered))
-    }
-    
-    /// Compresses text data using Hatanaka method
-    fn text_data_compression (&mut self, data: String) -> String {
-        let mut inner = self
-            .init
-            .as_text()
-            .unwrap();
-        let mut result = String::new();
-        let mut ptr_inner = inner
-            .chars();
-        let ptr_data = data
-            .chars();     
-        for c in ptr_data {
-            if c == '&' { // special whitespace insertion
-                result.push_str(" ");
-                let _ = ptr_inner.next(); // overwrite
-            } else {
-                if let Some(c_inner) = ptr_inner.next() {
-                    if c == c_inner {
-                        result.push_str(" ");
-                    } else {
-                        result.push(c);
-                    }
-                } else {
-                    result.push(c);
-                }
-            }
-        }
-        self.init = Dtype::Text(data.replace("&"," ")
-            .clone());
-        result
-    }
-}
-
-/// Compression / Decompression related errors
 #[derive(Error, Debug)]
 pub enum Error {
     #[error("io error")]
@@ -258,40 +32,43 @@ pub enum Error {
     #[error("failed to parse integer number")]
     ParseIntError(#[from] std::num::ParseIntError),
     #[error("data recovery failed")]
-    KernelError(#[from] KernelError),
+    KernelError(#[from] kernel::Error),
     #[error("data recovery error")]
     DataRecoveryError,
 }
 
-/// Structure to decompress a CRINEX file
-pub struct Decompressor {
-    /// to identify very first few bytes passed
-    first_epo : bool,
-    /// to determine where we are in the record
-    header : bool,
-    /// to determine where we are in the record
-    clock_offset : bool,
-    /// to determine where we are in the record
-    pointer : u16,
-    /// Epoch decompressor
-    epo_krn : Kernel,
-    /// Clock offset decompressor
-    clk_krn : Kernel,
-    /// decompressors
-    sv_krn  : HashMap<sv::Sv, Vec<(Kernel, Kernel, Kernel)>>,
+/// Structure to compress / decompress RINEX data
+pub struct Hatanaka {
+    /// True only for first epoch to be processed 
+    first_epoch: bool,
+    /// finite state machine
+    fsm: Fsm,
+    /// True if header section is following 
+    is_epoch_descriptor: bool,
+    /// True if clock_offset line is following
+    clock_offset: bool,
+    /// line pointer
+    pointer: u16,
+    /// Epoch kernel
+    epo_krn: Kernel,
+    /// Clock offset kernel
+    clk_krn: Kernel,
+    /// Vehicule kernels
+    sv_krn: HashMap<sv::Sv, Vec<(Kernel, Kernel, Kernel)>>,
 }
 
-impl Decompressor {
-    /// Creates a new `CRINEX` decompressor tool
-    pub fn new (max_order: usize) -> Decompressor {
-        Decompressor {
-            first_epo : true,
-            header : true,
-            clock_offset : false,
-            pointer : 0,
-            epo_krn : Kernel::new(0),
-            clk_krn : Kernel::new(max_order),
-            sv_krn  : HashMap::new(),
+impl Hatanaka {
+    /// Creates a new compression / decompression tool
+    pub fn new (max_order: usize) -> Hatanaka {
+        Hatanaka {
+            first_epoch: true,
+            fsm: Fsm::default(),
+            is_epoch_descriptor: true,
+            clock_offset: false,
+            pointer: 0,
+            epo_krn: Kernel::new(0), // text
+            clk_krn: Kernel::new(max_order), // numerical
+            sv_krn: HashMap::new(), // init. later
         }
     }
     /// Decompresses (recovers) RINEX from given CRINEX record block.   
@@ -330,33 +107,36 @@ impl Decompressor {
         
         // pre defined maximal compression order
         //  ===> to adapt all other kernels accordingly
-        let m = self.clk_krn.state.len()-1; 
+        let m = self.clk_krn
+            .state
+            .len()-1; 
         let mut result : String = String::new();
         let mut lines = content.lines();
         let mut clock_offset : Option<i64> = None;
         loop {
-            let line : &str = match lines.next() {
+            // consume lines, if many were fed
+            let line: &str = match lines.next() {
                 Some(l) => l,
                 None => break,
             };
-            // [0] : COMMENTS
+            // [0] : COMMENTS (special case)
             if is_comment!(line) {
                 if line.contains("RINEX FILE SPLICE") {
                     // [0*] SPLICE special comments
                     //      merged RINEX Files
                     //  --> reset FSM
-                    self.header = true;
+                    self.is_epoch_descriptor = true;
                     self.pointer = 0
                 }
-                result.push_str(line); // feed as is..
-                result.push_str("\n");
+                result.push_str(line); // feed content as is
+                result.push_str("\n"); // dropped by .lines()
                 continue
             }
-            // [0*] : special epoch events
-            //        with uncompressed descriptor
-            if line.starts_with("> ") && !self.first_epo {
+            // [0*]: special epoch events
+            //       with uncompressed descriptor
+            if line.starts_with("> ") && !self.first_epoch {
                 result.push_str(line); // feed as is..
-                result.push_str("\n");
+                result.push_str("\n"); // dropped by .lines()
                 continue
             }
             // [1] recover epoch descriptor 
@@ -702,7 +482,7 @@ impl Decompressor {
             self.pointer += 1;
             if self.pointer == nb_sv { // nothing else to parse
                 self.pointer = 0; // reset
-                self.header = true // reset FSM
+                self.is_epoch_descriptor = true // reset FSM
             }
         }
 
@@ -711,7 +491,7 @@ impl Decompressor {
     /// Recovers epoch descriptor from given content
     fn recover_epoch_descriptor (&mut self, revision_major: u8, line: &str) -> Result<String, Error> {
         // CRINEX sanity checks
-        if self.first_epo {
+        if self.first_epoch {
             match revision_major {
                 1 => {
                     if !line.starts_with("&") {
@@ -726,210 +506,14 @@ impl Decompressor {
                 _ => return Err(Error::NonSupportedCrinexRevision),
             }
         }
-        if self.first_epo {
+        if self.first_epoch {
             self.epo_krn.init( // init this kernel
                 0, // is always a textdiff
                 Dtype::Text(line.to_string()))?;
-            self.first_epo = false
+            self.first_epoch = false
         }
         Ok(self.epo_krn.recover(Dtype::Text(line.to_string()))?
             .as_text()
             .unwrap())
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use super::{Kernel,Dtype};
-    #[test]
-    /// Tests numerical data recovery    
-    /// through Hatanaka decompression.   
-    /// Tests data come from an official CRINEX file and
-    /// official CRX2RNX decompression tool
-    fn test_num_recovery() {
-        let mut krn = Kernel::new(5);
-        let init : i64 = 25065408994;
-        krn.init(3, Dtype::Numerical(init))
-            .unwrap();
-        let data : Vec<i64> = vec![
-            5918760,
-            92440,
-            -240,
-            -320,
-            -160,
-            -580,
-            360,
-            -1380,
-            220,
-            -140,
-        ];
-        let expected : Vec<i64> = vec![
-            25071327754,
-            25077338954,
-            25083442354,
-            25089637634,
-            25095924634,
-            25102302774,
-            25108772414,
-            25115332174,
-            25121982274,
-            25128722574,
-        ];
-        for i in 0..data.len() {
-            let recovered = krn.recover(Dtype::Numerical(data[i]))
-                .unwrap()
-                    .as_numerical()
-                    .unwrap();
-            assert_eq!(recovered, expected[i]);
-        }
-        // test re-init
-        let init : i64 = 24701300559;
-        krn.init(3, Dtype::Numerical(init))
-            .unwrap();
-        let data : Vec<i64> = vec![
-            -19542118,
-            29235,
-            -38,
-            1592,
-            -931,
-            645,
-            1001,
-            -1038,
-            2198,
-            -2679,
-            2804,
-            -892,
-        ];
-        let expected : Vec<i64> = vec![
-            24681758441,
-            24662245558,
-            24642761872,
-            24623308975,
-            24603885936,
-            24584493400,
-            24565132368,
-            24545801802,
-            24526503900,
-            24507235983,
-            24488000855,
-            24468797624,
-        ];
-        for i in 0..data.len() {
-            let recovered = krn.recover(Dtype::Numerical(data[i]))
-                .unwrap()
-                    .as_numerical()
-                    .unwrap();
-            assert_eq!(recovered, expected[i]);
-        }
-    }
-    #[test]
-    /// Tests Hatanaka Text Recovery algorithm
-    fn test_text_recovery() {
-        let init = "ABCDEFG 12 000 33 XXACQmpLf";
-        let mut krn = Kernel::new(5);
-        let masks : Vec<&str> = vec![
-            "        13   1 44 xxACq   F",
-            " 11 22   x   0 4  y     p  ",
-            "              1     ",
-            "                   z",
-            " ",
-        ];
-        let expected : Vec<&str> = vec![
-            "ABCDEFG 13 001 44 xxACqmpLF",
-            "A11D22G 1x 000 44 yxACqmpLF",
-            "A11D22G 1x 000144 yxACqmpLF",
-            "A11D22G 1x 000144 yzACqmpLF",
-            "A11D22G 1x 000144 yzACqmpLF",
-        ];
-        krn.init(3, Dtype::Text(String::from(init)))
-            .unwrap();
-        for i in 0..masks.len() {
-            let mask = masks[i];
-            let result = krn.recover(Dtype::Text(String::from(mask)))
-                .unwrap()
-                    .as_text()
-                    .unwrap();
-            assert_eq!(result, String::from(expected[i]));
-        }
-        // test re-init
-        let init = " 2200 123      G 07G08G09G   XX XX";
-        krn.init(3, Dtype::Text(String::from(init)))
-            .unwrap();
-        let masks : Vec<&str> = vec![
-            "        F       1  3",
-            " x    1 f  f   p",
-            " ",
-            "  3       4       ",
-        ];
-        let expected : Vec<&str> = vec![
-            " 2200 12F      G107308G09G   XX XX",
-            " x200 12f  f   p107308G09G   XX XX",
-            " x200 12f  f   p107308G09G   XX XX",
-            " x300 12f 4f   p107308G09G   XX XX",
-        ];
-        for i in 0..masks.len() {
-            let mask = masks[i];
-            let result = krn.recover(Dtype::Text(String::from(mask)))
-                .unwrap()
-                    .as_text()
-                    .unwrap();
-            assert_eq!(result, String::from(expected[i]));
-        }
-    }
-    #[test]
-    /// Tests Hatanaka Text compression algorithm
-    fn test_text_compression() {
-        let mut krn = Kernel::new(5);
-        let init = "Default Phrase 1234";
-        krn
-            .init(0, Dtype::Text(init.to_string()))
-            .unwrap();
-        let to_compress = "DEfault Phrase 1234";
-        let result = krn
-            .compress(Dtype::Text(to_compress.to_string()))
-            .unwrap()
-            .as_text()
-            .unwrap();
-        assert_eq!(result, " E                 ");
-        
-        let to_compress = "DEfault Phrase 1234";
-        let result = krn
-            .compress(Dtype::Text(to_compress.to_string()))
-            .unwrap()
-            .as_text()
-            .unwrap();
-        assert_eq!(result, "                   ");
-        
-        let to_compress = "DEFault Phrase 1234";
-        let result = krn
-            .compress(Dtype::Text(to_compress.to_string()))
-            .unwrap()
-            .as_text()
-            .unwrap();
-        assert_eq!(result, "  F                ");
-        
-        let to_compress = "DEFault Phrase 1234  ";
-        let result = krn
-            .compress(Dtype::Text(to_compress.to_string()))
-            .unwrap()
-            .as_text()
-            .unwrap();
-        assert_eq!(result, "                     ");
-        
-        let to_compress = "&EFault Phrase 1234  ";
-        let result = krn
-            .compress(Dtype::Text(to_compress.to_string()))
-            .unwrap()
-            .as_text()
-            .unwrap();
-        assert_eq!(result, "                     ");
-        
-        let to_compress = "__&abcd Phrase 1222    ";
-        let result = krn
-            .compress(Dtype::Text(to_compress.to_string()))
-            .unwrap()
-            .as_text()
-            .unwrap();
-        assert_eq!(result, "__  bcd          22    ");
     }
 }
