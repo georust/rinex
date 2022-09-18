@@ -31,7 +31,7 @@ extern crate num_derive;
 
 pub mod reader;
 use reader::BufferedReader;
-use std::io::{Read, Write};
+use std::io::{Write}; //, Read};
 
 pub mod writer;
 use writer::BufferedWriter;
