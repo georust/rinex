@@ -11,6 +11,8 @@ use serde::{Serialize, Deserialize};
 /// GNSS Augmentation systems,
 /// must be used based on current location
 pub enum Augmentation {
+    /// Augmentation Unknown
+    Unknown,
     /// American augmentation system,
     WAAS,
     /// European augmentation system
@@ -33,7 +35,7 @@ pub enum Augmentation {
 
 impl Default for Augmentation {
     fn default() -> Augmentation {
-        Augmentation::WAAS
+        Augmentation::Unknown
     }
 }
 
