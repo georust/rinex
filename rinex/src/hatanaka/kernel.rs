@@ -1,4 +1,5 @@
 use thiserror::Error;
+use std::collections::VecDeque;
 
 #[derive(Error, Debug)]
 pub enum Error {
@@ -56,10 +57,10 @@ pub struct Kernel {
     order: usize,
     /// kernel initializer
     init: Dtype,
-    /// state vector 
-    pub state: Vec<i64>,
-    /// previous state vector 
-    p_state: Vec<i64>,
+    /// internal vector 
+    x: VecDeque<i64>,
+    /// internal vector 
+    y: VecDeque<i64>,
 }
 
 impl Kernel {
@@ -67,14 +68,12 @@ impl Kernel {
     /// m: maximal Hatanaka order for this kernel to ever support.
     /// For information, m = 5 is hardcoded in `CRN2RNX` and is a good compromise
     pub fn new (m: usize) -> Kernel {
-        let mut state : Vec<i64> = Vec::with_capacity(m+1); // alloc() for performance
-        for _ in 0..m+1 { state.push(0) } // init
         Kernel {
             n: 0,
-            order: 0,
+            order: m,
             init: Dtype::default(),
-            state: state.clone(),
-            p_state: state.clone(),
+            x: VecDeque::with_capacity(m),
+            y: VecDeque::with_capacity(m),
         }
     }
 
@@ -82,17 +81,17 @@ impl Kernel {
     /// Order: compression order   
     /// Data: kernel initializer
     pub fn init (&mut self, order: usize, data: Dtype) -> Result<(), Error> { 
-        if order > self.state.len() {
-            return Err(Error::OrderTooBig(self.state.len()))
+        if order > self.x.len() {
+            return Err(Error::OrderTooBig(self.x.len()))
         }
         // reset
         self.n = 0;
-        self.state.iter_mut().map(|x| *x = 0).count();
-        self.p_state.iter_mut().map(|x| *x = 0).count();
+        self.x.clear();
+        self.y.clear();
         // init
-        self.init = data.clone();
-        self.p_state[0] = data.as_numerical().unwrap_or(0);
         self.order = order;
+        self.init = data.clone();
+        self.x.push_back(data.as_numeric().unwrap_or(0));
         Ok(())
     }
 
@@ -140,25 +139,18 @@ impl Kernel {
     fn numerical_data_recovery (&mut self, data: i64) -> Dtype {
         self.n += 1;
         self.n = std::cmp::min(self.n, self.order);
-        self.state
-            .iter_mut()
-            .map(|x| *x = 0)
-            .count();
-        self.state[self.n] = data;
-        for index in (0..self.n).rev() {
-            self.state[index] = 
-                self.state[index+1] 
-                    + self.p_state[index] 
-        }
-        self.p_state = self.state.clone();
-        Dtype::Numerical(self.state[0])
+        let _ = self.x.pop_front(); // remove oldest
+        let _ = self.y.pop_front(); // remove oldest
+        self.x.push_back(data);
+        self.y.push_back(
+        Dtype::Numerical(0);
     }
     
     /// Compresses numerical data using Hatanaka method
     fn numerical_data_compression (&mut self, data: i64) -> Dtype {
         self.n += 1;
         self.n = std::cmp::min(self.n, self.order);
-        Dtype::Numerical(self.state[0])
+        Dtype::Numerical(0)
     }
 
     /// Performs TextDiff operation as defined in Hatanaka compression method 
@@ -168,8 +160,12 @@ impl Kernel {
             .unwrap();
         let l = init.len();
         let mut recovered = String::from("");
-        let mut p = init.as_mut_str().chars();
-        let mut data = data.as_str().chars();
+        let mut p = init
+            .as_mut_str()
+            .chars();
+        let mut data = data
+            .as_str()
+            .chars();
         for _ in 0..l {
             let next_c = p.next().unwrap();
             if let Some(c) = data.next() {
@@ -367,7 +363,7 @@ mod test {
             assert_eq!(result, String::from(expected[i]));
         }
     }
-    //#[test]
+    #[test]
     fn test_numerical_compression() {
         let init : i64 = 25065408994;
         let data : Vec<i64> = vec![
