@@ -6,7 +6,7 @@ use augmentation::Augmentation;
 #[cfg(feature = "serde")]
 use serde::{Serialize, Deserialize};
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, PartialEq)]
 /// Constellation parsing & identification related errors
 pub enum Error {
     #[error("code length mismatch, expecting {0} got {1}")]
@@ -39,6 +39,12 @@ pub enum Constellation {
     /// `Mixed` for Mixed constellations 
     /// RINEX files description
     Mixed,
+}
+
+impl std::fmt::Display for Constellation {
+    fn fmt (&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        f.write_str(self.to_3_letter_code())
+    }
 }
 
 impl Default for Constellation {
