@@ -187,9 +187,10 @@ impl Hatanaka {
         
         // pre defined maximal compression order
         //  ===> to adapt all other kernels accordingly
-        let m = self.clk_krn
-            .state
-            .len()-1; 
+        let m = 0; //TODO a revoir
+        //self.clk_krn
+            //.state
+            //.len()-1; 
         let mut result : String = String::new();
         let mut lines = content.lines();
         let mut clock_offset : Option<i64> = None;
