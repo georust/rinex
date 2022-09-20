@@ -51,29 +51,25 @@ impl Dtype {
 /// creation for memory allocation efficiency.
 #[derive(Debug, Clone)]
 pub struct Kernel {
-    /// internal counter
-    n: usize,
-    /// compression order
+    m: usize,
     order: usize,
-    /// kernel initializer
     init: Dtype,
-    /// internal vector 
-    x: VecDeque<i64>,
-    /// internal vector 
-    y: VecDeque<i64>,
+    history: VecDeque<i64>,
 }
 
 impl Kernel {
     /// Builds a new kernel structure.    
-    /// m: maximal Hatanaka order for this kernel to ever support.
+    /// max: maximal Hatanaka order for this kernel to ever support.
+    /// We only support max <= 7.
     /// For information, m = 5 is hardcoded in `CRN2RNX` and is a good compromise
-    pub fn new (m: usize) -> Kernel {
+    pub fn new (max: usize) -> Kernel {
+        let mut null = Vec::with_capacity(max);
+        null.fill_with(Default::default);
         Kernel {
-            n: 0,
-            order: m,
+            m: 0,
+            order: max,
             init: Dtype::default(),
-            x: VecDeque::with_capacity(m),
-            y: VecDeque::with_capacity(m),
+            history: null.clone(), 
         }
     }
 
@@ -81,17 +77,18 @@ impl Kernel {
     /// Order: compression order   
     /// Data: kernel initializer
     pub fn init (&mut self, order: usize, data: Dtype) -> Result<(), Error> { 
-        if order > self.x.len() {
-            return Err(Error::OrderTooBig(self.x.len()))
+        if order > self.vector.len() {
+            return Err(Error::OrderTooBig(self.vector.len()))
         }
         // reset
-        self.n = 0;
-        self.x.clear();
-        self.y.clear();
+        self.m = 0;
+        if let Some(data) = data.as_numerical() {
+            self.history.rotate_right(1);
+            self.history[0] = data;
+        }
         // init
         self.order = order;
         self.init = data.clone();
-        self.x.push_back(data.as_numeric().unwrap_or(0));
         Ok(())
     }
 
@@ -135,22 +132,83 @@ impl Kernel {
         }
     }
 
+    fn rotate_history (&mut self, data: i64) {
+        let _ = self.history.pop_front();
+        self.history.rotate_right(1);
+        self.history[0] = data;
+    }
+
     /// Computes Differential Equation as defined in Hatanaka compression method
     fn numerical_data_recovery (&mut self, data: i64) -> Dtype {
-        self.n += 1;
-        self.n = std::cmp::min(self.n, self.order);
-        let _ = self.x.pop_front(); // remove oldest
-        let _ = self.y.pop_front(); // remove oldest
-        self.x.push_back(data);
-        self.y.push_back(
-        Dtype::Numerical(0);
+        self.m += 1;
+        self.m = std::cmp::min(self.m, self.order); // restraint
+        self.rotate_history(data);
+        let uncompressed :i64 = match self.m {
+            0 => {
+                self.history[0] - self.history[1]
+            }
+            1 => {
+                self.history[0] - self.history[1]
+                    - (self.history
+            },
+            2 => {
+                self.history[0] - self.history[1];
+            },
+            3 => {
+                self.history[0] - self.history[1];
+            },
+            4 => {
+                self.history[0] - self.history[1];
+            },
+            5 => {
+                self.history[0] - self.history[1];
+            },
+            6 => {
+                self.history[0] - self.history[1];
+            },
+            7 => {
+                self.history[0] - self.history[1];
+            },
+            _ => unreachable!(),
+        };
+        Dtype::Numerical(uncompressed)
     }
     
     /// Compresses numerical data using Hatanaka method
     fn numerical_data_compression (&mut self, data: i64) -> Dtype {
-        self.n += 1;
-        self.n = std::cmp::min(self.n, self.order);
-        Dtype::Numerical(0)
+        self.m += 1;
+        self.m = std::cmp::min(self.m, self.order); // restraint 
+        self.rotate_history(data);
+
+        let compressed :i64 = match self.m {
+            0 => {
+                self.history[0] - self.history[1]
+            }
+            1 => {
+                self.history[0] - self.history[1]
+                    - (self.history
+            },
+            2 => {
+                self.history[0] - self.history[1];
+            },
+            3 => {
+                self.history[0] - self.history[1];
+            },
+            4 => {
+                self.history[0] - self.history[1];
+            },
+            5 => {
+                self.history[0] - self.history[1];
+            },
+            6 => {
+                self.history[0] - self.history[1];
+            },
+            7 => {
+                self.history[0] - self.history[1];
+            },
+            _ => unreachable!(),
+        };
+        Dtype::Numerical(compressed)
     }
 
     /// Performs TextDiff operation as defined in Hatanaka compression method 
