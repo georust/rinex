@@ -319,7 +319,8 @@ fn run_double_file_op (rnx_a: &Rinex, rnx_b: &Rinex, matches: clap::ArgMatches) 
 pub fn main () -> Result<(), std::io::Error> {
 	let yaml = load_yaml!("cli.yml");
     let app = App::from_yaml(yaml)
-        .setting(AppSettings::ArgRequiredElseHelp);
+        .setting(AppSettings::ArgRequiredElseHelp)
+        .setting(AppSettings::DeriveDisplayOrder);
 	let matches = app.get_matches();
 
     // General 
