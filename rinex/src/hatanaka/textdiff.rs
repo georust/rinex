@@ -87,7 +87,7 @@ impl TextDiff {
 mod test {
     use super::*;
     #[test]
-    fn test_recovery() {
+    fn test_decompression() {
         let init = "ABCDEFG 12 000 33 XXACQmpLf";
         let mut diff = TextDiff::new();
         let masks : Vec<&str> = vec![

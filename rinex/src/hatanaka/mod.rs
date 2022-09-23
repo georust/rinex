@@ -263,7 +263,7 @@ impl Hatanaka {
                         if let Ok(order) = u8::from_str_radix(n, 10) {
                             let (_, value) = rem.split_at(1);
                             if let Ok(value) = i64::from_str_radix(value, 10) {
-                                self.clock_diff.init(order.into(), value);
+                                self.clock_diff.init(order.into(), value)?;
                             } else {
                                 return Err(Error::ClockOffsetValueError)
                             }
@@ -426,7 +426,7 @@ impl Hatanaka {
                                     let obs = self.sv_diff.get_mut(&sv)
                                         .unwrap();
                                     obs[obs_count].0 // Observation
-                                        .init(order.into(), data);
+                                        .init(order.into(), data)?;
                                     obs_data.push(Some(data));
                                     obs_count += 1
                                 } else {
