@@ -7,8 +7,11 @@ use thiserror::Error;
 use std::str::FromStr;
 use std::collections::HashMap;
 
-mod kernel;
-use kernel::{Kernel, Dtype};
+mod numdiff;
+use numdiff::NumDiff;
+
+mod textdiff;
+use textdiff::TextDiff;
 
 pub enum State {
     EpochDescriptor,
@@ -43,30 +46,20 @@ pub enum Error {
     FaultyCrx1FirstEpoch,
     #[error("First epoch not delimited by \">\"")]
     FaultyCrx3FirstEpoch,
-    #[error("Failed to initialize epoch kernel")]
-    EpochKernelInitError,
     #[error("Failed to parse clock offset init order")]
     ClockOffsetOrderError,
     #[error("Failed to parse clock offset value")]
     ClockOffsetValueError,
-    #[error("Failed to init clock offset kernel")]
-    ClockOffsetInitError,
-    #[error("Failed to recover clock offset")]
-    ClockOffsetRecoveryFailure,
-    #[error("Failed to recover epoch description")]
-    EpochRecoveryFailure,
     #[error("Recovered epoch content seems faulty")]
     FaultyRecoveredEpoch,
     #[error("Failed to rework epoch to match standards")]
     EpochReworkFailure,
-    #[error("Failed to latch new epoch description")]
-    EpochLatchError,
+    #[error("numdiff error")]
+    NumDiffError(#[from] numdiff::Error),
     #[error("failed to identify sat. vehicule")]
     SvError(#[from] sv::Error),
     #[error("failed to parse integer number")]
     ParseIntError(#[from] std::num::ParseIntError),
-    #[error("data recovery failed")]
-    KernelError(#[from] kernel::Error),
 }
 
 /// Structure to compress / decompress RINEX data
@@ -77,12 +70,12 @@ pub struct Hatanaka {
     first_epoch: bool,
     /// line pointer
     pointer: u16,
-    /// Epoch kernel
-    epoch_krn: Kernel,
-    /// Clock offset kernel
-    clk_krn: Kernel,
-    /// Vehicule kernels
-    sv_krn: HashMap<sv::Sv, Vec<(Kernel, Kernel, Kernel)>>,
+    /// Epoch differentiator 
+    epoch_diff: TextDiff,
+    /// Clock offset differentiator
+    clock_diff: NumDiff,
+    /// Vehicule differentiators
+    sv_diff: HashMap<sv::Sv, Vec<(NumDiff, TextDiff, TextDiff)>>,
 }
     
 /// Reworks given content to match RINEX specifications
@@ -148,15 +141,15 @@ fn format_epoch (version: u8, content: &str, clock_offset: Option<i64>) -> Resul
 
 impl Hatanaka {
     /// Creates a new compression / decompression tool
-    pub fn new (max_order: usize) -> Hatanaka {
-        Hatanaka {
+    pub fn new (max_order: usize) -> Result<Hatanaka, numdiff::Error> {
+        Ok(Hatanaka {
             first_epoch: true,
             state: State::default(),
             pointer: 0,
-            epoch_krn: Kernel::new(0), // text
-            clk_krn: Kernel::new(max_order), // numerical
-            sv_krn: HashMap::new(), // init. later
-        }
+            epoch_diff: TextDiff::new(),
+            clock_diff: NumDiff::new(max_order)?,
+            sv_diff: HashMap::new(), // init. later
+        })
     }
     /// Decompresses (recovers) RINEX from given CRINEX content.
     /// Content can be header / comments
@@ -188,7 +181,7 @@ impl Hatanaka {
         // pre defined maximal compression order
         //  ===> to adapt all other kernels accordingly
         let m = 0; //TODO a revoir
-        //self.clk_krn
+        //self.clock_diff
             //.state
             //.len()-1; 
         let mut result : String = String::new();
@@ -250,20 +243,13 @@ impl Hatanaka {
                         
                         // Kernel initialization,
                         // only once, always text based
-                        if self.epoch_krn.init(
-                            0, // textdiff
-                            Dtype::Text(line.to_string())).is_err() {
-                            return Err(Error::EpochKernelInitError) ;
-                        }
+                        self.epoch_diff.init(line);
                         self.first_epoch = false; //never to be re-initialized
                     
                     } else {
                         // here we use "recover" just to latch
                         // the new string to textdiff()
-                        if self.epoch_krn.recover(
-                            Dtype::Text(line.to_string())).is_err() {
-                            return Err(Error::EpochLatchError) ;
-                        }
+                        self.epoch_diff.decompress(line);
                     }
                     
                     self.state = State::ClockOffsetDescriptor;
@@ -277,13 +263,7 @@ impl Hatanaka {
                         if let Ok(order) = u8::from_str_radix(n, 10) {
                             let (_, value) = rem.split_at(1);
                             if let Ok(value) = i64::from_str_radix(value, 10) {
-                                if self.clk_krn
-                                    .init(
-                                        order.into(),
-                                        Dtype::Numerical(value)).is_err()
-                                {
-                                    return Err(Error::ClockOffsetInitError)
-                                }
+                                self.clock_diff.init(order.into(), value);
                             } else {
                                 return Err(Error::ClockOffsetValueError)
                             }
@@ -297,25 +277,15 @@ impl Hatanaka {
                     }
 
                     // Epoch Recovery
-                    if let Ok(recover) = self
-                        .epoch_krn // trick: epoch description was previously stored
-                            // we're at clock offset description,
-                            // here I take advantage of the textdiff behavior
-                            .recover(Dtype::Text(String::from(" "))) {
-                        if let Some(recovered) = recover.as_text() {
-                            // now we must rebuild epoch description, according to standards
-                            let recovered = &recovered.trim_end();
-                            //TODO missing clock offset here please
-                            if let Ok(epoch) = format_epoch(rnx_version.major, &recovered, clock_offset) {
-                                //DEBUG
-                                //println!("REWORKD   \"{}\"", epoch);
-                                result.push_str(&epoch); 
-                            } else {
-                                return Err(Error::EpochReworkFailure) ;
-                            }
-                        }
+                    let recovered = self.epoch_diff.decompress(" ");
+                    // now we must rebuild epoch description, according to standards
+                    let recovered = &recovered.trim_end();
+                    if let Ok(epoch) = format_epoch(rnx_version.major, &recovered, clock_offset) {
+                        //DEBUG
+                        //println!("REWORKD   \"{}\"", epoch);
+                        result.push_str(&epoch); 
                     } else {
-                        return Err(Error::EpochRecoveryFailure) ;
+                        return Err(Error::EpochReworkFailure) ;
                     }
 
                     self.state = State::Body ;
@@ -323,10 +293,7 @@ impl Hatanaka {
 
                 State::Body => {
                     // [3] inside epoch content
-                    let recovered_epoch =  // trick to recover textdiff
-                        self.epoch_krn.recover(Dtype::Text(String::from(" ")))?
-                        .as_text()
-                        .unwrap();
+                    let recovered_epoch = self.epoch_diff.decompress(" "); // trico to recover textdiff
                     let epo = recovered_epoch.as_str().trim_end();
                     let mut offset : usize =
                         2    // Y
@@ -358,26 +325,18 @@ impl Hatanaka {
 
                     let sv = sv::Sv::from_str(system)?;
                     let codes = &obs_codes[&sv.constellation];
-                    if !self.sv_krn.contains_key(&sv) {
+                    if !self.sv_diff.contains_key(&sv) {
                         // first time dealing with this system
                         // add an entry for each obscode
-                        let mut v : Vec<(Kernel,Kernel,Kernel)> = Vec::with_capacity(12);
+                        let mut v : Vec<(NumDiff,TextDiff,TextDiff)> = Vec::with_capacity(12);
                         for _ in codes {
-                            let mut kernels = (
-                                Kernel::new(m), // OBS
-                                Kernel::new(0), // SSI
-                                Kernel::new(0), // LLI
-                            );
+                            let mut diffs = (NumDiff::new(m)?, TextDiff::new(), TextDiff::new());
                             // init with BLANK 
-                            kernels.1 // LLI
-                                .init(0, Dtype::Text(String::from(" "))) // textdiff
-                                .unwrap();
-                            kernels.2 // SSI
-                                .init(0, Dtype::Text(String::from(" "))) // textdiff
-                                .unwrap();
-                            v.push(kernels)
+                            diffs.1.init(" "); // LLI
+                            diffs.2.init(" "); // SSI
+                            v.push(diffs)
                         }
-                        self.sv_krn.insert(sv, v); // creates new entry
+                        self.sv_diff.insert(sv, v); // creates new entry
                     }
                     
                     // try to grab all data,
@@ -394,7 +353,7 @@ impl Hatanaka {
                             //     append BLANK in case not provided,
                             //     this approach produces 1 flag (either blank or provided/recovered) 
                             //     to previously provided/recovered OBS data
-                            let obs = self.sv_krn.get_mut(&sv)
+                            let obs = self.sv_diff.get_mut(&sv)
                                 .unwrap();
                             for i in 0..rem.len() { // 1 character at a time
                                 let flag = i%2;
@@ -402,18 +361,12 @@ impl Hatanaka {
                                     obs_flags.push(
                                         obs[i/2] // two flags per OBS
                                             .1 // lli
-                                            .recover(Dtype::Text(rem[i..i+1].to_string()))
-                                            .unwrap()
-                                                .as_text()
-                                                .unwrap())
+                                            .decompress(&rem[i..i+1]));
                                 } else {
                                     obs_flags.push(
                                         obs[i/2] // two flags per OBS
                                             .2 // ssii
-                                            .recover(Dtype::Text(rem[i..i+1].to_string()))
-                                            .unwrap()
-                                                .as_text()
-                                                .unwrap())
+                                            .decompress(&rem[i..i+1]));
                                 }
                             }
                             for i in obs_flags.len()..obs_data.len()*2 {
@@ -424,18 +377,12 @@ impl Hatanaka {
                                     obs_flags.push(
                                         obs[i/2]
                                             .1 // lli
-                                            .recover(Dtype::Text(String::from(" ")))
-                                            .unwrap()
-                                                .as_text()
-                                                .unwrap())
+                                            .decompress(" "));
                                 } else {
                                     obs_flags.push(
                                         obs[i/2]
                                             .2 // lli
-                                            .recover(Dtype::Text(String::from(" ")))
-                                            .unwrap()
-                                                .as_text()
-                                                .unwrap())
+                                            .decompress(" "));
                                 }
                             }
                             for i in 0..obs_data.len() {
@@ -476,28 +423,19 @@ impl Hatanaka {
                                     let order = u8::from_str_radix(order.trim(),10)?;
                                     let (_, data) = rem.split_at(1);
                                     let data = i64::from_str_radix(data.trim(), 10)?;
-                                    let obs = self.sv_krn.get_mut(&sv)
+                                    let obs = self.sv_diff.get_mut(&sv)
                                         .unwrap();
-                                    obs[obs_count]
-                                        .0 // OBS
-                                        .init(
-                                            order.into(),
-                                            Dtype::Numerical(data))
-                                            .unwrap();
+                                    obs[obs_count].0 // Observation
+                                        .init(order.into(), data);
                                     obs_data.push(Some(data));
                                     obs_count += 1
                                 } else {
                                     // regular compression
                                     if let Ok(num) = i64::from_str_radix(rem.trim(),10) {
-                                        let obs = self.sv_krn.get_mut(&sv)
+                                        let obs = self.sv_diff.get_mut(&sv)
                                             .unwrap();
-                                        let recovered = obs[obs_count]
-                                            .0 // OBS
-                                            .recover(
-                                                Dtype::Numerical(num))
-                                            .unwrap()
-                                            .as_numerical()
-                                            .unwrap();
+                                        let recovered = obs[obs_count].0 // Observation
+                                            .decompress(num);
                                         obs_data.push(Some(recovered))
                                     }
                                 }
@@ -507,22 +445,16 @@ impl Hatanaka {
                                         // --> data field was found & recovered
                                         result.push_str(&format!(" {:13.3}", data as f64 /1000_f64)); // F14.3
                                         // ---> related flag content
-                                        let obs = self.sv_krn.get_mut(&sv)
+                                        let obs = self.sv_diff.get_mut(&sv)
                                             .unwrap();
                                         let lli = obs[i]
                                             .1 // LLI
-                                            .recover(Dtype::Text(String::from(" "))) // trick to recover
-                                            .unwrap()
-                                            .as_text()
-                                            .unwrap();
+                                            .decompress(" "); // trick to recover
+                                        result.push_str(&lli); // append flag
                                         let ssi = obs[i]
                                             .2 // SSI
-                                            .recover(Dtype::Text(String::from(" "))) // trick to recover
-                                            .unwrap()
-                                            .as_text()
-                                            .unwrap();
-                                        result.push_str(&lli); // FLAG
-                                        result.push_str(&ssi); // FLAG 
+                                            .decompress(" "); // trick to recover
+                                        result.push_str(&ssi); // append flag
                                         if rnx_version.major < 3 { // old RINEX
                                             if (i+1).rem_euclid(5) == 0 { // maximal nb of OBS per line
                                                 result.push_str("\n")
@@ -563,25 +495,16 @@ impl Hatanaka {
                         };
                         if let Some(order) = init_order {
                             //(re)init that kernel
-                            let obs = self.sv_krn.get_mut(&sv)
+                            let obs = self.sv_diff.get_mut(&sv)
                                 .unwrap();
-                            obs[obs_count]
-                                .0 // OBS
-                                .init(
-                                    order.into(),
-                                    Dtype::Numerical(data))
-                                    .unwrap();
+                            obs[obs_count].0 // Observation
+                                .init(order.into(), data)?;
                             obs_data.push(Some(data))
                         } else {
-                            let obs = self.sv_krn.get_mut(&sv)
+                            let obs = self.sv_diff.get_mut(&sv)
                                 .unwrap();
-                            let recovered = obs[obs_count]
-                                .0 // OBS
-                                .recover(Dtype::Numerical(data))
-                                .unwrap();
-                            let recovered = recovered
-                                .as_numerical()
-                                .unwrap();
+                            let recovered = obs[obs_count].0
+                                .decompress(data);
                             obs_data.push(Some(recovered))
                         }
                         obs_count +=1

@@ -203,7 +203,8 @@ pub fn parse_record (reader: &mut BufferedReader, header: &header::Header) -> Re
     } else {
         false
     };
-    let mut decompressor = Hatanaka::new(8);
+    let mut decompressor = Hatanaka::new(8)
+        .unwrap();
     // record 
     let mut atx_rec = antex::record::Record::new(); // ATX
     let mut nav_rec = navigation::record::Record::new(); // NAV
