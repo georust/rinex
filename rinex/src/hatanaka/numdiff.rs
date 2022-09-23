@@ -29,7 +29,9 @@ impl NumDiff {
             return Err(Error::MaximalCompressionOrder)
         }
         let mut null = VecDeque::with_capacity(max);
-        null.iter_mut().map(|x| *x = 0_i64);
+        for _ in 0..max {
+            null.push_back(0_i64);
+        }
         Ok(Self {
             m: 0,
             order: max,
