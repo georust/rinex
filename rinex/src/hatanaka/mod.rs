@@ -37,7 +37,7 @@ pub enum Error {
     #[error("I/O error")]
     IoError(#[from] std::io::Error),
     #[error("This is not a CRX file")]
-    NotACrinexError,
+    NotACrinex,
     #[error("This is not an Observation file")]
     NotObsRinexData,
     #[error("Non supported CRX revision")]
@@ -163,7 +163,7 @@ impl Hatanaka {
     pub fn decompress (&mut self, header: &header::Header, content : &str) -> Result<String, Error> {
         // Context sanity checks
         if !header.is_crinex() {
-            return Err(Error::NotACrinexError)
+            return Err(Error::NotACrinex)
         }
         if header.rinex_type != Type::ObservationData {
             return Err(Error::NotObsRinexData)

@@ -8,11 +8,6 @@ args:
         required: true
         takes_value: true
         help: Local RINEX file path
-    - strict:
-        short: s
-        long: strict
-        takes_value: false
-        help: Output V>2 RINEX Observation Data respecting standard definition 
     - output:
         short: o
         long: output
@@ -21,4 +16,4 @@ args:
     - max-compression-order:
         short: M
         takes_value: true
-        help: control maximal compression order (default is M=8) 
+        help: control maximal compression order (default is M=6)

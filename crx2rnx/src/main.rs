@@ -24,9 +24,9 @@ fn main() -> Result<(), Error> {
     let matches = app.get_matches();
     let filepath = matches.value_of("filepath")
         .unwrap();
-    let m = u16::from_str_radix(matches.value_of("max-compression-order")
-        .unwrap_or("8"),10).unwrap();
-    let _strict_flag = matches.is_present("strict");
+
+    let max_compression_order = matches.value_of("max-compression-order").unwrap_or("6");
+    let max_compression_order = u16::from_str_radix(max_compression_order, 10).unwrap();
 
     let mut default_output = String::from("output.crx");
     if filepath.ends_with("d") { // CRNX < 3
@@ -42,7 +42,7 @@ fn main() -> Result<(), Error> {
     let outpath : String = String::from(matches.value_of("output")
         .unwrap_or(&default_output));
     let output = std::fs::File::create(outpath.clone())?;
-    decompress(filepath, m, output)?;
+    decompress(filepath, max_compression_order.into(), output)?;
     println!("{} generated", outpath);
     Ok(())
 }
@@ -51,7 +51,7 @@ fn main() -> Result<(), Error> {
 /// fp : filepath   
 /// m : maximal compression order for core algorithm    
 /// writer: stream
-fn decompress (fp: &str, m: u16, mut writer: std::fs::File) -> Result<(), Error> {
+fn decompress (fp: &str, m: usize, mut writer: std::fs::File) -> Result<(), Error> {
     // BufferedReader is not efficient enough (at the moment) to
     // perform the Hatanaka decompression by itself, but we'll get there..
     // BufferedReader supports .gzip stream decompression and efficient .line() browsing.
@@ -75,7 +75,7 @@ fn decompress (fp: &str, m: u16, mut writer: std::fs::File) -> Result<(), Error>
     let mut reader = BufferedReader::new(fp)?;
     let header = header::Header::new(&mut reader)?;
     // parse / decompress / produce file body
-    let mut hatanaka = Hatanaka::new(m.into())
+    let mut hatanaka = Hatanaka::new(m)
         .unwrap();
     for l in reader.lines() {
         let line = &l.unwrap();
