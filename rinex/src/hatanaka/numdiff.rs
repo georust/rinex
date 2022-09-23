@@ -20,7 +20,7 @@ pub struct NumDiff {
 }
 
 impl NumDiff {
-    const MAX_COMPRESSION_ORDER: usize = 6;
+    pub const MAX_COMPRESSION_ORDER: usize = 6;
     /// Builds a new kernel structure.    
     /// max: maximal Hatanaka order for this kernel to ever support.
     /// We only support max <= Self::MAX_COMPRESSION_ORDER.
@@ -30,7 +30,7 @@ impl NumDiff {
             return Err(Error::MaximalCompressionOrder)
         }
         let mut null = VecDeque::with_capacity(max);
-        for i in 0..max {
+        for _ in 0..max {
             null.push_back(0_i64);
         }
         Ok(Self {
@@ -54,7 +54,6 @@ impl NumDiff {
     fn rotate_history (&mut self, data: i64) {
         self.history.pop_back();
         self.history.push_front(data);
-        println!("{} - {:?}", self.m, self.history);
     }
 
     /// Decompresses given data 

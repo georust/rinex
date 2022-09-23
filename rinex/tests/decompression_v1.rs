@@ -4,14 +4,14 @@ mod test {
     use rinex::header::Header;
     use rinex::version::Version;
     use rinex::hatanaka::Hatanaka;
+    use rinex::observation;
     use rinex::observation::Crinex;
-    use rinex::observation::HeaderFields;
-    use rinex::constellation::Constellation;
     use std::collections::HashMap;
+    use rinex::constellation::Constellation;
     #[test]
     fn test_crx1_decompression() {
         // object
-        let mut decompressor = Hatanaka::new(8)
+        let mut decompressor = Hatanaka::new(Hatanaka::MAX_COMPRESSION_ORDER)
             .unwrap();
         // fake header
         let mut header = Header::basic_obs()
@@ -78,7 +78,7 @@ mod test {
         // empty clock offset [epoch #1]
         let content = "\n";
         let decompressed = decompressor.decompress(&header, content); 
-        //assert_eq!(decompressed.is_ok(), true);
+        assert_eq!(decompressed.is_ok(), true);
         let result = decompressed.unwrap();
         assert_eq!(result, " 21  1  1  0  0  0.0000000  0 20G07G23G26G20G21G18R24R09G08G27G10G16
                                 R18G13R01R16R17G15R02R15\n");
@@ -86,7 +86,7 @@ mod test {
         // epoch#1 
         let content = "3&126298057858 3&98414080647 3&24033720416 3&24033721351 3&24033719353 3&40000 3&22000  643        4\n";
         let decompressed = decompressor.decompress(&header, content); 
-        assert_eq!(decompressed.is_ok(), true);
+        //assert_eq!(decompressed.is_ok(), true);
         let result = decompressed.unwrap();
         assert_eq!(result, " 126298057.858 6  98414080.64743  24033720.416    24033721.351    24033719.353  
         40.000          22.0004 \n");

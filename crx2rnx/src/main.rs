@@ -75,15 +75,15 @@ fn decompress (fp: &str, m: u16, mut writer: std::fs::File) -> Result<(), Error>
     let mut reader = BufferedReader::new(fp)?;
     let header = header::Header::new(&mut reader)?;
     // parse / decompress / produce file body
-    let mut decompressor = Hatanaka::new(m.into());
+    let mut hatanaka = Hatanaka::new(m.into())
+        .unwrap();
     for l in reader.lines() {
         let line = &l.unwrap();
         let mut content = line.to_string();
         if content.len() == 0 {
             content = String::from(" ");
         }
-        println!("body \"{}\"", content);
-        let recovered = decompressor.decompress(&header, &content)?;
+        let recovered = hatanaka.decompress(&header, &content)?;
         write!(writer, "{}", recovered)?
     }
     Ok(())

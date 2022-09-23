@@ -203,7 +203,7 @@ pub fn parse_record (reader: &mut BufferedReader, header: &header::Header) -> Re
     } else {
         false
     };
-    let mut decompressor = Hatanaka::new(8)
+    let mut decompressor = Hatanaka::new(Hatanaka::MAX_COMPRESSION_ORDER)
         .unwrap();
     // record 
     let mut atx_rec = antex::record::Record::new(); // ATX

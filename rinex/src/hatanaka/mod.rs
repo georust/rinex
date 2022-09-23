@@ -140,6 +140,7 @@ fn format_epoch (version: u8, content: &str, clock_offset: Option<i64>) -> Resul
 }
 
 impl Hatanaka {
+    pub const MAX_COMPRESSION_ORDER: usize = NumDiff::MAX_COMPRESSION_ORDER;
     /// Creates a new compression / decompression tool
     pub fn new (max_order: usize) -> Result<Hatanaka, numdiff::Error> {
         Ok(Hatanaka {
@@ -180,10 +181,6 @@ impl Hatanaka {
         
         // pre defined maximal compression order
         //  ===> to adapt all other kernels accordingly
-        let m = 0; //TODO a revoir
-        //self.clock_diff
-            //.state
-            //.len()-1; 
         let mut result : String = String::new();
         let mut lines = content.lines();
         let mut clock_offset : Option<i64> = None;
@@ -330,7 +327,7 @@ impl Hatanaka {
                         // add an entry for each obscode
                         let mut v : Vec<(NumDiff,TextDiff,TextDiff)> = Vec::with_capacity(12);
                         for _ in codes {
-                            let mut diffs = (NumDiff::new(m)?, TextDiff::new(), TextDiff::new());
+                            let mut diffs = (NumDiff::new(Self::MAX_COMPRESSION_ORDER)?, TextDiff::new(), TextDiff::new());
                             // init with BLANK 
                             diffs.1.init(" "); // LLI
                             diffs.2.init(" "); // SSI

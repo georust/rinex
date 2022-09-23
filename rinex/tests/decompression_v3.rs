@@ -14,7 +14,7 @@ mod test {
     #[test]
     fn test_crx3_decompression() {
         // object
-        let mut decompressor = Hatanaka::new(8)
+        let mut decompressor = Hatanaka::new(Hatanaka::MAX_COMPRESSION_ORDER)
             .unwrap();
         // fake header
         let mut header = Header::basic_obs()
