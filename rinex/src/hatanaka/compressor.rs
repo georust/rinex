@@ -215,7 +215,7 @@ impl Compressor {
                         // compress all observables
                         // and store flags for line completion
                         let mut observables = line.clone();
-                        for ith_obs in 0..nb_obs_line {
+                        for _ in 0..nb_obs_line {
                             let index = std::cmp::min(16, observables.len()); // avoid overflow
                                                             // as some data flags might be omitted
                             let (data, rem) = observables.split_at(index);
