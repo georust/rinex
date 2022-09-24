@@ -12,7 +12,8 @@ RINEX
 Rust tool suites to parse, analyze, manipulate `RINEX` files
 
 * [`rinex`](rinex/) files parser, this is the core library
-* [`crx2rnx`](crx2rnx/) is a command line application to decompress CRINEX files
+* [`rnx2crx`](rnx2crx/) is a RINEX compressor
+* [`crx2rnx`](crx2rnx/) is a CRINEX decompressor 
 * [`sinex`](sinex/) files parser, core library
 
 * [`rinex-cli`](rinex-cli/) is a command line application that intends to expose
@@ -24,8 +25,6 @@ with this tool is currently under development.
 receiver and generates RINEX data quickly & easily.
 It is made possible by combining the [ublox](https://github.com/lkolbly/ublox) crate
 and the [rinex](rinex/) crate.
-
-* `rnx2crx`: RINEX file compressor is currently under development
 
 ## Supported `RINEX` types
 
