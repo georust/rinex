@@ -1,0 +1,15 @@
+name: rnx2crx
+version: "0.0.1"
+author: Guillaume W. Bres <guillaume.bressaix@gmail.com>
+args:
+    - filepath:
+        short: f
+        long: filepath
+        required: true
+        takes_value: true
+        help: Local RINEX file path
+    - output:
+        short: o
+        long: output
+        takes_value: true
+        help: Set output file name
