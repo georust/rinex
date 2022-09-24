@@ -75,14 +75,17 @@ mod test {
         let compressed = compressor.compress(&header, content); 
         assert_eq!(compressed.is_ok(), true);
         let result = compressed.unwrap();
-        assert_eq!(result, ""); // description not complete
+        // Partial CRNX line
+        assert_eq!(result, "3&126298057858 3&98414080647 3&24033720416 3&24033721351 3&24033719353 ");
 
         let content = "        40.000          22.0004";
         let compressed = compressor.compress(&header, content); 
         assert_eq!(compressed.is_ok(), true);
         let result = compressed.unwrap();
-        // description now complete
-        assert_eq!(result, "3&126298057858 3&98414080647 3&24033720416 3&24033721351 3&24033719353 3&40000 3&22000  643        4");
+        // CRNX line completion
+        assert_eq!(result, "3&40000 3&22000  643        4 \n");
+
+        // epoch#1 sat#2
     }
        
 }

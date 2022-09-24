@@ -38,8 +38,14 @@ pub enum Error {
     FaultyRecoveredEpoch,
     #[error("Failed to rework epoch to match standards")]
     EpochReworkFailure,
-    #[error("Epoch description appears faulty")]
-    FaultyEpochDescriptor,
+    #[error("Malformed epoch description (#nb sv)")]
+    MalformedEpochDescriptor,
+    #[error("Vehicule identification failed")]
+    VehiculeIdentificationError,
+    #[error("Malformed f64 data")]
+    MalformedObservable,
+    #[error("Malformed epoch content (#nb of observables)")]
+    MalformedEpochBody,
     #[error("numdiff error")]
     NumDiffError(#[from] numdiff::Error),
     #[error("failed to identify sat. vehicule")]
