@@ -88,8 +88,7 @@ fn compress (fp: &str, mut writer: std::fs::File) -> Result<(), Error> {
 
     // BufferedWriter is not efficient enough (at the moment) to
     // perform the Hatanaka compression by itself, but we'll get there..
-    let mut compressor = Compressor::new(5)
-        .unwrap();
+    let mut compressor = Compressor::new();
     // compress file body
     for l in reader.lines() {
         let line = &l.unwrap();

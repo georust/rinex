@@ -37,8 +37,6 @@ pub enum Error {
     MalformedEpochDescriptor,
     #[error("Vehicule identification failed")]
     VehiculeIdentificationError,
-    #[error("Malformed f64 data")]
-    MalformedObservable,
     #[error("Malformed epoch content (#nb of observables)")]
     MalformedEpochBody,
     #[error("numdiff error")]

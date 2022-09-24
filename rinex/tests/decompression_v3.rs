@@ -14,8 +14,7 @@ mod test {
     #[test]
     fn crx3_decompression() {
         // object
-        let mut decompressor = Decompressor::new(Decompressor::MAX_COMPRESSION_ORDER)
-            .unwrap();
+        let mut decompressor = Decompressor::new();
         // fake header
         let mut header = Header::basic_obs()
             .with_version(Version {

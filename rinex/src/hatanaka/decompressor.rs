@@ -109,17 +109,17 @@ fn format_epoch (version: u8, content: &str, clock_offset: Option<i64>) -> Resul
 }
 
 impl Decompressor {
-    pub const MAX_COMPRESSION_ORDER: usize = NumDiff::MAX_COMPRESSION_ORDER;
     /// Creates a new decompression structure
-    pub fn new (max_order: usize) -> Result<Self, Error> {
-        Ok(Self {
+    pub fn new() -> Self {
+        Self {
             first_epoch: true,
             state: State::default(),
             pointer: 0,
             epoch_diff: TextDiff::new(),
-            clock_diff: NumDiff::new(max_order)?,
+            clock_diff: NumDiff::new(NumDiff::MAX_COMPRESSION_ORDER)
+                .unwrap(),
             sv_diff: HashMap::new(), // init. later
-        })
+        }
     }
     /// Decompresses (recovers) RINEX from given CRINEX content.
     /// Content can be header / comments
@@ -294,7 +294,11 @@ impl Decompressor {
                         // add an entry for each obscode
                         let mut v : Vec<(NumDiff,TextDiff,TextDiff)> = Vec::with_capacity(12);
                         for _ in codes {
-                            let mut diffs = (NumDiff::new(Self::MAX_COMPRESSION_ORDER)?, TextDiff::new(), TextDiff::new());
+                            let mut diffs = (
+                                NumDiff::new(NumDiff::MAX_COMPRESSION_ORDER)?, 
+                                TextDiff::new(), 
+                                TextDiff::new(),
+                            );
                             // init with BLANK 
                             diffs.1.init(" "); // LLI
                             diffs.2.init(" "); // SSI

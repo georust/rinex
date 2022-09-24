@@ -203,8 +203,7 @@ pub fn parse_record (reader: &mut BufferedReader, header: &header::Header) -> Re
     } else {
         false
     };
-    let mut decompressor = Decompressor::new(Decompressor::MAX_COMPRESSION_ORDER)
-        .unwrap();
+    let mut decompressor = Decompressor::new();
     // record 
     let mut atx_rec = antex::record::Record::new(); // ATX
     let mut nav_rec = navigation::record::Record::new(); // NAV

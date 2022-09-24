@@ -11,8 +11,7 @@ mod test {
     #[test]
     fn crx1_compression() {
         // object
-        let mut compressor = Compressor::new(Compressor::MAX_COMPRESSION_ORDER)
-            .unwrap();
+        let mut compressor = Compressor::new();
         // fake header
         let mut header = Header::basic_obs()
             .with_version(Version {

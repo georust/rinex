@@ -68,10 +68,9 @@ fn format_epoch_descriptor (content: &str) -> String {
 }
     
 impl Compressor {
-    pub const MAX_COMPRESSION_ORDER: usize = NumDiff::MAX_COMPRESSION_ORDER;
     /// Creates a new compression structure 
-    pub fn new (max_order: usize) -> Result<Self, Error> {
-        Ok(Self {
+    pub fn new() -> Self {
+        Self {
             first_epoch: true,
             epoch_ptr: 0,
             epoch_descriptor: String::new(),
@@ -81,9 +80,10 @@ impl Compressor {
             vehicule_ptr: 0,
             obs_ptr: 0,
             epoch_diff: TextDiff::new(),
-            clock_diff: NumDiff::new(max_order)?,
+            clock_diff: NumDiff::new(NumDiff::MAX_COMPRESSION_ORDER)
+                .unwrap(),
             sv_diff: HashMap::new(), // init. later
-        })
+        }
     }
     
     /// Compresses given RINEX data to CRINEX 
@@ -99,10 +99,10 @@ impl Compressor {
             .as_ref()
             .unwrap();
         let obs_codes = &obs.codes; 
-        let crinex = obs.crinex
+        /*let crinex = obs.crinex
             .as_ref()
             .unwrap();
-        let crx_version = crinex.version;
+        let crx_version = crinex.version;*/
         
         let mut result : String = String::new();
         let mut lines = content.lines();
@@ -236,7 +236,7 @@ impl Compressor {
                                         } else {
                                             // first time dealing with this observable
                                             let mut diff: (NumDiff, TextDiff, TextDiff) = (
-                                                NumDiff::new(Self::MAX_COMPRESSION_ORDER)?,
+                                                NumDiff::new(NumDiff::MAX_COMPRESSION_ORDER)?,
                                                 TextDiff::new(),
                                                 TextDiff::new(),
                                             );
@@ -253,7 +253,7 @@ impl Compressor {
                                     } else {
                                         // first time dealing with this vehicule
                                         let mut diff: (NumDiff, TextDiff, TextDiff) = (
-                                            NumDiff::new(Self::MAX_COMPRESSION_ORDER)?,
+                                            NumDiff::new(NumDiff::MAX_COMPRESSION_ORDER)?,
                                             TextDiff::new(),
                                             TextDiff::new(),
                                         );
@@ -285,7 +285,7 @@ impl Compressor {
                                         } else {
                                             // first time dealing with this observable
                                             let mut diff: (NumDiff, TextDiff, TextDiff) = (
-                                                NumDiff::new(Self::MAX_COMPRESSION_ORDER)?,
+                                                NumDiff::new(NumDiff::MAX_COMPRESSION_ORDER)?,
                                                 TextDiff::new(),
                                                 TextDiff::new(),
                                             );
@@ -299,7 +299,7 @@ impl Compressor {
                                                 println!("INIT KERNELS with {} - \"{}\" -  \"{}\"", obsdata, lli, ssi);
                                                 diff.2.init(ssi);
                                                 self.flags_descriptor.push_str(ssi);
-                                            } else { // SSI ommitted
+                                            } else { // SSI omitted
                                                 //DEBUG
                                                 println!("INIT KERNELS with {} - \"{}\" - BLANK", obsdata, lli);
                                                 diff.2.init("&"); // BLANK
@@ -310,7 +310,7 @@ impl Compressor {
                                     } else {
                                         // first time dealing with this vehicule
                                         let mut diff: (NumDiff, TextDiff, TextDiff) = (
-                                            NumDiff::new(Self::MAX_COMPRESSION_ORDER)?,
+                                            NumDiff::new(NumDiff::MAX_COMPRESSION_ORDER)?,
                                             TextDiff::new(),
                                             TextDiff::new(),
                                         );
@@ -324,7 +324,7 @@ impl Compressor {
                                             println!("INIT KERNELS with {} - \"{}\" -  \"{}\"", obsdata, lli, ssi);
                                             diff.2.init(ssi);
                                             self.flags_descriptor.push_str(ssi);
-                                        } else { // SSI ommitted
+                                        } else { // SSI omitted
                                             //DEBUG
                                             println!("INIT KERNELS with {} - \"{}\" - BLANK", obsdata, lli);
                                             diff.2.init("&"); // BLANK
@@ -334,12 +334,27 @@ impl Compressor {
                                     }
                                 }
                             } else { //obsdata::f64::from_str()
-                                return Err(Error::MalformedObservable)
+                                // when the floating point observable parsing is in failure,
+                                // we assume field is omitted
+                                self.flags_descriptor.push_str("  ");
                             }
-                            self.obs_ptr += 1;
                             //DEBUG
                             println!("OBS {}/{}", self.obs_ptr, sv_nb_obs); 
-                        } //for ith..nb_obs
+                            self.obs_ptr += 1
+                        } //for i..nb_obs in this line
+
+                        // omitted fields produce unexpectedly short lines
+                        // (when browsing and reading).
+                        // we know that 5 observables is maximum per line,
+                        // if we did not get 5 observables in this line,
+                        // and we're still expecting data => assume they're all omitted
+                        if nb_obs_line < 5 {
+                            if self.obs_ptr < sv_nb_obs {
+                                self.obs_ptr = sv_nb_obs;
+                                //empty fields
+                                self.flags_descriptor.push_str("  ");
+                            }
+                        }
 
                         if self.obs_ptr == sv_nb_obs { // vehicule completion
                             // conclude line with LLI/SSI flags

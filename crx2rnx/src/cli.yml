@@ -13,7 +13,3 @@ args:
         long: output
         takes_value: true
         help: Set output file name
-    - max-compression-order:
-        short: M
-        takes_value: true
-        help: control maximal compression order (default is M=6)

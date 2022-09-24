@@ -28,9 +28,6 @@ fn main() -> Result<(), Error> {
     let filepath = matches.value_of("filepath")
         .unwrap();
 
-    let max_compression_order = matches.value_of("max-compression-order").unwrap_or("6");
-    let max_compression_order = u16::from_str_radix(max_compression_order, 10).unwrap();
-
     let mut outpath = String::from("output.crx");
     if let Some(prefix) = filepath.strip_suffix("d") { // CRNX1
         outpath = prefix.to_owned() + "o" // RNX1
@@ -43,7 +40,7 @@ fn main() -> Result<(), Error> {
     let outpath : String = String::from(matches.value_of("output")
         .unwrap_or(&outpath));
     let output = std::fs::File::create(outpath.clone())?;
-    decompress(filepath, max_compression_order.into(), output)?;
+    decompress(filepath, output)?;
     println!("{} generated", outpath);
     Ok(())
 }
@@ -52,7 +49,7 @@ fn main() -> Result<(), Error> {
 /// fp : filepath   
 /// m : maximal compression order for core algorithm    
 /// writer: stream
-fn decompress (fp: &str, m: usize, mut writer: std::fs::File) -> Result<(), Error> {
+fn decompress (fp: &str, mut writer: std::fs::File) -> Result<(), Error> {
     // BufferedReader is not efficient enough (at the moment) to
     // perform the Hatanaka decompression by itself, but we'll get there..
     // BufferedReader supports .gzip stream decompression and efficient .line() browsing.
@@ -76,8 +73,7 @@ fn decompress (fp: &str, m: usize, mut writer: std::fs::File) -> Result<(), Erro
     let mut reader = BufferedReader::new(fp)?;
     let header = header::Header::new(&mut reader)?;
     // decompress file body
-    let mut decompressor = Decompressor::new(m)
-        .unwrap();
+    let mut decompressor = Decompressor::new();
     for l in reader.lines() {
         let line = &l.unwrap();
         if line.len() == 0 {
@@ -98,8 +94,8 @@ fn decompress (fp: &str, m: usize, mut writer: std::fs::File) -> Result<(), Erro
 mod test {
     use assert_cmd::prelude::*;
     use std::process::Command;
-    /// Runs `diff` to determine whether f1 & f2 
-    /// are strictly identical or not. Whitespaces are omitted
+    // Runs `diff` to determine whether f1 & f2 
+    // are strictly identical or not. Whitespaces are omitted
     fn diff_is_strictly_identical (f1: &str, f2: &str) -> Result<bool, std::string::FromUtf8Error> {
         let output = Command::new("diff")
             .arg("-q")
@@ -111,12 +107,13 @@ mod test {
         let output = String::from_utf8(output.stdout)?;
         Ok(output.len()==0)
     }
-    /// The test bench consists in calling `crx2rnx` as is,
-    /// on each /CRNX/Vx test resource where
-    /// we do have an /OBS/Vy counterpart.
-    /// We uncompress the file and perform a `file diff` which
-    /// must returns 0. The hidden trick: /CRNX/Vx and its counterpart
-    /// comprise the same epoch content
+    // The test bench consists in calling `crx2rnx` as is,
+    // on each /CRNX/Vx test resource where
+    // we do have an /OBS/Vy counterpart.
+    // We uncompress the file and perform a `file diff` which
+    // must returns 0. The hidden trick: /CRNX/Vx and its counterpart
+    // comprise the same epoch content and the counterpart was
+    // decompressed using the official binary.
     #[test]
     fn test_decompression_v1()  -> Result<(), Box<dyn std::error::Error>> { 
         let test_resources = env!("CARGO_MANIFEST_DIR").to_owned() 
@@ -169,12 +166,13 @@ mod test {
         let _ = std::fs::remove_file("testv1.rnx");
         Ok(())
     }
-    /// The test bench consists in calling `crx2rnx` as is,
-    /// on each /CRNX/Vx test resource where
-    /// we do have an /OBS/Vy counterpart.
-    /// We uncompress the file and perform a `file diff` which
-    /// must returns 0. The hidden trick: /CRNX/Vx and its counterpart
-    /// comprise the same epoch content
+    // The test bench consists in calling `crx2rnx` as is,
+    // on each /CRNX/Vx test resource where
+    // we do have an /OBS/Vy counterpart.
+    // We uncompress the file and perform a `file diff` which
+    // must returns 0. The hidden trick: /CRNX/Vx and its counterpart
+    // comprise the same epoch content and the counterpart was
+    // decompressed using the official binary.
     #[test]
     fn test_decompression_v3()  -> Result<(), Box<dyn std::error::Error>> {
         let test_resources = env!("CARGO_MANIFEST_DIR").to_owned() 
