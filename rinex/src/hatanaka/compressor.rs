@@ -274,12 +274,12 @@ impl Compressor {
                                         if let Some(diffs) = sv_diffs.get_mut(self.obs_ptr) {
                                             // compress data
                                             let obsdata = diffs.0.compress(obsdata);
+                                            result.push_str(&format!("{} ", obsdata));
                                             let lli = diffs.1.compress(lli);
+                                            self.flags_descriptor.push_str(&lli);
                                             if ssi.len() > 0 {
                                                 let ssi = diffs.2.compress(ssi);
-                                                result.push_str(&format!("{}{}{}", obsdata, lli, ssi));
-                                            } else {
-                                                result.push_str(&format!("{}{} ", obsdata, lli));
+                                                self.flags_descriptor.push_str(&ssi);
                                             }
 
                                         } else {
