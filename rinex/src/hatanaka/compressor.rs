@@ -56,25 +56,17 @@ pub struct Compressor {
     /// Vehicule differentiators
     sv_diff: HashMap<sv::Sv, Vec<(NumDiff, TextDiff, TextDiff)>>,
 }
-    
-/// Reworks given content to match RINEX specifications
-/// of an epoch descriptor
-fn format_epoch_descriptor (content: &str, clock_offset: Option<i64>) -> Result<String, Error> {
+
+fn format_epoch_descriptor (content: &str) -> String {
     let mut result = String::new();
-    //DEBUG
-    println!("REWORKING \"{}\"", content);
+    result.push_str("&");
     for line in content.lines() {
-        result.push_str(line.trim());
+        result.push_str(line.trim()) // removes all \tab
     }
     result.push_str("\n");
-    if let Some(offset) = clock_offset {
-        //TODO
-    } else {
-        result.push_str("\n");
-    }
-    Ok(result)
+    result
 }
-
+    
 impl Compressor {
     pub const MAX_COMPRESSION_ORDER: usize = NumDiff::MAX_COMPRESSION_ORDER;
     /// Creates a new compression structure 
@@ -166,26 +158,36 @@ impl Compressor {
                     } else {
                         None*/
                         
-                        //TODO
-                        // if we did have clock offset, 
-                        //  append in a new line
-                        //  otherwise append a BLANK
+                    //TODO
+                    // if we did have clock offset, 
+                    //  append in a new line
+                    //  otherwise append a BLANK
                     
                     let nb_lines = num_integer::div_ceil(self.nb_vehicules, 12) as u8;
                     if self.epoch_ptr == nb_lines { // end of descriptor
-                        // unwrap content to a single line
+                        // format to CRINEX
+                        self.epoch_descriptor = format_epoch_descriptor(&self.epoch_descriptor);
                         if self.first_epoch {
-                            self.epoch_descriptor.replace_range(0..1, "&");
-                        }
-                        if let Ok(mut formatted) = format_epoch_descriptor(&self.epoch_descriptor, None) {
-                            result.push_str(&formatted);
-                            if self.first_epoch {
-                                // initiate differentiator on unwrapped content
-                                self.epoch_diff.init(&formatted);//TODO verifier que "&" ne pose pas de soucis
-                                self.first_epoch = false; // never to reinitiate
-                            }
+                            println!("INIT EPOCH with \"{}\"", self.epoch_descriptor);
+                            self.epoch_diff.init(&self.epoch_descriptor);
+                            result.push_str(&self.epoch_descriptor);
+                            /////////////////////////////////////
+                            //TODO
+                            //missing clock offset field here
+                            //next line should not always be empty
+                            /////////////////////////////////////
+                            result.push_str("\n");
+                            self.first_epoch = false;
                         } else {
-                            return Err(Error::EpochReworkFailure);
+                            result.push_str(
+                                &self.epoch_diff.compress(&self.epoch_descriptor));
+                            result.push_str("\n");
+                            /////////////////////////////////////
+                            //TODO
+                            //missing clock offset field here
+                            //next line should not always be empty
+                            /////////////////////////////////////
+                            result.push_str("\n");
                         }
 
                         self.obs_ptr = 0;
@@ -196,57 +198,60 @@ impl Compressor {
                 },
                 State::Body => {
                     // identify current satellite using stored epoch description
-                    let line_offset = self.nb_vehicules / 12;
-                    let mut offset = 0;
-                    let mut sv = Sv::default();
-                    for line in self.epoch_descriptor.lines() {
-                        if offset == line_offset {
-                            let vehicule_offset = self.vehicule_ptr * 3; //sv size
-                            let min = 32+vehicule_offset*3; // epoch+ptr
-                            let max = min + 3; // sv size
-                            let vehicule = &self.epoch_descriptor[min..max];
-                            if let Ok(vehicule) = Sv::from_str(vehicule.trim()) {
-                                sv = vehicule;
-                            } else {
-                                //DEBUG
-                                println!("SV \"{}\"", vehicule);
-                                return Err(Error::VehiculeIdentificationError)
-                            }
+                    let vehicule_offset = self.vehicule_ptr * 3; //sv size
+                    let min = 32+vehicule_offset; // epoch+ptr
+                    let max = min + 3; // sv size
+                    let vehicule = &self.epoch_descriptor[min..max];
+                    println!("VEHICULE \"{}\"", vehicule);
+                    if let Ok(sv) = Sv::from_str(vehicule.trim()) {
+                        // nb of obs for this constellation
+                        let sv_nb_obs = obs_codes[&sv.constellation].len();
+                        // nb of obs in this line
+                        let nb_obs_line = num_integer::div_ceil(line.len(), 17);
+                        if self.obs_ptr > sv_nb_obs { // unexpected overflow
+                            return Err(Error::MalformedEpochBody) // too many observables were found
                         }
-                        offset += 1;
-                    }
-                    
-                    // nb of obs for this constellation
-                    let sv_nb_obs = obs_codes[&sv.constellation].len();
-                    // nb of obs in this line
-                    let nb_obs_line = num_integer::div_ceil(line.len(), 17);
-                    if self.obs_ptr > sv_nb_obs { // unexpected overflow
-                        return Err(Error::MalformedEpochBody) // too many observables were found
-                    }
 
-                    // compress all observables
-                    // and store flags for line completion
-                    let mut observables = line.clone();
-                    for ith_obs in 0..nb_obs_line {
-                        let index = std::cmp::min(16, observables.len()); // avoid overflow
-                                                        // as some data flags might be omitted
-                        let (data, rem) = observables.split_at(index);
-                        let (obsdata, flags) = data.split_at(14);
-                        observables = rem.clone();
-                        if let Ok(obsdata) = f64::from_str(obsdata.trim()) {
-                            let obsdata = f64::round(obsdata*1000.0) as i64; 
-                            if flags.len() < 1 { // Both Flags ommited
-                                //DEBUG
-                                println!("OBS \"{}\" LLI \"X\" SSI \"X\"", obsdata);
-                                // data compression
-                                if let Some(sv_diffs) = self.sv_diff.get_mut(&sv) {
-                                    // retrieve observable state
-                                    if let Some(diffs) = sv_diffs.get_mut(self.obs_ptr) {
-                                        // compress data
-                                        let compressed = diffs.0.compress(obsdata);
-                                        result.push_str(&format!("{} ", compressed));//append obs
+                        // compress all observables
+                        // and store flags for line completion
+                        let mut observables = line.clone();
+                        for ith_obs in 0..nb_obs_line {
+                            let index = std::cmp::min(16, observables.len()); // avoid overflow
+                                                            // as some data flags might be omitted
+                            let (data, rem) = observables.split_at(index);
+                            let (obsdata, flags) = data.split_at(14);
+                            observables = rem.clone();
+                            if let Ok(obsdata) = f64::from_str(obsdata.trim()) {
+                                let obsdata = f64::round(obsdata*1000.0) as i64; 
+                                if flags.len() < 1 { // Both Flags ommited
+                                    //DEBUG
+                                    println!("OBS \"{}\" LLI \"X\" SSI \"X\"", obsdata);
+                                    // data compression
+                                    if let Some(sv_diffs) = self.sv_diff.get_mut(&sv) {
+                                        // retrieve observable state
+                                        if let Some(diffs) = sv_diffs.get_mut(self.obs_ptr) {
+                                            // compress data
+                                            let compressed = diffs.0.compress(obsdata);
+                                            result.push_str(&format!("{} ", compressed));//append obs
+                                        } else {
+                                            // first time dealing with this observable
+                                            let mut diff: (NumDiff, TextDiff, TextDiff) = (
+                                                NumDiff::new(Self::MAX_COMPRESSION_ORDER)?,
+                                                TextDiff::new(),
+                                                TextDiff::new(),
+                                            );
+                                            //DEBUG
+                                            println!("INIT KERNELS with {} BLANK BLANK", obsdata);
+                                            diff.0.init(3, obsdata)
+                                                .unwrap();
+                                            result.push_str(&format!("3&{} ", obsdata));//append obs
+                                            diff.1.init(" "); // BLANK
+                                            diff.2.init(" "); // BLANK
+                                            self.flags_descriptor.push_str("  ");
+                                            sv_diffs.push(diff);
+                                        }
                                     } else {
-                                        // first time dealing with this observable
+                                        // first time dealing with this vehicule
                                         let mut diff: (NumDiff, TextDiff, TextDiff) = (
                                             NumDiff::new(Self::MAX_COMPRESSION_ORDER)?,
                                             TextDiff::new(),
@@ -254,52 +259,65 @@ impl Compressor {
                                         );
                                         //DEBUG
                                         println!("INIT KERNELS with {} BLANK BLANK", obsdata);
-                                        diff.0.init(3, obsdata);
-                                        result.push_str(&format!("3&{} ", obsdata));//append obs
-                                        diff.1.init(" "); // BLANK
-                                        diff.2.init(" "); // BLANK
+                                        diff.0.init(5, obsdata)
+                                            .unwrap();
+                                        diff.1.init("&"); // BLANK
+                                        diff.2.init("&"); // BLANK
                                         self.flags_descriptor.push_str("  ");
-                                        sv_diffs.push(diff);
+                                        self.sv_diff.insert(sv, vec![diff]);
                                     }
-                                } else {
-                                    // first time dealing with this vehicule
-                                    let mut diff: (NumDiff, TextDiff, TextDiff) = (
-                                        NumDiff::new(Self::MAX_COMPRESSION_ORDER)?,
-                                        TextDiff::new(),
-                                        TextDiff::new(),
-                                    );
-                                    //DEBUG
-                                    println!("INIT KERNELS with {} BLANK BLANK", obsdata);
-                                    diff.0.init(5, obsdata);
-                                    diff.1.init("&"); // BLANK
-                                    diff.2.init("&"); // BLANK
-                                    self.flags_descriptor.push_str("  ");
-                                    self.sv_diff.insert(sv, vec![diff]);
-                                }
-                            } else { // Not all Flags ommited
-                                //Obsdata + some flags
-                                let (lli, ssi) = flags.split_at(1);
-                                println!("OBS \"{}\" - LLI \"{}\" - SSI \"{}\"", obsdata, lli, ssi);
-                                if let Some(sv_diffs) = self.sv_diff.get_mut(&sv) {
-                                    // retrieve observable state
-                                    if let Some(diffs) = sv_diffs.get_mut(self.obs_ptr) {
-                                        // compress data
-                                        let compressed = diffs.0.compress(obsdata);
-                                        result.push_str(&format!("{} ", compressed));//append obs
+                                } else { //flangs.len() >=1 : Not all Flags ommited
+                                    let (lli, ssi) = flags.split_at(1);
+                                    println!("OBS \"{}\" - LLI \"{}\" - SSI \"{}\"", obsdata, lli, ssi);
+                                    if let Some(sv_diffs) = self.sv_diff.get_mut(&sv) {
+                                        // retrieve observable state
+                                        if let Some(diffs) = sv_diffs.get_mut(self.obs_ptr) {
+                                            // compress data
+                                            let obsdata = diffs.0.compress(obsdata);
+                                            let lli = diffs.1.compress(lli);
+                                            if ssi.len() > 0 {
+                                                let ssi = diffs.2.compress(ssi);
+                                                result.push_str(&format!("{}{}{}", obsdata, lli, ssi));
+                                            } else {
+                                                result.push_str(&format!("{}{} ", obsdata, lli));
+                                            }
 
-                                        //TODO manque ssi.len()>0 decompress flags & append ici
-                                        // a continuer
-
+                                        } else {
+                                            // first time dealing with this observable
+                                            let mut diff: (NumDiff, TextDiff, TextDiff) = (
+                                                NumDiff::new(Self::MAX_COMPRESSION_ORDER)?,
+                                                TextDiff::new(),
+                                                TextDiff::new(),
+                                            );
+                                            diff.0.init(3, obsdata)
+                                                .unwrap();
+                                            result.push_str(&format!("3&{} ", obsdata));//append obs
+                                            diff.1.init(lli);
+                                            self.flags_descriptor.push_str(lli);
+                                            if ssi.len() > 0 {
+                                                //DEBUG
+                                                println!("INIT KERNELS with {} - \"{}\" -  \"{}\"", obsdata, lli, ssi);
+                                                diff.2.init(ssi);
+                                                self.flags_descriptor.push_str(ssi);
+                                            } else { // SSI ommitted
+                                                //DEBUG
+                                                println!("INIT KERNELS with {} - \"{}\" - BLANK", obsdata, lli);
+                                                diff.2.init("&"); // BLANK
+                                                self.flags_descriptor.push_str(" ");
+                                            }
+                                            sv_diffs.push(diff);
+                                        }
                                     } else {
-                                        // first time dealing with this observable
+                                        // first time dealing with this vehicule
                                         let mut diff: (NumDiff, TextDiff, TextDiff) = (
                                             NumDiff::new(Self::MAX_COMPRESSION_ORDER)?,
                                             TextDiff::new(),
                                             TextDiff::new(),
                                         );
-                                        diff.0.init(3, obsdata);
+                                        diff.0.init(3, obsdata)
+                                            .unwrap();
                                         result.push_str(&format!("3&{} ", obsdata));//append obs
-                                        diff.1.init(lli);
+                                        diff.1.init(lli); // BLANK
                                         self.flags_descriptor.push_str(lli);
                                         if ssi.len() > 0 {
                                             //DEBUG
@@ -312,54 +330,40 @@ impl Compressor {
                                             diff.2.init("&"); // BLANK
                                             self.flags_descriptor.push_str(" ");
                                         }
-                                        sv_diffs.push(diff);
+                                        self.sv_diff.insert(sv, vec![diff]);
                                     }
-                                } else {
-                                    // first time dealing with this vehicule
-                                    let mut diff: (NumDiff, TextDiff, TextDiff) = (
-                                        NumDiff::new(Self::MAX_COMPRESSION_ORDER)?,
-                                        TextDiff::new(),
-                                        TextDiff::new(),
-                                    );
-                                    diff.0.init(3, obsdata);
-                                    result.push_str(&format!("3&{} ", obsdata));//append obs
-                                    diff.1.init(lli); // BLANK
-                                    self.flags_descriptor.push_str(lli);
-                                    if ssi.len() > 0 {
-                                        //DEBUG
-                                        println!("INIT KERNELS with {} - \"{}\" -  \"{}\"", obsdata, lli, ssi);
-                                        diff.2.init(ssi);
-                                        self.flags_descriptor.push_str(ssi);
-                                    } else { // SSI ommitted
-                                        //DEBUG
-                                        println!("INIT KERNELS with {} - \"{}\" - BLANK", obsdata, lli);
-                                        diff.2.init("&"); // BLANK
-                                        self.flags_descriptor.push_str(" ");
-                                    }
-                                    self.sv_diff.insert(sv, vec![diff]);
                                 }
+                            } else { //obsdata::f64::from_str()
+                                return Err(Error::MalformedObservable)
                             }
-                        } else { //obsdata::f64::from_str()
-                            return Err(Error::MalformedObservable)
-                        }
-                        self.obs_ptr += 1;
-                        //DEBUG
-                        println!("OBS {}/{}", self.obs_ptr, sv_nb_obs); 
-                    } //for ith..nb_obs
+                            self.obs_ptr += 1;
+                            //DEBUG
+                            println!("OBS {}/{}", self.obs_ptr, sv_nb_obs); 
+                        } //for ith..nb_obs
 
-                    if self.obs_ptr == sv_nb_obs { // vehicule completion
-                        // conclude line with LLI/SSI flags
-                        result.push_str(&format!("{}\n", self.flags_descriptor)); 
-                        // moving to next vehicule
-                        self.vehicule_ptr += 1;
-                        if self.vehicule_ptr == self.nb_vehicules { // last vehicule
-                            self.state = State::EpochDescriptor 
+                        if self.obs_ptr == sv_nb_obs { // vehicule completion
+                            // conclude line with LLI/SSI flags
+                            result.push_str(&format!("{}\n", self.flags_descriptor)); 
+                            // moving to next vehicule
+                            self.obs_ptr = 0;
+                            self.vehicule_ptr += 1;
+                            self.flags_descriptor.clear();
+                            if self.vehicule_ptr == self.nb_vehicules { // last vehicule
+                                //DEBUG
+                                println!("\n");
+                                self.epoch_ptr = 0;
+                                self.epoch_descriptor.clear();
+                                self.state = State::EpochDescriptor 
+                            }
+                            //DEBUG
+                            println!("");
                         }
+                    } else { // sv::from_str()
+                        // failed to identify which vehicule we're dealing with
+                        return Err(Error::VehiculeIdentificationError)
                     }
                 },
-                _ => {}, // State::ClockOffsetDescriptor never ocurrs when compressing 
             }//match(state)
-
         }//main loop
         Ok(result)
     }

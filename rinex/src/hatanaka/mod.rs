@@ -1,11 +1,6 @@
 //! RINEX compression / decompression module
 use crate::sv;
-use crate::header;
-use crate::is_comment;
-use crate::types::Type;
 use thiserror::Error;
-use std::str::FromStr;
-use std::collections::HashMap;
 
 mod numdiff;
 mod textdiff;
