@@ -264,7 +264,7 @@ impl Default for Header {
 }
 
 impl Header {
-    /// Builds a `Header` from local file and previously grabbed 1st line
+    /// Builds a `Header` from local file
     pub fn new (reader: &mut BufferedReader) -> Result<Header, Error> { 
         let mut crinex : Option<observation::Crinex> = None;
         let mut crnx_version = Version::default(); 
