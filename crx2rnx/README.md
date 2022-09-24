@@ -5,7 +5,10 @@ CRX2RNX
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square)](https://github.com/gwbres/rinex/blob/main/LICENSE-APACHE)
 [![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](https://github.com/gwbres/hatanaka/rinex/main/LICENSE-MIT) 
 
-`CRX2RNX` is a command line tool to decompress `RINEX` files easily.  
+`CRX2RNX` is a command line tool to decompress Compact RINEX into `RINEX` files.  
+It is an alternative to the existing official tool.
+
+## Compression algorithm
 
 *Yuki Hatanaka* created a simple yet efficient method to compress
 RINEX files, it's called CRINEX,   
@@ -13,7 +16,7 @@ latest revision is `CRINEX3` and is specified
 [here](https://www.gsi.go.jp/ENGLISH/Bulletin55.html).
 
 For more information on the actual compression algorithm, 
-refer to the [hatanaka object](https://crates.io/crates/rinex)
+refer to the [hatanaka module](https://crates.io/crates/rinex)
 of the library.
 
 ## Supported revisions
@@ -25,7 +28,7 @@ CRINEX2 was never released
 
 ## CRINEX
 
-RINEX Compression is an algorithm designed for **Observation Data**.
+RINEX Compression is an algorithm designed for **Observation Data** uniquely.
 
 ## Getting started
 
@@ -38,7 +41,7 @@ crx2rnx -f ../test_resoures/CRNX/V1/wsra0010.21d
 This generates `test_resoures/CRNX/V1/wsra0010.21o`, 
 to follow `RINEX` naming conventions.   
 
-To change that behavior and specify the output file, use `--output` or `-o`:
+To change that behavior and specify the output file yourself, use `--output` or `-o`:
 
 ```bash
 crx2rnx -f ../test_resoures/CRNX/V1/wsra0010.21d \
@@ -50,30 +53,12 @@ crx2rnx -f ../test_resoures/CRNX/V3/ACOR00ESP_R_20213550000_01D_30S_MO.crx \
     -o /tmp/output.rnx # custom location with standard V3 extension
 ```
 
-## :warning: File format restrictions
+## Note on compression order
 
-This tool currently follows the official `CRX2RNX` behavior, which does not follow
-`RINEX` specifications, in the sense that is produces epochs that exceed the 80 character width limitation
-
-## Epoch events 
-
-`COMMENTS` are preserved through compression / decompression, as you would expect.   
-Just like `CRX2RNX`, epochs with special events (flag > 2) are left untouched.  
-Therefore, explanations on these epochs events are preserved.
-
-## Compression algorithm & limitations 
-
-This tool uses an M=8 maximal compression order, which should be fine for all CRINEX ever produced,   
-considering they were probably produced by `CRX2RNX` which hardcodes an M=5 limitation.   
-
-Unlike `CRX2RNX`, this tool is not limited to an hardcoded M value, 
-you can increase the default value if you think higher   
-compression will be encountered in a given file: 
-```bash
-crx2rnx -M 10 \
-    --filepath ../test_resoures/CRNX/V3/KUNZ00CZE.cnx # increase maximal compression order
-```
+This tool supports a compression order of 6.    
+It will adapt naturally to a CRNX file that was first generated using the official binary,
+which is limited to a compression order of 3.  
+It will be able to uncompress data that was more compressed, using `rnx2crx` of this repo.
 
 According to Y. Hatanaka's publication, 
-optimum compression performances are obtained for a 4th order compression,   
-therefore with default parameters.
+optimum compression performances are obtained for a compression order of 4.
