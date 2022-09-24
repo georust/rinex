@@ -44,8 +44,10 @@ fn main() -> Result<(), Error> {
         }
     }
 
-    //RNX2CRX compression
+    //output filepath
+    let output_path = String::from(matches.value_of("output").unwrap_or(&output_path));
     let output = std::fs::File::create(output_path.clone())?;
+    //RNX2CRX compression
     compress(filepath, output)?;
     println!("{} generated", output_path);
     Ok(())
