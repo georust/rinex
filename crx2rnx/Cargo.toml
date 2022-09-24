@@ -3,7 +3,7 @@ name = "crx2rnx"
 version = "1.0.1"
 license = "MIT OR Apache-2.0"
 authors = ["Guillaume W. Bres <guillaume.bressaix@gmail.com>"]
-description = "RINEX decompression tool"
+description = "RINEX data decompressor"
 homepage = "https://github.com/gwbres/rinex"
 keywords = ["rinex", "compression", "decompression", "crinex"] 
 categories = ["science", "command-line-interface", "command-line-utilities"]
@@ -11,9 +11,9 @@ edition = "2018"
 readme = "README.md"
 
 [dependencies]
-rinex = { path = "../rinex", features = ["serde"] }
-clap = { version = "3.2.22", features = ["yaml"] }
 thiserror = "1"
+clap = { version = "3.2.22", features = ["yaml"] }
+rinex = { path = "../rinex", features = ["serde"] }
 
 [dev-dependencies]
 assert_cmd = "2.0"
