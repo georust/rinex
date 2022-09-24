@@ -14,7 +14,7 @@ use crate::ionosphere;
 use crate::is_comment;
 use crate::types::Type;
 
-use crate::hatanaka::Hatanaka;
+use crate::hatanaka::Decompressor;
 use crate::reader::BufferedReader;
 use crate::writer::BufferedWriter;
 
@@ -203,7 +203,7 @@ pub fn parse_record (reader: &mut BufferedReader, header: &header::Header) -> Re
     } else {
         false
     };
-    let mut decompressor = Hatanaka::new(Hatanaka::MAX_COMPRESSION_ORDER)
+    let mut decompressor = Decompressor::new(Decompressor::MAX_COMPRESSION_ORDER)
         .unwrap();
     // record 
     let mut atx_rec = antex::record::Record::new(); // ATX

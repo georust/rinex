@@ -3,15 +3,15 @@ mod test {
     use rinex::*;
     use rinex::header::Header;
     use rinex::version::Version;
-    use rinex::hatanaka::Hatanaka;
+    use rinex::hatanaka::Decompressor;
     use rinex::observation;
     use rinex::observation::Crinex;
     use std::collections::HashMap;
     use rinex::constellation::Constellation;
     #[test]
-    fn test_crx1_decompression() {
+    fn crx1_decompression() {
         // object
-        let mut decompressor = Hatanaka::new(Hatanaka::MAX_COMPRESSION_ORDER)
+        let mut decompressor = Decompressor::new(Decompressor::MAX_COMPRESSION_ORDER)
             .unwrap();
         // fake header
         let mut header = Header::basic_obs()

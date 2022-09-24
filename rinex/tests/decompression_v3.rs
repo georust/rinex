@@ -3,7 +3,7 @@ mod test {
     use rinex::*;
     use rinex::header::Header;
     use rinex::version::Version;
-    use rinex::hatanaka::Hatanaka;
+    use rinex::hatanaka::Decompressor;
     use rinex::observation::Crinex;
     use rinex::observation::HeaderFields;
     use rinex::constellation::{
@@ -12,9 +12,9 @@ mod test {
     };
     use std::collections::HashMap;
     #[test]
-    fn test_crx3_decompression() {
+    fn crx3_decompression() {
         // object
-        let mut decompressor = Hatanaka::new(Hatanaka::MAX_COMPRESSION_ORDER)
+        let mut decompressor = Decompressor::new(Decompressor::MAX_COMPRESSION_ORDER)
             .unwrap();
         // fake header
         let mut header = Header::basic_obs()
