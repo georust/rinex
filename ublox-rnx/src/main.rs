@@ -6,9 +6,9 @@ use clap::load_yaml;
 //use std::str::FromStr;
 
 use rinex::*;
-use rinex::sv::Sv;
+//use rinex::sv::Sv;
 use rinex::epoch::Epoch;
-use rinex::observation::record::ObservationData;
+//:use rinex::observation::record::ObservationData;
 
 extern crate ublox;
 use ublox::*;
@@ -129,11 +129,11 @@ pub fn main () -> Result<(), Box<dyn std::error::Error>> {
         .unwrap();
 
     // Create header section
-    let header = header::Header::basic_obs(); 
+    let _header = header::Header::basic_obs(); 
 
     //TODO header customization
     
-    let mut epoch = Epoch::default(); // current epoch 
+    let mut _epoch = Epoch::default(); // current epoch 
 
     loop { // main loop
         let _ = device.
@@ -141,12 +141,12 @@ pub fn main () -> Result<(), Box<dyn std::error::Error>> {
                 match packet {
                     PacketRef::NavSat(pkt) => {
                         for sv in pkt.svs() {
-                            let gnss_id = sv.gnss_id();
-                            let sv_id = sv.sv_id();
-                            let elev = sv.elev();
-                            let azim = sv.azim();
-                            let pr_res = sv.pr_res();
-                            let flags = sv.flags();
+                            let _gnss_id = sv.gnss_id();
+                            let _sv_id = sv.sv_id();
+                            let _elev = sv.elev();
+                            let _azim = sv.azim();
+                            let _pr_res = sv.pr_res();
+                            let _flags = sv.flags();
                             //if flags.sv_used() {
                             //}
                             //flags.health();
@@ -156,7 +156,7 @@ pub fn main () -> Result<(), Box<dyn std::error::Error>> {
                         }
                     }
                     PacketRef::NavEoe(pkt) => { // End of epoch notification
-                        let itow = pkt.itow();
+                        let _itow = pkt.itow();
                         // ==> push into file
                     }
                     _ => {},
