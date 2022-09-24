@@ -6,6 +6,9 @@ use clap::load_yaml;
 //use std::str::FromStr;
 
 use rinex::*;
+use rinex::sv::Sv;
+use rinex::epoch::Epoch;
+use rinex::observation::record::ObservationData;
 
 extern crate ublox;
 use ublox::*;
@@ -26,9 +29,6 @@ pub fn main () -> Result<(), Box<dyn std::error::Error>> {
     let baud = u32::from_str_radix(baud, 10)
         .unwrap();
 
-    // Parameters
-    let _obs = matches.is_present("obs");
-    let _nav = matches.is_present("nav");
     //TODO: currently only supports GPS
     
     // open device
@@ -53,7 +53,9 @@ pub fn main () -> Result<(), Box<dyn std::error::Error>> {
         }
         .into_packet_bytes(),
     )?;
-    device.wait_for_ack::<CfgPrtUart>()?;
+    device
+        .wait_for_ack::<CfgPrtUart>()
+        .unwrap();
     
     device.write_all(
         &CfgPrtUartBuilder {
@@ -69,7 +71,9 @@ pub fn main () -> Result<(), Box<dyn std::error::Error>> {
         }
         .into_packet_bytes(),
     )?;
-    device.wait_for_ack::<CfgPrtUart>()?;
+    device
+        .wait_for_ack::<CfgPrtUart>()
+        .unwrap();
     
     device.write_all(
         &CfgPrtUartBuilder {
@@ -85,8 +89,25 @@ pub fn main () -> Result<(), Box<dyn std::error::Error>> {
         }
         .into_packet_bytes(),
     )?;
-    device.wait_for_ack::<CfgPrtUart>()?;
+    device
+        .wait_for_ack::<CfgPrtUart>()
+        .unwrap();
 
+    ///////////////////////
+    // Observation opmode
+    ///////////////////////
+    device
+        .write_all(
+            &CfgMsgAllPortsBuilder::set_rate_for::<NavSat>([0, 1, 0, 0, 0, 0])
+                .into_packet_bytes())
+        .unwrap();
+    device
+        .wait_for_ack::<CfgMsgAllPorts>()
+        .unwrap();
+    
+    ///////////////////////
+    // Navigation opmode
+    ///////////////////////
     // Enable GPS Ephemeris + GPS Iono
     device
         .write_all(
@@ -94,20 +115,53 @@ pub fn main () -> Result<(), Box<dyn std::error::Error>> {
                 .into_packet_bytes(),
         )
     .unwrap();
-    device.wait_for_ack::<CfgMsgAllPorts>().unwrap();
+    device
+        .wait_for_ack::<CfgMsgAllPorts>()
+        .unwrap();
     device
         .write_all(
             &CfgMsgAllPortsBuilder::set_rate_for::<MgaGpsEph>([0, 1, 0, 0, 0, 0])
                 .into_packet_bytes(),
         )
     .unwrap();
-    device.wait_for_ack::<CfgMsgAllPorts>().unwrap();
+    device
+        .wait_for_ack::<CfgMsgAllPorts>()
+        .unwrap();
 
-    // Create OBS file
-    let _obs = Rinex::default();
-    let _header = header::Header::basic_obs(); 
+    // Create header section
+    let header = header::Header::basic_obs(); 
 
-    loop {
+    //TODO header customization
+    
+    let mut epoch = Epoch::default(); // current epoch 
+
+    loop { // main loop
+        let _ = device.
+            update(|packet| {
+                match packet {
+                    PacketRef::NavSat(pkt) => {
+                        for sv in pkt.svs() {
+                            let gnss_id = sv.gnss_id();
+                            let sv_id = sv.sv_id();
+                            let elev = sv.elev();
+                            let azim = sv.azim();
+                            let pr_res = sv.pr_res();
+                            let flags = sv.flags();
+                            //if flags.sv_used() {
+                            //}
+                            //flags.health();
+                            //flags.quality_ind();
+                            //flags.differential_correction_available();
+                            //flags.ephemeris_available();
+                        }
+                    }
+                    PacketRef::NavEoe(pkt) => { // End of epoch notification
+                        let itow = pkt.itow();
+                        // ==> push into file
+                    }
+                    _ => {},
+                }
+            });
         
     }
     //Ok(())
