@@ -5,8 +5,11 @@ use rinex::hatanaka::Compressor;
 use rinex::observation::Crinex;
 use rinex::reader::BufferedReader;
 
-use clap::App;
-use clap::load_yaml;
+use clap::{
+    App, AppSettings,
+    load_yaml,
+};
+
 use thiserror::Error;
 use std::io::{Write, BufRead};
 
@@ -22,7 +25,8 @@ enum Error {
 
 fn main() -> Result<(), Error> {
     let yaml = load_yaml!("cli.yml");
-    let app = App::from_yaml(yaml);
+    let app = App::from_yaml(yaml)
+        .setting(AppSettings::ArgRequiredElseHelp);
     let matches = app.get_matches();
     
     // input filepath
@@ -31,15 +35,13 @@ fn main() -> Result<(), Error> {
         .unwrap();
     
     // output filepath
-    let mut output_path: String;
-    if filepath.ends_with("o") { // CRNX1
-        output_path = filepath.strip_suffix("d")
-            .unwrap()
-            .to_owned() + "d";
-    } else { // CRNX3
-        output_path = filepath.strip_suffix("rnx")
-            .unwrap()
-            .to_owned() + "crx";
+    let mut output_path = String::from("output.crx");
+    if let Some(stripped) = filepath.strip_suffix("o") { // RNX1 
+        output_path = stripped.to_owned() + "d" // CRNX1
+    } else {
+        if let Some(stripped) = filepath.strip_suffix("rnx") { // RNX3
+            output_path = stripped.to_owned() + "crx" // CRNX3
+        }
     }
 
     //RNX2CRX compression
@@ -65,7 +67,6 @@ fn compress (fp: &str, mut writer: std::fs::File) -> Result<(), Error> {
     // and efficient .line() browsing.
     let reader = BufferedReader::new(fp)?;
 
-    let mut inside_body = false;
     for line in reader.lines() {
         let l = &line.unwrap();
         // push header fields as is
@@ -79,6 +80,11 @@ fn compress (fp: &str, mut writer: std::fs::File) -> Result<(), Error> {
     // this mainly serves for observable identification
     let mut reader = BufferedReader::new(fp)?;
     let header = header::Header::new(&mut reader)?;
+    if let Some(obs) = &header.obs {
+        if let Some(crinex) = &obs.crinex {
+            panic!("this file is already compressed");
+        }
+    }
 
     // BufferedWriter is not efficient enough (at the moment) to
     // perform the Hatanaka compression by itself, but we'll get there..

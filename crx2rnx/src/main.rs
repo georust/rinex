@@ -1,10 +1,12 @@
 //! Command line tool to decompress CRINEX files 
 use rinex::{header, hatanaka};
-use rinex::hatanaka::Hatanaka;
+use rinex::hatanaka::Decompressor;
 use rinex::reader::BufferedReader;
 
-use clap::App;
-use clap::load_yaml;
+use clap::{
+    App, AppSettings,
+    load_yaml,
+};
 use thiserror::Error;
 use std::io::{Write, BufRead};
 
@@ -14,13 +16,14 @@ enum Error {
     IoError(#[from] std::io::Error),
     #[error("failed to parse RINEX header")]
     ParseHeaderError(#[from] header::Error),
-    #[error("hatanaka error")]
-    HatanakaError(#[from] hatanaka::Error),
+    #[error("decompression error")]
+    DecompressionError(#[from] hatanaka::Error),
 }
 
 fn main() -> Result<(), Error> {
     let yaml = load_yaml!("cli.yml");
-    let app = App::from_yaml(yaml);
+    let app = App::from_yaml(yaml)
+        .setting(AppSettings::ArgRequiredElseHelp);
     let matches = app.get_matches();
     let filepath = matches.value_of("filepath")
         .unwrap();
@@ -28,19 +31,17 @@ fn main() -> Result<(), Error> {
     let max_compression_order = matches.value_of("max-compression-order").unwrap_or("6");
     let max_compression_order = u16::from_str_radix(max_compression_order, 10).unwrap();
 
-    let mut default_output = String::from("output.crx");
-    if filepath.ends_with("d") { // CRNX < 3
-        default_output = filepath.strip_suffix("d")
-            .unwrap()
-            .to_owned() + "o";
-    } else if filepath.ends_with(".crx") { // CRNX >= 3
-        default_output = filepath.strip_suffix(".crx")
-            .unwrap()
-            .to_owned() + ".rnx";
+    let mut outpath = String::from("output.crx");
+    if let Some(prefix) = filepath.strip_suffix("d") { // CRNX1
+        outpath = prefix.to_owned() + "o" // RNX1
+    } else {
+        if let Some(prefix) = filepath.strip_suffix(".crx") { // CRNX3
+            outpath = prefix.to_owned() + "rnx" // RNX3
+        }
     }
 
     let outpath : String = String::from(matches.value_of("output")
-        .unwrap_or(&default_output));
+        .unwrap_or(&outpath));
     let output = std::fs::File::create(outpath.clone())?;
     decompress(filepath, max_compression_order.into(), output)?;
     println!("{} generated", outpath);
@@ -60,8 +61,8 @@ fn decompress (fp: &str, m: usize, mut writer: std::fs::File) -> Result<(), Erro
     for line in reader.lines() {
         let l = &line.unwrap();
         if !inside_crinex {
-            write!(writer, "{}\n", l)?; // push header fields as is, 
-                    // because they are not compressed :)
+            // push header fields as is
+            write!(writer, "{}\n", l)?
         }
         if l.contains("CRINEX PROG / DATE") {
             inside_crinex = false
@@ -74,17 +75,21 @@ fn decompress (fp: &str, m: usize, mut writer: std::fs::File) -> Result<(), Erro
     // we need them to determine things when decompressing the record
     let mut reader = BufferedReader::new(fp)?;
     let header = header::Header::new(&mut reader)?;
-    // parse / decompress / produce file body
-    let mut hatanaka = Hatanaka::new(m)
+    // decompress file body
+    let mut decompressor = Decompressor::new(m)
         .unwrap();
     for l in reader.lines() {
         let line = &l.unwrap();
-        let mut content = line.to_string();
-        if content.len() == 0 {
-            content = String::from(" ");
+        if line.len() == 0 {
+            // sometimes we run into empty lines
+            // like omitted clock offset fields,
+            // and decompress() does not like it
+            let recovered = decompressor.decompress(&header, " ")?;
+            write!(writer, "{}", recovered)?
+        } else {
+            let recovered = decompressor.decompress(&header, line)?;
+            write!(writer, "{}", recovered)?
         }
-        let recovered = hatanaka.decompress(&header, &content)?;
-        write!(writer, "{}", recovered)?
     }
     Ok(())
 }
