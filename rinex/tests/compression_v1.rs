@@ -371,7 +371,7 @@ mod test {
         let compressed = compressor.compress(&header, content); 
         assert_eq!(compressed.is_ok(), true);
         let result = compressed.unwrap();
-        assert_eq!(result, "-1000 0 \n");
+        assert_eq!(result, "-1000 0            \n");
 
         //epoch#2 sat#2 1st compression
         let content =" 111966699.068 7  87246799.66946  21306551.543    21306554.461    21306551.303";
@@ -384,81 +384,153 @@ mod test {
         let compressed = compressor.compress(&header, content); 
         assert_eq!(compressed.is_ok(), true);
         let result = compressed.unwrap();
-        assert_eq!(result, "-2000 1000  7");
-/*        
+        assert_eq!(result, "-2000 1000  7         \n");
+        
         //epoch#2 sat#3
         let content =" 125261073.448 6  97606043.26845  23836386.907    23836393.122    23836386.335";
-        assert_eq!(result, "76851633 59884369 14624438 14624373 14624295");
+        let compressed = compressor.compress(&header, content); 
+        assert_eq!(compressed.is_ok(), true);
+        let result = compressed.unwrap();
+        assert_eq!(result, "76851633 59884369 14624438 14624373 14624295 ");
         
         let content ="        38.000          35.0004";
-        assert_eq!(result, "-2000 0");
+        let compressed = compressor.compress(&header, content); 
+        assert_eq!(compressed.is_ok(), true);
+        let result = compressed.unwrap();
+        assert_eq!(result, "-2000 0            \n");
         
         let content =" 111576725.337 8  86942926.97146  21232342.681    21232344.757    21232341.519";
-        assert_eq!(result, "-6132968 -4778936 -1167231 -1166970 -1167080");
+        let compressed = compressor.compress(&header, content); 
+        assert_eq!(compressed.is_ok(), true);
+        let result = compressed.unwrap();
+        assert_eq!(result, "-6132968 -4778936 -1167231 -1166970 -1167080 ");
         
         let content ="        48.000          37.0004";
-        assert_eq!(result, "-1000 0");
+        let compressed = compressor.compress(&header, content); 
+        assert_eq!(compressed.is_ok(), true);
+        let result = compressed.unwrap();
+        assert_eq!(result, "-1000 0            \n");
         
         let content =" 123827565.796 6  96489034.26043  23563601.617    23563604.133    23563600.555";
-        assert_eq!(result, "-120758522 -94097544 -22980041 -22980287 -22979836");
+        let compressed = compressor.compress(&header, content); 
+        assert_eq!(compressed.is_ok(), true);
+        let result = compressed.unwrap();
+        assert_eq!(result, "-120758522 -94097544 -22980041 -22980287 -22979836 ");
         
         let content ="        39.000          20.0004";
-        assert_eq!(result, "0 0");
+        let compressed = compressor.compress(&header, content); 
+        assert_eq!(compressed.is_ok(), true);
+        let result = compressed.unwrap();
+        assert_eq!(result, "0 0            \n");
         
         let content =" 121505620.191 7  94679732.30044  23121748.945    23121751.795    23121748.378";
-        assert_eq!(result, "62033196 48337565 11804471 11804740 11804239");
+        let compressed = compressor.compress(&header, content); 
+        assert_eq!(compressed.is_ok(), true);
+        let result = compressed.unwrap();
+        assert_eq!(result, "62033196 48337565 11804471 11804740 11804239 ");
         
         let content ="        42.000          28.0004";
-        assert_eq!(result, "2000 0  7");
+        let compressed = compressor.compress(&header, content); 
+        assert_eq!(compressed.is_ok(), true);
+        let result = compressed.unwrap();
+        assert_eq!(result, "2000 0  7         \n");
         
         let content =" 123733637.895 6  96237300.116 6  23138812.780    23138815.942    23138813.479";
-        assert_eq!(result, "69391635 53971217 12976205 12976871 12977235");
+        let compressed = compressor.compress(&header, content); 
+        assert_eq!(compressed.is_ok(), true);
+        let result = compressed.unwrap();
+        assert_eq!(result, "69391635 53971217 12976205 12976871 12977235 ");
         
         let content ="        41.000          39.000";
-        assert_eq!(result, "0 -1000");
+        let compressed = compressor.compress(&header, content); 
+        assert_eq!(compressed.is_ok(), true);
+        let result = compressed.unwrap();
+        assert_eq!(result, "0 -1000           \n");
         
         let content =" 120062488.238 7  93381958.277 7  22483848.608    22483848.793    22483847.799";
-        assert_eq!(result, "-122441918 -95232607 -22928378 -22929106 -22929666");
+        let compressed = compressor.compress(&header, content); 
+        assert_eq!(compressed.is_ok(), true);
+        let result = compressed.unwrap();
+        assert_eq!(result, "-122441918 -95232607 -22928378 -22929106 -22929666 ");
         
         let content ="        44.000          43.000";
-        assert_eq!(result, "0 0");
+        let compressed = compressor.compress(&header, content); 
+        assert_eq!(compressed.is_ok(), true);
+        let result = compressed.unwrap();
+        assert_eq!(result, "0 0           \n");
         
         let content =" 114050375.152 7  88870440.79347  21703062.163    21703067.314    21703061.397";
-        assert_eq!(result, "-109755506 -85523763 -20885942 -20885839 -20885758");
+        let compressed = compressor.compress(&header, content); 
+        assert_eq!(compressed.is_ok(), true);
+        let result = compressed.unwrap();
+        assert_eq!(result, "-109755506 -85523763 -20885942 -20885839 -20885758 ");
         
         let content ="        47.000          47.0004";
-        assert_eq!(result, "1000 0");
+        let compressed = compressor.compress(&header, content); 
+        assert_eq!(compressed.is_ok(), true);
+        let result = compressed.unwrap();
+        assert_eq!(result, "1000 0            \n");
         
         let content =" 105228685.775 8  81996406.36549  20024349.016    20024353.302    20024348.211";
-        assert_eq!(result, "-42812752 -33360601 -8146661 -8146987 -8146980");
+        let compressed = compressor.compress(&header, content); 
+        assert_eq!(compressed.is_ok(), true);
+        let result = compressed.unwrap();
+        assert_eq!(result, "-42812752 -33360601 -8146661 -8146987 -8146980 ");
         
         let content ="        53.000          57.0004";
-        assert_eq!(result, "0 1000");
+        let compressed = compressor.compress(&header, content); 
+        assert_eq!(compressed.is_ok(), true);
+        let result = compressed.unwrap();
+        assert_eq!(result, "0 1000            \n");
         
         let content =" 112060701.507 8  87320051.41948  21324441.400    21324446.427    21324440.822";
-        assert_eq!(result, "-83350333 -64948295 -15861167 -15861192 -15861042");
+        let compressed = compressor.compress(&header, content); 
+        assert_eq!(compressed.is_ok(), true);
+        let result = compressed.unwrap();
+        assert_eq!(result, "-83350333 -64948295 -15861167 -15861192 -15861042 ");
         
         let content ="        50.000          53.0004";
-        assert_eq!(result, "-2000 1000");
+        let compressed = compressor.compress(&header, content); 
+        assert_eq!(compressed.is_ok(), true);
+        let result = compressed.unwrap();
+        assert_eq!(result, "-2000 1000            \n");
         
         let content =" 113605326.339 8  88523640.11346  21618373.485    21618375.988    21618372.590";
-        assert_eq!(result, "48656547 37914182 9258742 9259052 9258997");
+        let compressed = compressor.compress(&header, content); 
+        assert_eq!(compressed.is_ok(), true);
+        let result = compressed.unwrap();
+        assert_eq!(result, "48656547 37914182 9258742 9259052 9258997 ");
         
         let content ="        48.000          37.0004";
-        assert_eq!(result, "1000 -1000  8");
+        let compressed = compressor.compress(&header, content); 
+        assert_eq!(compressed.is_ok(), true);
+        let result = compressed.unwrap();
+        assert_eq!(result, "1000 -1000  8         \n");
         
         let content =" 106753353.463 8  83030403.463 8  19998493.489    19998496.049    19998493.333";
-        assert_eq!(result, "-91469176 -71142692 -17134886 -17135341 -17135153");
+        let compressed = compressor.compress(&header, content); 
+        assert_eq!(compressed.is_ok(), true);
+        let result = compressed.unwrap();
+        assert_eq!(result, "-91469176 -71142692 -17134886 -17135341 -17135153 ");
         
         let content ="        53.000          49.000";
-        assert_eq!(result, "0 -1000");
+        let compressed = compressor.compress(&header, content); 
+        assert_eq!(compressed.is_ok(), true);
+        let result = compressed.unwrap();
+        assert_eq!(result, "0 -1000           \n");
         
         let content =" 131386778.390 6 102379322.35541  25002073.211    25002073.178    25002070.920";
-        assert_eq!(result, "-12490564 -9732957 -2375281 -2377415 -2376889");
+        let compressed = compressor.compress(&header, content); 
+        assert_eq!(compressed.is_ok(), true);
+        let result = compressed.unwrap();
+        assert_eq!(result, "-12490564 -9732957 -2375281 -2377415 -2376889 ");
         
         let content ="        37.000          11.0004";
-        assert_eq!(result, "1000 -1000    1");
-        
+        let compressed = compressor.compress(&header, content); 
+        assert_eq!(compressed.is_ok(), true);
+        let result = compressed.unwrap();
+        assert_eq!(result, "1000 -1000    1       \n");
+/*        
         let content =" 116971765.651 7  90978065.341 6  21881983.733    21881986.213    21881983.163";
         assert_eq!(result, "17043835 13256315 3189446 3188124 3188690");
         let content ="        42.000          39.000";
