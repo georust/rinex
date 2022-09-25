@@ -299,11 +299,19 @@ impl Compressor {
                                             let compressed :i64;
                                             // if forced re-init is pending
                                             if let Some(indexes) = self.forced_init.get_mut(&sv) {
-                                                if let Some(index) = indexes.get(self.obs_ptr) {
+                                                if indexes.contains(&self.obs_ptr) {
                                                     // forced reinitialization
                                                     compressed = obsdata;
                                                     diffs.0.init(3, obsdata)
                                                         .unwrap();
+                                                    // remove pending init,
+                                                    // so we do not force reinitizalition more than once
+                                                    for i in 0..indexes.len() {
+                                                        if indexes[i] == self.obs_ptr {
+                                                            indexes.remove(i);
+                                                            break
+                                                        }
+                                                    }
                                                 } else {
                                                     // compress data
                                                     compressed = diffs.0.compress(obsdata);
@@ -353,8 +361,29 @@ impl Compressor {
                                         // retrieve observable state
                                         if let Some(diffs) = sv_diffs.get_mut(self.obs_ptr) {
                                             // compress data
-                                            let obsdata = diffs.0.compress(obsdata);
-                                            result.push_str(&format!("{} ", obsdata));
+                                            let compressed :i64;
+                                            // forced re-init pending ?
+                                            if let Some(indexes) = self.forced_init.get_mut(&sv) {
+                                                if indexes.contains(&self.obs_ptr) {
+                                                    // forced reinitialization
+                                                    compressed = obsdata;
+                                                    diffs.0.init(3, obsdata)
+                                                        .unwrap();
+                                                    // remove pending init,
+                                                    // so we do not force reinitizalition more than once
+                                                    for i in 0..indexes.len() {
+                                                        if indexes[i] == self.obs_ptr {
+                                                            indexes.remove(i);
+                                                            break
+                                                        }
+                                                    }
+                                                } else {
+                                                    compressed = diffs.0.compress(obsdata);
+                                                }
+                                            } else {
+                                                compressed = diffs.0.compress(obsdata);
+                                            }
+                                            result.push_str(&format!("{} ", compressed));
                                             let lli = diffs.1.compress(lli);
                                             self.flags_descriptor.push_str(&lli);
                                             if ssi.len() > 0 {
