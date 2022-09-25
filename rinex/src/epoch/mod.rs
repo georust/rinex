@@ -34,12 +34,6 @@ impl Serialize for Epoch {
     }
 }
 
-/*impl std::fmt::Display for Epoch {
-    fn fmt (&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        f.write_str("salut")
-    }
-}*/
-
 impl Default for Epoch {
     fn default() -> Epoch {
         let now = chrono::Utc::now();
@@ -76,9 +70,16 @@ impl Epoch {
 			flag,
 		}
 	}
-    /// Converts self to string in standard format,
-    /// this is mainly used in file production [rinex::to_file]
-    pub fn to_string (&self) -> &str { "TODO" }
+    /// Formats self in V2 compatible fashion
+    pub fn to_string_v2(&self) -> String {
+        let date = self.date.format("%y %m %d %H %M %S.%6f");
+        format!("{}0  {}", date, self.flag)
+    }
+    /// Formats self in V3 compatible fashion
+    pub fn to_string_v3(&self) -> String {
+        let date = self.date.format("%Y %m %d %H %M %S.%6f");
+        format!("{}  {}", date, self.flag)
+    }
 }
 
 #[derive(Error, Debug)]

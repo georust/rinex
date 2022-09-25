@@ -6,8 +6,14 @@ use bitflags::bitflags;
 use std::collections::{BTreeMap, HashMap};
 
 use crate::sv;
+use crate::sv::Sv;
+
 use crate::epoch;
+use crate::epoch::Epoch;
+
 use crate::header;
+use crate::header::Header;
+
 use crate::version;
 use crate::constellation;
 use crate::constellation::Constellation;
@@ -538,8 +544,80 @@ pub fn parse_epoch (header: &header::Header, content: &str)
     Ok((epoch, clock_offset, map))
 }
 
-/// Pushes observation record into given file writer
-pub fn to_file (header: &header::Header, record: &Record, writer: &mut BufferedWriter) -> std::io::Result<()> {
+/// Writes epoch into given streamer 
+pub fn write_epoch (
+        epoch: &Epoch,
+        clock_offset: &Option<f64>,
+        data: &BTreeMap<Sv, HashMap<String, ObservationData>>,
+        header: &Header,
+        writer: &mut BufferedWriter,
+    ) -> std::io::Result<()> {
+    if header.version.major < 3 {
+        write_epoch_v2(epoch, clock_offset, data, header, writer)
+    } else {
+        write_epoch_v3(epoch, clock_offset, data, header, writer)
+    }
+}
+
+fn write_epoch_v3(
+        epoch: &Epoch,
+        clock_offset: &Option<f64>,
+        data: &BTreeMap<Sv, HashMap<String, ObservationData>>,
+        header: &Header,
+        writer: &mut BufferedWriter,
+    ) -> std::io::Result<()> {
+    let mut lines = String::new();
+    // start by writing epoch
+    lines.push_str("\n");
+    write!(writer, "{}", lines)
+}
+
+fn write_epoch_v2(
+        epoch: &Epoch,
+        clock_offset: &Option<f64>,
+        data: &BTreeMap<Sv, HashMap<String, ObservationData>>,
+        header: &Header,
+        writer: &mut BufferedWriter,
+    ) -> std::io::Result<()> {
+    let mut lines = String::new();
+    let obscodes = &header.obs
+        .as_ref()
+        .unwrap()
+        .codes;
+    lines.push_str(" ");
+    lines.push_str(&epoch.to_string_v2());
+    lines.push_str(&format!("{:3}", data.len()));
+    let mut index = 0;
+    for (sv, _) in data {
+        index += 1;
+        if (index %16) == 0 {
+            if let Some(data) = clock_offset {
+                lines.push_str(&format!(" {:9.1}", data));
+            }
+            lines.push_str("\n                                ");
+        }
+        lines.push_str(&sv.to_string());
+    }
+    for (sv, observations) in data.iter() {
+        let mut index = 0;
+        lines.push_str("\n");
+        for (_, codes) in obscodes {
+            for code in codes {
+                if let Some(observation) = observations.get(code) {
+                    index += 1;
+                    if (index % 5) == 0 {
+                        lines.push_str("\n");
+                    }
+                    lines.push_str(&format!(" {:9.1}XY", observation.obs));
+                }
+            }
+            break // iterate obscodes only once
+        }
+    }
+    lines.push_str("\n");
+    write!(writer, "{}", lines)
+}
+/*
     for (epoch, (clock_offset, sv)) in record.iter() {
         let date = epoch.date;
         let flag = epoch.flag;
@@ -627,8 +705,7 @@ pub fn to_file (header: &header::Header, record: &Record, writer: &mut BufferedW
             write!(writer, "\n")?
         }
     }
-    Ok(())
-}
+*/
 
 #[cfg(test)]
 mod test {

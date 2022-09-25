@@ -135,20 +135,25 @@ impl Record {
             Type::MeteoData => {
                 let record = self.as_meteo()
                     .unwrap();
-                Ok(meteo::record::to_file(header, &record, writer)?)
+                for (epoch, data) in record.iter() {
+                    meteo::record::write_epoch(epoch, data, header, writer)?
+                }
             },
             Type::ObservationData => {
                 let record = self.as_obs()
                     .unwrap();
-                Ok(observation::record::to_file(header, &record, writer)?)
+                for (epoch, (clock_offset, data)) in record.iter() {
+                    observation::record::write_epoch(epoch, clock_offset, data, header, writer)?
+                }
             },
-            Type::NavigationData => {
+            /*Type::NavigationData => {
                 let record = self.as_nav()
                     .unwrap();
-                Ok(navigation::record::to_file(header, &record, writer)?)
-            },
+                //Ok(navigation::record::to_file(header, &record, writer)?)
+            },*/
             _ => panic!("record type not supported yet"),
         }
+        Ok(())
     }
 }
 
