@@ -584,8 +584,42 @@ fn write_epoch_v3(
         writer: &mut BufferedWriter,
     ) -> std::io::Result<()> {
     let mut lines = String::new();
-    // start by writing epoch
+    let obscodes = &header.obs
+        .as_ref()
+        .unwrap()
+        .codes;
+    lines.push_str("> ");
+    lines.push_str(&epoch.to_string_v3());
+    lines.push_str(&format!("{:3}", data.len()));
+    if let Some(data) = clock_offset {
+        lines.push_str(&format!("{:12.4}", data)); 
+    }
     lines.push_str("\n");
+    
+    for (sv, data) in data.iter() {
+        lines.push_str(&format!("{} ", sv.to_string()));
+        if let Some(obscodes) = obscodes.get(&sv.constellation) {
+            for code in obscodes {
+                if let Some(observation) = data.get(code) {
+                    lines.push_str(&format!(" {:10.3}", observation.obs));
+                    if let Some(flag) = observation.lli {
+                        lines.push_str(&format!("{}", flag.bits()));
+                    } else {
+                        lines.push_str(" ");
+                    }
+                    if let Some(flag) = observation.ssi {
+                        lines.push_str(&format!("{}", flag));
+                    } else {
+                        lines.push_str(" ");
+                    }
+                } else {
+                    lines.push_str(&format!("               "));
+                }
+            }
+        }
+        lines.push_str("\n");
+    }
+
     write!(writer, "{}", lines)
 }
 
