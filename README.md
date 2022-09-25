@@ -28,27 +28,27 @@ and the [rinex](rinex/) crate.
 
 ## Supported `RINEX` types
 
-| `types::Type`            | Support           | CLI                 | UBX                  | Production        |          Notes          |
-|--------------------------|-------------------|---------------------|----------------------|-------------------|-------------------------
-| `NavigationData` (NAV)   | :heavy_check_mark:|  :heavy_check_mark: | :construction:       |:construction:     | `epoch` iteration |
-| `ObservationData` (OBS)  | :heavy_check_mark:|  :heavy_check_mark: | :construction:       | :construction:    | `epoch` iteration |
-| `CRINEX` (Compressed OBS)| :heavy_check_mark:|  :heavy_check_mark: | :construction:       | :construction:    | `epoch` iteration |
-| `MeteoData` (MET)        | :heavy_check_mark:| :heavy_check_mark:  | :construction:       |:heavy_check_mark: | `epoch` iteration |  
-| `ClocksData` (CLK)       | :heavy_check_mark:|  :heavy_check_mark: | :question:        |:construction: | `epoch` iteration |
-| `AntennaData` (ATX)      | :heavy_check_mark:| :sparkle:           | :heavy_minus_sign:   |:construction: | `ATX` records are not indexed by `epochs` |
-| `IonosphereMaps` (IONEX) | :sparkle:         |  :sparkle:          | :question:           |:construction: | `epoch` iteration |
-| `SINEX` (SNX)            | :construction:    |  :construction:     | :heavy_minus_sign:   |:construction: |   `SINEX` are special `RINEX`, they are managed by a dedicated [core library](sinex/)  |
-| `Troposphere` (TRO)      | :construction:    |  :construction:     | :question:           |:construction: |   `Troposphere` are one possible SINEX declination |
-| `Bias` (BIA)             | :heavy_check_mark: |  :construction:        | :question:           |:construction: |   `Bias` solutions are one possible SINEX declination |
+| Type                       | Support           | CLI                 | UBX                  | Production        |          Notes          |
+|----------------------------|-------------------|---------------------|----------------------|-------------------|-------------------------
+| Navigation  (NAV)          | :heavy_check_mark:|  :heavy_check_mark: | :construction:       |:construction:     | Epoch iteration |
+| Observation (OBS)          | :heavy_check_mark:|  :heavy_check_mark: | :construction:       | V2 :sparkle: V3,V4 :sparkle: | Epoch iteration |
+|  CRINEX  (Compressed OBS)  | :heavy_check_mark:|  :heavy_check_mark: | :construction:       | CRNX1 :sparkle:  CRNX3 :construction:    | Epoch iteration |
+|  Meteorological data (MET) | :heavy_check_mark:| :heavy_check_mark:  | :construction:       |:heavy_check_mark: | Epoch iteration |  
+|  Clocks (CLK)              | :heavy_check_mark:|  :heavy_check_mark: | :question:        |:construction: | Epoch iteration |
+|  Antenna (ATX)             | :heavy_check_mark:| :sparkle:           | :heavy_minus_sign:   |:construction: | ATX records are not indexed by Epochs |
+|  Ionosphere Maps  (IONEX)  | :sparkle:         |  :sparkle:          | :question:           |:construction: | Epoch iteration |
+|  SINEX  (SNX)              | :construction:    |  :construction:     | :heavy_minus_sign:   |:construction: | SINEX are special RINEX, they are managed by a dedicated [core library](sinex/)  |
+|  Troposphere  (TRO)        | :construction:    |  :construction:     | :question:           |:construction: | Troposphere are one possible SINEX declination |
+|  Bias  (BIA)               | :heavy_check_mark: |  :construction:        | :question:           |:construction: | Bias solutions are one possible SINEX declination |
 
-**Production** means file generation (_to_file()_)    
-**CLI** means exposed to [`rinex-cli`](rinex-cli/) for easy parsing & quick analysis  
+**Production** means data generation      
+**CLI** means exposed to [`rinex-cli`](rinex-cli/) for easy parsing / analysis / generation  
 **UBX** means exposed to [`ublox-rnx`](ublox-rnx/) for quick and easy data production from a UBLOX receiver  
 
 :heavy_check_mark: all revisions supported   
 :heavy_minus_sign: not applicable   
-:sparkle: parser will work, not fully stabilized: don't expect something extraordinary   
-:construction: under development: parser will fail
+:sparkle: being stabilized, under final tests.. works but don't expect something extraordinary   
+:construction: under development - refer to TODO list
 
 ## Supported file format / compressions
 
