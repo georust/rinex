@@ -87,7 +87,7 @@ impl NumDiff {
             4 => x[0] - 4*x[1] + 6*x[2] - 4*x[3] + x[4],
             5 => x[0] - 5*x[1] + 10*x[2] -10*x[3] + 5*x[4] - x[5],
             6 => x[0] - 6*x[1] + 15*x[2] -20*x[3] +15*x[4] -6*x[5] + x[6],
-            _ => unimplemented!("maximal compression order: 7"),
+            _ => unimplemented!("maximal compression order: {}", Self::MAX_COMPRESSION_ORDER),
         }
     }
 }
