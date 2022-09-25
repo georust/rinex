@@ -1575,7 +1575,7 @@ impl std::fmt::Display for Header {
                                 write!(f, "{:6}", observables.len()); 
                                 let mut line = String::new();
                                 for i in 0..observables.len() {
-                                    if (i+1 % 10) == 0 {
+                                    if (i % 9) == 0 && i > 0 {
                                         line.push_str("# / TYPES OF OBSERV\n");
                                         write!(f, "{}", line);
                                         line.clear();
@@ -1584,8 +1584,7 @@ impl std::fmt::Display for Header {
                                     line.push_str(&format!("{:>6}", observables[i]));
                                 }
                                 if line.len() > 0 { // residues
-                                    line.push_str(&format!("{:<width$}", "", width=54-line.len()));
-                                    line.push_str("# / TYPES OF OBSERV\n"); 
+                                    line.push_str(&format!("{:>width$}", "# / TYPES OF OBSERV\n", width=80-line.len()));
                                     write!(f, "{}", line);
                                 }
                                 break ; // run only once, <=> for 1 constellation
