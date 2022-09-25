@@ -53,13 +53,13 @@ impl FromStr for EpochFlag {
 impl std::fmt::Display for EpochFlag {
     fn fmt (&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            EpochFlag::Ok => f.write_str("0"),
-            EpochFlag::PowerFailure => f.write_str("1"),
-            EpochFlag::AntennaBeingMoved => f.write_str("2"),
-            EpochFlag::NewSiteOccupation => f.write_str("3"),
-            EpochFlag::HeaderInformationFollows => f.write_str("4"),
-            EpochFlag::ExternalEvent => f.write_str("5"),
-            EpochFlag::CycleSlip => f.write_str("6"),
+            EpochFlag::Ok => "0".fmt(f),
+            EpochFlag::PowerFailure => "1".fmt(f),
+            EpochFlag::AntennaBeingMoved => "2".fmt(f),
+            EpochFlag::NewSiteOccupation => "3".fmt(f),
+            EpochFlag::HeaderInformationFollows => "4".fmt(f),
+            EpochFlag::ExternalEvent => "5".fmt(f),
+            EpochFlag::CycleSlip => "6".fmt(f),
         }
     }
 }

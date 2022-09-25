@@ -51,16 +51,16 @@ impl Default for Observable {
 impl std::fmt::Display for Observable {
     fn fmt (&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            Self::Pressure => f.write_str("PR"),
-            Self::Temperature => f.write_str("TD"),
-            Self::HumidityRate => f.write_str("HR"),
-            Self::ZenithWetDelay => f.write_str("ZW"),
-            Self::ZenithDryDelay => f.write_str("ZD"),
-            Self::ZenithTotalDelay => f.write_str("ZT"),
-            Self::WindAzimuth => f.write_str("WD"),
-            Self::WindSpeed => f.write_str("WS"),
-            Self::RainIncrement => f.write_str("RI"),
-            Self::HailIndicator => f.write_str("HI"),
+            Self::Pressure => "PR".fmt(f),
+            Self::Temperature => "TD".fmt(f),
+            Self::HumidityRate => "HR".fmt(f),
+            Self::ZenithWetDelay => "ZW".fmt(f),
+            Self::ZenithDryDelay => "ZD".fmt(f),
+            Self::ZenithTotalDelay => "ZT".fmt(f),
+            Self::WindAzimuth => "WD".fmt(f),
+            Self::WindSpeed => "WS".fmt(f),
+            Self::RainIncrement => "RI".fmt(f),
+            Self::HailIndicator => "HI".fmt(f),
         }
     }
 }
