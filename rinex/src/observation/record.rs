@@ -649,7 +649,7 @@ fn write_epoch_v2(
         }
         lines.push_str(&sv.to_string());
     }
-    for (sv, observations) in data.iter() {
+    for (_, observations) in data.iter() {
         let mut index = 0;
         lines.push_str("\n ");
         for (_, codes) in obscodes {
