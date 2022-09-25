@@ -152,12 +152,13 @@ pub fn write_epoch (
     let mut lines = String::new();
     let mut index = 0;
     for obscode in observables {
+        index += 1;
         if let Some(data) = data.get(obscode) {
             lines.push_str(&format!("{:7.1}", data));
         } else {
             lines.push_str(&format!("       "));
         }
-        if (index+1) %8 == 0 {
+        if (index %8) == 0 {
             lines.push_str("\n");
         }
     }
