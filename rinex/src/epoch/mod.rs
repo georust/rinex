@@ -70,15 +70,25 @@ impl Epoch {
 			flag,
 		}
 	}
-    /// Formats self in V2 compatible fashion
-    pub fn to_string_v2(&self) -> String {
+    /// Formats self in OBS/V2 compatible format
+    pub fn to_string_obs_v2(&self) -> String {
         let date = self.date.format("%y %m %d %H %M %S.%6f");
         format!("{}0  {}", date, self.flag)
     }
-    /// Formats self in V3 compatible fashion
-    pub fn to_string_v3(&self) -> String {
+    /// Formats self in NAV/V2 compatible format
+    pub fn to_string_nav_v2(&self) -> String {
+        self.date.format("%y %m %d %H %M %S.0")
+            .to_string()
+    }
+    /// Formats self in OBS/V3 compatible format
+    pub fn to_string_obs_v3(&self) -> String {
         let date = self.date.format("%Y %m %d %H %M %S.%6f");
         format!("{}  {}", date, self.flag)
+    }
+    /// Formats self in NAV/V3 compatible format
+    pub fn to_string_nav_v3(&self) -> String {
+        self.date.format("%y %m %d %H %M %S.0")
+            .to_string()
     }
 }
 

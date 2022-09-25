@@ -146,11 +146,13 @@ impl Record {
                     observation::record::write_epoch(epoch, clock_offset, data, header, writer)?
                 }
             },
-            /*Type::NavigationData => {
+            Type::NavigationData => {
                 let record = self.as_nav()
                     .unwrap();
-                //Ok(navigation::record::to_file(header, &record, writer)?)
-            },*/
+                for (epoch, classes) in record.iter() {
+                    navigation::record::write_epoch(epoch, classes, header, writer)?
+                }
+            },
             _ => panic!("record type not supported yet"),
         }
         Ok(())
