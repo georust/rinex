@@ -1535,8 +1535,8 @@ impl std::fmt::Display for Header {
         write!(f, "{}", "MARKER NUMBER\n")?;
         // ANT
         if let Some(ant) = &self.ant {
-            write!(f, "{:<20}", ant.sn)?;
-            write!(f, "{:<40}", ant.model)?;
+            write!(f, "{:<20}", ant.model)?;
+            write!(f, "{:<40}", ant.sn)?;
             write!(f, "{}", "ANT # / TYPE\n")?;
             if let Some(coords) = &ant.coords {
                 write!(f, "{:14.4}", coords.x)?;
