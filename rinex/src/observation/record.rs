@@ -39,7 +39,7 @@ pub enum Ssi {
     /// 18 dB/Hz <= Ssi < 23 dB/Hz
     DbHz18_23 = 3, 
     /// 24 dB/Hz <= Ssi < 29 dB/Hz
-    DbHz21_29 = 4, 
+    DbHz24_29 = 4, 
     /// 30 dB/Hz <= Ssi < 35 dB/Hz
     DbHz30_35 = 5, 
     /// 36 dB/Hz <= Ssi < 41 dB/Hz
@@ -50,6 +50,23 @@ pub enum Ssi {
     DbHz48_53 = 8, 
     /// Ssi >= 54 dB/Hz 
     DbHz54 = 9, 
+}
+
+impl std::fmt::Display for Ssi {
+    fn fmt (&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Self::DbHz0 => "0".fmt(f),
+            Self::DbHz12 => "1".fmt(f),
+            Self::DbHz12_17 => "2".fmt(f),
+            Self::DbHz18_23 => "3".fmt(f),
+            Self::DbHz24_29 => "4".fmt(f),
+            Self::DbHz30_35 => "5".fmt(f),
+            Self::DbHz36_41 => "6".fmt(f),
+            Self::DbHz42_47 => "7".fmt(f),
+            Self::DbHz48_53 => "8".fmt(f),
+            Self::DbHz54 => "9".fmt(f),
+        }
+    }
 }
 
 impl Default for Ssi {
@@ -64,7 +81,7 @@ impl FromStr for Ssi {
             "1" => Ok(Ssi::DbHz12),
             "2" => Ok(Ssi::DbHz12_17),
             "3" => Ok(Ssi::DbHz18_23),
-            "4" => Ok(Ssi::DbHz21_29),
+            "4" => Ok(Ssi::DbHz24_29),
             "5" => Ok(Ssi::DbHz30_35),
             "6" => Ok(Ssi::DbHz36_41),
             "7" => Ok(Ssi::DbHz42_47),
@@ -590,7 +607,7 @@ fn write_epoch_v2(
     let mut index = 0;
     for (sv, _) in data {
         index += 1;
-        if (index %16) == 0 {
+        if (index %13) == 0 {
             if let Some(data) = clock_offset {
                 lines.push_str(&format!(" {:9.1}", data));
             }
@@ -600,15 +617,27 @@ fn write_epoch_v2(
     }
     for (sv, observations) in data.iter() {
         let mut index = 0;
-        lines.push_str("\n");
+        lines.push_str("\n ");
         for (_, codes) in obscodes {
             for code in codes {
+                index += 1;
                 if let Some(observation) = observations.get(code) {
-                    index += 1;
-                    if (index % 5) == 0 {
-                        lines.push_str("\n");
+                    lines.push_str(&format!(" {:10.3}", observation.obs));
+                    if let Some(flag) = observation.lli {
+                        lines.push_str(&format!("{}", flag.bits()));
+                    } else {
+                        lines.push_str(" ");
                     }
-                    lines.push_str(&format!(" {:9.1}XY", observation.obs));
+                    if let Some(flag) = observation.ssi {
+                        lines.push_str(&format!("{}", flag));
+                    } else {
+                        lines.push_str(" ");
+                    }
+                } else {
+                    lines.push_str(&format!("               "));
+                }
+                if (index % 5) == 0 {
+                    lines.push_str("\n");
                 }
             }
             break // iterate obscodes only once
