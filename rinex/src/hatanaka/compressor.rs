@@ -1,5 +1,4 @@
 //! RINEX compression module
-use crate::sv;
 use crate::sv::Sv;
 use crate::header;
 use crate::is_comment;
