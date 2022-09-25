@@ -1577,7 +1577,7 @@ impl std::fmt::Display for Header {
                                 for i in 0..observables.len() {
                                     if (i % 9) == 0 && i > 0 {
                                         line.push_str("# / TYPES OF OBSERV\n");
-                                        write!(f, "{}", line);
+                                        write!(f, "{}", line)?;
                                         line.clear();
                                         line.push_str(&format!("{:6}", "")); // tab
                                     }
@@ -1591,7 +1591,7 @@ impl std::fmt::Display for Header {
                                     }
                                     line.push_str("# / TYPES OF OBSERV\n");
                                     //line.push_str(&format!("{:>width$}", "# / TYPES OF OBSERV\n", width=74-line.len()));
-                                    write!(f, "{}", line);
+                                    write!(f, "{}", line)?
                                 }
                                 break ; // run only once, <=> for 1 constellation
                             }
@@ -1644,20 +1644,20 @@ impl std::fmt::Display for Header {
         }
         // LEAP
         if let Some(leap) = &self.leap {
-            write!(f, "{:6}", leap.leap)?;
+            let mut line = String::new();
+            line.push_str(&format!("{:6}", leap.leap));
             if let Some(delta) = &leap.delta_tls {
-                write!(f, "{:6}", delta)?;
-                write!(f, "{:6}", leap.week.unwrap_or(0))?;
-                write!(f, "{:6}", leap.day.unwrap_or(0))?;
+                line.push_str(&format!("{:6}", delta));
+                line.push_str(&format!("{:6}", leap.week.unwrap_or(0)));
+                line.push_str(&format!("{:6}", leap.day.unwrap_or(0)));
                 if let Some(system) = &leap.system {
-                    write!(f, "{:<10}", system.to_3_letter_code())?
+                    line.push_str(&format!("{:<10}", system.to_3_letter_code()));
                 } else {
-                    write!(f, "{:<10}", " ")?
+                    line.push_str(&format!("{:<10}", ""));
                 }
-            } else {
-                write!(f, "{:<40}", " ")?
             }
-            write!(f, "LEAP SECONDS\n")?
+            line.push_str(&format!("{:>width$}", "LEAP SECONDS\n", width=73-line.len()));
+            write!(f, "{}", line)?
         }
         // SENSOR(s)
         if let Some(meteo) = &self.meteo {
