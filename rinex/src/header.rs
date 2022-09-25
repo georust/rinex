@@ -1539,15 +1539,16 @@ impl std::fmt::Display for Header {
             write!(f, "{:<40}", ant.model)?;
             write!(f, "{}", "ANT # / TYPE\n")?;
             if let Some(coords) = &ant.coords {
-                write!(f, "{:<20}", coords.x)?;
-                write!(f, "{:<20}", coords.y)?;
-                write!(f, "{:<20}", coords.z)?;
+                write!(f, "{:14.4}", coords.x)?;
+                write!(f, "{:14.4}", coords.y)?;
+                write!(f, "{:14.4}", coords.z)?;
                 write!(f, "{}", "APPROX POSITION XYZ\n")?
             }
             if let Some(h) = &ant.height {
-                write!(f, "{:<20}", h)?;
-                write!(f, "{:<20}", ant.eastern_ecc.unwrap_or(0.0_f32))?;
-                write!(f, "{:<20}", ant.northern_ecc.unwrap_or(0.0_f32))?;
+                write!(f, "{:14.4}", h)?;
+                write!(f, "{:14.4}", ant.eastern_ecc.unwrap_or(0.0_f32))?;
+                write!(f, "{:14.4}", ant.northern_ecc.unwrap_or(0.0_f32))?;
+                write!(f, "{:18}", "")?;
                 write!(f, "{}", "ANTENNA: DELTA H/E/N\n")?
             }
         }
@@ -1570,21 +1571,24 @@ impl std::fmt::Display for Header {
                 if let Some(obs) = &self.obs {
                     match self.version.major {
                         1|2 => { // old revisions
-                            for (_constell, codes) in obs.codes.iter() {
-                                let mut line = format!("{:6}", codes.len()); 
-                                for i in 0..codes.len() {
-                                    if (i+1)%10 == 0 { // wrap line
-                                        line.push_str("# / TYPES OF OBS\n");
-                                        write!(f, "{}", line)?;
+                            for (_, observables) in obs.codes.iter() {
+                                write!(f, "{:6}", observables.len()); 
+                                let mut line = String::new();
+                                for i in 0..observables.len() {
+                                    if (i+1 % 10) == 0 {
+                                        line.push_str("# / TYPES OF OBSERV\n");
+                                        write!(f, "{}", line);
                                         line.clear();
-                                        line.push_str(&format!("{:<6}", ""));
+                                        line.push_str(&format!("{:6}", "")); // tab
                                     }
-                                    line.push_str(&format!(" {:<5}", codes[i]));
+                                    line.push_str(&format!("{:>6}", observables[i]));
                                 }
-                                line.push_str(&format!("{:<width$}", "", width=60-line.len()));
-                                line.push_str("# / TYPES OF OBS\n"); 
-                                write!(f, "{}", line)?;
-                                break // only once
+                                if line.len() > 0 { // residues
+                                    line.push_str(&format!("{:<width$}", "", width=54-line.len()));
+                                    line.push_str("# / TYPES OF OBSERV\n"); 
+                                    write!(f, "{}", line);
+                                }
+                                break ; // run only once, <=> for 1 constellation
                             }
                         },
                         _ => { // modern revisions
