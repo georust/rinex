@@ -538,7 +538,10 @@ fn write_epoch_v2 (
                     None => {},
                 }
                 lines.push_str(&epoch.to_string_nav_v2());
-                let mut index = 1;
+                lines.push_str(&format!("{:.14e}", clk_off));
+                lines.push_str(&format!("{:.14e}", clk_dr));
+                lines.push_str(&format!("{:.14e}", clk_drr));
+                let mut index = 3;
                 for (_, data) in data.iter() {
                     index += 1;
                     if let Some(data) = data.as_f64() {
