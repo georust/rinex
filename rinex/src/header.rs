@@ -1584,7 +1584,13 @@ impl std::fmt::Display for Header {
                                     line.push_str(&format!("{:>6}", observables[i]));
                                 }
                                 if line.len() > 0 { // residues
-                                    line.push_str(&format!("{:>width$}", "# / TYPES OF OBSERV\n", width=80-line.len()));
+                                    if observables.len() > 9 {
+                                        line.push_str(&format!("{:<width$}", "", width=60-line.len()));
+                                    } else {
+                                        line.push_str(&format!("{:<width$}", "", width=54-line.len()));
+                                    }
+                                    line.push_str("# / TYPES OF OBSERV\n");
+                                    //line.push_str(&format!("{:>width$}", "# / TYPES OF OBSERV\n", width=74-line.len()));
                                     write!(f, "{}", line);
                                 }
                                 break ; // run only once, <=> for 1 constellation
