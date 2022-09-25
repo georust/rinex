@@ -132,30 +132,37 @@ pub fn parse_epoch (header: &Header, content: &str)
 	Ok((epoch, map))
 }
 
-/// Pushes meteo record into given file writer
-pub fn to_file (header: &Header, record: &Record, writer: &mut BufferedWriter) -> std::io::Result<()> {
-    let obscodes = &header.meteo.as_ref().unwrap().codes;
-    for (epoch, obs) in record.iter() {
-        if header.version.major > 3 {
-            let _ = write!(writer, " {}", epoch.date.format("%Y %_m %_d %_H %_M %_S").to_string());
-        } else {
-            let _ = write!(writer, " {}", epoch.date.format("%y %_m %_d %_H %_M %_S").to_string());
-        }
-        let mut index = 0;
-        for code in obscodes.iter() { 
-            if let Some(data) = obs.get(code) {
-                let _ = write!(writer, "{:7.1}", data);
-            } else {
-                let _ = write!(writer, "       ");
-            }
-            if (index+1) %8 == 0 {
-                let _ = write!(writer, "\n");
-            }
-            index += 1;
-        }
-        write!(writer, "\n")?
+/// Writes epoch into given streamer
+pub fn write_epoch (
+        epoch: &epoch::Epoch, 
+        data: &HashMap<Observable, f32>, 
+        header: &Header, 
+        writer: &mut BufferedWriter
+    ) -> std::io::Result<()>  {
+    if header.version.major > 3 {
+        write!(writer, " {}", epoch.date.format("%Y %_m %_d %_H %_M %_S").to_string())?
+    } else {
+        write!(writer, " {}", epoch.date.format("%y %_m %_d %_H %_M %_S").to_string())?
     }
-    Ok(())
+    let observables = &header
+        .meteo
+        .as_ref()
+        .unwrap()
+        .codes;
+    let mut lines = String::new();
+    let mut index = 0;
+    for obscode in observables {
+        if let Some(data) = data.get(obscode) {
+            lines.push_str(&format!("{:7.1}", data));
+        } else {
+            lines.push_str(&format!("       "));
+        }
+        if (index+1) %8 == 0 {
+            lines.push_str("\n");
+        }
+    }
+    lines.push_str("\n");
+    write!(writer, "{}", lines)
 }
 
 #[cfg(test)]
