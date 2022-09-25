@@ -511,13 +511,13 @@ pub fn write_epoch (
         header: &header::Header,
         writer: &mut BufferedWriter,
     ) -> std::io::Result<()> {
-    if header.version.major < 3 {
+    /*if header.version.major < 3 {*/
         write_epoch_v2(epoch, data, header, writer)
-    } else if header.version.major == 3 {
+    /*} else if header.version.major == 3 {
         write_epoch_v2(epoch, data, header, writer)
     } else {
         write_epoch_v2(epoch, data, header, writer)
-    }
+    }*/
 }
 
 fn write_epoch_v2 (
@@ -559,6 +559,7 @@ fn write_epoch_v2 (
     write!(writer, "{}", lines)
 }
 
+/*
 fn write_epoch_v3 (
         epoch: &Epoch, 
         data: &BTreeMap<FrameClass, Vec<Frame>>,
@@ -579,8 +580,9 @@ fn write_epoch_v3 (
     }
     lines.push_str("\n");
     write!(writer, "{}", lines)
-}
+}*/
 
+/*
 fn write_epoch_v4 (
         epoch: &Epoch, 
         data: &BTreeMap<FrameClass, Vec<Frame>>,
@@ -588,7 +590,7 @@ fn write_epoch_v4 (
         writer: &mut BufferedWriter,
     ) -> std::io::Result<()> {
     Ok(())
-}
+}*/
 
 /*
     for (epoch, sv) in record.iter() {
