@@ -158,19 +158,16 @@ mod test {
         let s = s.with_position((0.0, 0.0, 0.0, 1234.5678));
         assert_eq!(s.to_string(), "PAROSCIENTIFIC      740-16B                       0.2    PR SENSOR MOD/TYPE/ACC
         0.0000        0.0000        0.0000     1234.5678 PR SENSOR POS XYZ/H\n");
-        //let s = Sensor::new("Press.  PTU300", "M2710010", Observable::Pressure, None);
-        //assert_eq!(s.to_string(), "                                                  0.0    PR SENSOR MOD/TYPE/ACC");
-        //let s = Sensor::new("Model","Type", Observable::HailIndicator, None);
-        //assert_eq!(s.to_string(), "                                                  0.0    HI SENSOR MOD/TYPE/ACC");
     }
     #[test]
     fn from_str() {
         let s = Sensor::from_str("                                                  0.0    PR ");
         assert_eq!(s.is_ok(), true);
-        //let s = s.unwrap();
-        //assert_eq!(s.model, "Unknown");
-        //assert_eq!(s.sensor_type, "Unknown");
-        //assert_eq!(s.accuracy, Some(0.0));
+        let s = s.unwrap();
+        assert_eq!(s.model, None);
+        assert_eq!(s.sensor_type, None);
+        assert_eq!(s.accuracy, Some(0.0));
+        assert_eq!(s.observable, Observable::Pressure);
 
         let s = Sensor::from_str("PAROSCIENTIFIC      740-16B                       0.2    PR SENSOR MOD/TYPE/ACC");
         assert_eq!(s.is_ok(), true);
