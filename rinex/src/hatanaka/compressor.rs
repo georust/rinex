@@ -13,6 +13,7 @@ use super::{
     textdiff::TextDiff,
 };
 
+#[derive(PartialEq)]
 pub enum State {
     EpochDescriptor,
     Body,
@@ -54,7 +55,9 @@ pub struct Compressor {
     /// Clock offset differentiator
     clock_diff: NumDiff,
     /// Vehicule differentiators
-    sv_diff: HashMap<sv::Sv, Vec<(NumDiff, TextDiff, TextDiff)>>,
+    sv_diff: HashMap<Sv, Vec<(NumDiff, TextDiff, TextDiff)>>,
+    /// Pending kernel re-initialization
+    forced_init: HashMap<Sv, Vec<usize>>,
 }
 
 fn format_epoch_descriptor (content: &str) -> String {
@@ -83,7 +86,33 @@ impl Compressor {
             clock_diff: NumDiff::new(NumDiff::MAX_COMPRESSION_ORDER)
                 .unwrap(),
             sv_diff: HashMap::new(), // init. later
+            forced_init: HashMap::new(),
         }
+    }
+
+    fn vehicule_completion (&mut self, content: &str) -> String {
+        let mut result = content.to_string();
+        //DEBUG
+        println!("");
+        // conclude line with lli/ssi flags
+        result.push_str(&format!("{}\n", self.flags_descriptor));
+        // move to next vehicule
+        self.obs_ptr = 0;
+        self.vehicule_ptr += 1;
+        self.flags_descriptor.clear();
+        if self.vehicule_ptr == self.nb_vehicules {
+            self.conclude_epoch()
+        }
+        result
+    }
+
+    fn conclude_epoch (&mut self) {
+        //DEBUG
+        println!("\n");
+        self.epoch_ptr = 0;
+        self.vehicule_ptr = 0;
+        self.epoch_descriptor.clear();
+        self.state.reset();
     }
     
     /// Compresses given RINEX data to CRINEX 
@@ -110,7 +139,42 @@ impl Compressor {
         loop {
             let line: &str = match lines.next() {
                 Some(l) => l,
-                None => break ,
+                None => {
+                    // empty line detected
+                    if self.state == State::Body { // previously active
+                        // identify current Sv
+                        let sv_size = 3;
+                        let vehicule_offset = self.vehicule_ptr * sv_size;
+                        let min = 32+vehicule_offset; // epoch size
+                        let max = min + sv_size;
+                        let vehicule = &self.epoch_descriptor[min..max];
+                        if let Ok(sv) = Sv::from_str(vehicule.trim()) {
+                            // nb of obs for this constellation
+                            let sv_nb_obs = obs_codes[&sv.constellation].len();
+                            if self.obs_ptr > sv_nb_obs - 5 { // last bits
+                                // we're missing all the final fields for this vehicule
+                                // ==> keep parsing and we'll encounter 
+                                //     either next vehicule or next epoch, and we'll fail
+                                let nb_missing = std::cmp::min(5, sv_nb_obs - self.obs_ptr);
+                                println!("{} last field(s) missing", nb_missing);
+                                for i in 0..nb_missing { 
+                                    self.flags_descriptor.push_str("  "); // both missing
+                                    //schedule re-init
+                                    if let Some(indexes) = self.forced_init.get_mut(&sv) {
+                                        indexes.push(self.obs_ptr+1+i);
+                                    } else {
+                                        self.forced_init.insert(sv, vec![self.obs_ptr+1+i]);
+                                    }
+                                    self.obs_ptr += nb_missing;
+                                    if self.obs_ptr == sv_nb_obs { // vehicule completion
+                                        result = self.vehicule_completion(&result);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    break ;
+                }
             };
             
             //DEBUG
@@ -135,9 +199,8 @@ impl Compressor {
                 State::EpochDescriptor => {
                     if self.epoch_ptr == 0 { // 1st line
                         // identify #systems
-                        if line.len() < 32+3 { // at least 1 vehicule
-                            return Err(Error::MalformedEpochDescriptor);
-                        } else {
+                        if line.len() > 32+3 { // at least 1 vehicule
+                           self.epoch_ptr += 1;
                             let nb = &line[30..32];
                             if let Ok(u) = u16::from_str_radix(nb.trim(), 10) {
                                 self.nb_vehicules = u.into();
@@ -145,9 +208,12 @@ impl Compressor {
                             } else {
                                 return Err(Error::MalformedEpochDescriptor);
                             }
+                        } else {
+                            continue
                         }
+                    } else {
+                        self.epoch_ptr += 1;
                     }
-                    self.epoch_ptr += 1;
                     self.epoch_descriptor.push_str(line);
                     self.epoch_descriptor.push_str("\n");
 
@@ -230,8 +296,22 @@ impl Compressor {
                                     if let Some(sv_diffs) = self.sv_diff.get_mut(&sv) {
                                         // retrieve observable state
                                         if let Some(diffs) = sv_diffs.get_mut(self.obs_ptr) {
-                                            // compress data
-                                            let compressed = diffs.0.compress(obsdata);
+                                            let compressed :i64;
+                                            // if forced re-init is pending
+                                            if let Some(indexes) = self.forced_init.get_mut(&sv) {
+                                                if let Some(index) = indexes.get(self.obs_ptr) {
+                                                    // forced reinitialization
+                                                    compressed = obsdata;
+                                                    diffs.0.init(3, obsdata)
+                                                        .unwrap();
+                                                } else {
+                                                    // compress data
+                                                    compressed = diffs.0.compress(obsdata);
+                                                }
+                                            } else {
+                                                // compress data
+                                                compressed = diffs.0.compress(obsdata);
+                                            }
                                             result.push_str(&format!("{} ", compressed));//append obs
                                         } else {
                                             // first time dealing with this observable
@@ -266,7 +346,7 @@ impl Compressor {
                                         self.flags_descriptor.push_str("  ");
                                         self.sv_diff.insert(sv, vec![diff]);
                                     }
-                                } else { //flangs.len() >=1 : Not all Flags ommited
+                                } else { //flags.len() >=1 : Not all Flags ommited
                                     let (lli, ssi) = flags.split_at(1);
                                     println!("OBS \"{}\" - LLI \"{}\" - SSI \"{}\"", obsdata, lli, ssi);
                                     if let Some(sv_diffs) = self.sv_diff.get_mut(&sv) {
@@ -337,41 +417,21 @@ impl Compressor {
                                 // when the floating point observable parsing is in failure,
                                 // we assume field is omitted
                                 self.flags_descriptor.push_str("  ");
+                                // next time we'll have to reinitiate the compression kernel
+                                if let Some(indexes) = self.forced_init.get_mut(&sv) {
+                                    // got already some kernels with pending reinitialization
+                                    indexes.push(self.obs_ptr);
+                                } else {
+                                    self.forced_init.insert(sv, vec![self.obs_ptr]);
+                                }
                             }
                             //DEBUG
-                            println!("OBS {}/{}", self.obs_ptr, sv_nb_obs); 
+                            println!("OBS {}/{}", self.obs_ptr+1, sv_nb_obs); 
                             self.obs_ptr += 1
                         } //for i..nb_obs in this line
 
-                        // omitted fields produce unexpectedly short lines
-                        // (when browsing and reading).
-                        // we know that 5 observables is maximum per line,
-                        // if we did not get 5 observables in this line,
-                        // and we're still expecting data => assume they're all omitted
-                        if nb_obs_line < 5 {
-                            if self.obs_ptr < sv_nb_obs {
-                                self.obs_ptr = sv_nb_obs;
-                                //empty fields
-                                self.flags_descriptor.push_str("  ");
-                            }
-                        }
-
                         if self.obs_ptr == sv_nb_obs { // vehicule completion
-                            // conclude line with LLI/SSI flags
-                            result.push_str(&format!("{}\n", self.flags_descriptor)); 
-                            // moving to next vehicule
-                            self.obs_ptr = 0;
-                            self.vehicule_ptr += 1;
-                            self.flags_descriptor.clear();
-                            if self.vehicule_ptr == self.nb_vehicules { // last vehicule
-                                //DEBUG
-                                println!("\n");
-                                self.epoch_ptr = 0;
-                                self.epoch_descriptor.clear();
-                                self.state = State::EpochDescriptor 
-                            }
-                            //DEBUG
-                            println!("");
+                            result = self.vehicule_completion(&result);
                         }
                     } else { // sv::from_str()
                         // failed to identify which vehicule we're dealing with
