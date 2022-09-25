@@ -1572,7 +1572,7 @@ impl std::fmt::Display for Header {
                     match self.version.major {
                         1|2 => { // old revisions
                             for (_, observables) in obs.codes.iter() {
-                                write!(f, "{:6}", observables.len()); 
+                                write!(f, "{:6}", observables.len())?; 
                                 let mut line = String::new();
                                 for i in 0..observables.len() {
                                     if (i % 9) == 0 && i > 0 {
@@ -1616,30 +1616,32 @@ impl std::fmt::Display for Header {
                             }
                         },
                     }
-                } else {
-                    panic!("Observation RINEX with no `obs codes` specified")
                 }
-            },
+            }, //ObservationData
             Type::MeteoData => {
                 if let Some(obs) = &self.meteo {
-                    let codes = &obs.codes;
-                    let mut line = format!("{:6}", codes.len()); 
-                    for i in 0..codes.len() {
-                        if (i+1)%9 == 0 {
-                            line.push_str("# / TYPES OF OBS\n");
+                    write!(f, "{:6}", obs.codes.len())?; 
+                    let mut line = String::new();
+                    for i in 0..obs.codes.len() {
+                        if (i % 9) == 0 && i > 0 {
+                            line.push_str("# / TYPES OF OBSERV\n");
                             write!(f, "{}", line)?;
                             line.clear();
-                            line.push_str(&format!("{:<6}", ""));
+                            line.push_str(&format!("{:6}", "")); // tab
                         }
-                        line.push_str(&format!(" {:>5}", codes[i]));
+                        line.push_str(&format!("{:>6}", obs.codes[i]));
                     }
-                    line.push_str(&format!("{:<width$}", "", width=60-line.len()));
-                    line.push_str("# / TYPES OF OBS\n"); 
-                    write!(f, "{}", line)?;
-                } else {
-                    panic!("Meteo RINEX with no `obs codes` specified")
+                    if line.len() > 0 { // residues
+                        if obs.codes.len() > 9 {
+                            line.push_str(&format!("{:<width$}", "", width=60-line.len()));
+                        } else {
+                            line.push_str(&format!("{:<width$}", "", width=54-line.len()));
+                        }
+                        line.push_str("# / TYPES OF OBSERV\n");
+                    }
+                    write!(f, "{}", line)?
                 }
-            },
+            },//meteo data
             _ => {},
         }
         // LEAP
