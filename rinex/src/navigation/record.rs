@@ -504,9 +504,93 @@ fn parse_complex_map (version: Version, constell: Constellation, mut lines: std:
     Ok(map)
 }
 
+/// Writes given epoch into stream 
+pub fn write_epoch (
+        epoch: &Epoch, 
+        data: &BTreeMap<FrameClass, Vec<Frame>>,
+        header: &header::Header,
+        writer: &mut BufferedWriter,
+    ) -> std::io::Result<()> {
+    if header.version.major < 3 {
+        write_epoch_v2(epoch, data, header, writer)
+    } else if header.version.major == 3 {
+        write_epoch_v2(epoch, data, header, writer)
+    } else {
+        write_epoch_v2(epoch, data, header, writer)
+    }
+}
 
-/// Pushes observation record into given file writer
-pub fn to_file (header: &header::Header, record: &Record, writer: &mut BufferedWriter) -> std::io::Result<()> {
+fn write_epoch_v2 (
+        epoch: &Epoch, 
+        data: &BTreeMap<FrameClass, Vec<Frame>>,
+        header: &header::Header,
+        writer: &mut BufferedWriter,
+    ) -> std::io::Result<()> {
+    let mut lines = String::new();
+    for (class, frames) in data.iter() {
+        if *class == FrameClass::Ephemeris {
+            for frame in frames.iter() {
+                let (_, sv, clk_off, clk_dr, clk_drr, data) = frame.as_eph()
+                    .unwrap();
+                match &header.constellation {
+                    Some(Constellation::Mixed) => lines.push_str(&sv.to_string()),
+                    Some(_) => lines.push_str(&format!("{:2} ", sv.prn)),
+                    None => {},
+                }
+                lines.push_str(&epoch.to_string_nav_v2());
+                let mut index = 1;
+                for (_, data) in data.iter() {
+                    index += 1;
+                    if let Some(data) = data.as_f64() {
+                        lines.push_str(&format!("{:.14e}", data));
+                    } else {
+                        lines.push_str("                ");
+                    }
+                    if (index % 4) == 0 {
+                        lines.push_str("\n");
+                    }
+                }
+            }
+        }
+    }
+    lines = lines.replace("e-", "D-");
+    lines = lines.replace("e", "D+");
+    lines.push_str("\n");
+    write!(writer, "{}", lines)
+}
+
+fn write_epoch_v3 (
+        epoch: &Epoch, 
+        data: &BTreeMap<FrameClass, Vec<Frame>>,
+        header: &header::Header,
+        writer: &mut BufferedWriter,
+    ) -> std::io::Result<()> {
+    let mut lines = String::new();
+    lines.push_str(" ");
+    lines.push_str(&epoch.to_string_nav_v2());
+    for (class, frames) in data.iter() {
+        if *class == FrameClass::Ephemeris {
+            for frame in frames.iter() {
+                let (_, sv, clk_off, clk_dr, clk_drr, data) = frame.as_eph()
+                    .unwrap();
+                 
+            }
+        }
+    }
+    lines.push_str("\n");
+    write!(writer, "{}", lines)
+}
+
+fn write_epoch_v4 (
+        epoch: &Epoch, 
+        data: &BTreeMap<FrameClass, Vec<Frame>>,
+        header: &header::Header,
+        writer: &mut BufferedWriter,
+    ) -> std::io::Result<()> {
+    Ok(())
+}
+
+/*
     for (epoch, sv) in record.iter() {
         let nb_sv = sv.keys().len();
         match header.version.major {
@@ -529,7 +613,7 @@ pub fn to_file (header: &header::Header, record: &Record, writer: &mut BufferedW
         }*/
     }
     Ok(())
-}
+}*/
 
 #[cfg(test)]
 mod test {
