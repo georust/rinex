@@ -65,7 +65,7 @@ mod test {
         assert_eq!(compressed.is_ok(), true);
         let result = compressed.unwrap();
         // + empty clock offset line, due to missing field [epoch #1]
-        let expected = "&21  1  1  0  0  0.0000000  0 20G07G23G26G20G21G18R24R09G08G27G10G16R18G13R01R16R17G15R02R15\n\n";
+        let expected = "&21  1  1  0  0  0.0000000  0 20G07G23G26G20G21G18R24R09G08G27G10G16R18G13R01R16R17G15R02R15\n";
         assert_eq!(result, expected);
         
         // epoch#1 sat#1
@@ -81,7 +81,7 @@ mod test {
         assert_eq!(compressed.is_ok(), true);
         let result = compressed.unwrap();
         // CRNX line completion
-        assert_eq!(result, "3&40000 3&22000  643        4 \n");
+        assert_eq!(result, "3&40000 3&22000  643        4\n");
 
         // epoch#1 sat#2
         let content = " 111982965.979 8  87259475.17746  21309646.971    21309649.924    21309646.771";
@@ -95,7 +95,7 @@ mod test {
         assert_eq!(compressed.is_ok(), true);
         let result = compressed.unwrap();
         // CRNX line completion
-        assert_eq!(result, "3&48000 3&37000  846        4 \n");
+        assert_eq!(result, "3&48000 3&37000  846        4\n");
 
         // epoch#1 sat#3
         let content = " 125184221.815 6  97546158.89945  23821762.469    23821768.749    23821762.040";
@@ -109,7 +109,7 @@ mod test {
         assert_eq!(compressed.is_ok(), true);
         let result = compressed.unwrap();
         // CRNX line completion
-        assert_eq!(result, "3&40000 3&35000  645        4 \n");
+        assert_eq!(result, "3&40000 3&35000  645        4\n");
 
         // epoch#1 sat#4
         let content = " 111582858.305 8  86947705.90746  21233509.912    21233511.727    21233508.599";
@@ -124,7 +124,7 @@ mod test {
         assert_eq!(compressed.is_ok(), true);
         let result = compressed.unwrap();
         // CRNX line completion
-        assert_eq!(result, "3&49000 3&37000  846        4 \n");
+        assert_eq!(result, "3&49000 3&37000  846        4\n");
 
         let content = " 123948324.318 6  96583131.80443  23586581.658    23586584.420    23586580.391";
         let compressed = compressor.compress(&header, content); 
@@ -138,7 +138,7 @@ mod test {
         assert_eq!(compressed.is_ok(), true);
         let result = compressed.unwrap();
         // CRNX line completion
-        assert_eq!(result, "3&39000 3&20000  643        4 \n");
+        assert_eq!(result, "3&39000 3&20000  643        4\n");
 
         let content = " 121443586.995 6  94631394.73544  23109944.474    23109947.055    23109944.139";
         let compressed = compressor.compress(&header, content); 
@@ -152,7 +152,7 @@ mod test {
         assert_eq!(compressed.is_ok(), true);
         let result = compressed.unwrap();
         // CRNX line completion
-        assert_eq!(result, "3&40000 3&28000  644        4 \n");
+        assert_eq!(result, "3&40000 3&28000  644        4\n");
 
         let content = " 123664246.260 6  96183328.899 6  23125836.575    23125839.071    23125836.244";
         let compressed = compressor.compress(&header, content); 
@@ -166,7 +166,7 @@ mod test {
         assert_eq!(compressed.is_ok(), true);
         let result = compressed.unwrap();
         // CRNX line completion
-        assert_eq!(result, "3&41000 3&40000  6 6          \n");
+        assert_eq!(result, "3&41000 3&40000  6 6\n");
 
         let content = " 120184930.156 7  93477190.884 7  22506776.986    22506777.899    22506777.465";
         let compressed = compressor.compress(&header, content); 
@@ -180,7 +180,7 @@ mod test {
         assert_eq!(compressed.is_ok(), true);
         let result = compressed.unwrap();
         // CRNX line completion
-        assert_eq!(result, "3&44000 3&43000  7 7          \n");
+        assert_eq!(result, "3&44000 3&43000  7 7\n");
 
         let content = " 114160130.658 7  88955964.55647  21723948.105    21723953.153    21723947.155";
         let compressed = compressor.compress(&header, content); 
@@ -194,7 +194,7 @@ mod test {
         assert_eq!(compressed.is_ok(), true);
         let result = compressed.unwrap();
         // CRNX line completion
-        assert_eq!(result, "3&46000 3&47000  747        4 \n");
+        assert_eq!(result, "3&46000 3&47000  747        4\n");
 
         let content = " 105271498.527 8  82029766.96649  20032495.677    20032500.289    20032495.191";
         let compressed = compressor.compress(&header, content); 
@@ -208,7 +208,7 @@ mod test {
         assert_eq!(compressed.is_ok(), true);
         let result = compressed.unwrap();
         // CRNX line completion
-        assert_eq!(result, "3&53000 3&56000  849        4 \n");
+        assert_eq!(result, "3&53000 3&56000  849        4\n");
 
         let content = " 112144051.840 8  87384999.71448  21340302.567    21340307.619    21340301.864";
         let compressed = compressor.compress(&header, content); 
@@ -222,7 +222,7 @@ mod test {
         assert_eq!(compressed.is_ok(), true);
         let result = compressed.unwrap();
         // CRNX line completion
-        assert_eq!(result, "3&52000 3&52000  848        4 \n");
+        assert_eq!(result, "3&52000 3&52000  848        4\n");
 
         let content = " 113556669.792 7  88485725.93146  21609114.743    21609116.936    21609113.593";
         let compressed = compressor.compress(&header, content); 
@@ -236,7 +236,7 @@ mod test {
         assert_eq!(compressed.is_ok(), true);
         let result = compressed.unwrap();
         // CRNX line completion
-        assert_eq!(result, "3&47000 3&38000  746        4 \n");
+        assert_eq!(result, "3&47000 3&38000  746        4\n");
 
         let content = " 106844822.639 8  83101546.155 8  20015628.375    20015631.390    20015628.486";
         let compressed = compressor.compress(&header, content); 
@@ -250,7 +250,7 @@ mod test {
         assert_eq!(compressed.is_ok(), true);
         let result = compressed.unwrap();
         // Completion 
-        assert_eq!(result, "3&53000 3&50000  8 8          \n");
+        assert_eq!(result, "3&53000 3&50000  8 8\n");
         
         let content = " 131399268.954 6 102389055.31242  25004448.492    25004450.593    25004447.809";
         let compressed = compressor.compress(&header, content); 
@@ -264,7 +264,7 @@ mod test {
         assert_eq!(compressed.is_ok(), true);
         let result = compressed.unwrap();
         // Completion 
-        assert_eq!(result, "3&36000 3&12000  642        4 \n");
+        assert_eq!(result, "3&36000 3&12000  642        4\n");
         
         let content = " 116954721.816 7  90964809.026 6  21878794.287    21878798.089    21878794.473";
         let compressed = compressor.compress(&header, content); 
@@ -278,7 +278,7 @@ mod test {
         assert_eq!(compressed.is_ok(), true);
         let result = compressed.unwrap();
         // CRNX line completion
-        assert_eq!(result, "3&42000 3&39000  7 6          \n");
+        assert_eq!(result, "3&42000 3&39000  7 6\n");
 
         let content = " 110150054.052 7  85672270.182 7  20620317.569    20620319.227    20620317.319";
         let compressed = compressor.compress(&header, content); 
@@ -292,7 +292,7 @@ mod test {
         assert_eq!(compressed.is_ok(), true);
         let result = compressed.unwrap();
         // CRNX line completion
-        assert_eq!(result, "3&46000 3&42000  7 7          \n");
+        assert_eq!(result, "3&46000 3&42000  7 7\n");
 
         let content = " 104344364.269 8  81156754.225 8  19499235.584    19499235.915    19499235.267";
         let compressed = compressor.compress(&header, content); 
@@ -306,7 +306,7 @@ mod test {
         assert_eq!(compressed.is_ok(), true);
         let result = compressed.unwrap();
         // CRNX line completion
-        assert_eq!(result, "3&52000 3&51000  8 8          \n");
+        assert_eq!(result, "3&52000 3&51000  8 8\n");
 
         let content = " 126812563.577 6  98815006.75044  24131624.962    24131627.813    24131624.907";
         let compressed = compressor.compress(&header, content); 
@@ -320,7 +320,7 @@ mod test {
         assert_eq!(compressed.is_ok(), true);
         let result = compressed.unwrap();
         // CRNX line completion
-        assert_eq!(result, "3&38000 3&29000  644        4 \n");
+        assert_eq!(result, "3&38000 3&29000  644        4\n");
 
         let content = " 113907865.790 8  88595032.353 7  21346285.819    21346288.923    21346285.443";
         let compressed = compressor.compress(&header, content); 
@@ -334,7 +334,7 @@ mod test {
         assert_eq!(compressed.is_ok(), true);
         let result = compressed.unwrap();
         // CRNX line completion
-        assert_eq!(result, "3&49000 3&46000  8 7          \n");
+        assert_eq!(result, "3&49000 3&46000  8 7\n");
 
         let content = " 118516772.306 7  92179732.837 7  22178802.374    22178804.901    22178802.684";
         let compressed = compressor.compress(&header, content); 
@@ -348,7 +348,7 @@ mod test {
         assert_eq!(compressed.is_ok(), true);
         let result = compressed.unwrap();
         // CRNX line completion
-        assert_eq!(result, "3&45000 3&42000  7 7          \n");
+        assert_eq!(result, "3&45000 3&42000  7 7\n");
 
         //epoch#2 first compressed epoch
         let content = " 21  1  1  0  0 30.0000000  0 20G07G23G26G20G21G18R24R09G08G27G10G16
@@ -357,7 +357,7 @@ mod test {
         assert_eq!(compressed.is_ok(), true);
         let result = compressed.unwrap();
         // + empty clock offset line, due to missing field
-        assert_eq!(result, "                3                                                                            \n\n");
+        assert_eq!(result, "                3\n\n");
         
         //epoch#2 sat#1 1st compression
         let content =" 126282454.570 6  98401922.22443  24030750.580    24030752.522    24030750.489";
@@ -370,7 +370,7 @@ mod test {
         let compressed = compressor.compress(&header, content); 
         assert_eq!(compressed.is_ok(), true);
         let result = compressed.unwrap();
-        assert_eq!(result, "-1000 0            \n");
+        assert_eq!(result, "-1000 0 \n");
 
         //epoch#2 sat#2 1st compression
         let content =" 111966699.068 7  87246799.66946  21306551.543    21306554.461    21306551.303";
@@ -383,7 +383,7 @@ mod test {
         let compressed = compressor.compress(&header, content); 
         assert_eq!(compressed.is_ok(), true);
         let result = compressed.unwrap();
-        assert_eq!(result, "-2000 1000  7         \n");
+        assert_eq!(result, "-2000 1000  7\n");
         
         //epoch#2 sat#3
         let content =" 125261073.448 6  97606043.26845  23836386.907    23836393.122    23836386.335";
@@ -396,7 +396,7 @@ mod test {
         let compressed = compressor.compress(&header, content); 
         assert_eq!(compressed.is_ok(), true);
         let result = compressed.unwrap();
-        assert_eq!(result, "-2000 0            \n");
+        assert_eq!(result, "-2000 0 \n");
         
         let content =" 111576725.337 8  86942926.97146  21232342.681    21232344.757    21232341.519";
         let compressed = compressor.compress(&header, content); 
@@ -408,7 +408,7 @@ mod test {
         let compressed = compressor.compress(&header, content); 
         assert_eq!(compressed.is_ok(), true);
         let result = compressed.unwrap();
-        assert_eq!(result, "-1000 0            \n");
+        assert_eq!(result, "-1000 0 \n");
         
         let content =" 123827565.796 6  96489034.26043  23563601.617    23563604.133    23563600.555";
         let compressed = compressor.compress(&header, content); 
@@ -420,7 +420,7 @@ mod test {
         let compressed = compressor.compress(&header, content); 
         assert_eq!(compressed.is_ok(), true);
         let result = compressed.unwrap();
-        assert_eq!(result, "0 0            \n");
+        assert_eq!(result, "0 0 \n");
         
         let content =" 121505620.191 7  94679732.30044  23121748.945    23121751.795    23121748.378";
         let compressed = compressor.compress(&header, content); 
@@ -432,7 +432,7 @@ mod test {
         let compressed = compressor.compress(&header, content); 
         assert_eq!(compressed.is_ok(), true);
         let result = compressed.unwrap();
-        assert_eq!(result, "2000 0  7         \n");
+        assert_eq!(result, "2000 0  7\n");
         
         let content =" 123733637.895 6  96237300.116 6  23138812.780    23138815.942    23138813.479";
         let compressed = compressor.compress(&header, content); 
@@ -444,7 +444,7 @@ mod test {
         let compressed = compressor.compress(&header, content); 
         assert_eq!(compressed.is_ok(), true);
         let result = compressed.unwrap();
-        assert_eq!(result, "0 -1000           \n");
+        assert_eq!(result, "0 -1000 \n");
         
         let content =" 120062488.238 7  93381958.277 7  22483848.608    22483848.793    22483847.799";
         let compressed = compressor.compress(&header, content); 
@@ -456,7 +456,7 @@ mod test {
         let compressed = compressor.compress(&header, content); 
         assert_eq!(compressed.is_ok(), true);
         let result = compressed.unwrap();
-        assert_eq!(result, "0 0           \n");
+        assert_eq!(result, "0 0 \n");
         
         let content =" 114050375.152 7  88870440.79347  21703062.163    21703067.314    21703061.397";
         let compressed = compressor.compress(&header, content); 
@@ -468,7 +468,7 @@ mod test {
         let compressed = compressor.compress(&header, content); 
         assert_eq!(compressed.is_ok(), true);
         let result = compressed.unwrap();
-        assert_eq!(result, "1000 0            \n");
+        assert_eq!(result, "1000 0 \n");
         
         let content =" 105228685.775 8  81996406.36549  20024349.016    20024353.302    20024348.211";
         let compressed = compressor.compress(&header, content); 
@@ -480,7 +480,7 @@ mod test {
         let compressed = compressor.compress(&header, content); 
         assert_eq!(compressed.is_ok(), true);
         let result = compressed.unwrap();
-        assert_eq!(result, "0 1000            \n");
+        assert_eq!(result, "0 1000 \n");
         
         let content =" 112060701.507 8  87320051.41948  21324441.400    21324446.427    21324440.822";
         let compressed = compressor.compress(&header, content); 
@@ -492,7 +492,7 @@ mod test {
         let compressed = compressor.compress(&header, content); 
         assert_eq!(compressed.is_ok(), true);
         let result = compressed.unwrap();
-        assert_eq!(result, "-2000 1000            \n");
+        assert_eq!(result, "-2000 1000 \n");
         
         let content =" 113605326.339 8  88523640.11346  21618373.485    21618375.988    21618372.590";
         let compressed = compressor.compress(&header, content); 
@@ -504,7 +504,7 @@ mod test {
         let compressed = compressor.compress(&header, content); 
         assert_eq!(compressed.is_ok(), true);
         let result = compressed.unwrap();
-        assert_eq!(result, "1000 -1000  8         \n");
+        assert_eq!(result, "1000 -1000  8\n");
         
         let content =" 106753353.463 8  83030403.463 8  19998493.489    19998496.049    19998493.333";
         let compressed = compressor.compress(&header, content); 
@@ -516,7 +516,7 @@ mod test {
         let compressed = compressor.compress(&header, content); 
         assert_eq!(compressed.is_ok(), true);
         let result = compressed.unwrap();
-        assert_eq!(result, "0 -1000           \n");
+        assert_eq!(result, "0 -1000 \n");
         
         let content =" 131386778.390 6 102379322.35541  25002073.211    25002073.178    25002070.920";
         let compressed = compressor.compress(&header, content); 
@@ -528,7 +528,7 @@ mod test {
         let compressed = compressor.compress(&header, content); 
         assert_eq!(compressed.is_ok(), true);
         let result = compressed.unwrap();
-        assert_eq!(result, "1000 -1000    1       \n");
+        assert_eq!(result, "1000 -1000    1\n");
 /*        
         let content =" 116971765.651 7  90978065.341 6  21881983.733    21881986.213    21881983.163";
         assert_eq!(result, "17043835 13256315 3189446 3188124 3188690");

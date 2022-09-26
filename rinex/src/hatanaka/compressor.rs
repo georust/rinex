@@ -139,7 +139,8 @@ impl Compressor {
         //DEBUG
         println!(">>> VEHICULE CONCLUDED");
         // conclude line with lli/ssi flags
-        result.push_str(&format!("{}\n", self.flags_descriptor));
+        result.push_str(self.flags_descriptor.trim_end());
+        result.push_str("\n");
         self.flags_descriptor.clear();
         // move to next vehicule
         self.obs_ptr = 0;
@@ -268,7 +269,7 @@ impl Compressor {
                         if self.first_epoch {
                             println!("INIT EPOCH with \"{}\"", self.epoch_descriptor);
                             self.epoch_diff.init(&self.epoch_descriptor);
-                            result.push_str(&self.epoch_descriptor);
+                            result.push_str(&self.epoch_descriptor.trim_end());
                             /////////////////////////////////////
                             //TODO
                             //missing clock offset field here
@@ -278,7 +279,9 @@ impl Compressor {
                             self.first_epoch = false;
                         } else {
                             result.push_str(
-                                &self.epoch_diff.compress(&self.epoch_descriptor));
+                                &self.epoch_diff.compress(&self.epoch_descriptor)
+                                .trim_end()
+                            );
                             result.push_str("\n");
                             /////////////////////////////////////
                             //TODO
