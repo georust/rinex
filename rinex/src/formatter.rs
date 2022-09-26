@@ -1,8 +1,9 @@
 #[cfg(feature = "serde")]
 pub mod point3d {
-    use std::str::FromStr;
-    use serde::{Deserializer, Deserialize, de::Error};
+    //use std::str::FromStr;
+    //use serde::{Deserializer, Deserialize, de::Error};
     
+/*
     pub enum ParseError {
         /// Failed to parse (x, y, z) triplet
         #[cfg(feature = "serde")]
@@ -16,7 +17,6 @@ pub mod point3d {
             }
         }
     }
-/*
     /// Dumps a rust_3d::Point3D structure
     pub fn serialize<S>(p: rust_3d::Point3D, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -110,7 +110,7 @@ pub mod datetime {
 
 #[cfg(feature = "serde")]
 pub mod opt_datetime {
-    use serde::{Serializer, Deserializer, Deserialize};
+    use serde::{Serializer}; // Deserializer, Deserialize};
     
     /// Dumps an optionnal chrono::NaiveDateTime structure
     pub fn serialize<S>(datetime: &Option<chrono::NaiveDateTime>, serializer: S) -> Result<S::Ok, S::Error>

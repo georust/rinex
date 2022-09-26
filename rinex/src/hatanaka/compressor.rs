@@ -122,7 +122,7 @@ impl Compressor {
         }
         
         // grab useful information for later
-        let rnx_version = &header.version;
+        let _rnx_version = &header.version;
         let obs = header.obs
             .as_ref()
             .unwrap();
