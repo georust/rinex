@@ -7,7 +7,7 @@ description = "RINEX data decompressor"
 homepage = "https://github.com/gwbres/rinex"
 keywords = ["rinex", "compression", "decompression", "crinex"] 
 categories = ["science", "command-line-interface", "command-line-utilities"]
-edition = "2018"
+edition = "2021"
 readme = "README.md"
 
 [dependencies]

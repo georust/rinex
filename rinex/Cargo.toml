@@ -7,7 +7,7 @@ description = "Package to parse and analyze RINEX data"
 homepage = "https://github.com/gwbres/rinex"
 keywords = ["rinex", "timing", "gps", "glonass", "galileo"]
 categories = ["science", "parsing"]
-edition = "2018"
+edition = "2021"
 readme = "README.md"
 rust-version = "1.61"
 
