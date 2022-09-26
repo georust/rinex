@@ -16,7 +16,7 @@ pub mod point3d {
             }
         }
     }
-
+/*
     /// Dumps a rust_3d::Point3D structure
     pub fn serialize<S>(p: rust_3d::Point3D, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -25,7 +25,8 @@ pub mod point3d {
         let s = format!("{},{},{}",p.x,p.y,p.z); 
         serializer.serialize_str(&s)
     }
-    
+*/
+/*    
     /// Parses a rust_3d::Point3D structure
     pub fn deserialize<'de, D>(deserializer: D) -> Result<rust_3d::Point3D, D::Error>
     where
@@ -43,6 +44,7 @@ pub mod point3d {
         Err(ParseError::Point3dXyz)
             .map_err(Error::custom)
     }
+*/
 }
 
 #[cfg(feature = "serde")]
@@ -122,7 +124,7 @@ pub mod opt_datetime {
             serializer.serialize_str("")
         }
     }
-    
+/*    
     /// Parses an optionnal chrono::NaiveDateTime structure
     pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<chrono::NaiveDateTime>, D::Error>
     where
@@ -138,4 +140,5 @@ pub mod opt_datetime {
             Ok(None)
         }
     }
+*/
 }

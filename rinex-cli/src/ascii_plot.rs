@@ -74,12 +74,12 @@ pub fn ascii_plot (x_width: u32, obs_rinex: &Rinex, nav_rinex: Option<Rinex>) ->
         let mut prev_epoch = epochs[0];
         let mut loss_of_lock = false;
         let mut anti_spoofing = false;
-        let mut code_is_l1 = false;
-        let mut code_is_l2 = false;
+        let mut _code_is_l1 = false;
+        let mut _code_is_l2 = false;
         let mut clock_slip = false;
         //let no_obs = true;
         //let mut above_elev = true;
-        let mut epoch_empty = false;
+        let mut _epoch_empty = false;
         // "C" : clock slip
         // "I" : iono delay phase slip
         // "-" satellite was above elevation mask, but no data was apparently recorded by the receiver
@@ -97,9 +97,9 @@ pub fn ascii_plot (x_width: u32, obs_rinex: &Rinex, nav_rinex: Option<Rinex>) ->
         // (blank) qc lite: no satellite tracked
         // --> browse epochs
         for (epoch, (_, vehicules)) in record.iter() {
-            epoch_empty = true;
+            _epoch_empty = true;
             if let Some(map) = vehicules.get(sv) {
-                epoch_empty = false;
+                _epoch_empty = false;
                 // if we do have ephemeris attached
                 // use them to determine elevation angle
                 for (e, vvehicules) in elev_angles.iter() {
@@ -117,10 +117,10 @@ pub fn ascii_plot (x_width: u32, obs_rinex: &Rinex, nav_rinex: Option<Rinex>) ->
                     if let Ok(channel) = Channel::from_observable(Constellation::GPS, obscode) {
                         match channel {
                             Channel::L1 => {
-                                code_is_l1 |= true;        
+                                _code_is_l1 |= true;        
                             },
                             Channel::L2 => {
-                                code_is_l2 |= true;
+                                _code_is_l2 |= true;
                             },
                             _ => {},
                         }
@@ -139,7 +139,7 @@ pub fn ascii_plot (x_width: u32, obs_rinex: &Rinex, nav_rinex: Option<Rinex>) ->
                                                 // this covers smaller files, with few epochs
                 for _ in 0..n_markers {
                     let mut marker = " "; // epoch assumed empty
-                    if !epoch_empty {
+                    if !_epoch_empty {
                         if loss_of_lock { // loss of lock prevails
                             marker = "L";
                         } else {
