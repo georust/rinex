@@ -84,7 +84,7 @@ impl Compressor {
             epoch_diff: TextDiff::new(),
             clock_diff: NumDiff::new(NumDiff::MAX_COMPRESSION_ORDER)
                 .unwrap(),
-            sv_diff: HashMap::new(), // init. later
+            sv_diff: HashMap::new(),
             forced_init: HashMap::new(),
         }
     }
@@ -134,48 +134,129 @@ impl Compressor {
         
         let mut result : String = String::new();
         let mut lines = content.lines();
-   
+
         loop {
             let line: &str = match lines.next() {
-                Some(l) => l,
-                None => {
-                    // empty line detected
-                    /*
-                    if self.state == State::Body { // previously active
-                        // identify current Sv
-                        let sv_size = 3;
-                        let vehicule_offset = self.vehicule_ptr * sv_size;
-                        let min = 32+vehicule_offset; // epoch size
-                        let max = min + sv_size;
-                        let vehicule = &self.epoch_descriptor[min..max];
-                        if let Ok(sv) = Sv::from_str(vehicule.trim()) {
-                            // nb of obs for this constellation
-                            let sv_nb_obs = obs_codes[&sv.constellation].len();
-                            if self.obs_ptr > sv_nb_obs - 5 { // last bits
-                                // we're missing all the final fields for this vehicule
-                                // ==> keep parsing and we'll encounter 
-                                //     either next vehicule or next epoch, and we'll fail
-                                let nb_missing = std::cmp::min(5, sv_nb_obs - self.obs_ptr);
-                                println!("{} last field(s) missing", nb_missing);
-                                for i in 0..nb_missing { 
-                                    self.flags_descriptor.push_str("  "); // both missing
-                                    //schedule re-init
-                                    if let Some(indexes) = self.forced_init.get_mut(&sv) {
-                                        indexes.push(self.obs_ptr+1+i);
-                                    } else {
-                                        self.forced_init.insert(sv, vec![self.obs_ptr+1+i]);
+                Some(l) => {
+                    //DEBUG
+                    if l.trim().len() == 0 {
+                        // line completely empty
+                        // ==> determine if we're facing an early empty line
+                        if self.state == State::Body { // previously active
+                            if self.obs_ptr > 0 { // previously active
+                                // identify current Sv
+                                let sv_size = 3;
+                                let epoch_size = 32;
+                                let vehicule_offset = self.vehicule_ptr * sv_size;
+                                let min = epoch_size + vehicule_offset;
+                                let max = min + sv_size;
+                                let vehicule = &self.epoch_descriptor[min..max];
+                                if let Ok(sv) = Sv::from_str(vehicule.trim()) {
+                                    // nb of obs for this constellation
+                                    let sv_nb_obs = obs_codes[&sv.constellation].len();
+                                    let nb_missing = std::cmp::min(5, sv_nb_obs - self.obs_ptr);
+                                    //DEBUG
+                                    println!("Early empty line - missing {} field(s)", nb_missing);
+                                    for i in 0..nb_missing { 
+                                        self.flags_descriptor.push_str("  "); // both missing
+                                        //schedule re/init
+                                        if let Some(indexes) = self.forced_init.get_mut(&sv) {
+                                            indexes.push(self.obs_ptr+1+i);
+                                        } else {
+                                            self.forced_init.insert(sv, vec![self.obs_ptr+1+i]);
+                                        }
                                     }
                                     self.obs_ptr += nb_missing;
                                     if self.obs_ptr == sv_nb_obs { // vehicule completion
                                         result = self.vehicule_completion(&result);
                                     }
+
+                                    if nb_missing > 0 {
+                                        continue 
+                                    }
                                 }
                             }
                         }
-                    }*/
+                    }
+                    l
+                },
+                None => { 
+                    // we're done iterating
+                    // but that might be an early empty line.
+                    // it is an early empty line if we were previously busy
+                    //   and expecting <= 5 remaining fields,
+                    if self.state == State::Body { // previously active
+                        if self.obs_ptr > 0 { // previously active
+                            // identify current Sv
+                            let sv_size = 3;
+                            let epoch_size = 32;
+                            let vehicule_offset = self.vehicule_ptr * sv_size;
+                            let min = epoch_size + vehicule_offset;
+                            let max = min + sv_size;
+                            let vehicule = &self.epoch_descriptor[min..max];
+                            if let Ok(sv) = Sv::from_str(vehicule.trim()) {
+                                // nb of obs for this constellation
+                                let sv_nb_obs = obs_codes[&sv.constellation].len();
+                                if sv_nb_obs - self.obs_ptr < 5 {
+                                    let nb_missing = sv_nb_obs - self.obs_ptr;
+                                    println!("Missing {} last field(s)", nb_missing);
+                                    for i in 0..nb_missing { 
+                                        self.flags_descriptor.push_str("  "); // both missing
+                                        //schedule re/init
+                                        if let Some(indexes) = self.forced_init.get_mut(&sv) {
+                                            indexes.push(self.obs_ptr+1+i);
+                                        } else {
+                                            self.forced_init.insert(sv, vec![self.obs_ptr+1+i]);
+                                        }
+                                        self.obs_ptr += nb_missing;
+                                        if self.obs_ptr >= sv_nb_obs { // vehicule completion
+                                            result = self.vehicule_completion(&result);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    break 
+                },
+            };
+            /*
+                    // end of .lines() browsing
+                    // or possible early empty line
+                    if processed_size < total_size { // got some leftovers
+                        if self.obs_ptr > 0 { // we were expecting data
+                            // identify current Sv
+                            let sv_size = 3;
+                            let epoch_size = 32;
+                            let vehicule_offset = self.vehicule_ptr * sv_size;
+                            let min = epoch_size + vehicule_offset;
+                            let max = min + sv_size;
+                            let vehicule = &self.epoch_descriptor[min..max];
+                            if let Ok(sv) = Sv::from_str(vehicule.trim()) {
+                                // nb of obs for this constellation
+                                let sv_nb_obs = obs_codes[&sv.constellation].len();
+                                let nb_missing = std::cmp::min(5, sv_nb_obs - self.obs_ptr);
+                                //DEBUG
+                                println!("Early empty line - missing {} field(s)", nb_missing);
+                                for i in 0..nb_missing { 
+                                    self.flags_descriptor.push_str("  "); // both missing
+                                    //schedule re/init
+                                    if let Some(indexes) = self.forced_init.get_mut(&sv) {
+                                        indexes.push(self.obs_ptr+1+i);
+                                    } else {
+                                        self.forced_init.insert(sv, vec![self.obs_ptr+1+i]);
+                                    }
+                                }
+                                self.obs_ptr += nb_missing;
+                                if self.obs_ptr == sv_nb_obs { // vehicule completion
+                                    result = self.vehicule_completion(&result);
+                                }
+                            }
+                        }
+                    }
                     break ;
                 }
-            };
+            };*/
             
             //DEBUG
             println!("Working from LINE : \"{}\"", line);
@@ -264,9 +345,11 @@ impl Compressor {
                 },
                 State::Body => {
                     // identify current satellite using stored epoch description
-                    let vehicule_offset = self.vehicule_ptr * 3; //sv size
-                    let min = 32+vehicule_offset; // epoch+ptr
-                    let max = min + 3; // sv size
+                    let sv_size = 3;
+                    let epoch_size = 32;
+                    let vehicule_offset = self.vehicule_ptr * sv_size ;
+                    let min = epoch_size + vehicule_offset; // epoch+ptr
+                    let max = min + sv_size;
                     let vehicule = &self.epoch_descriptor[min..max];
                     println!("VEHICULE \"{}\"", vehicule);
                     if let Ok(sv) = Sv::from_str(vehicule.trim()) {
@@ -297,7 +380,7 @@ impl Compressor {
                                         // retrieve observable state
                                         if let Some(diffs) = sv_diffs.get_mut(self.obs_ptr) {
                                             let compressed :i64;
-                                            // if forced re-init is pending
+                                            // forced re/init is pending
                                             if let Some(indexes) = self.forced_init.get_mut(&sv) {
                                                 if indexes.contains(&self.obs_ptr) {
                                                     // forced reinitialization
@@ -362,7 +445,7 @@ impl Compressor {
                                         if let Some(diffs) = sv_diffs.get_mut(self.obs_ptr) {
                                             // compress data
                                             let compressed :i64;
-                                            // forced re-init pending ?
+                                            // forced re/init is pending
                                             if let Some(indexes) = self.forced_init.get_mut(&sv) {
                                                 if indexes.contains(&self.obs_ptr) {
                                                     // forced reinitialization
@@ -446,9 +529,8 @@ impl Compressor {
                                 // when the floating point observable parsing is in failure,
                                 // we assume field is omitted
                                 self.flags_descriptor.push_str("  ");
-                                // next time we'll have to reinitiate the compression kernel
+                                // schedule re/init 
                                 if let Some(indexes) = self.forced_init.get_mut(&sv) {
-                                    // got already some kernels with pending reinitialization
                                     indexes.push(self.obs_ptr);
                                 } else {
                                     self.forced_init.insert(sv, vec![self.obs_ptr]);

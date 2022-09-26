@@ -80,7 +80,8 @@ fn decompress (fp: &str, mut writer: std::fs::File) -> Result<(), Error> {
             // sometimes we run into empty lines
             // like omitted clock offset fields,
             // and decompress() does not like it
-            let recovered = decompressor.decompress(&header, " ")?;
+            println!("read an empty line <<<<<<<<<<<<<<<<<<<<<<<<<<\n");
+            let recovered = decompressor.decompress(&header, "\n")?;
             write!(writer, "{}", recovered)?
         } else {
             let recovered = decompressor.decompress(&header, line)?;
