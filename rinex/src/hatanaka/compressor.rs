@@ -114,10 +114,11 @@ impl Compressor {
         Ok(sv)
     }
 
+    /// Concludes current vehicule
     fn conclude_vehicule (&mut self, content: &str) -> String {
         let mut result = content.to_string();
         //DEBUG
-        println!("");
+        println!(">>> VEHICULE CONCLUDED");
         // conclude line with lli/ssi flags
         result.push_str(&format!("{}\n", self.flags_descriptor));
         self.flags_descriptor.clear();
@@ -130,9 +131,10 @@ impl Compressor {
         result
     }
 
+    /// Concludes current epoch
     fn conclude_epoch (&mut self) {
         //DEBUG
-        println!("\n");
+        println!(">>> EPOCH CONCLUDED \n");
         self.epoch_ptr = 0;
         self.vehicule_ptr = 0;
         self.epoch_descriptor.clear();
@@ -181,7 +183,7 @@ impl Compressor {
                                         if let Some(indexes) = self.forced_init.get_mut(&sv) {
                                             indexes.push(self.obs_ptr+1+i);
                                         } else {
-                                            self.forced_init.insert(sv, vec![self.obs_ptr+1+i]);
+                                            self.forced_init.insert(sv, vec![self.obs_ptr+i]);
                                         }
                                     }
                                     self.obs_ptr += nb_missing;
@@ -198,87 +200,11 @@ impl Compressor {
                     }
                     l
                 },
-                None => { 
-                    /*
-                    // we're done iterating
-                    // but that might be an early empty line.
-                    // it is an early empty line if we were previously busy
-                    //   and expecting <= 5 remaining fields,
-                    if self.state == State::Body { // previously active
-                        if self.obs_ptr > 0 { // previously active
-                            // identify current Sv
-                            let sv_size = 3;
-                            let epoch_size = 32;
-                            let vehicule_offset = self.vehicule_ptr * sv_size;
-                            let min = epoch_size + vehicule_offset;
-                            let max = min + sv_size;
-                            let vehicule = &self.epoch_descriptor[min..max];
-                            if let Ok(sv) = Sv::from_str(vehicule.trim()) {
-                                // nb of obs for this constellation
-                                let sv_nb_obs = obs_codes[&sv.constellation].len();
-                                if sv_nb_obs - self.obs_ptr < 5 {
-                                    let nb_missing = sv_nb_obs - self.obs_ptr;
-                                    println!("Missing {} final field(s)", nb_missing);
-                                    for i in 0..nb_missing { 
-                                        self.flags_descriptor.push_str("  "); // both missing
-                                        //schedule re/init
-                                        if let Some(indexes) = self.forced_init.get_mut(&sv) {
-                                            indexes.push(self.obs_ptr+1+i);
-                                        } else {
-                                            self.forced_init.insert(sv, vec![self.obs_ptr+1+i]);
-                                        }
-                                        self.obs_ptr += nb_missing;
-                                        if self.obs_ptr >= sv_nb_obs { // vehicule completion
-                                            result = self.conclude_vehicule(&result);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }*/
-                    break 
-                },
+                None => break // done iterating
             };
-            /*
-                    // end of .lines() browsing
-                    // or possible early empty line
-                    if processed_size < total_size { // got some leftovers
-                        if self.obs_ptr > 0 { // we were expecting data
-                            // identify current Sv
-                            let sv_size = 3;
-                            let epoch_size = 32;
-                            let vehicule_offset = self.vehicule_ptr * sv_size;
-                            let min = epoch_size + vehicule_offset;
-                            let max = min + sv_size;
-                            let vehicule = &self.epoch_descriptor[min..max];
-                            if let Ok(sv) = Sv::from_str(vehicule.trim()) {
-                                // nb of obs for this constellation
-                                let sv_nb_obs = obs_codes[&sv.constellation].len();
-                                let nb_missing = std::cmp::min(5, sv_nb_obs - self.obs_ptr);
-                                //DEBUG
-                                println!("Early empty line - missing {} field(s)", nb_missing);
-                                for i in 0..nb_missing { 
-                                    self.flags_descriptor.push_str("  "); // both missing
-                                    //schedule re/init
-                                    if let Some(indexes) = self.forced_init.get_mut(&sv) {
-                                        indexes.push(self.obs_ptr+1+i);
-                                    } else {
-                                        self.forced_init.insert(sv, vec![self.obs_ptr+1+i]);
-                                    }
-                                }
-                                self.obs_ptr += nb_missing;
-                                if self.obs_ptr == sv_nb_obs { // vehicule completion
-                                    result = self.conclude_vehicule(&result);
-                                }
-                            }
-                        }
-                    }
-                    break ;
-                }
-            };*/
             
             //DEBUG
-            println!("Working from LINE : \"{}\"", line);
+            println!("\nWorking from LINE : \"{}\"", line);
             
             // [0] : COMMENTS (special case)
             if is_comment!(line) {
@@ -314,8 +240,8 @@ impl Compressor {
                     } else {
                         self.epoch_ptr += 1;
                     }
+
                     self.epoch_descriptor.push_str(line);
-                    self.epoch_descriptor.push_str("\n");
 
                     //TODO
                     //pour clock offsets
@@ -323,11 +249,11 @@ impl Compressor {
                         Some(line.split_at(60-12).1.trim())
                     } else {
                         None*/
-                        
                     //TODO
                     // if we did have clock offset, 
                     //  append in a new line
                     //  otherwise append a BLANK
+                    self.epoch_descriptor.push_str("\n");
                     
                     let nb_lines = num_integer::div_ceil(self.nb_vehicules, 12) as u8;
                     if self.epoch_ptr == nb_lines { // end of descriptor
@@ -363,14 +289,29 @@ impl Compressor {
                     }
                 },
                 State::Body => {
+                    // nb of obs in this line
+                    let nb_obs_line = num_integer::div_ceil(line.len(), 17);
                     // identify current satellite using stored epoch description
                     if let Ok(sv) = self.current_vehicule(&header) {
                         // nb of obs for this constellation
                         let sv_nb_obs = obs_codes[&sv.constellation].len();
-                        // nb of obs in this line
-                        let nb_obs_line = num_integer::div_ceil(line.len(), 17);
-                        if self.obs_ptr > sv_nb_obs { // unexpected overflow
-                            return Err(Error::MalformedEpochBody) // too many observables were found
+                        if self.obs_ptr + nb_obs_line > sv_nb_obs { // facing an overflow
+                            // this means all final fields were omitted, 
+                            // ==> handle this case
+                            println!("SV {} final fields were omitted", sv);
+                            for index in self.obs_ptr..sv_nb_obs {
+                                //schedule re/init
+                                if let Some(indexes) = self.forced_init.get_mut(&sv) {
+                                    indexes.push(index);
+                                } else {
+                                    self.forced_init.insert(sv, vec![self.obs_ptr]);
+                                }
+                            }
+                            result = self.conclude_vehicule(&result);
+                            if self.epoch_ptr == 0 { // epoch got concluded
+                                // --> rewind to Epoch state
+                                self.epoch_descriptor.push_str(line);
+                            }
                         }
 
                         // compress all observables
@@ -549,8 +490,12 @@ impl Compressor {
                                 }
                             }
                             //DEBUG
-                            println!("OBS {}/{}", self.obs_ptr+1, sv_nb_obs); 
-                            self.obs_ptr += 1
+                            self.obs_ptr += 1;
+                            println!("OBS {}/{}", self.obs_ptr, sv_nb_obs); 
+                        
+                            if self.obs_ptr > sv_nb_obs { // unexpected overflow
+                                return Err(Error::MalformedEpochBody) // too many observables were found
+                            }
                         } //for i..nb_obs in this line
 
                         if self.obs_ptr == sv_nb_obs { // vehicule completion
