@@ -1,7 +1,5 @@
 //! RINEX compression module
-use crate::sv;
 use crate::sv::Sv;
-use crate::header;
 use crate::header::Header;
 use crate::is_comment;
 use crate::types::Type;
@@ -98,7 +96,7 @@ impl Compressor {
         let vehicule_offset = self.vehicule_ptr * sv_size;
         let min = epoch_size + vehicule_offset;
         let max = min + sv_size;
-        let mut vehicule = &mut self.epoch_descriptor[min..max]
+        let vehicule = &mut self.epoch_descriptor[min..max]
             .trim()
             .to_string();
         let constell_id = vehicule.chars().nth(0)
@@ -149,7 +147,6 @@ impl Compressor {
         }
         
         // grab useful information for later
-        let rnx_version = &header.version;
         let obs = header.obs
             .as_ref()
             .unwrap();
