@@ -34,6 +34,9 @@ fn main() -> Result<(), Error> {
         .value_of("filepath")
         .unwrap();
     
+    let date = matches.value_of("date");
+    let time = matches.value_of("time");
+
     // output filepath
     let mut output_path = String::from("output.crx");
     if let Some(stripped) = filepath.strip_suffix("o") { // RNX1 
@@ -48,20 +51,54 @@ fn main() -> Result<(), Error> {
     let output_path = String::from(matches.value_of("output").unwrap_or(&output_path));
     let output = std::fs::File::create(output_path.clone())?;
     //RNX2CRX compression
-    compress(filepath, output)?;
+    compress(filepath, output, date, time)?;
     println!("{} generated", output_path);
     Ok(())
 }
 
-fn compress (fp: &str, mut writer: std::fs::File) -> Result<(), Error> {
+fn compress (
+        fp: &str, 
+        mut writer: std::fs::File, 
+        date: Option<&str>, 
+        time: Option<&str>,
+    ) -> Result<(), Error> { 
+    
+    // compression date
+    let date = match date {
+        Some(date) => {
+            match time {
+                Some(time) => {
+                    let descriptor = date.to_owned() + " " + time;
+                    chrono::NaiveDateTime::parse_from_str("%d-%m-%Y %H:%M", &descriptor)
+                        .unwrap()
+                },
+                _ => chrono::NaiveDateTime::parse_from_str("%d-%m-%Y", date)
+                    .unwrap(),
+            }
+        },
+        None => {
+            match time {
+                Some(time) => {
+                    let time = chrono::NaiveTime::parse_from_str("%H-%M-%S", time)
+                        .unwrap();
+                    chrono::Utc::now().date()
+                        .and_time(time)
+                        .unwrap()
+                        .naive_utc()
+                },
+                _ => chrono::Utc::now().naive_utc(),
+            }
+        },
+    };
+
     // write CRINEX infos 
     let crinex = Crinex {
         version: Version {
             major: 1,
             minor: 0,
         },
+        date,
         prog: "rust-rnx2crx".to_string(),
-        date: chrono::Utc::now().naive_utc(),
     };
     write!(writer, "{}", crinex)?;
 
@@ -83,7 +120,7 @@ fn compress (fp: &str, mut writer: std::fs::File) -> Result<(), Error> {
     let mut reader = BufferedReader::new(fp)?;
     let header = header::Header::new(&mut reader)?;
     if let Some(obs) = &header.obs {
-        if let Some(crinex) = &obs.crinex {
+        if let Some(_) = &obs.crinex {
             panic!("this file is already compressed");
         }
     }

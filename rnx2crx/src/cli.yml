@@ -8,6 +8,18 @@ args:
         required: true
         takes_value: true
         help: Local RINEX file path
+    - date:
+        short: d
+        long: date
+        required: false
+        takes_value: true
+        help: Set compression date in "%Y-%m-%d" format, otherwise we set "today"
+    - time:
+        short: t
+        long: time
+        required: false
+        takes_value: true
+        help: Set compression time in "%H:%M:%S" format, otherwise we set "now"
     - output:
         short: o
         long: output
