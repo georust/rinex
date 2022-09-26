@@ -54,7 +54,7 @@ pub struct Compressor {
     /// Clock offset differentiator
     clock_diff: NumDiff,
     /// Vehicule differentiators
-    sv_diff: HashMap<Sv, Vec<(NumDiff, TextDiff, TextDiff)>>,
+    sv_diff: HashMap<Sv, HashMap<usize, (NumDiff, TextDiff, TextDiff)>>,
     /// Pending kernel re-initialization
     forced_init: HashMap<Sv, Vec<usize>>,
 }
@@ -201,7 +201,7 @@ impl Compressor {
                                         self.flags_descriptor.push_str("  "); // both missing
                                         //schedule re/init
                                         if let Some(indexes) = self.forced_init.get_mut(&sv) {
-                                            indexes.push(self.obs_ptr+1+i);
+                                            indexes.push(self.obs_ptr+i);
                                         } else {
                                             self.forced_init.insert(sv, vec![self.obs_ptr+i]);
                                         }
@@ -313,7 +313,7 @@ impl Compressor {
                                 if let Some(indexes) = self.forced_init.get_mut(&sv) {
                                     indexes.push(index);
                                 } else {
-                                    self.forced_init.insert(sv, vec![self.obs_ptr]);
+                                    self.forced_init.insert(sv, vec![index]);
                                 }
                             }
                             result = self.conclude_vehicule(&result);
@@ -336,19 +336,20 @@ impl Compressor {
                                                             // as some data flags might be omitted
                             let (data, rem) = observables.split_at(index);
                             let (obsdata, flags) = data.split_at(14);
+                            let flags = flags.trim();
                             observables = rem.clone();
                             if let Ok(obsdata) = f64::from_str(obsdata.trim()) {
                                 let obsdata = f64::round(obsdata*1000.0) as i64; 
-                                if flags.len() < 1 { // Both Flags ommited
+                                if flags.len() == 0 { // Both Flags ommited
                                     //DEBUG
                                     println!("OBS \"{}\" LLI \"X\" SSI \"X\"", obsdata);
                                     // data compression
                                     if let Some(sv_diffs) = self.sv_diff.get_mut(&sv) {
                                         // retrieve observable state
-                                        if let Some(diffs) = sv_diffs.get_mut(self.obs_ptr) {
+                                        if let Some(diffs) = sv_diffs.get_mut(&self.obs_ptr) {
                                             let compressed :i64;
                                             // forced re/init is pending
-                                            if let Some(indexes) = self.forced_init.get_mut(&sv) {
+                                            /*if let Some(indexes) = self.forced_init.get_mut(&sv) {
                                                 if indexes.contains(&self.obs_ptr) {
                                                     // forced reinitialization
                                                     compressed = obsdata;
@@ -366,10 +367,10 @@ impl Compressor {
                                                     // compress data
                                                     compressed = diffs.0.compress(obsdata);
                                                 }
-                                            } else {
+                                            } else {*/
                                                 // compress data
                                                 compressed = diffs.0.compress(obsdata);
-                                            }
+                                            //}
                                             result.push_str(&format!("{} ", compressed));//append obs
                                         } else {
                                             // first time dealing with this observable
@@ -386,7 +387,7 @@ impl Compressor {
                                             diff.1.init(" "); // BLANK
                                             diff.2.init(" "); // BLANK
                                             self.flags_descriptor.push_str("  ");
-                                            sv_diffs.push(diff);
+                                            sv_diffs.insert(self.obs_ptr, diff);
                                         }
                                     } else {
                                         // first time dealing with this vehicule
@@ -397,23 +398,26 @@ impl Compressor {
                                         );
                                         //DEBUG
                                         println!("INIT KERNELS with {} BLANK BLANK", obsdata);
-                                        diff.0.init(5, obsdata)
+                                        diff.0.init(3, obsdata)
                                             .unwrap();
+                                        result.push_str(&format!("3&{} ", obsdata));//append obs
                                         diff.1.init("&"); // BLANK
                                         diff.2.init("&"); // BLANK
                                         self.flags_descriptor.push_str("  ");
-                                        self.sv_diff.insert(sv, vec![diff]);
+                                        let mut map: HashMap<usize, (NumDiff, TextDiff, TextDiff)> = HashMap::new();
+                                        map.insert(self.obs_ptr, diff);
+                                        self.sv_diff.insert(sv, map); 
                                     }
                                 } else { //flags.len() >=1 : Not all Flags ommited
                                     let (lli, ssi) = flags.split_at(1);
                                     println!("OBS \"{}\" - LLI \"{}\" - SSI \"{}\"", obsdata, lli, ssi);
                                     if let Some(sv_diffs) = self.sv_diff.get_mut(&sv) {
                                         // retrieve observable state
-                                        if let Some(diffs) = sv_diffs.get_mut(self.obs_ptr) {
+                                        if let Some(diffs) = sv_diffs.get_mut(&self.obs_ptr) {
                                             // compress data
                                             let compressed :i64;
                                             // forced re/init is pending
-                                            if let Some(indexes) = self.forced_init.get_mut(&sv) {
+                                            /*if let Some(indexes) = self.forced_init.get_mut(&sv) {
                                                 if indexes.contains(&self.obs_ptr) {
                                                     // forced reinitialization
                                                     compressed = obsdata;
@@ -430,9 +434,9 @@ impl Compressor {
                                                 } else {
                                                     compressed = diffs.0.compress(obsdata);
                                                 }
-                                            } else {
+                                            } else {*/
                                                 compressed = diffs.0.compress(obsdata);
-                                            }
+                                            //}
                                             result.push_str(&format!("{} ", compressed));
                                             let lli = diffs.1.compress(lli);
                                             self.flags_descriptor.push_str(&lli);
@@ -464,7 +468,7 @@ impl Compressor {
                                                 diff.2.init("&"); // BLANK
                                                 self.flags_descriptor.push_str(" ");
                                             }
-                                            sv_diffs.push(diff);
+                                            sv_diffs.insert(self.obs_ptr, diff);
                                         }
                                     } else {
                                         // first time dealing with this vehicule
@@ -489,7 +493,9 @@ impl Compressor {
                                             diff.2.init("&"); // BLANK
                                             self.flags_descriptor.push_str(" ");
                                         }
-                                        self.sv_diff.insert(sv, vec![diff]);
+                                        let mut map: HashMap<usize, (NumDiff,TextDiff,TextDiff)> = HashMap::new();
+                                        map.insert(self.obs_ptr, diff);
+                                        self.sv_diff.insert(sv,map);
                                     }
                                 }
                             } else { //obsdata::f64::from_str()
