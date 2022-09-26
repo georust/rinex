@@ -8,7 +8,7 @@ homepage = "https://github.com/gwbres/rinex/sinex"
 repository = "https://github.com/gwbres/rinex/sinex"
 keywords = ["sinex", "timing", "gps", "glonass", "galileo"]
 categories = ["science", "parsing"]
-edition = "2018"
+edition = "2021"
 readme = "README.md"
 
 [features]
