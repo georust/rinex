@@ -1,6 +1,8 @@
 //! RINEX compression module
+use crate::sv;
 use crate::sv::Sv;
 use crate::header;
+use crate::header::Header;
 use crate::is_comment;
 use crate::types::Type;
 use std::str::FromStr;
@@ -89,6 +91,31 @@ impl Compressor {
         }
     }
 
+    /// Identifies vehicule from previously stored epoch descriptor
+    fn current_vehicule (&self, header: &Header) -> Result<Sv, Error> {
+        let sv_size = 3;
+        let epoch_size = 32;
+        let vehicule_offset = self.vehicule_ptr * sv_size;
+        let min = epoch_size + vehicule_offset;
+        let max = min + sv_size;
+        let mut vehicule = &mut self.epoch_descriptor[min..max]
+            .trim()
+            .to_string();
+        let constell_id = vehicule.chars().nth(0)
+            .unwrap();
+        if constell_id.is_ascii_digit() {
+            // in old RINEX + mono constell context
+            //   it is possible that constellation ID is omitted..
+            vehicule.insert_str(0, header.constellation
+                .expect("old rinex + mono constellation expected")
+                .to_1_letter_code()); 
+        }
+        let sv = Sv::from_str(&vehicule)?;
+        //DEBUG
+        println!("VEHICULE: {}", sv);
+        Ok(sv)
+    }
+
     fn conclude_vehicule (&mut self, content: &str) -> String {
         let mut result = content.to_string();
         //DEBUG
@@ -115,14 +142,14 @@ impl Compressor {
     }
     
     /// Compresses given RINEX data to CRINEX 
-    pub fn compress (&mut self, header: &header::Header, content: &str) -> Result<String, Error> {
+    pub fn compress (&mut self, header: &Header, content: &str) -> Result<String, Error> {
         // Context sanity checks
         if header.rinex_type != Type::ObservationData {
             return Err(Error::NotObsRinexData) ;
         }
         
         // grab useful information for later
-        let _rnx_version = &header.version;
+        let rnx_version = &header.version;
         let obs = header.obs
             .as_ref()
             .unwrap();
@@ -145,13 +172,7 @@ impl Compressor {
                         if self.state == State::Body { // previously active
                             if self.obs_ptr > 0 { // previously active
                                 // identify current Sv
-                                let sv_size = 3;
-                                let epoch_size = 32;
-                                let vehicule_offset = self.vehicule_ptr * sv_size;
-                                let min = epoch_size + vehicule_offset;
-                                let max = min + sv_size;
-                                let vehicule = &self.epoch_descriptor[min..max];
-                                if let Ok(sv) = Sv::from_str(vehicule.trim()) {
+                                if let Ok(sv) = self.current_vehicule(&header) {
                                     // nb of obs for this constellation
                                     let sv_nb_obs = obs_codes[&sv.constellation].len();
                                     let nb_missing = std::cmp::min(5, sv_nb_obs - self.obs_ptr);
@@ -346,14 +367,7 @@ impl Compressor {
                 },
                 State::Body => {
                     // identify current satellite using stored epoch description
-                    let sv_size = 3;
-                    let epoch_size = 32;
-                    let vehicule_offset = self.vehicule_ptr * sv_size ;
-                    let min = epoch_size + vehicule_offset; // epoch+ptr
-                    let max = min + sv_size;
-                    let vehicule = &self.epoch_descriptor[min..max];
-                    println!("VEHICULE \"{}\"", vehicule);
-                    if let Ok(sv) = Sv::from_str(vehicule.trim()) {
+                    if let Ok(sv) = self.current_vehicule(&header) {
                         // nb of obs for this constellation
                         let sv_nb_obs = obs_codes[&sv.constellation].len();
                         // nb of obs in this line
