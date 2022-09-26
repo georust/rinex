@@ -336,11 +336,10 @@ impl Compressor {
                                                             // as some data flags might be omitted
                             let (data, rem) = observables.split_at(index);
                             let (obsdata, flags) = data.split_at(14);
-                            let flags = flags.trim();
                             observables = rem.clone();
                             if let Ok(obsdata) = f64::from_str(obsdata.trim()) {
                                 let obsdata = f64::round(obsdata*1000.0) as i64; 
-                                if flags.len() == 0 { // Both Flags ommited
+                                if flags.trim().len() == 0 { // Both Flags ommited
                                     //DEBUG
                                     println!("OBS \"{}\" LLI \"X\" SSI \"X\"", obsdata);
                                     // data compression
@@ -438,11 +437,19 @@ impl Compressor {
                                                 compressed = diffs.0.compress(obsdata);
                                             //}
                                             result.push_str(&format!("{} ", compressed));
-                                            let lli = diffs.1.compress(lli);
-                                            self.flags_descriptor.push_str(&lli);
+                                            
+                                            if lli.len() > 0 {
+                                                let lli = diffs.1.compress(lli);
+                                                self.flags_descriptor.push_str(&lli);
+                                            } else {
+                                                self.flags_descriptor.push_str(" ");
+                                            }
+                                            
                                             if ssi.len() > 0 {
                                                 let ssi = diffs.2.compress(ssi);
                                                 self.flags_descriptor.push_str(&ssi);
+                                            } else {
+                                                self.flags_descriptor.push_str(" ");
                                             }
 
                                         } else {
@@ -455,16 +462,22 @@ impl Compressor {
                                             diff.0.init(3, obsdata)
                                                 .unwrap();
                                             result.push_str(&format!("3&{} ", obsdata));//append obs
-                                            diff.1.init(lli);
-                                            self.flags_descriptor.push_str(lli);
+                                            //DEBUG
+                                            println!("INIT KERNELS with {} - \"{}\" -  \"{}\"", obsdata, lli, ssi);
+                                            
+                                            if lli.len() > 0 {
+                                                diff.1.init(lli);
+                                                self.flags_descriptor.push_str(lli);
+                                            } else {
+                                                diff.1.init("&"); // BLANK 
+                                                self.flags_descriptor.push_str(" ");
+                                            }
+                                            
                                             if ssi.len() > 0 {
                                                 //DEBUG
-                                                println!("INIT KERNELS with {} - \"{}\" -  \"{}\"", obsdata, lli, ssi);
                                                 diff.2.init(ssi);
                                                 self.flags_descriptor.push_str(ssi);
                                             } else { // SSI omitted
-                                                //DEBUG
-                                                println!("INIT KERNELS with {} - \"{}\" - BLANK", obsdata, lli);
                                                 diff.2.init("&"); // BLANK
                                                 self.flags_descriptor.push_str(" ");
                                             }
