@@ -89,16 +89,16 @@ impl Compressor {
         }
     }
 
-    fn vehicule_completion (&mut self, content: &str) -> String {
+    fn conclude_vehicule (&mut self, content: &str) -> String {
         let mut result = content.to_string();
         //DEBUG
         println!("");
         // conclude line with lli/ssi flags
         result.push_str(&format!("{}\n", self.flags_descriptor));
+        self.flags_descriptor.clear();
         // move to next vehicule
         self.obs_ptr = 0;
         self.vehicule_ptr += 1;
-        self.flags_descriptor.clear();
         if self.vehicule_ptr == self.nb_vehicules {
             self.conclude_epoch()
         }
@@ -168,7 +168,7 @@ impl Compressor {
                                     }
                                     self.obs_ptr += nb_missing;
                                     if self.obs_ptr == sv_nb_obs { // vehicule completion
-                                        result = self.vehicule_completion(&result);
+                                        result = self.conclude_vehicule(&result);
                                     }
 
                                     if nb_missing > 0 {
@@ -181,6 +181,7 @@ impl Compressor {
                     l
                 },
                 None => { 
+                    /*
                     // we're done iterating
                     // but that might be an early empty line.
                     // it is an early empty line if we were previously busy
@@ -199,7 +200,7 @@ impl Compressor {
                                 let sv_nb_obs = obs_codes[&sv.constellation].len();
                                 if sv_nb_obs - self.obs_ptr < 5 {
                                     let nb_missing = sv_nb_obs - self.obs_ptr;
-                                    println!("Missing {} last field(s)", nb_missing);
+                                    println!("Missing {} final field(s)", nb_missing);
                                     for i in 0..nb_missing { 
                                         self.flags_descriptor.push_str("  "); // both missing
                                         //schedule re/init
@@ -210,13 +211,13 @@ impl Compressor {
                                         }
                                         self.obs_ptr += nb_missing;
                                         if self.obs_ptr >= sv_nb_obs { // vehicule completion
-                                            result = self.vehicule_completion(&result);
+                                            result = self.conclude_vehicule(&result);
                                         }
                                     }
                                 }
                             }
                         }
-                    }
+                    }*/
                     break 
                 },
             };
@@ -249,7 +250,7 @@ impl Compressor {
                                 }
                                 self.obs_ptr += nb_missing;
                                 if self.obs_ptr == sv_nb_obs { // vehicule completion
-                                    result = self.vehicule_completion(&result);
+                                    result = self.conclude_vehicule(&result);
                                 }
                             }
                         }
@@ -542,7 +543,7 @@ impl Compressor {
                         } //for i..nb_obs in this line
 
                         if self.obs_ptr == sv_nb_obs { // vehicule completion
-                            result = self.vehicule_completion(&result);
+                            result = self.conclude_vehicule(&result);
                         }
                     } else { // sv::from_str()
                         // failed to identify which vehicule we're dealing with
