@@ -131,7 +131,7 @@ fn compress (
     // compress file body
     for l in reader.lines() {
         let line = &l.unwrap();
-        let compressed = compressor.compress(&header, line)?;
+        let compressed = compressor.compress(&header, &(line.to_owned() + "\n"))?;
         write!(writer, "{}", compressed)?
     }
     Ok(())
