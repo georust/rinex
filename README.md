@@ -11,10 +11,10 @@ RINEX
 
 Rust tool suites to parse, analyze, manipulate `RINEX` files
 
-* [`rinex`](rinex/) files parser, this is the core library
-* [`rnx2crx`](rnx2crx/) is a RINEX compressor
-* [`crx2rnx`](crx2rnx/) is a CRINEX decompressor 
-* [`sinex`](sinex/) files parser, core library
+* [`rinex`](rinex/) is the core library 
+* [`rnx2crx`](rnx2crx/) is a RINEX compression program 
+* [`crx2rnx`](crx2rnx/) is a CRINEX decompression program (Compact RINEX to RINEX)
+* [`sinex`](sinex/) SNX dedicated core library
 
 * [`rinex-cli`](rinex-cli/) is a command line application that intends to expose
 all the core libraries capacities to the end user, in an easy-to-use and efficient fashion.

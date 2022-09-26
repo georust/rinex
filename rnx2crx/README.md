@@ -12,7 +12,7 @@ This tool only support CRINEX1 encoding at the moment.
 
 ## Supported revisions
 
-* [x] CRINEX1 
+* [ ] CRINEX1: under test 
 * [ ] CRINEX3 
 
 CRINEX2 was never released
