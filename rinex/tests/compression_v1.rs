@@ -65,7 +65,7 @@ mod test {
         assert_eq!(compressed.is_ok(), true);
         let result = compressed.unwrap();
         // + empty clock offset line, due to missing field [epoch #1]
-        let expected = "&21  1  1  0  0  0.0000000  0 20G07G23G26G20G21G18R24R09G08G27G10G16R18G13R01R16R17G15R02R15\n";
+        let expected = "&21  1  1  0  0  0.0000000  0 20G07G23G26G20G21G18R24R09G08G27G10G16R18G13R01R16R17G15R02R15\n\n";
         assert_eq!(result, expected);
         
         // epoch#1 sat#1
