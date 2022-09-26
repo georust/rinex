@@ -140,6 +140,7 @@ impl Compressor {
                 Some(l) => l,
                 None => {
                     // empty line detected
+                    /*
                     if self.state == State::Body { // previously active
                         // identify current Sv
                         let sv_size = 3;
@@ -171,7 +172,7 @@ impl Compressor {
                                 }
                             }
                         }
-                    }
+                    }*/
                     break ;
                 }
             };
