@@ -269,7 +269,7 @@ impl Compressor {
                         if self.first_epoch {
                             println!("INIT EPOCH with \"{}\"", self.epoch_descriptor);
                             self.epoch_diff.init(&self.epoch_descriptor);
-                            result.push_str(&self.epoch_descriptor.trim_end());
+                            result.push_str(&self.epoch_descriptor);
                             /////////////////////////////////////
                             //TODO
                             //missing clock offset field here
