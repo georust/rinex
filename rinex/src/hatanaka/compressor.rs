@@ -89,6 +89,23 @@ impl Compressor {
         }
     }
 
+    /// Identifies amount of vehicules to be provided in next iterations
+    /// by analyzing epoch descriptor
+    fn determine_nb_vehicules (&self, content: &str) -> Result<usize, Error> {
+        if content.len() < 33 {
+            Err(Error::MalformedEpochDescriptor)
+        } else {
+            let nb = &content[30..32];
+            if let Ok(u) = u16::from_str_radix(nb.trim(), 10) {
+                //DEBUG
+                println!("Identified {} vehicules", u);
+                Ok(u.into())
+            } else {
+                Err(Error::MalformedEpochDescriptor)
+            }
+        } 
+    }
+
     /// Identifies vehicule from previously stored epoch descriptor
     fn current_vehicule (&self, header: &Header) -> Result<Sv, Error> {
         let sv_size = 3;
@@ -99,19 +116,21 @@ impl Compressor {
         let vehicule = &mut self.epoch_descriptor[min..max]
             .trim()
             .to_string();
-        let constell_id = vehicule.chars().nth(0)
-            .unwrap();
-        if constell_id.is_ascii_digit() {
-            // in old RINEX + mono constell context
-            //   it is possible that constellation ID is omitted..
-            vehicule.insert_str(0, header.constellation
-                .expect("old rinex + mono constellation expected")
-                .to_1_letter_code()); 
+        if let Some(constell_id) = vehicule.chars().nth(0) {
+            if constell_id.is_ascii_digit() {
+                // in old RINEX + mono constell context
+                //   it is possible that constellation ID is omitted..
+                vehicule.insert_str(0, header.constellation
+                    .expect("old rinex + mono constellation expected")
+                    .to_1_letter_code()); 
+            }
+            let sv = Sv::from_str(&vehicule)?;
+            //DEBUG
+            println!("VEHICULE: {}", sv);
+            Ok(sv)
+        } else {
+            Err(Error::VehiculeIdentificationError)
         }
-        let sv = Sv::from_str(&vehicule)?;
-        //DEBUG
-        println!("VEHICULE: {}", sv);
-        Ok(sv)
     }
 
     /// Concludes current vehicule
@@ -225,22 +244,9 @@ impl Compressor {
                 State::EpochDescriptor => {
                     if self.epoch_ptr == 0 { // 1st line
                         // identify #systems
-                        if line.len() > 32+3 { // at least 1 vehicule
-                           self.epoch_ptr += 1;
-                            let nb = &line[30..32];
-                            if let Ok(u) = u16::from_str_radix(nb.trim(), 10) {
-                                self.nb_vehicules = u.into();
-                                println!("Identified {} vehicules", self.nb_vehicules);
-                            } else {
-                                return Err(Error::MalformedEpochDescriptor);
-                            }
-                        } else {
-                            continue
-                        }
-                    } else {
-                        self.epoch_ptr += 1;
+                        self.nb_vehicules = self.determine_nb_vehicules(line)?;
                     }
-
+                    self.epoch_ptr += 1;
                     self.epoch_descriptor.push_str(line);
 
                     //TODO
@@ -308,9 +314,14 @@ impl Compressor {
                                 }
                             }
                             result = self.conclude_vehicule(&result);
-                            if self.epoch_ptr == 0 { // epoch got concluded
-                                // --> rewind to Epoch state
+                            if self.state == State::EpochDescriptor { // epoch got also concluded
+                                // --> rewind fsm 
+                                self.nb_vehicules = self.determine_nb_vehicules(line)?;
+                                self.epoch_ptr = 1; // we already have a new descriptor
                                 self.epoch_descriptor.push_str(line);
+                                self.epoch_descriptor.push_str("\n");
+                                continue // avoid end of this loop, 
+                                    // as this vehicule is now concluded
                             }
                         }
 
