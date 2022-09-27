@@ -9,36 +9,36 @@ use strum_macros::EnumString;
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum Observable {
     /// Pressure observation in [mbar]
-    #[strum(serialize = "PR", deserialize = "PR")]
+    #[strum(serialize = "PR")]
     Pressure,
     /// Dry temperature measurement in [°C]
-    #[strum(serialize = "TD", deserialize = "TD")]
+    #[strum(serialize = "TD")]
     Temperature,
     /// Relative humidity measurement in [%]
-    #[strum(serialize = "HR", deserialize = "HR")]
+    #[strum(serialize = "HR")]
     HumidityRate,
     /// Wet Zenith Path delay in [mm]
-    #[strum(serialize = "ZW", deserialize = "ZW")]
+    #[strum(serialize = "ZW")]
     ZenithWetDelay,
     /// Zenith path delay, dry component, in [mm]
-    #[strum(serialize = "ZD", deserialize = "ZD")]
+    #[strum(serialize = "ZD")]
     ZenithDryDelay,
     /// Total zenith path delay (dry + wet), in [mm]
-    #[strum(serialize = "ZT", deserialize = "ZT")]
+    #[strum(serialize = "ZT")]
     ZenithTotalDelay,
     /// Wind azimuth, from where the wind blows, in [°] 
-    #[strum(serialize = "WD", deserialize = "WD")]
+    #[strum(serialize = "WD")]
     WindAzimuth,
     /// Wind speed, in [m.s^-1] 
-    #[strum(serialize = "WS", deserialize = "WS")]
+    #[strum(serialize = "WS")]
     WindSpeed,
     /// Rain Increment, i.e., rain accumulation
     /// since previous measurement, [10th of mm]
-    #[strum(serialize = "RI", deserialize = "RI")]
+    #[strum(serialize = "RI")]
     RainIncrement,
     /// Hail Indicator non zero, hail detected
     /// since last measurement
-    #[strum(serialize = "HI", deserialize = "HI")]
+    #[strum(serialize = "HI")]
     HailIndicator,
 }
 

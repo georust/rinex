@@ -27,13 +27,13 @@ use crate::writer::BufferedWriter;
 #[derive(EnumString)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum FrameClass {
-    #[strum(serialize = "EPH", deserialize = "EPH")]
+    #[strum(serialize = "EPH")]
     Ephemeris,
-    #[strum(serialize = "STO", deserialize = "STO")]
+    #[strum(serialize = "STO")]
     SystemTimeOffset,
-    #[strum(serialize = "EOP", deserialize = "EOP")]
+    #[strum(serialize = "EOP")]
     EarthOrientation,
-    #[strum(serialize = "ION", deserialize = "ION")]
+    #[strum(serialize = "ION")]
     IonosphericModel,
 }
 
