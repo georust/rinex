@@ -139,8 +139,7 @@ impl Compressor {
         //DEBUG
         println!(">>> VEHICULE CONCLUDED");
         // conclude line with lli/ssi flags
-        result.push_str(self.flags_descriptor.trim_end());
-        result.push_str("\n");
+        result.push_str(&format!("{}\n", self.flags_descriptor.trim_end()));
         self.flags_descriptor.clear();
         // move to next vehicule
         self.obs_ptr = 0;
@@ -206,7 +205,7 @@ impl Compressor {
                     //DEBUG
                     if l.trim().len() == 0 {
                         // line completely empty
-                        // ==> determine if we're facing an early empty line
+                        // ==> determine if we were expecting content
                         if self.state == State::Body { // previously active
                             if self.obs_ptr > 0 { // previously active
                                 // identify current Sv
@@ -217,6 +216,8 @@ impl Compressor {
                                     //DEBUG
                                     println!("Early empty line - missing {} field(s)", nb_missing);
                                     for i in 0..nb_missing { 
+                                        result.push_str(" "); // empty whitespace, on each missing observable
+                                            // to remain retro compatible with official tools
                                         self.flags_descriptor.push_str("  "); // both missing
                                         self.schedule_kernel_init(&sv, self.obs_ptr +i);
                                     }
@@ -390,6 +391,11 @@ impl Compressor {
                                                 compressed = diffs.0.compress(obsdata);
                                                 result.push_str(&format!("{} ", compressed));//append obs
                                             }
+
+                                            diffs.1.init(" ");
+                                            diffs.2.init(" ");
+                                            // ==> empty flags fields
+                                            self.flags_descriptor.push_str("  ");
                                         } else {
                                             // first time dealing with this observable
                                             let mut diff: (NumDiff, TextDiff, TextDiff) = (

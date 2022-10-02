@@ -1,6 +1,6 @@
 #[derive(Debug)]
 pub struct TextDiff {
-    init: String,
+    pub init: String,
 }
 
 impl TextDiff {
@@ -137,8 +137,14 @@ mod test {
     #[test]
     fn test_compression() {
         let mut diff = TextDiff::new();
-        diff.init("Default Phrase 1234");
         
+        diff.init("0");
+        let compressed = diff.compress("0");
+        assert_eq!(compressed, " ");
+        let compressed = diff.compress("4");
+        assert_eq!(compressed, "4");
+
+        diff.init("Default Phrase 1234");
         let to_compress = "DEfault Phrase 1234";
         let result = diff.compress(to_compress);
         assert_eq!(result, " E                 ");
