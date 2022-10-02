@@ -351,10 +351,11 @@ impl Compressor {
                                         if let Some(diffs) = sv_diffs.get_mut(&self.obs_ptr) {
                                             let compressed :i64;
                                             // forced re/init is pending
-                                            /*if let Some(indexes) = self.forced_init.get_mut(&sv) {
+                                            if let Some(indexes) = self.forced_init.get_mut(&sv) {
                                                 if indexes.contains(&self.obs_ptr) {
                                                     // forced reinitialization
                                                     compressed = obsdata;
+                                                    result.push_str(&format!("3&{} ", compressed));//append obs
                                                     diffs.0.init(3, obsdata)
                                                         .unwrap();
                                                     // remove pending init,
@@ -368,12 +369,13 @@ impl Compressor {
                                                 } else {
                                                     // compress data
                                                     compressed = diffs.0.compress(obsdata);
+                                                    result.push_str(&format!("{} ", compressed));//append obs
                                                 }
-                                            } else {*/
+                                            } else {
                                                 // compress data
                                                 compressed = diffs.0.compress(obsdata);
-                                            //}
-                                            result.push_str(&format!("{} ", compressed));//append obs
+                                                result.push_str(&format!("{} ", compressed));//append obs
+                                            }
                                         } else {
                                             // first time dealing with this observable
                                             let mut diff: (NumDiff, TextDiff, TextDiff) = (
@@ -419,10 +421,11 @@ impl Compressor {
                                             // compress data
                                             let compressed :i64;
                                             // forced re/init is pending
-                                            /*if let Some(indexes) = self.forced_init.get_mut(&sv) {
+                                            if let Some(indexes) = self.forced_init.get_mut(&sv) {
                                                 if indexes.contains(&self.obs_ptr) {
                                                     // forced reinitialization
                                                     compressed = obsdata;
+                                                    result.push_str(&format!("3&{} ", compressed));
                                                     diffs.0.init(3, obsdata)
                                                         .unwrap();
                                                     // remove pending init,
@@ -435,11 +438,12 @@ impl Compressor {
                                                     }
                                                 } else {
                                                     compressed = diffs.0.compress(obsdata);
+                                                    result.push_str(&format!("{} ", compressed));
                                                 }
-                                            } else {*/
+                                            } else {
                                                 compressed = diffs.0.compress(obsdata);
-                                            //}
-                                            result.push_str(&format!("{} ", compressed));
+                                                result.push_str(&format!("{} ", compressed));
+                                            }
                                             
                                             if lli.len() > 0 {
                                                 let lli = diffs.1.compress(lli);
