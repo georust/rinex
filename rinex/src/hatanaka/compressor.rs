@@ -139,7 +139,11 @@ impl Compressor {
         //DEBUG
         println!(">>> VEHICULE CONCLUDED");
         // conclude line with lli/ssi flags
-        result.push_str(&format!("{}\n", self.flags_descriptor.trim_end()));
+        let flags = self.flags_descriptor.trim_end();
+        if flags.len() > 0 {
+            result.push_str(flags);
+        }
+        result.push_str("\n");
         self.flags_descriptor.clear();
         // move to next vehicule
         self.obs_ptr = 0;
@@ -373,7 +377,6 @@ impl Compressor {
                                                     // so we only force it once
                                                     for i in 0..indexes.len() {
                                                         if indexes[i] == self.obs_ptr {
-                                                            //panic!("removing {}", self.obs_ptr);
                                                             indexes.remove(i);
                                                             break
                                                         }
@@ -392,10 +395,9 @@ impl Compressor {
                                                 result.push_str(&format!("{} ", compressed));//append obs
                                             }
 
-                                            diffs.1.init(" ");
-                                            diffs.2.init(" ");
                                             // ==> empty flags fields
                                             self.flags_descriptor.push_str("  ");
+                                        
                                         } else {
                                             // first time dealing with this observable
                                             let mut diff: (NumDiff, TextDiff, TextDiff) = (
@@ -408,8 +410,8 @@ impl Compressor {
                                             diff.0.init(3, obsdata)
                                                 .unwrap();
                                             result.push_str(&format!("3&{} ", obsdata));//append obs
-                                            diff.1.init("&"); // BLANK
-                                            diff.2.init("&"); // BLANK
+                                            diff.1.init(" "); // BLANK
+                                            diff.2.init(" "); // BLANK
                                             self.flags_descriptor.push_str("  ");
                                             sv_diffs.insert(self.obs_ptr, diff);
                                         }
@@ -425,8 +427,8 @@ impl Compressor {
                                         diff.0.init(3, obsdata)
                                             .unwrap();
                                         result.push_str(&format!("3&{} ", obsdata));//append obs
-                                        diff.1.init("&"); // BLANK
-                                        diff.2.init("&"); // BLANK
+                                        diff.1.init(" "); // BLANK
+                                        diff.2.init(" "); // BLANK
                                         self.flags_descriptor.push_str("  ");
                                         let mut map: HashMap<usize, (NumDiff, TextDiff, TextDiff)> = HashMap::new();
                                         map.insert(self.obs_ptr, diff);
@@ -468,19 +470,11 @@ impl Compressor {
                                                 result.push_str(&format!("{} ", compressed));
                                             }
                                             
-                                            if lli.len() > 0 {
-                                                let lli = diffs.1.compress(lli);
-                                                self.flags_descriptor.push_str(&lli);
-                                            } else {
-                                                self.flags_descriptor.push_str(" ");
-                                            }
+                                            let lli = diffs.1.compress(lli);
+                                            self.flags_descriptor.push_str(&lli);
                                             
-                                            if ssi.len() > 0 {
-                                                let ssi = diffs.2.compress(ssi);
-                                                self.flags_descriptor.push_str(&ssi);
-                                            } else {
-                                                self.flags_descriptor.push_str(" ");
-                                            }
+                                            let ssi = diffs.2.compress(ssi);
+                                            self.flags_descriptor.push_str(&ssi);
 
                                         } else {
                                             // first time dealing with this observable
@@ -499,16 +493,13 @@ impl Compressor {
                                                 diff.1.init(lli);
                                                 self.flags_descriptor.push_str(lli);
                                             } else {
-                                                diff.1.init("&"); // BLANK 
                                                 self.flags_descriptor.push_str(" ");
                                             }
                                             
                                             if ssi.len() > 0 {
-                                                //DEBUG
                                                 diff.2.init(ssi);
                                                 self.flags_descriptor.push_str(ssi);
                                             } else { // SSI omitted
-                                                diff.2.init("&"); // BLANK
                                                 self.flags_descriptor.push_str(" ");
                                             }
                                             sv_diffs.insert(self.obs_ptr, diff);
@@ -523,7 +514,7 @@ impl Compressor {
                                         diff.0.init(3, obsdata)
                                             .unwrap();
                                         result.push_str(&format!("3&{} ", obsdata));//append obs
-                                        diff.1.init(lli); // BLANK
+                                        diff.1.init(lli);
                                         self.flags_descriptor.push_str(lli);
                                         if ssi.len() > 0 {
                                             //DEBUG
@@ -533,7 +524,7 @@ impl Compressor {
                                         } else { // SSI omitted
                                             //DEBUG
                                             println!("INIT KERNELS with {} - \"{}\" - BLANK", obsdata, lli);
-                                            diff.2.init("&"); // BLANK
+                                            diff.2.init(" "); // BLANK
                                             self.flags_descriptor.push_str(" ");
                                         }
                                         let mut map: HashMap<usize, (NumDiff,TextDiff,TextDiff)> = HashMap::new();

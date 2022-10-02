@@ -55,32 +55,43 @@ impl TextDiff {
         self.init = recovered.clone(); // for next time
         recovered 
     }
+    
     /// Compresses given data
     pub fn compress (&mut self, data: &str) -> String {
+        println!("\"{}\" - INNER: \"{}\"", data, self.init);
+        if data.eq(&self.init) {
+            return String::new()
+        }
+
         let mut result = String::new();
-        let mut ptr_inner = self.init
-            .chars();
-        let ptr_data = data
-            .chars();     
-        for c in ptr_data {
-            if c == '&' { // special whitespace insertion
-                result.push_str(" ");
-                let _ = ptr_inner.next(); // overwrite
-            } else {
-                if let Some(c_inner) = ptr_inner.next() {
-                    if c == c_inner {
-                        result.push_str(" ");
-                    } else {
-                        result.push(c);
-                    }
+        let mut inner: Vec<_> = self.init.chars().collect();
+        self.init.clear();
+        let to_compress: Vec<_> = data.chars().collect();
+
+        for i in 0..inner.len() {
+            if let Some(c) = to_compress.get(i) {
+                self.init.push_str(&c.to_string());
+                if c != &inner[i] {
+                    result.push_str(&c.to_string());
                 } else {
-                    result.push(c);
+                    result.push_str(" ");
                 }
             }
         }
-        self.init = data.replace("&", " ")
-            .clone();
-        result
+
+        for i in inner.len()..data.len() {
+            if let Some(c) = to_compress.get(i) {
+                if c.is_ascii_whitespace() {
+                    self.init.push_str("&");
+                    result.push_str("&");
+                } else {
+                    self.init.push_str(&c.to_string());
+                    result.push_str(&c.to_string());
+                }
+            }
+        }
+
+        result.trim_end().to_string()
     }
 }
 
@@ -140,33 +151,44 @@ mod test {
         
         diff.init("0");
         let compressed = diff.compress("0");
-        assert_eq!(compressed, " ");
+        assert_eq!(compressed, "");
         let compressed = diff.compress("4");
         assert_eq!(compressed, "4");
 
-        diff.init("Default Phrase 1234");
+        let compressed = diff.compress("4  ");
+        assert_eq!(compressed, " &&");
+        
+        let compressed = diff.compress("0");
+        assert_eq!(compressed, "0");
+
+        // test re-init
+        diff.init(        "Default Phrase 1234");
         let to_compress = "DEfault Phrase 1234";
         let result = diff.compress(to_compress);
-        assert_eq!(result, " E                 ");
+        assert_eq!(result," E");
         
         let to_compress = "DEfault Phrase 1234";
         let result = diff.compress(to_compress);
-        assert_eq!(result, "                   ");
+        assert_eq!(result,"");
         
         let to_compress = "DEFault Phrase 1234";
         let result = diff.compress(to_compress);
-        assert_eq!(result, "  F                ");
+        assert_eq!(result, "  F");
         
         let to_compress = "DEFault Phrase 1234  ";
         let result = diff.compress(to_compress);
-        assert_eq!(result, "                     ");
+        assert_eq!(result, "                   &&");
         
-        let to_compress = "&EFault Phrase 1234  ";
+        let to_compress = " EFault Phrase 1234  ";
         let result = diff.compress(to_compress);
-        assert_eq!(result, "                     ");
+        assert_eq!(result, "");
         
-        let to_compress = "__&abcd Phrase 1222    ";
+        let to_compress = "__ abcd Phrase 1222    ";
         let result = diff.compress(to_compress);
-        assert_eq!(result, "__  bcd          22    ");
+        assert_eq!(result,"__  bcd          22  &&");
+
+        diff.init(" ");
+        assert_eq!(diff.compress("3"), "3");
+        assert_eq!(diff.compress("3"), "");
     }
 }
