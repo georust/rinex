@@ -300,12 +300,10 @@ impl Compressor {
                 State::Body => {
                     // nb of obs in this line
                     let nb_obs_line = num_integer::div_ceil(line.len(), 17);
-                    let nb_missing_obs = std::cmp::min(nb_obs_line, 5);
                     // identify current satellite using stored epoch description
                     if let Ok(sv) = self.current_vehicule(&header) {
                         // nb of obs for this constellation
                         let sv_nb_obs = obs_codes[&sv.constellation].len();
-                        let some_obs_missing = std::cmp::min(sv_nb_obs, 5) > nb_obs_line ;
                         if self.obs_ptr + nb_obs_line > sv_nb_obs { // facing an overflow
                             // this means all final fields were omitted, 
                             // ==> handle this case
@@ -317,9 +315,9 @@ impl Compressor {
                                 } else {
                                     self.forced_init.insert(sv, vec![index]);
                                 }
-                                result.push_str(" "); // empty space on missing observable
-                                        // to match stupid CRXRNX official tool format
-                                        // so we remain compatible and retro compatible
+                                result.push_str(" "); // put an empty space on missing observables
+                                    // this is now RNX2CRX (official) behaves,
+                                    // if we don't do this we break retro compatibility
                             }
                             result = self.conclude_vehicule(&result);
                             if self.state == State::EpochDescriptor { // epoch got also concluded
@@ -519,9 +517,9 @@ impl Compressor {
                             } else { //obsdata::f64::from_str()
                                 // when the floating point observable parsing is in failure,
                                 // we assume field is omitted
-                                result.push_str(" "); // empty field on every missing OBS
-                                    // to remain compatible and retro compatible with wierd official tool format
-                                    // if we don't follow this stupid detail, we break compatibility
+                                result.push_str(" "); // put an empty space on missing observables
+                                    // this is now RNX2CRX (official) behaves,
+                                    // if we don't do this we break retro compatibility
                                 self.flags_descriptor.push_str("  ");
                                 // schedule re/init 
                                 if let Some(indexes) = self.forced_init.get_mut(&sv) {
