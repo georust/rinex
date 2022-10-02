@@ -59,9 +59,6 @@ impl TextDiff {
     /// Compresses given data
     pub fn compress (&mut self, data: &str) -> String {
         println!("\"{}\" - INNER: \"{}\"", data, self.init);
-        if data.eq(&self.init) {
-            return String::new()
-        }
 
         let mut result = String::new();
         let mut inner: Vec<_> = self.init.chars().collect();
@@ -91,7 +88,7 @@ impl TextDiff {
             }
         }
 
-        result.trim_end().to_string()
+        result.to_string()
     }
 }
 
@@ -151,7 +148,7 @@ mod test {
         
         diff.init("0");
         let compressed = diff.compress("0");
-        assert_eq!(compressed, "");
+        assert_eq!(compressed, " ");
         let compressed = diff.compress("4");
         assert_eq!(compressed, "4");
 
@@ -165,15 +162,15 @@ mod test {
         diff.init(        "Default Phrase 1234");
         let to_compress = "DEfault Phrase 1234";
         let result = diff.compress(to_compress);
-        assert_eq!(result," E");
+        assert_eq!(result," E                 ");
         
         let to_compress = "DEfault Phrase 1234";
         let result = diff.compress(to_compress);
-        assert_eq!(result,"");
+        assert_eq!(result,"                   ");
         
         let to_compress = "DEFault Phrase 1234";
         let result = diff.compress(to_compress);
-        assert_eq!(result, "  F");
+        assert_eq!(result,"  F                ");
         
         let to_compress = "DEFault Phrase 1234  ";
         let result = diff.compress(to_compress);
@@ -181,7 +178,7 @@ mod test {
         
         let to_compress = " EFault Phrase 1234  ";
         let result = diff.compress(to_compress);
-        assert_eq!(result, "");
+        assert_eq!(result, "                     ");
         
         let to_compress = "__ abcd Phrase 1222    ";
         let result = diff.compress(to_compress);
@@ -189,6 +186,6 @@ mod test {
 
         diff.init(" ");
         assert_eq!(diff.compress("3"), "3");
-        assert_eq!(diff.compress("3"), "");
+        assert_eq!(diff.compress("3"), " ");
     }
 }

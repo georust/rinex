@@ -394,7 +394,10 @@ impl Compressor {
                                                 compressed = diffs.0.compress(obsdata);
                                                 result.push_str(&format!("{} ", compressed));//append obs
                                             }
+                                            
 
+                                            let _ = diffs.1.compress(" ");
+                                            let _ = diffs.2.compress(" ");
                                             // ==> empty flags fields
                                             self.flags_descriptor.push_str("  ");
                                         
