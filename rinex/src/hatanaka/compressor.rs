@@ -98,7 +98,7 @@ impl Compressor {
             let nb = &content[30..32];
             if let Ok(u) = u16::from_str_radix(nb.trim(), 10) {
                 //DEBUG
-                println!("Identified {} vehicules", u);
+                //println!("Identified {} vehicules", u);
                 Ok(u.into())
             } else {
                 Err(Error::MalformedEpochDescriptor)
@@ -126,7 +126,7 @@ impl Compressor {
             }
             let sv = Sv::from_str(&vehicule)?;
             //DEBUG
-            println!("VEHICULE: {}", sv);
+            //println!("VEHICULE: {}", sv);
             Ok(sv)
         } else {
             Err(Error::VehiculeIdentificationError)
@@ -137,7 +137,7 @@ impl Compressor {
     fn conclude_vehicule (&mut self, content: &str) -> String {
         let mut result = content.to_string();
         //DEBUG
-        println!(">>> VEHICULE CONCLUDED");
+        //println!(">>> VEHICULE CONCLUDED");
         // conclude line with lli/ssi flags
         let flags = self.flags_descriptor.trim_end();
         if flags.len() > 0 {
@@ -157,7 +157,7 @@ impl Compressor {
     /// Concludes current epoch
     fn conclude_epoch (&mut self) {
         //DEBUG
-        println!(">>> EPOCH CONCLUDED \n");
+        //println!(">>> EPOCH CONCLUDED \n");
         self.epoch_ptr = 0;
         self.vehicule_ptr = 0;
         self.epoch_descriptor.clear();
@@ -178,7 +178,7 @@ impl Compressor {
                     self.forced_init.insert(*sv, vec![index]);
                 }
                 //DEBUG
-                println!("PENDING: {:?}", self.forced_init);
+                //println!("PENDING: {:?}", self.forced_init);
             }
         }
     }
@@ -206,7 +206,6 @@ impl Compressor {
         loop {
             let line: &str = match lines.next() {
                 Some(l) => {
-                    //DEBUG
                     if l.trim().len() == 0 {
                         // line completely empty
                         // ==> determine if we were expecting content
@@ -218,7 +217,7 @@ impl Compressor {
                                     let sv_nb_obs = obs_codes[&sv.constellation].len();
                                     let nb_missing = std::cmp::min(5, sv_nb_obs - self.obs_ptr);
                                     //DEBUG
-                                    println!("Early empty line - missing {} field(s)", nb_missing);
+                                    //println!("Early empty line - missing {} field(s)", nb_missing);
                                     for i in 0..nb_missing { 
                                         result.push_str(" "); // empty whitespace, on each missing observable
                                             // to remain retro compatible with official tools
@@ -317,7 +316,6 @@ impl Compressor {
                     }
                 },
                 State::Body => {
-                    //DEBUG
                     // nb of obs in this line
                     let nb_obs_line = num_integer::div_ceil(line.len(), 17);
                     // identify current satellite using stored epoch description
@@ -333,6 +331,7 @@ impl Compressor {
                                 result.push_str(" "); // put an empty space on missing observables
                                     // this is how RNX2CRX (official) behaves,
                                     // if we don't do this we break retro compatibility
+                                self.flags_descriptor.push_str("  ");
                             }
                             result = self.conclude_vehicule(&result);
                             if self.state == State::EpochDescriptor { // epoch got also concluded
@@ -372,6 +371,9 @@ impl Compressor {
                                                     compressed = obsdata;
                                                     diffs.0.init(3, obsdata)
                                                         .unwrap();
+                                                    diffs.1.init(" ");
+                                                    diffs.2.init(" ");
+                                                    println!("FORCED REINIT WITH FLAGS \"{}\"", self.flags_descriptor);
                                                     result.push_str(&format!("3&{} ", compressed));//append obs
                                                     // remove from pending list,
                                                     // so we only force it once
@@ -394,7 +396,6 @@ impl Compressor {
                                                 compressed = diffs.0.compress(obsdata);
                                                 result.push_str(&format!("{} ", compressed));//append obs
                                             }
-                                            
 
                                             let _ = diffs.1.compress(" ");
                                             let _ = diffs.2.compress(" ");
@@ -408,8 +409,6 @@ impl Compressor {
                                                 TextDiff::new(),
                                                 TextDiff::new(),
                                             );
-                                            //DEBUG
-                                            println!("INIT KERNELS with {} BLANK BLANK", obsdata);
                                             diff.0.init(3, obsdata)
                                                 .unwrap();
                                             result.push_str(&format!("3&{} ", obsdata));//append obs
@@ -425,8 +424,6 @@ impl Compressor {
                                             TextDiff::new(),
                                             TextDiff::new(),
                                         );
-                                        //DEBUG
-                                        println!("INIT KERNELS with {} BLANK BLANK", obsdata);
                                         diff.0.init(3, obsdata)
                                             .unwrap();
                                         result.push_str(&format!("3&{} ", obsdata));//append obs
@@ -439,7 +436,8 @@ impl Compressor {
                                     }
                                 } else { //flags.len() >=1 : Not all Flags ommited
                                     let (lli, ssi) = flags.split_at(1);
-                                    println!("OBS \"{}\" - LLI \"{}\" - SSI \"{}\"", obsdata, lli, ssi);
+                                    //DEBUG
+                                    //println!("OBS \"{}\" - LLI \"{}\" - SSI \"{}\"", obsdata, lli, ssi);
                                     if let Some(sv_diffs) = self.sv_diff.get_mut(&sv) {
                                         // retrieve observable state
                                         if let Some(diffs) = sv_diffs.get_mut(&self.obs_ptr) {
@@ -488,19 +486,16 @@ impl Compressor {
                                             );
                                             diff.0.init(3, obsdata)
                                                 .unwrap();
+                                            diff.1.init(lli);
+                                            diff.2.init(ssi);
                                             result.push_str(&format!("3&{} ", obsdata));//append obs
-                                            //DEBUG
-                                            println!("INIT KERNELS with {} - \"{}\" -  \"{}\"", obsdata, lli, ssi);
-                                            
                                             if lli.len() > 0 {
-                                                diff.1.init(lli);
                                                 self.flags_descriptor.push_str(lli);
                                             } else {
                                                 self.flags_descriptor.push_str(" ");
                                             }
                                             
                                             if ssi.len() > 0 {
-                                                diff.2.init(ssi);
                                                 self.flags_descriptor.push_str(ssi);
                                             } else { // SSI omitted
                                                 self.flags_descriptor.push_str(" ");
@@ -518,15 +513,11 @@ impl Compressor {
                                             .unwrap();
                                         result.push_str(&format!("3&{} ", obsdata));//append obs
                                         diff.1.init(lli);
+                                        diff.2.init(ssi);
                                         self.flags_descriptor.push_str(lli);
                                         if ssi.len() > 0 {
-                                            //DEBUG
-                                            println!("INIT KERNELS with {} - \"{}\" -  \"{}\"", obsdata, lli, ssi);
-                                            diff.2.init(ssi);
                                             self.flags_descriptor.push_str(ssi);
                                         } else { // SSI omitted
-                                            //DEBUG
-                                            println!("INIT KERNELS with {} - \"{}\" - BLANK", obsdata, lli);
                                             diff.2.init(" "); // BLANK
                                             self.flags_descriptor.push_str(" ");
                                         }
@@ -544,8 +535,8 @@ impl Compressor {
                                 self.flags_descriptor.push_str("  ");
                                 self.schedule_kernel_init(&sv, self.obs_ptr);
                             }
-                            //DEBUG
                             self.obs_ptr += 1;
+                            //DEBUG
                             println!("OBS {}/{}", self.obs_ptr, sv_nb_obs); 
                         
                             if self.obs_ptr > sv_nb_obs { // unexpected overflow
