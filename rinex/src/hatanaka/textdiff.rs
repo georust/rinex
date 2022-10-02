@@ -58,8 +58,6 @@ impl TextDiff {
     
     /// Compresses given data
     pub fn compress (&mut self, data: &str) -> String {
-        println!("\"{}\" - INNER: \"{}\"", data, self.init);
-
         let mut result = String::new();
         let mut inner: Vec<_> = self.init.chars().collect();
         self.init.clear();
