@@ -161,6 +161,25 @@ impl Compressor {
         self.state.reset();
     }
     
+    /// Schedule given kernel for reinitizalition
+    /// due to omitted data field.
+    /// We only do so if kernel was previously initialized
+    fn schedule_kernel_init (&mut self, sv: &Sv, index: usize) {
+        if let Some(indexes) = self.sv_diff.get(sv) {
+            if indexes.contains_key(&index) {
+                if let Some(indexes) = self.forced_init.get_mut(sv) {
+                    if !indexes.contains(&index) {
+                        indexes.push(index);
+                    }
+                } else {
+                    self.forced_init.insert(*sv, vec![index]);
+                }
+                //DEBUG
+                println!("PENDING: {:?}", self.forced_init);
+            }
+        }
+    }
+    
     /// Compresses given RINEX data to CRINEX 
     pub fn compress (&mut self, header: &Header, content: &str) -> Result<String, Error> {
         // Context sanity checks
@@ -199,12 +218,7 @@ impl Compressor {
                                     println!("Early empty line - missing {} field(s)", nb_missing);
                                     for i in 0..nb_missing { 
                                         self.flags_descriptor.push_str("  "); // both missing
-                                        //schedule re/init
-                                        if let Some(indexes) = self.forced_init.get_mut(&sv) {
-                                            indexes.push(self.obs_ptr+i);
-                                        } else {
-                                            self.forced_init.insert(sv, vec![self.obs_ptr+i]);
-                                        }
+                                        self.schedule_kernel_init(&sv, self.obs_ptr +i);
                                     }
                                     self.obs_ptr += nb_missing;
                                     if self.obs_ptr == sv_nb_obs { // vehicule completion
@@ -298,6 +312,7 @@ impl Compressor {
                     }
                 },
                 State::Body => {
+                    //DEBUG
                     // nb of obs in this line
                     let nb_obs_line = num_integer::div_ceil(line.len(), 17);
                     // identify current satellite using stored epoch description
@@ -308,15 +323,10 @@ impl Compressor {
                             // this means all final fields were omitted, 
                             // ==> handle this case
                             println!("SV {} final fields were omitted", sv);
-                            for index in self.obs_ptr..sv_nb_obs {
-                                //schedule re/init
-                                if let Some(indexes) = self.forced_init.get_mut(&sv) {
-                                    indexes.push(index);
-                                } else {
-                                    self.forced_init.insert(sv, vec![index]);
-                                }
+                            for index in self.obs_ptr..sv_nb_obs+1 {
+                                self.schedule_kernel_init(&sv, index);
                                 result.push_str(" "); // put an empty space on missing observables
-                                    // this is now RNX2CRX (official) behaves,
+                                    // this is how RNX2CRX (official) behaves,
                                     // if we don't do this we break retro compatibility
                             }
                             result = self.conclude_vehicule(&result);
@@ -353,18 +363,22 @@ impl Compressor {
                                             // forced re/init is pending
                                             if let Some(indexes) = self.forced_init.get_mut(&sv) {
                                                 if indexes.contains(&self.obs_ptr) {
-                                                    // forced reinitialization
+                                                    // forced reinit pending
                                                     compressed = obsdata;
-                                                    result.push_str(&format!("3&{} ", compressed));//append obs
                                                     diffs.0.init(3, obsdata)
                                                         .unwrap();
-                                                    // remove pending init,
-                                                    // so we do not force reinitizalition more than once
+                                                    result.push_str(&format!("3&{} ", compressed));//append obs
+                                                    // remove from pending list,
+                                                    // so we only force it once
                                                     for i in 0..indexes.len() {
                                                         if indexes[i] == self.obs_ptr {
+                                                            //panic!("removing {}", self.obs_ptr);
                                                             indexes.remove(i);
                                                             break
                                                         }
+                                                    }
+                                                    if indexes.len() == 0 {
+                                                        self.forced_init.remove(&sv);
                                                     }
                                                 } else {
                                                     // compress data
@@ -388,8 +402,8 @@ impl Compressor {
                                             diff.0.init(3, obsdata)
                                                 .unwrap();
                                             result.push_str(&format!("3&{} ", obsdata));//append obs
-                                            diff.1.init(" "); // BLANK
-                                            diff.2.init(" "); // BLANK
+                                            diff.1.init("&"); // BLANK
+                                            diff.2.init("&"); // BLANK
                                             self.flags_descriptor.push_str("  ");
                                             sv_diffs.insert(self.obs_ptr, diff);
                                         }
@@ -423,18 +437,21 @@ impl Compressor {
                                             // forced re/init is pending
                                             if let Some(indexes) = self.forced_init.get_mut(&sv) {
                                                 if indexes.contains(&self.obs_ptr) {
-                                                    // forced reinitialization
+                                                    // forced init pending
                                                     compressed = obsdata;
                                                     result.push_str(&format!("3&{} ", compressed));
                                                     diffs.0.init(3, obsdata)
                                                         .unwrap();
-                                                    // remove pending init,
-                                                    // so we do not force reinitizalition more than once
+                                                    // remove from pending list,
+                                                    // so we only force it once
                                                     for i in 0..indexes.len() {
                                                         if indexes[i] == self.obs_ptr {
                                                             indexes.remove(i);
                                                             break
                                                         }
+                                                    }
+                                                    if indexes.len() == 0 {
+                                                        self.forced_init.remove(&sv);
                                                     }
                                                 } else {
                                                     compressed = diffs.0.compress(obsdata);
@@ -519,18 +536,13 @@ impl Compressor {
                                     }
                                 }
                             } else { //obsdata::f64::from_str()
-                                // when the floating point observable parsing is in failure,
-                                // we assume field is omitted
+                                // when floating point parsing is in failure,
+                                // we know this observable is omitted
                                 result.push_str(" "); // put an empty space on missing observables
-                                    // this is now RNX2CRX (official) behaves,
+                                    // this is how RNX2CRX (official) behaves,
                                     // if we don't do this we break retro compatibility
                                 self.flags_descriptor.push_str("  ");
-                                // schedule re/init 
-                                if let Some(indexes) = self.forced_init.get_mut(&sv) {
-                                    indexes.push(self.obs_ptr);
-                                } else {
-                                    self.forced_init.insert(sv, vec![self.obs_ptr]);
-                                }
+                                self.schedule_kernel_init(&sv, self.obs_ptr);
                             }
                             //DEBUG
                             self.obs_ptr += 1;
