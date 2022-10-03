@@ -17,7 +17,6 @@ use crate::header::Header;
 use crate::version;
 use crate::constellation;
 use crate::constellation::Constellation;
-use crate::constellation::augmentation::Augmentation;
 
 use std::io::Write;
 use crate::writer::BufferedWriter;

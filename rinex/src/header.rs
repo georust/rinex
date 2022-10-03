@@ -15,9 +15,7 @@ use crate::observation;
 use crate::version::Version;
 
 use crate::constellation;
-use crate::constellation::{
-	Constellation, augmentation::Augmentation,
-};
+use crate::constellation::Constellation;
 
 use thiserror::Error;
 use std::str::FromStr;
