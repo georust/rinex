@@ -23,12 +23,10 @@ The fractional parts ("nanos") is totally unused, we cannot handle periods small
     - [ ] Antenna data production 
 
 - [ ] Data decompression
-  - [ ] CRX2RNX CRX3 thorough test
+  - [ ] CRX32RNX thorough test
 
 - [ ] Data compression
   - [ ] Data conversion and scaling 
-  - [x] Adjust production method to take advantage of newly available Writer wrapper
-  - [ ] Unlock `CRINEX` data production
   - [ ] `Gzip` decompression failure: understand current issue regarding files marked for `Post Processing`, 
 track [opened issue](https://github.com/rust-lang/flate2-rs/issues/316)
 
@@ -69,9 +67,13 @@ track [opened issue](https://github.com/rust-lang/flate2-rs/issues/316)
 - Data decompression
   - [x] CRX2RNX CRX1 thorough test
   - [x] Conclude [numerical data compression](https://github.com/gwbres/rinex/blob/main/rinex/src/hatanaka.rs#L164)
+- Data Production
+  - [x] Meteo, V2,V3,V4
 - Data compression 
   - [x] Conclude [text data compression](https://github.com/gwbres/rinex/blob/main/rinex/src/hatanaka.rs#L209)
   - [x] Verify data scaling is correctly restablish in decompression
+  - [x] Adjust production method to take advantage of newly available Writer wrapper
+  - [x] Unlock `CRINEX` data production
 - `navigation` - `dictionary`
   - [x] General orbits health 
   - [x] GLO/Orbit2 channel #
