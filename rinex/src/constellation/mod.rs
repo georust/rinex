@@ -32,6 +32,9 @@ pub enum Constellation {
     QZSS,
     /// `Galileo` european constellation
     Galileo,
+    /// `Geo` : stationnary satellite,
+    /// also serves as SBAS with unknown augmentation system
+    Geo,
     /// `SBAS` 
     SBAS(Augmentation),
     /// `IRNSS` constellation
@@ -73,7 +76,7 @@ impl Constellation {
         } else if code.to_lowercase().eq("j") {
             Ok(Constellation::QZSS)
         } else if code.to_lowercase().eq("s") {
-            Ok(Constellation::SBAS(Augmentation::default()))
+            Ok(Constellation::Geo)
         } else if code.to_lowercase().eq("i") {
             Ok(Constellation::IRNSS)
         } else if code.to_lowercase().eq("m") {
@@ -89,7 +92,7 @@ impl Constellation {
             Constellation::Glonass => "R",
             Constellation::Galileo => "E",
             Constellation::BeiDou => "C",
-            Constellation::SBAS(_) => "S",
+            Constellation::SBAS(_) | Constellation::Geo => "S",
             Constellation::QZSS => "J",
             Constellation::IRNSS => "I",
             Constellation::Mixed => "M",
@@ -102,21 +105,20 @@ impl Constellation {
         if code.len() != 3 {
             return Err(Error::CodeLengthMismatch(3, code.len()))
         }
-        if code.to_lowercase().eq("gps") {
+        let code = code.to_lowercase();
+        if code.eq("gps") {
             Ok(Constellation::GPS)
-        } else if code.to_lowercase().eq("glo") {
+        } else if code.eq("glo") {
             Ok(Constellation::Glonass)
-        } else if code.to_lowercase().eq("bds") {
+        } else if code.eq("bds") {
             Ok(Constellation::BeiDou)
-        } else if code.to_lowercase().eq("gal") {
+        } else if code.eq("gal") {
             Ok(Constellation::Galileo)
-        } else if code.to_lowercase().eq("qzs") {
+        } else if code.eq("qzs") {
             Ok(Constellation::QZSS)
-        } else if code.to_lowercase().eq("sbs") {
-            Ok(Constellation::SBAS(Augmentation::default()))
-        } else if code.to_lowercase().eq("geo") {
-            Ok(Constellation::SBAS(Augmentation::default()))
-        } else if code.to_lowercase().eq("irn") {
+        } else if code.eq("sbs") | code.eq("geo") {
+            Ok(Constellation::Geo)
+        } else if code.eq("irn") {
             Ok(Constellation::IRNSS)
         } else {
             Err(Error::UnknownCode(code.to_string()))
@@ -129,7 +131,7 @@ impl Constellation {
             Constellation::Glonass => "GLO",
             Constellation::Galileo => "GAL",
             Constellation::BeiDou => "BDS",
-            Constellation::SBAS(_) => "GEO",
+            Constellation::SBAS(_) | Constellation::Geo => "GEO",
             Constellation::QZSS => "QZS",
             Constellation::IRNSS => "IRN",
             Constellation::Mixed => "MIX",
@@ -138,23 +140,24 @@ impl Constellation {
     /// Identifies `gnss` constellation from given standard plain name,
     /// like "GPS", or "Galileo". This method is not case sensitive.
     pub fn from_plain_name (code: &str) -> Result<Constellation, Error> {
-        if code.to_lowercase().contains("gps") {
+        let code = code.to_lowercase();
+        if code.contains("gps") {
             Ok(Constellation::GPS)
-        } else if code.to_lowercase().contains("glonass") {
+        } else if code.contains("glonass") {
             Ok(Constellation::Glonass)
-        } else if code.to_lowercase().contains("galileo") {
+        } else if code.contains("galileo") {
             Ok(Constellation::Galileo)
-        } else if code.to_lowercase().contains("qzss") {
+        } else if code.contains("qzss") {
             Ok(Constellation::QZSS)
-        } else if code.to_lowercase().contains("beidou") {
+        } else if code.contains("beidou") {
             Ok(Constellation::BeiDou)
-        } else if code.to_lowercase().contains("sbas") {
-            Ok(Constellation::SBAS(Augmentation::default()))
-        } else if code.to_lowercase().contains("geo") {
-            Ok(Constellation::SBAS(Augmentation::default()))
-        } else if code.to_lowercase().contains("irnss") {
+        } else if code.contains("sbas") {
+            Ok(Constellation::Geo)
+        } else if code.contains("geo") {
+            Ok(Constellation::Geo)
+        } else if code.contains("irnss") {
             Ok(Constellation::IRNSS)
-        } else if code.to_lowercase().contains("mixed") {
+        } else if code.contains("mixed") {
             Ok(Constellation::Mixed)
         } else {
             Err(Error::UnknownCode(code.to_string()))

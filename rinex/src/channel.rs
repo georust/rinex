@@ -292,7 +292,7 @@ impl Channel {
                     _ => Ok(Self::E1),
                 }
             },
-            Constellation::SBAS(_) => {
+            Constellation::SBAS(_) | Constellation::Geo => {
                 match sv.prn {
                     1 => Ok(Self::L1),
                     5 => Ok(Self::L5),

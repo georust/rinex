@@ -610,7 +610,7 @@ impl Header {
                                     Constellation::Glonass,
                                     Constellation::Galileo,
                                     Constellation::BeiDou,
-                                    Constellation::SBAS(Augmentation::default()),
+                                    Constellation::Geo,
                                     Constellation::QZSS,
                                 ];
                                 for i in 0..constells.len() {
@@ -645,7 +645,7 @@ impl Header {
                                     Constellation::Glonass,
                                     Constellation::Galileo,
                                     Constellation::BeiDou,
-                                    Constellation::SBAS(Augmentation::default()),
+                                    Constellation::Geo,
                                     Constellation::QZSS,
                                 ]
                             },

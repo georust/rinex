@@ -194,6 +194,8 @@ pub enum Error {
     ParseDateError(#[from] epoch::ParseDateError),
     #[error("failed to parse epoch flag")]
     ParseEpochFlagError(#[from] std::io::Error),
+    #[error("failed to identify constellation")]
+    ConstellationError(#[from] constellation::Error),
     #[error("failed to parse sv")]
     SvError(#[from] sv::Error),
     #[error("failed to integer number")]
@@ -337,25 +339,13 @@ pub fn parse_epoch (header: &header::Header, content: &str)
         for _ in 0..n_sv_line {
             loop {
                 let sv_str = &rem[offset..offset+3];
-                let identifier = sv_str.chars().nth(0)
-                    .unwrap(); 
+                let identifier = &sv_str[0..1];
                 let prn = u8::from_str(&sv_str[1..].trim())?;
                 // build `sv` 
-                let sv : sv::Sv = match identifier.is_ascii_whitespace() {
+                let sv : sv::Sv = match identifier.eq(" ") {
                     true => sv::Sv::new(header.constellation.unwrap(), prn),
                     false => {
-                        let constell : Constellation = match identifier {
-                            'G' => Constellation::GPS,
-                            'R' => Constellation::Glonass,
-                            'J' => Constellation::QZSS,
-                            'E' => Constellation::Galileo,
-                            'C' => Constellation::BeiDou,
-                            'S' => Constellation::SBAS(Augmentation::default()),
-                            _ => return Err(
-                                Error::SvError(
-                                    sv::Error::ConstellationError(
-                                        constellation::Error::UnknownCode(identifier.to_string())))),
-                        };
+                        let constell = Constellation::from_str(&identifier)?;
                         sv::Sv::new(constell, prn)
                     },
                 };
@@ -481,22 +471,9 @@ pub fn parse_epoch (header: &header::Header, content: &str)
 			
 			// parse Sv and identify
 			let (sv, rem) = line.split_at(3);
-			let identifier = sv.chars().nth(0)
-				.unwrap();
+			let identifier = &sv[0..1];
 			let prn = u8::from_str_radix(&sv[1..].trim(),10)?;
-			let constell : Constellation = match identifier {
-				'G' => Constellation::GPS,
-				'R' => Constellation::Glonass,
-				'J' => Constellation::QZSS,
-				'E' => Constellation::Galileo,
-				'C' => Constellation::BeiDou,
-				//'H' => Constellation::SBAS(Augmentation::default()),
-                'S' => Constellation::SBAS(Augmentation::default()),
-				_ => return Err(
-                        Error::SvError(
-                            sv::Error::ConstellationError(
-                                constellation::Error::UnknownCode(identifier.to_string())))),
-			};
+            let constell = Constellation::from_str(identifier)?;
 			let sv = sv::Sv::new(constell, prn);
 			// retrieve obs code for that system
 			let codes =  &obs_codes[&constell];
