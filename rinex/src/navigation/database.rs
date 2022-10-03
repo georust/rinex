@@ -1,6 +1,7 @@
 //! NAV database for efficient navigation ephemeris
 //! parsing, accross all revisions and constellations
 use crate::version;
+//use std::fmt::Display;
 use thiserror::Error;
 use std::str::FromStr;
 use bitflags::bitflags;
@@ -67,17 +68,17 @@ pub enum DbItem {
 impl std::fmt::Display for DbItem {
     fn fmt (&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            DbItem::U8(u)  => write!(fmt, "{:X}", u),
-            DbItem::I8(i)  => write!(fmt, "{}", i),
-            DbItem::Str(s) => write!(fmt, "{}", s),
-            DbItem::F32(f) => write!(fmt, "{:.10e}", f),
-            DbItem::F64(f) => write!(fmt, "{:.10e}", f),
-			DbItem::Health(h) => write!(fmt, "{:?}", h),
-			DbItem::GloHealth(h) => write!(fmt, "{:?}", h),
-			DbItem::GloStatus(s) => write!(fmt, "{:?}", s),
-			DbItem::GeoHealth(h) => write!(fmt, "{:?}", h),
-			DbItem::GalHealth(h) => write!(fmt, "{:?}", h),
-			DbItem::IrnssHealth(h) => write!(fmt, "{:?}", h),
+            DbItem::U8(u)  => u.fmt(fmt),
+            DbItem::I8(i)  => i.fmt(fmt),
+            DbItem::Str(s) => s.fmt(fmt),
+            DbItem::F32(f) => f.fmt(fmt), 
+            DbItem::F64(f) => f.fmt(fmt),
+            DbItem::Health(h) => h.fmt(fmt), 
+            DbItem::GloHealth(h) => h.fmt(fmt), 
+            DbItem::GloStatus(h) => "TODO".fmt(fmt), //h.fmt(fmt),
+            DbItem::GeoHealth(h) => h.fmt(fmt), 
+            DbItem::GalHealth(h) => h.fmt(fmt),
+            DbItem::IrnssHealth(h) => h.fmt(fmt),
         }
     }
 }
@@ -133,7 +134,7 @@ impl DbItem {
 							.unwrap_or(health::GloHealth::default());
 						Ok(DbItem::GloHealth(flag))
 					},
-					Constellation::SBAS(_) => {
+					Constellation::SBAS(_) | Constellation::Geo => {
 						let flag: health::GeoHealth = num::FromPrimitive::from_u32(unsigned)
 							.unwrap_or(health::GeoHealth::default());
 						Ok(DbItem::GeoHealth(flag))
