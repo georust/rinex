@@ -14,8 +14,22 @@ pub enum Health {
 }
 
 impl Default for Health {
-	fn default() -> Self {
-		Self::Unhealthy
+    fn default() -> Self {
+        Self::Unhealthy
+    }
+}
+
+impl std::fmt::Display for Health {
+    fn fmt (&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Self::Unhealthy => 0.fmt(f),
+            Self::L1Healthy => 1.fmt(f),
+            Self::L2Healthy => 2.fmt(f),
+            Self::L1L2Healthy => 3.fmt(f),
+            Self::L5Healthy => 4.fmt(f),
+            Self::L1L5Healthy => 5.fmt(f),
+            Self::L1L2L5Healthy => 7.fmt(f),
+        }
 	}
 }
 	
@@ -34,6 +48,16 @@ impl Default for IrnssHealth {
 		Self::Unknown
 	}
 }
+
+impl std::fmt::Display for IrnssHealth {
+    fn fmt (&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Self::Healthy => 0.fmt(f),
+            Self::Unknown => 1.fmt(f),
+        }
+    }
+}
+
 /// SBAS/GEO orbit health indication
 #[derive(Debug, Clone)]
 #[derive(FromPrimitive)]
@@ -48,6 +72,15 @@ impl Default for GeoHealth {
 	fn default() -> Self {
 		Self::Unknown
 	}
+}
+
+impl std::fmt::Display for GeoHealth {
+    fn fmt (&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Self::Unknown => 0.fmt(f),
+            Self::Reserved => 8.fmt(f),
+        }
+    }
 }
 
 /// GLO orbit health indication
@@ -66,25 +99,50 @@ impl Default for GloHealth {
 	}
 }
 
+impl std::fmt::Display for GloHealth {
+    fn fmt (&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Self::Healthy => 0.fmt(f),
+            Self::Unhealthy => 4.fmt(f),
+        }
+    }
+}
+
 /// GAL orbit health indication
 #[derive(Debug, Clone)]
 #[derive(FromPrimitive)]
 #[derive(PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum GalHealth {
-	Healthy = 0,
-	E1bDvs = 0x01,
-	E1bHs0 = 0x02,
-	E1bHs1 = 0x04,
-	E5aDvs = 0x08,
-	E5aHs0 = 0x10,
-	E5aHs1 = 0x20,
-	E5bHs0 = 0x40,
-	E5bHs1 = 0x80,
+    Healthy = 0,
+    E1bDvs = 0x01,
+    E1bHs0 = 0x02,
+    E1bHs1 = 0x04,
+    E5aDvs = 0x08,
+    E5aHs0 = 0x10,
+    E5aHs1 = 0x20,
+    E5bHs0 = 0x40,
+    E5bHs1 = 0x80,
 }
 
 impl Default for GalHealth {
 	fn default() -> Self {
 		Self::Healthy
 	}
+}
+
+impl std::fmt::Display for GalHealth {
+    fn fmt (&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Self::Healthy => 0.fmt(f),
+            Self::E1bDvs => 1.fmt(f),
+            Self::E1bHs0 => 2.fmt(f),
+            Self::E1bHs1 => 4.fmt(f),
+            Self::E5aDvs => 8.fmt(f),
+            Self::E5aHs0 => 16.fmt(f),
+            Self::E5aHs1 => 32.fmt(f),
+            Self::E5bHs0 => 64.fmt(f),
+            Self::E5bHs1 => 128.fmt(f),
+        }
+    }
 }
