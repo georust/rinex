@@ -92,6 +92,7 @@ mod test {
             let _ = std::fs::remove_file(copy_path);
         }
     }
+/*
     #[test]
     fn nav_v3_production() {
         let folder = env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/NAV/V3/";
@@ -128,4 +129,5 @@ mod test {
             let _ = std::fs::remove_file(copy_path);
         }
     }
+*/
 }
