@@ -548,10 +548,9 @@ fn write_epoch_v2 (
                     None => panic!("producing data with no constellation previously defined"),
                 }
                 lines.push_str(&epoch.to_string_nav_v2());
-                lines.push_str(&format!("{:.14e}", clk_off));
-                lines.push_str(&format!("{:.14e}", clk_dr));
-                lines.push_str(&format!("{:.14e}", clk_drr));
-                let mut index = 3;
+                lines.push_str(&format!(" {:14.13E}", clk_off).replace("E","D"));
+                lines.push_str(&format!(" {:14.13E}", clk_dr).replace("E","D"));
+                lines.push_str(&format!(" {:14.13E}\n", clk_drr).replace("E","D"));
                 // locate closest revision in db
                 let db_revision = match database::closest_revision(sv.constellation, Version { major: 2, minor: 0 }) {
                     Some(v) => v,
@@ -574,15 +573,17 @@ fn write_epoch_v2 (
                     })
                     .flatten()
                     .collect();
+                let mut index = 0;
                 for (key, _) in items.iter() {
                     index += 1;
                     if let Some(data) = data.get(*key) {
+                        lines.push_str(" ");
                         lines.push_str(&data.to_string())
                     } else { // data is missing: either not parsed or not provided
                         lines.push_str("              ");
                     }
                     if (index % 4) == 0 {
-                        lines.push_str("\n");
+                        lines.push_str("\n   ");
                     }
                 }
             }

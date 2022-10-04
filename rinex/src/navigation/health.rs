@@ -22,7 +22,7 @@ impl Default for Health {
     }
 }
 
-impl std::fmt::LowerExp for Health {
+impl std::fmt::UpperExp for Health {
     fn fmt (&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             Self::Unhealthy => 0.0_f32.fmt(f),
@@ -53,7 +53,7 @@ impl Default for IrnssHealth {
 	}
 }
 
-impl std::fmt::LowerExp for IrnssHealth {
+impl std::fmt::UpperExp for IrnssHealth {
     fn fmt (&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             Self::Healthy => 0.0_f32.fmt(f),
@@ -78,7 +78,7 @@ impl Default for GeoHealth {
 	}
 }
 
-impl std::fmt::LowerExp for GeoHealth {
+impl std::fmt::UpperExp for GeoHealth {
     fn fmt (&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             Self::Unknown => 0.fmt(f),
@@ -103,11 +103,11 @@ impl Default for GloHealth {
 	}
 }
 
-impl std::fmt::LowerExp for GloHealth {
+impl std::fmt::UpperExp for GloHealth {
     fn fmt (&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            Self::Healthy => 0.fmt(f),
-            Self::Unhealthy => 4.fmt(f),
+            Self::Healthy => 0_0_f32.fmt(f),
+            Self::Unhealthy => 4.0_f32.fmt(f),
         }
     }
 }

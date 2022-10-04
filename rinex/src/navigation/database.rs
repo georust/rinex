@@ -140,16 +140,16 @@ impl DbItem {
     /// mainly used when producing a file
     pub fn to_string (&self) -> String {
         match self {
-            DbItem::U8(n) => format!("{:14.9e}", *n as f32).replace("e","D"),
-            DbItem::I8(n) => format!("{:14.9e}", *n as f32).replace("e","D"),
-            DbItem::F32(f) => format!("{:14.9e}", f).replace("e","D"),
-            DbItem::F64(f) => format!("{:14.9e}", f).replace("e","D"),
-            DbItem::Health(h) => format!("{:14.9e}", h).replace("e","D"),
-            DbItem::GloHealth(h) => format!("{:14.9e}", h).replace("e","D"),
-            DbItem::GeoHealth(h) => format!("{:14.9e}", h).replace("e","D"),
-            DbItem::IrnssHealth(h) => format!("{:14.9e}", h).replace("e","D"),
-            DbItem::GalHealth(h) => format!("{:14.9e}", h.bits()).replace("e","D"),
-            DbItem::GloStatus(h) => format!("{:14.9e}", h.bits()).replace("e","D"),
+            DbItem::U8(n) => format!("{:14.10E}", *n as f32).replace("E","D+").replace("E-","D-"),
+            DbItem::I8(n) => format!("{:14.10E}", *n as f32).replace("E","D+").replace("E-","D-"),
+            DbItem::F32(f) => format!("{:14.10E}", f).replace("E","D+").replace("E-","D-"),
+            DbItem::F64(f) => format!("{:14.10E}", f).replace("E","D+").replace("E-","D-"),
+            DbItem::Health(h) => format!("{:14.10E}", h).replace("E","D+").replace("E-","D-"),
+            DbItem::GloHealth(h) => format!("{:14.10E}", h).replace("E","D+").replace("E-","D-"),
+            DbItem::GeoHealth(h) => format!("{:14.10E}", h).replace("E","D+").replace("E-","D-"),
+            DbItem::IrnssHealth(h) => format!("{:14.10E}", h).replace("E","D+").replace("E-","D-"),
+            DbItem::GalHealth(h) => format!("{:14.10E}", h.bits()).replace("E","D+").replace("E-","D-"),
+            DbItem::GloStatus(h) => format!("{:14.10E}", h.bits()).replace("E","D+").replace("E-","D-"),
         }
     }
 	/// Unwraps DbItem as f32
