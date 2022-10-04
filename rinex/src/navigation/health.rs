@@ -1,3 +1,5 @@
+use bitflags::bitflags;
+
 /// GNSS / GPS orbit health indication
 #[derive(Debug, Clone)]
 #[derive(FromPrimitive)]
@@ -10,6 +12,7 @@ pub enum Health {
 	L1L2Healthy = 3,
 	L5Healthy = 4,
 	L1L5Healthy = 5,
+	L2L5Healthy = 6,
 	L1L2L5Healthy = 7,
 }
 
@@ -19,16 +22,17 @@ impl Default for Health {
     }
 }
 
-impl std::fmt::Display for Health {
+impl std::fmt::LowerExp for Health {
     fn fmt (&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            Self::Unhealthy => 0.fmt(f),
-            Self::L1Healthy => 1.fmt(f),
-            Self::L2Healthy => 2.fmt(f),
-            Self::L1L2Healthy => 3.fmt(f),
-            Self::L5Healthy => 4.fmt(f),
-            Self::L1L5Healthy => 5.fmt(f),
-            Self::L1L2L5Healthy => 7.fmt(f),
+            Self::Unhealthy => 0.0_f32.fmt(f),
+            Self::L1Healthy => 1.0_f32.fmt(f),
+            Self::L2Healthy => 2.0_f32.fmt(f),
+            Self::L1L2Healthy => 3.0_f32.fmt(f),
+            Self::L5Healthy => 4.0_f32.fmt(f),
+            Self::L1L5Healthy => 5.0_f32.fmt(f),
+            Self::L2L5Healthy => 6.0_f32.fmt(f),
+            Self::L1L2L5Healthy => 7.0_f32.fmt(f),
         }
 	}
 }
@@ -49,11 +53,11 @@ impl Default for IrnssHealth {
 	}
 }
 
-impl std::fmt::Display for IrnssHealth {
+impl std::fmt::LowerExp for IrnssHealth {
     fn fmt (&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            Self::Healthy => 0.fmt(f),
-            Self::Unknown => 1.fmt(f),
+            Self::Healthy => 0.0_f32.fmt(f),
+            Self::Unknown => 1.0_f32.fmt(f),
         }
     }
 }
@@ -74,7 +78,7 @@ impl Default for GeoHealth {
 	}
 }
 
-impl std::fmt::Display for GeoHealth {
+impl std::fmt::LowerExp for GeoHealth {
     fn fmt (&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             Self::Unknown => 0.fmt(f),
@@ -99,7 +103,7 @@ impl Default for GloHealth {
 	}
 }
 
-impl std::fmt::Display for GloHealth {
+impl std::fmt::LowerExp for GloHealth {
     fn fmt (&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             Self::Healthy => 0.fmt(f),
@@ -108,41 +112,18 @@ impl std::fmt::Display for GloHealth {
     }
 }
 
-/// GAL orbit health indication
-#[derive(Debug, Clone)]
-#[derive(FromPrimitive)]
-#[derive(PartialEq, PartialOrd)]
-#[cfg_attr(feature = "serde", derive(Serialize))]
-pub enum GalHealth {
-    Healthy = 0,
-    E1bDvs = 0x01,
-    E1bHs0 = 0x02,
-    E1bHs1 = 0x04,
-    E5aDvs = 0x08,
-    E5aHs0 = 0x10,
-    E5aHs1 = 0x20,
-    E5bHs0 = 0x40,
-    E5bHs1 = 0x80,
-}
-
-impl Default for GalHealth {
-	fn default() -> Self {
-		Self::Healthy
-	}
-}
-
-impl std::fmt::Display for GalHealth {
-    fn fmt (&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match self {
-            Self::Healthy => 0.fmt(f),
-            Self::E1bDvs => 1.fmt(f),
-            Self::E1bHs0 => 2.fmt(f),
-            Self::E1bHs1 => 4.fmt(f),
-            Self::E5aDvs => 8.fmt(f),
-            Self::E5aHs0 => 16.fmt(f),
-            Self::E5aHs1 => 32.fmt(f),
-            Self::E5bHs0 => 64.fmt(f),
-            Self::E5bHs1 => 128.fmt(f),
-        }
+bitflags! {
+    /// GAL orbit health indication
+    #[derive(Default)]
+    #[cfg_attr(feature = "serde", derive(Serialize))]
+    pub struct GalHealth: u8 {
+        const E1B_DVS = 0x01;
+        const E1B_HS0 = 0x02;
+        const E1B_HS1 = 0x04;
+        const E5A_DVS = 0x08;
+        const E5A_HS0 = 0x10;
+        const E5A_HS1 = 0x20;
+        const E5B_HS0 = 0x40;
+        const E5B_HS1 = 0x80;
     }
 }

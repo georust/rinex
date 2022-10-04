@@ -43,8 +43,6 @@ pub enum DbItem {
     U8(u8),
 	/// signed byte
 	I8(i8),
-	/// string / readable data
-    Str(String), 
 	/// single precision data
     F32(f32),
 	/// double precision data
@@ -63,26 +61,6 @@ pub enum DbItem {
 	IrnssHealth(health::IrnssHealth),
 }
 
-//TODO: this method should produce a string in RINEX standards
-// for easy data production
-impl std::fmt::Display for DbItem {
-    fn fmt (&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match self {
-            DbItem::U8(u)  => u.fmt(fmt),
-            DbItem::I8(i)  => i.fmt(fmt),
-            DbItem::Str(s) => s.fmt(fmt),
-            DbItem::F32(f) => f.fmt(fmt), 
-            DbItem::F64(f) => f.fmt(fmt),
-            DbItem::Health(h) => h.fmt(fmt), 
-            DbItem::GloHealth(h) => h.fmt(fmt), 
-            DbItem::GloStatus(h) => h.bits().fmt(fmt),
-            DbItem::GeoHealth(h) => h.fmt(fmt), 
-            DbItem::GalHealth(h) => h.fmt(fmt),
-            DbItem::IrnssHealth(h) => h.fmt(fmt),
-        }
-    }
-}
-
 /// `DbItem` related errors
 #[derive(Error, Debug)]
 pub enum DbItemError {
@@ -98,7 +76,6 @@ impl DbItem {
     /// Builds a `DbItem` from type descriptor and string content
     pub fn new (type_desc: &str, content: &str, constellation: Constellation) -> Result<DbItem, DbItemError> {
         match type_desc {
-            "str" => Ok(DbItem::Str(String::from(content))),
             "u8" => {
 				// float->unsigned conversion
 				let float = f64::from_str(&content.replace("D","e"))?;
@@ -134,15 +111,15 @@ impl DbItem {
 							.unwrap_or(health::GloHealth::default());
 						Ok(DbItem::GloHealth(flag))
 					},
+					Constellation::Galileo => {
+                        let flags = health::GalHealth::from_bits(unsigned as u8)
+                            .unwrap_or(health::GalHealth::empty());
+                        Ok(DbItem::GalHealth(flags))
+                    },
 					Constellation::SBAS(_) | Constellation::Geo => {
 						let flag: health::GeoHealth = num::FromPrimitive::from_u32(unsigned)
 							.unwrap_or(health::GeoHealth::default());
 						Ok(DbItem::GeoHealth(flag))
-					},
-					Constellation::Galileo => {
-						let flag: health::GalHealth = num::FromPrimitive::from_u32(unsigned)
-							.unwrap_or(health::GalHealth::default());
-						Ok(DbItem::GalHealth(flag))
 					},
 					Constellation::IRNSS => {
 						let flag: health::IrnssHealth = num::FromPrimitive::from_u32(unsigned)
@@ -159,6 +136,22 @@ impl DbItem {
 			},
         }
     }
+    /// Formats self following RINEX standards,
+    /// mainly used when producing a file
+    pub fn to_string (&self) -> String {
+        match self {
+            DbItem::U8(n) => format!("{:14.9e}", *n as f32).replace("e","D"),
+            DbItem::I8(n) => format!("{:14.9e}", *n as f32).replace("e","D"),
+            DbItem::F32(f) => format!("{:14.9e}", f).replace("e","D"),
+            DbItem::F64(f) => format!("{:14.9e}", f).replace("e","D"),
+            DbItem::Health(h) => format!("{:14.9e}", h).replace("e","D"),
+            DbItem::GloHealth(h) => format!("{:14.9e}", h).replace("e","D"),
+            DbItem::GeoHealth(h) => format!("{:14.9e}", h).replace("e","D"),
+            DbItem::IrnssHealth(h) => format!("{:14.9e}", h).replace("e","D"),
+            DbItem::GalHealth(h) => format!("{:14.9e}", h.bits()).replace("e","D"),
+            DbItem::GloStatus(h) => format!("{:14.9e}", h.bits()).replace("e","D"),
+        }
+    }
 	/// Unwraps DbItem as f32
     pub fn as_f32 (&self) -> Option<f32> {
         match self {
@@ -170,13 +163,6 @@ impl DbItem {
     pub fn as_f64 (&self) -> Option<f64> {
         match self {
             DbItem::F64(f) => Some(f.clone()),
-            _ => None,
-        }
-    }
-	/// Unwraps DbItem as str
-    pub fn as_str (&self) -> Option<String> {
-        match self {
-            DbItem::Str(s) => Some(s.clone()),
             _ => None,
         }
     }
@@ -397,21 +383,12 @@ mod test {
         let e = DbItem::U8(10);
         assert_eq!(e.as_u8().is_some(), true);
         assert_eq!(e.as_f32().is_some(), false);
-        assert_eq!(e.as_str().is_some(), false);
         let u = e.as_u8().unwrap();
         assert_eq!(u, 10);
-        
-        let e = DbItem::Str(String::from("Hello World"));
-        assert_eq!(e.as_u8().is_some(), false);
-        assert_eq!(e.as_f32().is_some(), false);
-        assert_eq!(e.as_str().is_some(), true);
-        let u = e.as_str().unwrap();
-        assert_eq!(u, "Hello World");
         
         let e = DbItem::F32(10.0);
         assert_eq!(e.as_u8().is_some(), false);
         assert_eq!(e.as_f32().is_some(), true);
-        assert_eq!(e.as_str().is_some(), false);
         let u = e.as_f32().unwrap();
         assert_eq!(u, 10.0_f32);
         
@@ -419,7 +396,6 @@ mod test {
         assert_eq!(e.as_u8().is_some(), false);
         assert_eq!(e.as_f32().is_some(), false);
         assert_eq!(e.as_f64().is_some(), true);
-        assert_eq!(e.as_str().is_some(), false);
         let u = e.as_f64().unwrap();
         assert_eq!(u, 10.0_f64);
     }
