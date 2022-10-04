@@ -75,7 +75,7 @@ impl std::fmt::Display for DbItem {
             DbItem::F64(f) => f.fmt(fmt),
             DbItem::Health(h) => h.fmt(fmt), 
             DbItem::GloHealth(h) => h.fmt(fmt), 
-            DbItem::GloStatus(h) => "TODO".fmt(fmt), //h.fmt(fmt),
+            DbItem::GloStatus(h) => h.bits().fmt(fmt),
             DbItem::GeoHealth(h) => h.fmt(fmt), 
             DbItem::GalHealth(h) => h.fmt(fmt),
             DbItem::IrnssHealth(h) => h.fmt(fmt),
