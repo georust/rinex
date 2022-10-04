@@ -3350,11 +3350,12 @@ CYCLE SLIPS CONFIRMATION
     /// Writes self into given file.   
     /// Both header + record will strictly follow RINEX standards.   
     /// Record: refer to supported RINEX types
-    pub fn to_file (&self, path: &str) -> std::io::Result<()> {
+    pub fn to_file (&self, path: &str) -> Result<(), Error> {
 		let mut writer = BufferedWriter::new(path)?;
         write!(writer, "{}", self.header.to_string())?;
         self.record
-            .to_file(&self.header, &mut writer)
+            .to_file(&self.header, &mut writer)?;
+        Ok(())
     }
 }
 

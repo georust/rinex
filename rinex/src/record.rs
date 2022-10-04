@@ -130,7 +130,7 @@ impl Record {
         }
     }
     /// Streams into given file writer
-    pub fn to_file (&self, header: &header::Header, writer: &mut BufferedWriter) -> std::io::Result<()> {
+    pub fn to_file (&self, header: &header::Header, writer: &mut BufferedWriter) -> Result<(), Error> {
         match &header.rinex_type {
             Type::MeteoData => {
                 let record = self.as_meteo()
@@ -170,7 +170,9 @@ pub enum Error {
     #[error("record parsing not supported for type \"{0}\"")]
     TypeError(String),
     #[error("file i/o error")]
-    IoError(#[from] std::io::Error),
+    FileIoError(#[from] std::io::Error),
+    #[error("failed to produce NAV epoch")]
+    NavEpochError(#[from] navigation::record::Error),
 }
 
 /// Returns true if given line matches the start   

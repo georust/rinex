@@ -227,6 +227,8 @@ pub fn is_new_epoch (line: &str, v: Version) -> bool {
 pub enum Error {
     #[error("epoch is missing data")]
     MissingData,
+    #[error("file operation error")]
+    FileIoError(#[from] std::io::Error),
     #[error("failed to locate revision in db")]
     DataBaseRevisionError,
     #[error("failed to parse msg type")]
@@ -510,7 +512,7 @@ pub fn write_epoch (
         data: &BTreeMap<FrameClass, Vec<Frame>>,
         header: &header::Header,
         writer: &mut BufferedWriter,
-    ) -> std::io::Result<()> {
+    ) -> Result<(), Error> {
     /*if header.version.major < 3 {*/
         write_epoch_v2(epoch, data, header, writer)
     /*} else if header.version.major == 3 {
@@ -525,7 +527,7 @@ fn write_epoch_v2 (
         data: &BTreeMap<FrameClass, Vec<Frame>>,
         header: &header::Header,
         writer: &mut BufferedWriter,
-    ) -> std::io::Result<()> {
+    ) -> Result<(), Error> {
     let mut lines = String::new();
     for (class, frames) in data.iter() {
         if *class == FrameClass::Ephemeris {
@@ -533,21 +535,51 @@ fn write_epoch_v2 (
                 let (_, sv, clk_off, clk_dr, clk_drr, data) = frame.as_eph()
                     .unwrap();
                 match &header.constellation {
-                    Some(Constellation::Mixed) => lines.push_str(&sv.to_string()),
-                    Some(_) => lines.push_str(&format!("{:2} ", sv.prn)),
-                    None => {},
+                    Some(Constellation::Mixed) => {
+                        // Mixed constellation context
+                        // we need to fully describe the vehicule
+                        lines.push_str(&sv.to_string())
+                    },
+                    Some(_) => {
+                        // Unique constellation context:
+                        // in V2 format, only PRN is shown
+                        lines.push_str(&format!("{:2} ", sv.prn))
+                    },
+                    None => panic!("producing data with no constellation previously defined"),
                 }
                 lines.push_str(&epoch.to_string_nav_v2());
                 lines.push_str(&format!("{:.14e}", clk_off));
                 lines.push_str(&format!("{:.14e}", clk_dr));
                 lines.push_str(&format!("{:.14e}", clk_drr));
                 let mut index = 3;
-                for (_, data) in data.iter() {
+                // locate closest revision in db
+                let db_revision = match database::closest_revision(sv.constellation, Version { major: 2, minor: 0 }) {
+                    Some(v) => v,
+                    _ => return Err(Error::DataBaseRevisionError),
+                };
+                // retrieve db items / fields to generate,
+                // for this revision
+                let items: Vec<_> = NAV_MESSAGES
+                    .iter()
+                    .filter(|r| r.constellation == sv.constellation.to_3_letter_code())
+                    .map(|r| {
+                        r.revisions
+                            .iter()
+                            .filter(|r| // identified db revision
+                                u8::from_str_radix(r.major, 10).unwrap() == db_revision.major
+                                && u8::from_str_radix(r.minor, 10).unwrap() == db_revision.minor
+                            )
+                            .map(|r| &r.items)
+                            .flatten()
+                    })
+                    .flatten()
+                    .collect();
+                for (key, _) in items.iter() {
                     index += 1;
-                    if let Some(data) = data.as_f64() {
-                        lines.push_str(&format!("{:.14e}", data));
-                    } else {
-                        lines.push_str("                ");
+                    if let Some(data) = data.get(*key) {
+                        lines.push_str(&data.to_string())
+                    } else { // data is missing: either not parsed or not provided
+                        lines.push_str("              ");
                     }
                     if (index % 4) == 0 {
                         lines.push_str("\n");
@@ -556,10 +588,9 @@ fn write_epoch_v2 (
             }
         }
     }
-    lines = lines.replace("e-", "D-");
-    lines = lines.replace("e", "D+");
     lines.push_str("\n");
-    write!(writer, "{}", lines)
+    write!(writer, "{}", lines)?;
+    Ok(())
 }
 
 /*
