@@ -44,6 +44,8 @@ track [opened issue](https://github.com/rust-lang/flate2-rs/issues/316)
   - [ ] expose remaining interesting methods ?
   - [ ] conclude the `teqc` mini ascii plot 
   - [ ] Find an efficient method to customize header fields
+  - [ ] We are limited to "clap" 3.x as long as we use a "yaml"
+  command line description
 - [ ]  Data production
   - [ ] provide some interface to efficiently customize the Header section
   - [ ] provide an efficient interface to manage file names to be generated 
