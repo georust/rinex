@@ -513,16 +513,14 @@ pub fn write_epoch (
         header: &header::Header,
         writer: &mut BufferedWriter,
     ) -> Result<(), Error> {
-    /*if header.version.major < 3 {*/
-        write_epoch_v2(epoch, data, header, writer)
-    /*} else if header.version.major == 3 {
-        write_epoch_v2(epoch, data, header, writer)
+    if header.version.major < 4 {
+        write_epoch_v2_v3(epoch, data, header, writer)
     } else {
-        write_epoch_v2(epoch, data, header, writer)
-    }*/
+        write_epoch_v4(epoch, data, header, writer)
+    }
 }
 
-fn write_epoch_v2 (
+fn write_epoch_v2_v3 (
         epoch: &Epoch, 
         data: &BTreeMap<FrameClass, Vec<Frame>>,
         header: &header::Header,
@@ -552,7 +550,7 @@ fn write_epoch_v2 (
                 lines.push_str(&format!(" {:14.13E}", clk_dr).replace("E","D"));
                 lines.push_str(&format!(" {:14.13E}\n", clk_drr).replace("E","D"));
                 // locate closest revision in db
-                let db_revision = match database::closest_revision(sv.constellation, Version { major: 2, minor: 0 }) {
+                let db_revision = match database::closest_revision(sv.constellation, header.version) {
                     Some(v) => v,
                     _ => return Err(Error::DataBaseRevisionError),
                 };
@@ -594,28 +592,95 @@ fn write_epoch_v2 (
     Ok(())
 }
 
-/*
-fn write_epoch_v3 (
+fn write_epoch_v4 (
         epoch: &Epoch, 
         data: &BTreeMap<FrameClass, Vec<Frame>>,
         header: &header::Header,
         writer: &mut BufferedWriter,
-    ) -> std::io::Result<()> {
+    ) -> Result<(), Error> {
     let mut lines = String::new();
-    lines.push_str(" ");
-    lines.push_str(&epoch.to_string_nav_v2());
     for (class, frames) in data.iter() {
         if *class == FrameClass::Ephemeris {
             for frame in frames.iter() {
                 let (_, sv, clk_off, clk_dr, clk_drr, data) = frame.as_eph()
                     .unwrap();
-                 
+                match &header.constellation {
+                    Some(Constellation::Mixed) => {
+                        // Mixed constellation context
+                        // we need to fully describe the vehicule
+                        lines.push_str(&sv.to_string())
+                    },
+                    Some(_) => {
+                        // Unique constellation context:
+                        // in V2 format, only PRN is shown
+                        lines.push_str(&format!("{:2} ", sv.prn))
+                    },
+                    None => panic!("producing data with no constellation previously defined"),
+                }
+                lines.push_str(&epoch.to_string_nav_v2());
+                lines.push_str(&format!(" {:14.13E}", clk_off).replace("E","D"));
+                lines.push_str(&format!(" {:14.13E}", clk_dr).replace("E","D"));
+                lines.push_str(&format!(" {:14.13E}\n", clk_drr).replace("E","D"));
+                // locate closest revision in db
+                let db_revision = match database::closest_revision(sv.constellation, header.version) {
+                    Some(v) => v,
+                    _ => return Err(Error::DataBaseRevisionError),
+                };
+                // retrieve db items / fields to generate,
+                // for this revision
+                let items: Vec<_> = NAV_MESSAGES
+                    .iter()
+                    .filter(|r| r.constellation == sv.constellation.to_3_letter_code())
+                    .map(|r| {
+                        r.revisions
+                            .iter()
+                            .filter(|r| // identified db revision
+                                u8::from_str_radix(r.major, 10).unwrap() == db_revision.major
+                                && u8::from_str_radix(r.minor, 10).unwrap() == db_revision.minor
+                            )
+                            .map(|r| &r.items)
+                            .flatten()
+                    })
+                    .flatten()
+                    .collect();
+                let mut index = 0;
+                for (key, _) in items.iter() {
+                    index += 1;
+                    if let Some(data) = data.get(*key) {
+                        lines.push_str(" ");
+                        lines.push_str(&data.to_string())
+                    } else { // data is missing: either not parsed or not provided
+                        lines.push_str("              ");
+                    }
+                    if (index % 4) == 0 {
+                        lines.push_str("\n   ");
+                    }
+                }
             }
-        }
+        } // EPH
+        else if *class == FrameClass::SystemTimeOffset {
+            for frame in frames.iter() {
+                let msg = frame.as_sto()
+                    .unwrap();
+            }
+        } // STO
+        else if *class == FrameClass::EarthOrientation {
+            for frame in frames.iter() {
+                let msg = frame.as_eop()
+                    .unwrap();
+            }
+        } // EOP
+        else { // ION 
+            for frame in frames.iter() {
+                let msg = frame.as_ion()
+                    .unwrap();
+            }
+        } // ION
     }
     lines.push_str("\n");
-    write!(writer, "{}", lines)
-}*/
+    write!(writer, "{}", lines)?;
+    Ok(())
+}
 
 /*
 fn write_epoch_v4 (

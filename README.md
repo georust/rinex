@@ -30,8 +30,8 @@ and the [rinex](rinex/) crate.
 
 | Type                       | Support           | CLI                 | UBX                  | Production        |          Notes          |
 |----------------------------|-------------------|---------------------|----------------------|-------------------|-------------------------
-| Navigation  (NAV)          | :heavy_check_mark:|  :heavy_check_mark: | :construction:       | V2, :sparkle:, V3,V4: :construction:     | Epoch iteration |
-| Observation (OBS)          | :heavy_check_mark:|  :heavy_check_mark: | :construction:       | V2 :sparkle: V3,V4 :sparkle: | Epoch iteration |
+| Navigation  (NAV)          | :heavy_check_mark:|  :heavy_check_mark: | :construction:       | V2 :sparkle:, V3 :sparkle: V4: :construction:  | Epoch iteration |
+| Observation (OBS)          | :heavy_check_mark:|  :heavy_check_mark: | :construction:       | V2 :sparkle: V3 :sparkle: V4 :sparkle: | Epoch iteration |
 |  CRINEX  (Compressed OBS)  | :heavy_check_mark:|  :heavy_check_mark: | :construction:       | CRNX1 :sparkle:  CRNX3 :construction:    | Epoch iteration |
 |  Meteorological data (MET) | :heavy_check_mark:| :heavy_check_mark:  | :construction:       |:heavy_check_mark: | Epoch iteration |  
 |  Clocks (CLK)              | :heavy_check_mark:|  :heavy_check_mark: | :question:        |:construction: | Epoch iteration |
