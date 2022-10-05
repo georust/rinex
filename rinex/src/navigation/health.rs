@@ -25,14 +25,14 @@ impl Default for Health {
 impl std::fmt::UpperExp for Health {
     fn fmt (&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            Self::Unhealthy => 0.0_f32.fmt(f),
-            Self::L1Healthy => 1.0_f32.fmt(f),
-            Self::L2Healthy => 2.0_f32.fmt(f),
-            Self::L1L2Healthy => 3.0_f32.fmt(f),
-            Self::L5Healthy => 4.0_f32.fmt(f),
-            Self::L1L5Healthy => 5.0_f32.fmt(f),
-            Self::L2L5Healthy => 6.0_f32.fmt(f),
-            Self::L1L2L5Healthy => 7.0_f32.fmt(f),
+            Self::Unhealthy => 0.0_f64.fmt(f),
+            Self::L1Healthy => 1.0_f64.fmt(f),
+            Self::L2Healthy => 2.0_f64.fmt(f),
+            Self::L1L2Healthy => 3.0_f64.fmt(f),
+            Self::L5Healthy => 4.0_f64.fmt(f),
+            Self::L1L5Healthy => 5.0_f64.fmt(f),
+            Self::L2L5Healthy => 6.0_f64.fmt(f),
+            Self::L1L2L5Healthy => 7.0_f64.fmt(f),
         }
 	}
 }
@@ -56,8 +56,8 @@ impl Default for IrnssHealth {
 impl std::fmt::UpperExp for IrnssHealth {
     fn fmt (&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            Self::Healthy => 0.0_f32.fmt(f),
-            Self::Unknown => 1.0_f32.fmt(f),
+            Self::Healthy => 0.0_f64.fmt(f),
+            Self::Unknown => 1.0_f64.fmt(f),
         }
     }
 }
@@ -106,8 +106,8 @@ impl Default for GloHealth {
 impl std::fmt::UpperExp for GloHealth {
     fn fmt (&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            Self::Healthy => 0_0_f32.fmt(f),
-            Self::Unhealthy => 4.0_f32.fmt(f),
+            Self::Healthy => 0_0_f64.fmt(f),
+            Self::Unhealthy => 4.0_f64.fmt(f),
         }
     }
 }

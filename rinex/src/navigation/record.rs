@@ -14,7 +14,6 @@ use crate::constellation::Constellation;
 
 use crate::navigation::{
     ionmessage, 
-    stomessage, 
     eopmessage,
     database, database::{NAV_MESSAGES, DbItem, DbItemError},
 };
@@ -547,19 +546,25 @@ fn write_epoch_v2_v3 (
                     Some(Constellation::Mixed) => {
                         // Mixed constellation context
                         // we need to fully describe the vehicule
-                        lines.push_str(&sv.to_string())
+                        write!(writer, "{} ", sv)?;
                     },
                     Some(_) => {
                         // Unique constellation context:
                         // in V2 format, only PRN is shown
-                        lines.push_str(&format!("{:2} ", sv.prn))
+                        write!(writer, "{:2} ", sv.prn)?;
                     },
                     None => panic!("producing data with no constellation previously defined"),
                 }
-                lines.push_str(&epoch.to_string_nav_v2());
-                lines.push_str(&format!(" {:14.13E}", clk_off).replace("E","D"));
-                lines.push_str(&format!(" {:14.13E}", clk_dr).replace("E","D"));
-                lines.push_str(&format!(" {:14.13E}\n", clk_drr).replace("E","D"));
+                if header.version.major < 3 {
+                    write!(writer, "{} ", epoch.to_string_nav_v2())?;
+                } else {
+                    write!(writer, "{} ", epoch.to_string_nav_v3())?;
+                }
+                write!(writer,
+                    "{:14.13E} {:14.13E} {:14.13E}\n     ",
+                    clk_off,
+                    clk_dr,
+                    clk_drr)?;
                 // locate closest revision in db
                 let db_revision = match database::closest_revision(sv.constellation, header.version) {
                     Some(v) => v,
@@ -582,24 +587,35 @@ fn write_epoch_v2_v3 (
                     })
                     .flatten()
                     .collect();
-                let mut index = 0;
-                for (key, _) in items.iter() {
-                    index += 1;
-                    if let Some(data) = data.get(*key) {
-                        lines.push_str(" ");
-                        lines.push_str(&data.to_string())
-                    } else { // data is missing: either not parsed or not provided
-                        lines.push_str("              ");
-                    }
-                    if (index % 4) == 0 {
-                        lines.push_str("\n   ");
+                let nb_items_per_line = 4;
+                let mut chunks = items
+                    .chunks_exact(nb_items_per_line)
+                    .peekable();
+                while let Some(chunk) = chunks.next() {
+                    if chunks.peek().is_some() {
+                        for (key, _) in chunk {
+                            if let Some(data) = data.get(*key) {
+                                write!(writer, "{} ", data.to_string())?
+                            } else {
+                                write!(writer, "              ")?;
+                            }
+                        }
+                        write!(writer, "\n     ")?;
+                    } else {
+                        // last row
+                        for (key, _) in chunk {
+                            if let Some(data) = data.get(*key) {
+                                write!(writer, "{} ", data.to_string())?
+                            } else {
+                                write!(writer, "              ")?;
+                            }
+                        }
+                        write!(writer, "\n")?;
                     }
                 }
             }
         }
     }
-    lines.push_str("\n");
-    write!(writer, "{}", lines)?;
     Ok(())
 }
 
@@ -609,29 +625,33 @@ fn write_epoch_v4 (
         header: &header::Header,
         writer: &mut BufferedWriter,
     ) -> Result<(), Error> {
-    let mut lines = String::new();
+    let mut lines= String::new();
     for (class, frames) in data.iter() {
+        write!(writer, "> {}", class)?;
         if *class == FrameClass::Ephemeris {
             for frame in frames.iter() {
-                let (_, sv, clk_off, clk_dr, clk_drr, data) = frame.as_eph()
+                let (msgtype, sv, clk_off, clk_dr, clk_drr, data) = frame.as_eph()
                     .unwrap();
+                write!(writer, "{} {}\n", sv, msgtype)?;
                 match &header.constellation {
                     Some(Constellation::Mixed) => {
                         // Mixed constellation context
                         // we need to fully describe the vehicule
-                        lines.push_str(&sv.to_string())
+                        write!(writer, "{}", sv)?;
                     },
                     Some(_) => {
                         // Unique constellation context:
                         // in V2 format, only PRN is shown
-                        lines.push_str(&format!("{:2} ", sv.prn))
+                        write!(writer, "{:2} ", sv.prn)?;
                     },
                     None => panic!("producing data with no constellation previously defined"),
                 }
-                lines.push_str(&epoch.to_string_nav_v2());
-                lines.push_str(&format!(" {:14.13E}", clk_off).replace("E","D"));
-                lines.push_str(&format!(" {:14.13E}", clk_dr).replace("E","D"));
-                lines.push_str(&format!(" {:14.13E}\n", clk_drr).replace("E","D"));
+                write!(writer, 
+                    "{} {:14.13E} {:14.13E} {:14.13E}\n", 
+                    epoch.to_string_nav_v3(),
+                    clk_off, 
+                    clk_dr, 
+                    clk_drr)?;
                 // locate closest revision in db
                 let db_revision = match database::closest_revision(sv.constellation, header.version) {
                     Some(v) => v,
@@ -673,6 +693,7 @@ fn write_epoch_v4 (
             for frame in frames.iter() {
                 let msg = frame.as_sto()
                     .unwrap();
+                //lines.push_str(&format!("{} {}\n", sv, msgtype));
             }
         } // STO
         else if *class == FrameClass::EarthOrientation {
@@ -688,45 +709,9 @@ fn write_epoch_v4 (
             }
         } // ION
     }
-    lines.push_str("\n");
     write!(writer, "{}", lines)?;
     Ok(())
 }
-
-/*
-fn write_epoch_v4 (
-        epoch: &Epoch, 
-        data: &BTreeMap<FrameClass, Vec<Frame>>,
-        header: &header::Header,
-        writer: &mut BufferedWriter,
-    ) -> std::io::Result<()> {
-    Ok(())
-}*/
-
-/*
-    for (epoch, sv) in record.iter() {
-        let nb_sv = sv.keys().len();
-        match header.version.major {
-            1|2 => {
-                let _ = write!(writer, " {} {} ", nb_sv, epoch.date.format("%y %m %d %H %M %.6f").to_string());
-            },
-            _ => {
-                let _ = write!(writer, "> {} {} ", nb_sv, epoch.date.format("%Y %m %d %H %M %.6f").to_string());
-            }
-        }
-        //let mut index = 1;
-        /*for (_sv, data) in sv.iter() {
-            for (_obs, data) in data.iter() {
-                let _ = write!(writer, "{}", data);
-            }
-            if (index+1)%4 == 0 {
-                let _ = write!(writer, "\n    ");
-            }
-            index += 1
-        }*/
-    }
-    Ok(())
-}*/
 
 #[cfg(test)]
 mod test {

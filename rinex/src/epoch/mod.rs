@@ -87,7 +87,7 @@ impl Epoch {
     }
     /// Formats self in NAV/V3 compatible format
     pub fn to_string_nav_v3(&self) -> String {
-        self.date.format("%y %m %d %H %M %S.0")
+        self.date.format("%Y %m %d %H %M %S")
             .to_string()
     }
 }
