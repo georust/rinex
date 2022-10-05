@@ -26,17 +26,17 @@ use serde::Serialize;
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum Record {
     /// ATX record, see [antex::record::Record] 
-    AntexRecord(antex::record::Record),
+    AntexRecord(antex::Record),
     /// Clock record, see [clocks::record::Record] 
-    ClockRecord(clocks::record::Record),
+    ClockRecord(clocks::Record),
 	/// IONEX (ionosphere maps) record
-    IonexRecord(ionosphere::record::Record),
+    IonexRecord(ionosphere::Record),
 	/// Meteo record, see [meteo::record::Record]
-    MeteoRecord(meteo::record::Record),
+    MeteoRecord(meteo::Record),
 	/// Navigation record, see [navigation::record::Record]
-    NavRecord(navigation::record::Record),
+    NavRecord(navigation::Record),
 	/// Observation record, see [observation::record::Record]
-    ObsRecord(observation::record::Record),
+    ObsRecord(observation::Record),
 }
 
 /// Record comments are high level informations, sorted by epoch
@@ -46,84 +46,84 @@ pub type Comments = BTreeMap<epoch::Epoch, Vec<String>>;
 
 impl Record {
     /// Unwraps self as ANTEX record
-    pub fn as_antex (&self) -> Option<&antex::record::Record> {
+    pub fn as_antex (&self) -> Option<&antex::Record> {
         match self {
             Record::AntexRecord(r) => Some(r),
             _ => None,
         }
     }
     /// Unwraps self as mutable reference to ANTEX record
-    pub fn as_mut_antex (&mut self) -> Option<&mut antex::record::Record> {
+    pub fn as_mut_antex (&mut self) -> Option<&mut antex::Record> {
         match self {
             Record::AntexRecord(r) => Some(r),
             _ => None,
         }
     }
     /// Unwraps self as CLK record
-    pub fn as_clock (&self) -> Option<&clocks::record::Record> {
+    pub fn as_clock (&self) -> Option<&clocks::Record> {
         match self {
             Record::ClockRecord(r) => Some(r),
             _ => None,
         }
     }
     /// Unwraps self as mutable CLK record
-    pub fn as_mut_clock (&mut self) -> Option<&mut clocks::record::Record> {
+    pub fn as_mut_clock (&mut self) -> Option<&mut clocks::Record> {
         match self {
             Record::ClockRecord(r) => Some(r),
             _ => None,
         }
     }
     /// Unwraps self as IONEX record
-    pub fn as_ionex (&self) -> Option<&ionosphere::record::Record> {
+    pub fn as_ionex (&self) -> Option<&ionosphere::Record> {
         match self {
             Record::IonexRecord(r) => Some(r),
             _ => None,
         }
     }
     /// Unwraps self as mutable IONEX record
-    pub fn as_mut_ionex (&mut self) -> Option<&mut ionosphere::record::Record> {
+    pub fn as_mut_ionex (&mut self) -> Option<&mut ionosphere::Record> {
         match self {
             Record::IonexRecord(r) => Some(r),
             _ => None,
         }
     }
 	/// Unwraps self as MET record
-    pub fn as_meteo (&self) -> Option<&meteo::record::Record> {
+    pub fn as_meteo (&self) -> Option<&meteo::Record> {
         match self {
             Record::MeteoRecord(r) => Some(r),
             _ => None,
         }
     }
     /// Returns mutable reference to Meteo record
-    pub fn as_mut_meteo (&mut self) -> Option<&mut meteo::record::Record> {
+    pub fn as_mut_meteo (&mut self) -> Option<&mut meteo::Record> {
         match self {
             Record::MeteoRecord(r) => Some(r),
             _ => None,
         }
     }
 	/// Unwraps self as NAV record
-    pub fn as_nav (&self) -> Option<&navigation::record::Record> {
+    pub fn as_nav (&self) -> Option<&navigation::Record> {
         match self {
             Record::NavRecord(r) => Some(r),
             _ => None,
         }
     }
 	/// Returns mutable reference to Navigation record
-    pub fn as_mut_nav (&mut self) -> Option<&mut navigation::record::Record> {
+    pub fn as_mut_nav (&mut self) -> Option<&mut navigation::Record> {
         match self {
             Record::NavRecord(r) => Some(r),
             _ => None,
         }
     }
 	/// Unwraps self as OBS record
-    pub fn as_obs (&self) -> Option<&observation::record::Record> {
+    pub fn as_obs (&self) -> Option<&observation::Record> {
         match self {
             Record::ObsRecord(r) => Some(r),
             _ => None,
         }
     }
     /// Returns mutable reference to Observation record
-    pub fn as_mut_obs (&mut self) -> Option<&mut observation::record::Record> {
+    pub fn as_mut_obs (&mut self) -> Option<&mut observation::Record> {
         match self {
             Record::ObsRecord(r) => Some(r),
             _ => None,
@@ -136,21 +136,21 @@ impl Record {
                 let record = self.as_meteo()
                     .unwrap();
                 for (epoch, data) in record.iter() {
-                    meteo::record::write_epoch(epoch, data, header, writer)?
+                    meteo::write_epoch(epoch, data, header, writer)?
                 }
             },
             Type::ObservationData => {
                 let record = self.as_obs()
                     .unwrap();
                 for (epoch, (clock_offset, data)) in record.iter() {
-                    observation::record::write_epoch(epoch, clock_offset, data, header, writer)?
+                    observation::write_epoch(epoch, clock_offset, data, header, writer)?
                 }
             },
             Type::NavigationData => {
                 let record = self.as_nav()
                     .unwrap();
                 for (epoch, classes) in record.iter() {
-                    navigation::record::write_epoch(epoch, classes, header, writer)?
+                    navigation::write_epoch(epoch, classes, header, writer)?
                 }
             },
             _ => panic!("record type not supported yet"),
@@ -161,7 +161,7 @@ impl Record {
 
 impl Default for Record {
     fn default() -> Record {
-        Record::NavRecord(navigation::record::Record::new())
+        Record::NavRecord(navigation::Record::new())
     }
 }
 
@@ -172,7 +172,7 @@ pub enum Error {
     #[error("file i/o error")]
     FileIoError(#[from] std::io::Error),
     #[error("failed to produce NAV epoch")]
-    NavEpochError(#[from] navigation::record::Error),
+    NavEpochError(#[from] navigation::Error),
 }
 
 /// Returns true if given line matches the start   
@@ -182,12 +182,12 @@ pub fn is_new_epoch (line: &str, header: &header::Header) -> bool {
         return false
     }
     match &header.rinex_type {
-        Type::AntennaData => antex::record::is_new_epoch(line),
-        Type::ClockData => clocks::record::is_new_epoch(line),
-        Type::IonosphereMaps => ionosphere::record::is_new_map(line),
-        Type::NavigationData => navigation::record::is_new_epoch(line, header.version), 
-        Type::ObservationData => observation::record::is_new_epoch(line, header.version),
-        Type::MeteoData => meteo::record::is_new_epoch(line, header.version),
+        Type::AntennaData => antex::is_new_epoch(line),
+        Type::ClockData => clocks::is_new_epoch(line),
+        Type::IonosphereMaps => ionosphere::is_new_map(line),
+        Type::NavigationData => navigation::is_new_epoch(line, header.version), 
+        Type::ObservationData => observation::is_new_epoch(line, header.version),
+        Type::MeteoData => meteo::is_new_epoch(line, header.version),
     }
 }
 
@@ -214,12 +214,12 @@ pub fn parse_record (reader: &mut BufferedReader, header: &header::Header) -> Re
     };
     let mut decompressor = Decompressor::new();
     // record 
-    let mut atx_rec = antex::record::Record::new(); // ATX
-    let mut nav_rec = navigation::record::Record::new(); // NAV
-    let mut obs_rec = observation::record::Record::new(); // OBS
-    let mut met_rec = meteo::record::Record::new(); // MET
-    let mut clk_rec = clocks::record::Record::new(); // CLK
-    let mut ionx_rec = ionosphere::record::Record::new(); //IONEX
+    let mut atx_rec = antex::Record::new(); // ATX
+    let mut nav_rec = navigation::Record::new(); // NAV
+    let mut obs_rec = observation::Record::new(); // OBS
+    let mut met_rec = meteo::Record::new(); // MET
+    let mut clk_rec = clocks::Record::new(); // CLK
+    let mut ionx_rec = ionosphere::Record::new(); //IONEX
 
     for l in reader.lines() { // iterates one line at a time 
         let line = l.unwrap();
@@ -275,7 +275,7 @@ pub fn parse_record (reader: &mut BufferedReader, header: &header::Header) -> Re
                     match &header.rinex_type {
                         Type::NavigationData => {
                             let constellation = &header.constellation.unwrap();
-                            if let Ok((e, class, fr)) = navigation::record::parse_epoch(header.version, *constellation, &epoch_content) {
+                            if let Ok((e, class, fr)) = navigation::parse_epoch(header.version, *constellation, &epoch_content) {
                                 if let Some(e) = nav_rec.get_mut(&e) {
                                     // epoch already encountered
                                     if let Some(frames) = e.get_mut(&class) {
@@ -283,13 +283,13 @@ pub fn parse_record (reader: &mut BufferedReader, header: &header::Header) -> Re
                                         frames.push(fr);
                                     } else {
                                         // new class entry, for this epoch
-                                        let mut inner: Vec<navigation::record::Frame> = Vec::with_capacity(1);
+                                        let mut inner: Vec<navigation::Frame> = Vec::with_capacity(1);
                                         inner.push(fr);
                                         e.insert(class, inner);
                                     }
                                 } else { // new epoch: create entry entry
-                                    let mut map: BTreeMap<navigation::record::FrameClass, Vec<navigation::record::Frame>> = BTreeMap::new();
-                                    let mut inner: Vec< navigation::record::Frame> = Vec::with_capacity(1);
+                                    let mut map: BTreeMap<navigation::FrameClass, Vec<navigation::Frame>> = BTreeMap::new();
+                                    let mut inner: Vec< navigation::Frame> = Vec::with_capacity(1);
                                     inner.push(fr);
                                     map.insert(class, inner);
                                     nav_rec.insert(e, map);
@@ -298,33 +298,33 @@ pub fn parse_record (reader: &mut BufferedReader, header: &header::Header) -> Re
                             }
                         },
                         Type::ObservationData => {
-                            if let Ok((e, ck_offset, map)) = observation::record::parse_epoch(&header, &epoch_content) {
+                            if let Ok((e, ck_offset, map)) = observation::parse_epoch(&header, &epoch_content) {
                                 obs_rec.insert(e, (ck_offset, map));
                                 comment_ts = e.clone(); // for comments classification & management
                             }
                         },
                         Type::MeteoData => {
-                            if let Ok((e, map)) = meteo::record::parse_epoch(&header, &epoch_content) {
+                            if let Ok((e, map)) = meteo::parse_epoch(&header, &epoch_content) {
                                 met_rec.insert(e, map);
                                 comment_ts = e.clone(); // for comments classification & management
                             }
                         },
                         Type::ClockData => {
-                            if let Ok((epoch, dtype, system, data)) = clocks::record::parse_epoch(header.version, &epoch_content) {
+                            if let Ok((epoch, dtype, system, data)) = clocks::parse_epoch(header.version, &epoch_content) {
                                 if let Some(e) = clk_rec.get_mut(&epoch) {
                                     if let Some(d) = e.get_mut(&dtype) {
                                         d.insert(system, data);
                                     } else {
                                         // --> new system entry for this `epoch`
-                                        let mut inner: HashMap<clocks::record::System, clocks::record::Data> = HashMap::new();
+                                        let mut inner: HashMap<clocks::System, clocks::Data> = HashMap::new();
                                         inner.insert(system, data);
                                         e.insert(dtype, inner);
                                     }
                                 } else {
                                     // --> new epoch entry
-                                    let mut inner: HashMap<clocks::record::System, clocks::record::Data> = HashMap::new();
+                                    let mut inner: HashMap<clocks::System, clocks::Data> = HashMap::new();
                                     inner.insert(system, data);
-                                    let mut map : HashMap<clocks::record::DataType, HashMap<clocks::record::System, clocks::record::Data>> = HashMap::new();
+                                    let mut map : HashMap<clocks::DataType, HashMap<clocks::System, clocks::Data>> = HashMap::new();
                                     map.insert(dtype, inner);
                                     clk_rec.insert(epoch, map);
                                 }
@@ -332,7 +332,7 @@ pub fn parse_record (reader: &mut BufferedReader, header: &header::Header) -> Re
                             }
                         },
                         Type::AntennaData => {
-                            if let Ok((antenna, frequencies)) = antex::record::parse_epoch(&epoch_content) {
+                            if let Ok((antenna, frequencies)) = antex::parse_epoch(&epoch_content) {
                                 let mut found = false;
                                 for (ant, freqz) in atx_rec.iter_mut() {
                                     if *ant == antenna {
@@ -349,7 +349,7 @@ pub fn parse_record (reader: &mut BufferedReader, header: &header::Header) -> Re
                             }
                         },
                         Type::IonosphereMaps => {
-                            if let Ok((epoch, map)) = ionosphere::record::parse_epoch(&epoch_content, exponent) {
+                            if let Ok((epoch, map)) = ionosphere::parse_epoch(&epoch_content, exponent) {
                                 ionx_rec.insert(epoch, (map, None, None));
                             }
                         }
@@ -381,7 +381,7 @@ pub fn parse_record (reader: &mut BufferedReader, header: &header::Header) -> Re
     match &header.rinex_type {
         Type::NavigationData => {
             let constellation = &header.constellation.unwrap();
-            if let Ok((e, class, fr)) = navigation::record::parse_epoch(header.version, *constellation, &epoch_content) {
+            if let Ok((e, class, fr)) = navigation::parse_epoch(header.version, *constellation, &epoch_content) {
                 if let Some(e) = nav_rec.get_mut(&e) {
                     // epoch already encountered
                     if let Some(frames) = e.get_mut(&class) {
@@ -389,13 +389,13 @@ pub fn parse_record (reader: &mut BufferedReader, header: &header::Header) -> Re
                         frames.push(fr);
                     } else {
                         // new class entry, for this epoch
-                        let mut inner: Vec<navigation::record::Frame> = Vec::with_capacity(1);
+                        let mut inner: Vec<navigation::Frame> = Vec::with_capacity(1);
                         inner.push(fr);
                         e.insert(class, inner);
                     }
                 } else { // new epoch: create entry entry
-                    let mut map: BTreeMap<navigation::record::FrameClass, Vec<navigation::record::Frame>> = BTreeMap::new();
-                    let mut inner: Vec<navigation::record::Frame> = Vec::with_capacity(1);
+                    let mut map: BTreeMap<navigation::FrameClass, Vec<navigation::Frame>> = BTreeMap::new();
+                    let mut inner: Vec<navigation::Frame> = Vec::with_capacity(1);
                     inner.push(fr);
                     map.insert(class, inner);
                     nav_rec.insert(e, map);
@@ -404,19 +404,19 @@ pub fn parse_record (reader: &mut BufferedReader, header: &header::Header) -> Re
             }
         },
         Type::ObservationData => {
-            if let Ok((e, ck_offset, map)) = observation::record::parse_epoch(&header, &epoch_content) {
+            if let Ok((e, ck_offset, map)) = observation::parse_epoch(&header, &epoch_content) {
                 obs_rec.insert(e, (ck_offset, map));
                 comment_ts = e.clone(); // for comments classification + management
             }
         },
         Type::MeteoData => {
-            if let Ok((e, map)) = meteo::record::parse_epoch(&header, &epoch_content) {
+            if let Ok((e, map)) = meteo::parse_epoch(&header, &epoch_content) {
                 met_rec.insert(e, map);
                 comment_ts = e.clone(); // for comments classification + management
             }
         },
         Type::ClockData => {
-            if let Ok((e, dtype, system, data)) = clocks::record::parse_epoch(header.version, &epoch_content) {
+            if let Ok((e, dtype, system, data)) = clocks::parse_epoch(header.version, &epoch_content) {
                 // Clocks `RINEX` files are handled a little different,
                 // because we parse one line at a time, while we parsed one epoch at a time for other RINEXes.
                 // One line may contribute to a previously existing epoch in the record 
@@ -426,15 +426,15 @@ pub fn parse_record (reader: &mut BufferedReader, header: &header::Header) -> Re
                         d.insert(system, data);
                     } else {
                         // --> new system entry for this `epoch`
-                        let mut map: HashMap<clocks::record::DataType, HashMap<clocks::record::System, clocks::record::Data>> = HashMap::new();
-                        let mut inner: HashMap<clocks::record::System, clocks::record::Data> = HashMap::new();
+                        let mut map: HashMap<clocks::DataType, HashMap<clocks::System, clocks::Data>> = HashMap::new();
+                        let mut inner: HashMap<clocks::System, clocks::Data> = HashMap::new();
                         inner.insert(system, data);
                         map.insert(dtype, inner);
                     }
                 } else {
                     // --> new epoch entry
-                    let mut map: HashMap<clocks::record::DataType, HashMap<clocks::record::System, clocks::record::Data>> = HashMap::new();
-                    let mut inner: HashMap<clocks::record::System, clocks::record::Data> = HashMap::new();
+                    let mut map: HashMap<clocks::DataType, HashMap<clocks::System, clocks::Data>> = HashMap::new();
+                    let mut inner: HashMap<clocks::System, clocks::Data> = HashMap::new();
                     inner.insert(system, data);
                     map.insert(dtype, inner);
                     clk_rec.insert(e, map);
@@ -443,12 +443,12 @@ pub fn parse_record (reader: &mut BufferedReader, header: &header::Header) -> Re
             }
         },
         Type::IonosphereMaps => {
-            if let Ok((epoch, maps)) = ionosphere::record::parse_epoch(&epoch_content, exponent) {
+            if let Ok((epoch, maps)) = ionosphere::parse_epoch(&epoch_content, exponent) {
                 ionx_rec.insert(epoch, (maps, None, None));
             }
         }
         Type::AntennaData => {
-            if let Ok((antenna, frequencies)) = antex::record::parse_epoch(&epoch_content) {
+            if let Ok((antenna, frequencies)) = antex::parse_epoch(&epoch_content) {
                 let mut found = false;
                 for (ant, freqz) in atx_rec.iter_mut() {
                     if *ant == antenna {

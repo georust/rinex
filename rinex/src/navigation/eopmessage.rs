@@ -3,7 +3,7 @@ use crate::epoch;
 use thiserror::Error;
 use std::str::FromStr;
 
-/// Message Parsing error 
+/// EopMessage Parsing error 
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("failed to parse date field")]
@@ -21,7 +21,7 @@ pub enum Error {
 #[derive(Default)]
 #[derive(PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
-pub struct Message {
+pub struct EopMessage {
     /// ([arc-sec], [arc-sec.day⁻¹], [arc-sec.day⁻²])
     x: (f64,f64,f64),
     /// ([arc-sec], [arc-sec.day⁻¹], [arc-sec.day⁻²])
@@ -32,7 +32,7 @@ pub struct Message {
     dut1: (f64,f64,f64),
 }
 
-impl Message {
+impl EopMessage {
     pub fn parse (mut lines: std::str::Lines<'_>) -> Result<(epoch::Epoch, Self), Error> {
         let line = match lines.next() {
             Some(l) => l,

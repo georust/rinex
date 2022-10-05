@@ -2,6 +2,12 @@ use std::str::FromStr;
 use strum_macros::EnumString;
 pub mod record;
 
+pub use record::{
+    Record,
+    is_new_map,
+    parse_epoch,
+};
+
 #[cfg(feature = "serde")]
 use serde::Serialize;
 

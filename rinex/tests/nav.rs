@@ -774,13 +774,13 @@ mod test {
                             } else {
                                 panic!("misplaced ION message")
                             }
-                            assert_eq!(model.region, navigation::ionmessage::KbRegionCode::WideArea);
+                            assert_eq!(model.region, navigation::KbRegionCode::WideArea);
                         } else if let Some(model) = model.as_nequick_g() {
                             assert_eq!(*e, epoch::Epoch {
                                 date: epoch::str2date("2022 06 08 09 59 57").unwrap(),
                                 flag: epoch::EpochFlag::Ok
                             });
-                            assert_eq!(model.region, navigation::ionmessage::NgRegionFlags::empty());
+                            assert_eq!(model.region, navigation::NgRegionFlags::empty());
                         }
                     }
                 } else if *class == FrameClass::Ephemeris {

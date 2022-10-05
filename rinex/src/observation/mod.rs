@@ -4,6 +4,12 @@ use crate::version;
 use crate::constellation::Constellation;
 
 pub mod record;
+pub use record::{
+    Record, LliFlags, Ssi,
+    is_new_epoch,
+    parse_epoch,
+    write_epoch,
+};
 
 #[cfg(feature = "serde")]
 use serde::Serialize;

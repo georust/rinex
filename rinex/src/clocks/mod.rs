@@ -1,5 +1,10 @@
 //! RINEX Clock files parser & analysis 
 pub mod record;
+pub use record::{
+    Record, System, Data, DataType,
+    is_new_epoch,
+    parse_epoch,
+};
 
 /// Clocks `RINEX` specific header fields
 #[derive(Clone, Debug)]

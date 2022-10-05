@@ -249,7 +249,7 @@ impl BdModel {
 #[derive(Debug, Clone)]
 #[derive(PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
-pub enum Message {
+pub enum IonMessage {
     /// Klobuchar Model
     KlobucharModel(KbModel),
     /// Nequick-G Model
@@ -258,13 +258,13 @@ pub enum Message {
     BdgimModel(BdModel),
 }
 
-impl Default for Message {
+impl Default for IonMessage {
     fn default() -> Self {
         Self::KlobucharModel(KbModel::default())
     }
 }
 
-impl Message {
+impl IonMessage {
     /// Unwraps self as Klobuchar Model
     pub fn as_klobuchar (&self) -> Option<&KbModel> {
         match self {

@@ -13,8 +13,19 @@ use crate::version::Version;
 use crate::constellation::Constellation;
 
 use crate::navigation::{
-    ionmessage, stomessage, eopmessage,
+    ionmessage, 
+    stomessage, 
+    eopmessage,
     database, database::{NAV_MESSAGES, DbItem, DbItemError},
+};
+
+use super::{
+    EopMessage, 
+    StoMessage, 
+    IonMessage,
+    KbModel,
+    BdModel,
+    NgModel,
 };
 
 use std::io::Write;
@@ -112,11 +123,11 @@ pub enum Frame {
     /// RINEX specifications or db/NAV/navigation.json.
     Eph(MsgType, Sv, f64, f64, f64, HashMap<String, DbItem>),
     /// Earth Orientation Parameters message 
-    Eop(eopmessage::Message),
+    Eop(EopMessage),
     /// Ionospheric Model Message
-    Ion(ionmessage::Message),
+    Ion(IonMessage),
     /// System Time Offset Message
-    Sto(stomessage::Message),
+    Sto(StoMessage),
 }
 
 impl Frame {
@@ -135,42 +146,42 @@ impl Frame {
         }
     }
     /// Unwraps self as Ionospheric Model frame
-    pub fn as_ion (&self) -> Option<&ionmessage::Message> {
+    pub fn as_ion (&self) -> Option<&IonMessage> {
         match self {
             Self::Ion(fr) => Some(fr),
             _ => None,
         }
     }
     /// Unwraps self as mutable Ionospheric Model frame reference
-    pub fn as_mut_ion (&mut self) -> Option<&mut ionmessage::Message> {
+    pub fn as_mut_ion (&mut self) -> Option<&mut IonMessage> {
         match self {
             Self::Ion(fr) => Some(fr),
             _ => None,
         }
     }
     /// Unwraps self as Earth Orientation frame
-    pub fn as_eop (&self) -> Option<&eopmessage::Message> {
+    pub fn as_eop (&self) -> Option<&EopMessage> {
         match self {
             Self::Eop(fr) => Some(fr),
             _ => None,
         }
     }
     /// Unwraps self as Mutable Earth Orientation frame reference
-    pub fn as_mut_eop (&mut self) -> Option<&mut eopmessage::Message> {
+    pub fn as_mut_eop (&mut self) -> Option<&mut EopMessage> {
         match self {
             Self::Eop(fr) => Some(fr),
             _ => None,
         }
     }
     /// Unwraps self as System Time Offset frame
-    pub fn as_sto (&self) -> Option<&stomessage::Message> {
+    pub fn as_sto (&self) -> Option<&StoMessage> {
         match self {
             Self::Sto(fr) => Some(fr),
             _ => None,
         }
     }
     /// Unwraps self as mutable System Time Offset frame reference
-    pub fn as_mut_sto (&mut self) -> Option<&mut stomessage::Message> {
+    pub fn as_mut_sto (&mut self) -> Option<&mut StoMessage> {
         match self {
             Self::Sto(fr) => Some(fr),
             _ => None,
@@ -326,7 +337,7 @@ fn build_modern_record_entry (content: &str) ->
             let (a2, rem) = rem.split_at(19);
 
             let t_tm = f64::from_str(time.trim())?;
-            let msg = stomessage::Message {
+            let msg = StoMessage {
                 system: system.trim().to_string(),
                 t_tm: t_tm as u32,
                 a: (
@@ -339,30 +350,30 @@ fn build_modern_record_entry (content: &str) ->
             (epoch, Frame::Sto(msg))
         },
         FrameClass::EarthOrientation => {
-            let (epoch, msg) = eopmessage::Message::parse(lines)?;
+            let (epoch, msg) = EopMessage::parse(lines)?;
             (epoch, Frame::Eop(msg))
         },
         FrameClass::IonosphericModel => {
-            let (epoch, msg): (Epoch, ionmessage::Message) = match msg_type {
+            let (epoch, msg): (Epoch, IonMessage) = match msg_type {
                 MsgType::IFNV => {
-                    let (epoch, model) = ionmessage::NgModel::parse(lines)?;
-                    (epoch, ionmessage::Message::NequickGModel(model))
+                    let (epoch, model) = NgModel::parse(lines)?;
+                    (epoch, IonMessage::NequickGModel(model))
                 },
                 MsgType::CNVX => {
                     match sv.constellation {
                         Constellation::BeiDou => {
-                            let (epoch, model) = ionmessage::BdModel::parse(lines)?;
-                            (epoch, ionmessage::Message::BdgimModel(model))
+                            let (epoch, model) = BdModel::parse(lines)?;
+                            (epoch, IonMessage::BdgimModel(model))
                         },
                         _ => {
-                            let (epoch, model) = ionmessage::KbModel::parse(lines)?;
-                            (epoch, ionmessage::Message::KlobucharModel(model))
+                            let (epoch, model) = KbModel::parse(lines)?;
+                            (epoch, IonMessage::KlobucharModel(model))
                         },
                     }
                 },
                 _ => {
-                    let (epoch, model) = ionmessage::KbModel::parse(lines)?;
-                    (epoch, ionmessage::Message::KlobucharModel(model))
+                    let (epoch, model) = KbModel::parse(lines)?;
+                    (epoch, IonMessage::KlobucharModel(model))
                 }
             };
             (epoch, Frame::Ion(msg))

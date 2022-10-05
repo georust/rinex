@@ -4,6 +4,12 @@ pub mod record;
 pub mod antenna;
 pub mod frequency;
 
+pub use record::{
+    Record,
+    is_new_epoch,
+    parse_epoch,
+};
+
 /// ANTEX special RINEX fields
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]

@@ -1,11 +1,9 @@
-//! `Navigation` new STO System Time Offset messages
-
 /// System Time Message 
 #[derive(Debug, Clone)]
 #[derive(Default)]
 #[derive(PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
-pub struct Message {
+pub struct StoMessage {
     /// Time System
     pub system: String,
     /// UTC ID
