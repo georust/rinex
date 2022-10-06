@@ -30,8 +30,8 @@ and the [rinex](rinex/) crate.
 
 | Type                       | Support           | CLI                 | UBX                  | Production        |          Notes          |
 |----------------------------|-------------------|---------------------|----------------------|-------------------|-------------------------
-| Navigation  (NAV)          | :heavy_check_mark:|  :heavy_check_mark: | :construction:       | V2 :sparkle:, V3 :sparkle: V4: :construction:  | Epoch iteration |
-| Observation (OBS)          | :heavy_check_mark:|  :heavy_check_mark: | :construction:       | V2 :sparkle: V3 :sparkle: V4 :sparkle: | Epoch iteration |
+| Navigation  (NAV)          | :heavy_check_mark:|  :heavy_check_mark: | :construction:       | Ephemeris :sparkle: V4(Others) :construction: | Epoch iteration |
+| Observation (OBS)          | :heavy_check_mark:|  :heavy_check_mark: | :construction:       | :sparkle:  | Epoch iteration |
 |  CRINEX  (Compressed OBS)  | :heavy_check_mark:|  :heavy_check_mark: | :construction:       | CRNX1 :sparkle:  CRNX3 :construction:    | Epoch iteration |
 |  Meteorological data (MET) | :heavy_check_mark:| :heavy_check_mark:  | :construction:       |:heavy_check_mark: | Epoch iteration |  
 |  Clocks (CLK)              | :heavy_check_mark:|  :heavy_check_mark: | :question:        |:construction: | Epoch iteration |
@@ -50,20 +50,20 @@ and the [rinex](rinex/) crate.
 :sparkle: being stabilized, under final tests.. works but don't expect something extraordinary   
 :construction: under development - refer to TODO list
 
-## Supported file format / compressions
+## File formats
 
 | Format   | File name restrictions  |    Support          |
 |----------|-------------------------|---------------------|
+| RINEX    | :heavy_minus_sign: | :heavy_check_mark: but refer to first table |
 | CRINEX   | :heavy_minus_sign: | :heavy_check_mark:  | 
-| Others   | :heavy_minus_sign: | Refer to first table |
-| CRINEX + `gzip` | Must end with `.gz` | Compile with `--flate2` feature, or uncompress yourself |
-| Others + `gzip` | Must end with `.gz` | Refer to first table and compile with `--flate2` feature, or uncompress yourself |
-| CRINEX + `zlib` | Must end with `.Z` | :construction:  |
-| Others + `zlib` | Must end with `.Z` | :construction:  |
+| RINEX + `gzip`   | Must end with `.gz` | Compile with `--flate2` feature, or uncompress manually first |
+| CRINEX + `gzip` | Must end with `.gz` | Compile with `--flate2` feature, or uncompress manually first |
+| `.Z` | :heavy_minus_sign:  | :x: |
 
-:heavy_minus_sign: no restrictions. We can parse a  CRINEX or a IONEX named foo.txt as long as it follows the standards.      
-:heavy_check_mark: natively supported   
-:construction:, under development  
+:heavy_minus_sign: No restrictions. File names do not have to follow naming conventions.  
+:heavy_check_mark: Natively supported   
+:construction: Under development  
+:x: Not supported
 
 ## Record (high level) operations
 
