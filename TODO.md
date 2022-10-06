@@ -25,11 +25,6 @@ The fractional parts ("nanos") is totally unused, we cannot handle periods small
 - [ ] Data decompression
   - [ ] CRX32RNX thorough test
 
-- [ ] Data compression
-  - [ ] Data conversion and scaling 
-  - [ ] `Gzip` decompression failure: understand current issue regarding files marked for `Post Processing`, 
-track [opened issue](https://github.com/rust-lang/flate2-rs/issues/316)
-
 - [ ] Post Processing
   - [ ] Conclude the 2D Post processing "double diff"
     - [ ] A NAV + OBS context structure could help ?   
@@ -62,7 +57,7 @@ track [opened issue](https://github.com/rust-lang/flate2-rs/issues/316)
 - [ ] Generate Observation Data (requires `observation::to_file` to be completed)
 - [ ] Generate Ephemeris Data (requires `navigation::to_file` to be completed)
 
-## Done
+## Completed
 
 - File operations
   - [x] Provide a Writer wrapper in similar fashion to existing Reader wrapper for efficient data compression
@@ -76,6 +71,16 @@ track [opened issue](https://github.com/rust-lang/flate2-rs/issues/316)
   - [x] Verify data scaling is correctly restablish in decompression
   - [x] Adjust production method to take advantage of newly available Writer wrapper
   - [x] Unlock `CRINEX` data production
+  - [x] Data conversion and scaling 
+  Compression & Decompression kernels cast and interprate data themselves correctly.
+  Everything is coded on signed 64b data, we do not face the same types of issues that official
+  compression / decompression tools may face
+  - [x] `Gzip`  "invalid gzip header" decompression failure
+The previous file pointer operation was not correct.
+This was due to some inquiries trying to make the decompressor knowledgeable of
+Hatanaka decompression. Currently this is not the case, we manage this scenario outside 
+of the file browser
+
 - `navigation` - `dictionary`
   - [x] General orbits health 
   - [x] GLO/Orbit2 channel #
