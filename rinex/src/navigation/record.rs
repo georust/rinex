@@ -124,9 +124,9 @@ pub enum Frame {
     /// Earth Orientation Parameters message 
     Eop(EopMessage),
     /// Ionospheric Model Message
-    Ion(IonMessage),
+    Ion(Sv, IonMessage),
     /// System Time Offset Message
-    Sto(StoMessage),
+    Sto(Sv, StoMessage),
 }
 
 impl Frame {
@@ -145,16 +145,16 @@ impl Frame {
         }
     }
     /// Unwraps self as Ionospheric Model frame
-    pub fn as_ion (&self) -> Option<&IonMessage> {
+    pub fn as_ion (&self) -> Option<(&Sv, &IonMessage)> {
         match self {
-            Self::Ion(fr) => Some(fr),
+            Self::Ion(sv, fr) => Some((sv, fr)),
             _ => None,
         }
     }
     /// Unwraps self as mutable Ionospheric Model frame reference
-    pub fn as_mut_ion (&mut self) -> Option<&mut IonMessage> {
+    pub fn as_mut_ion (&mut self) -> Option<(&mut Sv, &mut IonMessage)> {
         match self {
-            Self::Ion(fr) => Some(fr),
+            Self::Ion(sv, fr) => Some((sv, fr)),
             _ => None,
         }
     }
@@ -173,16 +173,16 @@ impl Frame {
         }
     }
     /// Unwraps self as System Time Offset frame
-    pub fn as_sto (&self) -> Option<&StoMessage> {
+    pub fn as_sto (&self) -> Option<(&Sv, &StoMessage)> {
         match self {
-            Self::Sto(fr) => Some(fr),
+            Self::Sto(sv, fr) => Some((sv, fr)),
             _ => None,
         }
     }
     /// Unwraps self as mutable System Time Offset frame reference
-    pub fn as_mut_sto (&mut self) -> Option<&mut StoMessage> {
+    pub fn as_mut_sto (&mut self) -> Option<(&mut Sv, &mut StoMessage)> {
         match self {
-            Self::Sto(fr) => Some(fr),
+            Self::Sto(sv, fr) => Some((sv, fr)),
             _ => None,
         }
     }
@@ -346,7 +346,7 @@ fn build_modern_record_entry (content: &str) ->
                 ),
                 utc: rem.trim().to_string(),
             };
-            (epoch, Frame::Sto(msg))
+            (epoch, Frame::Sto(sv, msg))
         },
         FrameClass::EarthOrientation => {
             let (epoch, msg) = EopMessage::parse(lines)?;
@@ -355,23 +355,23 @@ fn build_modern_record_entry (content: &str) ->
         FrameClass::IonosphericModel => {
             let (epoch, msg): (Epoch, IonMessage) = match msg_type {
                 MsgType::IFNV => {
-                    let (epoch, model) = NgModel::parse(lines)?;
+                    let (epoch, sv, model) = NgModel::parse(lines)?;
                     (epoch, IonMessage::NequickGModel(model))
                 },
                 MsgType::CNVX => {
                     match sv.constellation {
                         Constellation::BeiDou => {
-                            let (epoch, model) = BdModel::parse(lines)?;
+                            let (epoch, sv, model) = BdModel::parse(lines)?;
                             (epoch, IonMessage::BdgimModel(model))
                         },
                         _ => {
-                            let (epoch, model) = KbModel::parse(lines)?;
+                            let (epoch, sv, model) = KbModel::parse(lines)?;
                             (epoch, IonMessage::KlobucharModel(model))
                         },
                     }
                 },
                 _ => {
-                    let (epoch, model) = KbModel::parse(lines)?;
+                    let (epoch, sv, model) = KbModel::parse(lines)?;
                     (epoch, IonMessage::KlobucharModel(model))
                 }
             };
@@ -536,7 +536,6 @@ fn write_epoch_v2_v3 (
         header: &header::Header,
         writer: &mut BufferedWriter,
     ) -> Result<(), Error> {
-    let mut lines = String::new();
     for (class, frames) in data.iter() {
         if *class == FrameClass::Ephemeris {
             for frame in frames.iter() {
@@ -625,11 +624,10 @@ fn write_epoch_v4 (
         header: &header::Header,
         writer: &mut BufferedWriter,
     ) -> Result<(), Error> {
-    let mut lines= String::new();
     for (class, frames) in data.iter() {
-        write!(writer, "> {}", class)?;
         if *class == FrameClass::Ephemeris {
             for frame in frames.iter() {
+                write!(writer, "> {}", class)?;
                 let (msgtype, sv, clk_off, clk_dr, clk_drr, data) = frame.as_eph()
                     .unwrap();
                 write!(writer, "{} {}\n", sv, msgtype)?;
@@ -678,38 +676,59 @@ fn write_epoch_v4 (
                 for (key, _) in items.iter() {
                     index += 1;
                     if let Some(data) = data.get(*key) {
-                        lines.push_str(" ");
-                        lines.push_str(&data.to_string())
+                        write!(writer, " {}", &data.to_string())?;
                     } else { // data is missing: either not parsed or not provided
-                        lines.push_str("              ");
+                        write!(writer, "              ")?;
                     }
                     if (index % 4) == 0 {
-                        lines.push_str("\n   ");
+                        write!(writer, "\n   ")?; //TODO: do not TAB when writing last line of grouping
                     }
                 }
             }
         } // EPH
         else if *class == FrameClass::SystemTimeOffset {
             for frame in frames.iter() {
-                let msg = frame.as_sto()
+                write!(writer, "> {} ", class)?;
+                let (sv, sto) = frame.as_sto()
                     .unwrap();
-                //lines.push_str(&format!("{} {}\n", sv, msgtype));
+                write!(writer, "{} LNAV\n", sv.to_string())?; //TODO LNAV or other options do exist
+                write!(writer, "    {} {}    {}", &epoch.to_string_nav_v3(), sto.system, sto.utc)?;
+                write!(writer, 
+                    "{:14.13E} {:14.13E} {:14.13E} {:14.13E}\n",
+                    sto.t_tm as f64,
+                    sto.a.0,
+                    sto.a.1,
+                    sto.a.2)?;
+
             }
         } // STO
         else if *class == FrameClass::EarthOrientation {
             for frame in frames.iter() {
-                let msg = frame.as_eop()
+                let _eop = frame.as_eop()
                     .unwrap();
+                panic!("NAV V4: EOP: not available yet");
+                //(x, xr, xrr), (y, yr, yrr), t_tm, (dut, dutr, dutrr)) = frame.as_eop()
             }
         } // EOP
         else { // ION 
             for frame in frames.iter() {
-                let msg = frame.as_ion()
+                let (sv, msg) = frame.as_ion()
                     .unwrap();
+                write!(writer, "> {} {}", class, sv)?;
+                match msg {
+                    IonMessage::KlobucharModel(model) => {
+                        write!(writer, "IFNV\n")?;
+                    },
+                    IonMessage::NequickGModel(sv, model) => {
+                        write!(writer, "IFNV\n")?;
+                    },
+                    IonMessage::BdgimModel(sv, model) => {
+                        write!(writer, "IFNV\n")?;
+                    },
+                }
             }
         } // ION
     }
-    write!(writer, "{}", lines)?;
     Ok(())
 }
 
