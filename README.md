@@ -65,13 +65,17 @@ and the [rinex](rinex/) crate.
 :construction: Under development  
 :x: Not supported
 
-## Record (high level) operations
+## Record
 
-High level operation can be performed using the `Rinex` structure,
-or through the command line interface. Refer either
+High level operations can be performed on RINEX records and
+RINEX structure in general.
+Refer to the [official Documentation](https://docs.rs/rinex/0.6.0/rinex/struct.Rinex.html).
 
-- to the [API](https://docs.rs/rinex/0.6.0/rinex/struct.Rinex.html) documentation
-- to the [command-line interface](rinex-cli/README.md) documentation
+RINEX Records vary a lot from one revision to another
+and from one file type to another.
+To learn how to browse the RINEX record you are interested in,
+refer to its declaration in the official documentation.
+For example, here is the [Observation Record](https://todo) declaration.
 
 ## Features
 
@@ -81,10 +85,9 @@ or through the command line interface. Refer either
 
 * `--with-geo`   
 unlocks the 
-`augmentation::sbas_selection_helper()` method,
+[sbas_selection_help()](https://docs.rs/rinex/0.7.0/rinex/struct.Rinex.html) method,
 to select the most appropriate `SBAS` augmentation system for
 a given (usually current..) location on Earth.
-See [constellation](doc/constellation.md) for example of use.
 
 * `--flate2`  
 allow native parsing of .gz compressed RINEX files. Otherwise, user must uncompress manually the `.gz` extension first.
