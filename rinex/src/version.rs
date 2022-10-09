@@ -1,5 +1,4 @@
-//! `RINEX` revision description and manipulation, 
-//! contained in `header`
+//! `RINEX` revision description
 
 /// Current `RINEX` version supported to this day
 pub const SUPPORTED_VERSION: Version = Version {
@@ -17,7 +16,7 @@ pub struct Version {
 
 impl Default for Version  {
     /// Builds a default `Version` object 
-    fn default() -> Version {
+    fn default() -> Self {
         SUPPORTED_VERSION
     }
 }
@@ -35,7 +34,7 @@ impl std::str::FromStr for Version {
             true => {
                 let digits: Vec<&str> = s.split(".")
                     .collect();
-                Ok(Version {
+                Ok(Self {
                     major: u8::from_str_radix(digits.get(0)
                         .unwrap(), 10)?,
                     minor: u8::from_str_radix(digits.get(1)
@@ -43,7 +42,7 @@ impl std::str::FromStr for Version {
                 })
             },
             false => {
-                Ok(Version {
+                Ok(Self {
                     major: u8::from_str_radix(s,10)?,
                     minor: 0
                 })
@@ -54,7 +53,12 @@ impl std::str::FromStr for Version {
 
 impl Version {
     /// Builds a new `Version` object
-    pub fn new (major: u8, minor: u8) -> Version { Version { major, minor }}
+    pub fn new (major: u8, minor: u8) -> Self { 
+		Self { 
+			major, 
+			minor,
+		}
+	}
     /// Returns true if this version is supported
     pub fn is_supported (&self) -> bool {
         if self.major < SUPPORTED_VERSION.major {

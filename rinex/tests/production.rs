@@ -10,12 +10,15 @@ mod test {
             let fp = fp.path();
             let fp = fp.to_str().unwrap();
             // parse this rinex
-            let rinex = Rinex::from_file(fp);
-            assert_eq!(rinex.is_ok(), true);
-            let rinex = rinex.unwrap();
+            let rnx_a = Rinex::from_file(fp)
+				.unwrap(); // already tested elsewhere
             // produce a copy
             let copy_path = fp.to_owned() + "-copy";
-            assert_eq!(rinex.to_file(&copy_path).is_ok(), true);
+			assert_eq!(rnx_a.to_file(&copy_path).is_ok(), true);
+			let rnx_b = Rinex::from_file(&copy_path);
+			assert_eq!(rnx_b.is_ok(), true);
+			let rnx_b = rnx_b
+				.unwrap();
             // remove copy not to disturb other test browsers
             let _ = std::fs::remove_file(copy_path);
         }
@@ -28,12 +31,15 @@ mod test {
             let fp = fp.path();
             let fp = fp.to_str().unwrap();
             // parse this rinex
-            let rinex = Rinex::from_file(fp);
-            assert_eq!(rinex.is_ok(), true);
-            let rinex = rinex.unwrap();
+            let rnx_a = Rinex::from_file(fp)
+				.unwrap(); // already tested elsewhere
             // produce a copy
             let copy_path = fp.to_owned() + "-copy";
-            assert_eq!(rinex.to_file(&copy_path).is_ok(), true);
+			assert_eq!(rnx_a.to_file(&copy_path).is_ok(), true);
+			let rnx_b = Rinex::from_file(&copy_path);
+			assert_eq!(rnx_b.is_ok(), true);
+			let rnx_b = rnx_b
+				.unwrap();
             // remove copy not to disturb other test browsers
             let _ = std::fs::remove_file(copy_path);
         }
@@ -46,12 +52,16 @@ mod test {
             let fp = fp.path();
             let fp = fp.to_str().unwrap();
             // parse this rinex
-            let rinex = Rinex::from_file(fp);
-            assert_eq!(rinex.is_ok(), true);
-            let rinex = rinex.unwrap();
+            let rnx_a = Rinex::from_file(fp)
+				.unwrap(); // already tested elsewhere
             // produce a copy
             let copy_path = fp.to_owned() + "-copy";
-            assert_eq!(rinex.to_file(&copy_path).is_ok(), true);
+			assert_eq!(rnx_a.to_file(&copy_path).is_ok(), true);
+			let rnx_b = Rinex::from_file(&copy_path);
+			assert_eq!(rnx_b.is_ok(), true);
+			let rnx_b = rnx_b
+				.unwrap();
+			//assert_eq!(rnx_a, rnx_b);
             // remove copy not to disturb other test browsers
             let _ = std::fs::remove_file(copy_path);
         }
@@ -64,12 +74,15 @@ mod test {
             let fp = fp.path();
             let fp = fp.to_str().unwrap();
             // parse this rinex
-            let rinex = Rinex::from_file(fp);
-            assert_eq!(rinex.is_ok(), true);
-            let rinex = rinex.unwrap();
+            let rnx_a = Rinex::from_file(fp)
+				.unwrap(); // already tested elsewhere
             // produce a copy
             let copy_path = fp.to_owned() + "-copy";
-            assert_eq!(rinex.to_file(&copy_path).is_ok(), true);
+			assert_eq!(rnx_a.to_file(&copy_path).is_ok(), true);
+			let rnx_b = Rinex::from_file(&copy_path);
+			assert_eq!(rnx_b.is_ok(), true);
+			let rnx_b = rnx_b
+				.unwrap();
             // remove copy not to disturb other test browsers
             let _ = std::fs::remove_file(copy_path);
         }
@@ -82,12 +95,15 @@ mod test {
             let fp = fp.path();
             let fp = fp.to_str().unwrap();
             // parse this rinex
-            let rinex = Rinex::from_file(fp);
-            assert_eq!(rinex.is_ok(), true);
-            let rinex = rinex.unwrap();
+            let rnx_a = Rinex::from_file(fp)
+				.unwrap(); // already tested elsewhere
             // produce a copy
             let copy_path = fp.to_owned() + "-copy";
-            assert_eq!(rinex.to_file(&copy_path).is_ok(), true);
+			assert_eq!(rnx_a.to_file(&copy_path).is_ok(), true);
+			let rnx_b = Rinex::from_file(&copy_path);
+			assert_eq!(rnx_b.is_ok(), true);
+			let rnx_b = rnx_b
+				.unwrap();
             // remove copy not to disturb other test browsers
             let _ = std::fs::remove_file(copy_path);
         }

@@ -2,33 +2,31 @@
 use thiserror::Error;
 use std::str::FromStr;
 use strum_macros::EnumString;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 
-use crate::epoch;
-use crate::header;
-use crate::sv;
-use crate::sv::Sv;
-use crate::epoch::{Epoch, ParseDateError};
-use crate::version::Version;
-use crate::constellation::Constellation;
-
-use crate::navigation::{
-    ionmessage, 
-    eopmessage,
-    database, database::{NAV_MESSAGES, DbItem, DbItemError},
+use crate::{
+	Epoch, EpochFlag,
+	epoch::{
+		str2date, ParseDateError,
+	},
+	sv,
+	Header,
+	Constellation, Sv,
+	version::Version,
+	writer::BufferedWriter,
 };
 
 use super::{
-    EopMessage, 
-    StoMessage, 
-    IonMessage,
-    KbModel,
-    BdModel,
-    NgModel,
+	ephemeris, Ephemeris,
+    eopmessage, EopMessage, 
+    stomessage, StoMessage, 
+	ionmessage, IonMessage, 
+	BdModel, KbModel, NgModel,
+	orbits, orbits::{
+		OrbitItemError,
+		closest_revision,
+	},
 };
-
-use std::io::Write;
-use crate::writer::BufferedWriter;
 
 /// Possible Navigation Frame declinations for an epoch
 #[derive(Debug, Copy, Clone)]
@@ -48,7 +46,7 @@ pub enum FrameClass {
 }
 
 impl Default for FrameClass {
-    fn default() -> Self{
+    fn default() -> Self {
         Self::Ephemeris
     }
 }
@@ -116,73 +114,76 @@ impl std::fmt::Display for MsgType {
 #[derive(EnumString)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum Frame {
-    /// Ephemeris for a given Vehicule `Sv`,
-    /// with vehicule internal clock bias, clock drift and clock drift rate.
-    /// Rest of data is constellation dependent, see
-    /// RINEX specifications or db/NAV/navigation.json.
-    Eph(MsgType, Sv, f64, f64, f64, HashMap<String, DbItem>),
-    /// Earth Orientation Parameters message 
-    Eop(EopMessage),
+    /// Ephemeris for a given Vehicule `Sv`
+    Eph(MsgType, Sv, Ephemeris),
+    /// Earth Orientation Parameters
+    Eop(MsgType, Sv, EopMessage),
     /// Ionospheric Model Message
-    Ion(Sv, IonMessage),
+    Ion(MsgType, Sv, IonMessage),
     /// System Time Offset Message
-    Sto(Sv, StoMessage),
+    Sto(MsgType, Sv, StoMessage),
+}
+
+impl Default for Frame {
+	fn default() -> Self {
+		Self::Eph(MsgType::default(), Sv::default(), Ephemeris::default())
+	}
 }
 
 impl Frame {
     /// Unwraps self as Ephemeris frame
-    pub fn as_eph (&self) -> Option<(MsgType, Sv, f64, f64, f64, &HashMap<String, DbItem>)> {
+    pub fn as_eph (&self) -> Option<(MsgType, Sv, &Ephemeris)> {
         match self {
-            Self::Eph(msg, sv, clk, clk_dr, clk_drr, map) => Some((*msg, *sv, *clk, *clk_dr, *clk_drr, map)),
+            Self::Eph(msg, sv, eph) => Some((*msg, *sv, eph)),
             _ => None,
         }
     }
     /// Unwraps self as mutable Ephemeris frame reference
-    pub fn as_mut_eph (&mut self) -> Option<(&mut MsgType, &mut Sv, &mut f64, &mut f64, &mut f64, &mut HashMap<String, DbItem>)> {
+    pub fn as_mut_eph (&mut self) -> Option<(&mut MsgType, &mut Sv, &mut Ephemeris)> {
         match self {
-            Self::Eph(msg, sv, clk, clk_dr, clk_drr, map) => Some((msg, sv, clk, clk_dr, clk_drr, map)),
+            Self::Eph(msg, sv, eph) => Some((msg, sv, eph)),
             _ => None,
         }
     }
     /// Unwraps self as Ionospheric Model frame
-    pub fn as_ion (&self) -> Option<(&Sv, &IonMessage)> {
+    pub fn as_ion (&self) -> Option<(&MsgType, &Sv, &IonMessage)> {
         match self {
-            Self::Ion(sv, fr) => Some((sv, fr)),
+            Self::Ion(msg, sv, fr) => Some((msg, sv, fr)),
             _ => None,
         }
     }
     /// Unwraps self as mutable Ionospheric Model frame reference
-    pub fn as_mut_ion (&mut self) -> Option<(&mut Sv, &mut IonMessage)> {
+    pub fn as_mut_ion (&mut self) -> Option<(&mut MsgType, &mut Sv, &mut IonMessage)> {
         match self {
-            Self::Ion(sv, fr) => Some((sv, fr)),
+            Self::Ion(msg, sv, fr) => Some((msg, sv, fr)),
             _ => None,
         }
     }
     /// Unwraps self as Earth Orientation frame
-    pub fn as_eop (&self) -> Option<&EopMessage> {
+    pub fn as_eop (&self) -> Option<(&MsgType, &Sv, &EopMessage)> {
         match self {
-            Self::Eop(fr) => Some(fr),
+            Self::Eop(msg, sv, fr) => Some((msg, sv, fr)),
             _ => None,
         }
     }
     /// Unwraps self as Mutable Earth Orientation frame reference
-    pub fn as_mut_eop (&mut self) -> Option<&mut EopMessage> {
+    pub fn as_mut_eop (&mut self) -> Option<(&mut MsgType, &mut Sv, &mut EopMessage)> {
         match self {
-            Self::Eop(fr) => Some(fr),
+            Self::Eop(msg, sv, fr) => Some((msg, sv, fr)),
             _ => None,
         }
     }
     /// Unwraps self as System Time Offset frame
-    pub fn as_sto (&self) -> Option<(&Sv, &StoMessage)> {
+    pub fn as_sto (&self) -> Option<(&MsgType, &Sv, &StoMessage)> {
         match self {
-            Self::Sto(sv, fr) => Some((sv, fr)),
+            Self::Sto(msg, sv, fr) => Some((msg, sv, fr)),
             _ => None,
         }
     }
     /// Unwraps self as mutable System Time Offset frame reference
-    pub fn as_mut_sto (&mut self) -> Option<(&mut Sv, &mut StoMessage)> {
+    pub fn as_mut_sto (&mut self) -> Option<(&MsgType, &mut Sv, &mut StoMessage)> {
         match self {
-            Self::Sto(sv, fr) => Some((sv, fr)),
+            Self::Sto(msg, sv, fr) => Some((msg, sv, fr)),
             _ => None,
         }
     }
@@ -207,7 +208,7 @@ pub fn is_new_epoch (line: &str, v: Version) -> bool {
         }
         // rest matches a valid epoch descriptor
         let datestr = &line[3..22];
-        epoch::str2date(&datestr).is_ok()
+        str2date(&datestr).is_ok()
 
     } else if v.major == 3 { // RINEX V3
         if line.len() < 24 {
@@ -221,7 +222,7 @@ pub fn is_new_epoch (line: &str, v: Version) -> bool {
         }
         // rest matches a valid epoch descriptor
         let datestr = &line[4..23];
-        epoch::str2date(&datestr).is_ok()
+        str2date(&datestr).is_ok()
 
     } else { // Modern --> easy 
         if let Some(c) = line.chars().nth(0) {
@@ -243,8 +244,8 @@ pub enum Error {
     DataBaseRevisionError,
     #[error("failed to parse msg type")]
     SvError(#[from] sv::Error),
-    #[error("failed to parse cplx data")]
-    ParseComplexError(#[from] DbItemError),
+    #[error("failed to parse orbit field")]
+    ParseOrbitError(#[from] OrbitItemError),
     #[error("failed to parse sv::prn")]
     ParseIntError(#[from] std::num::ParseIntError), 
     #[error("failed to parse sv clock fields")]
@@ -253,10 +254,14 @@ pub enum Error {
     ParseDateError(#[from] ParseDateError),
     #[error("failed to identify class/type")]
     StrumError(#[from] strum::ParseError), 
+    #[error("failed to parse EPH message")]
+    EphMessageError(#[from] ephemeris::Error),
     #[error("failed to parse ION message")]
     IonMessageError(#[from] ionmessage::Error),
     #[error("failed to parse EOP message")]
     EopMessageError(#[from] eopmessage::Error),
+    #[error("failed to parse STO message")]
+    StoMessageError(#[from] stomessage::Error),
 }
 
 /// Builds `Record` entry for `NavigationData`
@@ -264,14 +269,15 @@ pub fn parse_epoch (version: Version, constell: Constellation, content: &str) ->
         Result<(Epoch, FrameClass, Frame), Error>
 {
     if content.starts_with(">") {
-        build_modern_record_entry(content)
+        parse_v4_record_entry(content)
     } else {
-        build_v2_v3_record_entry(version, constell, content)
+        parse_v4_record_entry(content)
+        //parse_v2_v3_record_entry(version, constell, content)
     }
 }
 
 /// Builds `Record` entry for Modern NAV frames
-fn build_modern_record_entry (content: &str) ->
+fn parse_v4_record_entry (content: &str) ->
         Result<(Epoch, FrameClass, Frame), Error>
 {
     let mut lines = content.lines();
@@ -290,246 +296,87 @@ fn build_modern_record_entry (content: &str) ->
 
     let (epoch, fr): (Epoch, Frame) = match frame_class {
         FrameClass::Ephemeris => {
-            let line = match lines.next() {
-                Some(l) => l,
-                _ => return Err(Error::MissingData),
-            };
-            
-            let (svnn, rem) = line.split_at(4);
-            let sv = Sv::from_str(svnn.trim())?;
-            let (epoch, rem) = rem.split_at(20);
-            let epoch = Epoch {
-                date: epoch::str2date(epoch.trim())?,
-                flag: epoch::EpochFlag::Ok,
-            };
-
-            let (clk_bias, rem) = rem.split_at(19);
-            let (clk_dr, clk_drr) = rem.split_at(19);
-            let clk = f64::from_str(clk_bias.replace("D","E").trim())?;
-            let clk_dr = f64::from_str(clk_dr.replace("D","E").trim())?;
-            let clk_drr = f64::from_str(clk_drr.replace("D","E").trim())?;
-            let map = parse_complex_map(
-                Version { major: 4, minor: 0 },
-                sv.constellation,
-                lines)?;
-            (epoch, Frame::Eph(msg_type, sv, clk, clk_dr, clk_drr, map))
+			let (epoch, ephemeris) = Ephemeris::parse_v4(lines)?;
+            (epoch, Frame::Eph(msg_type, sv, ephemeris)) 
         },
         FrameClass::SystemTimeOffset => {
             let line = match lines.next() {
                 Some(l) => l,
                 _ => return Err(Error::MissingData),
             };
-            
-            let (epoch, rem) = line.split_at(23);
-            let (system, _) = rem.split_at(5);
-            let epoch = Epoch {
-                date: epoch::str2date(epoch.trim())?,
-                flag: epoch::EpochFlag::Ok,
-            };
-            let line = match lines.next() {
-                Some(l) => l,
-                _ => return Err(Error::MissingData),
-            };
-            let (time, rem) = line.split_at(23);
-            let (a0, rem) = rem.split_at(19);
-            let (a1, rem) = rem.split_at(19);
-            let (a2, rem) = rem.split_at(19);
-
-            let t_tm = f64::from_str(time.trim())?;
-            let msg = StoMessage {
-                system: system.trim().to_string(),
-                t_tm: t_tm as u32,
-                a: (
-                    f64::from_str(a0.trim()).unwrap_or(0.0_f64),
-                    f64::from_str(a1.trim()).unwrap_or(0.0_f64),
-                    f64::from_str(a2.trim()).unwrap_or(0.0_f64),
-                ),
-                utc: rem.trim().to_string(),
-            };
-            (epoch, Frame::Sto(sv, msg))
+           	let (epoch, msg) = StoMessage::parse(lines)?; 
+            (epoch, Frame::Sto(msg_type, sv, msg))
         },
         FrameClass::EarthOrientation => {
             let (epoch, msg) = EopMessage::parse(lines)?;
-            (epoch, Frame::Eop(msg))
+            (epoch, Frame::Eop(msg_type, sv, msg))
         },
         FrameClass::IonosphericModel => {
             let (epoch, msg): (Epoch, IonMessage) = match msg_type {
                 MsgType::IFNV => {
-                    let (epoch, sv, model) = NgModel::parse(lines)?;
+                    let (epoch, model) = NgModel::parse(lines)?;
                     (epoch, IonMessage::NequickGModel(model))
                 },
                 MsgType::CNVX => {
                     match sv.constellation {
                         Constellation::BeiDou => {
-                            let (epoch, sv, model) = BdModel::parse(lines)?;
+                            let (epoch, model) = BdModel::parse(lines)?;
                             (epoch, IonMessage::BdgimModel(model))
                         },
                         _ => {
-                            let (epoch, sv, model) = KbModel::parse(lines)?;
+                            let (epoch, model) = KbModel::parse(lines)?;
                             (epoch, IonMessage::KlobucharModel(model))
                         },
                     }
                 },
                 _ => {
-                    let (epoch, sv, model) = KbModel::parse(lines)?;
+                    let (epoch, model) = KbModel::parse(lines)?;
                     (epoch, IonMessage::KlobucharModel(model))
                 }
             };
-            (epoch, Frame::Ion(msg))
+            (epoch, Frame::Ion(msg_type, sv, msg))
         },
     };
     Ok((epoch, frame_class, fr))
 }
 
-/// Builds `Record` entry for Old NAV frames
-fn build_v2_v3_record_entry (version: Version, constell: Constellation, content: &str) ->
+fn parse_v2_v3_record_entry (version: Version, constell: Constellation, content: &str) ->
         Result<(Epoch, FrameClass, Frame), Error>
 {
-    let mut lines = content.lines();
-    let line = match lines.next() {
-        Some(l) => l,
-        _ => return Err(Error::MissingData), 
-    };
-    
-    let svnn_offset: usize = match version.major {
-        1|2 => 2, // Y
-        3 => 4, // XYY
-        _ => unreachable!(),
-    };
+	let mut lines = content.lines();
+	let line = match lines.next() {
+		Some(l) => l,
+		_ => return Err(Error::MissingData),
+	};
 
-    let (svnn, rem) = line.split_at(svnn_offset);
-    let (date, rem) = rem.split_at(20);
-    let (clk_bias, rem) = rem.split_at(19);
-    let (clk_dr, clk_drr) = rem.split_at(19);
-
-    let sv : Sv = match version.major {
-        1|2 => {
-            match constell {
-                Constellation::Mixed => { // not sure that even exists
-                    Sv::from_str(svnn.trim())?
-                },
-                _ => {
-                    Sv {
-                        constellation: constell.clone(),
-                        prn: u8::from_str_radix(svnn.trim(), 10)?,
-                    }
-                },
-            }
-        },
-        3 => Sv::from_str(svnn.trim())?,
-        _ => unreachable!(),
-    };
-
-    let clk = f64::from_str(clk_bias.replace("D","E").trim())?;
-    let clk_dr = f64::from_str(clk_dr.replace("D","E").trim())?;
-    let clk_drr = f64::from_str(clk_drr.replace("D","E").trim())?;
-    let map = parse_complex_map(version, sv.constellation, lines)?;
-    let fr = Frame::Eph(MsgType::LNAV, sv, clk, clk_dr, clk_drr, map); // indicate legacy frame
+	let (epoch, sv, ephemeris) = Ephemeris::parse(version, constell, content.lines())?;
+    let fr = Frame::Eph(
+		MsgType::LNAV, 
+		sv, 
+		ephemeris);
     Ok((
-        Epoch::new(
-            epoch::str2date(date)?,
-            epoch::EpochFlag::default(), // flag never given in NAV 
-        ),
-        FrameClass::Ephemeris, // legacy: Only Ephemeris exist
-        fr, // ephemeris frame
+		epoch,
+        FrameClass::Ephemeris,
+        fr,
     ))
-}
-
-/// Parses constellation + revision dependent complex map 
-fn parse_complex_map (version: Version, constell: Constellation, mut lines: std::str::Lines<'_>) 
-        -> Result<HashMap<String, DbItem>, Error>
-{
-    // locate closest revision in db
-    let db_revision = match database::closest_revision(constell, version) {
-        Some(v) => v,
-        _ => return Err(Error::DataBaseRevisionError),
-    };
-
-    // retrieve db items / fields to parse
-    let items :Vec<_> = NAV_MESSAGES
-        .iter()
-        .filter(|r| r.constellation == constell.to_3_letter_code())
-        .map(|r| {
-            r.revisions
-                .iter()
-                .filter(|r| // identified db revision
-                    u8::from_str_radix(r.major, 10).unwrap() == db_revision.major
-                    && u8::from_str_radix(r.minor, 10).unwrap() == db_revision.minor
-                )
-                .map(|r| &r.items)
-                .flatten()
-        })
-        .flatten()
-        .collect();
-
-    // parse items
-    let mut line = match lines.next() {
-        Some(l) => l,
-        _ => return Err(Error::MissingData),
-    };
-    let mut new_line = true;
-    let mut total :usize = 0;
-    let mut map :HashMap<String, DbItem> = HashMap::new();
-    for item in items.iter() {
-        let (k, v) = item;
-        let offset :usize = match new_line {
-            false => 19,
-            true => {
-                new_line = false;
-                if version.major == 3 {
-                    22+1
-                } else {
-                    22
-                }
-            },
-        };
-        if line.len() >= 19 { // handle empty fields, that might exist..
-            let (content, rem) = line.split_at(offset);
-            total += offset;
-            line = rem.clone();
-
-            if !k.contains(&"spare") { // --> got something to parse in db
-                if let Ok(cplx) = DbItem::new(v, content.trim(), constell) {
-                    map.insert(k.to_string(), cplx);
-                }
-            }
-
-            if total >= 76 {
-                new_line = true;
-                total = 0;
-                if let Some(l) = lines.next() {
-                    line = l;
-                } else {
-                    break
-                }
-            }
-        } else { // early EOL (blank)
-            total = 0;
-            new_line = true;
-            if let Some(l) = lines.next() {
-                line = l
-            } else {
-                break
-            }
-        }
-    }
-    Ok(map)
 }
 
 /// Writes given epoch into stream 
 pub fn write_epoch (
         epoch: &Epoch, 
         data: &BTreeMap<FrameClass, Vec<Frame>>,
-        header: &header::Header,
+        header: &Header,
         writer: &mut BufferedWriter,
     ) -> Result<(), Error> {
-    if header.version.major < 4 {
+    /*if header.version.major < 4 {
         write_epoch_v2_v3(epoch, data, header, writer)
     } else {
         write_epoch_v4(epoch, data, header, writer)
-    }
+    }*/
+	Ok(())
 }
 
+/*
 fn write_epoch_v2_v3 (
         epoch: &Epoch, 
         data: &BTreeMap<FrameClass, Vec<Frame>>,
@@ -565,7 +412,7 @@ fn write_epoch_v2_v3 (
                     clk_dr,
                     clk_drr)?;
                 // locate closest revision in db
-                let db_revision = match database::closest_revision(sv.constellation, header.version) {
+                let db_revision = match orbits::closest_revision(sv.constellation, header.version) {
                     Some(v) => v,
                     _ => return Err(Error::DataBaseRevisionError),
                 };
@@ -627,10 +474,9 @@ fn write_epoch_v4 (
     for (class, frames) in data.iter() {
         if *class == FrameClass::Ephemeris {
             for frame in frames.iter() {
-                write!(writer, "> {}", class)?;
-                let (msgtype, sv, clk_off, clk_dr, clk_drr, data) = frame.as_eph()
+                let (msgtype, sv, ephemeris) = frame.as_eph()
                     .unwrap();
-                write!(writer, "{} {}\n", sv, msgtype)?;
+                write!(writer, "> {} {} {}\n", class, sv, msgtype)?;
                 match &header.constellation {
                     Some(Constellation::Mixed) => {
                         // Mixed constellation context
@@ -651,7 +497,7 @@ fn write_epoch_v4 (
                     clk_dr, 
                     clk_drr)?;
                 // locate closest revision in db
-                let db_revision = match database::closest_revision(sv.constellation, header.version) {
+                let db_revision = match orbits::closest_revision(sv.constellation, header.version) {
                     Some(v) => v,
                     _ => return Err(Error::DataBaseRevisionError),
                 };
@@ -676,7 +522,7 @@ fn write_epoch_v4 (
                 for (key, _) in items.iter() {
                     index += 1;
                     if let Some(data) = data.get(*key) {
-                        write!(writer, " {}", &data.to_string())?;
+                        //write!(writer, " {}", &data.to_string())?;
                     } else { // data is missing: either not parsed or not provided
                         write!(writer, "              ")?;
                     }
@@ -688,10 +534,9 @@ fn write_epoch_v4 (
         } // EPH
         else if *class == FrameClass::SystemTimeOffset {
             for frame in frames.iter() {
-                write!(writer, "> {} ", class)?;
-                let (sv, sto) = frame.as_sto()
+                let (msg, sv, sto) = frame.as_sto()
                     .unwrap();
-                write!(writer, "{} LNAV\n", sv.to_string())?; //TODO LNAV or other options do exist
+                write!(writer, "> {} {} {}\n", class, sv, msg)?;
                 write!(writer, "    {} {}    {}", &epoch.to_string_nav_v3(), sto.system, sto.utc)?;
                 write!(writer, 
                     "{:14.13E} {:14.13E} {:14.13E} {:14.13E}\n",
@@ -712,25 +557,17 @@ fn write_epoch_v4 (
         } // EOP
         else { // ION 
             for frame in frames.iter() {
-                let (sv, msg) = frame.as_ion()
+                let (msg, sv, ion) = frame.as_ion()
                     .unwrap();
-                write!(writer, "> {} {}", class, sv)?;
-                match msg {
-                    IonMessage::KlobucharModel(model) => {
-                        write!(writer, "IFNV\n")?;
-                    },
-                    IonMessage::NequickGModel(sv, model) => {
-                        write!(writer, "IFNV\n")?;
-                    },
-                    IonMessage::BdgimModel(sv, model) => {
-                        write!(writer, "IFNV\n")?;
-                    },
+                write!(writer, "> {} {}", class, sv, msg)?;
+                match ion {
                 }
             }
         } // ION
     }
     Ok(())
 }
+*/
 
 #[cfg(test)]
 mod test {
@@ -785,23 +622,24 @@ mod test {
         assert_eq!(entry.is_ok(), true);
         let (epoch, class, frame) = entry.unwrap();
         assert_eq!(epoch, Epoch {
-            date: epoch::str2date("20 12 31 23 45  0.0").unwrap(),
-            flag: epoch::EpochFlag::Ok,
+            date: str2date("20 12 31 23 45  0.0").unwrap(),
+            flag: EpochFlag::Ok,
         });
         assert_eq!(class, FrameClass::Ephemeris);
         let fr = frame.as_eph();
         assert_eq!(fr.is_some(), true);
-        let (msg_type, sv, clk, clk_dr, clk_drr, map) = fr.unwrap();
+        let (msg_type, sv, ephemeris) = fr.unwrap();
         assert_eq!(msg_type, MsgType::LNAV);
         assert_eq!(sv, Sv {
             constellation: Constellation::Glonass,
             prn: 1,
         });
-        assert_eq!(clk, 7.282570004460E-05);
-        assert_eq!(clk_dr, 0.0); 
-        assert_eq!(clk_drr, 7.38E4);
-        assert_eq!(map.len(), 12);
-        for (k, v) in map.iter() {
+        assert_eq!(ephemeris.clock_bias, 7.282570004460E-05);
+        assert_eq!(ephemeris.clock_drift, 0.0); 
+        assert_eq!(ephemeris.clock_drift_rate, 7.38E4);
+		let orbits = &ephemeris.orbits;
+        assert_eq!(orbits.len(), 12);
+        for (k, v) in orbits.iter() {
             if k.eq("satPosX") {
                 let v = v.as_f64();
                 assert_eq!(v.is_some(), true);
@@ -881,23 +719,24 @@ mod test {
         assert_eq!(entry.is_ok(), true);
         let (epoch, class, frame) = entry.unwrap();
         assert_eq!(epoch, Epoch {
-            date: epoch::str2date("2021 01 01 00 00 00").unwrap(),
-            flag: epoch::EpochFlag::Ok,
+            date: str2date("2021 01 01 00 00 00").unwrap(),
+            flag: EpochFlag::Ok,
         });
         assert_eq!(class, FrameClass::Ephemeris);
         let fr = frame.as_eph();
         assert_eq!(fr.is_some(), true);
-        let (msg_type, sv, clk, clk_dr, clk_drr, map) = fr.unwrap();
+        let (msg_type, sv, ephemeris) = fr.unwrap();
         assert_eq!(msg_type, MsgType::LNAV);
         assert_eq!(sv, Sv {
             constellation: Constellation::BeiDou,
             prn: 5,
         });
-        assert_eq!(clk, -0.426337239332E-03); 
-        assert_eq!(clk_dr, -0.752518047875e-10); 
-        assert_eq!(clk_drr, 0.0);
-        assert_eq!(map.len(), 24);
-        for (k, v) in map.iter() {
+        assert_eq!(ephemeris.clock_bias, -0.426337239332E-03); 
+        assert_eq!(ephemeris.clock_drift, -0.752518047875e-10); 
+        assert_eq!(ephemeris.clock_drift_rate, 0.0);
+		let orbits = &ephemeris.orbits;
+        assert_eq!(orbits.len(), 24);
+        for (k, v) in orbits.iter() {
             if k.eq("aode") {
                 let v = v.as_f64();
                 assert_eq!(v.is_some(), true);
@@ -1047,23 +886,24 @@ mod test {
         assert_eq!(entry.is_ok(), true);
         let (epoch, class, frame) = entry.unwrap();
         assert_eq!(epoch, Epoch {
-            date: epoch::str2date("2021 01 01 10 10 00").unwrap(),
-            flag: epoch::EpochFlag::Ok,
+            date: str2date("2021 01 01 10 10 00").unwrap(),
+            flag: EpochFlag::Ok,
         });
         assert_eq!(class, FrameClass::Ephemeris);
         let fr = frame.as_eph();
         assert_eq!(fr.is_some(), true);
-        let (msg_type, sv, clk, clk_dr, clk_drr, map) = fr.unwrap();
+        let (msg_type, sv, ephemeris) = fr.unwrap();
         assert_eq!(msg_type, MsgType::LNAV);
         assert_eq!(sv, Sv {
             constellation: Constellation::Galileo,
             prn: 1,
         });
-        assert_eq!(clk, -0.101553811692e-02); 
-        assert_eq!(clk_dr, -0.804334376880e-11);
-        assert_eq!(clk_drr, 0.0);
-        assert_eq!(map.len(), 24);
-        for (k, v) in map.iter() {
+        assert_eq!(ephemeris.clock_bias, -0.101553811692e-02); 
+        assert_eq!(ephemeris.clock_drift, -0.804334376880e-11);
+        assert_eq!(ephemeris.clock_drift_rate, 0.0);
+		let orbits = &ephemeris.orbits;
+        assert_eq!(orbits.len(), 24);
+        for (k, v) in orbits.iter() {
             if k.eq("iodnav") {
                 let v = v.as_f64();
                 assert_eq!(v.is_some(), true);
@@ -1207,23 +1047,24 @@ mod test {
         assert_eq!(entry.is_ok(), true);
         let (epoch, class, frame) = entry.unwrap();
         assert_eq!(epoch, Epoch {
-            date: epoch::str2date("2021 01 01 09 45 00").unwrap(),
-            flag: epoch::EpochFlag::Ok,
+            date: str2date("2021 01 01 09 45 00").unwrap(),
+            flag: EpochFlag::Ok,
         });
         assert_eq!(class, FrameClass::Ephemeris);
         let fr = frame.as_eph();
         assert_eq!(fr.is_some(), true);
-        let (msg_type, sv, clk, clk_dr, clk_drr, map) = fr.unwrap();
+        let (msg_type, sv, ephemeris) = fr.unwrap();
         assert_eq!(msg_type, MsgType::LNAV);
         assert_eq!(sv, Sv {
             constellation: Constellation::Glonass,
             prn: 7,
         });
-        assert_eq!(clk, -0.420100986958e-04);
-        assert_eq!(clk_dr, 0.000000000000e+00);
-        assert_eq!(clk_drr, 0.342000000000e+05);
-        assert_eq!(map.len(), 12);
-        for (k, v) in map.iter() {
+        assert_eq!(ephemeris.clock_bias, -0.420100986958e-04);
+        assert_eq!(ephemeris.clock_drift, 0.000000000000e+00);
+        assert_eq!(ephemeris.clock_drift_rate, 0.342000000000e+05);
+		let orbits = &ephemeris.orbits;
+        assert_eq!(orbits.len(), 12);
+        for (k, v) in orbits.iter() {
             if k.eq("satPosX") {
                 let v = v.as_f64();
                 assert_eq!(v.is_some(), true);

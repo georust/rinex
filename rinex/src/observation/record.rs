@@ -131,7 +131,8 @@ bitflags! {
     }
 }
 
-#[derive(PartialEq, Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug)]
+#[derive(PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct ObservationData {
 	/// physical measurement

@@ -2,8 +2,11 @@ use thiserror::Error;
 use std::str::FromStr;
 use crate::epoch;
 use crate::channel;
-use crate::antex::frequency::{Frequency, Pattern};
-use crate::antex::antenna::{Antenna, Calibration, Method};
+
+use super::{
+	Frequency, Pattern,
+	Antenna, Calibration, CalibrationMethod,
+};
 
 /// Returns true if this line matches 
 /// the beginning of a `epoch` for ATX file (special files),
@@ -64,7 +67,7 @@ pub fn parse_epoch (content: &str) -> Result<(Antenna, Vec<Frequency>), Error> {
             let (_, rem) = rem.split_at(10); // N#
             let (date, _) = rem.split_at(10);
             let cal = Calibration {
-                method: Method::from_str(method.trim()).unwrap(),
+                method: CalibrationMethod::from_str(method.trim()).unwrap(),
                 agency: agency.trim().to_string(),
                 date: date.trim().to_string(),
             };

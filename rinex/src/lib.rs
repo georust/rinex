@@ -21,6 +21,7 @@ pub mod navigation;
 pub mod observation;
 pub mod record;
 pub mod sv;
+pub mod epoch;
 pub mod types;
 pub mod version;
 
@@ -39,10 +40,13 @@ use thiserror::Error;
 use chrono::{Datelike, Timelike};
 use std::collections::{BTreeMap, HashMap};
 
-use navigation::DbItem;
+use navigation::OrbitItem;
 
-pub mod epoch;
-use epoch::{Epoch, EpochFlag};
+// export major types
+pub use sv::Sv;
+pub use header::Header;
+pub use epoch::{Epoch, EpochFlag};
+pub use constellation::Constellation;
 
 #[cfg(feature = "serde")]
 #[macro_use]
@@ -105,9 +109,10 @@ fn hourly_session_str (time: chrono::NaiveTime) -> String {
 
 /// `Rinex` describes a `RINEX` file
 #[derive(Clone, Debug)]
+#[derive(PartialEq)]
 pub struct Rinex {
     /// `header` field contains general information
-    pub header: header::Header,
+    pub header: Header,
     /// `comments` : list of extra readable information,   
     /// found in `record` section exclusively.    
     /// Comments extracted from `header` sections are exposed in `header.comments`
@@ -121,7 +126,7 @@ impl Default for Rinex {
     /// Builds a default `RINEX`
     fn default() -> Rinex {
         Rinex {
-            header: header::Header::default(),
+            header: Header::default(),
             comments: record::Comments::new(), 
             record: record::Record::default(), 
         }
@@ -170,7 +175,7 @@ impl std::ops::SubAssign<Rinex> for Rinex {
 
 impl Rinex {
     /// Builds a new `RINEX` struct from given header & body sections
-    pub fn new (header: header::Header, record: record::Record) -> Rinex {
+    pub fn new (header: Header, record: record::Record) -> Rinex {
         Rinex {
             header,
             record,
@@ -179,7 +184,7 @@ impl Rinex {
     }
 
     /// Returns a copy of self with given header attributes
-    pub fn with_header (&self, header: header::Header) -> Self {
+    pub fn with_header (&self, header: Header) -> Self {
         Rinex {
             header,
             record: self.record.clone(),
@@ -188,7 +193,7 @@ impl Rinex {
     }
 
     /// Replaces header section
-    pub fn replace_header (&mut self, header: header::Header) {
+    pub fn replace_header (&mut self, header: Header) {
         self.header = header.clone();
     }
 
@@ -364,7 +369,7 @@ impl Rinex {
         // create buffered reader
         let mut reader = BufferedReader::new(path)?;
         // --> parse header fields 
-        let header = header::Header::new(&mut reader)
+        let header = Header::new(&mut reader)
             .unwrap();
         // --> parse record (file body)
         //     we also grab encountered comments,
@@ -998,7 +1003,7 @@ impl Rinex {
                             for (class, frames) in classes.iter() {
                                 if *class == navigation::FrameClass::Ephemeris {
                                     for frame in frames.iter() {
-                                        let (_, sv, _, _, _, _) = frame.as_eph().unwrap();
+                                        let (_, sv, _) = frame.as_eph().unwrap();
                                         if !ret.contains(&sv.constellation) {
                                             ret.push(sv.constellation.clone());
                                         }
@@ -1055,7 +1060,7 @@ impl Rinex {
                     classes.retain(|class, frames| {
                         if *class == navigation::FrameClass::Ephemeris {
                             frames.retain(|fr| {
-                                let (_, sv, _, _, _, _) = fr.as_eph().unwrap();
+                                let (_, sv, _) = fr.as_eph().unwrap();
                                 filter.contains(&sv.constellation)
                             });
                             frames.len() > 0
@@ -1107,7 +1112,7 @@ impl Rinex {
                     classes.retain(|class, frames| {
                         if *class == navigation::FrameClass::Ephemeris {
                             frames.retain(|fr| {
-                                let (_, sv, _, _, _, _) = fr.as_eph().unwrap();
+                                let (_, sv, _) = fr.as_eph().unwrap();
                                 filter.contains(&sv)
                             });
                             frames.len() > 0
@@ -1165,9 +1170,10 @@ impl Rinex {
             for (class, frames) in classes.iter() {
                 if *class == navigation::FrameClass::Ephemeris {
                     for frame in frames.iter() {
-                        let (_, sv, _, _, _, map) = frame.as_eph()
+                        let (_, sv, ephemeris) = frame.as_eph()
                             .unwrap();
-                        if let Some(elev) = map.get("e") {
+						let orbits = &ephemeris.orbits;
+                        if let Some(elev) = orbits.get("e") {
                             // got an elevation angle
                             let elev = elev
                                 .as_f64()
@@ -1278,8 +1284,8 @@ impl Rinex {
                 if *class == navigation::FrameClass::Ephemeris {
                     let mut map: BTreeMap<sv::Sv, f64> = BTreeMap::new();
                     for frame in frames.iter() {
-                        let (_, sv, clk, _, _, _) = frame.as_eph().unwrap();
-                        map.insert(sv, clk);
+                        let (_, sv, ephemeris) = frame.as_eph().unwrap();
+                        map.insert(sv, ephemeris.clock_bias);
                     }
                     if map.len() > 0 {
                         results.insert(*e, map);
@@ -1342,8 +1348,11 @@ impl Rinex {
                 if *class == navigation::FrameClass::Ephemeris {
                     let mut map :BTreeMap<sv::Sv, (f64,f64,f64)> = BTreeMap::new();
                     for frame in frames.iter() {
-                        let (_, sv, clk, clk_dr, clk_drr, _) = frame.as_eph().unwrap();
-                        map.insert(sv, (clk, clk_dr, clk_drr));
+                        let (_, sv, ephemeris) = frame.as_eph().unwrap();
+                        map.insert(sv, 
+							(ephemeris.clock_bias, 
+							ephemeris.clock_drift,
+							ephemeris.clock_drift_rate));
                     }
                     if map.len() > 0 { // got something
                         results.insert(*e, map);
@@ -1371,8 +1380,9 @@ impl Rinex {
     /// of standardized 3 letter codes, that can be found in this record.
     /// This does not produce anything in case of ATX and IONEX records.
     /// In case of NAV record:
-    ///    - Ephemeris: returns list of Msg Types ("LNAV","FDMA"..)
-    ///    - System Time Offsets: list of Time Systems ("GAUT", "GAGP"..)
+    ///    - Ephemeris frames: returns list of Orbits identifier,
+	///    example: "iode", "cus"..
+    ///    - System Time Offset frames: list of Time Systems ("GAUT", "GAGP"..)
     ///    - Ionospheric Models: does not apply
     pub fn observables (&self) -> Vec<String> {
         let mut result :Vec<String> = Vec::new();
@@ -1400,14 +1410,17 @@ impl Rinex {
                 for (class, frames) in classes.iter() {
                     if *class == navigation::FrameClass::Ephemeris {
                         for frame in frames.iter() {
-                            let (msgtype, _, _, _, _, _) = frame.as_eph().unwrap();
-                            if !result.contains(&msgtype.to_string()) {
-                                result.push(msgtype.to_string())
+                            let (_, _, ephemeris) = frame.as_eph().unwrap();
+							let orbits = &ephemeris.orbits;
+							for key in orbits.keys() {
+                            	if !result.contains(key) {
+                                	result.push(key.to_string())
+								}
                             }
                         }
                     } else if *class == navigation::FrameClass::SystemTimeOffset {
                         for frame in frames.iter() {
-                            let sto = frame.as_sto().unwrap();
+                            let (_, _, sto) = frame.as_sto().unwrap();
                             if !result.contains(&sto.system.to_string()) {
                                 result.push(sto.system.clone())
                             }
@@ -1431,7 +1444,7 @@ impl Rinex {
                 for (class, frames) in classes.iter() {
                     if *class == navigation::FrameClass::Ephemeris {
                         for frame in frames {
-                            let (_, sv, _, _, _, _) = frame.as_eph().unwrap();
+                            let (_, sv, _) = frame.as_eph().unwrap();
                             inner.push(sv);
                         }
                     }
@@ -1469,7 +1482,7 @@ impl Rinex {
                 for (class, frames) in classes.iter() {
                     if *class == navigation::FrameClass::Ephemeris {
                         for frame in frames {
-                            let (_, sv, _, _, _, _) = frame.as_eph().unwrap();
+                            let (_, sv, _) = frame.as_eph().unwrap();
                             if !map.contains(&sv) {
                                 map.push(sv.clone());
                             }
@@ -1545,7 +1558,7 @@ impl Rinex {
     /// For Observation record: "C1C", "L1C", ..., any valid 3 letter observable.
     /// For Meteo record: "PR", "HI", ..., any valid 2 letter sensor physics.
     /// For Navigation record:
-    ///   - Ephemeris: this acts as a key/dictionary filter. 
+    ///   - Ephemeris: this acts as an "Orbit" data filter. 
 	///     Example of known keys would be "health", "idot", "iode"..
 	///     Any known data identifier is accepted.
     ///   - Ionospheric Model: does not apply
@@ -1580,11 +1593,12 @@ impl Rinex {
                     classes.retain(|class, frames| {
                         if *class == navigation::FrameClass::Ephemeris {
                             frames.retain_mut(|fr| {
-                                let (_, _, _, _, _, map) = fr
+                                let (_, _, ephemeris) = fr
 									.as_mut_eph()
 									.unwrap();
-								map.retain(|k, _| filter.contains(&k.as_str())); // dictionary key filter
-								map.len() > 0 // got some leftovers
+								let orbits = &mut ephemeris.orbits;
+								orbits.retain(|k, _| filter.contains(&k.as_str())); // dictionary key filter
+								orbits.len() > 0 // got some leftovers
                             });
                         }/*  TODO: can this apply to non ephemeris data please ?
 						else if *class == navigation::FrameClass::SystemTimeOffset {
@@ -1646,9 +1660,9 @@ impl Rinex {
         s
     }
 
-    /// Filters out Non ephemeris data and ephemeris data
-    /// we're not interested in.
-    /// This has no effect if self is not a NAV RINEX.
+    /// Filters out Ephemeris Orbits data we are not interested in.
+	/// Also filters out non ephemeris data.
+    /// This has no effect over non Navigation RINEX.
     /// Example:
     /// ```
     /// use rinex::*;
@@ -1656,7 +1670,7 @@ impl Rinex {
     /// rnx
     ///     .ephemeris_filter_mut(vec!["satPosX","satPosY","satPosZ"]);
     /// ```
-    pub fn ephemeris_filter_mut (&mut self, filter: Vec<&str>) {
+    pub fn ephemeris_orbits_filter_mut (&mut self, filter: Vec<&str>) {
         if !self.is_navigation_rinex() {
             return ;
         }
@@ -1667,9 +1681,10 @@ impl Rinex {
             classes.retain(|class, frames| {
                 if *class == navigation::FrameClass::Ephemeris {
                     frames.retain_mut(|fr| {
-                        let (_, _, _, _, _, map) = fr.as_mut_eph().unwrap();
-                        map.retain(|k,_| filter.contains(&k.as_str()));
-                        map.len() > 0
+                        let (_, _, ephemeris) = fr.as_mut_eph().unwrap();
+						let orbits = &mut ephemeris.orbits;
+                        orbits.retain(|k,_| filter.contains(&k.as_str()));
+                        orbits.len() > 0
                     });
                     frames.len() > 0
                 } else {
@@ -1677,15 +1692,62 @@ impl Rinex {
                 }
             });
             classes.len() > 0
-        })
+        });
     }
 
-    /// Immutable implementation of [ephemeris_filter_mut]
-    pub fn ephemeris_filter (&self, filter: Vec<&str>) -> Self {
+    /// Immutable implementation of [ephemeris_orbits_filter_mut]
+    pub fn ephemeris_orbits_filter (&self, filter: Vec<&str>) -> Self {
         let mut s = self.clone();
-        s.ephemeris_filter_mut(filter);
+        s.ephemeris_orbits_filter_mut(filter);
         s
     }
+
+	pub fn navigation_message_filter_mut (&mut self, filter: Vec<&navigation::MsgType>) {
+		if !self.is_navigation_rinex() {
+			return ;
+		}
+		let record = self.record
+			.as_mut_nav()
+			.unwrap();
+		record.retain(|_, classes| {
+			classes.retain(|class, frames| {
+				if *class == navigation::FrameClass::Ephemeris {
+					frames.retain(|fr| {
+						let (msg, _, _) = fr.as_eph()
+							.unwrap();
+						true
+						//filter.contains(&msg)
+					});
+				} else if *class == navigation::FrameClass::SystemTimeOffset {
+					frames.retain(|fr| {
+						let (msg, _, _) = fr.as_sto()
+							.unwrap();
+						filter.contains(&msg)
+					});
+				} else if *class == navigation::FrameClass::IonosphericModel {
+					frames.retain(|fr| {
+						let (msg, _, _) = fr.as_ion()
+							.unwrap();
+						filter.contains(&msg)
+					});
+				} else { 
+					frames.retain(|fr| {
+						let (msg, _, _) = fr.as_eop()
+							.unwrap();
+						filter.contains(&msg)
+					});
+				}
+				frames.len() > 0
+			});
+			classes.len() > 0
+		});
+	}
+	
+	pub fn navigation_message_filter (&self, filter: Vec<&navigation::MsgType>) -> Self {
+		let mut s = self.clone();
+		s.navigation_message_filter_mut(filter);
+		s
+	}
 
     /// Executes in place given LLI AND mask filter.
     /// This method is very useful to determine where
@@ -1808,11 +1870,11 @@ impl Rinex {
     ///     } 
     /// }
     /// ```
-    pub fn ephemeris (&self) -> BTreeMap<Epoch, BTreeMap<sv::Sv, (f64,f64,f64, HashMap<String, DbItem>)>> {
+    pub fn ephemeris (&self) -> BTreeMap<Epoch, BTreeMap<sv::Sv, (f64,f64,f64, HashMap<String, OrbitItem>)>> {
         if !self.is_navigation_rinex() {
             return BTreeMap::new() ; // nothing to browse
         }
-        let mut results: BTreeMap<Epoch, BTreeMap<sv::Sv, (f64,f64,f64, HashMap<String, DbItem>)>>
+        let mut results: BTreeMap<Epoch, BTreeMap<sv::Sv, (f64,f64,f64, HashMap<String, OrbitItem>)>>
             = BTreeMap::new();
         let record = self.record
             .as_nav()
@@ -1820,10 +1882,14 @@ impl Rinex {
         for (e, classes) in record.iter() {
             for (class, frames) in classes.iter() {
                 if *class == navigation::FrameClass::Ephemeris {
-                    let mut inner: BTreeMap<sv::Sv,  (f64,f64,f64, HashMap<String, DbItem>)> = BTreeMap::new();
+                    let mut inner: BTreeMap<sv::Sv,  (f64,f64,f64, HashMap<String, OrbitItem>)> = BTreeMap::new();
                     for frame in frames.iter() {
-                        let (_, sv, clk, clk_dr, clk_drr, map) = frame.as_eph().unwrap();
-                        inner.insert(sv, (clk, clk_dr, clk_drr, map.clone()));
+                        let (_, sv, ephemeris) = frame.as_eph().unwrap();
+                        inner.insert(sv, 
+							(ephemeris.clock_bias,
+							ephemeris.clock_drift, 
+							ephemeris.clock_drift_rate, 
+							ephemeris.orbits.clone()));
                     }
                     if inner.len() > 0 {
                         results.insert(*e, inner);
@@ -1851,15 +1917,16 @@ impl Rinex {
             for (class, frames) in classes.iter() {
                 if *class == navigation::FrameClass::Ephemeris {
                     for frame in frames.iter() {
-                        let (_, sv, _, _, _, map) = frame.as_eph()
+                        let (_, sv, ephemeris) = frame.as_eph()
                             .unwrap();
+						let orbits = &ephemeris.orbits;
                         // test all well known elevation mask fields
-                        if let Some(elev) = map.get("e") {
+                        if let Some(elev) = orbits.get("e") {
                             inner.insert(sv.clone(), elev.as_f64().unwrap());
                         } else {
-                            if let Some(posx) = map.get("satPosX") {
-                                if let Some(posy) = map.get("satPosY") {
-                                    if let Some(posz) = map.get("satPosY") {
+                            if let Some(posx) = orbits.get("satPosX") {
+                                if let Some(posy) = orbits.get("satPosY") {
+                                    if let Some(posz) = orbits.get("satPosY") {
                                         let e = posx.as_f64().unwrap() * posy.as_f64().unwrap() * posz.as_f64().unwrap(); //TODO
                                         inner.insert(sv.clone(), e);
                                     }
@@ -1890,9 +1957,9 @@ impl Rinex {
                 classes.retain(|class, frames| {
                     if *class == navigation::FrameClass::Ephemeris {
                         frames.retain(|fr| {
-                            let (_, _, _, _, _, map) = fr.as_eph()
+                            let (_, _, ephemeris) = fr.as_eph()
                                 .unwrap();
-                            if let Some(elev) = map.get("e") {
+                            if let Some(elev) = ephemeris.orbits.get("e") {
                                 elev.as_f64().unwrap() < min_angle
                             } else { // TODO
                                 false
@@ -1929,8 +1996,8 @@ impl Rinex {
         record.retain(|_, classes| {
             classes.retain(|_, frames| {
                 frames.retain(|fr| {
-                    let (_, _, _, _, _, map) = fr.as_eph().unwrap();
-                    if let Some(elev) = map.get("e") {
+                    let (_, _, ephemeris) = fr.as_eph().unwrap();
+                    if let Some(elev) = ephemeris.orbits.get("e") {
                         let elev = elev.as_f64().unwrap();
                         elev >= min && elev <= max 
                     } else { //TODO do other keys exist? what about GLO?
@@ -1965,7 +2032,7 @@ impl Rinex {
             classes.retain(|class, frames| {
                 if *class == navigation::FrameClass::Ephemeris {
                     frames.retain(|fr| {
-                        let (msgtype, _, _, _, _, _) = fr.as_eph().unwrap();
+                        let (msgtype, _, _) = fr.as_eph().unwrap();
                         msgtype != navigation::MsgType::LNAV
                     })
                 }
@@ -1998,7 +2065,7 @@ impl Rinex {
             classes.retain(|class, frames| {
                 if *class == navigation::FrameClass::Ephemeris {
                     frames.retain(|fr| {
-                        let (msgtype, _, _, _, _, _) = fr.as_eph().unwrap();
+                        let (msgtype, _, _) = fr.as_eph().unwrap();
                         msgtype == navigation::MsgType::LNAV
                     })
                 }
@@ -2032,7 +2099,7 @@ impl Rinex {
                 if *class == navigation::FrameClass::SystemTimeOffset {
                     let mut inner :Vec<navigation::StoMessage> = Vec::new();
                     for frame in frames.iter() {
-                        let fr = frame.as_sto().unwrap();
+                        let (_, _, fr) = frame.as_sto().unwrap();
                         inner.push(fr.clone())
                     }
                     if inner.len() > 0 {
@@ -2060,7 +2127,7 @@ impl Rinex {
                 if *class == navigation::FrameClass::IonosphericModel {
                     let mut inner :Vec<navigation::IonMessage> = Vec::new();
                     for frame in frames.iter() {
-                        let fr = frame.as_ion().unwrap();
+                        let (_, _, fr) = frame.as_ion().unwrap();
                         inner.push(fr.clone())
                     }
                     if inner.len() > 0 {
@@ -2088,7 +2155,7 @@ impl Rinex {
                 if *class == navigation::FrameClass::IonosphericModel {
                     let mut inner :Vec<navigation::KbModel> = Vec::new();
                     for frame in frames.iter() {
-                        let fr = frame.as_ion().unwrap();
+                        let (_, _, fr) = frame.as_ion().unwrap();
                         if let Some(model) = fr.as_klobuchar() {
                             inner.push(*model);
                         }
@@ -2118,7 +2185,7 @@ impl Rinex {
                 if *class == navigation::FrameClass::IonosphericModel {
                     let mut inner :Vec<navigation::NgModel> = Vec::new();
                     for frame in frames.iter() {
-                        let fr = frame.as_ion().unwrap();
+                        let (_, _, fr) = frame.as_ion().unwrap();
                         if let Some(model) = fr.as_nequick_g() {
                             inner.push(*model);
                         }
@@ -2148,7 +2215,7 @@ impl Rinex {
                 if *class == navigation::FrameClass::IonosphericModel {
                     let mut inner :Vec<navigation::BdModel> = Vec::new();
                     for frame in frames.iter() {
-                        let fr = frame.as_ion().unwrap();
+                        let (_, _, fr) = frame.as_ion().unwrap();
                         if let Some(model) = fr.as_bdgim() {
                             inner.push(*model);
                         }

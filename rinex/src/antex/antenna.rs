@@ -8,7 +8,7 @@ use crate::formatter::opt_datetime;
 #[derive(PartialEq, PartialOrd)]
 #[derive(EnumString)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
-pub enum Method {
+pub enum CalibrationMethod {
     #[strum(serialize = "")]
     Unknown,
     #[strum(serialize = "CHAMBER")]
@@ -25,7 +25,7 @@ pub enum Method {
     Converted,
 }
 
-impl Default for Method {
+impl Default for CalibrationMethod {
     fn default() -> Self {
         Self::Chamber
     }
@@ -37,7 +37,7 @@ impl Default for Method {
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Calibration {
     /// Calibration method
-    pub method: Method,
+    pub method: CalibrationMethod,
     /// Agency who performed the calibration
     pub agency: String,
     /// Date of calibration
@@ -47,7 +47,7 @@ pub struct Calibration {
 impl Default for Calibration {
     fn default() -> Self {
         Self {
-            method: Method::default(),
+            method: CalibrationMethod::default(),
             agency: String::from("Unknown"),
             date: String::from("Unknown"),
         }

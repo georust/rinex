@@ -2,7 +2,7 @@
 mod test {
     use rinex::*;
     use rinex::antex::pcv::Pcv;
-    use rinex::antex::antenna::{Method};
+    use rinex::antex::CalibrationMethod;
     #[test]
     fn v1_trosar_25r4_leit_2020_09_23() {
         let test_resource = 
@@ -30,7 +30,7 @@ mod test {
         assert_eq!(antenna.ant_type, "TROSAR25.R4"); 
         assert_eq!(antenna.sn, "LEIT727259");
         let cal = &antenna.calibration;
-        assert_eq!(cal.method, Method::Chamber);
+        assert_eq!(cal.method, CalibrationMethod::Chamber);
         assert_eq!(cal.agency, "IGG, Univ. Bonn");
         assert_eq!(cal.date, "23-SEP-20");
         assert_eq!(antenna.dazi, 5.0);

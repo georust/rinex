@@ -1,6 +1,6 @@
-//! Satellite vehicule representation 
+//! Satellite vehicule
 use thiserror::Error;
-use crate::constellation;
+use super::{constellation, Constellation};
 
 #[cfg(feature = "serde")]
 use std::str::FromStr;
@@ -11,33 +11,12 @@ use serde::{Serialize, Serializer, Deserializer, Deserialize};
 /// ̀`Sv` describes a Satellite Vehiculee
 #[derive(Copy, Clone, Debug)]
 #[derive(PartialEq, Eq, Hash)]
+#[derive(PartialOrd, Ord)]
 pub struct Sv {
-    /// prn identification # for this vehicule 
+    /// PRN identification # for this vehicule 
     pub prn: u8,
     /// `GNSS` Constellation to which this vehicule is tied to
-    pub constellation: constellation::Constellation,
-}
-
-impl PartialOrd for Sv {
-    fn partial_cmp (&self, rhs: &Self) -> Option<std::cmp::Ordering> {
-        let (c1, c2) = (self.constellation, rhs.constellation); 
-        if c1 == c2 { // same constellation: PRN # differientiates
-            self.prn.partial_cmp(&rhs.prn)
-        } else { // By alphabetical order
-            c1.to_1_letter_code().partial_cmp(c2.to_1_letter_code())
-        }
-    }
-}
-
-impl std::cmp::Ord for Sv {
-    fn cmp (&self, rhs: &Self) -> std::cmp::Ordering {
-        let (c1, c2) = (self.constellation, rhs.constellation); 
-        if c1 == c2 { // same constellation: PRN # differentiates
-            self.prn.cmp(&rhs.prn)
-        } else { // By alphabetical order
-            c1.to_1_letter_code().cmp(c2.to_1_letter_code())
-        }
-    }
+    pub constellation: Constellation,
 }
 
 #[cfg(feature = "serde")]
@@ -80,7 +59,7 @@ impl Default for Sv {
     /// Builds a default `Sv`
     fn default() -> Sv {
         Sv {
-            constellation: constellation::Constellation::default(),
+            constellation: Constellation::default(),
             prn: 1
         }
     }
@@ -88,7 +67,7 @@ impl Default for Sv {
 
 impl Sv {
     /// Creates a new `Sv` descriptor
-    pub fn new (constellation: constellation::Constellation, prn: u8) -> Sv { Sv {constellation, prn }}
+    pub fn new (constellation: Constellation, prn: u8) -> Sv { Sv {constellation, prn }}
 }
 
 impl std::str::FromStr for Sv {
@@ -98,7 +77,7 @@ impl std::str::FromStr for Sv {
     /// This method tolerates trailing whitespaces 
     fn from_str (s: &str) -> Result<Self, Self::Err> {
         Ok(Sv {
-            constellation: constellation::Constellation::from_1_letter_code(&s[0..1])?,
+            constellation: Constellation::from_1_letter_code(&s[0..1])?,
             prn: u8::from_str_radix(&s[1..].trim(), 10)?
         })
     }

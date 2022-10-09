@@ -1,10 +1,15 @@
 use std::str::FromStr;
-use crate::sv::Sv;
-use crate::epoch;
 use thiserror::Error;
-use crate::version::Version;
+use crate::{
+	Sv, 
+	Epoch, EpochFlag, 
+	epoch::str2date, epoch::ParseDateError,
+	version::Version,
+};
 use strum_macros::EnumString;
 use std::collections::{BTreeMap, HashMap};
+use std::io::Write;
+use crate::writer::BufferedWriter;
 
 #[derive(Error, PartialEq, Eq, Hash, Clone, Debug)]
 #[derive(PartialOrd, Ord)]
@@ -56,17 +61,20 @@ pub enum Error {
     #[error("unknown data code \"{0}\"")]
     UnknownDataCode(String),
     #[error("failed to parse epoch")]
-    ParseEpochError(#[from] epoch::ParseDateError),
+    ParseEpochError(#[from] ParseDateError),
     #[error("failed to parse # of data fields")]
     ParseIntError(#[from] std::num::ParseIntError),
     #[error("failed to parse data payload")]
     ParseFloatError(#[from] std::num::ParseFloatError),
     #[error("failed to identify observable")]
     ParseObservableError(#[from] strum::ParseError),
+	#[error("failed to write data")]
+	WriterIoError(#[from] std::io::Error),
 }
 
 /// Clocks file payload
 #[derive(Clone, Debug)]
+#[derive(PartialEq)]
 #[derive(Default)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Data {
@@ -112,7 +120,7 @@ impl std::fmt::Display for DataType {
 
 /// RINEX record for CLOCKS files,
 /// record is sorted by Epoch, by Clock data type and finally by system
-pub type Record = BTreeMap<epoch::Epoch, HashMap<DataType, HashMap<System, Data>>>;
+pub type Record = BTreeMap<Epoch, HashMap<DataType, HashMap<System, Data>>>;
 
 pub fn is_new_epoch (line: &str) -> bool {
     // first 2 bytes match a DataType code
@@ -124,7 +132,7 @@ pub fn is_new_epoch (line: &str) -> bool {
 /// Returns identified `epoch` to sort data efficiently.  
 /// Returns 2D data as described in `record` definition
 pub fn parse_epoch (version: Version, content: &str) -> 
-        Result<(epoch::Epoch, DataType, System, Data), Error> 
+        Result<(Epoch, DataType, System, Data), Error> 
 {
     let mut lines = content.lines();
     let line = lines.next()
@@ -175,7 +183,7 @@ pub fn parse_epoch (version: Version, content: &str) ->
        +2+1  // m
         +11; // s
     let (epoch, rem) = rem.split_at(offset);
-    let date = epoch::str2date(epoch.trim())?; 
+    let date = str2date(epoch.trim())?; 
 
     // n
     let (n, _) = rem.split_at(4);
@@ -215,13 +223,46 @@ pub fn parse_epoch (version: Version, content: &str) ->
         }
     }
     
-    let epoch = epoch::Epoch {
-        flag: epoch::EpochFlag::Ok,
+    let epoch = Epoch {
+        flag: EpochFlag::Ok,
         date,
     };
     Ok((epoch, data_type, system, data))
 }
-    
+
+/// Writes epoch into stream
+pub fn write_epoch (
+	epoch: &Epoch, 
+	data: &HashMap<DataType, HashMap<System, Data>>,
+	writer: &mut BufferedWriter,
+    ) -> Result<(), Error> {
+	for (dtype, data) in data.iter() {
+		for (system, data) in data.iter() {
+			write!(writer, 
+				"{} {} {} ", 
+				dtype, 
+				system,
+				epoch.to_string_obs_v3())?;
+			write!(writer, "{} ", data.bias)?;
+			if let Some(sigma) = data.bias_sigma {
+				write!(writer, "{} ", sigma)?;
+			}
+			if let Some(rate) = data.rate {
+				write!(writer, "{} ", rate)?;
+			}
+			if let Some(sigma) = data.rate_sigma {
+				write!(writer, "{} ", sigma)?;
+			}
+			if let Some(accel) = data.accel {
+				write!(writer, "{} ", accel)?;
+			}
+			if let Some(sigma) = data.accel_sigma {
+				write!(writer, "{} ", sigma)?;
+			}
+		}
+	}
+	Ok(())
+}
 
 #[cfg(test)]
 mod test {

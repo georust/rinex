@@ -5,13 +5,18 @@ pub mod antenna;
 pub mod frequency;
 
 pub use record::{
-    Record,
+	Record, Error,
     is_new_epoch,
     parse_epoch,
+};
+pub use frequency::{Frequency, Pattern};
+pub use antenna::{
+	Antenna, Calibration, CalibrationMethod,
 };
 
 /// ANTEX special RINEX fields
 #[derive(Clone, Debug)]
+#[derive(PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct HeaderFields {
     /// Antenna Phase Center Variations type 

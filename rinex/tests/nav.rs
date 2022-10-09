@@ -49,13 +49,14 @@ mod test {
                 for frame in frames.iter() { // only EPH
                     let ephemeris = frame.as_eph(); // ONLY EPH in V2
                     assert_eq!(ephemeris.is_some(), true);
-                    let (msgtype, sv, clk, clk_dr, clk_drr, data) = ephemeris.unwrap();
+                    let (msgtype, sv, ephemeris) = ephemeris.unwrap();
                     assert_eq!(msgtype, MsgType::LNAV); // legacy NAV
                     assert_eq!(expected_vehicules.contains(&sv), true);            
                     if sv.prn == 1 {
-                        assert_eq!(clk, 7.282570004460E-5);
-                        assert_eq!(clk_dr, 0.0);
-                        assert_eq!(clk_drr, 7.380000000000E+04);
+                        assert_eq!(ephemeris.clock_bias, 7.282570004460E-5);
+                        assert_eq!(ephemeris.clock_drift, 0.0);
+                        assert_eq!(ephemeris.clock_drift_rate, 7.380000000000E+04);
+						let data = &ephemeris.orbits;
                         let posx = data.get("satPosX").unwrap();
                         assert_eq!(posx.as_f64(), Some(-1.488799804690E+03));
                         let posy = data.get("satPosY").unwrap();
@@ -70,9 +71,10 @@ mod test {
                         let ageop = data.get("ageOp").unwrap();
                         assert_eq!(ageop.as_f64(), Some(0.0));
                     } else if sv.prn == 2 {
-                        assert_eq!(clk, 4.610531032090E-04);
-                        assert_eq!(clk_dr, 1.818989403550E-12);
-                        assert_eq!(clk_drr,  4.245000000000E+04);
+                        assert_eq!(ephemeris.clock_bias, 4.610531032090E-04);
+                        assert_eq!(ephemeris.clock_drift, 1.818989403550E-12);
+                        assert_eq!(ephemeris.clock_drift_rate,  4.245000000000E+04);
+						let data = &ephemeris.orbits;
                         let posx = data.get("satPosX").unwrap();
                         assert_eq!(posx.as_f64(), Some(-8.955041992190E+03));
                         let posy = data.get("satPosY").unwrap();
@@ -84,9 +86,10 @@ mod test {
                         let ageop = data.get("ageOp").unwrap();
                         assert_eq!(ageop.as_f64(), Some(0.0));
                     } else if sv.prn == 3 {
-                        assert_eq!(clk, 2.838205546140E-05); 
-                        assert_eq!(clk_dr, 0.0); 
-                        assert_eq!(clk_drr, 4.680000000000E+04);
+                        assert_eq!(ephemeris.clock_bias, 2.838205546140E-05); 
+                        assert_eq!(ephemeris.clock_drift, 0.0); 
+                        assert_eq!(ephemeris.clock_drift_rate, 4.680000000000E+04);
+						let data = &ephemeris.orbits;
                         let posx = data.get("satPosX").unwrap();
                         assert_eq!(posx.as_f64(), Some(1.502522949220E+04));
                         let posy = data.get("satPosY").unwrap();
@@ -101,9 +104,10 @@ mod test {
                         let ageop = data.get("ageOp").unwrap();
                         assert_eq!(ageop.as_f64(), Some(0.0));
                     } else if sv.prn == 4 {
-                        assert_eq!(clk,  6.817653775220E-05);
-                        assert_eq!(clk_dr, 1.818989403550E-12);
-                        assert_eq!(clk_drr, 4.680000000000E+04);
+                        assert_eq!(ephemeris.clock_bias,  6.817653775220E-05);
+                        assert_eq!(ephemeris.clock_drift, 1.818989403550E-12);
+                        assert_eq!(ephemeris.clock_drift_rate, 4.680000000000E+04);
+						let data = &ephemeris.orbits;
                         let posx = data.get("satPosX").unwrap();
                         assert_eq!(posx.as_f64(), Some(-1.688173828130E+03));
                         let posy = data.get("satPosY").unwrap();
@@ -118,9 +122,10 @@ mod test {
                         let ageop = data.get("ageOp").unwrap();
                         assert_eq!(ageop.as_f64(), Some(0.0));
                     } else if sv.prn == 5 {
-                        assert_eq!(clk, 6.396882236000E-05);
-                        assert_eq!(clk_dr, 9.094947017730E-13);
-                        assert_eq!(clk_drr, 8.007000000000E+04); 
+                        assert_eq!(ephemeris.clock_bias, 6.396882236000E-05);
+                        assert_eq!(ephemeris.clock_drift, 9.094947017730E-13);
+                        assert_eq!(ephemeris.clock_drift_rate, 8.007000000000E+04); 
+						let data = &ephemeris.orbits;
                         let posx = data.get("satPosX").unwrap();
                         assert_eq!(posx.as_f64(), Some( -1.754308935550E+04));
                         let posy = data.get("satPosY").unwrap();
@@ -135,9 +140,10 @@ mod test {
                         let ageop = data.get("ageOp").unwrap();
                         assert_eq!(ageop.as_f64(), Some(0.0));
                     } else if sv.prn == 7 {
-                        assert_eq!(clk, -4.201009869580E-05);
-                        assert_eq!(clk_dr, 0.0);
-                        assert_eq!(clk_drr, 2.88E4);
+                        assert_eq!(ephemeris.clock_bias, -4.201009869580E-05);
+                        assert_eq!(ephemeris.clock_drift, 0.0);
+                        assert_eq!(ephemeris.clock_drift_rate, 2.88E4);
+						let data = &ephemeris.orbits;
                         let posx = data.get("satPosX").unwrap();
                         assert_eq!(posx.as_f64(), Some( 1.817068505860E+04)); 
                         let posy = data.get("satPosY").unwrap();
@@ -193,15 +199,16 @@ mod test {
                 for frame in frames.iter() { // Only EPH in V3
                     let ephemeris = frame.as_eph(); // Only EPH in V3
                     assert_eq!(ephemeris.is_some(), true);
-                    let (msgtype, sv, clk, clk_dr, clk_drr, data) = ephemeris.unwrap();
+                    let (msgtype, sv, ephemeris) = ephemeris.unwrap();
                     assert_eq!(msgtype, MsgType::LNAV); // legacy NAV
                     match sv.constellation {
                         Constellation::BeiDou => {
                             match sv.prn {
                                 5 => {
-                                    assert_eq!(clk, -0.426337239332e-03);
-                                    assert_eq!(clk_dr,  -0.752518047875e-10);
-                                    assert_eq!(clk_drr, 0.0);
+                                    assert_eq!(ephemeris.clock_bias, -0.426337239332e-03);
+                                    assert_eq!(ephemeris.clock_drift,  -0.752518047875e-10);
+                                    assert_eq!(ephemeris.clock_drift_rate, 0.0);
+									let data = &ephemeris.orbits;
                                     let aode = data.get("aode").unwrap();
                                     assert_eq!(aode.as_f64(), Some(0.100000000000e+01));
                                     let crs = data.get("crs").unwrap();
@@ -218,9 +225,10 @@ mod test {
                                     assert_eq!(tgd1.as_f64(), Some( -0.599999994133e-09));
                                 },
                                 21 => {
-                                    assert_eq!(clk,  -0.775156309828e-03);
-                                    assert_eq!(clk_dr, -0.144968481663e-10);
-                                    assert_eq!(clk_drr,  0.000000000000e+0);
+                                    assert_eq!(ephemeris.clock_bias,  -0.775156309828e-03);
+                                    assert_eq!(ephemeris.clock_drift, -0.144968481663e-10);
+                                    assert_eq!(ephemeris.clock_drift_rate,  0.000000000000e+0);
+									let data = &ephemeris.orbits;
                                     let aode = data.get("aode").unwrap();
                                     assert_eq!(aode.as_f64(), Some(0.100000000000e+01));
                                     let crs = data.get("crs").unwrap();
@@ -242,9 +250,10 @@ mod test {
                         Constellation::Glonass => {
                             match sv.prn {
                                 19 => {
-                                    assert_eq!(clk,  -0.126023776829e-03);
-                                    assert_eq!(clk_dr,  -0.909494701773e-12); 
-                                    assert_eq!(clk_drr, 0.0);
+                                    assert_eq!(ephemeris.clock_bias,  -0.126023776829e-03);
+                                    assert_eq!(ephemeris.clock_drift,  -0.909494701773e-12); 
+                                    assert_eq!(ephemeris.clock_drift_rate, 0.0);
+									let data = &ephemeris.orbits;
                                     let pos = data.get("satPosX").unwrap();
                                     assert_eq!(pos.as_f64(), Some(0.783916601562e+04));
                                     let pos = data.get("satPosY").unwrap();
@@ -253,9 +262,10 @@ mod test {
                                     assert_eq!(pos.as_f64(), Some(0.109021518555e+05)); 
                                 },
                                 7 => {
-                                    assert_eq!(clk, -0.420100986958E-04); 
-                                    assert_eq!(clk_dr, 0.0); 
-                                    assert_eq!(clk_drr, 0.342000000000e+05); 
+                                    assert_eq!(ephemeris.clock_bias, -0.420100986958E-04); 
+                                    assert_eq!(ephemeris.clock_drift, 0.0); 
+                                    assert_eq!(ephemeris.clock_drift_rate, 0.342000000000e+05); 
+									let data = &ephemeris.orbits;
                                     let pos = data.get("satPosX").unwrap();
                                     assert_eq!(pos.as_f64(), Some(0.124900639648e+05));
                                     let pos = data.get("satPosY").unwrap();
@@ -269,9 +279,10 @@ mod test {
                         Constellation::Galileo => {
                             match sv.prn {
                                 1 => {
-                                    assert_eq!(clk, -0.101553811692e-02);
-                                    assert_eq!(clk_dr,  -0.804334376880e-11);
-                                    assert_eq!(clk_drr, 0.0);
+                                    assert_eq!(ephemeris.clock_bias, -0.101553811692e-02);
+                                    assert_eq!(ephemeris.clock_drift,  -0.804334376880e-11);
+                                    assert_eq!(ephemeris.clock_drift_rate, 0.0);
+									let data = &ephemeris.orbits;
                                     let iodnav = data.get("iodnav").unwrap();
                                     assert_eq!(iodnav.as_f64(), Some(0.130000000000e+02));
                                     let crs = data.get("crs").unwrap();
@@ -288,9 +299,10 @@ mod test {
                                     assert_eq!(bgd.as_f64(), Some( 0.232830643654e-09));
                                 },
                                 3 => {
-                                    assert_eq!(clk, -0.382520200219e-03);
-                                    assert_eq!(clk_dr,  -0.422062385041e-11);
-                                    assert_eq!(clk_drr, 0.0);
+                                    assert_eq!(ephemeris.clock_bias, -0.382520200219e-03);
+                                    assert_eq!(ephemeris.clock_drift,  -0.422062385041e-11);
+                                    assert_eq!(ephemeris.clock_drift_rate, 0.0);
+									let data = &ephemeris.orbits;
                                     let iodnav = data.get("iodnav").unwrap();
                                     assert_eq!(iodnav.as_f64(), Some(0.460000000000e+02));
                                     let crs = data.get("crs").unwrap();
@@ -721,32 +733,32 @@ mod test {
                 if *class == FrameClass::SystemTimeOffset {
                     sto_count += frames.len(); // STO testbench
                     for frame in frames.iter() {
-                        let frame = frame.as_sto().unwrap();
-                        if frame.system.eq("GAUT") {
+                        let (msg, sv, sto) = frame.as_sto().unwrap();
+                        if sto.system.eq("GAUT") {
                             assert_eq!(*e, epoch::Epoch {
                                 date: epoch::str2date("2022 06 08 00 00 00").unwrap(),
                                 flag: epoch::EpochFlag::Ok,
                             });
-                            assert_eq!(frame.t_tm, 295207);
-                            assert_eq!(frame.a, (-1.862645149231E-09, 8.881784197001E-16, 0.000000000000E+00));
+                            assert_eq!(sto.t_tm, 295207);
+                            assert_eq!(sto.a, (-1.862645149231E-09, 8.881784197001E-16, 0.000000000000E+00));
 
-                        } else if frame.system.eq("GAGP") {
+                        } else if sto.system.eq("GAGP") {
                             assert_eq!(*e, epoch::Epoch {
                                 date: epoch::str2date("2022 06 08 00 00 00").unwrap(),
                                 flag: epoch::EpochFlag::Ok,
                             });
-                            assert_eq!(frame.a, (3.201421350241E-09, -4.440892098501E-15, 0.000000000000E+00));
-                            assert_eq!(frame.t_tm, 295240);
+                            assert_eq!(sto.a, (3.201421350241E-09, -4.440892098501E-15, 0.000000000000E+00));
+                            assert_eq!(sto.t_tm, 295240);
 
-                        } else if frame.system.eq("GPUT") {
+                        } else if sto.system.eq("GPUT") {
                             assert_eq!(*e, epoch::Epoch {
                                 date: epoch::str2date("2022 06 10 19 56 48").unwrap(),
                                 flag: epoch::EpochFlag::Ok
                             });
-                            assert_eq!(frame.a, (9.313225746155E-10, 2.664535259100E-15, 0.000000000000E+00));
-                            assert_eq!(frame.t_tm, 295284);
+                            assert_eq!(sto.a, (9.313225746155E-10, 2.664535259100E-15, 0.000000000000E+00));
+                            assert_eq!(sto.t_tm, 295284);
                         } else {
-                            panic!("got unexpected system time \"{}\"", frame.system)
+                            panic!("got unexpected system time \"{}\"", sto.system)
                         }
                     }
                 } else if *class == FrameClass::EarthOrientation {
@@ -755,7 +767,7 @@ mod test {
                 } else if *class == FrameClass::IonosphericModel {
                     ion_count += frames.len(); // ION testbench
                     for frame in frames.iter() {
-                        let model = frame.as_ion().unwrap();
+                        let (msg, sv, model) = frame.as_ion().unwrap();
                         if let Some(model) = model.as_klobuchar() {
                             let e0 = epoch::Epoch {
                                 date: epoch::str2date("2022 06 08 09 59 48").unwrap(),
@@ -785,7 +797,7 @@ mod test {
                     }
                 } else if *class == FrameClass::Ephemeris {
                     for frame in frames.iter() {
-                        let (msgtype, sv, clk, clk_dr, clk_drr, _) = frame.as_eph().unwrap();
+                        let (msgtype, sv, ephemeris) = frame.as_eph().unwrap();
                         if sv.constellation == Constellation::QZSS {
                             if sv.prn != 4 {
                                 panic!("got unexpected QZSS vehicule \"{}\"", sv.prn)
@@ -795,9 +807,9 @@ mod test {
                                 flag: epoch::EpochFlag::Ok,
                             });
                             assert_eq!(msgtype, MsgType::LNAV);
-                            assert_eq!(clk, 1.080981455743E-04);
-                            assert_eq!(clk_dr, 3.751665644813E-12);
-                            assert_eq!(clk_drr, 0.0);
+                            assert_eq!(ephemeris.clock_bias, 1.080981455743E-04);
+                            assert_eq!(ephemeris.clock_drift, 3.751665644813E-12);
+                            assert_eq!(ephemeris.clock_drift_rate, 0.0);
                         }
                     }
                 }
@@ -847,7 +859,7 @@ mod test {
             for (class, frames) in classes.iter() {
                 if *class == FrameClass::Ephemeris {
                     for frame in frames.iter() {
-                        let (_, sv, _, _, _, _) = frame.as_eph().unwrap();
+                        let (_, sv, _) = frame.as_eph().unwrap();
                         assert_eq!(sv, expected_vehicules[index]);
                         index += 1;
                     }
