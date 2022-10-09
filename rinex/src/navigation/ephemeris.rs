@@ -26,6 +26,8 @@ pub enum Error {
 	DataBaseRevisionError,
 	#[error("failed to parse data")]
 	ParseFloatError(#[from] std::num::ParseFloatError),
+	#[error("failed to parse data")]
+	ParseIntError(#[from] std::num::ParseIntError),
 	#[error("failed to parse date")]
 	ParseDateError(#[from] ParseDateError), 
 	#[error("failed to identify sat vehicule")]
@@ -60,7 +62,62 @@ impl Default for Ephemeris {
 
 impl Ephemeris {
 	/// Parses ephemeris from given line iterator
-    pub fn parse (mut lines: std::str::Lines<'_>) -> Result<(Epoch, Self), Error> {
+    pub fn parse_v2v3 (version: Version, constellation: Constellation, mut lines: std::str::Lines<'_>) -> Result<(Epoch, Sv, Self), Error> {
+		let line = match lines.next() {
+			Some(l) => l,
+			_ => return Err(Error::MissingData), 
+		};
+		
+		let svnn_offset: usize = match version.major {
+			1|2 => 2, // Y
+			3 => 4, // XYY
+			_ => unreachable!(),
+		};
+
+		let (svnn, rem) = line.split_at(svnn_offset);
+		let (date, rem) = rem.split_at(20);
+		let epoch = Epoch {
+			date: str2date(date.trim())?,
+			flag: EpochFlag::default(),
+		};
+
+		let (clk_bias, rem) = rem.split_at(19);
+		let (clk_dr, clk_drr) = rem.split_at(19);
+
+		let sv : Sv = match version.major {
+			1|2 => {
+				match constellation {
+					Constellation::Mixed => { // not sure that even exists
+						Sv::from_str(svnn.trim())?
+					},
+					_ => {
+						Sv {
+							constellation, // constellation.clone(),
+							prn: u8::from_str_radix(svnn.trim(), 10)?,
+						}
+					},
+				}
+			},
+			3 => Sv::from_str(svnn.trim())?,
+			_ => unreachable!(),
+		};
+
+		let clock_bias = f64::from_str(clk_bias.replace("D","E").trim())?;
+		let clock_drift = f64::from_str(clk_dr.replace("D","E").trim())?;
+		let clock_drift_rate = f64::from_str(clk_drr.replace("D","E").trim())?;
+		let orbits = parse_orbits(version, sv.constellation, lines)?;
+		Ok((epoch,
+			sv,
+			Self {
+				clock_bias,
+				clock_drift,
+				clock_drift_rate,
+				orbits,
+			},
+		))
+	}
+
+	pub fn parse_v4 (mut lines: std::str::Lines<'_>) -> Result<(Epoch, Sv, Self), Error> {
 		let line = match lines.next() {
 			Some(l) => l,
 			_ => return Err(Error::MissingData),
@@ -74,23 +131,24 @@ impl Ephemeris {
 			flag: EpochFlag::Ok,
 		};
 
-		let (clock_bias, rem) = rem.split_at(19);
-		let (clock_dr, clock_drr) = rem.split_at(19);
-		let clock_bias = f64::from_str(clock_bias.replace("D","E").trim())?;
-		let clock_drift = f64::from_str(clock_dr.replace("D","E").trim())?;
-		let clock_drift_rate = f64::from_str(clock_drr.replace("D","E").trim())?;
+		let (clk_bias, rem) = rem.split_at(19);
+		let (clk_dr, clk_drr) = rem.split_at(19);
+		let clock_bias = f64::from_str(clk_bias.replace("D","E").trim())?;
+		let clock_drift = f64::from_str(clk_dr.replace("D","E").trim())?;
+		let clock_drift_rate = f64::from_str(clk_drr.replace("D","E").trim())?;
 		let orbits = parse_orbits(
 			Version { major: 4, minor: 0 },
 			sv.constellation,
 			lines)?;
-
-		Ok((epoch,
-		Self {
-			clock_bias,
-			clock_drift,
-			clock_drift_rate,
-			orbits,
-		}))
+		Ok((epoch, 
+			sv,
+			Self {
+				clock_bias,
+				clock_drift,
+				clock_drift_rate,
+				orbits,
+			},
+		))
 	}
 }
 

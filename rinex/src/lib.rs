@@ -1668,7 +1668,7 @@ impl Rinex {
     /// use rinex::*;
     /// let mut rnx = Rinex::from_file("../test_resources/NAV/V3/AMEL00NLD_R_20210010000_01D_MN.rnx").unwrap();
     /// rnx
-    ///     .ephemeris_filter_mut(vec!["satPosX","satPosY","satPosZ"]);
+    ///     .ephemeris_orbits_filter_mut(vec!["satPosX","satPosY","satPosZ"]);
     /// ```
     pub fn ephemeris_orbits_filter_mut (&mut self, filter: Vec<&str>) {
         if !self.is_navigation_rinex() {

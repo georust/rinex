@@ -5,7 +5,7 @@ use strum_macros::EnumString;
 use std::collections::BTreeMap;
 
 use crate::{
-	Epoch, EpochFlag,
+	Epoch, 
 	epoch::{
 		str2date, ParseDateError,
 	},
@@ -22,10 +22,7 @@ use super::{
     stomessage, StoMessage, 
 	ionmessage, IonMessage, 
 	BdModel, KbModel, NgModel,
-	orbits, orbits::{
-		OrbitItemError,
-		closest_revision,
-	},
+	orbits::OrbitItemError,
 };
 
 /// Possible Navigation Frame declinations for an epoch
@@ -271,8 +268,7 @@ pub fn parse_epoch (version: Version, constell: Constellation, content: &str) ->
     if content.starts_with(">") {
         parse_v4_record_entry(content)
     } else {
-        parse_v4_record_entry(content)
-        //parse_v2_v3_record_entry(version, constell, content)
+        parse_v2_v3_record_entry(version, constell, content)
     }
 }
 
@@ -296,14 +292,10 @@ fn parse_v4_record_entry (content: &str) ->
 
     let (epoch, fr): (Epoch, Frame) = match frame_class {
         FrameClass::Ephemeris => {
-			let (epoch, ephemeris) = Ephemeris::parse_v4(lines)?;
+			let (epoch, _, ephemeris) = Ephemeris::parse_v4(lines)?;
             (epoch, Frame::Eph(msg_type, sv, ephemeris)) 
         },
         FrameClass::SystemTimeOffset => {
-            let line = match lines.next() {
-                Some(l) => l,
-                _ => return Err(Error::MissingData),
-            };
            	let (epoch, msg) = StoMessage::parse(lines)?; 
             (epoch, Frame::Sto(msg_type, sv, msg))
         },
@@ -343,13 +335,7 @@ fn parse_v4_record_entry (content: &str) ->
 fn parse_v2_v3_record_entry (version: Version, constell: Constellation, content: &str) ->
         Result<(Epoch, FrameClass, Frame), Error>
 {
-	let mut lines = content.lines();
-	let line = match lines.next() {
-		Some(l) => l,
-		_ => return Err(Error::MissingData),
-	};
-
-	let (epoch, sv, ephemeris) = Ephemeris::parse(version, constell, content.lines())?;
+	let (epoch, sv, ephemeris) = Ephemeris::parse_v2v3(version, constell, content.lines())?;
     let fr = Frame::Eph(
 		MsgType::LNAV, 
 		sv, 
@@ -572,6 +558,7 @@ fn write_epoch_v4 (
 #[cfg(test)]
 mod test {
     use super::*;
+	use crate::EpochFlag;
     #[test]
     fn test_is_new_epoch() {
         // NAV V<3
