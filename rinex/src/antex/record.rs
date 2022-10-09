@@ -16,12 +16,44 @@ pub fn is_new_epoch (content: &str) -> bool {
     content.contains("START OF ANTENNA")
 }
 
-/// ANTEX Record content,
-/// is a list of Antenna with Several `Frequency` items in it.
+/// ANTEX RINEX record content.
+/// Data is a list of Antenna containing several [Frequency] items.
 /// We do not parse RMS frequencies at the moment, but it will 
 /// easily be unlocked in near future.
-/// ATX record is not `epoch` iterable, that means, `epochs_xxx()`
-/// iteration at the crate level will panic.
+/// Record browsing example:
+/// ```
+/// // grab ATX RINEX
+/// 
+/// // grab record
+/// let record = record.as_antex()
+///    .unwrap();
+/// // browse antennas
+/// for (antenna, frequencies) in record.iter() {
+///   let calibration = antenna.calibration;
+///   // several calibration methods exist
+///   if calibration.method == CalibrationMethod::Chamber {
+///     // calibration is certified
+///     // from `calibration.valid_from` (chrono::NaiveDateTime)
+///     // until `calibration.valid_until` (chrono::NaiveDateTime)
+///   }
+///   // calibration process informations
+///   assert_eq!(calibration.agency, "Some agency");
+///   assert_eq!(calibration.date, "DateTime description");
+///   // antenna information
+///   assert_eq!(antenna.sn, "Serial Number");
+///   assert_eq!(antenna.dazi, 1.0);
+///   for frequency in frequencies.iter() {
+///     for pattern in frequency.patterns {
+///         assert_eq!(pattern.is_azimuth_dependent(), true);
+///         let Some((azimuth, phase_pattern)) = pattern.azimuth_dependent() {
+///             for raw_phase in phase_patter.iter() {
+///                 // raw phase pattern data
+///             }
+///         }
+///     }
+///   }
+/// }
+/// ```
 pub type Record = Vec<(Antenna, Vec<Frequency>)>;
 
 #[derive(Debug, Error)]

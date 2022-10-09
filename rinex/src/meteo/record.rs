@@ -1,19 +1,39 @@
-//! `MeteoData` related structures & methods
 use thiserror::Error;
+use std::io::Write;
 use std::str::FromStr;
 use std::collections::{BTreeMap, HashMap};
-use crate::epoch;
-use crate::version;
-use crate::header::Header;
 
-use std::io::Write;
-use crate::writer::BufferedWriter;
+use crate::{
+    Epoch, EpochFlag,
+    epoch::{
+        str2date, ParseDateError,
+    },
+    version,
+    Header,
+    writer::BufferedWriter,
+};
 
-use crate::meteo::observable::Observable;
+use super::observable::Observable;
 
-/// `MET` record comprises raw data sorted by observable code
-/// and by epoch
-pub type Record = BTreeMap<epoch::Epoch, HashMap<Observable, f32>>;
+/// Meteo RINEX Record content. 
+/// Data is sorted by [epoch::Epoch] and by Observable.
+/// Example of Meteo record browsing and manipulation
+/// ```
+/// use rinex::*;
+/// // grab a METEO RINEX
+/// let rnx = Rinex::from_file("../test_resources/MET/V2/abvi0010.15m")
+///    .unwrap();
+/// // grab record
+/// let record = rnx.record.as_meteo()
+///    .unwrap();
+/// for (epoch, observables) in record.iter() {
+///    for (observable, data) in observables.iter() {
+///        // Observable is standard 3 letter string code
+///        // Data is raw floating point data
+///    }
+/// }
+/// ```
+pub type Record = BTreeMap<Epoch, HashMap<Observable, f32>>;
 
 /// Returns true if given line matches a new Meteo Record `epoch`
 pub fn is_new_epoch (line: &str, v: version::Version) -> bool {
@@ -23,14 +43,14 @@ pub fn is_new_epoch (line: &str, v: version::Version) -> bool {
             return false
         }
         let datestr = &line[1..min_len.len()]; 
-        epoch::str2date(datestr).is_ok() // valid epoch descriptor
+        str2date(datestr).is_ok() // valid epoch descriptor
     } else {
         let min_len = " 2021  1  7  0  0  0";
         if line.len() < min_len.len() { // minimum epoch descriptor
             return false
         }
         let datestr = &line[1..min_len.len()]; 
-        epoch::str2date(datestr).is_ok() // valid epoch descriptor
+        str2date(datestr).is_ok() // valid epoch descriptor
     }
 }
 
@@ -38,7 +58,7 @@ pub fn is_new_epoch (line: &str, v: version::Version) -> bool {
 /// Meteo Data `Record` parsing specific errors
 pub enum Error {
     #[error("failed to parse date")]
-    ParseDateError(#[from] epoch::ParseDateError),
+    ParseDateError(#[from] ParseDateError),
     #[error("failed to integer number")]
     ParseIntError(#[from] std::num::ParseIntError),
     #[error("failed to float number")]
@@ -47,7 +67,7 @@ pub enum Error {
 
 /// Builds `Record` entry for `MeteoData`
 pub fn parse_epoch (header: &Header, content: &str) 
-        -> Result<(epoch::Epoch, HashMap<Observable, f32>), Error> 
+        -> Result<(Epoch, HashMap<Observable, f32>), Error> 
 {
     let mut lines = content.lines();
     let mut line = lines.next()
@@ -88,8 +108,8 @@ pub fn parse_epoch (header: &Header, content: &str)
 	}
 	let date = chrono::NaiveDate::from_ymd(y,m,d)
 		.and_hms(h,min,sec);
-	let flag = epoch::EpochFlag::default();
-	let epoch = epoch::Epoch::new(date, flag);
+	let flag = EpochFlag::default();
+	let epoch = Epoch::new(date, flag);
 
 	let codes = &header.meteo
         .as_ref()
@@ -134,7 +154,7 @@ pub fn parse_epoch (header: &Header, content: &str)
 
 /// Writes epoch into given streamer
 pub fn write_epoch (
-        epoch: &epoch::Epoch, 
+        epoch: &Epoch, 
         data: &HashMap<Observable, f32>, 
         header: &Header, 
         writer: &mut BufferedWriter

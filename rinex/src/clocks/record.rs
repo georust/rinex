@@ -1,15 +1,15 @@
 use std::str::FromStr;
 use thiserror::Error;
+use strum_macros::EnumString;
+use std::io::Write;
+use std::collections::{BTreeMap, HashMap};
 use crate::{
 	Sv, 
 	Epoch, EpochFlag, 
 	epoch::str2date, epoch::ParseDateError,
 	version::Version,
+    writer::BufferedWriter,
 };
-use strum_macros::EnumString;
-use std::collections::{BTreeMap, HashMap};
-use std::io::Write;
-use crate::writer::BufferedWriter;
 
 #[derive(Error, PartialEq, Eq, Hash, Clone, Debug)]
 #[derive(PartialOrd, Ord)]
@@ -118,8 +118,25 @@ impl std::fmt::Display for DataType {
     }
 }
 
+/// Clocks RINEX record content.
 /// RINEX record for CLOCKS files,
-/// record is sorted by Epoch, by Clock data type and finally by system
+/// Data is sorted by [epoch::Epoch], by [DataType] and by [System].
+/// Example of Clock record browsing:
+/// ```
+/// use rinex::*;
+/// // grab a Clock RINEX
+/// let rnx = Rinex::from_file("../../test_resources/CLK/V2/COD20352.CLK")
+///    .unwrap();
+/// // grab record
+/// let record = rnx.record.as_clock()
+///    .unwrap();
+/// for (epoch, datatypes) in record.iter() {
+///    for (datatype, systems) in datatypes.iter() {
+///       for (system, data) in systems.iter() {
+///       }
+///    }
+/// }
+/// ```
 pub type Record = BTreeMap<Epoch, HashMap<DataType, HashMap<System, Data>>>;
 
 pub fn is_new_epoch (line: &str) -> bool {

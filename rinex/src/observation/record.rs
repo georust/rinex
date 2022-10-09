@@ -174,12 +174,41 @@ impl ObservationData {
     }
 }
 
-/// `Record` content for OBS data files.   
-/// Measurements are sorted by `epoch` (timestamps + flags).    
-/// Measurements are of two kinds:
-///  + Option<f64>: receiver clock offsets for OBS data files where   
-///    receiver clock offsets are 'applied'    
-///  + map of ObservationData (physical measurements) sorted by `Sv` and by observation codes 
+/// Observation Record content. 
+/// Measurements are sorted by [epoch::Epoch].
+/// An epoch possibly comprises the receiver clock offset
+/// and a list of physical measurements, sorted by Space vehicule and observable.
+/// Example of Observation Data browsing and manipulation
+/// ```
+/// use rinex::*;
+/// // grab a CRINEX (compressed OBS RINEX)
+/// let rnx = Rinex::from_file("../test_resources/CRNX/V3/KUNZ00CZE.crx")
+///    .unwrap();
+/// // grab record
+/// let record = rnx.record.as_obs()
+///    .unwrap();
+/// // browse epochs
+/// for (epoch, (clock_offset, vehicules)) in record.iter() {
+///    if let Some(clock_offset) = clock_offset {
+///        // got clock offset @ given epoch
+///    }
+///    for (vehicule, observables) in vehicules.iter() {
+///        for (observable, observation) in observables.iter() {
+///            /// `observable` is a standard 3 letter string code
+///            /// main measurement is `observation.data` (f64)
+///            if let Some(lli) = observation.lli {
+///                // Sometimes observations have an LLI flag attached to them,
+///                // implemented in the form of a `bitflag`,
+///                // for convenient binary masking
+///
+///            }
+///            if let Some(ssii) = observation.ssi {
+///                // Sometimes observations come with an SSI indicator
+///            }
+///        }
+///    }
+/// }
+/// ```
 pub type Record = BTreeMap<Epoch, 
     (Option<f64>, 
     BTreeMap<sv::Sv, HashMap<String, ObservationData>>)>;
@@ -282,9 +311,6 @@ pub fn parse_epoch (header: &Header, content: &str)
     let flag = EpochFlag::from_str(flag.trim())?;
     let date = str2date(date)?; 
     let epoch = Epoch::new(date, flag);
-
-    let mut sv_list: Vec<Sv> = Vec::with_capacity(24);
-	let mut map: BTreeMap<Sv, HashMap<String, ObservationData>> = BTreeMap::new();
 	
     // previously identified observables (that we expect)
     let obs = header.obs
@@ -347,12 +373,12 @@ pub fn parse_epoch (header: &Header, content: &str)
 			}
 			parse_v2(&systems, observables, lines)
 		},
-		_ => parse_v3(lines),
+		_ => parse_v3(observables, lines),
 	};
 	Ok((epoch, clock_offset, data))
 }
 
-fn parse_v2 (systems: &str, observables: &HashMap<Constellation, Vec<String>>, mut lines: std::str::Lines<'_>) -> BTreeMap<Sv, HashMap<String, ObservationData>> {
+fn parse_v2 (systems: &str, observables: &HashMap<Constellation, Vec<String>>, lines: std::str::Lines<'_>) -> BTreeMap<Sv, HashMap<String, ObservationData>> {
 	let svnn_size = 3; // SVNN standard
 	let nb_max_observables = 5; // in a single line
 	let observable_width = 16; // data + 2 flags + 1 whitespace
@@ -480,8 +506,80 @@ fn parse_v2 (systems: &str, observables: &HashMap<Constellation, Vec<String>>, m
 	data 
 }
 
-fn parse_v3 (mut lines: std::str::Lines<'_>) -> BTreeMap<Sv, HashMap<String, ObservationData>> {
-	BTreeMap::new()
+fn parse_v3 (observables: &HashMap<Constellation, Vec<String>>, lines: std::str::Lines<'_>) -> BTreeMap<Sv, HashMap<String, ObservationData>> {
+	let svnn_size = 3; // SVNN standard
+	let observable_width = 16; // data + 2 flags + 1 whitespace
+    let mut obs_ptr = 0;
+	let mut data: BTreeMap<Sv, HashMap<String, ObservationData>> = BTreeMap::new();
+	let mut inner: HashMap<String, ObservationData> = HashMap::with_capacity(5);
+	for line in lines { // browse all lines
+        let (sv, rem) = line.split_at(4);
+        if let Ok(sv) = Sv::from_str(sv) {
+            if let Some(obscodes) = observables.get(&sv.constellation) {
+                let nb_obs = num_integer::div_ceil(line.len(), observable_width) ;
+                obs_ptr = 0;
+                inner.clear();
+                //DEBUG
+                println!("LINE: \"{}\"", line);
+                println!("SV: \"{}\"", sv);
+                println!("NB OBS: {}", nb_obs);
+                for i in 0..nb_obs {
+                    obs_ptr += 1 ;
+                    if obs_ptr <= obscodes.len() {
+                        let offset = i * observable_width;
+                        if line.len() > offset+observable_width-2 { // can parse an Obs
+                            let observation_str = &line[offset..offset+observable_width-2];
+                            if let Ok(obs) = f64::from_str(observation_str.trim()) {
+                                let lli: Option<LliFlags>;
+                                let ssi: Option<Ssi>;
+                                if line.len() < offset + observable_width-1 {
+                                    // can't parse an LLI
+                                    // This only happens when omitted on last line
+                                    lli = None;
+                                    ssi = None;
+                                } else { // enough content to parse an LLI
+                                    let lli_str = &line[offset+observable_width-2..offset+observable_width-1];
+                                    if let Ok(u) = u8::from_str_radix(lli_str.trim(), 10) {
+                                        lli = LliFlags::from_bits(u)
+                                    } else {
+                                        lli = None;
+                                    }
+
+                                    if line.len() < offset + observable_width {
+                                        // can't parse an SSI
+                                        // this only happens when omitted on last line
+                                        ssi = None;
+                                    } else {
+                                        let ssi_str = &line[offset+observable_width-1..offset+observable_width];
+                                        if let Ok(s) = Ssi::from_str(ssi_str.trim()) {
+                                            ssi = Some(s)
+                                        } else {
+                                            ssi = None;
+                                        }
+                                    }
+                                }
+                                //DEBUG
+                                println!("OBS {} LLI {:?} SSI {:?}", obs, lli, ssi);
+                                inner.insert(
+                                    obscodes[obs_ptr-1].clone(), // key
+                                    ObservationData {
+                                        obs,
+                                        lli,
+                                        ssi,
+                                    }); // build content
+                            } // f64::parsing OK
+                        } // enough content to parse an Obs 
+                    } //else: line abnormally long,
+                    //got more data than we expect, avoid overflowing
+                }
+            }//got some observables to work with
+            if inner.len() > 0 {
+                // build content we correctly identified
+                data.insert(sv, inner.clone());
+            }
+        } // Sv::from_str failed()
+    }//browse all lines
+	data 
 }
 
 /// Writes epoch into given streamer 
