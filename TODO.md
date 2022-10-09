@@ -31,7 +31,10 @@ The fractional parts ("nanos") is totally unused, we cannot handle periods small
     this is currently inquired in the `differential` branch
   - [ ] Calculations involved in RTK solver? I am not familiar with such calculations
 
-- [ ] Enhance reader/writer with hatanaka capacity to simplify file operations ?
+- Misc
+  - Enhance reader/writer with hatanaka capacity to simplify file operations ?
+  - Implement Lines<BufReader> iterator ourselves and avoid its memory allocation
+  that takes place at every single line iteration
 
 ## Command Line application
 
