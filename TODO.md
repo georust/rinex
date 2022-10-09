@@ -5,15 +5,9 @@ Roadmap
 
 - [ ] `epoch` : `EpochFlag::HeaderInformationFollows` is not exploited to this day.  
 We might want to update the Header structure, on the fly, with following information
-
 - [ ] `sampling`: `chrono::duration` is used most of the time to describe a duration.  
 The fractional parts ("nanos") is totally unused, we cannot handle periods smaller than 1 second to this day
-
 - [ ] Data production
-  - [ ] Find an efficient data production test method (`rinex/tests/production.rs`).   
-  `CRX2RNX` test bench is based on official versus generated file comparison
-  using "diff -z" (sort of bitwise comparison). We can't use this option in case of data production,
-  because header fields order of appearance are very likely to differ.
   - [ ]  Major data production
     - [ ] Observation data production
     - [ ] Navigation data production
@@ -21,16 +15,13 @@ The fractional parts ("nanos") is totally unused, we cannot handle periods small
     - [ ] Clock data production 
     - [ ] Ionosphere maps production   
     - [ ] Antenna data production 
-
 - [ ] Data decompression
   - [ ] CRX32RNX thorough test
-
 - [ ] Post Processing
   - [ ] Conclude the 2D Post processing "double diff"
     - [ ] A NAV + OBS context structure could help ?   
     this is currently inquired in the `differential` branch
   - [ ] Calculations involved in RTK solver? I am not familiar with such calculations
-
 - Misc
   - Enhance reader/writer with hatanaka capacity to simplify file operations ?
   - Implement Lines<BufReader> iterator ourselves and avoid its memory allocation
@@ -69,6 +60,12 @@ The fractional parts ("nanos") is totally unused, we cannot handle periods small
   - [x] Conclude [numerical data compression](https://github.com/gwbres/rinex/blob/main/rinex/src/hatanaka.rs#L164)
 - Data Production
   - [x] Meteo, V2,V3,V4
+  - [x] Find an efficient test method. Test method parses a given file from the test pool,
+  then produces a copy, and evaluates rnx.eq(copy) which must not fail.
+  This is powerful because it is a bitwise comparison and takes truncation into account.
+  This naturally takes care of possible Header section and vehicules reordering.
+  The only things that are not tested, are header fields we are unable to parse, but that is not important.
+  If test failed, we print the result of diff(initial, copy) to debug, to be found in the CI logs.
 - Data compression 
   - [x] Conclude [text data compression](https://github.com/gwbres/rinex/blob/main/rinex/src/hatanaka.rs#L209)
   - [x] Verify data scaling is correctly restablish in decompression
