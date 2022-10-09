@@ -34,12 +34,12 @@ and the [rinex](rinex/) crate.
 | Observation (OBS)          | :heavy_check_mark:|  :heavy_check_mark: | :construction:       | :sparkle:  | Epoch iteration |
 |  CRINEX  (Compressed OBS)  | :heavy_check_mark:|  :heavy_check_mark: | :construction:       | CRNX1 :sparkle:  CRNX3 :construction:    | Epoch iteration |
 |  Meteorological data (MET) | :heavy_check_mark:| :heavy_check_mark:  | :construction:       |:heavy_check_mark: | Epoch iteration |  
-|  Clocks (CLK)              | :heavy_check_mark:|  :heavy_check_mark: | :question:        |:construction: | Epoch iteration |
-|  Antenna (ATX)             | :heavy_check_mark:| :sparkle:           | :heavy_minus_sign:   |:construction: | ATX records are not indexed by Epochs |
+|  Clocks (CLK)              | :heavy_check_mark:|  :heavy_check_mark: | :question:           |:construction: | Epoch iteration |
+|  Antenna (ATX)             | :heavy_check_mark:| :sparkle:           | :heavy_minus_sign:   |:construction: | Sorted by `antex::Antenna` |
 |  Ionosphere Maps  (IONEX)  | :sparkle:         |  :sparkle:          | :question:           |:construction: | Epoch iteration |
 |  SINEX  (SNX)              | :construction:    |  :construction:     | :heavy_minus_sign:   |:construction: | SINEX are special RINEX, they are managed by a dedicated [core library](sinex/)  |
 |  Troposphere  (TRO)        | :construction:    |  :construction:     | :question:           |:construction: | Troposphere are one possible SINEX declination |
-|  Bias  (BIA)               | :heavy_check_mark: |  :construction:        | :question:           |:construction: | Bias solutions are one possible SINEX declination |
+|  Bias  (BIA)               | :heavy_check_mark: |  :construction:    | :question:           |:construction: | Bias solutions are one possible SINEX declination |
 
 **Production** means data generation      
 **CLI** means exposed to [`rinex-cli`](rinex-cli/) for easy parsing / analysis / generation  
