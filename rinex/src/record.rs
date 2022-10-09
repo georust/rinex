@@ -254,7 +254,14 @@ pub fn parse_record (reader: &mut BufferedReader, header: &header::Header) -> Re
         //  [2] CRINEX : decompress
         //           --> decompressed content will probably wind up as more than one line
         content = match crinex {
-            false => Some(line.to_string()), 
+            false => {
+				if line.len() == 0 {
+					Some(String::from("\n")) // helps all following .lines() iteration,
+						// contained in xx_parse_epoch()
+				} else {
+					Some(line.to_string())
+				}
+			},
             true => {
                 // decompressor::decompress()
                 // splits content on \n as it can work on several lines at once,

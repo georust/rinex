@@ -2,7 +2,6 @@
 mod test {
     use rinex::*;
     //use std::str::FromStr;
-	/*
     #[test]
     fn obs_v2_production() {
         let folder = env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/OBS/V2/";
@@ -16,15 +15,17 @@ mod test {
             // produce a copy
             let copy_path = fp.to_owned() + "-copy";
 			assert_eq!(rnx_a.to_file(&copy_path).is_ok(), true);
-			let rnx_b = Rinex::from_file(&copy_path);
-			assert_eq!(rnx_b.is_ok(), true);
-			let rnx_b = rnx_b
-				.unwrap();
+			//let rnx_b = Rinex::from_file(&copy_path);
+			//assert_eq!(rnx_b.is_ok(), true);
+			//let rnx_b = rnx_b
+			//	.unwrap();
+			//assert_eq!(rnx_a, rnx_b);
             // remove copy not to disturb other test browsers
-            let _ = std::fs::remove_file(copy_path);
+            //let _ = std::fs::remove_file(copy_path);
         }
     }
-    #[test]
+    /*
+	#[test]
     fn obs_v3_production() {
         let folder = env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/OBS/V3/";
         for file in std::fs::read_dir(folder).unwrap() {
@@ -41,6 +42,7 @@ mod test {
 			assert_eq!(rnx_b.is_ok(), true);
 			let rnx_b = rnx_b
 				.unwrap();
+			//assert_eq!(rnx_a, rnx_b);
             // remove copy not to disturb other test browsers
             let _ = std::fs::remove_file(copy_path);
         }
