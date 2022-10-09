@@ -18,7 +18,7 @@ args:
         takes_value: true
         help: |
             Comma separated list of file to generate. 
-            This is only used when requested operations will generate a new RINEX.
+			This is only used when generating new RINEX data.
             Example: --output brdcxx01.21g
             Use a list when generate several files in a row:
             Example: --output brdcxx01.21g,brdcxx02.21g
@@ -32,8 +32,8 @@ args:
         takes_value: true
         help: |
             Custom Header section attributes.
-            Custom attributes will be applied to all files to be parsed.
-            Use this to customize attributes when producing new files.
+			This is only used when generating new RINEX data.
+            Use this to customize attributes to be produced.
             This command expects a valid Header description in JSON,
             either directly or from a file.
             Example: --header-json \"{agency: \"MyAgency\", ...}\"

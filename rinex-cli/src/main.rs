@@ -342,7 +342,7 @@ pub fn main () -> Result<(), std::io::Error> {
         false => None,
     };
     // files (out)
-    let _output : Option<Vec<&str>> = match matches.is_present("output") {
+    let output : Option<Vec<&str>> = match matches.is_present("output") {
         true => {
             Some(matches.value_of("output")
                 .unwrap()
@@ -380,9 +380,6 @@ pub fn main () -> Result<(), std::io::Error> {
         };
         resample_single_file(&mut rinex, matches.clone());
         apply_filters(&mut rinex, matches.clone());
-        if let Some(ref hd) = custom_header {
-            rinex.replace_header(hd.clone())
-        }
         queue.push(rinex);
     }
 
@@ -397,6 +394,11 @@ pub fn main () -> Result<(), std::io::Error> {
         print_allowed &= !matches.is_present("ascii-plot");
         run_single_file_op(&queue[i], matches.clone(), print_allowed);
         run_single_file_teqc_op(&queue[i], matches.clone());
+
+		// generating data?
+		if let Some(output) = outputs.get(i) {
+			
+		}
     }
 
     /////////////////////////////////////
