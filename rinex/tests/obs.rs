@@ -64,7 +64,7 @@ mod test {
 		let observed = observations.get(&String::from("L2"));
 		assert_eq!(observed.is_some(), true);
 		let observed = observed.unwrap();
-		assert_eq!(observed.obs, -11440396.20948);
+		assert_eq!(observed.obs, -11440396.209);
 		assert_eq!(observed.lli, Some(LliFlags::UNDER_ANTI_SPOOFING));
 		assert_eq!(observed.ssi, Some(Ssi::DbHz48_53));
 		// C1
@@ -89,6 +89,51 @@ mod test {
 		assert_eq!(observed.lli, Some(LliFlags::UNDER_ANTI_SPOOFING));
 		assert_eq!(observed.ssi.is_none(), true); 
 
+        //G26
+		let sv = Sv {
+			constellation: Constellation::GPS,
+			prn: 26,
+		};
+		let observations = epoch.get(&sv);
+		assert_eq!(observations.is_some(), true);
+		let observations = observations.unwrap();
+
+		// L1
+		let observed = observations.get(&String::from("L1"));
+		assert_eq!(observed.is_some(), true);
+		let observed = observed.unwrap();
+		assert_eq!(observed.obs, -15834397.660);
+		assert_eq!(observed.lli, Some(LliFlags::UNDER_ANTI_SPOOFING));
+		assert_eq!(observed.ssi, Some(Ssi::DbHz54));
+		// L2
+		let observed = observations.get(&String::from("L2"));
+		assert_eq!(observed.is_some(), true);
+		let observed = observed.unwrap();
+		assert_eq!(observed.obs, -12290568.980);
+		assert_eq!(observed.lli, Some(LliFlags::UNDER_ANTI_SPOOFING));
+		assert_eq!(observed.ssi, Some(Ssi::DbHz54));
+		// C1
+		let observed = observations.get(&String::from("C1"));
+		assert_eq!(observed.is_some(), true);
+		let observed = observed.unwrap();
+		assert_eq!(observed.obs, 21540206.165);
+		assert_eq!(observed.lli, Some(LliFlags::UNDER_ANTI_SPOOFING));
+		assert_eq!(observed.ssi.is_none(), true); 
+		// P1
+		let observed = observations.get(&String::from("P1"));
+		assert_eq!(observed.is_some(), true);
+		let observed = observed.unwrap();
+		assert_eq!(observed.obs, 21540206.156);
+		assert_eq!(observed.lli, Some(LliFlags::UNDER_ANTI_SPOOFING));
+		assert_eq!(observed.ssi.is_none(), true); 
+		// P2
+		let observed = observations.get(&String::from("P2"));
+		assert_eq!(observed.is_some(), true);
+		let observed = observed.unwrap();
+		assert_eq!(observed.obs, 21540211.941);
+		assert_eq!(observed.lli, Some(LliFlags::UNDER_ANTI_SPOOFING));
+		assert_eq!(observed.ssi.is_none(), true); 
+
 		// test epoch [2]
 		let epoch = epoch::Epoch {
 			date: epoch::str2date("2017 01 01 3 33 40.0").unwrap(),
@@ -99,6 +144,51 @@ mod test {
 		let (clk_offset, epoch) = epoch.unwrap();
 		assert_eq!(clk_offset.is_none(), true);
 		assert_eq!(epoch.len(), 9);
+		
+        // G30
+		let sv = Sv {
+			constellation: Constellation::GPS,
+			prn: 30,
+		};
+		let observations = epoch.get(&sv);
+		assert_eq!(observations.is_some(), true);
+		let observations = observations.unwrap();
+
+		// L1
+		let observed = observations.get(&String::from("L1"));
+		assert_eq!(observed.is_some(), true);
+		let observed = observed.unwrap();
+		assert_eq!(observed.obs, -4980733.185); 
+		assert_eq!(observed.lli, Some(LliFlags::UNDER_ANTI_SPOOFING));
+		assert_eq!(observed.ssi, Some(Ssi::DbHz48_53));
+		// L2
+		let observed = observations.get(&String::from("L2"));
+		assert_eq!(observed.is_some(), true);
+		let observed = observed.unwrap();
+        assert_eq!(observed.obs, -3805623.873);
+		assert_eq!(observed.lli, Some(LliFlags::UNDER_ANTI_SPOOFING));
+		assert_eq!(observed.ssi, Some(Ssi::DbHz42_47));
+		// C1
+		let observed = observations.get(&String::from("C1"));
+		assert_eq!(observed.is_some(), true);
+		let observed = observed.unwrap();
+		assert_eq!(observed.obs, 24352349.168);
+		assert_eq!(observed.lli, Some(LliFlags::UNDER_ANTI_SPOOFING));
+		assert_eq!(observed.ssi.is_none(), true); 
+		// P1
+		let observed = observations.get(&String::from("P1"));
+		assert_eq!(observed.is_some(), true);
+		let observed = observed.unwrap();
+		assert_eq!(observed.obs, 24352347.924);
+		assert_eq!(observed.lli, Some(LliFlags::UNDER_ANTI_SPOOFING));
+		assert_eq!(observed.ssi.is_none(), true); 
+        // P2
+		let observed = observations.get(&String::from("P2"));
+		assert_eq!(observed.is_some(), true);
+		let observed = observed.unwrap();
+		assert_eq!(observed.obs, 24352356.156);
+		assert_eq!(observed.lli, Some(LliFlags::UNDER_ANTI_SPOOFING));
+		assert_eq!(observed.ssi.is_none(), true); 
 		
 		// test epoch [3]
 		let epoch = epoch::Epoch {
@@ -179,6 +269,81 @@ mod test {
 		assert_eq!(observed.obs, 22288985.512); 
 		assert_eq!(observed.lli, None); 
 		assert_eq!(observed.ssi, None); 
+		// L1
+		let observed = observations.get(&String::from("L1"));
+		assert_eq!(observed.is_some(), true);
+		let observed = observed.unwrap();
+		assert_eq!(observed.obs, 117129399.048);
+		assert_eq!(observed.lli, Some(LliFlags::OK_OR_UNKNOWN)); 
+		assert_eq!(observed.ssi, Some(Ssi::DbHz36_41));
+		// L2
+		let observed = observations.get(&String::from("L2"));
+		assert_eq!(observed.is_some(), true);
+		let observed = observed.unwrap();
+        assert_eq!(observed.obs, 91269672.416);  
+		assert_eq!(observed.lli, Some(LliFlags::UNDER_ANTI_SPOOFING)); 
+		assert_eq!(observed.ssi, Some(Ssi::DbHz36_41));
+		// P2
+		let observed = observations.get(&String::from("P2"));
+		assert_eq!(observed.is_some(), true);
+		let observed = observed.unwrap();
+        assert_eq!(observed.obs, 22288987.972);        
+		assert_eq!(observed.lli, None); 
+		assert_eq!(observed.ssi, None); 
+		// S1
+		let observed = observations.get(&String::from("S1"));
+		assert_eq!(observed.is_some(), true);
+		let observed = observed.unwrap();
+        assert_eq!(observed.obs, 44.000);
+		assert_eq!(observed.lli, None); 
+		assert_eq!(observed.ssi, None); 
+		// S2
+		let observed = observations.get(&String::from("S2"));
+		assert_eq!(observed.is_some(), true);
+		let observed = observed.unwrap();
+        assert_eq!(observed.obs, 27.000);
+		assert_eq!(observed.lli, None); 
+		assert_eq!(observed.ssi, None); 
+
+        //R19
+		let sv = Sv {
+			constellation: Constellation::Glonass,
+			prn: 19,
+		};
+		let observations = epoch.get(&sv);
+		assert_eq!(observations.is_some(), true);
+		let observations = observations.unwrap();
+
+		// C1
+		let observed = observations.get(&String::from("C1"));
+		assert_eq!(observed.is_some(), true);
+		let observed = observed.unwrap();
+		assert_eq!(observed.obs, 23250776.648);
+		assert_eq!(observed.lli, None); 
+		assert_eq!(observed.ssi, None); 
+		// L1
+		let observed = observations.get(&String::from("L1"));
+		assert_eq!(observed.is_some(), true);
+		let observed = observed.unwrap();
+		assert_eq!(observed.obs, 124375967.254); 
+		assert_eq!(observed.lli, Some(LliFlags::OK_OR_UNKNOWN)); 
+		assert_eq!(observed.ssi, Some(Ssi::DbHz0));
+		// L2
+		let observed = observations.get(&String::from("L2"));
+		assert_eq!(observed.is_none(), true);
+		// P2
+		let observed = observations.get(&String::from("P2"));
+		assert_eq!(observed.is_none(), true);
+		// S1
+		let observed = observations.get(&String::from("S1"));
+		assert_eq!(observed.is_some(), true);
+		let observed = observed.unwrap();
+        assert_eq!(observed.obs, 32.000);
+		assert_eq!(observed.lli, None); 
+		assert_eq!(observed.ssi, None); 
+		// S2
+		let observed = observations.get(&String::from("S2"));
+		assert_eq!(observed.is_none(), true);
 	}
 	#[test]
 	fn v2_rovn0010_210() {
