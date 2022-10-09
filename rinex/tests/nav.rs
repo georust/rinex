@@ -50,7 +50,7 @@ mod test {
                     let ephemeris = frame.as_eph(); // ONLY EPH in V2
                     assert_eq!(ephemeris.is_some(), true);
                     let (msgtype, sv, ephemeris) = ephemeris.unwrap();
-                    assert_eq!(msgtype, MsgType::LNAV); // legacy NAV
+                    assert_eq!(msgtype, &MsgType::LNAV); // legacy NAV
                     assert_eq!(expected_vehicules.contains(&sv), true);            
                     if sv.prn == 1 {
                         assert_eq!(ephemeris.clock_bias, 7.282570004460E-5);
@@ -200,7 +200,7 @@ mod test {
                     let ephemeris = frame.as_eph(); // Only EPH in V3
                     assert_eq!(ephemeris.is_some(), true);
                     let (msgtype, sv, ephemeris) = ephemeris.unwrap();
-                    assert_eq!(msgtype, MsgType::LNAV); // legacy NAV
+                    assert_eq!(msgtype, &MsgType::LNAV); // legacy NAV
                     match sv.constellation {
                         Constellation::BeiDou => {
                             match sv.prn {
@@ -806,7 +806,7 @@ mod test {
                                 date: epoch::str2date("2022 06 08 11 00 00").unwrap(),
                                 flag: epoch::EpochFlag::Ok,
                             });
-                            assert_eq!(msgtype, MsgType::LNAV);
+                            assert_eq!(msgtype, &MsgType::LNAV);
                             assert_eq!(ephemeris.clock_bias, 1.080981455743E-04);
                             assert_eq!(ephemeris.clock_drift, 3.751665644813E-12);
                             assert_eq!(ephemeris.clock_drift_rate, 0.0);
@@ -860,7 +860,7 @@ mod test {
                 if *class == FrameClass::Ephemeris {
                     for frame in frames.iter() {
                         let (_, sv, _) = frame.as_eph().unwrap();
-                        assert_eq!(sv, expected_vehicules[index]);
+                        assert_eq!(sv, &expected_vehicules[index]);
                         index += 1;
                     }
                 }

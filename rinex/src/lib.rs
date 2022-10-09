@@ -1285,7 +1285,7 @@ impl Rinex {
                     let mut map: BTreeMap<sv::Sv, f64> = BTreeMap::new();
                     for frame in frames.iter() {
                         let (_, sv, ephemeris) = frame.as_eph().unwrap();
-                        map.insert(sv, ephemeris.clock_bias);
+                        map.insert(*sv, ephemeris.clock_bias);
                     }
                     if map.len() > 0 {
                         results.insert(*e, map);
@@ -1349,7 +1349,7 @@ impl Rinex {
                     let mut map :BTreeMap<sv::Sv, (f64,f64,f64)> = BTreeMap::new();
                     for frame in frames.iter() {
                         let (_, sv, ephemeris) = frame.as_eph().unwrap();
-                        map.insert(sv, 
+                        map.insert(*sv, 
 							(ephemeris.clock_bias, 
 							ephemeris.clock_drift,
 							ephemeris.clock_drift_rate));
@@ -1445,7 +1445,7 @@ impl Rinex {
                     if *class == navigation::FrameClass::Ephemeris {
                         for frame in frames {
                             let (_, sv, _) = frame.as_eph().unwrap();
-                            inner.push(sv);
+                            inner.push(*sv);
                         }
                     }
                 }
@@ -1702,7 +1702,9 @@ impl Rinex {
         s
     }
 
-	pub fn navigation_message_filter_mut (&mut self, filter: Vec<&navigation::MsgType>) {
+	/// Filters out undesired Navigation messages.
+	/// An example of MsgType is LNAV for legacy frames for instance.
+	pub fn navigation_message_filter_mut (&mut self, filter: Vec<navigation::MsgType>) {
 		if !self.is_navigation_rinex() {
 			return ;
 		}
@@ -1715,8 +1717,7 @@ impl Rinex {
 					frames.retain(|fr| {
 						let (msg, _, _) = fr.as_eph()
 							.unwrap();
-						true
-						//filter.contains(&msg)
+						filter.contains(&msg)
 					});
 				} else if *class == navigation::FrameClass::SystemTimeOffset {
 					frames.retain(|fr| {
@@ -1743,11 +1744,48 @@ impl Rinex {
 		});
 	}
 	
-	pub fn navigation_message_filter (&self, filter: Vec<&navigation::MsgType>) -> Self {
+	/// Immutable implementation, see [navigation_message_filter_mut]
+	pub fn navigation_message_filter (&self, filter: Vec<navigation::MsgType>) -> Self {
 		let mut s = self.clone();
 		s.navigation_message_filter_mut(filter);
 		s
 	}
+
+    /// Retains only Navigation frames that are marked as legacy.
+	/// Retains only Ephemeris in case of V2/V3 Navgation RINEX.
+	/// Retains legacy frames (all kinds) in V4 Navigation RINEX.
+    /// This has no effect if self is not a Navigation record.
+	pub fn legacy_navigation_filter_mut (&mut self) {
+		self.navigation_message_filter_mut(vec![navigation::MsgType::LNAV])
+	}
+       
+	/// Immutable implementation, see [legacy_navigation_filter_mut]
+	pub fn legacy_navigation_filter (&self) -> Self {
+		let mut s = self.clone();
+        s.legacy_navigation_filter_mut();
+        s
+	}
+
+    /// Retains only modern Navigation frames.
+    /// This has no effect if self is not a Navigation record.
+    pub fn modern_nav_filter_mut (&mut self) {
+		self.navigation_message_filter_mut(vec![
+			navigation::MsgType::FDMA,
+			navigation::MsgType::IFNV,
+			navigation::MsgType::D1,
+			navigation::MsgType::D2,
+			navigation::MsgType::D1D2,
+			navigation::MsgType::SBAS,
+			navigation::MsgType::CNVX,
+		])
+    }
+
+    /// Immutable implementation of [modern_nav_filter_mut]
+    pub fn modern_nav_filter (&self) -> Self {
+        let mut s = self.clone();
+        s.modern_nav_filter_mut();
+        s
+    }
 
     /// Executes in place given LLI AND mask filter.
     /// This method is very useful to determine where
@@ -1885,7 +1923,7 @@ impl Rinex {
                     let mut inner: BTreeMap<sv::Sv,  (f64,f64,f64, HashMap<String, OrbitItem>)> = BTreeMap::new();
                     for frame in frames.iter() {
                         let (_, sv, ephemeris) = frame.as_eph().unwrap();
-                        inner.insert(sv, 
+                        inner.insert(*sv, 
 							(ephemeris.clock_bias,
 							ephemeris.clock_drift, 
 							ephemeris.clock_drift_rate, 
@@ -2014,71 +2052,6 @@ impl Rinex {
     pub fn elevation_angle_interval (&self, min_max: (f64,f64)) -> Self {
         let mut s = self.clone();
         s.elevation_angle_interval_mut(min_max);
-        s
-    }
-
-    /// Filters out all Legacy Ephemeris frames from this Navigation record.
-    /// This is intended to be used only on modern (V>3) Navigation record,
-    /// which are the only records expected to contain other frame types.
-    /// This has no effect if self is not a Navigation record.
-    pub fn legacy_nav_filter_mut (&mut self) {
-        if !self.is_navigation_rinex() {
-            return ; // nothing to do
-        }
-        let record = self.record
-            .as_mut_nav()
-            .unwrap();
-        record.retain(|_, classes| {
-            classes.retain(|class, frames| {
-                if *class == navigation::FrameClass::Ephemeris {
-                    frames.retain(|fr| {
-                        let (msgtype, _, _) = fr.as_eph().unwrap();
-                        msgtype != navigation::MsgType::LNAV
-                    })
-                }
-                frames.len() > 0
-            });
-            classes.len() > 0
-        })
-    }
-    
-    /// Immutable implementation of [legacy_nav_filter_mut]
-    pub fn legacy_nav_filter (&self) -> Self {
-        let mut s = self.clone();
-        s.legacy_nav_filter_mut();
-        s
-    }
-    
-    /// Filters out all Modern Ephemeris frames from this Navigation record,
-    /// keeping only Legacy Ephemeris Frames.
-    /// This is intended to be used only on modern (V>3) Navigation record,
-    /// as previous revision only contained frames marked as Legacy.
-    /// This has no effect if self is not a Navigation record.
-    pub fn modern_nav_filter_mut (&mut self) {
-        if !self.is_navigation_rinex() {
-            return ; // nothing to do
-        }
-        let record = self.record
-            .as_mut_nav()
-            .unwrap();
-        record.retain(|_, classes| {
-            classes.retain(|class, frames| {
-                if *class == navigation::FrameClass::Ephemeris {
-                    frames.retain(|fr| {
-                        let (msgtype, _, _) = fr.as_eph().unwrap();
-                        msgtype == navigation::MsgType::LNAV
-                    })
-                }
-                frames.len() > 0
-            });
-            classes.len() > 0
-        })
-    }
-
-    /// Immutable implementation of [modern_nav_filter_mut]
-    pub fn modern_nav_filter (&self) -> Self {
-        let mut s = self.clone();
-        s.modern_nav_filter_mut();
         s
     }
 

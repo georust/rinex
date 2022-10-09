@@ -129,9 +129,9 @@ impl Default for Frame {
 
 impl Frame {
     /// Unwraps self as Ephemeris frame
-    pub fn as_eph (&self) -> Option<(MsgType, Sv, &Ephemeris)> {
+    pub fn as_eph (&self) -> Option<(&MsgType, &Sv, &Ephemeris)> {
         match self {
-            Self::Eph(msg, sv, eph) => Some((*msg, *sv, eph)),
+            Self::Eph(msg, sv, eph) => Some((msg, sv, eph)),
             _ => None,
         }
     }
@@ -616,8 +616,8 @@ mod test {
         let fr = frame.as_eph();
         assert_eq!(fr.is_some(), true);
         let (msg_type, sv, ephemeris) = fr.unwrap();
-        assert_eq!(msg_type, MsgType::LNAV);
-        assert_eq!(sv, Sv {
+        assert_eq!(msg_type, &MsgType::LNAV);
+        assert_eq!(sv, &Sv {
             constellation: Constellation::Glonass,
             prn: 1,
         });
@@ -713,8 +713,8 @@ mod test {
         let fr = frame.as_eph();
         assert_eq!(fr.is_some(), true);
         let (msg_type, sv, ephemeris) = fr.unwrap();
-        assert_eq!(msg_type, MsgType::LNAV);
-        assert_eq!(sv, Sv {
+        assert_eq!(msg_type, &MsgType::LNAV);
+        assert_eq!(sv, &Sv {
             constellation: Constellation::BeiDou,
             prn: 5,
         });
@@ -880,8 +880,8 @@ mod test {
         let fr = frame.as_eph();
         assert_eq!(fr.is_some(), true);
         let (msg_type, sv, ephemeris) = fr.unwrap();
-        assert_eq!(msg_type, MsgType::LNAV);
-        assert_eq!(sv, Sv {
+        assert_eq!(msg_type, &MsgType::LNAV);
+        assert_eq!(sv, &Sv {
             constellation: Constellation::Galileo,
             prn: 1,
         });
@@ -1041,8 +1041,8 @@ mod test {
         let fr = frame.as_eph();
         assert_eq!(fr.is_some(), true);
         let (msg_type, sv, ephemeris) = fr.unwrap();
-        assert_eq!(msg_type, MsgType::LNAV);
-        assert_eq!(sv, Sv {
+        assert_eq!(msg_type, &MsgType::LNAV);
+        assert_eq!(sv, &Sv {
             constellation: Constellation::Glonass,
             prn: 7,
         });
