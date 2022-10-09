@@ -74,8 +74,9 @@ Refer to the [official Documentation](https://docs.rs/rinex/0.6.0/rinex/struct.R
 RINEX Records vary a lot from one revision to another
 and from one file type to another.
 To learn how to browse the RINEX record you are interested in,
-refer to its declaration in the official documentation.
-For example, here is the [Observation Record](https://todo) declaration.
+refer to its definition in the official documentation.
+For example, here is the 
+[Observation Record](https://docs.rs/rinex/0.6.4/rinex/observation/record/type.Record.html) definition.
 
 ## Features
 
