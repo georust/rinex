@@ -28,27 +28,26 @@ and the [rinex](rinex/) crate.
 
 ## Supported `RINEX` types
 
-| Type                       | Support           | CLI                 | UBX                  | Production        |          Notes          |
+| Type                       | Parser            | Writer              |  CLI                 | UBX                  |           Notes          |
 |----------------------------|-------------------|---------------------|----------------------|-------------------|-------------------------
-| Navigation  (NAV)          | :heavy_check_mark:|  :heavy_check_mark: | :construction:       | Ephemeris :sparkle: V4(Others) :construction: | Epoch iteration |
-| Observation (OBS)          | :heavy_check_mark:|  :heavy_check_mark: | :construction:       | :sparkle:  | Epoch iteration |
-|  CRINEX  (Compressed OBS)  | :heavy_check_mark:|  :heavy_check_mark: | :construction:       | CRNX1 :sparkle:  CRNX3 :construction:    | Epoch iteration |
-|  Meteorological data (MET) | :heavy_check_mark:| :heavy_check_mark:  | :construction:       |:heavy_check_mark: | Epoch iteration |  
-|  Clocks (CLK)              | :heavy_check_mark:|  :heavy_check_mark: | :question:           |:construction: | Epoch iteration |
-|  Antenna (ATX)             | :heavy_check_mark:| :sparkle:           | :heavy_minus_sign:   |:construction: | Sorted by `antex::Antenna` |
-|  Ionosphere Maps  (IONEX)  | :sparkle:         |  :sparkle:          | :question:           |:construction: | Epoch iteration |
+| Navigation  (NAV)          | :heavy_check_mark:| Ephemeris :sparkle: V4(Others) :construction: |  :heavy_check_mark:  | :construction:       | Epoch iteration |
+| Observation (OBS)          | :heavy_check_mark:| :sparkle:           | :heavy_check_mark:  :chart_with_upwards_trend: |  :construction:  | Epoch iteration |
+|  CRINEX  (Compressed OBS)  | :heavy_check_mark:| CRNX1 :sparkle: CRNX3 :construction: | :heavy_check_mark:  :chart_with_upwards_trend:  |  :construction:    | Epoch iteration |
+|  Meteorological data (MET) | :heavy_check_mark:| :heavy_check_mark:  | :heavy_check_mark:  :chart_with_upwards_trend:       | :construction:  | Epoch iteration |  
+|  Clocks (CLK)              | :heavy_check_mark:|  :sparkle:          | :question:           |:construction: | Epoch iteration |
+|  Antenna (ATX)             | :heavy_check_mark:| :construction:      | :heavy_minus_sign:   |:construction: | Sorted by `antex::Antenna` |
+|  Ionosphere Maps  (IONEX)  | :sparkle:         |  :construction:     | :question:           |:construction: | Epoch iteration |
 |  SINEX  (SNX)              | :construction:    |  :construction:     | :heavy_minus_sign:   |:construction: | SINEX are special RINEX, they are managed by a dedicated [core library](sinex/)  |
 |  Troposphere  (TRO)        | :construction:    |  :construction:     | :question:           |:construction: | Troposphere are one possible SINEX declination |
 |  Bias  (BIA)               | :heavy_check_mark: |  :construction:    | :question:           |:construction: | Bias solutions are one possible SINEX declination |
 
-**Production** means data generation      
-**CLI** means exposed to [`rinex-cli`](rinex-cli/) for easy parsing / analysis / generation  
-**UBX** means exposed to [`ublox-rnx`](ublox-rnx/) for quick and easy data production from a UBLOX receiver  
-
 :heavy_check_mark: all revisions supported   
 :heavy_minus_sign: not applicable   
-:sparkle: being stabilized, under final tests.. works but don't expect something extraordinary   
-:construction: under development - refer to TODO list
+:sparkle: under validation. Works but don't expect something extraordinary   
+:construction: under development   
+**CLI** :heavy_check_mark: means the `rinex-cli` app is knowledgeable, can parse, produce and analyze such a RINEX.  
+**CLI** :chart_with_upwards_trend: means the `rinex-cli` application can plot such a RINEX.  
+**UBX** means the `ublox-rnx` app can generate such a RINEX from a Ublox receiver
 
 ## File formats
 
