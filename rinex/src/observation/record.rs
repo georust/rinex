@@ -531,7 +531,7 @@ fn parse_v3 (observables: &HashMap<Constellation, Vec<String>>, lines: std::str:
                 //println!("SV: \"{}\"", sv);
                 //println!("NB OBS: {}", nb_obs);
                 for i in 0..nb_obs {
-                    if i <= obscodes.len() {
+                    if i < obscodes.len() {
                         let offset = i * observable_width;
                         if rem.len() > offset+observable_width-2 { // can parse an Obs
                             let observation_str = &rem[offset..offset+observable_width-2];
