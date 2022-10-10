@@ -378,6 +378,11 @@ pub fn parse_epoch (header: &Header, content: &str)
 	Ok((epoch, clock_offset, data))
 }
 
+/* 
+ * Parses a V2 epoch from given lines iteratoor
+ * Vehicule description is contained in the epoch descriptor
+ * Each vehicule content is wrapped into several lines
+ */
 fn parse_v2 (systems: &str, observables: &HashMap<Constellation, Vec<String>>, lines: std::str::Lines<'_>) -> BTreeMap<Sv, HashMap<String, ObservationData>> {
 	let svnn_size = 3; // SVNN standard
 	let nb_max_observables = 5; // in a single line
@@ -506,9 +511,13 @@ fn parse_v2 (systems: &str, observables: &HashMap<Constellation, Vec<String>>, l
 	data 
 }
 
+/* 
+ * Parses a V3 epoch from given lines iteratoor
+ * Format is much simpler, one vehicule is described in a single line
+ */
 fn parse_v3 (observables: &HashMap<Constellation, Vec<String>>, lines: std::str::Lines<'_>) -> BTreeMap<Sv, HashMap<String, ObservationData>> {
 	let svnn_size = 3; // SVNN standard
-	let observable_width = 16; // data + 2 flags + 1 whitespace
+	let observable_width = 15; // data + 2 flags
     let mut obs_ptr = 0;
 	let mut data: BTreeMap<Sv, HashMap<String, ObservationData>> = BTreeMap::new();
 	let mut inner: HashMap<String, ObservationData> = HashMap::with_capacity(5);
@@ -516,19 +525,19 @@ fn parse_v3 (observables: &HashMap<Constellation, Vec<String>>, lines: std::str:
         let (sv, rem) = line.split_at(4);
         if let Ok(sv) = Sv::from_str(sv) {
             if let Some(obscodes) = observables.get(&sv.constellation) {
-                let nb_obs = num_integer::div_ceil(line.len(), observable_width) ;
+                let nb_obs = num_integer::div_ceil(rem.len(), observable_width) ;
                 obs_ptr = 0;
                 inner.clear();
                 //DEBUG
-                println!("LINE: \"{}\"", line);
-                println!("SV: \"{}\"", sv);
-                println!("NB OBS: {}", nb_obs);
+                //println!("LINE: \"{}\"", line);
+                //println!("SV: \"{}\"", sv);
+                //println!("NB OBS: {}", nb_obs);
                 for i in 0..nb_obs {
                     obs_ptr += 1 ;
                     if obs_ptr <= obscodes.len() {
                         let offset = i * observable_width;
-                        if line.len() > offset+observable_width-2 { // can parse an Obs
-                            let observation_str = &line[offset..offset+observable_width-2];
+                        if rem.len() > offset+observable_width-2 { // can parse an Obs
+                            let observation_str = &rem[offset..offset+observable_width-2];
                             if let Ok(obs) = f64::from_str(observation_str.trim()) {
                                 let lli: Option<LliFlags>;
                                 let ssi: Option<Ssi>;
@@ -538,7 +547,7 @@ fn parse_v3 (observables: &HashMap<Constellation, Vec<String>>, lines: std::str:
                                     lli = None;
                                     ssi = None;
                                 } else { // enough content to parse an LLI
-                                    let lli_str = &line[offset+observable_width-2..offset+observable_width-1];
+                                    let lli_str = &rem[offset+observable_width-2..offset+observable_width-1];
                                     if let Ok(u) = u8::from_str_radix(lli_str.trim(), 10) {
                                         lli = LliFlags::from_bits(u)
                                     } else {
@@ -550,7 +559,7 @@ fn parse_v3 (observables: &HashMap<Constellation, Vec<String>>, lines: std::str:
                                         // this only happens when omitted on last line
                                         ssi = None;
                                     } else {
-                                        let ssi_str = &line[offset+observable_width-1..offset+observable_width];
+                                        let ssi_str = &rem[offset+observable_width-1..offset+observable_width];
                                         if let Ok(s) = Ssi::from_str(ssi_str.trim()) {
                                             ssi = Some(s)
                                         } else {
@@ -559,10 +568,10 @@ fn parse_v3 (observables: &HashMap<Constellation, Vec<String>>, lines: std::str:
                                     }
                                 }
                                 //DEBUG
-                                println!("OBS {} LLI {:?} SSI {:?}", obs, lli, ssi);
+                                //println!("OBS {} LLI {:?} SSI {:?}", obs, lli, ssi);
                                 inner.insert(
                                     obscodes[obs_ptr-1].clone(), // key
-                                    ObservationData {
+                                    ObservationData { // payload
                                         obs,
                                         lli,
                                         ssi,
@@ -572,11 +581,11 @@ fn parse_v3 (observables: &HashMap<Constellation, Vec<String>>, lines: std::str:
                     } //else: line abnormally long,
                     //got more data than we expect, avoid overflowing
                 }
+                if inner.len() > 0 {
+                    // build content we correctly identified
+                    data.insert(sv, inner.clone());
+                }
             }//got some observables to work with
-            if inner.len() > 0 {
-                // build content we correctly identified
-                data.insert(sv, inner.clone());
-            }
         } // Sv::from_str failed()
     }//browse all lines
 	data 
