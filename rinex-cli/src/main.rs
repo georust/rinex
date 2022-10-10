@@ -247,127 +247,124 @@ fn run_single_file_op (
                     .into_drawing_area();
                 root.fill(&WHITE)
                     .unwrap();
-                // time axis
+                
+                // x axis
                 let timestamps: Vec<i64> = record.iter()
                     .map(|(epoch, _)| {
                         epoch.date
                             .timestamp()
                     })
                     .collect();
-                let t_axis =
+                let x_axis =
                     (timestamps[0] as f64)..(timestamps[timestamps.len()-1] as f64);
 
                 // determine (min, max) #PRN 
-                //  this is used to scale the #PRN axis correctly
+                //  this is used to adapt colors nicely 
                 let (mut min_prn, mut max_prn) = (100, 0);   
-                for sv in rnx.space_vehicules().iter() {
+                let space_vehicules = rnx.space_vehicules();
+                for sv in space_vehicules.iter() {
                     max_prn = std::cmp::max(max_prn, sv.prn);
                     min_prn = std::cmp::min(min_prn, sv.prn);
                 }
-                let prn_axis = (min_prn as f64)..(max_prn as f64);
 
-                // Create a chart per observable kind
-                let mut charts: HashMap<String, 
-                    ChartContext<BitMapBackend, Cartesian3d<RangedCoordf64, RangedCoordf64, RangedCoordf64>>>
-                    = HashMap::with_capacity(4); // 4 physics known
-
-                for (constell, obscodes) in observables.iter() {
-                    for code in obscodes.iter() {
-                        if is_pseudo_range_obs_code!(code) {
-                            if charts.get("PR").is_none() {
-                                // Create a chart
-                                let mut chart = ChartBuilder::on(&root)
-                                    .caption("Pseudo Range", ("sans-serif", 50).into_font())
-                                    .margin(5)
-                                    .build_cartesian_3d(t_axis.clone(), prn_axis.clone(), t_axis.clone())
-                                    .unwrap();
-                                // Improve looks
-                                chart.with_projection(|mut pb| {
-                                    pb.yaw = 0.5;
-                                    pb.scale = 0.9;
-                                    pb.into_matrix()
-                                });
-                                // Draw axes
-                                chart
-                                    .configure_axes()
-                                    .light_grid_style(BLACK.mix(0.4))
-                                    .max_light_lines(3)
-                                    .draw()
-                                    .unwrap();
-                                charts.insert("PR".to_string(), chart);
-                            }
-                        } else if is_doppler_obs_code!(code) {
-                            if charts.get("DOP").is_none() {
-                                // Create a chart
-                                let mut chart = ChartBuilder::on(&root)
-                                    .caption("Doppler", ("sans-serif", 50).into_font())
-                                    .margin(5)
-                                    .build_cartesian_3d(t_axis.clone(), prn_axis.clone(), t_axis.clone())
-                                    .unwrap();
-                                // Improve looks
-                                chart.with_projection(|mut pb| {
-                                    pb.yaw = 0.5;
-                                    pb.scale = 0.9;
-                                    pb.into_matrix()
-                                });
-                                // Draw axes
-                                chart
-                                    .configure_axes()
-                                    .light_grid_style(BLACK.mix(0.4))
-                                    .max_light_lines(3)
-                                    .draw()
-                                    .unwrap();
-                                charts.insert("DOP".to_string(), chart);
-                            }
-                        } else if is_sig_strength_obs_code!(code) {
-                            if charts.get("SSI").is_none() {
-                                // Create a chart
-                                let mut chart = ChartBuilder::on(&root)
-                                    .caption("Signal Strength", ("sans-serif", 50).into_font())
-                                    .margin(5)
-                                    .build_cartesian_3d(t_axis.clone(), prn_axis.clone(), t_axis.clone())
-                                    .unwrap();
-                                // Improve looks
-                                chart.with_projection(|mut pb| {
-                                    pb.yaw = 0.5;
-                                    pb.scale = 0.9;
-                                    pb.into_matrix()
-                                });
-                                // Draw axes
-                                chart
-                                    .configure_axes()
-                                    .light_grid_style(BLACK.mix(0.4))
-                                    .max_light_lines(3)
-                                    .draw()
-                                    .unwrap();
-                                charts.insert("SSI".to_string(), chart);
-                            }
-                        } else if is_phase_carrier_obs_code!(code) {
-                            if charts.get("PH").is_none() {
-                                // Create a chart
-                                let mut chart = ChartBuilder::on(&root)
-                                    .caption("Phase", ("sans-serif", 50).into_font())
-                                    .margin(5)
-                                    .build_cartesian_3d(t_axis.clone(), prn_axis.clone(), t_axis.clone())
-                                    .unwrap();
-                                // Improve looks
-                                chart.with_projection(|mut pb| {
-                                    pb.yaw = 0.5;
-                                    pb.scale = 0.9;
-                                    pb.into_matrix()
-                                });
-                                // Draw axes
-                                chart
-                                    .configure_axes()
-                                    .light_grid_style(BLACK.mix(0.4))
-                                    .max_light_lines(3)
-                                    .draw()
-                                    .unwrap();
-                                charts.insert("PH".to_string(), chart);
+                // determine (min, max) per Observation Kind
+                //   this is used to scale Y axis nicely
+                let mut y_min_max: HashMap<String, (f64,f64)> = HashMap::with_capacity(4); // 4 physics known
+                for (_, (_, vehicules)) in record.iter() {
+                    for (_, observables) in vehicules.iter() {
+                        for (code, data) in observables.iter() {
+                            if code == "L1" { 
+                                if let Some((min,max)) = y_min_max.get_mut("PR") {
+                                    if *min > data.obs {
+                                        *min = data.obs ;
+                                    }
+                                    if *max < data.obs {
+                                        *max = data.obs ;
+                                    }
+                                } else {
+                                    y_min_max.insert("PR".to_string(), (data.obs, data.obs));
+                                }
                             }
                         }
                     }
                 }
+
+                //TODO DEBUG
+                println!("YMINMAX {:?}", y_min_max);
+
+                // Create a chart per observable kind
+                //let mut charts: HashMap<String, 
+                //    ChartContext<BitMapBackend, Cartesian2d<RangedCoordf64, RangedCoordf64>>>
+                //    = HashMap::with_capacity(4); // 4 different kinds known
+                // build y axis
+                let (min, max) = y_min_max.get("PR")
+                    .unwrap();
+                let y_axis = (min-1000.0..max+1000.0);
+                // Create a chart
+                let mut chart = ChartBuilder::on(&root)
+                    .caption("Pseudo Range", ("sans-serif", 50).into_font())
+                    .margin(5)
+                    .build_cartesian_2d(x_axis.clone(), y_axis)
+                    .unwrap();
+                // Improve looks
+                /*chart.with_projection(|mut pb| {
+                    pb.yaw = 0.5;
+                    pb.scale = 0.9;
+                    pb.into_matrix()
+                });*/
+                // Draw axes
+                chart
+                    .configure_mesh()
+                    .x_labels(20)
+                    .x_desc("Timestamp")
+                    .y_labels(20)
+                    .y_desc("PR")
+                    //.disable_mesh()
+                    //.x_label_formatter(&|v| format!("
+                    .draw()
+                    .unwrap();
+                //charts.insert("PR".to_string(), chart);
+
+                // symbol per carrier
+                let symbols = vec!["x","t","o","p"];
+
+                /*
+                for (constell, obscodes) in observables.iter() {
+                    for code in obscodes.iter() {
+                        if code == "L1" { 
+                            if charts.get("PR").is_none() {
+                                // build y axis
+                                let (min, max) = y_min_max.get("PR")
+                                    .unwrap();
+                                let y_axis = (min-1000.0..max+1000.0);
+                                // Create a chart
+                                let mut chart = ChartBuilder::on(&root)
+                                    .caption("Pseudo Range", ("sans-serif", 50).into_font())
+                                    .margin(5)
+                                    .build_cartesian_2d(x_axis.clone(), y_axis)
+                                    .unwrap();
+                                // Improve looks
+                                /*chart.with_projection(|mut pb| {
+                                    pb.yaw = 0.5;
+                                    pb.scale = 0.9;
+                                    pb.into_matrix()
+                                });*/
+                                // Draw axes
+                                chart
+                                    .configure_mesh()
+                                    .x_labels(20)
+                                    .x_desc("Timestamp")
+                                    .y_labels(20)
+                                    .y_desc("PR")
+                                    //.disable_mesh()
+                                    //.x_label_formatter(&|v| format!("
+                                    .draw()
+                                    .unwrap();
+                                charts.insert("PR".to_string(), chart);
+                            }
+                        } 
+                    }
+                }*/
 
                 // Draw data series
                 /*
@@ -406,56 +403,48 @@ fn run_single_file_op (
                     .unwrap();
                 */
 
-                for (constell, obscodes) in observables.iter() {
-                    for (index, obscode) in obscodes.iter().enumerate() {
-                        if is_pseudo_range_obs_code!(obscode) {
-                            //<o
-                            //  color emphasizes the Carrier signal and Constellation
-                            let color = Palette99::pick(index * obscodes.len())
-                                .mix(0.9); //opacity
-                            let chart = charts.get_mut("PR")
-                                .unwrap();
-                            chart.draw_series(LineSeries::new(
-                                record.iter()
-                                    .map(|(epoch, (clk_offset, vehicules))| {
-                                        vehicules.iter()
-                                            .filter_map(|(sv, observables)| {
-                                                if sv.constellation == *constell {
-                                                    Some(observables.iter()
-                                                        .filter_map(|(code, data)| {
-                                                            if code == obscode {
-                                                                Some((
-                                                                    epoch.date.timestamp() as f64, //x
-                                                                    sv.prn as f64, //y
-                                                                    data.obs)) //z
-                                                            } else {
-                                                                None
-                                                            }
-                                                        }))
-                                                } else {
-                                                    None
-                                                }
-                                            })
-                                            .flatten()
-                                    })
-                                    .flatten(),
-                                &BLACK,
-                            )).unwrap();
-                        }//PR
-                        //else if is_phase_carrier_obs_code!(obscode) {
-                        //}//PH
-                        //else if is_doppler_obs_code!(obscode) {
-                        //}//DOP
-                    }
-                }
+                // Plot 
+                for (sv_index, sv) in space_vehicules.iter().enumerate() {
+                    // one serie per vehicule
+                    for (c_index, obscodes) in observables.iter().enumerate() {
+                        if let Some(obscodes) = obscodes.get(sv.constell) {
+                            // one char per obs kind
+                            for obscode in obscodes.iter() {
+                                if obscode == "L1" {
+                                    //<o
+                                    //  symbol emphasizes Carrier Signal 
+                                    //  color emphsiazes PRN# 
+                                    //    color can also be slightly adjusted regarding the presence
+                                    //    and value of SSI 
+                                    let color = Palette99::pick(sv_index * obscodes.len())
+                                        .mix(0.9); //opacity
+                                    chart.draw_series(LineSeries::new(
+                                        record.iter()
+                                            .map(|(epoch, (_, vehicules))| {
+                                                let observables = vehicules.get(sv)
+                                                    .unwrap();
+                                                let data = observables.get(obscode)
+                                                    .unwrap();
+                                                (epoch.date.timestamp() as f64,
+                                                data.obs)
+                                            }),
+                                        &color,
+                                    ))
+                                    .unwrap()
+                                    .label(obscode);
+                                }
+                            }//L1
+                        } // got some obs for desired constellation
+                    } // observables iteration
+                } // Sv iteration
                 // Draw Labels & Legend
-                for (_, chart) in charts.iter_mut() {
+                //for (_, chart) in charts.iter_mut() {
                     chart
                         .configure_series_labels()
                         .border_style(&BLACK)
                         .draw()
                         .unwrap();
-                }
+                //}
             } // Observation viewer
         } else {
             // terminal output
