@@ -6,22 +6,26 @@ use clap::App;
 use clap::AppSettings;
 use clap::load_yaml;
 use std::str::FromStr;
-//use gnuplot::{Figure}; // Caption};
-//use itertools::Itertools;
-//use gnuplot::{Color, PointSymbol, LineStyle, DashType};
-//use gnuplot::{PointSize, LineWidth}; // AxesCommon};
+use plotters::prelude::*;
+use plotters::coord::{
+    types::RangedCoordf64,
+    cartesian::Cartesian3d,
+};
+use std::collections::HashMap;
 
-//use thiserror::Error;
-use rinex::Rinex;
-use rinex::sv::Sv;
-use rinex::observation;
-//use rinex::types::Type;
-use rinex::epoch;
-use rinex::header::Header;
-use rinex::constellation::{Constellation};
+use rinex::{*, 
+    observation::Ssi, observation::LliFlags,
+};
 
 mod parser; // user input parser
 mod ascii_plot; // `teqc` tiny plot
+
+/* NOTES
+ * smart color generation
+ * chart
+ *      .draw_series()
+ *      .style_func(&|&v| {&HLSColor(x).into())
+ */
 
 /// Resample given file as possibly requested
 fn resample_single_file (rnx: &mut Rinex, matches: clap::ArgMatches) {
@@ -84,8 +88,8 @@ fn apply_filters (rinex: &mut Rinex, matches: clap::ArgMatches) {
         Some(s) => Some(u8::from_str_radix(s,10).unwrap()),
         _ => None,
     };
-    let ssi_filter : Option<observation::record::Ssi> = match matches.value_of("ssi-filter") {
-        Some(s) => Some(observation::record::Ssi::from_str(s).unwrap()),
+    let ssi_filter : Option<Ssi> = match matches.value_of("ssi-filter") {
+        Some(s) => Some(Ssi::from_str(s).unwrap()),
         _ => None,
     };
     
@@ -110,7 +114,7 @@ fn apply_filters (rinex: &mut Rinex, matches: clap::ArgMatches) {
             .observable_filter_mut(filter.to_vec())
     }
     if let Some(lli) = lli_mask {
-        let mask = observation::record::LliFlags::from_bits(lli)
+        let mask = LliFlags::from_bits(lli)
             .unwrap();
         rinex
             .lli_filter_mut(mask)
@@ -122,7 +126,12 @@ fn apply_filters (rinex: &mut Rinex, matches: clap::ArgMatches) {
 }
 
 /// Execute user requests on a single file
-fn run_single_file_op (rnx: &Rinex, matches: clap::ArgMatches, print_allowed: bool) {
+fn run_single_file_op (
+    rnx: &Rinex, 
+    matches: clap::ArgMatches, 
+    output: Option<&str>)
+{
+    let plot = matches.is_present("plot");
     let pretty = matches.is_present("pretty");
     let header = matches.is_present("header");
     let observables = matches.is_present("observ");
@@ -141,107 +150,315 @@ fn run_single_file_op (rnx: &Rinex, matches: clap::ArgMatches, print_allowed: bo
 
     if header {
         at_least_one_op = true;
-        if print_allowed {
-            if pretty {
-                println!("{}", serde_json::to_string_pretty(&rnx.header).unwrap())
-            } else {
-                println!("{}", serde_json::to_string_pretty(&rnx.header).unwrap())
-            }
+        if pretty {
+            println!("{}", serde_json::to_string_pretty(&rnx.header).unwrap())
+        } else {
+            println!("{}", serde_json::to_string_pretty(&rnx.header).unwrap())
         }
     }
     if epoch {
         at_least_one_op = true;
-        if print_allowed {
-            if pretty {
-                println!("{}", serde_json::to_string_pretty(&rnx.epochs()).unwrap())
-            } else {
-                println!("{}", serde_json::to_string(&rnx.epochs()).unwrap())
-            }
+        if pretty {
+            println!("{}", serde_json::to_string_pretty(&rnx.epochs()).unwrap())
+        } else {
+            println!("{}", serde_json::to_string(&rnx.epochs()).unwrap())
         }
     }
     if observables {
         at_least_one_op = true;
-        if print_allowed {
-            if pretty {
-                println!("{}", serde_json::to_string_pretty(&rnx.observables()).unwrap())
-            } else {
-                println!("{}", serde_json::to_string(&rnx.observables()).unwrap())
-            }
+        if pretty {
+            println!("{}", serde_json::to_string_pretty(&rnx.observables()).unwrap())
+        } else {
+            println!("{}", serde_json::to_string(&rnx.observables()).unwrap())
         }
     }
     if constellations {
         at_least_one_op = true;
-        if print_allowed {
-            if pretty {
-                println!("{}", serde_json::to_string_pretty(&rnx.constellations()).unwrap())
-            } else {
-                println!("{}", serde_json::to_string(&rnx.constellations()).unwrap())
-            }
+        if pretty {
+            println!("{}", serde_json::to_string_pretty(&rnx.constellations()).unwrap())
+        } else {
+            println!("{}", serde_json::to_string(&rnx.constellations()).unwrap())
         }
     }
     if sv {
         at_least_one_op = true;
-        if print_allowed {
-            if pretty {
-                println!("{}", serde_json::to_string_pretty(&rnx.space_vehicules()).unwrap())
-            } else {
-                println!("{}", serde_json::to_string(&rnx.space_vehicules()).unwrap())
-            }
+        if pretty {
+            println!("{}", serde_json::to_string_pretty(&rnx.space_vehicules()).unwrap())
+        } else {
+            println!("{}", serde_json::to_string(&rnx.space_vehicules()).unwrap())
         }
     }
     if ssi_range {
         at_least_one_op = true;
-        if print_allowed {
-            if pretty {
-                println!("{}", serde_json::to_string_pretty(&rnx.sig_strength_range()).unwrap())
-            } else {
-                println!("{}", serde_json::to_string(&rnx.sig_strength_range()).unwrap())
-            }
+        // terminal ouput
+        if pretty {
+            println!("{}", serde_json::to_string_pretty(&rnx.sig_strength_range()).unwrap())
+        } else {
+            println!("{}", serde_json::to_string(&rnx.sig_strength_range()).unwrap())
         }
     }
     if clock_offsets {
         at_least_one_op = true;
-        if print_allowed {
-            if pretty {
-                println!("{}", serde_json::to_string_pretty(&rnx.receiver_clock_offsets()).unwrap())
-            } else {
-                println!("{}", serde_json::to_string(&rnx.receiver_clock_offsets()).unwrap())
-            }
+        if pretty {
+            println!("{}", serde_json::to_string_pretty(&rnx.receiver_clock_offsets()).unwrap())
+        } else {
+            println!("{}", serde_json::to_string(&rnx.receiver_clock_offsets()).unwrap())
         }
     }
     if sv_per_epoch {
         at_least_one_op = true;
-        if print_allowed {
-            if pretty {
-            //    println!("{}", serde_json::to_string_pretty(&rnx.space_vehicules_per_epoch()).unwrap())
-            } else {
-            //    println!("{}", serde_json::to_string(&rnx.space_vehicules_per_epoch()).unwrap())
-            }
+        if pretty {
+        //    println!("{}", serde_json::to_string_pretty(&rnx.space_vehicules_per_epoch()).unwrap())
+        } else {
+        //    println!("{}", serde_json::to_string(&rnx.space_vehicules_per_epoch()).unwrap())
         }
     }
     if gaps {
         at_least_one_op = true;
-        if print_allowed {
-            println!("{:#?}", rnx.data_gaps());
-        }
+        println!("{:#?}", rnx.data_gaps());
     }
     if largest_gap {
         at_least_one_op = true;
-        if print_allowed {
-            println!("{:#?}", rnx.largest_data_gap_duration());
-        }
+        println!("{:#?}", rnx.largest_data_gap_duration());
     }
 
     if cycle_slips {
         at_least_one_op = true;
-        if print_allowed {
-            println!("{:#?}", rnx.cycle_slips());
-        }
+        println!("{:#?}", rnx.cycle_slips());
     }
 
     if !at_least_one_op {
-        // print remaining record data
-        if print_allowed {
+        // user did not request one of the high level ops
+        // ==> either print or plot record data
+        if plot { // visualization requested
+            let record = &rnx.record;
+            if let Some(record) = record.as_obs() {
+                // Observation viewer
+                let observables = &rnx
+                    .header
+                    .obs
+                    .as_ref()
+                    .unwrap()
+                    .codes;
+                // image bg
+                let root = BitMapBackend::new(
+                    "obs.png",
+                    (1024,768)) //TODO Cli::(x_width,y_height)
+                    .into_drawing_area();
+                root.fill(&WHITE)
+                    .unwrap();
+                // time axis
+                let timestamps: Vec<i64> = record.iter()
+                    .map(|(epoch, _)| {
+                        epoch.date
+                            .timestamp()
+                    })
+                    .collect();
+                let t_axis =
+                    (timestamps[0] as f64)..(timestamps[timestamps.len()-1] as f64);
+
+                // determine (min, max) #PRN 
+                //  this is used to scale the #PRN axis correctly
+                let (mut min_prn, mut max_prn) = (100, 0);   
+                for sv in rnx.space_vehicules().iter() {
+                    max_prn = std::cmp::max(max_prn, sv.prn);
+                    min_prn = std::cmp::min(min_prn, sv.prn);
+                }
+                let prn_axis = (min_prn as f64)..(max_prn as f64);
+
+                // Create a chart per observable kind
+                let mut charts: HashMap<String, 
+                    ChartContext<BitMapBackend, Cartesian3d<RangedCoordf64, RangedCoordf64, RangedCoordf64>>>
+                    = HashMap::with_capacity(4); // 4 physics known
+
+                for (constell, obscodes) in observables.iter() {
+                    for code in obscodes.iter() {
+                        if is_pseudo_range_obs_code!(code) {
+                            if charts.get("PR").is_none() {
+                                // Create a chart
+                                let mut chart = ChartBuilder::on(&root)
+                                    .caption("Pseudo Range", ("sans-serif", 50).into_font())
+                                    .margin(5)
+                                    .build_cartesian_3d(t_axis.clone(), prn_axis.clone(), t_axis.clone())
+                                    .unwrap();
+                                // Improve looks
+                                chart.with_projection(|mut pb| {
+                                    pb.yaw = 0.5;
+                                    pb.scale = 0.9;
+                                    pb.into_matrix()
+                                });
+                                // Draw axes
+                                chart
+                                    .configure_axes()
+                                    .light_grid_style(BLACK.mix(0.4))
+                                    .max_light_lines(3)
+                                    .draw()
+                                    .unwrap();
+                                charts.insert("PR".to_string(), chart);
+                            }
+                        } else if is_doppler_obs_code!(code) {
+                            if charts.get("DOP").is_none() {
+                                // Create a chart
+                                let mut chart = ChartBuilder::on(&root)
+                                    .caption("Doppler", ("sans-serif", 50).into_font())
+                                    .margin(5)
+                                    .build_cartesian_3d(t_axis.clone(), prn_axis.clone(), t_axis.clone())
+                                    .unwrap();
+                                // Improve looks
+                                chart.with_projection(|mut pb| {
+                                    pb.yaw = 0.5;
+                                    pb.scale = 0.9;
+                                    pb.into_matrix()
+                                });
+                                // Draw axes
+                                chart
+                                    .configure_axes()
+                                    .light_grid_style(BLACK.mix(0.4))
+                                    .max_light_lines(3)
+                                    .draw()
+                                    .unwrap();
+                                charts.insert("DOP".to_string(), chart);
+                            }
+                        } else if is_sig_strength_obs_code!(code) {
+                            if charts.get("SSI").is_none() {
+                                // Create a chart
+                                let mut chart = ChartBuilder::on(&root)
+                                    .caption("Signal Strength", ("sans-serif", 50).into_font())
+                                    .margin(5)
+                                    .build_cartesian_3d(t_axis.clone(), prn_axis.clone(), t_axis.clone())
+                                    .unwrap();
+                                // Improve looks
+                                chart.with_projection(|mut pb| {
+                                    pb.yaw = 0.5;
+                                    pb.scale = 0.9;
+                                    pb.into_matrix()
+                                });
+                                // Draw axes
+                                chart
+                                    .configure_axes()
+                                    .light_grid_style(BLACK.mix(0.4))
+                                    .max_light_lines(3)
+                                    .draw()
+                                    .unwrap();
+                                charts.insert("SSI".to_string(), chart);
+                            }
+                        } else if is_phase_carrier_obs_code!(code) {
+                            if charts.get("PH").is_none() {
+                                // Create a chart
+                                let mut chart = ChartBuilder::on(&root)
+                                    .caption("Phase", ("sans-serif", 50).into_font())
+                                    .margin(5)
+                                    .build_cartesian_3d(t_axis.clone(), prn_axis.clone(), t_axis.clone())
+                                    .unwrap();
+                                // Improve looks
+                                chart.with_projection(|mut pb| {
+                                    pb.yaw = 0.5;
+                                    pb.scale = 0.9;
+                                    pb.into_matrix()
+                                });
+                                // Draw axes
+                                chart
+                                    .configure_axes()
+                                    .light_grid_style(BLACK.mix(0.4))
+                                    .max_light_lines(3)
+                                    .draw()
+                                    .unwrap();
+                                charts.insert("PH".to_string(), chart);
+                            }
+                        }
+                    }
+                }
+
+                // Draw data series
+                /*
+                pr_chart
+                    .draw_series(
+                        LineSeries::new(
+                            (timestamps[0]..timestamps[timestamps.len()-1])
+                                .map(|t| (t as f64, t as f64, t as f64)),
+                        &BLACK,
+                    ))
+                    .unwrap();
+                // Draw data series
+                pr_chart
+                    .draw_series(LineSeries::new(
+                        pr.iter()
+                            .map(|(epoch, vehicules)| {
+                                vehicules.iter()
+                                    .map(|(sv, observables)| {
+                                        observables.iter()
+                                            .filter_map(|(code, data)| {
+                                                if code == "L1" {
+                                                    Some((
+                                                        epoch.date.timestamp() as f64, //y
+                                                        sv.prn as f64, //x
+                                                        *data)) //z
+                                                } else {
+                                                    None
+                                                }
+                                            })
+                                    })
+                                    .flatten()
+                            })
+                            .flatten(),
+                        &BLACK,
+                    ))
+                    .unwrap();
+                */
+
+                for (constell, obscodes) in observables.iter() {
+                    for (index, obscode) in obscodes.iter().enumerate() {
+                        if is_pseudo_range_obs_code!(obscode) {
+                            //<o
+                            //  color emphasizes the Carrier signal and Constellation
+                            let color = Palette99::pick(index * obscodes.len())
+                                .mix(0.9); //opacity
+                            let chart = charts.get_mut("PR")
+                                .unwrap();
+                            chart.draw_series(LineSeries::new(
+                                record.iter()
+                                    .map(|(epoch, (clk_offset, vehicules))| {
+                                        vehicules.iter()
+                                            .filter_map(|(sv, observables)| {
+                                                if sv.constellation == *constell {
+                                                    Some(observables.iter()
+                                                        .filter_map(|(code, data)| {
+                                                            if code == obscode {
+                                                                Some((
+                                                                    epoch.date.timestamp() as f64, //x
+                                                                    sv.prn as f64, //y
+                                                                    data.obs)) //z
+                                                            } else {
+                                                                None
+                                                            }
+                                                        }))
+                                                } else {
+                                                    None
+                                                }
+                                            })
+                                            .flatten()
+                                    })
+                                    .flatten(),
+                                &BLACK,
+                            )).unwrap();
+                        }//PR
+                        //else if is_phase_carrier_obs_code!(obscode) {
+                        //}//PH
+                        //else if is_doppler_obs_code!(obscode) {
+                        //}//DOP
+                    }
+                }
+                // Draw Labels & Legend
+                for (_, chart) in charts.iter_mut() {
+                    chart
+                        .configure_series_labels()
+                        .border_style(&BLACK)
+                        .draw()
+                        .unwrap();
+                }
+            } // Observation viewer
+        } else {
+            // terminal output
             if pretty {
                 println!("{}", serde_json::to_string_pretty(&rnx.record).unwrap())
             } else {
@@ -255,7 +472,7 @@ fn run_single_file_op (rnx: &Rinex, matches: clap::ArgMatches, print_allowed: bo
 fn run_single_file_teqc_op (rnx: &Rinex, matches: clap::ArgMatches) {
     let ascii_plot = matches.is_present("ascii-plot");
     let _split = matches.is_present("split");
-    let _split_epoch : Option<epoch::Epoch> = match matches.value_of("split") {
+    let _split_epoch : Option<Epoch> = match matches.value_of("split") {
         Some(s) => {
             if let Ok(e) = parser::parse_epoch(s) {
                 Some(e)
@@ -271,7 +488,11 @@ fn run_single_file_teqc_op (rnx: &Rinex, matches: clap::ArgMatches) {
 }
 
 /// Execute user requests on two files
-fn run_double_file_op (rnx_a: &Rinex, rnx_b: &Rinex, matches: clap::ArgMatches) {
+fn run_double_file_op (
+    rnx_a: &Rinex, 
+    rnx_b: &Rinex, 
+    matches: clap::ArgMatches,
+    output: Option<&str>) {
     let pretty = matches.is_present("pretty");
     let merge = matches.is_present("merge");
     let diff = matches.is_present("diff");
@@ -305,7 +526,7 @@ pub fn main () -> Result<(), std::io::Error> {
 	let matches = app.get_matches();
 
     // General 
-    let _plot = matches.is_present("plot");
+    let plot = matches.is_present("plot");
     let mut custom_header: Option<Header> = None;
 
     if matches.is_present("header-json") {
@@ -342,28 +563,26 @@ pub fn main () -> Result<(), std::io::Error> {
         false => None,
     };
     // files (out)
-    let output : Option<Vec<&str>> = match matches.is_present("output") {
+    let outputs: Vec<&str> = match matches.is_present("output") {
         true => {
-            Some(matches.value_of("output")
+            matches.value_of("output")
                 .unwrap()
                     .split(",")
-                    .collect())
+                    .collect()
         },
-        false => None,
+        false => Vec::new(),
     };
 
-    //TODO graphical view
-    //let mut fig = Figure::new();
-
-    let filepaths = filepaths.unwrap();
-    let mut queue : Vec<Rinex> = Vec::new();
+    let filepaths = filepaths
+        .unwrap(); // input files are mandatory
+    // work queue, contains all parsed RINEX
+    let mut queue: Vec<Rinex> = Vec::new();
 
     ////////////////////////////////////////
     // Parse, filter, resample
     ////////////////////////////////////////
     for fp in &filepaths {
         let path = std::path::PathBuf::from(fp);
-        //fig.set_title(path.file_name().unwrap().to_str().unwrap());
         let mut rinex = match path.exists() {
             true => {
                 if let Ok(r) = Rinex::from_file(fp) {
@@ -383,34 +602,37 @@ pub fn main () -> Result<(), std::io::Error> {
         queue.push(rinex);
     }
 
+    let mut target_is_single_file = true;
+    // Merge is a 2=>1 op
+    target_is_single_file &= !matches.is_present("merge");
+    // Diff and DDiff are 2=>1 ops
+    target_is_single_file &= !matches.is_present("diff");
+    target_is_single_file &= !matches.is_present("ddiff");
+    
     /////////////////////////////////////
     // ops that require only 1 file
     /////////////////////////////////////
-    for i in 0..queue.len() {
-        let mut print_allowed = true;
-        print_allowed &= !matches.is_present("merge");
-        print_allowed &= !matches.is_present("diff");
-        print_allowed &= !matches.is_present("ddiff");
-        print_allowed &= !matches.is_present("ascii-plot");
-        run_single_file_op(&queue[i], matches.clone(), print_allowed);
-        run_single_file_teqc_op(&queue[i], matches.clone());
-
-		// generating data?
-		if let Some(output) = outputs.get(i) {
-			
-		}
+    if target_is_single_file {
+        for i in 0..queue.len() {
+            let output = outputs.get(i);
+            run_single_file_op(&queue[i], matches.clone(), output.copied());
+            run_single_file_teqc_op(&queue[i], matches.clone());
+        }
     }
 
     /////////////////////////////////////
     // ops that require 2 files
     /////////////////////////////////////
-    for i in 0..queue.len()/2 {
-        let q_2p = &queue[i*2];
-        let q_2p1 = &queue[i*2+1]; 
-        run_double_file_op(&q_2p, &q_2p1, matches.clone());
+    if !target_is_single_file { // User requested a 2D op
+        for i in 0..queue.len()/2 {
+            let q_2p = &queue[i*2];
+            let q_2p1 = &queue[i*2+1]; 
+            let output = outputs.get(i);
+            run_double_file_op(&q_2p, &q_2p1, matches.clone(), output.copied());
+        }
     }
 
-    let pretty = matches.is_present("pretty");
+    /*let pretty = matches.is_present("pretty");
 
     // `ddiff` special ops,
     // is processed at very last, because it will eventuelly drop
@@ -452,7 +674,7 @@ pub fn main () -> Result<(), std::io::Error> {
         } else {
             panic!("--ddiff requires NAV ephemeris to be provided!");
         }
-    }
+    }*/
     
     Ok(())
 }// main
