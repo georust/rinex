@@ -249,14 +249,13 @@ fn run_single_file_op (
                     .unwrap();
                 
                 // x axis
-                let timestamps: Vec<i64> = record.iter()
+                let e0 = rnx.first_epoch().unwrap();
+                let timestamps: Vec<_> = record.iter()
                     .map(|(epoch, _)| {
-                        epoch.date
-                            .timestamp()
+                        (epoch.date.timestamp() - e0.date.timestamp()) as f64
                     })
                     .collect();
-                let x_axis =
-                    (timestamps[0] as f64)..(timestamps[timestamps.len()-1] as f64);
+                let x_axis = (timestamps[0]..timestamps[timestamps.len()-1]);
 
                 // determine (min, max) #PRN 
                 //  this is used to adapt colors nicely 
@@ -303,140 +302,76 @@ fn run_single_file_op (
                 // Create a chart
                 let mut chart = ChartBuilder::on(&root)
                     .caption("Pseudo Range", ("sans-serif", 50).into_font())
-                    .margin(5)
-                    .build_cartesian_2d(x_axis.clone(), y_axis)
+                    .margin(40)
+                    .x_label_area_size(30)
+                    .y_label_area_size(40)
+                    .build_cartesian_2d(
+                        x_axis,
+                        y_axis)
                     .unwrap();
-                // Improve looks
-                /*chart.with_projection(|mut pb| {
-                    pb.yaw = 0.5;
-                    pb.scale = 0.9;
-                    pb.into_matrix()
-                });*/
                 // Draw axes
                 chart
                     .configure_mesh()
-                    .x_labels(20)
                     .x_desc("Timestamp")
-                    .y_labels(20)
+                    .x_labels(30)
+                    //.y_label_formatter(&|y| format!("{:02}:{:02}", y.num_minutes(), y.num_seconds() % 60))
                     .y_desc("PR")
-                    //.disable_mesh()
-                    //.x_label_formatter(&|v| format!("
+                    .y_labels(30)
                     .draw()
                     .unwrap();
-                //charts.insert("PR".to_string(), chart);
 
                 // symbol per carrier
                 let symbols = vec!["x","t","o","p"];
-
-                /*
-                for (constell, obscodes) in observables.iter() {
-                    for code in obscodes.iter() {
-                        if code == "L1" { 
-                            if charts.get("PR").is_none() {
-                                // build y axis
-                                let (min, max) = y_min_max.get("PR")
-                                    .unwrap();
-                                let y_axis = (min-1000.0..max+1000.0);
-                                // Create a chart
-                                let mut chart = ChartBuilder::on(&root)
-                                    .caption("Pseudo Range", ("sans-serif", 50).into_font())
-                                    .margin(5)
-                                    .build_cartesian_2d(x_axis.clone(), y_axis)
-                                    .unwrap();
-                                // Improve looks
-                                /*chart.with_projection(|mut pb| {
-                                    pb.yaw = 0.5;
-                                    pb.scale = 0.9;
-                                    pb.into_matrix()
-                                });*/
-                                // Draw axes
-                                chart
-                                    .configure_mesh()
-                                    .x_labels(20)
-                                    .x_desc("Timestamp")
-                                    .y_labels(20)
-                                    .y_desc("PR")
-                                    //.disable_mesh()
-                                    //.x_label_formatter(&|v| format!("
-                                    .draw()
-                                    .unwrap();
-                                charts.insert("PR".to_string(), chart);
-                            }
-                        } 
-                    }
-                }*/
-
+                
                 // Draw data series
-                /*
-                pr_chart
-                    .draw_series(
-                        LineSeries::new(
-                            (timestamps[0]..timestamps[timestamps.len()-1])
-                                .map(|t| (t as f64, t as f64, t as f64)),
-                        &BLACK,
-                    ))
-                    .unwrap();
-                // Draw data series
-                pr_chart
-                    .draw_series(LineSeries::new(
-                        pr.iter()
-                            .map(|(epoch, vehicules)| {
-                                vehicules.iter()
-                                    .map(|(sv, observables)| {
-                                        observables.iter()
-                                            .filter_map(|(code, data)| {
-                                                if code == "L1" {
-                                                    Some((
-                                                        epoch.date.timestamp() as f64, //y
-                                                        sv.prn as f64, //x
-                                                        *data)) //z
-                                                } else {
-                                                    None
-                                                }
-                                            })
-                                    })
-                                    .flatten()
-                            })
-                            .flatten(),
-                        &BLACK,
-                    ))
-                    .unwrap();
-                */
-
-                // Plot 
                 for (sv_index, sv) in space_vehicules.iter().enumerate() {
                     // one serie per vehicule
-                    for (c_index, obscodes) in observables.iter().enumerate() {
-                        if let Some(obscodes) = obscodes.get(sv.constell) {
-                            // one char per obs kind
-                            for obscode in obscodes.iter() {
-                                if obscode == "L1" {
+                    for (c_index, (constell, observables)) in observables.iter().enumerate() {
+                        if constell == &sv.constellation {
+                            for observable in observables.iter() {
+                                // one chart per obs kind
+                                if observable == "L1" {
                                     //<o
                                     //  symbol emphasizes Carrier Signal 
                                     //  color emphsiazes PRN# 
                                     //    color can also be slightly adjusted regarding the presence
                                     //    and value of SSI 
-                                    let color = Palette99::pick(sv_index * obscodes.len())
-                                        .mix(0.9); //opacity
+                                    //let color = Palette99::pick(sv_index * obscodes.len())
+                                    //    .mix(0.9); //opacity
                                     chart.draw_series(LineSeries::new(
                                         record.iter()
                                             .map(|(epoch, (_, vehicules))| {
-                                                let observables = vehicules.get(sv)
-                                                    .unwrap();
-                                                let data = observables.get(obscode)
-                                                    .unwrap();
-                                                (epoch.date.timestamp() as f64,
-                                                data.obs)
-                                            }),
-                                        &color,
+                                                vehicules.iter()
+                                                    .filter_map(|(vehicule, observables)| {
+                                                        if vehicule.constellation == sv.constellation {
+                                                            Some(observables.iter()
+                                                                .filter_map(|(observable, observation)| {
+                                                                    if observable == "L1" {
+                                                                        Some((
+                                                                            (epoch.date.timestamp() - e0.date.timestamp()) as f64, //x
+                                                                             observation.obs))
+                                                                    } else {
+                                                                        None
+                                                                    }
+                                                                }))
+                                                        } else {
+                                                            None
+                                                        }
+                                                    })
+                                                    .flatten()
+                                            })
+                                            .flatten(),
+                                        //&color,
+                                        &BLACK,
                                     ))
                                     .unwrap()
-                                    .label(obscode);
+                                    .label("L1");
                                 }
                             }//L1
                         } // got some obs for desired constellation
                     } // observables iteration
                 } // Sv iteration
+                
                 // Draw Labels & Legend
                 //for (_, chart) in charts.iter_mut() {
                     chart
