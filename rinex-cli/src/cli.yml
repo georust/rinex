@@ -18,7 +18,7 @@ args:
         takes_value: true
         help: |
             Comma separated list of file to generate. 
-			This is only used when generating new RINEX data.
+            This is only used when generating new RINEX data.
             Example: --output brdcxx01.21g
             Use a list when generate several files in a row:
             Example: --output brdcxx01.21g,brdcxx02.21g
@@ -32,11 +32,11 @@ args:
         takes_value: true
         help: |
             Custom Header section attributes.
-			This is only used when generating new RINEX data.
+            This is only used when generating new RINEX data.
             Use this to customize attributes to be produced.
             This command expects a valid Header description in JSON,
             either directly or from a file.
-            Example: --header-json \"{agency: \"MyAgency\", ...}\"
+            Example: --header-json "{agency: \"MyAgency\", ...}"
             Example: --header-json header.json
 
     - decim-ratio:
@@ -236,5 +236,4 @@ args:
             over the course of this file. X axis will span all epochs contained in this file (can be longer than 24h).
     - teqc-report:
         long: teqc-report
-        help: |
-            Generates a `teqc` like report where you can find similar information.
+        help: Generates a `teqc` like report where you can find similar information.
