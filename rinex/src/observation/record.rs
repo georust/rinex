@@ -518,23 +518,20 @@ fn parse_v2 (systems: &str, observables: &HashMap<Constellation, Vec<String>>, l
 fn parse_v3 (observables: &HashMap<Constellation, Vec<String>>, lines: std::str::Lines<'_>) -> BTreeMap<Sv, HashMap<String, ObservationData>> {
 	let svnn_size = 3; // SVNN standard
 	let observable_width = 15; // data + 2 flags
-    let mut obs_ptr = 0;
 	let mut data: BTreeMap<Sv, HashMap<String, ObservationData>> = BTreeMap::new();
 	let mut inner: HashMap<String, ObservationData> = HashMap::with_capacity(5);
 	for line in lines { // browse all lines
-        let (sv, rem) = line.split_at(4);
+        let (sv, rem) = line.split_at(svnn_size +1);
         if let Ok(sv) = Sv::from_str(sv) {
             if let Some(obscodes) = observables.get(&sv.constellation) {
                 let nb_obs = num_integer::div_ceil(rem.len(), observable_width) ;
-                obs_ptr = 0;
                 inner.clear();
                 //DEBUG
                 //println!("LINE: \"{}\"", line);
                 //println!("SV: \"{}\"", sv);
                 //println!("NB OBS: {}", nb_obs);
                 for i in 0..nb_obs {
-                    obs_ptr += 1 ;
-                    if obs_ptr <= obscodes.len() {
+                    if i <= obscodes.len() {
                         let offset = i * observable_width;
                         if rem.len() > offset+observable_width-2 { // can parse an Obs
                             let observation_str = &rem[offset..offset+observable_width-2];
@@ -570,7 +567,7 @@ fn parse_v3 (observables: &HashMap<Constellation, Vec<String>>, lines: std::str:
                                 //DEBUG
                                 //println!("OBS {} LLI {:?} SSI {:?}", obs, lli, ssi);
                                 inner.insert(
-                                    obscodes[obs_ptr-1].clone(), // key
+                                    obscodes[i].clone(), // key
                                     ObservationData { // payload
                                         obs,
                                         lli,
@@ -659,7 +656,6 @@ fn write_epoch_v2(
         header: &Header,
         writer: &mut BufferedWriter,
     ) -> std::io::Result<()> {
-    let mut lines = String::new();
     let obscodes = &header.obs
         .as_ref()
         .unwrap()
@@ -693,10 +689,16 @@ fn write_epoch_v2(
                    	write!(writer, " {:10.3}", observation.obs)?;
 					if let Some(flag) = observation.lli {
 						// --> lli provided
-					} else {
-						// --> lli omitted
+                        write!(writer, "{}", flag.bits())?;
+					} else { // LLI omitted
+                        write!(writer, " ")?;
 					}
-
+                    if let Some(ssi) = observation.ssi {
+                        // --> ssi provided
+                        write!(writer, "{}", ssi)?;
+                    } else { // SSI omitted
+                        write!(writer, " ")?;
+                    }
 				} else {
 					// --> data is not provided: BLANK
                     write!(writer, "               ")?;

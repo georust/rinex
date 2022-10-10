@@ -1,4 +1,5 @@
 //! `NavigationData` parser and related methods
+use std::io::Write;
 use thiserror::Error;
 use std::str::FromStr;
 use strum_macros::EnumString;
@@ -22,7 +23,11 @@ use super::{
     stomessage, StoMessage, 
 	ionmessage, IonMessage, 
 	BdModel, KbModel, NgModel,
-	orbits::OrbitItemError,
+	orbits::{
+        NAV_ORBITS,
+        closest_revision,
+        OrbitItemError,
+    },
 };
 
 /// Possible Navigation Frame declinations for an epoch
@@ -238,7 +243,7 @@ pub enum Error {
     #[error("file operation error")]
     FileIoError(#[from] std::io::Error),
     #[error("failed to locate revision in db")]
-    DataBaseRevisionError,
+    OrbitRevision,
     #[error("failed to parse msg type")]
     SvError(#[from] sv::Error),
     #[error("failed to parse orbit field")]
@@ -354,25 +359,24 @@ pub fn write_epoch (
         header: &Header,
         writer: &mut BufferedWriter,
     ) -> Result<(), Error> {
-    /*if header.version.major < 4 {
-        write_epoch_v2_v3(epoch, data, header, writer)
+    if header.version.major < 4 {
+        write_epoch_v2v3(epoch, data, header, writer)?;
     } else {
-        write_epoch_v4(epoch, data, header, writer)
-    }*/
+        write_epoch_v4(epoch, data, header, writer)?;
+    }
 	Ok(())
 }
 
-/*
-fn write_epoch_v2_v3 (
+fn write_epoch_v2v3 (
         epoch: &Epoch, 
         data: &BTreeMap<FrameClass, Vec<Frame>>,
-        header: &header::Header,
+        header: &Header,
         writer: &mut BufferedWriter,
     ) -> Result<(), Error> {
     for (class, frames) in data.iter() {
         if *class == FrameClass::Ephemeris {
             for frame in frames.iter() {
-                let (_, sv, clk_off, clk_dr, clk_drr, data) = frame.as_eph()
+                let (_, sv, ephemeris) = frame.as_eph()
                     .unwrap();
                 match &header.constellation {
                     Some(Constellation::Mixed) => {
@@ -394,25 +398,25 @@ fn write_epoch_v2_v3 (
                 }
                 write!(writer,
                     "{:14.13E} {:14.13E} {:14.13E}\n     ",
-                    clk_off,
-                    clk_dr,
-                    clk_drr)?;
+                    ephemeris.clock_bias,
+                    ephemeris.clock_drift,
+                    ephemeris.clock_drift_rate)?;
                 // locate closest revision in db
-                let db_revision = match orbits::closest_revision(sv.constellation, header.version) {
+                let orbits_revision = match closest_revision(sv.constellation, header.version) {
                     Some(v) => v,
-                    _ => return Err(Error::DataBaseRevisionError),
+                    _ => return Err(Error::OrbitRevision),
                 };
                 // retrieve db items / fields to generate,
                 // for this revision
-                let items: Vec<_> = NAV_MESSAGES
+                let orbits_standards: Vec<_> = NAV_ORBITS
                     .iter()
                     .filter(|r| r.constellation == sv.constellation.to_3_letter_code())
                     .map(|r| {
                         r.revisions
                             .iter()
                             .filter(|r| // identified db revision
-                                u8::from_str_radix(r.major, 10).unwrap() == db_revision.major
-                                && u8::from_str_radix(r.minor, 10).unwrap() == db_revision.minor
+                                u8::from_str_radix(r.major, 10).unwrap() == orbits_revision.major
+                                && u8::from_str_radix(r.minor, 10).unwrap() == orbits_revision.minor
                             )
                             .map(|r| &r.items)
                             .flatten()
@@ -420,23 +424,22 @@ fn write_epoch_v2_v3 (
                     .flatten()
                     .collect();
                 let nb_items_per_line = 4;
-                let mut chunks = items
+                let mut chunks = orbits_standards 
                     .chunks_exact(nb_items_per_line)
                     .peekable();
                 while let Some(chunk) = chunks.next() {
                     if chunks.peek().is_some() {
                         for (key, _) in chunk {
-                            if let Some(data) = data.get(*key) {
+                            if let Some(data) = ephemeris.orbits.get(*key) {
                                 write!(writer, "{} ", data.to_string())?
                             } else {
                                 write!(writer, "              ")?;
                             }
                         }
                         write!(writer, "\n     ")?;
-                    } else {
-                        // last row
+                    } else { // last row
                         for (key, _) in chunk {
-                            if let Some(data) = data.get(*key) {
+                            if let Some(data) = ephemeris.orbits.get(*key) {
                                 write!(writer, "{} ", data.to_string())?
                             } else {
                                 write!(writer, "              ")?;
@@ -454,7 +457,7 @@ fn write_epoch_v2_v3 (
 fn write_epoch_v4 (
         epoch: &Epoch, 
         data: &BTreeMap<FrameClass, Vec<Frame>>,
-        header: &header::Header,
+        header: &Header,
         writer: &mut BufferedWriter,
     ) -> Result<(), Error> {
     for (class, frames) in data.iter() {
@@ -479,25 +482,25 @@ fn write_epoch_v4 (
                 write!(writer, 
                     "{} {:14.13E} {:14.13E} {:14.13E}\n", 
                     epoch.to_string_nav_v3(),
-                    clk_off, 
-                    clk_dr, 
-                    clk_drr)?;
+                    ephemeris.clock_bias, 
+                    ephemeris.clock_drift, 
+                    ephemeris.clock_drift_rate)?;
                 // locate closest revision in db
-                let db_revision = match orbits::closest_revision(sv.constellation, header.version) {
+                let orbits_revision = match closest_revision(sv.constellation, header.version) {
                     Some(v) => v,
-                    _ => return Err(Error::DataBaseRevisionError),
+                    _ => return Err(Error::OrbitRevision),
                 };
                 // retrieve db items / fields to generate,
                 // for this revision
-                let items: Vec<_> = NAV_MESSAGES
+                let orbits_standards: Vec<_> = NAV_ORBITS
                     .iter()
                     .filter(|r| r.constellation == sv.constellation.to_3_letter_code())
                     .map(|r| {
                         r.revisions
                             .iter()
                             .filter(|r| // identified db revision
-                                u8::from_str_radix(r.major, 10).unwrap() == db_revision.major
-                                && u8::from_str_radix(r.minor, 10).unwrap() == db_revision.minor
+                                u8::from_str_radix(r.major, 10).unwrap() == orbits_revision.major
+                                && u8::from_str_radix(r.minor, 10).unwrap() == orbits_revision.minor
                             )
                             .map(|r| &r.items)
                             .flatten()
@@ -505,10 +508,10 @@ fn write_epoch_v4 (
                     .flatten()
                     .collect();
                 let mut index = 0;
-                for (key, _) in items.iter() {
+                for (key, _) in orbits_standards.iter() {
                     index += 1;
-                    if let Some(data) = data.get(*key) {
-                        //write!(writer, " {}", &data.to_string())?;
+                    if let Some(data) = ephemeris.orbits.get(*key) {
+                        write!(writer, " {}", &data.to_string())?;
                     } else { // data is missing: either not parsed or not provided
                         write!(writer, "              ")?;
                     }
@@ -545,15 +548,23 @@ fn write_epoch_v4 (
             for frame in frames.iter() {
                 let (msg, sv, ion) = frame.as_ion()
                     .unwrap();
-                write!(writer, "> {} {}", class, sv, msg)?;
+                write!(writer, "> {} {} {}\n", class, sv, msg)?;
                 match ion {
+                    IonMessage::KlobucharModel(_model) => {
+
+                    },
+                    IonMessage::NequickGModel(_model) => {
+
+                    },
+                    IonMessage::BdgimModel(_model) => {
+
+                    },
                 }
             }
         } // ION
     }
     Ok(())
 }
-*/
 
 #[cfg(test)]
 mod test {
