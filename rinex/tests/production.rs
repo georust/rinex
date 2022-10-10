@@ -48,7 +48,6 @@ mod test {
         for file in std::fs::read_dir(folder).unwrap() {
             let fp = file.unwrap();
             let fp = fp.path();
-            let fp = fp.to_str().unwrap();
             testbench(fp.to_str().unwrap());
         }
     }
