@@ -16,7 +16,7 @@ pub enum BufferedReader {
 
 impl BufferedReader {
     /// Builds a new BufferedReader for efficient file interation,
-    /// with possible .gz and .gz + hatanaka decompression
+    /// with possible .gz decompression
     pub fn new (path: &str) -> std::io::Result<Self> {
         let f = File::open(path)?;
         if path.ends_with(".gz") {

@@ -59,7 +59,7 @@ impl NumDiff {
     /// Decompresses given data 
     pub fn decompress (&mut self, data: i64) -> i64 {
         self.m += 1;
-        self.m = std::cmp::min(self.m, self.order); // restraint
+        self.m = std::cmp::min(self.m, self.order); // restrain
         let x = &self.history ;
         let result: i64 = match self.m {
             1 => data + x[0],
@@ -77,7 +77,7 @@ impl NumDiff {
     /// Compresses given data 
     pub fn compress (&mut self, data: i64) -> i64 {
         self.m += 1;
-        self.m = std::cmp::min(self.m, self.order); // restraint 
+        self.m = std::cmp::min(self.m, self.order); // restrain
         self.rotate_history(data);
         let x = &self.history ;
         match self.m {

@@ -23,6 +23,7 @@ use serde::Serialize;
 
 /// `Record`
 #[derive(Clone, Debug)]
+#[derive(PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum Record {
     /// ATX record, see [antex::record::Record] 
@@ -136,23 +137,30 @@ impl Record {
                 let record = self.as_meteo()
                     .unwrap();
                 for (epoch, data) in record.iter() {
-                    meteo::write_epoch(epoch, data, header, writer)?
+                    meteo::write_epoch(epoch, data, header, writer)?;
                 }
             },
             Type::ObservationData => {
                 let record = self.as_obs()
                     .unwrap();
                 for (epoch, (clock_offset, data)) in record.iter() {
-                    observation::write_epoch(epoch, clock_offset, data, header, writer)?
+                    observation::write_epoch(epoch, clock_offset, data, header, writer)?;
                 }
             },
             Type::NavigationData => {
                 let record = self.as_nav()
                     .unwrap();
                 for (epoch, classes) in record.iter() {
-                    navigation::write_epoch(epoch, classes, header, writer)?
+                    navigation::write_epoch(epoch, classes, header, writer)?;
                 }
             },
+			Type::ClockData => {
+				let record = self.as_clock()
+					.unwrap();
+				for (epoch, data) in record.iter() {
+					clocks::write_epoch(epoch, data, writer)?;
+				}
+			},
             _ => panic!("record type not supported yet"),
         }
         Ok(())
@@ -171,8 +179,10 @@ pub enum Error {
     TypeError(String),
     #[error("file i/o error")]
     FileIoError(#[from] std::io::Error),
-    #[error("failed to produce NAV epoch")]
+    #[error("failed to produce Navigation epoch")]
     NavEpochError(#[from] navigation::Error),
+    #[error("failed to produce Clock epoch")]
+    ClockEpochError(#[from] clocks::Error),
 }
 
 /// Returns true if given line matches the start   
@@ -244,7 +254,14 @@ pub fn parse_record (reader: &mut BufferedReader, header: &header::Header) -> Re
         //  [2] CRINEX : decompress
         //           --> decompressed content will probably wind up as more than one line
         content = match crinex {
-            false => Some(line.to_string()), 
+            false => {
+				if line.len() == 0 {
+					Some(String::from("\n")) // helps all following .lines() iteration,
+						// contained in xx_parse_epoch()
+				} else {
+					Some(line.to_string())
+				}
+			},
             true => {
                 // decompressor::decompress()
                 // splits content on \n as it can work on several lines at once,

@@ -43,7 +43,8 @@ pub fn ascii_plot (x_width: u32, obs_rinex: &Rinex, nav_rinex: Option<Rinex>) ->
     let mut result = String::new();
     let mut elev_angles : BTreeMap<Epoch, BTreeMap<Sv, f64>> = BTreeMap::new();
     if let Some(rnx) = nav_rinex {
-        elev_angles = rnx.elevation_angles();
+        elev_angles = rnx
+            .orbits_elevation_angles();
     }
     
     // epochs list

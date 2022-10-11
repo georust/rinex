@@ -45,6 +45,7 @@ impl std::str::FromStr for Rcvr {
 
 /// Antenna description 
 #[derive(Debug, Clone)]
+#[derive(PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Antenna {
     /// Hardware model / make descriptor

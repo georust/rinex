@@ -6,19 +6,17 @@ use clap::App;
 use clap::AppSettings;
 use clap::load_yaml;
 use std::str::FromStr;
-//use gnuplot::{Figure}; // Caption};
-//use itertools::Itertools;
-//use gnuplot::{Color, PointSymbol, LineStyle, DashType};
-//use gnuplot::{PointSize, LineWidth}; // AxesCommon};
+use plotters::{
+    prelude::*,
+    //coord::Shift,
+    //coord::types::RangedCoordf64,
+};
+use std::collections::HashMap;
+use itertools::Itertools;
 
-//use thiserror::Error;
-use rinex::Rinex;
-use rinex::sv::Sv;
-use rinex::observation;
-//use rinex::types::Type;
-use rinex::epoch;
-use rinex::header::Header;
-use rinex::constellation::{Constellation};
+use rinex::{*, 
+    observation::Ssi, observation::LliFlags,
+};
 
 mod parser; // user input parser
 mod ascii_plot; // `teqc` tiny plot
@@ -41,10 +39,9 @@ fn resample_single_file (rnx: &mut Rinex, matches: clap::ArgMatches) {
 
 /// Apply desired filters
 fn apply_filters (rinex: &mut Rinex, matches: clap::ArgMatches) {
-    let epoch_ok_filter = matches.is_present("epoch-ok-filter");
-    let epoch_nok_filter = matches.is_present("epoch-nok-filter");
-    
-    let constell_filter : Option<Vec<Constellation>> = match matches.value_of("constellation-filter") {
+    let retain_epoch_ok = matches.is_present("retain-epoch-ok");
+    let retain_epoch_nok = matches.is_present("retain-epoch-nok");
+    let retain_constell : Option<Vec<Constellation>> = match matches.value_of("retain-constell") {
         Some(s) => {
             let constellations: Vec<&str> = s.split(",").collect();
             let mut c_filters : Vec<Constellation> = Vec::new();
@@ -60,7 +57,7 @@ fn apply_filters (rinex: &mut Rinex, matches: clap::ArgMatches) {
         _ => None,
     };
     
-    let sv_filter : Option<Vec<Sv>> = match matches.value_of("sv-filter") {
+    let retain_sv : Option<Vec<Sv>> = match matches.value_of("retain-sv") {
         Some(s) => {
             let sv: Vec<&str> = s.split(",").collect();
             let mut sv_filters : Vec<Sv> = Vec::new();
@@ -76,172 +73,633 @@ fn apply_filters (rinex: &mut Rinex, matches: clap::ArgMatches) {
         _ => None,
     };
 
-    let observ_filter : Option<Vec<&str>> = match matches.value_of("observ-filter") {
+    let retain_obs : Option<Vec<&str>> = match matches.value_of("retain-obs") {
         Some(s) => Some(s.split(",").collect()),
         _ => None,
     };
-    let lli_mask : Option<u8> = match matches.value_of("lli-mask") {
+    let retain_orb : Option<Vec<&str>> = match matches.value_of("retain-orb") {
+        Some(s) => Some(s.split(",").collect()),
+        _ => None,
+    };
+    let lli_and_mask : Option<u8> = match matches.value_of("lli-andmask") {
         Some(s) => Some(u8::from_str_radix(s,10).unwrap()),
         _ => None,
     };
-    let ssi_filter : Option<observation::record::Ssi> = match matches.value_of("ssi-filter") {
-        Some(s) => Some(observation::record::Ssi::from_str(s).unwrap()),
+    let ssi_filter : Option<Ssi> = match matches.value_of("ssi-filter") {
+        Some(s) => Some(Ssi::from_str(s).unwrap()),
         _ => None,
     };
+
+    let retain_nav_msg: Option<Vec<navigation::MsgType>> = match matches.value_of("retain-nav-msg") {
+        Some(s) => {
+            let mut filter: Vec<navigation::MsgType> = Vec::new();
+            let descriptor: Vec<&str> = s.split(",").collect();
+            for item in descriptor {
+                if let Ok(msg) = navigation::MsgType::from_str(item) {
+                    filter.push(msg)       
+                }
+            }
+            if filter.len() == 0 {
+                None
+            } else {
+                Some(filter.clone())
+            }
+        },
+        _ => None,
+    };
+
+    let retain_legacy_nav = matches.is_present("retain-lnav");
+    let retain_modern_nav = matches.is_present("retain-mnav");
     
-    if epoch_ok_filter {
-        rinex
-            .epoch_ok_filter_mut()
+    if retain_epoch_ok {
+        rinex.retain_epoch_ok_mut()
     }
-    if epoch_nok_filter {
-        rinex
-            .epoch_nok_filter_mut()
+    if retain_epoch_nok {
+        rinex.retain_epoch_nok_mut()
     }
-    if let Some(ref filter) = constell_filter {
-        rinex
-            .constellation_filter_mut(filter.to_vec())
+    if let Some(ref filter) = retain_constell {
+        rinex.retain_constellation_mut(filter.to_vec())
     }
-    if let Some(ref filter) = sv_filter {
-        rinex
-            .space_vehicule_filter_mut(filter.to_vec())
+    if let Some(ref filter) = retain_sv {
+        rinex.retain_space_vehicule_mut(filter.to_vec())
     }
-    if let Some(ref filter) = observ_filter {
-        rinex
-            .observable_filter_mut(filter.to_vec())
+    if let Some(ref filter) = retain_obs {
+        rinex.retain_observable_mut(filter.to_vec())
     }
-    if let Some(lli) = lli_mask {
-        let mask = observation::record::LliFlags::from_bits(lli)
+    if let Some(ref filter) = retain_nav_msg {
+        rinex.retain_navigation_message_mut(filter.to_vec())
+    }
+    if retain_legacy_nav {
+        rinex.retain_legacy_navigation_mut();
+    }
+    if retain_modern_nav {
+        rinex.retain_modern_navigation_mut();
+    }
+    if let Some(ref filter) = retain_orb {
+        rinex.retain_ephemeris_orbits_mut(filter.to_vec())
+    }
+    if let Some(lli) = lli_and_mask {
+        let mask = LliFlags::from_bits(lli)
             .unwrap();
-        rinex
-            .lli_filter_mut(mask)
+        rinex.observation_lli_and_mask_mut(mask)
     }
     if let Some(ssi) = ssi_filter {
-        rinex
-            .minimum_sig_strength_filter_mut(ssi)
+        rinex.minimum_sig_strength_filter_mut(ssi)
     }
 }
 
 /// Execute user requests on a single file
-fn run_single_file_op (rnx: &Rinex, matches: clap::ArgMatches, print_allowed: bool) {
+fn run_single_file_op (
+    rnx: &Rinex, 
+    matches: clap::ArgMatches, 
+    _output: Option<&str>)
+{
+    let plot = matches.is_present("plot");
     let pretty = matches.is_present("pretty");
     let header = matches.is_present("header");
-    let observables = matches.is_present("observ");
-    let epoch = matches.is_present("epoch");
+    let epochs = matches.is_present("epochs");
+    let obs = matches.is_present("obs");
     let sv = matches.is_present("sv");
+    let sv_per_epoch = matches.is_present("sv-epoch");
     let ssi_range = matches.is_present("ssi-range");
+    let ssi_sv_range = matches.is_present("ssi-sv-range");
     let constellations = matches.is_present("constellations");
-    let sv_per_epoch = matches.is_present("sv-per-epoch");
     let clock_offsets = matches.is_present("clock-offsets");
+    let clock_biases = matches.is_present("clock-biases");
     let gaps = matches.is_present("gaps");
     let largest_gap = matches.is_present("largest-gap");
     let _sampling_interval = matches.is_present("sampling-interval");
     let cycle_slips = matches.is_present("cycle-slips");
 
     let mut at_least_one_op = false;
-
+    
+    /*TODO
+    can't get this to work due to a scope pb..
+    let mut areas: HashMap<String, //BitMapBackend> 
+        DrawingArea<BitMapBackend, Shift>> 
+            = HashMap::new();
+    
+    let mut charts: HashMap<String, 
+        ChartContext<BitMapBackend, 
+            Cartesian2d<RangedCoordf64, RangedCoordf64>>>
+                = HashMap::new();
+    */
     if header {
         at_least_one_op = true;
-        if print_allowed {
-            if pretty {
-                println!("{}", serde_json::to_string_pretty(&rnx.header).unwrap())
-            } else {
-                println!("{}", serde_json::to_string_pretty(&rnx.header).unwrap())
-            }
+        if pretty {
+            println!("{}", serde_json::to_string_pretty(&rnx.header).unwrap())
+        } else {
+            println!("{}", serde_json::to_string_pretty(&rnx.header).unwrap())
         }
     }
-    if epoch {
+    if epochs {
         at_least_one_op = true;
-        if print_allowed {
-            if pretty {
-                println!("{}", serde_json::to_string_pretty(&rnx.epochs()).unwrap())
-            } else {
-                println!("{}", serde_json::to_string(&rnx.epochs()).unwrap())
-            }
+        if pretty {
+            println!("{}", serde_json::to_string_pretty(&rnx.epochs()).unwrap())
+        } else {
+            println!("{}", serde_json::to_string(&rnx.epochs()).unwrap())
         }
     }
-    if observables {
+    if obs {
         at_least_one_op = true;
-        if print_allowed {
-            if pretty {
-                println!("{}", serde_json::to_string_pretty(&rnx.observables()).unwrap())
-            } else {
-                println!("{}", serde_json::to_string(&rnx.observables()).unwrap())
-            }
+        if pretty {
+            println!("{}", serde_json::to_string_pretty(&rnx.observables()).unwrap())
+        } else {
+            println!("{}", serde_json::to_string(&rnx.observables()).unwrap())
         }
     }
     if constellations {
         at_least_one_op = true;
-        if print_allowed {
-            if pretty {
-                println!("{}", serde_json::to_string_pretty(&rnx.constellations()).unwrap())
-            } else {
-                println!("{}", serde_json::to_string(&rnx.constellations()).unwrap())
-            }
+        if pretty {
+            println!("{}", serde_json::to_string_pretty(&rnx.list_constellations()).unwrap())
+        } else {
+            println!("{}", serde_json::to_string(&rnx.list_constellations()).unwrap())
         }
     }
     if sv {
         at_least_one_op = true;
-        if print_allowed {
-            if pretty {
-                println!("{}", serde_json::to_string_pretty(&rnx.space_vehicules()).unwrap())
-            } else {
-                println!("{}", serde_json::to_string(&rnx.space_vehicules()).unwrap())
-            }
-        }
-    }
-    if ssi_range {
-        at_least_one_op = true;
-        if print_allowed {
-            if pretty {
-                println!("{}", serde_json::to_string_pretty(&rnx.sig_strength_range()).unwrap())
-            } else {
-                println!("{}", serde_json::to_string(&rnx.sig_strength_range()).unwrap())
-            }
-        }
-    }
-    if clock_offsets {
-        at_least_one_op = true;
-        if print_allowed {
-            if pretty {
-                println!("{}", serde_json::to_string_pretty(&rnx.receiver_clock_offsets()).unwrap())
-            } else {
-                println!("{}", serde_json::to_string(&rnx.receiver_clock_offsets()).unwrap())
-            }
+        if pretty {
+            println!("{}", serde_json::to_string_pretty(&rnx.space_vehicules()).unwrap())
+        } else {
+            println!("{}", serde_json::to_string(&rnx.space_vehicules()).unwrap())
         }
     }
     if sv_per_epoch {
         at_least_one_op = true;
-        if print_allowed {
-            if pretty {
-            //    println!("{}", serde_json::to_string_pretty(&rnx.space_vehicules_per_epoch()).unwrap())
-            } else {
-            //    println!("{}", serde_json::to_string(&rnx.space_vehicules_per_epoch()).unwrap())
-            }
+        if pretty {
+            println!("{}", serde_json::to_string_pretty(&rnx.space_vehicules_per_epoch()).unwrap())
+        } else {
+            println!("{}", serde_json::to_string(&rnx.space_vehicules_per_epoch()).unwrap())
+        }
+    }
+    if ssi_range {
+        at_least_one_op = true;
+        // terminal ouput
+        if pretty {
+            println!("{}", serde_json::to_string_pretty(&rnx.sig_strength_min_max()).unwrap())
+        } else {
+            println!("{}", serde_json::to_string(&rnx.sig_strength_min_max()).unwrap())
+        }
+    }
+    if ssi_sv_range {
+        at_least_one_op = true;
+        // terminal ouput
+        if pretty {
+            println!("{}", serde_json::to_string_pretty(&rnx.sig_strength_sv_min_max()).unwrap())
+        } else {
+            println!("{}", serde_json::to_string(&rnx.sig_strength_sv_min_max()).unwrap())
+        }
+    }
+    if clock_offsets {
+        at_least_one_op = true;
+        if pretty {
+            println!("{}", serde_json::to_string_pretty(&rnx.receiver_clock_offsets()).unwrap())
+        } else {
+            println!("{}", serde_json::to_string(&rnx.receiver_clock_offsets()).unwrap())
+        }
+    }
+    if clock_biases {
+        at_least_one_op = true;
+        if pretty {
+            println!("{}", serde_json::to_string_pretty(&rnx.space_vehicules_clock_biases()).unwrap())
+        } else {
+            println!("{}", serde_json::to_string(&rnx.space_vehicules_clock_biases()).unwrap())
         }
     }
     if gaps {
         at_least_one_op = true;
-        if print_allowed {
-            println!("{:#?}", rnx.data_gaps());
-        }
+        println!("{:#?}", rnx.data_gaps());
     }
     if largest_gap {
         at_least_one_op = true;
-        if print_allowed {
-            println!("{:#?}", rnx.largest_data_gap_duration());
-        }
+        println!("{:#?}", rnx.largest_data_gap_duration());
     }
 
     if cycle_slips {
         at_least_one_op = true;
-        if print_allowed {
-            println!("{:#?}", rnx.cycle_slips());
-        }
+        println!("{:#?}", rnx.observation_cycle_slip_epochs());
     }
 
     if !at_least_one_op {
-        // print remaining record data
-        if print_allowed {
+        // user did not request one of the high level ops
+        // ==> either print or plot record data
+        if plot { // visualization requested
+            let record = &rnx.record;
+            
+            //TODO
+            // could slightly improve here,
+            // if given record is Sv sorted; by grabing list of vehicules
+            // and pre allocating fixed size
+            let mut colors: HashMap<Sv, RGBAColor> = HashMap::new();
+
+            let default_axis = 0.0..10.0; // this is only here
+                // to manage possible missing observables
+                // versus the creation of properly scaled Y axis
+
+            //TODO
+            // from command line
+            let plot_dim = (1024, 768);
+            
+            // Visualize all known RINEX records
+            if let Some(record) = record.as_obs() {
+                // form t axis
+                // we use t.epochs.date as Unix timestamps
+                //  normalized for 1st one encountered to get a nicer rendering
+                let e0 = rnx.first_epoch().unwrap();
+                let timestamps: Vec<_> = record.iter()
+                    .map(|(epoch, _)| {
+                        (epoch.date.timestamp() - e0.date.timestamp()) as f64
+                    })
+                    .collect();
+                let t_axis = timestamps[0]..timestamps[timestamps.len()-1];
+                
+                // extra list of vehicules
+                //  this will help identify datasets 
+                let vehicules: Vec<_> = record
+                    .iter()
+                    .map(|(_, (_, vehicules))| {
+                        vehicules.iter()
+                            .map(|(sv, _)| sv)
+                    })
+                    .flatten()
+                    .unique()
+                    .collect();
+                
+                // smart color generation
+                //  for PRN# identification
+                for (index, sv) in vehicules.iter().enumerate() {
+                    colors.insert(**sv, 
+                        Palette99::pick(index) //RGB
+                        .mix(0.99)); //RGB=RGBA
+                }
+                
+                // extra list of encountered observables
+                //  this will help identify datasets 
+                let observables: Vec<_> = record
+                    .iter()
+                    .map(|(_, (_, vehicules))| {
+                        vehicules.iter()
+                            .map(|(_, observables)| {
+                                observables.iter()
+                                    .map(|(obscode, _)| obscode)
+                            })
+                            .flatten()
+                    })
+                    .flatten()
+                    .unique()
+                    .collect();
+
+                // extract observations in form (e, observable, sv, data) 
+                // for every single epoch, so we can plot easily
+                // we scale epoch as unix timestamps, normalized to the 1st one encountered
+                let data: Vec<_> = record
+                    .iter()
+                    .map(|(e, (clock_offset, vehicules))| {
+                        vehicules.iter()
+                            .map(|(sv, observables)| {
+                                observables.iter()
+                                    .map(|(observable, observation)| {
+                                        ((e.date.timestamp() - e0.date.timestamp()) as f64, observable, sv.clone(), observation.obs)
+                                    })
+                            })
+                            .flatten()
+                    })
+                    .flatten()
+                    .collect();
+
+                // determine (min, max) per Observation Kind
+                //   this is used to scale Y axis nicely
+                let mut y_min_max: HashMap<String, (f64,f64)> = HashMap::with_capacity(4); // 4 physics known
+                for (_, (_, vehicules)) in record.iter() {
+                    for (_, observables) in vehicules.iter() {
+                        for (code, data) in observables.iter() {
+                            if is_pseudo_range_obs_code!(code) {
+                                if let Some((min,max)) = y_min_max.get_mut("PR") {
+                                    if *min > data.obs {
+                                        *min = data.obs ;
+                                    }
+                                    if *max < data.obs {
+                                        *max = data.obs ;
+                                    }
+                                } else {
+                                    y_min_max.insert("PR".to_string(), (data.obs, data.obs));
+                                }
+                            } else if is_phase_carrier_obs_code!(code) {
+                                if let Some((min,max)) = y_min_max.get_mut("PH") {
+                                    if *min > data.obs {
+                                        *min = data.obs ;
+                                    }
+                                    if *max < data.obs {
+                                        *max = data.obs ;
+                                    }
+                                } else {
+                                    y_min_max.insert("PH".to_string(), (data.obs, data.obs));
+                                }
+                            } else if is_doppler_obs_code!(code) {
+                                if let Some((min,max)) = y_min_max.get_mut("DOP") {
+                                    if *min > data.obs {
+                                        *min = data.obs ;
+                                    }
+                                    if *max < data.obs {
+                                        *max = data.obs ;
+                                    }
+                                } else {
+                                    y_min_max.insert("DOP".to_string(), (data.obs, data.obs));
+                                }
+                            } else {
+                                if let Some((min,max)) = y_min_max.get_mut("SSI") {
+                                    if *min > data.obs {
+                                        *min = data.obs ;
+                                    }
+                                    if *max < data.obs {
+                                        *max = data.obs ;
+                                    }
+                                } else {
+                                    y_min_max.insert("SSI".to_string(), (data.obs, data.obs));
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Build one drawing base per physics
+                // --> this will generate a file
+                //  can't get this to be generic, due to some scope/lifetime issues...
+                let ph_area = BitMapBackend::new(
+                    "phase.png",
+                    plot_dim)
+                    .into_drawing_area();
+                ph_area.fill(&WHITE)
+                    .unwrap();
+                
+                let dop_area = BitMapBackend::new(
+                    "doppler.png",
+                    plot_dim)
+                    .into_drawing_area();
+                dop_area.fill(&WHITE)
+                    .unwrap();
+                
+                let pr_area = BitMapBackend::new(
+                    "pseudo-range.png",
+                    plot_dim)
+                    .into_drawing_area();
+                pr_area.fill(&WHITE)
+                    .unwrap();
+                
+                let ssi_area = BitMapBackend::new(
+                    "ssi.png",
+                    plot_dim)
+                    .into_drawing_area();
+                ssi_area.fill(&WHITE)
+                    .unwrap();
+                
+                // Build one chart per physics
+                //  chart is attached to the drawing base
+                //  can't get this to be generic, due to some scope/lifetime issues...
+
+                // build properly scaled Y axis
+                let mut y_axis = default_axis.clone();
+                if let Some((min,max)) = y_min_max.get("PH") {
+                    y_axis = min*0.95..max*1.05;
+                }
+                let mut ph_chart = ChartBuilder::on(&ph_area)
+                    .caption("Carrier Phase", ("sans-serif", 50).into_font())
+                    .margin(40)
+                    .x_label_area_size(30)
+                    .y_label_area_size(40)
+                    .build_cartesian_2d(
+                        t_axis.clone(),
+                        y_axis)
+                    .unwrap();
+                // Draw axes
+                ph_chart
+                    .configure_mesh()
+                    .x_desc("Timestamp")
+                    .x_labels(30)
+                    //.y_label_formatter(&|y| format!("{:02}:{:02}", y.num_minutes(), y.num_seconds() % 60))
+                    .y_desc("Phase")
+                    .y_labels(30)
+                    .draw()
+                    .unwrap();
+
+                let mut y_axis = default_axis.clone();
+                if let Some((min, max)) = y_min_max.get("PR") {
+                    y_axis = min*0.95..max*1.05;
+                }
+                let mut pr_chart = ChartBuilder::on(&pr_area)
+                    .caption("Pseudo Range", ("sans-serif", 50).into_font())
+                    .margin(40)
+                    .x_label_area_size(30)
+                    .y_label_area_size(40)
+                    .build_cartesian_2d(
+                        t_axis.clone(),
+                        y_axis)
+                    .unwrap();
+                // Draw axes
+                pr_chart
+                    .configure_mesh()
+                    .x_desc("Timestamp")
+                    .x_labels(30)
+                    //.y_label_formatter(&|y| format!("{:02}:{:02}", y.num_minutes(), y.num_seconds() % 60))
+                    .y_desc("PR")
+                    .y_labels(30)
+                    .draw()
+                    .unwrap();
+                
+                let mut y_axis = default_axis.clone(); 
+                if let Some((min,max)) = y_min_max.get("DOP") {
+                    y_axis = min*0.95..max*1.05;
+                }
+                let mut dop_chart = ChartBuilder::on(&dop_area)
+                    .caption("Doppler", ("sans-serif", 50).into_font())
+                    .margin(40)
+                    .x_label_area_size(30)
+                    .y_label_area_size(40)
+                    .build_cartesian_2d(
+                        t_axis.clone(),
+                        y_axis)
+                    .unwrap();
+                // Draw axes
+                dop_chart
+                    .configure_mesh()
+                    .x_desc("Timestamp")
+                    .x_labels(30)
+                    //.y_label_formatter(&|y| format!("{:02}:{:02}", y.num_minutes(), y.num_seconds() % 60))
+                    .y_desc("Doppler")
+                    .y_labels(30)
+                    .draw()
+                    .unwrap();
+                
+                let mut y_axis = default_axis.clone(); 
+                if let Some((min,max)) = y_min_max.get("SSI") {
+                    y_axis = min*0.95..max*1.05;
+                }
+                let mut ssi_chart = ChartBuilder::on(&ssi_area)
+                    .caption("Signal Strength", ("sans-serif", 50).into_font())
+                    .margin(40)
+                    .x_label_area_size(30)
+                    .y_label_area_size(40)
+                    .build_cartesian_2d(
+                        t_axis.clone(),
+                        y_axis)
+                    .unwrap();
+                // Draw axes
+                ssi_chart
+                    .configure_mesh()
+                    .x_desc("Timestamp")
+                    .x_labels(30)
+                    //.y_label_formatter(&|y| format!("{:02}:{:02}", y.num_minutes(), y.num_seconds() % 60))
+                    .y_desc("Power")
+                    .y_labels(30)
+                    .draw()
+                    .unwrap();
+
+                // One plot per physics
+                for observable in observables.iter() {
+                    //  <o TODO
+                    //     pick a symbol per carrier
+                    if is_phase_carrier_obs_code!(observable) {
+                        // Draw one serie per vehicule
+                        for vehicule in vehicules.iter() {
+                            // <o
+                            //    pick a color per PRN#
+                            let color = colors.get(vehicule)
+                                .unwrap();
+                            ph_chart.draw_series(LineSeries::new(
+                                data.iter()
+                                    .filter_map(|(t, obs, sv, data)| {
+                                        if obs == observable {
+                                            if sv == *vehicule {
+                                                Some((*t, *data))
+                                            } else {
+                                                None
+                                            }
+                                        } else {
+                                            None
+                                        }
+                                    }), 
+                                color.stroke_width(3),
+                            )).unwrap()
+                            .label(vehicule.to_string())
+                            .legend(|(x, y)| {
+                                let color = colors.get(vehicule).unwrap();
+                                PathElement::new(vec![(x, y), (x + 20, y)], color)
+                            });
+                        }
+                    } else if is_pseudo_range_obs_code!(observable) {
+                        // Draw one serie per vehicule
+                        for vehicule in vehicules.iter() {
+                            // <o
+                            //    pick a color per PRN#
+                            let color = colors.get(vehicule)
+                                .unwrap();
+                            pr_chart.draw_series(LineSeries::new(
+                                data.iter()
+                                    .filter_map(|(t, obs, sv, data)| {
+                                        if obs == observable {
+                                            if sv == *vehicule {
+                                                Some((*t, *data))
+                                            } else {
+                                                None
+                                            }
+                                        } else {
+                                            None
+                                        }
+                                    }), 
+                                color.stroke_width(3),
+                            )).unwrap()
+                            .label(vehicule.to_string())
+                            .legend(|(x, y)| {
+                                let color = colors.get(vehicule).unwrap();
+                                PathElement::new(vec![(x, y), (x + 20, y)], color)
+                            });
+                        }
+                    } else if is_sig_strength_obs_code!(observable) {
+                        // Draw one serie per vehicule
+                        for vehicule in vehicules.iter() {
+                            // <o
+                            //    pick a color per PRN#
+                            let color = colors.get(vehicule)
+                                .unwrap();
+                            ssi_chart.draw_series(LineSeries::new(
+                                data.iter()
+                                    .filter_map(|(t, obs, sv, data)| {
+                                        if obs == observable {
+                                            if sv == *vehicule {
+                                                Some((*t, *data))
+                                            } else {
+                                                None
+                                            }
+                                        } else {
+                                            None
+                                        }
+                                    }), 
+                                color.stroke_width(3),
+                            )).unwrap()
+                            .label(vehicule.to_string())
+                            .legend(|(x, y)| {
+                                let color = colors.get(vehicule).unwrap();
+                                PathElement::new(vec![(x, y), (x + 20, y)], color)
+                            });
+                        }
+                    } else if is_doppler_obs_code!(observable) {
+                        // Draw one serie per vehicule
+                        for vehicule in vehicules.iter() {
+                            // <o
+                            //    pick a color per PRN#
+                            let color = colors.get(vehicule)
+                                .unwrap();
+                            dop_chart.draw_series(LineSeries::new(
+                                data.iter()
+                                    .filter_map(|(t, obs, sv, data)| {
+                                        if obs == observable {
+                                            if sv == *vehicule {
+                                                Some((*t, *data))
+                                            } else {
+                                                None
+                                            }
+                                        } else {
+                                            None
+                                        }
+                                    }), 
+                                color.stroke_width(3),
+                            )).unwrap()
+                            .label(vehicule.to_string())
+                            .legend(|(x, y)| {
+                                let color = colors.get(vehicule).unwrap();
+                                PathElement::new(vec![(x, y), (x + 20, y)], color)
+                            });
+                        }
+                    }
+                }
+                // Draw labels 
+                ph_chart
+                    .configure_series_labels()
+                    .border_style(&BLACK)
+                    .background_style(WHITE.filled())
+                    .draw()
+                    .unwrap();
+                dop_chart
+                    .configure_series_labels()
+                    .border_style(&BLACK)
+                    .background_style(WHITE.filled())
+                    .draw()
+                    .unwrap();
+                pr_chart
+                    .configure_series_labels()
+                    .border_style(&BLACK)
+                    .background_style(WHITE.filled())
+                    .draw()
+                    .unwrap();
+                ssi_chart
+                    .configure_series_labels()
+                    .border_style(&BLACK)
+                    .background_style(WHITE.filled())
+                    .draw()
+                    .unwrap();
+            } // Observation Record
+        } else {
+            // terminal output
             if pretty {
                 println!("{}", serde_json::to_string_pretty(&rnx.record).unwrap())
             } else {
@@ -255,7 +713,7 @@ fn run_single_file_op (rnx: &Rinex, matches: clap::ArgMatches, print_allowed: bo
 fn run_single_file_teqc_op (rnx: &Rinex, matches: clap::ArgMatches) {
     let ascii_plot = matches.is_present("ascii-plot");
     let _split = matches.is_present("split");
-    let _split_epoch : Option<epoch::Epoch> = match matches.value_of("split") {
+    let _split_epoch : Option<Epoch> = match matches.value_of("split") {
         Some(s) => {
             if let Ok(e) = parser::parse_epoch(s) {
                 Some(e)
@@ -271,13 +729,18 @@ fn run_single_file_teqc_op (rnx: &Rinex, matches: clap::ArgMatches) {
 }
 
 /// Execute user requests on two files
-fn run_double_file_op (rnx_a: &Rinex, rnx_b: &Rinex, matches: clap::ArgMatches) {
+fn run_double_file_op (
+    rnx_a: &Rinex, 
+    rnx_b: &Rinex, 
+    matches: clap::ArgMatches,
+    _output: Option<&str>) 
+{
     let pretty = matches.is_present("pretty");
     let merge = matches.is_present("merge");
     let diff = matches.is_present("diff");
 
     if diff {
-        if let Ok(rnx) = rnx_a.diff(rnx_b) {
+        if let Ok(rnx) = rnx_a.observation_diff(rnx_b) {
             // print remaining record data
             if pretty {
                 println!("{}", serde_json::to_string_pretty(&rnx.record).unwrap())
@@ -304,33 +767,6 @@ pub fn main () -> Result<(), std::io::Error> {
         .setting(AppSettings::DeriveDisplayOrder);
 	let matches = app.get_matches();
 
-    // General 
-    let _plot = matches.is_present("plot");
-    let mut custom_header: Option<Header> = None;
-
-    if matches.is_present("header-json") {
-        let descriptor = matches.value_of("header-json")
-            .unwrap();
-        match serde_json::from_str::<Header>(descriptor) {
-            Ok(hd) => {
-                custom_header = Some(hd.clone());
-            },
-            Err(e) => {
-                match std::fs::read_to_string(descriptor) {
-                    Ok(content) => {
-                        match serde_json::from_str::<Header>(&content) {
-                            Ok(hd) => custom_header = Some(hd.clone()),
-                            Err(ee) => panic!("failed to interprate header: {:?}", ee),
-                        }
-                    },
-                    Err(_) => {
-                        panic!("failed to interprate header: {:?}", e)
-                    }
-                }
-            },
-        }
-    }
-
     // files (in)
     let filepaths : Option<Vec<&str>> = match matches.is_present("filepath") {
         true => {
@@ -342,28 +778,53 @@ pub fn main () -> Result<(), std::io::Error> {
         false => None,
     };
     // files (out)
-    let _output : Option<Vec<&str>> = match matches.is_present("output") {
+    let outputs: Vec<&str> = match matches.is_present("output") {
         true => {
-            Some(matches.value_of("output")
+            matches.value_of("output")
                 .unwrap()
                     .split(",")
-                    .collect())
+                    .collect()
         },
-        false => None,
+        false => Vec::new(),
     };
 
-    //TODO graphical view
-    //let mut fig = Figure::new();
+    // Header customization  
+    let mut _custom_header: Option<Header> = None;
+    if matches.is_present("custom-header") {
+        let descriptor = matches.value_of("custom-header")
+            .unwrap();
+        match serde_json::from_str::<Header>(descriptor) {
+            Ok(hd) => {
+                _custom_header = Some(hd.clone());
+            },
+            Err(e) => {
+                match std::fs::read_to_string(descriptor) {
+                    Ok(content) => {
+                        match serde_json::from_str::<Header>(&content) {
+                            Ok(hd) => {
+                                _custom_header = Some(hd.clone())
+                            },
+                            Err(ee) => panic!("failed to interprate header: {:?}", ee),
+                        }
+                    },
+                    Err(_) => {
+                        panic!("failed to interprate header: {:?}", e)
+                    }
+                }
+            },
+        }
+    }
 
-    let filepaths = filepaths.unwrap();
-    let mut queue : Vec<Rinex> = Vec::new();
+    let filepaths = filepaths
+        .unwrap(); // input files are mandatory
+    // work queue, contains all parsed RINEX
+    let mut queue: Vec<Rinex> = Vec::new();
 
     ////////////////////////////////////////
     // Parse, filter, resample
     ////////////////////////////////////////
     for fp in &filepaths {
         let path = std::path::PathBuf::from(fp);
-        //fig.set_title(path.file_name().unwrap().to_str().unwrap());
         let mut rinex = match path.exists() {
             true => {
                 if let Ok(r) = Rinex::from_file(fp) {
@@ -380,35 +841,40 @@ pub fn main () -> Result<(), std::io::Error> {
         };
         resample_single_file(&mut rinex, matches.clone());
         apply_filters(&mut rinex, matches.clone());
-        if let Some(ref hd) = custom_header {
-            rinex.replace_header(hd.clone())
-        }
         queue.push(rinex);
     }
 
+    let mut target_is_single_file = true;
+    // Merge is a 2=>1 op
+    target_is_single_file &= !matches.is_present("merge");
+    // Diff and DDiff are 2=>1 ops
+    target_is_single_file &= !matches.is_present("diff");
+    target_is_single_file &= !matches.is_present("ddiff");
+    
     /////////////////////////////////////
     // ops that require only 1 file
     /////////////////////////////////////
-    for i in 0..queue.len() {
-        let mut print_allowed = true;
-        print_allowed &= !matches.is_present("merge");
-        print_allowed &= !matches.is_present("diff");
-        print_allowed &= !matches.is_present("ddiff");
-        print_allowed &= !matches.is_present("ascii-plot");
-        run_single_file_op(&queue[i], matches.clone(), print_allowed);
-        run_single_file_teqc_op(&queue[i], matches.clone());
+    if target_is_single_file {
+        for i in 0..queue.len() {
+            let output = outputs.get(i);
+            run_single_file_op(&queue[i], matches.clone(), output.copied());
+            run_single_file_teqc_op(&queue[i], matches.clone());
+        }
     }
 
     /////////////////////////////////////
     // ops that require 2 files
     /////////////////////////////////////
-    for i in 0..queue.len()/2 {
-        let q_2p = &queue[i*2];
-        let q_2p1 = &queue[i*2+1]; 
-        run_double_file_op(&q_2p, &q_2p1, matches.clone());
+    if !target_is_single_file { // User requested a 2D op
+        for i in 0..queue.len()/2 {
+            let q_2p = &queue[i*2];
+            let q_2p1 = &queue[i*2+1]; 
+            let output = outputs.get(i);
+            run_double_file_op(&q_2p, &q_2p1, matches.clone(), output.copied());
+        }
     }
 
-    let pretty = matches.is_present("pretty");
+    /*let pretty = matches.is_present("pretty");
 
     // `ddiff` special ops,
     // is processed at very last, because it will eventuelly drop
@@ -450,7 +916,7 @@ pub fn main () -> Result<(), std::io::Error> {
         } else {
             panic!("--ddiff requires NAV ephemeris to be provided!");
         }
-    }
+    }*/
     
     Ok(())
 }// main

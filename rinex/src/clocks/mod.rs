@@ -1,13 +1,16 @@
 //! RINEX Clock files parser & analysis 
 pub mod record;
 pub use record::{
-    Record, System, Data, DataType,
+    Record, Error,
+	System, Data, DataType,
     is_new_epoch,
     parse_epoch,
+	write_epoch, 
 };
 
 /// Clocks `RINEX` specific header fields
 #[derive(Clone, Debug)]
+#[derive(PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct HeaderFields {
     /// Types of observation in this file

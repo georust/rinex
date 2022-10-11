@@ -116,6 +116,17 @@ fn load_database() -> Vec<(Augmentation, geo::Polygon)> {
 /// returns most approriate Augmentation system
 /// depending on given location, latitude: in [ddeg]
 /// and longitude: in [ddeg]
+/// Example:
+/// ```
+/// use rinex::*;
+/// use rinex::constellation::sbas_selection_helper;
+/// let paris = (48.808378, 2.382682); // lat, lon [ddeg]
+/// let sbas = sbas_selection_helper(paris.0, paris.1);
+/// assert_eq!(sbas, Some(Augmentation::EGNOS));
+/// let antartica = (-77.490631,  91.435181); // lat, lon [ddeg]
+/// let sbas = sbas_selection_helper(antartica.0, antartica.1);
+/// assert_eq!(sbas.is_none(), true);
+///```
 #[cfg(feature = "with-geo")]
 pub fn sbas_selection_helper (lat: f64, lon: f64) -> Option<Augmentation> {
     let db = load_database();

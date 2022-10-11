@@ -100,6 +100,7 @@ pub struct Grid3d {
 
 /// `IONEX` specific header fields
 #[derive(Debug, Clone, Default)]
+#[derive(PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct HeaderFields {
     /// System used or theoretical model used

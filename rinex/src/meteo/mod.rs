@@ -1,4 +1,4 @@
-//! `Meteo` RINEX related structures & methods
+//! `Meteo` RINEX
 pub mod sensor;
 pub mod record;
 pub mod observable;
@@ -12,7 +12,7 @@ pub use record::{
 
 /// Meteo specific header fields
 #[derive(Debug, Clone)]
-#[derive(PartialEq)]
+#[derive(PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct HeaderFields {
     /// Observation types contained in this file

@@ -30,6 +30,7 @@ use serde::{Serialize, Deserialize};
 use crate::formatter::opt_point3d;
 
 #[derive(Clone, Debug)]
+#[derive(PartialEq, Eq)]
 #[derive(EnumString)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum MarkerType {
@@ -85,6 +86,7 @@ impl Default for MarkerType {
 
 /// Describes `RINEX` file header
 #[derive(Clone, Debug)]
+#[derive(PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Header {
     /// revision for this `RINEX`

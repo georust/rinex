@@ -1,8 +1,6 @@
 #[cfg(test)]
-mod postprocessing {
+mod test {
     use rinex::*;
-    /// Here we test rnx - rnx = null, 
-    /// regarding raw phase data
     #[test]
     fn test_diff_null() {
         let pool = env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/";
@@ -38,8 +36,6 @@ mod postprocessing {
             }
         }
     }
-    /// This test tries to differentiate a NAV file,
-    /// which is not a feasible operation
     #[test]
     fn test_diff_failure() {
         let pool = env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/";
@@ -48,9 +44,6 @@ mod postprocessing {
             .unwrap();
         assert_eq!(rnx.diff_mut(&rnx.clone()).is_err(), true);
     }
-    /// This is a real rnx = rnx_a - rnx_b differentiation test.
-    /// We can only exploit these two files for accurate tests,
-    /// because they share common epochs and will produce relevant data.
     #[test]
     fn test_diff() {
         let pool = env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/";

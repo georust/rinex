@@ -13,7 +13,8 @@ use serde::{Serialize};
 /// An `Epoch` is an observation timestamp 
 /// with an [epoch::EpochFlag] associated to it
 #[derive(Copy, Clone, Debug)]
-#[derive(PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(PartialOrd, Ord)]
+#[derive(PartialEq, Eq, Hash)]
 pub struct Epoch {
     /// Sampling timestamp
     pub date: chrono::NaiveDateTime,

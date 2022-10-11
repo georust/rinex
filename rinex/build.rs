@@ -6,10 +6,10 @@ fn build_nav_database() {
     let out_dir = env::var("OUT_DIR")
         .unwrap();
     let nav_path = Path::new(&out_dir)
-        .join("nav_db.rs");
+        .join("nav_orbits.rs");
     let mut nav_file = std::fs::File::create(&nav_path)
         .unwrap();
-    let nav_data = std::fs::read_to_string("db/NAV/navigation.json")
+    let nav_data = std::fs::read_to_string("db/NAV/orbits.json")
         .unwrap();
     let json : serde_json::Value = serde_json::from_str(&nav_data)
         .unwrap();
@@ -23,7 +23,7 @@ fn build_nav_database() {
         .write_all("#[derive(Debug)]\n".as_bytes())
         .unwrap();
     nav_file
-        .write_all("pub struct NavMessage {\n   pub constellation: &'static str,\n   pub revisions: Vec<NavRevision>,\n}\n\n".as_bytes())
+        .write_all("pub struct NavOrbit {\n   pub constellation: &'static str,\n   pub revisions: Vec<NavRevision>,\n}\n\n".as_bytes())
         .unwrap();
     nav_file
         .write_all("#[derive(Debug)]\n".as_bytes())
@@ -35,13 +35,13 @@ fn build_nav_database() {
         .write_all("lazy_static! {\n".as_bytes())
         .unwrap();
     nav_file
-        .write_all("   pub static ref NAV_MESSAGES: Vec<NavMessage> = vec![\n".as_bytes())
+        .write_all("   pub static ref NAV_ORBITS: Vec<NavOrbit> = vec![\n".as_bytes())
         .unwrap();
     for constellation in constellations {
         let c = constellation["constellation"].as_str()
             .unwrap();
         nav_file
-            .write_all("      NavMessage {\n".as_bytes())
+            .write_all("      NavOrbit {\n".as_bytes())
             .unwrap();
         nav_file
             .write_all(format!("         constellation: \"{}\",\n", c).as_bytes())

@@ -1,6 +1,6 @@
 //! `RINEX` files type description 
 use thiserror::Error;
-use crate::constellation;
+use super::Constellation;
 
 /// Describes all known `RINEX` file types
 #[derive(Copy, Clone, PartialEq, Debug)]
@@ -10,13 +10,14 @@ pub enum Type {
     /// Phase & Pseudo range measurements
     ObservationData, 
     /// Describes Navigation Data (NAV)
-    /// Ephemeris file
+    /// Ephemeris data, and other possible
+	/// modern declinations
     NavigationData,
     /// Describes Meteorological data (MET)
     MeteoData,
     /// Clock Data (CLK)
     ClockData,
-    /// Ionsphere Maps (IONEX)
+    /// Ionosphere Maps (IONEX)
     /// allows creating Global Ionspheric Map (cartography)
     IonosphereMaps,
     /// Antenna Data (ATX or Antex) special RINEX format,
@@ -37,24 +38,24 @@ pub enum TypeError {
 
 impl Default for Type {
     /// Builds a default `Type`
-    fn default() -> Type { Type::ObservationData }
+    fn default() -> Type { Self::ObservationData }
 }
 
 impl Type {
     /// Converts `Self` to RINEX file format
-    pub fn to_string (&self, constell: Option<constellation::Constellation>) -> String { 
+    pub fn to_string (&self, constell: Option<Constellation>) -> String { 
         match *self {
-            Type::ObservationData => String::from("OBSERVATION DATA"),
-            Type::NavigationData => {
+            Self::ObservationData => String::from("OBSERVATION DATA"),
+            Self::NavigationData => {
                 match constell {
-                    Some(constellation::Constellation::Glonass) => String::from("Glonass NAV"),
+                    Some(Constellation::Glonass) => String::from("Glonass NAV"),
                     _ => String::from("NAV DATA"),
                 }
             },
-            Type::MeteoData => String::from("METEOROLOGICAL DATA"),
-            Type::ClockData => String::from("CLOCK DATA"),
-            Type::AntennaData => String::from("ANTEX"),
-            Type::IonosphereMaps => String::from("IONOSPHERE MAPS"),
+            Self::MeteoData => String::from("METEOROLOGICAL DATA"),
+            Self::ClockData => String::from("CLOCK DATA"),
+            Self::AntennaData => String::from("ANTEX"),
+            Self::IonosphereMaps => String::from("IONOSPHERE MAPS"),
         }
     }
 }
@@ -63,19 +64,19 @@ impl std::str::FromStr for Type {
     type Err = TypeError;
     fn from_str (s: &str) -> Result<Self, Self::Err> {
         if s.eq("NAVIGATION DATA") {
-            Ok(Type::NavigationData)
+            Ok(Self::NavigationData)
         } else if s.contains("NAV DATA") {
-            Ok(Type::NavigationData)
+            Ok(Self::NavigationData)
         } else if s.eq("OBSERVATION DATA") {
-            Ok(Type::ObservationData)
+            Ok(Self::ObservationData)
         } else if s.eq("METEOROLOGICAL DATA") {
-            Ok(Type::MeteoData)
+            Ok(Self::MeteoData)
         } else if s.eq("CLOCK DATA") || s.eq("C") {
-            Ok(Type::ClockData)
+            Ok(Self::ClockData)
         } else if s.eq("ANTEX") {
-            Ok(Type::AntennaData)
+            Ok(Self::AntennaData)
         } else if s.eq("IONOSPHERE MAPS") {
-            Ok(Type::IonosphereMaps)
+            Ok(Self::IonosphereMaps)
         } else {
             Err(TypeError::UnknownType(String::from(s)))
         }

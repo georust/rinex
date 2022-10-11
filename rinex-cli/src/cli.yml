@@ -18,7 +18,7 @@ args:
         takes_value: true
         help: |
             Comma separated list of file to generate. 
-            This is only used when requested operations will generate a new RINEX.
+            This is only used when generating new RINEX data.
             Example: --output brdcxx01.21g
             Use a list when generate several files in a row:
             Example: --output brdcxx01.21g,brdcxx02.21g
@@ -27,18 +27,20 @@ args:
         long: header
         takes_value: false
         help: Display identified header information 
-    - header-json:
-        long: header-json
+    - custom-header:
+        long: custom-header
         takes_value: true
         help: |
-            Custom Header section attributes.
-            Custom attributes will be applied to all files to be parsed.
-            Use this to customize attributes when producing new files.
-            This command expects a valid Header description in JSON,
-            either directly or from a file.
-            Example: --header-json \"{agency: \"MyAgency\", ...}\"
+            Custom Header attributes to applied to
+            all parsed RINEX. Passed content can either be
+            a local file, or description surrounded by inverted commas.
+            Either way, description must be JSON compliant
+            and comprise all mandatory Header attributes.
+            To determine whether a Header attribute is mandatory or not,
+            see if this field is "skipped" by the Serdes implementation
+            of the Header structure.
+            Example: --header-json "{agency: \"MyAgency\", ...}"
             Example: --header-json header.json
-
     - decim-ratio:
         short: d
         long: decim-ratio
@@ -59,7 +61,7 @@ args:
         long: diff
         takes_value: false
         help: |
-            Process RINEX differentiation (rnx = rnx(a)-rnx(b))
+            Compute OBS RINEX differentiation (rnx(a)-rnx(b))
             to cancel ionospheric biases.
             User must provide at least two Observation RINEX files for this op to work.
             Example: differentiate brdc01.g with brdc02.g: 
@@ -70,7 +72,7 @@ args:
         long: ddiff
         takes_value: false
         help: |
-            Computes double RINEX differentiation (rnx = rnx(a)-rnx(b)),
+            Computes double OBS RINEX differentiation
             to cancel ionospheric biases and clock induced biases. 
             User must provide at least two Observation RINEX files and one Navigation RINEX 
             for this op to be feasible. Refer to README.md file for -f constraints
@@ -80,12 +82,6 @@ args:
     - cycle-slips:
         long: cycle-slips
         help: Display epochs where clock cycle slip event possibly happened.
-    - confirm-cycle-slips:
-        long: confirm-cycle-slips
-        help: |
-            Perform dual RINEX differentiation and post-processing,
-            to confirm cycle slip events. Cycle slip confirmation
-            is currently under development
     - time-window:
         short: t
         long: time-window
@@ -94,103 +90,121 @@ args:
             Example: -t "2022-08-01-12:00:00-2022-08-10-13:00:00"
             will retain epochs after 2022/08/01 12:00:00 included
             and prior 2022/08/01 13:00:00 included.
-    - epoch-ok-filter:
-        long: epoch-ok-filter 
+    - retain-epoch-ok:
+        long: retain-epoch-ok
         takes_value: false 
         help: Retains epochs that have an EpochFlag::Ok value only 
-    - epoch-nok-filter:
-        long: epoch-nok-filter
+    - retain-epoch-nok:
+        long: retain-epoch-nok
         takes_value: false
         help: |
             Retains epochs that do not have an EpochFlag::Ok attached to them.
             Epoch NOK can mean power failure, or antenna movement, etc..
-    - epoch:
+    - epochs:
         short: e 
-        long: epoch 
+        long: epochs
         takes_value: false 
         help: Display identified epochs in given file(s) 
-    - observ:
+    - obs:
         short: o
-        long: observ
+        long: obs
         takes_value: false
-        help: Display observables epochs in given file(s) 
-    - observ-filter:
-        long: observ-filter 
+        help: Display observables in given file(s) 
+    - retain-obs:
+        long: retain-obs 
         takes_value: true
-        help: Comma separated list of Observables - retain only matching Observable codes 
+        help: |
+            Retain only Observable that belong to this comma separated list
+            Example: retain only pseudo range observations with "--retain-obs \"L1,L2\""
+    - retain-orb:
+        long: retain-orb 
+        takes_value: true
+        help: |
+            Retain only Orbit fields that belong to this comma separated list.
+            Example "--retain-orb \"cus,e,iode\""
     - sv:
         long: sv
         takes_value: false
         help: Display vehicules identified in this file
-    - sv-per-epoch:
-        long: sv-per-epoch
+    - sv-epoch:
+        long: sv-epoch
         takes_value: false
         help: Display vehicules identified for each epoch in this file
-    - clock-systems-per-epoch:
-        long: clock-systems-per-epoch
-        takes_value: false
-        help: Display Clock Data systems identified in given Clock RINEX file(s)
     - clock-offsets:
         long: clock-offsets
         takes_value: false
         help: |
-            Display receiver clock offsets for each epoch that came with such information, 
+            Displays receiver clock offsets for each epoch that came with such information, 
             in given Observation RINEX file(s)
+    - clock-biases:
+        long: clock-biases
+        takes_value: false
+        help: Displays clock bias and drift from extracted NAV RINEX
     - constellations:
         long: constellations
         takes_value: false
         help: Display identified Constellations in this file
-    - constellation-filter:
-        long: constellation-filter
+    - retain-constell:
+        long: retain-constell
         takes_value: true
-        help: Comma seperated list of Constellations - retain only data recorded against those constellations
+        help: Retain only data tied to given comma separated list of constellation (standard 3 letter codes) 
     - sampling-interval:
         long: sampling_interval
         takes_value: false
         help: Print sampling interval of this record
-    - sv-filter:
-        long: sv-filter
+    - retain-sv:
+        long: retain-sv
         takes_value: true
         help: |
-            Comma separated Satellite Vehicule filter. Retain only matching Satellite Vehicules.
-            Example focus on R01: rinex-cli --sv-filter R01 -f rinex.txt
-            Example focus on R01,G26: rinex-cli --sv-filter R01,G26 -f rinex.txt
-    - lli-mask:
-        long: lli-mask
-        takes_value: true 
+            Retain vehicules that belong to the given comma separated list (standard XYY codes)
+            For example, "retain-sv R01" will retain Glonass vehicule 1.
+            For example, "retain-sv R01,G01,G10". 
+    - retain-nav-msg:
+        long: retain-nav-msg
+        takes_value: true
         help: |
-            Apply LLI And() mask to entire record 
-    - ssi-range:
-        long: ssi-range
+            Retain only Navigation messages that belong to the given comma separated list.
+            Example: "retain-nav-msg LNAV,FDMA,SBAS"
+    - retain-lnav:
+        long: retain-lnav
         takes_value: false
-        help: |
-            Display range of SSI (RX signal strength) for given Observation File(s)
-    - ssi:
-        long: ssi
+        help: Retains only Legacy Navigation Frames
+    - retain-mnav:
+        long: retain-mnav
+        takes_value: false
+        help: Retains only Modern Navigation Frames
+    - lli-andmask:
+        long: lli-andmask
+        takes_value: true 
+        help: Applies given value as an LLI mask() see [observation_lli_and_mask]
+    - ssi-filter:
+        long: ssi-filter
         takes_value: true 
         help: |
             Retain only Observations that have at least this SSI signal strength indication attached to them (x > SSI is retained).
-            For example: --ssi 5 for "Ok" filter
-            For example: --ssi 7 for "Very Good" quality filter
-            For example: --ssi 8 for "Ultra high" quality filter
-    - distance:
-        long: distance 
+            For example: --ssi-filter 5 for "Ok" filter
+            For example: --ssi-filter 7 for "Very Good" quality filter
+            For example: --ssi-filter 8 for "Ultra high" quality filter
+    - ssi-range:
+        long: ssi-range
+        takes_value: false
+        help: Displays SSI in (min,max) form accross all vehicules and epochs
+    - ssi-sv-range:
+        long: ssi-sv-range
+        takes_value: false
+        help: Displays SSI in (min,max) per vehicule, accross all epochs
+    - pr2distance:
+        long: pr2distance 
         takes_value: true
         help: |
-            Converts (all encountered) pseudo range measurements to physical distance. 
-            User must pass receiver clock offset for this calculation (refer to doc)
-    - events:
-        long: events
-        takes_value: false 
-        help: Display epoch events registered in the record, only releavant on Observation Data records
-    - event-filter:
-        long: event-filter
-        takes_value: true
-        help: Retain only data that match given Epoch Event flag
+            Converts every single Pseudo Range observation to real physical distance.
+            This destroys original data.
     - gaps:
         long: gaps
         takes_value: false
-        help: Display (unexpected) data gaps - period without any data larger than expected sampling interval
+        help: |
+            Displays data gaps - period without any data larger than expected sampling interval
+            identified in parsed records
     - largest-gap:
         long: largest-gap
         takes_value: false
@@ -200,7 +214,8 @@ args:
         long: merge
         takes_value: false
         help: |
-            Merge given files together. Avoid combining this one with other operations.
+            Merges given files together. 
+            Avoid combining this operation to other operations.
             Example merge brdc01g with brdc02g into "rinex.txt": rinex-cli -m -f brdc01.g,brdc02.g
             Example merge brdc01g with brdc02g into "brdc03.g": rinex-cli -m -f brdc01.g,brdc02.g -o brdc03.g
     - split:
@@ -222,13 +237,10 @@ args:
     - plot:
         short: p
         long: plot
-        help: |
-            When no display arguments are given (like --observ for instance), 
-            the inner record(s) (possibly filtered and cleanedup) gets printed.
-            Use --plot to convert this into a graphical view instead of a terminal output.
+        help: Plot (produces a PNG) previously designed information(s).
     - pretty:
         long: pretty
-        help: Make displayed structures more readable
+        help: Make printed data more readable
     - ascii-plot:
         long: ascii-plot
         help: |
@@ -236,5 +248,4 @@ args:
             over the course of this file. X axis will span all epochs contained in this file (can be longer than 24h).
     - teqc-report:
         long: teqc-report
-        help: |
-            Generates a `teqc` like report where you can find similar information.
+        help: Generates a `teqc` like report where you can find similar information.

@@ -1,12 +1,12 @@
-//! `NavigationData` parsing, database and related methods
+//! `Navigation` data module 
 mod health;
+mod ephemeris;
 mod ionmessage;
 mod stomessage;
 mod eopmessage;
 
 pub mod record;
-pub mod database;
-pub use database::DbItem;
+pub mod orbits;
 
 pub use record::{
     Record, Error,
@@ -25,5 +25,7 @@ pub use ionmessage::{
     NgRegionFlags,
 };
 
+pub use orbits::OrbitItem;
+pub use ephemeris::Ephemeris;
 pub use eopmessage::EopMessage;
 pub use stomessage::StoMessage;

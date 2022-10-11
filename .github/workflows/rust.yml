@@ -18,7 +18,7 @@ jobs:
     - uses: actions/checkout@v2
     - name: Build
       run: |
-        sudo apt-get install libudev-dev
+        sudo apt-get install libudev-dev libfontconfig1-dev
         cargo build --all-features --verbose
     - name: Tests
       run: cargo test

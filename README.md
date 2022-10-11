@@ -28,50 +28,54 @@ and the [rinex](rinex/) crate.
 
 ## Supported `RINEX` types
 
-| Type                       | Support           | CLI                 | UBX                  | Production        |          Notes          |
+| Type                       | Parser            | Writer              |  CLI                 | UBX                  |           Notes          |
 |----------------------------|-------------------|---------------------|----------------------|-------------------|-------------------------
-| Navigation  (NAV)          | :heavy_check_mark:|  :heavy_check_mark: | :construction:       | V2 :sparkle:, V3 :sparkle: V4: :construction:  | Epoch iteration |
-| Observation (OBS)          | :heavy_check_mark:|  :heavy_check_mark: | :construction:       | V2 :sparkle: V3 :sparkle: V4 :sparkle: | Epoch iteration |
-|  CRINEX  (Compressed OBS)  | :heavy_check_mark:|  :heavy_check_mark: | :construction:       | CRNX1 :sparkle:  CRNX3 :construction:    | Epoch iteration |
-|  Meteorological data (MET) | :heavy_check_mark:| :heavy_check_mark:  | :construction:       |:heavy_check_mark: | Epoch iteration |  
-|  Clocks (CLK)              | :heavy_check_mark:|  :heavy_check_mark: | :question:        |:construction: | Epoch iteration |
-|  Antenna (ATX)             | :heavy_check_mark:| :sparkle:           | :heavy_minus_sign:   |:construction: | ATX records are not indexed by Epochs |
-|  Ionosphere Maps  (IONEX)  | :sparkle:         |  :sparkle:          | :question:           |:construction: | Epoch iteration |
+| Navigation  (NAV)          | :heavy_check_mark:| Ephemeris :sparkle: V4(Others) :construction: |  :heavy_check_mark:  | :construction:       | Epoch iteration |
+| Observation (OBS)          | :heavy_check_mark:| :sparkle:           | :heavy_check_mark:  :chart_with_upwards_trend: |  :construction:  | Epoch iteration |
+|  CRINEX  (Compressed OBS)  | :heavy_check_mark:| CRNX1 :sparkle: CRNX3 :construction: | :heavy_check_mark:  :chart_with_upwards_trend:  |  :construction:    | Epoch iteration |
+|  Meteorological data (MET) | :heavy_check_mark:| :heavy_check_mark:  | :heavy_check_mark:  | :construction:  | Epoch iteration |  
+|  Clocks (CLK)              | :heavy_check_mark:|  :sparkle:          | :question:           |:construction: | Epoch iteration |
+|  Antenna (ATX)             | :heavy_check_mark:| :construction:      | :heavy_minus_sign:   |:construction: | Sorted by `antex::Antenna` |
+|  Ionosphere Maps  (IONEX)  | :sparkle:         |  :construction:     | :question:           |:construction: | Epoch iteration |
 |  SINEX  (SNX)              | :construction:    |  :construction:     | :heavy_minus_sign:   |:construction: | SINEX are special RINEX, they are managed by a dedicated [core library](sinex/)  |
 |  Troposphere  (TRO)        | :construction:    |  :construction:     | :question:           |:construction: | Troposphere are one possible SINEX declination |
-|  Bias  (BIA)               | :heavy_check_mark: |  :construction:        | :question:           |:construction: | Bias solutions are one possible SINEX declination |
-
-**Production** means data generation      
-**CLI** means exposed to [`rinex-cli`](rinex-cli/) for easy parsing / analysis / generation  
-**UBX** means exposed to [`ublox-rnx`](ublox-rnx/) for quick and easy data production from a UBLOX receiver  
+|  Bias  (BIA)               | :heavy_check_mark: |  :construction:    | :question:           |:construction: | Bias solutions are one possible SINEX declination |
 
 :heavy_check_mark: all revisions supported   
 :heavy_minus_sign: not applicable   
-:sparkle: being stabilized, under final tests.. works but don't expect something extraordinary   
-:construction: under development - refer to TODO list
+:sparkle: under validation. Works but don't expect something extraordinary   
+:construction: under development   
+**CLI** :heavy_check_mark: means the `rinex-cli` app is knowledgeable, can parse, produce and analyze such a RINEX.  
+**CLI** :chart_with_upwards_trend: means the `rinex-cli` application can plot such a RINEX.  
+**UBX** means the `ublox-rnx` app can generate such a RINEX from a Ublox receiver
 
-## Supported file format / compressions
+## File formats
 
 | Format   | File name restrictions  |    Support          |
 |----------|-------------------------|---------------------|
+| RINEX    | :heavy_minus_sign: | :heavy_check_mark: but refer to first table |
 | CRINEX   | :heavy_minus_sign: | :heavy_check_mark:  | 
-| Others   | :heavy_minus_sign: | Refer to first table |
-| CRINEX + `gzip` | Must end with `.gz` | Compile with `--flate2` feature, or uncompress yourself |
-| Others + `gzip` | Must end with `.gz` | Refer to first table and compile with `--flate2` feature, or uncompress yourself |
-| CRINEX + `zlib` | Must end with `.Z` | :construction:  |
-| Others + `zlib` | Must end with `.Z` | :construction:  |
+| RINEX + `gzip`   | Must end with `.gz` | Compile with `--flate2` feature, or uncompress manually first |
+| CRINEX + `gzip` | Must end with `.gz` | Compile with `--flate2` feature, or uncompress manually first |
+| `.Z` | :heavy_minus_sign:  | :x: |
 
-:heavy_minus_sign: no restrictions. We can parse a  CRINEX or a IONEX named foo.txt as long as it follows the standards.      
-:heavy_check_mark: natively supported   
-:construction:, under development  
+:heavy_minus_sign: No restrictions. File names do not have to follow naming conventions.  
+:heavy_check_mark: Natively supported   
+:construction: Under development  
+:x: Not supported
 
-## Record (high level) operations
+## Record
 
-High level operation can be performed using the `Rinex` structure,
-or through the command line interface. Refer either
+High level operations can be performed on RINEX records and
+RINEX structure in general.
+Refer to the [official Documentation](https://docs.rs/rinex/0.6.0/rinex/struct.Rinex.html).
 
-- to the [API](https://docs.rs/rinex/0.6.0/rinex/struct.Rinex.html) documentation
-- to the [command-line interface](rinex-cli/README.md) documentation
+RINEX Records vary a lot from one revision to another
+and from one file type to another.
+To learn how to browse the RINEX record you are interested in,
+refer to its definition in the official documentation.
+For example, here is the 
+[Observation Record](https://docs.rs/rinex/0.6.4/rinex/observation/record/type.Record.html) definition.
 
 ## Features
 
@@ -81,15 +85,15 @@ or through the command line interface. Refer either
 
 * `--with-geo`   
 unlocks the 
-`augmentation::sbas_selection_helper()` method,
+[sbas_selection_help()](https://docs.rs/rinex/0.7.0/rinex/struct.Rinex.html) method,
 to select the most appropriate `SBAS` augmentation system for
 a given (usually current..) location on Earth.
-See [constellation](doc/constellation.md) for example of use.
 
 * `--flate2`  
 allow native parsing of .gz compressed RINEX files. Otherwise, user must uncompress manually the `.gz` extension first.
 
 ## Contributions
 
-Contributions are welcomed, do not hesitate to open new issues.  
+Contributions are welcomed, do not hesitate to open new issues
+and submit PR.  
 If you want to take part in active developments, checkout our [TODO list](TODO.md)

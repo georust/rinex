@@ -1,5 +1,5 @@
-//! NAV database for efficient navigation ephemeris
-//! parsing, accross all revisions and constellations
+//! NAV Orbits description, spanning all revisions
+//! and constellations
 use crate::version;
 //use std::fmt::Display;
 use thiserror::Error;
@@ -9,7 +9,7 @@ use itertools::Itertools;
 use crate::constellation::Constellation;
 use super::{health};
 
-include!(concat!(env!("OUT_DIR"),"/nav_db.rs"));
+include!(concat!(env!("OUT_DIR"),"/nav_orbits.rs"));
 
 bitflags! {
     #[derive(Default)]
@@ -28,14 +28,13 @@ bitflags! {
 	}
 }
 
-/// `DbItem` item is NAV record data base entry.
-/// It serves as the actual Navigation record payload.
+/// `OrbitItem` item is Navigation ephemeris entry.
 /// It is a complex data wrapper, for high level
 /// record description, across all revisions and constellations 
 #[derive(Debug, Clone)]
 #[derive(PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
-pub enum DbItem {
+pub enum OrbitItem {
 	/// unsigned byte
     U8(u8),
 	/// signed byte
@@ -58,9 +57,9 @@ pub enum DbItem {
 	IrnssHealth(health::IrnssHealth),
 }
 
-/// `DbItem` related errors
+/// `OrbitItem` related errors
 #[derive(Error, Debug)]
-pub enum DbItemError {
+pub enum OrbitItemError {
     #[error("failed to parse int value")]
     ParseIntError(#[from] std::num::ParseIntError),
     #[error("failed to parse float value")]
@@ -69,29 +68,29 @@ pub enum DbItemError {
     UnknownTypeDescriptor(String),
 }
 
-impl DbItem {
-    /// Builds a `DbItem` from type descriptor and string content
-    pub fn new (type_desc: &str, content: &str, constellation: Constellation) -> Result<DbItem, DbItemError> {
+impl OrbitItem {
+    /// Builds a `OrbitItem` from type descriptor and string content
+    pub fn new (type_desc: &str, content: &str, constellation: Constellation) -> Result<OrbitItem, OrbitItemError> {
         match type_desc {
             "u8" => {
 				// float->unsigned conversion
 				let float = f64::from_str(&content.replace("D","e"))?;
-				Ok(DbItem::U8(float as u8))
+				Ok(OrbitItem::U8(float as u8))
 			},
             "i8" => {
 				// float->signed conversion
 				let float = f64::from_str(&content.replace("D","e"))?;
-				Ok(DbItem::I8(float as i8))
+				Ok(OrbitItem::I8(float as i8))
 			},
-            "f32" => Ok(DbItem::F32(f32::from_str(&content.replace("D","e"))?)),
-            "f64" => Ok(DbItem::F64(f64::from_str(&content.replace("D","e"))?)),
+            "f32" => Ok(OrbitItem::F32(f32::from_str(&content.replace("D","e"))?)),
+            "f64" => Ok(OrbitItem::F64(f64::from_str(&content.replace("D","e"))?)),
 			"gloStatus" => {
 				// float->unsigned conversion
 				let float = f64::from_str(&content.replace("D","e"))?;
 				let unsigned = float as u32;
 				let status = GloStatus::from_bits(unsigned)
 					.unwrap_or(GloStatus::empty());
-				Ok(DbItem::GloStatus(status))
+				Ok(OrbitItem::GloStatus(status))
 			},
 			"health" => {
 				// float->unsigned conversion
@@ -101,27 +100,27 @@ impl DbItem {
 					Constellation::GPS | Constellation::QZSS => { 
 						let flag: health::Health = num::FromPrimitive::from_u32(unsigned)
 							.unwrap_or(health::Health::default());
-						Ok(DbItem::Health(flag))
+						Ok(OrbitItem::Health(flag))
 					},
 					Constellation::Glonass => {
 						let flag: health::GloHealth = num::FromPrimitive::from_u32(unsigned)
 							.unwrap_or(health::GloHealth::default());
-						Ok(DbItem::GloHealth(flag))
+						Ok(OrbitItem::GloHealth(flag))
 					},
 					Constellation::Galileo => {
                         let flags = health::GalHealth::from_bits(unsigned as u8)
                             .unwrap_or(health::GalHealth::empty());
-                        Ok(DbItem::GalHealth(flags))
+                        Ok(OrbitItem::GalHealth(flags))
                     },
 					Constellation::SBAS(_) | Constellation::Geo => {
 						let flag: health::GeoHealth = num::FromPrimitive::from_u32(unsigned)
 							.unwrap_or(health::GeoHealth::default());
-						Ok(DbItem::GeoHealth(flag))
+						Ok(OrbitItem::GeoHealth(flag))
 					},
 					Constellation::IRNSS => {
 						let flag: health::IrnssHealth = num::FromPrimitive::from_u32(unsigned)
 							.unwrap_or(health::IrnssHealth::default());
-						Ok(DbItem::IrnssHealth(flag))
+						Ok(OrbitItem::IrnssHealth(flag))
 					},
 					_ => unreachable!(), // MIXED is not feasible here
 						// as we use the current vehicule's constellation,
@@ -129,7 +128,7 @@ impl DbItem {
 				}
 			}, // "health"
 			_ => {
-				Err(DbItemError::UnknownTypeDescriptor(type_desc.to_string()))
+				Err(OrbitItemError::UnknownTypeDescriptor(type_desc.to_string()))
 			},
         }
     }
@@ -137,78 +136,78 @@ impl DbItem {
     /// mainly used when producing a file
     pub fn to_string (&self) -> String {
         match self {
-            DbItem::U8(n) => format!("{:14.10E}", *n as f64).replace("E","D+").replace("E-","D-"),
-            DbItem::I8(n) => format!("{:14.10E}", *n as f64).replace("E","D+").replace("E-","D-"),
-            DbItem::F32(f) => format!("{:14.10E}", f).replace("E","D+").replace("E-","D-"),
-            DbItem::F64(f) => format!("{:14.10E}", f).replace("E","D+").replace("E-","D-"),
-            DbItem::Health(h) => format!("{:14.10E}", h).replace("E","D+").replace("E-","D-"),
-            DbItem::GloHealth(h) => format!("{:14.10E}", h).replace("E","D+").replace("E-","D-"),
-            DbItem::GeoHealth(h) => format!("{:14.10E}", h).replace("E","D+").replace("E-","D-"),
-            DbItem::IrnssHealth(h) => format!("{:14.10E}", h).replace("E","D+").replace("E-","D-"),
-            DbItem::GalHealth(h) => format!("{:14.10E}", h.bits() as f64).replace("E","D+").replace("E-","D-"),
-            DbItem::GloStatus(h) => format!("{:14.10E}", h.bits() as f64).replace("E","D+").replace("E-","D-"),
+            OrbitItem::U8(n) => format!("{:14.10E}", *n as f64).replace("E","D+").replace("E-","D-"),
+            OrbitItem::I8(n) => format!("{:14.10E}", *n as f64).replace("E","D+").replace("E-","D-"),
+            OrbitItem::F32(f) => format!("{:14.10E}", f).replace("E","D+").replace("E-","D-"),
+            OrbitItem::F64(f) => format!("{:14.10E}", f).replace("E","D+").replace("E-","D-"),
+            OrbitItem::Health(h) => format!("{:14.10E}", h).replace("E","D+").replace("E-","D-"),
+            OrbitItem::GloHealth(h) => format!("{:14.10E}", h).replace("E","D+").replace("E-","D-"),
+            OrbitItem::GeoHealth(h) => format!("{:14.10E}", h).replace("E","D+").replace("E-","D-"),
+            OrbitItem::IrnssHealth(h) => format!("{:14.10E}", h).replace("E","D+").replace("E-","D-"),
+            OrbitItem::GalHealth(h) => format!("{:14.10E}", h.bits() as f64).replace("E","D+").replace("E-","D-"),
+            OrbitItem::GloStatus(h) => format!("{:14.10E}", h.bits() as f64).replace("E","D+").replace("E-","D-"),
         }
     }
-	/// Unwraps DbItem as f32
+	/// Unwraps OrbitItem as f32
     pub fn as_f32 (&self) -> Option<f32> {
         match self {
-            DbItem::F32(f) => Some(f.clone()),
+            OrbitItem::F32(f) => Some(f.clone()),
             _ => None,
         }
     }
-	/// Unwraps DbItem as f64
+	/// Unwraps OrbitItem as f64
     pub fn as_f64 (&self) -> Option<f64> {
         match self {
-            DbItem::F64(f) => Some(f.clone()),
+            OrbitItem::F64(f) => Some(f.clone()),
             _ => None,
         }
     }
-	/// Unwraps DbItem as u8
+	/// Unwraps OrbitItem as u8
     pub fn as_u8 (&self) -> Option<u8> {
         match self {
-            DbItem::U8(u) => Some(u.clone()),
+            OrbitItem::U8(u) => Some(u.clone()),
             _ => None,
         }
     }
-    /// Unwraps DbItem as i8
+    /// Unwraps OrbitItem as i8
     pub fn as_i8 (&self) -> Option<i8> {
         match self {
-            DbItem::I8(i) => Some(i.clone()),
+            OrbitItem::I8(i) => Some(i.clone()),
             _ => None,
         }
     }
 	/// Unwraps Self as GPS/QZSS orbit Health indication 
 	pub fn as_gps_health (&self) -> Option<health::Health> {
 		match self {
-			DbItem::Health(h) => Some(h.clone()),
+			OrbitItem::Health(h) => Some(h.clone()),
 			_ => None
 		}
 	}
 	/// Unwraps Self as GEO/SBAS orbit Health indication 
 	pub fn as_geo_health (&self) -> Option<health::GeoHealth> {
 		match self {
-			DbItem::GeoHealth(h) => Some(h.clone()),
+			OrbitItem::GeoHealth(h) => Some(h.clone()),
 			_ => None
 		}
 	}
 	/// Unwraps Self as GLO orbit Health indication 
 	pub fn as_glo_health (&self) -> Option<health::GloHealth> {
 		match self {
-			DbItem::GloHealth(h) => Some(h.clone()),
+			OrbitItem::GloHealth(h) => Some(h.clone()),
 			_ => None
 		}
 	}
 	/// Unwraps Self as GAL orbit Health indication 
 	pub fn as_gal_health (&self) -> Option<health::GalHealth> {
 		match self {
-			DbItem::GalHealth(h) => Some(h.clone()),
+			OrbitItem::GalHealth(h) => Some(h.clone()),
 			_ => None
 		}
 	}
 	/// Unwraps Self as IRNSS orbit Health indication 
 	pub fn as_irnss_health (&self) -> Option<health::IrnssHealth> {
 		match self {
-			DbItem::IrnssHealth(h) => Some(h.clone()),
+			OrbitItem::IrnssHealth(h) => Some(h.clone()),
 			_ => None
 		}
 	}
@@ -219,7 +218,7 @@ impl DbItem {
 /// Returns None if no database entries were found for requested constellation.
 /// Returns None if only newer revisions were identified: we prefer older revisions.
 pub fn closest_revision (constell: Constellation, desired_rev: version::Version) -> Option<version::Version> {
-    let db = &NAV_MESSAGES;
+    let db = &NAV_ORBITS;
     let revisions : Vec<_> = db.iter() // match requested constellation
         .filter(|rev| rev.constellation == constell.to_3_letter_code())
         .map(|rev| &rev.revisions)
@@ -305,8 +304,8 @@ mod test {
     use super::*;
     use std::str::FromStr;
     #[test]
-    fn test_db_sanity() {
-        for n in super::NAV_MESSAGES.iter() { 
+    fn test_orbits_sanity() {
+        for n in super::NAV_ORBITS.iter() { 
             let c = Constellation::from_str(n.constellation);
             assert_eq!(c.is_ok(), true);
             let c = c.unwrap();
@@ -319,7 +318,7 @@ mod test {
                     let (k, v) = item;
                     if !k.contains(&"spare") {
                         let test = String::from("0.000E0"); // testdata
-                        let e = DbItem::new(v, &test, c);
+                        let e = OrbitItem::new(v, &test, c);
                         assert_eq!(e.is_ok(), true);
                     }
                 }
@@ -377,19 +376,19 @@ mod test {
     }
     #[test]
     fn test_db_item() {
-        let e = DbItem::U8(10);
+        let e = OrbitItem::U8(10);
         assert_eq!(e.as_u8().is_some(), true);
         assert_eq!(e.as_f32().is_some(), false);
         let u = e.as_u8().unwrap();
         assert_eq!(u, 10);
         
-        let e = DbItem::F32(10.0);
+        let e = OrbitItem::F32(10.0);
         assert_eq!(e.as_u8().is_some(), false);
         assert_eq!(e.as_f32().is_some(), true);
         let u = e.as_f32().unwrap();
         assert_eq!(u, 10.0_f32);
         
-        let e = DbItem::F64(10.0);
+        let e = OrbitItem::F64(10.0);
         assert_eq!(e.as_u8().is_some(), false);
         assert_eq!(e.as_f32().is_some(), false);
         assert_eq!(e.as_f64().is_some(), true);
