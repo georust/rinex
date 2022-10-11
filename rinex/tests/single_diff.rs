@@ -21,7 +21,7 @@ mod test {
                 }
             }
         }
-        assert_eq!(rnx.diff_mut(&rnx.clone()).is_ok(), true);
+        assert_eq!(rnx.observation_diff_mut(&rnx.clone()).is_ok(), true);
         // all phase data cancelled
         let record = rnx.record
             .as_obs()
@@ -42,7 +42,7 @@ mod test {
         let path = pool.to_owned() + "NAV/V2/amel0010.21g";
         let mut rnx = Rinex::from_file(&path)
             .unwrap();
-        assert_eq!(rnx.diff_mut(&rnx.clone()).is_err(), true);
+        assert_eq!(rnx.observation_diff_mut(&rnx.clone()).is_err(), true);
     }
     #[test]
     fn test_diff() {
@@ -62,7 +62,7 @@ mod test {
             .as_obs()
             .unwrap();
         // process (a-b)
-        let rnx = rnx_a.diff(&rnx_b);
+        let rnx = rnx_a.observation_diff(&rnx_b);
         assert_eq!(rnx.is_ok(), true); //tb
         let rnx = rnx.unwrap();
         let rec = rnx.record

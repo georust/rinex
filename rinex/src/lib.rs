@@ -1268,9 +1268,9 @@ impl Rinex {
     /// let mut rinex = rinex.unwrap();
     /// // apply same filter, we're still only interested in G07 + G08
     /// rinex
-    ///     .space_vehicule_filter_mut(filter.clone());
+    ///     .retain_space_vehicule_mut(filter.clone());
     /// // apply conversion
-    /// let distances = rinex.pseudo_range_to_distance(offsets);
+    /// let distances = rinex.observation_pseudo_range_to_distance(offsets);
     /// ```
     pub fn space_vehicules_clock_offset (&self) 
             -> BTreeMap<Epoch, BTreeMap<Sv, f64>> 
@@ -1326,7 +1326,7 @@ impl Rinex {
     ///     },
     /// ];
     /// rinex
-    ///     .space_vehicule_filter_mut(filter.clone());
+    ///     .retain_space_vehicule_mut(filter.clone());
     /// let mut biases = rinex.space_vehicules_clock_biases();
     /// // example: adjust clock offsets and drifts
     /// for (e, sv) in biases.iter_mut() { // (epoch, vehicules)
@@ -1559,62 +1559,16 @@ impl Rinex {
 
     /// Filters out data records that do not contained in the given Observable list. 
     /// For Observation record: "C1C", "L1C", ..., any valid 3 letter observable.
-    /// For Meteo record: "PR", "HI", ..., any valid 2 letter sensor physics.
-    /// For Navigation record:
-    ///   - Ephemeris: this acts as an "Orbit" data filter. 
-	///     Example of known keys would be "health", "idot", "iode"..
-	///     Any known data identifier is accepted.
-    ///   - Ionospheric Model: does not apply
-    ///   - System Time offset: "GPUT", "GAGP", ..., any valid system time
-    /// For Clock record: we consider filter items as Data Type Codes "AR","AS"...
-    /// This has no effect if on ATX and IONEX records.
-    ///
+    /// This only applies to Meteo Observations.
     /// Observation record example:
     /// ```
     /// use rinex::*;
     /// let mut rinex = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O").unwrap();
     /// rinex
-    ///     .observable_filter_mut(vec!["C1C","C2P"]);
-    /// ```
-	///
-    /// Navigation record example:
-    /// ```
-    /// use rinex::*;
-    /// let mut rinex = Rinex::from_file(
-	///     "../test_resources/NAV/V4/KMS300DNK_R_20221591000_01H_MN.rnx.gz")
-	///		.unwrap();
-    /// rinex
-    ///     .observable_filter_mut(vec!["idot","iode"]);
+    ///     .retain_observable_mut(vec!["C1C","C2P"]);
     /// ```
     pub fn retain_observable_mut (&mut self, filter: Vec<&str>) {
-        if self.is_navigation_rinex() {
-            let record = self.record
-                .as_mut_nav()
-                .unwrap();
-            record
-                .retain(|_, classes| {
-                    classes.retain(|class, frames| {
-                        if *class == navigation::FrameClass::Ephemeris {
-                            frames.retain_mut(|fr| {
-                                let (_, _, ephemeris) = fr
-									.as_mut_eph()
-									.unwrap();
-								let orbits = &mut ephemeris.orbits;
-								orbits.retain(|k, _| filter.contains(&k.as_str())); // dictionary key filter
-								orbits.len() > 0 // got some leftovers
-                            });
-                        }/*  TODO: can this apply to non ephemeris data please ?
-						else if *class == navigation::FrameClass::SystemTimeOffset {
-                            frames.retain(|fr| {
-                                let fr = fr.as_sto().unwrap();
-                                filter.contains(&fr.system.as_str())
-                            });
-                        }*/
-                        frames.len() > 0
-                    });
-                    classes.len() > 0
-                })
-        } else if self.is_observation_rinex() {
+        if self.is_observation_rinex() {
             let record = self.record
                 .as_mut_obs()
                 .unwrap();
@@ -1636,20 +1590,6 @@ impl Rinex {
                 .retain(|_, data| {
                     data.retain(|code, _| {
                         filter.contains(&code.to_string().as_str())
-                    });
-                    data.len() > 0
-                });
-        } else if self.is_clocks_rinex() {
-            let record = self.record
-                .as_mut_clock()
-                .unwrap();
-            record
-                .retain(|_, data| {
-                    data.retain(|_, data| {
-                        data.retain(|dtype, _| {
-                            filter.contains(&dtype.to_string().as_str()) 
-                        });
-                        data.len() > 0
                     });
                     data.len() > 0
                 });
@@ -2425,15 +2365,15 @@ impl Rinex {
     ///     },
     /// ];
     /// rinex
-    ///     .space_vehicule_filter_mut(filter.clone());
+    ///     .retain_space_vehicule_mut(filter.clone());
     /// // extract distant clock offsets
     /// let sv_clk_offsets = rinex.space_vehicules_clock_offset();
     /// let rinex = Rinex::from_file("../test_resources/OBS/V3/ACOR00ESP_R_20213550000_01D_30S_MO.rnx");
     /// let mut rinex = rinex.unwrap();
     /// // apply the same filter
     /// rinex
-    ///     .space_vehicule_filter_mut(filter.clone());
-    /// let distances = rinex.pseudo_range_to_distance(sv_clk_offsets);
+    ///     .retain_space_vehicule_mut(filter.clone());
+    /// let distances = rinex.observation_pseudo_range_to_distance(sv_clk_offsets);
     /// // exploit distances
     /// for (e, sv) in distances.iter() { // (epoch, vehicules)
     ///     for (sv, obs) in sv.iter() { // (vehicule, distance)
@@ -3073,13 +3013,13 @@ impl Rinex {
     /// // rnx_a -= rnx_b; is actually feasible but not recommended,
     ///               // as it may panic of file type mismatch
     /// rnx_a
-    ///     .diff_mut(&rnx_b) // is recommended
+    ///     .observation_diff_mut(&rnx_b) // is recommended
     ///     .unwrap();
     ///
     /// // Remember only phase observables are modified, other observables are preserved. 
     /// // To access raw phase data, you then have two options
     /// // 1: [carrier_phases]
-    /// let raw_phase = rnx_a.carrier_phases();
+    /// let raw_phase = rnx_a.observation_carrier_phases();
     ///
     /// // 2: browsing `rnx_a` 
     /// let record = rnx_a.record.as_obs().unwrap();
@@ -3254,7 +3194,7 @@ CYCLE SLIPS CONFIRMATION
     ///     Rinex::from_file("../test_resources/CLK/V2/COD20352.CLK")
     ///         .unwrap();
     /// rinex
-    ///     .agency_filter_mut(vec!["GUAM","GODE","USN7"]);
+    ///     .clock_agency_retain_mut(vec!["GUAM","GODE","USN7"]);
     /// ```
     pub fn clock_agency_retain_mut (&mut self, filter: Vec<&str>) {
         if !self.is_clocks_rinex() {
