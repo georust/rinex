@@ -17,27 +17,6 @@ use rinex::{*,
 mod parser; // user input parser
 mod ascii_plot; // `teqc` tiny plot
 
-struct DynamicZip<I>
-where I: Iterator {
-    iterators: Vec<I>
-}
-
-impl<I, T> Iterator for DynamicZip<I>
-where I: Iterator<Item = T> {
-    type Item = Vec<T>;
-    fn next(&mut self) -> Option<Self::Item> {
-        let output: Option<Vec<T>> = self.iterators.iter_mut().map(|iter| iter.next()).collect();
-        output
-    }
-}
-
-/* NOTES
- * smart color generation
- * chart
- *      .draw_series()
- *      .style_func(&|&v| {&HLSColor(x).into())
- */
-
 /// Resample given file as possibly requested
 fn resample_single_file (rnx: &mut Rinex, matches: clap::ArgMatches) {
     if let Some(hms) = matches.value_of("decim-interval") { 
@@ -291,6 +270,12 @@ fn run_single_file_op (
         // ==> either print or plot record data
         if plot { // visualization requested
             let record = &rnx.record;
+            //TODO
+            // could slightly improve here,
+            // if given record is Sv sorted; by grabing list of vehicules
+            // and pre allocating fixed size
+            let mut colors: HashMap<Sv, RGBAColor> = HashMap::new();
+            // Visualize all known RINEX records
             if let Some(record) = record.as_obs() {
                 // Observation viewer
                 let observables = &rnx
@@ -307,7 +292,9 @@ fn run_single_file_op (
                 root.fill(&WHITE)
                     .unwrap();
                 
-                // x axis
+                // form t axis
+                // we use t.epochs.date as Unix timestamps
+                //  normalized for 1st one encountered to get a nicer rendering
                 let e0 = rnx.first_epoch().unwrap();
                 let timestamps: Vec<_> = record.iter()
                     .map(|(epoch, _)| {
@@ -315,16 +302,6 @@ fn run_single_file_op (
                     })
                     .collect();
                 let t_axis = (timestamps[0]..timestamps[timestamps.len()-1]);
-
-                // determine (min, max) #PRN 
-                //  this is used to adapt colors nicely 
-                let (mut min_prn, mut max_prn) = (100, 0);   
-                let space_vehicules = rnx.space_vehicules();
-                let nb_vehicules = space_vehicules.len();
-                for sv in space_vehicules.iter() {
-                    max_prn = std::cmp::max(max_prn, sv.prn);
-                    min_prn = std::cmp::min(min_prn, sv.prn);
-                }
 
                 // determine (min, max) per Observation Kind
                 //   this is used to scale Y axis nicely
@@ -380,10 +357,6 @@ fn run_single_file_op (
                     .draw()
                     .unwrap();
 
-                // symbol per carrier
-                let _symbols = vec!["x","t","o","p"];
-                let mut color = Palette100::pick(50); // default
-                let mut rgba = color.mix(0.9); // default
                 // extra list of vehicules
                 //  this will help identify datasets 
                 let vehicules: Vec<_> = record
@@ -395,6 +368,17 @@ fn run_single_file_op (
                     .flatten()
                     .unique()
                     .collect();
+                // smart color generation
+                //  for PRN# identification
+                // color space: avoids extreme values <=> weird colors
+                let max = vehicules.len() +2;
+                let offset = 100 / vehicules.len(); 
+                for (index, sv) in vehicules.iter().enumerate() {
+                    let index = (index*100)/vehicules.len() + offset;
+                    colors.insert(**sv, 
+                        Palette99::pick(index) //RGB
+                        .mix(0.99)); //RGB=RGBA
+                }
                 // extra list of encountered observables
                 //  this will help identify datasets 
                 let observables: Vec<_> = record
@@ -428,9 +412,16 @@ fn run_single_file_op (
                     .flatten()
                     .collect();
                 // Draw one serie per observable
-                for observable in observables.iter() {
+                let symbols = vec!["x","t","o","p"]; // one per physics 
+                for (obs_index, observable) in observables.iter().enumerate() {
                     // Draw one serie per vehicule
-                    for vehicule in vehicules.iter() {
+                    //  <o 
+                    //     pick a symbol per physics
+                    for (sv_index, vehicule) in vehicules.iter().enumerate() {
+                        // <o
+                        //    pick a color per PRN#
+                        let color = colors.get(vehicule)
+                            .unwrap();
                         chart.draw_series(LineSeries::new(
                             data.iter()
                                 .filter_map(|(t, obs, sv, data)| {
@@ -444,8 +435,13 @@ fn run_single_file_op (
                                         None
                                     }
                                 }), 
-                            &BLACK,
-                        )).unwrap();
+                            &color,
+                        )).unwrap()
+                        .label(vehicule.to_string())
+                        .legend(|(x, y)| {
+                            let color = colors.get(vehicule).unwrap();
+                            PathElement::new(vec![(x, y), (x + 20, y)], color)
+                        });
                     }
                 }
                 // Draw labels 
