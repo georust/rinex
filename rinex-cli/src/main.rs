@@ -368,6 +368,7 @@ fn run_single_file_op (
                 // symbol per carrier
                 let _symbols = vec!["x","t","o","p"];
                 
+                let mut color = Palette100::pick(0).mix(0.0); // default
                 // Draw data series
                 for (sv_index, sv) in space_vehicules.iter().enumerate() {
                     // one serie per vehicule
@@ -382,13 +383,13 @@ fn run_single_file_op (
 
                                     // <o
                                     //  color emphsiazes PRN# 
+                                    color = Palette100::pick(sv_index *100/nb_vehicules)
+                                        .mix(0.9); // mix with given opacity, RGB => RGBa
 
                                     // <o
                                     //    color can also be smartly indexed on the SSI value
                                     //    we could also use dash plot if NOK condition were
                                     //    determined 
-                                    let color = Palette100::pick(sv_index *100/nb_vehicules)
-                                        .mix(0.9); // mix with given opacity, RGB => RGBa
 
                                     chart.draw_series(LineSeries::new(
                                         record.iter()
@@ -417,7 +418,7 @@ fn run_single_file_op (
                                     ))
                                     .unwrap()
                                     .label(sv.to_string())
-                                    .legend(|(x, y)| PathElement::new(vec![(x,y), (x+20, y)], color.clone().to_owned()));
+                                    .legend(|(x, y)| PathElement::new(vec![(x,y), (x+20, y)], color.clone()));
                                 }
                             }//L1
                         } // got some obs for desired constellation
