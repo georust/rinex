@@ -6,7 +6,11 @@ use clap::App;
 use clap::AppSettings;
 use clap::load_yaml;
 use std::str::FromStr;
-use plotters::prelude::*;
+use plotters::{
+    prelude::*,
+    //coord::Shift,
+    //coord::types::RangedCoordf64,
+};
 use std::collections::HashMap;
 use itertools::Itertools;
 
@@ -168,7 +172,18 @@ fn run_single_file_op (
     let cycle_slips = matches.is_present("cycle-slips");
 
     let mut at_least_one_op = false;
-
+    
+    /*TODO
+    can't get this to work due to a scope pb..
+    let mut areas: HashMap<String, //BitMapBackend> 
+        DrawingArea<BitMapBackend, Shift>> 
+            = HashMap::new();
+    
+    let mut charts: HashMap<String, 
+        ChartContext<BitMapBackend, 
+            Cartesian2d<RangedCoordf64, RangedCoordf64>>>
+                = HashMap::new();
+    */
     if header {
         at_least_one_op = true;
         if pretty {
@@ -270,28 +285,23 @@ fn run_single_file_op (
         // ==> either print or plot record data
         if plot { // visualization requested
             let record = &rnx.record;
+            
             //TODO
             // could slightly improve here,
             // if given record is Sv sorted; by grabing list of vehicules
             // and pre allocating fixed size
             let mut colors: HashMap<Sv, RGBAColor> = HashMap::new();
+
+            let default_axis = 0.0..10.0; // this is only here
+                // to manage possible missing observables
+                // versus the creation of properly scaled Y axis
+
+            //TODO
+            // from command line
+            let plot_dim = (1024, 768);
+            
             // Visualize all known RINEX records
             if let Some(record) = record.as_obs() {
-                // Observation viewer
-                let observables = &rnx
-                    .header
-                    .obs
-                    .as_ref()
-                    .unwrap()
-                    .codes;
-                // image bg
-                let root = BitMapBackend::new(
-                    "obs.png",
-                    (1024,768)) //TODO Cli::(x_width,y_height)
-                    .into_drawing_area();
-                root.fill(&WHITE)
-                    .unwrap();
-                
                 // form t axis
                 // we use t.epochs.date as Unix timestamps
                 //  normalized for 1st one encountered to get a nicer rendering
@@ -301,62 +311,8 @@ fn run_single_file_op (
                         (epoch.date.timestamp() - e0.date.timestamp()) as f64
                     })
                     .collect();
-                let t_axis = (timestamps[0]..timestamps[timestamps.len()-1]);
-
-                // determine (min, max) per Observation Kind
-                //   this is used to scale Y axis nicely
-                let mut y_min_max: HashMap<String, (f64,f64)> = HashMap::with_capacity(4); // 4 physics known
-                for (_, (_, vehicules)) in record.iter() {
-                    for (_, observables) in vehicules.iter() {
-                        for (code, data) in observables.iter() {
-                            if code == "L1" { 
-                                if let Some((min,max)) = y_min_max.get_mut("PR") {
-                                    if *min > data.obs {
-                                        *min = data.obs ;
-                                    }
-                                    if *max < data.obs {
-                                        *max = data.obs ;
-                                    }
-                                } else {
-                                    y_min_max.insert("PR".to_string(), (data.obs, data.obs));
-                                }
-                            }
-                        }
-                    }
-                }
-
-                //TODO DEBUG
-                println!("YMINMAX {:?}", y_min_max);
-
-                // Create a chart per observable kind
-                //let mut charts: HashMap<String, 
-                //    ChartContext<BitMapBackend, Cartesian2d<RangedCoordf64, RangedCoordf64>>>
-                //    = HashMap::with_capacity(4); // 4 different kinds known
-                // build y axis
-                let (min, max) = y_min_max.get("PR")
-                    .unwrap();
-                let y_axis = min*0.95..max*1.05;
-                // Create a chart
-                let mut chart = ChartBuilder::on(&root)
-                    .caption("Pseudo Range", ("sans-serif", 50).into_font())
-                    .margin(40)
-                    .x_label_area_size(30)
-                    .y_label_area_size(40)
-                    .build_cartesian_2d(
-                        t_axis,
-                        y_axis)
-                    .unwrap();
-                // Draw axes
-                chart
-                    .configure_mesh()
-                    .x_desc("Timestamp")
-                    .x_labels(30)
-                    //.y_label_formatter(&|y| format!("{:02}:{:02}", y.num_minutes(), y.num_seconds() % 60))
-                    .y_desc("PR")
-                    .y_labels(30)
-                    .draw()
-                    .unwrap();
-
+                let t_axis = timestamps[0]..timestamps[timestamps.len()-1];
+                
                 // extra list of vehicules
                 //  this will help identify datasets 
                 let vehicules: Vec<_> = record
@@ -368,17 +324,15 @@ fn run_single_file_op (
                     .flatten()
                     .unique()
                     .collect();
+                
                 // smart color generation
                 //  for PRN# identification
-                // color space: avoids extreme values <=> weird colors
-                let max = vehicules.len() +2;
-                let offset = 100 / vehicules.len(); 
                 for (index, sv) in vehicules.iter().enumerate() {
-                    let index = (index*100)/vehicules.len() + offset;
                     colors.insert(**sv, 
                         Palette99::pick(index) //RGB
                         .mix(0.99)); //RGB=RGBA
                 }
+                
                 // extra list of encountered observables
                 //  this will help identify datasets 
                 let observables: Vec<_> = record
@@ -394,7 +348,8 @@ fn run_single_file_op (
                     .flatten()
                     .unique()
                     .collect();
-                // extra observations in form (e, observable, sv, data) 
+
+                // extract observations in form (e, observable, sv, data) 
                 // for every single epoch, so we can plot easily
                 // we scale epoch as unix timestamps, normalized to the 1st one encountered
                 let data: Vec<_> = record
@@ -411,49 +366,337 @@ fn run_single_file_op (
                     })
                     .flatten()
                     .collect();
-                // Draw one serie per observable
-                let symbols = vec!["x","t","o","p"]; // one per physics 
-                for (obs_index, observable) in observables.iter().enumerate() {
-                    // Draw one serie per vehicule
-                    //  <o 
-                    //     pick a symbol per physics
-                    for (sv_index, vehicule) in vehicules.iter().enumerate() {
-                        // <o
-                        //    pick a color per PRN#
-                        let color = colors.get(vehicule)
-                            .unwrap();
-                        chart.draw_series(LineSeries::new(
-                            data.iter()
-                                .filter_map(|(t, obs, sv, data)| {
-                                    if obs == observable {
-                                        if sv == *vehicule {
-                                            Some((*t, *data))
+
+                // determine (min, max) per Observation Kind
+                //   this is used to scale Y axis nicely
+                let mut y_min_max: HashMap<String, (f64,f64)> = HashMap::with_capacity(4); // 4 physics known
+                for (_, (_, vehicules)) in record.iter() {
+                    for (_, observables) in vehicules.iter() {
+                        for (code, data) in observables.iter() {
+                            if is_pseudo_range_obs_code!(code) {
+                                if let Some((min,max)) = y_min_max.get_mut("PR") {
+                                    if *min > data.obs {
+                                        *min = data.obs ;
+                                    }
+                                    if *max < data.obs {
+                                        *max = data.obs ;
+                                    }
+                                } else {
+                                    y_min_max.insert("PR".to_string(), (data.obs, data.obs));
+                                }
+                            } else if is_phase_carrier_obs_code!(code) {
+                                if let Some((min,max)) = y_min_max.get_mut("PH") {
+                                    if *min > data.obs {
+                                        *min = data.obs ;
+                                    }
+                                    if *max < data.obs {
+                                        *max = data.obs ;
+                                    }
+                                } else {
+                                    y_min_max.insert("PH".to_string(), (data.obs, data.obs));
+                                }
+                            } else if is_doppler_obs_code!(code) {
+                                if let Some((min,max)) = y_min_max.get_mut("DOP") {
+                                    if *min > data.obs {
+                                        *min = data.obs ;
+                                    }
+                                    if *max < data.obs {
+                                        *max = data.obs ;
+                                    }
+                                } else {
+                                    y_min_max.insert("DOP".to_string(), (data.obs, data.obs));
+                                }
+                            } else {
+                                if let Some((min,max)) = y_min_max.get_mut("SSI") {
+                                    if *min > data.obs {
+                                        *min = data.obs ;
+                                    }
+                                    if *max < data.obs {
+                                        *max = data.obs ;
+                                    }
+                                } else {
+                                    y_min_max.insert("SSI".to_string(), (data.obs, data.obs));
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Build one drawing base per physics
+                // --> this will generate a file
+                //  can't get this to be generic, due to some scope/lifetime issues...
+                let ph_area = BitMapBackend::new(
+                    "phase.png",
+                    plot_dim)
+                    .into_drawing_area();
+                ph_area.fill(&WHITE)
+                    .unwrap();
+                
+                let dop_area = BitMapBackend::new(
+                    "doppler.png",
+                    plot_dim)
+                    .into_drawing_area();
+                dop_area.fill(&WHITE)
+                    .unwrap();
+                
+                let pr_area = BitMapBackend::new(
+                    "pseudo-range.png",
+                    plot_dim)
+                    .into_drawing_area();
+                pr_area.fill(&WHITE)
+                    .unwrap();
+                
+                let ssi_area = BitMapBackend::new(
+                    "ssi.png",
+                    plot_dim)
+                    .into_drawing_area();
+                ssi_area.fill(&WHITE)
+                    .unwrap();
+                
+                // Build one chart per physics
+                //  chart is attached to the drawing base
+                //  can't get this to be generic, due to some scope/lifetime issues...
+
+                // build properly scaled Y axis
+                let mut y_axis = default_axis.clone();
+                if let Some((min,max)) = y_min_max.get("PH") {
+                    y_axis = min*0.95..max*1.05;
+                }
+                let mut ph_chart = ChartBuilder::on(&ph_area)
+                    .caption("Carrier Phase", ("sans-serif", 50).into_font())
+                    .margin(40)
+                    .x_label_area_size(30)
+                    .y_label_area_size(40)
+                    .build_cartesian_2d(
+                        t_axis.clone(),
+                        y_axis)
+                    .unwrap();
+                // Draw axes
+                ph_chart
+                    .configure_mesh()
+                    .x_desc("Timestamp")
+                    .x_labels(30)
+                    //.y_label_formatter(&|y| format!("{:02}:{:02}", y.num_minutes(), y.num_seconds() % 60))
+                    .y_desc("Phase")
+                    .y_labels(30)
+                    .draw()
+                    .unwrap();
+
+                let mut y_axis = default_axis.clone();
+                if let Some((min, max)) = y_min_max.get("PR") {
+                    y_axis = min*0.95..max*1.05;
+                }
+                let mut pr_chart = ChartBuilder::on(&pr_area)
+                    .caption("Pseudo Range", ("sans-serif", 50).into_font())
+                    .margin(40)
+                    .x_label_area_size(30)
+                    .y_label_area_size(40)
+                    .build_cartesian_2d(
+                        t_axis.clone(),
+                        y_axis)
+                    .unwrap();
+                // Draw axes
+                pr_chart
+                    .configure_mesh()
+                    .x_desc("Timestamp")
+                    .x_labels(30)
+                    //.y_label_formatter(&|y| format!("{:02}:{:02}", y.num_minutes(), y.num_seconds() % 60))
+                    .y_desc("PR")
+                    .y_labels(30)
+                    .draw()
+                    .unwrap();
+                
+                let mut y_axis = default_axis.clone(); 
+                if let Some((min,max)) = y_min_max.get("DOP") {
+                    y_axis = min*0.95..max*1.05;
+                }
+                let mut dop_chart = ChartBuilder::on(&dop_area)
+                    .caption("Doppler", ("sans-serif", 50).into_font())
+                    .margin(40)
+                    .x_label_area_size(30)
+                    .y_label_area_size(40)
+                    .build_cartesian_2d(
+                        t_axis.clone(),
+                        y_axis)
+                    .unwrap();
+                // Draw axes
+                dop_chart
+                    .configure_mesh()
+                    .x_desc("Timestamp")
+                    .x_labels(30)
+                    //.y_label_formatter(&|y| format!("{:02}:{:02}", y.num_minutes(), y.num_seconds() % 60))
+                    .y_desc("Doppler")
+                    .y_labels(30)
+                    .draw()
+                    .unwrap();
+                
+                let mut y_axis = default_axis.clone(); 
+                if let Some((min,max)) = y_min_max.get("SSI") {
+                    y_axis = min*0.95..max*1.05;
+                }
+                let mut ssi_chart = ChartBuilder::on(&ssi_area)
+                    .caption("Signal Strength", ("sans-serif", 50).into_font())
+                    .margin(40)
+                    .x_label_area_size(30)
+                    .y_label_area_size(40)
+                    .build_cartesian_2d(
+                        t_axis.clone(),
+                        y_axis)
+                    .unwrap();
+                // Draw axes
+                ssi_chart
+                    .configure_mesh()
+                    .x_desc("Timestamp")
+                    .x_labels(30)
+                    //.y_label_formatter(&|y| format!("{:02}:{:02}", y.num_minutes(), y.num_seconds() % 60))
+                    .y_desc("Power")
+                    .y_labels(30)
+                    .draw()
+                    .unwrap();
+
+                // One plot per physics
+                for observable in observables.iter() {
+                    //  <o TODO
+                    //     pick a symbol per carrier
+                    if is_phase_carrier_obs_code!(observable) {
+                        // Draw one serie per vehicule
+                        for vehicule in vehicules.iter() {
+                            // <o
+                            //    pick a color per PRN#
+                            let color = colors.get(vehicule)
+                                .unwrap();
+                            ph_chart.draw_series(LineSeries::new(
+                                data.iter()
+                                    .filter_map(|(t, obs, sv, data)| {
+                                        if obs == observable {
+                                            if sv == *vehicule {
+                                                Some((*t, *data))
+                                            } else {
+                                                None
+                                            }
                                         } else {
                                             None
                                         }
-                                    } else {
-                                        None
-                                    }
-                                }), 
-                            &color,
-                        )).unwrap()
-                        .label(vehicule.to_string())
-                        .legend(|(x, y)| {
-                            let color = colors.get(vehicule).unwrap();
-                            PathElement::new(vec![(x, y), (x + 20, y)], color)
-                        });
+                                    }), 
+                                color.stroke_width(3),
+                            )).unwrap()
+                            .label(vehicule.to_string())
+                            .legend(|(x, y)| {
+                                let color = colors.get(vehicule).unwrap();
+                                PathElement::new(vec![(x, y), (x + 20, y)], color)
+                            });
+                        }
+                    } else if is_pseudo_range_obs_code!(observable) {
+                        // Draw one serie per vehicule
+                        for vehicule in vehicules.iter() {
+                            // <o
+                            //    pick a color per PRN#
+                            let color = colors.get(vehicule)
+                                .unwrap();
+                            pr_chart.draw_series(LineSeries::new(
+                                data.iter()
+                                    .filter_map(|(t, obs, sv, data)| {
+                                        if obs == observable {
+                                            if sv == *vehicule {
+                                                Some((*t, *data))
+                                            } else {
+                                                None
+                                            }
+                                        } else {
+                                            None
+                                        }
+                                    }), 
+                                color.stroke_width(3),
+                            )).unwrap()
+                            .label(vehicule.to_string())
+                            .legend(|(x, y)| {
+                                let color = colors.get(vehicule).unwrap();
+                                PathElement::new(vec![(x, y), (x + 20, y)], color)
+                            });
+                        }
+                    } else if is_sig_strength_obs_code!(observable) {
+                        // Draw one serie per vehicule
+                        for vehicule in vehicules.iter() {
+                            // <o
+                            //    pick a color per PRN#
+                            let color = colors.get(vehicule)
+                                .unwrap();
+                            ssi_chart.draw_series(LineSeries::new(
+                                data.iter()
+                                    .filter_map(|(t, obs, sv, data)| {
+                                        if obs == observable {
+                                            if sv == *vehicule {
+                                                Some((*t, *data))
+                                            } else {
+                                                None
+                                            }
+                                        } else {
+                                            None
+                                        }
+                                    }), 
+                                color.stroke_width(3),
+                            )).unwrap()
+                            .label(vehicule.to_string())
+                            .legend(|(x, y)| {
+                                let color = colors.get(vehicule).unwrap();
+                                PathElement::new(vec![(x, y), (x + 20, y)], color)
+                            });
+                        }
+                    } else if is_doppler_obs_code!(observable) {
+                        // Draw one serie per vehicule
+                        for vehicule in vehicules.iter() {
+                            // <o
+                            //    pick a color per PRN#
+                            let color = colors.get(vehicule)
+                                .unwrap();
+                            dop_chart.draw_series(LineSeries::new(
+                                data.iter()
+                                    .filter_map(|(t, obs, sv, data)| {
+                                        if obs == observable {
+                                            if sv == *vehicule {
+                                                Some((*t, *data))
+                                            } else {
+                                                None
+                                            }
+                                        } else {
+                                            None
+                                        }
+                                    }), 
+                                color.stroke_width(3),
+                            )).unwrap()
+                            .label(vehicule.to_string())
+                            .legend(|(x, y)| {
+                                let color = colors.get(vehicule).unwrap();
+                                PathElement::new(vec![(x, y), (x + 20, y)], color)
+                            });
+                        }
                     }
                 }
                 // Draw labels 
-                chart
+                ph_chart
                     .configure_series_labels()
                     .border_style(&BLACK)
                     .background_style(WHITE.filled())
                     .draw()
                     .unwrap();
-                // Draw Labels & Legend
-                //for (_, chart) in charts.iter_mut() {
-                //}
+                dop_chart
+                    .configure_series_labels()
+                    .border_style(&BLACK)
+                    .background_style(WHITE.filled())
+                    .draw()
+                    .unwrap();
+                pr_chart
+                    .configure_series_labels()
+                    .border_style(&BLACK)
+                    .background_style(WHITE.filled())
+                    .draw()
+                    .unwrap();
+                ssi_chart
+                    .configure_series_labels()
+                    .border_style(&BLACK)
+                    .background_style(WHITE.filled())
+                    .draw()
+                    .unwrap();
             } // Observation Record
         } else {
             // terminal output
