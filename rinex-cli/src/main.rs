@@ -7,10 +7,6 @@ use clap::AppSettings;
 use clap::load_yaml;
 use std::str::FromStr;
 use plotters::prelude::*;
-use plotters::coord::{
-    types::RangedCoordf64,
-    cartesian::Cartesian3d,
-};
 use std::collections::HashMap;
 
 use rinex::{*, 
@@ -158,12 +154,12 @@ fn apply_filters (rinex: &mut Rinex, matches: clap::ArgMatches) {
 fn run_single_file_op (
     rnx: &Rinex, 
     matches: clap::ArgMatches, 
-    output: Option<&str>)
+    _output: Option<&str>)
 {
     let plot = matches.is_present("plot");
     let pretty = matches.is_present("pretty");
     let header = matches.is_present("header");
-    let epoch = matches.is_present("epoch");
+    let epochs = matches.is_present("epochs");
     let obs = matches.is_present("obs");
     let sv = matches.is_present("sv");
     let sv_per_epoch = matches.is_present("sv-epoch");
@@ -171,6 +167,7 @@ fn run_single_file_op (
     let ssi_sv_range = matches.is_present("ssi-sv-range");
     let constellations = matches.is_present("constellations");
     let clock_offsets = matches.is_present("clock-offsets");
+    let clock_biases = matches.is_present("clock-biases");
     let gaps = matches.is_present("gaps");
     let largest_gap = matches.is_present("largest-gap");
     let _sampling_interval = matches.is_present("sampling-interval");
@@ -186,7 +183,7 @@ fn run_single_file_op (
             println!("{}", serde_json::to_string_pretty(&rnx.header).unwrap())
         }
     }
-    if epoch {
+    if epochs {
         at_least_one_op = true;
         if pretty {
             println!("{}", serde_json::to_string_pretty(&rnx.epochs()).unwrap())
@@ -218,6 +215,14 @@ fn run_single_file_op (
             println!("{}", serde_json::to_string(&rnx.space_vehicules()).unwrap())
         }
     }
+    if sv_per_epoch {
+        at_least_one_op = true;
+        if pretty {
+            println!("{}", serde_json::to_string_pretty(&rnx.space_vehicules_per_epoch()).unwrap())
+        } else {
+            println!("{}", serde_json::to_string(&rnx.space_vehicules_per_epoch()).unwrap())
+        }
+    }
     if ssi_range {
         at_least_one_op = true;
         // terminal ouput
@@ -244,12 +249,12 @@ fn run_single_file_op (
             println!("{}", serde_json::to_string(&rnx.receiver_clock_offsets()).unwrap())
         }
     }
-    if sv_per_epoch {
+    if clock_biases {
         at_least_one_op = true;
         if pretty {
-        //    println!("{}", serde_json::to_string_pretty(&rnx.space_vehicules_per_epoch()).unwrap())
+            println!("{}", serde_json::to_string_pretty(&rnx.space_vehicules_clock_biases()).unwrap())
         } else {
-        //    println!("{}", serde_json::to_string(&rnx.space_vehicules_per_epoch()).unwrap())
+            println!("{}", serde_json::to_string(&rnx.space_vehicules_clock_biases()).unwrap())
         }
     }
     if gaps {
@@ -300,6 +305,7 @@ fn run_single_file_op (
                 //  this is used to adapt colors nicely 
                 let (mut min_prn, mut max_prn) = (100, 0);   
                 let space_vehicules = rnx.space_vehicules();
+                let nb_vehicules = space_vehicules.len();
                 for sv in space_vehicules.iter() {
                     max_prn = std::cmp::max(max_prn, sv.prn);
                     min_prn = std::cmp::min(min_prn, sv.prn);
@@ -337,7 +343,7 @@ fn run_single_file_op (
                 // build y axis
                 let (min, max) = y_min_max.get("PR")
                     .unwrap();
-                let y_axis = (min-1000.0..max+1000.0);
+                let y_axis = min*0.95..max*1.05;
                 // Create a chart
                 let mut chart = ChartBuilder::on(&root)
                     .caption("Pseudo Range", ("sans-serif", 50).into_font())
@@ -360,7 +366,7 @@ fn run_single_file_op (
                     .unwrap();
 
                 // symbol per carrier
-                let symbols = vec!["x","t","o","p"];
+                let _symbols = vec!["x","t","o","p"];
                 
                 // Draw data series
                 for (sv_index, sv) in space_vehicules.iter().enumerate() {
@@ -371,12 +377,19 @@ fn run_single_file_op (
                                 // one chart per obs kind
                                 if observable == "L1" {
                                     //<o
-                                    //  symbol emphasizes Carrier Signal 
+                                    //  symbol will eventually emphasize Carrier Signal 
+                                    //  we currently only support one per physics
+
+                                    // <o
                                     //  color emphsiazes PRN# 
-                                    //    color can also be slightly adjusted regarding the presence
-                                    //    and value of SSI 
-                                    //let color = Palette99::pick(sv_index * obscodes.len())
-                                    //    .mix(0.9); //opacity
+
+                                    // <o
+                                    //    color can also be smartly indexed on the SSI value
+                                    //    we could also use dash plot if NOK condition were
+                                    //    determined 
+                                    let color = Palette100::pick(sv_index *100/nb_vehicules)
+                                        .mix(0.9); // mix with given opacity, RGB => RGBa
+
                                     chart.draw_series(LineSeries::new(
                                         record.iter()
                                             .map(|(epoch, (_, vehicules))| {
@@ -400,11 +413,11 @@ fn run_single_file_op (
                                                     .flatten()
                                             })
                                             .flatten(),
-                                        //&color,
-                                        &BLACK,
+                                        &color,
                                     ))
                                     .unwrap()
-                                    .label("L1");
+                                    .label(sv.to_string())
+                                    .legend(|(x, y)| PathElement::new(vec![(x,y), (x+20, y)], color.clone().to_owned()));
                                 }
                             }//L1
                         } // got some obs for desired constellation
@@ -416,6 +429,7 @@ fn run_single_file_op (
                     chart
                         .configure_series_labels()
                         .border_style(&BLACK)
+                        .background_style(WHITE.filled())
                         .draw()
                         .unwrap();
                 //}
@@ -455,7 +469,8 @@ fn run_double_file_op (
     rnx_a: &Rinex, 
     rnx_b: &Rinex, 
     matches: clap::ArgMatches,
-    output: Option<&str>) {
+    _output: Option<&str>) 
+{
     let pretty = matches.is_present("pretty");
     let merge = matches.is_present("merge");
     let diff = matches.is_present("diff");
@@ -488,33 +503,6 @@ pub fn main () -> Result<(), std::io::Error> {
         .setting(AppSettings::DeriveDisplayOrder);
 	let matches = app.get_matches();
 
-    // General 
-    let plot = matches.is_present("plot");
-    let mut custom_header: Option<Header> = None;
-
-    if matches.is_present("header-json") {
-        let descriptor = matches.value_of("header-json")
-            .unwrap();
-        match serde_json::from_str::<Header>(descriptor) {
-            Ok(hd) => {
-                custom_header = Some(hd.clone());
-            },
-            Err(e) => {
-                match std::fs::read_to_string(descriptor) {
-                    Ok(content) => {
-                        match serde_json::from_str::<Header>(&content) {
-                            Ok(hd) => custom_header = Some(hd.clone()),
-                            Err(ee) => panic!("failed to interprate header: {:?}", ee),
-                        }
-                    },
-                    Err(_) => {
-                        panic!("failed to interprate header: {:?}", e)
-                    }
-                }
-            },
-        }
-    }
-
     // files (in)
     let filepaths : Option<Vec<&str>> = match matches.is_present("filepath") {
         true => {
@@ -535,6 +523,33 @@ pub fn main () -> Result<(), std::io::Error> {
         },
         false => Vec::new(),
     };
+
+    // Header customization  
+    let mut _custom_header: Option<Header> = None;
+    if matches.is_present("custom-header") {
+        let descriptor = matches.value_of("custom-header")
+            .unwrap();
+        match serde_json::from_str::<Header>(descriptor) {
+            Ok(hd) => {
+                _custom_header = Some(hd.clone());
+            },
+            Err(e) => {
+                match std::fs::read_to_string(descriptor) {
+                    Ok(content) => {
+                        match serde_json::from_str::<Header>(&content) {
+                            Ok(hd) => {
+                                _custom_header = Some(hd.clone())
+                            },
+                            Err(ee) => panic!("failed to interprate header: {:?}", ee),
+                        }
+                    },
+                    Err(_) => {
+                        panic!("failed to interprate header: {:?}", e)
+                    }
+                }
+            },
+        }
+    }
 
     let filepaths = filepaths
         .unwrap(); // input files are mandatory
