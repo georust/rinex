@@ -8,6 +8,7 @@ use clap::load_yaml;
 use std::str::FromStr;
 use plotters::prelude::*;
 use std::collections::HashMap;
+use itertools::Itertools;
 
 use rinex::{*, 
     observation::Ssi, observation::LliFlags,
@@ -15,6 +16,20 @@ use rinex::{*,
 
 mod parser; // user input parser
 mod ascii_plot; // `teqc` tiny plot
+
+struct DynamicZip<I>
+where I: Iterator {
+    iterators: Vec<I>
+}
+
+impl<I, T> Iterator for DynamicZip<I>
+where I: Iterator<Item = T> {
+    type Item = Vec<T>;
+    fn next(&mut self) -> Option<Self::Item> {
+        let output: Option<Vec<T>> = self.iterators.iter_mut().map(|iter| iter.next()).collect();
+        output
+    }
+}
 
 /* NOTES
  * smart color generation
@@ -299,7 +314,7 @@ fn run_single_file_op (
                         (epoch.date.timestamp() - e0.date.timestamp()) as f64
                     })
                     .collect();
-                let x_axis = (timestamps[0]..timestamps[timestamps.len()-1]);
+                let t_axis = (timestamps[0]..timestamps[timestamps.len()-1]);
 
                 // determine (min, max) #PRN 
                 //  this is used to adapt colors nicely 
@@ -351,7 +366,7 @@ fn run_single_file_op (
                     .x_label_area_size(30)
                     .y_label_area_size(40)
                     .build_cartesian_2d(
-                        x_axis,
+                        t_axis,
                         y_axis)
                     .unwrap();
                 // Draw axes
@@ -369,65 +384,77 @@ fn run_single_file_op (
                 let _symbols = vec!["x","t","o","p"];
                 let mut color = Palette100::pick(50); // default
                 let mut rgba = color.mix(0.9); // default
-                // Draw data series
-                // One chart per Observable 
-                for (c_index, (constell, observables)) in observables.iter().enumerate() {
-                    for observable in observables.iter() {
-                        // one chart per obs kind
-                        if observable == "L1" {
-                            //<o
-                            //  symbol will eventually emphasize Carrier Signal 
-                            //  we currently only support one per physics
-
-                            // <o
-                            //  color emphsiazes PRN# 
-                            //color = Palette100::pick(sv_index *100/nb_vehicules);
-                            //rgba = color.mix(0.9); // mix with given opacity, RGB => RGBa
-
-                            // <o
-                            //    color can also be smartly indexed on the SSI value
-                            //    we could also use dash plot if NOK condition were
-                            //    determined 
-                            chart.draw_series(LineSeries::new(
-                                record.iter()
-                                    .map(|(epoch, (_, vehicules))| {
-                                        vehicules.iter()
-                                            .filter_map(|(vehicule, observables)| {
-                                                if vehicule.constellation == *constell {
-                                                    Some((observables.iter()
-                                                        .filter_map(|(observable, observation)| {
-                                                            if observable == "L1" {
-                                                                Some((
-                                                                    (epoch.date.timestamp() - e0.date.timestamp()) as f64, //x
-                                                                     observation.obs)) //y
-                                                            } else {
-                                                                None
-                                                            }
-                                                        })
-                                                    ))
-                                                } else {
-                                                    None
-                                                }
-                                            })
-                                            .flatten()
+                // extra list of vehicules
+                //  this will help identify datasets 
+                let vehicules: Vec<_> = record
+                    .iter()
+                    .map(|(_, (_, vehicules))| {
+                        vehicules.iter()
+                            .map(|(sv, _)| sv)
+                    })
+                    .flatten()
+                    .unique()
+                    .collect();
+                // extra list of encountered observables
+                //  this will help identify datasets 
+                let observables: Vec<_> = record
+                    .iter()
+                    .map(|(_, (_, vehicules))| {
+                        vehicules.iter()
+                            .map(|(_, observables)| {
+                                observables.iter()
+                                    .map(|(obscode, _)| obscode)
+                            })
+                            .flatten()
+                    })
+                    .flatten()
+                    .unique()
+                    .collect();
+                // extra observations in form (e, observable, sv, data) 
+                // for every single epoch, so we can plot easily
+                // we scale epoch as unix timestamps, normalized to the 1st one encountered
+                let data: Vec<_> = record
+                    .iter()
+                    .map(|(e, (clock_offset, vehicules))| {
+                        vehicules.iter()
+                            .map(|(sv, observables)| {
+                                observables.iter()
+                                    .map(|(observable, observation)| {
+                                        ((e.date.timestamp() - e0.date.timestamp()) as f64, observable, sv.clone(), observation.obs)
                                     })
-                                    .flatten(),
-                                &rgba,
-                            ))
-                            .unwrap()
-                            .label("L1") //sv.to_string())
-                            .legend(|(x, y)| PathElement::new(vec![(x,y), (x+20, y)], &GREEN));
-                        } // L1
-                    } // observables iteration
-                } // Sv iteration
-                
+                            })
+                            .flatten()
+                    })
+                    .flatten()
+                    .collect();
+                // Draw one serie per observable
+                for observable in observables.iter() {
+                    // Draw one serie per vehicule
+                    for vehicule in vehicules.iter() {
+                        chart.draw_series(LineSeries::new(
+                            data.iter()
+                                .filter_map(|(t, obs, sv, data)| {
+                                    if obs == observable {
+                                        if sv == *vehicule {
+                                            Some((*t, *data))
+                                        } else {
+                                            None
+                                        }
+                                    } else {
+                                        None
+                                    }
+                                }), 
+                            &BLACK,
+                        )).unwrap();
+                    }
+                }
                 // Draw labels 
-                /*chart
+                chart
                     .configure_series_labels()
                     .border_style(&BLACK)
                     .background_style(WHITE.filled())
                     .draw()
-                    .unwrap();*/
+                    .unwrap();
                 // Draw Labels & Legend
                 //for (_, chart) in charts.iter_mut() {
                 //}
