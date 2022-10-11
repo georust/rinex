@@ -19,6 +19,7 @@ The fractional parts ("nanos") is totally unused, we cannot handle periods small
   - [ ] CRX32RNX thorough test
 - [ ] Post Processing
   - [ ] Conclude the 2D Post processing "double diff"
+  - [ ] Add thorough test bench
     - [ ] A NAV + OBS context structure could help ?   
     this is currently inquired in the `differential` branch
   - [ ] Calculations involved in RTK solver? I am not familiar with such calculations
