@@ -1887,24 +1887,20 @@ impl Rinex {
 
     /// Extracts signal strength as (min, max) duplet,
     /// per vehicule. Only relevant on Observation RINEX
-    pub fn sig_strength_sv_min_max (&self) -> HashMap<Sv, Option<(observation::Ssi, observation::Ssi)>> {
-        let mut map: HashMap<Sv, Option<(observation::Ssi, observation::Ssi)>>
+    pub fn sig_strength_sv_min_max (&self) -> HashMap<Sv, (observation::Ssi, observation::Ssi)> {
+        let mut map: HashMap<Sv, (observation::Ssi, observation::Ssi)>
             = HashMap::new();
         if let Some(record) = self.record.as_obs() {
             for (_, (_, vehicules)) in record.iter() {
                 for (sv, observations) in vehicules.iter() {
-                    let mut inner: Option<(observation::Ssi, observation::Ssi)> = None;
+                    let (mut min, mut max) = (observation::Ssi::DbHz54, observation::Ssi::DbHz0);
                     for (_, observation) in observations.iter() {
                         if let Some(ssi) = observation.ssi {
-                            if let Some((mut min, mut max)) = inner {
-                                min = std::cmp::min(min, ssi);
-                                max = std::cmp::max(max, ssi);
-                            } else {
-                                inner = Some((ssi, ssi));
-                            }
+                            min = std::cmp::min(min, ssi);
+                            max = std::cmp::max(max, ssi);
                         }
                     }
-                    map.insert(*sv, inner);
+                    map.insert(*sv, (min,max));
                 }
             }
         }
