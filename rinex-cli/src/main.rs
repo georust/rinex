@@ -45,10 +45,9 @@ fn resample_single_file (rnx: &mut Rinex, matches: clap::ArgMatches) {
 
 /// Apply desired filters
 fn apply_filters (rinex: &mut Rinex, matches: clap::ArgMatches) {
-    let epoch_ok_filter = matches.is_present("epoch-ok-filter");
-    let epoch_nok_filter = matches.is_present("epoch-nok-filter");
-    
-    let constell_filter : Option<Vec<Constellation>> = match matches.value_of("constellation-filter") {
+    let retain_epoch_ok = matches.is_present("retain-epoch-ok");
+    let retain_epoch_nok = matches.is_present("retain-epoch-nok");
+    let retain_constell : Option<Vec<Constellation>> = match matches.value_of("retain-constell") {
         Some(s) => {
             let constellations: Vec<&str> = s.split(",").collect();
             let mut c_filters : Vec<Constellation> = Vec::new();
@@ -64,7 +63,7 @@ fn apply_filters (rinex: &mut Rinex, matches: clap::ArgMatches) {
         _ => None,
     };
     
-    let sv_filter : Option<Vec<Sv>> = match matches.value_of("sv-filter") {
+    let retain_sv : Option<Vec<Sv>> = match matches.value_of("retain-sv") {
         Some(s) => {
             let sv: Vec<&str> = s.split(",").collect();
             let mut sv_filters : Vec<Sv> = Vec::new();
@@ -80,11 +79,15 @@ fn apply_filters (rinex: &mut Rinex, matches: clap::ArgMatches) {
         _ => None,
     };
 
-    let observ_filter : Option<Vec<&str>> = match matches.value_of("observ-filter") {
+    let retain_obs : Option<Vec<&str>> = match matches.value_of("retain-obs") {
         Some(s) => Some(s.split(",").collect()),
         _ => None,
     };
-    let lli_mask : Option<u8> = match matches.value_of("lli-mask") {
+    let retain_orb : Option<Vec<&str>> = match matches.value_of("retain-orb") {
+        Some(s) => Some(s.split(",").collect()),
+        _ => None,
+    };
+    let lli_and_mask : Option<u8> = match matches.value_of("lli-andmask") {
         Some(s) => Some(u8::from_str_radix(s,10).unwrap()),
         _ => None,
     };
@@ -92,36 +95,62 @@ fn apply_filters (rinex: &mut Rinex, matches: clap::ArgMatches) {
         Some(s) => Some(Ssi::from_str(s).unwrap()),
         _ => None,
     };
+
+    let retain_nav_msg: Option<Vec<navigation::MsgType>> = match matches.value_of("retain-nav-msg") {
+        Some(s) => {
+            let mut filter: Vec<navigation::MsgType> = Vec::new();
+            let descriptor: Vec<&str> = s.split(",").collect();
+            for item in descriptor {
+                if let Ok(msg) = navigation::MsgType::from_str(item) {
+                    filter.push(msg)       
+                }
+            }
+            if filter.len() == 0 {
+                None
+            } else {
+                Some(filter.clone())
+            }
+        },
+        _ => None,
+    };
+
+    let retain_legacy_nav = matches.is_present("retain-lnav");
+    let retain_modern_nav = matches.is_present("retain-mnav");
     
-    if epoch_ok_filter {
-        rinex
-            .epoch_ok_filter_mut()
+    if retain_epoch_ok {
+        rinex.retain_epoch_ok_mut()
     }
-    if epoch_nok_filter {
-        rinex
-            .epoch_nok_filter_mut()
+    if retain_epoch_nok {
+        rinex.retain_epoch_nok_mut()
     }
-    if let Some(ref filter) = constell_filter {
-        rinex
-            .constellation_filter_mut(filter.to_vec())
+    if let Some(ref filter) = retain_constell {
+        rinex.retain_constellation_mut(filter.to_vec())
     }
-    if let Some(ref filter) = sv_filter {
-        rinex
-            .space_vehicule_filter_mut(filter.to_vec())
+    if let Some(ref filter) = retain_sv {
+        rinex.retain_space_vehicule_mut(filter.to_vec())
     }
-    if let Some(ref filter) = observ_filter {
-        rinex
-            .observable_filter_mut(filter.to_vec())
+    if let Some(ref filter) = retain_obs {
+        rinex.retain_observable_mut(filter.to_vec())
     }
-    if let Some(lli) = lli_mask {
+    if let Some(ref filter) = retain_nav_msg {
+        rinex.retain_navigation_message_mut(filter.to_vec())
+    }
+    if retain_legacy_nav {
+        rinex.retain_legacy_navigation_mut();
+    }
+    if retain_modern_nav {
+        rinex.retain_modern_navigation_mut();
+    }
+    if let Some(ref filter) = retain_orb {
+        rinex.retain_ephemeris_orbits_mut(filter.to_vec())
+    }
+    if let Some(lli) = lli_and_mask {
         let mask = LliFlags::from_bits(lli)
             .unwrap();
-        rinex
-            .lli_filter_mut(mask)
+        rinex.observation_lli_and_mask_mut(mask)
     }
     if let Some(ssi) = ssi_filter {
-        rinex
-            .minimum_sig_strength_filter_mut(ssi)
+        rinex.minimum_sig_strength_filter_mut(ssi)
     }
 }
 
@@ -134,12 +163,13 @@ fn run_single_file_op (
     let plot = matches.is_present("plot");
     let pretty = matches.is_present("pretty");
     let header = matches.is_present("header");
-    let observables = matches.is_present("observ");
     let epoch = matches.is_present("epoch");
+    let obs = matches.is_present("obs");
     let sv = matches.is_present("sv");
+    let sv_per_epoch = matches.is_present("sv-epoch");
     let ssi_range = matches.is_present("ssi-range");
+    let ssi_sv_range = matches.is_present("ssi-sv-range");
     let constellations = matches.is_present("constellations");
-    let sv_per_epoch = matches.is_present("sv-per-epoch");
     let clock_offsets = matches.is_present("clock-offsets");
     let gaps = matches.is_present("gaps");
     let largest_gap = matches.is_present("largest-gap");
@@ -164,7 +194,7 @@ fn run_single_file_op (
             println!("{}", serde_json::to_string(&rnx.epochs()).unwrap())
         }
     }
-    if observables {
+    if obs {
         at_least_one_op = true;
         if pretty {
             println!("{}", serde_json::to_string_pretty(&rnx.observables()).unwrap())
@@ -175,9 +205,9 @@ fn run_single_file_op (
     if constellations {
         at_least_one_op = true;
         if pretty {
-            println!("{}", serde_json::to_string_pretty(&rnx.constellations()).unwrap())
+            println!("{}", serde_json::to_string_pretty(&rnx.list_constellations()).unwrap())
         } else {
-            println!("{}", serde_json::to_string(&rnx.constellations()).unwrap())
+            println!("{}", serde_json::to_string(&rnx.list_constellations()).unwrap())
         }
     }
     if sv {
@@ -192,9 +222,18 @@ fn run_single_file_op (
         at_least_one_op = true;
         // terminal ouput
         if pretty {
-            println!("{}", serde_json::to_string_pretty(&rnx.sig_strength_range()).unwrap())
+            println!("{}", serde_json::to_string_pretty(&rnx.sig_strength_min_max()).unwrap())
         } else {
-            println!("{}", serde_json::to_string(&rnx.sig_strength_range()).unwrap())
+            println!("{}", serde_json::to_string(&rnx.sig_strength_min_max()).unwrap())
+        }
+    }
+    if ssi_sv_range {
+        at_least_one_op = true;
+        // terminal ouput
+        if pretty {
+            println!("{}", serde_json::to_string_pretty(&rnx.sig_strength_sv_min_max()).unwrap())
+        } else {
+            println!("{}", serde_json::to_string(&rnx.sig_strength_sv_min_max()).unwrap())
         }
     }
     if clock_offsets {
@@ -224,7 +263,7 @@ fn run_single_file_op (
 
     if cycle_slips {
         at_least_one_op = true;
-        println!("{:#?}", rnx.cycle_slips());
+        println!("{:#?}", rnx.observation_cycle_slip_epochs());
     }
 
     if !at_least_one_op {
@@ -422,7 +461,7 @@ fn run_double_file_op (
     let diff = matches.is_present("diff");
 
     if diff {
-        if let Ok(rnx) = rnx_a.diff(rnx_b) {
+        if let Ok(rnx) = rnx_a.observation_diff(rnx_b) {
             // print remaining record data
             if pretty {
                 println!("{}", serde_json::to_string_pretty(&rnx.record).unwrap())
