@@ -7,6 +7,7 @@ Roadmap
 We might want to update the Header structure, on the fly, with following information
 - [ ] `sampling`: `chrono::duration` is used most of the time to describe a duration.  
 The fractional parts ("nanos") is totally unused, we cannot handle periods smaller than 1 second to this day
+- [ ] record browsing documentation for each Record type declaration
 - [ ] Data production
   - [ ]  Major data production
     - [ ] Observation data production

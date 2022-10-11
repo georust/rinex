@@ -121,6 +121,7 @@ impl std::fmt::Display for DataType {
 /// Clocks RINEX record content.
 /// RINEX record for CLOCKS files,
 /// Data is sorted by [epoch::Epoch], by [DataType] and by [System].
+/* TODO
 /// Example of Clock record browsing:
 /// ```
 /// use rinex::*;
@@ -137,6 +138,7 @@ impl std::fmt::Display for DataType {
 ///    }
 /// }
 /// ```
+*/
 pub type Record = BTreeMap<Epoch, HashMap<DataType, HashMap<System, Data>>>;
 
 pub fn is_new_epoch (line: &str) -> bool {

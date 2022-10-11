@@ -116,6 +116,7 @@ fn load_database() -> Vec<(Augmentation, geo::Polygon)> {
 /// returns most approriate Augmentation system
 /// depending on given location, latitude: in [ddeg]
 /// and longitude: in [ddeg]
+/* TODO
 /// Example:
 /// ```
 /// use rinex::*;
@@ -127,6 +128,7 @@ fn load_database() -> Vec<(Augmentation, geo::Polygon)> {
 /// let sbas = sbas_selection_helper(antartica.0, antartica.1);
 /// assert_eq!(sbas.is_none(), true);
 ///```
+*/
 #[cfg(feature = "with-geo")]
 pub fn sbas_selection_helper (lat: f64, lon: f64) -> Option<Augmentation> {
     let db = load_database();

@@ -20,6 +20,7 @@ pub fn is_new_epoch (content: &str) -> bool {
 /// Data is a list of Antenna containing several [Frequency] items.
 /// We do not parse RMS frequencies at the moment, but it will 
 /// easily be unlocked in near future.
+/*TODO
 /// Record browsing example:
 /// ```
 /// // grab ATX RINEX
@@ -54,6 +55,7 @@ pub fn is_new_epoch (content: &str) -> bool {
 ///   }
 /// }
 /// ```
+*/
 pub type Record = Vec<(Antenna, Vec<Frequency>)>;
 
 #[derive(Debug, Error)]
