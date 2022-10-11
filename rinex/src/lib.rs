@@ -1327,16 +1327,16 @@ impl Rinex {
     /// ];
     /// rinex
     ///     .space_vehicule_filter_mut(filter.clone());
-    /// let mut drifts = rinex.space_vehicules_clock_drift();
+    /// let mut biases = rinex.space_vehicules_clock_biases();
     /// // example: adjust clock offsets and drifts
-    /// for (e, sv) in drifts.iter_mut() { // (epoch, vehicules)
+    /// for (e, sv) in biases.iter_mut() { // (epoch, vehicules)
     ///     for (sv, (offset, dr, drr)) in sv.iter_mut() { // vehicule, (offset, drift, drift/dt)
     ///         *offset += 10.0_f64; // do something..
     ///         *dr = dr.powf(0.25); // do something..
     ///     }
     /// }
     /// ```
-    pub fn space_vehicules_clock_drift (&self) 
+    pub fn space_vehicules_clock_biases (&self) 
             -> BTreeMap<Epoch, BTreeMap<Sv, (f64,f64,f64)>> 
     {
         if !self.is_navigation_rinex() {
@@ -1535,7 +1535,7 @@ impl Rinex {
 
     /// Lists systems contained in this Clocks RINEX,
     /// on an epoch basis. Systems can either be a station or a space vehicule.
-    pub fn systems_per_epoch (&self) -> BTreeMap<Epoch, Vec<clocks::record::System>> {
+    pub fn clock_systems_per_epoch (&self) -> BTreeMap<Epoch, Vec<clocks::record::System>> {
         let mut map: BTreeMap<Epoch, Vec<clocks::record::System>> = BTreeMap::new();
         if !self.is_clocks_rinex() {
             return map;
