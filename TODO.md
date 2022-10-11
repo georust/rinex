@@ -41,9 +41,9 @@ The fractional parts ("nanos") is totally unused, we cannot handle periods small
 - [ ]  Post Processing
   - [ ]  provide efficient interface to 1D and 2D processing methods  
 - [ ] Graphical Interface
-  - [ ] Provide a visualization method when we're not generating a file
-  - [ ] Inquire which framework would be ideal: not too complex, full of features
-  - [ ] GUI must be an application feature, for users not interested in such option
+  - [ ] Conclude Observation RINEX plotting
+  - [ ] Provide NAV and MET RINEX plotting 
+  - [ ] Make GUI an application feature? for users not interested in such option
 
 ## UBLOX application
 
@@ -87,3 +87,6 @@ of the file browser
   - [x] GLO/NAV4/Orbit7 status flag
 - Post Processing
   - [x] 1D post processing [1D diff()](https://github.com/gwbres/rinex/blob/main/rinex/src/lib.rs#L3023) 
+
+- Graphical Interface
+  - [x] Provide a visualization method when we're not generating a file
