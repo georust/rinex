@@ -27,7 +27,7 @@ The fractional parts ("nanos") is totally unused, we cannot handle periods small
 
 - [ ] Data compression
   - [ ] Data conversion and scaling 
-  - [ ] `Gzip` decompression failure: understand current issue regarding files marked for `Post Processing`, 
+  - [x] `Gzip` decompression failure: understand current issue regarding files marked for `Post Processing`, 
 track [opened issue](https://github.com/rust-lang/flate2-rs/issues/316)
 
 - [ ] Post Processing
