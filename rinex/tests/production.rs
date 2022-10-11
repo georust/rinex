@@ -33,7 +33,7 @@ mod test {
         // remove copy not to disturb other test browsers
         let _ = std::fs::remove_file(copy_path);
     }
-    #[test]
+    /*#[test]
     fn obs_v2() {
         let folder = env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/OBS/V2/";
         for file in std::fs::read_dir(folder).unwrap() {
@@ -50,7 +50,7 @@ mod test {
             let fp = fp.path();
             testbench(fp.to_str().unwrap());
         }
-    }
+    }*/
     #[test]
     fn meteo_v2() {
         let folder = env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/MET/V2/";
@@ -60,7 +60,7 @@ mod test {
             testbench(fp.to_str().unwrap());
         }
     }
-    #[test]
+    /*#[test]
     fn meteo_v4() {
         let folder = env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/MET/V4/";
         for file in std::fs::read_dir(folder).unwrap() {
@@ -95,5 +95,5 @@ mod test {
             let fp = fp.path();
             testbench(fp.to_str().unwrap());
         }
-    }
+    }*/
 }
