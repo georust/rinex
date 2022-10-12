@@ -1,194 +1,174 @@
 use chrono::NaiveDateTime;
-use clap::{Parser, Subcommand};
-
-#[derive(Debug, Clone)]
-#[derive(Subcommand)]
-/// Observation specific command
-pub enum Observation {
-    /// Observation specific operations 
-    #[arg(short, long, value_parser)]
-    /// Extract identified observables 
-    obs: bool,
-    #[arg(short, long, value_parser)]
-    /// Extract SSI (min, max) value from Observation RINEX 
-    ssi_range: bool,
-    #[arg(long, value_parser)]
-    /// Extract SSI (min, max) per vehicule
-    ssi_sv_range: bool,
-    #[arg(short, long, value_parser)]
-    /// Extract receiver clock offsets per epoch
-    clock_offsets: bool,
-    #[arg(long, value_parser)]
-    /// Extract possible cycle slip events per epoch
-    cycle_slips: bool,
-    #[arg(short, long, value_parser)]
-    /// Converts all Pseudo Range raw data into real physical distances 
-    pr2distance: bool,
-}
-
-#[derive(Debug, Clone)]
-#[derive(Subcommand)]
-/// Extraction commands 
-pub enum Extract {
-    #[arg(long, value_parser)]
-    /// Header section
-    header: bool,
-    #[arg(short, long, value_parser)]
-    /// Identified constellations 
-    constellations: bool,
-    #[arg(short, long, value_parser)]
-    /// Encountered space vehicules 
-    sv: bool,
-    #[arg(long, value_parser)]
-    /// Encountered space vehicules per epoch 
-    sv_epoch: bool,
-    #[arg(short, long, value_parser)]
-    /// Encountered epochs 
-    epochs: bool,
-    #[arg(short, long, value_parser)]
-    /// Unexpected data gaps 
-    gaps: bool,
-    #[arg(short, long, value_parser)]
-    /// Largest unexpected data gap
-    largest_gaps: bool,
-}
-
-/*
-    /// Navigation specific operations 
-    Navigation {
-        #[arg(short, long, value_parser)]
-        /// Extract identified orbit fields 
-        orb: bool,
-        #[arg(long, value_parser)]
-        /// Extract Clock biases
-        biases: bool,
-    },
-    /// Record resampling
-    Resampling {
-        #[arg(short, long, value_parser)]
-        /// Decimation ratio.
-        /// For example, ratio = 2 will retain 1 epoch out of 2
-        /// a,b,c,d => a,c
-        ratio: Option<u64>,
-        #[arg(short, long)]
-        /// Decimation interval.
-        /// Removes all epoch in between |(e(k) - e(k-1)| < interval
-        /// predicate
-        interval: Option<String>,
-        #[arg(short, long)]
-        /// Epoch window, discards all epochs
-        /// that do not lie within the a < x < b interval
-        window: Option<String>,
-    },
-    /// Retain filter list
-    Retain {
-        #[arg(short, long)]
-        /// List of GNSS constellation to retain
-        constellations: Option<String>,
-        #[arg(short, long)]
-        /// List of space vehicules to retain
-        sv: Option<String>,
-        #[arg(short, long)]
-        /// Retain only valid epochs
-        epoch_ok: bool, 
-        #[arg(long)]
-        /// Retain only non valid epochs
-        epoch_nok: bool,
-        #[arg(short, long)]
-        /// List of Observables to retain.
-        obs: Option<String>,
-        #[arg(short, long)]
-        /// Retain Legacy NAV only 
-        lnav: bool, 
-        #[arg(short, long)]
-        /// Retain Modern (non Legacy) NAV only 
-        mnav: bool, 
-        #[arg(short, long)]
-        /// List of Navigation messages to retain 
-        nav_msg: Option<String>,
-        #[arg(long)]
-        /// List of Navigation Orbits to retain
-        orb: Option<String>,
-    },
-    /// Filter data out
-    Filter {
-        /// SSI condition filter on retained Observations
-        ssi: Option<u8>,
-        /// LLI AND() mask on retained Observations
-        lli_mask: Option<u8>,
-    },
-    /// RINEX production context
-    Production {
-        #[arg(short, long)]
-        /// Output file name 
-        filepath: Option<String>,
-        #[arg(short, long)]
-        /// Custom header fields
-        header: Option<String>,
-    },
-    /// TEQC operations
-    Teqc {
-        #[arg(short, long)]
-        /// Merge two RINEX files into one
-        merge: bool,
-        #[arg(short, long)]
-        /// Split RINEX file into two 
-        split: bool,
-        #[arg(short, long)]
-        /// Tiny ascii plot
-        plot: bool,
-        #[arg(short, long)]
-        /// `teqc` verbose report and analysis 
-        report: bool,
-    },
-    /// RINEX processing operations
-    Processing {
-        #[arg(short, long)]
-        /// Computes single Observation RINEX differentiation,
-        /// to cancel ionospheric biases.
-        /// Requires two Observation RINEX files.
-        diff: bool,
-        #[arg(short, long)]
-        /// Computes double Observation RINEX differentiation,
-        /// to cancel ionospheric biases and clock induced biases.
-        /// Requires two Observation RINEX and one Navigation file.
-        double_diff: bool,
-    },
-}*/
-
-#[derive(Parser, Debug)]
-#[derive(Clone)]
-#[command(author, version, about, long_about = None)]
-pub struct Args {
-    #[arg(short, long)]
-    /// Input file name 
-    filepath: String,
-    /// Generate plot instead of stdout output
-    #[clap(short, long, value_parser)]
-    plot: bool,
-    /// Pretty stdout output 
-    #[clap(long, value_parser)]
-    pretty: bool,
-    /// Extraction commands 
-    #[command(subcommand)]
-    pub extract: Option<Extract>,
-}
+use clap::{Parser, Command, Subcommand, Arg, ArgMatches, ArgGroup, ArgAction};
 
 pub struct Cli {
     /// Arguments passed by user
-    pub args: Args,
+    pub matches: ArgMatches,
 }
 
 impl Cli {
     /// Build new command line interface 
     pub fn new() -> Self {
         Self {
-            args: Args::parse(),
+            matches: {
+                Command::new("rinex-cli")
+                    .author("Guillaume W. Bres, <guillaume.bressaix@gmail.com>")
+                    .version("1.0")
+                    .about("RINEX analysis and processing tool")
+                    .arg(Arg::new("filepath")
+                        .short('f')
+                        .long("fp")
+                        .help("Input RINEX file")
+                        .required(true))
+                    .arg(Arg::new("epochs")
+                        .long("epochs")
+                        .short('e')
+                        .action(ArgAction::SetTrue)
+                        .help("List identified epochs"))
+                    .arg(Arg::new("constellations")
+                        .long("constellations")
+                        .short('c')
+                        .action(ArgAction::SetTrue)
+                        .help("List identified GNSS constellations"))
+                    .arg(Arg::new("sv")
+                        .short('s')
+                        .long("sv")
+                        .action(ArgAction::SetTrue)
+                        .help("List identified space vehicules"))
+                    .arg(Arg::new("sv-epoch")
+                        .long("sv-epoch")
+                        .action(ArgAction::SetTrue)
+                        .help("List identified space vehicules per epoch"))
+                    .arg(Arg::new("header")
+                        .long("header")
+                        .action(ArgAction::SetTrue)
+                        .help("Extract header fields"))
+                    .arg(Arg::new("observables")
+                        .long("observables")
+                        .short('o')
+                        .action(ArgAction::SetTrue)
+                        .help("List identified observables. Applies to Observation and Meteo RINEX"))
+                    .arg(Arg::new("ssi-range")
+                        .long("ssi-range")
+                        .action(ArgAction::SetTrue)
+                        .help("Extract SSI (min,max) range, accross all epochs and vehicules"))
+                    .arg(Arg::new("ssi-sv-range")
+                        .long("ssi-sv-range")
+                        .action(ArgAction::SetTrue)
+                        .help("Extract SSI (min,max) range, per vehicule, accross all epochs"))
+                    .arg(Arg::new("clock-offset")
+                        .long("clock-offset")
+                        .action(ArgAction::SetTrue)
+                        .help("Extract clock offset data, per epoch")) 
+                    .arg(Arg::new("cycle-slip")
+                        .long("cycle-slip")
+                        .action(ArgAction::SetTrue)
+                        .help("List epochs where possible cycle slip happened")) 
+                    .arg(Arg::new("pr2distance")
+                        .long("pr2distance")
+                        .action(ArgAction::SetTrue)
+                        .help("Converts all Pseudo Range data to real physical distances. This is destructive, original pseudo ranges are lost and overwritten"))
+                    .arg(Arg::new("orbits")
+                        .long("orbits")
+                        .action(ArgAction::SetTrue)
+                        .help("List identified orbits data fields. Applies to Navigation RINEX"))
+                    .arg(Arg::new("clock-bias")
+                        .long("clock-bias")
+                        .action(ArgAction::SetTrue)
+                        .help("Extract clock biases (offset, drift, drift changes) per epoch and vehicule"))
+                    .arg(Arg::new("gaps")
+                        .long("gaps")
+                        .short('g')
+                        .action(ArgAction::SetTrue)
+                        .help("Identify unexpected data gaps in record"))
+                    .arg(Arg::new("largest-gap")
+                        .long("largest-gap")
+                        .action(ArgAction::SetTrue)
+                        .help("Identify largest data gaps in record"))
+                    .arg(Arg::new("resample-ratio")
+                        .long("resample-ratio")
+                        .short('r')
+                        .action(ArgAction::SetTrue)
+                        .help("Downsample record content by given factor. 2 for instance, keeps one every other epoch"))
+                    .arg(Arg::new("resample-interval")
+                        .long("resample-interval")
+                        .short('i')
+                        .action(ArgAction::SetTrue)
+                        .help("Discards every epoch in between |e(n)-(n-1)| < interval, where interval is a valid \"chrono::Duration\" string description"))
+                    .arg(Arg::new("time-window")
+                        .long("time-window")
+                        .short('w')
+                        .action(ArgAction::SetTrue)
+                        .help("Center record content to specified epoch window. All epochs that do not lie within the specified (start, end) interval are dropped out. User must pass two valid \"chrono::NaiveDateTime\" description"))
+                    .arg(Arg::new("retain-constell")
+                        .long("retain-constell")
+                        .help("Retain only given GNSS constellation"))
+                    .arg(Arg::new("retain-sv")
+                        .long("retain-sv")
+                        .help("Retain only given Space vehicules"))
+                    .arg(Arg::new("retain-epoch-ok")
+                        .long("retain-epoch-ok")
+                        .help("Retain only valid epochs"))
+                    .arg(Arg::new("retain-epoch-nok")
+                        .long("retain-epoch-nok")
+                        .help("Retain only non valid epochs"))
+                    .arg(Arg::new("retain-obs")
+                        .long("retain-obs")
+                        .help("Retain only given list of Observables")) 
+                    .arg(Arg::new("retain-ssi")
+                        .long("retain-ssi")
+                        .help("Retain only observations that have at least this signal quality"))
+                    .arg(Arg::new("lli-mask")
+                        .long("lli-mask")
+                        .short('l')
+                        .help("Apply LLI AND() mask to all observations. Also drops observations that did not come with an LLI flag"))
+                    .arg(Arg::new("retain-orb")
+                        .long("retain-orb")
+                        .help("Retain only given list of Orbits fields")) 
+                    .arg(Arg::new("retain-lnav")
+                        .long("retain-lnav")
+                        .help("Retain only Legacy Navigation frames")) 
+                    .arg(Arg::new("retain-mnav")
+                        .long("retain-mnav")
+                        .help("Retain only Modern Navigation frames")) 
+                    .arg(Arg::new("retain-nav-msg")
+                        .long("retain-nav-msg")
+                        .help("Retain only given list of Navigation messages")) 
+                    .arg(Arg::new("output-file")
+                        .long("output-file")
+                        .help("Custom output file, in case we're generating data"))
+                    .arg(Arg::new("custom-header")
+                        .long("custom-header")
+                        .help("Custom header attributes, in case we're generating data"))
+                    .arg(Arg::new("merge")
+                        .short('m')
+                        .long("merge")
+                        .help("Merge two RINEX files together"))
+                    .arg(Arg::new("split")
+                        .long("split")
+                        .help("Split RINEX into two seperate files"))
+                    .arg(Arg::new("teqc-plot")
+                        .long("teqc-plot")
+                        .help("Print (\"stdout\") a tiny ascii plot, similar to \"teqc\""))
+                    .arg(Arg::new("teqc-report")
+                        .long("teqc-report")
+                        .help("Generate verbose report, similar to \"teqc\""))
+                    .arg(Arg::new("diff")
+                        .long("diff")
+                        .help("Compute Observation RINEX differentiation to cancel ionospheric biases"))
+                    .arg(Arg::new("ddiff")
+                        .long("ddiff")
+                        .help("Compute Observation RINEX double differentiation to cancel ionospheric and local clock induced biases"))
+                    .arg(Arg::new("plot")
+                        .short('p')
+                        .long("plot")
+                        .help("Generate Plots instead of default \"stdout\" terminal output"))
+                    .arg(Arg::new("pretty")
+                        .long("pretty")
+                        .help("Make \"stdout\" terminal output more readable"))
+                    .get_matches()
+            },
         }
-    }
-    /// Returns reference to input file path
-    pub fn filepath(&self) -> &str {
-        &self.args.filepath
     }
 /*
     /// Returns True if user requested a single file operation

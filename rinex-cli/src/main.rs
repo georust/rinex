@@ -768,10 +768,9 @@ pub fn main () -> Result<(), rinex::Error> {
     let cli = Cli::new();
 
     // parse given RINEX
-    let rnx = Rinex::from_file(cli.filepath())?;
-    // Extract possible desired fields 
-    let commands = cli.args.commands;
-    println!("{:#?}", commands);
+    //let rnx = Rinex::from_file(cli.filepath())?;
+    println!("{:#?}", cli.matches.get_flag("sv"));
+    println!("{:#?}", cli.matches.get_flag("header"));
     // process type dependent, desired operation
      
 
