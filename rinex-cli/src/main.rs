@@ -2,15 +2,12 @@
 //! Refer to README for command line arguments.    
 //! Based on crate <https://github.com/gwbres/rinex>     
 //! Homepage: <https://github.com/gwbres/rinex-cli>
-use clap::App;
-use clap::AppSettings;
-use clap::load_yaml;
-use std::str::FromStr;
 use plotters::{
     prelude::*,
     //coord::Shift,
     //coord::types::RangedCoordf64,
 };
+use std::str::FromStr;
 use std::collections::HashMap;
 use itertools::Itertools;
 
@@ -18,9 +15,16 @@ use rinex::{*,
     observation::Ssi, observation::LliFlags,
 };
 
+mod cli; // command line interface
+use cli::Cli;
+
 mod parser; // user input parser
 mod ascii_plot; // `teqc` tiny plot
 
+fn extract(rnx: &Rinex) -> Result<(), Error> {
+    Ok(())
+}
+/*
 /// Resample given file as possibly requested
 fn resample_single_file (rnx: &mut Rinex, matches: clap::ArgMatches) {
     if let Some(hms) = matches.value_of("decim-interval") { 
@@ -758,16 +762,20 @@ fn run_double_file_op (
             panic!("merge() failed");
         }
     }
-}
+}*/
 
-pub fn main () -> Result<(), std::io::Error> {
-	let yaml = load_yaml!("cli.yml");
-    let app = App::from_yaml(yaml)
-        .setting(AppSettings::ArgRequiredElseHelp)
-        .setting(AppSettings::DeriveDisplayOrder);
-	let matches = app.get_matches();
+pub fn main () -> Result<(), rinex::Error> {
+    let cli = Cli::new();
 
-    // files (in)
+    // parse given RINEX
+    let rnx = Rinex::from_file(cli.filepath())?;
+    // Extract possible desired fields 
+    let commands = cli.args.commands;
+    println!("{:#?}", commands);
+    // process type dependent, desired operation
+     
+
+/*TODO manage multi file ?
     let filepaths : Option<Vec<&str>> = match matches.is_present("filepath") {
         true => {
             Some(matches.value_of("filepath")
@@ -777,16 +785,7 @@ pub fn main () -> Result<(), std::io::Error> {
         },
         false => None,
     };
-    // files (out)
-    let outputs: Vec<&str> = match matches.is_present("output") {
-        true => {
-            matches.value_of("output")
-                .unwrap()
-                    .split(",")
-                    .collect()
-        },
-        false => Vec::new(),
-    };
+
 
     // Header customization  
     let mut _custom_header: Option<Header> = None;
@@ -917,6 +916,6 @@ pub fn main () -> Result<(), std::io::Error> {
             panic!("--ddiff requires NAV ephemeris to be provided!");
         }
     }*/
-    
+*/    
     Ok(())
 }// main

@@ -3,52 +3,57 @@ use clap::{Parser, Subcommand};
 
 #[derive(Debug, Clone)]
 #[derive(Subcommand)]
-pub enum Commands {
-    /// Extraction commands 
-    Extract {
-        #[arg(long, value_parser)]
-        /// Header section
-        header: bool,
-        #[arg(short, long, value_parser)]
-        /// Identified constellations 
-        constellations: bool,
-        #[arg(short, long, value_parser)]
-        /// Encountered space vehicules 
-        sv: bool,
-        #[arg(long, value_parser)]
-        /// Encountered space vehicules per epoch 
-        sv_epoch: bool,
-        #[arg(short, long, value_parser)]
-        /// Encountered epochs 
-        epochs: bool,
-        #[arg(short, long, value_parser)]
-        /// Unexpected data gaps 
-        gaps: bool,
-        #[arg(short, long, value_parser)]
-        /// Largest unexpected data gap
-        largest_gaps: bool,
-    },
+/// Observation specific command
+pub enum Observation {
     /// Observation specific operations 
-    Observation {
-        #[arg(short, long, value_parser)]
-        /// Extract identified observables 
-        obs: bool,
-        #[arg(short, long, value_parser)]
-        /// Extract SSI (min, max) value from Observation RINEX 
-        ssi_range: bool,
-        #[arg(long, value_parser)]
-        /// Extract SSI (min, max) per vehicule
-        ssi_sv_range: bool,
-        #[arg(short, long, value_parser)]
-        /// Extract receiver clock offsets per epoch
-        clock_offsets: bool,
-        #[arg(long, value_parser)]
-        /// Extract possible cycle slip events per epoch
-        cycle_slips: bool,
-        #[arg(short, long, value_parser)]
-        /// Converts all Pseudo Range raw data into real physical distances 
-        pr2distance: bool,
-    },
+    #[arg(short, long, value_parser)]
+    /// Extract identified observables 
+    obs: bool,
+    #[arg(short, long, value_parser)]
+    /// Extract SSI (min, max) value from Observation RINEX 
+    ssi_range: bool,
+    #[arg(long, value_parser)]
+    /// Extract SSI (min, max) per vehicule
+    ssi_sv_range: bool,
+    #[arg(short, long, value_parser)]
+    /// Extract receiver clock offsets per epoch
+    clock_offsets: bool,
+    #[arg(long, value_parser)]
+    /// Extract possible cycle slip events per epoch
+    cycle_slips: bool,
+    #[arg(short, long, value_parser)]
+    /// Converts all Pseudo Range raw data into real physical distances 
+    pr2distance: bool,
+}
+
+#[derive(Debug, Clone)]
+#[derive(Subcommand)]
+/// Extraction commands 
+pub enum Extract {
+    #[arg(long, value_parser)]
+    /// Header section
+    header: bool,
+    #[arg(short, long, value_parser)]
+    /// Identified constellations 
+    constellations: bool,
+    #[arg(short, long, value_parser)]
+    /// Encountered space vehicules 
+    sv: bool,
+    #[arg(long, value_parser)]
+    /// Encountered space vehicules per epoch 
+    sv_epoch: bool,
+    #[arg(short, long, value_parser)]
+    /// Encountered epochs 
+    epochs: bool,
+    #[arg(short, long, value_parser)]
+    /// Unexpected data gaps 
+    gaps: bool,
+    #[arg(short, long, value_parser)]
+    /// Largest unexpected data gap
+    largest_gaps: bool,
+}
+
+/*
     /// Navigation specific operations 
     Navigation {
         #[arg(short, long, value_parser)]
@@ -149,21 +154,24 @@ pub enum Commands {
         /// Requires two Observation RINEX and one Navigation file.
         double_diff: bool,
     },
-}
+}*/
 
 #[derive(Parser, Debug)]
 #[derive(Clone)]
 #[command(author, version, about, long_about = None)]
 pub struct Args {
+    #[arg(short, long)]
+    /// Input file name 
+    filepath: String,
     /// Generate plot instead of stdout output
     #[clap(short, long, value_parser)]
     plot: bool,
     /// Pretty stdout output 
     #[clap(long, value_parser)]
     pretty: bool,
-    /// Known commands 
+    /// Extraction commands 
     #[command(subcommand)]
-    pub commands: Option<Commands>,
+    pub extract: Option<Extract>,
 }
 
 pub struct Cli {
@@ -172,10 +180,15 @@ pub struct Cli {
 }
 
 impl Cli {
+    /// Build new command line interface 
     pub fn new() -> Self {
         Self {
             args: Args::parse(),
         }
+    }
+    /// Returns reference to input file path
+    pub fn filepath(&self) -> &str {
+        &self.args.filepath
     }
 /*
     /// Returns True if user requested a single file operation
