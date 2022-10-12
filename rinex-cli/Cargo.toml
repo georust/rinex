@@ -14,8 +14,8 @@ readme = "README.md"
 time = "0.1"
 chrono = "0.4"
 serde_json = "1"
+clap = { version = "4", features = ["derive"] }
 rinex = { path = "../rinex", features = ["serde", "flate2", "with-geo"] }
-clap = { version = "3.2.22", features = ["yaml"] }
 thiserror = "1"
 itertools = "0.10"
 # plotters requires "libfreetype6-dev libfontconfig1-dev" on host
