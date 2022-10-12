@@ -1208,7 +1208,7 @@ impl Rinex {
     /// Returns receiver clock offset, for all epoch such information
     /// was provided by this Observation record.
     /// Does not produce anything if self is not an OBS record.
-    pub fn receiver_clock_offsets (&self) -> BTreeMap<Epoch, f64> {
+    pub fn observation_clock_offsets (&self) -> BTreeMap<Epoch, f64> {
         let mut map : BTreeMap<Epoch, f64> = BTreeMap::new();
         if !self.is_observation_rinex() {
             return map ;
@@ -1327,7 +1327,7 @@ impl Rinex {
     /// ];
     /// rinex
     ///     .retain_space_vehicule_mut(filter.clone());
-    /// let mut biases = rinex.space_vehicules_clock_biases();
+    /// let mut biases = rinex.navigation_clock_biases();
     /// // example: adjust clock offsets and drifts
     /// for (e, sv) in biases.iter_mut() { // (epoch, vehicules)
     ///     for (sv, (offset, dr, drr)) in sv.iter_mut() { // vehicule, (offset, drift, drift/dt)
@@ -1336,7 +1336,7 @@ impl Rinex {
     ///     }
     /// }
     /// ```
-    pub fn space_vehicules_clock_biases (&self) 
+    pub fn navigation_clock_biases (&self) 
             -> BTreeMap<Epoch, BTreeMap<Sv, (f64,f64,f64)>> 
     {
         if !self.is_navigation_rinex() {
@@ -1645,6 +1645,51 @@ impl Rinex {
         s
     }
 
+    /// Lists identified Navigation Message types
+    pub fn navigation_message_types(&self) -> Vec<navigation::MsgType> {
+        let mut ret: Vec<navigation::MsgType> = Vec::new();
+        if let Some(record) = self.record.as_nav() {
+            for (_, classes) in record.iter() {
+                for (class, frames) in classes.iter() {
+                    if *class == navigation::FrameClass::Ephemeris {
+                        for fr in frames.iter() {
+                            let (msg, _, _) = fr.as_eph()
+                                .unwrap();
+                            if !ret.contains(msg) {
+                                ret.push(*msg);
+                            }
+                        }
+                    } else if *class == navigation::FrameClass::SystemTimeOffset {
+                        for fr in frames.iter() {
+                            let (msg, _, _) = fr.as_sto()
+                                .unwrap();
+                            if !ret.contains(msg) {
+                                ret.push(*msg);
+                            }
+                        }
+                    } else if *class == navigation::FrameClass::IonosphericModel {
+                        for fr in frames.iter() {
+                            let (msg, _, _) = fr.as_ion()
+                                .unwrap();
+                            if !ret.contains(msg) {
+                                ret.push(*msg);
+                            }
+                        }
+                    } else if *class == navigation::FrameClass::EarthOrientation {
+                        for fr in frames.iter() {
+                            let (msg, _, _) = fr.as_eop()
+                                .unwrap();
+                            if !ret.contains(msg) {
+                                ret.push(*msg);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        ret
+    }
+
 	/// Retains Navigation messages contained in given list.
 	/// An example of MsgType is LNAV for legacy frames.
 	pub fn retain_navigation_message_mut (&mut self, filter: Vec<navigation::MsgType>) {
@@ -1800,7 +1845,7 @@ impl Rinex {
     /// Extracts signal strength as (min, max) duplet,
     /// accross all vehicules.
     /// Only relevant on Observation RINEX.
-    pub fn sig_strength_min_max (&self) -> Option<(observation::Ssi, observation::Ssi)> {
+    pub fn observation_ssi_minmax (&self) -> Option<(observation::Ssi, observation::Ssi)> {
         if self.is_observation_rinex() {
             let (mut min, mut max) = (observation::Ssi::DbHz54, observation::Ssi::DbHz0);
             let record = self.record
@@ -1827,7 +1872,7 @@ impl Rinex {
 
     /// Extracts signal strength as (min, max) duplet,
     /// per vehicule. Only relevant on Observation RINEX
-    pub fn sig_strength_sv_min_max (&self) -> HashMap<Sv, (observation::Ssi, observation::Ssi)> {
+    pub fn observation_ssi_sv_minmax (&self) -> HashMap<Sv, (observation::Ssi, observation::Ssi)> {
         let mut map: HashMap<Sv, (observation::Ssi, observation::Ssi)>
             = HashMap::new();
         if let Some(record) = self.record.as_obs() {
@@ -1942,6 +1987,30 @@ impl Rinex {
             }
         }
         ret
+    }
+
+    /// Retains only Navigation Ephemeris
+    pub fn retain_navigation_ephemeris_mut (&mut self) {
+        if let Some(record) = self.record.as_mut_nav() {
+            record.retain(|_, classes| {
+                classes.retain(|class, _| {
+                    *class == navigation::FrameClass::Ephemeris
+                });
+                classes.len() > 0
+            });
+        }
+    }
+    
+    /// Retains only Navigation Ionospheric models 
+    pub fn retain_navigation_ionospheric_models_mut (&mut self) {
+        if let Some(record) = self.record.as_mut_nav() {
+            record.retain(|_, classes| {
+                classes.retain(|class, _| {
+                    *class == navigation::FrameClass::IonosphericModel
+                });
+                classes.len() > 0
+            });
+        }
     }
 
     /// Filters out all vehicules that exhibit an elevation angle below given mask (a < min_angle).
