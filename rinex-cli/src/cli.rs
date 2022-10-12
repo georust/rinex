@@ -1,5 +1,9 @@
-use chrono::NaiveDateTime;
-use clap::{Parser, Command, Subcommand, Arg, ArgMatches, ArgGroup, ArgAction};
+use clap::{
+    Command, 
+    Arg, ArgMatches, 
+    //ArgGroup, 
+    ArgAction,
+};
 
 pub struct Cli {
     /// Arguments passed by user
@@ -167,9 +171,11 @@ impl Cli {
                         .help("Split RINEX into two seperate files"))
                     .arg(Arg::new("teqc-plot")
                         .long("teqc-plot")
+                        .action(ArgAction::SetTrue)
                         .help("Print (\"stdout\") a tiny ascii plot, similar to \"teqc\""))
                     .arg(Arg::new("teqc-report")
                         .long("teqc-report")
+                        .action(ArgAction::SetTrue)
                         .help("Generate verbose report, similar to \"teqc\""))
                     .arg(Arg::new("diff")
                         .long("diff")
@@ -180,6 +186,7 @@ impl Cli {
                     .arg(Arg::new("plot")
                         .short('p')
                         .long("plot")
+                        .action(ArgAction::SetTrue)
                         .help("Generate Plots instead of default \"stdout\" terminal output"))
                     .arg(Arg::new("pretty")
                         .long("pretty")
@@ -204,6 +211,7 @@ impl Cli {
     /// was requested
     pub fn extract(&self) -> bool {
         self.matches.get_flag("sv")
+        | self.matches.get_flag("epochs")
         | self.matches.get_flag("sv-epoch")
         | self.matches.get_flag("header")
         | self.matches.get_flag("observables")
@@ -224,6 +232,7 @@ impl Cli {
         let flags = vec![
             "sv",
             "sv-epoch",
+            "epochs",
             "header",
             "constellations",
             "observables",
@@ -306,21 +315,34 @@ impl Cli {
             "resample-interval",
             "time-window",
         ];
-        flags.iter() {
+        flags.iter()
             .filter(|x| self.matches.contains_id(x))
             .map(|id| {
                 let args = self.matches.get_one::<String>(id)
                     .unwrap();
-                (id, args)
+                (id, args.as_str())
             })
-            .map(|(id, args) (*id, args))
+            .map(|(id, args)| (*id, args))
             .collect()
-        }
     }
 
     /// Returns true if at least one filter should be applied 
     pub fn filter(&self) -> bool {
         self.matches.contains_id("lli-mask")
+    }
+    pub fn filter_ops(&self) -> Vec<(&str, &str)> {
+        let flags = vec![
+            "lli-mask",
+        ];
+        flags.iter()
+            .filter(|x| self.matches.contains_id(x))
+            .map(|id| {
+                let args = self.matches.get_one::<String>(id)
+                    .unwrap();
+                (id, args.as_str())
+            })
+            .map(|(id, args)| (*id, args))
+            .collect()
     }
     pub fn resample_by_ratio (&self) -> Option<u64> {
         None 
@@ -338,55 +360,4 @@ impl Cli {
     pub fn plot (&self) -> bool {
         self.get_flag("plot")
     }
-
-    /*pub fn resample_ops (&self) -> Vec<&str>) {
-        let ops = vec![
-            "resample-ratio",
-            "resample-interval",
-            "time-window",
-        ];
-        ops.iter()
-            .filter(|x| self.matches.get_flags(x))
-            .map(|x| *x)
-            .collect()
-    }*/
-/*
-    /// Returns True if user requested a single file operation
-    pub fn single_file_op(&self) -> bool {
-        !self.double_file_op()
-    }
-    /// Returns True if user requested an operation that involves 2 files
-    pub fn double_file_op(&self) -> bool {
-        self.matches.is_present("merge")
-            | self.matches.is_present("diff")
-                | self.matches.is_present("ddiff")
-    }
-    /// Returns true if graphical view was requested
-    pub fn plotting(&self) -> bool {
-        self.matches.is_present("plot")
-    }
-    /// Returns true if improved terminal output was requested
-    pub fn pretty_stdout(&self) -> bool {
-        self.matches.is_present("pretty")
-    }
-
-    pub fn is_present(&self, arg: &str) -> bool {
-        self.matches.is_present(arg)
-    }
-
-    /// Returns true if we should expose record content.
-    /// We expose record content if user did not request at least 1 specific operation
-    pub fn print_record(&self) -> bool {
-        let ops = vec![
-            "header",
-            "obs",
-            "sv", "sv-per-epoch",
-            "ssi-range", "ssi-sv-range",
-            "clock-offset",
-            "clock-biases",
-            "cycle-slips",
-        ];
-        self.matches
-    }
-*/
 }

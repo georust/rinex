@@ -1,11 +1,14 @@
-use std::str::FromStr;
-use chrono::{Duration, NaiveDateTime};
+use rinex::*;
+use time::OutOfRangeError;
+use chrono::{Duration, NaiveDate, NaiveDateTime};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("format should be %HH:%MM:%SS to describe a duration")]
     InvalidDurationFormat,
+    #[error("duration parsing overflowed")]
+    DurationOverflow(#[from] OutOfRangeError),
 }
 
 fn parse_duration(args: &str) -> Result<Duration, Error> {
@@ -21,30 +24,34 @@ fn parse_duration(args: &str) -> Result<Duration, Error> {
             if let Ok(s) = u64::from_str_radix(hms[2], 10) {
                 let std = std::time::Duration::from_secs(
                     h*3600 + m*60 + s);
-                return Ok(chrono::Duration::from_std(std)?)
+                return Ok(Duration::from_std(std)?)
             }
         }
     }
     Err(Error::InvalidDurationFormat)
 }
 
-fn parse_datetime (args: &str) -> Result<chrono::NaiveDateTime, chrono::format::ParseError> {
-    chrono::NaiveDateTime
-        ::parse_from_str(args, "%Y-%m-%d %H:%M:%S")
+fn parse_date (args: &str) -> Result<NaiveDate, chrono::format::ParseError> {
+    chrono::NaiveDate
+        ::parse_from_str(args, "%Y-%m-%d")
 }
 
+fn parse_datetime (args: &str) -> Result<NaiveDateTime, chrono::format::ParseError> {
+    chrono::NaiveDateTime
+        ::parse_from_str(args, "%Y-%m-%d-%H:%M:%S")
+}
 
 /// Efficient RINEX content decimation
 pub fn record_resampling(rnx: &mut Rinex, ops: Vec<(&str, &str)>) {
     for (op, args) in ops.iter() {
         if op.eq(&"time-window") {
-            let items = args.split(" ")
+            let items: Vec<&str> = args.split(" ")
                 .collect();
             if items.len() == 2 { // date description
                 if let Ok(start) = parse_date(items[0].trim()) {
                     if let Ok(end) = parse_date(items[1].trim()) {
                         let start = start.and_hms(0, 0, 0);
-                        let end = end.and_hsms(0, 0, 0);
+                        let end = end.and_hms(0, 0, 0);
                         rnx.time_window_mut(start, end);
                     } else {
                         println!("failed to parse date from \"{}\" description", items[1]);
@@ -59,11 +66,11 @@ pub fn record_resampling(rnx: &mut Rinex, ops: Vec<(&str, &str)>) {
                 start_str.push_str("-");
                 start_str.push_str(items[1].trim());
                 
-                if let Ok(start) = parse_datetime(start_str) {
+                if let Ok(start) = parse_datetime(&start_str) {
                     let mut end_str = items[2].trim().to_owned();
                     end_str.push_str("-");
                     end_str.push_str(items[3].trim());
-                    if let Ok(end) = parse_datetime(end_str) {
+                    if let Ok(end) = parse_datetime(&end_str) {
                         rnx.time_window_mut(start, end);
                     }
                 } else {
@@ -80,7 +87,7 @@ pub fn record_resampling(rnx: &mut Rinex, ops: Vec<(&str, &str)>) {
         } else if op.eq(&"resample-interval") {
             if let Ok(duration) = parse_duration(args.trim()) {
                 rnx
-                    .decimate_by_interval(duration);
+                    .decimate_by_interval_mut(duration);
             } else {
                 println!("failed to parse chrono::duration from \"{}\"", args);
                 println!("Expected format is %HH:%MM:%SS\n");
@@ -95,6 +102,4 @@ pub fn record_resampling(rnx: &mut Rinex, ops: Vec<(&str, &str)>) {
             }
         }
     }
-
-    Ok(())
 }

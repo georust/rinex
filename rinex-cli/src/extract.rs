@@ -4,6 +4,7 @@ use rinex::*;
 /// from a previously parsed RINEX
 pub fn extract_data (rnx: &Rinex, ops: Vec<&str>, pretty: bool) {
     for op in ops {
+        println!("op: {}", op);
         if op.eq("header") {
             let content = match pretty {
                 true => serde_json::to_string_pretty(&rnx.header)
@@ -13,6 +14,14 @@ pub fn extract_data (rnx: &Rinex, ops: Vec<&str>, pretty: bool) {
             };
             println!("{}", content);
         
+        } else if op.eq("epochs") {
+            let data = &rnx.epochs();
+            let content = match pretty {
+                true => serde_json::to_string_pretty(data).unwrap(),
+                false => serde_json::to_string(data).unwrap(),
+            };
+            println!("{}", content);
+
         } else if op.eq("sv") {
             let data = &rnx.space_vehicules();
             let content = match pretty {

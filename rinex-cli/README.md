@@ -175,25 +175,55 @@ rinex-cli -f /tmp/amel010.21g \
             --sv-filter G01 --pretty
 ``` 
 
-## Decimate
+## Record resampling 
 
 To reduce the record size, we use decimation
 
 - either by an integer ratio
-- or by a minimum epoch interval ("sampling interval") to respect
+- or by a minimum epoch interval ("sampling interval") to follow
 
-With this command, we reduce the record size by 2 :
+It is also possible to apply a "time window" to the RINEX
+record, all epochs that do not lie within the a < e(k) < b predicate
+will get filtered out.
+
+Example: decimate record by 2.
+From original epochs a,b,c,d, we're only left with a,c
 ```bash
-# print initial epochs
-rinex-cli --epoch --pretty -f test_resources/OBS/V2/zegv0010.21o
-
-# reduce by 2
 rinex-cli -f test_resources/OBS/V2/zegv0010.21o \
-    --decim-interval 00:01:00 # 1' interval, 00:00:30 epochs get dropped out
+    --resample-ratio 2
+```
 
-# with is actually equivalent to    
-rinex-cli -f test_resources/OBS/V2/zegv0010.21o \
-       --decim-ratio 2 # but no knowledge of the resulting "sample" rate 
+Example: decimate to match a minimal sampling period.
+When describing a sampling period (chrono::Duration),
+we expect an %HH:%MM:%SS format, which can exceed 24 hours
+```bash
+# print original epochs
+rinex-cli -f test_resources/NAV/V4/KMS300DNK_R_20221591000_01H_MN.rnx.gz \
+    --epochs
+# Fit minimal sampling period to 1 day
+rinex-cli -f test_resources/NAV/V4/KMS300DNK_R_20221591000_01H_MN.rnx.gz \
+    --epochs \
+        --resample-interval 24:00:00
+```
+
+It is also possible to restring epochs to a given interval (or "time window").
+When describing a time window, we can either describe a Date interval (%Y-%m-%d)
+or a DateTime interval (%Y-%m%d %HH:%MM:%SS).
+Since this descriptor involves whitespaces, it must be quoted
+
+```bash
+# print original epochs
+rinex-cli -f test_resources/NAV/V4/KMS300DNK_R_20221591000_01H_MN.rnx.gz \
+    --epochs
+# restrict to last day contained in record
+rinex-cli -f test_resources/NAV/V4/KMS300DNK_R_20221591000_01H_MN.rnx.gz \
+    --epochs \
+        --time-window "2022-06-09 2022-06-11" 
+ 
+# grab some of the last epochs of first day and entire final days
+rinex-cli -f test_resources/NAV/V4/KMS300DNK_R_20221591000_01H_MN.rnx.gz \
+    --epochs \
+        --time-window "2022-06-08 11:00:00 2022-06-11 12:00:00" 
 ```
 
 ## Signal condition filters

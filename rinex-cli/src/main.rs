@@ -2,18 +2,14 @@
 //! Refer to README for command line arguments.    
 //! Based on crate <https://github.com/gwbres/rinex>     
 //! Homepage: <https://github.com/gwbres/rinex-cli>
+
+use rinex::*; 
 use plotters::{
     prelude::*,
     //coord::Shift,
     //coord::types::RangedCoordf64,
 };
-use std::str::FromStr;
-use std::collections::HashMap;
-use itertools::Itertools;
-
-use rinex::{*, 
-    observation::Ssi, observation::LliFlags,
-};
+//use itertools::Itertools;
 
 // command line interface
 mod cli; 
@@ -23,12 +19,15 @@ use cli::Cli;
 mod extract;
 use extract::extract_data;
 
-// retain filters
+// data filters
 mod retain;
 use retain::retain_filters;
+mod filter;
+use filter::apply_filters;
 
 // record resampling
 mod resampling;
+use resampling::record_resampling;
 
 mod parser; // user input parser
 mod ascii_plot; // `teqc` tiny plot
@@ -652,17 +651,14 @@ fn run_double_file_op (
     }
 }*/
 
-fn resample (rnx: &mut Rinex, ops: Vec<&str>) {}
-fn filter (rnx: &mut Rinex, ops: Vec<&str>) {}
-fn record_analysis (rnx: &Rinex, pretty: bool) {}
-
 pub fn main () -> Result<(), rinex::Error> {
     let cli = Cli::new();
     let mut rnx = Rinex::from_file(cli.input_filepath())?;
+    let plot = cli.plot();
     let pretty = cli.pretty();
 
     if cli.resampling() { // resampling requested
-        resample_record(&rnx, cli.resampling_ops());
+        record_resampling(&mut rnx, cli.resampling_ops());
     }
     
     if cli.retain() { // retain data of interest
@@ -670,7 +666,7 @@ pub fn main () -> Result<(), rinex::Error> {
     }
     
     if cli.filter() { // apply desired filters
-        //filter(&rnx, cli.retain_ops());
+        apply_filters(&mut rnx, cli.filter_ops());
     }
     
     // grab data of interest
@@ -679,8 +675,19 @@ pub fn main () -> Result<(), rinex::Error> {
     } else {
         // no data of interest
         // => extract record
-        record_analysis(&rnx, pretty);
+        if plot {
+
+        } else {
+            // print with desired option
+            if pretty {
+                println!("{}", serde_json::to_string_pretty(&rnx.record).unwrap())
+            } else {
+                println!("{}", serde_json::to_string(&rnx.record).unwrap())
+            }
+        }
     }
+    Ok(())
+}// main
 
 /*TODO manage multi file ?
     let filepaths : Option<Vec<&str>> = match matches.is_present("filepath") {
@@ -726,60 +733,6 @@ pub fn main () -> Result<(), rinex::Error> {
     // work queue, contains all parsed RINEX
     let mut queue: Vec<Rinex> = Vec::new();
 
-    ////////////////////////////////////////
-    // Parse, filter, resample
-    ////////////////////////////////////////
-    for fp in &filepaths {
-        let path = std::path::PathBuf::from(fp);
-        let mut rinex = match path.exists() {
-            true => {
-                if let Ok(r) = Rinex::from_file(fp) {
-                    r
-                } else {
-                    println!("Failed to parse file \"{}\"", fp); 
-                    continue
-                }
-            },
-            false => {
-                println!("File \"{}\" does not exist", fp);
-                continue
-            },
-        };
-        resample_single_file(&mut rinex, matches.clone());
-        apply_filters(&mut rinex, matches.clone());
-        queue.push(rinex);
-    }
-
-    let mut target_is_single_file = true;
-    // Merge is a 2=>1 op
-    target_is_single_file &= !matches.is_present("merge");
-    // Diff and DDiff are 2=>1 ops
-    target_is_single_file &= !matches.is_present("diff");
-    target_is_single_file &= !matches.is_present("ddiff");
-    
-    /////////////////////////////////////
-    // ops that require only 1 file
-    /////////////////////////////////////
-    if target_is_single_file {
-        for i in 0..queue.len() {
-            let output = outputs.get(i);
-            run_single_file_op(&queue[i], matches.clone(), output.copied());
-            run_single_file_teqc_op(&queue[i], matches.clone());
-        }
-    }
-
-    /////////////////////////////////////
-    // ops that require 2 files
-    /////////////////////////////////////
-    if !target_is_single_file { // User requested a 2D op
-        for i in 0..queue.len()/2 {
-            let q_2p = &queue[i*2];
-            let q_2p1 = &queue[i*2+1]; 
-            let output = outputs.get(i);
-            run_double_file_op(&q_2p, &q_2p1, matches.clone(), output.copied());
-        }
-    }
-
     /*let pretty = matches.is_present("pretty");
 
     // `ddiff` special ops,
@@ -824,5 +777,3 @@ pub fn main () -> Result<(), rinex::Error> {
         }
     }*/
 */    
-    Ok(())
-}// main
