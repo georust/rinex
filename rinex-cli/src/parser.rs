@@ -1,34 +1,5 @@
 use thiserror::Error;
 
-/// Duration parsing (from user input) related issues
-#[derive(Debug, Error)]
-pub enum DurationError {
-    /// We expect %HH:%MM:%SS format
-    #[error("format should be %HH:%MM:%SS")]
-    InvalidFormat,
-    /// Specified duration / parsed duration induced an overflow
-    #[error("time internal overflow!")]
-    TimeOutOfRange(#[from] time::OutOfRangeError),
-}
-
-/// Parses an std::time::Duration from user input
-pub fn parse_duration (content: &str) 
-        -> Result<chrono::Duration, DurationError> 
-{
-    let hms : Vec<_> = content.split(":").collect();
-    if hms.len() == 3 {
-        if let Ok(h) =  u64::from_str_radix(hms[0], 10) {
-            if let Ok(m) =  u64::from_str_radix(hms[1], 10) {
-                if let Ok(s) =  u64::from_str_radix(hms[2], 10) {
-                    let std = std::time::Duration::from_secs(h*3600 + m*60 +s);
-                    return Ok(chrono::Duration::from_std(std)?)
-                }
-            }
-        }
-    }
-    Err(DurationError::InvalidFormat)
-}
-
 /// Parses an chrono::NaiveDateTime from user input
 pub fn parse_datetime (content: &str) 
         -> Result<chrono::NaiveDateTime, chrono::format::ParseError> 

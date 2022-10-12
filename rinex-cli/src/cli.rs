@@ -19,6 +19,9 @@ impl Cli {
                         .short('f')
                         .long("fp")
                         .help("Input RINEX file")
+                        //TODO to support several files @ once
+                        //.action(ArgAction::Append)
+                        //.value_terminator(",")
                         .required(true))
                     .arg(Arg::new("epochs")
                         .long("epochs")
@@ -64,6 +67,10 @@ impl Cli {
                         .long("cycle-slip")
                         .action(ArgAction::SetTrue)
                         .help("List epochs where possible cycle slip happened")) 
+                    .arg(Arg::new("lock-loss")
+                        .long("lock-loss")
+                        .action(ArgAction::SetTrue)
+                        .help("List epochs where lock was declared lost")) 
                     .arg(Arg::new("pr2distance")
                         .long("pr2distance")
                         .action(ArgAction::SetTrue)
@@ -72,6 +79,14 @@ impl Cli {
                         .long("orbits")
                         .action(ArgAction::SetTrue)
                         .help("List identified orbits data fields. Applies to Navigation RINEX"))
+                    .arg(Arg::new("nav-msg")
+                        .long("nav-msg")
+                        .action(ArgAction::SetTrue)
+                        .help("List identified Navigation frame types")) 
+                    .arg(Arg::new("elevation")
+                        .long("elevation")
+                        .action(ArgAction::SetTrue)
+                        .help("Display elevation angles, per vehicules accross all epochs"))
                     .arg(Arg::new("clock-bias")
                         .long("clock-bias")
                         .action(ArgAction::SetTrue)
@@ -88,17 +103,14 @@ impl Cli {
                     .arg(Arg::new("resample-ratio")
                         .long("resample-ratio")
                         .short('r')
-                        .action(ArgAction::SetTrue)
                         .help("Downsample record content by given factor. 2 for instance, keeps one every other epoch"))
                     .arg(Arg::new("resample-interval")
                         .long("resample-interval")
                         .short('i')
-                        .action(ArgAction::SetTrue)
                         .help("Discards every epoch in between |e(n)-(n-1)| < interval, where interval is a valid \"chrono::Duration\" string description"))
                     .arg(Arg::new("time-window")
                         .long("time-window")
                         .short('w')
-                        .action(ArgAction::SetTrue)
                         .help("Center record content to specified epoch window. All epochs that do not lie within the specified (start, end) interval are dropped out. User must pass two valid \"chrono::NaiveDateTime\" description"))
                     .arg(Arg::new("retain-constell")
                         .long("retain-constell")
@@ -134,6 +146,12 @@ impl Cli {
                     .arg(Arg::new("retain-nav-msg")
                         .long("retain-nav-msg")
                         .help("Retain only given list of Navigation messages")) 
+                    .arg(Arg::new("retain-nav-eph")
+                        .long("retain-nav-eph")
+                        .help("Retains only Navigation ephemeris frames")) 
+                    .arg(Arg::new("retain-nav-iono")
+                        .long("retain-nav-iono")
+                        .help("Retains only Navigation ionospheric models")) 
                     .arg(Arg::new("output-file")
                         .long("output-file")
                         .help("Custom output file, in case we're generating data"))
@@ -165,11 +183,173 @@ impl Cli {
                         .help("Generate Plots instead of default \"stdout\" terminal output"))
                     .arg(Arg::new("pretty")
                         .long("pretty")
+                        .action(ArgAction::SetTrue)
                         .help("Make \"stdout\" terminal output more readable"))
                     .get_matches()
             },
         }
     }
+    /// Returns input filepath
+    pub fn input_filepath(&self) -> &str {
+        self.matches
+            .get_one::<String>("filepath")
+            .unwrap()
+    }
+    /// Returns output filepath
+    pub fn output_filepath(&self) -> Option<&str> {
+        self.matches
+            .get_one::<String>("output-file").map(|x| x.as_str())
+    }
+    /// Returns true if at least one --extract category flag
+    /// was requested
+    pub fn extract(&self) -> bool {
+        self.matches.get_flag("sv")
+        | self.matches.get_flag("sv-epoch")
+        | self.matches.get_flag("header")
+        | self.matches.get_flag("observables")
+        | self.matches.get_flag("clock-offset")
+        | self.matches.get_flag("ssi-range")
+        | self.matches.get_flag("ssi-sv-range")
+        | self.matches.get_flag("cycle-slip")
+        | self.matches.get_flag("orbits")
+        | self.matches.get_flag("elevation")
+        | self.matches.get_flag("nav-msg")
+        | self.matches.get_flag("clock-bias")
+        | self.matches.get_flag("gaps")
+        | self.matches.get_flag("largest-gap")
+        | self.matches.get_flag("lock-loss")
+    }
+    /// Returns list of requested data to extract
+    pub fn extraction_ops(&self) -> Vec<&str> {
+        let flags = vec![
+            "sv",
+            "sv-epoch",
+            "header",
+            "constellations",
+            "observables",
+            "clock-offset",
+            "ssi-range",
+            "ssi-sv-range",
+            "cycle-slip",
+            "orbits",
+            "elevation",
+            "nav-msg",
+            "clock-bias",
+            "gaps",
+            "largest-gap",
+            "lock-loss",
+        ];
+        flags.iter()
+            .filter(|x| self.matches.get_flag(x))
+            .map(|x| *x)
+            .collect()
+    }
+    /// Returns true if at least one retain filter should be applied
+    pub fn retain(&self) -> bool {
+        self.matches.contains_id("retain-constell")
+        | self.matches.contains_id("retain-sv")
+        | self.matches.contains_id("retain-epoch-ok")
+        | self.matches.contains_id("retain-epoch-nok")
+        | self.matches.contains_id("retain-obs")
+        | self.matches.contains_id("retain-ssi")
+        | self.matches.contains_id("retain-orb")
+        | self.matches.contains_id("retain-lnav")
+        | self.matches.contains_id("retain-mnav")
+        | self.matches.contains_id("retain-nav-msg")
+        | self.matches.contains_id("retain-nav-eph")
+        | self.matches.contains_id("retain-nav-iono")
+    }
+    /// Returns list of retain ops to perform with given list of arguments
+    pub fn retain_ops(&self) -> Vec<(&str, Vec<&str>)> {
+        // this list order is actually important,
+        //   because they describe the filter operation order
+        //   it is better to have epochs filter first
+        //    then the rest will follow
+        let flags = vec![
+            "retain-epoch-ok",
+            "retain-epoch-nok",
+            "retain-constell",
+            "retain-sv",
+            "retain-obs",
+            "retain-ssi",
+            "retain-orb",
+            "retain-lnav",
+            "retain-mnav",
+            "retain-nav-msg",
+            "retain-nav-eph",
+            "retain-nav-iono",
+        ];
+        flags.iter()
+            .filter(|x| self.matches.contains_id(x))
+            .map(|id| {
+                let descriptor = self.matches.get_one::<String>(id)
+                    .unwrap();
+                let args: Vec<&str> = descriptor
+                    .split(",")
+                    .collect();
+                (id, args)
+            })
+            .map(|(id, args)| (*id, args)) 
+            .collect()
+    }
+    /// Returns true if at least one resampling op is to be performed
+    pub fn resampling(&self) -> bool {
+        self.matches.contains_id("resample-ratio")
+        | self.matches.contains_id("resample-interval")
+        | self.matches.contains_id("time-window")
+    }
+
+    pub fn resampling_ops(&self) -> Vec<(&str, &str)> {
+        // this order describes eventually the order of filtering operations
+        let flags = vec![
+            "resample-ratio",
+            "resample-interval",
+            "time-window",
+        ];
+        flags.iter() {
+            .filter(|x| self.matches.contains_id(x))
+            .map(|id| {
+                let args = self.matches.get_one::<String>(id)
+                    .unwrap();
+                (id, args)
+            })
+            .map(|(id, args) (*id, args))
+            .collect()
+        }
+    }
+
+    /// Returns true if at least one filter should be applied 
+    pub fn filter(&self) -> bool {
+        self.matches.contains_id("lli-mask")
+    }
+    pub fn resample_by_ratio (&self) -> Option<u64> {
+        None 
+    }
+
+    fn get_flag (&self, flag: &str) -> bool {
+        self.matches
+            .get_flag(flag)
+    }
+
+    pub fn pretty (&self) -> bool {
+        self.get_flag("pretty")
+    }
+
+    pub fn plot (&self) -> bool {
+        self.get_flag("plot")
+    }
+
+    /*pub fn resample_ops (&self) -> Vec<&str>) {
+        let ops = vec![
+            "resample-ratio",
+            "resample-interval",
+            "time-window",
+        ];
+        ops.iter()
+            .filter(|x| self.matches.get_flags(x))
+            .map(|x| *x)
+            .collect()
+    }*/
 /*
     /// Returns True if user requested a single file operation
     pub fn single_file_op(&self) -> bool {

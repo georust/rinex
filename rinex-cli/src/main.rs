@@ -15,15 +15,24 @@ use rinex::{*,
     observation::Ssi, observation::LliFlags,
 };
 
-mod cli; // command line interface
+// command line interface
+mod cli; 
 use cli::Cli;
+
+// high level extraction
+mod extract;
+use extract::extract_data;
+
+// retain filters
+mod retain;
+use retain::retain_filters;
+
+// record resampling
+mod resampling;
 
 mod parser; // user input parser
 mod ascii_plot; // `teqc` tiny plot
 
-fn extract(rnx: &Rinex) -> Result<(), Error> {
-    Ok(())
-}
 /*
 /// Resample given file as possibly requested
 fn resample_single_file (rnx: &mut Rinex, matches: clap::ArgMatches) {
@@ -152,138 +161,17 @@ fn apply_filters (rinex: &mut Rinex, matches: clap::ArgMatches) {
     }
 }
 
-/// Execute user requests on a single file
-fn run_single_file_op (
-    rnx: &Rinex, 
-    matches: clap::ArgMatches, 
-    _output: Option<&str>)
-{
-    let plot = matches.is_present("plot");
-    let pretty = matches.is_present("pretty");
-    let header = matches.is_present("header");
-    let epochs = matches.is_present("epochs");
-    let obs = matches.is_present("obs");
-    let sv = matches.is_present("sv");
-    let sv_per_epoch = matches.is_present("sv-epoch");
-    let ssi_range = matches.is_present("ssi-range");
-    let ssi_sv_range = matches.is_present("ssi-sv-range");
-    let constellations = matches.is_present("constellations");
-    let clock_offsets = matches.is_present("clock-offsets");
-    let clock_biases = matches.is_present("clock-biases");
-    let gaps = matches.is_present("gaps");
-    let largest_gap = matches.is_present("largest-gap");
-    let _sampling_interval = matches.is_present("sampling-interval");
-    let cycle_slips = matches.is_present("cycle-slips");
+/*TODO
+can't get this to work due to a scope pb..
+let mut areas: HashMap<String, //BitMapBackend> 
+    DrawingArea<BitMapBackend, Shift>> 
+        = HashMap::new();
 
-    let mut at_least_one_op = false;
-    
-    /*TODO
-    can't get this to work due to a scope pb..
-    let mut areas: HashMap<String, //BitMapBackend> 
-        DrawingArea<BitMapBackend, Shift>> 
+let mut charts: HashMap<String, 
+    ChartContext<BitMapBackend, 
+        Cartesian2d<RangedCoordf64, RangedCoordf64>>>
             = HashMap::new();
-    
-    let mut charts: HashMap<String, 
-        ChartContext<BitMapBackend, 
-            Cartesian2d<RangedCoordf64, RangedCoordf64>>>
-                = HashMap::new();
-    */
-    if header {
-        at_least_one_op = true;
-        if pretty {
-            println!("{}", serde_json::to_string_pretty(&rnx.header).unwrap())
-        } else {
-            println!("{}", serde_json::to_string_pretty(&rnx.header).unwrap())
-        }
-    }
-    if epochs {
-        at_least_one_op = true;
-        if pretty {
-            println!("{}", serde_json::to_string_pretty(&rnx.epochs()).unwrap())
-        } else {
-            println!("{}", serde_json::to_string(&rnx.epochs()).unwrap())
-        }
-    }
-    if obs {
-        at_least_one_op = true;
-        if pretty {
-            println!("{}", serde_json::to_string_pretty(&rnx.observables()).unwrap())
-        } else {
-            println!("{}", serde_json::to_string(&rnx.observables()).unwrap())
-        }
-    }
-    if constellations {
-        at_least_one_op = true;
-        if pretty {
-            println!("{}", serde_json::to_string_pretty(&rnx.list_constellations()).unwrap())
-        } else {
-            println!("{}", serde_json::to_string(&rnx.list_constellations()).unwrap())
-        }
-    }
-    if sv {
-        at_least_one_op = true;
-        if pretty {
-            println!("{}", serde_json::to_string_pretty(&rnx.space_vehicules()).unwrap())
-        } else {
-            println!("{}", serde_json::to_string(&rnx.space_vehicules()).unwrap())
-        }
-    }
-    if sv_per_epoch {
-        at_least_one_op = true;
-        if pretty {
-            println!("{}", serde_json::to_string_pretty(&rnx.space_vehicules_per_epoch()).unwrap())
-        } else {
-            println!("{}", serde_json::to_string(&rnx.space_vehicules_per_epoch()).unwrap())
-        }
-    }
-    if ssi_range {
-        at_least_one_op = true;
-        // terminal ouput
-        if pretty {
-            println!("{}", serde_json::to_string_pretty(&rnx.sig_strength_min_max()).unwrap())
-        } else {
-            println!("{}", serde_json::to_string(&rnx.sig_strength_min_max()).unwrap())
-        }
-    }
-    if ssi_sv_range {
-        at_least_one_op = true;
-        // terminal ouput
-        if pretty {
-            println!("{}", serde_json::to_string_pretty(&rnx.sig_strength_sv_min_max()).unwrap())
-        } else {
-            println!("{}", serde_json::to_string(&rnx.sig_strength_sv_min_max()).unwrap())
-        }
-    }
-    if clock_offsets {
-        at_least_one_op = true;
-        if pretty {
-            println!("{}", serde_json::to_string_pretty(&rnx.receiver_clock_offsets()).unwrap())
-        } else {
-            println!("{}", serde_json::to_string(&rnx.receiver_clock_offsets()).unwrap())
-        }
-    }
-    if clock_biases {
-        at_least_one_op = true;
-        if pretty {
-            println!("{}", serde_json::to_string_pretty(&rnx.space_vehicules_clock_biases()).unwrap())
-        } else {
-            println!("{}", serde_json::to_string(&rnx.space_vehicules_clock_biases()).unwrap())
-        }
-    }
-    if gaps {
-        at_least_one_op = true;
-        println!("{:#?}", rnx.data_gaps());
-    }
-    if largest_gap {
-        at_least_one_op = true;
-        println!("{:#?}", rnx.largest_data_gap_duration());
-    }
-
-    if cycle_slips {
-        at_least_one_op = true;
-        println!("{:#?}", rnx.observation_cycle_slip_epochs());
-    }
-
+*/
     if !at_least_one_op {
         // user did not request one of the high level ops
         // ==> either print or plot record data
@@ -764,15 +652,35 @@ fn run_double_file_op (
     }
 }*/
 
+fn resample (rnx: &mut Rinex, ops: Vec<&str>) {}
+fn filter (rnx: &mut Rinex, ops: Vec<&str>) {}
+fn record_analysis (rnx: &Rinex, pretty: bool) {}
+
 pub fn main () -> Result<(), rinex::Error> {
     let cli = Cli::new();
+    let mut rnx = Rinex::from_file(cli.input_filepath())?;
+    let pretty = cli.pretty();
 
-    // parse given RINEX
-    //let rnx = Rinex::from_file(cli.filepath())?;
-    println!("{:#?}", cli.matches.get_flag("sv"));
-    println!("{:#?}", cli.matches.get_flag("header"));
-    // process type dependent, desired operation
-     
+    if cli.resampling() { // resampling requested
+        resample_record(&rnx, cli.resampling_ops());
+    }
+    
+    if cli.retain() { // retain data of interest
+        retain_filters(&mut rnx, cli.retain_ops());
+    }
+    
+    if cli.filter() { // apply desired filters
+        //filter(&rnx, cli.retain_ops());
+    }
+    
+    // grab data of interest
+    if cli.extract() {
+        extract_data(&rnx, cli.extraction_ops(), pretty);
+    } else {
+        // no data of interest
+        // => extract record
+        record_analysis(&rnx, pretty);
+    }
 
 /*TODO manage multi file ?
     let filepaths : Option<Vec<&str>> = match matches.is_present("filepath") {
