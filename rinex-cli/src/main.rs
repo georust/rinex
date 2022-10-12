@@ -4,242 +4,22 @@
 //! Homepage: <https://github.com/gwbres/rinex-cli>
 
 use rinex::*; 
-use plotters::{
-    prelude::*,
-    //coord::Shift,
-    //coord::types::RangedCoordf64,
-};
-//use itertools::Itertools;
+mod cli; // command line interface 
+mod extract; // high level data
+mod teqc; // `teqc` operations
+mod plot; // plotting operations
+mod retain; // record filtering 
+mod filter; // record filtering
+mod resampling; // record resampling
 
-// command line interface
-mod cli; 
 use cli::Cli;
-
-// `teqc` operations
-mod teqc;
-
-// high level extraction
-mod extract;
+use plot::plot_record;
 use extract::extract_data;
-
-// data filters
-mod retain;
 use retain::retain_filters;
-mod filter;
 use filter::apply_filters;
-
-// record resampling
-mod resampling;
 use resampling::record_resampling;
 
 /*
-/// Resample given file as possibly requested
-fn resample_single_file (rnx: &mut Rinex, matches: clap::ArgMatches) {
-    if let Some(hms) = matches.value_of("decim-interval") { 
-        if let Ok(interval) = parser::parse_duration(hms) {
-            rnx
-                .decimate_by_interval_mut(interval)
-        }
-    }
-    if let Some(r) = matches.value_of("decim-ratio") {
-        if let Ok(r) = u32::from_str_radix(r, 10) {
-            rnx
-                .decimate_by_ratio_mut(r)
-        }
-    }
-}
-
-/// Apply desired filters
-fn apply_filters (rinex: &mut Rinex, matches: clap::ArgMatches) {
-    let retain_epoch_ok = matches.is_present("retain-epoch-ok");
-    let retain_epoch_nok = matches.is_present("retain-epoch-nok");
-    let retain_constell : Option<Vec<Constellation>> = match matches.value_of("retain-constell") {
-        Some(s) => {
-            let constellations: Vec<&str> = s.split(",").collect();
-            let mut c_filters : Vec<Constellation> = Vec::new();
-            for c in constellations {
-                if let Ok(constell) = Constellation::from_3_letter_code(c) {
-                    c_filters.push(constell)
-                } else if let Ok(constell) = Constellation::from_1_letter_code(c) {
-                    c_filters.push(constell)
-                }
-            }
-            Some(c_filters)
-        },
-        _ => None,
-    };
-    
-    let retain_sv : Option<Vec<Sv>> = match matches.value_of("retain-sv") {
-        Some(s) => {
-            let sv: Vec<&str> = s.split(",").collect();
-            let mut sv_filters : Vec<Sv> = Vec::new();
-            for s in sv {
-                let constell = Constellation::from_str(&s[0..1])
-                    .unwrap();
-                let prn = u8::from_str_radix(&s[1..], 10)
-                    .unwrap();
-                sv_filters.push(Sv::new(constell,prn))
-            }
-            Some(sv_filters)
-        },
-        _ => None,
-    };
-
-    let retain_obs : Option<Vec<&str>> = match matches.value_of("retain-obs") {
-        Some(s) => Some(s.split(",").collect()),
-        _ => None,
-    };
-    let retain_orb : Option<Vec<&str>> = match matches.value_of("retain-orb") {
-        Some(s) => Some(s.split(",").collect()),
-        _ => None,
-    };
-    let lli_and_mask : Option<u8> = match matches.value_of("lli-andmask") {
-        Some(s) => Some(u8::from_str_radix(s,10).unwrap()),
-        _ => None,
-    };
-    let ssi_filter : Option<Ssi> = match matches.value_of("ssi-filter") {
-        Some(s) => Some(Ssi::from_str(s).unwrap()),
-        _ => None,
-    };
-
-    let retain_nav_msg: Option<Vec<navigation::MsgType>> = match matches.value_of("retain-nav-msg") {
-        Some(s) => {
-            let mut filter: Vec<navigation::MsgType> = Vec::new();
-            let descriptor: Vec<&str> = s.split(",").collect();
-            for item in descriptor {
-                if let Ok(msg) = navigation::MsgType::from_str(item) {
-                    filter.push(msg)       
-                }
-            }
-            if filter.len() == 0 {
-                None
-            } else {
-                Some(filter.clone())
-            }
-        },
-        _ => None,
-    };
-
-    let retain_legacy_nav = matches.is_present("retain-lnav");
-    let retain_modern_nav = matches.is_present("retain-mnav");
-    
-    if retain_epoch_ok {
-        rinex.retain_epoch_ok_mut()
-    }
-    if retain_epoch_nok {
-        rinex.retain_epoch_nok_mut()
-    }
-    if let Some(ref filter) = retain_constell {
-        rinex.retain_constellation_mut(filter.to_vec())
-    }
-    if let Some(ref filter) = retain_sv {
-        rinex.retain_space_vehicule_mut(filter.to_vec())
-    }
-    if let Some(ref filter) = retain_obs {
-        rinex.retain_observable_mut(filter.to_vec())
-    }
-    if let Some(ref filter) = retain_nav_msg {
-        rinex.retain_navigation_message_mut(filter.to_vec())
-    }
-    if retain_legacy_nav {
-        rinex.retain_legacy_navigation_mut();
-    }
-    if retain_modern_nav {
-        rinex.retain_modern_navigation_mut();
-    }
-    if let Some(ref filter) = retain_orb {
-        rinex.retain_ephemeris_orbits_mut(filter.to_vec())
-    }
-    if let Some(lli) = lli_and_mask {
-        let mask = LliFlags::from_bits(lli)
-            .unwrap();
-        rinex.observation_lli_and_mask_mut(mask)
-    }
-    if let Some(ssi) = ssi_filter {
-        rinex.minimum_sig_strength_filter_mut(ssi)
-    }
-}
-
-/*TODO
-can't get this to work due to a scope pb..
-let mut areas: HashMap<String, //BitMapBackend> 
-    DrawingArea<BitMapBackend, Shift>> 
-        = HashMap::new();
-
-let mut charts: HashMap<String, 
-    ChartContext<BitMapBackend, 
-        Cartesian2d<RangedCoordf64, RangedCoordf64>>>
-            = HashMap::new();
-*/
-    if !at_least_one_op {
-        // user did not request one of the high level ops
-        // ==> either print or plot record data
-        if plot { // visualization requested
-            let record = &rnx.record;
-            
-            //TODO
-            // could slightly improve here,
-            // if given record is Sv sorted; by grabing list of vehicules
-            // and pre allocating fixed size
-            let mut colors: HashMap<Sv, RGBAColor> = HashMap::new();
-
-            let default_axis = 0.0..10.0; // this is only here
-                // to manage possible missing observables
-                // versus the creation of properly scaled Y axis
-
-            //TODO
-            // from command line
-            let plot_dim = (1024, 768);
-            
-            // Visualize all known RINEX records
-            if let Some(record) = record.as_obs() {
-                // form t axis
-                // we use t.epochs.date as Unix timestamps
-                //  normalized for 1st one encountered to get a nicer rendering
-                let e0 = rnx.first_epoch().unwrap();
-                let timestamps: Vec<_> = record.iter()
-                    .map(|(epoch, _)| {
-                        (epoch.date.timestamp() - e0.date.timestamp()) as f64
-                    })
-                    .collect();
-                let t_axis = timestamps[0]..timestamps[timestamps.len()-1];
-                
-                // extra list of vehicules
-                //  this will help identify datasets 
-                let vehicules: Vec<_> = record
-                    .iter()
-                    .map(|(_, (_, vehicules))| {
-                        vehicules.iter()
-                            .map(|(sv, _)| sv)
-                    })
-                    .flatten()
-                    .unique()
-                    .collect();
-                
-                // smart color generation
-                //  for PRN# identification
-                for (index, sv) in vehicules.iter().enumerate() {
-                    colors.insert(**sv, 
-                        Palette99::pick(index) //RGB
-                        .mix(0.99)); //RGB=RGBA
-                }
-                
-                // extra list of encountered observables
-                //  this will help identify datasets 
-                let observables: Vec<_> = record
-                    .iter()
-                    .map(|(_, (_, vehicules))| {
-                        vehicules.iter()
-                            .map(|(_, observables)| {
-                                observables.iter()
-                                    .map(|(obscode, _)| obscode)
-                            })
-                            .flatten()
-                    })
-                    .flatten()
-                    .unique()
-                    .collect();
-
                 // extract observations in form (e, observable, sv, data) 
                 // for every single epoch, so we can plot easily
                 // we scale epoch as unix timestamps, normalized to the 1st one encountered
@@ -257,61 +37,6 @@ let mut charts: HashMap<String,
                     })
                     .flatten()
                     .collect();
-
-                // determine (min, max) per Observation Kind
-                //   this is used to scale Y axis nicely
-                let mut y_min_max: HashMap<String, (f64,f64)> = HashMap::with_capacity(4); // 4 physics known
-                for (_, (_, vehicules)) in record.iter() {
-                    for (_, observables) in vehicules.iter() {
-                        for (code, data) in observables.iter() {
-                            if is_pseudo_range_obs_code!(code) {
-                                if let Some((min,max)) = y_min_max.get_mut("PR") {
-                                    if *min > data.obs {
-                                        *min = data.obs ;
-                                    }
-                                    if *max < data.obs {
-                                        *max = data.obs ;
-                                    }
-                                } else {
-                                    y_min_max.insert("PR".to_string(), (data.obs, data.obs));
-                                }
-                            } else if is_phase_carrier_obs_code!(code) {
-                                if let Some((min,max)) = y_min_max.get_mut("PH") {
-                                    if *min > data.obs {
-                                        *min = data.obs ;
-                                    }
-                                    if *max < data.obs {
-                                        *max = data.obs ;
-                                    }
-                                } else {
-                                    y_min_max.insert("PH".to_string(), (data.obs, data.obs));
-                                }
-                            } else if is_doppler_obs_code!(code) {
-                                if let Some((min,max)) = y_min_max.get_mut("DOP") {
-                                    if *min > data.obs {
-                                        *min = data.obs ;
-                                    }
-                                    if *max < data.obs {
-                                        *max = data.obs ;
-                                    }
-                                } else {
-                                    y_min_max.insert("DOP".to_string(), (data.obs, data.obs));
-                                }
-                            } else {
-                                if let Some((min,max)) = y_min_max.get_mut("SSI") {
-                                    if *min > data.obs {
-                                        *min = data.obs ;
-                                    }
-                                    if *max < data.obs {
-                                        *max = data.obs ;
-                                    }
-                                } else {
-                                    y_min_max.insert("SSI".to_string(), (data.obs, data.obs));
-                                }
-                            }
-                        }
-                    }
-                }
 
                 // Build one drawing base per physics
                 // --> this will generate a file
@@ -599,57 +324,7 @@ let mut charts: HashMap<String,
         }
     }
 }
-
-/// Execute `teqc` ops on a single file
-fn run_single_file_teqc_op (rnx: &Rinex, matches: clap::ArgMatches) {
-    let ascii_plot = matches.is_present("ascii-plot");
-    let _split = matches.is_present("split");
-    let _split_epoch : Option<Epoch> = match matches.value_of("split") {
-        Some(s) => {
-            if let Ok(e) = parser::parse_epoch(s) {
-                Some(e)
-            } else {
-                None
-            }
-        },
-        None => None,
-    };
-    if ascii_plot {
-        println!("{}", ascii_plot::ascii_plot(ascii_plot::DEFAULT_X_WIDTH, &rnx, None));
-    }
-}
-
-/// Execute user requests on two files
-fn run_double_file_op (
-    rnx_a: &Rinex, 
-    rnx_b: &Rinex, 
-    matches: clap::ArgMatches,
-    _output: Option<&str>) 
-{
-    let pretty = matches.is_present("pretty");
-    let merge = matches.is_present("merge");
-    let diff = matches.is_present("diff");
-
-    if diff {
-        if let Ok(rnx) = rnx_a.observation_diff(rnx_b) {
-            // print remaining record data
-            if pretty {
-                println!("{}", serde_json::to_string_pretty(&rnx.record).unwrap())
-            } else {
-                println!("{}", serde_json::to_string(&rnx.record).unwrap())
-            }
-        } 
-    }
-    if merge {
-        if let Ok(rnx_c) = rnx_a.merge(rnx_b) {
-            if rnx_c.to_file("merge.rnx").is_err() {
-                panic!("failed to generate new file");
-            }
-        } else {
-            panic!("merge() failed");
-        }
-    }
-}*/
+*/
 
 pub fn main () -> Result<(), rinex::Error> {
     let cli = Cli::new();
@@ -676,7 +351,8 @@ pub fn main () -> Result<(), rinex::Error> {
         // no data of interest
         // => extract record
         if plot {
-
+            let dim = (1024, 768); //TODO: from CLI
+            plot_record(&rnx, dim);
         } else {
             // print with desired option
             if pretty {
