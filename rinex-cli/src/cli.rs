@@ -19,6 +19,7 @@ impl Cli {
                     .author("Guillaume W. Bres, <guillaume.bressaix@gmail.com>")
                     .version("1.0")
                     .about("RINEX analysis and processing tool")
+                    .arg_required_else_help(true)
                     .arg(Arg::new("filepath")
                         .short('f')
                         .long("fp")
