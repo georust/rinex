@@ -15,6 +15,9 @@ use plotters::{
 mod cli; 
 use cli::Cli;
 
+// `teqc` operations
+mod teqc;
+
 // high level extraction
 mod extract;
 use extract::extract_data;
@@ -28,9 +31,6 @@ use filter::apply_filters;
 // record resampling
 mod resampling;
 use resampling::record_resampling;
-
-mod parser; // user input parser
-mod ascii_plot; // `teqc` tiny plot
 
 /*
 /// Resample given file as possibly requested

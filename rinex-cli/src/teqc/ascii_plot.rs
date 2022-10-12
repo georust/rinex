@@ -1,4 +1,4 @@
-use rinex::Rinex;
+use rinex::*;
 use rinex::sv::Sv;
 use rinex::epoch::Epoch;
 use rinex::channel::Channel;

@@ -344,19 +344,13 @@ impl Cli {
             .map(|(id, args)| (*id, args))
             .collect()
     }
-    pub fn resample_by_ratio (&self) -> Option<u64> {
-        None 
-    }
-
     fn get_flag (&self, flag: &str) -> bool {
         self.matches
             .get_flag(flag)
     }
-
     pub fn pretty (&self) -> bool {
         self.get_flag("pretty")
     }
-
     pub fn plot (&self) -> bool {
         self.get_flag("plot")
     }
