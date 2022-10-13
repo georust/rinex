@@ -13,7 +13,7 @@ mod filter; // record filtering
 mod resampling; // record resampling
 
 use cli::Cli;
-use plot::plot_record;
+//use plot::plot_record;
 use extract::extract_data;
 use retain::retain_filters;
 use filter::apply_filters;
@@ -54,9 +54,11 @@ use resampling::record_resampling;
 
 pub fn main () -> Result<(), rinex::Error> {
     let cli = Cli::new();
-    let mut rnx = Rinex::from_file(cli.input_filepath())?;
     let plot = cli.plot();
     let pretty = cli.pretty();
+
+    let mut rnx = Rinex::from_file(cli.input_filepath())?;
+    let mut ctx = plot::Context::default();
 
     if cli.resampling() { // resampling requested
         record_resampling(&mut rnx, cli.resampling_ops());
@@ -77,8 +79,16 @@ pub fn main () -> Result<(), rinex::Error> {
         // no data of interest
         // => extract record
         if plot {
-            let dim = (1024, 768); //TODO: from CLI
-            plot_record(&rnx, dim);
+            ctx.set_time_axis(&rnx);
+            ctx.set_y_range(&rnx);
+            ctx.set_color_palette(&rnx);
+            ctx.build_plot_areas((1024,768), &rnx);
+            // Build a chart for every single identified area
+            for (_, area) in ctx.areas.iter() {
+                ctx.build_chart(area);
+            }
+            //ctx.build_plot(&rnx);
+            //plot_record(&rnx, dim);
         } else {
             // print with desired option
             if pretty {
