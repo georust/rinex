@@ -19,46 +19,12 @@ use retain::retain_filters;
 use filter::apply_filters;
 use resampling::record_resampling;
 
-/*
-                // One plot per physics
-                dop_chart
-                    .configure_series_labels()
-                    .border_style(&BLACK)
-                    .background_style(WHITE.filled())
-                    .draw()
-                    .unwrap();
-                pr_chart
-                    .configure_series_labels()
-                    .border_style(&BLACK)
-                    .background_style(WHITE.filled())
-                    .draw()
-                    .unwrap();
-                ssi_chart
-                    .configure_series_labels()
-                    .border_style(&BLACK)
-                    .background_style(WHITE.filled())
-                    .draw()
-                    .unwrap();
-            } // Observation Record
-        } else {
-            // terminal output
-            if pretty {
-                println!("{}", serde_json::to_string_pretty(&rnx.record).unwrap())
-            } else {
-                println!("{}", serde_json::to_string(&rnx.record).unwrap())
-            }
-        }
-    }
-}
-*/
-
 pub fn main () -> Result<(), rinex::Error> {
     let cli = Cli::new();
     let plot = cli.plot();
     let pretty = cli.pretty();
 
     let mut rnx = Rinex::from_file(cli.input_filepath())?;
-    let mut ctx = plot::Context::default();
 
     if cli.resampling() { // resampling requested
         record_resampling(&mut rnx, cli.resampling_ops());
@@ -79,16 +45,19 @@ pub fn main () -> Result<(), rinex::Error> {
         // no data of interest
         // => extract record
         if plot {
-            ctx.set_time_axis(&rnx);
-            ctx.set_y_range(&rnx);
-            ctx.set_color_palette(&rnx);
-            ctx.build_plot_areas((1024,768), &rnx);
-            // Build a chart for every single identified area
-            for (_, area) in ctx.areas.iter() {
-                ctx.build_chart(area);
+            let mut ctx = plot::Context::new((1024,768), &rnx); 
+            if let Some(record) = rnx.record.as_obs() {
+                plot::observation::plot(ctx, record);
             }
-            //ctx.build_plot(&rnx);
-            //plot_record(&rnx, dim);
+            // draw labels
+            for (_, chart) in ctx.charts {
+                chart
+                    .configure_series_labels()
+                    .border_style(&BLACK)
+                    .background_style(WHITE.filled())
+                    .draw()
+                    .expect("failed to draw labels on chart");
+            }
         } else {
             // print with desired option
             if pretty {
