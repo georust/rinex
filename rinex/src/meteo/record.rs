@@ -33,7 +33,7 @@ use super::observable::Observable;
 ///    }
 /// }
 /// ```
-pub type Record = BTreeMap<Epoch, HashMap<Observable, f32>>;
+pub type Record = BTreeMap<Epoch, HashMap<Observable, f64>>;
 
 /// Returns true if given line matches a new Meteo Record `epoch`
 pub fn is_new_epoch (line: &str, v: version::Version) -> bool {
@@ -67,13 +67,13 @@ pub enum Error {
 
 /// Builds `Record` entry for `MeteoData`
 pub fn parse_epoch (header: &Header, content: &str) 
-        -> Result<(Epoch, HashMap<Observable, f32>), Error> 
+        -> Result<(Epoch, HashMap<Observable, f64>), Error> 
 {
     let mut lines = content.lines();
     let mut line = lines.next()
         .unwrap();
 
-	let mut map : HashMap<Observable, f32> = HashMap::with_capacity(3);
+	let mut map : HashMap<Observable, f64> = HashMap::with_capacity(3);
 
 	// epoch.secs is not f32 as usual
 	// Y is 4 digit number as usual for V > 2
@@ -122,7 +122,7 @@ pub fn parse_epoch (header: &Header, content: &str)
 	for i in 0..nb_lines {
 		for _ in 0..8 {
 			let code = &codes[code_index];
-			let obs : Option<f32> = match f32::from_str(&line[offset..offset+7].trim()) {
+			let obs : Option<f64> = match f64::from_str(&line[offset..offset+7].trim()) {
 				Ok(f) => Some(f),
 				Err(_) => None,
 			};
@@ -155,7 +155,7 @@ pub fn parse_epoch (header: &Header, content: &str)
 /// Writes epoch into given streamer
 pub fn write_epoch (
         epoch: &Epoch, 
-        data: &HashMap<Observable, f32>, 
+        data: &HashMap<Observable, f64>, 
         header: &Header, 
         writer: &mut BufferedWriter
     ) -> std::io::Result<()>  {
