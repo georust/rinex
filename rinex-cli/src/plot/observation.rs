@@ -2,9 +2,10 @@
 use rinex::*;
 use rinex::observation::Record;
 use super::Context;
+use std::str::FromStr;
 use plotters::prelude::*;
 
-pub fn plot(mut ctx: Context, record: &Record) {
+pub fn plot(ctx: &mut Context, record: &Record) {
     // extract observations in form (observable, sv, data)
     // one per x axis point
     // so we can plot easily
@@ -16,7 +17,7 @@ pub fn plot(mut ctx: Context, record: &Record) {
                 .map(|(sv, observables)| {
                     observables.iter()
                         .map(|(observable, observation)| {
-                            (observable,
+                            (observable.clone(),
                             sv.clone(),
                             observation.obs)
                         })
@@ -26,36 +27,40 @@ pub fn plot(mut ctx: Context, record: &Record) {
         .flatten()
         .collect();
     // actual plotting
-    for (observable, chart) in ctx.charts.iter_mut() {
-        // <o TODO
-        //    pick a symbol per carrier signal
-        // draw one serie per vehicule
-        for (svnn, curve) in ctx.curves {
-            let color = ctx.colors.get(svnn)
-                .expect("faulty plot context: one color per sat vehicule should have been assigned");
-            chart.draw_series(LineSeries::new(
-                data.iter()
-                    .filter_map(|(obs, sv, data)| {
-                        if obs == observable { // physics matched for this chart
-                            let expected = Sv::from_str(svnn)
-                                .expect("faulty plot context: unrecognized curve identifier");
-                            if sv == expected {
-                                Some((*t, *data)) // grab (x,y)
+    for (title, plot) in &ctx.plots {
+        for (observable, chart) in &ctx.charts {
+            // <o TODO
+            //    pick a symbol per carrier signal
+            // draw one serie per vehicule
+            for (svnn, color) in &ctx.colors { 
+                chart
+                    .clone()
+                    .restore(&plot)
+                    .draw_series(LineSeries::new(
+                    data.iter()
+                        .zip(ctx.t_axis.iter())
+                        .filter_map(|((obs, sv, data), t)| {
+                            if is_phase_carrier_obs_code!(obs) && observable == "PH" {
+                                let expected = Sv::from_str(&svnn)
+                                    .expect("faulty plot context: unrecognized curve identifier");
+                                if *sv == expected {
+                                    Some((*t, *data)) // grab (x,y)
+                                } else {
+                                    None
+                                }
                             } else {
                                 None
                             }
-                        } else {
-                            None
-                        }
-                    }),
-                color.stroke_width(3)
-            )).unwrap()
-            .label(vehicule.to_string());
-            //.legend(|(x, y)| {
-            //        //let color = ctx.colors.get(&vehicule.to_string()).unwrap();
-            //        PathElement::new(vec![(x, y), (x + 20, y)], BLACK)
-            //    ))
-
+                        }),
+                    color.stroke_width(3)
+                ))
+                .expect("failed to draw observations")
+                .label(svnn.to_string())
+                .legend(|(x, y)| {
+                        //let color = ctx.colors.get(&vehicule.to_string()).unwrap();
+                        PathElement::new(vec![(x, y), (x + 20, y)], BLACK)
+                });
+            }
         }
     }
 }

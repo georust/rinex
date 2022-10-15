@@ -6,19 +6,15 @@ use plotters::{
     coord::types::RangedCoordf64,
 };
 use std::ops::Range;
+use itertools::Itertools;
+use std::collections::HashMap;
 
 //mod meteo;
 //mod navigation;
-pub mod observation;
-use itertools::Itertools;
-
-use std::collections::HashMap;
-
-pub type Chart<'a> = ChartContext<'a, BitMapBackend<'a>,
-    Cartesian2d<RangedCoordf64, RangedCoordf64>>;
+mod observation;
 
 pub type Plot2d = Cartesian2d<RangedCoordf64, RangedCoordf64>;
-    
+ 
 pub struct Context<'a> {
     /// Plots are "Drawing areas" that we can either
     /// draw basic structures on, or stack Charts
@@ -34,8 +30,6 @@ pub struct Context<'a> {
     pub t_axis: Vec<f64>, 
     /// Colors used when plotting
     pub colors: HashMap<String, RGBAColor>,
-    /// Curves verbose identifiers, one per color
-    pub curves: Vec<String>,
 }
 
 impl Default for Context<'_> {
@@ -45,7 +39,6 @@ impl Default for Context<'_> {
             colors: HashMap::new(),
             charts: HashMap::new(),
             plots: HashMap::new(),
-            curves: Vec::new(),
         }
     }
 }
@@ -63,6 +56,7 @@ impl<'a> Context<'a> {
     pub fn new(dim: (u32,u32), rnx: &Rinex) -> Self {
         // holds time axis
         //   for Epoch Iterated RINEX files
+        let mut e0: i64 = 0;
         let mut t_axis: Vec<f64> = Vec::with_capacity(16384);
         
         // Y axis range, for nicer rending 
@@ -93,19 +87,18 @@ impl<'a> Context<'a> {
                 if e_index == 0 {
                     // store first epoch timestamp
                     // to scale x_axis proplery (avoids fuzzy rendering)
-                    t_axis.push(e.date.timestamp() as f64)
+                    e0 = e.date.timestamp();
+                    t_axis.push(0.0);
                 } else {
-                    let t0 = t_axis.get(0)
-                        .unwrap();
-                    let t = e.date.timestamp() as f64;
-                    t_axis.push(t - t0);
+                    let t = e.date.timestamp() - e0;
+                    t_axis.push(t as f64);
                 }
 
                 // Build 1 plot in case Receiver Clock Offsets were provided 
                 // Associate 1 chart to each plot, for classical 2D x,y plot 
                 // Grab y range
                 if let Some(clk_offset) = clk_offset {
-                    let title = "Receiver Clock Offset";
+                    let title = "clock-offset";
                     plots.insert(
                         title.to_string(),
                         Self::build_plot(title, dim));
@@ -137,13 +130,12 @@ impl<'a> Context<'a> {
                     }
                     for (observation, data) in observations {
                         if is_phase_carrier_obs_code!(observation) {
-                            let title = "Carrier Phase";
-                            if plots.get(title).is_none() {
-                                plots.insert(
-                                    title.to_string(),
-                                    Self::build_plot(title, dim));
+                            let file = "phase.png";
+                            if plots.get(file).is_none() {
+                                let plot = Self::build_plot(file, dim);
+                                plots.insert(file.to_string(), plot);
                             }
-                            if let Some((min,max)) = y_ranges.get_mut(title) {
+                            if let Some((min,max)) = y_ranges.get_mut("PH") {
                                 if data.obs < *min {
                                     *min = data.obs;
                                 }
@@ -151,17 +143,16 @@ impl<'a> Context<'a> {
                                     *max = data.obs;
                                 }
                             } else {
-                                y_ranges.insert(title.to_string(),
+                                y_ranges.insert("PH".to_string(),
                                     (data.obs,data.obs));
                             }
                         } else if is_doppler_obs_code!(observation) {
-                            let title = "Doppler";
-                            if plots.get(title).is_none() {
-                                plots.insert(
-                                    title.to_string(),
-                                    Self::build_plot(title, dim));
+                            let file = "doppler.png";
+                            if plots.get(file).is_none() {
+                                let plot = Self::build_plot(file, dim);
+                                plots.insert(file.to_string(), plot);
                             }
-                            if let Some((min,max)) = y_ranges.get_mut(title) {
+                            if let Some((min,max)) = y_ranges.get_mut("DOP") {
                                 if data.obs < *min {
                                     *min = data.obs;
                                 }
@@ -169,16 +160,16 @@ impl<'a> Context<'a> {
                                     *max = data.obs;
                                 }
                             } else {
-                                y_ranges.insert(title.to_string(),
+                                y_ranges.insert("DOP".to_string(),
                                     (data.obs,data.obs));
                             }
                         } else if is_pseudo_range_obs_code!(observation) {
-                            let title = "Pseudo Range";
-                            if plots.get(title).is_none() {
-                                let plot = Self::build_plot(title, dim);
-                                plots.insert(title.to_string(), plot);
+                            let file = "pseudo-range.png";
+                            if plots.get(file).is_none() {
+                                let plot = Self::build_plot(file, dim);
+                                plots.insert(file.to_string(), plot);
                             }
-                            if let Some((min,max)) = y_ranges.get_mut(title) {
+                            if let Some((min,max)) = y_ranges.get_mut("PR") {
                                 if data.obs < *min {
                                     *min = data.obs;
                                 }
@@ -186,17 +177,16 @@ impl<'a> Context<'a> {
                                     *max = data.obs;
                                 }
                             } else {
-                                y_ranges.insert(title.to_string(),
+                                y_ranges.insert("PR".to_string(),
                                     (data.obs,data.obs));
                             }
                         } else if is_sig_strength_obs_code!(observation) {
-                            let title = "Signal Power";
-                            if plots.get(title).is_none() {
-                                plots.insert(
-                                    title.to_string(),
-                                    Self::build_plot(title, dim));
+                            let file = "ssi.png";
+                            if plots.get(file).is_none() {
+                                let plot = Self::build_plot(file, dim);
+                                plots.insert(file.to_string(), plot);
                             }
-                            if let Some((min,max)) = y_ranges.get_mut(title) {
+                            if let Some((min,max)) = y_ranges.get_mut("SSI") {
                                 if data.obs < *min {
                                     *min = data.obs;
                                 }
@@ -204,7 +194,7 @@ impl<'a> Context<'a> {
                                     *max = data.obs;
                                 }
                             } else {
-                                y_ranges.insert(title.to_string(),
+                                y_ranges.insert("SSI".to_string(),
                                     (data.obs,data.obs));
                             }
                         }
@@ -220,16 +210,16 @@ impl<'a> Context<'a> {
             }
         }
         Self {
-            charts,
-            t_axis,
-            colors,
             plots,
+            charts,
+            colors,
+            t_axis,
         }
     }
     
     /// Build plot
-    pub fn build_plot(title: &str, dim: (u32,u32)) -> DrawingArea<BitMapBackend, Shift> {
-        let area = BitMapBackend::new(title, dim)
+    pub fn build_plot(file: &str, dim: (u32,u32)) -> DrawingArea<BitMapBackend, Shift> {
+        let area = BitMapBackend::new(file, dim)
             .into_drawing_area();
         area.fill(&WHITE)
             .expect("failed to create background image");
@@ -263,9 +253,7 @@ impl<'a> Context<'a> {
     }
 }
 
-/*
-pub fn plot_record(rnx: &Rinex, dim: (u32,u32)) {
-    // create new RINEX dependent plotting context
+pub fn plot_rinex(ctx: &mut Context, rnx: &Rinex) {
     if let Some(record) = rnx.record.as_obs() {
         observation::plot(ctx, record)
     /*} else if let Some(record) = rnx.record.as_nav() {
@@ -275,5 +263,18 @@ pub fn plot_record(rnx: &Rinex, dim: (u32,u32)) {
     } else {
         panic!("this type of RINEX record cannot be plotted yet");
     }
+
+    // add labels to charts that were designed
+    for (_, plot) in &ctx.plots {
+        for (_, chart) in &ctx.charts {
+            chart
+                .clone()
+                .restore(&plot)
+                .configure_series_labels()
+                .border_style(&BLACK)
+                .background_style(WHITE.filled())
+                .draw()
+                .expect("failed to draw labels on chart");
+        }
+    }
 }
-*/

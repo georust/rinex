@@ -45,21 +45,12 @@ pub fn main () -> Result<(), rinex::Error> {
         // no data of interest
         // => extract record
         if plot {
+            println!("WERE PLOTTING");
+            // Plot RINEX record 
             let mut ctx = plot::Context::new((1024,768), &rnx); 
-            if let Some(record) = rnx.record.as_obs() {
-                plot::observation::plot(ctx, record);
-            }
-            // draw labels
-            for (_, chart) in ctx.charts {
-                chart
-                    .configure_series_labels()
-                    .border_style(&BLACK)
-                    .background_style(WHITE.filled())
-                    .draw()
-                    .expect("failed to draw labels on chart");
-            }
+            plot::plot_rinex(&mut ctx, &rnx); 
         } else {
-            // print with desired option
+            // Print RINEX record 
             if pretty {
                 println!("{}", serde_json::to_string_pretty(&rnx.record).unwrap())
             } else {
