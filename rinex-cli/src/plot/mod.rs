@@ -98,7 +98,7 @@ impl<'a> Context<'a> {
                 // Associate 1 chart to each plot, for classical 2D x,y plot 
                 // Grab y range
                 if let Some(clk_offset) = clk_offset {
-                    let title = "clock-offset";
+                    let title = "clock-offset.png";
                     plots.insert(
                         title.to_string(),
                         Self::build_plot(title, dim));
@@ -204,9 +204,19 @@ impl<'a> Context<'a> {
 
             // Add 1 chart onto each plot
             // using previously determined Y scale
-            for ((title, range), (_, plot)) in y_ranges.iter().zip(plots.iter()) {
-                let chart = Self::build_chart(title, t_axis.clone(), *range, plot);
-                charts.insert(title.to_string(), chart);
+            for (title, plot) in plots.iter() {
+                let chart_id = match title.as_str() {
+                    "phase.png" => "PH",
+                    "doppler.png" => "DOP",
+                    "pseudo-range.png" => "PR",
+                    "ssi.png" => "SSI",
+                    _ => continue,
+                };
+                println!("chart {} tied to plot {}", chart_id, title);
+                let range = y_ranges.get(chart_id)
+                    .unwrap();
+                let chart = Self::build_chart(chart_id, t_axis.clone(), *range, plot);
+                charts.insert(chart_id.to_string(), chart);
             }
         }
         Self {
