@@ -9,13 +9,14 @@ use std::collections::HashMap;
 pub fn plot(ctx: &mut Context, record: &Record) {
     //TODO
     // emphasize LLI/SSI somehow ?
-    // Grab datapoints to draw for each vehicule, for each chart
     let mut e0: i64 = 0;
     let mut clock_offsets: Vec<(f64, f64)> = Vec::new();
-    let mut pr: HashMap<Sv, Vec<(f64, f64)>> = HashMap::new();
-    let mut ssi: HashMap<Sv, Vec<(f64,f64)>> = HashMap::new();
-    let mut phase: HashMap<Sv, Vec<(f64,f64)>> = HashMap::new();
-    let mut doppler: HashMap<Sv, Vec<(f64,f64)>> = HashMap::new();
+    let symbols = vec!["x","t","o"]; // to differentiate carrier signals
+    let mut carrier: usize = 0;
+    let mut pr: HashMap<usize, HashMap<Sv, Vec<(f64, f64)>>> = HashMap::new();
+    let mut ssi: HashMap<usize, HashMap<Sv, Vec<(f64,f64)>>> = HashMap::new();
+    let mut phase: HashMap<usize, HashMap<Sv, Vec<(f64,f64)>>> = HashMap::new();
+    let mut doppler: HashMap<usize, HashMap<Sv, Vec<(f64,f64)>>> = HashMap::new();
     for (index, (epoch, (clock_offset, vehicules))) in record.iter().enumerate() {
         if index == 0 {
             e0 = epoch.date.timestamp()
@@ -26,35 +27,65 @@ pub fn plot(ctx: &mut Context, record: &Record) {
         }
         for (vehicule, observations) in vehicules {
             for (observation, data) in observations {
+                if observation.contains("1") {
+                    carrier = 0;
+                } else if observation.contains("2") {
+                    carrier = 1;
+                } else {
+                    carrier = 2;
+                }
                 if is_phase_carrier_obs_code!(observation) {
-                    if let Some(phases) = phase.get_mut(vehicule) {
-                        phases.push(((e-e0) as f64, data.obs));
+                    if let Some(vehicules) = phase.get_mut(&carrier) {
+                        if let Some(phases) = vehicules.get_mut(vehicule) {
+                            phases.push(((e-e0) as f64, data.obs));
+                        } else {
+                            vehicules.insert(*vehicule, vec![((e-e0) as f64, data.obs)]);
+                        }
                     } else {
-                        phase.insert(*vehicule, vec![((e-e0) as f64, data.obs)]);
+                        let mut map: HashMap<Sv, Vec<(f64,f64)>> = HashMap::new();
+                        map.insert(*vehicule, vec![((e-e0) as f64, data.obs)]);
+                        phase.insert(carrier, map);
                     }
                 } else if is_doppler_obs_code!(observation) {
-                    if let Some(d) = doppler.get_mut(vehicule) {
-                        d.push(((e-e0) as f64, data.obs));
+                    if let Some(vehicules) = doppler.get_mut(&carrier) {
+                        if let Some(doppler) = vehicules.get_mut(vehicule) {
+                            doppler.push(((e-e0) as f64, data.obs));
+                        } else {
+                            vehicules.insert(*vehicule, vec![((e-e0) as f64, data.obs)]);
+                        }
                     } else {
-                        doppler.insert(*vehicule, vec![((e-e0) as f64, data.obs)]);
+                        let mut map: HashMap<Sv, Vec<(f64,f64)>> = HashMap::new();
+                        map.insert(*vehicule, vec![((e-e0) as f64, data.obs)]);
+                        doppler.insert(carrier, map);
                     }
                 } else if is_pseudo_range_obs_code!(observation) {
-                    if let Some(pr) = pr.get_mut(vehicule) {
-                        pr.push(((e-e0) as f64, data.obs));
+                    if let Some(vehicules) = pr.get_mut(&carrier) {
+                        if let Some(pr) = vehicules.get_mut(vehicule) {
+                            pr.push(((e-e0) as f64, data.obs));
+                        } else {
+                            vehicules.insert(*vehicule, vec![((e-e0) as f64, data.obs)]);
+                        }
                     } else {
-                        pr.insert(*vehicule, vec![((e-e0) as f64, data.obs)]);
+                        let mut map: HashMap<Sv, Vec<(f64,f64)>> = HashMap::new();
+                        map.insert(*vehicule, vec![((e-e0) as f64, data.obs)]);
+                        pr.insert(carrier, map);
                     }
                 } else if is_sig_strength_obs_code!(observation) {
-                    if let Some(ssi) = phase.get_mut(vehicule) {
-                        ssi.push(((e-e0) as f64, data.obs));
+                    if let Some(vehicules) = ssi.get_mut(&carrier) {
+                        if let Some(ssi) = vehicules.get_mut(vehicule) {
+                            ssi.push(((e-e0) as f64, data.obs));
+                        } else {
+                            vehicules.insert(*vehicule, vec![((e-e0) as f64, data.obs)]);
+                        }
                     } else {
-                        ssi.insert(*vehicule, vec![((e-e0) as f64, data.obs)]);
+                        let mut map: HashMap<Sv, Vec<(f64,f64)>> = HashMap::new();
+                        map.insert(*vehicule, vec![((e-e0) as f64, data.obs)]);
+                        ssi.insert(carrier, map);
                     }
                 }
             }
         }
     }
-
     if clock_offsets.len() > 0 { // got clock offsets
         let plot = ctx.plots.get("clock-offset.png")
             .expect("faulty plot context, missing clock offset plot");
@@ -75,71 +106,193 @@ pub fn plot(ctx: &mut Context, record: &Record) {
                 PathElement::new(vec![(x, y), (x + 20, y)], BLACK)
             });
     }
-    for (sv, data) in phase {
-        let color = ctx.colors.get(&sv.to_string())
-            .expect(&format!("no colors to identify \"{}\"", sv));
-        let plot = ctx.plots.get("phase.png")
-            .expect("missing phase data plot");
-        ctx.charts
-            .get("PH")
-            .expect("missing phase data chart")
-            .clone()
-            .restore(plot)
-            .draw_series(LineSeries::new(
-                data.iter()
-                    .map(|(x, y)| (*x, *y)),
-                color.stroke_width(3)
-            ))
-            .expect("failed to draw phase observations")
-            .label(sv.to_string())
-            .legend(|(x, y)| {
-                //let color = ctx.colors.get(&vehicule.to_string()).unwrap();
-                PathElement::new(vec![(x, y), (x + 20, y)], BLACK)
-            });
+    for (carrier, vehicules) in phase {
+        let symbol = symbols[carrier];
+        for (sv, data) in vehicules {
+            let color = ctx.colors.get(&sv.to_string())
+                .expect(&format!("no colors to identify \"{}\"", sv));
+            let plot = ctx.plots.get("phase.png")
+                .expect("missing phase data plot");
+            let mut chart = ctx.charts
+                .get("PH")
+                .expect("missing phase data chart")
+                .clone()
+                .restore(plot);
+            // draw line serie
+            chart
+                .draw_series(LineSeries::new(
+                    data.iter()
+                        .map(|(x, y)| (*x, *y)),
+                        color.stroke_width(3),
+                ))
+                .expect("failed to draw phase observations")
+                .label(sv.to_string())
+                .legend(|(x, y)| {
+                    PathElement::new(vec![(x, y), (x + 20, y)], &color)
+                });
+            // draw symbols that empasize carrier signal
+            chart
+                .draw_series(
+                    data.iter()
+                        .map(|(x, y)| {
+                            let center = (*x, *y);
+                            if symbol == "x" {
+                                Cross::new(center, 4,
+                                    Into::<ShapeStyle>::into(&color).filled())
+                                    .into_dyn()
+                            } else if symbol == "o" {
+                                Circle::new(center, 4,
+                                    Into::<ShapeStyle>::into(&color).filled())
+                                    .into_dyn()
+                            } else {
+                                TriangleMarker::new(center, 4,
+                                    Into::<ShapeStyle>::into(&color).filled())
+                                    .into_dyn()
+                            }
+                        }))
+                        .expect("failed to draw phase observations");
+        }
     }
-    for (sv, data) in pr {
-        let color = ctx.colors.get(&sv.to_string())
-            .expect(&format!("no colors to identify \"{}\"", sv));
-        let plot = ctx.plots.get("pseudo-range.png")
-            .expect("missing pseudo range data plot");
-        ctx.charts
-            .get("PR")
-            .expect("missing pseudo range data chart")
-            .clone()
-            .restore(plot)
-            .draw_series(LineSeries::new(
-                data.iter()
-                    .map(|(x, y)| (*x, *y)),
-                color.stroke_width(3)
-            ))
-            .expect("failed to draw pseudo range observations")
-            .label(sv.to_string())
-            .legend(|(x, y)| {
-                //let color = ctx.colors.get(&vehicule.to_string()).unwrap();
-                PathElement::new(vec![(x, y), (x + 20, y)], BLACK)
-            });
+    for (carrier, vehicules) in pr {
+        let symbol = symbols[carrier];
+        for (sv, data) in vehicules {
+            let color = ctx.colors.get(&sv.to_string())
+                .expect(&format!("no colors to identify \"{}\"", sv));
+            let plot = ctx.plots.get("pseudo-range.png")
+                .expect("missing pseudo range plot");
+            let mut chart = ctx.charts
+                .get("PR")
+                .expect("missing pseudo range data chart")
+                .clone()
+                .restore(plot);
+            // draw line serie
+            chart
+                .draw_series(LineSeries::new(
+                    data.iter()
+                        .map(|(x, y)| (*x, *y)),
+                        color.stroke_width(3),
+                ))
+                .expect("failed to draw pseudo range observations")
+                .label(sv.to_string())
+                .legend(|(x, y)| {
+                    PathElement::new(vec![(x, y), (x + 20, y)], &color)
+                });
+            // draw symbols that empasize carrier signal
+            chart
+                .draw_series(
+                    data.iter()
+                        .map(|(x, y)| {
+                            let center = (*x, *y);
+                            if symbol == "x" {
+                                Cross::new(center, 4,
+                                    Into::<ShapeStyle>::into(&color).filled())
+                                    .into_dyn()
+                            } else if symbol == "o" {
+                                Circle::new(center, 4,
+                                    Into::<ShapeStyle>::into(&color).filled())
+                                    .into_dyn()
+                            } else {
+                                TriangleMarker::new(center, 4,
+                                    Into::<ShapeStyle>::into(&color).filled())
+                                    .into_dyn()
+                            }
+                        }))
+                        .expect("failed to draw pseudo range observations");
+        }
     }
-    for (sv, data) in ssi {
-        let color = ctx.colors.get(&sv.to_string())
-            .expect(&format!("no colors to identify \"{}\"", sv));
-        let plot = ctx.plots.get("phase.png")
-            .expect("missing ssi data plot");
-        ctx.charts
-            .get("SSI")
-            .expect("missing ssi data chart")
-            .clone()
-            .restore(plot)
-            .draw_series(LineSeries::new(
-                data.iter()
-                    .map(|(x, y)| (*x, *y)),
-                color.stroke_width(3)
-            ))
-            .expect("failed to draw ssi observations")
-            .label(sv.to_string())
-            .legend(|(x, y)| {
-                //let color = ctx.colors.get(&vehicule.to_string()).unwrap();
-                PathElement::new(vec![(x, y), (x + 20, y)], BLACK)
-            });
+    for (carrier, vehicules) in doppler {
+        let symbol = symbols[carrier];
+        for (sv, data) in vehicules {
+            let color = ctx.colors.get(&sv.to_string())
+                .expect(&format!("no colors to identify \"{}\"", sv));
+            let plot = ctx.plots.get("doppler.png")
+                .expect("missing doppler data plot");
+            let mut chart = ctx.charts
+                .get("DOP")
+                .expect("missing doppler data chart")
+                .clone()
+                .restore(plot);
+            // draw line serie
+            chart
+                .draw_series(LineSeries::new(
+                    data.iter()
+                        .map(|(x, y)| (*x, *y)),
+                        color.stroke_width(3),
+                ))
+                .expect("failed to draw doppler observations")
+                .label(sv.to_string())
+                .legend(|(x, y)| {
+                    PathElement::new(vec![(x, y), (x + 20, y)], &color)
+                });
+            // draw symbols that empasize carrier signal
+            chart
+                .draw_series(
+                    data.iter()
+                        .map(|(x, y)| {
+                            let center = (*x, *y);
+                            if symbol == "x" {
+                                Cross::new(center, 4,
+                                    Into::<ShapeStyle>::into(&color).filled())
+                                    .into_dyn()
+                            } else if symbol == "o" {
+                                Circle::new(center, 4,
+                                    Into::<ShapeStyle>::into(&color).filled())
+                                    .into_dyn()
+                            } else {
+                                TriangleMarker::new(center, 4,
+                                    Into::<ShapeStyle>::into(&color).filled())
+                                    .into_dyn()
+                            }
+                        }))
+                        .expect("failed to draw doppler observations");
+        }
+    }
+    for (carrier, vehicules) in ssi {
+        let symbol = symbols[carrier];
+        for (sv, data) in vehicules {
+            let color = ctx.colors.get(&sv.to_string())
+                .expect(&format!("no colors to identify \"{}\"", sv));
+            let plot = ctx.plots.get("ssi.png")
+                .expect("missing ssi data plot");
+            let mut chart = ctx.charts
+                .get("SSI")
+                .expect("missing ssi data chart")
+                .clone()
+                .restore(plot);
+            // draw line serie
+            chart
+                .draw_series(LineSeries::new(
+                    data.iter()
+                        .map(|(x, y)| (*x, *y)),
+                        color.stroke_width(3),
+                ))
+                .expect("failed to draw ssi observations")
+                .label(sv.to_string())
+                .legend(|(x, y)| {
+                    PathElement::new(vec![(x, y), (x + 20, y)], &color)
+                });
+            // draw symbols that empasize carrier signal
+            chart
+                .draw_series(
+                    data.iter()
+                        .map(|(x, y)| {
+                            let center = (*x, *y);
+                            if symbol == "x" {
+                                Cross::new(center, 4,
+                                    Into::<ShapeStyle>::into(&color).filled())
+                                    .into_dyn()
+                            } else if symbol == "o" {
+                                Circle::new(center, 4,
+                                    Into::<ShapeStyle>::into(&color).filled())
+                                    .into_dyn()
+                            } else {
+                                TriangleMarker::new(center, 4,
+                                    Into::<ShapeStyle>::into(&color).filled())
+                                    .into_dyn()
+                            }
+                        }))
+                        .expect("failed to draw ssi observations");
+        }
     }
     // draw labels
     if let Some(plot) = ctx.plots.get("phase.png") {
