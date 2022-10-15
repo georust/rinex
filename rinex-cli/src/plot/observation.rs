@@ -89,14 +89,14 @@ pub fn plot(ctx: &mut Context, record: &Record) {
     if clock_offsets.len() > 0 { // got clock offsets
         let plot = ctx.plots.get("clock-offset.png")
             .expect("faulty plot context, missing clock offset plot");
-        ctx.charts
-            .get("CK")
+        let mut chart = ctx.charts.get("CK")
             .expect("faulty plot context, missing clock offset chart")
             .clone()
-            .restore(plot)
+            .restore(plot);
+        chart
             .draw_series(LineSeries::new(
                 clock_offsets.iter()
-                    .map(|(x, y)| (*x, *y)),
+                    .map(|point| *point),
                 &BLACK,
             ))
             .expect("failed to display receiver clock offsets")
@@ -105,6 +105,12 @@ pub fn plot(ctx: &mut Context, record: &Record) {
                 //let color = ctx.colors.get(&vehicule.to_string()).unwrap();
                 PathElement::new(vec![(x, y), (x + 20, y)], BLACK)
             });
+        chart
+            .configure_series_labels()
+            .border_style(&BLACK)
+            .background_style(WHITE.filled())
+            .draw()
+            .expect("failed to draw clock offset labels");
     }
     for (carrier, vehicules) in phase {
         let symbol = symbols[carrier];
@@ -122,7 +128,7 @@ pub fn plot(ctx: &mut Context, record: &Record) {
             chart
                 .draw_series(LineSeries::new(
                     data.iter()
-                        .map(|(x, y)| (*x, *y)),
+                        .map(|point| *point),
                         color.stroke_width(3),
                 ))
                 .expect("failed to draw phase observations")
@@ -134,23 +140,28 @@ pub fn plot(ctx: &mut Context, record: &Record) {
             chart
                 .draw_series(
                     data.iter()
-                        .map(|(x, y)| {
-                            let center = (*x, *y);
+                        .map(|point| {
                             if symbol == "x" {
-                                Cross::new(center, 4,
+                                Cross::new(*point, 4,
                                     Into::<ShapeStyle>::into(&color).filled())
                                     .into_dyn()
                             } else if symbol == "o" {
-                                Circle::new(center, 4,
+                                Circle::new(*point, 4,
                                     Into::<ShapeStyle>::into(&color).filled())
                                     .into_dyn()
                             } else {
-                                TriangleMarker::new(center, 4,
+                                TriangleMarker::new(*point, 4,
                                     Into::<ShapeStyle>::into(&color).filled())
                                     .into_dyn()
                             }
                         }))
                         .expect("failed to draw phase observations");
+            chart
+                .configure_series_labels()
+                .border_style(&BLACK)
+                .background_style(WHITE.filled())
+                .draw()
+                .expect("failed to draw clock offset labels");
         }
     }
     for (carrier, vehicules) in pr {
@@ -169,7 +180,7 @@ pub fn plot(ctx: &mut Context, record: &Record) {
             chart
                 .draw_series(LineSeries::new(
                     data.iter()
-                        .map(|(x, y)| (*x, *y)),
+                        .map(|point| *point),
                         color.stroke_width(3),
                 ))
                 .expect("failed to draw pseudo range observations")
@@ -181,23 +192,28 @@ pub fn plot(ctx: &mut Context, record: &Record) {
             chart
                 .draw_series(
                     data.iter()
-                        .map(|(x, y)| {
-                            let center = (*x, *y);
+                        .map(|point| {
                             if symbol == "x" {
-                                Cross::new(center, 4,
+                                Cross::new(*point, 4,
                                     Into::<ShapeStyle>::into(&color).filled())
                                     .into_dyn()
                             } else if symbol == "o" {
-                                Circle::new(center, 4,
+                                Circle::new(*point, 4,
                                     Into::<ShapeStyle>::into(&color).filled())
                                     .into_dyn()
                             } else {
-                                TriangleMarker::new(center, 4,
+                                TriangleMarker::new(*point, 4,
                                     Into::<ShapeStyle>::into(&color).filled())
                                     .into_dyn()
                             }
                         }))
                         .expect("failed to draw pseudo range observations");
+            chart
+                .configure_series_labels()
+                .border_style(&BLACK)
+                .background_style(WHITE.filled())
+                .draw()
+                .expect("failed to draw pseudo range labels");
         }
     }
     for (carrier, vehicules) in doppler {
@@ -216,7 +232,7 @@ pub fn plot(ctx: &mut Context, record: &Record) {
             chart
                 .draw_series(LineSeries::new(
                     data.iter()
-                        .map(|(x, y)| (*x, *y)),
+                        .map(|point| *point),
                         color.stroke_width(3),
                 ))
                 .expect("failed to draw doppler observations")
@@ -228,23 +244,28 @@ pub fn plot(ctx: &mut Context, record: &Record) {
             chart
                 .draw_series(
                     data.iter()
-                        .map(|(x, y)| {
-                            let center = (*x, *y);
+                        .map(|point| {
                             if symbol == "x" {
-                                Cross::new(center, 4,
+                                Cross::new(*point, 4,
                                     Into::<ShapeStyle>::into(&color).filled())
                                     .into_dyn()
                             } else if symbol == "o" {
-                                Circle::new(center, 4,
+                                Circle::new(*point, 4,
                                     Into::<ShapeStyle>::into(&color).filled())
                                     .into_dyn()
                             } else {
-                                TriangleMarker::new(center, 4,
+                                TriangleMarker::new(*point, 4,
                                     Into::<ShapeStyle>::into(&color).filled())
                                     .into_dyn()
                             }
                         }))
                         .expect("failed to draw doppler observations");
+            chart
+                .configure_series_labels()
+                .border_style(&BLACK)
+                .background_style(WHITE.filled())
+                .draw()
+                .expect("failed to draw doppler labels");
         }
     }
     for (carrier, vehicules) in ssi {
@@ -275,72 +296,28 @@ pub fn plot(ctx: &mut Context, record: &Record) {
             chart
                 .draw_series(
                     data.iter()
-                        .map(|(x, y)| {
-                            let center = (*x, *y);
+                        .map(|point| {
                             if symbol == "x" {
-                                Cross::new(center, 4,
+                                Cross::new(*point, 4,
                                     Into::<ShapeStyle>::into(&color).filled())
                                     .into_dyn()
                             } else if symbol == "o" {
-                                Circle::new(center, 4,
+                                Circle::new(*point, 4,
                                     Into::<ShapeStyle>::into(&color).filled())
                                     .into_dyn()
                             } else {
-                                TriangleMarker::new(center, 4,
+                                TriangleMarker::new(*point, 4,
                                     Into::<ShapeStyle>::into(&color).filled())
                                     .into_dyn()
                             }
                         }))
                         .expect("failed to draw ssi observations");
-        }
-    }
-    // draw labels
-    if let Some(plot) = ctx.plots.get("phase.png") {
-        if let Some(chart) = ctx.charts.get("PH") {
             chart
-                .clone()
-                .restore(&plot)
                 .configure_series_labels()
                 .border_style(&BLACK)
                 .background_style(WHITE.filled())
                 .draw()
-                .expect("failed to draw labels on phase chart");
-        }
-    }
-    if let Some(plot) = ctx.plots.get("doppler.png") {
-        if let Some(chart) = ctx.charts.get("DOP") {
-            chart
-                .clone()
-                .restore(&plot)
-                .configure_series_labels()
-                .border_style(&BLACK)
-                .background_style(WHITE.filled())
-                .draw()
-                .expect("failed to draw labels on doppler chart");
-        }
-    }
-    if let Some(plot) = ctx.plots.get("ssi.png") {
-        if let Some(chart) = ctx.charts.get("SSI") {
-            chart
-                .clone()
-                .restore(&plot)
-                .configure_series_labels()
-                .border_style(&BLACK)
-                .background_style(WHITE.filled())
-                .draw()
-                .expect("failed to draw labels on ssi chart");
-        }
-    }
-    if let Some(plot) = ctx.plots.get("pseudo-range.png") {
-        if let Some(chart) = ctx.charts.get("PR") {
-            chart
-                .clone()
-                .restore(&plot)
-                .configure_series_labels()
-                .border_style(&BLACK)
-                .background_style(WHITE.filled())
-                .draw()
-                .expect("failed to draw labels on pseudo range chart");
+                .expect("failed to draw ssi labels");
         }
     }
 } 

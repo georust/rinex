@@ -325,18 +325,4 @@ pub fn plot_rinex(ctx: &mut Context, rnx: &Rinex) {
     } else {
         panic!("this type of RINEX record cannot be plotted yet");
     }
-
-    // add labels to charts that were designed
-    for (id, plot) in &ctx.plots {
-        if let Some(chart) = ctx.charts.get_mut(id) {
-            chart
-                .clone()
-                .restore(&plot)
-                .configure_series_labels()
-                .border_style(&BLACK)
-                .background_style(WHITE.filled())
-                .draw()
-                .expect("failed to draw labels on chart");
-        }
-    }
 }
