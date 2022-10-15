@@ -1568,12 +1568,9 @@ impl Rinex {
     ///     .retain_observable_mut(vec!["C1C","C2P"]);
     /// ```
     pub fn retain_observable_mut (&mut self, filter: Vec<&str>) {
-        if self.is_observation_rinex() {
-            let record = self.record
-                .as_mut_obs()
-                .unwrap();
+        if let Some(record) = self.record.as_mut_obs() {
             record
-                .retain(|_, (_clk, vehicules)| {
+                .retain(|_, (_, vehicules)| {
                     vehicules.retain(|_, obs| {
                         obs.retain(|code, _| {
                             filter.contains(&code.as_str())
@@ -1582,10 +1579,7 @@ impl Rinex {
                     });
                     vehicules.len() > 0
                 });
-        } else if self.is_meteo_rinex() {
-            let record = self.record
-                .as_mut_meteo()
-                .unwrap();
+        } else if let Some(record) = self.record.as_mut_meteo() {
             record
                 .retain(|_, data| {
                     data.retain(|code, _| {
@@ -1601,6 +1595,54 @@ impl Rinex {
         let mut s = self.clone();
         s.retain_observable_mut(filter);
         s
+    }
+
+    /// Retains only phase observations,
+    /// only affects Observation RINEX
+    pub fn retain_phase_observations_mut(&mut self) {
+        if let Some(record) = self.record.as_mut_obs() {
+            record.retain(|_, (_, vehicules)| {
+                vehicules.retain(|_, observations| {
+                    observations.retain(|code, _| {
+                        is_phase_carrier_obs_code!(code)
+                    });
+                    observations.len() > 0
+                });
+                vehicules.len() > 0
+            });
+        }
+    }
+    
+    /// Retains only pseudo range observations,
+    /// only affects Observation RINEX
+    pub fn retain_pseudo_range_observations_mut(&mut self) {
+        if let Some(record) = self.record.as_mut_obs() {
+            record.retain(|_, (_, vehicules)| {
+                vehicules.retain(|_, observations| {
+                    observations.retain(|code, _| {
+                        is_pseudo_range_obs_code!(code)
+                    });
+                    observations.len() > 0
+                });
+                vehicules.len() > 0
+            });
+        }
+    }
+    
+    /// Retains only doppler observations,
+    /// only affects Observation RINEX
+    pub fn retain_doppler_observations_mut(&mut self) {
+        if let Some(record) = self.record.as_mut_obs() {
+            record.retain(|_, (_, vehicules)| {
+                vehicules.retain(|_, observations| {
+                    observations.retain(|code, _| {
+                        is_doppler_obs_code!(code)
+                    });
+                    observations.len() > 0
+                });
+                vehicules.len() > 0
+            });
+        }
     }
     
     /// Filters out Ephemeris Orbits data we are not interested in.
