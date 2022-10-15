@@ -1,4 +1,6 @@
-use rinex::*;
+use rinex::{*,
+    meteo::Observable,
+};
 use plotters::{
     prelude::*,
     coord::Shift,
@@ -9,7 +11,7 @@ use std::ops::Range;
 use itertools::Itertools;
 use std::collections::HashMap;
 
-//mod meteo;
+mod meteo;
 //mod navigation;
 mod observation;
 
@@ -217,6 +219,57 @@ impl<'a> Context<'a> {
                 let chart = Self::build_chart(chart_id, t_axis.clone(), *range, plot);
                 charts.insert(chart_id.to_string(), chart);
             }
+        
+        } else if let Some(record) = rnx.record.as_nav() {
+
+        } else if let Some(record) = rnx.record.as_meteo() {
+            for (index, (e, observables)) in record.iter().enumerate() {
+                if index == 0 {
+                    e0 = e.date.timestamp();
+                    t_axis.push(0.0);
+                } else {
+                    let t = e.date.timestamp() - e0;
+                    t_axis.push(t as f64);
+                }
+                for (observable, data) in observables {
+                    if plots.get(&observable.to_string()).is_none() {
+                        let title = match observable {
+                            Observable::Pressure => "pressure.png",
+                            Observable::Temperature => "temperature.png",
+                            Observable::HumidityRate => "moisture.png",
+                            Observable::ZenithWetDelay => "zenith-wet.png",
+                            Observable::ZenithDryDelay => "zenith-dry.png",
+                            Observable::ZenithTotalDelay => "zenith-total.png",
+                            Observable::WindAzimuth => "wind-azim.png",
+                            Observable::WindSpeed => "wind-speed.png",
+                            Observable::RainIncrement => "rain-increment.png",
+                            Observable::HailIndicator=> "hail.png",
+                        };
+                        let plot = Self::build_plot(title, dim);
+                        plots.insert(observable.to_string(), plot);
+                        y_ranges.insert(observable.to_string(), (*data, *data));
+                    } else {
+                        if let Some((min,max)) = y_ranges.get_mut(&observable.to_string()) {
+                            if data < min {
+                                *min = *data;
+                            }
+                            if data > max {
+                                *max = *data;
+                            }
+                        } else {
+                            y_ranges.insert(observable.to_string(), (*data, *data));
+                        }
+                    }
+                }
+            }
+            // Add 1 chart onto each plot
+            for (id, plot) in plots.iter() {
+                // scale this chart nicely
+                let range = y_ranges.get(id)
+                    .unwrap();
+                let chart = Self::build_chart(id, t_axis.clone(), *range, plot);
+                charts.insert(id.to_string(), chart);
+            }
         }
         Self {
             plots,
@@ -247,7 +300,7 @@ impl<'a> Context<'a> {
             .margin(40)
             .x_label_area_size(30)
             .y_label_area_size(40)
-            .build_cartesian_2d(x_axis, 0.95*y_range.0..1.05*y_range.1) // nicer Y scale
+            .build_cartesian_2d(x_axis, 0.98*y_range.0..1.02*y_range.1) // nicer Y scale
             .unwrap();
         chart
             .configure_mesh()
@@ -265,17 +318,17 @@ impl<'a> Context<'a> {
 pub fn plot_rinex(ctx: &mut Context, rnx: &Rinex) {
     if let Some(record) = rnx.record.as_obs() {
         observation::plot(ctx, record)
-    /*} else if let Some(record) = rnx.record.as_nav() {
-        navigation::plot(record)
+    //} else if let Some(record) = rnx.record.as_nav() {
+    //    navigation::plot(record)
     } else if let Some(record) = rnx.record.as_meteo() {
-        meteo::plot(record)*/
+        meteo::plot(ctx, record)
     } else {
         panic!("this type of RINEX record cannot be plotted yet");
     }
 
     // add labels to charts that were designed
-    for (_, plot) in &ctx.plots {
-        for (_, chart) in &ctx.charts {
+    for (id, plot) in &ctx.plots {
+        if let Some(chart) = ctx.charts.get_mut(id) {
             chart
                 .clone()
                 .restore(&plot)

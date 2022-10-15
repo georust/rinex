@@ -19,38 +19,38 @@ use retain::retain_filters;
 use filter::apply_filters;
 use resampling::record_resampling;
 
-pub fn main () -> Result<(), rinex::Error> {
+pub fn main() -> Result<(), rinex::Error> {
     let cli = Cli::new();
-    let plot = cli.plot();
     let pretty = cli.pretty();
 
+    let plot = cli.plot();
+    let mut ctx = plot::Context::default();
     let mut rnx = Rinex::from_file(cli.input_filepath())?;
 
     if cli.resampling() { // resampling requested
         record_resampling(&mut rnx, cli.resampling_ops());
     }
-    
     if cli.retain() { // retain data of interest
         retain_filters(&mut rnx, cli.retain_flags(), cli.retain_ops());
     }
-    
     if cli.filter() { // apply desired filters
         apply_filters(&mut rnx, cli.filter_ops());
     }
     
-    // grab data of interest
+    if plot {
+        // adjust to context, prepare to plot
+        let dims = cli.plot_dimensions();
+        ctx = plot::Context::new(dims, &rnx); 
+    }
     if cli.extract() {
+        // extract data of interest
         extract_data(&rnx, cli.extraction_ops(), pretty);
     } else {
         // no data of interest
-        // => extract record
-        if plot {
-            // Plot RINEX record 
-            let dims = cli.plot_dimensions();
-            let mut ctx = plot::Context::new(dims, &rnx); 
+        //  => extract record
+        if plot { // Plot record
             plot::plot_rinex(&mut ctx, &rnx); 
-        } else {
-            // Print RINEX record 
+        } else { // Dispaly record content
             if pretty {
                 println!("{}", serde_json::to_string_pretty(&rnx.record).unwrap())
             } else {

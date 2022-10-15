@@ -45,7 +45,6 @@ fn args_to_nav_message (args: Vec<&str>) -> Vec<MsgType> {
 /// Efficient RINEX content filter
 pub fn retain_filters(rnx: &mut Rinex, flags: Vec<&str>, ops: Vec<(&str, Vec<&str>)>) {
     for flag in flags {
-        println!("retain {}", flag);
         if flag.eq("retain-epoch-ok") {
             rnx.retain_epoch_ok_mut();
         } else if flag.eq("retain-epoch-nok") {
@@ -75,7 +74,6 @@ pub fn retain_filters(rnx: &mut Rinex, flags: Vec<&str>, ops: Vec<(&str, Vec<&st
             let filter = args_to_constellations(args.clone());
             rnx.retain_constellation_mut(filter);
         } else if op.eq(&"retain-obs") {
-            println!("Retains Observations {:?}", args);
             rnx.retain_observable_mut(args.clone());
         } else if op.eq(&"retain-ssi") {
         } else if op.eq(&"retain-orb") {

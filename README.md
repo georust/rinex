@@ -33,7 +33,7 @@ and the [rinex](rinex/) crate.
 | Navigation  (NAV)          | :heavy_check_mark:| Ephemeris :sparkle: V4(Others) :construction: |  :heavy_check_mark:  | :construction:       | Epoch iteration |
 | Observation (OBS)          | :heavy_check_mark:| :sparkle:           | :heavy_check_mark:  :chart_with_upwards_trend: |  :construction:  | Epoch iteration |
 |  CRINEX  (Compressed OBS)  | :heavy_check_mark:| CRNX1 :sparkle: CRNX3 :construction: | :heavy_check_mark:  :chart_with_upwards_trend:  |  :construction:    | Epoch iteration |
-|  Meteorological data (MET) | :heavy_check_mark:| :heavy_check_mark:  | :heavy_check_mark:  | :construction:  | Epoch iteration |  
+|  Meteorological data (MET) | :heavy_check_mark:| :heavy_check_mark:  | :heavy_check_mark: :chart_with_upwards_trend:  | :construction:  | Epoch iteration |  
 |  Clocks (CLK)              | :heavy_check_mark:|  :sparkle:          | :question:           |:construction: | Epoch iteration |
 |  Antenna (ATX)             | :heavy_check_mark:| :construction:      | :heavy_minus_sign:   |:construction: | Sorted by `antex::Antenna` |
 |  Ionosphere Maps  (IONEX)  | :sparkle:         |  :construction:     | :question:           |:construction: | Epoch iteration |
