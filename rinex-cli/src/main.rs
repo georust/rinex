@@ -31,7 +31,7 @@ pub fn main () -> Result<(), rinex::Error> {
     }
     
     if cli.retain() { // retain data of interest
-        retain_filters(&mut rnx, cli.retain_ops());
+        retain_filters(&mut rnx, cli.retain_flags(), cli.retain_ops());
     }
     
     if cli.filter() { // apply desired filters
@@ -45,9 +45,9 @@ pub fn main () -> Result<(), rinex::Error> {
         // no data of interest
         // => extract record
         if plot {
-            println!("WERE PLOTTING");
             // Plot RINEX record 
-            let mut ctx = plot::Context::new((1024,768), &rnx); 
+            let dims = cli.plot_dimensions();
+            let mut ctx = plot::Context::new(dims, &rnx); 
             plot::plot_rinex(&mut ctx, &rnx); 
         } else {
             // Print RINEX record 

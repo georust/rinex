@@ -125,13 +125,27 @@ impl Cli {
                         .help("Retain only given Space vehicules"))
                     .arg(Arg::new("retain-epoch-ok")
                         .long("retain-epoch-ok")
+                        .action(ArgAction::SetTrue)
                         .help("Retain only valid epochs"))
                     .arg(Arg::new("retain-epoch-nok")
                         .long("retain-epoch-nok")
+                        .action(ArgAction::SetTrue)
                         .help("Retain only non valid epochs"))
                     .arg(Arg::new("retain-obs")
                         .long("retain-obs")
                         .help("Retain only given list of Observables")) 
+                    .arg(Arg::new("retain-phase")
+                        .long("retain-phase")
+                        .action(ArgAction::SetTrue)
+                        .help("Retain only Phase Observations (all carriers)")) 
+                    .arg(Arg::new("retain-doppler")
+                        .long("retain-doppler")
+                        .action(ArgAction::SetTrue)
+                        .help("Retain only Doppler Observation (all carriers)")) 
+                    .arg(Arg::new("retain-pr")
+                        .long("retain-pr")
+                        .action(ArgAction::SetTrue)
+                        .help("Retain only Pseudo Range Observations (all carriers)")) 
                     .arg(Arg::new("retain-ssi")
                         .long("retain-ssi")
                         .help("Retain only observations that have at least this signal quality"))
@@ -144,18 +158,23 @@ impl Cli {
                         .help("Retain only given list of Orbits fields")) 
                     .arg(Arg::new("retain-lnav")
                         .long("retain-lnav")
+                        .action(ArgAction::SetTrue)
                         .help("Retain only Legacy Navigation frames")) 
                     .arg(Arg::new("retain-mnav")
                         .long("retain-mnav")
+                        .action(ArgAction::SetTrue)
                         .help("Retain only Modern Navigation frames")) 
                     .arg(Arg::new("retain-nav-msg")
                         .long("retain-nav-msg")
+                        .action(ArgAction::SetTrue)
                         .help("Retain only given list of Navigation messages")) 
                     .arg(Arg::new("retain-nav-eph")
                         .long("retain-nav-eph")
+                        .action(ArgAction::SetTrue)
                         .help("Retains only Navigation ephemeris frames")) 
                     .arg(Arg::new("retain-nav-iono")
                         .long("retain-nav-iono")
+                        .action(ArgAction::SetTrue)
                         .help("Retains only Navigation ionospheric models")) 
                     .arg(Arg::new("output-file")
                         .long("output-file")
@@ -189,6 +208,15 @@ impl Cli {
                         .long("plot")
                         .action(ArgAction::SetTrue)
                         .help("Generate Plots instead of default \"stdout\" terminal output"))
+                    .arg(Arg::new("plot-width")
+                        .long("plot-width")
+                        .help("Set plot width, default is 1024px"))
+                    .arg(Arg::new("plot-height")
+                        .long("plot-height")
+                        .help("Set plot height, default is 768px"))
+                    .arg(Arg::new("plot-dim")
+                        .long("plot-dim")
+                        .help("Set plot dimensions. Example \"--plot-dim 2048,768\". Default is (1024, 768)px"))
                     .arg(Arg::new("pretty")
                         .long("pretty")
                         .action(ArgAction::SetTrue)
@@ -268,6 +296,33 @@ impl Cli {
         | self.matches.contains_id("retain-nav-msg")
         | self.matches.contains_id("retain-nav-eph")
         | self.matches.contains_id("retain-nav-iono")
+        | self.matches.contains_id("retain-phase")
+        | self.matches.contains_id("retain-doppler")
+        | self.matches.contains_id("retain-pr")
+    }
+
+    pub fn retain_flags(&self) -> Vec<&str> {
+        let flags = vec![
+            "retain-epoch-ok",
+            "retain-epoch-nok",
+            "retain-lnav",
+            "retain-mnav",
+            "retain-nav-msg",
+            "retain-nav-eph",
+            "retain-nav-iono",
+            "retain-phase",
+            "retain-doppler",
+            "retain-pr",
+        ];
+        flags.iter()
+            .filter_map(|x| {
+                if self.matches.get_flag(x) {
+                    Some(*x)
+                } else {
+                    None
+                }
+            })
+            .collect()
     }
     /// Returns list of retain ops to perform with given list of arguments
     pub fn retain_ops(&self) -> Vec<(&str, Vec<&str>)> {
@@ -276,18 +331,11 @@ impl Cli {
         //   it is better to have epochs filter first
         //    then the rest will follow
         let flags = vec![
-            "retain-epoch-ok",
-            "retain-epoch-nok",
             "retain-constell",
             "retain-sv",
             "retain-obs",
             "retain-ssi",
             "retain-orb",
-            "retain-lnav",
-            "retain-mnav",
-            "retain-nav-msg",
-            "retain-nav-eph",
-            "retain-nav-iono",
         ];
         flags.iter()
             .filter(|x| self.matches.contains_id(x))
@@ -354,5 +402,34 @@ impl Cli {
     }
     pub fn plot (&self) -> bool {
         self.get_flag("plot")
+    }
+    /// Returns desired plot dimensions
+    pub fn plot_dimensions(&self) -> (u32,u32) {
+        let mut dim = (1024, 768);
+        if self.matches.contains_id("plot-dim") {
+            let args = self.matches.get_one::<String>("plot-dim")
+                .unwrap();
+            let items: Vec<&str> = args.split(",").collect();
+            if items.len() == 2 {
+                if let Ok(w) = u32::from_str_radix(items[0].trim(), 10) {
+                    if let Ok(h) = u32::from_str_radix(items[1].trim(), 10) {
+                        dim = (w, h);
+                    }
+                }
+            }
+        } else if self.matches.contains_id("plot-width") {
+            let arg = self.matches.get_one::<String>("plot-width")
+                .unwrap();
+            if let Ok(w) = u32::from_str_radix(arg.trim(), 10) {
+                dim.0 = w;
+            }
+        } else if self.matches.contains_id("plot-height") {
+            let arg = self.matches.get_one::<String>("plot-height")
+                .unwrap();
+            if let Ok(h) = u32::from_str_radix(arg.trim(), 10) {
+                dim.1 = h;
+            }
+        }
+        dim
     }
 }

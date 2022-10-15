@@ -111,7 +111,7 @@ impl<'a> Context<'a> {
                         }
 
                     } else {
-                        y_ranges.insert(title.to_string(),
+                        y_ranges.insert("CK".to_string(),
                             (*clk_offset,*clk_offset));
                     }
                 }
@@ -201,18 +201,17 @@ impl<'a> Context<'a> {
                     }
                 }
             }
-
             // Add 1 chart onto each plot
-            // using previously determined Y scale
             for (title, plot) in plots.iter() {
                 let chart_id = match title.as_str() {
                     "phase.png" => "PH",
                     "doppler.png" => "DOP",
                     "pseudo-range.png" => "PR",
                     "ssi.png" => "SSI",
+                    "clock-offset.png" => "CK",
                     _ => continue,
                 };
-                println!("chart {} tied to plot {}", chart_id, title);
+                // scale this chart nicely
                 let range = y_ranges.get(chart_id)
                     .unwrap();
                 let chart = Self::build_chart(chart_id, t_axis.clone(), *range, plot);
