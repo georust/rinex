@@ -221,7 +221,7 @@ impl<'a> Context<'a> {
         
         } else if let Some(record) = rnx.record.as_nav() {
             for (index, (e, classes)) in record.iter().enumerate() {
-                if e_index == 0 {
+                if index == 0 {
                     // store first epoch timestamp
                     // to scale x_axis proplery (avoids fuzzy rendering)
                     e0 = e.date.timestamp();
@@ -256,7 +256,7 @@ impl<'a> Context<'a> {
             }
         } else if let Some(record) = rnx.record.as_meteo() {
             for (index, (e, observables)) in record.iter().enumerate() {
-                if e_index == 0 {
+                if index == 0 {
                     // store first epoch timestamp
                     // to scale x_axis proplery (avoids fuzzy rendering)
                     e0 = e.date.timestamp();
