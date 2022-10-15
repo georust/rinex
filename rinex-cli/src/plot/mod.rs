@@ -1,4 +1,5 @@
 use rinex::{*,
+    navigation::*,
     meteo::Observable,
 };
 use plotters::{
@@ -12,7 +13,7 @@ use itertools::Itertools;
 use std::collections::HashMap;
 
 mod meteo;
-//mod navigation;
+mod navigation;
 mod observation;
 
 pub type Plot2d = Cartesian2d<RangedCoordf64, RangedCoordf64>;
@@ -90,11 +91,9 @@ impl<'a> Context<'a> {
                     // store first epoch timestamp
                     // to scale x_axis proplery (avoids fuzzy rendering)
                     e0 = e.date.timestamp();
-                    t_axis.push(0.0);
-                } else {
-                    let t = e.date.timestamp() - e0;
-                    t_axis.push(t as f64);
                 }
+                let t = e.date.timestamp() - e0;
+                t_axis.push(t as f64);
 
                 // Build 1 plot in case Receiver Clock Offsets were provided 
                 // Associate 1 chart to each plot, for classical 2D x,y plot 
@@ -221,16 +220,49 @@ impl<'a> Context<'a> {
             }
         
         } else if let Some(record) = rnx.record.as_nav() {
-
+            for (index, (e, classes)) in record.iter().enumerate() {
+                if e_index == 0 {
+                    // store first epoch timestamp
+                    // to scale x_axis proplery (avoids fuzzy rendering)
+                    e0 = e.date.timestamp();
+                }
+                let t = e.date.timestamp() - e0;
+                t_axis.push(t as f64);
+                for (class, frames) in classes {
+                    if *class == FrameClass::Ephemeris {
+                        let file = "clock-bias.png";
+                        if plots.get(file).is_none() {
+                            let plot = Self::build_plot(file, dim);
+                            plots.insert(file.to_string(), plot);
+                        }
+                        let file = "clock-drift.png";
+                        if plots.get(file).is_none() {
+                            let plot = Self::build_plot(file, dim);
+                            plots.insert(file.to_string(), plot);
+                        }
+                        let file = "clock-driftr.png";
+                        if plots.get(file).is_none() {
+                            let plot = Self::build_plot(file, dim);
+                            plots.insert(file.to_string(), plot);
+                        }
+                    }
+                }
+            }
+            // Add one chart onto all plots
+            for (id, plot) in plots.iter() {
+                // scale this chart nicely
+                let chart = Self::build_chart(id, t_axis.clone(), (-10.0E5, 10E5), plot);
+                charts.insert(id.to_string(), chart);
+            }
         } else if let Some(record) = rnx.record.as_meteo() {
             for (index, (e, observables)) in record.iter().enumerate() {
-                if index == 0 {
+                if e_index == 0 {
+                    // store first epoch timestamp
+                    // to scale x_axis proplery (avoids fuzzy rendering)
                     e0 = e.date.timestamp();
-                    t_axis.push(0.0);
-                } else {
-                    let t = e.date.timestamp() - e0;
-                    t_axis.push(t as f64);
                 }
+                let t = e.date.timestamp() - e0;
+                t_axis.push(t as f64);
                 for (observable, data) in observables {
                     if plots.get(&observable.to_string()).is_none() {
                         let title = match observable {
@@ -318,8 +350,8 @@ impl<'a> Context<'a> {
 pub fn plot_rinex(ctx: &mut Context, rnx: &Rinex) {
     if let Some(record) = rnx.record.as_obs() {
         observation::plot(ctx, record)
-    //} else if let Some(record) = rnx.record.as_nav() {
-    //    navigation::plot(record)
+    } else if let Some(record) = rnx.record.as_nav() {
+        navigation::plot(ctx, record)
     } else if let Some(record) = rnx.record.as_meteo() {
         meteo::plot(ctx, record)
     } else {

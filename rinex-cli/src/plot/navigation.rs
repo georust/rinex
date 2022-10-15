@@ -1,51 +1,63 @@
 //! Navigation record plotting
-use rinex::*;
-use rinex::navigation::*;
 use super::Context;
+use rinex::{*,
+    navigation::*,
+};
 use std::str::FromStr;
 use plotters::prelude::*;
 use std::collections::HashMap;
 
 pub fn plot(ctx: &mut Context, record: &Record) {
-    //TODO
-    let mut bias: Vec<f64> = Vec::new();
-    let mut drift: Vec<f64> = Vec::new();
-    let mut drift_r: Vec<f64> = Vec::new();
-    for (epoch, classes) in record {
+    let mut e0: i64 = 0;
+    let mut bias: HashMap<Sv, Vec<(f64,f64)>> = HashMap::new();
+    let mut drift: HashMap<Sv, Vec<(f64,f64)>> = HashMap::new();
+    let mut driftr: HashMap<Sv, Vec<(f64,f64)>> = HashMap::new();
+    for (index, (epoch, classes)) in record.iter().enumerate() {
+        if index == 0 {
+            e0 = epoch.date.timestamp();
+        }
+        let t = epoch.date.timestamp() - e0;
         for (class, frames) in classes {
-            if class == FrameClass::Ephemeris {
+            if *class == FrameClass::Ephemeris {
                 for frame in frames {
-                    let fr = frame.as_eph();
-                    bias.push(fr.clock_bias);
-                    drift.push(fr.clock_drift);
-                    drift_rate.push(fr.clock_drift_rate);
+                    if let Some((_, sv, eph)) = frame.as_eph() {
+                        if let Some(bias) = bias.get_mut(&sv) {
+                            bias.push((t as f64, eph.clock_bias));
+                        } else {
+                            bias.insert(*sv, vec![(t as f64, eph.clock_bias)]);
+                        }
+                        if let Some(drift) = drift.get_mut(&sv) {
+                            drift.push((t as f64, eph.clock_drift));
+                        } else {
+                            drift.insert(*sv, vec![(t as f64, eph.clock_drift)]);
+                        }
+                        if let Some(driftr) = driftr.get_mut(&sv) {
+                            driftr.push((t as f64, eph.clock_drift_rate));
+                        } else {
+                            driftr.insert(*sv, vec![(t as f64, eph.clock_drift_rate)]);
+                        }
+                    }
                 }
             }
         }
     }
-
-    ctx.charts
-        .get("CK")
+    let plot = ctx.plots.get("clock-bias.png")
+        .unwrap();
+    let mut chart = ctx.charts.get("clock-bias.png")
         .unwrap()
         .clone()
-        .restore(ctx.plots.get("clock.png").unwrap())
-        .draw_series(LineSeries::new(
-            ctx.t_axis.iter()
-                .enumerate()
-                .filter_map(|(index, x)| {
-                    if let Some(y) = bias.get(index) {
-                        Some((*x, *y))
-                    } else {
-                        None
-                    }
-                }),
-            &BLACK,
-        ))
-        .expect("failed to draw observations")
-        .label("Clock bias")
-        .legend(|(x, y)| {
-            //let color = ctx.colors.get(&vehicule.to_string()).unwrap();
-            PathElement::new(vec![(x, y), (x + 20, y)], BLACK)
-        });
+        .restore(&plot);
+    for (vehicule, bias) in bias {
+        chart
+            .draw_series(LineSeries::new(
+                bias.iter().map(|point| *point),
+                &BLACK,
+            ))
+            .expect("failed to draw clock biases")
+            .label("Clock bias")
+            .legend(|(x, y)| {
+                //let color = ctx.colors.get(&vehicule.to_string()).unwrap();
+                PathElement::new(vec![(x, y), (x + 20, y)], BLACK)
+            });
     }
 } 
