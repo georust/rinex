@@ -22,8 +22,6 @@ impl BufferedReader {
         if path.ends_with(".gz") {
             // --> gzip encoded
             #[cfg(feature = "flate2")] {
-                // .gz
-                // example : i.gz, .n.gz, .crx.gz 
                 Ok(Self::GzFile(BufReader::new(GzDecoder::new(f))))
             }
             #[cfg(not(feature = "flate2"))] {
@@ -31,7 +29,7 @@ impl BufferedReader {
             }
         
         } else if path.ends_with(".Z") {
-            panic!(".z decompresion not supported yet, uncompress manually")
+            panic!(".z decompresion is not supported: uncompress manually")
         
         } else { // Assumes no extra compression
             Ok(Self::PlainFile(BufReader::new(f)))
