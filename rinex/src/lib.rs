@@ -24,7 +24,7 @@ pub mod sv;
 pub mod epoch;
 pub mod types;
 pub mod version;
-//pub mod processing;
+pub mod processing;
 
 extern crate num;
 #[macro_use]
@@ -153,13 +153,6 @@ pub enum SplitError {
     EpochTooEarly,
     #[error("desired epoch is too late")]
     EpochTooLate,
-}
-
-#[derive(Error, Debug)]
-/// `Diff` (RNX(A) - RNX(B)) related errors
-pub enum DiffError {
-    #[error("not an observation rinex")]
-    NotObsRinex,
 }
 
 impl std::ops::Sub<Rinex> for Rinex {
@@ -1156,17 +1149,16 @@ impl Rinex {
     /// that are closest to Zenith. This is basically a max() operation
     /// on the elevation angle, per epoch and constellation.
     /// This can only be computed on Navigation ephemeris. 
-    pub fn space_vehicules_closest_to_zenith (&self) 
+    pub fn space_vehicules_best_elevation_angle (&self) 
             -> BTreeMap<Epoch, Vec<Sv>> 
     {
+        let mut ret : BTreeMap<Epoch, Vec<Sv>> = BTreeMap::new();
         if !self.is_navigation_rinex() {
             return BTreeMap::new();
         }
         let record = self.record
             .as_nav()
             .unwrap();
-        let mut ret : BTreeMap<Epoch, Vec<Sv>>
-            = BTreeMap::new();
         for (e, classes) in record.iter() {
             let mut work: BTreeMap<constellation::Constellation, (f64, Sv)> = BTreeMap::new();
             for (class, frames) in classes.iter() {
@@ -1203,6 +1195,28 @@ impl Rinex {
             ret.insert(*e, inner.clone());
         }
         ret 
+    }
+
+    pub fn retain_best_elevation_angles_mut (&mut self) {
+        let best_vehicules = self.space_vehicules_best_elevation_angle();
+        if let Some(record) = self.record.as_mut_nav() {
+            record.retain(|e, classes| {
+                let best = best_vehicules.get(e)
+                    .unwrap();
+                classes.retain(|class, frames| {
+                    if *class == navigation::FrameClass::Ephemeris {
+                        frames.retain(|fr| {
+                            let (_, sv, _) = fr.as_eph().unwrap();
+                            best.contains(sv)
+                        });
+                        frames.len() > 0
+                    } else {
+                        false
+                    }
+                });
+                classes.len() > 0
+            });
+        }
     }
 
     /// Returns receiver clock offset, for all epoch such information
@@ -2008,7 +2022,7 @@ impl Rinex {
                         let (_, sv, ephemeris) = frame.as_eph()
                             .unwrap();
 						let orbits = &ephemeris.orbits;
-                        // test all well known elevation mask fields
+                        // test all well known elevation angle fields
                         if let Some(elev) = orbits.get("e") {
                             inner.insert(sv.clone(), elev.as_f64().unwrap());
                         } else {
@@ -3105,13 +3119,12 @@ impl Rinex {
     }
 */
 
-    /// Computes the single difference between self and rhs Observation RINEX.
-    /// This fails if both are not Observation RINEX files.
-    /// This is intended to be used on shared epochs recorded through seperate devices,
-    /// both ideally in stationnary position and held stationnary during entire measurement.
-    /// Ideally, the same sampling period was used in both measurements.
-    /// Only shared epochs and shared vehicules are retained in `self`!.
-    /// We compute the difference between raw phase carrier data, other observables are preserved.
+    /// Computes the single difference between self and rhs Observation RINEX,
+    /// defined as RNX(lhs) - RNX(self), where self is considered the reference point.
+    /// Pay attention that self is severely reworked by invoking this method
+    ///  * only differentiated phase data are left. Other observations are dropped,
+    ///    and any non common observation is dropped.
+    ///  * sampling rate is adapted to match `lhs`
     /// The single difference minimizes the atmospheric and satellite vehicule
     /// induced biases.
     ///
@@ -3146,69 +3159,51 @@ impl Rinex {
     ///     }
     /// }
     /// ```
-    pub fn observation_diff_mut (&mut self, rhs: &Self) -> Result<(), DiffError> {
-        if !self.is_observation_rinex() || !rhs.is_observation_rinex() {
-            return Err(DiffError::NotObsRinex)
-        }
-        let (a, b) = (
-            self.record
-                .as_mut_obs()
-                .unwrap(),
-            rhs.record
-                .as_obs()
-                .unwrap());
-        let b_epochs = rhs.epochs();
-        a.retain(|e, _|  b_epochs.contains(e)); // retain shared epochs only!
-        a.retain(|e, (_, vehicules)| { // retain shared vehicules only !
-            if let Some((_, vvehicules)) = b.get(e) { 
-                // shared epoch 
-                vehicules.retain(|sv, _| { // drop non shared vehicules
-                    vvehicules.get(sv).is_some()
-                });
-                vehicules.len() > 0 // at least 1 common vehicule
-            } else { // no epoch in common
-                false
-            }
-        });
-        a.retain(|e, (_, vehicules)| { // retain shared observables, as far as Phase is concerned
-            let (_, vehicules_b) = b.get(e)
-                .unwrap(); // already filtered out
-            vehicules.retain(|sv, observables| {
-                let observables_b = vehicules_b.get(sv)
-                    .unwrap(); // already filtered out
-                observables.retain(|obscode, _| {
-                    if is_phase_carrier_obs_code!(obscode) {
-                        // this is phase observable: preserve if only shared by B
-                        observables_b.get(obscode).is_some()
+    pub fn observation_diff_mut (&mut self, lhs: &Self) -> Result<(), processing::Error> {
+        if let Some(a) = lhs.record.as_obs() {
+            if let Some(b) = self.record.as_mut_obs() {
+                // rework sample rate
+                b.retain(|e, _| a.contains_key(e));
+                // retain shared vehicules only
+                b.retain(|e, (_, vehicules)| {
+                    if let Some((_, lhs_vehicules)) = a.get(e) {
+                        vehicules.retain(|sv, observations| {
+                            if let Some(lhs_observations) = lhs_vehicules.get(sv) {
+                                observations.retain(|obscode, phase| {
+                                    if is_phase_carrier_obs_code!(obscode) {
+                                        if let Some(lhs_phase) = lhs_observations.get(obscode) {
+                                            // perform differentiation
+                                            phase.obs = lhs_phase.obs - phase.obs;
+                                            true
+                                        } else {
+                                            false // not a shared Phase Observation
+                                        }   
+                                    } else {
+                                        false // Not phase Observation
+                                    }
+                                });
+                                observations.len() > 0 
+                            } else {
+                                false // non shared vehicule
+                            }
+                        });
+                        vehicules.len() > 0
                     } else {
-                        // not a phase observable: preserve by default
-                        true
+                        false // not a shared epoch, 
+                        // will never happen at this point
                     }
                 });
-                observables.len() > 0
-            });
-            vehicules.len() > 0
-        });
-        for (e, (_, vehicules_a)) in a.iter_mut() {
-            let (_, vehicules_b) = b.get(e)
-                .unwrap(); // already filtered out
-            for (vehicule_a, obs_a) in vehicules_a.iter_mut() {
-                let obs_b = vehicules_b.get(vehicule_a)
-                    .unwrap(); // already filtered out
-                for (obscode_a, data_a) in obs_a.iter_mut() {
-                    if is_phase_carrier_obs_code!(obscode_a) {
-                        let data_b = obs_b.get(obscode_a)
-                            .unwrap(); // already filtered out
-                        data_a.obs -= data_b.obs
-                    }
-                }
+                Ok(())
+            } else {
+                Err(processing::Error::NotObservationRinex)
             }
+        } else {
+            Err(processing::Error::NotObservationRinex)
         }
-        Ok(())
     }
 
-    /// See [observation_diff_mut], immutable implementation.
-    pub fn observation_diff (&self, rhs: &Self) -> Result<Self, DiffError> {
+    /// See [Rinex::observation_diff_mut], immutable implementation.
+    pub fn observation_diff (&self, rhs: &Self) -> Result<Self, processing::Error> {
         let mut s = self.clone();
         s.observation_diff_mut(rhs)?;
         Ok(s)

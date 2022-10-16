@@ -1,4 +1,4 @@
-use super::Rinex;
+use super::*;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -11,212 +11,283 @@ pub enum Error {
     RinexError(#[from] super::Error),
 }
 
-/// DoubleDiffContext is a structure to help perform
-/// RINEX double differentiation operation.
-/// It holds Observation and Navigation data,
-/// ideally sampled at the same time.
+/// Structure to perform the Double RINEX differentiation operation,
+/// to cancel both atmospheric and local clock induced biases.
 #[derive(Debug, Clone)]
 #[derive(PartialEq)]
 pub struct DoubleDiffContext {
+    /// Reference observations.
+    /// Reference is B in RNX(A) - RNX(B)
     pub observations: Rinex,
-    pub ephemeris: Rinex,
+    /// Reference phase data, determined from the provided
+    /// Ephemeris context. One vehicule per constellation
+    /// serves as reference point. We support N carrier frequencies.
+    reference_phases: BTreeMap<Epoch, HashMap<Constellation, HashMap<String, f64>>>,
 }
 
 impl DoubleDiffContext {
     /// Builds a DoubleDiffContext from given observation
-    /// and navigation data files. Only phase data are kept from observed data.
-    /// Only Ephemeris are kept among navigation data.
-    pub fn from_file (observations: &str, ephemeris: &str) -> Result<Self, Error> {
+    /// and ephemeris data files. Ephemeris context is determined
+    /// at this point.
+    pub fn from_files (observations: &str, ephemeris: &str) -> Result<Self, Error> {
         let observations = Rinex::from_file(observations)?;
         let ephemeris = Rinex::from_file(ephemeris)?;
-        if observations.is_observation_rinex() {
-            if ephemeris.is_navigation_rinex() {
-                Ok(Self {
-                    observations,
-                    ephemeris,
-                })
-            } else {
-                Err(Error::NotNavigationRinex)
-            }
-        } else {
-            Err(Error::NotObservationRinex)
-        }
+        let mut context = Self::with_reference_observations(observations)?;
+        context.set_ephemeris_context(&ephemeris)?;
+        Ok(context)
     }
     /// Builds a new DoubleDiffContext.
-    /// Only Ephemeris and Phase observations are kept, to simplify
-    /// the following operation
-    pub fn new (observations: Rinex, ephemeris: Rinex) -> Result<Self, Error> {
-        if observations.is_observation_rinex() {
-            if ephemeris.is_navigation_rinex() {
-                Ok(Self {
-                    observations,
-                    ephemeris,
-                })
-            } else {
-                Err(Error::NotNavigationRinex)
-            }
-        } else {
-            Err(Error::NotObservationRinex)
-        }
+    pub fn new (observations: Rinex) -> Result<Self, Error> {
+        Ok(Self::with_reference_observations(observations)?)
     }
-    /// Returns a DoubleDiffContext with given Observation data
-    /// where we only retain raw Phase Observations to simplify
-    /// the following operation
-    pub fn with_observations(&self, observations: Rinex) -> Result<Self, Error> {
+    /// Returns Self with given reference Observations 
+    pub fn with_reference_observations (observations: Rinex) -> Result<Self, Error> {
         if observations.is_observation_rinex() {
             Ok(Self {
                 observations,
-                ephemeris: self.ephemeris.clone(),
+                // reference points not determined yet
+                reference_phases: BTreeMap::new(), //with_capacity(record.len()),
             })
         } else {
             Err(Error::NotObservationRinex)
         }
     }
-    /// Returns a DoubleDiffContext with given Navigation data
-    /// where we only retain Ephemeris data
-    pub fn with_ephemeris(&self, ephemeris: Rinex) -> Result<Self, Error> {
+    /// Sets the Ephemeris context.
+    /// In order to simplify following operations
+    /// and post operation analysis,
+    /// observations are severely reworked:
+    ///  * sample rate is matched to ephemeris sample rate
+    ///  * only Phase observations are preserved,
+    ///  * reference phase data are extracted internally and dropped from record content
+    pub fn set_ephemeris_context(&mut self, ephemeris: &Rinex) -> Result<(), Error> {
         if ephemeris.is_navigation_rinex() {
-            Ok(Self {
-                observations: self.observations.clone(),
-                ephemeris,
-            })
+            // determine reference vehicules
+            let reference_vehicules = ephemeris
+                .space_vehicules_best_elevation_angle();
+            // start from Observations context fresh copy
+            self.reference_phases.clear();
+            let record = self.observations.record
+                .as_mut_obs()
+                .unwrap();
+            // rework sample rate 
+            // extract reference phase data
+            // remove reference phase data from record
+            record.retain(|e, (_, vehicules)| {
+                if let Some(ref_vehicules) = reference_vehicules.get(e) {
+                    let mut inner: HashMap<Constellation, HashMap<String, f64>> = HashMap::new();
+                    // drop reference vehicules from record
+                    vehicules.retain(|sv, observations| {
+                        if ref_vehicules.contains(sv) {
+                            // grab reference data to be dropped
+                            let mut phase_data: HashMap<String, f64> = HashMap::new();
+                            for (observation, data) in observations {
+                                if is_phase_carrier_obs_code!(observation) {
+                                    phase_data.insert(observation.to_string(), data.obs);
+                                }
+                            }
+                            if phase_data.len() > 0 {
+                                // build reference phase data
+                                inner.insert(sv.constellation, phase_data);
+                            }
+                            false
+                        } else {
+                            // only preserve phase data
+                            observations.retain(|observation, _| {
+                                is_phase_carrier_obs_code!(observation)
+                            });
+                            observations.len() > 0 
+                        }
+                    });
+                    if vehicules.len() > 0 {
+                        if inner.len() > 0 {
+                            // build reference phase data
+                            self.reference_phases.insert(*e,
+                                inner);
+                        }
+                        true
+                    } else {
+                        false
+                    }
+                } else {
+                    false // No reference vehicule for current epoch
+                        // 2D diff would not be feasible
+                       // ==> drop current epoch
+                }
+            });
+            Ok(())
         } else {
             Err(Error::NotNavigationRinex)
         }
     }
-    
-    /// Computes the double difference between `self` and `rhs` Observation RINEX.
-    /// The performed operation is `self.observations` - `rhs`.
-    /// Only phase data is modified in `self.observations`, other observables are preserved.
-    /// Only shared epochs and shared vehicules are preserved in `self`.
-    /// Only double differenced phase data are left out in `self`, as far 
-    /// as phase observables are concerned.
-    /// This operation cancels out the local receiver clock effects.
+ 
+    /// Computes the double difference `lhs` - `self`,
+    /// RNX(a) - RNX(b), self is considered the reference.
+    /// This operation cancels out ionospheric/atmospheric biases
+    /// and the local receiver clock effects.
+    /// This can only invoked once per Observation reference context,
+    /// because internal data is modified in place:
+    ///   * sample rate is adjusted to match `lhs` epochs
+    ///   * only shared observations are preserved. If 
+    ///   `lhs` is missing some carrier signals for instance,
+    ///   observations get dropped in place
+    /// If you want to perform as many 2D diff as you want,
+    /// use [Self::double_diff] immutable implementation,
+    /// which preserves the observation context,
+    /// at the expense of a memcopy.
     ///
     /// Example:
+/*
     /// ```
     /// use rinex::*;
-    /// // this only serves as an API demonstration
-    /// // ideally all files involved share common epochs and identical sample rate
-    /// let mut rnx_a = 
-    ///     Rinex::from_file("../test_resources/OBS/V2/aopr0010.17o")
-    ///         .unwrap();
-    /// let mut rnx_b = 
-    ///     Rinex::from_file("../test_resources/OBS/V2/rovn0010.21o")
-    ///         .unwrap();
-    /// let nav =
-    ///     Rinex::from_file("../test_resources/NAV/V2/amel0010.21g")
-    ///         .unwrap();
-    /// // compute the double difference, to cancel out ionospheric/atmospheric and local induced biases
-    /// rnx_a
-    ///     .double_diff_mut(&rnx_b, &nav);
-    /// // Remember only phase data get modified, other observables are untouched
+    /// use rinex::processing::DoubleDiffContext;
+    /// // In real use case, Ephemeris and Reference Observations have
+    /// // a consistent sample rate. 
+    /// // The DoubleDiffContext is smart enough to rework the sample rate
+    /// // at the expence of losing Observations, if Ephemeris do not share
+    /// // common epochs
+    /// let mut context = DoubleDiffContext::from_files(
+    ///    // provide reference observations
+    ///    "../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz",
+    ///    // provide Ephemeris context
+    ///    // so reference phase points can be determined
+    ///    "../test_resources/NAV/V3/MOJN00DNK_R_20201770000_01D_MN.rnx.gz")
+    ///    .unwrap();
+    /// // Perform 2D differentiation. Previously given Observations
+    /// // are considered reference points (lhs - self).
+    /// // Once again, ideally provide identical sampling context,
+    /// // otherwise record is once again shrinked to fit
+    /// let lhs = Rinex::from_file(
+    ///     "../test_resources/CRNX/V3/MOJN00DNK_R_20201770000_01D_30S_MO.crx.gz")
+    ///     .unwrap();
+    /// context.double_diff_mut(&lhs)
+    ///     .unwrap();
+    /// // Post processing analysis
+    /// let record = context.observations
+    ///    .record
+    ///    .as_obs()
+    ///    .unwrap();
+    /// for (e, (clk_offset, vehicules)) in record.iter() {
+    ///    for (sv, observations) in vehicules {
+    ///       // Vehicule used as reference is lost at this point
+    ///       for (observable, data) in observations {
+    ///          // Non phase observables are lost at this point
+    ///          // We're only left with 2D differenced phase `data`
+    ///       }
+    ///    }
+    /// }
     /// ```
-    pub fn double_diff_mut (&mut self, rhs: &Self) -> Result<(), Error> {
-        if !rhs.is_observation_rinex() {
-            return Err(Error::NotObservationRinex)
+*/
+    pub fn double_diff_mut (&mut self, lhs: &Rinex) -> Result<(), Error> {
+        if let Some(lhs_record) = lhs.record.as_obs() {
+            // compute 1D diff
+            // this will rework sampling rate to provided observations
+            // and also only retains matching observables
+            self.observations 
+                .observation_diff_mut(lhs)?;
+            // now proceed to 2D diff
+            let record = self.observations
+                .record
+                .as_mut_obs()
+                .unwrap();
+            for (e, (_, vehicules)) in record.iter_mut() {
+                let reference_vehicules = self.reference_phases.get(e)
+                    .unwrap(); // already shrinked to fit
+                for (vehicule, observations) in vehicules.iter_mut() {
+                    // grab reference points for current constellation system
+                    let reference_phase = reference_vehicules
+                        .get(&vehicule.constellation)
+                        .unwrap();
+                    // substract reference point to current observation
+                    for (observation, data) in observations.iter_mut() {
+                        let reference_data = reference_phase.get(observation) 
+                            .unwrap(); // already shrinked to fit
+                        // substract reference phase point
+                        data.obs -= reference_data;
+                    }
+                }
+            }
+            Ok(())
+        } else {
+            Err(Error::NotObservationRinex)
         }
-        self.diff_mut(rhs)?; // compute single diff (in place)
-        let record = self.record // grab `self` record
-            .as_mut_obs()
-            .unwrap();
-        let mut zenith = self.ephemeris.clone()
-            .space_vehicules_closest_to_zenith();
-        // filter non common epochs out, 
-        // to make reference retrieval easier
-        zenith.retain(|e, _| {
-            let mut epoch_is_shared = false;
-            for (ee, _) in record.iter() {
-                if ee == e {
-                    epoch_is_shared = true;
-                    break
-                }
-            }
-            epoch_is_shared
-        });
-        // drop constellations in self where no reference vehicules could be determined,
-        // due to missing related `nav` ephemeris
-        record.retain(|e, (_, vehicules)| {
-            let zenith_vehicules = zenith.get(e)
-                .unwrap(); // already filtered out
-            vehicules.retain(|sv, _| {
-                let mut constell_found = false;
-                for vehicule in zenith_vehicules {
-                    if vehicule.constellation == sv.constellation {
-                        constell_found = true;
-                        break
-                    }
-                }
-                constell_found
-            });
-            vehicules.len() > 0
-        });
-        // browse `self` 
-        for (e, (_, svs)) in record.iter_mut() {
-            // reference vehicules
-            let ref_vehicules = zenith.get(e)
-                .unwrap(); // already left out
-            // this structure will hold reference phase data
-            // accross vehicules. We store 1 reference data,
-            // per valid Phase observable,
-            // because there might be several phase observables in multi carrier contexts.
-            let mut references: HashMap<sv::Sv, HashMap<String, f64>> = HashMap::new(); 
-            // grab reference phase data
-            for (sv, observables) in svs.iter() {
-                if ref_vehicules.contains(sv) {//this vehicule is identified as ref.
-                    let mut inner: HashMap<String, f64> = HashMap::new(); 
-                    for (observable, data) in observables.iter() {
-                        if is_phase_carrier_obs_code!(observable) {
-                            // this is a phase observation
-                            inner.insert(observable.to_string(), data.obs);
-                        }
-                    }
-                    references.insert(sv.clone(), inner); 
-                }
-            }
-            // drop the reference vehicule observed phase
-            // so we're only left with data ready to be dual differenced
-            // as far as phase is concerned
-            svs.retain(|sv, observables| { 
-                let mut preserve = true;
-                for ref_sv in references.keys() {
-                    if ref_sv == sv { // this vehicule is identified as ref.
-                        observables.retain(|obscode, _| { // drop phase data
-                            !is_phase_carrier_obs_code!(obscode)
-                        });
-                        preserve = observables.len() > 0
-                    }
-                }
-                preserve
-            });
-            // compute double diff
-            for (sv, observables) in svs.iter_mut() {
-                // compute as long as we have 1 ref for related constellation
-                for (ref_vehicule, ref_observables) in references.iter() {
-                    if sv.constellation == ref_vehicule.constellation {
-                        // compute as long as it's phase data
-                        for (observable, data) in observables.iter_mut() {
-                            if !is_phase_carrier_obs_code!(observable) {
-                                // compute as long as we have a reference for this observable
-                                for (ref_obs, ref_data) in ref_observables.iter() {
-                                    if observable == ref_obs { // observable match
-                                        data.obs -= ref_data // remove ref phase value
-                                    }
-                                }
-                            }
-                        }
+    }
+
+    /// Immutable 2D differentiation operation.
+    /// This operation is less efficient compare to [Self::double_diff_mut],
+    /// due to some extra memcopies,
+    /// but allows as many invokations as you want, as long as the
+    /// Ephemeris context remains the same.
+    /// See [Self::double_diff_mut] for other examples.
+    /// Example:
+/*
+    /// ```
+    /// use rinex::*;
+    /// use rinex::processing::DoubleDiffContext;
+    /// let mut context = DoubleDiffContext::from_files(
+    ///    // provide reference observations
+    ///    "../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz",
+    ///    // provide Ephemeris context
+    ///    // so reference phase points can be determined
+    ///    "../test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz")
+    ///    .unwrap();
+    /// // Perform 2D differentiation. Previously given Observations
+    /// // are considered reference points (lhs - self).
+    /// let lhs = Rinex::from_file(
+    ///     "../test_resources/CRNX/V3/MOJN00DNK_R_20201770000_01D_30S_MO.crx.gz")
+    ///     .unwrap();
+    /// let results = context.double_diff_mut(&lhs)
+    ///     .unwrap(); // sane context
+    /// // Post processing analysis
+    /// for (e, (clk_offset, vehicules)) in results.iter() {
+    ///    for (sv, observations) in vehicules.iter() {
+    ///       // Vehicule used as reference is lost at this point
+    ///       for (observable, data) in observations {
+    ///          // Non phase observables are lost at this point
+    ///          // We're only left with 2D differenced phase `data`
+    ///       }
+    ///    }
+    /// }
+    /// // Perform another 2D differentiation
+    /// let lhs = Rinex::from_file(
+    ///     "../test_resources/CRNX/V3/MOJN00DNK_R_20201770000_01D_30S_MO.crx.gz")
+    ///     .unwrap();
+    /// let results = context.double_diff_mut(&lhs)
+    ///     .unwrap(); // sane context
+    /// // [...]
+    /// ```
+*/
+    pub fn double_diff (&self, lhs: &Rinex) -> Result<observation::Record, Error> {
+        if let Some(lhs_record) = lhs.record.as_obs() {
+            // compute 1D diff
+            // this will rework sampling rate to provided observations
+            // and also only retains matching observables
+            let mut observations = self.observations 
+                .observation_diff(lhs)?;
+            // now proceed to 2D diff
+            let mut record = observations
+                .record
+                .as_mut_obs()
+                .unwrap();
+            for (e, (_, vehicules)) in record.iter_mut() {
+                let reference_vehicules = self.reference_phases.get(e)
+                    .unwrap(); // already shrinked to fit
+                for (vehicule, observations) in vehicules.iter_mut() {
+                    // grab reference points for current constellation system
+                    let reference_phase = reference_vehicules
+                        .get(&vehicule.constellation)
+                        .unwrap();
+                    // substract reference point to current observation
+                    for (observation, data) in observations.iter_mut() {
+                        let reference_data = reference_phase.get(observation) 
+                            .unwrap(); // already shrinked to fit
+                        // substract reference phase point
+                        data.obs -= reference_data;
                     }
                 }
             }
+            Ok(record.clone())
+        } else {
+            Err(Error::NotObservationRinex)
         }
-        Ok(())
     }
-    
-    /// Immutable implementation of [double_diff_mut].
-    pub fn double_diff (&self, rhs: &Self, nav: &Self) -> Result<Self, DiffError> {
-        let mut c = self.clone();
-        c.double_diff_mut(rhs, nav)?;
-        Ok(c)
-    }
-    
 }

@@ -109,15 +109,7 @@ mod test {
                         assert_eq!(data_b.is_some(), true); // we did not produce unexpected data
                         let data_b = data_b.unwrap();
                         // test actual (A)-(B)
-                        assert_eq!(obsdata.obs == (data_a.obs - data_b.obs), true);
-                    } else {
-                        // this is not a phase observable
-                        // left untouched (data is preserved)
-                        // test whether this is true or not
-                        let data_a = observables_a.get(obscode);
-                        assert_eq!(data_a.is_some(), true); // we did preserve 
-                        let data_a = data_a.unwrap();
-                        assert_eq!(obsdata == data_a, true); // we did preserve correctly
+                        assert_eq!(obsdata.obs == (data_b.obs - data_a.obs), true);
                     }
                 }
             }
@@ -161,15 +153,7 @@ mod test {
                         assert_eq!(data_b.is_some(), true); // we did not produce unexpected data
                         let data_b = data_b.unwrap();
                         // test actual (A)-(B)
-                        assert_eq!(obsdata.obs == (data_a.obs - data_b.obs), true);
-                    } else {
-                        // this is not a phase observable
-                        // left untouched (data is preserved)
-                        // test whether this is true or not
-                        let data_a = observables_a.get(obscode);
-                        assert_eq!(data_a.is_some(), true); // we did preserve 
-                        let data_a = data_a.unwrap();
-                        assert_eq!(obsdata == data_a, true); // we did preserve correctly
+                        assert_eq!(obsdata.obs == (data_b.obs - data_a.obs), true);
                     }
                 }
             }
@@ -213,15 +197,7 @@ mod test {
                         assert_eq!(data_b.is_some(), true); // we did not produce unexpected data
                         let data_b = data_b.unwrap();
                         // test actual (A)-(B)
-                        assert_eq!(obsdata.obs == (data_a.obs - data_b.obs), true);
-                    } else {
-                        // this is not a phase observable
-                        // left untouched (data is preserved)
-                        // test whether this is true or not
-                        let data_a = observables_a.get(obscode);
-                        assert_eq!(data_a.is_some(), true); // we did preserve 
-                        let data_a = data_a.unwrap();
-                        assert_eq!(obsdata == data_a, true); // we did preserve correctly
+                        assert_eq!(obsdata.obs == (data_b.obs - data_a.obs), true);
                     }
                 }
             }
