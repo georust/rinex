@@ -32,19 +32,19 @@ impl DoubleDiffContext {
     pub fn from_files (observations: &str, ephemeris: &str) -> Result<Self, Error> {
         let observations = Rinex::from_file(observations)?;
         let ephemeris = Rinex::from_file(ephemeris)?;
-        let mut context = Self::with_reference_observations(observations)?;
+        let mut context = Self::with_reference_observations(&observations)?;
         context.set_ephemeris_context(&ephemeris)?;
         Ok(context)
     }
     /// Builds a new DoubleDiffContext.
-    pub fn new (observations: Rinex) -> Result<Self, Error> {
+    pub fn new (observations: &Rinex) -> Result<Self, Error> {
         Ok(Self::with_reference_observations(observations)?)
     }
     /// Returns Self with given reference Observations 
-    pub fn with_reference_observations (observations: Rinex) -> Result<Self, Error> {
+    pub fn with_reference_observations (observations: &Rinex) -> Result<Self, Error> {
         if observations.is_observation_rinex() {
             Ok(Self {
-                observations,
+                observations: observations.clone(),
                 // reference points not determined yet
                 reference_phases: BTreeMap::new(), //with_capacity(record.len()),
             })

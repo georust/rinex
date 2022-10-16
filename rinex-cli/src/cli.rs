@@ -1,3 +1,6 @@
+use rinex::{*,
+    processing::DoubleDiffContext,
+};
 use clap::{
     Command, 
     Arg, ArgMatches, 
@@ -24,9 +27,7 @@ impl Cli {
                         .short('f')
                         .long("fp")
                         .help("Input RINEX file")
-                        //TODO to support several files @ once
-                        //.action(ArgAction::Append)
-                        //.value_terminator(",")
+                        .action(ArgAction::Append)
                         .required(true))
                     .arg(Arg::new("epochs")
                         .long("epochs")
@@ -176,11 +177,13 @@ impl Cli {
                         .long("retain-nav-iono")
                         .action(ArgAction::SetTrue)
                         .help("Retains only Navigation ionospheric models")) 
-                    .arg(Arg::new("output-file")
-                        .long("output-file")
-                        .help("Custom output file, in case we're generating data"))
+                    .arg(Arg::new("output")
+                        .long("output")
+                        .action(ArgAction::Append)
+                        .help("Custom output file path, in case we're generating data"))
                     .arg(Arg::new("custom-header")
                         .long("custom-header")
+                        .action(ArgAction::Append)
                         .help("Custom header attributes, in case we're generating data"))
                     .arg(Arg::new("merge")
                         .short('m')
@@ -199,10 +202,10 @@ impl Cli {
                         .help("Generate verbose report, similar to \"teqc\""))
                     .arg(Arg::new("diff")
                         .long("diff")
-                        .help("Compute Observation RINEX differentiation to cancel ionospheric biases"))
+                        .help("Compute Observation RINEX differentiation to cancel ionospheric biases. This expects a local RINEX file considered as Reference Observations in the following operation to perform"))
                     .arg(Arg::new("ddiff")
                         .long("ddiff")
-                        .help("Compute Observation RINEX double differentiation to cancel ionospheric and local clock induced biases"))
+                        .help("Compute Observation RINEX double differentiation to cancel ionospheric and local clock induced biases. This expects the location of two RINEX files. One considered as Reference Observation and the other a Reference Navigation, used to determine phase reference points, in the following operation to perform."))
                     .arg(Arg::new("plot")
                         .short('p')
                         .long("plot")
@@ -225,16 +228,21 @@ impl Cli {
             },
         }
     }
-    /// Returns input filepath
-    pub fn input_filepath(&self) -> &str {
+    /// Returns input filepaths
+    pub fn input_paths(&self) -> Vec<&str> {
         self.matches
-            .get_one::<String>("filepath")
+            .get_many::<String>("filepath")
             .unwrap()
+            .map(|s| s.as_str())
+            .collect()
     }
-    /// Returns output filepath
-    pub fn output_filepath(&self) -> Option<&str> {
+    /// Returns output filepaths
+    pub fn output_paths (&self) -> Vec<&str> {
         self.matches
-            .get_one::<String>("output-file").map(|x| x.as_str())
+            .get_many::<String>("output")
+            .unwrap()
+            .map(|s| s.as_str())
+            .collect()
     }
     /// Returns true if at least one --extract category flag
     /// was requested
@@ -399,6 +407,57 @@ impl Cli {
     }
     pub fn pretty (&self) -> bool {
         self.get_flag("pretty")
+    }
+    pub fn single_diff (&self) -> Option<Rinex> {
+        if self.matches.contains_id("diff") {
+            let args = self.matches.get_one::<String>("diff")
+                .unwrap();
+            Some(Rinex::from_file(args).unwrap())
+        } else {
+            None
+        }
+    }
+    pub fn double_diff (&self) -> Option<DoubleDiffContext> {
+        if self.matches.contains_id("ddiff") {
+            let args = self.matches.get_one::<String>("ddiff")
+                .unwrap();
+            let args: Vec<&str> = args.split(",").collect();
+            if args.len() != 2 {
+                panic!("faulty --diff usage\nExpecting Reference Observations and Ephemeris context");
+            }
+            let rnx_a = Rinex::from_file(args[0])
+                .expect(&format!("Failed to parse given reference RINEX from \"{}\"", args[0]));
+            let rnx_b = Rinex::from_file(args[1])
+                .expect(&format!("Failed to parse given reference RINEX from \"{}\"", args[1]));
+            if rnx_a.is_observation_rinex() {
+                if rnx_b.is_navigation_rinex() {
+                    let mut context = DoubleDiffContext::new(&rnx_a)
+                        .expect("non valid reference Observations");
+                    context
+                        .set_ephemeris_context(&rnx_b)
+                        .expect("non valid Ephemeris context");
+                    Some(context)
+                } else {
+
+                    panic!("faulty --diff usage\nMissing Ephemeris context");
+                }
+            } else if rnx_b.is_observation_rinex() {
+                if rnx_a.is_navigation_rinex() {
+                    let mut context = DoubleDiffContext::new(&rnx_b)
+                        .expect("non valid reference Observations");
+                    context
+                        .set_ephemeris_context(&rnx_a)
+                        .expect("non valid Ephemeris context");
+                    Some(context)
+                } else {
+                    panic!("faulty --diff usage\nMissing Ephemeris context");
+                }
+            } else {
+                panic!("faulty --diff usage\nMissing Reference Observations");
+            }
+        } else {
+            None
+        }
     }
     pub fn plot (&self) -> bool {
         self.get_flag("plot")

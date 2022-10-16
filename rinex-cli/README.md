@@ -284,76 +284,77 @@ Some post processing operations are being developped. People usually perform the
 This application does not aim at matching what `rtklib` is capable of, but it can be a powerful and efficient
 alternative to similarly supported operations
 
-## Differential RINEX
+## 1D Differential RINEX
 
 Differential RINEX is the operation rnx(a) - rnx(b) where both are Observation RINEX
 assumed to be sampled by stationnary and close to each other different receivers.
-This simple operation cancels out ionospheric biases.
+This operation cancels atmospheric biases.
 
-Provide at least two OBS files for this operation to work.  
-Here we differentiante zegv0010.21o using delf0010.21o.  
-This is only a command line example, it does not produce anything meaningful because delf0010.21o does not share
-any common epoch with zegv0010.21o
-
-```bash
-rinex-cli --diff -f test_resources/OBS/V2/zegv0010.21o,test_resources/OBS/V2/delf0010.21o
-```
-
-The operation is described in the API [right here](https://docs.rs/rinex/latest/rinex/struct.Rinex.html#method.diff_mut).
-
-## Double Differential RINEX
-
-Double Differential RINEX is first a rnx(a) - rnx(b) operation, previously described,
-then another differentiation where a specific satellite vehicule is defined
-as reference, for a given epoch and a given constellation.
-We define the reference vehicule as the one closest to zenith.
-To determine such information, we need Navigation ephemeris to be provided too.
-
-This operation requires at least 2 OBS files and 1 NAV file to be provided.
-The (A) and (B) role in the `diff` operation is determined by order of appearance
-of the Observation files in the command line: 
-* first encountered is (A)
-* last encountered is (B)
-
-The order of appearance of the NAV file does not matter.
-
-For example, this command will expose 
-zegv0010.21o - delf0010.21o using NAV.d as reference.
+To perform such operation,
+one must specify the Reference RINEX (`b` in the operation)
+with `--diff`. For example:
 
 ```bash
-rinex-cli --ddiff \
-    -f zegv0010.21o,delf0010.21o,nav.d
+rinex-cli \
+    # set reference Observations (b)
+    --diff test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz
+    # set observation (a) to normalize to previous reference observations (b)
+    # we perform the operation for each files that are provided by `-f`
+    -f test_resources/CRNX/V3/MOJN00DNK_R_20201770000_01D_30S_MO.crx.gz
 ```
 
-But this command will also work
+Obviously diff should come with valid Observations. 
+The provided example files are ideal, as they share identical sampling conditions:
+this is the ideal situation to perform such operation.
+
+It is possible to perform post processing analysis on the resulting RINEX.
+To do so, all known command arguments can be used. If user requests
+a Record extraction (no particular operation) or visualization (`--plot`),
+the program will exhibit the differenced phase data.
+
+## 2D Differential RINEX
+
+2D differential RINEX is the 1D differentiation between
+two Observation RINEX files, and another differentiation,
+across all vehicules spanning all epochs, where one vehicule is
+selected as reference phase provider. To determine which
+vehicule to select, the user must provide Navigation ephemeris,
+along Observation references (like in 1D).
+
+This operation cancels both
+atmospheric and receiver clock induced biases.
+
+To perform such operation,
+one must specify the Reference context, which must comprise
+Navigation ephemeris, and Reference Observations (`b` in the operation).
+For example:
+
 ```bash
-rinex-cli --ddiff \
-    -f zegv0010.21o,nav.d,delf0010.21o
+rinex-cli \
+    # set reference context (obs,nav)
+    --diff test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz,test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz
+    # pass observations (a) to differentiate against reference context (b)
+    # we perform the operation for each file provided by -f
+    -f test_resources/CRNX/V3/MOJN00DNK_R_20201770000_01D_30S_MO.crx.gz 
 ```
 
-While this one will invert roles, and compute
-del0010.21o - zegv0010.21o
+Reference context order in the description (obs,nav) does not matter:
+
 ```bash
-rinex-cli --ddiff \
-    -f delf0010.21o,zegv0010.21o,nav.d
+rinex-cli \
+    # set reference context (nav,obs)
+    --diff test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz,test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz
+    # pass observations (a) to differentiate against reference context (b)
+    # we perform the operation for each file provided by -f
+    -f test_resources/CRNX/V3/MOJN00DNK_R_20201770000_01D_30S_MO.crx.gz 
 ```
 
-Finally, requesting `ddiff` without providing Ephemeris will cause a panic:
-```bash
-rinex-cli --ddiff \
-    -f delf0010.21o,zegv0010.21o
-```
+The command line must be called once per Differentiation context (Obs+Nav).
 
-And it is possible to perform N double differentiation at once,
-but we currently only support 1 reference Ephemeris to be specified
-```bash
-rinex-cli --ddiff \
-    -f nav.d,obs_a1.o,obs_b1.o,obs_a2.o,obs_b2.o
-```
-
-Refer
-[to the API](https://docs.rs/rinex/latest/rinex/struct.Rinex.html#method.double_diff_mut).
-for more detail about this operation.
+It is possible to perform post processing analysis on the resulting data.
+To do so, all known command arguments can be used. If user requests
+a Record extraction (no particular operation) or visualization (`--plot`),
+the program will exhibit the 2D differenced phase data.
 
 ## Cycle slips
 
@@ -459,19 +460,20 @@ To understand the meaning of this plot, please currently refer to the `teqc` doc
 
 ## Data visualization
 
-A data visualization interface is under development.  
-
-It currently only works on Observation RINEX and can only
-output a visualization for a single file.
+It is possible to visualize data of interest, instead of raw "stdout" output.
+To understand which RINEX record can currently be plotted, please
+refer to the main README table.
 
 Data visualization is requested with the `--plot` argument.  
-This option will generate 4 PNG files, one per physics, 
-that get populated by a plot, is related physics were measured.
+Plots are generate in the form of PNG files currently.
+The resulting visualization depends on the RINEX record being analyzed.
+For example, for RINEX Observations, `--plot` will produce up to 4 files,
+one per physics (observables), and possibly another one to 
+represent receiver clock offsets, if such information was identified.
 
 Previously mentionned filters can be stacked to the plotting operation,
-to focus on data of interest.
-
-For instance, the following Carrier Phase and Signal Strength
+to focus on data of interest. For instance, 
+the following Carrier Phase and Signal Strength
 visualization were generated with this command:
 
 ```bash
