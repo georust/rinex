@@ -6,6 +6,7 @@ use clap::{
     Arg, ArgMatches, 
     //ArgGroup, 
     ArgAction,
+    ColorChoice,
 };
 
 pub struct Cli {
@@ -23,6 +24,7 @@ impl Cli {
                     .version("1.0")
                     .about("RINEX analysis and processing tool")
                     .arg_required_else_help(true)
+                    .color(ColorChoice::Always)
                     .arg(Arg::new("filepath")
                         .short('f')
                         .long("fp")
