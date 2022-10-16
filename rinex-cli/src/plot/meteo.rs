@@ -1,8 +1,6 @@
 //! Meteo observations plotting
-use rinex::*;
 use rinex::meteo::*;
 use super::Context;
-use std::str::FromStr;
 use plotters::prelude::*;
 use std::collections::HashMap;
 

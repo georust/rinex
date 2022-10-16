@@ -3,7 +3,6 @@ use super::Context;
 use rinex::{*,
     navigation::*,
 };
-use std::str::FromStr;
 use plotters::prelude::*;
 use std::collections::HashMap;
 

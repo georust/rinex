@@ -8,8 +8,6 @@ use plotters::{
     chart::ChartState,
     coord::types::RangedCoordf64,
 };
-use std::ops::Range;
-use itertools::Itertools;
 use std::collections::HashMap;
 
 mod meteo;

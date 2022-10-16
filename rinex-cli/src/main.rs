@@ -3,9 +3,6 @@
 //! Based on crate <https://github.com/gwbres/rinex>     
 //! Homepage: <https://github.com/gwbres/rinex-cli>
 
-use rinex::{*, 
-    processing::DoubleDiffContext,
-}; 
 mod cli; // command line interface 
 mod extract; // high level data
 mod teqc; // `teqc` operations
@@ -14,6 +11,7 @@ mod retain; // record filtering
 mod filter; // record filtering
 mod resampling; // record resampling
 
+use rinex::*; 
 use cli::Cli;
 use extract::extract_data;
 use retain::retain_filters;
@@ -25,7 +23,6 @@ pub fn main() -> Result<(), rinex::Error> {
     let pretty = cli.pretty();
 
     let plot = cli.plot();
-    let mut ctx = plot::Context::default();
     let input_paths = cli.input_paths();
     //let _output_paths = cli.output_paths();
 
@@ -98,7 +95,7 @@ pub fn main() -> Result<(), rinex::Error> {
             if plot { // Plot record
                 // Create a plot context 
                 let dims = cli.plot_dimensions();
-                ctx = plot::Context::new(dims, &rnx); 
+                let mut ctx = plot::Context::new(dims, &rnx); 
                 plot::plot_rinex(&mut ctx, &rnx); 
             } else { // expose record content
                 if pretty {

@@ -2,7 +2,6 @@
 use rinex::*;
 use rinex::observation::Record;
 use super::Context;
-use std::str::FromStr;
 use plotters::prelude::*;
 use std::collections::HashMap;
 
