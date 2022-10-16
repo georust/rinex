@@ -254,7 +254,7 @@ pub fn parse_record (reader: &mut BufferedReader, header: &header::Header) -> Re
         //  [2] CRINEX : decompress
         //           --> decompressed content will probably wind up as more than one line
         content = match crinex {
-            false => {
+            false => { // RINEX context
 				if line.len() == 0 {
 					Some(String::from("\n")) // helps all following .lines() iteration,
 						// contained in xx_parse_epoch()
@@ -262,20 +262,14 @@ pub fn parse_record (reader: &mut BufferedReader, header: &header::Header) -> Re
 					Some(line.to_string())
 				}
 			},
-            true => {
-                // decompressor::decompress()
-                // splits content on \n as it can work on several lines at once,
-                // here we iterate through each line, so add an extra \n
+            true => { // CRINEX context
+                // append an \n to help the .line browser contained in .decompress()
+                //  we might use a different browsing method in the future
+                //  like decompress_line() which expects a complete line, whatever happens
                 let mut l = line.to_owned();
                 l.push_str("\n");
-                // --> recover compressed data
                 if let Ok(recovered) = decompressor.decompress(&header, &l) {
-                    let mut result = String::with_capacity(4*80);
-                    for line in recovered.lines() {
-                        result.push_str(line);
-                        result.push_str("\n")
-                    }
-                    Some(result)
+                    Some(recovered)
                 } else {
                     None
                 }
