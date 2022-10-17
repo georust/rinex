@@ -17,55 +17,34 @@ impl TextDiff {
         self.buffer = data.to_string(); 
     }
 
-    // Returns positions of bytes that differ, in s1 as compared
-    // to s0
-    fn diff (s0: &str, s1: &str) -> Vec<usize> {
-        let s0_len = s0.len();
-        let mut s0 = s0.chars();
-        s1.chars()
-            .into_iter()
-            .enumerate()
-            .filter_map(|(index, s1)| {
-                if s1 == ' ' {
-                    None
-                } else {
-                    if let Some(c) = s0.next() {
-                        if s1 != c {
-                            Some(index)
-                        } else {
-                            None
-                        }
-                    } else {
-                        //new bytes => obvious difference
-                        Some(index)
-                    }
-                }
-            })
-            .collect()
-    }
-
     /// Decompresses given data
     pub fn decompress (&mut self, data: &str) -> &str {
-        let diffs = Self::diff(&self.buffer, data);
-
-        for pos in diffs {
-            let slice = &data[pos..pos+1];
-            if pos < self.buffer.len() {
-                self.buffer
-                    .replace_range(pos..pos+1, slice);
-            } else { // new bytes
-                self.buffer
-                    .push_str(slice);
+        let s0_len = self.buffer.len();
+        let mut s0 = unsafe { self.buffer.as_bytes_mut() };
+        let s1_len = data.len();
+        let s1 = data.as_bytes();
+        let min = std::cmp::min(s1_len, s0_len);
+        
+        // browse shared content
+        for index in 0..min {
+            if s1[index] != b' ' { // not a differenced out character
+                // ==> needs to overwrite internal content
+                if s1[index] == b'&' { // special whitespace insertion
+                    // overwrite with space
+                    s0[index] = b' ';
+                } else { // regular content
+                    s0[index] = s1[index]; // overwrite
+                }
             }
         }
-        
-        // manage special whitespace insertions
-        //self.buffer = &self.buffer.replace("&", " ");
-        while let Some(pos) = self.buffer.as_str().find("&") {
-            self.buffer
-                .replace_range(pos..pos+1, " ");
+
+        if s1_len > s0_len {
+            // got new bytes to latch
+            let new_slice = &data[min..s1_len]
+                .replace("&", " ");
+            self.buffer.push_str(new_slice);
         }
-        
+
         &self.buffer
     }
     
