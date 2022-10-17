@@ -38,7 +38,7 @@ serde = { version = "1.0", optional = true, default-features = false, features =
 flate2 = { version = "1.0.24", optional = true, default-features = false, features = ["zlib"] }
 
 [dev-dependencies]
-criterion = "0.1"
+criterion = "0.4"
 
 [[bench]]
 name = "benchmark"
