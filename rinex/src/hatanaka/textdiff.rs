@@ -8,7 +8,7 @@ impl TextDiff {
     /// Text compression has no limitations
     pub fn new() -> Self {
         Self {
-            init: String::new(),
+            init: String::with_capacity(64),
         }
     }
     
@@ -19,7 +19,7 @@ impl TextDiff {
 
     /// Decompresses given data
     pub fn decompress (&mut self, data: &str) -> String {
-        let mut recovered = String::from("");
+        let mut recovered = String::with_capacity(64);
         let l = self.init.len();
         let mut p = self.init
             .as_mut_str()
