@@ -46,13 +46,10 @@ impl TextDiff {
 
     /// Decompresses given data
     pub fn decompress (&mut self, data: &str) -> String {
-        println!("INTERNAL      \"{}\"", self.buffer);
-        println!("DECOMPRESSING \"{}\"", data);
         let diffs = Self::diff(&self.buffer, data);
 
         for pos in diffs {
             let slice = &data[pos..pos+1];
-            println!("{}..{}   | \"{}\"", pos, pos+1, slice); 
             if pos < self.buffer.len() {
                 self.buffer
                     .replace_range(pos..pos+1, slice);
