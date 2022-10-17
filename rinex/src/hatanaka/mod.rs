@@ -2,9 +2,8 @@
 use crate::sv;
 use thiserror::Error;
 
-mod numdiff;
-mod textdiff;
-
+pub mod numdiff;
+pub mod textdiff;
 pub mod compressor;
 pub use compressor::Compressor;
 
