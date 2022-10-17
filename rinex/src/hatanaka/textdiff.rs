@@ -1,6 +1,6 @@
 #[derive(Debug)]
 pub struct TextDiff {
-    pub init: String,
+    pub buffer: String,
 }
 
 impl TextDiff {
@@ -8,20 +8,97 @@ impl TextDiff {
     /// Text compression has no limitations
     pub fn new() -> Self {
         Self {
-            init: String::with_capacity(64),
+            buffer: String::with_capacity(64),
         }
     }
     
     /// Initializes `Text` differentiator
     pub fn init (&mut self, data: &str) {
-        self.init = data.to_string() ;
+        self.buffer = data.to_string() ;
+    }
+
+    // Returns positions of bytes that differ, in s1 as compared
+    // to s0
+    fn diff (s0: &str, s1: &str) -> Vec<usize> {
+        let s0_len = s0.len();
+        s1.chars()
+            .into_iter()
+            .enumerate()
+            .zip(s0.chars().into_iter())
+            .filter_map(|((index, s1), s0)| {
+                if s1 == ' ' {
+                    None
+                } else {
+                    if index < s0_len {
+                        if s1 != s0 {
+                            Some(index)
+                        } else {
+                            None
+                        }
+                    } else {
+                        //new bytes => obvious difference
+                        Some(index)
+                    }
+                }
+            })
+            .collect()
     }
 
     /// Decompresses given data
     pub fn decompress (&mut self, data: &str) -> String {
-        let mut recovered = String::with_capacity(64);
-        let l = self.init.len();
-        let mut p = self.init
+        println!("INTERNAL      \"{}\"", self.buffer);
+        println!("DECOMPRESSING \"{}\"", data);
+        let diffs = Self::diff(&self.buffer, data);
+
+        for pos in diffs {
+            let slice = &data[pos..pos+1];
+            println!("{}..{}   | \"{}\"", pos, pos+1, slice); 
+            if pos < self.buffer.len() {
+                self.buffer
+                    .replace_range(pos..pos+1, slice);
+            } else { // new bytes
+                self.buffer
+                    .push_str(slice);
+            }
+        }
+        
+        // manage special whitespace insertions
+        // TODO
+        //  use regex.find here instead of contains()
+        while let Some(pos) = self.buffer.as_str().find("&") {
+            println!("{}", pos);
+            self.buffer
+                .replace_range(pos..pos+1, "a");
+        }
+
+        //previous logic always ommits last byte in data
+        /*let last_byte_pos = data.len()-1;
+        let last_byte =  &data[last_byte_pos-1..last_byte_pos];
+        if last_byte != " " {
+            // ==> overwrite last byte
+            self.buffer
+                .replace_range(last_byte_pos-1..last_byte_pos, last_byte);
+        }*/
+
+        // when decompressing, we expose internal content as is
+/*
+        let max = std::cmp::max(internal.len(), new.len());
+        for i in 0..max {
+            if new[i] != ' ' {
+                // not a whitespace
+                //  means overwrite internal content
+                if new[i] == '&' {
+                    // \& means whitespace insertion
+                    internal[i] = '&';
+                } else {
+                    internal[i] = new[i];
+                }
+            }
+        }
+*/
+/*
+        let l = self.buffer.len();
+        let mut p = self.buffer
             .as_mut_str()
             .chars();
         let mut data = data.chars();
@@ -52,20 +129,21 @@ impl TextDiff {
                 break
             }
         }
-        self.init = recovered.clone(); // for next time
-        recovered 
+        self.buffer = recovered.clone(); // for next time
+        recovered */
+        self.buffer.clone()
     }
     
     /// Compresses given data
     pub fn compress (&mut self, data: &str) -> String {
         let mut result = String::new();
-        let inner: Vec<_> = self.init.chars().collect();
-        self.init.clear();
+        let inner: Vec<_> = self.buffer.chars().collect();
+        self.buffer.clear();
         let to_compress: Vec<_> = data.chars().collect();
 
         for i in 0..inner.len() {
             if let Some(c) = to_compress.get(i) {
-                self.init.push_str(&c.to_string());
+                self.buffer.push_str(&c.to_string());
                 if c != &inner[i] {
                     result.push_str(&c.to_string());
                 } else {
@@ -77,10 +155,10 @@ impl TextDiff {
         for i in inner.len()..data.len() {
             if let Some(c) = to_compress.get(i) {
                 if c.is_ascii_whitespace() {
-                    self.init.push_str("&");
+                    self.buffer.push_str("&");
                     result.push_str("&");
                 } else {
-                    self.init.push_str(&c.to_string());
+                    self.buffer.push_str(&c.to_string());
                     result.push_str(&c.to_string());
                 }
             }
@@ -97,19 +175,24 @@ mod test {
     fn test_decompression() {
         let init = "ABCDEFG 12 000 33 XXACQmpLf";
         let mut diff = TextDiff::new();
-        let masks : Vec<&str> = vec![
-            "        13   1 44 xxACq   F",
+        let masks: Vec<&str> = vec![
+          //"ABCDEFG 12 000 33 XXACQmpLf"
+            "         3   1 44 xxACq   F",
+            "        4 ",
             " 11 22   x   0 4  y     p  ",
             "              1     ",
             "                   z",
             " ",
+            "                           &",
         ];
         let expected : Vec<&str> = vec![
             "ABCDEFG 13 001 44 xxACqmpLF",
-            "A11D22G 1x 000 44 yxACqmpLF",
-            "A11D22G 1x 000144 yxACqmpLF",
-            "A11D22G 1x 000144 yzACqmpLF",
-            "A11D22G 1x 000144 yzACqmpLF",
+            "ABCDEFG 43 001 44 xxACqmpLF",
+            "A11D22G 4x 000 44 yxACqmpLF",
+            "A11D22G 4x 000144 yxACqmpLF",
+            "A11D22G 4x 000144 yzACqmpLF",
+            "A11D22G 4x 000144 yzACqmpLF",
+            "A11D22G 4x 000144 yzACqmpLF ",
         ];
         diff.init(init);
         for i in 0..masks.len() {
@@ -122,7 +205,7 @@ mod test {
         let init = " 2200 123      G 07G08G09G   XX XX";
         diff.init(init);
         
-        let masks : Vec<&str> = vec![
+        let masks: Vec<&str> = vec![
             "        F       1  3",
             " x    1 f  f   p",
             " ",
