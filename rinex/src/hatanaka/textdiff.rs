@@ -21,16 +21,16 @@ impl TextDiff {
     // to s0
     fn diff (s0: &str, s1: &str) -> Vec<usize> {
         let s0_len = s0.len();
+        let mut s0 = s0.chars();
         s1.chars()
             .into_iter()
             .enumerate()
-            .zip(s0.chars().into_iter())
-            .filter_map(|((index, s1), s0)| {
+            .filter_map(|(index, s1)| {
                 if s1 == ' ' {
                     None
                 } else {
-                    if index < s0_len {
-                        if s1 != s0 {
+                    if let Some(c) = s0.next() {
+                        if s1 != c {
                             Some(index)
                         } else {
                             None
@@ -63,12 +63,9 @@ impl TextDiff {
         }
         
         // manage special whitespace insertions
-        // TODO
-        //  use regex.find here instead of contains()
         while let Some(pos) = self.buffer.as_str().find("&") {
-            println!("{}", pos);
             self.buffer
-                .replace_range(pos..pos+1, "a");
+                .replace_range(pos..pos+1, " ");
         }
 
         //previous logic always ommits last byte in data
