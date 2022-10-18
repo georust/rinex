@@ -73,8 +73,8 @@ impl Epoch {
 	}
     /// Formats self in OBS/V2 compatible format
     pub fn to_string_obs_v2(&self) -> String {
-        let date = self.date.format("%y %m %d %H %M %S.%6f");
-        format!("{}0  {}", date, self.flag)
+        let date = self.date.format("%y %_m %_d %_H %_M %_S.%6f");
+        format!("{}0  {}", date, self.flag) // adds 1 extra 0, we would like %7f to match standards
     }
     /// Formats self in NAV/V2 compatible format
     pub fn to_string_nav_v2(&self) -> String {
