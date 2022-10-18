@@ -264,7 +264,7 @@ impl DoubleDiffContext {
             let mut observations = self.observations 
                 .observation_diff(lhs)?;
             // now proceed to 2D diff
-            let mut record = observations
+            let record = observations
                 .record
                 .as_mut_obs()
                 .unwrap();
