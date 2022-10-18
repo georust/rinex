@@ -675,18 +675,15 @@ fn write_epoch_v2(
     }
 	write!(writer, "\n ")?;
 	let obs_per_line = 5;
-    for (sv, observations) in data.iter() {
+    // for each vehicule per epoch
+    for (e_index, (sv, observations)) in data.iter().enumerate() {
+        // follow list of observables, as described in header section
+        // for given GNSS system
 		if let Some(obscodes) = obscodes.get(&sv.constellation) {
 			let mut index = 0;
 			for obscode in obscodes {
-				index += 1;
-				if index == obs_per_line {
-					index = 0;
-					write!(writer, "\n ")?;
-				}
 				if let Some(observation) = observations.get(obscode) {
-					// --> data is provided
-                   	write!(writer, " {:10.3}", observation.obs)?;
+                    write!(writer, "{:13.3}", observation.obs)?;
 					if let Some(flag) = observation.lli {
 						// --> lli provided
                         write!(writer, "{}", flag.bits())?;
@@ -695,18 +692,25 @@ fn write_epoch_v2(
 					}
                     if let Some(ssi) = observation.ssi {
                         // --> ssi provided
-                        write!(writer, "{}", ssi)?;
+                        write!(writer, "{} ", ssi)?;
                     } else { // SSI omitted
-                        write!(writer, " ")?;
+                        write!(writer, "  ")?;
                     }
 				} else {
 					// --> data is not provided: BLANK
                     write!(writer, "               ")?;
 				}
+				if index == obs_per_line-1 {
+					index = 0;
+                    if e_index == data.len()-1 {
+                        write!(writer, "\n")?;
+                    } else {
+                        write!(writer, "\n ")?;
+                    }
+				}
+				index += 1;
 			}
-		} // else: no observables declared in header
-		// for constellation to which this vehicule is tied to: 
-		// will never happen on valid RINEX
+		} 
     }
 	Ok(())
 }
