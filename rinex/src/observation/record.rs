@@ -624,11 +624,11 @@ fn write_epoch_v3(
     lines.push_str("\n");
     
     for (sv, data) in data.iter() {
-        lines.push_str(&format!("{} ", sv.to_string()));
+        lines.push_str(&format!("{}", sv.to_string()));
         if let Some(obscodes) = obscodes.get(&sv.constellation) {
             for code in obscodes {
                 if let Some(observation) = data.get(code) {
-                    lines.push_str(&format!(" {:10.3}", observation.obs));
+                    lines.push_str(&format!("{:14.3}", observation.obs));
                     if let Some(flag) = observation.lli {
                         lines.push_str(&format!("{}", flag.bits()));
                     } else {
@@ -673,15 +673,16 @@ fn write_epoch_v2(
         }
 		write!(writer, "{}", sv)?;
     }
-	write!(writer, "\n ")?;
 	let obs_per_line = 5;
     // for each vehicule per epoch
-    for (e_index, (sv, observations)) in data.iter().enumerate() {
+    for (sv_index, (sv, observations)) in data.iter().enumerate() {
         // follow list of observables, as described in header section
-        // for given GNSS system
+        // for given constellation 
 		if let Some(obscodes) = obscodes.get(&sv.constellation) {
-			let mut index = 0;
-			for obscode in obscodes {
+			for (obs_index, obscode) in obscodes.iter().enumerate() {
+				if obs_index % obs_per_line == 0 {
+                    write!(writer, "\n ")?;
+                }
 				if let Some(observation) = observations.get(obscode) {
                     write!(writer, "{:13.3}", observation.obs)?;
 					if let Some(flag) = observation.lli {
@@ -700,18 +701,10 @@ fn write_epoch_v2(
 					// --> data is not provided: BLANK
                     write!(writer, "               ")?;
 				}
-				if index == obs_per_line-1 {
-					index = 0;
-                    if e_index == data.len()-1 {
-                        write!(writer, "\n")?;
-                    } else {
-                        write!(writer, "\n ")?;
-                    }
-				}
-				index += 1;
 			}
 		} 
     }
+    write!(writer, "\n")?;
 	Ok(())
 }
 /*
