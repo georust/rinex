@@ -60,9 +60,6 @@ impl<'a> Context<'a> {
         let mut e0: i64 = 0;
         let mut t_axis: Vec<f64> = Vec::with_capacity(16384);
         
-        // Y axis range, for nicer rending 
-        let mut y_range: HashMap<String, f64> = HashMap::with_capacity(4);
-        
         // Plots / drawing areas
         // sorted by title
         let mut plots: HashMap<String,
@@ -226,7 +223,7 @@ impl<'a> Context<'a> {
                 }
                 let t = e.date.timestamp() - e0;
                 t_axis.push(t as f64);
-                for (class, frames) in classes {
+                for (class, _) in classes {
                     if *class == FrameClass::Ephemeris {
                         let file = "clock-bias.png";
                         if plots.get(file).is_none() {

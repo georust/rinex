@@ -675,7 +675,7 @@ fn write_epoch_v2(
     }
 	let obs_per_line = 5;
     // for each vehicule per epoch
-    for (sv_index, (sv, observations)) in data.iter().enumerate() {
+    for (sv, observations) in data.iter() {
         // follow list of observables, as described in header section
         // for given constellation 
 		if let Some(obscodes) = obscodes.get(&sv.constellation) {

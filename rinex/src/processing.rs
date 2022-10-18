@@ -178,7 +178,7 @@ impl DoubleDiffContext {
     /// ```
 */
     pub fn double_diff_mut (&mut self, lhs: &Rinex) -> Result<(), Error> {
-        if let Some(lhs_record) = lhs.record.as_obs() {
+        if lhs.is_observation_rinex() { 
             // compute 1D diff
             // this will rework sampling rate to provided observations
             // and also only retains matching observables
@@ -257,11 +257,13 @@ impl DoubleDiffContext {
     /// ```
 */
     pub fn double_diff (&self, lhs: &Rinex) -> Result<observation::Record, Error> {
-        if let Some(lhs_record) = lhs.record.as_obs() {
+        if lhs.is_observation_rinex() { 
             // compute 1D diff
             // this will rework sampling rate to provided observations
             // and also only retains matching observables
             let mut observations = self.observations 
+                .observation_diff(lhs)?;
+            self.observations 
                 .observation_diff(lhs)?;
             // now proceed to 2D diff
             let record = observations

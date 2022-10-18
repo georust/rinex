@@ -46,7 +46,7 @@ pub fn plot(ctx: &mut Context, record: &Record) {
         .unwrap()
         .clone()
         .restore(&plot);
-    for (vehicule, bias) in bias {
+    for (_vehicule, bias) in bias {
         chart
             .draw_series(LineSeries::new(
                 bias.iter().map(|point| *point),
