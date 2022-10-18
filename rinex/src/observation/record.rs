@@ -660,7 +660,7 @@ fn write_epoch_v2(
         .as_ref()
         .unwrap()
         .codes;
-    write!(writer, " {} {:3}", epoch.to_string_obs_v2(), data.len())?;
+    write!(writer, " {} {:2}", epoch.to_string_obs_v2(), data.len())?;
     let mut index = 0;
     for (sv, _) in data {
         index += 1;
