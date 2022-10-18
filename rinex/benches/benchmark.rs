@@ -13,6 +13,8 @@ use criterion::{*,
     BenchmarkId,
 };
 
+mod crinex;
+
 /*struct CpuProfiler;
 
 impl criterion::profiler::Profiler for CpuProfiler {
@@ -215,6 +217,11 @@ fn benchmark(c: &mut Criterion) {
         num_decompression(&mut numdiff, forced_init_index, &pool_i64[0..pool_i64.len()]);
     }));
     group.finish(); /* conclude numdiff group */
+
+    /*
+     * CRNX 1|3 decompression
+     */
+    crinex::crnx_decompression_bench(c);
 }
 
 criterion_group!(benches, benchmark);

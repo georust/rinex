@@ -50,7 +50,7 @@ impl TextDiff {
     
     /// Compresses given data
     pub fn compress (&mut self, data: &str) -> String {
-        /*let mut result = String::new();
+        let mut result = String::new();
         let inner: Vec<_> = self.buffer.chars().collect();
         self.buffer.clear();
         let to_compress: Vec<_> = data.chars().collect();
@@ -78,8 +78,7 @@ impl TextDiff {
             }
         }
 
-        result.to_string()*/
-        String::from("hello")
+        result.to_string()
     }
 }
 

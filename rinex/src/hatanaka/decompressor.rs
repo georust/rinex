@@ -258,7 +258,7 @@ impl Decompressor {
                 State::Body => {
                     // [3] inside epoch content
                     let recovered_epoch = self.epoch_diff.decompress(" "); // trico to recover textdiff
-                    let epo = recovered_epoch.as_str().trim_end();
+                    let epo = recovered_epoch.trim_end();
                     let mut offset : usize =
                         2    // Y
                         +2+1 // m
@@ -326,15 +326,11 @@ impl Decompressor {
                             for i in 0..rem.len() { // 1 character at a time
                                 let flag = i%2;
                                 if flag == 0 {
-                                    obs_flags.push(
-                                        obs[i/2] // two flags per OBS
-                                            .1 // lli
-                                            .decompress(&rem[i..i+1]));
+                                    let recovered = obs[i/2].1.decompress(&rem[i..i+1]).to_string();
+                                    obs_flags.push(recovered);
                                 } else {
-                                    obs_flags.push(
-                                        obs[i/2] // two flags per OBS
-                                            .2 // ssii
-                                            .decompress(&rem[i..i+1]));
+                                    let recovered = obs[i/2].2.decompress(&rem[i..i+1]).to_string();
+                                    obs_flags.push(recovered);
                                 }
                             }
                             for i in obs_flags.len()..obs_data.len()*2 {
@@ -342,15 +338,11 @@ impl Decompressor {
                                 // meaning text is maintained
                                 let flag = i%2;
                                 if flag == 0 {
-                                    obs_flags.push(
-                                        obs[i/2]
-                                            .1 // lli
-                                            .decompress(" "));
+                                    let recovered = obs[i/2].1.decompress(" ").to_string();
+                                    obs_flags.push(recovered);
                                 } else {
-                                    obs_flags.push(
-                                        obs[i/2]
-                                            .2 // lli
-                                            .decompress(" "));
+                                    let recovered = obs[i/2].2.decompress(" ").to_string();
+                                    obs_flags.push(recovered);
                                 }
                             }
                             for i in 0..obs_data.len() {
