@@ -92,6 +92,19 @@ a given (usually current..) location on Earth.
 * `--flate2`  
 allow native parsing of .gz compressed RINEX files. Otherwise, user must uncompress manually the `.gz` extension first.
 
+## Performances
+
+Parsing and `--sv` enumeration requested with `rinex-cli`
+
+File           |  RINEX 0.6 `debug`  | RINEX 0.7 `debug` | RINEX 0.7 `--release`        |
+---------------|---------------------|-------------------|------------------------------|
+ESBC00DNK      |  26s                | 14s               | 2s                           |
+ESBC00DNK.gz   |  26s                | 14s               | 2s                           |
+MOJN00DNK      |  28s                | 13s               | 2s                           |
+MOJN00DNK.gz   |  28s                | 13s               | 2s                           |
+
+Always compile rust code with the `--release` flag :+1: 
+
 ## Contributions
 
 Contributions are welcomed, do not hesitate to open new issues
