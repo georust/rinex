@@ -20,7 +20,7 @@ impl TextDiff {
     /// Decompresses given data
     pub fn decompress (&mut self, data: &str) -> &str {
         let s0_len = self.buffer.len();
-        let mut s0 = unsafe { self.buffer.as_bytes_mut() };
+        let s0 = unsafe { self.buffer.as_bytes_mut() };
         let s1_len = data.len();
         let s1 = data.as_bytes();
         let min = std::cmp::min(s1_len, s0_len);
