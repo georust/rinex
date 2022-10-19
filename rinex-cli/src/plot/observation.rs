@@ -1,9 +1,170 @@
 //! Observation record plotting
 use rinex::*;
 use rinex::observation::Record;
-use super::Context;
-use plotters::prelude::*;
+use super::{
+    Context, Plot2d,
+};
+use plotters::{
+    prelude::*,
+    coord::Shift,
+    chart::ChartState,
+};
 use std::collections::HashMap;
+
+/*
+ * Builds a plot context for Observation RINEX specificly
+ */
+pub fn build_context<'a> (dim: (u32, u32), record: &Record) -> Context<'a> {
+    let mut e0: i64 = 0;
+    let mut t_axis: Vec<f64> = Vec::with_capacity(16384);
+    let mut plots: HashMap<String,
+        DrawingArea<BitMapBackend, Shift>>
+            = HashMap::with_capacity(4);
+    let mut y_ranges: HashMap<String, (f64,f64)> = HashMap::new();
+    let mut colors: HashMap<String, RGBAColor> = HashMap::with_capacity(32);
+    let mut charts: HashMap<String, ChartState<Plot2d>> = HashMap::new();
+
+    //  => 1 plot per physics (ie., Observable)
+    //     1 plot in case clock offsets were provided
+    for (e_index, (e, (clk_offset, vehicules))) in record.iter().enumerate() {
+        if e_index == 0 {
+            // store first epoch timestamp
+            // to scale x_axis proplery (avoids fuzzy rendering)
+            e0 = e.date.timestamp();
+        }
+        let t = e.date.timestamp() - e0;
+        t_axis.push(t as f64);
+
+        // Build 1 plot in case Receiver Clock Offsets were provided 
+        // Associate 1 chart to each plot, for classical 2D x,y plot 
+        // Grab y range
+        if let Some(clk_offset) = clk_offset {
+            let title = "clock-offset.png";
+            plots.insert(
+                title.to_string(),
+                Context::build_plot(title, dim));
+            if let Some((min,max)) = y_ranges.get_mut(title) {
+                if clk_offset < min {
+                    *min = *clk_offset;
+                }
+                if clk_offset > max {
+                    *max = *clk_offset;
+                }
+
+            } else {
+                y_ranges.insert("CK".to_string(),
+                    (*clk_offset,*clk_offset));
+            }
+        }
+
+        // Build 1 plot per type of observation
+        // Associate 1 chart to each plot, for classical 
+        //
+        // Color space: one color per vehicule
+        //    identified by PRN#
+        for (v_index, (vehicule, observations)) in vehicules.iter().enumerate() {
+            if colors.get(&vehicule.to_string()).is_none() {
+                colors.insert(
+                    vehicule.to_string(),
+                    Palette99::pick(v_index) // RGB
+                        .mix(0.99)); // => RGBA
+            }
+            for (observation, data) in observations {
+                if is_phase_carrier_obs_code!(observation) {
+                    let file = "phase.png";
+                    if plots.get(file).is_none() {
+                        let plot = Context::build_plot(file, dim);
+                        plots.insert(file.to_string(), plot);
+                    }
+                    if let Some((min,max)) = y_ranges.get_mut("PH") {
+                        if data.obs < *min {
+                            *min = data.obs;
+                        }
+                        if data.obs > *max {
+                            *max = data.obs;
+                        }
+                    } else {
+                        y_ranges.insert("PH".to_string(),
+                            (data.obs,data.obs));
+                    }
+                } else if is_doppler_obs_code!(observation) {
+                    let file = "doppler.png";
+                    if plots.get(file).is_none() {
+                        let plot = Context::build_plot(file, dim);
+                        plots.insert(file.to_string(), plot);
+                    }
+                    if let Some((min,max)) = y_ranges.get_mut("DOP") {
+                        if data.obs < *min {
+                            *min = data.obs;
+                        }
+                        if data.obs > *max {
+                            *max = data.obs;
+                        }
+                    } else {
+                        y_ranges.insert("DOP".to_string(),
+                            (data.obs,data.obs));
+                    }
+                } else if is_pseudo_range_obs_code!(observation) {
+                    let file = "pseudo-range.png";
+                    if plots.get(file).is_none() {
+                        let plot = Context::build_plot(file, dim);
+                        plots.insert(file.to_string(), plot);
+                    }
+                    if let Some((min,max)) = y_ranges.get_mut("PR") {
+                        if data.obs < *min {
+                            *min = data.obs;
+                        }
+                        if data.obs > *max {
+                            *max = data.obs;
+                        }
+                    } else {
+                        y_ranges.insert("PR".to_string(),
+                            (data.obs,data.obs));
+                    }
+                } else if is_sig_strength_obs_code!(observation) {
+                    let file = "ssi.png";
+                    if plots.get(file).is_none() {
+                        let plot = Context::build_plot(file, dim);
+                        plots.insert(file.to_string(), plot);
+                    }
+                    if let Some((min,max)) = y_ranges.get_mut("SSI") {
+                        if data.obs < *min {
+                            *min = data.obs;
+                        }
+                        if data.obs > *max {
+                            *max = data.obs;
+                        }
+                    } else {
+                        y_ranges.insert("SSI".to_string(),
+                            (data.obs,data.obs));
+                    }
+                }
+            }
+        }
+    }
+    // Add 1 chart onto each plot
+    for (title, plot) in plots.iter() {
+        let chart_id = match title.as_str() {
+            "phase.png" => "PH",
+            "doppler.png" => "DOP",
+            "pseudo-range.png" => "PR",
+            "ssi.png" => "SSI",
+            "clock-offset.png" => "CK",
+            _ => continue,
+        };
+        // scale this chart nicely
+        let range = y_ranges.get(chart_id)
+            .unwrap();
+        let chart = Context::build_chart(chart_id, t_axis.clone(), *range, plot);
+        charts.insert(chart_id.to_string(), chart);
+    }
+    Context {
+        plots,
+        charts,
+        colors,
+        t_axis,
+    }
+}
 
 pub fn plot(ctx: &mut Context, record: &Record) {
     //TODO

@@ -1,10 +1,69 @@
 //! Navigation record plotting
-use super::Context;
 use rinex::{*,
     navigation::*,
 };
-use plotters::prelude::*;
+use plotters::{
+    prelude::*,
+    coord::Shift,
+    chart::ChartState,
+};
+use super::{
+    Context, Plot2d,
+};
 use std::collections::HashMap;
+
+pub fn build_context<'a> (dim: (u32, u32), record: &Record) -> Context<'a> {
+    let mut e0: i64 = 0;
+    let mut t_axis: Vec<f64> = Vec::with_capacity(16384);
+    let mut plots: HashMap<String,
+        DrawingArea<BitMapBackend, Shift>>
+            = HashMap::with_capacity(4);
+    let mut y_ranges: HashMap<String, (f64,f64)> = HashMap::new();
+    let mut colors: HashMap<String, RGBAColor> = HashMap::with_capacity(32);
+    let mut charts: HashMap<String, ChartState<Plot2d>> = HashMap::new();
+    for (index, (e, classes)) in record.iter().enumerate() {
+        if index == 0 {
+            // store first epoch timestamp
+            // to scale x_axis proplery (avoids fuzzy rendering)
+            e0 = e.date.timestamp();
+        }
+        let t = e.date.timestamp() - e0;
+        t_axis.push(t as f64);
+        for (class, _) in classes {
+            if *class == FrameClass::Ephemeris {
+                let file = "clock-bias.png";
+                if plots.get(file).is_none() {
+                    let plot = Context::build_plot(file, dim);
+                    plots.insert(file.to_string(), plot);
+                }
+                let file = "clock-drift.png";
+                if plots.get(file).is_none() {
+                    let plot = Context::build_plot(file, dim);
+                    plots.insert(file.to_string(), plot);
+                }
+                let file = "clock-driftr.png";
+                if plots.get(file).is_none() {
+                    let plot = Context::build_plot(file, dim);
+                    plots.insert(file.to_string(), plot);
+                }
+            } else {
+                println!("Non ephemeris frame cannot be plotted yet");
+            }
+        }
+    }
+    // Add one chart onto all plots
+    for (id, plot) in plots.iter() {
+        // scale this chart nicely
+        let chart = Context::build_chart(id, t_axis.clone(), (-10.0E5, 10E5), plot);
+        charts.insert(id.to_string(), chart);
+    }
+    Context {
+        t_axis,
+        plots,
+        charts,
+        colors,
+    }
+}
 
 pub fn plot(ctx: &mut Context, record: &Record) {
     let mut e0: i64 = 0;
