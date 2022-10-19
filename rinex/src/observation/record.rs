@@ -371,7 +371,7 @@ pub fn parse_epoch (header: &Header, content: &str)
 					systems.push_str(l.trim());
 				}
 			}
-			parse_v2(&systems, observables, lines)
+			parse_v2(&header, &systems, observables, lines)
 		},
 		_ => parse_v3(observables, lines),
 	};
@@ -383,26 +383,47 @@ pub fn parse_epoch (header: &Header, content: &str)
  * Vehicule description is contained in the epoch descriptor
  * Each vehicule content is wrapped into several lines
  */
-fn parse_v2 (systems: &str, observables: &HashMap<Constellation, Vec<String>>, lines: std::str::Lines<'_>) -> BTreeMap<Sv, HashMap<String, ObservationData>> {
+fn parse_v2 (header: &Header, systems: &str, observables: &HashMap<Constellation, Vec<String>>, lines: std::str::Lines<'_>) -> BTreeMap<Sv, HashMap<String, ObservationData>> {
 	let svnn_size = 3; // SVNN standard
 	let nb_max_observables = 5; // in a single line
 	let observable_width = 16; // data + 2 flags + 1 whitespace
 	let nb_sat = systems.len() / svnn_size;
 	let mut sv_ptr = 0; // svnn pointer
 	let mut obs_ptr = 0; // observable pointer
-	let mut sv = Sv::default(); // current vehicule we're dealing with 
 	let mut obscodes : &Vec<String>;
 	let mut data: BTreeMap<Sv, HashMap<String, ObservationData>> = BTreeMap::new();
 	let mut inner: HashMap<String, ObservationData> = HashMap::with_capacity(5);
-	if systems.len() < svnn_size {
+
+	let mut sv = Sv::default(); // current vehicule we're dealing with 
+    // parse first system we're dealing with
+    if systems.len() < svnn_size {
 		// Can't even parse a single vehicule;
 		// epoch descriptor is totally corrupt, stop here
 		return data ; 
 	}
-	// identify first vehicule
-	if let Ok(ssv) = Sv::from_str(&systems[sv_ptr..sv_ptr+svnn_size]) {
+    let system = &systems[sv_ptr..sv_ptr+svnn_size];
+    //println!("SYSTEM \"{}\"", system); //DEBUG
+    // parse first system to work on
+	if let Ok(ssv) = Sv::from_str(system) {
 		sv = ssv;
-	}
+	} else {
+        // mono constellation context
+        if let Ok(prn) = u8::from_str_radix(system.trim(), 10) {
+            if let Some(constellation) = header.constellation {
+                sv = Sv {
+                    constellation,
+                    prn,
+                }
+            } else {
+                panic!("faulty RINEX2 constellation /sv definition");
+            }
+        } else {
+            return data ;
+        }
+    }
+    sv_ptr += svnn_size;
+	
+    // grab first observables to wotk on
 	// observables for constellation context
 	if let Some(observables) = observables.get(&sv.constellation) {
 		obscodes = &observables;
@@ -412,101 +433,88 @@ fn parse_v2 (systems: &str, observables: &HashMap<Constellation, Vec<String>>, l
 		return data ;
 	}
 
-	for line in lines { // browse all lines
-		// parse line content
-		let nb_obs = num_integer::div_ceil(line.len(), observable_width) ;
-		//DEBUG
-        //println!("LINE: \"{}\"", line);
-		//println!("SV: \"{}\" PTR {}", sv, sv_ptr);
-		//println!("NB OBS: {}", nb_obs);
-		for i in 0..nb_obs {
-			obs_ptr += 1 ;
-			if obs_ptr <= obscodes.len() {
-                let offset = i * observable_width;
-                if line.len() > offset+observable_width-2 { // can parse an Obs
-                    let observation_str = &line[offset..offset+observable_width-2];
-                    if let Ok(obs) = f64::from_str(observation_str.trim()) {
-                        let lli: Option<LliFlags>;
-                        let ssi: Option<Ssi>;
-                        if line.len() < offset + observable_width-1 {
-                            // can't parse an LLI
-                            // This only happens when omitted on last line
-                            lli = None;
-                            ssi = None;
-                        } else { // enough content to parse an LLI
-                            let lli_str = &line[offset+observable_width-2..offset+observable_width-1];
-                            if let Ok(u) = u8::from_str_radix(lli_str.trim(), 10) {
-                                lli = LliFlags::from_bits(u)
-                            } else {
-                                lli = None;
-                            }
+	for line in lines { // browse all lines provided
+        //println!("LINE: \"{}\"", line); //DEBUG
+        //println!("Vehicule {:?} | {}/{}", sv, obs_ptr, obscodes.len()); //DEBUG
+		
+        // nb_obs for this line
+        let nb_obs = num_integer::div_ceil(line.len(), observable_width) ;
+		//println!("NB OBS: {}", nb_obs); //DEBUG
 
-                            if line.len() < offset + observable_width {
-                                // can't parse an SSI
-                                // this only happens when omitted on last line
-                                ssi = None;
-                            } else {
-                                let ssi_str = &line[offset+observable_width-1..offset+observable_width];
-                                if let Ok(s) = Ssi::from_str(ssi_str.trim()) {
-                                    ssi = Some(s)
-                                } else {
-                                    ssi = None;
-                                }
-                            }
+        let line_width = line.len();
+
+        // parse all obs
+        for i in 0..nb_obs {
+			obs_ptr += 1;
+            if obs_ptr > obscodes.len() {
+                // line is abnormally long compared to header definitions
+                //  parsing would fail
+                break ;
+            }
+            let offset = i * observable_width;
+            let content = &line[offset..std::cmp::min(offset+observable_width, line_width)];
+            let obs = &content[0..std::cmp::min(observable_width-2, content.len())];
+            let mut lli: Option<LliFlags> = None;
+            let mut ssi: Option<Ssi> = None;
+            if let Ok(obs) = f64::from_str(obs.trim()) {
+                if content.len() > observable_width-2 {
+                    let lli_str = &content[observable_width-2..observable_width-1];
+                    if let Ok(u) = u8::from_str_radix(lli_str, 10) {
+                        lli  = LliFlags::from_bits(u);
+                    }
+                    if content.len() > observable_width-1 {
+                        let ssi_str = &content[observable_width-1..observable_width];
+                        if let Ok(s) = Ssi::from_str(ssi_str) {
+                            ssi = Some(s);
                         }
-                        //DEBUG
-                        //println!("OBS {} LLI {:?} SSI {:?}", obs, lli, ssi);
-                        inner.insert(
-                            obscodes[obs_ptr-1].clone(), // key
-                            ObservationData {
-                                obs,
-                                lli,
-                                ssi,
-                            }); // build content
-                    } // f64::parsing OK
-                } // enough content to parse an Obs 
-            } // obs_ptr < obscodes.len(): line unexpectedly long
-		}
-		// manage possibly omitted data
-		if nb_obs < nb_max_observables {
-            // data was omitted
-			if nb_obs == 0 {
-				// line is completely empty
-				let missing = std::cmp::min(obscodes.len() - obs_ptr, nb_max_observables);
-				obs_ptr += missing ;
-			} else {
-				// got less than MAX obs
-				if obs_ptr < obscodes.len() {
-					// while we were expecting some
-					obs_ptr += nb_max_observables ;
-				}
-			}
-		}
-		if obs_ptr >= obscodes.len() { // ">" is here to manage possible overflow on corrupted lines
-			// we're done parsing observables
-			if inner.len() > 0 {
-				// build content
-				data.insert(sv, inner.clone());
-				inner.clear();
-			}
-            if sv_ptr < (nb_sat-1) * svnn_size {
-				sv_ptr += svnn_size;
-				// identify next vehicule
-				if let Ok(ssv) = Sv::from_str(&systems[sv_ptr..sv_ptr+svnn_size]) {
-					sv = ssv;
-				} else {
-                    break ; // identification failed
+                    }
                 }
-				if let Some(observables) = observables.get(&sv.constellation) {
-					obscodes = &observables;
-				} else {
-                    break ; // identification failed
+                //println!("{} {:?} {:?}", obs, lli, ssi); //DEBUG
+                inner.insert(
+                    obscodes[obs_ptr-1].clone(),
+                    ObservationData {
+                        obs,
+                        lli,
+                        ssi,
+                    });
+            }
+		}
+
+        // manage completly empty lines
+        if nb_obs == 0 {
+            obs_ptr += std::cmp::min(nb_max_observables, obscodes.len() - obs_ptr);
+        }
+
+        if obs_ptr >= obscodes.len() {
+            obs_ptr = 0;
+            if inner.len() > 0 {
+                data.insert(sv, inner.clone());
+                inner.clear();
+            }
+            // time to move on to next vehicule
+            if sv_ptr+svnn_size <= systems.len() { // still got vehicules to parse 
+                let system = &systems[sv_ptr..sv_ptr+svnn_size];
+                sv_ptr += svnn_size;
+                //println!("SYSTEM \"{}\"", system); //DEBUG
+                if let Ok(ssv) = Sv::from_str(system) {
+                    sv = ssv;
+                } else {
+                    // mono constellation context
+                    if let Ok(prn) = u8::from_str_radix(system.trim(), 10) {
+                        if let Some(constellation) = header.constellation {
+                            sv = Sv {
+                                constellation,
+                                prn,
+                            }
+                        } else {
+                            panic!("faulty RINEX2 constellation / sv definition");
+                        }
+                    } else {
+                        return data ;
+                    }
                 }
-				obs_ptr = 0; // reset
-			} else {
-				break ; // sv_ptr > system description overflow 
-			}
-		}	
+            }
+        }
 	} // for all lines provided
 	data 
 }
@@ -517,69 +525,62 @@ fn parse_v2 (systems: &str, observables: &HashMap<Constellation, Vec<String>>, l
  */
 fn parse_v3 (observables: &HashMap<Constellation, Vec<String>>, lines: std::str::Lines<'_>) -> BTreeMap<Sv, HashMap<String, ObservationData>> {
 	let svnn_size = 3; // SVNN standard
-	let observable_width = 15; // data + 2 flags
+	let observable_width = 16; // data + 2 flags
 	let mut data: BTreeMap<Sv, HashMap<String, ObservationData>> = BTreeMap::new();
 	let mut inner: HashMap<String, ObservationData> = HashMap::with_capacity(5);
 	for line in lines { // browse all lines
-        let (sv, rem) = line.split_at(svnn_size +1);
+        let (sv, line) = line.split_at(svnn_size);
         if let Ok(sv) = Sv::from_str(sv) {
             if let Some(obscodes) = observables.get(&sv.constellation) {
-                let nb_obs = num_integer::div_ceil(rem.len(), observable_width) ;
+                let nb_obs = num_integer::div_ceil(line.len(), observable_width); 
                 inner.clear();
-                //DEBUG
-                //println!("LINE: \"{}\"", line);
-                //println!("SV: \"{}\"", sv);
-                //println!("NB OBS: {}", nb_obs);
+                //println!("LINE: \"{}\"", line); //DEBUG
+                //println!("SV: \"{}\"", sv); //DEBUG
+                //println!("NB OBS: {}", nb_obs); //DEBUG
+                let mut rem = line;
                 for i in 0..nb_obs {
-                    if i < obscodes.len() {
-                        let offset = i * observable_width;
-                        if rem.len() > offset+observable_width-2 { // can parse an Obs
-                            let observation_str = &rem[offset..offset+observable_width-2];
-                            if let Ok(obs) = f64::from_str(observation_str.trim()) {
-                                let lli: Option<LliFlags>;
-                                let ssi: Option<Ssi>;
-                                if line.len() < offset + observable_width-1 {
-                                    // can't parse an LLI
-                                    // This only happens when omitted on last line
-                                    lli = None;
-                                    ssi = None;
-                                } else { // enough content to parse an LLI
-                                    let lli_str = &rem[offset+observable_width-2..offset+observable_width-1];
-                                    if let Ok(u) = u8::from_str_radix(lli_str.trim(), 10) {
-                                        lli = LliFlags::from_bits(u)
-                                    } else {
-                                        lli = None;
-                                    }
-
-                                    if line.len() < offset + observable_width {
-                                        // can't parse an SSI
-                                        // this only happens when omitted on last line
-                                        ssi = None;
-                                    } else {
-                                        let ssi_str = &rem[offset+observable_width-1..offset+observable_width];
-                                        if let Ok(s) = Ssi::from_str(ssi_str.trim()) {
-                                            ssi = Some(s)
-                                        } else {
-                                            ssi = None;
-                                        }
-                                    }
-                                }
-                                //DEBUG
-                                //println!("OBS {} LLI {:?} SSI {:?}", obs, lli, ssi);
-                                inner.insert(
-                                    obscodes[i].clone(), // key
-                                    ObservationData { // payload
-                                        obs,
-                                        lli,
-                                        ssi,
-                                    }); // build content
-                            } // f64::parsing OK
-                        } // enough content to parse an Obs 
-                    } //else: line abnormally long,
-                    //got more data than we expect, avoid overflowing
+                    if i > obscodes.len() {
+                        break ; // line abnormally long
+                            // does not match previous Header definitions
+                            // => would not be able to sort data
+                    }
+                    // avoids overflowing
+                    let split_offset = std::cmp::min(observable_width, rem.len());
+                    let (content, r) = rem.split_at(split_offset);
+                    //println!("content \"{}\" \"{}\"", content, r);
+                    rem = r.clone();
+                    let content_len = content.len();
+                    let mut ssi: Option<Ssi> = None;
+                    let mut lli: Option<LliFlags> = None;
+                    let obs = &content[0..std::cmp::min(observable_width-2, content_len)];
+                    //println!("OBS \"{}\"", obs); //DEBUG
+                    if let Ok(obs) = f64::from_str(obs.trim()) {
+                        if content_len > observable_width-2 {
+                            let lli_str = &content[observable_width-2..observable_width-1];
+                            if let Ok(u) = u8::from_str_radix(lli_str, 10) {
+                                lli = LliFlags::from_bits(u);
+                            }
+                        }
+                        if content_len > observable_width-1 {
+                            let ssi_str = &content[observable_width-1..observable_width];
+                            if let Ok(s) = Ssi::from_str(ssi_str) {
+                                ssi = Some(s);
+                            }
+                        }
+                        //println!("LLI {:?}", lli); //DEBUG
+                        //println!("SSI {:?}", ssi);
+                        // build content
+                        inner.insert(
+                            obscodes[i].clone(),
+                            ObservationData {
+                                obs,
+                                lli,
+                                ssi,
+                            },
+                        );
+                    }
                 }
                 if inner.len() > 0 {
-                    // build content we correctly identified
                     data.insert(sv, inner.clone());
                 }
             }//got some observables to work with
@@ -707,95 +708,6 @@ fn write_epoch_v2(
     write!(writer, "\n")?;
 	Ok(())
 }
-/*
-    for (epoch, (clock_offset, sv)) in record.iter() {
-        let date = epoch.date;
-        let flag = epoch.flag;
-        let vehicules = sv.keys();
-        let nb_sv = vehicules.len(); 
-        let obscodes = &header.obs.as_ref().unwrap().codes;
-        // first line(s)
-        //   Epoch + flag + svnn + possible clock offset
-        match header.version.major {
-            1|2 => {
-                write!(writer, " {} ",  date.format("%y %m %d %H %M").to_string())?;
-                write!(writer, " {}         ", date.time().second())?;
-                write!(writer, " {}", flag)?; 
-                write!(writer, " {}", nb_sv)?; 
-                let nb_extra = nb_sv / 12;
-                let mut index = 0;
-                for vehicule in vehicules.into_iter() {
-                    write!(writer, "{}", vehicule)?; 
-                    if (index+1) % 12 == 0 {
-                        if let Some(clock_offset) = clock_offset {
-                            write!(writer, "{:3.9}", clock_offset)?
-                        }
-                        write!(writer, "\n                                ")?
-                    }
-                    index += 1
-                }
-                if nb_extra == 0 {
-                    if let Some(clock_offset) = clock_offset {
-                        let _ = write!(writer, "{:3.9}\n", clock_offset);
-                    } else {
-                        let _ = write!(writer, "\n");
-                    }
-                }
-            },
-            _ => { // Modern revisions 
-                write!(writer, "> {} ",  date.format("%Y %m %d %H %M").to_string())?;
-                write!(writer, " {}         ", date.time().second())?;
-                write!(writer, " {} ", flag)?; 
-                write!(writer, " {}", nb_sv)?; 
-                if let Some(clock_offset) = clock_offset {
-                    write!(writer, "{:.12}", clock_offset)?
-                }
-                write!(writer, "\n")?
-            }
-        }
-        // epoch body
-        let mut index = 0;
-        for (sv, obs) in sv.iter() {
-            let mut modulo = 5;
-            if header.version.major > 2 {
-                // modern RINEX
-                modulo = 100000; // 'infinite': no wrapping
-                    // we behave like CRX2RNX which does not respect the standards,
-                    // we should wrap @ 80 once again
-                let _ = write!(writer, "{} ", sv);
-            } else {
-                let _ = write!(writer, " ");
-            }
-            // observables for this constellation
-            // --> respect header order and data might be missing
-            let codes = &obscodes[&sv.constellation];
-            for code in codes.iter() {
-                if let Some(data) = obs.get(code) {
-                    let _ = write!(writer, "{:13.3}", data.obs);
-                    if let Some(lli) = data.lli {
-                        let _ = write!(writer, "{}", lli.bits());
-                    } else {
-                        let _ = write!(writer, " ");
-                    }
-                    if let Some(ssi) = data.ssi {
-                        let _ = write!(writer, "{}", ssi as u8);
-                    } else {
-                        let _ = write!(writer, " ");
-                    }
-                    if (index+1) % modulo == 0 {
-                        let _ = write!(writer, "\n");
-                    }
-                    let _ = write!(writer, " ");
-                } else {
-                    // obs is missing, simply fill with whitespace
-                    let _ = write!(writer, "                ");
-                }
-                index += 1
-            }
-            write!(writer, "\n")?
-        }
-    }
-*/
 
 #[cfg(test)]
 mod test {
