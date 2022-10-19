@@ -1461,6 +1461,12 @@ impl Header {
         s.comments = c.clone();
         s
     }
+    
+    pub fn with_observation_fields (&self, fields: observation::HeaderFields) -> Self {
+        let mut s = self.clone();
+        s.obs = Some(fields);
+        s
+    }
 }
 
 impl std::fmt::Display for Header {
