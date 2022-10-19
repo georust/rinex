@@ -203,7 +203,7 @@ mod test {
 		assert_eq!(epoch.len(), 11);
     }
 	#[test]
-	fn v2_npaz3550_210() {
+	fn v2_npaz3550_21o() {
         let test_resource = 
             env!("CARGO_MANIFEST_DIR").to_owned() 
             + "/../test_resources/OBS/V2/npaz3550.21o";
@@ -347,7 +347,7 @@ mod test {
 		assert_eq!(observed.is_none(), true);
 	}
 	#[test]
-	fn v2_rovn0010_210() {
+	fn v2_rovn0010_21o() {
         let test_resource = 
             env!("CARGO_MANIFEST_DIR").to_owned() 
             + "/../test_resources/OBS/V2/rovn0010.21o";
@@ -425,6 +425,124 @@ mod test {
 		assert_eq!(observed.obs, 24225566.040); 
 		assert_eq!(observed.lli, None); 
 		assert_eq!(observed.ssi, Some(Ssi::DbHz36_41)); 
+        //C2 
+		let observed = observations.get(&String::from("C2"));
+		assert_eq!(observed.is_some(), true);
+		let observed = observed.unwrap();
+		assert_eq!(observed.obs, 24225562.932); 
+		assert_eq!(observed.lli, None); 
+		assert_eq!(observed.ssi, Some(Ssi::from_str("6").unwrap()));
+        //C5 [missing]
+		let observed = observations.get(&String::from("C5"));
+		assert_eq!(observed.is_none(), true);
+        //L1
+		let observed = observations.get(&String::from("L1"));
+		assert_eq!(observed.is_some(), true);
+		let observed = observed.unwrap();
+		assert_eq!(observed.obs, 127306204.852); 
+		assert_eq!(observed.lli, Some(LliFlags::OK_OR_UNKNOWN)); 
+		assert_eq!(observed.ssi, Some(Ssi::from_str("6").unwrap()));
+        //L2
+		let observed = observations.get(&String::from("L2"));
+		assert_eq!(observed.is_some(), true);
+		let observed = observed.unwrap();
+		assert_eq!(observed.obs, 99199629.819); 
+		assert_eq!(observed.lli, Some(LliFlags::OK_OR_UNKNOWN)); 
+		assert_eq!(observed.ssi, Some(Ssi::from_str("4").unwrap()));
+        //L5 [missing]
+		let observed = observations.get(&String::from("L5"));
+		assert_eq!(observed.is_none(), true);
+        //P1
+		let observed = observations.get(&String::from("P1"));
+		assert_eq!(observed.is_some(), true);
+		let observed = observed.unwrap();
+		assert_eq!(observed.obs, 24225565.620); 
+		assert_eq!(observed.lli, None); 
+		assert_eq!(observed.ssi, Some(Ssi::from_str("4").unwrap()));
+        //P2
+		let observed = observations.get(&String::from("P2"));
+		assert_eq!(observed.is_some(), true);
+		let observed = observed.unwrap();
+		assert_eq!(observed.obs, 24225563.191); 
+		assert_eq!(observed.lli, None); 
+		assert_eq!(observed.ssi, Some(Ssi::from_str("4").unwrap()));
+        //S1
+		let observed = observations.get(&String::from("S1"));
+		assert_eq!(observed.is_some(), true);
+		let observed = observed.unwrap();
+		assert_eq!(observed.obs, 40.586); 
+		assert_eq!(observed.lli, None); 
+		assert_eq!(observed.ssi, None); 
+        //S2
+		let observed = observations.get(&String::from("S2"));
+		assert_eq!(observed.is_some(), true);
+		let observed = observed.unwrap();
+		assert_eq!(observed.obs, 25.564); 
+		assert_eq!(observed.lli, None); 
+		assert_eq!(observed.ssi, None); 
+        //S5 (missing)
+		let observed = observations.get(&String::from("S5"));
+		assert_eq!(observed.is_none(), true);
+		
+        // G07
+		let sv = Sv {
+			constellation: Constellation::Glonass,
+			prn: 24,
+		};
+		let observations = epoch.get(&sv);
+		assert_eq!(observations.is_some(), true);
+		let observations = observations.unwrap();
+        
+        //C1,C2,C5
+		let observed = observations.get(&String::from("C1"));
+		assert_eq!(observed.is_some(), true);
+		let observed = observed.unwrap();
+		assert_eq!(observed.obs, 23126824.976); 
+		assert_eq!(observed.lli, None); 
+		assert_eq!(observed.ssi, Some(Ssi::from_str("6").unwrap())); 
+		let observed = observations.get(&String::from("C2"));
+		assert_eq!(observed.is_some(), true);
+		let observed = observed.unwrap();
+		assert_eq!(observed.obs, 23126830.088); 
+		assert_eq!(observed.lli, None); 
+		assert_eq!(observed.ssi, Some(Ssi::from_str("6").unwrap())); 
+		let observed = observations.get(&String::from("C5"));
+		assert_eq!(observed.is_none(), true);
+        //L1,L2,L5
+		let observed = observations.get(&String::from("L1"));
+		assert_eq!(observed.is_some(), true);
+		let observed = observed.unwrap();
+		assert_eq!(observed.obs, 123669526.377); 
+		assert_eq!(observed.lli, Some(LliFlags::OK_OR_UNKNOWN)); 
+		assert_eq!(observed.ssi, Some(Ssi::from_str("6").unwrap())); 
+		let observed = observations.get(&String::from("L2"));
+		assert_eq!(observed.is_some(), true);
+		let observed = observed.unwrap();
+		assert_eq!(observed.obs, 96187435.849); 
+		assert_eq!(observed.lli, Some(LliFlags::OK_OR_UNKNOWN));
+		assert_eq!(observed.ssi, Some(Ssi::from_str("6").unwrap())); 
+		let observed = observations.get(&String::from("L5"));
+		assert_eq!(observed.is_none(), true);
+        //P1, P2
+		let observed = observations.get(&String::from("P1"));
+		assert_eq!(observed.is_none(), true);
+		let observed = observations.get(&String::from("P2"));
+		assert_eq!(observed.is_none(), true);
+        //S1,S2,S5
+		let observed = observations.get(&String::from("S1"));
+		assert_eq!(observed.is_some(), true);
+		let observed = observed.unwrap();
+		assert_eq!(observed.obs, 41.931); 
+		assert_eq!(observed.lli, None); 
+		assert_eq!(observed.ssi, None); 
+		let observed = observations.get(&String::from("S2"));
+		assert_eq!(observed.is_some(), true);
+		let observed = observed.unwrap();
+		assert_eq!(observed.obs, 39.856); 
+		assert_eq!(observed.lli, None); 
+		assert_eq!(observed.ssi, None); 
+		let observed = observations.get(&String::from("S5"));
+		assert_eq!(observed.is_none(), true);
 	}
     #[test]
     fn v3_duth0630() {
