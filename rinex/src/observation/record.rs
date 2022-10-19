@@ -646,7 +646,7 @@ fn write_epoch_v3(
     lines.push_str(&epoch.to_string_obs_v3());
     lines.push_str(&format!("{:3}", data.len()));
     if let Some(data) = clock_offset {
-        lines.push_str(&format!("{:12.4}", data)); 
+        lines.push_str(&format!("{:13.4}", data)); 
     }
     lines.push_str("\n");
     
