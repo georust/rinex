@@ -97,8 +97,7 @@ impl Compressor {
         } else {
             let nb = &content[30..32];
             if let Ok(u) = u16::from_str_radix(nb.trim(), 10) {
-                //DEBUG
-                //println!("Identified {} vehicules", u);
+                //println!("Identified {} vehicules", u); //DEBUG
                 Ok(u.into())
             } else {
                 Err(Error::MalformedEpochDescriptor)
@@ -125,8 +124,7 @@ impl Compressor {
                     .to_1_letter_code()); 
             }
             let sv = Sv::from_str(&vehicule)?;
-            //DEBUG
-            //println!("VEHICULE: {}", sv);
+            //println!("VEHICULE: {}", sv); //DEBUG
             Ok(sv)
         } else {
             Err(Error::VehiculeIdentificationError)
@@ -136,8 +134,7 @@ impl Compressor {
     /// Concludes current vehicule
     fn conclude_vehicule (&mut self, content: &str) -> String {
         let mut result = content.to_string();
-        //DEBUG
-        //println!(">>> VEHICULE CONCLUDED");
+        //println!(">>> VEHICULE CONCLUDED"); //DEBUG
         // conclude line with lli/ssi flags
         let flags = self.flags_descriptor.trim_end();
         if flags.len() > 0 {
@@ -216,8 +213,7 @@ impl Compressor {
                                     // nb of obs for this constellation
                                     let sv_nb_obs = obs_codes[&sv.constellation].len();
                                     let nb_missing = std::cmp::min(5, sv_nb_obs - self.obs_ptr);
-                                    //DEBUG
-                                    //println!("Early empty line - missing {} field(s)", nb_missing);
+                                    //println!("Early empty line - missing {} field(s)", nb_missing); //DEBUG
                                     for i in 0..nb_missing { 
                                         result.push_str(" "); // empty whitespace, on each missing observable
                                             // to remain retro compatible with official tools
@@ -241,8 +237,7 @@ impl Compressor {
                 None => break // done iterating
             };
             
-            //DEBUG
-            println!("\nWorking from LINE : \"{}\"", line);
+            // println!("\nWorking from LINE : \"{}\"", line); //DEBUG
             
             // [0] : COMMENTS (special case)
             if is_comment!(line) {
@@ -285,7 +280,7 @@ impl Compressor {
                         // format to CRINEX
                         self.epoch_descriptor = format_epoch_descriptor(&self.epoch_descriptor);
                         if self.first_epoch {
-                            println!("INIT EPOCH with \"{}\"", self.epoch_descriptor);
+                            //println!("INIT EPOCH with \"{}\"", self.epoch_descriptor); //DEBUG
                             self.epoch_diff.init(&self.epoch_descriptor);
                             result.push_str(&self.epoch_descriptor);
                             /////////////////////////////////////
@@ -325,7 +320,7 @@ impl Compressor {
                         if self.obs_ptr + nb_obs_line > sv_nb_obs { // facing an overflow
                             // this means all final fields were omitted, 
                             // ==> handle this case
-                            println!("SV {} final fields were omitted", sv);
+                            //println!("SV {} final fields were omitted", sv); //DEBUG
                             for index in self.obs_ptr..sv_nb_obs+1 {
                                 self.schedule_kernel_init(&sv, index);
                                 result.push_str(" "); // put an empty space on missing observables
@@ -357,8 +352,7 @@ impl Compressor {
                             if let Ok(obsdata) = f64::from_str(obsdata.trim()) {
                                 let obsdata = f64::round(obsdata*1000.0) as i64; 
                                 if flags.trim().len() == 0 { // Both Flags ommited
-                                    //DEBUG
-                                    println!("OBS \"{}\" LLI \"X\" SSI \"X\"", obsdata);
+                                    //println!("OBS \"{}\" LLI \"X\" SSI \"X\"", obsdata); //DEBUG
                                     // data compression
                                     if let Some(sv_diffs) = self.sv_diff.get_mut(&sv) {
                                         // retrieve observable state
@@ -373,7 +367,7 @@ impl Compressor {
                                                         .unwrap();
                                                     diffs.1.init(" ");
                                                     diffs.2.init(" ");
-                                                    println!("FORCED REINIT WITH FLAGS \"{}\"", self.flags_descriptor);
+                                                    //println!("FORCED REINIT WITH FLAGS \"{}\"", self.flags_descriptor); //DEBUG
                                                     result.push_str(&format!("3&{} ", compressed));//append obs
                                                     // remove from pending list,
                                                     // so we only force it once
@@ -436,8 +430,7 @@ impl Compressor {
                                     }
                                 } else { //flags.len() >=1 : Not all Flags ommited
                                     let (lli, ssi) = flags.split_at(1);
-                                    //DEBUG
-                                    //println!("OBS \"{}\" - LLI \"{}\" - SSI \"{}\"", obsdata, lli, ssi);
+                                    //println!("OBS \"{}\" - LLI \"{}\" - SSI \"{}\"", obsdata, lli, ssi); //DEBUG
                                     if let Some(sv_diffs) = self.sv_diff.get_mut(&sv) {
                                         // retrieve observable state
                                         if let Some(diffs) = sv_diffs.get_mut(&self.obs_ptr) {
@@ -536,8 +529,7 @@ impl Compressor {
                                 self.schedule_kernel_init(&sv, self.obs_ptr);
                             }
                             self.obs_ptr += 1;
-                            //DEBUG
-                            println!("OBS {}/{}", self.obs_ptr, sv_nb_obs); 
+                            //println!("OBS {}/{}", self.obs_ptr, sv_nb_obs); //DEBUG
                         
                             if self.obs_ptr > sv_nb_obs { // unexpected overflow
                                 return Err(Error::MalformedEpochBody) // too many observables were found
