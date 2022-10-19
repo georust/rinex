@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod test {
     use rinex::*;
+    use std::str::FromStr;
     use rinex::constellation::Constellation;
 	use rinex::observation::{LliFlags, Ssi};
     #[test]
@@ -425,6 +426,119 @@ mod test {
 		assert_eq!(observed.lli, None); 
 		assert_eq!(observed.ssi, Some(Ssi::DbHz36_41)); 
 	}
+    #[test]
+    fn v3_duth0630() {
+        let resource = env!("CARGO_MANIFEST_DIR")
+            .to_owned()
+            + "/../test_resources/OBS/V3/DUTH0630.22O";
+        let rinex = Rinex::from_file(&resource);
+        assert_eq!(rinex.is_ok(), true);
+        let rinex = rinex
+            .unwrap();
+        assert_eq!(rinex.header.obs.is_some(), true);
+        let obs = rinex.header.obs.as_ref().unwrap();
+        let observables = obs.codes.get(&Constellation::Glonass);
+        assert_eq!(observables.is_some(), true);
+        let observables = observables
+            .unwrap();
+        let expected: Vec<_> = vec!["C1C","L1C","D1C","S1C","C2P","L2P","D2P","S2P"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect();
+        assert_eq!(observables, &expected);
+        let observables = obs.codes.get(&Constellation::GPS);
+        assert_eq!(observables.is_some(), true);
+        let observables = observables
+            .unwrap();
+        let expected: Vec<_> = vec!["C1C","L1C","D1C","S1C","C2W","L2W","D2W","S2W"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect();
+        assert_eq!(observables, &expected);
+        let record = rinex.record.as_obs();
+        assert_eq!(record.is_some(), true);
+        let record = record
+            .unwrap();
+        assert_eq!(record.len(), 3);
+		
+        let epoch = epoch::Epoch {
+			date: epoch::str2date("2022 03 04 0 0 0.0").unwrap(),
+			flag: epoch::EpochFlag::Ok,
+		};
+        let e = record.get(&epoch);
+        assert_eq!(e.is_some(), true);
+        let (clk, vehicules) = e.unwrap();
+        assert_eq!(clk.is_none(), true);
+        assert_eq!(vehicules.len(), 18);
+        
+        let g01 = Sv { constellation: Constellation::GPS, prn: 01 };
+        let g01 = vehicules.get(&g01);
+        assert_eq!(g01.is_some(), true);
+        let data = g01.unwrap();
+        let c1c = data.get("C1C");
+        assert_eq!(c1c.is_some(), true);
+        let c1c = c1c.unwrap();
+        assert_eq!(c1c.obs, 20243517.560);
+        assert_eq!(c1c.lli.is_none(), true);
+        assert_eq!(c1c.ssi.is_none(), true);
+
+        let l1c = data.get("L1C");
+        assert_eq!(l1c.is_some(), true);
+        let l1c = l1c.unwrap();
+        assert_eq!(l1c.obs, 106380411.418);
+        assert_eq!(l1c.lli, Some(LliFlags::OK_OR_UNKNOWN));
+        assert_eq!(l1c.ssi, Some(Ssi::from_str("8").unwrap()));
+
+        let g03 = Sv { constellation: Constellation::GPS, prn: 03 };
+        let g03 = vehicules.get(&g03);
+        assert_eq!(g03.is_some(), true);
+        let data = g03.unwrap();
+        let c1c = data.get("C1C");
+        assert_eq!(c1c.is_some(), true);
+        let c1c = c1c.unwrap();
+        assert_eq!(c1c.obs, 20619020.680);
+        assert_eq!(c1c.lli.is_none(), true);
+        assert_eq!(c1c.ssi.is_none(), true);
+        
+        let l1c = data.get("L1C");
+        assert_eq!(l1c.is_some(), true);
+        let l1c = l1c.unwrap();
+
+        let g04 = Sv { constellation: Constellation::GPS, prn: 04 };
+        let g04 = vehicules.get(&g04);
+        assert_eq!(g04.is_some(), true);
+        let data = g04.unwrap();
+        let c1c = data.get("C1C");
+        assert_eq!(c1c.is_some(), true);
+        let c1c = c1c.unwrap();
+        assert_eq!(c1c.obs, 21542633.500);
+        assert_eq!(c1c.lli.is_none(), true);
+        assert_eq!(c1c.ssi.is_none(), true);
+        
+        let l1c = data.get("L1C");
+        assert_eq!(l1c.is_some(), true);
+        let l1c = l1c.unwrap();
+
+        let epoch = epoch::Epoch {
+			date: epoch::str2date("2022 03 04 00 28 30.0").unwrap(),
+			flag: epoch::EpochFlag::Ok,
+		};
+        let e = record.get(&epoch);
+        assert_eq!(e.is_some(), true);
+        let (clk, vehicules) = e.unwrap();
+        assert_eq!(clk.is_none(), true);
+        assert_eq!(vehicules.len(), 17);
+		
+        let epoch = epoch::Epoch {
+			date: epoch::str2date("2022 03 04 00 57 0.0").unwrap(),
+			flag: epoch::EpochFlag::Ok,
+		};
+        let e = record.get(&epoch);
+        assert_eq!(e.is_some(), true);
+        let (clk, vehicules) = e.unwrap();
+        assert_eq!(clk.is_none(), true);
+        assert_eq!(vehicules.len(), 17);
+    }
     #[test]
     fn v4_kms300dnk_r_2022_v3crx() {
         let test_resource = 
