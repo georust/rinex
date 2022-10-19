@@ -115,9 +115,10 @@ mod test {
         }
         // remove copy not to disturb other test browsers
         let _ = std::fs::remove_file(copy_path);
+        // sleep for a bit, so we do not try to parse the generated file unintentionally
         std::thread::sleep(std::time::Duration::from_secs(1));
     }
-    /*#[test]
+    //#[test]
     fn obs_v2() {
         let folder = env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/OBS/V2/";
         for file in std::fs::read_dir(folder).unwrap() {
@@ -126,7 +127,7 @@ mod test {
             testbench(fp.to_str().unwrap());
         }
     }
-	#[test]
+    //#[test] 
     fn obs_v3() {
         let folder = env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/OBS/V3/";
         for file in std::fs::read_dir(folder).unwrap() {
@@ -134,7 +135,7 @@ mod test {
             let fp = fp.path();
             testbench(fp.to_str().unwrap());
         }
-    }*/
+    }
     #[test]
     fn meteo_v2() {
         let folder = env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/MET/V2/";
