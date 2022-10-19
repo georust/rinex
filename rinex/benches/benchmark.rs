@@ -1,5 +1,7 @@
 //#![feature(test)]
 use rinex::{*,
+    record::parse_record,
+    reader::BufferedReader,
     hatanaka::numdiff::NumDiff,
     hatanaka::textdiff::TextDiff,
 };
@@ -13,7 +15,8 @@ use criterion::{*,
     BenchmarkId,
 };
 
-mod crinex;
+use std::io::BufRead;
+use std::collections::HashMap;
 
 /*struct CpuProfiler;
 
@@ -39,37 +42,6 @@ fn parse_file(fp: &str) {
     let _ = Rinex::from_file(fp);
 }
 
-/*
-fn parser_benchmark(c: &mut Criterion) {
-    let pool = vec![
-        "CRNX/V1/delf0010.21d",
-        "CRNX/V1/eijs0010.21d",
-        "CRNX/V1/zegv0010.21d",
-        "CRNX/V3/KMS300DNK_R_20221591000_01H_30S_MO.crx",
-        "CRNX/V3/DOUR00BEL_R_20200130000_01D_30S_MO.crx",
-        "OBS/V2/zegv0010.21o",
-        "OBS/V2/npaz3350.21o",
-        "NAV/V2/amel0010.21g",
-        "NAV/V2/cbw10010.21n.gz",
-        "NAV/V3/AMEL00NLD_R_20210010000_01D_MN.rnx",
-        "NAV/V3/BRDC00GOP_R_20210010000_01D_MN.rnx.gz",
-        "NAV/V4/KMS300DNK_R_20221591000_01H_MN.rnx",
-        "NAV/V4/KMS300DNK_R_20221591000_01H_MN.rnx.gz",
-    ];
-    //let c = c.significance_level(0.01);
-    let c = c.sample_size(20); // 10 measurements: default/10
-    let c = c.measurement_time(core::time::Duration::from_secs(40)); // 2secs per measurement
-    for fp in &pool {
-        c.bench_function(fp, |b| {
-            let fullpath = env!("CARGO_MANIFEST_DIR").to_owned()
-                + "../test_resources/" + fp;
-            b.iter(|| {
-                parse_file(&fullpath)
-            })
-        });
-    }
-}*/
-
 fn text_decompression (textdiff: &mut TextDiff, data: &[&str]) {
     for data in data {
         let r = textdiff.decompress(data);
@@ -89,7 +61,32 @@ fn num_decompression (numdiff: &mut NumDiff, index_reinit: usize, data: &[i64]) 
     }
 }
 
-fn benchmark(c: &mut Criterion) {
+
+/*
+ * Browses and skip header fields
+ * used in record focused benchmark
+ */
+fn browse_skip_header_section(reader: &mut BufferedReader) {
+    let lines = reader.lines();
+    for line in lines {
+        let line = line.unwrap();
+        if line.contains("END OF HEADER") {
+            return ;
+        }
+    }
+}
+
+/*
+ * Puts record section parsing to test
+ */
+fn record_parsing (path: &str, header: &Header) {
+    let mut reader = BufferedReader::new(path)
+        .unwrap();
+    browse_skip_header_section(&mut reader);
+    let record = parse_record(&mut reader, &header);
+}
+
+fn decompression_benchmark (c: &mut Criterion) {
     /*
      * TextDiff benchmarking
      */
@@ -218,10 +215,79 @@ fn benchmark(c: &mut Criterion) {
     }));
     group.finish(); /* conclude numdiff group */
 
-    /*
-     * CRNX 1|3 decompression
-     */
-    crinex::crnx_decompression_bench(c);
+}
+
+/*
+ * Puts record section parsing to the test
+ */
+fn record_parsing_benchmark (c: &mut Criterion) {
+    let mut group = c.benchmark_group("record");
+    
+    // prepare for OBS/zegv0010.21o
+    let header = Header::basic_obs()
+        .with_observation_fields(
+            observation::HeaderFields {
+                crinex: None,
+                codes: {
+                    let mut map: HashMap<Constellation, Vec<String>> = HashMap::new();
+                    map.insert(Constellation::GPS, 
+                        vec!["C1", "C2", "C5", "L1", "L2", "L5", "P1", "P2", "S1", "S2", "S5"]
+                            .into_iter().map(|s| s.to_string()).collect(),
+                        );
+                    map.insert(Constellation::Glonass, 
+                        vec!["C1", "C2", "C5", "L1", "L2", "L5", "P1", "P2", "S1", "S2", "S5"]
+                            .into_iter().map(|s| s.to_string()).collect(),
+                        );
+                    map
+                },
+                clock_offset_applied: false,
+            });
+    group.bench_function("OBSv2/zegv0010.21o", |b| b.iter(|| {
+        record_parsing("../test_resources/OBS/V2/zegv0010.21o", &header);
+    }));
+    
+    // prepare for OBS/V3/ACOR00ESP
+    let header = Header::basic_obs()
+        .with_observation_fields(
+            observation::HeaderFields {
+                crinex: None,
+                codes: {
+                    let mut map: HashMap<Constellation, Vec<String>> = HashMap::new();
+                    map.insert(Constellation::GPS, 
+                        vec!["C1C","L1C","S1C","C2S","L2S","S2S","C2W","L2W","S2W","C5Q","L5Q","S5Q"]
+                            .into_iter().map(|s| s.to_string()).collect(),
+                        );
+                    map.insert(Constellation::Glonass, 
+                        vec!["C1C","L1C","S1C","C2P","L2P","S2P","C2C","L2C","S2C","C3Q","L3Q","S3Q"]
+                            .into_iter().map(|s| s.to_string()).collect(),
+                        );
+                    map.insert(Constellation::Galileo, 
+                        vec!["C1C","L1C","S1C","C5Q","L5Q","S5Q","C6C","L6C","S6C","C7Q","L7Q","S7Q","C8Q","L8Q","S8Q"]
+                            .into_iter().map(|s| s.to_string()).collect(),
+                        );
+                    map.insert(Constellation::BeiDou, 
+                        vec!["C2I","L2I","S2I","C6I","L6I","S6I","C7I","L7I","S7I"]
+                            .into_iter().map(|s| s.to_string()).collect(),
+                        );
+                    map
+                },
+                clock_offset_applied: false,
+            });
+    group.bench_function("OBSv3/ACOR00ESP", |b| b.iter(|| {
+        record_parsing("../test_resources/OBS/V3/ACOR00ESP_R_20213550000_01D_30S_MO.rnx", &header);
+    }));
+
+    //prepare for CRNX/V1/delf0010.21d
+    //prepare for CRNX/V3/ESBC00DNK
+    //prepare for NAV/V2/ijmu3650.21n.gz
+    //prepare for NAV/V3/MOJN00DNK_R_20201770000_01D_MN.rnx.gz
+
+    group.finish(); /* concludes record section */
+}
+
+fn benchmark(c: &mut Criterion) {
+    decompression_benchmark(c);
+    record_parsing_benchmark(c);
 }
 
 criterion_group!(benches, benchmark);
