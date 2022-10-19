@@ -115,9 +115,10 @@ mod test {
         }
         // remove copy not to disturb other test browsers
         let _ = std::fs::remove_file(copy_path);
+        std::thread::sleep(std::time::Duration::from_secs(1));
     }
-    #[test]
-    /*fn obs_v2() {
+    /*#[test]
+    fn obs_v2() {
         let folder = env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/OBS/V2/";
         for file in std::fs::read_dir(folder).unwrap() {
             let fp = file.unwrap();
