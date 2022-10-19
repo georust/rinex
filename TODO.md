@@ -28,6 +28,14 @@ The fractional parts ("nanos") is totally unused, we cannot handle periods small
   - Enhance reader/writer with hatanaka capacity to simplify file operations ?
   - Implement Lines<BufReader> iterator ourselves and avoid its memory allocation
   that takes place at every single line iteration
+- Performances
+  - [x] introduce benchmarking
+  - [ ] improve TextDiff
+  replace .find() by regex.find
+  Cow ?
+  - [ ] improve decompression method
+  - [ ] improve parser
+  - [ ] improve compression method
 
 ## Command Line application
 

@@ -1,6 +1,6 @@
 #[derive(Debug)]
 pub struct TextDiff {
-    pub init: String,
+    pub buffer: String, 
 }
 
 impl TextDiff {
@@ -8,64 +8,56 @@ impl TextDiff {
     /// Text compression has no limitations
     pub fn new() -> Self {
         Self {
-            init: String::with_capacity(64),
+            buffer: String::with_capacity(64),
         }
     }
     
     /// Initializes `Text` differentiator
     pub fn init (&mut self, data: &str) {
-        self.init = data.to_string() ;
+        self.buffer = data.to_string(); 
     }
 
     /// Decompresses given data
-    pub fn decompress (&mut self, data: &str) -> String {
-        let mut recovered = String::with_capacity(64);
-        let l = self.init.len();
-        let mut p = self.init
-            .as_mut_str()
-            .chars();
-        let mut data = data.chars();
-        for _ in 0..l {
-            let next_c = p.next().unwrap();
-            if let Some(c) = data.next() {
-                if c == '&' { // special whitespace insertion
-                    recovered.push_str(" ")
-                } else if c.is_ascii_alphanumeric() {
-                    recovered.push_str(&c.to_string())
-                } else {
-                    recovered.push_str(&next_c.to_string())
+    pub fn decompress (&mut self, data: &str) -> &str {
+        let s0_len = self.buffer.len();
+        let mut s0 = unsafe { self.buffer.as_bytes_mut() };
+        let s1_len = data.len();
+        let s1 = data.as_bytes();
+        let min = std::cmp::min(s1_len, s0_len);
+        
+        // browse shared content
+        for index in 0..min {
+            if s1[index] != b' ' { // not a differenced out character
+                // ==> needs to overwrite internal content
+                if s1[index] == b'&' { // special whitespace insertion
+                    // overwrite with space
+                    s0[index] = b' ';
+                } else { // regular content
+                    s0[index] = s1[index]; // overwrite
                 }
-            } else {
-                recovered.push_str(&next_c.to_string())
             }
         }
-        // mask might be longer than self
-        // in case we need to extend current value
-        loop {
-            if let Some(c) = data.next() {
-                if c == '&' { // special whitespace insertion
-                    recovered.push_str(" ")
-                } else if c.is_ascii_alphanumeric() {
-                    recovered.push_str(&c.to_string())
-                }
-            } else {
-                break
-            }
+
+        if s1_len > s0_len {
+            // got new bytes to latch
+            let new_slice = &data[min..s1_len]
+                .replace("&", " ");
+            self.buffer.push_str(new_slice);
         }
-        self.init = recovered.clone(); // for next time
-        recovered 
+
+        &self.buffer
     }
     
     /// Compresses given data
     pub fn compress (&mut self, data: &str) -> String {
         let mut result = String::new();
-        let inner: Vec<_> = self.init.chars().collect();
-        self.init.clear();
+        let inner: Vec<_> = self.buffer.chars().collect();
+        self.buffer.clear();
         let to_compress: Vec<_> = data.chars().collect();
 
         for i in 0..inner.len() {
             if let Some(c) = to_compress.get(i) {
-                self.init.push_str(&c.to_string());
+                self.buffer.push_str(&c.to_string());
                 if c != &inner[i] {
                     result.push_str(&c.to_string());
                 } else {
@@ -77,10 +69,10 @@ impl TextDiff {
         for i in inner.len()..data.len() {
             if let Some(c) = to_compress.get(i) {
                 if c.is_ascii_whitespace() {
-                    self.init.push_str("&");
+                    self.buffer.push_str("&");
                     result.push_str("&");
                 } else {
-                    self.init.push_str(&c.to_string());
+                    self.buffer.push_str(&c.to_string());
                     result.push_str(&c.to_string());
                 }
             }
@@ -97,19 +89,24 @@ mod test {
     fn test_decompression() {
         let init = "ABCDEFG 12 000 33 XXACQmpLf";
         let mut diff = TextDiff::new();
-        let masks : Vec<&str> = vec![
-            "        13   1 44 xxACq   F",
+        let masks: Vec<&str> = vec![
+          //"ABCDEFG 12 000 33 XXACQmpLf"
+            "         3   1 44 xxACq   F",
+            "        4 ",
             " 11 22   x   0 4  y     p  ",
             "              1     ",
             "                   z",
             " ",
+            "                           &",
         ];
         let expected : Vec<&str> = vec![
             "ABCDEFG 13 001 44 xxACqmpLF",
-            "A11D22G 1x 000 44 yxACqmpLF",
-            "A11D22G 1x 000144 yxACqmpLF",
-            "A11D22G 1x 000144 yzACqmpLF",
-            "A11D22G 1x 000144 yzACqmpLF",
+            "ABCDEFG 43 001 44 xxACqmpLF",
+            "A11D22G 4x 000 44 yxACqmpLF",
+            "A11D22G 4x 000144 yxACqmpLF",
+            "A11D22G 4x 000144 yzACqmpLF",
+            "A11D22G 4x 000144 yzACqmpLF",
+            "A11D22G 4x 000144 yzACqmpLF ",
         ];
         diff.init(init);
         for i in 0..masks.len() {
@@ -122,7 +119,7 @@ mod test {
         let init = " 2200 123      G 07G08G09G   XX XX";
         diff.init(init);
         
-        let masks : Vec<&str> = vec![
+        let masks: Vec<&str> = vec![
             "        F       1  3",
             " x    1 f  f   p",
             " ",
