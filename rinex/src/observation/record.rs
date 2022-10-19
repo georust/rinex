@@ -387,14 +387,13 @@ fn parse_v2 (header: &Header, systems: &str, observables: &HashMap<Constellation
 	let svnn_size = 3; // SVNN standard
 	let nb_max_observables = 5; // in a single line
 	let observable_width = 16; // data + 2 flags + 1 whitespace
-	let nb_sat = systems.len() / svnn_size;
 	let mut sv_ptr = 0; // svnn pointer
 	let mut obs_ptr = 0; // observable pointer
 	let mut obscodes : &Vec<String>;
 	let mut data: BTreeMap<Sv, HashMap<String, ObservationData>> = BTreeMap::new();
 	let mut inner: HashMap<String, ObservationData> = HashMap::with_capacity(5);
 
-	let mut sv = Sv::default(); // current vehicule we're dealing with 
+	let mut sv: Sv; // current vehicule we're dealing with 
     // parse first system we're dealing with
     if systems.len() < svnn_size {
 		// Can't even parse a single vehicule;
