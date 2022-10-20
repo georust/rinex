@@ -393,7 +393,7 @@ fn parse_v2 (header: &Header, systems: &str, observables: &HashMap<Constellation
 	let mut inner: HashMap<String, ObservationData> = HashMap::with_capacity(5);
     let mut sv: Sv;
     let mut obscodes : &Vec<String>;
-    //println!("SYSTEMS \"{}\"", systems); // DEBUG
+    println!("SYSTEMS \"{}\"", systems); // DEBUG
 
     // parse first system we're dealing with
     if systems.len() < svnn_size {
@@ -404,7 +404,7 @@ fn parse_v2 (header: &Header, systems: &str, observables: &HashMap<Constellation
 
     let max = std::cmp::min(svnn_size, systems.len()); // covers epoch with a unique vehicule
     let system = &systems[0..max];
-    //println!("SYSTEM \"{}\"", system); //DEBUG
+    println!("SYSTEM \"{}\"", system); //DEBUG
     // parse 1st system to work on
     if let Ok(ssv) = Sv::from_str(system) {
         sv = ssv;
@@ -436,16 +436,16 @@ fn parse_v2 (header: &Header, systems: &str, observables: &HashMap<Constellation
 	for line in lines { // browse all lines provided
         let line_width = line.len();
         if line_width < observable_width {
-            //println!("EMPTY LINE: \"{}\"", line); //DEBUG
+            println!("EMPTY LINE: \"{}\"", line); //DEBUG
             // line is empty 
             // add maximal amount of vehicules possible
             obs_ptr += std::cmp::min(nb_max_observables, obscodes.len() - obs_ptr);
             // nothing to parse
         } else {
             // not a empty line
-            //println!("LINE: \"{}\"", line); //DEBUG
+            println!("LINE: \"{}\"", line); //DEBUG
             let nb_obs = num_integer::div_ceil(line_width, observable_width) ; // nb observations in this line
-            //println!("NB OBS: {}", nb_obs); //DEBUG
+            println!("NB OBS: {}", nb_obs); //DEBUG
             // parse all obs
             for i in 0..nb_obs {
                 obs_ptr += 1;
@@ -464,13 +464,14 @@ fn parse_v2 (header: &Header, systems: &str, observables: &HashMap<Constellation
                         &line[start..end]
                     },
                 };
-                //println!("WORK CONTENT \"{}\"", slice); //DEBUG
+                println!("WORK CONTENT \"{}\"", slice); //DEBUG
+                //TODO: improve please
                 let end: usize = match i {
                     0 => 14,
                     _ => 14,
                 };
                 let obs = &slice[0..std::cmp::min(slice.len(), end)]; // trimmed observations
-                //println!("OBS \"{}\"", obs); //DEBUG
+                println!("OBS \"{}\"", obs); //DEBUG
                 let mut lli: Option<LliFlags> = None;
                 let mut ssi: Option<Ssi> = None;
                 if let Ok(obs) = f64::from_str(obs.trim()) { // parse obs
@@ -486,7 +487,7 @@ fn parse_v2 (header: &Header, systems: &str, observables: &HashMap<Constellation
                             }
                         }
                     }
-                    //println!("{} {:?} {:?}", obs, lli, ssi); //DEBUG
+                    println!("{} {:?} {:?}", obs, lli, ssi); //DEBUG
                     inner.insert(
                         obscodes[obs_ptr-1].clone(),
                         ObservationData {
@@ -513,7 +514,7 @@ fn parse_v2 (header: &Header, systems: &str, observables: &HashMap<Constellation
             let start = sv_ptr;
             let end = std::cmp::min(sv_ptr + svnn_size, systems.len()); // trimed epoch description
             let system = &systems[start..end];
-            //println!("NEW SYSTEM \"{}\"\n", system); //DEBUG
+            println!("NEW SYSTEM \"{}\"\n", system); //DEBUG
             if let Ok(ssv) = Sv::from_str(system) {
                 sv = ssv;
             } else {
@@ -711,19 +712,21 @@ fn write_epoch_v2(
                     write!(writer, "\n ")?;
                 }
 				if let Some(observation) = observations.get(obscode) {
-                    write!(writer, "{:13.3}", observation.obs)?;
-					if let Some(flag) = observation.lli {
-						// --> lli provided
-                        write!(writer, "{}", flag.bits())?;
-					} else { // LLI omitted
-                        write!(writer, " ")?;
-					}
-                    if let Some(ssi) = observation.ssi {
-                        // --> ssi provided
-                        write!(writer, "{} ", ssi)?;
-                    } else { // SSI omitted
-                        write!(writer, "  ")?;
-                    }
+                    let formatted: String = match observation.lli {
+                        Some(lli) => {
+                            match observation.ssi {
+                                Some(ssi) => format!("{:13.3}{}{}", observation.obs, lli.bits(), ssi),
+                                _ => format!("{:13.3}{} ", observation.obs, lli.bits()),
+                            }
+                        },
+                        _ => format!("{:13.3}  ", observation.obs),
+                    };
+                    write!(writer, "{}", formatted)?;
+                    //if obs_index == 0 {
+                    //    write!(writer, " {:13.3}", observation.obs)?;
+                    //} else {
+                    //    write!(writer, " {:13.3}", observation.obs)?;
+                    //}
 				} else {
 					// --> data is not provided: BLANK
                     write!(writer, "               ")?;
