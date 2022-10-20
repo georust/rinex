@@ -186,7 +186,7 @@ impl Cli {
                     .arg(Arg::new("output")
                         .long("output")
                         .action(ArgAction::Append)
-                        .help("Custom output file path, in case we're generating data"))
+                        .help("Custom file paths to be generated from preprocessed RINEX files"))
                     .arg(Arg::new("custom-header")
                         .long("custom-header")
                         .action(ArgAction::Append)

@@ -36,7 +36,6 @@ by `.gz`.
 ## Plotting and Data visualization
 
 A data visualization method is currently under development.
-It is currently available only for Observation Data.
 Refer to the 
 [plot section](https://github.com/gwbres/rinex/blob/main/rinex-cli/README.md#data-visualization)
 
@@ -112,17 +111,20 @@ rinex-cli \
 
 Invoke the tool against one or several files.  
 Several files might be required based on the operation to perform.  
-It is not recommended to combine special ops like "merge" or "diff",
-to other ops.
-All flags are optionnal and can be combined, expect for some special operations.  
+All flags are optionnal and can be combined to one another.
 
-If you request some operation, usually to inspect internal data (like `epoch` or `sv`),
-the tool will not expose the record but will restrict to the requested information.
+The tool will either expose the data of interest (like `--sv` or `--epoch` enumeration),
+it is not possible to plot extracted data to this day.
+If no data of interest was specified, the RINEX record is exposed.
+The record content is either preprocessed (filtered, decimated, differentiated..),
+or raw if no preprocessing operation was specified.  
+In this situation, it is possible to plot the record
+instead of streaming to stdout, this is specified by the `--plot` flag.
 
 For example, this command line will expose identified epochs and vehicules
 
 ```bash
-rinex-cli -f test_resources/OBS/V2/KOSG0010.95O --epochs --sv
+rinex-cli -f test_resources/OBS/V2/KOSG0010.95O --epochs --sv --pretty
 ``` 
 
 If no specific data or fields are requested to be displayed, then we expose the record
@@ -164,12 +166,22 @@ rinex-cli --pretty -f test_resources/OBS/V2/rovn0010.21o \
     --decim-interval 01:30:00 --epochs
 ```
 
+This also stands for preprocessing operations, like 1D differentiation for example, to focus on specific data of interest:
+
+```bash
+rinex-cli -f test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
+     --diff test_resources/CRNX/V3/MOJN00DNK_R_20201770000_01D_30S_MO.crx.gz \
+         --retain-sv G01,G10,R01,R10
+```
+
 ## Output format
 
-This tool uses JSON format to expose data, which makes it easy
-to import into other tools. The `--pretty` argument is available
-and can be combined to all existing flags, to indent the exposed data,
-and make it easier to read
+This tool uses JSON format to expose data by default. 
+This makes it easy to import into other tools,
+for instance external Python scripts with `Eval()`.
+
+The `--pretty` argument improves the rendering of JSON
+data, to make it readable.
 
 ```bash
 rinex-cli --pretty -f /tmp/amel010.21g \
@@ -179,6 +191,60 @@ rinex-cli -f /tmp/amel010.21g \
       --decimate-interval 00:05:00 \
             --sv-filter G01 --pretty
 ``` 
+
+## File generation
+
+When no data of interest is specified, it is possible
+to dump the preprocessed RINEX file into a newer one.
+This is specified with the `--output` flag, where the user can provide
+a list of file paths.
+
+Like input files, output files do not have to follow the RINEX naming conventions.
+Eventually, this tool might have a file creation helper, to help the user
+follow naming conventions, but it is currenly under development.
+
+File generation applies to all preprocessing operations
+
+* filtering operations: create a new RINEX from the stripped RINEX content
+* differential operations: create a new RINEX from diffentiated data
+* merge operation: provide two input files and merge them into a single RINEX
+* split operation: split an input file into two.
+
+For example, let's extract G01 from this file
+
+```bash
+rinex-cli -f test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
+    --retain-sv \
+        --output g01.txt
+```
+
+Header section is simply copied and maintained.
+
+When 1D/2D preprocessing was requested, you're left with raw phase data,
+per carrier signal and for each vehicule
+
+```bash
+rinex-cli -f test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
+     --diff test_resources/CRNX/V3/MOJN00DNK_R_20201770000_01D_30S_MO.crx.gz \
+         --retain-sv G01 --output G01-diff.txt
+```
+
+Basically, file generation applies anywhere `--plot` or raw stdout stream
+applies, and bypasses it.
+
+### File generation and compression
+
+It is possible compress data to .gz directly, if the specified `--output` 
+is terminated by `.gz`.
+
+It is also possible to convert Observation Data to CRINEX directly
+* to CRINX1 if the specified `--output` is terminated by a standard YYd termination
+* to CRINX3 if the specified `--output` is termined by `.crx`
+
+In cases where CRINEX conversion apply, it is possible to stack the `.gz` compression
+over it
+* YYd.gz to specify a CRNX1 + gz
+* crx.gz to specify a CRNX3 + gz
 
 ## Record resampling 
 

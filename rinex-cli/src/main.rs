@@ -24,7 +24,7 @@ pub fn main() -> Result<(), rinex::Error> {
 
     let plot = cli.plot();
     let input_paths = cli.input_paths();
-    //let _output_paths = cli.output_paths();
+    let output_paths = cli.output_paths();
 
     // list of parsed and preprocessed RINEX files
     let mut queue: Vec<Rinex> = Vec::new();
@@ -85,23 +85,32 @@ pub fn main() -> Result<(), rinex::Error> {
 
     // Analyze all extracted RINEX,
     //  or possibly post-analyze after pre-processing
-    for rnx in queue {
+    for (index, rnx) in queue.iter().enumerate() {
         if cli.extract() {
             // extract data of interest
             extract_data(&rnx, cli.extraction_ops(), pretty);
         } else {
             // no data of interest
-            //  => extract record
-            if plot { // Plot record
-                // Create a plot context 
-                let dims = cli.plot_dimensions();
-                let mut ctx = plot::Context::new(dims, &rnx); 
-                plot::plot_rinex(&mut ctx, &rnx); 
-            } else { // expose record content
-                if pretty {
-                    println!("{}", serde_json::to_string_pretty(&rnx.record).unwrap())
+            if let Some(path) = output_paths.get(index) {
+                // output path provided
+                if rnx.to_file(path).is_ok() {
+                    println!("\"{}\" has been generated", path);
                 } else {
-                    println!("{}", serde_json::to_string(&rnx.record).unwrap())
+                    println!("failed to generate \"{}\"", path);
+                }
+            } else {
+                // no output path provided
+                // ==> data visualization
+                if plot { // graphical 
+                    let dims = cli.plot_dimensions(); // create context
+                    let mut ctx = plot::Context::new(dims, &rnx); 
+                    plot::plot_rinex(&mut ctx, &rnx); 
+                } else { // stream to stdout
+                    if pretty {
+                        println!("{}", serde_json::to_string_pretty(&rnx.record).unwrap())
+                    } else {
+                        println!("{}", serde_json::to_string(&rnx.record).unwrap())
+                    }
                 }
             }
         }

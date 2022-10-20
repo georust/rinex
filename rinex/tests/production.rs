@@ -14,7 +14,6 @@ mod test {
                             if let Some(obs_b) = observables_b.get(code_a) {
                                 assert_eq!(obs_a, obs_b);
                             } else {
-                                println!("observables A {:?} \nobservables B {:?}", observables_a, observables_b);
                                 panic!("epoch {:?} - {:?} : missing \"{}\" observation", e_a, sv_a, code_a);
                             }
                         }
@@ -67,11 +66,6 @@ mod test {
             }
         }
 
-        // reaching this point
-        //  means rnx_b has more data than expected
-        println!("************* WARNING ************");
-        println!("   Got more data than expected    ");
-        println!("**********************************");
         for (e_b, obscodes_b) in rec_b.iter() {
             if let Some(obscodes_a) = rec_a.get(e_b) {
                 for (code_b, observation_b) in obscodes_b.iter() {
@@ -109,11 +103,11 @@ mod test {
             compare_with_panic(&rnx_a, &rnx_b);
         }
         // remove copy not to disturb other test browsers
-        let _ = std::fs::remove_file(copy_path);
+        //let _ = std::fs::remove_file(copy_path);
         // sleep for a bit, so we do not try to parse the generated file unintentionally
         std::thread::sleep(std::time::Duration::from_secs(1));
     }
-    //#[test]
+    #[test]
     fn obs_v2() {
         let folder = env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/OBS/V2/";
         for file in std::fs::read_dir(folder).unwrap() {

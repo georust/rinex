@@ -364,7 +364,7 @@ pub fn parse_epoch (header: &Header, content: &str)
 			// This remains empty on RINEX3, because we have such information
 			// on following lines, which is much more convenient
 			let mut systems = String::with_capacity(24*3); //SVNN
-			let nb_sv_line: usize = num_integer::div_ceil(n_sat, 12).into();
+			let nb_sv_line = n_sat / 12 ; //num_integer::div_ceil(n_sat, 12).into();
 			systems.push_str(rem.trim());
 			for _ in 1..nb_sv_line {
 				if let Some(l) = lines.next() {
@@ -393,7 +393,7 @@ fn parse_v2 (header: &Header, systems: &str, observables: &HashMap<Constellation
 	let mut inner: HashMap<String, ObservationData> = HashMap::with_capacity(5);
     let mut sv: Sv;
     let mut obscodes : &Vec<String>;
-    println!("SYSTEMS \"{}\"", systems); // DEBUG
+    //println!("SYSTEMS \"{}\"", systems); // DEBUG
 
     // parse first system we're dealing with
     if systems.len() < svnn_size {
@@ -404,7 +404,7 @@ fn parse_v2 (header: &Header, systems: &str, observables: &HashMap<Constellation
 
     let max = std::cmp::min(svnn_size, systems.len()); // covers epoch with a unique vehicule
     let system = &systems[0..max];
-    println!("SYSTEM \"{}\"", system); //DEBUG
+    //println!("SYSTEM \"{}\"", system); //DEBUG
     // parse 1st system to work on
     if let Ok(ssv) = Sv::from_str(system) {
         sv = ssv;
@@ -435,17 +435,17 @@ fn parse_v2 (header: &Header, systems: &str, observables: &HashMap<Constellation
 
 	for line in lines { // browse all lines provided
         let line_width = line.len();
-        if line_width < observable_width {
-            println!("EMPTY LINE: \"{}\"", line); //DEBUG
+        if line_width < 10 {
+            //println!("\nEMPTY LINE: \"{}\"", line); //DEBUG
             // line is empty 
             // add maximal amount of vehicules possible
             obs_ptr += std::cmp::min(nb_max_observables, obscodes.len() - obs_ptr);
             // nothing to parse
         } else {
             // not a empty line
-            println!("LINE: \"{}\"", line); //DEBUG
+            //println!("\nLINE: \"{}\"", line); //DEBUG
             let nb_obs = num_integer::div_ceil(line_width, observable_width) ; // nb observations in this line
-            println!("NB OBS: {}", nb_obs); //DEBUG
+            //println!("NB OBS: {}", nb_obs); //DEBUG
             // parse all obs
             for i in 0..nb_obs {
                 obs_ptr += 1;
@@ -464,14 +464,10 @@ fn parse_v2 (header: &Header, systems: &str, observables: &HashMap<Constellation
                         &line[start..end]
                     },
                 };
-                println!("WORK CONTENT \"{}\"", slice); //DEBUG
+                //println!("WORK CONTENT \"{}\"", slice); //DEBUG
                 //TODO: improve please
-                let end: usize = match i {
-                    0 => 14,
-                    _ => 14,
-                };
-                let obs = &slice[0..std::cmp::min(slice.len(), end)]; // trimmed observations
-                println!("OBS \"{}\"", obs); //DEBUG
+                let obs = &slice[0..std::cmp::min(slice.len(), 14)]; // trimmed observations
+                //println!("OBS \"{}\"", obs); //DEBUG
                 let mut lli: Option<LliFlags> = None;
                 let mut ssi: Option<Ssi> = None;
                 if let Ok(obs) = f64::from_str(obs.trim()) { // parse obs
@@ -487,7 +483,7 @@ fn parse_v2 (header: &Header, systems: &str, observables: &HashMap<Constellation
                             }
                         }
                     }
-                    println!("{} {:?} {:?}", obs, lli, ssi); //DEBUG
+                    //println!("{} {:?} {:?} ==> {}", obs, lli, ssi, obscodes[obs_ptr-1]); //DEBUG
                     inner.insert(
                         obscodes[obs_ptr-1].clone(),
                         ObservationData {
@@ -514,7 +510,7 @@ fn parse_v2 (header: &Header, systems: &str, observables: &HashMap<Constellation
             let start = sv_ptr;
             let end = std::cmp::min(sv_ptr + svnn_size, systems.len()); // trimed epoch description
             let system = &systems[start..end];
-            println!("NEW SYSTEM \"{}\"\n", system); //DEBUG
+            //println!("NEW SYSTEM \"{}\"\n", system); //DEBUG
             if let Ok(ssv) = Sv::from_str(system) {
                 sv = ssv;
             } else {
@@ -709,26 +705,28 @@ fn write_epoch_v2(
 		if let Some(obscodes) = obscodes.get(&sv.constellation) {
 			for (obs_index, obscode) in obscodes.iter().enumerate() {
 				if obs_index % obs_per_line == 0 {
-                    write!(writer, "\n ")?;
+                    write!(writer, "\n")?;
                 }
 				if let Some(observation) = observations.get(obscode) {
-                    let formatted: String = match observation.lli {
+                    let formatted_obs = format!("{:14.3}", observation.obs);
+                    let formatted_flags: String = match observation.lli {
                         Some(lli) => {
                             match observation.ssi {
-                                Some(ssi) => format!("{:13.3}{}{}", observation.obs, lli.bits(), ssi),
-                                _ => format!("{:13.3}{} ", observation.obs, lli.bits()),
+                                Some(ssi) => format!("{}{}", lli.bits(), ssi),
+                                _ => format!("{} ", lli.bits()),
                             }
                         },
-                        _ => format!("{:13.3}  ", observation.obs),
+                        _ => {
+                            match observation.ssi {
+                                Some(ssi) => format!(" {}", ssi),
+                                _ => "  ".to_string(),
+                            }
+                        },
                     };
-                    if obs_index % obs_per_line == 0 {
-                        write!(writer, "{}", formatted)?;
-                    } else {
-                        write!(writer, " {}", formatted)?;
-                    }
+                    write!(writer, "{}{}", formatted_obs, formatted_flags)?;
 				} else {
 					// --> data is not provided: BLANK
-                    write!(writer, "               ")?;
+                    write!(writer, "                ")?;
 				}
 			}
 		} 
