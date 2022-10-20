@@ -27,11 +27,6 @@ mod test {
             }
         }
 
-        // reaching this point
-        //  means rnx_b has more data than expected
-        println!("************* WARNING ************");
-        println!("   Got more data than expected    ");
-        println!("**********************************");
         for (e_b, (clk_offset_b, vehicules_b)) in rec_b.iter() {
             if let Some((clk_offset_a, vehicules_a)) = rec_a.get(e_b) {
                 assert_eq!(clk_offset_a, clk_offset_b);
