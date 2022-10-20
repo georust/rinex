@@ -11,7 +11,11 @@ mod retain; // record filtering
 mod filter; // record filtering
 mod resampling; // record resampling
 
-use rinex::*; 
+use rinex::{*,
+    version::Version, 
+    observation::Crinex,
+};
+
 use cli::Cli;
 use extract::extract_data;
 use retain::retain_filters;
@@ -85,7 +89,7 @@ pub fn main() -> Result<(), rinex::Error> {
 
     // Analyze all extracted RINEX,
     //  or possibly post-analyze after pre-processing
-    for (index, rnx) in queue.iter().enumerate() {
+    for (index, rnx) in queue.iter_mut().enumerate() {
         if cli.extract() {
             // extract data of interest
             extract_data(&rnx, cli.extraction_ops(), pretty);
@@ -93,6 +97,45 @@ pub fn main() -> Result<(), rinex::Error> {
             // no data of interest
             if let Some(path) = output_paths.get(index) {
                 // output path provided
+                //  detect special CRINEX case
+                let is_obs = rnx.is_observation_rinex();
+                if path.contains(".21D") {
+                    if !is_obs {
+                        println!("CRNX compression only applies to Observation RINEX"); 
+                    } else {
+                        // ==> RNX2CRX1 
+                        let mut context = rnx.header.obs.clone().unwrap();
+                        context.crinex = Some(Crinex {
+                            version: Version {
+                                major: 1,
+                                minor: 0,
+                            },
+                            prog: "rust-rnx".to_string(),
+                            date: chrono::Utc::now().naive_utc(),
+                        });
+                        // convert
+                        rnx.header = rnx.header
+                            .with_observation_fields(context);
+                    }
+                } else if path.contains(".crx") {
+                    if !is_obs {
+                        println!("CRNX compression only applies to Observation RINEX"); 
+                    } else {
+                        // ==> RNX2CRX3 
+                        let mut context = rnx.header.obs.clone().unwrap();
+                        context.crinex = Some(Crinex {
+                            version: Version {
+                                major: 3,
+                                minor: 0,
+                            },
+                            prog: "rust-rnx".to_string(),
+                            date: chrono::Utc::now().naive_utc(),
+                        });
+                        // convert
+                        rnx.header = rnx.header
+                            .with_observation_fields(context);
+                    }
+                }
                 if rnx.to_file(path).is_ok() {
                     println!("\"{}\" has been generated", path);
                 } else {
@@ -115,6 +158,5 @@ pub fn main() -> Result<(), rinex::Error> {
             }
         }
     }
-
     Ok(())
 }// main

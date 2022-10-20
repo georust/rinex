@@ -136,7 +136,7 @@ rinex-cli -f test_resources/OBS/V2/KOSG0010.95O
 Because RINEX files are huge and complex, we developped some filtering operations
 to reduce data quantity and focus on data of interest.
 
-`retain-` operations will only retain data of interest.
+`retain-` operations will only retain data of interest.  
 `filter-` operations will filter non interesting data.
 
 For example this command will only retain data from specific vehicules
@@ -195,11 +195,10 @@ rinex-cli -f /tmp/amel010.21g \
 ## File generation
 
 When no data of interest is specified, it is possible
-to dump the preprocessed RINEX file into a newer one.
-This is specified with the `--output` flag, where the user can provide
-a list of file paths.
+to dump the preprocessed RINEX file into a newer one.  
+This is specified with the `--output` flag, one per file to be generated. 
 
-Like input files, output files do not have to follow the RINEX naming conventions.
+Like input files, output files do not have to follow RINEX naming conventions.  
 Eventually, this tool might have a file creation helper, to help the user
 follow naming conventions, but it is currenly under development.
 
@@ -208,7 +207,7 @@ File generation applies to all preprocessing operations
 * filtering operations: create a new RINEX from the stripped RINEX content
 * differential operations: create a new RINEX from diffentiated data
 * merge operation: provide two input files and merge them into a single RINEX
-* split operation: split an input file into two.
+* split operation: split a file into two.
 
 For example, let's extract G01 from this file
 
@@ -241,10 +240,25 @@ It is also possible to convert Observation Data to CRINEX directly
 * to CRINX1 if the specified `--output` is terminated by a standard YYd termination
 * to CRINX3 if the specified `--output` is termined by `.crx`
 
-In cases where CRINEX conversion apply, it is possible to stack the `.gz` compression
-over it
+In cases where CRINEX conversion is feasible, 
+it is possible to stack the `.gz` compression on top of it
 * YYd.gz to specify a CRNX1 + gz
 * crx.gz to specify a CRNX3 + gz
+
+Likewise, the mirror operations are feasible:
+
+* extract `.gz` compressed data and dump it as readable
+* extract a CRINEX and dump it as a readable RINEX
+
+### Header section customization
+
+A header section customization interface is currently under development.  
+It is possible to pass custom header fields, one per `--output` flag,
+to customize such section of the RINEX to be generated.
+
+The `custom-header` flag accepts either a direct JSON description
+of the `Rinex::Header` structure, or a local file containing
+such a description.
 
 ## Record resampling 
 
@@ -403,7 +417,7 @@ For example:
 ```bash
 rinex-cli \
     # set reference context (obs,nav)
-    --diff test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz,test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz
+    --ddiff test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz,test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz
     # pass observations (a) to differentiate against reference context (b)
     # we perform the operation for each file provided by -f
     -f test_resources/CRNX/V3/MOJN00DNK_R_20201770000_01D_30S_MO.crx.gz 
@@ -414,7 +428,7 @@ Reference context order in the description (obs,nav) does not matter:
 ```bash
 rinex-cli \
     # set reference context (nav,obs)
-    --diff test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz,test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz
+    --ddiff test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz,test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz
     # pass observations (a) to differentiate against reference context (b)
     # we perform the operation for each file provided by -f
     -f test_resources/CRNX/V3/MOJN00DNK_R_20201770000_01D_30S_MO.crx.gz 
@@ -438,11 +452,6 @@ rinex-cli --cycle-slips -f test_resources/OBS/V2/zegv0010.21o
 
 Cycle slips determination is under development, by adding more data processing on top of the
 previously defined Double Differential RINEX algorithm.
-
-## RTK resolution
-
-RTK resolution (rover/base) is under development, by combining the previous double differential RINEX post processing,
-and adding a Navigation data analysis on top of it.
 
 ## Merge
 
