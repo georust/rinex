@@ -721,12 +721,11 @@ fn write_epoch_v2(
                         },
                         _ => format!("{:13.3}  ", observation.obs),
                     };
-                    write!(writer, "{}", formatted)?;
-                    //if obs_index == 0 {
-                    //    write!(writer, " {:13.3}", observation.obs)?;
-                    //} else {
-                    //    write!(writer, " {:13.3}", observation.obs)?;
-                    //}
+                    if obs_index % obs_per_line == 0 {
+                        write!(writer, "{}", formatted)?;
+                    } else {
+                        write!(writer, " {}", formatted)?;
+                    }
 				} else {
 					// --> data is not provided: BLANK
                     write!(writer, "               ")?;
