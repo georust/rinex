@@ -3132,7 +3132,7 @@ impl Rinex {
     /// ```
     /// use rinex::*;
     /// let mut rnx_a = Rinex::from_file("../test_resources/OBS/V2/aopr0010.17o").unwrap();
-    /// let rnx_b = Rinex::from_file("../test_resources/OBS/V2/npaz3350.21o").unwrap();
+    /// let rnx_b = Rinex::from_file("../test_resources/OBS/V2/npaz3550.21o").unwrap();
     /// // compute the single difference, to cancel out ionospheric/atmospheric induced biases
     /// // rnx_a -= rnx_b; is actually feasible but not recommended,
     ///               // as it may panic of file type mismatch
@@ -3277,7 +3277,7 @@ impl Rinex {
     ///
     /// // now we will confirm those cycle slip events by computing the double diff,
     /// // assuming this secondary rinex recorded the same data
-    /// let rnx_b = Rinex::from_file("../test_resources/OBS/V2/rovn0010.21o").unwrap();
+    /// let rnx_b = Rinex::from_file("../test_resources/OBS/V2/npaz3550.21o").unwrap();
     /// let confirmed_slips = rnx.confirmed_cycle_slips(&rnx_b);
     /// ```
     pub fn observation_confirmed_cycle_slip_epochs (&self, rhs: &Self) -> Result<Vec<Epoch>, DiffError> {
