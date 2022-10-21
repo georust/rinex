@@ -364,12 +364,14 @@ pub fn parse_epoch (header: &Header, content: &str)
 			// This remains empty on RINEX3, because we have such information
 			// on following lines, which is much more convenient
 			let mut systems = String::with_capacity(24*3); //SVNN
-			let nb_sv_line = n_sat / 12 ; //num_integer::div_ceil(n_sat, 12).into();
 			systems.push_str(rem.trim());
-			for _ in 1..nb_sv_line {
-				if let Some(l) = lines.next() {
-					systems.push_str(l.trim());
-				}
+            if n_sat > 12 {
+                let nb_extra_lines = (n_sat - 12)/ 12;
+                for _ in 0..nb_extra_lines {
+                    if let Some(l) = lines.next() {
+                        systems.push_str(l.trim());
+                    }
+                }
 			}
 			parse_v2(&header, &systems, observables, lines)
 		},
@@ -393,7 +395,7 @@ fn parse_v2 (header: &Header, systems: &str, observables: &HashMap<Constellation
 	let mut inner: HashMap<String, ObservationData> = HashMap::with_capacity(5);
     let mut sv: Sv;
     let mut obscodes : &Vec<String>;
-    //println!("SYSTEMS \"{}\"", systems); // DEBUG
+    println!("SYSTEMS \"{}\"", systems); // DEBUG
 
     // parse first system we're dealing with
     if systems.len() < svnn_size {
