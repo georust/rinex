@@ -14,6 +14,7 @@ use crate::ionosphere;
 use crate::observation;
 use crate::version::Version;
 
+use observation::Crinex;
 use crate::constellation;
 use crate::constellation::Constellation;
 
@@ -216,7 +217,7 @@ impl Default for Header {
             rinex_type: Type::default(),
             constellation: Some(Constellation::default()),
             comments: Vec::new(),
-            program: String::new(),
+            program: "rust-rinex".to_string(), 
             run_by: String::new(),
             date: String::new(),
             station: String::new(),
@@ -266,7 +267,7 @@ impl Default for Header {
 impl Header {
     /// Builds a `Header` from local file
     pub fn new (reader: &mut BufferedReader) -> Result<Header, Error> { 
-        let mut crinex : Option<observation::Crinex> = None;
+        let mut crinex : Option<Crinex> = None;
         let mut crnx_version = Version::default(); 
         let mut rinex_type = Type::default();
         let mut constellation : Option<Constellation> = None;
@@ -347,7 +348,7 @@ impl Header {
                 let (_, remainder) = remainder.split_at(20);
                 let date = remainder.split_at(20).0.trim();
                 crinex = Some(
-                    observation::Crinex {
+                    Crinex {
                         version: crnx_version, 
                         prog: pgm.trim().to_string(),
                         date: chrono::NaiveDateTime::parse_from_str(date, "%d-%b-%y %H:%M")?
@@ -1401,6 +1402,22 @@ impl Header {
             .with_constellation(Constellation::Mixed)
     }
 
+    /// Creates Basic Header structure
+    /// for Compact RINEX with Mixed Constellation context
+    pub fn basic_crinex() -> Self {
+        Self::default()
+            .with_type(Type::ObservationData)
+            .with_constellation(Constellation::Mixed)
+            .with_crinex(Crinex {
+                version: Version {
+                    major: 3,
+                    minor: 0,
+                },
+                prog: "rust-crinex".to_string(),
+                date: chrono::Utc::now().naive_utc(),
+            })
+    }
+
     /// Returns Header structure with specific RINEX revision
     pub fn with_version(&self, version: Version) -> Self {
         let mut s = self.clone();
@@ -1426,7 +1443,7 @@ impl Header {
 
     /// Adds crinex generation attributes to self,
     /// has no effect if this is not an Observation Data header.
-    pub fn with_crinex (&self, c: observation::Crinex) -> Self {
+    pub fn with_crinex (&self, c: Crinex) -> Self {
         let mut s = self.clone();
         if let Some(ref mut obs) = s.obs {
             obs.crinex = Some(c)

@@ -41,6 +41,8 @@ use thiserror::Error;
 use chrono::{Datelike, Timelike};
 use std::collections::{BTreeMap, HashMap};
 
+use version::Version;
+use observation::Crinex;
 use navigation::OrbitItem;
 
 // export major types
@@ -225,22 +227,35 @@ impl Rinex {
     ///         .with_general_infos("my_prog", "runby", "my_agency");
     /// rnx.to_file("/tmp/KUNZ00CSZ.crx"); // this will produce the same format, 
     ///                               // --> data is compressed
-    /// rnx.crx2rnx(); // by doing this we move to uncompressed data production all CRINEX attributes 
+    /// rnx.rnx2crx(); // by doing this we move to uncompressed data production all CRINEX attributes 
     /// rnx.to_file("/tmp/KUNZ00CSZ.rnx"); // --> data is readable 
     /// ```
-    pub fn crx2rnx (&mut self) {
+    pub fn rnx2crx (&mut self) {
         if self.is_observation_rinex() {
             let now = chrono::Utc::now().naive_utc();
             self.header = self.header
-                .with_crinex(
-                    observation::Crinex {
-                        version: version::Version {
-                            major: 3, // latest CRINEX
-                            minor: 0, // latest CRINEX
-                        },
-                        prog: "rustcrx".to_string(),
-                        date: now.date().and_time(now.time()),
-                    })
+                .with_crinex(Crinex {
+                    version: Version {
+                        major: 3,
+                        minor: 0,
+                    },
+                    prog: "rust-crinex".to_string(),
+                    date: now,
+                });
+        }
+    }
+
+    /// Converts a CRINEX (Compat RINEX) into a RINEX
+    /// (plain, readable RINEX)
+    pub fn crx2rnx (&mut self) {
+        if self.is_observation_rinex() {
+            let params = self.header.obs.as_ref().unwrap();
+            self.header = self.header.with_observation_fields(
+                observation::HeaderFields {
+                    crinex: None,
+                    codes: params.codes.clone(),
+                    clock_offset_applied: params.clock_offset_applied,
+                });
         }
     }
 
