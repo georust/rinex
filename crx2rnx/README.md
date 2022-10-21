@@ -15,16 +15,12 @@ RINEX files, it's called CRINEX,
 latest revision is `CRINEX3` and is specified 
 [here](https://www.gsi.go.jp/ENGLISH/Bulletin55.html).
 
-For more information on the actual compression algorithm, 
-refer to the [hatanaka module](https://crates.io/crates/rinex)
-of the library.
-
 This tool supports both CRINEX1 and CRINEX3 (latest).
 
 This tool supports a maximal compression order of 6, 
-which is more than currently existing tools.
-This means you can pass CRINEX that were previously
-compressed with other existing tools.
+which is more than other existing tools: this means
+you can safely pass CRINEX that were compressed with other 
+existing tools.
 
 ## Getting started 
 
@@ -33,21 +29,19 @@ Build with the `--release` flag for best performances.
 Specify one file to decompress with `--fp`:
 
 ```bash
-crx2rnx --fp ../test_resoures/CRNX/V1/wsra0010.21d
+crx2rnx --fp ../test_resources/CRNX/V1/wsra0010.21d
 ```
 
-This generates `test_resoures/CRNX/V1/wsra0010.21o`, 
+This generates `test_resources/CRNX/V1/wsra0010.21o`, 
 to follow `RINEX` naming conventions.   
 
-To change that behavior and specify the output file yourself, 
-use the `--output` flag:
-
+You can specify the output path yourself:
 ```bash
 crx2rnx --fp ../test_resoures/CRNX/V1/wsra0010.21d \
-    -o /tmp/output.rnx # custom location, does not follow naming conventions
+    -o /tmp/output.rnx # does not have to follow naming conventions
 ```
 
 ```bash
 crx2rnx -f ../test_resoures/CRNX/V3/ACOR00ESP_R_20213550000_01D_30S_MO.crx \
-    -o /tmp/output.rnx # custom location with standard V3 extension
+    -o /tmp/output.rnx # standard V3 extension
 ```
