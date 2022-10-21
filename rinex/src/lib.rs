@@ -3132,7 +3132,7 @@ impl Rinex {
     /// ```
     /// use rinex::*;
     /// let mut rnx_a = Rinex::from_file("../test_resources/OBS/V2/aopr0010.17o").unwrap();
-    /// let rnx_b = Rinex::from_file("../test_resources/OBS/V2/rovn0010.21o").unwrap();
+    /// let rnx_b = Rinex::from_file("../test_resources/OBS/V2/npaz3350.21o").unwrap();
     /// // compute the single difference, to cancel out ionospheric/atmospheric induced biases
     /// // rnx_a -= rnx_b; is actually feasible but not recommended,
     ///               // as it may panic of file type mismatch
