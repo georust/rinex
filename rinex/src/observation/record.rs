@@ -365,12 +365,23 @@ pub fn parse_epoch (header: &Header, content: &str)
 			// on following lines, which is much more convenient
 			let mut systems = String::with_capacity(24*3); //SVNN
 			systems.push_str(rem.trim());
-            if n_sat > 12 {
-                let nb_extra_lines = (n_sat - 12)/ 12;
-                for _ in 0..nb_extra_lines {
-                    if let Some(l) = lines.next() {
-                        systems.push_str(l.trim());
-                    }
+            let mut nb_extra_lines: usize = 0;
+            if n_sat > 12 && n_sat <= 24 {
+                nb_extra_lines = 1;
+            } else if n_sat > 24 && n_sat <= 36 {
+                nb_extra_lines = 2;
+            } else if n_sat > 36 && n_sat <= 48 {
+                nb_extra_lines = 3;
+            } else if n_sat > 48 && n_sat <= 60 {
+                nb_extra_lines = 4;
+            } else if n_sat > 60 && n_sat <= 78 {
+                nb_extra_lines = 5;
+            }
+            for _ in 0..nb_extra_lines {
+                if let Some(l) = lines.next() {
+                    systems.push_str(l.trim());
+                } else {
+                    return Err(Error::MissingData) ;
                 }
 			}
 			parse_v2(&header, &systems, observables, lines)
@@ -395,7 +406,7 @@ fn parse_v2 (header: &Header, systems: &str, observables: &HashMap<Constellation
 	let mut inner: HashMap<String, ObservationData> = HashMap::with_capacity(5);
     let mut sv: Sv;
     let mut obscodes : &Vec<String>;
-    println!("SYSTEMS \"{}\"", systems); // DEBUG
+    //println!("SYSTEMS \"{}\"", systems); // DEBUG
 
     // parse first system we're dealing with
     if systems.len() < svnn_size {
@@ -666,7 +677,7 @@ fn write_epoch_v3(
                         lines.push_str(" ");
                     }
                 } else {
-                    lines.push_str(&format!("               "));
+                    lines.push_str(&format!("                "));
                 }
             }
         }
