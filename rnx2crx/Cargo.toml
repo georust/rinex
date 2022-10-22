@@ -1,6 +1,6 @@
 [package]
 name = "rnx2crx"
-version = "0.0.1"
+version = "1.0.0"
 license = "MIT OR Apache-2.0"
 authors = ["Guillaume W. Bres <guillaume.bressaix@gmail.com>"]
 description = "RINEX data compressor"
@@ -13,9 +13,5 @@ readme = "README.md"
 [dependencies]
 chrono = "0.4"
 thiserror = "1"
-clap = { version = "3.2.22", features = ["yaml"] }
+clap = { version = "4", features = ["derive", "color"] }
 rinex = { path = "../rinex", features = ["serde"] }
-
-[dev-dependencies]
-assert_cmd = "2.0"
-predicates = "2.1"
