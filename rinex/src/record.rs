@@ -13,10 +13,11 @@ use crate::observation;
 use crate::ionosphere;
 use crate::is_comment;
 use crate::types::Type;
-
-use crate::hatanaka::Decompressor;
 use crate::reader::BufferedReader;
 use crate::writer::BufferedWriter;
+use crate::hatanaka::{
+    Compressor, Decompressor,
+};
 
 #[cfg(feature = "serde")]
 use serde::Serialize;
@@ -137,29 +138,48 @@ impl Record {
                 let record = self.as_meteo()
                     .unwrap();
                 for (epoch, data) in record.iter() {
-                    meteo::write_epoch(epoch, data, header, writer)?;
+                    if let Ok(epoch) = meteo::fmt_epoch(epoch, data, header) {
+                        let _ = write!(writer, "{}", epoch);
+                    }
                 }
             },
             Type::ObservationData => {
                 let record = self.as_obs()
                     .unwrap();
+                let is_crinex = header.is_crinex();
+                let mut compressor = Compressor::new();
                 for (epoch, (clock_offset, data)) in record.iter() {
-                    observation::write_epoch(epoch, clock_offset, data, header, writer)?;
+                    let epoch = observation::fmt_epoch(epoch, clock_offset, data, header);
+                    if is_crinex {
+                        for line in epoch.lines() {
+                            let line = line.to_owned() + "\n"; // helps the following .lines() iterator
+                                // embedded in compression method
+                            if let Ok(compressed) = compressor.compress(&header, &line) {
+                                write!(writer, "{}", compressed)?;
+                            }
+                        }
+                    } else {
+                        write!(writer, "{}", epoch)?;
+                    }
                 }
             },
             Type::NavigationData => {
                 let record = self.as_nav()
                     .unwrap();
                 for (epoch, classes) in record.iter() {
-                    navigation::write_epoch(epoch, classes, header, writer)?;
+                    if let Ok(epoch) = navigation::fmt_epoch(epoch, classes, header) {
+                        let _ = write!(writer, "{}", epoch);
+                    }
                 }
             },
 			Type::ClockData => {
 				let record = self.as_clock()
 					.unwrap();
 				for (epoch, data) in record.iter() {
-					clocks::write_epoch(epoch, data, writer)?;
-				}
+                    if let Ok(epoch) = clocks::fmt_epoch(epoch, data) {
+                        let _ = write!(writer, "{}", epoch); 
+				    }
+                }
 			},
             _ => panic!("record type not supported yet"),
         }

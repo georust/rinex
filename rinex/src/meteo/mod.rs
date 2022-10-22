@@ -6,8 +6,8 @@ pub mod observable;
 pub use record::{
     Record,
     is_new_epoch,
+    fmt_epoch,
     parse_epoch,
-    write_epoch,
 };
 pub use observable::Observable;
 

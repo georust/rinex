@@ -3,7 +3,6 @@ use thiserror::Error;
 use std::str::FromStr;
 //use chrono::Timelike;
 use bitflags::bitflags;
-use std::io::Write;
 use std::collections::{BTreeMap, HashMap};
 
 use crate::{
@@ -15,7 +14,6 @@ use crate::{
 	},
 	Header,
 	version::Version,
-	writer::BufferedWriter,
 };
 
 #[cfg(feature = "serde")]
@@ -625,29 +623,27 @@ fn parse_v3 (observables: &HashMap<Constellation, Vec<String>>, lines: std::str:
 	data 
 }
 
-/// Writes epoch into given streamer 
-pub fn write_epoch (
+/// Formats one epoch according to standard definitions 
+pub fn fmt_epoch (
         epoch: &Epoch,
         clock_offset: &Option<f64>,
         data: &BTreeMap<Sv, HashMap<String, ObservationData>>,
         header: &Header,
-        writer: &mut BufferedWriter,
-    ) -> std::io::Result<()> {
+    ) -> String {
     if header.version.major < 3 {
-        write_epoch_v2(epoch, clock_offset, data, header, writer)
+        fmt_epoch_v2(epoch, clock_offset, data, header)
     } else {
-        write_epoch_v3(epoch, clock_offset, data, header, writer)
+        fmt_epoch_v3(epoch, clock_offset, data, header)
     }
 }
 
-fn write_epoch_v3(
+fn fmt_epoch_v3(
         epoch: &Epoch,
         clock_offset: &Option<f64>,
         data: &BTreeMap<Sv, HashMap<String, ObservationData>>,
         header: &Header,
-        writer: &mut BufferedWriter,
-    ) -> std::io::Result<()> {
-    let mut lines = String::new();
+    ) -> String { 
+    let mut lines = String::with_capacity(128);
     let obscodes = &header.obs
         .as_ref()
         .unwrap()
@@ -683,32 +679,32 @@ fn write_epoch_v3(
         }
         lines.push_str("\n");
     }
-    write!(writer, "{}", lines)
+    lines
 }
 
-fn write_epoch_v2(
+fn fmt_epoch_v2(
         epoch: &Epoch,
         clock_offset: &Option<f64>,
         data: &BTreeMap<Sv, HashMap<String, ObservationData>>,
         header: &Header,
-        writer: &mut BufferedWriter,
-    ) -> std::io::Result<()> {
+    ) -> String { 
+    let mut lines = String::with_capacity(128);
     let obscodes = &header.obs
         .as_ref()
         .unwrap()
         .codes;
-    write!(writer, " {} {:2}", epoch.to_string_obs_v2(), data.len())?;
+    lines.push_str(&format!(" {} {:2}", epoch.to_string_obs_v2(), data.len()));
     let mut index = 0;
     for (sv, _) in data {
         index += 1;
         if (index %13) == 0 {
             if let Some(data) = clock_offset {
-                write!(writer, " {:9.1}", data)?;
+                lines.push_str(&format!(" {:9.1}", data));
             } else {
-				write!(writer, "\n                                ")?;
+				lines.push_str(&format!("\n                                "));
 			}
         }
-		write!(writer, "{}", sv)?;
+		lines.push_str(&sv.to_string());
     }
 	let obs_per_line = 5;
     // for each vehicule per epoch
@@ -718,7 +714,7 @@ fn write_epoch_v2(
 		if let Some(obscodes) = obscodes.get(&sv.constellation) {
 			for (obs_index, obscode) in obscodes.iter().enumerate() {
 				if obs_index % obs_per_line == 0 {
-                    write!(writer, "\n")?;
+                    lines.push_str("\n");
                 }
 				if let Some(observation) = observations.get(obscode) {
                     let formatted_obs = format!("{:14.3}", observation.obs);
@@ -736,16 +732,17 @@ fn write_epoch_v2(
                             }
                         },
                     };
-                    write!(writer, "{}{}", formatted_obs, formatted_flags)?;
+                    lines.push_str(&formatted_obs);
+                    lines.push_str(&formatted_flags);
 				} else {
 					// --> data is not provided: BLANK
-                    write!(writer, "                ")?;
+                    lines.push_str("                ");
 				}
 			}
 		} 
     }
-    write!(writer, "\n")?;
-	Ok(())
+    lines.push_str("\n");
+    lines
 }
 
 #[cfg(test)]

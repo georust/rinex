@@ -1,15 +1,18 @@
 //! `ObservationData` parser and related methods
-use std::collections::HashMap;
-use crate::version;
-use crate::constellation::Constellation;
+use super::{
+    Constellation,
+    version::Version,
+};
 
 pub mod record;
 pub use record::{
     Record, LliFlags, Ssi,
     is_new_epoch,
+    fmt_epoch,
     parse_epoch,
-    write_epoch,
 };
+
+use std::collections::HashMap;
 
 #[cfg(feature = "serde")]
 use serde::Serialize;
@@ -23,12 +26,25 @@ use crate::formatter::datetime;
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Crinex {
     /// Compression program version
-    pub version: version::Version,
+    pub version: Version,
     /// Compression program name
     pub prog: String,
     /// Date of compression
     #[cfg_attr(feature = "serde", serde(with = "datetime"))]
     pub date: chrono::NaiveDateTime,
+}
+
+impl Default for Crinex {
+    fn default() -> Self {
+        Self {
+            version: Version {
+                major: 3,
+                minor: 0,
+            },
+            prog: "rust-crinex".to_string(),
+            date: chrono::Utc::now().naive_utc(),
+        }
+    }
 }
 
 impl std::fmt::Display for Crinex {

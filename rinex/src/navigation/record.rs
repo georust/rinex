@@ -1,5 +1,4 @@
 //! `NavigationData` parser and related methods
-use std::io::Write;
 use thiserror::Error;
 use std::str::FromStr;
 use strum_macros::EnumString;
@@ -14,7 +13,6 @@ use crate::{
 	Header,
 	Constellation, Sv,
 	version::Version,
-	writer::BufferedWriter,
 };
 
 use super::{
@@ -353,26 +351,24 @@ fn parse_v2_v3_record_entry (version: Version, constell: Constellation, content:
 }
 
 /// Writes given epoch into stream 
-pub fn write_epoch (
+pub fn fmt_epoch (
         epoch: &Epoch, 
         data: &BTreeMap<FrameClass, Vec<Frame>>,
         header: &Header,
-        writer: &mut BufferedWriter,
-    ) -> Result<(), Error> {
+    ) -> Result<String, Error> {
     if header.version.major < 4 {
-        write_epoch_v2v3(epoch, data, header, writer)?;
+        fmt_epoch_v2v3(epoch, data, header)
     } else {
-        write_epoch_v4(epoch, data, header, writer)?;
+        fmt_epoch_v4(epoch, data, header)
     }
-	Ok(())
 }
 
-fn write_epoch_v2v3 (
+fn fmt_epoch_v2v3 (
         epoch: &Epoch, 
         data: &BTreeMap<FrameClass, Vec<Frame>>,
         header: &Header,
-        writer: &mut BufferedWriter,
-    ) -> Result<(), Error> {
+    ) -> Result<String, Error> {
+    let mut lines = String::with_capacity(128);
     for (class, frames) in data.iter() {
         if *class == FrameClass::Ephemeris {
             for frame in frames.iter() {
@@ -382,25 +378,27 @@ fn write_epoch_v2v3 (
                     Some(Constellation::Mixed) => {
                         // Mixed constellation context
                         // we need to fully describe the vehicule
-                        write!(writer, "{} ", sv)?;
+                        lines.push_str(&format!("{} ", sv));
                     },
                     Some(_) => {
                         // Unique constellation context:
                         // in V2 format, only PRN is shown
-                        write!(writer, "{:2} ", sv.prn)?;
+                        lines.push_str(&format!("{:2} ", sv.prn));
                     },
-                    None => panic!("producing data with no constellation previously defined"),
+                    None => {
+                        panic!("producing data with no constellation previously defined");
+                    },
                 }
                 if header.version.major < 3 {
-                    write!(writer, "{} ", epoch.to_string_nav_v2())?;
+                    lines.push_str(&format!("{} ", epoch.to_string_nav_v2()));
                 } else {
-                    write!(writer, "{} ", epoch.to_string_nav_v3())?;
+                    lines.push_str(&format!("{} ", epoch.to_string_nav_v3()));
                 }
-                write!(writer,
+                lines.push_str(&format!(
                     "{:14.13E} {:14.13E} {:14.13E}\n     ",
                     ephemeris.clock_bias,
                     ephemeris.clock_drift,
-                    ephemeris.clock_drift_rate)?;
+                    ephemeris.clock_drift_rate));
                 // locate closest revision in db
                 let orbits_revision = match closest_revision(sv.constellation, header.version) {
                     Some(v) => v,
@@ -431,60 +429,60 @@ fn write_epoch_v2v3 (
                     if chunks.peek().is_some() {
                         for (key, _) in chunk {
                             if let Some(data) = ephemeris.orbits.get(*key) {
-                                write!(writer, "{} ", data.to_string())?
+                                lines.push_str(&format!("{} ", data.to_string()));
                             } else {
-                                write!(writer, "              ")?;
+                                lines.push_str(&format!("              "));
                             }
                         }
-                        write!(writer, "\n     ")?;
+                        lines.push_str(&format!("\n     "));
                     } else { // last row
                         for (key, _) in chunk {
                             if let Some(data) = ephemeris.orbits.get(*key) {
-                                write!(writer, "{} ", data.to_string())?
+                                lines.push_str(&format!("{} ", data.to_string()));
                             } else {
-                                write!(writer, "              ")?;
+                                lines.push_str(&format!("              "));
                             }
                         }
-                        write!(writer, "\n")?;
+                        lines.push_str("\n");
                     }
                 }
             }
         }
     }
-    Ok(())
+    Ok(lines)
 }
 
-fn write_epoch_v4 (
+fn fmt_epoch_v4 (
         epoch: &Epoch, 
         data: &BTreeMap<FrameClass, Vec<Frame>>,
         header: &Header,
-        writer: &mut BufferedWriter,
-    ) -> Result<(), Error> {
+    ) -> Result<String, Error> {
+    let mut lines = String::with_capacity(128);
     for (class, frames) in data.iter() {
         if *class == FrameClass::Ephemeris {
             for frame in frames.iter() {
                 let (msgtype, sv, ephemeris) = frame.as_eph()
                     .unwrap();
-                write!(writer, "> {} {} {}\n", class, sv, msgtype)?;
+                lines.push_str(&format!("> {} {} {}\n", class, sv, msgtype));
                 match &header.constellation {
                     Some(Constellation::Mixed) => {
                         // Mixed constellation context
                         // we need to fully describe the vehicule
-                        write!(writer, "{}", sv)?;
+                        lines.push_str(&sv.to_string());
                     },
                     Some(_) => {
                         // Unique constellation context:
                         // in V2 format, only PRN is shown
-                        write!(writer, "{:2} ", sv.prn)?;
+                        lines.push_str(&format!("{:2} ", sv.prn));
                     },
                     None => panic!("producing data with no constellation previously defined"),
                 }
-                write!(writer, 
+                lines.push_str(&format!(
                     "{} {:14.13E} {:14.13E} {:14.13E}\n", 
                     epoch.to_string_nav_v3(),
                     ephemeris.clock_bias, 
                     ephemeris.clock_drift, 
-                    ephemeris.clock_drift_rate)?;
+                    ephemeris.clock_drift_rate));
                 // locate closest revision in db
                 let orbits_revision = match closest_revision(sv.constellation, header.version) {
                     Some(v) => v,
@@ -511,12 +509,12 @@ fn write_epoch_v4 (
                 for (key, _) in orbits_standards.iter() {
                     index += 1;
                     if let Some(data) = ephemeris.orbits.get(*key) {
-                        write!(writer, " {}", &data.to_string())?;
+                        lines.push_str(&format!(" {}", data.to_string()));
                     } else { // data is missing: either not parsed or not provided
-                        write!(writer, "              ")?;
+                        lines.push_str("              ");
                     }
                     if (index % 4) == 0 {
-                        write!(writer, "\n   ")?; //TODO: do not TAB when writing last line of grouping
+                        lines.push_str("\n   "); //TODO: do not TAB when writing last line of grouping
                     }
                 }
             }
@@ -525,14 +523,14 @@ fn write_epoch_v4 (
             for frame in frames.iter() {
                 let (msg, sv, sto) = frame.as_sto()
                     .unwrap();
-                write!(writer, "> {} {} {}\n", class, sv, msg)?;
-                write!(writer, "    {} {}    {}", &epoch.to_string_nav_v3(), sto.system, sto.utc)?;
-                write!(writer, 
+                lines.push_str(&format!("> {} {} {}\n", class, sv, msg));
+                lines.push_str(&format!("    {} {}    {}", epoch.to_string_nav_v3(), sto.system, sto.utc));
+                lines.push_str(&format!( 
                     "{:14.13E} {:14.13E} {:14.13E} {:14.13E}\n",
                     sto.t_tm as f64,
                     sto.a.0,
                     sto.a.1,
-                    sto.a.2)?;
+                    sto.a.2));
 
             }
         } // STO
@@ -548,7 +546,7 @@ fn write_epoch_v4 (
             for frame in frames.iter() {
                 let (msg, sv, ion) = frame.as_ion()
                     .unwrap();
-                write!(writer, "> {} {} {}\n", class, sv, msg)?;
+                lines.push_str(&format!("> {} {} {}\n", class, sv, msg));
                 match ion {
                     IonMessage::KlobucharModel(_model) => {
 
@@ -563,7 +561,7 @@ fn write_epoch_v4 (
             }
         } // ION
     }
-    Ok(())
+    Ok(lines)
 }
 
 #[cfg(test)]

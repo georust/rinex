@@ -208,29 +208,44 @@ impl Rinex {
         self.record = record.clone();
     }
 
-    /// Converts self to CRINEX compatible format.
-    /// This is useful in case we parsed some compressed
-    /// data that we want to uncompress.
-    /// This has no effect if self is not an Observation RINEX,
-    /// because it is not clear to this day, if CRINEX compression
-    /// is feasible on other types of RINEX.
-    ///
+    /// Converts self to CRINEX1 compressed format.
+    /// This is usually applied to Observation RINEX prior release 3 (V2),
+    /// but this library allows applying to modern (V3, V4) revisions too.
     /// Example
     /// ```
     /// use rinex::*;
-    /// // grab a CRINEX (compressed RINEX file)
-    /// let mut rnx = Rinex::from_file("../test_resources/CRNX/V3/KUNZ00CZE.crx").unwrap();
-    /// // let's assume you are interested in file production
-    /// // here we customize rnx` a little bit
+    /// // grab a RINEX
+    /// //
+    /// let mut rnx = Rinex::from_file("../test_resources/OBS/V2/npaz3550.21o")
+    ///     .unwrap();
+    /// // Customize yourself
     /// rnx
     ///     .header
     ///         .with_general_infos("my_prog", "runby", "my_agency");
-    /// rnx.to_file("/tmp/KUNZ00CSZ.crx"); // this will produce the same format, 
-    ///                               // --> data is compressed
-    /// rnx.rnx2crx(); // by doing this we move to uncompressed data production all CRINEX attributes 
-    /// rnx.to_file("/tmp/KUNZ00CSZ.rnx"); // --> data is readable 
+    /// // Convert to compact RINEX
+    /// rnx.rnx2crx1();
+    /// rnx.to_file("/tmp/npaz3550.21D"); //
     /// ```
-    pub fn rnx2crx (&mut self) {
+    pub fn rnx2crx1 (&mut self) {
+        if self.is_observation_rinex() {
+            let now = chrono::Utc::now().naive_utc();
+            self.header = self.header
+                .with_crinex(Crinex {
+                    version: Version {
+                        major: 1,
+                        minor: 0,
+                    },
+                    prog: "rust-crinex".to_string(),
+                    date: now,
+                });
+        }
+    }
+    
+    /// Converts self to CRINEX3 compressed format.
+    /// This is usually applied to modern Observation RINEX,
+    /// but this library allows applying to old (V2) revision too.
+    /// See [Rinex::rnx2crx1] for similar example of use.
+    pub fn rnx2crx3 (&mut self) {
         if self.is_observation_rinex() {
             let now = chrono::Utc::now().naive_utc();
             self.header = self.header

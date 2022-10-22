@@ -1,14 +1,12 @@
 use std::str::FromStr;
 use thiserror::Error;
 use strum_macros::EnumString;
-use std::io::Write;
 use std::collections::{BTreeMap, HashMap};
 use crate::{
 	Sv, 
 	Epoch, EpochFlag, 
 	epoch::str2date, epoch::ParseDateError,
 	version::Version,
-    writer::BufferedWriter,
 };
 
 #[derive(Error, PartialEq, Eq, Hash, Clone, Debug)]
@@ -250,37 +248,38 @@ pub fn parse_epoch (version: Version, content: &str) ->
 }
 
 /// Writes epoch into stream
-pub fn write_epoch (
+pub fn fmt_epoch (
 	epoch: &Epoch, 
 	data: &HashMap<DataType, HashMap<System, Data>>,
-	writer: &mut BufferedWriter,
-    ) -> Result<(), Error> {
+    ) -> Result<String, Error> 
+{
+    let mut lines = String::with_capacity(128);
 	for (dtype, data) in data.iter() {
 		for (system, data) in data.iter() {
-			write!(writer, 
+			lines.push_str(&format!(
 				"{} {} {} ", 
 				dtype, 
 				system,
-				epoch.to_string_obs_v3())?;
-			write!(writer, "{} ", data.bias)?;
+				epoch.to_string_obs_v3()));
+			lines.push_str(&format!("{} ", data.bias));
 			if let Some(sigma) = data.bias_sigma {
-				write!(writer, "{} ", sigma)?;
+				lines.push_str(&format!("{} ", sigma));
 			}
 			if let Some(rate) = data.rate {
-				write!(writer, "{} ", rate)?;
+				lines.push_str(&format!("{} ", rate));
 			}
 			if let Some(sigma) = data.rate_sigma {
-				write!(writer, "{} ", sigma)?;
+				lines.push_str(&format!("{} ", sigma));
 			}
 			if let Some(accel) = data.accel {
-				write!(writer, "{} ", accel)?;
+				lines.push_str(&format!("{} ", accel));
 			}
 			if let Some(sigma) = data.accel_sigma {
-				write!(writer, "{} ", sigma)?;
+				lines.push_str(&format!("{} ", sigma));
 			}
 		}
 	}
-	Ok(())
+	Ok(lines)
 }
 
 #[cfg(test)]

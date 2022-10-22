@@ -1,8 +1,6 @@
 use thiserror::Error;
-use std::io::Write;
 use std::str::FromStr;
 use std::collections::{BTreeMap, HashMap};
-
 use crate::{
     Epoch, EpochFlag,
     epoch::{
@@ -10,9 +8,7 @@ use crate::{
     },
     version,
     Header,
-    writer::BufferedWriter,
 };
-
 use super::observable::Observable;
 
 /// Meteo RINEX Record content. 
@@ -153,23 +149,24 @@ pub fn parse_epoch (header: &Header, content: &str)
 }
 
 /// Writes epoch into given streamer
-pub fn write_epoch (
+pub fn fmt_epoch (
         epoch: &Epoch, 
         data: &HashMap<Observable, f64>, 
         header: &Header, 
-        writer: &mut BufferedWriter
-    ) -> std::io::Result<()>  {
+    ) -> Result<String, Error>  {
+    let mut lines = String::with_capacity(128);
     if header.version.major > 3 {
-        write!(writer, " {}", epoch.date.format("%Y %_m %_d %_H %_M %_S").to_string())?
+        lines.push_str(&format!(" {}", 
+            epoch.date.format("%Y %_m %_d %_H %_M %_S").to_string()));
     } else {
-        write!(writer, " {}", epoch.date.format("%y %_m %_d %_H %_M %_S").to_string())?
+        lines.push_str(&format!(" {}", 
+            epoch.date.format("%y %_m %_d %_H %_M %_S").to_string()));
     }
     let observables = &header
         .meteo
         .as_ref()
         .unwrap()
         .codes;
-    let mut lines = String::new();
     let mut index = 0;
     for obscode in observables {
         index += 1;
@@ -183,7 +180,7 @@ pub fn write_epoch (
         }
     }
     lines.push_str("\n");
-    write!(writer, "{}", lines)
+    Ok(lines)
 }
 
 #[cfg(test)]
