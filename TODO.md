@@ -3,7 +3,6 @@ Roadmap
 
 ## RINEX library
 
-
 - [ ] Epoch:
   - [ ] convert `chrono::Duration` to `hifitime::Epoch` to describe the sampline timestamp
   - [ ] when parsing a record, `flag::HeaderInformationFollows` is not exploited,
@@ -19,11 +18,19 @@ the following content is probably interpreted as a faulty epoch to disregard
   - [ ] improve compression & decompression testbenches
 - [ ] introduce compression & decompression benchmarking
 
-- Misc
+- [ ] Misc
+  - provide python bindings, similarly to `Hifitime`.  
+   Probably focus on high level and most common methods ?  
+   Python bindings should be a crate "feature"
+   
+  - features are not exposed to the API, we should at least
+  exhibit which features exist and what they provide
+
   - Enhance reader/writer with hatanaka capacity to simplify file operations ?
   - Implement Lines<BufReader> iterator ourselves and avoid its memory allocation
   that takes place at every single line iteration
-- Performances
+  
+- [ ] Performances
   - [ ] convert string.find() to regex.find()
   - [ ] use Cow when possible
 
