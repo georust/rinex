@@ -4,7 +4,8 @@ RINEX
 [![Rust](https://github.com/gwbres/rinex/actions/workflows/rust.yml/badge.svg)](https://github.com/gwbres/rinex/actions/workflows/rust.yml)
 [![crates.io](https://docs.rs/rinex/badge.svg)](https://docs.rs/rinex/badge.svg)
 [![crates.io](https://img.shields.io/crates/d/rinex.svg)](https://crates.io/crates/rinex)
-[![rustc](https://img.shields.io/badge/rustc-1.61%2B-blue.svg)](https://img.shields.io/badge/rustc-1.61%2B-blue.svg)
+
+[![minimum rustc: 1.61](https://img.shields.io/badge/minimum%20rustc-1.61-blue?logo=rust)](https://www.whatrustisit.com)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square)](https://github.com/gwbres/rinex/blob/main/LICENSE-APACHE)
 [![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](https://github.com/gwbres/rinex/blob/main/LICENSE-MIT) 
 
@@ -30,24 +31,20 @@ and the [rinex](rinex/) crate.
 
 | Type                       | Parser            | Writer              |  CLI                 | UBX                  |           Notes          |
 |----------------------------|-------------------|---------------------|----------------------|-------------------|-------------------------
-| Navigation  (NAV)          | :heavy_check_mark:| Ephemeris :sparkle: V4(Others) :construction: |  :heavy_check_mark:  | :construction:       | Epoch iteration |
+| Navigation  (NAV)          | :heavy_check_mark:| :construction: |  :heavy_check_mark:  | :construction:       | Epoch iteration |
 | Observation (OBS)          | :heavy_check_mark:| :heavy_check_mark: | :heavy_check_mark:  :chart_with_upwards_trend: |  :construction:  | Epoch iteration |
-|  CRINEX  (Compressed OBS)  | :heavy_check_mark:| CRNX1 :sparkle: CRNX3 :construction: | :heavy_check_mark:  :chart_with_upwards_trend:  |  :construction:    | Epoch iteration |
+|  CRINEX  (Compressed OBS)  | :heavy_check_mark:| :construction:  | :heavy_check_mark:  :chart_with_upwards_trend:  |  :construction:    | Epoch iteration |
 |  Meteorological data (MET) | :heavy_check_mark:| :heavy_check_mark:  | :heavy_check_mark: :chart_with_upwards_trend:  | :construction:  | Epoch iteration |  
-|  Clocks (CLK)              | :heavy_check_mark:|  :sparkle:          | :question:           |:construction: | Epoch iteration |
+|  Clocks (CLK)              | :heavy_check_mark:| :construction:          | :question:           |:construction: | Epoch iteration |
 |  Antenna (ATX)             | :heavy_check_mark:| :construction:      | :heavy_minus_sign:   |:construction: | Sorted by `antex::Antenna` |
-|  Ionosphere Maps  (IONEX)  | :sparkle:         |  :construction:     | :question:           |:construction: | Epoch iteration |
+|  Ionosphere Maps  (IONEX)  | :construction:         |  :construction:     | :question:           |:construction: | Epoch iteration |
 |  SINEX  (SNX)              | :construction:    |  :construction:     | :heavy_minus_sign:   |:construction: | SINEX are special RINEX, they are managed by a dedicated [core library](sinex/)  |
 |  Troposphere  (TRO)        | :construction:    |  :construction:     | :question:           |:construction: | Troposphere are one possible SINEX declination |
 |  Bias  (BIA)               | :heavy_check_mark: |  :construction:    | :question:           |:construction: | Bias solutions are one possible SINEX declination |
 
-:heavy_check_mark: all revisions supported   
-:heavy_minus_sign: not applicable   
-:sparkle: under validation. Works but don't expect something extraordinary   
+:heavy_check_mark: means all revisions supported   
 :construction: under development   
-**CLI** :heavy_check_mark: means the `rinex-cli` app is knowledgeable, can parse, produce and analyze such a RINEX.  
-**CLI** :chart_with_upwards_trend: means the `rinex-cli` application can plot such a RINEX.  
-**UBX** means the `ublox-rnx` app can generate such a RINEX from a Ublox receiver
+:chart_with_upwards_trend: means it is possible to plot such a RINEX with the command line interface  
 
 ## File formats
 
@@ -59,10 +56,7 @@ and the [rinex](rinex/) crate.
 | CRINEX + `gzip` | Must end with `.gz` | Compile with `--flate2` feature, or uncompress manually first |
 | `.Z` | :heavy_minus_sign:  | :x: |
 
-:heavy_minus_sign: No restrictions. File names do not have to follow naming conventions.  
-:heavy_check_mark: Natively supported   
-:construction: Under development  
-:x: Not supported
+:heavy_minus_sign: No restrictions: file names do not have to follow naming conventions.  
 
 ## Record
 
