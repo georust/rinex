@@ -3,39 +3,29 @@ Roadmap
 
 ## RINEX library
 
-- [ ] `epoch` : `EpochFlag::HeaderInformationFollows` is not exploited to this day.  
-We might want to update the Header structure, on the fly, with following information
-- [ ] `sampling`: `chrono::duration` is used most of the time to describe a duration.  
-The fractional parts ("nanos") is totally unused, we cannot handle periods smaller than 1 second to this day
-- [ ] record browsing documentation for each Record type declaration
+
+- [ ] Epoch:
+  - [ ] convert `chrono::Duration` to `hifitime::Epoch` to describe the sampline timestamp
+  - [ ] when parsing a record, `flag::HeaderInformationFollows` is not exploited,
+the following content is probably interpreted as a faulty epoch to disregard
 - [ ] Data production
   - [ ]  Major data production
-    - [ ] Observation data production
     - [ ] Navigation data production
   - [ ] Minor data production
     - [ ] Clock data production 
     - [ ] Ionosphere maps production   
     - [ ] Antenna data production 
 - [ ] Data decompression
-  - [ ] CRX32RNX thorough test
-- [ ] Post Processing
-  - [ ] Conclude the 2D Post processing "double diff"
-  - [ ] Add thorough test bench
-    - [ ] A NAV + OBS context structure could help ?   
-    this is currently inquired in the `differential` branch
-  - [ ] Calculations involved in RTK solver? I am not familiar with such calculations
+  - [ ] improve compression & decompression testbenches
+- [ ] introduce compression & decompression benchmarking
+
 - Misc
   - Enhance reader/writer with hatanaka capacity to simplify file operations ?
   - Implement Lines<BufReader> iterator ourselves and avoid its memory allocation
   that takes place at every single line iteration
 - Performances
-  - [x] introduce benchmarking
-  - [ ] improve TextDiff
-  replace .find() by regex.find
-  Cow ?
-  - [ ] improve decompression method
-  - [ ] improve parser
-  - [ ] improve compression method
+  - [ ] convert string.find() to regex.find()
+  - [ ] use Cow when possible
 
 ## Command Line application
 
@@ -43,8 +33,6 @@ The fractional parts ("nanos") is totally unused, we cannot handle periods small
   - [ ] expose remaining interesting methods ?
   - [ ] conclude the `teqc` mini ascii plot 
   - [ ] Find an efficient method to customize header fields
-  - [ ] We are limited to "clap" 3.x as long as we use a "yaml"
-  command line description
 - [ ]  Data production
   - [ ] provide some interface to efficiently customize the Header section
   - [ ] provide an efficient interface to manage file names to be generated 
@@ -65,10 +53,13 @@ The fractional parts ("nanos") is totally unused, we cannot handle periods small
 
 - File operations
   - [x] Provide a Writer wrapper in similar fashion to existing Reader wrapper for efficient data compression
+- RINEX Record
+  - [x] browsing documentation integrated to the API
 - Data decompression
   - [x] CRX2RNX CRX1 thorough test
   - [x] Conclude [numerical data compression](https://github.com/gwbres/rinex/blob/main/rinex/src/hatanaka.rs#L164)
 - Data Production
+  - [x] Observation V2, V3, V4
   - [x] Meteo, V2,V3,V4
   - [x] Find an efficient test method. Test method parses a given file from the test pool,
   then produces a copy, and evaluates rnx.eq(copy) which must not fail.
@@ -100,3 +91,6 @@ of the file browser
 
 - Graphical Interface
   - [x] Provide a visualization method when we're not generating a file
+
+- Performances
+  - [x] `hatanaka::TextDiff`
