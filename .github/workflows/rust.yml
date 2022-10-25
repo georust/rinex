@@ -22,5 +22,3 @@ jobs:
         cargo build --all-features --verbose
     - name: Tests
       run: cargo test
-    - name: Benchmarking
-      run: cargo bench --all-features
