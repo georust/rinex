@@ -1,5 +1,5 @@
 //! RINEX decompression module
-use crate::sv;
+use crate::*;
 use crate::header;
 use crate::is_comment;
 use crate::types::Type;
@@ -44,15 +44,14 @@ pub struct Decompressor {
     /// Clock offset differentiator
     clock_diff: NumDiff,
     /// Vehicule differentiators
-    sv_diff: HashMap<sv::Sv, Vec<(NumDiff, TextDiff, TextDiff)>>,
+    sv_diff: HashMap<Sv, Vec<(NumDiff, TextDiff, TextDiff)>>,
 }
     
 /// Reworks given content to match RINEX specifications
 /// of an epoch descriptor
 fn format_epoch (version: u8, content: &str, clock_offset: Option<i64>) -> Result<String, Error> {
     let mut result = String::new();
-    //DEBUG
-    //println!("REWORKING \"{}\"", content);
+    //println!("REWORKING \"{}\"", content); //DEBUG
     match version {
         1|2 => { // old RINEX
             // append Systems #ID,
@@ -104,7 +103,6 @@ fn format_epoch (version: u8, content: &str, clock_offset: Option<i64>) -> Resul
             }
         },
     }
-    result.push_str("\n"); // corret format
     Ok(result)
 }
 
@@ -159,8 +157,7 @@ impl Decompressor {
                 None => break,
             };
 
-            //DEBUG
-            //println!("Working from LINE : \"{}\"", line);
+            //println!("Working from LINE : \"{}\"", line); //DEBUG
             
             // [0] : COMMENTS (special case)
             if is_comment!(line) {
@@ -201,9 +198,6 @@ impl Decompressor {
                                 return Err(Error::FaultyCrx3FirstEpoch) ;
                             }
                         }
-                        //DEBUG
-                        //println!("Initializing EPOCH KERNEL with");
-                        //println!("\"{}\"", line);
                         
                         // Kernel initialization,
                         // only once, always text based
@@ -245,9 +239,9 @@ impl Decompressor {
                     // now we must rebuild epoch description, according to standards
                     let recovered = &recovered.trim_end();
                     if let Ok(epoch) = format_epoch(rnx_version.major, &recovered, clock_offset) {
-                        //DEBUG
-                        //println!("REWORKD   \"{}\"", epoch);
+                        //println!("REWORKD   \"{}\"", epoch); //DEBUG
                         result.push_str(&epoch); 
+                        result.push_str("\n");
                     } else {
                         return Err(Error::EpochReworkFailure) ;
                     }
@@ -255,9 +249,8 @@ impl Decompressor {
                     self.state = State::Body ;
                 }, // state::ClockOffsetDescriptor
 
-                State::Body => {
-                    // [3] inside epoch content
-                    let recovered_epoch = self.epoch_diff.decompress(" "); // trico to recover textdiff
+                State::Body => { // inside epoch content
+                    let recovered_epoch = self.epoch_diff.decompress(" "); // trick to recover textdiff
                     let epo = recovered_epoch.trim_end();
                     let mut offset : usize =
                         2    // Y
@@ -267,10 +260,14 @@ impl Decompressor {
                         +2+1 // m
                         +11  // s
                         +1;  // ">" or "&" init marker
-                    if rnx_version.major > 2 { offset += 2 } // Y is 4 digit
-                    if epo.starts_with("> ") { offset += 1 } // CRINEX3 has 1 extra whitespace
+                    if rnx_version.major > 2 { 
+                        offset += 2; // YYYY 4 digits
+                    }
+                    if epo.starts_with("> ") { //CRNX3 
+                        offset += 1; // 1 extra whitespace
+                    }
                     let (_, rem) = epo.split_at(offset);
-                    let (_, rem) = rem.split_at(3); // _ is epoch flag
+                    let (_epoch_flag, rem) = rem.split_at(3);
                     let (n, _) = rem.split_at(3);
                     let nb_sv = u16::from_str_radix(n.trim(), 10)?;
                     //     ---> identify nb of satellite vehicules
@@ -286,8 +283,30 @@ impl Decompressor {
                     if rnx_version.major > 2 {
                         result.push_str(&system.to_string()); // Modern rinex needs XXX on every line
                     }
-
-                    let sv = sv::Sv::from_str(system)?;
+                    
+                    // identify SV
+                    // [1] old + mono constellation: Constellation might be omitted
+                    // [2] standard ID
+                    //println!("SVNN \"{}\"", system); //DEBUG
+                    let sv = match rnx_version.major > 2 {
+                        true => { // modern
+                            Sv::from_str(system.trim())?
+                        },
+                        false => { // old
+                            match &header.constellation {
+                                Some(Constellation::Mixed) => {
+                                    Sv::from_str(system.trim())?
+                                },
+                                Some(c) => {
+                                    Sv {
+                                        constellation: c.clone(),
+                                        prn: u8::from_str_radix(&system[1..].trim(), 10)?,
+                                    }
+                                },
+                                _ => break, // unreachable
+                            }
+                        },
+                    };
                     let codes = &obs_codes[&sv.constellation];
                     if !self.sv_diff.contains_key(&sv) {
                         // first time dealing with this system
@@ -357,9 +376,7 @@ impl Decompressor {
                                         }
                                     }
                                 } else {
-                                    result.push_str("              "); // BLANK data
-                                    result.push_str(" "); // BLANK lli
-                                    result.push_str(" "); // BLANK ssi
+                                    result.push_str("                "); // BLANK
                                     if rnx_version.major < 3 { // old RINEX
                                         if (i+1).rem_euclid(5) == 0 { // maximal nb of OBS per line
                                             result.push_str("\n")
@@ -388,7 +405,7 @@ impl Decompressor {
                                     obs[obs_count].0 // Observation
                                         .init(order.into(), data)?;
                                     obs_data.push(Some(data));
-                                    obs_count += 1
+                                    obs_count += 1;
                                 } else {
                                     // regular compression
                                     if let Ok(num) = i64::from_str_radix(rem.trim(),10) {
@@ -421,9 +438,7 @@ impl Decompressor {
                                             }
                                         }
                                     } else {
-                                        result.push_str("              "); // BLANK data
-                                        result.push_str(" "); // BLANK lli
-                                        result.push_str(" "); // BLANK ssi
+                                        result.push_str("                "); // BLANK
                                         if rnx_version.major < 3 { // old RINEX
                                             if (i+1).rem_euclid(5) == 0 { // maximal nb of OBS per line
                                                 result.push_str("\n")

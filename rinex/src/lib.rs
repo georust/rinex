@@ -208,63 +208,79 @@ impl Rinex {
         self.record = record.clone();
     }
 
-    /// Converts self to CRINEX1 compressed format.
-    /// This is usually applied to Observation RINEX prior release 3 (V2),
-    /// but this library allows applying to modern (V3, V4) revisions too.
-    /// Example
-    /// ```
-    /// use rinex::*;
-    /// // grab a RINEX
-    /// //
-    /// let mut rnx = Rinex::from_file("../test_resources/OBS/V2/npaz3550.21o")
-    ///     .unwrap();
-    /// // Customize yourself
-    /// rnx
-    ///     .header
-    ///         .with_general_infos("my_prog", "runby", "my_agency");
-    /// // Convert to compact RINEX
-    /// rnx.rnx2crx1();
-    /// rnx.to_file("/tmp/npaz3550.21D"); //
-    /// ```
-    pub fn rnx2crx1 (&mut self) {
+    /// Converts self to CRINEX (compressed RINEX) format.
+    /// If current revision is < 3 then file gets converted to CRINEX1
+    /// format, otherwise, modern Observations are converted to CRINEX3.
+    /// This has no effect if self is not an Observation RINEX.
+    pub fn rnx2crnx (&mut self) {
         if self.is_observation_rinex() {
-            let now = chrono::Utc::now().naive_utc();
+            let date = chrono::Utc::now().naive_utc();
+            let version: Version = match self.header.version.major < 3 { 
+                true => {
+                    Version {
+                        major: 1,
+                        minor: 0,
+                    }
+                },
+                false => {
+                    Version {
+                        major: 3,
+                        minor: 0,
+                    }
+                },
+            };
             self.header = self.header
                 .with_crinex(Crinex {
+                    date,
+                    version,
+                    prog: "rust-crinex".to_string(),
+                });
+        }
+    }
+    
+    /// Converts self to CRINEX1 compressed format,
+    /// whatever the RINEX revision might be. 
+    /// This can be used to "force" compression of a RINEX1 into CRINEX3
+    pub fn rnx2crnx1 (&mut self) {
+        if self.is_observation_rinex() {
+            let date = chrono::Utc::now().naive_utc();
+            self.header = self.header
+                .with_crinex(Crinex {
+                    date,
                     version: Version {
                         major: 1,
                         minor: 0,
                     },
                     prog: "rust-crinex".to_string(),
-                    date: now,
                 });
         }
     }
-    
-    /// Converts self to CRINEX3 compressed format.
-    /// This is usually applied to modern Observation RINEX,
-    /// but this library allows applying to old (V2) revision too.
-    /// See [Rinex::rnx2crx1] for similar example of use.
-    pub fn rnx2crx3 (&mut self) {
+
+    /// Converts self to CRINEX3 compressed format,
+    /// whatever the RINEX revision might be. 
+    /// This can be used to "force" compression of a RINEX1 into CRINEX3
+    pub fn rnx2crnx3 (&mut self) {
         if self.is_observation_rinex() {
-            let now = chrono::Utc::now().naive_utc();
+            let date = chrono::Utc::now().naive_utc();
             self.header = self.header
                 .with_crinex(Crinex {
+                    date,
                     version: Version {
                         major: 3,
                         minor: 0,
                     },
                     prog: "rust-crinex".to_string(),
-                    date: now,
                 });
         }
     }
 
-    /// Converts a CRINEX (Compat RINEX) into a RINEX
-    /// (plain, readable RINEX)
-    pub fn crx2rnx (&mut self) {
+    /// Converts a CRINEX (compressed RINEX) into readable RINEX.
+    /// This has no effect if self is not an Observation RINEX.
+    pub fn crnx2rnx (&mut self) {
         if self.is_observation_rinex() {
-            let params = self.header.obs.as_ref().unwrap();
+            let params = self.header.obs
+                .as_ref()
+                .unwrap();
             self.header = self.header.with_observation_fields(
                 observation::HeaderFields {
                     crinex: None,

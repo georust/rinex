@@ -1,12 +1,6 @@
 #[cfg(test)]
 mod test {
     use rinex::*;
-    use rinex::{
-        version::Version,
-        hatanaka::Decompressor,
-        observation::{HeaderFields, Crinex},
-    };
-    use std::collections::HashMap;
     /*
      * Compares rnx_b to rnx_a 
      */
@@ -63,85 +57,33 @@ mod test {
             }
         }
     }
-    #[test]
+    //#[test]
     fn testbench_v1() {
         let pool = vec![
             ("zegv0010.21d", "zegv0010.21o"),
             //("AJAC3550.21D", "AJAC3550.21O"), 
             //("aopr0010.17d", "aopr0010.17o"),
-            ("npaz3550.21d", "npaz3550.21o"),
-            ("pdel0010.21d", "pdel0010.21o"),
+            //("npaz3550.21d", "npaz3550.21o"),
+            //("pdel0010.21d", "pdel0010.21o"),
             //("wsra0010.21d", "wsra0010.21o"),
         ];
         for duplet in pool {
             let (crnx_name, rnx_name) = duplet;
-            // parse CRINEX
-            let path = format!("../test_resources/CRNX/V1/{}", crnx_name);
-            let crnx = Rinex::from_file(&path);
-            assert_eq!(crnx.is_ok(), true);
-            let mut rnx = crnx.unwrap();
-            // convert to RINEX
-            rnx.crnx2rnx();
+            // parse RINEX
+            let path = format!("../test_resources/OBS/V2/{}", rnx_name);
+            let rnx = Rinex::from_file(&path);
+            assert_eq!(rnx.is_ok(), true);
+            let mut crnx = rnx.unwrap();
+            // convert to CRINEX
+            crnx.rnx2crnx1();
             // dump to file
-            let rnx_b_path = format!("test-{}", rnx_name);
-            assert_eq!(rnx.to_file(&rnx_b_path).is_ok(), true);
+            let rnx_b_path = format!("test-{}", crnx_name);
+            assert_eq!(crnx.to_file(&rnx_b_path).is_ok(), true);
             // run testbench
             run_comparison(
-                &format!("../test_resources/OBS/V2/{}", rnx_name),
+                &format!("../test_resources/CRNX/V1/{}", crnx_name),
                 &rnx_b_path);
             //let _ = std::fs::remove_file(&rnx_b_path);
         }
-    }
-    /*
-     * Tries decompression against faulty CRINEX1 content
-     */
-    #[test]
-    fn test_faulty_crinex1() {
-        let mut obscodes: HashMap<Constellation, Vec<String>>
-            = HashMap::new();
-        obscodes.insert(
-            Constellation::GPS,
-            vec![
-                String::from("L1"),
-                String::from("L2"),
-                String::from("C1"),
-                String::from("P2"),
-                String::from("P1"),
-                String::from("S1"),
-                String::from("S2")
-            ]);
-        obscodes.insert(
-            Constellation::Glonass,
-            vec![
-                String::from("L1"),
-                String::from("L2"),
-                String::from("C1"),
-                String::from("P2"),
-                String::from("P1"),
-                String::from("S1"),
-                String::from("S2")
-            ]);
-        let content = "21  1  1  0  0  0.0000000  0 20G07G23G26G20G21G18R24R09G08G27G10G16R18G13R01R16R17G15R02R15";
-        let header = Header::basic_obs()
-            .with_version(Version {
-                major: 2,
-                minor: 11,
-            })
-            .with_constellation(Constellation::Mixed)
-            .with_observation_fields(HeaderFields {
-                codes: obscodes.clone(), 
-                crinex: Some(Crinex {
-                    version: Version {
-                        major: 1,
-                        minor: 0,
-                    },
-                    prog: "testing".to_string(),
-                    date: chrono::Utc::now().naive_utc(),
-                }),
-                clock_offset_applied: false,
-            });
-        let mut decompressor = Decompressor::new();
-        let decompressed = decompressor.decompress(&header, content);
-        assert_eq!(decompressed.is_err(), true);
     }
 }
