@@ -62,14 +62,15 @@ and the [rinex](rinex/) crate.
 
 High level operations can be performed on RINEX records and
 RINEX structure in general.
-Refer to the [official Documentation](https://docs.rs/rinex/0.6.0/rinex/struct.Rinex.html).
+Refer to the [official Documentation](https://docs.rs/rinex/latest/rinex/struct.Rinex.html).
 
 RINEX Records vary a lot from one revision to another
 and from one file type to another.
 To learn how to browse the RINEX record you are interested in,
 refer to its definition in the official documentation.
 For example, here is the 
-[Observation Record](https://docs.rs/rinex/0.6.4/rinex/observation/record/type.Record.html) definition.
+[Observation Record](https://docs.rs/rinex/latest/rinex/observation/record/type.Record.html)
+definition.
 
 ## Features
 
@@ -102,5 +103,8 @@ Always compile rust code with the `--release` flag :+1:
 ## Contributions
 
 Contributions are welcomed, do not hesitate to open new issues
-and submit PR.  
+and submit Pull Requests.
+
+We're looking for Ionosphere Maps (IONEX) to put our parser to the test, providing such data would be really appreciated.
+
 If you want to take part in active developments, checkout our [TODO list](TODO.md)
