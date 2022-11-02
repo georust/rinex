@@ -18,11 +18,10 @@ pub enum Type {
     /// Clock Data (CLK)
     ClockData,
     /// Ionosphere Maps (IONEX)
-    /// allows creating Global Ionspheric Map (cartography)
+    /// contains worldwide Ionospheric Maps 
     IonosphereMaps,
     /// Antenna Data (ATX or Antex) special RINEX format,
-    /// with empty header and body describes several sets of
-    /// Antenna characterization coefficients.
+    /// contains sets of Antenna characterization coefficients.
     /// No database is furnished by this lib (way too big).
     /// Users interested in such calibrations / conversions / calculations,
     /// should use this parser as a mean to extract the antenna coefficients solely
