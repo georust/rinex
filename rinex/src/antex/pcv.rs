@@ -12,7 +12,7 @@ pub enum Error {
 #[derive(PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum Pcv {
-    /// Given data is aboslute
+    /// Given data is absolute
     Absolute,
     /// Given data is relative, with type of relativity
     Relative(String),
@@ -43,6 +43,9 @@ impl Pcv {
             Self::Relative(_) => true,
             _ => false,
         }
+    }
+    pub fn is_absolute(&self) -> bool {
+        !self.is_relative()
     }
     pub fn with_relative_type(&self, t: &str) -> Self {
         let mut s = self.clone();

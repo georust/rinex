@@ -20,11 +20,11 @@ pub use antenna::{
 #[derive(PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct HeaderFields {
+    /// Phase Center Variations
+    pub pcv: pcv::Pcv, 
     /// Optionnal reference antenna Serial Number
     /// used to produce this calibration file
     pub reference_sn: Option<String>,
-    /// Phase Center Variations type 
-    pub pcv: pcv::Pcv, 
 }
 
 impl HeaderFields {
