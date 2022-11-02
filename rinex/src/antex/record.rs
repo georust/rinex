@@ -1,11 +1,15 @@
 use thiserror::Error;
 use std::str::FromStr;
-use crate::epoch;
-use crate::channel;
 
 use super::{
 	Frequency, Pattern,
 	Antenna, Calibration, CalibrationMethod,
+};
+
+use crate::{
+    channel,
+    epoch::str2date,
+    merge, merge::Merge,
 };
 
 /// Returns true if this line matches 
@@ -126,13 +130,13 @@ pub fn parse_epoch (content: &str) -> Result<(Antenna, Vec<Frequency>), Error> {
 
         } else if marker.contains("VALID FROM") {
             let datestr =  content.trim();
-            if let Ok(datetime) = epoch::str2date(datestr) {
+            if let Ok(datetime) = str2date(datestr) {
                 antenna = antenna.with_valid_from(datetime)
             }
 
         } else if marker.contains("VALID UNTIL") {
             let datestr =  content.trim();
-            if let Ok(datetime) = epoch::str2date(datestr) {
+            if let Ok(datetime) = str2date(datestr) {
                 antenna = antenna.with_valid_until(datetime)
             }
 
@@ -205,5 +209,28 @@ mod test {
          assert_eq!(is_new_epoch(content), false);
          let content = "   G01                                                      START OF FREQUENCY";
          assert_eq!(is_new_epoch(content), false);
+    }
+}
+
+impl Merge<Record> for Record {
+    fn merge_mut(&mut self, rhs: &Self) -> Result<(), merge::Error> {
+        for antenna in rhs.iter() {
+            if self.contains(antenna) {
+                let (antenna, frequencies) = antenna;
+                for (aantenna, ffrequencies) in self.iter_mut() {
+                    if antenna == aantenna { // for this antenna
+                        // add missing frequencies
+                        for frequency in frequencies {
+                            if !ffrequencies.contains(frequency) {
+                                ffrequencies.push(frequency.clone());
+                            }
+                        }
+                    }
+                }
+            } else {
+                self.push(antenna.clone());
+            }
+        }
+        Ok(())
     }
 }

@@ -8,6 +8,7 @@ use crate::{
     },
     version,
     Header,
+    merge, merge::Merge,
 };
 use super::observable::Observable;
 
@@ -224,5 +225,22 @@ mod test {
                 major: 4,
                 minor: 0,
             }), true);
+    }
+}
+
+impl Merge<Record> for Record {
+    fn merge_mut(&mut self, rhs: &Self) -> Result<(), merge::Error> {
+        for (epoch, observations) in rhs.iter() {
+            if let Some(oobservations) = self.get_mut(epoch) {
+                for (observation, data) in observations.iter() {
+                    if !oobservations.contains_key(observation) { // new observation
+                        oobservations.insert(observation.clone(), *data);
+                    }
+                }
+            } else { // new epoch
+                self.insert(*epoch, observations.clone());
+            }
+        }
+        Ok(())
     }
 }

@@ -14,6 +14,7 @@ use crate::{
 	},
 	Header,
 	version::Version,
+    merge, merge::Merge,
 };
 
 #[cfg(feature = "serde")]
@@ -823,5 +824,46 @@ mod test {
             ),
             false
         );
+    }
+}
+
+impl Merge<Record> for Record {
+    fn merge_mut(&mut self, rhs: &Self) -> Result<(), merge::Error> {
+        for (epoch, (clk_offset, vehicules)) in rhs.iter() {
+            if let Some((cclk_offset, vvehicules)) = self.get_mut(epoch) {
+                if let Some(clk_offset) = clk_offset {
+                    if cclk_offset.is_none() {
+                        *cclk_offset = Some(*clk_offset); // clock offset is now provided
+                    }
+                }
+                for (vehicule, observations) in vehicules.iter() {
+                    if let Some(oobservations) = vvehicules.get_mut(vehicule) {
+                        for (observable, data) in observations.iter() {
+                            if let Some(ddata) = oobservations.get_mut(observable) {
+                                // observation both provided
+                                //  fill missing flags but leave data untouched
+                                if let Some(lli) = data.lli {
+                                    if ddata.lli.is_none() {
+                                        ddata.lli = Some(lli);
+                                    }
+                                }
+                                if let Some(ssi) = data.ssi {
+                                    if ddata.ssi.is_none() {
+                                        ddata.ssi = Some(ssi);
+                                    }
+                                }
+                            } else { //new observation
+                                oobservations.insert(observable.clone(), data.clone());
+                            }
+                        }
+                    } else { // new vehicule
+                        vvehicules.insert(*vehicule, observations.clone());
+                    }
+                }
+            } else { // new epoch
+                self.insert(*epoch, (*clk_offset, vehicules.clone()));
+            }
+        }
+        Ok(())
     }
 }

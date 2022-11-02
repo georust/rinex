@@ -3,11 +3,6 @@
 //! Refer to README and official documentation, extensive examples of use
 //! are provided.  
 //! Homepage: <https://github.com/gwbres/rinex>
-mod leap;
-mod merge;
-mod formatter;
-//mod gnss_time;
-
 pub mod antex;
 pub mod channel;
 pub mod clocks;
@@ -26,6 +21,10 @@ pub mod types;
 pub mod version;
 pub mod processing;
 
+mod leap;
+mod merge;
+mod formatter;
+
 extern crate num;
 #[macro_use]
 extern crate num_derive;
@@ -41,13 +40,13 @@ use thiserror::Error;
 use chrono::{Datelike, Timelike};
 use std::collections::{BTreeMap, HashMap};
 
-use merge::Merge;
 use version::Version;
 use observation::Crinex;
 use navigation::OrbitItem;
 
 // export major types
 pub use sv::Sv;
+pub use merge::Merge;
 pub use header::Header;
 pub use epoch::{Epoch, EpochFlag};
 pub use constellation::Constellation;
@@ -887,79 +886,6 @@ impl Rinex {
         }
     }
 
-    /// Merges given RINEX into self, in teqc similar fashion.   
-    /// Header sections are combined (refer to header::merge Doc
-    /// to understand its behavior).
-    /// Resulting self.record (modified in place) remains sorted by 
-    /// sampling timestamps.
-    pub fn merge_mut (&mut self, other: &Self) -> Result<(), merge::Error> {
-        self.header.merge_mut(&other.header)?;
-        // grab Self:: + Other:: `epochs`
-        let (epochs, other_epochs) = (self.epochs(), other.epochs());
-        if epochs.len() == 0 { // self is empty
-            self.record = other.record.clone();
-            Ok(()) // --> self is overwritten
-        } else if other_epochs.len() == 0 { // nothing to merge
-            Ok(()) // --> self is untouched
-        } else {
-            // add Merge op descriptor
-            let now = chrono::offset::Utc::now();
-            self.header.comments.push(format!(
-                "rustrnx-{:<20} FILE MERGE          {} UTC", 
-                env!("CARGO_PKG_VERSION"),
-                now.format("%Y%m%d %H%M%S")));
-            // merge op
-            match self.header.rinex_type {
-                types::Type::NavigationData => {
-                    let a_rec = self.record
-                        .as_mut_nav()
-                        .unwrap();
-                    let b_rec = other.record
-                        .as_nav()
-                        .unwrap();
-                    for (k, v) in b_rec {
-                        a_rec.insert(*k, v.clone());
-                    }
-                },
-                types::Type::ObservationData => {
-                    let a_rec = self.record
-                        .as_mut_obs()
-                        .unwrap();
-                    let b_rec = other.record
-                        .as_obs()
-                        .unwrap();
-                    for (k, v) in b_rec {
-                        a_rec.insert(*k, v.clone());
-                    }
-                },
-                types::Type::MeteoData => {
-                    let a_rec = self.record
-                        .as_mut_meteo()
-                        .unwrap();
-                    let b_rec = other.record
-                        .as_meteo()
-                        .unwrap();
-                    for (k, v) in b_rec {
-                        a_rec.insert(*k, v.clone());
-                    }
-                },
-                types::Type::IonosphereMaps => {
-                    let a_rec = self.record
-                        .as_mut_ionex()
-                        .unwrap();
-                    let b_rec = other.record
-                        .as_ionex()
-                        .unwrap();
-                    for (k, v) in b_rec {
-                        a_rec.insert(*k, v.clone());
-                    }
-                },
-                _ => unreachable!("epochs::iter()"),
-            }
-            Ok(())
-        }
-    }
-    
     /// [merge] immutable implementation
     pub fn merge (&self, rhs: &Self) -> Result<Self, merge::Error> {
         let mut s = self.clone();
@@ -3409,5 +3335,27 @@ mod test {
         assert_eq!(hourly_session_str(time), "a");
         let time = chrono::NaiveTime::from_str("23:30:00").unwrap();
         assert_eq!(hourly_session_str(time), "x");
+    }
+}
+
+impl Merge<Rinex> for Rinex {
+    fn merge_mut(&mut self, rhs: &Self) -> Result<(), merge::Error> {
+        self.header.merge_mut(&rhs.header)?;
+        if self.epochs().len() == 0 { // self is empty
+            self.record = rhs.record.clone();
+            Ok(())
+        } else if rhs.epochs().len() == 0 { // nothing to merge
+            Ok(())
+        } else {
+            // add special header marker
+            let now = chrono::Utc::now().naive_utc(); 
+            self.header.comments.push(format!(
+                "rustrnx-{:<20} FILE MERGE          {} UTC", 
+                env!("CARGO_PKG_VERSION"),
+                now.format("%Y%m%d %H%M%S")));
+            // RINEX record merging 
+            self.record.merge_mut(&rhs.record)?;
+            Ok(())
+        }
     }
 }

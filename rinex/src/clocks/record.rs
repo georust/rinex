@@ -7,6 +7,7 @@ use crate::{
 	Epoch, EpochFlag, 
 	epoch::str2date, epoch::ParseDateError,
 	version::Version,
+    merge, merge::Merge,
 };
 
 #[derive(Error, PartialEq, Eq, Hash, Clone, Debug)]
@@ -302,5 +303,55 @@ mod test {
         assert_eq!(is_new_epoch(c), true);
         let c = "A  G16  1994 07 14 20 59  0.000000  2   -0.123456789012E+00 -0.123456789012E+01"; 
         assert_eq!(is_new_epoch(c), false);
+    }
+}
+
+impl Merge<Record> for Record {
+    fn merge_mut(&mut self, rhs: &Self) -> Result<(), merge::Error> {
+        for (epoch, dtypes) in rhs.iter() {
+            if let Some(ddtypes) = self.get_mut(epoch) {
+                for (dtype, systems) in dtypes.iter() {
+                    if let Some(ssystems) = ddtypes.get_mut(dtype) {
+                        for (system, data) in systems.iter() {
+                            if let Some(ddata) = ssystems.get_mut(system) {
+                                // provide only previously omitted fields
+                                if let Some(data) = data.bias_sigma {
+                                    if ddata.bias_sigma.is_none() {
+                                        ddata.bias_sigma = Some(data);
+                                    }
+                                }
+                                if let Some(data) = data.rate {
+                                    if ddata.rate.is_none() {
+                                        ddata.rate = Some(data);
+                                    }
+                                }
+                                if let Some(data) = data.rate_sigma {
+                                    if ddata.rate_sigma.is_none() {
+                                        ddata.rate_sigma = Some(data);
+                                    }
+                                }
+                                if let Some(data) = data.accel {
+                                    if ddata.accel.is_none() {
+                                        ddata.accel = Some(data);
+                                    }
+                                }
+                                if let Some(data) = data.accel_sigma {
+                                    if ddata.accel_sigma.is_none() {
+                                        ddata.accel_sigma = Some(data);
+                                    }
+                                }
+                            } else { // new system
+                                ssystems.insert(system.clone(), data.clone());
+                            }
+                        }
+                    } else { //new data type
+                        ddtypes.insert(dtype.clone(), systems.clone());
+                    }
+                }
+            } else { // new epoch
+                self.insert(*epoch, dtypes.clone());
+            }
+        }
+        Ok(())
     }
 }

@@ -38,13 +38,19 @@ pub fn merge_mut_unique_vec<T: Clone + PartialEq> (lhs: &mut Vec<T>, rhs: &Vec<T
 }
 
 /// Merges given map into self but ensures both keys and values are unique 
-pub fn merge_mut_unique_map2d<K: PartialEq + Eq + Hash + Clone, V: Clone> 
+pub fn merge_mut_unique_map2d<K: PartialEq + Eq + Hash + Clone, V: Clone + PartialEq> 
     (lhs: &mut HashMap<K, Vec<V>>, rhs: &HashMap<K, Vec<V>>) 
 {
     for (k, values) in rhs.iter() {
-        if !lhs.contains_key(&k) {
+        if let Some(vvalues) = lhs.get_mut(&k) {
+            for value in values {
+                if !vvalues.contains(&value) {
+                    vvalues.push(value.clone());
+                }
+            }
+        } else {
             lhs.insert(k.clone(), values.clone());
-        } 
+        }
     }
 }
 

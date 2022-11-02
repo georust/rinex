@@ -19,6 +19,9 @@ use crate::hatanaka::{
     Compressor, Decompressor,
 };
 
+use crate::merge;
+use merge::Merge;
+
 #[cfg(feature = "serde")]
 use serde::Serialize;
 
@@ -510,4 +513,40 @@ pub fn parse_record (reader: &mut BufferedReader, header: &header::Header) -> Re
         Type::ObservationData => Record::ObsRecord(obs_rec), 
     };
     Ok((record, comments))
+}
+
+impl Merge<Record> for Record {
+    fn merge_mut(&mut self, rhs: &Self) -> Result<(), merge::Error> {
+        if let Some(lhs) = self.as_mut_nav() {
+            if let Some(rhs) = rhs.as_nav() {
+                lhs.merge_mut(&rhs)?;
+            }
+        }
+        if let Some(lhs) = self.as_mut_obs() {
+            if let Some(rhs) = rhs.as_obs() {
+                lhs.merge_mut(&rhs)?;
+            }
+        }
+        if let Some(lhs) = self.as_mut_meteo() {
+            if let Some(rhs) = rhs.as_meteo() {
+                lhs.merge_mut(&rhs)?;
+            }
+        }
+        if let Some(lhs) = self.as_mut_ionex() {
+            if let Some(rhs) = rhs.as_ionex() {
+                lhs.merge_mut(&rhs)?;
+            }
+        }
+        if let Some(lhs) = self.as_mut_antex() {
+            if let Some(rhs) = rhs.as_antex() {
+                lhs.merge_mut(&rhs)?;
+            }
+        }
+        if let Some(lhs) = self.as_mut_clock() {
+            if let Some(rhs) = rhs.as_clock() {
+                lhs.merge_mut(&rhs)?;
+            }
+        }
+        Ok(())
+    }
 }

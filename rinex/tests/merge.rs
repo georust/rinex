@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod merge {
-    use rinex::Rinex;
+    use rinex::*;
     #[test]
     fn test_merge_type_mismatch() {
         let test_resources = env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/";

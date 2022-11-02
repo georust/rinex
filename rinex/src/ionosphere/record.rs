@@ -1,4 +1,8 @@
-use crate::epoch;
+use crate::{
+    Epoch, epoch::str2date,
+    merge, merge::Merge,
+};
+
 use thiserror::Error;
 use std::str::FromStr;
 use std::collections::BTreeMap;
@@ -24,7 +28,7 @@ pub fn is_new_map (line: &str) -> bool {
 /// `IONEX` record is, for a given epoch,
 /// a TEC map (always given), an optionnal RMS map
 /// and an optionnal height map
-pub type Record = BTreeMap<epoch::Epoch, (Map, Option<Map>, Option<Map>)>;
+pub type Record = BTreeMap<Epoch, (Map, Option<Map>, Option<Map>)>;
 
 #[derive(Debug, Clone, Default)]
 #[derive(PartialEq, PartialOrd)]
@@ -86,10 +90,10 @@ pub enum Error {
 }
 
 /// Builds list of identified maps and associated epoch 
-pub fn parse_epoch (content: &str, exponent: i8) -> Result<(epoch::Epoch, Map), Error> {
+pub fn parse_epoch (content: &str, exponent: i8) -> Result<(Epoch, Map), Error> {
     let lines = content.lines();
     let mut exp = exponent.clone();
-    let mut epoch = epoch::Epoch::default();
+    let mut epoch = Epoch::default();
     let mut coords = Coordinates::default();
     let mut map = Map::new();
     let mut data :Vec<f32> = Vec::new();
@@ -139,7 +143,7 @@ pub fn parse_epoch (content: &str, exponent: i8) -> Result<(epoch::Epoch, Map), 
             datestr.push_str(items[4]); // m
             datestr.push_str(" ");
             datestr.push_str(items[5]); // s
-            if let Ok(e) = epoch::str2date(&datestr) {
+            if let Ok(e) = str2date(&datestr) {
                 epoch.date = e
             }
 
@@ -212,5 +216,80 @@ mod test {
      5                                                      END OF TEC MAP     "; 
         //let entry = parse_epoch(content, -1);
         //println!("{:#?}", entry);
+    }
+}
+
+impl Merge<Record> for Record {
+    fn merge_mut(&mut self, rhs: &Self) -> Result<(), merge::Error> {
+        for (epoch, (tec_map, rms_map, h_map)) in rhs.iter() {
+            if let Some((ttec_map, rrms_map, hh_map)) = self.get_mut(epoch) {
+                for coordinates in tec_map.iter() {
+                    if ttec_map.contains(coordinates) {
+                        let (coordinates, points) = coordinates;
+                        for point in points {
+                            for (ccoordinates, ppoints) in ttec_map.iter_mut() {
+                                if coordinates == ccoordinates { // for this coordinate
+                                    if !ppoints.contains(point) {
+                                        // provide missing point
+                                        ppoints.push(*point);
+                                    }
+                                }
+                            }
+                        }
+                    } else { // provide previously missing coordinates
+                        ttec_map.push(coordinates.clone());
+                    }
+                }
+                if let Some(map) = rms_map {
+                    if let Some(mmap) = rrms_map {
+                        for coordinates in map.iter() {
+                            if mmap.contains(coordinates) {
+                                let (coordinates, points) = coordinates;
+                                for point in points {
+                                    for (ccoordinates, ppoints) in mmap.iter_mut() {
+                                        if coordinates == ccoordinates { // for these coordinates
+                                            if !ppoints.contains(point) {
+                                                // provide missing point
+                                                ppoints.push(*point);
+                                            }
+                                        }
+                                    }
+                                }
+                            } else { // provide previous missing coordinates
+                                mmap.push(coordinates.clone());
+                            }
+                        }
+                    } else { // provide previously omitted RMS map
+                        *rrms_map = Some(map.clone());
+                    }
+                }
+                if let Some(map) = h_map {
+                    if let Some(mmap) = hh_map {
+                        for coordinates in map.iter() {
+                            if mmap.contains(coordinates) {
+                                let (coordinates, points) = coordinates;
+                                for point in points {
+                                    for (ccoordinates, ppoints) in mmap.iter_mut() {
+                                        if coordinates == ccoordinates { // for these coordinates
+                                            if !ppoints.contains(point) {
+                                                // provide missing point
+                                                ppoints.push(*point);
+                                            }
+                                        }
+                                    }
+                                }
+                            } else { // provide previous missing coordinates
+                                mmap.push(coordinates.clone());
+                            }
+                        }
+                    } else { // provide previously omitted RMS map
+                        *hh_map = Some(map.clone());
+                    }
+                }
+            } else { // new epoch
+                self.insert(*epoch, (tec_map.clone(), rms_map.clone(), h_map.clone()));
+            }
+        }
+        Ok(())
     }
 }

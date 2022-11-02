@@ -14,6 +14,7 @@ use crate::{
 	Header,
 	Constellation, Sv,
 	version::Version,
+    merge, merge::Merge,
 };
 
 use super::{
@@ -1154,4 +1155,28 @@ mod test {
         }
     }
 /* GAL V4 from example please */
+}
+
+impl Merge<Record> for Record {
+    fn merge_mut(&mut self, rhs: &Self) -> Result<(), merge::Error> {
+        for (epoch, classes) in rhs.iter() {
+            if let Some(cclasses) = self.get_mut(epoch) {
+                for (class, frames) in classes.iter() {
+                    if let Some(fframes) = cclasses.get_mut(class) {
+                        for frame in frames {
+                            // add missing frames
+                            if !fframes.contains(frame) {
+                                fframes.push(frame.clone());
+                            }
+                        }
+                    } else { // new frame class
+                        cclasses.insert(*class, frames.clone());
+                    }
+                }
+            } else { // new epoch
+                self.insert(*epoch, classes.clone());
+            }
+        }
+        Ok(())
+    }
 }
