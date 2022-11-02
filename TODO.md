@@ -37,8 +37,9 @@ the following content is probably interpreted as a faulty epoch to disregard
 ## Command Line application
 
 - [ ] CLI
-  - [ ] expose remaining interesting methods ?
+  - [ ] progress towards quality check 
   - [ ] conclude the `teqc` mini ascii plot 
+  - [ ] `teqc` like verbose / analysis report ? 
   - [ ] Find an efficient method to customize header fields
 - [ ]  Data production
   - [ ] provide some interface to efficiently customize the Header section
