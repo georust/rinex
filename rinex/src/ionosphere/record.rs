@@ -1,6 +1,7 @@
 use crate::{
     Epoch, epoch::str2date,
     merge, merge::Merge,
+    split, split::Split,
 };
 
 use thiserror::Error;
@@ -298,5 +299,11 @@ impl Merge<Record> for Record {
             }
         }
         Ok(())
+    }
+}
+
+impl Split<Record> for Record {
+    fn split_at_epoch(&self, epoch: Epoch) -> Result<(Self, Self), split::Error> {
+        Ok((self.clone(), self.clone()))
     }
 }

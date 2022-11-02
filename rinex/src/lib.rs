@@ -23,6 +23,7 @@ pub mod processing;
 
 mod leap;
 mod merge;
+mod split;
 mod formatter;
 
 extern crate num;
@@ -47,6 +48,7 @@ use navigation::OrbitItem;
 // export major types
 pub use sv::Sv;
 pub use merge::Merge;
+pub use split::Split;
 pub use header::Header;
 pub use epoch::{Epoch, EpochFlag};
 pub use constellation::Constellation;
@@ -146,15 +148,6 @@ pub enum Error {
     RecordError(#[from] record::Error),
     #[error("file i/o error")]
     IoError(#[from] std::io::Error),
-}
-
-#[derive(Error, Debug)]
-/// `Split` ops related errors
-pub enum SplitError {
-    #[error("desired epoch is too early")]
-    EpochTooEarly,
-    #[error("desired epoch is too late")]
-    EpochTooLate,
 }
 
 impl std::ops::Sub<Rinex> for Rinex {
@@ -708,134 +701,6 @@ impl Rinex {
             e0 = boundary 
         }
         result
-    }
-
-    /// Splits self into two RINEXes, at desired epoch.
-    /// Header sections are simply copied.
-    pub fn split_at_epoch (&self, epoch: Epoch) -> Result<(Self, Self), SplitError> {
-        let (r0, r1) = self.split_record_at_epoch(epoch)?;
-        Ok((
-            Self {
-                header: self.header.clone(),
-                comments: self.comments.clone(),
-                record: r0,
-            },
-            Self {
-                header: self.header.clone(),
-                comments: self.comments.clone(),
-                record: r1,
-            },
-        ))
-    }
-
-
-    /// Splits record into two at desired `epoch`.
-    /// Self does not have to be a `Merged` file.
-    pub fn split_record_at_epoch (&self, epoch: Epoch) -> Result<(record::Record,record::Record), SplitError> {
-        let epochs = self.epochs();
-        if epoch.date < epochs[0].date {
-            return Err(SplitError::EpochTooEarly)
-        }
-        if epoch.date > epochs[epochs.len()-1].date {
-            return Err(SplitError::EpochTooLate)
-        }
-        let rec0 : record::Record = match self.header.rinex_type {
-            types::Type::NavigationData => {
-                let rec = self.record.as_nav()
-                    .unwrap()
-                        .iter()
-                        .flat_map(|(k, v)| {
-                            if k.date < epoch.date {
-                                Some((k, v))
-                            } else {
-                                None
-                            }
-                        })
-                        .map(|(k,v)| (k.clone(),v.clone())) // BTmap collect() derefencing 
-                        .collect();
-                record::Record::NavRecord(rec)
-            },
-            types::Type::ObservationData => {
-                let rec = self.record.as_obs()
-                    .unwrap()
-                        .iter()
-                        .flat_map(|(k, v)| {
-                            if k.date < epoch.date {
-                                Some((k, v))
-                            } else {
-                                None
-                            }
-                        })
-                        .map(|(k,v)| (k.clone(),v.clone())) // BTmap collect() derefencing 
-                        .collect();
-                record::Record::ObsRecord(rec)
-            },
-            types::Type::MeteoData => {
-                let rec = self.record.as_meteo()
-                    .unwrap()
-                        .iter()
-                        .flat_map(|(k, v)| {
-                            if k.date < epoch.date {
-                                Some((k, v))
-                            } else {
-                                None
-                            }
-                        })
-                        .map(|(k,v)| (k.clone(),v.clone())) // BTmap collect() derefencing 
-                        .collect();
-                record::Record::MeteoRecord(rec)
-            },
-            _ => unreachable!("epochs::iter()"),
-        };
-        let rec1 : record::Record = match self.header.rinex_type {
-            types::Type::NavigationData => {
-                let rec = self.record.as_nav()
-                    .unwrap()
-                        .iter()
-                        .flat_map(|(k, v)| {
-                            if k.date >= epoch.date {
-                                Some((k, v))
-                            } else {
-                                None
-                            }
-                        })
-                        .map(|(k,v)| (k.clone(),v.clone())) // BTmap collect() derefencing 
-                        .collect();
-                record::Record::NavRecord(rec)
-            },
-            types::Type::ObservationData => {
-                let rec = self.record.as_obs()
-                    .unwrap()
-                        .iter()
-                        .flat_map(|(k, v)| {
-                            if k.date >= epoch.date {
-                                Some((k, v))
-                            } else {
-                                None
-                            }
-                        })
-                        .map(|(k,v)| (k.clone(),v.clone())) // BTmap collect() derefencing 
-                        .collect();
-                record::Record::ObsRecord(rec)
-            },
-            types::Type::MeteoData => {
-                let rec = self.record.as_meteo()
-                    .unwrap()
-                        .iter()
-                        .flat_map(|(k, v)| {
-                            if k.date >= epoch.date {
-                                Some((k, v))
-                            } else {
-                                None
-                            }
-                        })
-                        .map(|(k,v)| (k.clone(),v.clone())) // BTmap collect() derefencing 
-                        .collect();
-                record::Record::MeteoRecord(rec)
-            },
-            _ => unreachable!("epochs::iter()"),
-        };
-        Ok((rec0,rec1))
     }
 
     /// Returns list of epochs contained in self.
@@ -3364,5 +3229,24 @@ impl Merge<Rinex> for Rinex {
             self.record.merge_mut(&rhs.record)?;
             Ok(())
         }
+    }
+}
+
+impl Split<Rinex> for Rinex {
+    /// Splits `Self` at desired epoch
+    fn split_at_epoch(&self, epoch: Epoch) -> Result<(Self, Self), split::Error> {
+        let (r0, r1) = self.record.split_at_epoch(epoch)?;
+        Ok((
+            Self {
+                header: self.header.clone(),
+                comments: self.comments.clone(),
+                record: r0,
+            },
+            Self {
+                header: self.header.clone(),
+                comments: self.comments.clone(),
+                record: r1,
+            },
+        ))
     }
 }

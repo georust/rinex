@@ -22,6 +22,9 @@ use crate::hatanaka::{
 use crate::merge;
 use merge::Merge;
 
+use crate::split;
+use split::Split;
+
 #[cfg(feature = "serde")]
 use serde::Serialize;
 
@@ -555,5 +558,23 @@ impl Merge<Record> for Record {
             }
         }
         Ok(())
+    }
+}
+
+impl Split<Record> for Record {
+    fn split_at_epoch(&self, epoch: Epoch) -> Result<(Self, Self), split::Error> {
+        if let Some(r) = self.as_obs() {
+            r.split_at_epoch(epoch)
+        } else if let Some(r) = self.as_nav() {
+            r.split_at_epoch(epoch)
+        } else if let Some(r) = self.as_meteo() {
+            r.split_at_epoch(epoch)
+        } else if let Some(r) = self.as_ionex() {
+            r.split_at_epoch(epoch)
+        } else if let Some(r) = self.as_clock() {
+            r.split_at_epoch(epoch)
+        } else {
+            Err(split::Error::NoEpochIteratio)
+        }
     }
 }

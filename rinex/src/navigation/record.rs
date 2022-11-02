@@ -15,6 +15,7 @@ use crate::{
 	Constellation, Sv,
 	version::Version,
     merge, merge::Merge,
+    split, split::Split,
 };
 
 use super::{
@@ -1185,5 +1186,11 @@ impl Merge<Record> for Record {
             }
         }
         Ok(())
+    }
+}
+
+impl Split<Record> for Record {
+    fn split_at_epoch(&self, epoch: Epoch) -> Result<(Self, Self), split::Error> {
+        Ok((self.clone(), self.clone()))
     }
 }
