@@ -71,7 +71,7 @@ impl Cli {
                     .arg(Arg::new("resample-interval")
                         .long("resample-interval")
                         .short('i')
-                        .help("Discards every epoch in between |e(n)-(n-1)| < interval, where interval is a valid \"chrono::Duration\" string description"))
+                        .help("Shrinks record so adjacent epochs match the |e(n)-e(n-1)| > interval condition. Interval must be a valid \"chrono::Duration\" string description"))
                     .arg(Arg::new("time-window")
                         .long("time-window")
                         .short('w')
@@ -91,6 +91,16 @@ impl Cli {
                         .long("retain-epoch-nok")
                         .action(ArgAction::SetTrue)
                         .help("Retain only non valid epochs"))
+                    .arg(Arg::new("retain-elev-above")
+                        .long("retain-elev-above")
+                        .help("Retain vehicules (strictly) above given elevation angle"))
+                    .arg(Arg::new("retain-elev-below")
+                        .long("retain-elev-below")
+                        .help("Retain vehicules (strictly) below given elevation angle"))
+                    .arg(Arg::new("retain-best-elev")
+                        .long("retain-best-elev")
+                        .action(ArgAction::SetTrue)
+                        .help("Retain vehicules per epoch and per constellation, that exhibit the best elevation angle"))
                 .next_help_heading("OBS RINEX specific commands")
                     .arg(Arg::new("observables")
                         .long("observables")
@@ -202,9 +212,11 @@ impl Cli {
                     .arg(Arg::new("merge")
                         .short('m')
                         .long("merge")
+                        .action(ArgAction::SetTrue)
                         .help("Merge two RINEX files together"))
                     .arg(Arg::new("split")
                         .long("split")
+                        .action(ArgAction::SetTrue)
                         .help("Split RINEX into two seperate files"))
                     .arg(Arg::new("ascii-plot")
                         .long("ascii-plot")
@@ -316,6 +328,9 @@ impl Cli {
         | self.matches.contains_id("retain-nav-iono")
         | self.matches.contains_id("retain-phase")
         | self.matches.contains_id("retain-doppler")
+        | self.matches.contains_id("retain-best-elev")
+        | self.matches.contains_id("retain-elev-above")
+        | self.matches.contains_id("retain-elev-below")
         | self.matches.contains_id("retain-pr")
     }
 
@@ -331,6 +346,7 @@ impl Cli {
             "retain-phase",
             "retain-doppler",
             "retain-pr",
+            "retain-best-elev",
         ];
         flags.iter()
             .filter_map(|x| {
@@ -353,6 +369,9 @@ impl Cli {
             "retain-sv",
             "retain-obs",
             "retain-ssi",
+            "retain-elev",
+            "retain-elev-above",
+            "retain-elev-below",
             "retain-orb",
         ];
         flags.iter()

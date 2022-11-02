@@ -64,6 +64,8 @@ pub fn retain_filters(rnx: &mut Rinex, flags: Vec<&str>, ops: Vec<(&str, Vec<&st
             rnx.retain_pseudo_range_observations_mut();
         } else if flag.eq("retain-doppler") {
             rnx.retain_doppler_observations_mut();
+        } else if flag.eq("retain-best-elev") {
+            rnx.retain_best_elevation_angles_mut();
         }
     }
     for (op, args) in ops.iter() {
@@ -80,6 +82,30 @@ pub fn retain_filters(rnx: &mut Rinex, flags: Vec<&str>, ops: Vec<(&str, Vec<&st
         } else if op.eq(&"retain-nav-msg") {
             let filter = args_to_nav_message(args.clone());
             rnx.retain_navigation_message_mut(filter);
+        } else if op.eq(&"retain-elev-above") {
+            if let Ok(a0) = f64::from_str(args[0].trim()) {
+                rnx.orbits_elevation_angle_filter_mut(a0);
+            } else {
+                println!("failed to parse elevation angle. Expecting floating point value");
+            }
+
+        } else if op.eq(&"retain-elev-below") {
+            if let Ok(a1) = f64::from_str(args[0].trim()) {
+                rnx.orbits_elevation_angle_range_filter_mut((0.0,a1)); 
+            } else {
+                println!("failed to parse elevation angle. Expecting floating point value");
+            }
+
+        } else if op.eq(&"retain-elev") {
+            if let Ok(a0) = f64::from_str(args[0].trim()) {
+                if let Ok(a1) = f64::from_str(args[0].trim()) {
+                    rnx.orbits_elevation_angle_range_filter_mut((a0,a1)); 
+                } else {
+                    println!("failed to parse elevation angle. Expecting floating point value");
+                }
+            } else {
+                println!("failed to parse elevation angle. Expecting floating point value");
+            }
         }
     }
 }

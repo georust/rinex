@@ -1861,7 +1861,7 @@ impl Rinex {
     }
 
     /// Filters out vehicules for each epoch where they did not exhibit
-    /// an elevation angle that is contained in (min_angle <= a <= max_angle)
+    /// an elevation angle that is contained in (min_angle < a <= max_angle)
     /// both included.
     /// This has no effect on RINEX records other than NAV records
     pub fn orbits_elevation_angle_range_filter_mut (&mut self, min_max: (f64,f64)) {
@@ -1878,8 +1878,8 @@ impl Rinex {
                     let (_, _, ephemeris) = fr.as_eph().unwrap();
                     if let Some(elev) = ephemeris.orbits.get("e") {
                         let elev = elev.as_f64().unwrap();
-                        elev >= min && elev <= max 
-                    } else { //TODO do other keys exist? what about GLO?
+                        elev > min && elev <= max 
+                    } else {
                         false
                     }
                 });
