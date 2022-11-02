@@ -16,7 +16,6 @@ pub use antenna::{
     Calibration, CalibrationMethod,
 };
 
-/// ANTEX special RINEX fields
 #[derive(Clone, Debug, Default)]
 #[derive(PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]

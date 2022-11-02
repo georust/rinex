@@ -3,8 +3,10 @@
 use crate::leap;
 use crate::antex;
 use crate::clocks;
+use rust_3d::Point3D;
 use hifitime::TimeScale;
 
+use crate::Sv;
 use crate::hardware;
 use crate::reader::BufferedReader;
 use crate::types::{Type, TypeError};
@@ -13,6 +15,7 @@ use crate::meteo;
 use crate::ionosphere;
 use crate::observation;
 use crate::version::Version;
+use hardware::{Antenna, SvAntenna, Rcvr};
 
 use observation::Crinex;
 use crate::constellation;
@@ -118,62 +121,43 @@ pub struct Header {
     pub marker_type: Option<MarkerType>,
     /// optionnal leap seconds infos
     pub leap: Option<leap::Leap>, 
-    /// station approxiamte coordinates
+    /// Station approximate coordinates
     #[cfg_attr(feature = "serde", serde(default, with = "opt_point3d"))]
-    pub coords: Option<rust_3d::Point3D>, 
-    /// optionnal observation wavelengths
+    pub coords: Option<Point3D>, 
+    /// Optionnal observation wavelengths
     pub wavelengths: Option<(u32,u32)>, 
-    /// optionnal sampling interval (s)
+    /// Optionnal sampling interval (s)
     pub sampling_interval: Option<f32>, 
-    /// optionnal file license
+    /// Optionnal file license
     pub license: Option<String>,
-    /// optionnal Object Identifier (IoT)
+    /// Optionnal Object Identifier (IoT)
     pub doi: Option<String>,
-    /// optionnal GPS/UTC time difference
+    /// Optionnal GPS/UTC time difference
     pub gps_utc_delta: Option<u32>,
-    /// processing:   
-    /// optionnal data scaling
+    /// Optionnal data scaling
     pub data_scaling: Option<f64>,
-    // optionnal ionospheric compensation param(s)
-    //ionospheric_corr: Option<Vec<IonoCorr>>,
-    // possible time system correction(s)
-    //gnsstime_corr: Option<Vec<gnss_time::GnssTimeCorr>>,
-    ////////////////////////////////////////
-    // Hardware
-    ////////////////////////////////////////
-    /// optionnal receiver infos
+    /// Optionnal Receiver information
     #[cfg_attr(feature = "serde", serde(default))]
-    pub rcvr: Option<hardware::Rcvr>, 
-    /// optionnal antenna infos
+    pub rcvr: Option<Rcvr>, 
+    /// Optionnal Receiver Antenna information
     #[cfg_attr(feature = "serde", serde(default))]
-    pub ant: Option<hardware::Antenna>, 
-    //////////////////////////////////
-    // Observation 
-    //////////////////////////////////
+    pub rcvr_antenna: Option<Antenna>, 
+    /// Optionnal Vehicule Antenna information,
+    /// attached to a specifid Sv, only exists in ANTEX records
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub sv_antenna: Option<SvAntenna>, 
     /// Observation record specific fields
     #[cfg_attr(feature = "serde", serde(default))]
     pub obs: Option<observation::HeaderFields>,
-    //////////////////////////////////
-    // Meteo 
-    //////////////////////////////////
     /// Meteo record specific fields
     #[cfg_attr(feature = "serde", serde(default))]
     pub meteo: Option<meteo::HeaderFields>,
-    //////////////////////////////////
-    // Clock 
-    //////////////////////////////////
     /// Clocks record specific fields
     #[cfg_attr(feature = "serde", serde(default))]
     pub clocks: Option<clocks::HeaderFields>,
-    //////////////////////////////////
-    // Antex
-    //////////////////////////////////
     /// ANTEX record specific fields
     #[cfg_attr(feature = "serde", serde(default))]
     pub antex: Option<antex::HeaderFields>,
-    /////////////////////////////////
-    // Ionosphere Maps
-    /////////////////////////////////
     /// IONEX record specific fields
     #[cfg_attr(feature = "serde", serde(default))]
     pub ionex: Option<ionosphere::HeaderFields>,
@@ -231,33 +215,17 @@ impl Default for Header {
             gps_utc_delta: None,
             // hardware
             rcvr: None,
-            ant: None,
+            rcvr_antenna: None,
+            sv_antenna: None,
             coords: None, 
             wavelengths: None,
-            // processing
             data_scaling: None,
-            //ionospheric_corr: None,
-            //gnsstime_corr: None,
             sampling_interval: None,
-            /////////////////////////
-            // OBSERVATION
-            /////////////////////////
+            // rinex specific
             obs: None,
-            /////////////////////////
-            // OBSERVATION / METEO
-            /////////////////////////
 			meteo: None,
-            /////////////////////////
-            // Clocks
-            /////////////////////////
             clocks: None,
-            /////////////////////////
-            // Antex
-            /////////////////////////
             antex: None,
-            /////////////////////////
-            // IONEX 
-            /////////////////////////
             ionex: None,
         }
     }
@@ -269,37 +237,33 @@ impl Header {
         let mut rinex_type = Type::default();
         let mut constellation : Option<Constellation> = None;
         let mut version = Version::default();
-        let mut comments   : Vec<String> = Vec::new();
-        let mut program    = String::new();
-        let mut run_by     = String::new();
-        let mut date       = String::new();
-        let mut station    = String::new();
+        let mut comments: Vec<String> = Vec::new();
+        let mut program = String::new();
+        let mut run_by = String::new();
+        let mut date = String::new();
+        let mut station = String::new();
         let mut station_id = String::new();
-        let mut observer   = String::new();
-        let mut agency     = String::new();
-        let mut license    : Option<String> = None;
-        let mut doi        : Option<String> = None;
+        let mut observer = String::new();
+        let mut agency = String::new();
+        let mut license : Option<String> = None;
+        let mut doi : Option<String> = None;
         let mut station_url= String::new();
         let mut marker_type : Option<MarkerType> = None; 
-        // Hardware 
-        let mut ant_model = String::new();
-        let mut ant_sn = String::new();
-        let mut ant_coords : Option<rust_3d::Point3D> = None;
-        let mut ant_hen    : Option<(f32,f32,f32)> = None;
-        let mut rcvr       : Option<hardware::Rcvr> = None;
-        // other
-        let mut leap       : Option<leap::Leap> = None;
+        let mut rcvr : Option<Rcvr> = None;
+        let mut rcvr_antenna: Option<Antenna> = None;
+        let mut sv_antenna: Option<SvAntenna> = None;
+        let mut leap: Option<leap::Leap> = None;
         let mut sampling_interval: Option<f32> = None;
-        let mut coords     : Option<rust_3d::Point3D> = None;
+        let mut coords: Option<Point3D> = None;
         // RINEX specific fields 
         let mut obs_code_lines : u8 = 0; 
-        // to keep track in multi line scenario + Mixed constell 
         let mut current_code_syst = Constellation::default(); 
         let mut observation = observation::HeaderFields::default();
         let mut meteo = meteo::HeaderFields::default();
         let mut clocks = clocks::HeaderFields::default();
         let mut antex = antex::HeaderFields::default();
         let mut ionex = ionosphere::HeaderFields::default();
+        
         // iterate on a line basis
         let lines = reader.lines();
         for l in lines { 
@@ -367,6 +331,44 @@ impl Header {
                 }
                 if ref_sn.trim().len() > 0 {
                     antex = antex.with_serial_number(ref_sn.trim())
+                }
+
+            } else if marker.contains("TYPE / SERIAL NO") {
+                let items: Vec<&str> = content.split_ascii_whitespace()
+                    .collect();
+                if items.len() == 2 {
+                    // Receiver antenna information
+                    // like standard RINEX
+                    let (model, rem) = content.split_at(20);
+                    let (sn, _) = rem.split_at(20);
+                    if let Some(a) = &mut rcvr_antenna {
+                        *a = a.with_model(model.trim())
+                            .with_serial_number(sn.trim());
+                    } else {
+                        rcvr_antenna = Some(Antenna::default()
+                            .with_model(model.trim())
+                            .with_serial_number(sn.trim()));
+                    }
+
+                } else if items.len() == 4 {
+                    // Space Vehicle antenna information
+                    // ANTEX RINEX specific
+                    let (model, rem) = content.split_at(10);
+                    let (svnn, rem) = rem.split_at(10);
+                    let (cospar, _) = rem.split_at(10);
+                    if let Ok(sv) = Sv::from_str(svnn.trim()) {
+                        if let Some(a) = &mut sv_antenna {
+                            *a = a
+                                .with_sv(sv)
+                                .with_model(model.trim())
+                                .with_cospar(cospar.trim());
+                        } else {
+                            sv_antenna = Some(SvAntenna::default()
+                                .with_sv(sv)
+                                .with_model(model.trim())
+                                .with_cospar(cospar.trim()));
+                        }
+                    }
                 }
             
             //////////////////////////////////////
@@ -442,7 +444,7 @@ impl Header {
                 agency = ag.trim().to_string()
 
             } else if marker.contains("REC # / TYPE / VERS") {
-                if let Ok(receiver) = hardware::Rcvr::from_str(content) {
+                if let Ok(receiver) = Rcvr::from_str(content) {
                     rcvr = Some(receiver)
                 }
 
@@ -472,12 +474,6 @@ impl Header {
                     }
                 }
             
-            } else if marker.contains("ANT # / TYPE") {
-                let (model, rem) = content.split_at(20);
-                let (sn, _) = rem.split_at(20);
-                ant_model = model.trim().to_string();
-                ant_sn = sn.trim().to_string();
-            
             } else if marker.contains("LEAP SECOND") {
                 let leap_str = content.split_at(40).0.trim();
                 if let Ok(lleap) = leap::Leap::from_str(leap_str) {
@@ -493,46 +489,80 @@ impl Header {
                 // nb# of merged files
 
             } else if marker.contains("STATION INFORMATION") {
-                let (url, _) = content.split_at(40); //TODO confirm please 
+                let url = content.split_at(40).0; //TODO confirm please 
                 station_url = url.trim().to_string()
 
             } else if marker.contains("LICENSE OF USE") {
-                let (lic, _) = content.split_at(40); //TODO confirm please 
+                let lic = content.split_at(40).0; //TODO confirm please 
                 license = Some(lic.trim().to_string())
             
             } else if marker.contains("WAVELENGTH FACT L1/2") {
                 //TODO
 
             } else if marker.contains("APPROX POSITION XYZ") {
+                // station base coordinates
                 let items: Vec<&str> = content.split_ascii_whitespace()
                     .collect();
                 if let Ok(x) = f64::from_str(items[0].trim()) {
                     if let Ok(y) = f64::from_str(items[1].trim()) {
                         if let Ok(z) = f64::from_str(items[2].trim()) {
-                            coords = Some(rust_3d::Point3D::new(x,y,z))
+                            if let Some(c) = &mut coords {
+                                *c = Point3D::new(x, y, z);
+                            } else {
+                                coords = Some(Point3D::new(x, y, z));
+                            }
+                        }
+                    }
+                }
+
+            } else if marker.contains("ANT # / TYPE") {
+                let (model, rem) = content.split_at(20);
+                let (sn, _) = rem.split_at(20);
+                if let Some(a) = &mut rcvr_antenna {
+                    *a = a.with_model(model.trim())
+                        .with_serial_number(sn.trim());
+                } else {
+                    rcvr_antenna = Some(Antenna::default()
+                        .with_model(model.trim())
+                        .with_serial_number(sn.trim()));
+                }
+            
+            } else if marker.contains("ANTENNA: DELTA X/Y/Z") {
+                // Antenna Base/Reference Coordinates
+                let items: Vec<&str> = content.split_ascii_whitespace()
+                    .collect();
+                if let Ok(x) = f64::from_str(items[0].trim()) {
+                    if let Ok(y) = f64::from_str(items[1].trim()) {
+                        if let Ok(z) = f64::from_str(items[2].trim()) {
+                            if let Some(a) = &mut rcvr_antenna {
+                                *a = a.with_base_coordinates(x, y, z);
+                            } else {
+                                rcvr_antenna = Some(Antenna::default()
+                                    .with_base_coordinates(x, y, z));
+                            }
                         }
                     }
                 }
 
             } else if marker.contains("ANTENNA: DELTA H/E/N") {
+                // Antenna H/E/N eccentricity components 
                 let (h, rem) = content.split_at(15);
                 let (e, rem) = rem.split_at(15);
                 let (n, _) = rem.split_at(15);
-                if let Ok(h) = f32::from_str(h.trim()) {
-                    if let Ok(e) = f32::from_str(e.trim()) {
-                        if let Ok(n) = f32::from_str(n.trim()) {
-                            ant_hen = Some((h, e, n))
-                        }
-                    }
-                }
-
-            } else if marker.contains("ANTENNA: DELTA X/Y/Z") {
-                let items: Vec<&str> = content.split_ascii_whitespace()
-                    .collect();
-                if let Ok(x) = f64::from_str(items[0].trim()) {
-                    if let Ok(y) = f64::from_str(items[1].trim()) {
-                        if let Ok(z) = f64::from_str(items[2].trim()) {
-                            ant_coords = Some(rust_3d::Point3D::new(x,y,z))
+                if let Ok(h) = f64::from_str(h.trim()) {
+                    if let Ok(e) = f64::from_str(e.trim()) {
+                        if let Ok(n) = f64::from_str(n.trim()) {
+                            if let Some(a) = &mut rcvr_antenna {
+                                *a = a
+                                    .with_height(h)
+                                    .with_eastern_component(e)
+                                    .with_northern_component(n);
+                            } else {
+                                rcvr_antenna = Some(Antenna::default()
+                                    .with_height(h)
+                                    .with_eastern_component(e)
+                                    .with_northern_component(n));
+                            }
                         }
                     }
                 }
@@ -657,7 +687,7 @@ impl Header {
                     } else if rinex_type == Type::MeteoData {
                         // simple append, list is simpler
                         for c in codes {
-                            if let Ok(o) = meteo::observable::Observable::from_str(&c) {
+                            if let Ok(o) = meteo::Observable::from_str(&c) {
                                 meteo.codes.push(o);
                             }
                         }
@@ -717,7 +747,7 @@ impl Header {
                 let mut rem = r.clone();
                 for _ in 0..n {
                     let (code, r) = rem.split_at(6);
-                    if let Ok(c) = clocks::record::DataType::from_str(code.trim()) {
+                    if let Ok(c) = clocks::DataType::from_str(code.trim()) {
                         clocks.codes.push(c);
                     }
                     rem = r.clone()
@@ -737,6 +767,7 @@ impl Header {
          
             } else if marker.contains("SIGNAL STRENGHT UNIT") {
                 //TODO
+            
             } else if marker.contains("INTERVAL") {
                 let intv = content.split_at(20).0.trim();
                 sampling_interval = Some(f32::from_str(intv)?)
@@ -787,7 +818,7 @@ impl Header {
             } else if marker.contains("DESCRIPTION") { // IONEX description
                 ionex = ionex
                     .with_description(content.trim())
-            } else if marker.contains("OBSERABLES USED") { // IONEX observables
+            } else if marker.contains("OBSERVABLES USED") { // IONEX observables
                 ionex = ionex
                     .with_observables(content.trim())
             } else if marker.contains("# OF STATIONS") { // IONEX
@@ -826,34 +857,9 @@ impl Header {
             gps_utc_delta: None,
             sampling_interval: sampling_interval,
             data_scaling: None,
-            //ionospheric_corr: None,
-            //gnsstime_corr: None,
-            ///////////////////////
-            // Hardware
-            ///////////////////////
-            ant: {
-                if ant_model.len() > 0 {
-                    Some(hardware::Antenna {
-                        model: ant_model.clone(),
-                        sn: ant_sn.clone(),
-                        coords: ant_coords.clone(),
-                        height: {
-                            if let Some((h,_,_)) = ant_hen {
-                                Some(h)
-                            } else {
-                                None
-                            }
-                        },
-                        eastern_ecc: None, 
-                        northern_ecc: None, //TODO ant_northern_ecc.clone(),
-                    })
-                } else {
-                    None
-                }
-            },
-            ///////////////////////
-            // OBSERVATION
-            ///////////////////////
+            rcvr_antenna,
+            sv_antenna,
+            // RINEX specific
             obs: {
                 if rinex_type == Type::ObservationData {
                     Some(observation)
@@ -861,9 +867,6 @@ impl Header {
                     None
                 }
             },
-            ////////////////////////
-            // OBSERVATION / METEO
-            ////////////////////////
             meteo: {
                 if rinex_type == Type::MeteoData {
                     Some(meteo)
@@ -871,9 +874,6 @@ impl Header {
                     None
                 }
             },
-            ///////////////////////
-            // CLOCKS
-            ///////////////////////
             clocks: {
                 if rinex_type == Type::ClockData {
                     Some(clocks)
@@ -881,9 +881,6 @@ impl Header {
                     None
                 }
             },
-            ///////////////////////
-            // IONEX
-            ///////////////////////
             ionex: {
                 if rinex_type == Type::IonosphereMaps {
                     Some(ionex)
@@ -891,9 +888,6 @@ impl Header {
                     None
                 }
             },
-            ///////////////////////
-            // ANTEX
-            ///////////////////////
             antex: {
                 if rinex_type == Type::AntennaData {
                     Some(antex)   
@@ -945,29 +939,14 @@ impl Header {
                 self.gps_utc_delta = Some(delta)
             }
         }
-        if let Some(rcvr) = &header.rcvr {
+        if let Some(r) = &header.rcvr {
             if self.rcvr.is_none() {
-                self.rcvr = Some(
-                    hardware::Rcvr {
-                        model: rcvr.model.clone(),
-                        sn: rcvr.sn.clone(),
-                        firmware: rcvr.firmware.clone(),
-                    }
-                )
+                self.rcvr = Some(r.clone());
             }
         }
-        if let Some(ant) = &header.ant {
-            if self.ant.is_none() {
-                self.ant = Some(
-                    hardware::Antenna {
-                        model: ant.model.clone(),
-                        sn: ant.sn.clone(),
-                        coords: ant.coords.clone(),
-                        height: ant.height,
-                        eastern_ecc: ant.eastern_ecc,
-                        northern_ecc: ant.northern_ecc,
-                    }
-                )
+        if let Some(a) = &header.rcvr_antenna {
+            if self.rcvr_antenna.is_none() {
+                self.rcvr_antenna = Some(a.clone());
             }
         }
         //TODO append new array
@@ -982,13 +961,9 @@ impl Header {
                 self.sensors = Some(a.to_vec())
             }
         }*/
-        if let Some(coords) = &header.coords {
+        if let Some(c) = &header.coords {
             if self.coords.is_none() {
-                self.coords = Some(rust_3d::Point3D {
-                    x: coords.x,
-                    y: coords.y,
-                    z: coords.z,
-                })
+                self.coords = Some(c.clone());
             }
         }
         if let Some(wavelengths) = header.wavelengths {
@@ -1127,11 +1102,20 @@ impl Header {
                     None
                 }
             },
-            ant: {
-                if let Some(ant) = &self.ant {
-                    Some(ant.clone())
-                } else if let Some(ant) = &header.ant {
-                    Some(ant.clone())
+            rcvr_antenna: {
+                if let Some(a) = &self.rcvr_antenna {
+                    Some(a.clone())
+                } else if let Some(a) = &header.rcvr_antenna {
+                    Some(a.clone())
+                } else {
+                    None
+                }
+            },
+            sv_antenna: {
+                if let Some(a) = &self.sv_antenna {
+                    Some(a.clone())
+                } else if let Some(a) = &header.sv_antenna {
+                    Some(a.clone())
                 } else {
                     None
                 }
@@ -1436,16 +1420,16 @@ impl Header {
     }
 
     /// Adds receiver information to self
-    pub fn with_rcvr (&self, r: hardware::Rcvr) -> Self {
+    pub fn with_rcvr (&self, r: Rcvr) -> Self {
         let mut s = self.clone();
         s.rcvr = Some(r);
         s
     }
     
-    /// Adds antenna information to self
-    pub fn with_antenna (&self, a: hardware::Antenna) -> Self {
+    /// Sets Receiver Antenna information
+    pub fn with_receiver_antenna (&self, a: Antenna) -> Self {
         let mut s = self.clone();
-        s.ant = Some(a);
+        s.rcvr_antenna = Some(a);
         s
     }
 
@@ -1545,20 +1529,28 @@ impl std::fmt::Display for Header {
         write!(f, "{:<40}", " ")?;
         write!(f, "{}", "MARKER NUMBER\n")?;
         // ANT
-        if let Some(ant) = &self.ant {
-            write!(f, "{:<20}", ant.model)?;
-            write!(f, "{:<40}", ant.sn)?;
+        if let Some(antenna) = &self.rcvr_antenna {
+            write!(f, "{:<20}", antenna.model)?;
+            write!(f, "{:<40}", antenna.sn)?;
             write!(f, "{}", "ANT # / TYPE\n")?;
-            if let Some(coords) = &ant.coords {
+            if let Some(coords) = &antenna.coords {
                 write!(f, "{:14.4}", coords.x)?;
                 write!(f, "{:14.4}", coords.y)?;
                 write!(f, "{:14.4}", coords.z)?;
                 write!(f, "{}", "APPROX POSITION XYZ\n")?
             }
-            if let Some(h) = &ant.height {
+            if let Some(h) = &antenna.height {
                 write!(f, "{:14.4}", h)?;
-                write!(f, "{:14.4}", ant.eastern_ecc.unwrap_or(0.0_f32))?;
-                write!(f, "{:14.4}", ant.northern_ecc.unwrap_or(0.0_f32))?;
+                if let Some(e) = &antenna.eastern {
+                    write!(f, "{:14.4}", e)?;
+                } else {
+                    write!(f, "{:14.4}", 0.0)?;
+                }
+                if let Some(n) = &antenna.northern {
+                    write!(f, "{:14.4}", n)?;
+                } else {
+                    write!(f, "{:14.4}", 0.0)?;
+                }
                 write!(f, "{:18}", "")?;
                 write!(f, "{}", "ANTENNA: DELTA H/E/N\n")?
             }

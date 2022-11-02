@@ -57,8 +57,8 @@ pub enum Error {
 
 impl Default for Sv {
     /// Builds a default `Sv`
-    fn default() -> Sv {
-        Sv {
+    fn default() -> Self {
+        Self {
             constellation: Constellation::default(),
             prn: 1
         }
