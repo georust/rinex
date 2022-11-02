@@ -1,4 +1,4 @@
-//! `merging` operations related definitions 
+//! RINEX Merge operation
 use thiserror::Error;
 use std::collections::HashMap;
 use std::cmp::{PartialEq, Eq};
