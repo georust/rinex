@@ -618,91 +618,6 @@ impl Rinex {
         false
     }
 
-    /// Returns list of epochs where RINEX merging operation(s) occurred.    
-    /// Epochs are determined either by the pseudo standard `FILE MERGE` comment description.
-    pub fn merge_boundaries (&self) -> Vec<chrono::NaiveDateTime> {
-        self.header
-            .comments
-            .iter()
-            .flat_map(|s| {
-                if s.contains("FILE MERGE") {
-                    let content = s.split_at(40).1.trim();
-                    if let Ok(date) = chrono::NaiveDateTime::parse_from_str(content, "%Y%m%d %h%m%s UTC") {
-                        Some(date)
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                }
-            })
-            .collect()
-    }
-
-    /// Splits self into several RINEXes if self is a Merged Rinex. 
-    /// Header sections are simply copied.
-    pub fn split (&self) -> Vec<Self> {
-        let records = self.split_merged_records();
-        let mut result :Vec<Self> = Vec::with_capacity(records.len());
-        for r in records {
-            result.push(Self {
-                header: self.header.clone(),
-                record: r.clone(),
-                comments: self.comments.clone(),
-            })
-        }
-        result
-    }
-    
-    /// Splits `merged` records into seperate records.
-    /// Returns empty list if self is not a `Merged` file
-    pub fn split_merged_records (&self) -> Vec<record::Record> {
-        let boundaries = self.merge_boundaries();
-        let mut result : Vec<record::Record> = Vec::with_capacity(boundaries.len());
-        let epochs = self.epochs();
-        let mut e0 = epochs[0].date;
-        for boundary in boundaries {
-            let rec : record::Record = match self.header.rinex_type {
-                types::Type::NavigationData => {
-                    let mut record = self.record
-                        .as_nav()
-                        .unwrap()
-                        .clone();
-                    record.retain(|e, _| e.date >= e0 && e.date < boundary);
-                    record::Record::NavRecord(record.clone())
-                },
-                types::Type::ObservationData => {
-                    let mut record = self.record
-                        .as_obs()
-                        .unwrap()
-                        .clone();
-                    record.retain(|e, _| e.date >= e0 && e.date < boundary);
-                    record::Record::ObsRecord(record.clone())
-                },
-                types::Type::MeteoData => {
-                    let mut record = self.record
-                        .as_meteo()
-                        .unwrap()
-                        .clone();
-                    record.retain(|e, _| e.date >= e0 && e.date < boundary);
-                    record::Record::MeteoRecord(record.clone())
-                },
-                types::Type::IonosphereMaps => {
-                    let mut record = self.record
-                        .as_ionex()
-                        .unwrap()
-                        .clone();
-                    record.retain(|e, _| e.date >= e0 && e.date < boundary);
-                    record::Record::IonexRecord(record.clone())
-                },
-                _ => todo!("implement other record types"),
-            };
-            result.push(rec);
-            e0 = boundary 
-        }
-        result
-    }
-
     /// Returns list of epochs contained in self.
     /// Faillible! if this RINEX is not indexed by `epochs`
     pub fn epochs (&self) -> Vec<Epoch> {
@@ -3234,8 +3149,8 @@ impl Merge<Rinex> for Rinex {
 
 impl Split<Rinex> for Rinex {
     /// Splits `Self` at desired epoch
-    fn split_at_epoch(&self, epoch: Epoch) -> Result<(Self, Self), split::Error> {
-        let (r0, r1) = self.record.split_at_epoch(epoch)?;
+    fn split(&self, epoch: Epoch) -> Result<(Self, Self), split::Error> {
+        let (r0, r1) = self.record.split(epoch)?;
         Ok((
             Self {
                 header: self.header.clone(),

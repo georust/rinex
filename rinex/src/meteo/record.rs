@@ -254,7 +254,25 @@ impl Merge<Record> for Record {
 }
 
 impl Split<Record> for Record {
-    fn split_at_epoch(&self, epoch: Epoch) -> Result<(Self, Self), split::Error> {
-        Ok((self.clone(), self.clone()))
+    fn split(&self, epoch: Epoch) -> Result<(Self, Self), split::Error> {
+        let r0 = self.iter()
+            .flat_map(|(k, v)| {
+                if k.date <= epoch.date {
+                    Some((k.clone(), v.clone()))
+                } else {
+                    None
+                }
+            })
+            .collect();
+        let r1 = self.iter()
+            .flat_map(|(k, v)| {
+                if k.date > epoch.date {
+                    Some((k.clone(), v.clone()))
+                } else {
+                    None
+                }
+            })
+            .collect();
+        Ok((r0, r1))
     }
 }

@@ -15,6 +15,7 @@ use crate::is_comment;
 use crate::types::Type;
 use crate::reader::BufferedReader;
 use crate::writer::BufferedWriter;
+use crate::Epoch;
 use crate::hatanaka::{
     Compressor, Decompressor,
 };
@@ -562,19 +563,24 @@ impl Merge<Record> for Record {
 }
 
 impl Split<Record> for Record {
-    fn split_at_epoch(&self, epoch: Epoch) -> Result<(Self, Self), split::Error> {
+    fn split(&self, epoch: Epoch) -> Result<(Self, Self), split::Error> {
         if let Some(r) = self.as_obs() {
-            r.split_at_epoch(epoch)
+            let (r0, r1) = r.split(epoch)?;
+            Ok((Self::ObsRecord(r0), Self::ObsRecord(r1)))
         } else if let Some(r) = self.as_nav() {
-            r.split_at_epoch(epoch)
+            let (r0, r1) = r.split(epoch)?;
+            Ok((Self::NavRecord(r0), Self::NavRecord(r1)))
         } else if let Some(r) = self.as_meteo() {
-            r.split_at_epoch(epoch)
+            let (r0, r1) = r.split(epoch)?;
+            Ok((Self::MeteoRecord(r0), Self::MeteoRecord(r1)))
         } else if let Some(r) = self.as_ionex() {
-            r.split_at_epoch(epoch)
+            let (r0, r1) = r.split(epoch)?;
+            Ok((Self::IonexRecord(r0), Self::IonexRecord(r1)))
         } else if let Some(r) = self.as_clock() {
-            r.split_at_epoch(epoch)
+            let (r0, r1) = r.split(epoch)?;
+            Ok((Self::ClockRecord(r0), Self::ClockRecord(r1)))
         } else {
-            Err(split::Error::NoEpochIteratio)
+            Err(split::Error::NoEpochIteration)
         }
     }
 }

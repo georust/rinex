@@ -8,6 +8,7 @@ use crate::{
 	epoch::str2date, epoch::ParseDateError,
 	version::Version,
     merge, merge::Merge,
+    split, split::Split,
 };
 
 #[derive(Error, PartialEq, Eq, Hash, Clone, Debug)]
@@ -360,5 +361,29 @@ impl Merge<Record> for Record {
             }
         }
         Ok(())
+    }
+}
+
+impl Split<Record> for Record {
+    fn split(&self, epoch: Epoch) -> Result<(Self, Self), split::Error> {
+        let r0 = self.iter()
+            .flat_map(|(k, v)| {
+                if k.date <= epoch.date {
+                    Some((k.clone(), v.clone()))
+                } else {
+                    None
+                }
+            })
+            .collect();
+        let r1 = self.iter()
+            .flat_map(|(k, v)| {
+                if k.date > epoch.date {
+                    Some((k.clone(), v.clone()))
+                } else {
+                    None
+                }
+            })
+            .collect();
+        Ok((r0, r1))
     }
 }
