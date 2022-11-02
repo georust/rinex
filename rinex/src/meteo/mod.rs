@@ -12,7 +12,7 @@ pub use record::{
 pub use observable::Observable;
 
 /// Meteo specific header fields
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 #[derive(PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct HeaderFields {
@@ -21,4 +21,3 @@ pub struct HeaderFields {
     /// Sensors that produced the following observables
     pub sensors: Vec<sensor::Sensor>,
 }
-
