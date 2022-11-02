@@ -477,7 +477,7 @@ fn fmt_epoch_v2v3 (
         }
     }
     if header.version.major < 3 {
-        let lines = fmt_rework_v2(&lines);
+        lines = fmt_rework_v2(&lines);
     }
     Ok(lines)
 }
