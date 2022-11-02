@@ -2,6 +2,7 @@
 use thiserror::Error;
 use std::str::FromStr;
 use strum_macros::EnumString;
+use regex::{Regex, Captures};
 use std::collections::BTreeMap;
 
 use crate::{
@@ -350,6 +351,28 @@ fn parse_v2_v3_record_entry (version: Version, constell: Constellation, content:
     ))
 }
 
+/// Reworks / formats to match NAV RINEX standards
+/// mainly replaces E+/- exponents by D+/-
+/// also exponent must use two digits
+fn fmt_rework_v2(lines: &str) -> String {
+    let lines = lines.replace("E-", "D-");
+    let lines = lines.replace("E+", "D+");
+    let lines = lines.replace("E", "D+");
+    //lazy_static! {
+    // static ref
+        let re = Regex::new(r"[D][\+]\d{1}").unwrap();
+        let lines = re.replace(&lines, |caps: &Captures| {
+            format!("D+0{}", &caps[0][2..])
+        });
+        
+        let re = Regex::new(r"[D][\-]\d{1}").unwrap();
+        let lines = re.replace(&lines, |caps: &Captures| {
+            format!("D-0{}", &caps[0][2..])
+        });
+    //}
+    lines.to_string()
+}
+
 /// Writes given epoch into stream 
 pub fn fmt_epoch (
         epoch: &Epoch, 
@@ -395,10 +418,13 @@ fn fmt_epoch_v2v3 (
                     lines.push_str(&format!("{} ", epoch.to_string_nav_v3()));
                 }
                 lines.push_str(&format!(
-                    "{:14.13E} {:14.13E} {:14.13E}\n     ",
+                    "{:14.12E} {:14.12E} {:14.12E}\n   ",
                     ephemeris.clock_bias,
                     ephemeris.clock_drift,
                     ephemeris.clock_drift_rate));
+                if header.version.major == 3 {
+                    lines.push_str("  ");
+                }
                 // locate closest revision in db
                 let orbits_revision = match closest_revision(sv.constellation, header.version) {
                     Some(v) => v,
@@ -438,7 +464,7 @@ fn fmt_epoch_v2v3 (
                     } else { // last row
                         for (key, _) in chunk {
                             if let Some(data) = ephemeris.orbits.get(*key) {
-                                lines.push_str(&format!("{} ", data.to_string()));
+                                lines.push_str(&format!("{}", data.to_string()));
                             } else {
                                 lines.push_str(&format!("              "));
                             }
@@ -448,6 +474,9 @@ fn fmt_epoch_v2v3 (
                 }
             }
         }
+    }
+    if header.version.major < 3 {
+        let lines = fmt_rework_v2(&lines);
     }
     Ok(lines)
 }
