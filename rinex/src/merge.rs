@@ -65,32 +65,6 @@ pub fn merge_mut_option<T: Clone> (lhs: &mut Option<T>, rhs: &Option<T>) {
 }
 
 pub trait Merge<T> {
+    fn merge(&self, rhs: &T) -> Result<Self, Error> where Self: Sized;
     fn merge_mut(&mut self, rhs: &T) -> Result<(), Error>;
 }
-
-
-#[derive(Clone, Debug)]
-/// `RINEX` merging options
-pub struct MergeOpts {
-    /// optionnal program name
-    pub program: String,
-    /// timestamp where new file was appended
-    pub date: chrono::NaiveDateTime, 
-}
-
-/*impl std::str::FromStr for MergeOpts {
-    Err = MergeError;
-    /// Builds MergeOpts structure from "standard" RINEX comment line
-    fn from_str (line: &str) -> Result<Self, Self::Err> {
-        let (program, rem) = line.split_at(20);
-        let (ops, rem) = rem.split_at(20);
-        let (date, _) = rem.split_at(20);
-        if !opts.trim().eq("FILE MERGE") {
-            return Err(MergeError::MergeOptsDescriptionMismatch)
-        }
-        MergeOpts {
-            program: program.trim().to_string(),
-            date : chrono::DateTime::parse_from_str(date.split_at(16).0, "%Y%m%d %h%m%s")?, 
-        }
-    }
-}*/

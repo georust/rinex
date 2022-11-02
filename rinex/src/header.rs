@@ -382,7 +382,7 @@ impl Header {
                 version = Version::from_str(vers.trim())?;
                 rinex_type = Type::from_str(type_str.trim())?;
                 if rinex_type != Type::IonosphereMaps {
-                    return Err(Error::FaultyIonexDescription)
+                    return Err(Error::FaultyIonexDescription);
                 }
                 ionex = ionex.with_system(system_str.trim())
 
@@ -413,7 +413,7 @@ impl Header {
                 }
                 version = Version::from_str(vers.trim())?;
                 if !version.is_supported() {
-                    return Err(Error::VersionNotSupported(vers.to_string()))
+                    return Err(Error::VersionNotSupported(vers.to_string()));
                 }
             
             } else if marker.contains("PGM / RUN BY / DATE") {
@@ -909,7 +909,7 @@ impl Header {
     ///  - IONEX: map dimensions do not match and grid definitions do not strictly match
     pub fn merge (&self, header: &Self) -> Result<Self, merge::Error> {
         if self.rinex_type != header.rinex_type {
-            return Err(merge::Error::FileTypeMismatch)
+            return Err(merge::Error::FileTypeMismatch);
         }
         if self.rinex_type == Type::IonosphereMaps {
             if let Some(i0) = &self.ionex {
@@ -1600,9 +1600,19 @@ impl std::fmt::Display for Header {
 }
 
 impl Merge<Header> for Header {
+    /// Merges `rhs` into `Self` without mutable access, at the expense of memcopies
+    fn merge(&self, rhs: &Self) -> Result<Self, merge::Error> {
+        if self.rinex_type != rhs.rinex_type {
+            return Err(merge::Error::FileTypeMismatch);
+        }
+        let mut lhs = self.clone();
+        lhs.merge_mut(rhs)?;
+        Ok(lhs)
+    }
+    /// Merges `rhs` into `Self` in place
     fn merge_mut(&mut self, rhs: &Self) -> Result<(), merge::Error> {
         if self.rinex_type != rhs.rinex_type {
-            return Err(merge::Error::FileTypeMismatch)
+            return Err(merge::Error::FileTypeMismatch);
         }
 
         let (a_cst, b_cst) = (self.constellation, rhs.constellation);
@@ -1625,10 +1635,11 @@ impl Merge<Header> for Header {
         merge::merge_mut_option(&mut self.gps_utc_delta, &rhs.gps_utc_delta);
         merge::merge_mut_option(&mut self.rcvr, &rhs.rcvr);
         merge::merge_mut_option(&mut self.rcvr_antenna, &rhs.rcvr_antenna);
+        merge::merge_mut_option(&mut self.sv_antenna, &rhs.sv_antenna);
         merge::merge_mut_option(&mut self.coords, &rhs.coords);
         merge::merge_mut_option(&mut self.wavelengths, &rhs.wavelengths);
 
-        // RINEX specific fields
+        // RINEX specific operation
         if let Some(lhs) = &mut self.antex {
             if let Some(rhs) = &rhs.antex {
                 // ANTEX records can only be merged together

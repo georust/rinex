@@ -3339,6 +3339,13 @@ mod test {
 }
 
 impl Merge<Rinex> for Rinex {
+    /// Merges `rhs` into `Self` without mutable access, at the expense of memcopies
+    fn merge (&self, rhs: &Self) -> Result<Self, merge::Error> {
+        let mut lhs = self.clone();
+        lhs.merge_mut(rhs)?;
+        Ok(lhs)
+    }
+    /// Merges `rhs` into `Self` in place
     fn merge_mut(&mut self, rhs: &Self) -> Result<(), merge::Error> {
         self.header.merge_mut(&rhs.header)?;
         if self.epochs().len() == 0 { // self is empty

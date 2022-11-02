@@ -229,6 +229,13 @@ mod test {
 }
 
 impl Merge<Record> for Record {
+    /// Merges `rhs` into `Self` without mutable access at the expense of more memcopies
+    fn merge(&self, rhs: &Self) -> Result<Self, merge::Error> {
+        let mut lhs = self.clone();
+        lhs.merge_mut(rhs)?;
+        Ok(lhs)
+    }
+    /// Merges `rhs` into `Self`
     fn merge_mut(&mut self, rhs: &Self) -> Result<(), merge::Error> {
         for (epoch, observations) in rhs.iter() {
             if let Some(oobservations) = self.get_mut(epoch) {
