@@ -1,4 +1,5 @@
 //! `ObservationData` parser and related methods
+use chrono::NaiveDateTime;
 use super::{
     Constellation,
     version::Version,
@@ -31,7 +32,25 @@ pub struct Crinex {
     pub prog: String,
     /// Date of compression
     #[cfg_attr(feature = "serde", serde(with = "datetime"))]
-    pub date: chrono::NaiveDateTime,
+    pub date: NaiveDateTime,
+}
+
+impl Crinex {
+    pub fn with_version (&self, version: Version) -> Self {
+        let mut s = self.clone();
+        s.version = version;
+        s
+    }
+    pub fn with_prog (&self, prog: &str) -> Self {
+        let mut s = self.clone();
+        s.prog = prog.to_string();
+        s
+    }
+    pub fn with_date (&self, date: NaiveDateTime) -> Self {
+        let mut s = self.clone();
+        s.date = date;
+        s
+    }
 }
 
 impl Default for Crinex {
@@ -63,7 +82,7 @@ impl std::fmt::Display for Crinex {
 
 /// Describes known marker types
 /// Observation Record specific header fields
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 #[derive(PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct HeaderFields {

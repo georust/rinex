@@ -3,7 +3,7 @@
 use crate::leap;
 use crate::antex;
 use crate::clocks;
-//use crate::gnss_time;
+use hifitime::TimeScale;
 
 use crate::hardware;
 use crate::reader::BufferedReader;
@@ -21,7 +21,6 @@ use crate::constellation::Constellation;
 use thiserror::Error;
 use std::str::FromStr;
 use strum_macros::EnumString;
-use std::collections::HashMap;
 use std::io::{prelude::*};
 
 #[cfg(feature = "serde")]
@@ -265,10 +264,8 @@ impl Default for Header {
 }
 
 impl Header {
-    /// Builds a `Header` from local file
+    /// Builds a `Header` from stream reader 
     pub fn new (reader: &mut BufferedReader) -> Result<Header, Error> { 
-        let mut crinex : Option<Crinex> = None;
-        let mut crnx_version = Version::default(); 
         let mut rinex_type = Type::default();
         let mut constellation : Option<Constellation> = None;
         let mut version = Version::default();
@@ -295,20 +292,11 @@ impl Header {
         let mut sampling_interval: Option<f32> = None;
         let mut coords     : Option<rust_3d::Point3D> = None;
         // (OBS)
-        let mut obs_clock_offset_applied = false;
+        let mut observation = observation::HeaderFields::default();
         let mut obs_code_lines : u8 = 0; 
         let mut current_code_syst = Constellation::default(); // to keep track in multi line scenario + Mixed constell 
-        let mut obs_codes  : HashMap<Constellation, Vec<String>> = HashMap::with_capacity(10);
-        // (OBS/METEO)
-		let mut met_codes  : Vec<meteo::observable::Observable> = Vec::new();
-		let mut met_sensors: Vec<meteo::sensor::Sensor> = Vec::with_capacity(3);
-        // CLOCKS
-        let mut clk_ref = String::new();
-        let mut clk_codes: Vec<clocks::record::DataType> = Vec::new();
-        let mut clk_agency_code = String::new();
-        let mut clk_agency_name = String::new();
-        let mut clk_station_name = String::new();
-        let mut clk_station_id = String::new();
+        let mut meteo = meteo::HeaderFields::default();
+        let mut clocks = clocks::HeaderFields::default();
         // ANTEX
         let mut pcv : Option<antex::pcv::Pcv> = None;
         let mut ant_relative_values = String::from("AOAD/M_T");
@@ -342,18 +330,20 @@ impl Header {
             /////////////////////////////////////
             } else if marker.contains("CRINEX VERS") {
                 let version = content.split_at(20).0;
-                crnx_version = Version::from_str(version.trim())?
+                observation.crinex = Some(Crinex::default()
+                    .with_version(Version::from_str(version.trim())?));
+
             } else if marker.contains("CRINEX PROG / DATE") {
-                let (pgm, remainder) = content.split_at(20);
+                let (prog, remainder) = content.split_at(20);
                 let (_, remainder) = remainder.split_at(20);
                 let date = remainder.split_at(20).0.trim();
-                crinex = Some(
-                    Crinex {
-                        version: crnx_version, 
-                        prog: pgm.trim().to_string(),
-                        date: chrono::NaiveDateTime::parse_from_str(date, "%d-%b-%y %H:%M")?
-                    })
-            
+                let date = chrono::NaiveDateTime::parse_from_str(date, "%d-%b-%y %H:%M")?;
+                if let Some(crinex) = &mut observation.crinex {
+                    *crinex = crinex
+                        .with_prog(prog.trim())
+                        .with_date(date);
+                }
+             
             ////////////////////////////////////////
             // [2] ANTEX special header
             ////////////////////////////////////////
@@ -457,7 +447,7 @@ impl Header {
 
 			} else if marker.contains("SENSOR MOD/TYPE/ACC") {
                 if let Ok(sensor) = meteo::sensor::Sensor::from_str(content) {
-                    met_sensors.push(sensor)
+                    meteo.sensors.push(sensor)
                 }
             } else if marker.contains("SENSOR POS XYZ/H") {
                 let (x_str, rem) = content.split_at(14);
@@ -465,7 +455,7 @@ impl Header {
                 let (z_str, rem) = rem.split_at(14);
                 let (h_str, phys_str) = rem.split_at(14);
                 if let Ok(observable) = meteo::observable::Observable::from_str(phys_str.trim()) {
-                    for sensor in met_sensors.iter_mut() {
+                    for sensor in meteo.sensors.iter_mut() {
                         if sensor.observable == observable {
                             if let Ok(x) = f64::from_str(x_str.trim()) {
                                 if let Ok(y) = f64::from_str(y_str.trim()) {
@@ -558,7 +548,7 @@ impl Header {
             } else if marker.contains("RCV CLOCK OFFS APPL") {
                 let value = content.split_at(20).0.trim();
                 if let Ok(n) = i32::from_str_radix(value, 10) {
-                    obs_clock_offset_applied = n > 0
+                    observation.clock_offset_applied = n > 0;
                 }
 
             } else if marker.contains("# OF SATELLITES") {
@@ -615,18 +605,18 @@ impl Header {
                                     Constellation::QZSS,
                                 ];
                                 for i in 0..constells.len() {
-                                    obs_codes.insert(constells[i], codes.clone());
+                                    observation.codes.insert(constells[i], codes.clone());
                                 } 
                             },
                             Some(constellation) => {
-                                obs_codes.insert(constellation, codes.clone());
+                                observation.codes.insert(constellation, codes.clone());
                             },
                             None => unreachable!("OBS rinex with no constellation specified"),
                         }
                     } else if rinex_type == Type::MeteoData {
                         for c in codes {
                             if let Ok(o) = meteo::observable::Observable::from_str(&c) {
-                                met_codes.push(o);
+                                meteo.codes.push(o);
                             }
                         }
                     }
@@ -655,19 +645,19 @@ impl Header {
                         };
                         for r in to_retrieve {
                             // retrieve map being built
-                            if let Some(mut prev) = obs_codes.remove(&r) {
+                            if let Some(mut prev) = observation.codes.remove(&r) {
                                 // increment obs code map
                                 for code in &codes {
                                     prev.push(code.to_string());
                                 }
-                                obs_codes.insert(r, prev); // (re)insert
+                                observation.codes.insert(r, prev); // (re)insert
                             } 
                         }
                     } else if rinex_type == Type::MeteoData {
                         // simple append, list is simpler
                         for c in codes {
                             if let Ok(o) = meteo::observable::Observable::from_str(&c) {
-                                met_codes.push(o);
+                                meteo.codes.push(o);
                             }
                         }
                     }
@@ -694,7 +684,7 @@ impl Header {
                     if let Ok(constell) = Constellation::from_1_letter_code(identifier) {
                         current_code_syst = constell.clone(); // to keep track,
                             // on 2nd and 3rd line, system will not be reminded
-                        obs_codes.insert(constell, codes);
+                        observation.codes.insert(constell, codes);
                     }
                 } else {
                     // 2nd, 3rd.. line of observables 
@@ -703,21 +693,23 @@ impl Header {
                         .map(|r| r.trim().to_string())
                         .collect();
                     // increment list with new codes
-                    if let Some(list) = obs_codes.get_mut(&current_code_syst) {
+                    if let Some(list) = observation.codes.get_mut(&current_code_syst) {
                         // increment obs code map
                         for code in codes {
                             list.push(code);
                         }
-                        //obs_codes.insert(current_code_syst, prev); // (re)insert)
                     }
                 } 
                 obs_code_lines -= 1
 
             } else if marker.contains("ANALYSIS CENTER") {
                 let (code, agency) = content.split_at(3);
-                clk_agency_code = code.trim().to_string();
-                clk_agency_name = agency.trim().to_string();
-
+                clocks = clocks
+                    .with_agency(clocks::Agency {
+                        code: code.trim().to_string(),
+                        name: agency.trim().to_string(),
+                    });
+            
             } else if marker.contains("# / TYPES OF DATA") {
                 let (n, r) = content.split_at(6);
                 let n = u8::from_str_radix(n.trim(),10)?;
@@ -725,18 +717,22 @@ impl Header {
                 for _ in 0..n {
                     let (code, r) = rem.split_at(6);
                     if let Ok(c) = clocks::record::DataType::from_str(code.trim()) {
-                        clk_codes.push(c)
+                        clocks.codes.push(c);
                     }
                     rem = r.clone()
                 }
 
             } else if marker.contains("STATION NAME / NUM") {
                 let (name, num) = content.split_at(4);
-                clk_station_name = name.trim().to_string();
-                clk_station_id = num.trim().to_string();
+                clocks = clocks
+                    .with_ref_station(clocks::Station {
+                        id: num.trim().to_string(),
+                        name: name.trim().to_string(),
+                    });
 
             } else if marker.contains("STATION CLK REF") {
-                clk_ref = content.trim().to_string()
+                clocks = clocks
+                    .with_ref_clock(content.trim());
          
             } else if marker.contains("SIGNAL STRENGHT UNIT") {
                 //TODO
@@ -765,6 +761,24 @@ impl Header {
                 // TODO
                 // GPUT 0.2793967723E-08 0.000000000E+00 147456 1395
             
+            } else if marker.contains("TIME SYSTEM ID") {
+                let timescale = content.trim();
+                if let Ok(ts) = TimeScale::from_str(content.trim()) {
+                    clocks = clocks
+                        .with_timescale(ts);
+                } else {
+                    if timescale.eq("GPS") {
+                        clocks = clocks
+                            .with_timescale(TimeScale::GPST);
+                    } else if timescale.eq("GAL") {
+                        clocks = clocks
+                            .with_timescale(TimeScale::GST);
+                    } else if timescale.eq("BDS") {
+                        clocks = clocks
+                            .with_timescale(TimeScale::BDT);
+                    }
+                }
+
             } else if marker.contains("DELTA-UTC") {
                 //TODO
                 //0.931322574615D-09 0.355271367880D-14   233472     1930 DELTA-UTC: A0,A1,T,W
@@ -840,12 +854,8 @@ impl Header {
             // OBSERVATION
             ///////////////////////
             obs: {
-                if obs_codes.len() > 0 {
-                    Some(observation::HeaderFields {
-                        crinex: crinex.clone(),
-                        codes: obs_codes.clone(),
-                        clock_offset_applied: obs_clock_offset_applied,
-                    })
+                if rinex_type == Type::ObservationData {
+                    Some(observation)
                 } else {
                     None
                 }
@@ -854,11 +864,8 @@ impl Header {
             // OBSERVATION / METEO
             ////////////////////////
             meteo: {
-                if met_codes.len() > 0 {
-                    Some(meteo::HeaderFields {
-                        codes: met_codes.clone(),
-                        sensors: met_sensors.clone(),
-                    })
+                if rinex_type == Type::MeteoData {
+                    Some(meteo)
                 } else {
                     None
                 }
@@ -867,37 +874,8 @@ impl Header {
             // CLOCKS
             ///////////////////////
             clocks: {
-                if clk_codes.len() > 0 {
-                    Some(clocks::HeaderFields {
-                        codes: clk_codes.clone(),
-                        agency: { 
-                            if clk_agency_code.len() > 0 {
-                                Some(clocks::Agency {
-                                    code: clk_agency_code.clone(),
-                                    name: clk_agency_name.clone(),
-                                })
-                            } else {
-                                None
-                            }
-                        },
-                        station: { 
-                            if clk_station_name.len() > 0 {
-                                Some(clocks::Station {
-                                    name: clk_station_name.clone(),
-                                    id: clk_station_id.clone(),
-                                })
-                            } else {
-                                None
-                            }
-                        },
-                        clock_ref: {
-                            if clk_ref.len() > 0 {
-                                Some(clk_ref.clone())
-                            } else {
-                                None
-                            }
-                        },
-                    })
+                if rinex_type == Type::ClockData {
+                    Some(clocks)
                 } else {
                     None
                 }
@@ -1291,6 +1269,15 @@ impl Header {
                                     None
                                 }
                             },
+                            timescale: {
+                                if let Some(ts) = &d0.timescale {
+                                    Some(ts.clone())
+                                } else if let Some(ts) = &d1.timescale {
+                                    Some(ts.clone())
+                                } else {
+                                    None
+                                }
+                            },
                         })
                     } else {
                         Some(d0.clone())
@@ -1528,9 +1515,13 @@ impl std::fmt::Display for Header {
             Type::MeteoData => {
                 write!(f,"{:<20}", "METEOROLOGICAL DATA")?;
                 write!(f,"{:<20}", "")?;
-                write!(f,"{:<20}", "RINEX VERSION / TYPE\n")?
+                write!(f,"{:<20}", "RINEX VERSION / TYPE\n")?;
             },
-            Type::ClockData => todo!(),
+            Type::ClockData => {
+                write!(f,"{:<20}", "CLOCK DATA")?;
+                write!(f,"{:<20}", "")?;
+                write!(f,"{:<20}", "RINEX VERSION / TYPE\n")?;
+            },
             Type::AntennaData => todo!(),
             Type::IonosphereMaps => todo!(),
         }
@@ -1684,12 +1675,33 @@ impl std::fmt::Display for Header {
             line.push_str(&format!("{:>width$}", "LEAP SECONDS\n", width=73-line.len()));
             write!(f, "{}", line)?
         }
-        // SENSOR(s)
+        // Custom Meteo fields
         if let Some(meteo) = &self.meteo {
             let sensors = &meteo.sensors;
             for sensor in sensors {
                 write!(f, "{}", sensor)?
             }
+        }
+        // Custom Clock fields
+        if let Some(clocks) = &self.clocks {
+            // Types of data: is the equivalent of Observation codes
+            write!(f, "{:6}", clocks.codes.len())?;
+            for code in &clocks.codes {
+                write!(f, "    {}", code)?;
+            }
+            write!(f, "{:>width$}\n", "# / TYPES OF DATA\n", width=80-6-6*clocks.codes.len()-2)?;
+
+            // possible timescale
+            if let Some(ts) = clocks.timescale {
+                write!(f, "   {:?}                                                     TIME SYSTEM ID\n", ts)?; 
+            }
+            // possible reference agency 
+            if let Some(agency) = &clocks.agency {
+                write!(f, "{:<5} ", agency.code)?;
+                write!(f, "{}", agency.name)?;
+                write!(f, "ANALYSIS CENTER\n")?;
+            }
+            // possible reference clock information
         }
         // END OF HEADER
         write!(f, "{:>74}", "END OF HEADER\n")
