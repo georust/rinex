@@ -126,9 +126,9 @@ pub struct HeaderFields {
     /// if None: this is a theoretical model
     pub observables: Option<String>,
     /// Number of stations that contributed to this model/these measurements
-    pub n_stations: Option<u32>,
+    pub nb_stations: Option<u32>,
     /// Number of satellites that contributed to this model/these measurements
-    pub n_satellites: Option<u32>,
+    pub nb_satellites: Option<u32>,
 }
 
 impl HeaderFields {
@@ -176,12 +176,12 @@ impl HeaderFields {
     }
     pub fn with_stations (&self, n: u32) -> Self {
         let mut s = self.clone();
-        s.n_stations = Some(n);
+        s.nb_stations = Some(n);
         s
     }
     pub fn with_satellites (&self, n: u32) -> Self {
         let mut s = self.clone();
-        s.n_satellites = Some(n);
+        s.nb_satellites = Some(n);
         s
     }
     pub fn with_base_radius (&self, b: f32) -> Self {
