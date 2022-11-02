@@ -157,9 +157,7 @@ pub fn parse_epoch (version: Version, content: &str) ->
     // Data type code
     let (dtype, rem) = line.split_at(3);
     let data_type = DataType::from_str(dtype.trim())?; // must pass
-    
     let mut rem = rem.clone();
-    
     let limit = Version {
         major: 3,
         minor: 04,
@@ -202,9 +200,9 @@ pub fn parse_epoch (version: Version, content: &str) ->
     let (epoch, rem) = rem.split_at(offset);
     let date = str2date(epoch.trim())?; 
 
-    // n
+    // nb of data fields
     let (n, _) = rem.split_at(4);
-    let m = u8::from_str_radix(n.trim(), 10)?;
+    let n = u8::from_str_radix(n.trim(), 10)?;
 
     // data fields
     let mut data = Data::default();
@@ -212,13 +210,13 @@ pub fn parse_epoch (version: Version, content: &str) ->
         .split_ascii_whitespace()
         .collect();
     data.bias = f64::from_str(items[9].trim())?; // bias must pass
-    if m > 1 {
+    if n > 1 {
         if let Ok(f) = f64::from_str(items[10].trim()) {
             data.bias_sigma = Some(f)
         }
     }
 
-    if m > 2 {
+    if n > 2 {
         if let Some(l) = lines.next() {
             let line = l.clone();
             let items :Vec<&str> = line
@@ -261,22 +259,23 @@ pub fn fmt_epoch (
 				dtype, 
 				system,
 				epoch.to_string_obs_v3()));
-			lines.push_str(&format!("{} ", data.bias));
+			lines.push_str(&format!("{:.13E} ", data.bias));
 			if let Some(sigma) = data.bias_sigma {
-				lines.push_str(&format!("{} ", sigma));
+				lines.push_str(&format!("{:.13E} ", sigma));
 			}
 			if let Some(rate) = data.rate {
-				lines.push_str(&format!("{} ", rate));
+				lines.push_str(&format!("{:.13E} ", rate));
 			}
 			if let Some(sigma) = data.rate_sigma {
-				lines.push_str(&format!("{} ", sigma));
+				lines.push_str(&format!("{:.13E} ", sigma));
 			}
 			if let Some(accel) = data.accel {
-				lines.push_str(&format!("{} ", accel));
+				lines.push_str(&format!("{:.13E} ", accel));
 			}
 			if let Some(sigma) = data.accel_sigma {
-				lines.push_str(&format!("{} ", sigma));
+				lines.push_str(&format!("{:.13E} ", sigma));
 			}
+            lines.push_str("\n");
 		}
 	}
 	Ok(lines)

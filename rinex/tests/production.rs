@@ -47,6 +47,19 @@ mod test {
             }
         }
     }
+
+    /// CLOCK Rinex thorough comparison
+    fn clocks_comparison(rnx_a: &Rinex, rnx_b: &Rinex) {
+        let rec_a = rnx_a.record.as_clock().unwrap();
+        let rec_b = rnx_a.record.as_clock().unwrap();
+        for (e_a, data_types) in rec_a.iter() {
+            for (data_type, systems) in rec_a.iter() {
+                for (system, data) in systems.iter() {
+
+                }
+            }
+        }
+    }
     
     /// Meteo RINEX thorough comparison
     fn meteo_comparison(rnx_a: &Rinex, rnx_b: &Rinex) {
@@ -85,6 +98,8 @@ mod test {
             observation_comparison(&rnx_a, &rnx_b);
         } else if rnx_a.is_meteo_rinex() {
             meteo_comparison(&rnx_a, &rnx_b);
+        } else if rnx_a.is_clocks_rinex() {
+            clocks_comparison(&rnx_a, &rnx_b);
         }
     }
     fn testbench (path: &str) {
@@ -103,8 +118,9 @@ mod test {
             compare_with_panic(&rnx_a, &rnx_b);
         }
         // remove copy not to disturb other test browsers
-        let _ = std::fs::remove_file(copy_path);
-        // sleep for a bit, so we do not try to parse the generated file unintentionally
+        // let _ = std::fs::remove_file(copy_path);
+        // sleeping here for a bit, 
+        // avoids this (temporary) file being picked up by other automated tests
         std::thread::sleep(std::time::Duration::from_secs(1));
     }
     #[test]
@@ -142,7 +158,16 @@ mod test {
             let fp = fp.path();
             testbench(fp.to_str().unwrap());
         }
-    }/*
+    }
+    #[test]
+    fn clocks_v2() {
+        let folder = env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/CLK/V2/";
+        for file in std::fs::read_dir(folder).unwrap() {
+            let fp = file.unwrap();
+            let fp = fp.path();
+            testbench(fp.to_str().unwrap());
+        }
+    }
     #[test]
     fn nav_v2() {
         let folder = env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/NAV/V2/";
@@ -161,6 +186,7 @@ mod test {
             testbench(fp.to_str().unwrap());
         }
     }
+    /*
     #[test]
     fn nav_v4() {
         let folder = env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/NAV/V4/";
