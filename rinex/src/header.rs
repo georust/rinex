@@ -7,10 +7,11 @@ use rust_3d::Point3D;
 use hifitime::TimeScale;
 
 use crate::Sv;
+use crate::merge;
+use crate::merge::Merge;
 use crate::hardware;
 use crate::reader::BufferedReader;
 use crate::types::{Type, TypeError};
-use crate::merge::MergeError;
 use crate::meteo;
 use crate::ionosphere;
 use crate::observation;
@@ -897,105 +898,6 @@ impl Header {
             },
         })
     }
-    /// `Merges` self and given header
-    /// we call this maethod when merging two rinex record
-    /// to create the optimum combined/total RINEX file.
-    /// This is not a feature of teqc.
-    /// When merging:  
-    ///  + retains oldest revision number  
-    ///  + constellation remains identical if self & `b` share the same constellation,
-    ///   otherwise, self::constellation is upgraded to `mixed`.  
-    ///  + `b` comments are retained, header section comments are not analyzed   
-    ///  + prefers self::attriutes over `b` attributes  
-    ///  + appends (creates) `b` attributes that do not exist in self
-    ///TODO: sampling interval special case
-    ///TODO: rcvr_clock_offset_applied special case :
-    /// apply/modify accordingly
-    ///TODO: data scaling special case: apply/modify accordingly
-    pub fn merge_mut (&mut self, header: &Self) -> Result<(), MergeError> {
-        if self.rinex_type != header.rinex_type {
-            return Err(MergeError::FileTypeMismatch)
-        }
-
-        let (a_rev, b_rev) = (self.version, header.version);
-        let (a_cst, b_cst) = (self.constellation, header.constellation);
-        // constellation upgrade ?
-        if a_cst != b_cst {
-            self.constellation = Some(Constellation::Mixed)
-        }
-        // retain oldest revision
-        self.version = std::cmp::min(a_rev, b_rev);
-        for c in &header.comments {
-            self.comments.push(c.to_string()) 
-        } 
-        // leap second new info ?
-        if let Some(leap) = header.leap {
-            if self.leap.is_none() {
-                self.leap = Some(leap)
-            }
-        }
-        if let Some(delta) = header.gps_utc_delta {
-            if self.gps_utc_delta.is_none() {
-                self.gps_utc_delta = Some(delta)
-            }
-        }
-        if let Some(r) = &header.rcvr {
-            if self.rcvr.is_none() {
-                self.rcvr = Some(r.clone());
-            }
-        }
-        if let Some(a) = &header.rcvr_antenna {
-            if self.rcvr_antenna.is_none() {
-                self.rcvr_antenna = Some(a.clone());
-            }
-        }
-        //TODO append new array
-        /*if let Some(a) = &header.sensors {
-            if let Some(b) = &self.sensors {
-                for sens in a {
-                    if !b.contains(sens) {
-                        b.push(*sens)
-                    }
-                }
-            } else {
-                self.sensors = Some(a.to_vec())
-            }
-        }*/
-        if let Some(c) = &header.coords {
-            if self.coords.is_none() {
-                self.coords = Some(c.clone());
-            }
-        }
-        if let Some(wavelengths) = header.wavelengths {
-            if self.wavelengths.is_none() {
-                self.wavelengths = Some(wavelengths)
-            }
-        }
-        //TODO as mut ref
-        /*if let Some(a) = &header.obs_codes {
-            if let Some(&mut b) = self.obs_codes.as_ref() {
-                for (k, v) in a {
-                    b.insert(*k, v.to_vec());
-                }
-            } else {
-                self.obs_codes = Some(a.clone())
-            }
-        }*/
-        
-        /*if let Some(a) = header.data_scaling {
-            if let Some(b) = self.data_scaling {
-
-            } else {
-
-            }
-        } else {
-            if let Some(b) = self.data_scaling {
-
-            }
-        }*/
-
-        Ok(())
-    }
 
     /// Combines self and rhs header into a new header.
     /// Self's attribute are always preferred.
@@ -1005,9 +907,9 @@ impl Header {
     /// This fails if :
     ///  - RINEX types do not match
     ///  - IONEX: map dimensions do not match and grid definitions do not strictly match
-    pub fn merge (&self, header: &Self) -> Result<Self, MergeError> {
+    pub fn merge (&self, header: &Self) -> Result<Self, merge::Error> {
         if self.rinex_type != header.rinex_type {
-            return Err(MergeError::FileTypeMismatch)
+            return Err(merge::Error::FileTypeMismatch)
         }
         if self.rinex_type == Type::IonosphereMaps {
             if let Some(i0) = &self.ionex {
@@ -1314,19 +1216,19 @@ impl Header {
                                     None
                                 }
                             },
-                            n_stations: {
-                                if let Some(n) = d0.n_stations {
+                            nb_stations: {
+                                if let Some(n) = d0.nb_stations {
                                     Some(n)
-                                } else if let Some(n) = d1.n_stations {
+                                } else if let Some(n) = d1.nb_stations {
                                     Some(n)
                                 } else {
                                     None
                                 }
                             },
-                            n_satellites: {
-                                if let Some(n) = d0.n_satellites {
+                            nb_satellites: {
+                                if let Some(n) = d0.nb_satellites {
                                     Some(n)
-                                } else if let Some(n) = d1.n_satellites {
+                                } else if let Some(n) = d1.nb_satellites {
                                     Some(n)
                                 } else {
                                     None
@@ -1694,5 +1596,97 @@ impl std::fmt::Display for Header {
         }
         // END OF HEADER
         write!(f, "{:>74}", "END OF HEADER\n")
+    }
+}
+
+impl Merge<Header> for Header {
+    fn merge_mut(&mut self, rhs: &Self) -> Result<(), merge::Error> {
+        if self.rinex_type != rhs.rinex_type {
+            return Err(merge::Error::FileTypeMismatch)
+        }
+
+        let (a_cst, b_cst) = (self.constellation, rhs.constellation);
+        if a_cst != b_cst {
+            // <=> Constellation "upgrade"
+            self.constellation = Some(Constellation::Mixed)
+        }
+        
+        // retain oldest revision
+        let (a_rev, b_rev) = (self.version, rhs.version);
+        self.version = std::cmp::min(a_rev, b_rev);
+
+        merge::merge_mut_vec(&mut self.comments, &rhs.comments);
+        merge::merge_mut_option(&mut self.marker_type, &rhs.marker_type);
+        merge::merge_mut_option(&mut self.sampling_interval, &rhs.sampling_interval);
+        merge::merge_mut_option(&mut self.license, &rhs.license);
+        merge::merge_mut_option(&mut self.data_scaling, &rhs.data_scaling);
+        merge::merge_mut_option(&mut self.doi, &rhs.doi);
+        merge::merge_mut_option(&mut self.leap, &rhs.leap);
+        merge::merge_mut_option(&mut self.gps_utc_delta, &rhs.gps_utc_delta);
+        merge::merge_mut_option(&mut self.rcvr, &rhs.rcvr);
+        merge::merge_mut_option(&mut self.rcvr_antenna, &rhs.rcvr_antenna);
+        merge::merge_mut_option(&mut self.coords, &rhs.coords);
+        merge::merge_mut_option(&mut self.wavelengths, &rhs.wavelengths);
+
+        // RINEX specific fields
+        if let Some(lhs) = &mut self.antex {
+            if let Some(rhs) = &rhs.antex {
+                // ANTEX records can only be merged together
+                // if they have the same type of inner phase data
+                let mut mixed_antex = lhs.pcv.is_relative() && !rhs.pcv.is_relative();
+                mixed_antex |= !lhs.pcv.is_relative() && rhs.pcv.is_relative();
+                if mixed_antex {
+                    return Err(merge::Error::AntexAbsoluteRelativeMismatch);
+                }
+                merge::merge_mut_option(&mut lhs.reference_sn, &rhs.reference_sn);
+            }
+        }
+        if let Some(lhs) = &mut self.clocks {
+            if let Some(rhs) = &rhs.clocks {
+                merge::merge_mut_unique_vec(&mut lhs.codes, &rhs.codes);
+                merge::merge_mut_option(&mut lhs.agency, &rhs.agency);
+                merge::merge_mut_option(&mut lhs.station, &rhs.station);
+                merge::merge_mut_option(&mut lhs.clock_ref, &rhs.clock_ref);
+                merge::merge_mut_option(&mut lhs.timescale, &rhs.timescale);
+            }
+        }
+        if let Some(lhs) = &mut self.obs {
+            if let Some(rhs) = &rhs.obs {
+                merge::merge_mut_option(&mut lhs.crinex, &rhs.crinex);
+                merge::merge_mut_unique_map2d(&mut lhs.codes, &rhs.codes);
+                lhs.clock_offset_applied |= rhs.clock_offset_applied;
+            }
+        }
+        if let Some(lhs) = &mut self.meteo {
+            if let Some(rhs) = &rhs.meteo {
+                merge::merge_mut_unique_vec(&mut lhs.codes, &rhs.codes);
+                merge::merge_mut_unique_vec(&mut lhs.sensors, &rhs.sensors);
+            }
+        }
+        if let Some(lhs) = &mut self.ionex {
+            if let Some(rhs) = &rhs.ionex {
+                if lhs.system != rhs.system {
+                    return Err(merge::Error::IonexSystemMismatch);
+                }
+                if lhs.grid != rhs.grid {
+                    return Err(merge::Error::IonexMapGridMismatch);
+                }
+                if lhs.map_dimension != rhs.map_dimension {
+                    return Err(merge::Error::IonexMapDimensionsMismatch);
+                }
+                if lhs.base_radius != rhs.base_radius {
+                    return Err(merge::Error::IonexBaseRadiusMismatch);
+                }
+                merge::merge_mut_option(&mut lhs.description, &rhs.description);
+                merge::merge_mut_option(&mut lhs.mapping, &rhs.mapping);
+                if lhs.elevation_cutoff == 0.0 { // means "unknown"
+                    lhs.elevation_cutoff = rhs.elevation_cutoff; // => overwrite in this case
+                }
+                merge::merge_mut_option(&mut lhs.observables, &rhs.observables);
+                merge::merge_mut_option(&mut lhs.nb_stations, &rhs.nb_stations);
+                merge::merge_mut_option(&mut lhs.nb_satellites, &rhs.nb_satellites);
+            }
+        }
+        Ok(())
     }
 }

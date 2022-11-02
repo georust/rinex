@@ -41,6 +41,7 @@ use thiserror::Error;
 use chrono::{Datelike, Timelike};
 use std::collections::{BTreeMap, HashMap};
 
+use merge::Merge;
 use version::Version;
 use observation::Crinex;
 use navigation::OrbitItem;
@@ -891,7 +892,7 @@ impl Rinex {
     /// to understand its behavior).
     /// Resulting self.record (modified in place) remains sorted by 
     /// sampling timestamps.
-    pub fn merge_mut (&mut self, other: &Self) -> Result<(), merge::MergeError> {
+    pub fn merge_mut (&mut self, other: &Self) -> Result<(), merge::Error> {
         self.header.merge_mut(&other.header)?;
         // grab Self:: + Other:: `epochs`
         let (epochs, other_epochs) = (self.epochs(), other.epochs());
@@ -960,7 +961,7 @@ impl Rinex {
     }
     
     /// [merge] immutable implementation
-    pub fn merge (&self, rhs: &Self) -> Result<Self, merge::MergeError> {
+    pub fn merge (&self, rhs: &Self) -> Result<Self, merge::Error> {
         let mut s = self.clone();
         s.merge_mut(rhs)?;
         Ok(s)
