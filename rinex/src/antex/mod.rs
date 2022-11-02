@@ -4,6 +4,7 @@ pub mod record;
 pub mod antenna;
 pub mod frequency;
 
+pub use pcv::Pcv;
 pub use record::{
 	Record, Error,
     is_new_epoch,
@@ -11,29 +12,33 @@ pub use record::{
 };
 pub use frequency::{Frequency, Pattern};
 pub use antenna::{
-	Antenna, Calibration, CalibrationMethod,
+	Antenna, 
+    Calibration, CalibrationMethod,
 };
 
 /// ANTEX special RINEX fields
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 #[derive(PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct HeaderFields {
-    /// Antenna Phase Center Variations type 
-    pub pcv: pcv::Pcv, 
-    /// Types of relative values, default: "AOAD/M_T"
-    pub relative_values: String,
     /// Optionnal reference antenna Serial Number
     /// used to produce this calibration file
     pub reference_sn: Option<String>,
+    /// Phase Center Variations type 
+    pub pcv: pcv::Pcv, 
 }
 
-impl Default for HeaderFields {
-    fn default() -> Self {
-        Self {
-            pcv: pcv::Pcv::default(),
-            relative_values: String::new(),
-            reference_sn: None,
-        }
+impl HeaderFields {
+    /// Sets Phase Center Variations
+    pub fn with_pcv(&self, pcv: Pcv) -> Self {
+        let mut s = self.clone();
+        s.pcv = pcv;
+        s
+    }
+    /// Sets Reference Antenna serial number
+    pub fn with_serial_number(&self, sn: &str) -> Self {
+        let mut s = self.clone();
+        s.reference_sn = Some(sn.to_string());
+        s
     }
 }

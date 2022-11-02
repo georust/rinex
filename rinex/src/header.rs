@@ -291,17 +291,14 @@ impl Header {
         let mut leap       : Option<leap::Leap> = None;
         let mut sampling_interval: Option<f32> = None;
         let mut coords     : Option<rust_3d::Point3D> = None;
-        // (OBS)
-        let mut observation = observation::HeaderFields::default();
+        // RINEX specific fields 
         let mut obs_code_lines : u8 = 0; 
-        let mut current_code_syst = Constellation::default(); // to keep track in multi line scenario + Mixed constell 
+        // to keep track in multi line scenario + Mixed constell 
+        let mut current_code_syst = Constellation::default(); 
+        let mut observation = observation::HeaderFields::default();
         let mut meteo = meteo::HeaderFields::default();
         let mut clocks = clocks::HeaderFields::default();
-        // ANTEX
-        let mut pcv : Option<antex::pcv::Pcv> = None;
-        let mut ant_relative_values = String::from("AOAD/M_T");
-        let mut ref_ant_sn : Option<String> = None;
-        // IONEX
+        let mut antex = antex::HeaderFields::default();
         let mut ionex = ionosphere::HeaderFields::default();
         // iterate on a line basis
         let lines = reader.lines();
@@ -354,18 +351,22 @@ impl Header {
                     constellation = Some(constell)
                 }
                 rinex_type = Type::AntennaData;
+            
             } else if marker.contains("PCV TYPE / REFANT") {
                 let (pcv_str, rem) = content.split_at(20);
-                let (ref_type, rem) = rem.split_at(20);
+                let (rel_type, rem) = rem.split_at(20);
                 let (ref_sn, _) = rem.split_at(20);
-                if let Ok(p) = antex::pcv::Pcv::from_str(pcv_str.trim()) {
-                    pcv = Some(p)
-                }
-                if ref_type.trim().len() > 0 {
-                    ant_relative_values = ref_type.trim().to_string();
+                if let Ok(mut pcv) = antex::Pcv::from_str(pcv_str.trim()) {
+                    if pcv.is_relative() {
+                        // try to parse "Relative Type"
+                        if rel_type.trim().len() > 0 {
+                            pcv = pcv.with_relative_type(rel_type.trim());
+                        }
+                    }
+                    antex = antex.with_pcv(pcv);
                 }
                 if ref_sn.trim().len() > 0 {
-                    ref_ant_sn = Some(ref_sn.trim().to_string())
+                    antex = antex.with_serial_number(ref_sn.trim())
                 }
             
             //////////////////////////////////////
@@ -894,12 +895,8 @@ impl Header {
             // ANTEX
             ///////////////////////
             antex: {
-                if let Some(pcv) = pcv {
-                    Some(antex::HeaderFields {
-                        pcv,
-                        relative_values: ant_relative_values,
-                        reference_sn: ref_ant_sn,
-                    })
+                if rinex_type == Type::AntennaData {
+                    Some(antex)   
                 } else {
                     None
                 }
