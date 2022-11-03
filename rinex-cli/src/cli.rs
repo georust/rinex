@@ -27,6 +27,7 @@ impl Cli {
                     .arg(Arg::new("filepath")
                         .short('f')
                         .long("fp")
+                        .value_name("FILE")
                         .help("Input RINEX file")
                         .action(ArgAction::Append)
                         .required(true))
@@ -67,15 +68,18 @@ impl Cli {
                     .arg(Arg::new("resample-ratio")
                         .long("resample-ratio")
                         .short('r')
+                        .value_name("RATIO(u32)")
                         .help("Downsample record content by given factor. 2 for instance, keeps one every other epoch"))
                     .arg(Arg::new("resample-interval")
                         .long("resample-interval")
                         .short('i')
+                        .value_name("DURATION")
                         .help("Shrinks record so adjacent epochs match 
 the |e(n)-e(n-1)| > interval condition. 
 Interval must be a valid \"chrono::Duration\" string description"))
                     .arg(Arg::new("time-window")
                         .long("time-window")
+                        .value_name("START, END")
                         .short('w')
                         .help("Center record content around specified epoch window. 
 All epochs that do not lie within the specified (start, end) 
@@ -83,9 +87,11 @@ interval are dropped out. User must pass two valid \"chrono::NaiveDateTime\" des
                 .next_help_heading("Retain filters (focus on data of interest)")
                     .arg(Arg::new("retain-constell")
                         .long("retain-constell")
+                        .value_name("list(Constellation)")
                         .help("Retain only given GNSS constellation"))
                     .arg(Arg::new("retain-sv")
                         .long("retain-sv")
+                        .value_name("list(Sv)")
                         .help("Retain only given Space vehicules"))
                     .arg(Arg::new("retain-epoch-ok")
                         .long("retain-epoch-ok")
@@ -97,10 +103,12 @@ interval are dropped out. User must pass two valid \"chrono::NaiveDateTime\" des
                         .help("Retain only non valid epochs"))
                     .arg(Arg::new("retain-elev-above")
                         .long("retain-elev-above")
+                        .value_name("LIMIT(f64)")
                         .help("Retain vehicules (strictly) above given elevation angle.
 -fp must be a NAV file, or NAV context must be provided with -nav"))
                     .arg(Arg::new("retain-elev-below")
                         .long("retain-elev-below")
+                        .value_name("LIMIT(f64)")
                         .help("Retain vehicules (strictly) below given elevation angle.
 -fp must be a NAV file, or NAV context must be provided with -nav"))
                     .arg(Arg::new("retain-best-elev")
@@ -117,6 +125,7 @@ that exhibit the best elevation angle.
                         .help("Identify observables. Applies to Observation and Meteo RINEX"))
                     .arg(Arg::new("retain-obs")
                         .long("retain-obs")
+                        .value_name("List(Observables)")
                         .help("Retain only given list of Observables")) 
                     .arg(Arg::new("retain-phase")
                         .long("retain-phase")
@@ -158,22 +167,6 @@ Also drops observations that did not come with an LLI flag"))
                         .long("lock-loss")
                         .action(ArgAction::SetTrue)
                         .help("List epochs where lock was declared lost")) 
-                    .arg(Arg::new("phasediff")
-                        .long("phasediff")
-                        .action(ArgAction::SetTrue)
-                        .help("Phase differentiation between different phase codes,
-but identical carrier frequencies.
-Useful to determine correlation and bias between observables.
-For instance \"L2S-L2W\" S code against W code, for L2 carrier.
-Refer to README."))
-                    .arg(Arg::new("codediff")
-                        .long("codediff")
-                        .action(ArgAction::SetTrue)
-                        .help("Pseudo Range differentiation between different codes,
-but identical carrier frequencies.
-Useful to determine correlation and bias between observables.
-For instance \"C1P-C1C\" means P code against C code, for L1 carrier.
-Refer to README."))
                     .arg(Arg::new("pr2distance")
                         .long("pr2distance")
                         .action(ArgAction::SetTrue)
@@ -228,12 +221,39 @@ Applies to either -fp or -nav context"))
                         .action(ArgAction::SetTrue)
                         .help("Retains only Navigation ionospheric models. 
 -fp must be a NAV file"))
-                .next_help_heading("NAV context")
+                .next_help_heading("RINEX processing")
                     .arg(Arg::new("nav")
                         .long("nav")
-                        .help("Provide Navigation context (ephemeris),
-usually combined to Observation data, provided with -fp.
-Ideally sample rate are strictly identical, otherwise data get lost.
+                        .value_name("FILE")
+                        .help("Provide Navigation context for advanced RINEX processing.
+Usually combined to Observation data, provided with -fp.
+Only identical epochs can be analyzed and processed.
+Ideally, both contexts have strictly identical sample rates.
+Refer to README."))
+                    .arg(Arg::new("phasediff")
+                        .long("phasediff")
+                        .action(ArgAction::SetTrue)
+                        .help("Phase differentiation between different phase codes,
+but identical carrier frequencies.
+Observation data must be provided with -fp. Navigation context is not required.
+Useful to determine correlation and bias between observables.
+For instance \"L2S-L2W\" S code against W code, for L2 carrier.
+Refer to README."))
+                    .arg(Arg::new("codediff")
+                        .long("codediff")
+                        .action(ArgAction::SetTrue)
+                        .help("Pseudo Range differentiation between different codes,
+but identical carrier frequencies.
+Observation data must be provided with -fp. Navigation context is not required.
+Useful to determine correlation and bias between observables.
+For instance \"C1P-C1C\" means P code against C code, for L1 carrier.
+Refer to README."))
+                    .arg(Arg::new("multipath")
+                        .long("multipath")
+                        .help("Perform code multipath analysis.
+Observation context must be provided with -fp.
+Navigation context must be provided with -nav.
+Combine to -plot for graphical visualization.
 Refer to README."))
                 .next_help_heading("`teqc` operations")
                     .arg(Arg::new("merge")
@@ -256,11 +276,13 @@ Refer to README."))
                 .next_help_heading("RINEX output")
                     .arg(Arg::new("output")
                         .long("output")
+                        .value_name("FILE")
                         .action(ArgAction::Append)
                         .help("Custom file paths to be generated from preprocessed RINEX files.
 For example -fp was filtered and decimated, use --output to dump results into a new RINEX."))
                     .arg(Arg::new("custom-header")
                         .long("custom-header")
+                        .value_name("JSON")
                         .action(ArgAction::Append)
                         .help("Custom header attributes, in case we're generating data.
 --custom-header must either be plain JSON or an external JSON descriptor.
@@ -283,12 +305,15 @@ Refer to README"))
                         .help("Generate Plots instead of default \"stdout\" terminal output"))
                     .arg(Arg::new("plot-width")
                         .long("plot-width")
+                        .value_name("WIDTH(u32)")
                         .help("Set plot width, default is 1024px"))
                     .arg(Arg::new("plot-height")
                         .long("plot-height")
+                        .value_name("HEIGHT(u32)")
                         .help("Set plot height, default is 768px"))
                     .arg(Arg::new("plot-dim")
                         .long("plot-dim")
+                        .value_name("DIM(u32,u32)")
                         .help("Set plot dimensions. Example \"--plot-dim 2048,768\". Default is (1024, 768)px"))
                     .get_matches()
             },
