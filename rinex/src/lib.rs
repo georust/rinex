@@ -44,6 +44,7 @@ use std::collections::{BTreeMap, HashMap};
 use version::Version;
 use observation::Crinex;
 use navigation::OrbitItem;
+use channel::Channel;
 
 // export major types
 pub use sv::Sv;
@@ -2100,9 +2101,9 @@ impl Rinex {
                     let codes :Vec<String> = retained.iter().map(|r| r.0.clone()).collect();
                     let data :Vec<f64> = retained.iter().map(|r| r.1).collect();
                     // need to determine frequencies involved
-                    let mut channels :Vec<channel::Channel> = Vec::with_capacity(2);
+                    let mut channels :Vec<Channel> = Vec::with_capacity(2);
                     for i in 0..codes.len() {
-                        if let Ok(channel) = channel::Channel::from_observable(sv.constellation, &codes[i]) {
+                        if let Ok(channel) = Channel::from_observable(sv.constellation, &codes[i]) {
                             channels.push(channel)
                         }
                     }
@@ -2184,9 +2185,9 @@ impl Rinex {
                     let codes :Vec<String> = retained.iter().map(|r| r.0.clone()).collect();
                     let data :Vec<f64> = retained.iter().map(|r| r.1).collect();
                     // need to determine frequencies involved
-                    let mut channels :Vec<channel::Channel> = Vec::with_capacity(2);
+                    let mut channels :Vec<Channel> = Vec::with_capacity(2);
                     for i in 0..codes.len() {
-                        if let Ok(channel) = channel::Channel::from_observable(sv.constellation, &codes[i]) {
+                        if let Ok(channel) = Channel::from_observable(sv.constellation, &codes[i]) {
                             channels.push(channel)
                         }
                     }
@@ -2297,6 +2298,67 @@ impl Rinex {
             }//got related distance epoch
         } // per epoch
         results
+    }
+
+    /// Calculates Pseudo Range MultiPath (MP) ratios by combining
+    /// Pseudo Range observations and Raw Phase observations.
+    /// Results are sorted per epoch and per vehicule. 
+    /// This has no effect if self is not an Observation Data 
+    /// where both L1 and L2 carriers were sampled.
+    pub fn multipath(&self) -> BTreeMap<Epoch, HashMap<Sv, (f64, f64)>> {
+        let mut result: BTreeMap<Epoch, HashMap<Sv, (f64,f64)>> = BTreeMap::new();
+        let mut map: HashMap<Sv, (f64,f64)> = HashMap::new();
+        if !self.is_observation_rinex() {
+            return result;
+        }
+        let record = self.record
+            .as_obs()
+            .unwrap();
+        for (epoch, vehicules) in record.iter() {
+            map.clear();
+            for (sv, observations) in vehicules.iter() {
+                let mut l1_pr: Option<f64> = None;
+                let mut l1_phase: Option<f64> = None;
+                let mut l2_pr: Option<f64> = None;
+                let mut l2_phase: Option<f64> = None;
+                for (observation, data) in observations {
+                    // identify carrier channel of this observation
+                    if let Ok(channel) = Channel::from_observable(sv.constellation, observation) {
+                        match channel {
+                            Channel::L1 | Channel::E1 => {
+                                if is_pseudo_range_obs_code!(observation) {
+                                    l1_pr = Some(data);
+                                } else if is_phase_carrier_obs_code!(observation) {
+                                    l1_phase = Some(data);
+                                }
+                            },
+                            Channel::L2 | Channel::E2 => {
+                                if is_pseudo_range_obs_code!(observation) {
+                                    l2_pr = Some(data);
+                                } else if is_phase_carrier_obs_code!(observation) {
+                                    l2_phase = Some(data);
+                                }
+                            },
+                            _ => {},
+                        }
+                    }
+                    if let Some(ph1) = l1_phase {
+                        if let Some(pr1) = l1_pr {
+                            map.insert(*sv, 
+                            if let Some(ph2) = l2_phase {
+                                if let Some(pr2) = l2_pr {
+                                    // -> got everything we need
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            if map.len() > 0 {
+                result.insert(*epoch, map);
+            }
+        }
+        result
     }
 
     /// Decimates record to fit minimum required epoch interval.
