@@ -82,7 +82,9 @@ impl Default for Code {
 */
 
 #[derive(Debug, Clone, Copy)]
-#[derive(PartialEq, PartialOrd)]
+#[derive(Hash)]
+#[derive(PartialEq, Eq)]
+#[derive(PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum Channel {
     /// L1 (GPS, SBAS, QZSS)
@@ -177,7 +179,7 @@ impl Channel {
             Channel::G1(_) => 1602.0_f64,
             Channel::G2(Some(c)) => 1246.06_f64 + (*c as f64 * 7.0/16.0),
             Channel::G2(_) => 1246.06_f64,
-            _ => 0.0, //TODO
+            _ => todo!(),
         }
     }
     
@@ -187,8 +189,8 @@ impl Channel {
             Channel::L1 | Channel::G1(_) | Channel::E1 => 15.345_f64,
             Channel::L2 | Channel::G2(_) | Channel::E2 => 11.0_f64,
             Channel::L5 | Channel::E5 => 12.5_f64,
-            Channel::E6 => 0.0, //TODO
-            Channel::LEX => 0.0, //TODO
+            Channel::E6 => todo!(),
+            Channel::LEX => todo!(), 
         }
     }
 

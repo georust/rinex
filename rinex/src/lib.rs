@@ -26,6 +26,8 @@ mod merge;
 mod split;
 mod formatter;
 
+use itertools::Itertools;
+
 extern crate num;
 #[macro_use]
 extern crate num_derive;
@@ -314,7 +316,7 @@ impl Rinex {
                 },
                 types::Type::NavigationData => {
                     if let Some(c) = header.constellation {
-                        if c == constellation::Constellation::Glonass {
+                        if c == Constellation::Glonass {
                             String::from("g")
                         } else { 
                             String::from("n")
@@ -727,10 +729,10 @@ impl Rinex {
     }
 
     /// List all constellations contained in record
-    pub fn list_constellations (&self) -> Vec<constellation::Constellation> {
-        let mut ret: Vec<constellation::Constellation> = Vec::new();
+    pub fn list_constellations (&self) -> Vec<Constellation> {
+        let mut ret: Vec<Constellation> = Vec::new();
         match self.header.constellation {
-            Some(constellation::Constellation::Mixed) => {
+            Some(Constellation::Mixed) => {
                 match self.header.rinex_type {
                     types::Type::ObservationData => {
                         let record = self.record
@@ -790,7 +792,7 @@ impl Rinex {
     /// This has no effect on ATX, MET and IONEX records, NAV 
     /// record frames other than Ephemeris, Clock frames not measured
     /// against space vehicule.
-    pub fn retain_constellation_mut (&mut self, filter: Vec<constellation::Constellation>) {
+    pub fn retain_constellation_mut (&mut self, filter: Vec<Constellation>) {
         if self.is_observation_rinex() {
             let record = self.record
                 .as_mut_obs()
@@ -914,7 +916,7 @@ impl Rinex {
             .as_nav()
             .unwrap();
         for (e, classes) in record.iter() {
-            let mut work: BTreeMap<constellation::Constellation, (f64, Sv)> = BTreeMap::new();
+            let mut work: BTreeMap<Constellation, (f64, Sv)> = BTreeMap::new();
             for (class, frames) in classes.iter() {
                 if *class == navigation::FrameClass::Ephemeris {
                     for frame in frames.iter() {
@@ -1002,8 +1004,6 @@ impl Rinex {
     /// Example:
     /// ```
     /// use rinex::*;
-    /// use rinex::sv::Sv;
-    /// use rinex::constellation::Constellation;
     /// let rinex = Rinex::from_file("../test_resources/NAV/V3/CBW100NLD_R_20210010000_01D_MN.rnx");
     /// let mut rinex = rinex.unwrap();
     /// // Retain G07 + G08 vehicules 
@@ -1077,8 +1077,6 @@ impl Rinex {
     /// Example:
     /// ```
     /// use rinex::*;
-    /// use rinex::sv::Sv;
-    /// use rinex::constellation::Constellation;
     /// let rinex = Rinex::from_file("../test_resources/NAV/V3/CBW100NLD_R_20210010000_01D_MN.rnx");
     /// let mut rinex = rinex.unwrap();
     /// // Retain G07 + G08 vehicules 
@@ -1244,7 +1242,7 @@ impl Rinex {
 
     /// Returns list of space vehicules encountered in this file
     pub fn space_vehicules (&self) -> Vec<Sv> {
-        let mut map: Vec<sv::Sv> = Vec::new();
+        let mut map: Vec<Sv> = Vec::new();
         if self.is_navigation_rinex() {
             let record = self.record
                 .as_nav()
@@ -1727,11 +1725,11 @@ impl Rinex {
     ///     } 
     /// }
     /// ```
-    pub fn ephemeris (&self) -> BTreeMap<Epoch, BTreeMap<sv::Sv, (f64,f64,f64, HashMap<String, OrbitItem>)>> {
+    pub fn ephemeris (&self) -> BTreeMap<Epoch, BTreeMap<Sv, (f64,f64,f64, HashMap<String, OrbitItem>)>> {
         if !self.is_navigation_rinex() {
             return BTreeMap::new() ; // nothing to browse
         }
-        let mut results: BTreeMap<Epoch, BTreeMap<sv::Sv, (f64,f64,f64, HashMap<String, OrbitItem>)>>
+        let mut results: BTreeMap<Epoch, BTreeMap<Sv, (f64,f64,f64, HashMap<String, OrbitItem>)>>
             = BTreeMap::new();
         let record = self.record
             .as_nav()
@@ -1739,7 +1737,7 @@ impl Rinex {
         for (e, classes) in record.iter() {
             for (class, frames) in classes.iter() {
                 if *class == navigation::FrameClass::Ephemeris {
-                    let mut inner: BTreeMap<sv::Sv,  (f64,f64,f64, HashMap<String, OrbitItem>)> = BTreeMap::new();
+                    let mut inner: BTreeMap<Sv,  (f64,f64,f64, HashMap<String, OrbitItem>)> = BTreeMap::new();
                     for frame in frames.iter() {
                         let (_, sv, ephemeris) = frame.as_eph().unwrap();
                         inner.insert(*sv, 
@@ -1769,7 +1767,7 @@ impl Rinex {
             .as_nav()
             .unwrap();
         for (epoch, classes) in record.iter() {
-            let mut inner: BTreeMap<sv::Sv, f64> = BTreeMap::new();
+            let mut inner: BTreeMap<Sv, f64> = BTreeMap::new();
             for (class, frames) in classes.iter() {
                 if *class == navigation::FrameClass::Ephemeris {
                     for frame in frames.iter() {
@@ -2047,8 +2045,8 @@ impl Rinex {
     /// Extracts Pseudo Range data from this
     /// Observation record, on an epoch basis an per space vehicule. 
     /// Does not produce anything if self is not an Observation RINEX.
-    pub fn observation_pseudo_ranges (&self) -> BTreeMap<Epoch, BTreeMap<sv::Sv, Vec<(String, f64)>>> {
-        let mut results: BTreeMap<Epoch, BTreeMap<sv::Sv, Vec<(String, f64)>>> = BTreeMap::new();
+    pub fn observation_pseudo_ranges (&self) -> BTreeMap<Epoch, BTreeMap<Sv, Vec<(String, f64)>>> {
+        let mut results: BTreeMap<Epoch, BTreeMap<Sv, Vec<(String, f64)>>> = BTreeMap::new();
         if !self.is_observation_rinex() {
             return results ; // nothing to browse
         }
@@ -2056,7 +2054,7 @@ impl Rinex {
             .as_obs()
             .unwrap();
         for (e, (_, sv)) in record.iter() {
-            let mut map: BTreeMap<sv::Sv, Vec<(String, f64)>> = BTreeMap::new();
+            let mut map: BTreeMap<Sv, Vec<(String, f64)>> = BTreeMap::new();
             for (sv, obs) in sv.iter() {
                 let mut v : Vec<(String, f64)> = Vec::new();
                 for (code, data) in obs.iter() {
@@ -2080,11 +2078,11 @@ impl Rinex {
     /// We can only compute such information if pseudo range was evaluted
     /// on at least two seperate carrier frequencies, for a given space vehicule at a certain epoch.
     /// Does not produce anything if self is not an Observation RINEX.
-    pub fn iono_free_pseudo_ranges (&self) -> BTreeMap<Epoch, BTreeMap<sv::Sv, f64>> {
+    pub fn iono_free_pseudo_ranges (&self) -> BTreeMap<Epoch, BTreeMap<Sv, f64>> {
         let pr = self.observation_pseudo_ranges();
-        let mut results : BTreeMap<Epoch, BTreeMap<sv::Sv, f64>> = BTreeMap::new();
+        let mut results : BTreeMap<Epoch, BTreeMap<Sv, f64>> = BTreeMap::new();
         for (e, sv) in pr.iter() {
-            let mut map :BTreeMap<sv::Sv, f64> = BTreeMap::new();
+            let mut map :BTreeMap<Sv, f64> = BTreeMap::new();
             for (sv, obs) in sv.iter() {
                 let mut result :Option<f64> = None; 
                 let mut retained : Vec<(String, f64)> = Vec::new();
@@ -2131,8 +2129,8 @@ impl Rinex {
     /// Extracts Raw Carrier Phase observations,
     /// from this Observation record, on an epoch basis an per space vehicule. 
     /// Does not produce anything if self is not an Observation RINEX.
-    pub fn observation_carrier_phases (&self) -> BTreeMap<Epoch, BTreeMap<sv::Sv, Vec<(String, f64)>>> {
-        let mut results: BTreeMap<Epoch, BTreeMap<sv::Sv, Vec<(String, f64)>>> = BTreeMap::new();
+    pub fn observation_carrier_phases (&self) -> BTreeMap<Epoch, BTreeMap<Sv, Vec<(String, f64)>>> {
+        let mut results: BTreeMap<Epoch, BTreeMap<Sv, Vec<(String, f64)>>> = BTreeMap::new();
         if !self.is_observation_rinex() {
             return results ; // nothing to browse
         }
@@ -2140,7 +2138,7 @@ impl Rinex {
             .as_obs()
             .unwrap();
         for (e, (_, sv)) in record.iter() {
-            let mut map: BTreeMap<sv::Sv, Vec<(String, f64)>> = BTreeMap::new();
+            let mut map: BTreeMap<Sv, Vec<(String, f64)>> = BTreeMap::new();
             for (sv, obs) in sv.iter() {
                 let mut v : Vec<(String, f64)> = Vec::new();
                 for (code, data) in obs.iter() {
@@ -2164,11 +2162,11 @@ impl Rinex {
     /// We can only compute such information if carrier phase was evaluted
     /// on at least two seperate carrier frequencies, for a given space vehicule at a certain epoch.
     /// Does not produce anything if self is not an Observation RINEX.
-    pub fn iono_free_observation_carrier_phases (&self) -> BTreeMap<Epoch, BTreeMap<sv::Sv, f64>> {
+    pub fn iono_free_observation_carrier_phases (&self) -> BTreeMap<Epoch, BTreeMap<Sv, f64>> {
         let pr = self.observation_pseudo_ranges();
-        let mut results : BTreeMap<Epoch, BTreeMap<sv::Sv, f64>> = BTreeMap::new();
+        let mut results : BTreeMap<Epoch, BTreeMap<Sv, f64>> = BTreeMap::new();
         for (e, sv) in pr.iter() {
-            let mut map :BTreeMap<sv::Sv, f64> = BTreeMap::new();
+            let mut map :BTreeMap<Sv, f64> = BTreeMap::new();
             for (sv, obs) in sv.iter() {
                 let mut result :Option<f64> = None; 
                 let mut retained : Vec<(String, f64)> = Vec::new();
@@ -2225,8 +2223,6 @@ impl Rinex {
     /// Example:
     /// ```
     /// use rinex::*;
-    /// use rinex::sv::Sv;
-    /// use rinex::constellation::Constellation;
     /// // obtain distance clock offsets, by analyzing a related NAV file
     /// // (this is only an example..)
     /// let rinex = Rinex::from_file("../test_resources/NAV/V3/CBW100NLD_R_20210010000_01D_MN.rnx");
@@ -2264,8 +2260,8 @@ impl Rinex {
     ///     }
     /// }
     /// ```
-    pub fn observation_pseudo_range_to_distance (&self, sv_clk_offsets: BTreeMap<Epoch, BTreeMap<sv::Sv, f64>>) -> BTreeMap<Epoch, BTreeMap<sv::Sv, Vec<(String, f64)>>> {
-        let mut results :BTreeMap<Epoch, BTreeMap<sv::Sv, Vec<(String, f64)>>> = BTreeMap::new();
+    pub fn observation_pseudo_range_to_distance (&self, sv_clk_offsets: BTreeMap<Epoch, BTreeMap<Sv, f64>>) -> BTreeMap<Epoch, BTreeMap<Sv, Vec<(String, f64)>>> {
+        let mut results :BTreeMap<Epoch, BTreeMap<Sv, Vec<(String, f64)>>> = BTreeMap::new();
         if !self.is_observation_rinex() {
             return results ;
         }
@@ -2275,7 +2271,7 @@ impl Rinex {
         for (e, (clk, sv)) in record.iter() {
             if let Some(distant_e) = sv_clk_offsets.get(e) { // got related distant epoch
                 if let Some(clk) = clk { // got local clock offset 
-                    let mut map : BTreeMap<sv::Sv, Vec<(String, f64)>> = BTreeMap::new();
+                    let mut map : BTreeMap<Sv, Vec<(String, f64)>> = BTreeMap::new();
                     for (sv, obs) in sv.iter() {
                         if let Some(sv_offset) = distant_e.get(sv) { // got related distant offset
                             let mut v : Vec<(String, f64)> = Vec::new();
@@ -2299,58 +2295,120 @@ impl Rinex {
         } // per epoch
         results
     }
+    
+    /// Computes Phase Difference between different Codes with shared frequency carriers.
+    /// This will exhibit static or changing offsets between observation types,
+    /// and also drift effect between observation types.
+    /// Cf. page 11 of this study 
+    /// <http://navigation-office.esa.int/attachments_12649498_1_Reichel_5thGalSciCol_2015.pdf>.
+    /// The phase differences are sorted by epoch, per vehicule and per difference description.
+    /// For example "L1C-L1W" means this is the phase difference for carrier 1 between W & C Codes.
+    /// This will not produce anything if self is not an Observation Data where at least two
+    /// codes were sampled for a given carrier frequency.
+    pub fn observation_phase_diff (&self) -> BTreeMap<Epoch, HashMap<Sv, HashMap<String, f64>>> {
+        let mut ret: BTreeMap<Epoch, HashMap<Sv, HashMap<String, f64>>> = BTreeMap::new();
+        let mut sv_map: HashMap<Sv, HashMap<String, f64>> = HashMap::new();
+        let mut diff_map: HashMap<String, f64> = HashMap::new();
+        let mut data: HashMap<String, HashMap<String, f64>> = HashMap::new(); 
+        let mut refcodes: HashMap<String, Vec<String>> = HashMap::new();
 
+        let raw_phases = self.observation_carrier_phases();
+        let mut associations: HashMap<String, Vec<String>> = HashMap::new(); 
+        for (epoch, vehicules) in raw_phases.iter() {
+            for (sv, data) in vehicules.iter() {
+                associations.clear(); // associate by carrier
+                for (obscode, data) in data.iter() {
+                    let carrier = &obscode[0..obscode.len()-1]; // "L1", "L2"..
+                    let code = &obscode[obscode.len()-1..obscode.len()]; // "C", "W", ..
+                    if let Some(codes) = associations.get_mut(carrier) {
+                        codes.push(code.to_string());
+                    } else {
+                        associations.insert(carrier.to_string(), vec![code.to_string()]);
+                    }
+                }
+                associations.retain(|_, v| v.len() > 1); // only one phase observation
+                                                    // meaning, diff is not feasible
+                // sorts remaining obscodes per alphabetical order. 
+                // This is very important, otherwise the following diff' op
+                // picks up alternating RefCode and the differentiation is not consistent
+                // accross all epochs
+                for (_, data) in associations.iter_mut() {
+                    data.sort();
+                }
+
+                // group code and refcode
+                for (carrier, codes) in associations.iter() {
+                    let nb_diff = codes.len() -1; // for M code, we can compute M-1 diff
+                    for i in 0..nb_diff {
+                        let refcode = codes.iter().take(i);
+                        let obscode = codes.iter().skip(i+1);
+                        println!("REF {:?} - CODES: {:?}", refcode, obscode);
+                    }
+                }
+            }
+        }
+        ret
+    }
+
+/*
     /// Calculates Pseudo Range MultiPath (MP) ratios by combining
     /// Pseudo Range observations and Raw Phase observations.
-    /// Results are sorted per epoch and per vehicule. 
+    /// Results are MP ratios (MPx) sorted by epoch and per vehicule. 
+    /// MPx ratio are presented per Observation Code, 
+    /// for instance "C1" means MP1 Carrier 1 and Carrier 2 were used in its
+    /// calculation.
     /// This has no effect if self is not an Observation Data 
-    /// where both L1 and L2 carriers were sampled.
-    pub fn multipath(&self) -> BTreeMap<Epoch, HashMap<Sv, (f64, f64)>> {
-        let mut result: BTreeMap<Epoch, HashMap<Sv, (f64,f64)>> = BTreeMap::new();
-        let mut map: HashMap<Sv, (f64,f64)> = HashMap::new();
+    /// where at least two carriers were sampled
+    pub fn multipaths(&self) -> BTreeMap<Epoch, HashMap<Sv, HashMap<String, f64>>> {
+        let mut result: BTreeMap<Epoch, HashMap<Sv, HashMap<String, f64>>> = BTreeMap::new();
+        let mut sv_map: HashMap<Sv, HashMap<String, f64>> = HashMap::new();
+        let mut code_map: HashMap<String, f64> = HashMap::new();
+        let mut data: HashMap<Channel, (String, f64, f64)> = HashMap::new(); // to store Phase/PR per observation
+
         if !self.is_observation_rinex() {
             return result;
         }
         let record = self.record
             .as_obs()
             .unwrap();
+
+        // pre calculate constant frequency ratios
+        let gamma_1_2 = (Channel::L1.carrier_frequency_mhz() / Channel::L2.carrier_frequency_mhz()).powf(2.0); 
+        let gamma_2_1 = (Channel::L2.carrier_frequency_mhz() / Channel::L1.carrier_frequency_mhz()).powf(2.0); 
+        let gamma_1_5 = (Channel::L1.carrier_frequency_mhz() / Channel::L5.carrier_frequency_mhz()).powf(2.0); 
+        let gamma_5_1 = (Channel::L5.carrier_frequency_mhz() / Channel::L1.carrier_frequency_mhz()).powf(2.0); 
+        
+        // preprocess ratios
+        let alpha_1_2 = (gamma_1_2 + 1.0) / (gamma_1_2-1.0);
+        let alpha_2_1 = (gamma_2_1 + 1.0) / (gamma_2_1-1.0);
+        let beta_1_2 = 2.0 / (gamma_1_2 - 1.0);
+        let beta_2_1 = 2.0 / (gamma_2_1 - 1.0);
+
         for (epoch, vehicules) in record.iter() {
-            map.clear();
+            sv_map.clear();
             for (sv, observations) in vehicules.iter() {
-                let mut l1_pr: Option<f64> = None;
-                let mut l1_phase: Option<f64> = None;
-                let mut l2_pr: Option<f64> = None;
-                let mut l2_phase: Option<f64> = None;
+                code_map.clear();
+                data.clear();
                 for (observation, data) in observations {
                     // identify carrier channel of this observation
                     if let Ok(channel) = Channel::from_observable(sv.constellation, observation) {
-                        match channel {
-                            Channel::L1 | Channel::E1 => {
-                                if is_pseudo_range_obs_code!(observation) {
-                                    l1_pr = Some(data);
-                                } else if is_phase_carrier_obs_code!(observation) {
-                                    l1_phase = Some(data);
-                                }
-                            },
-                            Channel::L2 | Channel::E2 => {
-                                if is_pseudo_range_obs_code!(observation) {
-                                    l2_pr = Some(data);
-                                } else if is_phase_carrier_obs_code!(observation) {
-                                    l2_phase = Some(data);
-                                }
-                            },
-                            _ => {},
-                        }
-                    }
-                    if let Some(ph1) = l1_phase {
-                        if let Some(pr1) = l1_pr {
-                            map.insert(*sv, 
-                            if let Some(ph2) = l2_phase {
-                                if let Some(pr2) = l2_pr {
-                                    // -> got everything we need
-                                }
+                        if is_pseudo_range_obs_code!(observation) {
+                            if let Some((_, pr)) = data.get_mut(channel) {
+                                pr = observation.data; // insert PR
+                            } else {
+                                data.insert(channel, (0.0, observation.data)); // insert PR
+                            }
+                        } else if is_phase_carrier_obs_code!(observation) {
+                            if let Some((ph, _)) = data.get_mut(channel) {
+                                ph = observation.data; // insert PR
+                            } else {
+                                data.insert(channel, (observation.data, 0.0)); // insert PR
                             }
                         }
+                    }
+                }
+                if let Some((pr1, ph1)) = data.get(Channel::L1) {
+                    if let Some((pr2, ph2)) = data.get(Channel::L1) {
                     }
                 }
             }
@@ -2360,7 +2418,7 @@ impl Rinex {
         }
         result
     }
-
+*/
     /// Decimates record to fit minimum required epoch interval.
     /// All epochs that do not match the requirement
     /// |e(k).date - e(k-1).date| < interval, get thrown away.
