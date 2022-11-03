@@ -2309,21 +2309,22 @@ impl Rinex {
         let mut ret: BTreeMap<Epoch, HashMap<Sv, HashMap<String, f64>>> = BTreeMap::new();
         let mut sv_map: HashMap<Sv, HashMap<String, f64>> = HashMap::new();
         let mut diff_map: HashMap<String, f64> = HashMap::new();
-        let mut data: HashMap<String, HashMap<String, f64>> = HashMap::new(); 
-        let mut refcodes: HashMap<String, Vec<String>> = HashMap::new();
 
         let raw_phases = self.observation_carrier_phases();
-        let mut associations: HashMap<String, Vec<String>> = HashMap::new(); 
+        let mut associations: HashMap<String, Vec<(String, f64)>> = HashMap::new(); 
+
         for (epoch, vehicules) in raw_phases.iter() {
+            sv_map.clear();
             for (sv, data) in vehicules.iter() {
+                diff_map.clear();
                 associations.clear(); // associate by carrier
-                for (obscode, data) in data.iter() {
+                for (obscode, phase) in data.iter() {
                     let carrier = &obscode[0..obscode.len()-1]; // "L1", "L2"..
                     let code = &obscode[obscode.len()-1..obscode.len()]; // "C", "W", ..
                     if let Some(codes) = associations.get_mut(carrier) {
-                        codes.push(code.to_string());
+                        codes.push((code.to_string(), *phase));
                     } else {
-                        associations.insert(carrier.to_string(), vec![code.to_string()]);
+                        associations.insert(carrier.to_string(), vec![(code.to_string(), *phase)]);
                     }
                 }
                 associations.retain(|_, v| v.len() > 1); // only one phase observation
@@ -2333,18 +2334,28 @@ impl Rinex {
                 // picks up alternating RefCode and the differentiation is not consistent
                 // accross all epochs
                 for (_, data) in associations.iter_mut() {
-                    data.sort();
+                    data.sort_by_key(|(a,_)| a.to_uppercase());
                 }
 
                 // group code and refcode
                 for (carrier, codes) in associations.iter() {
                     let nb_diff = codes.len() -1; // for M code, we can compute M-1 diff
                     for i in 0..nb_diff {
-                        let refcode = codes.iter().take(i);
-                        let obscode = codes.iter().skip(i+1);
-                        println!("REF {:?} - CODES: {:?}", refcode, obscode);
+                        if let Some((refcode, refdata)) = codes.into_iter().nth(i) {
+                            if let Some((code, data)) = codes.into_iter().nth(i+1) {
+                                let opdescriptor = format!("{}{}-{}{}", carrier, refcode, carrier, code);
+                                println!("{}", opdescriptor); //DEBUG
+                                diff_map.insert(opdescriptor.to_string(), data -refdata); 
+                            }
+                        }
                     }
                 }
+                if diff_map.len() > 0 {
+                    sv_map.insert(*sv, diff_map.clone());
+                }
+            }
+            if sv_map.len() > 0 {
+                ret.insert(*epoch, sv_map.clone());
             }
         }
         ret
