@@ -4,12 +4,12 @@
 //! Homepage: <https://github.com/gwbres/rinex-cli>
 
 mod cli; // command line interface 
-mod extract; // high level data
 mod teqc; // `teqc` operations
 mod plot; // plotting operations
 mod retain; // record filtering 
 mod filter; // record filtering
 mod resampling; // record resampling
+mod identification; // high level identification/macros
 
 use rinex::{*,
     version::Version, 
@@ -17,35 +17,33 @@ use rinex::{*,
 };
 
 use cli::Cli;
-use extract::extract_data;
 use retain::retain_filters;
 use filter::apply_filters;
 use resampling::record_resampling;
+use identification::basic_identification;
 
 pub fn main() -> Result<(), rinex::Error> {
     let cli = Cli::new();
     let pretty = cli.pretty();
 
     let plot = cli.plot();
-    let input_paths = cli.input_paths();
-    let output_paths = cli.output_paths();
+    let fp = cli.input_path();
+    let output_path = cli.output_path();
 
     // list of parsed and preprocessed RINEX files
-    let mut queue: Vec<Rinex> = Vec::new();
-    for fp in input_paths {
-        let mut rnx = Rinex::from_file(fp)?;
-        if cli.resampling() { // resampling requested
-            record_resampling(&mut rnx, cli.resampling_ops());
-        }
-        if cli.retain() { // retain data of interest
-            retain_filters(&mut rnx, cli.retain_flags(), cli.retain_ops());
-        }
-        if cli.filter() { // apply desired filters
-            apply_filters(&mut rnx, cli.filter_ops());
-        }
-        queue.push(rnx);
+    let mut rnx = Rinex::from_file(fp)?;
+
+    if cli.resampling() { // resampling requested
+        record_resampling(&mut rnx, cli.resampling_ops());
     }
-    
+    if cli.retain() { // retain data of interest
+        retain_filters(&mut rnx, cli.retain_flags(), cli.retain_ops());
+    }
+    if cli.filter() { // apply desired filters
+        apply_filters(&mut rnx, cli.filter_ops());
+    }
+ 
+/*
     // perform desired processing, if any
     if let Some(ref_rinex) = cli.single_diff() {
         let offset = queue.len();
@@ -86,69 +84,70 @@ pub fn main() -> Result<(), rinex::Error> {
         // this allows post processing analysis on resulting data
         queue.drain(0..offset);
     }
-
-    // Analyze all extracted RINEX,
-    //  or possibly post-analyze after pre-processing
-    for (index, rnx) in queue.iter_mut().enumerate() {
-        if cli.extract() {
-            // extract data of interest
-            extract_data(&rnx, cli.extraction_ops(), pretty);
-        } else {
-            // no data of interest
-            if let Some(path) = output_paths.get(index) {
-                // output path provided
-                //  detect special CRINEX case
-                let is_obs = rnx.is_observation_rinex();
-                if path.contains(".21D") {
-                    if !is_obs {
-                        println!("CRNX compression only applies to Observation RINEX"); 
-                    } else {
-                        // ==> RNX2CRX1 
-                        let mut context = rnx.header.obs.clone().unwrap();
-                        context.crinex = Some(Crinex {
-                            version: Version {
-                                major: 1,
-                                minor: 0,
-                            },
-                            prog: "rust-rnx".to_string(),
-                            date: chrono::Utc::now().naive_utc(),
-                        });
-                        // convert
-                        rnx.header = rnx.header
-                            .with_observation_fields(context);
-                    }
-                } else if path.contains(".crx") {
-                    if !is_obs {
-                        println!("CRNX compression only applies to Observation RINEX"); 
-                    } else {
-                        // ==> RNX2CRX3 
-                        let mut context = rnx.header.obs.clone().unwrap();
-                        context.crinex = Some(Crinex {
-                            version: Version {
-                                major: 3,
-                                minor: 0,
-                            },
-                            prog: "rust-rnx".to_string(),
-                            date: chrono::Utc::now().naive_utc(),
-                        });
-                        // convert
-                        rnx.header = rnx.header
-                            .with_observation_fields(context);
-                    }
-                }
-                if rnx.to_file(path).is_ok() {
-                    println!("\"{}\" has been generated", path);
+*/
+    if cli.basic_identification() {
+        // basic RINEX identification requested
+        basic_identification(&rnx, cli.identification_ops(), pretty);
+    
+    } else {
+        // no basic ID
+        //  ==> record study or advanced analysis
+        if let Some(path) = output_path {
+            // output path provided
+            //  detect special CRINEX case
+            let is_obs = rnx.is_observation_rinex();
+            if path.contains(".21D") {
+                if !is_obs {
+                    println!("CRNX compression only applies to Observation RINEX"); 
                 } else {
-                    println!("failed to generate \"{}\"", path);
+                    rnx.rnx2crnx();
                 }
+            } else if path.contains(".crx") {
+                if !is_obs {
+                    println!("CRNX compression only applies to Observation RINEX"); 
+                } else {
+                    rnx.rnx2crnx();
+                }
+            }
+            if rnx.to_file(&path).is_ok() {
+                println!("\"{}\" has been generated", path);
             } else {
-                // no output path provided
-                // ==> data visualization
-                if plot { // graphical 
-                    let dims = cli.plot_dimensions(); // create context
-                    let mut ctx = plot::Context::new(dims, &rnx); 
-                    plot::plot_rinex(&mut ctx, &rnx); 
-                } else { // stream to stdout
+                println!("failed to generate \"{}\"", path);
+            }
+        } else {
+            // no output path provided
+            // ==> data visualization
+            if plot { // graphical 
+                let dims = cli.plot_dimensions(); // create context
+                
+                if cli.phase_diff() {
+                    // Differential phase code analysis
+                    let mut ctx = plot::differential::Context::new(dims, &rnx); 
+                    let data = rnx.observation_phase_diff();
+                    plot::differential::plot(&mut ctx, data);
+                
+                } else if cli.code_diff() {
+                    // Differential pseudo code analysis
+                    let mut ctx = plot::differential::Context::new(dims, &rnx); 
+                    let data = rnx.observation_phase_diff();
+                    plot::differential::plot(&mut ctx, data);
+
+                } else { // plot record
+                    let mut ctx = plot::record::Context::new(dims, &rnx); 
+                    plot::record::plot(&mut ctx, &rnx); 
+                }
+
+            } else { // stream to stdout
+                if cli.phase_diff() {
+                    // Differential phase code analysis
+                    let data = rnx.observation_phase_diff();
+                    println!("{:#?}", data);
+
+                } else if cli.code_diff() {
+                    // Differential pseudo code analysis
+
+                } else {
+                    // Full record display
                     if pretty {
                         println!("{}", serde_json::to_string_pretty(&rnx.record).unwrap())
                     } else {

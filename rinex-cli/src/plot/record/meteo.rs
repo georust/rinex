@@ -2,6 +2,7 @@
 use rinex::meteo::*;
 use super::{
     Context, Plot2d,
+    build_plot, build_chart,
 };
 use plotters::{
     prelude::*,
@@ -44,7 +45,7 @@ pub fn build_context<'a> (dim: (u32, u32), record: &Record) -> Context<'a> {
                     Observable::RainIncrement => "rain-increment.png",
                     Observable::HailIndicator=> "hail.png",
                 };
-                let plot = Context::build_plot(title, dim);
+                let plot = build_plot(title, dim);
                 plots.insert(observable.to_string(), plot);
                 y_ranges.insert(observable.to_string(), (*data, *data));
             } else {
@@ -66,7 +67,7 @@ pub fn build_context<'a> (dim: (u32, u32), record: &Record) -> Context<'a> {
         // scale this chart nicely
         let range = y_ranges.get(id)
             .unwrap();
-        let chart = Context::build_chart(id, t_axis.clone(), *range, plot);
+        let chart = build_chart(id, t_axis.clone(), *range, plot);
         charts.insert(id.to_string(), chart);
     }
     Context {

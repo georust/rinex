@@ -1,8 +1,7 @@
 use rinex::*;
 
-/// High level data extraction
-/// from a previously parsed RINEX
-pub fn extract_data (rnx: &Rinex, ops: Vec<&str>, pretty: bool) {
+/// Basic file identification
+pub fn basic_identification(rnx: &Rinex, ops: Vec<&str>, pretty: bool) {
     for op in ops {
         println!("op: {}", op);
         if op.eq("header") {

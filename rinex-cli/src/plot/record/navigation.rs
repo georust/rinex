@@ -9,6 +9,7 @@ use plotters::{
 };
 use super::{
     Context, Plot2d,
+    build_plot, build_chart,
 };
 use std::collections::HashMap;
 
@@ -33,17 +34,17 @@ pub fn build_context<'a> (dim: (u32, u32), record: &Record) -> Context<'a> {
             if *class == FrameClass::Ephemeris {
                 let file = "clock-bias.png";
                 if plots.get(file).is_none() {
-                    let plot = Context::build_plot(file, dim);
+                    let plot = build_plot(file, dim);
                     plots.insert(file.to_string(), plot);
                 }
                 let file = "clock-drift.png";
                 if plots.get(file).is_none() {
-                    let plot = Context::build_plot(file, dim);
+                    let plot = build_plot(file, dim);
                     plots.insert(file.to_string(), plot);
                 }
                 let file = "clock-driftr.png";
                 if plots.get(file).is_none() {
-                    let plot = Context::build_plot(file, dim);
+                    let plot = build_plot(file, dim);
                     plots.insert(file.to_string(), plot);
                 }
             } else {
@@ -54,7 +55,7 @@ pub fn build_context<'a> (dim: (u32, u32), record: &Record) -> Context<'a> {
     // Add one chart onto all plots
     for (id, plot) in plots.iter() {
         // scale this chart nicely
-        let chart = Context::build_chart(id, t_axis.clone(), (-10.0E5, 10E5), plot);
+        let chart = build_chart(id, t_axis.clone(), (-10.0E5, 10E5), plot);
         charts.insert(id.to_string(), chart);
     }
     Context {

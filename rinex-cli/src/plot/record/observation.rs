@@ -2,7 +2,8 @@
 use rinex::*;
 use rinex::observation::Record;
 use super::{
-    Context, Plot2d,
+    Context, Plot2d, 
+    build_chart, build_plot,
 };
 use plotters::{
     prelude::*,
@@ -42,7 +43,7 @@ pub fn build_context<'a> (dim: (u32, u32), record: &Record) -> Context<'a> {
             let title = "clock-offset.png";
             plots.insert(
                 title.to_string(),
-                Context::build_plot(title, dim));
+                build_plot(title, dim));
             if let Some((min,max)) = y_ranges.get_mut(title) {
                 if clk_offset < min {
                     *min = *clk_offset;
@@ -73,7 +74,7 @@ pub fn build_context<'a> (dim: (u32, u32), record: &Record) -> Context<'a> {
                 if is_phase_carrier_obs_code!(observation) {
                     let file = "phase.png";
                     if plots.get(file).is_none() {
-                        let plot = Context::build_plot(file, dim);
+                        let plot = build_plot(file, dim);
                         plots.insert(file.to_string(), plot);
                     }
                     if let Some((min,max)) = y_ranges.get_mut("PH") {
@@ -90,7 +91,7 @@ pub fn build_context<'a> (dim: (u32, u32), record: &Record) -> Context<'a> {
                 } else if is_doppler_obs_code!(observation) {
                     let file = "doppler.png";
                     if plots.get(file).is_none() {
-                        let plot = Context::build_plot(file, dim);
+                        let plot = build_plot(file, dim);
                         plots.insert(file.to_string(), plot);
                     }
                     if let Some((min,max)) = y_ranges.get_mut("DOP") {
@@ -107,7 +108,7 @@ pub fn build_context<'a> (dim: (u32, u32), record: &Record) -> Context<'a> {
                 } else if is_pseudo_range_obs_code!(observation) {
                     let file = "pseudo-range.png";
                     if plots.get(file).is_none() {
-                        let plot = Context::build_plot(file, dim);
+                        let plot = build_plot(file, dim);
                         plots.insert(file.to_string(), plot);
                     }
                     if let Some((min,max)) = y_ranges.get_mut("PR") {
@@ -124,7 +125,7 @@ pub fn build_context<'a> (dim: (u32, u32), record: &Record) -> Context<'a> {
                 } else if is_sig_strength_obs_code!(observation) {
                     let file = "ssi.png";
                     if plots.get(file).is_none() {
-                        let plot = Context::build_plot(file, dim);
+                        let plot = build_plot(file, dim);
                         plots.insert(file.to_string(), plot);
                     }
                     if let Some((min,max)) = y_ranges.get_mut("SSI") {
@@ -155,7 +156,7 @@ pub fn build_context<'a> (dim: (u32, u32), record: &Record) -> Context<'a> {
         // scale this chart nicely
         let range = y_ranges.get(chart_id)
             .unwrap();
-        let chart = Context::build_chart(chart_id, t_axis.clone(), *range, plot);
+        let chart = build_chart(chart_id, t_axis.clone(), *range, plot);
         charts.insert(chart_id.to_string(), chart);
     }
     Context {

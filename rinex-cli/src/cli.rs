@@ -49,7 +49,7 @@ impl Cli {
                     .arg(Arg::new("sv-epoch")
                         .long("sv-epoch")
                         .action(ArgAction::SetTrue)
-                        .help("Identify space vehicules per epoch"))
+                        .help("Display space vehicules per epoch"))
                     .arg(Arg::new("header")
                         .long("header")
                         .action(ArgAction::SetTrue)
@@ -58,11 +58,11 @@ impl Cli {
                         .long("gaps")
                         .short('g')
                         .action(ArgAction::SetTrue)
-                        .help("Identify unexpected data gaps in record"))
+                        .help("Display unexpected data gaps in record"))
                     .arg(Arg::new("largest-gap")
                         .long("largest-gap")
                         .action(ArgAction::SetTrue)
-                        .help("Identify largest data gaps in record"))
+                        .help("Display largest data gaps in record"))
                 .next_help_heading("Record resampling methods")
                     .arg(Arg::new("resample-ratio")
                         .long("resample-ratio")
@@ -71,12 +71,16 @@ impl Cli {
                     .arg(Arg::new("resample-interval")
                         .long("resample-interval")
                         .short('i')
-                        .help("Shrinks record so adjacent epochs match the |e(n)-e(n-1)| > interval condition. Interval must be a valid \"chrono::Duration\" string description"))
+                        .help("Shrinks record so adjacent epochs match 
+the |e(n)-e(n-1)| > interval condition. 
+Interval must be a valid \"chrono::Duration\" string description"))
                     .arg(Arg::new("time-window")
                         .long("time-window")
                         .short('w')
-                        .help("Center record content to specified epoch window. All epochs that do not lie within the specified (start, end) interval are dropped out. User must pass two valid \"chrono::NaiveDateTime\" description"))
-                .next_help_heading("Retain filters (data focus)")
+                        .help("Center record content around specified epoch window. 
+All epochs that do not lie within the specified (start, end) 
+interval are dropped out. User must pass two valid \"chrono::NaiveDateTime\" description"))
+                .next_help_heading("Retain filters (focus on data of interest)")
                     .arg(Arg::new("retain-constell")
                         .long("retain-constell")
                         .help("Retain only given GNSS constellation"))
@@ -93,15 +97,19 @@ impl Cli {
                         .help("Retain only non valid epochs"))
                     .arg(Arg::new("retain-elev-above")
                         .long("retain-elev-above")
-                        .help("Retain vehicules (strictly) above given elevation angle"))
+                        .help("Retain vehicules (strictly) above given elevation angle.
+-fp must be a NAV file, or NAV context must be provided with -nav"))
                     .arg(Arg::new("retain-elev-below")
                         .long("retain-elev-below")
-                        .help("Retain vehicules (strictly) below given elevation angle"))
+                        .help("Retain vehicules (strictly) below given elevation angle.
+-fp must be a NAV file, or NAV context must be provided with -nav"))
                     .arg(Arg::new("retain-best-elev")
                         .long("retain-best-elev")
                         .action(ArgAction::SetTrue)
-                        .help("Retain vehicules per epoch and per constellation, that exhibit the best elevation angle"))
-                .next_help_heading("OBS RINEX specific commands")
+                        .help("Retain vehicules per epoch and per constellation, 
+that exhibit the best elevation angle.
+-fp must be a NAV file, or NAV context must be provided with -nav"))
+                .next_help_heading("Observation RINEX specific (-fp)")
                     .arg(Arg::new("observables")
                         .long("observables")
                         .short('o')
@@ -128,7 +136,7 @@ impl Cli {
                     .arg(Arg::new("ssi-range")
                         .long("ssi-range")
                         .action(ArgAction::SetTrue)
-                        .help("Extract SSI (min,max) range, accross all epochs and vehicules"))
+                        .help("Display SSI (min,max) range, accross all epochs and vehicules"))
                     .arg(Arg::new("ssi-sv-range")
                         .long("ssi-sv-range")
                         .action(ArgAction::SetTrue)
@@ -136,11 +144,12 @@ impl Cli {
                     .arg(Arg::new("lli-mask")
                         .long("lli-mask")
                         .short('l')
-                        .help("Applies given LLI AND() mask. Also drops observations that did not come with an LLI flag"))
+                        .help("Applies given LLI AND() mask. 
+Also drops observations that did not come with an LLI flag"))
                     .arg(Arg::new("clock-offset")
                         .long("clock-offset")
                         .action(ArgAction::SetTrue)
-                        .help("Extract clock offset data, per epoch")) 
+                        .help("Display clock offset data, per epoch")) 
                     .arg(Arg::new("cycle-slip")
                         .long("cycle-slip")
                         .action(ArgAction::SetTrue)
@@ -149,66 +158,83 @@ impl Cli {
                         .long("lock-loss")
                         .action(ArgAction::SetTrue)
                         .help("List epochs where lock was declared lost")) 
+                    .arg(Arg::new("phasediff")
+                        .long("phasediff")
+                        .action(ArgAction::SetTrue)
+                        .help("Phase differentiation between different phase codes,
+but identical carrier frequencies.
+Useful to determine correlation and bias between observables.
+For instance \"L2S-L2W\" S code against W code, for L2 carrier.
+Refer to README."))
+                    .arg(Arg::new("codediff")
+                        .long("codediff")
+                        .action(ArgAction::SetTrue)
+                        .help("Pseudo Range differentiation between different codes,
+but identical carrier frequencies.
+Useful to determine correlation and bias between observables.
+For instance \"C1P-C1C\" means P code against C code, for L1 carrier.
+Refer to README."))
                     .arg(Arg::new("pr2distance")
                         .long("pr2distance")
                         .action(ArgAction::SetTrue)
-                        .help("Converts all Pseudo Range data to real physical distances. This is destructive, original pseudo ranges are lost and overwritten"))
-                .next_help_heading("NAV RINEX specific commands")
+                        .help("Converts all Pseudo Range data to real physical distances. 
+This is destructive, original pseudo range codes are lost and overwritten"))
+                .next_help_heading("Navigation RINEX specific")
                     .arg(Arg::new("orbits")
                         .long("orbits")
                         .action(ArgAction::SetTrue)
-                        .help("Identify orbits data fields"))
+                        .help("Identify orbits data fields. -fp must be a NAV file"))
                     .arg(Arg::new("nav-msg")
                         .long("nav-msg")
                         .action(ArgAction::SetTrue)
-                        .help("Identify Navigation frame types")) 
+                        .help("Identify Navigation frame types. -fp must be a NAV file")) 
                     .arg(Arg::new("elevation")
                         .long("elevation")
                         .action(ArgAction::SetTrue)
-                        .help("Display elevation angles, per vehicules accross all epochs"))
+                        .help("Display elevation angles, per vehicules accross all epochs.
+-fp must be a NAV file"))
                     .arg(Arg::new("clock-bias")
                         .long("clock-bias")
                         .action(ArgAction::SetTrue)
-                        .help("Extract clock biases (offset, drift, drift changes) per epoch and vehicule"))
+                        .help("Display clock biases (offset, drift, drift changes) per epoch and vehicule.
+-fp must be a NAV file"))
                     .arg(Arg::new("retain-orb")
                         .long("retain-orb")
-                        .help("Retain only given list of Orbits fields")) 
+                        .help("Retain only given list of Orbits fields.
+For example, \"satPosX\" and \"satPosY\" are valid Glonass Orbit fields.
+Applies to either -fp or -nav context"))
                     .arg(Arg::new("retain-lnav")
                         .long("retain-lnav")
                         .action(ArgAction::SetTrue)
-                        .help("Retain only Legacy Navigation frames")) 
+                        .help("Retain only Legacy Navigation frames.
+Applies to either -fp or -nav context"))
                     .arg(Arg::new("retain-mnav")
                         .long("retain-mnav")
                         .action(ArgAction::SetTrue)
-                        .help("Retain only Modern Navigation frames")) 
+                        .help("Retain only Modern Navigation frames.
+Applies to either -fp or -nav context"))
                     .arg(Arg::new("retain-nav-msg")
                         .long("retain-nav-msg")
                         .action(ArgAction::SetTrue)
-                        .help("Retain only given list of Navigation messages")) 
+                        .help("Retain only given list of Navigation messages.
+Applies to either -fp or -nav context"))
                     .arg(Arg::new("retain-nav-eph")
                         .long("retain-nav-eph")
                         .action(ArgAction::SetTrue)
-                        .help("Retains only Navigation ephemeris frames")) 
+                        .help("Retains only Navigation ephemeris frames.
+Applies to either -fp or -nav context"))
                     .arg(Arg::new("retain-nav-iono")
                         .long("retain-nav-iono")
                         .action(ArgAction::SetTrue)
-                        .help("Retains only Navigation ionospheric models")) 
-                    .arg(Arg::new("output")
-                        .long("output")
-                        .action(ArgAction::Append)
-                        .help("Custom file paths to be generated from preprocessed RINEX files"))
-                    .arg(Arg::new("custom-header")
-                        .long("custom-header")
-                        .action(ArgAction::Append)
-                        .help("Custom header attributes, in case we're generating data"))
-                .next_help_heading("RINEX processing")
+                        .help("Retains only Navigation ionospheric models. 
+-fp must be a NAV file"))
+                .next_help_heading("NAV context")
                     .arg(Arg::new("nav")
                         .long("nav")
-                        .help("Activate \"differential\" context by passing a local Navigation file. With proper context (same sample rate), it is possible to perform more advanced operations.
-                        Refer to README \"Differential\" section"))
-                    /*.arg(Arg::new("ddiff")
-                        .long("ddiff")
-                        .help("Compute Observation RINEX double differentiation to cancel ionospheric and local clock induced biases. This expects the location of two RINEX files. One considered as Reference Observation and the other a Reference Navigation, used to determine phase reference points, in the following operation to perform."))*/
+                        .help("Provide Navigation context (ephemeris),
+usually combined to Observation data, provided with -fp.
+Ideally sample rate are strictly identical, otherwise data get lost.
+Refer to README."))
                 .next_help_heading("`teqc` operations")
                     .arg(Arg::new("merge")
                         .short('m')
@@ -227,12 +253,29 @@ impl Cli {
                         .long("report")
                         .action(ArgAction::SetTrue)
                         .help("Generate verbose report, similar to \"teqc\""))
+                .next_help_heading("RINEX output")
+                    .arg(Arg::new("output")
+                        .long("output")
+                        .action(ArgAction::Append)
+                        .help("Custom file paths to be generated from preprocessed RINEX files.
+For example -fp was filtered and decimated, use --output to dump results into a new RINEX."))
+                    .arg(Arg::new("custom-header")
+                        .long("custom-header")
+                        .action(ArgAction::Append)
+                        .help("Custom header attributes, in case we're generating data.
+--custom-header must either be plain JSON or an external JSON descriptor.
+Refer to README"))
                 .next_help_heading("Terminal options")
                     .arg(Arg::new("pretty")
                         .long("pretty")
                         .action(ArgAction::SetTrue)
                         .help("Make \"stdout\" terminal output more readable"))
                 .next_help_heading("Data visualization")
+                    .arg(Arg::new("skyplot")
+                        .short('y')
+                        .long("skyplot")
+                        .action(ArgAction::SetTrue)
+                        .help("Generate a \"skyplot\". NAV context must be provided, either with -fp or -nav"))
                     .arg(Arg::new("plot")
                         .short('p')
                         .long("plot")
@@ -252,61 +295,47 @@ impl Cli {
         }
     }
     /// Returns input filepaths
-    pub fn input_paths(&self) -> Vec<&str> {
+    pub fn input_path(&self) -> &str {
         self.matches
-            .get_many::<String>("filepath")
+            .get_one::<String>("filepath")
             .unwrap()
-            .map(|s| s.as_str())
-            .collect()
     }
     /// Returns output filepaths
-    pub fn output_paths (&self) -> Vec<&str> {
+    pub fn output_path(&self) -> Option<&String> {
         self.matches
-            .get_many::<String>("output")
-            .unwrap()
-            .map(|s| s.as_str())
-            .collect()
+            .get_one::<String>("output")
     }
-    /// Returns true if at least one --extract category flag
-    /// was requested
-    pub fn extract(&self) -> bool {
+    /// Returns true if at least one basic identification flag was passed
+    pub fn basic_identification(&self) -> bool {
         self.matches.get_flag("sv")
         | self.matches.get_flag("epochs")
-        | self.matches.get_flag("sv-epoch")
         | self.matches.get_flag("header")
         | self.matches.get_flag("observables")
-        | self.matches.get_flag("clock-offset")
         | self.matches.get_flag("ssi-range")
         | self.matches.get_flag("ssi-sv-range")
-        | self.matches.get_flag("cycle-slip")
         | self.matches.get_flag("orbits")
-        | self.matches.get_flag("elevation")
         | self.matches.get_flag("nav-msg")
-        | self.matches.get_flag("clock-bias")
-        | self.matches.get_flag("gaps")
-        | self.matches.get_flag("largest-gap")
-        | self.matches.get_flag("lock-loss")
+    }
+    /// Phase Diff analysis requested 
+    pub fn phase_diff(&self) -> bool {
+        self.matches.get_flag("phasediff")
+    }
+    /// Code Diff analysis requested 
+    pub fn code_diff(&self) -> bool {
+        self.matches.get_flag("codediff")
     }
     /// Returns list of requested data to extract
-    pub fn extraction_ops(&self) -> Vec<&str> {
+    pub fn identification_ops(&self) -> Vec<&str> {
         let flags = vec![
             "sv",
-            "sv-epoch",
             "epochs",
             "header",
             "constellations",
             "observables",
-            "clock-offset",
             "ssi-range",
             "ssi-sv-range",
-            "cycle-slip",
             "orbits",
-            "elevation",
             "nav-msg",
-            "clock-bias",
-            "gaps",
-            "largest-gap",
-            "lock-loss",
         ];
         flags.iter()
             .filter(|x| self.matches.get_flag(x))
@@ -370,7 +399,6 @@ impl Cli {
             "retain-sv",
             "retain-obs",
             "retain-ssi",
-            "retain-elev",
             "retain-elev-above",
             "retain-elev-below",
             "retain-orb",
