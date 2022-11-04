@@ -62,6 +62,7 @@ impl<'a> Context<'a> {
     }
 }
 
+/// Plots Rinex record content
 pub fn plot(ctx: &mut Context, rnx: &Rinex) {
     if let Some(record) = rnx.record.as_obs() {
         observation::plot(ctx, record)

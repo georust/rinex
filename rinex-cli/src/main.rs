@@ -29,6 +29,7 @@ pub fn main() -> Result<(), rinex::Error> {
     let plot = cli.plot();
     let fp = cli.input_path();
     let output_path = cli.output_path();
+    let nav_context = cli.nav_context();
 
     // list of parsed and preprocessed RINEX files
     let mut rnx = Rinex::from_file(fp)?;
@@ -116,21 +117,27 @@ pub fn main() -> Result<(), rinex::Error> {
             }
         } else {
             // no output path provided
-            // ==> data visualization
-            if plot { // graphical 
-                let dims = cli.plot_dimensions(); // create context
+            // ==> record analysis, data visualization..
+            
+            if plot { // visualization allowed 
+
+                // plot customization
+                let dims = cli.plot_dimensions();
                 
                 if cli.phase_diff() {
                     // Differential phase code analysis
-                    let mut ctx = plot::differential::Context::new(dims, &rnx); 
                     let data = rnx.observation_phase_diff();
-                    plot::differential::plot(&mut ctx, data);
+                    plot::differential::plot(dims, &data);
                 
                 } else if cli.code_diff() {
                     // Differential pseudo code analysis
-                    let mut ctx = plot::differential::Context::new(dims, &rnx); 
-                    let data = rnx.observation_phase_diff();
-                    plot::differential::plot(&mut ctx, data);
+
+                } else if cli.multipath() {
+                    if let Some(nav) = nav_context {
+                        
+                    } else {
+                        panic!("--nav must be provided for code multipath analysis");
+                    }
 
                 } else { // plot record
                     let mut ctx = plot::record::Context::new(dims, &rnx); 
@@ -145,6 +152,15 @@ pub fn main() -> Result<(), rinex::Error> {
 
                 } else if cli.code_diff() {
                     // Differential pseudo code analysis
+
+                } else if cli.multipath() {
+                    if let Some(nav) = nav_context {
+
+                    } else {
+                        panic!("--nav must be provided for code multipath analysis");
+                    }
+
+
 
                 } else {
                     // Full record display

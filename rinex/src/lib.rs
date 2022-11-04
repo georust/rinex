@@ -2344,7 +2344,6 @@ impl Rinex {
                         if let Some((refcode, refdata)) = codes.into_iter().nth(i) {
                             if let Some((code, data)) = codes.into_iter().nth(i+1) {
                                 let opdescriptor = format!("{}{}-{}{}", carrier, refcode, carrier, code);
-                                println!("{}", opdescriptor); //DEBUG
                                 diff_map.insert(opdescriptor.to_string(), data -refdata); 
                             }
                         }

@@ -349,6 +349,10 @@ Refer to README"))
     pub fn code_diff(&self) -> bool {
         self.matches.get_flag("codediff")
     }
+    /// Code Multipath analysis requested 
+    pub fn multipath(&self) -> bool {
+        self.matches.get_flag("multipath")
+    }
     /// Returns list of requested data to extract
     pub fn identification_ops(&self) -> Vec<&str> {
         let flags = vec![
@@ -491,52 +495,19 @@ Refer to README"))
     pub fn pretty (&self) -> bool {
         self.get_flag("pretty")
     }
-    pub fn single_diff (&self) -> Option<Rinex> {
-        if self.matches.contains_id("diff") {
-            let args = self.matches.get_one::<String>("diff")
+    pub fn nav_context(&self) -> Option<Rinex> {
+        if self.matches.contains_id("nav") {
+            let args = self.matches.get_one::<String>("nav")
                 .unwrap();
-            Some(Rinex::from_file(args).unwrap())
-        } else {
-            None
-        }
-    }
-    pub fn double_diff (&self) -> Option<DoubleDiffContext> {
-        if self.matches.contains_id("ddiff") {
-            let args = self.matches.get_one::<String>("ddiff")
-                .unwrap();
-            let args: Vec<&str> = args.split(",").collect();
-            if args.len() != 2 {
-                panic!("faulty --diff usage\nExpecting Reference Observations and Ephemeris context");
-            }
-            let rnx_a = Rinex::from_file(args[0])
-                .expect(&format!("Failed to parse given reference RINEX from \"{}\"", args[0]));
-            let rnx_b = Rinex::from_file(args[1])
-                .expect(&format!("Failed to parse given reference RINEX from \"{}\"", args[1]));
-            if rnx_a.is_observation_rinex() {
-                if rnx_b.is_navigation_rinex() {
-                    let mut context = DoubleDiffContext::new(&rnx_a)
-                        .expect("non valid reference Observations");
-                    context
-                        .set_ephemeris_context(&rnx_b)
-                        .expect("non valid Ephemeris context");
-                    Some(context)
+            if let Ok(rnx) = Rinex::from_file(args) {
+                if rnx.is_navigation_rinex() {
+                    Some(rnx)
                 } else {
-
-                    panic!("faulty --diff usage\nMissing Ephemeris context");
-                }
-            } else if rnx_b.is_observation_rinex() {
-                if rnx_a.is_navigation_rinex() {
-                    let mut context = DoubleDiffContext::new(&rnx_b)
-                        .expect("non valid reference Observations");
-                    context
-                        .set_ephemeris_context(&rnx_a)
-                        .expect("non valid Ephemeris context");
-                    Some(context)
-                } else {
-                    panic!("faulty --diff usage\nMissing Ephemeris context");
+                    panic!("--nav must be a Navigation RINEX");
                 }
             } else {
-                panic!("faulty --diff usage\nMissing Reference Observations");
+                println!("Failed to parse Navigation Context \"{}\"", args);
+                None
             }
         } else {
             None
