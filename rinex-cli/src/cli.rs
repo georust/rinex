@@ -1,6 +1,5 @@
-use rinex::{*,
-    processing::DoubleDiffContext,
-};
+use rinex::*;
+
 use clap::{
     Command, 
     Arg, ArgMatches, 

@@ -150,6 +150,19 @@ impl Ephemeris {
 			},
 		))
 	}
+
+    /// Computes elevation angle. Useful macro so the user
+    /// does not have to either care for the Orbit field identification,
+    /// or involved computations
+    pub fn elevation_angle(&self) -> Option<f64> {
+        if let Some(e) = self.orbits.get("e") {
+            e.as_f64()
+        } else {
+            // Orbit field was either missing
+            // but what about glonass ??
+            None
+        }
+    }
 }
 
 /// Parses constellation + revision dependent orbits data 
