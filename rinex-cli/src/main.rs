@@ -131,6 +131,8 @@ pub fn main() -> Result<(), rinex::Error> {
                 
                 } else if cli.code_diff() {
                     // Differential pseudo code analysis
+                    let data = rnx.observation_code_diff();
+                    plot::differential::plot(dims, &data);
 
                 } else if cli.multipath() {
                     if let Some(nav) = nav_context {

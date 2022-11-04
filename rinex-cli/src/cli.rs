@@ -250,6 +250,7 @@ For instance \"C1P-C1C\" means P code against C code, for L1 carrier.
 Refer to README."))
                     .arg(Arg::new("multipath")
                         .long("multipath")
+                        .action(ArgAction::SetTrue)
                         .help("Perform code multipath analysis.
 Observation context must be provided with -fp.
 Navigation context must be provided with -nav.

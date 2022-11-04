@@ -273,11 +273,17 @@ pub fn plot(ctx: &mut Context, record: &Record) {
             .draw()
             .expect("failed to draw clock offset labels");
     }
-    for (carrier, vehicules) in phase {
-        let symbol = symbols[carrier];
-        for (sv, data) in vehicules {
+    /*
+     * Plot phase observations
+     */
+    for (index, (carrier, vehicules)) in phase.iter().enumerate() {
+        for (sv_index, (sv, data)) in vehicules.iter().enumerate() {
+            // one Symbol per Sv
+            let symbol = symbols[sv_index % symbols.len()];
+            // Sv color
             let color = ctx.colors.get(&sv.to_string())
                 .expect(&format!("no colors to identify \"{}\"", sv));
+            // retrieve plot
             let plot = ctx.plots.get("phase.png")
                 .expect("missing phase data plot");
             let mut chart = ctx.charts
@@ -285,38 +291,52 @@ pub fn plot(ctx: &mut Context, record: &Record) {
                 .expect("missing phase data chart")
                 .clone()
                 .restore(plot);
-            // draw line serie
-            chart
-                .draw_series(LineSeries::new(
-                    data.iter()
-                        .map(|point| *point),
-                        color.stroke_width(3),
-                ))
-                .expect("failed to draw phase observations")
-                .label(sv.to_string())
-                .legend(|(x, y)| {
-                    PathElement::new(vec![(x, y), (x + 20, y)], &color)
-                });
-            // draw symbols that empasize carrier signal
-            chart
-                .draw_series(
-                    data.iter()
-                        .map(|point| {
-                            if symbol == "x" {
-                                Cross::new(*point, 4,
-                                    Into::<ShapeStyle>::into(&color).filled())
-                                    .into_dyn()
-                            } else if symbol == "o" {
-                                Circle::new(*point, 4,
-                                    Into::<ShapeStyle>::into(&color).filled())
-                                    .into_dyn()
-                            } else {
-                                TriangleMarker::new(*point, 4,
-                                    Into::<ShapeStyle>::into(&color).filled())
-                                    .into_dyn()
-                            }
-                        }))
-                        .expect("failed to draw phase observations");
+            // plot
+            if index == 0 {
+                chart
+                    .draw_series(
+                        data.iter()
+                            .map(|point| {
+                                if symbol == "x" {
+                                    Cross::new(*point, 4,
+                                        Into::<ShapeStyle>::into(&color).filled())
+                                        .into_dyn()
+                                } else if symbol == "o" {
+                                    Circle::new(*point, 4,
+                                        Into::<ShapeStyle>::into(&color).filled())
+                                        .into_dyn()
+                                } else {
+                                    TriangleMarker::new(*point, 4,
+                                        Into::<ShapeStyle>::into(&color).filled())
+                                        .into_dyn()
+                                }
+                            }))
+                            .expect("failed to draw phase observations")
+                            .label(sv.to_string())
+                            .legend(|(x, y)| {
+                                PathElement::new(vec![(x, y+10*sv_index as i32), (x + 20, y +10*sv_index as i32)], &color)
+                            });
+            } else {
+                chart
+                    .draw_series(
+                        data.iter()
+                            .map(|point| {
+                                if symbol == "x" {
+                                    Cross::new(*point, 4,
+                                        Into::<ShapeStyle>::into(&color).filled())
+                                        .into_dyn()
+                                } else if symbol == "o" {
+                                    Circle::new(*point, 4,
+                                        Into::<ShapeStyle>::into(&color).filled())
+                                        .into_dyn()
+                                } else {
+                                    TriangleMarker::new(*point, 4,
+                                        Into::<ShapeStyle>::into(&color).filled())
+                                        .into_dyn()
+                                }
+                            }))
+                            .expect("failed to draw phase observations");
+            }
             chart
                 .configure_series_labels()
                 .border_style(&BLACK)
