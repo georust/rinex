@@ -2311,20 +2311,26 @@ impl Rinex {
         let mut diff_map: HashMap<String, f64> = HashMap::new();
 
         let raw_phases = self.observation_carrier_phases();
-        let mut associations: HashMap<String, Vec<(String, f64)>> = HashMap::new(); 
+        let mut associations: HashMap<Constellation, HashMap<String, Vec<(String, f64)>>> = HashMap::new(); 
 
         for (epoch, vehicules) in raw_phases.iter() {
             sv_map.clear();
+            associations.clear();
             for (sv, data) in vehicules.iter() {
                 diff_map.clear();
-                associations.clear(); // associate by carrier
                 for (obscode, phase) in data.iter() {
                     let carrier = &obscode[0..obscode.len()-1]; // "L1", "L2"..
                     let code = &obscode[obscode.len()-1..obscode.len()]; // "C", "W", ..
-                    if let Some(codes) = associations.get_mut(carrier) {
-                        codes.push((code.to_string(), *phase));
+                    if let Some(carriers) = associations.get_mut(&sv.constellation) {
+                        if let Some(codes) = carriers.get_mut(carrier) {
+                            codes.push((code.to_string(), *phase));
+                        } else {
+                            carriers.insert(carrier.to_string(), vec![(code.to_string(), *phase)]);
+                        }
                     } else {
-                        associations.insert(carrier.to_string(), vec![(code.to_string(), *phase)]);
+                        let mut map: HashMap<String, Vec<(String, f64)>> = HashMap::new();
+                        map.insert(carrier.to_string(), vec![(code.to_string(), *phase)]);
+                        associations.insert(sv.constellation, map);
                     }
                 }
                 associations.retain(|_, v| v.len() > 1); // only one phase observation
@@ -2333,18 +2339,23 @@ impl Rinex {
                 // This is very important, otherwise the following diff' op
                 // picks up alternating RefCode and the differentiation is not consistent
                 // accross all epochs
-                for (_, data) in associations.iter_mut() {
-                    data.sort_by_key(|(a,_)| a.to_uppercase());
+                for (_, codes) in associations.iter_mut() {
+                    for (_, data) in codes.iter_mut() {
+                        data.sort_by_key(|(a,_)| a.to_uppercase());
+                    }
                 }
 
-                // group code and refcode
-                for (carrier, codes) in associations.iter() {
-                    let nb_diff = codes.len() -1; // for M code, we can compute M-1 diff
-                    for i in 0..nb_diff {
-                        if let Some((refcode, refdata)) = codes.into_iter().nth(i) {
-                            if let Some((code, data)) = codes.into_iter().nth(i+1) {
-                                let opdescriptor = format!("{}{}-{}{}", carrier, refcode, carrier, code);
-                                diff_map.insert(opdescriptor.to_string(), data -refdata); 
+                // group codes and associate ref. so A-B is consistent accross all epochs
+                for (_, carriers) in associations.iter() {
+                    for (carrier, codes) in carriers.iter() {
+                        let nb_diff = codes.len() -1; // for M code, we can compute M-1 diff
+                        for i in 0..nb_diff {
+                            if let Some((refcode, refdata)) = codes.into_iter().nth(i) {
+                                if let Some((code, data)) = codes.into_iter().nth(i+1) {
+                                    let opdescriptor = format!("{}{}-{}{}", carrier, refcode, carrier, code);
+                                    diff_map.insert(opdescriptor.to_string(), 
+                                        data -refdata); 
+                                }
                             }
                         }
                     }

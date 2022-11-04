@@ -61,6 +61,7 @@ pub fn plot(dims: (u32,u32), data: &BTreeMap<Epoch, HashMap<Sv, HashMap<String, 
             }
         }
     }
+
     let x_axis = taxis[0]..taxis[taxis.len()-1]; 
     let mut chart = ChartBuilder::on(&p)
         .caption("Phase Diff", ("sans-serif", 50).into_font())
@@ -69,6 +70,7 @@ pub fn plot(dims: (u32,u32), data: &BTreeMap<Epoch, HashMap<Sv, HashMap<String, 
         .y_label_area_size(40)
         .build_cartesian_2d(x_axis, 0.9*y_range.0..1.1*y_range.1) // nicer Y scale
         .unwrap();
+    
     chart
         .configure_mesh()
         .x_desc("Timestamp [s]")
@@ -80,17 +82,33 @@ pub fn plot(dims: (u32,u32), data: &BTreeMap<Epoch, HashMap<Sv, HashMap<String, 
     /*
      * Plot Data
      */
-    for (c_index, (code, sv)) in toplot.iter().enumerate() {
+    for (code_index, (code, sv)) in toplot.iter().enumerate() {
         let color = colors.get(code).unwrap();
-        for (sv, data) in sv {
-            if c_index == 0 {
+        for (sv_index, (sv, data)) in sv.iter().enumerate() {
+            let symbol = symbols.get(sv_index % symbols.len())
+                .unwrap();
+            if code_index == 0 {
                 chart
                     .draw_series(
                         data.iter()
                             .map(|point| {
-                                Cross::new(*point, 4,
-                                    Into::<ShapeStyle>::into(&color).filled())
-                                .into_dyn()
+                                match *symbol {
+                                    "t" => {
+                                        TriangleMarker::new(*point, 4,
+                                            Into::<ShapeStyle>::into(&color).filled())
+                                        .into_dyn()
+                                    },
+                                    "o" => {
+                                        Circle::new(*point, 4,
+                                            Into::<ShapeStyle>::into(&color).filled())
+                                        .into_dyn()
+                                    },
+                                    _ => {
+                                        Cross::new(*point, 4,
+                                            Into::<ShapeStyle>::into(&color).filled())
+                                        .into_dyn()
+                                    },
+                                }
                             }))
                             .expect(&format!("failed to draw {} for Sv {:?}", code, sv))
                             .label(code.to_string())
