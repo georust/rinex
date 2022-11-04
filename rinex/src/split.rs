@@ -1,8 +1,6 @@
 //! RINEX Split operation
 use crate::Epoch;
 use thiserror::Error;
-use std::cmp::{PartialEq, Eq};
-use std::hash::Hash;
 
 /// Split operation related error(s)
 #[derive(Error, Debug)]
