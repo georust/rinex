@@ -26,8 +26,6 @@ mod merge;
 mod split;
 mod formatter;
 
-use itertools::Itertools;
-
 extern crate num;
 #[macro_use]
 extern crate num_derive;
@@ -2299,7 +2297,7 @@ impl Rinex {
     /// Computes Phase Difference between different Codes with shared frequency carriers.
     /// This will exhibit static or changing offsets between observation types,
     /// and also drift effect between observation types.
-    /// Cf. page 11 of this study 
+    /// Cf. page 11
     /// <http://navigation-office.esa.int/attachments_12649498_1_Reichel_5thGalSciCol_2015.pdf>.
     /// The phase differences are sorted by epoch, per vehicule and per difference description.
     /// For example "L1C-L1W" means this is the phase difference for carrier 1 between W & C Codes.
@@ -2310,10 +2308,78 @@ impl Rinex {
         let mut sv_map: HashMap<Sv, HashMap<String, f64>> = HashMap::new();
         let mut diff_map: HashMap<String, f64> = HashMap::new();
 
-        let raw_phases = self.observation_carrier_phases();
+        let data = self.observation_carrier_phases();
         let mut associations: HashMap<Constellation, HashMap<String, Vec<(String, f64)>>> = HashMap::new(); 
+        for (epoch, vehicules) in data.iter() {
+            sv_map.clear();
+            associations.clear();
+            for (sv, data) in vehicules.iter() {
+                diff_map.clear();
+                for (obscode, phase) in data.iter() {
+                    let carrier = &obscode[0..obscode.len()-1]; // "L1", "L2"..
+                    let code = &obscode[obscode.len()-1..obscode.len()]; // "C", "W", ..
+                    if let Some(carriers) = associations.get_mut(&sv.constellation) {
+                        if let Some(codes) = carriers.get_mut(carrier) {
+                            codes.push((code.to_string(), *phase));
+                        } else {
+                            carriers.insert(carrier.to_string(), vec![(code.to_string(), *phase)]);
+                        }
+                    } else {
+                        let mut map: HashMap<String, Vec<(String, f64)>> = HashMap::new();
+                        map.insert(carrier.to_string(), vec![(code.to_string(), *phase)]);
+                        associations.insert(sv.constellation, map);
+                    }
+                }
+                associations.retain(|_, v| v.len() > 1); // only one phase observation
+                                                    // meaning, diff is not feasible
+                // sorts remaining obscodes per alphabetical order. 
+                // This is very important, otherwise the following diff' op
+                // picks up alternating RefCode and the differentiation is not consistent
+                // accross all epochs
+                for (_, codes) in associations.iter_mut() {
+                    for (_, data) in codes.iter_mut() {
+                        data.sort_by_key(|(a,_)| a.to_uppercase());
+                    }
+                }
 
-        for (epoch, vehicules) in raw_phases.iter() {
+                // group codes and associate ref. so A-B is consistent accross all epochs
+                for (_, carriers) in associations.iter() {
+                    for (carrier, codes) in carriers.iter() {
+                        let nb_diff = codes.len() -1; // for M code, we can compute M-1 diff
+                        for i in 0..nb_diff {
+                            if let Some((refcode, refdata)) = codes.into_iter().nth(i) {
+                                if let Some((code, data)) = codes.into_iter().nth(i+1) {
+                                    let opdescriptor = format!("{}{}-{}{}", carrier, refcode, carrier, code);
+                                    diff_map.insert(opdescriptor.to_string(), 
+                                        data -refdata); 
+                                }
+                            }
+                        }
+                    }
+                }
+                if diff_map.len() > 0 {
+                    sv_map.insert(*sv, diff_map.clone());
+                }
+            }
+            if sv_map.len() > 0 {
+                ret.insert(*epoch, sv_map.clone());
+            }
+        }
+        ret
+    }
+
+    /// Computes Code (Pseudo Range) differentiation against shared frequency carriers.
+    /// Similary operation to [Rinex::observation_phase_diff].
+    /// Cf. page 12 
+    /// <http://navigation-office.esa.int/attachments_12649498_1_Reichel_5thGalSciCol_2015.pdf>.
+    pub fn observation_code_diff (&self) -> BTreeMap<Epoch, HashMap<Sv, HashMap<String, f64>>> {
+        let mut ret: BTreeMap<Epoch, HashMap<Sv, HashMap<String, f64>>> = BTreeMap::new();
+        let mut sv_map: HashMap<Sv, HashMap<String, f64>> = HashMap::new();
+        let mut diff_map: HashMap<String, f64> = HashMap::new();
+
+        let data = self.observation_pseudo_ranges();
+        let mut associations: HashMap<Constellation, HashMap<String, Vec<(String, f64)>>> = HashMap::new(); 
+        for (epoch, vehicules) in data.iter() {
             sv_map.clear();
             associations.clear();
             for (sv, data) in vehicules.iter() {
