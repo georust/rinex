@@ -54,8 +54,8 @@ proprietary formats in general.
 
 Some `teqc` operations are supported:
 
-- [merge](doc/merging.md) several RINEX together into a single file.
-- [decimate](doc/resampling.md) RINEX record to reduce the quantity of data to analyze
+- [merge](doc/merge.md) several RINEX together into a single file.
+- [resampling](doc/sampling.md) RINEX record to reduce the quantity of data to analyze
 - [split](doc/split.md) given RINEX into two
 - [ascii-plot](doc/ascii-plot.md)
 to print a very descriptive tiny plot in the terminal,
