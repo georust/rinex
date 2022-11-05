@@ -74,12 +74,8 @@ pub fn main() -> Result<(), rinex::Error> {
      */
     if cli.phase_diff() {
         let data = rnx.observation_phase_diff();
-        if plot {
-            let dims = cli.plot_dimensions();
-            plot::differential::plot(dims, &data);
-        } else {
-            println!("{:#?}", data);
-        }
+        let dims = cli.plot_dimensions();
+        plot::differential::plot(dims, &data);
         return Ok(());
     }
 
@@ -87,13 +83,13 @@ pub fn main() -> Result<(), rinex::Error> {
      * Code diff analysis
      */
     if cli.code_diff() {
-        let data = rnx.observation_code_diff();
+        /*let data = rnx.observation_code_diff();
         if plot {
             let dims = cli.plot_dimensions();
             plot::differential::plot(dims, &data);
         } else {
             println!("{:#?}", data);
-        }
+        }*/
         return Ok(());
     }
 

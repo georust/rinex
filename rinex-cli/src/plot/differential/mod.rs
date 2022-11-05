@@ -6,122 +6,79 @@ use super::{
 use plotters::prelude::*;
 use std::collections::{BTreeMap, HashMap};
 
-pub fn plot(dims: (u32,u32), data: &BTreeMap<Epoch, HashMap<Sv, HashMap<String, f64>>>) {
-    let mut t0: i64 = 0;
-    let mut taxis: Vec<f64> = Vec::new();
-    let mut y_range: (f64, f64) = (0.0, 0.0);
-    // one color per code diff
-    let mut colors: HashMap<String, RGBAColor> = HashMap::new();
-    // one symbol per vehicule
-    let symbols = vec!["x","t","o"];
-    // data to plot
-    //  sorted by Diff op
-    let mut toplot: HashMap<String, HashMap<Sv, Vec<(f64,f64)>>> = HashMap::new();
-    // build a plot
-    let p = build_plot("PhaseCode.png", dims);
-    // determine all requirements
-    for (e_index, (epoch, vehicules)) in data.iter().enumerate() {
-        // xp
-        if e_index == 0 {
-            t0 = epoch.date.timestamp() ;
+pub fn plot(dims: (u32,u32), data: &HashMap<String, BTreeMap<Epoch, f64>>) {
+    let mut p = build_plot("phase-diff.png", dims);
+    println!("{:#?}", data);
+    // build a color map, one per Op
+    let mut cmap: HashMap<String, RGBAColor> = HashMap::new();
+    // determine (smallest, largest) ts accross all Ops
+    // determine (smallest, largest) y accross all Ops (nicer scale)
+    let mut y: (f64, f64) = (0.0, 0.0);
+    let mut dates: (i64, i64) = (0, 0);
+    for (op_index, (op, epochs)) in data.iter().enumerate() {
+        if cmap.get(op).is_none() {
+            cmap.insert(op.clone(),
+                Palette99::pick(op_index) // RGB
+                    .mix(0.99)); // RGBA
         }
-        let t = (epoch.date.timestamp() - t0) as f64;
-        taxis.push(t);
-
-        for (sv, codes) in vehicules.iter() {
-            for (c_index, (code, data)) in codes.iter().enumerate() {
-                // one color per code 
-                if colors.get(&code.to_string()).is_none() {
-                    colors.insert(code.to_string(),
-                        Palette99::pick(c_index) // RGB
-                            .mix(0.99)); // RGBA
-                }
-                if data < &y_range.0 {
-                    y_range.0 = *data;
-                }
-                if data > &y_range.1 {
-                    y_range.1 = *data;
-                }
-                if let Some(data) = toplot.get_mut(&code.to_string()) {
-                    if let Some(data) = data.get_mut(&sv) {
-                        data.push((t, t));
-                    } else {
-                        data.insert(*sv, vec![(t, t)]);
-                    }
-                } else {
-                    let mut map: HashMap<Sv, Vec<(f64,f64)>> = HashMap::new();
-                    map.insert(*sv, vec![(t, t)]);
-                    toplot.insert(code.to_string(), map);
-                }
+        for (e_index, (epoch, data)) in epochs.iter().enumerate() {
+            if e_index == 0 {
+                dates.0 = epoch.date.timestamp();
+            }
+            if epoch.date.timestamp() > dates.1 {
+                dates.1 = epoch.date.timestamp();
+            }
+            if *data < y.0 {
+                y.0 = *data;
+            }
+            if *data > y.1 {
+                y.1 = *data;
             }
         }
     }
 
-    let x_axis = taxis[0]..taxis[taxis.len()-1]; 
+    // build a chart
+    let x_axis = 0.0..((dates.1-dates.0) as f64);
+    let y_axis = y.0*0.9..y.1*1.1;
     let mut chart = ChartBuilder::on(&p)
-        .caption("Phase Diff", ("sans-serif", 50).into_font())
+        .caption("Phase Code Differential analysis", ("sans-serif", 50).into_font())
         .margin(40)
-        .x_label_area_size(30)
-        .y_label_area_size(40)
-        .build_cartesian_2d(x_axis, 0.9*y_range.0..1.1*y_range.1) // nicer Y scale
-        .unwrap();
-    
+        .x_label_area_size(40)
+        .y_label_area_size(60)
+        .build_cartesian_2d(x_axis, y_axis)
+        .expect("failed to build a chart");
     chart
         .configure_mesh()
         .x_desc("Timestamp [s]")
         .x_labels(30)
-        .y_desc("Code Diff [n.a]")
+        .y_desc("Phase Difference [n.a]")
         .y_labels(30)
         .draw()
-        .unwrap();
+        .expect("failed to draw mesh");
     /*
-     * Plot Data
+     * Plot all Ops
      */
-    for (code_index, (code, sv)) in toplot.iter().enumerate() {
-        let color = colors.get(code).unwrap();
-        for (sv_index, (sv, data)) in sv.iter().enumerate() {
-            let symbol = symbols.get(sv_index % symbols.len())
-                .unwrap();
-            if code_index == 0 {
-                chart
-                    .draw_series(
-                        data.iter()
-                            .map(|point| {
-                                match *symbol {
-                                    "t" => {
-                                        TriangleMarker::new(*point, 4,
-                                            Into::<ShapeStyle>::into(&color).filled())
-                                        .into_dyn()
-                                    },
-                                    "o" => {
-                                        Circle::new(*point, 4,
-                                            Into::<ShapeStyle>::into(&color).filled())
-                                        .into_dyn()
-                                    },
-                                    _ => {
-                                        Cross::new(*point, 4,
-                                            Into::<ShapeStyle>::into(&color).filled())
-                                        .into_dyn()
-                                    },
-                                }
-                            }))
-                            .expect(&format!("failed to draw {} for Sv {:?}", code, sv))
-                            .label(code.to_string())
-                            .legend(|(x, y)| {
-                                PathElement::new(vec![(x, y), (x+20, y)], color.clone())
-                            });
-            } else {
-                chart
-                    .draw_series(
-                        data.iter()
-                            .map(|point| {
-                                Cross::new(*point, 4,
-                                    Into::<ShapeStyle>::into(&color).filled())
-                                .into_dyn()
-                            }))
-                            .expect(&format!("failed to draw {} for Sv {:?}", code, sv));
-            }
-        }
+    for (op, epochs) in data {
+        let color = cmap.get(op).unwrap(); 
+        chart.draw_series(LineSeries::new(
+            epochs.iter()
+                .map(|(k, v)| {
+                    ((k.date.timestamp() - dates.0) as f64, *v) 
+                }),
+                color.clone(),
+            ))
+            .expect(&format!("failed to draw {} serie", op))
+            .label(op.clone())
+            .legend(|(x, y)| {
+                PathElement::new(vec![(x, y), (x+20, y)], color.clone())
+            });
+        chart.draw_series(
+            epochs.iter()
+                .map(|(k, v)| {
+                    let x = (k.date.timestamp() - dates.0) as f64;
+                    Cross::new((x, *v), 4, color.clone())
+                }))
+                .expect(&format!("failed to draw {} serie", op));
     }
     chart
         .configure_series_labels()

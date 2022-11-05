@@ -2294,75 +2294,88 @@ impl Rinex {
         results
     }
     
-    /// Computes Phase Difference between different Codes with shared frequency carriers.
-    /// This will exhibit static or changing offsets between observation types,
-    /// and also drift effect between observation types.
+    /// Phase Code differential analysis.
+    /// Computes Difference between different Phase Observations
+    /// observered against the same carrier frequency.
+    /// This will exhibit static or drifting offsets between phase observations.
     /// Cf. page 11
     /// <http://navigation-office.esa.int/attachments_12649498_1_Reichel_5thGalSciCol_2015.pdf>.
-    /// The phase differences are sorted by epoch, per vehicule and per difference description.
-    /// For example "L1C-L1W" means this is the phase difference for carrier 1 between W & C Codes.
-    /// This will not produce anything if self is not an Observation Data where at least two
-    /// codes were sampled for a given carrier frequency.
-    pub fn observation_phase_diff (&self) -> BTreeMap<Epoch, HashMap<Sv, HashMap<String, f64>>> {
-        let mut ret: BTreeMap<Epoch, HashMap<Sv, HashMap<String, f64>>> = BTreeMap::new();
-        let mut sv_map: HashMap<Sv, HashMap<String, f64>> = HashMap::new();
-        let mut diff_map: HashMap<String, f64> = HashMap::new();
+    /// The phase code are sorted by kind of operation.
+    /// For instance, "L1C-L1W" means 1C against 1W code.
+    pub fn observation_phase_diff (&self) -> HashMap<String, BTreeMap<Epoch, f64>> {
+        let mut ret: HashMap<String, BTreeMap<Epoch, f64>> = HashMap::new();
+        let mut inner: BTreeMap<Epoch, f64> = BTreeMap::new();
+        
+        //TODO lazy_static please
+        let known_codes = vec![
+            "1A","1B","1C","1D","1W","1X","1Z","1P","1S","1L","1M",
+            "2C","2W","2D","2S","2L","2P","2M",
+            "3I","3X","3Q",
+            "4A","4B","4X",
+            "5A","5B","5C","5P","5I","5Q","5X",
+            "6A","6B","6C","6Q","6X","6Z",
+            "7D","7I","7P","7Q","7X",
+            "8D","8P","8I","8Q","8X",
+            "9A", "9B","9C","9X",
+        ];
 
-        let data = self.observation_carrier_phases();
-        let mut associations: HashMap<Constellation, HashMap<String, Vec<(String, f64)>>> = HashMap::new(); 
-        for (epoch, vehicules) in data.iter() {
-            sv_map.clear();
-            associations.clear();
-            for (sv, data) in vehicules.iter() {
-                diff_map.clear();
-                for (obscode, phase) in data.iter() {
-                    let carrier = &obscode[0..obscode.len()-1]; // "L1", "L2"..
-                    let code = &obscode[obscode.len()-1..obscode.len()]; // "C", "W", ..
-                    if let Some(carriers) = associations.get_mut(&sv.constellation) {
-                        if let Some(codes) = carriers.get_mut(carrier) {
-                            codes.push((code.to_string(), *phase));
-                        } else {
-                            carriers.insert(carrier.to_string(), vec![(code.to_string(), *phase)]);
-                        }
-                    } else {
-                        let mut map: HashMap<String, Vec<(String, f64)>> = HashMap::new();
-                        map.insert(carrier.to_string(), vec![(code.to_string(), *phase)]);
-                        associations.insert(sv.constellation, map);
-                    }
-                }
-                associations.retain(|_, v| v.len() > 1); // only one phase observation
-                                                    // meaning, diff is not feasible
-                // sorts remaining obscodes per alphabetical order. 
-                // This is very important, otherwise the following diff' op
-                // picks up alternating RefCode and the differentiation is not consistent
-                // accross all epochs
-                for (_, codes) in associations.iter_mut() {
-                    for (_, data) in codes.iter_mut() {
-                        data.sort_by_key(|(a,_)| a.to_uppercase());
-                    }
-                }
-
-                // group codes and associate ref. so A-B is consistent accross all epochs
-                for (_, carriers) in associations.iter() {
-                    for (carrier, codes) in carriers.iter() {
-                        let nb_diff = codes.len() -1; // for M code, we can compute M-1 diff
-                        for i in 0..nb_diff {
-                            if let Some((refcode, refdata)) = codes.into_iter().nth(i) {
-                                if let Some((code, data)) = codes.into_iter().nth(i+1) {
-                                    let opdescriptor = format!("{}{}-{}{}", carrier, refcode, carrier, code);
-                                    diff_map.insert(opdescriptor.to_string(), 
-                                        data -refdata); 
+        if let Some(record) = self.record.as_obs() {
+            for (epoch, (_, vehicules)) in record {
+                for (sv, observations) in vehicules {
+                    for (obscode, obsdata) in observations {
+                        if is_phase_carrier_obs_code!(obscode) { // this is a PH code
+                            let carrier_id = &obscode[1..2];
+                            let code = &obscode[1..];
+                            // locate a reference PH code for this PH code 
+                            for k_code in &known_codes {
+                                if *k_code != code { // different code
+                                    if k_code.starts_with(carrier_id) { // same carrier
+                                        let tolocate = "L".to_owned() + k_code;    
+                                        if let Some(otherdata) = observations.get(&tolocate) {
+                                            // we found another PH code
+                                            let mut found = false;
+                                            for (op, epochs) in ret.iter_mut() {
+                                                if op.contains(code) {
+                                                    found = true;
+                                                    // Diff Op already under progress
+                                                    // now we need to determine code' and k_code' roles
+                                                    // so referencing remains consistent
+                                                    let items: Vec<&str> = op.split("-")
+                                                        .collect();
+                                                    if code == items[0] {
+                                                        // code is differentiated
+                                                        // -- is this a new entry ?
+                                                        if epochs.get(epoch).is_none() {
+                                                            epochs.insert(*epoch, 
+                                                                obsdata.obs - otherdata.obs);
+                                                        }
+                                                    } else {
+                                                        // code is referenced to
+                                                        // -- is this a new entry ?
+                                                        if epochs.get(epoch).is_none() {
+                                                            epochs.insert(*epoch, 
+                                                                otherdata.obs - obsdata.obs);
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                            if !found {
+                                                // this is a new Diff Op 
+                                                // => initiate it
+                                                println!("\"{}\" CODE associated to \"{}\"", code, k_code); //DEBUG
+                                                let mut inner: BTreeMap<Epoch, f64> = BTreeMap::new();
+                                                inner.insert(*epoch, obsdata.obs - otherdata.obs);
+                                                ret.insert(
+                                                    format!("{}-{}", code, k_code),
+                                                    inner);
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
                     }
                 }
-                if diff_map.len() > 0 {
-                    sv_map.insert(*sv, diff_map.clone());
-                }
-            }
-            if sv_map.len() > 0 {
-                ret.insert(*epoch, sv_map.clone());
             }
         }
         ret

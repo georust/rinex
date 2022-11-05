@@ -235,21 +235,29 @@ Refer to README."))
                     .arg(Arg::new("phasediff")
                         .long("phasediff")
                         .action(ArgAction::SetTrue)
-                        .help("Phase differentiation between different phase codes,
-but identical carrier frequencies.
-Observation data must be provided with -fp. Navigation context is not required.
-Useful to determine correlation and bias between observables.
+                        .help("Phase code differential analysis.
+Differentiates phase codes sampled against identical carrier frequencies.
+Useful to determine correlation and biases between phase observations.
+Observation data must be provided with -fp. 
+Navigation context is not required for this operation.
 For instance \"L2S-L2W\" S code against W code, for L2 carrier.
+Refer to README."))
+                    .arg(Arg::new("prdiff")
+                        .long("prdiff")
+                        .action(ArgAction::SetTrue)
+                        .help("Pseudo Range differential analysis.
+Differentiates PR codes sampled against identical carrier frequencies.
+Useful to determine correlation and biases between observations.
+Observation data must be provided with -fp. 
+Navigation context is not required for this operation.
+For instance \"C1P-C1C\" means P code against C code, for L1 carrier.
 Refer to README."))
                     .arg(Arg::new("codediff")
                         .long("codediff")
                         .action(ArgAction::SetTrue)
-                        .help("Pseudo Range differentiation between different codes,
-but identical carrier frequencies.
-Observation data must be provided with -fp. Navigation context is not required.
-Useful to determine correlation and bias between observables.
-For instance \"C1P-C1C\" means P code against C code, for L1 carrier.
-Refer to README."))
+                        .help("Perform Phase and PR differential analysis
+(--phasediff + --prdiff) at once, in a efficient fashion.
+Produces the same results, but saves iteration and computation time."))
                     .arg(Arg::new("multipath")
                         .long("multipath")
                         .action(ArgAction::SetTrue)
@@ -352,6 +360,10 @@ Example \"--plot-height 1024"))
     /// Phase Diff analysis requested 
     pub fn phase_diff(&self) -> bool {
         self.matches.get_flag("phasediff")
+    }
+    /// PR Diff analysis requested 
+    pub fn pseudo_range_diff(&self) -> bool {
+        self.matches.get_flag("prdiff")
     }
     /// Code Diff analysis requested 
     pub fn code_diff(&self) -> bool {
