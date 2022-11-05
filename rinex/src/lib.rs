@@ -1035,7 +1035,7 @@ impl Rinex {
     /// rinex
     ///     .retain_space_vehicule_mut(filter.clone());
     /// // apply conversion
-    /// let distances = rinex.observation_pseudo_range_to_distance(offsets);
+    /// let distances = rinex.observation_pseudodistances(offsets);
     /// ```
     pub fn space_vehicules_clock_offset (&self) 
             -> BTreeMap<Epoch, BTreeMap<Sv, f64>> 
@@ -2247,7 +2247,7 @@ impl Rinex {
     /// // apply the same filter
     /// rinex
     ///     .retain_space_vehicule_mut(filter.clone());
-    /// let distances = rinex.observation_pseudo_range_to_distance(sv_clk_offsets);
+    /// let distances = rinex.observation_pseudodistances(sv_clk_offsets);
     /// // exploit distances
     /// for (e, sv) in distances.iter() { // (epoch, vehicules)
     ///     for (sv, obs) in sv.iter() { // (vehicule, distance)
@@ -2259,7 +2259,7 @@ impl Rinex {
     ///     }
     /// }
     /// ```
-    pub fn observation_pseudodistances (&self, sv_clk_offsets: BTreeMap<Epoch, BTreeMap<Sv, f64>>) -> BTreeMap<Epoch, BTreeMap<Sv, Vec<(String, f64)>>> {
+    pub fn observation_pseudodistances(&self, sv_clk_offsets: BTreeMap<Epoch, BTreeMap<Sv, f64>>) -> BTreeMap<Epoch, BTreeMap<Sv, Vec<(String, f64)>>> {
         let mut results :BTreeMap<Epoch, BTreeMap<Sv, Vec<(String, f64)>>> = BTreeMap::new();
         if !self.is_observation_rinex() {
             return results ;
