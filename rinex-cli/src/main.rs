@@ -9,13 +9,10 @@ mod plot; // plotting operations
 mod retain; // record filtering 
 mod filter; // record filtering
 mod resampling; // record resampling
+mod analysis; // basic analysis operations
 mod identification; // high level identification/macros
 
-use rinex::{*,
-    version::Version, 
-    observation::Crinex,
-};
-
+use rinex::*;
 use cli::Cli;
 use retain::retain_filters;
 use filter::apply_filters;
@@ -29,11 +26,14 @@ pub fn main() -> Result<(), rinex::Error> {
     let plot = cli.plot();
     let fp = cli.input_path();
     let output_path = cli.output_path();
-    let nav_context = cli.nav_context();
 
-    // list of parsed and preprocessed RINEX files
+    // RINEX data 
     let mut rnx = Rinex::from_file(fp)?;
+    let mut nav_context = cli.nav_context();
 
+    /*
+     * Preprocessing, filtering, resampling..
+     */
     if cli.resampling() { // resampling requested
         record_resampling(&mut rnx, cli.resampling_ops());
     }
@@ -44,135 +44,101 @@ pub fn main() -> Result<(), rinex::Error> {
         apply_filters(&mut rnx, cli.filter_ops());
     }
  
-/*
-    // perform desired processing, if any
-    if let Some(ref_rinex) = cli.single_diff() {
-        let offset = queue.len();
-        // perform 1D diff with given Reference Observations
-        // on every provided RINEX files
-        for index in 0..offset {
-            let base_rnx = &queue[index];
-            // compute 1D diff and push into queue
-            if let Ok(rnx) = ref_rinex.observation_diff(&base_rnx) {
-                queue.push(rnx);
-            } else {
-                println!("one differentiation operation failed");
-            }
-        }
-        // retain Reference RINEX only
-        // this allows post processing analysis on resulting data
-        queue.drain(0..offset);
+    /*
+     * Basic file identification
+     */
+    if cli.basic_identification() {
+        basic_identification(&rnx, cli.identification_ops(), pretty);
+        return Ok(());
+    }
+    
+    /*
+     * Basic analysis requested
+     */
+    if cli.sv_epoch() {
+        analysis::sv_epoch(&rnx, &mut nav_context, plot, pretty);
+        return Ok(());
     }
 
-    if let Some(context) = cli.double_diff() {
-        // Double differentiation
-        let ref_header = &context
-            .observations
-            .header;
-        let offset = queue.len();
-        for index in 0..offset {
-            let base_rnx = &queue[index];
-            // compute 2D diff and push into queue
-            if let Ok(record) = context.double_diff(&base_rnx) {
-                queue.push(Rinex::default()
-                    .with_header(ref_header.clone())
-                    .with_record(record::Record::ObsRecord(record)));
+    /*
+     * Phase diff analysis 
+     */
+    if cli.phase_diff() {
+        let data = rnx.observation_phase_diff();
+        if plot {
+            let dims = cli.plot_dimensions();
+            plot::differential::plot(dims, &data);
+        } else {
+            println!("{:#?}", data);
+        }
+        return Ok(());
+    }
+
+    /*
+     * Code diff analysis
+     */
+    if cli.code_diff() {
+        let data = rnx.observation_code_diff();
+        if plot {
+            let dims = cli.plot_dimensions();
+            plot::differential::plot(dims, &data);
+        } else {
+            println!("{:#?}", data);
+        }
+        return Ok(());
+    }
+
+    /*
+     * Code Multipath analysis
+     */
+    if cli.multipath() {
+        if let Some(nav) = nav_context {
+            return Ok(());
+        } else {
+            panic!("--nav must be provided for code multipath analysis");
+        }
+    }
+    
+    // if output path was provided
+    //  we dump resulting RINEX into a file
+    if let Some(path) = output_path {
+        // output path provided
+        //  detect special CRINEX case
+        let is_obs = rnx.is_observation_rinex();
+        if path.contains(".21D") {
+            if !is_obs {
+                println!("CRNX compression only applies to Observation RINEX"); 
             } else {
-                println!("one 2D differentiation operation failed");
+                rnx.rnx2crnx();
+            }
+        } else if path.contains(".crx") {
+            if !is_obs {
+                println!("CRNX compression only applies to Observation RINEX"); 
+            } else {
+                rnx.rnx2crnx();
             }
         }
-        // retain Reference RINEX only
-        // this allows post processing analysis on resulting data
-        queue.drain(0..offset);
-    }
-*/
-    if cli.basic_identification() {
-        // basic RINEX identification requested
-        basic_identification(&rnx, cli.identification_ops(), pretty);
+        if rnx.to_file(&path).is_ok() {
+            println!("\"{}\" has been generated", path);
+            return Ok(());
+        } else {
+            panic!("failed to generate \"{}\"", path);
+        }
+    } 
+    
+    /*
+     * Record analysis / visualization
+     */
+    if plot {
+        let dims = cli.plot_dimensions();
+        let mut ctx = plot::record::Context::new(dims, &rnx); 
+        plot::record::plot(&mut ctx, &rnx); 
     
     } else {
-        // no basic ID
-        //  ==> record study or advanced analysis
-        if let Some(path) = output_path {
-            // output path provided
-            //  detect special CRINEX case
-            let is_obs = rnx.is_observation_rinex();
-            if path.contains(".21D") {
-                if !is_obs {
-                    println!("CRNX compression only applies to Observation RINEX"); 
-                } else {
-                    rnx.rnx2crnx();
-                }
-            } else if path.contains(".crx") {
-                if !is_obs {
-                    println!("CRNX compression only applies to Observation RINEX"); 
-                } else {
-                    rnx.rnx2crnx();
-                }
-            }
-            if rnx.to_file(&path).is_ok() {
-                println!("\"{}\" has been generated", path);
-            } else {
-                println!("failed to generate \"{}\"", path);
-            }
+        if pretty {
+            println!("{}", serde_json::to_string_pretty(&rnx.record).unwrap())
         } else {
-            // no output path provided
-            // ==> record analysis, data visualization..
-            
-            if plot { // visualization allowed 
-
-                // plot customization
-                let dims = cli.plot_dimensions();
-                
-                if cli.phase_diff() {
-                    // Differential phase code analysis
-                    let data = rnx.observation_phase_diff();
-                    plot::differential::plot(dims, &data);
-                
-                } else if cli.code_diff() {
-                    // Differential pseudo code analysis
-                    let data = rnx.observation_code_diff();
-                    plot::differential::plot(dims, &data);
-
-                } else if cli.multipath() {
-                    if let Some(nav) = nav_context {
-                        
-                    } else {
-                        panic!("--nav must be provided for code multipath analysis");
-                    }
-
-                } else { // plot record
-                    let mut ctx = plot::record::Context::new(dims, &rnx); 
-                    plot::record::plot(&mut ctx, &rnx); 
-                }
-
-            } else { // stream to stdout
-                if cli.phase_diff() {
-                    // Differential phase code analysis
-                    let data = rnx.observation_phase_diff();
-                    println!("{:#?}", data);
-
-                } else if cli.code_diff() {
-                    // Differential pseudo code analysis
-
-                } else if cli.multipath() {
-                    if let Some(nav) = nav_context {
-
-                    } else {
-                        panic!("--nav must be provided for code multipath analysis");
-                    }
-
-
-
-                } else {
-                    // Full record display
-                    if pretty {
-                        println!("{}", serde_json::to_string_pretty(&rnx.record).unwrap())
-                    } else {
-                        println!("{}", serde_json::to_string(&rnx.record).unwrap())
-                    }
-                }
-            }
+            println!("{}", serde_json::to_string(&rnx.record).unwrap())
         }
     }
     Ok(())

@@ -49,20 +49,17 @@ impl Cli {
                     .arg(Arg::new("sv-epoch")
                         .long("sv-epoch")
                         .action(ArgAction::SetTrue)
-                        .help("Display space vehicules per epoch"))
+                        .help("Display encountered space vehicules per epoch.
+This is useful to determine unexpected data gaps in the RINEX record,
+especially when visualized with `--plot`.
+In case advanced differential mode is enabled (`--nav`), this
+has a special behavior where we display shared epochs between Obs/Nav RINEX instead.
+This is very useful to decide which vehicule to focus
+on when performing differential analysis."))
                     .arg(Arg::new("header")
                         .long("header")
                         .action(ArgAction::SetTrue)
                         .help("Extract header fields"))
-                    .arg(Arg::new("gaps")
-                        .long("gaps")
-                        .short('g')
-                        .action(ArgAction::SetTrue)
-                        .help("Display unexpected data gaps in record"))
-                    .arg(Arg::new("largest-gap")
-                        .long("largest-gap")
-                        .action(ArgAction::SetTrue)
-                        .help("Display largest data gaps in record"))
                 .next_help_heading("Record resampling methods")
                     .arg(Arg::new("resample-ratio")
                         .long("resample-ratio")
@@ -95,11 +92,13 @@ interval are dropped out. User must pass two valid \"chrono::NaiveDateTime\" des
                     .arg(Arg::new("retain-epoch-ok")
                         .long("retain-epoch-ok")
                         .action(ArgAction::SetTrue)
-                        .help("Retain only valid epochs"))
+                        .help("Retain only epochs where associated flag is \"Ok\" or \"Unknown\".
+Truly applies to Observation RINEX only."))
                     .arg(Arg::new("retain-epoch-nok")
                         .long("retain-epoch-nok")
                         .action(ArgAction::SetTrue)
-                        .help("Retain only non valid epochs"))
+                        .help("Retain only non valid epochs.
+Truly applies to Observation RINEX only."))
                     .arg(Arg::new("retain-elev-above")
                         .long("retain-elev-above")
                         .value_name("LIMIT(f64)")
@@ -291,7 +290,7 @@ Refer to README"))
                     .arg(Arg::new("pretty")
                         .long("pretty")
                         .action(ArgAction::SetTrue)
-                        .help("Make \"stdout\" terminal output more readable"))
+                        .help("Make terminal output more readable"))
                 .next_help_heading("Data visualization")
                     .arg(Arg::new("skyplot")
                         .short('y')
@@ -306,11 +305,13 @@ Refer to README"))
                     .arg(Arg::new("plot-width")
                         .long("plot-width")
                         .value_name("WIDTH(u32)")
-                        .help("Set plot width, default is 1024px"))
+                        .help("Set plot width. Default is 1024px.
+Example \"--plot-width 2048"))
                     .arg(Arg::new("plot-height")
                         .long("plot-height")
                         .value_name("HEIGHT(u32)")
-                        .help("Set plot height, default is 768px"))
+                        .help("Set plot height. Default is 768px.
+Example \"--plot-height 1024"))
                     .arg(Arg::new("plot-dim")
                         .long("plot-dim")
                         .value_name("DIM(u32,u32)")
@@ -337,9 +338,12 @@ Refer to README"))
         | self.matches.get_flag("header")
         | self.matches.get_flag("observables")
         | self.matches.get_flag("ssi-range")
-        | self.matches.get_flag("ssi-sv-range")
         | self.matches.get_flag("orbits")
         | self.matches.get_flag("nav-msg")
+    }
+    /// Returns true if Sv accross epoch display is requested 
+    pub fn sv_epoch(&self) -> bool {
+        self.matches.get_flag("sv-epoch")
     }
     /// Phase Diff analysis requested 
     pub fn phase_diff(&self) -> bool {
