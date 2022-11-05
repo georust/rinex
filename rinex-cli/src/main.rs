@@ -36,12 +36,21 @@ pub fn main() -> Result<(), rinex::Error> {
      */
     if cli.resampling() { // resampling requested
         record_resampling(&mut rnx, cli.resampling_ops());
+        if let Some(ref mut nav) = nav_context {
+            record_resampling(nav, cli.resampling_ops());
+        }
     }
     if cli.retain() { // retain data of interest
         retain_filters(&mut rnx, cli.retain_flags(), cli.retain_ops());
+        if let Some(ref mut nav) = nav_context {
+            retain_filters(nav, cli.retain_flags(), cli.retain_ops());
+        }
     }
     if cli.filter() { // apply desired filters
         apply_filters(&mut rnx, cli.filter_ops());
+        if let Some(ref mut nav) = nav_context {
+            apply_filters(nav, cli.filter_ops());
+        }
     }
  
     /*
@@ -56,7 +65,7 @@ pub fn main() -> Result<(), rinex::Error> {
      * Basic analysis requested
      */
     if cli.sv_epoch() {
-        analysis::sv_epoch(&rnx, &mut nav_context, plot, pretty);
+        analysis::sv_epoch::analyze(&rnx, &mut nav_context, cli.plot_dimensions());
         return Ok(());
     }
 

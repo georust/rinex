@@ -41,10 +41,10 @@ by `.gz`.
 
 ## Data visualization
 
-Some specific analysis can be exported into a plot (PNG file is the
-only option to this day), refer to specific sections.  
-The rule of thumb is, anytime you see `Display` in the command menu,
-the `--plot` can be added to activate the PNG file generation.
+Some specific analysis will generate one or several PNG files.  
+Record analysis can be graphical if desired too (`--plot`).  
+Refer to the
+[following section](https://github.com/gwbres/rinex/tree/main/rinex-cli/README.md#plotting)
 
 ## `teqc` operations
 
@@ -153,11 +153,18 @@ For example, identify encountered vehicules at the same time:
 rinex-cli -f test_resources/OBS/V2/KOSG0010.95O --epochs --sv --pretty
 ``` 
 
+## RINEX basic analysis
+
+Several basic analysis can be performed,
+some are graphical (--plot is assumed whatever happens) like `--sv-epoch` for instance,
+some are optionnaly graphical (--plot is an option).
+
+Refer to [this page](doc/analysis.md).
+
 ## RINEX Record analysis
 
-If user did not request a specific analysis or RINEX identification command,
-then the tool enters the Record analysis mode.
-
+If both RINEX identification and analysis modes were not activated,
+we will perform Record analysis.   
 [Filtering](doc/filtering.md) or [Resampling](doc/resampling.md) 
 operations can be stacked to Record analysis,
 for focus on data of interest.
@@ -248,11 +255,13 @@ rinex-cli -f test_resources/OBS/V3/CBW100NLD_R_20210010000_01D_MN.rnx --obs
 # extract raw phase data and pseudo range only
 ```
 
-## Post processing
+## Plotting
 
-Some post processing operations are being developped. People usually perform them with tools like `rtklib`.
-This application does not aim at matching what `rtklib` is capable of, but it can be a powerful and efficient
-alternative to similarly supported operations
+Some analysis will generate PNG file(s) and Record analysis
+can be converted to graphical mode if desired, with `--plot`.
 
-<img align="center" width="400" src="https://github.com/gwbres/rinex/blob/main/doc/phase.png">
-<img align="center" width="400" src="https://github.com/gwbres/rinex/blob/main/doc/ssi.png">
+PNG is the only supported format to this day. This tool is not a GUI,
+we can only export static images too.
+
+Most analysis are performed against Time (x = time axis), for simplicity we
+use Modified Julian Days to represent epochs in this case.

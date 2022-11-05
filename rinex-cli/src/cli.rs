@@ -49,13 +49,12 @@ impl Cli {
                     .arg(Arg::new("sv-epoch")
                         .long("sv-epoch")
                         .action(ArgAction::SetTrue)
-                        .help("Display encountered space vehicules per epoch.
-This is useful to determine unexpected data gaps in the RINEX record,
-especially when visualized with `--plot`.
-In case advanced differential mode is enabled (`--nav`), this
-has a special behavior where we display shared epochs between Obs/Nav RINEX instead.
-This is very useful to decide which vehicule to focus
-on when performing differential analysis."))
+                        .help("Plots encountered space vehicules per epoch.
+This analysis is graphical, terminal option is not available.
+This is useful to determine unexpected data gaps in file record.
+In case advanced differential mode is enabled (with `--nav`), this
+is very useful to determine which vehicule(s) to focus on when performing
+differential analysis."))
                     .arg(Arg::new("header")
                         .long("header")
                         .action(ArgAction::SetTrue)
@@ -156,19 +155,24 @@ Also drops observations that did not come with an LLI flag"))
                     .arg(Arg::new("clock-offset")
                         .long("clock-offset")
                         .action(ArgAction::SetTrue)
-                        .help("Display clock offset data, per epoch")) 
+                        .help("Plot receiver clock offsets per epoch."))
                     .arg(Arg::new("cycle-slip")
                         .long("cycle-slip")
                         .action(ArgAction::SetTrue)
-                        .help("List epochs where possible cycle slip happened")) 
+                        .help("
+Plot possible cycle slip events accros epochs.
+This is just a candid event extraction, further analysis is required
+to truly determine if cycle slip did happen."))
                     .arg(Arg::new("lock-loss")
                         .long("lock-loss")
                         .action(ArgAction::SetTrue)
-                        .help("List epochs where lock was declared lost")) 
+                        .help("
+Display / plot epochs where lock was declared lost."))
                     .arg(Arg::new("pr2distance")
                         .long("pr2distance")
                         .action(ArgAction::SetTrue)
-                        .help("Converts all Pseudo Range data to real physical distances. 
+                        .help("
+Converts all Pseudo Range data to real physical distances. 
 This is destructive, original pseudo range codes are lost and overwritten"))
                 .next_help_heading("Navigation RINEX specific")
                     .arg(Arg::new("orbits")
