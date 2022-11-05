@@ -93,7 +93,7 @@ Very good linearity during midday and most of the afternoon.
 Zoom in on (1)+(2)+(3) at the same time:
 
 ```bash
-rinex-cli --fp test_resources/OBS/V3/ACOR00ESP_R_20213550000_01D_30S_MO.rnx \
+rinex-cli --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
     -w "2020-06-25 10:00:00 2020-06-25 18:00:00" \
     --phase-diff \
     --retain-sv R09,G01 
@@ -140,7 +140,7 @@ Another example: `ESBC00DNK_R_2020` can evaluate:
 (1)+(2)+(3)+(4) with:
 
 ```bash
-rinex-cli --fp test_resources/CRNX/V3/ACOR00ESP_R_20213550000_01D_30S_MO.rnx \
+rinex-cli --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
     --retain-sv G01,R21 \
     --pr-diff
 ```
@@ -151,7 +151,7 @@ PR codes have less data gaps than PH codes (previous analysis).
 Lets focus (1)+(2)+(3)+(4) on the end of the day like we did before
 
 ```bash
-rinex-cli --fp test_resources/CRNX/V3/ACOR00ESP_R_20213550000_01D_30S_MO.rnx \
+rinex-cli --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
     --retain-sv G01,R21 \
     -w "2020-06-25 10:00:00 2020-06-25 23:30:00" \
     --pr-diff
@@ -169,7 +169,7 @@ The following command produces the same results as demonstrated
 in the two previous paragraphs
 
 ```bash
-rinex-cli --fp test_resources/OBS/V3/ACOR00ESP_R_20213550000_01D_30S_MO.rnx \
+rinex-cli --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
     --retain-sv R08 \
     --code-diff
 ```
