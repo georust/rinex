@@ -1,15 +1,10 @@
 use rinex::*;
 use super::{
     Plot2d,
-    build_plot, build_chart,
+    build_plot,
 };
+use plotters::prelude::*;
 use std::collections::{BTreeMap, HashMap};
-use plotters::{
-    prelude::*,
-    coord::Shift,
-    chart::ChartState,
-    coord::types::RangedCoordf64,
-};
 
 pub fn plot(dims: (u32,u32), data: &BTreeMap<Epoch, HashMap<Sv, HashMap<String, f64>>>) {
     let mut t0: i64 = 0;
