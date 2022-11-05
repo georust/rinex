@@ -1,17 +1,12 @@
 use rinex::*;
 use crate::plot::*;
 use std::collections::HashMap;
-use plotters::{
-    prelude::*,
-    coord::Shift,
-    chart::ChartState,
-    coord::types::RangedCoordf64,
-};
+use plotters::prelude::*;
 
 /// Display vehicules per epoch
 pub fn analyze(rnx: &Rinex, nav: &mut Option<Rinex>, dims: (u32,u32)) {
     let mut cmap: HashMap<Sv, RGBAColor> = HashMap::new(); 
-    let mut p = build_plot("sv.png", dims);
+    let p = build_plot("sv.png", dims);
 
     if let Some(nav) = nav {
         // special behavior
@@ -57,7 +52,7 @@ pub fn analyze(rnx: &Rinex, nav: &mut Option<Rinex>, dims: (u32,u32)) {
                 // and a color map per vehicules
                 let mut max_prn: u8 = 0;
                 for (_, (_, vehicules)) in obs_rec {
-                    for (index, (sv, _)) in vehicules.iter().enumerate() {
+                    for (sv, _) in vehicules.iter() {
                         if cmap.get(sv).is_none() {
                             cmap.insert(*sv, Palette99::pick(sv.prn.into())
                                 .mix(0.99));
@@ -68,10 +63,10 @@ pub fn analyze(rnx: &Rinex, nav: &mut Option<Rinex>, dims: (u32,u32)) {
                     }
                 }
                 // drop non ephemeris frames at the same time
-                nav_rec.retain(|e, classes| {
+                nav_rec.retain(|_e, classes| {
                     classes.retain(|class, frames| {
                         if *class == navigation::FrameClass::Ephemeris {
-                            for (index, frame) in frames.iter().enumerate() {
+                            for frame in frames {
                                 let (_, sv, _) = frame.as_eph()
                                     .unwrap();
                                 if cmap.get(sv).is_none() {
@@ -200,7 +195,7 @@ pub fn analyze(rnx: &Rinex, nav: &mut Option<Rinex>, dims: (u32,u32)) {
             } else {
                 dates.1 = epoch.date.timestamp() - dates.0;
             }
-            for (sv_index, sv) in vehicules.iter().enumerate() {
+            for sv in vehicules.iter() {
                 if cmap.get(sv).is_none() {
                     cmap.insert(*sv, Palette99::pick(sv.prn.into())
                         .mix(0.99));

@@ -44,7 +44,7 @@ and the [rinex](rinex/) crate.
 
 :heavy_check_mark: means all revisions supported   
 :construction: under development   
-:chart_with_upwards_trend: means it is possible to plot such a RINEX with the command line interface  
+:chart_with_upwards_trend: means graphical RINEX Record analysis is possible, [README](rinex-cli/README.md)
 
 ## File formats
 

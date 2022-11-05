@@ -19,8 +19,8 @@ pub fn build_context<'a> (dim: (u32, u32), record: &Record) -> Context<'a> {
     let mut plots: HashMap<String,
         DrawingArea<BitMapBackend, Shift>>
             = HashMap::with_capacity(4);
-    let mut y_ranges: HashMap<String, (f64,f64)> = HashMap::new();
-    let mut colors: HashMap<String, RGBAColor> = HashMap::with_capacity(32);
+    let _y_ranges: HashMap<String, (f64,f64)> = HashMap::new();
+    let colors: HashMap<String, RGBAColor> = HashMap::with_capacity(32);
     let mut charts: HashMap<String, ChartState<Plot2d>> = HashMap::new();
     for (index, (e, classes)) in record.iter().enumerate() {
         if index == 0 {

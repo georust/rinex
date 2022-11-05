@@ -75,33 +75,56 @@ pub fn main() -> Result<(), rinex::Error> {
     if cli.phase_diff() {
         let data = rnx.observation_phase_diff();
         let dims = cli.plot_dimensions();
-        plot::differential::plot(dims, &data);
+        plot::differential::plot(dims, 
+            "phase-diff.png", 
+            "PH Code Differential analysis",
+            "Phase Difference [n.a]",
+            &data);
         return Ok(());
     }
 
     /*
-     * Code diff analysis
+     * PR diff analysis
+     */
+    if cli.pseudorange_diff() {
+        let data = rnx.observation_pseudorange_diff();
+        let dims = cli.plot_dimensions();
+        plot::differential::plot(dims, 
+            "pseudorange-diff.png", 
+            "PR Code Differential analysis",
+            "PR Difference [n.a]",
+            &data);
+        return Ok(());
+    }
+
+    /*
+     * PH + PR diff efficient impl
      */
     if cli.code_diff() {
-        /*let data = rnx.observation_code_diff();
-        if plot {
-            let dims = cli.plot_dimensions();
-            plot::differential::plot(dims, &data);
-        } else {
-            println!("{:#?}", data);
-        }*/
-        return Ok(());
+        let (ph_data, pr_data) = rnx.observation_code_diff();
+        let dims = cli.plot_dimensions();
+        plot::differential::plot(dims, 
+            "phase-diff.png", 
+            "PH Code Differential analysis",
+            "Phase Difference [n.a]",
+            &ph_data);
+        plot::differential::plot(dims, 
+            "pseudorange-diff.png", 
+            "PR Code Differential analysis",
+            "PR Difference [n.a]",
+            &pr_data);
     }
 
     /*
      * Code Multipath analysis
      */
     if cli.multipath() {
-        if let Some(nav) = nav_context {
+        /*if let Some(nav) = nav_context {
             return Ok(());
         } else {
             panic!("--nav must be provided for code multipath analysis");
-        }
+        }*/
+        panic!("code multipath analysis is under development");
     }
     
     // if output path was provided

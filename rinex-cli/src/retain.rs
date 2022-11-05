@@ -61,7 +61,7 @@ pub fn retain_filters(rnx: &mut Rinex, flags: Vec<&str>, ops: Vec<(&str, Vec<&st
         } else if flag.eq("retain-phase") {
             rnx.retain_phase_observations_mut();
         } else if flag.eq("retain-pr") {
-            rnx.retain_pseudo_range_observations_mut();
+            rnx.retain_pseudorange_observations_mut();
         } else if flag.eq("retain-doppler") {
             rnx.retain_doppler_observations_mut();
         } else if flag.eq("retain-best-elev") {

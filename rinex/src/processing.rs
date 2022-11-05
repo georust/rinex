@@ -1,6 +1,6 @@
 use super::*;
 use thiserror::Error;
-use crate::observation::record::ObservationData;
+//use crate::observation::record::ObservationData;
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -114,7 +114,8 @@ impl Context {
     /// ```
     /// ```
     pub fn code_multipaths(&self) -> HashMap<String, HashMap<Sv, Vec<(i8, f64)>>> {
-        let mut result: HashMap<String, HashMap<Sv, Vec<(i8, f64)>>> = HashMap::new();
+        let result: HashMap<String, HashMap<Sv, Vec<(i8, f64)>>> = HashMap::new();
+/*
         //TODO lazy_static please
         let known_codes = vec![
             "1A","1B","1C","1D","1W","1X","1Z","1P","1S","1L","1M",
@@ -191,6 +192,7 @@ impl Context {
                 }
             }
         }
+*/
         result
     }
 /*

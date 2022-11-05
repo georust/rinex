@@ -232,8 +232,8 @@ Usually combined to Observation data, provided with -fp.
 Only identical epochs can be analyzed and processed.
 Ideally, both contexts have strictly identical sample rates.
 Refer to README."))
-                    .arg(Arg::new("phasediff")
-                        .long("phasediff")
+                    .arg(Arg::new("phase-diff")
+                        .long("phase-diff")
                         .action(ArgAction::SetTrue)
                         .help("Phase code differential analysis.
 Differentiates phase codes sampled against identical carrier frequencies.
@@ -242,8 +242,8 @@ Observation data must be provided with -fp.
 Navigation context is not required for this operation.
 For instance \"L2S-L2W\" S code against W code, for L2 carrier.
 Refer to README."))
-                    .arg(Arg::new("prdiff")
-                        .long("prdiff")
+                    .arg(Arg::new("pr-diff")
+                        .long("pr-diff")
                         .action(ArgAction::SetTrue)
                         .help("Pseudo Range differential analysis.
 Differentiates PR codes sampled against identical carrier frequencies.
@@ -252,11 +252,11 @@ Observation data must be provided with -fp.
 Navigation context is not required for this operation.
 For instance \"C1P-C1C\" means P code against C code, for L1 carrier.
 Refer to README."))
-                    .arg(Arg::new("codediff")
-                        .long("codediff")
+                    .arg(Arg::new("code-diff")
+                        .long("code-diff")
                         .action(ArgAction::SetTrue)
                         .help("Perform Phase and PR differential analysis
-(--phasediff + --prdiff) at once, in a efficient fashion.
+(--phase-diff + --pr-diff) at once, in a efficient fashion.
 Produces the same results, but saves iteration and computation time."))
                     .arg(Arg::new("multipath")
                         .long("multipath")
@@ -359,15 +359,15 @@ Example \"--plot-height 1024"))
     }
     /// Phase Diff analysis requested 
     pub fn phase_diff(&self) -> bool {
-        self.matches.get_flag("phasediff")
+        self.matches.get_flag("phase-diff")
     }
     /// PR Diff analysis requested 
-    pub fn pseudo_range_diff(&self) -> bool {
-        self.matches.get_flag("prdiff")
+    pub fn pseudorange_diff(&self) -> bool {
+        self.matches.get_flag("pr-diff")
     }
     /// Code Diff analysis requested 
     pub fn code_diff(&self) -> bool {
-        self.matches.get_flag("codediff")
+        self.matches.get_flag("code-diff")
     }
     /// Code Multipath analysis requested 
     pub fn multipath(&self) -> bool {

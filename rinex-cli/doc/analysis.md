@@ -38,14 +38,16 @@ otherwise plot becomes rapidly messy:
 rinex-cli \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
     --nav test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz \
-    --retain-sv G01 \
+    --retain-sv G01,G08,R04,R08,R09 \
     --sv-epoch
 ```
 
 <img align="center" width="400" src="https://github.com/gwbres/rinex/blob/main/doc/plots/sv_diff_esbc00dnk.png">
 
-With one or two iterations (focus on G01, G08 for instance), we determine that G08 was
-seen in both Ephemeris and Observation context, and some interesting processing becomes available.  
+With this command, user can rapidly determine which vehicule is eligible for
+RINEX differential processing. In this example, R04, R08 and R09 are excellent candidates,
+because most of the Observation context is covered by Ephemeris.
+
 To learn more about differential processing, refer to the 
 Differential proceesing operations described
 [in this page](https://github.com/gwbres/rinex/blob/main/rinex-cli/doc/processing).

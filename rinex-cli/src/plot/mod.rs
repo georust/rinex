@@ -1,13 +1,11 @@
 pub mod record;
 pub mod differential;
-
 use plotters::{
     prelude::*,
     coord::Shift,
     chart::ChartState,
     coord::types::RangedCoordf64,
 };
-use std::collections::HashMap;
 
 pub type Plot2d = Cartesian2d<RangedCoordf64, RangedCoordf64>;
     

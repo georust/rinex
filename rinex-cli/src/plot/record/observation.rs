@@ -276,7 +276,7 @@ pub fn plot(ctx: &mut Context, record: &Record) {
     /*
      * Plot phase observations
      */
-    for (index, (carrier, vehicules)) in phase.iter().enumerate() {
+    for (index, (_carrier, vehicules)) in phase.iter().enumerate() {
         for (sv_index, (sv, data)) in vehicules.iter().enumerate() {
             // one Symbol per Sv
             let symbol = symbols[sv_index % symbols.len()];

@@ -69,17 +69,17 @@ Install dependencies:
 apt-get install libfontconfig1-dev
 ```
 
-Always compile Rust code with the `--release` flag,
-so the implementation gets optimized 
-(see our [benchmark results](https://github.com/gwbres/rinex/blob/main/README.md#performances)
-that emphasize its impact):
+Always compile Rust code with the `--release` flag
+for optimized implementation.   
+Cf. our [benchmark results](https://github.com/gwbres/rinex/blob/main/README.md#performances)
+to see how optimized code compares to non optimized (`--debug`).
 
 ```shell
 cargo build --release
 ./target/release/rinex-cli -h
 ```
 
-In the following "rinex-cli" means "target/release/rinex-cli" previously compiled
+In the following "rinex-cli" means "target/release/rinex-cli" previously compiled.
 
 Arguments order does not matter for the application.   
 
@@ -88,7 +88,9 @@ rinex-cli --fp /tmp/amel010.21g
 ```
 
 Some arguments support an array of values to be given,
-in this case, we use a CSV description. For instance, when retaining specific vehicules:
+in this case, we use a CSV description. 
+
+For instance, when retaining specific vehicules:
 
 ```bash
 rinex-cli \
@@ -100,20 +102,20 @@ rinex-cli \
 
 The tool expects one RINEX file passed with `--fp`.  
 
-For basic RINEX identification, like encountered `Epochs` or `Sv`,
-only console visualization exists. The data is extracted in JSON format,
-refer to the 
+Basic RINEX identification is triggered by requesting data enumarations,
+like encountered Epochs (`--epoch`) or Sv (`--sv`). In this mode,
+only console visualization exists and data is presented in JSON format.
+Refer to 
 [JSON section](https://github.com/gwbres/rinex/tree/main/rinex-cli/README.md#readable-json)
-for more information.
+for more detail.
 
-Anytime you see `Display` in the requested action menu,
-the `--plot` flag can be used to generate a plot out of the extracted data.
-Refer to specific sections for more information.
+Most RINEX analysis are graphical, that means one or several PNG files are to be generated.
+Advanced operations (RINEX processing) require a Navigaton Context to be provided
+(`--nav`), and such analysis are always graphical.
 
-Advanced operations exist, some are file dependent
-(for example: only for Navigation RINEX),
-some require the addition of a Navigation Context (second RINEX file)
-to be passed with `--nav`.
+RINEX record analysis is by default presented in JSON format, but
+graphical view can be activated with `--plot`. 
+Data is highly dependent on the file that was provided (`--fp`).
 
 ### Readable JSON 
 

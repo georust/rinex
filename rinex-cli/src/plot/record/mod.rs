@@ -7,7 +7,6 @@ use plotters::{
     prelude::*,
     coord::Shift,
     chart::ChartState,
-    coord::types::RangedCoordf64,
 };
 use std::collections::HashMap;
 
