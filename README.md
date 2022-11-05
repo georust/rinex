@@ -17,10 +17,9 @@ Rust tool suites to parse, analyze, manipulate `RINEX` files
 * [`crx2rnx`](crx2rnx/) is a CRINEX decompression program (Compact RINEX to RINEX)
 * [`sinex`](sinex/) SNX dedicated core library
 
-* [`rinex-cli`](rinex-cli/) is a command line application that intends to expose
-all the core libraries capacities to the end user, in an easy-to-use and efficient fashion.
-It can be used to analyze files or perform some of the `teqc` operations, RINEX post processing
-with this tool is currently under development.
+* [`rinex-cli`](rinex-cli/) is a command line application to process RINEX data
+and make use of this library. It can perform some `teqc` operations and perform
+Differential analysis.
 
 * [`ublox-rnx`](ublox-rnx) is an application (CLI) that connects to a `Ublox`
 receiver and generates RINEX data quickly & easily.

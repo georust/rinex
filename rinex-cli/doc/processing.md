@@ -73,7 +73,7 @@ rinex-cli --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz 
     --retain-sv R09 
 ```
 
-<img align="center" width="400" src="https://github.com/gwbres/rinex/blob/main/doc/plots/escb00dnk_glo_ph.png">
+<img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_glo_ph.png">
 
 Three very linear phases took place during that day, we huge data gaps in between
 (channel stopped or vehicule out of sight). To determine how linear those phases
@@ -86,7 +86,7 @@ rinex-cli --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz 
     --retain-sv R09 
 ```
 
-<img align="center" width="400" src="https://github.com/gwbres/rinex/blob/main/doc/plots/escb00dnk_glo_zoom.png">
+<img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_glo_zoom.png">
 
 Very good linearity during midday and most of the afternoon.
 
@@ -128,7 +128,7 @@ rinex-cli --fp test_resources/OBS/V3/ACOR00ESP_R_20213550000_01D_30S_MO.rnx \
     --pr-diff
 ```
 
-<img align="center" width="400" src="https://github.com/gwbres/rinex/blob/main/doc/plots/acor00esp_pr.png">
+<img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/acor00esp_pr.png">
 
 Another example: `ESBC00DNK_R_2020` can evaluate:
 
@@ -145,7 +145,7 @@ rinex-cli --fp test_resources/CRNX/V3/ACOR00ESP_R_20213550000_01D_30S_MO.rnx \
     --pr-diff
 ```
 
-<img align="center" width="400" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_prdiff.png">
+<img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_prdiff.png">
 
 PR codes have less data gaps than PH codes (previous analysis).  
 Lets focus (1)+(2)+(3)+(4) on the end of the day like we did before
@@ -157,7 +157,7 @@ rinex-cli --fp test_resources/CRNX/V3/ACOR00ESP_R_20213550000_01D_30S_MO.rnx \
     --pr-diff
 ```
 
-<img align="center" width="400" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_prdiff_zoom.png">
+<img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_prdiff_zoom.png">
 
 ## PR + PH Differential Code analysis
 

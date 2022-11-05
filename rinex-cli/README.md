@@ -11,12 +11,11 @@ The first purpose of this tool is to expose the [library](https://github.com/gwb
 in a high level and easy to use fashion.  
 The application will be able to parse all RINEX formats supported by the library, refer to the front page to understand which RINEX format is currently supported.
 
-The application knows a few `teqc` operations, refer to the
-[dedicated paragraph](https://github.com/gwbres/rinex/blob/main/rinex-cli/README.md#teqc-operations)
-down below.
+RINEX processing is possible, especially differential analysis.
+Refer to [the dedicated page](doc/processing.md)
 
-This tool will eventually be able to perform most common RINEX 
-[post-processing](https://github.com/gwbres/rinex/blob/main/rinex-cli/README.md#post-processing).
+Some `teqc` operations are supported too, 
+[see the teqc paragraph](https://github.com/gwbres/rinex/blob/main/rinex-cli/README.md#teqc-operations)
 
 ## RINEX files
 
@@ -39,12 +38,12 @@ CRINEX (V1 and V3) are natively supported.
 This tool supports gzip compressed files, as long as their name is terminated
 by `.gz`.
 
-## Data visualization
+## Data visualization & analysis
 
-Some specific analysis will generate one or several PNG files.  
-Record analysis can be graphical if desired too (`--plot`).  
+Most data analysis produce plots (PNG files).  
+Record analysis can be converted to graphical if desired, with `--plot`.  
 Refer to the
-[following section](https://github.com/gwbres/rinex/tree/main/rinex-cli/README.md#plotting)
+[following section](https://github.com/gwbres/rinex/blob/main/rinex-cli/README.md#plotting)
 
 ## `teqc` operations
 
@@ -167,15 +166,16 @@ Refer to [this page](doc/analysis.md).
 
 If both RINEX identification and analysis modes were not activated,
 we will perform Record analysis.   
+
 [Filtering](doc/filtering.md) or [Resampling](doc/resampling.md) 
 operations can be stacked to Record analysis,
-for focus on data of interest.
+to focus on data of interest.
 
 By default, Record analysis is exposed as JSON structure.  
 For [supported RINEX record](https://github.com/gwbres/blob/main/README.md),
-the `--plot` flag can be passed to switch to data visualization.
-In this mode, one ore more PNG files will be generated.  
-The plot are RINEX dependent. For instance, 
+the `--plot` flag can be passed to switch to data visualization.  
+In this scenario, one ore more PNG files will be generated, it depends
+on which kind of RINEX is being analyzed. For instance:
 
 * in case of Observation RINEX, one plot per physics
 is to be generated. One plot for Receiver Clock Offsets is also to be generated,
@@ -260,10 +260,7 @@ rinex-cli -f test_resources/OBS/V3/CBW100NLD_R_20210010000_01D_MN.rnx --obs
 ## Plotting
 
 Some analysis will generate PNG file(s) and Record analysis
-can be converted to graphical mode if desired, with `--plot`.
-
+can be converted to graphical mode if desired, with `--plot`.  
 PNG is the only supported format to this day. This tool is not a GUI,
-we can only export static images too.
-
-Most analysis are performed against Time (x = time axis), for simplicity we
-use Modified Julian Days to represent epochs in this case.
+we can only export static images too.  
+Most analysis are performed against Time (x = time axis).
