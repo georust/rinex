@@ -4,83 +4,6 @@ use std::str::FromStr;
 use crate::sv;
 use crate::constellation::Constellation;
 
-/*
-/// Carrier code
-#[derive(Debug, Clone, PartialEq, Eq, Copy)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub enum Code {
-    /// GPS/GLONASS/QZSS/SBAS L1 C/A,
-    C1, 
-    /// GPS/GLONASS L1P
-    P1,
-    /// BeiDou B1i
-    B1,
-    /// Galileo E1
-    E1,
-    /// GPS / QZSS L2C
-    C2, 
-    /// GPS / GLONASS L2P
-    P2,
-    /// BeiDou B2i
-    B2,
-    /// Galileo E5
-    E5,
-}
-
-#[derive(Debug)]
-pub enum CodeError {
-    /// Unknown Carrier code identifier
-    UnknownCode(String),
-}
-
-impl std::str::FromStr for Code {
-    type Err = CodeError;
-    fn from_str (code: &str) -> Result<Code, CodeError> {
-        if code.eq("C1") {
-            Ok(Code::C1)
-        } else if code.eq("C2") {
-            Ok(Code::C2)
-        } else if code.contains("P1") {
-            Ok(Code::P1)
-        } else if code.contains("P2") {
-            Ok(Code::P2)
-        } else if code.contains("B1") | code.eq("B1i") {
-            Ok(Code::B1)
-        } else if code.eq("B2") | code.eq("B2i") {
-            Ok(Code::B2)
-        } else if code.eq("E1") {
-            Ok(Code::E1)
-        } else if code.eq("E5") | code.eq("E5a") {
-            Ok(Code::E5)
-        } else {
-            Err(CodeError::UnknownCode(code.to_string()))
-        }
-    }
-}
-
-impl std::fmt::Display for Code {
-    fn fmt (&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match self {
-            Code::C1 => fmt.write_str("C1"),
-            Code::C2 => fmt.write_str("C2"),
-            Code::P1 => fmt.write_str("P1"),
-            Code::P2 => fmt.write_str("P2"),
-            Code::B1 => fmt.write_str("B1"),
-            Code::B2 => fmt.write_str("B2"),
-            Code::E1 => fmt.write_str("E1"),
-            Code::E5 => fmt.write_str("E5"),
-        }
-    }
-}
-
-impl Default for Code {
-    /// Builds `C1` as default code
-    fn default() -> Code {
-        Code::C1
-    }
-}
-*/
-
 #[derive(Debug, Clone, Copy)]
 #[derive(Hash)]
 #[derive(PartialEq, Eq)]
@@ -93,12 +16,14 @@ pub enum Channel {
     L2,
     /// L5 (GPS, SBAS), QZSS 
     L5,
-    /// LEX (QZSS)
-    LEX, 
+    /// L6 (LEX) QZSS
+    L6,
     /// Glonass channel 1 with possible channel offset
     G1(Option<u8>),
     /// Glonass channel 2 with possible channel offset
     G2(Option<u8>),
+    /// Glonass channel 3
+    G3,
     /// E1: GAL
     E1,
     /// E2: GAL
@@ -106,7 +31,19 @@ pub enum Channel {
     /// E5: GAL E5a + E5b
     E5, 
     /// E6: GAL military
-    E6
+    E6,
+    /// B1: BeiDou 1
+    B1,
+    /// B1C BeiDou 1C
+    B1C,
+    /// B1A BeiDou 1A
+    B1A,
+    /// B2: BeiDou 2
+    B2,
+    /// B3
+    B3,
+    /// IRNSS S
+    S,
 }
 
 impl Default for Channel {
@@ -174,12 +111,21 @@ impl Channel {
         match self {
             Channel::L1 | Channel::E1 => 1575.42_f64,
             Channel::L2 | Channel::E2 => 1227.60_f64,
-            Channel::L5 | Channel::E5 => 1176.45_f64,
+            Channel::L5 => 1176.45_f64,
+            Channel::E5 => 1191.795_f64,
+            Channel::E6 => 1278.75_f64,
             Channel::G1(Some(c)) => 1602.0_f64 + (*c as f64 *9.0/16.0), 
             Channel::G1(_) => 1602.0_f64,
             Channel::G2(Some(c)) => 1246.06_f64 + (*c as f64 * 7.0/16.0),
             Channel::G2(_) => 1246.06_f64,
-            _ => todo!(),
+            Channel::G3 => 1202.025_f64,
+            Channel::L6 => 1278.75_f64,
+            Channel::B1 => 1561.098_f64,
+            Channel::B1A => 1575.42_f64,
+            Channel::B1C => 1575.42_f64,
+            Channel::B2 => 1207.140_f64,
+            Channel::B3 => 1268.52_f64, 
+            Channel::S => 2492.028_f64,
         }
     }
     
@@ -189,8 +135,15 @@ impl Channel {
             Channel::L1 | Channel::G1(_) | Channel::E1 => 15.345_f64,
             Channel::L2 | Channel::G2(_) | Channel::E2 => 11.0_f64,
             Channel::L5 | Channel::E5 => 12.5_f64,
-            Channel::E6 => todo!(),
-            Channel::LEX => todo!(), 
+            Channel::G3 => todo!("G3 bandwidth is not known to this day"),
+            Channel::E6 => todo!("E6 bandwidth is not known to this day"),
+            Channel::L6 => todo!("L6 bandwidth is not known to this day"),
+            Channel::S => todo!("S bandwidth is not known to this day"),
+            Channel::B1 => todo!("B1 bandwidth is not known to this day"),
+            Channel::B1A => todo!("B1A bandwidth is not known to this day"),
+            Channel::B1C => todo!("B1C bandwidth is not known to this day"),
+            Channel::B2 => todo!("B2 bandwidth is not known to this day"),
+            Channel::B3 => todo!("B3 bandwidth is not known to this day"),
         }
     }
 
@@ -247,8 +200,6 @@ impl Channel {
                     Ok(Self::L2)
                 } else if observable.contains("5") {
                     Ok(Self::L5)
-                } else if observable.contains("7") {
-                    Ok(Self::LEX) // TODO confirm !
                 } else {
                     Err(Error::InvalidObservable(observable.to_string()))
                 }
@@ -315,7 +266,6 @@ impl Channel {
                     1 => Ok(Self::L1),
                     2 => Ok(Self::L2),
                     5 => Ok(Self::L5),
-                    6 => Ok(Self::LEX),
                     _ => Ok(Self::L1),
                 }
             },
