@@ -18,7 +18,7 @@ rinex-cli \
     --retain-sv G01,G08,R04,R08,R09 --sv-epoch
 ```
 
-<img align="center" width="400" src="https://github.com/gwbres/rinex/blob/main/doc/plots/sv_esbc00dnk.png">
+<img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/sv_esbc00dnk.png">
 
 
 In case Differential context is activated (`--nav`) determining
@@ -42,7 +42,7 @@ rinex-cli \
     --sv-epoch
 ```
 
-<img align="center" width="400" src="https://github.com/gwbres/rinex/blob/main/doc/plots/sv_diff_esbc00dnk.png">
+<img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/sv_diff_esbc00dnk.png">
 
 With this command, user can rapidly determine which vehicule is eligible for
 RINEX differential processing. In this example, R04, R08 and R09 are excellent candidates,
@@ -50,4 +50,4 @@ because most of the Observation context is covered by Ephemeris.
 
 To learn more about differential processing, refer to the 
 Differential proceesing operations described
-[in this page](https://github.com/gwbres/rinex/blob/main/rinex-cli/doc/processing).
+[in this page](https://github.com/gwbres/rinex/blob/main/rinex-cli/doc/processing.md).
