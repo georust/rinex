@@ -1,5 +1,6 @@
 use super::*;
 use thiserror::Error;
+use crate::observation::record::ObservationData;
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -28,11 +29,12 @@ impl Context {
     /// Builds a processing Context.
     pub fn new(observation: Rinex, navigation: Rinex) -> Result<Self, Error> {
         if observation.is_observation_rinex() {
-            let mut observation = observation.clone();
             if navigation.is_navigation_rinex() {
+                let mut observation = observation.clone();
                 let mut navigation = navigation.clone();
                 if let Some(obs_rec) = observation.record.as_mut_obs() {
                     if let Some(nav_rec) = navigation.record.as_mut_nav() {
+                        println!("NAV LEN {}", nav_rec.len());
                         // [NAV] rework sample rate
                         //       retain ephemeris only with shared vehicules only
                         nav_rec.retain(|e, classes| {
@@ -55,6 +57,9 @@ impl Context {
                                 false // OBS does not share this epoch
                             }
                         });
+                        println!("NAVV LEN {}", nav_rec.len());
+                        
+                        println!("OBS LEN {}", obs_rec.len());
 
                         // [OBS] rework sample rate
                         //       and retain shared vehicules only
@@ -62,13 +67,14 @@ impl Context {
                             if let Some(classes) = nav_rec.get(e) {
                                 obs_vehicules.retain(|sv, _| {
                                     let mut found = false;
-                                    for (_, frames) in classes {
+                                    for (_, frames) in classes { // already sorted out
                                         for fr in frames {
                                             let (_, nav_sv, _) = fr.as_eph()
-                                                .unwrap();
+                                                .unwrap(); // already sorted out
                                             found |= nav_sv == sv;
                                         }
                                     }
+                                    println!("FOUND {}", found);
                                     found
                                 });
                                 obs_vehicules.len() > 0
@@ -76,6 +82,7 @@ impl Context {
                                 false // NAV does not share this epoch
                             }
                         });
+                        println!("OBSS LEN {}", obs_rec.len());
                     }
                 }
                 Ok(Self {
@@ -98,30 +105,31 @@ impl Context {
 
     /// Calculates Code MultiPath (MP) ratios by combining
     /// Pseudo Range observations and Phase observations sampled on different carriers.
-    /// Results are MP_x where _x is the carrier signal, for instance MP_L1 for L1 carrier
-    /// is computed by differentiating L1 against L2.
-    /// Results are sorted by Elevation angle.
-    /// Cf. p2 
+    /// Resulting MPx ratios are sorted per code. For instance, "1C" means MP ratio for code 
+    /// C for this vehicule.
+    /// Cf. page 2 
     /// <https://www.taoglas.com/wp-content/uploads/pdf/Multipath-Analysis-Using-Code-Minus-Carrier-Technique-in-GNSS-Antennas-_WhitePaper_VP__Final-1.pdf>.
     /// Currently, we set K_i = n_i = 0 in the calculation.
-    pub fn code_multipaths(&self) -> HashMap<String, HashMap<Sv, HashMap<i8, f64>>> {
-        let mut result: HashMap<String, HashMap<Sv, HashMap<i8, f64>>> = HashMap::new();
-        //let mut sv_map: HashMap<Sv, HashMap<String, f64>> = HashMap::new();
-        //let mut code_map: HashMap<String, f64> = HashMap::new();
-        //let mut data: HashMap<Channel, (String, f64, f64)> = HashMap::new(); // to store Phase/PR per observation
+    /// Example: 
+    /// ```
+    /// ```
+    pub fn code_multipaths(&self) -> HashMap<String, HashMap<Sv, Vec<(i8, f64)>>> {
+        let mut result: HashMap<String, HashMap<Sv, Vec<(i8, f64)>>> = HashMap::new();
+        //TODO lazy_static please
+        let known_codes = vec![
+            "1A","1B","1C","1D","1W","1X","1Z","1P","1S","1L","1M",
+            "2C","2W","2D","2S","2L","2P","2M",
+            "3I","3X","3Q",
+            "4A","4B","4X",
+            "5A","5B","5C","5P","5I","5Q","5X",
+            "6A","6B","6C","6Q","6X","6Z",
+            "7D","7I","7P","7Q","7X",
+            "8D","8P","8I","8Q","8X",
+            "9A", "9B","9C","9X",
+        ];
+        
         if let Some(obs_record) = self.observation.record.as_obs() {
             if let Some(nav_record) = self.navigation.record.as_nav() {
-                // pre calculate constant ratios/weight
-                //   for each MPx x=carrier code
-                let ratios = [
-                    ("L1", 2.0* Channel::L2.carrier_frequency_mhz().powf(2.0) / (Channel::L1.carrier_frequency_mhz().powf(2.0) - Channel::L2.carrier_frequency_mhz().powf(2.0))),
-                    ("L2", 2.0* Channel::L1.carrier_frequency_mhz().powf(2.0) / (Channel::L2.carrier_frequency_mhz().powf(2.0) - Channel::L1.carrier_frequency_mhz().powf(2.0))),
-                    ("L5", 2.0* Channel::L1.carrier_frequency_mhz().powf(2.0) / (Channel::L5.carrier_frequency_mhz().powf(2.0) - Channel::L1.carrier_frequency_mhz().powf(2.0))),
-                ];
-                let ratios: HashMap<_, _> = ratios
-                    .into_iter()
-                    .collect();
-                
                 for (epoch, classes) in nav_record {
                     if let Some((_, obs_vehicules)) = obs_record.get(epoch) {
                         for (class, frames) in classes {
@@ -132,34 +140,48 @@ impl Context {
                                     if let Some(observations) = obs_vehicules.get(sv) {
                                         if let Some(elevation) = eph.elevation_angle() {
                                             let elevation = elevation.round() as i8;
-                                        }
-                                        // grab all Phase and PR Observations per code 
-                                        let mut data: HashMap<&str, HashMap<&str, f64>> = HashMap::new();
-                                        for (obscode, obsdata) in observations {
-                                            if is_pseudo_range_obs_code!(obscode) | is_phase_carrier_obs_code!(obscode) {
-                                                let code = &obscode[1..obscode.len()];
-                                                if let Some(data) = data.get_mut(code) {
-                                                    data.insert(code, obsdata.obs);
-                                                } else {
-                                                    let mut map: HashMap<&str, f64> = HashMap::new();
-                                                    map.insert(obscode, obsdata.obs);
-                                                    data.insert(code, map);
-                                                }
-                                            }
-                                        }
-                                        
-                                        for (code, data)  in data {
-                                            if code == "L1" { // L1 must be referenced to L2
-                                                if let Some(ref_data) = data.get("L2") {
-                                                    if let Some(ratio) = ratios.get(code) {
+                                            for code in &known_codes {
+                                                // for each known code,
+                                                //  we must have a C and L observation
+                                                //   and also an L observation for 
+                                                //     Carrier 2 if we're dealing with a 1x Code
+                                                //     Carrier 1 for all others
+                                                let c_code = "C".to_owned() + code;
+                                                let l_code = "L".to_owned() + code;
+                                                println!("C CODE \"{}\" L CODE \"{}\"", c_code, l_code); // DEBUG
+                                                if let Some(c_data) = observations.get(&c_code) {
+                                                    if let Some(l_data) = observations.get(&l_code) {
+                                                        let ref_data: Vec<ObservationData> = 
+                                                            observations.iter()
+                                                            .filter_map(|(codes, _)| {
+                                                                if c_code.contains("1") { // we're dealing with Carrer 1
+                                                                    // we refer to Carrier 2 L code
+                                                                    // ==> try to locate one
+                                                                    for code in &known_codes {
+                                                                        if code.contains("2") {
+                                                                            let to_find = "L".to_owned() + code.clone();
+                                                                            println!("L2 CODE to find \"{}\"", to_find); // DEBUG
+                                                                        }
+                                                                    }
+                                                                } else {
+                                                                    // when dealing with other carriers
+                                                                    // we refer to Carrier 1  L code
+                                                                    // ==> try to locate one
+                                                                    for code in &known_codes {
+                                                                        if code.contains("1") {
+                                                                            let to_find = "L".to_owned() + code.clone();
+                                                                            println!("L1 CODE to find \"{}\"", to_find); // DEBUG
+                                                                        }
+                                                                    }
+                                                                }
+                                                                None
+                                                            })
+                                                            .collect();
                                                     }
                                                 }
-                                            } else { // all others must be referenced to L1
-                                                if let Some(ref_data) = data.get("L1") {
-                                                    if let Some(ratio) = ratios.get(code) {
-                                                    }
-                                                }
                                             }
+                                        } else {
+                                            println!("NO ELEVATION!!"); // DEBUG
                                         }
                                     }
                                 }
