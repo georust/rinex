@@ -4,21 +4,18 @@ Processing
 Some RINEX processing operations can be performed with this tool.
 
 All of them are RINEX dependent. That means,
-most actions are highly dependent to which kind of RINEX
-was provided with `-fp`. 
+possible actions highly depend on which type of RINEX was provided with `--fp`.  
 Advanced RINEX processing may require a Navigation file
-to be also attached, this is performed with `--nav`.
+to also be attached with `--nav`.
 
-## Phase Code differenciation
+## Phase Code differential analysis
 
 Phase Code analysis can be performed on Observation RINEX with `--phasediff`.  
 This analysis is very useful to determine correlations
 and biases between different codes.
 
-This operation differentiates raw phase data
-between two difference phase code sampled at the same carrier frequency.
-Obviously this requires modern RINEX where multiple carrier and codes
-were sampled.
+This operation differentiates phase data
+between two phase codes sampled against the same carrier frequency.
 
 Refer to page 11 of
 [this ESA analysis](http://navigation-office.esa.int/attachments_12649498_1_Reichel_5thGalSciCol_2015.pdf)
@@ -26,8 +23,8 @@ Refer to page 11 of
 It is highly recommended to focus on vehicules of interest 
 when performing such analysis.
 
-Example (1) `ACOR00ESP_R_20213550000_01D_30S_MO.rnx` contains enough information
-to perform "L2S-L2W", meaning "S" code against "W" code on GPS carrier 2,
+Example (1) `ACOR00ESP_R_20213550000_01D_30S_MO.rnx` contains enough GPS data 
+to perform "L2S-L2W", meaning "S" code against "W" code on carrier 2.
 and also "L2C-L2P" meaning "C" against "P" code on Glonass carrier 2.
 
 For information, when performing "x" against "y", the reference is select by alphabetical order.
@@ -55,7 +52,6 @@ rinex-cli --fp test_resources/OBS/V3/ACOR00ESP_R_20213550000_01D_30S_MO.rnx \
 Example(2) `ESBC00DNK_R_20201770000_01D_30S_MO` has enough information
 to study "L2L/L2W" for GPS2, "L1P/L1C", "L2C/L2P" for Glonass:
 
-
 ```bash
 rinex-cli --fp test_resources/OBS/V3/ACOR00ESP_R_20213550000_01D_30S_MO.rnx \
     --plot \
@@ -63,10 +59,9 @@ rinex-cli --fp test_resources/OBS/V3/ACOR00ESP_R_20213550000_01D_30S_MO.rnx \
     --retain-sv G02,G05,G07,R01,R02,R11,R12
 ```
 
+## Code (Pseudo Range) differential analysis
 
-## Code differenciation
-
-Code (Pseudo Range) analysis can be performed on Observation RINEX with `--codediff`
+Code (PR) analysis can be performed on Observation RINEX with `--codediff`
 in similar fashion.
 This analysis exhibits offset and drift tendencies between different codes.
 
@@ -81,13 +76,42 @@ rinex-cli --fp -f test_resources/OBS/V3/ACOR00ESP_R_20213550000_01D_30S_MO.rnx \
     --codediff --retain-sv G01,G07,G08 --plot 
 ```
 
-## Code Mutlipath Analysis
+## NAV / OBS Shared epochs
+
+Before we move on to more advanced processing that involve
+combining Observation to Navigation RINEX,
+let's remind that `--sv-epoch` in case of differential analysis (`--nav`)
+has the ability to exhibit shared epochs between Observations and Ephemeris.  
+This is useful to determine which vehicule to focus on in the following operations.
+
+## Code Multipath (MP) analysis
+
+Another type of differential analysis is the Code Multipath (MP) analysis.
+
+MP ratios (so called "CMC" for Code Minus Carrier metrics) 
+are formed by combining Phase and PR observations sampled for different carrier frequencies.
+
+The MP results are presented against the elevation angle of the satellite(s) of interest.  
+Thefore, MP analysis requires both an Observation RINEX (`--fp`) and Navigation context (`--nav`)
+to be passed.
+
+Usually the analysis is performed against a single vehicule, but this library
+allows the results to be displayed for several vehicules at once.
+There is no reason Military codes would not work just like others with this library.
+
+For example, `ESBC00DNK_R_2020` has enough data for GPS vehicule 13,
+to compute MP for codes "1C", "2W" and "5Q".
+We also provide the whole context for demonstration purposes (with ideal sampling scenario):
 
 ```bash
-rinex-cli --fp -f test_resources/OBS/V3/ACOR00ESP_R_20213550000_01D_30S_MO.rnx \
-    --multipath --retain-sv G01,G07,G08 --plot 
+rinex-cli \
+    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
+    --nav test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz \
+    --multipath \
+    --retain-sv G07 \
+    --plot 
 ```
 
-## Cycle slips
+## Cycle slips analysis
 
 Under development
