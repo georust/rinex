@@ -1,63 +1,46 @@
+use chrono::{
+    Duration,
+    NaiveDate,
+    NaiveDateTime,
+};
 use thiserror::Error;
+use time::OutOfRangeError;
 
-/// Parses an chrono::NaiveDateTime from user input
-pub fn parse_datetime (content: &str) 
-        -> Result<chrono::NaiveDateTime, chrono::format::ParseError> 
-{
-    chrono::NaiveDateTime::parse_from_str(content, "%Y-%m-%d %H:%M:%S")
+#[derive(Debug, Error)]
+pub enum Error {
+    #[error("format should be %HH:%MM:%SS to describe a duration")]
+    InvalidDurationFormat,
+    #[error("duration parsing overflowed")]
+    DurationOverflow(#[from] OutOfRangeError),
 }
 
-/// `Epoch` parsing related issues
-#[derive(Error, Debug)]
-pub enum EpochError {
-    #[error("chrono format error")]
-    ChronoFormatError(#[from] chrono::format::ParseError),
-    #[error("std::io error")]
-    IoError(#[from] std::io::Error),
-}
-
-use rinex::epoch;
-use std::str::FromStr;
+pub fn parse_duration(args: &str) -> Result<Duration, Error> {
+    let hms:Vec<&str> = args
+        .split(":")
+        .collect();
+    if hms.len() != 3 {
+        return Err(Error::InvalidDurationFormat)
+    }
     
-/// Parses an `epoch` from user input
-pub fn parse_epoch (content: &str) -> Result<epoch::Epoch, EpochError> {
-    let format = "YYYY-MM-DD HH:MM:SS";
-    if content.len() > format.len() { // an epoch flag was given
-        Ok(epoch::Epoch {
-            date: parse_datetime(&content[0..format.len()])?,
-            flag: epoch::EpochFlag::from_str(&content[format.len()..].trim())?,
-        })
-    } else { // no epoch flag given
-        // --> we associate an Ok flag
-        Ok(epoch::Epoch {
-            date: parse_datetime(content)?,
-            flag: epoch::EpochFlag::Ok,
-        })
+    if let Ok(h) = u64::from_str_radix(hms[0], 10) {
+        if let Ok(m) = u64::from_str_radix(hms[1], 10) {
+            if let Ok(s) = u64::from_str_radix(hms[2], 10) {
+                let std = std::time::Duration::from_secs(
+                    h*3600 + m*60 + s);
+                return Ok(Duration::from_std(std)?)
+            }
+        }
     }
+    Err(Error::InvalidDurationFormat)
 }
 
-#[cfg(test)]
-mod test {
-    use super::*;
-    #[test]
-    fn test_duration_parser() {
-        let duration = parse_duration("00:30:00");
-        assert_eq!(duration.is_ok(), true);
-        let duration = duration.unwrap();
-        assert_eq!(duration, chrono::Duration::minutes(30));
-        let duration = parse_duration("30:00");
-        assert_eq!(duration.is_err(), true);
-        let duration = parse_duration("00 30 00");
-        assert_eq!(duration.is_err(), true);
-    }
-    #[test]
-    fn test_epoch_parser() {
-        let epoch = parse_epoch("2022-03-01 00:30:00");
-        assert_eq!(epoch.is_ok(), true);
-        let epoch = epoch.unwrap();
-        assert_eq!(epoch, epoch::Epoch {
-            date: parse_datetime("2022-03-01 00:30:00").unwrap(),
-            flag: epoch::EpochFlag::Ok,
-        });
-    }
+pub fn parse_date (args: &str) -> Result<NaiveDate, chrono::format::ParseError> {
+    chrono::NaiveDate
+        ::parse_from_str(args, "%Y-%m-%d")
 }
+
+pub fn parse_datetime (args: &str) -> Result<NaiveDateTime, chrono::format::ParseError> {
+    chrono::NaiveDateTime
+        ::parse_from_str(args, "%Y-%m-%d %H:%M:%S")
+}
+

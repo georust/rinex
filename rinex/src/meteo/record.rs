@@ -257,7 +257,7 @@ impl Split<Record> for Record {
     fn split(&self, epoch: Epoch) -> Result<(Self, Self), split::Error> {
         let r0 = self.iter()
             .flat_map(|(k, v)| {
-                if k.date <= epoch.date {
+                if k.date < epoch.date {
                     Some((k.clone(), v.clone()))
                 } else {
                     None
@@ -266,7 +266,7 @@ impl Split<Record> for Record {
             .collect();
         let r1 = self.iter()
             .flat_map(|(k, v)| {
-                if k.date > epoch.date {
+                if k.date >= epoch.date {
                     Some((k.clone(), v.clone()))
                 } else {
                     None

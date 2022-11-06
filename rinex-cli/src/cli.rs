@@ -1,10 +1,13 @@
 use rinex::*;
-
 use clap::{
     Command, 
     Arg, ArgMatches, 
     ArgAction,
     ColorChoice,
+};
+use crate::parser::{
+    parse_date,
+    parse_datetime,
 };
 
 pub struct Cli {
@@ -42,7 +45,6 @@ impl Cli {
                         .action(ArgAction::SetTrue)
                         .help("Identify GNSS constellations"))
                     .arg(Arg::new("sv")
-                        .short('s')
                         .long("sv")
                         .action(ArgAction::SetTrue)
                         .help("Identify space vehicules"))
@@ -269,21 +271,25 @@ Refer to README."))
                 .next_help_heading("`teqc` operations")
                     .arg(Arg::new("merge")
                         .short('m')
+                        .value_name("FILE")
                         .long("merge")
-                        .action(ArgAction::SetTrue)
-                        .help("Merge two RINEX files together"))
+                        .help("RINEX merge operation.
+Combine this RINEX, considered secondary, into `--fp`. RINEX format must match."))
                     .arg(Arg::new("split")
                         .long("split")
-                        .action(ArgAction::SetTrue)
+                        .value_name("DATETIME")
+                        .short('s')
                         .help("Split RINEX into two seperate files"))
                     .arg(Arg::new("ascii-plot")
                         .long("ascii-plot")
                         .action(ArgAction::SetTrue)
                         .help("Prints a tiny plot, similar to \"teqc\""))
-                    .arg(Arg::new("report")
-                        .long("report")
+                    .arg(Arg::new("qc")
+                        .short('q')
+                        .long("qc")
                         .action(ArgAction::SetTrue)
-                        .help("Generate verbose report, similar to \"teqc\""))
+                        .help("RINEX quality check,
+generates verbose report, similar to \"teqc\""))
                 .next_help_heading("RINEX output")
                     .arg(Arg::new("output")
                         .long("output")
@@ -339,9 +345,12 @@ Example \"--plot-height 1024"))
             .unwrap()
     }
     /// Returns output filepaths
-    pub fn output_path(&self) -> Option<&String> {
-        self.matches
-            .get_one::<String>("output")
+    pub fn output_path(&self) -> Option<&str> {
+        if let Some(args) = self.matches.get_one::<String>("output") {
+            Some(&args)
+        } else {
+            None
+        }
     }
     /// Returns true if at least one basic identification flag was passed
     pub fn basic_identification(&self) -> bool {
@@ -515,6 +524,43 @@ Example \"--plot-height 1024"))
     pub fn pretty (&self) -> bool {
         self.get_flag("pretty")
     }
+    /// Returns optionnal RINEX file to "merge"
+    pub fn merge(&self) -> Option<&str> {
+        if self.matches.contains_id("merge") {
+            if let Some(s) = self.matches.get_one::<String>("merge") {
+                Some(&s)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
+    /// Returns split operation args
+    pub fn split(&self) -> Option<Epoch> {
+        if self.matches.contains_id("split") {
+            if let Some(args) = self.matches.get_one::<String>("split") {
+                if let Ok(date) = parse_date(&args) {
+                    Some(Epoch {
+                        flag: EpochFlag::default(),
+                        date: date.and_hms(0,0,0), // midnight,
+                    })
+                } else if let Ok(datetime) = parse_datetime(&args) {
+                    Some(Epoch {
+                        flag: EpochFlag::default(),
+                        date: datetime,
+                    })
+                } else { 
+                    panic!("failed to parse [DATETIME]");
+                }
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
+    /// Returns optionnal Navigation context
     pub fn nav_context(&self) -> Option<Rinex> {
         if self.matches.contains_id("nav") {
             let args = self.matches.get_one::<String>("nav")

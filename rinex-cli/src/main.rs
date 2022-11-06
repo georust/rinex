@@ -11,6 +11,7 @@ mod filter; // record filtering
 mod resampling; // record resampling
 mod analysis; // basic analysis operations
 mod identification; // high level identification/macros
+mod file_generation; // RINEX to file macro
 
 use rinex::*;
 use cli::Cli;
@@ -19,13 +20,14 @@ use filter::apply_filters;
 use resampling::record_resampling;
 use identification::basic_identification;
 
+pub mod parser; // command line parsing utilities
+
 pub fn main() -> Result<(), rinex::Error> {
     let cli = Cli::new();
     let pretty = cli.pretty();
 
     let plot = cli.plot();
     let fp = cli.input_path();
-    let output_path = cli.output_path();
 
     // RINEX data 
     let mut rnx = Rinex::from_file(fp)?;
@@ -52,7 +54,7 @@ pub fn main() -> Result<(), rinex::Error> {
             apply_filters(nav, cli.filter_ops());
         }
     }
- 
+
     /*
      * Basic file identification
      */
@@ -127,33 +129,53 @@ pub fn main() -> Result<(), rinex::Error> {
         panic!("code multipath analysis is under development");
     }
     
-    // if output path was provided
-    //  we dump resulting RINEX into a file
-    if let Some(path) = output_path {
-        // output path provided
-        //  detect special CRINEX case
-        let is_obs = rnx.is_observation_rinex();
-        if path.contains(".21D") {
-            if !is_obs {
-                println!("CRNX compression only applies to Observation RINEX"); 
-            } else {
-                rnx.rnx2crnx();
-            }
-        } else if path.contains(".crx") {
-            if !is_obs {
-                println!("CRNX compression only applies to Observation RINEX"); 
-            } else {
-                rnx.rnx2crnx();
-            }
+    /*
+     * teqc [MERGE]
+     */
+    if let Some(rnx_b) = cli.merge() {
+        // we're merging (A)+(B) into (C)
+        let mut rnx_b = Rinex::from_file(rnx_b)?;
+        // [0] apply similar conditions to RNX_b
+        if cli.resampling() {
+            record_resampling(&mut rnx_b, cli.resampling_ops());
         }
-        if rnx.to_file(&path).is_ok() {
-            println!("\"{}\" has been generated", path);
-            return Ok(());
-        } else {
-            panic!("failed to generate \"{}\"", path);
+        if cli.retain() {
+            retain_filters(&mut rnx_b, cli.retain_flags(), cli.retain_ops());
         }
-    } 
+        if cli.filter() {
+            apply_filters(&mut rnx_b, cli.filter_ops());
+        }
+        // [1] proceed to merge
+        rnx.merge_mut(&rnx_b)
+            .expect("`merge` operation failed");
+        // [2] generate new file
+        file_generation::generate(&rnx, cli.output_path(), "merged.rnx")
+            .unwrap();
+        // [*] stop here, special mode: no further analysis allowed
+        return Ok(());
+    }
     
+    /*
+     * teqc [SPLIT]
+     */
+    if let Some(epoch) = cli.split() {
+        let (a,b) = rnx.split(epoch)
+            .expect(&format!("failed to split \"{}\" into two", fp));
+
+        let first_date = a.epochs()[0].date;
+        let name = format!("{}.rnx", first_date);
+        file_generation::generate(&a, None, &name)
+            .unwrap();
+        
+        let first_date = b.epochs()[0].date;
+        let name = format!("{}.rnx", first_date);
+        file_generation::generate(&b, None, &name)
+            .unwrap();
+        
+        // [*] stop here, special mode: no further analysis allowed
+        return Ok(());
+    }
+
     /*
      * Record analysis / visualization
      */
