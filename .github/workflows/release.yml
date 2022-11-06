@@ -24,3 +24,4 @@ jobs:
           TOOLCHAIN_VERSION: stable
           RUSTTARGET: ${{ matrix.target }}
           ARCHIVE_TYPES: ${{ matrix.archive }}
+          EXTRA_FILES: "README.md LICENSE-APACHE LICENSE-MIT"
