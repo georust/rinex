@@ -12,10 +12,10 @@ pub enum Error {
     RinexError(#[from] super::Error),
 }
 
-/// RINEX Processing usually requires combining
-/// Observation RINEX to Navigation RINEX.
-/// This structure allows forming such a context easily,
-/// and exposes RINEX processing methods
+/// Advanced RINEX processing algorithms require
+/// combining Observation and Ephemeris data.
+/// This structure makes forming such context easy,
+/// and allows such computations
 #[derive(Debug, Clone)]
 #[derive(PartialEq)]
 pub struct Context {
