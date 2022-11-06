@@ -38,7 +38,7 @@ pub mod writer;
 use writer::BufferedWriter;
 
 use thiserror::Error;
-use chrono::{Datelike, Timelike};
+use chrono::{Timelike};
 use std::collections::{BTreeMap, HashMap};
 
 use version::Version;
@@ -207,7 +207,6 @@ impl Rinex {
     /// This has no effect if self is not an Observation RINEX.
     pub fn rnx2crnx (&mut self) {
         if self.is_observation_rinex() {
-            let date = chrono::Utc::now().naive_utc();
             let version: Version = match self.header.version.major < 3 { 
                 true => {
                     Version {
@@ -224,7 +223,8 @@ impl Rinex {
             };
             self.header = self.header
                 .with_crinex(Crinex {
-                    date,
+                    date: hifitime::Epoch::now()
+                        .expect("failed to retrieve system time"),
                     version,
                     prog: "rust-crinex".to_string(),
                 });
@@ -236,14 +236,14 @@ impl Rinex {
     /// This can be used to "force" compression of a RINEX1 into CRINEX3
     pub fn rnx2crnx1 (&mut self) {
         if self.is_observation_rinex() {
-            let date = chrono::Utc::now().naive_utc();
             self.header = self.header
                 .with_crinex(Crinex {
-                    date,
                     version: Version {
                         major: 1,
                         minor: 0,
                     },
+                    date: hifitime::Epoch::now()
+                        .expect("failed to retrieve system time"),
                     prog: "rust-crinex".to_string(),
                 });
         }
@@ -254,10 +254,10 @@ impl Rinex {
     /// This can be used to "force" compression of a RINEX1 into CRINEX3
     pub fn rnx2crnx3 (&mut self) {
         if self.is_observation_rinex() {
-            let date = chrono::Utc::now().naive_utc();
             self.header = self.header
                 .with_crinex(Crinex {
-                    date,
+                    date: hifitime::Epoch::now()
+                        .expect("failed to retrieve system time"),
                     version: Version {
                         major: 3,
                         minor: 0,
@@ -279,13 +279,15 @@ impl Rinex {
                     crinex: None,
                     codes: params.codes.clone(),
                     clock_offset_applied: params.clock_offset_applied,
+                    dcb_compensations: params.dcb_compensations.clone(),
+                    scalings: params.scalings.clone(),
                 });
         }
     }
 
     /// Returns filename that would respect naming conventions,
     /// based on self attributes
-    pub fn filename (&self) -> String {
+    pub fn filename(&self) -> String {
         let header = &self.header;
         let rtype = header.rinex_type;
         let nnnn = header.station.as_str()[0..4].to_lowercase(); 
@@ -301,8 +303,11 @@ impl Rinex {
             _ => todo!(), // other files require a dedicated procedure
         };
         if header.version.major < 3 {
-            let s = hourly_session_str(epoch.date.time());
-            let yy = format!("{:02}", epoch.date.year());
+            //TODO
+            let s = "0000";
+            //let s = hourly_session_str(epoch.date.time());
+            let yy = "YY";
+            //let yy = format!("{:02}", epoch.date.year());
             let t : String = match rtype {
                 types::Type::ObservationData => {
                     if header.is_crinex() {
@@ -336,9 +341,12 @@ impl Rinex {
             // S: Stream
             // U: Unknown
             let s = String::from("R");
-            let yyyy = format!("{:04}", epoch.date.year());
-            let hh = format!("{:02}", epoch.date.hour());
-            let mm = format!("{:02}", epoch.date.minute());
+            let yyyy = "YYYY"; //TODO
+            let hh = "HH"; //TODO 
+            let mm = "MM"; //TODO
+            //let yyyy = format!("{:04}", epoch.date.year());
+            //let hh = format!("{:02}", epoch.date.hour());
+            //let mm = format!("{:02}", epoch.date.minute());
             let pp = String::from("00"); //TODO 02d file period, interval ?
             let up = String::from("H"); //TODO: file period unit
             let ff = String::from("00"); //TODO: 02d observation frequency 02d
@@ -351,7 +359,7 @@ impl Rinex {
                 Some(c) => c.to_1_letter_code().to_uppercase(),
                 _ => String::from("X"),
             };
-            let t : String = match rtype {
+            let t: String = match rtype {
                 types::Type::ObservationData => String::from("O"),
                 types::Type::NavigationData => String::from("N"),
                 types::Type::MeteoData => String::from("M"),
@@ -478,17 +486,15 @@ impl Rinex {
     /// let expected = chrono::Duration::from_std(std::time::Duration::from_secs(15*60)).unwrap();
     /// //assert_eq!(rnx.sampling_interval(), expected);
     /// ```
-    pub fn sampling_interval (&self) -> chrono::Duration {
+    pub fn sampling_interval(&self) -> Duration {
         if let Some(interval) = self.header.sampling_interval {
-            let secs = interval.round() as u64;
-            //let nanos = interval.fract() as i32;
-            chrono::Duration::from_std(std::time::Duration::from_secs(secs)).unwrap()
+            interval
         } else {
             let epochs = self.epochs();
             let mut prev_epoch = epochs[0];
-            let mut histogram : HashMap<chrono::Duration, u64> = HashMap::new();
+            let mut histogram: HashMap<Duration, u64> = HashMap::new();
             for epoch in epochs.iter().skip(1) {
-                let dt = epoch.date - prev_epoch.date;
+                let dt = epoch.epoch - prev_epoch.epoch;
                 if let Some(counter) = histogram.get_mut(&dt) {
                     *counter += 1
                 } else {
@@ -496,72 +502,57 @@ impl Rinex {
                 }
                 prev_epoch = epoch.clone();
             }
-            // largest hist population
-            let mut largest = 0;
-            let mut dt = chrono::Duration::from_std(std::time::Duration::from_secs(0)).unwrap();
-            for (d, counter) in histogram.iter() {
-                if counter > &largest {
-                    largest = *counter;
-                    dt = d.clone()
-                } else if counter == &largest {
-                    if d < &dt { // on population equality --> smallest epoch interval is preferred
-                        dt = d.clone()
-                    }
+            // return largest histogram population
+            let mut max = 0;
+            let mut dt = Duration::default();
+            for (dt, pop) in histogram {
+                if pop > max {
+                    max = pop;
+                    dt = dt;
                 }
             }
             dt
         }
     }
 
-    /// Returns start date and duration of largest data gap in this record.
-    /// Returns None if no data gap was found (ie., all epochs comprised within expected sampling interval)
-    pub fn largest_data_gap_duration (&self) -> Option<(chrono::NaiveDateTime, chrono::Duration)> {
-        if let Some(interval) = self.header.sampling_interval {
-            let epochs = self.epochs();
-            let interval = chrono::Duration::from_std(std::time::Duration::from_secs(interval as u64)).unwrap();
-            let mut prev_epoch = epochs[0];
-            let mut epoch = epochs[0].date.clone();
-            let mut largest_dt = prev_epoch.date - prev_epoch.date;
-            for e in epochs.iter().skip(1) {
-                let dt = e.epoch - prev_epoch.date;
-                if dt > interval {
-                    if dt > largest_dt { 
-                        epoch = e.epoch.clone();
-                        largest_dt = e.epoch - prev_epoch.date; 
-                    }
+    /// Returns start date and duration of largest data gap encountered in this
+    /// RINEX file.
+    pub fn largest_data_gap_duration(&self) -> Option<(hifitime::Epoch, Duration)> {
+        let epochs = self.epochs();
+        let interval = self.sampling_interval();
+        let mut dt: Duration::default();
+        let mut prev_epoch: hifitime::Epoch;
+        for (index, epoch) in epochs.iter().enumerate() {
+            if index > 0 {
+                let dtt = epoch.epoch - prev_epoch;
+                if dtt > dt {
+                    dt = dtt;
                 }
-                prev_epoch = e.clone(); 
             }
-            Some((epoch, largest_dt))
-        } else {
-            None
+            prev_epoch = epoch.epoch;
         }
+        dt
     }
 
     /// Returns a list of epochs that present a data gap.
-    /// Data gap is determined by comparing |e(k)-e(k-1)|: successive epoch intervals,
-    /// to the INTERVAL field found in the header.
-    /// Granularity is currently limited to 1 second. 
-    /// This method will not produce anything if header does not an INTERVAL field.
-    pub fn data_gaps (&self) -> Vec<Epoch> {
-        if let Some(interval) = self.header.sampling_interval {
-            let interval = interval as u64;
-            let mut epochs = self.epochs();
-            let mut prev = epochs[0].date;
-            epochs
-                .retain(|e| {
-                    let delta = (e.epoch - prev).num_seconds() as u64; 
-                    if delta <= interval {
-                        prev = e.epoch;
-                        true
-                    } else {
-                        false
-                    }
-            });
-            epochs
-        } else {
-            Vec::new()
-        }
+    /// Data gap is determined by comparing |e(k)-e(k-1)| ie., successive epoch intervals,
+    /// to the interval field (prefered) if header does have such information,
+    /// otherwise we compute the average epoch duration ourselves.
+    /// Granularity is 1 second for most RINEX, and down to 100ns for Observation RINEX.
+    pub fn data_gaps(&self) -> Vec<Epoch> {
+        let interval = self.sampling_interval();
+        let mut epochs = self.epochs();
+        let mut prev = epochs[0].epoch;
+        epochs
+            .retain(|e| {
+                if e.epoch - prev <= interval {
+                    prev = e.epoch;
+                    true
+                } else {
+                    false
+                }
+        });
+        epochs
     }
     
     /// Returns list of epochs where unusual events happened,
@@ -572,7 +563,7 @@ impl Rinex {
     ///  -  power cycle failures
     ///  - receiver physically moved (new site occupation)
     ///  - other external events 
-    pub fn epoch_anomalies (&self, mask: Option<EpochFlag>) -> Vec<Epoch> { 
+    pub fn epoch_anomalies(&self, mask: Option<EpochFlag>) -> Vec<Epoch> { 
         let epochs = self.epochs();
         epochs
             .into_iter()
@@ -1127,19 +1118,6 @@ impl Rinex {
             }
         }
         results
-    }
-
-    /// Computes average epoch duration of this record
-    pub fn average_epoch_duration (&self) -> Result<chrono::Duration, time::OutOfRangeError> {
-        let mut sum_secs = 0_u64;
-        //let mut sum_nanos = 0;
-        let epochs = self.epochs();
-        for i in 1..epochs.len() {
-            let dt = epochs[i].date - epochs[i-1].date;
-            sum_secs += dt.num_seconds() as u64;
-        }
-        let duration = std::time::Duration::from_secs(sum_secs / epochs.len() as u64);
-        chrono::Duration::from_std(duration)
     }
 
     /// Returns list of observables, in the form 
@@ -2295,7 +2273,7 @@ impl Rinex {
         results
     }
     
-    /// Phase Code Differential analysis.
+    /// Phase DCB (Differential Code Biases).
     /// Computes Difference between different Phase Observations
     /// observered against the same carrier frequency.
     /// This will exhibit static or drifting offsets between phase observations.
@@ -2303,7 +2281,7 @@ impl Rinex {
     /// <http://navigation-office.esa.int/attachments_12649498_1_Reichel_5thGalSciCol_2015.pdf>.
     /// Results are sorted by kind of analysis, for instance: "1C-1W" 
     /// means "C" code against "W" code for Carrier 1.
-    pub fn observation_phase_diff(&self) -> HashMap<String, BTreeMap<Epoch, f64>> {
+    pub fn observation_phase_dcb(&self) -> HashMap<String, BTreeMap<Epoch, f64>> {
         let mut ret: HashMap<String, BTreeMap<Epoch, f64>> = HashMap::new();
         
         //TODO lazy_static please
@@ -2380,14 +2358,14 @@ impl Rinex {
         ret
     }
     
-    /// Pseudo Range (PR) Code Differential analysis.
+    /// Pseudo Range DCB (Differential Code Biases).
     /// Computes Difference between different PR Observations
     /// observered against the same carrier frequency.
     /// This will exhibit static or drifting offsets between observations.
     /// Cf. page 12
     /// <http://navigation-office.esa.int/attachments_12649498_1_Reichel_5thGalSciCol_2015.pdf>.
     /// Results are sorted by kind of analysis, similarly to [Rinex::observation_phase_diff]. 
-    pub fn observation_pseudorange_diff(&self) -> HashMap<String, BTreeMap<Epoch, f64>> {
+    pub fn observation_pseudorange_dcb(&self) -> HashMap<String, BTreeMap<Epoch, f64>> {
         let mut ret: HashMap<String, BTreeMap<Epoch, f64>> = HashMap::new();
         
         //TODO lazy_static please
@@ -2464,14 +2442,13 @@ impl Rinex {
         ret
     }
     
-    /// Efficient PH + PR differential analysis.
-    /// Results are (Differenced PH, Differenced PR).
+    /// Full (PH + PR) DCB analysis.
     /// Same analysis as previously defined in
-    /// [Rinex::observation_pseudorange_diff] 
-    /// and in [Rinex::observation_phase_diff]
+    /// [Rinex::observation_pseudorange_dcb] 
+    /// and in [Rinex::observation_phase_dcb]
     /// but we perform both analysis in the same iteration,
     /// to save time.
-    pub fn observation_code_diff(&self) -> 
+    pub fn observation_dcb(&self) -> 
         (HashMap<String, BTreeMap<Epoch, f64>>, HashMap<String, BTreeMap<Epoch, f64>>)
     {
         let mut ph_ret: HashMap<String, BTreeMap<Epoch, f64>> = HashMap::new();
@@ -2605,8 +2582,8 @@ impl Rinex {
     /// |e(k).date - e(k-1).date| < interval, get thrown away.
     /// Also note we adjust the INTERVAL field,
     /// meaning, further file production will be correct.
-    pub fn decimate_by_interval_mut (&mut self, interval: chrono::Duration) {
-        let mut last_preserved = self.epochs()[0].date;
+    pub fn decimate_by_interval_mut (&mut self, interval: hifitime::Duration) {
+        let mut last_preserved = self.epochs()[0].epoch;
         match self.header.rinex_type {
             types::Type::NavigationData => {
                 let record = self.record
@@ -2708,8 +2685,8 @@ impl Rinex {
     }
 
     /// Refer to [decimate_by_interval], non mutable implementation
-    pub fn decimate_by_interval (&self, interval: chrono::Duration) -> Self {
-        let mut last_preserved = self.epochs()[0].date;
+    pub fn decimate_by_interval (&self, interval: hifitime::Duration) -> Self {
+        let mut last_preserved = self.epochs()[0].epoch;
         let record: record::Record = match self.header.rinex_type {
             types::Type::NavigationData => {
                 let mut record = self.record
@@ -3267,24 +3244,26 @@ impl Rinex {
     pub fn time_window_mut (&mut self, start: chrono::NaiveDateTime, end: chrono::NaiveDateTime) {
         let (start_date, start_time) = (start.date(), start.time());
         let start = hifitime::Epoch::from_gregorian_utc(
-            start_date.year(), start_date.month(), start_date.day(),
-            start_time.hour(), start_time.minute(), start_time.second(), start_time.nanoseconds());
+            start_date.year(), start_date.month() as u8, start_date.day(), as u8
+            start_time.hour() as u8, start_time.minute() as u8, start_time.second() as u8, 
+            start_time.nanoseconds());
         
         let (end_date, end_time) = (end.date(), end.time());
         let end = hifitime::Epoch::from_gregorian_utc(
-            end_date.year(), end_date.month(), end_date.day(),
-            end_time.hour(), end_time.minute(), end_time.second(), end_time.nanoseconds());
+            end_date.year(), end_date.month() as u8, end_date.day(), as u8
+            end_time.hour() as u8, end_time.minute() as u8, end_time.second() as u8, 
+            end_time.nanoseconds());
 
-        if let Some(record) = self.as_mut_obs() {
+        if let Some(record) = self.record.as_mut_obs() {
             record
                 .retain(|e, _| e.epoch >= start && e.epoch <= end);
-        } else if let Some(record) = self.as_mut_nav() {
+        } else if let Some(record) = self.record.as_mut_nav() {
             record
                 .retain(|e, _| e.epoch >= start && e.epoch <= end);
-        } else if let Some(record) = self.as_mut_meteo() {
+        } else if let Some(record) = self.record.as_mut_meteo() {
             record
                 .retain(|e, _| e.epoch >= start && e.epoch <= end);
-        } else if let Some(record) = self.as_mut_clock() {
+        } else if let Some(record) = self.record.as_mut_clock() {
             record
                 .retain(|e, _| e.epoch >= start && e.epoch <= end);
         }
@@ -3433,12 +3412,15 @@ impl Merge<Rinex> for Rinex {
         } else if rhs.epochs().len() == 0 { // nothing to merge
             Ok(())
         } else {
-            // add special header marker
-            let now = chrono::Utc::now().naive_utc(); 
+            // add special marker, ts: YYYYDDMM HHMMSS UTC
+            let (y, m, d, hh, mm, ss, _) = hifitime::Epoch::now()
+                .expect("failed to retrieve system time")
+                .to_gregorian_utc();
             self.header.comments.push(format!(
-                "rustrnx-{:<20} FILE MERGE          {} UTC", 
+                "rustrnx-{:<20} FILE MERGE          {}{}{} {}{}{} {}", 
                 env!("CARGO_PKG_VERSION"),
-                now.format("%Y%m%d %H%M%S")));
+                y + 1900, m, d,
+                hh, mm, s, ts));
             // RINEX record merging 
             self.record.merge_mut(&rhs.record)?;
             Ok(())

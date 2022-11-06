@@ -7,9 +7,8 @@ use std::collections::BTreeMap;
 
 use crate::{
 	Epoch, 
-	epoch::{
-		str2date, ParseDateError,
-	},
+	epoch, 
+    epoch::str2date,
 	sv,
 	Header,
 	Constellation, Sv,
@@ -253,8 +252,8 @@ pub enum Error {
     ParseIntError(#[from] std::num::ParseIntError), 
     #[error("failed to parse sv clock fields")]
     ParseFloatError(#[from] std::num::ParseFloatError),
-    #[error("failed to parse epoch date")]
-    ParseDateError(#[from] ParseDateError),
+    #[error("failed to parse epoch")]
+    EpochError(#[from] epoch::Error),
     #[error("failed to identify class/type")]
     StrumError(#[from] strum::ParseError), 
     #[error("failed to parse EPH message")]
@@ -509,8 +508,8 @@ fn fmt_epoch_v4 (
                     None => panic!("producing data with no constellation previously defined"),
                 }
                 lines.push_str(&format!(
-                    "{} {:14.13E} {:14.13E} {:14.13E}\n", 
-                    epoch.to_string_nav_v3(),
+                    "{:E} {:14.13E} {:14.13E} {:14.13E}\n", 
+                    epoch,
                     ephemeris.clock_bias, 
                     ephemeris.clock_drift, 
                     ephemeris.clock_drift_rate));
@@ -555,7 +554,7 @@ fn fmt_epoch_v4 (
                 let (msg, sv, sto) = frame.as_sto()
                     .unwrap();
                 lines.push_str(&format!("> {} {} {}\n", class, sv, msg));
-                lines.push_str(&format!("    {} {}    {}", epoch.to_string_nav_v3(), sto.system, sto.utc));
+                lines.push_str(&format!("    {:e} {}    {}", epoch, sto.system, sto.utc));
                 lines.push_str(&format!( 
                     "{:14.13E} {:14.13E} {:14.13E} {:14.13E}\n",
                     sto.t_tm as f64,
@@ -1193,7 +1192,7 @@ impl Split<Record> for Record {
     fn split(&self, epoch: Epoch) -> Result<(Self, Self), split::Error> {
         let r0 = self.iter()
             .flat_map(|(k, v)| {
-                if k.date < epoch.date {
+                if k < &epoch {
                     Some((k.clone(), v.clone()))
                 } else {
                     None
@@ -1202,7 +1201,7 @@ impl Split<Record> for Record {
             .collect();
         let r1 = self.iter()
             .flat_map(|(k, v)| {
-                if k.date >= epoch.date {
+                if k >= &epoch {
                     Some((k.clone(), v.clone()))
                 } else {
                     None

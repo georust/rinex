@@ -30,15 +30,16 @@ pub enum Error {
     MinutesError,
 }
 
-
 /// `Epoch` is a high accuracy sampling timestamp,
 /// and an [flag:EpochFlag] associated to it.
 #[derive(Copy, Clone, Debug)]
 #[derive(PartialOrd, Ord)]
 #[derive(PartialEq, Eq, Hash)]
 pub struct Epoch {
-    /// Sampling timestamp with 1 ns accuracy.
-    /// Supports most standard timescales
+    /// Sampling timestamp with 1 ns precision limitation.
+    /// This precision is consistent with stringent Geodesics requirements.
+    /// Currently, the best precision in RINEX format is 100 ns precision
+    /// for Observation RINEX.
     pub epoch: hifitime::Epoch, 
     /// Flag describes sampling conditions and external events
     pub flag: flag::EpochFlag,
@@ -50,35 +51,31 @@ impl Serialize for Epoch {
     where
         S: serde::Serializer,
     {
-        let s = format!("{} {}", 
-            self.date.format("%Y-%m-%d %H:%M:%S"),
-            self.flag.to_string());
+        let s = format!("{} {}", self.epoch, self.flag); 
         serializer.serialize_str(&s)
     }
 }
 
 impl Default for Epoch {
     fn default() -> Self {
-        let now = chrono::Utc::now().naive_utc();
         let (date, time) = (now.date(), now.time());
         Self {
             flag: EpochFlag::default(),
-            epoch: hifitime::Epoch::from_gregorian_utc(
-                date.year(), date.month(), date.day(),
-                time.hour(), time.minute(), time.second()),
+            epoch: hifitime::Epoch::now()
+                .expect("failed to retrieve system time"),
         }
     }
 }
 
 impl Epoch {
-    /// Builds a new `Epoch` from given flag & timestamp
-    pub fn new (epoch: hifitime::Epoch, flag: EpochFlag) -> Epoch {
-        Epoch { 
+    /// Builds a new `Epoch` from given flag & timestamp in desired TimeScale
+    pub fn new(epoch: hifitime::Epoch, flag: EpochFlag) -> Self {
+        Self { 
             epoch,
             flag,
         }
     }
-	/// Builds an `epoch` to describe current instant
+	/// Builds a current UTC instant description, with default flag
 	pub fn now() -> Self {
 		Self::default()
 	}
@@ -89,20 +86,25 @@ impl Epoch {
 			flag,
 		}
 	}
-    /// Formats self in NAV/V3 compatible format
-    pub fn to_string_nav_v3(&self) -> String {
-        self.date.format("%Y %m %d %H %M %S")
-            .to_string()
+    /// Returns UTC date representation
+    pub fn to_gregorian_utc(&self) -> (i32, u8, u8, u8, u8, u8, u32) {
+        self.epoch.to_gregorian_utc()
+    }
+
+    /// Builds Self from given UTC date
+    pub fn from_gregorian_utc(year: i32, month: u8, day: u8, hour: u8, minute: u8, second: u8, nanos: u32) -> Self {
+        Self {
+            epoch: hifitime::Epoch::from_gregorian_utc(year, month, day, hour, minute, second, nanos),
+            flag: EpochFlag::default()
     }
 }
 
-impl fmt::Display for Epoch {
+impl std::fmt::Display for Epoch {
     /// Default formatter applies to Observation RINEX only
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let (y, m, d, hh, mm, ss, nanos) = 
-            Hifitime::compute_gregorian(
-                self.epoch.to_utc_duration());
-        format!("{:04} {:>2} {:>2} {:>2} {:>2} {:>2}.{:07}  {}",
+        let (y, m, d, hh, mm, ss, nanos) = self.to_gregorian_utc();
+        write!(f,
+            "{:04} {:>2} {:>2} {:>2} {:>2} {:>2}.{:07}  {}",
             y, m, d, hh, mm, ss, nanos, self.flag)
     }
 }
@@ -111,11 +113,10 @@ impl fmt::LowerExp for Epoch {
     /// LowerExp "e" applies to old formats like NAV V2 that omit the "flag" 
     /// and accuracy is 0.1 sec
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let (y, m, d, hh, mm, ss, ns) = 
-            hifitime::Epoch::compute_gregorian(
-                self.epoch.to_utc_duration());
-        format!("{:04} {:>2} {:>2} {:>2} {:>2} {:>2}.{:1}"
-            y, m, d, hh, mm, ss, ns);
+        let (y, m, d, hh, mm, ss, _) = self.to_gregorian_utc();
+        write!(f, 
+            "{:04} {:>2} {:>2} {:>2} {:>2} {:>2}.{:1}",
+            y, m, d, hh, mm, ss, ns)
     }
 }
 
@@ -123,11 +124,10 @@ impl fmt::UpperExp for Epoch {
     /// UpperExp "E" applies to modern formats like NAV V3/V4 that omit the "flag"
     /// and accuracy is 1 sec
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let (y, m, d, hh, mm, ss, _) = 
-            hifitime::Epoch::compute_gregorian(
-                self.epoch.to_utc_duration());
-        format!("{:04} {:>2} {:>2} {:>2} {:>2} {:>2}"
-            y, m, d, hh, mm, ss);
+        let (y, m, d, hh, mm, ss, _) = self.epoch.to_gregorian_utc();
+        write!(f,
+            "{:04} {:>2} {:>2} {:>2} {:>2} {:>2}",
+            y, m, d, hh, mm, ss)
     }
 }
 
@@ -140,16 +140,16 @@ pub fn str2date(s: &str) -> Result<hifitime::Epoch, Error> {
     if let Ok(mut y) = i32::from_str_radix(items[0], 10) {
         if y < 100 { // old rinex -__-
             if > 90 {
-                y += 1900 // o__O
+                y += 1900;
             } else {
-                y += 2000 // o__O 
+                y += 2000;
             }
         }
         if let Ok(m) = u8::from_str_radix(items[1], 10) {
             if let Ok(d) = u8::from_str_radix(items[2], 10) {
                 if let Ok(hh) = u8::from_str_radix(items[3], 10) {
                     if let Ok(mm) = u8::from_str_radix(items[4], 10) {
-                        let ss = f64::from_str(items[5].trim(), 10)?;
+                        let ss = f64::from_str(items[5].trim())?;
                         let second = ss.trunc() as u8;
                         let nanos = (ss.fract() * 10.0) as u32;
                         Ok(hifitime::Epoch::from_gregorian_utc(y, m, d, hh, mm, second, nanos))

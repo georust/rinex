@@ -105,6 +105,8 @@ pub struct Grid3d {
 pub struct HeaderFields {
     /// System used or theoretical model used
     pub system: System,
+    /// Known Differential PR Code Biases
+    pub dcb: HashMap<Sv, (f64,f64)>, 
     /// It is highly recommended to give a brief description
     /// of the technique, model.. description is not a 
     /// general purpose comment
@@ -210,6 +212,12 @@ impl HeaderFields {
     pub fn with_grid_height (&self, h: (f32,f32,f32)) -> Self {
         let mut s = self.clone();
         s.grid.height = h.into();
+        s
+    }
+    /// Adds given diffrential code biases, to the list of known DCBs
+    pub fn with_dcb(&self, sv: Sv, value: f64, rms: f64) -> Self {
+        let mut s = self.clone();
+        s.dcb.insert(*sv, (value, rms));
         s
     }
 }

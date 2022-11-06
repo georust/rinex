@@ -648,9 +648,7 @@ fn fmt_epoch_v3(
         .as_ref()
         .unwrap()
         .codes;
-    lines.push_str("> ");
-    lines.push_str(&epoch.to_string_obs_v3());
-    lines.push_str(&format!("{:3}", data.len()));
+    lines.push_str(&format!("> {} {:2}", epoch, data.len()));
     if let Some(data) = clock_offset {
         lines.push_str(&format!("{:13.4}", data)); 
     }
@@ -693,7 +691,7 @@ fn fmt_epoch_v2(
         .as_ref()
         .unwrap()
         .codes;
-    lines.push_str(&format!(" {} {:2}", epoch.to_string_obs_v2(), data.len()));
+    lines.push_str(&format!(" {} {:2}", epoch, data.len()));
     let mut index = 0;
     for (sv, _) in data {
         index += 1;
@@ -878,7 +876,7 @@ impl Split<Record> for Record {
     fn split(&self, epoch: Epoch) -> Result<(Self, Self), split::Error> {
         let r0 = self.iter()
             .flat_map(|(k, v)| {
-                if k.date < epoch.date {
+                if k < &epoch {
                     Some((k.clone(), v.clone()))
                 } else {
                     None
@@ -887,7 +885,7 @@ impl Split<Record> for Record {
             .collect();
         let r1 = self.iter()
             .flat_map(|(k, v)| {
-                if k.date >= epoch.date {
+                if k >= &epoch {
                     Some((k.clone(), v.clone()))
                 } else {
                     None

@@ -105,7 +105,7 @@ impl KbModel {
             },
         };
 
-        let date = epoch::str2date(epoch.trim())?;
+        let epoch = epoch::str2date(epoch.trim())?;
         let alpha = (
             f64::from_str(a0.trim()).unwrap_or(0.0_f64),
             f64::from_str(a1.trim()).unwrap_or(0.0_f64),
@@ -120,7 +120,7 @@ impl KbModel {
         );
 
         Ok((epoch::Epoch {
-            date,
+            epoch,
             flag: epoch::EpochFlag::Ok,
         },
         Self {
@@ -171,7 +171,7 @@ impl NgModel {
             _ => return Err(Error::NgModelMissing2ndLine)
         };
         
-        let date = epoch::str2date(epoch.trim())?;
+        let epoch = epoch::str2date(epoch.trim())?;
         let a = (
             f64::from_str(a0.trim())?,
             f64::from_str(a1.trim())?,
@@ -179,7 +179,7 @@ impl NgModel {
         );
         let f = f64::from_str(line.trim())?;
         Ok((epoch::Epoch {
-            date,
+            epoch,
             flag: epoch::EpochFlag::Ok,
         },
         Self {
@@ -223,7 +223,7 @@ impl BdModel {
         };
         let (a7, a8) = line.split_at(23);
         
-        let date = epoch::str2date(epoch.trim())?;
+        let epoch = epoch::str2date(epoch.trim())?;
         let alpha = (
             f64::from_str(a0.trim()).unwrap_or(0.0_f64),
             f64::from_str(a1.trim()).unwrap_or(0.0_f64),
@@ -236,7 +236,7 @@ impl BdModel {
             f64::from_str(a8.trim()).unwrap_or(0.0_f64),
         );
         Ok((epoch::Epoch {
-            date,
+            epoch,
             flag: epoch::EpochFlag::Ok,
         },
         Self {

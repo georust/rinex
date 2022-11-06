@@ -76,24 +76,24 @@ pub fn parse_epoch (header: &Header, content: &str)
 	// epoch.secs is not f32 as usual
 	// Y is 4 digit number as usual for V > 2
 	//let (date, rem) = line.split_at(offset);
-	let (mut y, m, d, h, min, sec, mut offset) : (i32, u32, u32, u32, u32, u32, usize) 
+	let (mut y, m, d, h, min, sec, mut offset) : (i32, u8, u8, u8, u8, u8, usize) 
 		= match header.version.major > 2 {
 		true => {
 			(i32::from_str_radix(line[0..5].trim(),10)?, // Y: 4 digit
-			u32::from_str_radix(line[5..8].trim(),10)?, // m
-			u32::from_str_radix(line[8..11].trim(),10)?, // d
-			u32::from_str_radix(line[11..14].trim(),10)?, // h
-			u32::from_str_radix(line[14..17].trim(),10)?, // m
-			u32::from_str_radix(line[17..20].trim(),10)?, // s
+			u8::from_str_radix(line[5..8].trim(),10)?, // m
+			u8::from_str_radix(line[8..11].trim(),10)?, // d
+			u8::from_str_radix(line[11..14].trim(),10)?, // h
+			u8::from_str_radix(line[14..17].trim(),10)?, // m
+			u8::from_str_radix(line[17..20].trim(),10)?, // s
 			20)
 		},
 		false => {
 			(i32::from_str_radix(line[0..3].trim(),10)?, // Y: 2 digit
-			u32::from_str_radix(line[3..6].trim(),10)?, // m
-			u32::from_str_radix(line[6..9].trim(),10)?,// d
-			u32::from_str_radix(line[9..12].trim(),10)?,// h
-			u32::from_str_radix(line[12..15].trim(),10)?,// m
-			u32::from_str_radix(line[15..18].trim(),10)?,// s
+			u8::from_str_radix(line[3..6].trim(),10)?, // m
+			u8::from_str_radix(line[6..9].trim(),10)?,// d
+			u8::from_str_radix(line[9..12].trim(),10)?,// h
+			u8::from_str_radix(line[12..15].trim(),10)?,// m
+			u8::from_str_radix(line[15..18].trim(),10)?,// s
 			18)
 		},
 	};
@@ -104,8 +104,7 @@ pub fn parse_epoch (header: &Header, content: &str)
 			y += 2000
 		}
 	}
-	let date = chrono::NaiveDate::from_ymd(y,m,d)
-		.and_hms(h,min,sec);
+	let date = hifitime::Epoch::from_greorian_utc(y, m, d, hh, mm, ss, 0);
 	let flag = EpochFlag::default();
 	let epoch = Epoch::new(date, flag);
 
@@ -158,11 +157,9 @@ pub fn fmt_epoch (
     ) -> Result<String, Error>  {
     let mut lines = String::with_capacity(128);
     if header.version.major > 3 {
-        lines.push_str(&format!(" {}", 
-            epoch.date.format("%Y %_m %_d %_H %_M %_S").to_string()));
+        lines.push_str(&format!(" {:E}", epoch));
     } else {
-        lines.push_str(&format!(" {}", 
-            epoch.date.format("%y %_m %_d %_H %_M %_S").to_string()));
+        lines.push_str(&format!(" {:e}", epoch)); 
     }
     let observables = &header
         .meteo
@@ -257,7 +254,7 @@ impl Split<Record> for Record {
     fn split(&self, epoch: Epoch) -> Result<(Self, Self), split::Error> {
         let r0 = self.iter()
             .flat_map(|(k, v)| {
-                if k.date < epoch.date {
+                if k < &epoch {
                     Some((k.clone(), v.clone()))
                 } else {
                     None
@@ -266,7 +263,7 @@ impl Split<Record> for Record {
             .collect();
         let r1 = self.iter()
             .flat_map(|(k, v)| {
-                if k.date >= epoch.date {
+                if k >= &epoch {
                     Some((k.clone(), v.clone()))
                 } else {
                     None

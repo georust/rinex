@@ -58,7 +58,7 @@ impl EopMessage {
         let (dut, rem) = rem.split_at(19);
         let (ddut, dddut) = rem.split_at(19);
 
-        let date = epoch::str2date(epoch.trim())?;
+        let epoch = epoch::str2date(epoch.trim())?;
         let x = (
             f64::from_str(xp.trim()).unwrap_or(0.0_f64),
             f64::from_str(dxp.trim()).unwrap_or(0.0_f64),
@@ -77,7 +77,7 @@ impl EopMessage {
         );
 
         Ok((epoch::Epoch {
-            date,
+            epoch,
             flag: epoch::EpochFlag::Ok,
         },
         Self {

@@ -3,7 +3,8 @@ use crate::{
 	sv,
 	version::Version, 
 	Epoch, EpochFlag, 
-    epoch, epoch::str2date,
+    epoch, 
+    epoch::str2date,
 };
 use super::{
 	OrbitItem,
@@ -127,7 +128,7 @@ impl Ephemeris {
 		let sv = Sv::from_str(svnn.trim())?;
 		let (epoch, rem) = rem.split_at(20);
 		let epoch = Epoch {
-			date: str2date(epoch.trim())?,
+			epoch: str2date(epoch.trim())?,
 			flag: EpochFlag::Ok,
 		};
 

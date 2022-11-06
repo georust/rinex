@@ -4,11 +4,12 @@ use crate::leap;
 use crate::antex;
 use crate::clocks;
 use rust_3d::Point3D;
-use hifitime::TimeScale;
 
-use crate::Sv;
-use crate::merge;
-use crate::merge::Merge;
+use hifitime::{
+    Duration, TimeScale,
+};
+
+use super::*;
 use crate::hardware;
 use crate::reader::BufferedReader;
 use crate::types::{Type, TypeError};
@@ -16,11 +17,13 @@ use crate::meteo;
 use crate::ionosphere;
 use crate::observation;
 use crate::version::Version;
-use hardware::{Antenna, SvAntenna, Rcvr};
+use hardware::{
+    Rcvr,
+    Antenna, 
+    SvAntenna,
+};
 
 use observation::Crinex;
-use crate::constellation;
-use crate::constellation::Constellation;
 
 use thiserror::Error;
 use std::str::FromStr;
@@ -128,7 +131,7 @@ pub struct Header {
     /// Optionnal observation wavelengths
     pub wavelengths: Option<(u32,u32)>, 
     /// Optionnal sampling interval (s)
-    pub sampling_interval: Option<f32>, 
+    pub sampling_interval: Option<Duration>, 
     /// Optionnal file license
     pub license: Option<String>,
     /// Optionnal Object Identifier (IoT)
@@ -184,8 +187,6 @@ pub enum Error {
     ParseIntError(#[from] std::num::ParseIntError),
     #[error("failed to parse float value")]
     ParseFloatError(#[from] std::num::ParseFloatError),
-    #[error("failed to parse date")]
-    DateParsingError(#[from] chrono::ParseError),
     #[error("failed to parse ANTEX fields")]
     AntexParsingError(#[from] antex::record::Error),
     #[error("failed to parse PCV field")]
@@ -254,7 +255,7 @@ impl Header {
         let mut rcvr_antenna: Option<Antenna> = None;
         let mut sv_antenna: Option<SvAntenna> = None;
         let mut leap: Option<leap::Leap> = None;
-        let mut sampling_interval: Option<f32> = None;
+        let mut sampling_interval: Option<Duration> = None;
         let mut coords: Option<Point3D> = None;
         // RINEX specific fields 
         let mut obs_code_lines : u8 = 0; 
@@ -449,6 +450,18 @@ impl Header {
                     rcvr = Some(receiver)
                 }
 
+            } else if marker.contains("SYS / DCBS APPLIED") {
+                let (system, rem) = content.split_at(2);
+                let (program, url) = rem.split_at(18);
+                if let Ok(gnss) = Constellation::from_str(system.trim()) {
+                    observation
+                        .with_dcb_compensation(system, program, url);
+                }
+
+            } else if marker.contains("SYS / SCALE FACTOR") {
+                /*let (system, rem) = content.split_at(2);
+                let (factor, rem) = rem.split_at(5);*/
+
 			} else if marker.contains("SENSOR MOD/TYPE/ACC") {
                 if let Ok(sensor) = meteo::sensor::Sensor::from_str(content) {
                     meteo.sensors.push(sensor)
@@ -590,7 +603,7 @@ impl Header {
             } else if marker.contains("PRN / # OF OBS") {
                 // ---> we don't need this info,
                 //     user can determine it by analyzing the record
-                 
+                
             } else if marker.contains("SYS / PHASE SHIFT") {
                 //TODO
 
@@ -770,8 +783,10 @@ impl Header {
                 //TODO
             
             } else if marker.contains("INTERVAL") {
-                let intv = content.split_at(20).0.trim();
-                sampling_interval = Some(f32::from_str(intv)?)
+                let interval = content.split_at(20).0.trim();
+                if let Ok(interval) = f64::from_str(interval.trim()) {
+                    sampling_interval = Some(Duration::from_seconds(interval))
+                }
 
             } else if marker.contains("GLONASS SLOT / FRQ #") {
                 //TODO
@@ -832,6 +847,9 @@ impl Header {
                     ionex = ionex
                         .with_satellites(u)
                 }
+            } else if marker.contains("PRN / BIAS / RMS" {
+                // differential PR code analysis
+                //TODO
             }
         }
 
@@ -856,7 +874,7 @@ impl Header {
             coords: coords,
             wavelengths: None,
             gps_utc_delta: None,
-            sampling_interval: sampling_interval,
+            sampling_interval,
             data_scaling: None,
             rcvr_antenna,
             sv_antenna,
@@ -1284,7 +1302,7 @@ impl Header {
                     minor: 0,
                 },
                 prog: "rust-crinex".to_string(),
-                date: chrono::Utc::now().naive_utc(),
+                date: hifitime::Epoch::now(),
             })
     }
 
@@ -1357,8 +1375,7 @@ impl Header {
 }
 
 impl std::fmt::Display for Header {
-    /// `header` formatter, mainly for 
-    /// `RINEX` file production purposes
+    /// `Header` formatter, mainly for RINEX file production purposes
     fn fmt (&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         // start with CRINEX attributes, if need be
         if let Some(obs) = &self.obs {
@@ -1549,6 +1566,10 @@ impl std::fmt::Display for Header {
             },//meteo data
             _ => {},
         }
+        // Must take place after list of Observables:
+        //TODO: scale factor, if any
+        //TODO: DCBS compensation, if any
+        //TODO: PCVs compensation, if any
         // LEAP
         if let Some(leap) = &self.leap {
             let mut line = String::new();
