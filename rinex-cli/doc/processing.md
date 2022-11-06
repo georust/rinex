@@ -29,37 +29,7 @@ It is highly recommended to focus on vehicules of interest when performing such 
 The current interface is not powerful enough to display correctly the same Code analysis
 against two different vehicules (work in progress), so proceed as described down below. 
 
-Example (1) `ACOR00ESP_R_202` contains enough data to evaluate
-
-* 2S/2W: "S" code against "W" code for GPS L2
-* 2P/2C: "P" code against "C" code for GLO L2 
-
-With the following command, we're left
-with 2S/2W analysis, since we focused on a single GPS vehicule:
-
-```bash
-rinex-cli --fp test_resources/OBS/V3/ACOR00ESP_R_20213550000_01D_30S_MO.rnx \
-    --phase-diff \
-    --retain-sv G01
-```
-
-By focusing on a Glonass vehicule, we get the 2P/2C analysis
-
-```bash
-rinex-cli --fp test_resources/OBS/V3/ACOR00ESP_R_20213550000_01D_30S_MO.rnx \
-    --phase-diff \
-    --retain-sv R04
-```
-
-By focusing on two vehicules, we get both analysis at the same time
-
-```bash
-rinex-cli --fp test_resources/OBS/V3/ACOR00ESP_R_20213550000_01D_30S_MO.rnx \
-    --phase-diff \
-    --retain-sv G01,R04
-```
-
-Example(2) `ESBC00DNK_R_2020` has enough information to evaluate
+Example: `ESBC00DNK_R_2020` has enough information to evaluate
 
 * 1C/1P for GLO L1 (1)
 * 2C/2P for GLO L2 (2)
@@ -107,30 +77,7 @@ but we focus on Pseudo Range observations instead.
 Refer to page 12 of
 [the ESA analysis](http://navigation-office.esa.int/attachments_12649498_1_Reichel_5thGalSciCol_2015.pdf)
 
-For example (1) `ACOR00ESP_R_2021` can evaluate
-
-* 2S/2W for GPS(L2) (1)
-* 2C/2P for GLO(L2) (2)
-
-Process (1)
-
-```bash
-rinex-cli --fp test_resources/OBS/V3/ACOR00ESP_R_20213550000_01D_30S_MO.rnx \
-    --retain-sv G01 \
-    --pr-diff
-```
-
-Analyze (1)+(2)
-
-```bash
-rinex-cli --fp test_resources/OBS/V3/ACOR00ESP_R_20213550000_01D_30S_MO.rnx \
-    --retain-sv G01,R21 \
-    --pr-diff
-```
-
-<img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/acor00esp_pr.png">
-
-Another example: `ESBC00DNK_R_2020` can evaluate:
+Example: `ESBC00DNK_R_2020` can evaluate
 
 * 1C/1W for GPS(L1) (1)
 * 1P/1C for GLO(L1) (2)
