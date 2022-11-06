@@ -3,7 +3,7 @@ use crate::{
 	sv,
 	version::Version, 
 	Epoch, EpochFlag, 
-	epoch::str2date, epoch::ParseDateError,
+    epoch, epoch::str2date,
 };
 use super::{
 	OrbitItem,
@@ -28,8 +28,8 @@ pub enum Error {
 	ParseFloatError(#[from] std::num::ParseFloatError),
 	#[error("failed to parse data")]
 	ParseIntError(#[from] std::num::ParseIntError),
-	#[error("failed to parse date")]
-	ParseDateError(#[from] ParseDateError), 
+	#[error("failed to parse epoch")]
+	EpochError(#[from] epoch::Error), 
 	#[error("failed to identify sat vehicule")]
 	ParseSvError(#[from] sv::Error),
 }

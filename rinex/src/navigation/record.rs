@@ -415,9 +415,9 @@ fn fmt_epoch_v2v3 (
                     },
                 }
                 if header.version.major < 3 {
-                    lines.push_str(&format!("{} ", epoch.to_string_nav_v2()));
+                    lines.push_str(&format!("{e} ", epoch));
                 } else {
-                    lines.push_str(&format!("{} ", epoch.to_string_nav_v3()));
+                    lines.push_str(&format!("{E} ", epoch));
                 }
                 lines.push_str(&format!(
                     "{:14.12E} {:14.12E} {:14.12E}\n   ",

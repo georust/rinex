@@ -5,7 +5,7 @@ use std::collections::{BTreeMap, HashMap};
 use crate::{
 	Sv, 
 	Epoch, EpochFlag, 
-	epoch::str2date, epoch::ParseDateError,
+	epoch, epoch::str2date,
 	version::Version,
     merge, merge::Merge,
     split, split::Split,
@@ -61,7 +61,7 @@ pub enum Error {
     #[error("unknown data code \"{0}\"")]
     UnknownDataCode(String),
     #[error("failed to parse epoch")]
-    ParseEpochError(#[from] ParseDateError),
+    EpochError(#[from] epoch::Error),
     #[error("failed to parse # of data fields")]
     ParseIntError(#[from] std::num::ParseIntError),
     #[error("failed to parse data payload")]

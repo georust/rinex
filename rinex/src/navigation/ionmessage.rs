@@ -1,8 +1,8 @@
 //! `Navigation` new ION Ionospheric model messages
-use bitflags::bitflags;
 use crate::epoch;
 use thiserror::Error;
 use std::str::FromStr;
+use bitflags::bitflags;
 
 /// Model parsing error
 #[derive(Debug, Error)]
@@ -27,8 +27,8 @@ pub enum Error {
     MissingData,
     #[error("failed to parse float data")]
     ParseFloatError(#[from] std::num::ParseFloatError),
-    #[error("failed to parse date field")]
-    ParseDateError(#[from] epoch::ParseDateError),
+    #[error("failed to parse epoch")]
+    EpochError(#[from] epoch::Error),
 }
 
 /// Klobuchar Parameters region

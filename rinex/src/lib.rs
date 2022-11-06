@@ -523,11 +523,11 @@ impl Rinex {
             let mut epoch = epochs[0].date.clone();
             let mut largest_dt = prev_epoch.date - prev_epoch.date;
             for e in epochs.iter().skip(1) {
-                let dt = e.date - prev_epoch.date;
+                let dt = e.epoch - prev_epoch.date;
                 if dt > interval {
                     if dt > largest_dt { 
-                        epoch = e.date.clone();
-                        largest_dt = e.date - prev_epoch.date; 
+                        epoch = e.epoch.clone();
+                        largest_dt = e.epoch - prev_epoch.date; 
                     }
                 }
                 prev_epoch = e.clone(); 
@@ -550,9 +550,9 @@ impl Rinex {
             let mut prev = epochs[0].date;
             epochs
                 .retain(|e| {
-                    let delta = (e.date - prev).num_seconds() as u64; 
+                    let delta = (e.epoch - prev).num_seconds() as u64; 
                     if delta <= interval {
-                        prev = e.date;
+                        prev = e.epoch;
                         true
                     } else {
                         false
@@ -2613,16 +2613,16 @@ impl Rinex {
                     .as_mut_nav()
                     .unwrap();
                 record.retain(|e, _| {
-                    let delta = e.date - last_preserved;
-                    if e.date != last_preserved { // trick to avoid 1st entry..
+                    let delta = e.epoch - last_preserved;
+                    if e.epoch != last_preserved { // trick to avoid 1st entry..
                         if delta >= interval {
-                            last_preserved = e.date;
+                            last_preserved = e.epoch;
                             true
                         } else {
                             false
                         }
                     } else {
-                        last_preserved = e.date;
+                        last_preserved = e.epoch;
                         true
                     }
                 });
@@ -2632,16 +2632,16 @@ impl Rinex {
                     .as_mut_obs()
                     .unwrap();
                 record.retain(|e, _| {
-                    let delta = e.date - last_preserved;
-                    if e.date != last_preserved { // trick to avoid 1st entry..
+                    let delta = e.epoch - last_preserved;
+                    if e.epoch != last_preserved { // trick to avoid 1st entry..
                         if delta >= interval {
-                            last_preserved = e.date;
+                            last_preserved = e.epoch;
                             true
                         } else {
                             false
                         }
                     } else {
-                        last_preserved = e.date;
+                        last_preserved = e.epoch;
                         true
                     }
                 });
@@ -2651,16 +2651,16 @@ impl Rinex {
                     .as_mut_meteo()
                     .unwrap();
                 record.retain(|e, _| {
-                    let delta = e.date - last_preserved;
-                    if e.date != last_preserved { // trick to avoid 1st entry..
+                    let delta = e.epoch - last_preserved;
+                    if e.epoch != last_preserved { // trick to avoid 1st entry..
                         if delta >= interval {
-                            last_preserved = e.date;
+                            last_preserved = e.epoch;
                             true
                         } else {
                             false
                         }
                     } else {
-                        last_preserved = e.date;
+                        last_preserved = e.epoch;
                         true
                     }
                 });
@@ -2670,16 +2670,16 @@ impl Rinex {
                     .as_mut_clock()
                     .unwrap();
                 record.retain(|e, _| {
-                    let delta = e.date - last_preserved;
-                    if e.date != last_preserved { // trick to avoid 1st entry..
+                    let delta = e.epoch - last_preserved;
+                    if e.epoch != last_preserved { // trick to avoid 1st entry..
                         if delta >= interval {
-                            last_preserved = e.date;
+                            last_preserved = e.epoch;
                             true
                         } else {
                             false
                         }
                     } else {
-                        last_preserved = e.date;
+                        last_preserved = e.epoch;
                         true
                     }
                 });
@@ -2689,16 +2689,16 @@ impl Rinex {
                     .as_mut_ionex()
                     .unwrap();
                 record.retain(|e, _| {
-                    let delta = e.date - last_preserved;
-                    if e.date != last_preserved { // trick to avoid 1st entry..
+                    let delta = e.epoch - last_preserved;
+                    if e.epoch != last_preserved { // trick to avoid 1st entry..
                         if delta >= interval {
-                            last_preserved = e.date;
+                            last_preserved = e.epoch;
                             true
                         } else {
                             false
                         }
                     } else {
-                        last_preserved = e.date;
+                        last_preserved = e.epoch;
                         true
                     }
                 });
@@ -2717,16 +2717,16 @@ impl Rinex {
                     .unwrap()
                     .clone();
                 record.retain(|e, _| {
-                    let delta = e.date - last_preserved;
-                    if e.date != last_preserved { // trick to avoid 1st entry..
+                    let delta = e.epoch - last_preserved;
+                    if e.epoch != last_preserved { // trick to avoid 1st entry..
                         if delta >= interval {
-                            last_preserved = e.date;
+                            last_preserved = e.epoch;
                             true
                         } else {
                             false
                         }
                     } else {
-                        last_preserved = e.date;
+                        last_preserved = e.epoch;
                         true
                     }
                 });
@@ -2738,16 +2738,16 @@ impl Rinex {
                     .unwrap()
                     .clone();
                 record.retain(|e, _| {
-                    let delta = e.date - last_preserved;
-                    if e.date != last_preserved { // trick to avoid 1st entry..
+                    let delta = e.epoch - last_preserved;
+                    if e.epoch != last_preserved { // trick to avoid 1st entry..
                         if delta >= interval {
-                            last_preserved = e.date;
+                            last_preserved = e.epoch;
                             true
                         } else {
                             false
                         }
                     } else {
-                        last_preserved = e.date;
+                        last_preserved = e.epoch;
                         true
                     }
                 });
@@ -2759,16 +2759,16 @@ impl Rinex {
                     .unwrap()
                     .clone();
                 record.retain(|e, _| {
-                    let delta = e.date - last_preserved;
-                    if e.date != last_preserved { // trick to avoid 1st entry..
+                    let delta = e.epoch - last_preserved;
+                    if e.epoch != last_preserved { // trick to avoid 1st entry..
                         if delta >= interval {
-                            last_preserved = e.date;
+                            last_preserved = e.epoch;
                             true
                         } else {
                             false
                         }
                     } else {
-                        last_preserved = e.date;
+                        last_preserved = e.epoch;
                         true
                     }
                 });
@@ -2780,16 +2780,16 @@ impl Rinex {
                     .unwrap()
                     .clone();
                 record.retain(|e, _| {
-                    let delta = e.date - last_preserved;
-                    if e.date != last_preserved { // trick to avoid 1st entry..
+                    let delta = e.epoch - last_preserved;
+                    if e.epoch != last_preserved { // trick to avoid 1st entry..
                         if delta >= interval {
-                            last_preserved = e.date;
+                            last_preserved = e.epoch;
                             true
                         } else {
                             false
                         }
                     } else {
-                        last_preserved = e.date;
+                        last_preserved = e.epoch;
                         true
                     }
                 });
@@ -2801,16 +2801,16 @@ impl Rinex {
                     .unwrap()
                     .clone();
                 record.retain(|e, _| {
-                    let delta = e.date - last_preserved;
-                    if e.date != last_preserved { // trick to avoid 1st entry..
+                    let delta = e.epoch - last_preserved;
+                    if e.epoch != last_preserved { // trick to avoid 1st entry..
                         if delta >= interval {
-                            last_preserved = e.date;
+                            last_preserved = e.epoch;
                             true
                         } else {
                             false
                         }
                     } else {
-                        last_preserved = e.date;
+                        last_preserved = e.epoch;
                         true
                     }
                 });
@@ -2979,11 +2979,11 @@ impl Rinex {
                     .unwrap();
                 let mut prev_epoch = epochs[0];
                 for (e, data) in record.iter() {
-                    let n = (e.date - prev_epoch.date).num_seconds() / interval.num_seconds(); // nb of epoch to insert
+                    let n = (e.epoch - prev_epoch.date).num_seconds() / interval.num_seconds(); // nb of epoch to insert
                     for i in 0..n {
                         record.insert(
                             Epoch {
-                                date: e.date + chrono::Duration {
+                                date: e.epoch + chrono::Duration {
                                     secs: i * interval.num_seconds(),
                                     nanos: 0,
                                 },
@@ -2999,11 +2999,11 @@ impl Rinex {
                     .unwrap();
                 let mut prev_epoch = epochs[0];
                 for (e, data) in record.iter() {
-                    let n = (e.date - prev_epoch.date).num_seconds() / interval.num_seconds(); // nb of epoch to insert
+                    let n = (e.epoch - prev_epoch.date).num_seconds() / interval.num_seconds(); // nb of epoch to insert
                     for i in 0..n {
                         record.insert(
                             Epoch {
-                                date: e.date + chrono::Duration {
+                                date: e.epoch + chrono::Duration {
                                     secs: i * interval.num_seconds(),
                                     nanos: 0,
                                 },
@@ -3019,11 +3019,11 @@ impl Rinex {
                     .unwrap();
                 let mut prev_epoch = epochs[0];
                 for (e, data) in record.iter() {
-                    let n = (e.date - prev_epoch.date).num_seconds() / interval.num_seconds(); // nb of epoch to insert
+                    let n = (e.epoch - prev_epoch.date).num_seconds() / interval.num_seconds(); // nb of epoch to insert
                     for i in 0..n {
                         record.insert(
                             Epoch {
-                                date: e.date + chrono::Duration {
+                                date: e.epoch + chrono::Duration {
                                     secs: i * interval.num_seconds(),
                                     nanos: 0,
                                 },
@@ -3039,11 +3039,11 @@ impl Rinex {
                     .unwrap();
                 let mut prev_epoch = epochs[0];
                 for (e, data) in record.iter() {
-                    let n = (e.date - prev_epoch.date).num_seconds() / interval.num_seconds(); // nb of epoch to insert
+                    let n = (e.epoch - prev_epoch.date).num_seconds() / interval.num_seconds(); // nb of epoch to insert
                     for i in 0..n {
                         record.insert(
                             Epoch {
-                                date: e.date + chrono::Duration {
+                                date: e.epoch + chrono::Duration {
                                     secs: i * interval.num_seconds(),
                                     nanos: 0,
                                 },
@@ -3059,11 +3059,11 @@ impl Rinex {
                     .unwrap();
                 let mut prev_epoch = epochs[0];
                 for (e, data) in record.iter() {
-                    let n = (e.date - prev_epoch.date).num_seconds() / interval.num_seconds(); // nb of epoch to insert
+                    let n = (e.epoch - prev_epoch.date).num_seconds() / interval.num_seconds(); // nb of epoch to insert
                     for i in 0..n {
                         record.insert(
                             Epoch {
-                                date: e.date + chrono::Duration {
+                                date: e.epoch + chrono::Duration {
                                     secs: i * interval.num_seconds(),
                                     nanos: 0,
                                 },
@@ -3089,7 +3089,7 @@ impl Rinex {
                     .unwrap();
                 let mut prev_epoch = epochs[0];
                 for (e, classes) in record.iter().skip(1) {
-                    let dt = (e.date - prev_epoch.date) / ratio as i32;
+                    let dt = (e.epoch - prev_epoch.date) / ratio as i32;
                     for j in 1..ratio {
                         record.insert(
                             Epoch {
@@ -3106,7 +3106,7 @@ impl Rinex {
                     .unwrap();
                 let mut prev_epoch = epochs[0];
                 for (e, data) in record.iter().skip(1) {
-                    let dt = (e.date - prev_epoch.date) / ratio as i32;
+                    let dt = (e.epoch - prev_epoch.date) / ratio as i32;
                     for j in 1..ratio {
                         record.insert(
                             Epoch {
@@ -3123,7 +3123,7 @@ impl Rinex {
                     .unwrap();
                 let mut prev_epoch = epochs[0];
                 for (e, data) in record.iter().skip(1) {
-                    let dt = (e.date - prev_epoch.date) / ratio as i32;
+                    let dt = (e.epoch - prev_epoch.date) / ratio as i32;
                     for j in 1..ratio {
                         record.insert(
                             Epoch {
@@ -3140,7 +3140,7 @@ impl Rinex {
                     .unwrap();
                 let mut prev_epoch = epochs[0];
                 for (e, data) in record.iter().skip(1) {
-                    let dt = (e.date - prev_epoch.date) / ratio as i32;
+                    let dt = (e.epoch - prev_epoch.date) / ratio as i32;
                     for j in 1..ratio {
                         record.insert(
                             Epoch {
@@ -3157,7 +3157,7 @@ impl Rinex {
                     .unwrap();
                 let mut prev_epoch = epochs[0];
                 for (e, data) in record.iter().skip(1) {
-                    let dt = (e.date - prev_epoch.date) / ratio as i32;
+                    let dt = (e.epoch - prev_epoch.date) / ratio as i32;
                     for j in 1..ratio {
                         record.insert(
                             Epoch {
@@ -3265,30 +3265,28 @@ impl Rinex {
     
     /// Restrain epochs to interval |start <= e <= end| (both included)
     pub fn time_window_mut (&mut self, start: chrono::NaiveDateTime, end: chrono::NaiveDateTime) {
-        if self.is_observation_rinex() {
-            let record = self.record
-                .as_mut_obs()
-                .unwrap();
+        let (start_date, start_time) = (start.date(), start.time());
+        let start = hifitime::Epoch::from_gregorian_utc(
+            start_date.year(), start_date.month(), start_date.day(),
+            start_time.hour(), start_time.minute(), start_time.second(), start_time.nanoseconds());
+        
+        let (end_date, end_time) = (end.date(), end.time());
+        let end = hifitime::Epoch::from_gregorian_utc(
+            end_date.year(), end_date.month(), end_date.day(),
+            end_time.hour(), end_time.minute(), end_time.second(), end_time.nanoseconds());
+
+        if let Some(record) = self.as_mut_obs() {
             record
-                .retain(|e, _| e.date >= start && e.date <= end);
-        } else if self.is_navigation_rinex() {
-            let record = self.record
-                .as_mut_nav()
-                .unwrap();
+                .retain(|e, _| e.epoch >= start && e.epoch <= end);
+        } else if let Some(record) = self.as_mut_nav() {
             record
-                .retain(|e, _| e.date >= start && e.date <= end);
-        } else if self.is_meteo_rinex() {
-            let record = self.record
-                .as_mut_meteo()
-                .unwrap();
+                .retain(|e, _| e.epoch >= start && e.epoch <= end);
+        } else if let Some(record) = self.as_mut_meteo() {
             record
-                .retain(|e, _| e.date >= start && e.date <= end);
-        } else if self.is_clocks_rinex() {
-            let record = self.record
-                .as_mut_clock()
-                .unwrap();
+                .retain(|e, _| e.epoch >= start && e.epoch <= end);
+        } else if let Some(record) = self.as_mut_clock() {
             record
-                .retain(|e, _| e.date >= start && e.date <= end);
+                .retain(|e, _| e.epoch >= start && e.epoch <= end);
         }
     }
     

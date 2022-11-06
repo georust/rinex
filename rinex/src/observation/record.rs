@@ -10,7 +10,7 @@ use crate::{
 	constellation, Constellation,
 	Epoch, EpochFlag,
 	epoch::{
-		ParseDateError, str2date,
+		Error, str2date,
 	},
 	Header,
 	version::Version,
@@ -216,10 +216,8 @@ pub type Record = BTreeMap<Epoch,
 #[derive(Error, Debug)]
 /// OBS Data `Record` parsing specific errors
 pub enum Error {
-    #[error("failed to parse date")]
-    ParseDateError(#[from] ParseDateError),
-    #[error("failed to parse epoch flag")]
-    ParseEpochFlagError(#[from] std::io::Error),
+    #[error("failed to parse epoch")]
+    EpochError(#[from] epoch::Error),
     #[error("failed to identify constellation")]
     ConstellationError(#[from] constellation::Error),
     #[error("failed to parse sv")]

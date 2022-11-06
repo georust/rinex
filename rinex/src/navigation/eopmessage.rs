@@ -6,8 +6,8 @@ use std::str::FromStr;
 /// EopMessage Parsing error 
 #[derive(Debug, Error)]
 pub enum Error {
-    #[error("failed to parse date field")]
-    ParseDateError(#[from] epoch::ParseDateError),
+    #[error("failed to parse epoch")]
+    EpochError(#[from] epoch::Error),
     #[error("eop message missing 1st line")]
     EopMissing1stLine,
     #[error("eop message missing 2nd line")]
