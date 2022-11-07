@@ -1,11 +1,14 @@
-//! `Epoch` is an observation timestamp with
-//! a `flag` associated to it
-use core::fmt;
 use thiserror::Error;
 use std::str::FromStr;
-use chrono::{Datelike,Timelike};
+use hifitime::Duration;
+use core::ops::{
+    Add,
+    AddAssign,
+    Sub,
+    SubAssign,
+};
 
-mod flag;
+pub mod flag;
 pub use flag::EpochFlag;
 
 #[cfg(feature = "serde")]
@@ -30,18 +33,20 @@ pub enum Error {
     MinutesError,
 }
 
-/// `Epoch` is a high accuracy sampling timestamp,
-/// and an [flag:EpochFlag] associated to it.
+/// [hifitime::Epoch] high accuracy timestamp
+/// (1 ns precision) with an [flag:EpochFlag] associated to it.
+/// This precision is consistent with stringent Geodesics requirements.
+/// Currently, the best precision in RINEX format is 100 ns 
+/// for Observation RINEX. Default timescale is UTC 
+/// with leap seconds are taken into account.
 #[derive(Copy, Clone, Debug)]
 #[derive(PartialOrd, Ord)]
 #[derive(PartialEq, Eq, Hash)]
 pub struct Epoch {
-    /// Sampling timestamp with 1 ns precision limitation.
-    /// This precision is consistent with stringent Geodesics requirements.
-    /// Currently, the best precision in RINEX format is 100 ns precision
-    /// for Observation RINEX.
-    pub epoch: hifitime::Epoch, 
-    /// Flag describes sampling conditions and external events
+    epoch: hifitime::Epoch, 
+    /// Flag describes sampling conditions and possible external events.
+    /// Not all RINEX have this information, we default to "Sampling Ok"
+    /// in this case.
     pub flag: flag::EpochFlag,
 }
 
@@ -58,12 +63,50 @@ impl Serialize for Epoch {
 
 impl Default for Epoch {
     fn default() -> Self {
-        let (date, time) = (now.date(), now.time());
         Self {
             flag: EpochFlag::default(),
             epoch: hifitime::Epoch::now()
                 .expect("failed to retrieve system time"),
         }
+    }
+}
+
+impl Sub for Epoch {
+    type Output = Duration;
+    fn sub(self, rhs: Self) -> Duration {
+        self.epoch - rhs.epoch
+    }
+}
+
+impl Sub<Duration> for Epoch {
+    type Output = Self;
+    fn sub(self, duration: Duration) -> Self {
+        Self {
+            epoch: self.epoch.set(self.epoch.to_duration() - duration),
+            flag: self.flag,
+        }
+    }
+}
+
+impl SubAssign<Duration> for Epoch {
+    fn sub_assign(&mut self, duration: Duration) {
+        self.epoch -= duration; 
+    }
+}
+
+impl Add<Duration> for Epoch {
+    type Output = Self;
+    fn add(self, duration: Duration) -> Self {
+        Self {
+            epoch: self.epoch.set(self.epoch.to_duration() + duration),
+            flag: self.flag,
+        }
+    }
+}
+
+impl AddAssign<Duration> for Epoch {
+    fn add_assign(&mut self, duration: Duration) {
+        self.epoch += duration; 
     }
 }
 
@@ -95,13 +138,14 @@ impl Epoch {
     pub fn from_gregorian_utc(year: i32, month: u8, day: u8, hour: u8, minute: u8, second: u8, nanos: u32) -> Self {
         Self {
             epoch: hifitime::Epoch::from_gregorian_utc(year, month, day, hour, minute, second, nanos),
-            flag: EpochFlag::default()
+            flag: EpochFlag::default(),
+        }
     }
 }
 
 impl std::fmt::Display for Epoch {
     /// Default formatter applies to Observation RINEX only
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let (y, m, d, hh, mm, ss, nanos) = self.to_gregorian_utc();
         write!(f,
             "{:04} {:>2} {:>2} {:>2} {:>2} {:>2}.{:07}  {}",
@@ -109,21 +153,21 @@ impl std::fmt::Display for Epoch {
     }
 }
 
-impl fmt::LowerExp for Epoch {
+impl std::fmt::LowerExp for Epoch {
     /// LowerExp "e" applies to old formats like NAV V2 that omit the "flag" 
     /// and accuracy is 0.1 sec
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let (y, m, d, hh, mm, ss, _) = self.to_gregorian_utc();
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let (y, m, d, hh, mm, ss, ns) = self.to_gregorian_utc();
         write!(f, 
             "{:04} {:>2} {:>2} {:>2} {:>2} {:>2}.{:1}",
             y, m, d, hh, mm, ss, ns)
     }
 }
 
-impl fmt::UpperExp for Epoch {
+impl std::fmt::UpperExp for Epoch {
     /// UpperExp "E" applies to modern formats like NAV V3/V4 that omit the "flag"
     /// and accuracy is 1 sec
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let (y, m, d, hh, mm, ss, _) = self.epoch.to_gregorian_utc();
         write!(f,
             "{:04} {:>2} {:>2} {:>2} {:>2} {:>2}",
@@ -139,7 +183,7 @@ pub fn str2date(s: &str) -> Result<hifitime::Epoch, Error> {
     }
     if let Ok(mut y) = i32::from_str_radix(items[0], 10) {
         if y < 100 { // old rinex -__-
-            if > 90 {
+            if y > 90 {
                 y += 1900;
             } else {
                 y += 2000;
@@ -197,7 +241,7 @@ mod test {
         assert_eq!(ns, 0);
     }
     #[test]
-    fn test_parse_nav_v2() {
+    fn test_parse_nav_v2() {
         let epoch = str2date("20 12 31 23 45  0.0");
         assert_eq!(epoch.is_ok(), true);
         let epoch = str2date("21  1  1 11 45  0.0");

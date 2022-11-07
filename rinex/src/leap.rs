@@ -1,11 +1,10 @@
 //! Describes `leap` second information, contained in `header` 
 use thiserror::Error;
-use crate::constellation;
-use crate::constellation::Constellation;
+use hifitime::TimeScale;
 
 /// `Leap` to describe leap seconds.
 /// GLO = UTC = GPS - ΔtLS   
-/// GPS = GPS = UTC + ΔtLS   
+/// GPS = UTC + ΔtLS   
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Leap {
@@ -19,17 +18,16 @@ pub struct Leap {
     pub week: Option<u32>,
     /// days counter
     pub day: Option<u32>,
-    /// system time
-    pub system: Option<Constellation>,
+    pub timescale: Option<TimeScale>,
 }
 
 /// `Leap` parsing related errors
 #[derive(Error, Debug)]
 pub enum Error {
-    #[error("failed to parse integer number")]
+    #[error("failed to parse leap integer number")]
     ParseIntError(#[from] std::num::ParseIntError), 
-    #[error("failed to identify time system")]
-    TimeSystemError(#[from] constellation::Error),
+    #[error("failed to parse leap timescale")]
+    TimeScaleError(#[from] hifitime::Errors),
 }
 
 impl Default for Leap {
@@ -40,20 +38,20 @@ impl Default for Leap {
             delta_tls: None,
             week: None,
             day: None,
-            system: None,
+            timescale: None,
         }
     }
 }
 
 impl Leap {
     /// Builds a new `Leap` object to describe leap seconds
-    pub fn new (leap: u32, delta_tls: Option<u32>, week: Option<u32>, day: Option<u32>, system: Option<Constellation>) -> Leap {
-        Leap {
+    pub fn new (leap: u32, delta_tls: Option<u32>, week: Option<u32>, day: Option<u32>, timescale: Option<TimeScale>) -> Self {
+        Self {
             leap,
             delta_tls,
             week,
             day,
-            system,
+            timescale,
         }
     }
 }
@@ -83,9 +81,9 @@ impl std::str::FromStr for Leap {
                 ls.week = Some(u32::from_str_radix(week.trim(),10)?);
                 ls.day = Some(u32::from_str_radix(day.trim(),10)?);
                 if system.eq("") {
-                    ls.system = None
+                    ls.timescale = None
                 } else {
-                    ls.system = Some(Constellation::from_3_letter_code(system)?)
+                    ls.timescale = Some(TimeScale::from_str(system)?)
                 }
             },
         }
@@ -97,6 +95,7 @@ impl std::str::FromStr for Leap {
 mod test {
     use super::*;
     use std::str::FromStr;
+    use hifitime::TimeScale;
     #[test]
     fn test_parser() {
         let content = "18    18  2185     7GPS";
@@ -105,7 +104,7 @@ mod test {
         let leap = leap.unwrap();
         assert_eq!(leap.leap, 18);
         assert_eq!(leap.week, Some(2185));
-        assert_eq!(leap.system, Some(Constellation::GPS));
+        assert_eq!(leap.timescale, Some(TimeScale::GPST));
         let content = "18";
         let leap = Leap::from_str(content); 
         assert_eq!(leap.is_ok(), true);

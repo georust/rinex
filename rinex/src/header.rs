@@ -30,6 +30,26 @@ use std::str::FromStr;
 use strum_macros::EnumString;
 use std::io::{prelude::*};
 
+macro_rules! from_b_fmt_month {
+    ($m: expr) => {
+        match $m {
+            "Jan" => 1,
+            "Feb" => 2,
+            "Mar" => 3,
+            "Apr" => 4,
+            "May" => 5,
+            "Jun" => 6,
+            "Jul" => 7,
+            "Aug" => 8,
+            "Sep" => 9,
+            "Oct" =>10,
+            "Nov" =>11,
+            "Dec" =>12,
+            _ => 1,
+        }
+    }
+}
+
 #[cfg(feature = "serde")]
 use serde::{Serialize, Deserialize};
 
@@ -300,11 +320,26 @@ impl Header {
                 let (prog, remainder) = content.split_at(20);
                 let (_, remainder) = remainder.split_at(20);
                 let date = remainder.split_at(20).0.trim();
-                let date = chrono::NaiveDateTime::parse_from_str(date, "%d-%b-%y %H:%M")?;
-                if let Some(crinex) = &mut observation.crinex {
-                    *crinex = crinex
-                        .with_prog(prog.trim())
-                        .with_date(date);
+                let items: Vec<&str> = date.split_ascii_whitespace()
+                    .collect();
+                if items.len() == 2 {
+                    let date: Vec<&str> = items[0].split("-").collect();
+                    let time: Vec<&str> = items[1].split(":").collect();
+                    if let Ok(d) = u8::from_str_radix(date[0], 10) {
+                        let month = from_b_fmt_month!(date[1]);
+                        if let Ok(y) = i32::from_str_radix(date[2].trim(), 10) {
+                            if let Ok(h) = u8::from_str_radix(time[0].trim(), 10) {
+                                if let Ok(m) = u8::from_str_radix(time[1].trim(), 10) {
+                                    if let Some(crinex) = &mut observation.crinex {
+                                        let date = hifitime::Epoch::from_gregorian_utc(y, m, d, h, m, 0, 0);
+                                        *crinex = crinex
+                                            .with_prog(prog.trim())
+                                            .with_date(date);
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
              
             ////////////////////////////////////////
@@ -455,7 +490,7 @@ impl Header {
                 let (program, url) = rem.split_at(18);
                 if let Ok(gnss) = Constellation::from_str(system.trim()) {
                     observation
-                        .with_dcb_compensation(system, program, url);
+                        .with_dcb_compensation(gnss);
                 }
 
             } else if marker.contains("SYS / SCALE FACTOR") {
@@ -847,7 +882,7 @@ impl Header {
                     ionex = ionex
                         .with_satellites(u)
                 }
-            } else if marker.contains("PRN / BIAS / RMS" {
+            } else if marker.contains("PRN / BIAS / RMS") {
                 // differential PR code analysis
                 //TODO
             }
@@ -1088,6 +1123,8 @@ impl Header {
                                 map
                             },
                             clock_offset_applied: d0.clock_offset_applied && d1.clock_offset_applied,
+                            scalings: HashMap::new(), //TODO
+                            dcb_compensations: Vec::new(), //TODO
                         })
                     } else {
                         Some(d0.clone())
@@ -1252,6 +1289,7 @@ impl Header {
                                     None
                                 }
                             },
+                            dcb: HashMap::new(), //TODO
                         })
                     } else {
                         Some(d0.clone())
@@ -1302,7 +1340,8 @@ impl Header {
                     minor: 0,
                 },
                 prog: "rust-crinex".to_string(),
-                date: hifitime::Epoch::now(),
+                date: hifitime::Epoch::now()
+                    .expect("failed to retrieve system time"),
             })
     }
 
@@ -1578,8 +1617,8 @@ impl std::fmt::Display for Header {
                 line.push_str(&format!("{:6}", delta));
                 line.push_str(&format!("{:6}", leap.week.unwrap_or(0)));
                 line.push_str(&format!("{:6}", leap.day.unwrap_or(0)));
-                if let Some(system) = &leap.system {
-                    line.push_str(&format!("{:<10}", system.to_3_letter_code()));
+                if let Some(timescale) = &leap.timescale {
+                    line.push_str(&format!("{:<10}", timescale)); 
                 } else {
                     line.push_str(&format!("{:<10}", ""));
                 }

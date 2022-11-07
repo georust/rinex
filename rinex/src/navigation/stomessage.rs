@@ -1,7 +1,8 @@
 use thiserror::Error;
 use std::str::FromStr;
 use crate::{
-	Epoch, EpochFlag, 
+	epoch,
+    Epoch, EpochFlag, 
 	epoch::str2date, 
 };
 

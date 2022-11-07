@@ -78,7 +78,7 @@ impl Ephemeris {
 		let (svnn, rem) = line.split_at(svnn_offset);
 		let (date, rem) = rem.split_at(20);
 		let epoch = Epoch {
-			date: str2date(date.trim())?,
+			epoch: str2date(date.trim())?,
 			flag: EpochFlag::default(),
 		};
 

@@ -13,6 +13,25 @@ pub use record::{
 
 use std::collections::HashMap;
 
+macro_rules! fmtmonth {
+    ($m: expr) => {
+        match $m {
+            1 => "Jan",
+            2 => "Feb",
+            3 => "Mar",
+            4 => "Apr",
+            5 => "May",
+            6 => "Jun",
+            7 => "Jul",
+            8 => "Aug",
+            9 => "Sep",
+            10=> "Oct",
+            11=> "Nov",
+            _ => "Dec",
+        }
+    }
+}
+
 #[cfg(feature = "serde")]
 use serde::Serialize;
 
@@ -26,43 +45,26 @@ pub struct Crinex {
     /// Compression program name
     pub prog: String,
     /// Date of compression
-    // #[cfg_attr(feature = "serde", serde(with = "datetime"))]
     pub date: hifitime::Epoch,
 }
 
-macro_rules! month {
-    ($m: expr) => {
-        match m {
-            1 => "Jan",
-            2 => "Feb",
-            3 => "Mar",
-            4 => "Apr",
-            5 => "May",
-            6 => "Jun",
-            7 => "Jul",
-            8 => "Aug",
-            9 => "Sep",
-            10=> "Oct",
-            11=> "Nov"
-            _ => "Dec",
-        }
-    }
-}
-
 impl Crinex {
-    pub fn with_version (&self, version: Version) -> Self {
+    /// Sets compression algorithm revision
+    pub fn with_version(&self, version: Version) -> Self {
         let mut s = self.clone();
         s.version = version;
         s
     }
-    pub fn with_prog (&self, prog: &str) -> Self {
+    /// Sets compression program name
+    pub fn with_prog(&self, prog: &str) -> Self {
         let mut s = self.clone();
         s.prog = prog.to_string();
         s
     }
-    pub fn with_date (&self, date: NaiveDateTime) -> Self {
+    /// Sets compression date
+    pub fn with_date(&self, e: hifitime::Epoch) -> Self {
         let mut s = self.clone();
-        s.date = date;
+        s.date = e;
         s
     }
 }
@@ -89,16 +91,16 @@ impl std::fmt::Display for Crinex {
         write!(f, "{value:<width$} CRINEX VERS   / TYPE\n", value="", width=19)?;
         write!(f, "{:<width$}", self.prog, width=20)?;
         write!(f, "{:20}", "")?;
-        let (mut y, m, d, h, m, _, _) = self.date.to_gregorian_utc();
-        let m = month!(m);
-        // we want to 2 digit year
+        let (mut y, m, d, hh, mm, _, _) = self.date.to_gregorian_utc();
+        let m = fmtmonth!(m);
+        // we want a 2 digit year
         if y > 2000 {
             y -= 2000;
         }
         if y > 1900 {
             y -= 1900;
         }
-        let date = format!("{:02}-{}-{} {:02}:{:02}", d, m, y, h, m);
+        let date = format!("{:02}-{}-{} {:02}:{:02}", d, m, y, hh, mm);
         write!(f, "{:<width$}", date, width=20)?;
         f.write_str("CRINEX PROG / DATE\n")
     }

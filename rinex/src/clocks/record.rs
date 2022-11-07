@@ -200,7 +200,6 @@ pub fn parse_epoch (version: Version, content: &str) ->
        +2+1  // m
         +11; // s
     let (epoch, rem) = rem.split_at(offset);
-    let date = str2date(epoch.trim())?; 
 
     // nb of data fields
     let (n, _) = rem.split_at(4);
@@ -242,7 +241,7 @@ pub fn parse_epoch (version: Version, content: &str) ->
     
     let epoch = Epoch {
         flag: EpochFlag::Ok,
-        date,
+        epoch: str2date(epoch.trim())?,
     };
     Ok((epoch, data_type, system, data))
 }
@@ -260,7 +259,7 @@ pub fn fmt_epoch (
 				"{} {} {} ", 
 				dtype, 
 				system,
-				epoch.to_string_obs_v3()));
+				epoch));
 			lines.push_str(&format!("{:.13E} ", data.bias));
 			if let Some(sigma) = data.bias_sigma {
 				lines.push_str(&format!("{:.13E} ", sigma));
@@ -368,7 +367,7 @@ impl Split<Record> for Record {
     fn split(&self, epoch: Epoch) -> Result<(Self, Self), split::Error> {
         let r0 = self.iter()
             .flat_map(|(k, v)| {
-                if k.date <= epoch.date {
+                if k <= &epoch {
                     Some((k.clone(), v.clone()))
                 } else {
                     None
@@ -377,7 +376,7 @@ impl Split<Record> for Record {
             .collect();
         let r1 = self.iter()
             .flat_map(|(k, v)| {
-                if k.date > epoch.date {
+                if k > &epoch {
                     Some((k.clone(), v.clone()))
                 } else {
                     None

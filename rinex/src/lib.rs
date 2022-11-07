@@ -38,12 +38,12 @@ pub mod writer;
 use writer::BufferedWriter;
 
 use thiserror::Error;
-use chrono::{Timelike};
 use std::collections::{BTreeMap, HashMap};
 
 use version::Version;
 use observation::Crinex;
 use navigation::OrbitItem;
+use hifitime::Duration;
 
 // export major types
 pub use sv::Sv;
@@ -95,6 +95,7 @@ macro_rules! is_sig_strength_obs_code {
     ($code: expr) => { $code.starts_with("S") };
 }
 
+/// Macro: used in file creation helper.
 /// Returns `str` description, as one letter
 /// lowercase, used in RINEX file name to describe 
 /// the sampling period. RINEX specifications:   
@@ -102,14 +103,14 @@ macro_rules! is_sig_strength_obs_code {
 /// “b” = 01:00:00 - 01:59:59   
 /// [...]   
 /// "x" = 23:00:00 - 23:59:59
-/// This method expects a chrono::NaiveDateTime as an input
-fn hourly_session_str (time: chrono::NaiveTime) -> String {
-    let h = time.hour() as u8;
-    if h == 23 {
-        String::from("x")
-    } else {
-        let c : char = (h+97).into();
-        String::from(c)
+macro_rules! hourly_session {
+    ($hour: expr) => {
+        if $hour == 23 {
+            "x"
+        } else {
+            let c: char = ($hour+97).into();
+            &String::from(c)
+        }            
     }
 }
 
@@ -304,8 +305,8 @@ impl Rinex {
         };
         if header.version.major < 3 {
             //TODO
-            let s = "0000";
-            //let s = hourly_session_str(epoch.date.time());
+            let (_, _, _, h, _, _, _) = epoch.to_gregorian_utc();
+            let s = hourly_session!(h);
             let yy = "YY";
             //let yy = format!("{:02}", epoch.date.year());
             let t : String = match rtype {
@@ -494,7 +495,7 @@ impl Rinex {
             let mut prev_epoch = epochs[0];
             let mut histogram: HashMap<Duration, u64> = HashMap::new();
             for epoch in epochs.iter().skip(1) {
-                let dt = epoch.epoch - prev_epoch.epoch;
+                let dt = *epoch - prev_epoch;
                 if let Some(counter) = histogram.get_mut(&dt) {
                     *counter += 1
                 } else {
@@ -517,21 +518,23 @@ impl Rinex {
 
     /// Returns start date and duration of largest data gap encountered in this
     /// RINEX file.
-    pub fn largest_data_gap_duration(&self) -> Option<(hifitime::Epoch, Duration)> {
+    pub fn largest_data_gap_duration(&self) -> Option<(Epoch, Duration)> {
         let epochs = self.epochs();
         let interval = self.sampling_interval();
-        let mut dt: Duration::default();
-        let mut prev_epoch: hifitime::Epoch;
+        let mut ret: Option<(Epoch, Duration)> = None;
+        let mut dt = Duration::default();
+        let mut prev_epoch: Epoch;
         for (index, epoch) in epochs.iter().enumerate() {
             if index > 0 {
-                let dtt = epoch.epoch - prev_epoch;
+                let dtt = *epoch - prev_epoch;
                 if dtt > dt {
                     dt = dtt;
+                    ret = Some((*epoch, dtt));
                 }
             }
-            prev_epoch = epoch.epoch;
+            prev_epoch = *epoch;
         }
-        dt
+        ret
     }
 
     /// Returns a list of epochs that present a data gap.
@@ -542,11 +545,11 @@ impl Rinex {
     pub fn data_gaps(&self) -> Vec<Epoch> {
         let interval = self.sampling_interval();
         let mut epochs = self.epochs();
-        let mut prev = epochs[0].epoch;
+        let mut prev = epochs[0];
         epochs
             .retain(|e| {
-                if e.epoch - prev <= interval {
-                    prev = e.epoch;
+                if *e - prev <= interval {
+                    prev = *e;
                     true
                 } else {
                     false
@@ -2583,23 +2586,23 @@ impl Rinex {
     /// Also note we adjust the INTERVAL field,
     /// meaning, further file production will be correct.
     pub fn decimate_by_interval_mut (&mut self, interval: hifitime::Duration) {
-        let mut last_preserved = self.epochs()[0].epoch;
+        let mut last_preserved = self.epochs()[0];
         match self.header.rinex_type {
             types::Type::NavigationData => {
                 let record = self.record
                     .as_mut_nav()
                     .unwrap();
                 record.retain(|e, _| {
-                    let delta = e.epoch - last_preserved;
-                    if e.epoch != last_preserved { // trick to avoid 1st entry..
+                    let delta = *e - last_preserved;
+                    if *e != last_preserved { // trick to avoid 1st entry..
                         if delta >= interval {
-                            last_preserved = e.epoch;
+                            last_preserved = *e;
                             true
                         } else {
                             false
                         }
                     } else {
-                        last_preserved = e.epoch;
+                        last_preserved = *e;
                         true
                     }
                 });
@@ -2609,16 +2612,16 @@ impl Rinex {
                     .as_mut_obs()
                     .unwrap();
                 record.retain(|e, _| {
-                    let delta = e.epoch - last_preserved;
-                    if e.epoch != last_preserved { // trick to avoid 1st entry..
+                    let delta = *e - last_preserved;
+                    if *e != last_preserved { // trick to avoid 1st entry..
                         if delta >= interval {
-                            last_preserved = e.epoch;
+                            last_preserved = *e;
                             true
                         } else {
                             false
                         }
                     } else {
-                        last_preserved = e.epoch;
+                        last_preserved = *e;
                         true
                     }
                 });
@@ -2628,16 +2631,16 @@ impl Rinex {
                     .as_mut_meteo()
                     .unwrap();
                 record.retain(|e, _| {
-                    let delta = e.epoch - last_preserved;
-                    if e.epoch != last_preserved { // trick to avoid 1st entry..
+                    let delta = *e - last_preserved;
+                    if *e != last_preserved { // trick to avoid 1st entry..
                         if delta >= interval {
-                            last_preserved = e.epoch;
+                            last_preserved = *e;
                             true
                         } else {
                             false
                         }
                     } else {
-                        last_preserved = e.epoch;
+                        last_preserved = *e;
                         true
                     }
                 });
@@ -2647,16 +2650,16 @@ impl Rinex {
                     .as_mut_clock()
                     .unwrap();
                 record.retain(|e, _| {
-                    let delta = e.epoch - last_preserved;
-                    if e.epoch != last_preserved { // trick to avoid 1st entry..
+                    let delta = *e - last_preserved;
+                    if *e != last_preserved { // trick to avoid 1st entry..
                         if delta >= interval {
-                            last_preserved = e.epoch;
+                            last_preserved = *e;
                             true
                         } else {
                             false
                         }
                     } else {
-                        last_preserved = e.epoch;
+                        last_preserved = *e;
                         true
                     }
                 });
@@ -2666,16 +2669,16 @@ impl Rinex {
                     .as_mut_ionex()
                     .unwrap();
                 record.retain(|e, _| {
-                    let delta = e.epoch - last_preserved;
-                    if e.epoch != last_preserved { // trick to avoid 1st entry..
+                    let delta = *e - last_preserved;
+                    if *e != last_preserved { // trick to avoid 1st entry..
                         if delta >= interval {
-                            last_preserved = e.epoch;
+                            last_preserved = *e;
                             true
                         } else {
                             false
                         }
                     } else {
-                        last_preserved = e.epoch;
+                        last_preserved = *e;
                         true
                     }
                 });
@@ -2686,7 +2689,7 @@ impl Rinex {
 
     /// Refer to [decimate_by_interval], non mutable implementation
     pub fn decimate_by_interval (&self, interval: hifitime::Duration) -> Self {
-        let mut last_preserved = self.epochs()[0].epoch;
+        let mut last_preserved = self.epochs()[0];
         let record: record::Record = match self.header.rinex_type {
             types::Type::NavigationData => {
                 let mut record = self.record
@@ -2694,16 +2697,16 @@ impl Rinex {
                     .unwrap()
                     .clone();
                 record.retain(|e, _| {
-                    let delta = e.epoch - last_preserved;
-                    if e.epoch != last_preserved { // trick to avoid 1st entry..
+                    let delta = *e - last_preserved;
+                    if *e != last_preserved { // trick to avoid 1st entry..
                         if delta >= interval {
-                            last_preserved = e.epoch;
+                            last_preserved = *e;
                             true
                         } else {
                             false
                         }
                     } else {
-                        last_preserved = e.epoch;
+                        last_preserved = *e;
                         true
                     }
                 });
@@ -2715,16 +2718,16 @@ impl Rinex {
                     .unwrap()
                     .clone();
                 record.retain(|e, _| {
-                    let delta = e.epoch - last_preserved;
-                    if e.epoch != last_preserved { // trick to avoid 1st entry..
+                    let delta = *e - last_preserved;
+                    if *e != last_preserved { // trick to avoid 1st entry..
                         if delta >= interval {
-                            last_preserved = e.epoch;
+                            last_preserved = *e;
                             true
                         } else {
                             false
                         }
                     } else {
-                        last_preserved = e.epoch;
+                        last_preserved = *e;
                         true
                     }
                 });
@@ -2736,16 +2739,16 @@ impl Rinex {
                     .unwrap()
                     .clone();
                 record.retain(|e, _| {
-                    let delta = e.epoch - last_preserved;
-                    if e.epoch != last_preserved { // trick to avoid 1st entry..
+                    let delta = *e - last_preserved;
+                    if *e != last_preserved { // trick to avoid 1st entry..
                         if delta >= interval {
-                            last_preserved = e.epoch;
+                            last_preserved = *e;
                             true
                         } else {
                             false
                         }
                     } else {
-                        last_preserved = e.epoch;
+                        last_preserved = *e;
                         true
                     }
                 });
@@ -2757,16 +2760,16 @@ impl Rinex {
                     .unwrap()
                     .clone();
                 record.retain(|e, _| {
-                    let delta = e.epoch - last_preserved;
-                    if e.epoch != last_preserved { // trick to avoid 1st entry..
+                    let delta = *e - last_preserved;
+                    if *e != last_preserved { // trick to avoid 1st entry..
                         if delta >= interval {
-                            last_preserved = e.epoch;
+                            last_preserved = *e;
                             true
                         } else {
                             false
                         }
                     } else {
-                        last_preserved = e.epoch;
+                        last_preserved = *e;
                         true
                     }
                 });
@@ -2778,16 +2781,16 @@ impl Rinex {
                     .unwrap()
                     .clone();
                 record.retain(|e, _| {
-                    let delta = e.epoch - last_preserved;
-                    if e.epoch != last_preserved { // trick to avoid 1st entry..
+                    let delta = *e - last_preserved;
+                    if *e != last_preserved { // trick to avoid 1st entry..
                         if delta >= interval {
-                            last_preserved = e.epoch;
+                            last_preserved = *e;
                             true
                         } else {
                             false
                         }
                     } else {
-                        last_preserved = e.epoch;
+                        last_preserved = *e;
                         true
                     }
                 });
@@ -3241,37 +3244,25 @@ impl Rinex {
     }
     
     /// Restrain epochs to interval |start <= e <= end| (both included)
-    pub fn time_window_mut (&mut self, start: chrono::NaiveDateTime, end: chrono::NaiveDateTime) {
-        let (start_date, start_time) = (start.date(), start.time());
-        let start = hifitime::Epoch::from_gregorian_utc(
-            start_date.year(), start_date.month() as u8, start_date.day(), as u8
-            start_time.hour() as u8, start_time.minute() as u8, start_time.second() as u8, 
-            start_time.nanoseconds());
-        
-        let (end_date, end_time) = (end.date(), end.time());
-        let end = hifitime::Epoch::from_gregorian_utc(
-            end_date.year(), end_date.month() as u8, end_date.day(), as u8
-            end_time.hour() as u8, end_time.minute() as u8, end_time.second() as u8, 
-            end_time.nanoseconds());
-
+    pub fn time_window_mut (&mut self, start: Epoch, end: Epoch) {
         if let Some(record) = self.record.as_mut_obs() {
             record
-                .retain(|e, _| e.epoch >= start && e.epoch <= end);
+                .retain(|e, _| e >= &start && e <= &end);
         } else if let Some(record) = self.record.as_mut_nav() {
             record
-                .retain(|e, _| e.epoch >= start && e.epoch <= end);
+                .retain(|e, _| e >= &start && e <= &end);
         } else if let Some(record) = self.record.as_mut_meteo() {
             record
-                .retain(|e, _| e.epoch >= start && e.epoch <= end);
+                .retain(|e, _| e >= &start && e <= &end);
         } else if let Some(record) = self.record.as_mut_clock() {
             record
-                .retain(|e, _| e.epoch >= start && e.epoch <= end);
-        }
+                .retain(|e, _| e >= &start && e <= &end);
+        } 
     }
     
     /// Returns a copy version of `self` where epochs were constrained
     /// to |start <= e <= end| interval (both included)
-    pub fn time_window (&self, start: chrono::NaiveDateTime, end: chrono::NaiveDateTime) -> Self {
+    pub fn time_window (&self, start: Epoch, end: Epoch) -> Self {
         let mut s = self.clone();
         s.time_window_mut(start, end);
         s
@@ -3370,7 +3361,6 @@ CYCLE SLIPS CONFIRMATION
 #[cfg(test)]
 mod test {
     use super::*;
-    use std::str::FromStr;
     #[test]
     fn test_macros() {
         assert_eq!(is_comment!("This is a comment COMMENT"), true);
@@ -3386,13 +3376,14 @@ mod test {
         assert_eq!(is_sig_strength_obs_code!("L1P"), false);
     }
     #[test]
-    fn test_shared_methods() {
-        let time = chrono::NaiveTime::from_str("00:00:00").unwrap();
-        assert_eq!(hourly_session_str(time), "a");
-        let time = chrono::NaiveTime::from_str("00:30:00").unwrap();
-        assert_eq!(hourly_session_str(time), "a");
-        let time = chrono::NaiveTime::from_str("23:30:00").unwrap();
-        assert_eq!(hourly_session_str(time), "x");
+    fn test_hourly_session() {
+        assert_eq!(hourly_session!(0), "a");
+        assert_eq!(hourly_session!(1), "b");
+        assert_eq!(hourly_session!(2), "c");
+        assert_eq!(hourly_session!(3), "d");
+        assert_eq!(hourly_session!(4), "e");
+        assert_eq!(hourly_session!(5), "f");
+        assert_eq!(hourly_session!(23), "x");
     }
 }
 
@@ -3413,14 +3404,14 @@ impl Merge<Rinex> for Rinex {
             Ok(())
         } else {
             // add special marker, ts: YYYYDDMM HHMMSS UTC
-            let (y, m, d, hh, mm, ss, _) = hifitime::Epoch::now()
-                .expect("failed to retrieve system time")
-                .to_gregorian_utc();
+            let now = hifitime::Epoch::now()
+                .expect("failed to retrieve system time");
+            let (y, m, d, hh, mm, ss, _) = now.to_gregorian_utc();
             self.header.comments.push(format!(
                 "rustrnx-{:<20} FILE MERGE          {}{}{} {}{}{} {}", 
                 env!("CARGO_PKG_VERSION"),
                 y + 1900, m, d,
-                hh, mm, s, ts));
+                hh, mm, ss, now.time_scale));
             // RINEX record merging 
             self.record.merge_mut(&rhs.record)?;
             Ok(())

@@ -1,7 +1,8 @@
+use super::*;
 use std::str::FromStr;
 use strum_macros::EnumString;
-pub mod record;
 
+pub mod record;
 pub use record::{
     Record,
     is_new_map,
@@ -217,7 +218,7 @@ impl HeaderFields {
     /// Adds given diffrential code biases, to the list of known DCBs
     pub fn with_dcb(&self, sv: Sv, value: f64, rms: f64) -> Self {
         let mut s = self.clone();
-        s.dcb.insert(*sv, (value, rms));
+        s.dcb.insert(sv, (value, rms));
         s
     }
 }

@@ -414,9 +414,9 @@ fn fmt_epoch_v2v3 (
                     },
                 }
                 if header.version.major < 3 {
-                    lines.push_str(&format!("{e} ", epoch));
+                    lines.push_str(&format!("{:e} ", epoch));
                 } else {
-                    lines.push_str(&format!("{E} ", epoch));
+                    lines.push_str(&format!("{:E} ", epoch));
                 }
                 lines.push_str(&format!(
                     "{:14.12E} {:14.12E} {:14.12E}\n   ",
@@ -648,7 +648,7 @@ mod test {
         assert_eq!(entry.is_ok(), true);
         let (epoch, class, frame) = entry.unwrap();
         assert_eq!(epoch, Epoch {
-            date: str2date("20 12 31 23 45  0.0").unwrap(),
+            epoch: str2date("20 12 31 23 45  0.0").unwrap(),
             flag: EpochFlag::Ok,
         });
         assert_eq!(class, FrameClass::Ephemeris);
@@ -745,7 +745,7 @@ mod test {
         assert_eq!(entry.is_ok(), true);
         let (epoch, class, frame) = entry.unwrap();
         assert_eq!(epoch, Epoch {
-            date: str2date("2021 01 01 00 00 00").unwrap(),
+            epoch: str2date("2021 01 01 00 00 00").unwrap(),
             flag: EpochFlag::Ok,
         });
         assert_eq!(class, FrameClass::Ephemeris);
@@ -912,7 +912,7 @@ mod test {
         assert_eq!(entry.is_ok(), true);
         let (epoch, class, frame) = entry.unwrap();
         assert_eq!(epoch, Epoch {
-            date: str2date("2021 01 01 10 10 00").unwrap(),
+            epoch: str2date("2021 01 01 10 10 00").unwrap(),
             flag: EpochFlag::Ok,
         });
         assert_eq!(class, FrameClass::Ephemeris);
@@ -1073,7 +1073,7 @@ mod test {
         assert_eq!(entry.is_ok(), true);
         let (epoch, class, frame) = entry.unwrap();
         assert_eq!(epoch, Epoch {
-            date: str2date("2021 01 01 09 45 00").unwrap(),
+            epoch: str2date("2021 01 01 09 45 00").unwrap(),
             flag: EpochFlag::Ok,
         });
         assert_eq!(class, FrameClass::Ephemeris);

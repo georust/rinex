@@ -1,5 +1,6 @@
 use crate::{
-    Epoch, epoch::str2date,
+    Epoch, EpochFlag,
+    epoch::str2date,
     merge, merge::Merge,
     split, split::Split,
 };
@@ -133,19 +134,18 @@ pub fn parse_epoch (content: &str, exponent: i8) -> Result<(Epoch, Map), Error> 
                 .trim()
                 .split_ascii_whitespace()
                 .collect();
-            let mut datestr = items[0].to_owned(); // Y
-            datestr.push_str(" ");
-            datestr.push_str(items[1]); // m
-            datestr.push_str(" ");
-            datestr.push_str(items[2]); // d
-            datestr.push_str(" ");
-            datestr.push_str(items[3]); // h
-            datestr.push_str(" ");
-            datestr.push_str(items[4]); // m
-            datestr.push_str(" ");
-            datestr.push_str(items[5]); // s
-            if let Ok(e) = str2date(&datestr) {
-                epoch.date = e
+            if items.len() > 5 {
+                let date = format!("{} {} {} {} {} {}", 
+                    items[0], 
+                    items[1],
+                    items[2],
+                    items[3],
+                    items[4],
+                    items[5]); 
+                epoch = Epoch {
+                    epoch: str2date(&date).unwrap(), //TODO
+                    flag: EpochFlag::default(),
+                };
             }
 
         } else if marker.contains("EXPONENT") {
@@ -306,7 +306,7 @@ impl Split<Record> for Record {
     fn split(&self, epoch: Epoch) -> Result<(Self, Self), split::Error> {
         let r0 = self.iter()
             .flat_map(|(k, v)| {
-                if k.date < epoch.date {
+                if k < &epoch {
                     Some((k.clone(), v.clone()))
                 } else {
                     None
@@ -315,7 +315,7 @@ impl Split<Record> for Record {
             .collect();
         let r1 = self.iter()
             .flat_map(|(k, v)| {
-                if k.date >= epoch.date {
+                if k >= &epoch {
                     Some((k.clone(), v.clone()))
                 } else {
                     None

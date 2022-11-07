@@ -1,4 +1,3 @@
-//! `ObservationData` parser and related methods
 use thiserror::Error;
 use std::str::FromStr;
 //use chrono::Timelike;
@@ -6,17 +5,36 @@ use bitflags::bitflags;
 use std::collections::{BTreeMap, HashMap};
 
 use crate::{
-	sv, Sv,
-	constellation, Constellation,
-	Epoch, EpochFlag,
-	epoch::{
-		Error, str2date,
-	},
-	Header,
-	version::Version,
+    sv, Sv,
+    constellation, Constellation,
+    epoch,
+    Epoch, EpochFlag,
+    epoch::str2date,
+    Header,
+    version::Version,
     merge, merge::Merge,
     split, split::Split,
 };
+
+#[derive(Error, Debug)]
+pub enum Error {
+    #[error("failed to parse epoch")]
+    EpochError(#[from] epoch::Error),
+    #[error("failed to parse epoch flag")]
+    FlagError(#[from] epoch::flag::Error),
+    #[error("failed to identify constellation")]
+    ConstellationError(#[from] constellation::Error),
+    #[error("failed to parse sv")]
+    SvError(#[from] sv::Error),
+    #[error("failed to parse integer number")]
+    ParseIntError(#[from] std::num::ParseIntError),
+    #[error("failed to parse float number")]
+    ParseFloatError(#[from] std::num::ParseFloatError),
+    #[error("failed to parse vehicules properly (nb_sat mismatch)")]
+    EpochParsingError,
+    #[error("line is empty")]
+    MissingData,
+}
 
 #[cfg(feature = "serde")]
 use serde::Serialize;
@@ -212,25 +230,6 @@ impl ObservationData {
 pub type Record = BTreeMap<Epoch, 
     (Option<f64>, 
     BTreeMap<sv::Sv, HashMap<String, ObservationData>>)>;
-
-#[derive(Error, Debug)]
-/// OBS Data `Record` parsing specific errors
-pub enum Error {
-    #[error("failed to parse epoch")]
-    EpochError(#[from] epoch::Error),
-    #[error("failed to identify constellation")]
-    ConstellationError(#[from] constellation::Error),
-    #[error("failed to parse sv")]
-    SvError(#[from] sv::Error),
-    #[error("failed to integer number")]
-    ParseIntError(#[from] std::num::ParseIntError),
-    #[error("failed to float number")]
-    ParseFloatError(#[from] std::num::ParseFloatError),
-    #[error("failed to parse vehicules properly (n_sat mismatch)")]
-    EpochParsingError,
-	#[error("line is empty")]
-	MissingData,
-}
 
 /// Returns true if given content matches a new OBSERVATION data epoch
 pub fn is_new_epoch (line: &str, v: Version) -> bool {

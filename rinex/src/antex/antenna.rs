@@ -1,8 +1,5 @@
 use strum_macros::EnumString;
 
-#[cfg(feature = "serde")]
-use crate::formatter::opt_datetime;
-
 /// Known Calibration Methods
 #[derive(Clone, Debug)]
 #[derive(PartialEq, PartialOrd)]
@@ -71,11 +68,9 @@ pub struct Antenna {
     /// used when referencing this model
     pub sinex_code: Option<String>,
     /// Optionnal validity: start date
-    #[cfg_attr(feature = "serde", serde(with = "opt_datetime"))]
-    pub valid_from: Option<chrono::NaiveDateTime>,
+    pub valid_from: Option<hifitime::Epoch>,
     /// Optionnal end of validity
-    #[cfg_attr(feature = "serde", serde(with = "opt_datetime"))]
-    pub valid_until: Option<chrono::NaiveDateTime>,
+    pub valid_until: Option<hifitime::Epoch>,
 }
 
 impl Default for Antenna {
@@ -121,14 +116,14 @@ impl Antenna {
         a.dzen = dzen;
         a
     }
-    pub fn with_valid_from (&self, v: chrono::NaiveDateTime) -> Self {
+    pub fn with_valid_from (&self, d: hifitime::Epoch) -> Self {
         let mut a = self.clone();
-        a.valid_from = Some(v.clone());
+        a.valid_from = Some(d);
         a
     }
-    pub fn with_valid_until (&self, v: chrono::NaiveDateTime) -> Self {
+    pub fn with_valid_until (&self, d: hifitime::Epoch) -> Self {
         let mut a = self.clone();
-        a.valid_until = Some(v.clone());
+        a.valid_until = Some(d);
         a
     }
     pub fn with_sinex_code (&self, code: &str) -> Self {

@@ -2,9 +2,10 @@ use thiserror::Error;
 use std::str::FromStr;
 use std::collections::{BTreeMap, HashMap};
 use crate::{
-    Epoch, EpochFlag,
+    epoch,
     epoch::{
-        str2date, ParseDateError,
+        Epoch,
+        str2date,
     },
     version,
     Header,
@@ -55,8 +56,8 @@ pub fn is_new_epoch (line: &str, v: version::Version) -> bool {
 #[derive(Error, Debug)]
 /// Meteo Data `Record` parsing specific errors
 pub enum Error {
-    #[error("failed to parse date")]
-    ParseDateError(#[from] ParseDateError),
+    #[error("failed to parse epoch")]
+    EpochError(#[from] epoch::Error),
     #[error("failed to integer number")]
     ParseIntError(#[from] std::num::ParseIntError),
     #[error("failed to float number")]
@@ -76,7 +77,7 @@ pub fn parse_epoch (header: &Header, content: &str)
 	// epoch.secs is not f32 as usual
 	// Y is 4 digit number as usual for V > 2
 	//let (date, rem) = line.split_at(offset);
-	let (mut y, m, d, h, min, sec, mut offset) : (i32, u8, u8, u8, u8, u8, usize) 
+	let (mut y, m, d, hh, mm, ss, mut offset) : (i32, u8, u8, u8, u8, u8, usize) 
 		= match header.version.major > 2 {
 		true => {
 			(i32::from_str_radix(line[0..5].trim(),10)?, // Y: 4 digit
@@ -104,9 +105,7 @@ pub fn parse_epoch (header: &Header, content: &str)
 			y += 2000
 		}
 	}
-	let date = hifitime::Epoch::from_greorian_utc(y, m, d, hh, mm, ss, 0);
-	let flag = EpochFlag::default();
-	let epoch = Epoch::new(date, flag);
+	let epoch = Epoch::from_gregorian_utc(y, m, d, hh, mm, ss, 0);
 
 	let codes = &header.meteo
         .as_ref()

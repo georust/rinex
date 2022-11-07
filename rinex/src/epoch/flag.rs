@@ -1,4 +1,11 @@
+use thiserror::Error;
 use std::str::FromStr;
+
+#[derive(Error, Debug)]
+pub enum Error {
+    #[error("unknown flag value")]
+    UnknownValue,
+}
 
 #[cfg(feature = "serde")]
 use serde::{Serialize, Deserialize};
@@ -35,7 +42,7 @@ impl EpochFlag {
 }
 
 impl FromStr for EpochFlag {
-    type Err = std::io::Error;
+    type Err = Error; 
     fn from_str (s: &str) -> Result<Self, Self::Err> {
         match s {
             "0" => Ok(EpochFlag::Ok),
@@ -45,7 +52,7 @@ impl FromStr for EpochFlag {
             "4" => Ok(EpochFlag::HeaderInformationFollows),
             "5" => Ok(EpochFlag::ExternalEvent),
             "6" => Ok(EpochFlag::CycleSlip),
-            _ => Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "invalid epoch flag value")),
+            _ => Err(Error::UnknownValue),
         }
     }
 }
