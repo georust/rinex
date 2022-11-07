@@ -3,10 +3,7 @@ use std::str::FromStr;
 use std::collections::{BTreeMap, HashMap};
 use crate::{
     epoch,
-    epoch::{
-        Epoch,
-        str2date,
-    },
+    Epoch,
     version,
     Header,
     merge, merge::Merge,
@@ -42,14 +39,14 @@ pub fn is_new_epoch (line: &str, v: version::Version) -> bool {
             return false
         }
         let datestr = &line[1..min_len.len()]; 
-        str2date(datestr).is_ok() // valid epoch descriptor
+        Epoch::from_str(datestr).is_ok() // valid epoch descriptor
     } else {
         let min_len = " 2021  1  7  0  0  0";
         if line.len() < min_len.len() { // minimum epoch descriptor
             return false
         }
         let datestr = &line[1..min_len.len()]; 
-        str2date(datestr).is_ok() // valid epoch descriptor
+        Epoch::from_str(datestr).is_ok() // valid epoch descriptor
     }
 }
 

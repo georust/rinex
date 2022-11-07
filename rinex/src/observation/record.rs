@@ -9,7 +9,6 @@ use crate::{
     constellation, Constellation,
     epoch,
     Epoch, EpochFlag,
-    epoch::str2date,
     Header,
     version::Version,
     merge, merge::Merge,
@@ -237,25 +236,10 @@ pub fn is_new_epoch (line: &str, v: Version) -> bool {
         .split_ascii_whitespace()
         .collect();
 	if v.major < 3 {
-        // old RINEX
-        // epoch block is type dependent
-        if parsed.len() > 6 {
-            //  * contains at least 6 items
-            let mut datestr = parsed[0].to_owned(); // Y
-            datestr.push_str(" ");
-            datestr.push_str(parsed[1]); // m
-            datestr.push_str(" ");
-            datestr.push_str(parsed[2]); // d
-            datestr.push_str(" ");
-            datestr.push_str(parsed[3]); // h
-            datestr.push_str(" ");
-            datestr.push_str(parsed[4]); // m
-            datestr.push_str(" ");
-            datestr.push_str(parsed[5]); // s
-            str2date(&datestr).is_ok()
+        if line.len() < 30 {
+            false
         } else {
-            false // does not match
-                // an epoch descriptor
+            Epoch::from_str(&line[0..29]).is_ok()
         }
     } else {
         // Modern RINEX
@@ -305,9 +289,9 @@ pub fn parse_epoch (header: &Header, content: &str)
     let (n_sat, rem) = rem.split_at(3);
     let n_sat = u16::from_str_radix(n_sat.trim(), 10)?;
 
+    let epoch = Epoch::from_str(date)?;
     let flag = EpochFlag::from_str(flag.trim())?;
-    let date = str2date(date)?; 
-    let epoch = Epoch::new(date, flag);
+    let epoch = epoch.with_flag(flag);
 	
     // previously identified observables (that we expect)
     let obs = header.obs

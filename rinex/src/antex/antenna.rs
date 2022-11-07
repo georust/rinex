@@ -1,3 +1,4 @@
+use crate::Epoch;
 use strum_macros::EnumString;
 
 /// Known Calibration Methods
@@ -68,9 +69,9 @@ pub struct Antenna {
     /// used when referencing this model
     pub sinex_code: Option<String>,
     /// Optionnal validity: start date
-    pub valid_from: Option<hifitime::Epoch>,
+    pub valid_from: Option<Epoch>,
     /// Optionnal end of validity
-    pub valid_until: Option<hifitime::Epoch>,
+    pub valid_until: Option<Epoch>,
 }
 
 impl Default for Antenna {
@@ -116,14 +117,14 @@ impl Antenna {
         a.dzen = dzen;
         a
     }
-    pub fn with_valid_from (&self, d: hifitime::Epoch) -> Self {
+    pub fn with_valid_from (&self, e: Epoch) -> Self {
         let mut a = self.clone();
-        a.valid_from = Some(d);
+        a.valid_from = Some(e);
         a
     }
-    pub fn with_valid_until (&self, d: hifitime::Epoch) -> Self {
+    pub fn with_valid_until (&self, e: Epoch) -> Self {
         let mut a = self.clone();
-        a.valid_until = Some(d);
+        a.valid_until = Some(e);
         a
     }
     pub fn with_sinex_code (&self, code: &str) -> Self {

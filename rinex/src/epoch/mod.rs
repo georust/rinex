@@ -1,6 +1,9 @@
 use thiserror::Error;
 use std::str::FromStr;
+
 use hifitime::Duration;
+pub use hifitime::TimeScale;
+
 use core::ops::{
     Add,
     AddAssign,
@@ -17,7 +20,7 @@ use serde::{Serialize};
 #[derive(Error, Debug)]
 /// Epoch Parsing relate errors 
 pub enum Error {
-    #[error("expecting \"yyyy mm dd hh mm ss.ssss\" format")]
+    #[error("expecting \"yyyy mm dd hh mm ss.ssss xx\" format")]
     FormatError, 
     #[error("failed to parse seconds + nanos")]
     SecsNanosError(#[from] std::num::ParseFloatError),
@@ -133,13 +136,16 @@ impl Epoch {
     pub fn to_gregorian_utc(&self) -> (i32, u8, u8, u8, u8, u8, u32) {
         self.epoch.to_gregorian_utc()
     }
-
     /// Builds Self from given UTC date
     pub fn from_gregorian_utc(year: i32, month: u8, day: u8, hour: u8, minute: u8, second: u8, nanos: u32) -> Self {
         Self {
             epoch: hifitime::Epoch::from_gregorian_utc(year, month, day, hour, minute, second, nanos),
             flag: EpochFlag::default(),
         }
+    }
+    /// Returns timescale in use
+    pub fn timescale(&self) -> TimeScale {
+        self.epoch.time_scale
     }
 }
 
@@ -175,42 +181,54 @@ impl std::fmt::UpperExp for Epoch {
     }
 }
 
-/// Parses an [hifitime::Epoch] from all known RINEX formats
-pub fn str2date(s: &str) -> Result<hifitime::Epoch, Error> {
-    let items : Vec<&str> = s.split_ascii_whitespace().collect();
-    if items.len() != 6 {
-        return Err(Error::FormatError)
-    }
-    if let Ok(mut y) = i32::from_str_radix(items[0], 10) {
-        if y < 100 { // old rinex -__-
-            if y > 90 {
-                y += 1900;
-            } else {
-                y += 2000;
+impl FromStr for Epoch {
+    type Err = Error;
+    /// Parses an [Epoch] from all known RINEX formats
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let items : Vec<&str> = s.split_ascii_whitespace()
+            .collect();
+        if items.len() != 6 {
+            if items.len() != 7 {
+                return Err(Error::FormatError)
             }
         }
-        if let Ok(m) = u8::from_str_radix(items[1], 10) {
-            if let Ok(d) = u8::from_str_radix(items[2], 10) {
-                if let Ok(hh) = u8::from_str_radix(items[3], 10) {
-                    if let Ok(mm) = u8::from_str_radix(items[4], 10) {
-                        let ss = f64::from_str(items[5].trim())?;
-                        let second = ss.trunc() as u8;
-                        let nanos = (ss.fract() * 10.0) as u32;
-                        Ok(hifitime::Epoch::from_gregorian_utc(y, m, d, hh, mm, second, nanos))
+        if let Ok(mut y) = i32::from_str_radix(items[0], 10) {
+            if y < 100 { // old rinex -__-
+                if y > 90 {
+                    y += 1900;
+                } else {
+                    y += 2000;
+                }
+            }
+            if let Ok(m) = u8::from_str_radix(items[1], 10) {
+                if let Ok(d) = u8::from_str_radix(items[2], 10) {
+                    if let Ok(hh) = u8::from_str_radix(items[3], 10) {
+                        if let Ok(mm) = u8::from_str_radix(items[4], 10) {
+                            let ss = f64::from_str(items[5].trim())?;
+                            let second = ss.trunc() as u8;
+                            let nanos = (ss.fract() * 10.0) as u32;
+                            let mut e = Self::from_gregorian_utc(y, m, d, hh, mm, second, nanos);
+                            if items.len() == 7 { // flag exists
+                                if let Ok(flag) = EpochFlag::from_str(items[6].trim()) {
+                                    e = e.with_flag(flag);
+                                }
+                            }
+                            Ok(e)
+                        } else {
+                            Err(Error::MinutesError)
+                        }
                     } else {
-                        Err(Error::MinutesError)
+                        Err(Error::HoursError)
                     }
                 } else {
-                    Err(Error::HoursError)
+                    Err(Error::DayError)
                 }
             } else {
-                Err(Error::DayError)
+                Err(Error::MonthError)
             }
         } else {
-            Err(Error::MonthError)
+            Err(Error::YearError)
         }
-    } else {
-        Err(Error::YearError)
     }
 }
 
@@ -218,51 +236,18 @@ pub fn str2date(s: &str) -> Result<hifitime::Epoch, Error> {
 mod test {
     use super::*;
     #[test]
-    fn test_parse_standards() {
-        assert_eq!(str2date("22 01 01 00 00").is_ok(), false);
-        assert_eq!(str2date("22 01 01 00 00 00").is_ok(), true);
-        assert_eq!(str2date("22 01 01 00 00 00").is_ok(), true);
-        assert_eq!(str2date("2020 01 01 00 00 00").is_ok(), true);
-        assert_eq!(str2date("1980 08 20 10 20 30").is_ok(), true);
-    }
-    #[test]
-    fn test_parse_nav_v3() {
-        let epoch = str2date("2022 01 01 00 00 00");
-        assert_eq!(epoch.is_ok(), true);
-        let epoch = epoch.unwrap();
-        let duration = epoch.to_utc_duration();
-        let (_, y, m, d, hh, mm, ss, ns) = duration.decompose();
-        assert_eq!(y, 122);
-        assert_eq!(m, 1);
-        assert_eq!(d, 1);
-        assert_eq!(hh, 0);
-        assert_eq!(mm, 0);
+    fn test_parse_nav_v2() {
+        let e = Epoch::from_str("20 12 31 23 45  0.0");
+        assert_eq!(e.is_ok(), true);
+        let e = e.unwrap();
+        let (y, m, d, hh, mm, ss, ns) = e.to_gregorian_utc();
+        assert_eq!(y, 2020);
+        assert_eq!(m, 12);
+        assert_eq!(d, 31);
+        assert_eq!(hh, 23);
+        assert_eq!(mm, 45);
         assert_eq!(ss, 0);
         assert_eq!(ns, 0);
-    }
-    #[test]
-    fn test_parse_nav_v2() {
-        let epoch = str2date("20 12 31 23 45  0.0");
-        assert_eq!(epoch.is_ok(), true);
-        let epoch = str2date("21  1  1 11 45  0.0");
-        assert_eq!(epoch.is_ok(), true);
-    }
-    #[test]
-    fn test_parse_obs_v2() {
-        let epoch = str2date("21 12 21  0  0  0.0000000  0");
-        assert_eq!(epoch.is_ok(), true);
-        let epoch = str2date("21 12 21  0  0 00.0000000  0");
-        assert_eq!(epoch.is_ok(), true);
-        let epoch = str2date("21 12 21  0  0 30.0000000  0");
-        assert_eq!(epoch.is_ok(), true);
-        let epoch = str2date("21 12 21  0  0 30.0000000  1");
-        assert_eq!(epoch.is_ok(), true);
-    }
-    #[test]
-    fn test_parse_obs_v3() {
-        let epoch = str2date("2022 03 04 00 00  0.0000000  0");
-        assert_eq!(epoch.is_ok(), true);
-        let epoch = str2date("2022 03 04 00 00  0.0000000  1");
-        assert_eq!(epoch.is_ok(), true);
+        assert_eq!(e.timescale(), TimeScale::UTC);
     }
 }

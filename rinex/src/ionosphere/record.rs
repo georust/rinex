@@ -1,6 +1,5 @@
 use crate::{
-    Epoch, EpochFlag,
-    epoch::str2date,
+    epoch, Epoch, 
     merge, merge::Merge,
     split, split::Split,
 };
@@ -87,8 +86,8 @@ impl Maps {
 
 #[derive(Debug, Error)]
 pub enum Error {
-    #[error("nothing wrong")]
-    NoError,
+    #[error("failed to parse epoch")]
+    EpochError(#[from] epoch::Error),
 }
 
 /// Builds list of identified maps and associated epoch 
@@ -130,23 +129,7 @@ pub fn parse_epoch (content: &str, exponent: i8) -> Result<(Epoch, Map), Error> 
             data.clear(); // clear for next time
 
         } else if marker.contains("EPOCH OF CURRENT MAP") {
-            let items : Vec<&str> = content
-                .trim()
-                .split_ascii_whitespace()
-                .collect();
-            if items.len() > 5 {
-                let date = format!("{} {} {} {} {} {}", 
-                    items[0], 
-                    items[1],
-                    items[2],
-                    items[3],
-                    items[4],
-                    items[5]); 
-                epoch = Epoch {
-                    epoch: str2date(&date).unwrap(), //TODO
-                    flag: EpochFlag::default(),
-                };
-            }
+            let epoch = Epoch::from_str(content.trim())?;
 
         } else if marker.contains("EXPONENT") {
             if let Ok(e) = i8::from_str_radix(content.trim(), 10) {

@@ -3,7 +3,6 @@ use std::str::FromStr;
 use crate::{
 	epoch,
     Epoch, EpochFlag, 
-	epoch::str2date, 
 };
 
 /// Parsing error
@@ -42,10 +41,7 @@ impl StoMessage {
 		
 		let (epoch, rem) = line.split_at(23);
 		let (system, _) = rem.split_at(5);
-		let epoch = Epoch {
-			epoch: str2date(epoch.trim())?,
-			flag: EpochFlag::Ok,
-		};
+		let epoch = Epoch::from_str(epoch.trim())?;
 		
 		let line = match lines.next() {
 			Some(l) => l,

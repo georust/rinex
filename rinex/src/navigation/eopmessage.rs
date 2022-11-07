@@ -1,5 +1,8 @@
 //! `Navigation` new EOP Earth Orientation messages
-use crate::epoch;
+use crate::{
+    epoch,
+    Epoch,
+};
 use thiserror::Error;
 use std::str::FromStr;
 
@@ -58,7 +61,7 @@ impl EopMessage {
         let (dut, rem) = rem.split_at(19);
         let (ddut, dddut) = rem.split_at(19);
 
-        let epoch = epoch::str2date(epoch.trim())?;
+        let epoch = Epoch::from_str(epoch.trim())?;
         let x = (
             f64::from_str(xp.trim()).unwrap_or(0.0_f64),
             f64::from_str(dxp.trim()).unwrap_or(0.0_f64),
@@ -76,15 +79,12 @@ impl EopMessage {
             f64::from_str(dddut.trim()).unwrap_or(0.0_f64),
         );
 
-        Ok((epoch::Epoch {
-            epoch,
-            flag: epoch::EpochFlag::Ok,
-        },
-        Self {
-            x,
-            y,
-            t_tm: t_tm as u32,
-            dut1,
-        }))
+        Ok((
+            epoch, Self {
+                x,
+                y,
+                t_tm: t_tm as u32,
+                dut1,
+            }))
     }
 }

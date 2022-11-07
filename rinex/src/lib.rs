@@ -106,10 +106,10 @@ macro_rules! is_sig_strength_obs_code {
 macro_rules! hourly_session {
     ($hour: expr) => {
         if $hour == 23 {
-            "x"
+            "x".to_string()
         } else {
             let c: char = ($hour+97).into();
-            &String::from(c)
+            String::from(c)
         }            
     }
 }
@@ -506,10 +506,10 @@ impl Rinex {
             // return largest histogram population
             let mut max = 0;
             let mut dt = Duration::default();
-            for (dt, pop) in histogram {
+            for (dtt, pop) in histogram {
                 if pop > max {
                     max = pop;
-                    dt = dt;
+                    dt = dtt;
                 }
             }
             dt
@@ -523,9 +523,10 @@ impl Rinex {
         let interval = self.sampling_interval();
         let mut ret: Option<(Epoch, Duration)> = None;
         let mut dt = Duration::default();
-        let mut prev_epoch: Epoch;
+        let mut prev_epoch = Epoch::now();
         for (index, epoch) in epochs.iter().enumerate() {
-            if index > 0 {
+            if index == 0 {
+            } else {
                 let dtt = *epoch - prev_epoch;
                 if dtt > dt {
                     dt = dtt;

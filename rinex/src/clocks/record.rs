@@ -5,7 +5,7 @@ use std::collections::{BTreeMap, HashMap};
 use crate::{
 	Sv, 
 	Epoch, EpochFlag, 
-	epoch, epoch::str2date,
+	epoch,
 	version::Version,
     merge, merge::Merge,
     split, split::Split,
@@ -200,6 +200,7 @@ pub fn parse_epoch (version: Version, content: &str) ->
        +2+1  // m
         +11; // s
     let (epoch, rem) = rem.split_at(offset);
+    let epoch = Epoch::from_str(epoch.trim())?;
 
     // nb of data fields
     let (n, _) = rem.split_at(4);
@@ -239,10 +240,6 @@ pub fn parse_epoch (version: Version, content: &str) ->
         }
     }
     
-    let epoch = Epoch {
-        flag: EpochFlag::Ok,
-        epoch: str2date(epoch.trim())?,
-    };
     Ok((epoch, data_type, system, data))
 }
 

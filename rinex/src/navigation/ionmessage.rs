@@ -1,5 +1,7 @@
-//! `Navigation` new ION Ionospheric model messages
-use crate::epoch;
+use crate::{
+    epoch,
+    Epoch,
+};
 use thiserror::Error;
 use std::str::FromStr;
 use bitflags::bitflags;
@@ -66,7 +68,7 @@ pub struct KbModel {
 }
 
 impl KbModel {
-    pub fn parse (mut lines: std::str::Lines<'_>) -> Result<(epoch::Epoch, Self), Error> {
+    pub fn parse (mut lines: std::str::Lines<'_>) -> Result<(Epoch, Self), Error> {
         let line = match lines.next() {
             Some(l) => l,
             _ => return Err(Error::NgModelMissing1stLine)
@@ -105,7 +107,7 @@ impl KbModel {
             },
         };
 
-        let epoch = epoch::str2date(epoch.trim())?;
+        let epoch = Epoch::from_str(epoch.trim())?;
         let alpha = (
             f64::from_str(a0.trim()).unwrap_or(0.0_f64),
             f64::from_str(a1.trim()).unwrap_or(0.0_f64),
@@ -119,11 +121,7 @@ impl KbModel {
             f64::from_str(b3.trim()).unwrap_or(0.0_f64),
         );
 
-        Ok((epoch::Epoch {
-            epoch,
-            flag: epoch::EpochFlag::Ok,
-        },
-        Self {
+        Ok((epoch, Self {
             alpha,
             beta,
             region,
@@ -157,7 +155,7 @@ pub struct NgModel {
 }
 
 impl NgModel {
-    pub fn parse(mut lines: std::str::Lines<'_>) -> Result<(epoch::Epoch, Self), Error> {
+    pub fn parse(mut lines: std::str::Lines<'_>) -> Result<(Epoch, Self), Error> {
         let line = match lines.next() {
             Some(l) => l,
             _ => return Err(Error::NgModelMissing1stLine)
@@ -171,18 +169,14 @@ impl NgModel {
             _ => return Err(Error::NgModelMissing2ndLine)
         };
         
-        let epoch = epoch::str2date(epoch.trim())?;
+        let epoch = Epoch::from_str(epoch.trim())?;
         let a = (
             f64::from_str(a0.trim())?,
             f64::from_str(a1.trim())?,
             f64::from_str(rem.trim())?,
         );
         let f = f64::from_str(line.trim())?;
-        Ok((epoch::Epoch {
-            epoch,
-            flag: epoch::EpochFlag::Ok,
-        },
-        Self {
+        Ok((epoch, Self {
             a,
             region: NgRegionFlags::from_bits(f as u16).unwrap_or(NgRegionFlags::empty()),
         }))
@@ -200,7 +194,7 @@ pub struct BdModel {
 }
 
 impl BdModel {
-    pub fn parse (mut lines: std::str::Lines<'_>) -> Result<(epoch::Epoch, Self), Error> {
+    pub fn parse (mut lines: std::str::Lines<'_>) -> Result<(Epoch, Self), Error> {
         let line = match lines.next() {
             Some(l) => l,
             _ => return Err(Error::BdModelMissing1stLine)
@@ -223,7 +217,7 @@ impl BdModel {
         };
         let (a7, a8) = line.split_at(23);
         
-        let epoch = epoch::str2date(epoch.trim())?;
+        let epoch = Epoch::from_str(epoch.trim())?;
         let alpha = (
             f64::from_str(a0.trim()).unwrap_or(0.0_f64),
             f64::from_str(a1.trim()).unwrap_or(0.0_f64),
@@ -235,13 +229,7 @@ impl BdModel {
             f64::from_str(a7.trim()).unwrap_or(0.0_f64),
             f64::from_str(a8.trim()).unwrap_or(0.0_f64),
         );
-        Ok((epoch::Epoch {
-            epoch,
-            flag: epoch::EpochFlag::Ok,
-        },
-        Self {
-            alpha
-        }))
+        Ok((epoch, Self { alpha }))
     }
 }
 

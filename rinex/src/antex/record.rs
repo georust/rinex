@@ -2,13 +2,16 @@ use thiserror::Error;
 use std::str::FromStr;
 
 use super::{
-	Frequency, Pattern,
-	Antenna, Calibration, CalibrationMethod,
+	Frequency, 
+    Pattern,
+	Antenna, 
+    Calibration, 
+    CalibrationMethod,
 };
 
 use crate::{
+    Epoch,
     channel,
-    epoch::str2date,
     merge, merge::Merge,
 };
 
@@ -129,15 +132,13 @@ pub fn parse_epoch (content: &str) -> Result<(Antenna, Vec<Frequency>), Error> {
             }
 
         } else if marker.contains("VALID FROM") {
-            let datestr =  content.trim();
-            if let Ok(datetime) = str2date(datestr) {
-                antenna = antenna.with_valid_from(datetime)
+            if let Ok(epoch) = Epoch::from_str(content.trim()) {
+                antenna = antenna.with_valid_from(epoch)
             }
 
         } else if marker.contains("VALID UNTIL") {
-            let datestr =  content.trim();
-            if let Ok(datetime) = str2date(datestr) {
-                antenna = antenna.with_valid_until(datetime)
+            if let Ok(epoch) = Epoch::from_str(content.trim()) {
+                antenna = antenna.with_valid_until(epoch)
             }
 
         } else if marker.contains("SINEX CODE") {

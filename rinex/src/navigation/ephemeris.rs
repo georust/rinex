@@ -4,7 +4,6 @@ use crate::{
 	version::Version, 
 	Epoch, EpochFlag, 
     epoch, 
-    epoch::str2date,
 };
 use super::{
 	OrbitItem,
@@ -77,10 +76,7 @@ impl Ephemeris {
 
 		let (svnn, rem) = line.split_at(svnn_offset);
 		let (date, rem) = rem.split_at(20);
-		let epoch = Epoch {
-			epoch: str2date(date.trim())?,
-			flag: EpochFlag::default(),
-		};
+		let epoch = Epoch::from_str(date.trim())?;
 
 		let (clk_bias, rem) = rem.split_at(19);
 		let (clk_dr, clk_drr) = rem.split_at(19);
@@ -127,10 +123,7 @@ impl Ephemeris {
 		let (svnn, rem) = line.split_at(4);
 		let sv = Sv::from_str(svnn.trim())?;
 		let (epoch, rem) = rem.split_at(20);
-		let epoch = Epoch {
-			epoch: str2date(epoch.trim())?,
-			flag: EpochFlag::Ok,
-		};
+		let epoch = Epoch::from_str(epoch.trim())?;
 
 		let (clk_bias, rem) = rem.split_at(19);
 		let (clk_dr, clk_drr) = rem.split_at(19);
