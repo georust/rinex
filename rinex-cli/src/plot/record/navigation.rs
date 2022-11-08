@@ -1,5 +1,6 @@
 //! Navigation record plotting
-use rinex::{*,
+use rinex::{
+    prelude::*,
     navigation::*,
 };
 use plotters::{

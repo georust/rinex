@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod test {
-    use rinex::*;
+    use rinex::prelude::*;
     use rinex::antex::pcv::Pcv;
     use rinex::antex::CalibrationMethod;
     #[test]

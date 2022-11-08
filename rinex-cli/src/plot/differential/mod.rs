@@ -1,5 +1,5 @@
-use rinex::*;
 use super::build_plot;
+use rinex::prelude::*;
 use plotters::prelude::*;
 use std::collections::{BTreeMap, HashMap};
 

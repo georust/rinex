@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod test {
-    use rinex::*;
+    use rinex::prelude::*;
+    use rinex::epoch::str2date;
     use std::str::FromStr;
     use rinex::constellation::Constellation;
 	use rinex::observation::{LliFlags, Ssi};
@@ -35,9 +36,9 @@ mod test {
 			String::from("P2")]);
 		
 		// test epoch [1]
-		let epoch = epoch::Epoch {
-			date: epoch::str2date("2017 01 01 0 0 0.0").unwrap(),
-			flag: epoch::EpochFlag::Ok,
+		let epoch = Epoch {
+			date: str2date("2017 01 01 0 0 0.0").unwrap(),
+			flag: EpochFlag::Ok,
 		};
 		let epoch = record.get(&epoch);
 		assert_eq!(epoch.is_some(), true);
@@ -136,9 +137,9 @@ mod test {
 		assert_eq!(observed.ssi.is_none(), true); 
 
 		// test epoch [2]
-		let epoch = epoch::Epoch {
-			date: epoch::str2date("2017 01 01 3 33 40.0").unwrap(),
-			flag: epoch::EpochFlag::Ok,
+		let epoch = Epoch {
+			date: str2date("2017 01 01 3 33 40.0").unwrap(),
+			flag: EpochFlag::Ok,
 		};
 		let epoch = record.get(&epoch);
 		assert_eq!(epoch.is_some(), true);
@@ -192,9 +193,9 @@ mod test {
 		assert_eq!(observed.ssi.is_none(), true); 
 		
 		// test epoch [3]
-		let epoch = epoch::Epoch {
-			date: epoch::str2date("2017 01 01 6 9 10.0").unwrap(),
-			flag: epoch::EpochFlag::Ok,
+		let epoch = Epoch {
+			date: str2date("2017 01 01 6 9 10.0").unwrap(),
+			flag: EpochFlag::Ok,
 		};
 		let epoch = record.get(&epoch);
 		assert_eq!(epoch.is_some(), true);
@@ -244,9 +245,9 @@ mod test {
 			String::from("S2")]);
 		
 		// test epoch [1]
-		let epoch = epoch::Epoch {
-			date: epoch::str2date("2021 12 21 0 0 0.0").unwrap(),
-			flag: epoch::EpochFlag::Ok,
+		let epoch = Epoch {
+			date: str2date("2021 12 21 0 0 0.0").unwrap(),
+			flag: EpochFlag::Ok,
 		};
 		let epoch = record.get(&epoch);
 		assert_eq!(epoch.is_some(), true);
@@ -399,9 +400,9 @@ mod test {
 			String::from("S5")]);
 		
 		// test epoch [1]
-		let epoch = epoch::Epoch {
-			date: epoch::str2date("2021 01 01 0 0 0.0").unwrap(),
-			flag: epoch::EpochFlag::Ok,
+		let epoch = Epoch {
+			date: str2date("2021 01 01 0 0 0.0").unwrap(),
+			flag: EpochFlag::Ok,
 		};
 		let epoch = record.get(&epoch);
 		assert_eq!(epoch.is_some(), true);
@@ -579,9 +580,9 @@ mod test {
             .unwrap();
         assert_eq!(record.len(), 3);
 		
-        let epoch = epoch::Epoch {
-			date: epoch::str2date("2022 03 04 0 0 0.0").unwrap(),
-			flag: epoch::EpochFlag::Ok,
+        let epoch = Epoch {
+			date: str2date("2022 03 04 0 0 0.0").unwrap(),
+			flag: EpochFlag::Ok,
 		};
         let e = record.get(&epoch);
         assert_eq!(e.is_some(), true);
@@ -637,9 +638,9 @@ mod test {
         assert_eq!(l1c.is_some(), true);
         let l1c = l1c.unwrap();
 
-        let epoch = epoch::Epoch {
-			date: epoch::str2date("2022 03 04 00 28 30.0").unwrap(),
-			flag: epoch::EpochFlag::Ok,
+        let epoch = Epoch {
+			date: str2date("2022 03 04 00 28 30.0").unwrap(),
+			flag: EpochFlag::Ok,
 		};
         let e = record.get(&epoch);
         assert_eq!(e.is_some(), true);
@@ -647,9 +648,9 @@ mod test {
         assert_eq!(clk.is_none(), true);
         assert_eq!(vehicules.len(), 17);
 		
-        let epoch = epoch::Epoch {
-			date: epoch::str2date("2022 03 04 00 57 0.0").unwrap(),
-			flag: epoch::EpochFlag::Ok,
+        let epoch = Epoch {
+			date: str2date("2022 03 04 00 57 0.0").unwrap(),
+			flag: EpochFlag::Ok,
 		};
         let e = record.get(&epoch);
         assert_eq!(e.is_some(), true);
@@ -687,9 +688,9 @@ mod test {
         assert_eq!(record.is_some(), true);
         let record = record.unwrap();
         // EPOCH[1]
-        let epoch = epoch::Epoch {
-            date: epoch::str2date("2022 06 08 10 00 00.0000000").unwrap(),
-            flag: epoch::EpochFlag::Ok,
+        let epoch = Epoch {
+            date: str2date("2022 06 08 10 00 00.0000000").unwrap(),
+            flag: EpochFlag::Ok,
         };
         let epoch = record.get(&epoch);
         assert_eq!(epoch.is_some(), true);
@@ -698,9 +699,9 @@ mod test {
         assert_eq!(epoch.len(), 49);
         
         // EPOCH[2]
-        let epoch = epoch::Epoch {
-            date: epoch::str2date("2022 06 08 10 00 30.0000000").unwrap(),
-            flag: epoch::EpochFlag::Ok,
+        let epoch = Epoch {
+            date: str2date("2022 06 08 10 00 30.0000000").unwrap(),
+            flag: EpochFlag::Ok,
         };
         let epoch = record.get(&epoch);
         assert_eq!(epoch.is_some(), true);
@@ -709,9 +710,9 @@ mod test {
         assert_eq!(epoch.len(), 49);
         
         // EPOCH[3]
-        let epoch = epoch::Epoch {
-            date: epoch::str2date("2022 06 08 10 01 00.0000000").unwrap(),
-            flag: epoch::EpochFlag::Ok,
+        let epoch = Epoch {
+            date: str2date("2022 06 08 10 01 00.0000000").unwrap(),
+            flag: EpochFlag::Ok,
         };
         let epoch = record.get(&epoch);
         assert_eq!(epoch.is_some(), true);

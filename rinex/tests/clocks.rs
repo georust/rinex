@@ -1,10 +1,8 @@
 #[cfg(test)]
 mod test {
-    use rinex::*;
+    use rinex::prelude::*;
     use rinex::epoch;
     use rinex::clocks;
-    use rinex::sv::Sv;
-    use rinex::constellation::Constellation;
     use rinex::clocks::record::{DataType, System};
     #[test]
     fn v3_usno_example() {

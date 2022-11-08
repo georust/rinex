@@ -1,4 +1,3 @@
-use rinex::*;
 use clap::{
     Command, 
     Arg, ArgMatches, 
@@ -9,6 +8,7 @@ use crate::parser::{
     parse_date,
     parse_datetime,
 };
+use rinex::prelude::*;
 
 pub struct Cli {
     /// Arguments passed by user

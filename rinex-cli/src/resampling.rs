@@ -1,4 +1,4 @@
-use rinex::*;
+use rinex::{*, processing::Decimation};
 use crate::parser::{
     parse_duration,
     parse_date,
@@ -51,7 +51,7 @@ pub fn record_resampling(rnx: &mut Rinex, ops: Vec<(&str, &str)>) {
         } else if op.eq(&"resample-interval") {
             if let Ok(duration) = parse_duration(args.trim()) {
                 rnx
-                    .decimate_by_interval_mut(duration);
+                    .decim_by_interval_mut(duration);
             } else {
                 println!("failed to parse chrono::duration from \"{}\"", args);
                 println!("Expected format is %HH:%MM:%SS\n");
@@ -59,7 +59,7 @@ pub fn record_resampling(rnx: &mut Rinex, ops: Vec<(&str, &str)>) {
         } else if op.eq(&"resample-ratio") {
             if let Ok(ratio) = u32::from_str_radix(args.trim(), 10) {
                 rnx
-                    .decimate_by_ratio_mut(ratio);
+                    .decim_by_ratio_mut(ratio);
             } else {
                 println!("failed to parse decimation ratio from \"{}\"", args);
                 println!("Expecting unsigned integer value\n");

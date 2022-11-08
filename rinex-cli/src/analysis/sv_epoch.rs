@@ -1,4 +1,7 @@
-use rinex::*;
+use rinex::{
+    prelude::*,
+    navigation,
+};
 use crate::plot::*;
 use std::collections::HashMap;
 use plotters::prelude::*;

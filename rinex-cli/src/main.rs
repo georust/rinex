@@ -13,7 +13,7 @@ mod analysis; // basic analysis operations
 mod identification; // high level identification/macros
 mod file_generation; // RINEX to file macro
 
-use rinex::*;
+use rinex::{*, split::Split, merge::Merge};
 use cli::Cli;
 use retain::retain_filters;
 use filter::apply_filters;

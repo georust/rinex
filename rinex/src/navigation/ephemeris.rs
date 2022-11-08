@@ -34,6 +34,63 @@ pub enum Error {
 	ParseSvError(#[from] sv::Error),
 }
 
+/// Most common Navigation Frame content.
+/// ```
+/// use rinex::prelude::*;
+/// use rinex::navigation::*;
+/// let rnx = Rinex::from_file("../test_resources/NAV/V2/amel0010.21g")
+///     .unwrap();
+/// let record = rnx.record.as_nav()
+///     .unwrap();
+/// for (epoch, classes) in record {
+///     for (class, frames) in classes {
+///         for fr in frames {
+///             let (msg_type, sv, ephemeris) = fr.as_eph()
+///                 .unwrap(); // Until RINEX4, Ephemeris frames were the only
+///                     // existing frames. So you're fine with this naive assumption
+///             assert_eq!(*msg_type, MsgType::LNAV); // LNAV for Legacy NAV
+///                 // is the only existing value up until RINEX4.
+///                 // msg_type is truly only exploited in RINEX4 anyways.
+///             // Ephemeris come with Sv embedded clock estimates
+///             // Sv Clock offset, or clock bias [s]
+///             // Sv Clock Drift (d(offset)/dt) [s.s¯¹]
+///             // Sv Clock Drift Rate (d(drift)/dt) [s.s¯²]
+///             let (clk_offset, clk_drift, clk_drift_r) = ephemeris.clock_data();
+///             // we provide some macros for standard fields
+///             if let Some(elev) = ephemeris.elevation_angle() {
+///                 // not all ephemeris come with this important information
+///             }
+///             // Orbits are then revision & constellation dependent
+///             let orbits = &ephemeris.orbits;
+///             for (field, data) in orbits {
+///                 // Field is a high level description.
+///                 // Data is an [navigation::OrbitItem]
+///                 // Most data is to be interprated as floating point value
+///                 if field.eq("satPosX") {
+///                     let x = data.as_f64();
+///                 }
+///                 // Some high level enums exist, like Sv Health enums
+///                 if field.eq("health") {
+///                     if let Some(h) = data.as_glo_health() {
+///                         assert_eq!(h, GloHealth::Healthy);
+///                     }
+///                 }
+///                 // Another way to do this would be:
+///                 if let Some(h) = data.as_glo_health() {
+///                     assert_eq!(h, GloHealth::Healthy);
+///                 }
+///             }
+///             // index orbits directly, if you know what you're doing
+///             if let Some(x) = orbits.get("satPosX") {
+///                 if let Some(x) = x.as_f64() {
+///                     // these are Glonass Orbit Fields
+///                     let x = x.sqrt();
+///                 }
+///             }
+///         }
+///     }
+/// }
+/// ```
 #[derive(Clone, Debug)]
 #[derive(PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
@@ -61,6 +118,10 @@ impl Default for Ephemeris {
 }
 
 impl Ephemeris {
+    /// Retrieve all clock fields (bias, drift, drift_rate) at once
+    pub fn clock_data(&self) -> (f64,f64,f64) {
+        (self.clock_bias, self.clock_drift, self.clock_drift_rate)
+    }
 	/// Parses ephemeris from given line iterator
     pub fn parse_v2v3 (version: Version, constellation: Constellation, mut lines: std::str::Lines<'_>) -> Result<(Epoch, Sv, Self), Error> {
 		let line = match lines.next() {

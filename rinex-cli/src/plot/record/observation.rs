@@ -1,6 +1,9 @@
 //! Observation record plotting
-use rinex::*;
-use rinex::observation::Record;
+use rinex::{
+    *,
+    prelude::*,
+    observation::Record,
+};
 use super::{
     Context, Plot2d, 
     build_chart, build_plot,
