@@ -27,12 +27,12 @@ pub fn record_resampling(rnx: &mut Rinex, ops: Vec<(&str, &str)>) {
                 }
             } else if items.len() == 4 { //datetime description
                 let mut start_str = items[0].trim().to_owned();
-                start_str.push_str("-");
+                start_str.push_str(" ");
                 start_str.push_str(items[1].trim());
                 
                 if let Ok(start) = parse_datetime(&start_str) {
                     let mut end_str = items[2].trim().to_owned();
-                    end_str.push_str("-");
+                    end_str.push_str(" ");
                     end_str.push_str(items[3].trim());
                     if let Ok(end) = parse_datetime(&end_str) {
                         rnx.time_window_mut(start, end);
