@@ -29,7 +29,5 @@ mod merge {
         let path2 = test_resources.to_owned() + "NAV/V3/CBW100NLD_R_20210010000_01D_MN.rnx";
         let r2 = Rinex::from_file(&path2).unwrap();
         assert_eq!(r1.merge_mut(&r2).is_ok(), true)
-        //println!("is merged          : {}", rinex.is_merged_rinex());
-        //println!("boundaries: \n{:#?}", rinex.merge_boundaries());
     }
 }
