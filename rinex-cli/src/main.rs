@@ -77,11 +77,11 @@ pub fn main() -> Result<(), rinex::Error> {
     if cli.phase_diff() {
         let data = rnx.observation_phase_diff();
         let dims = cli.plot_dimensions();
-        plot::differential::plot(dims, 
+        /*plot::differential::plot(dims, 
             "phase-diff.png", 
             "PH Code Differential analysis",
             "Phase Difference [n.a]",
-            &data);
+            &data);*/
         return Ok(());
     }
 

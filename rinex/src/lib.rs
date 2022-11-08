@@ -2333,8 +2333,8 @@ impl Rinex {
     /// <http://navigation-office.esa.int/attachments_12649498_1_Reichel_5thGalSciCol_2015.pdf>.
     /// Results are sorted by kind of analysis, for instance: "1C-1W" 
     /// means "C" code against "W" code for Carrier 1.
-    pub fn observation_phase_diff(&self) -> HashMap<String, BTreeMap<Epoch, f64>> {
-        let mut ret: HashMap<String, BTreeMap<Epoch, f64>> = HashMap::new();
+    pub fn observation_phase_diff(&self) -> HashMap<String, HashMap<Sv, BTreeMap<Epoch, f64>>> {
+        let mut ret: HashMap<String, HashMap<Sv, BTreeMap<Epoch, f64>>> = HashMap::new();
         
         //TODO lazy_static please
         let known_codes = vec![
@@ -2351,7 +2351,7 @@ impl Rinex {
 
         if let Some(record) = self.record.as_obs() {
             for (epoch, (_, vehicules)) in record {
-                for (_sv, observations) in vehicules {
+                for (sv, observations) in vehicules {
                     for (obscode, obsdata) in observations {
                         if is_phase_carrier_obs_code!(obscode) { // this is a PH code
                             let carrier_id = &obscode[1..2];
@@ -2364,7 +2364,7 @@ impl Rinex {
                                         if let Some(otherdata) = observations.get(&tolocate) {
                                             // we found another PH code
                                             let mut found = false;
-                                            for (op, epochs) in ret.iter_mut() {
+                                            for (op, vehicules) in ret.iter_mut() {
                                                 if op.contains(code) {
                                                     found = true;
                                                     // Diff Op already under progress
@@ -2375,16 +2375,22 @@ impl Rinex {
                                                     if code == items[0] {
                                                         // code is differentiated
                                                         // -- is this a new entry ?
-                                                        if epochs.get(epoch).is_none() {
-                                                            epochs.insert(*epoch, 
-                                                                obsdata.obs - otherdata.obs);
+                                                        if let Some(data) = vehicules.get_mut(&sv) {
+                                                            data.insert(*epoch, obsdata.obs - otherdata.obs);
+                                                        } else {
+                                                            let mut bmap: BTreeMap<Epoch, f64> = BTreeMap::new();
+                                                            bmap.insert(*epoch, obsdata.obs - otherdata.obs);
+                                                            vehicules.insert(*sv, bmap);
                                                         }
                                                     } else {
-                                                        // code is referenced to
+                                                        // code is differentiated
                                                         // -- is this a new entry ?
-                                                        if epochs.get(epoch).is_none() {
-                                                            epochs.insert(*epoch, 
-                                                                otherdata.obs - obsdata.obs);
+                                                        if let Some(data) = vehicules.get_mut(&sv) {
+                                                            data.insert(*epoch, otherdata.obs - obsdata.obs);
+                                                        } else {
+                                                            let mut bmap: BTreeMap<Epoch, f64> = BTreeMap::new();
+                                                            bmap.insert(*epoch, otherdata.obs - obsdata.obs); 
+                                                            vehicules.insert(*sv, bmap);
                                                         }
                                                     }
                                                 }
@@ -2392,11 +2398,13 @@ impl Rinex {
                                             if !found {
                                                 // this is a new Diff Op 
                                                 // => initiate it
-                                                let mut inner: BTreeMap<Epoch, f64> = BTreeMap::new();
-                                                inner.insert(*epoch, obsdata.obs - otherdata.obs);
+                                                let mut bmap: BTreeMap<Epoch, f64> = BTreeMap::new();
+                                                bmap.insert(*epoch, otherdata.obs - obsdata.obs); 
+                                                let mut map: HashMap<Sv, BTreeMap<Epoch, f64>> = HashMap::new();
+                                                map.insert(*sv, bmap);
                                                 ret.insert(
                                                     format!("{}-{}", code, k_code),
-                                                    inner);
+                                                    map);
                                             }
                                         }
                                     }
