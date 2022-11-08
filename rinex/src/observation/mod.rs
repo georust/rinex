@@ -1,7 +1,7 @@
 //! `ObservationData` parser and related methods
 use chrono::NaiveDateTime;
 use super::{
-    Constellation,
+    prelude::*,
     version::Version,
 };
 

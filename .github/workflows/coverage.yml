@@ -1,4 +1,4 @@
-name: rust
+name: coverage
 
 on:
   push:
@@ -11,14 +11,12 @@ env:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v2
     - name: Build
       run: |
         sudo apt-get update && sudo apt-get install libudev-dev libfontconfig1-dev
-        cargo build --all-features --verbose
-    - name: Tests
-      run: cargo test --all-features
+        cargo install cargo-tarpaulin
+    - name: Coverage
+      run: cargo tarpaulin --all-features -t 500

@@ -73,7 +73,7 @@ pub fn build_context<'a> (dim: (u32, u32), record: &Record) -> Context<'a> {
     Context {
         plots,
         charts,
-        colors: HashMap::new(), // not needed since we have 1 observable per plot
+        cmap: HashMap::new(), // not needed since we have 1 observable per plot
         t_axis,
     }
 }
@@ -98,32 +98,34 @@ pub fn plot(ctx: &mut Context, record: &Record) {
     }
 
     for (observable, data) in datasets {
+        let plot = ctx.plots.get(&observable.to_string())
+            .expect(&format!("faulty context: missing {} plot", observable));
         let mut chart = ctx.charts
             .get(&observable)
-            .expect(&format!("faulty context, expecting a chart dedicated to \"{}\" observable", observable))
+            .expect(&format!("faulty context: missing {} chart", observable))
             .clone()
-            .restore(ctx.plots.get(&observable.to_string()).unwrap());
+            .restore(plot);
         chart
             .draw_series(LineSeries::new(
                 data.iter()
-                    .map(|(x, y)| (*x, *y)),
-                    &BLACK
-                ))
-            .expect(&format!("failed to draw {} chart", observable))
-            .label(observable)
-            .legend(|(x, y)| {
-                //let color = ctx.colors.get(&vehicule.to_string()).unwrap();
-                PathElement::new(vec![(x, y), (x + 20, y)], BLACK)
+                    .map(|point| *point),
+                &BLACK,
+            ))
+            .expect(&format!("failed to plot {} data", observable.clone())) 
+            .label(observable.clone())
+            .legend(move |point| {
+                TriangleMarker::new(point, 4, Into::<ShapeStyle>::into(&BLACK).filled())
+                .into_dyn()
             });
         chart
             .draw_series(data.iter()
-                .map(|point| Cross::new(*point, 4, BLACK.filled())))
-                .unwrap();
+                .map(|point| TriangleMarker::new(*point, 4, BLACK.filled())))
+                .expect(&format!("failed to plot {} data", observable)); 
         chart
             .configure_series_labels()
             .border_style(&BLACK)
             .background_style(WHITE.filled())
             .draw()
-            .expect("failed to draw labels on chart");
+            .expect(&format!("failed to draw labels on {} chart", observable));
     }
 } 

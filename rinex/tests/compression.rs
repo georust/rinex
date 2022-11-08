@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod test {
-    use rinex::*;
+    use rinex::prelude::*;
     /*
      * Compares rnx_b to rnx_a 
      */

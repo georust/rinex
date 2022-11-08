@@ -1,5 +1,6 @@
 //! Navigation record plotting
-use rinex::{*,
+use rinex::{
+    prelude::*,
     navigation::*,
 };
 use plotters::{
@@ -20,7 +21,7 @@ pub fn build_context<'a> (dim: (u32, u32), record: &Record) -> Context<'a> {
         DrawingArea<BitMapBackend, Shift>>
             = HashMap::with_capacity(4);
     let _y_ranges: HashMap<String, (f64,f64)> = HashMap::new();
-    let colors: HashMap<String, RGBAColor> = HashMap::with_capacity(32);
+    let cmap: HashMap<String, RGBAColor> = HashMap::with_capacity(32);
     let mut charts: HashMap<String, ChartState<Plot2d>> = HashMap::new();
     for (index, (e, classes)) in record.iter().enumerate() {
         if index == 0 {
@@ -62,7 +63,7 @@ pub fn build_context<'a> (dim: (u32, u32), record: &Record) -> Context<'a> {
         t_axis,
         plots,
         charts,
-        colors,
+        cmap,
     }
 }
 
@@ -115,7 +116,7 @@ pub fn plot(ctx: &mut Context, record: &Record) {
             .expect("failed to draw clock biases")
             .label("Clock bias")
             .legend(|(x, y)| {
-                //let color = ctx.colors.get(&vehicule.to_string()).unwrap();
+                //let color = ctx.cmap.get(&vehicule.to_string()).unwrap();
                 PathElement::new(vec![(x, y), (x + 20, y)], BLACK)
             });
     }

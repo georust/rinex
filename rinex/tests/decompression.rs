@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod test {
-    use rinex::*;
     use rinex::{
+        prelude::*,
         version::Version,
         hatanaka::Decompressor,
         observation::{HeaderFields, Crinex},

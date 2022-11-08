@@ -1,5 +1,5 @@
 //! Hardware: receiver, antenna informations
-use crate::Sv;
+use super::Sv;
 use rust_3d::Point3D;
 
 #[cfg(feature = "serde")]

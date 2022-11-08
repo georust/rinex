@@ -3,31 +3,27 @@ use thiserror::Error;
 use std::io::prelude::*;
 use std::collections::{BTreeMap, HashMap};
 
-use crate::antex;
-use crate::epoch;
-use crate::meteo;
-use crate::clocks;
-use crate::header;
-use crate::navigation;
-use crate::observation;
-use crate::ionosphere;
-use crate::is_comment;
-use crate::types::Type;
-use crate::reader::BufferedReader;
-use crate::writer::BufferedWriter;
-use crate::Epoch;
-use crate::hatanaka::{
-    Compressor, Decompressor,
-};
-
-use crate::merge;
-use merge::Merge;
-
-use crate::split;
-use split::Split;
-
 #[cfg(feature = "serde")]
 use serde::Serialize;
+
+use super::{
+    prelude::*,
+    antex,
+    clocks,
+    ionosphere,
+    meteo,
+    navigation,
+    observation,
+    header,
+    is_comment,
+    types::Type,
+    reader::BufferedReader,
+    writer::BufferedWriter,
+    merge, merge::Merge,
+    split, split::Split,
+    sampling::Decimation,
+    hatanaka::{Compressor, Decompressor},
+};
 
 /// `Record`
 #[derive(Clone, Debug)]
@@ -51,7 +47,7 @@ pub enum Record {
 /// Record comments are high level informations, sorted by epoch
 /// (timestamp) of appearance. We deduce the "associated" timestamp from the
 /// previosuly parsed epoch, when parsing the record.
-pub type Comments = BTreeMap<epoch::Epoch, Vec<String>>;
+pub type Comments = BTreeMap<Epoch, Vec<String>>;
 
 impl Record {
     /// Unwraps self as ANTEX record
@@ -238,7 +234,7 @@ pub fn parse_record (reader: &mut BufferedReader, header: &header::Header) -> Re
     
     // to manage `record` comments
     let mut comments : Comments = Comments::new();
-    let mut comment_ts = epoch::Epoch::default();
+    let mut comment_ts = Epoch::default();
     let mut comment_content : Vec<String> = Vec::with_capacity(4);
 
     // CRINEX record special process is special
@@ -582,5 +578,50 @@ impl Split<Record> for Record {
         } else {
             Err(split::Error::NoEpochIteration)
         }
+    }
+}
+
+impl Decimation<Record> for Record {
+    /// Decimates Self by desired factor
+    fn decim_by_ratio_mut(&mut self, r: u32) {
+        if let Some(rec) = self.as_mut_obs() {
+            rec.decim_by_ratio_mut(r);
+        } else if let Some(rec) = self.as_mut_nav() {
+            rec.decim_by_ratio_mut(r);
+        } else if let Some(rec) = self.as_mut_meteo() {
+            rec.decim_by_ratio_mut(r);
+        } else if let Some(rec) = self.as_mut_ionex() {
+            rec.decim_by_ratio_mut(r);
+        } else if let Some(rec) = self.as_mut_clock() {
+            rec.decim_by_ratio_mut(r);
+        } else if let Some(rec) = self.as_mut_antex() {
+            rec.decim_by_ratio_mut(r);
+        }
+    }
+    /// Copies and Decimates Self by desired factor
+    fn decim_by_ratio(&self, r: u32) -> Self {
+        let mut s = self.clone();
+        s.decim_by_ratio_mut(r);
+        s
+    }
+    /// Decimates Self to fit minimum epoch interval
+    fn decim_by_interval_mut(&mut self, interval: chrono::Duration) {
+        if let Some(r) = self.as_mut_obs() {
+            r.decim_by_interval_mut(interval);
+        } else if let Some(r) = self.as_mut_nav() {
+            r.decim_by_interval_mut(interval);
+        } else if let Some(r) = self.as_mut_meteo() {
+            r.decim_by_interval_mut(interval);
+        } else if let Some(r) = self.as_mut_ionex() {
+            r.decim_by_interval_mut(interval);
+        } else if let Some(r) = self.as_mut_clock() {
+            r.decim_by_interval_mut(interval);
+        }
+    }
+    /// Copies and Decimates Self to fit minimum epoch interval
+    fn decim_by_interval(&self, interval: chrono::Duration) -> Self {
+        let mut s = self.clone();
+        s.decim_by_interval_mut(interval);
+        s
     }
 }

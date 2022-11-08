@@ -1,4 +1,3 @@
-use rinex::*;
 use clap::{
     Command, 
     Arg, ArgMatches, 
@@ -9,6 +8,7 @@ use crate::parser::{
     parse_date,
     parse_datetime,
 };
+use rinex::prelude::*;
 
 pub struct Cli {
     /// Arguments passed by user
@@ -234,32 +234,24 @@ Usually combined to Observation data, provided with -fp.
 Only identical epochs can be analyzed and processed.
 Ideally, both contexts have strictly identical sample rates.
 Refer to README."))
-                    .arg(Arg::new("phase-diff")
-                        .long("phase-diff")
+                    .arg(Arg::new("phase-dcb")
+                        .long("phase-dcb")
                         .action(ArgAction::SetTrue)
-                        .help("Phase code differential analysis.
-Differentiates phase codes sampled against identical carrier frequencies.
+                        .help("Phase Differential Code Biases estimation (DBCs).
+Substracts Phase observations that were sampled against identical carrier frequencies.
 Useful to determine correlation and biases between phase observations.
 Observation data must be provided with -fp. 
 Navigation context is not required for this operation.
-For instance \"L2S-L2W\" S code against W code, for L2 carrier.
+For instance \"2S-2W\" means S code against W code, for L2 carrier.
 Refer to README."))
-                    .arg(Arg::new("pr-diff")
-                        .long("pr-diff")
+                    .arg(Arg::new("pr-dcb")
+                        .long("pr-dcb")
                         .action(ArgAction::SetTrue)
-                        .help("Pseudo Range differential analysis.
-Differentiates PR codes sampled against identical carrier frequencies.
+                        .help("Pseudo Range DBCs analysis.
+Same as previous DCBs analysis, but applied to Pseudo Range observations.
 Useful to determine correlation and biases between observations.
 Observation data must be provided with -fp. 
-Navigation context is not required for this operation.
-For instance \"C1P-C1C\" means P code against C code, for L1 carrier.
 Refer to README."))
-                    .arg(Arg::new("code-diff")
-                        .long("code-diff")
-                        .action(ArgAction::SetTrue)
-                        .help("Perform Phase and PR differential analysis
-(--phase-diff + --pr-diff) at once, in a efficient fashion.
-Produces the same results, but saves iteration and computation time."))
                     .arg(Arg::new("multipath")
                         .long("multipath")
                         .action(ArgAction::SetTrue)
@@ -366,17 +358,13 @@ Example \"--plot-height 1024"))
     pub fn sv_epoch(&self) -> bool {
         self.matches.get_flag("sv-epoch")
     }
-    /// Phase Diff analysis requested 
-    pub fn phase_diff(&self) -> bool {
-        self.matches.get_flag("phase-diff")
+    /// Phase DCBs analysis requested 
+    pub fn phase_dcb(&self) -> bool {
+        self.matches.get_flag("phase-dcb")
     }
-    /// PR Diff analysis requested 
-    pub fn pseudorange_diff(&self) -> bool {
-        self.matches.get_flag("pr-diff")
-    }
-    /// Code Diff analysis requested 
-    pub fn code_diff(&self) -> bool {
-        self.matches.get_flag("code-diff")
+    /// PR DCBs analysis requested 
+    pub fn pseudorange_dcb(&self) -> bool {
+        self.matches.get_flag("pr-dcb")
     }
     /// Code Multipath analysis requested 
     pub fn multipath(&self) -> bool {

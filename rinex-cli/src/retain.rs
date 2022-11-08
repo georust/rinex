@@ -1,7 +1,8 @@
-use std::str::FromStr;
-use rinex::{*,
+use rinex::{
+    prelude::*,
     navigation::MsgType,
 };
+use std::str::FromStr;
 
 fn args_to_constellations (args: Vec<&str>) -> Vec<Constellation> {
     args.iter()

@@ -10,6 +10,7 @@ use crate::{
     channel,
     epoch::str2date,
     merge, merge::Merge,
+    sampling::Decimation,
 };
 
 /// Returns true if this line matches 
@@ -239,5 +240,29 @@ impl Merge<Record> for Record {
             }
         }
         Ok(())
+    }
+}
+
+impl Decimation<Record> for Record {
+    /// Decimates Data quantity by given ratio
+    fn decim_by_ratio_mut(&mut self, r: u32) {
+        let mut i = 0;
+        self.retain(|_| {
+            let retained = (i % r) == 0;
+            i += 1;
+            retained
+        });
+    }
+    /// Copies & Decimates self by given ratio
+    fn decim_by_ratio(&self, r: u32) -> Self {
+        let mut s = self.clone();
+        s.decim_by_ratio_mut(r);
+        s
+    }
+    /// Antex Record cannot be decimated by an epoch interval
+    fn decim_by_interval_mut(&mut self, _interval: chrono::Duration) {}
+    /// Antex Record cannot be decimated by an epoch interval
+    fn decim_by_interval(&self, _interval: chrono::Duration) -> Self {
+        self.clone()
     }
 }

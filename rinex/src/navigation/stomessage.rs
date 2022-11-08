@@ -17,6 +17,29 @@ pub enum Error {
 }
 
 /// System Time Message 
+/// ```
+/// use rinex::prelude::*;
+/// use rinex::navigation::*;
+/// let rnx = Rinex::from_file("../test_resources/NAV/V4/KMS300DNK_R_20221591000_01H_MN.rnx.gz")
+///     .unwrap();
+/// let record = rnx.record.as_nav()
+///     .unwrap();
+/// for (epoch, classes) in record {
+///     for (class, frames) in classes {
+///         // epochs may contain other frame classes
+///         if *class == FrameClass::SystemTimeOffset {
+///             for fr in frames {
+///                 let (msg_type, sv, sto) = fr.as_sto()
+///                     .unwrap(); // you're fine at this point
+///                 let system = &sto.system;
+///                 let utc = &sto.utc; // UTC provider
+///                 let t_tm = sto.t_tm;
+///                 let (a, dadt, ddadt) = sto.a;
+///             }
+///         }
+///     }
+/// }
+/// ```
 #[derive(Debug, Clone)]
 #[derive(Default)]
 #[derive(PartialEq, PartialOrd)]

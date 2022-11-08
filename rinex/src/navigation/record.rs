@@ -6,16 +6,16 @@ use regex::{Regex, Captures};
 use std::collections::BTreeMap;
 
 use crate::{
-	Epoch, 
+    prelude::*,
 	epoch::{
 		str2date, ParseDateError,
 	},
 	sv,
 	Header,
-	Constellation, Sv,
 	version::Version,
     merge, merge::Merge,
     split, split::Split,
+    sampling::Decimation,
 };
 
 use super::{
@@ -194,6 +194,32 @@ impl Frame {
 
 /// Navigation Record.
 /// Data is sorted by epoch, and by Frame class.
+/// ```
+/// use rinex::prelude::*;
+/// use rinex::navigation::*;
+/// let rnx = Rinex::from_file("../test_resources/NAV/V3/AMEL00NLD_R_20210010000_01D_MN.rnx")
+///     .unwrap();
+/// let record = rnx.record.as_nav()
+///     .unwrap();
+/// for (epoch, classes) in record {
+///     for (class, frames) in classes {
+///         if *class == FrameClass::Ephemeris {
+///             // Ephemeris are the most common Navigation Frames
+///             // Up until V3 they were the only existing frame type.
+///             // Refer to [ephemeris::Ephemeris] for an example of use
+///         }
+///         else if *class == FrameClass::IonosphericModel {
+///             // Modern Navigation frame, see [ionmessage::IonMessage]
+///         }
+///         else if *class == FrameClass::SystemTimeOffset {
+///             // Modern Navigation frame, see [stomessage::StoMessage] 
+///         }
+///         else if *class == FrameClass::EarthOrientation {
+///             // Modern Navigation frame, see [eopmessage::EopMessage]
+///         }
+///     }
+/// }
+/// ```
 pub type Record = BTreeMap<Epoch, BTreeMap<FrameClass, Vec<Frame>>>;
 
 /// Returns true if given content matches the beginning of a 
@@ -1210,5 +1236,43 @@ impl Split<Record> for Record {
             })
             .collect();
         Ok((r0, r1))
+    }
+}
+
+impl Decimation<Record> for Record {
+    /// Decimates Self by desired factor
+    fn decim_by_ratio_mut(&mut self, r: u32) {
+        let mut i = 0;
+        self.retain(|_, _| {
+            let retained = (i % r) == 0;
+            i += 1;
+            retained
+        });
+    }
+    /// Copies and Decimates Self by desired factor
+    fn decim_by_ratio(&self, r: u32) -> Self {
+        let mut s = self.clone();
+        s.decim_by_ratio_mut(r);
+        s
+    }
+    /// Decimates Self to fit minimum epoch interval
+    fn decim_by_interval_mut(&mut self, interval: chrono::Duration) {
+        let mut last_retained: Option<chrono::NaiveDateTime> = None;
+        self.retain(|e, _| {
+            if last_retained.is_some() {
+                let dt = e.date - last_retained.unwrap();
+                last_retained = Some(e.date);
+                dt > interval
+            } else {
+                last_retained = Some(e.date);
+                true // always retain 1st epoch
+            }
+        });
+    }
+    /// Copies and Decimates Self to fit minimum epoch interval
+    fn decim_by_interval(&self, interval: chrono::Duration) -> Self {
+        let mut s = self.clone();
+        s.decim_by_interval_mut(interval);
+        s
     }
 }
