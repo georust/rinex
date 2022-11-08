@@ -249,7 +249,7 @@ impl BdModel {
 /// ```
 /// use rinex::prelude::*;
 /// use rinex::navigation::*;
-/// let rnx = Rinex::from_file("../test_resources/NAV/V4/KMS300DNK_R_20221591000_01H_MN.rnx")
+/// let rnx = Rinex::from_file("../test_resources/NAV/V4/KMS300DNK_R_20221591000_01H_MN.rnx.gz")
 ///     .unwrap();
 /// let record = rnx.record.as_nav()
 ///     .unwrap();
