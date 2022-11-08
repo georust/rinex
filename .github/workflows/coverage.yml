@@ -19,4 +19,4 @@ jobs:
         sudo apt-get update && sudo apt-get install libudev-dev libfontconfig1-dev
         cargo install cargo-tarpaulin
     - name: Coverage
-      run: cargo tarpaulin --all-features
+      run: cargo tarpaulin --all-features -t 500
