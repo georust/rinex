@@ -8,33 +8,37 @@ pub fn plot(
     file: &str, 
     caption: &str,
     y_desc: &str,
-    data: &HashMap<String, BTreeMap<Epoch, f64>>) 
+    data: &HashMap<String, HashMap<Sv, BTreeMap<Epoch, f64>>>) 
 {
     let p = build_plot(file, dims);
-    // build a color map, one per Op
-    let mut cmap: HashMap<String, RGBAColor> = HashMap::new();
+    // one symbol per op
+    let symbols = vec!["x","t","o"];
+    // colormap: one per sv 
+    let mut cmap: HashMap<Sv, RGBAColor> = HashMap::new();
     // determine (smallest, largest) ts accross all Ops
     // determine (smallest, largest) y accross all Ops (nicer scale)
-    let mut y: (f64, f64) = (1000.0, 0.0);
+    let mut y: (f64, f64) = (0.0, 0.0);
     let mut dates: (i64, i64) = (0, 0);
-    for (op_index, (op, epochs)) in data.iter().enumerate() {
-        if cmap.get(op).is_none() {
-            cmap.insert(op.clone(),
-                Palette99::pick(op_index) // RGB
-                    .mix(0.99)); // RGBA
-        }
-        for (e_index, (epoch, data)) in epochs.iter().enumerate() {
-            if e_index == 0 {
-                dates.0 = epoch.date.timestamp();
+    for (op_index, (op, vehicules)) in data.iter().enumerate() {
+        for (sv, epochs) in vehicules {
+            if cmap.get(sv).is_none() {
+                cmap.insert(*sv,
+                    Palette9999::pick((sv.prn/2+5).into()) // RGB
+                        .mix(0.99)); // RGBA
             }
-            if epoch.date.timestamp() > dates.1 {
-                dates.1 = epoch.date.timestamp();
-            }
-            if *data < y.0 {
-                y.0 = *data;
-            }
-            if *data > y.1 {
-                y.1 = *data;
+            for (e_index, (epoch, data)) in epochs.iter().enumerate() {
+                if e_index == 0 {
+                    dates.0 = epoch.date.timestamp();
+                }
+                if epoch.date.timestamp() > dates.1 {
+                    dates.1 = epoch.date.timestamp();
+                }
+                if *data < y.0 {
+                    y.0 = *data;
+                }
+                if *data > y.1 {
+                    y.1 = *data;
+                }
             }
         }
     }
@@ -58,29 +62,64 @@ pub fn plot(
         .draw()
         .expect("failed to draw mesh");
     /*
-     * Plot all Ops
+     * Plot all ops
      */
-    for (op, epochs) in data {
-        let color = cmap.get(op).unwrap(); 
-        chart.draw_series(LineSeries::new(
-            epochs.iter()
-                .map(|(k, v)| {
-                    ((k.date.timestamp() - dates.0) as f64, *v) 
-                }),
-                color.clone(),
-            ))
-            .expect(&format!("failed to draw {} serie", op))
-            .label(op.clone())
-            .legend(|(x, y)| {
-                PathElement::new(vec![(x, y), (x+20, y)], color.clone())
-            });
-        chart.draw_series(
-            epochs.iter()
-                .map(|(k, v)| {
-                    let x = (k.date.timestamp() - dates.0) as f64;
-                    Cross::new((x, *v), 4, color.clone())
-                }))
+    for (op_index, (op, vehicules)) in data.iter().enumerate() {
+        let symbol = symbols[op_index % symbols.len()];
+        for (sv, epochs) in vehicules {
+            let color = cmap.get(sv).unwrap(); 
+            chart.draw_series(LineSeries::new(
+                epochs.iter()
+                    .map(|(k, v)| {
+                        ((k.date.timestamp() - dates.0) as f64, *v) 
+                    }),
+                    color.clone(),
+                ))
                 .expect(&format!("failed to draw {} serie", op));
+            chart.draw_series(
+                epochs.iter()
+                    .map(|(k, v)| {
+                        let x = (k.date.timestamp() - dates.0) as f64;
+                        match symbol {
+                            "x" => {
+                                Cross::new((x, *v), 4,
+                                    Into::<ShapeStyle>::into(&color).filled())
+                                    .into_dyn()
+                            },
+                            "o" => {
+                                Circle::new((x, *v), 4,
+                                    Into::<ShapeStyle>::into(&color).filled())
+                                    .into_dyn()
+                            },
+                            _ => {
+                                TriangleMarker::new((x, *v), 4,
+                                    Into::<ShapeStyle>::into(&color).filled())
+                                    .into_dyn()
+                            }
+                        }
+                    }))
+                    .expect(&format!("failed to draw {} serie", op))
+                    .label(&format!("{}({})", op, sv))
+                    .legend(move |point| {
+                        match symbol {
+                            "x" => {
+                                Cross::new(point, 4,
+                                    Into::<ShapeStyle>::into(&color).filled())
+                                    .into_dyn()
+                            },
+                            "o" => {
+                                Circle::new(point, 4,
+                                    Into::<ShapeStyle>::into(&color).filled())
+                                    .into_dyn()
+                            },
+                            _ => {
+                                TriangleMarker::new(point, 4,
+                                    Into::<ShapeStyle>::into(&color).filled())
+                                    .into_dyn()
+                            },
+                        }
+                    });
+        }
     }
     chart
         .configure_series_labels()

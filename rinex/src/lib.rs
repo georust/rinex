@@ -2325,28 +2325,28 @@ impl Rinex {
         results
     }
     
-    /// Phase Code Differential analysis.
-    /// Computes Difference between different Phase Observations
-    /// observered against the same carrier frequency.
+    /// Phase Differential Code Bias (DCBs) analysis.
+    /// Computes DBCs by substracting two Phase Observations observed
+    /// against a given carrier frequency.
     /// This will exhibit static or drifting offsets between phase observations.
     /// Cf. page 11
     /// <http://navigation-office.esa.int/attachments_12649498_1_Reichel_5thGalSciCol_2015.pdf>.
     /// Results are sorted by kind of analysis, for instance: "1C-1W" 
     /// means "C" code against "W" code for Carrier 1.
-    pub fn observation_phase_diff(&self) -> HashMap<String, HashMap<Sv, BTreeMap<Epoch, f64>>> {
+    pub fn observation_phase_dcb(&self) -> HashMap<String, HashMap<Sv, BTreeMap<Epoch, f64>>> {
         let mut ret: HashMap<String, HashMap<Sv, BTreeMap<Epoch, f64>>> = HashMap::new();
         
         //TODO lazy_static please
         let known_codes = vec![
-            "1A","1B","1C","1D","1W","1X","1Z","1P","1S","1L","1M",
-            "2C","2W","2D","2S","2L","2P","2M",
+            "1A","1B","1C","1D","1L","1M","1P","1S","1W","1X","1Z",
+                      "2C","2D","2L","2M","2P","2S","2W",
             "3I","3X","3Q",
             "4A","4B","4X",
-            "5A","5B","5C","5P","5I","5Q","5X",
-            "6A","6B","6C","6Q","6X","6Z",
-            "7D","7I","7P","7Q","7X",
-            "8D","8P","8I","8Q","8X",
-            "9A", "9B","9C","9X",
+            "5A","5B","5C","5I","5P","5Q",               "5X",
+            "6A","6B","6C",          "6Q",               "6X","6Z",
+                           "7D","7I","7P","7Q",          "7X",
+            "8D","8P","8I","8Q",                         "8X",
+            "9A", "9B","9C",                             "9X",
         ];
 
         if let Some(record) = self.record.as_obs() {
@@ -2418,32 +2418,33 @@ impl Rinex {
         ret
     }
     
-    /// Pseudo Range (PR) Code Differential analysis.
-    /// Computes Difference between different PR Observations
-    /// observered against the same carrier frequency.
-    /// This will exhibit static or drifting offsets between observations.
+    /// Pseudo Range Differential Code Bias (DCBs) analysis.
+    /// Computes DBCs by substracting two PR Observations observed
+    /// against a given carrier frequency.
+    /// This will exhibit static or drifting offsets between pseudo range observations.
     /// Cf. page 12
     /// <http://navigation-office.esa.int/attachments_12649498_1_Reichel_5thGalSciCol_2015.pdf>.
-    /// Results are sorted by kind of analysis, similarly to [Rinex::observation_phase_diff]. 
-    pub fn observation_pseudorange_diff(&self) -> HashMap<String, BTreeMap<Epoch, f64>> {
-        let mut ret: HashMap<String, BTreeMap<Epoch, f64>> = HashMap::new();
+    /// Results are sorted by kind of analysis, for instance: "1C-1W" 
+    /// means "C" code against "W" code for Carrier 1.
+    pub fn observation_pseudorange_dcb(&self) -> HashMap<String, HashMap<Sv, BTreeMap<Epoch, f64>>> {
+        let mut ret: HashMap<String, HashMap<Sv, BTreeMap<Epoch, f64>>> = HashMap::new();
         
         //TODO lazy_static please
         let known_codes = vec![
-            "1A","1B","1C","1D","1W","1X","1Z","1P","1S","1L","1M",
-            "2C","2W","2D","2S","2L","2P","2M",
+            "1A","1B","1C","1D","1L","1M","1P","1S","1W","1X","1Z",
+                      "2C","2D","2L","2M","2P","2S","2W",
             "3I","3X","3Q",
             "4A","4B","4X",
-            "5A","5B","5C","5P","5I","5Q","5X",
-            "6A","6B","6C","6Q","6X","6Z",
-            "7D","7I","7P","7Q","7X",
-            "8D","8P","8I","8Q","8X",
-            "9A", "9B","9C","9X",
+            "5A","5B","5C","5I","5P","5Q",               "5X",
+            "6A","6B","6C",          "6Q",               "6X","6Z",
+                           "7D","7I","7P","7Q",          "7X",
+            "8D","8P","8I","8Q",                         "8X",
+            "9A", "9B","9C",                             "9X",
         ];
 
         if let Some(record) = self.record.as_obs() {
             for (epoch, (_, vehicules)) in record {
-                for (_sv, observations) in vehicules {
+                for (sv, observations) in vehicules {
                     for (obscode, obsdata) in observations {
                         if is_pseudo_range_obs_code!(obscode) { // this is a PR code
                             let carrier_id = &obscode[1..2];
@@ -2454,9 +2455,9 @@ impl Rinex {
                                     if k_code.starts_with(carrier_id) { // same carrier
                                         let tolocate = "C".to_owned() + k_code;    
                                         if let Some(otherdata) = observations.get(&tolocate) {
-                                            // we found another PH code
+                                            // we found a ref. code
                                             let mut found = false;
-                                            for (op, epochs) in ret.iter_mut() {
+                                            for (op, vehicules) in ret.iter_mut() {
                                                 if op.contains(code) {
                                                     found = true;
                                                     // Diff Op already under progress
@@ -2467,16 +2468,22 @@ impl Rinex {
                                                     if code == items[0] {
                                                         // code is differentiated
                                                         // -- is this a new entry ?
-                                                        if epochs.get(epoch).is_none() {
-                                                            epochs.insert(*epoch, 
-                                                                obsdata.obs - otherdata.obs);
+                                                        if let Some(data) = vehicules.get_mut(&sv) {
+                                                            data.insert(*epoch, obsdata.obs - otherdata.obs);
+                                                        } else {
+                                                            let mut bmap: BTreeMap<Epoch, f64> = BTreeMap::new();
+                                                            bmap.insert(*epoch, obsdata.obs - otherdata.obs);
+                                                            vehicules.insert(*sv, bmap);
                                                         }
                                                     } else {
-                                                        // code is referenced to
+                                                        // code is differentiated
                                                         // -- is this a new entry ?
-                                                        if epochs.get(epoch).is_none() {
-                                                            epochs.insert(*epoch, 
-                                                                otherdata.obs - obsdata.obs);
+                                                        if let Some(data) = vehicules.get_mut(&sv) {
+                                                            data.insert(*epoch, otherdata.obs - obsdata.obs);
+                                                        } else {
+                                                            let mut bmap: BTreeMap<Epoch, f64> = BTreeMap::new();
+                                                            bmap.insert(*epoch, otherdata.obs - obsdata.obs); 
+                                                            vehicules.insert(*sv, bmap);
                                                         }
                                                     }
                                                 }
@@ -2484,11 +2491,13 @@ impl Rinex {
                                             if !found {
                                                 // this is a new Diff Op 
                                                 // => initiate it
-                                                let mut inner: BTreeMap<Epoch, f64> = BTreeMap::new();
-                                                inner.insert(*epoch, obsdata.obs - otherdata.obs);
+                                                let mut bmap: BTreeMap<Epoch, f64> = BTreeMap::new();
+                                                bmap.insert(*epoch, otherdata.obs - obsdata.obs); 
+                                                let mut map: HashMap<Sv, BTreeMap<Epoch, f64>> = HashMap::new();
+                                                map.insert(*sv, bmap);
                                                 ret.insert(
                                                     format!("{}-{}", code, k_code),
-                                                    inner);
+                                                    map);
                                             }
                                         }
                                     }
@@ -2501,143 +2510,6 @@ impl Rinex {
         }
         ret
     }
-    
-    /// Efficient PH + PR differential analysis.
-    /// Results are (Differenced PH, Differenced PR).
-    /// Same analysis as previously defined in
-    /// [Rinex::observation_pseudorange_diff] 
-    /// and in [Rinex::observation_phase_diff]
-    /// but we perform both analysis in the same iteration,
-    /// to save time.
-    pub fn observation_code_diff(&self) -> 
-        (HashMap<String, BTreeMap<Epoch, f64>>, HashMap<String, BTreeMap<Epoch, f64>>)
-    {
-        let mut ph_ret: HashMap<String, BTreeMap<Epoch, f64>> = HashMap::new();
-        let mut pr_ret: HashMap<String, BTreeMap<Epoch, f64>> = HashMap::new();
-        
-        //TODO lazy_static please
-        let known_codes = vec![
-            "1A","1B","1C","1D","1W","1X","1Z","1P","1S","1L","1M",
-            "2C","2W","2D","2S","2L","2P","2M",
-            "3I","3X","3Q",
-            "4A","4B","4X",
-            "5A","5B","5C","5P","5I","5Q","5X",
-            "6A","6B","6C","6Q","6X","6Z",
-            "7D","7I","7P","7Q","7X",
-            "8D","8P","8I","8Q","8X",
-            "9A", "9B","9C","9X",
-        ];
-
-        if let Some(record) = self.record.as_obs() {
-            for (epoch, (_, vehicules)) in record {
-                for (_sv, observations) in vehicules {
-                    for (obscode, obsdata) in observations {
-                        if is_phase_carrier_obs_code!(obscode) { // this is a PH code
-                            let carrier_id = &obscode[1..2];
-                            let code = &obscode[1..];
-                            // locate a reference PH code for this PH code 
-                            for k_code in &known_codes {
-                                if *k_code != code { // different code
-                                    if k_code.starts_with(carrier_id) { // same carrier
-                                        let tolocate = "L".to_owned() + k_code;    
-                                        if let Some(otherdata) = observations.get(&tolocate) {
-                                            // we found another PH code
-                                            let mut found = false;
-                                            for (op, epochs) in ph_ret.iter_mut() {
-                                                if op.contains(code) {
-                                                    found = true;
-                                                    // Diff Op already under progress
-                                                    // now we need to determine code' and k_code' roles
-                                                    // so referencing remains consistent
-                                                    let items: Vec<&str> = op.split("-")
-                                                        .collect();
-                                                    if code == items[0] {
-                                                        // code is differentiated
-                                                        // -- is this a new entry ?
-                                                        if epochs.get(epoch).is_none() {
-                                                            epochs.insert(*epoch, 
-                                                                obsdata.obs - otherdata.obs);
-                                                        }
-                                                    } else {
-                                                        // code is referenced to
-                                                        // -- is this a new entry ?
-                                                        if epochs.get(epoch).is_none() {
-                                                            epochs.insert(*epoch, 
-                                                                otherdata.obs - obsdata.obs);
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                            if !found {
-                                                // this is a new Diff Op 
-                                                // => initiate it
-                                                let mut inner: BTreeMap<Epoch, f64> = BTreeMap::new();
-                                                inner.insert(*epoch, obsdata.obs - otherdata.obs);
-                                                ph_ret.insert(
-                                                    format!("{}-{}", code, k_code),
-                                                    inner);
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        } else if is_pseudo_range_obs_code!(obscode) { // this is a PR code
-                            let carrier_id = &obscode[1..2];
-                            let code = &obscode[1..];
-                            // locate a reference PR code for this PR code 
-                            for k_code in &known_codes {
-                                if *k_code != code { // different code
-                                    if k_code.starts_with(carrier_id) { // same carrier
-                                        let tolocate = "C".to_owned() + k_code;    
-                                        if let Some(otherdata) = observations.get(&tolocate) {
-                                            // we found another PH code
-                                            let mut found = false;
-                                            for (op, epochs) in pr_ret.iter_mut() {
-                                                if op.contains(code) {
-                                                    found = true;
-                                                    // Diff Op already under progress
-                                                    // now we need to determine code' and k_code' roles
-                                                    // so referencing remains consistent
-                                                    let items: Vec<&str> = op.split("-")
-                                                        .collect();
-                                                    if code == items[0] {
-                                                        // code is differentiated
-                                                        // -- is this a new entry ?
-                                                        if epochs.get(epoch).is_none() {
-                                                            epochs.insert(*epoch, 
-                                                                obsdata.obs - otherdata.obs);
-                                                        }
-                                                    } else {
-                                                        // code is referenced to
-                                                        // -- is this a new entry ?
-                                                        if epochs.get(epoch).is_none() {
-                                                            epochs.insert(*epoch, 
-                                                                otherdata.obs - obsdata.obs);
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                            if !found {
-                                                // this is a new Diff Op 
-                                                // => initiate it
-                                                let mut inner: BTreeMap<Epoch, f64> = BTreeMap::new();
-                                                inner.insert(*epoch, obsdata.obs - otherdata.obs);
-                                                pr_ret.insert(
-                                                    format!("{}-{}", code, k_code),
-                                                    inner);
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        (ph_ret, pr_ret)
-    }
-
 /*
     /// "Upsamples" to match desired epoch interval
     pub fn upsample_by_interval_mut (&mut self, interval: chrono::Duration) {

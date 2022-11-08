@@ -13,21 +13,20 @@ and Navigation context to be passed with `--nav`.
 This library is implemented such as Military codes are supported just like others.
 They're just not tested due to obvious lack of data.
 
-## Phase (PH) Differential Code analysis
+Phase Differential Code Biases (DBCs)
+=====================================
 
-Phase Code differential analysis can be performed on Observation RINEX with `--phase-diff`.  
-This analysis is very useful to determine correlations and biases between different codes.
+Phase DBCs can be evaluated on Observation RINEX with `--phase-dcb`.  
+This analysis is very useful to determine correlations and biases between different codes.  
 
-This operation differentiates phase data
-between two phase codes sampled against the same carrier frequency.
+This operation substracts a reference phase point to another phase observation,
+as long as they were sampled against the same carrier frequency.
 
 Refer to page 11 of
 [this ESA analysis](http://navigation-office.esa.int/attachments_12649498_1_Reichel_5thGalSciCol_2015.pdf)
 
+When requesting this operation, you get a "phase-dcb.png" plot.  
 It is highly recommended to focus on vehicules of interest when performing such analysis.  
-
-The current interface is not powerful enough to display correctly the same Code analysis
-against two different vehicules (work in progress), so proceed as described down below. 
 
 Example: `ESBC00DNK_R_2020` has enough information to evaluate
 
@@ -35,44 +34,45 @@ Example: `ESBC00DNK_R_2020` has enough information to evaluate
 * 2C/2P for GLO L2 (2)
 * 2L/2W for GPS L2 (3)
 
-Get (1)+(2) with:
+Get (1)+(2) for R09 and R18 with:
 
 ```bash
 rinex-cli --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    --phase-diff \
-    --retain-sv R09 
+    --phase-dcb \
+    --retain-sv R09,R18
 ```
 
 <img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_glo_ph.png">
 
 Three very linear phases took place during that day, we huge data gaps in between
-(channel stopped or vehicule out of sight). To determine how linear those phases
-really were, we set a time window to zoom in on one of them:
+(channel stopped or vehicule out of sight). Focusing on one of these phases
+helps determine how linear they were. To do so, we can use set a time window with `-w`:
 
 ```bash
 rinex-cli --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
     -w "2020-06-25 10:00:00 2020-06-25 18:00:00" \
-    --phase-diff \
-    --retain-sv R09 
+    --phase-dcb \
+    --retain-sv R09,R18 
 ```
 
 <img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_glo_ph_zoom.png">
 
-Very good linearity during midday and most of the afternoon.
-
-Zoom in on (1)+(2)+(3) at the same time:
+Now let's introduce a GPS vehicule so we also get (3):
 
 ```bash
 rinex-cli --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    -w "2020-06-25 10:00:00 2020-06-25 18:00:00" \
-    --phase-diff \
-    --retain-sv R09,G01 
+    -w "2020-06-25 09:00:00 2020-06-25 12:00:00" \
+    --phase-dcb \
+    --retain-sv R09,R18,G31
 ```
 
-## Pseudo Range (PR) Differential Code analysis
+<img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_glogps_ph_zoom.png">
 
-PR Differential analysis is the same differential approach,
-but we focus on Pseudo Range observations instead.
+Pseudo Range Differential Code Biases (DBCs) estimates
+======================================================
+
+In similar fashion, Pseudo Range DBCs can be estimated with `--pr-dcb`.   
+It it the very same approach, but applied to Pseudo Range observations.
 
 Refer to page 12 of
 [the ESA analysis](http://navigation-office.esa.int/attachments_12649498_1_Reichel_5thGalSciCol_2015.pdf)
@@ -80,46 +80,40 @@ Refer to page 12 of
 Example: `ESBC00DNK_R_2020` can evaluate
 
 * 1C/1W for GPS(L1) (1)
-* 1P/1C for GLO(L1) (2)
-* 2L/2W for GPS(L2) (3)
+* 2L/2W for GPS(L2) (2)
+* 1P/1C for GLO(L1) (3)
 * 2C/2P for GLO(L2) (4)
 
-(1)+(2)+(3)+(4) with:
+Get (1)+(2) with G06 and G31:
 
 ```bash
 rinex-cli --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    --retain-sv G01,R21 \
-    --pr-diff
+    --retain-sv G06,G31 \
+    --pr-dcb \
+    -w "2020-06-25 18:00:00 2020-06-25 20:30:00" 
 ```
 
-<img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_prdiff.png">
+<img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_gps_prdiff.png">
 
-PR codes have less data gaps than PH codes (previous analysis).  
-Lets focus (1)+(2)+(3)+(4) on the end of the day like we did before
+Focus on observations you're interested in, to get the DBCs you're interested in.  
+Get only (1) for G06 and G31:
 
 ```bash
 rinex-cli --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    --retain-sv G01,R21 \
-    -w "2020-06-25 10:00:00 2020-06-25 23:30:00" \
-    --pr-diff
+    --retain-obs C1C,C1W \  
+    --retain-sv G06,G31 \
+    --pr-dcb \
+    -w "2020-06-25 18:00:00 2020-06-25 23:00:00"
 ```
 
-<img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_prdiff_zoom.png">
+<img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_gps_pr1c1w.png">
 
-## PR + PH Differential Code analysis
+PR + PH DCBs
+============
 
-A special `--code-diff` opmode can be passed to perform
-both previous analysis in a more efficient implementation 
-(less iterations, quicker implementation).
+Both previous analysis can be performed at once, by requesting
+`--phase-dcb` and `--pr-dcb` at the same time.
 
-The following command produces the same results as demonstrated
-in the two previous paragraphs
-
-```bash
-rinex-cli --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    --retain-sv R08 \
-    --code-diff
-```
 
 Differential Processing
 =======================

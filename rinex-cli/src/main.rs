@@ -72,49 +72,31 @@ pub fn main() -> Result<(), rinex::Error> {
     }
 
     /*
-     * Phase diff analysis 
+     * Phase DCB analysis 
      */
-    if cli.phase_diff() {
-        let data = rnx.observation_phase_diff();
-        let dims = cli.plot_dimensions();
-        /*plot::differential::plot(dims, 
-            "phase-diff.png", 
-            "PH Code Differential analysis",
-            "Phase Difference [n.a]",
-            &data);*/
-        return Ok(());
-    }
-
-    /*
-     * PR diff analysis
-     */
-    if cli.pseudorange_diff() {
-        let data = rnx.observation_pseudorange_diff();
+    if cli.phase_dcb() {
+        let data = rnx.observation_phase_dcb();
         let dims = cli.plot_dimensions();
         plot::differential::plot(dims, 
-            "pseudorange-diff.png", 
-            "PR Code Differential analysis",
-            "PR Difference [n.a]",
+            "phase-dcb.png", 
+            "Phase Differential Code Biases",
+            "DBCs [n.a]",
             &data);
-        return Ok(());
     }
-
     /*
-     * PH + PR diff efficient impl
+     * PR DCB analysis
      */
-    if cli.code_diff() {
-        let (ph_data, pr_data) = rnx.observation_code_diff();
+    if cli.pseudorange_dcb() {
+        let data = rnx.observation_pseudorange_dcb();
         let dims = cli.plot_dimensions();
         plot::differential::plot(dims, 
-            "phase-diff.png", 
-            "PH Code Differential analysis",
-            "Phase Difference [n.a]",
-            &ph_data);
-        plot::differential::plot(dims, 
-            "pseudorange-diff.png", 
-            "PR Code Differential analysis",
-            "PR Difference [n.a]",
-            &pr_data);
+            "pseudorange-dcb.png", 
+            "Pseudo Range Differential Code Biases",
+            "DCBs [n.a]",
+            &data);
+    }
+    if cli.phase_dcb() || cli.pseudorange_dcb() {
+        return Ok(());
     }
 
     /*
