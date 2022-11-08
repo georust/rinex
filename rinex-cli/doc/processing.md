@@ -44,9 +44,10 @@ rinex-cli --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz 
 
 <img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_glo_ph.png">
 
-Three very linear phases took place during that day, we huge data gaps in between
-(channel stopped or vehicule out of sight). Focusing on one of these phases
-helps determine how linear they were. To do so, we can use set a time window with `-w`:
+Three very linear phases took place during that day, with huge data gaps in between
+(channel stopped or vehicule out of sight).   
+Focusing on one of these phases helps determine how linear they were.   
+To do so, we can use set a time window with `-w`:
 
 ```bash
 rinex-cli --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
@@ -72,7 +73,7 @@ Pseudo Range Differential Code Biases (DBCs) estimates
 ======================================================
 
 In similar fashion, Pseudo Range DBCs can be estimated with `--pr-dcb`.   
-It it the very same approach, but applied to Pseudo Range observations.
+It it the exact same approach, but applied to Pseudo Range observations.
 
 Refer to page 12 of
 [the ESA analysis](http://navigation-office.esa.int/attachments_12649498_1_Reichel_5thGalSciCol_2015.pdf)
