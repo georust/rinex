@@ -103,6 +103,4 @@ Always compile rust code with the `--release` flag :+1:
 Contributions are welcomed, do not hesitate to open new issues
 and submit Pull Requests.
 
-We're looking for Ionosphere Maps (IONEX) to put our parser to the test, providing such data would be really appreciated.
-
 If you want to take part in active developments, checkout our [TODO list](TODO.md)
