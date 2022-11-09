@@ -22,16 +22,12 @@ pub struct Context<'a> {
     pub charts: HashMap<String, ChartState<Plot2d>>,
     /// Record analysis is against time
     pub t_axis: Vec<f64>, 
-    /// Color map used for plotting,
-    /// we define one color per physics (Observations)
-    pub cmap: HashMap<String, RGBAColor>,
 }
 
 impl Default for Context<'_> {
     fn default() -> Self {
         Self {
             t_axis: Vec::new(),
-            cmap: HashMap::new(),
             charts: HashMap::new(),
             plots: HashMap::new(),
         }

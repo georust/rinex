@@ -73,7 +73,6 @@ pub fn build_context<'a> (dim: (u32, u32), record: &Record) -> Context<'a> {
     Context {
         plots,
         charts,
-        cmap: HashMap::new(), // not needed since we have 1 observable per plot
         t_axis,
     }
 }

@@ -39,7 +39,6 @@ pub fn build_context<'a> (dim: (u32, u32), record: &Record) -> Context<'a> {
         DrawingArea<BitMapBackend, Shift>>
             = HashMap::with_capacity(4);
     let mut y_ranges: HashMap<String, (f64,f64)> = HashMap::new();
-    let mut cmap: HashMap<String, RGBAColor> = HashMap::with_capacity(32);
     let mut charts: HashMap<String, ChartState<Plot2d>> = HashMap::new();
 
     //  => 1 plot per physics (ie., Observable)
@@ -80,13 +79,7 @@ pub fn build_context<'a> (dim: (u32, u32), record: &Record) -> Context<'a> {
         //
         // Color space: one color per vehicule
         //    identified by PRN#
-        for (v_index, (vehicule, observations)) in vehicules.iter().enumerate() {
-            if cmap.get(&vehicule.to_string()).is_none() {
-                cmap.insert(
-                    vehicule.to_string(),
-                    Palette99::pick((vehicule.prn+10).into()) // RGB
-                        .mix(0.99)); // => RGBA
-            }
+        for (v_index, (sv, observations)) in vehicules.iter().enumerate() {
             for (observation, data) in observations {
                 if is_phase_carrier_obs_code!(observation) {
                     let file = "phase.png";
@@ -111,7 +104,7 @@ pub fn build_context<'a> (dim: (u32, u32), record: &Record) -> Context<'a> {
                         let plot = build_plot(file, dim);
                         plots.insert(file.to_string(), plot);
                     }
-                    if let Some((min,max)) = y_ranges.get_mut("DOP") {
+                    if let Some((min,max)) = y_ranges.get_mut("Doppler") {
                         if data.obs < *min {
                             *min = data.obs;
                         }
@@ -119,7 +112,7 @@ pub fn build_context<'a> (dim: (u32, u32), record: &Record) -> Context<'a> {
                             *max = data.obs;
                         }
                     } else {
-                        y_ranges.insert("DOP".to_string(),
+                        y_ranges.insert("Doppler".to_string(),
                             (data.obs,data.obs));
                     }
                 } else if is_pseudo_range_obs_code!(observation) {
@@ -179,15 +172,14 @@ pub fn build_context<'a> (dim: (u32, u32), record: &Record) -> Context<'a> {
     Context {
         plots,
         charts,
-        cmap,
         t_axis,
     }
 }
 
 pub fn plot(ctx: &mut Context, record: &Record) {
     let mut e0: i64 = 0;
+    let cmap = colorous::TURBO; // to differentiate vehicules (PRN#)
     let symbols = vec!["x","t","o"]; // to differentiate carrier signals
-    let mut carrier: usize = 0;
     // sorted by Physics, By Carrier number, By vehicule, (x,y)
     let mut clk_offset: Vec<(f64,f64)> = Vec::new();
     let mut dataset: HashMap<String, HashMap<u8, HashMap<Sv, Vec<(f64,f64)>>>> = HashMap::new();
@@ -294,8 +286,8 @@ pub fn plot(ctx: &mut Context, record: &Record) {
             let symbol = symbols[carrier as usize % symbols.len()]; // one symbol per carrier
             for (sv, data) in vehicules {
                 // retrieve color from color map
-                let color = ctx.cmap.get(&sv.to_string())
-                    .expect(&format!("no color defined for {:?}", sv));
+                let color = cmap.eval_rational(sv.prn.into(), 50); 
+                let color = RGBColor { 0: color.r, 1: color.g, 2: color.b };
                 // plot
                 chart.draw_series(LineSeries::new(
                     data.iter()
