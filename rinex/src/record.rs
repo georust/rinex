@@ -1,4 +1,3 @@
-//! `RINEX` file content description and parsing
 use thiserror::Error;
 use std::io::prelude::*;
 use std::collections::{BTreeMap, HashMap};
@@ -25,7 +24,6 @@ use super::{
     hatanaka::{Compressor, Decompressor},
 };
 
-/// `Record`
 #[derive(Clone, Debug)]
 #[derive(PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
@@ -34,7 +32,7 @@ pub enum Record {
     AntexRecord(antex::Record),
     /// Clock record, see [clocks::record::Record] 
     ClockRecord(clocks::Record),
-	/// IONEX (Ionosphere TEC maps) record, see [ionex::record::Record]
+	/// IONEX (Ionosphere maps) record, see [ionex::record::Record]
     IonexRecord(ionex::Record),
 	/// Meteo record, see [meteo::record::Record]
     MeteoRecord(meteo::Record),
@@ -230,7 +228,6 @@ pub fn parse_record(reader: &mut BufferedReader, header: &mut header::Header) ->
     let mut first_epoch = true;
     let mut content : Option<String>; // epoch content to build
     let mut epoch_content = String::with_capacity(6*64);
-    let mut exponent: i8 = -1; //IONEX record scaling: this is the default value
     
     // to manage `record` comments
     let mut comments : Comments = Comments::new();
@@ -318,13 +315,10 @@ pub fn parse_record(reader: &mut BufferedReader, header: &mut header::Header) ->
             // or regular RINEX content passed
             // --> epoch boundaries determination
             for line in content.lines() { // may comprise several lines, in case of CRINEX
-                let mut new_epoch = is_new_epoch(line, &header);
-                if ionex::is_new_rms_map(line) {
-                    ionx_rms = true;
-                }
-                if ionex::is_new_height_map(line) {
-                    ionx_height = true;
-                }
+                let new_epoch = is_new_epoch(line, &header);
+                ionx_rms |= ionex::is_new_rms_map(line);
+                ionx_height |= ionex::is_new_height_map(line);
+                
                 if new_epoch && !first_epoch {
                     match &header.rinex_type {
                         Type::NavigationData => {
@@ -405,12 +399,14 @@ pub fn parse_record(reader: &mut BufferedReader, header: &mut header::Header) ->
                         Type::IonosphereMaps => {
                             if let Ok((index, epoch, map)) = ionex::parse_map(header, &epoch_content) {
                                 if ionx_rms {
+                                    ionx_rms = false;
                                     if let Some(e) = ionx_epochs.get(index) { // relate
                                         if let Some((_, rms, _)) = ionx_rec.get_mut(e) { // locate
                                             *rms = Some(map); // insert
                                         }
                                     }
                                 } else if ionx_height {
+                                    ionx_height = false;
                                     if let Some(e) = ionx_epochs.get(index) { // relate
                                         if let Some((_, _, h)) = ionx_rec.get_mut(e) { // locate
                                             *h = Some(map); // insert
@@ -615,9 +611,9 @@ impl Split<Record> for Record {
         } else if let Some(r) = self.as_meteo() {
             let (r0, r1) = r.split(epoch)?;
             Ok((Self::MeteoRecord(r0), Self::MeteoRecord(r1)))
-        /*} else if let Some(r) = self.as_ionex() {
+        } else if let Some(r) = self.as_ionex() {
             let (r0, r1) = r.split(epoch)?;
-            Ok((Self::IonexRecord(r0), Self::IonexRecord(r1)))*/
+            Ok((Self::IonexRecord(r0), Self::IonexRecord(r1)))
         } else if let Some(r) = self.as_clock() {
             let (r0, r1) = r.split(epoch)?;
             Ok((Self::ClockRecord(r0), Self::ClockRecord(r1)))
@@ -636,8 +632,8 @@ impl Decimation<Record> for Record {
             rec.decim_by_ratio_mut(r);
         } else if let Some(rec) = self.as_mut_meteo() {
             rec.decim_by_ratio_mut(r);
-        //} else if let Some(rec) = self.as_mut_ionex() {
-        //    rec.decim_by_ratio_mut(r);
+        } else if let Some(rec) = self.as_mut_ionex() {
+            rec.decim_by_ratio_mut(r);
         } else if let Some(rec) = self.as_mut_clock() {
             rec.decim_by_ratio_mut(r);
         } else if let Some(rec) = self.as_mut_antex() {

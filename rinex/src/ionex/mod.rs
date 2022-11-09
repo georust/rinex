@@ -1,5 +1,4 @@
 use super::Sv;
-use std::str::FromStr;
 use strum_macros::EnumString;
 use std::collections::HashMap;
 
@@ -207,6 +206,7 @@ impl HeaderFields {
 #[cfg(test)]
 mod test {
     use super::*;
+    use std::str::FromStr;
     #[test]
     fn test_mapping_func() {
         let content = "COSZ";

@@ -13,12 +13,12 @@ RINEX
 Rust tool suites to parse, analyze, manipulate `RINEX` files
 
 * [`rinex`](rinex/) is the core library 
+* [`rinex-cli`](rinex-cli/) is a command line application to pust the crate into use.  
+It can be used for RINEX processing, perform `teqc` operations and so on.
+
 * [`rnx2crx`](rnx2crx/) is a RINEX compression program 
 * [`crx2rnx`](crx2rnx/) is a CRINEX decompression program (Compact RINEX to RINEX)
 * [`sinex`](sinex/) SNX dedicated core library
-
-* [`rinex-cli`](rinex-cli/) is a command line application to pust the crate into use.
-It can perform some `teqc` operations, differential analysis..
 
 * [`ublox-rnx`](ublox-rnx/) is an application that connects to a `Ublox`
 receiver and generates RINEX data quickly & easily.   
@@ -33,9 +33,9 @@ and [rinex](rinex/) crates.
 | Observation (OBS)          | :heavy_check_mark:| :heavy_check_mark: | :heavy_check_mark:  :chart_with_upwards_trend: |  :construction:  | Epoch iteration |
 |  CRINEX  (Compressed OBS)  | :heavy_check_mark:| :construction:  | :heavy_check_mark:  :chart_with_upwards_trend:  |  :construction:    | Epoch iteration |
 |  Meteorological data (MET) | :heavy_check_mark:| :heavy_check_mark:  | :heavy_check_mark: :chart_with_upwards_trend:  | :construction:  | Epoch iteration |  
-|  Clocks (CLK)              | :heavy_check_mark:| :construction:          | :question:           |:construction: | Epoch iteration |
+|  Clocks (CLK)              | :heavy_check_mark:| :construction:      | :question:           |:construction: | Epoch iteration |
 |  Antenna (ATX)             | :heavy_check_mark:| :construction:      | :heavy_minus_sign:   |:construction: | Sorted by `antex::Antenna` |
-|  Ionosphere Maps  (IONEX)  | :construction:         |  :construction:     | :question:           |:construction: | Epoch iteration |
+|  Ionosphere Maps  (IONEX)  | :heavy_check_mark:|  :construction:     | :question:           |:construction: | Epoch iteration |
 |  SINEX  (SNX)              | :construction:    |  :construction:     | :heavy_minus_sign:   |:construction: | SINEX are special RINEX, they are managed by a dedicated [core library](sinex/)  |
 |  Troposphere  (TRO)        | :construction:    |  :construction:     | :question:           |:construction: | Troposphere are one possible SINEX declination |
 |  Bias  (BIA)               | :heavy_check_mark: |  :construction:    | :question:           |:construction: | Bias solutions are one possible SINEX declination |

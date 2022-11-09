@@ -55,6 +55,44 @@ pub type Map = Vec<MapPoint>;
 /// For each epoch, a TEC map is always given.
 /// Possible RMS map and Height map may exist at a given epoch.
 /// Ionosphere maps are always given in Earth fixed reference frames.
+/// ```
+/// use rinex::prelude::*;
+/// use rinex::ionex::*;
+/// let rinex = Rinex::from_file("../test_resources/IONEX/V1/CKMG0020.22I.gz")
+///     .unwrap();
+/// assert_eq!(rinex.is_ionex(), true);
+/// assert_eq!(rinex.is_ionex_2d(), true);
+/// if let Some(params) = rinex.header.ionex {
+///     assert_eq!(params.grid.height.start, 350.0); // 2D: record uses
+///     assert_eq!(params.grid.height.end, 350.0); // fixed altitude
+///     assert_eq!(params.grid.latitude.start, 87.5); 
+///     assert_eq!(params.grid.latitude.end, -87.5); 
+///     assert_eq!(params.grid.latitude.spacing, -2.5); // latitude granularity (degrees)
+///     assert_eq!(params.grid.longitude.start, -180.0); 
+///     assert_eq!(params.grid.longitude.end, 180.0); 
+///     assert_eq!(params.grid.longitude.spacing, 5.0); // longitude granularity (degrees)
+///     assert_eq!(params.exponent, -1); // data scaling. May vary accross epochs.
+///                             // so this is only the last value encountered
+///     assert_eq!(params.elevation_cutoff, 0.0);
+///     assert_eq!(params.mapping, None); // no mapping function
+/// }
+/// let record = rinex.record.as_ionex()
+///     .unwrap();
+/// for (epoch, (tec, rms, height)) in record {
+///     // RMS map never provided in this file
+///     assert_eq!(rms.is_none(), true);
+///     // 2D IONEX: height maps never provided
+///     assert_eq!(height.is_none(), true);
+///     // We only get TEC maps
+///     // when using TEC values, we previously applied all required scalings
+///     for point in tec {
+///         let lat = point.latitude; // in ddeg
+///         let lon = point.longitude; // in ddeg
+///         let alt = point.altitude; // in km
+///         let value = point.value; // correctly scaled ("exponent")
+///     }
+/// }
+/// ```
 pub type Record = BTreeMap<Epoch, (Map, Option<Map>, Option<Map>)>;
 
 #[derive(Debug, Error)]
@@ -82,13 +120,15 @@ pub fn parse_map(header: &mut Header, content: &str) -> Result<(usize, Epoch, Ma
     let mut altitude: f32 = 0.0; // current altitude
     let mut ptr: usize = 0; // pointer in longitude space
     let mut linspace = GridLinspace::default(); // (longitude) linspace
-    let mut ionex = header.ionex
+    let ionex = header.ionex
         .as_mut()
         .expect("faulty ionex context: missing specific header definitions");
     for line in lines {
         if line.len() > 60 {
             let (content, marker) = line.split_at(60);
-            if marker.contains("END OF") && marker.contains("MAP") {
+            if marker.contains("START OF") {
+                continue ; // skip that one
+            } else if marker.contains("END OF") && marker.contains("MAP") {
                 let index = content.split_at(6).0;
                 if let Ok(u) = u32::from_str_radix(index.trim(), 10) {
                     return Ok((u as usize, epoch, map));
@@ -198,7 +238,6 @@ mod test {
     }
 }
 
-/*
 impl Merge<Record> for Record {
     /// Merges `rhs` into `Self` without mutable access at the expense of more memcopies
     fn merge(&self, rhs: &Self) -> Result<Self, merge::Error> {
@@ -208,75 +247,24 @@ impl Merge<Record> for Record {
     }
     /// Merges `rhs` into `Self`
     fn merge_mut(&mut self, rhs: &Self) -> Result<(), merge::Error> {
-        for (epoch, (tec_map, rms_map, h_map)) in rhs.iter() {
-            if let Some((ttec_map, rrms_map, hh_map)) = self.get_mut(epoch) {
-                for coordinates in tec_map.iter() {
-                    if ttec_map.contains(coordinates) {
-                        let (coordinates, points) = coordinates;
-                        for point in points {
-                            for (ccoordinates, ppoints) in ttec_map.iter_mut() {
-                                if coordinates == ccoordinates { // for this coordinate
-                                    if !ppoints.contains(point) {
-                                        // provide missing point
-                                        ppoints.push(*point);
-                                    }
-                                }
-                            }
-                        }
-                    } else { // provide previously missing coordinates
-                        ttec_map.push(coordinates.clone());
+    /*
+        for (epoch, maps) in rhs.iter() {
+            if let (tec, Some(rms), Some(h)) = maps {
+                if let Some(maps) = self.get_mut(epoch) {
+                    let ((ttec, rrms, hh)) = maps; 
+                    if rrms.is_none() {
+                        // RMS map now provided for this epoch
+                        rrms = Some(map);
                     }
-                }
-                if let Some(map) = rms_map {
-                    if let Some(mmap) = rrms_map {
-                        for coordinates in map.iter() {
-                            if mmap.contains(coordinates) {
-                                let (coordinates, points) = coordinates;
-                                for point in points {
-                                    for (ccoordinates, ppoints) in mmap.iter_mut() {
-                                        if coordinates == ccoordinates { // for these coordinates
-                                            if !ppoints.contains(point) {
-                                                // provide missing point
-                                                ppoints.push(*point);
-                                            }
-                                        }
-                                    }
-                                }
-                            } else { // provide previous missing coordinates
-                                mmap.push(coordinates.clone());
-                            }
-                        }
-                    } else { // provide previously omitted RMS map
-                        *rrms_map = Some(map.clone());
+                    if hh.is_none() {
+                        // Height map now provided for this epoch
+                        hh = Some(map);
                     }
+                } else { // new epoch
+                    self.insert(*epoch, (tec, rms, h));
                 }
-                if let Some(map) = h_map {
-                    if let Some(mmap) = hh_map {
-                        for coordinates in map.iter() {
-                            if mmap.contains(coordinates) {
-                                let (coordinates, points) = coordinates;
-                                for point in points {
-                                    for (ccoordinates, ppoints) in mmap.iter_mut() {
-                                        if coordinates == ccoordinates { // for these coordinates
-                                            if !ppoints.contains(point) {
-                                                // provide missing point
-                                                ppoints.push(*point);
-                                            }
-                                        }
-                                    }
-                                }
-                            } else { // provide previous missing coordinates
-                                mmap.push(coordinates.clone());
-                            }
-                        }
-                    } else { // provide previously omitted RMS map
-                        *hh_map = Some(map.clone());
-                    }
-                }
-            } else { // new epoch
-                self.insert(*epoch, (tec_map.clone(), rms_map.clone(), h_map.clone()));
             }
-        }
+        }*/
         Ok(())
     }
 }
@@ -341,4 +329,4 @@ impl Decimation<Record> for Record {
         s.decim_by_interval_mut(interval);
         s
     }
-}*/
+}

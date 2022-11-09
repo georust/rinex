@@ -40,11 +40,13 @@ mod test {
         let record = record.unwrap();
         assert_eq!(record.len(), 25);
         
+        // test: this is a 2D IONEX
         for (_, (_, rms, h)) in record {
             assert_eq!(h.is_none(), true);
             assert_eq!(rms.is_none(), true);
         }
 
+        // epoch [1]
         let e = Epoch {
             date: str2date("2022 1 2 0 0 0").unwrap(),
             flag: EpochFlag::default(),
@@ -55,23 +57,63 @@ mod test {
             assert_eq!(p.altitude, 350.0);
             if p.latitude == 87.5 {
                 if p.longitude == -180.0 {
-                    assert_eq!(p.value, 9.2);
+                    assert!((p.value - 9.2).abs() < 1E-3);
                 }
                 if p.longitude == -175.0 {
-                    assert_eq!(p.value, 9.2);
+                    assert!((p.value - 9.2).abs() < 1E-3);
                 }
             }
             if p.latitude == 85.0 {
                 if p.longitude == -180.0 {
-                    assert_eq!(p.value, 9.2);
+                    assert!((p.value - 9.2).abs() < 1E-3);
                 }
             }
             if p.latitude == 32.5 {
                 if p.longitude == -180.0 {
-                    assert_eq!(p.value, 17.7);
+                    assert!((p.value - 17.7).abs() < 1E-3);
                 }
                 if p.longitude == -175.0 {
-                    assert_eq!(p.value, 16.7);
+                    assert!((p.value - 16.7).abs() < 1E-3);
+                }
+            }
+        }
+        // epoch [N-2]
+        let e = Epoch {
+            date: str2date("2022 1 2 23 0 0").unwrap(),
+            flag: EpochFlag::default(),
+        };
+        let data = record.get(&e);
+        let (tec, _, _) = data.unwrap();
+        for p in tec {
+            assert_eq!(p.altitude, 350.0);
+            if p.latitude == 87.5 {
+                if p.longitude == -180.0 {
+                    assert!((p.value - 9.2).abs() < 1E-3);
+                }
+                if p.longitude == -175.0 {
+                    assert!((p.value - 9.2).abs() < 1E-3);
+                }
+            }
+            if p.latitude == 27.5 {
+                if p.longitude == -180.0 {
+                    assert!((p.value - 21.6).abs() < 1E-3);
+                }
+                if p.longitude == -175.0 {
+                    assert!((p.value - 21.4).abs() < 1E-3);
+                }
+            }
+            if p.latitude == 25.0 {
+                if p.longitude == -180.0 {
+                    assert!((p.value - 23.8).abs() < 1E-3);
+                }
+                if p.longitude == -175.0 {
+                    assert!((p.value - 23.8).abs() < 1E-3);
+                }
+                if p.longitude == 170.0 {
+                    assert!((p.value - 23.2).abs() < 1E-3);
+                }
+                if p.longitude == 160.0 {
+                    assert!((p.value - 21.8).abs() < 1E-3);
                 }
             }
         }

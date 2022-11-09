@@ -879,9 +879,9 @@ impl Header {
                     if let Ok(start) = f32::from_str(items[0].trim()) {
                         if let Ok(end) = f32::from_str(items[1].trim()) {
                             if let Ok(spacing) = f32::from_str(items[2].trim()) {
-                                let grid = match spacing {
-                                    0.0 => {
-                                        ionex::GridLinspace {
+                                let grid = match spacing == 0.0 {
+                                    true => { // special case, 2D fixed altitude
+                                        ionex::GridLinspace { // avoid verifying the Linspace in this case
                                             start,
                                             end,
                                             spacing: 0.0,
