@@ -172,32 +172,11 @@ operations can be stacked to Record analysis,
 to focus on data of interest.
 
 By default, Record analysis is exposed as JSON structure.  
-For [supported RINEX record](https://github.com/gwbres/blob/main/README.md),
-the `--plot` flag can be passed to switch to data visualization.  
-In this scenario, one ore more PNG files will be generated, it depends
-on which kind of RINEX is being analyzed. For instance:
+For supported RINEX files, the `--plot` flag can be passed to switch to data visualization.  
+Plotting becomes very handy for huge RINEX files. 
 
-* in case of Observation RINEX, one plot per physics
-is to be generated. One plot for Receiver Clock Offsets is also to be generated,
-if such information was provided
-
-* in case of Navigation RINEX, one plot per physics
-is to be generated. We group orbit fields by matching physics
-and display such information. Since Navigation RINEX comprises
-many orbit fields, we highly recommend filtering the record
-with dedicated [filter operations](doc/filtereing.md)
-
-Example: Observation analysis
-
-```bash
-rinex-cli -f test_resources/OBS/V2/KOSG0010.95O --retain-sv G06 --pretty
-```
-
-Example: Graphical analysis:
-
-```bash
-rinex-cli -f test_resources/OBS/V2/KOSG0010.95O --retain-sv G06 --plot
-```
+Move to the [record analysis page](doc/record.md) for thorough
+examples of RINEX record manipulations.
 
 ## File generation
 
