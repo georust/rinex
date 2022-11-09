@@ -831,10 +831,17 @@ impl Header {
             } else if marker.contains("OBSERVABLES USED") { // IONEX observables
                 ionex = ionex
                     .with_observables(content.trim())
+
             } else if marker.contains("ELEVATION CUTOFF") {
                 if let Ok(f) = f32::from_str(content.trim()) {
                     ionex = ionex
                         .with_elevation_cutoff(f);
+                }
+            
+            } else if marker.contains("BASE RADIUS") {
+                if let Ok(f) = f32::from_str(content.trim()) {
+                    ionex = ionex
+                        .with_base_radius(f);
                 }
 
             } else if marker.contains("MAPPING FUCTION") {
@@ -872,8 +879,18 @@ impl Header {
                     if let Ok(start) = f32::from_str(items[0].trim()) {
                         if let Ok(end) = f32::from_str(items[1].trim()) {
                             if let Ok(spacing) = f32::from_str(items[2].trim()) {
+                                let grid = match spacing {
+                                    0.0 => {
+                                        ionex::GridLinspace {
+                                            start,
+                                            end,
+                                            spacing: 0.0,
+                                        }
+                                    },
+                                    _ => ionex::GridLinspace::new(start, end, spacing)?,
+                                };
                                 ionex = ionex
-                                    .with_altitude_grid(ionex::GridLinspace::new(start, end, spacing)?);
+                                    .with_altitude_grid(grid);
                             }
                         }
                     }

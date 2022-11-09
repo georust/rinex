@@ -260,8 +260,10 @@ pub fn parse_record(reader: &mut BufferedReader, header: &mut header::Header) ->
     //    and attach other kinds of maps
     let mut ionx_rms = false;
     let mut ionx_height = false;
-    let mut ionx_epoch = Epoch::default();
     let mut ionx_rec = ionex::Record::new();
+    // we need to store encountered epochs, to relate RMS and H maps
+    //    that might be provided in a separate sequence
+    let mut ionx_epochs: Vec<Epoch> = Vec::with_capacity(128);
 
     for l in reader.lines() { // iterates one line at a time 
         let line = l.unwrap();
@@ -403,9 +405,20 @@ pub fn parse_record(reader: &mut BufferedReader, header: &mut header::Header) ->
                         Type::IonosphereMaps => {
                             if let Ok((index, epoch, map)) = ionex::parse_map(header, &epoch_content) {
                                 if ionx_rms {
+                                    if let Some(e) = ionx_epochs.get(index) { // relate
+                                        if let Some((_, rms, _)) = ionx_rec.get_mut(e) { // locate
+                                            *rms = Some(map); // insert
+                                        }
+                                    }
                                 } else if ionx_height {
+                                    if let Some(e) = ionx_epochs.get(index) { // relate
+                                        if let Some((_, _, h)) = ionx_rec.get_mut(e) { // locate
+                                            *h = Some(map); // insert
+                                        }
+                                    }
                                 } else {
                                     // TEC map => insert epoch
+                                    ionx_epochs.push(epoch.clone());
                                     ionx_rec.insert(epoch, (map, None, None));
                                 }
                             }
@@ -502,9 +515,20 @@ pub fn parse_record(reader: &mut BufferedReader, header: &mut header::Header) ->
         Type::IonosphereMaps => {
             if let Ok((index, epoch, map)) = ionex::parse_map(header, &epoch_content) {
                 if ionx_rms {
+                    if let Some(e) = ionx_epochs.get(index) { // relate
+                        if let Some((_, rms, _)) = ionx_rec.get_mut(e) { // locate
+                            *rms = Some(map); // insert
+                        }
+                    }
                 } else if ionx_height {
-
+                    if let Some(e) = ionx_epochs.get(index) { // relate
+                        if let Some((_, _, h)) = ionx_rec.get_mut(e) { // locate
+                            *h = Some(map); // insert
+                        }
+                    }
                 } else {
+                    // introduce TEC+epoch
+                    ionx_rec.insert(epoch, (map, None, None));
                 }
             }
         }

@@ -491,7 +491,7 @@ impl Rinex {
     pub fn is_ionex(&self) -> bool { self.header.rinex_type == types::Type::IonosphereMaps }
 
     /// Returns true if self is a 3D IONEX
-    pub fn is_3d_ionex(&self) -> bool {
+    pub fn is_ionex_3d(&self) -> bool {
         if let Some(ionex) = &self.header.ionex {
             ionex.map_dimension == 3
         } else {
@@ -501,7 +501,7 @@ impl Rinex {
 
     /// Returns true if self is a 2D IONEX,
     /// ie., fixed altitude mode
-    pub fn is_2d_ionex(&self) -> bool {
+    pub fn is_ionex_2d(&self) -> bool {
         if let Some(ionex) = &self.header.ionex {
             ionex.map_dimension == 2
         } else {

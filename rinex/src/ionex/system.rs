@@ -106,13 +106,17 @@ impl FromStr for RefSystem {
         if let Ok(gnss) = Constellation::from_str(system) {
             Ok(Self::GnssConstellation(gnss))
         } else {
-            if let Ok(obs) = ObsSystem::from_str(system) {
-                Ok(Self::ObservationSystem(obs))
+            if system.eq("GNSS") {
+                Ok(Self::GnssConstellation(Constellation::Mixed))
             } else {
-                if let Ok(m) = Model::from_str(system) {
-                    Ok(Self::Model(m))
+                if let Ok(obs) = ObsSystem::from_str(system) {
+                    Ok(Self::ObservationSystem(obs))
                 } else {
-                    Err(Error::UnknownRefSystem)
+                    if let Ok(m) = Model::from_str(system) {
+                        Ok(Self::Model(m))
+                    } else {
+                        Err(Error::UnknownRefSystem)
+                    }
                 }
             }
         }

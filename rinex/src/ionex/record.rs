@@ -40,13 +40,13 @@ pub fn is_new_map(line: &str) -> bool {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct MapPoint {
     /// Latitude of this estimate
-    latitude: f32,
+    pub latitude: f32,
     /// Longitude of this estimate
-    longitude: f32,
+    pub longitude: f32,
     /// Altitude of this estimate
-    altitude: f32,
+    pub altitude: f32,
     /// Actual estimate (scaling applied)
-    value: f32,
+    pub value: f32,
 }
 
 pub type Map = Vec<MapPoint>;
@@ -103,8 +103,8 @@ pub fn parse_map(header: &mut Header, content: &str) -> Result<(usize, Epoch, Ma
                 let (lon1, rem) = rem.split_at(6);
                 let (lon2, rem) = rem.split_at(6);
                 let (dlon, rem) = rem.split_at(6);
-                let (h, rem) = rem.split_at(6);
-                let lat = f32::from_str(lat.trim())
+                let (h, _) = rem.split_at(6);
+                latitude = f32::from_str(lat.trim())
                     .expect("failed to parse grid latitude start point");
                 let lon1 = f32::from_str(lon1.trim())
                     .expect("failed to parse longitude start point");
@@ -112,14 +112,14 @@ pub fn parse_map(header: &mut Header, content: &str) -> Result<(usize, Epoch, Ma
                     .expect("failed to parse longitude end point");
                 let dlon = f32::from_str(dlon.trim())
                     .expect("failed to parse longitude grid spacing");
-                let h = f32::from_str(h.trim())
+                altitude = f32::from_str(h.trim())
                     .expect("failed to parse next grid altitude");
                 linspace = GridLinspace::new(lon1, lon2, dlon)?;
                 ptr = 0;
 
             } else if marker.contains("EPOCH OF CURRENT MAP") {
                 // time definition
-                let items: Vec<&str> = line.split_ascii_whitespace()
+                let items: Vec<&str> = content.split_ascii_whitespace()
                     .collect();
                 if items.len() != 6 {
                     return Err(Error::EpochDescriptionError);
@@ -155,16 +155,16 @@ pub fn parse_map(header: &mut Header, content: &str) -> Result<(usize, Epoch, Ma
                         let mut value = v as f32;
                         value *= 10.0_f32.powf(ionex.exponent as f32);
                         map.push(MapPoint {
-                            latitude,
-                            altitude,
+                            latitude: latitude,
                             longitude: linspace.start + linspace.spacing * ptr as f32,
-                            value,
+                            altitude: altitude,
+                            value: value,
                         });
                         ptr += 1;
                     }
                 }
             }
-        } else {
+        } else { // less than 60 characters
             // parsing TEC values 
             for item in line.split_ascii_whitespace().into_iter() {
                 if let Ok(v) = i32::from_str_radix(item.trim(), 10) {
@@ -172,10 +172,10 @@ pub fn parse_map(header: &mut Header, content: &str) -> Result<(usize, Epoch, Ma
                     let mut value = v as f32;
                     value *= 10.0_f32.powf(ionex.exponent as f32);
                     map.push(MapPoint {
-                        latitude,
-                        altitude,
+                        latitude: latitude,
                         longitude: linspace.start + linspace.spacing * ptr as f32,
-                        value,
+                        altitude: altitude,
+                        value: value,
                     });
                     ptr += 1;
                 }
