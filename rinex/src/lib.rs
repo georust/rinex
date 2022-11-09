@@ -11,7 +11,7 @@ pub mod constellation;
 pub mod hardware;
 pub mod hatanaka;
 pub mod header;
-pub mod ionosphere;
+pub mod ionex;
 pub mod meteo;
 pub mod navigation;
 pub mod observation;
@@ -331,9 +331,25 @@ impl Rinex {
         }
     }
 
+    /// IONEX specific filename convention
+    fn ionex_filename(&self) -> String {
+        let mut ret: String = "ccc".to_string(); // 3 figue Analysis center
+        ret.push_str("e"); // extension or region code "G" for global ionosphere maps
+        ret.push_str("ddd"); // day of the year of first record
+        ret.push_str("h"); // file sequence number (1,2,...) or hour (A, B.., Z) within day
+        ret.push_str("yy"); // 2 digit year
+        ret.push_str("I"); // ionex
+        //ret.to_uppercase(); //TODO
+        ret
+    }
+
     /// Returns filename that would respect naming conventions,
     /// based on self attributes
-    pub fn filename (&self) -> String {
+    pub fn filename(&self) -> String {
+        if self.is_ionex() {
+            return self.ionex_filename();
+        }
+
         let header = &self.header;
         let rtype = header.rinex_type;
         let nnnn = header.station.as_str()[0..4].to_lowercase(); 
@@ -451,12 +467,12 @@ impl Rinex {
         // create buffered reader
         let mut reader = BufferedReader::new(path)?;
         // --> parse header fields 
-        let header = Header::new(&mut reader)
+        let mut header = Header::new(&mut reader)
             .unwrap();
         // --> parse record (file body)
         //     we also grab encountered comments,
         //     they might serve some fileops like `splice` / `merge` 
-        let (record, comments) = record::parse_record(&mut reader, &header)
+        let (record, comments) = record::parse_record(&mut reader, &mut header)
             .unwrap();
         Ok(Rinex {
             header,
@@ -472,7 +488,26 @@ impl Rinex {
     pub fn is_clocks_rinex (&self) -> bool { self.header.rinex_type == types::Type::ClockData }
 
     /// Returns true if this is an IONEX file
-    pub fn is_ionex (&self) -> bool { self.header.rinex_type == types::Type::IonosphereMaps }
+    pub fn is_ionex(&self) -> bool { self.header.rinex_type == types::Type::IonosphereMaps }
+
+    /// Returns true if self is a 3D IONEX
+    pub fn is_3d_ionex(&self) -> bool {
+        if let Some(ionex) = &self.header.ionex {
+            ionex.map_dimension == 3
+        } else {
+            false
+        }
+    }
+
+    /// Returns true if self is a 2D IONEX,
+    /// ie., fixed altitude mode
+    pub fn is_2d_ionex(&self) -> bool {
+        if let Some(ionex) = &self.header.ionex {
+            ionex.map_dimension == 2
+        } else {
+            false
+        }
+    }
 
     /// Returns true if this is a METEO RINEX
     pub fn is_meteo_rinex (&self) -> bool { self.header.rinex_type == types::Type::MeteoData }
@@ -523,18 +558,7 @@ impl Rinex {
             //let nanos = interval.fract() as i32;
             chrono::Duration::from_std(std::time::Duration::from_secs(secs)).unwrap()
         } else {
-            let epochs = self.epochs();
-            let mut prev_epoch = epochs[0];
-            let mut histogram : HashMap<chrono::Duration, u64> = HashMap::new();
-            for epoch in epochs.iter().skip(1) {
-                let dt = epoch.date - prev_epoch.date;
-                if let Some(counter) = histogram.get_mut(&dt) {
-                    *counter += 1
-                } else {
-                    histogram.insert(dt, 1);
-                }
-                prev_epoch = epoch.clone();
-            }
+            let histogram = self.epoch_intervals();
             // largest hist population
             let mut largest = 0;
             let mut dt = chrono::Duration::from_std(std::time::Duration::from_secs(0)).unwrap();
@@ -550,6 +574,27 @@ impl Rinex {
             }
             dt
         }
+    }
+    
+    /// Histogram analysis for Epoch Intervals.
+    /// This is particularly useful in case non steady sample rate was used.
+    /// This can only officially happen in IONEX but in pratice,
+    /// is regularly encountered. Data producers can do whatever they want
+    /// regarding sampling intervals, as long as description is correct.
+    pub fn epoch_intervals(&self) -> HashMap<chrono::Duration, u32> {
+        let mut histogram: HashMap<chrono::Duration, u32> = HashMap::new();
+        let epochs = self.epochs();
+        let mut prev_date = epochs[0].date;
+        for epoch in epochs.iter().skip(1) {
+            let dt = epoch.date - prev_date;
+            if let Some(counter) = histogram.get_mut(&dt) {
+                *counter += 1;
+            } else {
+                histogram.insert(dt, 1);
+            }
+            prev_date = epoch.date;
+        }
+        histogram
     }
 
     /// Returns start date and duration of largest data gap in this record.
@@ -2833,7 +2878,7 @@ CYCLE SLIPS CONFIRMATION
     /// Writes self into given file.   
     /// Both header + record will strictly follow RINEX standards.   
     /// Record: refer to supported RINEX types
-    pub fn to_file (&self, path: &str) -> Result<(), Error> {
+    pub fn to_file(&self, path: &str) -> Result<(), Error> {
 		let mut writer = BufferedWriter::new(path)?;
         write!(writer, "{}", self.header.to_string())?;
         self.record

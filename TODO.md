@@ -5,13 +5,17 @@ Roadmap
   - [ ] convert `chrono::Duration` to `hifitime::Epoch` to describe the sampline timestamp
   - [ ] when parsing a record, `flag::HeaderInformationFollows` is not exploited,
 the following content is probably interpreted as a faulty epoch to disregard
+
 - [ ] Data production
-  - [ ]  Major data production
-    - [ ] Navigation data production
-  - [ ] Minor data production
-    - [ ] Clock data production 
-    - [ ] Ionosphere maps production   
-    - [ ] Antenna data production 
+  - [ ] Navigation 
+  - [ ] Clock
+  - [ ] IONEX
+  - [ ] ANTEX 
+
+- [ ] Observation
+  - [ ] support possible data scaling
+  for advanced high precision RINEX
+
 - [ ] Data decompression
   - [ ] improve compression & decompression testbenches
 - [ ] introduce compression & decompression benchmarking

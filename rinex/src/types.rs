@@ -18,7 +18,7 @@ pub enum Type {
     /// Clock Data (CLK)
     ClockData,
     /// Ionosphere Maps (IONEX)
-    /// contains worldwide Ionospheric Maps 
+    /// contains list of TEC Maps.
     IonosphereMaps,
     /// Antenna Data (ATX or Antex) special RINEX format,
     /// contains sets of Antenna characterization coefficients.

@@ -11,13 +11,13 @@ pub enum Error {
     FileTypeMismatch,
     #[error("cannot merge mixed absolute/relative phase antenna together")]
     AntexAbsoluteRelativeMismatch,
-    #[error("cannot merge ionosphere maps based off different models")]
-    IonexSystemMismatch,
-    #[error("cannot merge ionosphere maps based off different grid system")]
+    #[error("cannot merge ionex based off different reference systems")]
+    IonexReferenceMismatch,
+    #[error("cannot merge ionex with different grid definition")]
     IonexMapGridMismatch,
-    #[error("cannot merge ionosphere maps with different map dimensions")]
+    #[error("cannot merge ionex with different map dimensions")]
     IonexMapDimensionsMismatch,
-    #[error("cannot merge ionosphere maps where base radius differs")]
+    #[error("cannot merge ionex where base radius differs")]
     IonexBaseRadiusMismatch,
 }
 
