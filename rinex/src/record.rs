@@ -1,4 +1,3 @@
-//! `RINEX` file content description and parsing
 use thiserror::Error;
 use std::io::prelude::*;
 use std::collections::{BTreeMap, HashMap};
@@ -10,7 +9,7 @@ use super::{
     prelude::*,
     antex,
     clocks,
-    ionosphere,
+    ionex,
     meteo,
     navigation,
     observation,
@@ -25,7 +24,6 @@ use super::{
     hatanaka::{Compressor, Decompressor},
 };
 
-/// `Record`
 #[derive(Clone, Debug)]
 #[derive(PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
@@ -34,8 +32,8 @@ pub enum Record {
     AntexRecord(antex::Record),
     /// Clock record, see [clocks::record::Record] 
     ClockRecord(clocks::Record),
-	/// IONEX (ionosphere maps) record
-    IonexRecord(ionosphere::Record),
+	/// IONEX (Ionosphere maps) record, see [ionex::record::Record]
+    IonexRecord(ionex::Record),
 	/// Meteo record, see [meteo::record::Record]
     MeteoRecord(meteo::Record),
 	/// Navigation record, see [navigation::record::Record]
@@ -79,14 +77,14 @@ impl Record {
         }
     }
     /// Unwraps self as IONEX record
-    pub fn as_ionex (&self) -> Option<&ionosphere::Record> {
+    pub fn as_ionex (&self) -> Option<&ionex::Record> {
         match self {
             Record::IonexRecord(r) => Some(r),
             _ => None,
         }
     }
     /// Unwraps self as mutable IONEX record
-    pub fn as_mut_ionex (&mut self) -> Option<&mut ionosphere::Record> {
+    pub fn as_mut_ionex (&mut self) -> Option<&mut ionex::Record> {
         match self {
             Record::IonexRecord(r) => Some(r),
             _ => None,
@@ -217,7 +215,7 @@ pub fn is_new_epoch (line: &str, header: &header::Header) -> bool {
     match &header.rinex_type {
         Type::AntennaData => antex::is_new_epoch(line),
         Type::ClockData => clocks::is_new_epoch(line),
-        Type::IonosphereMaps => ionosphere::is_new_map(line),
+        Type::IonosphereMaps => ionex::is_new_map(line),
         Type::NavigationData => navigation::is_new_epoch(line, header.version), 
         Type::ObservationData => observation::is_new_epoch(line, header.version),
         Type::MeteoData => meteo::is_new_epoch(line, header.version),
@@ -226,11 +224,10 @@ pub fn is_new_epoch (line: &str, header: &header::Header) -> bool {
 
 /// Builds a `Record`, `RINEX` file body content,
 /// which is constellation and `RINEX` file type dependent
-pub fn parse_record (reader: &mut BufferedReader, header: &header::Header) -> Result<(Record, Comments), Error> {
+pub fn parse_record(reader: &mut BufferedReader, header: &mut header::Header) -> Result<(Record, Comments), Error> {
     let mut first_epoch = true;
     let mut content : Option<String>; // epoch content to build
     let mut epoch_content = String::with_capacity(6*64);
-    let mut exponent: i8 = -1; //IONEX record scaling: this is the default value
     
     // to manage `record` comments
     let mut comments : Comments = Comments::new();
@@ -252,7 +249,18 @@ pub fn parse_record (reader: &mut BufferedReader, header: &header::Header) -> Re
     let mut obs_rec = observation::Record::new(); // OBS
     let mut met_rec = meteo::Record::new(); // MET
     let mut clk_rec = clocks::Record::new(); // CLK
-    let mut ionx_rec = ionosphere::Record::new(); //IONEX
+
+    // IONEX case
+    //  Default map type is TEC, it will come with identified Epoch
+    //  but others may exist:
+    //    in this case we used the previously identified Epoch
+    //    and attach other kinds of maps
+    let mut ionx_rms = false;
+    let mut ionx_height = false;
+    let mut ionx_rec = ionex::Record::new();
+    // we need to store encountered epochs, to relate RMS and H maps
+    //    that might be provided in a separate sequence
+    let mut ionx_epochs: Vec<Epoch> = Vec::with_capacity(128);
 
     for l in reader.lines() { // iterates one line at a time 
         let line = l.unwrap();
@@ -264,12 +272,15 @@ pub fn parse_record (reader: &mut BufferedReader, header: &header::Header) -> Re
             comment_content.push(comment.to_string());
             continue
         }
-        // IONEX exponent-->data scaling
-        // hidden to user and allows high level interactions
+        // IONEX exponent-->data scaling use update regularly
+        //  and used in TEC map parsing
         if line.contains("EXPONENT") {
-            let content = line.split_at(60).0;
-            if let Ok(e) = i8::from_str_radix(content.trim(), 10) {
-                exponent = e // --> update current exponent value
+            if let Some(ionex) = header.ionex.as_mut() {
+                let content = line.split_at(60).0;
+                if let Ok(e) = i8::from_str_radix(content.trim(), 10) {
+                    *ionex = ionex
+                        .with_exponent(e); // scaling update
+                }
             }
         }
         // manage CRINEX case
@@ -305,6 +316,9 @@ pub fn parse_record (reader: &mut BufferedReader, header: &header::Header) -> Re
             // --> epoch boundaries determination
             for line in content.lines() { // may comprise several lines, in case of CRINEX
                 let new_epoch = is_new_epoch(line, &header);
+                ionx_rms |= ionex::is_new_rms_map(line);
+                ionx_height |= ionex::is_new_height_map(line);
+                
                 if new_epoch && !first_epoch {
                     match &header.rinex_type {
                         Type::NavigationData => {
@@ -383,8 +397,26 @@ pub fn parse_record (reader: &mut BufferedReader, header: &header::Header) -> Re
                             }
                         },
                         Type::IonosphereMaps => {
-                            if let Ok((epoch, map)) = ionosphere::parse_epoch(&epoch_content, exponent) {
-                                ionx_rec.insert(epoch, (map, None, None));
+                            if let Ok((index, epoch, map)) = ionex::parse_map(header, &epoch_content) {
+                                if ionx_rms {
+                                    ionx_rms = false;
+                                    if let Some(e) = ionx_epochs.get(index) { // relate
+                                        if let Some((_, rms, _)) = ionx_rec.get_mut(e) { // locate
+                                            *rms = Some(map); // insert
+                                        }
+                                    }
+                                } else if ionx_height {
+                                    ionx_height = false;
+                                    if let Some(e) = ionx_epochs.get(index) { // relate
+                                        if let Some((_, _, h)) = ionx_rec.get_mut(e) { // locate
+                                            *h = Some(map); // insert
+                                        }
+                                    }
+                                } else {
+                                    // TEC map => insert epoch
+                                    ionx_epochs.push(epoch.clone());
+                                    ionx_rec.insert(epoch, (map, None, None));
+                                }
                             }
                         }
                     }
@@ -477,8 +509,23 @@ pub fn parse_record (reader: &mut BufferedReader, header: &header::Header) -> Re
             }
         },
         Type::IonosphereMaps => {
-            if let Ok((epoch, maps)) = ionosphere::parse_epoch(&epoch_content, exponent) {
-                ionx_rec.insert(epoch, (maps, None, None));
+            if let Ok((index, epoch, map)) = ionex::parse_map(header, &epoch_content) {
+                if ionx_rms {
+                    if let Some(e) = ionx_epochs.get(index) { // relate
+                        if let Some((_, rms, _)) = ionx_rec.get_mut(e) { // locate
+                            *rms = Some(map); // insert
+                        }
+                    }
+                } else if ionx_height {
+                    if let Some(e) = ionx_epochs.get(index) { // relate
+                        if let Some((_, _, h)) = ionx_rec.get_mut(e) { // locate
+                            *h = Some(map); // insert
+                        }
+                    }
+                } else {
+                    // introduce TEC+epoch
+                    ionx_rec.insert(epoch, (map, None, None));
+                }
             }
         }
         Type::AntennaData => {
@@ -528,28 +575,23 @@ impl Merge<Record> for Record {
             if let Some(rhs) = rhs.as_nav() {
                 lhs.merge_mut(&rhs)?;
             }
-        }
-        if let Some(lhs) = self.as_mut_obs() {
+        } else if let Some(lhs) = self.as_mut_obs() {
             if let Some(rhs) = rhs.as_obs() {
                 lhs.merge_mut(&rhs)?;
             }
-        }
-        if let Some(lhs) = self.as_mut_meteo() {
+        } else if let Some(lhs) = self.as_mut_meteo() {
             if let Some(rhs) = rhs.as_meteo() {
                 lhs.merge_mut(&rhs)?;
             }
-        }
-        if let Some(lhs) = self.as_mut_ionex() {
+        /*} else if let Some(lhs) = self.as_mut_ionex() {
             if let Some(rhs) = rhs.as_ionex() {
                 lhs.merge_mut(&rhs)?;
-            }
-        }
-        if let Some(lhs) = self.as_mut_antex() {
+            }*/
+        } else if let Some(lhs) = self.as_mut_antex() {
             if let Some(rhs) = rhs.as_antex() {
                 lhs.merge_mut(&rhs)?;
             }
-        }
-        if let Some(lhs) = self.as_mut_clock() {
+        } else if let Some(lhs) = self.as_mut_clock() {
             if let Some(rhs) = rhs.as_clock() {
                 lhs.merge_mut(&rhs)?;
             }
@@ -612,8 +654,8 @@ impl Decimation<Record> for Record {
             r.decim_by_interval_mut(interval);
         } else if let Some(r) = self.as_mut_meteo() {
             r.decim_by_interval_mut(interval);
-        } else if let Some(r) = self.as_mut_ionex() {
-            r.decim_by_interval_mut(interval);
+        //} else if let Some(r) = self.as_mut_ionex() {
+        //    r.decim_by_interval_mut(interval);
         } else if let Some(r) = self.as_mut_clock() {
             r.decim_by_interval_mut(interval);
         }

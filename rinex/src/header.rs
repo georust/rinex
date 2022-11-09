@@ -13,7 +13,7 @@ use crate::hardware;
 use crate::reader::BufferedReader;
 use crate::types::{Type, TypeError};
 use crate::meteo;
-use crate::ionosphere;
+use crate::ionex;
 use crate::observation;
 use crate::version::Version;
 use hardware::{Antenna, SvAntenna, Rcvr};
@@ -97,8 +97,8 @@ pub struct Header {
     pub version: Version, 
     /// type of `RINEX` file
     pub rinex_type: Type, 
-    /// specific `GNSS` constellation system,
-	/// may not exist for RINEX files 
+    /// `GNSS` constellation system encountered in this file,
+    /// or reference GNSS constellation for the following data.
     pub constellation: Option<Constellation>, 
     /// comments extracted from `header` section
     pub comments : Vec<String>,
@@ -161,7 +161,7 @@ pub struct Header {
     pub antex: Option<antex::HeaderFields>,
     /// IONEX record specific fields
     #[cfg_attr(feature = "serde", serde(default))]
-    pub ionex: Option<ionosphere::HeaderFields>,
+    pub ionex: Option<ionex::HeaderFields>,
 }
 
 #[derive(Error, Debug)]
@@ -190,8 +190,10 @@ pub enum Error {
     AntexParsingError(#[from] antex::record::Error),
     #[error("failed to parse PCV field")]
     ParsePcvError(#[from] antex::pcv::Error),
-    #[error("faulty ionex format")]
-    FaultyIonexDescription,
+    #[error("unknown ionex reference")]
+    UnknownReferenceIonex(#[from] ionex::system::Error),
+    #[error("faulty ionex grid definition")]
+    IonexGridError(#[from] ionex::grid::Error),
 }
 
 impl Default for Header {
@@ -263,7 +265,7 @@ impl Header {
         let mut meteo = meteo::HeaderFields::default();
         let mut clocks = clocks::HeaderFields::default();
         let mut antex = antex::HeaderFields::default();
-        let mut ionex = ionosphere::HeaderFields::default();
+        let mut ionex = ionex::HeaderFields::default();
         
         // iterate on a line basis
         let lines = reader.lines();
@@ -376,15 +378,13 @@ impl Header {
             // [2] IONEX special header 
             //////////////////////////////////////
             } else if marker.contains("IONEX VERSION / TYPE") {
-                let (vers, rem) = line.split_at(20);
+                let (vers_str, rem) = line.split_at(20);
                 let (type_str, rem) = rem.split_at(20); 
                 let (system_str, _) = rem.split_at(20);
-                version = Version::from_str(vers.trim())?;
+                version = Version::from_str(vers_str.trim())?;
                 rinex_type = Type::from_str(type_str.trim())?;
-                if rinex_type != Type::IonosphereMaps {
-                    return Err(Error::FaultyIonexDescription);
-                }
-                ionex = ionex.with_system(system_str.trim())
+                let ref_system = ionex::RefSystem::from_str(system_str.trim())?;
+                ionex = ionex.with_reference_system(ref_system);
 
             ///////////////////////////////////////
             // ==> from now on
@@ -453,6 +453,7 @@ impl Header {
                 if let Ok(sensor) = meteo::sensor::Sensor::from_str(content) {
                     meteo.sensors.push(sensor)
                 }
+            
             } else if marker.contains("SENSOR POS XYZ/H") {
                 let (x_str, rem) = content.split_at(14);
                 let (y_str, rem) = rem.split_at(14);
@@ -770,8 +771,13 @@ impl Header {
                 //TODO
             
             } else if marker.contains("INTERVAL") {
-                let intv = content.split_at(20).0.trim();
-                sampling_interval = Some(f32::from_str(intv)?)
+                let intv_str = content.split_at(20).0.trim();
+                if let Ok(interval) = f32::from_str(intv_str) {
+                    if interval > 0.0 { // INTERVAL = '0' may exist, in case 
+                                    // of Varying TEC map intervals
+                        sampling_interval = Some(interval);
+                    }
+                }
 
             } else if marker.contains("GLONASS SLOT / FRQ #") {
                 //TODO
@@ -817,20 +823,103 @@ impl Header {
                 //0.931322574615D-09 0.355271367880D-14   233472     1930 DELTA-UTC: A0,A1,T,W
             
             } else if marker.contains("DESCRIPTION") { // IONEX description
+                // <o
+                //   if "DESCRIPTION" is to be encountered in other RINEX
+                //   we can safely test RinexType here because its already been determined
                 ionex = ionex
                     .with_description(content.trim())
             } else if marker.contains("OBSERVABLES USED") { // IONEX observables
                 ionex = ionex
                     .with_observables(content.trim())
+
+            } else if marker.contains("ELEVATION CUTOFF") {
+                if let Ok(f) = f32::from_str(content.trim()) {
+                    ionex = ionex
+                        .with_elevation_cutoff(f);
+                }
+            
+            } else if marker.contains("BASE RADIUS") {
+                if let Ok(f) = f32::from_str(content.trim()) {
+                    ionex = ionex
+                        .with_base_radius(f);
+                }
+
+            } else if marker.contains("MAPPING FUCTION") {
+                if let Ok(mf) = ionex::MappingFunction::from_str(content.trim()) {
+                    ionex = ionex
+                        .with_mapping_function(mf);
+                }
+
             } else if marker.contains("# OF STATIONS") { // IONEX
                 if let Ok(u) = u32::from_str_radix(content.trim(), 10) {
                     ionex = ionex
-                        .with_stations(u)
+                        .with_nb_stations(u)
                 }
             } else if marker.contains("# OF SATELLITES") { // IONEX
                 if let Ok(u) = u32::from_str_radix(content.trim(), 10) {
                     ionex = ionex
-                        .with_satellites(u)
+                        .with_nb_satellites(u)
+                }
+            /*
+             * Initial TEC map scaling
+             */
+            } else if marker.contains("EXPONENT") {
+                if let Ok(e) = i8::from_str_radix(content.trim(), 10) {
+                    ionex = ionex
+                        .with_exponent(e);
+                }
+
+            /* 
+             * Ionex Grid Definition
+             */
+            } else if marker.contains("HGT1 / HGT2 / DHGT") {
+                let items: Vec<&str> = content.split_ascii_whitespace()
+                    .collect();
+                if items.len() == 3 {
+                    if let Ok(start) = f32::from_str(items[0].trim()) {
+                        if let Ok(end) = f32::from_str(items[1].trim()) {
+                            if let Ok(spacing) = f32::from_str(items[2].trim()) {
+                                let grid = match spacing == 0.0 {
+                                    true => { // special case, 2D fixed altitude
+                                        ionex::GridLinspace { // avoid verifying the Linspace in this case
+                                            start,
+                                            end,
+                                            spacing: 0.0,
+                                        }
+                                    },
+                                    _ => ionex::GridLinspace::new(start, end, spacing)?,
+                                };
+                                ionex = ionex
+                                    .with_altitude_grid(grid);
+                            }
+                        }
+                    }
+                }
+            } else if marker.contains("LAT1 / LAT2 / DLAT") {
+                let items: Vec<&str> = content.split_ascii_whitespace()
+                    .collect();
+                if items.len() == 3 {
+                    if let Ok(start) = f32::from_str(items[0].trim()) {
+                        if let Ok(end) = f32::from_str(items[1].trim()) {
+                            if let Ok(spacing) = f32::from_str(items[2].trim()) {
+                                ionex = ionex
+                                    .with_latitude_grid(ionex::GridLinspace::new(start, end, spacing)?); 
+                            }
+                        }
+                    }
+                }
+            } else if marker.contains("LON1 / LON2 / DLON") {
+                let items: Vec<&str> = content.split_ascii_whitespace()
+                    .collect();
+                if items.len() == 3 {
+                    if let Ok(start) = f32::from_str(items[0].trim()) {
+                        if let Ok(end) = f32::from_str(items[1].trim()) {
+                            if let Ok(spacing) = f32::from_str(items[2].trim()) {
+                                ionex = ionex
+                                    .with_longitude_grid(ionex::GridLinspace::new(start, end, spacing)?);
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -907,7 +996,7 @@ impl Header {
     /// This fails if :
     ///  - RINEX types do not match
     ///  - IONEX: map dimensions do not match and grid definitions do not strictly match
-    pub fn merge (&self, header: &Self) -> Result<Self, merge::Error> {
+    pub fn merge(&self, header: &Self) -> Result<Self, merge::Error> {
         if self.rinex_type != header.rinex_type {
             return Err(merge::Error::FileTypeMismatch);
         }
@@ -1183,8 +1272,8 @@ impl Header {
             ionex: {
                 if let Some(d0) = &self.ionex {
                     if let Some(d1) = &header.ionex {
-                        Some(ionosphere::HeaderFields {
-                            system: d0.system.clone(),
+                        Some(ionex::HeaderFields {
+                            reference: d0.reference.clone(),
                             description: {
                                 if let Some(description) = &d0.description {
                                     Some(description.clone())
@@ -1194,6 +1283,7 @@ impl Header {
                                     None
                                 }
                             },
+                            exponent: std::cmp::min(d0.exponent, d1.exponent), // TODO: this is not correct,
                             mapping: {
                                 if let Some(map) = &d0.mapping {
                                     Some(map.clone())
@@ -1216,23 +1306,14 @@ impl Header {
                                     None
                                 }
                             },
-                            nb_stations: {
-                                if let Some(n) = d0.nb_stations {
-                                    Some(n)
-                                } else if let Some(n) = d1.nb_stations {
-                                    Some(n)
-                                } else {
-                                    None
+                            nb_stations: std::cmp::max(d0.nb_stations, d1.nb_stations),
+                            nb_satellites: std::cmp::max(d0.nb_satellites, d1.nb_satellites),
+                            dcbs: {
+                                let mut dcbs = d0.dcbs.clone();
+                                for (b, dcb) in &d1.dcbs {
+                                    dcbs.insert(b.clone(), *dcb);
                                 }
-                            },
-                            nb_satellites: {
-                                if let Some(n) = d0.nb_satellites {
-                                    Some(n)
-                                } else if let Some(n) = d1.nb_satellites {
-                                    Some(n)
-                                } else {
-                                    None
-                                }
+                                dcbs
                             },
                         })
                     } else {
@@ -1248,7 +1329,7 @@ impl Header {
     }
     
     /// Returns true if self is a `Compressed RINEX`
-    pub fn is_crinex (&self) -> bool { 
+    pub fn is_crinex(&self) -> bool { 
         if let Some(obs) = &self.obs {
             obs.crinex.is_some()
         } else {
@@ -1676,8 +1757,8 @@ impl Merge<Header> for Header {
         }
         if let Some(lhs) = &mut self.ionex {
             if let Some(rhs) = &rhs.ionex {
-                if lhs.system != rhs.system {
-                    return Err(merge::Error::IonexSystemMismatch);
+                if lhs.reference != rhs.reference {
+                    return Err(merge::Error::IonexReferenceMismatch);
                 }
                 if lhs.grid != rhs.grid {
                     return Err(merge::Error::IonexMapGridMismatch);
@@ -1694,8 +1775,11 @@ impl Merge<Header> for Header {
                     lhs.elevation_cutoff = rhs.elevation_cutoff; // => overwrite in this case
                 }
                 merge::merge_mut_option(&mut lhs.observables, &rhs.observables);
-                merge::merge_mut_option(&mut lhs.nb_stations, &rhs.nb_stations);
-                merge::merge_mut_option(&mut lhs.nb_satellites, &rhs.nb_satellites);
+                lhs.nb_stations = std::cmp::max(lhs.nb_stations, rhs.nb_stations);
+                lhs.nb_satellites = std::cmp::max(lhs.nb_satellites, rhs.nb_satellites);
+                for (b, dcb) in &rhs.dcbs {
+                    lhs.dcbs.insert(b.clone(), *dcb);
+                }
             }
         }
         Ok(())

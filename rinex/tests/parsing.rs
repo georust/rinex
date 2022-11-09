@@ -8,7 +8,7 @@ mod test {
 			"ATX",
 			"CLK",
 			"CRNX",
-			//"IONEX",
+			"IONEX",
 			"MET",
 			"NAV",
 			"OBS",
