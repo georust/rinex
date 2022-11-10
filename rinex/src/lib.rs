@@ -62,7 +62,7 @@ pub use split::Split;
 /// Convenient package to import
 pub mod processing {
     pub use crate::sampling::Decimation;
-    pub use crate::differential::Context;
+    pub use crate::differential::DiffContext;
 }
 
 use prelude::*;
@@ -2853,7 +2853,7 @@ CYCLE SLIPS CONFIRMATION
     /// rinex
     ///     .clock_agency_retain_mut(vec!["GUAM","GODE","USN7"]);
     /// ```
-    pub fn clock_agency_retain_mut (&mut self, filter: Vec<&str>) {
+    pub fn clock_agency_retain_mut(&mut self, filter: Vec<&str>) {
         if !self.is_clocks_rinex() {
             return ; // does not apply
         }
