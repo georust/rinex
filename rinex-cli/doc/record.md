@@ -55,3 +55,14 @@ rinex-cli \
 Here's the resulting plot containing doppler shifts for instance:
 
 <img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_gpsdoppler.png">
+
+When you see black symbols on the phase plot, it means a cycle slip
+may have happen at this epoch (due to temporary loss of lock).
+
+<img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_cycleslip1.png">
+
+Cycle slips may happen randomly, for a given channel and signal.   
+In `ESBC00DNK`, apparently no GPS vehicules declare a possible cycle slip.  
+And here we see that only R09(L3) seems affected.  
+
+To learn more about cycle slips, refer to the [processing page](processing.md).

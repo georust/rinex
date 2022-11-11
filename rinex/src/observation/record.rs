@@ -119,9 +119,7 @@ bitflags! {
         /// Lock lost between previous observation and current observation,
         /// cycle slip is possible
         const LOCK_LOSS = 0x01;
-        /// Opposite wavelenght factor to the one defined
-        /// for the satellite by a previous WAVELENGTH FACT comment,
-        /// or opposite to default value, is not previous WAVELENFTH FACT comment
+        /// Half cycle slip marker
         const HALF_CYCLE_SLIP = 0x02;
         /// Observing under anti spoofing,
         /// might suffer from decreased SNR - decreased signal quality

@@ -2,7 +2,7 @@
 use rinex::{
     *,
     prelude::*,
-    observation::Record,
+    observation::*,
 };
 use super::{
     Context, Plot2d, 
@@ -182,7 +182,7 @@ pub fn plot(ctx: &mut Context, record: &Record) {
     let symbols = vec!["x","t","o"]; // to differentiate carrier signals
     // sorted by Physics, By Carrier number, By vehicule, (x,y)
     let mut clk_offset: Vec<(f64,f64)> = Vec::new();
-    let mut dataset: HashMap<String, HashMap<u8, HashMap<Sv, Vec<(f64,f64)>>>> = HashMap::new();
+    let mut dataset: HashMap<String, HashMap<u8, HashMap<Sv, Vec<(bool,f64,f64)>>>> = HashMap::new();
     
     for (e_index, (epoch, (clock_offset, vehicules))) in record.iter().enumerate() {
         if e_index == 0 {
@@ -203,23 +203,27 @@ pub fn plot(ctx: &mut Context, record: &Record) {
                 
                 let physics = code2physics!(p_code); 
                 let y = data.obs;
+                let cycle_slip = match data.lli {
+                    Some(lli) => lli.intersects(LliFlags::LOCK_LOSS),
+                    _ => false,
+                };
 
                 if let Some(data) = dataset.get_mut(&physics) {
                     if let Some(data) = data.get_mut(&c_code) {
                         if let Some(data) = data.get_mut(&sv) {
-                            data.push((x,y));
+                            data.push((cycle_slip,x,y));
                         } else {
-                            data.insert(*sv, vec![(x,y)]);
+                            data.insert(*sv, vec![(cycle_slip,x,y)]);
                         }
                     } else {
-                        let mut map: HashMap<Sv, Vec<(f64,f64)>> = HashMap::new();
-                        map.insert(*sv, vec![(x,y)]);
+                        let mut map: HashMap<Sv, Vec<(bool,f64,f64)>> = HashMap::new();
+                        map.insert(*sv, vec![(cycle_slip,x,y)]);
                         data.insert(c_code, map);
                     }
                 } else {
-                    let mut map: HashMap<Sv, Vec<(f64,f64)>> = HashMap::new();
-                    map.insert(*sv, vec![(x,y)]);
-                    let mut mmap: HashMap<u8, HashMap<Sv, Vec<(f64,f64)>>> = HashMap::new();
+                    let mut map: HashMap<Sv, Vec<(bool,f64,f64)>> = HashMap::new();
+                    map.insert(*sv, vec![(cycle_slip,x,y)]);
+                    let mut mmap: HashMap<u8, HashMap<Sv, Vec<(bool,f64,f64)>>> = HashMap::new();
                     mmap.insert(c_code, map);
                     dataset.insert(physics.to_string(), mmap);
                 }
@@ -291,28 +295,48 @@ pub fn plot(ctx: &mut Context, record: &Record) {
                 // plot
                 chart.draw_series(LineSeries::new(
                     data.iter()
-                        .map(|point| *point),
+                        .map(|(_,x,y)| (*x,*y)),
                         color.clone()))
                     .expect(&format!("failed to draw {} data", physics));
                 chart.draw_series(
                     data.iter()
-                        .map(|point| {
-                            match symbol {
-                                "x" => {
-                                    Cross::new(*point, 4,
-                                        Into::<ShapeStyle>::into(&color).filled())
-                                        .into_dyn()
-                                },
-                                "o" => {
-                                    Circle::new(*point, 4,
-                                        Into::<ShapeStyle>::into(&color).filled())
-                                        .into_dyn()
-                                },
-                                _ => {
-                                    TriangleMarker::new(*point, 4,
-                                        Into::<ShapeStyle>::into(&color).filled())
-                                        .into_dyn()
-                                },
+                        .map(|(cycle_slip,x,y)| {
+                            if *cycle_slip {
+                                match symbol {
+                                    "x" => {
+                                        Cross::new((*x,*y), 5,
+                                            Into::<ShapeStyle>::into(&BLACK).filled().stroke_width(2))
+                                            .into_dyn()
+                                    },
+                                    "o" => {
+                                        Circle::new((*x,*y), 5,
+                                            Into::<ShapeStyle>::into(&BLACK).filled().stroke_width(2))
+                                            .into_dyn()
+                                    },
+                                    _ => {
+                                        TriangleMarker::new((*x,*y), 5,
+                                            Into::<ShapeStyle>::into(&BLACK).filled().stroke_width(2))
+                                            .into_dyn()
+                                    },
+                                }
+                            } else {
+                                match symbol {
+                                    "x" => {
+                                        Cross::new((*x,*y), 4,
+                                            Into::<ShapeStyle>::into(&color).filled())
+                                            .into_dyn()
+                                    },
+                                    "o" => {
+                                        Circle::new((*x,*y), 4,
+                                            Into::<ShapeStyle>::into(&color).filled())
+                                            .into_dyn()
+                                    },
+                                    _ => {
+                                        TriangleMarker::new((*x,*y), 4,
+                                            Into::<ShapeStyle>::into(&color).filled())
+                                            .into_dyn()
+                                    },
+                                }
                             }
                         }))
                         .expect(&format!("failed to draw {} observations", physics))

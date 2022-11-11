@@ -3,6 +3,9 @@ Cycle Slip analysis & cancellation
 
 Cycle slip detection and cancellation is a huge topic
 in GNSS data processing.  
+Cycle slips are discontinuities in phase measurements due to
+temporary losses of lock on the receiver side. 
+
 For advanced computations, it is most often a prerequisites.
 That means such operations are not feasible or will not return
 correct results if cycle slips were not cancelled prior to moving forward.
@@ -25,8 +28,9 @@ $M_{Li}$ the multipath biases,
 $e_{Li}$ the carrier phase thermal noise
 
 Phase observations have an $N_{Li}$ cycles ambiguity.
+When a phase bump appears, N varies by a random number. 
 
-And a cycle slip is as an abnormal phase step $|\Delta \Phi_{Li}(k)| > \epsilon$ between successive epochs
+The abnormal phase step $|\Delta \Phi_{Li}(k)| > \epsilon$ between successive epochs
 $\Delta \Phi_{Li}(k) = \Phi_{Li}(k) - \Phi_{Li}(k-1)$ 
 
 ## Possible cycle slips
@@ -55,7 +59,7 @@ the provided Observation Data.
 In any case, this library is not limitated to $L_1$ and $L_2$ carriers, 
 and is smart enough to form all possible combinations and scale them properly ( $\lambda_i$ ). 
 
-## Doppler data [D]
+## Doppler Data [D]
 
 Doppler measurements evaluate the variation rate of carrier phase
 and are immune to cycle slips.
