@@ -41,15 +41,48 @@ rinex-cli \
 	--retain-sv R18
 ```
 
-## Cycle slip determination
+Cycle slip determination
+=========================
 
-It is important to understand the previous information is not garanteed by default.  
-I suppose some GNSS receivers are also not able to indicate possible cycle slips.   
-A cycle slip determination algorithm needs to be employed to verify previous informations and determine true cycle slip events.
+It is important to understand the previous information is not garanteed and simply an indicator.  
+False positives happen due to simplistic algorithm in the receivers.  
+False negatives happen due to lack of receiver capacity.  
+Therefore, cycle slip determination algorithms are used to verify previous indications.
 
-Several methods exist. This library can perform cycle slip 
-determination for both Single Carrier data (old receiver or old RINEX data),
-and multi carrier context (modern RINEX, modern receivers).
+Several methods exist and this library uses 3 of them, depending on
+the provided Observation Data.
 
-The multi carrier context is the easiest context.  
-In our example, `ESBC00DNK` is a RINEX3 with multi band information.  
+In any case, this library is not limitated to $L_1$ and $L_2$ carriers, 
+and is smart enough to form all possible combinations and scale them properly ( $\lambda_i$ ). 
+
+## Doppler data [D]
+
+Doppler measurements evaluate the variation rate of carrier phase
+and are immune to cycle slips.
+
+If doppler data exist for a given carrier signal $D(L_i)$ we
+have a phase variation estimator
+
+$$\Delta \Phi_{Li}(k) = \frac{ -d_k}{2} \left(D_{Li)(k) + D_{Li}(k-1) \right) $$
+
+## Multi band / Modern context [GF]
+
+Multi band context are the most "algorithm" friendly, 
+as the expense of RINEX data complexity.
+
+We form the geometry-free combinations easily:
+
+$$\lambda_{Li} \Delta \Phi_{Li} - \lambda_{Lj} \Delta \Phi_{Lj} = \lambda_{Li} \left( \Delta N_{Li} + \Delta e_{Li} \right) - \lambda_{Lj} \left( \Delta N_{Lj} - \Delta e_{Lj} \right) + \Delta M_{Li} + \Delta M_{Lj} - \Delta I_{Li} \frac{\lambda^2_{Li} - \lambda^2_{Lj}}{\lambda^2_{Li}} $$
+
+now let's rework the previous equation to emphasize $\Delta N_{Li} -  \Delta N_{Lj}$
+the phase ambiguities difference two different carrier signals.
+
+
+## Summary
+
+Cycle slip determination is possible in all scenarios.  
+
+- [D] is prefered due to its simplicity
+- [GF] is the fallback method for modern contexts when Doppler shifts are missing.  
+- [HOD] is the fallback method for basic contexts when Dopplers shifts are missing,
+at the expense of a parametrization complexity
