@@ -1,17 +1,29 @@
 Processing
 ==========
 
-This tool implements several RINEX processing algorithms.  
+This tool implements several RINEX processing algorithms.    
 All of them are RINEX format dependent. That means,
 one can only perform a desired operation if the provided file matches
 the expected kind of RINEX.
 
-Some Differential RINEX processing algorithms are also supported.
-In this scenario, we expect Observation RINEX to be passed with `--fp` 
-and Navigation context to be passed with `--nav`.
+Some RINEX processing algorithms require Navigation data (ephemeris),
+to be passed, and we use the `--nav [FILE]` flag to do that,
+while `--fp` remains how you give the base file.
 
 This library is implemented such as Military codes are supported just like others.
 They're just not tested due to obvious lack of data.
+
+Cycle slip and Phase ambiguities
+================================
+
+This tool allows Cycle slip analysis, determination
+and cancellation. Since this is a huge and lengthy topic,
+we have a [dedicated page](cycle-slip.md) to demonstrate
+all possible operations and applications.
+
+Since cycle slip cancellation is the basics of several
+advanced computations, we recommend reading this page
+prior moving forward.
 
 Phase Differential Code Biases (DBCs)
 =====================================

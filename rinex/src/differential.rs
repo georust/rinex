@@ -45,135 +45,153 @@ impl DiffContext {
     pub fn new(base: &Rinex, rover: &Rinex) -> Self {
         let mut base = base.clone();
         let mut rover = rover.clone();
-        // [0]: rework sample rate
-        //   rnx and rover are reworked and only shared epochs, shared vehicules
-        //   and ephemeris in case of Navigation RINEX
-        if let Some(nav_rec) = base.record.as_mut_nav() {
-            if let Some(nav_rov) = rover.record.as_mut_nav() {
-                // base must contain rover's epochs
-                //   also retain only ephemeris in self
-                //   also retain only shared vehicules
-                nav_rec.retain(|e, classes| {
-                    if let Some(rov_e) = nav_rov.get(e) {
-                        classes.retain(|class, frames| {
-                            if *class == FrameClass::Ephemeris {
-                                if let Some(rov_frames) = rov_e.get(class) {
-                                    frames.retain(|fr| {
-                                        let (_, sv, _) = fr.as_eph().unwrap();
-                                        // shared vehicule
-                                        let mut shared = false;
-                                        for rov_fr in rov_frames {
-                                            let (_, rov_sv, _) = rov_fr.as_eph().unwrap();
-                                            shared |= rov_sv == sv;
-                                        }
-                                        shared
-                                    });
-                                    frames.len() > 0
-                                } else {
-                                    false // ROVER has no ephemeris frames
-                                }
-                            } else {
-                                false // not an Ephemeris frame
+        // match /adjust sample rates
+        base.decim_match_mut(&rover);
+        rover.decim_match_mut(&base);
+        // For Navigation RINEX
+        //  retain ephemeris frames only
+        base.retain_navigation_ephemeris_mut();
+        rover.retain_navigation_ephemeris_mut();
+        // For Observation RINEX
+        //  retain Phase and Pseudo Range observations only
+        //    and only shared vehicules
+        if let Some(record) = base.record.as_mut_obs() {
+            record.retain(|e, (_, vehicules)| {
+                vehicules.retain(|sv, observations| {
+                    if let Some(obs_rov) = rover.record.as_obs() {
+                        let (_, rov_vehicules) = obs_rov.get(e)
+                            .unwrap();
+                        let mut shared = false;
+                        for (rov_sv, _) in rov_vehicules {
+                            shared |= rov_sv == sv;
+                        }
+                        if shared {
+                            observations.retain(|code, _| {
+                                is_pseudo_range_obs_code!(code) || is_phase_carrier_obs_code!(code)
+                            });
+                            observations.len() > 0
+                        } else {
+                            false
+                        }
+                    } else if let Some(nav_rov) = rover.record.as_nav() {
+                        let mut shared = false;
+                        let rov_classes = nav_rov.get(e)
+                            .unwrap();
+                        for (rov_class, rov_frames) in rov_classes {
+                            for rov_frame in rov_frames {
+                                let (_, rov_sv, _) = rov_frame.as_eph()
+                                    .unwrap();
+                                shared |= rov_sv == sv;
                             }
-                        });
-                        classes.len() > 0
+                        }
+                        if shared {
+                            observations.retain(|code, _| {
+                                is_pseudo_range_obs_code!(code) || is_phase_carrier_obs_code!(code)
+                            });
+                            observations.len() > 0
+                        } else {
+                            false
+                        }
                     } else {
-                        false // not a shared epoch
+                        false
                     }
                 });
-                // rover must contain base's epochs
-                //   also retain only ephemeris in self
-                //   also retain only shared vehicules
-                nav_rov.retain(|e, classes| {
-                    if let Some(nav_e) = nav_rec.get(e) {
-                        classes.retain(|class, frames| {
-                            if *class == FrameClass::Ephemeris {
-                                if let Some(nav_frames) = nav_e.get(class) {
-                                    frames.retain(|fr| {
-                                        let (_, sv, _) = fr.as_eph().unwrap();
-                                        // shared vehicule
-                                        let mut shared = false;
-                                        for nav_fr in nav_frames {
-                                            let (_, nav_sv, _) = nav_fr.as_eph().unwrap();
-                                            shared |= nav_sv == sv;
-                                        }
-                                        shared
-                                    });
-                                    frames.len() > 0
-                                } else {
-                                    false // ROVER has no ephemeris frames
-                                }
-                            } else {
-                                false // not an Ephemeris frame
+                vehicules.len() > 0 
+            });
+        }
+        // For Navigation (ephemeris..) RINEX
+        //  retain only shared vehicules
+        else if let Some(record) = base.record.as_mut_nav() {
+            record.retain(|e, classes| {
+                classes.retain(|class, frames| {
+                    frames.retain(|fr| {
+                        let mut shared = false;
+                        let (_, sv, _) = fr.as_eph()
+                            .unwrap();
+                        if let Some(obs_rec) = rover.record.as_obs() {
+                            let (_, obs_vehicules) = obs_rec.get(e)
+                                .unwrap();
+                            for (obs_sv, _) in obs_vehicules {
+                                shared |= obs_sv == sv;
                             }
-                        });
-                        classes.len() > 0
-                    } else {
-                        false // not a shared epoch
-                    }
-                });
-
-            } else if let Some(obs_rov) = rover.record.as_mut_obs() {
-                // base must contain rover's epochs
-                //   also retain only ephemeris in self
-                //   also retain only shared vehicules
-                nav_rec.retain(|e, classes| {
-                    if let Some((_, vehicules)) = obs_rov.get(e) {
-                        classes.retain(|class, frames| {
-                            if *class == FrameClass::Ephemeris {
-                                frames.retain(|fr| {
-                                    let (_, sv, _) = fr.as_eph().unwrap();
-                                    // shared vehicule
-                                    let mut shared = false;
-                                    for rov_fr in rov_frames {
-                                            let (_, rov_sv, _) = rov_fr.as_eph().unwrap();
-                                            shared |= rov_sv == sv;
-                                        }
-                                        shared
-                                    });
-                                    frames.len() > 0
-                                } else {
-                                    false // ROVER has no ephemeris frames
-                                }
-                            } else {
-                                false // not an Ephemeris frame
-                            }
-                        });
-                        classes.len() > 0
-                    } else {
-                        false // not a shared epoch
-                    }
-                });
-                // rover must contain base's epochs
-                //   also retain only shared vehicules
-                //   also retain only Phase And PR Observations
-                //     as we're not aware of Diff operations involving other observations
-                obs_rov.retain(|e, (_, vehicules)| {
-                    if let Some(nav_classes) = nav_rec.get(e) {
-                        vehicules.retain(|sv, _| {
-                            let mut shared = false;
-                            for (cl, frames) in nav_classes {
+                        } else if let Some(nav_rec) = rover.record.as_nav() {
+                            let classes = nav_rec.get(e)
+                                .unwrap();
+                            for (class, frames) in classes {
                                 for fr in frames {
                                     let (_, nav_sv, _) = fr.as_eph()
                                         .unwrap();
                                     shared |= nav_sv == sv;
                                 }
                             }
-                            shared
-                        });
-                        vehicules.len() > 0
-                    } else {
-                        false // not a shared epoch
-                    }
+                        }
+                        shared
+                    });
+                    frames.len() > 0
                 });
-                
-            }
-        } else if let Some(obs_rec) = base.record.as_mut_obs() {
-            if let Some(nav_rov) = rover.record.as_mut_nav() {
-
-            } else if let Some(obs_rov) = rover.record.as_mut_obs() {
-
-            }
+                classes.len() > 0
+            });
+        }
+        /*
+         * at this point "base" is ready for processing,
+         * let's strip "rover" to identical vehicules to
+         * to speed up and eventually facilitate further operations
+         */
+        if let Some(record) = rover.record.as_mut_obs() {
+            record.retain(|e, (_, vehicules)| {
+                vehicules.retain(|sv, _| {
+                    let mut shared = false;
+                    if let Some(obs_base) = base.record.as_obs() {
+                        let (_, base_vehicules) = obs_base.get(e)
+                            .unwrap();
+                        for (base_sv, _) in base_vehicules {
+                            shared |= base_sv == sv;
+                        }
+                    } else if let Some(nav_base) = base.record.as_nav() {
+                        let (base_classes) = nav_base.get(e)
+                            .unwrap();
+                        for (class, frames) in base_classes {
+                            for fr in frames {
+                                let (_, nav_sv, _) = fr.as_eph()
+                                    .unwrap();
+                                shared |= nav_sv == sv;
+                            }
+                        }
+                    }
+                    false
+                });
+                vehicules.len() > 0
+            });
+        } else if let Some(record) = rover.record.as_mut_nav() {
+            record.retain(|e, classes| {
+                classes.retain(|class, frames| {
+                    frames.retain(|fr| {
+                        let mut shared = false;
+                        let (_, sv, _) = fr.as_eph()
+                            .unwrap();
+                        if let Some(obs_base) = base.record.as_obs() {
+                            let (_, base_vehicules) = obs_base.get(e)
+                                .unwrap();
+                            for (base_sv, _) in base_vehicules {
+                                shared |= sv == base_sv;
+                            }
+                        } else if let Some(nav_base) = base.record.as_nav() {
+                            let nav_classes = nav_base.get(e)
+                                .unwrap();
+                            for (class, frames) in nav_classes {
+                                for fr in frames {
+                                    let (_, base_sv, _) = fr.as_eph()
+                                        .unwrap();
+                                    shared |= sv == base_sv;
+                                }
+                            }
+                        }
+                        shared
+                    });
+                    frames.len() > 0
+                });
+                classes.len() > 0
+            });
         }
         Self {
             base,
@@ -188,14 +206,14 @@ impl DiffContext {
         Ok(Self::new(&rnx, &rover))
     }
 
-    /// Single difference, is the Phase data and Pseudo range data
-    /// substract, between Self and Rover for identical Observation 
-    /// (same physics and same carrier signal).
-    /// Single difference is the first stage of Double Difference analysis.
-    /// Mutable implementation, means Phase data and Pseudo range data
-    /// are substracted in place. Post analysis consists in browsing remaining
-    /// "rover" record.
-    pub fn single_difference_mut(&mut self) -> Result<(), Error> {
+    /// Returns geometric biases (delta rho) in Eq(2) page 2
+    /// which is are dominant biases in the cycle slip detection
+    /// algorithm. This can only be performed
+    /// against different carrier frequencies.
+    /// Single difference returns Phase  
+    /// substracting Phase observations between
+    /// identical carrier signal. 
+    pub fn geometric_biases(&self) -> Result<(), Error> {
         if !self.base.is_observation_rinex() {
             return Err(Error::NotObservationBase);
         }
@@ -209,10 +227,11 @@ impl DiffContext {
         for (epoch, (_, vehicules)) in rec.iter_mut() {
             let (_, rov_vehicules) = rov_rec.get(&epoch)
                 .unwrap();
-            for (sv, observations) in vehicules.iter_mut() {
+            for (sv, vehicules) in vehicules.iter_mut() {
                 let rov_observations = rov_vehicules.get(&sv)
                     .unwrap();
                 for observation in observations {
+                    if is_phase_carrier_obs_code!(
                     /*if is_phase_carrier_obs_code!(observation) {
                         // locate same observation in Rover data
                     }
