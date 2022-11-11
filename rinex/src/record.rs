@@ -666,4 +666,32 @@ impl Decimation<Record> for Record {
         s.decim_by_interval_mut(interval);
         s
     }
+    fn decim_match_mut(&mut self, rhs: &Self) {
+        if let Some(a) = self.as_mut_obs() {
+            if let Some(b) = rhs.as_obs() {
+                a.decim_match_mut(b);
+            }
+        } else if let Some(a) = self.as_mut_nav() {
+            if let Some(b) = rhs.as_nav() {
+                a.decim_match_mut(b);
+            }
+        } else if let Some(a) = self.as_mut_meteo() {
+            if let Some(b) = rhs.as_meteo() {
+                a.decim_match_mut(b);
+            }
+        } else if let Some(a) = self.as_mut_ionex() {
+            if let Some(b) = rhs.as_ionex() {
+                a.decim_match_mut(b);
+            }
+        } else if let Some(a) = self.as_mut_clock() {
+            if let Some(b) = rhs.as_clock() {
+                a.decim_match_mut(b);
+            }
+        }
+    }
+    fn decim_match(&self, rhs: &Self) -> Self {
+        let mut s = self.clone();
+        s.decim_match_mut(rhs);
+        s
+    }
 }

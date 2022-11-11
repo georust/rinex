@@ -1275,4 +1275,12 @@ impl Decimation<Record> for Record {
         s.decim_by_interval_mut(interval);
         s
     }
+    fn decim_match_mut(&mut self, rhs: &Self) {
+        self.retain(|e, _| rhs.get(e).is_some());
+    }
+    fn decim_match(&self, rhs: &Self) -> Self {
+        let mut s = self.clone();
+        s.decim_match_mut(&rhs);
+        s
+    }
 }

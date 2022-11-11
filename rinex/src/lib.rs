@@ -1493,7 +1493,7 @@ impl Rinex {
     /// rnx
     ///     .retain_ephemeris_orbits_mut(vec!["satPosX","satPosY","satPosZ"]);
     /// ```
-    pub fn retain_ephemeris_orbits_mut (&mut self, filter: Vec<&str>) {
+    pub fn retain_ephemeris_orbits_mut(&mut self, filter: Vec<&str>) {
         if !self.is_navigation_rinex() {
             return ;
         }
@@ -2990,6 +2990,19 @@ impl Decimation<Rinex> for Rinex {
     fn decim_by_interval(&self, interval: chrono::Duration) -> Self {
         let mut s = self.clone();
         s.decim_by_interval_mut(interval);
+        s
+    }
+    fn decim_match_mut(&mut self, rhs: &Self) {
+        self.record.decim_match_mut(&rhs.record);
+        if let Some(mut a) = self.header.sampling_interval {
+            if let Some(b) = rhs.header.sampling_interval {
+                a = b;
+            }
+        }
+    }
+    fn decim_match(&self, rhs: &Self) -> Self {
+        let mut s = self.clone();
+        s.decim_match_mut(&rhs);
         s
     }
 }

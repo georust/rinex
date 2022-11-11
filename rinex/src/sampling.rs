@@ -25,4 +25,9 @@ pub trait Decimation<T> {
 
     /// [Decimation::decim_by_interval_mut] immutable implementation.
     fn decim_by_interval(&self, interval: chrono::Duration) -> Self;
+
+    /// Decimates Self so sample rate matches `rhs`
+    fn decim_match_mut(&mut self, rhs: &Self);
+    /// Copies and decimates Self so sample rate matches `rhs`
+    fn decim_match(&self, rhs: &Self) -> Self;
 }
