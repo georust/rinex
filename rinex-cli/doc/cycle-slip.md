@@ -63,14 +63,14 @@ and are immune to cycle slips.
 If doppler data exist for a given carrier signal $D(L_i)$ we
 have a phase variation estimator
 
-$$\Delta \Phi_{Li}(k) = \frac{ -d_k}{2} \left(D_{Li)(k) + D_{Li}(k-1) \right) $$
+$$\Delta \Phi_{Li}(k) = \frac{(k+1)-k}{2} \left(D_{Li}(k) + D_{Li}(k-1) \right) $$
 
 ## Multi band / Modern context [GF]
 
 Multi band context are the most "algorithm" friendly, 
 as the expense of RINEX data complexity.
 
-We form the geometry-free combinations easily:
+We form the geometry-free [GF] combinations easily:
 
 $$\lambda_{Li} \Delta \Phi_{Li} - \lambda_{Lj} \Delta \Phi_{Lj} = \lambda_{Li} \left( \Delta N_{Li} + \Delta e_{Li} \right) - \lambda_{Lj} \left( \Delta N_{Lj} - \Delta e_{Lj} \right) + \Delta M_{Li} + \Delta M_{Lj} - \Delta I_{Li} \frac{\lambda^2_{Li} - \lambda^2_{Lj}}{\lambda^2_{Li}} $$
 
