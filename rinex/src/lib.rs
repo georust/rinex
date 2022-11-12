@@ -1,8 +1,7 @@
-//! This library provides a set of tools to parse, analyze,
-//! produce and manipulate `RINEX` files.  
-//! Refer to README and official documentation, extensive examples of use
-//! are provided.  
-//! Homepage: <https://github.com/gwbres/rinex>
+//! This library provides a set of tools to parse, analyze
+//! and process RINEX files.
+//! Refer to README and official documentation here
+//! <https://github.com/gwbres/rinex>
 pub mod sv;
 pub mod antex;
 pub mod channel;
@@ -691,7 +690,7 @@ impl Rinex {
     /// Returns `true` if self is a `merged` RINEX file,   
     /// meaning, this file is the combination of two RINEX files merged together.  
     /// This is determined by the presence of a custom yet somewhat standardized `FILE MERGE` comments
-    pub fn is_merged (&self) -> bool {
+    pub fn is_merged(&self) -> bool {
         for (_, content) in self.comments.iter() {
             for c in content {
                 if c.contains("FILE MERGE") {
@@ -2117,7 +2116,7 @@ impl Rinex {
     /// Extracts Pseudo Range data from this
     /// Observation record, on an epoch basis an per space vehicule. 
     /// Does not produce anything if self is not an Observation RINEX.
-    pub fn observation_pseudoranges (&self) -> BTreeMap<Epoch, BTreeMap<Sv, Vec<(String, f64)>>> {
+    pub fn observation_pseudoranges(&self) -> BTreeMap<Epoch, BTreeMap<Sv, Vec<(String, f64)>>> {
         let mut results: BTreeMap<Epoch, BTreeMap<Sv, Vec<(String, f64)>>> = BTreeMap::new();
         if !self.is_observation_rinex() {
             return results ; // nothing to browse
@@ -2145,6 +2144,127 @@ impl Rinex {
         results
     }
 
+    /// Geometry free [GF] combinations
+    /// of Phase and PR observations. 
+    /// Self must be Observation RINEX with
+    /// at least one code measured against two seperate carriers.
+    /// Cf. <TODO>
+    pub fn observation_gf_combinations(&self) -> HashMap<String, HashMap<Sv, BTreeMap<Epoch, f64>>> {
+        let mut ret: HashMap<String, HashMap<Sv, BTreeMap<Epoch, f64>>> = HashMap::new();
+        if let Some(record) = self.record.as_obs() {
+            for (epoch, (_, vehicules)) in record {
+                for (sv, observations) in vehicules {
+                    for (lhs_code, lhs_data) in observations {
+                        if !is_phase_carrier_obs_code!(lhs_code) {
+                            if !is_pseudo_range_obs_code!(lhs_code) {
+                                continue ; // only on these two physics
+                            }
+                        }
+                        let lhs_carrier = &lhs_code[1..2];
+                        // determine another carrier
+                        let rhs_carrier = match lhs_carrier { // this will restrict to
+                            "1" => "2", // 1 against 2
+                            _ => "1",  // M against 1
+                        };
+                        // locate a reference code against another carrier
+                        let mut reference: Option<(&str, f64)> = None;
+                        for (refcode, refdata) in observations {
+                            let mut shared_physics = is_phase_carrier_obs_code!(refcode)
+                                && is_phase_carrier_obs_code!(lhs_code);
+                            shared_physics |= is_pseudo_range_obs_code!(refcode)
+                                && is_pseudo_range_obs_code!(lhs_code);
+                            if !shared_physics {
+                                continue ;
+                            }
+                            let carrier_code = &refcode[1..2];
+                            if carrier_code == rhs_carrier { 
+                                // expected carrier signal
+                                reference = Some((refcode, refdata.obs)); 
+                                break; // DONE searching
+                            }
+                        }
+                        if let Some((refcode, refdata)) = reference {
+                            // got a reference
+                            let op_title = format!("{}-{}", lhs_code, refcode); 
+                            if let Some(data) = ret.get_mut(&op_title) {
+                                if let Some(data) = data.get_mut(&sv) {
+                                    // new data 
+                                    data.insert(*epoch, lhs_data.obs - refdata);
+                                } else {
+                                    // new vehicule being introduced
+                                    let mut bmap: BTreeMap<Epoch, f64> = BTreeMap::new();
+                                    bmap.insert(*epoch, lhs_data.obs - refdata);
+                                    data.insert(*sv, bmap);
+                                }
+                            } else {
+                                // introduce new recombination,
+                                //   Only if `lhs` is not already being recombined
+                                let mut inject = true;
+                                for (ops, _) in &ret {
+                                    let items: Vec<&str> = ops.split("-").collect();
+                                    let lhs_operand = items[0]; 
+                                    if lhs_operand == lhs_code {
+                                        inject = false;
+                                        break ;
+                                    }
+                                }
+                                if inject {
+                                    let mut bmap: BTreeMap<Epoch, f64> = BTreeMap::new();
+                                    bmap.insert(*epoch, lhs_data.obs - refdata);
+                                    let mut map: HashMap<Sv, BTreeMap<Epoch, f64>> = HashMap::new();
+                                    map.insert(*sv, bmap); 
+                                    ret.insert(op_title.clone(), map);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        ret
+    }
+
+
+/*    
+    /// Single step /stage, in high order phase differencing
+    /// algorithm, which we use in case of old receiver data / old RINEX
+    /// to cancel geometric and atmospheric biases.
+    /// See [high_order_phase_difference]
+    fn high_order_phase_difference_step(&self) -> Result<BTreeMap<Epoch, HashMap<Sv, HashMap<String, f64>>> {
+        let mut ret: BTreeMap<Epoch, HashMap<String, f64>> = BTreeMap::new();
+    }
+
+    /// Computes High Order Phase Difference
+    /// accross vehicules and epochs,
+    /// until differencing order is reached.
+    /// This is used in Geometric biases estimation,
+    /// in case of single channel receivers / old RINEX, where
+    /// only one carrier signal was sampled.
+    /// Final order is determined from the epoch interval
+    /// (the smallest the better), the phase data quality and so on.
+    fn high_order_phase_difference(&self, order: usize) -> Result<BTreeMap<Epoch, HashMap<Sv, HashMap<String, f64>>> {
+        let mut ret: BTreeMap<Epoch, HashMap<String, f64>> = BTreeMap::new();
+        if let Some(rec) = self.record.as_obs() {
+            for (epoch, (_, vehicules)) in rec {
+                for (sv, observations) in vehicules {
+                    for (code, data) in observations {
+                        if is_phase_carrier_obs_code!(code) {
+                        
+                        }
+                    }
+                }
+            }
+        }
+        ret
+    }
+
+    /// Estimates geometric biases () in Eq(2) page 2
+    /// of <>, which is the dominant bias in the cycle slip
+    /// determination. This is performed by substracting
+    /// raw phase data measurement for a given observation,
+    /// against the same observation along separate carrier frequency.
+    /// It is said to
+*/
 /*
     /// Extracts Pseudo Ranges without Ionospheric path delay contributions,
     /// by extracting [pseudo_ranges] and using the differential (dual frequency) compensation.

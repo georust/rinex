@@ -56,13 +56,43 @@ Here's the resulting plot containing doppler shifts for instance:
 
 <img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_gpsdoppler.png">
 
-When you see black symbols on the phase plot, it means a cycle slip
-may have happen at this epoch (due to temporary loss of lock).
+When analysing such a RINEX file, these filtering methods are most useful:
+
+- `--retain-constell`: focus on constellations of interest
+- `--retain-sv`: focus on vehicules of interest 
+- `--sv-epoch`: plot encountered vehicules accros epochs
+- `-w [DATETIME] [DATETIME]` zoom in on a slice of that day
+- `--observables`: enumerate encountered observables per constellation.
+- `--retain-obs`: focus on observation (codes) of interest.
+This is one way to focus on a carrier signal of interest
+- decimation: increse epoch interval / reduce data quantity
+
+Black symbols on the phase plot means a possible cycle slip happened
+at that very moment, due to temporary loss of lock on the receiver side.
 
 <img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_cycleslip1.png">
 
 Cycle slips may happen randomly, for a given channel and signal.   
-In `ESBC00DNK`, apparently no GPS vehicules declare a possible cycle slip.  
-And here we see that only R09(L3) seems affected.  
+To learn more about cycle slips, refer to the [processing section](processing.md).
 
-To learn more about cycle slips, refer to the [processing page](processing.md).
+Enhanced Observation analysis
+=============================
+
+Navigation context (Ephemeris) can be added on top of Observation RINEX
+provided with `--fp`.   
+Navigation context in this case is expect to have been sampled in identical conditions.  
+This currently enhance the previous visualizations with satellite elevation angles.
+
+Let's enhance the previous
+`ESBC00DNK_2020` visualization
+
+```bash
+rinex-cli \
+    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
+    --nav test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz \
+    --retain-sv G21,G09,G27 \
+    -w "2020-06-25 00:00:00 2020-06-25 03:00:00"
+    --plot
+```
+
+Plots now exhibit the elevation angle for vehicules we're interested in.

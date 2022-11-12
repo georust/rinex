@@ -1,4 +1,5 @@
 //! Observation record plotting
+use crate::Cli;
 use rinex::{
     *,
     prelude::*,
@@ -176,14 +177,21 @@ pub fn build_context<'a> (dim: (u32, u32), record: &Record) -> Context<'a> {
     }
 }
 
-pub fn plot(ctx: &mut Context, record: &Record) {
+pub fn plot(ctx: &mut Context, record: &Record, nav_ctx: Option<Rinex>) {
     let mut e0: i64 = 0;
     let cmap = colorous::TURBO; // to differentiate vehicules (PRN#)
-    let symbols = vec!["x","t","o"]; // to differentiate carrier signals
+    let symbols = vec!["x", "t", "o"]; // to differentiate carrier signals
     // sorted by Physics, By Carrier number, By vehicule, (x,y)
     let mut clk_offset: Vec<(f64,f64)> = Vec::new();
+    // dataset
+    //  per physics, per carrier signal (symbol)
+    //      per vehicule (color map)
+    //      x: sampling timestamp, 
+    //      y: observation (raw), 
+    //      bool: loss of lock - CS emphasis
+    //      optionnal(f64): Sv elevation angle, if NAV is provided
     let mut dataset: HashMap<String, HashMap<u8, HashMap<Sv, Vec<(bool,f64,f64)>>>> = HashMap::new();
-    
+
     for (e_index, (epoch, (clock_offset, vehicules))) in record.iter().enumerate() {
         if e_index == 0 {
             e0 = epoch.date.timestamp()

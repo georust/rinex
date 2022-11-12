@@ -64,7 +64,7 @@ pub fn main() -> Result<(), rinex::Error> {
     }
     
     /*
-     * Basic analysis requested
+     * SV per Epoch analysis requested
      */
     if cli.sv_epoch() {
         analysis::sv_epoch::analyze(&rnx, &mut nav_context, cli.plot_dimensions());
@@ -98,7 +98,6 @@ pub fn main() -> Result<(), rinex::Error> {
     if cli.phase_dcb() || cli.pseudorange_dcb() {
         return Ok(());
     }
-
     /*
      * Code Multipath analysis
      */
@@ -109,6 +108,18 @@ pub fn main() -> Result<(), rinex::Error> {
             panic!("--nav must be provided for code multipath analysis");
         }*/
         panic!("code multipath analysis is under development");
+    }
+    /*
+     * [GF] recombination visualization requested
+     */
+    if cli.gf_recombination() {
+        let data = rnx.observation_gf_combinations();
+        let dims = cli.plot_dimensions();
+        plot::plot_gnss_recombination(dims,
+            "gf.png",
+            "Geometric Free Combination",
+            "Meters of Li-Lj delay",
+            &data);
     }
     
     /*
@@ -164,7 +175,7 @@ pub fn main() -> Result<(), rinex::Error> {
     if plot {
         let dims = cli.plot_dimensions();
         let mut ctx = plot::record::Context::new(dims, &rnx); 
-        plot::record::plot(&mut ctx, &rnx); 
+        plot::record::plot(&mut ctx, &rnx, nav_context); 
     
     } else {
         if pretty {

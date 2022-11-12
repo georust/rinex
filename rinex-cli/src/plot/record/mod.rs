@@ -58,9 +58,9 @@ impl<'a> Context<'a> {
 }
 
 /// Plots Rinex record content
-pub fn plot(ctx: &mut Context, rnx: &Rinex) {
+pub fn plot(ctx: &mut Context, rnx: &Rinex, nav: Option<Rinex>) {
     if let Some(record) = rnx.record.as_obs() {
-        observation::plot(ctx, record)
+        observation::plot(ctx, record, nav)
     } else if let Some(record) = rnx.record.as_nav() {
         navigation::plot(ctx, record)
     } else if let Some(record) = rnx.record.as_meteo() {

@@ -148,7 +148,7 @@ impl DiffContext {
                             shared |= base_sv == sv;
                         }
                     } else if let Some(nav_base) = base.record.as_nav() {
-                        let (base_classes) = nav_base.get(e)
+                        let base_classes = nav_base.get(e)
                             .unwrap();
                         for (class, frames) in base_classes {
                             for fr in frames {
@@ -204,44 +204,6 @@ impl DiffContext {
         let rnx = Rinex::from_file(fp)?;
         let rover = Rinex::from_file(rover_fp)?;
         Ok(Self::new(&rnx, &rover))
-    }
-
-    /// Returns geometric biases (delta rho) in Eq(2) page 2
-    /// which is are dominant biases in the cycle slip detection
-    /// algorithm. This can only be performed
-    /// against different carrier frequencies.
-    /// Single difference returns Phase  
-    /// substracting Phase observations between
-    /// identical carrier signal. 
-    pub fn geometric_biases(&self) -> Result<(), Error> {
-        if !self.base.is_observation_rinex() {
-            return Err(Error::NotObservationBase);
-        }
-        if !self.rover.is_observation_rinex() {
-            return Err(Error::NotObservationRover);
-        }
-        let rec = self.rover.record.as_mut_obs()
-            .unwrap();
-        let rov_rec = self.base.record.as_obs()
-            .unwrap();
-        for (epoch, (_, vehicules)) in rec.iter_mut() {
-            let (_, rov_vehicules) = rov_rec.get(&epoch)
-                .unwrap();
-            for (sv, vehicules) in vehicules.iter_mut() {
-                let rov_observations = rov_vehicules.get(&sv)
-                    .unwrap();
-                for observation in observations {
-                    if is_phase_carrier_obs_code!(
-                    /*if is_phase_carrier_obs_code!(observation) {
-                        // locate same observation in Rover data
-                    }
-                    if is_pseudo_range_obs_code!(observation) {
-
-                    }*/
-                }
-            }
-        }
-        Ok(())
     }
 
     /// Calculates Code MultiPath (MP) ratios by combining

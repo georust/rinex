@@ -13,17 +13,14 @@ while `--fp` remains how you give the base file.
 This library is implemented such as Military codes are supported just like others.
 They're just not tested due to obvious lack of data.
 
-Cycle slip and Phase ambiguities
-================================
+GNSS Signal Combination
+=======================
 
-This tool allows Cycle slip analysis, determination
-and cancellation. Since this is a huge and lengthy topic,
-we have a [dedicated page](cycle-slip.md) to demonstrate
-all possible operations and applications.
+This tool supports standard GNSS recombinations,
+especially for modern RINEX. 
 
-Since cycle slip cancellation is the basics of several
-advanced computations, we recommend reading this page
-prior moving forward.
+Refer to this page for [thorough documentation](gnss-combination.md).  
+It is important to understand GNSS signal recombinations and what they can represent.  
 
 Phase Differential Code Biases (DBCs)
 =====================================
@@ -31,8 +28,8 @@ Phase Differential Code Biases (DBCs)
 Phase DBCs can be evaluated on Observation RINEX with `--phase-dcb`.  
 This analysis is very useful to determine correlations and biases between different codes.  
 
-This operation substracts a reference phase point to another phase observation,
-as long as they were sampled against the same carrier frequency.
+This is almost identical to a GF recombination, instead that we perform it
+on identical carrier signals and not different frequencies.
 
 Refer to page 11 of
 [this ESA analysis](http://navigation-office.esa.int/attachments_12649498_1_Reichel_5thGalSciCol_2015.pdf)
