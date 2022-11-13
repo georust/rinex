@@ -107,7 +107,7 @@ impl FromStr for Channel {
 
 impl Channel {
     /// Returns frequency associated to this channel in MHz 
-    pub fn carrier_frequency_mhz (&self) -> f64 {
+    pub fn carrier_frequency_mhz(&self) -> f64 {
         match self {
             Channel::L1 | Channel::E1 => 1575.42_f64,
             Channel::L2 | Channel::E2 => 1227.60_f64,
@@ -127,6 +127,10 @@ impl Channel {
             Channel::B3 => 1268.52_f64, 
             Channel::S => 2492.028_f64,
         }
+    }
+    /// Returns wavelength of this channel
+    pub fn carrier_wavelength(&self) -> f64 {
+        299792458.0 / self.carrier_frequency_mhz() /10.0E6
     }
     
     /// Returns channel bandwidth in MHz
@@ -167,6 +171,8 @@ impl Channel {
                     Ok(Self::G1(None))
                 } else if observable.contains("2") {
                     Ok(Self::G2(None))
+                } else if observable.contains("3") {
+                    Ok(Self::G3)
                 } else {
                     Err(Error::InvalidObservable(observable.to_string()))
                 }

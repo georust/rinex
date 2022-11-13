@@ -67,6 +67,9 @@ pub mod processing {
 use prelude::*;
 use sampling::*;
 
+use std::str::FromStr;
+use crate::channel::Channel;
+
 #[cfg(feature = "serde")]
 #[macro_use]
 extern crate serde;
@@ -2146,21 +2149,40 @@ impl Rinex {
 
     /// Geometry free [GF] combinations
     /// of Phase and PR observations. 
+    /// Cf. <https://github.com/gwbres/rinex/blob/rinex-cli/doc/gnss-combination.md>.
     /// Self must be Observation RINEX with
-    /// at least one code measured against two seperate carriers.
-    /// Cf. <TODO>
+    /// at least one code measured against two seperate carriers to produce something.
+    /// Phase data is maintained aligned at origin.
     pub fn observation_gf_combinations(&self) -> HashMap<String, HashMap<Sv, BTreeMap<Epoch, f64>>> {
+        let mut first_epoch = Epoch::default(); // to retrieve first point easily
         let mut ret: HashMap<String, HashMap<Sv, BTreeMap<Epoch, f64>>> = HashMap::new();
         if let Some(record) = self.record.as_obs() {
-            for (epoch, (_, vehicules)) in record {
+            for (e_index, (epoch, (_, vehicules))) in record.iter().enumerate() {
+                if e_index == 0 {
+                    first_epoch = epoch.clone();
+                }
                 for (sv, observations) in vehicules {
                     for (lhs_code, lhs_data) in observations {
-                        if !is_phase_carrier_obs_code!(lhs_code) {
-                            if !is_pseudo_range_obs_code!(lhs_code) {
-                                continue ; // only on these two physics
-                            }
-                        }
                         let lhs_carrier = &lhs_code[1..2];
+                        let lhs_lambda: Option<f64> = match is_phase_carrier_obs_code!(lhs_code) {
+                            true => {
+                                if let Ok(channel) = Channel::from_observable(sv.constellation, lhs_carrier) {
+                                    Some(channel.carrier_wavelength())
+                                } else {
+                                    None
+                                }
+                            },
+                            false => {
+                                if is_pseudo_range_obs_code!(lhs_code) {
+                                    Some(1.0)
+                                } else {
+                                    None
+                                }
+                            },
+                        };
+                        if lhs_lambda.is_none() {
+                            continue ; // only on these two physics
+                        }
                         // determine another carrier
                         let rhs_carrier = match lhs_carrier { // this will restrict to
                             "1" => "2", // 1 against 2
@@ -2179,21 +2201,58 @@ impl Rinex {
                             let carrier_code = &refcode[1..2];
                             if carrier_code == rhs_carrier { 
                                 // expected carrier signal
-                                reference = Some((refcode, refdata.obs)); 
+                                //  align B to A starting point
+                                let ref_scaling: f64 = match is_phase_carrier_obs_code!(refcode) {
+                                    true => {
+                                        if let Ok(channel) = Channel::from_observable(sv.constellation, rhs_carrier) {
+                                            channel.carrier_wavelength()
+                                        } else {
+                                            1.0
+                                        }
+                                    },
+                                    false => 1.0,
+                                };
+                                reference = Some((refcode, refdata.obs * ref_scaling)); 
                                 break; // DONE searching
                             }
                         }
                         if let Some((refcode, refdata)) = reference {
                             // got a reference
                             let op_title = format!("{}-{}", lhs_code, refcode); 
+                            // additionnal phase scalign
+                            let total_scaling: f64 = match is_phase_carrier_obs_code!(lhs_code) {
+                                true => {
+                                    if let Ok(rhs) = Channel::from_observable(sv.constellation, rhs_carrier) {
+                                        if let Ok(lhs) = Channel::from_observable(sv.constellation, lhs_carrier) {
+                                            let f_rhs = rhs.carrier_frequency_mhz();
+                                            let f_lhs = lhs.carrier_frequency_mhz();
+                                            let gamma = f_lhs / f_rhs;
+                                            1.0 / (gamma.powf(2.0) -1.0)
+                                        } else {
+                                            1.0
+                                        }
+                                    } else {
+                                        1.0
+                                    }
+                                },
+                                false => 1.0,
+                            };
+                            let yp: f64 = match is_phase_carrier_obs_code!(lhs_code) {
+                                true => {
+                                    (lhs_data.obs * lhs_lambda.unwrap() - refdata) * total_scaling
+                                },
+                                false => { // PR: sign differs
+                                    refdata - lhs_data.obs * lhs_lambda.unwrap()
+                                },
+                            };
                             if let Some(data) = ret.get_mut(&op_title) {
                                 if let Some(data) = data.get_mut(&sv) {
                                     // new data 
-                                    data.insert(*epoch, lhs_data.obs - refdata);
+                                    data.insert(*epoch, yp);
                                 } else {
                                     // new vehicule being introduced
                                     let mut bmap: BTreeMap<Epoch, f64> = BTreeMap::new();
-                                    bmap.insert(*epoch, lhs_data.obs - refdata);
+                                    bmap.insert(*epoch, yp);
                                     data.insert(*sv, bmap);
                                 }
                             } else {
@@ -2203,14 +2262,19 @@ impl Rinex {
                                 for (ops, _) in &ret {
                                     let items: Vec<&str> = ops.split("-").collect();
                                     let lhs_operand = items[0]; 
+                                    let rhs_operand = items[1];
                                     if lhs_operand == lhs_code {
+                                        inject = false;
+                                        break ;
+                                    }
+                                    if rhs_operand == lhs_code {
                                         inject = false;
                                         break ;
                                     }
                                 }
                                 if inject {
                                     let mut bmap: BTreeMap<Epoch, f64> = BTreeMap::new();
-                                    bmap.insert(*epoch, lhs_data.obs - refdata);
+                                    bmap.insert(*epoch, yp);
                                     let mut map: HashMap<Sv, BTreeMap<Epoch, f64>> = HashMap::new();
                                     map.insert(*sv, bmap); 
                                     ret.insert(op_title.clone(), map);
@@ -2888,6 +2952,7 @@ impl Rinex {
                 .unwrap();
             record
                 .retain(|e, _| e.date >= start && e.date <= end);
+            record::Record::align_phase_origins(record);
         } else if self.is_navigation_rinex() {
             let record = self.record
                 .as_mut_nav()

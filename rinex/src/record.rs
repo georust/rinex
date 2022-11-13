@@ -186,11 +186,11 @@ impl Record {
         }
         Ok(())
     }
+
     /*
-     * This macro is used to align all phase observations
-     * at e_(k=0). We're only interested in phase variations anyway.
+     * this macro aligns phase at origin e_(k=0) 
      */
-    fn align_phase_origins(record: &mut observation::Record) {
+    pub fn align_phase_origins(record: &mut observation::Record) {
         let mut init_phases: HashMap<Sv, HashMap<String, f64>> = HashMap::new();
         for (index, (epoch, (_, vehicules))) in record.iter_mut().enumerate() {
             for (sv, observations) in vehicules.iter_mut() {
@@ -214,6 +214,7 @@ impl Record {
             }
         }
     }
+
 }
 
 impl Default for Record {
@@ -659,6 +660,7 @@ impl Decimation<Record> for Record {
     fn decim_by_ratio_mut(&mut self, r: u32) {
         if let Some(rec) = self.as_mut_obs() {
             rec.decim_by_ratio_mut(r);
+            Self::align_phase_origins(rec);
         } else if let Some(rec) = self.as_mut_nav() {
             rec.decim_by_ratio_mut(r);
         } else if let Some(rec) = self.as_mut_meteo() {
@@ -681,6 +683,7 @@ impl Decimation<Record> for Record {
     fn decim_by_interval_mut(&mut self, interval: chrono::Duration) {
         if let Some(r) = self.as_mut_obs() {
             r.decim_by_interval_mut(interval);
+            Self::align_phase_origins(r);
         } else if let Some(r) = self.as_mut_nav() {
             r.decim_by_interval_mut(interval);
         } else if let Some(r) = self.as_mut_meteo() {
@@ -701,6 +704,7 @@ impl Decimation<Record> for Record {
         if let Some(a) = self.as_mut_obs() {
             if let Some(b) = rhs.as_obs() {
                 a.decim_match_mut(b);
+                Self::align_phase_origins(a);
             }
         } else if let Some(a) = self.as_mut_nav() {
             if let Some(b) = rhs.as_nav() {

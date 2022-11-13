@@ -58,26 +58,53 @@ $$\lambda_{Li} \Delta \Phi_{Li} - \lambda_{Lj} \Delta \Phi_{Lj} = \lambda_{Li} \
 now let's rework the previous equation to emphasize $\Delta N_{Li} -  \Delta N_{Lj}$
 the phase ambiguities difference two different carrier signals.
 
+GF recombination is requested with `--gf` when analyzing Observation RINEX.  
+`--gf` is processed seperately, it does not impact the remaining record analysis (raw data),
+it will just create a new visualization, in the form of "gf.png".   
+GF expresses fractions of $L_i - L_j$ delay.
+
+For example, `ESBC00DNK_R_2022` sampled G21 at a 30 second sample rate
+(low sample rate). Form the GF recombination for both Pseudo Range and Phase data,
+over a linear section:
+
+```bash
+rinex-cli \
+    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx \
+    --retain-sv G21 \
+    -w "2020-06-25 00:30:00 2020-06-25 02:00:00" \
+    --gf --plot
+```
+
+<img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_gf.png">
+
+The residuals over code measurement is much more noisy (spreadout) than the residual phase,
+whici is already down to some millimeters.
+
+Be careful when requesting `--gf` to set a time window where all
+codes to be recombined have a point at epoch 0. Otheriwse, the current phase alignment 
+is not smart enough to align properly and you get residuals that are totally off, by orders of magnitude.
+
 GF and atmospheric delay
 ========================
 
 GF cancels out geometric terms but frequency dependant terms remain.
 Therefore, GF is very good atmospheric delay estimator.
 
-When Observation Data is provided, GF recombination is requested
-with `--gf`. When visualized, GF is always rescaled and displayed
-in fractions of carrier delay.
+If we focus the previous phase data (most accurate measurement):
 
 ```bash
+rinex-cli \
+    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx \
+    --retain-sv G21 \
+    --retain-obs L1C,L2W \
+    -w "2020-06-25 00:30:00 2020-06-25 02:00:00" \
+    --gf --plot
 ```
 
-At this point, you know the variations come from atmospheric biases.  
+<img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_gf_zoom.png">
 
-When processing Observation Data, the tool
-allows visualizing measurement combinations and perform
-record analysis (Raw data visualization) at the same time.  
-They just come in seperate plots.
-
+The long term variations, particularly visible in the phase residuals,
+are due to atmospheric condition changes.  
 
 GF as a CS detector
 ===================
@@ -85,36 +112,33 @@ GF as a CS detector
 When analyzing Observation RINEX, we saw that we emphasize _possible_ CSs
 when plotting the phase data.
 
-For example, a few Glonass vehicules in `ESBDNK2020` are affected.  
 CS affect RX channels independantly, randomly and is unpredictable.  
+
+For example, R12(L3) in `ESBDNK2020` is particularly affected.  
+You can see that L2 and L1 are not affected, for this vehicule
 In this file, 100% of GPS vehicules are sane, and 95% of Glonass signals too.
 
-```bash
-./target/release/rinex-cli \
-    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    --retain-sv R21,R12 \
-    -w "2020-06-25 00:00:00 2020-06-25 12:00:00" \
-    --plot
-```
 
-<img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_glo_cs_zoom.png">
-
-Now let's request GF recombination like we did before, on the same portion
-of the day
+Let's plot all phase data for L3 and L1 to emphasize the apparently faulty
+clock cycles, and request a recombination
 
 ```bash
 ./target/release/rinex-cli \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    --retain-sv R21,R12 \
-    -w "2020-06-25 00:00:00 2020-06-25 12:00:00" \
+    --retain-sv R12 \
+    --retain-obs L3Q,L1C,L2P \
+    -w "2020-06-25 01:00:00 2020-06-25 01:30:00" \
     --gf \
     --plot
 ```
 
-GF gives phas slopes basically. Discontinuities in these slopes indicate a CS.  
-With GF you get a 1 cycle of $\lambda_{Li}$ detection sensitivity. 
-CS under a complete carrier phase cycle will go undetected.  
-For this purpose, MW recombination is preferred.
+<img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_r21_l1l3_zoom.png">
+
+<img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_r21_l1l3_gf.png">
+
+Discontinuities in GF slopes indicate bad receiption conditions and CSs.  
+You can see the residual spread if you compare L3 against L1, to L2 against L1,
+the latter being in the previous millimetric order that we saw before.
 
 MW recombination
 ================

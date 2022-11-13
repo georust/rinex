@@ -5,16 +5,15 @@ RINEX files are huge, complex and vary a lot.
 With these tools, we aim at providing an easy to use and efficient interface
 to manipulate and visualize RINEX record.
 
-
 Observation RINEX
 =================
 
 When analyzing Observation RINEX, one plot per kind of observations
-is to be generated
+is to be generated:
 
-- "phase.png": Phase data
-- "pseudorange.png": Pseudo Range data
-- "ssi.png": Signal Strengths
+- "phase.png": Phase data points [n.a]
+- "pseudorange.png": Pseudo Range data [pseudo distance]
+- "ssi.png": Signal Strengths [dB]
 - "doppler.png": Doppler shifts
 
 An optionnal "clock-offset.png" will be generated, in case this RINEX
@@ -52,11 +51,11 @@ rinex-cli \
     --plot
 ```
 
-Here's the resulting plot containing doppler shifts for instance:
-
 <img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_gpsdoppler.png">
 
-When analysing such a RINEX file, these filtering methods are most useful:
+The extract doppler shifts (_doppler.png_).
+
+When dealing with Observation RINEX, the following operations are most useful:
 
 - `--retain-constell`: focus on constellations of interest
 - `--retain-sv`: focus on vehicules of interest 
@@ -67,10 +66,17 @@ When analysing such a RINEX file, these filtering methods are most useful:
 This is one way to focus on a carrier signal of interest
 - decimation: increse epoch interval / reduce data quantity
 
-Black symbols on the phase plot means a possible cycle slip happened
-at that very moment, due to temporary loss of lock on the receiver side.
+Phase data
+==========
 
-<img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_cycleslip1.png">
+Phase observations are aligned at the origin for easy comparison and processing.  
+The tool also emphasizes _possible_ cycle slips when plotting Phase observations,
+with a black symbol for all epochs where the receiver declared a temporary loss of lock.  
+For example L5 of G10 in `GRAS00FRA_R_2022` is affected:
+
+<img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/gras00fra_g10phase.png">
+
+4 micro (1sec) possible corruptions over this channel, which was used to sample L5 at high rate. 
 
 Cycle slips may happen randomly, for a given channel and signal.   
 To learn more about cycle slips, refer to the [processing section](processing.md).
@@ -83,8 +89,7 @@ provided with `--fp`.
 Navigation context in this case is expect to have been sampled in identical conditions.  
 This currently enhance the previous visualizations with satellite elevation angles.
 
-Let's enhance the previous
-`ESBC00DNK_2020` visualization
+Let's enhance the previous `ESBC00DNK_2020` visualization
 
 ```bash
 rinex-cli \

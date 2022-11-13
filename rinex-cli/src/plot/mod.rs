@@ -26,12 +26,17 @@ pub fn build_chart(title: &str, x_axis: Vec<f64>, y_range: (f64,f64),
             -> ChartState<Plot2d> 
 {
     let x_axis = x_axis[0]..x_axis[x_axis.len()-1]; 
+    // y axis is scaled for better rendering
+    let y_axis = match y_range.0 < 0.0 {
+        true => 1.02*y_range.0..1.02*y_range.1,
+        false => 0.98*y_range.0..1.02*y_range.1,
+    };
     let mut chart = ChartBuilder::on(area)
         .caption(title, ("sans-serif", 50).into_font())
         .margin(40)
         .x_label_area_size(30)
         .y_label_area_size(40)
-        .build_cartesian_2d(x_axis, 0.98*y_range.0..1.02*y_range.1) // nicer Y scale
+        .build_cartesian_2d(x_axis, y_axis)
         .unwrap();
     chart
         .configure_mesh()
@@ -65,6 +70,7 @@ pub fn plot_gnss_recombination(
     // determine (smallest, largest) y accross all Ops (nicer scale)
     let mut y: (f64, f64) = (0.0, 0.0);
     let mut dates: (i64, i64) = (0, 0);
+    let mut first_epoch = Epoch::default();
     for (op_index, (op, vehicules)) in data.iter().enumerate() {
         for (sv, epochs) in vehicules.iter() {
             if sv.prn > cmap_max_index {
@@ -72,16 +78,18 @@ pub fn plot_gnss_recombination(
             }
             for (e_index, (epoch, data)) in epochs.iter().enumerate() {
                 if e_index == 0 {
+                    first_epoch = epoch.clone();
                     dates.0 = epoch.date.timestamp();
                 }
                 if epoch.date.timestamp() > dates.1 {
                     dates.1 = epoch.date.timestamp();
                 }
-                if *data < y.0 {
-                    y.0 = *data;
+                let yp = data; // * 1.546;
+                if *yp < y.0 {
+                    y.0 = *yp;
                 }
-                if *data > y.1 {
-                    y.1 = *data;
+                if *yp > y.1 {
+                    y.1 = *yp;
                 }
             }
         }
@@ -89,12 +97,16 @@ pub fn plot_gnss_recombination(
 
     // build a chart
     let x_axis = 0.0..((dates.1-dates.0) as f64);
-    let y_axis = y.0..y.1*1.1;
+    // y axis is scaled for better rendering
+    let y_axis = match y.0 < 0.0 {
+        true => y.0*1.100..y.1*1.100,
+        false => y.0*0.900..y.1*1.100,
+    };
     let mut chart = ChartBuilder::on(&p)
         .caption(caption, ("sans-serif", 50).into_font())
-        .margin(40)
-        .x_label_area_size(40)
-        .y_label_area_size(60)
+        .margin(10)
+        .x_label_area_size(30)
+        .y_label_area_size(80)
         .build_cartesian_2d(x_axis, y_axis)
         .expect("failed to build a chart");
     chart

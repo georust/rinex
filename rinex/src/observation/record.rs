@@ -177,7 +177,7 @@ impl ObservationData {
 /// Measurements are sorted by [epoch::Epoch].
 /// An epoch possibly comprises the receiver clock offset
 /// and a list of physical measurements, sorted by Space vehicule and observable.
-/// Example of Observation Data browsing and manipulation
+/// Phase data is offset so they start at 0 (null initial phase).
 /// ```
 /// use rinex::*;
 /// // grab a CRINEX (compressed OBS RINEX)
@@ -211,6 +211,7 @@ impl ObservationData {
 pub type Record = BTreeMap<Epoch, 
     (Option<f64>, 
     BTreeMap<sv::Sv, HashMap<String, ObservationData>>)>;
+
 
 #[derive(Error, Debug)]
 /// OBS Data `Record` parsing specific errors

@@ -88,16 +88,16 @@ pub fn build_context<'a> (dim: (u32, u32), record: &Record) -> Context<'a> {
                         let plot = build_plot(file, dim);
                         plots.insert(file.to_string(), plot);
                     }
+                    let y = data.obs;
                     if let Some((min,max)) = y_ranges.get_mut("Phase") {
-                        if data.obs < *min {
-                            *min = data.obs;
+                        if y < *min {
+                            *min = y;
                         }
-                        if data.obs > *max {
-                            *max = data.obs;
+                        if y > *max {
+                            *max = y;
                         }
                     } else {
-                        y_ranges.insert("Phase".to_string(),
-                            (data.obs,data.obs));
+                        y_ranges.insert("Phase".to_string(), (y,y));
                     }
                 } else if is_doppler_obs_code!(observation) {
                     let file = "doppler.png";
@@ -219,18 +219,18 @@ pub fn plot(ctx: &mut Context, record: &Record, nav_ctx: Option<Rinex>) {
                 if let Some(data) = dataset.get_mut(&physics) {
                     if let Some(data) = data.get_mut(&c_code) {
                         if let Some(data) = data.get_mut(&sv) {
-                            data.push((cycle_slip,x,y));
+                            data.push((cycle_slip, x, y));
                         } else {
-                            data.insert(*sv, vec![(cycle_slip,x,y)]);
+                            data.insert(*sv, vec![(cycle_slip, x, y)]);
                         }
                     } else {
                         let mut map: HashMap<Sv, Vec<(bool,f64,f64)>> = HashMap::new();
-                        map.insert(*sv, vec![(cycle_slip,x,y)]);
+                        map.insert(*sv, vec![(cycle_slip, x, y)]);
                         data.insert(c_code, map);
                     }
                 } else {
                     let mut map: HashMap<Sv, Vec<(bool,f64,f64)>> = HashMap::new();
-                    map.insert(*sv, vec![(cycle_slip,x,y)]);
+                    map.insert(*sv, vec![(cycle_slip, x, y)]);
                     let mut mmap: HashMap<u8, HashMap<Sv, Vec<(bool,f64,f64)>>> = HashMap::new();
                     mmap.insert(c_code, map);
                     dataset.insert(physics.to_string(), mmap);

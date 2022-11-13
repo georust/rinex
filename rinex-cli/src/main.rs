@@ -115,9 +115,10 @@ pub fn main() -> Result<(), rinex::Error> {
     if cli.gf_recombination() {
         let data = rnx.observation_gf_combinations();
         let dims = cli.plot_dimensions();
-        plot::plot_gnss_recombination(dims,
+        plot::plot_gnss_recombination(
+            dims, 
             "gf.png",
-            "Geometric Free Combination",
+            "Geometry Free signal recombination",
             "Meters of Li-Lj delay",
             &data);
     }

@@ -16,8 +16,7 @@ They're just not tested due to obvious lack of data.
 GNSS Signal Combination
 =======================
 
-This tool supports standard GNSS recombinations,
-especially for modern RINEX. 
+This tool supports standard GNSS recombinations, especially for modern RINEX. 
 
 Refer to this page for [thorough documentation](gnss-combination.md).  
 It is important to understand GNSS signal recombinations and what they can represent.  
