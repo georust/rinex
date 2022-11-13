@@ -6,7 +6,7 @@ use std::collections::{BTreeMap, HashMap};
 use serde::Serialize;
 
 use super::{
-    prelude::*,
+    *,
     antex,
     clocks,
     ionex,
@@ -185,6 +185,34 @@ impl Record {
             _ => panic!("record type not supported yet"),
         }
         Ok(())
+    }
+    /*
+     * This macro is used to align all phase observations
+     * at e_(k=0). We're only interested in phase variations anyway.
+     */
+    fn align_phase_origins(record: &mut observation::Record) {
+        let mut init_phases: HashMap<Sv, HashMap<String, f64>> = HashMap::new();
+        for (index, (epoch, (_, vehicules))) in record.iter_mut().enumerate() {
+            for (sv, observations) in vehicules.iter_mut() {
+                for (observation, mut data) in observations.iter_mut() {
+                    if is_phase_carrier_obs_code!(observation) {
+                        if let Some(init_phase) = init_phases.get_mut(&sv) {
+                            if init_phase.get(observation).is_none() {
+                                init_phase.insert(observation.clone(), data.obs);
+                            }
+                        } else {
+                            let mut map: HashMap<String, f64> = HashMap::new();
+                            map.insert(observation.clone(), data.obs);
+                            init_phases.insert(*sv, map);
+                        }
+                        data.obs -= init_phases.get(&sv)
+                            .unwrap()
+                            .get(observation)
+                            .unwrap();
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -557,7 +585,10 @@ pub fn parse_record(reader: &mut BufferedReader, header: &mut header::Header) ->
         Type::IonosphereMaps => Record::IonexRecord(ionx_rec),
 		Type::MeteoData => Record::MeteoRecord(met_rec),
         Type::NavigationData => Record::NavRecord(nav_rec),
-        Type::ObservationData => Record::ObsRecord(obs_rec), 
+        Type::ObservationData => {
+            Record::align_phase_origins(&mut obs_rec);
+            Record::ObsRecord(obs_rec)
+        },
     };
     Ok((record, comments))
 }
