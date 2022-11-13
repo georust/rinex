@@ -132,9 +132,9 @@ clock cycles, and request a recombination
     --plot
 ```
 
-<img align="center" width="650" src="https://github.com/gwbres/rinex/tree/main/doc/plots/esbc00dnk_r21_l1l3_zoom.png">
+<img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_r21_l1l3_zoom.png">
 
-<img align="center" width="650" src="https://github.com/gwbres/rinex/tree/main/doc/plots/esbc00dnk_r21_l1l3_gf.png">
+<img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_r21_l1l3_gf.png">
 
 Discontinuities in GF slopes indicate bad receiption conditions and CSs.  
 You can see the residual spread if you compare L3 against L1, to L2 against L1,
