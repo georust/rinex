@@ -72,35 +72,24 @@ pub fn main() -> Result<(), rinex::Error> {
     }
 
     /*
-     * Phase DCB analysis 
+     * DCB analysis requested
      */
-    if cli.phase_dcb() {
-        let data = rnx.observation_phase_dcb();
+    if cli.dcb() {
         let dims = cli.plot_dimensions();
-        plot::differential::plot(dims, 
-            "phase-dcb.png", 
-            "Phase Differential Code Biases",
+        let mut data = rnx.observation_phase_dcb();
+        for (op, inner) in rnx.observation_pseudorange_dcb() {
+            data.insert(op.clone(), inner.clone());
+        }
+        plot::plot_gnss_recombination(
+            dims, 
+            "dcb.png", 
+            "Differential Code Biases",
             "DBCs [n.a]",
             &data);
     }
-    /*
-     * PR DCB analysis
-     */
-    if cli.pseudorange_dcb() {
-        let data = rnx.observation_pseudorange_dcb();
-        let dims = cli.plot_dimensions();
-        plot::differential::plot(dims, 
-            "pseudorange-dcb.png", 
-            "Pseudo Range Differential Code Biases",
-            "DCBs [n.a]",
-            &data);
-    }
-    if cli.phase_dcb() || cli.pseudorange_dcb() {
-        return Ok(());
-    }
+    
     /*
      * Code Multipath analysis
-     */
     if cli.multipath() {
         /*if let Some(nav) = nav_context {
             return Ok(());
@@ -109,6 +98,7 @@ pub fn main() -> Result<(), rinex::Error> {
         }*/
         panic!("code multipath analysis is under development");
     }
+     */
     /*
      * [GF] recombination visualization requested
      */

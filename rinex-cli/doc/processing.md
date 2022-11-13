@@ -21,108 +21,59 @@ This tool supports standard GNSS recombinations, especially for modern RINEX.
 Refer to this page for [thorough documentation](gnss-combination.md).  
 It is important to understand GNSS signal recombinations and what they can represent.  
 
-Phase Differential Code Biases (DBCs)
-=====================================
+Differential Code Biases (DBCs)
+===============================
 
-Phase DBCs can be evaluated on Observation RINEX with `--phase-dcb`.  
+DBC analysis is requested with `--dcb`.  
+It is very similar to a GNSS recombination, so if you've already gone through the previous page,
+you pretty much know how to run such an analysis.
+
 This analysis is very useful to determine correlations and biases between different codes.  
+The results are $K_i$ terms in the phase signal model from the previous page.
 
-This is almost identical to a GF recombination, instead that we perform it
-on identical carrier signals and not different frequencies.
-
-Refer to page 11 of
+Refer to pages 11 and 12 of
 [this ESA analysis](http://navigation-office.esa.int/attachments_12649498_1_Reichel_5thGalSciCol_2015.pdf)
+for more information on DBCs.
 
-When requesting this operation, you get a "phase-dcb.png" plot.  
-It is highly recommended to focus on vehicules of interest when performing such analysis.  
+When requesting this operation, you get a "dcb.png" plot.  
+Like previous recombinations, one can stack the `--dcb` to other recombinations and also a record analysis. 
+Because data is not modified in place, and both results are exposed in seperate plots.
 
-Example: `ESBC00DNK_R_2020` has enough information to evaluate
+`ESBC00DNK_R_2020` has enough information to evaluate
 
 * 1C/1P for GLO L1 (1)
 * 2C/2P for GLO L2 (2)
 * 2L/2W for GPS L2 (3)
 
-Get (1)+(2) for R09 and R18 with:
+A quick `--sv-epoch` shows that R01,R02,R08,R12,R19 for instance were seen for the first few hours.
+
+Let's focus on pseudo range DCBs first, with
 
 ```bash
 rinex-cli --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    --phase-dcb \
-    --retain-sv R09,R18
+    --dcb \
+    --retain-obs C1C,C1P,C2C,C2P \
+    --retain-sv R01,R02,R12,R19,R08 \ 
+    -w "2020-06-25 00:00:00 2020-06-25 03:00:00" \
+    --plot
 ```
 
-<img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_glo_ph.png">
+<img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_pr_dcbs.png">
 
-Three very linear phases took place during that day, with huge data gaps in between
-(channel stopped or vehicule out of sight).   
-Focusing on one of these phases helps determine how linear they were.   
-To do so, we can use set a time window with `-w`:
+Like other recombinations, Pseudo Range DCBs reflects more noise than Phase data.
+
+Let's run the same comand focused on phase data:
 
 ```bash
 rinex-cli --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    -w "2020-06-25 10:00:00 2020-06-25 18:00:00" \
-    --phase-dcb \
-    --retain-sv R09,R18 
+    --dcb \
+    --retain-obs L1C,L1P,L2C,L2P \
+    --retain-sv R12,R08,R02 \ 
+    -w "2020-06-25 00:00:00 2020-06-25 03:00:00" \
+    --plot
 ```
 
-<img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_glo_ph_zoom.png">
-
-Now let's introduce a GPS vehicule so we also get (3):
-
-```bash
-rinex-cli --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    -w "2020-06-25 09:00:00 2020-06-25 12:00:00" \
-    --phase-dcb \
-    --retain-sv R09,R18,G31
-```
-
-<img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_glogps_ph_zoom.png">
-
-Pseudo Range Differential Code Biases (DBCs) estimates
-======================================================
-
-In similar fashion, Pseudo Range DBCs can be estimated with `--pr-dcb`.   
-It it the exact same approach, but applied to Pseudo Range observations.
-
-Refer to page 12 of
-[the ESA analysis](http://navigation-office.esa.int/attachments_12649498_1_Reichel_5thGalSciCol_2015.pdf)
-
-Example: `ESBC00DNK_R_2020` can evaluate
-
-* 1C/1W for GPS(L1) (1)
-* 2L/2W for GPS(L2) (2)
-* 1P/1C for GLO(L1) (3)
-* 2C/2P for GLO(L2) (4)
-
-Get (1)+(2) with G06 and G31:
-
-```bash
-rinex-cli --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    --retain-sv G06,G31 \
-    --pr-dcb \
-    -w "2020-06-25 18:00:00 2020-06-25 20:30:00" 
-```
-
-<img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_gps_prdiff.png">
-
-Focus on observations you're interested in, to get the DBCs you're interested in.  
-Get only (1) for G06 and G31:
-
-```bash
-rinex-cli --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    --retain-obs C1C,C1W \  
-    --retain-sv G06,G31 \
-    --pr-dcb \
-    -w "2020-06-25 18:00:00 2020-06-25 23:00:00"
-```
-
-<img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_gps_pr1c1w.png">
-
-PR + PH DCBs
-============
-
-Both previous analysis can be performed at once, by requesting
-`--phase-dcb` and `--pr-dcb` at the same time.
-
+<img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_ph_dcbs.png">
 
 Differential Processing
 =======================

@@ -165,6 +165,16 @@ Also drops observations that did not come with an LLI flag"))
                         .action(ArgAction::SetTrue)
                         .help("Request Geometry Free recombination of Phase and PR measurements. 
 This serves as a CS indicator or atmospheric delay estimator. Refer to README."))
+                    .arg(Arg::new("dcb")
+                        .long("dcb")
+                        .action(ArgAction::SetTrue)
+                        .help("Differential Code Bias analysis (DCBs).
+Useful to determine correlation and biases between Phase and PR observations.
+For instance \"2S-2W\" means S code against W code, for L2 carrier. Refer to README."))
+                    /*.arg(Arg::new("multipath")
+                        .long("mp")
+                        .action(ArgAction::SetTrue)
+                        .help("Run code multipath analysis. Refer to README."))*/
                     .arg(Arg::new("lock-loss")
                         .long("lock-loss")
                         .action(ArgAction::SetTrue)
@@ -231,32 +241,6 @@ Applies to either -fp or -nav context"))
 Usually combined to Observation data, provided with -fp.
 Only identical epochs can be analyzed and processed.
 Ideally, both contexts have strictly identical sample rates.
-Refer to README."))
-                    .arg(Arg::new("phase-dcb")
-                        .long("phase-dcb")
-                        .action(ArgAction::SetTrue)
-                        .help("Phase Differential Code Biases estimation (DBCs).
-Substracts Phase observations that were sampled against identical carrier frequencies.
-Useful to determine correlation and biases between phase observations.
-Observation data must be provided with -fp. 
-Navigation context is not required for this operation.
-For instance \"2S-2W\" means S code against W code, for L2 carrier.
-Refer to README."))
-                    .arg(Arg::new("pr-dcb")
-                        .long("pr-dcb")
-                        .action(ArgAction::SetTrue)
-                        .help("Pseudo Range DBCs analysis.
-Same as previous DCBs analysis, but applied to Pseudo Range observations.
-Useful to determine correlation and biases between observations.
-Observation data must be provided with -fp. 
-Refer to README."))
-                    .arg(Arg::new("multipath")
-                        .long("multipath")
-                        .action(ArgAction::SetTrue)
-                        .help("Perform code multipath analysis.
-Observation context must be provided with -fp.
-Navigation context must be provided with -nav.
-Combine to -plot for graphical visualization.
 Refer to README."))
                 .next_help_heading("`teqc` operations")
                     .arg(Arg::new("merge")
@@ -360,17 +344,13 @@ Example \"--plot-height 1024"))
     pub fn sv_epoch(&self) -> bool {
         self.matches.get_flag("sv-epoch")
     }
-    /// Phase DCBs analysis requested 
-    pub fn phase_dcb(&self) -> bool {
-        self.matches.get_flag("phase-dcb")
-    }
-    /// PR DCBs analysis requested 
-    pub fn pseudorange_dcb(&self) -> bool {
-        self.matches.get_flag("pr-dcb")
+    /// Phase /PR DCBs analysis requested 
+    pub fn dcb(&self) -> bool {
+        self.matches.get_flag("dcb")
     }
     /// Code Multipath analysis requested 
     pub fn multipath(&self) -> bool {
-        self.matches.get_flag("multipath")
+        self.matches.get_flag("mp")
     }
     /// Returns list of requested data to extract
     pub fn identification_ops(&self) -> Vec<&str> {
