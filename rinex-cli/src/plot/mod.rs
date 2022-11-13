@@ -8,7 +8,6 @@ use plotters::{
 use std::collections::{BTreeMap, HashMap};
 
 pub mod record;
-pub mod differential;
 pub type Plot2d = Cartesian2d<RangedCoordf64, RangedCoordf64>;
     
 /// Builds plot area
@@ -70,15 +69,13 @@ pub fn plot_gnss_recombination(
     // determine (smallest, largest) y accross all Ops (nicer scale)
     let mut y: (f64, f64) = (0.0, 0.0);
     let mut dates: (i64, i64) = (0, 0);
-    let mut first_epoch = Epoch::default();
-    for (op_index, (op, vehicules)) in data.iter().enumerate() {
+    for (_op_index, (_op, vehicules)) in data.iter().enumerate() {
         for (sv, epochs) in vehicules.iter() {
             if sv.prn > cmap_max_index {
                 cmap_max_index = sv.prn;
             }
             for (e_index, (epoch, data)) in epochs.iter().enumerate() {
                 if e_index == 0 {
-                    first_epoch = epoch.clone();
                     dates.0 = epoch.date.timestamp();
                 }
                 if epoch.date.timestamp() > dates.1 {

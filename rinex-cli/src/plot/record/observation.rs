@@ -1,5 +1,4 @@
 //! Observation record plotting
-use crate::Cli;
 use rinex::{
     *,
     prelude::*,

@@ -66,8 +66,6 @@ pub mod processing {
 
 use prelude::*;
 use sampling::*;
-
-use std::str::FromStr;
 use crate::channel::Channel;
 
 #[cfg(feature = "serde")]
@@ -2154,13 +2152,9 @@ impl Rinex {
     /// at least one code measured against two seperate carriers to produce something.
     /// Phase data is maintained aligned at origin.
     pub fn observation_gf_combinations(&self) -> HashMap<String, HashMap<Sv, BTreeMap<Epoch, f64>>> {
-        let mut first_epoch = Epoch::default(); // to retrieve first point easily
         let mut ret: HashMap<String, HashMap<Sv, BTreeMap<Epoch, f64>>> = HashMap::new();
         if let Some(record) = self.record.as_obs() {
             for (e_index, (epoch, (_, vehicules))) in record.iter().enumerate() {
-                if e_index == 0 {
-                    first_epoch = epoch.clone();
-                }
                 for (sv, observations) in vehicules {
                     for (lhs_code, lhs_data) in observations {
                         let lhs_carrier = &lhs_code[1..2];
