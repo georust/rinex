@@ -34,6 +34,10 @@ pub enum Error {
     HoursError,
     #[error("failed to parse \"mm\" field")]
     MinutesError,
+    #[error("failed to parse \"ss\" field")]
+    SecondsError,
+    #[error("failed to parse \"ns\" field")]
+    NanosecsError,
 }
 
 /// [hifitime::Epoch] high accuracy timestamp
@@ -204,16 +208,23 @@ impl FromStr for Epoch {
                 if let Ok(d) = u8::from_str_radix(items[2], 10) {
                     if let Ok(hh) = u8::from_str_radix(items[3], 10) {
                         if let Ok(mm) = u8::from_str_radix(items[4], 10) {
-                            let ss = f64::from_str(items[5].trim())?;
-                            let second = ss.trunc() as u8;
-                            let nanos = (ss.fract() * 10.0) as u32;
-                            let mut e = Self::from_gregorian_utc(y, m, d, hh, mm, second, nanos);
-                            if items.len() == 7 { // flag exists
-                                if let Ok(flag) = EpochFlag::from_str(items[6].trim()) {
-                                    e = e.with_flag(flag);
+                            //let second = ss.trunc() as u8;
+                            //let nanos = items[5] 
+                            if let Ok(ss) = u8::from_str_radix(&items[5][..2].trim(), 10) {
+                                if let Ok(ns) = u32::from_str_radix(&items[5][3..].trim(), 10) {
+                                    let mut e = Self::from_gregorian_utc(y, m, d, hh, mm, ss, ns * 100);
+                                    if items.len() == 7 { // flag exists
+                                        if let Ok(flag) = EpochFlag::from_str(items[6].trim()) {
+                                            e = e.with_flag(flag);
+                                        }
+                                    }
+                                    Ok(e)
+                                } else {
+                                    Err(Error::NanosecsError)
                                 }
+                            } else {
+                                Err(Error::SecondsError)
                             }
-                            Ok(e)
                         } else {
                             Err(Error::MinutesError)
                         }
@@ -321,5 +332,183 @@ mod test {
         assert_eq!(ns, 0);
         assert_eq!(e.timescale(), TimeScale::UTC);
         assert_eq!(e.flag, EpochFlag::Ok);
+    }
+    #[test]
+    fn test_parse_obs_v2() {
+        let e = Epoch::from_str(" 21 12 21  0  0  0.0000000  0");
+        assert_eq!(e.is_ok(), true);
+        let e = e.unwrap();
+        let (y, m, d, hh, mm, ss, ns) = e.to_gregorian_utc();
+        assert_eq!(y, 2021);
+        assert_eq!(m, 12);
+        assert_eq!(d, 21);
+        assert_eq!(hh, 00);
+        assert_eq!(mm, 00);
+        assert_eq!(ss, 0);
+        assert_eq!(ns, 0);
+        assert_eq!(e.timescale(), TimeScale::UTC);
+        assert_eq!(e.flag, EpochFlag::Ok);
+        
+        let e = Epoch::from_str(" 21 12 21  0  0 30.0000000  0");
+        assert_eq!(e.is_ok(), true);
+        let e = e.unwrap();
+        let (y, m, d, hh, mm, ss, ns) = e.to_gregorian_utc();
+        assert_eq!(y, 2021);
+        assert_eq!(m, 12);
+        assert_eq!(d, 21);
+        assert_eq!(hh, 00);
+        assert_eq!(mm, 00);
+        assert_eq!(ss, 30);
+        assert_eq!(ns, 0);
+        assert_eq!(e.timescale(), TimeScale::UTC);
+        assert_eq!(e.flag, EpochFlag::Ok);
+        
+        let e = Epoch::from_str(" 21 12 21  0  0 30.0000000  1");
+        assert_eq!(e.is_ok(), true);
+        let e = e.unwrap();
+        assert_eq!(e.flag, EpochFlag::PowerFailure);
+        
+        let e = Epoch::from_str(" 21 12 21  0  0 30.0000000  2");
+        assert_eq!(e.is_ok(), true);
+        let e = e.unwrap();
+        assert_eq!(e.flag, EpochFlag::AntennaBeingMoved);
+        
+        let e = Epoch::from_str(" 21 12 21  0  0 30.0000000  3");
+        assert_eq!(e.is_ok(), true);
+        let e = e.unwrap();
+        assert_eq!(e.flag, EpochFlag::NewSiteOccupation);
+        
+        let e = Epoch::from_str(" 21 12 21  0  0 30.0000000  4");
+        assert_eq!(e.is_ok(), true);
+        let e = e.unwrap();
+        assert_eq!(e.flag, EpochFlag::HeaderInformationFollows);
+        
+        let e = Epoch::from_str(" 21 12 21  0  0 30.0000000  5");
+        assert_eq!(e.is_ok(), true);
+        let e = e.unwrap();
+        assert_eq!(e.flag, EpochFlag::ExternalEvent);
+        
+        let e = Epoch::from_str(" 21 12 21  0  0 30.0000000  6");
+        assert_eq!(e.is_ok(), true);
+        let e = e.unwrap();
+        assert_eq!(e.flag, EpochFlag::CycleSlip);
+ 
+        let e = Epoch::from_str(" 21  1  1  0  0  0.0000000  0");
+        assert_eq!(e.is_ok(), true);
+        let e = e.unwrap();
+        let (y, m, d, hh, mm, ss, ns) = e.to_gregorian_utc();
+        assert_eq!(y, 2021);
+        assert_eq!(m, 1);
+        assert_eq!(d, 1);
+        assert_eq!(hh, 00);
+        assert_eq!(mm, 00);
+        assert_eq!(ss, 0);
+        assert_eq!(ns, 0);
+        assert_eq!(e.timescale(), TimeScale::UTC);
+        assert_eq!(e.flag, EpochFlag::Ok);
+        
+        let e = Epoch::from_str(" 21  1  1  0  7 30.0000000  0");
+        assert_eq!(e.is_ok(), true);
+        let e = e.unwrap();
+        let (y, m, d, hh, mm, ss, ns) = e.to_gregorian_utc();
+        assert_eq!(y, 2021);
+        assert_eq!(m, 1);
+        assert_eq!(d, 1);
+        assert_eq!(hh, 00);
+        assert_eq!(mm, 7);
+        assert_eq!(ss, 30);
+        assert_eq!(ns, 0);
+        assert_eq!(e.timescale(), TimeScale::UTC);
+        assert_eq!(e.flag, EpochFlag::Ok);
+    }    
+    #[test]
+    fn test_parse_obs_v3() {
+        let e = Epoch::from_str(" 2022 01 09 00 00  0.0000000  0");
+        assert_eq!(e.is_ok(), true);
+        let e = e.unwrap();
+        let (y, m, d, hh, mm, ss, ns) = e.to_gregorian_utc();
+        assert_eq!(y, 2022);
+        assert_eq!(m, 1);
+        assert_eq!(d, 9);
+        assert_eq!(hh, 00);
+        assert_eq!(mm, 0);
+        assert_eq!(ss, 00);
+        assert_eq!(ns, 0);
+        assert_eq!(e.timescale(), TimeScale::UTC);
+        assert_eq!(e.flag, EpochFlag::Ok);
+        
+        let e = Epoch::from_str(" 2022 01 09 00 13 30.0000000  0");
+        assert_eq!(e.is_ok(), true);
+        let e = e.unwrap();
+        let (y, m, d, hh, mm, ss, ns) = e.to_gregorian_utc();
+        assert_eq!(y, 2022);
+        assert_eq!(m, 1);
+        assert_eq!(d, 9);
+        assert_eq!(hh, 00);
+        assert_eq!(mm, 13);
+        assert_eq!(ss, 30);
+        assert_eq!(ns, 0);
+        assert_eq!(e.timescale(), TimeScale::UTC);
+        assert_eq!(e.flag, EpochFlag::Ok);
+        
+        let e = Epoch::from_str(" 2022 03 04 00 52 30.0000000  0");
+        assert_eq!(e.is_ok(), true);
+        let e = e.unwrap();
+        let (y, m, d, hh, mm, ss, ns) = e.to_gregorian_utc();
+        assert_eq!(y, 2022);
+        assert_eq!(m, 3);
+        assert_eq!(d, 4);
+        assert_eq!(hh, 00);
+        assert_eq!(mm, 52);
+        assert_eq!(ss, 30);
+        assert_eq!(ns, 0);
+        assert_eq!(e.timescale(), TimeScale::UTC);
+        assert_eq!(e.flag, EpochFlag::Ok);
+        
+        let e = Epoch::from_str(" 2022 03 04 00 02 30.0000000  0");
+        assert_eq!(e.is_ok(), true);
+        let e = e.unwrap();
+        let (y, m, d, hh, mm, ss, ns) = e.to_gregorian_utc();
+        assert_eq!(y, 2022);
+        assert_eq!(m, 3);
+        assert_eq!(d, 4);
+        assert_eq!(hh, 00);
+        assert_eq!(mm, 02);
+        assert_eq!(ss, 30);
+        assert_eq!(ns, 0);
+        assert_eq!(e.timescale(), TimeScale::UTC);
+        assert_eq!(e.flag, EpochFlag::Ok);
+    }
+    #[test]
+    fn test_obs_v2_nanos() {
+        let e = Epoch::from_str(" 21  1  1  0  7 39.1234567  0");
+        assert_eq!(e.is_ok(), true);
+        let e = e.unwrap();
+        let (_, _, _, _, _, ss, ns) = e.to_gregorian_utc();
+        assert_eq!(ss, 39);
+        assert_eq!(ns, 123_456_700);
+    }
+    #[test]
+    fn test_obs_v3_nanos() {
+        let e = Epoch::from_str(" 2022 01 09 00 00  0.1000000  0");
+        assert_eq!(e.is_ok(), true);
+        let e = e.unwrap();
+        let (_, _, _, _, _, ss, ns) = e.to_gregorian_utc();
+        assert_eq!(ss, 0);
+        assert_eq!(ns, 100_000_000);
+        
+        let e = Epoch::from_str(" 2022 01 09 00 00  0.1234000  0");
+        assert_eq!(e.is_ok(), true);
+        let e = e.unwrap();
+        let (_, _, _, _, _, ss, ns) = e.to_gregorian_utc();
+        assert_eq!(ss, 0);
+        assert_eq!(ns, 123_400_000);
+        
+        let e = Epoch::from_str(" 2022 01 09 00 00  8.7654321  0");
+        assert_eq!(e.is_ok(), true);
+        let e = e.unwrap();
+        let (_, _, _, _, _, ss, ns) = e.to_gregorian_utc();
+        assert_eq!(ss, 8);
+        assert_eq!(ns, 765_432_100);
     }
 }
