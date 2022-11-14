@@ -706,10 +706,8 @@ mod test {
         ];
         let mut expected_epochs :Vec<epoch::Epoch> = Vec::with_capacity(epochs.len());
         for e in epochs.iter() {
-            let new = epoch::Epoch {
-                date: epoch::str2date(e).unwrap(),
-                flag: epoch::EpochFlag::Ok,
-            };
+            let new = epoch::Epoch::from_str(e)
+                .unwrap();
             if !expected_epochs.contains(&new) {
                 expected_epochs.push(new)
             }
@@ -730,26 +728,17 @@ mod test {
                     for frame in frames.iter() {
                         let (msg, sv, sto) = frame.as_sto().unwrap();
                         if sto.system.eq("GAUT") {
-                            assert_eq!(*e, epoch::Epoch {
-                                date: epoch::str2date("2022 06 08 00 00 00").unwrap(),
-                                flag: epoch::EpochFlag::Ok,
-                            });
+                            assert_eq!(*e, epoch::Epoch::from_str("2022 06 08 00 00 00").unwrap());
                             assert_eq!(sto.t_tm, 295207);
                             assert_eq!(sto.a, (-1.862645149231E-09, 8.881784197001E-16, 0.000000000000E+00));
 
                         } else if sto.system.eq("GAGP") {
-                            assert_eq!(*e, epoch::Epoch {
-                                date: epoch::str2date("2022 06 08 00 00 00").unwrap(),
-                                flag: epoch::EpochFlag::Ok,
-                            });
+                            assert_eq!(*e, epoch::Epoch::from_str("2022 06 08 00 00 00").unwrap());
                             assert_eq!(sto.a, (3.201421350241E-09, -4.440892098501E-15, 0.000000000000E+00));
                             assert_eq!(sto.t_tm, 295240);
 
                         } else if sto.system.eq("GPUT") {
-                            assert_eq!(*e, epoch::Epoch {
-                                date: epoch::str2date("2022 06 10 19 56 48").unwrap(),
-                                flag: epoch::EpochFlag::Ok
-                            });
+                            assert_eq!(*e, epoch::Epoch::from_str("2022 06 10 19 56 48").unwrap());
                             assert_eq!(sto.a, (9.313225746155E-10, 2.664535259100E-15, 0.000000000000E+00));
                             assert_eq!(sto.t_tm, 295284);
                         } else {
@@ -764,14 +753,8 @@ mod test {
                     for frame in frames.iter() {
                         let (msg, sv, model) = frame.as_ion().unwrap();
                         if let Some(model) = model.as_klobuchar() {
-                            let e0 = epoch::Epoch {
-                                date: epoch::str2date("2022 06 08 09 59 48").unwrap(),
-                                flag: epoch::EpochFlag::Ok
-                            };
-                            let e1 = epoch::Epoch {
-                                date: epoch::str2date("2022 06 08 09 59 50").unwrap(),
-                                flag: epoch::EpochFlag::Ok
-                            };
+                            let e0 = epoch::Epoch::from_str("2022 06 08 09 59 48").unwrap();
+                            let e1 = epoch::Epoch::from_str("2022 06 08 09 59 50").unwrap();
                             if *e == e0 {
                                 assert_eq!(model.alpha, (1.024454832077E-08, 2.235174179077E-08, -5.960464477539E-08, -1.192092895508E-07));
                                 assert_eq!(model.beta, (9.625600000000E+04, 1.310720000000E+05, -6.553600000000E+04, -5.898240000000E+05));
@@ -783,10 +766,7 @@ mod test {
                             }
                             assert_eq!(model.region, navigation::KbRegionCode::WideArea);
                         } else if let Some(model) = model.as_nequick_g() {
-                            assert_eq!(*e, epoch::Epoch {
-                                date: epoch::str2date("2022 06 08 09 59 57").unwrap(),
-                                flag: epoch::EpochFlag::Ok
-                            });
+                            assert_eq!(*e, epoch::Epoch::from_str("2022 06 08 09 59 57").unwrap());
                             assert_eq!(model.region, navigation::NgRegionFlags::empty());
                         }
                     }
@@ -797,10 +777,7 @@ mod test {
                             if sv.prn != 4 {
                                 panic!("got unexpected QZSS vehicule \"{}\"", sv.prn)
                             }
-                            assert_eq!(*e, epoch::Epoch {
-                                date: epoch::str2date("2022 06 08 11 00 00").unwrap(),
-                                flag: epoch::EpochFlag::Ok,
-                            });
+                            assert_eq!(*e, epoch::Epoch::from_str("2022 06 08 11 00 00").unwrap());
                             assert_eq!(msgtype, &MsgType::LNAV);
                             assert_eq!(ephemeris.clock_bias, 1.080981455743E-04);
                             assert_eq!(ephemeris.clock_drift, 3.751665644813E-12);
@@ -814,8 +791,6 @@ mod test {
         assert_eq!(ion_count, 3);
         assert_eq!(eop_count, 0); // no EOP in this file
     }
-    #[cfg(feature = "flate2")]
-    use std::str::FromStr;
     #[test]
     #[cfg(feature = "flate2")]
     fn v3_brdc00gop_r_2021_gz() {
@@ -846,10 +821,7 @@ mod test {
             Sv::from_str("R10").unwrap(),
             Sv::from_str("E03").unwrap()];
         for (epoch, classes) in record.iter() {
-            let expected_e = epoch::Epoch {
-                date: epoch::str2date(expected_epochs[index]).unwrap(),
-                flag: epoch::EpochFlag::default(),
-            };
+            let expected_e = epoch::Epoch::from_str(expected_epochs[index]).unwrap();
             assert_eq!(*epoch, expected_e);
             for (class, frames) in classes.iter() {
                 if *class == FrameClass::Ephemeris {
