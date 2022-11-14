@@ -39,7 +39,7 @@ fn main() {
     // list resulting epochs
     let epochs: Vec<_> = record
         .keys()
-        .map(|k| k.date)
+        .map(|k| k)
         .collect();
     println!("\n###### EPOCHS ####\n{:#?}", epochs); 
 

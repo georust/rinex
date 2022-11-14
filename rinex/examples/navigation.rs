@@ -1,5 +1,6 @@
 //use rinex::sv;
 use rinex::epoch;
+use std::str::FromStr;
 use rinex::types::Type;
 use rinex::constellation::Constellation;
 //use itertools::Itertools;
@@ -50,9 +51,7 @@ fn main() {
     // match a specific `epoch`
     //  * `epoch` is a chrono::NaiveDateTime alias
     //     therefore one can use any chrono::NaiveDateTime method
-    let to_match = epoch::Epoch::new(
-        epoch::str2date("21 01 01 00 00 00").unwrap(),
-        epoch::EpochFlag::default());
+    let to_match = epoch::Epoch::from_str("2021 01 01 00 00 00").unwrap();
     //    ---> retrieve all data for desired `epoch`
     //         using direct hashmap[indexing]
     let matched = &record[&to_match];
