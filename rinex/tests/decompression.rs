@@ -140,9 +140,11 @@ mod test {
                         minor: 0,
                     },
                     prog: "testing".to_string(),
-                    date: chrono::Utc::now().naive_utc(),
+                    date: hifitime::Epoch::now().unwrap(),
                 }),
                 clock_offset_applied: false,
+                dcb_compensations: Vec::new(),
+                scalings: HashMap::new(),
             });
         let mut decompressor = Decompressor::new();
         let decompressed = decompressor.decompress(&header, content);

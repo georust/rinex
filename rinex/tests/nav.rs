@@ -2,6 +2,7 @@
 mod test {
     use rinex::*;
     use rinex::sv::Sv;
+    use std::str::FromStr;
     use rinex::constellation::Constellation;
     use rinex::navigation::record::MsgType;
     use rinex::navigation::record::FrameClass;
@@ -38,10 +39,7 @@ mod test {
         }
         let mut index = 0;
         for (e, classes) in record.iter() {
-            let expected_e = epoch::Epoch {
-                date: epoch::str2date(expected_epochs[index]).unwrap(),
-                flag: epoch::EpochFlag::default(),
-            };
+            let expected_e = epoch::Epoch::from_str(expected_epochs[index]).unwrap();
             assert_eq!(*e, expected_e);
             for (class, frames) in classes.iter() {
                 // only Legacy Ephemeris in V2
@@ -188,10 +186,7 @@ mod test {
         ];
         let mut index = 0;
         for (e, classes) in record.iter() {
-            let expected_e = epoch::Epoch {
-                date: epoch::str2date(expected_epochs[index]).unwrap(),
-                flag: epoch::EpochFlag::default(),
-            };
+            let expected_e = epoch::Epoch::from_str(expected_epochs[index]).unwrap();
             assert_eq!(*e, expected_e);
             for (class, frames) in classes.iter() {
                 // only Legacy Ephemeris in V3

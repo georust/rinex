@@ -2,6 +2,7 @@
 mod test {
     use rinex::*;
     use rinex::epoch;
+    use std::str::FromStr;
     #[test]
     fn v2_gode0030_96m() {
         let test_resource = 
@@ -40,50 +41,35 @@ mod test {
                 }
             }
         }
-        let epoch = epoch::Epoch {
-            date: epoch::str2date("2021 1 7 0 0 0").unwrap(),
-            flag: epoch::EpochFlag::default(),
-        };
+        let epoch = epoch::Epoch::from_str("2021 1 7 0 0 0").unwrap();
         let e = record.get(&epoch).unwrap();
         for (obs, data) in e.iter() {
             if *obs == meteo::observable::Observable::Temperature {
                 assert_eq!(*data, 23.0);
             }
         }
-        let epoch = epoch::Epoch {
-            date: epoch::str2date("2021 1 7 0 0 30").unwrap(),
-            flag: epoch::EpochFlag::default(),
-        };
+        let epoch = epoch::Epoch::from_str("2021 1 7 0 0 30").unwrap();
         let e = record.get(&epoch).unwrap();
         for (obs, data) in e.iter() {
             if *obs == meteo::observable::Observable::Temperature {
                 assert_eq!(*data, 23.0);
             }
         }
-        let epoch = epoch::Epoch {
-            date: epoch::str2date("2021 1 7 0 1 0").unwrap(),
-            flag: epoch::EpochFlag::default(),
-        };
+        let epoch = epoch::Epoch::from_str("2021 1 7 0 1 0").unwrap();
         let e = record.get(&epoch).unwrap();
         for (obs, data) in e.iter() {
             if *obs == meteo::observable::Observable::Temperature {
                 assert_eq!(*data, 23.1);
             }
         }
-        let epoch = epoch::Epoch {
-            date: epoch::str2date("2021 1 7 0 1 30").unwrap(),
-            flag: epoch::EpochFlag::default(),
-        };
+        let epoch = epoch::Epoch::from_str("2021 1 7 0 1 30").unwrap();
         let e = record.get(&epoch).unwrap();
         for (obs, data) in e.iter() {
             if *obs == meteo::observable::Observable::Temperature {
                 assert_eq!(*data, 23.1);
             }
         }
-        let epoch = epoch::Epoch {
-            date: epoch::str2date("2021 1 7 0 2 0").unwrap(),
-            flag: epoch::EpochFlag::default(),
-        };
+        let epoch = epoch::Epoch::from_str("2021 1 7 0 2 0").unwrap();
         let e = record.get(&epoch).unwrap();
         for (obs, data) in e.iter() {
             if *obs == meteo::observable::Observable::Temperature {

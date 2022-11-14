@@ -3,6 +3,7 @@ mod test {
     use rinex::ionex::*;
     use rinex::epoch::*;
     use rinex::prelude::*;
+    use std::str::FromStr;
     #[test]
     fn v1_ckmg0020_22i() {
         let test_resource = 
@@ -47,10 +48,7 @@ mod test {
         }
 
         // epoch [1]
-        let e = Epoch {
-            date: str2date("2022 1 2 0 0 0").unwrap(),
-            flag: EpochFlag::default(),
-        };
+        let e = Epoch::from_str("2022 1 2 0 0 0").unwrap();
         let data = record.get(&e);
         let (tec, _, _) = data.unwrap();
         for p in tec {
@@ -78,10 +76,7 @@ mod test {
             }
         }
         // epoch [N-2]
-        let e = Epoch {
-            date: str2date("2022 1 2 23 0 0").unwrap(),
-            flag: EpochFlag::default(),
-        };
+        let e = Epoch::from_str("2022 1 2 23 0 0").unwrap();
         let data = record.get(&e);
         let (tec, _, _) = data.unwrap();
         for p in tec {

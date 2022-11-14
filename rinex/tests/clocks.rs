@@ -3,6 +3,7 @@ mod test {
     use rinex::prelude::*;
     use rinex::epoch;
     use rinex::clocks;
+    use std::str::FromStr;
     use rinex::clocks::record::{DataType, System};
     #[test]
     fn v3_usno_example() {
@@ -35,10 +36,7 @@ mod test {
         assert_eq!(record.is_some(), true);
         let record = record.unwrap();
         for (e, data_types) in record.iter() {
-            assert_eq!(*e, epoch::Epoch {
-                date: epoch::str2date("1994 07 14 20 59  0.000000").unwrap(),
-                flag: epoch::EpochFlag::Ok,
-            });
+            assert_eq!(*e, epoch::Epoch::from_str("1994 07 14 20 59  0.000000").unwrap());
             for (data_type, systems) in data_types.iter() {
                 assert_eq!(systems.len(), 1);
                 if *data_type == DataType::AR {
@@ -96,10 +94,7 @@ mod test {
         assert_eq!(record.is_some(), true);
         let record = record.unwrap();
         for (e, data_types) in record.iter() {
-            assert_eq!(*e, epoch::Epoch {
-                date: epoch::str2date("1994 07 14 20 59  0.000000").unwrap(),
-                flag: epoch::EpochFlag::Ok,
-            });
+            assert_eq!(*e, epoch::Epoch::from_str("1994 07 14 20 59  0.000000").unwrap());
             for (data_type, systems) in data_types.iter() {
                 if *data_type == DataType::AR {
                     assert_eq!(systems.len(), 4);
@@ -167,7 +162,7 @@ mod test {
         let record = rinex.record.as_clock();
         assert_eq!(record.is_some(), true);
         let record = record.unwrap();
-        for (e, data_types) in record.iter() {
+        /*for (e, data_types) in record.iter() {
             assert_eq!(*e, epoch::Epoch {
                 date: epoch::str2date("2017 03 11 00 00  0.000000").unwrap(),
                 flag: epoch::EpochFlag::Ok,
@@ -181,6 +176,6 @@ mod test {
                     panic!("identified unexpected data type \"{}\"", data_type);
                 }
             }
-        }
+        }*/
     }
 }
