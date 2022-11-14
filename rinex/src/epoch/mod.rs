@@ -249,5 +249,77 @@ mod test {
         assert_eq!(ss, 0);
         assert_eq!(ns, 0);
         assert_eq!(e.timescale(), TimeScale::UTC);
+        assert_eq!(e.flag, EpochFlag::Ok);
+        let e = Epoch::from_str("21  1  1 16 15  0.0");
+        assert_eq!(e.is_ok(), true);
+        let e = e.unwrap();
+        let (y, m, d, hh, mm, ss, ns) = e.to_gregorian_utc();
+        assert_eq!(y, 2021);
+        assert_eq!(m, 1);
+        assert_eq!(d, 1);
+        assert_eq!(hh, 16);
+        assert_eq!(mm, 15);
+        assert_eq!(ss, 0);
+        assert_eq!(ns, 0);
+        assert_eq!(e.timescale(), TimeScale::UTC);
+        assert_eq!(e.flag, EpochFlag::Ok);
+    }
+    #[test]
+    fn test_parse_nav_v3() {
+        let e = Epoch::from_str("2021 01 01 00 00 00 ");
+        assert_eq!(e.is_ok(), true);
+        let e = e.unwrap();
+        let (y, m, d, hh, mm, ss, ns) = e.to_gregorian_utc();
+        assert_eq!(y, 2021);
+        assert_eq!(m, 1);
+        assert_eq!(d, 1);
+        assert_eq!(hh, 00);
+        assert_eq!(mm, 00);
+        assert_eq!(ss, 0);
+        assert_eq!(ns, 0);
+        assert_eq!(e.timescale(), TimeScale::UTC);
+        assert_eq!(e.flag, EpochFlag::Ok);
+        
+        let e = Epoch::from_str("2021 01 01 09 45 00 ");
+        assert_eq!(e.is_ok(), true);
+        let e = e.unwrap();
+        let (y, m, d, hh, mm, ss, ns) = e.to_gregorian_utc();
+        assert_eq!(y, 2021);
+        assert_eq!(m, 1);
+        assert_eq!(d, 1);
+        assert_eq!(hh, 09);
+        assert_eq!(mm, 45);
+        assert_eq!(ss, 0);
+        assert_eq!(ns, 0);
+        assert_eq!(e.timescale(), TimeScale::UTC);
+        assert_eq!(e.flag, EpochFlag::Ok);
+        
+        let e = Epoch::from_str("2020 06 25 00 00 00");
+        assert_eq!(e.is_ok(), true);
+        let e = e.unwrap();
+        let (y, m, d, hh, mm, ss, ns) = e.to_gregorian_utc();
+        assert_eq!(y, 2020);
+        assert_eq!(m, 6);
+        assert_eq!(d, 25);
+        assert_eq!(hh, 00);
+        assert_eq!(mm, 00);
+        assert_eq!(ss, 0);
+        assert_eq!(ns, 0);
+        assert_eq!(e.timescale(), TimeScale::UTC);
+        assert_eq!(e.flag, EpochFlag::Ok);
+        
+        let e = Epoch::from_str("2020 06 25 09 49 04");
+        assert_eq!(e.is_ok(), true);
+        let e = e.unwrap();
+        let (y, m, d, hh, mm, ss, ns) = e.to_gregorian_utc();
+        assert_eq!(y, 2020);
+        assert_eq!(m, 6);
+        assert_eq!(d, 25);
+        assert_eq!(hh, 09);
+        assert_eq!(mm, 49);
+        assert_eq!(ss, 04);
+        assert_eq!(ns, 0);
+        assert_eq!(e.timescale(), TimeScale::UTC);
+        assert_eq!(e.flag, EpochFlag::Ok);
     }
 }
