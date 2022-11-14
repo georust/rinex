@@ -97,16 +97,31 @@ mod test {
     use std::str::FromStr;
     use hifitime::TimeScale;
     #[test]
-    fn test_parser() {
+    fn basic_format() {
+        let content = "18";
+        let leap = Leap::from_str(content); 
+        assert_eq!(leap.is_ok(), true);
+        let leap = leap.unwrap();
+        assert_eq!(leap.leap, 18);
+    }
+    #[test]
+    fn standard_format() {
+        let content = "18    18  2185     7";
+        let leap = Leap::from_str(content); 
+        assert_eq!(leap.is_ok(), true);
+        let leap = leap.unwrap();
+        assert_eq!(leap.leap, 18);
+        assert_eq!(leap.week, Some(2185));
+        assert_eq!(leap.day, Some(7));
+    }
+    #[test]
+    fn parse_with_timescale() {
         let content = "18    18  2185     7GPS";
         let leap = Leap::from_str(content); 
         assert_eq!(leap.is_ok(), true);
         let leap = leap.unwrap();
         assert_eq!(leap.leap, 18);
         assert_eq!(leap.week, Some(2185));
-        assert_eq!(leap.timescale, Some(TimeScale::GPST));
-        let content = "18";
-        let leap = Leap::from_str(content); 
-        assert_eq!(leap.is_ok(), true);
+        assert_eq!(leap.day, Some(7));
     }
 }
