@@ -192,9 +192,9 @@ impl Record {
      */
     pub fn align_phase_origins(record: &mut observation::Record) {
         let mut init_phases: HashMap<Sv, HashMap<String, f64>> = HashMap::new();
-        for (index, (epoch, (_, vehicules))) in record.iter_mut().enumerate() {
+        for (_, (_, vehicules)) in record.iter_mut() {
             for (sv, observations) in vehicules.iter_mut() {
-                for (observation, mut data) in observations.iter_mut() {
+                for (observation, data) in observations.iter_mut() {
                     if is_phase_carrier_obs_code!(observation) {
                         if let Some(init_phase) = init_phases.get_mut(&sv) {
                             if init_phase.get(observation).is_none() {

@@ -265,8 +265,8 @@ impl Decimation<Record> for Record {
     fn decim_by_interval(&self, _interval: chrono::Duration) -> Self {
         self.clone()
     }
-    fn decim_match_mut(&mut self, rhs: &Self) {}
-    fn decim_match(&self, rhs: &Self) -> Self {
+    fn decim_match_mut(&mut self, _rhs: &Self) {}
+    fn decim_match(&self, _rhs: &Self) -> Self {
         self.clone()
     }
 }
