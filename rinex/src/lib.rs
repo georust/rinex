@@ -2150,7 +2150,7 @@ impl Rinex {
     pub fn observation_wl_combinations(&self) -> HashMap<String, HashMap<Sv, BTreeMap<Epoch, f64>>> {
         let mut ret: HashMap<String, HashMap<Sv, BTreeMap<Epoch, f64>>> = HashMap::new();
         if let Some(record) = self.record.as_obs() {
-            for (e_index, (epoch, (_, vehicules))) in record.iter().enumerate() {
+            for (epoch, (_, vehicules)) in record {
                 for (sv, observations) in vehicules {
                     for (lhs_code, lhs_data) in observations {
                         if !is_pseudo_range_obs_code!(lhs_code) || !is_phase_carrier_obs_code!(lhs_code) {
@@ -2236,7 +2236,7 @@ impl Rinex {
     pub fn observation_nl_combinations(&self) -> HashMap<String, HashMap<Sv, BTreeMap<Epoch, f64>>> {
         let mut ret: HashMap<String, HashMap<Sv, BTreeMap<Epoch, f64>>> = HashMap::new();
         if let Some(record) = self.record.as_obs() {
-            for (e_index, (epoch, (_, vehicules))) in record.iter().enumerate() {
+            for (epoch, (_, vehicules)) in record.iter() {
                 for (sv, observations) in vehicules {
                     for (lhs_code, lhs_data) in observations {
                         if !is_pseudo_range_obs_code!(lhs_code) || !is_phase_carrier_obs_code!(lhs_code) {
@@ -2326,7 +2326,7 @@ impl Rinex {
     pub fn observation_gf_combinations(&self) -> HashMap<String, HashMap<Sv, BTreeMap<Epoch, f64>>> {
         let mut ret: HashMap<String, HashMap<Sv, BTreeMap<Epoch, f64>>> = HashMap::new();
         if let Some(record) = self.record.as_obs() {
-            for (e_index, (epoch, (_, vehicules))) in record.iter().enumerate() {
+            for (epoch, (_, vehicules)) in record {
                 for (sv, observations) in vehicules {
                     for (lhs_code, lhs_data) in observations {
                         let lhs_carrier = &lhs_code[1..2];
@@ -2518,6 +2518,115 @@ impl Rinex {
         ret
     }
 
+    /// Code multipath analysis (MP_i), cf.
+    /// phase data model <https://github.com/gwbres/rinex/blob/rinex-cli/doc/gnss-combination.md>.
+    /// This method will not produce anything if
+    /// * Self is not Observation RINEX
+    /// * did not come with both Phase and Pseudo range observations
+    /// * in multi band context
+    pub fn observation_code_multipath(&self) -> HashMap<String, HashMap<Sv, BTreeMap<Epoch, f64>>> {
+        let mut ret: HashMap<String, HashMap<Sv, BTreeMap<Epoch, f64>>> = HashMap::new();
+        //TODO lazy_static please
+        let known_codes = vec![
+            "1A","1B","1C","1D","1L","1M","1P","1S","1W","1X","1Z",
+                      "2C","2D","2L","2M","2P","2S","2W",
+            "3I","3X","3Q",
+            "4A","4B","4X",
+            "5A","5B","5C","5I","5P","5Q",               "5X",
+            "6A","6B","6C",          "6Q",               "6X","6Z",
+                           "7D","7I","7P","7Q",          "7X",
+            "8D","8P","8I","8Q",                         "8X",
+            "9A", "9B","9C",                             "9X",
+        ];
+
+        if let Some(record) = self.record.as_obs() {
+            for (epoch, (_, vehicules)) in record {
+                for (sv, observations) in vehicules {
+                    for (lhs_code, lhs_data) in observations {
+                        if is_pseudo_range_obs_code!(lhs_code) {
+                            let pr_i = lhs_data.obs;
+                            let mut ph_i: Option<f64> = None;
+                            let mut ph_j: Option<f64> = None;
+                            let lhs_carrier = &lhs_code[1..2];
+                            /* 
+                             * This will restrict recombinations to
+                             * 1/2
+                             * and M/1
+                             */
+                            let rhs_carrier = match lhs_carrier {
+                                "1" => "2",
+                                _ => "1",
+                            };
+                            /*
+                             * locate a L_i PH code 
+                             */
+                            for (code, data) in observations {
+                                let ph_code = format!("L{}", &lhs_code[1..]);
+                                if code.eq(&ph_code) {
+                                    if let Ok(channel) = Channel::from_observable(sv.constellation, lhs_code) {
+                                        //ph_i = Some(data.obs * channel.carrier_wavelength());
+                                        ph_i = Some(data.obs);
+                                        break; // DONE
+                                    }
+                                }
+                            }
+                            /*
+                             * locate a L_j PH code
+                             */
+                            for k_code in &known_codes {
+                                let to_locate = format!("L{}", k_code);
+                                for (code, data) in observations {
+                                    let carrier_code = &code[1..2];
+                                    if carrier_code == rhs_carrier {
+                                        if code.eq(&to_locate) {
+                                            if let Ok(channel) = Channel::from_observable(sv.constellation, code) {
+                                                //ph_j = Some(data.obs * channel.carrier_wavelength());
+                                                ph_j = Some(data.obs);
+                                                break; // DONE
+                                            }
+                                        }
+                                    }
+                                }
+                                if ph_j.is_some() {
+                                    break ; // DONE
+                                }
+                            }
+                            if let Some(ph_i) = ph_i {
+                                if let Some(ph_j) = ph_j {
+                                    if let Ok(lhs_channel) = Channel::from_observable(sv.constellation, lhs_code) {
+                                        if let Ok(rhs_channel) = Channel::from_observable(sv.constellation, rhs_carrier) {
+                                            let gamma = (lhs_channel.carrier_frequency_mhz() / rhs_channel.carrier_frequency_mhz()).powf(2.0);
+                                            let alpha = (gamma + 1.0)/(gamma - 1.0);
+                                            let beta = 2.0 /(gamma - 1.0);
+                                            let yp = pr_i/299792458.0 - alpha * ph_i + beta * ph_j; 
+                                            let operand = &lhs_code[1..];
+                                            if let Some(data) = ret.get_mut(operand) {
+                                                if let Some(data) = data.get_mut(&sv) {
+                                                    data.insert(*epoch, yp); 
+                                                } else {
+                                                    let mut bmap: BTreeMap<Epoch, f64> = BTreeMap::new();
+                                                    bmap.insert(*epoch, yp);
+                                                    data.insert(*sv, bmap);
+                                                }
+                                            } else {
+                                                let mut bmap: BTreeMap<Epoch, f64> = BTreeMap::new();
+                                                let mut map: HashMap<Sv, BTreeMap<Epoch, f64>> = HashMap::new();
+                                                bmap.insert(*epoch, yp);
+                                                map.insert(*sv, bmap);
+                                                ret.insert(operand.to_string(), map);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        ret
+    }
+
 /*    
     /// Single step /stage, in high order phase differencing
     /// algorithm, which we use in case of old receiver data / old RINEX
@@ -2615,7 +2724,7 @@ impl Rinex {
     /// Extracts Raw Carrier Phase observations,
     /// from this Observation record, on an epoch basis an per space vehicule. 
     /// Does not produce anything if self is not an Observation RINEX.
-    pub fn observation_carrier_phases (&self) -> BTreeMap<Epoch, BTreeMap<Sv, Vec<(String, f64)>>> {
+    pub fn observation_carrier_phases(&self) -> BTreeMap<Epoch, BTreeMap<Sv, Vec<(String, f64)>>> {
         let mut results: BTreeMap<Epoch, BTreeMap<Sv, Vec<(String, f64)>>> = BTreeMap::new();
         if !self.is_observation_rinex() {
             return results ; // nothing to browse
@@ -2783,7 +2892,7 @@ impl Rinex {
         results
     }
     
-    /// Phase Differential Code Bias (DCBs) analysis.
+    /// Phase Differential Code Biases (DCBs) analysis.
     /// Computes DBCs by substracting two Phase Observations observed
     /// against a given carrier frequency.
     /// This will exhibit static or drifting offsets between phase observations.
@@ -2793,7 +2902,6 @@ impl Rinex {
     /// means "C" code against "W" code for Carrier 1.
     pub fn observation_phase_dcb(&self) -> HashMap<String, HashMap<Sv, BTreeMap<Epoch, f64>>> {
         let mut ret: HashMap<String, HashMap<Sv, BTreeMap<Epoch, f64>>> = HashMap::new();
-        
         //TODO lazy_static please
         let known_codes = vec![
             "1A","1B","1C","1D","1L","1M","1P","1S","1W","1X","1Z",
@@ -3408,9 +3516,9 @@ impl Decimation<Rinex> for Rinex {
     }
     fn decim_match_mut(&mut self, rhs: &Self) {
         self.record.decim_match_mut(&rhs.record);
-        if let Some(mut a) = self.header.sampling_interval {
+        if self.header.sampling_interval.is_some() {
             if let Some(b) = rhs.header.sampling_interval {
-                a = b;
+                self.header.sampling_interval = Some(b);
             }
         }
     }

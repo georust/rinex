@@ -96,8 +96,8 @@ pub fn plot_gnss_recombination(
     let x_axis = 0.0..((dates.1-dates.0) as f64);
     // y axis is scaled for better rendering
     let y_axis = match y.0 < 0.0 {
-        true => y.0*1.100..y.1*1.100,
-        false => y.0*0.900..y.1*1.100,
+        true => y.0*1.1..y.1*1.1,
+        false => y.0*0.9..y.1*1.1,
     };
     let mut chart = ChartBuilder::on(&p)
         .caption(caption, ("sans-serif", 50).into_font())

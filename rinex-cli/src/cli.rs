@@ -171,10 +171,10 @@ This serves as a CS indicator or atmospheric delay estimator. Refer to README.")
                         .help("Differential Code Bias analysis (DCBs).
 Useful to determine correlation and biases between Phase and PR observations.
 For instance \"2S-2W\" means S code against W code, for L2 carrier. Refer to README."))
-                    /*.arg(Arg::new("multipath")
+                    .arg(Arg::new("multipath")
                         .long("mp")
                         .action(ArgAction::SetTrue)
-                        .help("Run code multipath analysis. Refer to README."))*/
+                        .help("Run code multipath analysis. Refer to README."))
                     .arg(Arg::new("lock-loss")
                         .long("lock-loss")
                         .action(ArgAction::SetTrue)
@@ -350,7 +350,7 @@ Example \"--plot-height 1024"))
     }
     /// Code Multipath analysis requested 
     pub fn multipath(&self) -> bool {
-        self.matches.get_flag("mp")
+        self.matches.get_flag("multipath")
     }
     /// Returns list of requested data to extract
     pub fn identification_ops(&self) -> Vec<&str> {

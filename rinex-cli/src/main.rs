@@ -90,15 +90,17 @@ pub fn main() -> Result<(), rinex::Error> {
     
     /*
      * Code Multipath analysis
-    if cli.multipath() {
-        /*if let Some(nav) = nav_context {
-            return Ok(());
-        } else {
-            panic!("--nav must be provided for code multipath analysis");
-        }*/
-        panic!("code multipath analysis is under development");
-    }
      */
+    if cli.multipath() {
+        let dims = cli.plot_dimensions();
+        let data = rnx.observation_code_multipath();
+        plot::plot_gnss_recombination(
+            dims,
+            "mp.png",
+            "Code Multipath Biases",
+            "MP [n.a]",
+            &data);
+    }
     /*
      * [GF] recombination visualization requested
      */
