@@ -2145,6 +2145,178 @@ impl Rinex {
         results
     }
 
+    /// Wide lane Phase & PR combinations.
+    /// Cf. <https://github.com/gwbres/rinex/blob/rinex-cli/doc/gnss-combination.md>.
+    pub fn observation_wl_combinations(&self) -> HashMap<String, HashMap<Sv, BTreeMap<Epoch, f64>>> {
+        let mut ret: HashMap<String, HashMap<Sv, BTreeMap<Epoch, f64>>> = HashMap::new();
+        if let Some(record) = self.record.as_obs() {
+            for (e_index, (epoch, (_, vehicules))) in record.iter().enumerate() {
+                for (sv, observations) in vehicules {
+                    for (lhs_code, lhs_data) in observations {
+                        if !is_pseudo_range_obs_code!(lhs_code) || !is_phase_carrier_obs_code!(lhs_code) {
+                            continue;  // only on these two physics
+                        }
+                        let lhs_carrier = &lhs_code[1..2];
+                        if let Ok(lhs_channel) = Channel::from_observable(sv.constellation, lhs_carrier) {
+                            let lhs_freq = lhs_channel.carrier_frequency_mhz();
+                            // determine another carrier
+                            let rhs_carrier = match lhs_carrier { // this will restrict to
+                                "1" => "2", // 1 against 2
+                                _ => "1",  // M against 1
+                            };
+                            // locate a reference code against another carrier
+                            let mut reference: Option<(&str, f64, f64)> = None;
+                            for (refcode, refdata) in observations {
+                                let mut shared_physics = is_phase_carrier_obs_code!(refcode)
+                                    && is_phase_carrier_obs_code!(lhs_code);
+                                shared_physics |= is_pseudo_range_obs_code!(refcode)
+                                    && is_pseudo_range_obs_code!(lhs_code);
+                                if !shared_physics {
+                                    continue ;
+                                }
+                                let carrier_code = &refcode[1..2];
+                                if carrier_code == rhs_carrier { 
+                                    // expected carrier signal
+                                    if let Ok(ref_ch) = Channel::from_observable(sv.constellation, rhs_carrier) {
+                                        let ref_freq = ref_ch.carrier_frequency_mhz();
+                                        reference = Some((refcode, refdata.obs, ref_freq)); 
+                                    }
+                                    break; // DONE searching
+                                }
+                            }
+                            if let Some((refcode, refdata, ref_freq)) = reference {
+                                // got a reference
+                                let op_title = format!("{}-{}", lhs_code, refcode); 
+                                let yp = (lhs_freq * lhs_data.obs - refdata * ref_freq) / (lhs_freq - ref_freq);
+                                if let Some(data) = ret.get_mut(&op_title) {
+                                    if let Some(data) = data.get_mut(&sv) {
+                                        data.insert(*epoch, yp); // new epoch 
+                                    } else {
+                                        // new vehicule being introduced
+                                        let mut bmap: BTreeMap<Epoch, f64> = BTreeMap::new();
+                                        bmap.insert(*epoch, yp);
+                                        data.insert(*sv, bmap);
+                                    }
+                                } else {
+                                    // introduce new recombination,
+                                    //   Only if `lhs` is not already being recombined
+                                    let mut inject = true;
+                                    for (ops, _) in &ret {
+                                        let items: Vec<&str> = ops.split("-").collect();
+                                        let lhs_operand = items[0]; 
+                                        let rhs_operand = items[1];
+                                        if lhs_operand == lhs_code {
+                                            inject = false;
+                                            break ;
+                                        }
+                                        if rhs_operand == lhs_code {
+                                            inject = false;
+                                            break ;
+                                        }
+                                    }
+                                    if inject {
+                                        let mut bmap: BTreeMap<Epoch, f64> = BTreeMap::new();
+                                        bmap.insert(*epoch, yp);
+                                        let mut map: HashMap<Sv, BTreeMap<Epoch, f64>> = HashMap::new();
+                                        map.insert(*sv, bmap); 
+                                        ret.insert(op_title.clone(), map);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        ret
+    }
+    
+    /// Narrow lane Phase & PR combinations.
+    /// Cf. <https://github.com/gwbres/rinex/blob/rinex-cli/doc/gnss-combination.md>.
+    pub fn observation_nl_combinations(&self) -> HashMap<String, HashMap<Sv, BTreeMap<Epoch, f64>>> {
+        let mut ret: HashMap<String, HashMap<Sv, BTreeMap<Epoch, f64>>> = HashMap::new();
+        if let Some(record) = self.record.as_obs() {
+            for (e_index, (epoch, (_, vehicules))) in record.iter().enumerate() {
+                for (sv, observations) in vehicules {
+                    for (lhs_code, lhs_data) in observations {
+                        if !is_pseudo_range_obs_code!(lhs_code) || !is_phase_carrier_obs_code!(lhs_code) {
+                            continue;  // only on these two physics
+                        }
+                        let lhs_carrier = &lhs_code[1..2];
+                        if let Ok(lhs_channel) = Channel::from_observable(sv.constellation, lhs_carrier) {
+                            let lhs_freq = lhs_channel.carrier_frequency_mhz();
+                            // determine another carrier
+                            let rhs_carrier = match lhs_carrier { // this will restrict to
+                                "1" => "2", // 1 against 2
+                                _ => "1",  // M against 1
+                            };
+                            // locate a reference code against another carrier
+                            let mut reference: Option<(&str, f64, f64)> = None;
+                            for (refcode, refdata) in observations {
+                                let mut shared_physics = is_phase_carrier_obs_code!(refcode)
+                                    && is_phase_carrier_obs_code!(lhs_code);
+                                shared_physics |= is_pseudo_range_obs_code!(refcode)
+                                    && is_pseudo_range_obs_code!(lhs_code);
+                                if !shared_physics {
+                                    continue ;
+                                }
+                                let carrier_code = &refcode[1..2];
+                                if carrier_code == rhs_carrier { 
+                                    // expected carrier signal
+                                    if let Ok(ref_ch) = Channel::from_observable(sv.constellation, rhs_carrier) {
+                                        let ref_freq = ref_ch.carrier_frequency_mhz();
+                                        reference = Some((refcode, refdata.obs, ref_freq)); 
+                                    }
+                                    break; // DONE searching
+                                }
+                            }
+                            if let Some((refcode, refdata, ref_freq)) = reference {
+                                // got a reference
+                                let op_title = format!("{}-{}", lhs_code, refcode); 
+                                let yp = (lhs_freq * lhs_data.obs + refdata * ref_freq) / (lhs_freq + ref_freq);
+                                if let Some(data) = ret.get_mut(&op_title) {
+                                    if let Some(data) = data.get_mut(&sv) {
+                                        data.insert(*epoch, yp); // new epoch 
+                                    } else {
+                                        // new vehicule being introduced
+                                        let mut bmap: BTreeMap<Epoch, f64> = BTreeMap::new();
+                                        bmap.insert(*epoch, yp);
+                                        data.insert(*sv, bmap);
+                                    }
+                                } else {
+                                    // introduce new recombination,
+                                    //   Only if `lhs` is not already being recombined
+                                    let mut inject = true;
+                                    for (ops, _) in &ret {
+                                        let items: Vec<&str> = ops.split("-").collect();
+                                        let lhs_operand = items[0]; 
+                                        let rhs_operand = items[1];
+                                        if lhs_operand == lhs_code {
+                                            inject = false;
+                                            break ;
+                                        }
+                                        if rhs_operand == lhs_code {
+                                            inject = false;
+                                            break ;
+                                        }
+                                    }
+                                    if inject {
+                                        let mut bmap: BTreeMap<Epoch, f64> = BTreeMap::new();
+                                        bmap.insert(*epoch, yp);
+                                        let mut map: HashMap<Sv, BTreeMap<Epoch, f64>> = HashMap::new();
+                                        map.insert(*sv, bmap); 
+                                        ret.insert(op_title.clone(), map);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        ret
+    }
+
     /// Geometry free [GF] combinations
     /// of Phase and PR observations. 
     /// Cf. <https://github.com/gwbres/rinex/blob/rinex-cli/doc/gnss-combination.md>.
@@ -2282,6 +2454,69 @@ impl Rinex {
         ret
     }
 
+    /// Melbourne-Wübbena [MW] GNSS combination.
+    /// Cf. <https://github.com/gwbres/rinex/blob/rinex-cli/doc/gnss-combination.md>.
+    pub fn observation_mw_combinations(&self) -> HashMap<String, HashMap<Sv, BTreeMap<Epoch, f64>>> {
+        let mut ret: HashMap<String, HashMap<Sv, BTreeMap<Epoch, f64>>> = HashMap::new();
+        let wl = self.observation_wl_combinations();
+        let nl = self.observation_nl_combinations();
+        for (wl_op, wl_vehicules) in wl {
+            if wl_op.starts_with("L") { // wide phase
+                // --> retrieve "same" op in narrow code
+                let nl_op = wl_op.replace("C","L");
+                if let Some(nl_vehicules) = nl.get(&nl_op) {
+                    for (wl_sv, wl_epochs) in wl_vehicules {
+                        if let Some(nl_epochs) = nl_vehicules.get(&wl_sv) {
+                            for (epoch, wl_data) in wl_epochs {
+                                if let Some(nl_data) = nl_epochs.get(&epoch) {
+                                    let wl_items: Vec<&str> = wl_op.split("-").collect();
+                                    let wl_operand = wl_items[0]; 
+                                    let nl_items: Vec<&str> = nl_op.split("-").collect();
+                                    let nl_operand = nl_items[0]; 
+                                    let op_title = format!("{}-{}", wl_operand, nl_operand);
+                                    let yp = wl_data - nl_data;
+                                    if let Some(data) = ret.get_mut(&op_title) {
+                                        if let Some(data) = data.get_mut(&wl_sv) {
+                                            data.insert(epoch, yp);
+                                        } else {
+                                            let mut bmap: BTreeMap<Epoch, f64> = BTreeMap::new();
+                                            bmap.insert(epoch, yp);
+                                            data.insert(wl_sv, bmap);
+                                        }
+                                    } else {
+                                        //inject, only if not already recombining this one
+                                        // in other recombination form
+                                        let mut inject = false;
+                                        for (ops, _) in &ret {
+                                            let items: Vec<&str> = ops.split("-").collect();
+                                            let lhs_operand = items[0];
+                                            if lhs_operand == wl_operand {
+                                                inject = false; 
+                                                break;
+                                            }
+                                            let rhs_operand = items[1];
+                                            if rhs_operand == nl_operand {
+                                                inject = false; 
+                                                break;
+                                            }
+                                        }
+                                        if inject {
+                                            let mut bmap: BTreeMap<Epoch, f64> = BTreeMap::new();
+                                            let mut map: HashMap<Sv, BTreeMap<Epoch, f64>> = HashMap::new();
+                                            bmap.insert(epoch, yp);
+                                            map.insert(wl_sv, bmap);
+                                            ret.insert(op_title.clone(), map);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        ret
+    }
 
 /*    
     /// Single step /stage, in high order phase differencing

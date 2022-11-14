@@ -195,6 +195,7 @@ pub fn plot(ctx: &mut Context, record: &Record, nav_ctx: Option<Rinex>) {
         if e_index == 0 {
             e0 = epoch.date.timestamp()
         }
+        
         let e = epoch.date.timestamp();
         let x = (e-e0) as f64;
         if let Some(value) = clock_offset {
