@@ -11,11 +11,15 @@ The first purpose of this tool is to expose the [library](https://github.com/gwb
 in a high level and easy to use fashion.  
 The application will be able to parse all RINEX formats supported by the library, refer to the front page to understand which RINEX format is currently supported.
 
-RINEX processing is possible, especially differential analysis.
+Some GNSS data processing algorithms are implemented,
+like 
+- signal recombination
+- signal analysis (DCBs, MP, ...)
+
 Refer to [the dedicated page](doc/processing.md)
 
-Some `teqc` operations are supported too, 
-[see the teqc paragraph](https://github.com/gwbres/rinex/blob/main/rinex-cli/README.md#teqc-operations)
+Some `teqc` operations are supported, see the 
+[following paragraph](https://github.com/gwbres/rinex/blob/main/rinex-cli/README.md#teqc-operations)
 
 ## RINEX files
 
@@ -40,10 +44,14 @@ by `.gz`.
 
 ## Data visualization & analysis
 
-Most data analysis produce plots (PNG files).  
-Record analysis can be converted to graphical if desired, with `--plot`.  
-Refer to the
-[following section](https://github.com/gwbres/rinex/blob/main/rinex-cli/README.md#plotting)
+Most data analysis produce plots. 
+RINEX record analysis can be converted to graphical with `--plot`.  
+Plots currently come in the form of PNG files.
+
+Efficient plotting is tied to efficient data filtering and resampling,
+because RINEX files contain a lot of data.
+
+<img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_glo_ssi.png">
 
 ## `teqc` operations
 
@@ -172,32 +180,11 @@ operations can be stacked to Record analysis,
 to focus on data of interest.
 
 By default, Record analysis is exposed as JSON structure.  
-For [supported RINEX record](https://github.com/gwbres/blob/main/README.md),
-the `--plot` flag can be passed to switch to data visualization.  
-In this scenario, one ore more PNG files will be generated, it depends
-on which kind of RINEX is being analyzed. For instance:
+For supported RINEX files, the `--plot` flag can be passed to switch to data visualization.  
+Plotting becomes very handy for huge RINEX files. 
 
-* in case of Observation RINEX, one plot per physics
-is to be generated. One plot for Receiver Clock Offsets is also to be generated,
-if such information was provided
-
-* in case of Navigation RINEX, one plot per physics
-is to be generated. We group orbit fields by matching physics
-and display such information. Since Navigation RINEX comprises
-many orbit fields, we highly recommend filtering the record
-with dedicated [filter operations](doc/filtereing.md)
-
-Example: Observation analysis
-
-```bash
-rinex-cli -f test_resources/OBS/V2/KOSG0010.95O --retain-sv G06 --pretty
-```
-
-Example: Graphical analysis:
-
-```bash
-rinex-cli -f test_resources/OBS/V2/KOSG0010.95O --retain-sv G06 --plot
-```
+Move to the [record analysis page](doc/record.md) for thorough
+examples of RINEX record manipulations.
 
 ## File generation
 
@@ -256,11 +243,3 @@ rinex-cli -f test_resources/OBS/V3/CBW100NLD_R_20210010000_01D_MN.rnx --obs
 
 # extract raw phase data and pseudo range only
 ```
-
-## Plotting
-
-Some analysis will generate PNG file(s) and Record analysis
-can be converted to graphical mode if desired, with `--plot`.  
-PNG is the only supported format to this day. This tool is not a GUI,
-we can only export static images too.  
-Most analysis are performed against Time (x = time axis).

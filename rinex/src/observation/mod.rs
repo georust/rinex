@@ -1,5 +1,5 @@
 use super::{
-    Constellation,
+    prelude::*,
     version::Version,
 };
 
@@ -130,12 +130,12 @@ impl HeaderFields {
     /// Add an optionnal data scaling
     pub fn with_scaling(&self, c: Constellation, observation: &str, scaling: f64) -> Self {
         let mut s = self.clone();
-        if let Some(scalings) = self.scalings.get_mut(&c) {
+        if let Some(scalings) = s.scalings.get_mut(&c) {
             scalings.insert(observation.to_string(), scaling);
         } else {
             let mut map: HashMap<String, f64> = HashMap::new();
             map.insert(observation.to_string(), scaling);
-            self.scalings.insert(c, map);
+            s.scalings.insert(c, map);
         }
         s
     }
@@ -160,17 +160,17 @@ impl HeaderFields {
     /// If constellation is None: we test against all encountered constellation
     pub fn dcb_compensation(&self, c: Option<Constellation>) -> bool {
         if let Some(c) = c {
-            for comp in self.dcb_compensations {
-                if comp == c {
+            for comp in &self.dcb_compensations {
+                if *comp == c {
                     return true ;
                 }
             }
             false
         
         } else {
-            for (cst, _) in self.codes { // all encountered constellations
+            for (cst, _) in &self.codes { // all encountered constellations
                 let mut found = false;
-                for ccst in self.dcb_compensations { // all compensated constellations
+                for ccst in &self.dcb_compensations { // all compensated constellations
                     if ccst == cst {
                         found = true;
                         break ;

@@ -1,35 +1,30 @@
-//! `RINEX` file content description and parsing
 use thiserror::Error;
 use std::io::prelude::*;
 use std::collections::{BTreeMap, HashMap};
 
-use crate::antex;
-use crate::epoch;
-use crate::meteo;
-use crate::clocks;
-use crate::header;
-use crate::navigation;
-use crate::observation;
-use crate::ionosphere;
-use crate::is_comment;
-use crate::types::Type;
-use crate::reader::BufferedReader;
-use crate::writer::BufferedWriter;
-use crate::Epoch;
-use crate::hatanaka::{
-    Compressor, Decompressor,
-};
-
-use crate::merge;
-use merge::Merge;
-
-use crate::split;
-use split::Split;
-
 #[cfg(feature = "serde")]
 use serde::Serialize;
 
-/// `Record`
+use super::{
+    *,
+    antex,
+    clocks,
+    ionex,
+    meteo,
+    navigation,
+    observation,
+    header,
+    is_comment,
+    types::Type,
+    reader::BufferedReader,
+    writer::BufferedWriter,
+    merge, merge::Merge,
+    split, split::Split,
+    sampling::Decimation,
+    hatanaka::{Compressor, Decompressor},
+};
+use hifitime::Duration;
+
 #[derive(Clone, Debug)]
 #[derive(PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
@@ -38,8 +33,8 @@ pub enum Record {
     AntexRecord(antex::Record),
     /// Clock record, see [clocks::record::Record] 
     ClockRecord(clocks::Record),
-	/// IONEX (ionosphere maps) record
-    IonexRecord(ionosphere::Record),
+	/// IONEX (Ionosphere maps) record, see [ionex::record::Record]
+    IonexRecord(ionex::Record),
 	/// Meteo record, see [meteo::record::Record]
     MeteoRecord(meteo::Record),
 	/// Navigation record, see [navigation::record::Record]
@@ -51,7 +46,7 @@ pub enum Record {
 /// Record comments are high level informations, sorted by epoch
 /// (timestamp) of appearance. We deduce the "associated" timestamp from the
 /// previosuly parsed epoch, when parsing the record.
-pub type Comments = BTreeMap<epoch::Epoch, Vec<String>>;
+pub type Comments = BTreeMap<Epoch, Vec<String>>;
 
 impl Record {
     /// Unwraps self as ANTEX record
@@ -83,14 +78,14 @@ impl Record {
         }
     }
     /// Unwraps self as IONEX record
-    pub fn as_ionex (&self) -> Option<&ionosphere::Record> {
+    pub fn as_ionex (&self) -> Option<&ionex::Record> {
         match self {
             Record::IonexRecord(r) => Some(r),
             _ => None,
         }
     }
     /// Unwraps self as mutable IONEX record
-    pub fn as_mut_ionex (&mut self) -> Option<&mut ionosphere::Record> {
+    pub fn as_mut_ionex (&mut self) -> Option<&mut ionex::Record> {
         match self {
             Record::IonexRecord(r) => Some(r),
             _ => None,
@@ -192,6 +187,35 @@ impl Record {
         }
         Ok(())
     }
+
+    /*
+     * this macro aligns phase at origin e_(k=0) 
+     */
+    pub fn align_phase_origins(record: &mut observation::Record) {
+        let mut init_phases: HashMap<Sv, HashMap<String, f64>> = HashMap::new();
+        for (_, (_, vehicules)) in record.iter_mut() {
+            for (sv, observations) in vehicules.iter_mut() {
+                for (observation, data) in observations.iter_mut() {
+                    if is_phase_carrier_obs_code!(observation) {
+                        if let Some(init_phase) = init_phases.get_mut(&sv) {
+                            if init_phase.get(observation).is_none() {
+                                init_phase.insert(observation.clone(), data.obs);
+                            }
+                        } else {
+                            let mut map: HashMap<String, f64> = HashMap::new();
+                            map.insert(observation.clone(), data.obs);
+                            init_phases.insert(*sv, map);
+                        }
+                        data.obs -= init_phases.get(&sv)
+                            .unwrap()
+                            .get(observation)
+                            .unwrap();
+                    }
+                }
+            }
+        }
+    }
+
 }
 
 impl Default for Record {
@@ -221,7 +245,7 @@ pub fn is_new_epoch (line: &str, header: &header::Header) -> bool {
     match &header.rinex_type {
         Type::AntennaData => antex::is_new_epoch(line),
         Type::ClockData => clocks::is_new_epoch(line),
-        Type::IonosphereMaps => ionosphere::is_new_map(line),
+        Type::IonosphereMaps => ionex::is_new_map(line),
         Type::NavigationData => navigation::is_new_epoch(line, header.version), 
         Type::ObservationData => observation::is_new_epoch(line, header.version),
         Type::MeteoData => meteo::is_new_epoch(line, header.version),
@@ -230,15 +254,14 @@ pub fn is_new_epoch (line: &str, header: &header::Header) -> bool {
 
 /// Builds a `Record`, `RINEX` file body content,
 /// which is constellation and `RINEX` file type dependent
-pub fn parse_record (reader: &mut BufferedReader, header: &header::Header) -> Result<(Record, Comments), Error> {
+pub fn parse_record(reader: &mut BufferedReader, header: &mut header::Header) -> Result<(Record, Comments), Error> {
     let mut first_epoch = true;
     let mut content : Option<String>; // epoch content to build
     let mut epoch_content = String::with_capacity(6*64);
-    let mut exponent: i8 = -1; //IONEX record scaling: this is the default value
     
     // to manage `record` comments
     let mut comments : Comments = Comments::new();
-    let mut comment_ts = epoch::Epoch::default();
+    let mut comment_ts = Epoch::default();
     let mut comment_content : Vec<String> = Vec::with_capacity(4);
 
     // CRINEX record special process is special
@@ -256,7 +279,18 @@ pub fn parse_record (reader: &mut BufferedReader, header: &header::Header) -> Re
     let mut obs_rec = observation::Record::new(); // OBS
     let mut met_rec = meteo::Record::new(); // MET
     let mut clk_rec = clocks::Record::new(); // CLK
-    let mut ionx_rec = ionosphere::Record::new(); //IONEX
+
+    // IONEX case
+    //  Default map type is TEC, it will come with identified Epoch
+    //  but others may exist:
+    //    in this case we used the previously identified Epoch
+    //    and attach other kinds of maps
+    let mut ionx_rms = false;
+    let mut ionx_height = false;
+    let mut ionx_rec = ionex::Record::new();
+    // we need to store encountered epochs, to relate RMS and H maps
+    //    that might be provided in a separate sequence
+    let mut ionx_epochs: Vec<Epoch> = Vec::with_capacity(128);
 
     for l in reader.lines() { // iterates one line at a time 
         let line = l.unwrap();
@@ -268,12 +302,15 @@ pub fn parse_record (reader: &mut BufferedReader, header: &header::Header) -> Re
             comment_content.push(comment.to_string());
             continue
         }
-        // IONEX exponent-->data scaling
-        // hidden to user and allows high level interactions
+        // IONEX exponent-->data scaling use update regularly
+        //  and used in TEC map parsing
         if line.contains("EXPONENT") {
-            let content = line.split_at(60).0;
-            if let Ok(e) = i8::from_str_radix(content.trim(), 10) {
-                exponent = e // --> update current exponent value
+            if let Some(ionex) = header.ionex.as_mut() {
+                let content = line.split_at(60).0;
+                if let Ok(e) = i8::from_str_radix(content.trim(), 10) {
+                    *ionex = ionex
+                        .with_exponent(e); // scaling update
+                }
             }
         }
         // manage CRINEX case
@@ -309,6 +346,9 @@ pub fn parse_record (reader: &mut BufferedReader, header: &header::Header) -> Re
             // --> epoch boundaries determination
             for line in content.lines() { // may comprise several lines, in case of CRINEX
                 let new_epoch = is_new_epoch(line, &header);
+                ionx_rms |= ionex::is_new_rms_map(line);
+                ionx_height |= ionex::is_new_height_map(line);
+                
                 if new_epoch && !first_epoch {
                     match &header.rinex_type {
                         Type::NavigationData => {
@@ -387,8 +427,26 @@ pub fn parse_record (reader: &mut BufferedReader, header: &header::Header) -> Re
                             }
                         },
                         Type::IonosphereMaps => {
-                            if let Ok((epoch, map)) = ionosphere::parse_epoch(&epoch_content, exponent) {
-                                ionx_rec.insert(epoch, (map, None, None));
+                            if let Ok((index, epoch, map)) = ionex::parse_map(header, &epoch_content) {
+                                if ionx_rms {
+                                    ionx_rms = false;
+                                    if let Some(e) = ionx_epochs.get(index) { // relate
+                                        if let Some((_, rms, _)) = ionx_rec.get_mut(e) { // locate
+                                            *rms = Some(map); // insert
+                                        }
+                                    }
+                                } else if ionx_height {
+                                    ionx_height = false;
+                                    if let Some(e) = ionx_epochs.get(index) { // relate
+                                        if let Some((_, _, h)) = ionx_rec.get_mut(e) { // locate
+                                            *h = Some(map); // insert
+                                        }
+                                    }
+                                } else {
+                                    // TEC map => insert epoch
+                                    ionx_epochs.push(epoch.clone());
+                                    ionx_rec.insert(epoch, (map, None, None));
+                                }
                             }
                         }
                     }
@@ -481,8 +539,23 @@ pub fn parse_record (reader: &mut BufferedReader, header: &header::Header) -> Re
             }
         },
         Type::IonosphereMaps => {
-            if let Ok((epoch, maps)) = ionosphere::parse_epoch(&epoch_content, exponent) {
-                ionx_rec.insert(epoch, (maps, None, None));
+            if let Ok((index, epoch, map)) = ionex::parse_map(header, &epoch_content) {
+                if ionx_rms {
+                    if let Some(e) = ionx_epochs.get(index) { // relate
+                        if let Some((_, rms, _)) = ionx_rec.get_mut(e) { // locate
+                            *rms = Some(map); // insert
+                        }
+                    }
+                } else if ionx_height {
+                    if let Some(e) = ionx_epochs.get(index) { // relate
+                        if let Some((_, _, h)) = ionx_rec.get_mut(e) { // locate
+                            *h = Some(map); // insert
+                        }
+                    }
+                } else {
+                    // introduce TEC+epoch
+                    ionx_rec.insert(epoch, (map, None, None));
+                }
             }
         }
         Type::AntennaData => {
@@ -514,7 +587,10 @@ pub fn parse_record (reader: &mut BufferedReader, header: &header::Header) -> Re
         Type::IonosphereMaps => Record::IonexRecord(ionx_rec),
 		Type::MeteoData => Record::MeteoRecord(met_rec),
         Type::NavigationData => Record::NavRecord(nav_rec),
-        Type::ObservationData => Record::ObsRecord(obs_rec), 
+        Type::ObservationData => {
+            Record::align_phase_origins(&mut obs_rec);
+            Record::ObsRecord(obs_rec)
+        },
     };
     Ok((record, comments))
 }
@@ -532,28 +608,23 @@ impl Merge<Record> for Record {
             if let Some(rhs) = rhs.as_nav() {
                 lhs.merge_mut(&rhs)?;
             }
-        }
-        if let Some(lhs) = self.as_mut_obs() {
+        } else if let Some(lhs) = self.as_mut_obs() {
             if let Some(rhs) = rhs.as_obs() {
                 lhs.merge_mut(&rhs)?;
             }
-        }
-        if let Some(lhs) = self.as_mut_meteo() {
+        } else if let Some(lhs) = self.as_mut_meteo() {
             if let Some(rhs) = rhs.as_meteo() {
                 lhs.merge_mut(&rhs)?;
             }
-        }
-        if let Some(lhs) = self.as_mut_ionex() {
+        /*} else if let Some(lhs) = self.as_mut_ionex() {
             if let Some(rhs) = rhs.as_ionex() {
                 lhs.merge_mut(&rhs)?;
-            }
-        }
-        if let Some(lhs) = self.as_mut_antex() {
+            }*/
+        } else if let Some(lhs) = self.as_mut_antex() {
             if let Some(rhs) = rhs.as_antex() {
                 lhs.merge_mut(&rhs)?;
             }
-        }
-        if let Some(lhs) = self.as_mut_clock() {
+        } else if let Some(lhs) = self.as_mut_clock() {
             if let Some(rhs) = rhs.as_clock() {
                 lhs.merge_mut(&rhs)?;
             }
@@ -582,5 +653,81 @@ impl Split<Record> for Record {
         } else {
             Err(split::Error::NoEpochIteration)
         }
+    }
+}
+
+impl Decimation<Record> for Record {
+    /// Decimates Self by desired factor
+    fn decim_by_ratio_mut(&mut self, r: u32) {
+        if let Some(rec) = self.as_mut_obs() {
+            rec.decim_by_ratio_mut(r);
+            Self::align_phase_origins(rec);
+        } else if let Some(rec) = self.as_mut_nav() {
+            rec.decim_by_ratio_mut(r);
+        } else if let Some(rec) = self.as_mut_meteo() {
+            rec.decim_by_ratio_mut(r);
+        } else if let Some(rec) = self.as_mut_ionex() {
+            rec.decim_by_ratio_mut(r);
+        } else if let Some(rec) = self.as_mut_clock() {
+            rec.decim_by_ratio_mut(r);
+        } else if let Some(rec) = self.as_mut_antex() {
+            rec.decim_by_ratio_mut(r);
+        }
+    }
+    /// Copies and Decimates Self by desired factor
+    fn decim_by_ratio(&self, r: u32) -> Self {
+        let mut s = self.clone();
+        s.decim_by_ratio_mut(r);
+        s
+    }
+    /// Decimates Self to fit minimum epoch interval
+    fn decim_by_interval_mut(&mut self, interval: Duration) {
+        if let Some(r) = self.as_mut_obs() {
+            r.decim_by_interval_mut(interval);
+            Self::align_phase_origins(r);
+        } else if let Some(r) = self.as_mut_nav() {
+            r.decim_by_interval_mut(interval);
+        } else if let Some(r) = self.as_mut_meteo() {
+            r.decim_by_interval_mut(interval);
+        //} else if let Some(r) = self.as_mut_ionex() {
+        //    r.decim_by_interval_mut(interval);
+        } else if let Some(r) = self.as_mut_clock() {
+            r.decim_by_interval_mut(interval);
+        }
+    }
+    /// Copies and Decimates Self to fit minimum epoch interval
+    fn decim_by_interval(&self, interval: Duration) -> Self {
+        let mut s = self.clone();
+        s.decim_by_interval_mut(interval);
+        s
+    }
+    fn decim_match_mut(&mut self, rhs: &Self) {
+        if let Some(a) = self.as_mut_obs() {
+            if let Some(b) = rhs.as_obs() {
+                a.decim_match_mut(b);
+                Self::align_phase_origins(a);
+            }
+        } else if let Some(a) = self.as_mut_nav() {
+            if let Some(b) = rhs.as_nav() {
+                a.decim_match_mut(b);
+            }
+        } else if let Some(a) = self.as_mut_meteo() {
+            if let Some(b) = rhs.as_meteo() {
+                a.decim_match_mut(b);
+            }
+        } else if let Some(a) = self.as_mut_ionex() {
+            if let Some(b) = rhs.as_ionex() {
+                a.decim_match_mut(b);
+            }
+        } else if let Some(a) = self.as_mut_clock() {
+            if let Some(b) = rhs.as_clock() {
+                a.decim_match_mut(b);
+            }
+        }
+    }
+    fn decim_match(&self, rhs: &Self) -> Self {
+        let mut s = self.clone();
+        s.decim_match_mut(rhs);
+        s
     }
 }

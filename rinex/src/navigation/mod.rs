@@ -29,3 +29,9 @@ pub use orbits::OrbitItem;
 pub use ephemeris::Ephemeris;
 pub use eopmessage::EopMessage;
 pub use stomessage::StoMessage;
+pub use health::{
+    Health,
+    IrnssHealth,
+    GeoHealth,
+    GloHealth,
+};

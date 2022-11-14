@@ -20,19 +20,42 @@ pub enum Error {
 }
 
 /// Earth Orientation Message 
+/// ```
+/// use rinex::prelude::*;
+/// use rinex::navigation::*;
+/// let rnx = Rinex::from_file("../test_resources/NAV/V4/KMS300DNK_R_20221591000_01H_MN.rnx.gz")
+///     .unwrap();
+/// let record = rnx.record.as_nav()
+///     .unwrap();
+/// for (epoch, classes) in record {
+///     for (class, frames) in classes {
+///         // epochs may contain other frame classes
+///         if *class == FrameClass::EarthOrientation {
+///             for fr in frames {
+///                 let (msg_type, sv, eop) = fr.as_eop()
+///                     .unwrap(); // you're fine at this point
+///                 let (x, dxdt, ddxdt) = eop.x;
+///                 let (y, dydt, ddydt) = eop.y;
+///                 let t_tm = eop.t_tm; 
+///                 let (u, dudt, ddudt) = eop.delta_ut1; 
+///             }
+///         }
+///     }
+/// }
+/// ```
 #[derive(Debug, Clone)]
 #[derive(Default)]
 #[derive(PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct EopMessage {
     /// ([arc-sec], [arc-sec.day⁻¹], [arc-sec.day⁻²])
-    x: (f64,f64,f64),
+    pub x: (f64,f64,f64),
     /// ([arc-sec], [arc-sec.day⁻¹], [arc-sec.day⁻²])
-    y: (f64,f64,f64),
+    pub y: (f64,f64,f64),
     /// Message transmmission time [s] of GNSS week
-    t_tm: u32,
+    pub t_tm: u32,
     /// Delta UT1 ([sec], [sec.day⁻¹], [-sec.day⁻²])
-    dut1: (f64,f64,f64),
+    pub delta_ut1: (f64,f64,f64),
 }
 
 impl EopMessage {
@@ -73,7 +96,7 @@ impl EopMessage {
             f64::from_str(ddyp.trim()).unwrap_or(0.0_f64),
         );
         let t_tm = f64::from_str(t_tm.trim()).unwrap_or(0.0_f64);
-        let dut1 = (
+        let delta_ut1 = (
             f64::from_str(dut.trim()).unwrap_or(0.0_f64),
             f64::from_str(ddut.trim()).unwrap_or(0.0_f64),
             f64::from_str(dddut.trim()).unwrap_or(0.0_f64),
@@ -84,7 +107,7 @@ impl EopMessage {
                 x,
                 y,
                 t_tm: t_tm as u32,
-                dut1,
+                delta_ut1,
             }))
     }
 }

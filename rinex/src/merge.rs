@@ -11,13 +11,13 @@ pub enum Error {
     FileTypeMismatch,
     #[error("cannot merge mixed absolute/relative phase antenna together")]
     AntexAbsoluteRelativeMismatch,
-    #[error("cannot merge ionosphere maps based off different models")]
-    IonexSystemMismatch,
-    #[error("cannot merge ionosphere maps based off different grid system")]
+    #[error("cannot merge ionex based off different reference systems")]
+    IonexReferenceMismatch,
+    #[error("cannot merge ionex with different grid definition")]
     IonexMapGridMismatch,
-    #[error("cannot merge ionosphere maps with different map dimensions")]
+    #[error("cannot merge ionex with different map dimensions")]
     IonexMapDimensionsMismatch,
-    #[error("cannot merge ionosphere maps where base radius differs")]
+    #[error("cannot merge ionex where base radius differs")]
     IonexBaseRadiusMismatch,
 }
 
@@ -65,6 +65,39 @@ pub fn merge_mut_option<T: Clone> (lhs: &mut Option<T>, rhs: &Option<T>) {
 }
 
 pub trait Merge<T> {
+    /// Merge immutable implementation.
+    /// When merging, Self attributes are always prefered. 
+    /// Only `rhs` new header information is introduced,
+    /// rhs.header does not overwrite the previously known header attributes.
+    /// Record is then form by combining both file bodies.
+    /// ```
+    /// use rinex::prelude::*;
+    /// use rinex::merge::Merge;
+    /// let rnx_a = Rinex::from_file("../test_resources/OBS/V2/delf0010.21o")
+    ///     .unwrap();
+    /// let rnx_b = Rinex::from_file("../test_resources/NAV/V2/amel0010.21g")
+    ///     .unwrap();
+    /// let merged = rnx_a.merge(&rnx_b);
+    /// // When merging, RINEX format must match
+    /// assert_eq!(merged.is_ok(), false);
+    /// let rnx_b = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
+    ///     .unwrap();
+    /// let merged = rnx_a.merge(&rnx_b);
+    /// assert_eq!(merged.is_ok(), true);
+    /// let merged = merged.unwrap();
+    /// // when merging, Self's attributes are always prefered.
+    /// // Results have most delf0010.21o attributes
+    /// // Only new attributes, that 'DUTH0630.22O' would introduced are stored
+    /// assert_eq!(merged.header.version.major, 2);
+    /// assert_eq!(merged.header.version.minor, 11);
+    /// assert_eq!(merged.header.program, "teqc  2019Feb25");
+    /// // Resulting RINEX will therefore follow RINEX2 specifications
+    /// merged.to_file("merge.rnx")
+    ///     .unwrap();
+    /// ```
     fn merge(&self, rhs: &T) -> Result<Self, Error> where Self: Sized;
+
+    /// Merges Self and `rhs` into a single RINEX.
+    /// See [merge] for an example of use.
     fn merge_mut(&mut self, rhs: &T) -> Result<(), Error>;
 }

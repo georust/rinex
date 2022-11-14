@@ -1,19 +1,23 @@
 Roadmap
 =======
 
-## RINEX library
-
 - [ ] Epoch:
   - [ ] convert `chrono::Duration` to `hifitime::Epoch` to describe the sampline timestamp
   - [ ] when parsing a record, `flag::HeaderInformationFollows` is not exploited,
 the following content is probably interpreted as a faulty epoch to disregard
+
 - [ ] Data production
-  - [ ]  Major data production
-    - [ ] Navigation data production
-  - [ ] Minor data production
-    - [ ] Clock data production 
-    - [ ] Ionosphere maps production   
-    - [ ] Antenna data production 
+  - [ ] Navigation 
+  - [ ] Clock
+  - [ ] IONEX
+  - [ ] ANTEX 
+
+- [ ] Observation
+  - [ ] support possible data scaling
+  for advanced high precision RINEX
+  - [ ] possible receiver clock offset compensation
+  table 5 p7 RINEX4
+
 - [ ] Data decompression
   - [ ] improve compression & decompression testbenches
 - [ ] introduce compression & decompression benchmarking
@@ -34,8 +38,6 @@ the following content is probably interpreted as a faulty epoch to disregard
   - [ ] convert string.find() to regex.find()
   - [ ] use Cow when possible
 
-## Command Line application
-
 - [ ] CLI
   - [ ] progress towards quality check 
   - [ ] conclude the `teqc` mini ascii plot 
@@ -47,17 +49,19 @@ the following content is probably interpreted as a faulty epoch to disregard
 - [ ]  Post Processing
   - [ ]  provide efficient interface to 1D and 2D processing methods  
 - [ ] Graphical Interface
-  - [ ] Conclude Observation RINEX plotting
+  - [ ] Emphasize somehow Observations that came with LLI/SSI
+  in graphical record analysis ?
   - [ ] Provide NAV and MET RINEX plotting 
   - [ ] Make GUI an application feature? for users not interested in such option
 
-## UBLOX application
 
-- [ ] Have an header field attributes customization interface similar to `cli` application
-- [ ] Generate Observation Data (requires `observation::to_file` to be completed)
-- [ ] Generate Ephemeris Data (requires `navigation::to_file` to be completed)
+- [ ] Ublox
+  - [ ] Have an header field attributes customization interface similar to `cli` application
+  - [ ] Generate Observation Data (requires `observation::to_file` to be completed)
+  - [ ] Generate Ephemeris Data (requires `navigation::to_file` to be completed)
 
-## Completed
+Completed
+=========
 
 - File operations
   - [x] Provide a Writer wrapper in similar fashion to existing Reader wrapper for efficient data compression
@@ -99,6 +103,7 @@ of the file browser
 
 - Graphical Interface
   - [x] Provide a visualization method when we're not generating a file
+  - [x] Conclude Observation RINEX plotting
 
 - Performances
   - [x] `hatanaka::TextDiff`

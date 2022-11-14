@@ -13,7 +13,9 @@ use crate::{
     version::Version,
     merge, merge::Merge,
     split, split::Split,
+    sampling::Decimation,
 };
+use hifitime::Duration;
 
 #[derive(Error, Debug)]
 pub enum Error {
@@ -135,9 +137,7 @@ bitflags! {
         /// Lock lost between previous observation and current observation,
         /// cycle slip is possible
         const LOCK_LOSS = 0x01;
-        /// Opposite wavelenght factor to the one defined
-        /// for the satellite by a previous WAVELENGTH FACT comment,
-        /// or opposite to default value, is not previous WAVELENFTH FACT comment
+        /// Half cycle slip marker
         const HALF_CYCLE_SLIP = 0x02;
         /// Observing under anti spoofing,
         /// might suffer from decreased SNR - decreased signal quality
@@ -195,7 +195,7 @@ impl ObservationData {
 /// Measurements are sorted by [epoch::Epoch].
 /// An epoch possibly comprises the receiver clock offset
 /// and a list of physical measurements, sorted by Space vehicule and observable.
-/// Example of Observation Data browsing and manipulation
+/// Phase data is offset so they start at 0 (null initial phase).
 /// ```
 /// use rinex::*;
 /// // grab a CRINEX (compressed OBS RINEX)
@@ -876,5 +876,51 @@ impl Split<Record> for Record {
             })
             .collect();
         Ok((r0, r1))
+    }
+}
+
+impl Decimation<Record> for Record {
+    /// Decimates Self by desired factor
+    fn decim_by_ratio_mut(&mut self, r: u32) {
+        let mut i = 0;
+        self.retain(|_, _| {
+            let retained = (i % r) == 0;
+            i += 1;
+            retained
+        });
+    }
+    /// Copies and Decimates Self by desired factor
+    fn decim_by_ratio(&self, r: u32) -> Self {
+        let mut s = self.clone();
+        s.decim_by_ratio_mut(r);
+        s
+    }
+    /// Decimates Self to fit minimum epoch interval
+    fn decim_by_interval_mut(&mut self, interval: Duration) {
+        let mut last_retained: Option<Epoch> = None;
+        self.retain(|e, _| {
+            if last_retained.is_some() {
+                let dt = *e - last_retained.unwrap();
+                last_retained = Some(*e);
+                dt > interval
+            } else {
+                last_retained = Some(*e);
+                true // always retain 1st epoch
+            }
+        });
+    }
+    /// Copies and Decimates Self to fit minimum epoch interval
+    fn decim_by_interval(&self, interval: Duration) -> Self {
+        let mut s = self.clone();
+        s.decim_by_interval_mut(interval);
+        s
+    }
+    fn decim_match_mut(&mut self, rhs: &Self) {
+        self.retain(|e, _| rhs.get(e).is_some());
+    }
+    fn decim_match(&self, rhs: &Self) -> Self {
+        let mut s = self.clone();
+        s.decim_match_mut(&rhs);
+        s
     }
 }

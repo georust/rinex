@@ -13,7 +13,7 @@ mod analysis; // basic analysis operations
 mod identification; // high level identification/macros
 mod file_generation; // RINEX to file macro
 
-use rinex::*;
+use rinex::{*, split::Split, merge::Merge};
 use cli::Cli;
 use retain::retain_filters;
 use filter::apply_filters;
@@ -64,7 +64,7 @@ pub fn main() -> Result<(), rinex::Error> {
     }
     
     /*
-     * Basic analysis requested
+     * SV per Epoch analysis requested
      */
     if cli.sv_epoch() {
         analysis::sv_epoch::analyze(&rnx, &mut nav_context, cli.plot_dimensions());
@@ -72,61 +72,47 @@ pub fn main() -> Result<(), rinex::Error> {
     }
 
     /*
-     * Phase diff analysis 
+     * DCB analysis requested
      */
-    if cli.phase_diff() {
-        let data = rnx.observation_phase_diff();
+    if cli.dcb() {
         let dims = cli.plot_dimensions();
-        plot::differential::plot(dims, 
-            "phase-diff.png", 
-            "PH Code Differential analysis",
-            "Phase Difference [n.a]",
+        let mut data = rnx.observation_phase_dcb();
+        for (op, inner) in rnx.observation_pseudorange_dcb() {
+            data.insert(op.clone(), inner.clone());
+        }
+        plot::plot_gnss_recombination(
+            dims, 
+            "dcb.png", 
+            "Differential Code Biases",
+            "DBCs [n.a]",
             &data);
-        return Ok(());
     }
-
-    /*
-     * PR diff analysis
-     */
-    if cli.pseudorange_diff() {
-        let data = rnx.observation_pseudorange_diff();
-        let dims = cli.plot_dimensions();
-        plot::differential::plot(dims, 
-            "pseudorange-diff.png", 
-            "PR Code Differential analysis",
-            "PR Difference [n.a]",
-            &data);
-        return Ok(());
-    }
-
-    /*
-     * PH + PR diff efficient impl
-     */
-    if cli.code_diff() {
-        let (ph_data, pr_data) = rnx.observation_code_diff();
-        let dims = cli.plot_dimensions();
-        plot::differential::plot(dims, 
-            "phase-diff.png", 
-            "PH Code Differential analysis",
-            "Phase Difference [n.a]",
-            &ph_data);
-        plot::differential::plot(dims, 
-            "pseudorange-diff.png", 
-            "PR Code Differential analysis",
-            "PR Difference [n.a]",
-            &pr_data);
-    }
-
+    
     /*
      * Code Multipath analysis
      */
     if cli.multipath() {
-        /*if let Some(nav) = nav_context {
-            return Ok(());
-        } else {
-            panic!("--nav must be provided for code multipath analysis");
-        }*/
-        panic!("code multipath analysis is under development");
+        let dims = cli.plot_dimensions();
+        let data = rnx.observation_code_multipath();
+        plot::plot_gnss_recombination(
+            dims,
+            "mp.png",
+            "Code Multipath Biases",
+            "MP [n.a]",
+            &data);
+    }
+    /*
+     * [GF] recombination visualization requested
+     */
+    if cli.gf_recombination() {
+        let data = rnx.observation_gf_combinations();
+        let dims = cli.plot_dimensions();
+        plot::plot_gnss_recombination(
+            dims, 
+            "gf.png",
+            "Geometry Free signal recombination",
+            "Meters of Li-Lj delay",
+            &data);
     }
     
     /*
@@ -182,7 +168,7 @@ pub fn main() -> Result<(), rinex::Error> {
     if plot {
         let dims = cli.plot_dimensions();
         let mut ctx = plot::record::Context::new(dims, &rnx); 
-        plot::record::plot(&mut ctx, &rnx); 
+        plot::record::plot(&mut ctx, &rnx, nav_context); 
     
     } else {
         if pretty {

@@ -13,18 +13,17 @@ RINEX
 Rust tool suites to parse, analyze, manipulate `RINEX` files
 
 * [`rinex`](rinex/) is the core library 
+* [`rinex-cli`](rinex-cli/) is a command line application to pust the crate into use.  
+It can be used for RINEX processing, perform `teqc` operations and so on.
+
 * [`rnx2crx`](rnx2crx/) is a RINEX compression program 
 * [`crx2rnx`](crx2rnx/) is a CRINEX decompression program (Compact RINEX to RINEX)
 * [`sinex`](sinex/) SNX dedicated core library
 
-* [`rinex-cli`](rinex-cli/) is a command line application to process RINEX data
-and make use of this library. It can perform some `teqc` operations and perform
-Differential analysis.
-
-* [`ublox-rnx`](ublox-rnx) is an application (CLI) that connects to a `Ublox`
-receiver and generates RINEX data quickly & easily.
-It is made possible by combining the [ublox](https://github.com/lkolbly/ublox) crate
-and the [rinex](rinex/) crate.
+* [`ublox-rnx`](ublox-rnx/) is an application that connects to a `Ublox`
+receiver and generates RINEX data quickly & easily.   
+It is the combination of the [ublox](https://github.com/lkolbly/ublox) crate
+and [rinex](rinex/) crates.
 
 ## Supported `RINEX` types
 
@@ -34,9 +33,9 @@ and the [rinex](rinex/) crate.
 | Observation (OBS)          | :heavy_check_mark:| :heavy_check_mark: | :heavy_check_mark:  :chart_with_upwards_trend: |  :construction:  | Epoch iteration |
 |  CRINEX  (Compressed OBS)  | :heavy_check_mark:| :construction:  | :heavy_check_mark:  :chart_with_upwards_trend:  |  :construction:    | Epoch iteration |
 |  Meteorological data (MET) | :heavy_check_mark:| :heavy_check_mark:  | :heavy_check_mark: :chart_with_upwards_trend:  | :construction:  | Epoch iteration |  
-|  Clocks (CLK)              | :heavy_check_mark:| :construction:          | :question:           |:construction: | Epoch iteration |
+|  Clocks (CLK)              | :heavy_check_mark:| :construction:      | :question:           |:construction: | Epoch iteration |
 |  Antenna (ATX)             | :heavy_check_mark:| :construction:      | :heavy_minus_sign:   |:construction: | Sorted by `antex::Antenna` |
-|  Ionosphere Maps  (IONEX)  | :construction:         |  :construction:     | :question:           |:construction: | Epoch iteration |
+|  Ionosphere Maps  (IONEX)  | :heavy_check_mark:|  :construction:     | :question:           |:construction: | Epoch iteration |
 |  SINEX  (SNX)              | :construction:    |  :construction:     | :heavy_minus_sign:   |:construction: | SINEX are special RINEX, they are managed by a dedicated [core library](sinex/)  |
 |  Troposphere  (TRO)        | :construction:    |  :construction:     | :question:           |:construction: | Troposphere are one possible SINEX declination |
 |  Bias  (BIA)               | :heavy_check_mark: |  :construction:    | :question:           |:construction: | Bias solutions are one possible SINEX declination |
@@ -103,7 +102,5 @@ Always compile rust code with the `--release` flag :+1:
 
 Contributions are welcomed, do not hesitate to open new issues
 and submit Pull Requests.
-
-We're looking for Ionosphere Maps (IONEX) to put our parser to the test, providing such data would be really appreciated.
 
 If you want to take part in active developments, checkout our [TODO list](TODO.md)

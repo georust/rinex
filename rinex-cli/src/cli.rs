@@ -1,4 +1,3 @@
-use rinex::*;
 use clap::{
     Command, 
     Arg, ArgMatches, 
@@ -9,6 +8,7 @@ use crate::parser::{
     parse_date,
     parse_datetime,
 };
+use rinex::prelude::*;
 
 pub struct Cli {
     /// Arguments passed by user
@@ -52,11 +52,9 @@ impl Cli {
                         .long("sv-epoch")
                         .action(ArgAction::SetTrue)
                         .help("Plots encountered space vehicules per epoch.
-This analysis is graphical, terminal option is not available.
-This is useful to determine unexpected data gaps in file record.
-In case advanced differential mode is enabled (with `--nav`), this
-is very useful to determine which vehicule(s) to focus on when performing
-differential analysis."))
+Useful graph to determine unexpected and determine vehicules of interest, inside this record.
+When both `--fp` and extra Navigation Context (`--nav`) are provided,
+this emphasizes epochs where vehicules were sampled on both contexts."))
                     .arg(Arg::new("header")
                         .long("header")
                         .action(ArgAction::SetTrue)
@@ -66,21 +64,25 @@ differential analysis."))
                         .long("resample-ratio")
                         .short('r')
                         .value_name("RATIO(u32)")
-                        .help("Downsample record content by given factor. 2 for instance, keeps one every other epoch"))
+                        .help("Downsample record content by given factor. 
+For example, \"--resample-ratio 2\" would keep one every other epoch"))
                     .arg(Arg::new("resample-interval")
                         .long("resample-interval")
                         .short('i')
                         .value_name("DURATION")
                         .help("Shrinks record so adjacent epochs match 
 the |e(n)-e(n-1)| > interval condition. 
-Interval must be a valid \"chrono::Duration\" string description"))
+Interval must be a valid \"HH:MM:SS\" duration description.
+Example: -i 00:10:00 will have all epochs spaced by at least 10 minutes."))
                     .arg(Arg::new("time-window")
                         .long("time-window")
                         .value_name("START, END")
                         .short('w')
                         .help("Center record content around specified epoch window. 
 All epochs that do not lie within the specified (start, end) 
-interval are dropped out. User must pass two valid \"chrono::NaiveDateTime\" description"))
+interval are dropped out. User must pass two valid Datetime description.
+Example: -w \"2020-01-01 2020-01-02\" will restrict to 2020/01/01 midnight to 24hours.
+Example: -w \"2020-01-01 00:00:00 2020-01-01 01:00:00\" will restrict the first hour."))
                 .next_help_heading("Retain filters (focus on data of interest)")
                     .arg(Arg::new("retain-constell")
                         .long("retain-constell")
@@ -158,23 +160,29 @@ Also drops observations that did not come with an LLI flag"))
                         .long("clock-offset")
                         .action(ArgAction::SetTrue)
                         .help("Plot receiver clock offsets per epoch."))
-                    .arg(Arg::new("cycle-slip")
-                        .long("cycle-slip")
+                    .arg(Arg::new("gf")
+                        .long("gf")
                         .action(ArgAction::SetTrue)
-                        .help("
-Plot possible cycle slip events accros epochs.
-This is just a candid event extraction, further analysis is required
-to truly determine if cycle slip did happen."))
+                        .help("Request Geometry Free recombination of Phase and PR measurements. 
+This serves as a CS indicator or atmospheric delay estimator. Refer to README."))
+                    .arg(Arg::new("dcb")
+                        .long("dcb")
+                        .action(ArgAction::SetTrue)
+                        .help("Differential Code Bias analysis (DCBs).
+Useful to determine correlation and biases between Phase and PR observations.
+For instance \"2S-2W\" means S code against W code, for L2 carrier. Refer to README."))
+                    .arg(Arg::new("multipath")
+                        .long("mp")
+                        .action(ArgAction::SetTrue)
+                        .help("Run code multipath analysis. Refer to README."))
                     .arg(Arg::new("lock-loss")
                         .long("lock-loss")
                         .action(ArgAction::SetTrue)
-                        .help("
-Display / plot epochs where lock was declared lost."))
+                        .help("Visualize which code might be affected by CS, accross all epochs."))
                     .arg(Arg::new("pr2distance")
                         .long("pr2distance")
                         .action(ArgAction::SetTrue)
-                        .help("
-Converts all Pseudo Range data to real physical distances. 
+                        .help("Converts all Pseudo Range data to real physical distances. 
 This is destructive, original pseudo range codes are lost and overwritten"))
                 .next_help_heading("Navigation RINEX specific")
                     .arg(Arg::new("orbits")
@@ -233,40 +241,6 @@ Applies to either -fp or -nav context"))
 Usually combined to Observation data, provided with -fp.
 Only identical epochs can be analyzed and processed.
 Ideally, both contexts have strictly identical sample rates.
-Refer to README."))
-                    .arg(Arg::new("phase-diff")
-                        .long("phase-diff")
-                        .action(ArgAction::SetTrue)
-                        .help("Phase code differential analysis.
-Differentiates phase codes sampled against identical carrier frequencies.
-Useful to determine correlation and biases between phase observations.
-Observation data must be provided with -fp. 
-Navigation context is not required for this operation.
-For instance \"L2S-L2W\" S code against W code, for L2 carrier.
-Refer to README."))
-                    .arg(Arg::new("pr-diff")
-                        .long("pr-diff")
-                        .action(ArgAction::SetTrue)
-                        .help("Pseudo Range differential analysis.
-Differentiates PR codes sampled against identical carrier frequencies.
-Useful to determine correlation and biases between observations.
-Observation data must be provided with -fp. 
-Navigation context is not required for this operation.
-For instance \"C1P-C1C\" means P code against C code, for L1 carrier.
-Refer to README."))
-                    .arg(Arg::new("code-diff")
-                        .long("code-diff")
-                        .action(ArgAction::SetTrue)
-                        .help("Perform Phase and PR differential analysis
-(--phase-diff + --pr-diff) at once, in a efficient fashion.
-Produces the same results, but saves iteration and computation time."))
-                    .arg(Arg::new("multipath")
-                        .long("multipath")
-                        .action(ArgAction::SetTrue)
-                        .help("Perform code multipath analysis.
-Observation context must be provided with -fp.
-Navigation context must be provided with -nav.
-Combine to -plot for graphical visualization.
 Refer to README."))
                 .next_help_heading("`teqc` operations")
                     .arg(Arg::new("merge")
@@ -352,6 +326,10 @@ Example \"--plot-height 1024"))
             None
         }
     }
+    /// Returns true if GF recombination requested
+    pub fn gf_recombination(&self) -> bool {
+        self.matches.get_flag("gf")
+    }
     /// Returns true if at least one basic identification flag was passed
     pub fn basic_identification(&self) -> bool {
         self.matches.get_flag("sv")
@@ -366,17 +344,9 @@ Example \"--plot-height 1024"))
     pub fn sv_epoch(&self) -> bool {
         self.matches.get_flag("sv-epoch")
     }
-    /// Phase Diff analysis requested 
-    pub fn phase_diff(&self) -> bool {
-        self.matches.get_flag("phase-diff")
-    }
-    /// PR Diff analysis requested 
-    pub fn pseudorange_diff(&self) -> bool {
-        self.matches.get_flag("pr-diff")
-    }
-    /// Code Diff analysis requested 
-    pub fn code_diff(&self) -> bool {
-        self.matches.get_flag("code-diff")
+    /// Phase /PR DCBs analysis requested 
+    pub fn dcb(&self) -> bool {
+        self.matches.get_flag("dcb")
     }
     /// Code Multipath analysis requested 
     pub fn multipath(&self) -> bool {

@@ -18,20 +18,16 @@ mod observation;
 pub struct Context<'a> {
     /// Plot area sorted by title
     pub plots: HashMap<String, DrawingArea<BitMapBackend<'a>, Shift>>,
-    /// Plot chart sorted by physics or meaningful identification.
-    /// We only work with f64 data
+    /// Charts are indexed by sub titles
     pub charts: HashMap<String, ChartState<Plot2d>>,
     /// Record analysis is against time
     pub t_axis: Vec<f64>, 
-    /// Colors used when plotting
-    pub colors: HashMap<String, RGBAColor>,
 }
 
 impl Default for Context<'_> {
     fn default() -> Self {
         Self {
             t_axis: Vec::new(),
-            colors: HashMap::new(),
             charts: HashMap::new(),
             plots: HashMap::new(),
         }
@@ -62,9 +58,9 @@ impl<'a> Context<'a> {
 }
 
 /// Plots Rinex record content
-pub fn plot(ctx: &mut Context, rnx: &Rinex) {
+pub fn plot(ctx: &mut Context, rnx: &Rinex, nav: Option<Rinex>) {
     if let Some(record) = rnx.record.as_obs() {
-        observation::plot(ctx, record)
+        observation::plot(ctx, record, nav)
     } else if let Some(record) = rnx.record.as_nav() {
         navigation::plot(ctx, record)
     } else if let Some(record) = rnx.record.as_meteo() {
