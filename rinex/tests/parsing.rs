@@ -8,10 +8,10 @@ mod test {
 			"ATX",
 			"CLK",
 			"CRNX",
-			"IONEX",
 			"MET",
 			"NAV",
 			"OBS",
+			"IONEX",
 		];
         for data in test_data {
             let data_path = std::path::PathBuf::from(
@@ -61,47 +61,39 @@ mod test {
                     let rinex = Rinex::from_file(full_path);
                     assert_eq!(rinex.is_ok(), true);
                     let rinex = rinex.unwrap();
+                    
                     match data {
-                        "ATX" => { // ATX record
-                            assert_eq!(rinex.header.obs.is_none(), true);
-                            assert_eq!(rinex.is_navigation_rinex(), false);
-                            assert_eq!(rinex.header.meteo.is_none(), true);
+                        "ATX" => {
                             assert_eq!(rinex.is_antex_rinex(), true);
                         },
                         "NAV" => {
-                            assert_eq!(rinex.header.obs.is_none(), true);
                             assert_eq!(rinex.is_navigation_rinex(), true);
-                            assert_eq!(rinex.header.meteo.is_none(), true);
                             assert!(rinex.epochs().len() > 0);
                         },
                         "OBS" => {
                             assert_eq!(rinex.header.obs.is_some(), true);
-                            assert_eq!(rinex.is_navigation_rinex(), false);
-                            assert_eq!(rinex.header.meteo.is_none(), true);
-                            assert_eq!(rinex.is_antex_rinex(), false);
+                            assert_eq!(rinex.is_observation_rinex(), false);
                             assert!(rinex.epochs().len() > 0);
                         },
                         "CRNX" => {
                             assert_eq!(rinex.header.obs.is_some(), true);
-                            assert_eq!(rinex.is_observation_rinex(), true);
-                            assert_eq!(rinex.header.meteo.is_none(), true);
+                            assert_eq!(rinex.is_observation_rinex(), false);
                             assert!(rinex.epochs().len() > 0);
                         },
                         "MET" => {
-                            assert_eq!(rinex.header.obs.is_none(), true);
-                            assert_eq!(rinex.is_meteo_rinex(), true);
-                            assert_eq!(rinex.header.meteo.is_some(), true);
-                            assert_eq!(rinex.header.obs.is_none(), true);
+                            assert_eq!(rinex.header.obs.is_some(), true);
+                            assert_eq!(rinex.is_meteo_rinex(), false);
                             assert!(rinex.epochs().len() > 0);
                         },
                         "CLK" => {
                             assert_eq!(rinex.is_clocks_rinex(), true);
-                            assert_eq!(rinex.header.meteo.is_none(), true);
-                            //assert_eq!(rinex.header.obs.is_none(), true);
-                            assert_eq!(rinex.header.clocks.is_some(), true);
-                            //assert!(rinex.epochs().len() > 0);
+                            assert!(rinex.epochs().len() > 0);
                         },
-                        _ => {}
+                        "IONEX" => {
+                            assert_eq!(rinex.is_ionex(), true);
+                            assert!(rinex.epochs().len() > 0);
+                        },
+                        _ => unreachable!(),
                     }
                 }
             }
