@@ -31,4 +31,15 @@ mod sampling {
         rinex.decim_by_interval_mut(Duration::from_hours(1.0));
         assert_eq!(rinex.epochs().len(), initial_epochs.len()-2);
     }
+    #[test]
+    fn decimate_by_ratio() {
+        let path = env!("CARGO_MANIFEST_DIR").to_owned() 
+            + "/../test_resources/NAV/V3/AMEL00NLD_R_20210010000_01D_MN.rnx";
+        let mut rinex = Rinex::from_file(&path).unwrap();
+        let initial_epochs = rinex.epochs();
+        rinex.decim_by_ratio_mut(2);
+        assert_eq!(rinex.epochs().len(), initial_epochs.len()/2); 
+        rinex.decim_by_ratio_mut(2);
+        assert_eq!(rinex.epochs().len(), initial_epochs.len()/4); 
+    }
 }
