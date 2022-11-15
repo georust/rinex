@@ -139,9 +139,19 @@ impl Epoch {
 			flag,
 		}
 	}
+    /// Copies & set timescale
+    pub fn with_timescale(&self, ts: TimeScale) -> Self {
+        let mut s = self.clone();
+        s.epoch.time_scale = ts;
+        s
+    }
     /// Returns UTC date representation
     pub fn to_gregorian_utc(&self) -> (i32, u8, u8, u8, u8, u8, u32) {
         self.epoch.to_gregorian_utc()
+    }
+    /// Returns UTC date in MJD format
+    pub fn to_mjd_utc(&self) -> f64 {
+        self.epoch.to_mjd_utc_days()
     }
     /// Builds Self from given UTC date
     pub fn from_gregorian_utc(year: i32, month: u8, day: u8, hour: u8, minute: u8, second: u8, nanos: u32) -> Self {
