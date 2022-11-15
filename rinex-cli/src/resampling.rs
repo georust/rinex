@@ -53,7 +53,7 @@ pub fn record_resampling(rnx: &mut Rinex, ops: Vec<(&str, &str)>) {
                 rnx
                     .decim_by_interval_mut(duration);
             } else {
-                println!("failed to parse chrono::duration from \"{}\"", args);
+                println!("failed to parse duration from \"{}\"", args);
                 println!("Expected format is %HH:%MM:%SS\n");
             }
         } else if op.eq(&"resample-ratio") {

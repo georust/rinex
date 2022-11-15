@@ -148,13 +148,11 @@ pub fn main() -> Result<(), rinex::Error> {
         let (a,b) = rnx.split(epoch)
             .expect(&format!("failed to split \"{}\" into two", fp));
 
-        let first_date = a.epochs()[0].date;
-        let name = format!("{}.rnx", first_date);
+        let name = format!("{}-{}.rnx", cli.input_path(), a.epochs()[0]);
         file_generation::generate(&a, None, &name)
             .unwrap();
         
-        let first_date = b.epochs()[0].date;
-        let name = format!("{}.rnx", first_date);
+        let name = format!("{}-{}.rnx", cli.input_path(), b.epochs()[0]);
         file_generation::generate(&b, None, &name)
             .unwrap();
         

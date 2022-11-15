@@ -22,29 +22,29 @@ pub fn analyze(rnx: &Rinex, nav: &mut Option<Rinex>, dims: (u32,u32)) {
                     .map(|k| *k)
                     .collect();
                
-                let obs_dates: (i64, i64) =
-                    (obs_epochs[0].date.timestamp(),
-                    obs_epochs[obs_epochs.len()-1].date.timestamp());
+                let obs_dates: (f64, f64) =
+                    (obs_epochs[0].to_mjd_utc(),
+                    obs_epochs[obs_epochs.len()-1].to_mjd_utc());
                     
                 let nav_epochs: Vec<Epoch> = nav_rec
                     .keys()
                     .map(|k| *k)
                     .collect();
                 
-                let nav_dates: (i64, i64) =
-                    (nav_epochs[0].date.timestamp(),
-                    nav_epochs[nav_epochs.len()-1].date.timestamp());
+                let nav_dates: (f64, f64) =
+                    (nav_epochs[0].to_mjd_utc(),
+                    nav_epochs[nav_epochs.len()-1].to_mjd_utc());
 
                 // determine t_axis for nicer rendering
                 let mut max_date: f64 = 0.0;
                 if let Some(e0) = obs_epochs.get(0) {
                     if let Some(e) = obs_epochs.get(obs_epochs.len()-1) {
-                        max_date = (e.date.timestamp() - e0.date.timestamp()) as f64
+                        max_date = e.to_mjd_utc() - e0.to_mjd_utc();
                     }
                 }
                 if let Some(e0) = nav_epochs.get(0) {
                     if let Some(e) = nav_epochs.get(nav_epochs.len()-1) {
-                        let t = (e.date.timestamp() - e0.date.timestamp()) as f64;
+                        let t = e.to_mjd_utc() - e0.to_mjd_utc();
                         if t > max_date {
                             max_date = t;
                         }
@@ -119,7 +119,7 @@ pub fn analyze(rnx: &Rinex, nav: &mut Option<Rinex>, dims: (u32,u32)) {
                                 if index == 0 {
                                     Some((0.0, sv.prn as f64))
                                 } else {
-                                    Some(((epoch.date.timestamp() - obs_dates.0) as f64, sv.prn as f64)) 
+                                    Some((epoch.to_mjd_utc() - obs_dates.0, sv.prn as f64)) 
                                 }
                             }  else {
                                 None
@@ -150,7 +150,7 @@ pub fn analyze(rnx: &Rinex, nav: &mut Option<Rinex>, dims: (u32,u32)) {
                                 if index == 0 {
                                     Some((0.0, sv.prn as f64 +0.5))
                                 } else {
-                                    Some(((epoch.date.timestamp() - nav_dates.0) as f64, sv.prn as f64 +0.5)) 
+                                    Some((epoch.to_mjd_utc() - nav_dates.0, sv.prn as f64 +0.5)) 
                                 }
                             }  else {
                                 None
@@ -190,13 +190,13 @@ pub fn analyze(rnx: &Rinex, nav: &mut Option<Rinex>, dims: (u32,u32)) {
             offset += 1.0 / nb_constell;
         }
 
-        let mut dates: (i64,i64) = (0, 0);
+        let mut dates: (f64,f64) = (0.0, 0.0);
         let mut max_prn: u8 = 0;
         for (e_index, (epoch, vehicules)) in data.iter().enumerate() {
             if e_index == 0 {
-                dates.0 = epoch.date.timestamp();
+                dates.0 = epoch.to_mjd_utc()
             } else {
-                dates.1 = epoch.date.timestamp() - dates.0;
+                dates.1 = epoch.to_mjd_utc() - dates.0;
             }
             for sv in vehicules.iter() {
                 if cmap.get(sv).is_none() {
@@ -208,7 +208,7 @@ pub fn analyze(rnx: &Rinex, nav: &mut Option<Rinex>, dims: (u32,u32)) {
                 }
             }
         }
-        let t_axis = 0.0..(dates.1 as f64);
+        let t_axis = 0.0..dates.1;
         let y_axis = 0.0..((max_prn +1) as f64);
         let mut chart = ChartBuilder::on(&p)
             .caption("Vehicules per Epoch", ("sans-serif", 50).into_font())
@@ -234,7 +234,7 @@ pub fn analyze(rnx: &Rinex, nav: &mut Option<Rinex>, dims: (u32,u32)) {
                         if index == 0 {
                             Some((0.0, sv.prn as f64))
                         } else {
-                            Some(((epoch.date.timestamp() - dates.0) as f64, sv.prn as f64)) 
+                            Some(((epoch.to_mjd_utc() - dates.0) as f64, sv.prn as f64)) 
                         }
                     } else {
                         None

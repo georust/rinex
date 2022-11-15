@@ -11,8 +11,6 @@ edition = "2021"
 readme = "README.md"
 
 [dependencies]
-time = "0.1"
-chrono = "0.4"
 serde_json = "1"
 clap = { version = "4", features = ["derive", "color"] }
 rinex = { path = "../rinex", features = ["serde", "flate2", "with-geo"] }
