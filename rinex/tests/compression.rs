@@ -83,7 +83,7 @@ mod test {
             run_comparison(
                 &format!("../test_resources/CRNX/V1/{}", crnx_name),
                 &rnx_b_path);
-            //let _ = std::fs::remove_file(&rnx_b_path);
+            let _ = std::fs::remove_file(&rnx_b_path);
         }
     }
 }
