@@ -582,10 +582,22 @@ impl Rinex {
     }
     
     /// Epoch Interval Histogram analysis.
-    /// This is particularly useful in case non steady sample rate was used.
-    /// This can only officially happen in IONEX but in pratice,
-    /// is regularly encountered. Data producers can do whatever they want
-    /// regarding sampling intervals, as long as description is correct.
+    /// Non steady sample rates are present in IONEX but in practice
+    /// might be encountered in other RINEX formats too.
+    /// ```
+    /// use rinex::prelude::*;
+    /// use std::collections::HashMap;
+    /// let rinex = Rinex::from_file("../test_resources/NAV/V3/AMEL00NLD_R_20210010000_01D_MN.rnx")
+    ///     .unwrap();
+    /// let histogram: HashMap<_, _> = [
+    ///     (Duration::from_seconds(15.0*60.0), 1),
+    ///     (Duration::from_seconds(4.0*3600.0 + 45.0*60.0), 2),
+    ///     (Duration::from_seconds(25.0*60.0), 1),
+    ///     (Duration::from_seconds(5.0*3600.0 + 30.0*60.0), 1),
+    /// ].into_iter()
+    ///     .collect();
+    /// assert_eq!(rinex.epoch_intervals(), histogram);
+    /// ```
     pub fn epoch_intervals(&self) -> HashMap<Duration, u32> {
         let mut histogram: HashMap<Duration, u32> = HashMap::new();
         let epochs = self.epochs();

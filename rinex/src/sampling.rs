@@ -23,6 +23,17 @@ pub trait Decimation<T> {
     /// Successive epochs |e_k+1 - e_k| < interval that do not fit
     /// within this minimal interval are discarded.
     /// Header sampling interval (if any) is automatically adjusted.
+    /// ```
+    /// use rinex::prelude::*;
+    /// use rinex::processing::*; // Decimation
+    /// let mut rinex = Rinex::from_file("../test_resources/NAV/V3/AMEL00NLD_R_20210010000_01D_MN.rnx")
+    ///     .unwrap();
+    /// let initial_epochs = rinex.epochs();
+    /// rinex.decim_by_interval_mut(Duration::from_seconds(10.0));
+    /// assert_eq!(rinex.epochs(), initial_epochs); // unchanged, interval is too small
+    /// rinex.decim_by_interval_mut(Duration::from_hours(1.0));
+    /// assert_eq!(rinex.epochs().len(), initial_epochs.len()-2); // got rid of 2 epochs (15' and 25')
+    /// ```
     fn decim_by_interval_mut(&mut self, interval: Duration);
 
     /// [Decimation::decim_by_interval_mut] immutable implementation.
