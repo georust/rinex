@@ -122,26 +122,29 @@ impl Ephemeris {
     pub fn clock_data(&self) -> (f64,f64,f64) {
         (self.clock_bias, self.clock_drift, self.clock_drift_rate)
     }
-	/// Parses ephemeris from given line iterator
-    pub fn parse_v2v3 (version: Version, constellation: Constellation, mut lines: std::str::Lines<'_>) -> Result<(Epoch, Sv, Self), Error> {
+	
+    /// Parses ephemeris from given line iterator
+    pub fn parse_v2v3(version: Version, constellation: Constellation, mut lines: std::str::Lines<'_>) -> Result<(Epoch, Sv, Self), Error> {
 		let line = match lines.next() {
 			Some(l) => l,
 			_ => return Err(Error::MissingData), 
 		};
-		
-		let svnn_offset: usize = match version.major {
-			1|2 => 2, // Y
-			3 => 4, // XYY
-			_ => unreachable!(),
-		};
 
-		let (svnn, rem) = line.split_at(svnn_offset);
-		let (date, rem) = rem.split_at(20);
+        let svnn_offset: usize = match version.major < 3 {
+            true => 3, 
+            false => 4,
+        };
+        let date_offset: usize = match version.major < 3 {
+            true => 19,
+            false => 19,
+        };
+
+        let (svnn, rem) = line.split_at(svnn_offset);
+        let (date, rem) = rem.split_at(date_offset);
 		let epoch = Epoch::from_str(date.trim())?;
-
 		let (clk_bias, rem) = rem.split_at(19);
 		let (clk_dr, clk_drr) = rem.split_at(19);
-
+        
 		let sv : Sv = match version.major {
 			1|2 => {
 				match constellation {
