@@ -50,8 +50,8 @@ use hifitime::Duration;
 pub mod prelude {
     pub use crate::Rinex;
     pub use crate::sv::Sv;
+    pub use crate::epoch::*;
     pub use crate::header::Header;
-    pub use crate::epoch::{Epoch, EpochFlag};
     pub use crate::constellation::Constellation;
 }
 
@@ -161,7 +161,7 @@ macro_rules! hourly_session {
 /// // comments encountered in the Header section
 /// println!("{:#?}", rnx.header.comments); 
 /// // sampling interval was set
-/// assert_eq!(rnx.header.sampling_interval, Some(30.0)); // 30s sample rate
+/// assert_eq!(rnx.header.sampling_interval, Some(Duration::from_seconds(30.0))); // 30s sample rate
 /// // record content is RINEX format dependent.
 /// // This one is Observation RINEX. 
 /// // Refer to [record::Record] definitions, to understand
@@ -546,7 +546,7 @@ impl Rinex {
     /// use rinex::prelude::*;
     /// let rnx = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O").unwrap();
     /// // in this file, header section contains desired information directly
-    /// assert_eq!(rnx.sampling_interval().num_seconds(), rnx.header.sampling_interval.unwrap() as i64);
+    /// assert_eq!(rnx.sampling_interval(), rnx.header.sampling_interval.unwrap());
     /// let rnx = Rinex::from_file("../test_resources/NAV/V3/AMEL00NLD_R_20210010000_01D_MN.rnx").unwrap();
     /// // in that file, we had to compute that information ourselves
     /// assert_eq!(rnx.header.sampling_interval, None);
@@ -557,8 +557,7 @@ impl Rinex {
     /// //01 10 00 00 --> 15'
     /// //01 15 40 00 --> 5h40
     /// //--------------> 15' is the most "plausible"
-    /// let expected = chrono::Duration::from_std(std::time::Duration::from_secs(15*60)).unwrap();
-    /// //assert_eq!(rnx.sampling_interval(), expected);
+    /// //assert_eq!(rnx.sampling_interval(), Duration::from_hours(15.0));
     /// ```
     pub fn sampling_interval(&self) -> Duration {
         if let Some(interval) = self.header.sampling_interval {
@@ -582,7 +581,7 @@ impl Rinex {
         }
     }
     
-    /// Histogram analysis for Epoch Intervals.
+    /// Epoch Interval Histogram analysis.
     /// This is particularly useful in case non steady sample rate was used.
     /// This can only officially happen in IONEX but in pratice,
     /// is regularly encountered. Data producers can do whatever they want

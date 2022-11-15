@@ -64,43 +64,19 @@ pub enum Error {
 }
 
 /// Builds `Record` entry for `MeteoData`
-pub fn parse_epoch (header: &Header, content: &str) 
-        -> Result<(Epoch, HashMap<Observable, f64>), Error> 
-{
+pub fn parse_epoch(header: &Header, content: &str) -> Result<(Epoch, HashMap<Observable, f64>), Error> { 
     let mut lines = content.lines();
     let mut line = lines.next()
         .unwrap();
 
 	let mut map : HashMap<Observable, f64> = HashMap::with_capacity(3);
 
-	// epoch.secs is not f32 as usual
-	// Y is 4 digit number as usual for V > 2
-	//let (date, rem) = line.split_at(offset);
-	let (mut y, m, d, hh, mm, ss, mut offset) : (i32, u8, u8, u8, u8, u8, usize) 
-		= match header.version.major > 2 {
-		true => {
-			(i32::from_str_radix(line[0..5].trim(),10)?, // Y: 4 digit
-			u8::from_str_radix(line[5..8].trim(),10)?, // m
-			u8::from_str_radix(line[8..11].trim(),10)?, // d
-			u8::from_str_radix(line[11..14].trim(),10)?, // h
-			u8::from_str_radix(line[14..17].trim(),10)?, // m
-			u8::from_str_radix(line[17..20].trim(),10)?, // s
-			20)
-		},
-		false => {
-			(i32::from_str_radix(line[0..3].trim(),10)?, // Y: 2 digit
-			u8::from_str_radix(line[3..6].trim(),10)?, // m
-			u8::from_str_radix(line[6..9].trim(),10)?,// d
-			u8::from_str_radix(line[9..12].trim(),10)?,// h
-			u8::from_str_radix(line[12..15].trim(),10)?,// m
-			u8::from_str_radix(line[15..18].trim(),10)?,// s
-			18)
-		},
-	};
-    if y < 100 {
-        y += 2000; // 2 digit case: restrict to Jan 1 2000
+    let mut offset: usize = 18; // YY
+    if header.version.major > 2 {
+        offset += 2; // YYYY
     }
-	let epoch = Epoch::from_gregorian_utc(y, m, d, hh, mm, ss, 0);
+
+    let epoch = Epoch::from_str(&line[0..offset]).unwrap();
 
 	let codes = &header.meteo
         .as_ref()
