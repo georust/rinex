@@ -82,10 +82,37 @@ mod test {
             // parse CRINEX
             let path = format!("../test_resources/CRNX/V1/{}", crnx_name);
             let crnx = Rinex::from_file(&path);
+            
             assert_eq!(crnx.is_ok(), true);
             let mut rnx = crnx.unwrap();
+            assert_eq!(rnx.header.obs.is_some(), true);
+            let obs = rnx.header.obs.as_ref().unwrap();
+            assert_eq!(obs.crinex.is_some(), true);
+            let infos = obs.crinex.as_ref().unwrap();
+
+            if crnx_name.eq("zegv0010.21d") {
+                assert_eq!(infos.version.major, 1);
+                assert_eq!(infos.version.minor, 0);
+                assert_eq!(infos.prog, "RNX2CRX ver.4.0.7");
+                assert_eq!(infos.date, hifitime::Epoch::from_gregorian_utc(2021, 01, 02, 00, 01, 00, 00));
+            } else if crnx_name.eq("npaz3550.21d") {
+                assert_eq!(infos.version.major, 1);
+                assert_eq!(infos.version.minor, 0);
+                assert_eq!(infos.prog, "RNX2CRX ver.4.0.7");
+                assert_eq!(infos.date, hifitime::Epoch::from_gregorian_utc(2021, 12, 28, 00, 18, 00, 00));
+            } else if crnx_name.eq("pdel0010.21d") {
+                assert_eq!(infos.version.major, 1);
+                assert_eq!(infos.version.minor, 0);
+                assert_eq!(infos.prog, "RNX2CRX ver.4.0.7");
+                assert_eq!(infos.date, hifitime::Epoch::from_gregorian_utc(2021, 01, 09, 00, 24, 00, 00));
+            }
+
             // convert to RINEX
             rnx.crnx2rnx();
+            
+            let obs = rnx.header.obs.as_ref().unwrap();
+            assert_eq!(obs.crinex.is_some(), false);
+
             // dump to file
             let rnx_b_path = format!("test-{}", rnx_name);
             assert_eq!(rnx.to_file(&rnx_b_path).is_ok(), true);
