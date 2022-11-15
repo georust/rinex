@@ -1,8 +1,11 @@
 use thiserror::Error;
 use std::str::FromStr;
 
-use hifitime::Duration;
-pub use hifitime::TimeScale;
+pub use hifitime::{
+    Duration,
+    TimeScale,
+    Unit,
+};
 
 use core::ops::{
     Add,
@@ -207,12 +210,8 @@ impl FromStr for Epoch {
             }
         }
         if let Ok(mut y) = i32::from_str_radix(items[0], 10) {
-            if y < 100 { // old rinex -__-
-                if y > 90 {
-                    y += 1900;
-                } else {
-                    y += 2000;
-                }
+            if y < 100 {
+                y += 2000;
             }
             if let Ok(m) = u8::from_str_radix(items[1], 10) {
                 if let Ok(d) = u8::from_str_radix(items[2], 10) {
