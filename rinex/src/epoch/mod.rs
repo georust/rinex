@@ -158,8 +158,18 @@ impl std::fmt::Display for Epoch {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let (y, m, d, hh, mm, ss, nanos) = self.to_gregorian_utc();
         write!(f,
-            "{:04} {:>2} {:>2} {:>2} {:>2} {:>2}.{:07}  {}",
-            y, m, d, hh, mm, ss, nanos, self.flag)
+            "{:04} {:02} {:02} {:02} {:02} {:>2}.{:07}  {}",
+            y, m, d, hh, mm, ss, nanos /100, self.flag)
+    }
+}
+
+impl std::fmt::Octal for Epoch {
+    /// Octal format applies to Old Observation RINEX only
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let (y, m, d, hh, mm, ss, nanos) = self.to_gregorian_utc();
+        write!(f,
+            "{:02} {:>2} {:>2} {:>2} {:>2} {:>2}.{:07}  {}",
+            y-2000, m, d, hh, mm, ss, nanos/100, self.flag)
     }
 }
 
@@ -209,9 +219,15 @@ impl FromStr for Epoch {
                     if let Ok(hh) = u8::from_str_radix(items[3], 10) {
                         if let Ok(mm) = u8::from_str_radix(items[4], 10) {
                             if let Some(dot) = items[5].find(".") {
+                                let is_nav = items[5].trim().len() < 7;
                                 if let Ok(ss) = u8::from_str_radix(&items[5][..dot].trim(), 10) {
-                                    if let Ok(ns) = u32::from_str_radix(&items[5][dot+1..].trim(), 10) {
-                                        let mut e = Self::from_gregorian_utc(y, m, d, hh, mm, ss, ns * 100);
+                                    if let Ok(mut ns) = u32::from_str_radix(&items[5][dot+1..].trim(), 10) {
+                                        if is_nav {
+                                            ns *= 100_000_000;
+                                        } else {
+                                            ns *= 100;
+                                        }
+                                        let mut e = Self::from_gregorian_utc(y, m, d, hh, mm, ss, ns);
                                         if items.len() == 7 { // flag exists
                                             if let Ok(flag) = EpochFlag::from_str(items[6].trim()) {
                                                 e = e.with_flag(flag);
@@ -253,7 +269,7 @@ impl FromStr for Epoch {
 mod test {
     use super::*;
     #[test]
-    fn test_parse_nav_v2() {
+    fn test_nav_v2() {
         let e = Epoch::from_str("20 12 31 23 45  0.0");
         assert_eq!(e.is_ok(), true);
         let e = e.unwrap();
@@ -282,7 +298,16 @@ mod test {
         assert_eq!(e.flag, EpochFlag::Ok);
     }
     #[test]
-    fn test_parse_nav_v3() {
+    fn test_nav_v2_nanos() {
+        let e = Epoch::from_str("20 12 31 23 45  0.1");
+        assert_eq!(e.is_ok(), true);
+        let e = e.unwrap();
+        let (_, _, _, _, _, ss, ns) = e.to_gregorian_utc();
+        assert_eq!(ss, 0);
+        assert_eq!(ns, 100_000_000); 
+    }
+    #[test]
+    fn test_nav_v3() {
         let e = Epoch::from_str("2021 01 01 00 00 00 ");
         assert_eq!(e.is_ok(), true);
         let e = e.unwrap();
@@ -340,7 +365,7 @@ mod test {
         assert_eq!(e.flag, EpochFlag::Ok);
     }
     #[test]
-    fn test_parse_obs_v2() {
+    fn test_obs_v2() {
         let e = Epoch::from_str(" 21 12 21  0  0  0.0000000  0");
         assert_eq!(e.is_ok(), true);
         let e = e.unwrap();
@@ -354,6 +379,7 @@ mod test {
         assert_eq!(ns, 0);
         assert_eq!(e.timescale(), TimeScale::UTC);
         assert_eq!(e.flag, EpochFlag::Ok);
+        assert_eq!(format!("{:o}", e), "21 12 21  0  0  0.0000000  0");
         
         let e = Epoch::from_str(" 21 12 21  0  0 30.0000000  0");
         assert_eq!(e.is_ok(), true);
@@ -368,11 +394,13 @@ mod test {
         assert_eq!(ns, 0);
         assert_eq!(e.timescale(), TimeScale::UTC);
         assert_eq!(e.flag, EpochFlag::Ok);
+        assert_eq!(format!("{:o}", e), "21 12 21  0  0 30.0000000  0");
         
         let e = Epoch::from_str(" 21 12 21  0  0 30.0000000  1");
         assert_eq!(e.is_ok(), true);
         let e = e.unwrap();
         assert_eq!(e.flag, EpochFlag::PowerFailure);
+        assert_eq!(format!("{:o}", e), "21 12 21  0  0 30.0000000  1");
         
         let e = Epoch::from_str(" 21 12 21  0  0 30.0000000  2");
         assert_eq!(e.is_ok(), true);
@@ -412,6 +440,7 @@ mod test {
         assert_eq!(ns, 0);
         assert_eq!(e.timescale(), TimeScale::UTC);
         assert_eq!(e.flag, EpochFlag::Ok);
+        assert_eq!(format!("{:o}", e), "21  1  1  0  0  0.0000000  0");
         
         let e = Epoch::from_str(" 21  1  1  0  7 30.0000000  0");
         assert_eq!(e.is_ok(), true);
@@ -426,11 +455,12 @@ mod test {
         assert_eq!(ns, 0);
         assert_eq!(e.timescale(), TimeScale::UTC);
         assert_eq!(e.flag, EpochFlag::Ok);
+        assert_eq!(format!("{:o}", e), "21  1  1  0  7 30.0000000  0");
     }    
     #[test]
-    fn test_parse_obs_v3() {
+    fn test_obs_v3() {
         let e = Epoch::from_str(" 2022 01 09 00 00  0.0000000  0");
-        //assert_eq!(e.is_ok(), true);
+        assert_eq!(e.is_ok(), true);
         let e = e.unwrap();
         let (y, m, d, hh, mm, ss, ns) = e.to_gregorian_utc();
         assert_eq!(y, 2022);
@@ -442,6 +472,7 @@ mod test {
         assert_eq!(ns, 0);
         assert_eq!(e.timescale(), TimeScale::UTC);
         assert_eq!(e.flag, EpochFlag::Ok);
+        assert_eq!(format!("{}", e), "2022 01 09 00 00  0.0000000  0");
         
         let e = Epoch::from_str(" 2022 01 09 00 13 30.0000000  0");
         assert_eq!(e.is_ok(), true);
@@ -456,6 +487,7 @@ mod test {
         assert_eq!(ns, 0);
         assert_eq!(e.timescale(), TimeScale::UTC);
         assert_eq!(e.flag, EpochFlag::Ok);
+        assert_eq!(format!("{}", e), "2022 01 09 00 13 30.0000000  0");
         
         let e = Epoch::from_str(" 2022 03 04 00 52 30.0000000  0");
         assert_eq!(e.is_ok(), true);
@@ -470,6 +502,7 @@ mod test {
         assert_eq!(ns, 0);
         assert_eq!(e.timescale(), TimeScale::UTC);
         assert_eq!(e.flag, EpochFlag::Ok);
+        assert_eq!(format!("{}", e), "2022 03 04 00 52 30.0000000  0");
         
         let e = Epoch::from_str(" 2022 03 04 00 02 30.0000000  0");
         assert_eq!(e.is_ok(), true);
@@ -484,6 +517,7 @@ mod test {
         assert_eq!(ns, 0);
         assert_eq!(e.timescale(), TimeScale::UTC);
         assert_eq!(e.flag, EpochFlag::Ok);
+        assert_eq!(format!("{}", e), "2022 03 04 00 02 30.0000000  0");
     }
     #[test]
     fn test_obs_v2_nanos() {
@@ -502,6 +536,7 @@ mod test {
         let (_, _, _, _, _, ss, ns) = e.to_gregorian_utc();
         assert_eq!(ss, 0);
         assert_eq!(ns, 100_000_000);
+        assert_eq!(format!("{}", e), "2022 01 09 00 00  0.1000000  0");
         
         let e = Epoch::from_str(" 2022 01 09 00 00  0.1234000  0");
         assert_eq!(e.is_ok(), true);
@@ -509,6 +544,7 @@ mod test {
         let (_, _, _, _, _, ss, ns) = e.to_gregorian_utc();
         assert_eq!(ss, 0);
         assert_eq!(ns, 123_400_000);
+        assert_eq!(format!("{}", e), "2022 01 09 00 00  0.1234000  0");
         
         let e = Epoch::from_str(" 2022 01 09 00 00  8.7654321  0");
         assert_eq!(e.is_ok(), true);
@@ -516,5 +552,6 @@ mod test {
         let (_, _, _, _, _, ss, ns) = e.to_gregorian_utc();
         assert_eq!(ss, 8);
         assert_eq!(ns, 765_432_100);
+        assert_eq!(format!("{}", e), "2022 01 09 00 00  8.7654321  0");
     }
 }

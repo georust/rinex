@@ -329,11 +329,12 @@ impl Header {
                     let time: Vec<&str> = items[1].split(":").collect();
                     if let Ok(d) = u8::from_str_radix(date[0], 10) {
                         let month = from_b_fmt_month!(date[1]);
-                        if let Ok(y) = i32::from_str_radix(date[2].trim(), 10) {
+                        if let Ok(mut y) = i32::from_str_radix(date[2].trim(), 10) {
                             if let Ok(h) = u8::from_str_radix(time[0].trim(), 10) {
                                 if let Ok(m) = u8::from_str_radix(time[1].trim(), 10) {
                                     if let Some(crinex) = &mut observation.crinex {
-                                        let date = hifitime::Epoch::from_gregorian_utc(y, m, d, h, m, 0, 0);
+                                        y += 2000; 
+                                        let date = hifitime::Epoch::from_gregorian_utc(y, month, d, h, m, 0, 0);
                                         *crinex = crinex
                                             .with_prog(prog.trim())
                                             .with_date(date);
@@ -1841,4 +1842,13 @@ impl Merge<Header> for Header {
         }
         Ok(())
     }
+}
+
+#[cfg(test)]
+fn test_from_b_fmt_month() {
+    assert_eq!(from_b_fmt_month!("Jan"), 1);
+    assert_eq!(from_b_fmt_month!("Feb"), 2);
+    assert_eq!(from_b_fmt_month!("Mar"), 3);
+    assert_eq!(from_b_fmt_month!("Dec"), 12);
+    assert_eq!(from_b_fmt_month!("Nov"), 11);
 }
