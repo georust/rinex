@@ -160,6 +160,13 @@ impl Epoch {
             flag: EpochFlag::default(),
         }
     }
+    /// Builds Self from given UTC date
+    pub fn from_gregorian_utc_midnight(year: i32, month: u8, day: u8) -> Self {
+        Self {
+            epoch: hifitime::Epoch::from_gregorian_utc_at_midnight(year, month, day),
+            flag: EpochFlag::default(),
+        }
+    }
     /// Returns timescale in use
     pub fn timescale(&self) -> TimeScale {
         self.epoch.time_scale
