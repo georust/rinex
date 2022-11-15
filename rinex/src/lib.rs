@@ -712,50 +712,30 @@ impl Rinex {
     }
 
     /// Returns list of epochs contained in self.
-    /// Faillible! if this RINEX is not indexed by `epochs`
-    pub fn epochs (&self) -> Vec<Epoch> {
-        match self.header.rinex_type {
-            types::Type::ObservationData => {
-                self.record
-                    .as_obs()
-                    .unwrap()
-                    .into_iter()
-                    .map(|(k, _)| *k)
-                    .collect()
-            },
-            types::Type::NavigationData => {
-                self.record
-                    .as_nav()
-                    .unwrap()
-                    .into_iter()
-                    .map(|(k, _)| *k)
-                    .collect()
-            },
-            types::Type::MeteoData => {
-                self.record
-                    .as_meteo()
-                    .unwrap()
-                    .into_iter()
-                    .map(|(k, _)| *k)
-                    .collect()
-            },
-            types::Type::ClockData => {
-                self.record
-                    .as_clock()
-                    .unwrap()
-                    .into_iter()
-                    .map(|(k, _)| *k)
-                    .collect()
-            },
-            types::Type::IonosphereMaps => {
-                self.record
-                    .as_ionex()
-                    .unwrap()
-                    .into_iter()
-                    .map(|(k, _)| *k)
-                    .collect()
-            },
-            _ => panic!("Cannot get an epoch iterator for \"{:?}\"", self.header.rinex_type),
+    /// Faillible! if self is not iterated by `Epoch`.
+    pub fn epochs(&self) -> Vec<Epoch> {
+        if let Some(r) = self.record.as_obs() {
+            r.iter()
+                .map(|(k, _)| *k)
+                .collect()
+        } else if let Some(r) = self.record.as_nav() { 
+            r.iter()
+                .map(|(k, _)| *k)
+                .collect()
+        } else if let Some(r) = self.record.as_meteo() {
+            r.iter()
+                .map(|(k, _)| *k)
+                .collect()
+        } else if let Some(r) = self.record.as_clock() {
+            r.iter()
+                .map(|(k, _)| *k)
+                .collect()
+        } else if let Some(r) = self.record.as_ionex() {
+            r.iter()
+                .map(|(k, _)| *k)
+                .collect()
+        } else {
+            panic!("cannot get an epoch iterator for \"{:?}\" RINEX", self.header.rinex_type);
         }
     }
 
