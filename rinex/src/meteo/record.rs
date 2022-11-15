@@ -97,13 +97,9 @@ pub fn parse_epoch (header: &Header, content: &str)
 			18)
 		},
 	};
-	if y < 100 { // 2 digit nb case
-    	if y > 90 {
-        	y += 1900
-    	} else {
-			y += 2000
-		}
-	}
+    if y < 100 {
+        y += 2000; // 2 digit case: restrict to Jan 1 2000
+    }
 	let epoch = Epoch::from_gregorian_utc(y, m, d, hh, mm, ss, 0);
 
 	let codes = &header.meteo

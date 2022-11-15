@@ -25,6 +25,9 @@ receiver and generates RINEX data quickly & easily.
 It is the combination of the [ublox](https://github.com/lkolbly/ublox) crate
 and [rinex](rinex/) crates.
 
+:warning: This library will not parse correctly RINEX files that were generated prior Jan 1 2000.   
+This is purely related to the supported year values, and has nothing to do with the RINEX revision.
+
 ## Supported `RINEX` types
 
 | Type                       | Parser            | Writer              |  CLI                 | UBX                  |           Notes          |
