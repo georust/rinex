@@ -4,11 +4,8 @@ use clap::{
     ArgAction,
     ColorChoice,
 };
-use crate::parser::{
-    parse_date,
-    parse_datetime,
-};
 use rinex::prelude::*;
+use crate::parser::parse_epoch;
 
 pub struct Cli {
     /// Arguments passed by user
@@ -80,7 +77,7 @@ Example: -i 00:10:00 will have all epochs spaced by at least 10 minutes."))
                         .short('w')
                         .help("Center record content around specified epoch window. 
 All epochs that do not lie within the specified (start, end) 
-interval are dropped out. User must pass two valid Datetime description.
+interval are dropped out. User must pass two valid Datetime description. Epochs are specified in UTC timescale.
 Example: -w \"2020-01-01 2020-01-02\" will restrict to 2020/01/01 midnight to 24hours.
 Example: -w \"2020-01-01 00:00:00 2020-01-01 01:00:00\" will restrict the first hour."))
                 .next_help_heading("Retain filters (focus on data of interest)")
@@ -510,16 +507,8 @@ Example \"--plot-height 1024"))
     pub fn split(&self) -> Option<Epoch> {
         if self.matches.contains_id("split") {
             if let Some(args) = self.matches.get_one::<String>("split") {
-                if let Ok(date) = parse_date(&args) {
-                    Some(Epoch {
-                        flag: EpochFlag::default(),
-                        date: date.and_hms(0,0,0), // midnight,
-                    })
-                } else if let Ok(datetime) = parse_datetime(&args) {
-                    Some(Epoch {
-                        flag: EpochFlag::default(),
-                        date: datetime,
-                    })
+                if let Ok(epoch) = parser::parse_epoch(args) {
+                    Some(epoch)
                 } else { 
                     panic!("failed to parse [DATETIME]");
                 }

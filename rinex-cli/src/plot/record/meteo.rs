@@ -15,7 +15,7 @@ use std::collections::HashMap;
  * Builds a plot context for Observation RINEX specificly
  */
 pub fn build_context<'a> (dim: (u32, u32), record: &Record) -> Context<'a> {
-    let mut e0: i64 = 0;
+    let mut e0: f64 = 0.0;
     let mut t_axis: Vec<f64> = Vec::with_capacity(16384);
     let mut plots: HashMap<String,
         DrawingArea<BitMapBackend, Shift>>
@@ -27,9 +27,9 @@ pub fn build_context<'a> (dim: (u32, u32), record: &Record) -> Context<'a> {
         if index == 0 {
             // store first epoch timestamp
             // to scale x_axis proplery (avoids fuzzy rendering)
-            e0 = e.date.timestamp();
+            e0 = e.to_mjd_utc();
         }
-        let t = e.date.timestamp() - e0;
+        let t = e.to_mjd_utc() - e0;
         t_axis.push(t as f64);
         for (observable, data) in observables {
             if plots.get(&observable.to_string()).is_none() {
@@ -79,13 +79,13 @@ pub fn build_context<'a> (dim: (u32, u32), record: &Record) -> Context<'a> {
 
 
 pub fn plot(ctx: &mut Context, record: &Record) {
-    let mut t0 : i64 = 0;
+    let mut t0 : f64 = 0.0;
     let mut datasets: HashMap<String, Vec<(f64, f64)>> = HashMap::new();
     for (index, (epoch, observations)) in record.iter().enumerate() {
         if index == 0 {
-            t0 = epoch.date.timestamp();
+            t0 = epoch.to_mjd_utc();
         }
-        let t = epoch.date.timestamp();
+        let t = epoch.to_mjd_utc();
         for (observable, observation) in observations {
             if let Some(data) = datasets.get_mut(&observable.to_string()) {
                 data.push(((t-t0) as f64, *observation));

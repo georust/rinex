@@ -5,10 +5,6 @@ use clap::{
     ColorChoice,
 };
 
-use chrono::{
-    NaiveDate, NaiveTime,
-};
-
 pub struct Cli {
     /// arguments passed by user
     pub matches: ArgMatches,
@@ -66,54 +62,48 @@ impl Cli {
         self.matches
             .get_one::<String>("output")
     }
-    pub fn crx1 (&self) -> bool {
+    pub fn crx1(&self) -> bool {
         self.matches.get_flag("crx1")
     }
-    pub fn crx3 (&self) -> bool {
+    pub fn crx3(&self) -> bool {
         self.matches.get_flag("crx3")
     }
-    pub fn date (&self) -> Option<NaiveDate> {
+    pub fn date(&self) -> Option<(u32,u8,u8)> {
         if let Some(s) = self.matches
-            .get_one::<String>("date") 
-        {
-            if let Ok(date) = NaiveDate::parse_from_str(s, "%Y-%m-%d") {
-                Some(date)
-            } else {
-                println!("failed to parse provided date");
-                None
-            }
-        } else {
-            None
-        }
-    }
-    pub fn time (&self) -> Option<NaiveTime> {
-        if let Some(s) = self.matches
-            .get_one::<String>("time") 
-        {
-            let items: Vec<&str> = s.split(":").collect();
+            .get_one::<String>("date") { 
+            let items: Vec<&str> = s.split("-").collect();
             if items.len() != 3 {
-                println!("failed to parse provided time");
-                None
+                println!("failed to parse \"yyyy-mm-dd\"");
+                return None;
             } else {
-                if let Ok(h) = u32::from_str_radix(items[0], 10) {
-                    if let Ok(m) = u32::from_str_radix(items[1], 10) {
-                        if let Ok(s) = u32::from_str_radix(items[2], 10) {
-                            Some(NaiveTime::from_hms(h, m, s))
-                        } else {
-                            println!("failed to parse seconds");
-                            None
+                if let Ok(y) = u32::from_str_radix(items[0], 10) {
+                    if let Ok(m) = u8::from_str_radix(items[1], 10) {
+                        if let Ok(d) = u8::from_str_radix(items[2], 10) {
+                            return Some((y,m,d));
                         }
-                    } else {
-                        println!("failed to parse minutes");
-                        None
                     }
-                } else {
-                    println!("failed to parse hours");
-                    None
                 }
             }
-        } else {
-            None
         }
+        None
+    }
+    pub fn time(&self) -> Option<(u8,u8,u8)> {
+        if let Some(s) = self.matches
+            .get_one::<String>("time") { 
+            let items: Vec<&str> = s.split(":").collect();
+            if items.len() != 3 {
+                println!("failed to parse \"hh:mm:ss\"");
+                return None;
+            } else {
+                if let Ok(h) = u32::from_str_radix(items[0], 10) {
+                    if let Ok(m) = u8::from_str_radix(items[1], 10) {
+                        if let Ok(s) = u8::from_str_radix(items[2], 10) {
+                            return Some((h,m,s));
+                        }
+                    }
+                }
+            }
+        }
+        None
     }
 }

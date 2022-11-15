@@ -68,7 +68,7 @@ pub fn plot_gnss_recombination(
     // determine (smallest, largest) ts accross all Ops
     // determine (smallest, largest) y accross all Ops (nicer scale)
     let mut y: (f64, f64) = (0.0, 0.0);
-    let mut dates: (i64, i64) = (0, 0);
+    let mut dates: (f64, f64) = (0.0, 0.0);
     for (_op_index, (_op, vehicules)) in data.iter().enumerate() {
         for (sv, epochs) in vehicules.iter() {
             if sv.prn > cmap_max_index {
@@ -76,10 +76,10 @@ pub fn plot_gnss_recombination(
             }
             for (e_index, (epoch, data)) in epochs.iter().enumerate() {
                 if e_index == 0 {
-                    dates.0 = epoch.date.timestamp();
+                    dates.0 = epoch.to_mjd_utc(); 
                 }
-                if epoch.date.timestamp() > dates.1 {
-                    dates.1 = epoch.date.timestamp();
+                if epoch.to_mjd_utc() > dates.1 {
+                    dates.1 = epoch.to_mjd_utc(); 
                 }
                 let yp = data; // * 1.546;
                 if *yp < y.0 {
@@ -128,16 +128,14 @@ pub fn plot_gnss_recombination(
             };
             chart.draw_series(LineSeries::new(
                 epochs.iter()
-                    .map(|(k, v)| {
-                        ((k.date.timestamp() - dates.0) as f64, *v) 
-                    }),
+                    .map(|(k, v)| (k.to_mjd_utc() - dates.0, *v)),
                     color.clone(),
                 ))
                 .expect(&format!("failed to draw {} serie", op));
             chart.draw_series(
                 epochs.iter()
                     .map(|(k, v)| {
-                        let x = (k.date.timestamp() - dates.0) as f64;
+                        let x = k.to_mjd_utc() - dates.0; 
                         match symbol {
                             "x" => {
                                 Cross::new((x, *v), 4,

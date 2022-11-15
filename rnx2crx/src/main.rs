@@ -1,12 +1,10 @@
-use rinex::*;
+mod cli;
+use cli::Cli;
 use rinex::{
+    prelude::*,
     version::Version,
     observation::Crinex,
 };
-mod cli;
-use cli::Cli;
-use chrono::{NaiveTime};
-
 fn main() -> Result<(), Error> {
     let cli = Cli::new(); 
     let input_path = cli.input_path();
@@ -26,17 +24,12 @@ fn main() -> Result<(), Error> {
     }
     let date = cli.date();
     let time = cli.time();
-    if let Some(date) = date {
-        if let Some(time) = time {
-            crinex.date = date.and_time(time);
-        } else {
-            crinex.date = date.and_time(NaiveTime::from_hms(0,0,0));
-        }
+    if let Some((y, m, d)) = date {
+        let (hh, mm, ss) = cli.time().unwrap_or((0,0,0));
+        crinex.date = hifitime::Epoch::from_gregorian_utc(y, m, d, hh, mm, ss, 0);
     } else if let Some(time) = time {
-        crinex.date = chrono::Utc::now()
-            .naive_utc()
-            .date()
-            .and_time(time);
+        crinex.date = hifitime::Epoch::now()
+            .unwrap();
     }
     // output path
     let output_path = match cli.output_path() {

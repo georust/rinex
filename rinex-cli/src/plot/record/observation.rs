@@ -33,7 +33,7 @@ macro_rules! code2physics {
  * Builds a plot context for Observation RINEX specificly
  */
 pub fn build_context<'a> (dim: (u32, u32), record: &Record) -> Context<'a> {
-    let mut e0: i64 = 0;
+    let mut e0: f64 = 0.0;
     let mut t_axis: Vec<f64> = Vec::with_capacity(16384);
     let mut plots: HashMap<String,
         DrawingArea<BitMapBackend, Shift>>
@@ -47,9 +47,9 @@ pub fn build_context<'a> (dim: (u32, u32), record: &Record) -> Context<'a> {
         if e_index == 0 {
             // store first epoch timestamp
             // to scale x_axis proplery (avoids fuzzy rendering)
-            e0 = e.date.timestamp();
+            e0 = e.to_mjd_utc();
         }
-        let t = e.date.timestamp() - e0;
+        let t = e.to_mjd_utc();
         t_axis.push(t as f64);
 
         // Build 1 plot in case Receiver Clock Offsets were provided 
@@ -177,7 +177,7 @@ pub fn build_context<'a> (dim: (u32, u32), record: &Record) -> Context<'a> {
 }
 
 pub fn plot(ctx: &mut Context, record: &Record, nav_ctx: Option<Rinex>) {
-    let mut e0: i64 = 0;
+    let mut e0: f64 = 0.0;
     let cmap = colorous::TURBO; // to differentiate vehicules (PRN#)
     let symbols = vec!["x", "t", "o"]; // to differentiate carrier signals
     // sorted by Physics, By Carrier number, By vehicule, (x,y)
@@ -193,11 +193,11 @@ pub fn plot(ctx: &mut Context, record: &Record, nav_ctx: Option<Rinex>) {
 
     for (e_index, (epoch, (clock_offset, vehicules))) in record.iter().enumerate() {
         if e_index == 0 {
-            e0 = epoch.date.timestamp()
+            e0 = epoch.to_mjd_utc();
         }
         
-        let e = epoch.date.timestamp();
-        let x = (e-e0) as f64;
+        let e = epoch.to_mjd_utc();
+        let x = e-e0;
         if let Some(value) = clock_offset {
             clk_offset.push((x, *value));
         }
