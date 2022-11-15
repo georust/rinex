@@ -740,7 +740,7 @@ mod test {
         assert_eq!(ssi.is_err(), true);
     }
     #[test]
-    fn new_epoch() {
+    fn test_is_new_epoch() {
         assert_eq!(        
             is_new_epoch("95 01 01 00 00 00.0000000  0  7 06 17 21 22 23 28 31",
                 Version {
