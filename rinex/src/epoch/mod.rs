@@ -18,7 +18,7 @@ pub mod flag;
 pub use flag::EpochFlag;
 
 #[cfg(feature = "serde")]
-use serde::{Serialize};
+use serde::{Serialize, Deserialize};
 
 #[derive(Error, Debug)]
 /// Epoch Parsing relate errors 
@@ -52,6 +52,7 @@ pub enum Error {
 #[derive(Copy, Clone, Debug)]
 #[derive(PartialOrd, Ord)]
 #[derive(PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Epoch {
     epoch: hifitime::Epoch, 
     /// Flag describes sampling conditions and possible external events.
@@ -60,23 +61,15 @@ pub struct Epoch {
     pub flag: flag::EpochFlag,
 }
 
-#[cfg(feature = "serde")]
-impl Serialize for Epoch {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let s = format!("{} {}", self.epoch, self.flag); 
-        serializer.serialize_str(&s)
-    }
-}
-
 impl Default for Epoch {
     fn default() -> Self {
         Self {
             flag: EpochFlag::default(),
             epoch: hifitime::Epoch::now()
-                .expect("failed to retrieve system time"),
+                .unwrap_or(hifitime::Epoch {
+                    duration_since_j1900_tai: Duration::default(),
+                    time_scale: TimeScale::default(),
+                }),
         }
     }
 }
