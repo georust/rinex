@@ -6,44 +6,18 @@ use super::{constellation, Constellation};
 use std::str::FromStr;
 
 #[cfg(feature = "serde")]
-use serde::{Serialize, Serializer, Deserializer, Deserialize};
+use serde::{Serialize, Deserialize};
 
 /// ̀`Sv` describes a Satellite Vehiculee
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Default)]
 #[derive(PartialEq, Eq, Hash)]
 #[derive(PartialOrd, Ord)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Sv {
     /// PRN identification # for this vehicule 
     pub prn: u8,
     /// `GNSS` Constellation to which this vehicule is tied to
     pub constellation: Constellation,
-}
-
-#[cfg(feature = "serde")]
-impl Serialize for Sv {
-    /// Dumps an `Sv` structure in RINEX standard format
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let s = format!("{}{:02}", 
-            self.constellation.to_1_letter_code(),
-            self.prn);
-        serializer.serialize_str(&s)
-    }
-}
-
-#[cfg(feature = "serde")]
-impl<'de> Deserialize<'de> for Sv {
-    /// Builds an `Sv` structure from usual String description
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let s = String::deserialize(deserializer)?;
-        Self::from_str(&s)
-            .map_err(serde::de::Error::custom)
-    }
 }
 
 /// ̀`Sv` parsing & identification related errors
@@ -55,19 +29,14 @@ pub enum Error {
     ParseIntError(#[from] std::num::ParseIntError),
 }
 
-impl Default for Sv {
-    /// Builds a default `Sv`
-    fn default() -> Self {
+impl Sv {
+    /// Creates a new `Sv`
+    pub fn new (constellation: Constellation, prn: u8) -> Self { 
         Self {
-            constellation: Constellation::default(),
-            prn: 1
+            prn, 
+            constellation, 
         }
     }
-}
-
-impl Sv {
-    /// Creates a new `Sv` descriptor
-    pub fn new (constellation: Constellation, prn: u8) -> Sv { Sv {constellation, prn }}
 }
 
 impl std::str::FromStr for Sv {
