@@ -1,8 +1,7 @@
 use rinex::{*, processing::Decimation};
 use crate::parser::{
+    parse_epoch,
     parse_duration,
-    parse_date,
-    parse_datetime,
 };
 
 /// Efficient RINEX content decimation
@@ -12,10 +11,8 @@ pub fn record_resampling(rnx: &mut Rinex, ops: Vec<(&str, &str)>) {
             let items: Vec<&str> = args.split(" ")
                 .collect();
             if items.len() == 2 { // date description
-                if let Ok(start) = parse_date(items[0].trim()) {
-                    if let Ok(end) = parse_date(items[1].trim()) {
-                        let start = start.and_hms(0, 0, 0);
-                        let end = end.and_hms(0, 0, 0);
+                if let Ok(start) = parse_epoch(items[0].trim()) {
+                    if let Ok(end) = parse_epoch(items[1].trim()) {
                         rnx.time_window_mut(start, end);
                     } else {
                         println!("failed to parse date from \"{}\" description", items[1]);
@@ -30,11 +27,11 @@ pub fn record_resampling(rnx: &mut Rinex, ops: Vec<(&str, &str)>) {
                 start_str.push_str(" ");
                 start_str.push_str(items[1].trim());
                 
-                if let Ok(start) = parse_datetime(&start_str) {
+                if let Ok(start) = parse_epoch(&start_str) {
                     let mut end_str = items[2].trim().to_owned();
                     end_str.push_str(" ");
                     end_str.push_str(items[3].trim());
-                    if let Ok(end) = parse_datetime(&end_str) {
+                    if let Ok(end) = parse_epoch(&end_str) {
                         rnx.time_window_mut(start, end);
                     }
                 } else {

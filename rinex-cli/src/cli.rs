@@ -4,8 +4,11 @@ use clap::{
     ArgAction,
     ColorChoice,
 };
+use crate::parser::{
+    parse_duration,
+    parse_epoch,
+};
 use rinex::prelude::*;
-use crate::parser::parse_epoch;
 
 pub struct Cli {
     /// Arguments passed by user
@@ -507,7 +510,7 @@ Example \"--plot-height 1024"))
     pub fn split(&self) -> Option<Epoch> {
         if self.matches.contains_id("split") {
             if let Some(args) = self.matches.get_one::<String>("split") {
-                if let Ok(epoch) = parser::parse_epoch(args) {
+                if let Ok(epoch) = parse_epoch(args) {
                     Some(epoch)
                 } else { 
                     panic!("failed to parse [DATETIME]");
