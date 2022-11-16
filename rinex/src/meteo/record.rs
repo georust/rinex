@@ -3,12 +3,12 @@ use std::str::FromStr;
 use std::collections::{BTreeMap, HashMap};
 use crate::{
     epoch,
-    Epoch,
     version,
-    Header,
+    prelude::*,
     merge, merge::Merge,
     split, split::Split,
     sampling::Decimation,
+    gnss_time::TimeScaling,
 };
 use hifitime::Duration;
 use super::observable::Observable;
@@ -286,6 +286,19 @@ impl Decimation<Record> for Record {
     fn decim_match(&self, rhs: &Self) -> Self {
         let mut s = self.clone();
         s.decim_match_mut(&rhs);
+        s
+    }
+}
+
+impl TimeScaling<Record> for Record {
+    fn convert_timescale(&mut self, ts: TimeScale) {
+        for (mut epoch, _) in self.iter_mut() {
+            epoch = &epoch.with_timescale(ts);
+        }
+    }
+    fn with_timescale(&self, ts: TimeScale) -> Self {
+        let mut s = self.clone();
+        s.convert_timescale(ts);
         s
     }
 }

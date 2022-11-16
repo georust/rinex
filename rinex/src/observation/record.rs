@@ -5,15 +5,15 @@ use bitflags::bitflags;
 use std::collections::{BTreeMap, HashMap};
 
 use crate::{
-    sv, Sv,
-    constellation, Constellation,
+    prelude::*,
+    sv,
+    constellation,
     epoch,
-    Epoch, EpochFlag,
-    Header,
     version::Version,
     merge, merge::Merge,
     split, split::Split,
     sampling::Decimation,
+    gnss_time::TimeScaling,
 };
 use hifitime::Duration;
 
@@ -921,6 +921,19 @@ impl Decimation<Record> for Record {
     fn decim_match(&self, rhs: &Self) -> Self {
         let mut s = self.clone();
         s.decim_match_mut(&rhs);
+        s
+    }
+}
+
+impl TimeScaling<Record> for Record {
+    fn convert_timescale(&mut self, ts: TimeScale) {
+        for (mut epoch, _) in self.iter_mut() {
+            epoch = &epoch.with_timescale(ts);
+        }
+    }
+    fn with_timescale(&self, ts: TimeScale) -> Self {
+        let mut s = self.clone();
+        s.convert_timescale(ts);
         s
     }
 }

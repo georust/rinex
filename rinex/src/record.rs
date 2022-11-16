@@ -21,6 +21,7 @@ use super::{
     merge, merge::Merge,
     split, split::Split,
     sampling::Decimation,
+    gnss_time::TimeScaling,
     hatanaka::{Compressor, Decompressor},
 };
 use hifitime::Duration;
@@ -728,6 +729,27 @@ impl Decimation<Record> for Record {
     fn decim_match(&self, rhs: &Self) -> Self {
         let mut s = self.clone();
         s.decim_match_mut(rhs);
+        s
+    }
+}
+
+impl TimeScaling<Record> for Record {
+    fn convert_timescale(&mut self, ts: TimeScale) {
+        if let Some(r) = self.as_mut_obs() {
+            r.convert_timescale(ts);
+        } else if let Some(r) = self.as_mut_nav() {
+            r.convert_timescale(ts);
+        } else if let Some(r) = self.as_mut_meteo() {
+            r.convert_timescale(ts);
+        } else if let Some(r) = self.as_mut_ionex() {
+            r.convert_timescale(ts);
+        } else if let Some(r) = self.as_mut_clock() {
+            r.convert_timescale(ts);
+        }
+    }
+    fn with_timescale(&self, ts: TimeScale) -> Self {
+        let mut s = self.clone();
+        s.convert_timescale(ts);
         s
     }
 }

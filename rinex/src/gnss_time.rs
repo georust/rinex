@@ -1,22 +1,15 @@
-//! This module provides the `GnssTime` structure that attaches
-//! a `GNSS` constellation to the `chrono::naiveDateTime` structure.    
-//! This constellation is the time system that produced the given datetime
-use thiserror::Error;
-use crate::constellation;
-use chrono::{Timelike, Datelike};
+use super::prelude::*;
 
-#[derive(Error, Debug)]
-pub enum Error {
-    #[error("invalid time system \"{0}\"")]
-    InvalidTimeSystem(String),
-    #[error("unknown augmentation system \"{0}\"")]
-    UnknownAugmentationSystem(String),
-    #[error("time system mismatch")]
-    CorrectionTimeSystemError,
-    #[error("reference time system is not the expected")]
-    CorrectionTimeReferenceError,
+pub trait TimeScaling<T> {
+    /// Copies self and converts all Epochs to desired
+    /// [hifitime::TimeScale].
+    fn with_timescale(&self, ts: TimeScale) -> Self;
+    /// Converts converts all Epochs to desired
+    /// [hifitime::TimeScale].
+    fn convert_timescale(&mut self, ts: TimeScale);
 }
 
+/*
 /// GnssTime struct is a time realization,
 /// tied to the related `GNSS` constellation producing
 /// that realization
@@ -267,3 +260,4 @@ SBUT  0.1331791282D-06 0.107469589D-12 552960 1025 EGNOS  5 TIME SYSTEM CORR
         */
     }
 }
+*/

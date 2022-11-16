@@ -20,6 +20,7 @@ pub mod types;
 pub mod merge;
 pub mod split;
 pub mod version;
+pub mod gnss_time;
 
 mod leap;
 mod formatter;
@@ -217,7 +218,7 @@ pub enum Error {
 
 impl Rinex {
     /// Builds a new `RINEX` struct from given header & body sections
-    pub fn new (header: Header, record: record::Record) -> Rinex {
+    pub fn new(header: Header, record: record::Record) -> Rinex {
         Rinex {
             header,
             record,
@@ -226,7 +227,7 @@ impl Rinex {
     }
 
     /// Returns a copy of self with given header attributes
-    pub fn with_header (&self, header: Header) -> Self {
+    pub fn with_header(&self, header: Header) -> Self {
         Rinex {
             header,
             record: self.record.clone(),
@@ -235,7 +236,7 @@ impl Rinex {
     }
 
     /// Replaces header section
-    pub fn replace_header (&mut self, header: Header) {
+    pub fn replace_header(&mut self, header: Header) {
         self.header = header.clone();
     }
 
@@ -257,7 +258,7 @@ impl Rinex {
     /// If current revision is < 3 then file gets converted to CRINEX1
     /// format, otherwise, modern Observations are converted to CRINEX3.
     /// This has no effect if self is not an Observation RINEX.
-    pub fn rnx2crnx (&mut self) {
+    pub fn rnx2crnx(&mut self) {
         if self.is_observation_rinex() {
             let version: Version = match self.header.version.major < 3 { 
                 true => {
@@ -285,7 +286,7 @@ impl Rinex {
     /// Converts self to CRINEX1 compressed format,
     /// whatever the RINEX revision might be. 
     /// This can be used to "force" compression of a RINEX1 into CRINEX3
-    pub fn rnx2crnx1 (&mut self) {
+    pub fn rnx2crnx1(&mut self) {
         if self.is_observation_rinex() {
             self.header = self.header
                 .with_crinex(Crinex {
@@ -302,7 +303,7 @@ impl Rinex {
     /// Converts self to CRINEX3 compressed format,
     /// whatever the RINEX revision might be. 
     /// This can be used to "force" compression of a RINEX1 into CRINEX3
-    pub fn rnx2crnx3 (&mut self) {
+    pub fn rnx2crnx3(&mut self) {
         if self.is_observation_rinex() {
             self.header = self.header
                 .with_crinex(Crinex {
@@ -313,6 +314,32 @@ impl Rinex {
                     },
                     prog: "rust-crinex".to_string(),
                 });
+        }
+    }
+
+    /// Converts all epochs into desired [hifitime::TimeScale].
+    /// This has no effect if self is not iterated by [epoch::Epoch].
+    pub fn convert_timescale(&mut self, ts: TimeScale) {
+        if let Some(r) = self.record.as_mut_obs() {
+            for (mut epoch, _) in r.iter_mut() {
+                epoch = &epoch.with_timescale(ts);
+            }
+        } else if let Some(r) = self.record.as_mut_nav() {
+            for (mut epoch, _) in r.iter_mut() {
+                epoch = &epoch.with_timescale(ts);
+            }
+        } else if let Some(r) = self.record.as_mut_clock() {
+            for (mut epoch, _) in r.iter_mut() {
+                epoch = &epoch.with_timescale(ts);
+            }
+        } else if let Some(r) = self.record.as_mut_meteo() {
+            for (mut epoch, _) in r.iter_mut() {
+                epoch = &epoch.with_timescale(ts);
+            }
+        } else if let Some(r) = self.record.as_mut_ionex() {
+            for (mut epoch, _) in r.iter_mut() {
+                epoch = &epoch.with_timescale(ts);
+            }
         }
     }
 
