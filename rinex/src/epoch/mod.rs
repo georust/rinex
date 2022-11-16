@@ -32,6 +32,9 @@ pub enum Error {
     NanosecsError,
 }
 
+#[cfg(feature = "serde")]
+use serde::{Serialize};
+
 /*
  * Infaillible `Epoch::now()` call.
  */

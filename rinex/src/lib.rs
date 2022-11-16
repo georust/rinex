@@ -85,6 +85,9 @@ use sampling::*;
 use gnss_time::TimeScaling;
 use crate::channel::Channel;
 
+#[cfg(feature = "pyo3")]
+pub mod python;
+
 #[cfg(feature = "serde")]
 #[macro_use]
 extern crate serde;
