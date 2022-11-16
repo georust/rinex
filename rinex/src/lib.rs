@@ -275,8 +275,7 @@ impl Rinex {
             };
             self.header = self.header
                 .with_crinex(Crinex {
-                    date: hifitime::Epoch::now()
-                        .expect("failed to retrieve system time"),
+                    date: Epoch::now(),
                     version,
                     prog: "rust-crinex".to_string(),
                 });
@@ -294,8 +293,7 @@ impl Rinex {
                         major: 1,
                         minor: 0,
                     },
-                    date: hifitime::Epoch::now()
-                        .expect("failed to retrieve system time"),
+                    date: Epoch::now(),
                     prog: "rust-crinex".to_string(),
                 });
         }
@@ -308,8 +306,7 @@ impl Rinex {
         if self.is_observation_rinex() {
             self.header = self.header
                 .with_crinex(Crinex {
-                    date: hifitime::Epoch::now()
-                        .expect("failed to retrieve system time"),
+                    date: Epoch::now(),
                     version: Version {
                         major: 3,
                         minor: 0,

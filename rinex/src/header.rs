@@ -334,7 +334,7 @@ impl Header {
                                 if let Ok(m) = u8::from_str_radix(time[1].trim(), 10) {
                                     if let Some(crinex) = &mut observation.crinex {
                                         y += 2000; 
-                                        let date = hifitime::Epoch::from_gregorian_utc(y, month, d, h, m, 0, 0);
+                                        let date = Epoch::from_gregorian_utc(y, month, d, h, m, 0, 0);
                                         *crinex = crinex
                                             .with_prog(prog.trim())
                                             .with_date(date);
@@ -1419,8 +1419,7 @@ impl Header {
                     minor: 0,
                 },
                 prog: "rust-crinex".to_string(),
-                date: hifitime::Epoch::now()
-                    .expect("failed to retrieve system time"),
+                date: Epoch::now(),
             })
     }
 

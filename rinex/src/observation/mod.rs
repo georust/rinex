@@ -45,7 +45,7 @@ pub struct Crinex {
     /// Compression program name
     pub prog: String,
     /// Date of compression
-    pub date: hifitime::Epoch,
+    pub date: Epoch,
 }
 
 impl Crinex {
@@ -62,7 +62,7 @@ impl Crinex {
         s
     }
     /// Sets compression date
-    pub fn with_date(&self, e: hifitime::Epoch) -> Self {
+    pub fn with_date(&self, e: Epoch) -> Self {
         let mut s = self.clone();
         s.date = e;
         s
@@ -77,8 +77,7 @@ impl Default for Crinex {
                 minor: 0,
             },
             prog: "rust-crinex".to_string(),
-            date: hifitime::Epoch::now()
-                .expect("failed to retrieve system time"),
+            date: Epoch::now(),
         }
     }
 }
