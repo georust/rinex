@@ -68,7 +68,7 @@ impl Cli {
     pub fn crx3(&self) -> bool {
         self.matches.get_flag("crx3")
     }
-    pub fn date(&self) -> Option<(u32,u8,u8)> {
+    pub fn date(&self) -> Option<(i32,u8,u8)> {
         if let Some(s) = self.matches
             .get_one::<String>("date") { 
             let items: Vec<&str> = s.split("-").collect();
@@ -76,7 +76,7 @@ impl Cli {
                 println!("failed to parse \"yyyy-mm-dd\"");
                 return None;
             } else {
-                if let Ok(y) = u32::from_str_radix(items[0], 10) {
+                if let Ok(y) = i32::from_str_radix(items[0], 10) {
                     if let Ok(m) = u8::from_str_radix(items[1], 10) {
                         if let Ok(d) = u8::from_str_radix(items[2], 10) {
                             return Some((y,m,d));
@@ -95,7 +95,7 @@ impl Cli {
                 println!("failed to parse \"hh:mm:ss\"");
                 return None;
             } else {
-                if let Ok(h) = u32::from_str_radix(items[0], 10) {
+                if let Ok(h) = u8::from_str_radix(items[0], 10) {
                     if let Ok(m) = u8::from_str_radix(items[1], 10) {
                         if let Ok(s) = u8::from_str_radix(items[2], 10) {
                             return Some((h,m,s));

@@ -1,6 +1,7 @@
 mod cli;
 use cli::Cli;
 use rinex::{
+    Error,
     prelude::*,
     version::Version,
     observation::Crinex,
@@ -26,10 +27,9 @@ fn main() -> Result<(), Error> {
     let time = cli.time();
     if let Some((y, m, d)) = date {
         let (hh, mm, ss) = cli.time().unwrap_or((0,0,0));
-        crinex.date = hifitime::Epoch::from_gregorian_utc(y, m, d, hh, mm, ss, 0);
+        crinex.date = Epoch::from_gregorian_utc(y, m, d, hh, mm, ss, 0);
     } else if let Some(time) = time {
-        crinex.date = hifitime::Epoch::now()
-            .unwrap();
+        crinex.date = Epoch::now();
     }
     // output path
     let output_path = match cli.output_path() {
