@@ -70,6 +70,7 @@ pub mod processing {
 
 use prelude::*;
 use sampling::*;
+use gnss_time::TimeScaling;
 use crate::channel::Channel;
 
 #[cfg(feature = "serde")]
@@ -340,6 +341,19 @@ impl Rinex {
             for (mut epoch, _) in r.iter_mut() {
                 epoch = &epoch.with_timescale(ts);
             }
+        }
+    }
+
+    /// Returns timescale used in this RINEX
+    pub fn timescale(&self) -> Option<TimeScale> {
+        /*
+         * all epochs share the same timescale, 
+         * by construction & definition.
+         * No need to test other epochs */
+        if let Some(e) = self.epochs().get(0) {
+            Some(e.timescale())
+        } else {
+            None
         }
     }
 
@@ -3515,6 +3529,17 @@ impl Decimation<Rinex> for Rinex {
     fn decim_match(&self, rhs: &Self) -> Self {
         let mut s = self.clone();
         s.decim_match_mut(&rhs);
+        s
+    }
+}
+
+impl TimeScaling<Rinex> for Rinex {
+    fn convert_timescale(&mut self, ts: TimeScale) {
+        self.record.convert_timescale(ts);
+    }
+    fn with_timescale(&self, ts: TimeScale) -> Self {
+        let mut s = self.clone();
+        s.convert_timescale(ts);
         s
     }
 }

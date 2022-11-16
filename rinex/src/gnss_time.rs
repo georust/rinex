@@ -3,51 +3,37 @@ use super::prelude::*;
 pub trait TimeScaling<T> {
     /// Copies self and converts all Epochs to desired
     /// [hifitime::TimeScale].
+    /// ```
+    /// use rinex::prelude::*;
+    /// use rinex::gnss_time::*;
+    /// let rnx = Rinex::from_file("../test_resources/OBS/V3/ACOR00ESP_R_20213550000_01D_30S_MO.rnx")
+    ///     .unwrap();
+    /// // default definition
+    /// assert_eq!(rnx.timescale(), TimeScale::UTC);
+    /// let rnx = rnx.with_timescale(TimeScale::TAI);
+    /// // now all epochs are defined in TAI
+    /// assert_eq!(rnx.timescale(), TimeScale::TAI);
+    /// ```
     fn with_timescale(&self, ts: TimeScale) -> Self;
     /// Converts converts all Epochs to desired
     /// [hifitime::TimeScale].
+    /// ```
+    /// use rinex::prelude::*;
+    /// use rinex::gnss_time::*;
+    /// let mut rnx = Rinex::from_file("../test_resources/OBS/V3/ACOR00ESP_R_20213550000_01D_30S_MO.rnx")
+    ///     .unwrap();
+    /// // default definition
+    /// assert_eq!(rnx.timescale(), TimeScale::UTC);
+    /// let rnx.convert_timescale(TimeScale::TAI);
+    /// // now all epochs are defined in TAI
+    /// assert_eq!(rnx.timescale(), TimeScale::TAI);
+    /// ```
     fn convert_timescale(&mut self, ts: TimeScale);
 }
 
 /*
-/// GnssTime struct is a time realization,
-/// tied to the related `GNSS` constellation producing
-/// that realization
-#[derive(Debug)]
-#[allow(dead_code)]
-pub struct GnssTime {
-    time: chrono::NaiveDateTime,
-    gnss: constellation::Constellation,
-}
-
-impl Default for GnssTime {
-    /// Builds default `GnssTime` structure
-    fn default() -> GnssTime {
-        let now = chrono::Utc::now();
-        GnssTime {
-            time: chrono::NaiveDate::from_ymd(
-                now.date().year(),
-                now.date().month(),
-                now.date().day(),
-            ).and_hms(
-                now.time().hour(),
-                now.time().minute(),
-                now.time().second()
-            ),
-            gnss: constellation::Constellation::default(),
-        }
-    }
-}
 
 impl GnssTime {
-    /// Builds a new `GnssTime` realization
-    pub fn new(time: chrono::NaiveDateTime, gnss: constellation::Constellation) -> GnssTime {
-        GnssTime {
-            time, 
-            gnss
-        }
-    }
-
     /// Corrects self to given reference using given correction parameters    
     /// correction: correction to be applied   
     /// reference: reference time (must match expected reference)   
