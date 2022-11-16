@@ -3,9 +3,6 @@ use thiserror::Error;
 use super::{constellation, Constellation};
 
 #[cfg(feature = "serde")]
-use std::str::FromStr;
-
-#[cfg(feature = "serde")]
 use serde::{Serialize, Deserialize};
 
 /// ̀`Sv` describes a Satellite Vehiculee
