@@ -1,5 +1,5 @@
-use rinex::epoch::*;
 use thiserror::Error;
+use rinex::prelude::*;
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -53,7 +53,7 @@ fn parse_epoch_ymd(args: &str) -> Result<Epoch, Error> {
         if let Ok(h) = i32::from_str_radix(items[0].trim(), 10) {
             if let Ok(m) = u8::from_str_radix(items[1].trim(), 10) {
                 if let Ok(s) = u8::from_str_radix(items[2].trim(), 10) {
-                    return Ok(Epoch::from_gregorian_utc_midnight(h, m, s));
+                    return Ok(Epoch::from_gregorian_utc_at_midnight(h, m, s));
                 }
             }
         }

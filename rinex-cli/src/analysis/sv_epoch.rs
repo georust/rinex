@@ -19,12 +19,12 @@ pub fn analyze(rnx: &Rinex, nav: &mut Option<Rinex>, dims: (u32,u32)) {
                 // plot will exhibit both Ephemeris and Observations
                 let obs_epochs: Vec<Epoch> = obs_rec
                     .keys()
-                    .map(|k| *k)
+                    .map(|(k, _)| *k)
                     .collect();
                
                 let obs_dates: (f64, f64) =
-                    (obs_epochs[0].to_mjd_utc(),
-                    obs_epochs[obs_epochs.len()-1].to_mjd_utc());
+                    (obs_epochs[0].to_mjd_utc_seconds(),
+                    obs_epochs[obs_epochs.len()-1].to_mjd_utc_seconds());
                     
                 let nav_epochs: Vec<Epoch> = nav_rec
                     .keys()
@@ -32,19 +32,19 @@ pub fn analyze(rnx: &Rinex, nav: &mut Option<Rinex>, dims: (u32,u32)) {
                     .collect();
                 
                 let nav_dates: (f64, f64) =
-                    (nav_epochs[0].to_mjd_utc(),
-                    nav_epochs[nav_epochs.len()-1].to_mjd_utc());
+                    (nav_epochs[0].to_mjd_utc_seconds(),
+                    nav_epochs[nav_epochs.len()-1].to_mjd_utc_seconds());
 
                 // determine t_axis for nicer rendering
                 let mut max_date: f64 = 0.0;
                 if let Some(e0) = obs_epochs.get(0) {
                     if let Some(e) = obs_epochs.get(obs_epochs.len()-1) {
-                        max_date = e.to_mjd_utc() - e0.to_mjd_utc();
+                        max_date = e.to_mjd_utc_seconds() - e0.to_mjd_utc_seconds();
                     }
                 }
                 if let Some(e0) = nav_epochs.get(0) {
                     if let Some(e) = nav_epochs.get(nav_epochs.len()-1) {
-                        let t = e.to_mjd_utc() - e0.to_mjd_utc();
+                        let t = e.to_mjd_utc_seconds() - e0.to_mjd_utc_seconds();
                         if t > max_date {
                             max_date = t;
                         }
@@ -119,7 +119,7 @@ pub fn analyze(rnx: &Rinex, nav: &mut Option<Rinex>, dims: (u32,u32)) {
                                 if index == 0 {
                                     Some((0.0, sv.prn as f64))
                                 } else {
-                                    Some((epoch.to_mjd_utc() - obs_dates.0, sv.prn as f64)) 
+                                    Some((epoch.to_mjd_utc_seconds() - obs_dates.0, sv.prn as f64)) 
                                 }
                             }  else {
                                 None
@@ -150,7 +150,7 @@ pub fn analyze(rnx: &Rinex, nav: &mut Option<Rinex>, dims: (u32,u32)) {
                                 if index == 0 {
                                     Some((0.0, sv.prn as f64 +0.5))
                                 } else {
-                                    Some((epoch.to_mjd_utc() - nav_dates.0, sv.prn as f64 +0.5)) 
+                                    Some((epoch.to_mjd_utc_seconds() - nav_dates.0, sv.prn as f64 +0.5)) 
                                 }
                             }  else {
                                 None
@@ -194,9 +194,9 @@ pub fn analyze(rnx: &Rinex, nav: &mut Option<Rinex>, dims: (u32,u32)) {
         let mut max_prn: u8 = 0;
         for (e_index, (epoch, vehicules)) in data.iter().enumerate() {
             if e_index == 0 {
-                dates.0 = epoch.to_mjd_utc()
+                dates.0 = epoch.to_mjd_utc_seconds()
             } else {
-                dates.1 = epoch.to_mjd_utc() - dates.0;
+                dates.1 = epoch.to_mjd_utc_seconds() - dates.0;
             }
             for sv in vehicules.iter() {
                 if cmap.get(sv).is_none() {
@@ -234,7 +234,7 @@ pub fn analyze(rnx: &Rinex, nav: &mut Option<Rinex>, dims: (u32,u32)) {
                         if index == 0 {
                             Some((0.0, sv.prn as f64))
                         } else {
-                            Some(((epoch.to_mjd_utc() - dates.0) as f64, sv.prn as f64)) 
+                            Some(((epoch.to_mjd_utc_seconds() - dates.0) as f64, sv.prn as f64)) 
                         }
                     } else {
                         None

@@ -43,13 +43,13 @@ pub fn build_context<'a> (dim: (u32, u32), record: &Record) -> Context<'a> {
 
     //  => 1 plot per physics (ie., Observable)
     //     1 plot in case clock offsets were provided
-    for (e_index, (e, (clk_offset, vehicules))) in record.iter().enumerate() {
+    for (e_index, ((e, flag), (clk_offset, vehicules))) in record.iter().enumerate() {
         if e_index == 0 {
             // store first epoch timestamp
             // to scale x_axis proplery (avoids fuzzy rendering)
-            e0 = e.to_mjd_utc();
+            e0 = e.to_mjd_utc_seconds();
         }
-        let t = e.to_mjd_utc();
+        let t = e.to_mjd_utc_seconds();
         t_axis.push(t as f64);
 
         // Build 1 plot in case Receiver Clock Offsets were provided 
@@ -191,12 +191,12 @@ pub fn plot(ctx: &mut Context, record: &Record, nav_ctx: Option<Rinex>) {
     //      optionnal(f64): Sv elevation angle, if NAV is provided
     let mut dataset: HashMap<String, HashMap<u8, HashMap<Sv, Vec<(bool,f64,f64)>>>> = HashMap::new();
 
-    for (e_index, (epoch, (clock_offset, vehicules))) in record.iter().enumerate() {
+    for (e_index, ((epoch, flag), (clock_offset, vehicules))) in record.iter().enumerate() {
         if e_index == 0 {
-            e0 = epoch.to_mjd_utc();
+            e0 = epoch.to_mjd_utc_seconds();
         }
         
-        let e = epoch.to_mjd_utc();
+        let e = epoch.to_mjd_utc_seconds();
         let x = e-e0;
         if let Some(value) = clock_offset {
             clk_offset.push((x, *value));

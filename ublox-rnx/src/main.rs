@@ -7,7 +7,7 @@ use clap::load_yaml;
 
 use rinex::*;
 //use rinex::sv::Sv;
-use rinex::epoch::Epoch;
+use rinex::prelude::*;
 //:use rinex::observation::record::ObservationData;
 
 extern crate ublox;

@@ -57,7 +57,7 @@ pub fn plot_gnss_recombination(
     file: &str, 
     caption: &str,
     y_desc: &str,
-    data: &HashMap<String, HashMap<Sv, BTreeMap<Epoch, f64>>>)
+    data: &HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>)
 {
     let p = build_plot(file, dims);
     // color map: one per sv 
@@ -74,12 +74,12 @@ pub fn plot_gnss_recombination(
             if sv.prn > cmap_max_index {
                 cmap_max_index = sv.prn;
             }
-            for (e_index, (epoch, data)) in epochs.iter().enumerate() {
+            for (e_index, ((epoch, flag), data)) in epochs.iter().enumerate() {
                 if e_index == 0 {
-                    dates.0 = epoch.to_mjd_utc(); 
+                    dates.0 = epoch.to_mjd_utc_seconds(); 
                 }
-                if epoch.to_mjd_utc() > dates.1 {
-                    dates.1 = epoch.to_mjd_utc(); 
+                if epoch.to_mjd_utc_seconds() > dates.1 {
+                    dates.1 = epoch.to_mjd_utc_seconds(); 
                 }
                 let yp = data; // * 1.546;
                 if *yp < y.0 {
@@ -128,14 +128,14 @@ pub fn plot_gnss_recombination(
             };
             chart.draw_series(LineSeries::new(
                 epochs.iter()
-                    .map(|(k, v)| (k.to_mjd_utc() - dates.0, *v)),
+                    .map(|((k, flag), v)| (k.to_mjd_utc_seconds() - dates.0, *v)),
                     color.clone(),
                 ))
                 .expect(&format!("failed to draw {} serie", op));
             chart.draw_series(
                 epochs.iter()
-                    .map(|(k, v)| {
-                        let x = k.to_mjd_utc() - dates.0; 
+                    .map(|((k, flag), v)| {
+                        let x = k.to_mjd_utc_seconds() - dates.0; 
                         match symbol {
                             "x" => {
                                 Cross::new((x, *v), 4,

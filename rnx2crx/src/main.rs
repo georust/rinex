@@ -2,6 +2,7 @@ mod cli;
 use cli::Cli;
 use rinex::{
     Error,
+    epoch,
     prelude::*,
     version::Version,
     observation::Crinex,
@@ -29,7 +30,7 @@ fn main() -> Result<(), Error> {
         let (hh, mm, ss) = cli.time().unwrap_or((0,0,0));
         crinex.date = Epoch::from_gregorian_utc(y, m, d, hh, mm, ss, 0);
     } else if let Some(time) = time {
-        crinex.date = Epoch::now();
+        crinex.date = Epoch::now().expect("failed to retrieve system time");
     }
     // output path
     let output_path = match cli.output_path() {

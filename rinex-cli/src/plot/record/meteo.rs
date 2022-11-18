@@ -27,9 +27,9 @@ pub fn build_context<'a> (dim: (u32, u32), record: &Record) -> Context<'a> {
         if index == 0 {
             // store first epoch timestamp
             // to scale x_axis proplery (avoids fuzzy rendering)
-            e0 = e.to_mjd_utc();
+            e0 = e.to_mjd_utc_seconds();
         }
-        let t = e.to_mjd_utc() - e0;
+        let t = e.to_mjd_utc_seconds() - e0;
         t_axis.push(t as f64);
         for (observable, data) in observables {
             if plots.get(&observable.to_string()).is_none() {
@@ -83,9 +83,9 @@ pub fn plot(ctx: &mut Context, record: &Record) {
     let mut datasets: HashMap<String, Vec<(f64, f64)>> = HashMap::new();
     for (index, (epoch, observations)) in record.iter().enumerate() {
         if index == 0 {
-            t0 = epoch.to_mjd_utc();
+            t0 = epoch.to_mjd_utc_seconds();
         }
-        let t = epoch.to_mjd_utc();
+        let t = epoch.to_mjd_utc_seconds();
         for (observable, observation) in observations {
             if let Some(data) = datasets.get_mut(&observable.to_string()) {
                 data.push(((t-t0) as f64, *observation));
