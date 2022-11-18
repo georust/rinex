@@ -14,7 +14,8 @@ the following content is probably interpreted as a faulty epoch to disregard
 
 - [ ] Observation
   - [ ] support possible data scaling
-  for advanced high precision RINEX
+  for high precision RINEX
+  - [ ] support scaling properly even in case of CRINEX
   - [ ] possible receiver clock offset compensation
   table 5 p7 RINEX4
 
