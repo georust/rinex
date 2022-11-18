@@ -3,13 +3,7 @@ use strum_macros::EnumString;
 use std::collections::HashMap;
 
 pub mod record;
-pub use record::{
-    Record,
-    is_new_map,
-    is_new_rms_map,
-    is_new_height_map,
-    parse_map,
-};
+pub use record::Record;
 
 pub mod grid;
 pub use grid::{

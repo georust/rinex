@@ -1,9 +1,7 @@
 use thiserror::Error;
 use std::str::FromStr;
-use crate::{
-	epoch,
-    Epoch,
-};
+use crate::epoch;
+use hifitime::Epoch;
 
 /// Parsing error
 #[derive(Debug, Error)]
@@ -64,7 +62,7 @@ impl StoMessage {
 		
 		let (epoch, rem) = line.split_at(23);
 		let (system, _) = rem.split_at(5);
-		let epoch = Epoch::from_str(epoch.trim())?;
+		let (epoch, _) = epoch::parse(epoch.trim())?;
 		
 		let line = match lines.next() {
 			Some(l) => l,

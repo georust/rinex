@@ -1,34 +1,33 @@
 //! Describes a `RINEX` header, includes
 //! rinex header parser and associated methods
-use crate::leap;
-use crate::antex;
-use crate::clocks;
-use rust_3d::Point3D;
-
-use hifitime::{
-    Duration, Unit, TimeScale,
-};
-
 use super::*;
-use crate::hardware;
-use crate::reader::BufferedReader;
-use crate::types::{Type, TypeError};
-use crate::meteo;
-use crate::ionex;
-use crate::observation;
-use crate::version::Version;
-use hardware::{
-    Rcvr,
-    Antenna, 
-    SvAntenna,
+use crate::{
+    epoch,
+    hardware,
+    hardware::{
+        Rcvr,
+        Antenna,
+        SvAntenna,
+    },
+    reader::BufferedReader,
+    types::{
+        Type, TypeError,
+    },
+    meteo,
+    ionex,
+    clocks,
+    antex,
+    leap,
+    observation,
+    observation::Crinex,
+    version::Version,
 };
 
-use observation::Crinex;
-
+use rust_3d::Point3D;
 use thiserror::Error;
 use std::str::FromStr;
+use std::io::prelude::*;
 use strum_macros::EnumString;
-use std::io::{prelude::*};
 
 macro_rules! from_b_fmt_month {
     ($m: expr) => {
@@ -824,7 +823,7 @@ impl Header {
                 if let Ok(interval) = f64::from_str(intv_str) {
                     if interval > 0.0 { // INTERVAL = '0' may exist, in case 
                                     // of Varying TEC map intervals
-                        sampling_interval = Some(Duration::from_f64(interval, Unit::Second));
+                        sampling_interval = Some(Duration::from_f64(interval, hifitime::Unit::Second));
                     }
                 }
 
@@ -1419,7 +1418,7 @@ impl Header {
                     minor: 0,
                 },
                 prog: "rust-crinex".to_string(),
-                date: Epoch::now(),
+                date: epoch::now(),
             })
     }
 

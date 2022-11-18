@@ -16,21 +16,21 @@ use std::str::FromStr;
 use std::collections::BTreeMap;
 use hifitime::Duration;
 
-pub fn is_new_tec_map(line: &str) -> bool {
+pub (crate)fn is_new_tec_map(line: &str) -> bool {
     line.contains("START OF TEC MAP") 
 }
 
-pub fn is_new_rms_map(line: &str) -> bool {
+pub (crate)fn is_new_rms_map(line: &str) -> bool {
     line.contains("START OF RMS MAP") 
 }
 
-pub fn is_new_height_map (line: &str) -> bool {
+pub (crate)fn is_new_height_map (line: &str) -> bool {
     line.contains("START OF HEIGHT MAP") 
 }
 
 /// Returns true if given content describes the start of
 /// a Ionosphere map.
-pub fn is_new_map(line: &str) -> bool {
+pub (crate)fn is_new_map(line: &str) -> bool {
     is_new_tec_map(line) || is_new_rms_map(line) || is_new_height_map(line)
 }
 
@@ -113,7 +113,7 @@ pub enum Error {
  *  - an height map
  * defined for returned Epoch
  */
-pub fn parse_map(header: &mut Header, content: &str) -> Result<(usize, Epoch, Map), Error> {
+pub (crate)fn parse_map(header: &mut Header, content: &str) -> Result<(usize, Epoch, Map), Error> {
     let lines = content.lines();
     let mut epoch = Epoch::default();
     let mut map = Map::with_capacity(128); // result
@@ -339,7 +339,7 @@ impl Decimation<Record> for Record {
 impl TimeScaling<Record> for Record {
     fn convert_timescale(&mut self, ts: TimeScale) {
         for (mut epoch, _) in self.iter_mut() {
-            epoch = &epoch.with_timescale(ts);
+            epoch = &epoch.in_time_scale(ts);
         }
     }
     fn with_timescale(&self, ts: TimeScale) -> Self {

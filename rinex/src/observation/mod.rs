@@ -1,4 +1,5 @@
 use super::{
+    epoch,
     prelude::*,
     version::Version,
 };
@@ -6,14 +7,11 @@ use super::{
 pub mod record;
 pub use record::{
     Record, LliFlags, Ssi,
-    is_new_epoch,
-    fmt_epoch,
-    parse_epoch,
 };
 
 use std::collections::HashMap;
 
-macro_rules! fmtmonth {
+macro_rules! fmt_month {
     ($m: expr) => {
         match $m {
             1 => "Jan",
@@ -77,7 +75,7 @@ impl Default for Crinex {
                 minor: 0,
             },
             prog: "rust-crinex".to_string(),
-            date: Epoch::now(),
+            date: epoch::now(),
         }
     }
 }
@@ -90,15 +88,8 @@ impl std::fmt::Display for Crinex {
         write!(f, "{value:<width$} CRINEX VERS   / TYPE\n", value="", width=19)?;
         write!(f, "{:<width$}", self.prog, width=20)?;
         write!(f, "{:20}", "")?;
-        let (mut y, m, d, hh, mm, _, _) = self.date.to_gregorian_utc();
-        let m = fmtmonth!(m);
-        // we want a 2 digit year
-        if y > 2000 {
-            y -= 2000;
-        }
-        if y > 1900 {
-            y -= 1900;
-        }
+        let (y, m, d, hh, mm, _, _) = self.date.to_gregorian_utc();
+        let m = fmt_month!(m);
         let date = format!("{:02}-{}-{} {:02}:{:02}", d, m, y, hh, mm);
         write!(f, "{:<width$}", date, width=20)?;
         f.write_str("CRINEX PROG / DATE\n")
@@ -181,5 +172,24 @@ impl HeaderFields {
             }
             true
         }
+    }
+}
+
+#[cfg(test)]
+mod crinex {
+    use super::*;
+    #[test]
+    fn test_fmt_month() {
+        assert_eq!(fmt_month!(1), "Jan");
+        assert_eq!(fmt_month!(2), "Feb");
+        assert_eq!(fmt_month!(3), "Mar");
+        assert_eq!(fmt_month!(10), "Oct");
+        assert_eq!(fmt_month!(11), "Nov");
+        assert_eq!(fmt_month!(12), "Dec");
+    }
+    #[test]
+    fn test_display() {
+        let crinex = Crinex::default();
+        assert_eq!(crinex.to_string(), "test");
     }
 }

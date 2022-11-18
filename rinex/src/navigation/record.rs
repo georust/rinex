@@ -224,7 +224,7 @@ pub type Record = BTreeMap<Epoch, BTreeMap<FrameClass, Vec<Frame>>>;
 
 /// Returns true if given content matches the beginning of a 
 /// Navigation record epoch
-pub fn is_new_epoch (line: &str, v: Version) -> bool {
+pub (crate)fn is_new_epoch (line: &str, v: Version) -> bool {
     if v.major < 3 { // old RINEX
         if line.len() < 23 {
             return false // not enough bytes 
@@ -294,7 +294,7 @@ pub enum Error {
 }
 
 /// Builds `Record` entry for `NavigationData`
-pub fn parse_epoch (version: Version, constell: Constellation, content: &str) ->
+pub (crate)fn parse_epoch (version: Version, constell: Constellation, content: &str) ->
         Result<(Epoch, FrameClass, Frame), Error>
 {
     if content.starts_with(">") {
@@ -402,7 +402,7 @@ fn fmt_rework_v2(lines: &str) -> String {
 }
 
 /// Writes given epoch into stream 
-pub fn fmt_epoch (
+pub (crate)fn fmt_epoch (
         epoch: &Epoch, 
         data: &BTreeMap<FrameClass, Vec<Frame>>,
         header: &Header,
@@ -1276,7 +1276,7 @@ impl Decimation<Record> for Record {
 impl TimeScaling<Record> for Record {
     fn convert_timescale(&mut self, ts: TimeScale) {
         for (mut epoch, _) in self.iter_mut() {
-            epoch = &epoch.with_timescale(ts);
+            epoch = &epoch.in_time_scale(ts);
         }
     }
     fn with_timescale(&self, ts: TimeScale) -> Self {

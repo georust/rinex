@@ -1,17 +1,18 @@
 //! RINEX decompression module
-use crate::*;
-use crate::header;
-use crate::is_comment;
-use crate::types::Type;
-use std::str::FromStr;
-use std::collections::HashMap;
-
+use crate::{
+    prelude::*,
+    is_comment,
+};
 use super::{
     Error,
     numdiff::NumDiff,
     textdiff::TextDiff,
 };
 
+use std::str::FromStr;
+use std::collections::HashMap;
+
+#[derive(Debug, Clone)]
 pub enum State {
     EpochDescriptor,
     ClockOffsetDescriptor,
@@ -24,25 +25,24 @@ impl Default for State {
     }
 }
 
-impl State {
-    /// Resets Finite State Machine
-    pub fn reset (&mut self) {
-        *self = Self::default()
-    }
-}
-
 /// Structure to decompress CRINEX data
 pub struct Decompressor {
     /// finite state machine
     state: State,
     /// True only for first epoch ever processed 
     first_epoch: bool,
-    /// line pointer
-    pointer: u16, // 64k more than enough: obs and flags counters
     /// Epoch differentiator 
     epoch_diff: TextDiff,
+    /// recovered epoch
+    /// recovered but unformatted CRINEX is stored
+    /// because it is particularly easy to parse to identify sv.
+    /// It still needs to be formatted for the final result though.
+    epoch_descriptor: String,
     /// Clock offset differentiator
     clock_diff: NumDiff,
+    /// vehicule identification
+    sv_ptr: usize,
+    nb_sv: usize, // sv_ptr range
     /// Vehicule differentiators
     sv_diff: HashMap<Sv, Vec<(NumDiff, TextDiff, TextDiff)>>,
 }
@@ -112,66 +112,149 @@ impl Decompressor {
         Self {
             first_epoch: true,
             state: State::default(),
-            pointer: 0,
             epoch_diff: TextDiff::new(),
+            epoch_descriptor: String::with_capacity(128),
             clock_diff: NumDiff::new(NumDiff::MAX_COMPRESSION_ORDER)
-                .unwrap(),
+                .expect("failed to prepare compression object"),
+            nb_sv: 0,
+            sv_ptr: 0,
             sv_diff: HashMap::new(), // init. later
         }
     }
+/*
+    fn reset(&mut self) {
+        // are we sure this is enough ?
+        // special comment markers, like "MERGE" and "SPLICE"
+        //  are they to be encountered inside an epoch ?
+        self.state = State::default();
+    }
+*/
+    fn parse_nb_sv(content: &str, crx_major: u8) -> Option<usize> {
+        let mut offset : usize =
+            2    // Y
+            +2+1 // m
+            +2+1 // d
+            +2+1 // h
+            +2+1 // m
+            +11  // s
+            +1   // ">" or "&" init marker
+            +3;  // epoch flag
+        if content.starts_with("> ") { //CRNX3 initial epoch, 1 extra whitespace 
+            offset += 1;
+        }
+        if crx_major > 1 {
+            offset += 2; // YYYY on 4 digits
+        }
+
+        let (_, rem) = content.split_at(offset);
+        let (n, _) = rem.split_at(3);
+        if let Ok(n) = u16::from_str_radix(n.trim(), 10) {
+            Some(n.into())
+        } else {
+            None
+        }
+    }
+
+    fn current_satellite(&self, crx_major: u8, crx_constellation: &Constellation, sv_ptr: usize) -> Option<Sv> {
+        let epoch = &self.epoch_descriptor;
+        let mut offset : usize =
+            2    // Y
+            +2+1 // m
+            +2+1 // d
+            +2+1 // h
+            +2+1 // m
+            +11  // s
+            +1;  // ">" or "&" init marker
+        if epoch.starts_with("> ") { //CRNX3 initial epoch, 1 extra whitespace 
+            offset += 1;
+        }
+        if crx_major > 1 {
+            offset += 2; // YYYY on 4 digits
+        }
+
+        let (_, rem) = epoch.split_at(offset);
+        let (_flag, rem) = rem.split_at(3);
+        let (n, _) = rem.split_at(3);
+        let nb_sv = u16::from_str_radix(n.trim(), 10).ok()?;
+        //     ---> identify nb of satellite vehicules
+        //     ---> identify which system we're dealing with
+        //          using recovered header
+        let offset: usize = match crx_major {
+            1 => std::cmp::min((32 + 3*(sv_ptr+1)).into(), epoch.len()), // overflow protection
+            _ => std::cmp::min((41 + 3*(sv_ptr+1)).into(), epoch.len()), // overflow protection
+        };
+        let system = epoch.split_at(offset.into()).0;
+        let (_, svnn) = system.split_at(system.len()-3); // last 3 XXX
+        let svnn = svnn.trim();
+        println!("SVNN - \"{}\"", svnn); // DEBUG
+        match crx_major > 2 {
+            false => { // OLD
+                match crx_constellation {
+                    Constellation::Mixed => {
+                        // OLD and MIXED is fine
+                        if let Ok(sv) = Sv::from_str(svnn) {
+                            Some(sv)
+                        } else {
+                            None
+                        }
+                    },
+                    constellation => {
+                        // OLD + FIXED: constellation might be omitted.......
+                        if let Ok(prn) = u8::from_str_radix(&svnn[1..], 10) {
+                            Some(Sv {
+                                prn,
+                                constellation: *constellation,
+                            })
+                        } else {
+                            None
+                        }
+                    },
+                }
+            },
+            true => { // MODERN
+                if let Ok(sv) = Sv::from_str(svnn) {
+                    Some(sv)
+                } else {
+                    None
+                }
+            },
+        }
+    }
     /// Decompresses (recovers) RINEX from given CRINEX content.
-    /// Content can be header / comments
-    /// they will be passed as is, as expected.
-    /// Content can be entire CRINEX epochs, group of lines, or a single line at a time. Content must be at least '\n', pay attention
-    /// to empty clock offset lines.
-    /// `header`: previously identified RINEX `header` section
-    /// `content`: CRINEX record content
-    /// `result`: returns decompressed (recovered) block from provided block content
-    pub fn decompress (&mut self, header: &header::Header, content : &str) -> Result<String, Error> {
-        // Context sanity checks
-        if !header.is_crinex() {
-            return Err(Error::NotACrinex)
-        }
-        if header.rinex_type != Type::ObservationData {
-            return Err(Error::NotObsRinexData)
-        }
-        // grab useful information for later
-        let rnx_version = &header.version;
-        let obs = header.obs
-            .as_ref()
-            .unwrap();
-        let crinex = obs.crinex
-            .as_ref()
-            .unwrap();
-        let crx_version = crinex.version;
-        let obs_codes = &obs.codes; 
-        
+    /// This method expects either RINEX comments,
+    /// or CRNX1/CRNX3 content, that is either epoch description
+    /// and epoch content.
+    pub fn decompress(&mut self, 
+        crx_major: u8, 
+        crx_constell: &Constellation,
+        rnx_major: u8, 
+        obscodes: &HashMap<Constellation, Vec<String>>, 
+        content: &str) -> Result<String, Error> 
+    {
+        // content browser
         let mut result : String = String::new();
         let mut lines = content.lines();
-        let mut clock_offset : Option<i64> = None;
-        let mut obs_count : usize = 0;
-
-        loop {
+        loop { // browse all provided lines
             let line: &str = match lines.next() {
                 Some(l) => l,
                 None => break,
             };
-
-            //println!("Working from LINE : \"{}\"", line); //DEBUG
+            
+            println!("DECOMPRESSING - \"{}\"", line); //DEBUG
+            println!("state: {:?}", self.state); 
             
             // [0] : COMMENTS (special case)
             if is_comment!(line) {
-                if line.contains("RINEX FILE SPLICE") {
+                //if line.contains("RINEX FILE SPLICE") {
                     // [0*] SPLICE special comments
                     //      merged RINEX Files
-                    self.state.reset();
-                    self.pointer = 0
-                }
+                //    self.reset();
+                //}
                 result // feed content as is
                     .push_str(line);
                 result // \n dropped by .lines()
                     .push_str("\n");
-                continue
+                continue; // move to next line
             }
 
             // [0*]: special epoch events
@@ -182,31 +265,36 @@ impl Decompressor {
                     .push_str(line);
                 result // \n dropped by .lines()
                     .push_str("\n");
-                continue
+                continue; // move to next line
             }
             
             match self.state {
                 State::EpochDescriptor => {
                     if self.first_epoch {
-                        if crx_version.major == 1 {
-                            if !line.starts_with("&") {
-                                return Err(Error::FaultyCrx1FirstEpoch) ;
-                            }
-                        }
-                        if crx_version.major == 3 {
-                            if !line.starts_with(">") {
-                                return Err(Error::FaultyCrx3FirstEpoch) ;
-                            }
+                        match crx_major {
+                            1 => {
+                                if !line.starts_with("&") {
+                                    return Err(Error::FaultyCrx1FirstEpoch) ;
+                                }
+                            },
+                            3 => {
+                                if !line.starts_with(">") {
+                                    return Err(Error::FaultyCrx3FirstEpoch) ;
+                                }
+                            },
+                            _ => {}, // will never happen
                         }
                         
                         // Kernel initialization,
                         // only once, always text based
-                        self.epoch_diff.init(line);
-                        self.first_epoch = false; //never to be re-initialized
-                    
+                        // from this entire line
+                        self.epoch_diff.init(line.trim_end());
+                        self.first_epoch = false;
                     } else {
-                        // here we use "recover" just to latch
-                        // the new string to textdiff()
+                        /*
+                         * this latches the current line content
+                         * we'll deal with it when combining with clock offsets
+                         */
                         self.epoch_diff.decompress(line);
                     }
                     
@@ -214,9 +302,12 @@ impl Decompressor {
                 }, // state::EpochDescriptor
 
                 State::ClockOffsetDescriptor => {
+                    /*
+                     * this line is dedicated to clock offset description
+                     */
+                    let mut clock_offset: Option<i64> = None;
                     if line.contains("&") {
                         // clock offset kernel (re)init
-                        //   parse init. parameters
                         let (n, rem) = line.split_at(1);
                         if let Ok(order) = u8::from_str_radix(n, 10) {
                             let (_, value) = rem.split_at(1);
@@ -234,264 +325,197 @@ impl Decompressor {
                         } 
                     }
 
-                    // Epoch Recovery
-                    let recovered = self.epoch_diff.decompress(" ");
-                    // now we must rebuild epoch description, according to standards
-                    let recovered = &recovered.trim_end();
-                    if let Ok(epoch) = format_epoch(rnx_version.major, &recovered, clock_offset) {
-                        //println!("REWORKD   \"{}\"", epoch); //DEBUG
-                        result.push_str(&epoch); 
-                        result.push_str("\n");
+                    /*
+                     * now we have all information to reconstruct the epoch descriptor
+                     */
+                    let recovered = self.epoch_diff.decompress(" ").trim_end();
+                    // we store the recovered and unformatted CRINEX descriptor
+                    //   because it is particularly easy to parse, 
+                    //   as it is contained in a single line.
+                    //   It needs to be formatted according to standards, 
+                    //   for the result being constructed. See the following operations
+                    self.epoch_descriptor = recovered.clone().to_string();
+                    // initialize sv identifier
+                    self.sv_ptr = 0;
+                    if let Some(n) = Self::parse_nb_sv(&self.epoch_descriptor, crx_major) {
+                        self.nb_sv = n;
                     } else {
-                        return Err(Error::EpochReworkFailure) ;
+                        return Err(Error::VehiculeIdentificationError);
                     }
 
-                    self.state = State::Body ;
+                    if let Ok(descriptor) = format_epoch(rnx_major, recovered, clock_offset) {
+                        println!("--- EPOCH --- \n{}", descriptor.trim_end()); //DEBUG
+                        result.push_str(&format!("{}\n", descriptor.trim_end()));
+                    } else {
+                        return Err(Error::EpochConstruct);
+                    }
+
+                    self.state = State::Body;
                 }, // state::ClockOffsetDescriptor
 
-                State::Body => { // inside epoch content
-                    let recovered_epoch = self.epoch_diff.decompress(" "); // trick to recover textdiff
-                    let epo = recovered_epoch.trim_end();
-                    let mut offset : usize =
-                        2    // Y
-                        +2+1 // m
-                        +2+1 // d
-                        +2+1 // h
-                        +2+1 // m
-                        +11  // s
-                        +1;  // ">" or "&" init marker
-                    if rnx_version.major > 2 { 
-                        offset += 2; // YYYY 4 digits
-                    }
-                    if epo.starts_with("> ") { //CRNX3 
-                        offset += 1; // 1 extra whitespace
-                    }
-                    let (_, rem) = epo.split_at(offset);
-                    let (_epoch_flag, rem) = rem.split_at(3);
-                    let (n, _) = rem.split_at(3);
-                    let nb_sv = u16::from_str_radix(n.trim(), 10)?;
-                    //     ---> identify nb of satellite vehicules
-                    //     ---> identify which system we're dealing with
-                    //          using recovered header
-                    let offset : usize = match crx_version.major {
-                        1 => std::cmp::min((32 + 3*(self.pointer+1)).into(), epo.len()),
-                        3 => std::cmp::min((41 + 3*(self.pointer+1)).into(), epo.len()),
-                        _ => return Err(Error::NonSupportedCrxVersion)
-                    };
-                    let system = epo.split_at(offset.into()).0;
-                    let system = system.split_at(system.len()-3).1; // last 3 XXX
-                    if rnx_version.major > 2 {
-                        result.push_str(&system.to_string()); // Modern rinex needs XXX on every line
-                    }
-                    
-                    // identify SV
-                    // [1] old + mono constellation: Constellation might be omitted
-                    // [2] standard ID
-                    //println!("SVNN \"{}\"", system); //DEBUG
-                    let sv = match rnx_version.major > 2 {
-                        true => { // modern
-                            Sv::from_str(system.trim())?
-                        },
-                        false => { // old
-                            match &header.constellation {
-                                Some(Constellation::Mixed) => {
-                                    Sv::from_str(system.trim())?
-                                },
-                                Some(c) => {
-                                    Sv {
-                                        constellation: c.clone(),
-                                        prn: u8::from_str_radix(&system[1..].trim(), 10)?,
-                                    }
-                                },
-                                _ => break, // unreachable
-                            }
-                        },
-                    };
-                    let codes = &obs_codes[&sv.constellation];
-                    if !self.sv_diff.contains_key(&sv) {
-                        // first time dealing with this system
-                        // add an entry for each obscode
-                        let mut v : Vec<(NumDiff,TextDiff,TextDiff)> = Vec::with_capacity(12);
-                        for _ in codes {
-                            let mut diffs = (
-                                NumDiff::new(NumDiff::MAX_COMPRESSION_ORDER)?, 
-                                TextDiff::new(), 
-                                TextDiff::new(),
-                            );
-                            // init with BLANK 
-                            diffs.1.init(" "); // LLI
-                            diffs.2.init(" "); // SSI
-                            v.push(diffs)
+                State::Body => {
+                    let mut obs_ptr: usize = 0;
+                    let mut observations: Vec<Option<i64>> = Vec::with_capacity(16);
+                    /*
+                     * identify satellite we're dealing with
+                     */
+                    if let Some(sv) = self.current_satellite(crx_major, &crx_constell, self.sv_ptr) {
+                        self.sv_ptr += 1; // increment for next time
+                                    // vehicules are always described in a single line
+                        if rnx_major > 2 {
+                            // RNX3 needs SVNN on every line
+                            result.push_str(&format!("{} ", sv));
                         }
-                        self.sv_diff.insert(sv, v); // creates new entry
-                    }
-                    
-                    // try to grab all data,
-                    // might fail in case it's truncated by compression
-                    let mut rem = line.clone();
-                    let mut obs_data : Vec<Option<i64>> = Vec::with_capacity(12);
-                    loop {
-                        if obs_count == codes.len() {
-                            // FLAGS fields
-                            //  ---> parse & run textdiff on each individual character
-                            //   --> then format final output line
-                            let mut obs_flags : Vec<String> = Vec::with_capacity(obs_data.len()*2);
-                            // [+] grab all provided and apply textdiff
-                            //     append BLANK in case not provided,
-                            //     this approach produces 1 flag (either blank or provided/recovered) 
-                            //     to previously provided/recovered OBS data
-                            let obs = self.sv_diff.get_mut(&sv)
-                                .unwrap();
-                            for i in 0..rem.len() { // 1 character at a time
-                                let flag = i%2;
-                                if flag == 0 {
-                                    let recovered = obs[i/2].1.decompress(&rem[i..i+1]).to_string();
-                                    obs_flags.push(recovered);
-                                } else {
-                                    let recovered = obs[i/2].2.decompress(&rem[i..i+1]).to_string();
-                                    obs_flags.push(recovered);
+                        /*
+                         * observables identifier
+                         */
+                        let codes = obscodes.get(&sv.constellation)
+                            .expect("malformed header");
+                        /*
+                         * Build compress tools in case this vehicule is new
+                         */
+                        if self.sv_diff.get(&sv).is_none() {
+                            let mut inner: Vec<(NumDiff, TextDiff, TextDiff)> = Vec::with_capacity(16);
+                            // this if() 
+                            //   protects from malformed Headers or malformed Epoch descriptions
+                            if let Some(codes) = obscodes.get(&sv.constellation) {
+                                for _ in codes {
+                                    let mut kernels = (
+                                        NumDiff::new(NumDiff::MAX_COMPRESSION_ORDER)?,
+                                        TextDiff::new(),
+                                        TextDiff::new(),
+                                    );
+                                    kernels.1.init(" "); // LLI
+                                    kernels.2.init(" "); // SSI
+                                    inner.push(kernels);
                                 }
+                                self.sv_diff.insert(sv, inner);
                             }
-                            for i in obs_flags.len()..obs_data.len()*2 {
-                                // some flags were not provided
-                                // meaning text is maintained
-                                let flag = i%2;
-                                if flag == 0 {
-                                    let recovered = obs[i/2].1.decompress(" ").to_string();
-                                    obs_flags.push(recovered);
-                                } else {
-                                    let recovered = obs[i/2].2.decompress(" ").to_string();
-                                    obs_flags.push(recovered);
-                                }
-                            }
-                            for i in 0..obs_data.len() {
-                                if let Some(data) = obs_data[i] {
-                                    // --> data field was found & recovered
-                                    result.push_str(&format!(" {:13.3}", data as f64 /1000_f64)); // F14.3
-                                    result.push_str(&obs_flags[i*2]); // lli
-                                    result.push_str(&obs_flags[i*2+1]); // ssi
-                                    if rnx_version.major < 3 { // old RINEX
-                                        if (i+1).rem_euclid(5) == 0 { // maximal nb of OBS per line
-                                            result.push_str("\n")
-                                        }
-                                    }
-                                } else {
-                                    result.push_str("                "); // BLANK
-                                    if rnx_version.major < 3 { // old RINEX
-                                        if (i+1).rem_euclid(5) == 0 { // maximal nb of OBS per line
-                                            result.push_str("\n")
-                                        }
-                                    }
-                                }
-                            }
-                            result.push_str("\n");
-                            break
                         }
-                        let next_wsp = match rem.find(' ') {
-                            Some(l_off) => l_off+1,
-                            None => { 
-                                // line is either terminated by one last compressed code
-                                // or empty content
-                                // [+] try to parse one last obs 
-                                if rem.contains("&") {
-                                    // kernel (re)init 
-                                    let index = rem.find("&").unwrap();
-                                    let (order, rem) = rem.split_at(index);
-                                    let order = u8::from_str_radix(order.trim(),10)?;
-                                    let (_, data) = rem.split_at(1);
-                                    let data = i64::from_str_radix(data.trim(), 10)?;
-                                    let obs = self.sv_diff.get_mut(&sv)
-                                        .unwrap();
-                                    obs[obs_count].0 // Observation
-                                        .init(order.into(), data)?;
-                                    obs_data.push(Some(data));
-                                    obs_count += 1;
+                        /*
+                         * iterate over entire line 
+                         */
+                        let mut line = line.trim();
+                        while obs_ptr < codes.len() {
+                            if let Some(pos) = line.find(' ') {
+                                let content = &line[..pos];
+                                println!("OBS \"{}\" - CONTENT \"{}\"", codes[obs_ptr], content); //DEBUG
+                                if content.len() == 0 {
+                                    /*
+                                    * missing observation
+                                    */
+                                    observations.push(None);
                                 } else {
-                                    // regular compression
-                                    if let Ok(num) = i64::from_str_radix(rem.trim(),10) {
-                                        let obs = self.sv_diff.get_mut(&sv)
-                                            .unwrap();
-                                        let recovered = obs[obs_count].0 // Observation
-                                            .decompress(num);
-                                        obs_data.push(Some(recovered))
-                                    }
-                                }
-                                //  --> format this line correctly
-                                for i in 0..obs_data.len() {
-                                    if let Some(data) = obs_data[i] {
-                                        // --> data field was found & recovered
-                                        result.push_str(&format!(" {:13.3}", data as f64 /1000_f64)); // F14.3
-                                        // ---> related flag content
-                                        let obs = self.sv_diff.get_mut(&sv)
-                                            .unwrap();
-                                        let lli = obs[i]
-                                            .1 // LLI
-                                            .decompress(" "); // trick to recover
-                                        result.push_str(&lli); // append flag
-                                        let ssi = obs[i]
-                                            .2 // SSI
-                                            .decompress(" "); // trick to recover
-                                        result.push_str(&ssi); // append flag
-                                        if rnx_version.major < 3 { // old RINEX
-                                            if (i+1).rem_euclid(5) == 0 { // maximal nb of OBS per line
-                                                result.push_str("\n")
-                                            }
-                                        }
-                                    } else {
-                                        result.push_str("                "); // BLANK
-                                        if rnx_version.major < 3 { // old RINEX
-                                            if (i+1).rem_euclid(5) == 0 { // maximal nb of OBS per line
-                                                result.push_str("\n")
+                                    /*
+                                     * regular progression
+                                     */
+                                    if let Some(sv_diff) = self.sv_diff.get_mut(&sv) {
+                                        if content.contains("&") { // kernel (re)init description
+                                            let index = content.find("&")
+                                                .unwrap();
+                                            let (order, rem) = content.split_at(index);
+                                            let order = u8::from_str_radix(order.trim(), 10)?;
+                                            let (_, data) = rem.split_at(1);
+                                            let data = i64::from_str_radix(data.trim(), 10)?;
+                                            sv_diff[obs_ptr]
+                                                .0 // observations only, at this point
+                                                .init(order.into(), data)?;
+                                            observations.push(Some(data));
+                                        } else { // regular compression
+                                            if let Ok(num) = i64::from_str_radix(content.trim(), 10) {
+                                                let recovered = sv_diff[obs_ptr]
+                                                    .0 // observations only, at this point
+                                                    .decompress(num);
+                                                observations.push(Some(recovered));
                                             }
                                         }
                                     }
                                 }
-                                result.push_str("\n");
-                                break // EOL
-                            },
-                        };
-                        let (roi, r) = rem.split_at(next_wsp);
-                        rem = r;
-                        if roi == " " { // BLANK field
-                            obs_count += 1;
-                            obs_data.push(None);
-                            continue // compressed non existing obs 
+                                line = &line[std::cmp::min(pos+1, line.len())..];
+                                obs_ptr += 1;
+                            } else { // END OF LINE reached
+                                /*
+                                 * try to parse 1 observation
+                                 */
+                                println!("END OF pos.find() : \"{}\"", line); //DEBUG
+                                if let Some(sv_diff) = self.sv_diff.get_mut(&sv) {
+                                    if line.contains("&") { // kernel init requested
+                                        let index = line.find("&")
+                                            .unwrap();
+                                        let (order, rem) = line.split_at(index);
+                                        let order = u8::from_str_radix(order.trim(), 10)?;
+                                        let (_, data) = rem.split_at(1);
+                                        let data = i64::from_str_radix(data.trim(), 10)?;
+                                        sv_diff[obs_ptr]
+                                            .0 // observations only, at this point
+                                            .init(order.into(), data)?;
+                                        observations.push(Some(data));
+                                    } else { // regular compression
+                                        if let Ok(num) = i64::from_str_radix(line.trim(), 10) {
+                                            let recovered = sv_diff[obs_ptr]
+                                                .0 // observations only, at this point
+                                                .decompress(num);
+                                            observations.push(Some(recovered))
+                                        }
+                                    }
+                                }//svdiff
+                                obs_ptr = codes.len();
+                            }//EOL
+                        }//while()
+                        /*
+                         * Flags field
+                         */
+                        //TODO
+                        //println!("FLAGS - \"{}\"", line); //DEBUG
+
+                        /*
+                         * group previously parsed observations,
+                         *   into a single formatted line
+                         *   or into several in case of OLD RINEX
+                         */
+                        for (index, data) in observations.iter().enumerate() { 
+                            if let Some(data) = data {
+                                // --> data field was found & recovered
+                                result.push_str(&format!(" {:13.3}", *data as f64 /1000_f64)); // F14.3
+                                // ---> related flag content
+                                let obs = self.sv_diff.get_mut(&sv)
+                                    .unwrap();
+                                let lli = obs[index]
+                                    .1 // LLI
+                                    .decompress(" "); // trick to recover
+                                                // using textdiff property.
+                                                // Another option would be to have an array to
+                                                // store them
+                                result.push_str(&lli); // append flag
+                                let ssi = obs[index]
+                                    .2 // SSI
+                                    .decompress(" "); // trick to recover
+                                                // using textdiff property.
+                                                // Another option would be to have an array to
+                                                // store them
+                                result.push_str(&ssi); // append flag
+                            } else {
+                                result.push_str("                "); // BLANK
+                            }
+                            
+                            if rnx_major < 3 { // old RINEX
+                                if (index+1).rem_euclid(5) == 0 { // maximal nb of OBS per line
+                                    result.push_str("\n")
+                                }
+                            }
                         }
-                        let (init_order, data) : (Option<u16>, i64) = match roi.contains("&") {
-                            false => {
-                                (None, i64::from_str_radix(roi.trim(),10)?)
-                            },
-                            true => {
-                                let (init_order, remainder) = roi.split_at(1);
-                                let (_, data) = remainder.split_at(1);
-                                (Some(u16::from_str_radix(init_order, 10)?),
-                                i64::from_str_radix(data.trim(), 10)?)
-                            },
-                        };
-                        if let Some(order) = init_order {
-                            //(re)init that kernel
-                            let obs = self.sv_diff.get_mut(&sv)
-                                .unwrap();
-                            obs[obs_count].0 // Observation
-                                .init(order.into(), data)?;
-                            obs_data.push(Some(data))
-                        } else {
-                            let obs = self.sv_diff.get_mut(&sv)
-                                .unwrap();
-                            let recovered = obs[obs_count].0
-                                .decompress(data);
-                            obs_data.push(Some(recovered))
-                        }
-                        obs_count +=1
-                    } // for all OBS
-                    self.pointer += 1;
-                    if self.pointer == nb_sv { // nothing else to parse
-                        self.pointer = 0; // reset
-                        self.state.reset();
+                        result.push_str("\n");
                     }
-                }, // state::Body
-            } // match(state)
-        }
+                    // end of line parsing
+                    //  if sv_ptr has reached the expected amount of vehicules
+                    //  we reset and move back to state (1)
+                    if self.sv_ptr == self.nb_sv {
+                        self.state = State::EpochDescriptor;
+                    }
+                }//current_satellite()
+            }//match(state)
+        }//loop
+        //println!("--- TOTAL DECOMPRESSED --- \n\"{}\"", result); //DEBUG
         Ok(result)
     }
 }

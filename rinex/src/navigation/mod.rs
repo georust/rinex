@@ -9,11 +9,10 @@ pub mod record;
 pub mod orbits;
 
 pub use record::{
-    Record, Error,
-    FrameClass, Frame, MsgType,
-    is_new_epoch,
-    fmt_epoch,
-    parse_epoch,
+    Record,
+    Frame, 
+    MsgType,
+    FrameClass, 
 };
 
 pub use ionmessage::{

@@ -5,9 +5,6 @@ pub use record::{
     Record, Error,
 	System, 
     Data, DataType,
-    is_new_epoch,
-	fmt_epoch, 
-    parse_epoch,
 };
 
 /// Clocks `RINEX` specific header fields

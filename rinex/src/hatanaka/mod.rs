@@ -30,8 +30,8 @@ pub enum Error {
     ClockOffsetValueError,
     #[error("Recovered epoch content seems faulty")]
     FaultyRecoveredEpoch,
-    #[error("Failed to rework epoch to match standards")]
-    EpochReworkFailure,
+    #[error("failed to reconstruct epoch description")]
+    EpochConstruct,
     #[error("Malformed epoch description (#nb sv)")]
     MalformedEpochDescriptor,
     #[error("Vehicule identification failed")]

@@ -1,6 +1,6 @@
 use crate::{
     epoch,
-    Epoch,
+    prelude::*,
 };
 use thiserror::Error;
 use std::str::FromStr;
@@ -30,7 +30,7 @@ pub enum Error {
     #[error("failed to parse float data")]
     ParseFloatError(#[from] std::num::ParseFloatError),
     #[error("failed to parse epoch")]
-    EpochError(#[from] epoch::Error),
+    EpochError(#[from] hifitime::Errors),
 }
 
 /// Klobuchar Parameters region
@@ -68,7 +68,7 @@ pub struct KbModel {
 }
 
 impl KbModel {
-    pub fn parse (mut lines: std::str::Lines<'_>) -> Result<(Epoch, Self), Error> {
+    pub (crate)fn parse (mut lines: std::str::Lines<'_>) -> Result<(Epoch, Self), Error> {
         let line = match lines.next() {
             Some(l) => l,
             _ => return Err(Error::NgModelMissing1stLine)

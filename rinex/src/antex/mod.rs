@@ -5,15 +5,12 @@ pub mod antenna;
 pub mod frequency;
 
 pub use pcv::Pcv;
-pub use record::{
-	Record, Error,
-    is_new_epoch,
-    parse_epoch,
-};
+pub use record::Record;
 pub use frequency::{Frequency, Pattern};
 pub use antenna::{
 	Antenna, 
-    Calibration, CalibrationMethod,
+    Calibration, 
+    CalibrationMethod,
 };
 
 #[derive(Clone, Debug, Default)]

@@ -1,14 +1,14 @@
 use thiserror::Error;
 use std::str::FromStr;
 
-#[derive(Error, Debug)]
-pub enum Error {
-    #[error("unknown flag value")]
-    UnknownValue,
-}
-
 #[cfg(feature = "serde")]
 use serde::{Serialize, Deserialize};
+
+#[derive(Error, Debug)]
+pub enum Error {
+    #[error("non recognized epoch flag")]
+    UnknownFlag,
+}
 
 /// `EpochFlag` validates an epoch, 
 /// or describes possible events that occurred
@@ -33,12 +33,16 @@ pub enum EpochFlag {
 }
 
 impl Default for EpochFlag {
-    fn default() -> EpochFlag { EpochFlag::Ok }
+    fn default() -> Self { 
+        Self::Ok
+    }
 }
 
 impl EpochFlag {
     /// Returns True if self is a valid epoch
-    pub fn is_ok (self) -> bool { self == EpochFlag::Ok }
+    pub fn is_ok(self) -> bool { 
+        self == Self::Ok 
+    }
 }
 
 impl FromStr for EpochFlag {
@@ -52,7 +56,7 @@ impl FromStr for EpochFlag {
             "4" => Ok(EpochFlag::HeaderInformationFollows),
             "5" => Ok(EpochFlag::ExternalEvent),
             "6" => Ok(EpochFlag::CycleSlip),
-            _ => Err(Error::UnknownValue),
+            _ => Err(Error::UnknownFlag),
         }
     }
 }
@@ -68,5 +72,25 @@ impl std::fmt::Display for EpochFlag {
             EpochFlag::ExternalEvent => "5".fmt(f),
             EpochFlag::CycleSlip => "6".fmt(f),
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[test]
+    fn test_default() {
+        assert_eq!(EpochFlag::default(), EpochFlag::Ok);
+    }
+    #[test]
+    fn from_str() {
+        assert_eq!(EpochFlag::from_str("0").unwrap(), EpochFlag::Ok); 
+        assert_eq!(EpochFlag::from_str("1").unwrap(), EpochFlag::PowerFailure); 
+        assert_eq!(EpochFlag::from_str("2").unwrap(), EpochFlag::AntennaBeingMoved); 
+        assert_eq!(EpochFlag::from_str("3").unwrap(), EpochFlag::NewSiteOccupation); 
+        assert_eq!(EpochFlag::from_str("4").unwrap(), EpochFlag::HeaderInformationFollows); 
+        assert_eq!(EpochFlag::from_str("5").unwrap(), EpochFlag::ExternalEvent); 
+        assert_eq!(EpochFlag::from_str("6").unwrap(), EpochFlag::CycleSlip); 
+        assert!(EpochFlag::from_str("7").is_err());
     }
 }

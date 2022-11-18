@@ -143,7 +143,7 @@ impl std::fmt::Display for DataType {
 */
 pub type Record = BTreeMap<Epoch, HashMap<DataType, HashMap<System, Data>>>;
 
-pub fn is_new_epoch (line: &str) -> bool {
+pub (crate)fn is_new_epoch (line: &str) -> bool {
     // first 2 bytes match a DataType code
     let content = line.split_at(2).0;
     DataType::from_str(content).is_ok()
@@ -152,7 +152,7 @@ pub fn is_new_epoch (line: &str) -> bool {
 /// Builds `RINEX` record entry for `Clocks` data files.   
 /// Returns identified `epoch` to sort data efficiently.  
 /// Returns 2D data as described in `record` definition
-pub fn parse_epoch (version: Version, content: &str) -> 
+pub (crate)fn parse_epoch(version: Version, content: &str) -> 
         Result<(Epoch, DataType, System, Data), Error> 
 {
     let mut lines = content.lines();
@@ -202,7 +202,7 @@ pub fn parse_epoch (version: Version, content: &str) ->
        +2+1  // m
         +11; // s
     let (epoch, rem) = rem.split_at(offset);
-    let epoch = Epoch::from_str(epoch.trim())?;
+    let (epoch, _) = epoch::parse(epoch.trim())?;
 
     // nb of data fields
     let (n, _) = rem.split_at(4);
@@ -246,7 +246,7 @@ pub fn parse_epoch (version: Version, content: &str) ->
 }
 
 /// Writes epoch into stream
-pub fn fmt_epoch (
+pub (crate)fn fmt_epoch (
 	epoch: &Epoch, 
 	data: &HashMap<DataType, HashMap<System, Data>>,
     ) -> Result<String, Error> 
@@ -435,7 +435,7 @@ impl Decimation<Record> for Record {
 impl TimeScaling<Record> for Record {
     fn convert_timescale(&mut self, ts: TimeScale) {
         for (mut epoch, _) in self.iter_mut() {
-            epoch = &epoch.with_timescale(ts);
+            epoch = &epoch.in_time_scale(ts);
         }
     }
     fn with_timescale(&self, ts: TimeScale) -> Self {

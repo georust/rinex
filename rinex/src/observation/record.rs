@@ -7,8 +7,8 @@ use std::collections::{BTreeMap, HashMap};
 use crate::{
     prelude::*,
     sv,
-    constellation,
     epoch,
+    constellation,
     version::Version,
     merge, merge::Merge,
     split, split::Split,
@@ -21,8 +21,6 @@ use hifitime::Duration;
 pub enum Error {
     #[error("failed to parse epoch")]
     EpochError(#[from] epoch::Error),
-    #[error("failed to parse epoch flag")]
-    FlagError(#[from] epoch::flag::Error),
     #[error("failed to identify constellation")]
     ConstellationError(#[from] constellation::Error),
     #[error("failed to parse sv")]
@@ -192,7 +190,8 @@ impl ObservationData {
 }
 
 /// Observation Record content. 
-/// Measurements are sorted by [epoch::Epoch].
+/// Measurements are sorted by [hifitime::Epoch],
+/// but unlike other RINEX records, a [epoch::EpochFlag] is associated to it.
 /// An epoch possibly comprises the receiver clock offset
 /// and a list of physical measurements, sorted by Space vehicule and observable.
 /// Phase data is offset so they start at 0 (null initial phase).
@@ -226,12 +225,13 @@ impl ObservationData {
 ///    }
 /// }
 /// ```
-pub type Record = BTreeMap<Epoch, 
+pub type Record = BTreeMap<
+    (Epoch, EpochFlag), 
     (Option<f64>, 
     BTreeMap<sv::Sv, HashMap<String, ObservationData>>)>;
 
 /// Returns true if given content matches a new OBSERVATION data epoch
-pub fn is_new_epoch (line: &str, v: Version) -> bool {
+pub (crate)fn is_new_epoch (line: &str, v: Version) -> bool {
     let parsed: Vec<&str> = line
         .split_ascii_whitespace()
         .collect();
@@ -256,8 +256,8 @@ pub fn is_new_epoch (line: &str, v: Version) -> bool {
 
 /// Builds `Record` entry for `ObservationData`
 /// from given epoch content
-pub fn parse_epoch (header: &Header, content: &str)
-        -> Result<(Epoch, Option<f64>, BTreeMap<sv::Sv, HashMap<String, ObservationData>>), Error> 
+pub (crate)fn parse_epoch (header: &Header, content: &str)
+        -> Result<((Epoch, EpochFlag), Option<f64>, BTreeMap<sv::Sv, HashMap<String, ObservationData>>), Error> 
 {
     let mut lines = content.lines();
     let mut line = match lines.next() {
@@ -284,14 +284,10 @@ pub fn parse_epoch (header: &Header, content: &str)
         line = line.split_at(1).1.clone();
     }
 
-    let (date, rem) = line.split_at(offset);
-    let (flag, rem) = rem.split_at(3);
+    let (date, rem) = line.split_at(offset +3);
     let (n_sat, rem) = rem.split_at(3);
     let n_sat = u16::from_str_radix(n_sat.trim(), 10)?;
-
-    let epoch = Epoch::from_str(date)?;
-    let flag = EpochFlag::from_str(flag.trim())?;
-    let epoch = epoch.with_flag(flag);
+    let epoch = epoch::parse(date)?;
 	
     // previously identified observables (that we expect)
     let obs = header.obs
@@ -607,21 +603,23 @@ fn parse_v3 (observables: &HashMap<Constellation, Vec<String>>, lines: std::str:
 }
 
 /// Formats one epoch according to standard definitions 
-pub fn fmt_epoch (
-        epoch: &Epoch,
+pub (crate)fn fmt_epoch (
+        epoch: Epoch,
+        flag: EpochFlag,
         clock_offset: &Option<f64>,
         data: &BTreeMap<Sv, HashMap<String, ObservationData>>,
         header: &Header,
     ) -> String {
     if header.version.major < 3 {
-        fmt_epoch_v2(epoch, clock_offset, data, header)
+        fmt_epoch_v2(epoch, flag, clock_offset, data, header)
     } else {
-        fmt_epoch_v3(epoch, clock_offset, data, header)
+        fmt_epoch_v3(epoch, flag, clock_offset, data, header)
     }
 }
 
 fn fmt_epoch_v3(
-        epoch: &Epoch,
+        epoch: Epoch,
+        flag: EpochFlag,
         clock_offset: &Option<f64>,
         data: &BTreeMap<Sv, HashMap<String, ObservationData>>,
         header: &Header,
@@ -631,7 +629,7 @@ fn fmt_epoch_v3(
         .as_ref()
         .unwrap()
         .codes;
-    lines.push_str(&format!("> {} {:2}", epoch, data.len()));
+    lines.push_str(&format!("> {}  {} {:2}", epoch, flag, data.len()));
     if let Some(data) = clock_offset {
         lines.push_str(&format!("{:13.4}", data)); 
     }
@@ -664,7 +662,8 @@ fn fmt_epoch_v3(
 }
 
 fn fmt_epoch_v2(
-        epoch: &Epoch,
+        epoch: Epoch,
+        flag: EpochFlag,
         clock_offset: &Option<f64>,
         data: &BTreeMap<Sv, HashMap<String, ObservationData>>,
         header: &Header,
@@ -859,7 +858,7 @@ impl Split<Record> for Record {
     fn split(&self, epoch: Epoch) -> Result<(Self, Self), split::Error> {
         let r0 = self.iter()
             .flat_map(|(k, v)| {
-                if k < &epoch {
+                if k.0 < epoch {
                     Some((k.clone(), v.clone()))
                 } else {
                     None
@@ -868,7 +867,7 @@ impl Split<Record> for Record {
             .collect();
         let r1 = self.iter()
             .flat_map(|(k, v)| {
-                if k >= &epoch {
+                if k.0 >= epoch {
                     Some((k.clone(), v.clone()))
                 } else {
                     None
@@ -898,7 +897,7 @@ impl Decimation<Record> for Record {
     /// Decimates Self to fit minimum epoch interval
     fn decim_by_interval_mut(&mut self, interval: Duration) {
         let mut last_retained: Option<Epoch> = None;
-        self.retain(|e, _| {
+        self.retain(|(e, _), _| {
             if last_retained.is_some() {
                 let dt = *e - last_retained.unwrap();
                 last_retained = Some(*e);
@@ -927,8 +926,8 @@ impl Decimation<Record> for Record {
 
 impl TimeScaling<Record> for Record {
     fn convert_timescale(&mut self, ts: TimeScale) {
-        for (mut epoch, _) in self.iter_mut() {
-            epoch = &epoch.with_timescale(ts);
+        for ((mut epoch, _), _) in self.iter_mut() {
+            epoch = epoch.in_time_scale(ts);
         }
     }
     fn with_timescale(&self, ts: TimeScale) -> Self {

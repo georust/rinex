@@ -21,7 +21,7 @@ use crate::{
 /// the beginning of a `epoch` for ATX file (special files),
 /// this is not really an epoch but rather a group of dataset
 /// for this given antenna, there is no sampling data attached to it.
-pub fn is_new_epoch (content: &str) -> bool {
+pub (crate)fn is_new_epoch (content: &str) -> bool {
     content.contains("START OF ANTENNA")
 }
 
@@ -77,7 +77,7 @@ pub enum Error {
 
 /// Parses entire Antenna block
 /// and all inner frequency entries
-pub fn parse_epoch (content: &str) -> Result<(Antenna, Vec<Frequency>), Error> {
+pub (crate)fn parse_epoch (content: &str) -> Result<(Antenna, Vec<Frequency>), Error> {
     let lines = content.lines();
     let mut antenna = Antenna::default();
     let mut frequency = Frequency::default();

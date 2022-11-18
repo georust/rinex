@@ -34,7 +34,7 @@ use super::observable::Observable;
 pub type Record = BTreeMap<Epoch, HashMap<Observable, f64>>;
 
 /// Returns true if given line matches a new Meteo Record `epoch`
-pub fn is_new_epoch (line: &str, v: version::Version) -> bool {
+pub (crate)fn is_new_epoch (line: &str, v: version::Version) -> bool {
     if v.major < 4 {
         let min_len = " 15  1  1  0  0  0";
         if line.len() < min_len.len() { // minimum epoch descriptor 
@@ -120,7 +120,7 @@ pub fn parse_epoch(header: &Header, content: &str) -> Result<(Epoch, HashMap<Obs
 }
 
 /// Writes epoch into given streamer
-pub fn fmt_epoch (
+pub (crate)fn fmt_epoch (
         epoch: &Epoch, 
         data: &HashMap<Observable, f64>, 
         header: &Header, 
@@ -293,7 +293,7 @@ impl Decimation<Record> for Record {
 impl TimeScaling<Record> for Record {
     fn convert_timescale(&mut self, ts: TimeScale) {
         for (mut epoch, _) in self.iter_mut() {
-            epoch = &epoch.with_timescale(ts);
+            epoch = &epoch.in_time_scale(ts);
         }
     }
     fn with_timescale(&self, ts: TimeScale) -> Self {
