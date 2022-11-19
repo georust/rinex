@@ -38,17 +38,17 @@ pub (crate)fn is_new_epoch (line: &str, v: version::Version) -> bool {
     if v.major < 4 {
         let min_len = " 15  1  1  0  0  0";
         if line.len() < min_len.len() { // minimum epoch descriptor 
-            return false
+            return false;
         }
         let datestr = &line[1..min_len.len()]; 
-        Epoch::from_str(datestr).is_ok() // valid epoch descriptor
+        epoch::parse(datestr).is_ok() // valid epoch descriptor
     } else {
         let min_len = " 2021  1  7  0  0  0";
         if line.len() < min_len.len() { // minimum epoch descriptor
             return false
         }
         let datestr = &line[1..min_len.len()]; 
-        Epoch::from_str(datestr).is_ok() // valid epoch descriptor
+        epoch::parse(datestr).is_ok() // valid epoch descriptor
     }
 }
 
@@ -156,7 +156,7 @@ pub (crate)fn fmt_epoch (
 mod test {
     use super::*;
     #[test]
-    fn new_epoch() {
+    fn test_new_epoch() {
         let content = " 22  1  4  0  0  0  993.4   -6.8   52.9    1.6  337.0    0.0    0.0";
         assert_eq!(is_new_epoch(content, 
             version::Version {

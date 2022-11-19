@@ -239,7 +239,7 @@ pub (crate)fn is_new_epoch (line: &str, v: Version) -> bool {
         if line.len() < 30 {
             false
         } else {
-            Epoch::from_str(&line[0..29]).is_ok()
+            epoch::parse(&line[0..29]).is_ok()
         }
     } else {
         // Modern RINEX

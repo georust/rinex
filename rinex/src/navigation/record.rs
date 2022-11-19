@@ -237,7 +237,7 @@ pub (crate)fn is_new_epoch (line: &str, v: Version) -> bool {
         }
         // rest matches a valid epoch descriptor
         let datestr = &line[3..22];
-        Epoch::from_str(&datestr).is_ok()
+        epoch::parse(&datestr).is_ok()
 
     } else if v.major == 3 { // RINEX V3
         if line.len() < 24 {
@@ -251,7 +251,7 @@ pub (crate)fn is_new_epoch (line: &str, v: Version) -> bool {
         }
         // rest matches a valid epoch descriptor
         let datestr = &line[4..23];
-        Epoch::from_str(&datestr).is_ok()
+        epoch::parse(&datestr).is_ok()
 
     } else { // Modern --> easy 
         if let Some(c) = line.chars().nth(0) {
@@ -674,7 +674,7 @@ mod test {
         let entry = parse_epoch(version, Constellation::Glonass, content);
         assert_eq!(entry.is_ok(), true);
         let (epoch, class, frame) = entry.unwrap();
-        assert_eq!(epoch, Epoch::from_str("20 12 31 23 45  0.0").unwrap());
+        assert_eq!(epoch, Epoch::from_gregorian_utc(2020, 12, 31, 23, 45, 00, 00));
         assert_eq!(class, FrameClass::Ephemeris);
         let fr = frame.as_eph();
         assert_eq!(fr.is_some(), true);
@@ -768,7 +768,7 @@ mod test {
         let entry = parse_epoch(version, Constellation::Mixed, content);
         assert_eq!(entry.is_ok(), true);
         let (epoch, class, frame) = entry.unwrap();
-        assert_eq!(epoch, Epoch::from_str("2021 01 01 00 00 00").unwrap());
+        assert_eq!(epoch, Epoch::from_gregorian_utc(2021, 01, 01, 00, 00, 00, 00));
         assert_eq!(class, FrameClass::Ephemeris);
         let fr = frame.as_eph();
         assert_eq!(fr.is_some(), true);
@@ -932,7 +932,7 @@ mod test {
         let entry = parse_epoch(version, Constellation::Mixed, content);
         assert_eq!(entry.is_ok(), true);
         let (epoch, class, frame) = entry.unwrap();
-        assert_eq!(epoch, Epoch::from_str("2021 01 01 10 10 00").unwrap());
+        assert_eq!(epoch, Epoch::from_gregorian_utc(2021, 01, 01, 10, 10, 00, 00));
         assert_eq!(class, FrameClass::Ephemeris);
         let fr = frame.as_eph();
         assert_eq!(fr.is_some(), true);
@@ -1090,7 +1090,7 @@ mod test {
         let entry = parse_epoch(version, Constellation::Mixed, content);
         assert_eq!(entry.is_ok(), true);
         let (epoch, class, frame) = entry.unwrap();
-        assert_eq!(epoch, Epoch::from_str("2021 01 01 09 45 00").unwrap());
+        assert_eq!(epoch, Epoch::from_gregorian_utc(2021, 01, 01, 09, 45, 00, 00));
         assert_eq!(class, FrameClass::Ephemeris);
         let fr = frame.as_eph();
         assert_eq!(fr.is_some(), true);
