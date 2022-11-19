@@ -85,7 +85,7 @@ pub (crate)fn parse(s: &str) -> Result<(Epoch, EpochFlag), Error> {
         }
     }
     if let Ok(mut y) = i32::from_str_radix(items[0], 10) {
-		if y < 2000 {
+		if y < 100 {
 			y += 2000;
 		}
         if let Ok(m) = u8::from_str_radix(items[1], 10) {
