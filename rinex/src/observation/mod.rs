@@ -74,7 +74,7 @@ impl Default for Crinex {
                 major: 3,
                 minor: 0,
             },
-            prog: "rust-crinex".to_string(),
+			prog: format!("rust-rinex-{}", env!("CARGO_PKG_VERSION")),
             date: epoch::now(),
         }
     }
@@ -92,14 +92,14 @@ impl std::fmt::Display for Crinex {
         let m = fmt_month!(m);
         let date = format!("{:02}-{}-{} {:02}:{:02}", d, m, y, hh, mm);
         write!(f, "{:<width$}", date, width=20)?;
-        f.write_str("CRINEX PROG / DATE\n")
+        f.write_str("CRINEX PROG / DATE")
     }
 }
 
 /// Describes known marker types
 /// Observation Record specific header fields
 #[derive(Debug, Clone, Default)]
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct HeaderFields {
     /// Optional CRINEX information,
@@ -190,6 +190,10 @@ mod crinex {
     #[test]
     fn test_display() {
         let crinex = Crinex::default();
-        assert_eq!(crinex.to_string(), "test");
+		let now = Epoch::now().unwrap();
+		let (y, m, d, hh, mm, _, _) = now.to_gregorian_utc();
+		let expected = format!("3.0                 COMPACT RINEX FORMAT                    CRINEX VERS   / TYPE
+rust-rinex-{}                        {}-{}-{} {:02}:{:02}   CRINEX PROG / DATE", env!("CARGO_PKG_VERSION"), d, fmt_month!(m), y, hh, mm);
+        assert_eq!(crinex.to_string(), expected);
     }
 }

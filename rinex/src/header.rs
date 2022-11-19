@@ -1496,7 +1496,7 @@ impl std::fmt::Display for Header {
         // start with CRINEX attributes, if need be
         if let Some(obs) = &self.obs {
             if let Some(crinex) = &obs.crinex {
-                write!(f, "{}", crinex)?;
+                write!(f, "{}\n", crinex)?;
             }
         }
         // RINEX VERSION / TYPE 

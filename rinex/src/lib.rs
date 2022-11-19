@@ -274,11 +274,7 @@ impl Rinex {
                 },
             };
             self.header = self.header
-                .with_crinex(Crinex {
-                    date: epoch::now(),
-                    version,
-                    prog: "rust-crinex".to_string(),
-                });
+                .with_crinex(Crinex::default());
         }
     }
     
