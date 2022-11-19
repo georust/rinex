@@ -20,20 +20,17 @@ mod test {
         let record = record.unwrap();
         assert_eq!(record.len(), 74);
 
-        let epoch = Epoch::from_str("2015 01 01 0 0 0")
-            .unwrap();
+        let epoch = Epoch::from_gregorian_utc(2015, 01, 01, 00, 00, 00, 00);
         let content = record.get(&epoch);
         assert_eq!(content.is_some(), true);
         let content = content.unwrap();
         
-        let epoch = Epoch::from_str("2015 01 01 9 0 0")
-            .unwrap();
+        let epoch = Epoch::from_gregorian_utc(2015, 01, 01, 9, 00, 00, 00);
         let content = record.get(&epoch);
         assert_eq!(content.is_some(), true);
         let content = content.unwrap();
         
-        let epoch = Epoch::from_str("2015 01 01 19 25 0")
-            .unwrap();
+        let epoch = Epoch::from_gregorian_utc(2015, 01, 01, 19, 25, 0, 0);
         let content = record.get(&epoch);
         assert_eq!(content.is_some(), true);
         let content = content.unwrap();
@@ -64,35 +61,35 @@ mod test {
                 }
             }
         }
-        let epoch = Epoch::from_str("2021 1 7 0 0 0").unwrap();
+        let epoch = Epoch::from_gregorian_utc(2021, 1, 7, 00, 00, 00, 00);
         let e = record.get(&epoch).unwrap();
         for (obs, data) in e.iter() {
             if *obs == Observable::Temperature {
                 assert_eq!(*data, 23.0);
             }
         }
-        let epoch = Epoch::from_str("2021 1 7 0 0 30").unwrap();
+        let epoch = Epoch::from_gregorian_utc(2021, 1, 7, 0, 0, 30, 0);
         let e = record.get(&epoch).unwrap();
         for (obs, data) in e.iter() {
             if *obs == Observable::Temperature {
                 assert_eq!(*data, 23.0);
             }
         }
-        let epoch = Epoch::from_str("2021 1 7 0 1 0").unwrap();
+        let epoch = Epoch::from_gregorian_utc(2021, 1, 7, 0, 1, 0, 00);
         let e = record.get(&epoch).unwrap();
         for (obs, data) in e.iter() {
             if *obs == Observable::Temperature {
                 assert_eq!(*data, 23.1);
             }
         }
-        let epoch = Epoch::from_str("2021 1 7 0 1 30").unwrap();
+        let epoch = Epoch::from_gregorian_utc(2021, 1, 7, 0, 1, 30, 0);
         let e = record.get(&epoch).unwrap();
         for (obs, data) in e.iter() {
             if *obs == Observable::Temperature {
                 assert_eq!(*data, 23.1);
             }
         }
-        let epoch = Epoch::from_str("2021 1 7 0 2 0").unwrap();
+        let epoch = Epoch::from_gregorian_utc(2021, 1, 7, 0, 2, 0, 00);
         let e = record.get(&epoch).unwrap();
         for (obs, data) in e.iter() {
             if *obs == Observable::Temperature {

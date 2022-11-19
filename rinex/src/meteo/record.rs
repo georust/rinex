@@ -76,7 +76,7 @@ pub fn parse_epoch(header: &Header, content: &str) -> Result<(Epoch, HashMap<Obs
         offset += 2; // YYYY
     }
 
-    let epoch = Epoch::from_str(&line[0..offset]).unwrap();
+    let (epoch, _) = epoch::parse(&line[0..offset])?;
 
 	let codes = &header.meteo
         .as_ref()

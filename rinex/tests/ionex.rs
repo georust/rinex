@@ -48,7 +48,7 @@ mod test {
         }
 
         // epoch [1]
-        let e = Epoch::from_str("2022 1 2 0 0 0").unwrap();
+        let e = Epoch::from_gregorian_utc(2022, 1, 2, 0, 0, 0, 0);
         let data = record.get(&e);
         let (tec, _, _) = data.unwrap();
         for p in tec {
@@ -76,7 +76,7 @@ mod test {
             }
         }
         // epoch [N-2]
-        let e = Epoch::from_str("2022 1 2 23 0 0").unwrap();
+        let e = Epoch::from_gregorian_utc(2022, 1, 2, 23, 0, 0, 0);
         let data = record.get(&e);
         let (tec, _, _) = data.unwrap();
         for p in tec {
