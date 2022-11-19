@@ -12,187 +12,74 @@ mod test {
         let rinex = Rinex::from_file(&test_resource);
         assert_eq!(rinex.is_ok(), true);
         let rinex = rinex.unwrap();
-        assert_eq!(rinex.is_observation_rinex(), true);
-        assert_eq!(rinex.header.obs.is_some(), true);
-        assert_eq!(rinex.header.meteo.is_none(), true);
 
 		let obs_hd = rinex.header.obs.as_ref().unwrap();
 		let record = rinex.record.as_obs();
 		assert_eq!(record.is_some(), true);
 		let record = record.unwrap();
 
-		///////////////////////////
-		// This file is GPS only
-		///////////////////////////
-		let obscodes = obs_hd.codes.get(&Constellation::GPS);
-		assert_eq!(obscodes.is_some(), true);
-		let obscodes = obscodes.unwrap();
-		assert_eq!(obscodes, &vec![
-			String::from("L1"),
-			String::from("L2"),
-			String::from("C1"),
-			String::from("P1"),
-			String::from("P2")]);
-		
-		// test epoch [1]
-		let epoch = Epoch::from_str("2017 01 01 0 0 0.0").unwrap();
-		let epoch = record.get(&epoch);
-		assert_eq!(epoch.is_some(), true);
-		let (clk_offset, epoch) = epoch.unwrap();
-		assert_eq!(clk_offset.is_none(), true);
-		assert_eq!(epoch.len(), 10);
+		/*
+		 * this file is GPS only
+		 */
+		for (e, (clk_offset, vehicules)) in record {
+			assert!(clk_offset.is_none());
+			for (sv, _) in vehicules {
+				assert_eq!(sv.constellation, Constellation::GPS);
+			}
+		}
 
-		// G31
-		let sv = Sv {
-			constellation: Constellation::GPS,
-			prn: 31,
-		};
-		let observations = epoch.get(&sv);
-		assert_eq!(observations.is_some(), true);
-		let observations = observations.unwrap();
+		let epochs: Vec<Epoch> = vec![
+			Epoch::from_gregorian_utc(2017, 01, 01, 0, 0, 0, 0),
+			Epoch::from_gregorian_utc(2017, 01, 01, 3, 33, 40, 0),
+			Epoch::from_gregorian_utc(2017, 01, 01, 6, 9, 10, 0),
+		];
+		assert_eq!(rinex.epochs().len(), epochs.len());
 
-		// L1
-		let observed = observations.get(&String::from("L1"));
-		assert_eq!(observed.is_some(), true);
-		let observed = observed.unwrap();
-		assert_eq!(observed.obs, 0.0); //-14746974.730);
-		assert_eq!(observed.lli, Some(LliFlags::UNDER_ANTI_SPOOFING));
-		assert_eq!(observed.ssi, Some(Ssi::DbHz54));
-		// L2
-		let observed = observations.get(&String::from("L2"));
-		assert_eq!(observed.is_some(), true);
-		let observed = observed.unwrap();
-		assert_eq!(observed.obs, 0.0); //-11440396.209);
-		assert_eq!(observed.lli, Some(LliFlags::UNDER_ANTI_SPOOFING));
-		assert_eq!(observed.ssi, Some(Ssi::DbHz48_53));
-		// C1
-		let observed = observations.get(&String::from("C1"));
-		assert_eq!(observed.is_some(), true);
-		let observed = observed.unwrap();
-		assert_eq!(observed.obs, 22513484.637);
-		assert_eq!(observed.lli, Some(LliFlags::UNDER_ANTI_SPOOFING));
-		assert_eq!(observed.ssi.is_none(), true); 
-		// P1
-		let observed = observations.get(&String::from("P1"));
-		assert_eq!(observed.is_some(), true);
-		let observed = observed.unwrap();
-		assert_eq!(observed.obs, 22513484.772);
-		assert_eq!(observed.lli, Some(LliFlags::UNDER_ANTI_SPOOFING));
-		assert_eq!(observed.ssi.is_none(), true); 
-		// P2
-		let observed = observations.get(&String::from("P2"));
-		assert_eq!(observed.is_some(), true);
-		let observed = observed.unwrap();
-		assert_eq!(observed.obs, 22513487.370);
-		assert_eq!(observed.lli, Some(LliFlags::UNDER_ANTI_SPOOFING));
-		assert_eq!(observed.ssi.is_none(), true); 
+		for (index, (e, (_, vehicules))) in record.iter().enumerate() {
+			let keys: Vec<_> = vehicules.keys().collect();
+			if index == 0 {
+				assert_eq!(keys, vec![
+					&Sv::new(Constellation::GPS, 03),
+					&Sv::new(Constellation::GPS, 08),
+					&Sv::new(Constellation::GPS, 14),
+					&Sv::new(Constellation::GPS, 16),
+					&Sv::new(Constellation::GPS, 22),
+					&Sv::new(Constellation::GPS, 23),
+					&Sv::new(Constellation::GPS, 26),
+					&Sv::new(Constellation::GPS, 27),
+					&Sv::new(Constellation::GPS, 31),
+					&Sv::new(Constellation::GPS, 32),
+				]);
+			} else if index == 1 {
+				assert_eq!(keys, vec![
+					&Sv::new(Constellation::GPS, 01),
+					&Sv::new(Constellation::GPS, 07),
+					&Sv::new(Constellation::GPS, 08),
+					&Sv::new(Constellation::GPS, 09),
+					&Sv::new(Constellation::GPS, 11),
+					&Sv::new(Constellation::GPS, 16),
+					&Sv::new(Constellation::GPS, 23),
+					&Sv::new(Constellation::GPS, 27),
+					&Sv::new(Constellation::GPS, 30),
+				]);
+			} else if index == 2 {
+				assert_eq!(keys, vec![
+					&Sv::new(Constellation::GPS, 01),
+					&Sv::new(Constellation::GPS, 03),
+					&Sv::new(Constellation::GPS, 06),
+					&Sv::new(Constellation::GPS, 07),
+					&Sv::new(Constellation::GPS, 08),
+					&Sv::new(Constellation::GPS, 11),
+					&Sv::new(Constellation::GPS, 17),
+					&Sv::new(Constellation::GPS, 19),
+					&Sv::new(Constellation::GPS, 22),
+					&Sv::new(Constellation::GPS, 28),
+					&Sv::new(Constellation::GPS, 30),
+				]);
+			}
+		}
 
-        //G26
-		let sv = Sv {
-			constellation: Constellation::GPS,
-			prn: 26,
-		};
-		let observations = epoch.get(&sv);
-		assert_eq!(observations.is_some(), true);
-		let observations = observations.unwrap();
-
-		// L1
-		let observed = observations.get(&String::from("L1"));
-		assert_eq!(observed.is_some(), true);
-		let observed = observed.unwrap();
-		//assert_eq!(observed.obs, -15834397.660 - -14746974.730);
-		assert_eq!(observed.lli, Some(LliFlags::UNDER_ANTI_SPOOFING));
-		assert_eq!(observed.ssi, Some(Ssi::DbHz54));
-		// L2
-		let observed = observations.get(&String::from("L2"));
-		assert_eq!(observed.is_some(), true);
-		let observed = observed.unwrap();
-		//assert_eq!(observed.obs, -12290568.980 - -11440396.209);
-		assert_eq!(observed.lli, Some(LliFlags::UNDER_ANTI_SPOOFING));
-		assert_eq!(observed.ssi, Some(Ssi::DbHz54));
-		// C1
-		let observed = observations.get(&String::from("C1"));
-		assert_eq!(observed.is_some(), true);
-		let observed = observed.unwrap();
-		assert_eq!(observed.obs, 21540206.165);
-		assert_eq!(observed.lli, Some(LliFlags::UNDER_ANTI_SPOOFING));
-		assert_eq!(observed.ssi.is_none(), true); 
-		// P1
-		let observed = observations.get(&String::from("P1"));
-		assert_eq!(observed.is_some(), true);
-		let observed = observed.unwrap();
-		assert_eq!(observed.obs, 21540206.156);
-		assert_eq!(observed.lli, Some(LliFlags::UNDER_ANTI_SPOOFING));
-		assert_eq!(observed.ssi.is_none(), true); 
-		// P2
-		let observed = observations.get(&String::from("P2"));
-		assert_eq!(observed.is_some(), true);
-		let observed = observed.unwrap();
-		assert_eq!(observed.obs, 21540211.941);
-		assert_eq!(observed.lli, Some(LliFlags::UNDER_ANTI_SPOOFING));
-		assert_eq!(observed.ssi.is_none(), true); 
-
-		// test epoch [2]
-		let epoch = Epoch::from_str("2017 01 01 3 33 40.0").unwrap();
-		let epoch = record.get(&epoch);
-		assert_eq!(epoch.is_some(), true);
-		let (clk_offset, epoch) = epoch.unwrap();
-		assert_eq!(clk_offset.is_none(), true);
-		assert_eq!(epoch.len(), 9);
-		
-        // G30
-		let sv = Sv {
-			constellation: Constellation::GPS,
-			prn: 30,
-		};
-		let observations = epoch.get(&sv);
-		assert_eq!(observations.is_some(), true);
-		let observations = observations.unwrap();
-
-		// L1
-		let observed = observations.get(&String::from("L1"));
-		assert_eq!(observed.is_some(), true);
-		let observed = observed.unwrap();
-		//assert_eq!(observed.obs, -4980733.185); 
-		assert_eq!(observed.lli, Some(LliFlags::UNDER_ANTI_SPOOFING));
-		assert_eq!(observed.ssi, Some(Ssi::DbHz48_53));
-		// L2
-		let observed = observations.get(&String::from("L2"));
-		assert_eq!(observed.is_some(), true);
-		let observed = observed.unwrap();
-        //assert_eq!(observed.obs, -3805623.873);
-		assert_eq!(observed.lli, Some(LliFlags::UNDER_ANTI_SPOOFING));
-		assert_eq!(observed.ssi, Some(Ssi::DbHz42_47));
-		// C1
-		let observed = observations.get(&String::from("C1"));
-		assert_eq!(observed.is_some(), true);
-		let observed = observed.unwrap();
-		assert_eq!(observed.obs, 24352349.168);
-		assert_eq!(observed.lli, Some(LliFlags::UNDER_ANTI_SPOOFING));
-		assert_eq!(observed.ssi.is_none(), true); 
-		// P1
-		let observed = observations.get(&String::from("P1"));
-		assert_eq!(observed.is_some(), true);
-		let observed = observed.unwrap();
-		assert_eq!(observed.obs, 24352347.924);
-		assert_eq!(observed.lli, Some(LliFlags::UNDER_ANTI_SPOOFING));
-		assert_eq!(observed.ssi.is_none(), true); 
-        // P2
-		let observed = observations.get(&String::from("P2"));
-		assert_eq!(observed.is_some(), true);
-		let observed = observed.unwrap();
-		assert_eq!(observed.obs, 24352356.156);
-		assert_eq!(observed.lli, Some(LliFlags::UNDER_ANTI_SPOOFING));
-		assert_eq!(observed.ssi.is_none(), true); 
-		
-		// test epoch [3]
-		let epoch = Epoch::from_str("2017 01 01 6 9 10.0").unwrap();
-		let epoch = record.get(&epoch);
-		assert_eq!(epoch.is_some(), true);
-		let (clk_offset, epoch) = epoch.unwrap();
-		assert_eq!(clk_offset.is_none(), true);
-		assert_eq!(epoch.len(), 11);
-    }
+	}
 	#[test]
 	fn v2_npaz3550_21o() {
         let test_resource = 
@@ -209,7 +96,7 @@ mod test {
 		let record = rinex.record.as_obs();
 		assert_eq!(record.is_some(), true);
 		let record = record.unwrap();
-
+		
 		//////////////////////////////
 		// This file is GPS + GLONASS
 		//////////////////////////////
@@ -235,8 +122,9 @@ mod test {
 			String::from("S2")]);
 		
 		// test epoch [1]
-		let epoch = Epoch::from_str("2021 12 21 0 0 0.0").unwrap();
-		let epoch = record.get(&epoch);
+		let epoch = Epoch::from_gregorian_utc(2021, 12, 21, 0, 0, 0, 0);
+		let flag = EpochFlag::Ok;
+		let epoch = record.get(&(epoch, flag));
 		assert_eq!(epoch.is_some(), true);
 		let (clk_offset, epoch) = epoch.unwrap();
 		assert_eq!(clk_offset.is_none(), true);
@@ -350,7 +238,6 @@ mod test {
 		let record = rinex.record.as_obs();
 		assert_eq!(record.is_some(), true);
 		let record = record.unwrap();
-
 		//////////////////////////////
 		// This file is GPS + GLONASS
 		//////////////////////////////
@@ -387,8 +274,8 @@ mod test {
 			String::from("S5")]);
 		
 		// test epoch [1]
-		let epoch = Epoch::from_str("2021 01 01 0 0 0.0").unwrap();
-		let epoch = record.get(&epoch);
+		let epoch = Epoch::from_gregorian_utc(2021, 01, 01, 0, 0, 0, 0);
+		let epoch = record.get(&(epoch, EpochFlag::Ok));
 		assert_eq!(epoch.is_some(), true);
 		let (clk_offset, epoch) = epoch.unwrap();
 		assert_eq!(clk_offset.is_none(), true);
@@ -563,9 +450,8 @@ mod test {
         let record = record
             .unwrap();
         assert_eq!(record.len(), 3);
-		
-        let epoch = Epoch::from_str("2022 03 04 0 0 0.0").unwrap();
-        let e = record.get(&epoch);
+        let epoch = Epoch::from_gregorian_utc(2022, 03, 04, 0, 0, 0, 0);
+        let e = record.get(&(epoch, EpochFlag::Ok));
         assert_eq!(e.is_some(), true);
         let (clk, vehicules) = e.unwrap();
         assert_eq!(clk.is_none(), true);
@@ -619,15 +505,15 @@ mod test {
         assert_eq!(l1c.is_some(), true);
         let l1c = l1c.unwrap();
 
-        let epoch = Epoch::from_str("2022 03 04 00 28 30.0").unwrap();
-        let e = record.get(&epoch);
+        let epoch = Epoch::from_gregorian_utc(2022, 03, 04, 00, 28, 30, 00);
+        let e = record.get(&(epoch, EpochFlag::Ok));
         assert_eq!(e.is_some(), true);
         let (clk, vehicules) = e.unwrap();
         assert_eq!(clk.is_none(), true);
         assert_eq!(vehicules.len(), 17);
 		
-        let epoch = Epoch::from_str("2022 03 04 00 57 0.0").unwrap();
-        let e = record.get(&epoch);
+        let epoch = Epoch::from_gregorian_utc(2022, 03, 04, 00, 57, 0, 0);
+        let e = record.get(&(epoch, EpochFlag::Ok));
         assert_eq!(e.is_some(), true);
         let (clk, vehicules) = e.unwrap();
         assert_eq!(clk.is_none(), true);
@@ -663,27 +549,27 @@ mod test {
         assert_eq!(record.is_some(), true);
         let record = record.unwrap();
         // EPOCH[1]
-        let epoch = Epoch::from_str("2022 06 08 10 00 00.0000000").unwrap();
-        let epoch = record.get(&epoch);
+        let epoch = Epoch::from_gregorian_utc(2022, 06, 08, 10, 00, 00, 00);
+        let epoch = record.get(&(epoch, EpochFlag::Ok));
         assert_eq!(epoch.is_some(), true);
         let (clk_offset, epoch) = epoch.unwrap();
         assert_eq!(clk_offset.is_none(), true);
         assert_eq!(epoch.len(), 49);
         
         // EPOCH[2]
-        let epoch = Epoch::from_str("2022 06 08 10 00 30.0000000").unwrap();
-        let epoch = record.get(&epoch);
+        let epoch = Epoch::from_gregorian_utc(2022, 06, 08, 10, 00, 30, 00);
+        let epoch = record.get(&(epoch, EpochFlag::Ok));
         assert_eq!(epoch.is_some(), true);
         let (clk_offset, epoch) = epoch.unwrap();
         assert_eq!(clk_offset.is_none(), true);
         assert_eq!(epoch.len(), 49);
         
         // EPOCH[3]
-        let epoch = Epoch::from_str("2022 06 08 10 01 00.0000000").unwrap();
-        let epoch = record.get(&epoch);
+        let epoch = Epoch::from_gregorian_utc(2020, 6, 8, 10, 1, 0, 00);
+        let epoch = record.get(&(epoch, EpochFlag::Ok));
         assert_eq!(epoch.is_some(), true);
         let (clk_offset, epoch) = epoch.unwrap();
         assert_eq!(clk_offset.is_none(), true);
         assert_eq!(epoch.len(), 47);
-    }
+	}
 }
