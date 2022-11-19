@@ -25,10 +25,11 @@ receiver and generates RINEX data quickly & easily.
 It is the combination of the [ublox](https://github.com/lkolbly/ublox) crate
 and [rinex](rinex/) crates.
 
-By default all timestamps are in UTC. Leap seconds are accounted for.
+By default all timestamps are in UTC with leap seconds correctly managed.
 
-:warning: This library will not parse correctly RINEX files that were generated prior Jan 1 2000.   
-Regardless of their RINEX revision.
+:warning: For RINEX files generated prior Jan 1 2000,
+we falsely identify the epochs in the 21st century. This is due to a +2000 
+offset that we hardcode when YY is encoded on two digits, to avoid internal panic.
 
 ## Supported `RINEX` types
 
