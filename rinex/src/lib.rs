@@ -259,20 +259,6 @@ impl Rinex {
     /// This has no effect if self is not an Observation RINEX.
     pub fn rnx2crnx(&mut self) {
         if self.is_observation_rinex() {
-            let version: Version = match self.header.version.major < 3 { 
-                true => {
-                    Version {
-                        major: 1,
-                        minor: 0,
-                    }
-                },
-                false => {
-                    Version {
-                        major: 3,
-                        minor: 0,
-                    }
-                },
-            };
             self.header = self.header
                 .with_crinex(Crinex::default());
         }
@@ -290,7 +276,7 @@ impl Rinex {
                         minor: 0,
                     },
                     date: epoch::now(),
-                    prog: "rust-crinex".to_string(),
+                    prog: format!("rust-rinex-{}", env!("CARGO_PKG_VERSION")),
                 });
         }
     }
