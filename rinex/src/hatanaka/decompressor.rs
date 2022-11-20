@@ -155,6 +155,21 @@ impl Decompressor {
         }
     }
 
+	fn parse_flags(&mut self, sv: &Sv, content: &str) {
+		println!("FLAGS: \"{}\"", content); // DEBUG
+		for pos in 0..content.len()/2 { // ssi,lli pairs
+			if let Some(sv_diff) = self.sv_diff.get_mut(sv) {
+				if let Some(sv_obs) = sv_diff.get_mut(pos) {
+					let _ = sv_obs.1.decompress(&content[pos..pos+1]);
+					// ssi flag might be non existing here
+					if content.len() > pos+1 {
+						let _ = sv_obs.2.decompress(&content[pos+1..pos+2]);
+					}
+				}
+			}
+		}
+	}
+
     fn current_satellite(&self, crx_major: u8, crx_constellation: &Constellation, sv_ptr: usize) -> Option<Sv> {
         let epoch = &self.epoch_descriptor;
         let mut offset : usize =
@@ -437,7 +452,7 @@ impl Decompressor {
                                 /*
                                  * try to parse 1 observation
                                  */
-                                println!("END OF pos.find() : \"{}\"", line); //DEBUG
+                                println!("EOL: \"{}\"", line); //DEBUG
                                 if let Some(sv_diff) = self.sv_diff.get_mut(&sv) {
                                     if line.contains("&") { // kernel init requested
                                         let index = line.find("&")
@@ -465,9 +480,10 @@ impl Decompressor {
                         /*
                          * Flags field
                          */
-                        //TODO
-                        //println!("FLAGS - \"{}\"", line); //DEBUG
-
+						if line.len() > 1 { // can parse flags
+							// one extra whitespace prior flags
+							self.parse_flags(&sv, line); //&line[1..]);
+						}
                         /*
                          * group previously parsed observations,
                          *   into a single formatted line

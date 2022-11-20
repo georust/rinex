@@ -73,8 +73,8 @@ mod test {
             ("zegv0010.21d", "zegv0010.21o"),
             //("AJAC3550.21D", "AJAC3550.21O"), 
             //("aopr0010.17d", "aopr0010.17o"),
-            ("npaz3550.21d", "npaz3550.21o"),
-            ("pdel0010.21d", "pdel0010.21o"),
+            //("npaz3550.21d", "npaz3550.21o"),
+            //("pdel0010.21d", "pdel0010.21o"),
             //("wsra0010.21d", "wsra0010.21o"),
         ];
         for duplet in pool {
@@ -94,17 +94,17 @@ mod test {
                 assert_eq!(infos.version.major, 1);
                 assert_eq!(infos.version.minor, 0);
                 assert_eq!(infos.prog, "RNX2CRX ver.4.0.7");
-                assert_eq!(infos.date, hifitime::Epoch::from_gregorian_utc(2021, 01, 02, 00, 01, 00, 00));
+                assert_eq!(infos.date, Epoch::from_gregorian_utc(2021, 01, 02, 00, 01, 00, 00));
             } else if crnx_name.eq("npaz3550.21d") {
                 assert_eq!(infos.version.major, 1);
                 assert_eq!(infos.version.minor, 0);
                 assert_eq!(infos.prog, "RNX2CRX ver.4.0.7");
-                assert_eq!(infos.date, hifitime::Epoch::from_gregorian_utc(2021, 12, 28, 00, 18, 00, 00));
+                assert_eq!(infos.date, Epoch::from_gregorian_utc(2021, 12, 28, 00, 18, 00, 00));
             } else if crnx_name.eq("pdel0010.21d") {
                 assert_eq!(infos.version.major, 1);
                 assert_eq!(infos.version.minor, 0);
                 assert_eq!(infos.prog, "RNX2CRX ver.4.0.7");
-                assert_eq!(infos.date, hifitime::Epoch::from_gregorian_utc(2021, 01, 09, 00, 24, 00, 00));
+                assert_eq!(infos.date, Epoch::from_gregorian_utc(2021, 01, 09, 00, 24, 00, 00));
             }
 
             // convert to RINEX
@@ -153,28 +153,119 @@ mod test {
                 String::from("S2")
             ]);
         let content = "21  1  1  0  0  0.0000000  0 20G07G23G26G20G21G18R24R09G08G27G10G16R18G13R01R16R17G15R02R15";
-        let header = Header::basic_obs()
-            .with_version(Version {
-                major: 2,
-                minor: 11,
-            })
-            .with_constellation(Constellation::Mixed)
-            .with_observation_fields(HeaderFields {
-                codes: obscodes.clone(), 
-                crinex: Some(Crinex {
-                    version: Version {
-                        major: 1,
-                        minor: 0,
-                    },
-                    prog: "testing".to_string(),
-                    date: hifitime::Epoch::now().unwrap(),
-                }),
-                clock_offset_applied: false,
-                dcb_compensations: Vec::new(),
-                scalings: HashMap::new(),
-            });
         let mut decompressor = Decompressor::new();
-        let decompressed = decompressor.decompress(&header, content);
-        assert_eq!(decompressed.is_err(), true);
+		assert!(decompressor.decompress(1, &Constellation::Mixed, 2, &obscodes, content).is_err());
     }
+	#[test]
+	fn zegv0010_21d() {
+		let rnx = Rinex::from_file("../test_resources/CRNX/V1/zegv0010.21d")
+			.unwrap();
+		let epochs = vec![
+			Epoch::from_gregorian_utc(2021, 01, 01, 00, 00, 00, 00),
+		];
+		assert_eq!(rnx.epochs(), epochs);
+		let record = rnx.record.as_obs().unwrap();
+
+		for (index, ((e, flag), (clk_offset, vehicules))) in record.iter().enumerate() {
+			assert!(flag.is_ok());
+			assert!(clk_offset.is_none());
+			if index == 0 {
+				assert_eq!(vehicules.len(), 24);
+				for (sv, observations) in vehicules {
+					if *sv == Sv::new(Constellation::GPS, 07) {
+						let mut keys: Vec<_> = observations.keys().collect();
+						keys.sort();
+						assert_eq!(keys,
+							vec!["C1","C2", "L1","L2","P1","P2","S1","S2"]);
+						let c1 = observations.get("C1")
+							.unwrap();
+						assert_eq!(c1.obs, 24178026.635);
+						let c2 = observations.get("C2")
+							.unwrap();
+						assert_eq!(c2.obs, 24178024.891);
+						let l1 = observations.get("L1")
+							.unwrap();
+						assert_eq!(l1.obs, 127056391.699); 
+						let l2 = observations.get("L2")
+							.unwrap();
+						assert_eq!(l2.obs, 99004963.017); 
+						let p1 = observations.get("P1")
+							.unwrap();
+						assert_eq!(p1.obs, 24178026.139); 
+						let p2 = observations.get("P2")
+							.unwrap();
+						assert_eq!(p2.obs, 24178024.181); 
+						let s1 = observations.get("S1")
+							.unwrap();
+						assert_eq!(s1.obs, 38.066); 
+						let s2 = observations.get("S2")
+							.unwrap();
+						assert_eq!(s2.obs, 22.286); 
+					} else if *sv == Sv::new(Constellation::GPS, 08) {
+						let mut keys: Vec<_> = observations.keys().collect();
+						keys.sort();
+						assert_eq!(keys,
+							vec!["C1","C2","C5", "L1","L2","L5","P1","P2","S1","S2","S5"]);
+						let c1 = observations.get("C1")
+							.unwrap();
+						assert_eq!(c1.obs, 21866748.928);
+						let c2 = observations.get("C2")
+							.unwrap();
+						assert_eq!(c2.obs, 21866750.407);
+						let c5 = observations.get("C5")
+							.unwrap();
+						assert_eq!(c5.obs, 21866747.537);
+						let l1 = observations.get("L1")
+							.unwrap();
+						assert_eq!(l1.obs,114910552.082 ); 
+						let l2 = observations.get("L2")
+							.unwrap();
+						assert_eq!(l2.obs, 89540700.326); 
+						let l5 = observations.get("L5")
+							.unwrap();
+						assert_eq!(l5.obs, 85809828.276);
+						let p1 = observations.get("P1")
+							.unwrap();
+						assert_eq!(p1.obs, 21866748.200); 
+						let p2 = observations.get("P2")
+							.unwrap();
+						assert_eq!(p2.obs, 21866749.482); 
+						let s1 = observations.get("S1")
+							.unwrap();
+						assert_eq!(s1.obs, 45.759); 
+						let s2 = observations.get("S2")
+							.unwrap();
+						assert_eq!(s2.obs, 49.525); 
+						let s5 = observations.get("S5")
+							.unwrap();
+						assert_eq!(s5.obs, 52.161);
+					} else if *sv == Sv::new(Constellation::GPS, 13) {
+						let mut keys: Vec<_> = observations.keys().collect();
+						keys.sort();
+						assert_eq!(keys,
+							vec!["C1", "L1","L2","P1","P2","S1","S2"]);
+						//let c1 = observations.get("C1")
+						//	.unwrap();
+						//assert_eq!(s2.obs, 49.525); 
+//  25107711.730 5                                 131941919.38305 102811868.09001
+//                  25107711.069 1  25107709.586 1        33.150           8.952  
+						let c1 = observations.get("C1").unwrap();
+						assert_eq!(c1.obs, 25107711.730);
+						let l1 = observations.get("L1").unwrap();
+						assert_eq!(l1.obs, 131941919.383);
+						let l2 = observations.get("L2").unwrap();
+						assert_eq!(l2.obs, 102811868.090);
+						let p1 = observations.get("P1").unwrap();
+						assert_eq!(p1.obs, 25107711.069);
+						let p2 = observations.get("P2").unwrap();
+						assert_eq!(p2.obs, 25107709.586);
+						let s1 = observations.get("S1").unwrap();
+						assert_eq!(s1.obs, 33.150);
+						let s2 = observations.get("S2").unwrap();
+						assert_eq!(s2.obs, 8.952);
+					}
+				}
+			}
+		}
+	}
 }
