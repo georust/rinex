@@ -95,7 +95,6 @@ impl std::str::FromStr for Leap {
 mod test {
     use super::*;
     use std::str::FromStr;
-    use hifitime::TimeScale;
     #[test]
     fn basic_format() {
         let content = "18";
