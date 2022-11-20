@@ -4,6 +4,39 @@ mod test {
     use std::str::FromStr;
     use rinex::constellation::Constellation;
 	use rinex::observation::{LliFlags, Ssi};
+	/*
+	 * General testbench
+	 * shared accross all Observation files
+	 */
+	fn testbench(rnx: &Rinex, major: u8, minor: u8, c: Constellation, epochs: Vec<Epoch>) {
+		// must have dedicated fields
+		assert!(rnx.header.obs.is_some());	
+		/*
+		 * Test epoch parsing and identification
+		 */
+		assert_eq!(rnx.epochs(), epochs);
+		/*
+		 * Test Record content
+		 */
+		let record = rnx.record.as_obs(); 
+		assert!(record.is_some());
+		let record = record.unwrap();
+		assert!(record.len() > 0);
+		for ((_, _), (clk_offset, vehicules)) in record {
+			/*
+			 * We don't have any files with clock offsets as of today
+			 */
+			assert!(clk_offset.is_none());
+			/*
+			 * test GNSS identification
+			 */
+			if c != Constellation::Mixed {
+				for (sv, _) in vehicules {
+					assert_eq!(sv.constellation, c);
+				}
+			}
+		}
+	}
     #[test]
     fn v2_aopr0010_17o() {
         let test_resource = 
@@ -12,28 +45,14 @@ mod test {
         let rinex = Rinex::from_file(&test_resource);
         assert_eq!(rinex.is_ok(), true);
         let rinex = rinex.unwrap();
-
-		let obs_hd = rinex.header.obs.as_ref().unwrap();
-		let record = rinex.record.as_obs();
-		assert_eq!(record.is_some(), true);
-		let record = record.unwrap();
-
-		/*
-		 * this file is GPS only
-		 */
-		for (e, (clk_offset, vehicules)) in record {
-			assert!(clk_offset.is_none());
-			for (sv, _) in vehicules {
-				assert_eq!(sv.constellation, Constellation::GPS);
-			}
-		}
-
+		
 		let epochs: Vec<Epoch> = vec![
 			Epoch::from_gregorian_utc(2017, 01, 01, 0, 0, 0, 0),
 			Epoch::from_gregorian_utc(2017, 01, 01, 3, 33, 40, 0),
 			Epoch::from_gregorian_utc(2017, 01, 01, 6, 9, 10, 0),
 		];
-		assert_eq!(rinex.epochs().len(), epochs.len());
+		testbench(&rinex, 2, 11, Constellation::GPS, epochs);
+		let record = rinex.record.as_obs().unwrap();
 
 		for (index, (e, (_, vehicules))) in record.iter().enumerate() {
 			let keys: Vec<_> = vehicules.keys().collect();
@@ -88,9 +107,7 @@ mod test {
         let rinex = Rinex::from_file(&test_resource);
         assert_eq!(rinex.is_ok(), true);
         let rinex = rinex.unwrap();
-        assert_eq!(rinex.is_observation_rinex(), true);
-        assert_eq!(rinex.header.obs.is_some(), true);
-        assert_eq!(rinex.header.meteo.is_none(), true);
+		//testbench(&rinex, 2, 11, Constellation::Mixed, epochs);
 
 		let obs_hd = rinex.header.obs.as_ref().unwrap();
 		let record = rinex.record.as_obs();
