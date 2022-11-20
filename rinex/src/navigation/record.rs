@@ -8,6 +8,7 @@ use std::collections::BTreeMap;
 use crate::{
 	sv,
 	epoch, 
+	types::Type,
     prelude::*,
 	version::Version,
     merge, merge::Merge,
@@ -440,11 +441,7 @@ fn fmt_epoch_v2v3 (
                         panic!("producing data with no constellation previously defined");
                     },
                 }
-                if header.version.major < 3 {
-                    lines.push_str(&format!("{:e} ", epoch));
-                } else {
-                    lines.push_str(&format!("{:E} ", epoch));
-                }
+				lines.push_str(&format!("{} ", epoch::format(*epoch, None, Type::NavigationData, header.version.major)));
                 lines.push_str(&format!(
                     "{:14.12E} {:14.12E} {:14.12E}\n   ",
                     ephemeris.clock_bias,
@@ -534,9 +531,9 @@ fn fmt_epoch_v4 (
                     },
                     None => panic!("producing data with no constellation previously defined"),
                 }
+				lines.push_str(&format!("{} ", epoch::format(*epoch, None, Type::NavigationData, header.version.major)));
                 lines.push_str(&format!(
-                    "{:E} {:14.13E} {:14.13E} {:14.13E}\n", 
-                    epoch,
+                    "{:14.13E} {:14.13E} {:14.13E}\n", 
                     ephemeris.clock_bias, 
                     ephemeris.clock_drift, 
                     ephemeris.clock_drift_rate));
@@ -624,7 +621,6 @@ fn fmt_epoch_v4 (
 #[cfg(test)]
 mod test {
     use super::*;
-	use crate::EpochFlag;
     #[test]
     fn test_is_new_epoch() {
         // NAV V<3

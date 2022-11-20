@@ -4,6 +4,7 @@ use std::collections::{BTreeMap, HashMap};
 use crate::{
     epoch,
     version,
+	types::Type,
     prelude::*,
     merge, merge::Merge,
     split, split::Split,
@@ -126,11 +127,7 @@ pub (crate)fn fmt_epoch (
         header: &Header, 
     ) -> Result<String, Error>  {
     let mut lines = String::with_capacity(128);
-    if header.version.major > 3 {
-        lines.push_str(&format!(" {:E}", epoch));
-    } else {
-        lines.push_str(&format!(" {:e}", epoch)); 
-    }
+	lines.push_str(&format!(" {}", epoch::format(*epoch, None, Type::MeteoData, header.version.major)));
     let observables = &header
         .meteo
         .as_ref()
