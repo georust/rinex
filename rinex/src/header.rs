@@ -3,7 +3,6 @@
 use super::*;
 use crate::{
     epoch,
-    hardware,
     hardware::{
         Rcvr,
         Antenna,

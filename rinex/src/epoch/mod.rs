@@ -6,9 +6,6 @@ use crate::types::Type;
 pub mod flag;
 pub use flag::EpochFlag;
 
-#[cfg(feature = "serde")]
-use serde::{Serialize, Deserialize};
-
 #[derive(Error, Debug)]
 pub enum Error {
     #[error("failed to parse epoch flag")]
