@@ -33,7 +33,6 @@ pub struct Decompressor {
     first_epoch: bool,
     /// Epoch differentiator 
     epoch_diff: TextDiff,
-    /// recovered epoch
     /// recovered but unformatted CRINEX is stored
     /// because it is particularly easy to parse to identify sv.
     /// It still needs to be formatted for the final result though.
@@ -68,25 +67,33 @@ fn format_epoch (version: u8, content: &str, clock_offset: Option<i64>) -> Resul
             //CRINEX has systems squashed in a single line
             // we just split it to match standard definitions
             // .. and don't forget the tab
-            for i in 0..num_integer::div_ceil(systems.len(), 36) {
-                if i > 0 { // tab indent
-                    // TODO: improve please
-                    result.push_str("\n                                ");
+            for i in 0..systems.len() / 36 { //num_integer::div_ceil(systems.len(), 36) { //nb of lines
+                if i > 0 { 
+                    // tab indent
+                    result.push_str("\n                                "); //TODO: improve this please
                 }
-
-                let max_offset = std::cmp::min( // avoids overflowing
-                    (i+1)*36,
-                    systems.len(),
-                );
-                result.push_str(&systems[
-                    i*36 .. max_offset]);
-                
+                /*
+                 * avoids overflowing
+                 */
+                let max_offset = std::cmp::min((i+1)*36, systems.len());
+                result.push_str(&systems[i*36 .. max_offset]);
+                /*
+                 * on first line, squeeze clock offset if any
+                 */
                 if i == 0 { // first line, 
-                    // squeeze clock offset here, if any
                     if let Some(value) = clock_offset {
                         result.push_str(&format!("  {:3.9}", (value as f64)/1000.0_f64))
                     }
                 }
+            }
+            let remainder = systems.len().rem_euclid(36);
+            if remainder > 0 {
+                // got some leftovers   
+                if systems.len() > 36 {
+                    // tab indent
+                    result.push_str("\n                                "); //TODO: improve this please
+                }
+                result.push_str(&systems[remainder..]);
             }
         },
         _ => { // Modern RINEX case
@@ -200,7 +207,6 @@ impl Decompressor {
         let system = epoch.split_at(offset.into()).0;
         let (_, svnn) = system.split_at(system.len()-3); // last 3 XXX
         let svnn = svnn.trim();
-        println!("SVNN - \"{}\"", svnn); // DEBUG
         match crx_major > 2 {
             false => { // OLD
                 match crx_constellation {
@@ -214,7 +220,7 @@ impl Decompressor {
                     },
                     constellation => {
                         // OLD + FIXED: constellation might be omitted.......
-                        if let Ok(prn) = u8::from_str_radix(&svnn[1..], 10) {
+                        if let Ok(prn) = u8::from_str_radix(&svnn[1..].trim(), 10) {
                             Some(Sv {
                                 prn,
                                 constellation: *constellation,
@@ -374,6 +380,7 @@ impl Decompressor {
                      * identify satellite we're dealing with
                      */
                     if let Some(sv) = self.current_satellite(crx_major, &crx_constell, self.sv_ptr) {
+                        println!("SV: {:?}", sv); //DEBUG
                         self.sv_ptr += 1; // increment for next time
                                     // vehicules are always described in a single line
                         if rnx_major > 2 {
@@ -473,6 +480,7 @@ impl Decompressor {
                                         }
                                     }
                                 }//svdiff
+                                line = ""; // avoid flags parsing: all flags omitted <=> content unchanged
                                 obs_ptr = codes.len();
                             }//EOL
                         }//while()
