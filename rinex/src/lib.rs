@@ -1321,7 +1321,9 @@ impl Rinex {
         map
     }
 
-    /// Returns list of space vehicules encountered in this file
+    /// Returns list of space vehicules encountered in this file.
+    /// For Clocks RINEX: returns list of Vehicules used as reference
+    /// in the record.
     /// ```
     /// let rnx = Rinex::from_file("../test_resources/OBS/V2/aopr0010.17o")
     ///     .unwrap();
@@ -1342,41 +1344,37 @@ impl Rinex {
     pub fn space_vehicules(&self) -> Vec<Sv> {
         let mut map: Vec<Sv> = Vec::new();
         if let Some(r) = self.record.as_nav() {
-            for (_, classes) in r.iter() {
-                for (class, frames) in classes.iter() {
+            for (_, classes) in r {
+                for (class, frames) in classes {
                     if *class == navigation::FrameClass::Ephemeris {
                         for frame in frames {
                             let (_, sv, _) = frame.as_eph().unwrap();
                             if !map.contains(&sv) {
-                                map.push(sv.clone());
+                                map.push(*sv);
                             }
                         }
                     }
                 }
             }
         } else if let Some(r) = self.record.as_obs() {
-            for (_, (_, vehicules)) in r.iter() {
-                for (sv, _) in vehicules.iter() {
+            for (_, (_, vehicules)) in r {
+                for (sv, _) in vehicules {
                     if !map.contains(&sv) {
-                        map.push(sv.clone());
+                        map.push(*sv);
                     }
                 }
             }
-        }
-        map.sort();
-        map
-    }
-
-    /// List systems contained in this Clocks RINEX,
-    /// system can either a station or a space vehicule
-    pub fn list_clock_systems(&self) -> Vec<clocks::record::System> {
-        let mut map: Vec<clocks::record::System> = Vec::new();
-        if let Some(r) = self.record.as_clock() {
-            for (_, dtypes) in r.iter() {
-                for (_dtype, systems) in dtypes.iter() {
-                    for (system, _) in systems.iter() {
-                        if !map.contains(&system) {
-                            map.push(system.clone())
+        } else if let Some(r) = self.record.as_clock() {
+            for (_, dtypes) in r {
+                for (_, systems) in dtypes {
+                    for (system, _) in systems {
+                        match system {
+                            clocks::System::Sv(sv) => {
+                                if !map.contains(sv) {
+                                    map.push(*sv);
+                                }
+                            },
+                            _ => {},
                         }
                     }
                 }
@@ -1386,9 +1384,52 @@ impl Rinex {
         map
     }
 
+    /// List clocks::System contained in this Clocks RINEX.
+    /// Reference systems can either be a Satellite vehicule
+    /// or a ground station.
+    pub fn clock_ref_systems(&self) -> Vec<clocks::record::System> { 
+        let mut map: Vec<clocks::record::System> = Vec::new();
+        if let Some(r) = self.record.as_clock() {
+            for (_, dtypes) in r {
+                for (_dtype, systems) in dtypes {
+                    for (system, _) in systems {
+                        if !map.contains(&system) {
+                            map.push(system.clone());
+                        }
+                    }
+                }
+            }
+        }
+        map.sort();
+        map
+    }
+
+    /// List reference ground stations used in this Clock RINEX.
+    /// To list reference Satellite vehicule, simply use [Rinex::space_vehicules].
+    pub fn clock_ref_stations(&self) -> Vec<String> {
+        let mut ret: Vec<String> = Vec::with_capacity(32);
+        if let Some(r) = self.record.as_clock() {
+            for (_, dtypes) in r {
+                for (_, systems) in dtypes {
+                    for (system, _) in systems {
+                        match system {
+                            clocks::System::Station(station) => {
+                                if !ret.contains(station) {
+                                    ret.push(station.clone());
+                                }
+                            },
+                            _ => {},
+                        }
+                    }
+                }
+            }
+        }
+        ret
+    }
+
     /// Lists systems contained in this Clocks RINEX,
-    /// on an epoch basis. Systems can either be a station or a space vehicule.
-    pub fn clock_systems_per_epoch(&self) -> BTreeMap<Epoch, Vec<clocks::record::System>> {
+    /// on an epoch basis. Systems can either be a ground station or a satellite vehicule.
+    pub fn clock_ref_systems_per_epoch(&self) -> BTreeMap<Epoch, Vec<clocks::record::System>> {
         let mut map: BTreeMap<Epoch, Vec<clocks::record::System>> = BTreeMap::new();
         if let Some(r) = self.record.as_clock() {
             for (epoch, dtypes) in r.iter() {
