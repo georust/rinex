@@ -68,7 +68,12 @@ pub fn main() -> Result<(), rinex::Error> {
      */
     if cli.sv_epoch() {
         analysis::sv_epoch::analyze(&rnx, &mut nav_context, cli.plot_dimensions());
-        return Ok(());
+    }
+    /*
+     * Epoch histogram analysis
+     */
+    if cli.epoch_histogram() {
+        analysis::epoch_histogram(&rnx, cli.plot_dimensions());
     }
 
     /*

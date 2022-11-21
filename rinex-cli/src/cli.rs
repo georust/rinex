@@ -55,6 +55,10 @@ impl Cli {
 Useful graph to determine unexpected and determine vehicules of interest, inside this record.
 When both `--fp` and extra Navigation Context (`--nav`) are provided,
 this emphasizes epochs where vehicules were sampled on both contexts."))
+                    .arg(Arg::new("epoch-hist")
+                        .long("epoch-hist")
+                        .action(ArgAction::SetTrue)
+                        .help("Epoch duration histogram (graphical) analysis."))
                     .arg(Arg::new("header")
                         .long("header")
                         .action(ArgAction::SetTrue)
@@ -343,6 +347,10 @@ Example \"--plot-height 1024"))
     /// Returns true if Sv accross epoch display is requested 
     pub fn sv_epoch(&self) -> bool {
         self.matches.get_flag("sv-epoch")
+    }
+    /// Epoch interval (histogram) analysis
+    pub fn epoch_histogram(&self) -> bool {
+        self.matches.get_flag("epoch-hist")
     }
     /// Phase /PR DCBs analysis requested 
     pub fn dcb(&self) -> bool {
