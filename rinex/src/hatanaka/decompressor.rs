@@ -96,7 +96,6 @@ fn format_epoch (version: u8, content: &str, clock_offset: Option<i64>) -> Resul
             }
             let (epoch, _) = content.split_at(35); 
             result.push_str(epoch);
-            
             //TODO clock offset
             if let Some(value) = clock_offset {
                 result.push_str(&format!("         {:3.12}", (value as f64)/1000.0_f64))
@@ -157,13 +156,13 @@ impl Decompressor {
 
 	fn parse_flags(&mut self, sv: &Sv, content: &str) {
 		println!("FLAGS: \"{}\"", content); // DEBUG
-		for pos in 0..content.len()/2 { // ssi,lli pairs
+		for pos in 0..content.len()/2 { // {ssi, lli} pairs
 			if let Some(sv_diff) = self.sv_diff.get_mut(sv) {
 				if let Some(sv_obs) = sv_diff.get_mut(pos) {
-					let _ = sv_obs.1.decompress(&content[pos..pos+1]);
+					let _ = sv_obs.1.decompress(&content[(pos*2)..(pos*2)+1]);
 					// ssi flag might be non existing here
-					if content.len() > pos+1 {
-						let _ = sv_obs.2.decompress(&content[pos+1..pos+2]);
+					if content.len() > 2*pos+1 {
+						let _ = sv_obs.2.decompress(&content[(2*pos)+1..(2*pos)+2]);
 					}
 				}
 			}
@@ -480,9 +479,8 @@ impl Decompressor {
                         /*
                          * Flags field
                          */
-						if line.len() > 1 { // can parse flags
-							// one extra whitespace prior flags
-							self.parse_flags(&sv, line); //&line[1..]);
+						if line.len() > 1 { // can parse at least 1 flag
+							self.parse_flags(&sv, line);
 						}
                         /*
                          * group previously parsed observations,
@@ -525,7 +523,7 @@ impl Decompressor {
                     // end of line parsing
                     //  if sv_ptr has reached the expected amount of vehicules
                     //  we reset and move back to state (1)
-                    if self.sv_ptr == self.nb_sv {
+                    if self.sv_ptr >= self.nb_sv {
                         self.state = State::EpochDescriptor;
                     }
                 }//current_satellite()
