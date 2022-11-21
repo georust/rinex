@@ -65,7 +65,15 @@ pub (crate)fn format(epoch: Epoch, flag: Option<EpochFlag>, t: Type, revision: u
                     y, m, d, hh, mm, ss)
             }
         },
-        _ => format!("{:04} {:>2} {:>2} {:>2} {:>2} {:>2}", y, m, d, hh, mm, ss),
+        _ => {
+            if revision < 3 {
+                format!("{:02} {:>2} {:>2} {:>2} {:>2} {:>2}",
+                    y-2000, m, d, hh, mm, ss)
+                
+            } else {
+                format!("{:04} {:>2} {:>2} {:>2} {:>2} {:>2}", y, m, d, hh, mm, ss)
+            }
+        },
     }
 }
 

@@ -630,7 +630,9 @@ fn fmt_epoch_v3(
         .as_ref()
         .unwrap()
         .codes;
-    lines.push_str(&format!("> {}  {} {:2}", epoch, flag, data.len()));
+    lines.push_str(&format!("> {}  {:2}", 
+        epoch::format(epoch, Some(flag), Type::ObservationData, 3), 
+        data.len()));
     if let Some(data) = clock_offset {
         lines.push_str(&format!("{:13.4}", data)); 
     }
