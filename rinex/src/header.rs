@@ -1720,7 +1720,7 @@ impl std::fmt::Display for Header {
 
             // possible timescale
             if let Some(ts) = clocks.timescale {
-                write!(f, "   {:?}                                                     TIME SYSTEM ID\n", ts)?; 
+                write!(f, "   {:x}                                                     TIME SYSTEM ID\n", ts)?; 
             }
             // possible reference agency 
             if let Some(agency) = &clocks.agency {
