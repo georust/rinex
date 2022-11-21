@@ -37,7 +37,7 @@ use hifitime::Duration;
 #[derive(PartialEq, PartialOrd)]
 #[derive(Eq, Ord)]
 #[derive(EnumString)]
-#[cfg_attr(feature = "serde", derive(Serialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum FrameClass {
     #[strum(serialize = "EPH")]
     Ephemeris,
@@ -71,12 +71,16 @@ impl std::fmt::Display for FrameClass {
 #[derive(PartialEq, PartialOrd)]
 #[derive(Eq, Ord)]
 #[derive(EnumString)]
-#[cfg_attr(feature = "serde", derive(Serialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum MsgType {
     /// Legacy NAV
     LNAV,
     /// FDMA
     FDMA,
+    /// FNAV
+    FNAV,
+    /// INAV
+    INAV,
     /// IFNV,
     IFNV,
     /// D1
@@ -101,6 +105,8 @@ impl std::fmt::Display for MsgType {
     fn fmt (&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             Self::LNAV => f.write_str("LNAV"),
+            Self::FNAV => f.write_str("FNAV"),
+            Self::INAV => f.write_str("INAV"),
             Self::FDMA => f.write_str("FDMA"),
             Self::IFNV => f.write_str("IFNV"),
             Self::D1 => f.write_str("D1"),

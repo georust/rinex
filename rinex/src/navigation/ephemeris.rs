@@ -186,7 +186,7 @@ impl Ephemeris {
 
 		let (svnn, rem) = line.split_at(4);
 		let sv = Sv::from_str(svnn.trim())?;
-		let (epoch, rem) = rem.split_at(20);
+		let (epoch, rem) = rem.split_at(19);
 		let (epoch, _) = epoch::parse(epoch.trim())?;
 
 		let (clk_bias, rem) = rem.split_at(19);

@@ -1,6 +1,8 @@
 use thiserror::Error;
 use std::str::FromStr;
-use crate::epoch;
+use crate::{
+    epoch,
+};
 use hifitime::Epoch;
 
 /// Parsing error

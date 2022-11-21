@@ -1,5 +1,6 @@
 #[cfg(test)]
 mod test {
+    use itertools::*;
     use rinex::prelude::*;
     use std::str::FromStr;
     use rinex::navigation::*;
@@ -335,7 +336,7 @@ mod test {
         assert_eq!(rinex.header.meteo.is_none(), true);
         let record = rinex.record.as_nav();
         assert_eq!(record.is_some(), true);
-        let mut epochs : Vec<Epoch> = vec![
+        let epochs : Vec<Epoch> = vec![
 Epoch::from_gregorian_utc(2022, 06 ,08 ,10 ,00 ,00,00),
 Epoch::from_gregorian_utc(2022, 06 ,08 ,10 ,00 ,00,00),
 Epoch::from_gregorian_utc(2022, 06 ,08 ,10 ,00 ,00,00),
@@ -349,6 +350,12 @@ Epoch::from_gregorian_utc(2022, 06 ,08 ,10 ,00 ,00,00),
 Epoch::from_gregorian_utc(2022, 06 ,08 ,10 ,44 ,32,00),
 Epoch::from_gregorian_utc(2022, 06 ,08 ,10 ,00 ,00,00),
 Epoch::from_gregorian_utc(2022, 06 ,08 ,09 ,59 ,44,00),
+Epoch::from_gregorian_utc(2022, 06 ,08 ,09 ,59 ,57,00),
+Epoch::from_gregorian_utc(2022, 06 ,08 ,09 ,59 ,12,00),
+Epoch::from_gregorian_utc(2022, 06 ,08 ,09 ,59 ,50,00),
+Epoch::from_gregorian_utc(2022, 06 ,08 ,09 ,59 ,44,00),
+Epoch::from_gregorian_utc(2022, 06 ,08 ,09 ,59 ,48,00),
+Epoch::from_gregorian_utc(2022, 06 ,08 ,09 ,59 ,57,00),
 Epoch::from_gregorian_utc(2022, 06 ,08 ,10 ,00 ,00,00),
 Epoch::from_gregorian_utc(2022, 06 ,08 ,10 ,00 ,00,00),
 Epoch::from_gregorian_utc(2022, 06 ,08 ,09 ,59 ,44,00),
@@ -402,6 +409,7 @@ Epoch::from_gregorian_utc(2022, 06 ,08 ,09 ,00 ,00,00),
 Epoch::from_gregorian_utc(2022, 06 ,08 ,07 ,20 ,00,00),
 Epoch::from_gregorian_utc(2022, 06 ,08 ,08 ,40 ,00,00),
 Epoch::from_gregorian_utc(2022, 06 ,08 ,09 ,40 ,00,00),
+Epoch::from_gregorian_utc(2022, 06 ,08 ,06 ,30 ,00,00),
 Epoch::from_gregorian_utc(2022, 06 ,08 ,06 ,40 ,00,00),
 Epoch::from_gregorian_utc(2022, 06 ,08 ,08 ,00 ,00,00),
 Epoch::from_gregorian_utc(2022, 06 ,08 ,09 ,40 ,00,00),
@@ -700,11 +708,20 @@ Epoch::from_gregorian_utc(2022, 06 ,08 ,10 ,00 ,00,00),
 Epoch::from_gregorian_utc(2022, 06 ,08 ,10 ,00 ,00,00),
 Epoch::from_gregorian_utc(2022, 06 ,08 ,11 ,00 ,00,00),
         ];
+        let mut epochs: Vec<_> = epochs.iter().unique().collect();
         epochs.sort(); // like the parser will
-        assert_eq!(epochs.len(), rinex.epochs().len());
+        
         let record = rinex.record.as_nav();
         assert_eq!(record.is_some(), true);
         let record = record.unwrap();
+
+        /*
+         * test epochs
+         */
+        for (index, (e, _)) in record.iter().enumerate() {
+            assert_eq!(epochs[index], e);
+        }
+        
         let mut eop_count = 0;
         let mut ion_count = 0;
         let mut sto_count = 0;
