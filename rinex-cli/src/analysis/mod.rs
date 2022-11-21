@@ -3,49 +3,26 @@ use crate::plot::*;
 use rinex::prelude::*;
 use plotters::prelude::*;
 
-use chrono::{
-    Date,
-    Duration,
-};
-
-/*
- * Converts an Hifitime::Epoch to a plottable Chrono::Date
- */
-macro_rules! to_date {
-    ($epoch: expr) => {
-        
-    }
-}
-
-/*
- * Converts an Hifitime::Duration to a plottable Chrono::Duration
- */
-macro_rules! to_duration {
-    ($duration: expr) => {
-
-    }
-}
-
 pub fn epoch_histogram(rnx: &Rinex, dims: (u32, u32)) {
     let histogram = rnx.epoch_intervals();
     let p = build_plot("epoch-histogram.png", dims); 
     let mut pop_max: u32 = 0;
-    let mut duration_max: u32 = 0;
-    for (duration, pop) in histogram {
-        if pop > pop_max {
-            pop_max = pop;
+    let mut duration_max = 0_u32;
+    for (duration, pop) in &histogram {
+        if *pop > pop_max {
+            pop_max = *pop;
         }
-        if duration > duration_max {
-            duration_max = duration;
+        let seconds = duration.to_seconds() as u32;
+        if seconds > duration_max {
+            duration_max = seconds;
         }
     }
-    /*
     let mut chart = ChartBuilder::on(&p)
         .caption("Epoch Durations", ("sans-serif", 50).into_font())
         .margin(40)
         .x_label_area_size(30)
         .y_label_area_size(40)
-        .build_cartesian_2d(x_axis, y_axis)
+        .build_cartesian_2d(0..duration_max, 0..pop_max)
         .unwrap();
     chart
         .configure_mesh()
@@ -58,6 +35,5 @@ pub fn epoch_histogram(rnx: &Rinex, dims: (u32, u32)) {
         .expect("failed to draw mesh");
     chart.draw_series(
         Histogram::vertical(&chart)
-            .style(RED.mix(0.5).filled())
-            .data(histogram.iter().map(|pop, duration| (*duration, 1)));*/
+            .data(histogram.iter().map(|(pop, duration)| (*duration, 1))));
 }
