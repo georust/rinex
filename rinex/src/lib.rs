@@ -86,8 +86,7 @@ macro_rules! is_comment {
 /// matches a pseudo range (OBS) code
 macro_rules! is_pseudo_range_obs_code {
     ($code: expr) => { 
-        $code.starts_with("C") // standard 
-        || $code.starts_with("P") // non gps old fashion
+        $code.starts_with("C") || $code.starts_with("P") 
     };
 }
 
@@ -541,6 +540,42 @@ impl Rinex {
             ionex.map_dimension == 2
         } else {
             false
+        }
+    }
+
+    /// Converts 2D Ionex to 3D ionex by
+    /// providing some height maps.
+    pub fn with_height_maps(&self, height: BTreeMap<Epoch, ionex::Map>) -> Self {
+        let mut s = self.clone();
+        s.to_ionex_3d(height);
+        s
+    }
+
+    /// Add RMS maps to self, for epochs
+    /// where such map was not previously provided
+    pub fn with_rms_maps(&self, rms: BTreeMap<Epoch, ionex::Map>) -> Self {
+        let mut s = self.clone();
+        if let Some(r) = s.record.as_mut_ionex() {
+            for (e, (_, rms_map, _)) in r.iter_mut() {
+                if let Some(m) = rms.get(e) {
+                    *rms_map = Some(m.to_vec());
+                }
+            }
+        }
+        s
+    }
+
+    /// Provide Height maps for epochs where such map was not previously provided 
+    pub fn to_ionex_3d(&mut self, height: BTreeMap<Epoch, ionex::Map>) {
+        if let Some(ionex) = self.header.ionex.as_mut() {
+            ionex.map_dimension = 3;
+        }
+        if let Some(r) = self.record.as_mut_ionex() {
+            for (e, (_, _, map_h)) in r.iter_mut() {
+                if let Some(m) = height.get(e) {
+                    *map_h = Some(m.to_vec());
+                }
+            }
         }
     }
 
@@ -1086,8 +1121,6 @@ impl Rinex {
     /// (also refered to as "clock biases") in [s],
     /// on an epoch basis and per space vehicule,
     /// from this Navigation record.
-    /// This does not produce anything if self is not a NAV RINEX.
-    /// Use this to process [pseudo_range_to_distance]
     ///
     /// Example:
     /// ```
@@ -1106,26 +1139,14 @@ impl Rinex {
     ///         prn: 8,
     ///     },
     /// ];
-    /// rinex
-    ///     .retain_space_vehicule_mut(filter.clone());
-    /// let mut offsets = rinex
-    ///     .space_vehicules_clock_offset();
-    /// // example: apply a static offset to all clock offsets
-    /// for (e, sv) in offsets.iter_mut() { // (epoch, vehicules)
-    ///     for (sv, offset) in sv.iter_mut() { // vehicule, clk_offset
-    ///         *offset += 10.0_f64 // do something..
+    /// rinex.retain_space_vehicules_mut(filter.clone());
+    /// let clk_offsets = rinex.space_vehicules_clock_offset();
+    /// for (epoch, sv) in clk_offsets { {
+    ///     for (sv, offset) in sv { 
+    ///         // sv: space vehicule,
+    ///         // offset: f64 [s]
     ///     }
     /// }
-    /// 
-    /// // Use these distant clock offsets,
-    /// // to convert pseudo ranges to distances
-    /// let mut rinex = Rinex::from_file("../test_resources/OBS/V3/ACOR00ESP_R_20213550000_01D_30S_MO.rnx")
-    ///     .unwrap();
-    /// // apply same filter, we're still only interested in G07 + G08
-    /// rinex
-    ///     .retain_space_vehicule_mut(filter.clone());
-    /// // apply conversion
-    /// let distances = rinex.observation_pseudodistances(offsets);
     /// ```
     pub fn space_vehicules_clock_offset(&self) -> BTreeMap<Epoch, BTreeMap<Sv, f64>> {
         let mut results: BTreeMap<Epoch, BTreeMap<Sv, f64>> = BTreeMap::new();
@@ -1172,38 +1193,34 @@ impl Rinex {
     ///         prn: 8,
     ///     },
     /// ];
-    /// rinex
-    ///     .retain_space_vehicule_mut(filter.clone());
-    /// let mut biases = rinex.navigation_clock_biases();
-    /// // example: adjust clock offsets and drifts
-    /// for (e, sv) in biases.iter_mut() { // (epoch, vehicules)
-    ///     for (sv, (offset, dr, drr)) in sv.iter_mut() { // vehicule, (offset, drift, drift/dt)
-    ///         *offset += 10.0_f64; // do something..
-    ///         *dr = dr.powf(0.25); // do something..
+    /// rinex.retain_space_vehicule_mut(filter.clone());
+    /// let biases = rinex.navigation_clock_biases();
+    /// for (epoch, sv) in biases {
+    ///     for (sv, (offset, dr, drr)) in sv {
+    ///         // sv: space vehicule
+    ///         // offset [s]
+    ///         // dr: clock drift [s.s⁻¹]
+    ///         // drr: clock drift rate [s.s⁻²]
     ///     }
     /// }
     /// ```
     pub fn navigation_clock_biases(&self) -> BTreeMap<Epoch, BTreeMap<Sv, (f64,f64,f64)>> {
-        if !self.is_navigation_rinex() {
-            return BTreeMap::new(); // nothing to extract
-        }
         let mut results: BTreeMap<Epoch, BTreeMap<Sv, (f64,f64,f64)>> = BTreeMap::new();
-        let record = self.record
-            .as_nav()
-            .unwrap();
-        for (e, classes) in record.iter() {
-            for (class, frames) in classes.iter() {
-                if *class == navigation::FrameClass::Ephemeris {
-                    let mut map :BTreeMap<Sv, (f64,f64,f64)> = BTreeMap::new();
-                    for frame in frames.iter() {
-                        let (_, sv, ephemeris) = frame.as_eph().unwrap();
-                        map.insert(*sv, 
-							(ephemeris.clock_bias, 
-							ephemeris.clock_drift,
-							ephemeris.clock_drift_rate));
-                    }
-                    if map.len() > 0 { // got something
-                        results.insert(*e, map);
+        if let Some(r) = self.record.as_nav() {
+            for (e, classes) in r {
+                for (class, frames) in classes {
+                    if *class == navigation::FrameClass::Ephemeris {
+                        let mut map :BTreeMap<Sv, (f64,f64,f64)> = BTreeMap::new();
+                        for frame in frames {
+                            let (_, sv, ephemeris) = frame.as_eph().unwrap();
+                            map.insert(*sv, 
+                                (ephemeris.clock_bias, 
+                                ephemeris.clock_drift,
+                                ephemeris.clock_drift_rate));
+                        }
+                        if map.len() > 0 {
+                            results.insert(*e, map);
+                        }
                     }
                 }
             }
@@ -2916,10 +2933,10 @@ impl Rinex {
     ///     }
     /// }
     /// ```
-    pub fn observation_pseudodistances(&self, sv_clk_offsets: BTreeMap<Epoch, BTreeMap<Sv, f64>>) -> BTreeMap<Epoch, BTreeMap<Sv, Vec<(String, f64)>>> {
-        let mut results: BTreeMap<Epoch, BTreeMap<Sv, Vec<(String, f64)>>> = BTreeMap::new();
+    pub fn observation_pseudodistances(&self, sv_clk_offsets: BTreeMap<Epoch, BTreeMap<Sv, f64>>) -> BTreeMap<(Epoch, EpochFlag), BTreeMap<Sv, Vec<(String, f64)>>> {
+        let mut results: BTreeMap<(Epoch, EpochFlag), BTreeMap<Sv, Vec<(String, f64)>>> = BTreeMap::new();
         if let Some(r) = self.record.as_obs() {
-            for ((e, flag), (clk, sv)) in r.iter() {
+            for ((e, flag), (clk, sv)) in r {
                 if let Some(distant_e) = sv_clk_offsets.get(e) { // got related distant epoch
                     if let Some(clk) = clk { // got local clock offset 
                         let mut map : BTreeMap<Sv, Vec<(String, f64)>> = BTreeMap::new();
@@ -2939,7 +2956,7 @@ impl Rinex {
                             } // got related distant offset
                         } // per sv
                         if map.len() > 0 { // did produce something
-                            results.insert(*e, map);
+                            results.insert((*e, *flag), map);
                         }
                     } // got local clock offset attached to this epoch
                 }//got related distance epoch
