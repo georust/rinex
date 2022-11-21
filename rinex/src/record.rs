@@ -176,14 +176,37 @@ impl Record {
                 }
             },
 			Type::ClockData => {
-				let record = self.as_clock()
-					.unwrap();
-				for (epoch, data) in record.iter() {
-                    if let Ok(epoch) = clocks::record::fmt_epoch(epoch, data) {
-                        let _ = write!(writer, "{}", epoch); 
+                if let Some(r) = self.as_clock() {
+                    for (epoch, data) in r {
+                        if let Ok(epoch) = clocks::record::fmt_epoch(epoch, data) {
+                            let _ = write!(writer, "{}", epoch); 
+                        }
 				    }
                 }
 			},
+            Type::IonosphereMaps => {
+                if let Some(r) = self.as_ionex() {
+                    for (index, (epoch, (map, _, _))) in r.iter().enumerate() {
+                        let _ = write!(writer, "{:6}                                                      START OF TEC MAP", index); 
+                        let _ = write!(writer, "{}                        EPOCH OF CURRENT MAP", epoch::format(*epoch, None, Type::IonosphereMaps, 1));
+                        let _ = write!(writer, "{:6}                                                      END OF TEC MAP", index); 
+                    }
+                    /*
+                     * not efficient browsing, but matches provided examples and common formatting.
+                     * RMS and Height maps are passed after TEC maps.
+                     */
+                    for (index, (epoch, (_, map, _))) in r.iter().enumerate() {
+                        let _ = write!(writer, "{:6}                                                      START OF RMS MAP", index); 
+                        let _ = write!(writer, "{}                        EPOCH OF CURRENT MAP", epoch::format(*epoch, None, Type::IonosphereMaps, 1));
+                        let _ = write!(writer, "{:6}                                                      END OF RMS MAP", index); 
+                    }
+                    for (index, (epoch, (_, _, map))) in r.iter().enumerate() {
+                        let _ = write!(writer, "{:6}                                                      START OF HEIGHT MAP", index); 
+                        let _ = write!(writer, "{}                        EPOCH OF CURRENT MAP", epoch::format(*epoch, None, Type::IonosphereMaps, 1));
+                        let _ = write!(writer, "{:6}                                                      END OF HEIGHT MAP", index); 
+                    }
+                }
+            },
             _ => panic!("record type not supported yet"),
         }
         Ok(())

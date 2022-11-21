@@ -1730,6 +1730,32 @@ impl std::fmt::Display for Header {
             }
             // possible reference clock information
         }
+        // Custom IONEX fields
+        if let Some(ionex) = &self.ionex {
+            //TODO:
+            //  EPOCH OF FIRST and LAST MAP
+            //   with epoch::format(Ionex)
+            let _ = write!(f, "{:6}           MAP DIMENSION\n", ionex.map_dimension);
+            let h = &ionex.grid.height;
+            let _ = write!(f, "{} {}  {}     HGT1 / HGT2 / DHGT\n", h.start, h.end, h.spacing);
+            let lat = &ionex.grid.latitude;
+            let _ = write!(f, "{} {}  {}     LAT1 / LON2 / DLAT\n", lat.start, lat.end, lat.spacing);
+            let lon = &ionex.grid.longitude;
+            let _ = write!(f, "{} {}  {}     LON1 / LON2 / DLON\n", lon.start, lon.end, lon.spacing);
+            let _ = write!(f, "{}         ELEVATION CUTOFF\n", ionex.elevation_cutoff);
+            if let Some(func) = &ionex.mapping {
+                let _ = write!(f, "{:?}         MAPPING FUNCTION\n", func);
+            } else {
+                let _ = write!(f, "NONE         MAPPING FUNCTION\n");
+            }
+            let _ = write!(f, "{}               EXPONENT\n", ionex.exponent);
+            if let Some(desc) = &ionex.description {
+                for line in 0..desc.len() / 60 {
+                    let max = std::cmp::min((line+1)*60, desc.len());
+                    let _ = write!(f, "{}                COMMENT\n", &desc[line*60..max]);
+                }
+            }
+        }
         // END OF HEADER
         write!(f, "{:>74}", "END OF HEADER\n")
     }
