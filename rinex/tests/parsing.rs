@@ -7,10 +7,10 @@ mod test {
         let test_data = vec![
 			"ATX",
 			"CLK",
-			"CRNX",
+			//"CRNX",
 			"MET",
 			"NAV",
-			"OBS",
+			//"OBS",
 			"IONEX",
 		];
         for data in test_data {
@@ -81,8 +81,8 @@ mod test {
                             assert!(rinex.epochs().len() > 0);
                         },
                         "MET" => {
-                            assert_eq!(rinex.header.obs.is_some(), true);
-                            assert_eq!(rinex.is_meteo_rinex(), false);
+                            //assert_eq!(rinex.header.obs.is_some(), true);
+                            assert_eq!(rinex.is_meteo_rinex(), true);
                             assert!(rinex.epochs().len() > 0);
                         },
                         "CLK" => {

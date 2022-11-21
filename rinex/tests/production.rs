@@ -12,9 +12,12 @@ mod test {
                     if let Some(observables_b) = vehicules_b.get(sv_a) {
                         for (code_a, obs_a) in observables_a {
                             if let Some(obs_b) = observables_b.get(code_a) {
-                                assert!((obs_a.obs - obs_b.obs).abs() < 1.0E-6);
-                                assert_eq!(obs_a.ssi, obs_b.ssi);
-                                assert_eq!(obs_a.lli, obs_b.lli);
+                                assert!((obs_a.obs - obs_b.obs).abs() < 1.0E-6, 
+                                    "epoch {:?} - {:?} - \"{}\" expecting {} got {}", e_a, sv_a, code_a, obs_b.obs, obs_a.obs);
+                                assert_eq!(obs_a.lli, obs_b.lli,
+                                    "epoch {:?} - {:?} - \"{}\" - LLI expecting {:?} got {:?}", e_a, sv_a, code_a, obs_b.lli, obs_a.lli);
+                                assert_eq!(obs_a.ssi, obs_b.ssi,
+                                    "epoch {:?} - {:?} - \"{}\" - SSI expecting {:?} got {:?}", e_a, sv_a, code_a, obs_b.ssi, obs_a.ssi);
                             } else {
                                 panic!("epoch {:?} - {:?} : missing \"{}\" observation", e_a, sv_a, code_a);
                             }
@@ -35,9 +38,12 @@ mod test {
                     if let Some(observables_a) = vehicules_a.get(sv_b) {
                         for (code_b, obs_b) in observables_b {
                             if let Some(obs_a) = observables_a.get(code_b) {
-                                assert!((obs_a.obs - obs_b.obs).abs() < 1.0E-6);
-                                assert_eq!(obs_a.ssi, obs_b.ssi);
-                                assert_eq!(obs_a.lli, obs_b.lli);
+                                assert!((obs_a.obs - obs_b.obs).abs() < 1.0E-6, 
+                                    "epoch {:?} - {:?} - \"{}\" expecting {} got {}", e_b, sv_b, code_b, obs_b.obs, obs_a.obs);
+                                assert_eq!(obs_a.lli, obs_b.lli,
+                                    "epoch {:?} - {:?} - \"{}\" - LLI expecting {:?} got {:?}", e_b, sv_b, code_b, obs_b.lli, obs_a.lli);
+                                assert_eq!(obs_a.ssi, obs_b.ssi,
+                                    "epoch {:?} - {:?} - \"{}\" - SSI expecting {:?} got {:?}", e_b, sv_b, code_b, obs_b.ssi, obs_a.ssi);
                             } else {
                                 panic!("epoch {:?} - {:?} : parsed \"{}\" unexpectedly", e_b, sv_b, code_b);
                             }
@@ -122,7 +128,7 @@ mod test {
             compare_with_panic(&rnx_a, &rnx_b);
         }
         // remove copy not to disturb other test browsers
-        let _ = std::fs::remove_file(copy_path);
+        //let _ = std::fs::remove_file(copy_path);
         // sleeping here for a bit, 
         // avoids this (temporary) file being picked up by other automated tests
         std::thread::sleep(std::time::Duration::from_secs(1));

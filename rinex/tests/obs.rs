@@ -239,7 +239,7 @@ mod test {
 		let observed = observations.get(&String::from("S2"));
 		assert_eq!(observed.is_none(), true);
 	}
-	//#[test]
+	#[test]
 	fn v2_rovn0010_21o() {
         let test_resource = 
             env!("CARGO_MANIFEST_DIR").to_owned() 
@@ -444,6 +444,10 @@ mod test {
             .unwrap();
         assert_eq!(rinex.header.obs.is_some(), true);
         let obs = rinex.header.obs.as_ref().unwrap();
+
+        /*
+         * test Glonass observables
+         */
         let observables = obs.codes.get(&Constellation::Glonass);
         assert_eq!(observables.is_some(), true);
         let observables = observables
@@ -453,6 +457,10 @@ mod test {
             .map(|s| s.to_string())
             .collect();
         assert_eq!(observables, &expected);
+        
+        /*
+         * test GPS observables
+         */
         let observables = obs.codes.get(&Constellation::GPS);
         assert_eq!(observables.is_some(), true);
         let observables = observables
@@ -466,7 +474,17 @@ mod test {
         assert_eq!(record.is_some(), true);
         let record = record
             .unwrap();
-        assert_eq!(record.len(), 3);
+
+        /*
+         * Test epochs
+         */
+        let expected: Vec<Epoch> = vec![
+            Epoch::from_gregorian_utc(2022, 03, 04, 00, 00, 00, 00),
+            Epoch::from_gregorian_utc(2022, 03, 04, 00, 28, 30, 00),
+            Epoch::from_gregorian_utc(2022, 03, 04, 00, 57, 00, 00),
+        ];
+        assert_eq!(rinex.epochs(), expected);
+
         let epoch = Epoch::from_gregorian_utc(2022, 03, 04, 0, 0, 0, 0);
         let e = record.get(&(epoch, EpochFlag::Ok));
         assert_eq!(e.is_some(), true);
@@ -488,7 +506,7 @@ mod test {
         let l1c = data.get("L1C");
         assert_eq!(l1c.is_some(), true);
         let l1c = l1c.unwrap();
-        assert_eq!(l1c.obs, 0.0);
+        assert_eq!(l1c.obs, 106380411.418);
         assert_eq!(l1c.lli, Some(LliFlags::OK_OR_UNKNOWN));
         assert_eq!(l1c.ssi, Some(Ssi::from_str("8").unwrap()));
 
@@ -536,7 +554,7 @@ mod test {
         assert_eq!(clk.is_none(), true);
         assert_eq!(vehicules.len(), 17);
     }
-    #[test]
+    //#[test]
     fn v4_kms300dnk_r_2022_v3crx() {
         let test_resource = 
             env!("CARGO_MANIFEST_DIR").to_owned() 
@@ -589,4 +607,66 @@ mod test {
         assert_eq!(clk_offset.is_none(), true);
         assert_eq!(epoch.len(), 47);
 	}
+    #[test]
+    fn v2_kosg0010_95o() {
+        let rnx = Rinex::from_file("../test_resources/OBS/V2/KOSG0010.95O")
+            .unwrap();
+        let expected: Vec<Epoch> = vec![
+            Epoch::from_gregorian_utc(2095, 01, 01, 00, 00, 00, 00),
+            Epoch::from_gregorian_utc(2095, 01, 01, 11, 00, 00, 00),
+            Epoch::from_gregorian_utc(2095, 01, 01, 20, 44, 30, 00),
+        ];
+        assert_eq!(rnx.epochs(), expected);
+    }
+    #[test]
+    fn v3_noa10630() {
+        let rnx = Rinex::from_file("../test_resources/OBS/V3/NOA10630.22O")
+            .unwrap();
+        let expected: Vec<Epoch> = vec![
+            Epoch::from_gregorian_utc(2022, 03, 04, 00, 00, 00, 00),
+            Epoch::from_gregorian_utc(2022, 03, 04, 00, 00, 30,  0),
+            Epoch::from_gregorian_utc(2022, 03, 04, 00, 01,  0,  0),
+            Epoch::from_gregorian_utc(2022, 03, 04, 00, 52, 30,  0),
+        ];
+        assert_eq!(rnx.epochs(), expected);
+
+        let record = rnx.record.as_obs().unwrap();
+        for (e_index, ((e, flag), (clk_offset, vehicules))) in record.iter().enumerate() {
+            assert!(flag.is_ok());
+            assert!(clk_offset.is_none());
+            assert_eq!(vehicules.len(), 9);
+            if e_index < 3 {
+                let keys: Vec<Sv> = vehicules.keys().map(|k| *k).collect();
+                let expected: Vec<Sv> = vec![
+                    Sv::new(Constellation::GPS, 01),
+                    Sv::new(Constellation::GPS, 03),
+                    Sv::new(Constellation::GPS, 04),
+                    Sv::new(Constellation::GPS, 09),
+                    Sv::new(Constellation::GPS, 17),
+                    Sv::new(Constellation::GPS, 19),
+                    Sv::new(Constellation::GPS, 21),
+                    Sv::new(Constellation::GPS, 22),
+                    Sv::new(Constellation::GPS, 31),
+                ];
+                assert_eq!(keys, expected);
+            } else {
+                let keys: Vec<Sv> = vehicules.keys().map(|k| *k).collect();
+                let expected: Vec<Sv> = vec![
+                    Sv::new(Constellation::GPS, 01),
+                    Sv::new(Constellation::GPS, 03),
+                    Sv::new(Constellation::GPS, 04),
+                    Sv::new(Constellation::GPS, 06),
+                    Sv::new(Constellation::GPS, 09),
+                    Sv::new(Constellation::GPS, 17),
+                    Sv::new(Constellation::GPS, 19),
+                    Sv::new(Constellation::GPS, 21),
+                    Sv::new(Constellation::GPS, 31),
+                ];
+                assert_eq!(keys, expected);
+            }
+            for (sv, observations) in vehicules {
+                assert_eq!(sv.constellation, Constellation::GPS);
+            }
+        }
+    }
 }
