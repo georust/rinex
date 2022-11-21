@@ -61,12 +61,16 @@ mod test {
     use super::*;
     use std::str::FromStr;
     #[test]
-    fn test_sv_constructor() {
+    fn test_from_str() {
         let tests : Vec<&str> = vec![
             "C01", "C 3", "G33", "C254", "E4 ", "R 9",
         ];
         for t in tests {
-            let _ = Sv::from_str(t).unwrap();
+            assert!(Sv::from_str(t).is_ok());
         }
+        // SBAS vehicules
+        let s36 = Sv::from_str("S36");
+        assert!(s36.is_ok());
+        assert_eq!(s36.unwrap(), Sv::new(Constellation::Geo, 36));
     }
 }

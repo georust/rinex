@@ -61,7 +61,7 @@ impl Constellation {
     /// Identifies `gnss` constellation from given 1 letter code.    
     /// Given code should match official RINEX codes.    
     /// This method is case insensitive though
-    pub fn from_1_letter_code (code: &str) -> Result<Constellation, Error> {
+    pub fn from_1_letter_code(code: &str) -> Result<Constellation, Error> {
         if code.len() != 1 {
             return Err(Error::CodeLengthMismatch(1, code.len()))
         }
@@ -86,7 +86,7 @@ impl Constellation {
         }
     }
     /// Converts self to 1 letter code (RINEX standard code)
-    pub fn to_1_letter_code (&self) -> &str {
+    pub fn to_1_letter_code(&self) -> &str {
         match self {
             Constellation::GPS => "G",
             Constellation::Glonass => "R",

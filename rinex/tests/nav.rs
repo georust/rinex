@@ -797,25 +797,29 @@ Epoch::from_gregorian_utc(2022, 06 ,08 ,11 ,00 ,00,00),
         let record = record
             .unwrap();
         let mut index = 0;
-        let expected_epochs: Vec<Epoch> = vec![
+        let mut epochs: Vec<Epoch> = vec![
 			Epoch::from_gregorian_utc(2021, 01, 01, 00, 00, 00, 00),
 			Epoch::from_gregorian_utc(2021, 01, 01, 01, 28, 00, 00),
 			Epoch::from_gregorian_utc(2021, 01, 01, 07, 15, 00, 00),
 			Epoch::from_gregorian_utc(2021, 01, 01, 08, 20, 00, 00),
 		];
-        let expected_vehicules : Vec<Sv> = vec![
+        epochs.sort();
+		assert_eq!(rinex.epochs(), epochs);
+
+        let mut vehicules: Vec<Sv> = vec![
             Sv::from_str("C01").unwrap(),
             Sv::from_str("S36").unwrap(),
             Sv::from_str("R10").unwrap(),
             Sv::from_str("E03").unwrap()];
-		assert_eq!(record.len(), expected_epochs.len());
-        for ((epoch, classes), test_e) in record.iter().zip(expected_epochs.iter()) {
+        vehicules.sort();
+        assert_eq!(rinex.space_vehicules(), vehicules);
+
+        for (epoch, classes) in record {
             for (class, frames) in classes.iter() {
                 if *class == FrameClass::Ephemeris {
                     for frame in frames.iter() {
-                        let (_, sv, _) = frame.as_eph().unwrap();
-                        assert_eq!(sv, &expected_vehicules[index]);
-                        index += 1;
+                        let (_, sv, _) = frame.as_eph()
+                            .unwrap();
                     }
                 }
             }
