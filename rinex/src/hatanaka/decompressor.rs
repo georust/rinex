@@ -48,7 +48,7 @@ pub struct Decompressor {
     
 /// Reworks given content to match RINEX specifications
 /// of an epoch descriptor
-fn format_epoch (version: u8, content: &str, clock_offset: Option<i64>) -> Result<String, Error> {
+fn format_epoch(version: u8, content: &str, clock_offset: Option<i64>) -> Result<String, Error> {
     let mut result = String::new();
     //println!("REWORKING \"{}\"", content); //DEBUG
     match version {
@@ -67,33 +67,43 @@ fn format_epoch (version: u8, content: &str, clock_offset: Option<i64>) -> Resul
             //CRINEX has systems squashed in a single line
             // we just split it to match standard definitions
             // .. and don't forget the tab
-            for i in 0..systems.len() / 36 { //num_integer::div_ceil(systems.len(), 36) { //nb of lines
-                if i > 0 { 
-                    // tab indent
-                    result.push_str("\n                                "); //TODO: improve this please
+            if systems.len() <= 36 { // fits in a single line
+                /*
+                 * squeeze clock offset if any
+                 */
+                result.push_str(systems);
+                if let Some(value) = clock_offset {
+                    result.push_str(&format!("  {:3.9}", (value as f64)/1000.0_f64))
                 }
-                /*
-                 * avoids overflowing
-                 */
-                let max_offset = std::cmp::min((i+1)*36, systems.len());
-                result.push_str(&systems[i*36 .. max_offset]);
-                /*
-                 * on first line, squeeze clock offset if any
-                 */
-                if i == 0 { // first line, 
-                    if let Some(value) = clock_offset {
-                        result.push_str(&format!("  {:3.9}", (value as f64)/1000.0_f64))
+            } else {
+                for i in 0..systems.len() / 36 {
+                    if i > 0 { 
+                        // tab indent
+                        result.push_str("\n                                "); //TODO: improve this please
+                    }
+                    /*
+                     * avoids overflowing
+                     */
+                    let max_offset = std::cmp::min((i+1)*36, systems.len());
+                    result.push_str(&systems[i*36 .. max_offset]);
+                    /*
+                     * on first line, squeeze clock offset if any
+                     */
+                    if i == 0 { // first line, 
+                        if let Some(value) = clock_offset {
+                            result.push_str(&format!("  {:3.9}", (value as f64)/1000.0_f64))
+                        }
                     }
                 }
-            }
-            let remainder = systems.len().rem_euclid(36);
-            if remainder > 0 {
-                // got some leftovers   
-                if systems.len() > 36 {
-                    // tab indent
-                    result.push_str("\n                                "); //TODO: improve this please
+                let remainder = systems.len().rem_euclid(36);
+                if remainder > 0 || systems.len() < 36 {
+                    // got some leftovers   
+                    if systems.len() > 36 {
+                        // tab indent
+                        result.push_str("\n                                "); //TODO: improve this please
+                    }
+                    result.push_str(&systems[remainder..]);
                 }
-                result.push_str(&systems[remainder..]);
             }
         },
         _ => { // Modern RINEX case
@@ -458,7 +468,7 @@ impl Decompressor {
                                 /*
                                  * try to parse 1 observation
                                  */
-                                println!("EOL: \"{}\"", line); //DEBUG
+                                println!("OBS \"{}\" - CONTENT \"{}\"", codes[obs_ptr], line); //DEBUG
                                 if let Some(sv_diff) = self.sv_diff.get_mut(&sv) {
                                     if line.contains("&") { // kernel init requested
                                         let index = line.find("&")
