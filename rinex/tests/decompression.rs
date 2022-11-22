@@ -168,7 +168,25 @@ mod test {
 			.unwrap();
 		let epochs = vec![
 			Epoch::from_gregorian_utc(2021, 01, 01, 00, 00, 00, 00),
-		];
+            Epoch::from_gregorian_utc(2021, 01, 01, 00, 00, 30, 00),
+            Epoch::from_gregorian_utc(2021, 01, 01, 00, 01, 00, 00),
+            Epoch::from_gregorian_utc(2021, 01, 01, 00, 01, 30, 00),
+            Epoch::from_gregorian_utc(2021, 01, 01, 00, 02, 00, 00),
+            Epoch::from_gregorian_utc(2021, 01, 01, 00, 02, 30, 00),
+            Epoch::from_gregorian_utc(2021, 01, 01, 00, 03, 00, 00),
+            Epoch::from_gregorian_utc(2021, 01, 01, 00, 03, 30, 00),
+            Epoch::from_gregorian_utc(2021, 01, 01, 00, 04, 00, 00),
+            Epoch::from_gregorian_utc(2021, 01, 01, 00, 04, 30, 00),
+            Epoch::from_gregorian_utc(2021, 01, 01, 00, 05, 00, 00),
+            Epoch::from_gregorian_utc(2021, 01, 01, 00, 05, 30, 00),
+            Epoch::from_gregorian_utc(2021, 01, 01, 00, 06, 00, 00),
+            Epoch::from_gregorian_utc(2021, 01, 01, 00, 06, 30, 00),
+            Epoch::from_gregorian_utc(2021, 01, 01, 00, 07, 00, 00),
+            Epoch::from_gregorian_utc(2021, 01, 01, 00, 07, 30, 00),
+            Epoch::from_gregorian_utc(2021, 01, 01, 00, 08, 00, 00),
+            Epoch::from_gregorian_utc(2021, 01, 01, 00, 08, 30, 00),
+            Epoch::from_gregorian_utc(2021, 01, 01, 00, 09, 00, 00),
+        ];
 		assert_eq!(rnx.epochs(), epochs);
 		let record = rnx.record.as_obs().unwrap();
 
