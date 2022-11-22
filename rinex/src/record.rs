@@ -211,35 +211,6 @@ impl Record {
         }
         Ok(())
     }
-
-    /*
-     * this macro aligns phase at origin e_(k=0) 
-     */
-    pub fn align_phase_origins(record: &mut observation::Record) {
-        let mut init_phases: HashMap<Sv, HashMap<String, f64>> = HashMap::new();
-        for (_, (_, vehicules)) in record.iter_mut() {
-            for (sv, observations) in vehicules.iter_mut() {
-                for (observation, data) in observations.iter_mut() {
-                    if is_phase_carrier_obs_code!(observation) {
-                        if let Some(init_phase) = init_phases.get_mut(&sv) {
-                            if init_phase.get(observation).is_none() {
-                                init_phase.insert(observation.clone(), data.obs);
-                            }
-                        } else {
-                            let mut map: HashMap<String, f64> = HashMap::new();
-                            map.insert(observation.clone(), data.obs);
-                            init_phases.insert(*sv, map);
-                        }
-                        data.obs -= init_phases.get(&sv)
-                            .unwrap()
-                            .get(observation)
-                            .unwrap();
-                    }
-                }
-            }
-        }
-    }
-
 }
 
 impl Default for Record {

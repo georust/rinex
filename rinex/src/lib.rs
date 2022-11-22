@@ -2225,8 +2225,9 @@ impl Rinex {
     /// Wide lane Phase & PR combinations.
     /// Cf. <https://github.com/gwbres/rinex/blob/rinex-cli/doc/gnss-combination.md>.
     pub fn observation_wl_combinations(&self) -> HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
+        let mut aligned = self.observation_align_phase_origins();
         let mut ret: HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> = HashMap::new();
-        if let Some(r) = self.record.as_obs() {
+        if let Some(r) = aligned.record.as_obs() {
             for (epoch, (_, vehicules)) in r {
                 for (sv, observations) in vehicules {
                     for (lhs_code, lhs_data) in observations {
@@ -2312,7 +2313,8 @@ impl Rinex {
     /// Cf. <https://github.com/gwbres/rinex/blob/rinex-cli/doc/gnss-combination.md>.
     pub fn observation_nl_combinations(&self) -> HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
         let mut ret: HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> = HashMap::new();
-        if let Some(r) = self.record.as_obs() {
+        let mut aligned = self.observation_align_phase_origins();
+        if let Some(r) = aligned.record.as_obs() {
             for (epoch, (_, vehicules)) in r.iter() {
                 for (sv, observations) in vehicules {
                     for (lhs_code, lhs_data) in observations {
@@ -2394,6 +2396,42 @@ impl Rinex {
         ret
     }
 
+    /// Aligns Phase observations at origins
+    pub fn observation_align_phase_origins_mut(&mut self) {
+        let mut init_phases: HashMap<Sv, HashMap<String, f64>> = HashMap::new();
+        if let Some(r) = self.record.as_mut_obs() {
+            for (_, (_, vehicules)) in r.iter_mut() {
+                for (sv, observations) in vehicules.iter_mut() {
+                    for (observation, data) in observations.iter_mut() {
+                        if is_phase_carrier_obs_code!(observation) {
+                            if let Some(init_phase) = init_phases.get_mut(&sv) {
+                                if init_phase.get(observation).is_none() {
+                                    init_phase.insert(observation.clone(), data.obs);
+                                }
+                            } else {
+                                let mut map: HashMap<String, f64> = HashMap::new();
+                                map.insert(observation.clone(), data.obs);
+                                init_phases.insert(*sv, map);
+                            }
+                            data.obs -= init_phases.get(&sv)
+                                .unwrap()
+                                .get(observation)
+                                .unwrap();
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// Aligns Phase observations at origins,
+    /// immutable implementation
+    pub fn observation_align_phase_origins(&self) -> Self {
+        let mut s = self.clone();
+        s.observation_align_phase_origins_mut();
+        s
+    }
+
     /// Geometry free [GF] combinations
     /// of Phase and PR observations. 
     /// Cf. <https://github.com/gwbres/rinex/blob/rinex-cli/doc/gnss-combination.md>.
@@ -2401,8 +2439,9 @@ impl Rinex {
     /// at least one code measured against two seperate carriers to produce something.
     /// Phase data is maintained aligned at origin.
     pub fn observation_gf_combinations(&self) -> HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
+        let mut aligned = self.observation_align_phase_origins();
         let mut ret: HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> = HashMap::new();
-        if let Some(r) = self.record.as_obs() {
+        if let Some(r) = aligned.record.as_obs() {
             for (epoch, (_, vehicules)) in r {
                 for (sv, observations) in vehicules {
                     for (lhs_code, lhs_data) in observations {
