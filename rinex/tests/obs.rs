@@ -1,9 +1,8 @@
 #[cfg(test)]
 mod test {
-    use rinex::prelude::*;
     use std::str::FromStr;
-    use rinex::constellation::Constellation;
-	use rinex::observation::{LliFlags, Ssi};
+    use rinex::prelude::*;
+	use rinex::observation::*;
 	/*
 	 * General testbench
 	 * shared accross all Observation files
@@ -69,6 +68,38 @@ mod test {
 					&Sv::new(Constellation::GPS, 31),
 					&Sv::new(Constellation::GPS, 32),
 				]);
+                
+                /*
+                 * Test G03
+                 */
+                let sv = Sv::new(Constellation::GPS, 03);
+                let observations = vehicules.get(&sv)
+                    .unwrap();
+                let l1 = observations.get("L1").unwrap();
+                assert_eq!(l1.obs, -9440000.265);
+                assert!(l1.lli.unwrap().intersects(LliFlags::UNDER_ANTI_SPOOFING));
+                assert_eq!(l1.ssi, Some(Ssi::DbHz48_53));
+
+                let l2 = observations.get("L2").unwrap();
+                assert_eq!(l2.obs, -7293824.593);
+                assert!(l2.lli.unwrap().intersects(LliFlags::UNDER_ANTI_SPOOFING));
+                assert_eq!(l2.ssi, Some(Ssi::DbHz42_47));
+
+                let c1 = observations.get("C1").unwrap();
+                assert_eq!(c1.obs, 23189944.587 );
+                assert!(c1.lli.unwrap().intersects(LliFlags::UNDER_ANTI_SPOOFING));
+                assert!(c1.ssi.is_none());
+
+                let p1 = observations.get("P1").unwrap();
+                assert_eq!(p1.obs, 23189944.999);
+                assert!(p1.lli.unwrap().intersects(LliFlags::UNDER_ANTI_SPOOFING));
+                assert!(p1.ssi.is_none());
+                
+                let p2 = observations.get("P2").unwrap();
+                assert_eq!(p2.obs, 23189951.464);
+                assert!(p2.lli.unwrap().intersects(LliFlags::UNDER_ANTI_SPOOFING));
+                assert!(p2.ssi.is_none());
+
 			} else if index == 1 {
 				assert_eq!(keys, vec![
 					&Sv::new(Constellation::GPS, 01),
