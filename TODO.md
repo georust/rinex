@@ -2,7 +2,7 @@ Roadmap
 =======
 
 - [ ] Epoch:
-  - [ ] convert `chrono::Duration` to `hifitime::Epoch` to describe the sampline timestamp
+  - [x] convert `chrono::Duration` to `hifitime::Epoch` to describe the sampline timestamp
   - [ ] when parsing a record, `flag::HeaderInformationFollows` is not exploited,
 the following content is probably interpreted as a faulty epoch to disregard
 
@@ -63,6 +63,9 @@ the following content is probably interpreted as a faulty epoch to disregard
 
 Completed
 =========
+
+- [x] Epoch:
+  - [x] convert `chrono::Duration` to `hifitime::Epoch` to describe the sampline timestamp
 
 - File operations
   - [x] Provide a Writer wrapper in similar fashion to existing Reader wrapper for efficient data compression
