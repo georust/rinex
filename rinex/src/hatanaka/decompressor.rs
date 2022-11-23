@@ -161,17 +161,16 @@ impl Decompressor {
 	fn parse_flags(&mut self, sv: &Sv, content: &str) {
 		println!("FLAGS: \"{}\"", content); // DEBUG
         if let Some(sv_diff) = self.sv_diff.get_mut(sv) {
-            for pos in 0..content.len() {
-                if let Some(sv_obs) = sv_diff.get_mut(pos/2) {
-                    let flag = &content[pos..pos+1];
-                    if pos %2 == 0 {
-                        let _ = sv_obs.1.decompress(flag); // LLI
-                    } else {
-                        let _ = sv_obs.2.decompress(flag); // SSI
+            for index in 0..content.len() {
+				if let Some(sv_obs) = sv_diff.get_mut(index/2) {
+                    if index %2 == 0 { // LLI
+					    let _ = sv_obs.1.decompress(&content[index..index+1]);
+                    } else { //SSI
+					    let _ = sv_obs.2.decompress(&content[index..index+1]);
                     }
-                }
-            }
-        }
+				}
+			}
+		}
 	}
 
     fn current_satellite(&self, crx_major: u8, crx_constellation: &Constellation, sv_ptr: usize) -> Option<Sv> {
