@@ -677,8 +677,10 @@ fn fmt_epoch_v2(
         .unwrap()
         .codes;
     lines.push_str(&format!(" {} {:2}", epoch::format(epoch, Some(flag), Type::ObservationData, 2), data.len()));
+    let mut index = 0_u8;
     for (sv_index, (sv, _)) in data.iter().enumerate() {
-        if (sv_index+1).rem_euclid(13) == 0 { // 13 vehicules per line
+        if index == 12 {
+            index = 0;
             if sv_index == 12 { // first line
                 if let Some(data) = clock_offset { // push clock offsets
                     lines.push_str(&format!(" {:9.1}", data));
@@ -687,6 +689,7 @@ fn fmt_epoch_v2(
             lines.push_str(&format!("\n                                "));
         }
 		lines.push_str(&sv.to_string());
+        index += 1;
     }
 	let obs_per_line = 5;
     // for each vehicule per epoch
