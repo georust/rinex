@@ -129,6 +129,47 @@ mod test {
             //let _ = std::fs::remove_file(&rnx_b_path);
         }
     }
+    #[test]
+    fn testbench_v3() {
+        let pool = vec![
+            ("ACOR00ESP_R_20213550000_01D_30S_MO.crx","ACOR00ESP_R_20213550000_01D_30S_MO.rnx"),
+        ];
+        for duplet in pool {
+            let (crnx_name, rnx_name) = duplet;
+            // parse CRINEX
+            let path = format!("../test_resources/CRNX/V3/{}", crnx_name);
+            let crnx = Rinex::from_file(&path);
+            
+            assert_eq!(crnx.is_ok(), true);
+            let mut rnx = crnx.unwrap();
+            assert_eq!(rnx.header.obs.is_some(), true);
+            let obs = rnx.header.obs.as_ref().unwrap();
+            assert_eq!(obs.crinex.is_some(), true);
+            let infos = obs.crinex.as_ref().unwrap();
+
+            if crnx_name.eq("ACOR00ESP_R_20213550000_01D_30S_MO.crx") {
+                assert_eq!(infos.version.major, 1);
+                assert_eq!(infos.version.minor, 0);
+                assert_eq!(infos.prog, "RNX2CRX ver.4.0.7");
+                assert_eq!(infos.date, Epoch::from_gregorian_utc(2021, 12, 28, 01, 01, 00, 00));
+            }
+
+            // convert to RINEX
+            rnx.crnx2rnx();
+            
+            let obs = rnx.header.obs.as_ref().unwrap();
+            assert_eq!(obs.crinex.is_some(), false);
+
+            // dump to file
+            let rnx_b_path = format!("test-{}", rnx_name);
+            assert_eq!(rnx.to_file(&rnx_b_path).is_ok(), true);
+            // run testbench
+            run_comparison(
+                &format!("../test_resources/OBS/V3/{}", rnx_name),
+                &rnx_b_path);
+            //let _ = std::fs::remove_file(&rnx_b_path);
+        }
+    }
     /*
      * Tries decompression against faulty CRINEX1 content
      */
@@ -292,4 +333,49 @@ mod test {
 			}
 		}
 	}
+    #[test]
+    fn acor00esp_r_2021_crx() {
+        let crnx = Rinex::from_file("../test_resources/CRNX/V3/ACOR00ESP_R_20213550000_01D_30S_MO.crx");
+        assert_eq!(crnx.is_ok(), true);
+        let mut rnx = crnx.unwrap();
+        
+        assert_eq!(rnx.header.obs.is_some(), true);
+        let obs = rnx.header.obs.as_ref().unwrap();
+        assert_eq!(obs.crinex.is_some(), true);
+        let infos = obs.crinex.as_ref().unwrap();
+
+        assert_eq!(infos.version.major, 3);
+        assert_eq!(infos.version.minor, 0);
+        assert_eq!(infos.prog, "RNX2CRX ver.4.0.7");
+        assert_eq!(infos.date, Epoch::from_gregorian_utc(2021, 12, 28, 01, 01, 00, 00));
+
+        let epochs: Vec<Epoch> = vec![
+            Epoch::from_gregorian_utc(2021, 12, 21, 00 ,00,  0, 0),
+            Epoch::from_gregorian_utc(2021, 12, 21, 00 ,00, 30, 0),
+            Epoch::from_gregorian_utc(2021, 12, 21, 00 ,01,  0, 0) ,
+            Epoch::from_gregorian_utc(2021, 12, 21, 00 ,01, 30, 0) ,
+            Epoch::from_gregorian_utc(2021, 12, 21, 00 ,02,  0, 0) ,
+            Epoch::from_gregorian_utc(2021, 12, 21, 00 ,02, 30, 0) ,
+            Epoch::from_gregorian_utc(2021, 12, 21, 00 ,03,  0, 0) ,
+            Epoch::from_gregorian_utc(2021, 12, 21, 00 ,03, 30, 0) ,
+            Epoch::from_gregorian_utc(2021, 12, 21, 00 ,04,  0, 0) ,
+            Epoch::from_gregorian_utc(2021, 12, 21, 00 ,04, 30, 0) ,
+            Epoch::from_gregorian_utc(2021, 12, 21, 00 ,05,  0, 0) ,
+            Epoch::from_gregorian_utc(2021, 12, 21, 00 ,05, 30, 0) ,
+            Epoch::from_gregorian_utc(2021, 12, 21, 00 ,06,  0, 0) ,
+            Epoch::from_gregorian_utc(2021, 12, 21, 00 ,06, 30, 0) ,
+            Epoch::from_gregorian_utc(2021, 12, 21, 00 ,07,  0, 0) ,
+            Epoch::from_gregorian_utc(2021, 12, 21, 00 ,07, 30, 0) ,
+            Epoch::from_gregorian_utc(2021, 12, 21, 00 ,08,  0, 0) ,
+            Epoch::from_gregorian_utc(2021, 12, 21, 00 ,08, 30, 0) ,
+            Epoch::from_gregorian_utc(2021, 12, 21, 00 ,09,  0, 0) ,
+            Epoch::from_gregorian_utc(2021, 12, 21, 00 ,09, 30, 0) ,
+            Epoch::from_gregorian_utc(2021, 12, 21, 00 ,10,  0, 0) ,
+            Epoch::from_gregorian_utc(2021, 12, 21, 00 ,10, 30, 0) ,
+            Epoch::from_gregorian_utc(2021, 12, 21, 00 ,11,  0, 0) ,
+            Epoch::from_gregorian_utc(2021, 12, 21, 00 ,11, 30, 0) ,
+            Epoch::from_gregorian_utc(2021, 12, 21, 00 ,12,  0, 0) ,
+        ];
+        assert_eq!(rnx.epochs(), epochs);
+    }
 }

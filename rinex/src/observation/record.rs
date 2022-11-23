@@ -677,15 +677,14 @@ fn fmt_epoch_v2(
         .unwrap()
         .codes;
     lines.push_str(&format!(" {} {:2}", epoch::format(epoch, Some(flag), Type::ObservationData, 2), data.len()));
-    let mut index = 0;
-    for (sv, _) in data {
-        index += 1;
-        if (index %13) == 0 {
-            if let Some(data) = clock_offset {
-                lines.push_str(&format!(" {:9.1}", data));
-            } else {
-				lines.push_str(&format!("\n                                "));
-			}
+    for (sv_index, (sv, _)) in data.iter().enumerate() {
+        if (sv_index+1).rem_euclid(13) == 0 { // 13 vehicules per line
+            if sv_index == 12 { // first line
+                if let Some(data) = clock_offset { // push clock offsets
+                    lines.push_str(&format!(" {:9.1}", data));
+                }
+            }
+            lines.push_str(&format!("\n                                "));
         }
 		lines.push_str(&sv.to_string());
     }

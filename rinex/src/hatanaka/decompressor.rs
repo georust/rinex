@@ -176,10 +176,14 @@ impl Decompressor {
 		for pos in 0..content.len()/2 { // {ssi, lli} pairs
 			if let Some(sv_diff) = self.sv_diff.get_mut(sv) {
 				if let Some(sv_obs) = sv_diff.get_mut(pos) {
-					let _ = sv_obs.1.decompress(&content[(pos*2)..(pos*2)+1]);
+                    let lli = &content[pos*2..pos*2+1];
+                    println!("LLI \"{}\"", lli);
+					let _ = sv_obs.1.decompress(lli);
 					// ssi flag might be non existing here
 					if content.len() > 2*pos+1 {
-						let _ = sv_obs.2.decompress(&content[(2*pos)+1..(2*pos)+2]);
+                        let ssi = &content[pos*2+1..pos*2+2];
+                        println!("SSI \"{}\"", ssi);
+						let _ = sv_obs.2.decompress(ssi);
 					}
 				}
 			}
@@ -464,9 +468,10 @@ impl Decompressor {
                                 }
                                 line = &line[std::cmp::min(pos+1, line.len())..];
                                 obs_ptr += 1;
-                            } else { // END OF LINE reached
+                            } else {
                                 /*
-                                 * try to parse 1 observation
+                                 * EOL detected, but obs_ptr < codes.len()
+                                 *  => try to parse one last obs
                                  */
                                 println!("OBS \"{}\" - CONTENT \"{}\"", codes[obs_ptr], line); //DEBUG
                                 if let Some(sv_diff) = self.sv_diff.get_mut(&sv) {
@@ -518,6 +523,7 @@ impl Decompressor {
                                                 // using textdiff property.
                                                 // Another option would be to have an array to
                                                 // store them
+                                println!("LLI: {}", lli);
                                 result.push_str(&lli); // append flag
                                 let ssi = obs[index]
                                     .2 // SSI
@@ -525,6 +531,7 @@ impl Decompressor {
                                                 // using textdiff property.
                                                 // Another option would be to have an array to
                                                 // store them
+                                println!("SSI: {}", ssi);
                                 result.push_str(&ssi); // append flag
                             } else {
                                 result.push_str("                "); // BLANK
@@ -547,7 +554,7 @@ impl Decompressor {
                 }//current_satellite()
             }//match(state)
         }//loop
-        //println!("--- TOTAL DECOMPRESSED --- \n\"{}\"", result); //DEBUG
+        println!("--- TOTAL DECOMPRESSED --- \n\"{}\"", result); //DEBUG
         Ok(result)
     }
 }
