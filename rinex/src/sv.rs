@@ -69,8 +69,11 @@ mod test {
             assert!(Sv::from_str(t).is_ok());
         }
         // SBAS vehicules
-        let s36 = Sv::from_str("S36");
-        assert!(s36.is_ok());
-        assert_eq!(s36.unwrap(), Sv::new(Constellation::Geo, 36));
+        let sbas = Sv::from_str("S36");
+        assert!(sbas.is_ok());
+        assert_eq!(sbas.unwrap(), Sv::new(Constellation::Geo, 36));
+        let sbas = Sv::from_str("S23");
+        assert!(sbas.is_ok());
+        assert_eq!(sbas.unwrap(), Sv::new(Constellation::Geo, 23));
     }
 }

@@ -48,15 +48,13 @@ pub struct Decompressor {
     
 /// Reworks given content to match RINEX specifications
 /// of an epoch descriptor
-fn format_epoch(version: u8, content: &str, clock_offset: Option<i64>) -> Result<String, Error> {
+fn format_epoch(version: u8, nb_sv: usize, content: &str, clock_offset: Option<i64>) -> Result<String, Error> {
     let mut result = String::new();
-    //println!("REWORKING \"{}\"", content); //DEBUG
     match version {
         1|2 => { // old RINEX
             // append Systems #ID,
             //  on as many lines as needed
-            let min_size = 32 + 3; // epoch descriptor
-                // +XX+XYY at least one vehicule
+            let min_size = 32 + 3; // epoch descriptor + at least one vehicule
             if content.len() < min_size { // parsing would fail
                 return Err(Error::FaultyRecoveredEpoch)
             }
@@ -67,42 +65,31 @@ fn format_epoch(version: u8, content: &str, clock_offset: Option<i64>) -> Result
             //CRINEX has systems squashed in a single line
             // we just split it to match standard definitions
             // .. and don't forget the tab
-            if systems.len() <= 36 { // fits in a single line
-                /*
-                 * squeeze clock offset if any
-                 */
+            if nb_sv <= 12 { // fits in a single line
                 result.push_str(systems);
                 if let Some(value) = clock_offset {
                     result.push_str(&format!("  {:3.9}", (value as f64)/1000.0_f64))
                 }
-            } else {
-                for i in 0..systems.len() / 36 {
-                    if i > 0 { 
+            } else { // does not fit in a single line
+                let mut index = 0;
+                for i in 0..nb_sv {
+                    if index == 12 {
+                        index = 0;
+                        if i == 12 { // first line, 
+                            if let Some(value) = clock_offset {
+                                result.push_str(&format!("  {:3.9}", (value as f64)/1000.0_f64))
+                            }
+                        }
                         // tab indent
                         result.push_str("\n                                "); //TODO: improve this please
                     }
                     /*
                      * avoids overflowing
                      */
-                    let max_offset = std::cmp::min((i+1)*36, systems.len());
-                    result.push_str(&systems[i*36 .. max_offset]);
-                    /*
-                     * on first line, squeeze clock offset if any
-                     */
-                    if i == 0 { // first line, 
-                        if let Some(value) = clock_offset {
-                            result.push_str(&format!("  {:3.9}", (value as f64)/1000.0_f64))
-                        }
-                    }
-                }
-                let remainder = systems.len().rem_euclid(36);
-                if remainder > 0 || systems.len() < 36 {
-                    // got some leftovers   
-                    if systems.len() > 36 {
-                        // tab indent
-                        result.push_str("\n                                "); //TODO: improve this please
-                    }
-                    result.push_str(&systems[remainder..]);
+                    let min_offset = i*3;
+                    let max_offset = std::cmp::min(min_offset+3, systems.len());
+                    result.push_str(&systems[min_offset..max_offset]);
+                    index += 1;
                 }
             }
         },
@@ -112,7 +99,7 @@ fn format_epoch(version: u8, content: &str, clock_offset: Option<i64>) -> Result
                 return Err(Error::FaultyRecoveredEpoch)
             }
             let (epoch, _) = content.split_at(35); 
-            result.push_str(epoch);
+            result.push_str(&epoch.replace("&", " "));
             //TODO clock offset
             if let Some(value) = clock_offset {
                 result.push_str(&format!("         {:3.12}", (value as f64)/1000.0_f64))
@@ -173,21 +160,18 @@ impl Decompressor {
 
 	fn parse_flags(&mut self, sv: &Sv, content: &str) {
 		println!("FLAGS: \"{}\"", content); // DEBUG
-		for pos in 0..content.len()/2 { // {ssi, lli} pairs
-			if let Some(sv_diff) = self.sv_diff.get_mut(sv) {
-				if let Some(sv_obs) = sv_diff.get_mut(pos) {
-                    let lli = &content[pos*2..pos*2+1];
-                    println!("LLI \"{}\"", lli);
-					let _ = sv_obs.1.decompress(lli);
-					// ssi flag might be non existing here
-					if content.len() > 2*pos+1 {
-                        let ssi = &content[pos*2+1..pos*2+2];
-                        println!("SSI \"{}\"", ssi);
-						let _ = sv_obs.2.decompress(ssi);
-					}
-				}
-			}
-		}
+        if let Some(sv_diff) = self.sv_diff.get_mut(sv) {
+            for pos in 0..content.len() {
+                if let Some(sv_obs) = sv_diff.get_mut(pos/2) {
+                    let flag = &content[pos..pos+1];
+                    if pos %2 == 0 {
+                        let _ = sv_obs.1.decompress(flag); // LLI
+                    } else {
+                        let _ = sv_obs.2.decompress(flag); // SSI
+                    }
+                }
+            }
+        }
 	}
 
     fn current_satellite(&self, crx_major: u8, crx_constellation: &Constellation, sv_ptr: usize) -> Option<Sv> {
@@ -365,7 +349,7 @@ impl Decompressor {
                     let recovered = self.epoch_diff.decompress(" ").trim_end();
                     // we store the recovered and unformatted CRINEX descriptor
                     //   because it is particularly easy to parse, 
-                    //   as it is contained in a single line.
+                    //   as it is made of a single line.
                     //   It needs to be formatted according to standards, 
                     //   for the result being constructed. See the following operations
                     self.epoch_descriptor = recovered.clone().to_string();
@@ -377,8 +361,8 @@ impl Decompressor {
                         return Err(Error::VehiculeIdentificationError);
                     }
 
-                    if let Ok(descriptor) = format_epoch(rnx_major, recovered, clock_offset) {
-                        println!("--- EPOCH --- \n{}", descriptor.trim_end()); //DEBUG
+                    if let Ok(descriptor) = format_epoch(rnx_major, self.nb_sv, recovered, clock_offset) {
+                        println!("--- EPOCH --- \n{}[STOP]", descriptor.trim_end()); //DEBUG
                         result.push_str(&format!("{}\n", descriptor.trim_end()));
                     } else {
                         return Err(Error::EpochConstruct);
@@ -523,7 +507,7 @@ impl Decompressor {
                                                 // using textdiff property.
                                                 // Another option would be to have an array to
                                                 // store them
-                                println!("LLI: {}", lli);
+                                println!("LLI: {}", &lli);
                                 result.push_str(&lli); // append flag
                                 let ssi = obs[index]
                                     .2 // SSI
@@ -531,7 +515,7 @@ impl Decompressor {
                                                 // using textdiff property.
                                                 // Another option would be to have an array to
                                                 // store them
-                                println!("SSI: {}", ssi);
+                                println!("SSI: {}", &ssi);
                                 result.push_str(&ssi); // append flag
                             } else {
                                 result.push_str("                "); // BLANK
@@ -543,7 +527,7 @@ impl Decompressor {
                                 }
                             }
                         }
-                        result.push_str("\n");
+                        //result.push_str("\n");
                     }
                     // end of line parsing
                     //  if sv_ptr has reached the expected amount of vehicules
@@ -554,7 +538,7 @@ impl Decompressor {
                 }//current_satellite()
             }//match(state)
         }//loop
-        println!("--- TOTAL DECOMPRESSED --- \n\"{}\"", result); //DEBUG
+        //println!("--- TOTAL DECOMPRESSED --- \n\"{}\"", result); //DEBUG
         Ok(result)
     }
 }

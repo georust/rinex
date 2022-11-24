@@ -292,7 +292,7 @@ pub fn parse_record(reader: &mut BufferedReader, header: &mut header::Header) ->
         if is_comment!(line) {
             let comment = line.split_at(60).0.trim_end();
             comment_content.push(comment.to_string());
-            continue
+            continue;
         }
         // IONEX exponent-->data scaling use update regularly
         //  and used in TEC map parsing
@@ -326,7 +326,8 @@ pub fn parse_record(reader: &mut BufferedReader, header: &mut header::Header) ->
                     // we might encounter empty lines
                     //   like missing clock offsets
                     //   and .lines() will destroy them
-                    &(line.to_owned() + "\n")) {
+                    &(line.to_owned() + "\n"))
+                {
                     content = recovered.clone();
                 } else {
                     content.clear();
@@ -336,7 +337,7 @@ pub fn parse_record(reader: &mut BufferedReader, header: &mut header::Header) ->
                  * RINEX
                  */
                 if line.len() == 0 { // we might encounter empty lines
-                                // and the following parsers (.lines() based)
+                                // and the following parsers (.lines() iterator)
                                 // do not like it
                     content = String::from("\n");
                 } else {
@@ -347,7 +348,13 @@ pub fn parse_record(reader: &mut BufferedReader, header: &mut header::Header) ->
             /*
              * RINEX
              */
-            content = line.to_string();
+            if line.len() == 0 { // we might encounter empty lines
+                            // and the following parsers (.lines() iterator)
+                            // do not like it
+                content = String::from("\n");
+            } else {
+                content = line.to_string();
+            }
         }
 
         for line in content.lines() { // in case of CRINEX -> RINEX < 3 being recovered,
@@ -472,8 +479,7 @@ pub fn parse_record(reader: &mut BufferedReader, header: &mut header::Header) ->
                 first_epoch = false;
             }
             // epoch content builder
-            epoch_content.push_str(&line);
-            epoch_content.push_str("\n")
+            epoch_content.push_str(&(line.to_owned() + "\n"));
         }
     }
     

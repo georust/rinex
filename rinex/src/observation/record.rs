@@ -343,25 +343,13 @@ pub (crate)fn parse_epoch (header: &Header, content: &str)
 			// on following lines, which is much more convenient
 			let mut systems = String::with_capacity(24*3); //SVNN
 			systems.push_str(rem.trim());
-            let mut nb_extra_lines: usize = 0;
-            if n_sat > 12 && n_sat <= 24 {
-                nb_extra_lines = 1;
-            } else if n_sat > 24 && n_sat <= 36 {
-                nb_extra_lines = 2;
-            } else if n_sat > 36 && n_sat <= 48 {
-                nb_extra_lines = 3;
-            } else if n_sat > 48 && n_sat <= 60 {
-                nb_extra_lines = 4;
-            } else if n_sat > 60 && n_sat <= 78 {
-                nb_extra_lines = 5;
-            }
-            for _ in 0..nb_extra_lines {
+            while systems.len()/3 < n_sat.into() {
                 if let Some(l) = lines.next() {
                     systems.push_str(l.trim());
                 } else {
-                    return Err(Error::MissingData) ;
+                    return Err(Error::MissingData);
                 }
-			}
+            }
 			parse_v2(&header, &systems, observables, lines)
 		},
 		_ => parse_v3(observables, lines),
@@ -393,10 +381,12 @@ fn parse_v2 (header: &Header, systems: &str, observables: &HashMap<Constellation
 		return data ; 
 	}
 
+    /*
+     * identify 1st system
+     */
     let max = std::cmp::min(svnn_size, systems.len()); // covers epoch with a unique vehicule
     let system = &systems[0..max];
-    //println!("SYSTEM \"{}\"", system); //DEBUG
-    // parse 1st system to work on
+    
     if let Ok(ssv) = Sv::from_str(system) {
         sv = ssv;
     } else {
@@ -404,8 +394,8 @@ fn parse_v2 (header: &Header, systems: &str, observables: &HashMap<Constellation
         if let Ok(prn) = u8::from_str_radix(system.trim(), 10) {
             if let Some(constellation) = header.constellation {
                 sv = Sv {
-                    constellation,
                     prn,
+                    constellation,
                 }
             } else {
                 panic!("faulty RINEX2 constellation /sv definition");
@@ -425,6 +415,7 @@ fn parse_v2 (header: &Header, systems: &str, observables: &HashMap<Constellation
     }
 
 	for line in lines { // browse all lines provided
+        println!("parse_v2: \"{}\"", line); //DEBUG
         let line_width = line.len();
         if line_width < 10 {
             //println!("\nEMPTY LINE: \"{}\"", line); //DEBUG
@@ -484,7 +475,11 @@ fn parse_v2 (header: &Header, systems: &str, observables: &HashMap<Constellation
                         });
                 }//f64::obs
             } // parsing all observations 
+            if nb_obs < nb_max_observables {
+                obs_ptr += nb_max_observables - nb_obs;
+            }
         }
+        println!("OBS COUNT {}", obs_ptr); //DEBUG
 
         if obs_ptr >= obscodes.len() {
             // we're done with current vehicule
@@ -494,14 +489,14 @@ fn parse_v2 (header: &Header, systems: &str, observables: &HashMap<Constellation
             obs_ptr = 0;
             //identify next vehicule
             if sv_ptr >= systems.len() {
-                // that was the last vehicule 
+                // last vehicule 
                 return data;
             }
             // identify next vehicule 
             let start = sv_ptr;
             let end = std::cmp::min(sv_ptr + svnn_size, systems.len()); // trimed epoch description
             let system = &systems[start..end];
-            //println!("NEW SYSTEM \"{}\"\n", system); //DEBUG
+            println!("NEW SYSTEM \"{}\"\n", system); //DEBUG
             if let Ok(ssv) = Sv::from_str(system) {
                 sv = ssv;
             } else {
@@ -509,8 +504,8 @@ fn parse_v2 (header: &Header, systems: &str, observables: &HashMap<Constellation
                 if let Ok(prn) = u8::from_str_radix(system.trim(), 10) {
                     if let Some(constellation) = header.constellation {
                         sv = Sv {
-                            constellation,
                             prn,
+                            constellation,
                         }
                     } else {
                         panic!("faulty RINEX2 constellation /sv definition");
@@ -543,12 +538,12 @@ fn parse_v3 (observables: &HashMap<Constellation, Vec<String>>, lines: std::str:
 	let mut data: BTreeMap<Sv, HashMap<String, ObservationData>> = BTreeMap::new();
 	let mut inner: HashMap<String, ObservationData> = HashMap::with_capacity(5);
 	for line in lines { // browse all lines
+        println!("parse_v3: \"{}\"", line); //DEBUG
         let (sv, line) = line.split_at(svnn_size);
         if let Ok(sv) = Sv::from_str(sv) {
             if let Some(obscodes) = observables.get(&sv.constellation) {
                 let nb_obs = num_integer::div_ceil(line.len(), observable_width); 
                 inner.clear();
-                //println!("LINE: \"{}\"", line); //DEBUG
                 //println!("SV: \"{}\"", sv); //DEBUG
                 //println!("NB OBS: {}", nb_obs); //DEBUG
                 let mut rem = line;
@@ -754,7 +749,7 @@ mod test {
             ),
             true
         );
-        assert_eq!(        
+        assert_eq!(  
             is_new_epoch("21700656.31447  16909599.97044          .00041  24479973.67844  24479975.23247",
                 Version {
                     major: 2,

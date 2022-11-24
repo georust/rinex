@@ -691,7 +691,9 @@ impl Header {
                             Some(constellation) => {
                                 observation.codes.insert(constellation, codes.clone());
                             },
-                            None => unreachable!("OBS rinex with no constellation specified"),
+                            None => {
+                                unreachable!("observation rinex without any constellation specified");
+                            }
                         }
                     } else if rinex_type == Type::MeteoData {
                         for c in codes {

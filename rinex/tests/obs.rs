@@ -650,6 +650,104 @@ mod test {
         assert_eq!(rnx.epochs(), expected);
     }
     #[test]
+    fn v2_ajac3550() {
+        let rnx = Rinex::from_file("../test_resources/OBS/V2/AJAC3550.21O")
+            .unwrap();
+        let epochs: Vec<Epoch> = vec![
+            Epoch::from_gregorian_utc(2021, 12, 21, 0, 0, 0, 0),
+            Epoch::from_gregorian_utc(2021, 12, 21, 0, 0,30, 0),
+        ];
+        assert_eq!(rnx.epochs(), epochs);
+
+        let record = rnx.record.as_obs().unwrap();
+
+        let epoch = epochs.get(0).unwrap();
+        let flag = EpochFlag::Ok;
+        let (clk_offset, vehicules) = record.get(&(*epoch, flag)).unwrap();
+        assert!(clk_offset.is_none());
+        let keys: Vec<_> = vehicules.keys().collect();
+        assert_eq!(vehicules.len(), 26);
+
+        let g07 = Sv::new(Constellation::GPS, 07);
+        let observations = vehicules.get(&g07).unwrap();
+        let mut codes: Vec<_> = observations.keys().collect();
+        codes.sort();
+        let mut expected = vec!["L1", "L2", "C1", "P2", "D1", "D2", "S1", "S2"];
+        expected.sort();
+        assert_eq!(codes, expected);
+
+        let s1 = observations.get("S1").unwrap();
+        assert_eq!(s1.obs, 37.350);
+        let s2 = observations.get("S2").unwrap();
+        assert_eq!(s2.obs, 35.300);
+        
+        let r04 = Sv::new(Constellation::Glonass, 04);
+        let observations = vehicules.get(&r04).unwrap();
+        let mut codes: Vec<_> = observations.keys().collect();
+        codes.sort();
+        let mut expected = vec![
+            "L1", "L2", "C1", "C2", 
+            "P2", "D1", "D2", "S1", "S2",
+        ];
+        expected.sort();
+        assert_eq!(codes, expected);
+
+        let l1 = observations.get("L1").unwrap();
+        assert_eq!(l1.obs, 119147697.073);
+        let l2 = observations.get("L2").unwrap();
+        assert_eq!(l2.obs, 92670417.710);
+        let c1 = observations.get("C1").unwrap();
+        assert_eq!(c1.obs, 22249990.480);
+        let c2 = observations.get("C2").unwrap();
+        assert_eq!(c2.obs, 22249983.480);
+        let p2 = observations.get("P2").unwrap();
+        assert_eq!(p2.obs, 22249983.740);
+        let d1 = observations.get("D1").unwrap();
+        assert_eq!(d1.obs, -1987.870);
+        let d2 = observations.get("D2").unwrap();
+        assert_eq!(d2.obs, -1546.121);
+        let s1 = observations.get("S1").unwrap();
+        assert_eq!(s1.obs, 47.300);
+        let s2 = observations.get("S2").unwrap();
+        assert_eq!(s2.obs, 43.900);
+        
+        let epoch = epochs.get(1).unwrap();
+        let flag = EpochFlag::Ok;
+        let (clk_offset, vehicules) = record.get(&(*epoch, flag)).unwrap();
+        assert!(clk_offset.is_none());
+        assert_eq!(vehicules.len(), 26);
+
+        let r04 = Sv::new(Constellation::Glonass, 04);
+        let observations = vehicules.get(&r04).unwrap();
+        let mut codes: Vec<_> = observations.keys().collect();
+        codes.sort();
+        let mut expected = vec![
+            "L1", "L2", "C1", "C2", 
+            "P2", "D1", "D2", "S1", "S2",
+        ];
+        expected.sort();
+        assert_eq!(codes, expected);
+
+        let l1 = observations.get("L1").unwrap();
+        assert_eq!(l1.obs, 119207683.536);
+        let l2 = observations.get("L2").unwrap();
+        assert_eq!(l2.obs, 92717073.850);
+        let c1 = observations.get("C1").unwrap();
+        assert_eq!(c1.obs, 22261192.380);
+        let c2 = observations.get("C2").unwrap();
+        assert_eq!(c2.obs, 22261185.560);
+        let p2 = observations.get("P2").unwrap();
+        assert_eq!(p2.obs, 22261185.940);
+        let d1 = observations.get("D1").unwrap();
+        assert_eq!(d1.obs, -2011.414);
+        let d2 = observations.get("D2").unwrap();
+        assert_eq!(d2.obs, -1564.434);
+        let s1 = observations.get("S1").unwrap();
+        assert_eq!(s1.obs, 46.600);
+        let s2 = observations.get("S2").unwrap();
+        assert_eq!(s2.obs, 43.650);
+    }
+    #[test]
     fn v3_noa10630() {
         let rnx = Rinex::from_file("../test_resources/OBS/V3/NOA10630.22O")
             .unwrap();

@@ -29,11 +29,11 @@ mod test {
                         for (code_a, obs_a) in observables_a {
                             if let Some(obs_b) = observables_b.get(code_a) {
                                 assert!((obs_a.obs - obs_b.obs).abs() < 1.0E-6, 
-                                    "epoch {:?} - {:?} - \"{}\" expecting {} got {}", e_a, sv_a, code_a, obs_b.obs, obs_a.obs);
+                                    "epoch {:?} - {:?} - \"{}\" expecting {} got {}", e_a, sv_a, code_a, obs_a.obs, obs_b.obs);
                                 assert_eq!(obs_a.lli, obs_b.lli,
-                                    "epoch {:?} - {:?} - \"{}\" - LLI expecting {:?} got {:?}", e_a, sv_a, code_a, obs_b.lli, obs_a.lli);
+                                    "epoch {:?} - {:?} - \"{}\" - LLI expecting {:?} got {:?}", e_a, sv_a, code_a, obs_a.lli, obs_b.lli);
                                 assert_eq!(obs_a.ssi, obs_b.ssi,
-                                    "epoch {:?} - {:?} - \"{}\" - SSI expecting {:?} got {:?}", e_a, sv_a, code_a, obs_b.ssi, obs_a.ssi);
+                                    "epoch {:?} - {:?} - \"{}\" - SSI expecting {:?} got {:?}", e_a, sv_a, code_a, obs_a.ssi, obs_b.ssi);
                             } else {
                                 panic!("epoch {:?} - {:?} : missing \"{}\" observation", e_a, sv_a, code_a);
                             }
@@ -77,8 +77,8 @@ mod test {
     fn testbench_v1() {
         let pool = vec![
             //("zegv0010.21d", "zegv0010.21o"),
-            //("AJAC3550.21D", "AJAC3550.21O"), 
-            ("aopr0010.17d", "aopr0010.17o"),
+            ("AJAC3550.21D", "AJAC3550.21O"), 
+            //("aopr0010.17d", "aopr0010.17o"),
             //("npaz3550.21d", "npaz3550.21o"),
             //("pdel0010.21d", "pdel0010.21o"),
             //("wsra0010.21d", "wsra0010.21o"),
@@ -132,7 +132,8 @@ mod test {
     #[test]
     fn testbench_v3() {
         let pool = vec![
-            ("ACOR00ESP_R_20213550000_01D_30S_MO.crx","ACOR00ESP_R_20213550000_01D_30S_MO.rnx"),
+            ("DUTH0630.22D", "DUTH0630.22O"),
+            //("ACOR00ESP_R_20213550000_01D_30S_MO.crx","ACOR00ESP_R_20213550000_01D_30S_MO.rnx"),
         ];
         for duplet in pool {
             let (crnx_name, rnx_name) = duplet;
@@ -148,7 +149,7 @@ mod test {
             let infos = obs.crinex.as_ref().unwrap();
 
             if crnx_name.eq("ACOR00ESP_R_20213550000_01D_30S_MO.crx") {
-                assert_eq!(infos.version.major, 1);
+                assert_eq!(infos.version.major, 3);
                 assert_eq!(infos.version.minor, 0);
                 assert_eq!(infos.prog, "RNX2CRX ver.4.0.7");
                 assert_eq!(infos.date, Epoch::from_gregorian_utc(2021, 12, 28, 01, 01, 00, 00));
@@ -334,7 +335,7 @@ mod test {
 		}
 	}
     #[test]
-    fn acor00esp_r_2021_crx() {
+    fn v3_acor00esp_r_2021_crx() {
         let crnx = Rinex::from_file("../test_resources/CRNX/V3/ACOR00ESP_R_20213550000_01D_30S_MO.crx");
         assert_eq!(crnx.is_ok(), true);
         let mut rnx = crnx.unwrap();
@@ -377,5 +378,135 @@ mod test {
             Epoch::from_gregorian_utc(2021, 12, 21, 00 ,12,  0, 0) ,
         ];
         assert_eq!(rnx.epochs(), epochs);
+        /*
+         * record test
+         */
+        let record = rnx.record.as_obs().unwrap();
+
+        for (_, (clk_offset, _)) in record {
+            assert!(clk_offset.is_none());
+        }
+
+        for e_index in 0..epochs.len() {
+            let e = epochs.get(e_index).unwrap();
+            let flag = EpochFlag::Ok;
+            let (_, vehicules) = record.get(&(*e, flag)).unwrap();
+            if e_index == 0 {
+                /*
+                 * 1st epoch
+                 */
+                assert_eq!(vehicules.len(), 38);
+                let keys: Vec<_> = vehicules.keys().map(|sv| *sv).collect();
+                let mut expected: Vec<Sv> = vec![
+                    Sv::new(Constellation::GPS, 01),
+                    Sv::new(Constellation::GPS, 07),
+                    Sv::new(Constellation::GPS, 08),
+                    Sv::new(Constellation::GPS, 10),
+                    Sv::new(Constellation::GPS, 16),
+                    Sv::new(Constellation::GPS, 18),
+                    Sv::new(Constellation::GPS, 21),
+                    Sv::new(Constellation::GPS, 23),
+                    Sv::new(Constellation::GPS, 26),
+                    Sv::new(Constellation::GPS, 30),
+                    Sv::new(Constellation::Glonass, 04),
+                    Sv::new(Constellation::Glonass, 05),
+                    Sv::new(Constellation::Glonass, 10),
+                    Sv::new(Constellation::Glonass, 12),
+                    Sv::new(Constellation::Glonass, 20),
+                    Sv::new(Constellation::Glonass, 21),
+                    Sv::new(Constellation::Galileo, 02),
+                    Sv::new(Constellation::Galileo, 11),
+                    Sv::new(Constellation::Galileo, 12),
+                    Sv::new(Constellation::Galileo, 24),
+                    Sv::new(Constellation::Galileo, 25),
+                    Sv::new(Constellation::Galileo, 31),
+                    Sv::new(Constellation::Galileo, 33),
+                    Sv::new(Constellation::Galileo, 36),
+                    Sv::new(Constellation::BeiDou, 05),
+                    Sv::new(Constellation::BeiDou, 11),
+                    Sv::new(Constellation::BeiDou, 14),
+                    Sv::new(Constellation::BeiDou, 21),
+                    Sv::new(Constellation::BeiDou, 22),
+                    Sv::new(Constellation::BeiDou, 23),
+                    Sv::new(Constellation::BeiDou, 25),
+                    Sv::new(Constellation::BeiDou, 28),
+                    Sv::new(Constellation::BeiDou, 34),
+                    Sv::new(Constellation::BeiDou, 37),
+                    Sv::new(Constellation::BeiDou, 42),
+                    Sv::new(Constellation::BeiDou, 43),
+                    Sv::new(Constellation::BeiDou, 44),
+                    Sv::new(Constellation::BeiDou, 58),
+                ];
+                expected.sort();
+                assert_eq!(keys, expected);
+            }
+            else if e_index == epochs.len()-1 {
+                /*
+                 * last epoch
+                 */
+                assert_eq!(vehicules.len(), 38);
+                let keys: Vec<_> = vehicules.keys().map(|sv| *sv).collect();
+                let mut expected: Vec<Sv> = vec![
+                    Sv::new(Constellation::GPS, 01),
+                    Sv::new(Constellation::GPS, 07),
+                    Sv::new(Constellation::GPS, 08),
+                    Sv::new(Constellation::GPS, 10),
+                    Sv::new(Constellation::GPS, 16),
+                    Sv::new(Constellation::GPS, 18),
+                    Sv::new(Constellation::GPS, 21),
+                    Sv::new(Constellation::GPS, 23),
+                    Sv::new(Constellation::GPS, 26),
+                    Sv::new(Constellation::GPS, 30),
+                    Sv::new(Constellation::Glonass, 04),
+                    Sv::new(Constellation::Glonass, 05),
+                    Sv::new(Constellation::Glonass, 10),
+                    Sv::new(Constellation::Glonass, 12),
+                    Sv::new(Constellation::Glonass, 20),
+                    Sv::new(Constellation::Glonass, 21),
+                    Sv::new(Constellation::Galileo, 02),
+                    Sv::new(Constellation::Galileo, 11),
+                    Sv::new(Constellation::Galileo, 12),
+                    Sv::new(Constellation::Galileo, 24),
+                    Sv::new(Constellation::Galileo, 25),
+                    Sv::new(Constellation::Galileo, 31),
+                    Sv::new(Constellation::Galileo, 33),
+                    Sv::new(Constellation::Galileo, 36),
+                    Sv::new(Constellation::BeiDou, 05),
+                    Sv::new(Constellation::BeiDou, 11),
+                    Sv::new(Constellation::BeiDou, 14),
+                    Sv::new(Constellation::BeiDou, 21),
+                    Sv::new(Constellation::BeiDou, 22),
+                    Sv::new(Constellation::BeiDou, 23),
+                    Sv::new(Constellation::BeiDou, 25),
+                    Sv::new(Constellation::BeiDou, 28),
+                    Sv::new(Constellation::BeiDou, 34),
+                    Sv::new(Constellation::BeiDou, 37),
+                    Sv::new(Constellation::BeiDou, 42),
+                    Sv::new(Constellation::BeiDou, 43),
+                    Sv::new(Constellation::BeiDou, 44),
+                    Sv::new(Constellation::BeiDou, 58),
+                ];
+                expected.sort();
+                assert_eq!(keys, expected);
+                let c58 = vehicules.get(&Sv::new(Constellation::BeiDou, 58)).unwrap();
+                
+                let mut keys: Vec<_> = c58.keys().collect();
+                keys.sort();
+                let mut expected = vec!["C2I", "L2I", "S2I"];
+                expected.sort();
+                assert_eq!(keys, expected); 
+
+                let c2i = c58.get("C2I").unwrap();
+                assert_eq!(c2i.obs, 32241892.280);
+                assert!(c2i.lli.is_none());
+                assert!(c2i.ssi.is_none());
+
+                let l2i = c58.get("L2I").unwrap();
+                assert_eq!(l2i.obs, 167892006.433);
+
+                let s2i = c58.get("S2I").unwrap();
+                assert_eq!(s2i.obs, 47.650);
+            }
+        }
     }
 }
