@@ -486,7 +486,7 @@ impl Header {
 
             } else if marker.contains("SYS / DCBS APPLIED") {
                 let (system, rem) = content.split_at(2);
-                let (program, url) = rem.split_at(18);
+                let (_program, _url) = rem.split_at(18);
                 if let Ok(gnss) = Constellation::from_str(system.trim()) {
                     observation
                         .with_dcb_compensation(gnss);

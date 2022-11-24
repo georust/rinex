@@ -686,7 +686,6 @@ impl Rinex {
     /// RINEX file.
     pub fn largest_data_gap_duration(&self) -> Option<(Epoch, Duration)> {
         let epochs = self.epochs();
-        let interval = self.sampling_interval();
         let mut ret: Option<(Epoch, Duration)> = None;
         let mut dt = Duration::default();
         let mut prev_epoch = epochs[0]; 
@@ -794,7 +793,7 @@ impl Rinex {
     /// let record = rnx.record.as_obs()
     ///     .unwrap();
     /// for ((epoch, flag), (_, _)) in record {
-    ///     assert!(flag, EpochFlag::Ok); // no need to verify "flag" at this point
+    ///     assert_eq!(*flag, EpochFlag::Ok); // no need to check flags at this point
     /// }
     /// ```
     pub fn retain_epoch_ok_mut(&mut self) {
@@ -813,8 +812,8 @@ impl Rinex {
     /// let record = rnx.record.as_obs()
     ///     .unwrap();
     /// for ((epoch, flag), (_, _)) in record {
-    ///     assert_eq!(flag == EpochFlag::Ok, false); // only problematic epochs remain
-    ///                                         // at this point
+    ///     assert!(*flag != EpochFlag::Ok); // only problematic epochs remain
+    ///                                     // at this point
     /// }
     /// ```
     pub fn retain_epoch_nok_mut(&mut self) {
@@ -965,7 +964,7 @@ impl Rinex {
     /// space vehicules. This has no effect on ATX, MET, IONEX records,
     /// and NAV record frames other than Ephemeris. On CLK records,
     /// we filter out data not measured against space vehicules and different vehicules.
-    pub fn retain_space_vehicule_mut (&mut self, filter: Vec<Sv>) {
+    pub fn retain_space_vehicule_mut(&mut self, filter: Vec<Sv>) {
         if self.is_observation_rinex() {
             let record = self.record
                 .as_mut_obs()
@@ -1100,9 +1099,9 @@ impl Rinex {
     ///     .unwrap();
     /// let clock_offsets = rnx.observation_clock_offsets();
     /// for ((epoch, flag), clk_offset) in clock_offsets {
-    ///     /// epoch: [hifitime::Epoch]
-    ///     /// flag: [epoch::EpochFlag]
-    ///     /// clk_offset: receiver clock offset [s]
+    ///     // epoch: [hifitime::Epoch]
+    ///     // flag: [epoch::EpochFlag]
+    ///     // clk_offset: receiver clock offset [s]
     /// }
     /// ```
     pub fn observation_clock_offsets(&self) -> BTreeMap<(Epoch, EpochFlag), f64> {
@@ -1139,9 +1138,9 @@ impl Rinex {
     ///         prn: 8,
     ///     },
     /// ];
-    /// rinex.retain_space_vehicules_mut(filter.clone());
+    /// rinex.retain_space_vehicule_mut(filter.clone());
     /// let clk_offsets = rinex.space_vehicules_clock_offset();
-    /// for (epoch, sv) in clk_offsets { {
+    /// for (epoch, sv) in clk_offsets {
     ///     for (sv, offset) in sv { 
     ///         // sv: space vehicule,
     ///         // offset: f64 [s]
@@ -1286,13 +1285,14 @@ impl Rinex {
 
     /// Returns list of space vehicules encountered per epoch
     /// ```
+    /// use rinex::prelude::*;
     /// let rnx = Rinex::from_file("../test_resources/OBS/V2/aopr0010.17o")
     ///     .unwrap();
     /// let data = rnx.space_vehicules_per_epoch();
     /// let first_epoch = Epoch::from_gregorian_utc(2017, 1, 1, 0, 0, 0, 0);
-    /// let vehicules = data.get(first_epoch)
+    /// let vehicules = data.get(&first_epoch)
     ///     .unwrap();
-    /// assert_eq!(vehicules, vec![
+    /// assert_eq!(*vehicules, vec![
     ///     Sv::new(Constellation::GPS, 03),
     ///     Sv::new(Constellation::GPS, 08),
     ///     Sv::new(Constellation::GPS, 14),
@@ -1342,6 +1342,7 @@ impl Rinex {
     /// For Clocks RINEX: returns list of Vehicules used as reference
     /// in the record.
     /// ```
+    /// use rinex::prelude::*;
     /// let rnx = Rinex::from_file("../test_resources/OBS/V2/aopr0010.17o")
     ///     .unwrap();
     /// let vehicules = rnx.space_vehicules();
@@ -2225,8 +2226,8 @@ impl Rinex {
     /// Wide lane Phase & PR combinations.
     /// Cf. <https://github.com/gwbres/rinex/blob/rinex-cli/doc/gnss-combination.md>.
     pub fn observation_wl_combinations(&self) -> HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
-        let mut aligned = self.observation_align_phase_origins();
         let mut ret: HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> = HashMap::new();
+        let aligned = self.observation_align_phase_origins();
         if let Some(r) = aligned.record.as_obs() {
             for (epoch, (_, vehicules)) in r {
                 for (sv, observations) in vehicules {
@@ -2313,7 +2314,7 @@ impl Rinex {
     /// Cf. <https://github.com/gwbres/rinex/blob/rinex-cli/doc/gnss-combination.md>.
     pub fn observation_nl_combinations(&self) -> HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
         let mut ret: HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> = HashMap::new();
-        let mut aligned = self.observation_align_phase_origins();
+        let aligned = self.observation_align_phase_origins();
         if let Some(r) = aligned.record.as_obs() {
             for (epoch, (_, vehicules)) in r.iter() {
                 for (sv, observations) in vehicules {
@@ -2439,7 +2440,7 @@ impl Rinex {
     /// at least one code measured against two seperate carriers to produce something.
     /// Phase data is maintained aligned at origin.
     pub fn observation_gf_combinations(&self) -> HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
-        let mut aligned = self.observation_align_phase_origins();
+        let aligned = self.observation_align_phase_origins();
         let mut ret: HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> = HashMap::new();
         if let Some(r) = aligned.record.as_obs() {
             for (epoch, (_, vehicules)) in r {
@@ -2679,7 +2680,7 @@ impl Rinex {
                             for (code, data) in observations {
                                 let ph_code = format!("L{}", &lhs_code[1..]);
                                 if code.eq(&ph_code) {
-                                    if let Ok(channel) = Channel::from_observable(sv.constellation, lhs_code) {
+                                    if let Ok(_channel) = Channel::from_observable(sv.constellation, lhs_code) {
                                         //ph_i = Some(data.obs * channel.carrier_wavelength());
                                         ph_i = Some(data.obs);
                                         break; // DONE
@@ -2695,7 +2696,7 @@ impl Rinex {
                                     let carrier_code = &code[1..2];
                                     if carrier_code == rhs_carrier {
                                         if code.eq(&to_locate) {
-                                            if let Ok(channel) = Channel::from_observable(sv.constellation, code) {
+                                            if let Ok(_channel) = Channel::from_observable(sv.constellation, code) {
                                                 //ph_j = Some(data.obs * channel.carrier_wavelength());
                                                 ph_j = Some(data.obs);
                                                 break; // DONE
@@ -2848,7 +2849,7 @@ impl Rinex {
         let record = self.record
             .as_obs()
             .unwrap();
-        for ((e, flag), (_, sv)) in record.iter() {
+        for ((e, _flag), (_, sv)) in record.iter() {
             let mut map: BTreeMap<Sv, Vec<(String, f64)>> = BTreeMap::new();
             for (sv, obs) in sv.iter() {
                 let mut v : Vec<(String, f64)> = Vec::new();

@@ -233,9 +233,6 @@ pub type Record = BTreeMap<
 
 /// Returns true if given content matches a new OBSERVATION data epoch
 pub (crate)fn is_new_epoch (line: &str, v: Version) -> bool {
-    let parsed: Vec<&str> = line
-        .split_ascii_whitespace()
-        .collect();
 	if v.major < 3 {
         if line.len() < 30 {
             false

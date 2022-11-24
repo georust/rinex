@@ -9,10 +9,10 @@ pub trait TimeScaling<T> {
     /// let rnx = Rinex::from_file("../test_resources/OBS/V3/ACOR00ESP_R_20213550000_01D_30S_MO.rnx")
     ///     .unwrap();
     /// // default definition
-    /// assert_eq!(rnx.timescale(), TimeScale::UTC);
+    /// assert_eq!(rnx.timescale(), Some(TimeScale::UTC));
     /// let rnx = rnx.with_timescale(TimeScale::TAI);
     /// // now all epochs are defined in TAI
-    /// assert_eq!(rnx.timescale(), TimeScale::TAI);
+    /// assert_eq!(rnx.timescale(), Some(TimeScale::TAI));
     /// ```
     fn with_timescale(&self, ts: TimeScale) -> Self;
     /// Converts converts all Epochs to desired
@@ -23,10 +23,10 @@ pub trait TimeScaling<T> {
     /// let mut rnx = Rinex::from_file("../test_resources/OBS/V3/ACOR00ESP_R_20213550000_01D_30S_MO.rnx")
     ///     .unwrap();
     /// // default definition
-    /// assert_eq!(rnx.timescale(), TimeScale::UTC);
-    /// let rnx.convert_timescale(TimeScale::TAI);
+    /// assert_eq!(rnx.timescale(), Some(TimeScale::UTC));
+    /// rnx.convert_timescale(TimeScale::TAI);
     /// // now all epochs are defined in TAI
-    /// assert_eq!(rnx.timescale(), TimeScale::TAI);
+    /// assert_eq!(rnx.timescale(), Some(TimeScale::TAI));
     /// ```
     fn convert_timescale(&mut self, ts: TimeScale);
 }

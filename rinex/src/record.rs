@@ -186,7 +186,7 @@ impl Record {
 			},
             Type::IonosphereMaps => {
                 if let Some(r) = self.as_ionex() {
-                    for (index, (epoch, (map, _, _))) in r.iter().enumerate() {
+                    for (index, (epoch, (_map, _, _))) in r.iter().enumerate() {
                         let _ = write!(writer, "{:6}                                                      START OF TEC MAP", index); 
                         let _ = write!(writer, "{}                        EPOCH OF CURRENT MAP", epoch::format(*epoch, None, Type::IonosphereMaps, 1));
                         let _ = write!(writer, "{:6}                                                      END OF TEC MAP", index); 
@@ -195,12 +195,12 @@ impl Record {
                      * not efficient browsing, but matches provided examples and common formatting.
                      * RMS and Height maps are passed after TEC maps.
                      */
-                    for (index, (epoch, (_, map, _))) in r.iter().enumerate() {
+                    for (index, (epoch, (_, _map, _))) in r.iter().enumerate() {
                         let _ = write!(writer, "{:6}                                                      START OF RMS MAP", index); 
                         let _ = write!(writer, "{}                        EPOCH OF CURRENT MAP", epoch::format(*epoch, None, Type::IonosphereMaps, 1));
                         let _ = write!(writer, "{:6}                                                      END OF RMS MAP", index); 
                     }
-                    for (index, (epoch, (_, _, map))) in r.iter().enumerate() {
+                    for (index, (epoch, (_, _, _map))) in r.iter().enumerate() {
                         let _ = write!(writer, "{:6}                                                      START OF HEIGHT MAP", index); 
                         let _ = write!(writer, "{}                        EPOCH OF CURRENT MAP", epoch::format(*epoch, None, Type::IonosphereMaps, 1));
                         let _ = write!(writer, "{:6}                                                      END OF HEIGHT MAP", index); 
@@ -259,11 +259,6 @@ pub fn parse_record(reader: &mut BufferedReader, header: &mut header::Header) ->
     let mut comment_ts = Epoch::default();
     let mut comment_content : Vec<String> = Vec::with_capacity(4);
 
-    let crinex = match &header.obs {
-        Some(obs) => &obs.crinex,
-        _ => &None,
-    };
-    
     let mut decompressor = Decompressor::new();
     // record 
     let mut atx_rec = antex::Record::new(); // ATX

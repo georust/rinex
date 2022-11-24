@@ -175,28 +175,6 @@ impl Decompressor {
 
     fn current_satellite(&self, crx_major: u8, crx_constellation: &Constellation, sv_ptr: usize) -> Option<Sv> {
         let epoch = &self.epoch_descriptor;
-        let mut offset : usize =
-            2    // Y
-            +2+1 // m
-            +2+1 // d
-            +2+1 // h
-            +2+1 // m
-            +11  // s
-            +1;  // ">" or "&" init marker
-        if epoch.starts_with("> ") { //CRNX3 initial epoch, 1 extra whitespace 
-            offset += 1;
-        }
-        if crx_major > 1 {
-            offset += 2; // YYYY on 4 digits
-        }
-
-        let (_, rem) = epoch.split_at(offset);
-        let (_flag, rem) = rem.split_at(3);
-        let (n, _) = rem.split_at(3);
-        let nb_sv = u16::from_str_radix(n.trim(), 10).ok()?;
-        //     ---> identify nb of satellite vehicules
-        //     ---> identify which system we're dealing with
-        //          using recovered header
         let offset: usize = match crx_major {
             1 => std::cmp::min((32 + 3*(sv_ptr+1)).into(), epoch.len()), // overflow protection
             _ => std::cmp::min((41 + 3*(sv_ptr+1)).into(), epoch.len()), // overflow protection
