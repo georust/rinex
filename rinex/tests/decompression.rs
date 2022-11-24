@@ -10,15 +10,12 @@ mod test {
     /*
      * Compares rnx_b to rnx_a 
      */
-    fn run_comparison(rnx_a: &str, rnx_b: &str) {
+    fn run_comparison(rnx_a: &str, rnx_b: &Rinex) {
         let rnx_a = Rinex::from_file(rnx_a);
         assert_eq!(rnx_a.is_ok(), true);
         let rnx_a = rnx_a.unwrap();
         let rec_a = rnx_a.record.as_obs().unwrap();
         
-        let rnx_b = Rinex::from_file(rnx_b);
-        assert_eq!(rnx_b.is_ok(), true);
-        let rnx_b = rnx_b.unwrap();
         let rec_b = rnx_b.record.as_obs().unwrap();
 
         for (e_a, (clk_offset_a, vehicules_a)) in rec_a.iter() {
@@ -115,18 +112,12 @@ mod test {
 
             // convert to RINEX
             rnx.crnx2rnx();
-            
             let obs = rnx.header.obs.as_ref().unwrap();
             assert_eq!(obs.crinex.is_some(), false);
-
-            // dump to file
-            let rnx_b_path = format!("test-{}", rnx_name);
-            assert_eq!(rnx.to_file(&rnx_b_path).is_ok(), true);
-            // run testbench
-            run_comparison(
-                &format!("../test_resources/OBS/V2/{}", rnx_name),
-                &rnx_b_path);
-            //let _ = std::fs::remove_file(&rnx_b_path);
+            /*
+             * precise comparison
+             */
+            run_comparison(&format!("../test_resources/OBS/V2/{}", rnx_name), &rnx);
         }
     }
     #[test]
@@ -160,15 +151,8 @@ mod test {
             
             let obs = rnx.header.obs.as_ref().unwrap();
             assert_eq!(obs.crinex.is_some(), false);
-
-            // dump to file
-            let rnx_b_path = format!("test-{}", rnx_name);
-            assert_eq!(rnx.to_file(&rnx_b_path).is_ok(), true);
             // run testbench
-            run_comparison(
-                &format!("../test_resources/OBS/V3/{}", rnx_name),
-                &rnx_b_path);
-            //let _ = std::fs::remove_file(&rnx_b_path);
+            run_comparison(&format!("../test_resources/OBS/V3/{}", rnx_name), &rnx);
         }
     }
     /*
