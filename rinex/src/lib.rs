@@ -787,7 +787,7 @@ impl Rinex {
     /// This is only relevant on Observation RINEX
     /// ```
     /// use rinex::prelude::*;
-    /// let mut rnx = Rinex::from_file("../test_resources/OBS/ACOR00ESP_R_20213550000_01D_30S_MO.rnx")
+    /// let mut rnx = Rinex::from_file("../test_resources/OBS/V3/ACOR00ESP_R_20213550000_01D_30S_MO.rnx")
     ///     .unwrap();
     /// rnx.retain_epoch_ok_mut();
     /// let record = rnx.record.as_obs()
@@ -806,7 +806,7 @@ impl Rinex {
     /// This is only relevant on Observation RINEX
     /// ```
     /// use rinex::prelude::*;
-    /// let mut rnx = Rinex::from_file("../test_resources/OBS/ACOR00ESP_R_20213550000_01D_30S_MO.rnx")
+    /// let mut rnx = Rinex::from_file("../test_resources/OBS/V3/ACOR00ESP_R_20213550000_01D_30S_MO.rnx")
     ///     .unwrap();
     /// rnx.retain_epoch_nok_mut();
     /// let record = rnx.record.as_obs()
@@ -1347,14 +1347,23 @@ impl Rinex {
     ///     .unwrap();
     /// let vehicules = rnx.space_vehicules();
     /// assert_eq!(vehicules, vec![
+    ///     Sv::new(Constellation::GPS, 01),
     ///     Sv::new(Constellation::GPS, 03),
+    ///     Sv::new(Constellation::GPS, 06),
+    ///     Sv::new(Constellation::GPS, 07),
     ///     Sv::new(Constellation::GPS, 08),
+    ///     Sv::new(Constellation::GPS, 09),
+    ///     Sv::new(Constellation::GPS, 11),
     ///     Sv::new(Constellation::GPS, 14),
     ///     Sv::new(Constellation::GPS, 16),
+    ///     Sv::new(Constellation::GPS, 17),
+    ///     Sv::new(Constellation::GPS, 19),
     ///     Sv::new(Constellation::GPS, 22),
     ///     Sv::new(Constellation::GPS, 23),
     ///     Sv::new(Constellation::GPS, 26),
     ///     Sv::new(Constellation::GPS, 27),
+    ///     Sv::new(Constellation::GPS, 28),
+    ///     Sv::new(Constellation::GPS, 30),
     ///     Sv::new(Constellation::GPS, 31),
     ///     Sv::new(Constellation::GPS, 32),
     /// ]);

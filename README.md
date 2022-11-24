@@ -9,8 +9,7 @@ RINEX
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square)](https://github.com/gwbres/rinex/blob/main/LICENSE-APACHE)
 [![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](https://github.com/gwbres/rinex/blob/main/LICENSE-MIT) 
 
-
-Rust tool suites to parse, analyze, manipulate `RINEX` files
+Rust tool suites to parse, analyze and process `RINEX` files
 
 * [`rinex`](rinex/) is the core library 
 * [`rinex-cli`](rinex-cli/) is a command line application to pust the crate into use.  
@@ -27,9 +26,9 @@ and [rinex](rinex/) crates.
 
 By default all timestamps are in UTC with leap seconds correctly managed.
 
-:warning: For RINEX files generated prior Jan 1 2000,
-we falsely identify the epochs in the 21st century. This is due to a +2000 
-offset that we hardcode when YY is encoded on two digits, to avoid internal panic.
+:warning: Years encoded on two digits in files generated prior Jan 1 2000,
+get falsely offset to the 21st century. This only applies to OBS(V2)
+and NAV(V2) files generated prior year 2000.
 
 ## Supported `RINEX` types
 

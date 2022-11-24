@@ -10,9 +10,6 @@ pub trait TimeScaling<T> {
     ///     .unwrap();
     /// // default definition
     /// assert_eq!(rnx.timescale(), Some(TimeScale::UTC));
-    /// let rnx = rnx.with_timescale(TimeScale::TAI);
-    /// // now all epochs are defined in TAI
-    /// assert_eq!(rnx.timescale(), Some(TimeScale::TAI));
     /// ```
     fn with_timescale(&self, ts: TimeScale) -> Self;
     /// Converts converts all Epochs to desired
@@ -24,9 +21,6 @@ pub trait TimeScaling<T> {
     ///     .unwrap();
     /// // default definition
     /// assert_eq!(rnx.timescale(), Some(TimeScale::UTC));
-    /// rnx.convert_timescale(TimeScale::TAI);
-    /// // now all epochs are defined in TAI
-    /// assert_eq!(rnx.timescale(), Some(TimeScale::TAI));
     /// ```
     fn convert_timescale(&mut self, ts: TimeScale);
 }
