@@ -38,8 +38,8 @@ mod sampling {
         let mut rinex = Rinex::from_file(&path).unwrap();
         let initial_epochs = rinex.epochs();
         rinex.decim_by_ratio_mut(2);
-        assert_eq!(rinex.epochs().len(), initial_epochs.len()/2); 
+        assert_eq!(rinex.epochs().len(), 3); 
         rinex.decim_by_ratio_mut(2);
-        assert_eq!(rinex.epochs().len(), initial_epochs.len()/4); 
+        assert_eq!(rinex.epochs().len(), 2); 
     }
 }

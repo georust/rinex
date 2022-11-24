@@ -10,53 +10,50 @@ mod test {
     /*
      * Compares rnx_b to rnx_a 
      */
-    fn run_comparison(rnx_a: &str, rnx_b: &Rinex) {
-        let rnx_a = Rinex::from_file(rnx_a);
-        assert_eq!(rnx_a.is_ok(), true);
-        let rnx_a = rnx_a.unwrap();
-        let rec_a = rnx_a.record.as_obs().unwrap();
-        
+    fn run_comparison(model: &str, rnx_b: &Rinex) {
+        let model = Rinex::from_file(model).unwrap();
+        let model = model.record.as_obs().unwrap();
         let rec_b = rnx_b.record.as_obs().unwrap();
 
-        for (e_a, (clk_offset_a, vehicules_a)) in rec_a.iter() {
-            if let Some((clk_offset_b, vehicules_b)) = rec_b.get(e_a) {
-                assert_eq!(clk_offset_a, clk_offset_b);
-                for (sv_a, observables_a) in vehicules_a.iter() {
-                    if let Some(observables_b) = vehicules_b.get(sv_a) {
-                        for (code_a, obs_a) in observables_a {
-                            if let Some(obs_b) = observables_b.get(code_a) {
-                                assert!((obs_a.obs - obs_b.obs).abs() < 1.0E-6, 
-                                    "epoch {:?} - {:?} - \"{}\" expecting {} got {}", e_a, sv_a, code_a, obs_a.obs, obs_b.obs);
-                                assert_eq!(obs_a.lli, obs_b.lli,
-                                    "epoch {:?} - {:?} - \"{}\" - LLI expecting {:?} got {:?}", e_a, sv_a, code_a, obs_a.lli, obs_b.lli);
-                                assert_eq!(obs_a.ssi, obs_b.ssi,
-                                    "epoch {:?} - {:?} - \"{}\" - SSI expecting {:?} got {:?}", e_a, sv_a, code_a, obs_a.ssi, obs_b.ssi);
+        for (e_model, (clk_offset_model, vehicules_model)) in rec_b.iter() {
+            if let Some((clk_offset_b, vehicules_b)) = rec_b.get(e_model) {
+                assert_eq!(clk_offset_model, clk_offset_b);
+                for (sv_model, observables_model) in vehicules_model.iter() {
+                    if let Some(observables_b) = vehicules_b.get(sv_model) {
+                        for (code_model, obs_model) in observables_model {
+                            if let Some(obs_b) = observables_b.get(code_model) {
+                                assert!((obs_model.obs - obs_b.obs).abs() < 1.0E-6, 
+                                    "epoch {:?} - {:?} - \"{}\" expecting {} got {}", e_model, sv_model, code_model, obs_model.obs, obs_b.obs);
+                                assert_eq!(obs_model.lli, obs_b.lli,
+                                    "epoch {:?} - {:?} - \"{}\" - LLI expecting {:?} got {:?}", e_model, sv_model, code_model, obs_model.lli, obs_b.lli);
+                                assert_eq!(obs_model.ssi, obs_b.ssi,
+                                    "epoch {:?} - {:?} - \"{}\" - SSI expecting {:?} got {:?}", e_model, sv_model, code_model, obs_model.ssi, obs_b.ssi);
                             } else {
-                                panic!("epoch {:?} - {:?} : missing \"{}\" observation", e_a, sv_a, code_a);
+                                panic!("epoch {:?} - {:?} : missing \"{}\" observation", e_model, sv_model, code_model);
                             }
                         }
                     } else {
-                        panic!("epoch {:?} - missing vehicule {:?}", e_a, sv_a);
+                        panic!("epoch {:?} - missing vehicule {:?}", e_model, sv_model);
                     }
                 }
             } else {
-                panic!("missing epoch {:?}", e_a);
+                panic!("missing epoch {:?}", e_model);
             }
         }
 
         for (e_b, (clk_offset_b, vehicules_b)) in rec_b.iter() {
-            if let Some((clk_offset_a, vehicules_a)) = rec_a.get(e_b) {
-                assert_eq!(clk_offset_a, clk_offset_b);
+            if let Some((clk_offset_model, vehicules_model)) = rec_b.get(e_b) {
+                assert_eq!(clk_offset_model, clk_offset_b);
                 for (sv_b, observables_b) in vehicules_b.iter() {
-                    if let Some(observables_a) = vehicules_a.get(sv_b) {
+                    if let Some(observables_model) = vehicules_model.get(sv_b) {
                         for (code_b, obs_b) in observables_b {
-                            if let Some(obs_a) = observables_a.get(code_b) {
-                                assert!((obs_a.obs - obs_b.obs).abs() < 1.0E-6, 
-                                    "epoch {:?} - {:?} - \"{}\" expecting {} got {}", e_b, sv_b, code_b, obs_b.obs, obs_a.obs);
-                                assert_eq!(obs_a.lli, obs_b.lli,
-                                    "epoch {:?} - {:?} - \"{}\" - LLI expecting {:?} got {:?}", e_b, sv_b, code_b, obs_b.lli, obs_a.lli);
-                                assert_eq!(obs_a.ssi, obs_b.ssi,
-                                    "epoch {:?} - {:?} - \"{}\" - SSI expecting {:?} got {:?}", e_b, sv_b, code_b, obs_b.ssi, obs_a.ssi);
+                            if let Some(obs_model) = observables_model.get(code_b) {
+                                assert!((obs_model.obs - obs_b.obs).abs() < 1.0E-6, 
+                                    "epoch {:?} - {:?} - \"{}\" expecting {} got {}", e_b, sv_b, code_b, obs_model.obs, obs_b.obs);
+                                assert_eq!(obs_model.lli, obs_b.lli,
+                                    "epoch {:?} - {:?} - \"{}\" - LLI expecting {:?} got {:?}", e_b, sv_b, code_b, obs_model.lli, obs_b.lli);
+                                assert_eq!(obs_model.ssi, obs_b.ssi,
+                                    "epoch {:?} - {:?} - \"{}\" - SSI expecting {:?} got {:?}", e_b, sv_b, code_b, obs_model.ssi, obs_b.ssi);
                             } else {
                                 panic!("epoch {:?} - {:?} : parsed \"{}\" unexpectedly", e_b, sv_b, code_b);
                             }
@@ -73,12 +70,12 @@ mod test {
     #[test]
     fn testbench_v1() {
         let pool = vec![
-            //("zegv0010.21d", "zegv0010.21o"),
+            ("zegv0010.21d", "zegv0010.21o"),
             ("AJAC3550.21D", "AJAC3550.21O"), 
-            //("aopr0010.17d", "aopr0010.17o"),
-            //("npaz3550.21d", "npaz3550.21o"),
-            //("pdel0010.21d", "pdel0010.21o"),
-            //("wsra0010.21d", "wsra0010.21o"),
+            ("KOSG0010.95D", "KOSG0010.95O"), 
+            ("aopr0010.17d", "aopr0010.17o"),
+            ("npaz3550.21d", "npaz3550.21o"),
+            ("wsra0010.21d", "wsra0010.21o"),
         ];
         for duplet in pool {
             let (crnx_name, rnx_name) = duplet;
@@ -124,7 +121,11 @@ mod test {
     fn testbench_v3() {
         let pool = vec![
             ("DUTH0630.22D", "DUTH0630.22O"),
-            //("ACOR00ESP_R_20213550000_01D_30S_MO.crx","ACOR00ESP_R_20213550000_01D_30S_MO.rnx"),
+            ("ACOR00ESP_R_20213550000_01D_30S_MO.crx","ACOR00ESP_R_20213550000_01D_30S_MO.rnx"),
+            ("pdel0010.21d", "pdel0010.21o"),
+            ("flrs0010.12d", "flrs0010.12o"),
+            ("VLNS0010.22D", "VLNS0010.22O"), 
+            ("VLNS0630.22D", "VLNS0630.22O"), 
         ];
         for duplet in pool {
             let (crnx_name, rnx_name) = duplet;
@@ -318,7 +319,7 @@ mod test {
 			}
 		}
 	}
-    #[test]
+    //#[test]
     fn v3_acor00esp_r_2021_crx() {
         let crnx = Rinex::from_file("../test_resources/CRNX/V3/ACOR00ESP_R_20213550000_01D_30S_MO.crx");
         assert_eq!(crnx.is_ok(), true);

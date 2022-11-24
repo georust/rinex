@@ -415,7 +415,7 @@ fn parse_v2 (header: &Header, systems: &str, observables: &HashMap<Constellation
     }
 
 	for line in lines { // browse all lines provided
-        println!("parse_v2: \"{}\"", line); //DEBUG
+        //println!("parse_v2: \"{}\"", line); //DEBUG
         let line_width = line.len();
         if line_width < 10 {
             //println!("\nEMPTY LINE: \"{}\"", line); //DEBUG
@@ -479,7 +479,7 @@ fn parse_v2 (header: &Header, systems: &str, observables: &HashMap<Constellation
                 obs_ptr += nb_max_observables - nb_obs;
             }
         }
-        println!("OBS COUNT {}", obs_ptr); //DEBUG
+        //println!("OBS COUNT {}", obs_ptr); //DEBUG
 
         if obs_ptr >= obscodes.len() {
             // we're done with current vehicule
@@ -496,7 +496,7 @@ fn parse_v2 (header: &Header, systems: &str, observables: &HashMap<Constellation
             let start = sv_ptr;
             let end = std::cmp::min(sv_ptr + svnn_size, systems.len()); // trimed epoch description
             let system = &systems[start..end];
-            println!("NEW SYSTEM \"{}\"\n", system); //DEBUG
+            //println!("NEW SYSTEM \"{}\"\n", system); //DEBUG
             if let Ok(ssv) = Sv::from_str(system) {
                 sv = ssv;
             } else {
@@ -538,7 +538,7 @@ fn parse_v3 (observables: &HashMap<Constellation, Vec<String>>, lines: std::str:
 	let mut data: BTreeMap<Sv, HashMap<String, ObservationData>> = BTreeMap::new();
 	let mut inner: HashMap<String, ObservationData> = HashMap::with_capacity(5);
 	for line in lines { // browse all lines
-        println!("parse_v3: \"{}\"", line); //DEBUG
+        //println!("parse_v3: \"{}\"", line); //DEBUG
         let (sv, line) = line.split_at(svnn_size);
         if let Ok(sv) = Sv::from_str(sv) {
             if let Some(obscodes) = observables.get(&sv.constellation) {
@@ -553,10 +553,9 @@ fn parse_v3 (observables: &HashMap<Constellation, Vec<String>>, lines: std::str:
                             // does not match previous Header definitions
                             // => would not be able to sort data
                     }
-                    // avoids overflowing
-                    let split_offset = std::cmp::min(observable_width, rem.len());
+                    let split_offset = std::cmp::min(observable_width, rem.len()); // avoid overflow on last obs
                     let (content, r) = rem.split_at(split_offset);
-                    //println!("content \"{}\" \"{}\"", content, r);
+                    //println!("content \"{}\" \"{}\"", content, r); //DEBUG
                     rem = r.clone();
                     let content_len = content.len();
                     let mut ssi: Option<Ssi> = None;

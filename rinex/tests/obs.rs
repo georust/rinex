@@ -531,8 +531,8 @@ mod test {
         assert_eq!(c1c.is_some(), true);
         let c1c = c1c.unwrap();
         assert_eq!(c1c.obs, 20243517.560);
-        assert_eq!(c1c.lli.is_none(), true);
-        assert_eq!(c1c.ssi.is_none(), true);
+        assert!(c1c.lli.is_none());
+        assert!(c1c.ssi.is_none());
 
         let l1c = data.get("L1C");
         assert_eq!(l1c.is_some(), true);
@@ -540,6 +540,13 @@ mod test {
         assert_eq!(l1c.obs, 106380411.418);
         assert_eq!(l1c.lli, Some(LliFlags::OK_OR_UNKNOWN));
         assert_eq!(l1c.ssi, Some(Ssi::from_str("8").unwrap()));
+
+        let s1c = data.get("S1C");
+        assert_eq!(s1c.is_some(), true);
+        let s1c = s1c.unwrap();
+        assert_eq!(s1c.obs, 51.250);
+        assert!(s1c.lli.is_none());
+        assert!(s1c.ssi.is_none());
 
         let g03 = Sv { constellation: Constellation::GPS, prn: 03 };
         let g03 = vehicules.get(&g03);

@@ -159,7 +159,7 @@ impl Decompressor {
     }
 
 	fn parse_flags(&mut self, sv: &Sv, content: &str) {
-		println!("FLAGS: \"{}\"", content); // DEBUG
+		//println!("FLAGS: \"{}\"", content); // DEBUG
         if let Some(sv_diff) = self.sv_diff.get_mut(sv) {
             for index in 0..content.len() {
 				if let Some(sv_obs) = sv_diff.get_mut(index/2) {
@@ -257,8 +257,8 @@ impl Decompressor {
                 None => break,
             };
             
-            println!("DECOMPRESSING - \"{}\"", line); //DEBUG
-            println!("state: {:?}", self.state); 
+            //println!("DECOMPRESSING - \"{}\"", line); //DEBUG
+            //println!("state: {:?}", self.state); 
             
             // [0] : COMMENTS (special case)
             if is_comment!(line) {
@@ -361,7 +361,7 @@ impl Decompressor {
                     }
 
                     if let Ok(descriptor) = format_epoch(rnx_major, self.nb_sv, recovered, clock_offset) {
-                        println!("--- EPOCH --- \n{}[STOP]", descriptor.trim_end()); //DEBUG
+                        //println!("--- EPOCH --- \n{}[STOP]", descriptor.trim_end()); //DEBUG
                         result.push_str(&format!("{}\n", descriptor.trim_end()));
                     } else {
                         return Err(Error::EpochConstruct);
@@ -377,7 +377,7 @@ impl Decompressor {
                      * identify satellite we're dealing with
                      */
                     if let Some(sv) = self.current_satellite(crx_major, &crx_constell, self.sv_ptr) {
-                        println!("SV: {:?}", sv); //DEBUG
+                        //println!("SV: {:?}", sv); //DEBUG
                         self.sv_ptr += 1; // increment for next time
                                     // vehicules are always described in a single line
                         if rnx_major > 2 {
@@ -385,17 +385,11 @@ impl Decompressor {
                             result.push_str(&format!("{} ", sv));
                         }
                         /*
-                         * observables identifier
-                         */
-                        let codes = obscodes.get(&sv.constellation)
-                            .expect("malformed header");
-                        /*
                          * Build compress tools in case this vehicule is new
                          */
                         if self.sv_diff.get(&sv).is_none() {
                             let mut inner: Vec<(NumDiff, TextDiff, TextDiff)> = Vec::with_capacity(16);
-                            // this if() 
-                            //   protects from malformed Headers or malformed Epoch descriptions
+                            // this protects from malformed Headers or malformed Epoch descriptions
                             if let Some(codes) = obscodes.get(&sv.constellation) {
                                 for _ in codes {
                                     let mut kernels = (
@@ -414,24 +408,56 @@ impl Decompressor {
                          * iterate over entire line 
                          */
                         let mut line = line.trim();
-                        while obs_ptr < codes.len() {
-                            if let Some(pos) = line.find(' ') {
-                                let content = &line[..pos];
-                                println!("OBS \"{}\" - CONTENT \"{}\"", codes[obs_ptr], content); //DEBUG
-                                if content.len() == 0 {
-                                    /*
-                                    * missing observation
-                                    */
-                                    observations.push(None);
+                        // this protects from malformed Headers or malformed Epoch descriptions
+                        if let Some(codes) = obscodes.get(&sv.constellation) {
+                            while obs_ptr < codes.len() {
+                                if let Some(pos) = line.find(' ') {
+                                    let content = &line[..pos];
+                                    //println!("OBS \"{}\" - CONTENT \"{}\"", codes[obs_ptr], content); //DEBUG
+                                    if content.len() == 0 {
+                                        /*
+                                        * missing observation
+                                        */
+                                        observations.push(None);
+                                    } else {
+                                        /*
+                                         * regular progression
+                                         */
+                                        if let Some(sv_diff) = self.sv_diff.get_mut(&sv) {
+                                            if content.contains("&") { // kernel (re)init description
+                                                let index = content.find("&")
+                                                    .unwrap();
+                                                let (order, rem) = content.split_at(index);
+                                                let order = u8::from_str_radix(order.trim(), 10)?;
+                                                let (_, data) = rem.split_at(1);
+                                                let data = i64::from_str_radix(data.trim(), 10)?;
+                                                sv_diff[obs_ptr]
+                                                    .0 // observations only, at this point
+                                                    .init(order.into(), data)?;
+                                                observations.push(Some(data));
+                                            } else { // regular compression
+                                                if let Ok(num) = i64::from_str_radix(content.trim(), 10) {
+                                                    let recovered = sv_diff[obs_ptr]
+                                                        .0 // observations only, at this point
+                                                        .decompress(num);
+                                                    observations.push(Some(recovered));
+                                                }
+                                            }
+                                        }
+                                    }
+                                    line = &line[std::cmp::min(pos+1, line.len())..];
+                                    obs_ptr += 1;
                                 } else {
                                     /*
-                                     * regular progression
+                                     * EOL detected, but obs_ptr < codes.len()
+                                     *  => try to parse one last obs
                                      */
+                                    //println!("OBS \"{}\" - CONTENT \"{}\"", codes[obs_ptr], line); //DEBUG
                                     if let Some(sv_diff) = self.sv_diff.get_mut(&sv) {
-                                        if content.contains("&") { // kernel (re)init description
-                                            let index = content.find("&")
+                                        if line.contains("&") { // kernel init requested
+                                            let index = line.find("&")
                                                 .unwrap();
-                                            let (order, rem) = content.split_at(index);
+                                            let (order, rem) = line.split_at(index);
                                             let order = u8::from_str_radix(order.trim(), 10)?;
                                             let (_, data) = rem.split_at(1);
                                             let data = i64::from_str_radix(data.trim(), 10)?;
@@ -440,48 +466,19 @@ impl Decompressor {
                                                 .init(order.into(), data)?;
                                             observations.push(Some(data));
                                         } else { // regular compression
-                                            if let Ok(num) = i64::from_str_radix(content.trim(), 10) {
+                                            if let Ok(num) = i64::from_str_radix(line.trim(), 10) {
                                                 let recovered = sv_diff[obs_ptr]
                                                     .0 // observations only, at this point
                                                     .decompress(num);
-                                                observations.push(Some(recovered));
+                                                observations.push(Some(recovered))
                                             }
                                         }
-                                    }
-                                }
-                                line = &line[std::cmp::min(pos+1, line.len())..];
-                                obs_ptr += 1;
-                            } else {
-                                /*
-                                 * EOL detected, but obs_ptr < codes.len()
-                                 *  => try to parse one last obs
-                                 */
-                                println!("OBS \"{}\" - CONTENT \"{}\"", codes[obs_ptr], line); //DEBUG
-                                if let Some(sv_diff) = self.sv_diff.get_mut(&sv) {
-                                    if line.contains("&") { // kernel init requested
-                                        let index = line.find("&")
-                                            .unwrap();
-                                        let (order, rem) = line.split_at(index);
-                                        let order = u8::from_str_radix(order.trim(), 10)?;
-                                        let (_, data) = rem.split_at(1);
-                                        let data = i64::from_str_radix(data.trim(), 10)?;
-                                        sv_diff[obs_ptr]
-                                            .0 // observations only, at this point
-                                            .init(order.into(), data)?;
-                                        observations.push(Some(data));
-                                    } else { // regular compression
-                                        if let Ok(num) = i64::from_str_radix(line.trim(), 10) {
-                                            let recovered = sv_diff[obs_ptr]
-                                                .0 // observations only, at this point
-                                                .decompress(num);
-                                            observations.push(Some(recovered))
-                                        }
-                                    }
-                                }//svdiff
-                                line = ""; // avoid flags parsing: all flags omitted <=> content unchanged
-                                obs_ptr = codes.len();
-                            }//EOL
-                        }//while()
+                                    }//svdiff
+                                    line = ""; // avoid flags parsing: all flags omitted <=> content unchanged
+                                    obs_ptr = codes.len();
+                                }//EOL
+                            }//while()
+                        }//obscodes identification
                         /*
                          * Flags field
                          */
@@ -506,7 +503,7 @@ impl Decompressor {
                                                 // using textdiff property.
                                                 // Another option would be to have an array to
                                                 // store them
-                                println!("LLI: {}", &lli);
+                                //println!("LLI: {}", &lli); //DEBUG
                                 result.push_str(&lli); // append flag
                                 let ssi = obs[index]
                                     .2 // SSI
@@ -514,7 +511,7 @@ impl Decompressor {
                                                 // using textdiff property.
                                                 // Another option would be to have an array to
                                                 // store them
-                                println!("SSI: {}", &ssi);
+                                //println!("SSI: {}", &ssi); //DEBUG
                                 result.push_str(&ssi); // append flag
                             } else {
                                 result.push_str("                "); // BLANK
