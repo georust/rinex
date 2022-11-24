@@ -1,5 +1,7 @@
 //#![feature(test)]
-use rinex::{*,
+use rinex::{
+    prelude::*,
+    observation::*,
     record::parse_record,
     reader::BufferedReader,
     hatanaka::numdiff::NumDiff,
@@ -79,11 +81,11 @@ fn browse_skip_header_section(reader: &mut BufferedReader) {
 /*
  * Puts record section parsing to test
  */
-fn record_parsing (path: &str, header: &Header) {
+fn record_parsing (path: &str, header: &mut Header) {
     let mut reader = BufferedReader::new(path)
         .unwrap();
     browse_skip_header_section(&mut reader);
-    let record = parse_record(&mut reader, &header);
+    let record = parse_record(&mut reader, header);
 }
 
 fn decompression_benchmark (c: &mut Criterion) {
@@ -224,9 +226,9 @@ fn record_parsing_benchmark (c: &mut Criterion) {
     let mut group = c.benchmark_group("record");
     
     // prepare for OBS/zegv0010.21o
-    let header = Header::basic_obs()
+    let mut header = Header::basic_obs()
         .with_observation_fields(
-            observation::HeaderFields {
+            HeaderFields {
                 crinex: None,
                 codes: {
                     let mut map: HashMap<Constellation, Vec<String>> = HashMap::new();
@@ -241,15 +243,17 @@ fn record_parsing_benchmark (c: &mut Criterion) {
                     map
                 },
                 clock_offset_applied: false,
+                dcb_compensations: Vec::new(),
+                scalings: HashMap::new(),
             });
     group.bench_function("OBSv2/zegv0010.21o", |b| b.iter(|| {
-        record_parsing("../test_resources/OBS/V2/zegv0010.21o", &header);
+        record_parsing("../test_resources/OBS/V2/zegv0010.21o", &mut header);
     }));
     
     // prepare for OBS/V3/ACOR00ESP
-    let header = Header::basic_obs()
+    let mut header = Header::basic_obs()
         .with_observation_fields(
-            observation::HeaderFields {
+            HeaderFields {
                 crinex: None,
                 codes: {
                     let mut map: HashMap<Constellation, Vec<String>> = HashMap::new();
@@ -272,9 +276,11 @@ fn record_parsing_benchmark (c: &mut Criterion) {
                     map
                 },
                 clock_offset_applied: false,
+                dcb_compensations: Vec::new(),
+                scalings: HashMap::new(),
             });
     group.bench_function("OBSv3/ACOR00ESP", |b| b.iter(|| {
-        record_parsing("../test_resources/OBS/V3/ACOR00ESP_R_20213550000_01D_30S_MO.rnx", &header);
+        record_parsing("../test_resources/OBS/V3/ACOR00ESP_R_20213550000_01D_30S_MO.rnx", &mut header);
     }));
 
     //prepare for CRNX/V1/delf0010.21d
