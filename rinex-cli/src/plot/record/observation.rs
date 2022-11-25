@@ -79,7 +79,7 @@ pub fn build_context<'a> (dim: (u32, u32), record: &Record) -> Context<'a> {
         //
         // Color space: one color per vehicule
         //    identified by PRN#
-        for (sv, observations) in vehicules {
+        for (_, observations) in vehicules {
             for (observation, data) in observations {
                 if is_phase_carrier_obs_code!(observation) {
                     let file = "phase.png";

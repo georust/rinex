@@ -5,7 +5,6 @@ use clap::{
     ColorChoice,
 };
 use crate::parser::{
-    parse_duration,
     parse_epoch,
 };
 use rinex::prelude::*;

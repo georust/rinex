@@ -606,8 +606,7 @@ impl Rinex {
     }
 
     /// Returns sampling interval of this record
-    /// either directly from header section, if such information was provided,
-    /// or the most encountered epoch interval.
+    /// if such information is contained in file header.
     ///
     /// Example:
     /// ```
@@ -627,25 +626,11 @@ impl Rinex {
     /// //--------------> 15' is the most "plausible"
     /// //assert_eq!(rnx.sampling_interval(), Duration::from_hours(15.0));
     /// ```
-    pub fn sampling_interval(&self) -> Duration {
+    pub fn sampling_interval(&self) -> Option<Duration> {
         if let Some(interval) = self.header.sampling_interval {
-            interval
+            Some(interval)
         } else {
-            let histogram = self.epoch_intervals();
-            // largest hist population
-            let mut largest = 0;
-            let mut dt = Duration::default(); // null
-            for (d, counter) in histogram.iter() {
-                if counter > &largest {
-                    largest = *counter;
-                    dt = d.clone();
-                } else if counter == &largest {
-                    if d < &dt { // on population equality --> smallest epoch interval is preferred
-                        dt = d.clone()
-                    }
-                }
-            }
-            dt
+            None
         }
     }
     
@@ -700,25 +685,26 @@ impl Rinex {
         ret
     }
 
-    /// Returns a list of epochs that present a data gap.
+    /// Returns a list of epochs where unexpected data gap happend.
     /// Data gap is determined by comparing |e(k)-e(k-1)| ie., successive epoch intervals,
-    /// to the interval field (prefered) if header does have such information,
-    /// otherwise we compute the average epoch duration ourselves.
-    /// Granularity is 1 second for most RINEX, and down to 100ns for Observation RINEX.
+    /// to [Rinex::sampling_interval].
     pub fn data_gaps(&self) -> Vec<Epoch> {
-        let interval = self.sampling_interval();
-        let mut epochs = self.epochs();
-        let mut prev = epochs[0];
-        epochs
-            .retain(|e| {
-                if *e - prev <= interval {
-                    prev = *e;
-                    true
-                } else {
-                    false
-                }
-        });
-        epochs
+        if let Some(interval) = self.sampling_interval() {
+            let mut epochs = self.epochs();
+            let mut prev = epochs[0];
+            epochs
+                .retain(|e| {
+                    if *e - prev <= interval {
+                        prev = *e;
+                        true
+                    } else {
+                        false
+                    }
+            });
+            epochs
+        } else {
+            Vec::new()
+        }
     }
    
 /*

@@ -134,7 +134,7 @@ pub fn plot_gnss_recombination(
                 .expect(&format!("failed to draw {} serie", op));
             chart.draw_series(
                 epochs.iter()
-                    .map(|((k, flag), v)| {
+                    .map(|((k, _flag), v)| {
                         let x = k.to_utc_seconds() - dates.0; 
                         match symbol {
                             "x" => {

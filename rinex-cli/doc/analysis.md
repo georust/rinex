@@ -1,7 +1,5 @@
-RINEX analysis
-==============
-
-## Sv per epoch
+Sv per epoch
+============
 
 Vehicules per epoch identification is requested with `--sv-epoch`.  
 This mode will generate a plot that emphasize which vehicules
@@ -51,3 +49,22 @@ because most of the Observation context is covered by Ephemeris.
 To learn more about differential processing, refer to the 
 Differential proceesing operations described
 [in this page](https://github.com/gwbres/rinex/blob/main/rinex-cli/doc/processing.md).
+
+Sample rate analysis
+====================
+
+Sample rate steadyness might be important in operations to perform.  
+`--epoch-hist` performs an histogram analysis of all epoch durations accross `-fp`.  
+
+For example, `ESBC00DNK_R_20201` is a large file with steady 30s sample rate.
+
+```bash
+rinex-cli --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz --epoch-hist
+```
+
+<img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_hist.png">
+
+When applying to non steady files, this emphasize the average sample rate and the amount of anomalies.   
+In this example, 16 epochs were generate, 14 with a 30s sample rate, and 2 inter minute epochs are missing.
+
+<img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/hist2.png">
