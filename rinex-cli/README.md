@@ -124,6 +124,11 @@ RINEX record analysis is by default presented in JSON format, but
 graphical view can be activated with `--plot`. 
 Data is highly dependent on the file that was provided (`--fp`).
 
+Data is most of the time plotted against time. 
+Time axis represents epoch, normalized to the 1st epoch in the record
+and time axis is in seconds.  
+This will be improved in a near future, with proper date/epoch visualization.
+
 ### Readable JSON 
 
 This tool uses JSON format to expose data by default. 

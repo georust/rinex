@@ -26,9 +26,9 @@ pub fn build_context<'a> (dim: (u32, u32), record: &Record) -> Context<'a> {
         if index == 0 {
             // store first epoch timestamp
             // to scale x_axis proplery (avoids fuzzy rendering)
-            e0 = e.to_mjd_utc_seconds();
+            e0 = e.to_utc_seconds();
         }
-        let t = e.to_mjd_utc_seconds() - e0;
+        let t = e.to_utc_seconds() - e0;
         t_axis.push(t as f64);
         for (class, _) in classes {
             if *class == FrameClass::Ephemeris {
@@ -72,9 +72,9 @@ pub fn plot(ctx: &mut Context, record: &Record) {
     let mut driftr: HashMap<Sv, Vec<(f64,f64)>> = HashMap::new();
     for (index, (epoch, classes)) in record.iter().enumerate() {
         if index == 0 {
-            e0 = epoch.to_mjd_utc_seconds();
+            e0 = epoch.to_utc_seconds();
         }
-        let t = epoch.to_mjd_utc_seconds() - e0;
+        let t = epoch.to_utc_seconds() - e0;
         for (class, frames) in classes {
             if *class == FrameClass::Ephemeris {
                 for frame in frames {

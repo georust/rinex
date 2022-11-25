@@ -76,10 +76,10 @@ pub fn plot_gnss_recombination(
             }
             for (e_index, ((epoch, flag), data)) in epochs.iter().enumerate() {
                 if e_index == 0 {
-                    dates.0 = epoch.to_mjd_utc_seconds(); 
+                    dates.0 = epoch.to_utc_seconds(); 
                 }
-                if epoch.to_mjd_utc_seconds() > dates.1 {
-                    dates.1 = epoch.to_mjd_utc_seconds(); 
+                if epoch.to_utc_seconds() > dates.1 {
+                    dates.1 = epoch.to_utc_seconds(); 
                 }
                 let yp = data; // * 1.546;
                 if *yp < y.0 {
@@ -128,14 +128,14 @@ pub fn plot_gnss_recombination(
             };
             chart.draw_series(LineSeries::new(
                 epochs.iter()
-                    .map(|((k, flag), v)| (k.to_mjd_utc_seconds() - dates.0, *v)),
+                    .map(|((k, flag), v)| (k.to_utc_seconds() - dates.0, *v)),
                     color.clone(),
                 ))
                 .expect(&format!("failed to draw {} serie", op));
             chart.draw_series(
                 epochs.iter()
                     .map(|((k, flag), v)| {
-                        let x = k.to_mjd_utc_seconds() - dates.0; 
+                        let x = k.to_utc_seconds() - dates.0; 
                         match symbol {
                             "x" => {
                                 Cross::new((x, *v), 4,

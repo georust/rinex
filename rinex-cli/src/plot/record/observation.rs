@@ -47,10 +47,10 @@ pub fn build_context<'a> (dim: (u32, u32), record: &Record) -> Context<'a> {
         if e_index == 0 {
             // store first epoch timestamp
             // to scale x_axis proplery (avoids fuzzy rendering)
-            e0 = e.to_mjd_utc_seconds();
+            e0 = e.to_utc_seconds();
         }
-        let t = e.to_mjd_utc_seconds();
-        t_axis.push(t as f64);
+        let t = e.to_utc_seconds() - e0;
+        t_axis.push(t);
 
         // Build 1 plot in case Receiver Clock Offsets were provided 
         // Associate 1 chart to each plot, for classical 2D x,y plot 
@@ -79,7 +79,7 @@ pub fn build_context<'a> (dim: (u32, u32), record: &Record) -> Context<'a> {
         //
         // Color space: one color per vehicule
         //    identified by PRN#
-        for (v_index, (sv, observations)) in vehicules.iter().enumerate() {
+        for (sv, observations) in vehicules {
             for (observation, data) in observations {
                 if is_phase_carrier_obs_code!(observation) {
                     let file = "phase.png";
@@ -191,12 +191,12 @@ pub fn plot(ctx: &mut Context, record: &Record, nav_ctx: Option<Rinex>) {
     //      optionnal(f64): Sv elevation angle, if NAV is provided
     let mut dataset: HashMap<String, HashMap<u8, HashMap<Sv, Vec<(bool,f64,f64)>>>> = HashMap::new();
 
-    for (e_index, ((epoch, flag), (clock_offset, vehicules))) in record.iter().enumerate() {
+    for (e_index, ((epoch, _flag), (clock_offset, vehicules))) in record.iter().enumerate() {
         if e_index == 0 {
-            e0 = epoch.to_mjd_utc_seconds();
+            e0 = epoch.to_utc_seconds();
         }
         
-        let e = epoch.to_mjd_utc_seconds();
+        let e = epoch.to_utc_seconds();
         let x = e-e0;
         if let Some(value) = clock_offset {
             clk_offset.push((x, *value));
@@ -301,11 +301,11 @@ pub fn plot(ctx: &mut Context, record: &Record, nav_ctx: Option<Rinex>) {
                 let color = cmap.eval_rational(sv.prn.into(), 50); 
                 let color = RGBColor { 0: color.r, 1: color.g, 2: color.b };
                 // plot
-                chart.draw_series(LineSeries::new(
+                /* chart.draw_series(LineSeries::new(
                     data.iter()
                         .map(|(_,x,y)| (*x,*y)),
                         color.clone()))
-                    .expect(&format!("failed to draw {} data", physics));
+                    .expect(&format!("failed to draw {} data", physics)); */
                 chart.draw_series(
                     data.iter()
                         .map(|(cycle_slip,x,y)| {

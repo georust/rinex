@@ -40,6 +40,10 @@ the following content is probably interpreted as a faulty epoch to disregard
   - [ ] use Cow when possible
 
 - [ ] CLI
+  - [ ] improve vehicle color map (sv identification)
+  - [ ] improve time axis by converting to a proper date axis
+  - [ ] emphasize Observation EpochFlags and external events,
+  with like a plot annotation or something like that
   - [ ] progress towards quality check 
   - [ ] conclude the `teqc` mini ascii plot 
   - [ ] `teqc` like verbose / analysis report ? 
@@ -47,14 +51,7 @@ the following content is probably interpreted as a faulty epoch to disregard
 - [ ]  Data production
   - [ ] provide some interface to efficiently customize the Header section
   - [ ] provide an efficient interface to manage file names to be generated 
-- [ ]  Post Processing
-  - [ ]  provide efficient interface to 1D and 2D processing methods  
-- [ ] Graphical Interface
-  - [ ] Emphasize somehow Observations that came with LLI/SSI
-  in graphical record analysis ?
-  - [ ] Provide NAV and MET RINEX plotting 
   - [ ] Make GUI an application feature? for users not interested in such option
-
 
 - [ ] Ublox
   - [ ] Have an header field attributes customization interface similar to `cli` application
@@ -105,7 +102,8 @@ of the file browser
 - Post Processing
   - [x] 1D post processing [1D diff()](https://github.com/gwbres/rinex/blob/main/rinex/src/lib.rs#L3023) 
 
-- Graphical Interface
+- CLI 
+  - [x] provide efficient interface to 1D and 2D processing methods  
   - [x] Provide a visualization method when we're not generating a file
   - [x] Conclude Observation RINEX plotting
 
