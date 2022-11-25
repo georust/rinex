@@ -2,7 +2,6 @@ mod cli;
 use cli::Cli;
 use rinex::{
     Error,
-    epoch,
     prelude::*,
     version::Version,
     observation::Crinex,
