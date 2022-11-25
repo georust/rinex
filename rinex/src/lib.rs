@@ -297,32 +297,6 @@ impl Rinex {
         }
     }
 
-    /// Converts all epochs into desired [hifitime::TimeScale].
-    /// This has no effect if self is not iterated by [epoch::Epoch].
-    pub fn convert_timescale(&mut self, ts: TimeScale) {
-        if let Some(r) = self.record.as_mut_obs() {
-            for ((mut epoch, _), _) in r.iter_mut() {
-                epoch = epoch.in_time_scale(ts);
-            }
-        } else if let Some(r) = self.record.as_mut_nav() {
-            for (mut epoch, _) in r.iter_mut() {
-                epoch = &epoch.in_time_scale(ts);
-            }
-        } else if let Some(r) = self.record.as_mut_clock() {
-            for (mut epoch, _) in r.iter_mut() {
-                epoch = &epoch.in_time_scale(ts);
-            }
-        } else if let Some(r) = self.record.as_mut_meteo() {
-            for (mut epoch, _) in r.iter_mut() {
-                epoch = &epoch.in_time_scale(ts);
-            }
-        } else if let Some(r) = self.record.as_mut_ionex() {
-            for (mut epoch, _) in r.iter_mut() {
-                epoch = &epoch.in_time_scale(ts);
-            }
-        }
-    }
-
     /// Returns timescale used in this RINEX
     pub fn timescale(&self) -> Option<TimeScale> {
         /*

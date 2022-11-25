@@ -289,9 +289,9 @@ impl Decimation<Record> for Record {
 
 impl TimeScaling<Record> for Record {
     fn convert_timescale(&mut self, ts: TimeScale) {
-        for (mut epoch, _) in self.iter_mut() {
-            epoch = &epoch.in_time_scale(ts);
-        }
+        self.iter_mut()
+            .map(|(k, v)| (k.in_time_scale(ts), v))
+            .count();
     }
     fn with_timescale(&self, ts: TimeScale) -> Self {
         let mut s = self.clone();
