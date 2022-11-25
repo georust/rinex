@@ -24,14 +24,19 @@ fn main() -> Result<(), Error> {
             minor: 0,
         };
     }
-    let date = cli.date();
-    let time = cli.time();
-    if let Some((y, m, d)) = date {
-        let (hh, mm, ss) = cli.time().unwrap_or((0,0,0));
-        crinex.date = Epoch::from_gregorian_utc(y, m, d, hh, mm, ss, 0);
-    } else if let Some(time) = time {
-        crinex.date = Epoch::now().expect("failed to retrieve system time");
+    if let Some(date) = cli.date() {
+        let (y, m, d, _, _, _, _) = date.to_gregorian_utc();
+        if let Some((hh, mm, ss)) = cli.time() {
+            crinex.date = Epoch::from_gregorian_utc(y, m, d, hh, mm, ss, 0);
+        } else {
+            crinex.date = Epoch::from_gregorian_utc_at_midnight(y, m, d);
+        }
+    } else if let Some((hh, mm, ss)) = cli.time() {
+        let today = Epoch::now().expect("failed to retrieve system time");
+        let (y, m, d, _, _, _, _) = today.to_gregorian_utc();
+        crinex.date = Epoch::from_gregorian_utc(y, m, d, hh, mm, ss, 0); 
     }
+
     // output path
     let output_path = match cli.output_path() {
         Some(path) => path.clone(),

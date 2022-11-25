@@ -1,3 +1,4 @@
+use rinex::prelude::*;
 use clap::{
     Command,
     Arg, ArgMatches,
@@ -68,7 +69,7 @@ impl Cli {
     pub fn crx3(&self) -> bool {
         self.matches.get_flag("crx3")
     }
-    pub fn date(&self) -> Option<(i32,u8,u8)> {
+    pub fn date(&self) -> Option<Epoch> {
         if let Some(s) = self.matches
             .get_one::<String>("date") { 
             let items: Vec<&str> = s.split("-").collect();
@@ -79,7 +80,7 @@ impl Cli {
                 if let Ok(y) = i32::from_str_radix(items[0], 10) {
                     if let Ok(m) = u8::from_str_radix(items[1], 10) {
                         if let Ok(d) = u8::from_str_radix(items[2], 10) {
-                            return Some((y,m,d));
+                            return Some(Epoch::from_gregorian_utc_at_midnight(y, m, d));
                         }
                     }
                 }
