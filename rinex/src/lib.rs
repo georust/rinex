@@ -1764,18 +1764,18 @@ impl Rinex {
     /// Extracts signal strength as (min, max) duplet,
     /// accross all vehicules.
     /// Only relevant on Observation RINEX.
-    pub fn observation_ssi_minmax (&self) -> Option<(observation::Ssi, observation::Ssi)> {
-        let ret: Option<(observation::Ssi, observation::Ssi)> = None;
+    pub fn observation_ssi_minmax(&self) -> Option<(observation::Ssi, observation::Ssi)> {
+        let mut ret: Option<(observation::Ssi, observation::Ssi)> = None;
         if let Some(r) = self.record.as_obs() {
             for (_, (_, vehicules)) in r.iter() {
                 for (_, observation) in vehicules.iter() {
                     for (_, data) in observation.iter() {
                         if let Some(ssi) = data.ssi {
-                            if let Some((mut min, mut max)) = ret {
-                                if ssi < min {
-                                    min = ssi
-                                } else if ssi > max {
-                                    max = ssi
+                            if let Some((min, max)) = &mut ret {
+                                if ssi < *min {
+                                    *min = ssi
+                                } else if ssi > *max {
+                                    *max = ssi
                                 }
                             }
                         }
