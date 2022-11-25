@@ -587,18 +587,7 @@ impl Rinex {
     /// use rinex::prelude::*;
     /// let rnx = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O").unwrap();
     /// // in this file, header section contains desired information directly
-    /// assert_eq!(rnx.sampling_interval(), rnx.header.sampling_interval.unwrap());
-    /// let rnx = Rinex::from_file("../test_resources/NAV/V3/AMEL00NLD_R_20210010000_01D_MN.rnx").unwrap();
-    /// // in that file, we had to compute that information ourselves
-    /// assert_eq!(rnx.header.sampling_interval, None);
-    /// //01 00 00 00
-    /// //01 00 15 00 --> 15'
-    /// //01 05 00 00 --> 4h45
-    /// //01 09 45 00 --> 4h45
-    /// //01 10 00 00 --> 15'
-    /// //01 15 40 00 --> 5h40
-    /// //--------------> 15' is the most "plausible"
-    /// //assert_eq!(rnx.sampling_interval(), Duration::from_hours(15.0));
+    /// assert_eq!(rnx.sampling_interval(), Some(Duration::from_seconds(30.0)));
     /// ```
     pub fn sampling_interval(&self) -> Option<Duration> {
         if let Some(interval) = self.header.sampling_interval {
