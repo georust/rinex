@@ -7,24 +7,38 @@ use cli::Cli;
 fn main() -> Result<(), rinex::Error> {
     let cli = Cli::new();
     let input_path = cli.input_path(); 
+    println!("decompressing \"{}\"..", input_path);
+
     let output_path = match cli.output_path() {
         Some(path) => path.clone(),
         _ => { // deduce from input path
-            let mut outpath = String::with_capacity(64);
-            if let Some(prefix) = input_path.strip_suffix("d") { // CRNX1
-                outpath = prefix.to_owned() + "o" // RNX1
-            } else {
-                if let Some(prefix) = input_path.strip_suffix("crx") { // CRNX3
-                    outpath = prefix.to_owned() + "rnx" // RNX3
+            match input_path.strip_suffix("d") {
+                Some(prefix) => {
+                    prefix.to_owned() + "o"
+                },
+                _ => {
+                    match input_path.strip_suffix("D") {
+                        Some(prefix) => {
+                            prefix.to_owned() + "O"
+                        },
+                        _ => {
+                            match input_path.strip_suffix("crx") {
+                                Some(prefix) => {
+                                    prefix.to_owned() + "rnx"
+                                },
+                                _ => {
+                                    String::from("output.rnx")
+                                }
+                            }
+                        },
+                    }
                 }
             }
-            outpath
-        },
+        }
     };
-
     let mut rinex = Rinex::from_file(input_path)?; // parse
     rinex.crnx2rnx(); // convert to RINEX
     rinex.to_file(&output_path)?; // dump
-    println!("{} generated", output_path);
+    println!("\"{}\" generated", output_path.clone());
     Ok(())
 }

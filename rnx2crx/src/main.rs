@@ -40,18 +40,25 @@ fn main() -> Result<(), Error> {
     let output_path = match cli.output_path() {
         Some(path) => path.clone(),
         _ => { // deduce from input
-            let mut outpath = String::with_capacity(64);
-            if let Some(stripped) = input_path.strip_suffix("o") { // RNX1 
-                outpath = stripped.to_owned() + "d" // CRNX1
-            } else if let Some(stripped) = input_path.strip_suffix("O") { // RNX1 
-                outpath = stripped.to_owned() + "D" // CRNX1
-            } else {
-                if let Some(stripped) = input_path.strip_suffix("rnx") { // RNX3
-                    outpath = stripped.to_owned() + "crx" // CRNX3
-                }
+            match input_path.strip_suffix("o") {
+                Some(prefix) => {
+                    prefix.to_owned() + "d"
+                },
+                _ => {
+                    match input_path.strip_suffix("O") {
+                        Some(prefix) => {
+                            prefix.to_owned() + "D"
+                        },
+                        _ => {
+                            match input_path.strip_suffix("rnx") {
+                                Some(prefix) => prefix.to_owned() + "crx",
+                                _ => String::from("output.crx"),
+                            }
+                        },
+                    }
+                },
             }
-            outpath
-        },
+        }
     };
     println!("Compressing \"{}\"..", input_path);
     let mut rinex = Rinex::from_file(input_path)?; // parse
