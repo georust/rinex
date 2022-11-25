@@ -1870,10 +1870,13 @@ impl Merge<Header> for Header {
 }
 
 #[cfg(test)]
-fn test_from_b_fmt_month() {
-    assert_eq!(from_b_fmt_month!("Jan"), 1);
-    assert_eq!(from_b_fmt_month!("Feb"), 2);
-    assert_eq!(from_b_fmt_month!("Mar"), 3);
-    assert_eq!(from_b_fmt_month!("Dec"), 12);
-    assert_eq!(from_b_fmt_month!("Nov"), 11);
+mod test {
+    #[test]
+    fn test_from_b_fmt_month() {
+        assert_eq!(from_b_fmt_month!("Jan"), 1);
+        assert_eq!(from_b_fmt_month!("Feb"), 2);
+        assert_eq!(from_b_fmt_month!("Mar"), 3);
+        assert_eq!(from_b_fmt_month!("Dec"), 12);
+        assert_eq!(from_b_fmt_month!("Nov"), 11);
+    }
 }
