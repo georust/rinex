@@ -126,12 +126,12 @@ pub fn plot_gnss_recombination(
                 1: color.g,
                 2: color.b,
             };
-            chart.draw_series(LineSeries::new(
+            /*chart.draw_series(LineSeries::new(
                 epochs.iter()
                     .map(|((k, flag), v)| (k.to_utc_seconds() - dates.0, *v)),
                     color.clone(),
                 ))
-                .expect(&format!("failed to draw {} serie", op));
+                .expect(&format!("failed to draw {} serie", op));*/
             chart.draw_series(
                 epochs.iter()
                     .map(|((k, _flag), v)| {
