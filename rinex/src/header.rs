@@ -2,7 +2,6 @@
 //! rinex header parser and associated methods
 use super::*;
 use crate::{
-    epoch,
     hardware::{
         Rcvr,
         Antenna,
