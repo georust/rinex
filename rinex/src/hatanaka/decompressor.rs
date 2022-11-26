@@ -385,8 +385,7 @@ impl Decompressor {
                         /*
                          * iterate over entire line 
                          */
-                        let mut line = line.trim();
-                        // this protects from malformed Headers or malformed Epoch descriptions
+                        let mut line = line.trim_end();
                         if let Some(codes) = obscodes.get(&sv.constellation) {
                             while obs_ptr < codes.len() {
                                 if let Some(pos) = line.find(' ') {
@@ -402,17 +401,18 @@ impl Decompressor {
                                          * regular progression
                                          */
                                         if let Some(sv_diff) = self.sv_diff.get_mut(&sv) {
-                                            if content.contains("&") { // kernel (re)init description
-                                                let index = content.find("&")
-                                                    .unwrap();
-                                                let (order, rem) = content.split_at(index);
+                                            if let Some(marker) = content.find("&") {
+                                                // kernel (re)initialization
+                                                let (order, rem) = content.split_at(marker);
                                                 let order = u8::from_str_radix(order.trim(), 10)?;
+                                                //println!("ORDER {}", order); //DEBUG
                                                 let (_, data) = rem.split_at(1);
-                                                let data = i64::from_str_radix(data.trim(), 10)?;
-                                                sv_diff[obs_ptr]
-                                                    .0 // observations only, at this point
-                                                    .init(order.into(), data)?;
-                                                observations.push(Some(data));
+                                                if let Ok(data) = i64::from_str_radix(data.trim(), 10) {
+                                                    sv_diff[obs_ptr]
+                                                        .0 // observations only, at this point
+                                                        .init(order.into(), data)?;
+                                                    observations.push(Some(data));
+                                                }
                                             } else { // regular compression
                                                 if let Ok(num) = i64::from_str_radix(content.trim(), 10) {
                                                     let recovered = sv_diff[obs_ptr]
@@ -423,7 +423,7 @@ impl Decompressor {
                                             }
                                         }
                                     }
-                                    line = &line[std::cmp::min(pos+1, line.len())..];
+                                    line = &line[std::cmp::min(pos+1, line.len())..]; // line remainder
                                     obs_ptr += 1;
                                 } else {
                                     /*
@@ -432,17 +432,17 @@ impl Decompressor {
                                      */
                                     //println!("OBS \"{}\" - CONTENT \"{}\"", codes[obs_ptr], line); //DEBUG
                                     if let Some(sv_diff) = self.sv_diff.get_mut(&sv) {
-                                        if line.contains("&") { // kernel init requested
-                                            let index = line.find("&")
-                                                .unwrap();
-                                            let (order, rem) = line.split_at(index);
+                                        if let Some(marker) = line.find("&") {
+                                            // kernel (re)initliaization
+                                            let (order, rem) = line.split_at(marker);
                                             let order = u8::from_str_radix(order.trim(), 10)?;
                                             let (_, data) = rem.split_at(1);
-                                            let data = i64::from_str_radix(data.trim(), 10)?;
-                                            sv_diff[obs_ptr]
-                                                .0 // observations only, at this point
-                                                .init(order.into(), data)?;
-                                            observations.push(Some(data));
+                                            if let Ok(data) = i64::from_str_radix(data.trim(), 10) {
+                                                sv_diff[obs_ptr]
+                                                    .0 // observations only, at this point
+                                                    .init(order.into(), data)?;
+                                                observations.push(Some(data));
+                                            }
                                         } else { // regular compression
                                             if let Ok(num) = i64::from_str_radix(line.trim(), 10) {
                                                 let recovered = sv_diff[obs_ptr]
@@ -460,7 +460,7 @@ impl Decompressor {
                         /*
                          * Flags field
                          */
-						if line.len() > 1 { // can parse at least 1 flag
+						if line.len() > 0 { // can parse at least 1 flag
 							self.parse_flags(&sv, line);
 						}
                         /*
@@ -470,27 +470,23 @@ impl Decompressor {
                          */
                         for (index, data) in observations.iter().enumerate() { 
                             if let Some(data) = data {
-                                // --> data field was found & recovered
-                                result.push_str(&format!(" {:13.3}", *data as f64 /1000_f64)); // F14.3
-                                // ---> related flag content
-                                let obs = self.sv_diff.get_mut(&sv)
-                                    .unwrap();
-                                let lli = obs[index]
+                                let sv_diff = self.sv_diff.get_mut(&sv)
+                                    .unwrap(); //cant fail at this point
+                                let lli = sv_diff[index]
                                     .1 // LLI
-                                    .decompress(" "); // trick to recover
+                                    .decompress(" ") // trick to recover
                                                 // using textdiff property.
                                                 // Another option would be to have an array to
                                                 // store them
-                                //println!("LLI: {}", &lli); //DEBUG
-                                result.push_str(&lli); // append flag
-                                let ssi = obs[index]
+                                    .to_string();
+                                let ssi = sv_diff[index]
                                     .2 // SSI
-                                    .decompress(" "); // trick to recover
+                                    .decompress(" ") // trick to recover
                                                 // using textdiff property.
                                                 // Another option would be to have an array to
                                                 // store them
-                                //println!("SSI: {}", &ssi); //DEBUG
-                                result.push_str(&ssi); // append flag
+                                    .to_string();
+                                result.push_str(&format!("{:13.3}{}{} ",*data as f64 /1000_f64, lli, ssi)); //F14.3
                             } else {
                                 result.push_str("                "); // BLANK
                             }
@@ -505,7 +501,7 @@ impl Decompressor {
                     }
                     // end of line parsing
                     //  if sv_ptr has reached the expected amount of vehicules
-                    //  we reset and move back to state (1)
+                    //  we reset to state (1)
                     if self.sv_ptr >= self.nb_sv {
                         self.state = State::EpochDescriptor;
                     }

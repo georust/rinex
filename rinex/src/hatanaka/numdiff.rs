@@ -14,8 +14,11 @@ pub enum Error {
 /// equations as defined by Y. Hatanaka.   
 #[derive(Debug, Clone)]
 pub struct NumDiff {
+    /// current compression level counter
     m: usize,
+    /// maximal compression order for this structure
     order: usize,
+    /// internal data history
     history: VecDeque<i64>,
 }
 
@@ -25,7 +28,7 @@ impl NumDiff {
     /// max: maximal Hatanaka order for this kernel to ever support.
     /// We only support max <= Self::MAX_COMPRESSION_ORDER.
     /// For information, m = 5 is hardcoded in `CRN2RNX` and is a good compromise
-    pub fn new (max: usize) -> Result<Self, Error> {
+    pub fn new(max: usize) -> Result<Self, Error> {
         if max > Self::MAX_COMPRESSION_ORDER {
             return Err(Error::MaximalCompressionOrder)
         }
@@ -41,7 +44,7 @@ impl NumDiff {
     }
 
     /// Initializes or reinitializes Self.
-    pub fn init (&mut self, order: usize, data: i64) -> Result<(), Error> { 
+    pub fn init(&mut self, order: usize, data: i64) -> Result<(), Error> { 
         if order > self.history.len() {
             return Err(Error::OrderTooBig(self.history.len()))
         }
@@ -51,16 +54,17 @@ impl NumDiff {
         Ok(())
     }
 
-    fn rotate_history (&mut self, data: i64) {
+    fn rotate_history(&mut self, data: i64) {
         self.history.pop_back();
         self.history.push_front(data);
     }
 
     /// Decompresses given data 
-    pub fn decompress (&mut self, data: i64) -> i64 {
-        self.m += 1;
-        self.m = std::cmp::min(self.m, self.order); // restrain
-        let x = &self.history ;
+    pub fn decompress(&mut self, data: i64) -> i64 {
+        let x = &self.history;
+        if self.m < self.order {
+            self.m += 1;
+        }
         let result: i64 = match self.m {
             1 => data + x[0],
             2 => data + 2*x[0] - x[1],
@@ -68,16 +72,17 @@ impl NumDiff {
             4 => data + 4*x[0] - 6*x[1] + 4*x[2] - x[3],
             5 => data + 5*x[0] - 10*x[1] +10*x[2] - 5*x[3] + x[4],
             6 => data + 6*x[0] - 15*x[1] +20*x[2] -15*x[3] +6*x[4] - x[5],
-            _ => unimplemented!("maximal compression order: {}", Self::MAX_COMPRESSION_ORDER),
+            _ => unreachable!("m={} / order={}", self.m, self.order), 
         };
         self.rotate_history(result);
         result 
     }
     
     /// Compresses given data 
-    pub fn compress (&mut self, data: i64) -> i64 {
-        self.m += 1;
-        self.m = std::cmp::min(self.m, self.order); // restrain
+    pub fn compress(&mut self, data: i64) -> i64 {
+        if self.m < self.order {
+            self.m += 1;
+        }
         self.rotate_history(data);
         let x = &self.history ;
         match self.m {
@@ -87,7 +92,7 @@ impl NumDiff {
             4 => x[0] - 4*x[1] + 6*x[2] - 4*x[3] + x[4],
             5 => x[0] - 5*x[1] + 10*x[2] -10*x[3] + 5*x[4] - x[5],
             6 => x[0] - 6*x[1] + 15*x[2] -20*x[3] +15*x[4] -6*x[5] + x[6],
-            _ => unimplemented!("maximal compression order: {}", Self::MAX_COMPRESSION_ORDER),
+            _ => unreachable!(),
         }
     }
 }

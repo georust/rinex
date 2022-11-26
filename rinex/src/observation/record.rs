@@ -538,14 +538,14 @@ fn parse_v3 (observables: &HashMap<Constellation, Vec<String>>, lines: std::str:
         //println!("parse_v3: \"{}\"", line); //DEBUG
         let (sv, line) = line.split_at(svnn_size);
         if let Ok(sv) = Sv::from_str(sv) {
+            //println!("SV: \"{}\"", sv); //DEBUG
             if let Some(obscodes) = observables.get(&sv.constellation) {
-                let nb_obs = num_integer::div_ceil(line.len(), observable_width); 
+                let nb_obs = line.len() / observable_width; 
                 inner.clear();
-                //println!("SV: \"{}\"", sv); //DEBUG
                 //println!("NB OBS: {}", nb_obs); //DEBUG
                 let mut rem = line;
                 for i in 0..nb_obs {
-                    if i > obscodes.len() {
+                    if i == obscodes.len() {
                         break ; // line abnormally long
                             // does not match previous Header definitions
                             // => would not be able to sort data

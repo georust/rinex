@@ -126,6 +126,9 @@ mod test {
             ("flrs0010.12d", "flrs0010.12o"),
             ("VLNS0010.22D", "VLNS0010.22O"), 
             ("VLNS0630.22D", "VLNS0630.22O"), 
+            //("ESBC00DNK_R_20201770000_01D_30S_MO.crx", "ESBC00DNK_R_20201770000_01D_30S_MO.rnx"),
+            //("KMS300DNK_R_20221591000_01H_30S_MO.crx", "KMS300DNK_R_20221591000_01H_30S_MO.rnx"),
+            //("MOJN00DNK_R_20201770000_01D_30S_MO.crx", "MOJN00DNK_R_20201770000_01D_30S_MO.rnx"),
         ];
         for duplet in pool {
             let (crnx_name, rnx_name) = duplet;
