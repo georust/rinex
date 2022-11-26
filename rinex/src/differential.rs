@@ -43,8 +43,8 @@ impl DiffContext {
     /// For Navigation context: we only retain Ephemeris frames,
     /// as we don't know of Differential analysis involving other frames.
     pub fn new(base: &Rinex, rover: &Rinex) -> Self {
-        let mut base = base.clone();
-        let mut rover = rover.clone();
+        let base = base.clone();
+        let rover = rover.clone();
     /*
         // match /adjust sample rates
         base.decim_match_mut(&rover);
