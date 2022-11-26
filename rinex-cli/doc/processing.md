@@ -54,26 +54,28 @@ rinex-cli --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz 
     --dcb \
     --retain-obs C1C,C1P,C2C,C2P \
     --retain-sv R01,R02,R12,R19,R08 \ 
-    -w "2020-06-25 00:00:00 2020-06-25 03:00:00" \
-    --plot
+    -w "2020-06-25 00:00:00 2020-06-25 06:00:00"
 ```
 
 <img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_pr_dcbs.png">
 
-Like other recombinations, Pseudo Range DCBs reflects more noise than Phase data.
-
-Let's run the same command on phase data this time:
+Like other recombinations, Pseudo Range DCBs reflects more noise in observations
+than Phase data. If we now focus on Phase observations:
 
 ```bash
 rinex-cli --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
     --dcb \
     --retain-obs L1C,L1P,L2C,L2P \
-    --retain-sv R12,R08,R02 \ 
-    -w "2020-06-25 00:00:00 2020-06-25 03:00:00" \
-    --plot
+    --retain-sv R12,R08,R02,R19,R01 \
+    -w "2020-06-25 03:00:00 2020-06-25 05:00:00"
 ```
 
 <img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_ph_dcbs.png">
+
+Biases on Phase data are 100 times less noisy than on Pseudo Range.  
+But phase data is also "harder" to manipulate. For best rendering, you need
+no discontinuity in the data. For rending reasons we had to
+narrow the previous 6 hours of data to only 2.
 
 Differential Processing
 =======================

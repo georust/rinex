@@ -44,8 +44,7 @@ by `.gz`.
 
 ## Data visualization & analysis
 
-Most data analysis produce plots. 
-RINEX record analysis can be converted to graphical with `--plot`.  
+Most data analysis, like DCBs or RINEX record analysis produce plots.  
 Plots currently come in the form of PNG files.
 
 Efficient plotting is tied to efficient data filtering and resampling,
@@ -122,13 +121,14 @@ Refer to
 [JSON section](https://github.com/gwbres/rinex/tree/main/rinex-cli/README.md#readable-json)
 for more detail.
 
+Basic identifications produce a terminal output (stdout).  
+Some basic analysis (like epoch or sample rate analysis) produce one plot.
+
 Most RINEX analysis are graphical, that means one or several PNG files are to be generated.
 Advanced operations (RINEX processing) require a Navigaton Context to be provided
 (`--nav`), and such analysis are always graphical.
 
-RINEX record analysis is by default presented in JSON format, but
-graphical view can be activated with `--plot`. 
-Data is highly dependent on the file that was provided (`--fp`).
+RINEX record analysis is highly dependent on the type of RINEX that was provided (`--fp`).
 
 ### Readable JSON 
 
@@ -168,15 +168,14 @@ For example, identify encountered vehicules at the same time:
 rinex-cli -f test_resources/OBS/V2/KOSG0010.95O --epochs --sv --pretty
 ``` 
 
-## RINEX basic analysis
+## Basic analysis
 
-Several basic analysis can be performed,
-some are graphical (--plot is assumed whatever happens) like `--sv-epoch` for instance,
-some are optionnaly graphical (--plot is an option).
+Several analysis can be performed, like `--sv-epoch` or sample
+rate analysis with `--epoch-hist`. All of them will generate
+a plot (PNG file). Refer to [their dedicated page](doc/analysis.md)
+for more information.
 
-Refer to [this page](doc/analysis.md).
-
-## RINEX Record analysis
+## Record analysis
 
 If both RINEX identification and analysis modes were not activated,
 we will perform Record analysis.   
@@ -184,10 +183,6 @@ we will perform Record analysis.
 [Filtering](doc/filtering.md) or [Resampling](doc/resampling.md) 
 operations can be stacked to Record analysis,
 to focus on data of interest.
-
-By default, Record analysis is exposed as JSON structure.  
-For supported RINEX files, the `--plot` flag can be passed to switch to data visualization.  
-Plotting becomes very handy for huge RINEX files. 
 
 Move to the [record analysis page](doc/record.md) for thorough
 examples of RINEX record manipulations.

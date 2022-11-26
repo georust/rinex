@@ -43,7 +43,7 @@ pub fn build_context<'a> (dim: (u32, u32), record: &Record) -> Context<'a> {
 
     //  => 1 plot per physics (ie., Observable)
     //     1 plot in case clock offsets were provided
-    for (e_index, ((e, flag), (clk_offset, vehicules))) in record.iter().enumerate() {
+    for (e_index, ((e, _flag), (clk_offset, vehicules))) in record.iter().enumerate() {
         if e_index == 0 {
             // store first epoch timestamp
             // to scale x_axis proplery (avoids fuzzy rendering)
@@ -176,7 +176,7 @@ pub fn build_context<'a> (dim: (u32, u32), record: &Record) -> Context<'a> {
     }
 }
 
-pub fn plot(ctx: &mut Context, record: &Record, nav_ctx: Option<Rinex>) {
+pub fn plot(ctx: &mut Context, record: &Record, _nav_ctx: Option<Rinex>) {
     let mut e0: f64 = 0.0;
     let cmap = colorous::TURBO; // to differentiate vehicules (PRN#)
     let symbols = vec!["x", "t", "o"]; // to differentiate carrier signals

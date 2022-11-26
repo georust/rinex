@@ -74,7 +74,7 @@ pub fn plot_gnss_recombination(
             if sv.prn > cmap_max_index {
                 cmap_max_index = sv.prn;
             }
-            for (e_index, ((epoch, flag), data)) in epochs.iter().enumerate() {
+            for (e_index, ((epoch, _flag), data)) in epochs.iter().enumerate() {
                 if e_index == 0 {
                     dates.0 = epoch.to_utc_seconds(); 
                 }

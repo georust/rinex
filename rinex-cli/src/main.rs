@@ -26,7 +26,6 @@ pub fn main() -> Result<(), rinex::Error> {
     let cli = Cli::new();
     let pretty = cli.pretty();
 
-    let plot = cli.plot();
     let fp = cli.input_path();
 
     // RINEX data 
@@ -160,7 +159,6 @@ pub fn main() -> Result<(), rinex::Error> {
      */
     if cli.mw_recombination() {
         let data = rnx.observation_mw_combinations();
-        println!("{:?}", data);
         let dims = cli.plot_dimensions();
         plot::plot_gnss_recombination(
             dims, 
@@ -218,17 +216,8 @@ pub fn main() -> Result<(), rinex::Error> {
     /*
      * Record analysis / visualization
      */
-    if plot {
-        let dims = cli.plot_dimensions();
-        let mut ctx = plot::record::Context::new(dims, &rnx); 
-        plot::record::plot(&mut ctx, &rnx, nav_context); 
-    
-    } else {
-        if pretty {
-            println!("{}", serde_json::to_string_pretty(&rnx.record).unwrap())
-        } else {
-            println!("{}", serde_json::to_string(&rnx.record).unwrap())
-        }
-    }
+    let dims = cli.plot_dimensions();
+    let mut ctx = plot::record::Context::new(dims, &rnx); 
+    plot::record::plot(&mut ctx, &rnx, nav_context); 
     Ok(())
 }// main

@@ -48,7 +48,6 @@ rinex-cli \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
     --retain-sv G21,G09,G27 \
     -w "2020-06-25 00:00:00 2020-06-25 03:00:00"
-    --plot
 ```
 
 <img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_gpsdoppler.png">

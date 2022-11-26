@@ -307,11 +307,6 @@ Refer to README"))
                         .long("skyplot")
                         .action(ArgAction::SetTrue)
                         .help("Generate a \"skyplot\". NAV context must be provided, either with -fp or -nav"))
-                    .arg(Arg::new("plot")
-                        .short('p')
-                        .long("plot")
-                        .action(ArgAction::SetTrue)
-                        .help("Generate Plots instead of default \"stdout\" terminal output"))
                     .arg(Arg::new("plot-width")
                         .long("plot-width")
                         .value_name("WIDTH(u32)")
@@ -570,9 +565,6 @@ Example \"--plot-height 1024"))
         } else {
             None
         }
-    }
-    pub fn plot (&self) -> bool {
-        self.get_flag("plot")
     }
     /// Returns desired plot dimensions
     pub fn plot_dimensions(&self) -> (u32,u32) {
