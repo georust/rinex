@@ -1413,14 +1413,7 @@ impl Header {
         Self::default()
             .with_type(Type::ObservationData)
             .with_constellation(Constellation::Mixed)
-            .with_crinex(Crinex {
-                version: Version {
-                    major: 3,
-                    minor: 0,
-                },
-                prog: "rust-crinex".to_string(),
-                date: epoch::now(),
-            })
+            .with_crinex(Crinex::default())
     }
 
     /// Returns Header structure with specific RINEX revision
@@ -1457,14 +1450,14 @@ impl Header {
     }
 
     /// Adds receiver information to self
-    pub fn with_rcvr (&self, r: Rcvr) -> Self {
+    pub fn with_receiver(&self, r: Rcvr) -> Self {
         let mut s = self.clone();
         s.rcvr = Some(r);
         s
     }
     
     /// Sets Receiver Antenna information
-    pub fn with_receiver_antenna (&self, a: Antenna) -> Self {
+    pub fn with_receiver_antenna(&self, a: Antenna) -> Self {
         let mut s = self.clone();
         s.rcvr_antenna = Some(a);
         s

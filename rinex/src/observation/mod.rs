@@ -90,7 +90,7 @@ impl std::fmt::Display for Crinex {
         write!(f, "{:20}", "")?;
         let (y, m, d, hh, mm, _, _) = self.date.to_gregorian_utc();
         let m = fmt_month!(m);
-        let date = format!("{:02}-{}-{} {:02}:{:02}", d, m, y, hh, mm);
+        let date = format!("{:02}-{}-{} {:02}:{:02}", d, m, y-2000, hh, mm);
         write!(f, "{:<width$}", date, width=20)?;
         f.write_str("CRINEX PROG / DATE")
     }
