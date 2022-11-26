@@ -51,7 +51,13 @@ Plots currently come in the form of PNG files.
 Efficient plotting is tied to efficient data filtering and resampling,
 because RINEX files contain a lot of data.
 
+Example of received signal power analysis:
+
 <img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_glo_ssi.png">
+
+Data is most of the time plotted against time.   
+Time axis represents epochs normalized to 1st epoch (starting a "0"),
+and expressed in seconds. 
 
 ## `teqc` operations
 
@@ -123,11 +129,6 @@ Advanced operations (RINEX processing) require a Navigaton Context to be provide
 RINEX record analysis is by default presented in JSON format, but
 graphical view can be activated with `--plot`. 
 Data is highly dependent on the file that was provided (`--fp`).
-
-Data is most of the time plotted against time. 
-Time axis represents epoch, normalized to the 1st epoch in the record
-and time axis is in seconds.  
-This will be improved in a near future, with proper date/epoch visualization.
 
 ### Readable JSON 
 

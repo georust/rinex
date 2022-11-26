@@ -47,7 +47,7 @@ Because data is not modified in place, and both results are exposed in seperate 
 
 A quick `--sv-epoch` shows that R01,R02,R08,R12,R19 for instance were seen for the first few hours.
 
-Let's focus on pseudo range DCBs first, with
+Analyze 1C/1P and 2C/2P with:
 
 ```bash
 rinex-cli --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
@@ -62,7 +62,7 @@ rinex-cli --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz 
 
 Like other recombinations, Pseudo Range DCBs reflects more noise than Phase data.
 
-Let's run the same comand focused on phase data:
+Let's run the same command on phase data this time:
 
 ```bash
 rinex-cli --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \

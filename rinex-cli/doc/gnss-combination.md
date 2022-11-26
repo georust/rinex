@@ -94,11 +94,11 @@ If we focus the previous phase data (most accurate measurement):
 
 ```bash
 rinex-cli \
-    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx \
-    --retain-sv G21 \
-    --retain-obs L1C,L2W \
+    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.rnx \
+    --retain-sv G21,G08 \
+    --retain-obs L1C,L2L,L2W,L5Q \
     -w "2020-06-25 00:30:00 2020-06-25 02:00:00" \
-    --gf --plot
+    --gf
 ```
 
 <img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_gf_zoom.png">
