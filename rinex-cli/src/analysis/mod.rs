@@ -37,5 +37,6 @@ pub fn epoch_histogram(rnx: &Rinex, dims: (u32, u32)) {
         Histogram::vertical(&chart)
             .data(histogram
                 .iter()
-                .map(|(duration, pop)| (duration.to_seconds() as u32, *pop))));
+                .map(|(duration, pop)| (duration.to_seconds() as u32, *pop))))
+                .expect("failed to draw histogram");
 }
