@@ -23,6 +23,9 @@ the following content is probably interpreted as a faulty epoch to disregard
   - [ ] improve compression & decompression testbenches
 - [ ] introduce compression & decompression benchmarking
 
+- [ ] IONEX
+  - [ ] conclude merge operation
+
 - [ ] Misc
   - provide python bindings, similarly to `Hifitime`.  
    Probably focus on high level and most common methods ?  

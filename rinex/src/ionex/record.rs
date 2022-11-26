@@ -243,7 +243,7 @@ impl Merge<Record> for Record {
         Ok(lhs)
     }
     /// Merges `rhs` into `Self`
-    fn merge_mut(&mut self, rhs: &Self) -> Result<(), merge::Error> {
+    fn merge_mut(&mut self, _rhs: &Self) -> Result<(), merge::Error> {
     /*
         for (epoch, maps) in rhs.iter() {
             if let (tec, Some(rms), Some(h)) = maps {
