@@ -56,7 +56,7 @@ Example of received signal power analysis:
 <img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_glo_ssi.png">
 
 Data is most of the time plotted against time.   
-Time axis represents epochs normalized to 1st epoch (starting a "0"),
+Time axis represents UTC epochs, normalized to 1st epoch (starting a "0"),
 and expressed in seconds. 
 
 ## `teqc` operations

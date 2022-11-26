@@ -48,41 +48,48 @@ Pseudo Range model
 
 TODO
 
-GF recombination
-================
+GF combination
+==============
 
-We define the Geometry Free [GF] recombination
+We define the Geometry Free [GF] combination
 
 $$\lambda_{Li} \Delta \Phi_{Li} - \lambda_{Lj} \Delta \Phi_{Lj} = \lambda_{Li} \left( \Delta N_{Li} + \Delta e_{Li} \right) - \lambda_{Lj} \left( \Delta N_{Lj} - \Delta e_{Lj} \right) + \Delta M_{Li} + \Delta M_{Lj} - \Delta I_{Li} \frac{\lambda^2_{Li} - \lambda^2_{Lj}}{\lambda^2_{Li}} $$
 
 now let's rework the previous equation to emphasize $\Delta N_{Li} -  \Delta N_{Lj}$
-the phase ambiguities difference two different carrier signals.
+the phase ambiguities difference two different carrier signals:
 
-GF recombination is requested with `--gf` when analyzing Observation RINEX.  
+[TODO]
+
+GF combination is requested with `--gf` when analyzing Observation RINEX.  
 `--gf` is processed seperately, it does not impact the remaining record analysis (raw data),
 it will just create a new visualization, in the form of "gf.png".   
 GF expresses fractions of $L_i - L_j$ delay.
 
-For example, `ESBC00DNK_R_2022` sampled G21 at a 30 second sample rate
-(low sample rate). Form the GF recombination for both Pseudo Range and Phase data,
-over a linear section:
+For example, `ESBC00DNK_R_2022` sampled vehicules like G21 at a 30 second sample rate (low rate),
+and G21 appears in several portions of the day.  
+We form the GF combination, for both PR and Phase data from G21, from
+We can form the GF combination for both PR and Phase data like from G21 data,
 
 ```bash
 rinex-cli \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
     --retain-sv G21 \
-    -w "2020-06-25 00:30:00 2020-06-25 02:00:00" \
-    --gf --plot
+    -w "2020-06-25 00:00:00 2020-06-25 08:00:00" \
+    --gf
 ```
 
 <img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_gf.png">
 
-The residuals over code measurement is much more noisy (spreadout) than the residual phase,
-whici is already down to some millimeters.
+Three combinations were formed: 
 
-Be careful when requesting `--gf` to set a time window where all
-codes to be recombined have a point at epoch 0. Otheriwse, the current phase alignment 
-is not smart enough to align properly and you get residuals that are totally off, by orders of magnitude.
+* C1W-C2W: PR 1W/2W
+* C1C-C2W: PR 1C/2W
+* L1C-L2W: Ph 1C/2W 
+
+The pseudo range residual is about 100 times more noisy and residual phase.  
+Let's focus on phase with the following command:
+
+<img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_gf_zoom.png">
 
 GF and atmospheric delay
 ========================
@@ -90,21 +97,7 @@ GF and atmospheric delay
 GF cancels out geometric terms but frequency dependant terms remain.
 Therefore, GF is very good atmospheric delay estimator.
 
-If we focus the previous phase data (most accurate measurement):
-
-```bash
-rinex-cli \
-    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    --retain-sv G21,G08 \
-    --retain-obs L1C,L2L,L2W,L5Q \
-    -w "2020-06-25 00:30:00 2020-06-25 02:00:00" \
-    --gf
-```
-
-<img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_gf_zoom.png">
-
-The long term variations, particularly visible in the phase residuals,
-are due to atmospheric condition changes.  
+The variations seen in the previous plot are induced by atmospheric phenomena. 
 
 GF as a CS detector
 ===================
@@ -114,51 +107,48 @@ when plotting the phase data.
 
 CS affect RX channels independantly, randomly and is unpredictable.  
 
-For example, R12(L3) in `ESBDNK2020` is particularly affected.  
-You can see that L2 and L1 are not affected, for this vehicule
-In this file, 100% of GPS vehicules are sane, and 95% of Glonass signals too.
+The GF signal combination is a good option to spot cycle slip events, 
+because they appear as discontinuities in the signal we get from the recombination.  
 
-
-Let's plot all phase data for L3 and L1 to emphasize the apparently faulty
-clock cycles, and request a recombination
+We can emphasize such a instant, if we focus the previous plot to the 1st hour of that day:
 
 ```bash
-./target/release/rinex-cli \
+rinex-cli \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    --retain-sv R12 \
-    --retain-obs L3Q,L1C,L2P \
-    -w "2020-06-25 01:00:00 2020-06-25 01:30:00" \
-    --gf \
-    --plot
+    --retain-sv G12 \
+    --retain-obs L1C,L2W \
+    -w "2020-06-25 00:00:00 2020-06-25 01:00:00" \
+    --gf
 ```
 
-<img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_r21_l1l3_zoom.png">
+<img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_gfcs.png">
 
-<img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_r21_l1l3_gf.png">
+Discontinuities in GF slopes indicate bad reception conditions and CSs.  
+You can see that this one is not reported by the receiver.  
 
-Discontinuities in GF slopes indicate bad receiption conditions and CSs.  
-You can see the residual spread if you compare L3 against L1, to L2 against L1,
-the latter being in the previous millimetric order that we saw before.
+Wide and Narrow lane combinations
+=================================
 
-MW recombination
-================
+When performing signal combinations, carrier wavelengths is taken into
+account because phase is interpreted as number of carrier cycles.  
+Wide and Narrow lane use a different carrier wavelength scaling as opposed to
+the GF combination, as an easy and quick method to enhance the cycle slip 
+(phase slope discontinuities) detection.
 
-MW for "" is another recombination,
-request it with by replacing `--gf` by  `--mw` in the previous example.  
+For the user only interested in atmospheric conditions observation, there is no
+need to use such combinations.
 
-If we go back to previous CS emphasis, we see that
-Phase jumps are stretched out and clearly emphasized.
+Wide and Narrow lane combinations are requested with `--wl` and `--nl` respectively.  
+In similar fashion, they result in a "wl.png" and "nl.png" plots and can be 
+stacked to other analysis or combinations.
 
-```bash
+MW combination
+==============
 
-```
-
-In summary, `--mw` is there and has only an interest when
-user is interested in locating and visualizing CSs or phase bumps.  
-For atmospheric delay visualization, `--gf` is totally fine.
-
-When we'll move to CS cancellation, MW is internally preferred for enhanced
-sensitivity. 
+Melbourne-Wübbena [MW] combination is requested with `--mw` and
+generates a "mw.png" plot is similar fashion.  
+The MW combination combines both Narrow and Wide lane combination
+for the ultimate (most sensitive) phase slope discontinuity detector.
 
 Doppler and phase estimator
 ===========================
@@ -200,12 +190,10 @@ and is smart enough to form all possible combinations and scale them properly ( 
 
 We form the geometry-free [GF] combinations easily:
 
-
 ## Multi band / Modern context [GF]
 
 Multi band context are the most "algorithm" friendly, 
 at the expense of RINEX data complexity.
-
 
 ## Summary
 

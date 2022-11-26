@@ -166,8 +166,23 @@ Also drops observations that did not come with an LLI flag"))
                     .arg(Arg::new("gf")
                         .long("gf")
                         .action(ArgAction::SetTrue)
-                        .help("Request Geometry Free recombination of Phase and PR measurements. 
+                        .help("Geometry Free recombination of Phase and PR measurements. 
 This serves as a CS indicator or atmospheric delay estimator. Refer to README."))
+                    .arg(Arg::new("wl")
+                        .long("wl")
+                        .action(ArgAction::SetTrue)
+                        .help("Wide Lane Phase and PR signal combination. 
+These combination are more sensitive to CS (phase slope discontinuities). Refer to README."))
+                    .arg(Arg::new("nl")
+                        .long("nl")
+                        .action(ArgAction::SetTrue)
+                        .help("Narrow Lane Phase and PR signal combination. 
+These combination are more sensitive to CS (phase slope discontinuities). Refer to README."))
+                    .arg(Arg::new("mw")
+                        .long("mw")
+                        .action(ArgAction::SetTrue)
+                        .help("Melbourne-Wübbena combination, combines both Wide lane and Narrow lane combinations, 
+and serves as the ultimate CS (phase slope discontinuities) detector. Refer to README."))
                     .arg(Arg::new("dcb")
                         .long("dcb")
                         .action(ArgAction::SetTrue)
@@ -333,7 +348,15 @@ Example \"--plot-height 1024"))
     pub fn gf_recombination(&self) -> bool {
         self.matches.get_flag("gf")
     }
-    /// Returns true if at least one basic identification flag was passed
+    pub fn wl_recombination(&self) -> bool {
+        self.matches.get_flag("wl")
+    }
+    pub fn nl_recombination(&self) -> bool {
+        self.matches.get_flag("nl")
+    }
+    pub fn mw_recombination(&self) -> bool {
+        self.matches.get_flag("mw")
+    }
     pub fn basic_identification(&self) -> bool {
         self.matches.get_flag("sv")
         | self.matches.get_flag("epochs")

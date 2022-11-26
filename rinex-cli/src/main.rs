@@ -58,7 +58,7 @@ pub fn main() -> Result<(), rinex::Error> {
     /*
      * Observation RINEX:
      *  align phase origins at this point
-     *  this allows easy GNSS recombination and processing,
+     *  this allows easy GNSS combination and processing,
      *  also gives a more meaningful record plot
      */
     rnx.observation_align_phase_origins_mut();
@@ -125,7 +125,47 @@ pub fn main() -> Result<(), rinex::Error> {
         plot::plot_gnss_recombination(
             dims, 
             "gf.png",
-            "Geometry Free signal recombination",
+            "Geometry Free signal combination",
+            "Meters of Li-Lj delay",
+            &data);
+    }
+    /*
+     * [WL] recombination
+     */
+    if cli.wl_recombination() {
+        let data = rnx.observation_wl_combinations();
+        let dims = cli.plot_dimensions();
+        plot::plot_gnss_recombination(
+            dims, 
+            "wl.png",
+            "Wide Lane signal combination",
+            "Meters of Li-Lj delay",
+            &data);
+    }
+    /*
+     * [NL] recombination
+     */
+    if cli.nl_recombination() {
+        let data = rnx.observation_nl_combinations();
+        let dims = cli.plot_dimensions();
+        plot::plot_gnss_recombination(
+            dims, 
+            "nl.png",
+            "Narrow Lane signal combination",
+            "Meters of Li-Lj delay",
+            &data);
+    }
+    /*
+     * [MW] recombination
+     */
+    if cli.mw_recombination() {
+        let data = rnx.observation_mw_combinations();
+        println!("{:?}", data);
+        let dims = cli.plot_dimensions();
+        plot::plot_gnss_recombination(
+            dims, 
+            "mw.png",
+            "Melbourne-Wübbena signal combination",
             "Meters of Li-Lj delay",
             &data);
     }
