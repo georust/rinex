@@ -65,29 +65,35 @@ GF combination is requested with `--gf` when analyzing Observation RINEX.
 it will just create a new visualization, in the form of "gf.png".   
 GF expresses fractions of $L_i - L_j$ delay.
 
-For example, `ESBC00DNK_R_2022` sampled vehicules like G21 at a 30 second sample rate (low rate),
-and G21 appears in several portions of the day.  
-We form the GF combination, for both PR and Phase data from G21, from
-We can form the GF combination for both PR and Phase data like from G21 data,
+For example, `ESBC00DNK_R_2022` sampled several vehicles for 24h 
+at a low sample rate (30s).  
+We form the GF combination, for both PR and Phase data for G21 and G08:
 
 ```bash
 rinex-cli \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    --retain-sv G21 \
+    --retain-sv G08,G21 \
     -w "2020-06-25 00:00:00 2020-06-25 08:00:00" \
     --gf
 ```
 
 <img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_gf.png">
 
-Three combinations were formed: 
+Several combinations were formed, like C1W-C2W meaning PR 1W against PR 2W,
+both L1 and L2 signals were sampled for both vehicles, but L5 is also sampled for G08.
 
-* C1W-C2W: PR 1W/2W
-* C1C-C2W: PR 1C/2W
-* L1C-L2W: Ph 1C/2W 
+The residuals for Pseudo Range measurements is about 100 times more noisy.   
+It is also impossible to notice any cycle slips using Pseudo Range residuals.  
+Let's focus on Phase data only:
 
-The pseudo range residual is about 100 times more noisy and residual phase.  
-Let's focus on phase with the following command:
+```bash
+./target/release/rinex-cli \
+    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
+    --retain-sv G21,G08 \
+    --retain-obs L1C,L2L,L2W,L5Q \
+    -w "2020-06-25 00:00:00 2020-06-25 08:00:00" \
+    --gf
+```
 
 <img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_gf_zoom.png">
 
