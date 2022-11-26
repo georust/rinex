@@ -56,6 +56,14 @@ pub fn main() -> Result<(), rinex::Error> {
     }
 
     /*
+     * Observation RINEX:
+     *  align phase origins at this point
+     *  this allows easy GNSS recombination and processing,
+     *  also gives a more meaningful record plot
+     */
+    rnx.observation_align_phase_origins_mut();
+
+    /*
      * Basic file identification
      */
     if cli.basic_identification() {

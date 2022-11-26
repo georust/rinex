@@ -2182,11 +2182,13 @@ impl Rinex {
     }
 
     /// Wide lane Phase & PR combinations.
+    /// Like other GNSS signal combinations, this first require
+    /// a first [Rinex::observation_align_phase_origins] invokation
+    /// in for correct combinations where Phase data is involved.
     /// Cf. <https://github.com/gwbres/rinex/blob/rinex-cli/doc/gnss-combination.md>.
     pub fn observation_wl_combinations(&self) -> HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
         let mut ret: HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> = HashMap::new();
-        let aligned = self.observation_align_phase_origins();
-        if let Some(r) = aligned.record.as_obs() {
+        if let Some(r) = self.record.as_obs() {
             for (epoch, (_, vehicules)) in r {
                 for (sv, observations) in vehicules {
                     for (lhs_code, lhs_data) in observations {
@@ -2269,12 +2271,14 @@ impl Rinex {
     }
     
     /// Narrow lane Phase & PR combinations.
+    /// Like other GNSS signal combinations, this first require
+    /// a first [Rinex::observation_align_phase_origins] invokation
+    /// in for correct combinations where Phase data is involved.
     /// Cf. <https://github.com/gwbres/rinex/blob/rinex-cli/doc/gnss-combination.md>.
     pub fn observation_nl_combinations(&self) -> HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
         let mut ret: HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> = HashMap::new();
-        let aligned = self.observation_align_phase_origins();
-        if let Some(r) = aligned.record.as_obs() {
-            for (epoch, (_, vehicules)) in r.iter() {
+        if let Some(r) = self.record.as_obs() {
+            for (epoch, (_, vehicules)) in r {
                 for (sv, observations) in vehicules {
                     for (lhs_code, lhs_data) in observations {
                         if !is_pseudo_range_obs_code!(lhs_code) || !is_phase_carrier_obs_code!(lhs_code) {
@@ -2391,16 +2395,14 @@ impl Rinex {
         s
     }
 
-    /// Geometry free [GF] combinations
-    /// of Phase and PR observations. 
+    /// Geometry free [GF] combinations.
+    /// Like other GNSS signal combinations, this first require
+    /// a first [Rinex::observation_align_phase_origins] invokation
+    /// in for correct combinations where Phase data is involved.
     /// Cf. <https://github.com/gwbres/rinex/blob/rinex-cli/doc/gnss-combination.md>.
-    /// Self must be Observation RINEX with
-    /// at least one code measured against two seperate carriers to produce something.
-    /// Phase data is maintained aligned at origin.
     pub fn observation_gf_combinations(&self) -> HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
-        let aligned = self.observation_align_phase_origins();
         let mut ret: HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> = HashMap::new();
-        if let Some(r) = aligned.record.as_obs() {
+        if let Some(r) = self.record.as_obs() {
             for (epoch, (_, vehicules)) in r {
                 for (sv, observations) in vehicules {
                     for (lhs_code, lhs_data) in observations {
@@ -2530,6 +2532,9 @@ impl Rinex {
     }
 
     /// Melbourne-Wübbena [MW] GNSS combination.
+    /// Like other GNSS signal combinations, this first require
+    /// a first [Rinex::observation_align_phase_origins] invokation
+    /// in for correct combinations where Phase data is involved.
     /// Cf. <https://github.com/gwbres/rinex/blob/rinex-cli/doc/gnss-combination.md>.
     pub fn observation_mw_combinations(&self) -> HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
         let mut ret: HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> = HashMap::new();
