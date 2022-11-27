@@ -868,39 +868,28 @@ impl Rinex {
     /// record frames other than Ephemeris, Clock frames not measured
     /// against space vehicule.
     pub fn retain_constellation_mut (&mut self, filter: Vec<Constellation>) {
-        if self.is_observation_rinex() {
-            let record = self.record
-                .as_mut_obs()
-                .unwrap();
-            record
-                .retain(|_, (_, vehicules)| {
-                    vehicules.retain(|sv, _| filter.contains(&sv.constellation));
-                    vehicules.len() > 0
-                })
-        } else if self.is_navigation_rinex() {
-            let record = self.record
-                .as_mut_nav()
-                .unwrap();
-            record
-                .retain(|_, classes| {
-                    classes.retain(|class, frames| {
-                        if *class == navigation::FrameClass::Ephemeris {
-                            frames.retain(|fr| {
-                                let (_, sv, _) = fr.as_eph().unwrap();
-                                filter.contains(&sv.constellation)
-                            });
-                            frames.len() > 0
-                        } else {
-                            true // retains non EPH 
-                        }
-                    });
-                    classes.len() > 0
-                })
-        } else if self.is_clocks_rinex() {
-            let record = self.record
-                .as_mut_clock()
-                .unwrap();
-            record.retain(|_, dtypes| {
+        if let Some(r) = self.record.as_mut_obs() {
+            r.retain(|_, (_, vehicules)| {
+                vehicules.retain(|sv, _| filter.contains(&sv.constellation));
+                vehicules.len() > 0
+            });
+        } else if let Some(r) = self.record.as_mut_nav() {
+            r.retain(|_, classes| {
+                classes.retain(|class, frames| {
+                    if *class == navigation::FrameClass::Ephemeris {
+                        frames.retain(|fr| {
+                            let (_, sv, _) = fr.as_eph().unwrap();
+                            filter.contains(&sv.constellation)
+                        });
+                        frames.len() > 0
+                    } else {
+                        true // retains non EPH 
+                    }
+                });
+                classes.len() > 0
+            });
+        } else if let Some(r) = self.record.as_mut_clock() {
+            r.retain(|_, dtypes| {
                 dtypes.retain(|_, systems| {
                     systems.retain(|system, _| {
                         if let Some(sv) = system.as_sv() {
@@ -912,7 +901,7 @@ impl Rinex {
                     systems.len() > 0
                 });
                 dtypes.len() > 0
-            })
+            });
         }
     }
 

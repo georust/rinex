@@ -41,7 +41,7 @@ we recommend focusing on a single one like we just did.
 We'll focus on the first 3 hours of this file and we already know
 we'll encounter G21, G27, G07, G09, G18 for instance. 
 
-Now let's analyze all observations for these vehicules:
+Analyze all observations for these vehicules:
 
 ```bash
 rinex-cli \
@@ -52,7 +52,7 @@ rinex-cli \
 
 <img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_gpsdoppler.png">
 
-The extract doppler shifts (_doppler.png_).
+Doppler shifts were measured, they're exposed in "doppler.png".
 
 When dealing with Observation RINEX, the following operations are most useful:
 

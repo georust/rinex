@@ -3,7 +3,6 @@ use rinex::*;
 /// Basic file identification
 pub fn basic_identification(rnx: &Rinex, ops: Vec<&str>, pretty: bool) {
     for op in ops {
-        println!("op: {}", op);
         if op.eq("header") {
             let content = match pretty {
                 true => serde_json::to_string_pretty(&rnx.header)
@@ -13,11 +12,14 @@ pub fn basic_identification(rnx: &Rinex, ops: Vec<&str>, pretty: bool) {
             };
             println!("{}", content);
         
-        } else if op.eq("epochs") {
-            let data = &rnx.epochs();
+        } else if op.eq("epoch") {
+            let data: Vec<String> = rnx.epochs()
+                .iter()
+                .map(|e| e.to_string())
+                .collect();
             let content = match pretty {
-                true => serde_json::to_string_pretty(data).unwrap(),
-                false => serde_json::to_string(data).unwrap(),
+                true => serde_json::to_string_pretty(&data).unwrap(),
+                false => serde_json::to_string(&data).unwrap(),
             };
             println!("{}", content);
 

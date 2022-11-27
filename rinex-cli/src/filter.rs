@@ -1,5 +1,7 @@
-use rinex::{*,
-    observation::LliFlags,
+use crate::Cli;
+use rinex::{
+    prelude::*,
+    observation::*,
 };
 
 fn args_to_lli_mask (args: &str) -> Option<LliFlags> {
@@ -10,8 +12,71 @@ fn args_to_lli_mask (args: &str) -> Option<LliFlags> {
     }
 }
 
+pub fn apply_gnss_filters(cli: &Cli, rnx: &mut Rinex) {
+    if cli.gps_filter() {
+        rnx.retain_constellation_mut(vec![
+            Constellation::Glonass,
+            Constellation::BeiDou,
+            Constellation::Galileo,
+            Constellation::QZSS,
+            Constellation::Geo,
+            Constellation::SBAS(Augmentation::Unknown),
+        ]);
+    }
+    if cli.glo_filter() {
+        rnx.retain_constellation_mut(vec![
+            Constellation::GPS,
+            Constellation::BeiDou,
+            Constellation::Galileo,
+            Constellation::QZSS,
+            Constellation::Geo,
+            Constellation::SBAS(Augmentation::Unknown),
+        ]);
+    }
+    if cli.bds_filter() {
+        rnx.retain_constellation_mut(vec![
+            Constellation::GPS,
+            Constellation::Glonass,
+            Constellation::Galileo,
+            Constellation::QZSS,
+            Constellation::Geo,
+            Constellation::SBAS(Augmentation::Unknown),
+        ]);
+    }
+    if cli.sbas_filter() {
+        rnx.retain_constellation_mut(vec![
+            Constellation::GPS,
+            Constellation::Glonass,
+            Constellation::BeiDou,
+            Constellation::Galileo,
+            Constellation::QZSS,
+        ]);
+    }
+    if cli.gal_filter() {
+        rnx.retain_constellation_mut(vec![
+            Constellation::GPS,
+            Constellation::Glonass,
+            Constellation::BeiDou,
+            Constellation::QZSS,
+            Constellation::Geo,
+            Constellation::SBAS(Augmentation::Unknown),
+        ]);
+    }
+    if cli.qzss_filter() {
+        rnx.retain_constellation_mut(vec![
+            Constellation::GPS,
+            Constellation::Glonass,
+            Constellation::BeiDou,
+            Constellation::Galileo,
+            Constellation::Geo,
+            Constellation::SBAS(Augmentation::Unknown),
+        ]);
+    }
+}
+
 /// Efficient RINEX content filter
 pub fn apply_filters(rnx: &mut Rinex, ops: Vec<(&str, &str)>) {
+    // Apply other filtering operations, if any
     for (op, args) in ops.iter() {
         if op.eq(&"lli-mask") {
             if let Some(mask) = args_to_lli_mask(args) {

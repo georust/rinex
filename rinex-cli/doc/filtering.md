@@ -2,38 +2,41 @@
 
 Two kinds of filtering operations:
 
-* conservative with `--retain`
-* exclusive with `--filter`
+* conservative/focus with `--retain`
+* exclusive/filter out with `--filter`
 
 For example this command will only retain data from specific vehicules
 
 ```bash
-rinex-cli 
-     -f test_resources/OBS/V2/rovn0010.21o \
-        --retain-sv R03,G10
+rinex-cli --retain-sv R03,G10 --fp test_resources/OBS/V2/rovn0010.21o
+``` 
+
+Teqc like GNSS filters are known. For example, `-R` and `-S`
+will filter out Glonass and SBAS constellations
+
+```bash
+rinex-cli -R -S --fp test_resources/OBS/V2/rovn0010.21o
 ``` 
 
 Filtering and resampling operations can be stacked together, for efficient
-record stripping:
+record focus:
 
 ```bash
-rinex-cli --pretty -f test_resources/OBS/V2/rovn0010.21o \
-    --decim-interval 00:05:00 \
-        --retain-sv G10
+rinex-cli \
+    --fp rovn0010.21o \
+    --retain-sv G10 \
+    --decim-interval 00:05:00
 ```
 
-Filtering and resampling operations are performed whathever the user
-requested actions. This allows performing the requested action
-on data of interest.
-
-This applies to any known tool mode:
+Filtering and resampling operations are preprocessing operations.  
+That means they apply to all modes this tool supports:
 
 * RINEX identification
 * Record analysis
 * RINEX processing
-* advanced processing..
+* ...
 
-## Observations / Data filter
+## Observations / Data keys filter
 
 Observation and Meteo RINEX are sorted by Observation. 
 The user can focus on data of interest with `--retain-obs`,
@@ -43,23 +46,31 @@ For example, focus on Phase and Pseudo Range observations
 in old RINEX format:
 
 ```bash
-rinex-cli -f test_resources/OBS/V2/zegv0010.21o  --retain-obs C1,L1
+rinex-cli -f zegv0010.21o  --retain-obs C1,L1
 ```
 
-Navigation RINEX are sorted by orbits. The `--retain-orb` can be used
-to focus on orbit fields
+A quick RINEX identification helps identify which "observables" exist:
 
 ```bash
-rinex-cli -f test_resources/NAV/V3/CBW100NLD_R_20210010000_01D_MN.rnx \
-    --retain-orb cus,omega0 --pretty
+rinex-cli \
+    -f zegv0010.21o --observables --pretty
 ```
 
-In any case, a quick RINEX identification helps identify
-which Observations exist:
+In case of `--fp` is Navigation RINEX, we have the `--orbits` command to perform similar
+data identification
 
 ```bash
-rinex-cli -f test_resources/OBS/V2/zegv0010.21o  --obs --pretty
-rinex-cli -f test_resources/NAV/V3/CBW100NLD_R_20210010000_01D_MN.rnx --orbits --pretty
+rinex-cli \
+    -f CBW100NLD_R_20210010000_01D_MN.rnx \
+    --orbits --pretty
+```
+
+Navigation RINEX are sorted by orbits. The `--retain-orb` is the `--retain-obs` equivalent:
+
+```bash
+rinex-cli \
+    --retain-orb cus,omega0 \
+    -f CBW100NLD_R_20210010000_01D_MN.rnx
 ```
 
 ## Signal condition filters

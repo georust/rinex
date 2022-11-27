@@ -14,7 +14,7 @@ The application will be able to parse all RINEX formats supported by the library
 Some GNSS data processing algorithms are implemented,
 like 
 - signal recombination
-- signal analysis (DCBs, MP, ...)
+- processing (DCBs, MP, ...)
 
 Refer to [the dedicated page](doc/processing.md)
 
@@ -37,10 +37,8 @@ naming conventions, but that is currently under development.
 
 ### Compressed data
 
-CRINEX (V1 and V3) are natively supported.
-
-This tool supports gzip compressed files, as long as their name is terminated
-by `.gz`.
+CRINEX (V1 and V3) are natively supported.  
+This tool supports gzip compressed files, as long as their name is terminated by `.gz`.
 
 ## Data visualization & analysis
 
@@ -50,7 +48,7 @@ Plots currently come in the form of PNG files.
 Efficient plotting is tied to efficient data filtering and resampling,
 because RINEX files contain a lot of data.
 
-Example of received signal power analysis:
+For example, this is the "ssi.png" generate during an Observation analysis. 
 
 <img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_glo_ssi.png">
 
@@ -81,110 +79,121 @@ Install dependencies:
 apt-get install libfontconfig1-dev
 ```
 
-Always compile Rust code with the `--release` flag
-for optimized implementation.   
-Cf. our [benchmark results](https://github.com/gwbres/rinex/blob/main/README.md#performances)
-to see how optimized code compares to non optimized (`--debug`).
+Always compile Rust code with the `--release` flag for optimized implementation.
 
 ```shell
 cargo build --release
 ./target/release/rinex-cli -h
 ```
 
-In the following "rinex-cli" means "target/release/rinex-cli" previously compiled.
-
-Arguments order does not matter for the application.   
+From now on, "rinex-cli" means "target/release/rinex-cli" previously compiled.  
+This tool expects a primary RINEX with `--fp`, and actually is the only mandatory argument.  
+Also, all provided examples are run against our [test data](../../test_resources),
+we sometimes omit the absolute path (in basic examples) for simplicity
 
 ```bash
-rinex-cli --fp /tmp/amel010.21g
+rinex-cli -fp amel010.21g
 ```
 
-Some arguments support an array of values to be given,
-in this case, we use a CSV description. 
+File paths have to be absolute. 
+Arguments order does not matter to this application: 
 
-For instance, when retaining specific vehicules:
+```bash
+rinex-cli --sv-epoch --fp /tmp/amel010.21g
+```
+
+Some arguments may require user options, in this case we expect a CSV description.   
+For example, `--retain-sv` (focus filter) is one of those:
+
+```bash
+rinex-cli --fp rovn0010.21o --retain-sv G01,G02
+```
+
+There are three main folders when operating this tool
+
+* [rinex-cli/product](product/) is where we generate files, reports..
+* [rinex-cli/plot](plot/) is where plots are to be saved
+* [rinex-cli/config](config/) is where we expect configuration files.
+Configuration files will fine tune the tool when performing advanced operations.
+
+By default, the tool will analyzes the (`--fp`) RINEX record content.   
+It is a graphical visualization of the file content.   
+The visualization (type of plots) depends on the type of RINEX that was provided (`--fp`). 
+
+For example, when providing an Observation file like this, 
+one plot per physic is to be generated in the plot folder.  
+Stacking more operations will either generate more plots or other reports.
 
 ```bash
 rinex-cli \
-     -f test_resources/OBS/V2/rovn0010.21o \
-        --retain-sv G01,G02
+    --retain-sv R01,R08,R19 \ # focus
+    -w "2020-06-25 03:00:00 2020-06-25 05:00:00" \ # time focus
+    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz 
+
+ls rinex-cli/plot/ESBC00DNK_R_20201770000_01D_30S_MO/*
 ```
 
-### Tool philosophy
-
-The tool expects one RINEX file passed with `--fp`.  
-
-Basic RINEX identification is triggered by requesting data enumarations,
-like encountered Epochs (`--epoch`) or Sv (`--sv`). In this mode,
-only console visualization exists and data is presented in JSON format.
-Refer to 
-[JSON section](https://github.com/gwbres/rinex/tree/main/rinex-cli/README.md#readable-json)
+Basic RINEX identification is triggered by requesting such an operation,
+like epoch enumeration (`--epoch`) or Sv identification (`--sv`).
+Basic operations like these ones simply generate a terminal output,
+refer to [this paragraph](https://github.com/gwbres/rinex/tree/main/rinex-cli/README.md#terminal-output)
 for more detail.
 
-Basic identifications produce a terminal output (stdout).  
-Some basic analysis (like epoch or sample rate analysis) produce one plot.
-
-Most RINEX analysis are graphical, that means one or several PNG files are to be generated.
-Advanced operations (RINEX processing) require a Navigaton Context to be provided
-(`--nav`), and such analysis are always graphical.
-
-RINEX record analysis is highly dependent on the type of RINEX that was provided (`--fp`).
-
-### Readable JSON 
+### Terminal output 
 
 This tool uses JSON format to expose data by default. 
-This makes it easy to import into other tools,
-for instance external Python scripts with `Eval()`.
+This makes it easy to import into other tools.  
 
-The `--pretty` argument improves the rendering of JSON
-data, to make it readable.
+For instance, `eval()` in Python can evaluate complex structures directly.
+
+The `--pretty` argument improves the rendering of JSON data and makes it more readable.
 
 ```bash
-rinex-cli --pretty -f /tmp/amel010.21g \
-      --epoch --sv-filter R01,G01 
+rinex-cli \
+    -f /tmp/amel010.21g --epoch
 
-rinex-cli -f /tmp/amel010.21g \
-      --decimate-interval 00:05:00 \
-            --sv-filter G01 --pretty
+rinex-cli --pretty \
+    -f /tmp/amel010.21g --epoch
 ``` 
 
-## RINEX Identification
+## Data identification
 
 Basic Identification consists in extracting high level information to understand which 
 data is contained in a given RINEX.
-Examples of such information would be `Epoch` enumeration, or `Sv` enumeration.  
+Examples of such information would be `Epoch` or `Sv` enumerations.
 
-For example, identify encountered epochs:
+For example:
 
 ```bash
-rinex-cli -f test_resources/OBS/V2/KOSG0010.95O --epochs
-rinex-cli -f test_resources/OBS/V2/KOSG0010.95O --epochs --pretty
+rinex-cli -f KOSG0010.95O --epoch
+rinex-cli -f KOSG0010.95O --epoch --pretty
 ``` 
 
 As always, Identification operations can be stacked together, to perform several at once.
 For example, identify encountered vehicules at the same time:
 
 ```bash
-rinex-cli -f test_resources/OBS/V2/KOSG0010.95O --epochs --sv --pretty
+rinex-cli -f test_resources/OBS/V2/KOSG0010.95O --epoch --sv --pretty
 ``` 
 
-## Basic analysis
+## Data analysis
 
 Several analysis can be performed, like `--sv-epoch` or sample
-rate analysis with `--epoch-hist`. All of them will generate
-a plot (PNG file). Refer to [their dedicated page](doc/analysis.md)
-for more information.
+rate analysis with `--epoch-hist`. When performing data analysis,
+a graphical output (plot) is prefered. 
+
+Refer to the [analysis mode](doc/analysis.md) documentation.
 
 ## Record analysis
 
-If both RINEX identification and analysis modes were not activated,
-we will perform Record analysis.   
+When data identification or basis analysis are not requested,
+the tool is set to record analysis. This mode is the default mode.
 
 [Filtering](doc/filtering.md) or [Resampling](doc/resampling.md) 
 operations can be stacked to Record analysis,
 to focus on data of interest.
 
-Move to the [record analysis page](doc/record.md) for thorough
+Move to the [record analysis mode](doc/record.md) for thorough
 examples of RINEX record manipulations.
 
 ## File generation
@@ -237,10 +246,3 @@ to customize such section of the RINEX to be generated.
 The `custom-header` flag accepts either a direct JSON description
 of the `Rinex::Header` structure, or a local file containing
 such a description.
-
-```bash
-# list encountered "observables"
-rinex-cli -f test_resources/OBS/V3/CBW100NLD_R_20210010000_01D_MN.rnx --obs
-
-# extract raw phase data and pseudo range only
-```

@@ -87,6 +87,30 @@ interval are dropped out. User must pass two valid Datetime description. Epochs 
 Example: -w \"2020-01-01 2020-01-02\" will restrict to 2020/01/01 midnight to 24hours.
 Example: -w \"2020-01-01 00:00:00 2020-01-01 01:00:00\" will restrict the first hour."))
                 .next_help_heading("Retain filters (focus on data of interest)")
+                    .arg(Arg::new("gps-filter")
+                        .short('G')
+                        .action(ArgAction::SetTrue)
+                        .help("Filter all GPS data out"))
+                    .arg(Arg::new("glo-filter")
+                        .short('R')
+                        .action(ArgAction::SetTrue)
+                        .help("Filter all Glonass data out"))
+                    .arg(Arg::new("gal-filter")
+                        .short('E')
+                        .action(ArgAction::SetTrue)
+                        .help("Filter all Galileo data out"))
+                    .arg(Arg::new("bds-filter")
+                        .short('C')
+                        .action(ArgAction::SetTrue)
+                        .help("Filter all BeiDou data out"))
+                    .arg(Arg::new("qzss-filter")
+                        .short('J')
+                        .action(ArgAction::SetTrue)
+                        .help("Filter all QZSS data out"))
+                    .arg(Arg::new("sbas-filter")
+                        .short('S')
+                        .action(ArgAction::SetTrue)
+                        .help("Filter all SBAS data out"))
                     .arg(Arg::new("retain-constell")
                         .long("retain-constell")
                         .value_name("list(Constellation)")
@@ -339,6 +363,25 @@ Example \"--plot-height 1024"))
             None
         }
     }
+    /// Returns true if GPS filter should apply
+    pub fn gps_filter(&self) -> bool {
+        self.matches.get_flag("gps-filter")
+    }
+    pub fn glo_filter(&self) -> bool {
+        self.matches.get_flag("glo-filter")
+    }
+    pub fn gal_filter(&self) -> bool {
+        self.matches.get_flag("gal-filter")
+    }
+    pub fn bds_filter(&self) -> bool {
+        self.matches.get_flag("bds-filter")
+    }
+    pub fn qzss_filter(&self) -> bool {
+        self.matches.get_flag("qzss-filter")
+    }
+    pub fn sbas_filter(&self) -> bool {
+        self.matches.get_flag("sbas-filter")
+    }
     /// Returns true if GF recombination requested
     pub fn gf_recombination(&self) -> bool {
         self.matches.get_flag("gf")
@@ -497,6 +540,12 @@ Example \"--plot-height 1024"))
     /// Returns true if at least one filter should be applied 
     pub fn filter(&self) -> bool {
         self.matches.contains_id("lli-mask")
+        || self.matches.contains_id("gps-filter")
+        || self.matches.contains_id("glo-filter")
+        || self.matches.contains_id("gal-filter")
+        || self.matches.contains_id("bds-filter")
+        || self.matches.contains_id("qzss-filter")
+        || self.matches.contains_id("sbas-filter")
     }
     pub fn filter_ops(&self) -> Vec<(&str, &str)> {
         let flags = vec![
