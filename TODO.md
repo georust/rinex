@@ -38,6 +38,7 @@ same combinations on both Wl/Nl sides
   - [ ] use Cow when possible
 
 - [ ] CLI
+  - [ ] time binning, TEQC op
   - [ ] improve vehicle color map (sv identification)
   - [ ] improve time axis by converting to a proper date axis
   - [ ] emphasize Observation EpochFlags and external events,

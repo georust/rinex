@@ -13,8 +13,12 @@ mod analysis; // basic analysis operations
 mod identification; // high level identification/macros
 mod file_generation; // RINEX to file macro
 
-use rinex::{*, split::Split, merge::Merge};
 use cli::Cli;
+use rinex::{
+    *, 
+    split::Split, 
+    merge::Merge,
+};
 use retain::{
     retain_filters, // focus on data of interest: retain with cli opts
 };
@@ -22,37 +26,32 @@ use filter::{
     apply_gnss_filters, // filter out undesired constellations
     apply_filters, // special filters, with cli options
 };
-use resampling::record_resampling;
+use resampling::{
+    record_resampling, // decimation and related methods
+};
 use identification::{
     basic_identification,
 };
+use teqc::summary_report;
 
+pub mod fops; // file operation helpers
 pub mod parser; // command line parsing utilities
 
-// Macro that returns the current file name
-fn filename(input: &str) -> String {
-    let content: Vec<&str> = input.split("/").collect();
-    let content: Vec<&str> = content[content.len()-1].split(".").collect();
-    content[0].to_string()
-}
-// Returns path prefix to use for all plots to be generated
-fn plot_prefix(fname: &str) -> String {
-    env!("CARGO_MANIFEST_DIR").to_owned() + "/plot/" + fname + "/"
-}
+use fops::{
+    filename,
+    //suffix,
+};
+
 // Returns path prefix for all products to be generated
 // like report output, generate files..
 fn product_prefix(fname: &str) -> String {
-    env!("CARGO_MANIFEST_DIR").to_owned() + "/product/" + fname + "/"
+    env!("CARGO_MANIFEST_DIR").to_owned() + "/product/" + &filename(fname)
 }
 // Returns config file pool location.
 // This is were we expect advanced configuration files,
 // for fine tuning this program
 fn config_dir() -> String {
     env!("CARGO_MANIFEST_DIR").to_owned() + "/config/"
-}
-// Quality report file name
-fn report_name(input: &str) -> String {
-    product_prefix(input) + "summary.txt"
 }
 
 pub fn main() -> Result<(), rinex::Error> {
@@ -68,9 +67,7 @@ pub fn main() -> Result<(), rinex::Error> {
 
     // create subdirs we might need when studying this context
     let short_fp = filename(fp);
-    let plot_prefix = plot_prefix(&short_fp);
     let product_prefix = product_prefix(&short_fp);
-    let _ = std::fs::create_dir_all(&plot_prefix);
     let _ = std::fs::create_dir_all(&product_prefix);
 
     /*
@@ -143,7 +140,7 @@ pub fn main() -> Result<(), rinex::Error> {
         }
         plot::plot_gnss_recombination(
             dims, 
-            &(plot_prefix.to_owned() + "dcb.png"), 
+            &(product_prefix.to_owned() + "/dcb.png"), 
             "Differential Code Biases",
             "DBCs [n.a]",
             &data);
@@ -157,7 +154,7 @@ pub fn main() -> Result<(), rinex::Error> {
         let data = rnx.observation_code_multipath();
         plot::plot_gnss_recombination(
             dims,
-            &(plot_prefix.to_owned() + "mp.png"), 
+            &(product_prefix.to_owned() + "/mp.png"), 
             "Code Multipath Biases",
             "MP [n.a]",
             &data);
@@ -170,7 +167,7 @@ pub fn main() -> Result<(), rinex::Error> {
         let dims = cli.plot_dimensions();
         plot::plot_gnss_recombination(
             dims, 
-            &(plot_prefix.to_owned() + "gf.png"), 
+            &(product_prefix.to_owned() + "/gf.png"), 
             "Geometry Free signal combination",
             "Meters of Li-Lj delay",
             &data);
@@ -183,7 +180,7 @@ pub fn main() -> Result<(), rinex::Error> {
         let dims = cli.plot_dimensions();
         plot::plot_gnss_recombination(
             dims, 
-            &(plot_prefix.to_owned() + "wl.png"), 
+            &(product_prefix.to_owned() + "/wl.png"), 
             "Wide Lane signal combination",
             "Meters of Li-Lj delay",
             &data);
@@ -196,7 +193,7 @@ pub fn main() -> Result<(), rinex::Error> {
         let dims = cli.plot_dimensions();
         plot::plot_gnss_recombination(
             dims, 
-            &(plot_prefix.to_owned() + "nl.png"), 
+            &(product_prefix.to_owned() + "/nl.png"), 
             "Narrow Lane signal combination",
             "Meters of Li-Lj delay",
             &data);
@@ -209,7 +206,7 @@ pub fn main() -> Result<(), rinex::Error> {
         let dims = cli.plot_dimensions();
         plot::plot_gnss_recombination(
             dims, 
-            &(plot_prefix.to_owned() + "mw.png"), 
+            &(product_prefix.to_owned() + "/mw.png"), 
             "Melbourne-Wübbena signal combination",
             "Meters of Li-Lj delay",
             &data);
@@ -258,6 +255,20 @@ pub fn main() -> Result<(), rinex::Error> {
         
         // [*] stop here, special mode: no further analysis allowed
         return Ok(());
+    }
+
+    /*
+     * TEQC `qc`
+     */
+    if cli.qc() {
+        summary_report(
+            &cli,
+            &product_prefix,
+            &rnx,
+            &nav_context,
+        );
+        return Ok(()); // special mode,
+            // runs quicker for users that are only interested in `-qc`
     }
 
     /*

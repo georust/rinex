@@ -296,12 +296,7 @@ Combine this RINEX, considered secondary, into `--fp`. RINEX format must match."
                         .value_name("DATETIME")
                         .short('s')
                         .help("Split RINEX into two seperate files"))
-                    .arg(Arg::new("ascii-plot")
-                        .long("ascii-plot")
-                        .action(ArgAction::SetTrue)
-                        .help("Prints a tiny plot, similar to \"teqc\""))
                     .arg(Arg::new("qc")
-                        .short('q')
                         .long("qc")
                         .action(ArgAction::SetTrue)
                         .help("RINEX quality check,
@@ -321,6 +316,10 @@ For example -fp was filtered and decimated, use --output to dump results into a 
 --custom-header must either be plain JSON or an external JSON descriptor.
 Refer to README"))
                 .next_help_heading("Terminal options")
+                    .arg(Arg::new("quiet")
+                        .short('q')
+                        .action(ArgAction::SetTrue)
+                        .help("Disable all terminal output"))
                     .arg(Arg::new("pretty")
                         .long("pretty")
                         .action(ArgAction::SetTrue)
@@ -362,6 +361,10 @@ Example \"--plot-height 1024"))
         } else {
             None
         }
+    }
+    /// Returns true if quality report is to be performed
+    pub fn qc(&self) -> bool {
+        self.matches.get_flag("qc")
     }
     /// Returns true if GPS filter should apply
     pub fn gps_filter(&self) -> bool {
@@ -565,8 +568,13 @@ Example \"--plot-height 1024"))
         self.matches
             .get_flag(flag)
     }
-    pub fn pretty (&self) -> bool {
+    /// returns true if --pretty was passed
+    pub fn pretty(&self) -> bool {
         self.get_flag("pretty")
+    }
+    /// Returns true if quiet mode is activated 
+    pub fn quiet(&self) -> bool {
+        self.matches.get_flag("quiet")
     }
     /// Returns optionnal RINEX file to "merge"
     pub fn merge(&self) -> Option<&str> {
@@ -596,19 +604,29 @@ Example \"--plot-height 1024"))
             None
         }
     }
+    /// Returns optionnal Nav path, for enhanced capabilities
+    pub fn nav_path(&self) -> Option<&str> {
+        if self.matches.contains_id("nav") {
+            if let Some(args) = self.matches.get_one::<String>("nav") {
+                Some(&args)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
     /// Returns optionnal Navigation context
     pub fn nav_context(&self) -> Option<Rinex> {
-        if self.matches.contains_id("nav") {
-            let args = self.matches.get_one::<String>("nav")
-                .unwrap();
-            if let Ok(rnx) = Rinex::from_file(args) {
+        if let Some(path) = self.nav_path() {
+            if let Ok(rnx) = Rinex::from_file(path) {
                 if rnx.is_navigation_rinex() {
                     Some(rnx)
                 } else {
                     panic!("--nav must be a Navigation RINEX");
                 }
             } else {
-                println!("Failed to parse Navigation Context \"{}\"", args);
+                println!("Failed to parse Navigation Context \"{}\"", path);
                 None
             }
         } else {

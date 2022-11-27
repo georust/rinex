@@ -22,9 +22,9 @@ pub enum Error {
 /// This structure helps forming such a context.
 /// In the following, `base` is the reference RINEX,
 /// and `rover` is the data to compare to "base".
-/// Meaningn, when substracting A-B, B is always the "base" and A is the "rover".
-/// To this day, only Observation/Observation or
-/// Observation/Navigation associations are known and truly allowed.
+/// We use this structure for operations / analysis that involve two file.
+/// When substracting data (A-B), B is always the "base" or "reference station",
+/// and A is the "rover" or "raw data".
 #[derive(Debug, Clone)]
 #[derive(PartialEq)]
 pub struct DiffContext {
@@ -46,9 +46,9 @@ impl DiffContext {
         let base = base.clone();
         let rover = rover.clone();
     /*
-        // match /adjust sample rates
         base.decim_match_mut(&rover);
         rover.decim_match_mut(&base);
+        // match /adjust sample rates
         // For Navigation RINEX
         //  retain ephemeris frames only
         base.retain_navigation_ephemeris_mut();

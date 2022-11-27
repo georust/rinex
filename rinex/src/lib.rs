@@ -59,13 +59,20 @@ pub mod prelude {
         TimeScale,
     };
     pub use crate::constellation::{
-        Constellation,
         Augmentation,
+        Constellation,
     };
 }
 
 pub use merge::Merge;
 pub use split::Split;
+
+/// SBAS related package
+pub mod sbas {
+    pub use crate::constellation::{
+        selection_helper,
+    };
+}
 
 /// Convenient package to import
 pub mod processing {
@@ -862,12 +869,19 @@ impl Rinex {
         }
         ret
     }
+    
+    /// [Rinex::retain_constellation_mut] immutable implementation
+    pub fn retain_constellation(&self, filter: Vec<Constellation>) -> Self {
+        let mut s = self.clone();
+        s.retain_constellation_mut(filter);
+        s
+    }
 
     /// Retains data that was recorded along given constellation(s).
     /// This has no effect on ATX, MET and IONEX records, NAV 
     /// record frames other than Ephemeris, Clock frames not measured
     /// against space vehicule.
-    pub fn retain_constellation_mut (&mut self, filter: Vec<Constellation>) {
+    pub fn retain_constellation_mut(&mut self, filter: Vec<Constellation>) {
         if let Some(r) = self.record.as_mut_obs() {
             r.retain(|_, (_, vehicules)| {
                 vehicules.retain(|sv, _| filter.contains(&sv.constellation));

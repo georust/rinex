@@ -120,17 +120,17 @@ fn load_database() -> Vec<(Augmentation, geo::Polygon)> {
 /// Example:
 /// ```
 /// use rinex::*;
-/// use rinex::constellation::sbas_selection_helper;
+/// use rinex::constellation::selection_helper;
 /// let paris = (48.808378, 2.382682); // lat, lon [ddeg]
-/// let sbas = sbas_selection_helper(paris.0, paris.1);
+/// let sbas = selection_helper(paris.0, paris.1);
 /// assert_eq!(sbas, Some(Augmentation::EGNOS));
 /// let antartica = (-77.490631,  91.435181); // lat, lon [ddeg]
-/// let sbas = sbas_selection_helper(antartica.0, antartica.1);
+/// let sbas = selection_helper(antartica.0, antartica.1);
 /// assert_eq!(sbas.is_none(), true);
 ///```
 */
 #[cfg(feature = "with-geo")]
-pub fn sbas_selection_helper (lat: f64, lon: f64) -> Option<Augmentation> {
+pub fn selection_helper(lat: f64, lon: f64) -> Option<Augmentation> {
     let db = load_database();
     let point : geo::Point<f64> = point!(
         x: lon,
@@ -150,66 +150,66 @@ mod test {
     use super::*;
     #[test]
     #[cfg(feature = "with-geo")]
-    fn test_sbas_selection() {
+    fn test_selection_helper() {
         // PARIS --> EGNOS
-        let sbas = sbas_selection_helper(48.808378, 2.382682);
+        let sbas = selection_helper(48.808378, 2.382682);
         assert_eq!(sbas.is_some(), true);
         assert_eq!(sbas.unwrap(), Augmentation::EGNOS);
         
         // ANTARICA --> NONE
-        let sbas = sbas_selection_helper(-77.490631,  91.435181);
+        let sbas = selection_helper(-77.490631,  91.435181);
         assert_eq!(sbas.is_none(), true);
         
         // LOS ANGELES --> WAAS
-        let sbas = sbas_selection_helper(33.981431, -118.193601);
+        let sbas = selection_helper(33.981431, -118.193601);
         assert_eq!(sbas.is_some(), true);
         assert_eq!(sbas.unwrap(), Augmentation::WAAS);
         
         // ARGENTINA --> NONE
-        let sbas = sbas_selection_helper(-23.216639, -63.170983);
+        let sbas = selection_helper(-23.216639, -63.170983);
         assert_eq!(sbas.is_none(), true);
 
         // NIGER --> ASBAS
-        let sbas = sbas_selection_helper(10.714217, 17.087263);
+        let sbas = selection_helper(10.714217, 17.087263);
         assert_eq!(sbas.is_some(), true);
         assert_eq!(sbas.unwrap(), Augmentation::ASBAS);
         
         // South AFRICA --> None
-        let sbas = sbas_selection_helper(-32.473320, 21.112770);
+        let sbas = selection_helper(-32.473320, 21.112770);
         assert_eq!(sbas.is_none(), true);
 
         // India --> GAGAN
-        let sbas = sbas_selection_helper(19.314290, 76.798953);
+        let sbas = selection_helper(19.314290, 76.798953);
         assert_eq!(sbas.is_some(), true);
         assert_eq!(sbas.unwrap(), Augmentation::GAGAN);
 
         // South Indian Ocean --> None
-        let sbas = sbas_selection_helper(-29.349172, 72.773447);
+        let sbas = selection_helper(-29.349172, 72.773447);
         assert_eq!(sbas.is_none(), true);
     
         // Australia --> SPAN
-        let sbas = sbas_selection_helper(-27.579847, 131.334992);
+        let sbas = selection_helper(-27.579847, 131.334992);
         assert_eq!(sbas.is_some(), true);
         assert_eq!(sbas.unwrap(), Augmentation::SPAN);
         // NZ --> SPAN
-        let sbas = sbas_selection_helper(-45.113525, 169.864842);
+        let sbas = selection_helper(-45.113525, 169.864842);
         assert_eq!(sbas.is_some(), true);
         assert_eq!(sbas.unwrap(), Augmentation::SPAN);
 
         // Central China: BDSBAS
-        let sbas = sbas_selection_helper(34.462967, 98.172480);
+        let sbas = selection_helper(34.462967, 98.172480);
         assert_eq!(sbas, Some(Augmentation::BDSBAS));
 
         // South Korea: KASS
-        let sbas = sbas_selection_helper(37.067846, 128.34);
+        let sbas = selection_helper(37.067846, 128.34);
         assert_eq!(sbas, Some(Augmentation::KASS));
         
         // Japan: MSAS
-        let sbas = sbas_selection_helper(36.081095, 138.274859);
+        let sbas = selection_helper(36.081095, 138.274859);
         assert_eq!(sbas, Some(Augmentation::MSAS));
 
         // Russia: SDCM
-        let sbas = sbas_selection_helper(60.004390, 89.090326);
+        let sbas = selection_helper(60.004390, 89.090326);
         assert_eq!(sbas, Some(Augmentation::SDCM));
     }
 }
