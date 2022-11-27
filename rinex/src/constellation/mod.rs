@@ -1,7 +1,8 @@
 //! `GNSS` constellations & associated methods
 use thiserror::Error;
-pub mod augmentation;
-use augmentation::Augmentation;
+
+mod augmentation;
+pub use augmentation::Augmentation;
 
 #[cfg(feature = "serde")]
 use serde::{Serialize, Deserialize};

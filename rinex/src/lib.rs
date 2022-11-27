@@ -51,10 +51,17 @@ use hifitime::Duration;
 pub mod prelude {
     pub use crate::Rinex;
     pub use crate::sv::Sv;
-    pub use crate::epoch::EpochFlag;
-    pub use hifitime::{Epoch, Duration, TimeScale};
     pub use crate::header::Header;
-    pub use crate::constellation::Constellation;
+    pub use crate::epoch::EpochFlag;
+    pub use hifitime::{
+        Epoch, 
+        Duration, 
+        TimeScale,
+    };
+    pub use crate::constellation::{
+        Constellation,
+        Augmentation,
+    };
 }
 
 pub use merge::Merge;
