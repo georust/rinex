@@ -88,8 +88,9 @@ cargo build --release
 
 From now on, "rinex-cli" means "target/release/rinex-cli" previously compiled.  
 This tool expects a primary RINEX with `--fp`, and actually is the only mandatory argument.  
-Also, all provided examples are run against our [test data](../../test_resources),
-we sometimes omit the absolute path (in basic examples) for simplicity
+Also, all provided examples are run against our 
+[test data](https://github.com/gwbres/rinex/tree/main/test_resources)
+for the user to reproduce easily. We sometimes omit the absolute path for simplicity.
 
 ```bash
 rinex-cli -fp amel010.21g
