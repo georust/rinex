@@ -149,15 +149,21 @@ impl Record {
             Type::ObservationData => {
                 let record = self.as_obs()
                     .unwrap();
-                let is_crinex = header.is_crinex();
+                let obs_fields = &header.obs
+                    .as_ref()
+                    .unwrap();
                 let mut compressor = Compressor::new();
                 for ((epoch, flag), (clock_offset, data)) in record.iter() {
                     let epoch = observation::record::fmt_epoch(*epoch, *flag, clock_offset, data, header);
-                    if is_crinex {
+                    if let Some(_) = &obs_fields.crinex {
+                        let major = header.version.major;
+                        let constell = &header.constellation
+                            .as_ref()
+                            .unwrap();
                         for line in epoch.lines() {
                             let line = line.to_owned() + "\n"; // helps the following .lines() iterator
                                 // embedded in compression method
-                            if let Ok(compressed) = compressor.compress(&header, &line) {
+                            if let Ok(compressed) = compressor.compress(major, &obs_fields.codes, constell, &line) {
                                 write!(writer, "{}", compressed)?;
                             }
                         }

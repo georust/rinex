@@ -272,8 +272,13 @@ impl Rinex {
     /// This has no effect if self is not an Observation RINEX.
     pub fn rnx2crnx(&mut self) {
         if self.is_observation_rinex() {
+            let mut crinex = Crinex::default();
+            crinex.version.major = match self.header.version.major {
+                1|2 => 1,
+                _ => 3,
+            };
             self.header = self.header
-                .with_crinex(Crinex::default());
+                .with_crinex(crinex);
         }
     }
     
