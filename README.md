@@ -21,7 +21,7 @@ It can be used for RINEX processing, perform `teqc` operations and so on.
 
 * [`ublox-rnx`](ublox-rnx/) is an application that connects to a `Ublox`
 receiver and generates RINEX data quickly & easily.   
-It is the combination of the [ublox](https://github.com/lkolbly/ublox) crate
+It is the combination of the [ublox](https://github.com/lkolbly/ublox)
 and [rinex](rinex/) crates.
 
 By default all timestamps are in UTC with leap seconds correctly managed.
