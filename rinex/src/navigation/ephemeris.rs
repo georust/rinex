@@ -1,3 +1,11 @@
+use crate::{
+	Sv, Constellation, 
+	sv,
+	version::Version, 
+    epoch, 
+	Epoch,
+};
+use rust_3d::Point3D;
 use super::{
     orbits::{closest_revision, NAV_ORBITS},
     OrbitItem,
@@ -107,10 +115,175 @@ impl Default for Ephemeris {
     }
 }
 
+/// Eearth mass * Gravitationnal field constant [m^3/s^2]
+pub const EARTH_GM_CONSTANT: f64 = 3.986005E14_f64; 
+/// Earth rotation rate in WGS84 frame [rad]
+pub const EARTH_ROT_RATE_RAD_WGS64: f64 = 7.292115E-5;
+
+/*
+/// Macro to convert Sv time to UTC, correction
+/// is GNSS dependent
+pub fn sv_t_utc(epoch: Epoch,
+*/
+
+/// Kepler parameters
+pub struct Kepler {
+    /// sqrt(semi major axis) [sqrt(m)]
+    pub sqrt_a: f64,
+    /// Eccentricity [n.a]
+    pub e: f64,
+    /// Inclination angle at reference time [semicircles]
+    pub i_0: f64,
+    /// Longitude of ascending node at reference time [semicircles]
+    pub omega_0: f64,
+    /// Mean anomaly at reference time [semicircles]
+    pub m_0: f64,
+    /// argument of perigee [semicircles]
+    pub omega: f64,
+    // /// internal buffer for E_k linear solving
+    // buffer: Vec<f64>,
+}
+
+impl Kepler {
+    /// Computes t_k
+    pub fn t_k(&self) -> f64 {
+        0.0
+    }
+    /// Returns M_k term
+    #[allow(non_snake_case)]
+    pub fn M_k(&mut self) -> f64 {
+        0.0
+    }
+    /// Returns E_k term
+    #[allow(non_snake_case)]
+    pub fn E_k(&mut self) -> f64 {
+        0.0
+    }
+    /// Returns r_k term
+    pub fn r_k(&self) -> f64 {
+        //self.sqrt_a.powf(2.0)*(1.0 - self.e * 
+        0.0
+    }
+}
+
+/// Perturbation parameters
+pub struct Perturbations {
+    /// Mean motion difference from computed value [semicircles.s-1]
+    pub dn: f64,
+    /// Inclination rate of change [semicircles.s-1]
+    pub i_dot: f64,
+    /// Right ascension rate of change [semicircles.s^-1]
+    pub omega_dot: f64,
+    /// Amplitude of sine harmonic correction term of the argument
+    /// of latitude [rad]
+    pub cus: f64,
+    /// Amplitude of cosine harmonic correction term of the argument
+    /// of latitude [rad]
+    pub cuc: f64,
+    /// Amplitude of sine harmonic correction term of the angle of inclination [rad]
+    pub cis: f64,
+    /// Amplitude of cosine harmonic correction term of the angle of inclination [rad]
+    pub cic: f64,
+    /// Amplitude of sine harmonic correction term of the orbit radius [m]
+    pub crs: f64,
+    /// Amplitude of cosine harmonic correction term of the orbit radius [m]
+    pub crc: f64,
+}
+
 impl Ephemeris {
-    /// Retrieve all clock fields (bias, drift, drift_rate) at once
-    pub fn clock_data(&self) -> (f64, f64, f64) {
+    /// Retrieve all clock biases (bias, drift, drift_rate) at once
+    pub fn clock_data(&self) -> (f64,f64,f64) {
         (self.clock_bias, self.clock_drift, self.clock_drift_rate)
+    }
+
+    /// Retrieves orbit data as f64 value, if possible
+    pub fn get_orbit_f64(&self, field: &str) -> Option<f64> {
+        if let Some(v) = self.orbits.get(field) {
+            v.as_f64()
+        } else {
+            None
+        }
+    }
+
+    /// Retrieve Keplerian parameters
+    pub fn kepler(&self) -> Option<Kepler> {
+        if let Some(sqrt_a) = self.get_orbit_f64("sqrta") {
+            if let Some(e) = self.get_orbit_f64("e") {
+                if let Some(i_0) = self.get_orbit_f64("i0") {
+                    if let Some(omega_0) = self.get_orbit_f64("omega0") {
+                        if let Some(m_0) = self.get_orbit_f64("m0") {
+                            if let Some(omega) = self.get_orbit_f64("omega") {
+                                return Some(Kepler {
+                                    e,
+                                    sqrt_a,
+                                    i_0,
+                                    omega_0,
+                                    m_0,
+                                    omega,
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        None
+    }
+	
+    /// Retrieve Perturbation parameters
+    pub fn perturbations(&self) -> Option<Perturbations> {
+        if let Some(cuc) = self.get_orbit_f64("cuc") {
+            if let Some(cus) = self.get_orbit_f64("cus") {
+                if let Some(cis) = self.get_orbit_f64("cis") {
+                    if let Some(cic) = self.get_orbit_f64("cic") {
+                        if let Some(crs) = self.get_orbit_f64("crs") {
+                            if let Some(crc) = self.get_orbit_f64("crc") {
+                                if let Some(dn) = self.get_orbit_f64("deltaN") {
+                                    if let Some(i_dot) = self.get_orbit_f64("idot") {
+                                        if let Some(omega_dot) = self.get_orbit_f64("omegaDot") {
+                                            return Some(Perturbations {
+                                                dn,
+                                                i_dot,
+                                                omega_dot,
+                                                cuc,
+                                                cus,
+                                                cic,
+                                                cis,
+                                                crc,
+                                                crs,
+                                            });
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    /// Returns satellite position triplet, in ecef,
+    /// if such information is contained in parsed orbits
+    pub fn sat_pos(&self) -> Option<(f64,f64,f64)> {
+        if let Some(pos_x) = self.get_orbit_f64("satPosX") {
+            if let Some(pos_y) = self.get_orbit_f64("satPosY") {
+                if let Some(pos_z) = self.get_orbit_f64("satPosZ") { 
+                    return Some((pos_x,pos_y,pos_z));
+                }
+            }
+        }
+        None
+    }
+
+    /// Computes elevation angle. Useful macro for the user
+    /// to retrieve the elevation angle from this Ephemeris frame (given epoch),
+    /// withouth further data identification.
+    /// Station position (ECEF(x,y,z)) is a requirement.
+    /// This information is provided in the file header.
+    pub fn elevation_angle(&self, station_ecef: &Option<Point3D>) -> Option<f64> {
+        None
     }
 
     /// Parses ephemeris from given line iterator
@@ -185,36 +358,25 @@ impl Ephemeris {
         let (epoch, rem) = rem.split_at(19);
         let (epoch, _) = epoch::parse(epoch.trim())?;
 
-        let (clk_bias, rem) = rem.split_at(19);
-        let (clk_dr, clk_drr) = rem.split_at(19);
-        let clock_bias = f64::from_str(clk_bias.replace("D", "E").trim())?;
-        let clock_drift = f64::from_str(clk_dr.replace("D", "E").trim())?;
-        let clock_drift_rate = f64::from_str(clk_drr.replace("D", "E").trim())?;
-        let orbits = parse_orbits(Version { major: 4, minor: 0 }, sv.constellation, lines)?;
-        Ok((
-            epoch,
-            sv,
-            Self {
-                clock_bias,
-                clock_drift,
-                clock_drift_rate,
-                orbits,
-            },
-        ))
-    }
-
-    /// Computes elevation angle. Useful macro so the user
-    /// does not have to either care for the Orbit field identification,
-    /// or involved computations
-    pub fn elevation_angle(&self) -> Option<f64> {
-        if let Some(e) = self.orbits.get("e") {
-            e.as_f64()
-        } else {
-            // Orbit field was either missing
-            // but what about glonass ??
-            None
-        }
-    }
+		let (clk_bias, rem) = rem.split_at(19);
+		let (clk_dr, clk_drr) = rem.split_at(19);
+		let clock_bias = f64::from_str(clk_bias.replace("D","E").trim())?;
+		let clock_drift = f64::from_str(clk_dr.replace("D","E").trim())?;
+		let clock_drift_rate = f64::from_str(clk_drr.replace("D","E").trim())?;
+		let orbits = parse_orbits(
+			Version { major: 4, minor: 0 },
+			sv.constellation,
+			lines)?;
+		Ok((epoch, 
+			sv,
+			Self {
+				clock_bias,
+				clock_drift,
+				clock_drift_rate,
+				orbits,
+			},
+		))
+	}
 }
 
 /// Parses constellation + revision dependent orbits data
