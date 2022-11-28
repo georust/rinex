@@ -1,6 +1,18 @@
-use super::{build_chart, build_plot, Plot2d};
-use plotters::{chart::ChartState, coord::Shift, prelude::*};
 use rinex::*;
+use super::{
+    Plot2d,
+    build_plot,
+    build_chart, 
+    build_twoscale_chart, 
+};
+use plotters::{
+    prelude::*,
+    coord::Shift,
+    chart::{
+        ChartState,
+        DualCoordChartState,
+    },
+};
 use std::collections::HashMap;
 
 mod meteo;
@@ -9,12 +21,14 @@ mod observation;
 
 /// Plot Context for Record analysis
 pub struct Context<'a> {
+    /// time axis
+    pub t_axis: Vec<f64>, 
     /// Plot area sorted by title
     pub plots: HashMap<String, DrawingArea<BitMapBackend<'a>, Shift>>,
-    /// Charts are indexed by sub titles
+    /// Single Y axes charts - indexed by titles
     pub charts: HashMap<String, ChartState<Plot2d>>,
     /// Record analysis is against time
-    pub t_axis: Vec<f64>,
+    pub dual_charts: HashMap<String, DualCoordChartState<Plot2d, Plot2d>>,
 }
 
 impl Default for Context<'_> {
@@ -22,6 +36,7 @@ impl Default for Context<'_> {
         Self {
             t_axis: Vec::new(),
             charts: HashMap::new(),
+            dual_charts: HashMap::new(),
             plots: HashMap::new(),
         }
     }
@@ -37,9 +52,9 @@ impl<'a> Context<'a> {
     ///  with the libs we're using.
     ///
     ///  Dim: (u32, u32) plot x_width and y_height
-    pub fn new(dim: (u32, u32), rnx: &Rinex) -> Self {
+    pub fn new (dim: (u32,u32), rnx: &Rinex, nav: &Option<Rinex>) -> Self {
         if let Some(record) = rnx.record.as_obs() {
-            observation::build_context(dim, record)
+            observation::build_context(dim, record, nav)
         } else if let Some(record) = rnx.record.as_nav() {
             navigation::build_context(dim, record)
         } else if let Some(record) = rnx.record.as_meteo() {
@@ -51,7 +66,7 @@ impl<'a> Context<'a> {
 }
 
 /// Plots Rinex record content
-pub fn plot(ctx: &mut Context, rnx: &Rinex, nav: Option<Rinex>) {
+pub fn plot(ctx: &mut Context, rnx: &Rinex, nav: &Option<Rinex>) {
     if let Some(record) = rnx.record.as_obs() {
         observation::plot(ctx, record, nav)
     } else if let Some(record) = rnx.record.as_nav() {

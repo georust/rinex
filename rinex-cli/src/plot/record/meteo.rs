@@ -63,6 +63,7 @@ pub fn build_context<'a>(dim: (u32, u32), record: &Record) -> Context<'a> {
     Context {
         plots,
         charts,
+        dual_charts: HashMap::new(), // unused
         t_axis,
     }
 }

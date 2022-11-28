@@ -1,5 +1,13 @@
-use plotters::{chart::ChartState, coord::types::RangedCoordf64, coord::Shift, prelude::*};
 use rinex::prelude::*;
+use plotters::{
+    prelude::*,
+    coord::Shift,
+    chart::{
+        ChartState,
+        DualCoordChartState,
+    },
+    coord::types::RangedCoordf64,
+};
 use std::collections::{BTreeMap, HashMap};
 
 pub mod record;
@@ -29,19 +37,74 @@ pub fn build_chart(
     let mut chart = ChartBuilder::on(area)
         .caption(title, ("sans-serif", 50).into_font())
         .margin(40)
-        .x_label_area_size(30)
-        .y_label_area_size(40)
+        .x_label_area_size(40)
+        .y_label_area_size(60)
         .build_cartesian_2d(x_axis, y_axis)
-        .unwrap();
+        .expect(&format!("failed to build {} chart", title));
     chart
         .configure_mesh()
         .x_desc("Timestamp [s]") //TODO not for special records
         .x_labels(30)
         .y_desc(title)
         .y_labels(30)
+        .y_label_formatter(&|y| format!("{:e}", y)) //nicer f64 rendering
         .draw()
-        .unwrap();
-    chart.to_chart_state()
+        .expect(&format!("failed to draw {} mesh", title));
+    chart
+        .to_chart_state()
+}
+
+/*
+ * Builds a chart with 2 Y axes and shared X axis
+ */
+pub fn build_twoscale_chart(
+    title: &str, 
+    x_axis: Vec<f64>,
+    y_ranges: ((f64, f64), (f64,f64)), // Y_right, Y_left
+    area: &DrawingArea<BitMapBackend, Shift>) 
+    -> DualCoordChartState<Plot2d, Plot2d> 
+{
+    let x_axis = x_axis[0]..x_axis[x_axis.len()-1]; 
+    
+    // y right range
+    let (yr_range, yl_range) = y_ranges;
+    let yr_axis = match yr_range.0 < 0.0 {
+        true => 1.02*yr_range.0..1.02*yr_range.1,
+        false => 0.98*yr_range.0..1.02*yr_range.1,
+    };
+
+    // y left range
+    let yl_axis = match yl_range.0 < 0.0 {
+        true => 1.02*yl_range.0..1.02*yl_range.1,
+        false => 0.98*yl_range.0..1.02*yl_range.1,
+    };
+
+    let mut chart = ChartBuilder::on(area)
+        .caption(title, ("sans-serif", 50).into_font())
+        .margin(10)
+        .x_label_area_size(40)
+        .y_label_area_size(60)
+        .right_y_label_area_size(50)
+        .build_cartesian_2d(x_axis.clone(), yr_axis)
+        .expect(&format!("failed to build {} chart", title))
+        .set_secondary_coord(x_axis.clone(), yl_axis); // shared X
+    chart
+        .configure_mesh()
+        .x_desc("Timestamp [s]")
+        .x_labels(30)
+        .y_desc(title)
+        .y_labels(30)
+        .y_label_formatter(&|y| format!("{:e}", y)) //nicer f64 rendering
+        .draw()
+        .expect(&format!("failed to draw {} mesh", title));
+    chart
+        .configure_secondary_axes()
+        .y_desc("Evelation angle [°]") // TODO: might require some improvement, 
+            // in case we have other use cases
+        .draw()
+        .expect(&format!("failed to draw {} secondary axis", title));
+    chart
+        .to_chart_state()
 }
 
 /*
