@@ -39,7 +39,8 @@ pub enum Constellation {
     Geo,
     /// `SBAS`
     SBAS(Augmentation),
-    /// `IRNSS` constellation
+    /// `IRNSS` constellation,
+    /// now officially renamed "NavIC"
     IRNSS,
     /// `Mixed` for Mixed constellations
     /// RINEX files description
