@@ -86,7 +86,7 @@ use gnss_time::TimeScaling;
 use crate::channel::Channel;
 
 #[cfg(feature = "pyo3")]
-pub mod python;
+use pyo3::prelude::*;
 
 #[cfg(feature = "serde")]
 #[macro_use]
@@ -149,6 +149,7 @@ macro_rules! hourly_session {
 
 #[derive(Clone, Debug)]
 #[derive(PartialEq)]
+#[cfg_attr(feature = "pyo3", pyclass)]
 /// `Rinex` describes a `RINEX` file.
 /// ```
 /// use rinex::prelude::*;

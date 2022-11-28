@@ -4,6 +4,6 @@ use crate::prelude::*;
 
 #[pymodule]
 fn rinex(_py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_class::<Epoch>()?;
+    m.add_class::<Rinex>()?;
     Ok(())
 }
