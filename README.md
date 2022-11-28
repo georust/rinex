@@ -90,8 +90,8 @@ a given (usually current..) location on Earth.
 * `--flate2`  
 allow native parsing of .gz compressed RINEX files. Otherwise, user must uncompress manually the `.gz` extension first.
 
-* `--pyo3`  (experimental)
-Add Python bindings via `PyO3`. To build the Python package, you must first install maturin and then build it with the pyo3 feature flag. For example, `maturin build -F pyo3`.
+* `--pyo3` (experimental)
+Add Python bindings via `PyO3`. To build the Python package, you must first install maturin and then build it with the pyo3 feature flag. For example, `maturin build -F pyo3`. Maturin will then build and place the resulting .whl file in `/target/wheels/`.
 
 ## Performances
 
