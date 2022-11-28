@@ -128,7 +128,9 @@ pub struct Header {
     /// optionnal receiver placement infos
     pub marker_type: Option<MarkerType>,
     /// optionnal leap seconds infos
-    pub leap: Option<leap::Leap>,
+    pub leap: Option<leap::Leap>, 
+    // /// Optionnal system time correction
+    // pub time_corrections: Option<gnss_time::Correction>,
     /// Station approximate coordinates
     #[cfg_attr(feature = "serde", serde(default, with = "opt_point3d"))]
     pub coords: Option<Point3D>,
@@ -792,8 +794,13 @@ impl Header {
                 // GPSA 0.1025E-07 0.7451E-08 -0.5960E-07 -0.5960E-07
                 // GPSB 0.1025E-07 0.7451E-08 -0.5960E-07 -0.5960E-07
             } else if marker.contains("TIME SYSTEM CORR") {
-                // TODO
                 // GPUT 0.2793967723E-08 0.000000000E+00 147456 1395
+                /* 
+                 * V3 Time System correction description
+                 */
+                //if let Ok((ts, ts, corr)) = gnss_time::decode_time_system_corr(content) {
+                //    time_corrections.insert(ts, (ts, corr));
+                //}
             } else if marker.contains("TIME SYSTEM ID") {
                 let timescale = content.trim();
                 if let Ok(ts) = TimeScale::from_str(content.trim()) {
