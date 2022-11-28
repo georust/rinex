@@ -83,7 +83,7 @@ definition.
 
 * `--with-geo`   
 unlocks the 
-[sbas_selection_help()](https://docs.rs/rinex/0.7.0/rinex/struct.Rinex.html) method,
+[sbas_selection_help()](https://docs.rs/rinex/latest/rinex/struct.Rinex.html) method,
 to select the most appropriate `SBAS` augmentation system for
 a given (usually current..) location on Earth.
 
