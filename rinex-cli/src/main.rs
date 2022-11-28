@@ -272,6 +272,17 @@ pub fn main() -> Result<(), rinex::Error> {
     }
 
     /*
+     * skyplot view
+     */
+    if cli.skyplot() {
+        plot::skyplot(
+            cli.plot_dimensions(),
+            &rnx,
+            &nav_context,
+            &(product_prefix.to_owned() + "/skyplot.png")); 
+    }
+
+    /*
      * Record analysis / visualization
      */
     let dims = cli.plot_dimensions();

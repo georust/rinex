@@ -329,7 +329,9 @@ Refer to README"))
                         .short('y')
                         .long("skyplot")
                         .action(ArgAction::SetTrue)
-                        .help("Generate a \"skyplot\". NAV context must be provided, either with -fp or -nav"))
+                        .help("Generate a \"skyplot\". 
+Navigation RINEX is required, either with --fp or --nav.  
+Best skyplot view is generated in case observation and navigation are combined with --fp and --nav."))
                     .arg(Arg::new("plot-width")
                         .long("plot-width")
                         .value_name("WIDTH(u32)")
@@ -575,6 +577,10 @@ Example \"--plot-height 1024"))
     /// Returns true if quiet mode is activated 
     pub fn quiet(&self) -> bool {
         self.matches.get_flag("quiet")
+    }
+    /// Returns true if skyplot special view is to be generated
+    pub fn skyplot(&self) -> bool {
+        self.matches.get_flag("skyplot")
     }
     /// Returns optionnal RINEX file to "merge"
     pub fn merge(&self) -> Option<&str> {

@@ -184,3 +184,85 @@ pub fn plot_gnss_recombination(
         .draw()
         .expect("failed to draw chart");
 }
+
+/*
+ * Skyplot view
+ */
+pub fn skyplot(
+    dims: (u32,u32),
+    rnx: &Rinex,
+    nav: &Option<Rinex>,
+    file: &str) 
+{
+    let p = build_plot(file, dims);
+    let cmap = colorous::TURBO;
+    let mut cmap_max_index = 0_u8;
+    // build chart
+    //  fixed view
+    let x_axis = (-180.0...180.0);
+    let y_axis = (-180.0...180.0);
+    let mut chart = ChartBuilder::on(&p)
+        .caption(caption, ("sans-serif", 50).into_font())
+        .margin(10)
+        .x_label_area_size(30)
+        .y_label_area_size(30)
+        .build_cartesian_2d(x_axis, y_axis)
+        .expect("failed to build skyplot chart");
+    chart
+        .configure_mesh()
+        .x_desc("Timestamp [s]")
+        .x_labels(30)
+        .y_desc(y_desc)
+        .y_labels(30)
+        .draw()
+        .expect("failed to draw skyplot mesh");
+
+    if let Some(nav) = nav {
+        /*
+         * "advanced" skyplot view,
+         * observations were provided
+         * color gradient emphasizes the SSI[dB]
+         */
+        let obs_rec = rnx.record.as_obs()
+            .expect("--fp should be Observation RINEX");
+        let nav_rec = nav.record.as_nav() 
+            .expect("--nav should be Navigation RINEX");
+        
+        // determine epoch boundaries
+        //  this will help emphasize the curves starting and endint points
+        let epochs = nav.epochs();
+        let e_0 = epochs[0];
+        let e_N = epochs[epochs.len()-1];
+        
+        // build dataset
+        let dataset: HashMap<Sv, HashMap<Epoch, f64>> = HashMap::new();
+        for (epoch, classes) in nav_rec {
+            
+        }
+
+        chart.draw_series(
+            nav_rec
+                .iter()
+                .filter_map(|(epoch, classes)| {
+                    if epoch == e_0 {
+                            
+                    } else if epoch == e_N {
+
+                    } else {
+
+                    }
+            }))
+            .expect("failed to draw skyplot")
+            .label(
+
+    } else {
+        /*
+         * "simplified" skyplot view,
+         * we only have have ephemeris data,
+         * color gradient emphasizes the epoch/timestamp
+         */
+        if let Some(r) = rnx.record.as_nav() {
+
+        }
+    }
+}
