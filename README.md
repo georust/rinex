@@ -28,10 +28,6 @@ and [rinex](rinex/) crates.
 
 By default all timestamps are in UTC with leap seconds correctly managed.
 
-:warning: Years encoded on two digits in files generated prior Jan 1 2000,
-get falsely offset to the 21st century. This only applies to OBS(V2)
-and NAV(V2) files generated prior year 2000.
-
 ## Supported `RINEX` types
 
 | Type                       | Parser            | Writer              |  CLI                 | UBX                  |           Notes          |
@@ -63,6 +59,15 @@ and NAV(V2) files generated prior year 2000.
 
 :heavy_minus_sign: No restrictions: file names do not have to follow naming conventions.  
 
+## Known weaknesses :warning:
+
+- For old files generated prior January 01 2000:
+if year is encoded on two digits, they get falsely shifted into the 21st century.
+For instance, "95" becomes "2095". Other than that, data is correctly parsed.
+
+- Glonass Time Scale is not known to this day.
+We cannot parse and apply system time corrections from other time scales into the glonass time scale.
+
 ## Record
 
 High level operations can be performed on RINEX records and
@@ -90,9 +95,9 @@ select a SBAS for a given location on Earth.
 * `--flate2`  
 allow native parsing of .gz compressed RINEX files. Otherwise, user must uncompress manually the `.gz` extension first.
 
-## Performances
+## `rinex-cli` benchmark
 
-Parsing and `--sv` enumeration requested with `rinex-cli`
+Light operation: `--sv` enumeration
 
 File           |  RINEX 0.6 `debug`  | RINEX 0.7 `debug` | RINEX 0.7 `--release`        |
 ---------------|---------------------|-------------------|------------------------------|
@@ -101,7 +106,14 @@ ESBC00DNK.gz   |  26s                | 14s               | 2s                   
 MOJN00DNK      |  28s                | 13s               | 2s                           |
 MOJN00DNK.gz   |  28s                | 13s               | 2s                           |
 
-Always compile rust code with the `--release` flag :+1: 
+Heavy computations: observation `--dcb` + `--gf` + record analysis 
+
+File           |  RINEX 0.8 `--release`  |
+---------------|-------------------------|
+ESBC00DNK      |    x                     |
+ESBC00DNK.gz   |    x                    |
+MOJN00DNK      |    x                    |
+MOJN00DNK.gz   |    x                    |
 
 ## Contributions
 

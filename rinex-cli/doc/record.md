@@ -2,8 +2,8 @@ Record analysis
 ===============
 
 RINEX files are huge, complex and vary a lot.   
-With these tools, we aim at providing an easy to use and efficient interface
-to manipulate and visualize RINEX record.
+This tool aims at providing an easy to use and efficient interface
+to parse and analyze these files.
 
 Observation RINEX
 =================
