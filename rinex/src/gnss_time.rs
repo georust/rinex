@@ -42,6 +42,8 @@ pub enum Error {
     ParseFloatError(#[from] std::num::ParseFloatError),
     #[error("failed to parse (wn, secs) counters")]
     ParseIntError(#[from] std::num::ParseIntError),
+    #[error("hifitime::_maybe_from_gregorian_")]
+    HifitimeError(#[from] hifitime::Errors), 
 }
 
 /// Decodes corretion from `lhs` system to `rhs` system
@@ -73,16 +75,17 @@ fn decode_system(content: &str) -> Result<(Constellation, TimeScale), Error> {
 
 /// Decodes V1 descriptor (very old)
 pub fn decode_corr_to_system_time(content: &str) -> Result<TimeCorrection, Error> {
-    "2021     1     1   -1.862645149231D-09" 
     let (yyyy, rem) = content.split_at(6);
     let (month, rem) = rem.split_at(6);
     let (day, rem) = rem.split_at(6);
-    let yyyy = u32::from_str_radix(yyyy.trim(), 10)?;
+    let yyyy = i32::from_str_radix(yyyy.trim(), 10)?;
     let month = u8::from_str_radix(month.trim(), 10)?;
     let day = u8::from_str_radix(day.trim(), 10)?;
     let corr = f64::from_str(rem.trim())?;
     Ok(TimeCorrection {
-        
+        epoch: Epoch::maybe_from_gregorian(yyyy, month, day, 0, 0, 0, 0, TimeScale::GPST)?, 
+        a0: 0.0,
+        a1: 0.0,
     })
 }
 
@@ -110,8 +113,13 @@ pub fn decode_time_system_corr(content: &str) -> Result<TimeCorrection, Error> {
 
     let a0 = f64::from_str(a0.replace("D","E").trim())?;
     let a1 = f64::from_str(a1.replace("D","E").trim())?;
+
+    // t_ref: seconds into GPST, 
     let t_ref = u32::from_str_radix(t_ref.trim(), 10)?;
+    // w_ref: free running GPST week counter
     let w_ref = u16::from_str_radix(w_ref.trim(), 10)?;
+    let mut duration = Duration::from_days((w_ref * 7) as f64);
+    duration += Duration::from_seconds(t_ref as f64);
 
     Ok(TimeCorrection {
         //source,
@@ -119,8 +127,10 @@ pub fn decode_time_system_corr(content: &str) -> Result<TimeCorrection, Error> {
         //utc_provider: None,
         a0,
         a1,
-        w_ref,
-        t_ref,
+        /*
+         * apparently, it's always defined related to GPST
+         */
+        epoch: Epoch::from_gpst_duration(duration),
     })
 }
 
@@ -155,18 +165,12 @@ pub struct TimeCorrection {
     /// Source: GNSS satellite broadcasting the system time difference,
     /// or SBAS vehicle broadcasting the MT12.
     // pub source: Constellation,
-    /// Reference Epoch, 
-    /// usually given with free running GNSS time scale week counter.
-    /// We deduce from that an [Hifitime::Epoch].
-    /// This makes things easier, since there a about 5 different
-    /// types of specifications for this, since 1990 to nowdays...
-    // pub epoch: Epoch,
+    /// correction parameter
     pub a0: f64,
+    /// correction parameter
     pub a1: f64,
-    /// Week counter in GPST 
-    pub w_ref: u16,
-    /// Seconds into GPST week
-    pub t_ref: u32,
+    /// Epoch in GPST
+    pub epoch: Epoch,
     // /// UTC provider: in case this applies to UTC time scale
     // pub utc_provider: Option<UTCProvider>,
 }
@@ -435,55 +439,61 @@ mod test {
         let corr = corr.unwrap();
         assert_eq!(corr.a0, 1.8626451492e-09);
         assert_eq!(corr.a1, -8.881784197e-16); 
-        assert_eq!(corr.t_ref, 432000);
-        assert_eq!(corr.w_ref, 2138);
+        //assert_eq!(corr.t_ref, 432000);
+        //assert_eq!(corr.w_ref, 2138);
 
         let corr = decode_time_system_corr("GPUT -3.7252902985e-09-1.065814104e-14  61440 2139");
         assert!(corr.is_ok());
         let corr = corr.unwrap();
         assert_eq!(corr.a0,  -3.7252902985e-9);
         assert_eq!(corr.a1,  -1.065814104e-14);
-        assert_eq!(corr.t_ref, 61440);
-        assert_eq!(corr.w_ref, 2139);
+        //assert_eq!(corr.t_ref, 61440);
+        //assert_eq!(corr.w_ref, 2139);
         
         let corr = decode_time_system_corr("GLGP -2.1420419216e-08 0.000000000e+00 518400 2138");
         assert!(corr.is_ok());
         let corr = corr.unwrap();
         assert_eq!(corr.a0, -2.1420419216e-08);
         assert_eq!(corr.a1, 0.0);
-        assert_eq!(corr.t_ref, 518400);
-        assert_eq!(corr.w_ref, 2138);
+        //assert_eq!(corr.t_ref, 518400);
+        //assert_eq!(corr.w_ref, 2138);
         
         let corr = decode_time_system_corr("GPUT  -.3725290298E-08 -.106581410E-13  61440 2139");
         assert!(corr.is_ok());
         let corr = corr.unwrap();
         assert_eq!(corr.a0, -0.3725290298E-08);
         assert_eq!(corr.a1, -0.106581410E-13);
-        assert_eq!(corr.t_ref, 61440);
-        assert_eq!(corr.w_ref, 2139);
+        //assert_eq!(corr.t_ref, 61440);
+        //assert_eq!(corr.w_ref, 2139);
         
         let corr = decode_time_system_corr("IRGP -4.9476511776e-10-2.664535259e-15 432288 2138");
         assert!(corr.is_ok());
         let corr = corr.unwrap();
         assert_eq!(corr.a0, -4.9476511776e-10);
         assert_eq!(corr.a1, -2.664535259e-15);
-        assert_eq!(corr.t_ref, 432288);
-        assert_eq!(corr.w_ref, 2138);
+        //assert_eq!(corr.t_ref, 432288);
+        //assert_eq!(corr.w_ref, 2138);
         
         let corr = decode_time_system_corr("GAGP  2.1536834538e-09-9.769962617e-15 432000 2138");
         assert!(corr.is_ok());
         let corr = corr.unwrap();
         assert_eq!(corr.a0, 2.1536834538e-09);
         assert_eq!(corr.a1, -9.769962617e-15);
-        assert_eq!(corr.t_ref, 432000 );
-        assert_eq!(corr.w_ref, 2138);
+        //assert_eq!(corr.t_ref, 432000 );
+        //assert_eq!(corr.w_ref, 2138);
         
         let corr = decode_time_system_corr("QZUT   .5587935448E-08  .000000000E+00  94208 2139");
         assert!(corr.is_ok());
         let corr = corr.unwrap();
         assert_eq!(corr.a0, 0.5587935448E-08);
         assert_eq!(corr.a1, 0.0);
-        assert_eq!(corr.t_ref, 94208 );
-        assert_eq!(corr.w_ref, 2139);
+        //assert_eq!(corr.t_ref, 94208 );
+        //assert_eq!(corr.w_ref, 2139);
+    }
+    #[test]
+    fn test_corr_to_system_time() {
+        let content = "2021     1     1   -1.862645149231D-09";
+        let corr = decode_corr_to_system_time(content);
+        assert!(corr.is_ok());
     }
 }
