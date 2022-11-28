@@ -10,10 +10,14 @@ pub enum Error {
     UnknownFlag,
 }
 
+#[cfg(feature = "pyo3")]
+use pyo3::prelude::*;
+
 /// `EpochFlag` validates an epoch, 
 /// or describes possible events that occurred
 #[derive(Copy, Clone, Debug)]
 #[derive(PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "pyo3", pyclass)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum EpochFlag {
     /// Epoch is sane
