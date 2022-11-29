@@ -21,8 +21,6 @@ jobs:
       - uses: actions/checkout@master
       - name: Build dependencies 
         run: sudo apt-get update && sudo apt-get install pkg-config fontconfig libfontconfig1-dev
-      - name: Test pkg-config
-        run: sudo apt-file search fontconfig.pc 
       - name: Compile and release
         uses: rust-build/rust-build.action@v1.4.0
         env:
