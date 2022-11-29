@@ -22,9 +22,10 @@ same combinations on both Wl/Nl sides
 - [ ] compression & decompression benchmarking
 - [ ] IONEX: merge operation
 - [ ] Misc
-  - provide python bindings, similarly to `Hifitime`.  
+  - [ ] provide python bindings, similarly to `Hifitime`.  
    Probably focus on high level and most common methods ?  
    Python bindings should be a crate "feature"
+  - [ ] CI: automatic building of binaries for easy download by non-developers.  
    
   - features are not exposed to the API, we should at least
   exhibit which features exist and what they provide
