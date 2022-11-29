@@ -81,11 +81,9 @@ definition.
 
 <img align="right" width="400" src="https://upload.wikimedia.org/wikipedia/commons/4/46/SBAS_Service_Areas.png">
 
-* `--with-geo`   
-unlocks the 
-[sbas_selection_help()](https://docs.rs/rinex/latest/rinex/struct.Rinex.html) method,
-to select the most appropriate `SBAS` augmentation system for
-a given (usually current..) location on Earth.
+* `--sbas`: SBAS (stationnary augmentation systems related features).    
+[selection_helper()](https://docs.rs/rinex/latest/rinex/struct.Rinex.html),
+select a SBAS for a given location on Earth.
 
 * `--flate2`  
 allow native parsing of .gz compressed RINEX files. Otherwise, user must uncompress manually the `.gz` extension first.
