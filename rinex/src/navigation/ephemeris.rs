@@ -120,16 +120,10 @@ pub const EARTH_GM_CONSTANT: f64 = 3.986005E14_f64;
 /// Earth rotation rate in WGS84 frame [rad]
 pub const EARTH_ROT_RATE_RAD_WGS64: f64 = 7.292115E-5;
 
-/*
-/// Macro to convert Sv time to UTC, correction
-/// is GNSS dependent
-pub fn sv_t_utc(epoch: Epoch,
-*/
-
 /// Kepler parameters
 pub struct Kepler {
     /// sqrt(semi major axis) [sqrt(m)]
-    pub sqrt_a: f64,
+    pub a: f64,
     /// Eccentricity [n.a]
     pub e: f64,
     /// Inclination angle at reference time [semicircles]
@@ -140,30 +134,8 @@ pub struct Kepler {
     pub m_0: f64,
     /// argument of perigee [semicircles]
     pub omega: f64,
-    // /// internal buffer for E_k linear solving
-    // buffer: Vec<f64>,
-}
-
-impl Kepler {
-    /// Computes t_k
-    pub fn t_k(&self) -> f64 {
-        0.0
-    }
-    /// Returns M_k term
-    #[allow(non_snake_case)]
-    pub fn M_k(&mut self) -> f64 {
-        0.0
-    }
-    /// Returns E_k term
-    #[allow(non_snake_case)]
-    pub fn E_k(&mut self) -> f64 {
-        0.0
-    }
-    /// Returns r_k term
-    pub fn r_k(&self) -> f64 {
-        //self.sqrt_a.powf(2.0)*(1.0 - self.e * 
-        0.0
-    }
+    /// time of issue of ephemeris
+    pub toe: f64,
 }
 
 /// Perturbation parameters
@@ -213,14 +185,17 @@ impl Ephemeris {
                     if let Some(omega_0) = self.get_orbit_f64("omega0") {
                         if let Some(m_0) = self.get_orbit_f64("m0") {
                             if let Some(omega) = self.get_orbit_f64("omega") {
-                                return Some(Kepler {
-                                    e,
-                                    sqrt_a,
-                                    i_0,
-                                    omega_0,
-                                    m_0,
-                                    omega,
-                                });
+                                if let Some(toe) = self.get_orbit_f64("toe") {
+                                    return Some(Kepler {
+                                        a: sqrt_a.powf(2.0),
+                                        e,
+                                        i_0,
+                                        omega_0,
+                                        m_0,
+                                        omega,
+                                        toe,
+                                    });
+                                }
                             }
                         }
                     }
@@ -264,8 +239,7 @@ impl Ephemeris {
         None
     }
 
-    /// Returns satellite position triplet, in ecef,
-    /// if such information is contained in parsed orbits
+    /// Returns satellite position vector, in ECEF
     pub fn sat_pos(&self) -> Option<(f64,f64,f64)> {
         if let Some(pos_x) = self.get_orbit_f64("satPosX") {
             if let Some(pos_y) = self.get_orbit_f64("satPosY") {
@@ -274,18 +248,86 @@ impl Ephemeris {
                 }
             }
         }
-        None
+        manual_sat_pos()
     }
 
-    /// Computes elevation angle. Useful macro for the user
+    /// Manual calculations of satellite position vector, in ECEF,
+    /// from ephemeris
+    pub fn manual_sat_pos(&self) -> Option<(f64,f64,f64)> {
+        if let Some(kepler) = self.kepler() {
+            if let Some(perturbations) = self.perturbations() {
+                let mut t_k = self.clock_bias - kepler.toe;
+                if t_k > 302400 {
+                    t_k -= 604800;
+                } else if t_k < -302400 {
+                    t_k += 604800;
+                }
+                let n_0 = (GM/kepler.a.powf(3.0)).sqrt();
+                let m_k = kepler.m_0 + (n_0 + perturbations.dn)*t_k; 
+
+                let e_k = 0.0_f64; //TODO
+                let v_k = (((1.0-kepler.e.powf(2.0)).sqrt() * e_k.sin()) / (e_k.cos() - kepler.e)).atan();
+                let phi_k = v_k + kepler.omega;
+                let du_k = perturbations.cus * (2.0*phi_k).sin() + perturbations.cuc * (2.0*phi_k).cos();
+                let u_k = phi_k + du_k;
+                let dr_k = perturbations.crs * (2.0*phi_k).sin() + perturbations.crc * (2.0*phi_k).cos();
+                let r_k = kepler.a * (1.0 - kepler.e * e_k.cos()) + dr_k;
+
+                let di_k = perturbations.cis * (2.0*phi_k).sin() + perturbations.cic * (2.0*phi_k).cos();
+                let i_k = kepler.i_0 + di_k + perturbations.i_dot * t_k;
+
+                let xp_k = r_k * u_k.cos();
+                let yp_k = r_k * u_k.sin();
+                let omega_k = kepler.omega_0 + (perturbations.omega_dot - OMEGA_E)*t_k - OMEGA_E * kepler.toe; 
+                let x_k = xp_k * omega_k.cos() - yp_k * omega_k.sin() * i_k.cos();
+                let y_k = xp_k * omega_k.sin() + yp_k * omega_k.cos() * i_k.cos();
+                let z_k = yp_k * i_k.sin();
+                return Some((x_k, y_k, z_k));
+            }
+        }
+        None
+    }
+    /// Computes satellite position in (latitude, longitude, altitude)
+    pub fn sat_latlonalt(&self) -> Option<(f64,f64,f64)> {
+        if let Some((x_k, y_k, z_k)) = self.sat_pos() {
+            let p = (x_k.pow(2.0) + y_k.pow(2.0)).sqrt(); 
+            let f = 54.0 * EARTH_B.pow(2.0) * z_k.pow(2.0);
+            //todo EARTH_ECCENTRICTY_POW4 CONST
+            //TODO CONST EARTH_A EARTH_B
+            let E2 = EARTH_A.pow(2.0) - EARTH_B.pow(2.0); 
+            let g = p.pow(2.0) + (1.0 - EARTH_ECCENTRICITY.pow(2.0)) * z_k.pow(2.0) - EARTH_ECCENTRICITY.pow(2.0) * E2;
+            let c = EARTH_ECCENTRICITY_POW4 * f * p.pow(2.0) / g;
+            let s = (1.0 + c + (2.0 * c + c.pow(2.0)).sqrt()).pow(1.0/3.0);
+            let pp = f / (s + 1/s +1).pow(2.0)*3.0*g.pow(2.0);
+            let qq = (1.0 + 2.0 * EARTH_ECCENTRICITY_POW4 * pp).sqrt();
+            let r_0 = 
+                (0.5 * EARTH_A_POW2 * (1.0 + 1.0/qq)
+                    - pp*z_k.pow(2.0)*(1.0 - EARTH_ECCENTRICY_POW2)
+                        - 0.5 * pp * p.pow(2.0)).sqrt() - pp * p * EARTH_ECCENTRICY_POW2 / (1.0 + qq);
+
+            let uu = ((p - EARTH_ECCENTRICITY_POW2 * r_0).pow(2.0) + z_k.pow(2.0)).sqrt(); 
+            let vv = ((p - EARTH_ECCENTRICY_POW2 * r_0).pow(2.0)
+                + (1.0 - EARTH_ECCENTRICITY_POW2)*z_k.pow(2.0)).sqrt();
+
+            //TODO CONST
+            let ep = EARTH_A * EARTH_ECCENTRICITY / EARTH_B;
+            let z_0 = EARTH_B.pow(2.0) * z_k / EARTH_A / vv;
+
+            let lambda = (y_k / x_k).atan2();
+            let phi = ((z_k + ep.pow(2.0) * z_0) /p).atan();
+            let h = uu * (1.0 - EARTH_B_POW2 / EARTH_A / vv);
+            return Some((phi, lambda, h));
+        }
+        None
+    }
+    /// Computes (azimuth, elevation) angles. Useful macro for the user
     /// to retrieve the elevation angle from this Ephemeris frame (given epoch),
-    /// withouth further data identification.
-    /// Station position (ECEF(x,y,z)) is a requirement.
-    /// This information is provided in the file header.
-    pub fn elevation_angle(&self, station_ecef: &Option<Point3D>) -> Option<f64> {
+    pub fn angles(&self) -> Option<(f64,f64)> {
+        if let Some((phi, lambda, h)) = self.sat_latlonalt() {
+            let theta_i = 
+        }
         None
     }
-
     /// Parses ephemeris from given line iterator
     pub fn parse_v2v3(
         version: Version,
