@@ -4,8 +4,8 @@ on:
     types: [created]
 
 jobs:
-  release:
-    name: release ${{ matrix.target }}
+  release-pc-windows-gnu:
+    name: release pc-windows-gnu
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -13,21 +13,36 @@ jobs:
         include:
           - target: x86_64-pc-windows-gnu
             archive: zip
-          - target: x86_64-apple-darwin
-            archive: zip
-          - target: x86_64-unknown-linux-musl
-            archive: tar.gz
     steps:
       - uses: actions/checkout@master
       - name: Compile and release
         uses: rust-build/rust-build.action@v1.4.0
         env:
-          PKG_CONFIG_PATH: /usr/lib/x86-64_linux-gnu/pkgconfig/fontconfig.pc
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           RUSTTARGET: ${{ matrix.target }}
           EXTRA_FILES: "rinex-cli/README.md LICENSE-APACHE LICENSE-MIT"
           SRC_DIR: "rinex-cli"
-          PRE_BUILD: ".github/scripts/pre-release.sh"
+          ARCHIVE_TYPES: ${{ matrix.archive }}
+          TOOLCHAIN_VERSION: stable
+  release-apple-darwin:
+    name: release apple-darwin 
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-apple-darwin
+            archive: zip
+    steps:
+      - uses: actions/checkout@master
+      - name: Compile and release
+        uses: rust-build/rust-build.action@v1.4.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          RUSTTARGET: ${{ matrix.target }}
+          EXTRA_FILES: "rinex-cli/README.md LICENSE-APACHE LICENSE-MIT"
+          SRC_DIR: "rinex-cli"
           ARCHIVE_TYPES: ${{ matrix.archive }}
           TOOLCHAIN_VERSION: stable
