@@ -39,16 +39,16 @@ impl Default for Augmentation {
     }
 }
 
-#[cfg(feature = "with-geo")]
+#[cfg(feature = "sbas")]
 use std::str::FromStr;
-#[cfg(feature = "with-geo")]
+#[cfg(feature = "sbas")]
 use std::iter::FromIterator;
-#[cfg(feature = "with-geo")]
+#[cfg(feature = "sbas")]
 use wkt::{Geometry, Wkt, WktFloat};
-#[cfg(feature = "with-geo")]
+#[cfg(feature = "sbas")]
 use geo::{point, Contains, LineString};
 
-#[cfg(feature = "with-geo")]
+#[cfg(feature = "sbas")]
 fn wkt_line_string_to_geo<T> (line_string: &wkt::types::LineString<T>) -> LineString<T>
 where
     T: WktFloat + Default + FromStr,
@@ -58,7 +58,7 @@ where
         .map(|coord| (coord.x, coord.y)))
 }
 
-#[cfg(feature = "with-geo")]
+#[cfg(feature = "sbas")]
 fn line_string<T>(name: &str) -> LineString<T>
 where 
     T: WktFloat + Default + FromStr,
@@ -77,7 +77,7 @@ where
     }
 }
 
-#[cfg(feature = "with-geo")]
+#[cfg(feature = "sbas")]
 fn load_database() -> Vec<(Augmentation, geo::Polygon)> {
     let mut db :Vec<(Augmentation, geo::Polygon)> = Vec::new();
     let db_path = env!("CARGO_MANIFEST_DIR")
@@ -129,7 +129,7 @@ fn load_database() -> Vec<(Augmentation, geo::Polygon)> {
 /// assert_eq!(sbas.is_none(), true);
 ///```
 */
-#[cfg(feature = "with-geo")]
+#[cfg(feature = "sbas")]
 pub fn selection_helper(lat: f64, lon: f64) -> Option<Augmentation> {
     let db = load_database();
     let point : geo::Point<f64> = point!(
@@ -144,12 +144,12 @@ pub fn selection_helper(lat: f64, lon: f64) -> Option<Augmentation> {
     None
 }
 
-#[cfg(feature = "with-geo")]
+#[cfg(feature = "sbas")]
 #[cfg(test)]
 mod test {
     use super::*;
     #[test]
-    #[cfg(feature = "with-geo")]
+    #[cfg(feature = "sbas")]
     fn test_selection_helper() {
         // PARIS --> EGNOS
         let sbas = selection_helper(48.808378, 2.382682);
