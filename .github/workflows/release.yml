@@ -20,10 +20,13 @@ jobs:
     steps:
       - uses: actions/checkout@master
       - name: Build dependencies 
-        run: sudo apt-get update && sudo apt-get install fontconfig libfontconfig1-dev
+        run: sudo apt-get update && sudo apt-get install pkg-config fontconfig libfontconfig1-dev
+      - name: Test pkg-config
+        run: sudo apt-file search fontconfig.pc 
       - name: Compile and release
         uses: rust-build/rust-build.action@v1.4.0
         env:
+          PKG_CONFIG_PATH: /usr/lib/x86-64_linux-gnu/pkgconfig/fontconfig.pc
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           RUSTTARGET: ${{ matrix.target }}
