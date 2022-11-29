@@ -20,7 +20,7 @@ jobs:
     steps:
       - uses: actions/checkout@master
       - name: Build dependencies 
-        run: sudo apt-get update && sudo apt-get install libfontconfig1-dev
+        run: sudo apt-get update && sudo apt-get install fontconfig libfontconfig1-dev
       - name: Compile and release
         uses: rust-build/rust-build.action@v1.4.0
         env:
