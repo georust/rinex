@@ -4,8 +4,10 @@ use thiserror::Error;
 mod augmentation;
 pub use augmentation::{
     Augmentation,
-    selection_helper,
 };
+    
+#[cfg(feature = "sbas")]
+pub use augmentation::selection_helper;
 
 #[cfg(feature = "serde")]
 use serde::{Serialize, Deserialize};
