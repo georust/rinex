@@ -180,7 +180,7 @@ impl Compressor {
     
     /// Compresses given RINEX data to CRINEX 
     pub fn compress(&mut self, 
-        rnx_major: u8,
+        _rnx_major: u8,
         obs_codes: &HashMap<Constellation, Vec<String>>, 
         constellation: &Constellation,
         content: &str) -> Result<String, Error> 
