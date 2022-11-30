@@ -11,14 +11,19 @@ env:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v2
-    - name: Build
+    - name: Dependencies
       run: |
-        sudo apt-get update && sudo apt-get install libudev-dev libfontconfig1-dev
-        cargo build --all-features --verbose
-    - name: Tests
-      run: cargo test --all-features
+        sudo apt-get update
+        sudo apt-get install libudev-dev libfontconfig1-dev
+        cargo install cargo-tarpaulin
+    - name: Build
+      run: cargo build
+    - name: Test
+      run: cargo test -- --nocapture 
+    - name: Build (all features)
+      run: cargo build --all-features
+    - name: Test (all features)
+      run: cargo test --all-features -- --nocapture
