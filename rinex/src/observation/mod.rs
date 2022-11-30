@@ -11,6 +11,9 @@ pub use record::{
 
 use std::collections::HashMap;
 
+#[cfg(feature = "pyo3")]
+use pyo3::prelude::*;
+
 macro_rules! fmt_month {
     ($m: expr) => {
         match $m {
@@ -36,6 +39,7 @@ use serde::Serialize;
 /// Describes `Compact RINEX` specific information
 #[derive(Clone, Debug)]
 #[derive(PartialEq, Eq, PartialOrd)]
+#[cfg_attr(feature = "pyo3", pyclass)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Crinex {
     /// Compression program version
@@ -46,6 +50,7 @@ pub struct Crinex {
     pub date: Epoch,
 }
 
+#[cfg_attr(feature = "pyo3", pymethods)]
 impl Crinex {
     /// Sets compression algorithm revision
     pub fn with_version(&self, version: Version) -> Self {
@@ -64,6 +69,26 @@ impl Crinex {
         let mut s = self.clone();
         s.date = e;
         s
+    }
+    #[cfg(feature = "pyo3")]
+    #[new]
+    fn new_py() -> Self {
+        Self::default()
+    }
+    #[cfg(feature = "pyo3")]
+    #[getter]
+    fn get_version(&self) -> Version {
+        self.version
+    }
+    #[cfg(feature = "pyo3")]
+    #[getter]
+    fn get_prog(&self) -> &str {
+        &self.prog
+    }
+    #[cfg(feature = "pyo3")]
+    #[getter]
+    fn get_date(&self) -> Epoch {
+        self.date
     }
 }
 

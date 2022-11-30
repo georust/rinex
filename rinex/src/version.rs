@@ -1,5 +1,8 @@
 //! `RINEX` revision description
 
+#[cfg(feature = "pyo3")]
+use pyo3::prelude::*;
+
 /// Current `RINEX` version supported to this day
 pub const SUPPORTED_VERSION: Version = Version {
     major: 4,
@@ -8,6 +11,7 @@ pub const SUPPORTED_VERSION: Version = Version {
 
 #[derive(Copy, Clone, Debug)]
 #[derive(PartialEq, Eq, PartialOrd, Ord)]
+#[cfg_attr(feature = "pyo3", pyclass)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Version {
     pub major: u8,
@@ -18,6 +22,20 @@ impl Default for Version  {
     /// Builds a default `Version` object 
     fn default() -> Self {
         SUPPORTED_VERSION
+    }
+}
+
+#[cfg_attr(feature = "pyo3", pymethods)]
+impl Version {
+    #[cfg(feature = "pyo3")]
+    #[getter]
+    fn get_major(&self) -> u8 {
+        self.major
+    }
+    #[cfg(feature = "pyo3")]
+    #[getter]
+    fn get_minor(&self) -> u8 {
+        self.minor
     }
 }
 

@@ -1,6 +1,5 @@
 use thiserror::Error;
 use std::str::FromStr;
-//use chrono::Timelike;
 use bitflags::bitflags;
 use std::collections::{BTreeMap, HashMap};
 
@@ -17,6 +16,9 @@ use crate::{
     gnss_time::TimeScaling,
 };
 use hifitime::Duration;
+
+#[cfg(feature = "pyo3")]
+use pyo3::prelude::*;
 
 #[derive(Error, Debug)]
 pub enum Error {
@@ -42,6 +44,7 @@ use serde::Serialize;
 /// `Ssi` describes signals strength
 #[repr(u8)]
 #[derive(PartialOrd, Ord, PartialEq, Eq, Copy, Clone, Debug)]
+#[cfg_attr(feature = "pyo3", pyclass)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum Ssi {
     /// Ssi ~= 0 dB/Hz
@@ -106,29 +109,31 @@ impl FromStr for Ssi {
     }
 }
 
+#[cfg_attr(feature = "pyo3", pymethods)]
 impl Ssi {
     /// Returns true if `self` is a bad signal level, very poor quality,
     /// measurements should be discarded
-    pub fn is_bad (self) -> bool {
-        self <= Ssi::DbHz18_23
+    pub fn is_bad (&self) -> bool {
+        *self <= Ssi::DbHz18_23
     }
     /// Returns true if `self` is a weak signal level, poor quality
-    pub fn is_weak (self) -> bool {
-        self < Ssi::DbHz30_35
+    pub fn is_weak (&self) -> bool {
+        *self < Ssi::DbHz30_35
     }
     /// Returns true if `self` is a strong signal level, good quality as defined by standard
-    pub fn is_strong (self) -> bool {
-        self >= Ssi::DbHz30_35
+    pub fn is_strong (&self) -> bool {
+        *self >= Ssi::DbHz30_35
     }
     /// Returns true if `self` is a very strong signal level, very high quality
-    pub fn is_excellent (self) -> bool {
-        self > Ssi::DbHz42_47
+    pub fn is_excellent (&self) -> bool {
+        *self > Ssi::DbHz42_47
     }
     /// Returns true if `self` matches a strong signal level (defined by standard)
-    pub fn is_ok (self) -> bool { self.is_strong() }
+    pub fn is_ok (&self) -> bool { self.is_strong() }
 }
 
 bitflags! {
+    #[cfg_attr(feature = "pyo3", pyclass)]
     #[cfg_attr(feature = "serde", derive(Serialize))]
     pub struct LliFlags: u8 {
         /// Current epoch is marked Ok or Unknown status 
@@ -146,6 +151,7 @@ bitflags! {
 
 #[derive(Copy, Clone, Debug)]
 #[derive(PartialEq, PartialOrd)]
+#[cfg_attr(feature = "pyo3", pyclass)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct ObservationData {
 	/// physical measurement
@@ -156,8 +162,11 @@ pub struct ObservationData {
 	pub ssi: Option<Ssi>,
 }
 
+#[cfg_attr(feature = "pyo3", pymethods)]
 impl ObservationData {
 	/// Builds new ObservationData structure from given predicates
+    #[cfg(feature = "pyo3")]
+    #[new]
     pub fn new (obs: f64, lli: Option<LliFlags>, ssi: Option<Ssi>) -> ObservationData {
 		ObservationData {
 			obs,
@@ -172,7 +181,7 @@ impl ObservationData {
     ///    + LLI must match the LliFlags::OkOrUnknown flag (strictly)    
     /// if SSI exists:    
     ///    + SSI must match the .is_ok() criteria, refer to API 
-    pub fn is_ok (self) -> bool {
+    pub fn is_ok (&self) -> bool {
         let lli_ok = self.lli.unwrap_or(LliFlags::OK_OR_UNKNOWN) == LliFlags::OK_OR_UNKNOWN;
         let ssi_ok = self.ssi.unwrap_or(Ssi::default()).is_ok();
         lli_ok && ssi_ok
@@ -187,6 +196,22 @@ impl ObservationData {
     /// - bias: other (optionnal..) additive biases
     pub fn pr_real_distance (&self, rcvr_offset: f64, sv_offset: f64, biases: f64) -> f64 {
         self.obs + 299_792_458.0_f64 * (rcvr_offset - sv_offset) + biases
+    }
+    
+    #[cfg(feature = "pyo3")]
+    #[getter]
+    fn get_obs(&self) -> f64 {
+        self.obs
+    }
+    #[cfg(feature = "pyo3")]
+    #[getter]
+    fn get_lli(&self) -> Option<LliFlags> {
+        self.lli
+    }
+    #[cfg(feature = "pyo3")]
+    #[getter]
+    fn get_ssi(&self) -> Option<Ssi> {
+        self.ssi
     }
 }
 
