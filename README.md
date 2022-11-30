@@ -12,6 +12,7 @@ RINEX
 Rust tool suites to parse, analyze and process `RINEX` files
 
 * [`rinex`](rinex/) is the core library 
+
 * [`rinex-cli`](rinex-cli/) is a command line application based on the core library.  
 It can be used to process RINEX files or perform operations similar to `teqc`.   
 The application is auto-generated for Windows, download it from the 
@@ -31,6 +32,10 @@ By default all timestamps are in UTC with leap seconds correctly managed.
 :warning: Years encoded on two digits in files generated prior Jan 1 2000,
 get falsely offset to the 21st century. This only applies to OBS(V2)
 and NAV(V2) files generated prior year 2000.
+
+## `RINEX` in Python
+
+Refer to the [python package](doc/python.md) to understand how to build the python3 wheel.
 
 ## Supported `RINEX` types
 

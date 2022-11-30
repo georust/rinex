@@ -46,6 +46,9 @@ use observation::Crinex;
 use navigation::OrbitItem;
 use hifitime::Duration;
 
+#[cfg(feature = "pyo3")]
+pub mod python;
+
 // Convenient package to import, that
 // comprises all basic and major structures
 pub mod prelude {

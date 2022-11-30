@@ -17,8 +17,8 @@ use pyo3::prelude::*;
 /// or describes possible events that occurred
 #[derive(Copy, Clone, Debug)]
 #[derive(PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[cfg_attr(feature = "pyo3", pyclass)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "pyo3", pyclass)]
 pub enum EpochFlag {
     /// Epoch is sane
     Ok,
@@ -42,10 +42,11 @@ impl Default for EpochFlag {
     }
 }
 
+#[cfg_attr(feature = "pyo3", pymethods)]
 impl EpochFlag {
     /// Returns True if self is a valid epoch
-    pub fn is_ok(self) -> bool { 
-        self == Self::Ok 
+    pub fn is_ok(&self) -> bool { 
+        *self == Self::Ok 
     }
 }
 
