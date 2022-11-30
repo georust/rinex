@@ -11,22 +11,23 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
+          python-version: 3.9
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-apple-darwin
-      - name: Build wheels - x86_64
+      - name: Build
         uses: PyO3/maturin-action@v1
         with:
           target: x86_64-apple-darwin
           args: --release --all-features -m rinex/Cargo.toml --out dist --sdist
-      - name: Install built wheel - x86_64
+      - name: Install
         run: |
           pip install rinex --no-index --find-links dist --force-reinstall
           python -c "import rinex"
-      - name: Upload wheels
+      - name: Upload
         uses: actions/upload-artifact@v3
         with:
           name: wheels
@@ -36,29 +37,27 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        platform: [
-          { python-architecture: "x64", target: "x86_64-pc-windows-msvc" },
-          { python-architecture: "x86", target: "i686-pc-windows-msvc" },
-        ]
+        target: [x64, x86]
     steps:
       - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
       - uses: actions/setup-python@v4
         with:
-          python-version: 3.6
-          architecture: ${{ matrix.platform.python-architecture }}
+          python-version: 3.9
+          architecture: ${{ matrix.target }}
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.platform.target }}
-      - name: Build wheels
+          targets: ${{ matrix.target }}
+      - name: Build
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.platform.target }}
           args: --release --all-features -m rinex/Cargo.toml --out dist
-      - name: Install built wheel
+      - name: Install
         run: |
           pip install rinex --no-index --find-links dist --force-reinstall
           python -c "import rinex"
-      - name: Upload wheels
+      - name: Upload
         uses: actions/upload-artifact@v3
         with:
           name: wheels
@@ -66,36 +65,24 @@ jobs:
 
   linux:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        platform: [
-          { target: "x86_64-unknown-linux-musl", image_tag: "x86_64-musl" },
-          { target: "i686-unknown-linux-musl", image_tag: "i686-musl" },
-          { target: "aarch64-unknown-linux-musl", image_tag: "aarch64-musl" },
-          { target: "armv7-unknown-linux-musleabihf", image_tag: "armv7-musleabihf" },
-          { target: "powerpc64le-unknown-linux-musl", image_tag: "powerpc64le-musl" },
-        ]
-    container:
-      image: docker://messense/rust-musl-cross:${{ matrix.platform.image_tag }}
-      env:
-        CFLAGS_armv7_unknown_linux_musleabihf: '-mfpu=vfpv3-d16'
     steps:
       - uses: actions/checkout@v3
-      - name: Build Wheels - manylinux
+      - uses: dtolnay/rust-toolchain@stable 
+      - uses: actions/setup-python@v4
+        with:
+          python-version: 3.9
+          architecture: x64
+      - name: Build
         uses: PyO3/maturin-action@main
         with:
-          target: ${{ matrix.platform.target }}
+          target: x64 
           manylinux: auto
-          container: off
-          args: --release --all-features -m rinex/Cargo.toml -o dist
-      - name: Build Wheels - musllinux
-        uses: PyO3/maturin-action@main
-        with:
-          target: ${{ matrix.platform.target }}
-          manylinux: musllinux_1_1
-          container: off
-          args: --release --all-features -m rinex/Cargo.toml -o dist
-      - name: Upload wheels
+          args: --release -i python3.9 --all-features -m rinex/Cargo.toml -o dist
+    - name: Install
+      run: |
+        pip3 install rinex --no-index --find-links dist --force-reinstall
+        python -c "import rinex"
+      - name: Upload
         uses: actions/upload-artifact@v3
         with:
           name: wheels
