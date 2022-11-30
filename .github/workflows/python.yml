@@ -40,13 +40,11 @@ jobs:
         target: [x64, x86]
     steps:
       - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
       - uses: actions/setup-python@v4
         with:
           python-version: 3.9
           architecture: ${{ matrix.target }}
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.target }}
       - name: Build
         uses: PyO3/maturin-action@v1
         with:
