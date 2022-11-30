@@ -78,10 +78,10 @@ jobs:
           target: x64 
           manylinux: auto
           args: --release -i python3.9 --all-features -m rinex/Cargo.toml -o dist
-    - name: Install
-      run: |
-        pip3 install rinex --no-index --find-links dist --force-reinstall
-        python -c "import rinex"
+      - name: Build
+        run: |
+          pip3 install rinex --no-index --find-links dist --force-reinstall
+          python -c "import rinex"
       - name: Upload
         uses: actions/upload-artifact@v3
         with:
