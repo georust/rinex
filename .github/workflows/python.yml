@@ -61,28 +61,31 @@ jobs:
 
   linux:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target: [x64, x86]
     steps:
-    - uses: actions/checkout@v3
-    - uses: actions/setup-python@v4
-      with:
-        python-version: 3.9
-        architecture: x64
-    - uses: dtolnay/rust-toolchain@stable 
-    - name: Build wheels
-      uses: PyO3/maturin-action@v1
-      with:
-        target: x64
-        manylinux: auto
-        args: --release -i python3.9 --all-features --out dist -m rinex/Cargo.toml
-    - name: Install built wheel
-      run: |
-        pip3 install rinex --no-index --find-links dist --force-reinstall
-        python -c "import rinex"
-    - name: Upload wheels
-      uses: actions/upload-artifact@v3
-      with:
-        name: wheels
-        path: dist
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: 3.9
+          architecture: ${{ matrix.target }}
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build wheels
+        uses: PyO3/maturin-action@v1
+        with:
+          target: ${{ matrix.target }}
+          python-version: 3.9
+          args: --release --all-features --out dist --sdist -m rinex/Cargo.toml
+      - name: Install built wheel
+        run: |
+          pip install rinex --no-index --find-links dist --force-reinstall
+          python -c "import rinex"
+      - name: Upload wheels
+        uses: actions/upload-artifact@v3
+        with:
+          name: wheels
+          path: dist
 
   release:
     name: Release
