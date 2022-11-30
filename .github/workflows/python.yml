@@ -48,7 +48,7 @@ jobs:
       - name: Build
         uses: PyO3/maturin-action@v1
         with:
-          target: ${{ matrix.platform.target }}
+          target: ${{ matrix.target }}
           args: --release --all-features -m rinex/Cargo.toml --out dist
       - name: Install
         run: |
