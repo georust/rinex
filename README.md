@@ -12,8 +12,10 @@ RINEX
 Rust tool suites to parse, analyze and process `RINEX` files
 
 * [`rinex`](rinex/) is the core library 
-* [`rinex-cli`](rinex-cli/) is a command line application to pust the crate into use.  
-It can be used for RINEX processing, perform `teqc` operations and so on.
+* [`rinex-cli`](rinex-cli/) is a command line application based on the core library.  
+It can be used to process RINEX files or perform operations similar to `teqc`.   
+The application is auto-generated for Windows, download it from the 
+[release portal](https://github.com/gwbres/rinex/releases)
 
 * [`rnx2crx`](rnx2crx/) is a RINEX compression program 
 * [`crx2rnx`](crx2rnx/) is a CRINEX decompression program (Compact RINEX to RINEX)
@@ -81,11 +83,9 @@ definition.
 
 <img align="right" width="400" src="https://upload.wikimedia.org/wikipedia/commons/4/46/SBAS_Service_Areas.png">
 
-* `--with-geo`   
-unlocks the 
-[sbas_selection_help()](https://docs.rs/rinex/0.7.0/rinex/struct.Rinex.html) method,
-to select the most appropriate `SBAS` augmentation system for
-a given (usually current..) location on Earth.
+* `--sbas`: SBAS (stationnary augmentation systems related features).    
+[selection_helper()](https://docs.rs/rinex/latest/rinex/struct.Rinex.html),
+select a SBAS for a given location on Earth.
 
 * `--flate2`  
 allow native parsing of .gz compressed RINEX files. Otherwise, user must uncompress manually the `.gz` extension first.

@@ -67,6 +67,7 @@ pub mod prelude {
 pub use merge::Merge;
 pub use split::Split;
 
+#[cfg(feature = "sbas")]
 /// SBAS related package
 pub mod sbas {
     pub use crate::constellation::{
