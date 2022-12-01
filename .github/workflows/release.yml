@@ -11,7 +11,7 @@ jobs:
     steps:
       - uses: actions/checkout@master
       - name: Release CLI
-        uses: rust-build/rust-build.action@v1.4.0
+        uses: gwbres/rust-build.action@v1.4.1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
