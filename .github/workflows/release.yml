@@ -8,50 +8,22 @@ env:
   PKG_CONFIG_PATH: "/usr/lib/pkgconfig"
 
 jobs:
-  release-linux:
+  release:
     runs-on: ubuntu-latest
     continue-on-error: true
+    strategy:
+      matrix:
+        target: [x86_64-unknown-linux-musl, x86_64-apple-darwin, x86_64-pc-windows-gnu]
     steps:
       - uses: actions/checkout@master
-      - name: Release CLI
+      - name: Release ${{ matrix.target }}-cli
         uses: rust-build/rust-build.action@v1.4.0
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ matrix.target }}
         with:
-          RUSTTARGET: x86_64-unknown-linux-musl
           SRC_DIR: "rinex-cli"
-          EXTRA_FILES: "rinex-cli/README.md LICENSE-APACHE LICENSE-MIT"
-          TOOLCHAIN_VERSION: stable
-          ARCHIVE_TYPES: tar.gz
-          ARCHIVE_NAME: rinex-cli-x86_64-unknown-linux-musl.tar.gz
-  release-mac:
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@master
-      - name: Release CLI
-        uses: rust-build/rust-build.action@v1.4.0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          RUSTTARGET: x86_64-apple-darwin
+          RUSTTARGET: ${{ secrets.GITHUB_TOKEN }}
           EXTRA_FILES: "rinex-cli/README.md LICENSE-APACHE LICENSE-MIT"
           TOOLCHAIN_VERSION: stable
           ARCHIVE_TYPES: zip
-          ARCHIVE_NAME: rinex-cli-x86_64-apple-darwin.zip
-  release-windows:
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@master
-      - name: Release CLI
-        uses: rust-build/rust-build.action@v1.4.0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          RUSTTARGET: x86_64-pc-windows-gnu
-          SRC_DIR: "rinex-cli"
-          EXTRA_FILES: "rinex-cli/README.md LICENSE-APACHE LICENSE-MIT"
-          TOOLCHAIN_VERSION: stable
-          ARCHIVE_TYPES: zip
-          ARCHIVE_NAME: rinex-cli-x86_64-pc-windows-gnu.zip
+          ARCHIVE_NAME: rinex-cli-${{ matrix.target }}.zip
