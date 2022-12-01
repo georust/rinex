@@ -14,10 +14,10 @@ jobs:
         uses: rust-build/rust-build.action@v1.4.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PKG_CONFIG_PATH: "/usr/lib/x86-64_linux-gnu/pkgconfig/fontconfig.pc"
         with:
           RUSTTARGET: x86_64-unknown-linux-musl
           SRC_DIR: "rinex-cli"
+          PRE_BUILD: ".github/workflows/pre-release.sh"
           EXTRA_FILES: "rinex-cli/README.md LICENSE-APACHE LICENSE-MIT"
           TOOLCHAIN_VERSION: stable
           ARCHIVE_TYPES: tar.gz
@@ -34,6 +34,7 @@ jobs:
         with:
           RUSTTARGET: x86_64-apple-darwin
           SRC_DIR: "rinex-cli"
+          PRE_BUILD: ".github/workflows/pre-release.sh"
           EXTRA_FILES: "rinex-cli/README.md LICENSE-APACHE LICENSE-MIT"
           TOOLCHAIN_VERSION: stable
           ARCHIVE_TYPES: zip
@@ -50,6 +51,7 @@ jobs:
         with:
           RUSTTARGET: x86_64-pc-windows-gnu
           SRC_DIR: "rinex-cli"
+          PRE_BUILD: ".github/workflows/pre-release.sh"
           EXTRA_FILES: "rinex-cli/README.md LICENSE-APACHE LICENSE-MIT"
           TOOLCHAIN_VERSION: stable
           ARCHIVE_TYPES: zip
