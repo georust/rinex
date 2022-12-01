@@ -21,8 +21,6 @@ jobs:
         cargo install cargo-tarpaulin
     - name: Build
       run: cargo build
-    - name: Test
-      run: cargo test -- --nocapture 
     - name: Build (all features)
       run: cargo build --all-features
     - name: Test (all features)
