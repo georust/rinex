@@ -1,9 +1,34 @@
 use super::{
     prelude::*,
 };
-use thiserror::Error;
-use std::str::FromStr;
+//use thiserror::Error;
+//use std::str::FromStr;
+pub trait TimeScaling<T> {
+    /// Copies self and converts all Epochs to desired
+    /// [hifitime::TimeScale].
+    /// ```
+    /// use rinex::prelude::*;
+    /// use rinex::gnss_time::*;
+    /// let rnx = Rinex::from_file("../test_resources/OBS/V3/ACOR00ESP_R_20213550000_01D_30S_MO.rnx")
+    ///     .unwrap();
+    /// // default definition
+    /// assert_eq!(rnx.timescale(), Some(TimeScale::UTC));
+    /// ```
+    fn with_timescale(&self, ts: TimeScale) -> Self;
+    /// Converts converts all Epochs to desired
+    /// [hifitime::TimeScale].
+    /// ```
+    /// use rinex::prelude::*;
+    /// use rinex::gnss_time::*;
+    /// let mut rnx = Rinex::from_file("../test_resources/OBS/V3/ACOR00ESP_R_20213550000_01D_30S_MO.rnx")
+    ///     .unwrap();
+    /// // default definition
+    /// assert_eq!(rnx.timescale(), Some(TimeScale::UTC));
+    /// ```
+    fn convert_timescale(&mut self, ts: TimeScale);
+}
 
+/*
 pub enum UTCProvider {
     /// NIST: National Institute of Standards and Tech. (USA)
     NIST,
@@ -137,7 +162,6 @@ pub fn decode_time_system_corr(content: &str) -> Result<TimeCorrection, Error> {
 /// Decodes from V2 descriptor
 /// Decodes from V1 descriptor
 
-/*
 pub struct StCorr {
     pub y: i8,
     pub m: i8,
@@ -158,7 +182,6 @@ pub struct DUtc {
     pub s: system Svnn or SBAS
     pub fn u: UTc provider
 }
-*/
 
 /// (Navigation frame) Time Correction parameters
 pub struct TimeCorrection {
@@ -174,33 +197,6 @@ pub struct TimeCorrection {
     // /// UTC provider: in case this applies to UTC time scale
     // pub utc_provider: Option<UTCProvider>,
 }
-
-pub trait TimeScaling<T> {
-    /// Copies self and converts all Epochs to desired
-    /// [hifitime::TimeScale].
-    /// ```
-    /// use rinex::prelude::*;
-    /// use rinex::gnss_time::*;
-    /// let rnx = Rinex::from_file("../test_resources/OBS/V3/ACOR00ESP_R_20213550000_01D_30S_MO.rnx")
-    ///     .unwrap();
-    /// // default definition
-    /// assert_eq!(rnx.timescale(), Some(TimeScale::UTC));
-    /// ```
-    fn with_timescale(&self, ts: TimeScale) -> Self;
-    /// Converts converts all Epochs to desired
-    /// [hifitime::TimeScale].
-    /// ```
-    /// use rinex::prelude::*;
-    /// use rinex::gnss_time::*;
-    /// let mut rnx = Rinex::from_file("../test_resources/OBS/V3/ACOR00ESP_R_20213550000_01D_30S_MO.rnx")
-    ///     .unwrap();
-    /// // default definition
-    /// assert_eq!(rnx.timescale(), Some(TimeScale::UTC));
-    /// ```
-    fn convert_timescale(&mut self, ts: TimeScale);
-}
-
-/*
 
 impl GnssTime {
     /// Corrects self to given reference using given correction parameters
@@ -415,7 +411,6 @@ SBUT  0.1331791282D-06 0.107469589D-12 552960 1025 EGNOS  5 TIME SYSTEM CORR
         */
     }
 }
-*/
 
 #[cfg(test)]
 mod test {
@@ -497,3 +492,4 @@ mod test {
         assert!(corr.is_ok());
     }
 }
+*/
