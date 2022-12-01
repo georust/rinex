@@ -14,9 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [linux, macos, windows]
-        target: [x86_64-unknown-linux-musl, x86_64-apple-darwin,  x86_64-pc-windows-gnu]
-        archive: [tar.gz, zip, zip]
+        target: [x86_64-unknown-linux-musl, x86_64-apple-darwin, x86_64-pc-windows-gnu]
     steps:
       - uses: actions/checkout@master
       - name: Compile $${ matrix.os }}-${{ matrix.target }}
@@ -28,5 +26,5 @@ jobs:
           SRC_DIR: "rinex-cli"
           EXTRA_FILES: "rinex-cli/README.md LICENSE-APACHE LICENSE-MIT"
           TOOLCHAIN_VERSION: stable
-          ARCHIVE_TYPES: ${{ matrix.archive }}
-          ARCHIVE_NAME: rinex-cli-${{ matrix.target }}.${{ matrix.archive }}
+          ARCHIVE_TYPES: zip
+          ARCHIVE_NAME: rinex-cli-${{ matrix.target }}.zip
