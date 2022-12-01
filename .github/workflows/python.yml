@@ -9,12 +9,15 @@ on:
 jobs:
   macos:
     runs-on: macos-latest
+    strategy:
+      matrix:
+        py_ver: [3.8, 3.9, 3.10]
     steps:
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@stable
       - uses: actions/setup-python@v4
         with:
-          python-version: 3.9
+          python-version: ${{ matrix.py_ver }}
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-apple-darwin
@@ -38,12 +41,13 @@ jobs:
     strategy:
       matrix:
         target: [x64, x86]
+        py_ver: [3.8, 3.9, 3.10]
     steps:
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@stable
       - uses: actions/setup-python@v4
         with:
-          python-version: 3.9
+          python-version: ${{ matrix.py_ver }}
           architecture: ${{ matrix.target }}
       - name: Build
         uses: PyO3/maturin-action@v1
@@ -62,19 +66,23 @@ jobs:
 
   linux:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target: [x64]
+        py_ver: [3.8, 3.9, 3.10]
     steps:
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@stable 
       - uses: actions/setup-python@v4
         with:
-          python-version: 3.9
-          architecture: x64
+          python-version: ${{ matrix.py_ver }}
+          architecture: ${{ matrix.target }}
       - name: Build
         uses: PyO3/maturin-action@main
         with:
           target: x64 
           manylinux: auto
-          args: --release -i python3.9 --all-features -m rinex/Cargo.toml -o dist
+          args: --release -i python${{ matrix.py_ver }} --all-features -m rinex/Cargo.toml -o dist
       - name: Build
         run: |
           pip3 install rinex --no-index --find-links dist --force-reinstall
