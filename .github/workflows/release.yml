@@ -16,13 +16,13 @@ jobs:
         target: [x86_64-unknown-linux-musl, x86_64-apple-darwin, x86_64-pc-windows-gnu]
     steps:
       - uses: actions/checkout@master
-      - name: Release ${{ matrix.target }}-cli
+      - name: Release ${{ matrix.target }}
         uses: rust-build/rust-build.action@v1.4.0
         env:
           GITHUB_TOKEN: ${{ matrix.target }}
         with:
           SRC_DIR: "rinex-cli"
-          RUSTTARGET: ${{ secrets.GITHUB_TOKEN }}
+          RUSTTARGET: ${{ matrix.target }}
           EXTRA_FILES: "rinex-cli/README.md LICENSE-APACHE LICENSE-MIT"
           TOOLCHAIN_VERSION: stable
           ARCHIVE_TYPES: zip
