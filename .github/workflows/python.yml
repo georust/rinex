@@ -14,7 +14,6 @@ jobs:
         py_ver: ['3.8', '3.9', '3.10']
     steps:
       - uses: actions/checkout@v3
-      - uses: dtolnay/rust-toolchain@stable
       - uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.py_ver }}
@@ -35,6 +34,19 @@ jobs:
         with:
           name: wheels
           path: dist
+      - name: Archive
+        run: |
+          cd target/release
+          tar czvf rinex.tar.gz rinex
+          cd -
+      - name: Gthub Release
+        uses: svenstaro/upload-release-action@v2
+        if: "startsWith(github_ref, 'refs/tags/')"
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          asset_name: rinex-python${{ matrix.pyver }}-apple-darwin.tar.gz
+          file: target/release/rinex.tar.gz
+          tag: ${{ github.ref }}
 
   windows:
     runs-on: windows-latest
@@ -63,7 +75,20 @@ jobs:
         with:
           name: wheels
           path: dist
-
+      - name: Archive
+        run: |
+          cd target/release
+          zip rinex.zip rinex
+          cd -
+      - name: Gthub Release
+        uses: svenstaro/upload-release-action@v2
+        if: "startsWith(github_ref, 'refs/tags/')"
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          asset_name: rinex-python${{ matrix.pyver }}-windows-${{ matrix.target }}.zip
+          file: target/release/rinex.zip
+          tag: ${{ github.ref }}
+        
   linux:
     runs-on: ubuntu-latest
     strategy:
@@ -92,3 +117,16 @@ jobs:
         with:
           name: wheels
           path: dist
+      - name: Archive
+        run: |
+          cd target/release
+          tar czvf rinex.tar.gz rinex
+          cd -
+      - name: Gthub Release
+        uses: svenstaro/upload-release-action@v2
+        if: "startsWith(github_ref, 'refs/tags/')"
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          asset_name: rinex-python${{ matrix.pyver }}-linux-${{ matrix.target }}.tar.gz
+          file: target/release/rinex.tar.gz
+          tag: ${{ github.ref }}
