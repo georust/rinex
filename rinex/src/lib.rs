@@ -22,10 +22,9 @@ pub mod sv;
 pub mod types;
 pub mod version;
 
-mod differential;
-mod formatter;
 mod leap;
 mod sampling;
+mod differential;
 
 extern crate num;
 #[macro_use]

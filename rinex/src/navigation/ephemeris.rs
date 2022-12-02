@@ -1,9 +1,8 @@
 use crate::{
-	Sv, Constellation, 
-	sv,
-	version::Version, 
+    sv,
     epoch, 
-	Epoch,
+    prelude::*,
+	version::Version, 
 };
 use super::{
     orbits::{closest_revision, NAV_ORBITS},
@@ -137,7 +136,7 @@ impl Kepler {
     /// Eearth mass * Gravitationnal field constant [m^3/s^2]
     pub const EARTH_GM_CONSTANT: f64 = 3.986005E14_f64; 
     /// Earth rotation rate in WGS84 frame [rad]
-    pub const EARTH_OMEGA_E_WGS64: f64 = 7.292115E-5;
+    pub const EARTH_OMEGA_E_WGS84: f64 = 7.292115E-5;
     
     pub const EARTH_A: f64 = 0.0_f64;
     pub const EARTH_A_POW2: f64 = Self::EARTH_A * Self::EARTH_A;
@@ -268,20 +267,30 @@ impl Ephemeris {
     pub fn manual_sat_pos(&self) -> Option<(f64,f64,f64)> {
         if let Some(kepler) = self.kepler() {
             if let Some(perturbations) = self.perturbations() {
-                
                 //TODO
                 // double check we always refer to this t0 please
-                let t0 = Hifitime::TimeScale::GPST_REF_EPOCH; 
+                let t0 = hifitime::GPST_REF_EPOCH; 
                 let mut t_k = self.clock_bias - kepler.toe;
                 if t_k > 302400.0 {
                     t_k -= 604800.0;
                 } else if t_k < -302400.0 {
                     t_k += 604800.0;
                 }
+
+                let weeks = match self.get_orbit_f64("gpsWeek") {
+                    Some(f) => f as u32,
+                    _ => {
+                        match self.get_orbit_f64("galWeek") {
+                            Some(f) => (f as u32) - 1024,
+                            _ => 0,
+                        }
+                    },
+                };
+
                 let n_0 = (Kepler::EARTH_GM_CONSTANT /kepler.a.powf(3.0)).sqrt();
                 let m_k = kepler.m_0 + (n_0 + perturbations.dn)*t_k; 
+                let e_k = m_k + kepler.e * m_k.sin(); //TODO a revoir, recursif
 
-                let e_k = 0.0_f64; //TODO
                 let v_k = (((1.0-kepler.e.powf(2.0)).sqrt() * e_k.sin()) / (e_k.cos() - kepler.e)).atan();
                 let phi_k = v_k + kepler.omega;
                 let du_k = perturbations.cus * (2.0*phi_k).sin() + perturbations.cuc * (2.0*phi_k).cos();
@@ -337,10 +346,12 @@ impl Ephemeris {
     /// from parsed orbits and internal calculations
     pub fn angles(&self, ref_pos: (f64,f64,f64)) -> Option<(f64,f64,f64)> {
         if let Some((lat, lon, alt)) = self.sat_latlonalt() {
-            let (x_ref, y_ref, z_ref) = ref_pos;
+            let (ref_x, ref_y, ref_z) = ref_pos;
+            //TODO revoir si on est tjrs qu'en WGS84,
+            //     par exemple le cas de Glonass
             let ref_ellips = map_3d::Ellipsoid::WGS84;
             let (e, n, u) = map_3d::ecef2enu(ref_x, ref_y, ref_z, lat, lon, alt, ref_ellips);
-            return Some((map_3d::enu2aer(e, n, u)));
+            return Some(map_3d::enu2aer(e, n, u));
         }
         None
     }
