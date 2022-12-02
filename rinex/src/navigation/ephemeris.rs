@@ -137,15 +137,11 @@ impl Kepler {
     /// Eearth mass * Gravitationnal field constant [m^3/s^2]
     pub const EARTH_GM_CONSTANT: f64 = 3.986005E14_f64; 
     /// Earth rotation rate in WGS84 frame [rad]
-    pub const EARTH_ROT_RATE_RAD_WGS64: f64 = 7.292115E-5;
-    /// TODO
-    pub const OMEGA_E: f64 = 0.0_f64;
+    pub const EARTH_OMEGA_E_WGS64: f64 = 7.292115E-5;
     
-    /// TODO
     pub const EARTH_A: f64 = 0.0_f64;
     pub const EARTH_A_POW2: f64 = Self::EARTH_A * Self::EARTH_A;
 
-    /// TODO
     pub const EARTH_B: f64 = 0.0_f64;
     pub const EARTH_B_POW2: f64 = Self::EARTH_B * Self::EARTH_B;
 
@@ -272,6 +268,10 @@ impl Ephemeris {
     pub fn manual_sat_pos(&self) -> Option<(f64,f64,f64)> {
         if let Some(kepler) = self.kepler() {
             if let Some(perturbations) = self.perturbations() {
+                
+                //TODO
+                // double check we always refer to this t0 please
+                let t0 = Hifitime::TimeScale::GPST_REF_EPOCH; 
                 let mut t_k = self.clock_bias - kepler.toe;
                 if t_k > 302400.0 {
                     t_k -= 604800.0;
@@ -294,7 +294,7 @@ impl Ephemeris {
 
                 let xp_k = r_k * u_k.cos();
                 let yp_k = r_k * u_k.sin();
-                let omega_k = kepler.omega_0 + (perturbations.omega_dot - Kepler::OMEGA_E)*t_k - Kepler::OMEGA_E * kepler.toe; 
+                let omega_k = kepler.omega_0 + (perturbations.omega_dot - Kepler::EARTH_OMEGA_E_WGS84)*t_k - Kepler::EARTH_OMEGA_E_WGS84 * kepler.toe; 
                 let x_k = xp_k * omega_k.cos() - yp_k * omega_k.sin() * i_k.cos();
                 let y_k = xp_k * omega_k.sin() + yp_k * omega_k.cos() * i_k.cos();
                 let z_k = yp_k * i_k.sin();
@@ -333,9 +333,15 @@ impl Ephemeris {
         }
         None
     }
-    /// Computes (azimuth, elevation) angles. Useful macro for the user
-    /// to retrieve the elevation angle from this Ephemeris frame (given epoch),
-    pub fn angles(&self) -> Option<(f64,f64)> {
+    /// Returns (azimuth, elevation, slant range) coordinates in AER system
+    /// from parsed orbits and internal calculations
+    pub fn angles(&self, ref_pos: (f64,f64,f64)) -> Option<(f64,f64,f64)> {
+        if let Some((lat, lon, alt)) = self.sat_latlonalt() {
+            let (x_ref, y_ref, z_ref) = ref_pos;
+            let ref_ellips = map_3d::Ellipsoid::WGS84;
+            let (e, n, u) = map_3d::ecef2enu(ref_x, ref_y, ref_z, lat, lon, alt, ref_ellips);
+            return Some((map_3d::enu2aer(e, n, u)));
+        }
         None
     }
     /// Parses ephemeris from given line iterator
