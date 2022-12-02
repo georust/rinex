@@ -6,6 +6,9 @@ use crate::{
         Crinex,
         record::*,
     },
+    header::{
+        MarkerType,
+    },
     hardware::*,
     navigation::*,
 };
@@ -25,6 +28,9 @@ fn rinex(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<EpochFlag>()?;
     m.add_class::<Rcvr>()?;
     m.add_class::<Antenna>()?;
+    m.add_class::<Augmentation>()?;
+    // header
+    m.add_class::<MarkerType>()?;
     /*
      * TODO: Observation module
      */

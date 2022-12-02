@@ -2,14 +2,18 @@
 //! mainly used for high precision positioning
 use strum_macros::EnumString;
 
+#[cfg(feature = "pyo3")]
+use pyo3::prelude::*;
+
 #[cfg(feature = "serde")]
 use serde::{Serialize, Deserialize};
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-#[derive(EnumString)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 /// GNSS Augmentation systems,
 /// must be used based on current location
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+#[derive(EnumString)]
+#[cfg_attr(feature = "pyo3", pyclass)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum Augmentation {
     /// Augmentation Unknown
     Unknown,

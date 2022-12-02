@@ -53,9 +53,13 @@ use serde::{Serialize, Deserialize};
 #[cfg(feature = "serde")]
 use crate::formatter::opt_point3d;
 
+#[cfg(feature = "pyo3")]
+use pyo3::prelude::*;
+
 #[derive(Clone, Debug)]
 #[derive(PartialEq, Eq)]
 #[derive(EnumString)]
+#[cfg_attr(feature = "pyo3", pyclass)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum MarkerType {
     /// Earth fixed & high precision

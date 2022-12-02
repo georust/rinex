@@ -6,6 +6,9 @@ pub use augmentation::{
     Augmentation,
 };
     
+#[cfg(feature = "pyo3")]
+use pyo3::prelude::*;
+
 #[cfg(feature = "sbas")]
 pub use augmentation::selection_helper;
 
