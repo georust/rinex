@@ -2,6 +2,9 @@
 use super::Sv;
 use rust_3d::Point3D;
 
+#[cfg(feature = "pyo3")]
+use pyo3::prelude::*;
+
 #[cfg(feature = "serde")]
 use crate::formatter::opt_point3d;
 
@@ -11,6 +14,7 @@ use serde::{Serialize, Deserialize};
 /// GNSS receiver description
 #[derive(Clone, Debug)]
 #[derive(PartialEq)]
+#[cfg_attr(feature = "pyo3", pyclass)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Rcvr {
     /// Receiver (hardware) model
@@ -49,6 +53,7 @@ impl std::str::FromStr for Rcvr {
 /// Antenna description 
 #[derive(Debug, Clone, Default)]
 #[derive(PartialEq)]
+#[cfg_attr(feature = "pyo3", pyclass)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Antenna {
     /// Hardware model / make descriptor
@@ -69,6 +74,7 @@ pub struct Antenna {
     pub northern: Option<f64>,
 }
 
+#[cfg_attr(feature = "pyo3", pymethods)]
 impl Antenna {
     /// Sets desired model
     pub fn with_model (&self, m: &str) -> Self {

@@ -5,6 +5,9 @@ use crate::{
 };
 use hifitime::Epoch;
 
+#[cfg(feature = "pyo3")]
+use pyo3::prelude::*;
+
 /// Parsing error
 #[derive(Debug, Error)]
 pub enum Error {
@@ -43,6 +46,7 @@ pub enum Error {
 #[derive(Debug, Clone)]
 #[derive(Default)]
 #[derive(PartialEq, PartialOrd)]
+#[cfg_attr(feature = "pyo3", pyclass)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct StoMessage {
     /// Time System

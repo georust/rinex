@@ -17,6 +17,9 @@ use thiserror::Error;
 use std::str::FromStr;
 use std::collections::HashMap;
 
+#[cfg(feature = "pyo3")]
+use pyo3::prelude::*;
+
 /// Parsing errors
 #[derive(Debug, Error)]
 pub enum Error {
@@ -93,6 +96,7 @@ pub enum Error {
 /// ```
 #[derive(Clone, Debug)]
 #[derive(PartialEq)]
+#[cfg_attr(feature = "pyo3", pyclass)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Ephemeris {
 	/// Clock bias [s]
@@ -117,12 +121,29 @@ impl Default for Ephemeris {
 	}
 }
 
+#[cfg_attr(feature = "pyo3", pymethods)]
 impl Ephemeris {
     /// Retrieve all clock fields (bias, drift, drift_rate) at once
     pub fn clock_data(&self) -> (f64,f64,f64) {
         (self.clock_bias, self.clock_drift, self.clock_drift_rate)
     }
 	
+
+    /// Computes elevation angle. Useful macro so the user
+    /// does not have to either care for the Orbit field identification,
+    /// or involved computations
+    pub fn elevation_angle(&self) -> Option<f64> {
+        if let Some(e) = self.orbits.get("e") {
+            e.as_f64()
+        } else {
+            // Orbit field was either missing
+            // but what about glonass ??
+            None
+        }
+    }
+}
+
+impl Ephemeris {
     /// Parses ephemeris from given line iterator
     pub fn parse_v2v3(version: Version, constellation: Constellation, mut lines: std::str::Lines<'_>) -> Result<(Epoch, Sv, Self), Error> {
 		let line = match lines.next() {
@@ -208,19 +229,6 @@ impl Ephemeris {
 			},
 		))
 	}
-
-    /// Computes elevation angle. Useful macro so the user
-    /// does not have to either care for the Orbit field identification,
-    /// or involved computations
-    pub fn elevation_angle(&self) -> Option<f64> {
-        if let Some(e) = self.orbits.get("e") {
-            e.as_f64()
-        } else {
-            // Orbit field was either missing
-            // but what about glonass ??
-            None
-        }
-    }
 }
 
 /// Parses constellation + revision dependent orbits data 

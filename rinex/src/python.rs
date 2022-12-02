@@ -6,21 +6,37 @@ use crate::{
         Crinex,
         record::*,
     },
+    hardware::*,
+    navigation::*,
 };
+
+impl std::convert::From<Error> for PyErr {
+    fn from(err: Error) -> PyErr {
+        PyException::new_err(err.to_string())
+    }
+}
 
 #[pymodule]
 fn rinex(_py: Python, m: &PyModule) -> PyResult<()> {
     /*
-     * prelude module
+     * TODO: prelude module
      */
     m.add_class::<Epoch>()?;
     m.add_class::<EpochFlag>()?;
+    m.add_class::<Rcvr>()?;
+    m.add_class::<Antenna>()?;
     /*
-     * Observation module
+     * TODO: Observation module
      */
     m.add_class::<Crinex>()?;
     m.add_class::<Ssi>()?;
     m.add_class::<LliFlags>()?;
     m.add_class::<ObservationData>()?;
+    /*
+     * TODO: Navigation module
+     */
+    m.add_class::<MsgType>()?;
+    m.add_class::<FrameClass>()?;
+    m.add_class::<Ephemeris>()?;
     Ok(())
 }

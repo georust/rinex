@@ -5,6 +5,9 @@ use strum_macros::EnumString;
 use regex::{Regex, Captures};
 use std::collections::BTreeMap;
 
+#[cfg(feature = "pyo3")]
+use pyo3::prelude::*;
+
 use crate::{
 	sv,
 	epoch, 
@@ -37,6 +40,7 @@ use hifitime::Duration;
 #[derive(PartialEq, PartialOrd)]
 #[derive(Eq, Ord)]
 #[derive(EnumString)]
+#[cfg_attr(feature = "pyo3", pyclass)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum FrameClass {
     #[strum(serialize = "EPH")]
@@ -71,6 +75,7 @@ impl std::fmt::Display for FrameClass {
 #[derive(PartialEq, PartialOrd)]
 #[derive(Eq, Ord)]
 #[derive(EnumString)]
+#[cfg_attr(feature = "pyo3", pyclass)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum MsgType {
     /// Legacy NAV

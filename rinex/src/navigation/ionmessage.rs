@@ -6,6 +6,9 @@ use thiserror::Error;
 use std::str::FromStr;
 use bitflags::bitflags;
 
+#[cfg(feature = "pyo3")]
+use pyo3::prelude::*;
+
 /// Model parsing error
 #[derive(Debug, Error)]
 pub enum Error {
@@ -36,6 +39,7 @@ pub enum Error {
 /// Klobuchar Parameters region
 #[derive(Debug, Copy, Clone)]
 #[derive(PartialEq, PartialOrd)]
+#[cfg_attr(feature = "pyo3", pyclass)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum KbRegionCode {
     /// Coefficients apply to wide area
@@ -55,6 +59,7 @@ impl Default for KbRegionCode {
 #[derive(Default)]
 #[derive(Debug, Copy, Clone)]
 #[derive(PartialEq, PartialOrd)]
+#[cfg_attr(feature = "pyo3", pyclass)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct KbModel {
     /// Alpha coefficients 
@@ -131,6 +136,7 @@ impl KbModel {
 
 bitflags! {
     #[derive(Default)]
+    #[cfg_attr(feature = "pyo3", pyclass)]
     #[cfg_attr(feature = "serde", derive(Serialize))]
     pub struct NgRegionFlags: u16 {
         const REGION5 = 0x01;
@@ -145,6 +151,7 @@ bitflags! {
 #[derive(Debug, Clone)]
 #[derive(Default, Copy)]
 #[derive(PartialEq, PartialOrd)]
+#[cfg_attr(feature = "pyo3", pyclass)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct NgModel {
     /// a_i coefficients
@@ -187,6 +194,7 @@ impl NgModel {
 #[derive(Debug, Copy, Clone)]
 #[derive(Default)]
 #[derive(PartialEq, PartialOrd)]
+#[cfg_attr(feature = "pyo3", pyclass)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct BdModel {
     /// Alpha coefficients [TECu]

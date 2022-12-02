@@ -4,6 +4,9 @@ use thiserror::Error;
 use std::str::FromStr;
 use crate::prelude::*;
 
+#[cfg(feature = "pyo3")]
+use pyo3::prelude::*;
+
 /// EopMessage Parsing error 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -44,6 +47,7 @@ pub enum Error {
 #[derive(Debug, Clone)]
 #[derive(Default)]
 #[derive(PartialEq, PartialOrd)]
+#[cfg_attr(feature = "pyo3", pyclass)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct EopMessage {
     /// ([arc-sec], [arc-sec.day⁻¹], [arc-sec.day⁻²])

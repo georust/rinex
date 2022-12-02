@@ -1,9 +1,13 @@
 use bitflags::bitflags;
 
+#[cfg(feature = "pyo3")]
+use pyo3::prelude::*;
+
 /// GNSS / GPS orbit health indication
 #[derive(Debug, Clone)]
 #[derive(FromPrimitive)]
 #[derive(PartialEq, PartialOrd)]
+#[cfg_attr(feature = "pyo3", pyclass)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum Health {
 	Unhealthy = 0,
@@ -41,6 +45,7 @@ impl std::fmt::UpperExp for Health {
 #[derive(Debug, Clone)]
 #[derive(FromPrimitive)]
 #[derive(PartialEq, PartialOrd)]
+#[cfg_attr(feature = "pyo3", pyclass)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum IrnssHealth {
 	Healthy = 0,
@@ -66,6 +71,7 @@ impl std::fmt::UpperExp for IrnssHealth {
 #[derive(Debug, Clone)]
 #[derive(FromPrimitive)]
 #[derive(PartialEq, PartialOrd)]
+#[cfg_attr(feature = "pyo3", pyclass)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum GeoHealth {
 	Unknown = 0,
@@ -91,6 +97,7 @@ impl std::fmt::UpperExp for GeoHealth {
 #[derive(Debug, Clone)]
 #[derive(FromPrimitive)]
 #[derive(PartialEq, PartialOrd)]
+#[cfg_attr(feature = "pyo3", pyclass)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum GloHealth {
 	Healthy = 0,
@@ -115,6 +122,7 @@ impl std::fmt::UpperExp for GloHealth {
 bitflags! {
     /// GAL orbit health indication
     #[derive(Default)]
+    #[cfg_attr(feature = "pyo3", pyclass)]
     #[cfg_attr(feature = "serde", derive(Serialize))]
     pub struct GalHealth: u8 {
         const E1B_DVS = 0x01;
