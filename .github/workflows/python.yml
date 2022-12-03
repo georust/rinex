@@ -8,7 +8,7 @@ on:
 
 jobs:
   macos:
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         py_ver: ['3.8', '3.9', '3.10']
@@ -29,17 +29,12 @@ jobs:
         run: |
           pip install rinex --no-index --find-links dist --force-reinstall
           python -c "import rinex"
-      - name: Upload
-        uses: actions/upload-artifact@v3
-        with:
-          name: wheels
-          path: dist
-      - name: Archive
+      - name: Prepare for upload
         run: |
           cd target/release
           tar czvf rinex.tar.gz rinex
           cd -
-      - name: Gthub Release
+      - name: Github Release
         uses: svenstaro/upload-release-action@v2
         if: "startsWith(github.ref, 'refs/tags/')"
         with:
@@ -49,7 +44,7 @@ jobs:
           tag: ${{ github.ref }}
 
   windows:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         target: [x64, x86]
@@ -70,17 +65,12 @@ jobs:
         run: |
           pip install rinex --no-index --find-links dist --force-reinstall
           python -c "import rinex"
-      - name: Upload
-        uses: actions/upload-artifact@v3
-        with:
-          name: wheels
-          path: dist
-      - name: Archive
+      - name: Prepare for upload
         run: |
           cd target/release
           zip rinex.zip rinex
           cd -
-      - name: Gthub Release
+      - name: Github Release
         uses: svenstaro/upload-release-action@v2
         if: "startsWith(github.ref, 'refs/tags/')"
         with:
@@ -112,17 +102,12 @@ jobs:
         run: |
           pip3 install rinex --no-index --find-links dist --force-reinstall
           python -c "import rinex"
-      - name: Upload
-        uses: actions/upload-artifact@v3
-        with:
-          name: wheels
-          path: dist
-      - name: Archive
+      - name: Prepare for upload
         run: |
           cd target/release
           tar czvf rinex.tar.gz rinex
           cd -
-      - name: Gthub Release
+      - name: Github Release
         uses: svenstaro/upload-release-action@v2
         if: "startsWith(github.ref, 'refs/tags/')"
         with:
