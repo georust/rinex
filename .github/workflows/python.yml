@@ -30,7 +30,7 @@ jobs:
           pip install rinex --no-index --find-links dist --force-reinstall
           python -c "import rinex"
       - name: Prepare for upload
-        run: tar czvf dist/*.whl rinex.tar.gz
+        run: tar czvf rinex.tar.gz dist/*.whl
       - name: Github Release
         uses: svenstaro/upload-release-action@v2
         if: "startsWith(github.ref, 'refs/tags/')"
@@ -63,7 +63,9 @@ jobs:
           pip install rinex --no-index --find-links dist --force-reinstall
           python -c "import rinex"
       - name: Prepare for upload
-        run: Compress-Archive dist/*.whl rinex.zip
+        run: |
+          Compress-Archive dist/*.whl rinex.zip
+          dir
       - name: Github Release
         uses: svenstaro/upload-release-action@v2
         if: "startsWith(github.ref, 'refs/tags/')"
@@ -101,7 +103,10 @@ jobs:
           pip install rinex --no-index --find-links dist --force-reinstall
           python -c "import rinex"
       - name: Prepare for upload
-        run: tar czvf dist/*.whl rinex.tar.gz
+        run: |
+          ls dist/*.whl
+          ls dist/
+          tar czvf rinex.tar.gz dist/*.whl
       - name: Github Release
         uses: svenstaro/upload-release-action@v2
         if: "startsWith(github.ref, 'refs/tags/')"
