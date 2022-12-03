@@ -7,6 +7,7 @@ on:
     branches: [ main ]
 
 env:
+  RUST_BACKTRACE: 1
   CARGO_TERM_COLOR: always
 
 jobs:
@@ -21,6 +22,8 @@ jobs:
         cargo install cargo-tarpaulin
     - name: Build
       run: cargo build
+    - name: Test
+      run: cargo test -- --nocapture
     - name: Build (all features)
       run: cargo build --all-features
     - name: Test (all features)
