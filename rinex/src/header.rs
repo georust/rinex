@@ -1545,9 +1545,11 @@ impl std::fmt::Display for Header {
         write!(f, "{:<20}", self.date)?; //TODO
         write!(f, "{}", "PGM / RUN BY / DATE\n")?; 
         // OBSERVER / AGENCY
-        write!(f, "{:<20}", self.observer)?;
-        write!(f, "{:<40}", self.agency)?;
-        write!(f, "OBSERVER / AGENCY\n")?; 
+        if self.observer.len() + self.agency.len() > 0 {
+            write!(f, "{:<20}", self.observer)?;
+            write!(f, "{:<40}", self.agency)?;
+            write!(f, "OBSERVER / AGENCY\n")?; 
+        }
         // MARKER NAME
         if self.station.len() > 0 {
             write!(f, "{:<20}", self.station)?;
