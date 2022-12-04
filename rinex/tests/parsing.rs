@@ -7,10 +7,10 @@ mod test {
         let test_data = vec![
 			"ATX",
 			"CLK",
-			//"CRNX",
+			"CRNX",
 			"MET",
 			"NAV",
-			//"OBS",
+			"OBS",
 			"IONEX",
 		];
         for data in test_data {
@@ -64,33 +64,33 @@ mod test {
                     
                     match data {
                         "ATX" => {
-                            assert_eq!(rinex.is_antex_rinex(), true);
+                            assert!(rinex.is_antex_rinex());
                         },
                         "NAV" => {
-                            assert_eq!(rinex.is_navigation_rinex(), true);
+                            assert!(rinex.is_navigation_rinex());
                             assert!(rinex.epochs().len() > 0);
                         },
                         "OBS" => {
-                            assert_eq!(rinex.header.obs.is_some(), true);
-                            assert_eq!(rinex.is_observation_rinex(), false);
+                            assert!(rinex.header.obs.is_some());
+                            assert!(rinex.is_observation_rinex());
                             assert!(rinex.epochs().len() > 0);
                         },
                         "CRNX" => {
-                            assert_eq!(rinex.header.obs.is_some(), true);
-                            assert_eq!(rinex.is_observation_rinex(), false);
+                            assert!(rinex.header.obs.is_some());
+                            assert!(rinex.is_observation_rinex());
                             assert!(rinex.epochs().len() > 0);
                         },
                         "MET" => {
                             //assert_eq!(rinex.header.obs.is_some(), true);
-                            assert_eq!(rinex.is_meteo_rinex(), true);
+                            assert!(rinex.is_meteo_rinex());
                             assert!(rinex.epochs().len() > 0);
                         },
                         "CLK" => {
-                            assert_eq!(rinex.is_clocks_rinex(), true);
+                            assert!(rinex.is_clocks_rinex());
                             assert!(rinex.epochs().len() > 0);
                         },
                         "IONEX" => {
-                            assert_eq!(rinex.is_ionex(), true);
+                            assert!(rinex.is_ionex());
                             assert!(rinex.epochs().len() > 0);
                         },
                         _ => unreachable!(),
