@@ -5,6 +5,26 @@ use strum_macros::EnumString;
 use regex::{Regex, Captures};
 use std::collections::BTreeMap;
 
+/*
+ * When formatting floating point number in Navigation RINEX,
+ * exponent are expected to be in the %02d form,
+ * but Rust is only capable of formating %d.
+ * With this macro, we simply rework all exponents encountered in a string
+ */
+fn double_exponent_digits(content: &str) -> String {
+    let re = Regex::new(r"E\d{1}")
+        .unwrap();
+    let lines = re.replace_all(&content, |caps: &Captures| {
+        format!("E+0{}", &caps[0][1..])
+    });
+    let re = Regex::new(r"E-\d{1}")
+        .unwrap();
+    let lines = re.replace_all(&lines, |caps: &Captures| {
+        format!("E-0{}", &caps[0][2..])
+    });
+    lines.to_string()
+}
+
 use crate::{
 	sv,
 	epoch, 
@@ -386,25 +406,15 @@ fn parse_v2_v3_record_entry (version: Version, constell: Constellation, content:
     ))
 }
 
-/// Reworks / formats to match NAV RINEX standards
-/// mainly replaces E+/- exponents by D+/-
-/// also exponent must use two digits
-fn fmt_rework_v2(lines: &str) -> String {
-    let lines = lines.replace("E-", "D-");
-    let lines = lines.replace("E+", "D+");
-    let lines = lines.replace("E", "D+");
-    //lazy_static! {
-    // static ref
-        let re = Regex::new(r"[D][\+]\d{1}").unwrap();
-        let lines = re.replace(&lines, |caps: &Captures| {
-            format!("D+0{}", &caps[0][2..])
-        });
-        
-        let re = Regex::new(r"[D][\-]\d{1}").unwrap();
-        let lines = re.replace(&lines, |caps: &Captures| {
-            format!("D-0{}", &caps[0][2..])
-        });
-    //}
+/*
+ * Reworks generated/formatted line to match standards
+ */
+fn fmt_rework(major: u8, lines: &str) -> String {
+    let mut lines = double_exponent_digits(lines);
+    if major < 3 {
+        lines = lines.replace("E-","D-");
+        lines = lines.replace("E+","D+");
+    }
     lines.to_string()
 }
 
@@ -449,7 +459,7 @@ fn fmt_epoch_v2v3 (
                 }
 				lines.push_str(&format!("{} ", epoch::format(*epoch, None, Type::NavigationData, header.version.major)));
                 lines.push_str(&format!(
-                    "{:14.12E} {:14.12E} {:14.12E}\n   ",
+                    "{:14.11E} {:14.11E} {:14.11E}\n   ",
                     ephemeris.clock_bias,
                     ephemeris.clock_drift,
                     ephemeris.clock_drift_rate));
@@ -488,7 +498,7 @@ fn fmt_epoch_v2v3 (
                             if let Some(data) = ephemeris.orbits.get(*key) {
                                 lines.push_str(&format!("{} ", data.to_string()));
                             } else {
-                                lines.push_str(&format!("              "));
+                                lines.push_str(&format!("                   "));
                             }
                         }
                         lines.push_str(&format!("\n     "));
@@ -497,7 +507,7 @@ fn fmt_epoch_v2v3 (
                             if let Some(data) = ephemeris.orbits.get(*key) {
                                 lines.push_str(&format!("{}", data.to_string()));
                             } else {
-                                lines.push_str(&format!("              "));
+                                lines.push_str(&format!("                   "));
                             }
                         }
                         lines.push_str("\n");
@@ -506,9 +516,7 @@ fn fmt_epoch_v2v3 (
             }
         }
     }
-    if header.version.major < 3 {
-        lines = fmt_rework_v2(&lines);
-    }
+    lines = fmt_rework(header.version.major, &lines);
     Ok(lines)
 }
 
@@ -529,11 +537,12 @@ fn fmt_epoch_v4 (
                         // Mixed constellation context
                         // we need to fully describe the vehicule
                         lines.push_str(&sv.to_string());
+                        lines.push_str(" ");
                     },
                     Some(_) => {
                         // Unique constellation context:
                         // in V2 format, only PRN is shown
-                        lines.push_str(&format!("{:2} ", sv.prn));
+                        lines.push_str(&format!("{:02} ", sv.prn));
                     },
                     None => panic!("producing data with no constellation previously defined"),
                 }
@@ -584,14 +593,15 @@ fn fmt_epoch_v4 (
                 let (msg, sv, sto) = frame.as_sto()
                     .unwrap();
                 lines.push_str(&format!("> {} {} {}\n", class, sv, msg));
-                lines.push_str(&format!("    {:e} {}    {}", epoch, sto.system, sto.utc));
+                lines.push_str(&format!("    {} {}    {}\n", 
+                    epoch::format(*epoch, None, Type::NavigationData, header.version.major),
+                    sto.system, sto.utc));
                 lines.push_str(&format!( 
-                    "{:14.13E} {:14.13E} {:14.13E} {:14.13E}\n",
+                    "   {:14.13E} {:14.13E} {:14.13E} {:14.13E}\n",
                     sto.t_tm as f64,
                     sto.a.0,
                     sto.a.1,
                     sto.a.2));
-
             }
         } // STO
         else if *class == FrameClass::EarthOrientation {
@@ -621,6 +631,7 @@ fn fmt_epoch_v4 (
             }
         } // ION
     }
+    lines = fmt_rework(4, &lines);
     Ok(lines)
 }
 
@@ -1171,7 +1182,32 @@ mod test {
             }
         }
     }
-/* GAL V4 from example please */
+    #[test]
+    fn double_digit_exponents() {
+        let content = "1000123  -123123E1";
+        assert_eq!(
+            double_exponent_digits(content),
+            "1000123  -123123E+01"
+        );
+        let content = "1000123  -123123E-1 -1.23123123E0 -0.123123E-4";
+        assert_eq!(
+            double_exponent_digits(content),
+            "1000123  -123123E-01 -1.23123123E+00 -0.123123E-04"
+        );
+    }
+    #[test]
+    fn test_fmt_rework() {
+        let content = "1000123  -123123E-1 -1.23123123E0 -0.123123E-4";
+        assert_eq!(
+            fmt_rework(2, content),
+            "1000123  -123123D-01 -1.23123123D+00 -0.123123D-04"
+        );
+        let content = "1000123  -123123E-1 -1.23123123E0 -0.123123E-4";
+        assert_eq!(
+            fmt_rework(3, content),
+            "1000123  -123123E-01 -1.23123123E+00 -0.123123E-04"
+        );
+    }
 }
 
 impl Merge<Record> for Record {

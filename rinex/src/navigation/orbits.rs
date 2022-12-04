@@ -136,16 +136,16 @@ impl OrbitItem {
     /// mainly used when producing a file
     pub fn to_string (&self) -> String {
         match self {
-            OrbitItem::U8(n) => format!("{:13.12E}", *n as f64).replace("E+","D+").replace("E-","D-"),
-            OrbitItem::I8(n) => format!("{:13.12E}", *n as f64).replace("E+","D+").replace("E-","D-"),
-            OrbitItem::F32(f) => format!("{:13.12E}", f).replace("E+","D+").replace("E-","D-"),
-            OrbitItem::F64(f) => format!("{:13.12E}", f).replace("E+","D+").replace("E-","D-"),
-            OrbitItem::Health(h) => format!("{:13.12E}", h).replace("E+","D+").replace("E-","D-"),
-            OrbitItem::GloHealth(h) => format!("{:13.12E}", h).replace("E+","D+").replace("E-","D-"),
-            OrbitItem::GeoHealth(h) => format!("{:13.12E}", h).replace("E+","D+").replace("E-","D-"),
-            OrbitItem::IrnssHealth(h) => format!("{:13.12E}", h).replace("E+","D+").replace("E-","D-"),
-            OrbitItem::GalHealth(h) => format!("{:13.12E}", h.bits() as f64).replace("E+","D+").replace("E-","D-"),
-            OrbitItem::GloStatus(h) => format!("{:13.12E}", h.bits() as f64).replace("E","D+").replace("E-","D-"),
+            OrbitItem::U8(n) => format!("{:14.11E}", *n as f64),
+            OrbitItem::I8(n) => format!("{:14.11E}", *n as f64),
+            OrbitItem::F32(f) => format!("{:14.11E}", f),
+            OrbitItem::F64(f) => format!("{:14.11E}", f),
+            OrbitItem::Health(h) => format!("{:14.11E}", h),
+            OrbitItem::GloHealth(h) => format!("{:14.11E}", h),
+            OrbitItem::GeoHealth(h) => format!("{:14.11E}", h),
+            OrbitItem::IrnssHealth(h) => format!("{:14.11E}", h),
+            OrbitItem::GalHealth(h) => format!("{:14.11E}", h.bits() as f64),
+            OrbitItem::GloStatus(h) => format!("{:14.11E}", h.bits() as f64),
         }
     }
 	/// Unwraps OrbitItem as f32
