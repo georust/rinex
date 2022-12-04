@@ -1549,13 +1549,17 @@ impl std::fmt::Display for Header {
         write!(f, "{:<40}", self.agency)?;
         write!(f, "OBSERVER / AGENCY\n")?; 
         // MARKER NAME
-        write!(f, "{:<20}", self.station)?;
-        write!(f, "{:<40}", " ")?;
-        write!(f, "{}", "MARKER NAME\n")?;
+        if self.station.len() > 0 {
+            write!(f, "{:<20}", self.station)?;
+            write!(f, "{:<40}", " ")?;
+            write!(f, "{}", "MARKER NAME\n")?;
+        }
         // MARKER NUMBER
-        write!(f, "{:<20}", self.station_id)?;
-        write!(f, "{:<40}", " ")?;
-        write!(f, "{}", "MARKER NUMBER\n")?;
+        if self.station_id.len() > 0 { // has been parsed
+            write!(f, "{:<20}", self.station_id)?;
+            write!(f, "{:<40}", " ")?;
+            write!(f, "{}", "MARKER NUMBER\n")?;
+        }
         // ANT
         if let Some(antenna) = &self.rcvr_antenna {
             write!(f, "{:<20}", antenna.model)?;
