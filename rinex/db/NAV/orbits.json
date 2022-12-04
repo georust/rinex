@@ -393,7 +393,7 @@
             "tgd1b1b3": "f64",
             "tgd2b2b3": "f64",
             "t_tm": "f64",
-            "oadc": "f64",
+            "aodc": "f64",
             "spare3": "xxxx",
             "spare4": "xxxx"
         }
@@ -428,7 +428,7 @@
             "tgdb1b3": "f64",
             "tgdb2b3": "f64",
             "t_tm": "f64",
-            "oadc": "f64"
+            "aodc": "f64"
         }
     }]
 },
