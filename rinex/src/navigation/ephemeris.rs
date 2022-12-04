@@ -278,10 +278,10 @@ impl Ephemeris {
                 }
 
                 let weeks = match self.get_orbit_f64("gpsWeek") {
-                    Some(f) => f as u32,
+                    Some(f) => 0, //f as u32,
                     _ => {
                         match self.get_orbit_f64("galWeek") {
-                            Some(f) => (f as u32) - 1024,
+                            Some(f) => 0, //(f as u32) - 1024,
                             _ => 0,
                         }
                     },
@@ -482,54 +482,160 @@ fn parse_orbits(
         _ => return Err(Error::MissingData),
     };
 
-    let mut new_line = true;
-    let mut total: usize = 0;
-    let mut map: HashMap<String, OrbitItem> = HashMap::new();
-    for item in items.iter() {
-        let (k, v) = item;
-        let offset: usize = match new_line {
-            false => 19,
-            true => {
-                new_line = false;
-                if version.major == 3 {
-                    22 + 1
-                } else {
-                    22
-                }
-            },
+    let mut key_index: usize = 0;
+    let word_size: usize = 19;
+    let mut map :HashMap<String, OrbitItem> = HashMap::new();
+    for line in lines {
+        // trim first few white spaces
+        let mut line: &str = match version.major < 3 {
+            true =>  &line[3..],
+            false => &line[4..],
         };
-        if line.len() >= 19 {
-            // handle empty fields, that might exist..
-            let (content, rem) = line.split_at(offset);
-            total += offset;
-            line = rem.clone();
-
-            if !k.contains(&"spare") {
-                // --> got something to parse in db
-                if let Ok(item) = OrbitItem::new(v, content.trim(), constell) {
-                    map.insert(k.to_string(), item);
-                }
-            }
-
-            if total >= 76 {
-                new_line = true;
-                total = 0;
-                if let Some(l) = lines.next() {
-                    line = l;
-                } else {
-                    break;
-                }
-            }
-        } else {
-            // early EOL (blank)
-            total = 0;
-            new_line = true;
-            if let Some(l) = lines.next() {
-                line = l
-            } else {
+        let nb_missing = 4 - (line.len() / word_size);
+        //println!("LINE \"{}\" | NB MISSING {}", line, nb_missing);
+        loop {
+            if line.len() == 0 {
+                key_index += nb_missing as usize;
                 break;
             }
+            let (content, rem) = line.split_at(std::cmp::min(word_size, line.len()));
+            if let Some((key, token)) = items.get(key_index) {
+                //println!("Key \"{}\" | Token \"{}\" | Content \"{}\"", key, token, content.trim()); //DEBUG
+                if !key.contains(&"spare") {
+                    if let Ok(item) = OrbitItem::new(token, content.trim(), constell) {
+                        map.insert(key.to_string(), item);
+                    }
+                }
+            }
+            key_index += 1;
+            line = rem.clone();
         }
     }
     Ok(map)
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[test]
+    fn gal_orbit() {
+        let content = "
+     7.500000000000e+01 1.478125000000e+01 2.945479833915e-09-3.955466341850e-01
+     8.065253496170e-07 3.683507675305e-04-3.911554813385e-07 5.440603218079e+03
+     3.522000000000e+05-6.519258022308e-08 2.295381450845e+00 7.450580596924e-09
+     9.883726443393e-01 3.616875000000e+02 2.551413130998e-01-5.907746081337e-09
+     1.839362331110e-10 2.580000000000e+02 2.111000000000e+03                   
+     3.120000000000e+00 0.000000000000e+00-1.303851604462e-08 0.000000000000e+00
+     3.555400000000e+05";                                                       
+        let orbits = parse_orbits(Version::new(3, 0), Constellation::Galileo, content.lines());
+        assert!(orbits.is_ok());
+        let orbits = orbits.unwrap();
+        let ephemeris = Ephemeris {
+            clock_bias: 0.0,
+            clock_drift: 0.0,
+            clock_drift_rate: 0.0,
+            orbits,
+        };
+        assert_eq!(ephemeris.get_orbit_f64("iodnav"), Some(7.500000000000e+01));
+        assert_eq!(ephemeris.get_orbit_f64("crs"), Some(1.478125000000e+01));
+        assert_eq!(ephemeris.get_orbit_f64("deltaN"), Some(2.945479833915e-09));
+        assert_eq!(ephemeris.get_orbit_f64("m0"), Some(-3.955466341850e-01));
+        
+        assert_eq!(ephemeris.get_orbit_f64("cuc"), Some(8.065253496170e-07));
+        assert_eq!(ephemeris.get_orbit_f64("e"), Some(3.683507675305e-04));
+        assert_eq!(ephemeris.get_orbit_f64("cus"), Some(-3.911554813385e-07));
+        assert_eq!(ephemeris.get_orbit_f64("sqrta"), Some(5.440603218079e+03));
+
+        assert_eq!(ephemeris.get_orbit_f64("toe"), Some(3.522000000000e+05));
+        assert_eq!(ephemeris.get_orbit_f64("cic"), Some(-6.519258022308e-08));
+        assert_eq!(ephemeris.get_orbit_f64("omega0"), Some(2.295381450845e+00));
+        assert_eq!(ephemeris.get_orbit_f64("cis"), Some(7.450580596924e-09));
+      
+        assert_eq!(ephemeris.get_orbit_f64("i0"), Some(9.883726443393e-01));
+        assert_eq!(ephemeris.get_orbit_f64("crc"), Some(3.616875000000e+02));
+        assert_eq!(ephemeris.get_orbit_f64("omega"), Some(2.551413130998e-01));
+        assert_eq!(ephemeris.get_orbit_f64("omegaDot"), Some(-5.907746081337e-09));
+
+        assert_eq!(ephemeris.get_orbit_f64("idot"), Some(1.839362331110e-10));
+        assert_eq!(ephemeris.get_orbit_f64("dataSrc"), Some(2.580000000000e+02));
+        assert_eq!(ephemeris.get_orbit_f64("galWeek"), Some(2.111000000000e+03));
+      
+        assert_eq!(ephemeris.get_orbit_f64("sisa"), Some(3.120000000000e+00));
+        //assert_eq!(ephemeris.get_orbit_f64("health"), Some(0.000000000000e+00));
+        assert_eq!(ephemeris.get_orbit_f64("bgdE5aE1"), Some(-1.303851604462e-08));
+        assert_eq!(ephemeris.get_orbit_f64("bgdE5bE1"), Some(0.000000000000e+00));
+
+        assert_eq!(ephemeris.get_orbit_f64("t_tm"), Some(3.555400000000e+05));
+    }
+    #[test]
+    fn bds_orbit() {
+        let content = "
+      .100000000000e+01  .118906250000e+02  .105325815814e-08 -.255139531119e+01
+      .169500708580e-06  .401772442274e-03  .292365439236e-04  .649346986580e+04
+      .432000000000e+06  .105705112219e-06 -.277512444499e+01 -.211410224438e-06
+      .607169709798e-01 -.897671875000e+03  .154887266488e+00 -.871464871438e-10
+     -.940753471872e-09  .000000000000e+00  .782000000000e+03  .000000000000e+00
+      .200000000000e+01  .000000000000e+00 -.599999994133e-09 -.900000000000e-08
+      .432000000000e+06  .000000000000e+00 0.000000000000e+00 0.000000000000e+00";
+        let orbits = parse_orbits(Version::new(3, 0), Constellation::BeiDou, content.lines());
+        assert!(orbits.is_ok());
+        let orbits = orbits.unwrap();
+        let ephemeris = Ephemeris {
+            clock_bias: 0.0,
+            clock_drift: 0.0,
+            clock_drift_rate: 0.0,
+            orbits,
+        };
+        assert_eq!(ephemeris.get_orbit_f64("aode"), Some(1.0));
+        assert_eq!(ephemeris.get_orbit_f64("crs"), Some(1.18906250000e+01));
+        assert_eq!(ephemeris.get_orbit_f64("deltaN"), Some(0.105325815814e-08));
+        assert_eq!(ephemeris.get_orbit_f64("m0"), Some(-0.255139531119e+01));
+        
+        assert_eq!(ephemeris.get_orbit_f64("cuc"), Some(0.169500708580e-06));
+        assert_eq!(ephemeris.get_orbit_f64("e"), Some(0.401772442274e-03));
+        assert_eq!(ephemeris.get_orbit_f64("cus"), Some(0.292365439236e-04));
+        assert_eq!(ephemeris.get_orbit_f64("sqrta"), Some(0.649346986580e+04));
+
+        assert_eq!(ephemeris.get_orbit_f64("toe"), Some(0.432000000000e+06));
+        assert_eq!(ephemeris.get_orbit_f64("cic"), Some(0.105705112219e-06));
+        assert_eq!(ephemeris.get_orbit_f64("omega0"), Some(-0.277512444499e+01));
+        assert_eq!(ephemeris.get_orbit_f64("cis"), Some(-0.211410224438e-06));
+      
+        assert_eq!(ephemeris.get_orbit_f64("i0"), Some(0.607169709798e-01));
+        assert_eq!(ephemeris.get_orbit_f64("crc"), Some(-0.897671875000e+03));
+        assert_eq!(ephemeris.get_orbit_f64("omega"), Some(0.154887266488e+00));
+        assert_eq!(ephemeris.get_orbit_f64("omegaDot"), Some(-0.871464871438e-10));
+
+        assert_eq!(ephemeris.get_orbit_f64("idot"), Some(-0.940753471872e-09));
+        assert_eq!(ephemeris.get_orbit_f64("bdtWeek"), Some(0.782000000000e+03));
+      
+        assert_eq!(ephemeris.get_orbit_f64("svAccuracy"), Some(0.200000000000e+01));
+        assert_eq!(ephemeris.get_orbit_f64("satH1"), Some(0.0));
+        assert_eq!(ephemeris.get_orbit_f64("tgd1b1b3"), Some(-0.599999994133e-09));
+        assert_eq!(ephemeris.get_orbit_f64("tgd2b2b3"), Some(-0.900000000000e-08));
+
+        assert_eq!(ephemeris.get_orbit_f64("t_tm"), Some(0.432000000000e+06));
+        assert_eq!(ephemeris.get_orbit_f64("aodc"), Some(0.0));
+    }
+    #[test]
+    fn orbits_sat_lat_lon() {
+        let content = "
+      .100000000000e+01  .118906250000e+02  .105325815814e-08 -.255139531119e+01
+      .169500708580e-06  .401772442274e-03  .292365439236e-04  .649346986580e+04
+      .432000000000e+06  .105705112219e-06 -.277512444499e+01 -.211410224438e-06
+      .607169709798e-01 -.897671875000e+03  .154887266488e+00 -.871464871438e-10
+     -.940753471872e-09  .000000000000e+00  .782000000000e+03  .000000000000e+00
+      .200000000000e+01  .000000000000e+00 -.599999994133e-09 -.900000000000e-08
+      .432000000000e+06  .000000000000e+00 0.000000000000e+00 0.000000000000e+00";
+        let orbits = parse_orbits(Version::new(3, 0), Constellation::BeiDou, content.lines());
+        assert!(orbits.is_ok());
+        let orbits = orbits.unwrap();
+        let ephemeris = Ephemeris {
+            clock_bias: -0.426337239332e-03, 
+            clock_drift: -0.752518047875e-10, 
+            clock_drift_rate: 0.000000000000e+00,
+            orbits,
+        };
+    }
+}
+>>>>>>> nav: improve orbit parsing, add tests, introduce position tests
