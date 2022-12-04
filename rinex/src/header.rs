@@ -1499,8 +1499,7 @@ impl std::fmt::Display for Header {
             write!(f, "{}", "MARKER NAME\n")?;
         }
         // MARKER NUMBER
-        if self.station_id.len() > 0 {
-            // has been parsed
+        if self.station_id.len() > 0 { // has been parsed
             write!(f, "{:<20}", self.station_id)?;
             write!(f, "{:<40}", " ")?;
             write!(f, "{}", "MARKER NUMBER\n")?;
