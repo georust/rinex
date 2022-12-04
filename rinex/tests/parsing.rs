@@ -44,28 +44,6 @@ mod test {
                         "NAV" => {
                             assert!(rinex.is_navigation_rinex());
                             assert!(rinex.epochs().len() > 0);
-                            let record = rinex.record.as_nav().unwrap();
-                            for (e, classes) in record {
-                                println!("{} - {:#?}", e, classes);
-                                for (class, frames) in classes {
-                                    if *class == FrameClass::Ephemeris {
-                                        for fr in frames {
-                                            let (_, sv, eph) = fr.as_eph()
-                                                .unwrap();
-                                            if sv.constellation == Constellation::Glonass {
-                                                assert!(eph.sat_pos().is_some());
-                                            } else if sv.constellation == Constellation::Geo {
-                                                assert!(eph.sat_pos().is_some());
-                                            } else {
-                                                println!("{}", sv.to_string());
-                                                assert!(eph.kepler().is_some());
-                                                assert!(eph.perturbations().is_some());
-                                                assert!(eph.sat_pos().is_some());
-                                            }
-                                        }  
-                                    }
-                                }
-                            }
                         },
                         "OBS" => {
                             assert!(rinex.header.obs.is_some());
