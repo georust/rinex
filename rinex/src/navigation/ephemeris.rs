@@ -8,7 +8,6 @@ use super::{
     orbits::{closest_revision, NAV_ORBITS},
     OrbitItem,
 };
-use crate::{epoch, sv, version::Version, Constellation, Epoch, Sv};
 
 use std::collections::HashMap;
 use std::str::FromStr;
@@ -648,4 +647,3 @@ mod test {
         };
     }
 }
->>>>>>> nav: improve orbit parsing, add tests, introduce position tests

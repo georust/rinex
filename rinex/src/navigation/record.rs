@@ -19,26 +19,6 @@ fn double_exponent_digits(content: &str) -> String {
     lines.to_string()
 }
 
-/*
- * When formatting floating point number in Navigation RINEX,
- * exponent are expected to be in the %02d form,
- * but Rust is only capable of formating %d.
- * With this macro, we simply rework all exponents encountered in a string
- */
-fn double_exponent_digits(content: &str) -> String {
-    let re = Regex::new(r"E\d{1}")
-        .unwrap();
-    let lines = re.replace_all(&content, |caps: &Captures| {
-        format!("E+0{}", &caps[0][1..])
-    });
-    let re = Regex::new(r"E-\d{1}")
-        .unwrap();
-    let lines = re.replace_all(&lines, |caps: &Captures| {
-        format!("E-0{}", &caps[0][2..])
-    });
-    lines.to_string()
-}
-
 use crate::{
     epoch, gnss_time::TimeScaling, merge, merge::Merge, prelude::*, sampling::Decimation, split,
     split::Split, sv, types::Type, version::Version,
