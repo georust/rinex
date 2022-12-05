@@ -187,6 +187,26 @@ impl Ephemeris {
         }
     }
 
+    /// Tries to retrieve "weeks" counter
+    pub fn get_weeks(&self) -> Option<u32> {
+        //TODO:
+        // cast/scaling per constellation
+        if let Some(v) = self.orbits.get("gpsWeek") {
+            if let Some(f) = v.as_f64() {
+                return Some(f.round() as u32);
+            }
+        } else if let Some(v) = self.orbits.get("bdtWeek") {
+            if let Some(f) = v.as_f64() {
+                return Some(f.round() as u32);
+            }
+        } else if let Some(v) = self.orbits.get("galWeek") {
+            if let Some(f) = v.as_f64() {
+                return Some(f.round() as u32);
+            }
+        }
+        None
+    }
+
     /// Retrieve Keplerian parameters
     pub fn kepler(&self) -> Option<Kepler> {
         if let Some(sqrt_a) = self.get_orbit_f64("sqrta") {
@@ -219,10 +239,10 @@ impl Ephemeris {
     pub fn perturbations(&self) -> Option<Perturbations> {
         if let Some(cuc) = self.get_orbit_f64("cuc") {
             if let Some(cus) = self.get_orbit_f64("cus") {
-                if let Some(cis) = self.get_orbit_f64("cis") {
-                    if let Some(cic) = self.get_orbit_f64("cic") {
-                        if let Some(crs) = self.get_orbit_f64("crs") {
-                            if let Some(crc) = self.get_orbit_f64("crc") {
+                if let Some(cic) = self.get_orbit_f64("cic") {
+                    if let Some(cis) = self.get_orbit_f64("cis") {
+                        if let Some(crc) = self.get_orbit_f64("crc") {
+                            if let Some(crs) = self.get_orbit_f64("crs") {
                                 if let Some(dn) = self.get_orbit_f64("deltaN") {
                                     if let Some(i_dot) = self.get_orbit_f64("idot") {
                                         if let Some(omega_dot) = self.get_orbit_f64("omegaDot") {
@@ -250,7 +270,7 @@ impl Ephemeris {
     }
 
     /// Returns satellite position vector, in ECEF
-    pub fn sat_pos(&self) -> Option<(f64,f64,f64)> {
+    pub fn sat_pos(&self, epoch: Epoch) -> Option<(f64,f64,f64)> {
         if let Some(pos_x) = self.get_orbit_f64("satPosX") {
             if let Some(pos_y) = self.get_orbit_f64("satPosY") {
                 if let Some(pos_z) = self.get_orbit_f64("satPosZ") { 
@@ -258,62 +278,84 @@ impl Ephemeris {
                 }
             }
         }
-        self.manual_sat_pos()
+        self.kepler2ecef(epoch)
     }
 
-    /// Manual calculations of satellite position vector, in ECEF,
-    /// from ephemeris
-    pub fn manual_sat_pos(&self) -> Option<(f64,f64,f64)> {
-        if let Some(kepler) = self.kepler() {
-            if let Some(perturbations) = self.perturbations() {
-                //TODO
-                // double check we always refer to this t0 please
-                let t0 = hifitime::GPST_REF_EPOCH; 
-                let mut t_k = self.clock_bias - kepler.toe;
-                if t_k > 302400.0 {
-                    t_k -= 604800.0;
-                } else if t_k < -302400.0 {
-                    t_k += 604800.0;
-                }
+    /// Manual calculations of satellite position vector, in ECEF
+    pub fn kepler2ecef(&self, t_sv: Epoch) -> Option<(f64,f64,f64)> {
+        let kepler = self.kepler()?;
+        let perturbations = self.perturbations()?;
 
-                let weeks = match self.get_orbit_f64("gpsWeek") {
-                    Some(f) => 0, //f as u32,
-                    _ => {
-                        match self.get_orbit_f64("galWeek") {
-                            Some(f) => 0, //(f as u32) - 1024,
-                            _ => 0,
-                        }
-                    },
-                };
+        let weeks = self.get_weeks()?;
+        //TODO: double check we always refer to this t_0
+        let t_0 = hifitime::GPST_REF_EPOCH + Duration::from_days((weeks * 7).into());
+        let toe = hifitime::GPST_REF_EPOCH + Duration::from_seconds(kepler.toe.into()) + t_0.to_duration();
 
-                let n_0 = (Kepler::EARTH_GM_CONSTANT /kepler.a.powf(3.0)).sqrt();
-                let m_k = kepler.m_0 + (n_0 + perturbations.dn)*t_k; 
-                let e_k = m_k + kepler.e * m_k.sin(); //TODO a revoir, recursif
+        // to seconds
+        let toe = toe.to_gpst_seconds();
+        let t_k = t_sv.to_gpst_seconds() - toe;
 
-                let v_k = (((1.0-kepler.e.powf(2.0)).sqrt() * e_k.sin()) / (e_k.cos() - kepler.e)).atan();
-                let phi_k = v_k + kepler.omega;
-                let du_k = perturbations.cus * (2.0*phi_k).sin() + perturbations.cuc * (2.0*phi_k).cos();
-                let u_k = phi_k + du_k;
-                let dr_k = perturbations.crs * (2.0*phi_k).sin() + perturbations.crc * (2.0*phi_k).cos();
-                let r_k = kepler.a * (1.0 - kepler.e * e_k.cos()) + dr_k;
+        let n0 = (Kepler::EARTH_GM_CONSTANT / kepler.a.powf(3.0)).sqrt();
+        let n = n0 + perturbations.dn * t_k;
+        let m_k = kepler.m_0 + n * t_k;
+        let e_k = m_k + kepler.e * m_k.sin();
+        let nu_k = (e_k.cos() - kepler.e).atan2((1.0 - kepler.e.powf(2.0)).sqrt());
+        //let nu_k = ((1.0 - kepler.e.powf(2.0)).sqrt() * e_k.sin()).atan2(e_k.cos() - kepler.e);
+        let phi_k = nu_k * kepler.omega;
+        
+        let du_k = perturbations.cuc * (2.0 * phi_k).cos() + 
+            perturbations.cus * (2.0 * phi_k).sin();
+        let u_k = phi_k + du_k;
 
-                let di_k = perturbations.cis * (2.0*phi_k).sin() + perturbations.cic * (2.0*phi_k).cos();
-                let i_k = kepler.i_0 + di_k + perturbations.i_dot * t_k;
+        let di_k = perturbations.cic * (2.0 * phi_k).cos() +
+            perturbations.cis * (2.0 * phi_k).sin();
+        let i_k = phi_k + di_k;
 
-                let xp_k = r_k * u_k.cos();
-                let yp_k = r_k * u_k.sin();
-                let omega_k = kepler.omega_0 + (perturbations.omega_dot - Kepler::EARTH_OMEGA_E_WGS84)*t_k - Kepler::EARTH_OMEGA_E_WGS84 * kepler.toe; 
-                let x_k = xp_k * omega_k.cos() - yp_k * omega_k.sin() * i_k.cos();
-                let y_k = xp_k * omega_k.sin() + yp_k * omega_k.cos() * i_k.cos();
-                let z_k = yp_k * i_k.sin();
-                return Some((x_k, y_k, z_k));
-            }
+        let dr_k = perturbations.crc * (2.0 * phi_k).cos() +
+            perturbations.crs * (2.0 * phi_k).sin();
+        let r_k = kepler.a * (1.0 - kepler.e - e_k.cos()) + dr_k;
+
+        let omega_k = kepler.omega_0 + (perturbations.omega_dot - Kepler::EARTH_OMEGA_E_WGS84) * t_k - Kepler::EARTH_OMEGA_E_WGS84 * toe;
+        let xp_k = r_k * u_k.cos();
+        let yp_k = r_k * u_k.sin();
+        
+        let x_k = xp_k * omega_k.cos() - yp_k * omega_k.sin() * i_k.cos();
+        let y_k = xp_k * omega_k.sin() + yp_k * omega_k.cos() * i_k.cos();
+        let z_k = yp_k * i_k.sin();
+
+        /*let mut t_k = self.clock_bias - kepler.toe;
+        if t_k > 302400.0 {
+            t_k -= 604800.0;
+        } else if t_k < -302400.0 {
+            t_k += 604800.0;
         }
-        None
+
+        let n_0 = (Kepler::EARTH_GM_CONSTANT /kepler.a.powf(3.0)).sqrt();
+        let m_k = kepler.m_0 + (n_0 + perturbations.dn)*t_k; 
+        let e_k = m_k + kepler.e * m_k.sin(); //TODO a revoir, recursif
+
+        let v_k = (((1.0-kepler.e.powf(2.0)).sqrt() * e_k.sin()) / (e_k.cos() - kepler.e)).atan();
+        let phi_k = v_k + kepler.omega;
+        let du_k = perturbations.cus * (2.0*phi_k).sin() + perturbations.cuc * (2.0*phi_k).cos();
+        let u_k = phi_k + du_k;
+        let dr_k = perturbations.crs * (2.0*phi_k).sin() + perturbations.crc * (2.0*phi_k).cos();
+        let r_k = kepler.a * (1.0 - kepler.e * e_k.cos()) + dr_k;
+
+        let di_k = perturbations.cis * (2.0*phi_k).sin() + perturbations.cic * (2.0*phi_k).cos();
+        let i_k = kepler.i_0 + di_k + perturbations.i_dot * t_k;
+
+        let xp_k = r_k * u_k.cos();
+        let yp_k = r_k * u_k.sin();
+        let omega_k = kepler.omega_0 + (perturbations.omega_dot - Kepler::EARTH_OMEGA_E_WGS84)*t_k - Kepler::EARTH_OMEGA_E_WGS84 * kepler.toe; 
+        let x_k = xp_k * omega_k.cos() - yp_k * omega_k.sin() * i_k.cos();
+        let y_k = xp_k * omega_k.sin() + yp_k * omega_k.cos() * i_k.cos();
+        let z_k = yp_k * i_k.sin();
+        */
+        Some((x_k, y_k, z_k))
     }
     /// Computes satellite position in (latitude, longitude, altitude)
-    pub fn sat_latlonalt(&self) -> Option<(f64,f64,f64)> {
-        if let Some((x_k, y_k, z_k)) = self.sat_pos() {
+    pub fn sat_latlonalt(&self, epoch: Epoch) -> Option<(f64,f64,f64)> {
+        if let Some((x_k, y_k, z_k)) = self.sat_pos(epoch) {
             let p = (x_k.powf(2.0) + y_k.powf(2.0)).sqrt(); 
             let f = 54.0 * Kepler::EARTH_B.powf(2.0) * z_k.powf(2.0);
             let E2 = Kepler::EARTH_A.powf(2.0) - Kepler::EARTH_B.powf(2.0); 
@@ -343,8 +385,8 @@ impl Ephemeris {
     }
     /// Returns (azimuth, elevation, slant range) coordinates in AER system
     /// from parsed orbits and internal calculations
-    pub fn angles(&self, ref_pos: (f64,f64,f64)) -> Option<(f64,f64,f64)> {
-        if let Some((lat, lon, alt)) = self.sat_latlonalt() {
+    pub fn angles(&self, epoch: Epoch, ref_pos: (f64,f64,f64)) -> Option<(f64,f64,f64)> {
+        if let Some((lat, lon, alt)) = self.sat_latlonalt(epoch) {
             let (ref_x, ref_y, ref_z) = ref_pos;
             //TODO revoir si on est tjrs qu'en WGS84,
             //     par exemple le cas de Glonass
@@ -516,6 +558,13 @@ fn parse_orbits(
 #[cfg(test)]
 mod test {
     use super::*;
+    fn build_orbits(constellation: Constellation, descriptor: Vec<(&str, &str)>) -> HashMap<String, OrbitItem> {
+        let mut map: HashMap<String, OrbitItem> = HashMap::with_capacity(descriptor.len()); 
+        for (key, value) in descriptor.iter() {
+            map.insert(key.to_string(), OrbitItem::new("f64", value, constellation).unwrap());
+        }
+        map
+    }
     #[test]
     fn gal_orbit() {
         let content = "
@@ -617,8 +666,9 @@ mod test {
         assert_eq!(ephemeris.get_orbit_f64("aodc"), Some(0.0));
     }
     #[test]
-    fn test_kepler_gps() {
-        let orbits: HashMap<&str, &str> = HashMap::from_iter(
+    fn test_kepler2ecef() {
+        let orbits = build_orbits(
+            Constellation::GPS,
             vec![
                 ("deltaN", "4.3123e-9"),
                 ("gpsWeek", "910"),
@@ -626,24 +676,27 @@ mod test {
                 ("e", "4.27323824e-3"),
                 ("m0", "2.24295542"),
                 ("i0", "0.97477102"),
-                ("i_dot", "-4.23946e-10"),
-                ("sqrtA", "5.15353571e3"),
+                ("idot", "-4.23946e-10"),
+                ("sqrta", "5.15353571e3"),
                 ("cuc","-6.60121440e-6"),
+                ("cus", "5.31412661e-6"),
                 ("cic", "9.8720193e-8"),
                 ("cis", "-3.9115548e-8"),
-                ("cuc", "-6.60121440e-6"),
-                ("cus", "5.31412661e-6"),
                 ("crc", "282.28125"),
                 ("crs", "-132.71875"),
-                ("omega0", "2.29116688"),
                 ("omega", "-0.88396725"),
-                ("omegaDot", "-8.025691e-9"),
-            ].iter());
+                ("omega0", "2.29116688"),
+                ("omegaDot", "-8.025691e-9")]);
         let ephemeris = Ephemeris {
             clock_bias: -0.426337239332e-03, 
             clock_drift: -0.752518047875e-10, 
             clock_drift_rate: 0.000000000000e+00,
             orbits,
         };
+        let t_sv = hifitime::GPST_REF_EPOCH + Duration::from_days(910.0 * 7.0) + Duration::from_seconds(4.03272930e5);
+        assert_eq!(
+            ephemeris.kepler2ecef(t_sv), 
+            Some((-5678509.38584636, -24923975.35672532, 7056393.43793194))
+        );
     }
 }
