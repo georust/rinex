@@ -1,4 +1,4 @@
-use ublox::{Parser, PacketRef, UbxPacketMeta};
+use ublox::{PacketRef, Parser, UbxPacketMeta};
 
 pub struct Device {
     pub port: Box<dyn serialport::SerialPort>,
@@ -30,14 +30,14 @@ impl Device {
                 match it.next() {
                     Some(Ok(packet)) => {
                         cb(packet);
-                    }
+                    },
                     Some(Err(_)) => {
                         // Received a malformed packet, ignore it
-                    }
+                    },
                     None => {
                         // We've eaten all the packets we have
                         break;
-                    }
+                    },
                 }
             }
         }
@@ -68,7 +68,7 @@ impl Device {
                 } else {
                     Err(e)
                 }
-            }
+            },
         }
     }
 }

@@ -1,25 +1,19 @@
-use std::str::FromStr;
-use thiserror::Error;
-use strum_macros::EnumString;
-use std::collections::{BTreeMap, HashMap};
 use crate::{
-	epoch,
-    prelude::*,
-	version::Version,
-    merge, merge::Merge,
-    split, split::Split,
-    sampling::Decimation,
-    gnss_time::TimeScaling,
+    epoch, gnss_time::TimeScaling, merge, merge::Merge, prelude::*, sampling::Decimation, split,
+    split::Split, version::Version,
 };
 use hifitime::Duration;
+use std::collections::{BTreeMap, HashMap};
+use std::str::FromStr;
+use strum_macros::EnumString;
+use thiserror::Error;
 
-#[derive(Error, PartialEq, Eq, Hash, Clone, Debug)]
-#[derive(PartialOrd, Ord)]
+#[derive(Error, PartialEq, Eq, Hash, Clone, Debug, PartialOrd, Ord)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum System {
     /// Sv system for AS data
     Sv(Sv),
-    /// Stations or Receiver name for other types of data 
+    /// Stations or Receiver name for other types of data
     Station(String),
 }
 
@@ -31,14 +25,14 @@ impl Default for System {
 
 impl System {
     /// Unwraps self as a `satellite vehicule`
-    pub fn as_sv (&self) -> Option<Sv> {
+    pub fn as_sv(&self) -> Option<Sv> {
         match self {
             System::Sv(s) => Some(*s),
             _ => None,
         }
     }
     /// Unwraps self as a `station` identification code
-    pub fn as_station (&self) -> Option<String> {
+    pub fn as_station(&self) -> Option<String> {
         match self {
             System::Station(s) => Some(s.clone()),
             _ => None,
@@ -47,7 +41,7 @@ impl System {
 }
 
 impl std::fmt::Display for System {
-    fn fmt (&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         if let Some(sv) = self.as_sv() {
             f.write_str(&sv.to_string())?
         } else if let Some(station) = self.as_station() {
@@ -70,14 +64,12 @@ pub enum Error {
     ParseFloatError(#[from] std::num::ParseFloatError),
     #[error("failed to identify observable")]
     ParseObservableError(#[from] strum::ParseError),
-	#[error("failed to write data")]
-	WriterIoError(#[from] std::io::Error),
+    #[error("failed to write data")]
+    WriterIoError(#[from] std::io::Error),
 }
 
 /// Clocks file payload
-#[derive(Clone, Debug)]
-#[derive(PartialEq)]
-#[derive(Default)]
+#[derive(Clone, Debug, PartialEq, Default)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Data {
     /// Clock bias
@@ -90,8 +82,7 @@ pub struct Data {
 }
 
 /// Clock data observables
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
-#[derive(EnumString)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, EnumString)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum DataType {
     /// Data analysis results for receiver clocks
@@ -109,7 +100,7 @@ pub enum DataType {
 }
 
 impl std::fmt::Display for DataType {
-    fn fmt (&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             Self::AR => f.write_str("AR"),
             Self::AS => f.write_str("AS"),
@@ -143,7 +134,7 @@ impl std::fmt::Display for DataType {
 */
 pub type Record = BTreeMap<Epoch, HashMap<DataType, HashMap<System, Data>>>;
 
-pub (crate)fn is_new_epoch (line: &str) -> bool {
+pub(crate) fn is_new_epoch(line: &str) -> bool {
     // first 2 bytes match a DataType code
     let content = line.split_at(2).0;
     DataType::from_str(content).is_ok()
@@ -152,12 +143,12 @@ pub (crate)fn is_new_epoch (line: &str) -> bool {
 /// Builds `RINEX` record entry for `Clocks` data files.   
 /// Returns identified `epoch` to sort data efficiently.  
 /// Returns 2D data as described in `record` definition
-pub (crate)fn parse_epoch(version: Version, content: &str) -> 
-        Result<(Epoch, DataType, System, Data), Error> 
-{
+pub(crate) fn parse_epoch(
+    version: Version,
+    content: &str,
+) -> Result<(Epoch, DataType, System, Data), Error> {
     let mut lines = content.lines();
-    let line = lines.next()
-        .unwrap();
+    let line = lines.next().unwrap();
     // Data type code
     let (dtype, rem) = line.split_at(3);
     let data_type = DataType::from_str(dtype.trim())?; // must pass
@@ -167,8 +158,9 @@ pub (crate)fn parse_epoch(version: Version, content: &str) ->
         minor: 04,
     };
 
-    let system : System = match version < limit {
-        true => { // old fashion
+    let system: System = match version < limit {
+        true => {
+            // old fashion
             let (system_str, r) = rem.split_at(5);
             rem = r.clone();
             if let Ok(svnn) = Sv::from_str(system_str.trim()) {
@@ -177,7 +169,8 @@ pub (crate)fn parse_epoch(version: Version, content: &str) ->
                 System::Station(system_str.trim().to_string())
             }
         },
-        false => { // modern fashion
+        false => {
+            // modern fashion
             let (system_str, r) = rem.split_at(4);
             if let Ok(svnn) = Sv::from_str(system_str.trim()) {
                 let (_, r) = r.split_at(6);
@@ -192,10 +185,9 @@ pub (crate)fn parse_epoch(version: Version, content: &str) ->
             }
         },
     };
-    
+
     // Epoch
-    let offset = 
-        4+1 // Y always a 4 digit number, even on RINEX2
+    let offset = 4+1 // Y always a 4 digit number, even on RINEX2
        +2+1 // m
        +2+1  // d
        +2+1  // h
@@ -210,9 +202,7 @@ pub (crate)fn parse_epoch(version: Version, content: &str) ->
 
     // data fields
     let mut data = Data::default();
-    let items :Vec<&str> = line
-        .split_ascii_whitespace()
-        .collect();
+    let items: Vec<&str> = line.split_ascii_whitespace().collect();
     data.bias = f64::from_str(items[9].trim())?; // bias must pass
     if n > 1 {
         if let Ok(f) = f64::from_str(items[10].trim()) {
@@ -223,9 +213,7 @@ pub (crate)fn parse_epoch(version: Version, content: &str) ->
     if n > 2 {
         if let Some(l) = lines.next() {
             let line = l.clone();
-            let items :Vec<&str> = line
-                .split_ascii_whitespace()
-                .collect();
+            let items: Vec<&str> = line.split_ascii_whitespace().collect();
             for i in 0..items.len() {
                 if let Ok(f) = f64::from_str(items[i].trim()) {
                     if i == 0 {
@@ -241,44 +229,39 @@ pub (crate)fn parse_epoch(version: Version, content: &str) ->
             }
         }
     }
-    
+
     Ok((epoch, data_type, system, data))
 }
 
 /// Writes epoch into stream
-pub (crate)fn fmt_epoch (
-	epoch: &Epoch, 
-	data: &HashMap<DataType, HashMap<System, Data>>,
-    ) -> Result<String, Error> 
-{
+pub(crate) fn fmt_epoch(
+    epoch: &Epoch,
+    data: &HashMap<DataType, HashMap<System, Data>>,
+) -> Result<String, Error> {
     let mut lines = String::with_capacity(128);
-	for (dtype, data) in data.iter() {
-		for (system, data) in data.iter() {
-			lines.push_str(&format!(
-				"{} {} {} ", 
-				dtype, 
-				system,
-				epoch));
-			lines.push_str(&format!("{:.13E} ", data.bias));
-			if let Some(sigma) = data.bias_sigma {
-				lines.push_str(&format!("{:.13E} ", sigma));
-			}
-			if let Some(rate) = data.rate {
-				lines.push_str(&format!("{:.13E} ", rate));
-			}
-			if let Some(sigma) = data.rate_sigma {
-				lines.push_str(&format!("{:.13E} ", sigma));
-			}
-			if let Some(accel) = data.accel {
-				lines.push_str(&format!("{:.13E} ", accel));
-			}
-			if let Some(sigma) = data.accel_sigma {
-				lines.push_str(&format!("{:.13E} ", sigma));
-			}
+    for (dtype, data) in data.iter() {
+        for (system, data) in data.iter() {
+            lines.push_str(&format!("{} {} {} ", dtype, system, epoch));
+            lines.push_str(&format!("{:.13E} ", data.bias));
+            if let Some(sigma) = data.bias_sigma {
+                lines.push_str(&format!("{:.13E} ", sigma));
+            }
+            if let Some(rate) = data.rate {
+                lines.push_str(&format!("{:.13E} ", rate));
+            }
+            if let Some(sigma) = data.rate_sigma {
+                lines.push_str(&format!("{:.13E} ", sigma));
+            }
+            if let Some(accel) = data.accel {
+                lines.push_str(&format!("{:.13E} ", accel));
+            }
+            if let Some(sigma) = data.accel_sigma {
+                lines.push_str(&format!("{:.13E} ", sigma));
+            }
             lines.push_str("\n");
-		}
-	}
-	Ok(lines)
+        }
+    }
+    Ok(lines)
 }
 
 #[cfg(test)]
@@ -286,21 +269,22 @@ mod test {
     use super::*;
     #[test]
     fn test_is_new_epoch() {
-        let c = "AR AREQ 1994 07 14 20 59  0.000000  6   -0.123456789012E+00 -0.123456789012E+01"; 
+        let c = "AR AREQ 1994 07 14 20 59  0.000000  6   -0.123456789012E+00 -0.123456789012E+01";
         assert_eq!(is_new_epoch(c), true);
-        let c = "RA AREQ 1994 07 14 20 59  0.000000  6   -0.123456789012E+00 -0.123456789012E+01"; 
+        let c = "RA AREQ 1994 07 14 20 59  0.000000  6   -0.123456789012E+00 -0.123456789012E+01";
         assert_eq!(is_new_epoch(c), false);
-        let c = "DR AREQ 1994 07 14 20 59  0.000000  6   -0.123456789012E+00 -0.123456789012E+01"; 
+        let c = "DR AREQ 1994 07 14 20 59  0.000000  6   -0.123456789012E+00 -0.123456789012E+01";
         assert_eq!(is_new_epoch(c), true);
-        let c = "CR AREQ 1994 07 14 20 59  0.000000  6   -0.123456789012E+00 -0.123456789012E+01"; 
+        let c = "CR AREQ 1994 07 14 20 59  0.000000  6   -0.123456789012E+00 -0.123456789012E+01";
         assert_eq!(is_new_epoch(c), true);
-        let c = "AS AREQ 1994 07 14 20 59  0.000000  6   -0.123456789012E+00 -0.123456789012E+01"; 
+        let c = "AS AREQ 1994 07 14 20 59  0.000000  6   -0.123456789012E+00 -0.123456789012E+01";
         assert_eq!(is_new_epoch(c), true);
-        let c = "CR USNO      1995 07 14 20 59 50.000000  2    0.123456789012E+00  -0.123456789012E-01";
+        let c =
+            "CR USNO      1995 07 14 20 59 50.000000  2    0.123456789012E+00  -0.123456789012E-01";
         assert_eq!(is_new_epoch(c), true);
-        let c = "AS G16  1994 07 14 20 59  0.000000  2   -0.123456789012E+00 -0.123456789012E+01"; 
+        let c = "AS G16  1994 07 14 20 59  0.000000  2   -0.123456789012E+00 -0.123456789012E+01";
         assert_eq!(is_new_epoch(c), true);
-        let c = "A  G16  1994 07 14 20 59  0.000000  2   -0.123456789012E+00 -0.123456789012E+01"; 
+        let c = "A  G16  1994 07 14 20 59  0.000000  2   -0.123456789012E+00 -0.123456789012E+01";
         assert_eq!(is_new_epoch(c), false);
     }
 }
@@ -346,15 +330,18 @@ impl Merge<Record> for Record {
                                         ddata.accel_sigma = Some(data);
                                     }
                                 }
-                            } else { // new system
+                            } else {
+                                // new system
                                 ssystems.insert(system.clone(), data.clone());
                             }
                         }
-                    } else { //new data type
+                    } else {
+                        //new data type
                         ddtypes.insert(dtype.clone(), systems.clone());
                     }
                 }
-            } else { // new epoch
+            } else {
+                // new epoch
                 self.insert(*epoch, dtypes.clone());
             }
         }
@@ -364,7 +351,8 @@ impl Merge<Record> for Record {
 
 impl Split<Record> for Record {
     fn split(&self, epoch: Epoch) -> Result<(Self, Self), split::Error> {
-        let r0 = self.iter()
+        let r0 = self
+            .iter()
             .flat_map(|(k, v)| {
                 if k <= &epoch {
                     Some((k.clone(), v.clone()))
@@ -373,7 +361,8 @@ impl Split<Record> for Record {
                 }
             })
             .collect();
-        let r1 = self.iter()
+        let r1 = self
+            .iter()
             .flat_map(|(k, v)| {
                 if k > &epoch {
                     Some((k.clone(), v.clone()))

@@ -1,20 +1,17 @@
-//! Carrier channels and associated methods 
-use thiserror::Error;
-use std::str::FromStr;
-use crate::sv;
+//! Carrier channels and associated methods
 use crate::constellation::Constellation;
+use crate::sv;
+use std::str::FromStr;
+use thiserror::Error;
 
-#[derive(Debug, Clone, Copy)]
-#[derive(Hash)]
-#[derive(PartialEq, Eq)]
-#[derive(PartialOrd)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum Channel {
     /// L1 (GPS, SBAS, QZSS)
     L1,
     /// L2 (GPS, QZSS)
     L2,
-    /// L5 (GPS, SBAS), QZSS 
+    /// L5 (GPS, SBAS), QZSS
     L5,
     /// L6 (LEX) QZSS
     L6,
@@ -29,7 +26,7 @@ pub enum Channel {
     /// E2: GAL
     E2,
     /// E5: GAL E5a + E5b
-    E5, 
+    E5,
     /// E6: GAL military
     E6,
     /// B1: BeiDou 1
@@ -66,47 +63,42 @@ pub enum Error {
 }
 
 impl FromStr for Channel {
-    type Err = Error; 
-    fn from_str (s: &str) -> Result<Self, Self::Err> {
-        if s.contains("L1") { 
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.contains("L1") {
             Ok(Channel::L1)
         } else if s.contains("L2") {
             Ok(Channel::L2)
         } else if s.contains("L5") {
             Ok(Channel::L5)
-        
         } else if s.contains("G1") {
             if s.eq("G1") {
                 Ok(Channel::G1(None))
             } else if s.contains("G1(") {
-                let items : Vec<&str> = s.split("(").collect();
-                let item = items[1].replace(")","");
-                Ok(Channel::G1(
-                    Some(u8::from_str_radix(&item, 10)?)))
+                let items: Vec<&str> = s.split("(").collect();
+                let item = items[1].replace(")", "");
+                Ok(Channel::G1(Some(u8::from_str_radix(&item, 10)?)))
             } else {
                 Err(Error::ParseError(s.to_string()))
             }
-        
         } else if s.contains("G2") {
             if s.eq("G2") {
                 Ok(Channel::G2(None))
             } else if s.contains("G2(") {
-                let items : Vec<&str> = s.split("(").collect();
-                let item = items[1].replace(")","");
-                Ok(Channel::G2(
-                    Some(u8::from_str_radix(&item, 10)?)))
+                let items: Vec<&str> = s.split("(").collect();
+                let item = items[1].replace(")", "");
+                Ok(Channel::G2(Some(u8::from_str_radix(&item, 10)?)))
             } else {
                 Err(Error::ParseError(s.to_string()))
             }
-
         } else {
-            Err(Error::ParseError(s.to_string())) 
+            Err(Error::ParseError(s.to_string()))
         }
     }
 }
 
 impl Channel {
-    /// Returns frequency associated to this channel in MHz 
+    /// Returns frequency associated to this channel in MHz
     pub fn carrier_frequency_mhz(&self) -> f64 {
         match self {
             Channel::L1 | Channel::E1 => 1575.42_f64,
@@ -114,9 +106,9 @@ impl Channel {
             Channel::L5 => 1176.45_f64,
             Channel::E5 => 1191.795_f64,
             Channel::E6 => 1278.75_f64,
-            Channel::G1(Some(c)) => 1602.0_f64 + (*c as f64 *9.0/16.0), 
+            Channel::G1(Some(c)) => 1602.0_f64 + (*c as f64 * 9.0 / 16.0),
             Channel::G1(_) => 1602.0_f64,
-            Channel::G2(Some(c)) => 1246.06_f64 + (*c as f64 * 7.0/16.0),
+            Channel::G2(Some(c)) => 1246.06_f64 + (*c as f64 * 7.0 / 16.0),
             Channel::G2(_) => 1246.06_f64,
             Channel::G3 => 1202.025_f64,
             Channel::L6 => 1278.75_f64,
@@ -124,17 +116,17 @@ impl Channel {
             Channel::B1A => 1575.42_f64,
             Channel::B1C => 1575.42_f64,
             Channel::B2 => 1207.140_f64,
-            Channel::B3 => 1268.52_f64, 
+            Channel::B3 => 1268.52_f64,
             Channel::S => 2492.028_f64,
         }
     }
     /// Returns wavelength of this channel
     pub fn carrier_wavelength(&self) -> f64 {
-        299792458.0 / self.carrier_frequency_mhz() /10.0E6
+        299792458.0 / self.carrier_frequency_mhz() / 10.0E6
     }
-    
+
     /// Returns channel bandwidth in MHz
-    pub fn bandwidth_mhz (&self) -> f64 {
+    pub fn bandwidth_mhz(&self) -> f64 {
         match self {
             Channel::L1 | Channel::G1(_) | Channel::E1 => 15.345_f64,
             Channel::L2 | Channel::G2(_) | Channel::E2 => 11.0_f64,
@@ -153,7 +145,7 @@ impl Channel {
 
     /// Identifies Frequency channel, from given observable, related
     /// to given Constellation
-    pub fn from_observable (constellation: Constellation, observable: &str) -> Result<Self, Error> {
+    pub fn from_observable(constellation: Constellation, observable: &str) -> Result<Self, Error> {
         match constellation {
             Constellation::GPS => {
                 if observable.contains("1") {
@@ -219,70 +211,65 @@ impl Channel {
                     Err(Error::InvalidObservable(observable.to_string()))
                 }
             },
-            _ => todo!("not implemented for constellation \"{}\" yet..", constellation.to_3_letter_code()),
+            _ => todo!(
+                "not implemented for constellation \"{}\" yet..",
+                constellation.to_3_letter_code()
+            ),
         }
     }
-    
+
     /// Builds a Channel Frequency from an `Sv` 3 letter code descriptor,
     /// mainly used in `ATX` RINEX for so called `frequency` field
-    pub fn from_sv_code (code: &str) -> Result<Self, Error> {
+    pub fn from_sv_code(code: &str) -> Result<Self, Error> {
         let sv = sv::Sv::from_str(code)?;
         match sv.constellation {
-            Constellation::GPS => {
-                match sv.prn {
-                    1 => Ok(Self::L1),
-                    2 => Ok(Self::L2),
-                    5 => Ok(Self::L5),
-                    _ => Ok(Self::L1),
-                }
+            Constellation::GPS => match sv.prn {
+                1 => Ok(Self::L1),
+                2 => Ok(Self::L2),
+                5 => Ok(Self::L5),
+                _ => Ok(Self::L1),
             },
-            Constellation::Glonass => {
-                match sv.prn {
-                    1 => Ok(Self::G1(None)),
-                    2 => Ok(Self::G2(None)),
-                    _ => Ok(Self::G1(None)),
-                }
+            Constellation::Glonass => match sv.prn {
+                1 => Ok(Self::G1(None)),
+                2 => Ok(Self::G2(None)),
+                _ => Ok(Self::G1(None)),
             },
-            Constellation::Galileo => { 
-                match sv.prn {
-                    1 => Ok(Self::E1),
-                    2 => Ok(Self::E2),
-                    5 => Ok(Self::E5),
-                    _ => Ok(Self::E1),
-                }
+            Constellation::Galileo => match sv.prn {
+                1 => Ok(Self::E1),
+                2 => Ok(Self::E2),
+                5 => Ok(Self::E5),
+                _ => Ok(Self::E1),
             },
-            Constellation::SBAS(_) | Constellation::Geo => {
-                match sv.prn {
-                    1 => Ok(Self::L1),
-                    5 => Ok(Self::L5),
-                    _ => Ok(Self::L1),
-                }
+            Constellation::SBAS(_) | Constellation::Geo => match sv.prn {
+                1 => Ok(Self::L1),
+                5 => Ok(Self::L5),
+                _ => Ok(Self::L1),
             },
-            Constellation::BeiDou => {
-                match sv.prn {
-                    1 => Ok(Self::E1),
-                    2 => Ok(Self::E2),
-                    5 => Ok(Self::E5),
-                    6 => Ok(Self::E6),
-                    _ => Ok(Self::E1),
-                }
+            Constellation::BeiDou => match sv.prn {
+                1 => Ok(Self::E1),
+                2 => Ok(Self::E2),
+                5 => Ok(Self::E5),
+                6 => Ok(Self::E6),
+                _ => Ok(Self::E1),
             },
-            Constellation::QZSS => {
-                match sv.prn {
-                    1 => Ok(Self::L1),
-                    2 => Ok(Self::L2),
-                    5 => Ok(Self::L5),
-                    _ => Ok(Self::L1),
-                }
+            Constellation::QZSS => match sv.prn {
+                1 => Ok(Self::L1),
+                2 => Ok(Self::L2),
+                5 => Ok(Self::L5),
+                _ => Ok(Self::L1),
             },
             Constellation::IRNSS => {
-                match sv.prn { // TODO: confirm!
+                match sv.prn {
+                    // TODO: confirm!
                     1 => Ok(Self::L1),
                     5 => Ok(Self::L5),
                     _ => Ok(Self::L1),
                 }
             },
-            _ => panic!("non supported conversion from {}", sv.constellation.to_3_letter_code())
+            _ => panic!(
+                "non supported conversion from {}",
+                sv.constellation.to_3_letter_code()
+            ),
         }
     }
 }

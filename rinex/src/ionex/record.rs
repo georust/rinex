@@ -1,43 +1,36 @@
 use crate::{
-    prelude::*,
-    merge, merge::Merge,
-    split, split::Split,
-    sampling::Decimation,
-    gnss_time::TimeScaling,
+    gnss_time::TimeScaling, merge, merge::Merge, prelude::*, sampling::Decimation, split,
+    split::Split,
 };
 
-use super::{
-    grid,
-    GridLinspace,
-};
+use super::{grid, GridLinspace};
 
-use thiserror::Error;
-use std::str::FromStr;
-use std::collections::BTreeMap;
 use hifitime::Duration;
+use std::collections::BTreeMap;
+use std::str::FromStr;
+use thiserror::Error;
 
-pub (crate)fn is_new_tec_map(line: &str) -> bool {
-    line.contains("START OF TEC MAP") 
+pub(crate) fn is_new_tec_map(line: &str) -> bool {
+    line.contains("START OF TEC MAP")
 }
 
-pub (crate)fn is_new_rms_map(line: &str) -> bool {
-    line.contains("START OF RMS MAP") 
+pub(crate) fn is_new_rms_map(line: &str) -> bool {
+    line.contains("START OF RMS MAP")
 }
 
-pub (crate)fn is_new_height_map (line: &str) -> bool {
-    line.contains("START OF HEIGHT MAP") 
+pub(crate) fn is_new_height_map(line: &str) -> bool {
+    line.contains("START OF HEIGHT MAP")
 }
 
 /// Returns true if given content describes the start of
 /// a Ionosphere map.
-pub (crate)fn is_new_map(line: &str) -> bool {
+pub(crate) fn is_new_map(line: &str) -> bool {
     is_new_tec_map(line) || is_new_rms_map(line) || is_new_height_map(line)
 }
 
 /// A Map is a list of estimates for
 /// a given Latitude, Longitude, Altitude
-#[derive(Debug, Clone)]
-#[derive(PartialEq, PartialOrd)]
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct MapPoint {
     /// Latitude of this estimate
@@ -66,11 +59,11 @@ pub type Map = Vec<MapPoint>;
 /// if let Some(params) = rinex.header.ionex {
 ///     assert_eq!(params.grid.height.start, 350.0); // 2D: record uses
 ///     assert_eq!(params.grid.height.end, 350.0); // fixed altitude
-///     assert_eq!(params.grid.latitude.start, 87.5); 
-///     assert_eq!(params.grid.latitude.end, -87.5); 
+///     assert_eq!(params.grid.latitude.start, 87.5);
+///     assert_eq!(params.grid.latitude.end, -87.5);
 ///     assert_eq!(params.grid.latitude.spacing, -2.5); // latitude granularity (degrees)
-///     assert_eq!(params.grid.longitude.start, -180.0); 
-///     assert_eq!(params.grid.longitude.end, 180.0); 
+///     assert_eq!(params.grid.longitude.start, -180.0);
+///     assert_eq!(params.grid.longitude.end, 180.0);
 ///     assert_eq!(params.grid.longitude.spacing, 5.0); // longitude granularity (degrees)
 ///     assert_eq!(params.exponent, -1); // data scaling. May vary accross epochs.
 ///                             // so this is only the last value encountered
@@ -103,7 +96,7 @@ pub enum Error {
     #[error("faulty epoch description")]
     EpochDescriptionError,
     #[error("faulty longitude range definition")]
-    LongitudeRangeError(#[from] grid::Error),  
+    LongitudeRangeError(#[from] grid::Error),
 }
 
 /*
@@ -113,7 +106,7 @@ pub enum Error {
  *  - an height map
  * defined for returned Epoch
  */
-pub (crate)fn parse_map(header: &mut Header, content: &str) -> Result<(usize, Epoch, Map), Error> {
+pub(crate) fn parse_map(header: &mut Header, content: &str) -> Result<(usize, Epoch, Map), Error> {
     let lines = content.lines();
     let mut epoch = Epoch::default();
     let mut map = Map::with_capacity(128); // result
@@ -121,14 +114,15 @@ pub (crate)fn parse_map(header: &mut Header, content: &str) -> Result<(usize, Ep
     let mut altitude: f32 = 0.0; // current altitude
     let mut ptr: usize = 0; // pointer in longitude space
     let mut linspace = GridLinspace::default(); // (longitude) linspace
-    let ionex = header.ionex
+    let ionex = header
+        .ionex
         .as_mut()
         .expect("faulty ionex context: missing specific header definitions");
     for line in lines {
         if line.len() > 60 {
             let (content, marker) = line.split_at(60);
             if marker.contains("START OF") {
-                continue ; // skip that one
+                continue; // skip that one
             } else if marker.contains("END OF") && marker.contains("MAP") {
                 let index = content.split_at(6).0;
                 if let Ok(u) = u32::from_str_radix(index.trim(), 10) {
@@ -136,7 +130,6 @@ pub (crate)fn parse_map(header: &mut Header, content: &str) -> Result<(usize, Ep
                 } else {
                     return Err(Error::ParseIndexError);
                 }
-
             } else if marker.contains("LAT/LON1/LON2/DLON/H") {
                 // space coordinates definition for next block
                 let (_, rem) = content.split_at(2);
@@ -145,23 +138,19 @@ pub (crate)fn parse_map(header: &mut Header, content: &str) -> Result<(usize, Ep
                 let (lon2, rem) = rem.split_at(6);
                 let (dlon, rem) = rem.split_at(6);
                 let (h, _) = rem.split_at(6);
-                latitude = f32::from_str(lat.trim())
-                    .expect("failed to parse grid latitude start point");
-                let lon1 = f32::from_str(lon1.trim())
-                    .expect("failed to parse longitude start point");
-                let lon2 = f32::from_str(lon2.trim())
-                    .expect("failed to parse longitude end point");
-                let dlon = f32::from_str(dlon.trim())
-                    .expect("failed to parse longitude grid spacing");
-                altitude = f32::from_str(h.trim())
-                    .expect("failed to parse next grid altitude");
+                latitude =
+                    f32::from_str(lat.trim()).expect("failed to parse grid latitude start point");
+                let lon1 =
+                    f32::from_str(lon1.trim()).expect("failed to parse longitude start point");
+                let lon2 = f32::from_str(lon2.trim()).expect("failed to parse longitude end point");
+                let dlon =
+                    f32::from_str(dlon.trim()).expect("failed to parse longitude grid spacing");
+                altitude = f32::from_str(h.trim()).expect("failed to parse next grid altitude");
                 linspace = GridLinspace::new(lon1, lon2, dlon)?;
                 ptr = 0;
-
             } else if marker.contains("EPOCH OF CURRENT MAP") {
                 // time definition
-                let items: Vec<&str> = content.split_ascii_whitespace()
-                    .collect();
+                let items: Vec<&str> = content.split_ascii_whitespace().collect();
                 if items.len() != 6 {
                     return Err(Error::EpochDescriptionError);
                 }
@@ -181,11 +170,10 @@ pub (crate)fn parse_map(header: &mut Header, content: &str) -> Result<(usize, Ep
             } else if marker.contains("EXPONENT") {
                 // scaling redefinition
                 if let Ok(e) = i8::from_str_radix(content.trim(), 10) {
-                    *ionex = ionex
-                        .with_exponent(e); // scaling update
+                    *ionex = ionex.with_exponent(e); // scaling update
                 }
             } else {
-                // parsing TEC values 
+                // parsing TEC values
                 for item in line.split_ascii_whitespace().into_iter() {
                     if let Ok(v) = i32::from_str_radix(item.trim(), 10) {
                         // parse & apply correct scaling
@@ -201,8 +189,9 @@ pub (crate)fn parse_map(header: &mut Header, content: &str) -> Result<(usize, Ep
                     }
                 }
             }
-        } else { // less than 60 characters
-            // parsing TEC values 
+        } else {
+            // less than 60 characters
+            // parsing TEC values
             for item in line.split_ascii_whitespace().into_iter() {
                 if let Ok(v) = i32::from_str_radix(item.trim(), 10) {
                     // parse & apply correct scaling
@@ -222,16 +211,35 @@ pub (crate)fn parse_map(header: &mut Header, content: &str) -> Result<(usize, Ep
     Ok((0, epoch, map))
 }
 
-
 #[cfg(test)]
 mod test {
     use super::*;
     #[test]
     fn test_new_tec_map() {
-        assert_eq!(is_new_tec_map("1                                                      START OF TEC MAP"), true); 
-        assert_eq!(is_new_tec_map("1                                                      START OF RMS MAP"), false); 
-        assert_eq!(is_new_rms_map("1                                                      START OF RMS MAP"), true); 
-        assert_eq!(is_new_height_map("1                                                      START OF HEIGHT MAP"), true); 
+        assert_eq!(
+            is_new_tec_map(
+                "1                                                      START OF TEC MAP"
+            ),
+            true
+        );
+        assert_eq!(
+            is_new_tec_map(
+                "1                                                      START OF RMS MAP"
+            ),
+            false
+        );
+        assert_eq!(
+            is_new_rms_map(
+                "1                                                      START OF RMS MAP"
+            ),
+            true
+        );
+        assert_eq!(
+            is_new_height_map(
+                "1                                                      START OF HEIGHT MAP"
+            ),
+            true
+        );
     }
 }
 
@@ -244,11 +252,11 @@ impl Merge<Record> for Record {
     }
     /// Merges `rhs` into `Self`
     fn merge_mut(&mut self, _rhs: &Self) -> Result<(), merge::Error> {
-    /*
+        /*
         for (epoch, maps) in rhs.iter() {
             if let (tec, Some(rms), Some(h)) = maps {
                 if let Some(maps) = self.get_mut(epoch) {
-                    let ((ttec, rrms, hh)) = maps; 
+                    let ((ttec, rrms, hh)) = maps;
                     if rrms.is_none() {
                         // RMS map now provided for this epoch
                         rrms = Some(map);
@@ -268,7 +276,8 @@ impl Merge<Record> for Record {
 
 impl Split<Record> for Record {
     fn split(&self, epoch: Epoch) -> Result<(Self, Self), split::Error> {
-        let r0 = self.iter()
+        let r0 = self
+            .iter()
             .flat_map(|(k, v)| {
                 if *k < epoch {
                     Some((k.clone(), v.clone()))
@@ -277,7 +286,8 @@ impl Split<Record> for Record {
                 }
             })
             .collect();
-        let r1 = self.iter()
+        let r1 = self
+            .iter()
             .flat_map(|(k, v)| {
                 if *k >= epoch {
                     Some((k.clone(), v.clone()))

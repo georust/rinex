@@ -2,7 +2,7 @@ use crate::bias;
 use thiserror::Error;
 
 /// Returns true if given content matches a Header line
-pub fn is_valid_header (line: &str) -> bool {
+pub fn is_valid_header(line: &str) -> bool {
     line.starts_with("%=")
 }
 
@@ -29,7 +29,7 @@ pub enum DocumentTypeError {
 
 impl std::str::FromStr for DocumentType {
     type Err = DocumentTypeError;
-    fn from_str (content: &str) -> Result<Self, Self::Err> {
+    fn from_str(content: &str) -> Result<Self, Self::Err> {
         if content.eq("TRO") {
             Ok(Self::TropoCoordinates)
         } else if content.eq("BIA") {
@@ -57,7 +57,7 @@ impl Default for Header {
 
 impl std::str::FromStr for Header {
     type Err = DocumentTypeError;
-    fn from_str (content: &str) -> Result<Self, Self::Err> {
+    fn from_str(content: &str) -> Result<Self, Self::Err> {
         if let Ok(hd) = bias::header::Header::from_str(content) {
             Ok(Self::BiasHeader(hd))
         //} else if let Ok(hd) = troposphere::Header::from_str(content) {
@@ -69,7 +69,7 @@ impl std::str::FromStr for Header {
 }
 
 impl Header {
-    pub fn bias_header (&self) -> Option<&bias::header::Header> {
+    pub fn bias_header(&self) -> Option<&bias::header::Header> {
         match self {
             Self::BiasHeader(h) => Some(h),
         }

@@ -1,8 +1,7 @@
 //! Antex - special RINEX type specific structures
 use crate::channel;
 
-#[derive(Debug, Clone)]
-#[derive(PartialEq, PartialOrd)]
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum Pattern {
     /// Non azimuth dependent pattern
@@ -19,7 +18,7 @@ impl Default for Pattern {
 
 impl Pattern {
     /// Returns true if this phase pattern is azimuth dependent
-    pub fn is_azimuth_dependent (&self) -> bool {
+    pub fn is_azimuth_dependent(&self) -> bool {
         match self {
             Self::AzimuthDependent(_) => true,
             _ => false,
@@ -27,7 +26,7 @@ impl Pattern {
     }
     /// Unwraps pattern values, whether it is
     /// Azimuth dependent or not
-    pub fn pattern (&self) -> Vec<f64> {
+    pub fn pattern(&self) -> Vec<f64> {
         match self {
             Self::AzimuthDependent((_, values)) => values.clone(),
             Self::NonAzimuthDependent(values) => values.clone(),
@@ -35,18 +34,17 @@ impl Pattern {
     }
     /// Unwraps pattern and associated azimuth angle,
     /// in case of azimuth dependent phase pattern
-    pub fn azimuth_pattern (&self) -> Option<(f64, Vec<f64>)> {
+    pub fn azimuth_pattern(&self) -> Option<(f64, Vec<f64>)> {
         match self {
             Self::AzimuthDependent((angle, values)) => Some((*angle, values.clone())),
-            _ => None
+            _ => None,
         }
     }
 }
 
 /// Describes "frequency" data attached to a specific Antenna
 /// in the ATX record
-#[derive(Debug, Clone)]
-#[derive(PartialEq, PartialOrd)]
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Frequency {
     /// Channel, example: L1, L2 for GPS, E1, E5 for GAL...
@@ -66,7 +64,7 @@ pub struct Frequency {
     /// Phase pattern, values in [mm] from antenna.zen1 to antenna.zen2
     /// with increment antenna.dzen, can either be Azimuth or NonAzimmuth
     /// dependent
-    pub patterns: Vec<Pattern>, 
+    pub patterns: Vec<Pattern>,
 }
 
 impl Default for Frequency {
@@ -82,27 +80,27 @@ impl Default for Frequency {
 }
 
 impl Frequency {
-    pub fn with_channel (&self, channel: channel::Channel) -> Self {
+    pub fn with_channel(&self, channel: channel::Channel) -> Self {
         let mut f = self.clone();
         f.channel = channel.clone();
         f
     }
-    pub fn with_northern_eccentricity (&self, north: f64) -> Self {
+    pub fn with_northern_eccentricity(&self, north: f64) -> Self {
         let mut f = self.clone();
         f.north = north;
         f
     }
-    pub fn with_eastern_eccentricity (&self, east: f64) -> Self {
+    pub fn with_eastern_eccentricity(&self, east: f64) -> Self {
         let mut f = self.clone();
         f.east = east;
         f
     }
-    pub fn with_upper_eccentricity (&self, up: f64) -> Self {
+    pub fn with_upper_eccentricity(&self, up: f64) -> Self {
         let mut f = self.clone();
         f.up = up;
         f
     }
-    pub fn add_pattern (&self, p: Pattern) -> Self {
+    pub fn add_pattern(&self, p: Pattern) -> Self {
         let mut f = self.clone();
         f.patterns.push(p.clone());
         f

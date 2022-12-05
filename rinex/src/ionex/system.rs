@@ -1,10 +1,7 @@
-use thiserror::Error;
+use crate::{constellation, Constellation};
 use std::str::FromStr;
-use crate::{
-    constellation,
-    Constellation,
-};
 use strum_macros::EnumString;
+use thiserror::Error;
 
 /// Reference System parsing error
 #[derive(Error, Debug)]
@@ -18,8 +15,7 @@ pub enum Error {
 /// RefSystem "Reference System" describes either reference GNSS
 /// constellation, from which TEC maps were evaluated,
 /// or theoretical model used
-#[derive(Debug, Clone)]
-#[derive(PartialEq, PartialOrd)]
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum RefSystem {
     /// Reference Constellation.
@@ -37,9 +33,7 @@ pub enum RefSystem {
     Model(Model),
 }
 
-#[derive(Debug, Clone)]
-#[derive(PartialEq, PartialOrd)]
-#[derive(EnumString)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, EnumString)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum ObsSystem {
     /// BENt
@@ -49,7 +43,7 @@ pub enum ObsSystem {
     #[strum(serialize = "ENV")]
     ENVisat,
     /// European Remote Sensing Satellite (ESA).
-    /// ERS-1 or ERS-2 were Earth observation satellites. 
+    /// ERS-1 or ERS-2 were Earth observation satellites.
     /// Now replaced by ENVisat.
     ERS,
     /// IRI: Earth Observation Application group
@@ -58,13 +52,11 @@ pub enum ObsSystem {
 
 impl std::fmt::Display for ObsSystem {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        f.write_str(&self.to_string()) 
+        f.write_str(&self.to_string())
     }
 }
 
-#[derive(Debug, Clone)]
-#[derive(PartialEq, PartialOrd)]
-#[derive(EnumString)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, EnumString)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum Model {
     /// Mixed / combined models.
@@ -80,7 +72,7 @@ pub enum Model {
 
 impl std::fmt::Display for Model {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        f.write_str(&self.to_string()) 
+        f.write_str(&self.to_string())
     }
 }
 

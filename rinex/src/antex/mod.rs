@@ -1,24 +1,19 @@
 //! Antex (ATX) - special RINEX, for antenna caracteristics
-pub mod pcv;
-pub mod record;
 pub mod antenna;
 pub mod frequency;
+pub mod pcv;
+pub mod record;
 
+pub use antenna::{Antenna, Calibration, CalibrationMethod};
+pub use frequency::{Frequency, Pattern};
 pub use pcv::Pcv;
 pub use record::Record;
-pub use frequency::{Frequency, Pattern};
-pub use antenna::{
-	Antenna, 
-    Calibration, 
-    CalibrationMethod,
-};
 
-#[derive(Clone, Debug, Default)]
-#[derive(PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct HeaderFields {
     /// Phase Center Variations
-    pub pcv: pcv::Pcv, 
+    pub pcv: pcv::Pcv,
     /// Optionnal reference antenna Serial Number
     /// used to produce this calibration file
     pub reference_sn: Option<String>,

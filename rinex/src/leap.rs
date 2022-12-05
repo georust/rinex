@@ -1,6 +1,6 @@
-//! Describes `leap` second information, contained in `header` 
-use thiserror::Error;
+//! Describes `leap` second information, contained in `header`
 use hifitime::TimeScale;
+use thiserror::Error;
 
 /// `Leap` to describe leap seconds.
 /// GLO = UTC = GPS - ΔtLS   
@@ -10,11 +10,11 @@ use hifitime::TimeScale;
 pub struct Leap {
     /// current number
     pub leap: u32,
-    /// ΔtLS : "future or past leap second(s)", 
+    /// ΔtLS : "future or past leap second(s)",
     /// actual number of leap seconds between GPS/GAL and GLO,
     /// or BDS and UTC.
     pub delta_tls: Option<u32>,
-    /// weeks counter 
+    /// weeks counter
     pub week: Option<u32>,
     /// days counter
     pub day: Option<u32>,
@@ -25,7 +25,7 @@ pub struct Leap {
 #[derive(Error, Debug)]
 pub enum Error {
     #[error("failed to parse leap integer number")]
-    ParseIntError(#[from] std::num::ParseIntError), 
+    ParseIntError(#[from] std::num::ParseIntError),
     #[error("failed to parse leap timescale")]
     TimeScaleError(#[from] hifitime::Errors),
 }
@@ -45,7 +45,13 @@ impl Default for Leap {
 
 impl Leap {
     /// Builds a new `Leap` object to describe leap seconds
-    pub fn new (leap: u32, delta_tls: Option<u32>, week: Option<u32>, day: Option<u32>, timescale: Option<TimeScale>) -> Self {
+    pub fn new(
+        leap: u32,
+        delta_tls: Option<u32>,
+        week: Option<u32>,
+        day: Option<u32>,
+        timescale: Option<TimeScale>,
+    ) -> Self {
         Self {
             leap,
             delta_tls,
@@ -57,29 +63,28 @@ impl Leap {
 }
 
 impl std::str::FromStr for Leap {
-    type Err = Error; 
+    type Err = Error;
     /// Builds `Leap` from standard RINEX descriptor
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut ls = Leap::default();
         // leap second has two format
-        let items: Vec<&str> = s.split_ascii_whitespace()
-            .collect();
+        let items: Vec<&str> = s.split_ascii_whitespace().collect();
         match items.len() > 2 {
             false => {
                 // [1] simple format: basic
-                ls.leap = u32::from_str_radix(items[0].trim(),10)?
+                ls.leap = u32::from_str_radix(items[0].trim(), 10)?
             },
-            true => { 
+            true => {
                 // [2] complex format: advanced infos
                 let (leap, rem) = s.split_at(5);
                 let (tls, rem) = rem.split_at(5);
                 let (week, rem) = rem.split_at(5);
                 let (day, rem) = rem.split_at(5);
                 let system = rem.trim();
-                ls.leap = u32::from_str_radix(leap.trim(),10)?;
-                ls.delta_tls = Some(u32::from_str_radix(tls.trim(),10)?);
-                ls.week = Some(u32::from_str_radix(week.trim(),10)?);
-                ls.day = Some(u32::from_str_radix(day.trim(),10)?);
+                ls.leap = u32::from_str_radix(leap.trim(), 10)?;
+                ls.delta_tls = Some(u32::from_str_radix(tls.trim(), 10)?);
+                ls.week = Some(u32::from_str_radix(week.trim(), 10)?);
+                ls.day = Some(u32::from_str_radix(day.trim(), 10)?);
                 if system.eq("") {
                     ls.timescale = None
                 } else {
@@ -98,7 +103,7 @@ mod test {
     #[test]
     fn basic_format() {
         let content = "18";
-        let leap = Leap::from_str(content); 
+        let leap = Leap::from_str(content);
         assert_eq!(leap.is_ok(), true);
         let leap = leap.unwrap();
         assert_eq!(leap.leap, 18);
@@ -106,7 +111,7 @@ mod test {
     #[test]
     fn standard_format() {
         let content = "18    18  2185     7";
-        let leap = Leap::from_str(content); 
+        let leap = Leap::from_str(content);
         assert_eq!(leap.is_ok(), true);
         let leap = leap.unwrap();
         assert_eq!(leap.leap, 18);
@@ -116,7 +121,7 @@ mod test {
     #[test]
     fn parse_with_timescale() {
         let content = "18    18  2185     7GPS";
-        let leap = Leap::from_str(content); 
+        let leap = Leap::from_str(content);
         assert_eq!(leap.is_ok(), true);
         let leap = leap.unwrap();
         assert_eq!(leap.leap, 18);

@@ -18,7 +18,7 @@ pub struct Reference {
 }
 
 impl Reference {
-    pub fn with_description (&self, description: &str) -> Self {
+    pub fn with_description(&self, description: &str) -> Self {
         Self {
             description: description.to_string(),
             input: self.input.clone(),
@@ -28,7 +28,7 @@ impl Reference {
             hardware: self.hardware.clone(),
         }
     }
-    pub fn with_input (&self, input: &str) -> Self {
+    pub fn with_input(&self, input: &str) -> Self {
         Self {
             description: self.description.clone(),
             input: input.to_string(),
@@ -38,7 +38,7 @@ impl Reference {
             hardware: self.hardware.clone(),
         }
     }
-    pub fn with_output (&self, output: &str) -> Self {
+    pub fn with_output(&self, output: &str) -> Self {
         Self {
             description: self.description.clone(),
             input: self.input.clone(),
@@ -48,7 +48,7 @@ impl Reference {
             hardware: self.hardware.clone(),
         }
     }
-    pub fn with_contact (&self, contact: &str) -> Self {
+    pub fn with_contact(&self, contact: &str) -> Self {
         Self {
             description: self.description.clone(),
             input: self.input.clone(),
@@ -58,7 +58,7 @@ impl Reference {
             hardware: self.hardware.clone(),
         }
     }
-    pub fn with_software (&self, software: &str) -> Self {
+    pub fn with_software(&self, software: &str) -> Self {
         Self {
             description: self.description.clone(),
             input: self.input.clone(),
@@ -68,7 +68,7 @@ impl Reference {
             hardware: self.hardware.clone(),
         }
     }
-    pub fn with_hardware (&self, hardware: &str) -> Self {
+    pub fn with_hardware(&self, hardware: &str) -> Self {
         Self {
             description: self.description.clone(),
             input: self.input.clone(),

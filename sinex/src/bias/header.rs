@@ -1,15 +1,15 @@
-use thiserror::Error;
+use crate::datetime::{parse_datetime, ParseDateTimeError};
 use crate::header;
 use crate::header::is_valid_header;
-use crate::datetime::{parse_datetime, ParseDateTimeError};
+use thiserror::Error;
 
 #[derive(Debug, PartialEq, Clone)]
 /// Describes how the included GNSS
 /// bias values have to be interpreted and applied
 pub enum BiasMode {
-    /// Relative Bias 
+    /// Relative Bias
     Relative,
-    /// Abslute Bias 
+    /// Abslute Bias
     Absolute,
 }
 
@@ -27,7 +27,7 @@ impl Default for BiasMode {
 
 impl std::str::FromStr for BiasMode {
     type Err = BiasModeError;
-    fn from_str (content: &str) -> Result<Self, Self::Err> {
+    fn from_str(content: &str) -> Result<Self, Self::Err> {
         if content.eq("R") {
             Ok(BiasMode::Relative)
         } else if content.eq("RELATIVE") {
@@ -83,12 +83,12 @@ pub struct Header {
 
 impl std::str::FromStr for Header {
     type Err = Error;
-    fn from_str (content: &str) -> Result<Self, Self::Err> {
+    fn from_str(content: &str) -> Result<Self, Self::Err> {
         if !is_valid_header(content) {
-            return Err(Error::MissingHeaderDelimiter)
+            return Err(Error::MissingHeaderDelimiter);
         }
         if !content.starts_with("%=BIA") {
-            return Err(Error::NonBiasHeader)
+            return Err(Error::NonBiasHeader);
         }
 
         let (_, rem) = content.split_at(2); // marker

@@ -3,10 +3,9 @@
 use strum_macros::EnumString;
 
 #[cfg(feature = "serde")]
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-#[derive(EnumString)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, EnumString)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 /// GNSS Augmentation systems,
 /// must be used based on current location
@@ -40,37 +39,33 @@ impl Default for Augmentation {
 }
 
 #[cfg(feature = "sbas")]
-use std::str::FromStr;
+use geo::{point, Contains, LineString};
 #[cfg(feature = "sbas")]
 use std::iter::FromIterator;
 #[cfg(feature = "sbas")]
-use wkt::{Geometry, Wkt, WktFloat};
+use std::str::FromStr;
 #[cfg(feature = "sbas")]
-use geo::{point, Contains, LineString};
+use wkt::{Geometry, Wkt, WktFloat};
 
 #[cfg(feature = "sbas")]
-fn wkt_line_string_to_geo<T> (line_string: &wkt::types::LineString<T>) -> LineString<T>
+fn wkt_line_string_to_geo<T>(line_string: &wkt::types::LineString<T>) -> LineString<T>
 where
     T: WktFloat + Default + FromStr,
 {
-    LineString::from_iter(line_string.0
-        .iter()
-        .map(|coord| (coord.x, coord.y)))
+    LineString::from_iter(line_string.0.iter().map(|coord| (coord.x, coord.y)))
 }
 
 #[cfg(feature = "sbas")]
 fn line_string<T>(name: &str) -> LineString<T>
-where 
+where
     T: WktFloat + Default + FromStr,
 {
     let mut res = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     res.push("db");
     res.push("SBAS");
     res.push(name);
-    let content = std::fs::read_to_string(res)
-        .unwrap();
-    let wkt = Wkt::from_str(&content)
-        .unwrap();
+    let content = std::fs::read_to_string(res).unwrap();
+    let wkt = Wkt::from_str(&content).unwrap();
     match wkt.item {
         Geometry::LineString(line) => wkt_line_string_to_geo(&line),
         _ => unreachable!(),
@@ -79,31 +74,20 @@ where
 
 #[cfg(feature = "sbas")]
 fn load_database() -> Vec<(Augmentation, geo::Polygon)> {
-    let mut db :Vec<(Augmentation, geo::Polygon)> = Vec::new();
-    let db_path = env!("CARGO_MANIFEST_DIR")
-        .to_owned()
-        + "/db/SBAS/";
+    let mut db: Vec<(Augmentation, geo::Polygon)> = Vec::new();
+    let db_path = env!("CARGO_MANIFEST_DIR").to_owned() + "/db/SBAS/";
     let db_path = std::path::PathBuf::from(db_path);
-    for entry in std::fs::read_dir(db_path)
-        .unwrap()
-    {
-        let entry = entry
-            .unwrap();
+    for entry in std::fs::read_dir(db_path).unwrap() {
+        let entry = entry.unwrap();
         let path = entry.path();
-        let fullpath = &path.to_str()
-            .unwrap();
-        let extension = path.extension()
-            .unwrap()
-            .to_str()
-            .unwrap();
-        let name = path.file_stem()
-            .unwrap()
-            .to_str()
-            .unwrap();
+        let fullpath = &path.to_str().unwrap();
+        let extension = path.extension().unwrap().to_str().unwrap();
+        let name = path.file_stem().unwrap().to_str().unwrap();
         if extension.eq("wkt") {
             let poly = geo::Polygon::<f64>::new(
                 line_string(fullpath), // exterior boundaries
-                vec![]); // dont care about interior
+                vec![],
+            ); // dont care about interior
             if let Ok(sbas) = Augmentation::from_str(&name.to_uppercase()) {
                 db.push((sbas, poly))
             }
@@ -132,13 +116,10 @@ fn load_database() -> Vec<(Augmentation, geo::Polygon)> {
 #[cfg(feature = "sbas")]
 pub fn selection_helper(lat: f64, lon: f64) -> Option<Augmentation> {
     let db = load_database();
-    let point : geo::Point<f64> = point!(
-        x: lon,
-        y: lat,
-    );
+    let point: geo::Point<f64> = point!(x: lon, y: lat,);
     for (sbas, area) in db {
         if area.contains(&point) {
-            return Some(sbas.clone())
+            return Some(sbas.clone());
         }
     }
     None
@@ -155,16 +136,16 @@ mod test {
         let sbas = selection_helper(48.808378, 2.382682);
         assert_eq!(sbas.is_some(), true);
         assert_eq!(sbas.unwrap(), Augmentation::EGNOS);
-        
+
         // ANTARICA --> NONE
-        let sbas = selection_helper(-77.490631,  91.435181);
+        let sbas = selection_helper(-77.490631, 91.435181);
         assert_eq!(sbas.is_none(), true);
-        
+
         // LOS ANGELES --> WAAS
         let sbas = selection_helper(33.981431, -118.193601);
         assert_eq!(sbas.is_some(), true);
         assert_eq!(sbas.unwrap(), Augmentation::WAAS);
-        
+
         // ARGENTINA --> NONE
         let sbas = selection_helper(-23.216639, -63.170983);
         assert_eq!(sbas.is_none(), true);
@@ -173,7 +154,7 @@ mod test {
         let sbas = selection_helper(10.714217, 17.087263);
         assert_eq!(sbas.is_some(), true);
         assert_eq!(sbas.unwrap(), Augmentation::ASBAS);
-        
+
         // South AFRICA --> None
         let sbas = selection_helper(-32.473320, 21.112770);
         assert_eq!(sbas.is_none(), true);
@@ -186,7 +167,7 @@ mod test {
         // South Indian Ocean --> None
         let sbas = selection_helper(-29.349172, 72.773447);
         assert_eq!(sbas.is_none(), true);
-    
+
         // Australia --> SPAN
         let sbas = selection_helper(-27.579847, 131.334992);
         assert_eq!(sbas.is_some(), true);
@@ -203,7 +184,7 @@ mod test {
         // South Korea: KASS
         let sbas = selection_helper(37.067846, 128.34);
         assert_eq!(sbas, Some(Augmentation::KASS));
-        
+
         // Japan: MSAS
         let sbas = selection_helper(36.081095, 138.274859);
         assert_eq!(sbas, Some(Augmentation::MSAS));

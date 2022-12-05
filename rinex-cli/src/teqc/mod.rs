@@ -1,15 +1,9 @@
+use crate::fops::filename;
 use crate::Cli;
-use std::io::Write;
-use crate::fops::{filename};
-use rinex::{
-    *,
-    prelude::*,
-};
-use itertools::{
-    max,
-    Itertools,
-};
+use itertools::{max, Itertools};
+use rinex::{prelude::*, *};
 use std::collections::HashMap;
+use std::io::Write;
 
 //mod ascii_plot;
 
@@ -28,10 +22,10 @@ pub fn summary_report(cli: &Cli, prefix: &str, rnx: &Rinex, nav: &Option<Rinex>)
             println!("Reporting \"{}\"..\n", path);
         }
         do_report(
-            cli, 
+            cli,
             &path,
             constell,
-            /* 
+            /*
                 by filtering what we pass here,
                 the high level information, especially sample rate related,
                 are naturally adjusted and relevant
@@ -49,7 +43,10 @@ pub fn do_report(cli: &Cli, fp: &str, constell: Constellation, rnx: &Rinex, nav:
      * header content
      */
     report.push_str("************** VERBOSE / SUMMARY REPORT *************** \n");
-    report.push_str(&format!("rust-rnx - version: {}\n", env!("CARGO_PKG_VERSION")));
+    report.push_str(&format!(
+        "rust-rnx - version: {}\n",
+        env!("CARGO_PKG_VERSION")
+    ));
     report.push_str("******************************************************* \n\n");
     /*
      * proceed to ascii plot
@@ -57,11 +54,11 @@ pub fn do_report(cli: &Cli, fp: &str, constell: Constellation, rnx: &Rinex, nav:
     //report.push_str(&ascii_plot(128, &rnx, nav));
 
     let fname = filename(cli.input_path());
-    
+
     report.push_str("\n*********************\n");
-    report.push_str(&format!("QC of RINEX  file(s) : {}\n", fname)); 
+    report.push_str(&format!("QC of RINEX  file(s) : {}\n", fname));
     if let Some(path) = cli.nav_path() {
-        report.push_str(&format!("input RnxNAV file(s) : {}\n", filename(path))); 
+        report.push_str(&format!("input RnxNAV file(s) : {}\n", filename(path)));
     } else {
         report.push_str("input RnxNAV file(s) : None\n");
     }
@@ -70,10 +67,13 @@ pub fn do_report(cli: &Cli, fp: &str, constell: Constellation, rnx: &Rinex, nav:
     /*
      * General informations: file name, receiver and antenna infos
      */
-    report.push_str(&format!("4-character ID          : {}\n", &fname[0..4])); 
+    report.push_str(&format!("4-character ID          : {}\n", &fname[0..4]));
     report.push_str("Receiver type           : ");
     let rcvr = match &rnx.header.rcvr {
-        Some(rcvr) => format!("{} (# = {}) (fw = {})\n", rcvr.model, rcvr.sn, rcvr.firmware),
+        Some(rcvr) => format!(
+            "{} (# = {}) (fw = {})\n",
+            rcvr.model, rcvr.sn, rcvr.firmware
+        ),
         _ => "None\n".to_string(),
     };
     report.push_str(&rcvr);
@@ -88,14 +88,16 @@ pub fn do_report(cli: &Cli, fp: &str, constell: Constellation, rnx: &Rinex, nav:
      * Sampling infos
      */
     let epochs = rnx.epochs();
-    let (e_0, e_n) = (epochs[0], epochs[epochs.len()-1]);
+    let (e_0, e_n) = (epochs[0], epochs[epochs.len() - 1]);
     let duration = e_n - e_0;
-    let (sample_rate, _) = max(rnx.epoch_intervals())
-        .expect("failed to determine epoch span");
+    let (sample_rate, _) = max(rnx.epoch_intervals()).expect("failed to determine epoch span");
     //let sample_rate = pretty_sample_rate!(sample_rate);
     report.push_str(&format!("Time of start of window : {}\n", e_0));
     report.push_str(&format!("Time of  end  of window : {}\n", e_n));
-    report.push_str(&format!("Time line window length : {}, ticked every {}\n", duration, sample_rate));
+    report.push_str(&format!(
+        "Time line window length : {}, ticked every {}\n",
+        duration, sample_rate
+    ));
 
     /*
      * Observation Data pre/general study
@@ -103,13 +105,20 @@ pub fn do_report(cli: &Cli, fp: &str, constell: Constellation, rnx: &Rinex, nav:
      *  grab # of Sv that came with at least 1 realization
      */
     let (
-        epochs_with_obs, //epochs that came with at least 1 OBS
-        total_sv_with_obs, //nb of SV that have at least 1 realization
+        epochs_with_obs,      //epochs that came with at least 1 OBS
+        total_sv_with_obs,    //nb of SV that have at least 1 realization
         total_sv_without_obs, //nb of SV that do not have a single realization
-        total_clk, //total of Rx clock offset found in this record
-        time_between_reset, 
+        total_clk,            //total of Rx clock offset found in this record
+        time_between_reset,
         mean_s, //averaged Sx accross all observations and epochs
-    ) : (u32,usize,u32,u32,Duration,HashMap<String,(u32,f64,f64)>) = match rnx.record.as_obs() {
+    ): (
+        u32,
+        usize,
+        u32,
+        u32,
+        Duration,
+        HashMap<String, (u32, f64, f64)>,
+    ) = match rnx.record.as_obs() {
         Some(r) => {
             let mut total_clk = 0;
             let mut last_reset: Option<Epoch> = None;
@@ -138,8 +147,9 @@ pub fn do_report(cli: &Cli, fp: &str, constell: Constellation, rnx: &Rinex, nav:
                         if is_sig_strength_obs_code!(observation) {
                             let code = &observation[..2];
                             if let Some((count, mean, _)) = mean_s.get_mut(code) {
-                                *mean = (*mean * (*count as f64) + data.obs)/(*count as f64 +1.0);
-                                *count = *count +1;
+                                *mean =
+                                    (*mean * (*count as f64) + data.obs) / (*count as f64 + 1.0);
+                                *count = *count + 1;
                             } else {
                                 mean_s.insert(code.to_string(), (1, data.obs, 0.0));
                             }
@@ -156,19 +166,23 @@ pub fn do_report(cli: &Cli, fp: &str, constell: Constellation, rnx: &Rinex, nav:
                     total_sv_without_obs += 1;
                 }
             }
-            (epochs_with_obs, 
-            total_sv_with_obs.len(), 
-            total_sv_without_obs, 
-            total_clk, 
-            Duration::from_nanoseconds((time_between_reset.1.total_nanoseconds() / time_between_reset.0) as f64),
-            mean_s)
+            (
+                epochs_with_obs,
+                total_sv_with_obs.len(),
+                total_sv_without_obs,
+                total_clk,
+                Duration::from_nanoseconds(
+                    (time_between_reset.1.total_nanoseconds() / time_between_reset.0) as f64,
+                ),
+                mean_s,
+            )
         },
         _ => (0, 0, 0, 0, Duration::default(), HashMap::new()),
     };
 
-    let (total_unhealthy_sv,total_sv_without_nav) = if let Some(nav) = nav {
+    let (total_unhealthy_sv, total_sv_without_nav) = if let Some(nav) = nav {
         if let Some(_r) = nav.record.as_nav() {
-            (1, 1)    
+            (1, 1)
         } else {
             (0, 0)
         }
@@ -187,7 +201,7 @@ pub fn do_report(cli: &Cli, fp: &str, constell: Constellation, rnx: &Rinex, nav:
 
     /*
      * RCVR antenna positionning
-     * based of Pseudo Range observations 
+     * based of Pseudo Range observations
      */
     report.push_str(" mean antenna; # of pos :     0\n");
     report.push_str("  antenna WGS 84 (xyz)  :  0.0 0.0 0.0 (m)\n");
@@ -197,10 +211,25 @@ pub fn do_report(cli: &Cli, fp: &str, constell: Constellation, rnx: &Rinex, nav:
     report.push_str("|qc - header| position  :  0.0 m\n");
     report.push_str("qc position offsets     :  0.0 m vertical  0.0 m horizontal\n");
     report.push_str(&format!("Observation interval    : {}\n", sample_rate));
-    report.push_str(&format!("Total satellites w/ obs : {}\n", total_sv_with_obs)); 
-    report.push_str(&format!("        {} unhealthy SV: {}\n", constell.to_3_letter_code(), total_unhealthy_sv)); 
-    report.push_str(&format!("        {} SVs w/o OBS : {}\n", constell.to_3_letter_code(), total_sv_without_obs));
-    report.push_str(&format!("        {} SVs w/o NAV : {}\n", constell.to_3_letter_code(), total_sv_without_nav));
+    report.push_str(&format!(
+        "Total satellites w/ obs : {}\n",
+        total_sv_with_obs
+    ));
+    report.push_str(&format!(
+        "        {} unhealthy SV: {}\n",
+        constell.to_3_letter_code(),
+        total_unhealthy_sv
+    ));
+    report.push_str(&format!(
+        "        {} SVs w/o OBS : {}\n",
+        constell.to_3_letter_code(),
+        total_sv_without_obs
+    ));
+    report.push_str(&format!(
+        "        {} SVs w/o NAV : {}\n",
+        constell.to_3_letter_code(),
+        total_sv_without_nav
+    ));
     report.push_str(&format!("Rx tracking capability : unknown\n"));
     report.push_str(&format!("Poss. # of obs epochs  : {}\n", epochs.len()));
     report.push_str(&format!("Epochs w/ observations : {}\n", epochs_with_obs));
@@ -216,35 +245,41 @@ pub fn do_report(cli: &Cli, fp: &str, constell: Constellation, rnx: &Rinex, nav:
     report.push_str("Points in MP moving avg: 50\n");
 
     for code in mean_s.keys().sorted() {
-        let (n, mean, stddev) = mean_s.get(code)
-            .unwrap();
-        report.push_str(&format!("Mean {}                : {} (sd={}, n={})\n", code, mean, stddev, n));
-    } 
-    
+        let (n, mean, stddev) = mean_s.get(code).unwrap();
+        report.push_str(&format!(
+            "Mean {}                : {} (sd={}, n={})\n",
+            code, mean, stddev, n
+        ));
+    }
+
     report.push_str(&format!("No. of Rx clock offsets: {}\n", total_clk));
     report.push_str(&format!("Total Rx clock drift   : {}\n ms/hour", 0.000));
-    report.push_str(&format!("Avg time between resets: {}\n", time_between_reset));
+    report.push_str(&format!(
+        "Avg time between resets: {}\n",
+        time_between_reset
+    ));
     report.push_str("Freq no. and timecode   : ?\n");
     report.push_str("Report gap > than       : 10.00 minute(s)\n");
     report.push_str("epochs w/ msec clk slip : 0\n");
     report.push_str("other msec mp events    : 0 (: 234)   {expect ~= 1:50}\n");
     report.push_str("IOD signifying a slip   : >400.0 cm/minute\n");
-    report.push_str("IOD slips < 10.0 deg*   :     00\n"); 
-    report.push_str("IOD slips > 10.0 deg    :     00\n"); 
-    report.push_str("IOD or MP slips < 10.0* :     00\n"); 
-    report.push_str("IOD or MP slips > 10.0  :     00\n"); 
+    report.push_str("IOD slips < 10.0 deg*   :     00\n");
+    report.push_str("IOD slips > 10.0 deg    :     00\n");
+    report.push_str("IOD or MP slips < 10.0* :     00\n");
+    report.push_str("IOD or MP slips > 10.0  :     00\n");
     report.push_str(" * or unknown elevation\n");
     report.push_str("      first epoch    last epoch     sn1   sn2\n");
-    report.push_str(&format!("SSN {}               {}             {}    {}\n", e_0, e_n, 0.0, 0.0));
-    
+    report.push_str(&format!(
+        "SSN {}               {}             {}    {}\n",
+        e_0, e_n, 0.0, 0.0
+    ));
+
     /*
-     * Generate summary report 
+     * Generate summary report
      */
     if !cli.quiet() {
         println!("{}", report);
     }
-    let mut fd = std::fs::File::create(fp)
-        .expect("failed to create summary report");
-    write!(fd, "{}", report)
-        .expect("failed to generate summary report");
+    let mut fd = std::fs::File::create(fp).expect("failed to create summary report");
+    write!(fd, "{}", report).expect("failed to generate summary report");
 }

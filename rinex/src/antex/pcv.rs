@@ -8,8 +8,7 @@ pub enum Error {
 }
 
 /// Antenna Phase Center Variation types
-#[derive(Debug, Clone)]
-#[derive(PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum Pcv {
     /// Given data is absolute
@@ -26,7 +25,7 @@ impl Default for Pcv {
 
 impl std::str::FromStr for Pcv {
     type Err = Error;
-    fn from_str (content: &str) -> Result<Self, Self::Err> {
+    fn from_str(content: &str) -> Result<Self, Self::Err> {
         if content.eq("A") {
             Ok(Self::Absolute)
         } else if content.eq("R") {

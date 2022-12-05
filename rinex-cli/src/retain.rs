@@ -1,10 +1,7 @@
-use rinex::{
-    prelude::*,
-    navigation::MsgType,
-};
+use rinex::{navigation::MsgType, prelude::*};
 use std::str::FromStr;
 
-fn args_to_constellations (args: Vec<&str>) -> Vec<Constellation> {
+fn args_to_constellations(args: Vec<&str>) -> Vec<Constellation> {
     args.iter()
         .filter_map(|x| {
             if let Ok(c) = Constellation::from_str(x) {
@@ -17,7 +14,7 @@ fn args_to_constellations (args: Vec<&str>) -> Vec<Constellation> {
         .collect()
 }
 
-fn args_to_space_vehicules (args: Vec<&str>) -> Vec<Sv> {
+fn args_to_space_vehicules(args: Vec<&str>) -> Vec<Sv> {
     args.iter()
         .filter_map(|x| {
             if let Ok(c) = Sv::from_str(x) {
@@ -30,7 +27,7 @@ fn args_to_space_vehicules (args: Vec<&str>) -> Vec<Sv> {
         .collect()
 }
 
-fn args_to_nav_message (args: Vec<&str>) -> Vec<MsgType> {
+fn args_to_nav_message(args: Vec<&str>) -> Vec<MsgType> {
     args.iter()
         .filter_map(|x| {
             if let Ok(msg) = MsgType::from_str(x) {
@@ -89,18 +86,16 @@ pub fn retain_filters(rnx: &mut Rinex, flags: Vec<&str>, ops: Vec<(&str, Vec<&st
             } else {
                 println!("failed to parse elevation angle. Expecting floating point value");
             }
-
         } else if op.eq(&"retain-elev-below") {
             if let Ok(a1) = f64::from_str(args[0].trim()) {
-                rnx.orbits_elevation_angle_range_filter_mut((0.0,a1)); 
+                rnx.orbits_elevation_angle_range_filter_mut((0.0, a1));
             } else {
                 println!("failed to parse elevation angle. Expecting floating point value");
             }
-
         } else if op.eq(&"retain-elev") {
             if let Ok(a0) = f64::from_str(args[0].trim()) {
                 if let Ok(a1) = f64::from_str(args[0].trim()) {
-                    rnx.orbits_elevation_angle_range_filter_mut((a0,a1)); 
+                    rnx.orbits_elevation_angle_range_filter_mut((a0, a1));
                 } else {
                     println!("failed to parse elevation angle. Expecting floating point value");
                 }
