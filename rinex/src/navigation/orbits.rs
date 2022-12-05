@@ -313,8 +313,8 @@ mod test {
     use super::*;
     use std::str::FromStr;
     #[test]
-    fn test_orbits_sanity() {
-        for n in super::NAV_ORBITS.iter() {
+    fn test_db_orbits_sanity() {
+        for n in NAV_ORBITS.iter() {
             let c = Constellation::from_str(n.constellation);
             assert_eq!(c.is_ok(), true);
             let c = c.unwrap();
