@@ -4,15 +4,7 @@ mod test {
     #[test]
     fn test_parser() {
         let test_resources = env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/";
-        let test_data = vec![
-			"ATX",
-			"CLK",
-			"CRNX",
-			"MET",
-			"NAV",
-			"OBS",
-			"IONEX",
-		];
+        let test_data = vec!["ATX", "CLK", "CRNX", "MET", "NAV", "OBS", "IONEX"];
         for data in test_data {
             let data_path = std::path::PathBuf::from(test_resources.to_owned() + data);
             for revision in std::fs::read_dir(data_path).unwrap() {

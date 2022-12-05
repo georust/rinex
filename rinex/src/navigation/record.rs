@@ -12,16 +12,10 @@ use thiserror::Error;
  * With this macro, we simply rework all exponents encountered in a string
  */
 fn double_exponent_digits(content: &str) -> String {
-    let re = Regex::new(r"E\d{1}")
-        .unwrap();
-    let lines = re.replace_all(&content, |caps: &Captures| {
-        format!("E+0{}", &caps[0][1..])
-    });
-    let re = Regex::new(r"E-\d{1}")
-        .unwrap();
-    let lines = re.replace_all(&lines, |caps: &Captures| {
-        format!("E-0{}", &caps[0][2..])
-    });
+    let re = Regex::new(r"E\d{1}").unwrap();
+    let lines = re.replace_all(&content, |caps: &Captures| format!("E+0{}", &caps[0][1..]));
+    let re = Regex::new(r"E-\d{1}").unwrap();
+    let lines = re.replace_all(&lines, |caps: &Captures| format!("E-0{}", &caps[0][2..]));
     lines.to_string()
 }
 
@@ -384,8 +378,8 @@ fn parse_v2_v3_record_entry(
 fn fmt_rework(major: u8, lines: &str) -> String {
     let mut lines = double_exponent_digits(lines);
     if major < 3 {
-        lines = lines.replace("E-","D-");
-        lines = lines.replace("E+","D+");
+        lines = lines.replace("E-", "D-");
+        lines = lines.replace("E+", "D+");
     }
     lines.to_string()
 }
@@ -434,9 +428,8 @@ fn fmt_epoch_v2v3(
                 ));
                 lines.push_str(&format!(
                     "{:14.11E} {:14.11E} {:14.11E}\n   ",
-                    ephemeris.clock_bias,
-                    ephemeris.clock_drift,
-                    ephemeris.clock_drift_rate));
+                    ephemeris.clock_bias, ephemeris.clock_drift, ephemeris.clock_drift_rate
+                ));
                 if header.version.major == 3 {
                     lines.push_str("  ");
                 }
@@ -568,15 +561,16 @@ fn fmt_epoch_v4(
             for frame in frames.iter() {
                 let (msg, sv, sto) = frame.as_sto().unwrap();
                 lines.push_str(&format!("> {} {} {}\n", class, sv, msg));
-                lines.push_str(&format!("    {} {}    {}\n", 
+                lines.push_str(&format!(
+                    "    {} {}    {}\n",
                     epoch::format(*epoch, None, Type::NavigationData, header.version.major),
-                    sto.system, sto.utc));
-                lines.push_str(&format!( 
+                    sto.system,
+                    sto.utc
+                ));
+                lines.push_str(&format!(
                     "   {:14.13E} {:14.13E} {:14.13E} {:14.13E}\n",
-                    sto.t_tm as f64,
-                    sto.a.0,
-                    sto.a.1,
-                    sto.a.2));
+                    sto.t_tm as f64, sto.a.0, sto.a.1, sto.a.2
+                ));
             }
         }
         // STO
@@ -1171,10 +1165,7 @@ mod test {
     #[test]
     fn double_digit_exponents() {
         let content = "1000123  -123123E1";
-        assert_eq!(
-            double_exponent_digits(content),
-            "1000123  -123123E+01"
-        );
+        assert_eq!(double_exponent_digits(content), "1000123  -123123E+01");
         let content = "1000123  -123123E-1 -1.23123123E0 -0.123123E-4";
         assert_eq!(
             double_exponent_digits(content),
