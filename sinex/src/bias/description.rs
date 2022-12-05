@@ -1,8 +1,8 @@
 //use thiserror::Error;
 //use strum_macros::EnumString;
-use std::collections::HashMap;
-use rinex::constellation::Constellation;
 use crate::bias;
+use rinex::constellation::Constellation;
+use std::collections::HashMap;
 //use crate::datetime::{parse_datetime, ParseDateTimeError};
 
 #[derive(Debug, Clone)]
@@ -26,7 +26,7 @@ pub struct Description {
     /// for each GNSS in this file.
     /// Must be provided if associated bias results are consistent
     /// with the ionosphere free LC, otherwise, these might be missing
-    pub sat_clock_ref: HashMap<Constellation, Vec<String>>
+    pub sat_clock_ref: HashMap<Constellation, Vec<String>>,
 }
 
 impl Default for Description {
@@ -44,9 +44,9 @@ impl Default for Description {
 }
 
 impl Description {
-    pub fn with_sampling (&self, sampling: u32) -> Self {
+    pub fn with_sampling(&self, sampling: u32) -> Self {
         Self {
-            sampling: Some(sampling), 
+            sampling: Some(sampling),
             spacing: self.spacing.clone(),
             method: self.method.clone(),
             bias_mode: self.bias_mode.clone(),
@@ -55,7 +55,7 @@ impl Description {
             sat_clock_ref: self.sat_clock_ref.clone(),
         }
     }
-    pub fn with_spacing (&self, spacing: u32) -> Self {
+    pub fn with_spacing(&self, spacing: u32) -> Self {
         Self {
             sampling: self.sampling.clone(),
             spacing: Some(spacing),
@@ -66,7 +66,7 @@ impl Description {
             sat_clock_ref: self.sat_clock_ref.clone(),
         }
     }
-    pub fn with_method (&self, method: bias::DeterminationMethod) -> Self {
+    pub fn with_method(&self, method: bias::DeterminationMethod) -> Self {
         Self {
             sampling: self.sampling.clone(),
             spacing: self.spacing.clone(),
@@ -77,7 +77,7 @@ impl Description {
             sat_clock_ref: self.sat_clock_ref.clone(),
         }
     }
-    pub fn with_bias_mode (&self, mode: bias::header::BiasMode) -> Self {
+    pub fn with_bias_mode(&self, mode: bias::header::BiasMode) -> Self {
         Self {
             sampling: self.sampling.clone(),
             spacing: self.spacing.clone(),
@@ -88,7 +88,7 @@ impl Description {
             sat_clock_ref: self.sat_clock_ref.clone(),
         }
     }
-    pub fn with_time_system (&self, system: bias::TimeSystem) -> Self {
+    pub fn with_time_system(&self, system: bias::TimeSystem) -> Self {
         Self {
             sampling: self.sampling.clone(),
             spacing: self.spacing.clone(),
@@ -99,7 +99,7 @@ impl Description {
             sat_clock_ref: self.sat_clock_ref.clone(),
         }
     }
-    pub fn with_rcvr_clock_ref (&self, clock_ref: Constellation) -> Self {
+    pub fn with_rcvr_clock_ref(&self, clock_ref: Constellation) -> Self {
         Self {
             sampling: self.sampling.clone(),
             spacing: self.spacing.clone(),
@@ -110,7 +110,7 @@ impl Description {
             sat_clock_ref: self.sat_clock_ref.clone(),
         }
     }
-    pub fn with_sat_clock_ref (&self, c: Constellation, observable: &str) -> Self {
+    pub fn with_sat_clock_ref(&self, c: Constellation, observable: &str) -> Self {
         Self {
             sampling: self.sampling.clone(),
             spacing: self.spacing.clone(),

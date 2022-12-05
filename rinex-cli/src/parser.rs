@@ -1,5 +1,5 @@
-use thiserror::Error;
 use rinex::prelude::*;
+use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -17,10 +17,7 @@ pub enum Error {
  * Parse Epoch From "Y-m-d H:M:S" description
  */
 fn parse_epoch_ymd_hms(args: &str) -> Result<Epoch, Error> {
-    let items: Vec<&str> = args
-        .trim()
-        .split(" ")
-        .collect();
+    let items: Vec<&str> = args.trim().split(" ").collect();
     if items.len() == 2 {
         let ymd: Vec<&str> = items[0].split("-").collect();
         let hms: Vec<&str> = items[1].split(":").collect();
@@ -37,7 +34,7 @@ fn parse_epoch_ymd_hms(args: &str) -> Result<Epoch, Error> {
                 }
             }
         }
-    } 
+    }
     Err(Error::DatetimeError)
 }
 
@@ -45,10 +42,7 @@ fn parse_epoch_ymd_hms(args: &str) -> Result<Epoch, Error> {
  * Parse Epoch From "Y-m-d" description
  */
 fn parse_epoch_ymd(args: &str) -> Result<Epoch, Error> {
-    let items: Vec<&str> = args
-        .trim()
-        .split("-")
-        .collect();
+    let items: Vec<&str> = args.trim().split("-").collect();
     if items.len() == 3 {
         if let Ok(h) = i32::from_str_radix(items[0].trim(), 10) {
             if let Ok(m) = u8::from_str_radix(items[1].trim(), 10) {
@@ -62,14 +56,12 @@ fn parse_epoch_ymd(args: &str) -> Result<Epoch, Error> {
 }
 
 pub fn parse_duration(args: &str) -> Result<Duration, Error> {
-    let hms:Vec<&str> = args
-        .split(":")
-        .collect();
+    let hms: Vec<&str> = args.split(":").collect();
     if hms.len() == 3 {
         if let Ok(h) = u64::from_str_radix(hms[0], 10) {
             if let Ok(m) = u64::from_str_radix(hms[1], 10) {
                 if let Ok(s) = u64::from_str_radix(hms[2], 10) {
-                    let total: f64 = (s + m * 60 + h*3600) as f64;
+                    let total: f64 = (s + m * 60 + h * 3600) as f64;
                     return Ok(Duration::from_seconds(total));
                 }
             }

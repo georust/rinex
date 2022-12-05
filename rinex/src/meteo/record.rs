@@ -1,20 +1,14 @@
-use thiserror::Error;
-use std::str::FromStr;
-use std::collections::{BTreeMap, HashMap};
+use super::observable::Observable;
 use crate::{
-    epoch,
-    version,
-	types::Type,
-    prelude::*,
-    merge, merge::Merge,
-    split, split::Split,
-    sampling::Decimation,
-    gnss_time::TimeScaling,
+    epoch, gnss_time::TimeScaling, merge, merge::Merge, prelude::*, sampling::Decimation, split,
+    split::Split, types::Type, version,
 };
 use hifitime::Duration;
-use super::observable::Observable;
+use std::collections::{BTreeMap, HashMap};
+use std::str::FromStr;
+use thiserror::Error;
 
-/// Meteo RINEX Record content. 
+/// Meteo RINEX Record content.
 /// Data is sorted by [epoch::Epoch] and by Observable.
 /// Example of Meteo record browsing and manipulation
 /// ```
@@ -35,20 +29,22 @@ use super::observable::Observable;
 pub type Record = BTreeMap<Epoch, HashMap<Observable, f64>>;
 
 /// Returns true if given line matches a new Meteo Record `epoch`
-pub (crate)fn is_new_epoch (line: &str, v: version::Version) -> bool {
+pub(crate) fn is_new_epoch(line: &str, v: version::Version) -> bool {
     if v.major < 4 {
         let min_len = " 15  1  1  0  0  0";
-        if line.len() < min_len.len() { // minimum epoch descriptor 
+        if line.len() < min_len.len() {
+            // minimum epoch descriptor
             return false;
         }
-        let datestr = &line[1..min_len.len()]; 
+        let datestr = &line[1..min_len.len()];
         epoch::parse(datestr).is_ok() // valid epoch descriptor
     } else {
         let min_len = " 2021  1  7  0  0  0";
-        if line.len() < min_len.len() { // minimum epoch descriptor
-            return false
+        if line.len() < min_len.len() {
+            // minimum epoch descriptor
+            return false;
         }
-        let datestr = &line[1..min_len.len()]; 
+        let datestr = &line[1..min_len.len()];
         epoch::parse(datestr).is_ok() // valid epoch descriptor
     }
 }
@@ -65,12 +61,14 @@ pub enum Error {
 }
 
 /// Builds `Record` entry for `MeteoData`
-pub fn parse_epoch(header: &Header, content: &str) -> Result<(Epoch, HashMap<Observable, f64>), Error> { 
+pub fn parse_epoch(
+    header: &Header,
+    content: &str,
+) -> Result<(Epoch, HashMap<Observable, f64>), Error> {
     let mut lines = content.lines();
-    let mut line = lines.next()
-        .unwrap();
+    let mut line = lines.next().unwrap();
 
-	let mut map : HashMap<Observable, f64> = HashMap::with_capacity(3);
+    let mut map: HashMap<Observable, f64> = HashMap::with_capacity(3);
 
     let mut offset: usize = 18; // YY
     if header.version.major > 2 {
@@ -79,60 +77,56 @@ pub fn parse_epoch(header: &Header, content: &str) -> Result<(Epoch, HashMap<Obs
 
     let (epoch, _) = epoch::parse(&line[0..offset])?;
 
-	let codes = &header.meteo
-        .as_ref()
-        .unwrap()
-        .codes;
-	let n_codes = codes.len();
-	let nb_lines : usize = num_integer::div_ceil(n_codes, 8).into(); 
-	let mut code_index : usize = 0;
+    let codes = &header.meteo.as_ref().unwrap().codes;
+    let n_codes = codes.len();
+    let nb_lines: usize = num_integer::div_ceil(n_codes, 8).into();
+    let mut code_index: usize = 0;
 
-	for i in 0..nb_lines {
-		for _ in 0..8 {
-			let code = &codes[code_index];
-			let obs : Option<f64> = match f64::from_str(&line[offset..offset+7].trim()) {
-				Ok(f) => Some(f),
-				Err(_) => None,
-			};
+    for i in 0..nb_lines {
+        for _ in 0..8 {
+            let code = &codes[code_index];
+            let obs: Option<f64> = match f64::from_str(&line[offset..offset + 7].trim()) {
+                Ok(f) => Some(f),
+                Err(_) => None,
+            };
 
-			if let Some(obs) = obs {
-				map.insert(code.clone(), obs); 
-			}
-			code_index += 1;
-			if code_index >= n_codes {
-				break
-			}
+            if let Some(obs) = obs {
+                map.insert(code.clone(), obs);
+            }
+            code_index += 1;
+            if code_index >= n_codes {
+                break;
+            }
 
-			offset += 7;
-			if offset >= line.len() {
-				break
-			}
-		} // 1:8
+            offset += 7;
+            if offset >= line.len() {
+                break;
+            }
+        } // 1:8
 
-		if i < nb_lines-1 {
-			if let Some(l) = lines.next() {
-				line = l;
-			} else {
-				break
-			}
-		}
-	} // nb lines
-	Ok((epoch, map))
+        if i < nb_lines - 1 {
+            if let Some(l) = lines.next() {
+                line = l;
+            } else {
+                break;
+            }
+        }
+    } // nb lines
+    Ok((epoch, map))
 }
 
 /// Writes epoch into given streamer
-pub (crate)fn fmt_epoch (
-        epoch: &Epoch, 
-        data: &HashMap<Observable, f64>, 
-        header: &Header, 
-    ) -> Result<String, Error>  {
+pub(crate) fn fmt_epoch(
+    epoch: &Epoch,
+    data: &HashMap<Observable, f64>,
+    header: &Header,
+) -> Result<String, Error> {
     let mut lines = String::with_capacity(128);
-	lines.push_str(&format!(" {}", epoch::format(*epoch, None, Type::MeteoData, header.version.major)));
-    let observables = &header
-        .meteo
-        .as_ref()
-        .unwrap()
-        .codes;
+    lines.push_str(&format!(
+        " {}",
+        epoch::format(*epoch, None, Type::MeteoData, header.version.major)
+    ));
+    let observables = &header.meteo.as_ref().unwrap().codes;
     let mut index = 0;
     for obscode in observables {
         index += 1;
@@ -141,7 +135,7 @@ pub (crate)fn fmt_epoch (
         } else {
             lines.push_str(&format!("       "));
         }
-        if (index %8) == 0 {
+        if (index % 8) == 0 {
             lines.push_str("\n");
         }
     }
@@ -155,41 +149,35 @@ mod test {
     #[test]
     fn test_new_epoch() {
         let content = " 22  1  4  0  0  0  993.4   -6.8   52.9    1.6  337.0    0.0    0.0";
-        assert_eq!(is_new_epoch(content, 
-            version::Version {
-                major: 2,
-                minor: 0,
-            }), true);
+        assert_eq!(
+            is_new_epoch(content, version::Version { major: 2, minor: 0 }),
+            true
+        );
         let content = " 22  1  4  0  0  0  993.4   -6.8   52.9    1.6  337.0    0.0    0.0";
-        assert_eq!(is_new_epoch(content, 
-            version::Version {
-                major: 2,
-                minor: 0,
-            }), true);
+        assert_eq!(
+            is_new_epoch(content, version::Version { major: 2, minor: 0 }),
+            true
+        );
         let content = " 22  1  4  9 55  0  997.9   -6.4   54.2    2.9  342.0    0.0    0.0";
-        assert_eq!(is_new_epoch(content, 
-            version::Version {
-                major: 2,
-                minor: 0,
-            }), true);
+        assert_eq!(
+            is_new_epoch(content, version::Version { major: 2, minor: 0 }),
+            true
+        );
         let content = " 22  1  4 10  0  0  997.9   -6.3   55.4    3.4  337.0    0.0    0.0";
-        assert_eq!(is_new_epoch(content, 
-            version::Version {
-                major: 2,
-                minor: 0,
-            }), true);
+        assert_eq!(
+            is_new_epoch(content, version::Version { major: 2, minor: 0 }),
+            true
+        );
         let content = " 08  1  1  0  0  1 1018.0   25.1   75.9    1.4   95.0    0.0    0.0";
-        assert_eq!(is_new_epoch(content, 
-            version::Version {
-                major: 2,
-                minor: 0,
-            }), true);
+        assert_eq!(
+            is_new_epoch(content, version::Version { major: 2, minor: 0 }),
+            true
+        );
         let content = " 2021  1  7  0  0  0  993.3   23.0   90.0";
-        assert_eq!(is_new_epoch(content,
-            version::Version {
-                major: 4,
-                minor: 0,
-            }), true);
+        assert_eq!(
+            is_new_epoch(content, version::Version { major: 4, minor: 0 }),
+            true
+        );
     }
 }
 
@@ -205,11 +193,13 @@ impl Merge<Record> for Record {
         for (epoch, observations) in rhs.iter() {
             if let Some(oobservations) = self.get_mut(epoch) {
                 for (observation, data) in observations.iter() {
-                    if !oobservations.contains_key(observation) { // new observation
+                    if !oobservations.contains_key(observation) {
+                        // new observation
                         oobservations.insert(observation.clone(), *data);
                     }
                 }
-            } else { // new epoch
+            } else {
+                // new epoch
                 self.insert(*epoch, observations.clone());
             }
         }
@@ -219,7 +209,8 @@ impl Merge<Record> for Record {
 
 impl Split<Record> for Record {
     fn split(&self, epoch: Epoch) -> Result<(Self, Self), split::Error> {
-        let r0 = self.iter()
+        let r0 = self
+            .iter()
             .flat_map(|(k, v)| {
                 if k < &epoch {
                     Some((k.clone(), v.clone()))
@@ -228,7 +219,8 @@ impl Split<Record> for Record {
                 }
             })
             .collect();
-        let r1 = self.iter()
+        let r1 = self
+            .iter()
             .flat_map(|(k, v)| {
                 if k >= &epoch {
                     Some((k.clone(), v.clone()))

@@ -5,7 +5,8 @@ use rinex::*;
 pub fn generate(rnx: &Rinex, fname: Option<&str>, default: &str) -> Result<(), rinex::Error> {
     let path: &str = match fname {
         Some(p) => p,
-        _ => { // no option from the command line
+        _ => {
+            // no option from the command line
             default
             /* TODO
                 if observation
@@ -15,7 +16,7 @@ pub fn generate(rnx: &Rinex, fname: Option<&str>, default: &str) -> Result<(), r
                     else if self is not a crinex
                       and user requested a crinex format
                        ==> rnx2crnx()
-                    
+
                 for all:
                    if ".gz" => secondary compression layer
                              should be naturally added

@@ -1,22 +1,21 @@
-use thiserror::Error;
-use std::ops::Rem;
 #[cfg(feature = "serde")]
 use serde::Serialize;
+use std::ops::Rem;
+use thiserror::Error;
 
 /// Grid definition Error
 #[derive(Error, Debug)]
 pub enum Error {
-    #[error("faulty grid definition: `start` and `end` must be multiples of each other")] 
+    #[error("faulty grid definition: `start` and `end` must be multiples of each other")]
     GridStartEndError,
-    #[error("faulty grid definition: `start` and `end` must be multiples of `spacing`")] 
+    #[error("faulty grid definition: `start` and `end` must be multiples of `spacing`")]
     GridSpacingError,
 }
 
 /// Grid linear space,
-/// starting from `start` ranging to `end` (included) 
+/// starting from `start` ranging to `end` (included)
 /// with given spacing, defined in km.
-#[derive(Debug, Clone, Default)]
-#[derive(PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Default, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct GridLinspace {
     /// Grid start value, in km
@@ -56,8 +55,8 @@ impl GridLinspace {
     }
 }
 
-impl From<(f32,f32,f32)> for GridLinspace {
-    fn from (tuple:(f32,f32,f32)) -> Self {
+impl From<(f32, f32, f32)> for GridLinspace {
+    fn from(tuple: (f32, f32, f32)) -> Self {
         Self {
             start: tuple.0,
             end: tuple.1,
@@ -68,10 +67,9 @@ impl From<(f32,f32,f32)> for GridLinspace {
 
 /// Reference Grid,
 /// defined in terms of Latitude, Longitude and Altitude.
-/// If 2D-TEC maps, static altitude is defined, ie.: 
+/// If 2D-TEC maps, static altitude is defined, ie.:
 /// start = end altitude and spacing = 0.
-#[derive(Debug, Clone, Default)]
-#[derive(PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Default, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Grid {
     /// Latitude

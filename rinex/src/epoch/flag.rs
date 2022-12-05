@@ -1,8 +1,8 @@
-use thiserror::Error;
 use std::str::FromStr;
+use thiserror::Error;
 
 #[cfg(feature = "serde")]
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 #[derive(Error, Debug)]
 pub enum Error {
@@ -10,10 +10,9 @@ pub enum Error {
     UnknownFlag,
 }
 
-/// `EpochFlag` validates an epoch, 
+/// `EpochFlag` validates an epoch,
 /// or describes possible events that occurred
-#[derive(Copy, Clone, Debug)]
-#[derive(PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum EpochFlag {
     /// Epoch is sane
@@ -33,21 +32,21 @@ pub enum EpochFlag {
 }
 
 impl Default for EpochFlag {
-    fn default() -> Self { 
+    fn default() -> Self {
         Self::Ok
     }
 }
 
 impl EpochFlag {
     /// Returns True if self is a valid epoch
-    pub fn is_ok(self) -> bool { 
-        self == Self::Ok 
+    pub fn is_ok(self) -> bool {
+        self == Self::Ok
     }
 }
 
 impl FromStr for EpochFlag {
-    type Err = Error; 
-    fn from_str (s: &str) -> Result<Self, Self::Err> {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "0" => Ok(EpochFlag::Ok),
             "1" => Ok(EpochFlag::PowerFailure),
@@ -62,7 +61,7 @@ impl FromStr for EpochFlag {
 }
 
 impl std::fmt::Display for EpochFlag {
-    fn fmt (&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             EpochFlag::Ok => "0".fmt(f),
             EpochFlag::PowerFailure => "1".fmt(f),
@@ -84,13 +83,22 @@ mod test {
     }
     #[test]
     fn from_str() {
-        assert_eq!(EpochFlag::from_str("0").unwrap(), EpochFlag::Ok); 
-        assert_eq!(EpochFlag::from_str("1").unwrap(), EpochFlag::PowerFailure); 
-        assert_eq!(EpochFlag::from_str("2").unwrap(), EpochFlag::AntennaBeingMoved); 
-        assert_eq!(EpochFlag::from_str("3").unwrap(), EpochFlag::NewSiteOccupation); 
-        assert_eq!(EpochFlag::from_str("4").unwrap(), EpochFlag::HeaderInformationFollows); 
-        assert_eq!(EpochFlag::from_str("5").unwrap(), EpochFlag::ExternalEvent); 
-        assert_eq!(EpochFlag::from_str("6").unwrap(), EpochFlag::CycleSlip); 
+        assert_eq!(EpochFlag::from_str("0").unwrap(), EpochFlag::Ok);
+        assert_eq!(EpochFlag::from_str("1").unwrap(), EpochFlag::PowerFailure);
+        assert_eq!(
+            EpochFlag::from_str("2").unwrap(),
+            EpochFlag::AntennaBeingMoved
+        );
+        assert_eq!(
+            EpochFlag::from_str("3").unwrap(),
+            EpochFlag::NewSiteOccupation
+        );
+        assert_eq!(
+            EpochFlag::from_str("4").unwrap(),
+            EpochFlag::HeaderInformationFollows
+        );
+        assert_eq!(EpochFlag::from_str("5").unwrap(), EpochFlag::ExternalEvent);
+        assert_eq!(EpochFlag::from_str("6").unwrap(), EpochFlag::CycleSlip);
         assert!(EpochFlag::from_str("7").is_err());
     }
 }

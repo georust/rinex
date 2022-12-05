@@ -1,6 +1,6 @@
-//! `RINEX` files type description 
-use thiserror::Error;
+//! `RINEX` files type description
 use super::Constellation;
+use thiserror::Error;
 
 /// Describes all known `RINEX` file types
 #[derive(Copy, Clone, PartialEq, Debug)]
@@ -8,10 +8,10 @@ use super::Constellation;
 pub enum Type {
     /// Describes Observation Data (OBS),
     /// Phase & Pseudo range measurements
-    ObservationData, 
+    ObservationData,
     /// Describes Navigation Data (NAV)
     /// Ephemeris data, and other possible
-	/// modern declinations
+    /// modern declinations
     NavigationData,
     /// Describes Meteorological data (MET)
     MeteoData,
@@ -37,19 +37,19 @@ pub enum TypeError {
 
 impl Default for Type {
     /// Builds a default `Type`
-    fn default() -> Type { Self::ObservationData }
+    fn default() -> Type {
+        Self::ObservationData
+    }
 }
 
 impl Type {
     /// Converts `Self` to RINEX file format
-    pub fn to_string (&self, constell: Option<Constellation>) -> String { 
+    pub fn to_string(&self, constell: Option<Constellation>) -> String {
         match *self {
             Self::ObservationData => String::from("OBSERVATION DATA"),
-            Self::NavigationData => {
-                match constell {
-                    Some(Constellation::Glonass) => String::from("Glonass NAV"),
-                    _ => String::from("NAV DATA"),
-                }
+            Self::NavigationData => match constell {
+                Some(Constellation::Glonass) => String::from("Glonass NAV"),
+                _ => String::from("NAV DATA"),
             },
             Self::MeteoData => String::from("METEOROLOGICAL DATA"),
             Self::ClockData => String::from("CLOCK DATA"),
@@ -61,7 +61,7 @@ impl Type {
 
 impl std::str::FromStr for Type {
     type Err = TypeError;
-    fn from_str (s: &str) -> Result<Self, Self::Err> {
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         if s.eq("NAVIGATION DATA") {
             Ok(Self::NavigationData)
         } else if s.contains("NAV DATA") {

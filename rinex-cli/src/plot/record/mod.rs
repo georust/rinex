@@ -1,13 +1,6 @@
+use super::{build_chart, build_plot, Plot2d};
+use plotters::{chart::ChartState, coord::Shift, prelude::*};
 use rinex::*;
-use super::{
-    Plot2d,
-    build_chart, build_plot,
-};
-use plotters::{
-    prelude::*,
-    coord::Shift,
-    chart::ChartState,
-};
 use std::collections::HashMap;
 
 mod meteo;
@@ -21,7 +14,7 @@ pub struct Context<'a> {
     /// Charts are indexed by sub titles
     pub charts: HashMap<String, ChartState<Plot2d>>,
     /// Record analysis is against time
-    pub t_axis: Vec<f64>, 
+    pub t_axis: Vec<f64>,
 }
 
 impl Default for Context<'_> {
@@ -44,7 +37,7 @@ impl<'a> Context<'a> {
     ///  with the libs we're using.
     ///
     ///  Dim: (u32, u32) plot x_width and y_height
-    pub fn new (dim: (u32,u32), rnx: &Rinex) -> Self {
+    pub fn new(dim: (u32, u32), rnx: &Rinex) -> Self {
         if let Some(record) = rnx.record.as_obs() {
             observation::build_context(dim, record)
         } else if let Some(record) = rnx.record.as_nav() {

@@ -1,26 +1,14 @@
 //! Navigation record plotting
-use rinex::{
-    prelude::*,
-    navigation::*,
-};
-use plotters::{
-    prelude::*,
-    coord::Shift,
-    chart::ChartState,
-};
-use super::{
-    Context, Plot2d,
-    build_plot, build_chart,
-};
+use super::{build_chart, build_plot, Context, Plot2d};
+use plotters::{chart::ChartState, coord::Shift, prelude::*};
+use rinex::{navigation::*, prelude::*};
 use std::collections::HashMap;
 
-pub fn build_context<'a> (dim: (u32, u32), record: &Record) -> Context<'a> {
+pub fn build_context<'a>(dim: (u32, u32), record: &Record) -> Context<'a> {
     let mut e0: f64 = 0.0;
     let mut t_axis: Vec<f64> = Vec::with_capacity(16384);
-    let mut plots: HashMap<String,
-        DrawingArea<BitMapBackend, Shift>>
-            = HashMap::with_capacity(4);
-    let _y_ranges: HashMap<String, (f64,f64)> = HashMap::new();
+    let mut plots: HashMap<String, DrawingArea<BitMapBackend, Shift>> = HashMap::with_capacity(4);
+    let _y_ranges: HashMap<String, (f64, f64)> = HashMap::new();
     let mut charts: HashMap<String, ChartState<Plot2d>> = HashMap::new();
     for (index, (e, classes)) in record.iter().enumerate() {
         if index == 0 {
@@ -67,9 +55,9 @@ pub fn build_context<'a> (dim: (u32, u32), record: &Record) -> Context<'a> {
 
 pub fn plot(ctx: &mut Context, record: &Record) {
     let mut e0: f64 = 0.0;
-    let mut bias: HashMap<Sv, Vec<(f64,f64)>> = HashMap::new();
-    let mut drift: HashMap<Sv, Vec<(f64,f64)>> = HashMap::new();
-    let mut driftr: HashMap<Sv, Vec<(f64,f64)>> = HashMap::new();
+    let mut bias: HashMap<Sv, Vec<(f64, f64)>> = HashMap::new();
+    let mut drift: HashMap<Sv, Vec<(f64, f64)>> = HashMap::new();
+    let mut driftr: HashMap<Sv, Vec<(f64, f64)>> = HashMap::new();
     for (index, (epoch, classes)) in record.iter().enumerate() {
         if index == 0 {
             e0 = epoch.to_utc_seconds();
@@ -99,22 +87,18 @@ pub fn plot(ctx: &mut Context, record: &Record) {
             }
         }
     }
-    let plot = ctx.plots.get("clock-bias.png")
-        .unwrap();
-    let mut chart = ctx.charts.get("clock-bias.png")
+    let plot = ctx.plots.get("clock-bias.png").unwrap();
+    let mut chart = ctx
+        .charts
+        .get("clock-bias.png")
         .unwrap()
         .clone()
         .restore(&plot);
     for (_vehicule, bias) in bias {
         chart
-            .draw_series(LineSeries::new(
-                bias.iter().map(|point| *point),
-                &BLACK,
-            ))
+            .draw_series(LineSeries::new(bias.iter().map(|point| *point), &BLACK))
             .expect("failed to draw clock biases")
             .label("Clock bias")
-            .legend(|(x, y)| {
-                PathElement::new(vec![(x, y), (x + 20, y)], BLACK)
-            });
+            .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], BLACK));
     }
-} 
+}

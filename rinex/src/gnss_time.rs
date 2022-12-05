@@ -28,9 +28,9 @@ pub trait TimeScaling<T> {
 /*
 
 impl GnssTime {
-    /// Corrects self to given reference using given correction parameters    
-    /// correction: correction to be applied   
-    /// reference: reference time (must match expected reference)   
+    /// Corrects self to given reference using given correction parameters
+    /// correction: correction to be applied
+    /// reference: reference time (must match expected reference)
     /// TODO: refer to p39
     pub fn correct (&mut self, correction: &GnssTimeCorrection, reference: &GnssTime) -> Result<(), Error> {
         // check this is the expected reference time
@@ -95,13 +95,13 @@ impl GnssTime {
     }
 }
 
-/// List of known correction types:     
-/// GPUT: GPS->UTC  (a0,a1)     
-/// GAUT: GAL->UTC  (a0,a1)     
-/// SBUT: SBAS->UTC (a0,a1)     
-/// GLUT: GLO->UTC  a0=τ(c) a1=0    
-/// GPGA: GPS->GAL  a0=a0g  a1=a1g   
-/// GLGP: GLO->GPS  a0=τ(gps) a1=zero   
+/// List of known correction types:
+/// GPUT: GPS->UTC  (a0,a1)
+/// GAUT: GAL->UTC  (a0,a1)
+/// SBUT: SBAS->UTC (a0,a1)
+/// GLUT: GLO->UTC  a0=τ(c) a1=0
+/// GPGA: GPS->GAL  a0=a0g  a1=a1g
+/// GLGP: GLO->GPS  a0=τ(gps) a1=zero
 /// GZUT: QZS->UTC  a0,a1
 pub enum TimeCorrectionType {
     GPUT,
@@ -136,7 +136,7 @@ impl std::str::FromStr for TimeCorrectionType {
     }
 }
 
-/// Describes known UTC providers 
+/// Describes known UTC providers
 /// (laboratories)
 pub enum UtcProvider {
     Unknown,
@@ -193,12 +193,12 @@ impl std::str::FromStr for AugmentationSystem {
 }
 
 /// `GnssTimeCorrection` describes
-/// GNSS Time System corrections.   
-/// `system` : XXYY: XX corrected to YY   
-/// (a0, a1): correction params ((s), (s.s⁻¹))    
-/// delta_t: correction param   
-/// week: week number counter   
-/// `augmentation system`: (EGNOS,WAAS,MSAS)   
+/// GNSS Time System corrections.
+/// `system` : XXYY: XX corrected to YY
+/// (a0, a1): correction params ((s), (s.s⁻¹))
+/// delta_t: correction param
+/// week: week number counter
+/// `augmentation system`: (EGNOS,WAAS,MSAS)
 /// utc_provider: provider identifier
 #[allow(dead_code)]
 pub struct GnssTimeCorrection {
@@ -228,7 +228,7 @@ impl std::str::FromStr for GnssTimeCorrection {
     fn from_str (s: &str) -> Result<Self, Self::Err> {
         Ok(GnssTimeCorrection::default())
         /*
-SBUT  0.1331791282D-06 0.107469589D-12 552960 1025 EGNOS  5 TIME SYSTEM CORR    
+SBUT  0.1331791282D-06 0.107469589D-12 552960 1025 EGNOS  5 TIME SYSTEM CORR
         let systype = TimeCorrectionType::from_str()?;
         let params ...
         let delta_t..

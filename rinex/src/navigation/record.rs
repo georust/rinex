@@ -1,9 +1,9 @@
 //! `NavigationData` parser and related methods
-use thiserror::Error;
+use regex::{Captures, Regex};
+use std::collections::BTreeMap;
 use std::str::FromStr;
 use strum_macros::EnumString;
-use regex::{Regex, Captures};
-use std::collections::BTreeMap;
+use thiserror::Error;
 
 /*
  * When formatting floating point number in Navigation RINEX,
@@ -26,37 +26,20 @@ fn double_exponent_digits(content: &str) -> String {
 }
 
 use crate::{
-	sv,
-	epoch, 
-	types::Type,
-    prelude::*,
-	version::Version,
-    merge, merge::Merge,
-    split, split::Split,
-    sampling::Decimation,
-    gnss_time::TimeScaling,
+    epoch, gnss_time::TimeScaling, merge, merge::Merge, prelude::*, sampling::Decimation, split,
+    split::Split, sv, types::Type, version::Version,
 };
 
 use super::{
-	ephemeris, Ephemeris,
-    eopmessage, EopMessage, 
-    stomessage, StoMessage, 
-	ionmessage, IonMessage, 
-	BdModel, KbModel, NgModel,
-	orbits::{
-        NAV_ORBITS,
-        closest_revision,
-        OrbitItemError,
-    },
+    eopmessage, ephemeris, ionmessage,
+    orbits::{closest_revision, OrbitItemError, NAV_ORBITS},
+    stomessage, BdModel, EopMessage, Ephemeris, IonMessage, KbModel, NgModel, StoMessage,
 };
 
 use hifitime::Duration;
 
 /// Possible Navigation Frame declinations for an epoch
-#[derive(Debug, Copy, Clone)]
-#[derive(PartialEq, PartialOrd)]
-#[derive(Eq, Ord)]
-#[derive(EnumString)]
+#[derive(Debug, Copy, Clone, PartialEq, PartialOrd, Eq, Ord, EnumString)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum FrameClass {
     #[strum(serialize = "EPH")]
@@ -76,7 +59,7 @@ impl Default for FrameClass {
 }
 
 impl std::fmt::Display for FrameClass {
-    fn fmt (&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             Self::Ephemeris => f.write_str("EPH"),
             Self::SystemTimeOffset => f.write_str("STO"),
@@ -86,11 +69,8 @@ impl std::fmt::Display for FrameClass {
     }
 }
 
-/// Navigation Message Types 
-#[derive(Debug, Copy, Clone)]
-#[derive(PartialEq, PartialOrd)]
-#[derive(Eq, Ord)]
-#[derive(EnumString)]
+/// Navigation Message Types
+#[derive(Debug, Copy, Clone, PartialEq, PartialOrd, Eq, Ord, EnumString)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum MsgType {
     /// Legacy NAV
@@ -122,7 +102,7 @@ impl Default for MsgType {
 }
 
 impl std::fmt::Display for MsgType {
-    fn fmt (&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             Self::LNAV => f.write_str("LNAV"),
             Self::FNAV => f.write_str("FNAV"),
@@ -139,9 +119,7 @@ impl std::fmt::Display for MsgType {
 }
 
 /// Navigation Frame for a given epoch
-#[derive(Debug, Clone)]
-#[derive(PartialEq)]
-#[derive(EnumString)]
+#[derive(Debug, Clone, PartialEq, EnumString)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum Frame {
     /// Ephemeris for a given Vehicule `Sv`
@@ -155,63 +133,63 @@ pub enum Frame {
 }
 
 impl Default for Frame {
-	fn default() -> Self {
-		Self::Eph(MsgType::default(), Sv::default(), Ephemeris::default())
-	}
+    fn default() -> Self {
+        Self::Eph(MsgType::default(), Sv::default(), Ephemeris::default())
+    }
 }
 
 impl Frame {
     /// Unwraps self as Ephemeris frame
-    pub fn as_eph (&self) -> Option<(&MsgType, &Sv, &Ephemeris)> {
+    pub fn as_eph(&self) -> Option<(&MsgType, &Sv, &Ephemeris)> {
         match self {
             Self::Eph(msg, sv, eph) => Some((msg, sv, eph)),
             _ => None,
         }
     }
     /// Unwraps self as mutable Ephemeris frame reference
-    pub fn as_mut_eph (&mut self) -> Option<(&mut MsgType, &mut Sv, &mut Ephemeris)> {
+    pub fn as_mut_eph(&mut self) -> Option<(&mut MsgType, &mut Sv, &mut Ephemeris)> {
         match self {
             Self::Eph(msg, sv, eph) => Some((msg, sv, eph)),
             _ => None,
         }
     }
     /// Unwraps self as Ionospheric Model frame
-    pub fn as_ion (&self) -> Option<(&MsgType, &Sv, &IonMessage)> {
+    pub fn as_ion(&self) -> Option<(&MsgType, &Sv, &IonMessage)> {
         match self {
             Self::Ion(msg, sv, fr) => Some((msg, sv, fr)),
             _ => None,
         }
     }
     /// Unwraps self as mutable Ionospheric Model frame reference
-    pub fn as_mut_ion (&mut self) -> Option<(&mut MsgType, &mut Sv, &mut IonMessage)> {
+    pub fn as_mut_ion(&mut self) -> Option<(&mut MsgType, &mut Sv, &mut IonMessage)> {
         match self {
             Self::Ion(msg, sv, fr) => Some((msg, sv, fr)),
             _ => None,
         }
     }
     /// Unwraps self as Earth Orientation frame
-    pub fn as_eop (&self) -> Option<(&MsgType, &Sv, &EopMessage)> {
+    pub fn as_eop(&self) -> Option<(&MsgType, &Sv, &EopMessage)> {
         match self {
             Self::Eop(msg, sv, fr) => Some((msg, sv, fr)),
             _ => None,
         }
     }
     /// Unwraps self as Mutable Earth Orientation frame reference
-    pub fn as_mut_eop (&mut self) -> Option<(&mut MsgType, &mut Sv, &mut EopMessage)> {
+    pub fn as_mut_eop(&mut self) -> Option<(&mut MsgType, &mut Sv, &mut EopMessage)> {
         match self {
             Self::Eop(msg, sv, fr) => Some((msg, sv, fr)),
             _ => None,
         }
     }
     /// Unwraps self as System Time Offset frame
-    pub fn as_sto (&self) -> Option<(&MsgType, &Sv, &StoMessage)> {
+    pub fn as_sto(&self) -> Option<(&MsgType, &Sv, &StoMessage)> {
         match self {
             Self::Sto(msg, sv, fr) => Some((msg, sv, fr)),
             _ => None,
         }
     }
     /// Unwraps self as mutable System Time Offset frame reference
-    pub fn as_mut_sto (&mut self) -> Option<(&MsgType, &mut Sv, &mut StoMessage)> {
+    pub fn as_mut_sto(&mut self) -> Option<(&MsgType, &mut Sv, &mut StoMessage)> {
         match self {
             Self::Sto(msg, sv, fr) => Some((msg, sv, fr)),
             _ => None,
@@ -239,7 +217,7 @@ impl Frame {
 ///             // Modern Navigation frame, see [ionmessage::IonMessage]
 ///         }
 ///         else if *class == FrameClass::SystemTimeOffset {
-///             // Modern Navigation frame, see [stomessage::StoMessage] 
+///             // Modern Navigation frame, see [stomessage::StoMessage]
 ///         }
 ///         else if *class == FrameClass::EarthOrientation {
 ///             // Modern Navigation frame, see [eopmessage::EopMessage]
@@ -249,40 +227,41 @@ impl Frame {
 /// ```
 pub type Record = BTreeMap<Epoch, BTreeMap<FrameClass, Vec<Frame>>>;
 
-/// Returns true if given content matches the beginning of a 
+/// Returns true if given content matches the beginning of a
 /// Navigation record epoch
-pub (crate)fn is_new_epoch (line: &str, v: Version) -> bool {
-    if v.major < 3 { // old RINEX
+pub(crate) fn is_new_epoch(line: &str, v: Version) -> bool {
+    if v.major < 3 {
+        // old RINEX
         if line.len() < 23 {
-            return false // not enough bytes 
-                // to describe a PRN and an Epoch
+            return false; // not enough bytes
+                          // to describe a PRN and an Epoch
         }
         let (prn, _) = line.split_at(2);
         // 1st entry is a valid integer number
         if u8::from_str_radix(prn.trim(), 10).is_err() {
-            return false
+            return false;
         }
         // rest matches a valid epoch descriptor
         let datestr = &line[3..22];
         epoch::parse(&datestr).is_ok()
-
-    } else if v.major == 3 { // RINEX V3
+    } else if v.major == 3 {
+        // RINEX V3
         if line.len() < 24 {
-            return false // not enough bytes
-                // to describe an SVN and an Epoch
+            return false; // not enough bytes
+                          // to describe an SVN and an Epoch
         }
         // 1st entry matches a valid SV description
         let (sv, _) = line.split_at(4);
         if Sv::from_str(sv).is_err() {
-            return false
+            return false;
         }
         // rest matches a valid epoch descriptor
         let datestr = &line[4..23];
         epoch::parse(&datestr).is_ok()
-
-    } else { // Modern --> easy 
+    } else {
+        // Modern --> easy
         if let Some(c) = line.chars().nth(0) {
-            c == '>' // new epoch marker 
+            c == '>' // new epoch marker
         } else {
             false
         }
@@ -303,13 +282,13 @@ pub enum Error {
     #[error("failed to parse orbit field")]
     ParseOrbitError(#[from] OrbitItemError),
     #[error("failed to parse sv::prn")]
-    ParseIntError(#[from] std::num::ParseIntError), 
+    ParseIntError(#[from] std::num::ParseIntError),
     #[error("failed to parse sv clock fields")]
     ParseFloatError(#[from] std::num::ParseFloatError),
     #[error("failed to parse epoch")]
     EpochError(#[from] epoch::Error),
     #[error("failed to identify class/type")]
-    StrumError(#[from] strum::ParseError), 
+    StrumError(#[from] strum::ParseError),
     #[error("failed to parse EPH message")]
     EphMessageError(#[from] ephemeris::Error),
     #[error("failed to parse ION message")]
@@ -321,9 +300,11 @@ pub enum Error {
 }
 
 /// Builds `Record` entry for `NavigationData`
-pub (crate)fn parse_epoch (version: Version, constell: Constellation, content: &str) ->
-        Result<(Epoch, FrameClass, Frame), Error>
-{
+pub(crate) fn parse_epoch(
+    version: Version,
+    constell: Constellation,
+    content: &str,
+) -> Result<(Epoch, FrameClass, Frame), Error> {
     if content.starts_with(">") {
         parse_v4_record_entry(content)
     } else {
@@ -332,9 +313,7 @@ pub (crate)fn parse_epoch (version: Version, constell: Constellation, content: &
 }
 
 /// Builds `Record` entry for Modern NAV frames
-fn parse_v4_record_entry (content: &str) ->
-        Result<(Epoch, FrameClass, Frame), Error>
-{
+fn parse_v4_record_entry(content: &str) -> Result<(Epoch, FrameClass, Frame), Error> {
     let mut lines = content.lines();
     let line = match lines.next() {
         Some(l) => l,
@@ -351,11 +330,11 @@ fn parse_v4_record_entry (content: &str) ->
 
     let (epoch, fr): (Epoch, Frame) = match frame_class {
         FrameClass::Ephemeris => {
-			let (epoch, _, ephemeris) = Ephemeris::parse_v4(lines)?;
-            (epoch, Frame::Eph(msg_type, sv, ephemeris)) 
+            let (epoch, _, ephemeris) = Ephemeris::parse_v4(lines)?;
+            (epoch, Frame::Eph(msg_type, sv, ephemeris))
         },
         FrameClass::SystemTimeOffset => {
-           	let (epoch, msg) = StoMessage::parse(lines)?; 
+            let (epoch, msg) = StoMessage::parse(lines)?;
             (epoch, Frame::Sto(msg_type, sv, msg))
         },
         FrameClass::EarthOrientation => {
@@ -368,22 +347,20 @@ fn parse_v4_record_entry (content: &str) ->
                     let (epoch, model) = NgModel::parse(lines)?;
                     (epoch, IonMessage::NequickGModel(model))
                 },
-                MsgType::CNVX => {
-                    match sv.constellation {
-                        Constellation::BeiDou => {
-                            let (epoch, model) = BdModel::parse(lines)?;
-                            (epoch, IonMessage::BdgimModel(model))
-                        },
-                        _ => {
-                            let (epoch, model) = KbModel::parse(lines)?;
-                            (epoch, IonMessage::KlobucharModel(model))
-                        },
-                    }
+                MsgType::CNVX => match sv.constellation {
+                    Constellation::BeiDou => {
+                        let (epoch, model) = BdModel::parse(lines)?;
+                        (epoch, IonMessage::BdgimModel(model))
+                    },
+                    _ => {
+                        let (epoch, model) = KbModel::parse(lines)?;
+                        (epoch, IonMessage::KlobucharModel(model))
+                    },
                 },
                 _ => {
                     let (epoch, model) = KbModel::parse(lines)?;
                     (epoch, IonMessage::KlobucharModel(model))
-                }
+                },
             };
             (epoch, Frame::Ion(msg_type, sv, msg))
         },
@@ -391,19 +368,14 @@ fn parse_v4_record_entry (content: &str) ->
     Ok((epoch, frame_class, fr))
 }
 
-fn parse_v2_v3_record_entry (version: Version, constell: Constellation, content: &str) ->
-        Result<(Epoch, FrameClass, Frame), Error>
-{
-	let (epoch, sv, ephemeris) = Ephemeris::parse_v2v3(version, constell, content.lines())?;
-    let fr = Frame::Eph(
-		MsgType::LNAV, 
-		sv, 
-		ephemeris);
-    Ok((
-		epoch,
-        FrameClass::Ephemeris,
-        fr,
-    ))
+fn parse_v2_v3_record_entry(
+    version: Version,
+    constell: Constellation,
+    content: &str,
+) -> Result<(Epoch, FrameClass, Frame), Error> {
+    let (epoch, sv, ephemeris) = Ephemeris::parse_v2v3(version, constell, content.lines())?;
+    let fr = Frame::Eph(MsgType::LNAV, sv, ephemeris);
+    Ok((epoch, FrameClass::Ephemeris, fr))
 }
 
 /*
@@ -418,12 +390,12 @@ fn fmt_rework(major: u8, lines: &str) -> String {
     lines.to_string()
 }
 
-/// Writes given epoch into stream 
-pub (crate)fn fmt_epoch (
-        epoch: &Epoch, 
-        data: &BTreeMap<FrameClass, Vec<Frame>>,
-        header: &Header,
-    ) -> Result<String, Error> {
+/// Writes given epoch into stream
+pub(crate) fn fmt_epoch(
+    epoch: &Epoch,
+    data: &BTreeMap<FrameClass, Vec<Frame>>,
+    header: &Header,
+) -> Result<String, Error> {
     if header.version.major < 4 {
         fmt_epoch_v2v3(epoch, data, header)
     } else {
@@ -431,17 +403,16 @@ pub (crate)fn fmt_epoch (
     }
 }
 
-fn fmt_epoch_v2v3 (
-        epoch: &Epoch, 
-        data: &BTreeMap<FrameClass, Vec<Frame>>,
-        header: &Header,
-    ) -> Result<String, Error> {
+fn fmt_epoch_v2v3(
+    epoch: &Epoch,
+    data: &BTreeMap<FrameClass, Vec<Frame>>,
+    header: &Header,
+) -> Result<String, Error> {
     let mut lines = String::with_capacity(128);
     for (class, frames) in data.iter() {
         if *class == FrameClass::Ephemeris {
             for frame in frames.iter() {
-                let (_, sv, ephemeris) = frame.as_eph()
-                    .unwrap();
+                let (_, sv, ephemeris) = frame.as_eph().unwrap();
                 match &header.constellation {
                     Some(Constellation::Mixed) => {
                         // Mixed constellation context
@@ -457,7 +428,10 @@ fn fmt_epoch_v2v3 (
                         panic!("producing data with no constellation previously defined");
                     },
                 }
-				lines.push_str(&format!("{} ", epoch::format(*epoch, None, Type::NavigationData, header.version.major)));
+                lines.push_str(&format!(
+                    "{} ",
+                    epoch::format(*epoch, None, Type::NavigationData, header.version.major)
+                ));
                 lines.push_str(&format!(
                     "{:14.11E} {:14.11E} {:14.11E}\n   ",
                     ephemeris.clock_bias,
@@ -489,9 +463,7 @@ fn fmt_epoch_v2v3 (
                     .flatten()
                     .collect();
                 let nb_items_per_line = 4;
-                let mut chunks = orbits_standards 
-                    .chunks_exact(nb_items_per_line)
-                    .peekable();
+                let mut chunks = orbits_standards.chunks_exact(nb_items_per_line).peekable();
                 while let Some(chunk) = chunks.next() {
                     if chunks.peek().is_some() {
                         for (key, _) in chunk {
@@ -502,7 +474,8 @@ fn fmt_epoch_v2v3 (
                             }
                         }
                         lines.push_str(&format!("\n     "));
-                    } else { // last row
+                    } else {
+                        // last row
                         for (key, _) in chunk {
                             if let Some(data) = ephemeris.orbits.get(*key) {
                                 lines.push_str(&format!("{}", data.to_string()));
@@ -520,17 +493,16 @@ fn fmt_epoch_v2v3 (
     Ok(lines)
 }
 
-fn fmt_epoch_v4 (
-        epoch: &Epoch, 
-        data: &BTreeMap<FrameClass, Vec<Frame>>,
-        header: &Header,
-    ) -> Result<String, Error> {
+fn fmt_epoch_v4(
+    epoch: &Epoch,
+    data: &BTreeMap<FrameClass, Vec<Frame>>,
+    header: &Header,
+) -> Result<String, Error> {
     let mut lines = String::with_capacity(128);
     for (class, frames) in data.iter() {
         if *class == FrameClass::Ephemeris {
             for frame in frames.iter() {
-                let (msgtype, sv, ephemeris) = frame.as_eph()
-                    .unwrap();
+                let (msgtype, sv, ephemeris) = frame.as_eph().unwrap();
                 lines.push_str(&format!("> {} {} {}\n", class, sv, msgtype));
                 match &header.constellation {
                     Some(Constellation::Mixed) => {
@@ -546,12 +518,14 @@ fn fmt_epoch_v4 (
                     },
                     None => panic!("producing data with no constellation previously defined"),
                 }
-				lines.push_str(&format!("{} ", epoch::format(*epoch, None, Type::NavigationData, header.version.major)));
                 lines.push_str(&format!(
-                    "{:14.13E} {:14.13E} {:14.13E}\n", 
-                    ephemeris.clock_bias, 
-                    ephemeris.clock_drift, 
-                    ephemeris.clock_drift_rate));
+                    "{} ",
+                    epoch::format(*epoch, None, Type::NavigationData, header.version.major)
+                ));
+                lines.push_str(&format!(
+                    "{:14.13E} {:14.13E} {:14.13E}\n",
+                    ephemeris.clock_bias, ephemeris.clock_drift, ephemeris.clock_drift_rate
+                ));
                 // locate closest revision in db
                 let orbits_revision = match closest_revision(sv.constellation, header.version) {
                     Some(v) => v,
@@ -579,7 +553,8 @@ fn fmt_epoch_v4 (
                     index += 1;
                     if let Some(data) = ephemeris.orbits.get(*key) {
                         lines.push_str(&format!(" {}", data.to_string()));
-                    } else { // data is missing: either not parsed or not provided
+                    } else {
+                        // data is missing: either not parsed or not provided
                         lines.push_str("              ");
                     }
                     if (index % 4) == 0 {
@@ -587,11 +562,11 @@ fn fmt_epoch_v4 (
                     }
                 }
             }
-        } // EPH
+        }
+        // EPH
         else if *class == FrameClass::SystemTimeOffset {
             for frame in frames.iter() {
-                let (msg, sv, sto) = frame.as_sto()
-                    .unwrap();
+                let (msg, sv, sto) = frame.as_sto().unwrap();
                 lines.push_str(&format!("> {} {} {}\n", class, sv, msg));
                 lines.push_str(&format!("    {} {}    {}\n", 
                     epoch::format(*epoch, None, Type::NavigationData, header.version.major),
@@ -603,30 +578,25 @@ fn fmt_epoch_v4 (
                     sto.a.1,
                     sto.a.2));
             }
-        } // STO
+        }
+        // STO
         else if *class == FrameClass::EarthOrientation {
             for frame in frames.iter() {
-                let _eop = frame.as_eop()
-                    .unwrap();
+                let _eop = frame.as_eop().unwrap();
                 panic!("NAV V4: EOP: not available yet");
                 //(x, xr, xrr), (y, yr, yrr), t_tm, (dut, dutr, dutrr)) = frame.as_eop()
             }
-        } // EOP
-        else { // ION 
+        }
+        // EOP
+        else {
+            // ION
             for frame in frames.iter() {
-                let (msg, sv, ion) = frame.as_ion()
-                    .unwrap();
+                let (msg, sv, ion) = frame.as_ion().unwrap();
                 lines.push_str(&format!("> {} {} {}\n", class, sv, msg));
                 match ion {
-                    IonMessage::KlobucharModel(_model) => {
-
-                    },
-                    IonMessage::NequickGModel(_model) => {
-
-                    },
-                    IonMessage::BdgimModel(_model) => {
-
-                    },
+                    IonMessage::KlobucharModel(_model) => {},
+                    IonMessage::NequickGModel(_model) => {},
+                    IonMessage::BdgimModel(_model) => {},
                 }
             }
         } // ION
@@ -641,31 +611,36 @@ mod test {
     #[test]
     fn test_is_new_epoch() {
         // NAV V<3
-        let line = " 1 20 12 31 23 45  0.0 7.282570004460D-05 0.000000000000D+00 7.380000000000D+04";
+        let line =
+            " 1 20 12 31 23 45  0.0 7.282570004460D-05 0.000000000000D+00 7.380000000000D+04";
         assert_eq!(is_new_epoch(line, Version::new(1, 0)), true);
         assert_eq!(is_new_epoch(line, Version::new(2, 0)), true);
         assert_eq!(is_new_epoch(line, Version::new(3, 0)), false);
         assert_eq!(is_new_epoch(line, Version::new(4, 0)), false);
         // NAV V<3
-        let line = " 2 21  1  1 11 45  0.0 4.610531032090D-04 1.818989403550D-12 4.245000000000D+04";
+        let line =
+            " 2 21  1  1 11 45  0.0 4.610531032090D-04 1.818989403550D-12 4.245000000000D+04";
         assert_eq!(is_new_epoch(line, Version::new(1, 0)), true);
         assert_eq!(is_new_epoch(line, Version::new(2, 0)), true);
         assert_eq!(is_new_epoch(line, Version::new(3, 0)), false);
         assert_eq!(is_new_epoch(line, Version::new(4, 0)), false);
         // GPS NAV V<3
-        let line = " 3 17  1 13 23 59 44.0-1.057861372828D-04-9.094947017729D-13 0.000000000000D+00";
+        let line =
+            " 3 17  1 13 23 59 44.0-1.057861372828D-04-9.094947017729D-13 0.000000000000D+00";
         assert_eq!(is_new_epoch(line, Version::new(1, 0)), true);
         assert_eq!(is_new_epoch(line, Version::new(2, 0)), true);
         assert_eq!(is_new_epoch(line, Version::new(3, 0)), false);
         assert_eq!(is_new_epoch(line, Version::new(4, 0)), false);
         // NAV V3
-        let line = "C05 2021 01 01 00 00 00-4.263372393325e-04-7.525180478751e-11 0.000000000000e+00";
+        let line =
+            "C05 2021 01 01 00 00 00-4.263372393325e-04-7.525180478751e-11 0.000000000000e+00";
         assert_eq!(is_new_epoch(line, Version::new(1, 0)), false);
         assert_eq!(is_new_epoch(line, Version::new(2, 0)), false);
         assert_eq!(is_new_epoch(line, Version::new(3, 0)), true);
         assert_eq!(is_new_epoch(line, Version::new(4, 0)), false);
         // NAV V3
-        let line = "R21 2022 01 01 09 15 00-2.666609361768E-04-2.728484105319E-12 5.508000000000E+05";
+        let line =
+            "R21 2022 01 01 09 15 00-2.666609361768E-04-2.728484105319E-12 5.508000000000E+05";
         assert_eq!(is_new_epoch(line, Version::new(1, 0)), false);
         assert_eq!(is_new_epoch(line, Version::new(2, 0)), false);
         assert_eq!(is_new_epoch(line, Version::new(3, 0)), true);
@@ -679,7 +654,7 @@ mod test {
     #[test]
     fn test_v2_glonass_entry() {
         let content =
-" 1 20 12 31 23 45  0.0 7.282570004460D-05 0.000000000000D+00 7.380000000000D+04
+            " 1 20 12 31 23 45  0.0 7.282570004460D-05 0.000000000000D+00 7.380000000000D+04
    -1.488799804690D+03-2.196182250980D+00 3.725290298460D-09 0.000000000000D+00
     1.292880712890D+04-2.049269676210D+00 0.000000000000D+00 1.000000000000D+00
     2.193169775390D+04 1.059645652770D+00-9.313225746150D-10 0.000000000000D+00";
@@ -687,20 +662,26 @@ mod test {
         let entry = parse_epoch(version, Constellation::Glonass, content);
         assert_eq!(entry.is_ok(), true);
         let (epoch, class, frame) = entry.unwrap();
-        assert_eq!(epoch, Epoch::from_gregorian_utc(2020, 12, 31, 23, 45, 00, 00));
+        assert_eq!(
+            epoch,
+            Epoch::from_gregorian_utc(2020, 12, 31, 23, 45, 00, 00)
+        );
         assert_eq!(class, FrameClass::Ephemeris);
         let fr = frame.as_eph();
         assert_eq!(fr.is_some(), true);
         let (msg_type, sv, ephemeris) = fr.unwrap();
         assert_eq!(msg_type, &MsgType::LNAV);
-        assert_eq!(sv, &Sv {
-            constellation: Constellation::Glonass,
-            prn: 1,
-        });
+        assert_eq!(
+            sv,
+            &Sv {
+                constellation: Constellation::Glonass,
+                prn: 1,
+            }
+        );
         assert_eq!(ephemeris.clock_bias, 7.282570004460E-05);
-        assert_eq!(ephemeris.clock_drift, 0.0); 
+        assert_eq!(ephemeris.clock_drift, 0.0);
         assert_eq!(ephemeris.clock_drift_rate, 7.38E4);
-		let orbits = &ephemeris.orbits;
+        let orbits = &ephemeris.orbits;
         assert_eq!(orbits.len(), 12);
         for (k, v) in orbits.iter() {
             if k.eq("satPosX") {
@@ -761,7 +742,7 @@ mod test {
                 assert_eq!(v.is_some(), true);
                 let v = v.unwrap();
                 assert_eq!(v, 0.0);
-            } else { 
+            } else {
                 panic!("Got unexpected key \"{}\" for GLOV2 record", k);
             }
         }
@@ -769,7 +750,7 @@ mod test {
     #[test]
     fn test_v3_beidou_entry() {
         let content =
-"C05 2021 01 01 00 00 00 -.426337239332e-03 -.752518047875e-10  .000000000000e+00
+            "C05 2021 01 01 00 00 00 -.426337239332e-03 -.752518047875e-10  .000000000000e+00
       .100000000000e+01  .118906250000e+02  .105325815814e-08 -.255139531119e+01
       .169500708580e-06  .401772442274e-03  .292365439236e-04  .649346986580e+04
       .432000000000e+06  .105705112219e-06 -.277512444499e+01 -.211410224438e-06
@@ -781,20 +762,26 @@ mod test {
         let entry = parse_epoch(version, Constellation::Mixed, content);
         assert_eq!(entry.is_ok(), true);
         let (epoch, class, frame) = entry.unwrap();
-        assert_eq!(epoch, Epoch::from_gregorian_utc(2021, 01, 01, 00, 00, 00, 00));
+        assert_eq!(
+            epoch,
+            Epoch::from_gregorian_utc(2021, 01, 01, 00, 00, 00, 00)
+        );
         assert_eq!(class, FrameClass::Ephemeris);
         let fr = frame.as_eph();
         assert_eq!(fr.is_some(), true);
         let (msg_type, sv, ephemeris) = fr.unwrap();
         assert_eq!(msg_type, &MsgType::LNAV);
-        assert_eq!(sv, &Sv {
-            constellation: Constellation::BeiDou,
-            prn: 5,
-        });
-        assert_eq!(ephemeris.clock_bias, -0.426337239332E-03); 
-        assert_eq!(ephemeris.clock_drift, -0.752518047875e-10); 
+        assert_eq!(
+            sv,
+            &Sv {
+                constellation: Constellation::BeiDou,
+                prn: 5,
+            }
+        );
+        assert_eq!(ephemeris.clock_bias, -0.426337239332E-03);
+        assert_eq!(ephemeris.clock_drift, -0.752518047875e-10);
         assert_eq!(ephemeris.clock_drift_rate, 0.0);
-		let orbits = &ephemeris.orbits;
+        let orbits = &ephemeris.orbits;
         assert_eq!(orbits.len(), 24);
         for (k, v) in orbits.iter() {
             if k.eq("aode") {
@@ -817,7 +804,6 @@ mod test {
                 assert_eq!(v.is_some(), true);
                 let v = v.unwrap();
                 assert_eq!(v, -0.255139531119e+01);
-            
             } else if k.eq("cuc") {
                 let v = v.as_f64();
                 assert_eq!(v.is_some(), true);
@@ -832,18 +818,17 @@ mod test {
                 let v = v.as_f64();
                 assert_eq!(v.is_some(), true);
                 let v = v.unwrap();
-                assert_eq!(v, 0.292365439236e-04); 
+                assert_eq!(v, 0.292365439236e-04);
             } else if k.eq("sqrta") {
                 let v = v.as_f64();
                 assert_eq!(v.is_some(), true);
                 let v = v.unwrap();
                 assert_eq!(v, 0.649346986580e+04);
-            
             } else if k.eq("toe") {
                 let v = v.as_f64();
                 assert_eq!(v.is_some(), true);
                 let v = v.unwrap();
-                assert_eq!(v, 0.432000000000e+06); 
+                assert_eq!(v, 0.432000000000e+06);
             } else if k.eq("cic") {
                 let v = v.as_f64();
                 assert_eq!(v.is_some(), true);
@@ -859,7 +844,6 @@ mod test {
                 assert_eq!(v.is_some(), true);
                 let v = v.unwrap();
                 assert_eq!(v, -0.211410224438e-06);
-            
             } else if k.eq("i0") {
                 let v = v.as_f64();
                 assert_eq!(v.is_some(), true);
@@ -869,7 +853,7 @@ mod test {
                 let v = v.as_f64();
                 assert_eq!(v.is_some(), true);
                 let v = v.unwrap();
-                assert_eq!(v, -0.897671875000e+03); 
+                assert_eq!(v, -0.897671875000e+03);
             } else if k.eq("omega") {
                 let v = v.as_f64();
                 assert_eq!(v.is_some(), true);
@@ -880,7 +864,6 @@ mod test {
                 assert_eq!(v.is_some(), true);
                 let v = v.unwrap();
                 assert_eq!(v, -0.871464871438e-10);
-            
             } else if k.eq("idot") {
                 let v = v.as_f64();
                 assert_eq!(v.is_some(), true);
@@ -891,14 +874,13 @@ mod test {
                 let v = v.as_f64();
                 assert_eq!(v.is_some(), true);
                 let v = v.unwrap();
-                assert_eq!(v, 0.782000000000e+03); 
+                assert_eq!(v, 0.782000000000e+03);
             //SPARE
-            
             } else if k.eq("svAccuracy") {
                 let v = v.as_f64();
                 assert_eq!(v.is_some(), true);
                 let v = v.unwrap();
-                assert_eq!(v, 0.200000000000e+01); 
+                assert_eq!(v, 0.200000000000e+01);
             } else if k.eq("satH1") {
                 let v = v.as_f64();
                 assert_eq!(v.is_some(), true);
@@ -914,18 +896,17 @@ mod test {
                 assert_eq!(v.is_some(), true);
                 let v = v.unwrap();
                 assert_eq!(v, -0.900000000000e-08);
-            
             } else if k.eq("t_tm") {
                 let v = v.as_f64();
                 assert_eq!(v.is_some(), true);
                 let v = v.unwrap();
-                assert_eq!(v, 0.432000000000e+06); 
+                assert_eq!(v, 0.432000000000e+06);
             } else if k.eq("oadc") {
                 let v = v.as_f64();
                 assert_eq!(v.is_some(), true);
                 let v = v.unwrap();
-                assert_eq!(v, 0.000000000000e+00); 
-            } else { 
+                assert_eq!(v, 0.000000000000e+00);
+            } else {
                 panic!("Got unexpected key \"{}\" for BDSV3 record", k);
             }
         }
@@ -933,7 +914,7 @@ mod test {
     #[test]
     fn test_v3_galileo_entry() {
         let content =
-"E01 2021 01 01 10 10 00 -.101553811692e-02 -.804334376880e-11  .000000000000e+00
+            "E01 2021 01 01 10 10 00 -.101553811692e-02 -.804334376880e-11  .000000000000e+00
       .130000000000e+02  .435937500000e+02  .261510892978e-08 -.142304064404e+00
       .201165676117e-05  .226471573114e-03  .109840184450e-04  .544061822701e+04
       .468600000000e+06  .111758708954e-07 -.313008275208e+01  .409781932831e-07
@@ -945,27 +926,33 @@ mod test {
         let entry = parse_epoch(version, Constellation::Mixed, content);
         assert_eq!(entry.is_ok(), true);
         let (epoch, class, frame) = entry.unwrap();
-        assert_eq!(epoch, Epoch::from_gregorian_utc(2021, 01, 01, 10, 10, 00, 00));
+        assert_eq!(
+            epoch,
+            Epoch::from_gregorian_utc(2021, 01, 01, 10, 10, 00, 00)
+        );
         assert_eq!(class, FrameClass::Ephemeris);
         let fr = frame.as_eph();
         assert_eq!(fr.is_some(), true);
         let (msg_type, sv, ephemeris) = fr.unwrap();
         assert_eq!(msg_type, &MsgType::LNAV);
-        assert_eq!(sv, &Sv {
-            constellation: Constellation::Galileo,
-            prn: 1,
-        });
-        assert_eq!(ephemeris.clock_bias, -0.101553811692e-02); 
+        assert_eq!(
+            sv,
+            &Sv {
+                constellation: Constellation::Galileo,
+                prn: 1,
+            }
+        );
+        assert_eq!(ephemeris.clock_bias, -0.101553811692e-02);
         assert_eq!(ephemeris.clock_drift, -0.804334376880e-11);
         assert_eq!(ephemeris.clock_drift_rate, 0.0);
-		let orbits = &ephemeris.orbits;
+        let orbits = &ephemeris.orbits;
         assert_eq!(orbits.len(), 24);
         for (k, v) in orbits.iter() {
             if k.eq("iodnav") {
                 let v = v.as_f64();
                 assert_eq!(v.is_some(), true);
                 let v = v.unwrap();
-                assert_eq!(v, 0.130000000000e+02); 
+                assert_eq!(v, 0.130000000000e+02);
             } else if k.eq("crs") {
                 let v = v.as_f64();
                 assert_eq!(v.is_some(), true);
@@ -980,8 +967,7 @@ mod test {
                 let v = v.as_f64();
                 assert_eq!(v.is_some(), true);
                 let v = v.unwrap();
-                assert_eq!(v, -0.142304064404e+00); 
-            
+                assert_eq!(v, -0.142304064404e+00);
             } else if k.eq("cuc") {
                 let v = v.as_f64();
                 assert_eq!(v.is_some(), true);
@@ -991,28 +977,27 @@ mod test {
                 let v = v.as_f64();
                 assert_eq!(v.is_some(), true);
                 let v = v.unwrap();
-                assert_eq!(v, 0.226471573114e-03); 
+                assert_eq!(v, 0.226471573114e-03);
             } else if k.eq("cus") {
                 let v = v.as_f64();
                 assert_eq!(v.is_some(), true);
                 let v = v.unwrap();
-                assert_eq!(v, 0.109840184450e-04); 
+                assert_eq!(v, 0.109840184450e-04);
             } else if k.eq("sqrta") {
                 let v = v.as_f64();
                 assert_eq!(v.is_some(), true);
                 let v = v.unwrap();
-                assert_eq!(v, 0.544061822701e+04); 
-            
+                assert_eq!(v, 0.544061822701e+04);
             } else if k.eq("toe") {
                 let v = v.as_f64();
                 assert_eq!(v.is_some(), true);
                 let v = v.unwrap();
-                assert_eq!(v, 0.468600000000e+06); 
+                assert_eq!(v, 0.468600000000e+06);
             } else if k.eq("cic") {
                 let v = v.as_f64();
                 assert_eq!(v.is_some(), true);
                 let v = v.unwrap();
-                assert_eq!(v, 0.111758708954e-07); 
+                assert_eq!(v, 0.111758708954e-07);
             } else if k.eq("omega0") {
                 let v = v.as_f64();
                 assert_eq!(v.is_some(), true);
@@ -1023,12 +1008,11 @@ mod test {
                 assert_eq!(v.is_some(), true);
                 let v = v.unwrap();
                 assert_eq!(v, 0.409781932831e-07);
-            
             } else if k.eq("i0") {
                 let v = v.as_f64();
                 assert_eq!(v.is_some(), true);
                 let v = v.unwrap();
-                assert_eq!(v, 0.980287270202e+00); 
+                assert_eq!(v, 0.980287270202e+00);
             } else if k.eq("crc") {
                 let v = v.as_f64();
                 assert_eq!(v.is_some(), true);
@@ -1044,7 +1028,6 @@ mod test {
                 assert_eq!(v.is_some(), true);
                 let v = v.unwrap();
                 assert_eq!(v, -0.518200156545e-08);
-            
             } else if k.eq("idot") {
                 let v = v.as_f64();
                 assert_eq!(v.is_some(), true);
@@ -1061,7 +1044,6 @@ mod test {
                 let v = v.unwrap();
                 assert_eq!(v, 0.213800000000e+04);
             //SPARE
-            
             } else if k.eq("sisa") {
                 let v = v.as_f64();
                 assert_eq!(v.is_some(), true);
@@ -1080,14 +1062,12 @@ mod test {
                 assert_eq!(v.is_some(), true);
                 let v = v.unwrap();
                 assert_eq!(v, 0.000000000000e+00);
-            
             } else if k.eq("t_tm") {
                 let v = v.as_f64();
                 assert_eq!(v.is_some(), true);
                 let v = v.unwrap();
                 assert_eq!(v, 0.469330000000e+06);
-            
-            } else { 
+            } else {
                 panic!("Got unexpected key \"{}\" for GALV3 record", k);
             }
         }
@@ -1095,7 +1075,7 @@ mod test {
     #[test]
     fn test_v3_glonass_entry() {
         let content =
-"R07 2021 01 01 09 45 00 -.420100986958e-04  .000000000000e+00  .342000000000e+05
+            "R07 2021 01 01 09 45 00 -.420100986958e-04  .000000000000e+00  .342000000000e+05
       .124900639648e+05  .912527084351e+00  .000000000000e+00  .000000000000e+00
       .595546582031e+04  .278496932983e+01  .000000000000e+00  .500000000000e+01
       .214479208984e+05 -.131077289581e+01 -.279396772385e-08  .000000000000e+00";
@@ -1103,20 +1083,26 @@ mod test {
         let entry = parse_epoch(version, Constellation::Mixed, content);
         assert_eq!(entry.is_ok(), true);
         let (epoch, class, frame) = entry.unwrap();
-        assert_eq!(epoch, Epoch::from_gregorian_utc(2021, 01, 01, 09, 45, 00, 00));
+        assert_eq!(
+            epoch,
+            Epoch::from_gregorian_utc(2021, 01, 01, 09, 45, 00, 00)
+        );
         assert_eq!(class, FrameClass::Ephemeris);
         let fr = frame.as_eph();
         assert_eq!(fr.is_some(), true);
         let (msg_type, sv, ephemeris) = fr.unwrap();
         assert_eq!(msg_type, &MsgType::LNAV);
-        assert_eq!(sv, &Sv {
-            constellation: Constellation::Glonass,
-            prn: 7,
-        });
+        assert_eq!(
+            sv,
+            &Sv {
+                constellation: Constellation::Glonass,
+                prn: 7,
+            }
+        );
         assert_eq!(ephemeris.clock_bias, -0.420100986958e-04);
         assert_eq!(ephemeris.clock_drift, 0.000000000000e+00);
         assert_eq!(ephemeris.clock_drift_rate, 0.342000000000e+05);
-		let orbits = &ephemeris.orbits;
+        let orbits = &ephemeris.orbits;
         assert_eq!(orbits.len(), 12);
         for (k, v) in orbits.iter() {
             if k.eq("satPosX") {
@@ -1146,7 +1132,7 @@ mod test {
                 let v = v.as_f64();
                 assert_eq!(v.is_some(), true);
                 let v = v.unwrap();
-                assert_eq!(v, 0.278496932983e+01); 
+                assert_eq!(v, 0.278496932983e+01);
             } else if k.eq("accelY") {
                 let v = v.as_f64();
                 assert_eq!(v.is_some(), true);
@@ -1177,7 +1163,7 @@ mod test {
                 assert_eq!(v.is_some(), true);
                 let v = v.unwrap();
                 assert_eq!(v, 0.000000000000e+00);
-            } else { 
+            } else {
                 panic!("Got unexpected key \"{}\" for GLOV3 record", k);
             }
         }
@@ -1229,11 +1215,13 @@ impl Merge<Record> for Record {
                                 fframes.push(frame.clone());
                             }
                         }
-                    } else { // new frame class
+                    } else {
+                        // new frame class
                         cclasses.insert(*class, frames.clone());
                     }
                 }
-            } else { // new epoch
+            } else {
+                // new epoch
                 self.insert(*epoch, classes.clone());
             }
         }
@@ -1243,7 +1231,8 @@ impl Merge<Record> for Record {
 
 impl Split<Record> for Record {
     fn split(&self, epoch: Epoch) -> Result<(Self, Self), split::Error> {
-        let r0 = self.iter()
+        let r0 = self
+            .iter()
             .flat_map(|(k, v)| {
                 if k < &epoch {
                     Some((k.clone(), v.clone()))
@@ -1252,7 +1241,8 @@ impl Split<Record> for Record {
                 }
             })
             .collect();
-        let r1 = self.iter()
+        let r1 = self
+            .iter()
             .flat_map(|(k, v)| {
                 if k >= &epoch {
                     Some((k.clone(), v.clone()))

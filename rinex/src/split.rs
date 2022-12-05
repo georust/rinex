@@ -9,7 +9,7 @@ pub enum Error {
 }
 
 pub trait Split<T> {
-    /// Splits Self at desired epoch, 
+    /// Splits Self at desired epoch,
     /// retaining |e(k) < epoch| ("before"), as left component,
     /// and |e(k) >= epoch| ("inclusive after"), as right component.
     /// Fails if self is not indexed by `Epoch`.
@@ -24,5 +24,7 @@ pub trait Split<T> {
     /// assert_eq!(rnx_a.epochs().len(), 2);
     /// assert_eq!(rnx_b.epochs().len(), rnx.epochs().len() - 2);
     /// ```
-    fn split(&self, epoch: Epoch) -> Result<(Self, Self), Error> where Self: Sized;
+    fn split(&self, epoch: Epoch) -> Result<(Self, Self), Error>
+    where
+        Self: Sized;
 }

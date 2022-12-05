@@ -1,7 +1,7 @@
 use thiserror::Error;
 //use std::str::FromStr;
-use rinex::constellation::Constellation;
 use crate::datetime::{parse_datetime, ParseDateTimeError};
+use rinex::constellation::Constellation;
 
 #[derive(Debug, Clone)]
 pub struct Receiver {
@@ -31,7 +31,7 @@ pub enum ReceiverError {
 
 impl std::str::FromStr for Receiver {
     type Err = ParseDateTimeError;
-    fn from_str (s: &str) -> Result<Self, Self::Err> {
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         let (station, rem) = s.split_at(10);
         let (constellation, rem) = rem.split_at(2);
         let (group, rem) = rem.split_at(10);
@@ -48,7 +48,7 @@ impl std::str::FromStr for Receiver {
                 }
             },
             group: group.trim().to_string(),
-            valid_from: parse_datetime(start.trim())?, 
+            valid_from: parse_datetime(start.trim())?,
             valid_until: parse_datetime(end.trim())?,
             rtype: rtype.trim().to_string(),
             firmware: rem.trim().to_string(),
@@ -64,7 +64,8 @@ mod tests {
     fn test_receiver() {
         //"STATION__ C GROUP____ DATA_START____ DATA_END______ RECEIVER_TYPE_______ RECEIVER_FIRMWARE___"
         let rcvr = Receiver::from_str(
-        "MAO0      G @MP0      2015:276:00000 2015:276:86399 JAVAD TRE-G3TH DELTA 3.6.4");
+            "MAO0      G @MP0      2015:276:00000 2015:276:86399 JAVAD TRE-G3TH DELTA 3.6.4",
+        );
         assert_eq!(rcvr.is_ok(), true);
         let rcvr = rcvr.unwrap();
         assert_eq!(rcvr.station, "MAO0");

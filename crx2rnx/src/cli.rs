@@ -1,8 +1,4 @@
-use clap::{
-    Command,
-    Arg, ArgMatches,
-    ColorChoice,
-};
+use clap::{Arg, ArgMatches, ColorChoice, Command};
 
 pub struct Cli {
     /// arguments passed by user
@@ -19,26 +15,27 @@ impl Cli {
                     .about("Compact RINEX decompression tool")
                     .arg_required_else_help(true)
                     .color(ColorChoice::Always)
-                    .arg(Arg::new("filepath")
-                        .short('f')
-                        .long("fp")
-                        .help("Input RINEX file")
-                        .required(true))
-                    .arg(Arg::new("output")
-                        .short('o')
-                        .long("output")
-                        .help("Output RINEX file"))
+                    .arg(
+                        Arg::new("filepath")
+                            .short('f')
+                            .long("fp")
+                            .help("Input RINEX file")
+                            .required(true),
+                    )
+                    .arg(
+                        Arg::new("output")
+                            .short('o')
+                            .long("output")
+                            .help("Output RINEX file"),
+                    )
                     .get_matches()
-            }
+            },
         }
     }
     pub fn input_path(&self) -> &str {
-        &self.matches
-            .get_one::<String>("filepath")
-            .unwrap()
+        &self.matches.get_one::<String>("filepath").unwrap()
     }
     pub fn output_path(&self) -> Option<&String> {
-        self.matches
-            .get_one::<String>("output")
+        self.matches.get_one::<String>("output")
     }
 }

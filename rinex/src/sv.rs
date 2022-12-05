@@ -1,17 +1,15 @@
 //! Satellite vehicule
-use thiserror::Error;
 use super::{constellation, Constellation};
+use thiserror::Error;
 
 #[cfg(feature = "serde")]
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 /// ̀`Sv` describes a Satellite Vehiculee
-#[derive(Copy, Clone, Debug, Default)]
-#[derive(PartialEq, Eq, Hash)]
-#[derive(PartialOrd, Ord)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Sv {
-    /// PRN identification # for this vehicule 
+    /// PRN identification # for this vehicule
     pub prn: u8,
     /// `GNSS` Constellation to which this vehicule is tied to
     pub constellation: Constellation,
@@ -28,11 +26,8 @@ pub enum Error {
 
 impl Sv {
     /// Creates a new `Sv`
-    pub fn new (constellation: Constellation, prn: u8) -> Self { 
-        Self {
-            prn, 
-            constellation, 
-        }
+    pub fn new(constellation: Constellation, prn: u8) -> Self {
+        Self { prn, constellation }
     }
 }
 
@@ -40,19 +35,24 @@ impl std::str::FromStr for Sv {
     type Err = Error;
     /// Builds an `Sv` from XYY identification code.   
     /// code should strictly follow rinex conventions.   
-    /// This method tolerates trailing whitespaces 
-    fn from_str (s: &str) -> Result<Self, Self::Err> {
+    /// This method tolerates trailing whitespaces
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(Sv {
             constellation: Constellation::from_1_letter_code(&s[0..1])?,
-            prn: u8::from_str_radix(&s[1..].trim(), 10)?
+            prn: u8::from_str_radix(&s[1..].trim(), 10)?,
         })
     }
 }
 
 impl std::fmt::Display for Sv {
     /// Formats self as XYY RINEX three letter code
-    fn fmt (&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(fmt, "{}{:02}", self.constellation.to_1_letter_code(), self.prn)
+    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            fmt,
+            "{}{:02}",
+            self.constellation.to_1_letter_code(),
+            self.prn
+        )
     }
 }
 
@@ -62,9 +62,7 @@ mod test {
     use std::str::FromStr;
     #[test]
     fn test_from_str() {
-        let tests : Vec<&str> = vec![
-            "C01", "C 3", "G33", "C254", "E4 ", "R 9",
-        ];
+        let tests: Vec<&str> = vec!["C01", "C 3", "G33", "C254", "E4 ", "R 9"];
         for t in tests {
             assert!(Sv::from_str(t).is_ok());
         }

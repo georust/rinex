@@ -1,12 +1,5 @@
-use clap::{
-    Command, 
-    Arg, ArgMatches, 
-    ArgAction,
-    ColorChoice,
-};
-use crate::parser::{
-    parse_epoch,
-};
+use crate::parser::parse_epoch;
+use clap::{Arg, ArgAction, ArgMatches, ColorChoice, Command};
 use rinex::prelude::*;
 
 pub struct Cli {
@@ -15,7 +8,7 @@ pub struct Cli {
 }
 
 impl Cli {
-    /// Build new command line interface 
+    /// Build new command line interface
     pub fn new() -> Self {
         Self {
             matches: {
@@ -350,9 +343,7 @@ Example \"--plot-height 1024"))
     }
     /// Returns input filepaths
     pub fn input_path(&self) -> &str {
-        self.matches
-            .get_one::<String>("filepath")
-            .unwrap()
+        self.matches.get_one::<String>("filepath").unwrap()
     }
     /// Returns output filepaths
     pub fn output_path(&self) -> Option<&str> {
@@ -400,14 +391,14 @@ Example \"--plot-height 1024"))
     }
     pub fn basic_identification(&self) -> bool {
         self.matches.get_flag("sv")
-        | self.matches.get_flag("epochs")
-        | self.matches.get_flag("header")
-        | self.matches.get_flag("observables")
-        | self.matches.get_flag("ssi-range")
-        | self.matches.get_flag("orbits")
-        | self.matches.get_flag("nav-msg")
+            | self.matches.get_flag("epochs")
+            | self.matches.get_flag("header")
+            | self.matches.get_flag("observables")
+            | self.matches.get_flag("ssi-range")
+            | self.matches.get_flag("orbits")
+            | self.matches.get_flag("nav-msg")
     }
-    /// Returns true if Sv accross epoch display is requested 
+    /// Returns true if Sv accross epoch display is requested
     pub fn sv_epoch(&self) -> bool {
         self.matches.get_flag("sv-epoch")
     }
@@ -415,11 +406,11 @@ Example \"--plot-height 1024"))
     pub fn epoch_histogram(&self) -> bool {
         self.matches.get_flag("epoch-hist")
     }
-    /// Phase /PR DCBs analysis requested 
+    /// Phase /PR DCBs analysis requested
     pub fn dcb(&self) -> bool {
         self.matches.get_flag("dcb")
     }
-    /// Code Multipath analysis requested 
+    /// Code Multipath analysis requested
     pub fn multipath(&self) -> bool {
         self.matches.get_flag("multipath")
     }
@@ -436,7 +427,8 @@ Example \"--plot-height 1024"))
             "orbits",
             "nav-msg",
         ];
-        flags.iter()
+        flags
+            .iter()
             .filter(|x| self.matches.get_flag(x))
             .map(|x| *x)
             .collect()
@@ -444,23 +436,23 @@ Example \"--plot-height 1024"))
     /// Returns true if at least one retain filter should be applied
     pub fn retain(&self) -> bool {
         self.matches.contains_id("retain-constell")
-        | self.matches.contains_id("retain-sv")
-        | self.matches.contains_id("retain-epoch-ok")
-        | self.matches.contains_id("retain-epoch-nok")
-        | self.matches.contains_id("retain-obs")
-        | self.matches.contains_id("retain-ssi")
-        | self.matches.contains_id("retain-orb")
-        | self.matches.contains_id("retain-lnav")
-        | self.matches.contains_id("retain-mnav")
-        | self.matches.contains_id("retain-nav-msg")
-        | self.matches.contains_id("retain-nav-eph")
-        | self.matches.contains_id("retain-nav-iono")
-        | self.matches.contains_id("retain-phase")
-        | self.matches.contains_id("retain-doppler")
-        | self.matches.contains_id("retain-best-elev")
-        | self.matches.contains_id("retain-elev-above")
-        | self.matches.contains_id("retain-elev-below")
-        | self.matches.contains_id("retain-pr")
+            | self.matches.contains_id("retain-sv")
+            | self.matches.contains_id("retain-epoch-ok")
+            | self.matches.contains_id("retain-epoch-nok")
+            | self.matches.contains_id("retain-obs")
+            | self.matches.contains_id("retain-ssi")
+            | self.matches.contains_id("retain-orb")
+            | self.matches.contains_id("retain-lnav")
+            | self.matches.contains_id("retain-mnav")
+            | self.matches.contains_id("retain-nav-msg")
+            | self.matches.contains_id("retain-nav-eph")
+            | self.matches.contains_id("retain-nav-iono")
+            | self.matches.contains_id("retain-phase")
+            | self.matches.contains_id("retain-doppler")
+            | self.matches.contains_id("retain-best-elev")
+            | self.matches.contains_id("retain-elev-above")
+            | self.matches.contains_id("retain-elev-below")
+            | self.matches.contains_id("retain-pr")
     }
 
     pub fn retain_flags(&self) -> Vec<&str> {
@@ -477,7 +469,8 @@ Example \"--plot-height 1024"))
             "retain-pr",
             "retain-best-elev",
         ];
-        flags.iter()
+        flags
+            .iter()
             .filter_map(|x| {
                 if self.matches.get_flag(x) {
                     Some(*x)
@@ -502,77 +495,68 @@ Example \"--plot-height 1024"))
             "retain-elev-below",
             "retain-orb",
         ];
-        flags.iter()
+        flags
+            .iter()
             .filter(|x| self.matches.contains_id(x))
             .map(|id| {
-                let descriptor = self.matches.get_one::<String>(id)
-                    .unwrap();
-                let args: Vec<&str> = descriptor
-                    .split(",")
-                    .collect();
+                let descriptor = self.matches.get_one::<String>(id).unwrap();
+                let args: Vec<&str> = descriptor.split(",").collect();
                 (id, args)
             })
-            .map(|(id, args)| (*id, args)) 
+            .map(|(id, args)| (*id, args))
             .collect()
     }
     /// Returns true if at least one resampling op is to be performed
     pub fn resampling(&self) -> bool {
         self.matches.contains_id("resample-ratio")
-        | self.matches.contains_id("resample-interval")
-        | self.matches.contains_id("time-window")
+            | self.matches.contains_id("resample-interval")
+            | self.matches.contains_id("time-window")
     }
 
     pub fn resampling_ops(&self) -> Vec<(&str, &str)> {
         // this order describes eventually the order of filtering operations
-        let flags = vec![
-            "resample-ratio",
-            "resample-interval",
-            "time-window",
-        ];
-        flags.iter()
+        let flags = vec!["resample-ratio", "resample-interval", "time-window"];
+        flags
+            .iter()
             .filter(|x| self.matches.contains_id(x))
             .map(|id| {
-                let args = self.matches.get_one::<String>(id)
-                    .unwrap();
+                let args = self.matches.get_one::<String>(id).unwrap();
                 (id, args.as_str())
             })
             .map(|(id, args)| (*id, args))
             .collect()
     }
 
-    /// Returns true if at least one filter should be applied 
+    /// Returns true if at least one filter should be applied
     pub fn filter(&self) -> bool {
         self.matches.contains_id("lli-mask")
-        || self.matches.contains_id("gps-filter")
-        || self.matches.contains_id("glo-filter")
-        || self.matches.contains_id("gal-filter")
-        || self.matches.contains_id("bds-filter")
-        || self.matches.contains_id("qzss-filter")
-        || self.matches.contains_id("sbas-filter")
+            || self.matches.contains_id("gps-filter")
+            || self.matches.contains_id("glo-filter")
+            || self.matches.contains_id("gal-filter")
+            || self.matches.contains_id("bds-filter")
+            || self.matches.contains_id("qzss-filter")
+            || self.matches.contains_id("sbas-filter")
     }
     pub fn filter_ops(&self) -> Vec<(&str, &str)> {
-        let flags = vec![
-            "lli-mask",
-        ];
-        flags.iter()
+        let flags = vec!["lli-mask"];
+        flags
+            .iter()
             .filter(|x| self.matches.contains_id(x))
             .map(|id| {
-                let args = self.matches.get_one::<String>(id)
-                    .unwrap();
+                let args = self.matches.get_one::<String>(id).unwrap();
                 (id, args.as_str())
             })
             .map(|(id, args)| (*id, args))
             .collect()
     }
-    fn get_flag (&self, flag: &str) -> bool {
-        self.matches
-            .get_flag(flag)
+    fn get_flag(&self, flag: &str) -> bool {
+        self.matches.get_flag(flag)
     }
     /// returns true if --pretty was passed
     pub fn pretty(&self) -> bool {
         self.get_flag("pretty")
     }
-    /// Returns true if quiet mode is activated 
+    /// Returns true if quiet mode is activated
     pub fn quiet(&self) -> bool {
         self.matches.get_flag("quiet")
     }
@@ -594,7 +578,7 @@ Example \"--plot-height 1024"))
             if let Some(args) = self.matches.get_one::<String>("split") {
                 if let Ok(epoch) = parse_epoch(args) {
                     Some(epoch)
-                } else { 
+                } else {
                     panic!("failed to parse [DATETIME]");
                 }
             } else {
@@ -634,11 +618,10 @@ Example \"--plot-height 1024"))
         }
     }
     /// Returns desired plot dimensions
-    pub fn plot_dimensions(&self) -> (u32,u32) {
+    pub fn plot_dimensions(&self) -> (u32, u32) {
         let mut dim = (1024, 768);
         if self.matches.contains_id("plot-dim") {
-            let args = self.matches.get_one::<String>("plot-dim")
-                .unwrap();
+            let args = self.matches.get_one::<String>("plot-dim").unwrap();
             let items: Vec<&str> = args.split(",").collect();
             if items.len() == 2 {
                 if let Ok(w) = u32::from_str_radix(items[0].trim(), 10) {
@@ -648,14 +631,12 @@ Example \"--plot-height 1024"))
                 }
             }
         } else if self.matches.contains_id("plot-width") {
-            let arg = self.matches.get_one::<String>("plot-width")
-                .unwrap();
+            let arg = self.matches.get_one::<String>("plot-width").unwrap();
             if let Ok(w) = u32::from_str_radix(arg.trim(), 10) {
                 dim.0 = w;
             }
         } else if self.matches.contains_id("plot-height") {
-            let arg = self.matches.get_one::<String>("plot-height")
-                .unwrap();
+            let arg = self.matches.get_one::<String>("plot-height").unwrap();
             if let Ok(h) = u32::from_str_radix(arg.trim(), 10) {
                 dim.1 = h;
             }
