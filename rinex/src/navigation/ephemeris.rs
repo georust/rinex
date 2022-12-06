@@ -287,14 +287,12 @@ impl Ephemeris {
     pub fn kepler2ecef(&self, t_sv: Epoch) -> Option<(f64,f64,f64)> {
         let kepler = self.kepler()?;
         let perturbations = self.perturbations()?;
-        println!("{:#?} {:#?}", kepler, perturbations);
 
         //TODO: double check we always refer to this t_0
         let weeks = self.get_weeks()?;
         let t0 = hifitime::GPST_REF_EPOCH + Duration::from_days((weeks * 7).into());
         let toe = t0 + Duration::from_seconds(kepler.toe as f64);
         let t_k = (t_sv - toe).to_seconds();
-        println!("t_sv {} | WEEKS {} | TOE {} | t_k {}", t_sv, weeks, toe, t_k);
 
         let n0 = (Kepler::EARTH_GM_CONSTANT / kepler.a.powf(3.0)).sqrt();
         let n = n0 + perturbations.dn;
@@ -672,5 +670,41 @@ mod test {
         assert!((x - -5678509.38584636).abs() < 1E-6);
         assert!((y - -24923975.356725316).abs() < 1E-6);
         assert!((z - 7056393.437932).abs() < 1E-6);
+        
+        let orbits = build_orbits(
+            Constellation::GPS,
+            vec![
+                ("deltaN", "3.86730381052e-09"),
+                ("gpsWeek", "2190.0"),
+                ("toe", "432000.0"),
+                ("e", "0.0112139617559"),
+                ("m0", "-0.659513670614"),
+                ("i0", "0.986440321199"),
+                ("idot", "-2.98226721096e-10"),
+                ("sqrta", "5153.67701149"),
+                ("cuc", "-6.64032995701e-06"),
+                ("cus", "7.05942511559e-06"),
+                ("cic", "-9.31322574615e-09"),
+                ("cis", "2.10478901863e-07"),
+                ("crc", "255.375"),
+                ("crs", "-126.90625"),
+                ("omega", "0.883585650969"),
+                ("omega0", "-1.03593017273"),
+                ("omegaDot", "-7.99890464975e-09"),
+            ]);
+        let ephemeris = Ephemeris {
+            clock_bias: -0.426337239332e-03, 
+            clock_drift: -0.752518047875e-10, 
+            clock_drift_rate: 0.000000000000e+00,
+            orbits,
+        };
+        let t_sv = hifitime::GPST_REF_EPOCH + Duration::from_days(2190.0 * 7.0) + Duration::from_seconds(1324944000.0);
+        let xyz = ephemeris.kepler2ecef(t_sv);
+        assert!(xyz.is_some());
+        let (x, y, z) = xyz.unwrap();
+        println!("x {}, y {}, z {}", x, y, z);
+        assert!((x - -11840614.01333711).abs() < 1E-6);
+        assert!((y - 19224209.93574417).abs() < 1E-6);
+        assert!((z - 13435836.30353981).abs() < 1E-6);
     }
 }
