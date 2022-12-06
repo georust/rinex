@@ -8,10 +8,10 @@ use super::{
     orbits::{closest_revision, NAV_ORBITS},
     OrbitItem,
 };
-
-use std::collections::HashMap;
 use std::str::FromStr;
 use thiserror::Error;
+use hifitime::GPST_REF_EPOCH;
+use std::collections::HashMap;
 
 /// Parsing errors
 #[derive(Debug, Error)]
@@ -112,7 +112,6 @@ impl Default for Ephemeris {
     }
 }
 
-
 /// Kepler parameters
 #[derive(Clone, Debug)]
 pub struct Kepler {
@@ -189,10 +188,10 @@ impl Ephemeris {
         }
     }
 
-    /// Tries to retrieve "weeks" counter
+    /// Tries to retrieve week counter
     pub fn get_weeks(&self) -> Option<u32> {
         //TODO:
-        // cast/scaling per constellation
+        // cast/scalings per constellation ??
         if let Some(v) = self.orbits.get("gpsWeek") {
             if let Some(f) = v.as_f64() {
                 return Some(f.round() as u32);
@@ -209,7 +208,7 @@ impl Ephemeris {
         None
     }
 
-    /// Retrieve Keplerian parameters
+    /// Retrieves Keplerian parameters
     pub fn kepler(&self) -> Option<Kepler> {
         if let Some(sqrt_a) = self.get_orbit_f64("sqrta") {
             if let Some(e) = self.get_orbit_f64("e") {
@@ -237,7 +236,7 @@ impl Ephemeris {
         None
     }
 	
-    /// Retrieve Perturbation parameters
+    /// Retrieves Perturbations
     pub fn perturbations(&self) -> Option<Perturbations> {
         if let Some(cuc) = self.get_orbit_f64("cuc") {
             if let Some(cus) = self.get_orbit_f64("cus") {
@@ -283,16 +282,17 @@ impl Ephemeris {
         self.kepler2ecef(epoch)
     }
 
-    /// Manual calculations of satellite position vector, in ECEF
-    pub fn kepler2ecef(&self, t_sv: Epoch) -> Option<(f64,f64,f64)> {
+    /// Manual calculations of satellite position vector, in ECEF.
+    /// `epoch`: orbit epoch
+    pub fn kepler2ecef(&self, epoch: Epoch) -> Option<(f64,f64,f64)> {
         let kepler = self.kepler()?;
         let perturbations = self.perturbations()?;
 
         //TODO: double check we always refer to this t_0
         let weeks = self.get_weeks()?;
-        let t0 = hifitime::GPST_REF_EPOCH + Duration::from_days((weeks * 7).into());
+        let t0 = GPST_REF_EPOCH + Duration::from_days((weeks * 7).into());
         let toe = t0 + Duration::from_seconds(kepler.toe as f64);
-        let t_k = (t_sv - toe).to_seconds();
+        let t_k = (epoch - toe).to_seconds();
 
         let n0 = (Kepler::EARTH_GM_CONSTANT / kepler.a.powf(3.0)).sqrt();
         let n = n0 + perturbations.dn;
@@ -663,8 +663,13 @@ mod test {
             clock_drift_rate: 0.000000000000e+00,
             orbits,
         };
-        let t_sv = hifitime::GPST_REF_EPOCH + Duration::from_days(910.0 * 7.0) + Duration::from_seconds(4.03272930e5);
-        let xyz = ephemeris.kepler2ecef(t_sv);
+        
+        let epoch = Epoch::from_gpst_duration(
+            Duration::from_days(910.0 * 7.0) 
+            + Duration::from_seconds(4.03272930e5));
+        let epoch = epoch.in_time_scale(TimeScale::UTC);
+        let xyz = ephemeris.kepler2ecef(epoch);
+
         assert!(xyz.is_some());
         let (x, y, z) = xyz.unwrap();
         assert!((x - -5678509.38584636).abs() < 1E-6);
@@ -698,11 +703,14 @@ mod test {
             clock_drift_rate: 0.000000000000e+00,
             orbits,
         };
-        let t_sv = hifitime::GPST_REF_EPOCH + Duration::from_days(2190.0 * 7.0) + Duration::from_seconds(1324944000.0);
-        let xyz = ephemeris.kepler2ecef(t_sv);
+        let epoch = Epoch::from_gpst_duration(
+            Duration::from_days(2190.0 * 7.0)
+            + Duration::from_seconds(1324944000.0));
+        let epoch = epoch.in_time_scale(TimeScale::UTC);
+        let xyz = ephemeris.kepler2ecef(epoch);
+
         assert!(xyz.is_some());
         let (x, y, z) = xyz.unwrap();
-        println!("x {}, y {}, z {}", x, y, z);
         assert!((x - -11840614.01333711).abs() < 1E-6);
         assert!((y - 19224209.93574417).abs() < 1E-6);
         assert!((z - 13435836.30353981).abs() < 1E-6);
