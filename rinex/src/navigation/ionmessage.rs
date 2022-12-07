@@ -310,32 +310,52 @@ mod test {
     #[test]
     fn test_kb() {
         assert_eq!(KbRegionCode::default(), KbRegionCode::WideArea);
-        let content = "    2022 06 08 09 59 48 1.024454832077E-08 2.235174179077E-08-5.960464477539E-08
+        let content =
+            "    2022 06 08 09 59 48 1.024454832077E-08 2.235174179077E-08-5.960464477539E-08
     -1.192092895508E-07 9.625600000000E+04 1.310720000000E+05-6.553600000000E+04
     -5.898240000000E+05 0.000000000000E+00";
         let mut content = content.lines();
         let parsed = KbModel::parse(content);
         assert!(parsed.is_ok());
         let (epoch, message) = parsed.unwrap();
-        assert_eq!(epoch, Epoch::from_gregorian_utc(2022, 06, 08, 09, 59, 48, 00));
-        assert_eq!(message,
+        assert_eq!(
+            epoch,
+            Epoch::from_gregorian_utc(2022, 06, 08, 09, 59, 48, 00)
+        );
+        assert_eq!(
+            message,
             KbModel {
-                alpha: (1.024454832077E-08, 2.235174179077E-08, -5.960464477539E-08, -1.192092895508E-07),
-                beta: (9.625600000000E+04, 1.310720000000E+05, -6.553600000000E+04, -5.898240000000E+05),
+                alpha: (
+                    1.024454832077E-08,
+                    2.235174179077E-08,
+                    -5.960464477539E-08,
+                    -1.192092895508E-07
+                ),
+                beta: (
+                    9.625600000000E+04,
+                    1.310720000000E+05,
+                    -6.553600000000E+04,
+                    -5.898240000000E+05
+                ),
                 region: KbRegionCode::WideArea,
             },
         );
     }
     #[test]
     fn test_ng() {
-        let content = "    2022 06 08 09 59 57 7.850000000000E+01 5.390625000000E-01 2.713012695312E-02
+        let content =
+            "    2022 06 08 09 59 57 7.850000000000E+01 5.390625000000E-01 2.713012695312E-02
      0.000000000000E+00";
         let mut content = content.lines();
         let parsed = NgModel::parse(content);
         assert!(parsed.is_ok());
         let (epoch, message) = parsed.unwrap();
-        assert_eq!(epoch, Epoch::from_gregorian_utc(2022, 06, 08, 09, 59, 57, 00));
-        assert_eq!(message,
+        assert_eq!(
+            epoch,
+            Epoch::from_gregorian_utc(2022, 06, 08, 09, 59, 57, 00)
+        );
+        assert_eq!(
+            message,
             NgModel {
                 a: (7.850000000000E+01, 5.390625000000E-01, 2.713012695312E-02),
                 region: NgRegionFlags::empty(),

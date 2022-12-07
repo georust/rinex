@@ -286,7 +286,7 @@ mod test {
 
         let l1 = Channel::from_str("L1").unwrap();
         assert_eq!(l1.carrier_frequency_mhz(), 1575.42_f64);
-        assert_eq!(l1.carrier_wavelength(), 299792458.0 / 1575.42_f64 /10.0E6);
+        assert_eq!(l1.carrier_wavelength(), 299792458.0 / 1575.42_f64 / 10.0E6);
         let channel = Channel::from_observable(Constellation::GPS, "L1C");
         assert!(channel.is_ok());
         let channel = channel.unwrap();
