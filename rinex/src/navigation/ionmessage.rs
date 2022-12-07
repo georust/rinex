@@ -307,54 +307,68 @@ impl IonMessage {
 #[cfg(test)]
 mod test {
     use super::*;
-    #[test]
+    /*#[test]
     fn test_kb() {
         assert_eq!(KbRegionCode::default(), KbRegionCode::WideArea);
         /* test parser */
-        let content = "";
+        let content = "    2022 06 08 09 59 57 7.850000000000E+01 5.390625000000E-01 2.713012695312E-02
+     0.000000000000E+00";
         let mut content = content.lines();
         assert_eq!(
             KbModel::parse(content), 
             Ok((
-                Epoch::from_gregorian_utc(1900, 01, 01, 00, 00, 00, 00),
+                Epoch::from_gregorian_utc(2022, 06, 08, 09, 59, 57, 00),
                 KbModel {
-                    alpha:,
+                    alpha: (7.850000000000E+01, ,
                     beta:,
                     region:,
                 },
             )));
     }
+    */
     #[test]
     fn test_ng() {
-        let content = "";
+        let content = "    2022 06 08 09 59 57 7.850000000000E+01 5.390625000000E-01 2.713012695312E-02
+     0.000000000000E+00";
         let mut content = content.lines();
-        assert_eq!(
-            NgModel::parse(content),
-            Ok((
-                Epoch::from_gregorian_utc(1900, 01, 01, 00, 00, 00, 00),
-                KbModel {
-                    alpha:,
-                    beta:,
-                    region:,
-                },
-            )));
+        let parsed = NgModel::parse(content);
+        assert!(parsed.is_ok());
+        let (epoch, message) = parsed.unwrap();
+        assert_eq!(epoch, Epoch::from_gregorian_utc(2022, 06, 08, 09, 59, 57, 00));
+        assert_eq!(message,
+            NgModel {
+                a: (7.850000000000E+01, 5.390625000000E-01, 2.713012695312E-02),
+                region: NgRegionFlags::empty(),
+            },
+        );
     }
+    /*
     #[test]
     fn test_bd() {
-        let content = "";
+        let content = "    2022 06 08 09 59 48 1.024454832077E-08 2.235174179077E-08-5.960464477539E-08
+    -1.192092895508E-07 9.625600000000E+04 1.310720000000E+05-6.553600000000E+04
+    -5.898240000000E+05 0.000000000000E+00";
         let mut content = content.lines();
         assert_eq!(
             BdModel::parse(content),
             Ok((
-                Epoch::from_gregorian_utc(1900, 01, 01, 00, 00, 00, 00),
+                Epoch::from_gregorian_utc(2022, 06, 08, 09, 59, 48, 00),
                 BdModel {
-                    alpha: (_, _, _, _, _, _, _, _, _),
+                    alpha: (
+                        1.024454832077E-08,
+                        2.235174179077E-08,
+                        -5.960464477539E-08,
+                        -1.192092895508E-07,
+                        9.625600000000E+04,
+                        1.310720000000E+05,
+                        6.553600000000E+04,
+                        -5.898240000000E+05,
                 },
             )));
-    }
+    }*/
     #[test]
     fn test_ionmessage() {
-        let msg = IonMessage(KlobucharModel(KbModel::default());
+        let msg = IonMessage::KlobucharModel(KbModel::default());
         assert!(msg.as_klobuchar().is_some());
         assert!(msg.as_nequick_g().is_none());
         assert!(msg.as_bdgim().is_none());

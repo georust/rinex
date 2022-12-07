@@ -126,22 +126,22 @@ mod test {
     #[test]
     fn test_gps() {
         assert_eq!(Health::default(), Health::Unhealthy);
-        assert_eq!(format!("{:02X}", Health::default(), "00"));
+        assert_eq!(format!("{:E}", Health::default()), "0.0");
     }
     #[test]
     fn test_irnss() {
         assert_eq!(IrnssHealth::default(), IrnssHealth::Unknown);
-        assert_eq!(format!("{:02X}", Health::default(), "01"));
+        assert_eq!(format!("{:E}", Health::default()), "1.0");
     }
     #[test]
     fn test_geo_sbas() {
         assert_eq!(GeoHealth::default(), GeoHealth::Unknown);
-        assert_eq!(format!("{:02X}", Health::default(), "00"));
+        assert_eq!(format!("{:E}", Health::default()), "0.0");
     }
     #[test]
     fn test_glo() {
         assert_eq!(GloHealth::default(), GloHealth::Unhealthy);
-        assert_eq!(format!("{:02X}", Health::default(), "04"));
+        assert_eq!(format!("{:E}", Health::default()), "4.0");
     }
     #[test]
     fn test_gal() {

@@ -63,8 +63,16 @@ mod test {
     fn test_pcv() {
         assert_eq!(Pcv::default(), Pcv::Absolute);
         assert!(Pcv::Absolute.is_absolute());
-        assert_eq!(Pcv::Relative("AOAD/M_T").is_absolute(), false);
-        assert_eq!(Pcv::from_str("A"), Ok(Pcv::Absolute));
-        assert_eq!(Pcv::from_str("R"), Ok(Pcv::Relative));
+        assert_eq!(Pcv::Relative(String::from("AOAD/M_T")).is_absolute(), false);
+        
+        let pcv = Pcv::from_str("A");
+        assert!(pcv.is_ok());
+        let pcv = pcv.unwrap();
+        assert_eq!(pcv, Pcv::Absolute);
+        
+        let pcv = Pcv::from_str("R");
+        assert!(pcv.is_ok());
+        let pcv = pcv.unwrap();
+        assert_eq!(pcv, Pcv::Relative(String::from("AOAD/M_T")));
     }
 }
