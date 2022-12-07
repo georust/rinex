@@ -54,3 +54,17 @@ impl Pcv {
         s
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use std::str::FromStr;
+    #[test]
+    fn test_pcv() {
+        assert_eq!(Pcv::default(), Pcv::Absolute);
+        assert!(Pcv::Absolute.is_absolute());
+        assert_eq!(Pcv::Relative("AOAD/M_T").is_absolute(), false);
+        assert_eq!(Pcv::from_str("A"), Ok(Pcv::Absolute));
+        assert_eq!(Pcv::from_str("R"), Ok(Pcv::Relative));
+    }
+}
