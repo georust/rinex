@@ -662,10 +662,7 @@ mod test {
             orbits,
         };
         
-        let epoch = Epoch::from_gpst_duration(
-            Duration::from_days(910.0 * 7.0) 
-            + Duration::from_seconds(4.03272930e5));
-        let epoch = epoch.in_time_scale(TimeScale::UTC);
+        let epoch = Epoch::from_time_of_week(910, 4.0327293e14 as u64, TimeScale::GPST);
         let xyz = ephemeris.kepler2ecef(epoch);
 
         assert!(xyz.is_some());
@@ -701,10 +698,7 @@ mod test {
             clock_drift_rate: 0.000000000000e+00,
             orbits,
         };
-        let epoch = Epoch::from_gpst_duration(
-            Duration::from_days(2190.0 * 7.0)
-            + Duration::from_seconds(1324944000.0));
-        let epoch = epoch.in_time_scale(TimeScale::UTC);
+        let epoch = Epoch::from_time_of_week(2190, 1324944000 * 1_000_000_000, TimeScale::GPST);
         let xyz = ephemeris.kepler2ecef(epoch);
 
         assert!(xyz.is_some());
