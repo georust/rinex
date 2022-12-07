@@ -203,6 +203,9 @@ pub fn build_enhanced_context<'a> (dim: (u32, u32), record: &observation::Record
     let nav_rec = nav.record.as_nav()
         .expect("--nav should be Navigation Data");
 
+    let rcvr_pos = nav.header.coords
+        .expect("--nav should contain receiver position");
+
     //  => 1 plot per physics (ie., Observable)
     //     1 plot in case clock offsets were provided
     for (e_index, ((e, _flag), (clk_offset, vehicules))) in record.iter().enumerate() {
@@ -254,7 +257,7 @@ pub fn build_enhanced_context<'a> (dim: (u32, u32), record: &observation::Record
                             let (_, nav_sv, eph) = fr.as_eph()
                                 .unwrap();
                             if nav_sv == sv {
-                                if let Some(e) = eph.elevation_angle() {
+                                if let Some((e, _, _)) = eph.sat_angles(*e, rcvr_pos) {
                                     if e < yl_range.0 {
                                         yl_range.0 = e;
                                     }
@@ -593,6 +596,8 @@ pub fn enhanced_plot(ctx: &mut Context, record: &observation::Record, nav: &Rine
     let mut elev_angles: HashMap<Sv, Vec<(f64,f64)>> = HashMap::new();
     let nav_rec = nav.record.as_nav()
         .expect("`--nav` should be navigation data");
+    let rcvr_pos = nav.header.coords
+        .expect("--nav should contain receiver position");
 
     for (e_index, ((epoch, _flag), (clock_offset, vehicules))) in record.iter().enumerate() {
         if e_index == 0 {
@@ -623,7 +628,7 @@ pub fn enhanced_plot(ctx: &mut Context, record: &observation::Record, nav: &Rine
                             let (_, nav_sv, eph) = fr.as_eph()
                                 .unwrap();
                             if nav_sv == sv {
-                                if let Some(e) = eph.elevation_angle() {
+                                if let Some((e, _, _)) = eph.sat_angles(*epoch, rcvr_pos) {
                                     if let Some(data) = elev_angles.get_mut(sv) {
                                         data.push((x, e));
                                     } else {
@@ -671,8 +676,6 @@ pub fn enhanced_plot(ctx: &mut Context, record: &observation::Record, nav: &Rine
             }
         }
     }
-
-    println!("Elev angles {:#?}", elev_angles);
 
     if let Some(plot) = ctx.plots.get("clock-offset.png") {
         let mut chart = ctx.charts.get("Clock Offset")
@@ -815,9 +818,8 @@ pub fn enhanced_plot(ctx: &mut Context, record: &observation::Record, nav: &Rine
                                 .expect(&format!("failed to enhance {} plot with elevation angle", physics))
                                 .label(format!("{}", sv))
                                 .legend(move |(x,y)| {
-                                    Circle::new((x+10, y),
-                                        Into::<ShapeStyle>::into(&RED).filled())
-                                        .into_dyn()
+                                    Circle::new((x+10, y), 4, Into::<ShapeStyle>::into(&RED).filled())
+                                    .into_dyn()
                                 });
                     
                         }

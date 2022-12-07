@@ -271,7 +271,7 @@ impl Ephemeris {
     }
 
     /// Returns satellite position vector, in ECEF
-    pub fn sat_pos(&self, epoch: Epoch) -> Option<(f64,f64,f64)> {
+    pub fn sat_pos_ecef(&self, epoch: Epoch) -> Option<(f64,f64,f64)> {
         if let Some(pos_x) = self.get_orbit_f64("satPosX") {
             if let Some(pos_y) = self.get_orbit_f64("satPosY") {
                 if let Some(pos_z) = self.get_orbit_f64("satPosZ") { 
@@ -325,7 +325,7 @@ impl Ephemeris {
     }
     /// Computes satellite position in (latitude, longitude, altitude)
     pub fn sat_latlonalt(&self, epoch: Epoch) -> Option<(f64,f64,f64)> {
-        if let Some((x_k, y_k, z_k)) = self.sat_pos(epoch) {
+        if let Some((x_k, y_k, z_k)) = self.sat_pos_ecef(epoch) {
             let p = (x_k.powf(2.0) + y_k.powf(2.0)).sqrt(); 
             let f = 54.0 * Kepler::EARTH_B.powf(2.0) * z_k.powf(2.0);
             let E2 = Kepler::EARTH_A.powf(2.0) - Kepler::EARTH_B.powf(2.0); 
@@ -355,11 +355,9 @@ impl Ephemeris {
     }
     /// Returns (azimuth, elevation, slant range) coordinates in AER system
     /// from parsed orbits and internal calculations
-    pub fn angles(&self, epoch: Epoch, ref_pos: (f64,f64,f64)) -> Option<(f64,f64,f64)> {
+    pub fn sat_angles(&self, epoch: Epoch, ref_pos: (f64,f64,f64)) -> Option<(f64,f64,f64)> {
         if let Some((lat, lon, alt)) = self.sat_latlonalt(epoch) {
             let (ref_x, ref_y, ref_z) = ref_pos;
-            //TODO revoir si on est tjrs qu'en WGS84,
-            //     par exemple le cas de Glonass
             let ref_ellips = map_3d::Ellipsoid::WGS84;
             let (e, n, u) = map_3d::ecef2enu(ref_x, ref_y, ref_z, lat, lon, alt, ref_ellips);
             return Some(map_3d::enu2aer(e, n, u));
