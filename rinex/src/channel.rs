@@ -278,16 +278,15 @@ impl Channel {
 mod test {
     use super::*;
     use std::str::FromStr;
-    /*#[test]
-    fn test_code() {
-        assert_eq!(Code::from_str("C1").is_ok(), true);
-        assert_eq!(Code::from_str("L1").is_err(), true);
-        assert_eq!(Code::from_str("P1").is_ok(),  true);
-    }*/
     #[test]
     fn test_channel() {
-        assert_eq!(Channel::from_str("L1").is_ok(), true);
-        assert_eq!(Channel::from_str("C1").is_err(), true);
-        assert_eq!(Channel::from_str("L5").is_ok(), true);
+        assert!(Channel::from_str("L1").is_ok());
+        assert!(Channel::from_str("C1").is_err());
+        assert!(Channel::from_str("L5").is_ok());
+
+        let l1 = Channel::from_str("L1").unwrap();
+        assert_eq!(l1.carrier_frequency_mhz(), 1575.42_f64);
+        assert_eq!(l1.carrier_wavelength(), 299792458.0 / 1575.42_f64 /10.0E6);
+        assert_eq!(Channel::from_observable("L1C", Constellation::GPS), Ok(Channel::L1));
     }
 }
