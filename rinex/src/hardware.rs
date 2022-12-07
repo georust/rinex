@@ -138,3 +138,19 @@ impl SvAntenna {
         s
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use std::str::FromStr;
+    #[test]
+    fn rcvr_parser() {
+        let content = "2090088             LEICA GR50          4.51                ";
+        let rcvr = Rcvr::from_str(content);
+        assert!(rcvr.is_ok());
+        let rcvr = rcvr.unwrap();
+        assert_eq!(rcvr.model, "LEICA GR50");
+        assert_eq!(rcvr.sn, "2090088");
+        assert_eq!(rcvr.firmware, "4.51");
+    }
+}
