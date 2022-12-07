@@ -3,9 +3,10 @@ use plotters::{chart::ChartState, coord::Shift, prelude::*};
 use rinex::*;
 use std::collections::HashMap;
 
-mod meteo;
-mod navigation;
-mod observation;
+pub mod meteo;
+pub mod ionex;
+pub mod navigation;
+pub mod observation;
 
 /// Plot Context for Record analysis
 pub struct Context<'a> {
@@ -24,41 +25,5 @@ impl Default for Context<'_> {
             charts: HashMap::new(),
             plots: HashMap::new(),
         }
-    }
-}
-
-impl<'a> Context<'a> {
-    /// Builds a new plotting context
-    ///  Iterates the RINEX context once (for overall performance considerations).
-    ///  Prepares Plot and Charts depending on given RINEX context.
-    ///  Currently all `Epoch` sorted RINEX have a time axis
-    ///  in second, that eventually should be improved to exhibit
-    ///  the real Date object. It seems possible to plot a Date<Local>
-    ///  with the libs we're using.
-    ///
-    ///  Dim: (u32, u32) plot x_width and y_height
-    pub fn new(dim: (u32, u32), rnx: &Rinex) -> Self {
-        if let Some(record) = rnx.record.as_obs() {
-            observation::build_context(dim, record)
-        } else if let Some(record) = rnx.record.as_nav() {
-            navigation::build_context(dim, record)
-        } else if let Some(record) = rnx.record.as_meteo() {
-            meteo::build_context(dim, record)
-        } else {
-            panic!("this type of record cannot be plotted yet");
-        }
-    }
-}
-
-/// Plots Rinex record content
-pub fn plot(ctx: &mut Context, rnx: &Rinex, nav: Option<Rinex>) {
-    if let Some(record) = rnx.record.as_obs() {
-        observation::plot(ctx, record, nav)
-    } else if let Some(record) = rnx.record.as_nav() {
-        navigation::plot(ctx, record)
-    } else if let Some(record) = rnx.record.as_meteo() {
-        meteo::plot(ctx, record)
-    } else {
-        panic!("this type of RINEX record cannot be plotted yet");
     }
 }

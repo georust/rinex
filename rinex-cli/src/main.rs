@@ -261,9 +261,30 @@ pub fn main() -> Result<(), rinex::Error> {
 
     /*
      * Record analysis / visualization
+     * analysis depends on the provided record type
      */
     let dims = cli.plot_dimensions();
-    let mut ctx = plot::record::Context::new(dims, &rnx);
-    plot::record::plot(&mut ctx, &rnx, nav_context);
+    
+    if let Some(record) = rnx.record.as_obs() {
+        let mut ctx = plot::record::observation::build_context(dims, record);
+        plot::record::observation::plot(&mut ctx, record, nav_context);
+    
+    } else if let Some(record) = rnx.record.as_nav() { 
+        let mut ctx = plot::record::navigation::build_context(dims, record);
+        plot::record::navigation::plot(&mut ctx, record);
+
+    } else if let Some(record) = rnx.record.as_meteo() {
+        let mut ctx = plot::record::meteo::build_context(dims, record);
+        plot::record::meteo::plot(&mut ctx, record);
+    
+    } else if let Some(record) = rnx.record.as_ionex() { 
+        let borders = rnx.ionex_map_borders()
+            .expect("failed to determine map borders");
+        plot::record::ionex::plot_tec_map(borders, record); 
+    
+    } else {
+        panic!("cannot plot this type of RINEX yet");
+    }
+    
     Ok(())
 } // main

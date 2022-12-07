@@ -18,4 +18,5 @@ thiserror = "1"
 itertools = "0.10"
 # plotters requires "libfreetype6-dev libfontconfig1-dev" on host
 plotters  = "0.3"
+plotly = "0.8"
 colorous = "1"
