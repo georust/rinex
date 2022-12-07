@@ -955,41 +955,39 @@ impl Rinex {
     /// This can only be computed on Navigation ephemeris.
     pub fn space_vehicules_best_elevation_angle(&self) -> BTreeMap<Epoch, Vec<Sv>> {
         let mut ret: BTreeMap<Epoch, Vec<Sv>> = BTreeMap::new();
-        if !self.is_navigation_rinex() {
-            return BTreeMap::new();
-        }
-        let record = self.record.as_nav().unwrap();
-        for (e, classes) in record.iter() {
-            let mut work: BTreeMap<Constellation, (f64, Sv)> = BTreeMap::new();
-            for (class, frames) in classes.iter() {
-                if *class == navigation::FrameClass::Ephemeris {
-                    for frame in frames.iter() {
-                        let (_, sv, ephemeris) = frame.as_eph().unwrap();
-                        let orbits = &ephemeris.orbits;
-                        if let Some(elev) = orbits.get("e") {
-                            // got an elevation angle
-                            let elev = elev.as_f64().unwrap();
-                            if let Some((angle, v)) = work.get_mut(&sv.constellation) {
-                                // already have data for this constellation
-                                // how does this compare ?
-                                if *angle < elev {
-                                    *angle = elev; // overwrite
-                                    *v = sv.clone(); // overwrite
+        if let Some(record) = self.record.as_nav() {
+            for (e, classes) in record.iter() {
+                let mut work: BTreeMap<Constellation, (f64, Sv)> = BTreeMap::new();
+                for (class, frames) in classes.iter() {
+                    if *class == navigation::FrameClass::Ephemeris {
+                        for frame in frames.iter() {
+                            let (_, sv, ephemeris) = frame.as_eph().unwrap();
+                            let orbits = &ephemeris.orbits;
+                            if let Some(elev) = orbits.get("e") {
+                                // got an elevation angle
+                                let elev = elev.as_f64().unwrap();
+                                if let Some((angle, v)) = work.get_mut(&sv.constellation) {
+                                    // already have data for this constellation
+                                    // how does this compare ?
+                                    if *angle < elev {
+                                        *angle = elev; // overwrite
+                                        *v = sv.clone(); // overwrite
+                                    }
+                                } else {
+                                    // new entry
+                                    work.insert(sv.constellation.clone(), (elev, sv.clone()));
                                 }
-                            } else {
-                                // new entry
-                                work.insert(sv.constellation.clone(), (elev, sv.clone()));
                             }
                         }
                     }
                 }
+                // build result for this epoch
+                let mut inner: Vec<Sv> = Vec::new();
+                for (_, (_, sv)) in work.iter() {
+                    inner.push(*sv);
+                }
+                ret.insert(*e, inner.clone());
             }
-            // build result for this epoch
-            let mut inner: Vec<Sv> = Vec::new();
-            for (_, (_, sv)) in work.iter() {
-                inner.push(*sv);
-            }
-            ret.insert(*e, inner.clone());
         }
         ret
     }
@@ -1235,7 +1233,7 @@ impl Rinex {
     pub fn space_vehicules_per_epoch(&self) -> BTreeMap<Epoch, Vec<Sv>> {
         let mut map: BTreeMap<Epoch, Vec<Sv>> = BTreeMap::new();
         if let Some(r) = self.record.as_nav() {
-            for (epoch, classes) in r.iter() {
+            for (epoch, classes) in r {
                 let mut inner: Vec<Sv> = Vec::new();
                 for (class, frames) in classes.iter() {
                     if *class == navigation::FrameClass::Ephemeris {
@@ -1251,7 +1249,7 @@ impl Rinex {
                 }
             }
         } else if let Some(r) = self.record.as_obs() {
-            for ((epoch, _), (_, vehicules)) in r.iter() {
+            for ((epoch, _), (_, vehicules)) in r {
                 let mut inner: Vec<Sv> = Vec::new();
                 for (sv, _) in vehicules.iter() {
                     inner.push(*sv);
@@ -1265,6 +1263,84 @@ impl Rinex {
         map
     }
 
+    /// Extracts and computes from Navigation Data, all satellite positions, in ECEF,
+    /// on an epoch basis.
+    pub fn navigation_sat_pos_ecef(&self) -> BTreeMap<Epoch, HashMap<Sv, (f64,f64,f64)>> {
+        let mut ret: BTreeMap<Epoch, HashMap<Sv, (f64,f64,f64)>> = BTreeMap::new();
+        if let Some(record) = self.record.as_nav() {
+            for (epoch, classes) in record {
+                for (class, frames) in classes {
+                    if *class == navigation::FrameClass::Ephemeris {
+                        for fr in frames {
+                            let (_, sv, ephemeris) = fr.as_eph()
+                                .unwrap();
+                            if let Some(sat_pos) = ephemeris.sat_pos_ecef(*epoch) {
+                                if let Some(data) = ret.get_mut(epoch) {
+                                    // epoch being built 
+                                    data.insert(*sv, sat_pos);
+                                } else {
+                                    // first vehicle for this epoch
+                                    let mut map: HashMap<Sv, (f64,f64,f64)> = HashMap::new();
+                                    map.insert(*sv, sat_pos);
+                                    ret.insert(*epoch, map);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        ret
+    }
+
+/*
+    /// Extracts and computes from Navigation Data, all satellite
+    /// position, speed and accelerations, in ECEF, on an epoch basis
+    pub fn navigation_sat_speed_ecef(&self) 
+        -> BTreeMap<Epoch, HashMap<Sv, ((f64,f64,f64), (f64,f64,f64), (f64,f64,f64))>> {
+        let mut ret: BTreeMap<Epoch, HashMap<Sv, ((f64,f64,f64), (f64,f64,f64), (f64,f64,f64))>> = BTreeMap::new();
+        let mut pdata: HashMap<Sv, (Epoch, (f64,f64,f64), (f64,f64,f64))> = HashMap::new();
+        if let Some(record) = self.record.as_nav() {
+            for (epoch, classes) in record {
+                for (class, frames) in classes {
+                    if *class == navigation::FrameClass::Ephemeris {
+                        for fr in frames {
+                            let (_, sv, ephemeris) = fr.as_eph()
+                                .unwrap();
+                            if let Some(sat_pos) = ephemeris.sat_pos_ecef(*epoch) {
+                                if let Some(data) = ret.get_mut(epoch) {
+                                    // epoch being built 
+                                    data.insert(*sv, sat_pos);
+                                } else {
+                                    // first vehicle for this epoch
+                                    let mut map: HashMap<Sv, ((f64,f64,f64), (f64,f64,f64), (f64,f64,f64))> = HashMap::new();
+                                    if let Some((p_epoch, p_pos, p_speed)) = pdata.get(sv) {
+                                        // sv already encountered
+                                        // compute new speed
+                                        if let Some((dx, dy, dz)) = ephemeris.sat_speed_ecef(*epoch, *p_pos, *p_epoch) {
+
+                                        }
+                                        // compute new accell
+                                        if let Some((ddx, ddy, ddz)) = ephemeris.sat_accel_ecef(*epoch, *p_pos, *p_speed, *p_epoch) {
+
+                                        }
+                                        map.insert(*sv, (sat_pos, (0.0_f64, 0.0_f64, 0.0_f64), (0.0_f64, 0.0_f64, 0.0_f64));
+                                    } else {
+                                        // sv never encountered
+
+                                        map.insert(*sv, (sat_pos, (0.0_f64, 0.0_f64, 0.0_f64), (0.0_f64, 0.0_f64, 0.0_f64));
+                                    }
+                                    ret.insert(*epoch, map);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        ret
+    }
+*/
     /// Returns list of space vehicules encountered in this file.
     /// For Clocks RINEX: returns list of Vehicules used as reference
     /// in the record.

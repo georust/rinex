@@ -10,7 +10,7 @@ use super::{
 };
 use std::str::FromStr;
 use thiserror::Error;
-use hifitime::GPST_REF_EPOCH;
+use hifitime::{GPST_REF_EPOCH, Unit};
 use std::collections::HashMap;
 
 /// Parsing errors
@@ -275,11 +275,55 @@ impl Ephemeris {
         if let Some(pos_x) = self.get_orbit_f64("satPosX") {
             if let Some(pos_y) = self.get_orbit_f64("satPosY") {
                 if let Some(pos_z) = self.get_orbit_f64("satPosZ") { 
+                    //TODO PZ90
+                    //     add check for SBAS
                     return Some((pos_x,pos_y,pos_z));
                 }
             }
         }
         self.kepler2ecef(epoch)
+    }
+
+    /// Returns satellite instantaneous speed estimate, in ECEF
+    pub fn sat_speed_ecef(&self, epoch: Epoch, prev_pos: (f64,f64,f64), prev_epoch: Epoch) -> Option<(f64,f64,f64)> {
+        if let Some(vel_x) = self.get_orbit_f64("velX") {
+            if let Some(vel_y) = self.get_orbit_f64("velY") {
+                if let Some(vel_z) = self.get_orbit_f64("velZ") {
+                    //TODO PZ90
+                    //     add check for SBAS
+                    return Some((vel_x,vel_y,vel_z));
+                }
+            }
+        }
+        if let Some((pos_x, pos_y, pos_z)) = self.kepler2ecef(epoch) {
+            let dt = (epoch - prev_epoch).to_unit(Unit::Second);
+            let dx = (pos_x - prev_pos.0) / dt; 
+            let dy = (pos_y - prev_pos.1) / dt; 
+            let dz = (pos_z - prev_pos.2) / dt; 
+            return Some((dx,dy,dz));
+        }
+        None
+    }
+
+    /// Returns satellite instantaneous acelleration estimate, in ECEF
+    pub fn sat_accel_ecef(&self, epoch: Epoch, prev_pos: (f64,f64,f64), prev_speed: (f64,f64,f64), prev_epoch: Epoch) -> Option<(f64,f64,f64)> {
+        if let Some(accel_x) = self.get_orbit_f64("accelX") {
+            if let Some(accel_y) = self.get_orbit_f64("accelY") {
+                if let Some(accel_z) = self.get_orbit_f64("accelZ") {
+                    //TODO PZ90
+                    //     add check for SBAS
+                    return Some((accel_x,accel_y,accel_z));
+                }
+            }
+        }
+        if let Some((dx, dy, dz)) = self.sat_speed_ecef(epoch, prev_speed, prev_epoch) {
+            let dt = (epoch - prev_epoch).to_unit(Unit::Second);
+            let ddx = (dx - prev_speed.0) / dt; 
+            let ddy = (dy - prev_speed.1) / dt; 
+            let ddz = (dz - prev_speed.2) / dt; 
+            return Some((ddx,ddy,ddz));
+        }
+        None
     }
 
     /// Manual calculations of satellite position vector, in ECEF.
