@@ -91,7 +91,7 @@ pub enum GloHealth {
 
 impl Default for GloHealth {
     fn default() -> Self {
-        Self::Healthy
+        Self::Unhealthy
     }
 }
 
@@ -126,12 +126,12 @@ mod test {
     #[test]
     fn test_gps() {
         assert_eq!(Health::default(), Health::Unhealthy);
-        assert_eq!(format!("{:E}", Health::default()), "0.0");
+        assert_eq!(format!("{:E}", Health::default()), "0E0");
     }
     #[test]
     fn test_irnss() {
         assert_eq!(IrnssHealth::default(), IrnssHealth::Unknown);
-        assert_eq!(format!("{:E}", Health::default()), "1E0");
+        assert_eq!(format!("{:E}", IrnssHealth::default()), "1E0");
     }
     #[test]
     fn test_geo_sbas() {
@@ -141,7 +141,7 @@ mod test {
     #[test]
     fn test_glo() {
         assert_eq!(GloHealth::default(), GloHealth::Unhealthy);
-        assert_eq!(format!("{:E}", Health::default()), "4E0");
+        assert_eq!(format!("{:E}", GloHealth::default()), "4E0");
     }
     #[test]
     fn test_gal() {
