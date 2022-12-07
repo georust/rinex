@@ -119,3 +119,32 @@ bitflags! {
         const E5B_HS1 = 0x80;
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[test]
+    fn test_gps() {
+        assert_eq!(Health::default(), Health::Unhealthy);
+        assert_eq!(format!("{:02X}", Health::default(), "00"));
+    }
+    #[test]
+    fn test_irnss() {
+        assert_eq!(IrnssHealth::default(), IrnssHealth::Unknown);
+        assert_eq!(format!("{:02X}", Health::default(), "01"));
+    }
+    #[test]
+    fn test_geo_sbas() {
+        assert_eq!(GeoHealth::default(), GeoHealth::Unknown);
+        assert_eq!(format!("{:02X}", Health::default(), "00"));
+    }
+    #[test]
+    fn test_glo() {
+        assert_eq!(GloHealth::default(), GloHealth::Unhealthy);
+        assert_eq!(format!("{:02X}", Health::default(), "04"));
+    }
+    #[test]
+    fn test_gal() {
+        assert_eq!(GalHealth::default(), GalHealth::empty());
+    }
+}
