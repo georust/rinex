@@ -303,3 +303,60 @@ impl IonMessage {
         }
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[test]
+    fn test_kb() {
+        assert_eq!(KbRegionCode::default(), KbRegionCode::WideArea);
+        /* test parser */
+        let content = "";
+        let mut content = content.lines();
+        assert_eq!(
+            KbModel::parse(content), 
+            Ok((
+                Epoch::from_gregorian_utc(1900, 01, 01, 00, 00, 00, 00),
+                KbModel {
+                    alpha:,
+                    beta:,
+                    region:,
+                },
+            )));
+    }
+    #[test]
+    fn test_ng() {
+        let content = "";
+        let mut content = content.lines();
+        assert_eq!(
+            NgModel::parse(content),
+            Ok((
+                Epoch::from_gregorian_utc(1900, 01, 01, 00, 00, 00, 00),
+                KbModel {
+                    alpha:,
+                    beta:,
+                    region:,
+                },
+            )));
+    }
+    #[test]
+    fn test_bd() {
+        let content = "";
+        let mut content = content.lines();
+        assert_eq!(
+            BdModel::parse(content),
+            Ok((
+                Epoch::from_gregorian_utc(1900, 01, 01, 00, 00, 00, 00),
+                BdModel {
+                    alpha: (_, _, _, _, _, _, _, _, _),
+                },
+            )));
+    }
+    #[test]
+    fn test_ionmessage() {
+        let msg = IonMessage(KlobucharModel(KbModel::default());
+        assert!(msg.as_klobuchar().is_some());
+        assert!(msg.as_nequick_g().is_none());
+        assert!(msg.as_bdgim().is_none());
+    }
+}
