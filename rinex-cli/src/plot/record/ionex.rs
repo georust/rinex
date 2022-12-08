@@ -30,10 +30,10 @@ pub fn plot_tec_map(borders: ((f32,f32),(f32,f32)), record: &Record) {
     let grid = ScatterMapbox::new(latitudes, longitudes)
         .marker(
             Marker::new()
-                .size(7)
+                .size(5)
                 .symbol(MarkerSymbol::Circle)
                 .color(NamedColor::Black)
-                .opacity(0.4));
+                .opacity(0.2));
 
     let layout = Layout::new()
         .drag_mode(DragMode::Zoom)
@@ -48,8 +48,8 @@ pub fn plot_tec_map(borders: ((f32,f32),(f32,f32)), record: &Record) {
             Mapbox::new()
                 .style(MapboxStyle::OpenStreetMap)
                 //.center(Center::new(45.5017, -73.5673))
-                .center(Center::new(map_center.0.into(), map_center.1.into()))
-                .zoom(5)
+                .center(Center::new(32.5, -40.0))
+                .zoom(1)
         );
 
     let mut plot = Plot::new();
