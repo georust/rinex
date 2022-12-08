@@ -287,20 +287,19 @@ pub fn skyplot(
          */
         if let Some(r) = rnx.record.as_nav() {
             let mut sat_pos_lla = rnx.navigation_sat_pos_ecef();
-            sat_pos_lla 
-                .iter_mut()
-                    .map(|(_, epochs)| {
-                        epochs.iter_mut()
-                            .map(|(_, point)| {
-                                *point = map_3d::ecef2geodetic(point.0, point.1, point.2, map_3d::Ellipsoid::WGS84);
-                            })
-                            .count();
-                    })
-                    .count();
+            sat_pos_lla.iter_mut()
+                .map(|(_, epochs)| {
+                    epochs.iter_mut()
+                        .map(|(_, p_k)| {
+                            *p_k = map_3d::ecef2geodetic(p_k.0, p_k.1, p_k.2, map_3d::Ellipsoid::WGS84);
+                        })
+                        .count();
+                })
+                .count();
             /*
-             * determine Min, Max { Latitude, Longitude }
+             * determine Min, Max angles 
              */
-            let mut min_max = ((0.0_f64, 0.0_f64), (0.0_f64, 0.0_f64)); // lat, lon
+            let mut min_max = ((0.0_f64, 0.0_f64), (0.0_f64, 0.0_f64)); // {lat, lon}
             for (sv, epochs) in &sat_pos_lla {
                 for (epoch, (lat, lon, h)) in epochs {
                     if *lat < min_max.0.0 {
@@ -328,22 +327,26 @@ pub fn skyplot(
                 .expect("failed to build skyplot chart");
             chart
                 .configure_mesh()
-                .x_desc("Latitude [ddeg]")
+                .x_desc("Longitude [°]")
                 .x_labels(30)
-                .y_desc("Longitude [ddeg]")
+                .y_desc("Latitude [°]")
                 .y_labels(30)
                 .draw()
                 .expect("failed to draw skyplot mesh");
-
             for (sv, data) in &sat_pos_lla {
                 chart.draw_series(
                     data.iter()
                         .map(|(e, (lat, lon, h))| {
-                            TriangleMarker::new((*lat, *lon), 4,
+                            TriangleMarker::new((*lon, *lat), 4,
                                 Into::<ShapeStyle>::into(&BLACK).filled())
                             .into_dyn()
                         }))
-                    .expect("failed to draw skyplot");
+                    .expect("failed to draw skyplot")
+                    .label(format!("{}", sv))
+                    .legend(move |point| {
+                        TriangleMarker::new(point, 4, Into::<ShapeStyle>::into(&BLACK).filled())
+                        .into_dyn()
+                    });
             }
             chart
                 .configure_series_labels()

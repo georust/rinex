@@ -70,7 +70,7 @@ pub fn plot(ctx: &mut Context, rnx: &Rinex, nav: &Option<Rinex>) {
     if let Some(record) = rnx.record.as_obs() {
         observation::plot(ctx, record, nav)
     } else if let Some(record) = rnx.record.as_nav() {
-        navigation::plot(ctx, record)
+    //    navigation::plot(ctx, record)
     } else if let Some(record) = rnx.record.as_meteo() {
         meteo::plot(ctx, record)
     } else {

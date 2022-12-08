@@ -1268,6 +1268,16 @@ impl Rinex {
     /// Reference position must be determine, either manually passed to this method
     /// (known from external method), or contained in this file header.
     /// Otherwise, it is not possible to calculate such information.
+    /// ```
+    /// use rinex::prelude::*;
+    /// let rinex = Rinex::from_file("../test_resources/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz")
+    ///     .unwrap();
+    /// let sv_angles = rinex.sv_angles();
+    /// for (sv, epochs) in sv_angles {
+    ///     for (epoch, (el, azi, sl)) in epochs {
+    ///     }
+    /// }
+    /// ```
     pub fn navigation_sat_angles(&self, ref_pos: Option<(f64,f64,f64)>) -> HashMap<Sv, BTreeMap<Epoch, (f64,f64)>> {
         let mut ret: HashMap<Sv, BTreeMap<Epoch, (f64,f64)>> = HashMap::new();
         let ref_pos: (f64,f64,f64) = match ref_pos {
