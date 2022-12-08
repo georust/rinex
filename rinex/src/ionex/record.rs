@@ -45,6 +45,25 @@ pub struct MapPoint {
 
 pub type Map = Vec<MapPoint>;
 
+fn map_merge3d_mut(lhs: &mut Map, rhs: &Map) {
+    for rhs_p in rhs {
+        let mut found = false;
+        for lhs_p in lhs.into_iter() {
+            found |= 
+                (lhs_p.latitude == rhs_p.latitude) 
+                && (lhs_p.longitude == rhs_p.longitude) 
+                && (lhs_p.altitude == rhs_p.altitude); 
+
+            if found {
+                break 
+            }
+        }
+        if !found {
+            lhs.push(rhs_p.clone());
+        }
+    }
+}
+
 /// `IONEX` record is sorted by epoch.
 /// For each epoch, a TEC map is always given.
 /// Possible RMS map and Height map may exist at a given epoch.
@@ -241,6 +260,125 @@ mod test {
             true
         );
     }
+    #[test]
+    fn test_merge_map2d() {
+        let mut lhs = vec![
+            MapPoint {
+                latitude: 0.0,
+                longitude: 0.0,
+                altitude: 0.0,
+                value: 1.0,
+            },
+            MapPoint {
+                latitude: 0.0,
+                longitude: 10.0,
+                altitude: 0.0,
+                value: 2.0,
+            },
+            MapPoint {
+                latitude: 0.0,
+                longitude: 20.0,
+                altitude: 0.0,
+                value: 3.0,
+            },
+            MapPoint {
+                latitude: 10.0,
+                longitude: 0.0,
+                altitude: 0.0,
+                value: 4.0,
+            },
+            MapPoint {
+                latitude: 10.0,
+                longitude: 10.0,
+                altitude: 0.0,
+                value: 5.0,
+            },
+            MapPoint {
+                latitude: 10.0,
+                longitude: 20.0,
+                altitude: 0.0,
+                value: 6.0,
+            },
+        ];
+        let rhs = vec![
+            MapPoint {
+                latitude: 0.0,
+                longitude: 0.0,
+                altitude: 0.0,
+                value: 0.0,
+            },
+            MapPoint {
+                latitude: 5.0,
+                longitude: 0.0,
+                altitude: 0.0,
+                value: 1.0,
+            },
+            MapPoint {
+                latitude: 10.0,
+                longitude: 0.0,
+                altitude: 0.0,
+                value: 0.0,
+            },
+            MapPoint {
+                latitude: 10.0,
+                longitude: 25.0,
+                altitude: 0.0,
+                value: 6.0,
+            },
+        ];
+        let expected = vec![
+            MapPoint {
+                latitude: 0.0,
+                longitude: 0.0,
+                altitude: 0.0,
+                value: 1.0,
+            },
+            MapPoint {
+                latitude: 0.0,
+                longitude: 10.0,
+                altitude: 0.0,
+                value: 2.0,
+            },
+            MapPoint {
+                latitude: 0.0,
+                longitude: 20.0,
+                altitude: 0.0,
+                value: 3.0,
+            },
+            MapPoint {
+                latitude: 10.0,
+                longitude: 0.0,
+                altitude: 0.0,
+                value: 4.0,
+            },
+            MapPoint {
+                latitude: 10.0,
+                longitude: 10.0,
+                altitude: 0.0,
+                value: 5.0,
+            },
+            MapPoint {
+                latitude: 10.0,
+                longitude: 20.0,
+                altitude: 0.0,
+                value: 6.0,
+            },
+            MapPoint {
+                latitude: 5.0,
+                longitude: 0.0,
+                altitude: 0.0,
+                value: 1.0,
+            },
+            MapPoint {
+                latitude: 10.0,
+                longitude: 25.0,
+                altitude: 0.0,
+                value: 6.0,
+            },
+        ];
+        map_merge3d_mut(&mut lhs, &rhs);
+        assert_eq!(&lhs, &expected);
+    }
 }
 
 impl Merge<Record> for Record {
@@ -251,25 +389,34 @@ impl Merge<Record> for Record {
         Ok(lhs)
     }
     /// Merges `rhs` into `Self`
-    fn merge_mut(&mut self, _rhs: &Self) -> Result<(), merge::Error> {
-        /*
-        for (epoch, maps) in rhs.iter() {
-            if let (tec, Some(rms), Some(h)) = maps {
-                if let Some(maps) = self.get_mut(epoch) {
-                    let ((ttec, rrms, hh)) = maps;
-                    if rrms.is_none() {
-                        // RMS map now provided for this epoch
-                        rrms = Some(map);
+    fn merge_mut(&mut self, rhs: &Self) -> Result<(), merge::Error> {
+        for (epoch, maps) in rhs {
+            let (tec, rms, h) = maps;
+            if let Some(lhs_maps) = self.get_mut(epoch) {
+                let (lhs_tec, lhs_rms, lhs_h) = lhs_maps;
+
+                map_merge3d_mut(&mut lhs_tec.to_vec(), tec);
+
+                if let Some(map) = rms {
+                    if let Some(lhs_map) = lhs_rms {
+                        map_merge3d_mut(&mut lhs_map.to_vec(), map);
+                    } else {
+                        *lhs_rms = Some(map.to_vec()); // RMS map now provided
                     }
-                    if hh.is_none() {
-                        // Height map now provided for this epoch
-                        hh = Some(map);
-                    }
-                } else { // new epoch
-                    self.insert(*epoch, (tec, rms, h));
                 }
+
+                if let Some(map) = h {
+                    if let Some(lhs_map) = lhs_h {
+                        map_merge3d_mut(&mut lhs_map.to_vec(), map);
+                    } else {
+                        *lhs_h = Some(map.to_vec()); // H map now provided
+                    }
+                }
+            
+            } else { // new epoch
+                self.insert(*epoch, (tec.to_vec(), rms.clone(), h.clone()));
             }
-        }*/
+        }
         Ok(())
     }
 }
