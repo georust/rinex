@@ -56,6 +56,9 @@ Data is most of the time plotted against time.
 Time axis represents UTC epochs, normalized to 1st epoch (starting a "0"),
 and expressed in seconds. 
 
+A [skyplot view](https://github.com/gwbres/rinex/blob/main/rinex-cli/doc/skyplot.md)
+can also be requested with `-y`, but Navigation Data must be provided, either with `--fp` or `--nav`.
+
 ## `teqc` operations
 
 `teqc` is a well known application to process RINEX.   
