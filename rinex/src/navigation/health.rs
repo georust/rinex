@@ -91,7 +91,7 @@ pub enum GloHealth {
 
 impl Default for GloHealth {
     fn default() -> Self {
-        Self::Healthy
+        Self::Unhealthy
     }
 }
 
@@ -117,5 +117,34 @@ bitflags! {
         const E5A_HS1 = 0x20;
         const E5B_HS0 = 0x40;
         const E5B_HS1 = 0x80;
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[test]
+    fn test_gps() {
+        assert_eq!(Health::default(), Health::Unhealthy);
+        assert_eq!(format!("{:E}", Health::default()), "0E0");
+    }
+    #[test]
+    fn test_irnss() {
+        assert_eq!(IrnssHealth::default(), IrnssHealth::Unknown);
+        assert_eq!(format!("{:E}", IrnssHealth::default()), "1E0");
+    }
+    #[test]
+    fn test_geo_sbas() {
+        assert_eq!(GeoHealth::default(), GeoHealth::Unknown);
+        assert_eq!(format!("{:E}", Health::default()), "0E0");
+    }
+    #[test]
+    fn test_glo() {
+        assert_eq!(GloHealth::default(), GloHealth::Unhealthy);
+        assert_eq!(format!("{:E}", GloHealth::default()), "4E0");
+    }
+    #[test]
+    fn test_gal() {
+        assert_eq!(GalHealth::default(), GalHealth::empty());
     }
 }

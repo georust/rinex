@@ -101,4 +101,14 @@ mod test {
         assert_eq!(EpochFlag::from_str("6").unwrap(), EpochFlag::CycleSlip);
         assert!(EpochFlag::from_str("7").is_err());
     }
+    #[test]
+    fn to_str() {
+        assert_eq!(format!("{}", EpochFlag::Ok), "0");
+        assert_eq!(format!("{}", EpochFlag::PowerFailure), "1");
+        assert_eq!(format!("{}", EpochFlag::AntennaBeingMoved), "2");
+        assert_eq!(format!("{}", EpochFlag::NewSiteOccupation), "3");
+        assert_eq!(format!("{}", EpochFlag::HeaderInformationFollows), "4");
+        assert_eq!(format!("{}", EpochFlag::ExternalEvent), "5");
+        assert_eq!(format!("{}", EpochFlag::CycleSlip), "6");
+    }
 }
