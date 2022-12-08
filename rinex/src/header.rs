@@ -929,7 +929,7 @@ impl Header {
             marker_type,
             rcvr,
             leap,
-            coords: coords,
+            coords,
             wavelengths: None,
             gps_utc_delta: None,
             sampling_interval,

@@ -367,47 +367,23 @@ impl Ephemeris {
 
         Some((x_k, y_k, z_k))
     }
+    
     /// Computes satellite position in (latitude, longitude, altitude)
     pub fn sat_latlonalt(&self, epoch: Epoch) -> Option<(f64,f64,f64)> {
-        if let Some((x_k, y_k, z_k)) = self.sat_pos_ecef(epoch) {
-            let p = (x_k.powf(2.0) + y_k.powf(2.0)).sqrt(); 
-            let f = 54.0 * Kepler::EARTH_B.powf(2.0) * z_k.powf(2.0);
-            let E2 = Kepler::EARTH_A.powf(2.0) - Kepler::EARTH_B.powf(2.0); 
-            let g = p.powf(2.0) + (1.0 - Kepler::EARTH_ECCENTRICITY.powf(2.0)) * z_k.powf(2.0) - Kepler::EARTH_ECCENTRICITY.powf(2.0) * E2;
-            let c = Kepler::EARTH_ECCENTRICITY_POW4 * f * p.powf(2.0) / g;
-            let s = (1.0 + c + (2.0 * c + c.powf(2.0)).sqrt()).powf(1.0/3.0);
-            let pp = f / (s + 1.0/s +1.0).powf(2.0)*3.0*g.powf(2.0);
-            let qq = (1.0 + 2.0 * Kepler::EARTH_ECCENTRICITY_POW4 * pp).sqrt();
-            let r_0 = 
-                (0.5 * Kepler::EARTH_A_POW2 * (1.0 + 1.0/qq)
-                    - pp*z_k.powf(2.0)*(1.0 - Kepler::EARTH_ECCENTRICITY_POW2)
-                        - 0.5 * pp * p.powf(2.0)).sqrt() - pp * p * Kepler::EARTH_ECCENTRICITY_POW2 / (1.0 + qq);
-
-            let uu = ((p - Kepler::EARTH_ECCENTRICITY_POW2 * r_0).powf(2.0) + z_k.powf(2.0)).sqrt(); 
-            let vv = ((p - Kepler::EARTH_ECCENTRICITY_POW2 * r_0).powf(2.0)
-                + (1.0 - Kepler::EARTH_ECCENTRICITY_POW2)*z_k.powf(2.0)).sqrt();
-
-            let ep = Kepler::EARTH_A * Kepler::EARTH_ECCENTRICITY / Kepler::EARTH_B;
-            let z_0 = Kepler::EARTH_B.powf(2.0) * z_k / Kepler::EARTH_A / vv;
-
-            let lambda = y_k.atan2(x_k);
-            let phi = ((z_k + ep.powf(2.0) * z_0) /p).atan();
-            let h = uu * (1.0 - Kepler::EARTH_B_POW2 / Kepler::EARTH_A / vv);
-            return Some((phi, lambda, h));
-        }
-        None
+        let (x_k, y_k, z_k) = self.sat_pos_ecef(epoch)?;
+        Some(map_3d::ecef2geodetic(x_k, y_k, z_k, map_3d::Ellipsoid::WGS84))
     }
-    /// Returns (azimuth, elevation, slant range) coordinates in AER system
-    /// from parsed orbits and internal calculations
-    pub fn sat_angles(&self, epoch: Epoch, ref_pos: (f64,f64,f64)) -> Option<(f64,f64,f64)> {
-        if let Some((lat, lon, alt)) = self.sat_latlonalt(epoch) {
-            let (ref_x, ref_y, ref_z) = ref_pos;
-            let ref_ellips = map_3d::Ellipsoid::WGS84;
-            let (e, n, u) = map_3d::ecef2enu(ref_x, ref_y, ref_z, lat, lon, alt, ref_ellips);
-            return Some(map_3d::enu2aer(e, n, u));
-        }
-        None
+    
+    /// Computes and returns vehicle (azimuth, elevation) angles, in degrees
+    pub fn sat_angles(&self, epoch: Epoch, ref_pos: (f64,f64,f64)) -> Option<(f64,f64)> {
+        let (lat, lon, alt) = self.sat_latlonalt(epoch)?;
+        let (ref_x, ref_y, ref_z) = ref_pos;
+        let ref_ellips = map_3d::Ellipsoid::WGS84;
+        let (e, n, u) = map_3d::ecef2enu(ref_x, ref_y, ref_z, lat, lon, alt, ref_ellips);
+        let aer = map_3d::enu2aer(e, n, u);
+        Some((aer.0, aer.1))
     }
+    
     /// Parses ephemeris from given line iterator
     pub fn parse_v2v3(
         version: Version,

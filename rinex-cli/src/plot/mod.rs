@@ -235,30 +235,12 @@ pub fn skyplot(
     dims: (u32,u32),
     rnx: &Rinex,
     nav: &Option<Rinex>, 
+    ref_pos: Option<(f64,f64,f64)>,
     file: &str) 
 {
     let p = build_plot(file, dims);
     let cmap = colorous::TURBO;
     let mut cmap_max_index = 0_u8;
-    //  fixed view
-    let x_axis = -180.0..180.0;
-    let y_axis = -180.0..180.0;
-    let mut chart = ChartBuilder::on(&p)
-        .caption("Skyplot", ("sans-serif", 50).into_font())
-        .margin(10)
-        .x_label_area_size(30)
-        .y_label_area_size(30)
-        .build_cartesian_2d(x_axis, y_axis)
-        .expect("failed to build skyplot chart");
-    chart
-        .configure_mesh()
-        .x_desc("Azimuth [°]")
-        .x_labels(30)
-        .y_desc("Elevation [°]")
-        .y_labels(30)
-        .draw()
-        .expect("failed to draw skyplot mesh");
-
 /*
     if let Some(nav) = nav {
         /*
@@ -301,17 +283,74 @@ pub fn skyplot(
     } else {*/
         /*
          * "simplified" skyplot view,
-         * we only have have ephemeris data,
          * color gradient emphasizes the epoch/timestamp
          */
         if let Some(r) = rnx.record.as_nav() {
+            let mut sat_pos_lla = rnx.navigation_sat_pos_ecef();
+            sat_pos_lla 
+                .iter_mut()
+                    .map(|(_, epochs)| {
+                        epochs.iter_mut()
+                            .map(|(_, point)| {
+                                *point = map_3d::ecef2geodetic(point.0, point.1, point.2, map_3d::Ellipsoid::WGS84);
+                            })
+                            .count();
+                    })
+                    .count();
+            /*
+             * determine Min, Max { Latitude, Longitude }
+             */
+            let mut min_max = ((0.0_f64, 0.0_f64), (0.0_f64, 0.0_f64)); // lat, lon
+            for (sv, epochs) in &sat_pos_lla {
+                for (epoch, (lat, lon, h)) in epochs {
+                    if *lat < min_max.0.0 {
+                        min_max.0.0 = *lat;
+                    }
+                    if *lat > min_max.0.1 {
+                        min_max.0.1 = *lat;
+                    }
+                    if *lon < min_max.1.0 {
+                        min_max.1.0 = *lon;
+                    }
+                    if *lon > min_max.1.1 {
+                        min_max.1.1 = *lon;
+                    }
+                }
+            }
+            let lat_axis = min_max.0.0..min_max.0.1;
+            let lon_axis = min_max.1.0..min_max.1.1;
+            let mut chart = ChartBuilder::on(&p)
+                .caption("Skyplot", ("sans-serif", 50).into_font())
+                .margin(10)
+                .x_label_area_size(30)
+                .y_label_area_size(30)
+                .build_cartesian_2d(lon_axis, lat_axis)
+                .expect("failed to build skyplot chart");
+            chart
+                .configure_mesh()
+                .x_desc("Latitude [ddeg]")
+                .x_labels(30)
+                .y_desc("Longitude [ddeg]")
+                .y_labels(30)
+                .draw()
+                .expect("failed to draw skyplot mesh");
 
+            for (sv, data) in &sat_pos_lla {
+                chart.draw_series(
+                    data.iter()
+                        .map(|(e, (lat, lon, h))| {
+                            TriangleMarker::new((*lat, *lon), 4,
+                                Into::<ShapeStyle>::into(&BLACK).filled())
+                            .into_dyn()
+                        }))
+                    .expect("failed to draw skyplot");
+            }
+            chart
+                .configure_series_labels()
+                .border_style(&BLACK)
+                .background_style(WHITE.filled())
+                .draw()
+                .expect("failed to draw labels on skyplot");
         }
     //}
-    chart
-        .configure_series_labels()
-        .border_style(&BLACK)
-        .background_style(WHITE.filled())
-        .draw()
-        .expect("failed to draw labels on skyplot");
 }

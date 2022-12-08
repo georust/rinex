@@ -19,3 +19,4 @@ itertools = "0.10"
 # plotters requires "libfreetype6-dev libfontconfig1-dev" on host
 plotters  = "0.3"
 colorous = "1"
+map_3d = "0.1.5"

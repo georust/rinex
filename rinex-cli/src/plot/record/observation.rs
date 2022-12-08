@@ -257,7 +257,7 @@ pub fn build_enhanced_context<'a> (dim: (u32, u32), record: &observation::Record
                             let (_, nav_sv, eph) = fr.as_eph()
                                 .unwrap();
                             if nav_sv == sv {
-                                if let Some((e, _, _)) = eph.sat_angles(*e, rcvr_pos) {
+                                if let Some((e, _)) = eph.sat_angles(*e, rcvr_pos) {
                                     if e < yl_range.0 {
                                         yl_range.0 = e;
                                     }
@@ -628,7 +628,7 @@ pub fn enhanced_plot(ctx: &mut Context, record: &observation::Record, nav: &Rine
                             let (_, nav_sv, eph) = fr.as_eph()
                                 .unwrap();
                             if nav_sv == sv {
-                                if let Some((e, _, _)) = eph.sat_angles(*epoch, rcvr_pos) {
+                                if let Some((e, _)) = eph.sat_angles(*epoch, rcvr_pos) {
                                     if let Some(data) = elev_angles.get_mut(sv) {
                                         data.push((x, e));
                                     } else {

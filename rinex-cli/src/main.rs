@@ -51,6 +51,7 @@ pub fn main() -> Result<(), rinex::Error> {
     let fp = cli.input_path();
     let mut rnx = Rinex::from_file(fp)?;
     let mut nav_context = cli.nav_context();
+    let ref_position = cli.ref_position();
 
     // create subdirs we might need when studying this context
     let short_fp = filename(fp);
@@ -268,6 +269,7 @@ pub fn main() -> Result<(), rinex::Error> {
             cli.plot_dimensions(),
             &rnx,
             &nav_context,
+            ref_position,
             &(product_prefix.to_owned() + "/skyplot.png")); 
     }
 
