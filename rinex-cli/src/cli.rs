@@ -1,7 +1,7 @@
-use std::str::FromStr;
-use rinex::prelude::*;
 use crate::parser::parse_epoch;
 use clap::{Arg, ArgAction, ArgMatches, ColorChoice, Command};
+use rinex::prelude::*;
+use std::str::FromStr;
 
 pub struct Cli {
     /// Arguments passed by user
@@ -646,9 +646,9 @@ Example \"--plot-height 1024"))
         dim
     }
     /// Reference position, in ECEF [m]
-    pub fn ref_position(&self) -> Option<(f64,f64,f64)> {
+    pub fn ref_position(&self) -> Option<(f64, f64, f64)> {
         let args = self.matches.get_one::<String>("ref-pos")?;
-        let content: Vec<&str> = args.split(",").collect(); 
+        let content: Vec<&str> = args.split(",").collect();
         if let Ok(pos_x) = f64::from_str(content[0].trim()) {
             if let Ok(pos_y) = f64::from_str(content[1].trim()) {
                 if let Ok(pos_z) = f64::from_str(content[2].trim()) {

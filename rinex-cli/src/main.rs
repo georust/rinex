@@ -270,14 +270,15 @@ pub fn main() -> Result<(), rinex::Error> {
             &rnx,
             &nav_context,
             ref_position,
-            &(product_prefix.to_owned() + "/skyplot.png")); 
+            &(product_prefix.to_owned() + "/skyplot.png"),
+        );
     }
 
     /*
      * Record analysis / visualization
      */
     let dims = cli.plot_dimensions();
-    let mut ctx = plot::record::Context::new(dims, &rnx, &nav_context); 
-    plot::record::plot(&mut ctx, &rnx, &nav_context); 
+    let mut ctx = plot::record::Context::new(dims, &rnx, &nav_context);
+    plot::record::plot(&mut ctx, &rnx, &nav_context);
     Ok(())
 } // main

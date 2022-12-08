@@ -11,10 +11,10 @@ use crate::{
     version::Version,
 };
 
-use thiserror::Error;
-use std::str::FromStr;
 use std::io::prelude::*;
+use std::str::FromStr;
 use strum_macros::EnumString;
+use thiserror::Error;
 
 macro_rules! from_b_fmt_month {
     ($m: expr) => {
@@ -39,9 +39,7 @@ macro_rules! from_b_fmt_month {
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug)]
-#[derive(PartialEq, Eq)]
-#[derive(EnumString)]
+#[derive(Clone, Debug, PartialEq, Eq, EnumString)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum MarkerType {
     /// Earth fixed & high precision
@@ -126,11 +124,11 @@ pub struct Header {
     /// optionnal receiver placement infos
     pub marker_type: Option<MarkerType>,
     /// optionnal leap seconds infos
-    pub leap: Option<leap::Leap>, 
+    pub leap: Option<leap::Leap>,
     // /// Optionnal system time correction
     // pub time_corrections: Option<gnss_time::Correction>,
     /// Station approximate coordinates
-    pub coords: Option<(f64,f64,f64)>, 
+    pub coords: Option<(f64, f64, f64)>,
     /// Optionnal observation wavelengths
     pub wavelengths: Option<(u32, u32)>,
     /// Optionnal sampling interval (s)
@@ -261,10 +259,10 @@ impl Header {
         let mut sv_antenna: Option<SvAntenna> = None;
         let mut leap: Option<leap::Leap> = None;
         let mut sampling_interval: Option<Duration> = None;
-        let mut coords: Option<(f64,f64,f64)> = None;
-        // RINEX specific fields 
-        let mut obs_code_lines : u8 = 0; 
-        let mut current_code_syst = Constellation::default(); 
+        let mut coords: Option<(f64, f64, f64)> = None;
+        // RINEX specific fields
+        let mut obs_code_lines: u8 = 0;
+        let mut current_code_syst = Constellation::default();
         let mut observation = observation::HeaderFields::default();
         let mut meteo = meteo::HeaderFields::default();
         let mut clocks = clocks::HeaderFields::default();
@@ -546,8 +544,8 @@ impl Header {
                             if let Some(a) = &mut rcvr_antenna {
                                 *a = a.with_base_coordinates((x, y, z));
                             } else {
-                                rcvr_antenna = Some(Antenna::default()
-                                    .with_base_coordinates((x, y, z)));
+                                rcvr_antenna =
+                                    Some(Antenna::default().with_base_coordinates((x, y, z)));
                             }
                         }
                     }
@@ -792,7 +790,7 @@ impl Header {
                 // GPSB 0.1025E-07 0.7451E-08 -0.5960E-07 -0.5960E-07
             } else if marker.contains("TIME SYSTEM CORR") {
                 // GPUT 0.2793967723E-08 0.000000000E+00 147456 1395
-                /* 
+                /*
                  * V3 Time System correction description
                  */
                 //if let Ok((ts, ts, corr)) = gnss_time::decode_time_system_corr(content) {
@@ -1497,7 +1495,8 @@ impl std::fmt::Display for Header {
             write!(f, "{}", "MARKER NAME\n")?;
         }
         // MARKER NUMBER
-        if self.station_id.len() > 0 { // has been parsed
+        if self.station_id.len() > 0 {
+            // has been parsed
             write!(f, "{:<20}", self.station_id)?;
             write!(f, "{:<40}", " ")?;
             write!(f, "{}", "MARKER NUMBER\n")?;

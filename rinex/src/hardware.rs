@@ -50,7 +50,7 @@ pub struct Antenna {
     /// Serial number / identification number
     pub sn: String,
     /// Base / reference point coordinates
-    pub coords: Option<(f64,f64,f64)>,
+    pub coords: Option<(f64, f64, f64)>,
     /// Optionnal `h` eccentricity (height component),
     /// referenced to base/reference point, in meter
     pub height: Option<f64>,
@@ -76,7 +76,7 @@ impl Antenna {
         s
     }
     /// Sets reference/base coordinates (3D)
-    pub fn with_base_coordinates (&self, coords: (f64, f64, f64)) -> Self {
+    pub fn with_base_coordinates(&self, coords: (f64, f64, f64)) -> Self {
         let mut s = self.clone();
         s.coords = Some(coords);
         s

@@ -1165,10 +1165,7 @@ mod test {
     #[test]
     fn double_digit_exponents() {
         let content = "1000123  -123123E1";
-        assert_eq!(
-            double_exponent_digits(content),
-            "1000123  -123123E+01"
-        );
+        assert_eq!(double_exponent_digits(content), "1000123  -123123E+01");
         let content = "1000123  -123123E-1 -1.23123123E0 -0.123123E-4";
         assert_eq!(
             double_exponent_digits(content),

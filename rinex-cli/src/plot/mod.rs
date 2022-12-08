@@ -1,13 +1,10 @@
-use rinex::prelude::*;
 use plotters::{
-    prelude::*,
-    coord::Shift,
-    chart::{
-        ChartState,
-        DualCoordChartState,
-    },
+    chart::{ChartState, DualCoordChartState},
     coord::types::RangedCoordf64,
+    coord::Shift,
+    prelude::*,
 };
+use rinex::prelude::*;
 use std::collections::{BTreeMap, HashMap};
 
 pub mod record;
@@ -50,33 +47,31 @@ pub fn build_chart(
         .y_label_formatter(&|y| format!("{:e}", y)) //nicer f64 rendering
         .draw()
         .expect(&format!("failed to draw {} mesh", title));
-    chart
-        .to_chart_state()
+    chart.to_chart_state()
 }
 
 /*
  * Builds a chart with 2 Y axes and shared X axis
  */
 pub fn build_twoscale_chart(
-    title: &str, 
+    title: &str,
     x_axis: Vec<f64>,
-    y_ranges: ((f64, f64), (f64,f64)), // Y_right, Y_left
-    area: &DrawingArea<BitMapBackend, Shift>) 
-    -> DualCoordChartState<Plot2d, Plot2d> 
-{
-    let x_axis = x_axis[0]..x_axis[x_axis.len()-1]; 
-    
+    y_ranges: ((f64, f64), (f64, f64)), // Y_right, Y_left
+    area: &DrawingArea<BitMapBackend, Shift>,
+) -> DualCoordChartState<Plot2d, Plot2d> {
+    let x_axis = x_axis[0]..x_axis[x_axis.len() - 1];
+
     // y right range
     let (yr_range, yl_range) = y_ranges;
     let yr_axis = match yr_range.0 < 0.0 {
-        true => 1.02*yr_range.0..1.02*yr_range.1,
-        false => 0.98*yr_range.0..1.02*yr_range.1,
+        true => 1.02 * yr_range.0..1.02 * yr_range.1,
+        false => 0.98 * yr_range.0..1.02 * yr_range.1,
     };
 
     // y left range
     let yl_axis = match yl_range.0 < 0.0 {
-        true => 1.02*yl_range.0..1.02*yl_range.1,
-        false => 0.98*yl_range.0..1.02*yl_range.1,
+        true => 1.02 * yl_range.0..1.02 * yl_range.1,
+        false => 0.98 * yl_range.0..1.02 * yl_range.1,
     };
 
     let mut chart = ChartBuilder::on(area)
@@ -99,12 +94,11 @@ pub fn build_twoscale_chart(
         .expect(&format!("failed to draw {} mesh", title));
     chart
         .configure_secondary_axes()
-        .y_desc("Evelation angle [°]") // TODO: might require some improvement, 
-            // in case we have other use cases
+        .y_desc("Evelation angle [°]") // TODO: might require some improvement,
+        // in case we have other use cases
         .draw()
         .expect(&format!("failed to draw {} secondary axis", title));
-    chart
-        .to_chart_state()
+    chart.to_chart_state()
 }
 
 /*
@@ -232,16 +226,16 @@ pub fn plot_gnss_recombination(
  * Skyplot view
  */
 pub fn skyplot(
-    dims: (u32,u32),
+    dims: (u32, u32),
     rnx: &Rinex,
-    nav: &Option<Rinex>, 
-    ref_pos: Option<(f64,f64,f64)>,
-    file: &str) 
-{
+    nav: &Option<Rinex>,
+    ref_pos: Option<(f64, f64, f64)>,
+    file: &str,
+) {
     let p = build_plot(file, dims);
     let cmap = colorous::TURBO;
     let mut cmap_max_index = 0_u8;
-/*
+    /*
     if let Some(nav) = nav {
         /*
          * "advanced" skyplot view,
@@ -250,19 +244,19 @@ pub fn skyplot(
          */
         let obs_rec = rnx.record.as_obs()
             .expect("--fp should be Observation RINEX");
-        let nav_rec = nav.record.as_nav() 
+        let nav_rec = nav.record.as_nav()
             .expect("--nav should be Navigation RINEX");
-        
+
         // determine epoch boundaries
         //  this will help emphasize the curves starting and endint points
         let epochs = nav.epochs();
         let e_0 = epochs[0];
         let e_N = epochs[epochs.len()-1];
-        
+
         // build dataset
         let dataset: HashMap<Sv, HashMap<Epoch, f64>> = HashMap::new();
         for (epoch, classes) in nav_rec {
-            
+
         }
 
         chart.draw_series(
@@ -270,7 +264,7 @@ pub fn skyplot(
                 .iter()
                 .filter_map(|(epoch, classes)| {
                     if epoch == e_0 {
-                            
+
                     } else if epoch == e_N {
 
                     } else {
@@ -281,79 +275,79 @@ pub fn skyplot(
             .label(
 
     } else {*/
+    /*
+     * "simplified" skyplot view,
+     * color gradient emphasizes the epoch/timestamp
+     */
+    if let Some(r) = rnx.record.as_nav() {
+        let mut sat_pos_lla = rnx.navigation_sat_pos_ecef();
+        sat_pos_lla
+            .iter_mut()
+            .map(|(_, epochs)| {
+                epochs
+                    .iter_mut()
+                    .map(|(_, p_k)| {
+                        *p_k = map_3d::ecef2geodetic(p_k.0, p_k.1, p_k.2, map_3d::Ellipsoid::WGS84);
+                    })
+                    .count();
+            })
+            .count();
         /*
-         * "simplified" skyplot view,
-         * color gradient emphasizes the epoch/timestamp
+         * determine Min, Max angles
          */
-        if let Some(r) = rnx.record.as_nav() {
-            let mut sat_pos_lla = rnx.navigation_sat_pos_ecef();
-            sat_pos_lla.iter_mut()
-                .map(|(_, epochs)| {
-                    epochs.iter_mut()
-                        .map(|(_, p_k)| {
-                            *p_k = map_3d::ecef2geodetic(p_k.0, p_k.1, p_k.2, map_3d::Ellipsoid::WGS84);
-                        })
-                        .count();
-                })
-                .count();
-            /*
-             * determine Min, Max angles 
-             */
-            let mut min_max = ((0.0_f64, 0.0_f64), (0.0_f64, 0.0_f64)); // {lat, lon}
-            for (sv, epochs) in &sat_pos_lla {
-                for (epoch, (lat, lon, h)) in epochs {
-                    if *lat < min_max.0.0 {
-                        min_max.0.0 = *lat;
-                    }
-                    if *lat > min_max.0.1 {
-                        min_max.0.1 = *lat;
-                    }
-                    if *lon < min_max.1.0 {
-                        min_max.1.0 = *lon;
-                    }
-                    if *lon > min_max.1.1 {
-                        min_max.1.1 = *lon;
-                    }
+        let mut min_max = ((0.0_f64, 0.0_f64), (0.0_f64, 0.0_f64)); // {lat, lon}
+        for (sv, epochs) in &sat_pos_lla {
+            for (epoch, (lat, lon, h)) in epochs {
+                if *lat < min_max.0 .0 {
+                    min_max.0 .0 = *lat;
+                }
+                if *lat > min_max.0 .1 {
+                    min_max.0 .1 = *lat;
+                }
+                if *lon < min_max.1 .0 {
+                    min_max.1 .0 = *lon;
+                }
+                if *lon > min_max.1 .1 {
+                    min_max.1 .1 = *lon;
                 }
             }
-            let lat_axis = min_max.0.0..min_max.0.1;
-            let lon_axis = min_max.1.0..min_max.1.1;
-            let mut chart = ChartBuilder::on(&p)
-                .caption("Skyplot", ("sans-serif", 50).into_font())
-                .margin(10)
-                .x_label_area_size(30)
-                .y_label_area_size(30)
-                .build_cartesian_2d(lon_axis, lat_axis)
-                .expect("failed to build skyplot chart");
-            chart
-                .configure_mesh()
-                .x_desc("Longitude [°]")
-                .x_labels(30)
-                .y_desc("Latitude [°]")
-                .y_labels(30)
-                .draw()
-                .expect("failed to draw skyplot mesh");
-            for (sv, data) in &sat_pos_lla {
-                chart.draw_series(
-                    data.iter()
-                        .map(|(e, (lat, lon, h))| {
-                            TriangleMarker::new((*lon, *lat), 4,
-                                Into::<ShapeStyle>::into(&BLACK).filled())
-                            .into_dyn()
-                        }))
-                    .expect("failed to draw skyplot")
-                    .label(format!("{}", sv))
-                    .legend(move |point| {
-                        TriangleMarker::new(point, 4, Into::<ShapeStyle>::into(&BLACK).filled())
-                        .into_dyn()
-                    });
-            }
-            chart
-                .configure_series_labels()
-                .border_style(&BLACK)
-                .background_style(WHITE.filled())
-                .draw()
-                .expect("failed to draw labels on skyplot");
         }
+        let lat_axis = min_max.0 .0..min_max.0 .1;
+        let lon_axis = min_max.1 .0..min_max.1 .1;
+        let mut chart = ChartBuilder::on(&p)
+            .caption("Skyplot", ("sans-serif", 50).into_font())
+            .margin(10)
+            .x_label_area_size(30)
+            .y_label_area_size(30)
+            .build_cartesian_2d(lon_axis, lat_axis)
+            .expect("failed to build skyplot chart");
+        chart
+            .configure_mesh()
+            .x_desc("Longitude [°]")
+            .x_labels(30)
+            .y_desc("Latitude [°]")
+            .y_labels(30)
+            .draw()
+            .expect("failed to draw skyplot mesh");
+        for (sv, data) in &sat_pos_lla {
+            chart
+                .draw_series(data.iter().map(|(e, (lat, lon, h))| {
+                    TriangleMarker::new((*lon, *lat), 4, Into::<ShapeStyle>::into(&BLACK).filled())
+                        .into_dyn()
+                }))
+                .expect("failed to draw skyplot")
+                .label(format!("{}", sv))
+                .legend(move |point| {
+                    TriangleMarker::new(point, 4, Into::<ShapeStyle>::into(&BLACK).filled())
+                        .into_dyn()
+                });
+        }
+        chart
+            .configure_series_labels()
+            .border_style(&BLACK)
+            .background_style(WHITE.filled())
+            .draw()
+            .expect("failed to draw labels on skyplot");
+    }
     //}
 }

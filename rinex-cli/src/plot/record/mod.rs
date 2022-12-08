@@ -1,18 +1,10 @@
-use rinex::*;
-use super::{
-    Plot2d,
-    build_plot,
-    build_chart, 
-    build_twoscale_chart, 
-};
+use super::{build_chart, build_plot, build_twoscale_chart, Plot2d};
 use plotters::{
-    prelude::*,
+    chart::{ChartState, DualCoordChartState},
     coord::Shift,
-    chart::{
-        ChartState,
-        DualCoordChartState,
-    },
+    prelude::*,
 };
+use rinex::*;
 use std::collections::HashMap;
 
 mod meteo;
@@ -22,7 +14,7 @@ mod observation;
 /// Plot Context for Record analysis
 pub struct Context<'a> {
     /// time axis
-    pub t_axis: Vec<f64>, 
+    pub t_axis: Vec<f64>,
     /// Plot area sorted by title
     pub plots: HashMap<String, DrawingArea<BitMapBackend<'a>, Shift>>,
     /// Single Y axes charts - indexed by titles
@@ -52,7 +44,7 @@ impl<'a> Context<'a> {
     ///  with the libs we're using.
     ///
     ///  Dim: (u32, u32) plot x_width and y_height
-    pub fn new (dim: (u32,u32), rnx: &Rinex, nav: &Option<Rinex>) -> Self {
+    pub fn new(dim: (u32, u32), rnx: &Rinex, nav: &Option<Rinex>) -> Self {
         if let Some(record) = rnx.record.as_obs() {
             observation::build_context(dim, record, nav)
         } else if let Some(record) = rnx.record.as_nav() {
@@ -70,7 +62,7 @@ pub fn plot(ctx: &mut Context, rnx: &Rinex, nav: &Option<Rinex>) {
     if let Some(record) = rnx.record.as_obs() {
         observation::plot(ctx, record, nav)
     } else if let Some(record) = rnx.record.as_nav() {
-    //    navigation::plot(ctx, record)
+        //    navigation::plot(ctx, record)
     } else if let Some(record) = rnx.record.as_meteo() {
         meteo::plot(ctx, record)
     } else {

@@ -1,6 +1,4 @@
-use super::{
-    prelude::*,
-};
+use super::prelude::*;
 //use thiserror::Error;
 //use std::str::FromStr;
 pub trait TimeScaling<T> {
@@ -68,7 +66,7 @@ pub enum Error {
     #[error("failed to parse (wn, secs) counters")]
     ParseIntError(#[from] std::num::ParseIntError),
     #[error("hifitime::_maybe_from_gregorian_")]
-    HifitimeError(#[from] hifitime::Errors), 
+    HifitimeError(#[from] hifitime::Errors),
 }
 
 /// Decodes corretion from `lhs` system to `rhs` system
@@ -89,7 +87,7 @@ fn decode_system(content: &str) -> Result<(Constellation, TimeScale), Error> {
     };
     let ending = &content[2..];
     let ts: TimeScale = match ending {
-        "UT" => TimeScale::UTC, 
+        "UT" => TimeScale::UTC,
         "GP" => TimeScale::GPST,
         "GA" => TimeScale::GST,
         "BD" => TimeScale::BDT,
@@ -108,7 +106,7 @@ pub fn decode_corr_to_system_time(content: &str) -> Result<TimeCorrection, Error
     let day = u8::from_str_radix(day.trim(), 10)?;
     let corr = f64::from_str(rem.trim())?;
     Ok(TimeCorrection {
-        epoch: Epoch::maybe_from_gregorian(yyyy, month, day, 0, 0, 0, 0, TimeScale::GPST)?, 
+        epoch: Epoch::maybe_from_gregorian(yyyy, month, day, 0, 0, 0, 0, TimeScale::GPST)?,
         a0: 0.0,
         a1: 0.0,
     })
@@ -139,7 +137,7 @@ pub fn decode_time_system_corr(content: &str) -> Result<TimeCorrection, Error> {
     let a0 = f64::from_str(a0.replace("D","E").trim())?;
     let a1 = f64::from_str(a1.replace("D","E").trim())?;
 
-    // t_ref: seconds into GPST, 
+    // t_ref: seconds into GPST,
     let t_ref = u32::from_str_radix(t_ref.trim(), 10)?;
     // w_ref: free running GPST week counter
     let w_ref = u16::from_str_radix(w_ref.trim(), 10)?;
@@ -433,7 +431,7 @@ mod test {
         assert!(corr.is_ok());
         let corr = corr.unwrap();
         assert_eq!(corr.a0, 1.8626451492e-09);
-        assert_eq!(corr.a1, -8.881784197e-16); 
+        assert_eq!(corr.a1, -8.881784197e-16);
         //assert_eq!(corr.t_ref, 432000);
         //assert_eq!(corr.w_ref, 2138);
 
@@ -444,7 +442,7 @@ mod test {
         assert_eq!(corr.a1,  -1.065814104e-14);
         //assert_eq!(corr.t_ref, 61440);
         //assert_eq!(corr.w_ref, 2139);
-        
+
         let corr = decode_time_system_corr("GLGP -2.1420419216e-08 0.000000000e+00 518400 2138");
         assert!(corr.is_ok());
         let corr = corr.unwrap();
@@ -452,7 +450,7 @@ mod test {
         assert_eq!(corr.a1, 0.0);
         //assert_eq!(corr.t_ref, 518400);
         //assert_eq!(corr.w_ref, 2138);
-        
+
         let corr = decode_time_system_corr("GPUT  -.3725290298E-08 -.106581410E-13  61440 2139");
         assert!(corr.is_ok());
         let corr = corr.unwrap();
@@ -460,7 +458,7 @@ mod test {
         assert_eq!(corr.a1, -0.106581410E-13);
         //assert_eq!(corr.t_ref, 61440);
         //assert_eq!(corr.w_ref, 2139);
-        
+
         let corr = decode_time_system_corr("IRGP -4.9476511776e-10-2.664535259e-15 432288 2138");
         assert!(corr.is_ok());
         let corr = corr.unwrap();
@@ -468,7 +466,7 @@ mod test {
         assert_eq!(corr.a1, -2.664535259e-15);
         //assert_eq!(corr.t_ref, 432288);
         //assert_eq!(corr.w_ref, 2138);
-        
+
         let corr = decode_time_system_corr("GAGP  2.1536834538e-09-9.769962617e-15 432000 2138");
         assert!(corr.is_ok());
         let corr = corr.unwrap();
@@ -476,7 +474,7 @@ mod test {
         assert_eq!(corr.a1, -9.769962617e-15);
         //assert_eq!(corr.t_ref, 432000 );
         //assert_eq!(corr.w_ref, 2138);
-        
+
         let corr = decode_time_system_corr("QZUT   .5587935448E-08  .000000000E+00  94208 2139");
         assert!(corr.is_ok());
         let corr = corr.unwrap();
