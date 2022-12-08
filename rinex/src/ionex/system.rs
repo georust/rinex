@@ -114,3 +114,16 @@ impl FromStr for RefSystem {
         }
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[test]
+    fn test_refsystem() {
+        let default = RefSystem::default();
+        assert_eq!(
+            default,
+            RefSystem::GnssConstellation(Constellation::default())
+        );
+    }
+}
