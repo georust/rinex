@@ -110,8 +110,7 @@ pub fn main() -> Result<(), rinex::Error> {
      * SV per Epoch analysis requested
      */
     if cli.sv_epoch() {
-        //analysis::sv_epoch::analyze(&rnx, &mut nav_context, cli.plot_dimensions());
-        //return Ok(());
+        analysis::sv_epoch(&rnx, &mut nav_context);
     }
     /*
      * Epoch histogram analysis

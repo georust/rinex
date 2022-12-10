@@ -1,44 +1,38 @@
 use plotly::{
     Plot, 
     Layout,
-    Scatter, ScatterPolar,
-    Histogram,
+    Scatter, //ScatterPolar,
     common::{
-        Mode, DashType, Font, Fill,
+        Mode, 
+        //DashType, 
+        Font,
         Title, Side, Marker, MarkerSymbol,
     },
-    layout::{Axis, Margin},
+    layout::{Axis},
 };
 use rand::Rng;
-use rinex::prelude::*;
-use std::collections::{BTreeMap, HashMap};
 
-pub struct Context {
-    nb_plots: usize,
-    plot: Plot, 
-}
+mod context;
+pub use context::Context;
 
-impl Context {
-    pub fn new() -> Self {
-        Self {
-            nb_plots: 0,
-            plot: Plot::new(),
-        }
-    }
-}
+mod skyplot;
+pub use skyplot::skyplot;
+
+mod combination;
+pub use combination::plot_gnss_recombination;
 
 /*
  * Generates N marker symbols to be used
  * to differentiate data
  */
-fn generate_markers(n: usize) -> Vec<MarkerSymbol> {
+pub fn generate_markers(n: usize) -> Vec<MarkerSymbol> {
     //TODO lazy static
     let pool = vec!["Circle", "CircleOpen", "CircleDot", "CircleOpenDot", "Square", "SquareOpen", "SquareDot", "SquareOpenDot", "Diamond", "DiamondOpen", "DiamondDot", "DiamondOpenDot", "Cross", "CrossOpen", "CrossDot", "CrossOpenDot", "X", "XOpen", "XDot", "XOpenDot", "TriangleUp", "TriangleUpOpen", "TriangleUpDot", "TriangleUpOpenDot", "TriangleDown", "TriangleDownOpen", "TriangleDownDot", "TriangleDownOpenDot", "TriangleLeft", "TriangleLeftOpen", "TriangleLeftDot", "TriangleLeftOpenDot", "TriangleRight", "TriangleRightOpen", "TriangleRightDot", "TriangleRightOpenDot", "TriangleNE", "TriangleNEOpen", "TriangleNEDot", "TriangleNEOpenDot", "TriangleSE", "TriangleSEOpen", "TriangleSEDot", "TriangleSEOpenDot", "TriangleSW", "TriangleSWOpen", "TriangleSWDot", "TriangleSWOpenDot", "TriangleNW", "TriangleNWOpen", "TriangleNWDot", "TriangleNWOpenDot", "Pentagon", "PentagonOpen", "PentagonDot", "PentagonOpenDot", "Hexagon", "HexagonOpen", "HexagonDot", "HexagonOpenDot", "Hexagon2", "Hexagon2Open", "Hexagon2Dot", "Hexagon2OpenDot", "Octagon", "OctagonOpen", "OctagonDot", "OctagonOpenDot", "Star", "StarOpen", "StarDot", "StarOpenDot", "Hexagram", "HexagramOpen", "HexagramDot", "HexagramOpenDot", "StarTriangleUp", "StarTriangleUpOpen", "StarTriangleUpDot", "StarTriangleUpOpenDot", "StarTriangleDown", "StarTriangleDownOpen", "StarTriangleDownDot", "StarTriangleDownOpenDot", "StarSquare", "StarSquareOpen", "StarSquareDot", "StarSquareOpenDot", "StarDiamond", "StarDiamondOpen", "StarDiamondDot", "StarDiamondOpenDot", "DiamondTall", "DiamondTallOpen", "DiamondTallDot", "DiamondTallOpenDot", "DiamondWide", "DiamondWideOpen", "DiamondWideDot", "DiamondWideOpenDot", "Hourglass", "HourglassOpen", "BowTie", "BowTieOpen", "CircleCross", "CircleCrossOpen", "CircleX", "CircleXOpen", "SquareCross", "SquareCrossOpen", "SquareX", "SquareXOpen", "DiamondCross", "DiamondCrossOpen", "DiamondX", "DiamondXOpen", "CrossThin", "CrossThinOpen", "XThin", "XThinOpen", "Asterisk", "AsteriskOpen", "Hash", "HashOpen", "HashDot", "HashOpenDot", "YUp", "YUpOpen", "YDown", "YDownOpen", "YLeft", "YLeftOpen", "YRight", "YRightOpen", "LineEW", "LineEWOpen", "LineNS", "LineNSOpen", "LineNE", "LineNEOpen", "LineNW", "LineNWOpen", ];
     let nb_max: usize = pool.len();
     let mut rng = rand::thread_rng();
     let mut ret: Vec<MarkerSymbol> = Vec::with_capacity(n);
     for _ in 0..n {
-        let symbol = pool[rng.gen_range(0..nb_max-1)];
+        let symbol = pool[rng.gen_range(0..25)];
         let marker = match symbol {
             "Circle" => MarkerSymbol::Circle,
             "CircleOpen" => MarkerSymbol::CircleOpen,
@@ -84,7 +78,7 @@ fn generate_markers(n: usize) -> Vec<MarkerSymbol> {
  * builds a standard 2D plot single Y scale,
  * ready to plot data against time (`Epoch`)
  */
-fn build_default_plot(title: &str, y_title: &str) -> Plot {
+pub fn build_default_plot(title: &str, y_title: &str) -> Plot {
     build_plot(
         title, 
         Side::Top, 
@@ -100,7 +94,7 @@ fn build_default_plot(title: &str, y_title: &str) -> Plot {
 /*
  * Builds a Plot
  */
-fn build_plot(
+pub fn build_plot(
     title: &str,
     title_side: Side,
     title_font: Font,
@@ -226,98 +220,3 @@ pub fn build_twoscale_chart(
     chart.to_chart_state()
 }
 */
-
-/*
- * Plots (any kind of) recombined GNSS dataset
- */
-pub fn plot_gnss_recombination(
-    ctx: &mut Context,
-    plot_title: &str,
-    y_title: &str,
-    data: &HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>,
-) {
-    let mut plot = build_default_plot(plot_title, y_title); 
-    let markers = generate_markers(data.len()); // one marker per op
-    // plot all ops
-    for (op_index, (op, vehicules)) in data.iter().enumerate() {
-        for (sv, epochs) in vehicules {
-            let data_x: Vec<String> = epochs.iter()
-                .map(|((e, _flag), _v)| e.to_string())
-                .collect();
-            let data_y: Vec<f64> = epochs.iter()
-                .map(|(_, v)| *v)
-                .collect();
-            let trace = Scatter::new(data_x, data_y)
-                .mode(Mode::Markers)
-                .marker(
-                    Marker::new()
-                        .symbol(markers[op_index].clone())
-                )
-                .name(&format!("{}({})", sv, op));
-            plot.add_trace(trace);
-        }
-    }
-    plot.show();
-}
-
-/*
- * Skyplot view
- */
-pub fn skyplot(
-    rnx: &Rinex,
-    nav: &Option<Rinex>,
-    ref_pos: Option<(f64, f64, f64)>,
-    file: &str,
-) {
-    let cmap = colorous::TURBO;
-//    let mut plot = build_sk("Skyplot",); 
-    let mut cmap_max_index = 0_u8;
-    /*
-    if let Some(nav) = nav {
-        /*
-         * "advanced" skyplot view,
-         * observations were provided
-         * color gradient emphasizes the SSI[dB]
-         */
-        let obs_rec = rnx.record.as_obs()
-            .expect("--fp should be Observation RINEX");
-        let nav_rec = nav.record.as_nav()
-            .expect("--nav should be Navigation RINEX");
-
-        // determine epoch boundaries
-        //  this will help emphasize the curves starting and endint points
-        let epochs = nav.epochs();
-        let e_0 = epochs[0];
-        let e_N = epochs[epochs.len()-1];
-
-        // build dataset
-        let dataset: HashMap<Sv, HashMap<Epoch, f64>> = HashMap::new();
-        for (epoch, classes) in nav_rec {
-
-        }
-
-    } else {*/
-    /*
-     * "simplified" skyplot view,
-     * color gradient emphasizes the epoch/timestamp
-     */
-    if let Some(r) = rnx.record.as_nav() {
-        let mut sat_angles = rnx.navigation_sat_angles(ref_pos);
-        for (sv, epochs) in sat_angles {
-            let el: Vec<_> = epochs
-                .iter()
-                .map(|(_, (el,_))| {
-                    el.clone()
-                }).collect();
-            let azi: Vec<_> = epochs
-                .iter()
-                .map(|(_, (_,azi))| {
-                    azi.clone()
-                }).collect();
-            let trace = ScatterPolar::new(el, azi)
-                .mode(Mode::Lines);
-            //plot.add_trace(trace);
-        }
-    }
-    //plot.show();
-}

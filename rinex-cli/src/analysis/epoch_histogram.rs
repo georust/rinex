@@ -1,6 +1,3 @@
-use crate::{
-    plot::*,
-};
 use rinex::prelude::*;
 use plotly::{
     Plot, Histogram,
@@ -19,10 +16,7 @@ pub fn epoch_histogram(rnx: &Rinex) {
         .values()
         .map(|v| v.to_string())
         .collect();
-    println!("DURATIONS {:?}", durations);
-    println!("POP {:?}", durations);
     let histogram = Histogram::new_xy(durations, pop)
-        .title("Test")
         .name("Epoch Intervals");
     let mut plot = Plot::new();
     plot.add_trace(histogram);
