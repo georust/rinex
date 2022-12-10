@@ -42,7 +42,6 @@ fn config_dir() -> String {
 }
 
 pub fn main() -> Result<(), rinex::Error> {
-    let mut ctx = plot::Context::new();
     let cli = Cli::new();
     let pretty = cli.pretty();
 
@@ -128,7 +127,6 @@ pub fn main() -> Result<(), rinex::Error> {
             data.insert(op.clone(), inner.clone());
         }
         plot::plot_gnss_recombination(
-            &mut ctx,
             "Differential Code Biases",
             "DBCs [n.a]",
             &data,
@@ -141,7 +139,6 @@ pub fn main() -> Result<(), rinex::Error> {
     if cli.multipath() {
         let data = rnx.observation_code_multipath();
         plot::plot_gnss_recombination(
-            &mut ctx,
             "Code Multipath Biases",
             "MP [n.a]",
             &data,
@@ -153,7 +150,6 @@ pub fn main() -> Result<(), rinex::Error> {
     if cli.gf_recombination() {
         let data = rnx.observation_gf_combinations();
         plot::plot_gnss_recombination(
-            &mut ctx,
             "Geometry Free signal combination",
             "Meters of Li-Lj delay",
             &data,
@@ -165,7 +161,6 @@ pub fn main() -> Result<(), rinex::Error> {
     if cli.wl_recombination() {
         let data = rnx.observation_wl_combinations();
         plot::plot_gnss_recombination(
-            &mut ctx,
             "Wide Lane signal combination",
             "Meters of Li-Lj delay",
             &data,
@@ -177,7 +172,6 @@ pub fn main() -> Result<(), rinex::Error> {
     if cli.nl_recombination() {
         let data = rnx.observation_nl_combinations();
         plot::plot_gnss_recombination(
-            &mut ctx,
             "Narrow Lane signal combination",
             "Meters of Li-Lj delay",
             &data,
@@ -189,7 +183,6 @@ pub fn main() -> Result<(), rinex::Error> {
     if cli.mw_recombination() {
         let data = rnx.observation_mw_combinations();
         plot::plot_gnss_recombination(
-            &mut ctx,
             "Melbourne-Wübbena signal combination",
             "Meters of Li-Lj delay",
             &data,
@@ -251,14 +244,14 @@ pub fn main() -> Result<(), rinex::Error> {
      * skyplot view
      */
     let skyplot = rnx.is_navigation_rinex() || nav_context.is_some();
-    if skyplot {
+    /*if skyplot {
         plot::skyplot(
             &rnx,
             &nav_context,
             ref_position,
             &(product_prefix.to_owned() + "/skyplot.png"),
         );
-    }
+    }*/
 
     /*
      * Record analysis / visualization

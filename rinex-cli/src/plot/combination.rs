@@ -1,5 +1,4 @@
 use super::{
-    Context,
     generate_markers,
     build_default_plot,
     Marker,
@@ -13,12 +12,11 @@ use std::collections::{BTreeMap, HashMap};
  * Plots (any kind of) recombined GNSS dataset
  */
 pub fn plot_gnss_recombination(
-    ctx: &mut Context,
     plot_title: &str,
     y_title: &str,
     data: &HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>,
 ) {
-    let mut plot = build_default_plot(plot_title, y_title); 
+    let mut plot = build_default_plot(plot_title, y_title);
     let markers = generate_markers(data.len()); // one marker per op
     // plot all ops
     for (op_index, (op, vehicules)) in data.iter().enumerate() {

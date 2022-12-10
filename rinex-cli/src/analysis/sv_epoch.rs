@@ -15,7 +15,6 @@ use ndarray::Array;
  */
 pub fn sv_epoch(rnx: &Rinex, nav: &mut Option<Rinex>) {
     let mut plot = build_default_plot("Sv per Epoch", "Sv");
-    
     let constellations = rnx.list_constellations();
     let mut nb_markers = constellations.len();
 

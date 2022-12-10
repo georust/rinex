@@ -12,8 +12,8 @@ use plotly::{
 };
 use rand::Rng;
 
-mod context;
-pub use context::Context;
+//mod context;
+//pub use context::Context;
 
 mod skyplot;
 pub use skyplot::skyplot;
