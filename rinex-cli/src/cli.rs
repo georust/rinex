@@ -335,10 +335,6 @@ Example \"--plot-width 2048"))
                         .value_name("HEIGHT(u32)")
                         .help("Set plot height. Default is 768px.
 Example \"--plot-height 1024"))
-                    .arg(Arg::new("plot-dim")
-                        .long("plot-dim")
-                        .value_name("DIM(u32,u32)")
-                        .help("Set plot dimensions. Example \"--plot-dim 2048,768\". Default is (1024, 768)px"))
                     .get_matches()
             },
         }
@@ -618,32 +614,6 @@ Example \"--plot-height 1024"))
         } else {
             None
         }
-    }
-    /// Returns desired plot dimensions
-    pub fn plot_dimensions(&self) -> (u32, u32) {
-        let mut dim = (1024, 768);
-        if self.matches.contains_id("plot-dim") {
-            let args = self.matches.get_one::<String>("plot-dim").unwrap();
-            let items: Vec<&str> = args.split(",").collect();
-            if items.len() == 2 {
-                if let Ok(w) = u32::from_str_radix(items[0].trim(), 10) {
-                    if let Ok(h) = u32::from_str_radix(items[1].trim(), 10) {
-                        dim = (w, h);
-                    }
-                }
-            }
-        } else if self.matches.contains_id("plot-width") {
-            let arg = self.matches.get_one::<String>("plot-width").unwrap();
-            if let Ok(w) = u32::from_str_radix(arg.trim(), 10) {
-                dim.0 = w;
-            }
-        } else if self.matches.contains_id("plot-height") {
-            let arg = self.matches.get_one::<String>("plot-height").unwrap();
-            if let Ok(h) = u32::from_str_radix(arg.trim(), 10) {
-                dim.1 = h;
-            }
-        }
-        dim
     }
     /// Reference position, in ECEF [m]
     pub fn ref_position(&self) -> Option<(f64, f64, f64)> {

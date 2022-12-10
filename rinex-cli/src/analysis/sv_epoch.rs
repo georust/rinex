@@ -1,11 +1,11 @@
-use crate::plot::*;
-use plotters::prelude::*;
+//use crate::plot::*;
+//use plotters::prelude::*;
 use rinex::{navigation, prelude::*};
 use std::collections::HashMap;
 
 /// Display vehicules per epoch
 pub fn analyze(rnx: &Rinex, nav: &mut Option<Rinex>, dims: (u32, u32)) {
-    let mut cmap: HashMap<Sv, RGBAColor> = HashMap::new();
+/*    let mut cmap: HashMap<Sv, RGBAColor> = HashMap::new();
     let p = build_plot("sv.png", dims);
 
     if let Some(nav) = nav {
@@ -272,5 +272,5 @@ pub fn analyze(rnx: &Rinex, nav: &mut Option<Rinex>, dims: (u32, u32)) {
                 .draw()
                 .expect("failed to draw ssi labels");
         }
-    }
+    }*/
 }

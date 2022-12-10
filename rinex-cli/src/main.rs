@@ -109,29 +109,26 @@ pub fn main() -> Result<(), rinex::Error> {
      * SV per Epoch analysis requested
      */
     if cli.sv_epoch() {
-        analysis::sv_epoch::analyze(&rnx, &mut nav_context, cli.plot_dimensions());
-        return Ok(());
+        //analysis::sv_epoch::analyze(&rnx, &mut nav_context, cli.plot_dimensions());
+        //return Ok(());
     }
     /*
      * Epoch histogram analysis
      */
     if cli.epoch_histogram() {
-        analysis::epoch_histogram(&rnx, cli.plot_dimensions());
-        return Ok(());
+        //analysis::epoch_histogram(&rnx);
+        //return Ok(());
     }
 
     /*
      * DCB analysis requested
      */
     if cli.dcb() {
-        let dims = cli.plot_dimensions();
         let mut data = rnx.observation_phase_dcb();
         for (op, inner) in rnx.observation_pseudorange_dcb() {
             data.insert(op.clone(), inner.clone());
         }
         plot::plot_gnss_recombination(
-            dims,
-            &(product_prefix.to_owned() + "/dcb.png"),
             "Differential Code Biases",
             "DBCs [n.a]",
             &data,
@@ -142,11 +139,8 @@ pub fn main() -> Result<(), rinex::Error> {
      * Code Multipath analysis
      */
     if cli.multipath() {
-        let dims = cli.plot_dimensions();
         let data = rnx.observation_code_multipath();
         plot::plot_gnss_recombination(
-            dims,
-            &(product_prefix.to_owned() + "/mp.png"),
             "Code Multipath Biases",
             "MP [n.a]",
             &data,
@@ -157,10 +151,7 @@ pub fn main() -> Result<(), rinex::Error> {
      */
     if cli.gf_recombination() {
         let data = rnx.observation_gf_combinations();
-        let dims = cli.plot_dimensions();
         plot::plot_gnss_recombination(
-            dims,
-            &(product_prefix.to_owned() + "/gf.png"),
             "Geometry Free signal combination",
             "Meters of Li-Lj delay",
             &data,
@@ -171,10 +162,7 @@ pub fn main() -> Result<(), rinex::Error> {
      */
     if cli.wl_recombination() {
         let data = rnx.observation_wl_combinations();
-        let dims = cli.plot_dimensions();
         plot::plot_gnss_recombination(
-            dims,
-            &(product_prefix.to_owned() + "/wl.png"),
             "Wide Lane signal combination",
             "Meters of Li-Lj delay",
             &data,
@@ -185,10 +173,7 @@ pub fn main() -> Result<(), rinex::Error> {
      */
     if cli.nl_recombination() {
         let data = rnx.observation_nl_combinations();
-        let dims = cli.plot_dimensions();
         plot::plot_gnss_recombination(
-            dims,
-            &(product_prefix.to_owned() + "/nl.png"),
             "Narrow Lane signal combination",
             "Meters of Li-Lj delay",
             &data,
@@ -199,10 +184,7 @@ pub fn main() -> Result<(), rinex::Error> {
      */
     if cli.mw_recombination() {
         let data = rnx.observation_mw_combinations();
-        let dims = cli.plot_dimensions();
         plot::plot_gnss_recombination(
-            dims,
-            &(product_prefix.to_owned() + "/mw.png"),
             "Melbourne-Wübbena signal combination",
             "Meters of Li-Lj delay",
             &data,
@@ -266,7 +248,6 @@ pub fn main() -> Result<(), rinex::Error> {
     let skyplot = rnx.is_navigation_rinex() || nav_context.is_some();
     if skyplot {
         plot::skyplot(
-            cli.plot_dimensions(),
             &rnx,
             &nav_context,
             ref_position,
@@ -277,8 +258,6 @@ pub fn main() -> Result<(), rinex::Error> {
     /*
      * Record analysis / visualization
      */
-    let dims = cli.plot_dimensions();
-    let mut ctx = plot::record::Context::new(dims, &rnx, &nav_context);
-    plot::record::plot(&mut ctx, &rnx, &nav_context);
+    //plot::record::plot(&mut ctx, &rnx, &nav_context);
     Ok(())
 } // main

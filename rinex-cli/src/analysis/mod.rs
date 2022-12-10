@@ -1,10 +1,11 @@
 pub mod sv_epoch;
-use crate::plot::*;
-use plotters::prelude::*;
+//use crate::plot::*;
+//use plotters::prelude::*;
 use rinex::prelude::*;
 
+
 pub fn epoch_histogram(rnx: &Rinex, dims: (u32, u32)) {
-    let histogram = rnx.epoch_intervals();
+/*    let histogram = rnx.epoch_intervals();
     let p = build_plot("epoch-histogram.png", dims);
     let mut pop_max: u32 = 0;
     let mut duration_max = 0_u32;
@@ -41,5 +42,5 @@ pub fn epoch_histogram(rnx: &Rinex, dims: (u32, u32)) {
                     .map(|(duration, pop)| (duration.to_seconds() as u32, *pop)),
             ),
         )
-        .expect("failed to draw histogram");
+        .expect("failed to draw histogram");*/
 }

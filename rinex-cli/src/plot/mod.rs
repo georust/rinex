@@ -69,11 +69,13 @@ fn generate_markers(n: usize) -> Vec<MarkerSymbol> {
  * builds a standard 2D plot single Y scale,
  * ready to plot data against time (`Epoch`)
  */
-fn build_default_plot(title: &str) -> Plot {
+fn build_default_plot(title: &str, y_title: &str) -> Plot {
     build_plot(
         title, 
         Side::Top, 
         Font::default(),
+        "Epoch (UTC)",
+        y_title,
         (false, false), // zero lines
         true, // show legend
         true, // autosize
@@ -84,6 +86,8 @@ fn build_plot(
     title: &str,
     title_side: Side,
     title_font: Font,
+    x_axis_title: &str,
+    y_axis_title: &str,
     zero_line: (bool, bool), // plots a bold line @ (x=0,y=0)
     show_legend: bool,
     auto_size: bool,
@@ -94,11 +98,13 @@ fn build_plot(
         )
         .x_axis(
             Axis::new()
+                .title(Title::new(x_axis_title))
                 .zero_line(zero_line.0)
                 .show_tick_labels(false)
         )
         .y_axis(
             Axis::new()
+                .title(Title::new(y_axis_title))
                 .zero_line(zero_line.0)
         )
         .show_legend(show_legend)
@@ -207,13 +213,11 @@ pub fn build_twoscale_chart(
  * Plots (any kind of) recombined GNSS dataset
  */
 pub fn plot_gnss_recombination(
-    dims: (u32, u32),
-    file: &str,
-    caption: &str,
-    y_desc: &str,
+    plot_title: &str,
+    y_title: &str,
     data: &HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>,
 ) {
-    let mut plot = build_default_plot(caption); 
+    let mut plot = build_default_plot(plot_title, y_title); 
     let markers = generate_markers(data.len()); // one marker per op
     // plot all ops
     for (op_index, (op, vehicules)) in data.iter().enumerate() {
@@ -241,14 +245,13 @@ pub fn plot_gnss_recombination(
  * Skyplot view
  */
 pub fn skyplot(
-    dims: (u32, u32),
     rnx: &Rinex,
     nav: &Option<Rinex>,
     ref_pos: Option<(f64, f64, f64)>,
     file: &str,
 ) {
     let cmap = colorous::TURBO;
-    let mut plot = build_default_plot(file); 
+//    let mut plot = build_sk("Skyplot",); 
     let mut cmap_max_index = 0_u8;
     /*
     if let Some(nav) = nav {
@@ -294,8 +297,8 @@ pub fn skyplot(
                 }).collect();
             let trace = ScatterPolar::new(el, azi)
                 .mode(Mode::Lines);
-            plot.add_trace(trace);
+            //plot.add_trace(trace);
         }
     }
-    plot.show();
+    //plot.show();
 }
