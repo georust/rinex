@@ -15,9 +15,6 @@ pub fn skyplot(
     ref_pos: Option<(f64, f64, f64)>,
     file: &str,
 ) {
-    let cmap = colorous::TURBO;
-//    let mut plot = build_sk("Skyplot",); 
-    let mut cmap_max_index = 0_u8;
     /*
     if let Some(nav) = nav {
         /*

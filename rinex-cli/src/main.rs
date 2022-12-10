@@ -256,6 +256,6 @@ pub fn main() -> Result<(), rinex::Error> {
     /*
      * Record analysis / visualization
      */
-    //plot::record::plot(&mut ctx, &rnx, &nav_context);
+    plot::plot_record(&rnx, &nav_context);
     Ok(())
 } // main

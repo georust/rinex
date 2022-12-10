@@ -18,6 +18,5 @@ rinex = { path = "../rinex", features = ["serde", "flate2", "sbas"] }
 thiserror = "1"
 itertools = "0.10"
 plotly =  "0.8.3"
-colorous = "1"
 map_3d = "0.1.5"
 ndarray = "0.15"
