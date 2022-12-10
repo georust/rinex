@@ -2,7 +2,7 @@ use rinex::prelude::*;
 use plotly::{
     Plot, 
     Layout,
-    Scatter, //ScatterPolar,
+    Scatter,
     common::{
         Mode, 
         //DashType, 

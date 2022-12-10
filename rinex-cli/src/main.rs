@@ -244,14 +244,13 @@ pub fn main() -> Result<(), rinex::Error> {
      * skyplot view
      */
     let skyplot = rnx.is_navigation_rinex() || nav_context.is_some();
-    /*if skyplot {
+    if skyplot {
         plot::skyplot(
             &rnx,
             &nav_context,
             ref_position,
-            &(product_prefix.to_owned() + "/skyplot.png"),
         );
-    }*/
+    }
 
     /*
      * Record analysis / visualization

@@ -1,4 +1,5 @@
 use plotly::{
+    Plot,
     ScatterPolar,
     common::{
         Mode,
@@ -13,8 +14,8 @@ pub fn skyplot(
     rnx: &Rinex,
     nav: &Option<Rinex>,
     ref_pos: Option<(f64, f64, f64)>,
-    file: &str,
 ) {
+    let mut plot = Plot::new();
     /*
     if let Some(nav) = nav {
         /*
@@ -47,20 +48,21 @@ pub fn skyplot(
     if let Some(r) = rnx.record.as_nav() {
         let mut sat_angles = rnx.navigation_sat_angles(ref_pos);
         for (sv, epochs) in sat_angles {
-            let el: Vec<_> = epochs
+            let el: Vec<f64> = epochs
                 .iter()
                 .map(|(_, (el,_))| {
-                    el.clone()
+                    el * 360.0 / std::f64::consts::PI  
                 }).collect();
-            let azi: Vec<_> = epochs
+            let azi: Vec<f64> = epochs
                 .iter()
                 .map(|(_, (_,azi))| {
-                    azi.clone()
+                    azi * 360.0 / std::f64::consts::PI  
                 }).collect();
             let trace = ScatterPolar::new(el, azi)
-                .mode(Mode::Lines);
-            //plot.add_trace(trace);
+                .mode(Mode::LinesMarkers)
+                .name(sv.to_string());
+            plot.add_trace(trace);
         }
+        plot.show();
     }
-    //plot.show();
 }
