@@ -2,6 +2,7 @@ use plotly::{
     Plot, 
     Layout,
     Scatter, ScatterPolar,
+    Histogram,
     common::{
         Mode, DashType, Font, Fill,
         Title, Side, Marker, MarkerSymbol,
@@ -11,6 +12,20 @@ use plotly::{
 use rand::Rng;
 use rinex::prelude::*;
 use std::collections::{BTreeMap, HashMap};
+
+pub struct Context {
+    nb_plots: usize,
+    plot: Plot, 
+}
+
+impl Context {
+    pub fn new() -> Self {
+        Self {
+            nb_plots: 0,
+            plot: Plot::new(),
+        }
+    }
+}
 
 /*
  * Generates N marker symbols to be used
@@ -82,6 +97,9 @@ fn build_default_plot(title: &str, y_title: &str) -> Plot {
     )
 }
 
+/*
+ * Builds a Plot
+ */
 fn build_plot(
     title: &str,
     title_side: Side,
@@ -213,6 +231,7 @@ pub fn build_twoscale_chart(
  * Plots (any kind of) recombined GNSS dataset
  */
 pub fn plot_gnss_recombination(
+    ctx: &mut Context,
     plot_title: &str,
     y_title: &str,
     data: &HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>,

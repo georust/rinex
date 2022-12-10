@@ -3,8 +3,10 @@
 use rinex::{navigation, prelude::*};
 use std::collections::HashMap;
 
-/// Display vehicules per epoch
-pub fn analyze(rnx: &Rinex, nav: &mut Option<Rinex>, dims: (u32, u32)) {
+/*
+ * Sv per epoch analysis
+ */
+pub fn sv_epoch(rnx: &Rinex, nav: &mut Option<Rinex>, dims: (u32, u32)) {
 /*    let mut cmap: HashMap<Sv, RGBAColor> = HashMap::new();
     let p = build_plot("sv.png", dims);
 

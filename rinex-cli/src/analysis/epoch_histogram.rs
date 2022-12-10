@@ -1,0 +1,39 @@
+use crate::{
+    plot::*,
+};
+use rinex::prelude::*;
+use plotly::{
+    Plot, Histogram,
+};
+
+/*
+ * Epoch duration histogram
+ */
+pub fn epoch_histogram(rnx: &Rinex) {
+    let histogram = rnx.epoch_intervals();
+    let durations: Vec<_> = histogram
+        .keys()
+        .map(|k| k.to_string())
+        .collect();
+    let pop: Vec<_> = histogram
+        .values()
+        .map(|v| v.to_string())
+        .collect();
+    println!("DURATIONS {:?}", durations);
+    println!("POP {:?}", durations);
+    let histogram = Histogram::new_xy(durations, pop)
+        .title("Test")
+        .name("Epoch Intervals");
+    let mut plot = Plot::new();
+    plot.add_trace(histogram);
+    plot.show();
+    /*chart
+        .draw_series(
+            Histogram::vertical(&chart).data(
+                histogram
+                    .iter()
+                    .map(|(duration, pop)| (duration.to_seconds() as u32, *pop)),
+            ),
+        )
+        .expect("failed to draw histogram");*/
+}
