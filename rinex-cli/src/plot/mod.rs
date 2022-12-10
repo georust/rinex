@@ -132,5 +132,7 @@ pub fn build_plot(
 pub fn plot_record(rnx: &Rinex, nav: &Option<Rinex>) {
     if let Some(r) = rnx.record.as_obs() {
         record::plot_observation(r, nav);
+    } else if let Some(r) = rnx.record.as_meteo() {
+        record::plot_meteo(r);
     }
 }
