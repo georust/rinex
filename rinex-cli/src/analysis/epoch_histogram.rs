@@ -8,8 +8,12 @@ use plotly::{
  */
 pub fn epoch_histogram(rnx: &Rinex) {
     let histogram = rnx.epoch_intervals();
-    let durations: Vec<_> = histogram
+    let mut durations: Vec<&Duration> = histogram
         .keys()
+        .collect();
+    durations.sort();
+    let durations: Vec<String> = durations
+        .iter()
         .map(|k| k.to_string())
         .collect();
     let pop: Vec<_> = histogram
