@@ -1,15 +1,116 @@
-use plotters::{
-    chart::{ChartState, DualCoordChartState},
-    coord::types::RangedCoordf64,
-    coord::Shift,
-    prelude::*,
+use plotly::{
+    Plot, 
+    Layout,
+    Scatter, ScatterPolar,
+    common::{
+        Mode, DashType, Font, Fill,
+        Title, Side, Marker, MarkerSymbol,
+    },
+    layout::{Axis, Margin},
 };
+use rand::Rng;
 use rinex::prelude::*;
 use std::collections::{BTreeMap, HashMap};
 
-pub mod record;
-pub type Plot2d = Cartesian2d<RangedCoordf64, RangedCoordf64>;
+/*
+ * Generates N marker symbols to be used
+ * to differentiate data
+ */
+fn generate_markers(n: usize) -> Vec<MarkerSymbol> {
+    //TODO lazy static
+    let pool = vec!["Circle", "CircleOpen", "CircleDot", "CircleOpenDot", "Square", "SquareOpen", "SquareDot", "SquareOpenDot", "Diamond", "DiamondOpen", "DiamondDot", "DiamondOpenDot", "Cross", "CrossOpen", "CrossDot", "CrossOpenDot", "X", "XOpen", "XDot", "XOpenDot", "TriangleUp", "TriangleUpOpen", "TriangleUpDot", "TriangleUpOpenDot", "TriangleDown", "TriangleDownOpen", "TriangleDownDot", "TriangleDownOpenDot", "TriangleLeft", "TriangleLeftOpen", "TriangleLeftDot", "TriangleLeftOpenDot", "TriangleRight", "TriangleRightOpen", "TriangleRightDot", "TriangleRightOpenDot", "TriangleNE", "TriangleNEOpen", "TriangleNEDot", "TriangleNEOpenDot", "TriangleSE", "TriangleSEOpen", "TriangleSEDot", "TriangleSEOpenDot", "TriangleSW", "TriangleSWOpen", "TriangleSWDot", "TriangleSWOpenDot", "TriangleNW", "TriangleNWOpen", "TriangleNWDot", "TriangleNWOpenDot", "Pentagon", "PentagonOpen", "PentagonDot", "PentagonOpenDot", "Hexagon", "HexagonOpen", "HexagonDot", "HexagonOpenDot", "Hexagon2", "Hexagon2Open", "Hexagon2Dot", "Hexagon2OpenDot", "Octagon", "OctagonOpen", "OctagonDot", "OctagonOpenDot", "Star", "StarOpen", "StarDot", "StarOpenDot", "Hexagram", "HexagramOpen", "HexagramDot", "HexagramOpenDot", "StarTriangleUp", "StarTriangleUpOpen", "StarTriangleUpDot", "StarTriangleUpOpenDot", "StarTriangleDown", "StarTriangleDownOpen", "StarTriangleDownDot", "StarTriangleDownOpenDot", "StarSquare", "StarSquareOpen", "StarSquareDot", "StarSquareOpenDot", "StarDiamond", "StarDiamondOpen", "StarDiamondDot", "StarDiamondOpenDot", "DiamondTall", "DiamondTallOpen", "DiamondTallDot", "DiamondTallOpenDot", "DiamondWide", "DiamondWideOpen", "DiamondWideDot", "DiamondWideOpenDot", "Hourglass", "HourglassOpen", "BowTie", "BowTieOpen", "CircleCross", "CircleCrossOpen", "CircleX", "CircleXOpen", "SquareCross", "SquareCrossOpen", "SquareX", "SquareXOpen", "DiamondCross", "DiamondCrossOpen", "DiamondX", "DiamondXOpen", "CrossThin", "CrossThinOpen", "XThin", "XThinOpen", "Asterisk", "AsteriskOpen", "Hash", "HashOpen", "HashDot", "HashOpenDot", "YUp", "YUpOpen", "YDown", "YDownOpen", "YLeft", "YLeftOpen", "YRight", "YRightOpen", "LineEW", "LineEWOpen", "LineNS", "LineNSOpen", "LineNE", "LineNEOpen", "LineNW", "LineNWOpen", ];
+    let nb_max: usize = pool.len();
+    let mut rng = rand::thread_rng();
+    let mut ret: Vec<MarkerSymbol> = Vec::with_capacity(n);
+    for _ in 0..n {
+        let symbol = pool[rng.gen_range(0..nb_max-1)];
+        let marker = match symbol {
+            "Circle" => MarkerSymbol::Circle,
+            "CircleOpen" => MarkerSymbol::CircleOpen,
+            "CircleDot" => MarkerSymbol::CircleDot,
+            "CircleOpenDot" => MarkerSymbol::CircleOpenDot,
+            "Square" => MarkerSymbol::Square,
+            "SquareDot" => MarkerSymbol::SquareDot,
+            "SquareOpen" => MarkerSymbol::SquareOpen,
+            "SquareOpenDot" => MarkerSymbol::SquareOpenDot,
+            "Diamond" => MarkerSymbol::Diamond,
+            "DiamondOpen" => MarkerSymbol::DiamondOpen,
+            "DiamondDot" => MarkerSymbol::DiamondDot,
+            "DiamondOpenDot" => MarkerSymbol::DiamondOpenDot,
+            "Hash" => MarkerSymbol::Hash,
+            "HashDot" => MarkerSymbol::HashDot,
+            "HashOpen" => MarkerSymbol::HashOpen,
+            "HashOpenDot" => MarkerSymbol::HashOpenDot,
+            "Cross" => MarkerSymbol::Cross,
+            "CrossDot" => MarkerSymbol::CrossDot,
+            "CrossOpen" => MarkerSymbol::CrossOpen,
+            "CrossOpenDot" => MarkerSymbol::CrossOpenDot,
+            "TriangleUp" => MarkerSymbol::TriangleUp,
+            "TriangleUpDot" => MarkerSymbol::TriangleUpDot,
+            "TriangleUpOpen" => MarkerSymbol::TriangleUpOpen,
+            "TriangleUpOpenDot" => MarkerSymbol::TriangleUpOpenDot,
+            "TriangleDown" => MarkerSymbol::TriangleDown,
+            "X" => MarkerSymbol::X,
+            "XOpen" => MarkerSymbol::XOpen,
+            "XDot" => MarkerSymbol::XDot,
+            "XOpenDot" => MarkerSymbol::XOpenDot,
+            "YUp" => MarkerSymbol::YUp,
+            "YUpOpen" => MarkerSymbol::YUpOpen,
+            "YDown" => MarkerSymbol::YDown,
+            "YDownOpen" => MarkerSymbol::YDownOpen,
+            _ => MarkerSymbol::Cross,
+        };
+        ret.push(marker);
+    }
+    ret
+}
 
+/*
+ * builds a standard 2D plot single Y scale,
+ * ready to plot data against time (`Epoch`)
+ */
+fn build_default_plot(title: &str) -> Plot {
+    build_plot(
+        title, 
+        Side::Top, 
+        Font::default(),
+        (false, false), // zero lines
+        true, // show legend
+        true, // autosize
+    )
+}
+
+fn build_plot(
+    title: &str,
+    title_side: Side,
+    title_font: Font,
+    zero_line: (bool, bool), // plots a bold line @ (x=0,y=0)
+    show_legend: bool,
+    auto_size: bool,
+    ) -> Plot {
+    let layout = Layout::new()
+        .title(Title::new(title)
+            .font(title_font)
+        )
+        .x_axis(
+            Axis::new()
+                .zero_line(zero_line.0)
+                .show_tick_labels(false)
+        )
+        .y_axis(
+            Axis::new()
+                .zero_line(zero_line.0)
+        )
+        .show_legend(show_legend)
+        .auto_size(auto_size);
+    let mut p = Plot::new();
+    p.set_layout(layout);
+    p
+}
+
+//pub mod record;
+
+/*
 /// Builds plot area
 pub fn build_plot(file: &str, dims: (u32, u32)) -> DrawingArea<BitMapBackend, Shift> {
     let area = BitMapBackend::new(file, dims).into_drawing_area();
@@ -100,6 +201,7 @@ pub fn build_twoscale_chart(
         .expect(&format!("failed to draw {} secondary axis", title));
     chart.to_chart_state()
 }
+*/
 
 /*
  * Plots (any kind of) recombined GNSS dataset
@@ -111,115 +213,28 @@ pub fn plot_gnss_recombination(
     y_desc: &str,
     data: &HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>,
 ) {
-    let p = build_plot(file, dims);
-    // color map: one per sv
-    let cmap = colorous::TURBO;
-    let mut cmap_max_index = 0_u8;
-    // one symbol per op
-    let symbols = vec!["x", "t", "o"];
-    // determine (smallest, largest) ts accross all Ops
-    // determine (smallest, largest) y accross all Ops (nicer scale)
-    let mut y: (f64, f64) = (0.0, 0.0);
-    let mut dates: (f64, f64) = (0.0, 0.0);
-    for (_op_index, (_op, vehicules)) in data.iter().enumerate() {
-        for (sv, epochs) in vehicules.iter() {
-            if sv.prn > cmap_max_index {
-                cmap_max_index = sv.prn;
-            }
-            for (e_index, ((epoch, _flag), data)) in epochs.iter().enumerate() {
-                if e_index == 0 {
-                    dates.0 = epoch.to_utc_seconds();
-                }
-                if epoch.to_utc_seconds() > dates.1 {
-                    dates.1 = epoch.to_utc_seconds();
-                }
-                let yp = data; // * 1.546;
-                if *yp < y.0 {
-                    y.0 = *yp;
-                }
-                if *yp > y.1 {
-                    y.1 = *yp;
-                }
-            }
-        }
-    }
-
-    // build a chart
-    let x_axis = 0.0..((dates.1 - dates.0) as f64);
-    // y axis is scaled for better rendering
-    let y_axis = match y.0 < 0.0 {
-        true => y.0 * 1.1..y.1 * 1.1,
-        false => y.0 * 0.9..y.1 * 1.1,
-    };
-    let mut chart = ChartBuilder::on(&p)
-        .caption(caption, ("sans-serif", 50).into_font())
-        .margin(10)
-        .x_label_area_size(30)
-        .y_label_area_size(80)
-        .build_cartesian_2d(x_axis, y_axis)
-        .expect("failed to build a chart");
-    chart
-        .configure_mesh()
-        .x_desc("Timestamp [s]")
-        .x_labels(30)
-        .y_desc(y_desc)
-        .y_labels(30)
-        .draw()
-        .expect("failed to draw mesh");
-    /*
-     * Plot all ops
-     */
+    let mut plot = build_default_plot(caption); 
+    let markers = generate_markers(data.len()); // one marker per op
+    // plot all ops
     for (op_index, (op, vehicules)) in data.iter().enumerate() {
-        let symbol = symbols[op_index % symbols.len()];
         for (sv, epochs) in vehicules {
-            let color = cmap.eval_rational(sv.prn.into(), cmap_max_index.into());
-            let color = RGBColor {
-                0: color.r,
-                1: color.g,
-                2: color.b,
-            };
-            /*chart.draw_series(LineSeries::new(
-            epochs.iter()
-                .map(|((k, flag), v)| (k.to_utc_seconds() - dates.0, *v)),
-                color.clone(),
-            ))
-            .expect(&format!("failed to draw {} serie", op));*/
-            chart
-                .draw_series(epochs.iter().map(|((k, _flag), v)| {
-                    let x = k.to_utc_seconds() - dates.0;
-                    match symbol {
-                        "x" => Cross::new((x, *v), 4, Into::<ShapeStyle>::into(&color).filled())
-                            .into_dyn(),
-                        "o" => Circle::new((x, *v), 4, Into::<ShapeStyle>::into(&color).filled())
-                            .into_dyn(),
-                        _ => TriangleMarker::new(
-                            (x, *v),
-                            4,
-                            Into::<ShapeStyle>::into(&color).filled(),
-                        )
-                        .into_dyn(),
-                    }
-                }))
-                .expect(&format!("failed to draw {} serie", op))
-                .label(&format!("{}({})", op, sv))
-                .legend(move |point| match symbol {
-                    "x" => {
-                        Cross::new(point, 4, Into::<ShapeStyle>::into(&color).filled()).into_dyn()
-                    },
-                    "o" => {
-                        Circle::new(point, 4, Into::<ShapeStyle>::into(&color).filled()).into_dyn()
-                    },
-                    _ => TriangleMarker::new(point, 4, Into::<ShapeStyle>::into(&color).filled())
-                        .into_dyn(),
-                });
+            let data_x: Vec<String> = epochs.iter()
+                .map(|((e, _flag), _v)| e.to_string())
+                .collect();
+            let data_y: Vec<f64> = epochs.iter()
+                .map(|(_, v)| *v)
+                .collect();
+            let trace = Scatter::new(data_x, data_y)
+                .mode(Mode::Markers)
+                .marker(
+                    Marker::new()
+                        .symbol(markers[op_index].clone())
+                )
+                .name(&format!("{}({})", sv, op));
+            plot.add_trace(trace);
         }
     }
-    chart
-        .configure_series_labels()
-        .border_style(&BLACK)
-        .background_style(WHITE.filled())
-        .draw()
-        .expect("failed to draw chart");
+    plot.show();
 }
 
 /*
@@ -232,8 +247,8 @@ pub fn skyplot(
     ref_pos: Option<(f64, f64, f64)>,
     file: &str,
 ) {
-    let p = build_plot(file, dims);
     let cmap = colorous::TURBO;
+    let mut plot = build_default_plot(file); 
     let mut cmap_max_index = 0_u8;
     /*
     if let Some(nav) = nav {
@@ -259,95 +274,28 @@ pub fn skyplot(
 
         }
 
-        chart.draw_series(
-            nav_rec
-                .iter()
-                .filter_map(|(epoch, classes)| {
-                    if epoch == e_0 {
-
-                    } else if epoch == e_N {
-
-                    } else {
-
-                    }
-            }))
-            .expect("failed to draw skyplot")
-            .label(
-
     } else {*/
     /*
      * "simplified" skyplot view,
      * color gradient emphasizes the epoch/timestamp
      */
     if let Some(r) = rnx.record.as_nav() {
-        let mut sat_pos_lla = rnx.navigation_sat_pos_ecef();
-        sat_pos_lla
-            .iter_mut()
-            .map(|(_, epochs)| {
-                epochs
-                    .iter_mut()
-                    .map(|(_, p_k)| {
-                        *p_k = map_3d::ecef2geodetic(p_k.0, p_k.1, p_k.2, map_3d::Ellipsoid::WGS84);
-                    })
-                    .count();
-            })
-            .count();
-        /*
-         * determine Min, Max angles
-         */
-        let mut min_max = ((0.0_f64, 0.0_f64), (0.0_f64, 0.0_f64)); // {lat, lon}
-        for (sv, epochs) in &sat_pos_lla {
-            for (epoch, (lat, lon, h)) in epochs {
-                if *lat < min_max.0 .0 {
-                    min_max.0 .0 = *lat;
-                }
-                if *lat > min_max.0 .1 {
-                    min_max.0 .1 = *lat;
-                }
-                if *lon < min_max.1 .0 {
-                    min_max.1 .0 = *lon;
-                }
-                if *lon > min_max.1 .1 {
-                    min_max.1 .1 = *lon;
-                }
-            }
+        let mut sat_angles = rnx.navigation_sat_angles(ref_pos);
+        for (sv, epochs) in sat_angles {
+            let el: Vec<_> = epochs
+                .iter()
+                .map(|(_, (el,_))| {
+                    el.clone()
+                }).collect();
+            let azi: Vec<_> = epochs
+                .iter()
+                .map(|(_, (_,azi))| {
+                    azi.clone()
+                }).collect();
+            let trace = ScatterPolar::new(el, azi)
+                .mode(Mode::Lines);
+            plot.add_trace(trace);
         }
-        let lat_axis = min_max.0 .0..min_max.0 .1;
-        let lon_axis = min_max.1 .0..min_max.1 .1;
-        let mut chart = ChartBuilder::on(&p)
-            .caption("Skyplot", ("sans-serif", 50).into_font())
-            .margin(10)
-            .x_label_area_size(30)
-            .y_label_area_size(30)
-            .build_cartesian_2d(lon_axis, lat_axis)
-            .expect("failed to build skyplot chart");
-        chart
-            .configure_mesh()
-            .x_desc("Longitude [°]")
-            .x_labels(30)
-            .y_desc("Latitude [°]")
-            .y_labels(30)
-            .draw()
-            .expect("failed to draw skyplot mesh");
-        for (sv, data) in &sat_pos_lla {
-            chart
-                .draw_series(data.iter().map(|(e, (lat, lon, h))| {
-                    TriangleMarker::new((*lon, *lat), 4, Into::<ShapeStyle>::into(&BLACK).filled())
-                        .into_dyn()
-                }))
-                .expect("failed to draw skyplot")
-                .label(format!("{}", sv))
-                .legend(move |point| {
-                    TriangleMarker::new(point, 4, Into::<ShapeStyle>::into(&BLACK).filled())
-                        .into_dyn()
-                });
-        }
-        chart
-            .configure_series_labels()
-            .border_style(&BLACK)
-            .background_style(WHITE.filled())
-            .draw()
-            .expect("failed to draw labels on skyplot");
     }
-    //}
+    plot.show();
 }
