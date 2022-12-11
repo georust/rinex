@@ -49,7 +49,24 @@ pub fn main() -> Result<(), rinex::Error> {
     let fp = cli.input_path();
     let mut rnx = Rinex::from_file(fp)?;
     let mut nav_context = cli.nav_context();
-    let ref_position = cli.ref_position();
+
+    /*
+     * Reference / Ground station position
+     *  1. if manually given by user: preferred
+     *  2. otherwise: use provided context
+     */
+    let mut ref_position = cli.ref_position();
+    if ref_position.is_none() {
+        if let Some(pos) = rnx.header.coords {
+            ref_position = Some(pos);
+        } else {
+            if let Some(ref nav) = nav_context {
+                if let Some(pos) = nav.header.coords {
+                    ref_position = Some(pos);
+                }
+            }
+        }
+    }
 
     // create subdirs we might need when studying this context
     let short_fp = filename(fp);
