@@ -262,7 +262,7 @@ pub fn main() -> Result<(), rinex::Error> {
     /*
      * Record analysis / visualization
      */
-    //plot::plot_record(&rnx, &nav_context);
+    plot::plot_record(&mut ctx, &rnx, &nav_context);
     
     // Render HTML
     let html_absolute_path = product_prefix.to_owned() + "/analysis.html";

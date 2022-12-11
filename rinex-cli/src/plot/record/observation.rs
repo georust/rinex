@@ -6,7 +6,7 @@ use plotly::{
         Mode, Marker, MarkerSymbol,
     },
 };
-use crate::plot::{build_default_plot, generate_markers};
+use crate::plot::{Context, generate_markers};
 
 macro_rules! code2physics {
     ($code: expr) => {
@@ -25,16 +25,16 @@ macro_rules! code2physics {
 /*
  * Plots given Observation RINEX content
  */
-pub fn plot_observation(record: &observation::Record, nav_ctx: &Option<Rinex>) {
+pub fn plot_observation(ctx: &mut Context, record: &observation::Record, nav_ctx: &Option<Rinex>) {
     if let Some(nav) = nav_ctx {
         //enhanced_plot(record, nav);
-        basic_plot(record);
+        basic_plot(ctx, record);
     } else {
-        basic_plot(record);
+        basic_plot(ctx, record);
     }
 }
 
-pub fn basic_plot(record: &observation::Record) {
+pub fn basic_plot(ctx: &mut Context, record: &observation::Record) {
     let mut clk_offset: Vec<(String, f64)> = Vec::new();
     // dataset
     //  per physics, per carrier signal (symbol)
@@ -86,7 +86,7 @@ pub fn basic_plot(record: &observation::Record) {
     }
     
     if clk_offset.len() > 0 {
-        let mut plot = build_default_plot("Receiver Clock Offset", "Clock Offset [s]");
+        ctx.add_cartesian2d_plot("Receiver Clock Offset", "Clock Offset [s]");
         let data_x: Vec<String> = clk_offset
             .iter()
             .map(|(k, _v)| k.clone())
@@ -102,8 +102,7 @@ pub fn basic_plot(record: &observation::Record) {
                     .symbol(MarkerSymbol::TriangleUp)
             )
             .name("Clk Offset");
-        plot.add_trace(trace);
-        plot.show();
+        ctx.add_trace(trace);
     }
     /* 
      * 1 plot per physics
@@ -116,7 +115,7 @@ pub fn basic_plot(record: &observation::Record) {
             "Pseudo Range" => "Pseudo Range",
             _ => unreachable!(),
         };
-        let mut plot = build_default_plot(&format!("{} Observations", physics), y_label);
+        ctx.add_cartesian2d_plot(&format!("{} Observations", physics), y_label);
         // one symbol per carrier
         let markers = generate_markers(carriers.len());
         for (index, (carrier, vehicules)) in carriers.iter().enumerate() {
@@ -136,10 +135,9 @@ pub fn basic_plot(record: &observation::Record) {
                             .symbol(markers[index].clone())
                     )
                     .name(&format!("{}(L{})", sv, carrier));
-                plot.add_trace(trace);
+                ctx.add_trace(trace);
             }
         }
-        plot.show();
     }
 }
 

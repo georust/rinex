@@ -3,7 +3,7 @@ use rinex::{
     meteo::*,
 };
 use std::collections::HashMap;
-use crate::plot::{build_default_plot, generate_markers};
+use crate::plot::{Context, generate_markers};
 use plotly::{
     Scatter,
     common::{Marker, MarkerSymbol, Mode},
@@ -12,7 +12,7 @@ use plotly::{
 /*
  * Plots Meteo RINEX
  */
-pub fn plot_meteo(record: &Record) {
+pub fn plot_meteo(ctx: &mut Context, record: &Record) {
     /*
      * 1 plot per physics
      */
@@ -32,7 +32,7 @@ pub fn plot_meteo(record: &Record) {
 
     for (observable, data) in datasets { 
         let unit = match observable.as_str() {
-            "PR" => "Bar",
+            "PR" => "hPa",
             "TD" => "°C",
             "HR" => "%",
             "ZW" => "s",
@@ -44,7 +44,7 @@ pub fn plot_meteo(record: &Record) {
             "HI" => "",
             _ => unreachable!(),
         };
-        let mut plot = build_default_plot(
+        ctx.add_cartesian2d_plot(
             &format!("{} Observations", observable),
             &format!("{} [{}]", observable, unit));
         let data_x: Vec<String> = data
@@ -62,7 +62,6 @@ pub fn plot_meteo(record: &Record) {
                     .symbol(MarkerSymbol::TriangleUp)
             )
             .name(observable);
-        plot.add_trace(trace);
-        plot.show();
+        ctx.add_trace(trace);
     }
 }
