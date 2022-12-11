@@ -17,8 +17,8 @@ pub fn suffix(fp: &str) -> String {
 pub fn open_html_with_default_app(path: &str) {
     let web_browsers = vec!["firefox", "chromium"];
     for browser in web_browsers {
-        let mut child = Command::new(browser).args([path]).spawn();
-        if let Ok(child) = child {
+        let child = Command::new(browser).args([path]).spawn();
+        if child.is_ok() {
             return;
         }
     }
