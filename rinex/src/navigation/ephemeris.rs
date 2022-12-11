@@ -33,6 +33,11 @@ pub enum Error {
 ///     .unwrap();
 /// let record = rnx.record.as_nav()
 ///     .unwrap();
+/// // reference station (ground position) must be given somehow
+/// // to permit Sv position determination (see down below).
+/// // Usually this is contained in the file header (header.coords),
+/// // but that is not the case for this file
+/// let ref_pos = (1.0_f64, 2.0_f64, 3.0_f64);
 /// for (epoch, classes) in record {
 ///     for (class, frames) in classes {
 ///         for fr in frames {
@@ -47,11 +52,13 @@ pub enum Error {
 ///             // Sv Clock Drift (d(offset)/dt) [s.s¯¹]
 ///             // Sv Clock Drift Rate (d(drift)/dt) [s.s¯²]
 ///             let (clk_offset, clk_drift, clk_drift_r) = ephemeris.clock_data();
-///             // we provide some macros for standard fields
-///             if let Some(elev) = ephemeris.elevation_angle() {
-///                 // not all ephemeris come with this important information
+///             // Navigation Data
+///             let sv_pos = ephemeris.sat_pos_ecef(*epoch);
+///             if let Some((el, azi)) = ephemeris.sat_angles(*epoch, ref_pos) {
+///                 // elevation angle [°]
+///                 // azimuth angle [°]
 ///             }
-///             // Orbits are then revision & constellation dependent
+///             // Orbits data (raw) access
 ///             let orbits = &ephemeris.orbits;
 ///             for (field, data) in orbits {
 ///                 // Field is a high level description.
