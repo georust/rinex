@@ -14,7 +14,7 @@ Rust tool suites to parse, analyze and process `RINEX` files
 * [`rinex`](rinex/) is the core library 
 * [`rinex-cli`](rinex-cli/) is a command line application based on the core library.  
 It can be used to process RINEX files or perform operations similar to `teqc`.   
-The application is auto-generated for Windows, download it from the 
+The application is auto-generated for a few architectures, download it from the 
 [release portal](https://github.com/gwbres/rinex/releases)
 
 * [`rnx2crx`](rnx2crx/) is a RINEX compression program 

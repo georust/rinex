@@ -39,6 +39,7 @@ fn product_prefix(fname: &str) -> String {
 
 pub fn main() -> Result<(), rinex::Error> {
     let cli = Cli::new();
+    let quiet = cli.quiet();
     let pretty = cli.pretty();
     let mut ctx = plot::Context::new();
 
@@ -252,7 +253,9 @@ pub fn main() -> Result<(), rinex::Error> {
         .expect(&format!("failed to create \"{}\"", &html_absolute_path));
     let html = ctx.to_html(cli.tiny_html());
     write!(html_fd, "{}", html).expect(&format!("failed to write HTML content"));
-    open_html_with_default_app(&html_absolute_path);
+    if !quiet {
+        open_html_with_default_app(&html_absolute_path);
+    }
     println!("\"{}\" generated", &html_absolute_path);
 
     Ok(())
