@@ -517,12 +517,6 @@ fn parse_orbits(
         .flatten()
         .collect();
 
-    // parse items
-    let mut line = match lines.next() {
-        Some(l) => l,
-        _ => return Err(Error::MissingData),
-    };
-
     let mut key_index: usize = 0;
     let word_size: usize = 19;
     let mut map: HashMap<String, OrbitItem> = HashMap::new();
@@ -533,7 +527,7 @@ fn parse_orbits(
             false => &line[4..],
         };
         let nb_missing = 4 - (line.len() / word_size);
-        //println!("LINE \"{}\" | NB MISSING {}", line, nb_missing);
+        println!("LINE \"{}\" | NB MISSING {}", line, nb_missing);
         loop {
             if line.len() == 0 {
                 key_index += nb_missing as usize;
@@ -541,7 +535,12 @@ fn parse_orbits(
             }
             let (content, rem) = line.split_at(std::cmp::min(word_size, line.len()));
             if let Some((key, token)) = items.get(key_index) {
-                //println!("Key \"{}\" | Token \"{}\" | Content \"{}\"", key, token, content.trim()); //DEBUG
+                println!(
+                    "Key \"{}\" | Token \"{}\" | Content \"{}\"",
+                    key,
+                    token,
+                    content.trim()
+                ); //DEBUG
                 if !key.contains(&"spare") {
                     if let Ok(item) = OrbitItem::new(token, content.trim(), constell) {
                         map.insert(key.to_string(), item);
@@ -573,8 +572,8 @@ mod test {
     }
     #[test]
     fn gal_orbit() {
-        let content = "
-     7.500000000000e+01 1.478125000000e+01 2.945479833915e-09-3.955466341850e-01
+        let content =
+            "     7.500000000000e+01 1.478125000000e+01 2.945479833915e-09-3.955466341850e-01
      8.065253496170e-07 3.683507675305e-04-3.911554813385e-07 5.440603218079e+03
      3.522000000000e+05-6.519258022308e-08 2.295381450845e+00 7.450580596924e-09
      9.883726443393e-01 3.616875000000e+02 2.551413130998e-01-5.907746081337e-09
@@ -632,8 +631,8 @@ mod test {
     }
     #[test]
     fn bds_orbit() {
-        let content = "
-      .100000000000e+01  .118906250000e+02  .105325815814e-08 -.255139531119e+01
+        let content =
+            "      .100000000000e+01  .118906250000e+02  .105325815814e-08 -.255139531119e+01
       .169500708580e-06  .401772442274e-03  .292365439236e-04  .649346986580e+04
       .432000000000e+06  .105705112219e-06 -.277512444499e+01 -.211410224438e-06
       .607169709798e-01 -.897671875000e+03  .154887266488e+00 -.871464871438e-10
