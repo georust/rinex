@@ -27,23 +27,21 @@ use teqc::summary_report;
 pub mod fops; // file operation helpers
 pub mod parser; // command line parsing utilities
 
-use fops::filename;
+use std::io::Write;
+
+use fops::{filename, open_html_with_default_app};
 
 // Returns path prefix for all products to be generated
 // like report output, generate files..
 fn product_prefix(fname: &str) -> String {
     env!("CARGO_MANIFEST_DIR").to_owned() + "/product/" + &filename(fname)
 }
-// Returns config file pool location.
-// This is were we expect advanced configuration files,
-// for fine tuning this program
-fn config_dir() -> String {
-    env!("CARGO_MANIFEST_DIR").to_owned() + "/config/"
-}
 
 pub fn main() -> Result<(), rinex::Error> {
     let cli = Cli::new();
+    let quiet = cli.quiet();
     let pretty = cli.pretty();
+    let mut ctx = plot::Context::new();
 
     // input context
     //  primary RINEX (-fp)
@@ -51,6 +49,7 @@ pub fn main() -> Result<(), rinex::Error> {
     let fp = cli.input_path();
     let mut rnx = Rinex::from_file(fp)?;
     let mut nav_context = cli.nav_context();
+    let ref_position = cli.ref_position();
 
     // create subdirs we might need when studying this context
     let short_fp = filename(fp);
@@ -108,58 +107,40 @@ pub fn main() -> Result<(), rinex::Error> {
      * SV per Epoch analysis requested
      */
     if cli.sv_epoch() {
-        analysis::sv_epoch::analyze(&rnx, &mut nav_context, cli.plot_dimensions());
-        return Ok(());
+        analysis::sv_epoch(&mut ctx, &rnx, &mut nav_context);
     }
     /*
      * Epoch histogram analysis
      */
     if cli.epoch_histogram() {
-        analysis::epoch_histogram(&rnx, cli.plot_dimensions());
-        return Ok(());
+        analysis::epoch_histogram(&mut ctx, &rnx);
     }
 
     /*
      * DCB analysis requested
      */
     if cli.dcb() {
-        let dims = cli.plot_dimensions();
         let mut data = rnx.observation_phase_dcb();
         for (op, inner) in rnx.observation_pseudorange_dcb() {
             data.insert(op.clone(), inner.clone());
         }
-        plot::plot_gnss_recombination(
-            dims,
-            &(product_prefix.to_owned() + "/dcb.png"),
-            "Differential Code Biases",
-            "DBCs [n.a]",
-            &data,
-        );
+        plot::plot_gnss_recombination(&mut ctx, "Differential Code Biases", "DBCs [n.a]", &data);
     }
 
     /*
      * Code Multipath analysis
      */
     if cli.multipath() {
-        let dims = cli.plot_dimensions();
         let data = rnx.observation_code_multipath();
-        plot::plot_gnss_recombination(
-            dims,
-            &(product_prefix.to_owned() + "/mp.png"),
-            "Code Multipath Biases",
-            "MP [n.a]",
-            &data,
-        );
+        plot::plot_gnss_recombination(&mut ctx, "Code Multipath Biases", "MP [n.a]", &data);
     }
     /*
      * [GF] recombination visualization requested
      */
     if cli.gf_recombination() {
         let data = rnx.observation_gf_combinations();
-        let dims = cli.plot_dimensions();
         plot::plot_gnss_recombination(
-            dims,
-            &(product_prefix.to_owned() + "/gf.png"),
+            &mut ctx,
             "Geometry Free signal combination",
             "Meters of Li-Lj delay",
             &data,
@@ -170,10 +151,8 @@ pub fn main() -> Result<(), rinex::Error> {
      */
     if cli.wl_recombination() {
         let data = rnx.observation_wl_combinations();
-        let dims = cli.plot_dimensions();
         plot::plot_gnss_recombination(
-            dims,
-            &(product_prefix.to_owned() + "/wl.png"),
+            &mut ctx,
             "Wide Lane signal combination",
             "Meters of Li-Lj delay",
             &data,
@@ -184,10 +163,8 @@ pub fn main() -> Result<(), rinex::Error> {
      */
     if cli.nl_recombination() {
         let data = rnx.observation_nl_combinations();
-        let dims = cli.plot_dimensions();
         plot::plot_gnss_recombination(
-            dims,
-            &(product_prefix.to_owned() + "/nl.png"),
+            &mut ctx,
             "Narrow Lane signal combination",
             "Meters of Li-Lj delay",
             &data,
@@ -198,10 +175,8 @@ pub fn main() -> Result<(), rinex::Error> {
      */
     if cli.mw_recombination() {
         let data = rnx.observation_mw_combinations();
-        let dims = cli.plot_dimensions();
         plot::plot_gnss_recombination(
-            dims,
-            &(product_prefix.to_owned() + "/mw.png"),
+            &mut ctx,
             "Melbourne-Wübbena signal combination",
             "Meters of Li-Lj delay",
             &data,
@@ -260,10 +235,28 @@ pub fn main() -> Result<(), rinex::Error> {
     }
 
     /*
+     * skyplot view
+     */
+    let skyplot = rnx.is_navigation_rinex() || nav_context.is_some();
+    if skyplot {
+        plot::skyplot(&mut ctx, &rnx, &nav_context, ref_position);
+    }
+
+    /*
      * Record analysis / visualization
      */
-    let dims = cli.plot_dimensions();
-    let mut ctx = plot::record::Context::new(dims, &rnx);
-    plot::record::plot(&mut ctx, &rnx, nav_context);
+    plot::plot_record(&mut ctx, &rnx, &nav_context);
+
+    // Render HTML
+    let html_absolute_path = product_prefix.to_owned() + "/analysis.html";
+    let mut html_fd = std::fs::File::create(&html_absolute_path)
+        .expect(&format!("failed to create \"{}\"", &html_absolute_path));
+    let html = ctx.to_html(cli.tiny_html());
+    write!(html_fd, "{}", html).expect(&format!("failed to write HTML content"));
+    if !quiet {
+        open_html_with_default_app(&html_absolute_path);
+    }
+    println!("\"{}\" generated", &html_absolute_path);
+
     Ok(())
 } // main

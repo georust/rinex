@@ -11,7 +11,6 @@ use crate::{
     version::Version,
 };
 
-use rust_3d::Point3D;
 use std::io::prelude::*;
 use std::str::FromStr;
 use strum_macros::EnumString;
@@ -39,9 +38,6 @@ macro_rules! from_b_fmt_month {
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
-
-#[cfg(feature = "serde")]
-use crate::formatter::opt_point3d;
 
 #[derive(Clone, Debug, PartialEq, Eq, EnumString)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -129,9 +125,10 @@ pub struct Header {
     pub marker_type: Option<MarkerType>,
     /// optionnal leap seconds infos
     pub leap: Option<leap::Leap>,
+    // /// Optionnal system time correction
+    // pub time_corrections: Option<gnss_time::Correction>,
     /// Station approximate coordinates
-    #[cfg_attr(feature = "serde", serde(default, with = "opt_point3d"))]
-    pub coords: Option<Point3D>,
+    pub coords: Option<(f64, f64, f64)>,
     /// Optionnal observation wavelengths
     pub wavelengths: Option<(u32, u32)>,
     /// Optionnal sampling interval (s)
@@ -262,7 +259,7 @@ impl Header {
         let mut sv_antenna: Option<SvAntenna> = None;
         let mut leap: Option<leap::Leap> = None;
         let mut sampling_interval: Option<Duration> = None;
-        let mut coords: Option<Point3D> = None;
+        let mut coords: Option<(f64, f64, f64)> = None;
         // RINEX specific fields
         let mut obs_code_lines: u8 = 0;
         let mut current_code_syst = Constellation::default();
@@ -519,9 +516,9 @@ impl Header {
                     if let Ok(y) = f64::from_str(items[1].trim()) {
                         if let Ok(z) = f64::from_str(items[2].trim()) {
                             if let Some(c) = &mut coords {
-                                *c = Point3D::new(x, y, z);
+                                *c = (x, y, z);
                             } else {
-                                coords = Some(Point3D::new(x, y, z));
+                                coords = Some((x, y, z));
                             }
                         }
                     }
@@ -545,10 +542,10 @@ impl Header {
                     if let Ok(y) = f64::from_str(items[1].trim()) {
                         if let Ok(z) = f64::from_str(items[2].trim()) {
                             if let Some(a) = &mut rcvr_antenna {
-                                *a = a.with_base_coordinates(x, y, z);
+                                *a = a.with_base_coordinates((x, y, z));
                             } else {
                                 rcvr_antenna =
-                                    Some(Antenna::default().with_base_coordinates(x, y, z));
+                                    Some(Antenna::default().with_base_coordinates((x, y, z)));
                             }
                         }
                     }
@@ -792,8 +789,13 @@ impl Header {
                 // GPSA 0.1025E-07 0.7451E-08 -0.5960E-07 -0.5960E-07
                 // GPSB 0.1025E-07 0.7451E-08 -0.5960E-07 -0.5960E-07
             } else if marker.contains("TIME SYSTEM CORR") {
-                // TODO
                 // GPUT 0.2793967723E-08 0.000000000E+00 147456 1395
+                /*
+                 * V3 Time System correction description
+                 */
+                //if let Ok((ts, ts, corr)) = gnss_time::decode_time_system_corr(content) {
+                //    time_corrections.insert(ts, (ts, corr));
+                //}
             } else if marker.contains("TIME SYSTEM ID") {
                 let timescale = content.trim();
                 if let Ok(ts) = TimeScale::from_str(content.trim()) {
@@ -925,7 +927,7 @@ impl Header {
             marker_type,
             rcvr,
             leap,
-            coords: coords,
+            coords,
             wavelengths: None,
             gps_utc_delta: None,
             sampling_interval,
@@ -1505,9 +1507,9 @@ impl std::fmt::Display for Header {
             write!(f, "{:<40}", antenna.sn)?;
             write!(f, "{}", "ANT # / TYPE\n")?;
             if let Some(coords) = &antenna.coords {
-                write!(f, "{:14.4}", coords.x)?;
-                write!(f, "{:14.4}", coords.y)?;
-                write!(f, "{:14.4}", coords.z)?;
+                write!(f, "{:14.4}", coords.0)?;
+                write!(f, "{:14.4}", coords.1)?;
+                write!(f, "{:14.4}", coords.2)?;
                 write!(f, "{}", "APPROX POSITION XYZ\n")?
             }
             if let Some(h) = &antenna.height {

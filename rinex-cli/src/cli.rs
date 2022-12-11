@@ -1,6 +1,7 @@
 use crate::parser::parse_epoch;
 use clap::{Arg, ArgAction, ArgMatches, ColorChoice, Command};
 use rinex::prelude::*;
+use std::str::FromStr;
 
 pub struct Cli {
     /// Arguments passed by user
@@ -223,7 +224,13 @@ This is destructive, original pseudo range codes are lost and overwritten"))
                     .arg(Arg::new("orbits")
                         .long("orbits")
                         .action(ArgAction::SetTrue)
-                        .help("Identify orbits data fields. -fp must be a NAV file"))
+                        .help("Identify orbit fields."))
+                    .arg(Arg::new("ref-pos")
+                        .long("ref-pos")
+                        .value_name("x,y,z coordinates [m] ECEF")
+                        .help("Reference position in [m] ECEF system.
+Some calculations require a reference position.
+Ideally this information is contained in the file Header, but user can manually define them (superceeds)."))
                     .arg(Arg::new("nav-msg")
                         .long("nav-msg")
                         .action(ArgAction::SetTrue)
@@ -317,26 +324,11 @@ Refer to README"))
                         .long("pretty")
                         .action(ArgAction::SetTrue)
                         .help("Make terminal output more readable"))
-                .next_help_heading("Data visualization")
-                    .arg(Arg::new("skyplot")
-                        .short('y')
-                        .long("skyplot")
+                .next_help_heading("HTML options")
+                    .arg(Arg::new("tiny-html")
+                        .long("tiny-html")
                         .action(ArgAction::SetTrue)
-                        .help("Generate a \"skyplot\". NAV context must be provided, either with -fp or -nav"))
-                    .arg(Arg::new("plot-width")
-                        .long("plot-width")
-                        .value_name("WIDTH(u32)")
-                        .help("Set plot width. Default is 1024px.
-Example \"--plot-width 2048"))
-                    .arg(Arg::new("plot-height")
-                        .long("plot-height")
-                        .value_name("HEIGHT(u32)")
-                        .help("Set plot height. Default is 768px.
-Example \"--plot-height 1024"))
-                    .arg(Arg::new("plot-dim")
-                        .long("plot-dim")
-                        .value_name("DIM(u32,u32)")
-                        .help("Set plot dimensions. Example \"--plot-dim 2048,768\". Default is (1024, 768)px"))
+                        .help("Generates smaller HTML content, but slower to render in a web browser"))
                     .get_matches()
             },
         }
@@ -560,6 +552,9 @@ Example \"--plot-height 1024"))
     pub fn quiet(&self) -> bool {
         self.matches.get_flag("quiet")
     }
+    pub fn tiny_html(&self) -> bool {
+        self.matches.get_flag("tiny-html")
+    }
     /// Returns optionnal RINEX file to "merge"
     pub fn merge(&self) -> Option<&str> {
         if self.matches.contains_id("merge") {
@@ -617,30 +612,23 @@ Example \"--plot-height 1024"))
             None
         }
     }
-    /// Returns desired plot dimensions
-    pub fn plot_dimensions(&self) -> (u32, u32) {
-        let mut dim = (1024, 768);
-        if self.matches.contains_id("plot-dim") {
-            let args = self.matches.get_one::<String>("plot-dim").unwrap();
-            let items: Vec<&str> = args.split(",").collect();
-            if items.len() == 2 {
-                if let Ok(w) = u32::from_str_radix(items[0].trim(), 10) {
-                    if let Ok(h) = u32::from_str_radix(items[1].trim(), 10) {
-                        dim = (w, h);
-                    }
+    /// Reference position, in ECEF [m]
+    pub fn ref_position(&self) -> Option<(f64, f64, f64)> {
+        let args = self.matches.get_one::<String>("ref-pos")?;
+        let content: Vec<&str> = args.split(",").collect();
+        if let Ok(pos_x) = f64::from_str(content[0].trim()) {
+            if let Ok(pos_y) = f64::from_str(content[1].trim()) {
+                if let Ok(pos_z) = f64::from_str(content[2].trim()) {
+                    return Some((pos_x, pos_y, pos_z));
+                } else {
+                    println!("pos(z) should be f64 ECEF [m]");
                 }
+            } else {
+                println!("pos(y) should be f64 ECEF [m]");
             }
-        } else if self.matches.contains_id("plot-width") {
-            let arg = self.matches.get_one::<String>("plot-width").unwrap();
-            if let Ok(w) = u32::from_str_radix(arg.trim(), 10) {
-                dim.0 = w;
-            }
-        } else if self.matches.contains_id("plot-height") {
-            let arg = self.matches.get_one::<String>("plot-height").unwrap();
-            if let Ok(h) = u32::from_str_radix(arg.trim(), 10) {
-                dim.1 = h;
-            }
+        } else {
+            println!("pos(x) should be f64 ECEF [m]");
         }
-        dim
+        None
     }
 }

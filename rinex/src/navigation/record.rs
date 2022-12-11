@@ -895,7 +895,7 @@ mod test {
                 assert_eq!(v.is_some(), true);
                 let v = v.unwrap();
                 assert_eq!(v, 0.432000000000e+06);
-            } else if k.eq("oadc") {
+            } else if k.eq("aodc") {
                 let v = v.as_f64();
                 assert_eq!(v.is_some(), true);
                 let v = v.unwrap();

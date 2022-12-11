@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod test {
-    use rinex::prelude::*;
+    use rinex::{navigation::*, prelude::*};
     #[test]
     fn test_parser() {
         let test_resources = env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/";

@@ -22,10 +22,10 @@ pub mod sv;
 pub mod types;
 pub mod version;
 
-mod differential;
-mod formatter;
+//mod differential;
 mod leap;
 mod sampling;
+//mod quality;
 
 extern crate num;
 #[macro_use]
@@ -66,10 +66,12 @@ pub mod sbas {
     pub use crate::constellation::selection_helper;
 }
 
-/// Convenient package to import
+/// Processing package, regroups sampling
+/// and file quality operations.
 pub mod processing {
-    pub use crate::differential::DiffContext;
+    //pub use crate::differential::DiffContext;
     pub use crate::sampling::Decimation;
+    //pub use crate::quality::QcReport;
 }
 
 use crate::channel::Channel;
@@ -956,41 +958,39 @@ impl Rinex {
     /// This can only be computed on Navigation ephemeris.
     pub fn space_vehicules_best_elevation_angle(&self) -> BTreeMap<Epoch, Vec<Sv>> {
         let mut ret: BTreeMap<Epoch, Vec<Sv>> = BTreeMap::new();
-        if !self.is_navigation_rinex() {
-            return BTreeMap::new();
-        }
-        let record = self.record.as_nav().unwrap();
-        for (e, classes) in record.iter() {
-            let mut work: BTreeMap<Constellation, (f64, Sv)> = BTreeMap::new();
-            for (class, frames) in classes.iter() {
-                if *class == navigation::FrameClass::Ephemeris {
-                    for frame in frames.iter() {
-                        let (_, sv, ephemeris) = frame.as_eph().unwrap();
-                        let orbits = &ephemeris.orbits;
-                        if let Some(elev) = orbits.get("e") {
-                            // got an elevation angle
-                            let elev = elev.as_f64().unwrap();
-                            if let Some((angle, v)) = work.get_mut(&sv.constellation) {
-                                // already have data for this constellation
-                                // how does this compare ?
-                                if *angle < elev {
-                                    *angle = elev; // overwrite
-                                    *v = sv.clone(); // overwrite
+        if let Some(record) = self.record.as_nav() {
+            for (e, classes) in record.iter() {
+                let mut work: BTreeMap<Constellation, (f64, Sv)> = BTreeMap::new();
+                for (class, frames) in classes.iter() {
+                    if *class == navigation::FrameClass::Ephemeris {
+                        for frame in frames.iter() {
+                            let (_, sv, ephemeris) = frame.as_eph().unwrap();
+                            let orbits = &ephemeris.orbits;
+                            if let Some(elev) = orbits.get("e") {
+                                // got an elevation angle
+                                let elev = elev.as_f64().unwrap();
+                                if let Some((angle, v)) = work.get_mut(&sv.constellation) {
+                                    // already have data for this constellation
+                                    // how does this compare ?
+                                    if *angle < elev {
+                                        *angle = elev; // overwrite
+                                        *v = sv.clone(); // overwrite
+                                    }
+                                } else {
+                                    // new entry
+                                    work.insert(sv.constellation.clone(), (elev, sv.clone()));
                                 }
-                            } else {
-                                // new entry
-                                work.insert(sv.constellation.clone(), (elev, sv.clone()));
                             }
                         }
                     }
                 }
+                // build result for this epoch
+                let mut inner: Vec<Sv> = Vec::new();
+                for (_, (_, sv)) in work.iter() {
+                    inner.push(*sv);
+                }
+                ret.insert(*e, inner.clone());
             }
-            // build result for this epoch
-            let mut inner: Vec<Sv> = Vec::new();
-            for (_, (_, sv)) in work.iter() {
-                inner.push(*sv);
-            }
-            ret.insert(*e, inner.clone());
         }
         ret
     }
@@ -1236,7 +1236,7 @@ impl Rinex {
     pub fn space_vehicules_per_epoch(&self) -> BTreeMap<Epoch, Vec<Sv>> {
         let mut map: BTreeMap<Epoch, Vec<Sv>> = BTreeMap::new();
         if let Some(r) = self.record.as_nav() {
-            for (epoch, classes) in r.iter() {
+            for (epoch, classes) in r {
                 let mut inner: Vec<Sv> = Vec::new();
                 for (class, frames) in classes.iter() {
                     if *class == navigation::FrameClass::Ephemeris {
@@ -1252,7 +1252,7 @@ impl Rinex {
                 }
             }
         } else if let Some(r) = self.record.as_obs() {
-            for ((epoch, _), (_, vehicules)) in r.iter() {
+            for ((epoch, _), (_, vehicules)) in r {
                 let mut inner: Vec<Sv> = Vec::new();
                 for (sv, _) in vehicules.iter() {
                     inner.push(*sv);
@@ -1266,6 +1266,162 @@ impl Rinex {
         map
     }
 
+    /// Computes and extracts all Satellite elevation and azimuth angles, in degrees,
+    /// from all Navigation frames.
+    /// Reference position must be determine, either manually passed to this method
+    /// (known from external method), or contained in this file header.
+    /// Otherwise, it is not possible to calculate such information.
+    /// ```
+    /// use rinex::prelude::*;
+    /// let rinex = Rinex::from_file("../test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz")
+    ///     .unwrap();
+    /// let ref_pos = (3582105.2910_f64, 532589.7313_f64, 5232754.8054_f64);
+    /// let sv_angles = rinex.navigation_sat_angles(Some(ref_pos));
+    /// for (sv, epochs) in sv_angles {
+    ///     for (epoch, (el, azi)) in epochs {
+    ///     }
+    /// }
+    /// ```
+    pub fn navigation_sat_angles(
+        &self,
+        ref_pos: Option<(f64, f64, f64)>,
+    ) -> HashMap<Sv, BTreeMap<Epoch, (f64, f64)>> {
+        let mut ret: HashMap<Sv, BTreeMap<Epoch, (f64, f64)>> = HashMap::new();
+        let ref_pos: (f64, f64, f64) = match ref_pos {
+            Some(pos) => pos,
+            None => {
+                match self.header.coords {
+                    Some(pos) => pos,
+                    _ => {
+                        println!("missing reference point coordinates. Define them manually with `ref_pos`");
+                        (0.0_f64, 0.0_f64, 0.0_f64)
+                    },
+                }
+            },
+        };
+        if let Some(record) = self.record.as_nav() {
+            for (epoch, classes) in record {
+                for (class, frames) in classes {
+                    if *class == navigation::FrameClass::Ephemeris {
+                        for fr in frames {
+                            let (_, sv, ephemeris) = fr.as_eph().unwrap();
+                            if let Some((el, az)) = ephemeris.sat_angles(*epoch, ref_pos) {
+                                if let Some(data) = ret.get_mut(sv) {
+                                    // vehicle already encountered
+                                    data.insert(*epoch, (el, az));
+                                } else {
+                                    let mut map: BTreeMap<Epoch, (f64, f64)> = BTreeMap::new();
+                                    map.insert(*epoch, (el, az));
+                                    ret.insert(*sv, map);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        ret
+    }
+
+    /// Computes and extracts from Navigation Data, all satellite positions, in ECEF,
+    /// on an epoch basis.
+    /// ```
+    /// use rinex::prelude::*;
+    /// use std::str::FromStr;
+    /// use map_3d::{ecef2geodetic, Ellipsoid};
+    /// let mut rinex =
+    ///     Rinex::from_file("../test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz")
+    ///         .unwrap();
+    /// let g08 = Sv::from_str("G08")
+    ///     .unwrap();
+    /// rinex.retain_space_vehicule_mut(vec![g08]);
+    /// let sat_pos_ecef = rinex.navigation_sat_pos_ecef();
+    /// // example: convert to LLA
+    /// let sat_pos_lla = rinex.navigation_sat_pos_ecef()
+    ///     .iter_mut()
+    ///         .map(|(_, epochs)| {
+    ///             epochs.iter_mut()
+    ///                 .map(|(_, point)| {
+    ///                     // convert, overwrite ECEF to LLA coordinates
+    ///                     *point = ecef2geodetic(point.0, point.1, point.2, Ellipsoid::WGS84);
+    ///                 });
+    ///     });
+    /// ```
+    pub fn navigation_sat_pos_ecef(&self) -> HashMap<Sv, BTreeMap<Epoch, (f64, f64, f64)>> {
+        let mut ret: HashMap<Sv, BTreeMap<Epoch, (f64, f64, f64)>> = HashMap::new();
+        if let Some(record) = self.record.as_nav() {
+            for (epoch, classes) in record {
+                for (class, frames) in classes {
+                    if *class == navigation::FrameClass::Ephemeris {
+                        for fr in frames {
+                            let (_, sv, ephemeris) = fr.as_eph().unwrap();
+                            if let Some(sat_pos) = ephemeris.sat_pos_ecef(*epoch) {
+                                if let Some(data) = ret.get_mut(sv) {
+                                    // epoch being built
+                                    data.insert(*epoch, sat_pos);
+                                } else {
+                                    // first vehicle for this epoch
+                                    let mut map: BTreeMap<Epoch, (f64, f64, f64)> = BTreeMap::new();
+                                    map.insert(*epoch, sat_pos);
+                                    ret.insert(*sv, map);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        ret
+    }
+
+    /*
+        /// Computes and extracts from Navigation Data, all satellite
+        /// position, speed and accelerations, in ECEF, on an epoch basis
+        pub fn navigation_sat_speed_ecef(&self)
+            -> BTreeMap<Epoch, HashMap<Sv, ((f64,f64,f64), (f64,f64,f64), (f64,f64,f64))>> {
+            let mut ret: BTreeMap<Epoch, HashMap<Sv, ((f64,f64,f64), (f64,f64,f64), (f64,f64,f64))>> = BTreeMap::new();
+            let mut pdata: HashMap<Sv, (Epoch, (f64,f64,f64), (f64,f64,f64))> = HashMap::new();
+            if let Some(record) = self.record.as_nav() {
+                for (epoch, classes) in record {
+                    for (class, frames) in classes {
+                        if *class == navigation::FrameClass::Ephemeris {
+                            for fr in frames {
+                                let (_, sv, ephemeris) = fr.as_eph()
+                                    .unwrap();
+                                if let Some(sat_pos) = ephemeris.sat_pos_ecef(*epoch) {
+                                    if let Some(data) = ret.get_mut(epoch) {
+                                        // epoch being built
+                                        data.insert(*sv, sat_pos);
+                                    } else {
+                                        // first vehicle for this epoch
+                                        let mut map: HashMap<Sv, ((f64,f64,f64), (f64,f64,f64), (f64,f64,f64))> = HashMap::new();
+                                        if let Some((p_epoch, p_pos, p_speed)) = pdata.get(sv) {
+                                            // sv already encountered
+                                            // compute new speed
+                                            if let Some((dx, dy, dz)) = ephemeris.sat_speed_ecef(*epoch, *p_pos, *p_epoch) {
+
+                                            }
+                                            // compute new accell
+                                            if let Some((ddx, ddy, ddz)) = ephemeris.sat_accel_ecef(*epoch, *p_pos, *p_speed, *p_epoch) {
+
+                                            }
+                                            map.insert(*sv, (sat_pos, (0.0_f64, 0.0_f64, 0.0_f64), (0.0_f64, 0.0_f64, 0.0_f64));
+                                        } else {
+                                            // sv never encountered
+
+                                            map.insert(*sv, (sat_pos, (0.0_f64, 0.0_f64, 0.0_f64), (0.0_f64, 0.0_f64, 0.0_f64));
+                                        }
+                                        ret.insert(*epoch, map);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            ret
+        }
+    */
     /// Returns list of space vehicules encountered in this file.
     /// For Clocks RINEX: returns list of Vehicules used as reference
     /// in the record.
