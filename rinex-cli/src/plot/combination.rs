@@ -1,4 +1,5 @@
 use super::{generate_markers, Context, Marker, Mode, Scatter};
+use plotly::common::Visible;
 use rinex::prelude::*;
 use std::collections::{BTreeMap, HashMap};
 
@@ -26,6 +27,13 @@ pub fn plot_gnss_recombination(
             let trace = Scatter::new(data_x, data_y)
                 .mode(Mode::Markers)
                 .marker(Marker::new().symbol(markers[op_index].clone()))
+                .visible({
+                    if op_index < 1 {
+                        Visible::True
+                    } else {
+                        Visible::LegendOnly
+                    }
+                })
                 .name(&format!("{}({})", sv, op));
             ctx.add_trace(trace);
         }

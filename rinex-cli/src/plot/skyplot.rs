@@ -1,5 +1,8 @@
 use super::Context;
-use plotly::{common::Mode, ScatterPolar};
+use plotly::{
+    common::{Mode, Visible},
+    ScatterPolar,
+};
 use rinex::prelude::*;
 
 /*
@@ -24,7 +27,7 @@ pub fn skyplot(
         }
 
         let sat_angles = nav.navigation_sat_angles(ref_pos);
-        for (sv, epochs) in sat_angles {
+        for (index, (sv, epochs)) in sat_angles.iter().enumerate() {
             let el: Vec<f64> = epochs
                 .iter()
                 .map(|(_, (el, _))| el * 360.0 / std::f64::consts::PI)
@@ -35,6 +38,13 @@ pub fn skyplot(
                 .collect();
             let trace = ScatterPolar::new(el, azi)
                 .mode(Mode::LinesMarkers)
+                .visible({
+                    if index < 4 {
+                        Visible::True
+                    } else {
+                        Visible::LegendOnly
+                    }
+                })
                 .name(sv.to_string());
             ctx.add_trace(trace);
         }
@@ -44,7 +54,7 @@ pub fn skyplot(
          * color gradient emphasizes the epoch/timestamp
          */
         let sat_angles = rnx.navigation_sat_angles(ref_pos);
-        for (sv, epochs) in sat_angles {
+        for (index, (sv, epochs)) in sat_angles.iter().enumerate() {
             let el: Vec<f64> = epochs
                 .iter()
                 .map(|(_, (el, _))| el * 360.0 / std::f64::consts::PI)
@@ -55,6 +65,13 @@ pub fn skyplot(
                 .collect();
             let trace = ScatterPolar::new(el, azi)
                 .mode(Mode::LinesMarkers)
+                .visible({
+                    if index < 4 {
+                        Visible::True
+                    } else {
+                        Visible::LegendOnly
+                    }
+                })
                 .name(sv.to_string());
             ctx.add_trace(trace);
         }
