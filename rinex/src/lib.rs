@@ -1276,7 +1276,7 @@ impl Rinex {
     /// let rinex = Rinex::from_file("../test_resources/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz")
     ///     .unwrap();
     /// let ref_pos = (3582105.2910_f64, 532589.7313_f64, 5232754.8054_f64);
-    /// let sv_angles = rinex.navigation_sat_angles(ref_pos);
+    /// let sv_angles = rinex.navigation_sat_angles(Some(ref_pos));
     /// for (sv, epochs) in sv_angles {
     ///     for (epoch, (el, azi)) in epochs {
     ///     }
