@@ -15,10 +15,13 @@ pub fn suffix(fp: &str) -> String {
 
 #[cfg(target_os = "linux")]
 pub fn open_html_with_default_app(path: &str) {
-    Command::new("xdg-open")
-        .args([path])
-        .output()
-        .expect("xdg-open failed, can't open HTML content automatically");
+    let web_browsers = vec!["firefox", "chromium"];
+    for browser in web_browsers {
+        let mut child = Command::new(browser).args([path]).spawn();
+        if let Ok(child) = child {
+            return;
+        }
+    }
 }
 
 #[cfg(target_os = "macos")]

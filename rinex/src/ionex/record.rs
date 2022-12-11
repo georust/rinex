@@ -52,12 +52,11 @@ fn map_merge3d_mut(lhs: &mut Map, rhs: &Map) {
     for rhs_p in rhs {
         let mut found = false;
         for lhs_p in lhs.into_iter() {
-            found |= 
-                (lhs_p.latitude == rhs_p.latitude) 
-                && (lhs_p.longitude == rhs_p.longitude) 
-                && (lhs_p.altitude == rhs_p.altitude); 
+            found |= (lhs_p.latitude == rhs_p.latitude)
+                && (lhs_p.longitude == rhs_p.longitude)
+                && (lhs_p.altitude == rhs_p.altitude);
             if found {
-                break 
+                break;
             }
         }
         if !found {
@@ -414,8 +413,8 @@ impl Merge<Record> for Record {
                         *lhs_h = Some(map.to_vec()); // H map now provided
                     }
                 }
-            
-            } else { // new epoch
+            } else {
+                // new epoch
                 self.insert(*epoch, (tec.to_vec(), rms.clone(), h.clone()));
             }
         }

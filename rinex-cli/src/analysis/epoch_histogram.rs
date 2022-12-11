@@ -13,8 +13,7 @@ pub fn epoch_histogram(ctx: &mut Context, rnx: &Rinex) {
     durations.sort();
     let durations: Vec<String> = durations.iter().map(|k| k.to_string()).collect();
     let pop: Vec<_> = histogram.values().map(|v| v.to_string()).collect();
-    let histogram = Histogram::new_xy(durations, pop)
-        .name("Epoch Intervals");
+    let histogram = Histogram::new_xy(durations, pop).name("Epoch Intervals");
 
     ctx.add_trace(histogram);
 }
