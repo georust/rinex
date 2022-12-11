@@ -500,7 +500,7 @@ impl Ephemeris {
 fn parse_orbits(
     version: Version,
     constell: Constellation,
-    mut lines: std::str::Lines<'_>,
+    lines: std::str::Lines<'_>,
 ) -> Result<HashMap<String, OrbitItem>, Error> {
     // locate closest revision in db
     let db_revision = match closest_revision(constell, version) {

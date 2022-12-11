@@ -284,6 +284,18 @@ Usually combined to Observation data, provided with -fp.
 Only identical epochs can be analyzed and processed.
 Ideally, both contexts have strictly identical sample rates.
 Refer to README."))
+                .next_help_heading("Quality Check (QC)")
+                    .arg(Arg::new("qc")
+                        .long("qc")
+                        .action(ArgAction::SetTrue)
+                        .help("Enable Quality Check (QC) mode.
+Runs thorough analysis on provided RINEX data.
+The summary report by default is integrated to the global HTML report.
+Use --qc-separate to change that."))
+                    .arg(Arg::new("qc-separate")
+                        .long("qc-separate")
+                        .action(ArgAction::SetTrue)
+                        .help("Dump QC report in separate HTML"))
                 .next_help_heading("`teqc` operations")
                     .arg(Arg::new("merge")
                         .short('m')
@@ -295,12 +307,7 @@ Combine this RINEX, considered secondary, into `--fp`. RINEX format must match."
                         .long("split")
                         .value_name("DATETIME")
                         .short('s')
-                        .help("Split RINEX into two seperate files"))
-                    .arg(Arg::new("qc")
-                        .long("qc")
-                        .action(ArgAction::SetTrue)
-                        .help("RINEX quality check,
-generates verbose report, similar to \"teqc\""))
+                        .help("Split RINEX into two separate files"))
                 .next_help_heading("RINEX output")
                     .arg(Arg::new("output")
                         .long("output")
@@ -346,8 +353,11 @@ Refer to README"))
         }
     }
     /// Returns true if quality report is to be performed
-    pub fn qc(&self) -> bool {
+    pub fn quality_check(&self) -> bool {
         self.matches.get_flag("qc")
+    }
+    pub fn quality_check_separate(&self) -> bool {
+        self.matches.get_flag("qc-separate")
     }
     /// Returns true if GPS filter should apply
     pub fn gps_filter(&self) -> bool {

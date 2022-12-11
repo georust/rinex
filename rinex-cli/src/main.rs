@@ -21,8 +21,7 @@ use filter::{
 use identification::basic_identification;
 use resampling::record_resampling;
 use retain::retain_filters;
-use rinex::{merge::Merge, split::Split, *};
-use teqc::summary_report;
+use rinex::{merge::Merge, prelude::*, processing::*, split::Split};
 
 pub mod fops; // file operation helpers
 pub mod parser; // command line parsing utilities
@@ -243,15 +242,6 @@ pub fn main() -> Result<(), rinex::Error> {
     }
 
     /*
-     * TEQC `qc`
-     */
-    if cli.qc() {
-        summary_report(&cli, &product_prefix, &rnx, &nav_context);
-        return Ok(()); // special mode,
-                       // runs quicker for users that are only interested in `-qc`
-    }
-
-    /*
      * skyplot view
      */
     let skyplot = rnx.is_navigation_rinex() || nav_context.is_some();
@@ -265,11 +255,33 @@ pub fn main() -> Result<(), rinex::Error> {
      */
     plot::plot_record(&mut ctx, &rnx, &nav_context);
 
-    // Render HTML
+    /*
+     * Render HTML
+     */
     let html_absolute_path = product_prefix.to_owned() + "/analysis.html";
     let mut html_fd = std::fs::File::create(&html_absolute_path)
         .expect(&format!("failed to create \"{}\"", &html_absolute_path));
-    let html = ctx.to_html(cli.tiny_html());
+    let mut html = ctx.to_html(cli.tiny_html());
+
+    /*
+     * Quality Checks and analysis
+     */
+    if cli.quality_check() {
+        let report = QcReport::new(&rnx, &nav_context, QcType::Basic);
+        if cli.quality_check_separate() {
+            let qc_absolute_path = product_prefix.to_owned() + "/qc.html";
+            let mut qc_fd = std::fs::File::create(&qc_absolute_path)
+                .expect(&format!("failed to create \"{}\"", &qc_absolute_path));
+            write!(qc_fd, "{}", report.to_html()).expect("failed to generate QC summary report");
+            println!("QC report generated: \"{}\"", &qc_absolute_path);
+        } else {
+            // append to current HTML content
+            html.push_str("<div=\"qc-report\">\n");
+            html.push_str(&report.to_inline_html());
+            html.push_str("</div>\n");
+        }
+    }
+
     write!(html_fd, "{}", html).expect(&format!("failed to write HTML content"));
     if !quiet {
         open_html_with_default_app(&html_absolute_path);

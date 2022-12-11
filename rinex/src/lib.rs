@@ -22,14 +22,15 @@ pub mod sv;
 pub mod types;
 pub mod version;
 
-//mod differential;
 mod leap;
+mod qc;
 mod sampling;
-//mod quality;
 
 extern crate num;
 #[macro_use]
 extern crate num_derive;
+#[macro_use]
+extern crate horrorshow;
 
 pub mod reader;
 use reader::BufferedReader;
@@ -67,11 +68,11 @@ pub mod sbas {
 }
 
 /// Processing package, regroups sampling
-/// and file quality operations.
+/// and file quality analysis.
 pub mod processing {
     //pub use crate::differential::DiffContext;
+    pub use crate::qc::{QcReport, QcType};
     pub use crate::sampling::Decimation;
-    //pub use crate::quality::QcReport;
 }
 
 use crate::channel::Channel;
@@ -675,19 +676,24 @@ impl Rinex {
     /// Returns a list of epochs where unexpected data gap happend.
     /// Data gap is determined by comparing |e(k)-e(k-1)| ie., successive epoch intervals,
     /// to [Rinex::sampling_interval].
-    pub fn data_gaps(&self) -> Vec<Epoch> {
+    pub fn data_gaps(&self) -> Vec<(Epoch, Duration)> {
         if let Some(interval) = self.sampling_interval() {
-            let mut epochs = self.epochs();
+            let epochs = self.epochs();
             let mut prev = epochs[0];
-            epochs.retain(|e| {
-                if *e - prev <= interval {
-                    prev = *e;
-                    true
-                } else {
-                    false
-                }
-            });
             epochs
+                .iter()
+                .skip(1)
+                .filter_map(|e| {
+                    if *e - prev > interval {
+                        let pprev = prev;
+                        prev = *e;
+                        Some((*e, *e - pprev))
+                    } else {
+                        prev = *e;
+                        None
+                    }
+                })
+                .collect()
         } else {
             Vec::new()
         }
