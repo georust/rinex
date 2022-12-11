@@ -31,7 +31,6 @@ mod record;
 pub fn generate_markers(n: usize) -> Vec<MarkerSymbol> {
     //TODO lazy static
     let pool = vec!["Circle", "CircleOpen", "CircleDot", "CircleOpenDot", "Square", "SquareOpen", "SquareDot", "SquareOpenDot", "Diamond", "DiamondOpen", "DiamondDot", "DiamondOpenDot", "Cross", "CrossOpen", "CrossDot", "CrossOpenDot", "X", "XOpen", "XDot", "XOpenDot", "TriangleUp", "TriangleUpOpen", "TriangleUpDot", "TriangleUpOpenDot", "TriangleDown", "TriangleDownOpen", "TriangleDownDot", "TriangleDownOpenDot", "TriangleLeft", "TriangleLeftOpen", "TriangleLeftDot", "TriangleLeftOpenDot", "TriangleRight", "TriangleRightOpen", "TriangleRightDot", "TriangleRightOpenDot", "TriangleNE", "TriangleNEOpen", "TriangleNEDot", "TriangleNEOpenDot", "TriangleSE", "TriangleSEOpen", "TriangleSEDot", "TriangleSEOpenDot", "TriangleSW", "TriangleSWOpen", "TriangleSWDot", "TriangleSWOpenDot", "TriangleNW", "TriangleNWOpen", "TriangleNWDot", "TriangleNWOpenDot", "Pentagon", "PentagonOpen", "PentagonDot", "PentagonOpenDot", "Hexagon", "HexagonOpen", "HexagonDot", "HexagonOpenDot", "Hexagon2", "Hexagon2Open", "Hexagon2Dot", "Hexagon2OpenDot", "Octagon", "OctagonOpen", "OctagonDot", "OctagonOpenDot", "Star", "StarOpen", "StarDot", "StarOpenDot", "Hexagram", "HexagramOpen", "HexagramDot", "HexagramOpenDot", "StarTriangleUp", "StarTriangleUpOpen", "StarTriangleUpDot", "StarTriangleUpOpenDot", "StarTriangleDown", "StarTriangleDownOpen", "StarTriangleDownDot", "StarTriangleDownOpenDot", "StarSquare", "StarSquareOpen", "StarSquareDot", "StarSquareOpenDot", "StarDiamond", "StarDiamondOpen", "StarDiamondDot", "StarDiamondOpenDot", "DiamondTall", "DiamondTallOpen", "DiamondTallDot", "DiamondTallOpenDot", "DiamondWide", "DiamondWideOpen", "DiamondWideDot", "DiamondWideOpenDot", "Hourglass", "HourglassOpen", "BowTie", "BowTieOpen", "CircleCross", "CircleCrossOpen", "CircleX", "CircleXOpen", "SquareCross", "SquareCrossOpen", "SquareX", "SquareXOpen", "DiamondCross", "DiamondCrossOpen", "DiamondX", "DiamondXOpen", "CrossThin", "CrossThinOpen", "XThin", "XThinOpen", "Asterisk", "AsteriskOpen", "Hash", "HashOpen", "HashDot", "HashOpenDot", "YUp", "YUpOpen", "YDown", "YDownOpen", "YLeft", "YLeftOpen", "YRight", "YRightOpen", "LineEW", "LineEWOpen", "LineNS", "LineNSOpen", "LineNE", "LineNEOpen", "LineNW", "LineNWOpen", ];
-    let nb_max: usize = pool.len();
     let mut rng = rand::thread_rng();
     let mut ret: Vec<MarkerSymbol> = Vec::with_capacity(n);
     for _ in 0..n {
@@ -129,7 +128,9 @@ pub fn build_plot(
         )
         .x_axis(
             Axis::new()
-                .title(Title::new(x_axis_title))
+                .title(Title::new(x_axis_title)
+                    .side(title_side)
+                )
                 .zero_line(zero_line.0)
                 .show_tick_labels(false)
         )

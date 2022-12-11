@@ -1,9 +1,8 @@
 use rinex::{
-    prelude::*,
     meteo::*,
 };
 use std::collections::HashMap;
-use crate::plot::{Context, generate_markers};
+use crate::plot::{Context, }; //generate_markers};
 use plotly::{
     Scatter,
     common::{Marker, MarkerSymbol, Mode},
@@ -17,7 +16,7 @@ pub fn plot_meteo(ctx: &mut Context, record: &Record) {
      * 1 plot per physics
      */
     let mut datasets: HashMap<String, Vec<(String, f64)>> = HashMap::new();
-    for (index, (epoch, observations)) in record.iter().enumerate() {
+    for (epoch, observations) in record {
         for (observable, observation) in observations {
             if let Some(data) = datasets.get_mut(&observable.to_string()) {
                 data.push((epoch.to_string(), *observation));
@@ -49,11 +48,11 @@ pub fn plot_meteo(ctx: &mut Context, record: &Record) {
             &format!("{} [{}]", observable, unit));
         let data_x: Vec<String> = data
             .iter()
-            .map(|(k, _v)| k.clone())
+            .map(|(k, _)| k.clone())
             .collect();
         let data_y: Vec<f64> = data
             .iter()
-            .map(|(k, v)| *v)
+            .map(|(_, v)| *v)
             .collect();
         let trace = Scatter::new(data_x, data_y)
             .mode(Mode::LinesMarkers)

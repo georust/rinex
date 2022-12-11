@@ -3,13 +3,7 @@ use super::{
     build_default_plot,
     build_default_polar_plot,
 };
-use plotly::{
-    Trace,
-    layout::{
-        Layout, LayoutGrid, GridPattern,
-    },
-    common::Title,
-};
+use plotly::Trace;
 
 /// CLI Plot Context 
 pub struct Context {

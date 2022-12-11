@@ -2,9 +2,7 @@ use rinex::prelude::*;
 use crate::plot::{
     Context,
 };
-use plotly::{
-    Plot, Histogram,
-};
+use plotly::Histogram;
 
 /*
  * Epoch duration histogram

@@ -10,8 +10,8 @@ use plotly::{
         Visible,
     },
 };
-use rinex::{navigation, prelude::*};
 use ndarray::Array;
+use rinex::prelude::*;
 
 /*
  * Sv per epoch analysis

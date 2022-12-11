@@ -1,4 +1,9 @@
-use rinex::{navigation::*, observation::*, prelude::*, *};
+use rinex::{
+    *,
+    navigation::*, 
+    observation::*, 
+    prelude::*, 
+};
 use std::collections::HashMap;
 use plotly::{
     Scatter,
@@ -44,7 +49,7 @@ pub fn basic_plot(ctx: &mut Context, record: &observation::Record) {
     //      y: observation (raw),
     let mut dataset: HashMap<String, HashMap<u8, HashMap<Sv, Vec<(bool, String, f64)>>>> =
         HashMap::new();
-    for (e_index, ((epoch, _flag), (clock_offset, vehicules))) in record.iter().enumerate() {
+    for ((epoch, _flag), (clock_offset, vehicules)) in record {
         if let Some(value) = clock_offset {
             clk_offset.push((epoch.to_string(), *value));
         }
@@ -89,11 +94,11 @@ pub fn basic_plot(ctx: &mut Context, record: &observation::Record) {
         ctx.add_cartesian2d_plot("Receiver Clock Offset", "Clock Offset [s]");
         let data_x: Vec<String> = clk_offset
             .iter()
-            .map(|(k, _v)| k.clone())
+            .map(|(k, _)| k.clone())
             .collect();
         let data_y: Vec<f64> = clk_offset
             .iter()
-            .map(|(k, v)| *v)
+            .map(|(_, v)| *v)
             .collect();
         let trace = Scatter::new(data_x, data_y)
             .mode(Mode::LinesMarkers)

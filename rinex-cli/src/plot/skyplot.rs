@@ -1,5 +1,4 @@
 use plotly::{
-    Plot,
     ScatterPolar,
     common::{
         Mode,
@@ -29,7 +28,7 @@ pub fn skyplot(
             return;
         }
         
-        let mut sat_angles = nav.navigation_sat_angles(ref_pos);
+        let sat_angles = nav.navigation_sat_angles(ref_pos);
         for (sv, epochs) in sat_angles {
             let el: Vec<f64> = epochs
                 .iter()
@@ -48,28 +47,26 @@ pub fn skyplot(
         }
 
     } else {
-    /*
-     * "simplified" skyplot view,
-     * color gradient emphasizes the epoch/timestamp
-     */
-        if let Some(r) = rnx.record.as_nav() {
-            let mut sat_angles = rnx.navigation_sat_angles(ref_pos);
-            for (sv, epochs) in sat_angles {
-                let el: Vec<f64> = epochs
-                    .iter()
-                    .map(|(_, (el,_))| {
-                        el * 360.0 / std::f64::consts::PI  
-                    }).collect();
-                let azi: Vec<f64> = epochs
-                    .iter()
-                    .map(|(_, (_,azi))| {
-                        azi * 360.0 / std::f64::consts::PI  
-                    }).collect();
-                let trace = ScatterPolar::new(el, azi)
-                    .mode(Mode::LinesMarkers)
-                    .name(sv.to_string());
-                ctx.add_trace(trace);
-            }
+        /*
+         * "simplified" skyplot view,
+         * color gradient emphasizes the epoch/timestamp
+         */
+        let sat_angles = rnx.navigation_sat_angles(ref_pos);
+        for (sv, epochs) in sat_angles {
+            let el: Vec<f64> = epochs
+                .iter()
+                .map(|(_, (el,_))| {
+                    el * 360.0 / std::f64::consts::PI  
+                }).collect();
+            let azi: Vec<f64> = epochs
+                .iter()
+                .map(|(_, (_,azi))| {
+                    azi * 360.0 / std::f64::consts::PI  
+                }).collect();
+            let trace = ScatterPolar::new(el, azi)
+                .mode(Mode::LinesMarkers)
+                .name(sv.to_string());
+            ctx.add_trace(trace);
         }
     }
 }
