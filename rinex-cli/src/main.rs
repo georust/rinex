@@ -27,18 +27,17 @@ use teqc::summary_report;
 pub mod fops; // file operation helpers
 pub mod parser; // command line parsing utilities
 
-use fops::filename;
+use std::io::Write;
+
+use fops::{
+    filename,
+    open_html_with_default_app,
+};
 
 // Returns path prefix for all products to be generated
 // like report output, generate files..
 fn product_prefix(fname: &str) -> String {
     env!("CARGO_MANIFEST_DIR").to_owned() + "/product/" + &filename(fname)
-}
-// Returns config file pool location.
-// This is were we expect advanced configuration files,
-// for fine tuning this program
-fn config_dir() -> String {
-    env!("CARGO_MANIFEST_DIR").to_owned() + "/config/"
 }
 
 pub fn main() -> Result<(), rinex::Error> {
@@ -128,6 +127,7 @@ pub fn main() -> Result<(), rinex::Error> {
             data.insert(op.clone(), inner.clone());
         }
         plot::plot_gnss_recombination(
+            &mut ctx,
             "Differential Code Biases",
             "DBCs [n.a]",
             &data,
@@ -140,6 +140,7 @@ pub fn main() -> Result<(), rinex::Error> {
     if cli.multipath() {
         let data = rnx.observation_code_multipath();
         plot::plot_gnss_recombination(
+            &mut ctx,
             "Code Multipath Biases",
             "MP [n.a]",
             &data,
@@ -151,6 +152,7 @@ pub fn main() -> Result<(), rinex::Error> {
     if cli.gf_recombination() {
         let data = rnx.observation_gf_combinations();
         plot::plot_gnss_recombination(
+            &mut ctx,
             "Geometry Free signal combination",
             "Meters of Li-Lj delay",
             &data,
@@ -162,6 +164,7 @@ pub fn main() -> Result<(), rinex::Error> {
     if cli.wl_recombination() {
         let data = rnx.observation_wl_combinations();
         plot::plot_gnss_recombination(
+            &mut ctx,
             "Wide Lane signal combination",
             "Meters of Li-Lj delay",
             &data,
@@ -173,6 +176,7 @@ pub fn main() -> Result<(), rinex::Error> {
     if cli.nl_recombination() {
         let data = rnx.observation_nl_combinations();
         plot::plot_gnss_recombination(
+            &mut ctx,
             "Narrow Lane signal combination",
             "Meters of Li-Lj delay",
             &data,
@@ -184,6 +188,7 @@ pub fn main() -> Result<(), rinex::Error> {
     if cli.mw_recombination() {
         let data = rnx.observation_mw_combinations();
         plot::plot_gnss_recombination(
+            &mut ctx,
             "Melbourne-Wübbena signal combination",
             "Meters of Li-Lj delay",
             &data,
@@ -257,6 +262,15 @@ pub fn main() -> Result<(), rinex::Error> {
      * Record analysis / visualization
      */
     //plot::plot_record(&rnx, &nav_context);
-    ctx.to_html();
+    
+    // Render HTML
+    let html_absolute_path = product_prefix.to_owned() + "/analysis.html";
+    let mut html_fd = std::fs::File::create(&html_absolute_path)
+        .expect(&format!("failed to create \"{}\"", &html_absolute_path));
+    let html = ctx.to_html();
+    write!(html_fd, "{}", html)
+        .expect(&format!("failed to write HTML content"));
+    open_html_with_default_app(&html_absolute_path);
+
     Ok(())
 } // main

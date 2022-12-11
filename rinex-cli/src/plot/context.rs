@@ -2,7 +2,6 @@ use super::{
     Plot,
     build_default_plot,
 };
-use std::io::Write;
 use plotly::{
     Trace,
     layout::{
@@ -37,7 +36,7 @@ impl Context {
         let len = self.plots.len()-1;
         self.plots[len].add_trace(trace);
     }
-    pub fn to_html(&self) {
+    pub fn to_html(&self) -> String {
         let mut html = String::new();
         for (index, p) in self.plots.iter().enumerate() {
             if index == 0 {
@@ -47,10 +46,7 @@ impl Context {
             }
             html.push_str("\n");
         }
-        let mut fd = std::fs::File::create("/tmp/test.html")
-            .unwrap();
-        write!(fd, "{}", html)
-            .unwrap();
+        html
     }
     pub fn show(&self) {
     }

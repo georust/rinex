@@ -1,9 +1,9 @@
 use super::{
     generate_markers,
-    build_default_plot,
     Marker,
     Scatter,
     Mode,
+    Context, PlotType,
 };
 use rinex::prelude::*;
 use std::collections::{BTreeMap, HashMap};
@@ -12,12 +12,15 @@ use std::collections::{BTreeMap, HashMap};
  * Plots (any kind of) recombined GNSS dataset
  */
 pub fn plot_gnss_recombination(
+    ctx: &mut Context,
     plot_title: &str,
     y_title: &str,
     data: &HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>,
 ) {
-    let mut plot = build_default_plot(plot_title, y_title);
-    let markers = generate_markers(data.len()); // one marker per op
+    // add a plot
+    ctx.add_plot(PlotType::Cartesian2d, plot_title, y_title);
+    // generate 1 marker per OP
+    let markers = generate_markers(data.len());
     // plot all ops
     for (op_index, (op, vehicules)) in data.iter().enumerate() {
         for (sv, epochs) in vehicules {
@@ -34,8 +37,7 @@ pub fn plot_gnss_recombination(
                         .symbol(markers[op_index].clone())
                 )
                 .name(&format!("{}({})", sv, op));
-            plot.add_trace(trace);
+            ctx.add_trace(trace);
         }
     }
-    plot.show();
 }
