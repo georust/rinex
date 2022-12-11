@@ -563,6 +563,18 @@ impl Rinex {
         }
     }
 
+    /// Returns ionex map borders, as North Eastern
+    /// and South Western latitude longitude coordinates,
+    /// expressed in ddeg°
+    pub fn ionex_map_borders(&self) -> Option<((f32, f32), (f32,f32))> {
+        if let Some(params) = &self.header.ionex {
+            Some(((params.grid.latitude.start, params.grid.longitude.start),
+                (params.grid.latitude.end, params.grid.longitude.end)))
+        } else {
+            None
+        }
+    }
+
     /// Returns true if this is a METEO RINEX
     pub fn is_meteo_rinex(&self) -> bool {
         self.header.rinex_type == types::Type::MeteoData
