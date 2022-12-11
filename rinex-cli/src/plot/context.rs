@@ -1,5 +1,5 @@
-use super::{build_default_plot, build_default_polar_plot, Plot};
-use plotly::Trace;
+use super::{build_default_plot, build_default_polar_plot, build_world_map, Plot};
+use plotly::{layout::MapboxStyle, Trace};
 
 /// CLI Plot Context
 pub struct Context {
@@ -15,6 +15,9 @@ impl Context {
     }
     pub fn add_polar2d_plot(&mut self, title: &str) {
         self.plots.push(build_default_polar_plot(title));
+    }
+    pub fn add_world_map(&mut self, style: MapboxStyle, center: (f64, f64), zoom: u8) {
+        self.plots.push(build_world_map(style, center, zoom));
     }
     pub fn add_trace(&mut self, trace: Box<dyn Trace>) {
         let len = self.plots.len() - 1;

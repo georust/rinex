@@ -20,16 +20,16 @@ pub enum Error {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct GridLinspace {
     /// Grid start coordinates [ddeg]
-    pub start: f32,
+    pub start: f64,
     /// Grid end coordinates [ddeg]
-    pub end: f32,
+    pub end: f64,
     /// Grid spacing (inncrement value), [ddeg]
-    pub spacing: f32,
+    pub spacing: f64,
 }
 
 impl GridLinspace {
     /// Builds a new Linspace definition
-    pub fn new(start: f32, end: f32, spacing: f32) -> Result<Self, Error> {
+    pub fn new(start: f64, end: f64, spacing: f64) -> Result<Self, Error> {
         let r = end.rem(start);
         /*
          * End / Start must be multiple of one another
@@ -58,8 +58,8 @@ impl GridLinspace {
     }
 }
 
-impl From<(f32, f32, f32)> for GridLinspace {
-    fn from(tuple: (f32, f32, f32)) -> Self {
+impl From<(f64, f64, f64)> for GridLinspace {
+    fn from(tuple: (f64, f64, f64)) -> Self {
         Self {
             start: tuple.0,
             end: tuple.1,

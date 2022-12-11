@@ -8,7 +8,7 @@ use plotly::{
         Side,
         Title,
     },
-    layout::Axis,
+    layout::{Axis, Center, DragMode, Mapbox, MapboxStyle, Margin},
     Layout, Plot, Scatter,
 };
 use rand::Rng;
@@ -254,6 +254,26 @@ pub fn build_default_polar_plot(title: &str) -> Plot {
 }
 
 /*
+ * Builds a world map,
+ * centered on given locations, in decimal degrees,
+ * zoom factor
+ */
+pub fn build_world_map(style: MapboxStyle, center: (f64, f64), zoom: u8) -> Plot {
+    let mut p = Plot::new();
+    let layout = Layout::new()
+        .drag_mode(DragMode::Zoom)
+        .margin(Margin::new().top(0).left(0).bottom(0).right(0))
+        .mapbox(
+            Mapbox::new()
+                .style(style)
+                .center(Center::new(center.0, center.1))
+                .zoom(zoom),
+        );
+    p.set_layout(layout);
+    p
+}
+
+/*
  * Builds a Plot
  */
 pub fn build_plot(
@@ -291,7 +311,9 @@ pub fn plot_record(ctx: &mut Context, rnx: &Rinex, nav: &Option<Rinex>) {
         record::plot_observation(ctx, r, nav);
     } else if let Some(r) = rnx.record.as_meteo() {
         record::plot_meteo(ctx, r);
-        //} else if let Some(r) = rnx.record.as_ionex() {
-        //    record::plot_tec_map(ctx, r)
+    } else if let Some(r) = rnx.record.as_ionex() {
+        if let Some(borders) = rnx.ionex_map_borders() {
+            record::plot_tec_map(ctx, borders, r);
+        }
     }
 }

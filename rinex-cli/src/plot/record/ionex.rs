@@ -2,12 +2,12 @@ use crate::plot::Context;
 //use itertools::Itertools;
 use plotly::{
     color::NamedColor,
-    common::{Marker, MarkerSymbol,}, //color::Rgba},
+    common::{Marker, MarkerSymbol}, //color::Rgba},
     layout::MapboxStyle,
     //scatter_mapbox::Fill,
     ScatterMapbox,
 };
-use rinex::{ionex::*};
+use rinex::ionex::*;
 
 pub fn plot_tec_map(ctx: &mut Context, borders: ((f64, f64), (f64, f64)), record: &Record) {
     let cmap = colorous::TURBO;
@@ -18,7 +18,8 @@ pub fn plot_tec_map(ctx: &mut Context, borders: ((f64, f64), (f64, f64)), record
     let mut tec_max = -std::f64::INFINITY;
     for (e_index, (e, (tec, _, _))) in record.iter().enumerate() {
         for point in tec {
-            if e_index == 0 { // grab grid definition
+            if e_index == 0 {
+                // grab grid definition
                 grid_lat.push(point.latitude.into());
                 grid_lon.push(point.longitude.into());
             }
@@ -34,7 +35,7 @@ pub fn plot_tec_map(ctx: &mut Context, borders: ((f64, f64), (f64, f64)), record
                 .size(5)
                 .symbol(MarkerSymbol::Circle)
                 .color(NamedColor::Black)
-                .opacity(0.5)
+                .opacity(0.5),
         )
         .name("TEC Grid");
     ctx.add_trace(grid);
@@ -44,11 +45,11 @@ pub fn plot_tec_map(ctx: &mut Context, borders: ((f64, f64), (f64, f64)), record
      * we have no means to plot several heat map (day course)
      * at the moment, we just plot the 1st epoch
      */
-     /*
+    /*
     for (e_index, (e, (tec, _, _))) in record.iter().enumerate() {
         if e_index == 0 {
             // form the smallest area from that grid
-            for rows in 
+            for rows in
             for i in 0..tec.len() / 4 {
                 println!("MAPS {}", i);
                 //for i in 0..maps.len() / 2 {

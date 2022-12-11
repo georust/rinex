@@ -566,7 +566,7 @@ impl Rinex {
     /// Returns ionex map borders, as North Eastern
     /// and South Western latitude longitude coordinates,
     /// expressed in ddeg°
-    pub fn ionex_map_borders(&self) -> Option<((f32, f32), (f32, f32))> {
+    pub fn ionex_map_borders(&self) -> Option<((f64, f64), (f64, f64))> {
         if let Some(params) = &self.header.ionex {
             Some((
                 (params.grid.latitude.start, params.grid.longitude.start),

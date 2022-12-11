@@ -34,13 +34,13 @@ pub(crate) fn is_new_map(line: &str) -> bool {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct MapPoint {
     /// Latitude of this estimate
-    pub latitude: f32,
+    pub latitude: f64,
     /// Longitude of this estimate
-    pub longitude: f32,
+    pub longitude: f64,
     /// Altitude of this estimate
-    pub altitude: f32,
+    pub altitude: f64,
     /// Actual estimate (scaling applied)
-    pub value: f32,
+    pub value: f64,
 }
 
 pub type Map = Vec<MapPoint>;
@@ -130,8 +130,8 @@ pub(crate) fn parse_map(header: &mut Header, content: &str) -> Result<(usize, Ep
     let lines = content.lines();
     let mut epoch = Epoch::default();
     let mut map = Map::with_capacity(128); // result
-    let mut latitude: f32 = 0.0; // current latitude
-    let mut altitude: f32 = 0.0; // current altitude
+    let mut latitude: f64 = 0.0; // current latitude
+    let mut altitude: f64 = 0.0; // current altitude
     let mut ptr: usize = 0; // pointer in longitude space
     let mut linspace = GridLinspace::default(); // (longitude) linspace
     let ionex = header
@@ -159,13 +159,13 @@ pub(crate) fn parse_map(header: &mut Header, content: &str) -> Result<(usize, Ep
                 let (dlon, rem) = rem.split_at(6);
                 let (h, _) = rem.split_at(6);
                 latitude =
-                    f32::from_str(lat.trim()).expect("failed to parse grid latitude start point");
+                    f64::from_str(lat.trim()).expect("failed to parse grid latitude start point");
                 let lon1 =
-                    f32::from_str(lon1.trim()).expect("failed to parse longitude start point");
-                let lon2 = f32::from_str(lon2.trim()).expect("failed to parse longitude end point");
+                    f64::from_str(lon1.trim()).expect("failed to parse longitude start point");
+                let lon2 = f64::from_str(lon2.trim()).expect("failed to parse longitude end point");
                 let dlon =
-                    f32::from_str(dlon.trim()).expect("failed to parse longitude grid spacing");
-                altitude = f32::from_str(h.trim()).expect("failed to parse next grid altitude");
+                    f64::from_str(dlon.trim()).expect("failed to parse longitude grid spacing");
+                altitude = f64::from_str(h.trim()).expect("failed to parse next grid altitude");
                 linspace = GridLinspace::new(lon1, lon2, dlon)?;
                 ptr = 0;
             } else if marker.contains("EPOCH OF CURRENT MAP") {
@@ -197,11 +197,11 @@ pub(crate) fn parse_map(header: &mut Header, content: &str) -> Result<(usize, Ep
                 for item in line.split_ascii_whitespace().into_iter() {
                     if let Ok(v) = i32::from_str_radix(item.trim(), 10) {
                         // parse & apply correct scaling
-                        let mut value = v as f32;
-                        value *= 10.0_f32.powf(ionex.exponent as f32);
+                        let mut value = v as f64;
+                        value *= 10.0_f64.powf(ionex.exponent as f64);
                         map.push(MapPoint {
                             latitude: latitude,
-                            longitude: linspace.start + linspace.spacing * ptr as f32,
+                            longitude: linspace.start + linspace.spacing * ptr as f64,
                             altitude: altitude,
                             value: value,
                         });
@@ -215,11 +215,11 @@ pub(crate) fn parse_map(header: &mut Header, content: &str) -> Result<(usize, Ep
             for item in line.split_ascii_whitespace().into_iter() {
                 if let Ok(v) = i32::from_str_radix(item.trim(), 10) {
                     // parse & apply correct scaling
-                    let mut value = v as f32;
-                    value *= 10.0_f32.powf(ionex.exponent as f32);
+                    let mut value = v as f64;
+                    value *= 10.0_f64.powf(ionex.exponent as f64);
                     map.push(MapPoint {
                         latitude: latitude,
-                        longitude: linspace.start + linspace.spacing * ptr as f32,
+                        longitude: linspace.start + linspace.spacing * ptr as f64,
                         altitude: altitude,
                         value: value,
                     });

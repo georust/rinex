@@ -857,9 +857,9 @@ impl Header {
             } else if marker.contains("HGT1 / HGT2 / DHGT") {
                 let items: Vec<&str> = content.split_ascii_whitespace().collect();
                 if items.len() == 3 {
-                    if let Ok(start) = f32::from_str(items[0].trim()) {
-                        if let Ok(end) = f32::from_str(items[1].trim()) {
-                            if let Ok(spacing) = f32::from_str(items[2].trim()) {
+                    if let Ok(start) = f64::from_str(items[0].trim()) {
+                        if let Ok(end) = f64::from_str(items[1].trim()) {
+                            if let Ok(spacing) = f64::from_str(items[2].trim()) {
                                 let grid = match spacing == 0.0 {
                                     true => {
                                         // special case, 2D fixed altitude
@@ -880,9 +880,9 @@ impl Header {
             } else if marker.contains("LAT1 / LAT2 / DLAT") {
                 let items: Vec<&str> = content.split_ascii_whitespace().collect();
                 if items.len() == 3 {
-                    if let Ok(start) = f32::from_str(items[0].trim()) {
-                        if let Ok(end) = f32::from_str(items[1].trim()) {
-                            if let Ok(spacing) = f32::from_str(items[2].trim()) {
+                    if let Ok(start) = f64::from_str(items[0].trim()) {
+                        if let Ok(end) = f64::from_str(items[1].trim()) {
+                            if let Ok(spacing) = f64::from_str(items[2].trim()) {
                                 ionex = ionex.with_latitude_grid(ionex::GridLinspace::new(
                                     start, end, spacing,
                                 )?);
@@ -893,9 +893,9 @@ impl Header {
             } else if marker.contains("LON1 / LON2 / DLON") {
                 let items: Vec<&str> = content.split_ascii_whitespace().collect();
                 if items.len() == 3 {
-                    if let Ok(start) = f32::from_str(items[0].trim()) {
-                        if let Ok(end) = f32::from_str(items[1].trim()) {
-                            if let Ok(spacing) = f32::from_str(items[2].trim()) {
+                    if let Ok(start) = f64::from_str(items[0].trim()) {
+                        if let Ok(end) = f64::from_str(items[1].trim()) {
+                            if let Ok(spacing) = f64::from_str(items[2].trim()) {
                                 ionex = ionex.with_longitude_grid(ionex::GridLinspace::new(
                                     start, end, spacing,
                                 )?);
