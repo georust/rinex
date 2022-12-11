@@ -14,9 +14,7 @@ use plotly::{
 use rand::Rng;
 
 mod context;
-pub use context::{
-    Context, PlotType,
-};
+pub use context::Context;
 
 mod skyplot;
 pub use skyplot::skyplot;
@@ -93,6 +91,22 @@ pub fn build_default_plot(title: &str, y_title: &str) -> Plot {
         (false, false), // zero lines
         true, // show legend
         true, // autosize
+    )
+}
+
+/*
+ * Builds a default Polar2D plot
+ */
+pub fn build_default_polar_plot(title: &str) -> Plot {
+    build_plot(
+        title,
+        Side::Top,
+        Font::default(),
+        "Elevation [°]",
+        "Azimuth [°]",
+        (true, true),
+        true,
+        true,
     )
 }
 

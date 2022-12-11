@@ -1,6 +1,7 @@
 use super::{
     Plot,
     build_default_plot,
+    build_default_polar_plot,
 };
 use plotly::{
     Trace,
@@ -9,11 +10,6 @@ use plotly::{
     },
     common::Title,
 };
-
-pub enum PlotType {
-    Cartesian2d,
-    Polar2d,
-}
 
 /// CLI Plot Context 
 pub struct Context {
@@ -26,11 +22,13 @@ impl Context {
             plots: Vec::new(),
         }
     }
-    pub fn add_plot(&mut self, plot_type: PlotType, title: &str, y_label: &str) {
-        match plot_type {
-            PlotType::Cartesian2d => self.plots.push(build_default_plot(title, y_label)),
-            PlotType::Polar2d => {}, //self.plots.push(build_polar2d(title, y_label)),
-        }
+    pub fn add_cartesian2d_plot(&mut self, title: &str, y_label: &str) {
+        self.plots.push(
+            build_default_plot(title, y_label));
+    }
+    pub fn add_polar2d_plot(&mut self, title: &str) {
+        self.plots.push(
+            build_default_polar_plot(title));
     }
     pub fn add_trace(&mut self, trace: Box<dyn Trace>) {
         let len = self.plots.len()-1;
@@ -50,7 +48,5 @@ impl Context {
             html.push_str("\n");
         }
         html
-    }
-    pub fn show(&self) {
     }
 }

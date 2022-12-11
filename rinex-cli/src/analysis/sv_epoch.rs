@@ -1,5 +1,5 @@
 use crate::plot::{
-    Context, PlotType,
+    Context,
     generate_markers,
 };
 use plotly::{
@@ -18,7 +18,7 @@ use ndarray::Array;
  */
 pub fn sv_epoch(ctx: &mut Context, rnx: &Rinex, nav: &mut Option<Rinex>) {
     // create a new plot
-    ctx.add_plot(PlotType::Cartesian2d, "Sv per Epoch", "Sv");
+    ctx.add_cartesian2d_plot("Sv per Epoch", "Sv");
     let constellations = rnx.list_constellations();
     let mut nb_markers = constellations.len();
 

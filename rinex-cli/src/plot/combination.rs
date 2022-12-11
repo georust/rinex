@@ -3,7 +3,7 @@ use super::{
     Marker,
     Scatter,
     Mode,
-    Context, PlotType,
+    Context,
 };
 use rinex::prelude::*;
 use std::collections::{BTreeMap, HashMap};
@@ -18,7 +18,7 @@ pub fn plot_gnss_recombination(
     data: &HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>,
 ) {
     // add a plot
-    ctx.add_plot(PlotType::Cartesian2d, plot_title, y_title);
+    ctx.add_cartesian2d_plot(plot_title, y_title);
     // generate 1 marker per OP
     let markers = generate_markers(data.len());
     // plot all ops

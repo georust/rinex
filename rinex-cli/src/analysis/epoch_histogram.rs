@@ -1,6 +1,6 @@
 use rinex::prelude::*;
 use crate::plot::{
-    Context, PlotType,
+    Context,
 };
 use plotly::{
     Plot, Histogram,
@@ -11,7 +11,7 @@ use plotly::{
  */
 pub fn epoch_histogram(ctx: &mut Context, rnx: &Rinex) {
     // create a new plot
-    ctx.add_plot(PlotType::Cartesian2d, "Epoch Intervals", "Count");
+    ctx.add_cartesian2d_plot("Epoch Intervals", "Count");
     let histogram = rnx.epoch_intervals();
     let mut durations: Vec<&Duration> = histogram
         .keys()
