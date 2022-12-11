@@ -91,6 +91,7 @@ pub fn basic_plot(ctx: &mut Context, record: &observation::Record) {
         let trace = Scatter::new(data_x, data_y)
             .mode(Mode::LinesMarkers)
             .marker(Marker::new().symbol(MarkerSymbol::TriangleUp))
+            .web_gl_mode(true)
             .name("Clk Offset");
         ctx.add_trace(trace);
     }
@@ -122,6 +123,7 @@ pub fn basic_plot(ctx: &mut Context, record: &observation::Record) {
                             Visible::LegendOnly
                         }
                     })
+                    .web_gl_mode(true)
                     .name(&format!("{}(L{})", sv, carrier));
                 ctx.add_trace(trace);
             }

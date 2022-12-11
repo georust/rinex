@@ -1,7 +1,5 @@
-use rinex::{
-    ionex::*, prelude::*
-};
-
+use rinex::{ionex::*, prelude::*};
+use crate::plot::Context;
 use plotly::{
     Plot, 
     Scatter, 
@@ -13,8 +11,7 @@ use plotly::{
     ScatterMapbox,
 };
 
-pub fn plot_tec_map(borders: ((f32,f32),(f32,f32)), record: &Record) {
-    println!("BORDERS: {:?}", borders); 
+pub fn plot_tec_map(ctx: &mut Context, borders: ((f32,f32),(f32,f32)), record: &Record) {
     let map_center = ((borders.1.0 - borders.0.0)/2.0, (borders.1.1 - borders.0.1)/2.0);
 
     let mut latitudes: Vec<f64> = Vec::new();

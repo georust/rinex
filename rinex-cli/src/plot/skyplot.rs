@@ -65,6 +65,7 @@ pub fn skyplot(
                 .collect();
             let trace = ScatterPolar::new(el, azi)
                 .mode(Mode::LinesMarkers)
+                .web_gl_mode(true)
                 .visible({
                     if index < 4 {
                         Visible::True

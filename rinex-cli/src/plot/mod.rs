@@ -291,5 +291,7 @@ pub fn plot_record(ctx: &mut Context, rnx: &Rinex, nav: &Option<Rinex>) {
         record::plot_observation(ctx, r, nav);
     } else if let Some(r) = rnx.record.as_meteo() {
         record::plot_meteo(ctx, r);
+    //} else if let Some(r) = rnx.record.as_ionex() {
+    //    record::plot_tec_map(ctx, r)
     }
 }

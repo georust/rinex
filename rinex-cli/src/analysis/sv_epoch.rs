@@ -85,6 +85,7 @@ pub fn sv_epoch(ctx: &mut Context, rnx: &Rinex, nav: &mut Option<Rinex>) {
             let trace = Scatter::new(epochs, prn)
                 .mode(Mode::Markers)
                 .marker(Marker::new().symbol(marker.clone()))
+                .web_gl_mode(true)
                 .visible({
                     // improves plot generation speed, on large files
                     if sv_index < 4 {

@@ -50,6 +50,7 @@ pub fn plot_meteo(ctx: &mut Context, record: &Record) {
         let trace = Scatter::new(data_x, data_y)
             .mode(Mode::LinesMarkers)
             .marker(Marker::new().symbol(MarkerSymbol::TriangleUp))
+            .web_gl_mode(true)
             .name(observable);
         ctx.add_trace(trace);
     }

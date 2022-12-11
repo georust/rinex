@@ -27,6 +27,7 @@ pub fn plot_gnss_recombination(
             let trace = Scatter::new(data_x, data_y)
                 .mode(Mode::Markers)
                 .marker(Marker::new().symbol(markers[op_index].clone()))
+                .web_gl_mode(true)
                 .visible({
                     if op_index < 1 {
                         Visible::True
