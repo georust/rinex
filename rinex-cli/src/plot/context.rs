@@ -36,9 +36,12 @@ impl Context {
         let len = self.plots.len()-1;
         self.plots[len].add_trace(trace);
     }
-    pub fn to_html(&self) -> String {
+    pub fn to_html(&mut self, tiny: bool) -> String {
         let mut html = String::new();
-        for (index, p) in self.plots.iter().enumerate() {
+        for (index, p) in self.plots.iter_mut().enumerate() {
+            if !tiny {
+                p.use_local_plotly();
+            }
             if index == 0 {
                 html.push_str(&p.to_html());
             } else {

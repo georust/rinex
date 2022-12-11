@@ -267,7 +267,7 @@ pub fn main() -> Result<(), rinex::Error> {
     let html_absolute_path = product_prefix.to_owned() + "/analysis.html";
     let mut html_fd = std::fs::File::create(&html_absolute_path)
         .expect(&format!("failed to create \"{}\"", &html_absolute_path));
-    let html = ctx.to_html();
+    let html = ctx.to_html(cli.tiny_html());
     write!(html_fd, "{}", html)
         .expect(&format!("failed to write HTML content"));
     open_html_with_default_app(&html_absolute_path);

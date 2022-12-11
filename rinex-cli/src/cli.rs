@@ -324,17 +324,11 @@ Refer to README"))
                         .long("pretty")
                         .action(ArgAction::SetTrue)
                         .help("Make terminal output more readable"))
-                .next_help_heading("Data visualization")
-                    .arg(Arg::new("plot-width")
-                        .long("plot-width")
-                        .value_name("WIDTH(u32)")
-                        .help("Set plot width. Default is 1024px.
-Example \"--plot-width 2048"))
-                    .arg(Arg::new("plot-height")
-                        .long("plot-height")
-                        .value_name("HEIGHT(u32)")
-                        .help("Set plot height. Default is 768px.
-Example \"--plot-height 1024"))
+                .next_help_heading("HTML options")
+                    .arg(Arg::new("tiny-html")
+                        .long("tiny-html")
+                        .action(ArgAction::SetTrue)
+                        .help("Generates smaller HTML content, but slower to render in a web browser"))
                     .get_matches()
             },
         }
@@ -557,6 +551,9 @@ Example \"--plot-height 1024"))
     /// Returns true if quiet mode is activated
     pub fn quiet(&self) -> bool {
         self.matches.get_flag("quiet")
+    }
+    pub fn tiny_html(&self) -> bool {
+        self.matches.get_flag("tiny-html")
     }
     /// Returns optionnal RINEX file to "merge"
     pub fn merge(&self) -> Option<&str> {
