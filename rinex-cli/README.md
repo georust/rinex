@@ -7,19 +7,8 @@ Command line tool to parse, analyze and manage RINEX files.
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square)](https://github.com/gwbres/rinex/blob/main/LICENSE-APACHE)
 [![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](https://github.com/gwbres/rinex/blob/main/LICENSE-MIT) 
 
-The first purpose of this tool is to expose the [library](https://github.com/gwbres/rinex/rinex) 
-in a high level and easy to use fashion.  
-The application will be able to parse all RINEX formats supported by the library, refer to the front page to understand which RINEX format is currently supported.
-
-Some GNSS data processing algorithms are implemented,
-like 
-- signal recombination
-- processing (DCBs, MP, ...)
-
-Refer to [the dedicated page](doc/processing.md)
-
-Some `teqc` operations are supported, see the 
-[following paragraph](https://github.com/gwbres/rinex/blob/main/rinex-cli/README.md#teqc-operations)
+The main purpose of this tool is to expose the [library](https://github.com/gwbres/rinex/rinex) 
+capabilities, in a high level and easy to use interface.
 
 ## RINEX files
 
@@ -29,7 +18,7 @@ are still under development, refer to the
 
 ### File naming conventions
 
-File names are disregarded by these tools, you can analyze
+File names are disregarded by this tool, you can analyze
 & parse files that do not follow naming conventions.
 
 When producing data, this tool will eventually help the user to generate RINEX that follows
@@ -45,6 +34,9 @@ This tool supports gzip compressed files, as long as their name is terminated by
 Analysis and reports are generated in HTML, in the `rinex/rinex-cli/product` directory.  
 Analysis is named after the primary RINEX file, so it is possible to generate
 several products and keep them.
+
+Some advanced computations and analysis are possible with this tool,
+refer to the dedicated sections.
 
 ## `teqc` operations
 
@@ -109,7 +101,7 @@ rinex-cli \
     --epoch-hist \  # sampling rate histogram analysis
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz 
 
-ls rinex-cli/product/ESBC00DNK_R_20201770000_01D_30S_MO/*
+ls rinex-cli/product/ESBC00DNK_R_20201770000_01D_30S_MO/analysis.html
 ```
 
 ## HTML content
