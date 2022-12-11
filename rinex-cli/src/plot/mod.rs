@@ -1,17 +1,18 @@
-use rinex::prelude::*;
 use plotly::{
-    Plot, 
-    Layout,
-    Scatter,
     common::{
-        Mode, 
-        //DashType, 
+        //DashType,
         Font,
-        Title, Side, Marker, MarkerSymbol,
+        Marker,
+        MarkerSymbol,
+        Mode,
+        Side,
+        Title,
     },
-    layout::{Axis},
+    layout::Axis,
+    Layout, Plot, Scatter,
 };
 use rand::Rng;
+use rinex::prelude::*;
 
 mod context;
 pub use context::Context;
@@ -30,7 +31,150 @@ mod record;
  */
 pub fn generate_markers(n: usize) -> Vec<MarkerSymbol> {
     //TODO lazy static
-    let pool = vec!["Circle", "CircleOpen", "CircleDot", "CircleOpenDot", "Square", "SquareOpen", "SquareDot", "SquareOpenDot", "Diamond", "DiamondOpen", "DiamondDot", "DiamondOpenDot", "Cross", "CrossOpen", "CrossDot", "CrossOpenDot", "X", "XOpen", "XDot", "XOpenDot", "TriangleUp", "TriangleUpOpen", "TriangleUpDot", "TriangleUpOpenDot", "TriangleDown", "TriangleDownOpen", "TriangleDownDot", "TriangleDownOpenDot", "TriangleLeft", "TriangleLeftOpen", "TriangleLeftDot", "TriangleLeftOpenDot", "TriangleRight", "TriangleRightOpen", "TriangleRightDot", "TriangleRightOpenDot", "TriangleNE", "TriangleNEOpen", "TriangleNEDot", "TriangleNEOpenDot", "TriangleSE", "TriangleSEOpen", "TriangleSEDot", "TriangleSEOpenDot", "TriangleSW", "TriangleSWOpen", "TriangleSWDot", "TriangleSWOpenDot", "TriangleNW", "TriangleNWOpen", "TriangleNWDot", "TriangleNWOpenDot", "Pentagon", "PentagonOpen", "PentagonDot", "PentagonOpenDot", "Hexagon", "HexagonOpen", "HexagonDot", "HexagonOpenDot", "Hexagon2", "Hexagon2Open", "Hexagon2Dot", "Hexagon2OpenDot", "Octagon", "OctagonOpen", "OctagonDot", "OctagonOpenDot", "Star", "StarOpen", "StarDot", "StarOpenDot", "Hexagram", "HexagramOpen", "HexagramDot", "HexagramOpenDot", "StarTriangleUp", "StarTriangleUpOpen", "StarTriangleUpDot", "StarTriangleUpOpenDot", "StarTriangleDown", "StarTriangleDownOpen", "StarTriangleDownDot", "StarTriangleDownOpenDot", "StarSquare", "StarSquareOpen", "StarSquareDot", "StarSquareOpenDot", "StarDiamond", "StarDiamondOpen", "StarDiamondDot", "StarDiamondOpenDot", "DiamondTall", "DiamondTallOpen", "DiamondTallDot", "DiamondTallOpenDot", "DiamondWide", "DiamondWideOpen", "DiamondWideDot", "DiamondWideOpenDot", "Hourglass", "HourglassOpen", "BowTie", "BowTieOpen", "CircleCross", "CircleCrossOpen", "CircleX", "CircleXOpen", "SquareCross", "SquareCrossOpen", "SquareX", "SquareXOpen", "DiamondCross", "DiamondCrossOpen", "DiamondX", "DiamondXOpen", "CrossThin", "CrossThinOpen", "XThin", "XThinOpen", "Asterisk", "AsteriskOpen", "Hash", "HashOpen", "HashDot", "HashOpenDot", "YUp", "YUpOpen", "YDown", "YDownOpen", "YLeft", "YLeftOpen", "YRight", "YRightOpen", "LineEW", "LineEWOpen", "LineNS", "LineNSOpen", "LineNE", "LineNEOpen", "LineNW", "LineNWOpen", ];
+    let pool = vec![
+        "Circle",
+        "CircleOpen",
+        "CircleDot",
+        "CircleOpenDot",
+        "Square",
+        "SquareOpen",
+        "SquareDot",
+        "SquareOpenDot",
+        "Diamond",
+        "DiamondOpen",
+        "DiamondDot",
+        "DiamondOpenDot",
+        "Cross",
+        "CrossOpen",
+        "CrossDot",
+        "CrossOpenDot",
+        "X",
+        "XOpen",
+        "XDot",
+        "XOpenDot",
+        "TriangleUp",
+        "TriangleUpOpen",
+        "TriangleUpDot",
+        "TriangleUpOpenDot",
+        "TriangleDown",
+        "TriangleDownOpen",
+        "TriangleDownDot",
+        "TriangleDownOpenDot",
+        "TriangleLeft",
+        "TriangleLeftOpen",
+        "TriangleLeftDot",
+        "TriangleLeftOpenDot",
+        "TriangleRight",
+        "TriangleRightOpen",
+        "TriangleRightDot",
+        "TriangleRightOpenDot",
+        "TriangleNE",
+        "TriangleNEOpen",
+        "TriangleNEDot",
+        "TriangleNEOpenDot",
+        "TriangleSE",
+        "TriangleSEOpen",
+        "TriangleSEDot",
+        "TriangleSEOpenDot",
+        "TriangleSW",
+        "TriangleSWOpen",
+        "TriangleSWDot",
+        "TriangleSWOpenDot",
+        "TriangleNW",
+        "TriangleNWOpen",
+        "TriangleNWDot",
+        "TriangleNWOpenDot",
+        "Pentagon",
+        "PentagonOpen",
+        "PentagonDot",
+        "PentagonOpenDot",
+        "Hexagon",
+        "HexagonOpen",
+        "HexagonDot",
+        "HexagonOpenDot",
+        "Hexagon2",
+        "Hexagon2Open",
+        "Hexagon2Dot",
+        "Hexagon2OpenDot",
+        "Octagon",
+        "OctagonOpen",
+        "OctagonDot",
+        "OctagonOpenDot",
+        "Star",
+        "StarOpen",
+        "StarDot",
+        "StarOpenDot",
+        "Hexagram",
+        "HexagramOpen",
+        "HexagramDot",
+        "HexagramOpenDot",
+        "StarTriangleUp",
+        "StarTriangleUpOpen",
+        "StarTriangleUpDot",
+        "StarTriangleUpOpenDot",
+        "StarTriangleDown",
+        "StarTriangleDownOpen",
+        "StarTriangleDownDot",
+        "StarTriangleDownOpenDot",
+        "StarSquare",
+        "StarSquareOpen",
+        "StarSquareDot",
+        "StarSquareOpenDot",
+        "StarDiamond",
+        "StarDiamondOpen",
+        "StarDiamondDot",
+        "StarDiamondOpenDot",
+        "DiamondTall",
+        "DiamondTallOpen",
+        "DiamondTallDot",
+        "DiamondTallOpenDot",
+        "DiamondWide",
+        "DiamondWideOpen",
+        "DiamondWideDot",
+        "DiamondWideOpenDot",
+        "Hourglass",
+        "HourglassOpen",
+        "BowTie",
+        "BowTieOpen",
+        "CircleCross",
+        "CircleCrossOpen",
+        "CircleX",
+        "CircleXOpen",
+        "SquareCross",
+        "SquareCrossOpen",
+        "SquareX",
+        "SquareXOpen",
+        "DiamondCross",
+        "DiamondCrossOpen",
+        "DiamondX",
+        "DiamondXOpen",
+        "CrossThin",
+        "CrossThinOpen",
+        "XThin",
+        "XThinOpen",
+        "Asterisk",
+        "AsteriskOpen",
+        "Hash",
+        "HashOpen",
+        "HashDot",
+        "HashOpenDot",
+        "YUp",
+        "YUpOpen",
+        "YDown",
+        "YDownOpen",
+        "YLeft",
+        "YLeftOpen",
+        "YRight",
+        "YRightOpen",
+        "LineEW",
+        "LineEWOpen",
+        "LineNS",
+        "LineNSOpen",
+        "LineNE",
+        "LineNEOpen",
+        "LineNW",
+        "LineNWOpen",
+    ];
     let mut rng = rand::thread_rng();
     let mut ret: Vec<MarkerSymbol> = Vec::with_capacity(n);
     for _ in 0..n {
@@ -82,14 +226,14 @@ pub fn generate_markers(n: usize) -> Vec<MarkerSymbol> {
  */
 pub fn build_default_plot(title: &str, y_title: &str) -> Plot {
     build_plot(
-        title, 
-        Side::Top, 
+        title,
+        Side::Top,
         Font::default(),
         "Epoch (UTC)",
         y_title,
         (false, false), // zero lines
-        true, // show legend
-        true, // autosize
+        true,           // show legend
+        true,           // autosize
     )
 }
 
@@ -121,23 +265,19 @@ pub fn build_plot(
     zero_line: (bool, bool), // plots a bold line @ (x=0,y=0)
     show_legend: bool,
     auto_size: bool,
-    ) -> Plot {
+) -> Plot {
     let layout = Layout::new()
-        .title(Title::new(title)
-            .font(title_font)
-        )
+        .title(Title::new(title).font(title_font))
         .x_axis(
             Axis::new()
-                .title(Title::new(x_axis_title)
-                    .side(title_side)
-                )
+                .title(Title::new(x_axis_title).side(title_side))
                 .zero_line(zero_line.0)
-                .show_tick_labels(false)
+                .show_tick_labels(false),
         )
         .y_axis(
             Axis::new()
                 .title(Title::new(y_axis_title))
-                .zero_line(zero_line.0)
+                .zero_line(zero_line.0),
         )
         .show_legend(show_legend)
         .auto_size(auto_size);

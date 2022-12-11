@@ -1,10 +1,5 @@
-use plotly::{
-    ScatterPolar,
-    common::{
-        Mode,
-    },
-};
 use super::Context;
+use plotly::{common::Mode, ScatterPolar};
 use rinex::prelude::*;
 
 /*
@@ -27,25 +22,22 @@ pub fn skyplot(
             println!("--nav should be Navigation Data!");
             return;
         }
-        
+
         let sat_angles = nav.navigation_sat_angles(ref_pos);
         for (sv, epochs) in sat_angles {
             let el: Vec<f64> = epochs
                 .iter()
-                .map(|(_, (el,_))| {
-                    el * 360.0 / std::f64::consts::PI  
-                }).collect();
+                .map(|(_, (el, _))| el * 360.0 / std::f64::consts::PI)
+                .collect();
             let azi: Vec<f64> = epochs
                 .iter()
-                .map(|(_, (_,azi))| {
-                    azi * 360.0 / std::f64::consts::PI  
-                }).collect();
+                .map(|(_, (_, azi))| azi * 360.0 / std::f64::consts::PI)
+                .collect();
             let trace = ScatterPolar::new(el, azi)
                 .mode(Mode::LinesMarkers)
                 .name(sv.to_string());
             ctx.add_trace(trace);
         }
-
     } else {
         /*
          * "simplified" skyplot view,
@@ -55,14 +47,12 @@ pub fn skyplot(
         for (sv, epochs) in sat_angles {
             let el: Vec<f64> = epochs
                 .iter()
-                .map(|(_, (el,_))| {
-                    el * 360.0 / std::f64::consts::PI  
-                }).collect();
+                .map(|(_, (el, _))| el * 360.0 / std::f64::consts::PI)
+                .collect();
             let azi: Vec<f64> = epochs
                 .iter()
-                .map(|(_, (_,azi))| {
-                    azi * 360.0 / std::f64::consts::PI  
-                }).collect();
+                .map(|(_, (_, azi))| azi * 360.0 / std::f64::consts::PI)
+                .collect();
             let trace = ScatterPolar::new(el, azi)
                 .mode(Mode::LinesMarkers)
                 .name(sv.to_string());

@@ -1,17 +1,10 @@
-use rinex::{
-    *,
-    navigation::*, 
-    observation::*, 
-    prelude::*, 
-};
-use std::collections::HashMap;
+use crate::plot::{generate_markers, Context};
 use plotly::{
+    common::{Marker, MarkerSymbol, Mode},
     Scatter,
-    common::{
-        Mode, Marker, MarkerSymbol,
-    },
 };
-use crate::plot::{Context, generate_markers};
+use rinex::{navigation::*, observation::*, prelude::*, *};
+use std::collections::HashMap;
 
 macro_rules! code2physics {
     ($code: expr) => {
@@ -82,34 +75,26 @@ pub fn basic_plot(ctx: &mut Context, record: &observation::Record) {
                 } else {
                     let mut map: HashMap<Sv, Vec<(bool, String, f64)>> = HashMap::new();
                     map.insert(*sv, vec![(cycle_slip, epoch.to_string(), y)]);
-                    let mut mmap: HashMap<u8, HashMap<Sv, Vec<(bool, String, f64)>>> = HashMap::new();
+                    let mut mmap: HashMap<u8, HashMap<Sv, Vec<(bool, String, f64)>>> =
+                        HashMap::new();
                     mmap.insert(c_code, map);
                     dataset.insert(physics.to_string(), mmap);
                 }
             }
         }
     }
-    
+
     if clk_offset.len() > 0 {
         ctx.add_cartesian2d_plot("Receiver Clock Offset", "Clock Offset [s]");
-        let data_x: Vec<String> = clk_offset
-            .iter()
-            .map(|(k, _)| k.clone())
-            .collect();
-        let data_y: Vec<f64> = clk_offset
-            .iter()
-            .map(|(_, v)| *v)
-            .collect();
+        let data_x: Vec<String> = clk_offset.iter().map(|(k, _)| k.clone()).collect();
+        let data_y: Vec<f64> = clk_offset.iter().map(|(_, v)| *v).collect();
         let trace = Scatter::new(data_x, data_y)
             .mode(Mode::LinesMarkers)
-            .marker(
-                Marker::new()
-                    .symbol(MarkerSymbol::TriangleUp)
-            )
+            .marker(Marker::new().symbol(MarkerSymbol::TriangleUp))
             .name("Clk Offset");
         ctx.add_trace(trace);
     }
-    /* 
+    /*
      * 1 plot per physics
      */
     for (physics, carriers) in dataset {
@@ -125,20 +110,11 @@ pub fn basic_plot(ctx: &mut Context, record: &observation::Record) {
         let markers = generate_markers(carriers.len());
         for (index, (carrier, vehicules)) in carriers.iter().enumerate() {
             for (sv, data) in vehicules {
-                let data_x: Vec<String> = data
-                    .iter()
-                    .map(|(cs, e, _y)| e.clone())
-                    .collect();
-                let data_y: Vec<f64> = data
-                    .iter()
-                    .map(|(cs, _e, y)| *y)
-                    .collect();
+                let data_x: Vec<String> = data.iter().map(|(cs, e, _y)| e.clone()).collect();
+                let data_y: Vec<f64> = data.iter().map(|(cs, _e, y)| *y).collect();
                 let trace = Scatter::new(data_x, data_y)
                     .mode(Mode::Markers)
-                    .marker(
-                        Marker::new()
-                            .symbol(markers[index].clone())
-                    )
+                    .marker(Marker::new().symbol(markers[index].clone()))
                     .name(&format!("{}(L{})", sv, carrier));
                 ctx.add_trace(trace);
             }

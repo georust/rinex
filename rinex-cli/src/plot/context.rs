@@ -1,31 +1,23 @@
-use super::{
-    Plot,
-    build_default_plot,
-    build_default_polar_plot,
-};
+use super::{build_default_plot, build_default_polar_plot, Plot};
 use plotly::Trace;
 
-/// CLI Plot Context 
+/// CLI Plot Context
 pub struct Context {
-    plots: Vec<Plot>, 
+    plots: Vec<Plot>,
 }
 
 impl Context {
     pub fn new() -> Self {
-        Self {
-            plots: Vec::new(),
-        }
+        Self { plots: Vec::new() }
     }
     pub fn add_cartesian2d_plot(&mut self, title: &str, y_label: &str) {
-        self.plots.push(
-            build_default_plot(title, y_label));
+        self.plots.push(build_default_plot(title, y_label));
     }
     pub fn add_polar2d_plot(&mut self, title: &str) {
-        self.plots.push(
-            build_default_polar_plot(title));
+        self.plots.push(build_default_polar_plot(title));
     }
     pub fn add_trace(&mut self, trace: Box<dyn Trace>) {
-        let len = self.plots.len()-1;
+        let len = self.plots.len() - 1;
         self.plots[len].add_trace(trace);
     }
     pub fn to_html(&mut self, tiny: bool) -> String {

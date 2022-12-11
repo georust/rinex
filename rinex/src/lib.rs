@@ -22,9 +22,10 @@ pub mod sv;
 pub mod types;
 pub mod version;
 
-mod differential;
+//mod differential;
 mod leap;
 mod sampling;
+//mod quality;
 
 extern crate num;
 #[macro_use]
@@ -65,10 +66,12 @@ pub mod sbas {
     pub use crate::constellation::selection_helper;
 }
 
-/// Convenient package to import
+/// Processing package, regroups sampling
+/// and file quality operations.
 pub mod processing {
-    pub use crate::differential::DiffContext;
+    //pub use crate::differential::DiffContext;
     pub use crate::sampling::Decimation;
+    //pub use crate::quality::QcReport;
 }
 
 use crate::channel::Channel;
@@ -1289,7 +1292,7 @@ impl Rinex {
                 match self.header.coords {
                     Some(pos) => pos,
                     _ => {
-                        println!("missing reference point coordinates. Defined them manually with `ref_pos`");
+                        println!("missing reference point coordinates. Define them manually with `ref_pos`");
                         (0.0_f64, 0.0_f64, 0.0_f64)
                     },
                 }

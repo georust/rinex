@@ -1,10 +1,4 @@
-use super::{
-    generate_markers,
-    Marker,
-    Scatter,
-    Mode,
-    Context,
-};
+use super::{generate_markers, Context, Marker, Mode, Scatter};
 use rinex::prelude::*;
 use std::collections::{BTreeMap, HashMap};
 
@@ -24,18 +18,14 @@ pub fn plot_gnss_recombination(
     // plot all ops
     for (op_index, (op, vehicules)) in data.iter().enumerate() {
         for (sv, epochs) in vehicules {
-            let data_x: Vec<String> = epochs.iter()
+            let data_x: Vec<String> = epochs
+                .iter()
                 .map(|((e, _flag), _v)| e.to_string())
                 .collect();
-            let data_y: Vec<f64> = epochs.iter()
-                .map(|(_, v)| *v)
-                .collect();
+            let data_y: Vec<f64> = epochs.iter().map(|(_, v)| *v).collect();
             let trace = Scatter::new(data_x, data_y)
                 .mode(Mode::Markers)
-                .marker(
-                    Marker::new()
-                        .symbol(markers[op_index].clone())
-                )
+                .marker(Marker::new().symbol(markers[op_index].clone()))
                 .name(&format!("{}({})", sv, op));
             ctx.add_trace(trace);
         }

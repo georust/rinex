@@ -29,10 +29,7 @@ pub mod parser; // command line parsing utilities
 
 use std::io::Write;
 
-use fops::{
-    filename,
-    open_html_with_default_app,
-};
+use fops::{filename, open_html_with_default_app};
 
 // Returns path prefix for all products to be generated
 // like report output, generate files..
@@ -114,8 +111,8 @@ pub fn main() -> Result<(), rinex::Error> {
     /*
      * Epoch histogram analysis
      */
-    if cli.epoch_histogram() { 
-        analysis::epoch_histogram(&mut ctx, &rnx); 
+    if cli.epoch_histogram() {
+        analysis::epoch_histogram(&mut ctx, &rnx);
     }
 
     /*
@@ -126,12 +123,7 @@ pub fn main() -> Result<(), rinex::Error> {
         for (op, inner) in rnx.observation_pseudorange_dcb() {
             data.insert(op.clone(), inner.clone());
         }
-        plot::plot_gnss_recombination(
-            &mut ctx,
-            "Differential Code Biases",
-            "DBCs [n.a]",
-            &data,
-        );
+        plot::plot_gnss_recombination(&mut ctx, "Differential Code Biases", "DBCs [n.a]", &data);
     }
 
     /*
@@ -139,12 +131,7 @@ pub fn main() -> Result<(), rinex::Error> {
      */
     if cli.multipath() {
         let data = rnx.observation_code_multipath();
-        plot::plot_gnss_recombination(
-            &mut ctx,
-            "Code Multipath Biases",
-            "MP [n.a]",
-            &data,
-        );
+        plot::plot_gnss_recombination(&mut ctx, "Code Multipath Biases", "MP [n.a]", &data);
     }
     /*
      * [GF] recombination visualization requested
@@ -251,26 +238,20 @@ pub fn main() -> Result<(), rinex::Error> {
      */
     let skyplot = rnx.is_navigation_rinex() || nav_context.is_some();
     if skyplot {
-        plot::skyplot(
-            &mut ctx,
-            &rnx,
-            &nav_context,
-            ref_position,
-        );
+        plot::skyplot(&mut ctx, &rnx, &nav_context, ref_position);
     }
 
     /*
      * Record analysis / visualization
      */
     plot::plot_record(&mut ctx, &rnx, &nav_context);
-    
+
     // Render HTML
     let html_absolute_path = product_prefix.to_owned() + "/analysis.html";
     let mut html_fd = std::fs::File::create(&html_absolute_path)
         .expect(&format!("failed to create \"{}\"", &html_absolute_path));
     let html = ctx.to_html(cli.tiny_html());
-    write!(html_fd, "{}", html)
-        .expect(&format!("failed to write HTML content"));
+    write!(html_fd, "{}", html).expect(&format!("failed to write HTML content"));
     open_html_with_default_app(&html_absolute_path);
     println!("\"{}\" generated", &html_absolute_path);
 
