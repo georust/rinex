@@ -44,6 +44,7 @@ fn config_dir() -> String {
 pub fn main() -> Result<(), rinex::Error> {
     let cli = Cli::new();
     let pretty = cli.pretty();
+    let mut ctx = plot::Context::new();
 
     // input context
     //  primary RINEX (-fp)
@@ -109,13 +110,13 @@ pub fn main() -> Result<(), rinex::Error> {
      * SV per Epoch analysis requested
      */
     if cli.sv_epoch() {
-        analysis::sv_epoch(&rnx, &mut nav_context);
+        analysis::sv_epoch(&mut ctx, &rnx, &mut nav_context);
     }
     /*
      * Epoch histogram analysis
      */
     if cli.epoch_histogram() { 
-        analysis::epoch_histogram(&rnx); 
+        analysis::epoch_histogram(&mut ctx, &rnx); 
     }
 
     /*
@@ -255,6 +256,7 @@ pub fn main() -> Result<(), rinex::Error> {
     /*
      * Record analysis / visualization
      */
-    plot::plot_record(&rnx, &nav_context);
+    //plot::plot_record(&rnx, &nav_context);
+    ctx.to_html();
     Ok(())
 } // main

@@ -1,4 +1,7 @@
-use crate::plot::*;
+use crate::plot::{
+    Context, PlotType,
+    generate_markers,
+};
 use plotly::{
     Scatter,
     common::{
@@ -13,8 +16,9 @@ use ndarray::Array;
 /*
  * Sv per epoch analysis
  */
-pub fn sv_epoch(rnx: &Rinex, nav: &mut Option<Rinex>) {
-    let mut plot = build_default_plot("Sv per Epoch", "Sv");
+pub fn sv_epoch(ctx: &mut Context, rnx: &Rinex, nav: &mut Option<Rinex>) {
+    // create a new plot
+    ctx.add_plot(PlotType::Cartesian2d, "Sv per Epoch", "Sv");
     let constellations = rnx.list_constellations();
     let mut nb_markers = constellations.len();
 
@@ -59,7 +63,7 @@ pub fn sv_epoch(rnx: &Rinex, nav: &mut Option<Rinex>) {
                 }
             })
             .name(&sv.to_string());
-        plot.add_trace(trace);
+        ctx.add_trace(trace);
     }
     
     if let Some(nav) = nav {
@@ -100,8 +104,7 @@ pub fn sv_epoch(rnx: &Rinex, nav: &mut Option<Rinex>) {
                     }
                 })
                 .name(&format!("{}(NAV)", sv));
-            plot.add_trace(trace);
+            ctx.add_trace(trace);
         }
     }
-    plot.show();
 }
