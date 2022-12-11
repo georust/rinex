@@ -1,57 +1,36 @@
-Record analysis
-===============
-
-RINEX files are huge, complex and vary a lot.   
-This tool aims at providing an easy to use and efficient interface
-to parse and analyze these files.
-
 Observation RINEX
 =================
 
-When analyzing Observation RINEX, one plot per kind of observations
-is to be generated:
+When analyzing Observation RINEX, one plot per encountered observations
+is generated.
+Receiver clock offsets are plotted if they were identified.
 
-- "phase.png": Phase data points 
-- "pseudorange.png": Pseudo range data
-- "ssi.png": received signal strengths [dB]
-- "doppler.png": Doppler shifts
-
-An optionnal "clock-offset.png" will be generated, in case this RINEX came with such information.
-
-It is rapidly necessary to determine which vehicules can be encountered in the file. 
-For this reason, we developped the `--sv-epoch` analysis, which helps determine which vehicule to focus on.
-
-Locate GPS vehicules in `ESBC00DNK_R_2020`:
+Let's analyze Observations for 4 vehicles: 
 
 ```bash
 rinex-cli \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    --retain-constell GPS \
+    --retain-sv R01,R08,G21,G31
+```
+
+The received signal power analysis for example, extracted from the analysis report
+
+<img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_ssi.png">
+
+It is rapidly necessary to determine which vehicules can be encountered in a file.  
+For this reason, we developped the `--sv-epoch` analysis, which helps determine which vehicule to focus on.
+
+```bash
+rinex-cli \
+    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
+    --retain-sv G02,R02,R01,G01 \
     --sv-epoch
 ```
 
-This generates "sv.png".
+With the Sv per Epoch analysis, you know R01,R02 were both seen at 21:00UTC
 
-<img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_gps_sv.png">
+<img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_sv_epoch.png">
 
-The previous identification has determined that G21, G09, G27, G28, G15 were visible
-during the first few hours. With the following command, we request an visualization
-of all observations (no observable filter) for the first 8 hours of that day
-
-```bash
-rinex-cli \
-    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    --retain-sv G21,G09,G27 \
-    -w "2020-06-25 00:00:00 2020-06-25 08:00:00"
-```
-
-This is the resulting "doppler.png" product:
-
-<img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_gpsdoppler.png">
-
-This is the resulting "ssi.png" product:
-
-<img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_gps_ssi.png">
 
 When dealing with Observation RINEX, the following operations are most useful:
 
