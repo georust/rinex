@@ -6,6 +6,10 @@ mod sampling;
 //mod advanced;
 //mod navigation;
 mod observation;
+mod averager;
+
+mod opts;
+pub use opts::QcOpts;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -60,15 +64,6 @@ pub struct QcReport {
     */
 }
 
-/*
-pub struct QcOpts{}
-
-impl Default for QcOpts {
-    fn default() -> Self {
-        QcOpts {}
-    }
-}*/
-
 impl QcReport {
     /// Processes given RINEX and generates a summary report.
     pub fn new(rnx: &Rinex, nav: &Option<Rinex>, qc_type: QcType) -> Self {
@@ -103,7 +98,12 @@ impl QcReport {
                 : doctype::HTML;
                 html {
                     head {
+                        meta(charset="utf-8");
                         title: "RINEX QC summary";
+                        //to include JS:
+                        //script: Raw(include_str!("test.js"));
+                        //to include CSS (one option..)
+                        //style: Raw(include_str!("test.css"));
                         style {
                             table {
                                 font-family: "arial, sans-serif";
@@ -200,6 +200,21 @@ impl QcReport {
                         }
                     } 
                 }//div="rcvr"
+                div(id="ground-pos") {
+                    table {
+                        tr {
+                            th {
+                                : "Ground Position (ECEF)"
+                            }
+                            @ if let Some((pos_x,pos_y,pos_z)) = &self.header.coords {
+                                : format!("{}, {}, {}", pos_x, pos_y, pos_z)
+                            } else {
+                                : "Unknown"
+                            }
+                        }
+
+                    }
+                }//div="ground-pos"
             }//div=general
             div(id="sampling") {
                 table {

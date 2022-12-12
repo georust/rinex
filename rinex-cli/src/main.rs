@@ -11,7 +11,6 @@ mod identification; // high level identification/macros
 mod plot; // plotting operations
 mod resampling; // record resampling
 mod retain; // record filtering
-mod teqc; // `teqc` operations // RINEX to file macro
 
 use horrorshow::Template;
 
@@ -202,7 +201,7 @@ pub fn main() -> Result<(), rinex::Error> {
     }
 
     /*
-     * teqc [MERGE]
+     * MERGE
      */
     if let Some(rnx_b) = cli.merge() {
         // we're merging (A)+(B) into (C)
@@ -226,7 +225,7 @@ pub fn main() -> Result<(), rinex::Error> {
     }
 
     /*
-     * teqc [SPLIT]
+     * SPLIT
      */
     if let Some(epoch) = cli.split() {
         let (a, b) = rnx
