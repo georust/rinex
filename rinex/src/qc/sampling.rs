@@ -29,14 +29,7 @@ impl QcReport {
             first_epoch,
             last_epoch,
             time_line: last_epoch - first_epoch,
-            sample_rate: {
-                let dominant = rnx
-                    .epoch_intervals()
-                    .into_iter()
-                    .max_by(|(_, x_pop), (_, y_pop)| x_pop.cmp(y_pop))
-                    .unwrap();
-                dominant.0
-            },
+            sample_rate: rnx.sampling_interval(),
             gaps: rnx.data_gaps(),
         }
     }

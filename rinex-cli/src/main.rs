@@ -108,7 +108,7 @@ pub fn main() -> Result<(), rinex::Error> {
      * Observation RINEX:
      *  align phase origins at this point
      *  this allows easy GNSS combination and processing,
-     *  also gives a more meaningful record plot
+     *  gives more meaningful phase data plots..
      */
     rnx.observation_align_phase_origins_mut();
 
@@ -119,7 +119,6 @@ pub fn main() -> Result<(), rinex::Error> {
         basic_identification(&rnx, cli.identification_ops(), pretty);
         return Ok(());
     }
-
     /*
      * SV per Epoch analysis requested
      */
@@ -132,7 +131,6 @@ pub fn main() -> Result<(), rinex::Error> {
     if cli.epoch_histogram() {
         analysis::epoch_histogram(&mut ctx, &rnx);
     }
-
     /*
      * DCB analysis requested
      */
@@ -143,7 +141,6 @@ pub fn main() -> Result<(), rinex::Error> {
         }
         plot::plot_gnss_recombination(&mut ctx, "Differential Code Biases", "DBCs [n.a]", &data);
     }
-
     /*
      * Code Multipath analysis
      */
@@ -199,7 +196,6 @@ pub fn main() -> Result<(), rinex::Error> {
             &data,
         );
     }
-
     /*
      * MERGE
      */
@@ -223,7 +219,6 @@ pub fn main() -> Result<(), rinex::Error> {
         // [*] stop here, special mode: no further analysis allowed
         return Ok(());
     }
-
     /*
      * SPLIT
      */
@@ -241,15 +236,13 @@ pub fn main() -> Result<(), rinex::Error> {
         // [*] stop here, special mode: no further analysis allowed
         return Ok(());
     }
-
     /*
-     * skyplot view
+     * skyplot
      */
     let skyplot = rnx.is_navigation_rinex() || nav_context.is_some();
     if skyplot {
         plot::skyplot(&mut ctx, &rnx, &nav_context, ref_position);
     }
-
     /*
      * Record analysis / visualization
      * analysis depends on the provided record type
@@ -265,7 +258,7 @@ pub fn main() -> Result<(), rinex::Error> {
     let mut html = ctx.to_html(cli.tiny_html());
 
     /*
-     * Quality Checks and analysis
+     * Quality Check summary
      */
     if cli.quality_check() {
         let report = QcReport::new(&rnx, &nav_context, QcType::Basic);

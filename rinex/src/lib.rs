@@ -22,8 +22,9 @@ pub mod sv;
 pub mod types;
 pub mod version;
 
-mod leap;
+mod cs;
 mod qc;
+mod leap;
 mod sampling;
 
 extern crate num;
@@ -73,9 +74,11 @@ pub mod processing {
     //pub use crate::differential::DiffContext;
     pub use crate::qc::{QcReport, QcType};
     pub use crate::sampling::Decimation;
+    pub use crate::cs::CsOpts;
 }
 
-use crate::channel::Channel;
+use cs::CsOpts; 
+use channel::Channel;
 use gnss_time::TimeScaling;
 use prelude::*;
 use sampling::*;
@@ -611,14 +614,20 @@ impl Rinex {
     /// ```
     /// use rinex::prelude::*;
     /// let rnx = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O").unwrap();
-    /// // in this file, header section contains desired information directly
     /// assert_eq!(rnx.sampling_interval(), Some(Duration::from_seconds(30.0)));
     /// ```
     pub fn sampling_interval(&self) -> Option<Duration> {
         if let Some(interval) = self.header.sampling_interval {
             Some(interval)
         } else {
-            None
+            if let Some(dominant) = self.epoch_intervals()
+                .into_iter()
+                .max_by(|(_, x_pop), (_, y_pop)| x_pop.cmp(y_pop))
+            {
+                Some(dominant.0)
+            } else {
+                None
+            }
         }
     }
 
@@ -3390,6 +3399,92 @@ impl Rinex {
         }
         ret
     }
+
+    fn single_frequency_cs_detection(&self, sample_rate: Duration, opts: CsOpts) -> BTreeMap<Epoch, HashMap<Sv, String>> {
+        let mut ret: BTreeMap<Epoch, HashMap<Sv, String>> = BTreeMap::new();
+        // 1. Form Phase/PR recombinations 
+        // 2. Study recombination evolution over time
+        let mut prev_data: HashMap<Sv, (Epoch, f64)> = HashMap::new();
+        if let Some(r) = self.record.as_obs() {
+            for ((epoch, _), (_, svs)) in r {
+                for (sv, observations) in svs {
+                    for (lhs_code, lhs_data) in observations {
+                        let lhs_carrier = &lhs_code[1..1];
+                        if is_phase_carrier_obs_code!(lhs_code) {
+                            // locate a PR OBS
+                            for (rhs_code, rhs_data) in observations {
+                                let rhs_carrier = &rhs_code[1..];
+                                if lhs_carrier == rhs_carrier {
+                                    if is_pseudo_range_obs_code!(rhs_code) {
+                                        let recomb_y = lhs_data.obs - rhs_data.obs;
+                                        //let op = rhs_code[1..].to_owned() + &lhs_code[1..];
+                                        if let Some((p_epoch, p_data)) = prev_data.get_mut(sv) {
+                                            let dy = recomb_y - *p_data;
+                                            let dt = *epoch - *p_epoch;
+                                            if dy.abs() > opts.sensitivity(dt, sample_rate) {
+                                                println!("{} (dt={}) - GAP DETECTED |{} - {}| = {}",
+                                                    epoch, dt, recomb_y, p_data, dy.abs()); //DEBUG
+                                            }
+                                        } else {
+                                            prev_data.insert(*sv, (*epoch, recomb_y));
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        ret
+    }
+
+    /// Returns list of Epoch when CS is most probable, per signal and per vehicle
+    pub fn observation_cs_detection(&self, opts: CsOpts) -> BTreeMap<Epoch, HashMap<Sv, String>> {
+        let sample_rate 
+        /*
+         * 1. if GF combination is possible (modern RINEX)
+         *    -> Geo + MP cancelled
+         *    --> Iono still exists
+         *
+         * 2. if MW combination exist
+         *    they're 1st backup solution
+         *
+         * 3. if doppler were estimated
+         *    if MW recombination was partial:
+         *       we augment it with Doppler/Phase analysis
+         *       + possible filter
+         *    
+         *    if MW recombination was not feasible
+         *       we use Doppler/Phase analysis
+         *       + possible filter
+         */
+        
+        //let gf_combinations = self.gf_combinations(); 
+        //let mw_recombinations = self.observation_mw_combinations();
+
+        // form the Single frequency recombination
+        self.single_frequency_cs_detection(opts)
+    }
+
+/*
+    /// Applies Hatch filter to all Pseudo Range observations.
+    /// When feasible dual frequency dual code method is prefered
+    /// for optimal, fully unbiased smoothed PR.
+    /// PR observations get modified in place
+    pub fn observation_pseudorange_smoothing_mut(&mut self) {
+        if let Some(r) = self.record.as_mut_obs() {
+            for ((epoch, _), (_, svs)) in r {
+                for (sv, observations) in svs {
+                    for (code, observation) in observations {
+                          
+                    }
+                }
+            }
+        }
+    }
+*/
+
     /*
         /// "Upsamples" to match desired epoch interval
         pub fn upsample_by_interval_mut (&mut self, interval: chrono::Duration) {
