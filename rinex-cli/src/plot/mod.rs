@@ -12,6 +12,7 @@ use plotly::{
     Layout, Plot, Scatter,
 };
 use rand::Rng;
+use crate::Cli;
 use rinex::prelude::*;
 
 mod context;
@@ -306,9 +307,9 @@ pub fn build_plot(
     p
 }
 
-pub fn plot_record(ctx: &mut Context, rnx: &Rinex, nav: &Option<Rinex>) {
+pub fn plot_record(cli: &Cli, ctx: &mut Context, rnx: &Rinex, nav: &Option<Rinex>) {
     if let Some(r) = rnx.record.as_obs() {
-        record::plot_observation(ctx, r, nav);
+        record::plot_observation(cli, ctx, r, nav);
     } else if let Some(r) = rnx.record.as_meteo() {
         record::plot_meteo(ctx, r);
     } else if let Some(r) = rnx.record.as_ionex() {

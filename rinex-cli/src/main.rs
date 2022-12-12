@@ -247,7 +247,7 @@ pub fn main() -> Result<(), rinex::Error> {
      * Record analysis / visualization
      * analysis depends on the provided record type
      */
-    plot::plot_record(&mut ctx, &rnx, &nav_context);
+    plot::plot_record(&cli, &mut ctx, &rnx, &nav_context);
 
     /*
      * Render HTML

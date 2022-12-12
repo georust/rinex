@@ -25,11 +25,14 @@ impl QcReport {
         let last_epoch = rnx
             .last_epoch()
             .expect("Sampling QC expects a RINEX indexed by epochs");
+        let sample_rate = rnx
+            .sampling_interval()
+            .expect("failed to determine sample rate");
         Self {
             first_epoch,
             last_epoch,
+            sample_rate,
             time_line: last_epoch - first_epoch,
-            sample_rate: rnx.sampling_interval(),
             gaps: rnx.data_gaps(),
         }
     }

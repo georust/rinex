@@ -68,6 +68,9 @@ pub fn basic_identification(rnx: &Rinex, ops: Vec<&str>, pretty: bool) {
         } else if op.eq("nav-msg") {
             let data = &rnx.navigation_message_types();
             println!("{:?}", data);
+        } else if op.eq("anomalies") {
+            let data = &rnx.observation_epoch_anomalies();
+            println!("{:#?}", data);
         }
     }
 }

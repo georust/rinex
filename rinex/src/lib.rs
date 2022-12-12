@@ -664,24 +664,6 @@ impl Rinex {
         histogram
     }
 
-    /// Returns start date and duration of largest data gap encountered in this
-    /// RINEX file.
-    pub fn largest_data_gap_duration(&self) -> Option<(Epoch, Duration)> {
-        let epochs = self.epochs();
-        let mut ret: Option<(Epoch, Duration)> = None;
-        let mut dt = Duration::default();
-        let mut prev_epoch = epochs[0];
-        for epoch in epochs.iter().skip(1) {
-            let dtt = *epoch - prev_epoch;
-            if dtt > dt {
-                dt = dtt;
-                ret = Some((*epoch, dtt));
-            }
-            prev_epoch = *epoch;
-        }
-        ret
-    }
-
     /// Returns a list of epochs where unexpected data gap happend.
     /// Data gap is determined by comparing |e(k)-e(k-1)| ie., successive epoch intervals,
     /// to [Rinex::sampling_interval].
@@ -707,26 +689,19 @@ impl Rinex {
             Vec::new()
         }
     }
-
-    /*
-        /// Returns (if possible) event explanation / description by searching through identified comments,
-        /// and returning closest comment (inside record) in time.
-        /// Usually, comments are associated to epoch events (anomalies) to describe what happened.
-        /// This method tries to locate a list of comments that were associated to the given timestamp
-        pub fn event_description (&self, event: Epoch) -> Option<&str> {
-            let comments : Vec<_> = self.comments
-                .iter()
-                .filter(|(k,_)| *k == &event)
-                .map(|(_,v)| v)
-                .flatten()
-                .collect();
-            if comments.len() > 0 {
-                Some(comments[0]) // TODO grab all content! by serializing into a single string
-            } else {
-                None
+    
+    /// Returns list of epoch where an anomaly is reported by the receiver
+    pub fn observation_epoch_anomalies(&self) -> Vec<Epoch> {
+        let mut ret: Vec<Epoch> = Vec::new();
+        if let Some(r) = self.record.as_obs() {
+            for ((epoch, flag), _) in r {
+                if !flag.is_ok() {
+                    ret.push(*epoch);
+                }
             }
         }
-    */
+        ret
+    }
 
     /// Returns `true` if self is a `merged` RINEX file,   
     /// meaning, this file is the combination of two RINEX files merged together.  
@@ -3441,7 +3416,8 @@ impl Rinex {
 
     /// Returns list of Epoch when CS is most probable, per signal and per vehicle
     pub fn observation_cs_detection(&self, opts: CsOpts) -> BTreeMap<Epoch, HashMap<Sv, String>> {
-        let sample_rate 
+        let sample_rate = self.sampling_interval()
+            .expect("observation_cs_detection() but sample rate is undetermined");
         /*
          * 1. if GF combination is possible (modern RINEX)
          *    -> Geo + MP cancelled
@@ -3463,8 +3439,10 @@ impl Rinex {
         //let gf_combinations = self.gf_combinations(); 
         //let mw_recombinations = self.observation_mw_combinations();
 
-        // form the Single frequency recombination
-        self.single_frequency_cs_detection(opts)
+        /*
+         * default solution
+         */
+        self.single_frequency_cs_detection(sample_rate, opts)
     }
 
 /*

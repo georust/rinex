@@ -1,4 +1,7 @@
-use crate::plot::{generate_markers, Context};
+use crate::{
+    Cli,
+    plot::{generate_markers, Context},
+};
 use plotly::{
     common::{Marker, MarkerSymbol, Mode, Visible},
     Scatter,
@@ -23,16 +26,16 @@ macro_rules! code2physics {
 /*
  * Plots given Observation RINEX content
  */
-pub fn plot_observation(ctx: &mut Context, record: &observation::Record, nav_ctx: &Option<Rinex>) {
+pub fn plot_observation(cli: &Cli, ctx: &mut Context, record: &observation::Record, nav_ctx: &Option<Rinex>) {
     if let Some(nav) = nav_ctx {
         //enhanced_plot(record, nav);
-        basic_plot(ctx, record);
+        basic_plot(cli, ctx, record);
     } else {
-        basic_plot(ctx, record);
+        basic_plot(cli, ctx, record);
     }
 }
 
-pub fn basic_plot(ctx: &mut Context, record: &observation::Record) {
+pub fn basic_plot(cli: &Cli, ctx: &mut Context, record: &observation::Record) {
     let mut clk_offset: Vec<(String, f64)> = Vec::new();
     // dataset
     //  per physics, per carrier signal (symbol)

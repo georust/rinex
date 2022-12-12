@@ -139,7 +139,7 @@ Truly applies to Observation RINEX only."))
                         .help("Retain vehicules per epoch and per constellation, 
 that exhibit the best elevation angle.
 -fp must be a NAV file, or NAV context must be provided with -nav"))
-                .next_help_heading("Observation RINEX specific (-fp)")
+                .next_help_heading("Observation RINEX")
                     .arg(Arg::new("observables")
                         .long("observables")
                         .short('o')
@@ -211,16 +211,20 @@ For instance \"2S-2W\" means S code against W code, for L2 carrier. Refer to REA
                         .long("mp")
                         .action(ArgAction::SetTrue)
                         .help("Run code multipath analysis. Refer to README."))
-                    .arg(Arg::new("lock-loss")
-                        .long("lock-loss")
+                    .arg(Arg::new("anomalies")
+                        .short('a')
+                        .long("anomalies")
                         .action(ArgAction::SetTrue)
-                        .help("Visualize which code might be affected by CS, accross all epochs."))
-                    .arg(Arg::new("pr2distance")
-                        .long("pr2distance")
+                        .help("Display epoch where anomalies was reported by the receiver"))
+                    .arg(Arg::new("cs")
+                        .long("cs")
                         .action(ArgAction::SetTrue)
-                        .help("Converts all Pseudo Range data to real physical distances. 
-This is destructive, original pseudo range codes are lost and overwritten"))
-                .next_help_heading("Navigation RINEX specific")
+                        .help("Cycle Slip detection visualization.
+Helps visualize the detected CS and fine tune the detector operation.
+CS do not get repaired with this command.
+If you're just interested in CS information, you probably want `-qc` instead.
+Do not combine to `-qc` either, otherwise detection process runs twice.."))
+                .next_help_heading("Navigation RINEX")
                     .arg(Arg::new("orbits")
                         .long("orbits")
                         .action(ArgAction::SetTrue)
@@ -399,6 +403,7 @@ Refer to README"))
             | self.matches.get_flag("ssi-range")
             | self.matches.get_flag("orbits")
             | self.matches.get_flag("nav-msg")
+            | self.matches.get_flag("anomalies")
     }
     /// Returns true if Sv accross epoch display is requested
     pub fn sv_epoch(&self) -> bool {
@@ -428,6 +433,7 @@ Refer to README"))
             "ssi-sv-range",
             "orbits",
             "nav-msg",
+            "anomalies",
         ];
         flags
             .iter()
@@ -564,6 +570,9 @@ Refer to README"))
     }
     pub fn tiny_html(&self) -> bool {
         self.matches.get_flag("tiny-html")
+    }
+    pub fn cs_visualization(&self) -> bool {
+        self.matches.get_flag("cs")
     }
     /// Returns optionnal RINEX file to "merge"
     pub fn merge(&self) -> Option<&str> {

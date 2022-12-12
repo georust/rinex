@@ -18,7 +18,7 @@ pub struct QcReport {
     pub mean_ssi: HashMap<Sv, f64>,
     pub dcbs: HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>,
     pub mp: HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>,
-    pub sv_angles: HashMap<Sv, BTreeMap<Epoch, (f64, f64)>>,
+    pub sv_angles: Option<HashMap<Sv, BTreeMap<Epoch, (f64, f64)>>>,
 }
 
 impl QcReport {
@@ -129,7 +129,7 @@ impl QcReport {
             },
             dcbs,
             mp,
-            sv_angles: sv_angles.unwrap(),
+            sv_angles,
             apc_estimate: apc,
         }
     }
