@@ -13,6 +13,8 @@ mod resampling; // record resampling
 mod retain; // record filtering
 mod teqc; // `teqc` operations // RINEX to file macro
 
+use horrorshow::Template;
+
 use cli::Cli;
 use filter::{
     apply_filters,      // special filters, with cli options
@@ -277,7 +279,7 @@ pub fn main() -> Result<(), rinex::Error> {
         } else {
             // append to current HTML content
             html.push_str("<div=\"qc-report\">\n");
-            html.push_str(&report.to_inline_html());
+            html.push_str(&report.to_inline_html().into_string().unwrap());
             html.push_str("</div>\n");
         }
     }

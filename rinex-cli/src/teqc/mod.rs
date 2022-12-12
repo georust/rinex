@@ -40,64 +40,9 @@ pub fn summary_report(cli: &Cli, prefix: &str, rnx: &Rinex, nav: &Option<Rinex>)
 pub fn do_report(cli: &Cli, fp: &str, constell: Constellation, rnx: &Rinex, nav: &Option<Rinex>) {
     let mut report = String::new();
     /*
-     * header content
-     */
-    report.push_str("************** VERBOSE / SUMMARY REPORT *************** \n");
-    report.push_str(&format!(
-        "rust-rnx - version: {}\n",
-        env!("CARGO_PKG_VERSION")
-    ));
-    report.push_str("******************************************************* \n\n");
-    /*
      * proceed to ascii plot
      */
     //report.push_str(&ascii_plot(128, &rnx, nav));
-
-    let fname = filename(cli.input_path());
-
-    report.push_str("\n*********************\n");
-    report.push_str(&format!("QC of RINEX  file(s) : {}\n", fname));
-    if let Some(path) = cli.nav_path() {
-        report.push_str(&format!("input RnxNAV file(s) : {}\n", filename(path)));
-    } else {
-        report.push_str("input RnxNAV file(s) : None\n");
-    }
-    report.push_str("*********************\n\n");
-
-    /*
-     * General informations: file name, receiver and antenna infos
-     */
-    report.push_str(&format!("4-character ID          : {}\n", &fname[0..4]));
-    report.push_str("Receiver type           : ");
-    let rcvr = match &rnx.header.rcvr {
-        Some(rcvr) => format!(
-            "{} (# = {}) (fw = {})\n",
-            rcvr.model, rcvr.sn, rcvr.firmware
-        ),
-        _ => "None\n".to_string(),
-    };
-    report.push_str(&rcvr);
-    report.push_str("Antenna type            : ");
-    let antenna = match &rnx.header.rcvr_antenna {
-        Some(a) => format!("{}       (# = {})\n", a.model, a.sn),
-        _ => "None\n".to_string(),
-    };
-    report.push_str(&antenna);
-
-    /*
-     * Sampling infos
-     */
-    let epochs = rnx.epochs();
-    let (e_0, e_n) = (epochs[0], epochs[epochs.len() - 1]);
-    let duration = e_n - e_0;
-    let (sample_rate, _) = max(rnx.epoch_intervals()).expect("failed to determine epoch span");
-    //let sample_rate = pretty_sample_rate!(sample_rate);
-    report.push_str(&format!("Time of start of window : {}\n", e_0));
-    report.push_str(&format!("Time of  end  of window : {}\n", e_n));
-    report.push_str(&format!(
-        "Time line window length : {}, ticked every {}\n",
-        duration, sample_rate
-    ));
 
     /*
      * Observation Data pre/general study

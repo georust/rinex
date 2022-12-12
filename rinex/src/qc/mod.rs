@@ -1,11 +1,11 @@
 use super::prelude::*;
-use horrorshow::helper::doctype;
+use horrorshow::{helper::doctype, RenderBox};
 use strum_macros::EnumString;
 
 mod sampling;
 //mod advanced;
 //mod navigation;
-//mod observation;
+mod observation;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -46,11 +46,13 @@ pub enum Grade {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct QcReport {
+    // stored header, for further informations
+    header: Header,
     /// Sampling QC
     pub sampling: sampling::QcReport,
+    /// Observation RINEX specific QC
+    pub observation: Option<observation::QcReport>,
     /*
-        /// Observation RINEX specific QC
-        pub observation: Option<ObservationQc>,
         /// Navigation RINEX specific QC
         pub navigation: Option<NavigationQc>,
         /// Advanced Observation + Navigation specific QC
@@ -77,9 +79,16 @@ impl QcReport {
     }
     fn basic_qc(rnx: &Rinex, nav: &Option<Rinex>) -> Self {
         Self {
+            header: rnx.header.clone(),
             sampling: sampling::QcReport::new(rnx),
-            /*observation: None,
-            navigation: None,
+            observation: {
+                if rnx.is_observation_rinex() {
+                    Some(observation::QcReport::new(rnx, nav))
+                } else {
+                    None
+                }
+            },
+            /*navigation: None,
             advanced: None,*/
         }
     }
@@ -124,20 +133,84 @@ impl QcReport {
         )
     }
     /// Dumps self into HTML <div> section, named as suggested
-    pub fn to_inline_html(&self) -> String {
-        format!(
-            "{}",
-            html! {
-                h2(id="heading") {
-                    : "RINEX Quality Check summary"
-                }
-                h4(id="version") {
-                    program-version: format!("rust-rnx: v{}", env!("CARGO_PKG_VERSION"))
-                }
-                div(id="sampling") {
+    pub fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
+        box_html! {
+            h2(id="heading") {
+                : "RINEX Quality Check summary"
+            }
+            h4(id="version") {
+                program-version: format!("rust-rnx: v{}", env!("CARGO_PKG_VERSION"))
+            }
+            div(id="general") {
+                div(id="antenna") {
+                    table {
+                        tr {
+                            th {
+                                : "Antenna model"
+                            }
+                            th {
+                                : "SN#"
+                            }
+                        }
+                        tr {
+                            @if let Some(ant) = &self.header.rcvr_antenna {
+                                td {
+                                    : ant.model.clone()
+                                }
+                                td {
+                                    : ant.sn.clone()
+                                }
+                            } else {
+                                td {
+                                    : "Unknown"
+                                }
+                            }
+                        }
+                    }
+                }//div=antenna
+                div(id="rcvr") {
+                    table {
+                        tr {
+                            th {
+                                : "Receiver model"
+                            }
+                            th {
+                                : "SN#"
+                            }
+                            th {
+                                : "Firmware"
+                            }
+                        }
+                        tr {
+                            @ if let Some(rcvr) = &self.header.rcvr {
+                                td {
+                                    : rcvr.model.clone()
+                                }
+                                td {
+                                    : rcvr.sn.clone()
+                                }
+                                td {
+                                    : rcvr.firmware.clone()
+                                }
+                            } else {
+                                td {
+                                    : "Unknown"
+                                }
+                            }
+                        }
+                    } 
+                }//div="rcvr"
+            }//div=general
+            div(id="sampling") {
+                table {
+                    tr {
+                        th {
+                            : "Sampling"
+                        }
+                    }
                     : self.sampling.to_html()
                 }
             }
-        )
+        }
     }
 }
