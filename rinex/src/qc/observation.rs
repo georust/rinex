@@ -2,6 +2,16 @@ use super::{averager::Averager, QcOpts};
 use crate::{observation::*, prelude::*, *};
 use horrorshow::RenderBox;
 use std::collections::{BTreeMap, HashMap};
+use itertools::Itertools;
+
+fn pretty_sv(list: &Vec<Sv>) -> String {
+    let mut s = String::with_capacity(3*list.len());
+    for sv in 0..list.len()-1 {
+        s.push_str(&format!("{}, ", list[sv]));
+    }
+    s.push_str(&list[list.len()-1].to_string());
+    s
+}
 
 /// Observ1.0tion RINEX specific QC report
 #[derive(Debug, Clone, PartialEq)]
@@ -79,6 +89,10 @@ impl QcReport {
                     has_doppler |= is_doppler_obs_code!(code);
                     let carrier = "L".to_owned() + &code[1..2];
 
+                    if !sv_with_obs.contains(&sv) {
+                        sv_with_obs.push(*sv);
+                    }
+
                     /*
                      * SSI moving average
                      */
@@ -92,7 +106,8 @@ impl QcReport {
                                 }
                             }
                         } else {
-                            ssi_avg.insert(carrier.to_string(), Averager::new(opts.obs_avg_window));
+                            let mut avg = Averager::new(opts.obs_avg_window);
+                            ssi_avg.insert(carrier.to_string(), avg);
                         }
                     }
                 }
@@ -117,6 +132,8 @@ impl QcReport {
             },
             None => None,
         };
+
+        sv_with_obs.sort();
 
         Self {
             has_doppler,
@@ -206,13 +223,13 @@ impl QcReport {
                     th {
                         : "# w/o Observation"
                     }
-                    th {
-                        : "# Total"
-                    }
                 }
                 tr {
                     td {
-                        : ""
+                        b {
+                            : "Total :"
+                        }
+                        : self.total_epochs.to_string()
                     }
                     td {
                         : format!("{} [{}%]",
@@ -223,9 +240,6 @@ impl QcReport {
                         : format!("{} [{}%]",
                             self.total_epochs - self.epochs_with_obs,
                             (self.total_epochs - self.epochs_with_obs) * 100 / self.total_epochs)
-                    }
-                    td {
-                        : self.total_epochs.to_string()
                     }
                 }
                 tr {
@@ -238,31 +252,27 @@ impl QcReport {
                     th {
                         : "# w/o Observation"
                     }
-                    th {
-                        : "# Total"
-                    }
                 }
                 tr {
                     th {
                         : "PRN# w/ Observation: "
                     }
                     td {
-                        : format!("{:?}", self.sv_with_obs)
+                        : pretty_sv(&self.sv_with_obs)
                     }
                 }
                 tr {
                     td {
-                        : format!("{:?} [{}%]",
-                            self.sv_with_obs,
-                            self.sv_with_obs.len() * 100 / self.total_sv)
-                    }
-                    td {
-                        : format!("{:?} [{}%]",
-                            self.sv_without_obs,
-                            self.sv_without_obs.len() * 100 / self.total_sv)
-                    }
-                    td {
+                        b {
+                            : "Total :"
+                        }
                         : self.total_sv.to_string()
+                    }
+                    td {
+                        : format!("{}%", self.sv_with_obs.len() * 100 / self.total_sv)
+                    }
+                    td {
+                        : format!("{}%", self.sv_without_obs.len() * 100 / self.total_sv)
                     }
                 }
                 tr {
@@ -287,14 +297,39 @@ impl QcReport {
                     }
                 }
                 tr {
-                    @ for (signal, mean_ssi) in &self.mean_ssi {
+                    @ for signal in self.mean_ssi.keys().sorted() {
                         tr {
                             th {
                                 : format!("{} SSI", signal)
                             }
-                            @ for (epoch, ssi) in mean_ssi {
+                        }
+                        tr {
+                            th {
+                                : "Epoch(k)"
+                            }
+                            @ for (epoch, _) in self.mean_ssi[signal].iter().step_by(2) { 
                                 td {
-                                    : format!("{}: {:.3e} dB", epoch, ssi)
+                                    : epoch.to_string()
+                                }
+                            }
+                        }
+                        tr {
+                            th {
+                                : "Epoch(k+1)"
+                            }
+                            @ for (epoch, _) in self.mean_ssi[signal].iter().skip(1).step_by(2) { 
+                                td {
+                                    : epoch.to_string()
+                                }
+                            }
+                        }
+                        tr {
+                            td {
+                                : ""
+                            }
+                            @ for (_, value) in &self.mean_ssi[signal] {
+                                td {
+                                    : format!("{:.3e} dB", value);
                                 }
                             }
                         }

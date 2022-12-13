@@ -41,12 +41,6 @@ pub struct QcReport {
     pub sampling: sampling::QcReport,
     /// Observation RINEX specific QC
     pub observation: Option<observation::QcReport>,
-    /*
-        /// Navigation RINEX specific QC
-        pub navigation: Option<NavigationQc>,
-        /// Advanced Observation + Navigation specific QC
-        pub advanced: Option<AdvancedQc>,
-    */
 }
 
 impl QcReport {
@@ -78,8 +72,6 @@ impl QcReport {
                     None
                 }
             },
-            /*navigation: None,
-            advanced: None,*/
         }
     }
     /// Dumps self into (self sufficient) HTML
@@ -221,7 +213,7 @@ impl QcReport {
                 }
             }
             @ if let Some(observation) = &self.observation {
-                div(id="observations") {
+                div(id="observations", style="max-width:350px;") {
                     table {
                         tr {
                             th {

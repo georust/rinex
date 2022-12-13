@@ -443,7 +443,6 @@ Refer to README"))
             | self.matches.contains_id("retain-nav-iono")
             | self.matches.contains_id("retain-phase")
             | self.matches.contains_id("retain-doppler")
-            | self.matches.contains_id("retain-best-elev")
             | self.matches.contains_id("retain-pr")
     }
 
@@ -459,7 +458,6 @@ Refer to README"))
             "retain-phase",
             "retain-doppler",
             "retain-pr",
-            "retain-best-elev",
         ];
         flags
             .iter()
