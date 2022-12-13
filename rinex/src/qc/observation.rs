@@ -1,6 +1,6 @@
+use crate::{observation::*, prelude::*, *};
 use horrorshow::RenderBox;
-use std::collections::{HashMap, BTreeMap};
-use crate::{*, prelude::*, observation::*};
+use std::collections::{BTreeMap, HashMap};
 
 /// Observation RINEX specific QC report
 #[derive(Debug, Clone, PartialEq)]
@@ -14,7 +14,7 @@ pub struct QcReport {
     pub sv_without_obs: Vec<Sv>,
     pub total_clk: usize,
     pub rcvr_resets: Vec<(Epoch, Epoch)>,
-    pub apc_estimate: (u32, (f64,f64,f64)), //nb of estimates + (ECEF)
+    pub apc_estimate: (u32, (f64, f64, f64)), //nb of estimates + (ECEF)
     pub mean_ssi: HashMap<Sv, f64>,
     pub dcbs: HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>,
     pub mp: HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>,
@@ -28,11 +28,11 @@ impl QcReport {
         let mut sv_with_obs: Vec<Sv> = Vec::new();
         let mut total_clk: usize = 0;
 
-        let mut rcvr_failure: Option<Epoch> = None; 
+        let mut rcvr_failure: Option<Epoch> = None;
         let mut rcvr_resets: Vec<(Epoch, Epoch)> = Vec::new();
 
         // SSi
-        let mut mean_ssi: HashMap<Sv, (u32,f64)> = HashMap::new();
+        let mut mean_ssi: HashMap<Sv, (u32, f64)> = HashMap::new();
         // DCBs
         let mut dcbs = rnx.observation_phase_dcb();
         // MPx
@@ -40,9 +40,8 @@ impl QcReport {
         // APC
         let mut apc = (0_32, (0.0_f64, 0.0_f64, 0.0_f64));
 
-        let record = rnx.record.as_obs()
-            .unwrap();
-        
+        let record = rnx.record.as_obs().unwrap();
+
         /*
          * Observation study
          */
@@ -55,7 +54,8 @@ impl QcReport {
                 if rcvr_failure.is_none() {
                     rcvr_failure = Some(*epoch);
                 }
-            } else { // RCVR power good
+            } else {
+                // RCVR power good
                 if let Some(e) = rcvr_failure {
                     rcvr_resets.push((e, *epoch));
                 }
@@ -80,7 +80,7 @@ impl QcReport {
                 }
             }
             if has_obs {
-                epochs_with_obs += 1; 
+                epochs_with_obs += 1;
             }
         }
 
@@ -99,7 +99,7 @@ impl QcReport {
             },
             None => None,
         };
-        
+
         Self {
             has_doppler,
             total_sv,
@@ -121,10 +121,9 @@ impl QcReport {
             rcvr_resets,
             total_clk,
             mean_ssi: {
-                mean_ssi.iter()
-                    .map(|(sv, (n, ssi))| {
-                        (*sv, ssi / *n as f64)
-                    })
+                mean_ssi
+                    .iter()
+                    .map(|(sv, (n, ssi))| (*sv, ssi / *n as f64))
                     .collect()
             },
             dcbs,
@@ -166,7 +165,7 @@ impl QcReport {
                 }
                 tr {
                     td {
-                        : ""  
+                        : ""
                     }
                     td {
                         : format!("{} [{}%]",
@@ -190,7 +189,7 @@ impl QcReport {
                         : "# w/ Observation"
                     }
                     th {
-                        : "# w/o Observation" 
+                        : "# w/o Observation"
                     }
                     th {
                         : "# Total"
@@ -206,17 +205,17 @@ impl QcReport {
                 }
                 tr {
                     td {
-                        : format!("{:?} [{}%]", 
+                        : format!("{:?} [{}%]",
                             self.sv_with_obs,
                             self.sv_with_obs.len() * 100 / self.total_sv)
                     }
                     td {
-                        : format!("{:?} [{}%]", 
+                        : format!("{:?} [{}%]",
                             self.sv_without_obs,
                             self.sv_without_obs.len() * 100 / self.total_sv)
                     }
                     td {
-                        : self.total_sv.to_string() 
+                        : self.total_sv.to_string()
                     }
                 }
                 //TODO

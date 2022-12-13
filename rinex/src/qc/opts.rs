@@ -5,7 +5,7 @@ pub struct QcOpts {
     pub avg_window: Duration,
     pub gap_considered: Option<Duration>,
     pub elev_mask: f64,
-    pub elev_increment: f64, 
+    pub elev_increment: f64,
 }
 
 impl Default for QcOpts {

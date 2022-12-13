@@ -1,3 +1,4 @@
+use crate::Cli;
 use plotly::{
     common::{
         //DashType,
@@ -12,7 +13,6 @@ use plotly::{
     Layout, Plot, Scatter,
 };
 use rand::Rng;
-use crate::Cli;
 use rinex::prelude::*;
 
 mod context;

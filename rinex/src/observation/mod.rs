@@ -1,7 +1,7 @@
 use super::{epoch, prelude::*, version::Version};
 
 pub mod record;
-pub use record::{LliFlags, Record, Ssi, ObservationData};
+pub use record::{LliFlags, ObservationData, Record, Ssi};
 
 use std::collections::HashMap;
 

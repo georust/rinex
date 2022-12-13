@@ -23,8 +23,8 @@ pub mod types;
 pub mod version;
 
 mod cs;
-mod qc;
 mod leap;
+mod qc;
 mod sampling;
 
 extern crate num;
@@ -72,13 +72,13 @@ pub mod sbas {
 /// and file quality analysis.
 pub mod processing {
     //pub use crate::differential::DiffContext;
+    pub use crate::cs::CsOpts;
     pub use crate::qc::{QcReport, QcType};
     pub use crate::sampling::Decimation;
-    pub use crate::cs::CsOpts;
 }
 
-use cs::CsOpts; 
 use channel::Channel;
+use cs::CsOpts;
 use gnss_time::TimeScaling;
 use prelude::*;
 use sampling::*;
@@ -620,7 +620,8 @@ impl Rinex {
         if let Some(interval) = self.header.sampling_interval {
             Some(interval)
         } else {
-            if let Some(dominant) = self.epoch_intervals()
+            if let Some(dominant) = self
+                .epoch_intervals()
                 .into_iter()
                 .max_by(|(_, x_pop), (_, y_pop)| x_pop.cmp(y_pop))
             {
@@ -689,7 +690,7 @@ impl Rinex {
             Vec::new()
         }
     }
-    
+
     /// Returns list of epoch where an anomaly is reported by the receiver
     pub fn observation_epoch_anomalies(&self) -> Vec<Epoch> {
         let mut ret: Vec<Epoch> = Vec::new();
@@ -3375,9 +3376,13 @@ impl Rinex {
         ret
     }
 
-    fn single_frequency_cs_detection(&self, sample_rate: Duration, opts: CsOpts) -> BTreeMap<Epoch, HashMap<Sv, String>> {
+    fn single_frequency_cs_detection(
+        &self,
+        sample_rate: Duration,
+        opts: CsOpts,
+    ) -> BTreeMap<Epoch, HashMap<Sv, String>> {
         let mut ret: BTreeMap<Epoch, HashMap<Sv, String>> = BTreeMap::new();
-        // 1. Form Phase/PR recombinations 
+        // 1. Form Phase/PR recombinations
         // 2. Study recombination evolution over time
         let mut prev_data: HashMap<Sv, (Epoch, f64)> = HashMap::new();
         if let Some(r) = self.record.as_obs() {
@@ -3397,8 +3402,14 @@ impl Rinex {
                                             let dy = recomb_y - *p_data;
                                             let dt = *epoch - *p_epoch;
                                             if dy.abs() > opts.sensitivity(dt, sample_rate) {
-                                                println!("{} (dt={}) - GAP DETECTED |{} - {}| = {}",
-                                                    epoch, dt, recomb_y, p_data, dy.abs()); //DEBUG
+                                                println!(
+                                                    "{} (dt={}) - GAP DETECTED |{} - {}| = {}",
+                                                    epoch,
+                                                    dt,
+                                                    recomb_y,
+                                                    p_data,
+                                                    dy.abs()
+                                                ); //DEBUG
                                             }
                                         } else {
                                             prev_data.insert(*sv, (*epoch, recomb_y));
@@ -3416,7 +3427,8 @@ impl Rinex {
 
     /// Returns list of Epoch when CS is most probable, per signal and per vehicle
     pub fn observation_cs_detection(&self, opts: CsOpts) -> BTreeMap<Epoch, HashMap<Sv, String>> {
-        let sample_rate = self.sampling_interval()
+        let sample_rate = self
+            .sampling_interval()
             .expect("observation_cs_detection() but sample rate is undetermined");
         /*
          * 1. if GF combination is possible (modern RINEX)
@@ -3430,13 +3442,13 @@ impl Rinex {
          *    if MW recombination was partial:
          *       we augment it with Doppler/Phase analysis
          *       + possible filter
-         *    
+         *
          *    if MW recombination was not feasible
          *       we use Doppler/Phase analysis
          *       + possible filter
          */
-        
-        //let gf_combinations = self.gf_combinations(); 
+
+        //let gf_combinations = self.gf_combinations();
         //let mw_recombinations = self.observation_mw_combinations();
 
         /*
@@ -3445,23 +3457,23 @@ impl Rinex {
         self.single_frequency_cs_detection(sample_rate, opts)
     }
 
-/*
-    /// Applies Hatch filter to all Pseudo Range observations.
-    /// When feasible dual frequency dual code method is prefered
-    /// for optimal, fully unbiased smoothed PR.
-    /// PR observations get modified in place
-    pub fn observation_pseudorange_smoothing_mut(&mut self) {
-        if let Some(r) = self.record.as_mut_obs() {
-            for ((epoch, _), (_, svs)) in r {
-                for (sv, observations) in svs {
-                    for (code, observation) in observations {
-                          
+    /*
+        /// Applies Hatch filter to all Pseudo Range observations.
+        /// When feasible dual frequency dual code method is prefered
+        /// for optimal, fully unbiased smoothed PR.
+        /// PR observations get modified in place
+        pub fn observation_pseudorange_smoothing_mut(&mut self) {
+            if let Some(r) = self.record.as_mut_obs() {
+                for ((epoch, _), (_, svs)) in r {
+                    for (sv, observations) in svs {
+                        for (code, observation) in observations {
+
+                        }
                     }
                 }
             }
         }
-    }
-*/
+    */
 
     /*
         /// "Upsamples" to match desired epoch interval

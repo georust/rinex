@@ -6,7 +6,7 @@ mod sampling;
 //mod advanced;
 //mod navigation;
 mod observation;
-mod averager;
+//mod averager;
 
 mod opts;
 pub use opts::QcOpts;
@@ -198,7 +198,7 @@ impl QcReport {
                                 }
                             }
                         }
-                    } 
+                    }
                 }//div="rcvr"
                 div(id="ground-pos") {
                     table {

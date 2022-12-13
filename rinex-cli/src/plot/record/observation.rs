@@ -1,6 +1,6 @@
 use crate::{
-    Cli,
     plot::{generate_markers, Context},
+    Cli,
 };
 use plotly::{
     common::{Marker, MarkerSymbol, Mode, Visible},
@@ -26,7 +26,12 @@ macro_rules! code2physics {
 /*
  * Plots given Observation RINEX content
  */
-pub fn plot_observation(cli: &Cli, ctx: &mut Context, record: &observation::Record, nav_ctx: &Option<Rinex>) {
+pub fn plot_observation(
+    cli: &Cli,
+    ctx: &mut Context,
+    record: &observation::Record,
+    nav_ctx: &Option<Rinex>,
+) {
     if let Some(nav) = nav_ctx {
         //enhanced_plot(record, nav);
         basic_plot(cli, ctx, record);

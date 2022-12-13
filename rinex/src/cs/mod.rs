@@ -1,17 +1,12 @@
-use crate::{
-    *,
-    prelude::*,
-    observation::*,
-    channel::Channel,
-};
-use std::collections::HashMap;
+use crate::*;
+//use std::collections::HashMap;
 
 /*
 /*
  * Selects an algorithm for each vehicle and each observation
  */
 pub (crate)fn select_algorithm(&self, consistency: u8, sv: Sv, record: &Record) -> HashMap<Sv, HashMap<String, bool>> {
-    let mut count: HashMap<String, (u32, u32)>; // (nb_epoch_seen, total_nb_epoch) per code 
+    let mut count: HashMap<String, (u32, u32)>; // (nb_epoch_seen, total_nb_epoch) per code
     let total_epochs = record.len();
     for ((epoch, _), (_, svs)) in record {
         for (sv, observations) in svs {
@@ -31,7 +26,7 @@ pub (crate)fn select_algorithm(&self, consistency: u8, sv: Sv, record: &Record) 
                 }
             }
         }
-        
+
         /*
          * if all codes are already above threshold
          * => end this loop early
@@ -70,7 +65,7 @@ pub enum CsAlgorithm {
     /// This is the preferred method.
     MwCombination,
     /// Preferred Fallback method for old RINEX context
-    /// or 1D contexts. 
+    /// or 1D contexts.
     SingleFrequencyDoppler,
     /// Fallback method, always feasible even on old RINEX
     /// or single channel receivers.
@@ -87,8 +82,8 @@ impl Default for CsAlgorithm {
 impl Into<u8> for CsAlgorithm {
     fn into(&self) -> u8 {
         match self {
-            Self::GfCombinationAdvanced => 255, 
-            Self::GfCombinationSimple => 255, 
+            Self::GfCombinationAdvanced => 255,
+            Self::GfCombinationSimple => 255,
             Self::MwCombinationMultipath => 128,
             Self::MwCombination => 64,
             Self::SingleFrequencyDoppler => 8,
@@ -100,12 +95,12 @@ impl Into<u8> for CsAlgorithm {
 //impl PartialOrd for CsAlgorithm {}
 
 impl CsAlgorithm {
-    /// Returns true if self is feasible, on given context 
+    /// Returns true if self is feasible, on given context
     pub (crate)fn is_feasible(&self, context: &HashMap<String, ObservationData>) -> bool {
         match self {
             Self::SingleFrequencyRecombination => {
                 for (code, _) in context {
-                    let carrier_nb = &code[1..1]; 
+                    let carrier_nb = &code[1..1];
                     if is_phase_carrier_obs_code!(code) {
                         // search for a PR code
                         for (others, _) in context {
@@ -206,10 +201,7 @@ impl Default for OptsThreshold {
     /// with ~1min observation interval
     fn default() -> Self {
         let a0 = 3.0 * (Channel::L2.carrier_wavelength() - Channel::L1.carrier_wavelength()) / 2.0;
-        Self {
-            a0, 
-            a1: a0 / 2.0,
-        }
+        Self { a0, a1: a0 / 2.0 }
     }
 }
 
@@ -248,12 +240,16 @@ impl CsOpts {
         s.threshold = threshold;
         s
     }
-    /// Returns detector sensitivity at current context, in meter, 
-    /// based on given (a0, a1) parameters 
+    /// Returns detector sensitivity at current context, in meter,
+    /// based on given (a0, a1) parameters
     pub fn sensitivity(&self, dt: Duration, sample_rate: Duration) -> f64 {
-        self.threshold.a0 - self.threshold.a1 * (-dt.to_unit(hifitime::Unit::Second) / sample_rate.to_unit(hifitime::Unit::Second)).exp()
+        self.threshold.a0
+            - self.threshold.a1
+                * (-dt.to_unit(hifitime::Unit::Second)
+                    / sample_rate.to_unit(hifitime::Unit::Second))
+                .exp()
     }
-    /// Returns detector sensitivity [in ideal data scenario], in meter, 
+    /// Returns detector sensitivity [in ideal data scenario], in meter,
     /// based on given (a0, a1) parameters
     pub fn best_sensitivity(&self) -> f64 {
         self.threshold.a0 - self.threshold.a1 * (-1.0_f64).exp()
