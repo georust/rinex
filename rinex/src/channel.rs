@@ -211,10 +211,7 @@ impl Channel {
                     Err(Error::InvalidObservable(observable.to_string()))
                 }
             },
-            _ => todo!(
-                "not implemented for constellation \"{}\" yet..",
-                constellation.to_3_letter_code()
-            ),
+            _ => todo!("for \"{}\" consellation", constellation.to_3_letter_code()),
         }
     }
 
