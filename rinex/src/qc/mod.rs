@@ -2,29 +2,14 @@ use super::prelude::*;
 use horrorshow::{helper::doctype, RenderBox};
 use strum_macros::EnumString;
 
+mod averager;
 mod sampling;
 //mod advanced;
 //mod navigation;
 mod observation;
-//mod averager;
 
 mod opts;
 pub use opts::QcOpts;
-
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub enum QcType {
-    /// Basic QC only performs
-    /// Sampling and observation integrity analysis
-    Basic,
-    /// Intermediate QC integrates
-    /// the Basic QC, and performs
-    /// basic studies on provided Observations,
-    /// like Code biases estimation.
-    /// If Navigation Context is provided,
-    /// it is used for basic yet enhanced Observation analysis.
-    Intermediate,
-}
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, EnumString)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -65,20 +50,30 @@ pub struct QcReport {
 }
 
 impl QcReport {
-    /// Processes given RINEX and generates a summary report.
-    pub fn new(rnx: &Rinex, nav: &Option<Rinex>, qc_type: QcType) -> Self {
-        match qc_type {
-            QcType::Basic => Self::basic_qc(rnx, nav),
-            QcType::Intermediate => Self::intermediate_qc(rnx, nav),
-        }
+    /// Rinex quality check analysis.
+    /// ```
+    /// use rinex::{
+    ///     prelude::*,
+    ///     processing::*,
+    /// };
+    /// let rnx =
+    ///     Rinex::from_file("../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
+    ///     .unwrap();
+    /// let summary = QcReport::basic(rnx, None);
+    /// let report = summary.to_html();
+    /// ```
+    pub fn basic(rnx: &Rinex, nav: &Option<Rinex>) -> Self {
+        Self::new(rnx, nav, None)
     }
-    fn basic_qc(rnx: &Rinex, nav: &Option<Rinex>) -> Self {
+    /// Builds a new QC Report
+    pub fn new(rnx: &Rinex, nav: &Option<Rinex>, opts: Option<QcOpts>) -> Self {
+        let opts = opts.unwrap_or(QcOpts::default());
         Self {
             header: rnx.header.clone(),
             sampling: sampling::QcReport::new(rnx),
             observation: {
                 if rnx.is_observation_rinex() {
-                    Some(observation::QcReport::new(rnx, nav))
+                    Some(observation::QcReport::new(rnx, nav, opts))
                 } else {
                     None
                 }
@@ -86,9 +81,6 @@ impl QcReport {
             /*navigation: None,
             advanced: None,*/
         }
-    }
-    fn intermediate_qc(rnx: &Rinex, nav: &Option<Rinex>) -> Self {
-        Self::basic_qc(rnx, nav)
     }
     /// Dumps self into (self sufficient) HTML
     pub fn to_html(&self) -> String {
@@ -206,10 +198,12 @@ impl QcReport {
                             th {
                                 : "Ground Position (ECEF)"
                             }
-                            @ if let Some((pos_x,pos_y,pos_z)) = &self.header.coords {
-                                : format!("{}, {}, {}", pos_x, pos_y, pos_z)
-                            } else {
-                                : "Unknown"
+                            td {
+                                @ if let Some((pos_x,pos_y,pos_z)) = &self.header.coords {
+                                    : format!("{}, {}, {}", pos_x, pos_y, pos_z)
+                                } else {
+                                    : "Unknown"
+                                }
                             }
                         }
 
@@ -223,7 +217,19 @@ impl QcReport {
                             : "Sampling"
                         }
                     }
-                    : self.sampling.to_html()
+                    : self.sampling.to_inline_html()
+                }
+            }
+            @ if let Some(observation) = &self.observation {
+                div(id="observations") {
+                    table {
+                        tr {
+                            th {
+                                : "Observations"
+                            }
+                        }
+                        : observation.to_inline_html()
+                    }
                 }
             }
         }

@@ -2,30 +2,34 @@ use crate::prelude::*;
 
 pub struct Averager {
     buffer: Vec<f64>,
-    prev_epoch: Option<Epoch>,
-    pub time_window: Duration,
+    prev_avg: Option<Epoch>,
+    window: Duration,
 }
 
 impl Averager {
+    pub fn new(window: Duration) -> Self {
+        Self {
+            buffer: Vec::new(),
+            prev_avg: None,
+            window,
+        }
+    }
     pub fn moving_average(&mut self, data: (f64, Epoch)) -> Option<f64> {
-        if let Some(mut p) = self.prev_epoch {
-            if p + self.time_window <= data.1 {
-                let mut avg = data.0; 
+        self.buffer.push(data.0);
+        if self.prev_avg.is_none() {
+            self.prev_avg = Some(data.1);
+        }
+        if let Some(mut prev_avg) = self.prev_avg {
+            if data.1 >= prev_avg + self.window {
+                prev_avg = data.1;
+                let mut avg = 0.0_f64;
                 for b in &self.buffer {
                     avg += b;
                 }
-                avg /= self.buffer.len() as f64;
                 self.buffer.clear();
-                p = data.1;
-                Some(avg)
-            } else {
-                self.buffer.push(data.0);
-                None
+                return Some(avg / self.buffer.len() as f64);
             }
-        } else { // 1st call
-            self.prev_epoch = Some(data.1);
-            self.buffer.push(data.0);
-            None
         }
+        None
     }
 }

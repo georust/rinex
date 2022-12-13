@@ -1,8 +1,9 @@
+use super::{QcOpts, averager::Averager};
 use crate::{observation::*, prelude::*, *};
 use horrorshow::RenderBox;
 use std::collections::{BTreeMap, HashMap};
 
-/// Observation RINEX specific QC report
+/// Observ1.0tion RINEX specific QC report
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct QcReport {
@@ -13,42 +14,46 @@ pub struct QcReport {
     pub sv_with_obs: Vec<Sv>,
     pub sv_without_obs: Vec<Sv>,
     pub total_clk: usize,
-    pub rcvr_resets: Vec<(Epoch, Epoch)>,
+    pub anomalies: Vec<Epoch>,
+    pub power_failures: Vec<(Epoch, Epoch)>,
     pub apc_estimate: (u32, (f64, f64, f64)), //nb of estimates + (ECEF)
-    pub mean_ssi: HashMap<Sv, f64>,
+    pub mean_ssi: HashMap<String, Vec<(Epoch, f64)>>,
     pub dcbs: HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>,
     pub mp: HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>,
     pub sv_angles: Option<HashMap<Sv, BTreeMap<Epoch, (f64, f64)>>>,
+    pub clk_drift: HashMap<Epoch, f64>,
 }
 
 impl QcReport {
-    pub fn new(rnx: &Rinex, nav: &Option<Rinex>) -> Self {
+    pub fn new(rnx: &Rinex, nav: &Option<Rinex>, opts: QcOpts) -> Self {
+        
+        let record = rnx.record.as_obs().unwrap();
+        let sv_list = rnx.space_vehicules();
+        let total_sv = sv_list.len();
+        let total_epochs = record.len();
+        
         let mut has_doppler = false;
         let mut epochs_with_obs: usize = 0;
         let mut sv_with_obs: Vec<Sv> = Vec::new();
         let mut total_clk: usize = 0;
 
         let mut rcvr_failure: Option<Epoch> = None;
-        let mut rcvr_resets: Vec<(Epoch, Epoch)> = Vec::new();
+        let mut power_failures: Vec<(Epoch, Epoch)> = Vec::new();
 
+        // RX clock
+        let mut clk_avg = Averager::new(opts.clk_drift_window);
+        let mut clk_drift: HashMap<Epoch, f64> = HashMap::with_capacity(total_epochs);
+        
+        // APC
+        let mut apc = (0_32, (0.0_f64, 0.0_f64, 0.0_f64));
         // SSi
-        let mut mean_ssi: HashMap<Sv, (u32, f64)> = HashMap::new();
+        let mut ssi_avg: HashMap<String, Averager> = HashMap::with_capacity(total_sv);
+        let mut mean_ssi: HashMap<String, Vec<(Epoch, f64)>> = HashMap::with_capacity(total_sv);
         // DCBs
         let mut dcbs = rnx.observation_phase_dcb();
         // MPx
         let mut mp = rnx.observation_code_multipath();
-        // APC
-        let mut apc = (0_32, (0.0_f64, 0.0_f64, 0.0_f64));
-
-        let record = rnx.record.as_obs().unwrap();
-
-        /*
-         * Observation study
-         */
-        let sv_list = rnx.space_vehicules();
-        let total_sv = sv_list.len();
-        let total_epochs = record.len();
-
+        
         for ((epoch, flag), (clk_offset, vehicles)) in record {
             if *flag == EpochFlag::PowerFailure {
                 if rcvr_failure.is_none() {
@@ -57,24 +62,39 @@ impl QcReport {
             } else {
                 // RCVR power good
                 if let Some(e) = rcvr_failure {
-                    rcvr_resets.push((e, *epoch));
+                    power_failures.push((e, *epoch));
                 }
             }
 
-            if clk_offset.is_some() {
+            if let Some(clk_offset) = clk_offset {
                 total_clk += 1;
+                if let Some(clk_avg) = clk_avg.moving_average((*clk_offset, *epoch)) {
+                    clk_drift.insert(*epoch, clk_avg);
+                }
             }
+
             let mut has_obs = false;
             for (sv, observations) in vehicles {
                 has_obs = observations.len() > 0;
                 for (code, data) in observations {
                     has_doppler |= is_doppler_obs_code!(code);
+                    let carrier = "L".to_owned() + &code[1..2];
+                    
+                    /*
+                     * SSI moving average
+                     */
                     if is_sig_strength_obs_code!(code) {
-                        if let Some((n, ssi)) = mean_ssi.get_mut(sv) {
-                            *n += 1;
-                            *ssi += data.obs;
+                        if let Some(averager) = ssi_avg.get_mut(&carrier.to_string()) {
+                            if let Some(avg) = averager.moving_average((data.obs, *epoch)) {
+                                if let Some(mean_ssi) = mean_ssi.get_mut(&carrier.to_string()) {
+                                    mean_ssi.push((*epoch, avg));
+                                } else {
+                                    mean_ssi.insert(carrier.to_string(), vec![(*epoch, avg)]);
+                                }
+                            }
                         } else {
-                            mean_ssi.insert(*sv, (1, data.obs));
+                            ssi_avg.insert(carrier.to_string(),
+                                Averager::new(opts.obs_avg_window));
                         }
                     }
                 }
@@ -118,14 +138,11 @@ impl QcReport {
                     .collect()
             },
             sv_with_obs,
-            rcvr_resets,
+            power_failures,
+            anomalies: rnx.observation_epoch_anomalies(),
             total_clk,
-            mean_ssi: {
-                mean_ssi
-                    .iter()
-                    .map(|(sv, (n, ssi))| (*sv, ssi / *n as f64))
-                    .collect()
-            },
+            clk_drift,
+            mean_ssi,
             dcbs,
             mp,
             sv_angles,
@@ -135,13 +152,45 @@ impl QcReport {
 
     pub fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
         box_html! {
-            h5(id="Observations") {
-                : "Observations"
-            }
             table {
                 tr {
                     th {
-                        : "Receiver anomalies"
+                        : "Anomalies"
+                    }
+                    @ if self.anomalies.len() == 0 {
+                        td {
+                            : "None"
+                        }
+                    } else {
+                        @ for epoch in &self.anomalies {
+                            td {
+                                : epoch.to_string()
+                            }
+                        }
+                    }
+                }
+                tr {
+                    th {
+                        : "Power Failures"
+                    }
+                    @ if self.power_failures.len() == 0 {
+                        td {
+                            : "None"
+                        }
+                    } else {
+                        @ for (start, end) in &self.power_failures {
+                            td {
+                                : format!("{}->{}", start, end)
+                            }
+                        }
+                    }
+                }
+                tr {
+                    th {
+                        : "Has Doppler Observations: "
+                    }
+                    td {
+                        : self.has_doppler.to_string()
                     }
                 }
                 tr {
@@ -197,10 +246,10 @@ impl QcReport {
                 }
                 tr {
                     th {
-                        : "Has Doppler Observations: "
+                        : "PRN# w/ Observation: "
                     }
                     td {
-                        : self.has_doppler.to_string()
+                        : format!("{:?}", self.sv_with_obs)
                     }
                 }
                 tr {
@@ -218,36 +267,39 @@ impl QcReport {
                         : self.total_sv.to_string()
                     }
                 }
-                //TODO
-                // sv with nav
-                //  Unhealthy ?
-                //  if sv_angles {
-                //    Rise Fall time
-                //  }
-                //  Obs Masked out "Possible Obs > $mask deg
-                //  Deleted Obs < $mask deg
-                //  Rx Clock Drift
                 tr {
                     th {
-                        : "Rx Clock Drift"
+                        : "RX Clock Drift"
                     }
-                }
-
-                //  SSI
-                tr {
-                    th {
-                        : "SSI [dB]"
-                    }
-                    th {
-                        : "Epoch_0 - Epoch_1"
+                    @ if self.clk_drift.len() == 0 {
+                        td {
+                            : "Data missing"
+                        }
+                    } else {
+                        th {
+                            : "Drift [s.s⁻¹]"
+                        }
+                        tr {
+                            @ for (epoch, drift) in &self.clk_drift {
+                                td {
+                                    : format!("{}: {:.3e}", epoch, drift)
+                                }
+                            }
+                        }
                     }
                 }
                 tr {
-                    td {
-                        : ""
-                    }
-                    td {
-                        : "1.0"
+                    @ for (signal, mean_ssi) in &self.mean_ssi {
+                        tr {
+                            th {
+                                : format!("{} SSI", signal)
+                            }
+                            @ for (epoch, ssi) in mean_ssi {
+                                td {
+                                    : format!("{}: {:.3e} dB", epoch, ssi)
+                                }
+                            }
+                        }
                     }
                 }
                 tr {
@@ -274,6 +326,15 @@ impl QcReport {
                         : "20.0"
                     }
                 }
+                //TODO
+                // sv with nav
+                //  Unhealthy ?
+                //  if sv_angles {
+                //    Rise Fall time
+                //  }
+                //  Obs Masked out "Possible Obs > $mask deg
+                //  Deleted Obs < $mask deg
+                
             }
         }
     }

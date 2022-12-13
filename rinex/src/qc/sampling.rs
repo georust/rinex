@@ -36,7 +36,7 @@ impl QcReport {
             gaps: rnx.data_gaps(),
         }
     }
-    pub fn to_html(&self) -> Box<dyn RenderBox + '_> {
+    pub fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
         box_html! {
             table(id="sampling") {
                 tr {
@@ -71,36 +71,46 @@ impl QcReport {
                         : self.sample_rate.to_string()
                     }
                 }
-                tr {
-                    td {
-                        : "Gaps analysis"
-                    }
                 @ if self.gaps.len() > 0 {
-                    table(id="sampling-gaps") {
-                        tr {
-                            th {
-                                : "Epoch"
-                            }
-                            th {
-                                : "Duration"
-                            }
+                    tr {
+                        th {
+                            : "Gaps analysis"
                         }
-                        @ for (epoch, duration) in &self.gaps {
-                            tr {
-                                td {
-                                    : epoch.to_string()
-                                }
-                                td {
-                                    : duration.to_string()
-                                }
+                    }
+                    tr {
+                        td {
+                            : ""
+                        }
+                        th {
+                            : "Epoch"
+                        }
+                        th {
+                            : "Duration"
+                        }
+                    }
+                    @ for (epoch, duration) in &self.gaps {
+                        tr {
+                            td {
+                                : ""
+                            }
+                            td {
+                                : epoch.to_string()
+                            }
+                            td {
+                                : duration.to_string()
                             }
                         }
                     }
                 } else {
-                    td {
-                        : "NONE"
+                    tr {
+                        th {
+                            : "Gaps analysis"
+                        }
+                        td {
+                            : "None"
+                        }
                     }
-                }}
+                }
             }
         }
     }
