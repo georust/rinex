@@ -38,6 +38,26 @@ fn product_prefix(fname: &str) -> String {
 }
 
 /*
+ * Macro to grab the Ref. / Ground station position 
+ *  1. if manually given by user: preferred
+ *  2. otherwise: use provided context
+ */
+fn ref_position(cli: &Cli, rnx: &Rinex, nav: &Option<Rinex>) -> Option<(f64,f64,f64)> {
+    cli.ref_position()?;
+    if let Some(pos) = rnx.header.coords {
+        Some(pos)
+    } else if let Some(ref nav) = nav {
+        if let Some(pos) = nav.header.coords {
+            Some(pos)
+        } else {
+            None
+        }
+    } else {
+        None
+    }
+}
+
+/*
  * Applies elevation mask, to non Navigation RINEX
  */
 //fn apply_elevation_mask(rnx: &mut Rinex, sv_angles: ) {};
@@ -47,6 +67,7 @@ pub fn main() -> Result<(), rinex::Error> {
     let quiet = cli.quiet();
     let pretty = cli.pretty();
     let qc_only = cli.quality_check_only();
+
     let mut ctx = plot::Context::new();
 
     // input context
@@ -55,30 +76,15 @@ pub fn main() -> Result<(), rinex::Error> {
     let fp = cli.input_path();
     let mut rnx = Rinex::from_file(fp)?;
     let mut nav_context = cli.nav_context();
-
-    /*
-     * Reference / Ground station position
-     *  1. if manually given by user: preferred
-     *  2. otherwise: use provided context
-     */
-    let mut ref_position = cli.ref_position();
-    if ref_position.is_none() {
-        if let Some(pos) = rnx.header.coords {
-            ref_position = Some(pos);
-        } else {
-            if let Some(ref nav) = nav_context {
-                if let Some(pos) = nav.header.coords {
-                    ref_position = Some(pos);
-                }
-            }
-        }
-    }
-
+    
     // create subdirs we might need when studying this context
     let short_fp = filename(fp);
     let product_prefix = product_prefix(&short_fp);
     let _ = std::fs::create_dir_all(&product_prefix);
 
+    // determine ground/ref. position
+    let ref_position = ref_position(&cli, &rnx, &nav_context);
+    
     /*
      * Preprocessing, filtering, resampling..
      */
