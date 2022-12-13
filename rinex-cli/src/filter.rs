@@ -1,4 +1,5 @@
 use crate::Cli;
+use log::trace;
 use rinex::{observation::*, prelude::*};
 
 fn args_to_lli_mask(args: &str) -> Option<LliFlags> {
@@ -31,6 +32,7 @@ pub fn apply_gnss_filters(cli: &Cli, rnx: &mut Rinex) {
         ]);
     }
     if cli.bds_filter() {
+        trace!("-C filter");
         rnx.retain_constellation_mut(vec![
             Constellation::GPS,
             Constellation::Glonass,
@@ -41,6 +43,7 @@ pub fn apply_gnss_filters(cli: &Cli, rnx: &mut Rinex) {
         ]);
     }
     if cli.sbas_filter() {
+        trace!("-S filter");
         rnx.retain_constellation_mut(vec![
             Constellation::GPS,
             Constellation::Glonass,

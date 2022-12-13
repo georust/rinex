@@ -75,6 +75,7 @@ File paths have to be absolute.
 Arguments order does not matter to this application: 
 
 ```bash
+export RUST_LOG=info
 rinex-cli --fp test_resources/NAV/V2/amel010.21g
 rinex-cli --sv-epoch --fp /tmp/amel010.21g
 ```

@@ -2,6 +2,7 @@ use crate::{
     plot::{build_chart_epoch_axis, generate_markers, Context},
     Cli,
 };
+use log::info;
 use plotly::common::{Marker, MarkerSymbol, Mode, Visible};
 use rinex::{navigation::*, observation::*, prelude::*, *};
 use std::collections::HashMap;
@@ -31,6 +32,7 @@ pub fn plot_observation(
 ) {
     if let Some(nav) = nav_ctx {
         //enhanced_plot(record, nav);
+        trace!("augmented observation record analysis");
         basic_plot(cli, ctx, record);
     } else {
         basic_plot(cli, ctx, record);
@@ -96,6 +98,7 @@ pub fn basic_plot(cli: &Cli, ctx: &mut Context, record: &observation::Record) {
         let trace = build_chart_epoch_axis("Clk Offset", Mode::LinesMarkers, data_x, data_y)
             .marker(Marker::new().symbol(MarkerSymbol::TriangleUp));
         ctx.add_trace(trace);
+        trace!("receiver clock offsets");
     }
     /*
      * 1 plot per physics
@@ -109,6 +112,7 @@ pub fn basic_plot(cli: &Cli, ctx: &mut Context, record: &observation::Record) {
             _ => unreachable!(),
         };
         ctx.add_cartesian2d_plot(&format!("{} Observations", physics), y_label);
+
         let markers = generate_markers(carriers.len()); // one symbol per carrier
         for (index, (carrier, vehicules)) in carriers.iter().enumerate() {
             for (sv, data) in vehicules {
@@ -131,5 +135,6 @@ pub fn basic_plot(cli: &Cli, ctx: &mut Context, record: &observation::Record) {
                 ctx.add_trace(trace);
             }
         }
+        trace!("{} observations", y_label);
     }
 }

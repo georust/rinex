@@ -1,5 +1,6 @@
 use crate::parser::parse_epoch;
 use clap::{Arg, ArgAction, ArgMatches, ColorChoice, Command};
+use log::{error, info, warn};
 use rinex::{navigation::ElevationMask, prelude::*};
 use std::str::FromStr;
 
@@ -599,17 +600,16 @@ Refer to README"))
         if let Some(path) = self.nav_path() {
             if let Ok(rnx) = Rinex::from_file(path) {
                 if rnx.is_navigation_rinex() {
-                    Some(rnx)
+                    info!("--nav augmented mode enabled");
+                    return Some(rnx);
                 } else {
-                    panic!("--nav must be a Navigation RINEX");
+                    warn!("--nav must should be Navigation RINEX");
                 }
             } else {
-                println!("Failed to parse Navigation Context \"{}\"", path);
-                None
+                error!("failed to parse navigation file \"{}\"", path);
             }
-        } else {
-            None
         }
+        None
     }
     /// Reference position, in ECEF [m]
     pub fn ref_position(&self) -> Option<(f64, f64, f64)> {
