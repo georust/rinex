@@ -1,15 +1,15 @@
 use super::{averager::Averager, QcOpts};
 use crate::{observation::*, prelude::*, *};
 use horrorshow::RenderBox;
-use std::collections::{BTreeMap, HashMap};
 use itertools::Itertools;
+use std::collections::{BTreeMap, HashMap};
 
 fn pretty_sv(list: &Vec<Sv>) -> String {
-    let mut s = String::with_capacity(3*list.len());
-    for sv in 0..list.len()-1 {
+    let mut s = String::with_capacity(3 * list.len());
+    for sv in 0..list.len() - 1 {
         s.push_str(&format!("{}, ", list[sv]));
     }
-    s.push_str(&list[list.len()-1].to_string());
+    s.push_str(&list[list.len() - 1].to_string());
     s
 }
 
@@ -307,7 +307,7 @@ impl QcReport {
                             th {
                                 : "Epoch(k)"
                             }
-                            @ for (epoch, _) in self.mean_ssi[signal].iter().step_by(2) { 
+                            @ for (epoch, _) in self.mean_ssi[signal].iter().step_by(2) {
                                 td {
                                     : epoch.to_string()
                                 }
@@ -317,7 +317,7 @@ impl QcReport {
                             th {
                                 : "Epoch(k+1)"
                             }
-                            @ for (epoch, _) in self.mean_ssi[signal].iter().skip(1).step_by(2) { 
+                            @ for (epoch, _) in self.mean_ssi[signal].iter().skip(1).step_by(2) {
                                 td {
                                     : epoch.to_string()
                                 }
