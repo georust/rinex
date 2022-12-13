@@ -1,11 +1,8 @@
 use crate::{
-    plot::{generate_markers, Context},
+    plot::{build_chart_epoch_axis, generate_markers, Context},
     Cli,
 };
-use plotly::{
-    common::{Marker, MarkerSymbol, Mode, Visible},
-    Scatter,
-};
+use plotly::common::{Marker, MarkerSymbol, Mode, Visible};
 use rinex::{navigation::*, observation::*, prelude::*, *};
 use std::collections::HashMap;
 
@@ -41,18 +38,18 @@ pub fn plot_observation(
 }
 
 pub fn basic_plot(cli: &Cli, ctx: &mut Context, record: &observation::Record) {
-    let mut clk_offset: Vec<(String, f64)> = Vec::new();
+    let mut clk_offset: Vec<(Epoch, f64)> = Vec::new();
     // dataset
     //  per physics, per carrier signal (symbol)
     //      per vehicule (color map)
     //      bool: loss of lock - CS emphasis
     //      x: sampling timestamp,
     //      y: observation (raw),
-    let mut dataset: HashMap<String, HashMap<u8, HashMap<Sv, Vec<(bool, String, f64)>>>> =
+    let mut dataset: HashMap<String, HashMap<u8, HashMap<Sv, Vec<(bool, Epoch, f64)>>>> =
         HashMap::new();
     for ((epoch, _flag), (clock_offset, vehicules)) in record {
         if let Some(value) = clock_offset {
-            clk_offset.push((epoch.to_string(), *value));
+            clk_offset.push((*epoch, *value));
         }
 
         for (sv, observations) in vehicules {
@@ -71,19 +68,19 @@ pub fn basic_plot(cli: &Cli, ctx: &mut Context, record: &observation::Record) {
                 if let Some(data) = dataset.get_mut(&physics) {
                     if let Some(data) = data.get_mut(&c_code) {
                         if let Some(data) = data.get_mut(&sv) {
-                            data.push((cycle_slip, epoch.to_string(), y));
+                            data.push((cycle_slip, *epoch, y));
                         } else {
-                            data.insert(*sv, vec![(cycle_slip, epoch.to_string(), y)]);
+                            data.insert(*sv, vec![(cycle_slip, *epoch, y)]);
                         }
                     } else {
-                        let mut map: HashMap<Sv, Vec<(bool, String, f64)>> = HashMap::new();
-                        map.insert(*sv, vec![(cycle_slip, epoch.to_string(), y)]);
+                        let mut map: HashMap<Sv, Vec<(bool, Epoch, f64)>> = HashMap::new();
+                        map.insert(*sv, vec![(cycle_slip, *epoch, y)]);
                         data.insert(c_code, map);
                     }
                 } else {
-                    let mut map: HashMap<Sv, Vec<(bool, String, f64)>> = HashMap::new();
-                    map.insert(*sv, vec![(cycle_slip, epoch.to_string(), y)]);
-                    let mut mmap: HashMap<u8, HashMap<Sv, Vec<(bool, String, f64)>>> =
+                    let mut map: HashMap<Sv, Vec<(bool, Epoch, f64)>> = HashMap::new();
+                    map.insert(*sv, vec![(cycle_slip, *epoch, y)]);
+                    let mut mmap: HashMap<u8, HashMap<Sv, Vec<(bool, Epoch, f64)>>> =
                         HashMap::new();
                     mmap.insert(c_code, map);
                     dataset.insert(physics.to_string(), mmap);
@@ -94,13 +91,10 @@ pub fn basic_plot(cli: &Cli, ctx: &mut Context, record: &observation::Record) {
 
     if clk_offset.len() > 0 {
         ctx.add_cartesian2d_plot("Receiver Clock Offset", "Clock Offset [s]");
-        let data_x: Vec<String> = clk_offset.iter().map(|(k, _)| k.clone()).collect();
+        let data_x: Vec<Epoch> = clk_offset.iter().map(|(k, _)| *k).collect();
         let data_y: Vec<f64> = clk_offset.iter().map(|(_, v)| *v).collect();
-        let trace = Scatter::new(data_x, data_y)
-            .mode(Mode::LinesMarkers)
-            .marker(Marker::new().symbol(MarkerSymbol::TriangleUp))
-            .web_gl_mode(true)
-            .name("Clk Offset");
+        let trace = build_chart_epoch_axis("Clk Offset", Mode::LinesMarkers, data_x, data_y)
+            .marker(Marker::new().symbol(MarkerSymbol::TriangleUp));
         ctx.add_trace(trace);
     }
     /*
@@ -115,24 +109,25 @@ pub fn basic_plot(cli: &Cli, ctx: &mut Context, record: &observation::Record) {
             _ => unreachable!(),
         };
         ctx.add_cartesian2d_plot(&format!("{} Observations", physics), y_label);
-        // one symbol per carrier
-        let markers = generate_markers(carriers.len());
+        let markers = generate_markers(carriers.len()); // one symbol per carrier
         for (index, (carrier, vehicules)) in carriers.iter().enumerate() {
             for (sv, data) in vehicules {
-                let data_x: Vec<String> = data.iter().map(|(cs, e, _y)| e.clone()).collect();
+                let data_x: Vec<Epoch> = data.iter().map(|(cs, e, _y)| *e).collect();
                 let data_y: Vec<f64> = data.iter().map(|(cs, _e, y)| *y).collect();
-                let trace = Scatter::new(data_x, data_y)
-                    .mode(Mode::Markers)
-                    .marker(Marker::new().symbol(markers[index].clone()))
-                    .visible({
-                        if index < 1 {
-                            Visible::True
-                        } else {
-                            Visible::LegendOnly
-                        }
-                    })
-                    .web_gl_mode(true)
-                    .name(&format!("{}(L{})", sv, carrier));
+                let trace = build_chart_epoch_axis(
+                    &format!("{}(L{})", sv, carrier),
+                    Mode::Markers,
+                    data_x,
+                    data_y,
+                )
+                .marker(Marker::new().symbol(markers[index].clone()))
+                .visible({
+                    if index < 1 {
+                        Visible::True
+                    } else {
+                        Visible::LegendOnly
+                    }
+                });
                 ctx.add_trace(trace);
             }
         }

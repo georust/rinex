@@ -219,11 +219,10 @@ For instance \"2S-2W\" means S code against W code, for L2 carrier. Refer to REA
                     .arg(Arg::new("cs")
                         .long("cs")
                         .action(ArgAction::SetTrue)
-                        .help("Cycle Slip detection visualization.
-Helps visualize the detected CS and fine tune the detector operation.
+                        .help("Cycle Slip detection (graphical).
+Helps visualize what the CS detector is doing and fine tune its operation.
 CS do not get repaired with this command.
-If you're just interested in CS information, you probably want `-qc` instead.
-Do not combine to `-qc` either, otherwise detection process runs twice.."))
+If you're just interested in CS information, you probably just want `-qc` instead."))
                 .next_help_heading("Navigation RINEX")
                     .arg(Arg::new("orbits")
                         .long("orbits")
@@ -571,7 +570,7 @@ Refer to README"))
     pub fn tiny_html(&self) -> bool {
         self.matches.get_flag("tiny-html")
     }
-    pub fn cs_visualization(&self) -> bool {
+    pub fn cs_graph(&self) -> bool {
         self.matches.get_flag("cs")
     }
     /// Returns optionnal RINEX file to "merge"

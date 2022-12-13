@@ -1,4 +1,4 @@
-use super::{generate_markers, Context, Marker, Mode, Scatter};
+use super::{build_chart_epoch_axis, generate_markers, Context, Marker, Mode};
 use plotly::common::Visible;
 use rinex::prelude::*;
 use std::collections::{BTreeMap, HashMap};
@@ -19,23 +19,18 @@ pub fn plot_gnss_recombination(
     // plot all ops
     for (op_index, (op, vehicules)) in data.iter().enumerate() {
         for (sv, epochs) in vehicules {
-            let data_x: Vec<String> = epochs
-                .iter()
-                .map(|((e, _flag), _v)| e.to_string())
-                .collect();
+            let data_x: Vec<Epoch> = epochs.iter().map(|((e, _flag), _v)| *e).collect();
             let data_y: Vec<f64> = epochs.iter().map(|(_, v)| *v).collect();
-            let trace = Scatter::new(data_x, data_y)
-                .mode(Mode::Markers)
-                .marker(Marker::new().symbol(markers[op_index].clone()))
-                .web_gl_mode(true)
-                .visible({
-                    if op_index < 1 {
-                        Visible::True
-                    } else {
-                        Visible::LegendOnly
-                    }
-                })
-                .name(&format!("{}({})", sv, op));
+            let trace =
+                build_chart_epoch_axis(&format!("{}({})", sv, op), Mode::Markers, data_x, data_y)
+                    .marker(Marker::new().symbol(markers[op_index].clone()))
+                    .visible({
+                        if op_index < 1 {
+                            Visible::True
+                        } else {
+                            Visible::LegendOnly
+                        }
+                    });
             ctx.add_trace(trace);
         }
     }

@@ -1,4 +1,4 @@
-use crate::plot::{generate_markers, Context};
+use crate::plot::{build_chart_epoch_axis, generate_markers, Context};
 use ndarray::Array;
 use plotly::{
     common::{Marker, Mode, Visible},
@@ -24,11 +24,11 @@ pub fn sv_epoch(ctx: &mut Context, rnx: &Rinex, nav: &mut Option<Rinex>) {
 
     let data = rnx.space_vehicules_per_epoch();
     for (sv_index, sv) in rnx.space_vehicules().iter().enumerate() {
-        let epochs: Vec<String> = data
+        let epochs: Vec<Epoch> = data
             .iter()
             .filter_map(|(epoch, ssv)| {
                 if ssv.contains(&sv) {
-                    Some(epoch.to_string())
+                    Some(*epoch)
                 } else {
                     None
                 }
@@ -62,11 +62,11 @@ pub fn sv_epoch(ctx: &mut Context, rnx: &Rinex, nav: &mut Option<Rinex>) {
         let nb_obs_constell = nb_markers - nav_constell.len();
 
         for (sv_index, sv) in rnx.space_vehicules().iter().enumerate() {
-            let epochs: Vec<String> = data
+            let epochs: Vec<Epoch> = data
                 .iter()
                 .filter_map(|(epoch, ssv)| {
                     if ssv.contains(&sv) {
-                        Some(epoch.to_string())
+                        Some(*epoch)
                     } else {
                         None
                     }
@@ -77,15 +77,13 @@ pub fn sv_epoch(ctx: &mut Context, rnx: &Rinex, nav: &mut Option<Rinex>) {
                 .position(|c| *c == sv.constellation)
                 .unwrap();
             let prn = Array::linspace(0.0, 1.0, epochs.len());
-            let prn: Vec<u8> = prn
+            let prn: Vec<f64> = prn
                 .iter()
-                .map(|_| sv.prn + constell_index as u8 + nb_obs_constell as u8)
+                .map(|_| sv.prn as f64 + constell_index as f64 + nb_obs_constell as f64)
                 .collect();
             let marker = &markers[constell_index];
-            let trace = Scatter::new(epochs, prn)
-                .mode(Mode::Markers)
+            let trace = build_chart_epoch_axis(&format!("{}(NAV)", sv), Mode::Markers, epochs, prn)
                 .marker(Marker::new().symbol(marker.clone()))
-                .web_gl_mode(true)
                 .visible({
                     // improves plot generation speed, on large files
                     if sv_index < 4 {
@@ -93,8 +91,7 @@ pub fn sv_epoch(ctx: &mut Context, rnx: &Rinex, nav: &mut Option<Rinex>) {
                     } else {
                         Visible::LegendOnly
                     }
-                })
-                .name(&format!("{}(NAV)", sv));
+                });
             ctx.add_trace(trace);
         }
     }

@@ -3,6 +3,7 @@ use plotly::{
     common::{
         //DashType,
         Font,
+        HoverInfo,
         Marker,
         MarkerSymbol,
         Mode,
@@ -305,6 +306,24 @@ pub fn build_plot(
     let mut p = Plot::new();
     p.set_layout(layout);
     p
+}
+
+/*
+ * Builds a default chart, 2D, X = time axis
+ */
+pub fn build_chart_epoch_axis(
+    name: &str,
+    mode: Mode,
+    epochs: Vec<Epoch>,
+    data_y: Vec<f64>,
+) -> Box<Scatter<f64, f64>> {
+    let txt: Vec<String> = epochs.iter().map(|e| e.to_string()).collect();
+    Scatter::new(epochs.iter().map(|e| e.to_utc_seconds()).collect(), data_y)
+        .mode(mode)
+        .web_gl_mode(true)
+        .name(name)
+        .hover_text_array(txt)
+        .hover_info(HoverInfo::All)
 }
 
 pub fn plot_record(cli: &Cli, ctx: &mut Context, rnx: &Rinex, nav: &Option<Rinex>) {
