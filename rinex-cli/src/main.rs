@@ -41,6 +41,7 @@ pub fn main() -> Result<(), rinex::Error> {
     let cli = Cli::new();
     let quiet = cli.quiet();
     let pretty = cli.pretty();
+    let qc_only = cli.quality_check_only();
     let mut ctx = plot::Context::new();
 
     // input context
@@ -85,9 +86,9 @@ pub fn main() -> Result<(), rinex::Error> {
     }
     if cli.retain() {
         // retain data of interest
-        retain_filters(&mut rnx, cli.retain_flags(), cli.retain_ops());
+        retain_filters(&cli, &mut rnx, cli.retain_flags(), cli.retain_ops());
         if let Some(ref mut nav) = nav_context {
-            retain_filters(nav, cli.retain_flags(), cli.retain_ops());
+            retain_filters(&cli, nav, cli.retain_flags(), cli.retain_ops());
         }
     }
     if cli.filter() {
@@ -122,19 +123,19 @@ pub fn main() -> Result<(), rinex::Error> {
     /*
      * SV per Epoch analysis requested
      */
-    if cli.sv_epoch() {
+    if cli.sv_epoch() && !qc_only {
         analysis::sv_epoch(&mut ctx, &rnx, &mut nav_context);
     }
     /*
      * Epoch histogram analysis
      */
-    if cli.epoch_histogram() {
+    if cli.epoch_histogram() && !qc_only {
         analysis::epoch_histogram(&mut ctx, &rnx);
     }
     /*
      * DCB analysis requested
      */
-    if cli.dcb() {
+    if cli.dcb() && !qc_only {
         let mut data = rnx.observation_phase_dcb();
         for (op, inner) in rnx.observation_pseudorange_dcb() {
             data.insert(op.clone(), inner.clone());
@@ -144,14 +145,14 @@ pub fn main() -> Result<(), rinex::Error> {
     /*
      * Code Multipath analysis
      */
-    if cli.multipath() {
+    if cli.multipath() && !qc_only {
         let data = rnx.observation_code_multipath();
         plot::plot_gnss_recombination(&mut ctx, "Code Multipath Biases", "MP [n.a]", &data);
     }
     /*
      * [GF] recombination visualization requested
      */
-    if cli.gf_recombination() {
+    if cli.gf_recombination() && !qc_only {
         let data = rnx.observation_gf_combinations();
         plot::plot_gnss_recombination(
             &mut ctx,
@@ -163,7 +164,7 @@ pub fn main() -> Result<(), rinex::Error> {
     /*
      * [WL] recombination
      */
-    if cli.wl_recombination() {
+    if cli.wl_recombination() && !qc_only {
         let data = rnx.observation_wl_combinations();
         plot::plot_gnss_recombination(
             &mut ctx,
@@ -175,7 +176,7 @@ pub fn main() -> Result<(), rinex::Error> {
     /*
      * [NL] recombination
      */
-    if cli.nl_recombination() {
+    if cli.nl_recombination() && !qc_only {
         let data = rnx.observation_nl_combinations();
         plot::plot_gnss_recombination(
             &mut ctx,
@@ -187,7 +188,7 @@ pub fn main() -> Result<(), rinex::Error> {
     /*
      * [MW] recombination
      */
-    if cli.mw_recombination() {
+    if cli.mw_recombination() && !qc_only {
         let data = rnx.observation_mw_combinations();
         plot::plot_gnss_recombination(
             &mut ctx,
@@ -207,7 +208,7 @@ pub fn main() -> Result<(), rinex::Error> {
             record_resampling(&mut rnx_b, cli.resampling_ops());
         }
         if cli.retain() {
-            retain_filters(&mut rnx_b, cli.retain_flags(), cli.retain_ops());
+            retain_filters(&cli, &mut rnx_b, cli.retain_flags(), cli.retain_ops());
         }
         if cli.filter() {
             apply_filters(&mut rnx_b, cli.filter_ops());
@@ -239,7 +240,8 @@ pub fn main() -> Result<(), rinex::Error> {
     /*
      * skyplot
      */
-    let skyplot = rnx.is_navigation_rinex() || nav_context.is_some();
+    let nav_provided = rnx.is_navigation_rinex() || nav_context.is_some();
+    let skyplot = nav_provided && !qc_only;
     if skyplot {
         plot::skyplot(&mut ctx, &rnx, &nav_context, ref_position);
     }
@@ -247,8 +249,9 @@ pub fn main() -> Result<(), rinex::Error> {
      * Record analysis / visualization
      * analysis depends on the provided record type
      */
-    plot::plot_record(&cli, &mut ctx, &rnx, &nav_context);
-
+    if !qc_only {
+        plot::plot_record(&cli, &mut ctx, &rnx, &nav_context);
+    }
     /*
      * Render HTML
      */
@@ -256,12 +259,11 @@ pub fn main() -> Result<(), rinex::Error> {
     let mut html_fd = std::fs::File::create(&html_absolute_path)
         .expect(&format!("failed to create \"{}\"", &html_absolute_path));
     let mut html = ctx.to_html(cli.tiny_html());
-
     /*
      * Quality Check summary
      */
     if cli.quality_check() {
-        let report = QcReport::new(&rnx, &nav_context, QcType::Basic);
+        let report = QcReport::basic(&rnx, &nav_context);
         if cli.quality_check_separate() {
             let qc_absolute_path = product_prefix.to_owned() + "/qc.html";
             let mut qc_fd = std::fs::File::create(&qc_absolute_path)
@@ -274,13 +276,13 @@ pub fn main() -> Result<(), rinex::Error> {
             html.push_str(&report.to_inline_html().into_string().unwrap());
             html.push_str("</div>\n");
         }
+        println!("Quality check summary added to html report");
     }
-
     write!(html_fd, "{}", html).expect(&format!("failed to write HTML content"));
     if !quiet {
         open_html_with_default_app(&html_absolute_path);
     }
-    println!("\"{}\" generated", &html_absolute_path);
+    println!("HTML report \"{}\" generated", &html_absolute_path);
 
     Ok(())
 } // main

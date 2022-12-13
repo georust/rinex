@@ -1,4 +1,9 @@
-use rinex::{navigation::MsgType, prelude::*};
+use crate::Cli;
+use rinex::{
+    prelude::*,
+    navigation::MsgType, 
+    navigation::ElevationMask,
+};
 use std::str::FromStr;
 
 fn args_to_constellations(args: Vec<&str>) -> Vec<Constellation> {
@@ -41,7 +46,7 @@ fn args_to_nav_message(args: Vec<&str>) -> Vec<MsgType> {
 }
 
 /// Efficient RINEX content filter
-pub fn retain_filters(rnx: &mut Rinex, flags: Vec<&str>, ops: Vec<(&str, Vec<&str>)>) {
+pub fn retain_filters(cli: &Cli, rnx: &mut Rinex, flags: Vec<&str>, ops: Vec<(&str, Vec<&str>)>) {
     for flag in flags {
         if flag.eq("retain-epoch-ok") {
             rnx.retain_epoch_ok_mut();
@@ -80,27 +85,12 @@ pub fn retain_filters(rnx: &mut Rinex, flags: Vec<&str>, ops: Vec<(&str, Vec<&st
         } else if op.eq(&"retain-nav-msg") {
             let filter = args_to_nav_message(args.clone());
             rnx.retain_navigation_message_mut(filter);
-        } else if op.eq(&"retain-elev-above") {
-            if let Ok(a0) = f64::from_str(args[0].trim()) {
-                rnx.orbits_elevation_angle_filter_mut(a0);
+
+        } else if op.eq(&"elev-mask") {
+            if let Ok(mask) = ElevationMask::from_str(args[0]) {
+                rnx.elevation_mask_mut(mask, cli.ref_position());
             } else {
-                println!("failed to parse elevation angle. Expecting floating point value");
-            }
-        } else if op.eq(&"retain-elev-below") {
-            if let Ok(a1) = f64::from_str(args[0].trim()) {
-                rnx.orbits_elevation_angle_range_filter_mut((0.0, a1));
-            } else {
-                println!("failed to parse elevation angle. Expecting floating point value");
-            }
-        } else if op.eq(&"retain-elev") {
-            if let Ok(a0) = f64::from_str(args[0].trim()) {
-                if let Ok(a1) = f64::from_str(args[0].trim()) {
-                    rnx.orbits_elevation_angle_range_filter_mut((a0, a1));
-                } else {
-                    println!("failed to parse elevation angle. Expecting floating point value");
-                }
-            } else {
-                println!("failed to parse elevation angle. Expecting floating point value");
+                println!("failed to parse elevation mask from \"{}\"", args[0]);
             }
         }
     }

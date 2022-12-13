@@ -29,7 +29,6 @@ impl Cli {
                 .next_help_heading("RINEX identification commands")
                     .arg(Arg::new("epochs")
                         .long("epochs")
-                        .short('e')
                         .action(ArgAction::SetTrue)
                         .help("Identify epochs"))
                     .arg(Arg::new("constellations")
@@ -73,7 +72,7 @@ Interval must be a valid \"HH:MM:SS\" duration description.
 Example: -i 00:10:00 will have all epochs spaced by at least 10 minutes."))
                     .arg(Arg::new("time-window")
                         .long("time-window")
-                        .value_name("START, END")
+                        .value_name("Epoch(1), Epoch(N)")
                         .short('w')
                         .help("Center record content around specified epoch window. 
 All epochs that do not lie within the specified (start, end) 
@@ -123,16 +122,12 @@ Truly applies to Observation RINEX only."))
                         .action(ArgAction::SetTrue)
                         .help("Retain only non valid epochs.
 Truly applies to Observation RINEX only."))
-                    .arg(Arg::new("retain-elev-above")
-                        .long("retain-elev-above")
-                        .value_name("LIMIT(f64)")
-                        .help("Retain vehicules (strictly) above given elevation angle.
--fp must be a NAV file, or NAV context must be provided with -nav"))
-                    .arg(Arg::new("retain-elev-below")
-                        .long("retain-elev-below")
-                        .value_name("LIMIT(f64)")
-                        .help("Retain vehicules (strictly) below given elevation angle.
--fp must be a NAV file, or NAV context must be provided with -nav"))
+                    .arg(Arg::new("elev-mask")
+                        .short('e')
+                        .long("elev-mask")
+                        .help("Apply given elevation mask.
+Example: --elev-mask \">30\" will retain Sv above 30° mask.
+Example: --elev-mask \"<=40\" will retain Sv below 30° mask."))
                     .arg(Arg::new("retain-best-elev")
                         .long("retain-best-elev")
                         .action(ArgAction::SetTrue)
@@ -174,7 +169,6 @@ that exhibit the best elevation angle.
                         .help("Extract SSI (min,max) range, per vehicule, accross all epochs"))
                     .arg(Arg::new("lli-mask")
                         .long("lli-mask")
-                        .short('l')
                         .help("Applies given LLI AND() mask. 
 Also drops observations that did not come with an LLI flag"))
                     .arg(Arg::new("clock-offset")
@@ -184,38 +178,32 @@ Also drops observations that did not come with an LLI flag"))
                     .arg(Arg::new("gf")
                         .long("gf")
                         .action(ArgAction::SetTrue)
-                        .help("Geometry Free recombination of Phase and PR measurements. 
-This serves as a CS indicator or atmospheric delay estimator. Refer to README."))
+                        .help("Visualize Geometry Free recombination of both Phase and PR measurements."))
                     .arg(Arg::new("wl")
                         .long("wl")
                         .action(ArgAction::SetTrue)
-                        .help("Wide Lane Phase and PR signal combination. 
-These combination are more sensitive to CS (phase slope discontinuities). Refer to README."))
+                        .help("Visualize Wide Lane recombination of both Phase and PR measurements."))
                     .arg(Arg::new("nl")
                         .long("nl")
                         .action(ArgAction::SetTrue)
-                        .help("Narrow Lane Phase and PR signal combination. 
-These combination are more sensitive to CS (phase slope discontinuities). Refer to README."))
+                        .help("Visualize Narrow Lane recombination of both Phase and PR measurements."))
                     .arg(Arg::new("mw")
                         .long("mw")
                         .action(ArgAction::SetTrue)
-                        .help("Melbourne-Wübbena combination, combines both Wide lane and Narrow lane combinations, 
-and serves as the ultimate CS (phase slope discontinuities) detector. Refer to README."))
+                        .help("Visualize Melbourne-Wübbena recombinations"))
                     .arg(Arg::new("dcb")
                         .long("dcb")
                         .action(ArgAction::SetTrue)
-                        .help("Differential Code Bias analysis (DCBs).
-Useful to determine correlation and biases between Phase and PR observations.
-For instance \"2S-2W\" means S code against W code, for L2 carrier. Refer to README."))
+                        .help("Visualize Differential Code Bias analysis"))
                     .arg(Arg::new("multipath")
                         .long("mp")
                         .action(ArgAction::SetTrue)
-                        .help("Run code multipath analysis. Refer to README."))
+                        .help("Visualize Code Multipath analysis"))
                     .arg(Arg::new("anomalies")
                         .short('a')
                         .long("anomalies")
                         .action(ArgAction::SetTrue)
-                        .help("Display epoch where anomalies was reported by the receiver"))
+                        .help("Display epoch where anomalies were reported by the receiver"))
                     .arg(Arg::new("cs")
                         .long("cs")
                         .action(ArgAction::SetTrue)
@@ -278,37 +266,37 @@ Applies to either -fp or -nav context"))
                         .action(ArgAction::SetTrue)
                         .help("Retains only Navigation ionospheric models. 
 -fp must be a NAV file"))
-                .next_help_heading("RINEX processing")
+                .next_help_heading("Navigation Context")
                     .arg(Arg::new("nav")
                         .long("nav")
                         .value_name("FILE")
-                        .help("Provide Navigation context for advanced RINEX processing.
-Usually combined to Observation data, provided with -fp.
-Only identical epochs can be analyzed and processed.
-Ideally, both contexts have strictly identical sample rates.
-Refer to README."))
+                        .help("Augment `--fp` with related Navigation Context.
+Most useful when combined to Observation RINEX. 
+Enables full `--qc` summary."))
                 .next_help_heading("Quality Check (QC)")
                     .arg(Arg::new("qc")
                         .long("qc")
                         .action(ArgAction::SetTrue)
                         .help("Enable Quality Check (QC) mode.
 Runs thorough analysis on provided RINEX data.
-The summary report by default is integrated to the global HTML report.
-Use --qc-separate to change that."))
+The summary report by default is integrated to the global HTML report."))
                     .arg(Arg::new("qc-separate")
                         .long("qc-separate")
                         .action(ArgAction::SetTrue)
                         .help("Dump QC report in separate HTML"))
-                .next_help_heading("`teqc` operations")
+                    .arg(Arg::new("qc-only")
+                        .long("qc-only")
+                        .action(ArgAction::SetTrue)
+                        .help("Disable all but QC analysis, for quicker QC summary generation"))
+                .next_help_heading("File operations")
                     .arg(Arg::new("merge")
                         .short('m')
                         .value_name("FILE")
                         .long("merge")
-                        .help("RINEX merge operation.
-Combine this RINEX, considered secondary, into `--fp`. RINEX format must match."))
+                        .help("Merges this RINEX into `--fp`"))
                     .arg(Arg::new("split")
                         .long("split")
-                        .value_name("DATETIME")
+                        .value_name("Epoch")
                         .short('s')
                         .help("Split RINEX into two separate files"))
                 .next_help_heading("RINEX output")
@@ -361,6 +349,9 @@ Refer to README"))
     }
     pub fn quality_check_separate(&self) -> bool {
         self.matches.get_flag("qc-separate")
+    }
+    pub fn quality_check_only(&self) -> bool {
+        self.matches.get_flag("qc-only")
     }
     /// Returns true if GPS filter should apply
     pub fn gps_filter(&self) -> bool {
@@ -457,8 +448,7 @@ Refer to README"))
             | self.matches.contains_id("retain-phase")
             | self.matches.contains_id("retain-doppler")
             | self.matches.contains_id("retain-best-elev")
-            | self.matches.contains_id("retain-elev-above")
-            | self.matches.contains_id("retain-elev-below")
+            | self.matches.contains_id("elev-mask")
             | self.matches.contains_id("retain-pr")
     }
 
@@ -498,8 +488,7 @@ Refer to README"))
             "retain-sv",
             "retain-obs",
             "retain-ssi",
-            "retain-elev-above",
-            "retain-elev-below",
+            "elev-mask",
             "retain-orb",
         ];
         flags

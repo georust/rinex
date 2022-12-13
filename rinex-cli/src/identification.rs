@@ -58,13 +58,6 @@ pub fn basic_identification(rnx: &Rinex, ops: Vec<&str>, pretty: bool) {
                 false => serde_json::to_string(data).unwrap(),
             };
             println!("{}", content);
-        } else if op.eq("elevation") {
-            let data = &rnx.orbits_elevation_angles();
-            let content = match pretty {
-                true => serde_json::to_string_pretty(data).unwrap(),
-                false => serde_json::to_string(data).unwrap(),
-            };
-            println!("{}", content);
         } else if op.eq("nav-msg") {
             let data = &rnx.navigation_message_types();
             println!("{:?}", data);
