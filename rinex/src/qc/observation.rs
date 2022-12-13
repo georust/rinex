@@ -1,4 +1,4 @@
-use super::{QcOpts, averager::Averager};
+use super::{averager::Averager, QcOpts};
 use crate::{observation::*, prelude::*, *};
 use horrorshow::RenderBox;
 use std::collections::{BTreeMap, HashMap};
@@ -26,12 +26,11 @@ pub struct QcReport {
 
 impl QcReport {
     pub fn new(rnx: &Rinex, nav: &Option<Rinex>, opts: QcOpts) -> Self {
-        
         let record = rnx.record.as_obs().unwrap();
         let sv_list = rnx.space_vehicules();
         let total_sv = sv_list.len();
         let total_epochs = record.len();
-        
+
         let mut has_doppler = false;
         let mut epochs_with_obs: usize = 0;
         let mut sv_with_obs: Vec<Sv> = Vec::new();
@@ -43,7 +42,7 @@ impl QcReport {
         // RX clock
         let mut clk_avg = Averager::new(opts.clk_drift_window);
         let mut clk_drift: HashMap<Epoch, f64> = HashMap::with_capacity(total_epochs);
-        
+
         // APC
         let mut apc = (0_32, (0.0_f64, 0.0_f64, 0.0_f64));
         // SSi
@@ -53,7 +52,7 @@ impl QcReport {
         let mut dcbs = rnx.observation_phase_dcb();
         // MPx
         let mut mp = rnx.observation_code_multipath();
-        
+
         for ((epoch, flag), (clk_offset, vehicles)) in record {
             if *flag == EpochFlag::PowerFailure {
                 if rcvr_failure.is_none() {
@@ -79,7 +78,7 @@ impl QcReport {
                 for (code, data) in observations {
                     has_doppler |= is_doppler_obs_code!(code);
                     let carrier = "L".to_owned() + &code[1..2];
-                    
+
                     /*
                      * SSI moving average
                      */
@@ -93,8 +92,7 @@ impl QcReport {
                                 }
                             }
                         } else {
-                            ssi_avg.insert(carrier.to_string(),
-                                Averager::new(opts.obs_avg_window));
+                            ssi_avg.insert(carrier.to_string(), Averager::new(opts.obs_avg_window));
                         }
                     }
                 }
@@ -334,7 +332,7 @@ impl QcReport {
                 //  }
                 //  Obs Masked out "Possible Obs > $mask deg
                 //  Deleted Obs < $mask deg
-                
+
             }
         }
     }

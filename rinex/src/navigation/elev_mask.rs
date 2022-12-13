@@ -39,7 +39,7 @@ impl std::str::FromStr for ElevationMask {
         if content.starts_with(">=") {
             let angle = &content[2..];
             if let Ok(angle) = f64::from_str(angle.trim()) {
-                Ok(Self{
+                Ok(Self {
                     sign: Sign::Above,
                     angle,
                 })
@@ -49,7 +49,7 @@ impl std::str::FromStr for ElevationMask {
         } else if content.starts_with(">") {
             let angle = &content[1..];
             if let Ok(angle) = f64::from_str(angle.trim()) {
-                Ok(Self{
+                Ok(Self {
                     sign: Sign::StrictlyAbove,
                     angle,
                 })
@@ -59,7 +59,7 @@ impl std::str::FromStr for ElevationMask {
         } else if content.starts_with("<=") {
             let angle = &content[2..];
             if let Ok(angle) = f64::from_str(angle.trim()) {
-                Ok(Self{
+                Ok(Self {
                     sign: Sign::Below,
                     angle,
                 })
@@ -69,7 +69,7 @@ impl std::str::FromStr for ElevationMask {
         } else if content.starts_with("<") {
             let angle = &content[1..];
             if let Ok(angle) = f64::from_str(angle.trim()) {
-                Ok(Self{
+                Ok(Self {
                     sign: Sign::StrictlyBelow,
                     angle,
                 })

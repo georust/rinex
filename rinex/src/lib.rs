@@ -73,7 +73,7 @@ pub mod sbas {
 pub mod processing {
     //pub use crate::differential::DiffContext;
     pub use crate::cs::CsOpts;
-    pub use crate::qc::{QcReport, QcOpts};
+    pub use crate::qc::{QcOpts, QcReport};
     pub use crate::sampling::Decimation;
 }
 
@@ -1989,12 +1989,17 @@ impl Rinex {
     }
 
     /// Applies given elevation mask
-    pub fn elevation_mask_mut(&mut self, mask: navigation::ElevationMask, ref_pos: Option<(f64,f64,f64)>) {
+    pub fn elevation_mask_mut(
+        &mut self,
+        mask: navigation::ElevationMask,
+        ref_pos: Option<(f64, f64, f64)>,
+    ) {
         let ref_pos = match ref_pos {
             Some(ref_pos) => ref_pos,
-            _ => self.header.coords
-                .expect("can't apply an elevation mask when ground/ref position is unknown.
-Specify one yourself with `ref_pos`"),
+            _ => self.header.coords.expect(
+                "can't apply an elevation mask when ground/ref position is unknown.
+Specify one yourself with `ref_pos`",
+            ),
         };
         if let Some(r) = self.record.as_mut_nav() {
             r.retain(|epoch, classes| {
@@ -2019,7 +2024,11 @@ Specify one yourself with `ref_pos`"),
         }
     }
 
-    pub fn elevation_mask(&self, mask: navigation::ElevationMask, ref_pos: Option<(f64,f64,f64)>) -> Self {
+    pub fn elevation_mask(
+        &self,
+        mask: navigation::ElevationMask,
+        ref_pos: Option<(f64, f64, f64)>,
+    ) -> Self {
         let mut s = self.clone();
         s.elevation_mask_mut(mask, ref_pos);
         s

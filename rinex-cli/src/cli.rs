@@ -1,10 +1,7 @@
 use crate::parser::parse_epoch;
 use clap::{Arg, ArgAction, ArgMatches, ColorChoice, Command};
+use rinex::{navigation::ElevationMask, prelude::*};
 use std::str::FromStr;
-use rinex::{
-    prelude::*,
-    navigation::ElevationMask,
-};
 
 pub struct Cli {
     /// Arguments passed by user

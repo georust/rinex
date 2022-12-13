@@ -124,7 +124,6 @@ pub fn main() -> Result<(), rinex::Error> {
         }
     }
 
-
     /*
      * Observation RINEX:
      *  align phase origins at this point
