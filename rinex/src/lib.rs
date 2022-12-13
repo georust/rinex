@@ -73,7 +73,7 @@ pub mod sbas {
 pub mod processing {
     //pub use crate::differential::DiffContext;
     pub use crate::cs::CsOpts;
-    pub use crate::qc::{QcReport, QcType};
+    pub use crate::qc::{QcReport, QcOpts};
     pub use crate::sampling::Decimation;
 }
 
@@ -1968,47 +1968,6 @@ impl Rinex {
         results
     }
 
-    /// Extracts elevation angle for all vehicules per epoch,
-    /// Does not produce anything if this is not an NAV record,
-    /// or NAV record does not contain any ephemeris frame
-    pub fn orbits_elevation_angles(&self) -> BTreeMap<Epoch, BTreeMap<Sv, f64>> {
-        let mut ret: BTreeMap<Epoch, BTreeMap<Sv, f64>> = BTreeMap::new();
-        if !self.is_navigation_rinex() {
-            return ret;
-        }
-        let record = self.record.as_nav().unwrap();
-        for (epoch, classes) in record.iter() {
-            let mut inner: BTreeMap<Sv, f64> = BTreeMap::new();
-            for (class, frames) in classes.iter() {
-                if *class == navigation::FrameClass::Ephemeris {
-                    for frame in frames.iter() {
-                        let (_, sv, ephemeris) = frame.as_eph().unwrap();
-                        let orbits = &ephemeris.orbits;
-                        // test all well known elevation angle fields
-                        if let Some(elev) = orbits.get("e") {
-                            inner.insert(sv.clone(), elev.as_f64().unwrap());
-                        } else {
-                            if let Some(posx) = orbits.get("satPosX") {
-                                if let Some(posy) = orbits.get("satPosY") {
-                                    if let Some(posz) = orbits.get("satPosY") {
-                                        let e = posx.as_f64().unwrap()
-                                            * posy.as_f64().unwrap()
-                                            * posz.as_f64().unwrap(); //TODO
-                                        inner.insert(sv.clone(), e);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            if inner.len() > 0 {
-                ret.insert(*epoch, inner);
-            }
-        }
-        ret
-    }
-
     /// Retains only Navigation Ephemeris
     pub fn retain_navigation_ephemeris_mut(&mut self) {
         if let Some(record) = self.record.as_mut_nav() {
@@ -2029,73 +1988,40 @@ impl Rinex {
         }
     }
 
-    /// Filters out all vehicules that exhibit an elevation angle below given mask (a < min_angle).
-    /// Has no effect if self is not a NAV record containing at least 1 Ephemeris frame.
-    pub fn orbits_elevation_angle_filter_mut(&mut self, min_angle: f64) {
-        if !self.is_navigation_rinex() {
-            return;
-        }
-        let record = self.record.as_mut_nav().unwrap();
-        record.retain(|_, classes| {
-            classes.retain(|class, frames| {
-                if *class == navigation::FrameClass::Ephemeris {
-                    frames.retain(|fr| {
-                        let (_, _, ephemeris) = fr.as_eph().unwrap();
-                        if let Some(elev) = ephemeris.orbits.get("e") {
-                            elev.as_f64().unwrap() < min_angle
-                        } else {
-                            // TODO
-                            false
-                        }
-                    });
-                    frames.len() > 0
-                } else {
-                    // not an EPH
-                    true // keep it anyway
-                }
-            });
-            classes.len() > 0
-        })
-    }
-
-    /// Immutable implementation of [elevation_angle_filter_mut]
-    pub fn orbits_elevation_angle_filter(&self, min_angle: f64) -> Self {
-        let mut s = self.clone();
-        s.orbits_elevation_angle_filter_mut(min_angle);
-        s
-    }
-
-    /// Filters out vehicules for each epoch where they did not exhibit
-    /// an elevation angle that is contained in (min_angle < a <= max_angle)
-    /// both included.
-    /// This has no effect on RINEX records other than NAV records
-    pub fn orbits_elevation_angle_range_filter_mut(&mut self, min_max: (f64, f64)) {
-        if !self.is_navigation_rinex() {
-            return;
-        }
-        let (min, max) = min_max;
-        let record = self.record.as_mut_nav().unwrap();
-        record.retain(|_, classes| {
-            classes.retain(|_, frames| {
-                frames.retain(|fr| {
-                    let (_, _, ephemeris) = fr.as_eph().unwrap();
-                    if let Some(elev) = ephemeris.orbits.get("e") {
-                        let elev = elev.as_f64().unwrap();
-                        elev > min && elev <= max
+    /// Applies given elevation mask
+    pub fn elevation_mask_mut(&mut self, mask: navigation::ElevationMask, ref_pos: Option<(f64,f64,f64)>) {
+        let ref_pos = match ref_pos {
+            Some(ref_pos) => ref_pos,
+            _ => self.header.coords
+                .expect("can't apply an elevation mask when ground/ref position is unknown.
+Specify one yourself with `ref_pos`"),
+        };
+        if let Some(r) = self.record.as_mut_nav() {
+            r.retain(|epoch, classes| {
+                classes.retain(|class, frames| {
+                    if *class == navigation::FrameClass::Ephemeris {
+                        frames.retain(|fr| {
+                            let (_, _, ephemeris) = fr.as_eph().unwrap();
+                            if let Some((el, _)) = ephemeris.sat_angles(*epoch, ref_pos) {
+                                mask.fits(el)
+                            } else {
+                                false
+                            }
+                        });
+                        frames.len() > 0
                     } else {
-                        false
+                        // not an EPH
+                        true // keep it anyway
                     }
                 });
-                frames.len() > 0
-            });
-            classes.len() > 0
-        })
+                classes.len() > 0
+            })
+        }
     }
 
-    /// Immutable implementation of [elevation_angle_interval_mut]
-    pub fn orbits_elevation_angle_range_filter(&self, min_max: (f64, f64)) -> Self {
+    pub fn elevation_mask(&self, mask: navigation::ElevationMask, ref_pos: Option<(f64,f64,f64)>) -> Self {
         let mut s = self.clone();
-        s.orbits_elevation_angle_range_filter_mut(min_max);
+        s.elevation_mask_mut(mask, ref_pos);
         s
     }
 

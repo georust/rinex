@@ -1,7 +1,10 @@
 use crate::parser::parse_epoch;
 use clap::{Arg, ArgAction, ArgMatches, ColorChoice, Command};
-use rinex::prelude::*;
 use std::str::FromStr;
+use rinex::{
+    prelude::*,
+    navigation::ElevationMask,
+};
 
 pub struct Cli {
     /// Arguments passed by user
@@ -126,14 +129,8 @@ Truly applies to Observation RINEX only."))
                         .short('e')
                         .long("elev-mask")
                         .help("Apply given elevation mask.
-Example: --elev-mask \">30\" will retain Sv above 30° mask.
-Example: --elev-mask \"<=40\" will retain Sv below 30° mask."))
-                    .arg(Arg::new("retain-best-elev")
-                        .long("retain-best-elev")
-                        .action(ArgAction::SetTrue)
-                        .help("Retain vehicules per epoch and per constellation, 
-that exhibit the best elevation angle.
--fp must be a NAV file, or NAV context must be provided with -nav"))
+Example: --elev-mask '>30' will retain Sv above 30°.
+Example: --elev-mask '<=40' will retain Sv below 40° included."))
                 .next_help_heading("Observation RINEX")
                     .arg(Arg::new("observables")
                         .long("observables")
@@ -226,11 +223,6 @@ Ideally this information is contained in the file Header, but user can manually 
                         .long("nav-msg")
                         .action(ArgAction::SetTrue)
                         .help("Identify Navigation frame types. -fp must be a NAV file")) 
-                    .arg(Arg::new("elevation")
-                        .long("elevation")
-                        .action(ArgAction::SetTrue)
-                        .help("Display elevation angles, per vehicules accross all epochs.
--fp must be a NAV file"))
                     .arg(Arg::new("clock-bias")
                         .long("clock-bias")
                         .action(ArgAction::SetTrue)
@@ -343,7 +335,15 @@ Refer to README"))
             None
         }
     }
-    /// Returns true if quality report is to be performed
+    pub fn elevation_mask(&self) -> Option<ElevationMask> {
+        let args = self.matches.get_one::<String>("elev-mask")?;
+        if let Ok(mask) = ElevationMask::from_str(args) {
+            Some(mask)
+        } else {
+            println!("failed to parse elevation mask from \"{}\"", args);
+            None
+        }
+    }
     pub fn quality_check(&self) -> bool {
         self.matches.get_flag("qc")
     }
@@ -353,7 +353,6 @@ Refer to README"))
     pub fn quality_check_only(&self) -> bool {
         self.matches.get_flag("qc-only")
     }
-    /// Returns true if GPS filter should apply
     pub fn gps_filter(&self) -> bool {
         self.matches.get_flag("gps-filter")
     }
@@ -372,7 +371,6 @@ Refer to README"))
     pub fn sbas_filter(&self) -> bool {
         self.matches.get_flag("sbas-filter")
     }
-    /// Returns true if GF recombination requested
     pub fn gf_recombination(&self) -> bool {
         self.matches.get_flag("gf")
     }
@@ -448,7 +446,6 @@ Refer to README"))
             | self.matches.contains_id("retain-phase")
             | self.matches.contains_id("retain-doppler")
             | self.matches.contains_id("retain-best-elev")
-            | self.matches.contains_id("elev-mask")
             | self.matches.contains_id("retain-pr")
     }
 
@@ -488,7 +485,6 @@ Refer to README"))
             "retain-sv",
             "retain-obs",
             "retain-ssi",
-            "elev-mask",
             "retain-orb",
         ];
         flags

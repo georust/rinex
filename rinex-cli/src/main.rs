@@ -37,6 +37,11 @@ fn product_prefix(fname: &str) -> String {
     env!("CARGO_MANIFEST_DIR").to_owned() + "/product/" + &filename(fname)
 }
 
+/*
+ * Applies elevation mask, to non Navigation RINEX
+ */
+//fn apply_elevation_mask(rnx: &mut Rinex, sv_angles: ) {};
+
 pub fn main() -> Result<(), rinex::Error> {
     let cli = Cli::new();
     let quiet = cli.quiet();
@@ -86,9 +91,9 @@ pub fn main() -> Result<(), rinex::Error> {
     }
     if cli.retain() {
         // retain data of interest
-        retain_filters(&cli, &mut rnx, cli.retain_flags(), cli.retain_ops());
+        retain_filters(&mut rnx, cli.retain_flags(), cli.retain_ops());
         if let Some(ref mut nav) = nav_context {
-            retain_filters(&cli, nav, cli.retain_flags(), cli.retain_ops());
+            retain_filters(nav, cli.retain_flags(), cli.retain_ops());
         }
     }
     if cli.filter() {
@@ -104,6 +109,21 @@ pub fn main() -> Result<(), rinex::Error> {
             apply_filters(nav, cli.filter_ops());
         }
     }
+    /*
+     * Elevation mask special case
+     *   applies to Navigation data directly
+     *   applies inderiectly to primary file, in "augmented" mode
+     */
+    if let Some(mask) = cli.elevation_mask() {
+        if let Some(ref nav) = nav_context {
+            let sv_angles = nav.navigation_sat_angles(cli.ref_position());
+            //apply_elevation_mask(rnx, sv_angles, cli.ref_position()); //TODO
+        } else {
+            // apply to primary rinex, if possible
+            rnx.elevation_mask_mut(mask, cli.ref_position());
+        }
+    }
+
 
     /*
      * Observation RINEX:
@@ -208,7 +228,7 @@ pub fn main() -> Result<(), rinex::Error> {
             record_resampling(&mut rnx_b, cli.resampling_ops());
         }
         if cli.retain() {
-            retain_filters(&cli, &mut rnx_b, cli.retain_flags(), cli.retain_ops());
+            retain_filters(&mut rnx_b, cli.retain_flags(), cli.retain_ops());
         }
         if cli.filter() {
             apply_filters(&mut rnx_b, cli.filter_ops());

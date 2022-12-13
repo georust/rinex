@@ -1,8 +1,6 @@
-use crate::Cli;
 use rinex::{
     prelude::*,
     navigation::MsgType, 
-    navigation::ElevationMask,
 };
 use std::str::FromStr;
 
@@ -46,7 +44,7 @@ fn args_to_nav_message(args: Vec<&str>) -> Vec<MsgType> {
 }
 
 /// Efficient RINEX content filter
-pub fn retain_filters(cli: &Cli, rnx: &mut Rinex, flags: Vec<&str>, ops: Vec<(&str, Vec<&str>)>) {
+pub fn retain_filters(rnx: &mut Rinex, flags: Vec<&str>, ops: Vec<(&str, Vec<&str>)>) {
     for flag in flags {
         if flag.eq("retain-epoch-ok") {
             rnx.retain_epoch_ok_mut();
@@ -67,8 +65,6 @@ pub fn retain_filters(cli: &Cli, rnx: &mut Rinex, flags: Vec<&str>, ops: Vec<(&s
             rnx.retain_pseudorange_observations_mut();
         } else if flag.eq("retain-doppler") {
             rnx.retain_doppler_observations_mut();
-        } else if flag.eq("retain-best-elev") {
-            rnx.retain_best_elevation_angles_mut();
         }
     }
     for (op, args) in ops.iter() {
@@ -85,13 +81,6 @@ pub fn retain_filters(cli: &Cli, rnx: &mut Rinex, flags: Vec<&str>, ops: Vec<(&s
         } else if op.eq(&"retain-nav-msg") {
             let filter = args_to_nav_message(args.clone());
             rnx.retain_navigation_message_mut(filter);
-
-        } else if op.eq(&"elev-mask") {
-            if let Ok(mask) = ElevationMask::from_str(args[0]) {
-                rnx.elevation_mask_mut(mask, cli.ref_position());
-            } else {
-                println!("failed to parse elevation mask from \"{}\"", args[0]);
-            }
         }
     }
 }
