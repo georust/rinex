@@ -143,7 +143,7 @@ impl Carrier {
             Carrier::L1 | Carrier::G1(_) | Carrier::E1 => 15.345_f64,
             Carrier::L2 | Carrier::G2(_) | Carrier::E2 => 11.0_f64,
             Carrier::L5 | Carrier::E5 => 12.5_f64,
-            Carrier::G3 => todo!("G3 bandwidth is not known to this day"),
+            Carrier::G3(_) => todo!("G3 bandwidth is not known to this day"),
             Carrier::E6 => todo!("E6 bandwidth is not known to this day"),
             Carrier::L6 => todo!("L6 bandwidth is not known to this day"),
             Carrier::S => todo!("S bandwidth is not known to this day"),
@@ -176,7 +176,7 @@ impl Carrier {
                 } else if observable.contains("2") {
                     Ok(Self::G2(None))
                 } else if observable.contains("3") {
-                    Ok(Self::G3)
+                    Ok(Self::G3(None))
                 } else {
                     Err(Error::InvalidObservable(observable.to_string()))
                 }
