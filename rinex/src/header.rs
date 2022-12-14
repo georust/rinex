@@ -444,13 +444,10 @@ impl Header {
                 };
                 let (date_str, _) = rem.split_at(20);
                 date = date_str.trim().to_string()
-            
             } else if marker.contains("MARKER NAME") {
                 station = content.split_at(20).0.trim().to_string()
-            
             } else if marker.contains("MARKER NUMBER") {
                 station_id = content.split_at(20).0.trim().to_string()
-            
             } else if marker.contains("MARKER TYPE") {
                 let code = content.split_at(20).0.trim();
                 if let Ok(marker) = MarkerType::from_str(code) {
@@ -744,7 +741,6 @@ impl Header {
                     }
                 }
                 multilines -= 1
-            
             } else if marker.contains("ANALYSIS CENTER") {
                 let (code, agency) = content.split_at(3);
                 clocks = clocks.with_agency(clocks::Agency {
@@ -785,15 +781,14 @@ impl Header {
             } else if marker.contains("GLONASS SLOT / FRQ #") {
                 let slots = content.split_at(4).1.trim();
                 for i in 0..num_integer::div_ceil(slots.len(), 7) {
-                    let svnn = &slots[i*7..i*7+4];
-                    let chx = &slots[i*7+4.. std::cmp::min(i*7+4+3, slots.len())];
+                    let svnn = &slots[i * 7..i * 7 + 4];
+                    let chx = &slots[i * 7 + 4..std::cmp::min(i * 7 + 4 + 3, slots.len())];
                     if let Ok(svnn) = Sv::from_str(svnn.trim()) {
                         if let Ok(chx) = i8::from_str_radix(chx.trim(), 10) {
                             glo_channels.insert(svnn, chx);
                         }
                     }
                 }
-
             } else if marker.contains("GLONASS COD/PHS/BIS") {
                 //TODO
             } else if marker.contains("ION ALPHA") {
