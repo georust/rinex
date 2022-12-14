@@ -1722,42 +1722,40 @@ impl Rinex {
 
     /// Retains Navigation messages contained in given list.
     /// An example of MsgType is LNAV for legacy frames.
-    pub fn retain_navigation_message_mut(&mut self, filter: Vec<navigation::MsgType>) {
-        if !self.is_navigation_rinex() {
-            return;
-        }
-        let record = self.record.as_mut_nav().unwrap();
-        record.retain(|_, classes| {
-            classes.retain(|class, frames| {
-                if *class == navigation::FrameClass::Ephemeris {
-                    frames.retain(|fr| {
-                        let (msg, _, _) = fr.as_eph().unwrap();
-                        filter.contains(&msg)
-                    });
-                } else if *class == navigation::FrameClass::SystemTimeOffset {
-                    frames.retain(|fr| {
-                        let (msg, _, _) = fr.as_sto().unwrap();
-                        filter.contains(&msg)
-                    });
-                } else if *class == navigation::FrameClass::IonosphericModel {
-                    frames.retain(|fr| {
-                        let (msg, _, _) = fr.as_ion().unwrap();
-                        filter.contains(&msg)
-                    });
-                } else {
-                    frames.retain(|fr| {
-                        let (msg, _, _) = fr.as_eop().unwrap();
-                        filter.contains(&msg)
-                    });
-                }
-                frames.len() > 0
+    pub fn retain_navigation_message_mut(&mut self, filter: &Vec<navigation::MsgType>) {
+        if let Some(r) = self.record.as_mut_nav() {
+            r.retain(|_, classes| {
+                classes.retain(|class, frames| {
+                    if *class == navigation::FrameClass::Ephemeris {
+                        frames.retain(|fr| {
+                            let (msg, _, _) = fr.as_eph().unwrap();
+                            filter.contains(&msg)
+                        });
+                    } else if *class == navigation::FrameClass::SystemTimeOffset {
+                        frames.retain(|fr| {
+                            let (msg, _, _) = fr.as_sto().unwrap();
+                            filter.contains(&msg)
+                        });
+                    } else if *class == navigation::FrameClass::IonosphericModel {
+                        frames.retain(|fr| {
+                            let (msg, _, _) = fr.as_ion().unwrap();
+                            filter.contains(&msg)
+                        });
+                    } else {
+                        frames.retain(|fr| {
+                            let (msg, _, _) = fr.as_eop().unwrap();
+                            filter.contains(&msg)
+                        });
+                    }
+                    frames.len() > 0
+                });
+                classes.len() > 0
             });
-            classes.len() > 0
-        });
+        }
     }
 
     /// Immutable implementation, see [retain_navigation_message_mut]
-    pub fn retain_navigation_message(&self, filter: Vec<navigation::MsgType>) -> Self {
+    pub fn retain_navigation_message(&self, filter: &Vec<navigation::MsgType>) -> Self {
         let mut s = self.clone();
         s.retain_navigation_message_mut(filter);
         s
@@ -1768,7 +1766,7 @@ impl Rinex {
     /// Retains all kinds of legacy frames in case of V4 RINEX.
     /// This has no effect if self is not a Navigation record.
     pub fn retain_legacy_navigation_mut(&mut self) {
-        self.retain_navigation_message_mut(vec![navigation::MsgType::LNAV])
+        self.retain_navigation_message_mut(&vec![navigation::MsgType::LNAV])
     }
 
     /// Immutable implementation, see [retain_legacy_navigation_mut]
@@ -1781,7 +1779,7 @@ impl Rinex {
     /// Retains only modern Navigation frames.
     /// This has no effect if self is not a Navigation record.
     pub fn retain_modern_navigation_mut(&mut self) {
-        self.retain_navigation_message_mut(vec![
+        self.retain_navigation_message_mut(&vec![
             navigation::MsgType::FDMA,
             navigation::MsgType::IFNV,
             navigation::MsgType::D1,
