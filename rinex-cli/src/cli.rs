@@ -29,7 +29,7 @@ impl Cli {
             matches: {
                 Command::new("rinex-cli")
                     .author("Guillaume W. Bres, <guillaume.bressaix@gmail.com>")
-                    .version("1.0")
+                    .version(env!("CARGO_PKG_VERSION"))
                     .about("RINEX analysis and processing tool")
                     .arg_required_else_help(true)
                     .color(ColorChoice::Always)

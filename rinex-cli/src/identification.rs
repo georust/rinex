@@ -22,7 +22,7 @@ fn identification(rnx: &Rinex, pretty: bool, ops: Vec<&str>) {
                 false => serde_json::to_string(&rnx.header).unwrap(),
             };
             println!("{}", content);
-        } else if op.eq("epoch") {
+        } else if op.eq("epochs") {
             let data: Vec<String> = rnx.epochs().iter().map(|e| e.to_string()).collect();
             let content = match pretty {
                 true => serde_json::to_string_pretty(&data).unwrap(),
@@ -31,13 +31,6 @@ fn identification(rnx: &Rinex, pretty: bool, ops: Vec<&str>) {
             println!("{}", content);
         } else if op.eq("sv") {
             let data = &rnx.space_vehicules();
-            let content = match pretty {
-                true => serde_json::to_string_pretty(data).unwrap(),
-                false => serde_json::to_string(data).unwrap(),
-            };
-            println!("{}", content);
-        } else if op.eq("sv-epoch") {
-            let data = &rnx.space_vehicules_per_epoch();
             let content = match pretty {
                 true => serde_json::to_string_pretty(data).unwrap(),
                 false => serde_json::to_string(data).unwrap(),

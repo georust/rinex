@@ -36,10 +36,7 @@ extern crate pretty_env_logger;
 extern crate log;
 
 use std::io::Write;
-use fops::{
-    generate,
-    open_html_with_default_app,
-};
+use fops::open_html_with_default_app;
 
 /*
  * Applies elevation mask, to non Navigation RINEX

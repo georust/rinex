@@ -12,7 +12,7 @@ use crate::{Context,
  * Sv per epoch analysis
  */
 pub fn sv_epoch(ctx: &Context, plot_ctx: &mut PlotContext) {
-    plot_ctx.add_cartesian2d_plot("Sv per Epoch", "Sv");
+    plot_ctx.add_cartesian2d_plot("Sv per Epoch", "Sv(PRN#)");
     let constellations = ctx.primary_rinex.list_constellations();
     let mut nb_markers = constellations.len();
 
@@ -40,10 +40,9 @@ pub fn sv_epoch(ctx: &Context, plot_ctx: &mut PlotContext) {
             .position(|c| *c == sv.constellation)
             .unwrap();
         let prn = Array::linspace(0.0, 1.0, epochs.len());
-        let prn: Vec<u8> = prn.iter().map(|_| sv.prn + constell_index as u8).collect();
+        let prn: Vec<f64> = prn.iter().map(|_| sv.prn as f64 + constell_index as f64).collect();
         let marker = &markers[constell_index];
-        let trace = Scatter::new(epochs, prn)
-            .mode(Mode::Markers)
+        let trace = build_chart_epoch_axis(&sv.to_string(), Mode::Markers, epochs, prn)
             .marker(Marker::new().symbol(marker.clone()))
             .visible({
                 // improves plot generation speed, on large files
@@ -52,8 +51,7 @@ pub fn sv_epoch(ctx: &Context, plot_ctx: &mut PlotContext) {
                 } else {
                     Visible::LegendOnly
                 }
-            })
-            .name(&sv.to_string());
+            });
         plot_ctx.add_trace(trace);
     }
 

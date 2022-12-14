@@ -1,5 +1,6 @@
 use super::{build_default_plot, build_default_polar_plot, build_world_map, Plot};
 use plotly::{layout::MapboxStyle, Trace};
+use log::trace;
 
 /// Plot Context
 pub struct PlotContext {
@@ -35,6 +36,11 @@ impl PlotContext {
                 html.push_str(&p.to_inline_html(None));
             }
             html.push_str("\n");
+        }
+        if tiny {
+            trace!("rendered html graphs with --tiny option");
+        } else {
+            trace!("rendered html graphs");
         }
         html
     }
