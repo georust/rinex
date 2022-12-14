@@ -123,6 +123,8 @@ pub struct Header {
     pub agency: String,
     /// optionnal receiver placement infos
     pub marker_type: Option<MarkerType>,
+    /// Glonass FDMA channels
+    pub glo_channels: HashMap<Sv, i8>,
     /// optionnal leap seconds infos
     pub leap: Option<leap::Leap>,
     // /// Optionnal system time correction
@@ -216,6 +218,7 @@ impl Default for Header {
             station_url: String::new(),
             doi: None,
             license: None,
+            glo_channels: HashMap::new(),
             leap: None,
             gps_utc_delta: None,
             // hardware
@@ -254,6 +257,7 @@ impl Header {
         let mut doi: Option<String> = None;
         let mut station_url = String::new();
         let mut marker_type: Option<MarkerType> = None;
+        let mut glo_channels: HashMap<Sv, i8> = HashMap::new();
         let mut rcvr: Option<Rcvr> = None;
         let mut rcvr_antenna: Option<Antenna> = None;
         let mut sv_antenna: Option<SvAntenna> = None;
@@ -261,7 +265,7 @@ impl Header {
         let mut sampling_interval: Option<Duration> = None;
         let mut coords: Option<(f64, f64, f64)> = None;
         // RINEX specific fields
-        let mut obs_code_lines: u8 = 0;
+        let mut multilines: u8 = 0;
         let mut current_code_syst = Constellation::default();
         let mut observation = observation::HeaderFields::default();
         let mut meteo = meteo::HeaderFields::default();
@@ -440,10 +444,13 @@ impl Header {
                 };
                 let (date_str, _) = rem.split_at(20);
                 date = date_str.trim().to_string()
+            
             } else if marker.contains("MARKER NAME") {
                 station = content.split_at(20).0.trim().to_string()
+            
             } else if marker.contains("MARKER NUMBER") {
                 station_id = content.split_at(20).0.trim().to_string()
+            
             } else if marker.contains("MARKER TYPE") {
                 let code = content.split_at(20).0.trim();
                 if let Ok(marker) = MarkerType::from_str(code) {
@@ -605,11 +612,11 @@ impl Header {
             } else if marker.contains("TYPES OF OBS") {
                 // --> parsing Observables (V<3 old fashion)
                 // ⚠ ⚠ could either be observation or meteo data
-                if obs_code_lines == 0 {
+                if multilines == 0 {
                     // first line ever
                     let (n, rem) = content.split_at(6);
                     if let Ok(n) = u8::from_str_radix(n.trim(), 10) {
-                        obs_code_lines = num_integer::div_ceil(n, 9); // max. items per line
+                        multilines = num_integer::div_ceil(n, 9); // max. items per line
                     } else {
                         continue; // failed to identify # of observables
                                   // --> we'll continue grabing some header infos
@@ -656,7 +663,7 @@ impl Header {
                             }
                         }
                     }
-                    obs_code_lines -= 1
+                    multilines -= 1
                 } else {
                     // Observables, 2nd, 3rd.. lines
                     let codes: Vec<String> = content
@@ -698,16 +705,16 @@ impl Header {
                             }
                         }
                     }
-                    obs_code_lines -= 1
+                    multilines -= 1
                 }
             } else if marker.contains("SYS / # / OBS TYPES") {
                 // --> observable (V>2 modern fashion)
-                if obs_code_lines == 0 {
+                if multilines == 0 {
                     // First line describing observables
                     let (identifier, rem) = content.split_at(1);
                     let (n, rem) = rem.split_at(5);
                     if let Ok(n) = u8::from_str_radix(n.trim(), 10) {
-                        obs_code_lines = num_integer::div_ceil(n, 13); // max. items per line
+                        multilines = num_integer::div_ceil(n, 13); // max. items per line
                     } else {
                         continue; // failed to identify # of observables,
                                   // we'll continue parsing header section,
@@ -736,7 +743,8 @@ impl Header {
                         }
                     }
                 }
-                obs_code_lines -= 1
+                multilines -= 1
+            
             } else if marker.contains("ANALYSIS CENTER") {
                 let (code, agency) = content.split_at(3);
                 clocks = clocks.with_agency(clocks::Agency {
@@ -775,7 +783,17 @@ impl Header {
                     }
                 }
             } else if marker.contains("GLONASS SLOT / FRQ #") {
-                //TODO
+                let slots = content.split_at(4).1.trim();
+                for i in 0..num_integer::div_ceil(slots.len(), 7) {
+                    let svnn = &slots[i*7..i*7+4];
+                    let chx = &slots[i*7+4.. std::cmp::min(i*7+4+3, slots.len())];
+                    if let Ok(svnn) = Sv::from_str(svnn.trim()) {
+                        if let Ok(chx) = i8::from_str_radix(chx.trim(), 10) {
+                            glo_channels.insert(svnn, chx);
+                        }
+                    }
+                }
+
             } else if marker.contains("GLONASS COD/PHS/BIS") {
                 //TODO
             } else if marker.contains("ION ALPHA") {
@@ -926,6 +944,7 @@ impl Header {
             station_url,
             marker_type,
             rcvr,
+            glo_channels,
             leap,
             coords,
             wavelengths: None,
@@ -1015,6 +1034,13 @@ impl Header {
                 } else {
                     None
                 }
+            },
+            glo_channels: {
+                let mut channels = self.glo_channels.clone();
+                for (svnn, channel) in &header.glo_channels {
+                    channels.insert(*svnn, *channel);
+                }
+                channels
             },
             run_by: self.run_by.clone(),
             program: self.program.clone(),

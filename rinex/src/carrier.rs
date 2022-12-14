@@ -13,6 +13,8 @@ lazy_static! {
     ];
 }
 
+//pub(crate) fn parse_glonass_channels(content: &str)
+
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum Carrier {
@@ -25,9 +27,9 @@ pub enum Carrier {
     /// L6 (LEX) QZSS
     L6,
     /// Glonass channel 1 with possible offset
-    G1(Option<u8>),
+    G1(Option<i8>),
     /// Glonass channel 2 with possible offset
-    G2(Option<u8>),
+    G2(Option<i8>),
     /// Glonass channel 3
     G3,
     /// E1: GAL
@@ -86,7 +88,7 @@ impl FromStr for Carrier {
             } else if s.contains("G1(") {
                 let items: Vec<&str> = s.split("(").collect();
                 let item = items[1].replace(")", "");
-                Ok(Carrier::G1(Some(u8::from_str_radix(&item, 10)?)))
+                Ok(Carrier::G1(Some(i8::from_str_radix(&item, 10)?)))
             } else {
                 Err(Error::ParseError(s.to_string()))
             }
@@ -96,7 +98,7 @@ impl FromStr for Carrier {
             } else if s.contains("G2(") {
                 let items: Vec<&str> = s.split("(").collect();
                 let item = items[1].replace(")", "");
-                Ok(Carrier::G2(Some(u8::from_str_radix(&item, 10)?)))
+                Ok(Carrier::G2(Some(i8::from_str_radix(&item, 10)?)))
             } else {
                 Err(Error::ParseError(s.to_string()))
             }

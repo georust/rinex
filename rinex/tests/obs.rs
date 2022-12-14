@@ -820,4 +820,43 @@ mod test {
             }
         }
     }
+    #[cfg(feature = "flate2")]
+    #[test]
+    #[cfg(feature = "flate2")]
+    fn v3_esbc00dnk_r_2020() {
+        let rnx = Rinex::from_file("../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
+            .unwrap();
+        let header = rnx.header;
+        assert_eq!(header.glo_channels.len(), 23);  
+        let mut keys: Vec<Sv> = header.glo_channels.keys().map(|k| *k).collect();
+        keys.sort();
+        assert_eq!(vec![
+            Sv::from_str("R01").unwrap(),
+            Sv::from_str("R02").unwrap(),
+            Sv::from_str("R03").unwrap(),
+            Sv::from_str("R04").unwrap(),
+            Sv::from_str("R05").unwrap(),
+            Sv::from_str("R06").unwrap(),
+            Sv::from_str("R07").unwrap(),
+            Sv::from_str("R08").unwrap(),
+            Sv::from_str("R09").unwrap(),
+            Sv::from_str("R10").unwrap(),
+            Sv::from_str("R11").unwrap(),
+            Sv::from_str("R12").unwrap(),
+            Sv::from_str("R13").unwrap(),
+            Sv::from_str("R14").unwrap(),
+            Sv::from_str("R15").unwrap(),
+            Sv::from_str("R16").unwrap(),
+            Sv::from_str("R17").unwrap(),
+            Sv::from_str("R18").unwrap(),
+            Sv::from_str("R19").unwrap(),
+            Sv::from_str("R20").unwrap(),
+            Sv::from_str("R21").unwrap(),
+            Sv::from_str("R23").unwrap(),
+            Sv::from_str("R24").unwrap(),
+        ], keys);
+        let mut values: Vec<i8> = header.glo_channels.values().map(|k| *k).collect();
+        values.sort();
+        assert_eq!(vec![-7_i8, -7_i8, -4_i8, -4_i8, -3_i8, -2_i8, -2_i8, -1_i8, -1_i8, 0_i8, 0_i8, 1_i8, 1_i8, 2_i8, 2_i8, 3_i8, 3_i8, 4_i8, 4_i8, 5_i8, 5_i8, 6_i8, 6_i8], values);
+    }
 }
