@@ -51,15 +51,26 @@ pub fn retain_filters(ctx: &mut Context, cli: &Cli) {
             ctx.primary_rinex.retain_epoch_ok_mut();
         } else if flag.eq("retain-epoch-nok") {
             ctx.primary_rinex.retain_epoch_nok_mut();
-        } else if flag.eq("retain-pr") {
         } else if flag.eq("retain-lnav") {
             ctx.primary_rinex.retain_legacy_navigation_mut();
+            if let Some(ref mut nav) = ctx.nav_rinex {
+                nav.retain_legacy_navigation_mut();
+            }
         } else if flag.eq("retain-mnav") {
             ctx.primary_rinex.retain_modern_navigation_mut();
+            if let Some(ref mut nav) = ctx.nav_rinex {
+                nav.retain_modern_navigation_mut();
+            }
         } else if flag.eq("retain-nav-eph") {
             ctx.primary_rinex.retain_navigation_ephemeris_mut();
+            if let Some(ref mut nav) = ctx.nav_rinex {
+                nav.retain_modern_navigation_mut();
+            }
         } else if flag.eq("retain-nav-iono") {
             ctx.primary_rinex.retain_navigation_ionospheric_models_mut();
+            if let Some(ref mut nav) = ctx.nav_rinex {
+                nav.retain_navigation_ionospheric_models_mut();
+            }
         } else if flag.eq("retain-phase") {
             ctx.primary_rinex.retain_phase_observations_mut();
         } else if flag.eq("retain-pr") {
@@ -71,17 +82,26 @@ pub fn retain_filters(ctx: &mut Context, cli: &Cli) {
     for (op, args) in ops.iter() {
         if op.eq(&"retain-sv") {
             let filter = args_to_space_vehicules(args.clone());
-            ctx.primary_rinex.retain_space_vehicule_mut(filter);
+            ctx.primary_rinex.retain_space_vehicule_mut(filter.clone());
+            if let Some(ref mut nav) = ctx.nav_rinex {
+                nav.retain_space_vehicule_mut(filter.clone());
+            }
         } else if op.eq(&"retain-constell") {
             let filter = args_to_constellations(args.clone());
-            ctx.primary_rinex.retain_constellation_mut(filter);
+            ctx.primary_rinex.retain_constellation_mut(filter.clone());
+            if let Some(ref mut nav) = ctx.nav_rinex {
+                nav.retain_constellation_mut(filter.clone());
+            }
         } else if op.eq(&"retain-obs") {
             ctx.primary_rinex.retain_observable_mut(args.clone());
         } else if op.eq(&"retain-ssi") {
         } else if op.eq(&"retain-orb") {
         } else if op.eq(&"retain-nav-msg") {
             let filter = args_to_nav_message(args.clone());
-            ctx.primary_rinex.retain_navigation_message_mut(filter);
+            ctx.primary_rinex.retain_navigation_message_mut(&filter);
+            if let Some(ref mut nav) = ctx.nav_rinex {
+                nav.retain_navigation_message_mut(&filter);
+            }
         }
     }
 }

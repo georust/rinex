@@ -1,6 +1,7 @@
-use crate::{Cli, Context};
+use crate::Context;
 use plotly::{
     common::{
+        AxisSide,
         //DashType,
         Font,
         HoverInfo,
@@ -233,7 +234,25 @@ pub fn build_default_plot(title: &str, y_title: &str) -> Plot {
         Font::default(),
         "Epoch (UTC)",
         y_title,
-        (false, false), // zero lines
+        (false, false), // y=0 lines
+        true,           // show legend
+        true,           // autosize
+    )
+}
+
+/*
+ * build a standard 2D plot dual Y axes,
+ * to plot against `Epochs`
+ */
+pub fn build_default_2y_plot(title: &str, y1_title: &str, y2_title: &str) -> Plot {
+    build_plot_2y(
+        title,
+        Side::Top,
+        Font::default(),
+        "Epoch (UTC)",
+        y1_title,
+        y2_title,
+        (false, false), // y=0 lines
         true,           // show legend
         true,           // autosize
     )
@@ -278,7 +297,7 @@ pub fn build_world_map(style: MapboxStyle, center: (f64, f64), zoom: u8) -> Plot
 /*
  * Builds a Plot
  */
-pub fn build_plot(
+fn build_plot(
     title: &str,
     title_side: Side,
     title_font: Font,
@@ -300,6 +319,44 @@ pub fn build_plot(
             Axis::new()
                 .title(Title::new(y_axis_title))
                 .zero_line(zero_line.0),
+        )
+        .show_legend(show_legend)
+        .auto_size(auto_size);
+    let mut p = Plot::new();
+    p.set_layout(layout);
+    p
+}
+
+fn build_plot_2y(
+    title: &str,
+    title_side: Side,
+    title_font: Font,
+    x_axis_title: &str,
+    y1_axis_title: &str,
+    y2_axis_title: &str,
+    zero_line: (bool, bool), // plots a bold line @ (x=0,y=0)
+    show_legend: bool,
+    auto_size: bool,
+) -> Plot {
+    let layout = Layout::new()
+        .title(Title::new(title).font(title_font))
+        .x_axis(
+            Axis::new()
+                .title(Title::new(x_axis_title).side(title_side))
+                .zero_line(zero_line.0)
+                .show_tick_labels(false),
+        )
+        .y_axis(
+            Axis::new()
+                .title(Title::new(y1_axis_title))
+                .zero_line(zero_line.0),
+        )
+        .y_axis2(
+            Axis::new()
+                .title(Title::new(y2_axis_title))
+                .zero_line(zero_line.0)
+                .overlaying("y")
+                .side(AxisSide::Right),
         )
         .show_legend(show_legend)
         .auto_size(auto_size);

@@ -3,10 +3,7 @@ use crate::{
     Context,
 };
 use ndarray::Array;
-use plotly::{
-    common::{Marker, Mode, Visible},
-    Scatter,
-};
+use plotly::common::{Marker, Mode, Visible};
 use rinex::prelude::*;
 
 /*
@@ -75,7 +72,7 @@ pub fn sv_epoch(ctx: &Context, plot_ctx: &mut PlotContext) {
                     }
                 })
                 .collect();
-            let constell_index = constellations
+            let constell_index = nav_constell
                 .iter()
                 .position(|c| *c == sv.constellation)
                 .unwrap();

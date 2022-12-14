@@ -15,7 +15,7 @@ mod resampling; // record resampling
 mod retain; // record filtering // command line parsing utilities
 
 use horrorshow::Template;
-use rinex::{merge::Merge, prelude::*, processing::*, split::Split};
+use rinex::{merge::Merge, processing::*, split::Split};
 
 use cli::Cli;
 pub use context::Context;

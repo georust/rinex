@@ -1,4 +1,6 @@
-use super::{build_default_plot, build_default_polar_plot, build_world_map, Plot};
+use super::{
+    build_default_2y_plot, build_default_plot, build_default_polar_plot, build_world_map, Plot,
+};
 use log::trace;
 use plotly::{layout::MapboxStyle, Trace};
 
@@ -13,6 +15,10 @@ impl PlotContext {
     }
     pub fn add_cartesian2d_plot(&mut self, title: &str, y_label: &str) {
         self.plots.push(build_default_plot(title, y_label));
+    }
+    pub fn add_cartesian2d_2y_plot(&mut self, title: &str, y1_label: &str, y2_label: &str) {
+        self.plots
+            .push(build_default_2y_plot(title, y1_label, y2_label));
     }
     pub fn add_polar2d_plot(&mut self, title: &str) {
         self.plots.push(build_default_polar_plot(title));

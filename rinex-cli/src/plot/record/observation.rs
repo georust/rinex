@@ -3,8 +3,8 @@ use crate::{
     Context,
 };
 use plotly::common::{Marker, MarkerSymbol, Mode, Visible};
-use rinex::{navigation::*, observation::*, prelude::*, *};
-use std::collections::HashMap;
+use rinex::{observation::*, prelude::*, *};
+use std::collections::{BTreeMap, HashMap};
 
 macro_rules! code2physics {
     ($code: expr) => {
@@ -35,6 +35,13 @@ pub fn plot_observation(ctx: &Context, plot_ctx: &mut PlotContext) {
     //      y: observation (raw),
     let mut dataset: HashMap<String, HashMap<u8, HashMap<Sv, Vec<(bool, Epoch, f64)>>>> =
         HashMap::new();
+
+    // augmented mode
+    let mut sat_angles: HashMap<Sv, BTreeMap<Epoch, (f64, f64)>> = HashMap::new();
+    if let Some(ref nav) = ctx.nav_rinex {
+        sat_angles = nav.navigation_sat_angles(ctx.ground_position);
+    }
+
     for ((epoch, _flag), (clock_offset, vehicules)) in record {
         if let Some(value) = clock_offset {
             clk_offset.push((*epoch, *value));
@@ -97,7 +104,16 @@ pub fn plot_observation(ctx: &Context, plot_ctx: &mut PlotContext) {
             "Pseudo Range" => "Pseudo Range",
             _ => unreachable!(),
         };
-        plot_ctx.add_cartesian2d_plot(&format!("{} Observations", physics), y_label);
+
+        if sat_angles.len() > 0 {
+            plot_ctx.add_cartesian2d_2y_plot(
+                &format!("{} Observations", physics),
+                y_label,
+                "Elevation Angle [°]",
+            );
+        } else {
+            plot_ctx.add_cartesian2d_plot(&format!("{} Observations", physics), y_label);
+        }
 
         let markers = generate_markers(carriers.len()); // one symbol per carrier
         for (index, (carrier, vehicules)) in carriers.iter().enumerate() {
@@ -119,6 +135,29 @@ pub fn plot_observation(ctx: &Context, plot_ctx: &mut PlotContext) {
                     }
                 });
                 plot_ctx.add_trace(trace);
+
+                if index == 0 {
+                    // 1st Carrier encountered <=> plot Elev(Sv) only once..
+                    if let Some(epochs) = sat_angles.get(sv) {
+                        let elev: Vec<f64> = epochs.iter().map(|(_, (el, _azi))| *el).collect();
+                        let epochs: Vec<Epoch> = epochs.keys().map(|k| *k).collect();
+                        let trace = build_chart_epoch_axis(
+                            &format!("Elev({}", sv),
+                            Mode::LinesMarkers,
+                            epochs,
+                            elev,
+                        )
+                        .marker(Marker::new().symbol(markers[index].clone()))
+                        .visible({
+                            if index < 1 {
+                                Visible::True
+                            } else {
+                                Visible::LegendOnly
+                            }
+                        });
+                        plot_ctx.add_trace(trace);
+                    }
+                }
             }
         }
         trace!("{} observations", y_label);

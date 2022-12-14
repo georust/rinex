@@ -3,7 +3,7 @@ use crate::{
     Cli, Context,
 };
 use log::{error, warn};
-use rinex::{processing::Decimation, *};
+use rinex::processing::Decimation;
 
 /// Efficient RINEX content decimation
 pub fn resampling(ctx: &mut Context, cli: &Cli) {
