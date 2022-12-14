@@ -3,19 +3,18 @@ use plotly::{
     common::{Mode, Visible},
     ScatterPolar,
 };
+use crate::Context;
 use rinex::prelude::*;
 
 /*
  * Skyplot view
  */
 pub fn skyplot(
-    ctx: &mut PlotContext,
-    rnx: &Rinex,
-    nav: &Option<Rinex>,
-    ref_pos: Option<(f64, f64, f64)>,
+    ctx: &Context,
+    plot_ctx: &mut PlotContext,
 ) {
-    ctx.add_polar2d_plot("Skyplot");
-    if let Some(nav) = nav {
+    plot_ctx.add_polar2d_plot("Skyplot");
+    if let Some(ref nav) = ctx.nav_rinex {
         /*
          * "advanced" skyplot view,
          * observations were provided
@@ -26,7 +25,7 @@ pub fn skyplot(
             return;
         }
 
-        let sat_angles = nav.navigation_sat_angles(ref_pos);
+        let sat_angles = nav.navigation_sat_angles(ctx.ground_position);
         for (index, (sv, epochs)) in sat_angles.iter().enumerate() {
             let el: Vec<f64> = epochs
                 .iter()
@@ -46,14 +45,14 @@ pub fn skyplot(
                     }
                 })
                 .name(sv.to_string());
-            ctx.add_trace(trace);
+            plot_ctx.add_trace(trace);
         }
     } else {
         /*
          * "simplified" skyplot view,
          * color gradient emphasizes the epoch/timestamp
          */
-        let sat_angles = rnx.navigation_sat_angles(ref_pos);
+        let sat_angles = ctx.primary_rinex.navigation_sat_angles(ctx.ground_position);
         for (index, (sv, epochs)) in sat_angles.iter().enumerate() {
             let el: Vec<f64> = epochs
                 .iter()
@@ -74,7 +73,7 @@ pub fn skyplot(
                     }
                 })
                 .name(sv.to_string());
-            ctx.add_trace(trace);
+            plot_ctx.add_trace(trace);
         }
     }
 }

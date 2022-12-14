@@ -213,15 +213,16 @@ pub fn main() -> Result<(), rinex::Error> {
         // [*] stop here, special mode: no further analysis allowed
         return Ok(());
     }
+    */
     /*
      * skyplot
      */
-    let nav_provided = rnx.is_navigation_rinex() || nav_context.is_some();
-    let skyplot = nav_provided && !qc_only;
+    let skyplot = (ctx.primary_rinex.is_navigation_rinex() || ctx.nav_rinex.is_some()) && !qc_only;
     if skyplot {
-        plot::skyplot(&mut ctx, &rnx, &nav_context, ref_position);
-        info!("skyplot generated");
+        plot::skyplot(&ctx, &mut plot_ctx);
+        info!("sky view generated");
     }
+    /*
     /*
      * Record analysis / visualization
      * analysis depends on the provided record type
