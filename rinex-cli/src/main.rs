@@ -74,7 +74,8 @@ pub fn main() -> Result<(), rinex::Error> {
      *  this allows easy GNSS combination and processing,
      *  gives more meaningful phase data plots..
      */
-    ctx.primary_rinex.observation_align_phase_origins_mut();
+    // <!>    <!>     <!>      <!>      <!>      <!>      <!>
+    //ctx.primary_rinex.observation_align_phase_origins_mut();
 
     /*
      * Basic file identification
