@@ -1,29 +1,30 @@
-use crate::plot::{build_chart_epoch_axis, generate_markers, PlotContext};
 use ndarray::Array;
 use plotly::{
     common::{Marker, Mode, Visible},
     Scatter,
 };
 use rinex::prelude::*;
+use crate::{Context,
+    plot::{build_chart_epoch_axis, generate_markers, PlotContext},
+};
 
 /*
  * Sv per epoch analysis
  */
-pub fn sv_epoch(ctx: &mut PlotContext, rnx: &Rinex, nav: &mut Option<Rinex>) {
-    // create a new plot
-    ctx.add_cartesian2d_plot("Sv per Epoch", "Sv");
-    let constellations = rnx.list_constellations();
+pub fn sv_epoch(ctx: &Context, plot_ctx: &mut PlotContext) {
+    plot_ctx.add_cartesian2d_plot("Sv per Epoch", "Sv");
+    let constellations = ctx.primary_rinex.list_constellations();
     let mut nb_markers = constellations.len();
 
-    if let Some(nav) = nav {
+    if let Some(ref nav) = ctx.nav_rinex {
         let nav_constell = nav.list_constellations();
         nb_markers += nav_constell.len();
     }
 
     let markers = generate_markers(nb_markers);
 
-    let data = rnx.space_vehicules_per_epoch();
-    for (sv_index, sv) in rnx.space_vehicules().iter().enumerate() {
+    let data = ctx.primary_rinex.space_vehicules_per_epoch();
+    for (sv_index, sv) in ctx.primary_rinex.space_vehicules().iter().enumerate() {
         let epochs: Vec<Epoch> = data
             .iter()
             .filter_map(|(epoch, ssv)| {
@@ -53,15 +54,15 @@ pub fn sv_epoch(ctx: &mut PlotContext, rnx: &Rinex, nav: &mut Option<Rinex>) {
                 }
             })
             .name(&sv.to_string());
-        ctx.add_trace(trace);
+        plot_ctx.add_trace(trace);
     }
 
-    if let Some(nav) = nav {
+    if let Some(ref nav) = ctx.nav_rinex {
         let data = nav.space_vehicules_per_epoch();
         let nav_constell = nav.list_constellations();
         let nb_obs_constell = nb_markers - nav_constell.len();
 
-        for (sv_index, sv) in rnx.space_vehicules().iter().enumerate() {
+        for (sv_index, sv) in nav.space_vehicules().iter().enumerate() {
             let epochs: Vec<Epoch> = data
                 .iter()
                 .filter_map(|(epoch, ssv)| {
@@ -92,7 +93,7 @@ pub fn sv_epoch(ctx: &mut PlotContext, rnx: &Rinex, nav: &mut Option<Rinex>) {
                         Visible::LegendOnly
                     }
                 });
-            ctx.add_trace(trace);
+            plot_ctx.add_trace(trace);
         }
     }
 }

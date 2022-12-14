@@ -49,7 +49,7 @@ pub fn main() -> Result<(), rinex::Error> {
 
     let cli = Cli::new();
     let mut ctx = Context::new(&cli);
-    let mut plt = PlotContext::new();
+    let mut plot_ctx = PlotContext::new();
 
     let quiet = cli.quiet();
     let pretty = cli.pretty();
@@ -87,94 +87,93 @@ pub fn main() -> Result<(), rinex::Error> {
     }
     
     /*
-    /*
      * SV per Epoch analysis requested
      */
     if cli.sv_epoch() && !qc_only {
-        analysis::sv_epoch(&mut ctx, &rnx, &mut nav_context);
-        info!("sv epoch analysis performed");
+        info!("sv/epoch analysis");
+        analysis::sv_epoch(&ctx, &mut plot_ctx);
     }
     /*
      * Epoch histogram analysis
      */
     if cli.epoch_histogram() && !qc_only {
-        analysis::epoch_histogram(&mut ctx, &rnx);
-        info!("epoch histogram evaluated");
+        info!("epoch histogram analysis");
+        analysis::epoch_histogram(&ctx, &mut plot_ctx);
     }
     /*
      * DCB analysis requested
      */
     if cli.dcb() && !qc_only {
-        let mut data = rnx.observation_phase_dcb();
-        for (op, inner) in rnx.observation_pseudorange_dcb() {
+        let mut data = ctx.primary_rinex.observation_phase_dcb();
+        for (op, inner) in ctx.primary_rinex.observation_pseudorange_dcb() {
             data.insert(op.clone(), inner.clone());
         }
-        plot::plot_gnss_recombination(&mut ctx, "Differential Code Biases", "DBCs [n.a]", &data);
-        info!("dcbs visualization generated");
+        plot::plot_gnss_recombination(&mut plot_ctx, "Differential Code Biases", "DBCs [n.a]", &data);
+        info!("dcb analysis generated");
     }
     /*
      * Code Multipath analysis
      */
     if cli.multipath() && !qc_only {
-        let data = rnx.observation_code_multipath();
-        plot::plot_gnss_recombination(&mut ctx, "Code Multipath Biases", "MP [n.a]", &data);
-        info!("mp visualization generated");
+        let data = ctx.primary_rinex.observation_code_multipath();
+        plot::plot_gnss_recombination(&mut plot_ctx, "Code Multipath Biases", "MP [n.a]", &data);
+        info!("mp analysis generated");
     }
     /*
      * [GF] recombination visualization requested
      */
     if cli.gf_recombination() && !qc_only {
-        let data = rnx.observation_gf_combinations();
+        let data = ctx.primary_rinex.observation_gf_combinations();
         plot::plot_gnss_recombination(
-            &mut ctx,
+            &mut plot_ctx,
             "Geometry Free signal combination",
             "Meters of Li-Lj delay",
             &data,
         );
-        info!("gf recombination generated");
+        info!("gf recombination");
     }
     /*
      * [WL] recombination
      */
     if cli.wl_recombination() && !qc_only {
-        let data = rnx.observation_wl_combinations();
+        let data = ctx.primary_rinex.observation_wl_combinations();
         plot::plot_gnss_recombination(
-            &mut ctx,
+            &mut plot_ctx,
             "Wide Lane signal combination",
             "Meters of Li-Lj delay",
             &data,
         );
-        info!("wl recombination generated");
+        info!("wl recombination");
     }
     /*
      * [NL] recombination
      */
     if cli.nl_recombination() && !qc_only {
-        let data = rnx.observation_nl_combinations();
+        let data = ctx.primary_rinex.observation_nl_combinations();
         plot::plot_gnss_recombination(
-            &mut ctx,
+            &mut plot_ctx,
             "Narrow Lane signal combination",
             "Meters of Li-Lj delay",
             &data,
         );
-        info!("nl recombination generated");
+        info!("nl recombination");
     }
     /*
      * [MW] recombination
      */
     if cli.mw_recombination() && !qc_only {
-        let data = rnx.observation_mw_combinations();
+        let data = ctx.primary_rinex.observation_mw_combinations();
         plot::plot_gnss_recombination(
-            &mut ctx,
+            &mut plot_ctx,
             "Melbourne-Wübbena signal combination",
             "Meters of Li-Lj delay",
             &data,
         );
-        info!("mw recombination generated");
+        info!("mw recombination");
     }
     /*
      * MERGE
-     */
+    
     if let Some(b_path) = cli.merge() {
         info!("[merge] special mode");
         // we're merging (A)+(B) into (C)
@@ -197,9 +196,9 @@ pub fn main() -> Result<(), rinex::Error> {
         // [*] stop here, special mode: no further analysis allowed
         return Ok(());
     }
+     */
     /*
      * SPLIT
-     */
     if let Some(epoch) = cli.split() {
         let (a, b) = rnx
             .split(epoch)

@@ -1,19 +1,30 @@
-use crate::plot::PlotContext;
-use plotly::Histogram;
 use rinex::prelude::*;
+use plotly::Histogram;
+use crate::{Context, plot::PlotContext};
 
 /*
  * Epoch duration histogram
  */
-pub fn epoch_histogram(rnx: &Rinex, ctx: &mut PlotContext) {
-    // create a new plot
-    ctx.add_cartesian2d_plot("Epoch Intervals", "Count");
-    let histogram = rnx.epoch_intervals();
+pub fn epoch_histogram(ctx: &Context, plot_ctx: &mut PlotContext) {
+    plot_ctx.add_cartesian2d_plot("Epoch Intervals", "Count");
+    let histogram = ctx.primary_rinex.epoch_intervals();
     let mut durations: Vec<&Duration> = histogram.keys().collect();
     durations.sort();
+
     let durations: Vec<String> = durations.iter().map(|k| k.to_string()).collect();
     let pop: Vec<_> = histogram.values().map(|v| v.to_string()).collect();
     let histogram = Histogram::new_xy(durations, pop).name("Epoch Intervals");
+    plot_ctx.add_trace(histogram);
 
-    ctx.add_trace(histogram);
+    if let Some(ref nav) = ctx.nav_rinex {
+        let histogram = nav.epoch_intervals();
+        let mut durations: Vec<&Duration> = histogram.keys().collect();
+        durations.sort();
+
+        let durations: Vec<String> = durations.iter().map(|k| k.to_string()).collect();
+        let pop: Vec<_> = histogram.values().map(|v| v.to_string()).collect();
+        let histogram = Histogram::new_xy(durations, pop)
+            .name("(NAV) Epoch Intervals");
+        plot_ctx.add_trace(histogram);
+    }
 }
