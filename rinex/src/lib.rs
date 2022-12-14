@@ -3165,15 +3165,6 @@ Specify one yourself with `ref_pos`",
     ) -> HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
         let mut ret: HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> =
             HashMap::new();
-
-        //TODO lazy_static please
-        let known_codes = vec![
-            "1A", "1B", "1C", "1D", "1L", "1M", "1P", "1S", "1W", "1X", "1Z", "2C", "2D", "2L",
-            "2M", "2P", "2S", "2W", "3I", "3X", "3Q", "4A", "4B", "4X", "5A", "5B", "5C", "5I",
-            "5P", "5Q", "5X", "6A", "6B", "6C", "6Q", "6X", "6Z", "7D", "7I", "7P", "7Q", "7X",
-            "8D", "8P", "8I", "8Q", "8X", "9A", "9B", "9C", "9X",
-        ];
-
         if let Some(record) = self.record.as_obs() {
             for (epoch, (_, vehicules)) in record {
                 for (sv, observations) in vehicules {
@@ -3183,7 +3174,7 @@ Specify one yourself with `ref_pos`",
                             let carrier_id = &obscode[1..2];
                             let code = &obscode[1..];
                             // locate a reference PR code for this PR code
-                            for k_code in &known_codes {
+                            for k_code in carrier::KNOWN_CODES.iter() {
                                 if *k_code != code {
                                     // different code
                                     if k_code.starts_with(carrier_id) {
