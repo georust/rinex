@@ -1,24 +1,38 @@
-use crate::parser::{parse_duration, parse_epoch};
+use crate::{
+    Cli,
+    Context,
+    parser::{parse_duration, parse_epoch},
+};
+use log::{info, error, warn};
 use rinex::{processing::Decimation, *};
 
 /// Efficient RINEX content decimation
-pub fn record_resampling(rnx: &mut Rinex, ops: Vec<(&str, &str)>) {
-    for (op, args) in ops.iter() {
+pub fn resampling(ctx: &mut Context, cli: &Cli) {
+    let resampling_ops = cli.resampling_ops();
+    for (op, args) in resampling_ops.iter() {
         if op.eq(&"time-window") {
             let items: Vec<&str> = args.split(" ").collect();
             if items.len() == 2 {
                 // date description
                 if let Ok(start) = parse_epoch(items[0].trim()) {
                     if let Ok(end) = parse_epoch(items[1].trim()) {
-                        rnx.time_window_mut(start, end);
+                        ctx.primary_rinex.time_window_mut(start, end);
+                        trace!("applied time window: {} - {}", start, end);
                     } else {
-                        println!("failed to parse date from \"{}\" description", items[1]);
-                        println!("expecting %Y-%M-%D");
+                        error!(
+                            "failed to parse epoch from \"{}\" description",
+                            items[1],
+                        );
+                        warn!("time window not applied");
                     }
                 } else {
-                    println!("failed to parse date from \"{}\" description", items[0]);
-                    println!("expecting %Y-%M-%D");
+                    error!(
+                        "failed to parse epoch from \"{}\" description",
+                        items[0],
+                    );
+                    warn!("time window not applied");
                 }
+
             } else if items.len() == 4 {
                 //datetime description
                 let mut start_str = items[0].trim().to_owned();
@@ -29,35 +43,47 @@ pub fn record_resampling(rnx: &mut Rinex, ops: Vec<(&str, &str)>) {
                     let mut end_str = items[2].trim().to_owned();
                     end_str.push_str(" ");
                     end_str.push_str(items[3].trim());
+
                     if let Ok(end) = parse_epoch(&end_str) {
-                        rnx.time_window_mut(start, end);
+                        ctx.primary_rinex.time_window_mut(start, end);
+                        if let Some(ref mut nav) = ctx.nav_rinex {
+                            nav.time_window_mut(start, end);
+                        }
+                        trace!("applied time window: {} - {}", start, end);
                     }
                 } else {
-                    println!(
-                        "failed to parse datetime from \"{}\" description",
+                    error!(
+                        "failed to parse epoch from \"{}\" description",
                         start_str
                     );
-                    println!("expecting %Y-%M-%D-%H:%M%S");
+                    warn!("time window not applied");
                 }
             } else {
-                println!("invalid time window description");
-                println!("expecting \"%Y-%M-%D - %Y-%M-%D\" or");
-                println!("          \"%Y-%M-%D %H:%M%S - %Y-%M-%D %H%M%S\", where");
-                println!("first entry is start and last one is end date/datetime descriptor");
+                error!("invalid time window description");
             }
+
         } else if op.eq(&"resample-interval") {
             if let Ok(duration) = parse_duration(args.trim()) {
-                rnx.decim_by_interval_mut(duration);
+                ctx.primary_rinex.decim_by_interval_mut(duration);
+                if let Some(ref mut nav) = ctx.nav_rinex {
+                    nav.decim_by_interval_mut(duration);
+                }
+                trace!("record decimation - ok");
             } else {
-                println!("failed to parse duration from \"{}\"", args);
-                println!("Expected format is %HH:%MM:%SS\n");
+                error!("failed to parse duration from \"{}\"", args);
+                warn!("record decimation not effective");
             }
+
         } else if op.eq(&"resample-ratio") {
             if let Ok(ratio) = u32::from_str_radix(args.trim(), 10) {
-                rnx.decim_by_ratio_mut(ratio);
+                ctx.primary_rinex.decim_by_ratio_mut(ratio);
+                if let Some(ref mut nav) = ctx.nav_rinex {
+                    nav.decim_by_ratio_mut(ratio);
+                }
+                trace!("record decimation - ok");
             } else {
-                println!("failed to parse decimation ratio from \"{}\"", args);
-                println!("Expecting unsigned integer value\n");
+                error!("failed to parse decimation ratio from \"{}\"", args);
+                warn!("record decimation not effective");
             }
         }
     }

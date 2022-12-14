@@ -1,4 +1,4 @@
-use super::{build_chart_epoch_axis, generate_markers, Context, Marker, Mode};
+use super::{build_chart_epoch_axis, generate_markers, PlotContext, Marker, Mode};
 use plotly::common::Visible;
 use rinex::prelude::*;
 use std::collections::{BTreeMap, HashMap};
@@ -7,7 +7,7 @@ use std::collections::{BTreeMap, HashMap};
  * Plots (any kind of) recombined GNSS dataset
  */
 pub fn plot_gnss_recombination(
-    ctx: &mut Context,
+    ctx: &mut PlotContext,
     plot_title: &str,
     y_title: &str,
     data: &HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>,

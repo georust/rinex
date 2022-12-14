@@ -1,7 +1,20 @@
 use rinex::*;
+use crate::{Cli, Context};
 
-/// Basic file identification
-pub fn basic_identification(rnx: &Rinex, ops: Vec<&str>, pretty: bool) {
+/*
+ * Basic identification operations
+ */
+pub fn rinex_identification(ctx: &Context, cli: &Cli) {
+    let pretty = cli.pretty();
+    let ops = cli.identification_ops();
+    identification(&ctx.primary_rinex, pretty, ops.clone());
+
+    if let Some(nav) = &ctx.nav_rinex {
+        identification(&nav, pretty, ops.clone());
+    }
+}
+
+fn identification(rnx: &Rinex, pretty: bool, ops: Vec<&str>) {
     for op in ops {
         if op.eq("header") {
             let content = match pretty {

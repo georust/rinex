@@ -1,12 +1,12 @@
 use super::{build_default_plot, build_default_polar_plot, build_world_map, Plot};
 use plotly::{layout::MapboxStyle, Trace};
 
-/// CLI Plot Context
-pub struct Context {
+/// Plot Context
+pub struct PlotContext {
     plots: Vec<Plot>,
 }
 
-impl Context {
+impl PlotContext {
     pub fn new() -> Self {
         Self { plots: Vec::new() }
     }

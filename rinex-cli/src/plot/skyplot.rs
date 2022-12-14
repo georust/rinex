@@ -1,4 +1,4 @@
-use super::Context;
+use super::PlotContext;
 use plotly::{
     common::{Mode, Visible},
     ScatterPolar,
@@ -9,7 +9,7 @@ use rinex::prelude::*;
  * Skyplot view
  */
 pub fn skyplot(
-    ctx: &mut Context,
+    ctx: &mut PlotContext,
     rnx: &Rinex,
     nav: &Option<Rinex>,
     ref_pos: Option<(f64, f64, f64)>,

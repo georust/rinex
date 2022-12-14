@@ -1,3 +1,4 @@
+use crate::fops::filename;
 use crate::parser::parse_epoch;
 use clap::{Arg, ArgAction, ArgMatches, ColorChoice, Command};
 use log::{error, info, warn};
@@ -5,14 +6,26 @@ use rinex::{navigation::ElevationMask, prelude::*};
 use std::str::FromStr;
 
 pub struct Cli {
+    /// product prefix
+    pub prefix: String,
+    /// primary RINEX
+    pub primary_rinex: Rinex,
+    /// subsidary Navigation RINEX
+    pub nav_rinex: Option<Rinex>,
+    /// position extrapolated from given context(s)
+    pub ground_position: Option<(f64,f64,f64)>,
     /// Arguments passed by user
-    pub matches: ArgMatches,
+    matches: ArgMatches,
 }
 
 impl Cli {
     /// Build new command line interface
     pub fn new() -> Self {
         Self {
+            primary_rinex: Rinex::default(),
+            prefix: String::default(),
+            nav_rinex: None,
+            ground_position: None, // to be determined later on
             matches: {
                 Command::new("rinex-cli")
                     .author("Guillaume W. Bres, <guillaume.bressaix@gmail.com>")
@@ -382,7 +395,7 @@ Refer to README"))
     pub fn mw_recombination(&self) -> bool {
         self.matches.get_flag("mw")
     }
-    pub fn basic_identification(&self) -> bool {
+    pub fn identification(&self) -> bool {
         self.matches.get_flag("sv")
             | self.matches.get_flag("epochs")
             | self.matches.get_flag("header")
@@ -584,7 +597,7 @@ Refer to README"))
         }
     }
     /// Returns optionnal Nav path, for enhanced capabilities
-    pub fn nav_path(&self) -> Option<&str> {
+    fn nav_path(&self) -> Option<&str> {
         if self.matches.contains_id("nav") {
             if let Some(args) = self.matches.get_one::<String>("nav") {
                 Some(&args)
@@ -603,16 +616,16 @@ Refer to README"))
                     info!("--nav augmented mode enabled");
                     return Some(rnx);
                 } else {
-                    warn!("--nav must should be Navigation RINEX");
+                    warn!("--nav must should be navigation data");
                 }
             } else {
-                error!("failed to parse navigation file \"{}\"", path);
+                error!("failed to parse navigation file \"{}\"", filename(path));
             }
         }
         None
     }
-    /// Reference position, in ECEF [m]
-    pub fn ref_position(&self) -> Option<(f64, f64, f64)> {
+    /// Returns ECEF position passed by usuer
+    pub fn manual_position(&self) -> Option<(f64, f64, f64)> {
         let args = self.matches.get_one::<String>("ref-pos")?;
         let content: Vec<&str> = args.split(",").collect();
         if let Ok(pos_x) = f64::from_str(content[0].trim()) {
@@ -620,13 +633,13 @@ Refer to README"))
                 if let Ok(pos_z) = f64::from_str(content[2].trim()) {
                     return Some((pos_x, pos_y, pos_z));
                 } else {
-                    println!("pos(z) should be f64 ECEF [m]");
+                    error!("pos(z) should be f64 ECEF [m]");
                 }
             } else {
-                println!("pos(y) should be f64 ECEF [m]");
+                error!("pos(y) should be f64 ECEF [m]");
             }
         } else {
-            println!("pos(x) should be f64 ECEF [m]");
+            error!("pos(x) should be f64 ECEF [m]");
         }
         None
     }

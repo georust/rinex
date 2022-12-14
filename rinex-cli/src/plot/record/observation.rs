@@ -1,5 +1,5 @@
 use crate::{
-    plot::{build_chart_epoch_axis, generate_markers, Context},
+    plot::{build_chart_epoch_axis, generate_markers, PlotContext},
     Cli,
 };
 use log::info;
@@ -25,21 +25,19 @@ macro_rules! code2physics {
  * Plots given Observation RINEX content
  */
 pub fn plot_observation(
-    cli: &Cli,
-    ctx: &mut Context,
+    ctx: &mut PlotContext,
     record: &observation::Record,
     nav_ctx: &Option<Rinex>,
+    ref_position: Option<(f64,f64,f64)>,
 ) {
-    if let Some(nav) = nav_ctx {
-        //enhanced_plot(record, nav);
+    basic_plot(ctx, record);
+    /*if let Some(nav) = nav_ctx {
         trace!("augmented observation record analysis");
-        basic_plot(cli, ctx, record);
-    } else {
-        basic_plot(cli, ctx, record);
-    }
+        nav_enhancement(ctx, nav, ref_position);
+    }*/
 }
 
-pub fn basic_plot(cli: &Cli, ctx: &mut Context, record: &observation::Record) {
+pub fn basic_plot(ctx: &mut PlotContext, record: &observation::Record) {
     let mut clk_offset: Vec<(Epoch, f64)> = Vec::new();
     // dataset
     //  per physics, per carrier signal (symbol)
@@ -137,4 +135,8 @@ pub fn basic_plot(cli: &Cli, ctx: &mut Context, record: &observation::Record) {
         }
         trace!("{} observations", y_label);
     }
+}
+
+pub fn nav_enhancement(ref_position: (f64,f64,f64), ctx: &mut PlotContext, nav: &Rinex) {
+    //let sv_angles = nav.navigation_sat_angles();
 }

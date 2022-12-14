@@ -1,4 +1,4 @@
-use crate::plot::{build_chart_epoch_axis, generate_markers, Context};
+use crate::plot::{build_chart_epoch_axis, generate_markers, PlotContext};
 use ndarray::Array;
 use plotly::{
     common::{Marker, Mode, Visible},
@@ -9,7 +9,7 @@ use rinex::prelude::*;
 /*
  * Sv per epoch analysis
  */
-pub fn sv_epoch(ctx: &mut Context, rnx: &Rinex, nav: &mut Option<Rinex>) {
+pub fn sv_epoch(ctx: &mut PlotContext, rnx: &Rinex, nav: &mut Option<Rinex>) {
     // create a new plot
     ctx.add_cartesian2d_plot("Sv per Epoch", "Sv");
     let constellations = rnx.list_constellations();

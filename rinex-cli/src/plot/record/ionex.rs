@@ -1,4 +1,4 @@
-use crate::plot::Context;
+use crate::plot::PlotContext;
 //use itertools::Itertools;
 use plotly::{
     color::NamedColor,
@@ -9,7 +9,7 @@ use plotly::{
 };
 use rinex::ionex::*;
 
-pub fn plot_tec_map(ctx: &mut Context, borders: ((f64, f64), (f64, f64)), record: &Record) {
+pub fn plot_tec_map(ctx: &mut PlotContext, borders: ((f64, f64), (f64, f64)), record: &Record) {
     let cmap = colorous::TURBO;
     ctx.add_world_map(MapboxStyle::OpenStreetMap, (32.5, -40.0), 1);
 

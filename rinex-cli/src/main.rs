@@ -3,67 +3,41 @@
 //! Based on crate <https://github.com/gwbres/rinex>     
 //! Homepage: <https://github.com/gwbres/rinex-cli>
 
-mod analysis; // basic analysis operations
 mod cli; // command line interface
+mod context; // RINEX context
+mod analysis; // basic analysis
 mod file_generation;
 mod filter; // record filtering
 mod identification; // high level identification/macros
 mod plot; // plotting operations
 mod resampling; // record resampling
 mod retain; // record filtering
+pub mod fops; // file operation helpers
+pub mod parser; // command line parsing utilities
 
 use horrorshow::Template;
+use rinex::{merge::Merge, prelude::*, processing::*, split::Split};
 
 use cli::Cli;
 use filter::{
     apply_filters,      // special filters, with cli options
     apply_gnss_filters, // filter out undesired constellations
+    elevation_mask_filter, // apply given elevation mask
 };
-use identification::basic_identification;
-use resampling::record_resampling;
+pub use context::Context;
+use plot::PlotContext;
+
+// preprocessing
+use resampling::resampling;
 use retain::retain_filters;
-use rinex::{merge::Merge, prelude::*, processing::*, split::Split};
+use identification::rinex_identification;
 
 extern crate pretty_env_logger;
 #[macro_use]
 extern crate log;
 
-pub mod fops; // file operation helpers
-pub mod parser; // command line parsing utilities
-
 use std::io::Write;
-
 use fops::{filename, open_html_with_default_app};
-
-// Returns path prefix for all products to be generated
-// like report output, generate files..
-fn product_prefix(fname: &str) -> String {
-    env!("CARGO_MANIFEST_DIR").to_owned() + "/product/" + &filename(fname)
-}
-
-/*
- * Macro to grab the Ref. / Ground station position
- *  1. if manually given by user: preferred
- *  2. otherwise: use provided context
- */
-fn ref_position(cli: &Cli, rnx: &Rinex, nav: &Option<Rinex>) -> Option<(f64, f64, f64)> {
-    if let Some(pos) = cli.ref_position() {
-        info!("Using manual position {:?} (ECEF)", pos);
-        Some(pos)
-    } else if let Some(pos) = rnx.header.coords {
-        info!("Ground station {:?} (ECEF)", pos);
-        Some(pos)
-    } else if let Some(ref nav) = nav {
-        if let Some(pos) = nav.header.coords {
-            info!("Ground station {:?} (ECEF)", pos);
-            Some(pos)
-        } else {
-            None
-        }
-    } else {
-        None
-    }
-}
 
 /*
  * Applies elevation mask, to non Navigation RINEX
@@ -71,95 +45,48 @@ fn ref_position(cli: &Cli, rnx: &Rinex, nav: &Option<Rinex>) -> Option<(f64, f64
 //fn apply_elevation_mask(rnx: &mut Rinex, sv_angles: ) {};
 
 pub fn main() -> Result<(), rinex::Error> {
+    pretty_env_logger::init_timed();
+
     let cli = Cli::new();
+    let mut ctx = Context::new(&cli);
+    let mut plt = PlotContext::new();
+
     let quiet = cli.quiet();
     let pretty = cli.pretty();
     let qc_only = cli.quality_check_only();
-    pretty_env_logger::init_timed();
-
-    let mut ctx = plot::Context::new();
-
-    // input context
-    //  primary RINEX (-fp)
-    //  optionnal RINEX (-nav, )
-    let fp = cli.input_path();
-    let mut rnx = Rinex::from_file(fp)?;
-    info!("parsed \"{}\"", filename(fp));
-
-    let mut nav_context = cli.nav_context();
-
-    // create subdirs we might need when studying this context
-    let short_fp = filename(fp);
-    let product_prefix = product_prefix(&short_fp);
-    let _ = std::fs::create_dir_all(&product_prefix);
-
-    // determine ground/ref. position
-    let ref_position = ref_position(&cli, &rnx, &nav_context);
 
     /*
      * Preprocessing, filtering, resampling..
      */
     if cli.resampling() {
-        // resampling requested
-        record_resampling(&mut rnx, cli.resampling_ops());
-        if let Some(ref mut nav) = nav_context {
-            record_resampling(nav, cli.resampling_ops());
-        }
+        resampling(&mut ctx, &cli);
     }
     if cli.retain() {
-        // retain data of interest
-        retain_filters(&mut rnx, cli.retain_flags(), cli.retain_ops());
-        if let Some(ref mut nav) = nav_context {
-            retain_filters(nav, cli.retain_flags(), cli.retain_ops());
-        }
+        retain_filters(&mut ctx, &cli);
     }
     if cli.filter() {
-        /*
-         * gnss filter: get rid of undesired constellations
-         */
-        apply_gnss_filters(&cli, &mut rnx);
-        if let Some(ref mut nav) = nav_context {
-            apply_gnss_filters(&cli, nav);
-        }
-
-        /*
-         * filters: get rid of undesired data sets
-         */
-        apply_filters(&mut rnx, cli.filter_ops());
-        if let Some(ref mut nav) = nav_context {
-            apply_filters(nav, cli.filter_ops());
-        }
+        apply_gnss_filters(&mut ctx, &cli);
+        apply_filters(&mut ctx, &cli);
+        elevation_mask_filter(&mut ctx, &cli);
     }
-    /*
-     * Elevation mask special case
-     *   applies to Navigation data directly
-     *   applies inderiectly to primary file, in "augmented" mode
-     */
-    if let Some(mask) = cli.elevation_mask() {
-        if let Some(ref nav) = nav_context {
-            let sv_angles = nav.navigation_sat_angles(cli.ref_position());
-            //apply_elevation_mask(rnx, sv_angles, cli.ref_position()); //TODO
-        } else {
-            // apply to primary rinex, if possible
-            rnx.elevation_mask_mut(mask, cli.ref_position());
-        }
-    }
-
+    
     /*
      * Observation RINEX:
      *  align phase origins at this point
      *  this allows easy GNSS combination and processing,
      *  gives more meaningful phase data plots..
      */
-    rnx.observation_align_phase_origins_mut();
+    ctx.primary_rinex.observation_align_phase_origins_mut();
 
     /*
      * Basic file identification
      */
-    if cli.basic_identification() {
-        basic_identification(&rnx, cli.identification_ops(), pretty);
-        return Ok(());
+    if cli.identification() {
+        rinex_identification(&ctx, &cli);
+        return Ok(()); // not proceeding further, in this mode
     }
+    
+    /*
     /*
      * SV per Epoch analysis requested
      */
@@ -335,6 +262,6 @@ pub fn main() -> Result<(), rinex::Error> {
     if !quiet {
         open_html_with_default_app(&html_absolute_path);
     }
-    info!("html report \"{}\" generated", &html_absolute_path);
+    info!("html report \"{}\" generated", &html_absolute_path);*/
     Ok(())
 } // main

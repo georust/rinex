@@ -1,11 +1,11 @@
-use crate::plot::Context;
+use crate::plot::PlotContext;
 use plotly::Histogram;
 use rinex::prelude::*;
 
 /*
  * Epoch duration histogram
  */
-pub fn epoch_histogram(ctx: &mut Context, rnx: &Rinex) {
+pub fn epoch_histogram(rnx: &Rinex, ctx: &mut PlotContext) {
     // create a new plot
     ctx.add_cartesian2d_plot("Epoch Intervals", "Count");
     let histogram = rnx.epoch_intervals();

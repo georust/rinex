@@ -17,7 +17,7 @@ use rand::Rng;
 use rinex::prelude::*;
 
 mod context;
-pub use context::Context;
+pub use context::PlotContext;
 
 mod skyplot;
 pub use skyplot::skyplot;
@@ -326,14 +326,15 @@ pub fn build_chart_epoch_axis(
         .hover_info(HoverInfo::All)
 }
 
-pub fn plot_record(cli: &Cli, ctx: &mut Context, rnx: &Rinex, nav: &Option<Rinex>) {
-    if let Some(r) = rnx.record.as_obs() {
-        record::plot_observation(cli, ctx, r, nav);
-    } else if let Some(r) = rnx.record.as_meteo() {
+pub fn plot_record(cli: &Cli, ctx: &mut PlotContext) {
+    if let Some(r) = cli.primary_rinex.record.as_obs() {
+        record::plot_observation(ctx, r, &cli.nav_rinex, cli.ground_position);
+    }
+    /*} else if let Some(r) = rnx.record.as_meteo() {
         record::plot_meteo(ctx, r);
     } else if let Some(r) = rnx.record.as_ionex() {
         if let Some(borders) = rnx.ionex_map_borders() {
             record::plot_tec_map(ctx, borders, r);
         }
-    }
+    }*/
 }

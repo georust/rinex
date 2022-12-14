@@ -1,4 +1,4 @@
-use crate::plot::{build_chart_epoch_axis, Context}; //generate_markers};
+use crate::plot::{build_chart_epoch_axis, PlotContext}; //generate_markers};
 use plotly::common::{Marker, MarkerSymbol, Mode};
 use rinex::{meteo::*, prelude::*};
 use std::collections::HashMap;
@@ -6,7 +6,7 @@ use std::collections::HashMap;
 /*
  * Plots Meteo RINEX
  */
-pub fn plot_meteo(ctx: &mut Context, record: &Record) {
+pub fn plot_meteo(ctx: &mut PlotContext, record: &Record) {
     /*
      * 1 plot per physics
      */

@@ -1,10 +1,10 @@
 //! Navigation record plotting
-use super::{build_chart, build_plot, Context, Plot2d};
+use super::{build_chart, build_plot, PlotContext, Plot2d};
 use plotters::{chart::ChartState, coord::Shift, prelude::*};
 use rinex::{navigation::*, prelude::*};
 use std::collections::HashMap;
 
-pub fn build_context<'a>(dim: (u32, u32), record: &Record) -> Context<'a> {
+pub fn build_context<'a>(dim: (u32, u32), record: &Record) -> PlotContext<'a> {
     let mut e0: f64 = 0.0;
     let mut t_axis: Vec<f64> = Vec::with_capacity(16384);
     let mut plots: HashMap<String, DrawingArea<BitMapBackend, Shift>> = HashMap::with_capacity(4);
@@ -46,7 +46,7 @@ pub fn build_context<'a>(dim: (u32, u32), record: &Record) -> Context<'a> {
         let chart = build_chart(id, t_axis.clone(), (-10.0E5, 10E5), plot);
         charts.insert(id.to_string(), chart);
     }
-    Context {
+    PlotContext {
         t_axis,
         plots,
         charts,
@@ -54,7 +54,7 @@ pub fn build_context<'a>(dim: (u32, u32), record: &Record) -> Context<'a> {
     }
 }
 
-pub fn plot(ctx: &mut Context, record: &Record) {
+pub fn plot(ctx: &mut PlotContext, record: &Record) {
     let mut e0: f64 = 0.0;
     let mut bias: HashMap<Sv, Vec<(f64, f64)>> = HashMap::new();
     let mut drift: HashMap<Sv, Vec<(f64, f64)>> = HashMap::new();
