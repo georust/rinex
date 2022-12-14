@@ -9,7 +9,11 @@ use plotly::{
 };
 use rinex::ionex::*;
 
-pub fn plot_tec_map(plot_ctx: &mut PlotContext, borders: ((f64, f64), (f64, f64)), record: &Record) {
+pub fn plot_tec_map(
+    plot_ctx: &mut PlotContext,
+    borders: ((f64, f64), (f64, f64)),
+    record: &Record,
+) {
     let cmap = colorous::TURBO;
     plot_ctx.add_world_map(MapboxStyle::OpenStreetMap, (32.5, -40.0), 1);
 

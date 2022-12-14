@@ -1,12 +1,13 @@
+use crate::{
+    plot::{build_chart_epoch_axis, generate_markers, PlotContext},
+    Context,
+};
 use ndarray::Array;
 use plotly::{
     common::{Marker, Mode, Visible},
     Scatter,
 };
 use rinex::prelude::*;
-use crate::{Context,
-    plot::{build_chart_epoch_axis, generate_markers, PlotContext},
-};
 
 /*
  * Sv per epoch analysis
@@ -40,7 +41,10 @@ pub fn sv_epoch(ctx: &Context, plot_ctx: &mut PlotContext) {
             .position(|c| *c == sv.constellation)
             .unwrap();
         let prn = Array::linspace(0.0, 1.0, epochs.len());
-        let prn: Vec<f64> = prn.iter().map(|_| sv.prn as f64 + constell_index as f64).collect();
+        let prn: Vec<f64> = prn
+            .iter()
+            .map(|_| sv.prn as f64 + constell_index as f64)
+            .collect();
         let marker = &markers[constell_index];
         let trace = build_chart_epoch_axis(&sv.to_string(), Mode::Markers, epochs, prn)
             .marker(Marker::new().symbol(marker.clone()))

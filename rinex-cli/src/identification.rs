@@ -1,5 +1,5 @@
-use rinex::*;
 use crate::{Cli, Context};
+use rinex::*;
 
 /*
  * Basic identification operations

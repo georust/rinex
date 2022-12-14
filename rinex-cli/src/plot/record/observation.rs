@@ -24,9 +24,8 @@ macro_rules! code2physics {
  * Plots given Observation RINEX content
  */
 pub fn plot_observation(ctx: &Context, plot_ctx: &mut PlotContext) {
-    let record = ctx.primary_rinex.record.as_obs()
-        .unwrap();
-    
+    let record = ctx.primary_rinex.record.as_obs().unwrap();
+
     let mut clk_offset: Vec<(Epoch, f64)> = Vec::new();
     // dataset
     //  per physics, per carrier signal (symbol)

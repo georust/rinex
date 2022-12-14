@@ -1,16 +1,13 @@
 use super::PlotContext;
+use crate::Context;
 use plotly::{
     common::{Mode, Visible},
     ScatterPolar,
 };
-use crate::Context;
 /*
  * Skyplot view
  */
-pub fn skyplot(
-    ctx: &Context,
-    plot_ctx: &mut PlotContext,
-) {
+pub fn skyplot(ctx: &Context, plot_ctx: &mut PlotContext) {
     plot_ctx.add_polar2d_plot("Skyplot");
     if let Some(ref nav) = ctx.nav_rinex {
         /*

@@ -1,5 +1,5 @@
-use crate::{Context, Cli};
-use log::{trace, error};
+use crate::{Cli, Context};
+use log::{error, trace};
 use rinex::{observation::*, prelude::*};
 
 fn args_to_lli_mask(args: &str) -> Option<LliFlags> {
@@ -138,7 +138,7 @@ pub fn apply_gnss_filters(ctx: &mut Context, cli: &Cli) {
 }
 
 pub fn apply_filters(ctx: &mut Context, cli: &Cli) {
-    let ops = cli.filter_ops();  
+    let ops = cli.filter_ops();
     for (op, args) in ops.iter() {
         if op.eq(&"lli-mask") {
             if let Some(mask) = args_to_lli_mask(args) {

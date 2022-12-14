@@ -1,4 +1,4 @@
-use super::{build_chart_epoch_axis, generate_markers, PlotContext, Marker, Mode};
+use super::{build_chart_epoch_axis, generate_markers, Marker, Mode, PlotContext};
 use plotly::common::Visible;
 use rinex::prelude::*;
 use std::collections::{BTreeMap, HashMap};

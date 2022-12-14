@@ -1,4 +1,4 @@
-use crate::{Context, Cli};
+use crate::{Cli, Context};
 use rinex::{navigation::MsgType, prelude::*};
 use std::str::FromStr;
 

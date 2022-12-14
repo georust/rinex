@@ -3,40 +3,40 @@
 //! Based on crate <https://github.com/gwbres/rinex>     
 //! Homepage: <https://github.com/gwbres/rinex-cli>
 
+mod analysis; // basic analysis
 mod cli; // command line interface
 mod context; // RINEX context
-mod analysis; // basic analysis
 mod filter; // record filtering
+pub mod fops; // file operation helpers
 mod identification; // high level identification/macros
+pub mod parser;
 mod plot; // plotting operations
 mod resampling; // record resampling
-mod retain; // record filtering
-pub mod fops; // file operation helpers
-pub mod parser; // command line parsing utilities
+mod retain; // record filtering // command line parsing utilities
 
 use horrorshow::Template;
 use rinex::{merge::Merge, prelude::*, processing::*, split::Split};
 
 use cli::Cli;
+pub use context::Context;
 use filter::{
-    apply_filters,      // special filters, with cli options
-    apply_gnss_filters, // filter out undesired constellations
+    apply_filters,         // special filters, with cli options
+    apply_gnss_filters,    // filter out undesired constellations
     elevation_mask_filter, // apply given elevation mask
 };
-pub use context::Context;
 use plot::PlotContext;
 
 // preprocessing
+use identification::rinex_identification;
 use resampling::resampling;
 use retain::retain_filters;
-use identification::rinex_identification;
 
 extern crate pretty_env_logger;
 #[macro_use]
 extern crate log;
 
-use std::io::Write;
 use fops::open_html_with_default_app;
+use std::io::Write;
 
 /*
  * Applies elevation mask, to non Navigation RINEX
@@ -67,7 +67,7 @@ pub fn main() -> Result<(), rinex::Error> {
         apply_filters(&mut ctx, &cli);
         elevation_mask_filter(&mut ctx, &cli);
     }
-    
+
     /*
      * Observation RINEX:
      *  align phase origins at this point
@@ -83,7 +83,7 @@ pub fn main() -> Result<(), rinex::Error> {
         rinex_identification(&ctx, &cli);
         return Ok(()); // not proceeding further, in this mode
     }
-    
+
     /*
      * SV per Epoch analysis requested
      */
@@ -106,7 +106,12 @@ pub fn main() -> Result<(), rinex::Error> {
         for (op, inner) in ctx.primary_rinex.observation_pseudorange_dcb() {
             data.insert(op.clone(), inner.clone());
         }
-        plot::plot_gnss_recombination(&mut plot_ctx, "Differential Code Biases", "DBCs [n.a]", &data);
+        plot::plot_gnss_recombination(
+            &mut plot_ctx,
+            "Differential Code Biases",
+            "DBCs [n.a]",
+            &data,
+        );
         info!("dcb analysis generated");
     }
     /*
@@ -186,12 +191,12 @@ pub fn main() -> Result<(), rinex::Error> {
         }
         */
         // [1] proceed to merge
-        ctx.primary_rinex.merge_mut(&to_merge)
+        ctx.primary_rinex
+            .merge_mut(&to_merge)
             .expect("`merge` operation failed");
         info!("merge both rinex files");
         // [2] generate new file
-        fops::generate(&ctx.primary_rinex, "merged.rnx")
-            .expect("failed to generate merged file");
+        fops::generate(&ctx.primary_rinex, "merged.rnx").expect("failed to generate merged file");
         // [*] stop here, special mode: no further analysis allowed
         return Ok(());
     }
@@ -200,17 +205,16 @@ pub fn main() -> Result<(), rinex::Error> {
      * SPLIT
      */
     if let Some(epoch) = cli.split() {
-        let (a, b) = ctx.primary_rinex
+        let (a, b) = ctx
+            .primary_rinex
             .split(epoch)
             .expect("failed to split primary rinex file");
 
         let name = format!("{}-{}.rnx", cli.input_path(), a.epochs()[0]);
-        fops::generate(&a, &name)
-            .expect(&format!("failed to generate \"{}\"", name));
+        fops::generate(&a, &name).expect(&format!("failed to generate \"{}\"", name));
 
         let name = format!("{}-{}.rnx", cli.input_path(), b.epochs()[0]);
-        fops::generate(&b, &name)
-            .expect(&format!("failed to generate \"{}\"", name));
+        fops::generate(&b, &name).expect(&format!("failed to generate \"{}\"", name));
 
         // [*] stop here, special mode: no further analysis allowed
         return Ok(());
@@ -232,7 +236,7 @@ pub fn main() -> Result<(), rinex::Error> {
         info!("record analysis");
         plot::plot_record(&ctx, &mut plot_ctx);
     }
-    
+
     /*
      * Render HTML
      */
@@ -253,8 +257,8 @@ pub fn main() -> Result<(), rinex::Error> {
                 .expect(&format!("failed to create \"{}\"", &qc_absolute_path));
             write!(qc_fd, "{}", report.to_html()).expect("failed to generate QC summary report");
             info!("qc summary report \"{}\" generated", &qc_absolute_path);
-        
-        } else { // append QC to global html
+        } else {
+            // append QC to global html
             html.push_str("<div=\"qc-report\">\n");
             html.push_str(&report.to_inline_html().into_string().unwrap());
             html.push_str("</div>\n");
@@ -267,6 +271,6 @@ pub fn main() -> Result<(), rinex::Error> {
         open_html_with_default_app(&html_absolute_path);
     }
     info!("html report \"{}\" generated", &html_absolute_path);
-    
+
     Ok(())
 } // main

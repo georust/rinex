@@ -1,7 +1,6 @@
 use crate::{
-    Cli,
-    Context,
     parser::{parse_duration, parse_epoch},
+    Cli, Context,
 };
 use log::{error, warn};
 use rinex::{processing::Decimation, *};
@@ -19,20 +18,13 @@ pub fn resampling(ctx: &mut Context, cli: &Cli) {
                         ctx.primary_rinex.time_window_mut(start, end);
                         trace!("applied time window: {} - {}", start, end);
                     } else {
-                        error!(
-                            "failed to parse epoch from \"{}\" description",
-                            items[1],
-                        );
+                        error!("failed to parse epoch from \"{}\" description", items[1],);
                         warn!("time window not applied");
                     }
                 } else {
-                    error!(
-                        "failed to parse epoch from \"{}\" description",
-                        items[0],
-                    );
+                    error!("failed to parse epoch from \"{}\" description", items[0],);
                     warn!("time window not applied");
                 }
-
             } else if items.len() == 4 {
                 //datetime description
                 let mut start_str = items[0].trim().to_owned();
@@ -52,16 +44,12 @@ pub fn resampling(ctx: &mut Context, cli: &Cli) {
                         trace!("applied time window: {} - {}", start, end);
                     }
                 } else {
-                    error!(
-                        "failed to parse epoch from \"{}\" description",
-                        start_str
-                    );
+                    error!("failed to parse epoch from \"{}\" description", start_str);
                     warn!("time window not applied");
                 }
             } else {
                 error!("invalid time window description");
             }
-
         } else if op.eq(&"resample-interval") {
             if let Ok(duration) = parse_duration(args.trim()) {
                 ctx.primary_rinex.decim_by_interval_mut(duration);
@@ -73,7 +61,6 @@ pub fn resampling(ctx: &mut Context, cli: &Cli) {
                 error!("failed to parse duration from \"{}\"", args);
                 warn!("record decimation not effective");
             }
-
         } else if op.eq(&"resample-ratio") {
             if let Ok(ratio) = u32::from_str_radix(args.trim(), 10) {
                 ctx.primary_rinex.decim_by_ratio_mut(ratio);

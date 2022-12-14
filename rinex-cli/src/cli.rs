@@ -13,7 +13,7 @@ pub struct Cli {
     /// subsidary Navigation RINEX
     pub nav_rinex: Option<Rinex>,
     /// position extrapolated from given context(s)
-    pub ground_position: Option<(f64,f64,f64)>,
+    pub ground_position: Option<(f64, f64, f64)>,
     /// Arguments passed by user
     matches: ArgMatches,
 }
