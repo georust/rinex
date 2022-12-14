@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 #[derive(Debug, Clone)]
 enum Sign {
     Above,
