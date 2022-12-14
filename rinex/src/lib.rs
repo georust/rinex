@@ -3,7 +3,7 @@
 //! Refer to README and official documentation here
 //! <https://github.com/gwbres/rinex>
 pub mod antex;
-pub mod channel;
+pub mod carrier;
 pub mod clocks;
 pub mod constellation;
 pub mod epoch;
@@ -32,6 +32,8 @@ extern crate num;
 extern crate num_derive;
 #[macro_use]
 extern crate horrorshow;
+#[macro_use]
+extern crate lazy_static;
 
 pub mod reader;
 use reader::BufferedReader;
@@ -45,7 +47,13 @@ use thiserror::Error;
 
 use hifitime::Duration;
 use navigation::OrbitItem;
-use observation::Crinex;
+use observation::{
+    is_doppler_observation,
+    //is_ssi_observation,
+    is_phase_observation,
+    is_pseudorange_observation,
+    Crinex,
+};
 use version::Version;
 
 // Convenient package to import, that
@@ -77,7 +85,7 @@ pub mod processing {
     pub use crate::sampling::Decimation;
 }
 
-use channel::Channel;
+use carrier::Carrier;
 use cs::CsOpts;
 use gnss_time::TimeScaling;
 use prelude::*;
@@ -92,42 +100,6 @@ extern crate serde;
 macro_rules! is_comment {
     ($line: expr) => {
         $line.trim_end().ends_with("COMMENT")
-    };
-}
-
-#[macro_export]
-/// Returns True if 3 letter code
-/// matches a pseudo range (OBS) code
-macro_rules! is_pseudo_range_obs_code {
-    ($code: expr) => {
-        $code.starts_with("C") || $code.starts_with("P")
-    };
-}
-
-#[macro_export]
-/// Returns True if 3 letter code
-/// matches a phase (OBS) code
-macro_rules! is_phase_carrier_obs_code {
-    ($code: expr) => {
-        $code.starts_with("L")
-    };
-}
-
-#[macro_export]
-/// Returns True if 3 letter code
-/// matches a doppler (OBS) code
-macro_rules! is_doppler_obs_code {
-    ($code: expr) => {
-        $code.starts_with("D")
-    };
-}
-
-#[macro_export]
-/// Returns True if 3 letter code
-/// matches a signal strength (OBS) code
-macro_rules! is_sig_strength_obs_code {
-    ($code: expr) => {
-        $code.starts_with("S")
     };
 }
 
@@ -1603,7 +1575,7 @@ impl Rinex {
         if let Some(record) = self.record.as_mut_obs() {
             record.retain(|_, (_, vehicules)| {
                 vehicules.retain(|_, observations| {
-                    observations.retain(|code, _| is_phase_carrier_obs_code!(code));
+                    observations.retain(|code, _| is_phase_observation(code));
                     observations.len() > 0
                 });
                 vehicules.len() > 0
@@ -1617,7 +1589,7 @@ impl Rinex {
         if let Some(record) = self.record.as_mut_obs() {
             record.retain(|_, (_, vehicules)| {
                 vehicules.retain(|_, observations| {
-                    observations.retain(|code, _| is_pseudo_range_obs_code!(code));
+                    observations.retain(|code, _| is_pseudorange_observation(code));
                     observations.len() > 0
                 });
                 vehicules.len() > 0
@@ -1631,7 +1603,7 @@ impl Rinex {
         if let Some(record) = self.record.as_mut_obs() {
             record.retain(|_, (_, vehicules)| {
                 vehicules.retain(|_, observations| {
-                    observations.retain(|code, _| is_doppler_obs_code!(code));
+                    observations.retain(|code, _| is_doppler_observation(code));
                     observations.len() > 0
                 });
                 vehicules.len() > 0
@@ -2202,7 +2174,7 @@ Specify one yourself with `ref_pos`",
                 for (sv, obs) in sv.iter() {
                     let mut v: Vec<(String, f64)> = Vec::new();
                     for (code, data) in obs.iter() {
-                        if is_pseudo_range_obs_code!(code) {
+                        if is_pseudorange_observation(code) {
                             v.push((code.clone(), data.obs));
                         }
                     }
@@ -2234,14 +2206,14 @@ Specify one yourself with `ref_pos`",
             for (epoch, (_, vehicules)) in r {
                 for (sv, observations) in vehicules {
                     for (lhs_code, lhs_data) in observations {
-                        if !is_pseudo_range_obs_code!(lhs_code) {
-                            if !is_phase_carrier_obs_code!(lhs_code) {
+                        if !is_pseudorange_observation(lhs_code) {
+                            if !is_phase_observation(lhs_code) {
                                 continue; // only on these two physics
                             }
                         }
                         let lhs_carrier = &lhs_code[1..2];
                         if let Ok(lhs_channel) =
-                            Channel::from_observable(sv.constellation, lhs_carrier)
+                            Carrier::from_observable(sv.constellation, lhs_carrier)
                         {
                             let lhs_freq = lhs_channel.carrier_frequency_mhz();
                             // determine another carrier
@@ -2253,10 +2225,10 @@ Specify one yourself with `ref_pos`",
                             // locate a reference code against another carrier
                             let mut reference: Option<(&str, f64, f64)> = None;
                             for (refcode, refdata) in observations {
-                                let mut shared_physics = is_phase_carrier_obs_code!(refcode)
-                                    && is_phase_carrier_obs_code!(lhs_code);
-                                shared_physics |= is_pseudo_range_obs_code!(refcode)
-                                    && is_pseudo_range_obs_code!(lhs_code);
+                                let mut shared_physics =
+                                    is_phase_observation(refcode) && is_phase_observation(lhs_code);
+                                shared_physics |= is_pseudorange_observation(refcode)
+                                    && is_pseudorange_observation(lhs_code);
                                 if !shared_physics {
                                     continue;
                                 }
@@ -2264,7 +2236,7 @@ Specify one yourself with `ref_pos`",
                                 if carrier_code == rhs_carrier {
                                     // expected carrier signal
                                     if let Ok(ref_ch) =
-                                        Channel::from_observable(sv.constellation, rhs_carrier)
+                                        Carrier::from_observable(sv.constellation, rhs_carrier)
                                     {
                                         let ref_freq = ref_ch.carrier_frequency_mhz();
                                         reference = Some((refcode, refdata.obs, ref_freq));
@@ -2339,14 +2311,14 @@ Specify one yourself with `ref_pos`",
             for (epoch, (_, vehicules)) in r {
                 for (sv, observations) in vehicules {
                     for (lhs_code, lhs_data) in observations {
-                        if !is_pseudo_range_obs_code!(lhs_code) {
-                            if !is_phase_carrier_obs_code!(lhs_code) {
+                        if !is_pseudorange_observation(lhs_code) {
+                            if !is_phase_observation(lhs_code) {
                                 continue; // only on these two physics
                             }
                         }
                         let lhs_carrier = &lhs_code[1..2];
                         if let Ok(lhs_channel) =
-                            Channel::from_observable(sv.constellation, lhs_carrier)
+                            Carrier::from_observable(sv.constellation, lhs_carrier)
                         {
                             let lhs_freq = lhs_channel.carrier_frequency_mhz();
                             // determine another carrier
@@ -2358,10 +2330,10 @@ Specify one yourself with `ref_pos`",
                             // locate a reference code against another carrier
                             let mut reference: Option<(&str, f64, f64)> = None;
                             for (refcode, refdata) in observations {
-                                let mut shared_physics = is_phase_carrier_obs_code!(refcode)
-                                    && is_phase_carrier_obs_code!(lhs_code);
-                                shared_physics |= is_pseudo_range_obs_code!(refcode)
-                                    && is_pseudo_range_obs_code!(lhs_code);
+                                let mut shared_physics =
+                                    is_phase_observation(refcode) && is_phase_observation(lhs_code);
+                                shared_physics |= is_pseudorange_observation(refcode)
+                                    && is_pseudorange_observation(lhs_code);
                                 if !shared_physics {
                                     continue;
                                 }
@@ -2369,7 +2341,7 @@ Specify one yourself with `ref_pos`",
                                 if carrier_code == rhs_carrier {
                                     // expected carrier signal
                                     if let Ok(ref_ch) =
-                                        Channel::from_observable(sv.constellation, rhs_carrier)
+                                        Carrier::from_observable(sv.constellation, rhs_carrier)
                                     {
                                         let ref_freq = ref_ch.carrier_frequency_mhz();
                                         reference = Some((refcode, refdata.obs, ref_freq));
@@ -2437,7 +2409,7 @@ Specify one yourself with `ref_pos`",
             for (_, (_, vehicules)) in r.iter_mut() {
                 for (sv, observations) in vehicules.iter_mut() {
                     for (observation, data) in observations.iter_mut() {
-                        if is_phase_carrier_obs_code!(observation) {
+                        if is_phase_observation(observation) {
                             if let Some(init_phase) = init_phases.get_mut(&sv) {
                                 if init_phase.get(observation).is_none() {
                                     init_phase.insert(observation.clone(), data.obs);
@@ -2478,10 +2450,10 @@ Specify one yourself with `ref_pos`",
                 for (sv, observations) in vehicules {
                     for (lhs_code, lhs_data) in observations {
                         let lhs_carrier = &lhs_code[1..2];
-                        let lhs_lambda: Option<f64> = match is_phase_carrier_obs_code!(lhs_code) {
+                        let lhs_lambda: Option<f64> = match is_phase_observation(lhs_code) {
                             true => {
                                 if let Ok(channel) =
-                                    Channel::from_observable(sv.constellation, lhs_carrier)
+                                    Carrier::from_observable(sv.constellation, lhs_carrier)
                                 {
                                     Some(channel.carrier_wavelength())
                                 } else {
@@ -2489,7 +2461,7 @@ Specify one yourself with `ref_pos`",
                                 }
                             },
                             false => {
-                                if is_pseudo_range_obs_code!(lhs_code) {
+                                if is_pseudorange_observation(lhs_code) {
                                     Some(1.0)
                                 } else {
                                     None
@@ -2508,10 +2480,10 @@ Specify one yourself with `ref_pos`",
                         // locate a reference code against another carrier
                         let mut reference: Option<(&str, f64)> = None;
                         for (refcode, refdata) in observations {
-                            let mut shared_physics = is_phase_carrier_obs_code!(refcode)
-                                && is_phase_carrier_obs_code!(lhs_code);
-                            shared_physics |= is_pseudo_range_obs_code!(refcode)
-                                && is_pseudo_range_obs_code!(lhs_code);
+                            let mut shared_physics =
+                                is_phase_observation(refcode) && is_phase_observation(lhs_code);
+                            shared_physics |= is_pseudorange_observation(refcode)
+                                && is_pseudorange_observation(lhs_code);
                             if !shared_physics {
                                 continue;
                             }
@@ -2519,10 +2491,10 @@ Specify one yourself with `ref_pos`",
                             if carrier_code == rhs_carrier {
                                 // expected carrier signal
                                 //  align B to A starting point
-                                let ref_scaling: f64 = match is_phase_carrier_obs_code!(refcode) {
+                                let ref_scaling: f64 = match is_phase_observation(refcode) {
                                     true => {
                                         if let Ok(channel) =
-                                            Channel::from_observable(sv.constellation, rhs_carrier)
+                                            Carrier::from_observable(sv.constellation, rhs_carrier)
                                         {
                                             channel.carrier_wavelength()
                                         } else {
@@ -2539,13 +2511,13 @@ Specify one yourself with `ref_pos`",
                             // got a reference
                             let op_title = format!("{}-{}", lhs_code, refcode);
                             // additionnal phase scalign
-                            let total_scaling: f64 = match is_phase_carrier_obs_code!(lhs_code) {
+                            let total_scaling: f64 = match is_phase_observation(lhs_code) {
                                 true => {
                                     if let Ok(rhs) =
-                                        Channel::from_observable(sv.constellation, rhs_carrier)
+                                        Carrier::from_observable(sv.constellation, rhs_carrier)
                                     {
                                         if let Ok(lhs) =
-                                            Channel::from_observable(sv.constellation, lhs_carrier)
+                                            Carrier::from_observable(sv.constellation, lhs_carrier)
                                         {
                                             let f_rhs = rhs.carrier_frequency_mhz();
                                             let f_lhs = lhs.carrier_frequency_mhz();
@@ -2560,7 +2532,7 @@ Specify one yourself with `ref_pos`",
                                 },
                                 false => 1.0,
                             };
-                            let yp: f64 = match is_phase_carrier_obs_code!(lhs_code) {
+                            let yp: f64 = match is_phase_observation(lhs_code) {
                                 true => {
                                     (lhs_data.obs * lhs_lambda.unwrap() - refdata) * total_scaling
                                 },
@@ -2702,19 +2674,11 @@ Specify one yourself with `ref_pos`",
     ) -> HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
         let mut ret: HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> =
             HashMap::new();
-        //TODO lazy_static please
-        let known_codes = vec![
-            "1A", "1B", "1C", "1D", "1L", "1M", "1P", "1S", "1W", "1X", "1Z", "2C", "2D", "2L",
-            "2M", "2P", "2S", "2W", "3I", "3X", "3Q", "4A", "4B", "4X", "5A", "5B", "5C", "5I",
-            "5P", "5Q", "5X", "6A", "6B", "6C", "6Q", "6X", "6Z", "7D", "7I", "7P", "7Q", "7X",
-            "8D", "8P", "8I", "8Q", "8X", "9A", "9B", "9C", "9X",
-        ];
-
         if let Some(record) = self.record.as_obs() {
             for (epoch, (_, vehicules)) in record {
                 for (sv, observations) in vehicules {
                     for (lhs_code, lhs_data) in observations {
-                        if is_pseudo_range_obs_code!(lhs_code) {
+                        if is_pseudorange_observation(lhs_code) {
                             let pr_i = lhs_data.obs;
                             let mut ph_i: Option<f64> = None;
                             let mut ph_j: Option<f64> = None;
@@ -2735,7 +2699,7 @@ Specify one yourself with `ref_pos`",
                                 let ph_code = format!("L{}", &lhs_code[1..]);
                                 if code.eq(&ph_code) {
                                     if let Ok(_channel) =
-                                        Channel::from_observable(sv.constellation, lhs_code)
+                                        Carrier::from_observable(sv.constellation, lhs_code)
                                     {
                                         //ph_i = Some(data.obs * channel.carrier_wavelength());
                                         ph_i = Some(data.obs);
@@ -2746,14 +2710,14 @@ Specify one yourself with `ref_pos`",
                             /*
                              * locate a L_j PH code
                              */
-                            for k_code in &known_codes {
+                            for k_code in carrier::KNOWN_CODES.iter() {
                                 let to_locate = format!("L{}", k_code);
                                 for (code, data) in observations {
                                     let carrier_code = &code[1..2];
                                     if carrier_code == rhs_carrier {
                                         if code.eq(&to_locate) {
                                             if let Ok(_channel) =
-                                                Channel::from_observable(sv.constellation, code)
+                                                Carrier::from_observable(sv.constellation, code)
                                             {
                                                 //ph_j = Some(data.obs * channel.carrier_wavelength());
                                                 ph_j = Some(data.obs);
@@ -2769,10 +2733,10 @@ Specify one yourself with `ref_pos`",
                             if let Some(ph_i) = ph_i {
                                 if let Some(ph_j) = ph_j {
                                     if let Ok(lhs_channel) =
-                                        Channel::from_observable(sv.constellation, lhs_code)
+                                        Carrier::from_observable(sv.constellation, lhs_code)
                                     {
                                         if let Ok(rhs_channel) =
-                                            Channel::from_observable(sv.constellation, rhs_carrier)
+                                            Carrier::from_observable(sv.constellation, rhs_carrier)
                                         {
                                             let gamma = (lhs_channel.carrier_frequency_mhz()
                                                 / rhs_channel.carrier_frequency_mhz())
@@ -2839,7 +2803,7 @@ Specify one yourself with `ref_pos`",
                 for (epoch, (_, vehicules)) in rec {
                     for (sv, observations) in vehicules {
                         for (code, data) in observations {
-                            if is_phase_carrier_obs_code!(code) {
+                            if is_phase_observation(code) {
 
                             }
                         }
@@ -2871,7 +2835,7 @@ Specify one yourself with `ref_pos`",
                     let mut result :Option<f64> = None;
                     let mut retained : Vec<(String, f64)> = Vec::new();
                     for (code, value) in obs.iter() {
-                        if is_pseudo_range_obs_code!(code) {
+                        if is_pseudorange_observation(code) {
                             retained.push((code.clone(), *value));
                         }
                     }
@@ -2883,9 +2847,9 @@ Specify one yourself with `ref_pos`",
                         let codes :Vec<String> = retained.iter().map(|r| r.0.clone()).collect();
                         let data :Vec<f64> = retained.iter().map(|r| r.1).collect();
                         // need to determine frequencies involved
-                        let mut channels :Vec<Channel> = Vec::with_capacity(2);
+                        let mut channels :Vec<Carrier> = Vec::with_capacity(2);
                         for i in 0..codes.len() {
-                            if let Ok(channel) = Channel::from_observable(sv.constellation, &codes[i]) {
+                            if let Ok(channel) = Carrier::from_observable(sv.constellation, &codes[i]) {
                                 channels.push(channel)
                             }
                         }
@@ -2924,7 +2888,7 @@ Specify one yourself with `ref_pos`",
             for (sv, obs) in sv.iter() {
                 let mut v: Vec<(String, f64)> = Vec::new();
                 for (code, data) in obs.iter() {
-                    if is_phase_carrier_obs_code!(code) {
+                    if is_phase_observation(code) {
                         v.push((code.clone(), data.obs));
                     }
                 }
@@ -2956,7 +2920,7 @@ Specify one yourself with `ref_pos`",
                     let mut result :Option<f64> = None;
                     let mut retained : Vec<(String, f64)> = Vec::new();
                     for (code, value) in obs.iter() {
-                        if is_phase_carrier_obs_code!(code) {
+                        if is_phase_observation(code) {
                             retained.push((code.clone(), *value));
                         }
                     }
@@ -2968,9 +2932,9 @@ Specify one yourself with `ref_pos`",
                         let codes :Vec<String> = retained.iter().map(|r| r.0.clone()).collect();
                         let data :Vec<f64> = retained.iter().map(|r| r.1).collect();
                         // need to determine frequencies involved
-                        let mut channels :Vec<Channel> = Vec::with_capacity(2);
+                        let mut channels :Vec<Carrier> = Vec::with_capacity(2);
                         for i in 0..codes.len() {
-                            if let Ok(channel) = Channel::from_observable(sv.constellation, &codes[i]) {
+                            if let Ok(channel) = Carrier::from_observable(sv.constellation, &codes[i]) {
                                 channels.push(channel)
                             }
                         }
@@ -3063,7 +3027,7 @@ Specify one yourself with `ref_pos`",
                                 // got related distant offset
                                 let mut v: Vec<(String, f64)> = Vec::new();
                                 for (code, data) in obs.iter() {
-                                    if is_pseudo_range_obs_code!(code) {
+                                    if is_pseudorange_observation(code) {
                                         // We currently do not support the compensation for biases
                                         // than clock induced ones. ie., Ionospheric delays ??
                                         v.push((
@@ -3097,24 +3061,16 @@ Specify one yourself with `ref_pos`",
     ) -> HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
         let mut ret: HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> =
             HashMap::new();
-        //TODO lazy_static please
-        let known_codes = vec![
-            "1A", "1B", "1C", "1D", "1L", "1M", "1P", "1S", "1W", "1X", "1Z", "2C", "2D", "2L",
-            "2M", "2P", "2S", "2W", "3I", "3X", "3Q", "4A", "4B", "4X", "5A", "5B", "5C", "5I",
-            "5P", "5Q", "5X", "6A", "6B", "6C", "6Q", "6X", "6Z", "7D", "7I", "7P", "7Q", "7X",
-            "8D", "8P", "8I", "8Q", "8X", "9A", "9B", "9C", "9X",
-        ];
-
         if let Some(record) = self.record.as_obs() {
             for (epoch, (_, vehicules)) in record {
                 for (sv, observations) in vehicules {
                     for (obscode, obsdata) in observations {
-                        if is_phase_carrier_obs_code!(obscode) {
+                        if is_phase_observation(obscode) {
                             // this is a PH code
                             let carrier_id = &obscode[1..2];
                             let code = &obscode[1..];
                             // locate a reference PH code for this PH code
-                            for k_code in &known_codes {
+                            for k_code in carrier::KNOWN_CODES.iter() {
                                 if *k_code != code {
                                     // different code
                                     if k_code.starts_with(carrier_id) {
@@ -3222,7 +3178,7 @@ Specify one yourself with `ref_pos`",
             for (epoch, (_, vehicules)) in record {
                 for (sv, observations) in vehicules {
                     for (obscode, obsdata) in observations {
-                        if is_pseudo_range_obs_code!(obscode) {
+                        if is_pseudorange_observation(obscode) {
                             // this is a PR code
                             let carrier_id = &obscode[1..2];
                             let code = &obscode[1..];
@@ -3323,12 +3279,12 @@ Specify one yourself with `ref_pos`",
                 for (sv, observations) in svs {
                     for (lhs_code, lhs_data) in observations {
                         let lhs_carrier = &lhs_code[1..1];
-                        if is_phase_carrier_obs_code!(lhs_code) {
+                        if is_phase_observation(lhs_code) {
                             // locate a PR OBS
                             for (rhs_code, rhs_data) in observations {
                                 let rhs_carrier = &rhs_code[1..];
                                 if lhs_carrier == rhs_carrier {
-                                    if is_pseudo_range_obs_code!(rhs_code) {
+                                    if is_pseudorange_observation(rhs_code) {
                                         let recomb_y = lhs_data.obs - rhs_data.obs;
                                         //let op = rhs_code[1..].to_owned() + &lhs_code[1..];
                                         if let Some((p_epoch, p_data)) = prev_data.get_mut(sv) {
@@ -3716,15 +3672,6 @@ mod test {
     fn test_macros() {
         assert_eq!(is_comment!("This is a comment COMMENT"), true);
         assert_eq!(is_comment!("This is a comment"), false);
-        assert_eq!(is_pseudo_range_obs_code!("C1P"), true);
-        assert_eq!(is_pseudo_range_obs_code!("P1P"), true);
-        assert_eq!(is_pseudo_range_obs_code!("L1P"), false);
-        assert_eq!(is_phase_carrier_obs_code!("L1P"), true);
-        assert_eq!(is_phase_carrier_obs_code!("D1P"), false);
-        assert_eq!(is_doppler_obs_code!("D1P"), true);
-        assert_eq!(is_doppler_obs_code!("L1P"), false);
-        assert_eq!(is_sig_strength_obs_code!("S1P"), true);
-        assert_eq!(is_sig_strength_obs_code!("L1P"), false);
     }
     #[test]
     fn test_hourly_session() {

@@ -86,7 +86,7 @@ impl QcReport {
             for (sv, observations) in vehicles {
                 has_obs = observations.len() > 0;
                 for (code, data) in observations {
-                    has_doppler |= is_doppler_obs_code!(code);
+                    has_doppler |= is_doppler_observation(code);
                     let carrier = "L".to_owned() + &code[1..2];
 
                     if !sv_with_obs.contains(&sv) {
@@ -96,7 +96,7 @@ impl QcReport {
                     /*
                      * SSI moving average
                      */
-                    if is_sig_strength_obs_code!(code) {
+                    if is_ssi_observation(code) {
                         if let Some(averager) = ssi_avg.get_mut(&carrier.to_string()) {
                             if let Some(avg) = averager.moving_average((data.obs, *epoch)) {
                                 if let Some(mean_ssi) = mean_ssi.get_mut(&carrier.to_string()) {

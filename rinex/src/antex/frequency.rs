@@ -1,5 +1,5 @@
 //! Antex - special RINEX type specific structures
-use crate::channel::Channel;
+use crate::carrier::Carrier;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
@@ -47,8 +47,8 @@ impl Pattern {
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Frequency {
-    /// Channel, example: L1, L2 for GPS, E1, E5 for GAL...
-    pub channel: Channel,
+    /// Carrier, example: "L1", "L2" for GPS, "E1", "E5" for GAL...
+    pub carrier: Carrier,
     /// Northern component of the mean antenna phase center
     /// relative to the antenna reference point (ARP),
     /// in [mm]
@@ -70,7 +70,7 @@ pub struct Frequency {
 impl Default for Frequency {
     fn default() -> Self {
         Self {
-            channel: Channel::default(),
+            carrier: Carrier::default(),
             north: 0.0_f64,
             east: 0.0_f64,
             up: 0.0_f64,
@@ -126,9 +126,9 @@ impl Frequency {
             map_3d::Ellipsoid::WGS84,
         )
     }
-    pub fn with_channel(&self, channel: Channel) -> Self {
+    pub fn with_carrier(&self, carrier: Carrier) -> Self {
         let mut f = self.clone();
-        f.channel = channel.clone();
+        f.carrier = carrier.clone();
         f
     }
     pub fn with_northern_eccentricity(&self, north: f64) -> Self {
@@ -165,7 +165,7 @@ mod test {
     #[test]
     fn test_frequency() {
         let default = Frequency::default();
-        assert_eq!(default.channel, Channel::default());
+        assert_eq!(default.carrier, Carrier::default());
         assert_eq!(default.north, 0.0_f64);
         assert_eq!(default.east, 0.0_f64);
         assert_eq!(default.up, 0.0_f64);

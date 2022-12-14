@@ -4,7 +4,7 @@ use thiserror::Error;
 
 use super::{Antenna, Calibration, CalibrationMethod, Frequency, Pattern};
 
-use crate::{channel, merge, merge::Merge, sampling::Decimation, Epoch};
+use crate::{carrier, merge, merge::Merge, sampling::Decimation, Epoch};
 
 /// Returns true if this line matches
 /// the beginning of a `epoch` for ATX file (special files),
@@ -60,8 +60,8 @@ pub type Record = Vec<(Antenna, Vec<Frequency>)>;
 pub enum Error {
     #[error("Unknown PCV \"{0}\"")]
     UnknownPcv(String),
-    #[error("Failed to parse frequency channel")]
-    ParseChannelError(#[from] channel::Error),
+    #[error("Failed to parse carrier frequency")]
+    ParseCarrierError(#[from] carrier::Error),
 }
 
 /// Parses entire Antenna block
@@ -131,8 +131,8 @@ pub(crate) fn parse_epoch(content: &str) -> Result<(Antenna, Vec<Frequency>), Er
             antenna = antenna.with_sinex_code(sinex.trim())
         } else if marker.contains("START OF FREQUENCY") {
             let svnn = content.split_at(10).0;
-            let channel = channel::Channel::from_sv_code(svnn.trim())?;
-            frequency = Frequency::default().with_channel(channel);
+            let carrier = carrier::Carrier::from_sv_code(svnn.trim())?;
+            frequency = Frequency::default().with_carrier(carrier);
         } else if marker.contains("NORTH / EAST / UP") {
             let (north, rem) = content.split_at(10);
             let (east, rem) = rem.split_at(10);

@@ -17,7 +17,7 @@ pub struct QcOpts {
     ///   the expected sample rate and mark a gap anytime
     ///   instantaneous epoch interval exceeds this duration
     pub gap_considered: Option<Duration>,
-    /// elevation mask 
+    /// elevation mask
     pub elev_mask: f64,
     /// elevation angle increment, in the augmented study
     pub elev_increment: f64,

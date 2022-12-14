@@ -5,6 +5,36 @@ pub use record::{LliFlags, ObservationData, Record, Ssi};
 
 use std::collections::HashMap;
 
+/// Macro to determine whether this is a Phase observation or not
+pub fn is_phase_observation(content: &str) -> bool {
+    content.trim().starts_with("L")
+}
+
+/// Macro to determine whether this is a Doppler observation or not
+pub fn is_doppler_observation(content: &str) -> bool {
+    content.trim().starts_with("D")
+}
+
+/// Macro to determine whether this is a Pseudo Range observation or not
+pub fn is_pseudorange_observation(content: &str) -> bool {
+    content.trim().starts_with("C") || content.trim().starts_with("P")
+}
+
+/// Macro to determine whether this is an SSI observation or not
+pub fn is_ssi_observation(content: &str) -> bool {
+    content.trim().starts_with("S")
+}
+
+/// Macro to extract observation code
+pub fn observation_code(content: &str) -> String {
+    let c = content.trim();
+    if c.len() > 2 {
+        c[1..].to_string()
+    } else {
+        c[..std::cmp::min(c.len(), 2)].to_string()
+    }
+}
+
 macro_rules! fmt_month {
     ($m: expr) => {
         match $m {
@@ -198,5 +228,23 @@ rust-rinex-{}                        {:02}-{}-{} {:02}:{:02}     CRINEX PROG / D
             mm
         );
         assert_eq!(crinex.to_string(), expected);
+    }
+    #[test]
+    fn test_observables() {
+        assert_eq!(is_pseudorange_observation("C1P"), true);
+        assert_eq!(is_pseudorange_observation("P1P"), true);
+        assert_eq!(is_pseudorange_observation("L1P"), false);
+        assert_eq!(is_phase_observation("L1P"), true);
+        assert_eq!(is_phase_observation("D1P"), false);
+        assert_eq!(is_doppler_observation("D1P"), true);
+        assert_eq!(is_doppler_observation("L1P"), false);
+        assert_eq!(is_ssi_observation("S1P"), true);
+        assert_eq!(is_ssi_observation("L1P"), false);
+
+        assert_eq!(observation_code("C1P"), "1P");
+        assert_eq!(observation_code("C1"), "C1");
+        assert_eq!(observation_code("L1C"), "1C");
+        assert_eq!(observation_code("L1W"), "1W");
+        assert_eq!(observation_code("L1"), "L1");
     }
 }

@@ -8,11 +8,11 @@ use std::collections::{BTreeMap, HashMap};
 
 macro_rules! code2physics {
     ($code: expr) => {
-        if is_phase_carrier_obs_code!($code) {
+        if is_phase_observation($code) {
             "Phase".to_string()
-        } else if is_doppler_obs_code!($code) {
+        } else if is_doppler_observation($code) {
             "Doppler".to_string()
-        } else if is_sig_strength_obs_code!($code) {
+        } else if is_ssi_observation($code) {
             "Signal Strength".to_string()
         } else {
             "Pseudo Range".to_string()
@@ -142,7 +142,7 @@ pub fn plot_observation(ctx: &Context, plot_ctx: &mut PlotContext) {
                         let elev: Vec<f64> = epochs.iter().map(|(_, (el, _azi))| *el).collect();
                         let epochs: Vec<Epoch> = epochs.keys().map(|k| *k).collect();
                         let trace = build_chart_epoch_axis(
-                            &format!("Elev({}", sv),
+                            &format!("Elev({})", sv),
                             Mode::LinesMarkers,
                             epochs,
                             elev,

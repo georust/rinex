@@ -200,7 +200,7 @@ impl Default for OptsThreshold {
     /// Builds defaults OptsThreshold, best suited for L1/L2 studies
     /// with ~1min observation interval
     fn default() -> Self {
-        let a0 = 3.0 * (Channel::L2.carrier_wavelength() - Channel::L1.carrier_wavelength()) / 2.0;
+        let a0 = 3.0 * (Carrier::L2.carrier_wavelength() - Carrier::L1.carrier_wavelength()) / 2.0;
         Self { a0, a1: a0 / 2.0 }
     }
 }

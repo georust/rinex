@@ -4,9 +4,18 @@ use crate::sv;
 use std::str::FromStr;
 use thiserror::Error;
 
+lazy_static! {
+    pub(crate) static ref KNOWN_CODES: Vec<&'static str> = vec![
+        "1A", "1B", "1C", "1D", "1L", "1M", "1P", "1S", "1W", "1X", "1Z", "2C", "2D", "2L", "2M",
+        "2P", "2S", "2W", "3I", "3X", "3Q", "4A", "4B", "4X", "5A", "5B", "5C", "5I", "5P", "5Q",
+        "5X", "6A", "6B", "6C", "6Q", "6X", "6Z", "7D", "7I", "7P", "7Q", "7X", "8D", "8P", "8I",
+        "8Q", "8X", "9A", "9B", "9C", "9X",
+    ];
+}
+
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
-pub enum Channel {
+pub enum Carrier {
     /// L1 (GPS, SBAS, QZSS)
     L1,
     /// L2 (GPS, QZSS)
@@ -15,9 +24,9 @@ pub enum Channel {
     L5,
     /// L6 (LEX) QZSS
     L6,
-    /// Glonass channel 1 with possible channel offset
+    /// Glonass channel 1 with possible offset
     G1(Option<u8>),
-    /// Glonass channel 2 with possible channel offset
+    /// Glonass channel 2 with possible offset
     G2(Option<u8>),
     /// Glonass channel 3
     G3,
@@ -43,15 +52,15 @@ pub enum Channel {
     S,
 }
 
-impl Default for Channel {
-    fn default() -> Channel {
-        Channel::L1
+impl Default for Carrier {
+    fn default() -> Carrier {
+        Carrier::L1
     }
 }
 
 #[derive(Error, Debug)]
 pub enum Error {
-    /// Unable to parse Channel from given string content
+    /// Unable to parse Carrier from given string content
     #[error("unable to parse channel from content \"{0}\"")]
     ParseError(String),
     #[error("unable to identify glonass channel from \"{0}\"")]
@@ -62,32 +71,32 @@ pub enum Error {
     InvalidObservable(String),
 }
 
-impl FromStr for Channel {
+impl FromStr for Carrier {
     type Err = Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if s.contains("L1") {
-            Ok(Channel::L1)
+            Ok(Carrier::L1)
         } else if s.contains("L2") {
-            Ok(Channel::L2)
+            Ok(Carrier::L2)
         } else if s.contains("L5") {
-            Ok(Channel::L5)
+            Ok(Carrier::L5)
         } else if s.contains("G1") {
             if s.eq("G1") {
-                Ok(Channel::G1(None))
+                Ok(Carrier::G1(None))
             } else if s.contains("G1(") {
                 let items: Vec<&str> = s.split("(").collect();
                 let item = items[1].replace(")", "");
-                Ok(Channel::G1(Some(u8::from_str_radix(&item, 10)?)))
+                Ok(Carrier::G1(Some(u8::from_str_radix(&item, 10)?)))
             } else {
                 Err(Error::ParseError(s.to_string()))
             }
         } else if s.contains("G2") {
             if s.eq("G2") {
-                Ok(Channel::G2(None))
+                Ok(Carrier::G2(None))
             } else if s.contains("G2(") {
                 let items: Vec<&str> = s.split("(").collect();
                 let item = items[1].replace(")", "");
-                Ok(Channel::G2(Some(u8::from_str_radix(&item, 10)?)))
+                Ok(Carrier::G2(Some(u8::from_str_radix(&item, 10)?)))
             } else {
                 Err(Error::ParseError(s.to_string()))
             }
@@ -97,27 +106,27 @@ impl FromStr for Channel {
     }
 }
 
-impl Channel {
+impl Carrier {
     /// Returns frequency associated to this channel in MHz
     pub fn carrier_frequency_mhz(&self) -> f64 {
         match self {
-            Channel::L1 | Channel::E1 => 1575.42_f64,
-            Channel::L2 | Channel::E2 => 1227.60_f64,
-            Channel::L5 => 1176.45_f64,
-            Channel::E5 => 1191.795_f64,
-            Channel::E6 => 1278.75_f64,
-            Channel::G1(Some(c)) => 1602.0_f64 + (*c as f64 * 9.0 / 16.0),
-            Channel::G1(_) => 1602.0_f64,
-            Channel::G2(Some(c)) => 1246.06_f64 + (*c as f64 * 7.0 / 16.0),
-            Channel::G2(_) => 1246.06_f64,
-            Channel::G3 => 1202.025_f64,
-            Channel::L6 => 1278.75_f64,
-            Channel::B1 => 1561.098_f64,
-            Channel::B1A => 1575.42_f64,
-            Channel::B1C => 1575.42_f64,
-            Channel::B2 => 1207.140_f64,
-            Channel::B3 => 1268.52_f64,
-            Channel::S => 2492.028_f64,
+            Carrier::L1 | Carrier::E1 => 1575.42_f64,
+            Carrier::L2 | Carrier::E2 => 1227.60_f64,
+            Carrier::L5 => 1176.45_f64,
+            Carrier::E5 => 1191.795_f64,
+            Carrier::E6 => 1278.75_f64,
+            Carrier::G1(Some(c)) => 1602.0_f64 + (*c as f64 * 9.0 / 16.0),
+            Carrier::G1(_) => 1602.0_f64,
+            Carrier::G2(Some(c)) => 1246.06_f64 + (*c as f64 * 7.0 / 16.0),
+            Carrier::G2(_) => 1246.06_f64,
+            Carrier::G3 => 1202.025_f64,
+            Carrier::L6 => 1278.75_f64,
+            Carrier::B1 => 1561.098_f64,
+            Carrier::B1A => 1575.42_f64,
+            Carrier::B1C => 1575.42_f64,
+            Carrier::B2 => 1207.140_f64,
+            Carrier::B3 => 1268.52_f64,
+            Carrier::S => 2492.028_f64,
         }
     }
     /// Returns wavelength of this channel
@@ -128,18 +137,18 @@ impl Channel {
     /// Returns channel bandwidth in MHz
     pub fn bandwidth_mhz(&self) -> f64 {
         match self {
-            Channel::L1 | Channel::G1(_) | Channel::E1 => 15.345_f64,
-            Channel::L2 | Channel::G2(_) | Channel::E2 => 11.0_f64,
-            Channel::L5 | Channel::E5 => 12.5_f64,
-            Channel::G3 => todo!("G3 bandwidth is not known to this day"),
-            Channel::E6 => todo!("E6 bandwidth is not known to this day"),
-            Channel::L6 => todo!("L6 bandwidth is not known to this day"),
-            Channel::S => todo!("S bandwidth is not known to this day"),
-            Channel::B1 => todo!("B1 bandwidth is not known to this day"),
-            Channel::B1A => todo!("B1A bandwidth is not known to this day"),
-            Channel::B1C => todo!("B1C bandwidth is not known to this day"),
-            Channel::B2 => todo!("B2 bandwidth is not known to this day"),
-            Channel::B3 => todo!("B3 bandwidth is not known to this day"),
+            Carrier::L1 | Carrier::G1(_) | Carrier::E1 => 15.345_f64,
+            Carrier::L2 | Carrier::G2(_) | Carrier::E2 => 11.0_f64,
+            Carrier::L5 | Carrier::E5 => 12.5_f64,
+            Carrier::G3 => todo!("G3 bandwidth is not known to this day"),
+            Carrier::E6 => todo!("E6 bandwidth is not known to this day"),
+            Carrier::L6 => todo!("L6 bandwidth is not known to this day"),
+            Carrier::S => todo!("S bandwidth is not known to this day"),
+            Carrier::B1 => todo!("B1 bandwidth is not known to this day"),
+            Carrier::B1A => todo!("B1A bandwidth is not known to this day"),
+            Carrier::B1C => todo!("B1C bandwidth is not known to this day"),
+            Carrier::B2 => todo!("B2 bandwidth is not known to this day"),
+            Carrier::B3 => todo!("B3 bandwidth is not known to this day"),
         }
     }
 
@@ -215,7 +224,7 @@ impl Channel {
         }
     }
 
-    /// Builds a Channel Frequency from an `Sv` 3 letter code descriptor,
+    /// Builds a Carrier Frequency from an `Sv` 3 letter code descriptor,
     /// mainly used in `ATX` RINEX for so called `frequency` field
     pub fn from_sv_code(code: &str) -> Result<Self, Error> {
         let sv = sv::Sv::from_str(code)?;
@@ -277,16 +286,16 @@ mod test {
     use std::str::FromStr;
     #[test]
     fn test_channel() {
-        assert!(Channel::from_str("L1").is_ok());
-        assert!(Channel::from_str("C1").is_err());
-        assert!(Channel::from_str("L5").is_ok());
+        assert!(Carrier::from_str("L1").is_ok());
+        assert!(Carrier::from_str("C1").is_err());
+        assert!(Carrier::from_str("L5").is_ok());
 
-        let l1 = Channel::from_str("L1").unwrap();
+        let l1 = Carrier::from_str("L1").unwrap();
         assert_eq!(l1.carrier_frequency_mhz(), 1575.42_f64);
         assert_eq!(l1.carrier_wavelength(), 299792458.0 / 1575.42_f64 / 10.0E6);
-        let channel = Channel::from_observable(Constellation::GPS, "L1C");
+        let channel = Carrier::from_observable(Constellation::GPS, "L1C");
         assert!(channel.is_ok());
         let channel = channel.unwrap();
-        assert_eq!(channel, Channel::L1);
+        assert_eq!(channel, Carrier::L1);
     }
 }
