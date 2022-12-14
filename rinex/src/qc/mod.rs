@@ -44,18 +44,6 @@ pub struct QcReport {
 }
 
 impl QcReport {
-    /// Rinex quality check analysis.
-    /// ```
-    /// use rinex::{
-    ///     prelude::*,
-    ///     processing::*,
-    /// };
-    /// let rnx =
-    ///     Rinex::from_file("../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
-    ///     .unwrap();
-    /// let summary = QcReport::basic(&rnx, None);
-    /// let report = summary.to_html();
-    /// ```
     pub fn basic(rnx: &Rinex, nav: &Option<Rinex>) -> Self {
         Self::new(rnx, nav, None)
     }
