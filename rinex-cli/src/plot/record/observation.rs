@@ -1,8 +1,7 @@
 use crate::{
     plot::{build_chart_epoch_axis, generate_markers, PlotContext},
-    Cli, Context,
+    Context,
 };
-use log::info;
 use plotly::common::{Marker, MarkerSymbol, Mode, Visible};
 use rinex::{navigation::*, observation::*, prelude::*, *};
 use std::collections::HashMap;
@@ -24,15 +23,10 @@ macro_rules! code2physics {
 /*
  * Plots given Observation RINEX content
  */
-pub fn plot_observation(plot_ctx: &mut PlotContext, record: &observation::Record) {
-    basic_plot(plot_ctx, record);
-    /*if let Some(nav) = nav_ctx {
-        trace!("augmented observation record analysis");
-        nav_enhancement(plot_ctx, nav, ref_position);
-    }*/
-}
-
-pub fn basic_plot(plot_ctx: &mut PlotContext, record: &observation::Record) {
+pub fn plot_observation(ctx: &Context, plot_ctx: &mut PlotContext) {
+    let record = ctx.primary_rinex.record.as_obs()
+        .unwrap();
+    
     let mut clk_offset: Vec<(Epoch, f64)> = Vec::new();
     // dataset
     //  per physics, per carrier signal (symbol)
@@ -130,8 +124,4 @@ pub fn basic_plot(plot_ctx: &mut PlotContext, record: &observation::Record) {
         }
         trace!("{} observations", y_label);
     }
-}
-
-pub fn nav_enhancement(ref_position: (f64,f64,f64), plot_ctx: &mut PlotContext, nav: &Rinex) {
-    //let sv_angles = nav.navigation_sat_angles();
 }

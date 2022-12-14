@@ -3,7 +3,7 @@ use crate::{
     Context,
     parser::{parse_duration, parse_epoch},
 };
-use log::{info, error, warn};
+use log::{error, warn};
 use rinex::{processing::Decimation, *};
 
 /// Efficient RINEX content decimation

@@ -569,14 +569,12 @@ Refer to README"))
         self.matches.get_flag("cs")
     }
     /// Returns optionnal RINEX file to "merge"
-    pub fn merge(&self) -> Option<&str> {
-        if self.matches.contains_id("merge") {
-            if let Some(s) = self.matches.get_one::<String>("merge") {
-                Some(&s)
-            } else {
-                None
-            }
+    pub fn to_merge(&self) -> Option<Rinex> {
+        let fp = self.matches.get_one::<String>("merge")?;
+        if let Ok(rnx) = Rinex::from_file(&fp) {
+            Some(rnx)
         } else {
+            error!("failed to parse \"{}\"", filename(fp));
             None
         }
     }

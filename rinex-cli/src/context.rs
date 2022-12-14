@@ -1,12 +1,13 @@
 use rinex::prelude::*;
 use crate::Cli;
 use crate::fops::filename;
-use log::{info, error, warn};
+use log::{info};
 
 #[derive(Debug, Clone)]
 pub struct Context {
     pub prefix: String,
     pub primary_rinex: Rinex,
+    pub to_merge: Option<Rinex>,
     pub nav_rinex: Option<Rinex>,
     pub ground_position: Option<(f64,f64,f64)>,
 }
@@ -24,10 +25,12 @@ impl Context {
         
         let primary_rinex = Rinex::from_file(fp)
             .expect("failed to parse primary rinex");
+        
         let nav_rinex = cli.nav_context();
 
         Self {
             prefix: prefix.clone(),
+            to_merge: cli.to_merge(),
             ground_position: {
                 if let Some(ref pos) = primary_rinex.header.coords {
                     info!("ground position {:?} (ECEF)", pos);

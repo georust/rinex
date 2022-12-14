@@ -1,4 +1,3 @@
-use crate::Context;
 use crate::plot::{build_chart_epoch_axis, PlotContext}; //generate_markers};
 use plotly::common::{Marker, MarkerSymbol, Mode};
 use rinex::{meteo::*, prelude::*};

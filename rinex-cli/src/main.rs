@@ -6,7 +6,6 @@
 mod cli; // command line interface
 mod context; // RINEX context
 mod analysis; // basic analysis
-mod file_generation;
 mod filter; // record filtering
 mod identification; // high level identification/macros
 mod plot; // plotting operations
@@ -37,7 +36,10 @@ extern crate pretty_env_logger;
 extern crate log;
 
 use std::io::Write;
-use fops::{filename, open_html_with_default_app};
+use fops::{
+    generate,
+    open_html_with_default_app,
+};
 
 /*
  * Applies elevation mask, to non Navigation RINEX
@@ -52,7 +54,6 @@ pub fn main() -> Result<(), rinex::Error> {
     let mut plot_ctx = PlotContext::new();
 
     let quiet = cli.quiet();
-    let pretty = cli.pretty();
     let qc_only = cli.quality_check_only();
 
     /*
@@ -173,14 +174,11 @@ pub fn main() -> Result<(), rinex::Error> {
     }
     /*
      * MERGE
-    
-    if let Some(b_path) = cli.merge() {
+     */
+    if let Some(to_merge) = ctx.to_merge {
         info!("[merge] special mode");
-        // we're merging (A)+(B) into (C)
-        let mut rnx_b = Rinex::from_file(b_path)?;
-        info!("parsed \"{}\" correctly", filename(b_path));
-        // [0] apply similar conditions to RNX_b
-        if cli.resampling() {
+        //TODO
+        /*if cli.resampling() {
             record_resampling(&mut rnx_b, cli.resampling_ops());
         }
         if cli.retain() {
@@ -189,31 +187,38 @@ pub fn main() -> Result<(), rinex::Error> {
         if cli.filter() {
             apply_filters(&mut rnx_b, cli.filter_ops());
         }
+        */
         // [1] proceed to merge
-        rnx.merge_mut(&rnx_b).expect("`merge` operation failed");
+        ctx.primary_rinex.merge_mut(&to_merge)
+            .expect("`merge` operation failed");
+        info!("merge both rinex files");
         // [2] generate new file
-        file_generation::generate(&rnx, cli.output_path(), "merged.rnx").unwrap();
+        fops::generate(&ctx.primary_rinex, "merged.rnx")
+            .expect("failed to generate merged file");
         // [*] stop here, special mode: no further analysis allowed
         return Ok(());
     }
-     */
+
     /*
      * SPLIT
+     */
     if let Some(epoch) = cli.split() {
-        let (a, b) = rnx
+        let (a, b) = ctx.primary_rinex
             .split(epoch)
-            .expect(&format!("failed to split \"{}\" into two", fp));
+            .expect("failed to split primary rinex file");
 
         let name = format!("{}-{}.rnx", cli.input_path(), a.epochs()[0]);
-        file_generation::generate(&a, None, &name).unwrap();
+        fops::generate(&a, &name)
+            .expect(&format!("failed to generate \"{}\"", name));
 
         let name = format!("{}-{}.rnx", cli.input_path(), b.epochs()[0]);
-        file_generation::generate(&b, None, &name).unwrap();
+        fops::generate(&b, &name)
+            .expect(&format!("failed to generate \"{}\"", name));
 
         // [*] stop here, special mode: no further analysis allowed
         return Ok(());
     }
-    */
+
     /*
      * skyplot
      */
@@ -230,38 +235,41 @@ pub fn main() -> Result<(), rinex::Error> {
         info!("record analysis");
         plot::plot_record(&ctx, &mut plot_ctx);
     }
-    /*
+    
     /*
      * Render HTML
      */
-    let html_absolute_path = product_prefix.to_owned() + "/analysis.html";
+    let html_absolute_path = ctx.prefix.to_owned() + "/analysis.html";
     let mut html_fd = std::fs::File::create(&html_absolute_path)
         .expect(&format!("failed to create \"{}\"", &html_absolute_path));
-    let mut html = ctx.to_html(cli.tiny_html());
+    let mut html = plot_ctx.to_html(cli.tiny_html());
     /*
      * Quality Check summary
      */
     if cli.quality_check() {
-        info!("entering qc mode");
-        let report = QcReport::basic(&rnx, &nav_context);
+        info!("qc mode");
+        let report = QcReport::basic(&ctx.primary_rinex, &ctx.nav_rinex);
+
         if cli.quality_check_separate() {
-            let qc_absolute_path = product_prefix.to_owned() + "/qc.html";
+            let qc_absolute_path = ctx.prefix.to_owned() + "/qc.html";
             let mut qc_fd = std::fs::File::create(&qc_absolute_path)
                 .expect(&format!("failed to create \"{}\"", &qc_absolute_path));
             write!(qc_fd, "{}", report.to_html()).expect("failed to generate QC summary report");
             info!("qc summary report \"{}\" generated", &qc_absolute_path);
-        } else {
-            // append to current HTML content
+        
+        } else { // append QC to global html
             html.push_str("<div=\"qc-report\">\n");
             html.push_str(&report.to_inline_html().into_string().unwrap());
             html.push_str("</div>\n");
             info!("qc summary added to html report");
         }
     }
+
     write!(html_fd, "{}", html).expect(&format!("failed to write HTML content"));
     if !quiet {
         open_html_with_default_app(&html_absolute_path);
     }
-    info!("html report \"{}\" generated", &html_absolute_path);*/
+    info!("html report \"{}\" generated", &html_absolute_path);
+    
     Ok(())
 } // main

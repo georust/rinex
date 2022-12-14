@@ -4,8 +4,6 @@ use plotly::{
     ScatterPolar,
 };
 use crate::Context;
-use rinex::prelude::*;
-
 /*
  * Skyplot view
  */

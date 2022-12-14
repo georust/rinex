@@ -1,3 +1,4 @@
+use rinex::prelude::*;
 use std::process::Command;
 
 /* Returns filename prefix, from given content */
@@ -39,4 +40,12 @@ pub fn open_html_with_default_app(path: &str) {
         .arg(format!(r#"start {}"#, path))
         .output()
         .expect("failed to open generated HTML content");
+}
+
+/// Macro to generate a file from an input RINEX
+/// with possible control over the file name, from the command line
+pub fn generate(rnx: &Rinex, path: &str) -> Result<(), rinex::Error> {
+    rnx.to_file(path)?;
+    info!("\"{}\" has been generated", path);
+    Ok(())
 }

@@ -327,8 +327,8 @@ pub fn build_chart_epoch_axis(
 }
 
 pub fn plot_record(ctx: &Context, plot_ctx: &mut PlotContext) {
-    if let Some(r) = ctx.primary_rinex.record.as_obs() {
-        record::plot_observation(plot_ctx, r);
+    if ctx.primary_rinex.is_observation_rinex() {
+        record::plot_observation(&ctx, plot_ctx);
     } else if let Some(r) = ctx.primary_rinex.record.as_meteo() {
         record::plot_meteo(plot_ctx, r);
     } else if let Some(r) = ctx.primary_rinex.record.as_ionex() {
