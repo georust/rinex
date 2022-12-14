@@ -31,7 +31,7 @@ pub enum Carrier {
     /// Glonass channel 2 with possible offset
     G2(Option<i8>),
     /// Glonass channel 3
-    G3,
+    G3(Option<i8>),
     /// E1: GAL
     E1,
     /// E2: GAL
@@ -121,7 +121,8 @@ impl Carrier {
             Carrier::G1(_) => 1602.0_f64,
             Carrier::G2(Some(c)) => 1246.06_f64 + (*c as f64 * 7.0 / 16.0),
             Carrier::G2(_) => 1246.06_f64,
-            Carrier::G3 => 1202.025_f64,
+            Carrier::G3(Some(c)) => 1202.025_f64 + (*c as f64 * 7.0 / 16.0),
+            Carrier::G3(_) => 1202.025_f64,
             Carrier::L6 => 1278.75_f64,
             Carrier::B1 => 1561.098_f64,
             Carrier::B1A => 1575.42_f64,
