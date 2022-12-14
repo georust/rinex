@@ -33,7 +33,7 @@ impl Default for QcOpts {
             gap_considered: None,
             elev_mask: 10.0_f64,
             elev_increment: 10.0_f64,
-            max_iono_rate_cm_min: 400,
+            max_iono_rate_cm_min: 400.0,
         }
     }
 }
