@@ -1,4 +1,4 @@
-use crate::Cli;
+use crate::{Cli, Context};
 use plotly::{
     common::{
         //DashType,
@@ -326,15 +326,14 @@ pub fn build_chart_epoch_axis(
         .hover_info(HoverInfo::All)
 }
 
-pub fn plot_record(cli: &Cli, ctx: &mut PlotContext) {
-    if let Some(r) = cli.primary_rinex.record.as_obs() {
-        record::plot_observation(ctx, r, &cli.nav_rinex, cli.ground_position);
-    }
-    /*} else if let Some(r) = rnx.record.as_meteo() {
-        record::plot_meteo(ctx, r);
-    } else if let Some(r) = rnx.record.as_ionex() {
-        if let Some(borders) = rnx.ionex_map_borders() {
-            record::plot_tec_map(ctx, borders, r);
+pub fn plot_record(ctx: &Context, plot_ctx: &mut PlotContext) {
+    if let Some(r) = ctx.primary_rinex.record.as_obs() {
+        record::plot_observation(plot_ctx, r);
+    } else if let Some(r) = ctx.primary_rinex.record.as_meteo() {
+        record::plot_meteo(plot_ctx, r);
+    } else if let Some(r) = ctx.primary_rinex.record.as_ionex() {
+        if let Some(borders) = ctx.primary_rinex.ionex_map_borders() {
+            record::plot_tec_map(plot_ctx, borders, r);
         }
-    }*/
+    }
 }

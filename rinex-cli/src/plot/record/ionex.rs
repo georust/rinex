@@ -9,9 +9,9 @@ use plotly::{
 };
 use rinex::ionex::*;
 
-pub fn plot_tec_map(ctx: &mut PlotContext, borders: ((f64, f64), (f64, f64)), record: &Record) {
+pub fn plot_tec_map(plot_ctx: &mut PlotContext, borders: ((f64, f64), (f64, f64)), record: &Record) {
     let cmap = colorous::TURBO;
-    ctx.add_world_map(MapboxStyle::OpenStreetMap, (32.5, -40.0), 1);
+    plot_ctx.add_world_map(MapboxStyle::OpenStreetMap, (32.5, -40.0), 1);
 
     let mut grid_lat: Vec<f64> = Vec::new();
     let mut grid_lon: Vec<f64> = Vec::new();
@@ -38,7 +38,7 @@ pub fn plot_tec_map(ctx: &mut PlotContext, borders: ((f64, f64), (f64, f64)), re
                 .opacity(0.5),
         )
         .name("TEC Grid");
-    ctx.add_trace(grid);
+    plot_ctx.add_trace(grid);
 
     /*
      * Build heat map,

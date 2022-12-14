@@ -1,6 +1,6 @@
 use crate::{
     plot::{build_chart_epoch_axis, generate_markers, PlotContext},
-    Cli,
+    Cli, Context,
 };
 use log::info;
 use plotly::common::{Marker, MarkerSymbol, Mode, Visible};
@@ -24,20 +24,15 @@ macro_rules! code2physics {
 /*
  * Plots given Observation RINEX content
  */
-pub fn plot_observation(
-    ctx: &mut PlotContext,
-    record: &observation::Record,
-    nav_ctx: &Option<Rinex>,
-    ref_position: Option<(f64,f64,f64)>,
-) {
-    basic_plot(ctx, record);
+pub fn plot_observation(plot_ctx: &mut PlotContext, record: &observation::Record) {
+    basic_plot(plot_ctx, record);
     /*if let Some(nav) = nav_ctx {
         trace!("augmented observation record analysis");
-        nav_enhancement(ctx, nav, ref_position);
+        nav_enhancement(plot_ctx, nav, ref_position);
     }*/
 }
 
-pub fn basic_plot(ctx: &mut PlotContext, record: &observation::Record) {
+pub fn basic_plot(plot_ctx: &mut PlotContext, record: &observation::Record) {
     let mut clk_offset: Vec<(Epoch, f64)> = Vec::new();
     // dataset
     //  per physics, per carrier signal (symbol)
@@ -90,12 +85,12 @@ pub fn basic_plot(ctx: &mut PlotContext, record: &observation::Record) {
     }
 
     if clk_offset.len() > 0 {
-        ctx.add_cartesian2d_plot("Receiver Clock Offset", "Clock Offset [s]");
+        plot_ctx.add_cartesian2d_plot("Receiver Clock Offset", "Clock Offset [s]");
         let data_x: Vec<Epoch> = clk_offset.iter().map(|(k, _)| *k).collect();
         let data_y: Vec<f64> = clk_offset.iter().map(|(_, v)| *v).collect();
         let trace = build_chart_epoch_axis("Clk Offset", Mode::LinesMarkers, data_x, data_y)
             .marker(Marker::new().symbol(MarkerSymbol::TriangleUp));
-        ctx.add_trace(trace);
+        plot_ctx.add_trace(trace);
         trace!("receiver clock offsets");
     }
     /*
@@ -109,7 +104,7 @@ pub fn basic_plot(ctx: &mut PlotContext, record: &observation::Record) {
             "Pseudo Range" => "Pseudo Range",
             _ => unreachable!(),
         };
-        ctx.add_cartesian2d_plot(&format!("{} Observations", physics), y_label);
+        plot_ctx.add_cartesian2d_plot(&format!("{} Observations", physics), y_label);
 
         let markers = generate_markers(carriers.len()); // one symbol per carrier
         for (index, (carrier, vehicules)) in carriers.iter().enumerate() {
@@ -130,13 +125,13 @@ pub fn basic_plot(ctx: &mut PlotContext, record: &observation::Record) {
                         Visible::LegendOnly
                     }
                 });
-                ctx.add_trace(trace);
+                plot_ctx.add_trace(trace);
             }
         }
         trace!("{} observations", y_label);
     }
 }
 
-pub fn nav_enhancement(ref_position: (f64,f64,f64), ctx: &mut PlotContext, nav: &Rinex) {
+pub fn nav_enhancement(ref_position: (f64,f64,f64), plot_ctx: &mut PlotContext, nav: &Rinex) {
     //let sv_angles = nav.navigation_sat_angles();
 }

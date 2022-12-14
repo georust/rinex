@@ -223,14 +223,14 @@ pub fn main() -> Result<(), rinex::Error> {
         info!("sky view generated");
     }
     /*
-    /*
      * Record analysis / visualization
      * analysis depends on the provided record type
      */
     if !qc_only {
-        plot::plot_record(&cli, &mut ctx, &rnx, &nav_context);
-        info!("record analysis generated");
+        info!("record analysis");
+        plot::plot_record(&ctx, &mut plot_ctx);
     }
+    /*
     /*
      * Render HTML
      */
