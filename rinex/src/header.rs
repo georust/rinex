@@ -221,7 +221,6 @@ impl Default for Header {
             glo_channels: HashMap::new(),
             leap: None,
             gps_utc_delta: None,
-            // hardware
             rcvr: None,
             rcvr_antenna: None,
             sv_antenna: None,
@@ -229,7 +228,6 @@ impl Default for Header {
             wavelengths: None,
             data_scaling: None,
             sampling_interval: None,
-            // rinex specific
             obs: None,
             meteo: None,
             clocks: None,
@@ -265,8 +263,7 @@ impl Header {
         let mut sampling_interval: Option<Duration> = None;
         let mut coords: Option<(f64, f64, f64)> = None;
         // RINEX specific fields
-        let mut multilines: u8 = 0;
-        let mut current_code_syst = Constellation::default();
+        let mut current_constell: Option<Constellation> = None;
         let mut observation = observation::HeaderFields::default();
         let mut meteo = meteo::HeaderFields::default();
         let mut clocks = clocks::HeaderFields::default();
@@ -287,10 +284,10 @@ impl Header {
             ///////////////////////////////
             if marker.trim().eq("END OF HEADER") {
                 break;
-                ///////////////////////////////
-                // [0*] COMMENTS
-                ///////////////////////////////
             }
+            ///////////////////////////////
+            // [0*] COMMENTS
+            ///////////////////////////////
             if marker.trim().eq("COMMENT") {
                 // --> storing might be useful
                 comments.push(content.trim().to_string());
@@ -582,9 +579,9 @@ impl Header {
                 //TODO
             } else if marker.contains("ANTENNA: ZERODIR XYZ") {
                 //TODO
-            } else if marker.contains("CENTER OF MASS: XYZ") {
-                //TODO
             } else if marker.contains("ANTENNA: PHASECENTER") {
+                //TODO
+            } else if marker.contains("CENTER OF MASS: XYZ") {
                 //TODO
             } else if marker.contains("RCV CLOCK OFFS APPL") {
                 let value = content.split_at(20).0.trim();
@@ -607,140 +604,75 @@ impl Header {
                 // <o repeated for each satellite system
                 // <o blank field when no corrections applied
             } else if marker.contains("TYPES OF OBS") {
-                // --> parsing Observables (V<3 old fashion)
-                // ⚠ ⚠ could either be observation or meteo data
-                if multilines == 0 {
-                    // first line ever
-                    let (n, rem) = content.split_at(6);
-                    if let Ok(n) = u8::from_str_radix(n.trim(), 10) {
-                        multilines = num_integer::div_ceil(n, 9); // max. items per line
-                    } else {
-                        continue; // failed to identify # of observables
-                                  // --> we'll continue grabing some header infos
-                                  //     record builder will not produce much
-                    }
-
-                    let codes: Vec<String> = rem
-                        .split_ascii_whitespace()
-                        .map(|r| r.trim().to_string())
-                        .collect();
-                    if rinex_type == Type::ObservationData {
+                // these observations can serve both Observation & Meteo RINEX
+                let (_, content) = content.split_at(6);
+                for i in 0..content.len() / 6 {
+                    let obscode = &content[i * 6..std::cmp::min((i + 1) * 6, content.len())].trim();
+                    if obscode.len() > 0 {
                         match constellation {
                             Some(Constellation::Mixed) => {
-                                // Old RINEX + Mixed Constellation:
-                                // description is not accurate enough to determine which
-                                // code will be measured for which constellation
-                                // ---> copy them for all major constellations...
-                                //      record builder will use the ones it needs
-                                let constells: Vec<Constellation> = vec![
-                                    Constellation::GPS,
-                                    Constellation::Glonass,
-                                    Constellation::Galileo,
-                                    Constellation::BeiDou,
-                                    Constellation::Geo,
-                                    Constellation::QZSS,
-                                ];
-                                for i in 0..constells.len() {
-                                    observation.codes.insert(constells[i], codes.clone());
+                                lazy_static! {
+                                    static ref KNOWN_CONSTELLS: Vec<Constellation> = vec![
+                                        Constellation::GPS,
+                                        Constellation::Glonass,
+                                        Constellation::Galileo,
+                                        Constellation::BeiDou,
+                                        Constellation::QZSS,
+                                        Constellation::Geo,
+                                    ];
+                                }
+                                for c in KNOWN_CONSTELLS.iter() {
+                                    if let Some(codes) = observation.codes.get_mut(&c) {
+                                        codes.push(obscode.to_string());
+                                    } else {
+                                        observation.codes.insert(*c, vec![obscode.to_string()]);
+                                    }
                                 }
                             },
-                            Some(constellation) => {
-                                observation.codes.insert(constellation, codes.clone());
-                            },
-                            None => {
-                                unreachable!(
-                                    "observation rinex without any constellation specified"
-                                );
-                            },
-                        }
-                    } else if rinex_type == Type::MeteoData {
-                        for c in codes {
-                            if let Ok(o) = meteo::observable::Observable::from_str(&c) {
-                                meteo.codes.push(o);
-                            }
-                        }
-                    }
-                    multilines -= 1
-                } else {
-                    // Observables, 2nd, 3rd.. lines
-                    let codes: Vec<String> = content
-                        .split_ascii_whitespace()
-                        .map(|r| r.trim().to_string())
-                        .collect();
-                    if rinex_type == Type::ObservationData {
-                        // retrieve correspond system and append codes with new values
-                        let to_retrieve: Vec<Constellation> = match constellation {
-                            Some(Constellation::Mixed) => {
-                                vec![
-                                    // Old OBS Data + Mixed constellation ==> no means to differentiate
-                                    Constellation::GPS,
-                                    Constellation::Glonass,
-                                    Constellation::Galileo,
-                                    Constellation::BeiDou,
-                                    Constellation::Geo,
-                                    Constellation::QZSS,
-                                ]
-                            },
-                            Some(c) => vec![c],
-                            None => unreachable!("OBS rinex with no constellation specified"),
-                        };
-                        for r in to_retrieve {
-                            // retrieve map being built
-                            if let Some(mut prev) = observation.codes.remove(&r) {
-                                // increment obs code map
-                                for code in &codes {
-                                    prev.push(code.to_string());
+                            Some(c) => {
+                                if let Some(codes) = observation.codes.get_mut(&c) {
+                                    codes.push(obscode.to_string());
+                                } else {
+                                    observation.codes.insert(c, vec![obscode.to_string()]);
                                 }
-                                observation.codes.insert(r, prev); // (re)insert
-                            }
-                        }
-                    } else if rinex_type == Type::MeteoData {
-                        // simple append, list is simpler
-                        for c in codes {
-                            if let Ok(o) = meteo::Observable::from_str(&c) {
-                                meteo.codes.push(o);
-                            }
-                        }
-                    }
-                    multilines -= 1
-                }
-            } else if marker.contains("SYS / # / OBS TYPES") {
-                // --> observable (V>2 modern fashion)
-                if multilines == 0 {
-                    // First line describing observables
-                    let (identifier, rem) = content.split_at(1);
-                    let (n, rem) = rem.split_at(5);
-                    if let Ok(n) = u8::from_str_radix(n.trim(), 10) {
-                        multilines = num_integer::div_ceil(n, 13); // max. items per line
-                    } else {
-                        continue; // failed to identify # of observables,
-                                  // we'll continue parsing header section,
-                                  // record builder won't produce much
-                    }
-                    let codes: Vec<String> = rem
-                        .split_ascii_whitespace()
-                        .map(|r| r.trim().to_string())
-                        .collect();
-                    if let Ok(constell) = Constellation::from_1_letter_code(identifier) {
-                        current_code_syst = constell.clone(); // to keep track,
-                                                              // on 2nd and 3rd line, system will not be reminded
-                        observation.codes.insert(constell, codes);
-                    }
-                } else {
-                    // 2nd, 3rd.. line of observables
-                    let codes: Vec<String> = content
-                        .split_ascii_whitespace()
-                        .map(|r| r.trim().to_string())
-                        .collect();
-                    // increment list with new codes
-                    if let Some(list) = observation.codes.get_mut(&current_code_syst) {
-                        // increment obs code map
-                        for code in codes {
-                            list.push(code);
+                            },
+                            _ => {
+                                if rinex_type == Type::MeteoData {
+                                    if let Ok(obs) = meteo::Observable::from_str(obscode) {
+                                        meteo.codes.push(obs);
+                                    }
+                                } else {
+                                    panic!("can't have \"TYPES OF OBS\" when GNSS definition is missing");
+                                }
+                            },
                         }
                     }
                 }
-                multilines -= 1
+            } else if marker.contains("SYS / # / OBS TYPES") {
+                let (possible_content, content) = content.split_at(6);
+                if possible_content.len() > 0 {
+                    let code = &possible_content[..1];
+                    if let Ok(c) = Constellation::from_1_letter_code(code) {
+                        current_constell = Some(c);
+                    }
+                }
+
+                if let Some(constell) = current_constell {
+                    // system correctly identified
+                    for i in 0..content.len() / 4 {
+                        let obscode =
+                            &content[i * 4..std::cmp::min((i + 1) * 4, content.len())].trim();
+                        if obscode.len() > 0 {
+                            if let Some(codes) = observation.codes.get_mut(&constell) {
+                                codes.push(obscode.to_string());
+                            } else {
+                                observation
+                                    .codes
+                                    .insert(constell, vec![obscode.to_string()]);
+                            }
+                        }
+                    }
+                }
             } else if marker.contains("ANALYSIS CENTER") {
                 let (code, agency) = content.split_at(3);
                 clocks = clocks.with_agency(clocks::Agency {
@@ -1876,7 +1808,7 @@ mod test {
         assert_eq!(from_b_fmt_month!("Jan"), 1);
         assert_eq!(from_b_fmt_month!("Feb"), 2);
         assert_eq!(from_b_fmt_month!("Mar"), 3);
-        assert_eq!(from_b_fmt_month!("Dec"), 12);
         assert_eq!(from_b_fmt_month!("Nov"), 11);
+        assert_eq!(from_b_fmt_month!("Dec"), 12);
     }
 }

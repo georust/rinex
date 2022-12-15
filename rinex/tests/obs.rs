@@ -1,5 +1,6 @@
 #[cfg(test)]
 mod test {
+    use rinex::header::*;
     use rinex::observation::*;
     use rinex::prelude::*;
     use std::str::FromStr;
@@ -289,13 +290,28 @@ mod test {
         let rinex = Rinex::from_file(&test_resource);
         assert_eq!(rinex.is_ok(), true);
         let rinex = rinex.unwrap();
-        assert_eq!(rinex.is_observation_rinex(), true);
-        assert_eq!(rinex.header.obs.is_some(), true);
-        assert_eq!(rinex.header.meteo.is_none(), true);
 
-        let obs_hd = rinex.header.obs.as_ref().unwrap();
+        /*
+         * Header tb
+         */
+        let header = &rinex.header;
+        assert!(rinex.is_observation_rinex());
+        assert!(header.obs.is_some());
+        assert!(header.meteo.is_none());
+        assert_eq!(
+            header.coords,
+            Some((3859571.8076, 413007.6749, 5044091.5729))
+        );
+        assert_eq!(header.station_id, "13544M001");
+        assert_eq!(header.observer, "Hans van der Marel");
+        assert_eq!(header.agency, "TU Delft for Deltares");
+
+        let obs_hd = header.obs.as_ref();
+        assert!(obs_hd.is_some());
+        let obs_hd = obs_hd.unwrap();
+
         let record = rinex.record.as_obs();
-        assert_eq!(record.is_some(), true);
+        assert!(record.is_some());
         let record = record.unwrap();
         //////////////////////////////
         // This file is GPS + GLONASS
@@ -827,7 +843,73 @@ mod test {
         let rnx =
             Rinex::from_file("../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
                 .unwrap();
+
+        /*
+         * Header tb
+         */
         let header = rnx.header;
+        assert_eq!(header.station, "ESBC00DNK");
+        assert_eq!(header.station_id, "10118M001");
+        assert_eq!(header.marker_type, Some(MarkerType::Geodetic));
+
+        /*
+         * Observation specific
+         */
+        let obs = header.obs.as_ref();
+        assert!(obs.is_some());
+        let obs = obs.unwrap();
+
+        for (k, v) in &obs.codes {
+            if *k == Constellation::GPS {
+                let mut sorted = v.clone();
+                sorted.sort();
+                let expected: Vec<&str> =
+                    "C1C C1W C2L C2W C5Q D1C D2L D2W D5Q L1C L2L L2W L5Q S1C S1W S2L S2W S5Q"
+                        .split_ascii_whitespace()
+                        .collect();
+                assert_eq!(sorted, expected);
+            } else if *k == Constellation::Glonass {
+                let mut sorted = v.clone();
+                sorted.sort();
+                let expected: Vec<&str> =
+                    "C1C C1P C2C C2P C3Q D1C D1P D2C D2P D3Q L1C L1P L2C L2P L3Q S1C S1P S2C S2P S3Q"
+                    .split_ascii_whitespace()
+                    .collect();
+                assert_eq!(sorted, expected);
+            } else if *k == Constellation::BeiDou {
+                let mut sorted = v.clone();
+                sorted.sort();
+                let expected: Vec<&str> = "C2I C6I C7I D2I D6I D7I L2I L6I L7I S2I S6I S7I"
+                    .split_ascii_whitespace()
+                    .collect();
+                assert_eq!(sorted, expected);
+            } else if *k == Constellation::QZSS {
+                let mut sorted = v.clone();
+                sorted.sort();
+                let expected: Vec<&str> = "C1C C2L C5Q D1C D2L D5Q L1C L2L L5Q S1C S2L S5Q"
+                    .split_ascii_whitespace()
+                    .collect();
+                assert_eq!(sorted, expected);
+            } else if *k == Constellation::Galileo {
+                let mut sorted = v.clone();
+                sorted.sort();
+                let expected: Vec<&str> =
+                    "C1C C5Q C6C C7Q C8Q D1C D5Q D6C D7Q D8Q L1C L5Q L6C L7Q L8Q S1C S5Q S6C S7Q S8Q"
+                    .split_ascii_whitespace()
+                    .collect();
+                assert_eq!(sorted, expected);
+            } else if *k == Constellation::Geo {
+                let mut sorted = v.clone();
+                sorted.sort();
+                let expected: Vec<&str> = "C1C C5I D1C D5I L1C L5I S1C S5I"
+                    .split_ascii_whitespace()
+                    .collect();
+                assert_eq!(sorted, expected);
+            } else {
+                panic!("decoded unexpected constellation");
+            }
+        }
+
         assert_eq!(header.glo_channels.len(), 23);
         let mut keys: Vec<Sv> = header.glo_channels.keys().map(|k| *k).collect();
         keys.sort();
