@@ -88,21 +88,21 @@ pub fn main() -> Result<(), rinex::Error> {
     /*
      * SV per Epoch analysis requested
      */
-    if cli.sv_epoch() && !qc_only {
+    if cli.sv_epoch() {
         info!("sv/epoch analysis");
         analysis::sv_epoch(&ctx, &mut plot_ctx);
     }
     /*
      * Epoch histogram analysis
      */
-    if cli.epoch_histogram() && !qc_only {
+    if cli.epoch_histogram() {
         info!("epoch histogram analysis");
         analysis::epoch_histogram(&ctx, &mut plot_ctx);
     }
     /*
      * DCB analysis requested
      */
-    if cli.dcb() && !qc_only {
+    if cli.dcb() {
         let mut data = ctx.primary_rinex.observation_phase_dcb();
         for (op, inner) in ctx.primary_rinex.observation_pseudorange_dcb() {
             data.insert(op.clone(), inner.clone());
@@ -118,7 +118,7 @@ pub fn main() -> Result<(), rinex::Error> {
     /*
      * Code Multipath analysis
      */
-    if cli.multipath() && !qc_only {
+    if cli.multipath() {
         let data = ctx.primary_rinex.observation_code_multipath();
         plot::plot_gnss_recombination(&mut plot_ctx, "Code Multipath Biases", "MP [n.a]", &data);
         info!("mp analysis generated");
@@ -126,7 +126,7 @@ pub fn main() -> Result<(), rinex::Error> {
     /*
      * [GF] recombination visualization requested
      */
-    if cli.gf_recombination() && !qc_only {
+    if cli.gf_recombination() {
         let data = ctx.primary_rinex.observation_gf_combinations();
         plot::plot_gnss_recombination(
             &mut plot_ctx,
@@ -137,9 +137,17 @@ pub fn main() -> Result<(), rinex::Error> {
         info!("gf recombination");
     }
     /*
+     * Ionospheric Delay Detector (graph)
+     */
+    if cli.iono_detector() {
+        let data = ctx.primary_rinex.observation_iono_detector();
+        plot::plot_iono_detector(&mut plot_ctx, &data);
+        info!("ionospheric delay detector");
+    }
+    /*
      * [WL] recombination
      */
-    if cli.wl_recombination() && !qc_only {
+    if cli.wl_recombination() {
         let data = ctx.primary_rinex.observation_wl_combinations();
         plot::plot_gnss_recombination(
             &mut plot_ctx,
@@ -152,7 +160,7 @@ pub fn main() -> Result<(), rinex::Error> {
     /*
      * [NL] recombination
      */
-    if cli.nl_recombination() && !qc_only {
+    if cli.nl_recombination() {
         let data = ctx.primary_rinex.observation_nl_combinations();
         plot::plot_gnss_recombination(
             &mut plot_ctx,
@@ -165,7 +173,7 @@ pub fn main() -> Result<(), rinex::Error> {
     /*
      * [MW] recombination
      */
-    if cli.mw_recombination() && !qc_only {
+    if cli.mw_recombination() {
         let data = ctx.primary_rinex.observation_mw_combinations();
         plot::plot_gnss_recombination(
             &mut plot_ctx,

@@ -25,14 +25,13 @@ impl Context {
 
         let nav_rinex = cli.nav_context();
 
-        Self {
-            prefix: prefix.clone(),
-            to_merge: cli.to_merge(),
-            ground_position: {
-                if let Some(ref pos) = primary_rinex.header.coords {
-                    info!("ground position {:?} (ECEF)", pos);
-                    Some(*pos)
-                } else if let Some(ref nav) = nav_rinex {
+        let ground_position = match primary_rinex.header.coords {
+            Some(position) => {
+                info!("ground position {:?} (ECEF)", position);
+                Some(position)
+            },
+            _ => {
+                if let Some(ref nav) = nav_rinex {
                     if let Some(pos) = nav.header.coords {
                         info!("ground position {:?} (ECEF)", pos);
                         Some(pos)
@@ -41,7 +40,7 @@ impl Context {
                             info!("manual ground position {:?} (ECEF)", pos);
                             Some(pos)
                         } else {
-                            trace!("ground position undetermined");
+                            trace!("undertemined ground position");
                             None
                         }
                     }
@@ -50,11 +49,17 @@ impl Context {
                         info!("manual ground position {:?} (ECEF)", pos);
                         Some(pos)
                     } else {
-                        trace!("ground position undetermined");
+                        trace!("undertemined ground position");
                         None
                     }
                 }
             },
+        };
+
+        Self {
+            ground_position,
+            prefix: prefix.clone(),
+            to_merge: cli.to_merge(),
             primary_rinex,
             nav_rinex,
         }

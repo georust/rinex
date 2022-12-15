@@ -14,6 +14,8 @@ use plotly::{
     layout::{Axis, Center, DragMode, Mapbox, MapboxStyle, Margin},
     Layout, Plot, Scatter,
 };
+
+mod record;
 use rand::Rng;
 use rinex::prelude::*;
 
@@ -24,9 +26,7 @@ mod skyplot;
 pub use skyplot::skyplot;
 
 mod combination;
-pub use combination::plot_gnss_recombination;
-
-mod record;
+pub use combination::{plot_gnss_recombination, plot_iono_detector};
 
 /*
  * Generates N marker symbols to be used

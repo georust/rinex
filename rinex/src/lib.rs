@@ -52,6 +52,7 @@ use observation::{
     //is_ssi_observation,
     is_phase_observation,
     is_pseudorange_observation,
+    observation_code,
     Crinex,
 };
 use version::Version;
@@ -2587,6 +2588,60 @@ Specify one yourself with `ref_pos`",
         ret
     }
 
+    /// Ionospheric delay detector
+    pub fn observation_iono_detector(&self) -> HashMap<String, HashMap<Sv, BTreeMap<Epoch, f64>>> {
+        let mut ret: HashMap<String, HashMap<Sv, BTreeMap<Epoch, f64>>> = HashMap::new();
+        if let Some(sampling_rate) = self.sampling_interval() {
+            let gf = self.observation_gf_combinations();
+            let mut prev_data: HashMap<String, HashMap<Sv, (Epoch, f64)>> = HashMap::new();
+            for (gf_code, vehicles) in gf {
+                let lhs_code = &gf_code[..2];
+                if !is_phase_observation(lhs_code) {
+                    continue; // only on phase data
+                }
+                for (sv, epochs) in vehicles {
+                    for ((epoch, flag), data) in epochs {
+                        if let Some(prev) = prev_data.get_mut(&gf_code) {
+                            if let Some((prev_epoch, prev_data)) = prev.get_mut(&sv) {
+                                let dt = epoch - *prev_epoch;
+                                if dt <= sampling_rate {
+                                    // accepted: push a new dy value
+                                    let dy = data - *prev_data;
+                                    if let Some(data) = ret.get_mut(&gf_code) {
+                                        if let Some(data) = data.get_mut(&sv) {
+                                            data.insert(epoch, dy);
+                                        } else {
+                                            let mut bmap: BTreeMap<Epoch, f64> = BTreeMap::new();
+                                            bmap.insert(epoch, dy);
+                                            data.insert(sv, bmap);
+                                        }
+                                    } else {
+                                        let mut bmap: BTreeMap<Epoch, f64> = BTreeMap::new();
+                                        bmap.insert(epoch, dy);
+                                        let mut map: HashMap<Sv, BTreeMap<Epoch, f64>> =
+                                            HashMap::new();
+                                        map.insert(sv, bmap);
+                                        ret.insert(gf_code.clone(), map);
+                                    }
+                                }
+                                *prev_epoch = epoch;
+                                *prev_data = data;
+                            } else {
+                                //let mut map: HashMap<Sv, (Epoch, f64)> = HashMap::new();
+                                prev.insert(sv, (epoch, data));
+                            }
+                        } else {
+                            let mut map: HashMap<Sv, (Epoch, f64)> = HashMap::new();
+                            map.insert(sv, (epoch, data));
+                            prev_data.insert(gf_code.clone(), map);
+                        }
+                    }
+                }
+            }
+        }
+        ret
+    }
+
     /// Melbourne-Wübbena [MW] GNSS combination.
     /// Like other GNSS signal combinations, this first require
     /// an [Rinex::observation_align_phase_origins] invokation
@@ -2674,101 +2729,130 @@ Specify one yourself with `ref_pos`",
     ) -> HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
         let mut ret: HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> =
             HashMap::new();
+        let mut associated: HashMap<String, String> = HashMap::new(); // Ph code to associate to this Mpx
+                                                                      // for operation consistency
         if let Some(record) = self.record.as_obs() {
             for (epoch, (_, vehicules)) in record {
                 for (sv, observations) in vehicules {
                     for (lhs_code, lhs_data) in observations {
                         if is_pseudorange_observation(lhs_code) {
                             let pr_i = lhs_data.obs;
+                            let mp_code = observation_code(lhs_code);
                             let mut ph_i: Option<f64> = None;
                             let mut ph_j: Option<f64> = None;
                             let lhs_carrier = &lhs_code[1..2];
+                            println!("associations {:?}", associated);
                             /*
-                             * This will restrict recombinations to
-                             * 1/2
-                             * and M/1
+                             * This will restrict combinations to
+                             * 1 => 2
+                             * and M => 1
                              */
                             let rhs_carrier = match lhs_carrier {
                                 "1" => "2",
                                 _ => "1",
                             };
                             /*
-                             * locate a L_i PH code
+                             * locate related L_i PH code
                              */
                             for (code, data) in observations {
-                                let ph_code = format!("L{}", &lhs_code[1..]);
+                                let ph_code = format!("L{}", mp_code);
                                 if code.eq(&ph_code) {
-                                    if let Ok(_channel) =
-                                        Carrier::from_observable(sv.constellation, lhs_code)
-                                    {
-                                        //ph_i = Some(data.obs * channel.carrier_wavelength());
-                                        ph_i = Some(data.obs);
-                                        break; // DONE
-                                    }
+                                    ph_i = Some(data.obs);
+                                    break; // DONE
                                 }
                             }
                             /*
-                             * locate a L_j PH code
+                             * locate another L_j PH code
                              */
-                            for k_code in carrier::KNOWN_CODES.iter() {
-                                let to_locate = format!("L{}", k_code);
+                            if let Some(to_locate) = associated.get(&mp_code) {
+                                /*
+                                 * We already have an association, keep it consistent throughout
+                                 * operations
+                                 */
                                 for (code, data) in observations {
                                     let carrier_code = &code[1..2];
                                     if carrier_code == rhs_carrier {
+                                        // correct carrier signal
+                                        if code.eq(to_locate) {
+                                            // match
+                                            ph_j = Some(data.obs);
+                                            break; // DONE
+                                        }
+                                    }
+                                }
+                            } else {
+                                // first: prefer the same code against rhs carrier
+                                let to_locate = format!("L{}{}", rhs_carrier, &mp_code[1..]);
+                                for (code, data) in observations {
+                                    let carrier_code = &code[1..2];
+                                    if carrier_code == rhs_carrier {
+                                        // correct carrier
                                         if code.eq(&to_locate) {
-                                            if let Ok(_channel) =
-                                                Carrier::from_observable(sv.constellation, code)
-                                            {
-                                                //ph_j = Some(data.obs * channel.carrier_wavelength());
+                                            // match
+                                            ph_j = Some(data.obs);
+                                            associated.insert(mp_code.clone(), code.clone());
+                                            break; // DONE
+                                        }
+                                    }
+                                }
+                                if ph_j.is_none() {
+                                    /*
+                                     * Same code against different carrier does not exist
+                                     * try to grab another PH code, against rhs carrier
+                                     */
+                                    for (code, data) in observations {
+                                        let carrier_code = &code[1..2];
+                                        if carrier_code == rhs_carrier {
+                                            if is_phase_observation(code) {
                                                 ph_j = Some(data.obs);
+                                                associated.insert(mp_code.clone(), code.clone());
                                                 break; // DONE
                                             }
                                         }
                                     }
                                 }
-                                if ph_j.is_some() {
-                                    break; // DONE
-                                }
                             }
-                            if let Some(ph_i) = ph_i {
-                                if let Some(ph_j) = ph_j {
-                                    if let Ok(lhs_channel) =
-                                        Carrier::from_observable(sv.constellation, lhs_code)
-                                    {
-                                        if let Ok(rhs_channel) =
-                                            Carrier::from_observable(sv.constellation, rhs_carrier)
-                                        {
-                                            let gamma = (lhs_channel.carrier_frequency_mhz()
-                                                / rhs_channel.carrier_frequency_mhz())
-                                            .powf(2.0);
-                                            let alpha = (gamma + 1.0) / (gamma - 1.0);
-                                            let beta = 2.0 / (gamma - 1.0);
-                                            let yp =
-                                                pr_i / 299792458.0 - alpha * ph_i + beta * ph_j;
-                                            let operand = &lhs_code[1..];
-                                            if let Some(data) = ret.get_mut(operand) {
-                                                if let Some(data) = data.get_mut(&sv) {
-                                                    data.insert(*epoch, yp);
-                                                } else {
-                                                    let mut bmap: BTreeMap<
-                                                        (Epoch, EpochFlag),
-                                                        f64,
-                                                    > = BTreeMap::new();
-                                                    bmap.insert(*epoch, yp);
-                                                    data.insert(*sv, bmap);
-                                                }
-                                            } else {
-                                                let mut bmap: BTreeMap<(Epoch, EpochFlag), f64> =
-                                                    BTreeMap::new();
-                                                let mut map: HashMap<
-                                                    Sv,
-                                                    BTreeMap<(Epoch, EpochFlag), f64>,
-                                                > = HashMap::new();
-                                                bmap.insert(*epoch, yp);
-                                                map.insert(*sv, bmap);
-                                                ret.insert(operand.to_string(), map);
-                                            }
+                            if ph_i.is_none() || ph_j.is_none() {
+                                break; // incomplete associations, do not proceed further
+                            }
+                            let ph_i = ph_i.unwrap();
+                            let ph_j = ph_j.unwrap();
+                            if let Ok(lhs_carrier) =
+                                Carrier::from_observable(sv.constellation, lhs_code)
+                            {
+                                if let Ok(rhs_carrier) =
+                                    Carrier::from_observable(sv.constellation, rhs_carrier)
+                                {
+                                    let gamma = (lhs_carrier.carrier_frequency_mhz()
+                                        / rhs_carrier.carrier_frequency_mhz())
+                                    .powf(2.0);
+                                    let alpha = (gamma + 1.0) / (gamma - 1.0);
+                                    let beta = 2.0 / (gamma - 1.0);
+                                    //let mp = pr_i - alpha * ph_i + beta * ph_j;
+                                    let mp = pr_i / 299_792_458.0 - alpha * ph_i + beta * ph_j;
+                                    if let Some(data) = ret.get_mut(&mp_code) {
+                                        if let Some(data) = data.get_mut(&sv) {
+                                            data.insert(*epoch, mp);
+                                        } else {
+                                            let mut bmap: BTreeMap<(Epoch, EpochFlag), f64> =
+                                                BTreeMap::new();
+                                            let mut map: HashMap<
+                                                Sv,
+                                                BTreeMap<(Epoch, EpochFlag), f64>,
+                                            > = HashMap::new();
+                                            bmap.insert(*epoch, mp);
+                                            data.insert(*sv, bmap);
                                         }
+                                    } else {
+                                        let mut bmap: BTreeMap<(Epoch, EpochFlag), f64> =
+                                            BTreeMap::new();
+                                        let mut map: HashMap<
+                                            Sv,
+                                            BTreeMap<(Epoch, EpochFlag), f64>,
+                                        > = HashMap::new();
+                                        bmap.insert(*epoch, mp);
+                                        map.insert(*sv, bmap);
+                                        ret.insert(mp_code.clone(), map);
                                     }
                                 }
                             }
@@ -3355,210 +3439,6 @@ Specify one yourself with `ref_pos`",
         }
     */
 
-    /*
-        /// "Upsamples" to match desired epoch interval
-        pub fn upsample_by_interval_mut (&mut self, interval: chrono::Duration) {
-            let epochs = self.epochs();
-            match self.header.rinex_type {
-                types::Type::NavigationData => {
-                    let record = self.record
-                        .as_mut_nav()
-                        .unwrap();
-                    let mut prev_epoch = epochs[0];
-                    for (e, data) in record.iter() {
-                        let n = (e.epoch - prev_epoch.date).num_seconds() / interval.num_seconds(); // nb of epoch to insert
-                        for i in 0..n {
-                            record.insert(
-                                Epoch {
-                                    date: e.epoch + chrono::Duration {
-                                        secs: i * interval.num_seconds(),
-                                        nanos: 0,
-                                    },
-                                    flag: e.flag,
-                                },
-                                data.clone());
-                        }
-                    }
-                },
-                types::Type::ObservationData => {
-                    let record = self.record
-                        .as_mut_obs()
-                        .unwrap();
-                    let mut prev_epoch = epochs[0];
-                    for (e, data) in record.iter() {
-                        let n = (e.epoch - prev_epoch.date).num_seconds() / interval.num_seconds(); // nb of epoch to insert
-                        for i in 0..n {
-                            record.insert(
-                                Epoch {
-                                    date: e.epoch + chrono::Duration {
-                                        secs: i * interval.num_seconds(),
-                                        nanos: 0,
-                                    },
-                                    flag: e.flag,
-                                },
-                                data.clone());
-                        }
-                    }
-                },
-                types::Type::MeteoData => {
-                    let record = self.record
-                        .as_mut_meteo()
-                        .unwrap();
-                    let mut prev_epoch = epochs[0];
-                    for (e, data) in record.iter() {
-                        let n = (e.epoch - prev_epoch.date).num_seconds() / interval.num_seconds(); // nb of epoch to insert
-                        for i in 0..n {
-                            record.insert(
-                                Epoch {
-                                    date: e.epoch + chrono::Duration {
-                                        secs: i * interval.num_seconds(),
-                                        nanos: 0,
-                                    },
-                                    flag: e.flag,
-                                },
-                                data.clone());
-                        }
-                    }
-                },
-                types::Type::ClockData => {
-                    let record = self.record
-                        .as_mut_clock()
-                        .unwrap();
-                    let mut prev_epoch = epochs[0];
-                    for (e, data) in record.iter() {
-                        let n = (e.epoch - prev_epoch.date).num_seconds() / interval.num_seconds(); // nb of epoch to insert
-                        for i in 0..n {
-                            record.insert(
-                                Epoch {
-                                    date: e.epoch + chrono::Duration {
-                                        secs: i * interval.num_seconds(),
-                                        nanos: 0,
-                                    },
-                                    flag: e.flag,
-                                },
-                                data.clone());
-                        }
-                    }
-                },
-                types::Type::IonosphereMaps => {
-                    let record = self.record
-                        .as_mut_ionex()
-                        .unwrap();
-                    let mut prev_epoch = epochs[0];
-                    for (e, data) in record.iter() {
-                        let n = (e.epoch - prev_epoch.date).num_seconds() / interval.num_seconds(); // nb of epoch to insert
-                        for i in 0..n {
-                            record.insert(
-                                Epoch {
-                                    date: e.epoch + chrono::Duration {
-                                        secs: i * interval.num_seconds(),
-                                        nanos: 0,
-                                    },
-                                    flag: e.flag,
-                                },
-                                data.clone());
-                        }
-                    }
-                },
-                _ => {},
-            }
-        }
-
-        /// "Upsamples" self by given ratio by copying each epoch
-        /// ratio-1 times. Let say self had 10 epochs and ratio is 2, we copy all epochs
-        /// once. There is no filtering operation involved, just plain copies.
-        pub fn upsample_by_ratio_mut (&mut self, ratio: u32) {
-            let epochs = self.epochs();
-            match self.header.rinex_type {
-                types::Type::NavigationData => {
-                    let record = self.record
-                        .as_mut_nav()
-                        .unwrap();
-                    let mut prev_epoch = epochs[0];
-                    for (e, classes) in record.iter().skip(1) {
-                        let dt = (e.epoch - prev_epoch.date) / ratio as i32;
-                        for j in 1..ratio {
-                            record.insert(
-                                Epoch {
-                                    date: prev_epoch.date +dt*j as i32,
-                                    flag: prev_epoch.flag,
-                                },
-                                classes.clone());
-                        }
-                    }
-                },
-                types::Type::ObservationData => {
-                    let record = self.record
-                        .as_mut_obs()
-                        .unwrap();
-                    let mut prev_epoch = epochs[0];
-                    for (e, data) in record.iter().skip(1) {
-                        let dt = (e.epoch - prev_epoch.date) / ratio as i32;
-                        for j in 1..ratio {
-                            record.insert(
-                                Epoch {
-                                    date: prev_epoch.date +dt *j as i32,
-                                    flag: prev_epoch.flag,
-                                },
-                                data.clone());
-                        }
-                    }
-                },
-                types::Type::MeteoData => {
-                    let record = self.record
-                        .as_mut_meteo()
-                        .unwrap();
-                    let mut prev_epoch = epochs[0];
-                    for (e, data) in record.iter().skip(1) {
-                        let dt = (e.epoch - prev_epoch.date) / ratio as i32;
-                        for j in 1..ratio {
-                            record.insert(
-                                Epoch {
-                                    date: prev_epoch.date +dt *j as i32,
-                                    flag: prev_epoch.flag,
-                                },
-                                data.clone());
-                        }
-                    }
-                },
-                types::Type::ClockData => {
-                    let record = self.record
-                        .as_mut_clock()
-                        .unwrap();
-                    let mut prev_epoch = epochs[0];
-                    for (e, data) in record.iter().skip(1) {
-                        let dt = (e.epoch - prev_epoch.date) / ratio as i32;
-                        for j in 1..ratio {
-                            record.insert(
-                                Epoch {
-                                    date: prev_epoch.date +dt *j as i32,
-                                    flag: prev_epoch.flag,
-                                },
-                                data.clone());
-                        }
-                    }
-                },
-                types::Type::IonosphereMaps => {
-                    let record = self.record
-                        .as_mut_ionex()
-                        .unwrap();
-                    let mut prev_epoch = epochs[0];
-                    for (e, data) in record.iter().skip(1) {
-                        let dt = (e.epoch - prev_epoch.date) / ratio as i32;
-                        for j in 1..ratio {
-                            record.insert(
-                                Epoch {
-                                    date: prev_epoch.date +dt *j as i32,
-                                    flag: prev_epoch.flag,
-                                },
-                                data.clone());
-                        }
-                    }
-                },
-                _ => {} // does not apply, not epoch iterable
-            }
-        }
-    */
     /// Restrain epochs to interval |start <= e <= end| (both included)
     pub fn time_window_mut(&mut self, start: Epoch, end: Epoch) {
         if let Some(record) = self.record.as_mut_obs() {
