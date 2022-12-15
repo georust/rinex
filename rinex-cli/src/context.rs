@@ -9,6 +9,7 @@ pub struct Context {
     pub primary_rinex: Rinex,
     pub to_merge: Option<Rinex>,
     pub nav_rinex: Option<Rinex>,
+    pub atx_rinex: Option<Rinex>,
     pub ground_position: Option<(f64, f64, f64)>,
 }
 
@@ -22,8 +23,8 @@ impl Context {
         Self::create_workdir(&prefix);
 
         let primary_rinex = Rinex::from_file(fp).expect("failed to parse primary rinex");
-
         let nav_rinex = cli.nav_context();
+        let atx_rinex = cli.atx_context();
 
         let ground_position = match primary_rinex.header.coords {
             Some(position) => {
@@ -62,6 +63,7 @@ impl Context {
             to_merge: cli.to_merge(),
             primary_rinex,
             nav_rinex,
+            atx_rinex,
         }
     }
 }

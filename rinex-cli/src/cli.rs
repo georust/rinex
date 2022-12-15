@@ -6,14 +6,6 @@ use rinex::{navigation::ElevationMask, prelude::*};
 use std::str::FromStr;
 
 pub struct Cli {
-    /// product prefix
-    pub prefix: String,
-    /// primary RINEX
-    pub primary_rinex: Rinex,
-    /// subsidary Navigation RINEX
-    pub nav_rinex: Option<Rinex>,
-    /// position extrapolated from given context(s)
-    pub ground_position: Option<(f64, f64, f64)>,
     /// Arguments passed by user
     matches: ArgMatches,
 }
@@ -22,10 +14,6 @@ impl Cli {
     /// Build new command line interface
     pub fn new() -> Self {
         Self {
-            primary_rinex: Rinex::default(),
-            prefix: String::default(),
-            nav_rinex: None,
-            ground_position: None, // to be determined later on
             matches: {
                 Command::new("rinex-cli")
                     .author("Guillaume W. Bres, <guillaume.bressaix@gmail.com>")
@@ -180,9 +168,9 @@ Example: --elev-mask '<=40' will retain Sv below 40° included."))
                         .help("Applies given LLI AND() mask. 
 Also drops observations that did not come with an LLI flag"))
                     .arg(Arg::new("clock-offset")
-                        .long("clock-offset")
+                        .long("clk")
                         .action(ArgAction::SetTrue)
-                        .help("Plot receiver clock offsets per epoch."))
+                        .help("Receiver Clock offset / drift analysis."))
                     .arg(Arg::new("gf")
                         .long("gf")
                         .action(ArgAction::SetTrue)
@@ -222,7 +210,7 @@ Also drops observations that did not come with an LLI flag"))
                         .help("Cycle Slip detection (graphical).
 Helps visualize what the CS detector is doing and fine tune its operation.
 CS do not get repaired with this command.
-If you're just interested in CS information, you probably just want `-qc` instead."))
+If you're just interested in CS information, you probably just want `-qc` instead, avoid combining the two."))
                 .next_help_heading("Navigation RINEX")
                     .arg(Arg::new("orbits")
                         .long("orbits")
@@ -273,13 +261,18 @@ Applies to either -fp or -nav context"))
                         .action(ArgAction::SetTrue)
                         .help("Retains only Navigation ionospheric models. 
 -fp must be a NAV file"))
-                .next_help_heading("Navigation Context")
+                .next_help_heading("Navigation Data")
                     .arg(Arg::new("nav")
                         .long("nav")
                         .value_name("FILE")
                         .help("Augment `--fp` with related Navigation Context.
 Most useful when combined to Observation RINEX. 
 Enables full `--qc` summary."))
+                .next_help_heading("ANTEX / APC ")
+                    .arg(Arg::new("--atx")
+                        .long("atx")
+                        .action(ArgAction::SetTrue)
+                        .help("Local ANTEX file, allows APC corrections."))
                 .next_help_heading("Quality Check (QC)")
                     .arg(Arg::new("qc")
                         .long("qc")
@@ -294,7 +287,7 @@ The summary report by default is integrated to the global HTML report."))
                     .arg(Arg::new("qc-only")
                         .long("qc-only")
                         .action(ArgAction::SetTrue)
-                        .help("Disable all graphs but QC analysis, for smallest QC report."))
+                        .help("Enables QC mode and disables all other graphs: smallest QC report possible."))
                 .next_help_heading("File operations")
                     .arg(Arg::new("merge")
                         .short('m')
@@ -604,11 +597,7 @@ Refer to README"))
     /// Returns optionnal Nav path, for enhanced capabilities
     fn nav_path(&self) -> Option<&str> {
         if self.matches.contains_id("nav") {
-            if let Some(args) = self.matches.get_one::<String>("nav") {
-                Some(&args)
-            } else {
-                None
-            }
+            self.matches.get_one::<&str>("nav").copied()
         } else {
             None
         }
@@ -625,6 +614,28 @@ Refer to README"))
                 }
             } else {
                 error!("failed to parse navigation file \"{}\"", filename(path));
+            }
+        }
+        None
+    }
+    fn atx_path(&self) -> Option<&str> {
+        if self.matches.contains_id("atx") {
+            self.matches.get_one::<&str>("atx").copied()
+        } else {
+            None
+        }
+    }
+    pub fn atx_context(&self) -> Option<Rinex> {
+        if let Some(path) = self.atx_path() {
+            if let Ok(rnx) = Rinex::from_file(path) {
+                if rnx.is_antex_rinex() {
+                    info!("--atx context provided");
+                    return Some(rnx);
+                } else {
+                    warn!("--atx should be antenna rinex file");
+                }
+            } else {
+                error!("failed to parse atx file \"{}\"", filename(path));
             }
         }
         None

@@ -290,7 +290,7 @@ impl QcReport {
                         tr {
                             @ for (epoch, drift) in &self.clk_drift {
                                 td {
-                                    : format!("{}: {:.3e}", epoch, drift)
+                                    : format!("{}: {:.3}", epoch, drift)
                                 }
                             }
                         }
@@ -329,7 +329,7 @@ impl QcReport {
                             }
                             @ for (_, value) in &self.mean_ssi[signal] {
                                 td {
-                                    : format!("{:.3e} dB", value);
+                                    : format!("{:.3} dB", value);
                                 }
                             }
                         }

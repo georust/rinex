@@ -7,12 +7,13 @@ mod analysis; // basic analysis
 mod cli; // command line interface
 mod context; // RINEX context
 mod filter; // record filtering
-pub mod fops; // file operation helpers
 mod identification; // high level identification/macros
-pub mod parser;
 mod plot; // plotting operations
 mod resampling; // record resampling
 mod retain; // record filtering // command line parsing utilities
+
+pub mod fops; // file operation helpers
+pub mod parser;
 
 use horrorshow::Template;
 use rinex::{merge::Merge, processing::*, split::Split};
@@ -51,7 +52,9 @@ pub fn main() -> Result<(), rinex::Error> {
     let mut plot_ctx = PlotContext::new();
 
     let quiet = cli.quiet();
+
     let qc_only = cli.quality_check_only();
+    let qc = cli.quality_check() || qc_only;
 
     /*
      * Preprocessing, filtering, resampling..
@@ -237,6 +240,16 @@ pub fn main() -> Result<(), rinex::Error> {
         plot::skyplot(&ctx, &mut plot_ctx);
         info!("sky view generated");
     }
+
+    /*
+     * CS Detector
+     */
+    if cli.cs_graph() {
+        info!("cs detector");
+        let mut detector = CsDetector::default();
+        let cs = detector.cs_detection(&ctx.primary_rinex);
+    }
+
     /*
      * Record analysis / visualization
      * analysis depends on the provided record type
@@ -256,7 +269,7 @@ pub fn main() -> Result<(), rinex::Error> {
     /*
      * Quality Check summary
      */
-    if cli.quality_check() {
+    if qc {
         info!("qc mode");
         let report = QcReport::basic(&ctx.primary_rinex, &ctx.nav_rinex);
 
@@ -276,10 +289,11 @@ pub fn main() -> Result<(), rinex::Error> {
     }
 
     write!(html_fd, "{}", html).expect(&format!("failed to write HTML content"));
+
     if !quiet {
         open_html_with_default_app(&html_absolute_path);
     }
-    info!("html report \"{}\" generated", &html_absolute_path);
 
+    info!("html report \"{}\" generated", &html_absolute_path);
     Ok(())
 } // main
