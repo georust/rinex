@@ -17,6 +17,7 @@ fn pretty_sv(list: &Vec<Sv>) -> String {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct QcReport {
+    first_epoch: Epoch,
     pub has_doppler: bool,
     pub total_sv: usize,
     pub total_epochs: usize,
@@ -36,6 +37,7 @@ pub struct QcReport {
 
 impl QcReport {
     pub fn new(rnx: &Rinex, nav: &Option<Rinex>, opts: QcOpts) -> Self {
+        let mut first_epoch = Epoch::default();
         let record = rnx.record.as_obs().unwrap();
         let sv_list = rnx.space_vehicules();
         let total_sv = sv_list.len();
@@ -63,7 +65,11 @@ impl QcReport {
         // MPx
         let mut mp = rnx.observation_code_multipath();
 
-        for ((epoch, flag), (clk_offset, vehicles)) in record {
+        for (index , ((epoch, flag), (clk_offset, vehicles))) in record.iter().enumerate() {
+            if index == 0 {
+                first_epoch = *epoch;
+            }
+
             if *flag == EpochFlag::PowerFailure {
                 if rcvr_failure.is_none() {
                     rcvr_failure = Some(*epoch);
@@ -88,11 +94,9 @@ impl QcReport {
                 for (code, data) in observations {
                     has_doppler |= is_doppler_observation(code);
                     let carrier = "L".to_owned() + &code[1..2];
-
                     if !sv_with_obs.contains(&sv) {
                         sv_with_obs.push(*sv);
                     }
-
                     /*
                      * SSI moving average
                      */
@@ -136,6 +140,7 @@ impl QcReport {
         sv_with_obs.sort();
 
         Self {
+            first_epoch,
             has_doppler,
             total_sv,
             total_epochs,
@@ -164,7 +169,68 @@ impl QcReport {
             apc_estimate: apc,
         }
     }
-
+    /*
+     * SSI analysis template
+     */
+    fn ssi_analysis(first_epoch: Epoch, data: &HashMap<String, Vec<(Epoch, f64)>>) -> Box<dyn RenderBox + '_> {
+        box_html! {
+            @ if data.len() == 0 {
+                tr {
+                    th {
+                        b {
+                            : "SSI analysis: "
+                        }
+                    }
+                    td {
+                        td {
+                            : "Data missing"
+                        }
+                    }
+                }
+            } else {
+                @ for signal in data.keys().sorted() {
+                    tr {
+                        th {
+                            : format!("SSI({})", signal)    
+                        }
+                    }
+                    tr {
+                        th {
+                            : "Epoch(k)"
+                        }
+                        td {
+                            : first_epoch.to_string()
+                        }
+                        @ for (epoch, _) in data[signal].iter() {
+                            td {
+                                : epoch.to_string()
+                            }
+                        }
+                    }
+                    tr {
+                        th {
+                            : "Epoch(k+1)"
+                        }
+                        @ for (epoch, _) in data[signal].iter() {
+                            td {
+                                : epoch.to_string()
+                            }
+                        }
+                    }
+                    tr {
+                        td {
+                            : ""
+                        }
+                        @ for (_, value) in &data[signal] {
+                            td {
+                                : format!("{:.3} dB", value);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
     pub fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
         box_html! {
             table {
@@ -296,44 +362,8 @@ impl QcReport {
                         }
                     }
                 }
-                tr {
-                    @ for signal in self.mean_ssi.keys().sorted() {
-                        tr {
-                            th {
-                                : format!("{} SSI", signal)
-                            }
-                        }
-                        tr {
-                            th {
-                                : "Epoch(k)"
-                            }
-                            @ for (epoch, _) in self.mean_ssi[signal].iter().step_by(2) {
-                                td {
-                                    : epoch.to_string()
-                                }
-                            }
-                        }
-                        tr {
-                            th {
-                                : "Epoch(k+1)"
-                            }
-                            @ for (epoch, _) in self.mean_ssi[signal].iter().skip(1).step_by(2) {
-                                td {
-                                    : epoch.to_string()
-                                }
-                            }
-                        }
-                        tr {
-                            td {
-                                : ""
-                            }
-                            @ for (_, value) in &self.mean_ssi[signal] {
-                                td {
-                                    : format!("{:.3} dB", value);
-                                }
-                            }
-                        }
-                    }
+                table(id="ssi-analysis") {
+                    : Self::ssi_analysis(self.first_epoch, &self.mean_ssi)
                 }
                 tr {
                     th {

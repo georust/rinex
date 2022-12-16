@@ -1,6 +1,9 @@
 use crate::prelude::*;
 use horrorshow::RenderBox;
 
+use horrorshow::owned_html;
+use horrorshow::prelude::*;
+
 /// Sampling QC report
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -34,6 +37,54 @@ impl QcReport {
             sample_rate,
             time_line: last_epoch - first_epoch,
             gaps: rnx.data_gaps(),
+        }
+    }
+    fn gap_analysis(gaps: &Vec<(Epoch, Duration)>) -> Box<dyn RenderBox + '_> {
+        box_html! {
+            @ if gaps.len() == 0 {
+                tr {
+                    th {
+                        b {
+                            : "Gap Aanalysis:"
+                        }
+                    }
+                    td {
+                        : "Data missing"
+                    }
+                }
+            } else {
+                tr {
+                    td {
+                        b {
+                            : "Gap Aanalysis:"
+                        }
+                    }
+                }
+                tr {
+                    td {
+                        : ""
+                    }
+                    td {
+                        : "Epoch (start)"
+                    }
+                    td {
+                        : "Duration"
+                    }
+                }
+                @ for (epoch, duration) in gaps {
+                    tr {
+                        td {
+                            : ""
+                        }
+                        td {
+                            : epoch.to_string()
+                        }
+                        td {
+                            : duration.to_string()
+                        }
+                    }
+                }
+            }
         }
     }
     pub fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
@@ -71,45 +122,8 @@ impl QcReport {
                         : self.sample_rate.to_string()
                     }
                 }
-                @ if self.gaps.len() > 0 {
-                    tr {
-                        th {
-                            : "Gaps analysis"
-                        }
-                    }
-                    tr {
-                        td {
-                            : ""
-                        }
-                        th {
-                            : "Epoch"
-                        }
-                        th {
-                            : "Duration"
-                        }
-                    }
-                    @ for (epoch, duration) in &self.gaps {
-                        tr {
-                            td {
-                                : ""
-                            }
-                            td {
-                                : epoch.to_string()
-                            }
-                            td {
-                                : duration.to_string()
-                            }
-                        }
-                    }
-                } else {
-                    tr {
-                        th {
-                            : "Gaps analysis"
-                        }
-                        td {
-                            : "None"
-                        }
-                    }
+                table(id="gap-analysis") {
+                    : Self::gap_analysis(&self.gaps)
                 }
             }
         }

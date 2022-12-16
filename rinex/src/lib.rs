@@ -650,7 +650,7 @@ impl Rinex {
                     if *e - prev > interval {
                         let pprev = prev;
                         prev = *e;
-                        Some((*e, *e - pprev))
+                        Some((pprev, *e - pprev))
                     } else {
                         prev = *e;
                         None
@@ -2726,14 +2726,52 @@ Specify one yourself with `ref_pos`",
     ) -> HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
         let mut ret: HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> =
             HashMap::new();
-        let mut associated: HashMap<String, String> = HashMap::new(); // Ph code to associate to this Mpx
-                                                                      // for operation consistency
         if let Some(record) = self.record.as_obs() {
+            /*
+             * Determine mean value of all datasets
+             */
+            let mut mean: HashMap<Sv, HashMap<String, (u32, f64)>> = HashMap::new();
+            for (epoch, (_, vehicles)) in record {
+                for (sv, observations) in vehicles {
+                    if let Some(data) = mean.get_mut(&sv) {
+                        for (obs_code, obs_data) in observations {
+                            if let Some((count, buf)) = data.get_mut(obs_code) {
+                                *count += 1;
+                                *buf += obs_data.obs;
+                            } else {
+                                data.insert(obs_code.to_string(), (1, obs_data.obs));
+                            }
+                        }
+                    } else {
+                        for (obs_code, obs_data) in observations {
+                            let mut map: HashMap<String, (u32, f64)> = HashMap::new();
+                            map.insert(obs_code.to_string(), (1, obs_data.obs));
+                            mean.insert(*sv, map);
+                        }
+                    }
+                }
+            }
+            mean.iter_mut()
+                .map(|(_, data)| {
+                    data.iter_mut()
+                        .map(|(_, (n, buf))| {
+                            *buf = *buf / *n as f64;
+                        })
+                        .count()
+                })
+                .count();
+            /*
+             * Run algorithm
+             */
+            let mut associated: HashMap<String, String> = HashMap::new(); // Ph code to associate to this Mpx
+                                                                          // for operation consistency
             for (epoch, (_, vehicules)) in record {
                 for (sv, observations) in vehicules {
+                    let mean_sv = mean.get(&sv)
+                        .unwrap();
                     for (lhs_code, lhs_data) in observations {
                         if is_pseudorange_observation(lhs_code) {
-                            let pr_i = lhs_data.obs;
+                            let pr_i = lhs_data.obs - mean_sv.get(lhs_code).unwrap().1;
                             let mp_code = observation_code(lhs_code);
                             let mut ph_i: Option<f64> = None;
                             let mut ph_j: Option<f64> = None;
@@ -2753,7 +2791,7 @@ Specify one yourself with `ref_pos`",
                             for (code, data) in observations {
                                 let ph_code = format!("L{}", mp_code);
                                 if code.eq(&ph_code) {
-                                    ph_i = Some(data.obs);
+                                    ph_i = Some(data.obs - mean_sv.get(code).unwrap().1);
                                     break; // DONE
                                 }
                             }
@@ -2771,7 +2809,7 @@ Specify one yourself with `ref_pos`",
                                         // correct carrier signal
                                         if code.eq(to_locate) {
                                             // match
-                                            ph_j = Some(data.obs);
+                                            ph_j = Some(data.obs - mean_sv.get(code).unwrap().1);
                                             break; // DONE
                                         }
                                     }
@@ -2785,7 +2823,7 @@ Specify one yourself with `ref_pos`",
                                         // correct carrier
                                         if code.eq(&to_locate) {
                                             // match
-                                            ph_j = Some(data.obs);
+                                            ph_j = Some(data.obs - mean_sv.get(code).unwrap().1);
                                             associated.insert(mp_code.clone(), code.clone());
                                             break; // DONE
                                         }
@@ -2800,7 +2838,7 @@ Specify one yourself with `ref_pos`",
                                         let carrier_code = &code[1..2];
                                         if carrier_code == rhs_carrier {
                                             if is_phase_observation(code) {
-                                                ph_j = Some(data.obs);
+                                                ph_j = Some(data.obs - mean_sv.get(code).unwrap().1);
                                                 associated.insert(mp_code.clone(), code.clone());
                                                 break; // DONE
                                             }
@@ -2824,8 +2862,8 @@ Specify one yourself with `ref_pos`",
                                     .powf(2.0);
                                     let alpha = (gamma + 1.0) / (gamma - 1.0);
                                     let beta = 2.0 / (gamma - 1.0);
-                                    //let mp = pr_i - alpha * ph_i + beta * ph_j;
-                                    let mp = pr_i / 299_792_458.0 - alpha * ph_i + beta * ph_j;
+                                    let mp = pr_i - alpha * ph_i + beta * ph_j;
+                                    //let mp = pr_i / 299_792_458.0 - alpha * ph_i + beta * ph_j;
                                     if let Some(data) = ret.get_mut(&mp_code) {
                                         if let Some(data) = data.get_mut(&sv) {
                                             data.insert(*epoch, mp);
