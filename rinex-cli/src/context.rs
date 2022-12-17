@@ -41,7 +41,7 @@ impl Context {
                             info!("manual ground position {:?} (ECEF)", pos);
                             Some(pos)
                         } else {
-                            trace!("undertemined ground position");
+                            trace!("undetermined ground position");
                             None
                         }
                     }
@@ -50,7 +50,7 @@ impl Context {
                         info!("manual ground position {:?} (ECEF)", pos);
                         Some(pos)
                     } else {
-                        trace!("undertemined ground position");
+                        trace!("undetermined ground position");
                         None
                     }
                 }
