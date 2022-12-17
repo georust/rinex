@@ -3,7 +3,8 @@ use crate::{
     Context,
 };
 use ndarray::Array;
-use plotly::common::{Marker, Mode, Visible};
+use plotly::common::{Marker, Mode, Title, Visible};
+use plotly::layout::Axis;
 use rinex::prelude::*;
 
 /*
@@ -11,6 +12,19 @@ use rinex::prelude::*;
  */
 pub fn sv_epoch(ctx: &Context, plot_ctx: &mut PlotContext) {
     plot_ctx.add_cartesian2d_plot("Sv per Epoch", "Sv(PRN#)");
+    /*
+     * plot customization
+     * dy axis: 1.0, since we're plotting PRN# here
+     */
+    let plot_item = plot_ctx.plot_item_mut().unwrap();
+    let layout = plot_item.layout().clone().y_axis(
+        Axis::new()
+            .title(Title::new("PRN#"))
+            .zero_line(false)
+            .dtick(1.0),
+    );
+    plot_item.set_layout(layout);
+
     let constellations = ctx.primary_rinex.list_constellations();
     let mut nb_markers = constellations.len();
 

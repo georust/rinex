@@ -13,6 +13,13 @@ impl PlotContext {
     pub fn new() -> Self {
         Self { plots: Vec::new() }
     }
+    pub fn plot_item(&self) -> Option<&Plot> {
+        self.plots.get(self.plots.len() - 1)
+    }
+    pub fn plot_item_mut(&mut self) -> Option<&mut Plot> {
+        let len = self.plots.len() - 1;
+        self.plots.get_mut(len)
+    }
     pub fn add_cartesian2d_plot(&mut self, title: &str, y_label: &str) {
         self.plots.push(build_default_plot(title, y_label));
     }
