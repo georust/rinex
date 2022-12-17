@@ -595,9 +595,9 @@ Refer to README"))
         }
     }
     /// Returns optionnal Nav path, for enhanced capabilities
-    fn nav_path(&self) -> Option<&str> {
+    fn nav_path(&self) -> Option<&String> {
         if self.matches.contains_id("nav") {
-            self.matches.get_one::<&str>("nav").copied()
+            self.matches.get_one::<String>("nav")
         } else {
             None
         }
@@ -605,29 +605,29 @@ Refer to README"))
     /// Returns optionnal Navigation context
     pub fn nav_context(&self) -> Option<Rinex> {
         if let Some(path) = self.nav_path() {
-            if let Ok(rnx) = Rinex::from_file(path) {
+            if let Ok(rnx) = Rinex::from_file(&path) {
                 if rnx.is_navigation_rinex() {
-                    info!("--nav augmented mode enabled");
+                    info!("--nav: augmented mode");
                     return Some(rnx);
                 } else {
                     warn!("--nav must should be navigation data");
                 }
             } else {
-                error!("failed to parse navigation file \"{}\"", filename(path));
+                error!("failed to parse navigation file \"{}\"", filename(&path));
             }
         }
         None
     }
-    fn atx_path(&self) -> Option<&str> {
+    fn atx_path(&self) -> Option<&String> {
         if self.matches.contains_id("atx") {
-            self.matches.get_one::<&str>("atx").copied()
+            self.matches.get_one::<String>("atx")
         } else {
             None
         }
     }
     pub fn atx_context(&self) -> Option<Rinex> {
         if let Some(path) = self.atx_path() {
-            if let Ok(rnx) = Rinex::from_file(path) {
+            if let Ok(rnx) = Rinex::from_file(&path) {
                 if rnx.is_antex_rinex() {
                     info!("--atx context provided");
                     return Some(rnx);
@@ -635,7 +635,7 @@ Refer to README"))
                     warn!("--atx should be antenna rinex file");
                 }
             } else {
-                error!("failed to parse atx file \"{}\"", filename(path));
+                error!("failed to parse atx file \"{}\"", filename(&path));
             }
         }
         None
