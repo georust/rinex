@@ -610,10 +610,10 @@ Refer to README"))
                     info!("--nav: augmented mode");
                     return Some(rnx);
                 } else {
-                    warn!("--nav must should be navigation data");
+                    error!("--nav must should be navigation data");
                 }
             } else {
-                error!("failed to parse navigation file \"{}\"", filename(&path));
+                warn!("failed to parse navigation file \"{}\"", filename(&path));
             }
         }
         None
