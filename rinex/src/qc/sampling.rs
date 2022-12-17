@@ -45,7 +45,7 @@ impl QcReport {
                 tr {
                     th {
                         b {
-                            : "Gap Aanalysis:"
+                            : "Gap analysis: "
                         }
                     }
                     td {

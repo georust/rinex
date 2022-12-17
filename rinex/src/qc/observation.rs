@@ -65,7 +65,7 @@ impl QcReport {
         // MPx
         let mut mp = rnx.observation_code_multipath();
 
-        for (index , ((epoch, flag), (clk_offset, vehicles))) in record.iter().enumerate() {
+        for (index, ((epoch, flag), (clk_offset, vehicles))) in record.iter().enumerate() {
             if index == 0 {
                 first_epoch = *epoch;
             }
@@ -170,15 +170,95 @@ impl QcReport {
         }
     }
     /*
-     * SSI analysis template
+     * Window averaged data reporting
      */
-    fn ssi_analysis(first_epoch: Epoch, data: &HashMap<String, Vec<(Epoch, f64)>>) -> Box<dyn RenderBox + '_> {
+    fn moving_avg_report(
+        title: String,
+        unit: Option<String>,
+        first_epoch: Epoch,
+        data: &HashMap<Epoch, f64>,
+    ) -> Box<dyn RenderBox + '_> {
         box_html! {
             @ if data.len() == 0 {
                 tr {
                     th {
                         b {
-                            : "SSI analysis: "
+                            : title
+                        }
+                    }
+                    td {
+                        td {
+                            : "Data missing"
+                        }
+                    }
+                }
+            } else {
+                br {
+                    tr {
+                        th {
+                            : title
+                        }
+                    }
+                    tr {
+                        th {
+                            : "Epoch(k)"
+                        }
+                        td {
+                            : first_epoch.to_string()
+                        }
+                        @ for (epoch, _) in data {
+                            td {
+                                : epoch.to_string()
+                            }
+                        }
+                    }
+                    tr {
+                        th {
+                            : "Epoch(k+1)"
+                        }
+                        @ for (epoch, _) in data.iter() {
+                            td {
+                                : epoch.to_string()
+                            }
+                        }
+                    }
+                    tr {
+                        td {
+                            b {
+                                : "RMS"
+                            }
+                        }
+                        @ for (_, value) in data {
+                            @ if let Some(ref unit) = unit {
+                                td {
+                                    : format!("{:.3} {}", value, unit)
+                                }
+                            } else {
+                                td {
+                                    : format!("{:.3}", value)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    /*
+     * Window averaged data reporting
+     */
+    fn code_moving_avg_report(
+        title: String,
+        unit: Option<String>,
+        first_epoch: Epoch,
+        data: &HashMap<String, Vec<(Epoch, f64)>>,
+    ) -> Box<dyn RenderBox + '_> {
+        box_html! {
+            @ if data.len() == 0 {
+                tr {
+                    th {
+                        b {
+                            : title
                         }
                     }
                     td {
@@ -189,41 +269,51 @@ impl QcReport {
                 }
             } else {
                 @ for signal in data.keys().sorted() {
-                    tr {
-                        th {
-                            : format!("SSI({})", signal)    
-                        }
-                    }
-                    tr {
-                        th {
-                            : "Epoch(k)"
-                        }
-                        td {
-                            : first_epoch.to_string()
-                        }
-                        @ for (epoch, _) in data[signal].iter() {
-                            td {
-                                : epoch.to_string()
+                    br {
+                        tr {
+                            th {
+                                : format!("{}({})", title, signal)
                             }
                         }
-                    }
-                    tr {
-                        th {
-                            : "Epoch(k+1)"
-                        }
-                        @ for (epoch, _) in data[signal].iter() {
+                        tr {
+                            th {
+                                : "Epoch(k)"
+                            }
                             td {
-                                : epoch.to_string()
+                                : first_epoch.to_string()
+                            }
+                            @ for (epoch, _) in data[signal].iter() {
+                                td {
+                                    : epoch.to_string()
+                                }
                             }
                         }
-                    }
-                    tr {
-                        td {
-                            : ""
+                        tr {
+                            th {
+                                : "Epoch(k+1)"
+                            }
+                            @ for (epoch, _) in data[signal].iter() {
+                                td {
+                                    : epoch.to_string()
+                                }
+                            }
                         }
-                        @ for (_, value) in &data[signal] {
+                        tr {
                             td {
-                                : format!("{:.3} dB", value);
+                                b {
+                                    : "RMS"
+                                }
+                            }
+                            @ for (_, value) in &data[signal] {
+                                @ if let Some(ref unit) = unit {
+                                    td {
+                                        : format!("{:.3} {}", value, unit)
+                                    }
+                                } else {
+                                    td {
+                                        : format!("{:.3}", value)
+                                    }
+                                }
                             }
                         }
                     }
@@ -321,7 +411,7 @@ impl QcReport {
                 }
                 tr {
                     th {
-                        : "PRN# w/ Observation: "
+                        : "PRN w/ Observation: "
                     }
                     td {
                         : pretty_sv(&self.sv_with_obs)
@@ -341,63 +431,20 @@ impl QcReport {
                         : format!("{}%", self.sv_without_obs.len() * 100 / self.total_sv)
                     }
                 }
-                tr {
-                    th {
-                        : "RX Clock Drift"
-                    }
-                    @ if self.clk_drift.len() == 0 {
-                        td {
-                            : "Data missing"
-                        }
-                    } else {
-                        th {
-                            : "Drift [s.s⁻¹]"
-                        }
-                        tr {
-                            @ for (epoch, drift) in &self.clk_drift {
-                                td {
-                                    : format!("{}: {:.3}", epoch, drift)
-                                }
-                            }
-                        }
-                    }
+                table(id="clk-drift") {
+                    : Self::moving_avg_report("RX Clock Drift".to_string(), Some("s.s⁻¹".to_string()), self.first_epoch, &self.clk_drift)
                 }
                 table(id="ssi-analysis") {
-                    : Self::ssi_analysis(self.first_epoch, &self.mean_ssi)
+                    : Self::code_moving_avg_report("SSI".to_string(), Some("dB".to_string()), self.first_epoch, &self.mean_ssi)
                 }
-                tr {
-                    th {
-                        : "DCBs"
-                    }
+                /*
+                table(id="dcbs-analysis") {
+                    : Self::moving_avg_report("DCBs".to_string(), self.first_epoch, &self.dcbs)
                 }
-                tr {
-                    td {
-                        : "Codes"
-                    }
-                    td {
-                        : "RMS{Epoch(0):Epoch(1)}"
-                    }
-                    td {
-                        : "RMS{Epoch(1):Epoch(2)}"
-                    }
+                table(id="dcbs-analysis") {
+                    : Self::moving_avg_report("MP".to_string(), self.first_epoch, &self.dcbs)
                 }
-                tr {
-                    td {
-                        : "10.0"
-                    }
-                    td {
-                        : "20.0"
-                    }
-                }
-                //TODO
-                // sv with nav
-                //  Unhealthy ?
-                //  if sv_angles {
-                //    Rise Fall time
-                //  }
-                //  Obs Masked out "Possible Obs > $mask deg
-                //  Deleted Obs < $mask deg
-
+                */
             }
         }
     }
