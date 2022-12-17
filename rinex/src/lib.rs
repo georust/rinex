@@ -1268,10 +1268,7 @@ impl Rinex {
             None => {
                 match self.header.coords {
                     Some(pos) => pos,
-                    _ => {
-                        println!("missing reference point coordinates. Define them manually with `ref_pos`");
-                        (0.0_f64, 0.0_f64, 0.0_f64)
-                    },
+                    _ => return ret, // missing ground position
                 }
             },
         };
