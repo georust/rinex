@@ -20,17 +20,11 @@ pub fn skyplot(ctx: &Context, plot_ctx: &mut PlotContext) {
             return;
         }
 
-        let sat_angles = nav.navigation_sat_angles(ctx.ground_position);
+        let sat_angles = ctx.primary_rinex.navigation_sat_angles(ctx.ground_position);
         for (index, (sv, epochs)) in sat_angles.iter().enumerate() {
-            let el: Vec<f64> = epochs
-                .iter()
-                .map(|(_, (el, _))| el * 360.0 / std::f64::consts::PI)
-                .collect();
-            let azi: Vec<f64> = epochs
-                .iter()
-                .map(|(_, (_, azi))| azi * 360.0 / std::f64::consts::PI)
-                .collect();
-            let trace = ScatterPolar::new(el, azi)
+            let elev: Vec<f64> = epochs.iter().map(|(epoch, (elev, _))| *elev).collect();
+            let azim: Vec<f64> = epochs.iter().map(|(_, (_, azim))| *azim).collect();
+            let trace = ScatterPolar::new(elev, azim)
                 .mode(Mode::LinesMarkers)
                 .visible({
                     if index < 4 {
@@ -39,6 +33,7 @@ pub fn skyplot(ctx: &Context, plot_ctx: &mut PlotContext) {
                         Visible::LegendOnly
                     }
                 })
+                .connect_gaps(false)
                 .name(sv.to_string());
             plot_ctx.add_trace(trace);
         }
@@ -49,15 +44,9 @@ pub fn skyplot(ctx: &Context, plot_ctx: &mut PlotContext) {
          */
         let sat_angles = ctx.primary_rinex.navigation_sat_angles(ctx.ground_position);
         for (index, (sv, epochs)) in sat_angles.iter().enumerate() {
-            let el: Vec<f64> = epochs
-                .iter()
-                .map(|(_, (el, _))| el * 360.0 / std::f64::consts::PI)
-                .collect();
-            let azi: Vec<f64> = epochs
-                .iter()
-                .map(|(_, (_, azi))| azi * 360.0 / std::f64::consts::PI)
-                .collect();
-            let trace = ScatterPolar::new(el, azi)
+            let elev: Vec<f64> = epochs.iter().map(|(_, (elev, _))| *elev).collect();
+            let azim: Vec<f64> = epochs.iter().map(|(_, (_, azim))| *azim).collect();
+            let trace = ScatterPolar::new(elev, azim)
                 .mode(Mode::LinesMarkers)
                 .web_gl_mode(true)
                 .visible({
@@ -67,6 +56,7 @@ pub fn skyplot(ctx: &Context, plot_ctx: &mut PlotContext) {
                         Visible::LegendOnly
                     }
                 })
+                .connect_gaps(false)
                 .name(sv.to_string());
             plot_ctx.add_trace(trace);
         }

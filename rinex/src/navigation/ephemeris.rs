@@ -383,24 +383,33 @@ impl Ephemeris {
     pub fn sat_elev_azim(&self, epoch: Epoch, ref_pos: (f64, f64, f64)) -> Option<(f64, f64)> {
         let (sv_x, sv_y, sv_z) = self.sat_pos_ecef(epoch)?;
         let (ref_x, ref_y, ref_z) = ref_pos;
-        let (sv_lat, sv_lon, sv_alt) = map_3d::ecef2geodetic(sv_x, sv_y, sv_z, map_3d::Ellipsoid::WGS84); 
+        let (sv_lat, sv_lon, sv_alt) =
+            map_3d::ecef2geodetic(sv_x, sv_y, sv_z, map_3d::Ellipsoid::WGS84);
         // pseudo range
         let a_i = (sv_x - ref_x, sv_y - ref_y, sv_z - ref_z);
         let norm = (a_i.0.powf(2.0) + a_i.1.powf(2.0) + a_i.2.powf(2.0)).sqrt();
         let a_i = (a_i.0 / norm, a_i.1 / norm, a_i.2 / norm); // normalize
-        // dot product
+                                                              // dot product
         let ecef2enu = (
             (-sv_lon.sin(), sv_lon.cos(), 0.0_f64),
-            (-sv_lon.cos() * sv_lat.sin(), -sv_lon.sin() * sv_lat.sin(), sv_lat.cos()),
-            (sv_lon.cos() * sv_lat.cos(), sv_lon.sin() * sv_lat.cos(), sv_lat.sin()),
+            (
+                -sv_lon.cos() * sv_lat.sin(),
+                -sv_lon.sin() * sv_lat.sin(),
+                sv_lat.cos(),
+            ),
+            (
+                sv_lon.cos() * sv_lat.cos(),
+                sv_lon.sin() * sv_lat.cos(),
+                sv_lat.sin(),
+            ),
         );
         let a_enu = (
-            ecef2enu.0.0 * a_i.0 + ecef2enu.0.1 * a_i.1 + ecef2enu.0.2 * a_i.2,
-            ecef2enu.1.0 * a_i.0 + ecef2enu.1.1 * a_i.1 + ecef2enu.1.2 * a_i.2,
-            ecef2enu.2.0 * a_i.0 + ecef2enu.2.1 * a_i.1 + ecef2enu.2.2 * a_i.2,
+            ecef2enu.0 .0 * a_i.0 + ecef2enu.0 .1 * a_i.1 + ecef2enu.0 .2 * a_i.2,
+            ecef2enu.1 .0 * a_i.0 + ecef2enu.1 .1 * a_i.1 + ecef2enu.1 .2 * a_i.2,
+            ecef2enu.2 .0 * a_i.0 + ecef2enu.2 .1 * a_i.1 + ecef2enu.2 .2 * a_i.2,
         );
         let elev = a_enu.2.asin();
-        let mut azim = map_3d::rad2deg(a_enu.0.atan2(a_enu.1)); 
+        let mut azim = map_3d::rad2deg(a_enu.0.atan2(a_enu.1));
         if azim < 0.0 {
             azim += 360.0;
         }
@@ -734,7 +743,7 @@ mod test {
         let epoch = Epoch::from_time_of_week(910, 4.0327293e14 as u64, TimeScale::GPST);
         let ref_pos = (-5.67841101e6_f64, -2.49239629e7_f64, 7.05651887e6_f64);
         let xyz = ephemeris.kepler2ecef(epoch);
-        let el_azim = ephemeris.sat_elev_azim(epoch, ref_pos); 
+        let el_azim = ephemeris.sat_elev_azim(epoch, ref_pos);
 
         assert!(xyz.is_some());
         let (x, y, z) = xyz.unwrap();
@@ -742,10 +751,18 @@ mod test {
         assert!((y - -24923975.356725316).abs() < 1E-6);
         assert!((z - 7056393.437932).abs() < 1E-6);
 
-        assert!(el_azim.is_some()); 
+        assert!(el_azim.is_some());
         let (elev, azim) = el_azim.unwrap();
-        assert!((elev - -0.23579324).abs() < 1E-3, "elev° failed with |e| = {}", (elev - -0.23579324).abs());
-        assert!((azim - 215.63240776).abs() < 1E-3, "azim° failed with |e| = {}", (azim - 215.63240776).abs());
+        assert!(
+            (elev - -0.23579324).abs() < 1E-3,
+            "elev° failed with |e| = {}",
+            (elev - -0.23579324).abs()
+        );
+        assert!(
+            (azim - 215.63240776).abs() < 1E-3,
+            "azim° failed with |e| = {}",
+            (azim - 215.63240776).abs()
+        );
 
         let orbits = build_orbits(
             Constellation::GPS,

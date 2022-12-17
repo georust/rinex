@@ -1281,7 +1281,7 @@ impl Rinex {
                     if *class == navigation::FrameClass::Ephemeris {
                         for fr in frames {
                             let (_, sv, ephemeris) = fr.as_eph().unwrap();
-                            if let Some((el, az)) = ephemeris.sat_angles(*epoch, ref_pos) {
+                            if let Some((el, az)) = ephemeris.sat_elev_azim(*epoch, ref_pos) {
                                 if let Some(data) = ret.get_mut(sv) {
                                     // vehicle already encountered
                                     data.insert(*epoch, (el, az));
@@ -1339,6 +1339,33 @@ impl Rinex {
                                     // first vehicle for this epoch
                                     let mut map: BTreeMap<Epoch, (f64, f64, f64)> = BTreeMap::new();
                                     map.insert(*epoch, sat_pos);
+                                    ret.insert(*sv, map);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        ret
+    }
+
+    /// Computes and returns all Sv position in the sky, expressed
+    /// as (latitude, longitude, altitude), in ddeg and meters
+    pub fn navigation_sat_geodetic(&self) -> HashMap<Sv, BTreeMap<Epoch, (f64, f64, f64)>> {
+        let mut ret: HashMap<Sv, BTreeMap<Epoch, (f64, f64, f64)>> = HashMap::new();
+        if let Some(record) = self.record.as_nav() {
+            for (epoch, classes) in record {
+                for (class, frames) in classes {
+                    if *class == navigation::FrameClass::Ephemeris {
+                        for fr in frames {
+                            let (_, sv, ephemeris) = fr.as_eph().unwrap();
+                            if let Some((lat, lon, alt)) = ephemeris.sat_geodetic(*epoch) {
+                                if let Some(data) = ret.get_mut(sv) {
+                                    data.insert(*epoch, (lat, lon, alt));
+                                } else {
+                                    let mut map: BTreeMap<Epoch, (f64, f64, f64)> = BTreeMap::new();
+                                    map.insert(*epoch, (lat, lon, alt));
                                     ret.insert(*sv, map);
                                 }
                             }
@@ -1976,7 +2003,7 @@ Specify one yourself with `ref_pos`",
                     if *class == navigation::FrameClass::Ephemeris {
                         frames.retain(|fr| {
                             let (_, _, ephemeris) = fr.as_eph().unwrap();
-                            if let Some((el, _)) = ephemeris.sat_angles(*epoch, ref_pos) {
+                            if let Some((el, _)) = ephemeris.sat_elev_azim(*epoch, ref_pos) {
                                 mask.fits(el)
                             } else {
                                 false
@@ -2192,9 +2219,6 @@ Specify one yourself with `ref_pos`",
     }
 
     /// Wide Lane [WL] observation combinations.
-    /// Like other GNSS signal combinations, this first requires
-    /// an [Rinex::observation_align_phase_origins] invokation
-    /// for correct Phase data combinations.
     /// Cf. <https://github.com/gwbres/rinex/blob/main/rinex-cli/doc/gnss-combination.md>.
     pub fn observation_wl_combinations(
         &self,
@@ -2297,9 +2321,6 @@ Specify one yourself with `ref_pos`",
     }
 
     /// Narrow lane Phase & PR combinations.
-    /// Like other GNSS signal combinations, this first requires
-    /// an [Rinex::observation_align_phase_origins] invokation
-    /// for correct Phase data combinations.
     /// Cf. <https://github.com/gwbres/rinex/blob/main/rinex-cli/doc/gnss-combination.md>.
     pub fn observation_nl_combinations(
         &self,
@@ -2435,9 +2456,6 @@ Specify one yourself with `ref_pos`",
     }
 
     /// Geometry free [GF] combinations.
-    /// Like other GNSS signal combinations, this first requires
-    /// an [Rinex::observation_align_phase_origins] invokation
-    /// for correct Phase data combinations.
     /// Cf. <https://github.com/gwbres/rinex/blob/main/rinex-cli/doc/gnss-combination.md>.
     pub fn observation_gf_combinations(
         &self,
@@ -2640,9 +2658,6 @@ Specify one yourself with `ref_pos`",
     }
 
     /// Melbourne-Wübbena [MW] GNSS combination.
-    /// Like other GNSS signal combinations, this first require
-    /// an [Rinex::observation_align_phase_origins] invokation
-    /// in for correct combinations where Phase data is involved.
     /// Cf. <https://github.com/gwbres/rinex/blob/main/rinex-cli/doc/gnss-combination.md>.
     pub fn observation_mw_combinations(
         &self,
@@ -2717,10 +2732,6 @@ Specify one yourself with `ref_pos`",
 
     /// Code multipath analysis (MP_i), cf.
     /// phase data model <https://github.com/gwbres/rinex/blob/main/rinex-cli/doc/gnss-combination.md>.
-    /// This method will not produce anything if
-    /// * Self is not Observation RINEX
-    /// * did not come with both Phase and Pseudo range observations
-    /// * in multi band context
     pub fn observation_code_multipath(
         &self,
     ) -> HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
@@ -2735,18 +2746,26 @@ Specify one yourself with `ref_pos`",
                 for (sv, observations) in vehicles {
                     if let Some(data) = mean.get_mut(&sv) {
                         for (obs_code, obs_data) in observations {
-                            if let Some((count, buf)) = data.get_mut(obs_code) {
-                                *count += 1;
-                                *buf += obs_data.obs;
-                            } else {
-                                data.insert(obs_code.to_string(), (1, obs_data.obs));
+                            if is_phase_observation(obs_code)
+                                || is_pseudorange_observation(obs_code)
+                            {
+                                if let Some((count, buf)) = data.get_mut(obs_code) {
+                                    *count += 1;
+                                    *buf += obs_data.obs;
+                                } else {
+                                    data.insert(obs_code.to_string(), (1, obs_data.obs));
+                                }
                             }
                         }
                     } else {
                         for (obs_code, obs_data) in observations {
-                            let mut map: HashMap<String, (u32, f64)> = HashMap::new();
-                            map.insert(obs_code.to_string(), (1, obs_data.obs));
-                            mean.insert(*sv, map);
+                            if is_phase_observation(obs_code)
+                                || is_pseudorange_observation(obs_code)
+                            {
+                                let mut map: HashMap<String, (u32, f64)> = HashMap::new();
+                                map.insert(obs_code.to_string(), (1, obs_data.obs));
+                                mean.insert(*sv, map);
+                            }
                         }
                     }
                 }
@@ -2760,6 +2779,7 @@ Specify one yourself with `ref_pos`",
                         .count()
                 })
                 .count();
+            println!("MEAN VALUES {:?}", mean);
             /*
              * Run algorithm
              */
@@ -2767,11 +2787,10 @@ Specify one yourself with `ref_pos`",
                                                                           // for operation consistency
             for (epoch, (_, vehicules)) in record {
                 for (sv, observations) in vehicules {
-                    let mean_sv = mean.get(&sv)
-                        .unwrap();
+                    let mean_sv = mean.get(&sv).unwrap();
                     for (lhs_code, lhs_data) in observations {
                         if is_pseudorange_observation(lhs_code) {
-                            let pr_i = lhs_data.obs - mean_sv.get(lhs_code).unwrap().1;
+                            let pr_i = lhs_data.obs; // - mean_sv.get(lhs_code).unwrap().1;
                             let mp_code = observation_code(lhs_code);
                             let mut ph_i: Option<f64> = None;
                             let mut ph_j: Option<f64> = None;
@@ -2791,7 +2810,7 @@ Specify one yourself with `ref_pos`",
                             for (code, data) in observations {
                                 let ph_code = format!("L{}", mp_code);
                                 if code.eq(&ph_code) {
-                                    ph_i = Some(data.obs - mean_sv.get(code).unwrap().1);
+                                    ph_i = Some(data.obs); // - mean_sv.get(code).unwrap().1);
                                     break; // DONE
                                 }
                             }
@@ -2809,7 +2828,7 @@ Specify one yourself with `ref_pos`",
                                         // correct carrier signal
                                         if code.eq(to_locate) {
                                             // match
-                                            ph_j = Some(data.obs - mean_sv.get(code).unwrap().1);
+                                            ph_j = Some(data.obs); // - mean_sv.get(code).unwrap().1);
                                             break; // DONE
                                         }
                                     }
@@ -2823,7 +2842,7 @@ Specify one yourself with `ref_pos`",
                                         // correct carrier
                                         if code.eq(&to_locate) {
                                             // match
-                                            ph_j = Some(data.obs - mean_sv.get(code).unwrap().1);
+                                            ph_j = Some(data.obs); // - mean_sv.get(code).unwrap().1);
                                             associated.insert(mp_code.clone(), code.clone());
                                             break; // DONE
                                         }
@@ -2838,7 +2857,7 @@ Specify one yourself with `ref_pos`",
                                         let carrier_code = &code[1..2];
                                         if carrier_code == rhs_carrier {
                                             if is_phase_observation(code) {
-                                                ph_j = Some(data.obs - mean_sv.get(code).unwrap().1);
+                                                ph_j = Some(data.obs); // - mean_sv.get(code).unwrap().1);
                                                 associated.insert(mp_code.clone(), code.clone());
                                                 break; // DONE
                                             }
@@ -2857,13 +2876,15 @@ Specify one yourself with `ref_pos`",
                                 if let Ok(rhs_carrier) =
                                     Carrier::from_observable(sv.constellation, rhs_carrier)
                                 {
-                                    let gamma = (lhs_carrier.carrier_frequency_mhz()
-                                        / rhs_carrier.carrier_frequency_mhz())
-                                    .powf(2.0);
-                                    let alpha = (gamma + 1.0) / (gamma - 1.0);
-                                    let beta = 2.0 / (gamma - 1.0);
-                                    let mp = pr_i - alpha * ph_i + beta * ph_j;
-                                    //let mp = pr_i / 299_792_458.0 - alpha * ph_i + beta * ph_j;
+                                    /*let gamma = (lhs_carrier.carrier_frequency() / rhs_carrier.carrier_frequency()).powf(2.0);
+                                    let alpha = (gamma +1.0_f64) / (gamma - 1.0_f64);
+                                    let beta = 2.0_f64 / (gamma - 1.0_f64);
+                                    let mp = pr_i - alpha * ph_i + beta * ph_j;*/
+
+                                    let alpha = 2.0_f64 * rhs_carrier.carrier_frequency().powf(2.0)
+                                        / (lhs_carrier.carrier_frequency().powf(2.0)
+                                            - rhs_carrier.carrier_frequency().powf(2.0));
+                                    let mp = pr_i - ph_i - alpha * (ph_i - ph_j);
                                     if let Some(data) = ret.get_mut(&mp_code) {
                                         if let Some(data) = data.get_mut(&sv) {
                                             data.insert(*epoch, mp);
