@@ -110,6 +110,9 @@ impl FromStr for Carrier {
 
 impl Carrier {
     /// Returns frequency associated to this channel in MHz
+    pub fn carrier_frequency(&self) -> f64 {
+        self.carrier_frequency_mhz() * 1.0E6
+    }
     pub fn carrier_frequency_mhz(&self) -> f64 {
         match self {
             Carrier::L1 | Carrier::E1 => 1575.42_f64,
@@ -133,7 +136,7 @@ impl Carrier {
     }
     /// Returns wavelength of this channel
     pub fn carrier_wavelength(&self) -> f64 {
-        299792458.0 / self.carrier_frequency_mhz() / 10.0E6
+        299_792_458.0_f64 / self.carrier_frequency()
     }
 
     /// Returns channel bandwidth in MHz
@@ -294,7 +297,7 @@ mod test {
 
         let l1 = Carrier::from_str("L1").unwrap();
         assert_eq!(l1.carrier_frequency_mhz(), 1575.42_f64);
-        assert_eq!(l1.carrier_wavelength(), 299792458.0 / 1575.42_f64 / 10.0E6);
+        assert_eq!(l1.carrier_wavelength(), 299792458.0 / 1_575_420_000.0_f64);
         let channel = Carrier::from_observable(Constellation::GPS, "L1C");
         assert!(channel.is_ok());
         let channel = channel.unwrap();
