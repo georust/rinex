@@ -15,17 +15,13 @@ pub fn skyplot(ctx: &Context, plot_ctx: &mut PlotContext) {
          * observations were provided
          * color gradient emphasizes the SSI[dB]
          */
-        if !nav.is_navigation_rinex() {
-            println!("--nav should be Navigation Data!");
-            return;
-        }
-
-        let sat_angles = ctx.primary_rinex.navigation_sat_angles(ctx.ground_position);
+        let sat_angles = nav.navigation_sat_angles(ctx.ground_position);
         for (index, (sv, epochs)) in sat_angles.iter().enumerate() {
-            let elev: Vec<f64> = epochs.iter().map(|(epoch, (elev, _))| *elev).collect();
-            let azim: Vec<f64> = epochs.iter().map(|(_, (_, azim))| *azim).collect();
-            let trace = ScatterPolar::new(elev, azim)
-                .mode(Mode::LinesMarkers)
+            let theta: Vec<f64> = epochs.iter().map(|(_, (_, azi))| *azi).collect();
+            let r: Vec<f64> = epochs.iter().map(|(_, (elev, _))| *elev).collect();
+            let trace = ScatterPolar::new(theta, r)
+                .mode(Mode::Markers)
+                .web_gl_mode(true)
                 .visible({
                     if index < 4 {
                         Visible::True
@@ -44,10 +40,10 @@ pub fn skyplot(ctx: &Context, plot_ctx: &mut PlotContext) {
          */
         let sat_angles = ctx.primary_rinex.navigation_sat_angles(ctx.ground_position);
         for (index, (sv, epochs)) in sat_angles.iter().enumerate() {
-            let elev: Vec<f64> = epochs.iter().map(|(_, (elev, _))| *elev).collect();
-            let azim: Vec<f64> = epochs.iter().map(|(_, (_, azim))| *azim).collect();
-            let trace = ScatterPolar::new(elev, azim)
-                .mode(Mode::LinesMarkers)
+            let theta: Vec<f64> = epochs.iter().map(|(_, (_, azi))| *azi).collect();
+            let r: Vec<f64> = epochs.iter().map(|(_, (elev, _))| *elev).collect();
+            let trace = ScatterPolar::new(theta, r)
+                .mode(Mode::Markers)
                 .web_gl_mode(true)
                 .visible({
                     if index < 4 {
