@@ -136,8 +136,9 @@ pub fn plot_observation(ctx: &Context, plot_ctx: &mut PlotContext) {
                 });
                 plot_ctx.add_trace(trace);
 
-                if index == 0 {
-                    // 1st Carrier encountered <=> plot Elev(Sv) only once..
+                if index == 0 && physics == "Signal Strength" {
+                    // 1st Carrier encountered: plot Sv only once
+                    // we also only augment the SSI plot
                     if let Some(epochs) = sat_angles.get(sv) {
                         let elev: Vec<f64> = epochs.iter().map(|(_, (el, _azi))| *el).collect();
                         let epochs: Vec<Epoch> = epochs.keys().map(|k| *k).collect();
