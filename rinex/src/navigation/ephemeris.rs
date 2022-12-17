@@ -54,7 +54,7 @@ pub enum Error {
 ///             let (clk_offset, clk_drift, clk_drift_r) = ephemeris.clock_data();
 ///             // Navigation Data
 ///             let sv_pos = ephemeris.sat_pos_ecef(*epoch);
-///             if let Some((el, azi)) = ephemeris.sat_angles(*epoch, ref_pos) {
+///             if let Some((el, azi)) = ephemeris.sat_elev_azim(*epoch, ref_pos) {
 ///                 // elevation angle [°]
 ///                 // azimuth angle [°]
 ///             }
