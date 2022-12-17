@@ -148,13 +148,7 @@ pub fn plot_observation(ctx: &Context, plot_ctx: &mut PlotContext) {
                             elev,
                         )
                         .marker(Marker::new().symbol(markers[index].clone()))
-                        .visible({
-                            if index < 1 {
-                                Visible::True
-                            } else {
-                                Visible::LegendOnly
-                            }
-                        });
+                        .visible(Visible::LegendOnly);
                         plot_ctx.add_trace(trace);
                     }
                 }
