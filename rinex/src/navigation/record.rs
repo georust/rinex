@@ -20,7 +20,7 @@ fn double_exponent_digits(content: &str) -> String {
 }
 
 use crate::{
-    epoch, gnss_time::TimeScaling, merge, merge::Merge, prelude::*, sampling::Decimation, split,
+    algorithm::Decimation, epoch, gnss_time::TimeScaling, merge, merge::Merge, prelude::*, split,
     split::Split, sv, types::Type, version::Version,
 };
 
@@ -1302,5 +1302,52 @@ impl TimeScaling<Record> for Record {
         let mut s = self.clone();
         s.convert_timescale(ts);
         s
+    }
+}
+
+use crate::processing::{Filter, FilterItem, FilterMode, FilterType};
+use crate::processing::{MaskFilter, MaskOperand};
+
+impl Filter for Record {
+    fn apply(&self, filt: FilterType<FilterItem>, mode: FilterMode) -> Self {
+        let mut s = self.clone();
+        s.apply_mut(filt, mode);
+        s
+    }
+    fn apply_mut(&mut self, filt: FilterType<FilterItem>, mode: FilterMode) {
+        if let Some(mask) = filt.as_mask() {
+            match mask {
+                MaskFilter { operand, item } => match operand {
+                    MaskOperand::Above => match item {
+                        FilterItem::EpochFilter(epoch) => match mode {
+                            FilterMode::Retain => self.retain(|e, _| e >= epoch),
+                            FilterMode::Discard => self.retain(|e, _| e < epoch),
+                        },
+                        _ => {},
+                    },
+                    MaskOperand::StrictlyAbove => match item {
+                        FilterItem::EpochFilter(epoch) => match mode {
+                            FilterMode::Retain => self.retain(|e, _| e > epoch),
+                            FilterMode::Discard => self.retain(|e, _| e <= epoch),
+                        },
+                        _ => {},
+                    },
+                    MaskOperand::Below => match item {
+                        FilterItem::EpochFilter(epoch) => match mode {
+                            FilterMode::Retain => self.retain(|e, _| e <= epoch),
+                            FilterMode::Discard => self.retain(|e, _| e > epoch),
+                        },
+                        _ => {},
+                    },
+                    MaskOperand::StrictlyBelow => match item {
+                        FilterItem::EpochFilter(epoch) => match mode {
+                            FilterMode::Retain => self.retain(|e, _| e < epoch),
+                            FilterMode::Discard => self.retain(|e, _| e >= epoch),
+                        },
+                        _ => {},
+                    },
+                },
+            }
+        }
     }
 }

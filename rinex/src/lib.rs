@@ -22,16 +22,14 @@ pub mod sv;
 pub mod types;
 pub mod version;
 
-mod cs;
 mod leap;
-mod qc;
-mod sampling;
 
+extern crate horrorshow;
 extern crate num;
+
 #[macro_use]
 extern crate num_derive;
-#[macro_use]
-extern crate horrorshow;
+
 #[macro_use]
 extern crate lazy_static;
 
@@ -68,27 +66,32 @@ pub mod prelude {
     pub use hifitime::{Duration, Epoch, TimeScale};
 }
 
-pub use merge::Merge;
-pub use split::Split;
-
-#[cfg(feature = "sbas")]
 /// SBAS related package
+#[cfg(feature = "sbas")]
 pub mod sbas {
     pub use crate::constellation::selection_helper;
 }
 
+//mod cs;
+//mod qc;
+
+mod algorithm;
+
 /// Processing package, regroups sampling
 /// and file quality analysis.
 pub mod processing {
-    pub use crate::cs::{CsDetector, CsSelectionMethod, CsStrategy};
-    pub use crate::qc::{QcOpts, QcReport};
-    pub use crate::sampling::Decimation;
+    pub use crate::algorithm::*;
+    //pub use crate::cs::{CsDetector, CsSelectionMethod, CsStrategy};
+    //pub use crate::qc::{QcOpts, QcReport};
 }
 
+use algorithm::Decimation;
 use carrier::Carrier;
 use gnss_time::TimeScaling;
 use prelude::*;
-use sampling::*;
+
+pub use merge::Merge;
+pub use split::Split;
 
 #[cfg(feature = "serde")]
 #[macro_use]
@@ -881,15 +884,13 @@ impl Rinex {
     /// and NAV record frames other than Ephemeris. On CLK records,
     /// we filter out data not measured against space vehicules and different vehicules.
     pub fn retain_space_vehicule_mut(&mut self, filter: Vec<Sv>) {
-        if self.is_observation_rinex() {
-            let record = self.record.as_mut_obs().unwrap();
-            record.retain(|_, (_, vehicules)| {
+        if let Some(r) = self.record.as_mut_obs() {
+            r.retain(|_, (_, vehicules)| {
                 vehicules.retain(|sv, _| filter.contains(sv));
                 vehicules.len() > 0
             })
-        } else if self.is_navigation_rinex() {
-            let record = self.record.as_mut_nav().unwrap();
-            record.retain(|_, classes| {
+        } else if let Some(r) = self.record.as_mut_nav() {
+            r.retain(|_, classes| {
                 classes.retain(|class, frames| {
                     if *class == navigation::FrameClass::Ephemeris {
                         frames.retain(|fr| {
@@ -903,9 +904,8 @@ impl Rinex {
                 });
                 classes.len() > 0
             })
-        } else if self.is_clocks_rinex() {
-            let record = self.record.as_mut_clock().unwrap();
-            record.retain(|_, data_types| {
+        } else if let Some(r) = self.record.as_mut_clock() {
+            r.retain(|_, data_types| {
                 data_types.retain(|_, systems| {
                     systems.retain(|system, _| {
                         if let Some(sv) = system.as_sv() {
@@ -3644,5 +3644,18 @@ impl TimeScaling<Rinex> for Rinex {
         let mut s = self.clone();
         s.convert_timescale(ts);
         s
+    }
+}
+
+use crate::processing::{Filter, FilterItem, FilterMode, FilterType};
+
+impl Filter for Rinex {
+    fn apply(&self, filt: FilterType<FilterItem>, mode: FilterMode) -> Self {
+        let mut s = self.clone();
+        s.apply_mut(filt, mode);
+        s
+    }
+    fn apply_mut(&mut self, filt: FilterType<FilterItem>, mode: FilterMode) {
+        self.record.apply_mut(filt, mode);
     }
 }

@@ -6,6 +6,7 @@ use thiserror::Error;
 use serde::Serialize;
 
 use super::{
+    algorithm::Decimation,
     antex, clocks,
     gnss_time::TimeScaling,
     hatanaka::{Compressor, Decompressor},
@@ -13,7 +14,6 @@ use super::{
     merge::Merge,
     meteo, navigation, observation,
     reader::BufferedReader,
-    sampling::Decimation,
     split,
     split::Split,
     types::Type,
@@ -810,5 +810,28 @@ impl TimeScaling<Record> for Record {
         let mut s = self.clone();
         s.convert_timescale(ts);
         s
+    }
+}
+
+use crate::processing::{Filter, FilterItem, FilterMode, FilterType};
+
+impl Filter for Record {
+    fn apply(&self, filt: FilterType<FilterItem>, mode: FilterMode) -> Self {
+        let mut s = self.clone();
+        s.apply_mut(filt, mode);
+        s
+    }
+    fn apply_mut(&mut self, filt: FilterType<FilterItem>, mode: FilterMode) {
+        if let Some(r) = self.as_mut_obs() {
+            r.apply_mut(filt, mode);
+        } else if let Some(r) = self.as_mut_meteo() {
+            r.apply_mut(filt, mode);
+        } else if let Some(r) = self.as_mut_nav() {
+            r.apply_mut(filt, mode);
+        } else if let Some(r) = self.as_mut_ionex() {
+            r.apply_mut(filt, mode);
+        } else if let Some(r) = self.as_mut_clock() {
+            r.apply_mut(filt, mode);
+        }
     }
 }

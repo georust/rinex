@@ -4,7 +4,7 @@ use thiserror::Error;
 
 use super::{Antenna, Calibration, CalibrationMethod, Frequency, Pattern};
 
-use crate::{carrier, merge, merge::Merge, sampling::Decimation, Epoch};
+use crate::{algorithm::Decimation, carrier, merge, merge::Merge, Epoch};
 
 /// Returns true if this line matches
 /// the beginning of a `epoch` for ATX file (special files),

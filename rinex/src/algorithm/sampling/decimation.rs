@@ -1,4 +1,4 @@
-use hifitime::Duration;
+use crate::Duration;
 
 pub trait Decimation<T> {
     /// Decimates Self by given factor.
