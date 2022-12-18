@@ -9,8 +9,7 @@ pub const SUPPORTED_VERSION: Version = Version {
     minor: 0
 };
 
-#[derive(Copy, Clone, Debug)]
-#[derive(PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(feature = "pyo3", pyclass)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Version {

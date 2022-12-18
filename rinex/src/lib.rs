@@ -151,8 +151,7 @@ macro_rules! hourly_session {
     }
 }
 
-#[derive(Clone, Debug)]
-#[derive(PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "pyo3", pyclass)]
 /// `Rinex` describes a `RINEX` file.
 /// ```
