@@ -9,33 +9,33 @@ pub enum Observable {
     #[strum(serialize = "PR")]
     Pressure,
     /// Dry temperature measurement in [°C]
-    #[strum(serialize = "TD")]
+    #[strum(serialize = "TD", serialize = "td")]
     Temperature,
     /// Relative humidity measurement in [%]
-    #[strum(serialize = "HR")]
+    #[strum(serialize = "HR", serialize = "hr")]
     HumidityRate,
     /// Wet Zenith Path delay in [mm]
-    #[strum(serialize = "ZW")]
+    #[strum(serialize = "ZW", serialize = "zw")]
     ZenithWetDelay,
     /// Zenith path delay, dry component, in [mm]
-    #[strum(serialize = "ZD")]
+    #[strum(serialize = "ZD", serialize = "zd")]
     ZenithDryDelay,
     /// Total zenith path delay (dry + wet), in [mm]
-    #[strum(serialize = "ZT")]
+    #[strum(serialize = "ZT", serialize = "zt")]
     ZenithTotalDelay,
     /// Wind azimuth, from where the wind blows, in [°]
-    #[strum(serialize = "WD")]
+    #[strum(serialize = "WD", serialize = "wd")]
     WindAzimuth,
     /// Wind speed, in [m.s^-1]
-    #[strum(serialize = "WS")]
+    #[strum(serialize = "WS", serialize = "ws")]
     WindSpeed,
     /// Rain Increment, i.e., rain accumulation
     /// since previous measurement, [10th of mm]
-    #[strum(serialize = "RI")]
+    #[strum(serialize = "RI", serialize = "ri")]
     RainIncrement,
     /// Hail Indicator non zero, hail detected
     /// since last measurement
-    #[strum(serialize = "HI")]
+    #[strum(serialize = "HI", serialize = "hi")]
     HailIndicator,
 }
 

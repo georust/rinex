@@ -36,13 +36,13 @@ use hifitime::Duration;
 #[derive(Debug, Copy, Clone, PartialEq, PartialOrd, Eq, Ord, EnumString)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum FrameClass {
-    #[strum(serialize = "EPH")]
+    #[strum(serialize = "EPH", serialize = "eph")]
     Ephemeris,
-    #[strum(serialize = "STO")]
+    #[strum(serialize = "STO", serialize = "sto")]
     SystemTimeOffset,
-    #[strum(serialize = "EOP")]
+    #[strum(serialize = "EOP", serialize = "eop")]
     EarthOrientation,
-    #[strum(serialize = "ION")]
+    #[strum(serialize = "ION", serialize = "ion")]
     IonosphericModel,
 }
 
@@ -68,24 +68,34 @@ impl std::fmt::Display for FrameClass {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum MsgType {
     /// Legacy NAV
+    #[strum(serialize = "LNAV", serialize = "lnav")]
     LNAV,
     /// FDMA
+    #[strum(serialize = "FDMA", serialize = "fdma")]
     FDMA,
     /// FNAV
+    #[strum(serialize = "FNAV", serialize = "fnav")]
     FNAV,
     /// INAV
+    #[strum(serialize = "INAV", serialize = "inav")]
     INAV,
     /// IFNV,
+    #[strum(serialize = "IFNV", serialize = "ifnv")]
     IFNV,
     /// D1
+    #[strum(serialize = "D1", serialize = "d1")]
     D1,
     /// D2
+    #[strum(serialize = "D2", serialize = "d2")]
     D2,
     /// D1D2
+    #[strum(serialize = "D1D2", serialize = "d1d2")]
     D1D2,
     /// SBAS
+    #[strum(serialize = "SBAS", serialize = "sbas")]
     SBAS,
     /// CNVX special marker
+    #[strum(serialize = "CNVX", serialize = "cnvx")]
     CNVX,
 }
 
@@ -1333,6 +1343,60 @@ impl Filter for Record {
                         classes.len() > 0
                     });
                 },
+                FilterItem::OrbitFilter(filter) => {
+                    self.retain(|_, classes| {
+                        classes.retain(|class, frames| {
+                            if *class == FrameClass::Ephemeris {
+                                frames.retain_mut(|fr| {
+                                    let (_, _, ephemeris) = fr.as_mut_eph()
+                                        .unwrap();
+                                    let orbits = &mut ephemeris.orbits;
+                                    orbits.retain(|k, _| filter.contains(&k));
+                                    orbits.len() > 0
+                                });
+                                frames.len() > 0
+                            } else {
+                                true // do not affect other frame types
+                            }
+                        });
+                        classes.len() > 0
+                    });
+                },
+                FilterItem::NavFrameFilter(filter) => {
+                    self.retain(|_, classes| {
+                        classes.retain(|class, _| filter.contains(&class));
+                        classes.len() > 0
+                    });
+                },
+                FilterItem::NavMsgFilter(filter) => {
+                    self.retain(|_, classes| {
+                        classes.retain(|class, frames| {
+                            if *class == FrameClass::Ephemeris {
+                                frames.retain(|fr| {
+                                    let (msg, _, _) = fr.as_eph().unwrap();
+                                    filter.contains(&msg)
+                                });
+                            } else if *class == FrameClass::SystemTimeOffset {
+                                frames.retain(|fr| {
+                                    let (msg, _, _) = fr.as_sto().unwrap();
+                                    filter.contains(&msg)
+                                });
+                            } else if *class == FrameClass::IonosphericModel {
+                                frames.retain(|fr| {
+                                    let (msg, _, _) = fr.as_ion().unwrap();
+                                    filter.contains(&msg)
+                                });
+                            } else {
+                                frames.retain(|fr| {
+                                    let (msg, _, _) = fr.as_eop().unwrap();
+                                    filter.contains(&msg)
+                                });
+                            }
+                            frames.len() > 0
+                        });
+                        classes.len() > 0
+                    });
+                },
                 _ => {},
             },
             FilterOperand::NotEqual => match filt.item {
@@ -1349,6 +1413,60 @@ impl Filter for Record {
                             } else {
                                 true // do not affect other frame types
                             }
+                        });
+                        classes.len() > 0
+                    });
+                },
+                FilterItem::OrbitFilter(filter) => {
+                    self.retain(|_, classes| {
+                        classes.retain(|class, frames| {
+                            if *class == FrameClass::Ephemeris {
+                                frames.retain_mut(|fr| {
+                                    let (_, _, ephemeris) = fr.as_mut_eph()
+                                        .unwrap();
+                                    let orbits = &mut ephemeris.orbits;
+                                    orbits.retain(|k, _| !filter.contains(&k));
+                                    orbits.len() > 0
+                                });
+                                frames.len() > 0
+                            } else {
+                                true // do not affect other frame types
+                            }
+                        });
+                        classes.len() > 0
+                    });
+                },
+                FilterItem::NavFrameFilter(filter) => {
+                    self.retain(|_, classes| {
+                        classes.retain(|class, _| !filter.contains(&class));
+                        classes.len() > 0
+                    });
+                },
+                FilterItem::NavMsgFilter(filter) => {
+                    self.retain(|_, classes| {
+                        classes.retain(|class, frames| {
+                            if *class == FrameClass::Ephemeris {
+                                frames.retain(|fr| {
+                                    let (msg, _, _) = fr.as_eph().unwrap();
+                                    !filter.contains(&msg)
+                                });
+                            } else if *class == FrameClass::SystemTimeOffset {
+                                frames.retain(|fr| {
+                                    let (msg, _, _) = fr.as_sto().unwrap();
+                                    !filter.contains(&msg)
+                                });
+                            } else if *class == FrameClass::IonosphericModel {
+                                frames.retain(|fr| {
+                                    let (msg, _, _) = fr.as_ion().unwrap();
+                                    !filter.contains(&msg)
+                                });
+                            } else {
+                                frames.retain(|fr| {
+                                    let (msg, _, _) = fr.as_eop().unwrap();
+                                    !filter.contains(&msg)
+                                });
+                            }
+                            frames.len() > 0
                         });
                         classes.len() > 0
                     });

@@ -939,6 +939,15 @@ impl Filter for Record {
                         svs.len() > 0
                     });
                 },
+                FilterItem::ObservableFilter(filter) => {
+                    self.retain(|_, (_, svs)| {
+                        svs.retain(|_, obs| {
+                            obs.retain(|code, _| filter.contains(&code));
+                            obs.len() > 0 
+                        });
+                        svs.len() > 0
+                    });
+                },
                 _ => {},
             },
             FilterOperand::NotEqual => match filt.item {
@@ -947,6 +956,15 @@ impl Filter for Record {
                 FilterItem::ConstellationFilter(constells) => { 
                     self.retain(|_, (_, svs)| {
                         svs.retain(|sv, _| !constells.contains(&sv.constellation));
+                        svs.len() > 0
+                    });
+                },
+                FilterItem::ObservableFilter(filter) => {
+                    self.retain(|_, (_, svs)| {
+                        svs.retain(|_, obs| {
+                            obs.retain(|code, _| !filter.contains(&code));
+                            obs.len() > 0 
+                        });
                         svs.len() > 0
                     });
                 },

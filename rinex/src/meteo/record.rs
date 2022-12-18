@@ -304,10 +304,22 @@ impl Filter for Record {
         match filt.operand {
             FilterOperand::Equal => match filt.item {
                 FilterItem::EpochFilter(epoch) => self.retain(|e,  _| *e == epoch),
+                FilterItem::ObservableFilter(filter) => {
+                    self.retain(|_, data| {
+                        data.retain(|code, _| filter.contains(&code.to_string()));
+                        data.len() > 0
+                    });
+                },
                 _ => {},
             },
             FilterOperand::NotEqual => match filt.item {
                 FilterItem::EpochFilter(epoch) => self.retain(|e,  _| *e != epoch),
+                FilterItem::ObservableFilter(filter) => {
+                    self.retain(|_, data| {
+                        data.retain(|code, _| !filter.contains(&code.to_string()));
+                        data.len() > 0
+                    });
+                },
                 _ => {},
             },
             FilterOperand::Above => match filt.item {

@@ -1,6 +1,9 @@
-use crate::{Epoch, EpochFlag, Sv, Constellation};
-use std::str::FromStr;
 use thiserror::Error;
+use std::str::FromStr;
+use crate::{Epoch, EpochFlag, Sv, Constellation};
+use crate::meteo::Observable;
+use crate::navigation::MsgType;
+use crate::navigation::FrameClass;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum FilterOperand {
@@ -69,12 +72,24 @@ impl std::str::FromStr for MaskFilter<FilterItem> {
 /// Filter item is what a `Filter` actually targets
 #[derive(Clone, Debug, PartialEq)]
 pub enum FilterItem {
+    /// Filter RINEX data on Epoch
     EpochFilter(Epoch),
+    /// Filter Observation RINEX on Epoch Flag
     EpochFlagFilter(EpochFlag),
+    /// Filter Navigation RINEX on elevation angle 
     ElevationFilter(f64),
+    /// Filter RINEX data on list of vehicle
     SvFilter(Vec<Sv>),
+    /// Filter RINEX data on list of constellation
     ConstellationFilter(Vec<Constellation>),
-    //OrbitItem((Orbit, f64)),
+    /// Filter Observation RINEX on list of observables 
+    ObservableFilter(Vec<String>),
+    /// Filter Navigation RINEX on list of Orbit item 
+    OrbitFilter(Vec<String>),
+    /// Filter Navigation RINEX on Message type 
+    NavMsgFilter(Vec<MsgType>),
+    /// Filter Navigation RINEX on Frame type 
+    NavFrameFilter(Vec<FrameClass>),
 }
 
 #[derive(Clone, Debug, Error, PartialEq)]
@@ -93,6 +108,12 @@ pub enum FilterParsingError {
     ConstellationParsingError(#[from] crate::constellation::Error),
     #[error("failed to parse sv")]
     SvParsingError(#[from] crate::sv::Error),
+    #[error("invalid nav frame type")]
+    InvalidNavFrame,
+    #[error("invalid nav message type")]
+    InvalidNavMsg,
+    #[error("invalid nav filter")]
+    InvalidNavFilter,
 }
 
 impl std::str::FromStr for FilterItem {
@@ -107,7 +128,7 @@ impl std::str::FromStr for FilterItem {
             } else {
                 let items: Vec<&str> = c.split(":")
                     .collect();
-                if items.len() != 2 {
+                if items.len() < 2 {
                     Err(FilterParsingError::MalformedDescriptor)
                 } else {
                     if items[0].trim().eq("e") {
@@ -132,6 +153,61 @@ impl std::str::FromStr for FilterItem {
                             svs.push(sv);
                         }
                         Ok(Self::SvFilter(svs))
+                    } else if items[0].trim().eq("obs") {
+                        let desc: Vec<String> = items[1].split(",")
+                            .filter_map(|s| {
+                                if Observable::from_str(s.trim()).is_ok() {
+                                    Some(s.to_string())
+                                } else if s.trim().eq("ph") { 
+                                    Some(s.trim().to_string())
+                                } else if s.trim().eq("ssi") {
+                                    Some(s.to_string())
+                                } else if s.trim().eq("pr") {
+                                    Some(s.to_string())
+                                } else if s.trim().eq("dop") {
+                                    Some(s.to_string())
+                                } else {
+                                    None
+                                }
+                            })
+                            .collect();
+                        Ok(Self::ObservableFilter(desc))
+                    } else if items[0].trim().eq("orb") {
+                        let desc: Vec<String> = items[1].split(",")
+                            .map(|s| s.to_string())
+                            .collect();
+                        Ok(Self::OrbitFilter(desc))
+                    } else if items[0].trim().eq("nav") {
+                        if items.len() < 3 {
+                            return Err(FilterParsingError::MalformedDescriptor);
+                        }
+                        if items[1].eq("fr") {
+                            let items: Vec<&str> = items[2].split(",")
+                                .collect();
+                            let mut filter: Vec<FrameClass> = Vec::with_capacity(items.len());
+                            for item in items {
+                                if let Ok(fr) = FrameClass::from_str(item.trim()) {
+                                    filter.push(fr)
+                                } else {
+                                    return Err(FilterParsingError::InvalidNavFrame);
+                                }
+                            }
+                            Ok(Self::NavFrameFilter(filter))
+                        } else if items[1].eq("msg") {
+                            let items: Vec<&str> = items[2].split(",")
+                                .collect();
+                            let mut filter: Vec<MsgType> = Vec::with_capacity(items.len());
+                            for item in items {
+                                if let Ok(msg) = MsgType::from_str(item.trim()) {
+                                    filter.push(msg)
+                                } else {
+                                    return Err(FilterParsingError::InvalidNavMsg);
+                                }
+                            }
+                            Ok(Self::NavMsgFilter(filter))
+                        } else {
+                            return Err(FilterParsingError::InvalidNavFilter);
+                        }
                     } else {
                         Err(FilterParsingError::UnrecognizedItem)
                     }
@@ -269,5 +345,43 @@ mod test {
             }));
         let m2 = MaskFilter::from_str("!=sv:G31");
         assert_eq!(mask, m2);
+    }
+    #[test]
+    fn test_obs_mask() {
+        let mask = MaskFilter::from_str("= obs: ph,ssi,pr");
+        assert_eq!(
+            mask,
+            Ok(MaskFilter {
+                operand: FilterOperand::Equal,
+                item: FilterItem::ObservableFilter(
+                    vec![String::from("ph"), String::from("ssi"), String::from("pr")])
+            }));
+    }
+    #[test]
+    fn test_orb_mask() {
+        let mask = MaskFilter::from_str("= orb: iode");
+        assert_eq!(
+            mask,
+            Ok(MaskFilter {
+                operand: FilterOperand::Equal,
+                item: FilterItem::OrbitFilter(vec![String::from("iode")])
+            }));
+    }
+    #[test]
+    fn test_nav_mask() {
+        let mask = MaskFilter::from_str("= nav:fr:eph");
+        assert_eq!(
+            mask,
+            Ok(MaskFilter {
+                operand: FilterOperand::Equal,
+                item: FilterItem::NavFrameFilter(vec![FrameClass::Ephemeris])
+            }));
+        let mask = MaskFilter::from_str("= nav:msg:lnav");
+        assert_eq!(
+            mask,
+            Ok(MaskFilter {
+                operand: FilterOperand::Equal,
+                item: FilterItem::NavMsgFilter(vec![MsgType::LNAV])
+            }));
     }
 }
