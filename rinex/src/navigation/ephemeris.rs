@@ -120,6 +120,7 @@ impl Default for Ephemeris {
 
 /// Kepler parameters
 #[derive(Clone, Debug)]
+#[cfg_attr(feature = "pyo3", pyclass)]
 pub struct Kepler {
     /// sqrt(semi major axis) [sqrt(m)]
     pub a: f64,
@@ -146,6 +147,7 @@ impl Kepler {
 
 /// Perturbation parameters
 #[derive(Clone, Debug)]
+#[cfg_attr(feature = "pyo3", pyclass)]
 pub struct Perturbations {
     /// Mean motion difference from computed value [semicircles.s-1]
     pub dn: f64,
