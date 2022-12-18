@@ -44,8 +44,8 @@ impl Default for EpochFlag {
 #[cfg_attr(feature = "pyo3", pymethods)]
 impl EpochFlag {
     /// Returns True if self is a valid epoch
-    pub fn is_ok(self) -> bool {
-        self == Self::Ok
+    pub fn is_ok(&self) -> bool {
+        *self == Self::Ok
     }
 }
 

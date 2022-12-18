@@ -39,9 +39,6 @@ macro_rules! from_b_fmt_month {
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
-#[cfg(feature = "serde")]
-use crate::formatter::opt_point3d;
-
 #[cfg(feature = "pyo3")]
 use pyo3::prelude::*;
 

@@ -110,23 +110,23 @@ impl FromStr for Ssi {
 impl Ssi {
     /// Returns true if `self` is a bad signal level, very poor quality,
     /// measurements should be discarded
-    pub fn is_bad(self) -> bool {
-        self <= Ssi::DbHz18_23
+    pub fn is_bad(&self) -> bool {
+        self <= &Ssi::DbHz18_23
     }
     /// Returns true if `self` is a weak signal level, poor quality
-    pub fn is_weak(self) -> bool {
-        self < Ssi::DbHz30_35
+    pub fn is_weak(&self) -> bool {
+        self < &Ssi::DbHz30_35
     }
     /// Returns true if `self` is a strong signal level, good quality as defined by standard
-    pub fn is_strong(self) -> bool {
-        self >= Ssi::DbHz30_35
+    pub fn is_strong(&self) -> bool {
+        self >= &Ssi::DbHz30_35
     }
     /// Returns true if `self` is a very strong signal level, very high quality
-    pub fn is_excellent(self) -> bool {
-        self > Ssi::DbHz42_47
+    pub fn is_excellent(&self) -> bool {
+        self > &Ssi::DbHz42_47
     }
     /// Returns true if `self` matches a strong signal level (defined by standard)
-    pub fn is_ok(self) -> bool {
+    pub fn is_ok(&self) -> bool {
         self.is_strong()
     }
 }
@@ -175,7 +175,7 @@ impl ObservationData {
     ///    + LLI must match the LliFlags::OkOrUnknown flag (strictly)    
     /// if SSI exists:    
     ///    + SSI must match the .is_ok() criteria, refer to API
-    pub fn is_ok(self) -> bool {
+    pub fn is_ok(&self) -> bool {
         let lli_ok = self.lli.unwrap_or(LliFlags::OK_OR_UNKNOWN) == LliFlags::OK_OR_UNKNOWN;
         let ssi_ok = self.ssi.unwrap_or(Ssi::default()).is_ok();
         lli_ok && ssi_ok
