@@ -1,16 +1,11 @@
 use pyo3::{exceptions::PyException, prelude::*};
 
 use crate::{
-    prelude::*,
-    observation::{
-        Crinex,
-        record::*,
-    },
-    header::{
-        MarkerType,
-    },
     hardware::*,
+    header::MarkerType,
     navigation::*,
+    observation::{record::*, Crinex},
+    prelude::*,
 };
 
 impl std::convert::From<Error> for PyErr {

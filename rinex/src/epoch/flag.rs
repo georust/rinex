@@ -13,7 +13,7 @@ pub enum Error {
 #[cfg(feature = "pyo3")]
 use pyo3::prelude::*;
 
-/// `EpochFlag` validates an epoch, 
+/// `EpochFlag` validates an epoch,
 /// or describes possible events that occurred
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]

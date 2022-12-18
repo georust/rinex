@@ -1,7 +1,7 @@
-use std::str::FromStr;
-use thiserror::Error;
 use bitflags::bitflags;
 use std::collections::{BTreeMap, HashMap};
+use std::str::FromStr;
+use thiserror::Error;
 
 use crate::{
     constellation, epoch, gnss_time::TimeScaling, merge, merge::Merge, prelude::*,
@@ -191,7 +191,7 @@ impl ObservationData {
     pub fn pr_real_distance(&self, rcvr_offset: f64, sv_offset: f64, biases: f64) -> f64 {
         self.obs + 299_792_458.0_f64 * (rcvr_offset - sv_offset) + biases
     }
-    
+
     #[cfg(feature = "pyo3")]
     #[getter]
     fn get_obs(&self) -> f64 {

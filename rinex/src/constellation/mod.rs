@@ -2,9 +2,9 @@
 use thiserror::Error;
 
 mod augmentation;
+pub use augmentation::Augmentation;
 #[cfg(feature = "pyo3")]
 use pyo3::prelude::*;
-pub use augmentation::Augmentation;
 
 #[cfg(feature = "sbas")]
 pub use augmentation::selection_helper;

@@ -67,7 +67,7 @@ impl std::fmt::Display for FrameClass {
     }
 }
 
-/// Navigation Message Types 
+/// Navigation Message Types
 #[cfg_attr(feature = "pyo3", pyclass)]
 #[derive(Debug, Copy, Clone, PartialEq, PartialOrd, Eq, Ord, EnumString)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]

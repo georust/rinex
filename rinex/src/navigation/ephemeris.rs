@@ -421,8 +421,7 @@ impl Ephemeris {
         Some((map_3d::rad2deg(elev), azim))
     }
 
-
-/// Parses ephemeris from given line iterator
+    /// Parses ephemeris from given line iterator
     pub fn parse_v2v3(
         version: Version,
         constellation: Constellation,

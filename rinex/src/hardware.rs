@@ -45,7 +45,7 @@ impl std::str::FromStr for Rcvr {
     }
 }
 
-/// Antenna description 
+/// Antenna description
 #[cfg_attr(feature = "pyo3", pyclass)]
 #[derive(Debug, Clone, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
