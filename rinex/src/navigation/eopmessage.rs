@@ -1,13 +1,13 @@
 //! `Navigation` new EOP Earth Orientation messages
 use crate::epoch;
-use thiserror::Error;
-use std::str::FromStr;
 use crate::prelude::*;
+use std::str::FromStr;
+use thiserror::Error;
 
 #[cfg(feature = "pyo3")]
 use pyo3::prelude::*;
 
-/// EopMessage Parsing error 
+/// EopMessage Parsing error
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("failed to parse epoch")]
@@ -20,7 +20,7 @@ pub enum Error {
     EopMissing3rdLine,
 }
 
-/// Earth Orientation Message 
+/// Earth Orientation Message
 /// ```
 /// use rinex::prelude::*;
 /// use rinex::navigation::*;
@@ -37,34 +37,32 @@ pub enum Error {
 ///                     .unwrap(); // you're fine at this point
 ///                 let (x, dxdt, ddxdt) = eop.x;
 ///                 let (y, dydt, ddydt) = eop.y;
-///                 let t_tm = eop.t_tm; 
-///                 let (u, dudt, ddudt) = eop.delta_ut1; 
+///                 let t_tm = eop.t_tm;
+///                 let (u, dudt, ddudt) = eop.delta_ut1;
 ///             }
 ///         }
 ///     }
 /// }
 /// ```
-#[derive(Debug, Clone)]
-#[derive(Default)]
-#[derive(PartialEq, PartialOrd)]
 #[cfg_attr(feature = "pyo3", pyclass)]
+#[derive(Debug, Clone, Default, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct EopMessage {
     /// ([arc-sec], [arc-sec.day⁻¹], [arc-sec.day⁻²])
-    pub x: (f64,f64,f64),
+    pub x: (f64, f64, f64),
     /// ([arc-sec], [arc-sec.day⁻¹], [arc-sec.day⁻²])
-    pub y: (f64,f64,f64),
+    pub y: (f64, f64, f64),
     /// Message transmmission time [s] of GNSS week
     pub t_tm: u32,
     /// Delta UT1 ([sec], [sec.day⁻¹], [-sec.day⁻²])
-    pub delta_ut1: (f64,f64,f64),
+    pub delta_ut1: (f64, f64, f64),
 }
 
 impl EopMessage {
-    pub (crate)fn parse(mut lines: std::str::Lines<'_>) -> Result<(Epoch, Self), Error> {
+    pub(crate) fn parse(mut lines: std::str::Lines<'_>) -> Result<(Epoch, Self), Error> {
         let line = match lines.next() {
             Some(l) => l,
-            _ => return Err(Error::EopMissing1stLine)
+            _ => return Err(Error::EopMissing1stLine),
         };
         let (epoch, rem) = line.split_at(23);
         let (xp, rem) = rem.split_at(19);
@@ -72,7 +70,7 @@ impl EopMessage {
 
         let line = match lines.next() {
             Some(l) => l,
-            _ => return Err(Error::EopMissing2ndLine)
+            _ => return Err(Error::EopMissing2ndLine),
         };
         let (_, rem) = line.split_at(23);
         let (yp, rem) = rem.split_at(19);
@@ -80,7 +78,7 @@ impl EopMessage {
 
         let line = match lines.next() {
             Some(l) => l,
-            _ => return Err(Error::EopMissing3rdLine)
+            _ => return Err(Error::EopMissing3rdLine),
         };
         let (t_tm, rem) = line.split_at(23);
         let (dut, rem) = rem.split_at(19);
@@ -105,11 +103,13 @@ impl EopMessage {
         );
 
         Ok((
-            epoch, Self {
+            epoch,
+            Self {
                 x,
                 y,
                 t_tm: t_tm as u32,
                 delta_ut1,
-            }))
+            },
+        ))
     }
 }

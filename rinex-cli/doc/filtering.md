@@ -1,9 +1,10 @@
-## RINEX filtering
+RINEX Data Filtering
+====================
 
 Two kinds of filtering operations:
 
-* conservative/focus with `--retain`
-* exclusive/filter out with `--filter`
+* conservative, with `--retain`
+* exclusive, with `--filter`
 
 For example this command will only retain data from specific vehicules
 

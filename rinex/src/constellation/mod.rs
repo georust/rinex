@@ -2,7 +2,6 @@
 use thiserror::Error;
 
 mod augmentation;
-    
 #[cfg(feature = "pyo3")]
 use pyo3::prelude::*;
 pub use augmentation::Augmentation;
@@ -11,22 +10,20 @@ pub use augmentation::Augmentation;
 pub use augmentation::selection_helper;
 
 #[cfg(feature = "serde")]
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 #[derive(Error, Debug, PartialEq)]
 /// Constellation parsing & identification related errors
 pub enum Error {
     #[error("code length mismatch, expecting {0} got {1}")]
-    CodeLengthMismatch(usize,usize),
+    CodeLengthMismatch(usize, usize),
     #[error("unknown constellation code \"{0}\"")]
     UnknownCode(String),
 }
 
 /// Describes all known `GNSS` constellations
 /// when manipulating `RINEX`
-#[derive(Clone, Copy, Debug)]
-#[derive(PartialEq, Eq)]
-#[derive(PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum Constellation {
     /// `GPS` american constellation,
@@ -42,17 +39,18 @@ pub enum Constellation {
     /// `Geo` : stationnary satellite,
     /// also serves as SBAS with unknown augmentation system
     Geo,
-    /// `SBAS` 
+    /// `SBAS`
     SBAS(Augmentation),
-    /// `IRNSS` constellation
+    /// `IRNSS` constellation,
+    /// now officially renamed "NavIC"
     IRNSS,
-    /// `Mixed` for Mixed constellations 
+    /// `Mixed` for Mixed constellations
     /// RINEX files description
     Mixed,
 }
 
 impl std::fmt::Display for Constellation {
-    fn fmt (&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         f.write_str(self.to_3_letter_code())
     }
 }
@@ -70,7 +68,7 @@ impl Constellation {
     /// This method is case insensitive though
     pub fn from_1_letter_code(code: &str) -> Result<Constellation, Error> {
         if code.len() != 1 {
-            return Err(Error::CodeLengthMismatch(1, code.len()))
+            return Err(Error::CodeLengthMismatch(1, code.len()));
         }
         if code.to_lowercase().eq("g") {
             Ok(Constellation::GPS)
@@ -103,14 +101,14 @@ impl Constellation {
             Constellation::QZSS => "J",
             Constellation::IRNSS => "I",
             Constellation::Mixed => "M",
-        } 
+        }
     }
     /// Identifies `gnss` constellation from given 3 letter code.    
     /// Given code should match official RINEX codes.    
     /// This method is case insensitive though
-    pub fn from_3_letter_code (code: &str) -> Result<Constellation, Error> {
+    pub fn from_3_letter_code(code: &str) -> Result<Constellation, Error> {
         if code.len() != 3 {
-            return Err(Error::CodeLengthMismatch(3, code.len()))
+            return Err(Error::CodeLengthMismatch(3, code.len()));
         }
         let code = code.to_lowercase();
         if code.eq("gps") {
@@ -132,7 +130,7 @@ impl Constellation {
         }
     }
     /// Converts self to 3 letter code (RINEX standard code)
-    pub fn to_3_letter_code (&self) -> &str {
+    pub fn to_3_letter_code(&self) -> &str {
         match self {
             Constellation::GPS => "GPS",
             Constellation::Glonass => "GLO",
@@ -142,11 +140,11 @@ impl Constellation {
             Constellation::QZSS => "QZS",
             Constellation::IRNSS => "IRN",
             Constellation::Mixed => "MIX",
-        } 
+        }
     }
     /// Identifies `gnss` constellation from given standard plain name,
     /// like "GPS", or "Galileo". This method is not case sensitive.
-    pub fn from_plain_name (code: &str) -> Result<Constellation, Error> {
+    pub fn from_plain_name(code: &str) -> Result<Constellation, Error> {
         let code = code.to_lowercase();
         if code.contains("gps") {
             Ok(Constellation::GPS)
@@ -178,7 +176,7 @@ impl std::str::FromStr for Constellation {
     /// Code should be standard constellation name,
     /// or official 1/3 letter RINEX code.    
     /// This method is case insensitive
-    fn from_str (code: &str) -> Result<Self, Self::Err> {
+    fn from_str(code: &str) -> Result<Self, Self::Err> {
         if code.len() == 3 {
             Ok(Constellation::from_3_letter_code(code)?)
         } else if code.len() == 1 {
@@ -198,19 +196,19 @@ mod tests {
         let c = Constellation::from_1_letter_code("G");
         assert_eq!(c.is_ok(), true);
         assert_eq!(c.unwrap(), Constellation::GPS);
-        
+
         let c = Constellation::from_1_letter_code("R");
         assert_eq!(c.is_ok(), true);
         assert_eq!(c.unwrap(), Constellation::Glonass);
-        
+
         let c = Constellation::from_1_letter_code("M");
         assert_eq!(c.is_ok(), true);
         assert_eq!(c.unwrap(), Constellation::Mixed);
-        
+
         let c = Constellation::from_1_letter_code("J");
         assert_eq!(c.is_ok(), true);
         assert_eq!(c.unwrap(), Constellation::QZSS);
-        
+
         let c = Constellation::from_1_letter_code("X");
         assert_eq!(c.is_err(), true);
     }

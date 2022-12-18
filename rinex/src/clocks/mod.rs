@@ -1,15 +1,10 @@
-//! RINEX Clock files parser & analysis 
+//! RINEX Clock files parser & analysis
 use hifitime::TimeScale;
 pub mod record;
-pub use record::{
-    Record, Error,
-	System, 
-    Data, DataType,
-};
+pub use record::{Data, DataType, Error, Record, System};
 
 /// Clocks `RINEX` specific header fields
-#[derive(Clone, Debug, Default)]
-#[derive(PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct HeaderFields {
     /// Types of observation in this file
@@ -22,37 +17,37 @@ pub struct HeaderFields {
     pub clock_ref: Option<String>,
     /// Timescale, can be a GNSS timescale, or UTC, TAI..
     /// also omitted for SBAS and COMPASS files
-    pub timescale: Option<TimeScale>, 
+    pub timescale: Option<TimeScale>,
 }
 
 impl HeaderFields {
     /// Sets Reference clock description
-    pub fn with_ref_clock (&self, clock: &str) -> Self {
+    pub fn with_ref_clock(&self, clock: &str) -> Self {
         let mut s = self.clone();
         s.clock_ref = Some(clock.to_string());
         s
     }
     /// Set reference station
-    pub fn with_ref_station (&self, station: Station) -> Self {
+    pub fn with_ref_station(&self, station: Station) -> Self {
         let mut s = self.clone();
         s.station = Some(station);
         s
     }
     /// Set timescale
-    pub fn with_timescale (&self, timescale: TimeScale) -> Self {
+    pub fn with_timescale(&self, timescale: TimeScale) -> Self {
         let mut s = self.clone();
         s.timescale = Some(timescale);
         s
     }
     /// Set production agency
-    pub fn with_agency (&self, agency: Agency) -> Self {
+    pub fn with_agency(&self, agency: Agency) -> Self {
         let mut s = self.clone();
         s.agency = Some(agency);
         s
     }
 }
 
-/// Describes a clock station 
+/// Describes a clock station
 #[derive(Clone, PartialEq, Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Station {

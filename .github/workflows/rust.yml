@@ -7,6 +7,7 @@ on:
     branches: [ main ]
 
 env:
+  RUST_BACKTRACE: 1
   CARGO_TERM_COLOR: always
 
 jobs:
@@ -14,14 +15,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - name: Dependencies
+    - name: Setup 
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        override: true
+        components: rustfmt, clippy 
+    - name: Install dependencies 
       run: |
         sudo apt-get update
-        sudo apt-get install libudev-dev libfontconfig1-dev
-        cargo install cargo-tarpaulin
+        sudo apt-get install -y libudev-dev
     - name: Build
       run: cargo build
+    - name: Test
+      run: cargo test -- --nocapture
     - name: Build (all features)
       run: cargo build --all-features
     - name: Test (all features)
       run: cargo test --all-features -- --nocapture
+    - name: Coding style
+      run: cargo fmt --all -- --check

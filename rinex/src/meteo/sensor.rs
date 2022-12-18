@@ -1,23 +1,22 @@
 //! Meteo sensor
-use thiserror::Error;
 use crate::meteo::observable::Observable;
+use thiserror::Error;
 
 /// Meteo Observation Sensor
-#[derive(Clone, Debug)]
-#[derive(PartialEq, PartialOrd)]
+#[derive(Clone, Debug, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Sensor {
-	/// Physics measured by this sensor
-	pub observable: Observable,
-	/// Model of this sensor
-	pub model: Option<String>,
-	/// Type of sensor
-	pub sensor_type: Option<String>,
-	/// Sensor accuracy [°C,..]
-	pub accuracy: Option<f32>,
+    /// Physics measured by this sensor
+    pub observable: Observable,
+    /// Model of this sensor
+    pub model: Option<String>,
+    /// Type of sensor
+    pub sensor_type: Option<String>,
+    /// Sensor accuracy [°C,..]
+    pub accuracy: Option<f32>,
     /// Posible sensor location (ECEF) and possible
     /// height eccentricity
-    pub position: Option<(f64,f64,f64,f64)>,
+    pub position: Option<(f64, f64, f64, f64)>,
 }
 
 #[derive(Error, Debug)]
@@ -31,7 +30,7 @@ pub enum ParseSensorError {
 impl Default for Sensor {
     fn default() -> Sensor {
         Sensor {
-            observable: Observable::default(), 
+            observable: Observable::default(),
             model: None,
             sensor_type: None,
             accuracy: None,
@@ -42,10 +41,10 @@ impl Default for Sensor {
 
 impl std::str::FromStr for Sensor {
     type Err = ParseSensorError;
-    fn from_str (content: &str) -> Result<Self, Self::Err> {
+    fn from_str(content: &str) -> Result<Self, Self::Err> {
         let (model, rem) = content.split_at(20);
-        let (s_type, rem) = rem.split_at(20 +6);
-        let (accuracy, rem) = rem.split_at(7 +4);
+        let (s_type, rem) = rem.split_at(20 + 6);
+        let (accuracy, rem) = rem.split_at(7 + 4);
         let (observable, _) = rem.split_at(2);
         Ok(Self {
             model: {
@@ -69,22 +68,22 @@ impl std::str::FromStr for Sensor {
                     None
                 }
             },
-            observable: Observable::from_str(observable.trim())?, 
+            observable: Observable::from_str(observable.trim())?,
             position: None,
         })
     }
 }
 
 impl std::fmt::Display for Sensor {
-    fn fmt (&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         if let Some(model) = &self.model {
-            write!(f, "{:<width$}", model, width=20)?
+            write!(f, "{:<width$}", model, width = 20)?
         } else {
             write!(f, "{:20}", "")?;
         }
-        
+
         if let Some(stype) = &self.sensor_type {
-            write!(f, "{:<width$}", stype, width=26)?;
+            write!(f, "{:<width$}", stype, width = 26)?;
         } else {
             write!(f, "{:26}", "")?;
         }
@@ -96,7 +95,7 @@ impl std::fmt::Display for Sensor {
         }
         write!(f, "{} SENSOR MOD/TYPE/ACC\n", self.observable)?;
 
-        if let Some((x,y,z,h)) = self.position {
+        if let Some((x, y, z, h)) = self.position {
             write!(f, "{:14.4}", x)?;
             write!(f, "{:14.4}", y)?;
             write!(f, "{:14.4}", z)?;
@@ -108,31 +107,30 @@ impl std::fmt::Display for Sensor {
 }
 
 impl Sensor {
-    pub fn new (observable: Observable) -> Self {
-        Self::default()
-            .with_observable(observable)
+    pub fn new(observable: Observable) -> Self {
+        Self::default().with_observable(observable)
     }
-    pub fn with_model (&self, model: &str) -> Self {
+    pub fn with_model(&self, model: &str) -> Self {
         let mut s = self.clone();
         s.model = Some(model.to_string());
         s
     }
-    pub fn with_type (&self, stype: &str) -> Self {
+    pub fn with_type(&self, stype: &str) -> Self {
         let mut s = self.clone();
         s.sensor_type = Some(stype.to_string());
         s
     }
-    pub fn with_observable (&self, observable: Observable) -> Self {
+    pub fn with_observable(&self, observable: Observable) -> Self {
         let mut s = self.clone();
         s.observable = observable;
         s
     }
-    pub fn with_position (&self, pos: (f64,f64,f64,f64)) -> Self {
+    pub fn with_position(&self, pos: (f64, f64, f64, f64)) -> Self {
         let mut s = self.clone();
         s.position = Some(pos);
         s
     }
-    pub fn with_accuracy (&self, accuracy: f32) -> Self {
+    pub fn with_accuracy(&self, accuracy: f32) -> Self {
         let mut s = self.clone();
         s.accuracy = Some(accuracy);
         s
@@ -146,18 +144,33 @@ mod test {
     #[test]
     fn to_str() {
         let s = Sensor::new(Observable::Temperature);
-        assert_eq!(s.to_string(), "                                                         TD SENSOR MOD/TYPE/ACC\n");
+        assert_eq!(
+            s.to_string(),
+            "                                                         TD SENSOR MOD/TYPE/ACC\n"
+        );
         let s = s.with_model("PAROSCIENTIFIC");
-        assert_eq!(s.to_string(), "PAROSCIENTIFIC                                           TD SENSOR MOD/TYPE/ACC\n");
+        assert_eq!(
+            s.to_string(),
+            "PAROSCIENTIFIC                                           TD SENSOR MOD/TYPE/ACC\n"
+        );
         let s = s.with_observable(Observable::Pressure);
-        let s = s.with_type("740-16B"); 
-        assert_eq!(s.to_string(), "PAROSCIENTIFIC      740-16B                              PR SENSOR MOD/TYPE/ACC\n");
+        let s = s.with_type("740-16B");
+        assert_eq!(
+            s.to_string(),
+            "PAROSCIENTIFIC      740-16B                              PR SENSOR MOD/TYPE/ACC\n"
+        );
         let s = s.with_accuracy(0.2);
-        assert_eq!(s.to_string(), "PAROSCIENTIFIC      740-16B                       0.2    PR SENSOR MOD/TYPE/ACC\n");
-        
+        assert_eq!(
+            s.to_string(),
+            "PAROSCIENTIFIC      740-16B                       0.2    PR SENSOR MOD/TYPE/ACC\n"
+        );
+
         let s = s.with_position((0.0, 0.0, 0.0, 1234.5678));
-        assert_eq!(s.to_string(), "PAROSCIENTIFIC      740-16B                       0.2    PR SENSOR MOD/TYPE/ACC
-        0.0000        0.0000        0.0000     1234.5678 PR SENSOR POS XYZ/H\n");
+        assert_eq!(
+            s.to_string(),
+            "PAROSCIENTIFIC      740-16B                       0.2    PR SENSOR MOD/TYPE/ACC
+        0.0000        0.0000        0.0000     1234.5678 PR SENSOR POS XYZ/H\n"
+        );
     }
     #[test]
     fn from_str() {
@@ -169,9 +182,13 @@ mod test {
         assert_eq!(s.accuracy, Some(0.0));
         assert_eq!(s.observable, Observable::Pressure);
 
-        let s = Sensor::from_str("PAROSCIENTIFIC      740-16B                       0.2    PR SENSOR MOD/TYPE/ACC");
+        let s = Sensor::from_str(
+            "PAROSCIENTIFIC      740-16B                       0.2    PR SENSOR MOD/TYPE/ACC",
+        );
         assert_eq!(s.is_ok(), true);
-        let s = Sensor::from_str("                                                  0.0    PR SENSOR MOD/TYPE/ACC");
+        let s = Sensor::from_str(
+            "                                                  0.0    PR SENSOR MOD/TYPE/ACC",
+        );
         assert_eq!(s.is_ok(), true);
     }
 }

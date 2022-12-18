@@ -11,11 +11,16 @@ edition = "2021"
 readme = "README.md"
 
 [dependencies]
-serde_json = "1"
+log = "0.4"
+pretty_env_logger = "0.4"
 clap = { version = "4", features = ["derive", "color"] }
+rand = "0.8"
+serde_json = "1"
 rinex = { path = "../rinex", features = ["serde", "flate2", "sbas"] }
 thiserror = "1"
 itertools = "0.10"
-# plotters requires "libfreetype6-dev libfontconfig1-dev" on host
-plotters  = "0.3"
-colorous = "1"
+plotly =  "0.8.3"
+map_3d = "0.1.5"
+ndarray = "0.15"
+colorous = "1.0"
+horrorshow = "0.8"

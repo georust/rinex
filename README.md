@@ -15,7 +15,7 @@ Rust tool suites to parse, analyze and process `RINEX` files
 
 * [`rinex-cli`](rinex-cli/) is a command line application based on the core library.  
 It can be used to process RINEX files or perform operations similar to `teqc`.   
-The application is auto-generated for Windows, download it from the 
+The application is auto-generated for a few architectures, download it from the 
 [release portal](https://github.com/gwbres/rinex/releases)
 
 * [`rnx2crx`](rnx2crx/) is a RINEX compression program 
@@ -41,20 +41,20 @@ Refer to the [python package](doc/python.md) to understand how to build the pyth
 
 | Type                       | Parser            | Writer              |  CLI                 | UBX                  |           Notes          |
 |----------------------------|-------------------|---------------------|----------------------|-------------------|-------------------------
-| Navigation  (NAV)          | :heavy_check_mark:| :construction: |  :heavy_check_mark:  | :construction:       | Epoch iteration |
+| Navigation  (NAV)          | :heavy_check_mark:| Ephemeris :construction: V4 :construction: |  :heavy_check_mark: :chart_with_upwards_trend:  | :construction:       | Epoch iteration |
 | Observation (OBS)          | :heavy_check_mark:| :heavy_check_mark: | :heavy_check_mark:  :chart_with_upwards_trend: |  :construction:  | Epoch iteration |
-|  CRINEX  (Compressed OBS)  | :heavy_check_mark:| :construction:  | :heavy_check_mark:  :chart_with_upwards_trend:  |  :construction:    | Epoch iteration |
+|  CRINEX  (Compressed OBS)  | :heavy_check_mark:| RNX2CRX1 :heavy_check_mark: RNX2CRX3 :construction:  | :heavy_check_mark:  :chart_with_upwards_trend:  |  :construction:    | Epoch iteration |
 |  Meteorological data (MET) | :heavy_check_mark:| :heavy_check_mark:  | :heavy_check_mark: :chart_with_upwards_trend:  | :construction:  | Epoch iteration |  
-|  Clocks (CLK)              | :heavy_check_mark:| :construction:      | :question:           |:construction: | Epoch iteration |
-|  Antenna (ATX)             | :heavy_check_mark:| :construction:      | :heavy_minus_sign:   |:construction: | Sorted by `antex::Antenna` |
-|  Ionosphere Maps  (IONEX)  | :heavy_check_mark:|  :construction:     | :question:           |:construction: | Epoch iteration |
+|  Clocks (CLK)              | :heavy_check_mark:| :construction:      | :construction:   |:construction: | Epoch iteration |
+|  Antenna (ATX)             | :heavy_check_mark:| :construction:      | :construction:   |:construction: | Sorted by `antex::Antenna` |
+|  Ionosphere Maps  (IONEX)  | :heavy_check_mark:|  :construction:     | :heavy_check_mark:  :chart_with_upwards_trend: |:construction: | Epoch iteration |
 |  SINEX  (SNX)              | :construction:    |  :construction:     | :heavy_minus_sign:   |:construction: | SINEX are special RINEX, they are managed by a dedicated [core library](sinex/)  |
 |  Troposphere  (TRO)        | :construction:    |  :construction:     | :question:           |:construction: | Troposphere are one possible SINEX declination |
 |  Bias  (BIA)               | :heavy_check_mark: |  :construction:    | :question:           |:construction: | Bias solutions are one possible SINEX declination |
 
 :heavy_check_mark: means all revisions supported   
 :construction: under development   
-:chart_with_upwards_trend: means graphical RINEX Record analysis is possible, [README](rinex-cli/README.md)
+__CLI__ + :chart_with_upwards_trend: means record analysis is supported by the CLI, [README](rinex-cli/README.md)
 
 ## File formats
 
@@ -67,6 +67,15 @@ Refer to the [python package](doc/python.md) to understand how to build the pyth
 | `.Z` | :heavy_minus_sign:  | :x: |
 
 :heavy_minus_sign: No restrictions: file names do not have to follow naming conventions.  
+
+## Known weaknesses :warning:
+
+- For old files generated prior January 01 2000:
+if year is encoded on two digits, they get falsely shifted into the 21st century.
+For instance, "95" becomes "2095". Other than that, data is correctly parsed.
+
+- Glonass Time Scale is not known to this day.
+We cannot parse and apply system time corrections from other time scales into the glonass time scale.
 
 ## Record
 
@@ -100,7 +109,7 @@ Add Python bindings via `PyO3`. To build the Python package, you must first inst
 
 ## `rinex-cli` benchmark
 
-Parsing and `--sv` enumeration requested with `rinex-cli`
+Light operation: `--sv` enumeration
 
 File           |  RINEX 0.6 `debug`  | RINEX 0.7 `debug` | RINEX 0.7 `--release`        |
 ---------------|---------------------|-------------------|------------------------------|
@@ -109,7 +118,14 @@ ESBC00DNK.gz   |  26s                | 14s               | 2s                   
 MOJN00DNK      |  28s                | 13s               | 2s                           |
 MOJN00DNK.gz   |  28s                | 13s               | 2s                           |
 
-Always compile rust code with the `--release` flag :+1: 
+Heavy computations: observation `--dcb` + `--gf` + record analysis 
+
+File           |  RINEX 0.8 `--release`  |
+---------------|-------------------------|
+ESBC00DNK      |    x                     |
+ESBC00DNK.gz   |    x                    |
+MOJN00DNK      |    x                    |
+MOJN00DNK.gz   |    x                    |
 
 ## Contributions
 

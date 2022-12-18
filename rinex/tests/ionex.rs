@@ -1,14 +1,13 @@
 #[cfg(test)]
 mod test {
-    use rinex::ionex::*;
     use rinex::epoch::*;
+    use rinex::ionex::*;
     use rinex::prelude::*;
     use std::str::FromStr;
     #[test]
     fn v1_ckmg0020_22i() {
-        let test_resource = 
-            env!("CARGO_MANIFEST_DIR").to_owned() 
-            + "/../test_resources/IONEX/V1/CKMG0020.22I.gz";
+        let test_resource =
+            env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/IONEX/V1/CKMG0020.22I.gz";
         let rinex = Rinex::from_file(&test_resource);
         assert_eq!(rinex.is_ok(), true);
         let rinex = rinex.unwrap();
@@ -17,10 +16,7 @@ mod test {
         assert_eq!(header.version.major, 1);
         assert_eq!(header.version.minor, 0);
         assert_eq!(header.ionex.is_some(), true);
-        let header = header
-            .ionex
-            .as_ref()
-            .unwrap();
+        let header = header.ionex.as_ref().unwrap();
         let grid = header.grid.clone();
         assert_eq!(grid.height.start, 350.0);
         assert_eq!(grid.height.end, 350.0);
@@ -40,7 +36,7 @@ mod test {
         assert_eq!(record.is_some(), true);
         let record = record.unwrap();
         assert_eq!(record.len(), 25);
-        
+
         // test: this is a 2D IONEX
         for (_, (_, rms, h)) in record {
             assert_eq!(h.is_none(), true);

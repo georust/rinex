@@ -40,13 +40,20 @@ same combinations on both Wl/Nl sides
 
 - [ ] CLI
   - [ ] time binning, TEQC op
-  - [ ] improve vehicle color map (sv identification)
-  - [ ] improve time axis by converting to a proper date axis
+  - [ ] improve vehicle color map (sv identification).
+  PRN close to one another (like G08 and G09) produce a color too close
+  to one another. It becomes hard to tell who is who.
+  We simply need a broader color space
+  - [ ] improve time axis rendering by converting to a range of date
+  - [ ] When Observation + Navigation context is combined,
+  it would be useful to add the Elevation angles against observation plots.
+  To do this, we need to enable a secondary Y axis, scale to encountered elevation angles.
+  - [ ] When Observations came with receiver clock offsets,
+  it would be nice to evaluate its drift like we do in `--qc` mode, 
+  and plot it.
   - [ ] emphasize Observation EpochFlags and external events,
-  with like a plot annotation or something like that
-  - [ ] progress towards quality check 
-  - [ ] conclude the `teqc` mini ascii plot 
-  - [ ] `teqc` like verbose / analysis report ? 
+  with like a plot annotations or something like that
+  - [ ] progress towards quality check `--qc`
   - [ ] Find an efficient method to customize header fields
 - [ ]  Data production
   - [ ] provide some interface to efficiently customize the Header section

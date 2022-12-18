@@ -5,11 +5,11 @@ use crate::bias;
 #[derive(Debug, Clone)]
 pub enum Description {
     BiasDescription(bias::description::Description),
-//    TropoDescription(troposphere::description::Description),
+    //    TropoDescription(troposphere::description::Description),
 }
 
 impl Description {
-    pub fn bias_description (&self) -> Option<&bias::description::Description> {
+    pub fn bias_description(&self) -> Option<&bias::description::Description> {
         match self {
             Self::BiasDescription(d) => Some(d),
         }

@@ -2,10 +2,7 @@
 use strum_macros::EnumString;
 
 /// Meteo Observables
-#[derive(Debug, Clone)]
-#[derive(PartialEq, PartialOrd)]
-#[derive(Hash, Eq)]
-#[derive(EnumString)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, EnumString)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum Observable {
     /// Pressure observation in [mbar]
@@ -26,10 +23,10 @@ pub enum Observable {
     /// Total zenith path delay (dry + wet), in [mm]
     #[strum(serialize = "ZT")]
     ZenithTotalDelay,
-    /// Wind azimuth, from where the wind blows, in [°] 
+    /// Wind azimuth, from where the wind blows, in [°]
     #[strum(serialize = "WD")]
     WindAzimuth,
-    /// Wind speed, in [m.s^-1] 
+    /// Wind speed, in [m.s^-1]
     #[strum(serialize = "WS")]
     WindSpeed,
     /// Rain Increment, i.e., rain accumulation
@@ -49,7 +46,7 @@ impl Default for Observable {
 }
 
 impl std::fmt::Display for Observable {
-    fn fmt (&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             Self::Pressure => "PR".fmt(f),
             Self::Temperature => "TD".fmt(f),
@@ -75,14 +72,14 @@ mod test {
         assert_eq!(obs.is_ok(), true);
         let obs = obs.unwrap();
         assert_eq!(obs, Observable::Pressure);
-        assert_eq!(obs.to_string(), "PR"); 
-        
+        assert_eq!(obs.to_string(), "PR");
+
         let obs = Observable::from_str("WS");
         assert_eq!(obs.is_ok(), true);
         let obs = obs.unwrap();
         assert_eq!(obs, Observable::WindSpeed);
-        assert_eq!(obs.to_string(), "WS"); 
-        
+        assert_eq!(obs.to_string(), "WS");
+
         let obs = Observable::from_str("Wa");
         assert_eq!(obs.is_ok(), false);
     }

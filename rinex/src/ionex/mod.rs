@@ -1,18 +1,12 @@
 use super::Sv;
-use strum_macros::EnumString;
 use std::collections::HashMap;
+use strum_macros::EnumString;
 
 pub mod record;
-pub use record::{
-    Record,
-    Map,
-};
+pub use record::{Map, Record};
 
 pub mod grid;
-pub use grid::{
-    Grid,
-    GridLinspace,
-};
+pub use grid::{Grid, GridLinspace};
 
 pub mod system;
 pub use system::RefSystem;
@@ -20,9 +14,7 @@ pub use system::RefSystem;
 #[cfg(feature = "serde")]
 use serde::Serialize;
 
-#[derive(Debug, Clone)]
-#[derive(PartialEq, PartialOrd)]
-#[derive(EnumString)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, EnumString)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 /// Mapping function used in when determining this IONEX
 pub enum MappingFunction {
@@ -35,10 +27,7 @@ pub enum MappingFunction {
 }
 
 /// Possible source of DCBs
-#[derive(Debug, Clone)]
-#[derive(PartialEq, PartialOrd)]
-#[derive(Hash, Eq)]
-#[derive(EnumString)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, EnumString)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum BiasSource {
     /// Referenced against a given vehicule
@@ -48,21 +37,20 @@ pub enum BiasSource {
 }
 
 /// `IONEX` specific header fields
-#[derive(Debug, Clone)]
-#[derive(PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct HeaderFields {
     /// Reference system used for following TEC maps,
     /// cf. [system::RefSystem].
     pub reference: RefSystem,
     /// It is highly recommended to give a brief description
-    /// of the technique, model.. description is not a 
+    /// of the technique, model.. description is not a
     /// general purpose comment
     pub description: Option<String>,
     /// Mapping function adopted for TEC determination,
     /// if None: No mapping function, e.g altimetry
     pub mapping: Option<MappingFunction>,
-    /// Maps dimension, can either be a 2D (= fixed altitude mode), or 3D 
+    /// Maps dimension, can either be a 2D (= fixed altitude mode), or 3D
     pub map_dimension: u8,
     /// Mean earth radius or bottom of height grid, in km.
     pub base_radius: f32,
@@ -81,14 +69,14 @@ pub struct HeaderFields {
     pub exponent: i8,
     /// Differential Code Biases (DBCs),
     /// per Vehicule #PRN, (Bias and RMS bias) values.
-    pub dcbs: HashMap<BiasSource, (f64,f64)>,
+    pub dcbs: HashMap<BiasSource, (f64, f64)>,
 }
 
 impl Default for HeaderFields {
     fn default() -> Self {
         Self {
             reference: RefSystem::default(),
-            exponent: -1, // very important: allows missing EXPONENT fields
+            exponent: -1,     // very important: allows missing EXPONENT fields
             map_dimension: 2, // 2D map by default
             mapping: None,
             observables: None,
@@ -147,7 +135,7 @@ impl HeaderFields {
     }
     /// Returns true if this Ionosphere Maps describes
     /// a theoretical model, not measured data
-    pub fn is_theoretical_model (&self) -> bool {
+    pub fn is_theoretical_model(&self) -> bool {
         self.observables.is_some()
     }
     /// Copies self and set Nb of stations
@@ -188,12 +176,12 @@ impl HeaderFields {
     /// Adds altitude grid definition
     pub fn with_altitude_grid(&self, grid: GridLinspace) -> Self {
         let mut s = self.clone();
-        s.grid.height = grid; 
+        s.grid.height = grid;
         s
     }
     /// Copies & sets Diffenretial Code Bias estimates
     /// for given vehicule
-    pub fn with_dcb(&self, src: BiasSource, value: (f64,f64)) -> Self {
+    pub fn with_dcb(&self, src: BiasSource, value: (f64, f64)) -> Self {
         let mut s = self.clone();
         s.dcbs.insert(src, value);
         s

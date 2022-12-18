@@ -1,39 +1,28 @@
-use thiserror::Error;
-use std::str::FromStr;
 use hifitime::Duration;
+use std::str::FromStr;
+use thiserror::Error;
 
-use super::{
-	Frequency, 
-    Pattern,
-	Antenna, 
-    Calibration, 
-    CalibrationMethod,
-};
+use super::{Antenna, Calibration, CalibrationMethod, Frequency, Pattern};
 
-use crate::{
-    Epoch,
-    channel,
-    merge, merge::Merge,
-    sampling::Decimation,
-};
+use crate::{carrier, merge, merge::Merge, sampling::Decimation, Epoch};
 
-/// Returns true if this line matches 
+/// Returns true if this line matches
 /// the beginning of a `epoch` for ATX file (special files),
 /// this is not really an epoch but rather a group of dataset
 /// for this given antenna, there is no sampling data attached to it.
-pub (crate)fn is_new_epoch (content: &str) -> bool {
+pub(crate) fn is_new_epoch(content: &str) -> bool {
     content.contains("START OF ANTENNA")
 }
 
 /// ANTEX RINEX record content.
 /// Data is a list of Antenna containing several [Frequency] items.
-/// We do not parse RMS frequencies at the moment, but it will 
+/// We do not parse RMS frequencies at the moment, but it will
 /// easily be unlocked in near future.
 /*TODO
 /// Record browsing example:
 /// ```
 /// // grab ATX RINEX
-/// 
+///
 /// // grab record
 /// let record = record.as_antex()
 ///    .unwrap();
@@ -71,13 +60,13 @@ pub type Record = Vec<(Antenna, Vec<Frequency>)>;
 pub enum Error {
     #[error("Unknown PCV \"{0}\"")]
     UnknownPcv(String),
-    #[error("Failed to parse frequency channel")]
-    ParseChannelError(#[from] channel::Error),
+    #[error("Failed to parse carrier frequency")]
+    ParseCarrierError(#[from] carrier::Error),
 }
 
 /// Parses entire Antenna block
 /// and all inner frequency entries
-pub (crate)fn parse_epoch (content: &str) -> Result<(Antenna, Vec<Frequency>), Error> {
+pub(crate) fn parse_epoch(content: &str) -> Result<(Antenna, Vec<Frequency>), Error> {
     let lines = content.lines();
     let mut antenna = Antenna::default();
     let mut frequency = Frequency::default();
@@ -86,24 +75,22 @@ pub (crate)fn parse_epoch (content: &str) -> Result<(Antenna, Vec<Frequency>), E
         let (content, marker) = line.split_at(60);
         if marker.contains("START OF ANTENNA") {
             antenna = Antenna::default(); // pointless
-                // because we're parsing a single START OF antenna block
-                // but it helps the else {} condition
-                // at the very bottom, where we consider to be
-                // in the Frequency payload
+                                          // because we're parsing a single START OF antenna block
+                                          // but it helps the else {} condition
+                                          // at the very bottom, where we consider to be
+                                          // in the Frequency payload
         } else if marker.contains("# OF FREQUENCIES") {
-            continue // we don't care about this information,
-                // because it can be retrieved with
-                // an record.antenna.len() ;)
+            continue; // we don't care about this information,
+                      // because it can be retrieved with
+                      // an record.antenna.len() ;)
         } else if marker.contains("END OF ANTENNA") {
-            break // end of this block, considered as an `epoch`
-                // if we make a parallel with other types of RINEX 
-
+            break; // end of this block, considered as an `epoch`
+                   // if we make a parallel with other types of RINEX
         } else if marker.contains("TYPE / SERIAL NO") {
             let (ant_type, rem) = content.split_at(17);
             let (sn, _) = rem.split_at(20);
             antenna = antenna.with_type(ant_type.trim());
             antenna = antenna.with_serial_num(sn.trim())
-        
         } else if marker.contains("METH / BY / # / DATE") {
             let (method, rem) = content.split_at(20);
             let (agency, rem) = rem.split_at(20);
@@ -115,7 +102,6 @@ pub (crate)fn parse_epoch (content: &str) -> Result<(Antenna, Vec<Frequency>), E
                 date: date.trim().to_string(),
             };
             antenna = antenna.with_calibration(cal)
-        
         } else if marker.contains("DAZI") {
             let dazi = content.split_at(20).0.trim();
             if let Ok(dazi) = f64::from_str(dazi) {
@@ -132,28 +118,22 @@ pub (crate)fn parse_epoch (content: &str) -> Result<(Antenna, Vec<Frequency>), E
                     }
                 }
             }
-
         } else if marker.contains("VALID FROM") {
             if let Ok(epoch) = Epoch::from_str(content.trim()) {
                 antenna = antenna.with_valid_from(epoch)
             }
-
         } else if marker.contains("VALID UNTIL") {
             if let Ok(epoch) = Epoch::from_str(content.trim()) {
                 antenna = antenna.with_valid_until(epoch)
             }
-
         } else if marker.contains("SINEX CODE") {
             let sinex = content.split_at(10).0;
             antenna = antenna.with_sinex_code(sinex.trim())
-
         } else if marker.contains("START OF FREQUENCY") {
             let svnn = content.split_at(10).0;
-            let channel = channel::Channel::from_sv_code(svnn.trim())?;
-            frequency = Frequency::default()
-                .with_channel(channel);
-        
-        } else if marker.contains("NORTH / EAST / UP") { 
+            let carrier = carrier::Carrier::from_sv_code(svnn.trim())?;
+            frequency = Frequency::default().with_carrier(carrier);
+        } else if marker.contains("NORTH / EAST / UP") {
             let (north, rem) = content.split_at(10);
             let (east, rem) = rem.split_at(10);
             let (up, _) = rem.split_at(10);
@@ -167,14 +147,13 @@ pub (crate)fn parse_epoch (content: &str) -> Result<(Antenna, Vec<Frequency>), E
                     }
                 }
             }
-
         } else if marker.contains("END OF FREQUENCY") {
             frequencies.push(frequency.clone())
-        
-        } else { // Inside frequency
+        } else {
+            // Inside frequency
             // Determine type of pattern
             let (content, rem) = line.split_at(8);
-            let values :Vec<f64> = rem
+            let values: Vec<f64> = rem
                 .split_ascii_whitespace()
                 .map(|item| {
                     if let Ok(f) = f64::from_str(item.trim()) {
@@ -185,12 +164,11 @@ pub (crate)fn parse_epoch (content: &str) -> Result<(Antenna, Vec<Frequency>), E
                 })
                 .collect();
             if line.contains("NOAZI") {
-                frequency = frequency.add_pattern(
-                    Pattern::NonAzimuthDependent(values.clone()))
+                frequency = frequency.add_pattern(Pattern::NonAzimuthDependent(values.clone()))
             } else {
                 let angle = f64::from_str(content.trim()).unwrap();
-                frequency = frequency.add_pattern(
-                    Pattern::AzimuthDependent((angle, values.clone())))
+                frequency =
+                    frequency.add_pattern(Pattern::AzimuthDependent((angle, values.clone())))
             }
         }
     }
@@ -198,20 +176,22 @@ pub (crate)fn parse_epoch (content: &str) -> Result<(Antenna, Vec<Frequency>), E
     Ok((antenna, frequencies))
 }
 
-
 #[cfg(test)]
 mod test {
     use super::*;
     #[test]
     fn test_new_epoch() {
-         let content = "                                                           START OF ANTENNA";
-         assert_eq!(is_new_epoch(content), true);
-         let content = "TROSAR25.R4      LEIT727259                                 TYPE / SERIAL NO";
-         assert_eq!(is_new_epoch(content), false);
-         let content = "    26                                                      # OF FREQUENCIES";
-         assert_eq!(is_new_epoch(content), false);
-         let content = "   G01                                                      START OF FREQUENCY";
-         assert_eq!(is_new_epoch(content), false);
+        let content = "                                                           START OF ANTENNA";
+        assert_eq!(is_new_epoch(content), true);
+        let content =
+            "TROSAR25.R4      LEIT727259                                 TYPE / SERIAL NO";
+        assert_eq!(is_new_epoch(content), false);
+        let content =
+            "    26                                                      # OF FREQUENCIES";
+        assert_eq!(is_new_epoch(content), false);
+        let content =
+            "   G01                                                      START OF FREQUENCY";
+        assert_eq!(is_new_epoch(content), false);
     }
 }
 
@@ -228,7 +208,8 @@ impl Merge<Record> for Record {
             if self.contains(antenna) {
                 let (antenna, frequencies) = antenna;
                 for (aantenna, ffrequencies) in self.iter_mut() {
-                    if antenna == aantenna { // for this antenna
+                    if antenna == aantenna {
+                        // for this antenna
                         // add missing frequencies
                         for frequency in frequencies {
                             if !ffrequencies.contains(frequency) {

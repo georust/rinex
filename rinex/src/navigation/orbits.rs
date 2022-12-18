@@ -2,59 +2,58 @@
 //! and constellations
 use crate::version;
 //use std::fmt::Display;
-use thiserror::Error;
-use std::str::FromStr;
+use super::health;
+use crate::constellation::Constellation;
 use bitflags::bitflags;
 use itertools::Itertools;
-use crate::constellation::Constellation;
-use super::{health};
+use std::str::FromStr;
+use thiserror::Error;
 
-include!(concat!(env!("OUT_DIR"),"/nav_orbits.rs"));
+include!(concat!(env!("OUT_DIR"), "/nav_orbits.rs"));
 
 bitflags! {
     #[derive(Default)]
     #[cfg_attr(feature = "serde", derive(Serialize))]
-	pub struct GloStatus: u32 {
-		const GROUND_GPS_ONBOARD_OFFSET = 0x01;
-		const ONBOARD_GPS_GROUND_OFFSET = 0x02;
-		const ONBOARD_OFFSET = 0x03;
-		const HALF_HOUR_VALIDITY = 0x04;
-		const THREE_QUARTER_HOUR_VALIDITY = 0x06;
-		const ONE_HOUR_VALIDITY = 0x07;
-		const ODD_TIME_INTERVAL = 0x08;
-		const SAT5_ALMANAC = 0x10;
-		const DATA_UPDATED = 0x20;
-		const MK = 0x40;
-	}
+    pub struct GloStatus: u32 {
+        const GROUND_GPS_ONBOARD_OFFSET = 0x01;
+        const ONBOARD_GPS_GROUND_OFFSET = 0x02;
+        const ONBOARD_OFFSET = 0x03;
+        const HALF_HOUR_VALIDITY = 0x04;
+        const THREE_QUARTER_HOUR_VALIDITY = 0x06;
+        const ONE_HOUR_VALIDITY = 0x07;
+        const ODD_TIME_INTERVAL = 0x08;
+        const SAT5_ALMANAC = 0x10;
+        const DATA_UPDATED = 0x20;
+        const MK = 0x40;
+    }
 }
 
 /// `OrbitItem` item is Navigation ephemeris entry.
 /// It is a complex data wrapper, for high level
-/// record description, across all revisions and constellations 
-#[derive(Debug, Clone)]
-#[derive(PartialEq, PartialOrd)]
+/// record description, across all revisions and constellations
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum OrbitItem {
-	/// unsigned byte
+    /// unsigned byte
     U8(u8),
-	/// signed byte
-	I8(i8),
-	/// single precision data
+    /// signed byte
+    I8(i8),
+    /// single precision data
     F32(f32),
-	/// double precision data
+    /// double precision data
     F64(f64),
-	/// GPS/QZSS orbit/sv health indication
-	Health(health::Health),
-	/// GLO orbit/sv health indication
-	GloHealth(health::GloHealth),
-	/// GLO NAV4 Orbit7 status mask
-	GloStatus(GloStatus),
-	/// GEO/SBAS orbit/sv health indication
-	GeoHealth(health::GeoHealth),
-	/// GAL orbit/sv health indication
-	GalHealth(health::GalHealth),
-	/// IRNSS orbit/sv health indication
-	IrnssHealth(health::IrnssHealth),
+    /// GPS/QZSS orbit/sv health indication
+    Health(health::Health),
+    /// GLO orbit/sv health indication
+    GloHealth(health::GloHealth),
+    /// GLO NAV4 Orbit7 status mask
+    GloStatus(GloStatus),
+    /// GEO/SBAS orbit/sv health indication
+    GeoHealth(health::GeoHealth),
+    /// GAL orbit/sv health indication
+    GalHealth(health::GalHealth),
+    /// IRNSS orbit/sv health indication
+    IrnssHealth(health::IrnssHealth),
 }
 
 /// `OrbitItem` related errors
@@ -70,171 +69,178 @@ pub enum OrbitItemError {
 
 impl OrbitItem {
     /// Builds a `OrbitItem` from type descriptor and string content
-    pub fn new (type_desc: &str, content: &str, constellation: Constellation) -> Result<OrbitItem, OrbitItemError> {
+    pub fn new(
+        type_desc: &str,
+        content: &str,
+        constellation: Constellation,
+    ) -> Result<OrbitItem, OrbitItemError> {
         match type_desc {
             "u8" => {
-				// float->unsigned conversion
-				let float = f64::from_str(&content.replace("D","e"))?;
-				Ok(OrbitItem::U8(float as u8))
-			},
+                // float->unsigned conversion
+                let float = f64::from_str(&content.replace("D", "e"))?;
+                Ok(OrbitItem::U8(float as u8))
+            },
             "i8" => {
-				// float->signed conversion
-				let float = f64::from_str(&content.replace("D","e"))?;
-				Ok(OrbitItem::I8(float as i8))
-			},
-            "f32" => Ok(OrbitItem::F32(f32::from_str(&content.replace("D","e"))?)),
-            "f64" => Ok(OrbitItem::F64(f64::from_str(&content.replace("D","e"))?)),
-			"gloStatus" => {
-				// float->unsigned conversion
-				let float = f64::from_str(&content.replace("D","e"))?;
-				let unsigned = float as u32;
-				let status = GloStatus::from_bits(unsigned)
-					.unwrap_or(GloStatus::empty());
-				Ok(OrbitItem::GloStatus(status))
-			},
-			"health" => {
-				// float->unsigned conversion
-				let float = f64::from_str(&content.replace("D","e"))?;
-				let unsigned = float as u32;
-				match constellation {
-					Constellation::GPS | Constellation::QZSS => { 
-						let flag: health::Health = num::FromPrimitive::from_u32(unsigned)
-							.unwrap_or(health::Health::default());
-						Ok(OrbitItem::Health(flag))
-					},
-					Constellation::Glonass => {
-						let flag: health::GloHealth = num::FromPrimitive::from_u32(unsigned)
-							.unwrap_or(health::GloHealth::default());
-						Ok(OrbitItem::GloHealth(flag))
-					},
-					Constellation::Galileo => {
+                // float->signed conversion
+                let float = f64::from_str(&content.replace("D", "e"))?;
+                Ok(OrbitItem::I8(float as i8))
+            },
+            "f32" => Ok(OrbitItem::F32(f32::from_str(&content.replace("D", "e"))?)),
+            "f64" => Ok(OrbitItem::F64(f64::from_str(&content.replace("D", "e"))?)),
+            "gloStatus" => {
+                // float->unsigned conversion
+                let float = f64::from_str(&content.replace("D", "e"))?;
+                let unsigned = float as u32;
+                let status = GloStatus::from_bits(unsigned).unwrap_or(GloStatus::empty());
+                Ok(OrbitItem::GloStatus(status))
+            },
+            "health" => {
+                // float->unsigned conversion
+                let float = f64::from_str(&content.replace("D", "e"))?;
+                let unsigned = float as u32;
+                match constellation {
+                    Constellation::GPS | Constellation::QZSS => {
+                        let flag: health::Health = num::FromPrimitive::from_u32(unsigned)
+                            .unwrap_or(health::Health::default());
+                        Ok(OrbitItem::Health(flag))
+                    },
+                    Constellation::Glonass => {
+                        let flag: health::GloHealth = num::FromPrimitive::from_u32(unsigned)
+                            .unwrap_or(health::GloHealth::default());
+                        Ok(OrbitItem::GloHealth(flag))
+                    },
+                    Constellation::Galileo => {
                         let flags = health::GalHealth::from_bits(unsigned as u8)
                             .unwrap_or(health::GalHealth::empty());
                         Ok(OrbitItem::GalHealth(flags))
                     },
-					Constellation::SBAS(_) | Constellation::Geo => {
-						let flag: health::GeoHealth = num::FromPrimitive::from_u32(unsigned)
-							.unwrap_or(health::GeoHealth::default());
-						Ok(OrbitItem::GeoHealth(flag))
-					},
-					Constellation::IRNSS => {
-						let flag: health::IrnssHealth = num::FromPrimitive::from_u32(unsigned)
-							.unwrap_or(health::IrnssHealth::default());
-						Ok(OrbitItem::IrnssHealth(flag))
-					},
-					_ => unreachable!(), // MIXED is not feasible here
-						// as we use the current vehicule's constellation,
-						// which is always defined
-				}
-			}, // "health"
-			_ => {
-				Err(OrbitItemError::UnknownTypeDescriptor(type_desc.to_string()))
-			},
+                    Constellation::SBAS(_) | Constellation::Geo => {
+                        let flag: health::GeoHealth = num::FromPrimitive::from_u32(unsigned)
+                            .unwrap_or(health::GeoHealth::default());
+                        Ok(OrbitItem::GeoHealth(flag))
+                    },
+                    Constellation::IRNSS => {
+                        let flag: health::IrnssHealth = num::FromPrimitive::from_u32(unsigned)
+                            .unwrap_or(health::IrnssHealth::default());
+                        Ok(OrbitItem::IrnssHealth(flag))
+                    },
+                    _ => unreachable!(), // MIXED is not feasible here
+                                         // as we use the current vehicule's constellation,
+                                         // which is always defined
+                }
+            }, // "health"
+            _ => Err(OrbitItemError::UnknownTypeDescriptor(type_desc.to_string())),
         }
     }
     /// Formats self following RINEX standards,
     /// mainly used when producing a file
-    pub fn to_string (&self) -> String {
+    pub fn to_string(&self) -> String {
         match self {
-            OrbitItem::U8(n) => format!("{:13.12E}", *n as f64).replace("E+","D+").replace("E-","D-"),
-            OrbitItem::I8(n) => format!("{:13.12E}", *n as f64).replace("E+","D+").replace("E-","D-"),
-            OrbitItem::F32(f) => format!("{:13.12E}", f).replace("E+","D+").replace("E-","D-"),
-            OrbitItem::F64(f) => format!("{:13.12E}", f).replace("E+","D+").replace("E-","D-"),
-            OrbitItem::Health(h) => format!("{:13.12E}", h).replace("E+","D+").replace("E-","D-"),
-            OrbitItem::GloHealth(h) => format!("{:13.12E}", h).replace("E+","D+").replace("E-","D-"),
-            OrbitItem::GeoHealth(h) => format!("{:13.12E}", h).replace("E+","D+").replace("E-","D-"),
-            OrbitItem::IrnssHealth(h) => format!("{:13.12E}", h).replace("E+","D+").replace("E-","D-"),
-            OrbitItem::GalHealth(h) => format!("{:13.12E}", h.bits() as f64).replace("E+","D+").replace("E-","D-"),
-            OrbitItem::GloStatus(h) => format!("{:13.12E}", h.bits() as f64).replace("E","D+").replace("E-","D-"),
+            OrbitItem::U8(n) => format!("{:14.11E}", *n as f64),
+            OrbitItem::I8(n) => format!("{:14.11E}", *n as f64),
+            OrbitItem::F32(f) => format!("{:14.11E}", f),
+            OrbitItem::F64(f) => format!("{:14.11E}", f),
+            OrbitItem::Health(h) => format!("{:14.11E}", h),
+            OrbitItem::GloHealth(h) => format!("{:14.11E}", h),
+            OrbitItem::GeoHealth(h) => format!("{:14.11E}", h),
+            OrbitItem::IrnssHealth(h) => format!("{:14.11E}", h),
+            OrbitItem::GalHealth(h) => format!("{:14.11E}", h.bits() as f64),
+            OrbitItem::GloStatus(h) => format!("{:14.11E}", h.bits() as f64),
         }
     }
-	/// Unwraps OrbitItem as f32
-    pub fn as_f32 (&self) -> Option<f32> {
+    /// Unwraps OrbitItem as f32
+    pub fn as_f32(&self) -> Option<f32> {
         match self {
             OrbitItem::F32(f) => Some(f.clone()),
             _ => None,
         }
     }
-	/// Unwraps OrbitItem as f64
-    pub fn as_f64 (&self) -> Option<f64> {
+    /// Unwraps OrbitItem as f64
+    pub fn as_f64(&self) -> Option<f64> {
         match self {
             OrbitItem::F64(f) => Some(f.clone()),
             _ => None,
         }
     }
-	/// Unwraps OrbitItem as u8
-    pub fn as_u8 (&self) -> Option<u8> {
+    /// Unwraps OrbitItem as u8
+    pub fn as_u8(&self) -> Option<u8> {
         match self {
             OrbitItem::U8(u) => Some(u.clone()),
             _ => None,
         }
     }
     /// Unwraps OrbitItem as i8
-    pub fn as_i8 (&self) -> Option<i8> {
+    pub fn as_i8(&self) -> Option<i8> {
         match self {
             OrbitItem::I8(i) => Some(i.clone()),
             _ => None,
         }
     }
-	/// Unwraps Self as GPS/QZSS orbit Health indication 
-	pub fn as_gps_health (&self) -> Option<health::Health> {
-		match self {
-			OrbitItem::Health(h) => Some(h.clone()),
-			_ => None
-		}
-	}
-	/// Unwraps Self as GEO/SBAS orbit Health indication 
-	pub fn as_geo_health (&self) -> Option<health::GeoHealth> {
-		match self {
-			OrbitItem::GeoHealth(h) => Some(h.clone()),
-			_ => None
-		}
-	}
-	/// Unwraps Self as GLO orbit Health indication 
-	pub fn as_glo_health (&self) -> Option<health::GloHealth> {
-		match self {
-			OrbitItem::GloHealth(h) => Some(h.clone()),
-			_ => None
-		}
-	}
-	/// Unwraps Self as GAL orbit Health indication 
-	pub fn as_gal_health (&self) -> Option<health::GalHealth> {
-		match self {
-			OrbitItem::GalHealth(h) => Some(h.clone()),
-			_ => None
-		}
-	}
-	/// Unwraps Self as IRNSS orbit Health indication 
-	pub fn as_irnss_health (&self) -> Option<health::IrnssHealth> {
-		match self {
-			OrbitItem::IrnssHealth(h) => Some(h.clone()),
-			_ => None
-		}
-	}
+    /// Unwraps Self as GPS/QZSS orbit Health indication
+    pub fn as_gps_health(&self) -> Option<health::Health> {
+        match self {
+            OrbitItem::Health(h) => Some(h.clone()),
+            _ => None,
+        }
+    }
+    /// Unwraps Self as GEO/SBAS orbit Health indication
+    pub fn as_geo_health(&self) -> Option<health::GeoHealth> {
+        match self {
+            OrbitItem::GeoHealth(h) => Some(h.clone()),
+            _ => None,
+        }
+    }
+    /// Unwraps Self as GLO orbit Health indication
+    pub fn as_glo_health(&self) -> Option<health::GloHealth> {
+        match self {
+            OrbitItem::GloHealth(h) => Some(h.clone()),
+            _ => None,
+        }
+    }
+    /// Unwraps Self as GAL orbit Health indication
+    pub fn as_gal_health(&self) -> Option<health::GalHealth> {
+        match self {
+            OrbitItem::GalHealth(h) => Some(h.clone()),
+            _ => None,
+        }
+    }
+    /// Unwraps Self as IRNSS orbit Health indication
+    pub fn as_irnss_health(&self) -> Option<health::IrnssHealth> {
+        match self {
+            OrbitItem::IrnssHealth(h) => Some(h.clone()),
+            _ => None,
+        }
+    }
 }
 
 /// Identifies closest (but older) revision contained in NAV database.   
 /// Closest content (in time) is used during record parsing to identify and sort data.
 /// Returns None if no database entries were found for requested constellation.
 /// Returns None if only newer revisions were identified: we prefer older revisions.
-pub fn closest_revision (constell: Constellation, desired_rev: version::Version) -> Option<version::Version> {
+pub fn closest_revision(
+    constell: Constellation,
+    desired_rev: version::Version,
+) -> Option<version::Version> {
     let db = &NAV_ORBITS;
-    let revisions : Vec<_> = db.iter() // match requested constellation
+    let revisions: Vec<_> = db
+        .iter() // match requested constellation
         .filter(|rev| rev.constellation == constell.to_3_letter_code())
         .map(|rev| &rev.revisions)
         .flatten()
         .collect();
     if revisions.len() == 0 {
-        return None // ---> constell not found in dB
+        return None; // ---> constell not found in dB
     }
-    let major_matches : Vec<_> = revisions.iter()
-        .filter(|r| i8::from_str_radix(r.major,10).unwrap() - desired_rev.major as i8 == 0)
+    let major_matches: Vec<_> = revisions
+        .iter()
+        .filter(|r| i8::from_str_radix(r.major, 10).unwrap() - desired_rev.major as i8 == 0)
         .collect();
     if major_matches.len() > 0 {
         // --> desired_rev.major perfectly matched
         // --> try to match desired_rev.minor perfectly
-        let minor_matches : Vec<_> = major_matches.iter()
-            .filter(|r| i8::from_str_radix(r.minor,10).unwrap() - desired_rev.minor as i8 == 0)
+        let minor_matches: Vec<_> = major_matches
+            .iter()
+            .filter(|r| i8::from_str_radix(r.minor, 10).unwrap() - desired_rev.minor as i8 == 0)
             .collect();
         if minor_matches.len() > 0 {
             // [+] .major perfectly matched
@@ -248,16 +254,18 @@ pub fn closest_revision (constell: Constellation, desired_rev: version::Version)
             // [+] .major perfectly matched
             // [+] .minor not perfectly matched
             //    --> use closest older minor revision
-            let mut to_sort : Vec<_> = major_matches
+            let mut to_sort: Vec<_> = major_matches
                 .iter()
-                .map(|r| (
-                    u8::from_str_radix(r.major,10).unwrap(), // to later build object
-                    u8::from_str_radix(r.minor,10).unwrap(), // to later build object
-                    i8::from_str_radix(r.minor,10).unwrap() - desired_rev.minor as i8 // for filter op
-                )).collect();
-            to_sort
-                .sort_by(|a, b| b.2.cmp(&a.2)); // sort by delta value
-            let to_sort : Vec<_> = to_sort
+                .map(|r| {
+                    (
+                        u8::from_str_radix(r.major, 10).unwrap(), // to later build object
+                        u8::from_str_radix(r.minor, 10).unwrap(), // to later build object
+                        i8::from_str_radix(r.minor, 10).unwrap() - desired_rev.minor as i8, // for filter op
+                    )
+                })
+                .collect();
+            to_sort.sort_by(|a, b| b.2.cmp(&a.2)); // sort by delta value
+            let to_sort: Vec<_> = to_sort
                 .iter()
                 .filter(|r| r.2 < 0) // retain negative deltas : only older revisions
                 .collect();
@@ -266,17 +274,19 @@ pub fn closest_revision (constell: Constellation, desired_rev: version::Version)
     } else {
         // ---> desired_rev.major not perfectly matched
         // ----> use closest older major revision
-        let mut to_sort : Vec<_> = revisions
+        let mut to_sort: Vec<_> = revisions
             .iter()
-            .map(|r| (
-                u8::from_str_radix(r.major,10).unwrap(), // to later build object
-                i8::from_str_radix(r.major,10).unwrap() - desired_rev.major as i8, // for filter op
-                u8::from_str_radix(r.minor,10).unwrap(), // to later build object
-                i8::from_str_radix(r.minor,10).unwrap() - desired_rev.minor as i8, // for filter op
-            )).collect(); 
-        to_sort
-            .sort_by(|a,b| b.1.cmp(&a.1)); // sort by major delta value
-        let to_sort : Vec<_> = to_sort
+            .map(|r| {
+                (
+                    u8::from_str_radix(r.major, 10).unwrap(), // to later build object
+                    i8::from_str_radix(r.major, 10).unwrap() - desired_rev.major as i8, // for filter op
+                    u8::from_str_radix(r.minor, 10).unwrap(), // to later build object
+                    i8::from_str_radix(r.minor, 10).unwrap() - desired_rev.minor as i8, // for filter op
+                )
+            })
+            .collect();
+        to_sort.sort_by(|a, b| b.1.cmp(&a.1)); // sort by major delta value
+        let to_sort: Vec<_> = to_sort
             .iter()
             .filter(|r| r.1 < 0) // retain negative deltas only : only older revisions
             .collect();
@@ -284,17 +294,16 @@ pub fn closest_revision (constell: Constellation, desired_rev: version::Version)
             // one last case:
             //   several minor revisions for given closest major revision
             //   --> prefer highest value
-            let mut to_sort : Vec<_> = to_sort
+            let mut to_sort: Vec<_> = to_sort
                 .iter()
                 .duplicates_by(|r| r.1) // identical major deltas
                 .collect();
-            to_sort
-                .sort_by(|a,b| b.3.cmp(&a.3)); // sort by minor deltas
+            to_sort.sort_by(|a, b| b.3.cmp(&a.3)); // sort by minor deltas
             let last = to_sort.last().unwrap();
             Some(version::Version::new(last.0, last.2))
         } else {
-            None // only newer revisions available, 
-               // older revisions are always prefered
+            None // only newer revisions available,
+                 // older revisions are always prefered
         }
     }
 }
@@ -304,8 +313,8 @@ mod test {
     use super::*;
     use std::str::FromStr;
     #[test]
-    fn test_orbits_sanity() {
-        for n in super::NAV_ORBITS.iter() { 
+    fn test_db_orbits_sanity() {
+        for n in NAV_ORBITS.iter() {
             let c = Constellation::from_str(n.constellation);
             assert_eq!(c.is_ok(), true);
             let c = c.unwrap();
@@ -329,50 +338,50 @@ mod test {
     fn test_revision_finder() {
         let found = closest_revision(Constellation::Mixed, version::Version::default());
         assert_eq!(found, None); // Constellation::Mixed is not contained in db!
-        // test GPS 1.0
+                                 // test GPS 1.0
         let target = version::Version::new(1, 0);
-        let found = closest_revision(Constellation::GPS, target); 
+        let found = closest_revision(Constellation::GPS, target);
         assert_eq!(found, Some(version::Version::new(1, 0)));
         // test GPS 4.0
         let target = version::Version::new(4, 0);
-        let found = closest_revision(Constellation::GPS, target); 
+        let found = closest_revision(Constellation::GPS, target);
         assert_eq!(found, Some(version::Version::new(4, 0)));
         // test GPS 1.1 ==> 1.0
         let target = version::Version::new(1, 1);
-        let found = closest_revision(Constellation::GPS, target); 
+        let found = closest_revision(Constellation::GPS, target);
         assert_eq!(found, Some(version::Version::new(1, 0)));
         // test GPS 1.2 ==> 1.0
         let target = version::Version::new(1, 2);
-        let found = closest_revision(Constellation::GPS, target); 
+        let found = closest_revision(Constellation::GPS, target);
         assert_eq!(found, Some(version::Version::new(1, 0)));
         // test GPS 1.3 ==> 1.0
         let target = version::Version::new(1, 3);
-        let found = closest_revision(Constellation::GPS, target); 
+        let found = closest_revision(Constellation::GPS, target);
         assert_eq!(found, Some(version::Version::new(1, 0)));
         // test GPS 1.4 ==> 1.0
         let target = version::Version::new(1, 4);
-        let found = closest_revision(Constellation::GPS, target); 
+        let found = closest_revision(Constellation::GPS, target);
         assert_eq!(found, Some(version::Version::new(1, 0)));
         // test GLO 4.2 ==> 4.0
         let target = version::Version::new(4, 2);
-        let found = closest_revision(Constellation::Glonass, target); 
+        let found = closest_revision(Constellation::Glonass, target);
         assert_eq!(found, Some(version::Version::new(4, 0)));
         // test GLO 1.4 ==> 1.0
         let target = version::Version::new(1, 4);
-        let found = closest_revision(Constellation::Glonass, target); 
+        let found = closest_revision(Constellation::Glonass, target);
         assert_eq!(found, Some(version::Version::new(1, 0)));
-        // test BDS 1.0 ==> does not exist 
+        // test BDS 1.0 ==> does not exist
         let target = version::Version::new(1, 0);
-        let found = closest_revision(Constellation::BeiDou, target); 
-        assert_eq!(found, None); 
-        // test BDS 1.4 ==> does not exist 
+        let found = closest_revision(Constellation::BeiDou, target);
+        assert_eq!(found, None);
+        // test BDS 1.4 ==> does not exist
         let target = version::Version::new(1, 4);
-        let found = closest_revision(Constellation::BeiDou, target); 
-        assert_eq!(found, None); 
-        // test BDS 2.0 ==> does not exist 
+        let found = closest_revision(Constellation::BeiDou, target);
+        assert_eq!(found, None);
+        // test BDS 2.0 ==> does not exist
         let target = version::Version::new(2, 0);
-        let found = closest_revision(Constellation::BeiDou, target); 
-        assert_eq!(found, None); 
+        let found = closest_revision(Constellation::BeiDou, target);
+        assert_eq!(found, None);
     }
     #[test]
     fn test_db_item() {
@@ -381,13 +390,13 @@ mod test {
         assert_eq!(e.as_f32().is_some(), false);
         let u = e.as_u8().unwrap();
         assert_eq!(u, 10);
-        
+
         let e = OrbitItem::F32(10.0);
         assert_eq!(e.as_u8().is_some(), false);
         assert_eq!(e.as_f32().is_some(), true);
         let u = e.as_f32().unwrap();
         assert_eq!(u, 10.0_f32);
-        
+
         let e = OrbitItem::F64(10.0);
         assert_eq!(e.as_u8().is_some(), false);
         assert_eq!(e.as_f32().is_some(), false);

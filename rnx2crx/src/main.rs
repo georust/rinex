@@ -1,11 +1,8 @@
 mod cli;
 use cli::Cli;
-use rinex::{
-    Error,
-    prelude::*,
-};
+use rinex::{prelude::*, Error};
 fn main() -> Result<(), Error> {
-    let cli = Cli::new(); 
+    let cli = Cli::new();
     let input_path = cli.input_path();
     println!("Compressing \"{}\"..", input_path);
     // parse
@@ -43,39 +40,31 @@ fn main() -> Result<(), Error> {
             }
         }
     } else if let Some((hh, mm, ss)) = cli.time() {
-        let today = Epoch::now()
-            .expect("failed to retrieve system time");
+        let today = Epoch::now().expect("failed to retrieve system time");
         let (y, m, d, _, _, _, _) = today.to_gregorian_utc();
         if let Some(obs) = &mut rinex.header.obs {
             if let Some(crx) = &mut obs.crinex {
-                crx.date = Epoch::from_gregorian_utc(y, m, d, hh, mm, ss, 0); 
+                crx.date = Epoch::from_gregorian_utc(y, m, d, hh, mm, ss, 0);
             }
         }
     }
-    
+
     // output path
     let output_path = match cli.output_path() {
         Some(path) => path.clone(),
-        _ => { // deduce from input
+        _ => {
+            // deduce from input
             match input_path.strip_suffix("o") {
-                Some(prefix) => {
-                    prefix.to_owned() + "d"
-                },
-                _ => {
-                    match input_path.strip_suffix("O") {
-                        Some(prefix) => {
-                            prefix.to_owned() + "D"
-                        },
-                        _ => {
-                            match input_path.strip_suffix("rnx") {
-                                Some(prefix) => prefix.to_owned() + "crx",
-                                _ => String::from("output.crx"),
-                            }
-                        },
-                    }
+                Some(prefix) => prefix.to_owned() + "d",
+                _ => match input_path.strip_suffix("O") {
+                    Some(prefix) => prefix.to_owned() + "D",
+                    _ => match input_path.strip_suffix("rnx") {
+                        Some(prefix) => prefix.to_owned() + "crx",
+                        _ => String::from("output.crx"),
+                    },
                 },
             }
-        }
+        },
     };
     rinex.to_file(&output_path)?;
     println!("{} generated", output_path);

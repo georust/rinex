@@ -1,8 +1,8 @@
 //! RINEX Merge operation
-use thiserror::Error;
+use std::cmp::{Eq, PartialEq};
 use std::collections::HashMap;
-use std::cmp::{PartialEq, Eq};
 use std::hash::Hash;
+use thiserror::Error;
 
 /// Merge operation related error(s)
 #[derive(Error, Debug)]
@@ -22,14 +22,14 @@ pub enum Error {
 }
 
 /// Appends given vector into self
-pub fn merge_mut_vec<T: Clone> (lhs: &mut Vec<T>, rhs: &Vec<T>) {
+pub fn merge_mut_vec<T: Clone>(lhs: &mut Vec<T>, rhs: &Vec<T>) {
     for item in rhs {
         lhs.push(item.clone());
     }
 }
 
 /// Merges given vector into self, but ensures values are unique
-pub fn merge_mut_unique_vec<T: Clone + PartialEq> (lhs: &mut Vec<T>, rhs: &Vec<T>) {
+pub fn merge_mut_unique_vec<T: Clone + PartialEq>(lhs: &mut Vec<T>, rhs: &Vec<T>) {
     for item in rhs {
         if !lhs.contains(&item) {
             lhs.push(item.clone());
@@ -37,10 +37,11 @@ pub fn merge_mut_unique_vec<T: Clone + PartialEq> (lhs: &mut Vec<T>, rhs: &Vec<T
     }
 }
 
-/// Merges given map into self but ensures both keys and values are unique 
-pub fn merge_mut_unique_map2d<K: PartialEq + Eq + Hash + Clone, V: Clone + PartialEq> 
-    (lhs: &mut HashMap<K, Vec<V>>, rhs: &HashMap<K, Vec<V>>) 
-{
+/// Merges given map into self but ensures both keys and values are unique
+pub fn merge_mut_unique_map2d<K: PartialEq + Eq + Hash + Clone, V: Clone + PartialEq>(
+    lhs: &mut HashMap<K, Vec<V>>,
+    rhs: &HashMap<K, Vec<V>>,
+) {
     for (k, values) in rhs.iter() {
         if let Some(vvalues) = lhs.get_mut(&k) {
             for value in values {
@@ -56,7 +57,7 @@ pub fn merge_mut_unique_map2d<K: PartialEq + Eq + Hash + Clone, V: Clone + Parti
 
 /// Merges optionnal data field,
 /// rhs overwrites lhs, only if lhs is not previously defined
-pub fn merge_mut_option<T: Clone> (lhs: &mut Option<T>, rhs: &Option<T>) {
+pub fn merge_mut_option<T: Clone>(lhs: &mut Option<T>, rhs: &Option<T>) {
     if lhs.is_none() {
         if let Some(rhs) = rhs {
             *lhs = Some(rhs.clone());
@@ -66,7 +67,7 @@ pub fn merge_mut_option<T: Clone> (lhs: &mut Option<T>, rhs: &Option<T>) {
 
 pub trait Merge<T> {
     /// Merge immutable implementation.
-    /// When merging, Self attributes are always prefered. 
+    /// When merging, Self attributes are always prefered.
     /// Only `rhs` new header information is introduced,
     /// rhs.header does not overwrite the previously known header attributes.
     /// Record is then form by combining both file bodies.
@@ -95,7 +96,9 @@ pub trait Merge<T> {
     /// merged.to_file("merge.rnx")
     ///     .unwrap();
     /// ```
-    fn merge(&self, rhs: &T) -> Result<Self, Error> where Self: Sized;
+    fn merge(&self, rhs: &T) -> Result<Self, Error>
+    where
+        Self: Sized;
 
     /// Merges Self and `rhs` into a single RINEX.
     /// See [merge] for an example of use.

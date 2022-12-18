@@ -8,8 +8,7 @@ pub enum Error {
 }
 
 /// Antenna Phase Center Variation types
-#[derive(Debug, Clone)]
-#[derive(PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum Pcv {
     /// Given data is absolute
@@ -26,7 +25,7 @@ impl Default for Pcv {
 
 impl std::str::FromStr for Pcv {
     type Err = Error;
-    fn from_str (content: &str) -> Result<Self, Self::Err> {
+    fn from_str(content: &str) -> Result<Self, Self::Err> {
         if content.eq("A") {
             Ok(Self::Absolute)
         } else if content.eq("R") {
@@ -53,5 +52,27 @@ impl Pcv {
             s = Self::Relative(t.to_string())
         }
         s
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use std::str::FromStr;
+    #[test]
+    fn test_pcv() {
+        assert_eq!(Pcv::default(), Pcv::Absolute);
+        assert!(Pcv::Absolute.is_absolute());
+        assert_eq!(Pcv::Relative(String::from("AOAD/M_T")).is_absolute(), false);
+
+        let pcv = Pcv::from_str("A");
+        assert!(pcv.is_ok());
+        let pcv = pcv.unwrap();
+        assert_eq!(pcv, Pcv::Absolute);
+
+        let pcv = Pcv::from_str("R");
+        assert!(pcv.is_ok());
+        let pcv = pcv.unwrap();
+        assert_eq!(pcv, Pcv::Relative(String::from("AOAD/M_T")));
     }
 }

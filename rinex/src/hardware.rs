@@ -1,24 +1,19 @@
 //! Hardware: receiver, antenna informations
-use super::Sv;
-use rust_3d::Point3D;
+use super::prelude::Sv;
 
 #[cfg(feature = "pyo3")]
 use pyo3::prelude::*;
 
 #[cfg(feature = "serde")]
-use crate::formatter::opt_point3d;
-
-#[cfg(feature = "serde")]
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 /// GNSS receiver description
-#[derive(Clone, Debug)]
-#[derive(PartialEq)]
 #[cfg_attr(feature = "pyo3", pyclass)]
+#[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Rcvr {
     /// Receiver (hardware) model
-    pub model: String, 
+    pub model: String,
     /// Receiver (hardware) identification info
     pub sn: String, // serial #
     /// Receiver embedded software info
@@ -38,11 +33,11 @@ impl Default for Rcvr {
 
 impl std::str::FromStr for Rcvr {
     type Err = std::io::Error;
-    fn from_str (line: &str) -> Result<Self, Self::Err> {
+    fn from_str(line: &str) -> Result<Self, Self::Err> {
         let (id, rem) = line.split_at(20);
         let (make, rem) = rem.split_at(20);
         let (version, _) = rem.split_at(20);
-        Ok(Rcvr{
+        Ok(Rcvr {
             sn: id.trim().to_string(),
             model: make.trim().to_string(),
             firmware: version.trim().to_string(),
@@ -51,18 +46,16 @@ impl std::str::FromStr for Rcvr {
 }
 
 /// Antenna description 
-#[derive(Debug, Clone, Default)]
-#[derive(PartialEq)]
 #[cfg_attr(feature = "pyo3", pyclass)]
+#[derive(Debug, Clone, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Antenna {
     /// Hardware model / make descriptor
     pub model: String,
     /// Serial number / identification number
     pub sn: String,
-    /// Base/reference point coordinates
-    #[cfg_attr(feature = "serde", serde(with = "opt_point3d"))]
-    pub coords: Option<Point3D>,
+    /// Base / reference point coordinates
+    pub coords: Option<(f64, f64, f64)>,
     /// Optionnal `h` eccentricity (height component),
     /// referenced to base/reference point, in meter
     pub height: Option<f64>,
@@ -77,24 +70,24 @@ pub struct Antenna {
 #[cfg_attr(feature = "pyo3", pymethods)]
 impl Antenna {
     /// Sets desired model
-    pub fn with_model (&self, m: &str) -> Self {
+    pub fn with_model(&self, m: &str) -> Self {
         let mut s = self.clone();
         s.model = m.to_string();
         s
     }
     /// Sets desired Serial Number
-    pub fn with_serial_number (&self, sn: &str) -> Self {
+    pub fn with_serial_number(&self, sn: &str) -> Self {
         let mut s = self.clone();
         s.sn = sn.to_string();
         s
     }
     /// Sets reference/base coordinates (3D)
-    pub fn with_base_coordinates (&self, x: f64, y: f64, z: f64) -> Self {
+    pub fn with_base_coordinates(&self, coords: (f64, f64, f64)) -> Self {
         let mut s = self.clone();
-        s.coords = Some(Point3D::new(x,y,z));
+        s.coords = Some(coords);
         s
     }
-    /// Sets antenna `h` eccentricity component 
+    /// Sets antenna `h` eccentricity component
     pub fn with_height(&self, h: f64) -> Self {
         let mut s = self.clone();
         s.height = Some(h);
@@ -116,8 +109,7 @@ impl Antenna {
 
 /// Space vehicule antenna information,
 /// only exists in ANTEX records
-#[derive(Clone, Debug, Default)]
-#[derive(PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct SvAntenna {
     /// vehicule this antenna is attached to
@@ -145,5 +137,21 @@ impl SvAntenna {
         let mut s = self.clone();
         s.cospar = Some(c.to_string());
         s
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use std::str::FromStr;
+    #[test]
+    fn rcvr_parser() {
+        let content = "2090088             LEICA GR50          4.51                ";
+        let rcvr = Rcvr::from_str(content);
+        assert!(rcvr.is_ok());
+        let rcvr = rcvr.unwrap();
+        assert_eq!(rcvr.model, "LEICA GR50");
+        assert_eq!(rcvr.sn, "2090088");
+        assert_eq!(rcvr.firmware, "4.51");
     }
 }

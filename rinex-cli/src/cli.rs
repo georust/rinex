@@ -1,27 +1,23 @@
-use clap::{
-    Command, 
-    Arg, ArgMatches, 
-    ArgAction,
-    ColorChoice,
-};
-use crate::parser::{
-    parse_epoch,
-};
-use rinex::prelude::*;
+use crate::fops::filename;
+use crate::parser::parse_epoch;
+use clap::{Arg, ArgAction, ArgMatches, ColorChoice, Command};
+use log::{error, info, warn};
+use rinex::{navigation::ElevationMask, prelude::*};
+use std::str::FromStr;
 
 pub struct Cli {
     /// Arguments passed by user
-    pub matches: ArgMatches,
+    matches: ArgMatches,
 }
 
 impl Cli {
-    /// Build new command line interface 
+    /// Build new command line interface
     pub fn new() -> Self {
         Self {
             matches: {
                 Command::new("rinex-cli")
                     .author("Guillaume W. Bres, <guillaume.bressaix@gmail.com>")
-                    .version("1.0")
+                    .version(env!("CARGO_PKG_VERSION"))
                     .about("RINEX analysis and processing tool")
                     .arg_required_else_help(true)
                     .color(ColorChoice::Always)
@@ -35,7 +31,6 @@ impl Cli {
                 .next_help_heading("RINEX identification commands")
                     .arg(Arg::new("epochs")
                         .long("epochs")
-                        .short('e')
                         .action(ArgAction::SetTrue)
                         .help("Identify epochs"))
                     .arg(Arg::new("constellations")
@@ -79,7 +74,7 @@ Interval must be a valid \"HH:MM:SS\" duration description.
 Example: -i 00:10:00 will have all epochs spaced by at least 10 minutes."))
                     .arg(Arg::new("time-window")
                         .long("time-window")
-                        .value_name("START, END")
+                        .value_name("Epoch(1), Epoch(N)")
                         .short('w')
                         .help("Center record content around specified epoch window. 
 All epochs that do not lie within the specified (start, end) 
@@ -90,27 +85,27 @@ Example: -w \"2020-01-01 00:00:00 2020-01-01 01:00:00\" will restrict the first 
                     .arg(Arg::new("gps-filter")
                         .short('G')
                         .action(ArgAction::SetTrue)
-                        .help("Filter all GPS data out"))
+                        .help("Filter all GPS vehicles out"))
                     .arg(Arg::new("glo-filter")
                         .short('R')
                         .action(ArgAction::SetTrue)
-                        .help("Filter all Glonass data out"))
+                        .help("Filter all Glonass vehicles out"))
                     .arg(Arg::new("gal-filter")
                         .short('E')
                         .action(ArgAction::SetTrue)
-                        .help("Filter all Galileo data out"))
+                        .help("Filter all Galileo vehicles out"))
                     .arg(Arg::new("bds-filter")
                         .short('C')
                         .action(ArgAction::SetTrue)
-                        .help("Filter all BeiDou data out"))
+                        .help("Filter all BeiDou vehicles out"))
                     .arg(Arg::new("qzss-filter")
                         .short('J')
                         .action(ArgAction::SetTrue)
-                        .help("Filter all QZSS data out"))
+                        .help("Filter all QZSS vehicles out"))
                     .arg(Arg::new("sbas-filter")
                         .short('S')
                         .action(ArgAction::SetTrue)
-                        .help("Filter all SBAS data out"))
+                        .help("Filter all SBAS vehicles out"))
                     .arg(Arg::new("retain-constell")
                         .long("retain-constell")
                         .value_name("list(Constellation)")
@@ -129,23 +124,13 @@ Truly applies to Observation RINEX only."))
                         .action(ArgAction::SetTrue)
                         .help("Retain only non valid epochs.
 Truly applies to Observation RINEX only."))
-                    .arg(Arg::new("retain-elev-above")
-                        .long("retain-elev-above")
-                        .value_name("LIMIT(f64)")
-                        .help("Retain vehicules (strictly) above given elevation angle.
--fp must be a NAV file, or NAV context must be provided with -nav"))
-                    .arg(Arg::new("retain-elev-below")
-                        .long("retain-elev-below")
-                        .value_name("LIMIT(f64)")
-                        .help("Retain vehicules (strictly) below given elevation angle.
--fp must be a NAV file, or NAV context must be provided with -nav"))
-                    .arg(Arg::new("retain-best-elev")
-                        .long("retain-best-elev")
-                        .action(ArgAction::SetTrue)
-                        .help("Retain vehicules per epoch and per constellation, 
-that exhibit the best elevation angle.
--fp must be a NAV file, or NAV context must be provided with -nav"))
-                .next_help_heading("Observation RINEX specific (-fp)")
+                    .arg(Arg::new("elev-mask")
+                        .short('e')
+                        .long("elev-mask")
+                        .help("Apply given elevation mask.
+Example: --elev-mask '>30' will retain Sv above 30°.
+Example: --elev-mask '<=40' will retain Sv below 40° included."))
+                .next_help_heading("Observation RINEX")
                     .arg(Arg::new("observables")
                         .long("observables")
                         .short('o')
@@ -180,66 +165,67 @@ that exhibit the best elevation angle.
                         .help("Extract SSI (min,max) range, per vehicule, accross all epochs"))
                     .arg(Arg::new("lli-mask")
                         .long("lli-mask")
-                        .short('l')
                         .help("Applies given LLI AND() mask. 
 Also drops observations that did not come with an LLI flag"))
                     .arg(Arg::new("clock-offset")
-                        .long("clock-offset")
+                        .long("clk")
                         .action(ArgAction::SetTrue)
-                        .help("Plot receiver clock offsets per epoch."))
+                        .help("Receiver Clock offset / drift analysis."))
                     .arg(Arg::new("gf")
                         .long("gf")
                         .action(ArgAction::SetTrue)
-                        .help("Geometry Free recombination of Phase and PR measurements. 
-This serves as a CS indicator or atmospheric delay estimator. Refer to README."))
+                        .help("Geometry Free recombination of both Phase and PR measurements."))
                     .arg(Arg::new("wl")
                         .long("wl")
                         .action(ArgAction::SetTrue)
-                        .help("Wide Lane Phase and PR signal combination. 
-These combination are more sensitive to CS (phase slope discontinuities). Refer to README."))
+                        .help("Wide Lane recombination of both Phase and PR measurements."))
                     .arg(Arg::new("nl")
                         .long("nl")
                         .action(ArgAction::SetTrue)
-                        .help("Narrow Lane Phase and PR signal combination. 
-These combination are more sensitive to CS (phase slope discontinuities). Refer to README."))
+                        .help("Narrow Lane recombination of both Phase and PR measurements."))
                     .arg(Arg::new("mw")
                         .long("mw")
                         .action(ArgAction::SetTrue)
-                        .help("Melbourne-Wübbena combination, combines both Wide lane and Narrow lane combinations, 
-and serves as the ultimate CS (phase slope discontinuities) detector. Refer to README."))
+                        .help("Melbourne-Wübbena recombinations"))
                     .arg(Arg::new("dcb")
                         .long("dcb")
                         .action(ArgAction::SetTrue)
-                        .help("Differential Code Bias analysis (DCBs).
-Useful to determine correlation and biases between Phase and PR observations.
-For instance \"2S-2W\" means S code against W code, for L2 carrier. Refer to README."))
+                        .help("Differential Code Bias analysis"))
                     .arg(Arg::new("multipath")
                         .long("mp")
                         .action(ArgAction::SetTrue)
-                        .help("Run code multipath analysis. Refer to README."))
-                    .arg(Arg::new("lock-loss")
-                        .long("lock-loss")
+                        .help("Code Multipath analysis"))
+                    .arg(Arg::new("iono")
+                        .long("iono")
                         .action(ArgAction::SetTrue)
-                        .help("Visualize which code might be affected by CS, accross all epochs."))
-                    .arg(Arg::new("pr2distance")
-                        .long("pr2distance")
+                        .help("Plot the ionospheric delay detector"))
+                    .arg(Arg::new("anomalies")
+                        .short('a')
+                        .long("anomalies")
                         .action(ArgAction::SetTrue)
-                        .help("Converts all Pseudo Range data to real physical distances. 
-This is destructive, original pseudo range codes are lost and overwritten"))
-                .next_help_heading("Navigation RINEX specific")
+                        .help("Enumerate epochs where anomalies were reported by the receiver"))
+                    .arg(Arg::new("cs")
+                        .long("cs")
+                        .action(ArgAction::SetTrue)
+                        .help("Cycle Slip detection (graphical).
+Helps visualize what the CS detector is doing and fine tune its operation.
+CS do not get repaired with this command.
+If you're just interested in CS information, you probably just want `-qc` instead, avoid combining the two."))
+                .next_help_heading("Navigation RINEX")
                     .arg(Arg::new("orbits")
                         .long("orbits")
                         .action(ArgAction::SetTrue)
-                        .help("Identify orbits data fields. -fp must be a NAV file"))
+                        .help("Identify orbit fields."))
+                    .arg(Arg::new("ref-pos")
+                        .long("ref-pos")
+                        .value_name("x,y,z coordinates [m] ECEF")
+                        .help("Reference position in [m] ECEF system.
+Some calculations require a reference position.
+Ideally this information is contained in the file Header, but user can manually define them (superceeds)."))
                     .arg(Arg::new("nav-msg")
                         .long("nav-msg")
                         .action(ArgAction::SetTrue)
                         .help("Identify Navigation frame types. -fp must be a NAV file")) 
-                    .arg(Arg::new("elevation")
-                        .long("elevation")
-                        .action(ArgAction::SetTrue)
-                        .help("Display elevation angles, per vehicules accross all epochs.
--fp must be a NAV file"))
                     .arg(Arg::new("clock-bias")
                         .long("clock-bias")
                         .action(ArgAction::SetTrue)
@@ -275,32 +261,44 @@ Applies to either -fp or -nav context"))
                         .action(ArgAction::SetTrue)
                         .help("Retains only Navigation ionospheric models. 
 -fp must be a NAV file"))
-                .next_help_heading("RINEX processing")
+                .next_help_heading("Navigation Data")
                     .arg(Arg::new("nav")
                         .long("nav")
                         .value_name("FILE")
-                        .help("Provide Navigation context for advanced RINEX processing.
-Usually combined to Observation data, provided with -fp.
-Only identical epochs can be analyzed and processed.
-Ideally, both contexts have strictly identical sample rates.
-Refer to README."))
-                .next_help_heading("`teqc` operations")
+                        .help("Augment `--fp` with related Navigation Context.
+Most useful when combined to Observation RINEX. 
+Enables full `--qc` summary."))
+                .next_help_heading("ANTEX / APC ")
+                    .arg(Arg::new("--atx")
+                        .long("atx")
+                        .action(ArgAction::SetTrue)
+                        .help("Local ANTEX file, allows APC corrections."))
+                .next_help_heading("Quality Check (QC)")
+                    .arg(Arg::new("qc")
+                        .long("qc")
+                        .action(ArgAction::SetTrue)
+                        .help("Enable Quality Check (QC) mode.
+Runs thorough analysis on provided RINEX data.
+The summary report by default is integrated to the global HTML report."))
+                    .arg(Arg::new("qc-separate")
+                        .long("qc-separate")
+                        .action(ArgAction::SetTrue)
+                        .help("Dump QC report in separate HTML"))
+                    .arg(Arg::new("qc-only")
+                        .long("qc-only")
+                        .action(ArgAction::SetTrue)
+                        .help("Enables QC mode and disables all other graphs: smallest QC report possible."))
+                .next_help_heading("File operations")
                     .arg(Arg::new("merge")
                         .short('m')
                         .value_name("FILE")
                         .long("merge")
-                        .help("RINEX merge operation.
-Combine this RINEX, considered secondary, into `--fp`. RINEX format must match."))
+                        .help("Merges this RINEX into `--fp`"))
                     .arg(Arg::new("split")
                         .long("split")
-                        .value_name("DATETIME")
+                        .value_name("Epoch")
                         .short('s')
-                        .help("Split RINEX into two seperate files"))
-                    .arg(Arg::new("qc")
-                        .long("qc")
-                        .action(ArgAction::SetTrue)
-                        .help("RINEX quality check,
-generates verbose report, similar to \"teqc\""))
+                        .help("Split RINEX into two separate files"))
                 .next_help_heading("RINEX output")
                     .arg(Arg::new("output")
                         .long("output")
@@ -319,40 +317,24 @@ Refer to README"))
                     .arg(Arg::new("quiet")
                         .short('q')
                         .action(ArgAction::SetTrue)
-                        .help("Disable all terminal output"))
+                        .help("Disable all terminal output. Disable auto HTML opener, on HTML rendering."))
                     .arg(Arg::new("pretty")
+                        .short('p')
                         .long("pretty")
                         .action(ArgAction::SetTrue)
                         .help("Make terminal output more readable"))
-                .next_help_heading("Data visualization")
-                    .arg(Arg::new("skyplot")
-                        .short('y')
-                        .long("skyplot")
+                .next_help_heading("HTML options")
+                    .arg(Arg::new("tiny-html")
+                        .long("tiny-html")
                         .action(ArgAction::SetTrue)
-                        .help("Generate a \"skyplot\". NAV context must be provided, either with -fp or -nav"))
-                    .arg(Arg::new("plot-width")
-                        .long("plot-width")
-                        .value_name("WIDTH(u32)")
-                        .help("Set plot width. Default is 1024px.
-Example \"--plot-width 2048"))
-                    .arg(Arg::new("plot-height")
-                        .long("plot-height")
-                        .value_name("HEIGHT(u32)")
-                        .help("Set plot height. Default is 768px.
-Example \"--plot-height 1024"))
-                    .arg(Arg::new("plot-dim")
-                        .long("plot-dim")
-                        .value_name("DIM(u32,u32)")
-                        .help("Set plot dimensions. Example \"--plot-dim 2048,768\". Default is (1024, 768)px"))
+                        .help("Generates smaller HTML content, but slower to render in a web browser"))
                     .get_matches()
             },
         }
     }
     /// Returns input filepaths
     pub fn input_path(&self) -> &str {
-        self.matches
-            .get_one::<String>("filepath")
-            .unwrap()
+        self.matches.get_one::<String>("filepath").unwrap()
     }
     /// Returns output filepaths
     pub fn output_path(&self) -> Option<&str> {
@@ -362,11 +344,24 @@ Example \"--plot-height 1024"))
             None
         }
     }
-    /// Returns true if quality report is to be performed
-    pub fn qc(&self) -> bool {
+    pub fn elevation_mask(&self) -> Option<ElevationMask> {
+        let args = self.matches.get_one::<String>("elev-mask")?;
+        if let Ok(mask) = ElevationMask::from_str(args) {
+            Some(mask)
+        } else {
+            println!("failed to parse elevation mask from \"{}\"", args);
+            None
+        }
+    }
+    pub fn quality_check(&self) -> bool {
         self.matches.get_flag("qc")
     }
-    /// Returns true if GPS filter should apply
+    pub fn quality_check_separate(&self) -> bool {
+        self.matches.get_flag("qc-separate")
+    }
+    pub fn quality_check_only(&self) -> bool {
+        self.matches.get_flag("qc-only")
+    }
     pub fn gps_filter(&self) -> bool {
         self.matches.get_flag("gps-filter")
     }
@@ -385,7 +380,6 @@ Example \"--plot-height 1024"))
     pub fn sbas_filter(&self) -> bool {
         self.matches.get_flag("sbas-filter")
     }
-    /// Returns true if GF recombination requested
     pub fn gf_recombination(&self) -> bool {
         self.matches.get_flag("gf")
     }
@@ -398,16 +392,20 @@ Example \"--plot-height 1024"))
     pub fn mw_recombination(&self) -> bool {
         self.matches.get_flag("mw")
     }
-    pub fn basic_identification(&self) -> bool {
-        self.matches.get_flag("sv")
-        | self.matches.get_flag("epochs")
-        | self.matches.get_flag("header")
-        | self.matches.get_flag("observables")
-        | self.matches.get_flag("ssi-range")
-        | self.matches.get_flag("orbits")
-        | self.matches.get_flag("nav-msg")
+    pub fn iono_detector(&self) -> bool {
+        self.matches.get_flag("iono")
     }
-    /// Returns true if Sv accross epoch display is requested 
+    pub fn identification(&self) -> bool {
+        self.matches.get_flag("sv")
+            | self.matches.get_flag("epochs")
+            | self.matches.get_flag("header")
+            | self.matches.get_flag("observables")
+            | self.matches.get_flag("ssi-range")
+            | self.matches.get_flag("orbits")
+            | self.matches.get_flag("nav-msg")
+            | self.matches.get_flag("anomalies")
+    }
+    /// Returns true if Sv accross epoch display is requested
     pub fn sv_epoch(&self) -> bool {
         self.matches.get_flag("sv-epoch")
     }
@@ -415,11 +413,11 @@ Example \"--plot-height 1024"))
     pub fn epoch_histogram(&self) -> bool {
         self.matches.get_flag("epoch-hist")
     }
-    /// Phase /PR DCBs analysis requested 
+    /// Phase /PR DCBs analysis requested
     pub fn dcb(&self) -> bool {
         self.matches.get_flag("dcb")
     }
-    /// Code Multipath analysis requested 
+    /// Code Multipath analysis requested
     pub fn multipath(&self) -> bool {
         self.matches.get_flag("multipath")
     }
@@ -435,8 +433,10 @@ Example \"--plot-height 1024"))
             "ssi-sv-range",
             "orbits",
             "nav-msg",
+            "anomalies",
         ];
-        flags.iter()
+        flags
+            .iter()
             .filter(|x| self.matches.get_flag(x))
             .map(|x| *x)
             .collect()
@@ -444,23 +444,20 @@ Example \"--plot-height 1024"))
     /// Returns true if at least one retain filter should be applied
     pub fn retain(&self) -> bool {
         self.matches.contains_id("retain-constell")
-        | self.matches.contains_id("retain-sv")
-        | self.matches.contains_id("retain-epoch-ok")
-        | self.matches.contains_id("retain-epoch-nok")
-        | self.matches.contains_id("retain-obs")
-        | self.matches.contains_id("retain-ssi")
-        | self.matches.contains_id("retain-orb")
-        | self.matches.contains_id("retain-lnav")
-        | self.matches.contains_id("retain-mnav")
-        | self.matches.contains_id("retain-nav-msg")
-        | self.matches.contains_id("retain-nav-eph")
-        | self.matches.contains_id("retain-nav-iono")
-        | self.matches.contains_id("retain-phase")
-        | self.matches.contains_id("retain-doppler")
-        | self.matches.contains_id("retain-best-elev")
-        | self.matches.contains_id("retain-elev-above")
-        | self.matches.contains_id("retain-elev-below")
-        | self.matches.contains_id("retain-pr")
+            | self.matches.contains_id("retain-sv")
+            | self.matches.contains_id("retain-epoch-ok")
+            | self.matches.contains_id("retain-epoch-nok")
+            | self.matches.contains_id("retain-obs")
+            | self.matches.contains_id("retain-ssi")
+            | self.matches.contains_id("retain-orb")
+            | self.matches.contains_id("retain-lnav")
+            | self.matches.contains_id("retain-mnav")
+            | self.matches.contains_id("retain-nav-msg")
+            | self.matches.contains_id("retain-nav-eph")
+            | self.matches.contains_id("retain-nav-iono")
+            | self.matches.contains_id("retain-phase")
+            | self.matches.contains_id("retain-doppler")
+            | self.matches.contains_id("retain-pr")
     }
 
     pub fn retain_flags(&self) -> Vec<&str> {
@@ -475,9 +472,9 @@ Example \"--plot-height 1024"))
             "retain-phase",
             "retain-doppler",
             "retain-pr",
-            "retain-best-elev",
         ];
-        flags.iter()
+        flags
+            .iter()
             .filter_map(|x| {
                 if self.matches.get_flag(x) {
                     Some(*x)
@@ -498,93 +495,86 @@ Example \"--plot-height 1024"))
             "retain-sv",
             "retain-obs",
             "retain-ssi",
-            "retain-elev-above",
-            "retain-elev-below",
             "retain-orb",
         ];
-        flags.iter()
+        flags
+            .iter()
             .filter(|x| self.matches.contains_id(x))
             .map(|id| {
-                let descriptor = self.matches.get_one::<String>(id)
-                    .unwrap();
-                let args: Vec<&str> = descriptor
-                    .split(",")
-                    .collect();
+                let descriptor = self.matches.get_one::<String>(id).unwrap();
+                let args: Vec<&str> = descriptor.split(",").collect();
                 (id, args)
             })
-            .map(|(id, args)| (*id, args)) 
+            .map(|(id, args)| (*id, args))
             .collect()
     }
     /// Returns true if at least one resampling op is to be performed
     pub fn resampling(&self) -> bool {
         self.matches.contains_id("resample-ratio")
-        | self.matches.contains_id("resample-interval")
-        | self.matches.contains_id("time-window")
+            | self.matches.contains_id("resample-interval")
+            | self.matches.contains_id("time-window")
     }
 
     pub fn resampling_ops(&self) -> Vec<(&str, &str)> {
         // this order describes eventually the order of filtering operations
-        let flags = vec![
-            "resample-ratio",
-            "resample-interval",
-            "time-window",
-        ];
-        flags.iter()
+        let flags = vec!["resample-ratio", "resample-interval", "time-window"];
+        flags
+            .iter()
             .filter(|x| self.matches.contains_id(x))
             .map(|id| {
-                let args = self.matches.get_one::<String>(id)
-                    .unwrap();
+                let args = self.matches.get_one::<String>(id).unwrap();
                 (id, args.as_str())
             })
             .map(|(id, args)| (*id, args))
             .collect()
     }
 
-    /// Returns true if at least one filter should be applied 
+    /// Returns true if at least one filter should be applied
     pub fn filter(&self) -> bool {
         self.matches.contains_id("lli-mask")
-        || self.matches.contains_id("gps-filter")
-        || self.matches.contains_id("glo-filter")
-        || self.matches.contains_id("gal-filter")
-        || self.matches.contains_id("bds-filter")
-        || self.matches.contains_id("qzss-filter")
-        || self.matches.contains_id("sbas-filter")
+            || self.matches.contains_id("gps-filter")
+            || self.matches.contains_id("glo-filter")
+            || self.matches.contains_id("gal-filter")
+            || self.matches.contains_id("bds-filter")
+            || self.matches.contains_id("qzss-filter")
+            || self.matches.contains_id("sbas-filter")
     }
     pub fn filter_ops(&self) -> Vec<(&str, &str)> {
-        let flags = vec![
-            "lli-mask",
-        ];
-        flags.iter()
+        let flags = vec!["lli-mask"];
+        flags
+            .iter()
             .filter(|x| self.matches.contains_id(x))
             .map(|id| {
-                let args = self.matches.get_one::<String>(id)
-                    .unwrap();
+                let args = self.matches.get_one::<String>(id).unwrap();
                 (id, args.as_str())
             })
             .map(|(id, args)| (*id, args))
             .collect()
     }
-    fn get_flag (&self, flag: &str) -> bool {
-        self.matches
-            .get_flag(flag)
+    fn get_flag(&self, flag: &str) -> bool {
+        self.matches.get_flag(flag)
     }
     /// returns true if --pretty was passed
     pub fn pretty(&self) -> bool {
         self.get_flag("pretty")
     }
-    /// Returns true if quiet mode is activated 
+    /// Returns true if quiet mode is activated
     pub fn quiet(&self) -> bool {
         self.matches.get_flag("quiet")
     }
+    pub fn tiny_html(&self) -> bool {
+        self.matches.get_flag("tiny-html")
+    }
+    pub fn cs_graph(&self) -> bool {
+        self.matches.get_flag("cs")
+    }
     /// Returns optionnal RINEX file to "merge"
-    pub fn merge(&self) -> Option<&str> {
-        if self.matches.contains_id("merge") {
-            if let Some(s) = self.matches.get_one::<String>("merge") {
-                Some(&s)
-            } else {
-                None
-            }
+    pub fn to_merge(&self) -> Option<Rinex> {
+        let fp = self.matches.get_one::<String>("merge")?;
+        if let Ok(rnx) = Rinex::from_file(&fp) {
+            Some(rnx)
         } else {
+            error!("failed to parse \"{}\"", filename(fp));
             None
         }
     }
@@ -594,7 +584,7 @@ Example \"--plot-height 1024"))
             if let Some(args) = self.matches.get_one::<String>("split") {
                 if let Ok(epoch) = parse_epoch(args) {
                     Some(epoch)
-                } else { 
+                } else {
                     panic!("failed to parse [DATETIME]");
                 }
             } else {
@@ -605,13 +595,9 @@ Example \"--plot-height 1024"))
         }
     }
     /// Returns optionnal Nav path, for enhanced capabilities
-    pub fn nav_path(&self) -> Option<&str> {
+    fn nav_path(&self) -> Option<&String> {
         if self.matches.contains_id("nav") {
-            if let Some(args) = self.matches.get_one::<String>("nav") {
-                Some(&args)
-            } else {
-                None
-            }
+            self.matches.get_one::<String>("nav")
         } else {
             None
         }
@@ -619,47 +605,58 @@ Example \"--plot-height 1024"))
     /// Returns optionnal Navigation context
     pub fn nav_context(&self) -> Option<Rinex> {
         if let Some(path) = self.nav_path() {
-            if let Ok(rnx) = Rinex::from_file(path) {
+            if let Ok(rnx) = Rinex::from_file(&path) {
                 if rnx.is_navigation_rinex() {
-                    Some(rnx)
+                    info!("--nav: augmented mode");
+                    return Some(rnx);
                 } else {
-                    panic!("--nav must be a Navigation RINEX");
+                    error!("--nav must should be navigation data");
                 }
             } else {
-                println!("Failed to parse Navigation Context \"{}\"", path);
-                None
+                warn!("failed to parse navigation file \"{}\"", filename(&path));
             }
+        }
+        None
+    }
+    fn atx_path(&self) -> Option<&String> {
+        if self.matches.contains_id("atx") {
+            self.matches.get_one::<String>("atx")
         } else {
             None
         }
     }
-    /// Returns desired plot dimensions
-    pub fn plot_dimensions(&self) -> (u32,u32) {
-        let mut dim = (1024, 768);
-        if self.matches.contains_id("plot-dim") {
-            let args = self.matches.get_one::<String>("plot-dim")
-                .unwrap();
-            let items: Vec<&str> = args.split(",").collect();
-            if items.len() == 2 {
-                if let Ok(w) = u32::from_str_radix(items[0].trim(), 10) {
-                    if let Ok(h) = u32::from_str_radix(items[1].trim(), 10) {
-                        dim = (w, h);
-                    }
+    pub fn atx_context(&self) -> Option<Rinex> {
+        if let Some(path) = self.atx_path() {
+            if let Ok(rnx) = Rinex::from_file(&path) {
+                if rnx.is_antex_rinex() {
+                    info!("--atx context provided");
+                    return Some(rnx);
+                } else {
+                    warn!("--atx should be antenna rinex file");
                 }
-            }
-        } else if self.matches.contains_id("plot-width") {
-            let arg = self.matches.get_one::<String>("plot-width")
-                .unwrap();
-            if let Ok(w) = u32::from_str_radix(arg.trim(), 10) {
-                dim.0 = w;
-            }
-        } else if self.matches.contains_id("plot-height") {
-            let arg = self.matches.get_one::<String>("plot-height")
-                .unwrap();
-            if let Ok(h) = u32::from_str_radix(arg.trim(), 10) {
-                dim.1 = h;
+            } else {
+                error!("failed to parse atx file \"{}\"", filename(&path));
             }
         }
-        dim
+        None
+    }
+    /// Returns ECEF position passed by usuer
+    pub fn manual_position(&self) -> Option<(f64, f64, f64)> {
+        let args = self.matches.get_one::<String>("ref-pos")?;
+        let content: Vec<&str> = args.split(",").collect();
+        if let Ok(pos_x) = f64::from_str(content[0].trim()) {
+            if let Ok(pos_y) = f64::from_str(content[1].trim()) {
+                if let Ok(pos_z) = f64::from_str(content[2].trim()) {
+                    return Some((pos_x, pos_y, pos_z));
+                } else {
+                    error!("pos(z) should be f64 ECEF [m]");
+                }
+            } else {
+                error!("pos(y) should be f64 ECEF [m]");
+            }
+        } else {
+            error!("pos(x) should be f64 ECEF [m]");
+        }
+        None
     }
 }

@@ -1,36 +1,39 @@
-use thiserror::Error;
 use std::ops::Rem;
+use thiserror::Error;
+
 #[cfg(feature = "serde")]
 use serde::Serialize;
 
 /// Grid definition Error
 #[derive(Error, Debug)]
 pub enum Error {
-    #[error("faulty grid definition: `start` and `end` must be multiples of each other")] 
+    #[error("faulty grid definition: `start` and `end` must be multiples of each other")]
     GridStartEndError,
-    #[error("faulty grid definition: `start` and `end` must be multiples of `spacing`")] 
+    #[error("faulty grid definition: `start` and `end` must be multiples of `spacing`")]
     GridSpacingError,
 }
 
 /// Grid linear space,
-/// starting from `start` ranging to `end` (included) 
+/// starting from `start` ranging to `end` (included)
 /// with given spacing, defined in km.
-#[derive(Debug, Clone, Default)]
-#[derive(PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Default, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct GridLinspace {
-    /// Grid start value, in km
-    pub start: f32,
-    /// Grid end value, in km
-    pub end: f32,
-    /// Grid scaping / increment value, in km
-    pub spacing: f32,
+    /// Grid start coordinates [ddeg]
+    pub start: f64,
+    /// Grid end coordinates [ddeg]
+    pub end: f64,
+    /// Grid spacing (inncrement value), [ddeg]
+    pub spacing: f64,
 }
 
 impl GridLinspace {
     /// Builds a new Linspace definition
-    pub fn new(start: f32, end: f32, spacing: f32) -> Result<Self, Error> {
+    pub fn new(start: f64, end: f64, spacing: f64) -> Result<Self, Error> {
         let r = end.rem(start);
+        /*
+         * End / Start must be multiple of one another
+         */
         if r == 0.0 {
             if end.rem(spacing) == 0.0 {
                 Ok(Self {
@@ -45,10 +48,9 @@ impl GridLinspace {
             Err(Error::GridStartEndError)
         }
     }
-    // Returns total distance, in km, covered by
-    // this Grid linear space
-    pub fn total_distance(&self) -> f32 {
-        (self.end - self.start) * self.spacing
+    // Returns grid length, in terms of data points
+    pub fn length(&self) -> usize {
+        (self.end / self.spacing).floor() as usize
     }
     /// Returns true if self is a single point space
     pub fn is_single_point(&self) -> bool {
@@ -56,8 +58,8 @@ impl GridLinspace {
     }
 }
 
-impl From<(f32,f32,f32)> for GridLinspace {
-    fn from (tuple:(f32,f32,f32)) -> Self {
+impl From<(f64, f64, f64)> for GridLinspace {
+    fn from(tuple: (f64, f64, f64)) -> Self {
         Self {
             start: tuple.0,
             end: tuple.1,
@@ -68,10 +70,9 @@ impl From<(f32,f32,f32)> for GridLinspace {
 
 /// Reference Grid,
 /// defined in terms of Latitude, Longitude and Altitude.
-/// If 2D-TEC maps, static altitude is defined, ie.: 
+/// If 2D-TEC maps, static altitude is defined, ie.:
 /// start = end altitude and spacing = 0.
-#[derive(Debug, Clone, Default)]
-#[derive(PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Default, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Grid {
     /// Latitude
@@ -93,8 +94,24 @@ impl Grid {
     pub fn is_2d_grid(&self) -> bool {
         self.height.is_single_point()
     }
-    /// Returns total projected 2D area covered [km²]
-    pub fn total_area(&self) -> f32 {
-        self.latitude.total_distance() * self.longitude.total_distance()
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[test]
+    fn test_grid() {
+        let default = GridLinspace::default();
+        assert_eq!(
+            default,
+            GridLinspace {
+                start: 0.0,
+                end: 0.0,
+                spacing: 0.0,
+            }
+        );
+        let grid = GridLinspace::new(1.0, 10.0, 1.0).unwrap();
+        assert_eq!(grid.length(), 10);
+        assert_eq!(grid.is_single_point(), false);
     }
 }

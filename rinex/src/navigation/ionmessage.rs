@@ -1,10 +1,7 @@
-use crate::{
-    epoch,
-    prelude::*,
-};
-use thiserror::Error;
-use std::str::FromStr;
+use crate::{epoch, prelude::*};
 use bitflags::bitflags;
+use std::str::FromStr;
+use thiserror::Error;
 
 #[cfg(feature = "pyo3")]
 use pyo3::prelude::*;
@@ -37,9 +34,8 @@ pub enum Error {
 }
 
 /// Klobuchar Parameters region
-#[derive(Debug, Copy, Clone)]
-#[derive(PartialEq, PartialOrd)]
 #[cfg_attr(feature = "pyo3", pyclass)]
+#[derive(Debug, Copy, Clone, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum KbRegionCode {
     /// Coefficients apply to wide area
@@ -56,35 +52,33 @@ impl Default for KbRegionCode {
 
 /// Klobuchar model payload,
 /// we don't know how to parse the possible extra Region Code yet
-#[derive(Default)]
-#[derive(Debug, Copy, Clone)]
-#[derive(PartialEq, PartialOrd)]
 #[cfg_attr(feature = "pyo3", pyclass)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct KbModel {
-    /// Alpha coefficients 
+    /// Alpha coefficients
     /// ([sec], [sec.semi-circle⁻¹], [sec.semi-circle⁻²], [sec.semi-circle⁻³])
-    pub alpha: (f64,f64,f64,f64),
+    pub alpha: (f64, f64, f64, f64),
     /// Beta coefficients
     /// ([sec], [sec.semi-circle⁻¹], [sec.semi-circle⁻²], [sec.semi-circle⁻³])
-    pub beta: (f64,f64,f64,f64),
+    pub beta: (f64, f64, f64, f64),
     /// Region flag
     pub region: KbRegionCode,
 }
 
 impl KbModel {
-    pub (crate)fn parse (mut lines: std::str::Lines<'_>) -> Result<(Epoch, Self), Error> {
+    pub(crate) fn parse(mut lines: std::str::Lines<'_>) -> Result<(Epoch, Self), Error> {
         let line = match lines.next() {
             Some(l) => l,
-            _ => return Err(Error::NgModelMissing1stLine)
+            _ => return Err(Error::NgModelMissing1stLine),
         };
         let (epoch, rem) = line.split_at(23);
         let (a0, rem) = rem.split_at(19);
         let (a1, a2) = rem.split_at(19);
-        
+
         let line = match lines.next() {
             Some(l) => l,
-            _ => return Err(Error::KbModelMissing2ndLine)
+            _ => return Err(Error::KbModelMissing2ndLine),
         };
         let (a3, rem) = line.split_at(23);
         let (b0, rem) = rem.split_at(19);
@@ -92,7 +86,7 @@ impl KbModel {
 
         let line = match lines.next() {
             Some(l) => l,
-            _ => return Err(Error::KbModelMissing3rdLine)
+            _ => return Err(Error::KbModelMissing3rdLine),
         };
         let (b3, region) = line.split_at(23);
 
@@ -126,11 +120,14 @@ impl KbModel {
             f64::from_str(b3.trim()).unwrap_or(0.0_f64),
         );
 
-        Ok((epoch, Self {
-            alpha,
-            beta,
-            region,
-        }))
+        Ok((
+            epoch,
+            Self {
+                alpha,
+                beta,
+                region,
+            },
+        ))
     }
 }
 
@@ -148,15 +145,13 @@ bitflags! {
 }
 
 /// Nequick-G Model payload
-#[derive(Debug, Clone)]
-#[derive(Default, Copy)]
-#[derive(PartialEq, PartialOrd)]
 #[cfg_attr(feature = "pyo3", pyclass)]
+#[derive(Debug, Clone, Default, Copy, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct NgModel {
     /// a_i coefficients
     /// ([sfu], [sfu.semi-circle⁻¹], [sfu.semi-circle⁻²])
-    pub a: (f64,f64,f64), 
+    pub a: (f64, f64, f64),
     /// Region flags
     pub region: NgRegionFlags,
 }
@@ -165,17 +160,17 @@ impl NgModel {
     pub fn parse(mut lines: std::str::Lines<'_>) -> Result<(Epoch, Self), Error> {
         let line = match lines.next() {
             Some(l) => l,
-            _ => return Err(Error::NgModelMissing1stLine)
+            _ => return Err(Error::NgModelMissing1stLine),
         };
         let (epoch, rem) = line.split_at(23);
         let (a0, rem) = rem.split_at(19);
         let (a1, rem) = rem.split_at(19);
-        
+
         let line = match lines.next() {
             Some(l) => l,
-            _ => return Err(Error::NgModelMissing2ndLine)
+            _ => return Err(Error::NgModelMissing2ndLine),
         };
-        
+
         let (epoch, _) = epoch::parse(epoch.trim())?;
         let a = (
             f64::from_str(a0.trim())?,
@@ -183,48 +178,49 @@ impl NgModel {
             f64::from_str(rem.trim())?,
         );
         let f = f64::from_str(line.trim())?;
-        Ok((epoch, Self {
-            a,
-            region: NgRegionFlags::from_bits(f as u16).unwrap_or(NgRegionFlags::empty()),
-        }))
+        Ok((
+            epoch,
+            Self {
+                a,
+                region: NgRegionFlags::from_bits(f as u16).unwrap_or(NgRegionFlags::empty()),
+            },
+        ))
     }
 }
 
 /// BDGIM Model payload
-#[derive(Debug, Copy, Clone)]
-#[derive(Default)]
-#[derive(PartialEq, PartialOrd)]
 #[cfg_attr(feature = "pyo3", pyclass)]
+#[derive(Debug, Copy, Clone, Default, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct BdModel {
     /// Alpha coefficients [TECu]
-    pub alpha: (f64,f64,f64,f64,f64,f64,f64,f64,f64),
+    pub alpha: (f64, f64, f64, f64, f64, f64, f64, f64, f64),
 }
 
 impl BdModel {
-    pub fn parse (mut lines: std::str::Lines<'_>) -> Result<(Epoch, Self), Error> {
+    pub fn parse(mut lines: std::str::Lines<'_>) -> Result<(Epoch, Self), Error> {
         let line = match lines.next() {
             Some(l) => l,
-            _ => return Err(Error::BdModelMissing1stLine)
+            _ => return Err(Error::BdModelMissing1stLine),
         };
         let (epoch, rem) = line.split_at(23);
         let (a0, rem) = rem.split_at(19);
         let (a1, a2) = rem.split_at(19);
-        
+
         let line = match lines.next() {
             Some(l) => l,
-            _ => return Err(Error::KbModelMissing2ndLine)
+            _ => return Err(Error::KbModelMissing2ndLine),
         };
         let (a3, rem) = line.split_at(23);
         let (a4, rem) = rem.split_at(19);
         let (a5, a6) = rem.split_at(19);
-        
+
         let line = match lines.next() {
             Some(l) => l,
-            _ => return Err(Error::KbModelMissing3rdLine)
+            _ => return Err(Error::KbModelMissing3rdLine),
         };
         let (a7, a8) = line.split_at(23);
-        
+
         let (epoch, _) = epoch::parse(epoch.trim())?;
         let alpha = (
             f64::from_str(a0.trim()).unwrap_or(0.0_f64),
@@ -275,8 +271,7 @@ impl BdModel {
 ///     }
 /// }
 /// ```
-#[derive(Debug, Clone)]
-#[derive(PartialEq, PartialOrd)]
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum IonMessage {
     /// Klobuchar Model
@@ -295,24 +290,91 @@ impl Default for IonMessage {
 
 impl IonMessage {
     /// Unwraps self as Klobuchar Model
-    pub fn as_klobuchar (&self) -> Option<&KbModel> {
+    pub fn as_klobuchar(&self) -> Option<&KbModel> {
         match self {
             Self::KlobucharModel(model) => Some(model),
             _ => None,
         }
     }
     /// Unwraps self as Nequick-G Model
-    pub fn as_nequick_g (&self) -> Option<&NgModel> {
+    pub fn as_nequick_g(&self) -> Option<&NgModel> {
         match self {
             Self::NequickGModel(model) => Some(model),
             _ => None,
         }
     }
     /// Unwraps self as BDGIM Model
-    pub fn as_bdgim (&self) -> Option<&BdModel> {
+    pub fn as_bdgim(&self) -> Option<&BdModel> {
         match self {
             Self::BdgimModel(model) => Some(model),
             _ => None,
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[test]
+    fn test_kb() {
+        assert_eq!(KbRegionCode::default(), KbRegionCode::WideArea);
+        let content =
+            "    2022 06 08 09 59 48 1.024454832077E-08 2.235174179077E-08-5.960464477539E-08
+    -1.192092895508E-07 9.625600000000E+04 1.310720000000E+05-6.553600000000E+04
+    -5.898240000000E+05 0.000000000000E+00";
+        let mut content = content.lines();
+        let parsed = KbModel::parse(content);
+        assert!(parsed.is_ok());
+        let (epoch, message) = parsed.unwrap();
+        assert_eq!(
+            epoch,
+            Epoch::from_gregorian_utc(2022, 06, 08, 09, 59, 48, 00)
+        );
+        assert_eq!(
+            message,
+            KbModel {
+                alpha: (
+                    1.024454832077E-08,
+                    2.235174179077E-08,
+                    -5.960464477539E-08,
+                    -1.192092895508E-07
+                ),
+                beta: (
+                    9.625600000000E+04,
+                    1.310720000000E+05,
+                    -6.553600000000E+04,
+                    -5.898240000000E+05
+                ),
+                region: KbRegionCode::WideArea,
+            },
+        );
+    }
+    #[test]
+    fn test_ng() {
+        let content =
+            "    2022 06 08 09 59 57 7.850000000000E+01 5.390625000000E-01 2.713012695312E-02
+     0.000000000000E+00";
+        let mut content = content.lines();
+        let parsed = NgModel::parse(content);
+        assert!(parsed.is_ok());
+        let (epoch, message) = parsed.unwrap();
+        assert_eq!(
+            epoch,
+            Epoch::from_gregorian_utc(2022, 06, 08, 09, 59, 57, 00)
+        );
+        assert_eq!(
+            message,
+            NgModel {
+                a: (7.850000000000E+01, 5.390625000000E-01, 2.713012695312E-02),
+                region: NgRegionFlags::empty(),
+            },
+        );
+    }
+    #[test]
+    fn test_ionmessage() {
+        let msg = IonMessage::KlobucharModel(KbModel::default());
+        assert!(msg.as_klobuchar().is_some());
+        assert!(msg.as_nequick_g().is_none());
+        assert!(msg.as_bdgim().is_none());
     }
 }

@@ -1,11 +1,11 @@
-use thiserror::Error;
 use strum_macros::EnumString;
+use thiserror::Error;
 //use std::collections::HashMap;
-use rinex::constellation::Constellation;
 use crate::datetime::{parse_datetime, ParseDateTimeError};
+use rinex::constellation::Constellation;
 
-pub mod header;
 pub mod description;
+pub mod header;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum TimeSystem {
@@ -25,7 +25,7 @@ pub enum TimeSystemError {
 
 impl std::str::FromStr for TimeSystem {
     type Err = TimeSystemError;
-    fn from_str (content: &str) -> Result<Self, Self::Err> {
+    fn from_str(content: &str) -> Result<Self, Self::Err> {
         if content.eq("UTC") {
             Ok(Self::UTC)
         } else if content.eq("TAI") {
@@ -74,7 +74,7 @@ pub enum DeterminationMethod {
 
 impl std::str::FromStr for DeterminationMethod {
     type Err = DeterminationMethodError;
-    fn from_str (content: &str) -> Result<Self, Self::Err> {
+    fn from_str(content: &str) -> Result<Self, Self::Err> {
         if content.eq("CLOCK_ANALYSIS") {
             Ok(Self::ClockAnalysis)
         } else if content.eq("INTRA-FREQUENCY_BIAS_ESTIMATION") {
@@ -91,8 +91,7 @@ impl std::str::FromStr for DeterminationMethod {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
-#[derive(EnumString)]
+#[derive(Debug, PartialEq, Clone, EnumString)]
 //#[derive(StrumString)]
 pub enum BiasType {
     /// Differential Signal Bias (DSB)
@@ -144,7 +143,7 @@ pub struct Solution {
 
 impl std::str::FromStr for Solution {
     type Err = SolutionParsingError;
-    fn from_str (content: &str) -> Result<Self, Self::Err> {
+    fn from_str(content: &str) -> Result<Self, Self::Err> {
         let (bias_type, rem) = content.split_at(5);
         let (svn, rem) = rem.split_at(5);
         let (prn, rem) = rem.split_at(4);
@@ -187,7 +186,7 @@ impl std::str::FromStr for Solution {
 
 impl Solution {
     /// Returns duration for this bias solution
-    pub fn duration (&self) -> chrono::Duration {
+    pub fn duration(&self) -> chrono::Duration {
         self.end_time - self.start_time
     }
 }
@@ -195,9 +194,9 @@ impl Solution {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::str::FromStr;
-    use crate::{Sinex, bias};
+    use crate::{bias, Sinex};
     use rinex::constellation::Constellation;
+    use std::str::FromStr;
     #[test]
     fn test_determination_methods() {
         let method = DeterminationMethod::from_str("COMBINED_ANALYSIS");
@@ -214,7 +213,10 @@ mod tests {
         assert_eq!(solution.svn, "G");
         assert_eq!(solution.prn, "G");
         assert_eq!(solution.station, Some(String::from("GIEN")));
-        assert_eq!(solution.obs, (String::from("C1W"), Some(String::from("C2W"))));
+        assert_eq!(
+            solution.obs,
+            (String::from("C1W"), Some(String::from("C2W")))
+        );
         assert_eq!(solution.estimate, 0.0);
         assert_eq!(solution.stddev, 0.0);
         let solution = Solution::from_str(
@@ -225,7 +227,10 @@ mod tests {
         assert_eq!(solution.svn, "E");
         assert_eq!(solution.prn, "E");
         assert_eq!(solution.station, Some(String::from("GOUS")));
-        assert_eq!(solution.obs, (String::from("C1C"), Some(String::from("C7Q"))));
+        assert_eq!(
+            solution.obs,
+            (String::from("C1C"), Some(String::from("C7Q")))
+        );
         assert!((solution.estimate - -0.101593337222667E3) < 1E-6);
         assert!((solution.stddev - 0.259439E+02) < 1E-6);
         let solution = Solution::from_str(
@@ -242,26 +247,42 @@ mod tests {
     }
     #[test]
     fn test_bia_v1_example1() {
-        let file = env!("CARGO_MANIFEST_DIR")
-            .to_owned()
-            + "/data/BIA/V1/example-1a.bia";
+        let file = env!("CARGO_MANIFEST_DIR").to_owned() + "/data/BIA/V1/example-1a.bia";
         let sinex = Sinex::from_file(&file);
         assert_eq!(sinex.is_ok(), true);
         let sinex = sinex.unwrap();
         let reference = &sinex.reference;
-        assert_eq!(reference.description, "CODE, Astronomical Institute, University of Bern");
-        assert_eq!(reference.input, "CODE IGS 1-day final and rapid bias solutions for G/R");
-        assert_eq!(reference.output, "CODE IGS 30-day bias solution for G/R satellites");
+        assert_eq!(
+            reference.description,
+            "CODE, Astronomical Institute, University of Bern"
+        );
+        assert_eq!(
+            reference.input,
+            "CODE IGS 1-day final and rapid bias solutions for G/R"
+        );
+        assert_eq!(
+            reference.output,
+            "CODE IGS 30-day bias solution for G/R satellites"
+        );
         assert_eq!(reference.contact, "code@aiub.unibe.ch");
         assert_eq!(reference.software, "Bernese GNSS Software Version 5.3");
         assert_eq!(reference.hardware, "UBELIX: Linux, x86_64");
         assert_eq!(sinex.acknowledgments.len(), 2);
-        assert_eq!(sinex.acknowledgments[0], "COD Center for Orbit Determination in Europe, AIUB, Switzerland");
+        assert_eq!(
+            sinex.acknowledgments[0],
+            "COD Center for Orbit Determination in Europe, AIUB, Switzerland"
+        );
         assert_eq!(sinex.acknowledgments[1], "IGS International GNSS Service");
         assert_eq!(sinex.comments.len(), 4);
         assert_eq!(sinex.comments[0], "CODE final product series for the IGS.");
-        assert_eq!(sinex.comments[1], "Published by Astronomical Institute, University of Bern.");
-        assert_eq!(sinex.comments[2], "URL: http://www.aiub.unibe.ch/download/CODE");
+        assert_eq!(
+            sinex.comments[1],
+            "Published by Astronomical Institute, University of Bern."
+        );
+        assert_eq!(
+            sinex.comments[2],
+            "URL: http://www.aiub.unibe.ch/download/CODE"
+        );
         assert_eq!(sinex.comments[3], "DOI: 10.7892/boris.75876");
 
         let description = &sinex.description;
@@ -270,7 +291,10 @@ mod tests {
         let description = description.unwrap();
         assert_eq!(description.sampling, Some(300));
         assert_eq!(description.spacing, Some(86400));
-        assert_eq!(description.method, Some(DeterminationMethod::CombinedAnalysis));
+        assert_eq!(
+            description.method,
+            Some(DeterminationMethod::CombinedAnalysis)
+        );
         assert_eq!(description.bias_mode, header::BiasMode::Absolute);
         assert_eq!(description.system, TimeSystem::GNSS(Constellation::GPS));
         assert_eq!(description.rcvr_clock_ref, None);
@@ -283,16 +307,17 @@ mod tests {
     }
     #[test]
     fn test_bia_v1_example1b() {
-        let file = env!("CARGO_MANIFEST_DIR")
-            .to_owned()
-            + "/data/BIA/V1/example-1b.bia";
+        let file = env!("CARGO_MANIFEST_DIR").to_owned() + "/data/BIA/V1/example-1b.bia";
         let sinex = Sinex::from_file(&file);
         assert_eq!(sinex.is_ok(), true);
         let sinex = sinex.unwrap();
         assert_eq!(sinex.acknowledgments.len(), 2);
-        assert_eq!(sinex.acknowledgments[0], "COD Center for Orbit Determination in Europe, AIUB, Switzerland");
+        assert_eq!(
+            sinex.acknowledgments[0],
+            "COD Center for Orbit Determination in Europe, AIUB, Switzerland"
+        );
         assert_eq!(sinex.acknowledgments[1], "IGS International GNSS Service");
-        
+
         let _reference = &sinex.reference;
 
         let description = &sinex.description;
@@ -301,7 +326,10 @@ mod tests {
         let description = description.unwrap();
         assert_eq!(description.sampling, Some(300));
         assert_eq!(description.spacing, Some(86400));
-        assert_eq!(description.method, Some(DeterminationMethod::CombinedAnalysis));
+        assert_eq!(
+            description.method,
+            Some(DeterminationMethod::CombinedAnalysis)
+        );
         assert_eq!(description.bias_mode, header::BiasMode::Relative);
         assert_eq!(description.system, TimeSystem::GNSS(Constellation::GPS));
         assert_eq!(description.rcvr_clock_ref, None);

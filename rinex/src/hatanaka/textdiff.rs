@@ -1,6 +1,6 @@
 #[derive(Debug)]
 pub struct TextDiff {
-    pub buffer: String, 
+    pub buffer: String,
 }
 
 impl TextDiff {
@@ -11,28 +11,31 @@ impl TextDiff {
             buffer: String::with_capacity(64),
         }
     }
-    
+
     /// Initializes `Text` differentiator
-    pub fn init (&mut self, data: &str) {
-        self.buffer = data.to_string(); 
+    pub fn init(&mut self, data: &str) {
+        self.buffer = data.to_string();
     }
 
     /// Decompresses given data
-    pub fn decompress (&mut self, data: &str) -> &str {
+    pub fn decompress(&mut self, data: &str) -> &str {
         let s0_len = self.buffer.len();
         let s0 = unsafe { self.buffer.as_bytes_mut() };
         let s1_len = data.len();
         let s1 = data.as_bytes();
         let min = std::cmp::min(s1_len, s0_len);
-        
+
         // browse shared content
         for index in 0..min {
-            if s1[index] != b' ' { // not a differenced out character
+            if s1[index] != b' ' {
+                // not a differenced out character
                 // ==> needs to overwrite internal content
-                if s1[index] == b'&' { // special whitespace insertion
+                if s1[index] == b'&' {
+                    // special whitespace insertion
                     // overwrite with space
                     s0[index] = b' ';
-                } else { // regular content
+                } else {
+                    // regular content
                     s0[index] = s1[index]; // overwrite
                 }
             }
@@ -40,16 +43,15 @@ impl TextDiff {
 
         if s1_len > s0_len {
             // got new bytes to latch
-            let new_slice = &data[min..s1_len]
-                .replace("&", " ");
+            let new_slice = &data[min..s1_len].replace("&", " ");
             self.buffer.push_str(new_slice);
         }
 
         &self.buffer
     }
-    
+
     /// Compresses given data
-    pub fn compress (&mut self, data: &str) -> String {
+    pub fn compress(&mut self, data: &str) -> String {
         let mut result = String::new();
         let inner: Vec<_> = self.buffer.chars().collect();
         self.buffer.clear();
@@ -90,7 +92,7 @@ mod test {
         let init = "ABCDEFG 12 000 33 XXACQmpLf";
         let mut diff = TextDiff::new();
         let masks: Vec<&str> = vec![
-          //"ABCDEFG 12 000 33 XXACQmpLf"
+            //"ABCDEFG 12 000 33 XXACQmpLf"
             "         3   1 44 xxACq   F",
             "        4 ",
             " 11 22   x   0 4  y     p  ",
@@ -99,7 +101,7 @@ mod test {
             " ",
             "                           &",
         ];
-        let expected : Vec<&str> = vec![
+        let expected: Vec<&str> = vec![
             "ABCDEFG 13 001 44 xxACqmpLF",
             "ABCDEFG 43 001 44 xxACqmpLF",
             "A11D22G 4x 000 44 yxACqmpLF",
@@ -118,14 +120,14 @@ mod test {
         // test re-init
         let init = " 2200 123      G 07G08G09G   XX XX";
         diff.init(init);
-        
+
         let masks: Vec<&str> = vec![
             "        F       1  3",
             " x    1 f  f   p",
             " ",
             "  3       4       ",
         ];
-        let expected : Vec<&str> = vec![
+        let expected: Vec<&str> = vec![
             " 2200 12F      G107308G09G   XX XX",
             " x200 12f  f   p107308G09G   XX XX",
             " x200 12f  f   p107308G09G   XX XX",
@@ -140,7 +142,7 @@ mod test {
     #[test]
     fn test_compression() {
         let mut diff = TextDiff::new();
-        
+
         diff.init("0");
         let compressed = diff.compress("0");
         assert_eq!(compressed, " ");
@@ -149,35 +151,35 @@ mod test {
 
         let compressed = diff.compress("4  ");
         assert_eq!(compressed, " &&");
-        
+
         let compressed = diff.compress("0");
         assert_eq!(compressed, "0");
 
         // test re-init
-        diff.init(        "Default Phrase 1234");
+        diff.init("Default Phrase 1234");
         let to_compress = "DEfault Phrase 1234";
         let result = diff.compress(to_compress);
-        assert_eq!(result," E                 ");
-        
+        assert_eq!(result, " E                 ");
+
         let to_compress = "DEfault Phrase 1234";
         let result = diff.compress(to_compress);
-        assert_eq!(result,"                   ");
-        
+        assert_eq!(result, "                   ");
+
         let to_compress = "DEFault Phrase 1234";
         let result = diff.compress(to_compress);
-        assert_eq!(result,"  F                ");
-        
+        assert_eq!(result, "  F                ");
+
         let to_compress = "DEFault Phrase 1234  ";
         let result = diff.compress(to_compress);
         assert_eq!(result, "                   &&");
-        
+
         let to_compress = " EFault Phrase 1234  ";
         let result = diff.compress(to_compress);
         assert_eq!(result, "                     ");
-        
+
         let to_compress = "__ abcd Phrase 1222    ";
         let result = diff.compress(to_compress);
-        assert_eq!(result,"__  bcd          22  &&");
+        assert_eq!(result, "__  bcd          22  &&");
 
         diff.init(" ");
         assert_eq!(diff.compress("3"), "3");

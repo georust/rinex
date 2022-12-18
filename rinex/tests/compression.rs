@@ -2,14 +2,13 @@
 mod test {
     use rinex::prelude::*;
     /*
-     * compare produced CRINEX to official CRINEX 
+     * compare produced CRINEX to official CRINEX
      */
     fn testbench(produced: &str, official: &str) {
         let f1 = Rinex::from_file(produced);
         assert!(f1.is_ok());
         let f1 = f1.unwrap();
-        let f2 = Rinex::from_file(official)
-            .unwrap();
+        let f2 = Rinex::from_file(official).unwrap();
         let r1 = f1.record.as_obs();
         assert!(r1.is_some());
         let r1 = r1.unwrap();
@@ -26,7 +25,12 @@ mod test {
             assert_eq!(clk, expected_clk);
             for (expected_sv, expected_obss) in expected_svs {
                 let sv = svs.get(expected_sv);
-                assert!(sv.is_some(), "missing {:?} in epoch {:?}", expected_sv, expected_e);
+                assert!(
+                    sv.is_some(),
+                    "missing {:?} in epoch {:?}",
+                    expected_sv,
+                    expected_e
+                );
                 let obss = sv.unwrap();
             }
         }
@@ -34,7 +38,7 @@ mod test {
     //#[test]
     fn testbench_v1() {
         let pool = vec![
-            ("AJAC3550.21D", "AJAC3550.21O"), 
+            ("AJAC3550.21D", "AJAC3550.21O"),
             ("aopr0010.17d", "aopr0010.17o"),
             ("npaz3550.21d", "npaz3550.21o"),
             ("pdel0010.21d", "pdel0010.21o"),
@@ -54,8 +58,11 @@ mod test {
             // dump
             let path = format!("test.crx");
             assert!(crnx.to_file("test.crx").is_ok());
-            // compare to official 
-            testbench("test.crx", &format!("../test_resources/CRNX/V1/{}", crnx_name));
+            // compare to official
+            testbench(
+                "test.crx",
+                &format!("../test_resources/CRNX/V1/{}", crnx_name),
+            );
         }
     }
 }
