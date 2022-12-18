@@ -1,5 +1,4 @@
 //! `Navigation` data module
-mod elev_mask;
 mod eopmessage;
 mod ephemeris;
 mod health;
@@ -9,7 +8,6 @@ mod stomessage;
 
 pub mod record;
 
-pub use elev_mask::ElevationMask;
 pub use eopmessage::EopMessage;
 pub use ephemeris::Ephemeris;
 pub use health::{GeoHealth, GloHealth, Health, IrnssHealth};

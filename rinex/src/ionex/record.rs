@@ -507,49 +507,40 @@ impl TimeScaling<Record> for Record {
     }
 }
 
-use crate::processing::{Filter, FilterItem, FilterMode, FilterType};
-use crate::processing::{MaskFilter, MaskOperand};
+use crate::processing::{Filter, FilterItem, MaskFilter, FilterOperand};
 
 impl Filter for Record {
-    fn apply(&self, filt: FilterType<FilterItem>, mode: FilterMode) -> Self {
+    fn apply(&self, filt: MaskFilter<FilterItem>) -> Self {
         let mut s = self.clone();
-        s.apply_mut(filt, mode);
+        s.apply_mut(filt);
         s
     }
-    fn apply_mut(&mut self, filt: FilterType<FilterItem>, mode: FilterMode) {
-        if let Some(mask) = filt.as_mask() {
-            match mask {
-                MaskFilter { operand, item } => match operand {
-                    MaskOperand::Above => match item {
-                        FilterItem::EpochFilter(epoch) => match mode {
-                            FilterMode::Retain => self.retain(|e, _| e >= epoch),
-                            FilterMode::Discard => self.retain(|e, _| e < epoch),
-                        },
-                        _ => {},
-                    },
-                    MaskOperand::StrictlyAbove => match item {
-                        FilterItem::EpochFilter(epoch) => match mode {
-                            FilterMode::Retain => self.retain(|e, _| e > epoch),
-                            FilterMode::Discard => self.retain(|e, _| e <= epoch),
-                        },
-                        _ => {},
-                    },
-                    MaskOperand::Below => match item {
-                        FilterItem::EpochFilter(epoch) => match mode {
-                            FilterMode::Retain => self.retain(|e, _| e <= epoch),
-                            FilterMode::Discard => self.retain(|e, _| e > epoch),
-                        },
-                        _ => {},
-                    },
-                    MaskOperand::StrictlyBelow => match item {
-                        FilterItem::EpochFilter(epoch) => match mode {
-                            FilterMode::Retain => self.retain(|e, _| e < epoch),
-                            FilterMode::Discard => self.retain(|e, _| e >= epoch),
-                        },
-                        _ => {},
-                    },
-                },
-            }
+    fn apply_mut(&mut self, filt: MaskFilter<FilterItem>) {
+        match filt.operand {
+            FilterOperand::Equal => match filt.item {
+                FilterItem::EpochFilter(epoch) => self.retain(|e,  _| *e == epoch),
+                _ => {},
+            },
+            FilterOperand::NotEqual => match filt.item {
+                FilterItem::EpochFilter(epoch) => self.retain(|e,  _| *e != epoch),
+                _ => {},
+            },
+            FilterOperand::Above => match filt.item {
+                FilterItem::EpochFilter(epoch) => self.retain(|e, _| *e >= epoch),
+                _ => {},
+            },
+            FilterOperand::StrictlyAbove => match filt.item {
+                FilterItem::EpochFilter(epoch) => self.retain(|e, _| *e > epoch),
+                _ => {},
+            },
+            FilterOperand::Below => match filt.item {
+                FilterItem::EpochFilter(epoch) => self.retain(|e, _| *e <= epoch),
+                _ => {},
+            },
+            FilterOperand::StrictlyBelow => match filt.item {
+                FilterItem::EpochFilter(epoch) => self.retain(|e, _| *e < epoch),
+                _ => {},
+            },
         }
     }
 }

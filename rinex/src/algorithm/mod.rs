@@ -2,14 +2,6 @@ mod sampling;
 pub use sampling::Decimation;
 
 mod filter;
-pub use filter::{Filter, FilterItem, FilterItemError, FilterMode, FilterType};
+pub use filter::{Filter, MaskFilter, FilterOperand, FilterItem, FilterParsingError};
 
-mod mask;
-pub use mask::{MaskFilter, MaskOperand};
-
-/*pub mod averaging;
-
-pub enum Filter<Item> {
-    Mask(MaskFilter<Item>),
-}
-*/
+//pub mod averaging;

@@ -16,7 +16,7 @@ pub struct Sv {
 }
 
 /// ̀`Sv` parsing & identification related errors
-#[derive(Error, Debug)]
+#[derive(Error, Debug, Clone, PartialEq)]
 pub enum Error {
     #[error("unknown constellation")]
     ConstellationError(#[from] constellation::Error),

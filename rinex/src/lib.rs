@@ -713,59 +713,6 @@ impl Rinex {
         }
     }
 
-    /// Retains Epoch marked by an [EpochFlag::Ok].
-    /// This is only relevant on Observation RINEX
-    /// ```
-    /// use rinex::prelude::*;
-    /// let mut rnx = Rinex::from_file("../test_resources/OBS/V3/ACOR00ESP_R_20213550000_01D_30S_MO.rnx")
-    ///     .unwrap();
-    /// rnx.retain_epoch_ok_mut();
-    /// let record = rnx.record.as_obs()
-    ///     .unwrap();
-    /// for ((epoch, flag), (_, _)) in record {
-    ///     assert_eq!(*flag, EpochFlag::Ok); // no need to check flags at this point
-    /// }
-    /// ```
-    pub fn retain_epoch_ok_mut(&mut self) {
-        if let Some(r) = self.record.as_mut_obs() {
-            r.retain(|(_, flag), _| flag.is_ok());
-        }
-    }
-
-    /// Retains Epoch marker with flags other than [EpochFlag::Ok].
-    /// This is only relevant on Observation RINEX
-    /// ```
-    /// use rinex::prelude::*;
-    /// let mut rnx = Rinex::from_file("../test_resources/OBS/V3/ACOR00ESP_R_20213550000_01D_30S_MO.rnx")
-    ///     .unwrap();
-    /// rnx.retain_epoch_nok_mut();
-    /// let record = rnx.record.as_obs()
-    ///     .unwrap();
-    /// for ((epoch, flag), (_, _)) in record {
-    ///     assert!(*flag != EpochFlag::Ok); // only problematic epochs remain
-    ///                                     // at this point
-    /// }
-    /// ```
-    pub fn retain_epoch_nok_mut(&mut self) {
-        if let Some(r) = self.record.as_mut_obs() {
-            r.retain(|(_, flag), _| !flag.is_ok());
-        }
-    }
-
-    /// [Rinex::retain_epoch_ok_mut] immutable implementation.
-    pub fn retain_epoch_ok(&self) -> Self {
-        let mut s = self.clone();
-        s.retain_epoch_ok_mut();
-        s
-    }
-
-    /// [Rinex::retain_epoch_nok_mut] immutable implementation.
-    pub fn retain_epoch_nok(&self) -> Self {
-        let mut s = self.clone();
-        s.retain_epoch_nok_mut();
-        s
-    }
-
     /// Returns epochs where a loss of lock event happened.
     /// This is only relevant on Observation RINEX
     pub fn observation_epoch_lock_loss(&self) -> Vec<Epoch> {
@@ -782,23 +729,20 @@ impl Rinex {
     pub fn list_constellations(&self) -> Vec<Constellation> {
         let mut ret: Vec<Constellation> = Vec::new();
         match self.header.constellation {
-            Some(Constellation::Mixed) => match self.header.rinex_type {
-                types::Type::ObservationData => {
-                    let record = self.record.as_obs().unwrap();
-                    for (_e, (_clk, vehicules)) in record.iter() {
-                        for (sv, _) in vehicules.iter() {
+            Some(Constellation::Mixed) => {
+                if let Some(r) = self.record.as_obs() {
+                    for (_e, (_clk, vehicules)) in r {
+                        for (sv, _) in vehicules {
                             if !ret.contains(&sv.constellation) {
                                 ret.push(sv.constellation.clone());
                             }
                         }
                     }
-                },
-                types::Type::NavigationData => {
-                    let record = self.record.as_nav().unwrap();
-                    for (_, classes) in record.iter() {
-                        for (class, frames) in classes.iter() {
+                } else if let Some(r) = self.record.as_nav() {
+                    for (_, classes) in r {
+                        for (class, frames) in classes {
                             if *class == navigation::FrameClass::Ephemeris {
-                                for frame in frames.iter() {
+                                for frame in frames {
                                     let (_, sv, _) = frame.as_eph().unwrap();
                                     if !ret.contains(&sv.constellation) {
                                         ret.push(sv.constellation.clone());
@@ -807,12 +751,10 @@ impl Rinex {
                             }
                         }
                     }
-                },
-                types::Type::ClockData => {
-                    let record = self.record.as_clock().unwrap();
-                    for (_, types) in record.iter() {
-                        for (_, systems) in types.iter() {
-                            for (system, _) in systems.iter() {
+                } else if let Some(r) = self.record.as_clock () {
+                    for (_, types) in r {
+                        for (_, systems) in types { 
+                            for (system, _) in systems {
                                 if let Some(sv) = system.as_sv() {
                                     if !ret.contains(&sv.constellation) {
                                         ret.push(sv.constellation.clone());
@@ -821,111 +763,12 @@ impl Rinex {
                             }
                         }
                     }
-                },
-                _ => {},
+                }
             },
             Some(c) => ret.push(c),
             None => {},
         }
         ret
-    }
-
-    /// [Rinex::retain_constellation_mut] immutable implementation
-    pub fn retain_constellation(&self, filter: Vec<Constellation>) -> Self {
-        let mut s = self.clone();
-        s.retain_constellation_mut(filter);
-        s
-    }
-
-    /// Retains data that was recorded along given constellation(s).
-    /// This has no effect on ATX, MET and IONEX records, NAV
-    /// record frames other than Ephemeris, Clock frames not measured
-    /// against space vehicule.
-    pub fn retain_constellation_mut(&mut self, filter: Vec<Constellation>) {
-        if let Some(r) = self.record.as_mut_obs() {
-            r.retain(|_, (_, vehicules)| {
-                vehicules.retain(|sv, _| filter.contains(&sv.constellation));
-                vehicules.len() > 0
-            });
-        } else if let Some(r) = self.record.as_mut_nav() {
-            r.retain(|_, classes| {
-                classes.retain(|class, frames| {
-                    if *class == navigation::FrameClass::Ephemeris {
-                        frames.retain(|fr| {
-                            let (_, sv, _) = fr.as_eph().unwrap();
-                            filter.contains(&sv.constellation)
-                        });
-                        frames.len() > 0
-                    } else {
-                        true // retains non EPH
-                    }
-                });
-                classes.len() > 0
-            });
-        } else if let Some(r) = self.record.as_mut_clock() {
-            r.retain(|_, dtypes| {
-                dtypes.retain(|_, systems| {
-                    systems.retain(|system, _| {
-                        if let Some(sv) = system.as_sv() {
-                            filter.contains(&sv.constellation)
-                        } else {
-                            true // retain other system types
-                        }
-                    });
-                    systems.len() > 0
-                });
-                dtypes.len() > 0
-            });
-        }
-    }
-
-    /// Retains data that was generated / recorded against given list of
-    /// space vehicules. This has no effect on ATX, MET, IONEX records,
-    /// and NAV record frames other than Ephemeris. On CLK records,
-    /// we filter out data not measured against space vehicules and different vehicules.
-    pub fn retain_space_vehicule_mut(&mut self, filter: Vec<Sv>) {
-        if let Some(r) = self.record.as_mut_obs() {
-            r.retain(|_, (_, vehicules)| {
-                vehicules.retain(|sv, _| filter.contains(sv));
-                vehicules.len() > 0
-            })
-        } else if let Some(r) = self.record.as_mut_nav() {
-            r.retain(|_, classes| {
-                classes.retain(|class, frames| {
-                    if *class == navigation::FrameClass::Ephemeris {
-                        frames.retain(|fr| {
-                            let (_, sv, _) = fr.as_eph().unwrap();
-                            filter.contains(&sv)
-                        });
-                        frames.len() > 0
-                    } else {
-                        true // keeps non ephemeris as is
-                    }
-                });
-                classes.len() > 0
-            })
-        } else if let Some(r) = self.record.as_mut_clock() {
-            r.retain(|_, data_types| {
-                data_types.retain(|_, systems| {
-                    systems.retain(|system, _| {
-                        if let Some(sv) = system.as_sv() {
-                            filter.contains(&sv)
-                        } else {
-                            false
-                        }
-                    });
-                    systems.len() > 0
-                });
-                data_types.len() > 0
-            })
-        }
-    }
-
-    /// Immutable implementation of [retain_space_vehicule_mut]
-    pub fn retain_space_vehicule(&self, filter: Vec<Sv>) -> Self {
-        let mut s = self.clone();
-        s.retain_space_vehicule_mut(filter);
-        s
     }
 
     /// Returns list of vehicules per constellation and on an epoch basis
@@ -1981,6 +1824,7 @@ impl Rinex {
         }
     }
 
+/*
     /// Applies given elevation mask
     pub fn elevation_mask_mut(
         &mut self,
@@ -2016,7 +1860,8 @@ Specify one yourself with `ref_pos`",
             })
         }
     }
-
+*/
+/*
     pub fn elevation_mask(
         &self,
         mask: navigation::ElevationMask,
@@ -2026,7 +1871,7 @@ Specify one yourself with `ref_pos`",
         s.elevation_mask_mut(mask, ref_pos);
         s
     }
-
+*/
     /// Extracts all System Time Offset data
     /// on a epoch basis, from this Navigation record.
     /// This does not produce anything if self is not a modern Navigation record
@@ -3647,15 +3492,15 @@ impl TimeScaling<Rinex> for Rinex {
     }
 }
 
-use crate::processing::{Filter, FilterItem, FilterMode, FilterType};
+use crate::processing::{Filter, MaskFilter, FilterItem};
 
 impl Filter for Rinex {
-    fn apply(&self, filt: FilterType<FilterItem>, mode: FilterMode) -> Self {
+    fn apply(&self, mask: MaskFilter<FilterItem>) -> Self {
         let mut s = self.clone();
-        s.apply_mut(filt, mode);
+        s.apply_mut(mask);
         s
     }
-    fn apply_mut(&mut self, filt: FilterType<FilterItem>, mode: FilterMode) {
-        self.record.apply_mut(filt, mode);
+    fn apply_mut(&mut self, mask: MaskFilter<FilterItem>) {
+        self.record.apply_mut(mask);
     }
 }

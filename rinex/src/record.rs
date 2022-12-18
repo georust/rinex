@@ -813,25 +813,25 @@ impl TimeScaling<Record> for Record {
     }
 }
 
-use crate::processing::{Filter, FilterItem, FilterMode, FilterType};
+use crate::processing::{Filter, FilterItem, MaskFilter};
 
 impl Filter for Record {
-    fn apply(&self, filt: FilterType<FilterItem>, mode: FilterMode) -> Self {
+    fn apply(&self, filt: MaskFilter<FilterItem>) -> Self {
         let mut s = self.clone();
-        s.apply_mut(filt, mode);
+        s.apply_mut(filt);
         s
     }
-    fn apply_mut(&mut self, filt: FilterType<FilterItem>, mode: FilterMode) {
+    fn apply_mut(&mut self, filt: MaskFilter<FilterItem>) {
         if let Some(r) = self.as_mut_obs() {
-            r.apply_mut(filt, mode);
-        } else if let Some(r) = self.as_mut_meteo() {
-            r.apply_mut(filt, mode);
+            r.apply_mut(filt);
         } else if let Some(r) = self.as_mut_nav() {
-            r.apply_mut(filt, mode);
-        } else if let Some(r) = self.as_mut_ionex() {
-            r.apply_mut(filt, mode);
+            r.apply_mut(filt);
         } else if let Some(r) = self.as_mut_clock() {
-            r.apply_mut(filt, mode);
+            r.apply_mut(filt);
+        } else if let Some(r) = self.as_mut_meteo() {
+            r.apply_mut(filt);
+        } else if let Some(r) = self.as_mut_ionex() {
+            r.apply_mut(filt);
         }
     }
 }

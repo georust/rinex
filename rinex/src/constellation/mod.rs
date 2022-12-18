@@ -10,7 +10,7 @@ pub use augmentation::selection_helper;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
-#[derive(Error, Debug, PartialEq)]
+#[derive(Error, Clone, Debug, PartialEq)]
 /// Constellation parsing & identification related errors
 pub enum Error {
     #[error("code length mismatch, expecting {0} got {1}")]
