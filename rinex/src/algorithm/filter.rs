@@ -174,7 +174,7 @@ impl std::str::FromStr for FilterItem {
                         Ok(Self::ObservableFilter(desc))
                     } else if items[0].trim().eq("orb") {
                         let desc: Vec<String> = items[1].split(",")
-                            .map(|s| s.to_string())
+                            .map(|s| s.trim().to_string())
                             .collect();
                         Ok(Self::OrbitFilter(desc))
                     } else if items[0].trim().eq("nav") {
