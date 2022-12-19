@@ -1,5 +1,12 @@
 use crate::prelude::*;
 
+#[derive(Clone, Debug)]
+pub enum AverageType {
+    Cumulative,
+    Moving(Duration),
+    Exponential(f64),
+}
+
 pub struct Averager {
     buffer: Vec<f64>,
     next_epoch: Option<Epoch>,
@@ -33,4 +40,9 @@ impl Averager {
         }
         None
     }
+}
+
+pub trait Processing {
+    fn to_ndarray(&self) -> ndarray;
+    fn average(&self, avg: AverageType) ->
 }
