@@ -1,41 +1,35 @@
-//! Meteo observable codes
-use strum_macros::EnumString;
-
-/// Meteo Observables
-#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, EnumString)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum Observable {
+    /// Carrier phase observation 
+    Phase,
+    /// Doppler shift observation 
+    Doppler,
+    /// SSI observation 
+    SSI,
+    /// Pseudo range observation 
+    PseudoRange,
     /// Pressure observation in [mbar]
-    #[strum(serialize = "PR")]
     Pressure,
     /// Dry temperature measurement in [°C]
-    #[strum(serialize = "TD", serialize = "td")]
     Temperature,
     /// Relative humidity measurement in [%]
-    #[strum(serialize = "HR", serialize = "hr")]
     HumidityRate,
     /// Wet Zenith Path delay in [mm]
-    #[strum(serialize = "ZW", serialize = "zw")]
     ZenithWetDelay,
     /// Zenith path delay, dry component, in [mm]
-    #[strum(serialize = "ZD", serialize = "zd")]
     ZenithDryDelay,
     /// Total zenith path delay (dry + wet), in [mm]
-    #[strum(serialize = "ZT", serialize = "zt")]
     ZenithTotalDelay,
     /// Wind azimuth, from where the wind blows, in [°]
-    #[strum(serialize = "WD", serialize = "wd")]
     WindAzimuth,
     /// Wind speed, in [m.s^-1]
-    #[strum(serialize = "WS", serialize = "ws")]
     WindSpeed,
     /// Rain Increment, i.e., rain accumulation
     /// since previous measurement, [10th of mm]
-    #[strum(serialize = "RI", serialize = "ri")]
     RainIncrement,
     /// Hail Indicator non zero, hail detected
     /// since last measurement
-    #[strum(serialize = "HI", serialize = "hi")]
     HailIndicator,
 }
 
@@ -60,6 +54,27 @@ impl std::fmt::Display for Observable {
             Self::HailIndicator => "HI".fmt(f),
         }
     }
+}
+
+impl std::str::FromStr for Obserable {
+	type Err = ObservableError;
+	fn from_str(content: &str) -> Result<Self, Self::Err> {
+		match content.to_lowercase().trim() {
+			"pr" => Self::Pressure,
+			"td" => Self::Temperature,
+			"hr" => Self::HumidityRate,
+			"zw" => Self::ZenithWetDelay,
+			"zd" => Self::ZenithDryDelay,
+			"zt" => Self::ZenithTotalDelay,
+			"wd" => Self::WindAzimuth,
+			"ws" => Self::WindSpeed,
+			"ri" => Self::RainIncrement,
+			"hi" => Self::HailIndicator,
+			_ => {
+
+			},
+		}
+	}
 }
 
 #[cfg(test)]

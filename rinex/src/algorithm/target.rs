@@ -1,39 +1,33 @@
-mod sampling;
-pub use sampling::Decimation;
-
-mod filter;
-pub use filter::{Filter, MaskFilter, FilterOperand, FilterParsingError};
-pub use TargetItem;
-
-//mod processing;
-//pub use processing::{Processing, AverageType};
-
+use thiserror::Error;
+use std::str::FromStr;
+use crate::{Epoch, EpochFlag, Sv, Constellation};
 use crate::meteo::Observable;
 use crate::navigation::MsgType;
 use crate::navigation::FrameClass;
 
-/// Target Item represents items that filter operations
-/// or algorithms may target
-#[derive(Clone, Debug, PartialEq)]
-pub enum TargetItem {
-    /// RINEX data on Epoch
-    EpochItem(Epoch),
-    /// Filter Observation RINEX on Epoch Flag
-    EpochFlagItem(EpochFlag),
-    /// Filter Navigation RINEX on elevation angle 
-    ElevationItem(f64),
-    /// Filter RINEX data on list of vehicle
-    SvItem(Sv),
-    /// Filter RINEX data on list of constellation
-    ConstellationItem(Constellation),
-    /// Filter Observation RINEX on list of observables 
-    ObservableItem(String),
-    /// Filter Navigation RINEX on list of Orbit item 
-    OrbitItem(String),
-    /// Filter Navigation RINEX on Message type 
-    NavMsgItem(MsgType),
-    /// Filter Navigation RINEX on Frame type 
-    NavFrameItem(FrameClass),
+
+#[derive(Clone, Debug, Error, PartialEq)]
+pub enum FilterParsingError {
+    #[error("unrecognized operand")]
+    UnknownOperand,
+    #[error("unrecognized item")]
+    UnrecognizedItem,
+    #[error("malformed description")]
+    MalformedDescriptor,
+    #[error("failed to parse (float) filter value")]
+    FilterParsingError(#[from] std::num::ParseFloatError),
+    #[error("failed to parse epoch flag")]
+    EpochFlagParsingError(#[from] crate::epoch::flag::Error),
+    #[error("failed to parse constellation")]
+    ConstellationParsingError(#[from] crate::constellation::Error),
+    #[error("failed to parse sv")]
+    SvParsingError(#[from] crate::sv::Error),
+    #[error("invalid nav frame type")]
+    InvalidNavFrame,
+    #[error("invalid nav message type")]
+    InvalidNavMsg,
+    #[error("invalid nav filter")]
+    InvalidNavFilter,
 }
 
 impl std::str::FromStr for TargetItem {
@@ -41,17 +35,7 @@ impl std::str::FromStr for TargetItem {
     fn from_str(content: &str) -> Result<Self, Self::Err> {
         let c = content.trim();
         if let Ok(epoch) = Epoch::from_str(c) {
-            Ok(Self::EpochItem(epoch))
-		} else if let Ok(sv) = Sv::from_str(c) {
-			Ok(Self::SvItem(sv))
-		} else if let Ok(c) = Constellation::from_str(c) {
-			Ok(Self::ConstellationItem(c))
-		} else if let Ok(msg) = MsgType::from_str(c) {
-			Ok(Self::NavMsgItem(msg))
-		} else if let Ok(fr) = FrameClas::from_str(c) {
-			Ok(Self::NavFrameItem(fr)))
-		} else if let Ok(obs) = Observable::from_str(c) { 
-
+            Ok(Self::EpochFilter(epoch))
         } else {
             if !c.contains(":") {
                 Err(FilterParsingError::MalformedDescriptor)
@@ -145,4 +129,28 @@ impl std::str::FromStr for TargetItem {
             }
         } 
     }
+}
+
+pub trait Filter {
+	/// Applies given filter to self.
+	/// ```
+	/// use rinex::prelude::*;
+	/// use rinex::processing::*;
+	/// // parse a RINEX file
+	/// let mut rinex = Rinex::from_file("../test_resources/OBS/V3/")
+	///		.unwrap();
+	/// // design a filter
+	/// let sv_filt: MaskFilter::from_str("= sv: G08,G09")
+	///		.unwrap();
+	/// rinex.filter_mut(sv_filt);
+	/// // design a filter
+	/// let phase_filt = MaskFilter::from_str("= obs: ph")
+	///		.unwrap();
+	/// rinex.filter_mut(phase_filt);
+	/// // apply a time window
+	/// let start = MaskFilter::from_str("> 2022
+	/// ```
+    fn apply(&self, mask: MaskFilter<TargetItem>) -> Self;
+	/// Mutable implementation, see [Filter::apply]
+    fn apply_mut(&mut self, mask: MaskFilter<TargetItem>);
 }

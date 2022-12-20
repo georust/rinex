@@ -43,6 +43,10 @@ impl Averager {
 }
 
 pub trait Processing {
-    fn to_ndarray(&self) -> ndarray;
-    fn average(&self, avg: AverageType) ->
+	/// Applies desired averaging method to selected data set
+    fn average(&self, avg: AverageType, target: TargetItem) -> BTreeMap<Epoch, f64>;
+	/// Interpolates self to macth the given epoch axis
+	fn interpolate(&self, epoch: Vec<Epoch>) -> Self;
+	/// Mutable implementation see [Processing::interpolate] 
+	fn interpolate_mut(&self, epoch: Vec<Epoch>);
 }
