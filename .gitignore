@@ -5,3 +5,4 @@ Cargo.lock
 *.jpg
 *.swp
 *.swo
+.DS_Store
