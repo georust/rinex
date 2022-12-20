@@ -129,8 +129,8 @@ mod test {
     #[test]
     fn test_default_observable() {
         let default = Observable::default();
-        assert_eq!(default, Observable::from_str("L1").unwrap());
-        assert_eq!(default, Observable::Phase(String::from("L1")));
+        assert_eq!(default, Observable::from_str("L1C").unwrap());
+        assert_eq!(default, Observable::Phase(String::from("L1C")));
     }
     #[test]
     fn test_observable() {
