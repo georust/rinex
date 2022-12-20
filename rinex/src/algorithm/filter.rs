@@ -44,26 +44,35 @@ impl FilterOperand {
     }
 }
 
-/// MaskFilter is an effecient structure to describe high level
-/// operations, to focus on data or subset of interest
+/// FilterOp is an effecient structure to describe high level
+/// focus / filtering operations.
+/// See [Filter::apply] definition, for example of use.
 /// ```
 /// use rinex::prelude::*;
 /// use rinex::processing::*;
 ///
 /// // after "epoch" condition
-/// let after_mask: MaskFilter::from_str("> e: 2022-01-01 10:00:00UTC")
-///		.unwrap();
-/// // any valid Epoch description is available
-/// let after_mask: MaskFilter::from_str("> e: JD 2960") 
-///		.unwrap();
+/// let after_filter = FilterOp::from_str("> 2022-01-01 10:00:00UTC")
+///     .unwrap();
+/// // any valid Epoch description will work 
+/// let after_filter = FilterOp::from_str("> JD 2960")
+///     .unwrap();
+///	
+///	// complex operation: 
+///	// to describe several conditions at once, delimit them with ";"
+///	// Theoretically, we support an infinite number of conditions.
+///	// For example: here we describe a precise epoch interval
+///	let interval = FilterOp::from_str(">  2022-01-01 10:00:00UTC ; <= 2022-01-01 10:00:10UTC")
+///	    .unwrap();
+/// 
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub struct MaskFilter<T> {
+pub struct FilterOp {
     pub operand: FilterOperand,
-    pub targets: Vec<T>,
+    pub targets: Vec<TargetItem>,
 }
 
-impl std::str::FromStr for MaskFilter<TargetItem> {
+impl std::str::FromStr for FilterOp {
     type Err = AlgorithmError;
     fn from_str(content: &str) -> Result<Self, Self::Err> {
         let content = content.trim();
@@ -72,8 +81,19 @@ impl std::str::FromStr for MaskFilter<TargetItem> {
         }
         if let Ok(operand) = FilterOperand::from_str(content) {
             let offset = operand.formatted_len();
-            let item = TargetItem::from_str(&content[offset..])?;
-            Ok(Self { operand, item })
+            let items = &content[offset..];
+            let items: Vec<&str> = items.split(";")
+                .collect();
+            let mut targets: Vec<TargetItem> = Vec::with_capacity(items.len()); 
+            for item in items {
+                targets.push(
+                    TargetItem::from_str(&content[offset..])?
+                );
+            }
+            Ok(Self {
+                operand,
+                targets,
+            })
         } else {
             Err(AlgorithmError::UnknownOperand)
         }
@@ -90,26 +110,33 @@ pub trait Filter {
 	///		.unwrap();
     ///
     /// // design a filter
-	/// let sv_filter: MaskFilter::from_str("= GPS")
+	/// let sv_filter: FilterOp::from_str("= GPS")
 	///		.unwrap();
 	/// let rinex = rinex.filter(sv_filter);
     ///
 	/// // design a filter: case insensitive
-	/// let sv_filter: MaskFilter::from_str("= g08,g09")
+	/// let sv_filter: FilterOp::from_str("= g08,g09")
 	///		.unwrap();
 	/// let rinex = rinex.filter(sv_filter);
     ///
 	/// // whitespace is not mandatory,
-	/// let phase_filter = MaskFilter::from_str("=L1C,l2l,L2W")
+	/// let phase_filter = FilterOp::from_str("=L1C,l2l,L2W")
 	///		.unwrap();
 	/// let rinex = rinex.filter(sv_filter);
     ///
-	/// // apply a time window
-	/// let start = MaskFilter::from_str("> 2022
+    /// // if the descriptor is a float number,
+    /// // we consider it to be an elevation mask as of today.
+    /// // Maybe in the future, we'll have options to describe
+    /// // other types of fields or physics
+    /// let elev_mask = FilterOp::from_str(">= 33.0") // elev mask in °
+    ///     .unwrap();
+    /// // Applying a mask like this can only work 
+    /// // on Navigation Data: this is just an example.
+    /// let rinex = rinex.filter(elev_mask);
 	/// ```
-    fn apply(&self, mask: MaskFilter<TargetItem>) -> Self;
+    fn apply(&self, filter: FilterOp) -> Self;
 	/// Mutable implementation, see [Filter::apply]
-    fn apply_mut(&mut self, mask: MaskFilter<TargetItem>);
+    fn apply_mut(&mut self, filter: FilterOp);
 }
 
 #[cfg(test)]
@@ -144,134 +171,140 @@ mod test {
     }
     #[test]
     fn test_epoch_mask() {
-        let mask = MaskFilter::from_str("> 2020-01-14T00:31:55 UTC");
+        let mask = FilterOp::from_str("> 2020-01-14T00:31:55 UTC");
         assert_eq!(
             mask,
-            Ok(MaskFilter {
+            Ok(FilterOp {
                 operand: FilterOperand::StrictlyAbove,
-                item: TargetItem::EpochFilter(Epoch::from_str("2020-01-14T00:31:55 UTC").unwrap()),
+                targets: vec![
+                    TargetItem::EpochItem(Epoch::from_str("2020-01-14T00:31:55 UTC").unwrap())
+                ],
             }));
-        let mask = MaskFilter::from_str("> JD 2452312.500372511 TAI");
+        let mask = FilterOp::from_str("> JD 2452312.500372511 TAI");
         assert!(mask.is_ok());
     }
     #[test]
     fn test_elev_mask() {
-        let mask = MaskFilter::from_str("< e: 40.0");
+        let mask = FilterOp::from_str("< 40.0");
         assert_eq!(
             mask,
-            Ok(MaskFilter {
+            Ok(FilterOp {
                 operand: FilterOperand::StrictlyBelow,
-                item: TargetItem::ElevationFilter(40.0_f64),
+                targets: vec![TargetItem::ElevationItem(40.0_f64)],
             }));
-        let m2 = MaskFilter::from_str("<e: 40.0");
+        let m2 = FilterOp::from_str("<40.0");
+        assert_eq!(mask, m2);
+        let m2 = FilterOp::from_str("  < 40.0  ");
         assert_eq!(mask, m2);
 
-        let mask = MaskFilter::from_str(">= e: 10.0");
+        let mask = FilterOp::from_str(">= 10.0");
         assert_eq!(
             mask,
-            Ok(MaskFilter {
+            Ok(FilterOp {
                 operand: FilterOperand::Above,
-                item: TargetItem::ElevationFilter(10.0_f64),
+                targets: vec![TargetItem::ElevationItem(10.0_f64)],
             }));
-        let m2 = MaskFilter::from_str(">=e: 10.0");
+        let m2 = FilterOp::from_str(">=10.0");
         assert_eq!(mask, m2);
     }
+    /*
     #[test]
     fn test_constell_mask() {
-        let mask = MaskFilter::from_str("= c: GPS");
+        let mask = FilterOp::from_str("= c: GPS");
         assert_eq!(
             mask,
-            Ok(MaskFilter {
+            Ok(FilterOp {
                 operand: FilterOperand::Equal,
-                item: TargetItem::ConstellationFilter(vec![Constellation::GPS]),
+                targets: TargetItem::ConstellationFilter(vec![Constellation::GPS]),
             }));
-        let m2 = MaskFilter::from_str("=c: GPS");
+        let m2 = FilterOp::from_str("=c: GPS");
         assert_eq!(mask, m2);
 
-        let mask = MaskFilter::from_str("= c: GPS,GAL,GLO");
+        let mask = FilterOp::from_str("= c: GPS,GAL,GLO");
         assert_eq!(
             mask,
-            Ok(MaskFilter {
+            Ok(FilterOp {
                 operand: FilterOperand::Equal,
-                item: TargetItem::ConstellationFilter(vec![Constellation::GPS, Constellation::Galileo, Constellation::Glonass]),
+                targets: TargetItem::ConstellationFilter(vec![Constellation::GPS, Constellation::Galileo, Constellation::Glonass]),
             }));
-        let m2 = MaskFilter::from_str("=c: GPS,GAL,GLO");
+        let m2 = FilterOp::from_str("=c: GPS,GAL,GLO");
         assert_eq!(mask, m2);
         
-        let mask = MaskFilter::from_str("!= c: BDS");
+        let mask = FilterOp::from_str("!= c: BDS");
         assert_eq!(
             mask,
-            Ok(MaskFilter {
+            Ok(FilterOp {
                 operand: FilterOperand::NotEqual,
-                item: TargetItem::ConstellationFilter(vec![Constellation::BeiDou]),
+                targets: TargetItem::ConstellationFilter(vec![Constellation::BeiDou]),
             }));
-        let m2 = MaskFilter::from_str("!=c:BDS");
+        let m2 = FilterOp::from_str("!=c:BDS");
         assert_eq!(mask, m2);
     }
     #[test]
     fn test_sv_mask() {
-        let mask = MaskFilter::from_str("= sv: G08,  G09, R03");
+        let mask = FilterOp::from_str("= sv: G08,  G09, R03");
         assert_eq!(
             mask,
-            Ok(MaskFilter {
+            Ok(FilterOp {
                 operand: FilterOperand::Equal,
-                item: TargetItem::SvFilter(vec![
+                targets: TargetItem::SvItem(vec![
                     Sv::from_str("G08").unwrap(),
                     Sv::from_str("G09").unwrap(),
                     Sv::from_str("R03").unwrap(),
                 ]),
             }));
-        let m2 = MaskFilter::from_str("= sv: G08,G09,R03");
+        let m2 = FilterOp::from_str("= sv: G08,G09,R03");
         assert_eq!(mask, m2);
         
-        let mask = MaskFilter::from_str("!= sv: G31");
+        let mask = FilterOp::from_str("!= sv: G31");
         assert_eq!(
             mask,
-            Ok(MaskFilter {
+            Ok(FilterOp {
                 operand: FilterOperand::NotEqual,
-                item: TargetItem::SvFilter(vec![
+                targets: TargetItem::SvItem(vec![
                     Sv::from_str("G31").unwrap(),
                 ]),
             }));
-        let m2 = MaskFilter::from_str("!=sv:G31");
+        let m2 = FilterOp::from_str("!=sv:G31");
         assert_eq!(mask, m2);
     }
     #[test]
     fn test_obs_mask() {
-        let mask = MaskFilter::from_str("= obs: ph,ssi,pr");
+        let mask = FilterOp::from_str("= obs: ph,ssi,pr");
         assert_eq!(
             mask,
-            Ok(MaskFilter {
+            Ok(FilterOp {
                 operand: FilterOperand::Equal,
-                item: TargetItem::ObservableFilter(
+                targets: TargetItem::ObservableItem(
                     vec![String::from("ph"), String::from("ssi"), String::from("pr")])
             }));
     }
     #[test]
     fn test_orb_mask() {
-        let mask = MaskFilter::from_str("= orb: iode");
+        let mask = FilterOp::from_str("= iode");
         assert_eq!(
             mask,
-            Ok(MaskFilter {
+            Ok(FilterOp {
                 operand: FilterOperand::Equal,
-                item: TargetItem::OrbitFilter(vec![String::from("iode")])
+                targets: TargetItem::OrbitItem(vec![String::from("iode")])
             }));
     }
     #[test]
     fn test_nav_mask() {
-        let mask = MaskFilter::from_str("= nav:fr:eph");
+        let mask = FilterOp::from_str("= eph");
         assert_eq!(
             mask,
-            Ok(MaskFilter {
+            Ok(FilterOp {
                 operand: FilterOperand::Equal,
-                item: TargetItem::NavFrameFilter(vec![FrameClass::Ephemeris])
+                targets: vec![TargetItem::NavFrameItem(FrameClass::Ephemeris)],
             }));
-        let mask = MaskFilter::from_str("= nav:msg:lnav");
+        let mask = FilterOp::from_str("= lnav");
         assert_eq!(
             mask,
-            Ok(MaskFilter {
+            Ok(FilterOp {
                 operand: FilterOperand::Equal,
-                item: TargetItem::NavMsgFilter(vec![MsgType::LNAV])
+                targets: vec![TargetItem::NavMsgItem(MsgType::LNAV)],
             }));
     }
+    */
 }

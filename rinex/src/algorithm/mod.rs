@@ -2,7 +2,7 @@ mod sampling;
 pub use sampling::Decimation;
 
 mod filter;
-pub use filter::{Filter, MaskFilter, FilterOperand};
+pub use filter::{Filter, FilterOp, FilterOperand};
 
 //mod processing;
 //pub use processing::{Processing, AverageType};
@@ -52,8 +52,14 @@ impl std::str::FromStr for TargetItem {
 			Ok(Self::NavFrameItem(fr))
 		} else if let Ok(obs) = Observable::from_str(c) {
             Ok(Self::ObservableItem(obs))
+		} else if let Ok(flag) = EpochFlag::from_str(c) {
+            Ok(Self::EpochFlagItem(flag))
         } else {
-            Err(AlgorithmError::UnrecognizedTarget)
+            if let Ok(f) = f64::from_str(c) {
+                Ok(Self::ElevationItem(f))
+            } else {
+                Err(AlgorithmError::UnrecognizedTarget)
+            }
         }
     }
 }
@@ -61,6 +67,42 @@ impl std::str::FromStr for TargetItem {
 impl From<Epoch> for TargetItem {
     fn from(e: Epoch) -> Self {
         Self::EpochItem(e)
+    }
+}
+
+impl From<EpochFlag> for TargetItem {
+    fn from(f: EpochFlag) -> Self {
+        Self::EpochFlagItem(f)
+    }
+}
+
+impl From<Sv> for TargetItem {
+    fn from(sv: Sv) -> Self {
+        Self::SvItem(sv)
+    }
+}
+
+impl From<Constellation> for TargetItem {
+    fn from(c: Constellation) -> Self {
+        Self::ConstellationItem(c)
+    }
+}
+
+impl From<MsgType> for TargetItem {
+    fn from(msg: MsgType) -> Self {
+        Self::NavMsgItem(msg)
+    }
+}
+
+impl From<FrameClass> for TargetItem {
+    fn from(class: FrameClass) -> Self {
+        Self::NavFrameItem(class)
+    }
+}
+
+impl From<Observable> for TargetItem {
+    fn from(obs: Observable) -> Self {
+        Self::ObservableItem(obs)
     }
 }
 
@@ -86,4 +128,36 @@ pub enum AlgorithmError {
     InvalidNavMsg,
     #[error("invalid nav filter")]
     InvalidNavFilter,
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::{Observable, Carrier};
+    #[test]
+    fn test_target_item() {
+        let e = Epoch::default();
+        let target: TargetItem = e.into();
+        assert_eq!(target, TargetItem::EpochItem(e));
+
+        let f = EpochFlag::default();
+        let target: TargetItem = f.into();
+        assert_eq!(target, TargetItem::EpochFlagItem(f));
+        assert_eq!(TargetItem::from_str("0"), Ok(target));
+        
+        let obs = Observable::default();
+        let target: TargetItem = obs.clone().into();
+        assert_eq!(target, TargetItem::ObservableItem(obs.clone()));
+        assert_eq!(TargetItem::from_str("L1C"), Ok(target));
+        
+        let msg = MsgType::LNAV;
+        let target: TargetItem = msg.into();
+        assert_eq!(target, TargetItem::NavMsgItem(msg));
+        assert_eq!(TargetItem::from_str("LNAV"), Ok(target));
+        
+        let fr = FrameClass::Ephemeris;
+        let target: TargetItem = fr.into();
+        assert_eq!(target, TargetItem::NavFrameItem(fr));
+        assert_eq!(TargetItem::from_str("EPH"), Ok(target));
+    }
 }
