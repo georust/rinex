@@ -23,17 +23,17 @@ pub enum TargetItem {
     /// Filter Navigation RINEX on elevation angle 
     ElevationItem(f64),
     /// Filter RINEX data on list of vehicle
-    SvItem(Sv),
+    SvItem(Vec<Sv>),
     /// Filter RINEX data on list of constellation
-    ConstellationItem(Constellation),
+    ConstellationItem(Vec<Constellation>),
     /// Filter Observation RINEX on list of observables 
-    ObservableItem(Observable),
+    ObservableItem(Vec<Observable>),
     /// Filter Navigation RINEX on list of Orbit item 
-    OrbitItem(String),
+    OrbitItem(Vec<String>),
     /// Filter Navigation RINEX on Message type 
-    NavMsgItem(MsgType),
+    NavMsgItem(Vec<MsgType>),
     /// Filter Navigation RINEX on Frame type 
-    NavFrameItem(FrameClass),
+    NavFrameItem(Vec<FrameClass>),
 }
 
 impl std::str::FromStr for TargetItem {
@@ -42,25 +42,50 @@ impl std::str::FromStr for TargetItem {
         let c = content.trim();
         if let Ok(epoch) = Epoch::from_str(c) {
             Ok(Self::EpochItem(epoch))
-		} else if let Ok(sv) = Sv::from_str(c) {
-			Ok(Self::SvItem(sv))
-		} else if let Ok(c) = Constellation::from_str(c) {
-			Ok(Self::ConstellationItem(c))
-		} else if let Ok(msg) = MsgType::from_str(c) {
-			Ok(Self::NavMsgItem(msg))
-		} else if let Ok(fr) = FrameClass::from_str(c) {
-			Ok(Self::NavFrameItem(fr))
-		} else if let Ok(obs) = Observable::from_str(c) {
-            Ok(Self::ObservableItem(obs))
 		} else if let Ok(flag) = EpochFlag::from_str(c) {
             Ok(Self::EpochFlagItem(flag))
-        } else {
-            if let Ok(f) = f64::from_str(c) {
-                Ok(Self::ElevationItem(f))
-            } else {
-                Err(AlgorithmError::UnrecognizedTarget)
-            }
-        }
+        } else if let Ok(f) = f64::from_str(c) {
+			Ok(Self::ElevationItem(f))
+		} else {
+			/*
+			 * others support a vector of items
+			 */
+			 let items: Vec<&str> = c.split(",").collect();
+			 let mut svs: Vec<Sv> = Vec::with_capacity(items.len());
+			 let mut consts: Vec<Constellation> = Vec::with_capacity(items.len());
+			 let mut obss: Vec<Observable> = Vec::with_capacity(items.len());
+			 let mut orbs: Vec<String> = Vec::with_capacity(items.len());
+			 let mut fr: Vec<FrameClass> = Vec::with_capacity(items.len());
+			 let mut msg: Vec<MsgType> = Vec::with_capacity(items.len());
+			 for item in items {
+				if let Ok(sv) = Sv::from_str(item.trim()) {
+					svs.push(sv);
+				} else if let Ok(c) = Constellation::from_str(item.trim()) {
+					consts.push(c);
+				} else if let Ok(m) = MsgType::from_str(item.trim()) {
+					msg.push(m);
+				} else if let Ok(f) = FrameClass::from_str(item.trim()) {
+					fr.push(f);
+				} else if let Ok(ob) = Observable::from_str(item.trim()) {
+					obss.push(ob);
+				} else {
+					orbs.push(item.trim().to_string());
+				}
+			}
+			if svs.len() > 0 {
+				Ok(Self::SvItem(svs))
+			} else if consts.len() > 0 {
+				Ok(Self::ConstellationItem(consts))
+			} else if obss.len() > 0 {
+				Ok(Self::ObservableItem(obss))
+			} else if fr.len() > 0 {
+				Ok(Self::NavFrameItem(fr))
+			} else if msg.len() > 0 {
+				Ok(Self::NavMsgItem(msg))
+			} else {
+				Err(AlgorithmError::UnrecognizedTarget)
+			}
+		}
     }
 }
 
@@ -78,31 +103,31 @@ impl From<EpochFlag> for TargetItem {
 
 impl From<Sv> for TargetItem {
     fn from(sv: Sv) -> Self {
-        Self::SvItem(sv)
+        Self::SvItem(vec![sv])
     }
 }
 
 impl From<Constellation> for TargetItem {
     fn from(c: Constellation) -> Self {
-        Self::ConstellationItem(c)
+        Self::ConstellationItem(vec![c])
     }
 }
 
 impl From<MsgType> for TargetItem {
     fn from(msg: MsgType) -> Self {
-        Self::NavMsgItem(msg)
+        Self::NavMsgItem(vec![msg])
     }
 }
 
 impl From<FrameClass> for TargetItem {
     fn from(class: FrameClass) -> Self {
-        Self::NavFrameItem(class)
+        Self::NavFrameItem(vec![class])
     }
 }
 
 impl From<Observable> for TargetItem {
     fn from(obs: Observable) -> Self {
-        Self::ObservableItem(obs)
+        Self::ObservableItem(vec![obs])
     }
 }
 
@@ -147,17 +172,21 @@ mod test {
         
         let obs = Observable::default();
         let target: TargetItem = obs.clone().into();
-        assert_eq!(target, TargetItem::ObservableItem(obs.clone()));
+        assert_eq!(target, TargetItem::ObservableItem(vec![obs.clone()]));
         assert_eq!(TargetItem::from_str("L1C"), Ok(target));
         
         let msg = MsgType::LNAV;
         let target: TargetItem = msg.into();
-        assert_eq!(target, TargetItem::NavMsgItem(msg));
+        assert_eq!(target, TargetItem::NavMsgItem(vec![msg]));
         assert_eq!(TargetItem::from_str("LNAV"), Ok(target));
         
         let fr = FrameClass::Ephemeris;
         let target: TargetItem = fr.into();
-        assert_eq!(target, TargetItem::NavFrameItem(fr));
+        assert_eq!(target, TargetItem::NavFrameItem(vec![fr]));
         assert_eq!(TargetItem::from_str("EPH"), Ok(target));
+
+		assert_eq!(TargetItem::from_str("eph, ion"), 
+			Ok(TargetItem::NavFrameItem(
+				vec![FrameClass::Ephemeris, FrameClass::IonosphericModel])));
     }
 }
