@@ -1,11 +1,7 @@
 use thiserror::Error;
-use crate::carrier;
-use crate::Carrier;
 
-#[derive(Error, Debug, Clone)]
+#[derive(Error, Debug, Clone, PartialEq)]
 pub enum Error {
-    #[error("failed to parse carrier code")]
-    ParseCarrierError(#[from] carrier::Error),
     #[error("unknown observable")]
     UnknownObservable,
     #[error("malformed observable")]
@@ -18,13 +14,13 @@ pub enum Error {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum Observable {
     /// Carrier phase observation 
-    Phase(Carrier, Option<String>),
+    Phase(String),
     /// Doppler shift observation 
-    Doppler(Carrier, Option<String>),
+    Doppler(String),
     /// SSI observation 
-    SSI(Carrier, Option<String>),
+    SSI(String),
     /// Pseudo range observation 
-    PseudoRange(Carrier, Option<String>),
+    PseudoRange(String),
     /// Pressure observation in [mbar]
     Pressure,
     /// Dry temperature measurement in [°C]
@@ -51,32 +47,20 @@ pub enum Observable {
 
 impl Default for Observable {
     fn default() -> Self {
-        Self::Phase(Carrier::default(), None)
+        Self::Phase("L1C".to_string())
     }
 }
 
 impl Observable {
     pub fn code(&self) -> Option<String> {
         match self {
-            Self::Phase(_, c) | Self::Doppler(_, c) | Self::SSI(_, c) | Self::PseudoRange(_, c) => c.clone(),
-            _ => None,
-        }
-    }
-    pub fn carrier(&self) -> Option<Carrier> {
-        match self {
-            Self::Phase(c, _) | Self::Doppler(c, _) | Self::SSI(c, _) | Self::PseudoRange(c, _) => Some(*c),
-            _ => None,
-        }
-    }
-    pub fn wavelength(&self) -> Option<f64> {
-        match self {
-            Self::Phase(c, _) | Self::Doppler(c,  _) | Self::SSI(c, _) | Self::PseudoRange(c, _) => Some(c.carrier_wavelength()),
-            _ => None,
-        }
-    }
-    pub fn frequency(&self) -> Option<f64> {
-        match self {
-            Self::Phase(c, _) | Self::Doppler(c,  _) | Self::SSI(c, _) | Self::PseudoRange(c, _) => Some(c.carrier_frequency()),
+            Self::Phase(c) | Self::Doppler(c) | Self::SSI(c) | Self::PseudoRange(c) => {
+                if c.len() == 3 {
+                    Some(c[1..].to_string())
+                } else {
+                    None
+                }
+            },
             _ => None,
         }
     }
@@ -95,10 +79,7 @@ impl std::fmt::Display for Observable {
             Self::WindSpeed =>  write!(f,"WS"),
             Self::RainIncrement =>  write!(f,"RI"),
             Self::HailIndicator =>  write!(f,"HI"),
-            Self::SSI(c, code) => write!(f, "S{}{}", c, code.unwrap_or("".to_string())), 
-            Self::Phase(c, code) => write!(f, "L{}{}", c, code.unwrap_or("".to_string())), 
-            Self::Doppler(c, code) => write!(f, "D{}{}", c, code.unwrap_or("".to_string())), 
-            Self::PseudoRange(c, code) => write!(f, "C{}{}", c, code.unwrap_or("".to_string())), 
+            Self::SSI(c) | Self::Phase(c) |  Self::Doppler(c) | Self::PseudoRange(c) => write!(f, "{}", c),
         }
     }
 }
@@ -106,41 +87,30 @@ impl std::fmt::Display for Observable {
 impl std::str::FromStr for Observable {
 	type Err = Error;
 	fn from_str(content: &str) -> Result<Self, Self::Err> {
-        let content = content.to_lowercase().trim();
+        let content = content.to_uppercase();
+        let content = content.trim();
 		match content {
-			"pr" => Ok(Self::Pressure),
-			"td" => Ok(Self::Temperature),
-			"hr" => Ok(Self::HumidityRate),
-			"zw" => Ok(Self::ZenithWetDelay),
-			"zd" => Ok(Self::ZenithDryDelay),
-			"zt" => Ok(Self::ZenithTotalDelay),
-			"wd" => Ok(Self::WindAzimuth),
-			"ws" => Ok(Self::WindSpeed),
-			"ri" => Ok(Self::RainIncrement),
-			"hi" => Ok(Self::HailIndicator),
+			"PR" => Ok(Self::Pressure),
+			"TD" => Ok(Self::Temperature),
+			"HR" => Ok(Self::HumidityRate),
+			"ZW" => Ok(Self::ZenithWetDelay),
+			"ZD" => Ok(Self::ZenithDryDelay),
+			"ZT" => Ok(Self::ZenithTotalDelay),
+			"WD" => Ok(Self::WindAzimuth),
+			"WS" => Ok(Self::WindSpeed),
+			"RI" => Ok(Self::RainIncrement),
+			"HI" => Ok(Self::HailIndicator),
 			_ => {
                 let len = content.len();
                 if len > 1 && len < 4 {
-                    let carrier = Carrier::from_str(&content[1..2])?; 
-                    let code: Option<String> = match len > 2 {
-                        true => {
-                            let code = &content[2..];
-                            if carrier::KNOWN_CODES.contains(&code) {
-                                Some(code.to_string())
-                            } else {
-                                None
-                            }
-                        },
-                        false => None,
-                    };
                     if content.starts_with("L")  {
-                        Ok(Self::Phase(carrier, code))
+                        Ok(Self::Phase(content.to_string()))
                     } else if content.starts_with("C") {
-                        Ok(Self::PseudoRange(carrier, code))
+                        Ok(Self::PseudoRange(content.to_string()))
                     } else if content.starts_with("S") {
-                        Ok(Self::SSI(carrier, code))
+                        Ok(Self::SSI(content.to_string()))
                     } else if content.starts_with("D") {
-                        Ok(Self::Doppler(carrier, code))
+                        Ok(Self::Doppler(content.to_string()))
                     } else {
                         Err(Error::UnknownObservable)
                     }
@@ -157,26 +127,58 @@ mod test {
     use super::*;
     use std::str::FromStr;
     #[test]
-    fn test_default() {
+    fn test_default_observable() {
         let default = Observable::default();
         assert_eq!(default, Observable::from_str("L1").unwrap());
-        assert_eq!(default, Observable::Phase(Carrier::L1));
+        assert_eq!(default, Observable::Phase(String::from("L1")));
     }
     #[test]
-    fn test_parser() {
+    fn test_observable() {
         let obs = Observable::from_str("PR");
-        assert_eq!(obs.is_ok(), true);
-        let obs = obs.unwrap();
-        assert_eq!(obs, Observable::Pressure);
-        assert_eq!(obs.to_string(), "PR");
+        assert_eq!(obs, Ok(Observable::Pressure));
+        assert_eq!(obs.clone().unwrap().to_string(), "PR");
+        assert_eq!(Observable::from_str("pr"), obs.clone());
 
         let obs = Observable::from_str("WS");
-        assert_eq!(obs.is_ok(), true);
-        let obs = obs.unwrap();
-        assert_eq!(obs, Observable::WindSpeed);
-        assert_eq!(obs.to_string(), "WS");
+        assert_eq!(obs, Ok(Observable::WindSpeed));
+        assert_eq!(obs.clone().unwrap().to_string(), "WS");
+        assert_eq!(Observable::from_str("ws"), obs.clone());
 
         let obs = Observable::from_str("Wa");
-        assert_eq!(obs.is_ok(), false);
+        assert!(obs.is_err());
+
+        assert_eq!(Observable::from_str("L1"), 
+            Ok(Observable::Phase(String::from("L1"))));
+        assert!(Observable::from_str("L1").unwrap().code().is_none());
+
+        assert_eq!(Observable::from_str("L2"), 
+            Ok(Observable::Phase(String::from("L2"))));
+        assert_eq!(Observable::from_str("L5"), 
+            Ok(Observable::Phase(String::from("L5"))));
+        assert_eq!(Observable::from_str("L6Q"), 
+            Ok(Observable::Phase(String::from("L6Q"))));
+        assert_eq!(Observable::from_str("L6Q").unwrap().code(), Some(String::from("6Q")));
+        
+        assert_eq!(Observable::from_str("L1C"), 
+            Ok(Observable::Phase(String::from("L1C"))));
+        assert_eq!(Observable::from_str("L1P"), 
+            Ok(Observable::Phase(String::from("L1P"))));
+        assert_eq!(Observable::from_str("L8X"), 
+            Ok(Observable::Phase(String::from("L8X"))));
+
+        assert_eq!(Observable::from_str("S7Q"), Ok(Observable::SSI(String::from("S7Q"))));
+        assert_eq!(
+            format!("{}", Observable::PseudoRange(String::from("S7Q"))),
+            "S7Q");
+        
+        assert_eq!(Observable::from_str("D7Q"), Ok(Observable::Doppler(String::from("D7Q"))));
+        assert_eq!(
+            format!("{}", Observable::Doppler(String::from("D7Q"))),
+            "D7Q");
+        
+        assert_eq!(Observable::from_str("C7X"), Ok(Observable::PseudoRange(String::from("C7X"))));
+        assert_eq!(
+            format!("{}", Observable::PseudoRange(String::from("C7X"))),
+            "C7X");
     }
 }

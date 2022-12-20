@@ -60,7 +60,7 @@ impl Default for Carrier {
     }
 }
 
-#[derive(Error, Debug, Clone)]
+#[derive(Error, Debug, Clone, PartialEq)]
 pub enum Error {
     /// Unable to parse Carrier from given string content
     #[error("unable to parse channel from content \"{0}\"")]
@@ -102,26 +102,31 @@ impl std::fmt::Display for Carrier {
 impl std::str::FromStr for Carrier {
     type Err = Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s.contains("L1") {
+        let content = s.to_uppercase();
+        let content = content.trim();
+        if content.eq("L1") {
             Ok(Carrier::L1)
-        } else if s.contains("L2") {
+        } else if content.eq("L2") {
             Ok(Carrier::L2)
-        } else if s.contains("L5") {
+        } else if content.eq("L5") {
             Ok(Carrier::L5)
-        } else if s.contains("G1") {
-            if s.eq("G1") {
+        } else if content.contains("G1") {
+            if content.eq("G1") {
                 Ok(Carrier::G1(None))
-            } else if s.contains("G1(") {
+
+            } else if content.contains("G1(") {
                 let items: Vec<&str> = s.split("(").collect();
                 let item = items[1].replace(")", "");
                 Ok(Carrier::G1(Some(i8::from_str_radix(&item, 10)?)))
             } else {
                 Err(Error::ParseError(s.to_string()))
             }
-        } else if s.contains("G2") {
-            if s.eq("G2") {
+
+        } else if content.contains("G2") {
+            if content.eq("G2") {
                 Ok(Carrier::G2(None))
-            } else if s.contains("G2(") {
+
+            } else if content.contains("G2(") {
                 let items: Vec<&str> = s.split("(").collect();
                 let item = items[1].replace(")", "");
                 Ok(Carrier::G2(Some(i8::from_str_radix(&item, 10)?)))
@@ -180,6 +185,15 @@ impl Carrier {
             Carrier::B1C => todo!("B1C bandwidth is not known to this day"),
             Carrier::B2 => todo!("B2 bandwidth is not known to this day"),
             Carrier::B3 => todo!("B3 bandwidth is not known to this day"),
+        }
+    }
+
+    /// Converts to exact Glonass carrier
+    pub fn with_offset(&self, offset: i8) -> Self {
+        match self {
+            Self::L1 => Self::G1(Some(offset)),
+            Self::L2 => Self::G2(Some(offset)),
+            other => *other,
         }
     }
 
