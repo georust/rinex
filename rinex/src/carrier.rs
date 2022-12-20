@@ -1,8 +1,8 @@
 //! Carrier channels and associated methods
-use crate::constellation::Constellation;
 use crate::sv;
-use std::str::FromStr;
 use thiserror::Error;
+use std::str::FromStr;
+use crate::constellation::Constellation;
 
 lazy_static! {
     pub(crate) static ref KNOWN_CODES: Vec<&'static str> = vec![
@@ -16,7 +16,7 @@ lazy_static! {
 //pub(crate) fn parse_glonass_channels(content: &str)
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd)]
-#[cfg_attr(feature = "serde", derive(Serialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum Carrier {
     /// L1 (GPS, SBAS, QZSS)
     L1,
@@ -42,10 +42,10 @@ pub enum Carrier {
     E6,
     /// B1: BeiDou 1
     B1,
-    /// B1C BeiDou 1C
-    B1C,
     /// B1A BeiDou 1A
     B1A,
+    /// B1C BeiDou 1C
+    B1C,
     /// B2: BeiDou 2
     B2,
     /// B3
@@ -60,7 +60,7 @@ impl Default for Carrier {
     }
 }
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, Clone)]
 pub enum Error {
     /// Unable to parse Carrier from given string content
     #[error("unable to parse channel from content \"{0}\"")]
@@ -73,7 +73,33 @@ pub enum Error {
     InvalidObservable(String),
 }
 
-impl FromStr for Carrier {
+impl std::fmt::Display for Carrier {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Self::L1 => write!(f, "L1"),
+            Self::L2 => write!(f, "L2"),
+            Self::L5 => write!(f, "L5"),
+            Self::L6 => write!(f, "L6"),
+            Self::G1(None) => write!(f, "G1"),
+            Self::G1(Some(i)) => write!(f, "G1({})", i),
+            Self::G2(None) => write!(f, "G2"),
+            Self::G2(Some(i)) => write!(f, "G2({})", i),
+            Self::G3 => write!(f, "G3"),
+            Self::E1 => write!(f, "E1"),
+            Self::E2 => write!(f, "E2"),
+            Self::E5 => write!(f, "E5"),
+            Self::E6 => write!(f, "E6"),
+            Self::B1 => write!(f, "B1"),
+            Self::B1A => write!(f, "B1A"),
+            Self::B1C => write!(f, "B1C"),
+            Self::B2 => write!(f, "B2"),
+            Self::B3 => write!(f, "B3"),
+            Self::S => write!(f, "S"),
+        }
+    }
+}
+
+impl std::str::FromStr for Carrier {
     type Err = Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if s.contains("L1") {

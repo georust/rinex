@@ -1,6 +1,6 @@
-use std::collections::{BTreeMap, HashMap};
-use std::io::prelude::*;
 use thiserror::Error;
+use std::io::prelude::*;
+use std::collections::{BTreeMap, HashMap};
 
 #[cfg(feature = "serde")]
 use serde::Serialize;
@@ -813,6 +813,7 @@ impl TimeScaling<Record> for Record {
     }
 }
 
+/*
 use crate::processing::{Filter, FilterItem, MaskFilter};
 
 impl Filter for Record {
@@ -835,3 +836,4 @@ impl Filter for Record {
         }
     }
 }
+*/

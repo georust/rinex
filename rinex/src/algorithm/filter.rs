@@ -1,5 +1,6 @@
 use thiserror::Error;
 use std::str::FromStr;
+use super::{AlgorithmError, TargetItem};
 use crate::{Epoch, EpochFlag, Sv, Constellation};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -13,7 +14,7 @@ pub enum FilterOperand {
 }
 
 impl std::str::FromStr for FilterOperand {
-    type Err = FilterParsingError;
+    type Err = AlgorithmError;
     fn from_str(content: &str) -> Result<Self, Self::Err> {
         let c = content.trim();
         if c.starts_with(">=") {
@@ -29,7 +30,7 @@ impl std::str::FromStr for FilterOperand {
         } else if c.starts_with("!=") {
             Ok(Self::NotEqual)
         } else {
-            Err(FilterParsingError::UnknownOperand)
+            Err(AlgorithmError::UnknownOperand)
         }
     }
 }
@@ -57,73 +58,26 @@ impl FilterOperand {
 ///		.unwrap();
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub struct MaskFilter<I> {
+pub struct MaskFilter<T> {
     pub operand: FilterOperand,
-    pub items: Vec<I>,
+    pub targets: Vec<T>,
 }
 
 impl std::str::FromStr for MaskFilter<TargetItem> {
-    type Err = FilterParsingError;
+    type Err = AlgorithmError;
     fn from_str(content: &str) -> Result<Self, Self::Err> {
         let content = content.trim();
         if content.len() < 3 {
-            return Err(FilterParsingError::MalformedDescriptor);
+            return Err(AlgorithmError::MalformedDescriptor);
         }
         if let Ok(operand) = FilterOperand::from_str(content) {
             let offset = operand.formatted_len();
             let item = TargetItem::from_str(&content[offset..])?;
             Ok(Self { operand, item })
         } else {
-            Err(FilterParsingError::UnknownOperand)
+            Err(AlgorithmError::UnknownOperand)
         }
     }
-}
-
-/// Filter item is what a `Filter` actually targets
-#[derive(Clone, Debug, PartialEq)]
-pub enum TargetItem {
-    /// Filter RINEX data on Epoch
-    EpochFilter(Epoch),
-    /// Filter Observation RINEX on Epoch Flag
-    EpochFlagFilter(EpochFlag),
-    /// Filter Navigation RINEX on elevation angle 
-    ElevationFilter(f64),
-    /// Filter RINEX data on list of vehicle
-    SvFilter(Vec<Sv>),
-    /// Filter RINEX data on list of constellation
-    ConstellationFilter(Vec<Constellation>),
-    /// Filter Observation RINEX on list of observables 
-    ObservableFilter(Vec<String>),
-    /// Filter Navigation RINEX on list of Orbit item 
-    OrbitFilter(Vec<String>),
-    /// Filter Navigation RINEX on Message type 
-    NavMsgFilter(Vec<MsgType>),
-    /// Filter Navigation RINEX on Frame type 
-    NavFrameFilter(Vec<FrameClass>),
-}
-
-#[derive(Clone, Debug, Error, PartialEq)]
-pub enum FilterParsingError {
-    #[error("unrecognized operand")]
-    UnknownOperand,
-    #[error("unrecognized item")]
-    UnrecognizedItem,
-    #[error("malformed description")]
-    MalformedDescriptor,
-    #[error("failed to parse (float) filter value")]
-    FilterParsingError(#[from] std::num::ParseFloatError),
-    #[error("failed to parse epoch flag")]
-    EpochFlagParsingError(#[from] crate::epoch::flag::Error),
-    #[error("failed to parse constellation")]
-    ConstellationParsingError(#[from] crate::constellation::Error),
-    #[error("failed to parse sv")]
-    SvParsingError(#[from] crate::sv::Error),
-    #[error("invalid nav frame type")]
-    InvalidNavFrame,
-    #[error("invalid nav message type")]
-    InvalidNavMsg,
-    #[error("invalid nav filter")]
-    InvalidNavFilter,
 }
 
 pub trait Filter {
@@ -132,16 +86,24 @@ pub trait Filter {
 	/// use rinex::prelude::*;
 	/// use rinex::processing::*;
 	/// // parse a RINEX file
-	/// let mut rinex = Rinex::from_file("../test_resources/OBS/V3/")
+	/// let rinex = Rinex::from_file("../test_resources/OBS/V3/")
 	///		.unwrap();
-	/// // design a filter
-	/// let sv_filt: MaskFilter::from_str("= sv: G08,G09")
+    ///
+    /// // design a filter
+	/// let sv_filter: MaskFilter::from_str("= GPS")
 	///		.unwrap();
-	/// rinex.filter_mut(sv_filt);
-	/// // design a filter
-	/// let phase_filt = MaskFilter::from_str("= obs: ph")
+	/// let rinex = rinex.filter(sv_filter);
+    ///
+	/// // design a filter: case insensitive
+	/// let sv_filter: MaskFilter::from_str("= g08,g09")
 	///		.unwrap();
-	/// rinex.filter_mut(phase_filt);
+	/// let rinex = rinex.filter(sv_filter);
+    ///
+	/// // whitespace is not mandatory,
+	/// let phase_filter = MaskFilter::from_str("=L1C,l2l,L2W")
+	///		.unwrap();
+	/// let rinex = rinex.filter(sv_filter);
+    ///
 	/// // apply a time window
 	/// let start = MaskFilter::from_str("> 2022
 	/// ```

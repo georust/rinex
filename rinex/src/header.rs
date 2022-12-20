@@ -3,6 +3,7 @@
 use super::*;
 use crate::{
     antex, clocks,
+    Observable,
     hardware::{Antenna, Rcvr, SvAntenna},
     ionex, leap, meteo, observation,
     observation::Crinex,
@@ -11,10 +12,10 @@ use crate::{
     version::Version,
 };
 
-use std::io::prelude::*;
-use std::str::FromStr;
-use strum_macros::EnumString;
 use thiserror::Error;
+use std::str::FromStr;
+use std::io::prelude::*;
+use strum_macros::EnumString;
 
 macro_rules! from_b_fmt_month {
     ($m: expr) => {
@@ -476,7 +477,7 @@ impl Header {
                 let (y_str, rem) = rem.split_at(14);
                 let (z_str, rem) = rem.split_at(14);
                 let (h_str, phys_str) = rem.split_at(14);
-                if let Ok(observable) = meteo::observable::Observable::from_str(phys_str.trim()) {
+                if let Ok(observable) = Observable::from_str(phys_str.trim()) {
                     for sensor in meteo.sensors.iter_mut() {
                         if sensor.observable == observable {
                             if let Ok(x) = f64::from_str(x_str.trim()) {
@@ -638,7 +639,7 @@ impl Header {
                             },
                             _ => {
                                 if rinex_type == Type::MeteoData {
-                                    if let Ok(obs) = meteo::Observable::from_str(obscode) {
+                                    if let Ok(obs) = Observable::from_str(obscode) {
                                         meteo.codes.push(obs);
                                     }
                                 } else {

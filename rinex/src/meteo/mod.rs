@@ -1,9 +1,9 @@
 //! `Meteo` RINEX
-pub mod observable;
 pub mod record;
 pub mod sensor;
-pub use observable::Observable;
 pub use record::Record;
+
+use crate::Observable;
 
 /// Meteo specific header fields
 #[derive(Debug, Clone, Default, PartialEq, PartialOrd)]

@@ -920,6 +920,7 @@ impl TimeScaling<Record> for Record {
     }
 }
 
+/*
 use crate::processing::{Filter, FilterItem, MaskFilter, FilterOperand};
 
 impl Filter for Record {
@@ -989,3 +990,4 @@ impl Filter for Record {
         }
     }
 }
+*/
