@@ -23,6 +23,7 @@ pub mod types;
 pub mod version;
 
 mod leap;
+mod observable;
 
 extern crate horrorshow;
 extern crate num;
@@ -54,6 +55,7 @@ use observation::{
     Crinex,
 };
 use version::Version;
+use observable::Observable;
 
 // Convenient package to import, that
 // comprises all basic and major structures
@@ -64,6 +66,7 @@ pub mod prelude {
     pub use crate::sv::Sv;
     pub use crate::Rinex;
     pub use hifitime::{Duration, Epoch, TimeScale};
+    pub use crate::observable::Observable;
 }
 
 /// SBAS related package
@@ -3299,6 +3302,7 @@ impl TimeScaling<Rinex> for Rinex {
     }
 }
 
+/*
 use crate::processing::{Filter, MaskFilter, FilterItem};
 
 impl Filter for Rinex {
@@ -3311,3 +3315,4 @@ impl Filter for Rinex {
         self.record.apply_mut(mask);
     }
 }
+*/
