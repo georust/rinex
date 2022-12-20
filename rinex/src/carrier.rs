@@ -80,11 +80,9 @@ impl std::fmt::Display for Carrier {
             Self::L2 => write!(f, "L2"),
             Self::L5 => write!(f, "L5"),
             Self::L6 => write!(f, "L6"),
-            Self::G1(None) => write!(f, "G1"),
-            Self::G1(Some(i)) => write!(f, "G1({})", i),
-            Self::G2(None) => write!(f, "G2"),
-            Self::G2(Some(i)) => write!(f, "G2({})", i),
-            Self::G3 => write!(f, "G3"),
+            Self::G1(_) => write!(f, "L1"),
+            Self::G2(_) => write!(f, "L2"),
+            Self::G3 => write!(f, "L3"),
             Self::E1 => write!(f, "E1"),
             Self::E2 => write!(f, "E2"),
             Self::E5 => write!(f, "E5"),
@@ -108,31 +106,12 @@ impl std::str::FromStr for Carrier {
             Ok(Carrier::L1)
         } else if content.eq("L2") {
             Ok(Carrier::L2)
+        } else if content.eq("L3") {
+            Ok(Carrier::G3)
         } else if content.eq("L5") {
             Ok(Carrier::L5)
-        } else if content.contains("G1") {
-            if content.eq("G1") {
-                Ok(Carrier::G1(None))
-
-            } else if content.contains("G1(") {
-                let items: Vec<&str> = s.split("(").collect();
-                let item = items[1].replace(")", "");
-                Ok(Carrier::G1(Some(i8::from_str_radix(&item, 10)?)))
-            } else {
-                Err(Error::ParseError(s.to_string()))
-            }
-
-        } else if content.contains("G2") {
-            if content.eq("G2") {
-                Ok(Carrier::G2(None))
-
-            } else if content.contains("G2(") {
-                let items: Vec<&str> = s.split("(").collect();
-                let item = items[1].replace(")", "");
-                Ok(Carrier::G2(Some(i8::from_str_radix(&item, 10)?)))
-            } else {
-                Err(Error::ParseError(s.to_string()))
-            }
+        } else if content.eq("L6") {
+            Ok(Carrier::L6)
         } else {
             Err(Error::ParseError(s.to_string()))
         }
@@ -155,7 +134,7 @@ impl Carrier {
             Carrier::G1(_) => 1602.0_f64,
             Carrier::G2(Some(c)) => 1246.06_f64 + (*c as f64 * 7.0 / 16.0),
             Carrier::G2(_) => 1246.06_f64,
-            Carrier::G3 => 1202.025_f64,
+            Carrier::G3 => 1207.140_f64,
             Carrier::L6 => 1278.75_f64,
             Carrier::B1 => 1561.098_f64,
             Carrier::B1A => 1575.42_f64,
