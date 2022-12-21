@@ -1,8 +1,8 @@
 mod sampling;
 pub use sampling::Decimation;
 
-mod filter;
-pub use filter::{Filter, FilterOp, FilterOperand};
+mod mask;
+pub use mask::{Mask, MaskFilter, MaskOperand};
 
 //mod processing;
 //pub use processing::{Processing, AverageType};
@@ -188,5 +188,14 @@ mod test {
 		assert_eq!(TargetItem::from_str("eph, ion"), 
 			Ok(TargetItem::NavFrameItem(
 				vec![FrameClass::Ephemeris, FrameClass::IonosphericModel])));
+
+		assert_eq!(TargetItem::from_str("g08,g09,R03"), 
+			Ok(TargetItem::SvItem(
+				vec![Sv::from_str("G08").unwrap(),
+				Sv::from_str("G09").unwrap(),
+				Sv::from_str("R03").unwrap()])));
+
+        assert_eq!(TargetItem::from_str("GPS , BDS"),
+            Ok(TargetItem::ConstellationItem(vec![Constellation::GPS, Constellation::BeiDou])));
     }
 }
