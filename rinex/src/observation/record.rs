@@ -257,7 +257,7 @@ pub(crate) fn parse_epoch(
     (
         (Epoch, EpochFlag),
         Option<f64>,
-        BTreeMap<sv::Sv, HashMap<String, ObservationData>>,
+        BTreeMap<sv::Sv, HashMap<Observable, ObservationData>>,
     ),
     Error,
 > {
@@ -365,18 +365,18 @@ pub(crate) fn parse_epoch(
 fn parse_v2(
     header: &Header,
     systems: &str,
-    observables: &HashMap<Constellation, Vec<String>>,
+    observables: &HashMap<Constellation, Vec<Observable>>,
     lines: std::str::Lines<'_>,
-) -> BTreeMap<Sv, HashMap<String, ObservationData>> {
+) -> BTreeMap<Sv, HashMap<Observable, ObservationData>> {
     let svnn_size = 3; // SVNN standard
     let nb_max_observables = 5; // in a single line
     let observable_width = 16; // data + 2 flags + 1 whitespace
     let mut sv_ptr = 0; // svnn pointer
     let mut obs_ptr = 0; // observable pointer
-    let mut data: BTreeMap<Sv, HashMap<String, ObservationData>> = BTreeMap::new();
-    let mut inner: HashMap<String, ObservationData> = HashMap::with_capacity(5);
+    let mut data: BTreeMap<Sv, HashMap<Observable, ObservationData>> = BTreeMap::new();
+    let mut inner: HashMap<Observable, ObservationData> = HashMap::with_capacity(5);
     let mut sv: Sv;
-    let mut obscodes: &Vec<String>;
+    let mut observables: &Vec<Observable>;
     //println!("SYSTEMS \"{}\"", systems); // DEBUG
 
     // parse first system we're dealing with
@@ -409,10 +409,9 @@ fn parse_v2(
     }
     sv_ptr += svnn_size; // increment pointer
                          // grab observables for this vehicule
-    if let Some(observables) = observables.get(&sv.constellation) {
-        obscodes = &observables;
-    } else {
-        // failed to identify observations for this vehicule
+    if let Some(o) = observables.get(&sv.constellation) {
+        observables = &o;
+    } else { // failed to identify observations for this vehicule
         return data;
     }
 
@@ -424,7 +423,7 @@ fn parse_v2(
             //println!("\nEMPTY LINE: \"{}\"", line); //DEBUG
             // line is empty
             // add maximal amount of vehicules possible
-            obs_ptr += std::cmp::min(nb_max_observables, obscodes.len() - obs_ptr);
+            obs_ptr += std::cmp::min(nb_max_observables, observables.len() - obs_ptr);
             // nothing to parse
         } else {
             // not a empty line
@@ -434,7 +433,7 @@ fn parse_v2(
                                                                               // parse all obs
             for i in 0..nb_obs {
                 obs_ptr += 1;
-                if obs_ptr > obscodes.len() {
+                if obs_ptr > observables.len() {
                     // line is abnormally long compared to header definitions
                     //  parsing would fail
                     break;
@@ -471,7 +470,7 @@ fn parse_v2(
                     }
                     //println!("{} {:?} {:?} ==> {}", obs, lli, ssi, obscodes[obs_ptr-1]); //DEBUG
                     inner.insert(
-                        obscodes[obs_ptr - 1].clone(),
+                        observables[obs_ptr-1], 
                         ObservationData { obs, lli, ssi },
                     );
                 } //f64::obs
@@ -482,7 +481,7 @@ fn parse_v2(
         }
         //println!("OBS COUNT {}", obs_ptr); //DEBUG
 
-        if obs_ptr >= obscodes.len() {
+        if obs_ptr >= observables.len() {
             // we're done with current vehicule
             // build data
             data.insert(sv, inner.clone());
@@ -515,8 +514,8 @@ fn parse_v2(
             }
             sv_ptr += svnn_size; // increment pointer
                                  // grab observables for this vehicule
-            if let Some(observables) = observables.get(&sv.constellation) {
-                obscodes = &observables;
+            if let Some(o) = observables.get(&sv.constellation) {
+                observables = &o;
             } else {
                 // failed to identify observations for this vehicule
                 return data;
@@ -531,13 +530,13 @@ fn parse_v2(
  * Format is much simpler, one vehicule is described in a single line
  */
 fn parse_v3(
-    observables: &HashMap<Constellation, Vec<String>>,
+    observables: &HashMap<Constellation, Vec<Observable>>,
     lines: std::str::Lines<'_>,
-) -> BTreeMap<Sv, HashMap<String, ObservationData>> {
+) -> BTreeMap<Sv, HashMap<Observable, ObservationData>> {
     let svnn_size = 3; // SVNN standard
     let observable_width = 16; // data + 2 flags
-    let mut data: BTreeMap<Sv, HashMap<String, ObservationData>> = BTreeMap::new();
-    let mut inner: HashMap<String, ObservationData> = HashMap::with_capacity(5);
+    let mut data: BTreeMap<Sv, HashMap<Observable, ObservationData>> = BTreeMap::new();
+    let mut inner: HashMap<Observable, ObservationData> = HashMap::with_capacity(5);
     for line in lines {
         // browse all lines
         //println!("parse_v3: \"{}\"", line); //DEBUG

@@ -41,8 +41,9 @@ use std::io::Write; //, Read};
 pub mod writer;
 use writer::BufferedWriter;
 
-use std::collections::{BTreeMap, HashMap};
 use thiserror::Error;
+use std::str::FromStr;
+use std::collections::{BTreeMap, HashMap};
 
 use version::Version;
 use hifitime::Duration;
@@ -2150,8 +2151,8 @@ Specify one yourself with `ref_pos`",
                         for (ref_observable, refdata) in observations {
                             let mut shared_physics =
                                 ref_observable.is_phase_observable() && lhs_observable.is_phase_observable();
-                            shared_physics |= ref_observable.is_pseudorange_observation()
-                                && lhs_observable.is_pseudorange_observation();
+                            shared_physics |= ref_observable.is_pseudorange_observable()
+                                && lhs_observable.is_pseudorange_observable();
                             if !shared_physics {
                                 continue;
                             }
@@ -2172,7 +2173,7 @@ Specify one yourself with `ref_pos`",
                                     },
                                     false => 1.0,
                                 };
-                                reference = Some((refcode, refdata.obs * ref_scaling));
+                                reference = Some((&refcode, refdata.obs * ref_scaling));
                                 break; // DONE searching
                             }
                         }
@@ -2264,7 +2265,7 @@ Specify one yourself with `ref_pos`",
             let gf = self.observation_gf_combinations();
             let mut prev_data: HashMap<String, HashMap<Sv, (Epoch, f64)>> = HashMap::new();
             for (gf_code, vehicles) in gf {
-                if let Ok(observable) = Observable::from_str(gf_code) {
+                if let Ok(observable) = Observable::from_str(&gf_code) {
                     if !observable.is_phase_observable() {
                         continue ;
                     }
@@ -2418,7 +2419,7 @@ Specify one yourself with `ref_pos`",
                             if observable.is_phase_observable()
                                 || observable.is_pseudorange_observable()
                             {
-                                let mut map: HashMap<String, (u32, f64)> = HashMap::new();
+                                let mut map: HashMap<Observable, (u32, f64)> = HashMap::new();
                                 map.insert(observable, (1, obs_data.obs));
                                 mean.insert(*sv, map);
                             }
@@ -2480,7 +2481,8 @@ Specify one yourself with `ref_pos`",
                                  * We already have an association, keep it consistent throughout
                                  * operations
                                  */
-                                for (code, data) in observations {
+                                for (observable, data) in observations {
+                                    let code = observable.code().unwrap();
                                     let carrier_code = &code[1..2];
                                     if carrier_code == rhs_carrier {
                                         // correct carrier signal
@@ -2494,7 +2496,8 @@ Specify one yourself with `ref_pos`",
                             } else {
                                 // first: prefer the same code against rhs carrier
                                 let to_locate = format!("L{}{}", rhs_carrier, &mp_code[1..]);
-                                for (code, data) in observations {
+                                for (observable, data) in observations {
+                                    let code = observable.code().unwrap();
                                     let carrier_code = &code[1..2];
                                     if carrier_code == rhs_carrier {
                                         // correct carrier
@@ -2567,7 +2570,7 @@ Specify one yourself with `ref_pos`",
                                         > = HashMap::new();
                                         bmap.insert(*epoch, mp);
                                         map.insert(*sv, bmap);
-                                        ret.insert(mp_code.clone(), map);
+                                        ret.insert(mp_code.to_string(), map);
                                     }
                                 }
                             }
@@ -2875,6 +2878,7 @@ Specify one yourself with `ref_pos`",
                                     if k_code.starts_with(carrier_id) {
                                         // same carrier
                                         let tolocate = "L".to_owned() + k_code;
+                                        let tolocate = Observable::from_str(&tolocate).unwrap();
                                         if let Some(otherdata) = observations.get(&tolocate) {
                                             // we found another PH code
                                             let mut found = false;
@@ -2975,6 +2979,8 @@ Specify one yourself with `ref_pos`",
                                     if k_code.starts_with(carrier_id) {
                                         // same carrier
                                         let tolocate = "C".to_owned() + k_code;
+                                        let tolocate = Observable::from_str(&tolocate)
+                                            .unwrap();
                                         if let Some(otherdata) = observations.get(&tolocate) {
                                             // we found a ref. code
                                             let mut found = false;
@@ -3172,26 +3178,6 @@ Specify one yourself with `ref_pos`",
     }
 }
 
-#[cfg(test)]
-mod test {
-    use super::*;
-    #[test]
-    fn test_macros() {
-        assert_eq!(is_comment!("This is a comment COMMENT"), true);
-        assert_eq!(is_comment!("This is a comment"), false);
-    }
-    #[test]
-    fn test_hourly_session() {
-        assert_eq!(hourly_session!(0), "a");
-        assert_eq!(hourly_session!(1), "b");
-        assert_eq!(hourly_session!(2), "c");
-        assert_eq!(hourly_session!(3), "d");
-        assert_eq!(hourly_session!(4), "e");
-        assert_eq!(hourly_session!(5), "f");
-        assert_eq!(hourly_session!(23), "x");
-    }
-}
-
 impl Merge<Rinex> for Rinex {
     /// Merges `rhs` into `Self` without mutable access, at the expense of memcopies
     fn merge(&self, rhs: &Self) -> Result<Self, merge::Error> {
@@ -3316,5 +3302,25 @@ impl MaskFilter for Rinex {
     }
     fn apply_mut(&mut self, mask: Mask) {
         self.record.apply_mut(mask);
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[test]
+    fn test_macros() {
+        assert_eq!(is_comment!("This is a comment COMMENT"), true);
+        assert_eq!(is_comment!("This is a comment"), false);
+    }
+    #[test]
+    fn test_hourly_session() {
+        assert_eq!(hourly_session!(0), "a");
+        assert_eq!(hourly_session!(1), "b");
+        assert_eq!(hourly_session!(2), "c");
+        assert_eq!(hourly_session!(3), "d");
+        assert_eq!(hourly_session!(4), "e");
+        assert_eq!(hourly_session!(5), "f");
+        assert_eq!(hourly_session!(23), "x");
     }
 }

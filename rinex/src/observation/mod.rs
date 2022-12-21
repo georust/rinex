@@ -96,29 +96,27 @@ impl std::fmt::Display for Crinex {
 #[derive(Debug, Clone, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct HeaderFields {
-    /// Optional CRINEX information,
-    /// only present on compressed OBS
+    /// Optional CRINEX information
     pub crinex: Option<Crinex>,
-    /// Observation codes present in this file, by Constellation
-    pub codes: HashMap<Constellation, Vec<String>>,
-    /// True if epochs & data compensate for local clock drift
+    /// Observables per constellation basis
+    pub codes: HashMap<Constellation, Vec<Observable>>,
+    /// True if local clock drift is compensated for
     pub clock_offset_applied: bool,
-    /// List of constellation for which (Phase and PR)
-    /// Differential Code Biases are compensated for
+    /// DCBs compensation per constellation basis
     pub dcb_compensations: Vec<Constellation>,
     /// Optionnal data scalings
-    pub scalings: HashMap<Constellation, HashMap<String, f64>>,
+    pub scalings: HashMap<Constellation, HashMap<Observable, f64>>,
 }
 
 impl HeaderFields {
     /// Add an optionnal data scaling
-    pub fn with_scaling(&self, c: Constellation, observation: &str, scaling: f64) -> Self {
+    pub fn with_scaling(&self, c: Constellation, observable: Observable, scaling: f64) -> Self {
         let mut s = self.clone();
         if let Some(scalings) = s.scalings.get_mut(&c) {
-            scalings.insert(observation.to_string(), scaling);
+            scalings.insert(observable, scaling);
         } else {
-            let mut map: HashMap<String, f64> = HashMap::new();
-            map.insert(observation.to_string(), scaling);
+            let mut map: HashMap<Observable, f64> = HashMap::new();
+            map.insert(observable, scaling);
             s.scalings.insert(c, map);
         }
         s

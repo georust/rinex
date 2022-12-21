@@ -609,7 +609,7 @@ impl Header {
                 let (_, content) = content.split_at(6);
                 for i in 0..content.len() / 6 {
                     let obscode = &content[i * 6..std::cmp::min((i + 1) * 6, content.len())].trim();
-                    if obscode.len() > 0 {
+                    if let Ok(observable) = Observable::from_str(obscode) {
                         match constellation {
                             Some(Constellation::Mixed) => {
                                 lazy_static! {
@@ -624,24 +624,22 @@ impl Header {
                                 }
                                 for c in KNOWN_CONSTELLS.iter() {
                                     if let Some(codes) = observation.codes.get_mut(&c) {
-                                        codes.push(obscode.to_string());
+                                        codes.push(observable);
                                     } else {
-                                        observation.codes.insert(*c, vec![obscode.to_string()]);
+                                        observation.codes.insert(*c, vec![observable]);
                                     }
                                 }
                             },
                             Some(c) => {
                                 if let Some(codes) = observation.codes.get_mut(&c) {
-                                    codes.push(obscode.to_string());
+                                    codes.push(observable);
                                 } else {
-                                    observation.codes.insert(c, vec![obscode.to_string()]);
+                                    observation.codes.insert(c, vec![observable]);
                                 }
                             },
                             _ => {
                                 if rinex_type == Type::MeteoData {
-                                    if let Ok(obs) = Observable::from_str(obscode) {
-                                        meteo.codes.push(obs);
-                                    }
+                                    meteo.codes.push(observable);
                                 } else {
                                     panic!("can't have \"TYPES OF OBS\" when GNSS definition is missing");
                                 }
@@ -663,13 +661,15 @@ impl Header {
                     for i in 0..content.len() / 4 {
                         let obscode =
                             &content[i * 4..std::cmp::min((i + 1) * 4, content.len())].trim();
-                        if obscode.len() > 0 {
-                            if let Some(codes) = observation.codes.get_mut(&constell) {
-                                codes.push(obscode.to_string());
-                            } else {
-                                observation
-                                    .codes
-                                    .insert(constell, vec![obscode.to_string()]);
+                        if let Ok(observable) = Observable::from_str(obscode) {
+                            if obscode.len() > 0 {
+                                if let Some(codes) = observation.codes.get_mut(&constell) {
+                                    codes.push(observable);
+                                } else {
+                                    observation
+                                        .codes
+                                        .insert(constell, vec![observable]);
+                                }
                             }
                         }
                     }
