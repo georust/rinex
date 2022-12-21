@@ -1340,7 +1340,7 @@ impl TimeScaling<Record> for Record {
     }
 }
 
-use crate::processing::{TargetItem, Mask, MaskFilter, MaskOperand};
+use crate::processing::{Mask, MaskFilter, MaskOperand, TargetItem};
 
 impl MaskFilter for Record {
     fn apply(&self, mask: Mask) -> Self {
@@ -1351,7 +1351,7 @@ impl MaskFilter for Record {
     fn apply_mut(&mut self, mask: Mask) {
         match mask.operand {
             MaskOperand::Equal => match mask.item {
-                TargetItem::EpochItem(epoch) => self.retain(|e,  _| *e == epoch),
+                TargetItem::EpochItem(epoch) => self.retain(|e, _| *e == epoch),
                 TargetItem::ConstellationItem(filter) => {
                     self.retain(|_, classes| {
                         classes.retain(|class, frames| {
@@ -1373,8 +1373,7 @@ impl MaskFilter for Record {
                         classes.retain(|class, frames| {
                             if *class == FrameClass::Ephemeris {
                                 frames.retain_mut(|fr| {
-                                    let (_, _, ephemeris) = fr.as_mut_eph()
-                                        .unwrap();
+                                    let (_, _, ephemeris) = fr.as_mut_eph().unwrap();
                                     let orbits = &mut ephemeris.orbits;
                                     orbits.retain(|k, _| filter.contains(&k));
                                     orbits.len() > 0
@@ -1425,7 +1424,7 @@ impl MaskFilter for Record {
                 _ => {},
             },
             MaskOperand::NotEqual => match mask.item {
-                TargetItem::EpochItem(epoch) => self.retain(|e,  _| *e != epoch),
+                TargetItem::EpochItem(epoch) => self.retain(|e, _| *e != epoch),
                 TargetItem::ConstellationItem(filter) => {
                     self.retain(|_, classes| {
                         classes.retain(|class, frames| {
@@ -1447,8 +1446,7 @@ impl MaskFilter for Record {
                         classes.retain(|class, frames| {
                             if *class == FrameClass::Ephemeris {
                                 frames.retain_mut(|fr| {
-                                    let (_, _, ephemeris) = fr.as_mut_eph()
-                                        .unwrap();
+                                    let (_, _, ephemeris) = fr.as_mut_eph().unwrap();
                                     let orbits = &mut ephemeris.orbits;
                                     orbits.retain(|k, _| !filter.contains(&k));
                                     orbits.len() > 0

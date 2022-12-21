@@ -293,7 +293,7 @@ impl TimeScaling<Record> for Record {
     }
 }
 
-use crate::processing::{Mask, MaskFilter, TargetItem, MaskOperand};
+use crate::processing::{Mask, MaskFilter, MaskOperand, TargetItem};
 
 impl MaskFilter for Record {
     fn apply(&self, mask: Mask) -> Self {
@@ -304,7 +304,7 @@ impl MaskFilter for Record {
     fn apply_mut(&mut self, mask: Mask) {
         match mask.operand {
             MaskOperand::Equal => match mask.item {
-                TargetItem::EpochItem(epoch) => self.retain(|e,  _| *e == epoch),
+                TargetItem::EpochItem(epoch) => self.retain(|e, _| *e == epoch),
                 TargetItem::ObservableItem(filter) => {
                     self.retain(|_, data| {
                         data.retain(|code, _| filter.contains(code));
@@ -314,7 +314,7 @@ impl MaskFilter for Record {
                 _ => {},
             },
             MaskOperand::NotEqual => match mask.item {
-                TargetItem::EpochItem(epoch) => self.retain(|e,  _| *e != epoch),
+                TargetItem::EpochItem(epoch) => self.retain(|e, _| *e != epoch),
                 TargetItem::ObservableItem(filter) => {
                     self.retain(|_, data| {
                         data.retain(|code, _| !filter.contains(code));

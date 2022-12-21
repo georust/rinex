@@ -1,6 +1,6 @@
-use thiserror::Error;
-use std::io::prelude::*;
 use std::collections::{BTreeMap, HashMap};
+use std::io::prelude::*;
+use thiserror::Error;
 
 #[cfg(feature = "serde")]
 use serde::Serialize;
@@ -821,7 +821,7 @@ impl MaskFilter for Record {
         s.apply_mut(mask);
         s
     }
-    fn apply_mut(&mut self, mask: Mask) { 
+    fn apply_mut(&mut self, mask: Mask) {
         if let Some(r) = self.as_mut_obs() {
             r.apply_mut(mask);
         } else if let Some(r) = self.as_mut_nav() {

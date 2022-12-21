@@ -41,15 +41,15 @@ use std::io::Write; //, Read};
 pub mod writer;
 use writer::BufferedWriter;
 
-use thiserror::Error;
-use std::str::FromStr;
 use std::collections::{BTreeMap, HashMap};
+use std::str::FromStr;
+use thiserror::Error;
 
-use version::Version;
 use hifitime::Duration;
-use observation::Crinex;
 use navigation::OrbitItem;
 use observable::Observable;
+use observation::Crinex;
+use version::Version;
 
 // Convenient package to import, that
 // comprises all basic and major structures
@@ -57,10 +57,10 @@ pub mod prelude {
     pub use crate::constellation::{Augmentation, Constellation};
     pub use crate::epoch::EpochFlag;
     pub use crate::header::Header;
+    pub use crate::observable::Observable;
     pub use crate::sv::Sv;
     pub use crate::Rinex;
     pub use hifitime::{Duration, Epoch, TimeScale};
-    pub use crate::observable::Observable;
 }
 
 /// SBAS related package
@@ -749,9 +749,9 @@ impl Rinex {
                             }
                         }
                     }
-                } else if let Some(r) = self.record.as_clock () {
+                } else if let Some(r) = self.record.as_clock() {
                     for (_, types) in r {
-                        for (_, systems) in types { 
+                        for (_, systems) in types {
                             for (system, _) in systems {
                                 if let Some(sv) = system.as_sv() {
                                     if !ret.contains(&sv.constellation) {
@@ -1629,54 +1629,54 @@ impl Rinex {
         }
     }
 
-/*
-    /// Applies given elevation mask
-    pub fn elevation_mask_mut(
-        &mut self,
-        mask: navigation::ElevationMask,
-        ref_pos: Option<(f64, f64, f64)>,
-    ) {
-        let ref_pos = match ref_pos {
-            Some(ref_pos) => ref_pos,
-            _ => self.header.coords.expect(
-                "can't apply an elevation mask when ground/ref position is unknown.
-Specify one yourself with `ref_pos`",
-            ),
-        };
-        if let Some(r) = self.record.as_mut_nav() {
-            r.retain(|epoch, classes| {
-                classes.retain(|class, frames| {
-                    if *class == navigation::FrameClass::Ephemeris {
-                        frames.retain(|fr| {
-                            let (_, _, ephemeris) = fr.as_eph().unwrap();
-                            if let Some((el, _)) = ephemeris.sat_elev_azim(*epoch, ref_pos) {
-                                mask.fits(el)
-                            } else {
-                                false
-                            }
-                        });
-                        frames.len() > 0
-                    } else {
-                        // not an EPH
-                        true // keep it anyway
-                    }
-                });
-                classes.len() > 0
-            })
+    /*
+        /// Applies given elevation mask
+        pub fn elevation_mask_mut(
+            &mut self,
+            mask: navigation::ElevationMask,
+            ref_pos: Option<(f64, f64, f64)>,
+        ) {
+            let ref_pos = match ref_pos {
+                Some(ref_pos) => ref_pos,
+                _ => self.header.coords.expect(
+                    "can't apply an elevation mask when ground/ref position is unknown.
+    Specify one yourself with `ref_pos`",
+                ),
+            };
+            if let Some(r) = self.record.as_mut_nav() {
+                r.retain(|epoch, classes| {
+                    classes.retain(|class, frames| {
+                        if *class == navigation::FrameClass::Ephemeris {
+                            frames.retain(|fr| {
+                                let (_, _, ephemeris) = fr.as_eph().unwrap();
+                                if let Some((el, _)) = ephemeris.sat_elev_azim(*epoch, ref_pos) {
+                                    mask.fits(el)
+                                } else {
+                                    false
+                                }
+                            });
+                            frames.len() > 0
+                        } else {
+                            // not an EPH
+                            true // keep it anyway
+                        }
+                    });
+                    classes.len() > 0
+                })
+            }
         }
-    }
-*/
-/*
-    pub fn elevation_mask(
-        &self,
-        mask: navigation::ElevationMask,
-        ref_pos: Option<(f64, f64, f64)>,
-    ) -> Self {
-        let mut s = self.clone();
-        s.elevation_mask_mut(mask, ref_pos);
-        s
-    }
-*/
+    */
+    /*
+        pub fn elevation_mask(
+            &self,
+            mask: navigation::ElevationMask,
+            ref_pos: Option<(f64, f64, f64)>,
+        ) -> Self {
+            let mut s = self.clone();
+            s.elevation_mask_mut(mask, ref_pos);
+            s
+        }
+    */
     /// Extracts all System Time Offset data
     /// on a epoch basis, from this Navigation record.
     /// This does not produce anything if self is not a modern Navigation record
@@ -1817,54 +1817,54 @@ Specify one yourself with `ref_pos`",
         }
         results
     }
-/*
-    /// Extracts Pseudo Range observations.
-    /// ```
-    /// use rinex::prelude::*;
-    /// let rnx = Rinex::from_file("../test_resources/OBS/V2/npaz3550.21o")
-    ///     .unwrap();
-    /// let pseudo_ranges = rnx.observation_pseudoranges();
-    /// for ((epoch, flag), vehicules) in pseudo_ranges {
-    ///     assert_eq!(flag, EpochFlag::Ok); // no abnormal markers in this file
-    ///     for (sv, observations) in vehicules {
-    ///         for (observation, pr) in observations {
-    ///             if observation == "L1" { // old fashion, applies here
-    ///                 // pr is f64 value
-    ///             } else if observation == "L1C" { // modern codes do not apply here
-    ///             }
-    ///         }
-    ///     }
-    /// }
-    /// ```
-    pub fn observation_pseudoranges(
-        &self,
-    ) -> BTreeMap<(Epoch, EpochFlag), BTreeMap<Sv, Vec<(String, f64)>>> {
-        let mut results: BTreeMap<(Epoch, EpochFlag), BTreeMap<Sv, Vec<(String, f64)>>> =
-            BTreeMap::new();
-        if let Some(r) = self.record.as_obs() {
-            for (e, (_, sv)) in r.iter() {
-                let mut map: BTreeMap<Sv, Vec<(String, f64)>> = BTreeMap::new();
-                for (sv, obs) in sv.iter() {
-                    let mut v: Vec<(String, f64)> = Vec::new();
-                    for (observable, data) in obs.iter() {
-                        if is_pseudorange_observation(code) {
-                            v.push((code.clone(), data.obs));
+    /*
+        /// Extracts Pseudo Range observations.
+        /// ```
+        /// use rinex::prelude::*;
+        /// let rnx = Rinex::from_file("../test_resources/OBS/V2/npaz3550.21o")
+        ///     .unwrap();
+        /// let pseudo_ranges = rnx.observation_pseudoranges();
+        /// for ((epoch, flag), vehicules) in pseudo_ranges {
+        ///     assert_eq!(flag, EpochFlag::Ok); // no abnormal markers in this file
+        ///     for (sv, observations) in vehicules {
+        ///         for (observation, pr) in observations {
+        ///             if observation == "L1" { // old fashion, applies here
+        ///                 // pr is f64 value
+        ///             } else if observation == "L1C" { // modern codes do not apply here
+        ///             }
+        ///         }
+        ///     }
+        /// }
+        /// ```
+        pub fn observation_pseudoranges(
+            &self,
+        ) -> BTreeMap<(Epoch, EpochFlag), BTreeMap<Sv, Vec<(String, f64)>>> {
+            let mut results: BTreeMap<(Epoch, EpochFlag), BTreeMap<Sv, Vec<(String, f64)>>> =
+                BTreeMap::new();
+            if let Some(r) = self.record.as_obs() {
+                for (e, (_, sv)) in r.iter() {
+                    let mut map: BTreeMap<Sv, Vec<(String, f64)>> = BTreeMap::new();
+                    for (sv, obs) in sv.iter() {
+                        let mut v: Vec<(String, f64)> = Vec::new();
+                        for (observable, data) in obs.iter() {
+                            if is_pseudorange_observation(code) {
+                                v.push((code.clone(), data.obs));
+                            }
+                        }
+                        if v.len() > 0 {
+                            // did come with at least 1 PR
+                            map.insert(*sv, v);
                         }
                     }
-                    if v.len() > 0 {
-                        // did come with at least 1 PR
-                        map.insert(*sv, v);
+                    if map.len() > 0 {
+                        // did produce something
+                        results.insert(*e, map);
                     }
                 }
-                if map.len() > 0 {
-                    // did produce something
-                    results.insert(*e, map);
-                }
             }
+            results
         }
-        results
-    }
-*/
+    */
     /// Wide Lane [WL] observation combinations.
     /// Cf. <https://github.com/gwbres/rinex/blob/main/rinex-cli/doc/gnss-combination.md>.
     pub fn observation_wl_combinations(
@@ -1896,8 +1896,8 @@ Specify one yourself with `ref_pos`",
                             // locate a reference code against another carrier
                             let mut reference: Option<(String, f64, f64)> = None;
                             for (ref_observable, refdata) in observations {
-                                let mut shared_physics =
-                                    ref_observable.is_phase_observable() && ref_observable.is_phase_observable();
+                                let mut shared_physics = ref_observable.is_phase_observable()
+                                    && ref_observable.is_phase_observable();
                                 shared_physics |= ref_observable.is_pseudorange_observable()
                                     && ref_observable.is_pseudorange_observable();
                                 if !shared_physics {
@@ -2000,9 +2000,9 @@ Specify one yourself with `ref_pos`",
                             // locate a reference code against another carrier
                             let mut reference: Option<(String, f64, f64)> = None;
                             for (ref_observable, refdata) in observations {
-                                let mut shared_physics =
-                                    ref_observable.is_phase_observable() && lhs_observable.is_phase_observable();
-                                shared_physics |= ref_observable.is_pseudorange_observable() 
+                                let mut shared_physics = ref_observable.is_phase_observable()
+                                    && lhs_observable.is_phase_observable();
+                                shared_physics |= ref_observable.is_pseudorange_observable()
                                     && lhs_observable.is_pseudorange_observable();
                                 if !shared_physics {
                                     continue;
@@ -2149,8 +2149,8 @@ Specify one yourself with `ref_pos`",
                         // locate a reference code against another carrier
                         let mut reference: Option<(String, f64)> = None;
                         for (ref_observable, refdata) in observations {
-                            let mut shared_physics =
-                                ref_observable.is_phase_observable() && lhs_observable.is_phase_observable();
+                            let mut shared_physics = ref_observable.is_phase_observable()
+                                && lhs_observable.is_phase_observable();
                             shared_physics |= ref_observable.is_pseudorange_observable()
                                 && lhs_observable.is_pseudorange_observable();
                             if !shared_physics {
@@ -2267,10 +2267,10 @@ Specify one yourself with `ref_pos`",
             for (gf_code, vehicles) in gf {
                 if let Ok(observable) = Observable::from_str(&gf_code) {
                     if !observable.is_phase_observable() {
-                        continue ;
+                        continue;
                     }
                 } else {
-                    continue ;
+                    continue;
                 }
                 for (sv, epochs) in vehicles {
                     for ((epoch, flag), data) in epochs {
@@ -2449,7 +2449,7 @@ Specify one yourself with `ref_pos`",
                         if lhs_observable.is_pseudorange_observable() {
                             let pr_i = lhs_data.obs; // - mean_sv.get(lhs_code).unwrap().1;
                             let lhs_code = lhs_observable.code().unwrap();
-                            let mp_code = &lhs_code[2..]; //TODO will not work on RINEX2 
+                            let mp_code = &lhs_code[2..]; //TODO will not work on RINEX2
                             let lhs_carrier = &lhs_code[1..2];
                             let mut ph_i: Option<f64> = None;
                             let mut ph_j: Option<f64> = None;
@@ -2515,13 +2515,13 @@ Specify one yourself with `ref_pos`",
                                      * try to grab another PH code, against rhs carrier
                                      */
                                     for (observable, data) in observations {
-                                        let code = observable.code()
-                                            .unwrap();
+                                        let code = observable.code().unwrap();
                                         let carrier_code = &code[1..2];
                                         if carrier_code == rhs_carrier {
                                             if observable.is_phase_observable() {
                                                 ph_j = Some(data.obs); // - mean_sv.get(code).unwrap().1);
-                                                associated.insert(mp_code.to_string(), code.clone());
+                                                associated
+                                                    .insert(mp_code.to_string(), code.clone());
                                                 break; // DONE
                                             }
                                         }
@@ -2676,36 +2676,36 @@ Specify one yourself with `ref_pos`",
             results
         }
     */
-/*
-    /// Extracts Raw Carrier Phase observations,
-    /// from this Observation record, on an epoch basis an per space vehicule.
-    /// Does not produce anything if self is not an Observation RINEX.
-    pub fn observation_phase(&self) -> BTreeMap<(Epoch, EpochFlag), HashMap<Sv, Vec<(String, f64)>>> {
-        let mut ret: BTreeMap<Epoch, BTreeMap<Sv, Vec<(String, f64)>>> = BTreeMap::new();
-        if let Some(r) = self.record.as_obs() {
-            for ((e, _), (_, sv)) in record.iter() {
-                let mut map: BTreeMap<Sv, Vec<(String, f64)>> = BTreeMap::new();
-                for (sv, obs) in sv.iter() {
-                    let mut v: Vec<(String, f64)> = Vec::new();
-                    for (observable, data) in obs.iter() {
-                        if observable.is_phase_observation() {
-                            v.push((code.clone(), data.obs));
+    /*
+        /// Extracts Raw Carrier Phase observations,
+        /// from this Observation record, on an epoch basis an per space vehicule.
+        /// Does not produce anything if self is not an Observation RINEX.
+        pub fn observation_phase(&self) -> BTreeMap<(Epoch, EpochFlag), HashMap<Sv, Vec<(String, f64)>>> {
+            let mut ret: BTreeMap<Epoch, BTreeMap<Sv, Vec<(String, f64)>>> = BTreeMap::new();
+            if let Some(r) = self.record.as_obs() {
+                for ((e, _), (_, sv)) in record.iter() {
+                    let mut map: BTreeMap<Sv, Vec<(String, f64)>> = BTreeMap::new();
+                    for (sv, obs) in sv.iter() {
+                        let mut v: Vec<(String, f64)> = Vec::new();
+                        for (observable, data) in obs.iter() {
+                            if observable.is_phase_observation() {
+                                v.push((code.clone(), data.obs));
+                            }
+                        }
+                        if v.len() > 0 {
+                            // did come with at least 1 Phase obs
+                            map.insert(*sv, v);
                         }
                     }
-                    if v.len() > 0 {
-                        // did come with at least 1 Phase obs
-                        map.insert(*sv, v);
+                    if map.len() > 0 {
+                        // did produce something
+                        results.insert(*e, map);
                     }
                 }
-                if map.len() > 0 {
-                    // did produce something
-                    results.insert(*e, map);
-                }
             }
+            ret
         }
-        ret
-    }
-*/
+    */
     /*
         /// Extracts Carrier phases without Ionospheric path delay contributions,
         /// by extracting [carrier_phases] and using the differential (dual frequency) compensation.
@@ -2760,102 +2760,102 @@ Specify one yourself with `ref_pos`",
             results
         }
     */
-/*
-    /// Returns all Pseudo Range observations
-    /// converted to Real Distance (in [m]),
-    /// by compensating for the difference between
-    /// local clock offset and distant clock offsets.
-    /// We can only produce such data if local clock offset was found
-    /// for a given epoch, and related distant clock offsets were given.
-    /// Distant clock offsets can be obtained with [space_vehicules_clock_offset].
-    /// Real distances are extracted on an epoch basis, and per space vehicule.
-    /// This method has no effect on non observation data.
-    ///
-    /// Example:
-    /// ```
-    /// use rinex::prelude::*;
-    /// // obtain distance clock offsets, by analyzing a related NAV file
-    /// // (this is only an example..)
-    /// let mut rinex = Rinex::from_file("../test_resources/NAV/V3/CBW100NLD_R_20210010000_01D_MN.rnx")
-    ///     .unwrap();
-    /// // Retain G07 + G08 vehicules
-    /// // to perform further calculations on these vehicules data (GPS + Svnn filter)
-    /// let filter = vec![
-    ///     Sv {
-    ///         constellation: Constellation::GPS,
-    ///         prn: 7,
-    ///     },
-    ///     Sv {
-    ///         constellation: Constellation::GPS,
-    ///         prn: 8,
-    ///     },
-    /// ];
-    /// rinex
-    ///     .retain_space_vehicule_mut(filter.clone());
-    /// // extract distant clock offsets
-    /// let sv_clk_offsets = rinex.space_vehicules_clock_offset();
-    /// let rinex = Rinex::from_file("../test_resources/OBS/V3/ACOR00ESP_R_20213550000_01D_30S_MO.rnx");
-    /// let mut rinex = rinex.unwrap();
-    /// // apply the same filter
-    /// rinex
-    ///     .retain_space_vehicule_mut(filter.clone());
-    /// let distances = rinex.observation_pseudodistances(sv_clk_offsets);
-    /// // exploit distances
-    /// for (e, sv) in distances.iter() { // (epoch, vehicules)
-    ///     for (sv, obs) in sv.iter() { // (vehicule, distance)
-    ///         for ((code, distance)) in obs.iter() { // obscode, distance
-    ///             // use the 3 letter code here,
-    ///             // to determine the carrier you're dealing with.
-    ///             let d = distance * 10.0; // consume, post process...
-    ///         }
-    ///     }
-    /// }
-    /// ```
-    pub fn observation_pseudodistances(
-        &self,
-        sv_clk_offsets: BTreeMap<Epoch, BTreeMap<Sv, f64>>,
-    ) -> BTreeMap<(Epoch, EpochFlag), BTreeMap<Sv, Vec<(String, f64)>>> {
-        let mut results: BTreeMap<(Epoch, EpochFlag), BTreeMap<Sv, Vec<(String, f64)>>> =
-            BTreeMap::new();
-        if let Some(r) = self.record.as_obs() {
-            for ((e, flag), (clk, sv)) in r {
-                if let Some(distant_e) = sv_clk_offsets.get(e) {
-                    // got related distant epoch
-                    if let Some(clk) = clk {
-                        // got local clock offset
-                        let mut map: BTreeMap<Sv, Vec<(String, f64)>> = BTreeMap::new();
-                        for (sv, obs) in sv.iter() {
-                            if let Some(sv_offset) = distant_e.get(sv) {
-                                // got related distant offset
-                                let mut v: Vec<(String, f64)> = Vec::new();
-                                for (observable, data) in obs.iter() {
-                                    if observable.is_pseudorange_observation() {
-                                        // We currently do not support the compensation for biases
-                                        // than clock induced ones. ie., Ionospheric delays ??
-                                        v.push((
-                                            observable.code().unwrap(),
-                                            data.pr_real_distance(*clk, *sv_offset, 0.0),
-                                        ));
+    /*
+        /// Returns all Pseudo Range observations
+        /// converted to Real Distance (in [m]),
+        /// by compensating for the difference between
+        /// local clock offset and distant clock offsets.
+        /// We can only produce such data if local clock offset was found
+        /// for a given epoch, and related distant clock offsets were given.
+        /// Distant clock offsets can be obtained with [space_vehicules_clock_offset].
+        /// Real distances are extracted on an epoch basis, and per space vehicule.
+        /// This method has no effect on non observation data.
+        ///
+        /// Example:
+        /// ```
+        /// use rinex::prelude::*;
+        /// // obtain distance clock offsets, by analyzing a related NAV file
+        /// // (this is only an example..)
+        /// let mut rinex = Rinex::from_file("../test_resources/NAV/V3/CBW100NLD_R_20210010000_01D_MN.rnx")
+        ///     .unwrap();
+        /// // Retain G07 + G08 vehicules
+        /// // to perform further calculations on these vehicules data (GPS + Svnn filter)
+        /// let filter = vec![
+        ///     Sv {
+        ///         constellation: Constellation::GPS,
+        ///         prn: 7,
+        ///     },
+        ///     Sv {
+        ///         constellation: Constellation::GPS,
+        ///         prn: 8,
+        ///     },
+        /// ];
+        /// rinex
+        ///     .retain_space_vehicule_mut(filter.clone());
+        /// // extract distant clock offsets
+        /// let sv_clk_offsets = rinex.space_vehicules_clock_offset();
+        /// let rinex = Rinex::from_file("../test_resources/OBS/V3/ACOR00ESP_R_20213550000_01D_30S_MO.rnx");
+        /// let mut rinex = rinex.unwrap();
+        /// // apply the same filter
+        /// rinex
+        ///     .retain_space_vehicule_mut(filter.clone());
+        /// let distances = rinex.observation_pseudodistances(sv_clk_offsets);
+        /// // exploit distances
+        /// for (e, sv) in distances.iter() { // (epoch, vehicules)
+        ///     for (sv, obs) in sv.iter() { // (vehicule, distance)
+        ///         for ((code, distance)) in obs.iter() { // obscode, distance
+        ///             // use the 3 letter code here,
+        ///             // to determine the carrier you're dealing with.
+        ///             let d = distance * 10.0; // consume, post process...
+        ///         }
+        ///     }
+        /// }
+        /// ```
+        pub fn observation_pseudodistances(
+            &self,
+            sv_clk_offsets: BTreeMap<Epoch, BTreeMap<Sv, f64>>,
+        ) -> BTreeMap<(Epoch, EpochFlag), BTreeMap<Sv, Vec<(String, f64)>>> {
+            let mut results: BTreeMap<(Epoch, EpochFlag), BTreeMap<Sv, Vec<(String, f64)>>> =
+                BTreeMap::new();
+            if let Some(r) = self.record.as_obs() {
+                for ((e, flag), (clk, sv)) in r {
+                    if let Some(distant_e) = sv_clk_offsets.get(e) {
+                        // got related distant epoch
+                        if let Some(clk) = clk {
+                            // got local clock offset
+                            let mut map: BTreeMap<Sv, Vec<(String, f64)>> = BTreeMap::new();
+                            for (sv, obs) in sv.iter() {
+                                if let Some(sv_offset) = distant_e.get(sv) {
+                                    // got related distant offset
+                                    let mut v: Vec<(String, f64)> = Vec::new();
+                                    for (observable, data) in obs.iter() {
+                                        if observable.is_pseudorange_observation() {
+                                            // We currently do not support the compensation for biases
+                                            // than clock induced ones. ie., Ionospheric delays ??
+                                            v.push((
+                                                observable.code().unwrap(),
+                                                data.pr_real_distance(*clk, *sv_offset, 0.0),
+                                            ));
+                                        }
                                     }
-                                }
-                                if v.len() > 0 {
-                                    // did come with at least 1 PR
-                                    map.insert(*sv, v);
-                                }
-                            } // got related distant offset
-                        } // per sv
-                        if map.len() > 0 {
-                            // did produce something
-                            results.insert((*e, *flag), map);
-                        }
-                    } // got local clock offset attached to this epoch
-                } //got related distance epoch
-            } // per epoch
+                                    if v.len() > 0 {
+                                        // did come with at least 1 PR
+                                        map.insert(*sv, v);
+                                    }
+                                } // got related distant offset
+                            } // per sv
+                            if map.len() > 0 {
+                                // did produce something
+                                results.insert((*e, *flag), map);
+                            }
+                        } // got local clock offset attached to this epoch
+                    } //got related distance epoch
+                } // per epoch
+            }
+            results
         }
-        results
-    }
-*/
-    /// (Phase) Differential Code biases, 
+    */
+    /// (Phase) Differential Code biases,
     /// cf. phase data model <https://github.com/gwbres/rinex/blob/main/rinex-cli/doc/gnss-combination.md>.
     pub fn observation_phase_dcb(
         &self,
@@ -2866,9 +2866,9 @@ Specify one yourself with `ref_pos`",
             for (epoch, (_, vehicules)) in record {
                 for (sv, observations) in vehicules {
                     for (observable, obsdata) in observations {
-                        if observable.is_phase_observable() { // => phase observation
-                            let code = observable.code()
-                                .unwrap();
+                        if observable.is_phase_observable() {
+                            // => phase observation
+                            let code = observable.code().unwrap();
                             let carrier_id = &code[1..2];
                             let code = &code[1..];
                             // locate a reference PH code for this PH code
@@ -2954,7 +2954,7 @@ Specify one yourself with `ref_pos`",
         }
         ret
     }
-    /// (PR) Differential Code biases, 
+    /// (PR) Differential Code biases,
     /// cf. phase data model <https://github.com/gwbres/rinex/blob/main/rinex-cli/doc/gnss-combination.md>.
     /// Cf. page 12
     /// <http://navigation-office.esa.int/attachments_12649498_1_Reichel_5thGalSciCol_2015.pdf>.
@@ -2967,9 +2967,9 @@ Specify one yourself with `ref_pos`",
             for (epoch, (_, vehicules)) in record {
                 for (sv, observations) in vehicules {
                     for (observable, obsdata) in observations {
-                        if observable.is_pseudorange_observable() { // => PR
-                            let code = observable.code()
-                                .unwrap();
+                        if observable.is_pseudorange_observable() {
+                            // => PR
+                            let code = observable.code().unwrap();
                             let carrier_id = &code[1..2];
                             let code = &code[1..];
                             // locate a reference PR code for this PR code
@@ -2979,8 +2979,7 @@ Specify one yourself with `ref_pos`",
                                     if k_code.starts_with(carrier_id) {
                                         // same carrier
                                         let tolocate = "C".to_owned() + k_code;
-                                        let tolocate = Observable::from_str(&tolocate)
-                                            .unwrap();
+                                        let tolocate = Observable::from_str(&tolocate).unwrap();
                                         if let Some(otherdata) = observations.get(&tolocate) {
                                             // we found a ref. code
                                             let mut found = false;
@@ -3292,7 +3291,7 @@ impl TimeScaling<Rinex> for Rinex {
     }
 }
 
-use crate::processing::{MaskFilter, Mask};
+use crate::processing::{Mask, MaskFilter};
 
 impl MaskFilter for Rinex {
     fn apply(&self, mask: Mask) -> Self {

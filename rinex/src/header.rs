@@ -3,19 +3,19 @@
 use super::*;
 use crate::{
     antex, clocks,
-    Observable,
     hardware::{Antenna, Rcvr, SvAntenna},
     ionex, leap, meteo, observation,
     observation::Crinex,
     reader::BufferedReader,
     types::{Type, TypeError},
     version::Version,
+    Observable,
 };
 
-use thiserror::Error;
-use std::str::FromStr;
 use std::io::prelude::*;
+use std::str::FromStr;
 use strum_macros::EnumString;
+use thiserror::Error;
 
 macro_rules! from_b_fmt_month {
     ($m: expr) => {
@@ -666,9 +666,7 @@ impl Header {
                                 if let Some(codes) = observation.codes.get_mut(&constell) {
                                     codes.push(observable);
                                 } else {
-                                    observation
-                                        .codes
-                                        .insert(constell, vec![observable]);
+                                    observation.codes.insert(constell, vec![observable]);
                                 }
                             }
                         }

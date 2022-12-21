@@ -13,13 +13,13 @@ pub enum Error {
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Ord, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum Observable {
-    /// Carrier phase observation 
+    /// Carrier phase observation
     Phase(String),
-    /// Doppler shift observation 
+    /// Doppler shift observation
     Doppler(String),
-    /// SSI observation 
+    /// SSI observation
     SSI(String),
-    /// Pseudo range observation 
+    /// Pseudo range observation
     PseudoRange(String),
     /// Pressure observation in [mbar]
     Pressure,
@@ -93,41 +93,43 @@ impl Observable {
 impl std::fmt::Display for Observable {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            Self::Pressure =>  write!(f,"PR"),
-            Self::Temperature =>  write!(f,"TD"),
-            Self::HumidityRate =>  write!(f,"HR"),
-            Self::ZenithWetDelay =>  write!(f,"ZW"),
-            Self::ZenithDryDelay =>  write!(f,"ZD"),
-            Self::ZenithTotalDelay =>  write!(f,"ZT"),
-            Self::WindAzimuth =>  write!(f,"WD"),
-            Self::WindSpeed =>  write!(f,"WS"),
-            Self::RainIncrement =>  write!(f,"RI"),
-            Self::HailIndicator =>  write!(f,"HI"),
-            Self::SSI(c) | Self::Phase(c) |  Self::Doppler(c) | Self::PseudoRange(c) => write!(f, "{}", c),
+            Self::Pressure => write!(f, "PR"),
+            Self::Temperature => write!(f, "TD"),
+            Self::HumidityRate => write!(f, "HR"),
+            Self::ZenithWetDelay => write!(f, "ZW"),
+            Self::ZenithDryDelay => write!(f, "ZD"),
+            Self::ZenithTotalDelay => write!(f, "ZT"),
+            Self::WindAzimuth => write!(f, "WD"),
+            Self::WindSpeed => write!(f, "WS"),
+            Self::RainIncrement => write!(f, "RI"),
+            Self::HailIndicator => write!(f, "HI"),
+            Self::SSI(c) | Self::Phase(c) | Self::Doppler(c) | Self::PseudoRange(c) => {
+                write!(f, "{}", c)
+            },
         }
     }
 }
 
 impl std::str::FromStr for Observable {
-	type Err = Error;
-	fn from_str(content: &str) -> Result<Self, Self::Err> {
+    type Err = Error;
+    fn from_str(content: &str) -> Result<Self, Self::Err> {
         let content = content.to_uppercase();
         let content = content.trim();
-		match content {
-			"PR" => Ok(Self::Pressure),
-			"TD" => Ok(Self::Temperature),
-			"HR" => Ok(Self::HumidityRate),
-			"ZW" => Ok(Self::ZenithWetDelay),
-			"ZD" => Ok(Self::ZenithDryDelay),
-			"ZT" => Ok(Self::ZenithTotalDelay),
-			"WD" => Ok(Self::WindAzimuth),
-			"WS" => Ok(Self::WindSpeed),
-			"RI" => Ok(Self::RainIncrement),
-			"HI" => Ok(Self::HailIndicator),
-			_ => {
+        match content {
+            "PR" => Ok(Self::Pressure),
+            "TD" => Ok(Self::Temperature),
+            "HR" => Ok(Self::HumidityRate),
+            "ZW" => Ok(Self::ZenithWetDelay),
+            "ZD" => Ok(Self::ZenithDryDelay),
+            "ZT" => Ok(Self::ZenithTotalDelay),
+            "WD" => Ok(Self::WindAzimuth),
+            "WS" => Ok(Self::WindSpeed),
+            "RI" => Ok(Self::RainIncrement),
+            "HI" => Ok(Self::HailIndicator),
+            _ => {
                 let len = content.len();
                 if len > 1 && len < 4 {
-                    if content.starts_with("L")  {
+                    if content.starts_with("L") {
                         Ok(Self::Phase(content.to_string()))
                     } else if content.starts_with("C") || content.starts_with("P") {
                         Ok(Self::PseudoRange(content.to_string()))
@@ -141,9 +143,9 @@ impl std::str::FromStr for Observable {
                 } else {
                     Err(Error::MalformedDescriptor)
                 }
-			},
-		}
-	}
+            },
+        }
+    }
 }
 
 #[cfg(test)]
@@ -162,9 +164,15 @@ mod test {
         assert!(Observable::from_str("L1").unwrap().is_phase_observable());
         assert!(Observable::from_str("L2").unwrap().is_phase_observable());
         assert!(Observable::from_str("L6X").unwrap().is_phase_observable());
-        assert!(Observable::from_str("C1").unwrap().is_pseudorange_observable());
-        assert!(Observable::from_str("C2").unwrap().is_pseudorange_observable());
-        assert!(Observable::from_str("C6X").unwrap().is_pseudorange_observable());
+        assert!(Observable::from_str("C1")
+            .unwrap()
+            .is_pseudorange_observable());
+        assert!(Observable::from_str("C2")
+            .unwrap()
+            .is_pseudorange_observable());
+        assert!(Observable::from_str("C6X")
+            .unwrap()
+            .is_pseudorange_observable());
         assert!(Observable::from_str("D1").unwrap().is_doppler_observable());
         assert!(Observable::from_str("D2").unwrap().is_doppler_observable());
         assert!(Observable::from_str("D6X").unwrap().is_doppler_observable());
@@ -188,38 +196,67 @@ mod test {
         let obs = Observable::from_str("Wa");
         assert!(obs.is_err());
 
-        assert_eq!(Observable::from_str("L1"), 
-            Ok(Observable::Phase(String::from("L1"))));
+        assert_eq!(
+            Observable::from_str("L1"),
+            Ok(Observable::Phase(String::from("L1")))
+        );
         assert!(Observable::from_str("L1").unwrap().code().is_none());
-        
-        assert_eq!(Observable::from_str("L2"), 
-            Ok(Observable::Phase(String::from("L2"))));
-        assert_eq!(Observable::from_str("L5"), 
-            Ok(Observable::Phase(String::from("L5"))));
-        assert_eq!(Observable::from_str("L6Q"), 
-            Ok(Observable::Phase(String::from("L6Q"))));
-        assert_eq!(Observable::from_str("L6Q").unwrap().code(), Some(String::from("6Q")));
-        
-        assert_eq!(Observable::from_str("L1C"), 
-            Ok(Observable::Phase(String::from("L1C"))));
-        assert_eq!(Observable::from_str("L1P"), 
-            Ok(Observable::Phase(String::from("L1P"))));
-        assert_eq!(Observable::from_str("L8X"), 
-            Ok(Observable::Phase(String::from("L8X"))));
 
-        assert_eq!(Observable::from_str("S7Q"), Ok(Observable::SSI(String::from("S7Q"))));
+        assert_eq!(
+            Observable::from_str("L2"),
+            Ok(Observable::Phase(String::from("L2")))
+        );
+        assert_eq!(
+            Observable::from_str("L5"),
+            Ok(Observable::Phase(String::from("L5")))
+        );
+        assert_eq!(
+            Observable::from_str("L6Q"),
+            Ok(Observable::Phase(String::from("L6Q")))
+        );
+        assert_eq!(
+            Observable::from_str("L6Q").unwrap().code(),
+            Some(String::from("6Q"))
+        );
+
+        assert_eq!(
+            Observable::from_str("L1C"),
+            Ok(Observable::Phase(String::from("L1C")))
+        );
+        assert_eq!(
+            Observable::from_str("L1P"),
+            Ok(Observable::Phase(String::from("L1P")))
+        );
+        assert_eq!(
+            Observable::from_str("L8X"),
+            Ok(Observable::Phase(String::from("L8X")))
+        );
+
+        assert_eq!(
+            Observable::from_str("S7Q"),
+            Ok(Observable::SSI(String::from("S7Q")))
+        );
         assert_eq!(
             format!("{}", Observable::PseudoRange(String::from("S7Q"))),
-            "S7Q");
-        
-        assert_eq!(Observable::from_str("D7Q"), Ok(Observable::Doppler(String::from("D7Q"))));
+            "S7Q"
+        );
+
+        assert_eq!(
+            Observable::from_str("D7Q"),
+            Ok(Observable::Doppler(String::from("D7Q")))
+        );
         assert_eq!(
             format!("{}", Observable::Doppler(String::from("D7Q"))),
-            "D7Q");
-        
-        assert_eq!(Observable::from_str("C7X"), Ok(Observable::PseudoRange(String::from("C7X"))));
+            "D7Q"
+        );
+
+        assert_eq!(
+            Observable::from_str("C7X"),
+            Ok(Observable::PseudoRange(String::from("C7X")))
+        );
         assert_eq!(
             format!("{}", Observable::PseudoRange(String::from("C7X"))),
-            "C7X");
+            "C7X"
+        );
     }
 }

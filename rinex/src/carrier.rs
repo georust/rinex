@@ -1,8 +1,8 @@
 //! Carrier channels and associated methods
-use crate::sv;
-use thiserror::Error;
-use std::str::FromStr;
 use crate::constellation::Constellation;
+use crate::sv;
+use std::str::FromStr;
+use thiserror::Error;
 
 lazy_static! {
     pub(crate) static ref KNOWN_CODES: Vec<&'static str> = vec![

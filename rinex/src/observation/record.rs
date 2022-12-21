@@ -411,7 +411,8 @@ fn parse_v2(
                          // grab observables for this vehicule
     if let Some(o) = header_observables.get(&sv.constellation) {
         observables = &o;
-    } else { // failed to identify observations for this vehicule
+    } else {
+        // failed to identify observations for this vehicule
         return data;
     }
 
@@ -470,7 +471,7 @@ fn parse_v2(
                     }
                     //println!("{} {:?} {:?} ==> {}", obs, lli, ssi, obscodes[obs_ptr-1]); //DEBUG
                     inner.insert(
-                        observables[obs_ptr-1].clone(), 
+                        observables[obs_ptr - 1].clone(),
                         ObservationData { obs, lli, ssi },
                     );
                 } //f64::obs
@@ -621,11 +622,11 @@ fn fmt_epoch_v3(
         epoch::format(epoch, Some(flag), Type::ObservationData, 3),
         data.len()
     ));
-    
+
     if let Some(data) = clock_offset {
         lines.push_str(&format!("{:13.4}", data));
     }
-    
+
     lines.push_str("\n");
     for (sv, data) in data.iter() {
         lines.push_str(&format!("{}", sv.to_string()));
@@ -668,7 +669,7 @@ fn fmt_epoch_v2(
         epoch::format(epoch, Some(flag), Type::ObservationData, 2),
         data.len()
     ));
-    
+
     let mut index = 0_u8;
     for (sv_index, (sv, _)) in data.iter().enumerate() {
         if index == 12 {
@@ -923,7 +924,7 @@ impl TimeScaling<Record> for Record {
     }
 }
 
-use crate::processing::{Mask, MaskFilter, TargetItem, MaskOperand};
+use crate::processing::{Mask, MaskFilter, MaskOperand, TargetItem};
 
 impl MaskFilter for Record {
     fn apply(&self, mask: Mask) -> Self {
@@ -946,7 +947,7 @@ impl MaskFilter for Record {
                     self.retain(|_, (_, svs)| {
                         svs.retain(|_, obs| {
                             obs.retain(|code, _| filter.contains(&code));
-                            obs.len() > 0 
+                            obs.len() > 0
                         });
                         svs.len() > 0
                     });
@@ -956,7 +957,7 @@ impl MaskFilter for Record {
             MaskOperand::NotEqual => match mask.item {
                 TargetItem::EpochItem(epoch) => self.retain(|(e, _), _| *e != epoch),
                 TargetItem::EpochFlagItem(flag) => self.retain(|(_, f), _| *f != flag),
-                TargetItem::ConstellationItem(constells) => { 
+                TargetItem::ConstellationItem(constells) => {
                     self.retain(|_, (_, svs)| {
                         svs.retain(|sv, _| !constells.contains(&sv.constellation));
                         svs.len() > 0
@@ -966,7 +967,7 @@ impl MaskFilter for Record {
                     self.retain(|_, (_, svs)| {
                         svs.retain(|_, obs| {
                             obs.retain(|code, _| !filter.contains(&code));
-                            obs.len() > 0 
+                            obs.len() > 0
                         });
                         svs.len() > 0
                     });

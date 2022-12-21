@@ -1,9 +1,9 @@
 #[cfg(test)]
 mod test {
     use rinex::header::*;
+    use rinex::observation::*;
     use rinex::prelude::*;
     use std::str::FromStr;
-    use rinex::observation::*;
     /*
      * General testbench
      * shared accross all Observation files
@@ -77,27 +77,37 @@ mod test {
                  */
                 let sv = Sv::new(Constellation::GPS, 03);
                 let observations = vehicules.get(&sv).unwrap();
-                let l1 = observations.get(&Observable::from_str("L1").unwrap()).unwrap();
+                let l1 = observations
+                    .get(&Observable::from_str("L1").unwrap())
+                    .unwrap();
                 assert_eq!(l1.obs, -9440000.265);
                 assert!(l1.lli.unwrap().intersects(LliFlags::UNDER_ANTI_SPOOFING));
                 assert_eq!(l1.ssi, Some(Ssi::DbHz48_53));
 
-                let l2 = observations.get(&Observable::from_str("L2").unwrap()).unwrap();
+                let l2 = observations
+                    .get(&Observable::from_str("L2").unwrap())
+                    .unwrap();
                 assert_eq!(l2.obs, -7293824.593);
                 assert!(l2.lli.unwrap().intersects(LliFlags::UNDER_ANTI_SPOOFING));
                 assert_eq!(l2.ssi, Some(Ssi::DbHz42_47));
 
-                let c1 = observations.get(&Observable::from_str("C1").unwrap()).unwrap();
+                let c1 = observations
+                    .get(&Observable::from_str("C1").unwrap())
+                    .unwrap();
                 assert_eq!(c1.obs, 23189944.587);
                 assert!(c1.lli.unwrap().intersects(LliFlags::UNDER_ANTI_SPOOFING));
                 assert!(c1.ssi.is_none());
 
-                let p1 = observations.get(&Observable::from_str("P1").unwrap()).unwrap();
+                let p1 = observations
+                    .get(&Observable::from_str("P1").unwrap())
+                    .unwrap();
                 assert_eq!(p1.obs, 23189944.999);
                 assert!(p1.lli.unwrap().intersects(LliFlags::UNDER_ANTI_SPOOFING));
                 assert!(p1.ssi.is_none());
 
-                let p2 = observations.get(&Observable::from_str("P2").unwrap()).unwrap();
+                let p2 = observations
+                    .get(&Observable::from_str("P2").unwrap())
+                    .unwrap();
                 assert_eq!(p2.obs, 23189951.464);
                 assert!(p2.lli.unwrap().intersects(LliFlags::UNDER_ANTI_SPOOFING));
                 assert!(p2.ssi.is_none());
@@ -516,7 +526,7 @@ mod test {
         assert_eq!(observables.is_some(), true);
         let mut observables = observables.unwrap().clone();
         observables.sort();
-        
+
         let mut expected: Vec<Observable> = "C1C L1C D1C S1C C2P L2P D2P S2P"
             .split_ascii_whitespace()
             .map(|k| Observable::from_str(k).unwrap())
@@ -531,9 +541,8 @@ mod test {
         assert_eq!(observables.is_some(), true);
         let mut observables = observables.unwrap().clone();
         observables.sort();
-        
-        let mut expected: Vec<Observable> = 
-            "C1C L1C D1C S1C C2W L2W D2W S2W"
+
+        let mut expected: Vec<Observable> = "C1C L1C D1C S1C C2W L2W D2W S2W"
             .split_ascii_whitespace()
             .map(|k| Observable::from_str(k).unwrap())
             .collect();
@@ -723,57 +732,73 @@ mod test {
 
         let g07 = Sv::new(Constellation::GPS, 07);
         let observations = vehicules.get(&g07).unwrap();
-        let mut codes: Vec<Observable> = observations.keys()
-            .map(|k| k.clone())
-            .collect();
+        let mut codes: Vec<Observable> = observations.keys().map(|k| k.clone()).collect();
         codes.sort();
 
-        let mut expected :Vec<Observable> = 
-            "L1 L2 C1 P2 D1 D2 S1 S2"
+        let mut expected: Vec<Observable> = "L1 L2 C1 P2 D1 D2 S1 S2"
             .split_ascii_whitespace()
             .map(|k| Observable::from_str(k).unwrap())
             .collect();
         expected.sort();
         assert_eq!(codes, expected);
 
-        let s1 = observations.get(&Observable::from_str("S1").unwrap()).unwrap();
+        let s1 = observations
+            .get(&Observable::from_str("S1").unwrap())
+            .unwrap();
         assert_eq!(s1.obs, 37.350);
-        let s2 = observations.get(&Observable::from_str("S2").unwrap()).unwrap();
+        let s2 = observations
+            .get(&Observable::from_str("S2").unwrap())
+            .unwrap();
         assert_eq!(s2.obs, 35.300);
 
         let r04 = Sv::new(Constellation::Glonass, 04);
         let observations = vehicules.get(&r04).unwrap();
-        
-        let mut codes: Vec<Observable> = observations.keys()
-            .map(|k| k.clone())
-            .collect();
+
+        let mut codes: Vec<Observable> = observations.keys().map(|k| k.clone()).collect();
         codes.sort();
-        
-        let mut expected :Vec<Observable> = 
-            "L1 L2 C1 C2 P2 D1 D2 S1 S2"
+
+        let mut expected: Vec<Observable> = "L1 L2 C1 C2 P2 D1 D2 S1 S2"
             .split_ascii_whitespace()
             .map(|k| Observable::from_str(k).unwrap())
             .collect();
         expected.sort();
         assert_eq!(codes, expected);
 
-        let l1 = observations.get(&Observable::from_str("L1").unwrap()).unwrap();
+        let l1 = observations
+            .get(&Observable::from_str("L1").unwrap())
+            .unwrap();
         assert_eq!(l1.obs, 119147697.073);
-        let l2 = observations.get(&Observable::from_str("L2").unwrap()).unwrap();
+        let l2 = observations
+            .get(&Observable::from_str("L2").unwrap())
+            .unwrap();
         assert_eq!(l2.obs, 92670417.710);
-        let c1 = observations.get(&Observable::from_str("C1").unwrap()).unwrap();
+        let c1 = observations
+            .get(&Observable::from_str("C1").unwrap())
+            .unwrap();
         assert_eq!(c1.obs, 22249990.480);
-        let c2 = observations.get(&Observable::from_str("C2").unwrap()).unwrap();
+        let c2 = observations
+            .get(&Observable::from_str("C2").unwrap())
+            .unwrap();
         assert_eq!(c2.obs, 22249983.480);
-        let p2 = observations.get(&Observable::from_str("P2").unwrap()).unwrap();
+        let p2 = observations
+            .get(&Observable::from_str("P2").unwrap())
+            .unwrap();
         assert_eq!(p2.obs, 22249983.740);
-        let d1 = observations.get(&Observable::from_str("D1").unwrap()).unwrap();
+        let d1 = observations
+            .get(&Observable::from_str("D1").unwrap())
+            .unwrap();
         assert_eq!(d1.obs, -1987.870);
-        let d2 = observations.get(&Observable::from_str("D2").unwrap()).unwrap();
+        let d2 = observations
+            .get(&Observable::from_str("D2").unwrap())
+            .unwrap();
         assert_eq!(d2.obs, -1546.121);
-        let s1 = observations.get(&Observable::from_str("S1").unwrap()).unwrap();
+        let s1 = observations
+            .get(&Observable::from_str("S1").unwrap())
+            .unwrap();
         assert_eq!(s1.obs, 47.300);
-        let s2 = observations.get(&Observable::from_str("S2").unwrap()).unwrap();
+        let s2 = observations
+            .get(&Observable::from_str("S2").unwrap())
+            .unwrap();
         assert_eq!(s2.obs, 43.900);
 
         let epoch = epochs.get(1).unwrap();
@@ -784,11 +809,9 @@ mod test {
 
         let r04 = Sv::new(Constellation::Glonass, 04);
         let observations = vehicules.get(&r04).unwrap();
-        let mut codes: Vec<Observable> = observations.keys()
-            .map(|k| k.clone())
-            .collect();
+        let mut codes: Vec<Observable> = observations.keys().map(|k| k.clone()).collect();
         codes.sort();
-        
+
         let mut expected: Vec<Observable> = "L1 L2 C1 C2 P2 D1 D2 S1 S2"
             .split_ascii_whitespace()
             .map(|k| Observable::from_str(k).unwrap())
@@ -796,23 +819,41 @@ mod test {
         expected.sort();
         assert_eq!(codes, expected);
 
-        let l1 = observations.get(&Observable::from_str("L1").unwrap()).unwrap();
+        let l1 = observations
+            .get(&Observable::from_str("L1").unwrap())
+            .unwrap();
         assert_eq!(l1.obs, 119207683.536);
-        let l2 = observations.get(&Observable::from_str("L2").unwrap()).unwrap();
+        let l2 = observations
+            .get(&Observable::from_str("L2").unwrap())
+            .unwrap();
         assert_eq!(l2.obs, 92717073.850);
-        let c1 = observations.get(&Observable::from_str("C1").unwrap()).unwrap();
+        let c1 = observations
+            .get(&Observable::from_str("C1").unwrap())
+            .unwrap();
         assert_eq!(c1.obs, 22261192.380);
-        let c2 = observations.get(&Observable::from_str("C2").unwrap()).unwrap();
+        let c2 = observations
+            .get(&Observable::from_str("C2").unwrap())
+            .unwrap();
         assert_eq!(c2.obs, 22261185.560);
-        let p2 = observations.get(&Observable::from_str("P2").unwrap()).unwrap();
+        let p2 = observations
+            .get(&Observable::from_str("P2").unwrap())
+            .unwrap();
         assert_eq!(p2.obs, 22261185.940);
-        let d1 = observations.get(&Observable::from_str("D1").unwrap()).unwrap();
+        let d1 = observations
+            .get(&Observable::from_str("D1").unwrap())
+            .unwrap();
         assert_eq!(d1.obs, -2011.414);
-        let d2 = observations.get(&Observable::from_str("D2").unwrap()).unwrap();
+        let d2 = observations
+            .get(&Observable::from_str("D2").unwrap())
+            .unwrap();
         assert_eq!(d2.obs, -1564.434);
-        let s1 = observations.get(&Observable::from_str("S1").unwrap()).unwrap();
+        let s1 = observations
+            .get(&Observable::from_str("S1").unwrap())
+            .unwrap();
         assert_eq!(s1.obs, 46.600);
-        let s2 = observations.get(&Observable::from_str("S2").unwrap()).unwrap();
+        let s2 = observations
+            .get(&Observable::from_str("S2").unwrap())
+            .unwrap();
         assert_eq!(s2.obs, 43.650);
     }
     #[test]
@@ -912,11 +953,11 @@ mod test {
             } else if *k == Constellation::BeiDou {
                 let mut sorted = v.clone();
                 sorted.sort();
-                let mut expected: Vec<Observable> = 
+                let mut expected: Vec<Observable> =
                     "C2I C6I C7I D2I D6I D7I L2I L6I L7I S2I S6I S7I"
-                    .split_ascii_whitespace()
-                    .map(|k| Observable::from_str(k).unwrap())
-                    .collect();
+                        .split_ascii_whitespace()
+                        .map(|k| Observable::from_str(k).unwrap())
+                        .collect();
                 expected.sort();
                 assert_eq!(sorted, expected);
             } else if *k == Constellation::QZSS {
@@ -924,9 +965,9 @@ mod test {
                 sorted.sort();
                 let mut expected: Vec<Observable> =
                     "C1C C2L C5Q D1C D2L D5Q L1C L2L L5Q S1C S2L S5Q"
-                    .split_ascii_whitespace()
-                    .map(|k| Observable::from_str(k).unwrap())
-                    .collect();
+                        .split_ascii_whitespace()
+                        .map(|k| Observable::from_str(k).unwrap())
+                        .collect();
                 expected.sort();
                 assert_eq!(sorted, expected);
             } else if *k == Constellation::Galileo {
@@ -942,14 +983,12 @@ mod test {
             } else if *k == Constellation::Geo {
                 let mut sorted = v.clone();
                 sorted.sort();
-                let mut expected: Vec<Observable> = 
-                    "C1C C5I D1C D5I L1C L5I S1C S5I"
+                let mut expected: Vec<Observable> = "C1C C5I D1C D5I L1C L5I S1C S5I"
                     .split_ascii_whitespace()
                     .map(|k| Observable::from_str(k).unwrap())
                     .collect();
                 expected.sort();
                 assert_eq!(sorted, expected);
-
             } else {
                 panic!("decoded unexpected constellation");
             }
