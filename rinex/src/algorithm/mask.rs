@@ -213,26 +213,26 @@ mod test {
     }
     #[test]
     fn test_elev_mask() {
-        let mask = Mask::from_str("< 40.0").unwrap();
+        let mask = Mask::from_str("< elev:40.0").unwrap();
         assert_eq!(
             mask,
             Mask {
                 operand: MaskOperand::StrictlyBelow,
                 item: TargetItem::ElevationItem(40.0_f64),
             });
-        let m2 = Mask::from_str("<40.0").unwrap();
+        let m2 = Mask::from_str("<elev:40.0").unwrap();
         assert_eq!(mask, m2);
-        let m2 = Mask::from_str("  < 40.0  ").unwrap();
+        let m2 = Mask::from_str("  < elev:40.0  ").unwrap();
         assert_eq!(mask, m2);
 
-        let mask = Mask::from_str(">= 10.0").unwrap();
+        let mask = Mask::from_str(">= elev:10.0").unwrap();
         assert_eq!(
             mask,
             Mask {
                 operand: MaskOperand::Above,
                 item: TargetItem::ElevationItem(10.0_f64),
             });
-        let m2 = Mask::from_str(">=10.0").unwrap();
+        let m2 = Mask::from_str(">=elev:10.0").unwrap();
         assert_eq!(mask, m2);
     }
     #[test]
@@ -257,14 +257,14 @@ mod test {
         let m2 = Mask::from_str("=gnss:GPS,GAL,GLO").unwrap();
         assert_eq!(mask, m2);
         
-        let mask = Mask::from_str("!= BDS").unwrap();
+        let mask = Mask::from_str("!= gnss:BDS").unwrap();
         assert_eq!(
             mask,
             Mask {
                 operand: MaskOperand::NotEqual,
                 item: TargetItem::ConstellationItem(vec![Constellation::BeiDou]),
             });
-        let m2 = Mask::from_str("!=BDS").unwrap();
+        let m2 = Mask::from_str("!=gnss:BDS").unwrap();
         assert_eq!(mask, m2);
     }
     #[test]
@@ -292,12 +292,12 @@ mod test {
                     Sv::from_str("G31").unwrap(),
                 ]),
             });
-        let m2 = Mask::from_str("!=G31").unwrap();
+        let m2 = Mask::from_str("!=sv:G31").unwrap();
         assert_eq!(mask, m2);
     }
     #[test]
     fn test_obs_mask() {
-        let mask = Mask::from_str("= L1C,S1C,D1P,C1W").unwrap();
+        let mask = Mask::from_str("=obs:L1C,S1C,D1P,C1W").unwrap();
         assert_eq!(
             mask,
             Mask {
@@ -313,7 +313,7 @@ mod test {
     }
     #[test]
     fn test_orb_mask() {
-        let mask = Mask::from_str("= iode").unwrap();
+        let mask = Mask::from_str("=orb:iode").unwrap();
         assert_eq!(
             mask,
             Mask {
@@ -323,7 +323,7 @@ mod test {
     }
     #[test]
     fn test_nav_mask() {
-        let mask = Mask::from_str("= eph").unwrap();
+        let mask = Mask::from_str("=nav:fr:eph").unwrap();
         assert_eq!(
             mask,
             Mask {
@@ -331,7 +331,7 @@ mod test {
                 item: TargetItem::NavFrameItem(
                     vec![FrameClass::Ephemeris]),
             });
-        let mask = Mask::from_str("= eph,ion").unwrap();
+        let mask = Mask::from_str("=nav:fr:eph,ion").unwrap();
         assert_eq!(
             mask,
             Mask {
@@ -339,7 +339,7 @@ mod test {
                 item: TargetItem::NavFrameItem(
                     vec![FrameClass::Ephemeris, FrameClass::IonosphericModel])
             });
-        let mask = Mask::from_str("= lnav").unwrap();
+        let mask = Mask::from_str("=nav:msg:lnav").unwrap();
         assert_eq!(
             mask,
             Mask {

@@ -236,7 +236,7 @@ mod test {
 			TargetItem::NavFrameItem(
 				vec![FrameClass::Ephemeris, FrameClass::IonosphericModel]));
 
-		assert_eq!(TargetItem::from_str("gnss:g08,g09,R03").unwrap(), 
+		assert_eq!(TargetItem::from_str("sv:g08,g09,R03").unwrap(), 
 			TargetItem::SvItem(
 				vec![Sv::from_str("G08").unwrap(),
 				Sv::from_str("G09").unwrap(),
