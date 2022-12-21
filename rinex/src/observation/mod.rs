@@ -123,9 +123,9 @@ impl HeaderFields {
     }
     /// Returns given scaling to apply for given GNSS system
     /// and given observation. Returns 1.0 by default, so it always applies
-    pub fn scaling(&self, c: &Constellation, observation: &String) -> f64 {
+    pub fn scaling(&self, c: &Constellation, observable: Observable) -> f64 {
         if let Some(scalings) = self.scalings.get(c) {
-            if let Some(scaling) = scalings.get(observation) {
+            if let Some(scaling) = scalings.get(&observable) {
                 return *scaling;
             }
         }

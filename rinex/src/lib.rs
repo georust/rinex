@@ -1894,7 +1894,7 @@ Specify one yourself with `ref_pos`",
                                 _ => "1",   // M against 1
                             };
                             // locate a reference code against another carrier
-                            let mut reference: Option<(&str, f64, f64)> = None;
+                            let mut reference: Option<(String, f64, f64)> = None;
                             for (ref_observable, refdata) in observations {
                                 let mut shared_physics =
                                     ref_observable.is_phase_observable() && ref_observable.is_phase_observable();
@@ -1998,7 +1998,7 @@ Specify one yourself with `ref_pos`",
                                 _ => "1",   // M against 1
                             };
                             // locate a reference code against another carrier
-                            let mut reference: Option<(&str, f64, f64)> = None;
+                            let mut reference: Option<(String, f64, f64)> = None;
                             for (ref_observable, refdata) in observations {
                                 let mut shared_physics =
                                     ref_observable.is_phase_observable() && lhs_observable.is_phase_observable();
@@ -2087,7 +2087,7 @@ Specify one yourself with `ref_pos`",
                                 }
                             } else {
                                 let mut map: HashMap<Observable, f64> = HashMap::new();
-                                map.insert(observable, data.obs);
+                                map.insert(observable.clone(), data.obs);
                                 init_phases.insert(*sv, map);
                             }
                             data.obs -= init_phases.get(&sv).unwrap().get(observable).unwrap();
@@ -2147,7 +2147,7 @@ Specify one yourself with `ref_pos`",
                             _ => "1",   // M against 1
                         };
                         // locate a reference code against another carrier
-                        let mut reference: Option<(&str, f64)> = None;
+                        let mut reference: Option<(String, f64)> = None;
                         for (ref_observable, refdata) in observations {
                             let mut shared_physics =
                                 ref_observable.is_phase_observable() && lhs_observable.is_phase_observable();
@@ -2173,14 +2173,14 @@ Specify one yourself with `ref_pos`",
                                     },
                                     false => 1.0,
                                 };
-                                reference = Some((&refcode, refdata.obs * ref_scaling));
+                                reference = Some((refcode, refdata.obs * ref_scaling));
                                 break; // DONE searching
                             }
                         }
                         if let Some((refcode, refdata)) = reference {
                             // got a reference
                             let op_title = format!("{}-{}", lhs_code, refcode);
-                            let ref_observable = Observable::from_str(refcode).unwrap();
+                            let ref_observable = Observable::from_str(&refcode).unwrap();
                             // additionnal phase scaling
                             let total_scaling: f64 = match ref_observable.is_phase_observable() {
                                 true => {
@@ -2410,7 +2410,7 @@ Specify one yourself with `ref_pos`",
                                     *count += 1;
                                     *buf += obs_data.obs;
                                 } else {
-                                    data.insert(observable, (1, obs_data.obs));
+                                    data.insert(observable.clone(), (1, obs_data.obs));
                                 }
                             }
                         }
@@ -2420,7 +2420,7 @@ Specify one yourself with `ref_pos`",
                                 || observable.is_pseudorange_observable()
                             {
                                 let mut map: HashMap<Observable, (u32, f64)> = HashMap::new();
-                                map.insert(observable, (1, obs_data.obs));
+                                map.insert(observable.clone(), (1, obs_data.obs));
                                 mean.insert(*sv, map);
                             }
                         }
@@ -2476,7 +2476,7 @@ Specify one yourself with `ref_pos`",
                             /*
                              * locate another L_j PH code
                              */
-                            if let Some(to_locate) = associated.get(&mp_code) {
+                            if let Some(to_locate) = associated.get(mp_code) {
                                 /*
                                  * We already have an association, keep it consistent throughout
                                  * operations
@@ -2504,7 +2504,7 @@ Specify one yourself with `ref_pos`",
                                         if code.eq(&to_locate) {
                                             // match
                                             ph_j = Some(data.obs); // - mean_sv.get(code).unwrap().1);
-                                            associated.insert(mp_code.clone(), code.clone());
+                                            associated.insert(mp_code.to_string(), code.clone());
                                             break; // DONE
                                         }
                                     }
@@ -2521,7 +2521,7 @@ Specify one yourself with `ref_pos`",
                                         if carrier_code == rhs_carrier {
                                             if observable.is_phase_observable() {
                                                 ph_j = Some(data.obs); // - mean_sv.get(code).unwrap().1);
-                                                associated.insert(mp_code.clone(), code.clone());
+                                                associated.insert(mp_code.to_string(), code.clone());
                                                 break; // DONE
                                             }
                                         }
@@ -2534,7 +2534,7 @@ Specify one yourself with `ref_pos`",
                             let ph_i = ph_i.unwrap();
                             let ph_j = ph_j.unwrap();
                             if let Ok(lhs_carrier) =
-                                Carrier::from_observable(sv.constellation, lhs_code)
+                                Carrier::from_observable(sv.constellation, &lhs_code)
                             {
                                 if let Ok(rhs_carrier) =
                                     Carrier::from_observable(sv.constellation, rhs_carrier)
@@ -2548,7 +2548,7 @@ Specify one yourself with `ref_pos`",
                                         / (lhs_carrier.carrier_frequency().powf(2.0)
                                             - rhs_carrier.carrier_frequency().powf(2.0));
                                     let mp = pr_i - ph_i - alpha * (ph_i - ph_j);
-                                    if let Some(data) = ret.get_mut(&mp_code) {
+                                    if let Some(data) = ret.get_mut(mp_code) {
                                         if let Some(data) = data.get_mut(&sv) {
                                             data.insert(*epoch, mp);
                                         } else {

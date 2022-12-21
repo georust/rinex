@@ -238,7 +238,7 @@ impl Decompressor {
         crx_major: u8,
         crx_constell: &Constellation,
         rnx_major: u8,
-        obscodes: &HashMap<Constellation, Vec<String>>,
+        observables: &HashMap<Constellation, Vec<Observable>>,
         content: &str,
     ) -> Result<String, Error> {
         // content browser
@@ -389,7 +389,7 @@ impl Decompressor {
                             let mut inner: Vec<(NumDiff, TextDiff, TextDiff)> =
                                 Vec::with_capacity(16);
                             // this protects from malformed Headers or malformed Epoch descriptions
-                            if let Some(codes) = obscodes.get(&sv.constellation) {
+                            if let Some(codes) = observables.get(&sv.constellation) {
                                 for _ in codes {
                                     let mut kernels = (
                                         NumDiff::new(NumDiff::MAX_COMPRESSION_ORDER)?,
@@ -407,7 +407,7 @@ impl Decompressor {
                          * iterate over entire line
                          */
                         let mut line = line.trim_end();
-                        if let Some(codes) = obscodes.get(&sv.constellation) {
+                        if let Some(codes) = observables.get(&sv.constellation) {
                             while obs_ptr < codes.len() {
                                 if let Some(pos) = line.find(' ') {
                                     let content = &line[..pos];
@@ -483,7 +483,7 @@ impl Decompressor {
                                     obs_ptr = codes.len();
                                 } //EOL
                             } //while()
-                        } //obscodes identification
+                        } //observables identification
                           /*
                            * Flags field
                            */

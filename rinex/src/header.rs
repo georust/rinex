@@ -624,17 +624,17 @@ impl Header {
                                 }
                                 for c in KNOWN_CONSTELLS.iter() {
                                     if let Some(codes) = observation.codes.get_mut(&c) {
-                                        codes.push(observable);
+                                        codes.push(observable.clone());
                                     } else {
-                                        observation.codes.insert(*c, vec![observable]);
+                                        observation.codes.insert(*c, vec![observable.clone()]);
                                     }
                                 }
                             },
                             Some(c) => {
                                 if let Some(codes) = observation.codes.get_mut(&c) {
-                                    codes.push(observable);
+                                    codes.push(observable.clone());
                                 } else {
-                                    observation.codes.insert(c, vec![observable]);
+                                    observation.codes.insert(c, vec![observable.clone()]);
                                 }
                             },
                             _ => {

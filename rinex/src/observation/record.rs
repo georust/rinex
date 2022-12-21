@@ -365,7 +365,7 @@ pub(crate) fn parse_epoch(
 fn parse_v2(
     header: &Header,
     systems: &str,
-    observables: &HashMap<Constellation, Vec<Observable>>,
+    header_observables: &HashMap<Constellation, Vec<Observable>>,
     lines: std::str::Lines<'_>,
 ) -> BTreeMap<Sv, HashMap<Observable, ObservationData>> {
     let svnn_size = 3; // SVNN standard
@@ -409,7 +409,7 @@ fn parse_v2(
     }
     sv_ptr += svnn_size; // increment pointer
                          // grab observables for this vehicule
-    if let Some(o) = observables.get(&sv.constellation) {
+    if let Some(o) = header_observables.get(&sv.constellation) {
         observables = &o;
     } else { // failed to identify observations for this vehicule
         return data;
@@ -470,7 +470,7 @@ fn parse_v2(
                     }
                     //println!("{} {:?} {:?} ==> {}", obs, lli, ssi, obscodes[obs_ptr-1]); //DEBUG
                     inner.insert(
-                        observables[obs_ptr-1], 
+                        observables[obs_ptr-1].clone(), 
                         ObservationData { obs, lli, ssi },
                     );
                 } //f64::obs
@@ -514,7 +514,7 @@ fn parse_v2(
             }
             sv_ptr += svnn_size; // increment pointer
                                  // grab observables for this vehicule
-            if let Some(o) = observables.get(&sv.constellation) {
+            if let Some(o) = header_observables.get(&sv.constellation) {
                 observables = &o;
             } else {
                 // failed to identify observations for this vehicule
@@ -596,7 +596,7 @@ pub(crate) fn fmt_epoch(
     epoch: Epoch,
     flag: EpochFlag,
     clock_offset: &Option<f64>,
-    data: &BTreeMap<Sv, HashMap<String, ObservationData>>,
+    data: &BTreeMap<Sv, HashMap<Observable, ObservationData>>,
     header: &Header,
 ) -> String {
     if header.version.major < 3 {
@@ -610,26 +610,28 @@ fn fmt_epoch_v3(
     epoch: Epoch,
     flag: EpochFlag,
     clock_offset: &Option<f64>,
-    data: &BTreeMap<Sv, HashMap<String, ObservationData>>,
+    data: &BTreeMap<Sv, HashMap<Observable, ObservationData>>,
     header: &Header,
 ) -> String {
     let mut lines = String::with_capacity(128);
-    let obscodes = &header.obs.as_ref().unwrap().codes;
+    let observables = &header.obs.as_ref().unwrap().codes;
+
     lines.push_str(&format!(
         "> {} {:2}",
         epoch::format(epoch, Some(flag), Type::ObservationData, 3),
         data.len()
     ));
+    
     if let Some(data) = clock_offset {
         lines.push_str(&format!("{:13.4}", data));
     }
+    
     lines.push_str("\n");
-
     for (sv, data) in data.iter() {
         lines.push_str(&format!("{}", sv.to_string()));
-        if let Some(obscodes) = obscodes.get(&sv.constellation) {
-            for code in obscodes {
-                if let Some(observation) = data.get(code) {
+        if let Some(observables) = observables.get(&sv.constellation) {
+            for observable in observables {
+                if let Some(observation) = data.get(observable) {
                     lines.push_str(&format!("{:14.3}", observation.obs));
                     if let Some(flag) = observation.lli {
                         lines.push_str(&format!("{}", flag.bits()));
@@ -655,16 +657,18 @@ fn fmt_epoch_v2(
     epoch: Epoch,
     flag: EpochFlag,
     clock_offset: &Option<f64>,
-    data: &BTreeMap<Sv, HashMap<String, ObservationData>>,
+    data: &BTreeMap<Sv, HashMap<Observable, ObservationData>>,
     header: &Header,
 ) -> String {
     let mut lines = String::with_capacity(128);
-    let obscodes = &header.obs.as_ref().unwrap().codes;
+    let observables = &header.obs.as_ref().unwrap().codes;
+
     lines.push_str(&format!(
         " {} {:2}",
         epoch::format(epoch, Some(flag), Type::ObservationData, 2),
         data.len()
     ));
+    
     let mut index = 0_u8;
     for (sv_index, (sv, _)) in data.iter().enumerate() {
         if index == 12 {
@@ -686,12 +690,12 @@ fn fmt_epoch_v2(
     for (sv, observations) in data.iter() {
         // follow list of observables, as described in header section
         // for given constellation
-        if let Some(obscodes) = obscodes.get(&sv.constellation) {
-            for (obs_index, obscode) in obscodes.iter().enumerate() {
+        if let Some(observables) = observables.get(&sv.constellation) {
+            for (obs_index, observable) in observables.iter().enumerate() {
                 if obs_index % obs_per_line == 0 {
                     lines.push_str("\n");
                 }
-                if let Some(observation) = observations.get(obscode) {
+                if let Some(observation) = observations.get(observable) {
                     let formatted_obs = format!("{:14.3}", observation.obs);
                     let formatted_flags: String = match observation.lli {
                         Some(lli) => match observation.ssi {

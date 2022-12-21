@@ -146,18 +146,6 @@ impl std::str::FromStr for Observable {
 	}
 }
 
-/*
- * observable[n..m] ops:
- * mostly used when we're processing Observation RINEX,
- * retrieving the observation code and similar operations
- */
-impl std::ops::Index<std::ops::Range<usize>> for Observable {
-    type Output = str;
-    fn index(&self, index: std::ops::Range<usize>) -> &str {
-        self.to_string().index(index)
-    }
-}
-
 #[cfg(test)]
 mod test {
     use super::*;
