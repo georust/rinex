@@ -10,7 +10,7 @@ pub enum Error {
 
 /// Observable describes all possible observations,
 /// forming Observation and Meteo RINEX epoch content.
-#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Ord, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum Observable {
     /// Carrier phase observation 

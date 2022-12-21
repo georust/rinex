@@ -6,6 +6,7 @@ mod test {
         prelude::*,
         version::Version,
     };
+    use std::str::FromStr;
     use std::collections::HashMap;
     /*
      * Compares rnx_b to rnx_a
@@ -211,29 +212,29 @@ mod test {
      */
     #[test]
     fn test_faulty_crinex1() {
-        let mut obscodes: HashMap<Constellation, Vec<String>> = HashMap::new();
+        let mut obscodes: HashMap<Constellation, Vec<Observable>> = HashMap::new();
         obscodes.insert(
             Constellation::GPS,
             vec![
-                String::from("L1"),
-                String::from("L2"),
-                String::from("C1"),
-                String::from("P2"),
-                String::from("P1"),
-                String::from("S1"),
-                String::from("S2"),
+                Observable::from_str("L1").unwrap(),
+                Observable::from_str("L2").unwrap(),
+                Observable::from_str("C1").unwrap(),
+                Observable::from_str("P2").unwrap(),
+                Observable::from_str("P1").unwrap(),
+                Observable::from_str("S1").unwrap(),
+                Observable::from_str("S2").unwrap(),
             ],
         );
         obscodes.insert(
             Constellation::Glonass,
             vec![
-                String::from("L1"),
-                String::from("L2"),
-                String::from("C1"),
-                String::from("P2"),
-                String::from("P1"),
-                String::from("S1"),
-                String::from("S2"),
+                Observable::from_str("L1").unwrap(),
+                Observable::from_str("L2").unwrap(),
+                Observable::from_str("C1").unwrap(),
+                Observable::from_str("P2").unwrap(),
+                Observable::from_str("P1").unwrap(),
+                Observable::from_str("S1").unwrap(),
+                Observable::from_str("S2").unwrap(),
             ],
         );
         let content = "21  1  1  0  0  0.0000000  0 20G07G23G26G20G21G18R24R09G08G27G10G16R18G13R01R16R17G15R02R15";
@@ -276,76 +277,111 @@ mod test {
                 assert_eq!(vehicules.len(), 24);
                 for (sv, observations) in vehicules {
                     if *sv == Sv::new(Constellation::GPS, 07) {
-                        let mut keys: Vec<_> = observations.keys().collect();
+                        let mut keys: Vec<_> = observations
+                            .keys()
+                            .map(|k| k.clone())
+                            .collect();
                         keys.sort();
-                        assert_eq!(keys, vec!["C1", "C2", "L1", "L2", "P1", "P2", "S1", "S2"]);
-                        let c1 = observations.get("C1").unwrap();
+                        assert_eq!(keys, vec![
+                            Observable::from_str("C1").unwrap(), 
+                            Observable::from_str("C2").unwrap(), 
+                            Observable::from_str("L1").unwrap(), 
+                            Observable::from_str("L2").unwrap(), 
+                            Observable::from_str("P1").unwrap(), 
+                            Observable::from_str("P2").unwrap(), 
+                            Observable::from_str("S1").unwrap(), 
+                            Observable::from_str("S2").unwrap(),
+                        ]);
+                        let c1 = observations.get(&Observable::from_str("C1").unwrap()).unwrap();
                         assert_eq!(c1.obs, 24178026.635);
-                        let c2 = observations.get("C2").unwrap();
+                        let c2 = observations.get(&Observable::from_str("C2").unwrap()).unwrap();
                         assert_eq!(c2.obs, 24178024.891);
-                        let l1 = observations.get("L1").unwrap();
+                        let l1 = observations.get(&Observable::from_str("L1").unwrap()).unwrap();
                         assert_eq!(l1.obs, 127056391.699);
-                        let l2 = observations.get("L2").unwrap();
+                        let l2 = observations.get(&Observable::from_str("L2").unwrap()).unwrap();
                         assert_eq!(l2.obs, 99004963.017);
-                        let p1 = observations.get("P1").unwrap();
+                        let p1 = observations.get(&Observable::from_str("P1").unwrap()).unwrap();
                         assert_eq!(p1.obs, 24178026.139);
-                        let p2 = observations.get("P2").unwrap();
+                        let p2 = observations.get(&Observable::from_str("P2").unwrap()).unwrap();
                         assert_eq!(p2.obs, 24178024.181);
-                        let s1 = observations.get("S1").unwrap();
+                        let s1 = observations.get(&Observable::from_str("S1").unwrap()).unwrap();
                         assert_eq!(s1.obs, 38.066);
-                        let s2 = observations.get("S2").unwrap();
+                        let s2 = observations.get(&Observable::from_str("S2").unwrap()).unwrap();
                         assert_eq!(s2.obs, 22.286);
                     } else if *sv == Sv::new(Constellation::GPS, 08) {
-                        let mut keys: Vec<_> = observations.keys().collect();
+                        let mut keys: Vec<Observable> = observations
+                            .keys()
+                            .map(|k| k.clone())
+                            .collect();
                         keys.sort();
                         assert_eq!(
                             keys,
-                            vec!["C1", "C2", "C5", "L1", "L2", "L5", "P1", "P2", "S1", "S2", "S5"]
+                            vec![
+                                Observable::from_str("C1").unwrap(), 
+                                Observable::from_str("C2").unwrap(), 
+                                Observable::from_str("C5").unwrap(), 
+                                Observable::from_str("L1").unwrap(), 
+                                Observable::from_str("L2").unwrap(), 
+                                Observable::from_str("L5").unwrap(), 
+                                Observable::from_str("P1").unwrap(), 
+                                Observable::from_str("P2").unwrap(), 
+                                Observable::from_str("S1").unwrap(), 
+                                Observable::from_str("S2").unwrap(), 
+                                Observable::from_str("S5").unwrap(),
+                            ]
                         );
-                        let c1 = observations.get("C1").unwrap();
+                        let c1 = observations.get(&Observable::from_str("C1").unwrap()).unwrap();
                         assert_eq!(c1.obs, 21866748.928);
-                        let c2 = observations.get("C2").unwrap();
+                        let c2 = observations.get(&Observable::from_str("C2").unwrap()).unwrap();
                         assert_eq!(c2.obs, 21866750.407);
-                        let c5 = observations.get("C5").unwrap();
+                        let c5 = observations.get(&Observable::from_str("C5").unwrap()).unwrap();
                         assert_eq!(c5.obs, 21866747.537);
-                        let l1 = observations.get("L1").unwrap();
+                        let l1 = observations.get(&Observable::from_str("L1").unwrap()).unwrap();
                         assert_eq!(l1.obs, 114910552.082);
-                        let l2 = observations.get("L2").unwrap();
+                        let l2 = observations.get(&Observable::from_str("L2").unwrap()).unwrap();
                         assert_eq!(l2.obs, 89540700.326);
-                        let l5 = observations.get("L5").unwrap();
+                        let l5 = observations.get(&Observable::from_str("L5").unwrap()).unwrap();
                         assert_eq!(l5.obs, 85809828.276);
-                        let p1 = observations.get("P1").unwrap();
+                        let p1 = observations.get(&Observable::from_str("P1").unwrap()).unwrap();
                         assert_eq!(p1.obs, 21866748.200);
-                        let p2 = observations.get("P2").unwrap();
+                        let p2 = observations.get(&Observable::from_str("P2").unwrap()).unwrap();
                         assert_eq!(p2.obs, 21866749.482);
-                        let s1 = observations.get("S1").unwrap();
+                        let s1 = observations.get(&Observable::from_str("S1").unwrap()).unwrap();
                         assert_eq!(s1.obs, 45.759);
-                        let s2 = observations.get("S2").unwrap();
+                        let s2 = observations.get(&Observable::from_str("S2").unwrap()).unwrap();
                         assert_eq!(s2.obs, 49.525);
-                        let s5 = observations.get("S5").unwrap();
+                        let s5 = observations.get(&Observable::from_str("S5").unwrap()).unwrap();
                         assert_eq!(s5.obs, 52.161);
                     } else if *sv == Sv::new(Constellation::GPS, 13) {
-                        let mut keys: Vec<_> = observations.keys().collect();
+                        let mut keys: Vec<Observable> = observations
+                            .keys()
+                            .map(|k| k.clone())
+                            .collect();
                         keys.sort();
-                        assert_eq!(keys, vec!["C1", "L1", "L2", "P1", "P2", "S1", "S2"]);
+                        let mut expected: Vec<Observable> = "C1 L1 L2 P1 P2 S1 S2"
+                            .split_ascii_whitespace()
+                            .map(|k| Observable::from_str(k).unwrap())
+                            .collect();
+                        expected.sort();
+                        assert_eq!(keys, expected);
                         //let c1 = observations.get("C1")
                         //	.unwrap();
                         //assert_eq!(s2.obs, 49.525);
                         //  25107711.730 5                                 131941919.38305 102811868.09001
                         //                  25107711.069 1  25107709.586 1        33.150           8.952
-                        let c1 = observations.get("C1").unwrap();
+                        let c1 = observations.get(&Observable::from_str("C1").unwrap()).unwrap();
                         assert_eq!(c1.obs, 25107711.730);
-                        let l1 = observations.get("L1").unwrap();
+                        let l1 = observations.get(&Observable::from_str("L1").unwrap()).unwrap();
                         assert_eq!(l1.obs, 131941919.383);
-                        let l2 = observations.get("L2").unwrap();
+                        let l2 = observations.get(&Observable::from_str("L2").unwrap()).unwrap();
                         assert_eq!(l2.obs, 102811868.090);
-                        let p1 = observations.get("P1").unwrap();
+                        let p1 = observations.get(&Observable::from_str("P1").unwrap()).unwrap();
                         assert_eq!(p1.obs, 25107711.069);
-                        let p2 = observations.get("P2").unwrap();
+                        let p2 = observations.get(&Observable::from_str("P2").unwrap()).unwrap();
                         assert_eq!(p2.obs, 25107709.586);
-                        let s1 = observations.get("S1").unwrap();
+                        let s1 = observations.get(&Observable::from_str("S1").unwrap()).unwrap();
                         assert_eq!(s1.obs, 33.150);
-                        let s2 = observations.get("S2").unwrap();
+                        let s2 = observations.get(&Observable::from_str("S2").unwrap()).unwrap();
                         assert_eq!(s2.obs, 8.952);
                     }
                 }
@@ -511,21 +547,28 @@ mod test {
                 assert_eq!(keys, expected);
                 let c58 = vehicules.get(&Sv::new(Constellation::BeiDou, 58)).unwrap();
 
-                let mut keys: Vec<_> = c58.keys().collect();
+                let mut keys: Vec<Observable> = c58.keys()
+                    .map(|k| k.clone())
+                    .collect();
                 keys.sort();
-                let mut expected = vec!["C2I", "L2I", "S2I"];
+
+                let mut expected: Vec<Observable> = "C2I L2I S2I"
+                    .split_ascii_whitespace()
+                    .map(|k| Observable::from_str(k).unwrap())
+                    .collect();
                 expected.sort();
+                
                 assert_eq!(keys, expected);
 
-                let c2i = c58.get("C2I").unwrap();
+                let c2i = c58.get(&Observable::from_str("C2I").unwrap()).unwrap();
                 assert_eq!(c2i.obs, 32241892.280);
                 assert!(c2i.lli.is_none());
                 assert!(c2i.ssi.is_none());
 
-                let l2i = c58.get("L2I").unwrap();
+                let l2i = c58.get(&Observable::from_str("L2I").unwrap()).unwrap();
                 assert_eq!(l2i.obs, 167892006.433);
 
-                let s2i = c58.get("S2I").unwrap();
+                let s2i = c58.get(&Observable::from_str("S2I").unwrap()).unwrap();
                 assert_eq!(s2i.obs, 47.650);
             }
         }

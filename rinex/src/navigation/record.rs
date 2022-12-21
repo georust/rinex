@@ -2,7 +2,6 @@
 use regex::{Captures, Regex};
 use std::collections::BTreeMap;
 use std::str::FromStr;
-use strum_macros::EnumString;
 use thiserror::Error;
 
 /*
@@ -33,16 +32,12 @@ use super::{
 use hifitime::Duration;
 
 /// Possible Navigation Frame declinations for an epoch
-#[derive(Debug, Copy, Clone, PartialEq, PartialOrd, Eq, Ord, EnumString)]
+#[derive(Debug, Copy, Clone, PartialEq, PartialOrd, Eq, Ord)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum FrameClass {
-    #[strum(serialize = "EPH", serialize = "eph")]
     Ephemeris,
-    #[strum(serialize = "STO", serialize = "sto")]
     SystemTimeOffset,
-    #[strum(serialize = "EOP", serialize = "eop")]
     EarthOrientation,
-    #[strum(serialize = "ION", serialize = "ion")]
     IonosphericModel,
 }
 
@@ -63,39 +58,44 @@ impl std::fmt::Display for FrameClass {
     }
 }
 
+impl std::str::FromStr for FrameClass {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let c = s.to_uppercase();
+        let c = c.trim();
+        match c {
+            "EPH" => Ok(Self::Ephemeris),
+            "STO" => Ok(Self::SystemTimeOffset),
+            "EOP" => Ok(Self::EarthOrientation),
+            "ION" => Ok(Self::IonosphericModel),
+            _ => Err(Error::UnknownFrameClass),
+        }
+    }
+}
+
 /// Navigation Message Types
-#[derive(Debug, Copy, Clone, PartialEq, PartialOrd, Eq, Ord, EnumString)]
+#[derive(Debug, Copy, Clone, PartialEq, PartialOrd, Eq, Ord)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum MsgType {
     /// Legacy NAV
-    #[strum(serialize = "LNAV", serialize = "lnav")]
     LNAV,
     /// FDMA
-    #[strum(serialize = "FDMA", serialize = "fdma")]
     FDMA,
     /// FNAV
-    #[strum(serialize = "FNAV", serialize = "fnav")]
     FNAV,
     /// INAV
-    #[strum(serialize = "INAV", serialize = "inav")]
     INAV,
     /// IFNV,
-    #[strum(serialize = "IFNV", serialize = "ifnv")]
     IFNV,
     /// D1
-    #[strum(serialize = "D1", serialize = "d1")]
     D1,
     /// D2
-    #[strum(serialize = "D2", serialize = "d2")]
     D2,
     /// D1D2
-    #[strum(serialize = "D1D2", serialize = "d1d2")]
     D1D2,
     /// SBAS
-    #[strum(serialize = "SBAS", serialize = "sbas")]
     SBAS,
     /// CNVX special marker
-    #[strum(serialize = "CNVX", serialize = "cnvx")]
     CNVX,
 }
 
@@ -122,8 +122,29 @@ impl std::fmt::Display for MsgType {
     }
 }
 
+impl std::str::FromStr for MsgType {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let c = s.to_uppercase();
+        let c = c.trim();
+        match c {
+            "LNAV" => Ok(Self::LNAV),
+            "FDMA" => Ok(Self::FDMA),
+            "FNAV" => Ok(Self::FNAV),
+            "INAV" => Ok(Self::INAV),
+            "IFNV" => Ok(Self::IFNV),
+            "D1" => Ok(Self::D1),
+            "D2" => Ok(Self::D2),
+            "D1D2" => Ok(Self::D1D2),
+            "SBAS" => Ok(Self::SBAS),
+            "CNVX" => Ok(Self::CNVX),
+            _ => Err(Error::UnknownMsgType),
+        }
+    }
+}
+
 /// Navigation Frame for a given epoch
-#[derive(Debug, Clone, PartialEq, EnumString)]
+#[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum Frame {
     /// Ephemeris for a given Vehicule `Sv`
@@ -281,6 +302,10 @@ pub enum Error {
     FileIoError(#[from] std::io::Error),
     #[error("failed to locate revision in db")]
     OrbitRevision,
+    #[error("unknown nav frame class")]
+    UnknownFrameClass,
+    #[error("unknown nav message type")]
+    UnknownMsgType,
     #[error("failed to parse msg type")]
     SvError(#[from] sv::Error),
     #[error("failed to parse orbit field")]
