@@ -52,6 +52,30 @@ impl Default for Observable {
 }
 
 impl Observable {
+    pub fn is_phase_observable(&self) -> bool {
+        match self {
+            Self::Phase(_) => true,
+            _ => false,
+        }
+    }
+    pub fn is_pseudorange_observable(&self) -> bool {
+        match self {
+            Self::PseudoRange(_) => true,
+            _ => false,
+        }
+    }
+    pub fn is_doppler_observable(&self) -> bool {
+        match self {
+            Self::Doppler(_) => true,
+            _ => false,
+        }
+    }
+    pub fn is_ssi_observable(&self) -> bool {
+        match self {
+            Self::SSI(_) => true,
+            _ => false,
+        }
+    }
     pub fn code(&self) -> Option<String> {
         match self {
             Self::Phase(c) | Self::Doppler(c) | Self::SSI(c) | Self::PseudoRange(c) => {
@@ -105,7 +129,7 @@ impl std::str::FromStr for Observable {
                 if len > 1 && len < 4 {
                     if content.starts_with("L")  {
                         Ok(Self::Phase(content.to_string()))
-                    } else if content.starts_with("C") {
+                    } else if content.starts_with("C") || content.starts_with("P") {
                         Ok(Self::PseudoRange(content.to_string()))
                     } else if content.starts_with("S") {
                         Ok(Self::SSI(content.to_string()))
@@ -122,6 +146,18 @@ impl std::str::FromStr for Observable {
 	}
 }
 
+/*
+ * observable[n..m] ops:
+ * mostly used when we're processing Observation RINEX,
+ * retrieving the observation code and similar operations
+ */
+impl std::ops::Index<std::ops::Range<usize>> for Observable {
+    type Output = str;
+    fn index(&self, index: std::ops::Range<usize>) -> &str {
+        self.to_string().index(index)
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -131,6 +167,23 @@ mod test {
         let default = Observable::default();
         assert_eq!(default, Observable::from_str("L1C").unwrap());
         assert_eq!(default, Observable::Phase(String::from("L1C")));
+        assert!(default.is_phase_observable());
+    }
+    #[test]
+    fn test_physics() {
+        assert!(Observable::from_str("L1").unwrap().is_phase_observable());
+        assert!(Observable::from_str("L2").unwrap().is_phase_observable());
+        assert!(Observable::from_str("L6X").unwrap().is_phase_observable());
+        assert!(Observable::from_str("C1").unwrap().is_pseudorange_observable());
+        assert!(Observable::from_str("C2").unwrap().is_pseudorange_observable());
+        assert!(Observable::from_str("C6X").unwrap().is_pseudorange_observable());
+        assert!(Observable::from_str("D1").unwrap().is_doppler_observable());
+        assert!(Observable::from_str("D2").unwrap().is_doppler_observable());
+        assert!(Observable::from_str("D6X").unwrap().is_doppler_observable());
+        assert!(Observable::from_str("S1").unwrap().is_ssi_observable());
+        assert!(Observable::from_str("S2").unwrap().is_ssi_observable());
+        assert!(Observable::from_str("S1P").unwrap().is_ssi_observable());
+        assert!(Observable::from_str("S1W").unwrap().is_ssi_observable());
     }
     #[test]
     fn test_observable() {
@@ -150,7 +203,7 @@ mod test {
         assert_eq!(Observable::from_str("L1"), 
             Ok(Observable::Phase(String::from("L1"))));
         assert!(Observable::from_str("L1").unwrap().code().is_none());
-
+        
         assert_eq!(Observable::from_str("L2"), 
             Ok(Observable::Phase(String::from("L2"))));
         assert_eq!(Observable::from_str("L5"), 

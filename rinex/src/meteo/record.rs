@@ -307,7 +307,7 @@ impl MaskFilter for Record {
                 TargetItem::EpochItem(epoch) => self.retain(|e,  _| *e == epoch),
                 TargetItem::ObservableItem(filter) => {
                     self.retain(|_, data| {
-                        data.retain(|code, _| filter.contains(&code.to_string()));
+                        data.retain(|code, _| filter.contains(code));
                         data.len() > 0
                     });
                 },
@@ -317,7 +317,7 @@ impl MaskFilter for Record {
                 TargetItem::EpochItem(epoch) => self.retain(|e,  _| *e != epoch),
                 TargetItem::ObservableItem(filter) => {
                     self.retain(|_, data| {
-                        data.retain(|code, _| !filter.contains(&code.to_string()));
+                        data.retain(|code, _| !filter.contains(code));
                         data.len() > 0
                     });
                 },
