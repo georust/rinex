@@ -8,7 +8,6 @@ pub use mask::{Mask, MaskFilter, MaskOperand};
 //pub use processing::{Processing, AverageType};
 
 use thiserror::Error;
-use std::str::FromStr;
 use crate::navigation::{MsgType, FrameClass};
 use crate::{Epoch, EpochFlag, Sv, Constellation, Observable};
 
@@ -158,7 +157,8 @@ pub enum AlgorithmError {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{Observable, Carrier};
+    use crate::Observable;
+    use std::str::FromStr;
     #[test]
     fn test_target_item() {
         let e = Epoch::default();

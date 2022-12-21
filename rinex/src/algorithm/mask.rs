@@ -1,7 +1,4 @@
-use thiserror::Error;
-use std::str::FromStr;
 use super::{AlgorithmError, TargetItem};
-use crate::{Epoch, EpochFlag, Sv, Constellation};
 
 /// MaskOperand describe how to apply a mask 
 /// in related filter operation
@@ -158,7 +155,7 @@ pub trait MaskFilter {
 mod test {
     use super::*;
     use std::str::FromStr;
-    use crate::Observable;
+    use crate::prelude::*;
     use crate::navigation::{FrameClass, MsgType};
     #[test]
     fn test_mask_operand() {
