@@ -78,6 +78,15 @@ impl std::ops::Not for MaskOperand {
 ///
 /// // mask can apply to a lot of different data subsets,
 /// // refer to the [TargetItem] definition,
+///
+/// // Greater than ">" and lower than "<" 
+/// // truly apply to Epochs and Durations only,
+/// // whereas Equality masks ("=", "!=") apply to any known item.
+/// // One exception exist for "Sv" items, for example with this:
+/// let greater_than = Mask::from_str(">= G08,R03")
+///     .unwrap();
+/// // would retain for GPS all vehicles with PRN>=08
+/// // and PRN>=03 for Glonass
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Mask {
@@ -159,39 +168,32 @@ mod test {
     use crate::navigation::{FrameClass, MsgType};
     #[test]
     fn test_mask_operand() {
-        let operand = MaskOperand::from_str(">");
-        assert_eq!(operand, Ok(MaskOperand::StrictlyAbove));
-        let operand = operand.unwrap();
+        let operand = MaskOperand::from_str(">").unwrap();
+        assert_eq!(operand, MaskOperand::StrictlyAbove);
         assert_eq!(!operand, MaskOperand::from_str("<=").unwrap());
 
-        let operand = MaskOperand::from_str(">=");
-        assert_eq!(operand, Ok(MaskOperand::Above));
-        let operand = operand.unwrap();
+        let operand = MaskOperand::from_str(">=").unwrap();
+        assert_eq!(operand, MaskOperand::Above);
         assert_eq!(!operand, MaskOperand::from_str("<").unwrap());
 
-        let operand = MaskOperand::from_str("<");
-        assert_eq!(operand, Ok(MaskOperand::StrictlyBelow));
-        let operand = operand.unwrap();
+        let operand = MaskOperand::from_str("<").unwrap();
+        assert_eq!(operand, MaskOperand::StrictlyBelow);
         assert_eq!(!operand, MaskOperand::from_str(">=").unwrap());
 
-        let operand = MaskOperand::from_str("<=");
-        assert_eq!(operand, Ok(MaskOperand::Below));
-        let operand = operand.unwrap();
+        let operand = MaskOperand::from_str("<=").unwrap();
+        assert_eq!(operand, MaskOperand::Below);
         assert_eq!(!operand, MaskOperand::from_str(">").unwrap());
 
-        let operand = MaskOperand::from_str("<= 123");
-        assert_eq!(operand, Ok(MaskOperand::Below));
-        let operand = operand.unwrap();
+        let operand = MaskOperand::from_str("<= 123").unwrap();
+        assert_eq!(operand, MaskOperand::Below);
         assert_eq!(!operand, MaskOperand::from_str(">").unwrap());
 
-        let operand = MaskOperand::from_str(">123.0");
-        assert_eq!(operand, Ok(MaskOperand::StrictlyAbove));
-        let operand = operand.unwrap();
+        let operand = MaskOperand::from_str(">123.0").unwrap();
+        assert_eq!(operand, MaskOperand::StrictlyAbove);
         assert_eq!(!operand, MaskOperand::from_str("<=").unwrap());
 
-        let operand = MaskOperand::from_str(">abcdefg");
-        assert_eq!(operand, Ok(MaskOperand::StrictlyAbove));
-        let operand = operand.unwrap();
+        let operand = MaskOperand::from_str(">abcdefg").unwrap();
+        assert_eq!(operand, MaskOperand::StrictlyAbove);
         assert_eq!(!operand, MaskOperand::from_str("<=").unwrap());
 
         let operand = MaskOperand::from_str("!>");
@@ -199,106 +201,106 @@ mod test {
     }
     #[test]
     fn test_epoch_mask() {
-        let mask = Mask::from_str("> 2020-01-14T00:31:55 UTC");
+        let mask = Mask::from_str("> 2020-01-14T00:31:55 UTC").unwrap();
         assert_eq!(
             mask,
-            Ok(Mask {
+            Mask {
                 operand: MaskOperand::StrictlyAbove,
                 item: TargetItem::EpochItem(Epoch::from_str("2020-01-14T00:31:55 UTC").unwrap()),
-            }));
+            });
         let mask = Mask::from_str("> JD 2452312.500372511 TAI");
         assert!(mask.is_ok());
     }
     #[test]
     fn test_elev_mask() {
-        let mask = Mask::from_str("< 40.0");
+        let mask = Mask::from_str("< 40.0").unwrap();
         assert_eq!(
             mask,
-            Ok(Mask {
+            Mask {
                 operand: MaskOperand::StrictlyBelow,
                 item: TargetItem::ElevationItem(40.0_f64),
-            }));
-        let m2 = Mask::from_str("<40.0");
+            });
+        let m2 = Mask::from_str("<40.0").unwrap();
         assert_eq!(mask, m2);
-        let m2 = Mask::from_str("  < 40.0  ");
+        let m2 = Mask::from_str("  < 40.0  ").unwrap();
         assert_eq!(mask, m2);
 
-        let mask = Mask::from_str(">= 10.0");
+        let mask = Mask::from_str(">= 10.0").unwrap();
         assert_eq!(
             mask,
-            Ok(Mask {
+            Mask {
                 operand: MaskOperand::Above,
                 item: TargetItem::ElevationItem(10.0_f64),
-            }));
-        let m2 = Mask::from_str(">=10.0");
+            });
+        let m2 = Mask::from_str(">=10.0").unwrap();
         assert_eq!(mask, m2);
     }
     #[test]
     fn test_constell_mask() {
-        let mask = Mask::from_str("= GPS");
+        let mask = Mask::from_str("=gnss:GPS").unwrap();
         assert_eq!(
             mask,
-            Ok(Mask {
+            Mask {
                 operand: MaskOperand::Equal,
                 item: TargetItem::ConstellationItem(vec![Constellation::GPS]),
-            }));
-        let m2 = Mask::from_str("=GPS");
+            });
+        let m2 = Mask::from_str("= gnss: GPS").unwrap();
         assert_eq!(mask, m2);
 
-        let mask = Mask::from_str("= GPS,GAL,GLO");
+        let mask = Mask::from_str("= gnss: GPS,GAL,GLO").unwrap();
         assert_eq!(
             mask,
-            Ok(Mask {
+            Mask {
                 operand: MaskOperand::Equal,
                 item: TargetItem::ConstellationItem(vec![Constellation::GPS, Constellation::Galileo, Constellation::Glonass]),
-            }));
-        let m2 = Mask::from_str("=GPS,GAL,GLO");
+            });
+        let m2 = Mask::from_str("=gnss:GPS,GAL,GLO").unwrap();
         assert_eq!(mask, m2);
         
-        let mask = Mask::from_str("!= BDS");
+        let mask = Mask::from_str("!= BDS").unwrap();
         assert_eq!(
             mask,
-            Ok(Mask {
+            Mask {
                 operand: MaskOperand::NotEqual,
                 item: TargetItem::ConstellationItem(vec![Constellation::BeiDou]),
-            }));
-        let m2 = Mask::from_str("!=BDS");
+            });
+        let m2 = Mask::from_str("!=BDS").unwrap();
         assert_eq!(mask, m2);
     }
     #[test]
     fn test_sv_mask() {
-        let mask = Mask::from_str("= G08,  G09, R03");
+        let mask = Mask::from_str("= sv:G08,  G09, R03").unwrap();
         assert_eq!(
             mask,
-            Ok(Mask {
+            Mask {
                 operand: MaskOperand::Equal,
                 item: TargetItem::SvItem(vec![
                     Sv::from_str("G08").unwrap(),
                     Sv::from_str("G09").unwrap(),
                     Sv::from_str("R03").unwrap(),
                 ]),
-            }));
-        let m2 = Mask::from_str("=G08,G09,R03");
+            });
+        let m2 = Mask::from_str("=sv:G08,G09,R03").unwrap();
         assert_eq!(mask, m2);
         
-        let mask = Mask::from_str("!= G31");
+        let mask = Mask::from_str("!= sv:G31").unwrap();
         assert_eq!(
             mask,
-            Ok(Mask {
+            Mask {
                 operand: MaskOperand::NotEqual,
                 item: TargetItem::SvItem(vec![
                     Sv::from_str("G31").unwrap(),
                 ]),
-            }));
-        let m2 = Mask::from_str("!=G31");
+            });
+        let m2 = Mask::from_str("!=G31").unwrap();
         assert_eq!(mask, m2);
     }
     #[test]
     fn test_obs_mask() {
-        let mask = Mask::from_str("= L1C,S1C,D1P,C1W");
+        let mask = Mask::from_str("= L1C,S1C,D1P,C1W").unwrap();
         assert_eq!(
             mask,
-            Ok(Mask {
+            Mask {
                 operand: MaskOperand::Equal,
                 item: TargetItem::ObservableItem(
                     vec![
@@ -307,42 +309,42 @@ mod test {
                         Observable::Doppler("D1P".to_string()),
                         Observable::PseudoRange("C1W".to_string()),
                     ])
-            }));
+            });
     }
     #[test]
     fn test_orb_mask() {
-        let mask = Mask::from_str("= iode");
+        let mask = Mask::from_str("= iode").unwrap();
         assert_eq!(
             mask,
-            Ok(Mask {
+            Mask {
                 operand: MaskOperand::Equal,
                 item: TargetItem::OrbitItem(vec![String::from("iode")])
-            }));
+            });
     }
     #[test]
     fn test_nav_mask() {
-        let mask = Mask::from_str("= eph");
+        let mask = Mask::from_str("= eph").unwrap();
         assert_eq!(
             mask,
-            Ok(Mask {
+            Mask {
                 operand: MaskOperand::Equal,
                 item: TargetItem::NavFrameItem(
                     vec![FrameClass::Ephemeris]),
-            }));
-        let mask = Mask::from_str("= eph,ion");
+            });
+        let mask = Mask::from_str("= eph,ion").unwrap();
         assert_eq!(
             mask,
-            Ok(Mask {
+            Mask {
                 operand: MaskOperand::Equal,
                 item: TargetItem::NavFrameItem(
                     vec![FrameClass::Ephemeris, FrameClass::IonosphericModel])
-            }));
-        let mask = Mask::from_str("= lnav");
+            });
+        let mask = Mask::from_str("= lnav").unwrap();
         assert_eq!(
             mask,
-            Ok(Mask {
+            Mask {
                 operand: MaskOperand::Equal,
                 item: TargetItem::NavMsgItem(vec![MsgType::LNAV]),
-            }));
+            });
     }
 }
