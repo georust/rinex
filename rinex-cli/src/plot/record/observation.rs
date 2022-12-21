@@ -47,9 +47,8 @@ pub fn plot_observation(ctx: &Context, plot_ctx: &mut PlotContext) {
 
         for (sv, observations) in vehicules {
             for (observable, data) in observations {
-                let code = observable.code().unwrap();
-                let carrier_code = &code[0..2]; // carrier code
-                println!("Observable: {} |  C CODE \"{}\"", observable, carrier_code);
+                let code = observable.to_string();
+                let carrier_code = &code[1..2]; // carrier code
                 let c_code = u8::from_str_radix(carrier_code, 10)
                     .expect("failed to parse carrier code");
 
