@@ -178,70 +178,70 @@ impl Carrier {
 
     /// Identifies Frequency channel, from given observable, related
     /// to given Constellation
-    pub fn from_observable(constellation: Constellation, observable: &str) -> Result<Self, Error> {
+    pub fn from_code(constellation: Constellation, code: &str) -> Result<Self, Error> {
         match constellation {
             Constellation::GPS => {
-                if observable.contains("1") {
+                if code.contains("1") {
                     Ok(Self::L1)
-                } else if observable.contains("2") {
+                } else if code.contains("2") {
                     Ok(Self::L2)
-                } else if observable.contains("5") {
+                } else if code.contains("5") {
                     Ok(Self::L5)
                 } else {
-                    Err(Error::InvalidObservable(observable.to_string()))
+                    Err(Error::InvalidObservable(code.to_string()))
                 }
             },
             Constellation::Glonass => {
-                if observable.contains("1") {
+                if code.contains("1") {
                     Ok(Self::G1(None))
-                } else if observable.contains("2") {
+                } else if code.contains("2") {
                     Ok(Self::G2(None))
-                } else if observable.contains("3") {
+                } else if code.contains("3") {
                     Ok(Self::G3)
                 } else {
-                    Err(Error::InvalidObservable(observable.to_string()))
+                    Err(Error::InvalidObservable(code.to_string()))
                 }
             },
             Constellation::Galileo => {
-                if observable.contains("1") {
+                if code.contains("1") {
                     Ok(Self::E1)
-                } else if observable.contains("2") {
+                } else if code.contains("2") {
                     Ok(Self::E2)
-                } else if observable.contains("5") {
+                } else if code.contains("5") {
                     Ok(Self::E5)
-                } else if observable.contains("6") {
+                } else if code.contains("6") {
                     Ok(Self::E6)
                 } else {
-                    Err(Error::InvalidObservable(observable.to_string()))
+                    Err(Error::InvalidObservable(code.to_string()))
                 }
             },
             Constellation::SBAS(_) => {
-                if observable.contains("1") {
+                if code.contains("1") {
                     Ok(Self::L1)
-                } else if observable.contains("5") {
+                } else if code.contains("5") {
                     Ok(Self::L5)
                 } else {
-                    Err(Error::InvalidObservable(observable.to_string()))
+                    Err(Error::InvalidObservable(code.to_string()))
                 }
             },
             Constellation::QZSS => {
-                if observable.contains("1") {
+                if code.contains("1") {
                     Ok(Self::L1)
-                } else if observable.contains("2") {
+                } else if code.contains("2") {
                     Ok(Self::L2)
-                } else if observable.contains("5") {
+                } else if code.contains("5") {
                     Ok(Self::L5)
                 } else {
-                    Err(Error::InvalidObservable(observable.to_string()))
+                    Err(Error::InvalidObservable(code.to_string()))
                 }
             },
             Constellation::IRNSS => {
-                if observable.contains("1") {
+                if code.contains("1") {
                     Ok(Self::L1)
-                } else if observable.contains("5") {
+                } else if code.contains("5") {
                     Ok(Self::L5)
                 } else {
-                    Err(Error::InvalidObservable(observable.to_string()))
+                    Err(Error::InvalidObservable(code.to_string()))
                 }
             },
             _ => todo!("for \"{}\" consellation", constellation.to_3_letter_code()),
@@ -317,8 +317,10 @@ mod test {
         let l1 = Carrier::from_str("L1").unwrap();
         assert_eq!(l1.carrier_frequency_mhz(), 1575.42_f64);
         assert_eq!(l1.carrier_wavelength(), 299792458.0 / 1_575_420_000.0_f64);
-        let channel = Carrier::from_observable(Constellation::GPS, "L1C");
+
+        let channel = Carrier::from_code(Constellation::GPS, "L1C");
         assert!(channel.is_ok());
+        
         let channel = channel.unwrap();
         assert_eq!(channel, Carrier::L1);
     }

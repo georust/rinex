@@ -1,3 +1,4 @@
+use crate::{Carrier, Constellation};
 use thiserror::Error;
 
 #[derive(Error, Debug, Clone, PartialEq)]
@@ -29,18 +30,18 @@ pub enum Observable {
     HumidityRate,
     /// Wet Zenith Path delay in [mm]
     ZenithWetDelay,
-    /// Zenith path delay, dry component, in [mm]
+    /// Zenith path delay, dry component in [mm]
     ZenithDryDelay,
-    /// Total zenith path delay (dry + wet), in [mm]
+    /// Total zenith path delay (dry + wet) in [mm]
     ZenithTotalDelay,
-    /// Wind azimuth, from where the wind blows, in [°]
+    /// Wind azimuth from where the wind blows, in [°]
     WindAzimuth,
-    /// Wind speed, in [m.s^-1]
+    /// Wind speed in [m.s^-1]
     WindSpeed,
     /// Rain Increment, i.e., rain accumulation
     /// since previous measurement, [10th of mm]
     RainIncrement,
-    /// Hail Indicator non zero, hail detected
+    /// Hail Indicator non zero: hail detected
     /// since last measurement
     HailIndicator,
 }
@@ -86,6 +87,14 @@ impl Observable {
                 }
             },
             _ => None,
+        }
+    }
+    pub fn carrier(&self, c: Constellation) -> Option<Carrier> {
+        let code = self.code()?;
+        if let Ok(carrier) = Carrier::from_code(c, &code) {
+            Some(carrier)
+        } else {
+            None
         }
     }
 }

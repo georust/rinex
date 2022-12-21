@@ -1035,4 +1035,24 @@ mod test {
             values
         );
     }
+    #[test]
+    fn test_gf_combinations() {
+        let rinex = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
+            .unwrap();
+        let gf = rinex.observation_gf_combinations();
+        assert!(gf.len() > 0);
+        let mut combinations: Vec<String> = gf.keys()
+            .map(|s| s.clone())
+            .collect();
+        combinations.sort();
+        
+        let mut expected = vec![
+            "C2P-C1C", 
+            "C2W-C1C",
+            "L2W-L1C",
+            "L2P-L1C",
+        ];
+        expected.sort();
+        assert_eq!(combinations, expected);
+    }
 }

@@ -1881,84 +1881,78 @@ impl Rinex {
                                 continue; // only on these two physics
                             }
                         }
-                        let lhs_code = lhs_observable.code().unwrap();
+                        let lhs_code = lhs_observable.to_string();
                         let lhs_carrier = &lhs_code[1..2];
-                        if let Ok(lhs_channel) =
-                            Carrier::from_observable(sv.constellation, lhs_carrier)
-                        {
-                            let lhs_freq = lhs_channel.carrier_frequency_mhz();
-                            // determine another carrier
-                            let rhs_carrier = match lhs_carrier {
-                                // this will restrict to
-                                "1" => "2", // 1 against 2
-                                _ => "1",   // M against 1
-                            };
-                            // locate a reference code against another carrier
-                            let mut reference: Option<(String, f64, f64)> = None;
-                            for (ref_observable, refdata) in observations {
-                                let mut shared_physics = ref_observable.is_phase_observable()
-                                    && ref_observable.is_phase_observable();
-                                shared_physics |= ref_observable.is_pseudorange_observable()
-                                    && ref_observable.is_pseudorange_observable();
-                                if !shared_physics {
-                                    continue;
-                                }
-                                let refcode = ref_observable.code().unwrap();
-                                let carrier_code = &refcode[1..2];
-                                if carrier_code == rhs_carrier {
-                                    // expected carrier signal
-                                    if let Ok(ref_ch) =
-                                        Carrier::from_observable(sv.constellation, rhs_carrier)
-                                    {
-                                        let ref_freq = ref_ch.carrier_frequency_mhz();
-                                        reference = Some((refcode, refdata.obs, ref_freq));
-                                    }
-                                    break; // DONE searching
-                                }
+                        let lhs_channel = lhs_observable.carrier(sv.constellation).unwrap();
+                        let lhs_freq = lhs_channel.carrier_frequency_mhz();
+                        // determine another carrier
+                        let rhs_carrier = match lhs_carrier {
+                            // this will restrict to
+                            "1" => "2", // 1 against 2
+                            _ => "1",   // M against 1
+                        };
+                        // locate a reference code against another carrier
+                        let mut reference: Option<(String, f64, f64)> = None;
+                        for (ref_observable, refdata) in observations {
+                            let mut shared_physics = ref_observable.is_phase_observable()
+                                && ref_observable.is_phase_observable();
+                            shared_physics |= ref_observable.is_pseudorange_observable()
+                                && ref_observable.is_pseudorange_observable();
+                            if !shared_physics {
+                                continue;
                             }
-                            if let Some((refcode, refdata, ref_freq)) = reference {
-                                // got a reference
-                                let op_title = format!("{}-{}", lhs_code, refcode);
-                                let yp = (lhs_freq * lhs_data.obs - refdata * ref_freq)
-                                    / (lhs_freq - ref_freq);
-                                if let Some(data) = ret.get_mut(&op_title) {
-                                    if let Some(data) = data.get_mut(&sv) {
-                                        data.insert(*epoch, yp); // new epoch
-                                    } else {
-                                        // new vehicule being introduced
-                                        let mut bmap: BTreeMap<(Epoch, EpochFlag), f64> =
-                                            BTreeMap::new();
-                                        bmap.insert(*epoch, yp);
-                                        data.insert(*sv, bmap);
-                                    }
+                            let refcode = ref_observable.to_string();
+                            let carrier_code = &refcode[1..2];
+                            if carrier_code == rhs_carrier {
+                                // expected carrier signal
+                                let ref_ch = ref_observable.carrier(sv.constellation).unwrap();
+                                let ref_freq = ref_ch.carrier_frequency_mhz();
+                                reference = Some((refcode, refdata.obs, ref_freq));
+                                break; // DONE searching
+                            }
+                        }
+                        if let Some((refcode, refdata, ref_freq)) = reference {
+                            // got a reference
+                            let op_title = format!("{}-{}", lhs_code, refcode);
+                            let yp = (lhs_freq * lhs_data.obs - refdata * ref_freq)
+                                / (lhs_freq - ref_freq);
+                            if let Some(data) = ret.get_mut(&op_title) {
+                                if let Some(data) = data.get_mut(&sv) {
+                                    data.insert(*epoch, yp); // new epoch
                                 } else {
-                                    // introduce new recombination,
-                                    //   Only if `lhs` is not already being recombined
-                                    let mut inject = true;
-                                    for (ops, _) in &ret {
-                                        let items: Vec<&str> = ops.split("-").collect();
-                                        let lhs_operand = items[0];
-                                        let rhs_operand = items[1];
-                                        if lhs_operand == lhs_code {
-                                            inject = false;
-                                            break;
-                                        }
-                                        if rhs_operand == lhs_code {
-                                            inject = false;
-                                            break;
-                                        }
+                                    // new vehicule being introduced
+                                    let mut bmap: BTreeMap<(Epoch, EpochFlag), f64> =
+                                        BTreeMap::new();
+                                    bmap.insert(*epoch, yp);
+                                    data.insert(*sv, bmap);
+                                }
+                            } else {
+                                // introduce new recombination,
+                                // => Only if `lhs` is not already being recombined
+                                let mut inject = true;
+                                for (ops, _) in &ret {
+                                    let items: Vec<&str> = ops.split("-").collect();
+                                    let lhs_operand = items[0];
+                                    let rhs_operand = items[1];
+                                    if lhs_operand == lhs_code {
+                                        inject = false;
+                                        break;
                                     }
-                                    if inject {
-                                        let mut bmap: BTreeMap<(Epoch, EpochFlag), f64> =
-                                            BTreeMap::new();
-                                        bmap.insert(*epoch, yp);
-                                        let mut map: HashMap<
-                                            Sv,
-                                            BTreeMap<(Epoch, EpochFlag), f64>,
-                                        > = HashMap::new();
-                                        map.insert(*sv, bmap);
-                                        ret.insert(op_title.clone(), map);
+                                    if rhs_operand == lhs_code {
+                                        inject = false;
+                                        break;
                                     }
+                                }
+                                if inject {
+                                    let mut bmap: BTreeMap<(Epoch, EpochFlag), f64> =
+                                        BTreeMap::new();
+                                    bmap.insert(*epoch, yp);
+                                    let mut map: HashMap<
+                                        Sv,
+                                        BTreeMap<(Epoch, EpochFlag), f64>,
+                                    > = HashMap::new();
+                                    map.insert(*sv, bmap);
+                                    ret.insert(op_title.clone(), map);
                                 }
                             }
                         }
@@ -1985,84 +1979,79 @@ impl Rinex {
                                 continue; // only on these two physics
                             }
                         }
-                        let lhs_code = lhs_observable.code().unwrap();
+                        let lhs_code = lhs_observable.to_string();
                         let lhs_carrier = &lhs_code[1..2];
-                        if let Ok(lhs_channel) =
-                            Carrier::from_observable(sv.constellation, lhs_carrier)
-                        {
-                            let lhs_freq = lhs_channel.carrier_frequency_mhz();
-                            // determine another carrier
-                            let rhs_carrier = match lhs_carrier {
-                                // this will restrict to
-                                "1" => "2", // 1 against 2
-                                _ => "1",   // M against 1
-                            };
-                            // locate a reference code against another carrier
-                            let mut reference: Option<(String, f64, f64)> = None;
-                            for (ref_observable, refdata) in observations {
-                                let mut shared_physics = ref_observable.is_phase_observable()
-                                    && lhs_observable.is_phase_observable();
-                                shared_physics |= ref_observable.is_pseudorange_observable()
-                                    && lhs_observable.is_pseudorange_observable();
-                                if !shared_physics {
-                                    continue;
-                                }
-                                let refcode = ref_observable.code().unwrap();
-                                let carrier_code = &refcode[1..2];
-                                if carrier_code == rhs_carrier {
-                                    // expected carrier signal
-                                    if let Ok(ref_ch) =
-                                        Carrier::from_observable(sv.constellation, rhs_carrier)
-                                    {
-                                        let ref_freq = ref_ch.carrier_frequency_mhz();
-                                        reference = Some((refcode, refdata.obs, ref_freq));
-                                    }
-                                    break; // DONE searching
-                                }
+                        let lhs_channel = lhs_observable.carrier(sv.constellation)
+                            .unwrap();
+                        let lhs_freq = lhs_channel.carrier_frequency_mhz();
+                        // determine another carrier
+                        let rhs_carrier = match lhs_carrier {
+                            // this will restrict to
+                            "1" => "2", // 1 against 2
+                            _ => "1",   // M against 1
+                        };
+                        // locate a reference code against another carrier
+                        let mut reference: Option<(String, f64, f64)> = None;
+                        for (ref_observable, refdata) in observations {
+                            let mut shared_physics = ref_observable.is_phase_observable()
+                                && lhs_observable.is_phase_observable();
+                            shared_physics |= ref_observable.is_pseudorange_observable()
+                                && lhs_observable.is_pseudorange_observable();
+                            if !shared_physics {
+                                continue;
                             }
-                            if let Some((refcode, refdata, ref_freq)) = reference {
-                                // got a reference
-                                let op_title = format!("{}-{}", lhs_code, refcode);
-                                let yp = (lhs_freq * lhs_data.obs + refdata * ref_freq)
-                                    / (lhs_freq + ref_freq);
-                                if let Some(data) = ret.get_mut(&op_title) {
-                                    if let Some(data) = data.get_mut(&sv) {
-                                        data.insert(*epoch, yp); // new epoch
-                                    } else {
-                                        // new vehicule being introduced
-                                        let mut bmap: BTreeMap<(Epoch, EpochFlag), f64> =
-                                            BTreeMap::new();
-                                        bmap.insert(*epoch, yp);
-                                        data.insert(*sv, bmap);
-                                    }
+                            let refcode = ref_observable.to_string();
+                            let carrier_code = &refcode[1..2];
+                            if carrier_code == rhs_carrier {
+                                // expected carrier signal
+                                let ref_ch = ref_observable.carrier(sv.constellation).unwrap();
+                                let ref_freq = ref_ch.carrier_frequency_mhz();
+                                reference = Some((refcode, refdata.obs, ref_freq));
+                                break; // DONE searching
+                            }
+                        }
+                        if let Some((refcode, refdata, ref_freq)) = reference {
+                            // got a reference
+                            let op_title = format!("{}-{}", lhs_code, refcode);
+                            let yp = (lhs_freq * lhs_data.obs + refdata * ref_freq)
+                                / (lhs_freq + ref_freq);
+                            if let Some(data) = ret.get_mut(&op_title) {
+                                if let Some(data) = data.get_mut(&sv) {
+                                    data.insert(*epoch, yp); // new epoch
                                 } else {
-                                    // introduce new recombination,
-                                    //   Only if `lhs` is not already being recombined
-                                    let mut inject = true;
-                                    for (ops, _) in &ret {
-                                        let items: Vec<&str> = ops.split("-").collect();
-                                        let lhs_operand = items[0];
-                                        let rhs_operand = items[1];
-                                        if lhs_operand == lhs_code {
-                                            inject = false;
-                                            break;
-                                        }
-                                        if rhs_operand == lhs_code {
-                                            inject = false;
-                                            break;
-                                        }
+                                    // new vehicule being introduced
+                                    let mut bmap: BTreeMap<(Epoch, EpochFlag), f64> =
+                                        BTreeMap::new();
+                                    bmap.insert(*epoch, yp);
+                                    data.insert(*sv, bmap);
+                                }
+                            } else {
+                                // introduce new recombination,
+                                //   Only if `lhs` is not already being recombined
+                                let mut inject = true;
+                                for (ops, _) in &ret {
+                                    let items: Vec<&str> = ops.split("-").collect();
+                                    let lhs_operand = items[0];
+                                    let rhs_operand = items[1];
+                                    if lhs_operand == lhs_code {
+                                        inject = false;
+                                        break;
                                     }
-                                    if inject {
-                                        let mut bmap: BTreeMap<(Epoch, EpochFlag), f64> =
-                                            BTreeMap::new();
-                                        bmap.insert(*epoch, yp);
-                                        let mut map: HashMap<
-                                            Sv,
-                                            BTreeMap<(Epoch, EpochFlag), f64>,
-                                        > = HashMap::new();
-                                        map.insert(*sv, bmap);
-                                        ret.insert(op_title.clone(), map);
+                                    if rhs_operand == lhs_code {
+                                        inject = false;
+                                        break;
                                     }
+                                }
+                                if inject {
+                                    let mut bmap: BTreeMap<(Epoch, EpochFlag), f64> =
+                                        BTreeMap::new();
+                                    bmap.insert(*epoch, yp);
+                                    let mut map: HashMap<
+                                        Sv,
+                                        BTreeMap<(Epoch, EpochFlag), f64>,
+                                    > = HashMap::new();
+                                    map.insert(*sv, bmap);
+                                    ret.insert(op_title.clone(), map);
                                 }
                             }
                         }
@@ -2117,29 +2106,18 @@ impl Rinex {
             for (epoch, (_, vehicules)) in r {
                 for (sv, observations) in vehicules {
                     for (lhs_observable, lhs_data) in observations {
-                        let lhs_code = lhs_observable.code().unwrap();
-                        let lhs_carrier = &lhs_code[1..2];
-                        let lhs_lambda: Option<f64> = match lhs_observable.is_phase_observable() {
-                            true => {
-                                if let Ok(channel) =
-                                    Carrier::from_observable(sv.constellation, lhs_carrier)
-                                {
-                                    Some(channel.carrier_wavelength())
-                                } else {
-                                    None
-                                }
-                            },
-                            false => {
-                                if lhs_observable.is_pseudorange_observable() {
-                                    Some(1.0)
-                                } else {
-                                    None
-                                }
-                            },
-                        };
-                        if lhs_lambda.is_none() {
-                            continue; // only on these two physics
+                        if !lhs_observable.is_phase_observable() && !lhs_observable.is_pseudorange_observable() {
+                            continue ; // only for these two physics
                         }
+                        let lhs_code = lhs_observable.to_string();
+                        let lhs_carrier = &lhs_code[1..2];
+                        let lhs_lambda: f64 = match lhs_observable.is_phase_observable() {
+                            true => {
+                                let channel = lhs_observable.carrier(sv.constellation).unwrap();
+                                channel.carrier_wavelength()
+                            },
+                            false => 1.0,
+                        };
                         // determine another carrier
                         let rhs_carrier = match lhs_carrier {
                             // this will restrict to
@@ -2156,27 +2134,23 @@ impl Rinex {
                             if !shared_physics {
                                 continue;
                             }
-                            let refcode = ref_observable.code().unwrap();
+                            let refcode = ref_observable.to_string();
                             let carrier_code = &refcode[1..2];
                             if carrier_code == rhs_carrier {
                                 // expected carrier signal
                                 //  align B to A starting point
-                                let ref_scaling: f64 = match ref_observable.is_phase_observable() {
+                                let ref_lambda: f64 = match ref_observable.is_phase_observable() {
                                     true => {
-                                        if let Ok(channel) =
-                                            Carrier::from_observable(sv.constellation, rhs_carrier)
-                                        {
-                                            channel.carrier_wavelength()
-                                        } else {
-                                            1.0
-                                        }
+                                        let channel = ref_observable.carrier(sv.constellation).unwrap();
+                                        channel.carrier_wavelength()
                                     },
                                     false => 1.0,
                                 };
-                                reference = Some((refcode, refdata.obs * ref_scaling));
+                                reference = Some((refcode, refdata.obs * ref_lambda));
                                 break; // DONE searching
                             }
                         }
+                        
                         if let Some((refcode, refdata)) = reference {
                             // got a reference
                             let op_title = format!("{}-{}", lhs_code, refcode);
@@ -2184,49 +2158,39 @@ impl Rinex {
                             // additionnal phase scaling
                             let total_scaling: f64 = match ref_observable.is_phase_observable() {
                                 true => {
-                                    if let Ok(rhs) =
-                                        Carrier::from_observable(sv.constellation, rhs_carrier)
-                                    {
-                                        if let Ok(lhs) =
-                                            Carrier::from_observable(sv.constellation, lhs_carrier)
-                                        {
-                                            let f_rhs = rhs.carrier_frequency_mhz();
-                                            let f_lhs = lhs.carrier_frequency_mhz();
-                                            let gamma = f_lhs / f_rhs;
-                                            1.0 / (gamma.powf(2.0) - 1.0)
-                                        } else {
-                                            1.0
-                                        }
-                                    } else {
-                                        1.0
-                                    }
+                                    let rhs_ch = ref_observable.carrier(sv.constellation)
+                                        .unwrap();
+                                    let lhs_ch = Observable::from_str(&refcode)
+                                        .unwrap()
+                                            .carrier(sv.constellation)
+                                            .unwrap();
+                                    let f_rhs = rhs_ch.carrier_frequency_mhz();
+                                    let f_lhs = lhs_ch.carrier_frequency_mhz();
+                                    let gamma = f_lhs / f_rhs;
+                                    1.0 / (gamma.powf(2.0) - 1.0)
                                 },
                                 false => 1.0,
                             };
                             let yp: f64 = match ref_observable.is_phase_observable() {
                                 true => {
-                                    (lhs_data.obs * lhs_lambda.unwrap() - refdata) * total_scaling
+                                    (lhs_data.obs * lhs_lambda - refdata) * total_scaling
                                 },
-                                false => {
-                                    // PR: sign differs
-                                    refdata - lhs_data.obs * lhs_lambda.unwrap()
+                                false => { // PR: sign differs
+                                    refdata - lhs_data.obs * lhs_lambda
                                 },
                             };
                             if let Some(data) = ret.get_mut(&op_title) {
                                 if let Some(data) = data.get_mut(&sv) {
                                     // new data
                                     data.insert(*epoch, yp);
-                                } else {
-                                    // new vehicule being introduced
+                                } else { // new Sv
                                     let mut bmap: BTreeMap<(Epoch, EpochFlag), f64> =
                                         BTreeMap::new();
                                     bmap.insert(*epoch, yp);
                                     data.insert(*sv, bmap);
                                 }
-                            } else {
-                                // introduce new recombination,
-                                //   Only if `lhs` is not already being recombined
-                                let mut inject = true;
+                            } else { // new combination
+                                let mut inject = true; // <!> only if `lhs` is not already being recombined
                                 for (ops, _) in &ret {
                                     let items: Vec<&str> = ops.split("-").collect();
                                     let lhs_operand = items[0];
@@ -2448,7 +2412,7 @@ impl Rinex {
                     for (lhs_observable, lhs_data) in observations {
                         if lhs_observable.is_pseudorange_observable() {
                             let pr_i = lhs_data.obs; // - mean_sv.get(lhs_code).unwrap().1;
-                            let lhs_code = lhs_observable.code().unwrap();
+                            let lhs_code = lhs_observable.to_string();
                             let mp_code = &lhs_code[2..]; //TODO will not work on RINEX2
                             let lhs_carrier = &lhs_code[1..2];
                             let mut ph_i: Option<f64> = None;
@@ -2467,7 +2431,7 @@ impl Rinex {
                              */
                             for (observable, data) in observations {
                                 let ph_code = format!("L{}", mp_code);
-                                let code = observable.code().unwrap();
+                                let code = observable.to_string();
                                 if code.eq(&ph_code) {
                                     ph_i = Some(data.obs); // - mean_sv.get(code).unwrap().1);
                                     break; // DONE
@@ -2482,7 +2446,7 @@ impl Rinex {
                                  * operations
                                  */
                                 for (observable, data) in observations {
-                                    let code = observable.code().unwrap();
+                                    let code = observable.to_string();
                                     let carrier_code = &code[1..2];
                                     if carrier_code == rhs_carrier {
                                         // correct carrier signal
@@ -2497,7 +2461,7 @@ impl Rinex {
                                 // first: prefer the same code against rhs carrier
                                 let to_locate = format!("L{}{}", rhs_carrier, &mp_code[1..]);
                                 for (observable, data) in observations {
-                                    let code = observable.code().unwrap();
+                                    let code = observable.to_string();
                                     let carrier_code = &code[1..2];
                                     if carrier_code == rhs_carrier {
                                         // correct carrier
@@ -2515,7 +2479,7 @@ impl Rinex {
                                      * try to grab another PH code, against rhs carrier
                                      */
                                     for (observable, data) in observations {
-                                        let code = observable.code().unwrap();
+                                        let code = observable.to_string();
                                         let carrier_code = &code[1..2];
                                         if carrier_code == rhs_carrier {
                                             if observable.is_phase_observable() {
@@ -2533,46 +2497,43 @@ impl Rinex {
                             }
                             let ph_i = ph_i.unwrap();
                             let ph_j = ph_j.unwrap();
-                            if let Ok(lhs_carrier) =
-                                Carrier::from_observable(sv.constellation, &lhs_code)
-                            {
-                                if let Ok(rhs_carrier) =
-                                    Carrier::from_observable(sv.constellation, rhs_carrier)
-                                {
-                                    /*let gamma = (lhs_carrier.carrier_frequency() / rhs_carrier.carrier_frequency()).powf(2.0);
-                                    let alpha = (gamma +1.0_f64) / (gamma - 1.0_f64);
-                                    let beta = 2.0_f64 / (gamma - 1.0_f64);
-                                    let mp = pr_i - alpha * ph_i + beta * ph_j;*/
+                            let lhs_carrier = lhs_observable.carrier(sv.constellation)
+                                .unwrap();
+                            let rhs_carrier = lhs_observable //rhs_observable TODO
+                                .carrier(sv.constellation)
+                                .unwrap();
+                            /*let gamma = (lhs_carrier.carrier_frequency() / rhs_carrier.carrier_frequency()).powf(2.0);
+                            let alpha = (gamma +1.0_f64) / (gamma - 1.0_f64);
+                            let beta = 2.0_f64 / (gamma - 1.0_f64);
+                            let mp = pr_i - alpha * ph_i + beta * ph_j;*/
 
-                                    let alpha = 2.0_f64 * rhs_carrier.carrier_frequency().powf(2.0)
-                                        / (lhs_carrier.carrier_frequency().powf(2.0)
-                                            - rhs_carrier.carrier_frequency().powf(2.0));
-                                    let mp = pr_i - ph_i - alpha * (ph_i - ph_j);
-                                    if let Some(data) = ret.get_mut(mp_code) {
-                                        if let Some(data) = data.get_mut(&sv) {
-                                            data.insert(*epoch, mp);
-                                        } else {
-                                            let mut bmap: BTreeMap<(Epoch, EpochFlag), f64> =
-                                                BTreeMap::new();
-                                            let mut map: HashMap<
-                                                Sv,
-                                                BTreeMap<(Epoch, EpochFlag), f64>,
-                                            > = HashMap::new();
-                                            bmap.insert(*epoch, mp);
-                                            data.insert(*sv, bmap);
-                                        }
-                                    } else {
-                                        let mut bmap: BTreeMap<(Epoch, EpochFlag), f64> =
-                                            BTreeMap::new();
-                                        let mut map: HashMap<
-                                            Sv,
-                                            BTreeMap<(Epoch, EpochFlag), f64>,
-                                        > = HashMap::new();
-                                        bmap.insert(*epoch, mp);
-                                        map.insert(*sv, bmap);
-                                        ret.insert(mp_code.to_string(), map);
-                                    }
+                            let alpha = 2.0_f64 * rhs_carrier.carrier_frequency().powf(2.0)
+                                / (lhs_carrier.carrier_frequency().powf(2.0)
+                                    - rhs_carrier.carrier_frequency().powf(2.0));
+                            let mp = pr_i - ph_i - alpha * (ph_i - ph_j);
+                            if let Some(data) = ret.get_mut(mp_code) {
+                                if let Some(data) = data.get_mut(&sv) {
+                                    data.insert(*epoch, mp);
+                                } else {
+                                    let mut bmap: BTreeMap<(Epoch, EpochFlag), f64> =
+                                        BTreeMap::new();
+                                    let mut map: HashMap<
+                                        Sv,
+                                        BTreeMap<(Epoch, EpochFlag), f64>,
+                                    > = HashMap::new();
+                                    bmap.insert(*epoch, mp);
+                                    data.insert(*sv, bmap);
                                 }
+                            } else {
+                                let mut bmap: BTreeMap<(Epoch, EpochFlag), f64> =
+                                    BTreeMap::new();
+                                let mut map: HashMap<
+                                    Sv,
+                                    BTreeMap<(Epoch, EpochFlag), f64>,
+                                > = HashMap::new();
+                                bmap.insert(*epoch, mp);
+                                map.insert(*sv, bmap);
+                                ret.insert(mp_code.to_string(), map);
                             }
                         }
                     }
@@ -3165,7 +3126,6 @@ impl Rinex {
             dtypes.len() > 0
         })
     }
-
     /// Writes self into given file.   
     /// Both header + record will strictly follow RINEX standards.   
     /// Record: refer to supported RINEX types
