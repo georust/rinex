@@ -1,7 +1,6 @@
-use super::Observable;
 use crate::{
     algorithm::Decimation, epoch, gnss_time::TimeScaling, merge, merge::Merge, prelude::*, split,
-    split::Split, types::Type, version,
+    split::Split, types::Type, version, Observable,
 };
 use hifitime::Duration;
 use std::collections::{BTreeMap, HashMap};
@@ -20,10 +19,12 @@ use thiserror::Error;
 /// let record = rnx.record.as_meteo()
 ///    .unwrap();
 /// for (epoch, observables) in record.iter() {
-///    for (observable, data) in observables.iter() {
-///        // Observable is standard 3 letter string code
-///        // Data is raw floating point data
-///    }
+///     for (observable, data) in observables.iter() {
+///         if observable == Observable::Temperature {
+///             if data > 20.0 { // °C
+///             }
+///         }
+///     }
 /// }
 /// ```
 pub type Record = BTreeMap<Epoch, HashMap<Observable, f64>>;
@@ -292,20 +293,19 @@ impl TimeScaling<Record> for Record {
     }
 }
 
-/*
-use crate::processing::{Filter, FilterItem, MaskFilter, FilterOperand};
+use crate::processing::{Mask, MaskFilter, TargetItem, MaskOperand};
 
-impl Filter for Record {
-    fn apply(&self, filt: MaskFilter<FilterItem>) -> Self {
+impl MaskFilter for Record {
+    fn apply(&self, mask: Mask) -> Self {
         let mut s = self.clone();
-        s.apply_mut(filt);
+        s.apply_mut(mask);
         s
     }
-    fn apply_mut(&mut self, filt: MaskFilter<FilterItem>) {
-        match filt.operand {
-            FilterOperand::Equal => match filt.item {
-                FilterItem::EpochFilter(epoch) => self.retain(|e,  _| *e == epoch),
-                FilterItem::ObservableFilter(filter) => {
+    fn apply_mut(&mut self, mask: Mask) {
+        match mask.operand {
+            MaskOperand::Equal => match mask.item {
+                TargetItem::EpochItem(epoch) => self.retain(|e,  _| *e == epoch),
+                TargetItem::ObservableItem(filter) => {
                     self.retain(|_, data| {
                         data.retain(|code, _| filter.contains(&code.to_string()));
                         data.len() > 0
@@ -313,9 +313,9 @@ impl Filter for Record {
                 },
                 _ => {},
             },
-            FilterOperand::NotEqual => match filt.item {
-                FilterItem::EpochFilter(epoch) => self.retain(|e,  _| *e != epoch),
-                FilterItem::ObservableFilter(filter) => {
+            MaskOperand::NotEqual => match mask.item {
+                TargetItem::EpochItem(epoch) => self.retain(|e,  _| *e != epoch),
+                TargetItem::ObservableItem(filter) => {
                     self.retain(|_, data| {
                         data.retain(|code, _| !filter.contains(&code.to_string()));
                         data.len() > 0
@@ -323,23 +323,22 @@ impl Filter for Record {
                 },
                 _ => {},
             },
-            FilterOperand::Above => match filt.item {
-                FilterItem::EpochFilter(epoch) => self.retain(|e, _| *e >= epoch),
+            MaskOperand::Above => match mask.item {
+                TargetItem::EpochItem(epoch) => self.retain(|e, _| *e >= epoch),
                 _ => {},
             },
-            FilterOperand::StrictlyAbove => match filt.item {
-                FilterItem::EpochFilter(epoch) => self.retain(|e, _| *e > epoch),
+            MaskOperand::StrictlyAbove => match mask.item {
+                TargetItem::EpochItem(epoch) => self.retain(|e, _| *e > epoch),
                 _ => {},
             },
-            FilterOperand::Below => match filt.item {
-                FilterItem::EpochFilter(epoch) => self.retain(|e, _| *e <= epoch),
+            MaskOperand::Below => match mask.item {
+                TargetItem::EpochItem(epoch) => self.retain(|e, _| *e <= epoch),
                 _ => {},
             },
-            FilterOperand::StrictlyBelow => match filt.item {
-                FilterItem::EpochFilter(epoch) => self.retain(|e, _| *e < epoch),
+            MaskOperand::StrictlyBelow => match mask.item {
+                TargetItem::EpochItem(epoch) => self.retain(|e, _| *e < epoch),
                 _ => {},
             },
         }
     }
 }
-*/

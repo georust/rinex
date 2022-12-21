@@ -3302,17 +3302,15 @@ impl TimeScaling<Rinex> for Rinex {
     }
 }
 
-/*
-use crate::processing::{Filter, MaskFilter, FilterItem};
+use crate::processing::{MaskFilter, Mask};
 
-impl Filter for Rinex {
-    fn apply(&self, mask: MaskFilter<FilterItem>) -> Self {
+impl MaskFilter for Rinex {
+    fn apply(&self, mask: Mask) -> Self {
         let mut s = self.clone();
         s.apply_mut(mask);
         s
     }
-    fn apply_mut(&mut self, mask: MaskFilter<FilterItem>) {
+    fn apply_mut(&mut self, mask: Mask) {
         self.record.apply_mut(mask);
     }
 }
-*/

@@ -5,7 +5,7 @@ use thiserror::Error;
 
 use crate::{
     algorithm::Decimation, constellation, epoch, gnss_time::TimeScaling, merge, merge::Merge,
-    prelude::*, split, split::Split, sv, types::Type, version::Version,
+    prelude::*, split, split::Split, sv, types::Type, version::Version, Observable,
 };
 use hifitime::Duration;
 
@@ -223,7 +223,7 @@ pub type Record = BTreeMap<
     (Epoch, EpochFlag),
     (
         Option<f64>,
-        BTreeMap<sv::Sv, HashMap<String, ObservationData>>,
+        BTreeMap<sv::Sv, HashMap<Observable, ObservationData>>,
     ),
 >;
 
@@ -920,27 +920,26 @@ impl TimeScaling<Record> for Record {
     }
 }
 
-/*
-use crate::processing::{Filter, FilterItem, MaskFilter, FilterOperand};
+use crate::processing::{Mask, MaskFilter, TargetItem, MaskOperand};
 
-impl Filter for Record {
-    fn apply(&self, filt: MaskFilter<FilterItem>) -> Self {
+impl MaskFilter for Record {
+    fn apply(&self, mask: Mask) -> Self {
         let mut s = self.clone();
-        s.apply_mut(filt);
+        s.apply_mut(mask);
         s
     }
-    fn apply_mut(&mut self, filt: MaskFilter<FilterItem>) {
-        match filt.operand {
-            FilterOperand::Equal => match filt.item {
-                FilterItem::EpochFilter(epoch) => self.retain(|(e, _), _| *e == epoch),
-                FilterItem::EpochFlagFilter(flag) => self.retain(|(_, f), _| *f == flag),
-                FilterItem::ConstellationFilter(constells) => {
+    fn apply_mut(&mut self, mask: Mask) {
+        match mask.operand {
+            MaskOperand::Equal => match mask.item {
+                TargetItem::EpochItem(epoch) => self.retain(|(e, _), _| *e == epoch),
+                TargetItem::EpochFlagItem(flag) => self.retain(|(_, f), _| *f == flag),
+                TargetItem::ConstellationItem(constells) => {
                     self.retain(|_, (_, svs)| {
                         svs.retain(|sv, _| constells.contains(&sv.constellation));
                         svs.len() > 0
                     });
                 },
-                FilterItem::ObservableFilter(filter) => {
+                TargetItem::ObservableItem(filter) => {
                     self.retain(|_, (_, svs)| {
                         svs.retain(|_, obs| {
                             obs.retain(|code, _| filter.contains(&code));
@@ -951,16 +950,16 @@ impl Filter for Record {
                 },
                 _ => {},
             },
-            FilterOperand::NotEqual => match filt.item {
-                FilterItem::EpochFilter(epoch) => self.retain(|(e, _), _| *e != epoch),
-                FilterItem::EpochFlagFilter(flag) => self.retain(|(_, f), _| *f != flag),
-                FilterItem::ConstellationFilter(constells) => { 
+            MaskOperand::NotEqual => match mask.item {
+                TargetItem::EpochItem(epoch) => self.retain(|(e, _), _| *e != epoch),
+                TargetItem::EpochFlagItem(flag) => self.retain(|(_, f), _| *f != flag),
+                TargetItem::ConstellationItem(constells) => { 
                     self.retain(|_, (_, svs)| {
                         svs.retain(|sv, _| !constells.contains(&sv.constellation));
                         svs.len() > 0
                     });
                 },
-                FilterItem::ObservableFilter(filter) => {
+                TargetItem::ObservableItem(filter) => {
                     self.retain(|_, (_, svs)| {
                         svs.retain(|_, obs| {
                             obs.retain(|code, _| !filter.contains(&code));
@@ -971,23 +970,22 @@ impl Filter for Record {
                 },
                 _ => {},
             },
-            FilterOperand::Above => match filt.item {
-                FilterItem::EpochFilter(epoch) => self.retain(|(e, _), _| *e >= epoch),
+            MaskOperand::Above => match mask.item {
+                TargetItem::EpochItem(epoch) => self.retain(|(e, _), _| *e >= epoch),
                 _ => {},
             },
-            FilterOperand::StrictlyAbove => match filt.item {
-                FilterItem::EpochFilter(epoch) => self.retain(|(e, _), _| *e > epoch),
+            MaskOperand::StrictlyAbove => match mask.item {
+                TargetItem::EpochItem(epoch) => self.retain(|(e, _), _| *e > epoch),
                 _ => {},
             },
-            FilterOperand::Below => match filt.item {
-                FilterItem::EpochFilter(epoch) => self.retain(|(e, _), _| *e <= epoch),
+            MaskOperand::Below => match mask.item {
+                TargetItem::EpochItem(epoch) => self.retain(|(e, _), _| *e <= epoch),
                 _ => {},
             },
-            FilterOperand::StrictlyBelow => match filt.item {
-                FilterItem::EpochFilter(epoch) => self.retain(|(e, _), _| *e < epoch),
+            MaskOperand::StrictlyBelow => match mask.item {
+                TargetItem::EpochItem(epoch) => self.retain(|(e, _), _| *e < epoch),
                 _ => {},
             },
         }
     }
 }
-*/

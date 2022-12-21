@@ -507,42 +507,40 @@ impl TimeScaling<Record> for Record {
     }
 }
 
-/*
-use crate::processing::{Filter, FilterItem, MaskFilter, FilterOperand};
+use crate::processing::{Mask, MaskFilter, TargetItem, MaskOperand};
 
-impl Filter for Record {
-    fn apply(&self, filt: MaskFilter<FilterItem>) -> Self {
+impl MaskFilter for Record {
+    fn apply(&self, mask: Mask) -> Self {
         let mut s = self.clone();
-        s.apply_mut(filt);
+        s.apply_mut(mask);
         s
     }
-    fn apply_mut(&mut self, filt: MaskFilter<FilterItem>) {
-        match filt.operand {
-            FilterOperand::Equal => match filt.item {
-                FilterItem::EpochFilter(epoch) => self.retain(|e,  _| *e == epoch),
+    fn apply_mut(&mut self, mask: Mask) {
+        match mask.operand {
+            MaskOperand::Equal => match mask.item {
+                TargetItem::EpochItem(epoch) => self.retain(|e,  _| *e == epoch),
                 _ => {},
             },
-            FilterOperand::NotEqual => match filt.item {
-                FilterItem::EpochFilter(epoch) => self.retain(|e,  _| *e != epoch),
+            MaskOperand::NotEqual => match mask.item {
+                TargetItem::EpochItem(epoch) => self.retain(|e,  _| *e != epoch),
                 _ => {},
             },
-            FilterOperand::Above => match filt.item {
-                FilterItem::EpochFilter(epoch) => self.retain(|e, _| *e >= epoch),
+            MaskOperand::Above => match mask.item {
+                TargetItem::EpochItem(epoch) => self.retain(|e, _| *e >= epoch),
                 _ => {},
             },
-            FilterOperand::StrictlyAbove => match filt.item {
-                FilterItem::EpochFilter(epoch) => self.retain(|e, _| *e > epoch),
+            MaskOperand::StrictlyAbove => match mask.item {
+                TargetItem::EpochItem(epoch) => self.retain(|e, _| *e > epoch),
                 _ => {},
             },
-            FilterOperand::Below => match filt.item {
-                FilterItem::EpochFilter(epoch) => self.retain(|e, _| *e <= epoch),
+            MaskOperand::Below => match mask.item {
+                TargetItem::EpochItem(epoch) => self.retain(|e, _| *e <= epoch),
                 _ => {},
             },
-            FilterOperand::StrictlyBelow => match filt.item {
-                FilterItem::EpochFilter(epoch) => self.retain(|e, _| *e < epoch),
+            MaskOperand::StrictlyBelow => match mask.item {
+                TargetItem::EpochItem(epoch) => self.retain(|e, _| *e < epoch),
                 _ => {},
             },
         }
     }
 }
-*/

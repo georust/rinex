@@ -1315,20 +1315,19 @@ impl TimeScaling<Record> for Record {
     }
 }
 
-/*
-use crate::processing::{Filter, FilterItem, MaskFilter, FilterOperand};
+use crate::processing::{TargetItem, Mask, MaskFilter, MaskOperand};
 
-impl Filter for Record {
-    fn apply(&self, filt: MaskFilter<FilterItem>) -> Self {
+impl MaskFilter for Record {
+    fn apply(&self, mask: Mask) -> Self {
         let mut s = self.clone();
-        s.apply_mut(filt);
+        s.apply_mut(mask);
         s
     }
-    fn apply_mut(&mut self, filt: MaskFilter<FilterItem>) {
-        match filt.operand {
-            FilterOperand::Equal => match filt.item {
-                FilterItem::EpochFilter(epoch) => self.retain(|e,  _| *e == epoch),
-                FilterItem::ConstellationFilter(filter) => {
+    fn apply_mut(&mut self, mask: Mask) {
+        match mask.operand {
+            MaskOperand::Equal => match mask.item {
+                TargetItem::EpochItem(epoch) => self.retain(|e,  _| *e == epoch),
+                TargetItem::ConstellationItem(filter) => {
                     self.retain(|_, classes| {
                         classes.retain(|class, frames| {
                             if *class == FrameClass::Ephemeris {
@@ -1344,7 +1343,7 @@ impl Filter for Record {
                         classes.len() > 0
                     });
                 },
-                FilterItem::OrbitFilter(filter) => {
+                TargetItem::OrbitItem(filter) => {
                     self.retain(|_, classes| {
                         classes.retain(|class, frames| {
                             if *class == FrameClass::Ephemeris {
@@ -1363,13 +1362,13 @@ impl Filter for Record {
                         classes.len() > 0
                     });
                 },
-                FilterItem::NavFrameFilter(filter) => {
+                TargetItem::NavFrameItem(filter) => {
                     self.retain(|_, classes| {
                         classes.retain(|class, _| filter.contains(&class));
                         classes.len() > 0
                     });
                 },
-                FilterItem::NavMsgFilter(filter) => {
+                TargetItem::NavMsgItem(filter) => {
                     self.retain(|_, classes| {
                         classes.retain(|class, frames| {
                             if *class == FrameClass::Ephemeris {
@@ -1400,9 +1399,9 @@ impl Filter for Record {
                 },
                 _ => {},
             },
-            FilterOperand::NotEqual => match filt.item {
-                FilterItem::EpochFilter(epoch) => self.retain(|e,  _| *e != epoch),
-                FilterItem::ConstellationFilter(filter) => {
+            MaskOperand::NotEqual => match mask.item {
+                TargetItem::EpochItem(epoch) => self.retain(|e,  _| *e != epoch),
+                TargetItem::ConstellationItem(filter) => {
                     self.retain(|_, classes| {
                         classes.retain(|class, frames| {
                             if *class == FrameClass::Ephemeris {
@@ -1418,7 +1417,7 @@ impl Filter for Record {
                         classes.len() > 0
                     });
                 },
-                FilterItem::OrbitFilter(filter) => {
+                TargetItem::OrbitItem(filter) => {
                     self.retain(|_, classes| {
                         classes.retain(|class, frames| {
                             if *class == FrameClass::Ephemeris {
@@ -1437,13 +1436,13 @@ impl Filter for Record {
                         classes.len() > 0
                     });
                 },
-                FilterItem::NavFrameFilter(filter) => {
+                TargetItem::NavFrameItem(filter) => {
                     self.retain(|_, classes| {
                         classes.retain(|class, _| !filter.contains(&class));
                         classes.len() > 0
                     });
                 },
-                FilterItem::NavMsgFilter(filter) => {
+                TargetItem::NavMsgItem(filter) => {
                     self.retain(|_, classes| {
                         classes.retain(|class, frames| {
                             if *class == FrameClass::Ephemeris {
@@ -1474,23 +1473,22 @@ impl Filter for Record {
                 },
                 _ => {},
             },
-            FilterOperand::Above => match filt.item {
-                FilterItem::EpochFilter(epoch) => self.retain(|e, _| *e >= epoch),
+            MaskOperand::Above => match mask.item {
+                TargetItem::EpochItem(epoch) => self.retain(|e, _| *e >= epoch),
                 _ => {},
             },
-            FilterOperand::StrictlyAbove => match filt.item {
-                FilterItem::EpochFilter(epoch) => self.retain(|e, _| *e > epoch),
+            MaskOperand::StrictlyAbove => match mask.item {
+                TargetItem::EpochItem(epoch) => self.retain(|e, _| *e > epoch),
                 _ => {},
             },
-            FilterOperand::Below => match filt.item {
-                FilterItem::EpochFilter(epoch) => self.retain(|e, _| *e <= epoch),
+            MaskOperand::Below => match mask.item {
+                TargetItem::EpochItem(epoch) => self.retain(|e, _| *e <= epoch),
                 _ => {},
             },
-            FilterOperand::StrictlyBelow => match filt.item {
-                FilterItem::EpochFilter(epoch) => self.retain(|e, _| *e < epoch),
+            MaskOperand::StrictlyBelow => match mask.item {
+                TargetItem::EpochItem(epoch) => self.retain(|e, _| *e < epoch),
                 _ => {},
             },
         }
     }
 }
-*/
