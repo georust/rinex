@@ -282,16 +282,11 @@ mod test {
                             .map(|k| k.clone())
                             .collect();
                         keys.sort();
-                        assert_eq!(keys, vec![
-                            Observable::from_str("C1").unwrap(), 
-                            Observable::from_str("C2").unwrap(), 
-                            Observable::from_str("L1").unwrap(), 
-                            Observable::from_str("L2").unwrap(), 
-                            Observable::from_str("P1").unwrap(), 
-                            Observable::from_str("P2").unwrap(), 
-                            Observable::from_str("S1").unwrap(), 
-                            Observable::from_str("S2").unwrap(),
-                        ]);
+                        let mut expected: Vec<Observable> = "C1 C2 L1 L2 P1 P2 S1 S2"
+                            .split_ascii_whitespace()
+                            .map(|k| Observable::from_str(k).unwrap())
+                            .collect();
+                        expected.sort();
                         let c1 = observations.get(&Observable::from_str("C1").unwrap()).unwrap();
                         assert_eq!(c1.obs, 24178026.635);
                         let c2 = observations.get(&Observable::from_str("C2").unwrap()).unwrap();
@@ -314,22 +309,11 @@ mod test {
                             .map(|k| k.clone())
                             .collect();
                         keys.sort();
-                        assert_eq!(
-                            keys,
-                            vec![
-                                Observable::from_str("C1").unwrap(), 
-                                Observable::from_str("C2").unwrap(), 
-                                Observable::from_str("C5").unwrap(), 
-                                Observable::from_str("L1").unwrap(), 
-                                Observable::from_str("L2").unwrap(), 
-                                Observable::from_str("L5").unwrap(), 
-                                Observable::from_str("P1").unwrap(), 
-                                Observable::from_str("P2").unwrap(), 
-                                Observable::from_str("S1").unwrap(), 
-                                Observable::from_str("S2").unwrap(), 
-                                Observable::from_str("S5").unwrap(),
-                            ]
-                        );
+                        let mut expected: Vec<Observable> = "C1 C2 C5 L1 L2 L5 P1 P2 S1 S2 S5"
+                            .split_ascii_whitespace()
+                            .map(|k| Observable::from_str(k).unwrap())
+                            .collect();
+                        expected.sort();
                         let c1 = observations.get(&Observable::from_str("C1").unwrap()).unwrap();
                         assert_eq!(c1.obs, 21866748.928);
                         let c2 = observations.get(&Observable::from_str("C2").unwrap()).unwrap();

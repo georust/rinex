@@ -514,27 +514,32 @@ mod test {
          */
         let observables = obs.codes.get(&Constellation::Glonass);
         assert_eq!(observables.is_some(), true);
-        let observables = observables.unwrap();
+        let mut observables = observables.unwrap().clone();
+        observables.sort();
+        
         let mut expected: Vec<Observable> = "C1C L1C D1C S1C C2P L2P D2P S2P"
             .split_ascii_whitespace()
             .map(|k| Observable::from_str(k).unwrap())
             .collect();
         expected.sort();
-        assert_eq!(observables, &expected);
+        assert_eq!(observables, expected);
 
         /*
          * test GPS observables
          */
         let observables = obs.codes.get(&Constellation::GPS);
         assert_eq!(observables.is_some(), true);
-        let observables = observables.unwrap();
+        let mut observables = observables.unwrap().clone();
+        observables.sort();
+        
         let mut expected: Vec<Observable> = 
             "C1C L1C D1C S1C C2W L2W D2W S2W"
             .split_ascii_whitespace()
             .map(|k| Observable::from_str(k).unwrap())
             .collect();
         expected.sort();
-        assert_eq!(observables, &expected);
+        assert_eq!(observables, expected);
+
         let record = rinex.record.as_obs();
         assert_eq!(record.is_some(), true);
         let record = record.unwrap();
@@ -887,57 +892,64 @@ mod test {
             if *k == Constellation::GPS {
                 let mut sorted = v.clone();
                 sorted.sort();
-                let expected: Vec<Observable> =
+                let mut expected: Vec<Observable> =
                     "C1C C1W C2L C2W C5Q D1C D2L D2W D5Q L1C L2L L2W L5Q S1C S1W S2L S2W S5Q"
                         .split_ascii_whitespace()
                         .map(|k| Observable::from_str(k).unwrap())
                         .collect();
+                expected.sort();
                 assert_eq!(sorted, expected);
             } else if *k == Constellation::Glonass {
                 let mut sorted = v.clone();
                 sorted.sort();
-                let expected: Vec<Observable> =
+                let mut expected: Vec<Observable> =
                     "C1C C1P C2C C2P C3Q D1C D1P D2C D2P D3Q L1C L1P L2C L2P L3Q S1C S1P S2C S2P S3Q"
                     .split_ascii_whitespace()
                     .map(|k| Observable::from_str(k).unwrap())
                     .collect();
+                expected.sort();
                 assert_eq!(sorted, expected);
             } else if *k == Constellation::BeiDou {
                 let mut sorted = v.clone();
                 sorted.sort();
-                let expected: Vec<Observable> = 
+                let mut expected: Vec<Observable> = 
                     "C2I C6I C7I D2I D6I D7I L2I L6I L7I S2I S6I S7I"
                     .split_ascii_whitespace()
                     .map(|k| Observable::from_str(k).unwrap())
                     .collect();
+                expected.sort();
                 assert_eq!(sorted, expected);
             } else if *k == Constellation::QZSS {
                 let mut sorted = v.clone();
                 sorted.sort();
-                let expected: Vec<Observable> =
+                let mut expected: Vec<Observable> =
                     "C1C C2L C5Q D1C D2L D5Q L1C L2L L5Q S1C S2L S5Q"
                     .split_ascii_whitespace()
                     .map(|k| Observable::from_str(k).unwrap())
                     .collect();
+                expected.sort();
                 assert_eq!(sorted, expected);
             } else if *k == Constellation::Galileo {
                 let mut sorted = v.clone();
                 sorted.sort();
-                let expected: Vec<Observable> =
+                let mut expected: Vec<Observable> =
                     "C1C C5Q C6C C7Q C8Q D1C D5Q D6C D7Q D8Q L1C L5Q L6C L7Q L8Q S1C S5Q S6C S7Q S8Q"
                     .split_ascii_whitespace()
                     .map(|k| Observable::from_str(k).unwrap())
                     .collect();
+                expected.sort();
                 assert_eq!(sorted, expected);
             } else if *k == Constellation::Geo {
                 let mut sorted = v.clone();
                 sorted.sort();
-                let expected: Vec<Observable> = 
+                let mut expected: Vec<Observable> = 
                     "C1C C5I D1C D5I L1C L5I S1C S5I"
                     .split_ascii_whitespace()
                     .map(|k| Observable::from_str(k).unwrap())
                     .collect();
+                expected.sort();
                 assert_eq!(sorted, expected);
+
             } else {
                 panic!("decoded unexpected constellation");
             }
