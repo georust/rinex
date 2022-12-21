@@ -1,8 +1,8 @@
 use crate::fops::filename;
 use crate::parser::parse_epoch;
-use clap::{Arg, ArgAction, ArgMatches, ColorChoice, Command};
+use clap::{Arg, ArgGroup, ArgAction, ArgMatches, ColorChoice, Command};
 use log::{error, info, warn};
-use rinex::{navigation::ElevationMask, prelude::*};
+use rinex::prelude::*;
 use std::str::FromStr;
 
 pub struct Cli {
@@ -28,36 +28,65 @@ impl Cli {
                         .help("Input RINEX file")
                         .action(ArgAction::Append)
                         .required(true))
-                .next_help_heading("RINEX identification commands")
+                .next_help_heading("Data identification")
                     .arg(Arg::new("epochs")
                         .long("epochs")
                         .action(ArgAction::SetTrue)
-                        .help("Identify epochs"))
+                        .help("Enumerate all epochs"))
                     .arg(Arg::new("constellations")
                         .long("constellations")
                         .short('c')
                         .action(ArgAction::SetTrue)
-                        .help("Identify GNSS constellations"))
+                        .help("Enumerate GNSS constellations"))
                     .arg(Arg::new("sv")
                         .long("sv")
                         .action(ArgAction::SetTrue)
-                        .help("Identify space vehicules"))
+                        .help("Enumerate Sv"))
                     .arg(Arg::new("sv-epoch")
                         .long("sv-epoch")
                         .action(ArgAction::SetTrue)
-                        .help("Plots encountered space vehicules per epoch.
-Useful graph to determine unexpected and determine vehicules of interest, inside this record.
-When both `--fp` and extra Navigation Context (`--nav`) are provided,
-this emphasizes epochs where vehicules were sampled on both contexts."))
+                        .help("Plot Sv against Epoch.
+Useful graph to determine vehicles of interest for specific operations.
+When both `--fp` and Navigation context (`--nav`) were provided, this 
+depicts shared epochs and vehicles between the two contexts."))
                     .arg(Arg::new("epoch-hist")
                         .long("epoch-hist")
                         .action(ArgAction::SetTrue)
-                        .help("Epoch duration histogram (graphical) analysis."))
+                        .help("Epoch duration histogram analysis."))
                     .arg(Arg::new("header")
                         .long("header")
                         .action(ArgAction::SetTrue)
-                        .help("Extract header fields"))
-                .next_help_heading("Record resampling methods")
+                        .help("Extracts (all) header fields"))
+                .next_help_heading("Preprocessing")
+                    .arg(Arg::new("gps-filter")
+                        .short('G')
+                        .action(ArgAction::SetTrue)
+                        .help("Filters out all GPS vehicles"))
+                    .arg(Arg::new("glo-filter")
+                        .short('R')
+                        .action(ArgAction::SetTrue)
+                        .help("Filters out all Glonass vehicles"))
+                    .arg(Arg::new("gal-filter")
+                        .short('E')
+                        .action(ArgAction::SetTrue)
+                        .help("Filters out all Galileo vehicles"))
+                    .arg(Arg::new("bds-filter")
+                        .short('C')
+                        .action(ArgAction::SetTrue)
+                        .help("Filters out all BeiDou vehicles"))
+                    .arg(Arg::new("qzss-filter")
+                        .short('J')
+                        .action(ArgAction::SetTrue)
+                        .help("Filters out all QZSS vehicles"))
+                    .arg(Arg::new("sbas-filter")
+                        .short('S')
+                        .action(ArgAction::SetTrue)
+                        .help("Filters out all SBAS vehicles"))
+                    .arg(Arg::new("filter")
+                        .short('F')
+                        .num_args(1..) 
+                        .help("Design filter(s) to retain data of interest
+and exclude other subsets. Refer to the filter design section of the README."))
                     .arg(Arg::new("resample-ratio")
                         .long("resample-ratio")
                         .short('r')
@@ -81,80 +110,12 @@ All epochs that do not lie within the specified (start, end)
 interval are dropped out. User must pass two valid Datetime description. Epochs are specified in UTC timescale.
 Example: -w \"2020-01-01 2020-01-02\" will restrict to 2020/01/01 midnight to 24hours.
 Example: -w \"2020-01-01 00:00:00 2020-01-01 01:00:00\" will restrict the first hour."))
-                .next_help_heading("Retain filters (focus on data of interest)")
-                    .arg(Arg::new("gps-filter")
-                        .short('G')
-                        .action(ArgAction::SetTrue)
-                        .help("Filter all GPS vehicles out"))
-                    .arg(Arg::new("glo-filter")
-                        .short('R')
-                        .action(ArgAction::SetTrue)
-                        .help("Filter all Glonass vehicles out"))
-                    .arg(Arg::new("gal-filter")
-                        .short('E')
-                        .action(ArgAction::SetTrue)
-                        .help("Filter all Galileo vehicles out"))
-                    .arg(Arg::new("bds-filter")
-                        .short('C')
-                        .action(ArgAction::SetTrue)
-                        .help("Filter all BeiDou vehicles out"))
-                    .arg(Arg::new("qzss-filter")
-                        .short('J')
-                        .action(ArgAction::SetTrue)
-                        .help("Filter all QZSS vehicles out"))
-                    .arg(Arg::new("sbas-filter")
-                        .short('S')
-                        .action(ArgAction::SetTrue)
-                        .help("Filter all SBAS vehicles out"))
-                    .arg(Arg::new("retain-constell")
-                        .long("retain-constell")
-                        .value_name("list(Constellation)")
-                        .help("Retain only given GNSS constellation"))
-                    .arg(Arg::new("retain-sv")
-                        .long("retain-sv")
-                        .value_name("list(Sv)")
-                        .help("Retain only given Space vehicules"))
-                    .arg(Arg::new("retain-epoch-ok")
-                        .long("retain-epoch-ok")
-                        .action(ArgAction::SetTrue)
-                        .help("Retain only epochs where associated flag is \"Ok\" or \"Unknown\".
-Truly applies to Observation RINEX only."))
-                    .arg(Arg::new("retain-epoch-nok")
-                        .long("retain-epoch-nok")
-                        .action(ArgAction::SetTrue)
-                        .help("Retain only non valid epochs.
-Truly applies to Observation RINEX only."))
-                    .arg(Arg::new("elev-mask")
-                        .short('e')
-                        .long("elev-mask")
-                        .help("Apply given elevation mask.
-Example: --elev-mask '>30' will retain Sv above 30°.
-Example: --elev-mask '<=40' will retain Sv below 40° included."))
                 .next_help_heading("Observation RINEX")
                     .arg(Arg::new("observables")
                         .long("observables")
                         .short('o')
                         .action(ArgAction::SetTrue)
                         .help("Identify observables. Applies to Observation and Meteo RINEX"))
-                    .arg(Arg::new("retain-obs")
-                        .long("retain-obs")
-                        .value_name("List(Observables)")
-                        .help("Retain only given list of Observables")) 
-                    .arg(Arg::new("retain-phase")
-                        .long("retain-phase")
-                        .action(ArgAction::SetTrue)
-                        .help("Retain only Phase Observations (all carriers)")) 
-                    .arg(Arg::new("retain-doppler")
-                        .long("retain-doppler")
-                        .action(ArgAction::SetTrue)
-                        .help("Retain only Doppler Observation (all carriers)")) 
-                    .arg(Arg::new("retain-pr")
-                        .long("retain-pr")
-                        .action(ArgAction::SetTrue)
-                        .help("Retain only Pseudo Range Observations (all carriers)")) 
-                    .arg(Arg::new("retain-ssi")
-                        .long("retain-ssi")
-                        .help("Retain only observations that have at least this signal quality"))
                     .arg(Arg::new("ssi-range")
                         .long("ssi-range")
                         .action(ArgAction::SetTrue)
@@ -215,7 +176,7 @@ If you're just interested in CS information, you probably just want `-qc` instea
                     .arg(Arg::new("orbits")
                         .long("orbits")
                         .action(ArgAction::SetTrue)
-                        .help("Identify orbit fields."))
+                        .help("Enumerate orbit fields."))
                     .arg(Arg::new("ref-pos")
                         .long("ref-pos")
                         .value_name("x,y,z coordinates [m] ECEF")
@@ -231,43 +192,12 @@ Ideally this information is contained in the file Header, but user can manually 
                         .action(ArgAction::SetTrue)
                         .help("Display clock biases (offset, drift, drift changes) per epoch and vehicule.
 -fp must be a NAV file"))
-                    .arg(Arg::new("retain-orb")
-                        .long("retain-orb")
-                        .help("Retain only given list of Orbits fields.
-For example, \"satPosX\" and \"satPosY\" are valid Glonass Orbit fields.
-Applies to either -fp or -nav context"))
-                    .arg(Arg::new("retain-lnav")
-                        .long("retain-lnav")
-                        .action(ArgAction::SetTrue)
-                        .help("Retain only Legacy Navigation frames.
-Applies to either -fp or -nav context"))
-                    .arg(Arg::new("retain-mnav")
-                        .long("retain-mnav")
-                        .action(ArgAction::SetTrue)
-                        .help("Retain only Modern Navigation frames.
-Applies to either -fp or -nav context"))
-                    .arg(Arg::new("retain-nav-msg")
-                        .long("retain-nav-msg")
-                        .action(ArgAction::SetTrue)
-                        .help("Retain only given list of Navigation messages.
-Applies to either -fp or -nav context"))
-                    .arg(Arg::new("retain-nav-eph")
-                        .long("retain-nav-eph")
-                        .action(ArgAction::SetTrue)
-                        .help("Retains only Navigation ephemeris frames.
-Applies to either -fp or -nav context"))
-                    .arg(Arg::new("retain-nav-iono")
-                        .long("retain-nav-iono")
-                        .action(ArgAction::SetTrue)
-                        .help("Retains only Navigation ionospheric models. 
--fp must be a NAV file"))
                 .next_help_heading("Navigation Data")
                     .arg(Arg::new("nav")
                         .long("nav")
                         .value_name("FILE")
-                        .help("Augment `--fp` with related Navigation Context.
-Most useful when combined to Observation RINEX. 
-Enables full `--qc` summary."))
+                        .help("Augment `--fp` with Navigation data.
+Most useful when combined to Observation RINEX. Also enables the complete (full) `--qc` mode.")) 
                 .next_help_heading("ANTEX / APC ")
                     .arg(Arg::new("--atx")
                         .long("atx")
@@ -344,13 +274,13 @@ Refer to README"))
             None
         }
     }
-    pub fn elevation_mask(&self) -> Option<ElevationMask> {
-        let args = self.matches.get_one::<String>("elev-mask")?;
-        if let Ok(mask) = ElevationMask::from_str(args) {
-            Some(mask)
+    pub fn filters(&self) -> Vec<&String> {
+        if self.matches.contains_id("filter") { 
+            self.matches.get_many::<String>("filter")
+                .expect("oops")
+                .collect()
         } else {
-            println!("failed to parse elevation mask from \"{}\"", args);
-            None
+            Vec::new() 
         }
     }
     pub fn quality_check(&self) -> bool {
@@ -441,106 +371,15 @@ Refer to README"))
             .map(|x| *x)
             .collect()
     }
-    /// Returns true if at least one retain filter should be applied
-    pub fn retain(&self) -> bool {
-        self.matches.contains_id("retain-constell")
-            | self.matches.contains_id("retain-sv")
-            | self.matches.contains_id("retain-epoch-ok")
-            | self.matches.contains_id("retain-epoch-nok")
-            | self.matches.contains_id("retain-obs")
-            | self.matches.contains_id("retain-ssi")
-            | self.matches.contains_id("retain-orb")
-            | self.matches.contains_id("retain-lnav")
-            | self.matches.contains_id("retain-mnav")
-            | self.matches.contains_id("retain-nav-msg")
-            | self.matches.contains_id("retain-nav-eph")
-            | self.matches.contains_id("retain-nav-iono")
-            | self.matches.contains_id("retain-phase")
-            | self.matches.contains_id("retain-doppler")
-            | self.matches.contains_id("retain-pr")
-    }
-
-    pub fn retain_flags(&self) -> Vec<&str> {
-        let flags = vec![
-            "retain-epoch-ok",
-            "retain-epoch-nok",
-            "retain-lnav",
-            "retain-mnav",
-            "retain-nav-msg",
-            "retain-nav-eph",
-            "retain-nav-iono",
-            "retain-phase",
-            "retain-doppler",
-            "retain-pr",
-        ];
-        flags
-            .iter()
-            .filter_map(|x| {
-                if self.matches.get_flag(x) {
-                    Some(*x)
-                } else {
-                    None
-                }
-            })
-            .collect()
-    }
-    /// Returns list of retain ops to perform with given list of arguments
-    pub fn retain_ops(&self) -> Vec<(&str, Vec<&str>)> {
-        // this list order is actually important,
-        //   because they describe the filter operation order
-        //   it is better to have epochs filter first
-        //    then the rest will follow
-        let flags = vec![
-            "retain-constell",
-            "retain-sv",
-            "retain-obs",
-            "retain-ssi",
-            "retain-orb",
-        ];
-        flags
-            .iter()
-            .filter(|x| self.matches.contains_id(x))
-            .map(|id| {
-                let descriptor = self.matches.get_one::<String>(id).unwrap();
-                let args: Vec<&str> = descriptor.split(",").collect();
-                (id, args)
-            })
-            .map(|(id, args)| (*id, args))
-            .collect()
-    }
     /// Returns true if at least one resampling op is to be performed
     pub fn resampling(&self) -> bool {
         self.matches.contains_id("resample-ratio")
             | self.matches.contains_id("resample-interval")
             | self.matches.contains_id("time-window")
     }
-
     pub fn resampling_ops(&self) -> Vec<(&str, &str)> {
         // this order describes eventually the order of filtering operations
         let flags = vec!["resample-ratio", "resample-interval", "time-window"];
-        flags
-            .iter()
-            .filter(|x| self.matches.contains_id(x))
-            .map(|id| {
-                let args = self.matches.get_one::<String>(id).unwrap();
-                (id, args.as_str())
-            })
-            .map(|(id, args)| (*id, args))
-            .collect()
-    }
-
-    /// Returns true if at least one filter should be applied
-    pub fn filter(&self) -> bool {
-        self.matches.contains_id("lli-mask")
-            || self.matches.contains_id("gps-filter")
-            || self.matches.contains_id("glo-filter")
-            || self.matches.contains_id("gal-filter")
-            || self.matches.contains_id("bds-filter")
-            || self.matches.contains_id("qzss-filter")
-            || self.matches.contains_id("sbas-filter")
-    }
-    pub fn filter_ops(&self) -> Vec<(&str, &str)> {
-        let flags = vec!["lli-mask"];
         flags
             .iter()
             .filter(|x| self.matches.contains_id(x))

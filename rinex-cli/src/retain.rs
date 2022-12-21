@@ -43,7 +43,7 @@ fn args_to_nav_message(args: Vec<&str>) -> Vec<MsgType> {
 
 /// Efficient RINEX content filter
 pub fn retain_filters(ctx: &mut Context, cli: &Cli) {
-    let flags = cli.retain_flags();
+/*    let flags = cli.retain_flags();
     let ops = cli.retain_ops();
 
     for flag in flags {
@@ -104,4 +104,5 @@ pub fn retain_filters(ctx: &mut Context, cli: &Cli) {
             }
         }
     }
+    */
 }

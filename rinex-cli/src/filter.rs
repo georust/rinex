@@ -11,6 +11,7 @@ fn args_to_lli_mask(args: &str) -> Option<LliFlags> {
 }
 
 pub fn apply_gnss_filters(ctx: &mut Context, cli: &Cli) {
+/*
     if cli.gps_filter() {
         ctx.primary_rinex.retain_constellation_mut(vec![
             Constellation::Glonass,
@@ -135,9 +136,11 @@ pub fn apply_gnss_filters(ctx: &mut Context, cli: &Cli) {
         }
         trace!("-J filter");
     }
+    */
 }
 
 pub fn apply_filters(ctx: &mut Context, cli: &Cli) {
+/*
     let ops = cli.filter_ops();
     for (op, args) in ops.iter() {
         if op.eq(&"lli-mask") {
@@ -149,13 +152,14 @@ pub fn apply_filters(ctx: &mut Context, cli: &Cli) {
             }
         }
     }
+*/
 }
 
 //TODO
 pub fn elevation_mask_filter(ctx: &mut Context, cli: &Cli) {
-    if let Some(mask) = cli.elevation_mask() {
+/*    if let Some(mask) = cli.elevation_mask() {
         if let Some(ref mut nav) = ctx.nav_rinex {
             nav.elevation_mask_mut(mask, ctx.ground_position)
         }
-    }
+    }*/
 }

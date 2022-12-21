@@ -52,22 +52,22 @@ impl std::str::FromStr for TargetItem {
             /*
              * complex descriptor
              */
-            if c.starts_with("dt:") {
-                // Duration description
+            if c.starts_with("dt:") { // Duration description
                 let duration = Duration::from_str(&c[3..])?;
                 Ok(Self::DurationItem(duration))
-            } else if c.starts_with("f:") {
-                // Epoch Flag description
+            
+            } else if c.starts_with("f:") { // Epoch Flag description
                 let flag = EpochFlag::from_str(&c[2..])?;
                 Ok(Self::EpochFlagItem(flag))
-            } else if c.starts_with("elev:") {
-                // Elevation Angle description
+            
+            } else if c.starts_with("elev:") { // Elevation Angle description
                 let angle = f64::from_str(&c[5..])?;
                 Ok(Self::ElevationItem(angle))
-            } else if c.starts_with("azi:") {
-                // Azimuth angle description
+            
+            } else if c.starts_with("azi:") { // Azimuth angle description
                 let angle = f64::from_str(&c[4..])?;
-                Ok(Self::ElevationItem(angle))
+                Ok(Self::AzimuthItem(angle))
+
             } else if c.starts_with("sv:") {
                 let items: Vec<&str> = c[3..].split(",").collect();
                 let mut svs: Vec<Sv> = Vec::with_capacity(items.len());
@@ -76,6 +76,7 @@ impl std::str::FromStr for TargetItem {
                     svs.push(sv);
                 }
                 Ok(Self::SvItem(svs))
+            
             } else if c.starts_with("obs:") {
                 let items: Vec<&str> = c[4..].split(",").collect();
                 let mut obss: Vec<Observable> = Vec::with_capacity(items.len());
@@ -84,6 +85,7 @@ impl std::str::FromStr for TargetItem {
                     obss.push(obs);
                 }
                 Ok(Self::ObservableItem(obss))
+            
             } else if c.starts_with("orb:") {
                 let items: Vec<&str> = c[4..].split(",").collect();
                 let mut orbs: Vec<String> = Vec::with_capacity(items.len());
@@ -92,6 +94,7 @@ impl std::str::FromStr for TargetItem {
                     orbs.push(orb);
                 }
                 Ok(Self::OrbitItem(orbs))
+            
             } else if c.starts_with("gnss:") {
                 let items: Vec<&str> = c[5..].split(",").collect();
                 let mut gnss: Vec<Constellation> = Vec::with_capacity(items.len());
@@ -100,6 +103,7 @@ impl std::str::FromStr for TargetItem {
                     gnss.push(c);
                 }
                 Ok(Self::ConstellationItem(gnss))
+            
             } else if c.starts_with("nav:fr:") {
                 let items: Vec<&str> = c[7..].split(",").collect();
                 let mut fr: Vec<FrameClass> = Vec::with_capacity(items.len());
@@ -108,6 +112,7 @@ impl std::str::FromStr for TargetItem {
                     fr.push(f);
                 }
                 Ok(Self::NavFrameItem(fr))
+            
             } else if c.starts_with("nav:msg:") {
                 let items: Vec<&str> = c[8..].split(",").collect();
                 let mut msg: Vec<MsgType> = Vec::with_capacity(items.len());
@@ -116,6 +121,7 @@ impl std::str::FromStr for TargetItem {
                     msg.push(m);
                 }
                 Ok(Self::NavMsgItem(msg))
+            
             } else {
                 Err(AlgorithmError::UnrecognizedTarget)
             }

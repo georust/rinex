@@ -16,7 +16,11 @@ pub mod fops; // file operation helpers
 pub mod parser;
 
 use horrorshow::Template;
-use rinex::{merge::Merge, processing::*, split::Split};
+use rinex::{
+    merge::Merge, 
+    split::Split,
+    processing::*, 
+};
 
 use cli::Cli;
 pub use context::Context;
@@ -25,6 +29,7 @@ use filter::{
     apply_gnss_filters,    // filter out undesired constellations
     elevation_mask_filter, // apply given elevation mask
 };
+use std::str::FromStr;
 use plot::PlotContext;
 
 // preprocessing
@@ -57,18 +62,23 @@ pub fn main() -> Result<(), rinex::Error> {
     let qc = cli.quality_check() || qc_only;
 
     /*
-     * Preprocessing, filtering, resampling..
+     * Preprocessing
      */
-    if cli.resampling() {
-        resampling(&mut ctx, &cli);
-    }
-    if cli.retain() {
-        retain_filters(&mut ctx, &cli);
-    }
-    if cli.filter() {
-        apply_gnss_filters(&mut ctx, &cli);
-        apply_filters(&mut ctx, &cli);
-        elevation_mask_filter(&mut ctx, &cli);
+    for filter in cli.filters() {
+        if let Ok(mask) = Mask::from_str(filter) {
+            trace!("applying filter: {:?}", mask);
+            ctx.primary_rinex.apply_mut(mask.clone());
+            if let Some(ref mut nav) = ctx.nav_rinex {
+                nav.apply_mut(mask.clone());
+            }
+        } else {
+            error!("invalid filter description \"{}\"", filter);
+        }
+        //resampling(&mut ctx, &cli);
+        //retain_filters(&mut ctx, &cli);
+        //apply_gnss_filters(&mut ctx, &cli);
+        //apply_filters(&mut ctx, &cli);
+        //elevation_mask_filter(&mut ctx, &cli);
     }
 
     /*
@@ -79,7 +89,7 @@ pub fn main() -> Result<(), rinex::Error> {
      */
     // <!>    <!>     <!>      <!>      <!>      <!>      <!>
     //ctx.primary_rinex.observation_align_phase_origins_mut();
-
+    
     /*
      * Basic file identification
      */
@@ -254,8 +264,8 @@ pub fn main() -> Result<(), rinex::Error> {
      */
     if cli.cs_graph() {
         info!("cs detector");
-        let mut detector = CsDetector::default();
-        let cs = detector.cs_detection(&ctx.primary_rinex);
+        //let mut detector = CsDetector::default();
+        //let cs = detector.cs_detection(&ctx.primary_rinex);
     }
 
     /*
@@ -279,7 +289,7 @@ pub fn main() -> Result<(), rinex::Error> {
      */
     if qc {
         info!("qc mode");
-        let report = QcReport::basic(&ctx.primary_rinex, &ctx.nav_rinex);
+        /*let report = QcReport::basic(&ctx.primary_rinex, &ctx.nav_rinex);
 
         if cli.quality_check_separate() {
             let qc_absolute_path = ctx.prefix.to_owned() + "/qc.html";
@@ -293,7 +303,7 @@ pub fn main() -> Result<(), rinex::Error> {
             html.push_str(&report.to_inline_html().into_string().unwrap());
             html.push_str("</div>\n");
             info!("qc summary added to html report");
-        }
+        }*/
     }
 
     write!(html_fd, "{}", html).expect(&format!("failed to write HTML content"));
