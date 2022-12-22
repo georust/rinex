@@ -448,7 +448,7 @@ Refer to README"))
         for path in paths {
             if let Ok(rnx) = Rinex::from_file(&path) {
                 if let Some(ref mut ctx) = nav_ctx {
-                    ctx.merge_mut(&rnx);
+                    let _ = ctx.merge_mut(&rnx);
                 } else {
                     info!("--nav augmented mode");
                     nav_ctx = Some(rnx);
