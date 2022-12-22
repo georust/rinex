@@ -11,7 +11,9 @@ mod partitioning;
 pub use partitioning::Partitioning;
 
 mod processing;
-pub use processing::Processing;
+mod conversion;
+pub use conversion::{Conversion, CvItem, ConversionError};
+//pub use processing::Processing;
 
 //mod averaging;
 //use averaging::{Averager, AverageType};

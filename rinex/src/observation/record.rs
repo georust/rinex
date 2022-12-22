@@ -995,153 +995,35 @@ impl MaskFilter for Record {
     }
 }
 
+use ndarray::{Array4, Array2, Axis};
+use crate::algorithm::{Conversion, CvItem, ConversionError};
 
-use crate::processing::Statistical;
-
-impl Statistical for Record {
-
-}
-
-/*
-type ClockOffset = BTreeMap<Epoch, f64>;
-type Observation = BTreeMap<Epoch, HashMap<Sv, HashMap<Observable, f64>>>;
-
-impl Statistical<Observation> for Record {
-    fn min(&self) -> Observation {
-        let mut ret = Observation::new();
-        for ((epoch, _), (_, svs)) in self {
-            for (sv, observables) in svs {
-                for (observable, observation) in observables {
-                    if let Some(data) = ret.get_mut(epoch) {
-                        if let Some(data) = data.get_mut(sv) {
-                            if let Some(data) = data.get_mut(observable) {
-                                if observation.obs < *data {
-                                    *data = observation.obs;
-                                }
-                            } else {
-                                let mut map: HashMap<Observable, f64> = HashMap::with_capacity(1);
-                                map.insert(observable.clone(), observation.obs);
-                            }
-                        } else {
-                            let mut map: HashMap<Observable, f64> = HashMap::with_capacity(1);
-                            map.insert(observable.clone(), observation.obs);
-                            data.insert(*sv, map);
-                        }
-                    } else {
-                        let mut map: HashMap<Observable, f64> = HashMap::with_capacity(1);
-                        map.insert(observable.clone(), observation.obs);
-                        let mut mmap: HashMap<Sv, HashMap<Observable, f64>> =  HashMap::with_capacity(1);
-                        mmap.insert(*sv, map);
-                        ret.insert(*epoch, mmap);
-                    }
-                }
-            }
-        }
-        ret
+impl Conversion for Record {
+    fn to_ndarray(&self) -> Array2<CvItem> {
+        let arr: Vec<(CvItem, CvItem)> = self.iter()
+            .map(|((e, _), (_, svs))| {
+                let e = CvItem::from(*e);
+                let svs: Vec<CvItem> = svs
+                    .iter()
+                    .map(|(sv, _)| {
+                        let sv = CvItem::from(*sv);
+                        sv
+                    });
+                .collect();
+                [e, svs]
+            })
+            .collect();
+        
+        Ok(arr.into())
     }
-    fn max(&self) -> Observation {
-        let mut ret = Observation::new();
-        for ((epoch, _), (_, svs)) in self {
-            for (sv, observables) in svs {
-                for (observable, observation) in observables {
-                    if let Some(data) = ret.get_mut(epoch) {
-                        if let Some(data) = data.get_mut(sv) {
-                            if let Some(data) = data.get_mut(observable) {
-                                if observation.obs < *data {
-                                    *data = observation.obs;
-                                }
-                            } else {
-                                let mut map: HashMap<Observable, f64> = HashMap::with_capacity(1);
-                                map.insert(observable.clone(), observation.obs);
-                            }
-                        } else {
-                            let mut map: HashMap<Observable, f64> = HashMap::with_capacity(1);
-                            map.insert(observable.clone(), observation.obs);
-                            data.insert(*sv, map);
-                        }
-                    } else {
-                        let mut map: HashMap<Observable, f64> = HashMap::with_capacity(1);
-                        map.insert(observable.clone(), observation.obs);
-                        let mut mmap: HashMap<Sv, HashMap<Observable, f64>> =  HashMap::with_capacity(1);
-                        mmap.insert(*sv, map);
-                        ret.insert(*epoch, mmap);
-                    }
-                }
-            }
-        }
-        ret
-    }
-    fn mean(&self) -> Observation {
-        Observation::new()
-    }
-    fn median(&self) -> Observation {
-        Observation::new()
-    }
-    fn error(&self, model: Observation) -> Observation {
-        Observation::new()
-    }
-    fn mean_err(&self, model: Observation) -> Observation {
-        Observation::new()
-    }
-    fn stddev(&self) -> Observation {
-        self.central_moment(2)
-    }
-    fn central_moment(&self, order: u16) -> Observation {
-        Observation::new()
-    }
-    fn weighted_sum(&self, w: Observation) -> Observation {
-        Observation::new()
-    }
-    fn weighted_mean(&self, w: Observation) -> Observation {
-        Observation::new()
-    }
-    fn skewness(&self) -> Observation {
-        Observation::new()
-    }
-    fn l2_distance(&self, squared: bool, rhs: Observation) -> Observation {
-        Observation::new()
+    fn from_ndarray(&self, arr: Array4<CvItem>) -> Result<Self, ConversionError> {
+        let mut ret = Self::new();
+        /*for epoch in arr.axis_iter(Axis(0)) {
+            let e = epoch.as_epoch(); 
+        }*/
+        Ok(ret)
     }
 }
-
-impl Statistical<ClockOffset> for Record {
-    fn min(&self) -> ClockOffset {
-        ClockOffset::new()
-    }
-    fn max(&self) -> ClockOffset {
-        ClockOffset::new()
-    }
-    fn mean(&self) -> ClockOffset {
-        ClockOffset::new()
-    }
-    fn median(&self) -> ClockOffset {
-        ClockOffset::new()
-    }
-    fn error(&self, model: ClockOffset) -> ClockOffset {
-        ClockOffset::new()
-    }
-    fn mean_err(&self, model: ClockOffset) -> ClockOffset {
-        ClockOffset::new()
-    }
-    fn stddev(&self) -> ClockOffset {
-        self.central_moment(2)
-    }
-    fn central_moment(&self, order: u16) -> ClockOffset {
-        ClockOffset::new()
-    }
-    fn weighted_sum(&self, w: ClockOffset) -> ClockOffset {
-        ClockOffset::new()
-    }
-    fn weighted_mean(&self, w: ClockOffset) -> ClockOffset {
-        ClockOffset::new()
-    }
-    fn skewness(&self) -> ClockOffset {
-        ClockOffset::new()
-    }
-    fn l2_distance(&self, squared: bool, rhs: ClockOffset) -> ClockOffset {
-        ClockOffset::new()
-    }
-}
-*/
 
 #[cfg(test)]
 mod test {

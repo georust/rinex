@@ -42,6 +42,7 @@ impl Averager {
     }
 }*/
 
+/*
 pub trait Processing<A> {
 	/// averages this subset with desired method
     fn average(&self) -> A;
@@ -56,3 +57,4 @@ pub trait Processing<A> {
 	fn interpolate(&self, serie: hifitime::TimeSeries) -> A;
 	fn interpolate_mut(&mut self, serie: hifitime::TimeSeries);
 }
+*/
