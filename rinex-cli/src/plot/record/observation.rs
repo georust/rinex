@@ -3,7 +3,7 @@ use crate::{
     Context,
 };
 use plotly::common::{Marker, MarkerSymbol, Mode, Visible};
-use rinex::{observation::*, prelude::*, *};
+use rinex::{observation::*, prelude::*};
 use std::collections::{BTreeMap, HashMap};
 
 fn observable_to_physics(observable: &Observable) -> String {
@@ -49,8 +49,8 @@ pub fn plot_observation(ctx: &Context, plot_ctx: &mut PlotContext) {
             for (observable, data) in observations {
                 let code = observable.to_string();
                 let carrier_code = &code[1..2]; // carrier code
-                let c_code = u8::from_str_radix(carrier_code, 10)
-                    .expect("failed to parse carrier code");
+                let c_code =
+                    u8::from_str_radix(carrier_code, 10).expect("failed to parse carrier code");
 
                 let physics = observable_to_physics(observable);
                 let y = data.obs;

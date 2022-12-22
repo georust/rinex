@@ -1,7 +1,5 @@
 use crate::prelude::*;
 use horrorshow::RenderBox;
-use horrorshow::owned_html;
-use horrorshow::prelude::*;
 
 /// Sampling QC report
 #[derive(Debug, Clone, PartialEq)]

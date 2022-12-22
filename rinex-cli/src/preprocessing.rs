@@ -2,13 +2,13 @@ use crate::{
     parser::{parse_duration, parse_epoch},
     Cli, Context,
 };
-use std::str::FromStr;
 use log::{error, warn};
 use rinex::processing::*;
+use std::str::FromStr;
 
 pub fn preprocess(ctx: &mut Context, cli: &Cli) {
     resampling(ctx, cli);
-    
+
     // quick GNSS filter
     if cli.gps_filter() {
         let gnss_mask = Mask::from_str("!= gnss:gps").unwrap();
@@ -16,7 +16,7 @@ pub fn preprocess(ctx: &mut Context, cli: &Cli) {
         if let Some(ref mut nav) = ctx.nav_rinex {
             nav.apply_mut(gnss_mask.clone());
         }
-        trace!("applied -G filter"); 
+        trace!("applied -G filter");
     }
     if cli.glo_filter() {
         let gnss_mask = Mask::from_str("!= gnss:glo").unwrap();
@@ -24,7 +24,7 @@ pub fn preprocess(ctx: &mut Context, cli: &Cli) {
         if let Some(ref mut nav) = ctx.nav_rinex {
             nav.apply_mut(gnss_mask.clone());
         }
-        trace!("applied -R filter"); 
+        trace!("applied -R filter");
     }
     if cli.gal_filter() {
         let gnss_mask = Mask::from_str("!= gnss:gal").unwrap();
@@ -32,7 +32,7 @@ pub fn preprocess(ctx: &mut Context, cli: &Cli) {
         if let Some(ref mut nav) = ctx.nav_rinex {
             nav.apply_mut(gnss_mask.clone());
         }
-        trace!("applied -E filter"); 
+        trace!("applied -E filter");
     }
     if cli.bds_filter() {
         let gnss_mask = Mask::from_str("!= gnss:bds").unwrap();
@@ -40,7 +40,7 @@ pub fn preprocess(ctx: &mut Context, cli: &Cli) {
         if let Some(ref mut nav) = ctx.nav_rinex {
             nav.apply_mut(gnss_mask.clone());
         }
-        trace!("applied -C filter"); 
+        trace!("applied -C filter");
     }
     if cli.sbas_filter() {
         let gnss_mask = Mask::from_str("!= gnss:geo").unwrap();
@@ -48,7 +48,7 @@ pub fn preprocess(ctx: &mut Context, cli: &Cli) {
         if let Some(ref mut nav) = ctx.nav_rinex {
             nav.apply_mut(gnss_mask.clone());
         }
-        trace!("applied -S filter"); 
+        trace!("applied -S filter");
     }
     if cli.qzss_filter() {
         let gnss_mask = Mask::from_str("!= gnss:qzss").unwrap();
@@ -56,9 +56,9 @@ pub fn preprocess(ctx: &mut Context, cli: &Cli) {
         if let Some(ref mut nav) = ctx.nav_rinex {
             nav.apply_mut(gnss_mask.clone());
         }
-        trace!("applied -J filter"); 
+        trace!("applied -J filter");
     }
-    
+
     // filter designer
     for filter in cli.filters() {
         if let Ok(mask) = Mask::from_str(filter) {

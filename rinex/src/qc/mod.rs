@@ -1,7 +1,6 @@
 use super::prelude::*;
 use horrorshow::{helper::doctype, RenderBox};
 use strum_macros::EnumString;
-use horrorshow::prelude::*;
 
 mod averager;
 mod sampling;

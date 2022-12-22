@@ -943,12 +943,12 @@ impl MaskFilter for Record {
                         svs.len() > 0
                     });
                 },
-				TargetItem::SvItem(items) => {
-					self.retain(|_, (_, svs)| {
-						svs.retain(|sv, _| items.contains(&sv));
-						svs.len() > 0
-					});
-				},
+                TargetItem::SvItem(items) => {
+                    self.retain(|_, (_, svs)| {
+                        svs.retain(|sv, _| items.contains(&sv));
+                        svs.len() > 0
+                    });
+                },
                 TargetItem::ObservableItem(filter) => {
                     self.retain(|_, (_, svs)| {
                         svs.retain(|_, obs| {
@@ -969,12 +969,12 @@ impl MaskFilter for Record {
                         svs.len() > 0
                     });
                 },
-				TargetItem::SvItem(items) => {
-					self.retain(|_, (_, svs)| {
-						svs.retain(|sv, _| !items.contains(&sv));
-						svs.len() > 0
-					});
-				},
+                TargetItem::SvItem(items) => {
+                    self.retain(|_, (_, svs)| {
+                        svs.retain(|sv, _| !items.contains(&sv));
+                        svs.len() > 0
+                    });
+                },
                 TargetItem::ObservableItem(filter) => {
                     self.retain(|_, (_, svs)| {
                         svs.retain(|_, obs| {
@@ -988,74 +988,74 @@ impl MaskFilter for Record {
             },
             MaskOperand::Above => match mask.item {
                 TargetItem::EpochItem(epoch) => self.retain(|(e, _), _| *e >= epoch),
-				TargetItem::SvItem(items) => {
-					self.retain(|_, (_, svs)| {
-						svs.retain(|sv, _| {
-							let mut retain = false;
-							for item in &items {
-								if item.constellation == sv.constellation {
-									retain = sv.prn >= item.prn;
-								}
-							}
-							retain
-						});
-						svs.len() > 0
-					});
-				},
+                TargetItem::SvItem(items) => {
+                    self.retain(|_, (_, svs)| {
+                        svs.retain(|sv, _| {
+                            let mut retain = false;
+                            for item in &items {
+                                if item.constellation == sv.constellation {
+                                    retain = sv.prn >= item.prn;
+                                }
+                            }
+                            retain
+                        });
+                        svs.len() > 0
+                    });
+                },
                 _ => {},
             },
             MaskOperand::StrictlyAbove => match mask.item {
                 TargetItem::EpochItem(epoch) => self.retain(|(e, _), _| *e > epoch),
-				TargetItem::SvItem(items) => {
-					self.retain(|_, (_, svs)| {
-						svs.retain(|sv, _| {
-							let mut retain = false;
-							for item in &items {
-								if item.constellation == sv.constellation {
-									retain = sv.prn > item.prn;
-								}
-							}
-							retain
-						});
-						svs.len() > 0
-					});
-				},
+                TargetItem::SvItem(items) => {
+                    self.retain(|_, (_, svs)| {
+                        svs.retain(|sv, _| {
+                            let mut retain = false;
+                            for item in &items {
+                                if item.constellation == sv.constellation {
+                                    retain = sv.prn > item.prn;
+                                }
+                            }
+                            retain
+                        });
+                        svs.len() > 0
+                    });
+                },
                 _ => {},
             },
             MaskOperand::Below => match mask.item {
                 TargetItem::EpochItem(epoch) => self.retain(|(e, _), _| *e <= epoch),
-				TargetItem::SvItem(items) => {
-					self.retain(|_, (_, svs)| {
-						svs.retain(|sv, _| {
-							let mut retain = false;
-							for item in &items {
-								if item.constellation == sv.constellation {
-									retain = sv.prn <= item.prn;
-								}
-							}
-							retain
-						});
-						svs.len() > 0
-					});
-				},
+                TargetItem::SvItem(items) => {
+                    self.retain(|_, (_, svs)| {
+                        svs.retain(|sv, _| {
+                            let mut retain = false;
+                            for item in &items {
+                                if item.constellation == sv.constellation {
+                                    retain = sv.prn <= item.prn;
+                                }
+                            }
+                            retain
+                        });
+                        svs.len() > 0
+                    });
+                },
                 _ => {},
             },
             MaskOperand::StrictlyBelow => match mask.item {
                 TargetItem::EpochItem(epoch) => self.retain(|(e, _), _| *e < epoch),
-				TargetItem::SvItem(items) => {
-					self.retain(|_, (_, svs)| {
-						svs.retain(|sv, _| {
-							let mut retain = false;
-							for item in &items {
-								if item.constellation == sv.constellation {
-									retain = sv.prn < item.prn;
-								}
-							}
-							retain
-						});
-						svs.len() > 0
-					});
-				},
+                TargetItem::SvItem(items) => {
+                    self.retain(|_, (_, svs)| {
+                        svs.retain(|sv, _| {
+                            let mut retain = false;
+                            for item in &items {
+                                if item.constellation == sv.constellation {
+                                    retain = sv.prn < item.prn;
+                                }
+                            }
+                            retain
+                        });
+                        svs.len() > 0
+                    });
+                },
                 _ => {},
             },
         }

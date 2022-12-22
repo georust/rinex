@@ -1,6 +1,6 @@
 use crate::fops::filename;
 use crate::parser::parse_epoch;
-use clap::{Arg, ArgGroup, ArgAction, ArgMatches, ColorChoice, Command};
+use clap::{Arg, ArgAction, ArgMatches, ColorChoice, Command};
 use log::{error, info, warn};
 use rinex::{prelude::*, Merge};
 use std::str::FromStr;
@@ -84,7 +84,7 @@ depicts shared epochs and vehicles between the two contexts."))
                         .help("Filters out all SBAS vehicles"))
                     .arg(Arg::new("filter")
                         .short('F')
-                        .num_args(1..) 
+                        .num_args(1..)
                         .help("Design filter(s) to retain data of interest
 and exclude other subsets. Refer to the filter design section of the README."))
                     .arg(Arg::new("resample-ratio")
@@ -195,7 +195,7 @@ Ideally this information is contained in the file Header, but user can manually 
                 .next_help_heading("Navigation Data")
                     .arg(Arg::new("nav")
                         .long("nav")
-                        .num_args(1..) 
+                        .num_args(1..)
                         .value_name("FILE")
                         .help("Augment `--fp` analysis with Navigation data.
 Most useful when combined to Observation RINEX. Also enables the complete (full) `--qc` mode.")) 
@@ -265,8 +265,7 @@ Refer to README"))
     }
     /// Returns input filepaths
     pub fn input_path(&self) -> &str {
-        self.matches.get_one::<String>("filepath")
-            .unwrap() // mandatory flag
+        self.matches.get_one::<String>("filepath").unwrap() // mandatory flag
     }
     /// Returns output filepaths
     pub fn output_path(&self) -> Option<&str> {

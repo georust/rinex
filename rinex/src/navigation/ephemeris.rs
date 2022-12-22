@@ -383,8 +383,7 @@ impl Ephemeris {
     pub fn sat_elev_azim(&self, epoch: Epoch, ref_pos: (f64, f64, f64)) -> Option<(f64, f64)> {
         let (sv_x, sv_y, sv_z) = self.sat_pos_ecef(epoch)?;
         let (ref_x, ref_y, ref_z) = ref_pos;
-        let (sv_lat, sv_lon, sv_alt) =
-            map_3d::ecef2geodetic(sv_x, sv_y, sv_z, map_3d::Ellipsoid::WGS84);
+        let (sv_lat, sv_lon, _) = map_3d::ecef2geodetic(sv_x, sv_y, sv_z, map_3d::Ellipsoid::WGS84);
         // pseudo range
         let a_i = (sv_x - ref_x, sv_y - ref_y, sv_z - ref_z);
         let norm = (a_i.0.powf(2.0) + a_i.1.powf(2.0) + a_i.2.powf(2.0)).sqrt();

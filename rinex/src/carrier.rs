@@ -320,7 +320,7 @@ mod test {
 
         let channel = Carrier::from_code(Constellation::GPS, "L1C");
         assert!(channel.is_ok());
-        
+
         let channel = channel.unwrap();
         assert_eq!(channel, Carrier::L1);
     }

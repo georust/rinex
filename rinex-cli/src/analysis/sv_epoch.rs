@@ -70,7 +70,6 @@ pub fn sv_epoch(ctx: &Context, plot_ctx: &mut PlotContext) {
     if let Some(ref nav) = ctx.nav_rinex {
         let data = nav.space_vehicules_per_epoch();
         let nav_constell = nav.list_constellations();
-        let nb_obs_constell = nb_markers - nav_constell.len();
 
         for (sv_index, sv) in nav.space_vehicules().iter().enumerate() {
             let epochs: Vec<Epoch> = data

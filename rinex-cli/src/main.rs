@@ -6,26 +6,21 @@
 mod analysis; // basic analysis
 mod cli; // command line interface
 mod context; // RINEX context
-mod identification; // high level identification/macros
-mod plot; // plotting operations
 pub mod fops; // file operation helpers
+mod identification; // high level identification/macros
 pub mod parser;
+mod plot; // plotting operations
 
 mod preprocessing;
 use preprocessing::preprocess;
 
 use horrorshow::Template;
-use rinex::{
-    merge::Merge, 
-    split::Split,
-    processing::*, 
-};
+use rinex::{merge::Merge, processing::*, split::Split};
 
 use cli::Cli;
 pub use context::Context;
-use std::str::FromStr;
-use plot::PlotContext;
 use identification::rinex_identification;
+use plot::PlotContext;
 
 extern crate pretty_env_logger;
 #[macro_use]
@@ -60,7 +55,7 @@ pub fn main() -> Result<(), rinex::Error> {
       <!>    <!>     <!>      <!>      <!>      <!>      <!>
     ctx.primary_rinex.observation_align_phase_origins_mut();
      */
-    
+
     /*
      * Basic file identification
      */

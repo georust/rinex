@@ -13,9 +13,9 @@ impl PlotContext {
     pub fn new() -> Self {
         Self { plots: Vec::new() }
     }
-    pub fn plot_item(&self) -> Option<&Plot> {
+    /*pub fn plot_item(&self) -> Option<&Plot> {
         self.plots.get(self.plots.len() - 1)
-    }
+    }*/
     pub fn plot_item_mut(&mut self) -> Option<&mut Plot> {
         let len = self.plots.len() - 1;
         self.plots.get_mut(len)

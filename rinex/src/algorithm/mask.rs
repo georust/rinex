@@ -123,7 +123,8 @@ impl std::ops::BitOr for Mask {
                 operand: self.operand,
                 item: self.item | rhs.item,
             }
-        } else { // not permitted
+        } else {
+            // not permitted
             self.clone()
         }
     }

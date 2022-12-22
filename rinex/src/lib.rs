@@ -1948,10 +1948,8 @@ impl Rinex {
                                     let mut bmap: BTreeMap<(Epoch, EpochFlag), f64> =
                                         BTreeMap::new();
                                     bmap.insert(*epoch, yp);
-                                    let mut map: HashMap<
-                                        Sv,
-                                        BTreeMap<(Epoch, EpochFlag), f64>,
-                                    > = HashMap::new();
+                                    let mut map: HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>> =
+                                        HashMap::new();
                                     map.insert(*sv, bmap);
                                     ret.insert(op_title.clone(), map);
                                 }
@@ -1982,8 +1980,7 @@ impl Rinex {
                         }
                         let lhs_code = lhs_observable.to_string();
                         let lhs_carrier = &lhs_code[1..2];
-                        let lhs_channel = lhs_observable.carrier(sv.constellation)
-                            .unwrap();
+                        let lhs_channel = lhs_observable.carrier(sv.constellation).unwrap();
                         let lhs_freq = lhs_channel.carrier_frequency_mhz();
                         // determine another carrier
                         let rhs_carrier = match lhs_carrier {
@@ -2047,10 +2044,8 @@ impl Rinex {
                                     let mut bmap: BTreeMap<(Epoch, EpochFlag), f64> =
                                         BTreeMap::new();
                                     bmap.insert(*epoch, yp);
-                                    let mut map: HashMap<
-                                        Sv,
-                                        BTreeMap<(Epoch, EpochFlag), f64>,
-                                    > = HashMap::new();
+                                    let mut map: HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>> =
+                                        HashMap::new();
                                     map.insert(*sv, bmap);
                                     ret.insert(op_title.clone(), map);
                                 }
@@ -2107,8 +2102,10 @@ impl Rinex {
             for (epoch, (_, vehicules)) in r {
                 for (sv, observations) in vehicules {
                     for (lhs_observable, lhs_data) in observations {
-                        if !lhs_observable.is_phase_observable() && !lhs_observable.is_pseudorange_observable() {
-                            continue ; // only for these two physics
+                        if !lhs_observable.is_phase_observable()
+                            && !lhs_observable.is_pseudorange_observable()
+                        {
+                            continue; // only for these two physics
                         }
                         let lhs_code = lhs_observable.to_string();
                         let lhs_carrier = &lhs_code[1..2];
@@ -2142,7 +2139,8 @@ impl Rinex {
                                 //  align B to A starting point
                                 let ref_lambda: f64 = match ref_observable.is_phase_observable() {
                                     true => {
-                                        let channel = ref_observable.carrier(sv.constellation).unwrap();
+                                        let channel =
+                                            ref_observable.carrier(sv.constellation).unwrap();
                                         channel.carrier_wavelength()
                                     },
                                     false => 1.0,
@@ -2151,7 +2149,7 @@ impl Rinex {
                                 break; // DONE searching
                             }
                         }
-                        
+
                         if let Some((refcode, refdata)) = reference {
                             // got a reference
                             let op_title = format!("{}-{}", lhs_code, refcode);
@@ -2159,12 +2157,11 @@ impl Rinex {
                             // additionnal phase scaling
                             let total_scaling: f64 = match ref_observable.is_phase_observable() {
                                 true => {
-                                    let rhs_ch = ref_observable.carrier(sv.constellation)
-                                        .unwrap();
+                                    let rhs_ch = ref_observable.carrier(sv.constellation).unwrap();
                                     let lhs_ch = Observable::from_str(&refcode)
                                         .unwrap()
-                                            .carrier(sv.constellation)
-                                            .unwrap();
+                                        .carrier(sv.constellation)
+                                        .unwrap();
                                     let f_rhs = rhs_ch.carrier_frequency_mhz();
                                     let f_lhs = lhs_ch.carrier_frequency_mhz();
                                     let gamma = f_lhs / f_rhs;
@@ -2173,10 +2170,9 @@ impl Rinex {
                                 false => 1.0,
                             };
                             let yp: f64 = match ref_observable.is_phase_observable() {
-                                true => {
-                                    (lhs_data.obs * lhs_lambda - refdata) * total_scaling
-                                },
-                                false => { // PR: sign differs
+                                true => (lhs_data.obs * lhs_lambda - refdata) * total_scaling,
+                                false => {
+                                    // PR: sign differs
                                     refdata - lhs_data.obs * lhs_lambda
                                 },
                             };
@@ -2184,13 +2180,15 @@ impl Rinex {
                                 if let Some(data) = data.get_mut(&sv) {
                                     // new data
                                     data.insert(*epoch, yp);
-                                } else { // new Sv
+                                } else {
+                                    // new Sv
                                     let mut bmap: BTreeMap<(Epoch, EpochFlag), f64> =
                                         BTreeMap::new();
                                     bmap.insert(*epoch, yp);
                                     data.insert(*sv, bmap);
                                 }
-                            } else { // new combination
+                            } else {
+                                // new combination
                                 let mut inject = true; // <!> only if `lhs` is not already being recombined
                                 for (ops, _) in &ret {
                                     let items: Vec<&str> = ops.split("-").collect();
@@ -2238,7 +2236,7 @@ impl Rinex {
                     continue;
                 }
                 for (sv, epochs) in vehicles {
-                    for ((epoch, flag), data) in epochs {
+                    for ((epoch, _flag), data) in epochs {
                         if let Some(prev) = prev_data.get_mut(&gf_code) {
                             if let Some((prev_epoch, prev_data)) = prev.get_mut(&sv) {
                                 let dt = epoch - *prev_epoch;
@@ -2364,7 +2362,7 @@ impl Rinex {
              * Determine mean value of all datasets
              */
             let mut mean: HashMap<Sv, HashMap<Observable, (u32, f64)>> = HashMap::new();
-            for (epoch, (_, vehicles)) in record {
+            for (_epoch, (_, vehicles)) in record {
                 for (sv, observations) in vehicles {
                     if let Some(data) = mean.get_mut(&sv) {
                         for (observable, obs_data) in observations {
@@ -2498,11 +2496,11 @@ impl Rinex {
                             }
                             let ph_i = ph_i.unwrap();
                             let ph_j = ph_j.unwrap();
-                            let lhs_carrier = lhs_observable.carrier(sv.constellation)
-                                .unwrap();
-                            let rhs_carrier = lhs_observable //rhs_observable TODO
-                                .carrier(sv.constellation)
-                                .unwrap();
+                            let lhs_carrier = lhs_observable.carrier(sv.constellation).unwrap();
+                            let rhs_carrier =
+                                lhs_observable //rhs_observable TODO
+                                    .carrier(sv.constellation)
+                                    .unwrap();
                             /*let gamma = (lhs_carrier.carrier_frequency() / rhs_carrier.carrier_frequency()).powf(2.0);
                             let alpha = (gamma +1.0_f64) / (gamma - 1.0_f64);
                             let beta = 2.0_f64 / (gamma - 1.0_f64);
@@ -2518,20 +2516,15 @@ impl Rinex {
                                 } else {
                                     let mut bmap: BTreeMap<(Epoch, EpochFlag), f64> =
                                         BTreeMap::new();
-                                    let mut map: HashMap<
-                                        Sv,
-                                        BTreeMap<(Epoch, EpochFlag), f64>,
-                                    > = HashMap::new();
+                                    let mut map: HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>> =
+                                        HashMap::new();
                                     bmap.insert(*epoch, mp);
                                     data.insert(*sv, bmap);
                                 }
                             } else {
-                                let mut bmap: BTreeMap<(Epoch, EpochFlag), f64> =
-                                    BTreeMap::new();
-                                let mut map: HashMap<
-                                    Sv,
-                                    BTreeMap<(Epoch, EpochFlag), f64>,
-                                > = HashMap::new();
+                                let mut bmap: BTreeMap<(Epoch, EpochFlag), f64> = BTreeMap::new();
+                                let mut map: HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>> =
+                                    HashMap::new();
                                 bmap.insert(*epoch, mp);
                                 map.insert(*sv, bmap);
                                 ret.insert(mp_code.to_string(), map);

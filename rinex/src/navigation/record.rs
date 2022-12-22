@@ -1236,7 +1236,8 @@ impl Merge<Record> for Record {
                 for (rhs_class, rhs_frames) in rhs_classes.iter() {
                     if let Some(lhs_frames) = lhs_classes.get_mut(rhs_class) {
                         for frame in rhs_frames {
-                            if !lhs_frames.contains(frame) { // complete new frame
+                            if !lhs_frames.contains(frame) {
+                                // complete new frame
                                 lhs_frames.push(frame.clone());
                             }
                         }

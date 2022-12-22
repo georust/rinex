@@ -1,5 +1,5 @@
 use super::{averager::Averager, QcOpts};
-use crate::{observation::*, prelude::*, *};
+use crate::{prelude::*, *};
 use horrorshow::RenderBox;
 use itertools::Itertools;
 use std::collections::{BTreeMap, HashMap};
