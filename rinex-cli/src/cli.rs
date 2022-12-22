@@ -265,7 +265,8 @@ Refer to README"))
     }
     /// Returns input filepaths
     pub fn input_path(&self) -> &str {
-        self.matches.get_one::<String>("filepath").unwrap()
+        self.matches.get_one::<String>("filepath")
+            .unwrap() // mandatory flag
     }
     /// Returns output filepaths
     pub fn output_path(&self) -> Option<&str> {
@@ -276,14 +277,10 @@ Refer to README"))
         }
     }
     pub fn filters(&self) -> Vec<&String> {
-        if self.matches.contains_id("filter") { 
-            if let Some(filters) = self.matches.get_many::<String>("filter") {
-                filters.collect()
-            } else {
-                Vec::new()
-            }
+        if let Some(filters) = self.matches.get_many::<String>("filter") {
+            filters.collect()
         } else {
-            Vec::new() 
+            Vec::new()
         }
     }
     pub fn quality_check(&self) -> bool {
@@ -438,12 +435,8 @@ Refer to README"))
     }
     /// Returns optionnal Nav path, for enhanced capabilities
     fn nav_paths(&self) -> Vec<&String> {
-        if self.matches.contains_id("nav") {
-            if let Some(paths) = self.matches.get_many::<String>("nav") {
-                paths.collect()
-            } else {
-                Vec::new()
-            }
+        if let Some(paths) = self.matches.get_many::<String>("nav") {
+            paths.collect()
         } else {
             Vec::new()
         }
