@@ -195,8 +195,9 @@ Ideally this information is contained in the file Header, but user can manually 
                 .next_help_heading("Navigation Data")
                     .arg(Arg::new("nav")
                         .long("nav")
+                        .num_args(1..) 
                         .value_name("FILE")
-                        .help("Augment `--fp` with Navigation data.
+                        .help("Augment `--fp` analysis with Navigation data.
 Most useful when combined to Observation RINEX. Also enables the complete (full) `--qc` mode.")) 
                 .next_help_heading("ANTEX / APC ")
                     .arg(Arg::new("--atx")
@@ -276,9 +277,11 @@ Refer to README"))
     }
     pub fn filters(&self) -> Vec<&String> {
         if self.matches.contains_id("filter") { 
-            self.matches.get_many::<String>("filter")
-                .expect("oops")
-                .collect()
+            if let Some(filters) = self.matches.get_many::<String>("filter") {
+                filters.collect()
+            } else {
+                Vec::new()
+            }
         } else {
             Vec::new() 
         }
