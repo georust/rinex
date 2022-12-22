@@ -85,13 +85,54 @@ impl std::ops::Not for MaskOperand {
 /// // One exception exist for "Sv" items, for example with this:
 /// let greater_than = Mask::from_str(">= G08,R03")
 ///     .unwrap();
-/// // would retain for GPS all vehicles with PRN>=08
-/// // and PRN>=03 for Glonass
+/// // will retain PRN >= 08 for GPS and PRN >= 3 for Glonass
+///
+/// // Logical not() is supported for a mask filter:
+/// let lower_than = Mask::from_str("< G08,R03")
+///     .unwrap();
+/// assert_eq!(lower_than, !greater_than);
+///
+/// // Logical Or() is supported, and allows putting toghether
+/// // an array of values. It does not apply to Epoch, Duration Items for example..
+/// let mut observable_mask = Mask::from_str("= L1C")
+///     .unwrap();
+/// observable_mask |= Mask::from_str("= L1P").unwrap();
+/// assert_eq!(observable_mask, Mask::from_str("= L1C,L1P").unwrap());
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Mask {
     pub operand: MaskOperand,
     pub item: TargetItem,
+}
+
+impl std::ops::Not for Mask {
+    type Output = Mask;
+    fn not(self) -> Self {
+        Self {
+            operand: !self.operand,
+            item: self.item,
+        }
+    }
+}
+
+impl std::ops::BitOr for Mask {
+    type Output = Self;
+    fn bitor(self, rhs: Self) -> Self {
+        if self.operand == rhs.operand {
+            Self {
+                operand: self.operand,
+                item: self.item | rhs.item,
+            }
+        } else { // not permitted
+            self.clone()
+        }
+    }
+}
+
+impl std::ops::BitOrAssign for Mask {
+    fn bitor_assign(&mut self, rhs: Self) {
+        self.item = self.item.clone() | rhs.item;
+    }
 }
 
 impl std::str::FromStr for Mask {

@@ -39,6 +39,94 @@ pub enum TargetItem {
     NavFrameItem(Vec<FrameClass>),
 }
 
+impl std::ops::BitOrAssign for TargetItem {
+    fn bitor_assign(&mut self, rhs: Self) {
+        *self = self.clone() | rhs;
+    }
+}
+
+impl std::ops::BitOr for TargetItem {
+    type Output = Self;
+    fn bitor(self, rhs: Self) -> Self {
+        match self {
+            Self::SvItem(ref lhs) => {
+                match rhs {
+                    Self::SvItem(rhs) => {
+                        let mut lhs = lhs.clone();
+                        for r in rhs {
+                            lhs.push(r);
+                        }
+                        Self::SvItem(lhs)
+                    },
+                    _ => self.clone(),
+                }
+            },
+            Self::ConstellationItem(ref lhs) => {
+                match rhs {
+                    Self::ConstellationItem(rhs) => {
+                        let mut lhs = lhs.clone();
+                        for r in rhs {
+                            lhs.push(r);
+                        }
+                        Self::ConstellationItem(lhs)
+                    },
+                    _ => self.clone(),
+                }
+            },
+            Self::ObservableItem(ref lhs) => {
+                match rhs {
+                    Self::ObservableItem(rhs) => {
+                        let mut lhs = lhs.clone();
+                        for r in rhs {
+                            lhs.push(r);
+                        }
+                        Self::ObservableItem(lhs)
+                    },
+                    _ => self.clone(),
+                }
+            },
+            Self::OrbitItem(ref lhs) => {
+                match rhs {
+                    Self::OrbitItem(rhs) => {
+                        let mut lhs = lhs.clone();
+                        for r in rhs {
+                            lhs.push(r);
+                        }
+                        Self::OrbitItem(lhs)
+                    },
+                    _ => self.clone(),
+                }
+            },
+            Self::NavMsgItem(ref lhs) => {
+                match rhs {
+                    Self::NavMsgItem(rhs) => {
+                        let mut lhs = lhs.clone();
+                        for r in rhs {
+                            lhs.push(r);
+                        }
+                        Self::NavMsgItem(lhs)
+                    },
+                    _ => self.clone(),
+                }
+            },
+            Self::NavFrameItem(ref lhs) => {
+                match rhs {
+                    Self::NavFrameItem(rhs) => {
+                        let mut lhs = lhs.clone();
+                        for r in rhs {
+                            lhs.push(r);
+                        }
+                        Self::NavFrameItem(lhs)
+                    },
+                    _ => self.clone(),
+                }
+
+            },
+            _ => self.clone(),
+        }
+    }
+}
+
 impl std::str::FromStr for TargetItem {
     type Err = AlgorithmError;
     fn from_str(content: &str) -> Result<Self, Self::Err> {

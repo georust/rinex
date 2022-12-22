@@ -6,14 +6,13 @@
 mod analysis; // basic analysis
 mod cli; // command line interface
 mod context; // RINEX context
-mod filter; // record filtering
 mod identification; // high level identification/macros
 mod plot; // plotting operations
-mod resampling; // record resampling
-mod retain; // record filtering // command line parsing utilities
-
 pub mod fops; // file operation helpers
 pub mod parser;
+
+mod preprocessing;
+use preprocessing::preprocess;
 
 use horrorshow::Template;
 use rinex::{
@@ -24,18 +23,9 @@ use rinex::{
 
 use cli::Cli;
 pub use context::Context;
-use filter::{
-    apply_filters,         // special filters, with cli options
-    apply_gnss_filters,    // filter out undesired constellations
-    elevation_mask_filter, // apply given elevation mask
-};
 use std::str::FromStr;
 use plot::PlotContext;
-
-// preprocessing
 use identification::rinex_identification;
-use resampling::resampling;
-use retain::retain_filters;
 
 extern crate pretty_env_logger;
 #[macro_use]
@@ -43,11 +33,6 @@ extern crate log;
 
 use fops::open_html_with_default_app;
 use std::io::Write;
-
-/*
- * Applies elevation mask, to non Navigation RINEX
- */
-//fn apply_elevation_mask(rnx: &mut Rinex, sv_angles: ) {};
 
 pub fn main() -> Result<(), rinex::Error> {
     pretty_env_logger::init_timed();
@@ -64,22 +49,7 @@ pub fn main() -> Result<(), rinex::Error> {
     /*
      * Preprocessing
      */
-    for filter in cli.filters() {
-        if let Ok(mask) = Mask::from_str(filter) {
-            trace!("applying filter: {:?}", mask);
-            ctx.primary_rinex.apply_mut(mask.clone());
-            if let Some(ref mut nav) = ctx.nav_rinex {
-                nav.apply_mut(mask.clone());
-            }
-        } else {
-            error!("invalid filter description \"{}\"", filter);
-        }
-        //resampling(&mut ctx, &cli);
-        //retain_filters(&mut ctx, &cli);
-        //apply_gnss_filters(&mut ctx, &cli);
-        //apply_filters(&mut ctx, &cli);
-        //elevation_mask_filter(&mut ctx, &cli);
-    }
+    preprocess(&mut ctx, &cli);
 
     /*
      * Observation RINEX:

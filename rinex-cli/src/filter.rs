@@ -1,4 +1,4 @@
-use crate::{Cli, Context};
+/*use crate::{Cli, Context};
 use log::{error, trace};
 use rinex::{observation::*, prelude::*};
 
@@ -8,135 +8,6 @@ fn args_to_lli_mask(args: &str) -> Option<LliFlags> {
     } else {
         None
     }
-}
-
-pub fn apply_gnss_filters(ctx: &mut Context, cli: &Cli) {
-/*
-    if cli.gps_filter() {
-        ctx.primary_rinex.retain_constellation_mut(vec![
-            Constellation::Glonass,
-            Constellation::BeiDou,
-            Constellation::Galileo,
-            Constellation::QZSS,
-            Constellation::Geo,
-            Constellation::SBAS(Augmentation::Unknown),
-        ]);
-        if let Some(ref mut nav) = ctx.nav_rinex {
-            nav.retain_constellation_mut(vec![
-                Constellation::Glonass,
-                Constellation::BeiDou,
-                Constellation::Galileo,
-                Constellation::QZSS,
-                Constellation::Geo,
-                Constellation::SBAS(Augmentation::Unknown),
-            ]);
-        }
-        trace!("-G filter");
-    }
-    if cli.glo_filter() {
-        ctx.primary_rinex.retain_constellation_mut(vec![
-            Constellation::GPS,
-            Constellation::BeiDou,
-            Constellation::Galileo,
-            Constellation::QZSS,
-            Constellation::Geo,
-            Constellation::SBAS(Augmentation::Unknown),
-        ]);
-        if let Some(ref mut nav) = ctx.nav_rinex {
-            nav.retain_constellation_mut(vec![
-                Constellation::GPS,
-                Constellation::BeiDou,
-                Constellation::Galileo,
-                Constellation::QZSS,
-                Constellation::Geo,
-                Constellation::SBAS(Augmentation::Unknown),
-            ]);
-        }
-        trace!("-R filter");
-    }
-    if cli.bds_filter() {
-        ctx.primary_rinex.retain_constellation_mut(vec![
-            Constellation::GPS,
-            Constellation::Glonass,
-            Constellation::Galileo,
-            Constellation::QZSS,
-            Constellation::Geo,
-            Constellation::SBAS(Augmentation::Unknown),
-        ]);
-        if let Some(ref mut nav) = ctx.nav_rinex {
-            nav.retain_constellation_mut(vec![
-                Constellation::GPS,
-                Constellation::Glonass,
-                Constellation::Galileo,
-                Constellation::QZSS,
-                Constellation::Geo,
-                Constellation::SBAS(Augmentation::Unknown),
-            ]);
-        }
-        trace!("-C filter");
-    }
-    if cli.sbas_filter() {
-        ctx.primary_rinex.retain_constellation_mut(vec![
-            Constellation::GPS,
-            Constellation::Glonass,
-            Constellation::BeiDou,
-            Constellation::Galileo,
-            Constellation::QZSS,
-        ]);
-        if let Some(ref mut nav) = ctx.nav_rinex {
-            nav.retain_constellation_mut(vec![
-                Constellation::GPS,
-                Constellation::Glonass,
-                Constellation::BeiDou,
-                Constellation::Galileo,
-                Constellation::QZSS,
-            ]);
-        }
-        trace!("-S filter");
-    }
-    if cli.gal_filter() {
-        ctx.primary_rinex.retain_constellation_mut(vec![
-            Constellation::GPS,
-            Constellation::Glonass,
-            Constellation::BeiDou,
-            Constellation::QZSS,
-            Constellation::Geo,
-            Constellation::SBAS(Augmentation::Unknown),
-        ]);
-        if let Some(ref mut nav) = ctx.nav_rinex {
-            nav.retain_constellation_mut(vec![
-                Constellation::GPS,
-                Constellation::Glonass,
-                Constellation::BeiDou,
-                Constellation::QZSS,
-                Constellation::Geo,
-                Constellation::SBAS(Augmentation::Unknown),
-            ]);
-        }
-        trace!("-E filter");
-    }
-    if cli.qzss_filter() {
-        ctx.primary_rinex.retain_constellation_mut(vec![
-            Constellation::GPS,
-            Constellation::Glonass,
-            Constellation::BeiDou,
-            Constellation::Galileo,
-            Constellation::Geo,
-            Constellation::SBAS(Augmentation::Unknown),
-        ]);
-        if let Some(ref mut nav) = ctx.nav_rinex {
-            nav.retain_constellation_mut(vec![
-                Constellation::GPS,
-                Constellation::Glonass,
-                Constellation::BeiDou,
-                Constellation::Galileo,
-                Constellation::Geo,
-                Constellation::SBAS(Augmentation::Unknown),
-            ]);
-        }
-        trace!("-J filter");
-    }
-    */
 }
 
 pub fn apply_filters(ctx: &mut Context, cli: &Cli) {
@@ -163,3 +34,4 @@ pub fn elevation_mask_filter(ctx: &mut Context, cli: &Cli) {
         }
     }*/
 }
+*/
