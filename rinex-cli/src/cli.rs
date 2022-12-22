@@ -2,7 +2,7 @@ use crate::fops::filename;
 use crate::parser::parse_epoch;
 use clap::{Arg, ArgGroup, ArgAction, ArgMatches, ColorChoice, Command};
 use log::{error, info, warn};
-use rinex::prelude::*;
+use rinex::{prelude::*, Merge};
 use std::str::FromStr;
 
 pub struct Cli {
@@ -437,28 +437,34 @@ Refer to README"))
         }
     }
     /// Returns optionnal Nav path, for enhanced capabilities
-    fn nav_path(&self) -> Option<&String> {
+    fn nav_paths(&self) -> Vec<&String> {
         if self.matches.contains_id("nav") {
-            self.matches.get_one::<String>("nav")
+            if let Some(paths) = self.matches.get_many::<String>("nav") {
+                paths.collect()
+            } else {
+                Vec::new()
+            }
         } else {
-            None
+            Vec::new()
         }
     }
     /// Returns optionnal Navigation context
     pub fn nav_context(&self) -> Option<Rinex> {
-        if let Some(path) = self.nav_path() {
+        let mut nav_ctx: Option<Rinex> = None;
+        let paths = self.nav_paths();
+        for path in paths {
             if let Ok(rnx) = Rinex::from_file(&path) {
-                if rnx.is_navigation_rinex() {
-                    info!("--nav: augmented mode");
-                    return Some(rnx);
+                if let Some(ref mut ctx) = nav_ctx {
+                    ctx.merge_mut(&rnx);
                 } else {
-                    error!("--nav must should be navigation data");
+                    info!("--nav augmented mode");
+                    nav_ctx = Some(rnx);
                 }
             } else {
-                warn!("failed to parse navigation file \"{}\"", filename(&path));
+                error!("failed to parse navigation file \"{}\"", filename(&path));
             }
         }
-        None
+        nav_ctx
     }
     fn atx_path(&self) -> Option<&String> {
         if self.matches.contains_id("atx") {
