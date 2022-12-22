@@ -52,13 +52,14 @@ pub fn main() -> Result<(), rinex::Error> {
     preprocess(&mut ctx, &cli);
 
     /*
+      <!>    <!>     <!>      <!>      <!>      <!>      <!>
      * Observation RINEX:
      *  align phase origins at this point
      *  this allows easy GNSS combination and processing,
      *  gives more meaningful phase data plots..
+      <!>    <!>     <!>      <!>      <!>      <!>      <!>
+    ctx.primary_rinex.observation_align_phase_origins_mut();
      */
-    // <!>    <!>     <!>      <!>      <!>      <!>      <!>
-    //ctx.primary_rinex.observation_align_phase_origins_mut();
     
     /*
      * Basic file identification
@@ -96,7 +97,7 @@ pub fn main() -> Result<(), rinex::Error> {
             "DBCs [n.a]",
             &data,
         );
-        info!("dcb analysis generated");
+        info!("--dcb analysis");
     }
     /*
      * Code Multipath analysis
@@ -112,7 +113,7 @@ pub fn main() -> Result<(), rinex::Error> {
             "Meters of delay",
             &data,
         );
-        info!("mp analysis generated");
+        info!("--mp analysis");
     }
     /*
      * [GF] recombination visualization requested
@@ -125,7 +126,7 @@ pub fn main() -> Result<(), rinex::Error> {
             "Meters of Li-Lj delay",
             &data,
         );
-        info!("gf recombination");
+        info!("--gf recombination");
     }
     /*
      * Ionospheric Delay Detector (graph)
@@ -133,7 +134,7 @@ pub fn main() -> Result<(), rinex::Error> {
     if cli.iono_detector() {
         let data = ctx.primary_rinex.observation_iono_detector();
         plot::plot_iono_detector(&mut plot_ctx, &data);
-        info!("ionospheric delay detector");
+        info!("--iono detector");
     }
     /*
      * [WL] recombination
@@ -146,7 +147,7 @@ pub fn main() -> Result<(), rinex::Error> {
             "Meters of Li-Lj delay",
             &data,
         );
-        info!("wl recombination");
+        info!("--wl recombination");
     }
     /*
      * [NL] recombination
@@ -259,7 +260,7 @@ pub fn main() -> Result<(), rinex::Error> {
      */
     if qc {
         info!("qc mode");
-        /*let report = QcReport::basic(&ctx.primary_rinex, &ctx.nav_rinex);
+        let report = QcReport::basic(&ctx.primary_rinex, &ctx.nav_rinex);
 
         if cli.quality_check_separate() {
             let qc_absolute_path = ctx.prefix.to_owned() + "/qc.html";
@@ -273,7 +274,7 @@ pub fn main() -> Result<(), rinex::Error> {
             html.push_str(&report.to_inline_html().into_string().unwrap());
             html.push_str("</div>\n");
             info!("qc summary added to html report");
-        }*/
+        }
     }
 
     write!(html_fd, "{}", html).expect(&format!("failed to write HTML content"));

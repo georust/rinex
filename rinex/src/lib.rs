@@ -25,7 +25,6 @@ pub mod version;
 mod leap;
 mod observable;
 
-extern crate horrorshow;
 extern crate num;
 
 #[macro_use]
@@ -33,6 +32,9 @@ extern crate num_derive;
 
 #[macro_use]
 extern crate lazy_static;
+
+#[macro_use]
+extern crate horrorshow;
 
 pub mod reader;
 use reader::BufferedReader;
@@ -69,9 +71,8 @@ pub mod sbas {
     pub use crate::constellation::selection_helper;
 }
 
+mod qc;
 //mod cs;
-//mod qc;
-
 mod algorithm;
 
 /// Processing package, regroups sampling
@@ -80,7 +81,7 @@ pub mod processing {
     pub use crate::algorithm::*;
     //pub use differential::*;
     //pub use crate::cs::{CsDetector, CsSelectionMethod, CsStrategy};
-    //pub use crate::qc::{QcOpts, QcReport};
+    pub use crate::qc::{QcOpts, QcReport};
 }
 
 use algorithm::Decimation;
