@@ -33,9 +33,6 @@ extern crate num_derive;
 #[macro_use]
 extern crate lazy_static;
 
-#[macro_use]
-extern crate horrorshow;
-
 pub mod reader;
 use reader::BufferedReader;
 use std::io::Write; //, Read};
@@ -79,18 +76,21 @@ mod algorithm;
 /// and file quality analysis.
 pub mod processing {
     pub use crate::algorithm::*;
+    pub use crate::qc::{QcOpts, QcReport};
     //pub use differential::*;
     //pub use crate::cs::{CsDetector, CsSelectionMethod, CsStrategy};
-    pub use crate::qc::{QcOpts, QcReport};
 }
 
-use algorithm::Decimation;
 use carrier::Carrier;
 use gnss_time::TimeScaling;
 use prelude::*;
 
 pub use merge::Merge;
 pub use split::Split;
+use algorithm::Decimation;
+
+#[macro_use]
+extern crate horrorshow;
 
 #[cfg(feature = "serde")]
 #[macro_use]

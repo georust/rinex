@@ -4,12 +4,21 @@ pub use sampling::Decimation;
 mod mask;
 pub use mask::{Mask, MaskFilter, MaskOperand};
 
-//mod processing;
-//pub use processing::{Processing, AverageType};
+mod statistical;
+pub use statistical::Statistical;
 
-use crate::navigation::{FrameClass, MsgType};
-use crate::{Constellation, Duration, Epoch, EpochFlag, Observable, Sv};
+mod partitioning;
+pub use partitioning::Partitioning;
+
+mod processing;
+pub use processing::Processing;
+
+//mod averaging;
+//use averaging::{Averager, AverageType};
+
 use thiserror::Error;
+use crate::prelude::*;
+use crate::navigation::{FrameClass, MsgType};
 
 /// Target Item represents items that filter operations
 /// or algorithms may target

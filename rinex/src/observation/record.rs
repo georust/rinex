@@ -721,73 +721,6 @@ fn fmt_epoch_v2(
     lines
 }
 
-#[cfg(test)]
-mod test {
-    use super::*;
-    #[test]
-    fn ssi() {
-        let ssi = Ssi::from_str("0").unwrap();
-        assert_eq!(ssi, Ssi::DbHz0);
-        assert_eq!(ssi.is_bad(), true);
-        let ssi = Ssi::from_str("9").unwrap();
-        assert_eq!(ssi.is_excellent(), true);
-        let ssi = Ssi::from_str("10");
-        assert_eq!(ssi.is_err(), true);
-    }
-    #[test]
-    fn test_is_new_epoch() {
-        assert_eq!(
-            is_new_epoch(
-                "95 01 01 00 00 00.0000000  0  7 06 17 21 22 23 28 31",
-                Version { major: 2, minor: 0 }
-            ),
-            true
-        );
-        assert_eq!(
-            is_new_epoch(
-                "21700656.31447  16909599.97044          .00041  24479973.67844  24479975.23247",
-                Version { major: 2, minor: 0 }
-            ),
-            false
-        );
-        assert_eq!(
-            is_new_epoch(
-                "95 01 01 11 00 00.0000000  0  8 04 16 18 19 22 24 27 29",
-                Version { major: 2, minor: 0 }
-            ),
-            true
-        );
-        assert_eq!(
-            is_new_epoch(
-                "95 01 01 11 00 00.0000000  0  8 04 16 18 19 22 24 27 29",
-                Version { major: 3, minor: 0 }
-            ),
-            false
-        );
-        assert_eq!(
-            is_new_epoch(
-                "> 2022 01 09 00 00 30.0000000  0 40",
-                Version { major: 3, minor: 0 }
-            ),
-            true
-        );
-        assert_eq!(
-            is_new_epoch(
-                "> 2022 01 09 00 00 30.0000000  0 40",
-                Version { major: 2, minor: 0 }
-            ),
-            false
-        );
-        assert_eq!(
-            is_new_epoch(
-                "G01  22331467.880   117352685.28208        48.950    22331469.28",
-                Version { major: 3, minor: 0 }
-            ),
-            false
-        );
-    }
-}
-
 impl Merge<Record> for Record {
     /// Merges `rhs` into `Self` without mutable access at the expense of more memcopies
     fn merge(&self, rhs: &Self) -> Result<Self, merge::Error> {
@@ -1061,3 +994,219 @@ impl MaskFilter for Record {
         }
     }
 }
+
+
+use crate::processing::Statistical;
+
+impl Statistical for Record {
+
+}
+
+/*
+type ClockOffset = BTreeMap<Epoch, f64>;
+type Observation = BTreeMap<Epoch, HashMap<Sv, HashMap<Observable, f64>>>;
+
+impl Statistical<Observation> for Record {
+    fn min(&self) -> Observation {
+        let mut ret = Observation::new();
+        for ((epoch, _), (_, svs)) in self {
+            for (sv, observables) in svs {
+                for (observable, observation) in observables {
+                    if let Some(data) = ret.get_mut(epoch) {
+                        if let Some(data) = data.get_mut(sv) {
+                            if let Some(data) = data.get_mut(observable) {
+                                if observation.obs < *data {
+                                    *data = observation.obs;
+                                }
+                            } else {
+                                let mut map: HashMap<Observable, f64> = HashMap::with_capacity(1);
+                                map.insert(observable.clone(), observation.obs);
+                            }
+                        } else {
+                            let mut map: HashMap<Observable, f64> = HashMap::with_capacity(1);
+                            map.insert(observable.clone(), observation.obs);
+                            data.insert(*sv, map);
+                        }
+                    } else {
+                        let mut map: HashMap<Observable, f64> = HashMap::with_capacity(1);
+                        map.insert(observable.clone(), observation.obs);
+                        let mut mmap: HashMap<Sv, HashMap<Observable, f64>> =  HashMap::with_capacity(1);
+                        mmap.insert(*sv, map);
+                        ret.insert(*epoch, mmap);
+                    }
+                }
+            }
+        }
+        ret
+    }
+    fn max(&self) -> Observation {
+        let mut ret = Observation::new();
+        for ((epoch, _), (_, svs)) in self {
+            for (sv, observables) in svs {
+                for (observable, observation) in observables {
+                    if let Some(data) = ret.get_mut(epoch) {
+                        if let Some(data) = data.get_mut(sv) {
+                            if let Some(data) = data.get_mut(observable) {
+                                if observation.obs < *data {
+                                    *data = observation.obs;
+                                }
+                            } else {
+                                let mut map: HashMap<Observable, f64> = HashMap::with_capacity(1);
+                                map.insert(observable.clone(), observation.obs);
+                            }
+                        } else {
+                            let mut map: HashMap<Observable, f64> = HashMap::with_capacity(1);
+                            map.insert(observable.clone(), observation.obs);
+                            data.insert(*sv, map);
+                        }
+                    } else {
+                        let mut map: HashMap<Observable, f64> = HashMap::with_capacity(1);
+                        map.insert(observable.clone(), observation.obs);
+                        let mut mmap: HashMap<Sv, HashMap<Observable, f64>> =  HashMap::with_capacity(1);
+                        mmap.insert(*sv, map);
+                        ret.insert(*epoch, mmap);
+                    }
+                }
+            }
+        }
+        ret
+    }
+    fn mean(&self) -> Observation {
+        Observation::new()
+    }
+    fn median(&self) -> Observation {
+        Observation::new()
+    }
+    fn error(&self, model: Observation) -> Observation {
+        Observation::new()
+    }
+    fn mean_err(&self, model: Observation) -> Observation {
+        Observation::new()
+    }
+    fn stddev(&self) -> Observation {
+        self.central_moment(2)
+    }
+    fn central_moment(&self, order: u16) -> Observation {
+        Observation::new()
+    }
+    fn weighted_sum(&self, w: Observation) -> Observation {
+        Observation::new()
+    }
+    fn weighted_mean(&self, w: Observation) -> Observation {
+        Observation::new()
+    }
+    fn skewness(&self) -> Observation {
+        Observation::new()
+    }
+    fn l2_distance(&self, squared: bool, rhs: Observation) -> Observation {
+        Observation::new()
+    }
+}
+
+impl Statistical<ClockOffset> for Record {
+    fn min(&self) -> ClockOffset {
+        ClockOffset::new()
+    }
+    fn max(&self) -> ClockOffset {
+        ClockOffset::new()
+    }
+    fn mean(&self) -> ClockOffset {
+        ClockOffset::new()
+    }
+    fn median(&self) -> ClockOffset {
+        ClockOffset::new()
+    }
+    fn error(&self, model: ClockOffset) -> ClockOffset {
+        ClockOffset::new()
+    }
+    fn mean_err(&self, model: ClockOffset) -> ClockOffset {
+        ClockOffset::new()
+    }
+    fn stddev(&self) -> ClockOffset {
+        self.central_moment(2)
+    }
+    fn central_moment(&self, order: u16) -> ClockOffset {
+        ClockOffset::new()
+    }
+    fn weighted_sum(&self, w: ClockOffset) -> ClockOffset {
+        ClockOffset::new()
+    }
+    fn weighted_mean(&self, w: ClockOffset) -> ClockOffset {
+        ClockOffset::new()
+    }
+    fn skewness(&self) -> ClockOffset {
+        ClockOffset::new()
+    }
+    fn l2_distance(&self, squared: bool, rhs: ClockOffset) -> ClockOffset {
+        ClockOffset::new()
+    }
+}
+*/
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[test]
+    fn ssi() {
+        let ssi = Ssi::from_str("0").unwrap();
+        assert_eq!(ssi, Ssi::DbHz0);
+        assert_eq!(ssi.is_bad(), true);
+        let ssi = Ssi::from_str("9").unwrap();
+        assert_eq!(ssi.is_excellent(), true);
+        let ssi = Ssi::from_str("10");
+        assert_eq!(ssi.is_err(), true);
+    }
+    #[test]
+    fn test_is_new_epoch() {
+        assert_eq!(
+            is_new_epoch(
+                "95 01 01 00 00 00.0000000  0  7 06 17 21 22 23 28 31",
+                Version { major: 2, minor: 0 }
+            ),
+            true
+        );
+        assert_eq!(
+            is_new_epoch(
+                "21700656.31447  16909599.97044          .00041  24479973.67844  24479975.23247",
+                Version { major: 2, minor: 0 }
+            ),
+            false
+        );
+        assert_eq!(
+            is_new_epoch(
+                "95 01 01 11 00 00.0000000  0  8 04 16 18 19 22 24 27 29",
+                Version { major: 2, minor: 0 }
+            ),
+            true
+        );
+        assert_eq!(
+            is_new_epoch(
+                "95 01 01 11 00 00.0000000  0  8 04 16 18 19 22 24 27 29",
+                Version { major: 3, minor: 0 }
+            ),
+            false
+        );
+        assert_eq!(
+            is_new_epoch(
+                "> 2022 01 09 00 00 30.0000000  0 40",
+                Version { major: 3, minor: 0 }
+            ),
+            true
+        );
+        assert_eq!(
+            is_new_epoch(
+                "> 2022 01 09 00 00 30.0000000  0 40",
+                Version { major: 2, minor: 0 }
+            ),
+            false
+        );
+        assert_eq!(
+            is_new_epoch(
+                "G01  22331467.880   117352685.28208        48.950    22331469.28",
+                Version { major: 3, minor: 0 }
+            ),
+            false
+        );
+    }
+}
+

@@ -1,9 +1,16 @@
 use crate::prelude::*;
 
+pub enum AverageType {
+    MovingAverage,
+    Exponential,
+    Cummulative,
+}
+
 pub struct Averager {
     buffer: Vec<f64>,
     next_epoch: Option<Epoch>,
     window: Duration,
+    avgtype: AverageType,
 }
 
 impl Averager {
@@ -12,6 +19,13 @@ impl Averager {
             buffer: Vec::new(),
             next_epoch: None,
             window,
+        }
+    }
+    pub fn average(&mut self, data: (f64, Epoch)) -> Option<f64> {
+        match self.avgtype {
+            AverageType::MovingAverage => self.moving_average(data),
+            AverageType::Exponential => self.moving_average(data),
+            AverageType::Cummulative => self.moving_average(data),
         }
     }
     pub fn moving_average(&mut self, data: (f64, Epoch)) -> Option<f64> {
@@ -32,5 +46,13 @@ impl Averager {
             }
         }
         None
+    }
+}
+
+#[cfg(test)]
+mod test {
+    #[test]
+    fn test_moving_average() {
+     
     }
 }

@@ -1,4 +1,5 @@
-use super::{averager::Averager, QcOpts};
+use super::QcOpts;
+//averager::Averager;
 use crate::{prelude::*, *};
 use horrorshow::RenderBox;
 use itertools::Itertools;
@@ -52,13 +53,13 @@ impl QcReport {
         let mut power_failures: Vec<(Epoch, Epoch)> = Vec::new();
 
         // RX clock
-        let mut clk_avg = Averager::new(opts.clk_drift_window);
+        //let mut clk_avg = Averager::new(opts.clk_drift_window);
         let mut clk_drift: HashMap<Epoch, f64> = HashMap::with_capacity(total_epochs);
 
         // APC
         let mut apc = (0_32, (0.0_f64, 0.0_f64, 0.0_f64));
         // SSi
-        let mut ssi_avg: HashMap<String, Averager> = HashMap::with_capacity(total_sv);
+        //let mut ssi_avg: HashMap<String, Averager> = HashMap::with_capacity(total_sv);
         let mut mean_ssi: HashMap<String, Vec<(Epoch, f64)>> = HashMap::with_capacity(total_sv);
         // DCBs
         let mut dcbs = rnx.observation_phase_dcb();
@@ -83,9 +84,12 @@ impl QcReport {
 
             if let Some(clk_offset) = clk_offset {
                 total_clk += 1;
+                /*
+                 * Clock drift analysis
                 if let Some(clk_avg) = clk_avg.moving_average((*clk_offset, *epoch)) {
                     clk_drift.insert(*epoch, clk_avg);
                 }
+                */
             }
 
             let mut has_obs = false;
@@ -99,7 +103,6 @@ impl QcReport {
                     }
                     /*
                      * SSI moving average
-                     */
                     if observable.is_ssi_observable() {
                         if let Some(averager) = ssi_avg.get_mut(&carrier.to_string()) {
                             if let Some(avg) = averager.moving_average((data.obs, *epoch)) {
@@ -114,6 +117,7 @@ impl QcReport {
                             ssi_avg.insert(carrier.to_string(), avg);
                         }
                     }
+                     */
                 }
             }
             if has_obs {

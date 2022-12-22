@@ -2,7 +2,7 @@ use super::prelude::*;
 use horrorshow::{helper::doctype, RenderBox};
 use strum_macros::EnumString;
 
-mod averager;
+//mod averager;
 mod sampling;
 //mod advanced;
 //mod navigation;

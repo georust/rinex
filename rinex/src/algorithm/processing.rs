@@ -1,4 +1,4 @@
-use crate::prelude::*;
+/*use crate::prelude::*;
 
 #[derive(Clone, Debug)]
 pub enum AverageType {
@@ -40,13 +40,19 @@ impl Averager {
         }
         None
     }
-}
+}*/
 
-pub trait Processing {
-	/// Applies desired averaging method to selected data set
-    fn average(&self, avg: AverageType, target: TargetItem) -> BTreeMap<Epoch, f64>;
-	/// Interpolates self to macth the given epoch axis
-	fn interpolate(&self, epoch: Vec<Epoch>) -> Self;
-	/// Mutable implementation see [Processing::interpolate] 
-	fn interpolate_mut(&self, epoch: Vec<Epoch>);
+pub trait Processing<A> {
+	/// averages this subset with desired method
+    fn average(&self) -> A;
+    /// computes 1st order derivative of this subset
+    fn derivative(&self) -> A;
+    /// computes nth order derivative of this subset
+    fn derivative_nth(&self, order: u8) -> A;
+    /// applies smoothing to this subset
+    fn smoothing(&self) -> A;
+    fn smoothing_mut(&mut self);
+	/// Interpolates self to macth the given time serie
+	fn interpolate(&self, serie: hifitime::TimeSeries) -> A;
+	fn interpolate_mut(&mut self, serie: hifitime::TimeSeries);
 }
