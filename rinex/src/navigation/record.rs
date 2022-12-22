@@ -1231,24 +1231,23 @@ impl Merge<Record> for Record {
     }
     /// Merges `rhs` into `Self`
     fn merge_mut(&mut self, rhs: &Self) -> Result<(), merge::Error> {
-        for (epoch, classes) in rhs.iter() {
-            if let Some(cclasses) = self.get_mut(epoch) {
-                for (class, frames) in classes.iter() {
-                    if let Some(fframes) = cclasses.get_mut(class) {
-                        for frame in frames {
-                            // add missing frames
-                            if !fframes.contains(frame) {
-                                fframes.push(frame.clone());
+        for (rhs_epoch, rhs_classes) in rhs.iter() {
+            if let Some(lhs_classes) = self.get_mut(rhs_epoch) {
+                for (rhs_class, rhs_frames) in rhs_classes.iter() {
+                    if let Some(lhs_frames) = lhs_classes.get_mut(rhs_class) {
+                        for frame in rhs_frames {
+                            if !lhs_frames.contains(frame) { // complete new frame
+                                lhs_frames.push(frame.clone());
                             }
                         }
                     } else {
                         // new frame class
-                        cclasses.insert(*class, frames.clone());
+                        lhs_classes.insert(*rhs_class, rhs_frames.clone());
                     }
                 }
             } else {
                 // new epoch
-                self.insert(*epoch, classes.clone());
+                self.insert(*rhs_epoch, rhs_classes.clone());
             }
         }
         Ok(())
