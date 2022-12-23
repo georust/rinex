@@ -2,6 +2,7 @@ use bitflags::bitflags;
 use std::collections::{BTreeMap, HashMap};
 use std::str::FromStr;
 use thiserror::Error;
+use itertools::Itertools;
 
 use crate::{
     algorithm::Decimation, constellation, epoch, gnss_time::TimeScaling, merge, merge::Merge,
@@ -1012,43 +1013,60 @@ impl MaskFilter for Record {
     }
 }
 
-use ndarray::{Array4, Array3, Array2, Array1, Axis, ShapeBuilder, ShapeError, ArrayBase};
+use ndarray::{Array4, Array3, Array2, arr1, arr2, Array1, Axis, ShapeBuilder, ShapeError, ArrayBase, stack, concatenate};
 use crate::algorithm::{Conversion, CvItem, ConversionError};
 
 impl Conversion for Record {
     fn to_ndarray(&self) -> Result<Array2<CvItem>, ShapeError> {
         let nb_epochs = self.len();
-        let mut vec: Vec<CvItem> = Vec::with_capacity(nb_epochs);
         let mut nb_sv: usize = 0;
         let mut nb_obs: usize = 0;
         for (_, (_, svs)) in self {
             nb_sv = std::cmp::max(nb_sv, svs.len());
+            for (sv, observables) in svs {
+                nb_obs = std::cmp::max(nb_obs, observables.len());
+            }
         }
+        
+        let mut ret: Array2<CvItem> = Array2::zeros((0, 2));
 
         for ((e, _), (_, svs)) in self {
+            let mut e_arr = arr1(&[CvItem::from(*e)]);
+            //let mut e_arr = arr1(&[CvItem::from(*e)]);
+            
+            let mut sv_vec: Vec<CvItem> = Vec::new();
             for (sv, observables) in svs {
-                vec.push(CvItem::from(*e));
-                vec.push(CvItem::from(*sv));
-                /*nb_obs = std::cmp::max(nb_obs, observables.len());
-                for (observable, observation) in observables {
-                    vec.push(CvItem::from((observable.clone(), *observation)));
-                }
-                for _ in observables.len()..nb_obs {
-                    vec.push(CvItem::from(std::f64::NAN));
-                }*/
+                sv_vec.push(CvItem::from(*sv));
             }
-            for _ in svs.len()..nb_sv {
-                vec.push(CvItem::from(*e));
-                vec.push(CvItem::from(std::f64::NAN));
-                /*for _ in 0..nb_obs {
-                    vec.push(CvItem::from(std::f64::NAN));
-                }*/
+            let sv_arr = Array1::from_vec(sv_vec);
+            let row = stack(Axis(1), &[e_arr.view()])?;
+            let row = stack(Axis(1), &[row.view(), sv_arr.insert_axis(Axis(1)).view()])?;
+            println!("{:?}", row);
+            //ret.append(Axis(0), row.view());
+/*
+            //e_arr.append(Axis(0), sv_arr.view())?;
+            let mut row = arr2(&[e_vec]);// sv_vec]);
+            let row = concatenate(Axis(0), &[row.view(), sv_arr.view()])?; 
+            //let row = concatenate(Axis(0), &[e_arr.view(), sv_arr.view()])?;
+            //let row = arr2(&[e_vec, sv_vec]); 
+
+            println!("ROW {:?}", row);
+            for col in row.columns() {
+                println!("col {:?}", col);
             }
+            //println!("ROW {:?}", row.insert_axis(Axis(1)).into_shape((1, 2)));
+            //println!("ROW {:?}", row.insert_axis(Axis(0)));
+            //e_arr.append(Axis(0), sv_arr.view())?;
+
+            //ret = stack(Axis(0), &[ret.rows().view(), row.view()])?;
+            //ret.append(Axis(0), row.view()).unwrap();
+            //ret = stack(Axis(0), &[)?; 
+            //stack(Axis(0), &[ret.view(), row.view()])?;
+            //println!("RET {:?}", ret);
+            //ret.append(Axis(0), row.view())?;
+*/
         }
-        println!("nb epoch {}", nb_epochs); 
-        println!("nb sv {}", nb_sv);
-        println!("vec {:#?}", vec);
-        Array2::from_shape_vec((nb_epochs, 2 * nb_sv), vec)
+        Ok(ret)
     }
     fn from_ndarray(&self, arr: Array4<CvItem>) -> Result<Self, ConversionError> {
         Ok(Self::new())
@@ -1135,11 +1153,16 @@ mod test {
             .split_ascii_whitespace()
             .map(|s| Sv::from_str(s).unwrap())
             .collect();
-        println!("====ROWS===");
+        println!("====TEST===");
+        println!("{:?}", array);
+        
+        /*println!("====ROWS===");
         let rows = array.rows();
         for row in rows {
             println!("{:?}", row);
         }
+        */
+
         println!("====COLS===");
         let columns = array.columns();
         for col in columns {
