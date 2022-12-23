@@ -1,19 +1,18 @@
 use crate::prelude::*;
-use ndarray::{Array4, Array2};
+use crate::observation::ObservationData;
+use ndarray::{Array4, Array3, Array2, Array1, ShapeError};
 
 #[derive(Clone, Debug)]
 pub enum ConversionError {
     UnexpectedType,
 }
 
-/// Conversion item, for RINEX <=> NDarray conversions,
-/// for eased up calculations
-#[derive(Clone, PartialEq)]
+/// Conversion item, for RINEX / ndarray conversions
+#[derive(Debug, Clone, PartialEq)]
 pub enum CvItem {
     Epoch(Epoch),
     Sv(Sv),
-    Observable(Observable),
-    Orbit(String),
+    Observation((Observable, ObservationData)),
     Data(f64),
 }
 
@@ -47,9 +46,24 @@ impl std::ops::Add for CvItem {
                 }
             },
             Self::Sv(sv) => Self::Sv(sv),
-            Self::Orbit(s) => Self::Orbit(s),
-            Self::Data(f) => Self::Data(f),
-            Self::Observable(o) => Self::Observable(o),
+            Self::Observation((lhs_observable, lhs_observation)) => {
+                match rhs {
+                    Self::Observation((rhs_observable, rhs_observation)) => {
+                        if lhs_observable == rhs_observable {
+                            Self::Observation((lhs_observable, lhs_observation + rhs_observation))
+                        } else {
+                            Self::Observation((lhs_observable, lhs_observation))
+                        }
+                    }
+                    _ => Self::Observation((lhs_observable, lhs_observation)),
+                }
+            },
+            Self::Data(lhs) => {
+                match rhs {
+                    Self::Data(rhs) => Self::Data(lhs + rhs),
+                    _ => Self::Data(lhs),
+                }
+            },
         }
     }
 }
@@ -66,15 +80,9 @@ impl From<Sv> for CvItem {
     }
 }
 
-impl From<Observable> for CvItem {
-    fn from(obs: Observable) -> Self {
-        Self::Observable(obs)
-    }
-}
-
-impl From<&str> for CvItem {
-    fn from(orb: &str) -> Self {
-        Self::Orbit(orb.to_string())
+impl From<(Observable, ObservationData)> for CvItem {
+    fn from(data: (Observable, ObservationData)) -> Self {
+        Self::Observation(data)
     }
 }
 
@@ -84,8 +92,8 @@ impl From<f64> for CvItem {
     }
 }
 
-/// Conversion trait for algebric and statistical opreations
+/// Conversion trait to convert back & forth to `ndarray`
 pub trait Conversion {
-    fn to_ndarray(&self) -> Array2<CvItem>;
+    fn to_ndarray(&self) -> Result<Array2<CvItem>, ShapeError>;
     fn from_ndarray(&self, arr: Array4<CvItem>) -> Result<Self, ConversionError> where Self: Sized;
 }
