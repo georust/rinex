@@ -153,6 +153,23 @@ pub struct ObservationData {
     pub ssi: Option<Ssi>,
 }
 
+impl std::ops::Add for ObservationData {
+    type Output = Self;
+    fn add(self, rhs: Self) -> Self {
+        Self {
+            lli: self.lli,
+            ssi: self.ssi,
+            obs: self.obs + rhs.obs,
+        }
+    }
+}
+
+impl std::ops::AddAssign for ObservationData {
+    fn add_assign(&mut self, rhs: Self) {
+        self.obs += rhs.obs;
+    }
+}
+
 impl ObservationData {
     /// Builds new ObservationData structure from given predicates
     pub fn new(obs: f64, lli: Option<LliFlags>, ssi: Option<Ssi>) -> ObservationData {
@@ -995,33 +1012,32 @@ impl MaskFilter for Record {
     }
 }
 
-use ndarray::{Array4, Array2, Axis};
+use ndarray::{Array4, Array3, Axis, ShapeError};
 use crate::algorithm::{Conversion, CvItem, ConversionError};
 
 impl Conversion for Record {
-    fn to_ndarray(&self) -> Array2<CvItem> {
-        let arr: Vec<(CvItem, CvItem)> = self.iter()
-            .map(|((e, _), (_, svs))| {
-                let e = CvItem::from(*e);
-                let svs: Vec<CvItem> = svs
-                    .iter()
-                    .map(|(sv, _)| {
-                        let sv = CvItem::from(*sv);
-                        sv
-                    });
-                .collect();
-                [e, svs]
-            })
-            .collect();
-        
-        Ok(arr.into())
+    fn to_ndarray(&self) -> Result<Array3<CvItem>, ShapeError> {
+        let nb_epochs = self.len();
+        let mut vec: Vec<CvItem> = Vec::with_capacity(nb_epochs);
+        let mut nb_sv: usize = 0;
+        let mut nb_obs: usize = 0;
+        for ((e, _), (_, svs)) in self {
+            vec.push(CvItem::from(*e));
+            nb_sv = std::cmp::max(nb_sv, svs.len());
+            for (sv, observables) in svs {
+                vec.push(CvItem::from(*sv));
+                nb_obs = std::cmp::max(nb_obs, observables.len());
+                for (observable, observation) in observables {
+                    vec.push(CvItem::from(observable.clone()));
+                    vec.push(CvItem::from(observation.obs));
+                }
+            }
+        }
+        println!("{:#?}", vec);
+        Array3::from_shape_vec((nb_epochs, nb_sv, nb_obs), vec)
     }
     fn from_ndarray(&self, arr: Array4<CvItem>) -> Result<Self, ConversionError> {
-        let mut ret = Self::new();
-        /*for epoch in arr.axis_iter(Axis(0)) {
-            let e = epoch.as_epoch(); 
-        }*/
-        Ok(ret)
+        Ok(Self::new())
     }
 }
 
@@ -1089,6 +1105,15 @@ mod test {
             ),
             false
         );
+    }
+    #[test]
+    fn test_v3_duth0630_ndarray() {
+        let rinex = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
+            .unwrap();
+        let record = rinex.record.as_obs()
+            .unwrap();
+        let array = record.to_ndarray();
+        assert!(array.is_ok());
     }
 }
 
