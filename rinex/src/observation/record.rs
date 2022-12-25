@@ -2,7 +2,6 @@ use bitflags::bitflags;
 use std::collections::{BTreeMap, HashMap};
 use std::str::FromStr;
 use thiserror::Error;
-use itertools::Itertools;
 
 use crate::{
     algorithm::Decimation, constellation, epoch, gnss_time::TimeScaling, merge, merge::Merge,
@@ -812,8 +811,27 @@ impl Split<Record> for Record {
                 }
             })
             .collect();
-        Ok((r0, r1))
+		Ok((r0, r1))
     }
+	fn split_dt(&self, duration: Duration) -> Result<Vec<Self>, split::Error> {
+		let mut curr = Self::new();
+		let mut ret: Vec<Self> = Vec::new();
+		let mut prev: Option<Epoch> = None;
+		for ((epoch, flag), data) in self {
+			if let Some(mut prev) = prev {
+				let dt = *epoch - prev;
+				if dt >= duration {
+					prev = *epoch;
+					ret.push(curr);
+					curr = Self::new();
+				}
+				curr.insert((*epoch, *flag), data.clone());
+			} else {
+				prev = Some(*epoch);
+			}
+		}
+		Ok(ret)	
+	}
 }
 
 impl Decimation<Record> for Record {
@@ -1013,143 +1031,144 @@ impl MaskFilter for Record {
     }
 }
 
-use ndarray::{arr1, Array1};
 use crate::algorithm::Processing;
-use ndarray_stats::errors::{EmptyInput, MinMaxError};
-use ndarray_stats::{QuantileExt, SummaryStatisticsExt};
 
-fn vectorize_epochs(rec: &Record) -> HashMap<Sv, HashMap<String, Vec<f64>>> {
-	let mut arrays: HashMap<Sv, HashMap<String, Vec<f64>>> = HashMap::new(); 
-	for (_, (_, svs)) in rec {
-		for (sv, observables) in svs {
-			for (observable, observation) in observables {
-				let code = observable.to_string();
-				if let Some(codes) = arrays.get_mut(sv) {
-					if let Some(arr) = codes.get_mut(&code) {
-						arr.push(observation.obs);
+impl Processing for Record {
+	fn min(&self) -> HashMap<Sv, HashMap<Observable, f64>> {
+		let mut ret: HashMap<Sv, HashMap<Observable, f64>> = HashMap::new();
+		for (_, (_, svs)) in self {
+			for (sv, observables) in svs {
+				for (observable, observation) in observables {
+					if let Some(data) = ret.get_mut(sv) {
+						if let Some(data) = data.get_mut(observable) {
+							if observation.obs < *data {
+								*data = observation.obs;
+							}
+						} else {
+							data.insert(observable.clone(), observation.obs);
+						}
 					} else {
-						codes.insert(code.clone(), vec![observation.obs]);
-					}
-				} else {
-					let mut codes: HashMap<String, Vec<f64>> = HashMap::new();
-					codes.insert(code.clone(), vec![observation.obs]);
-					arrays.insert(*sv, codes);
-				}
-			}
-		}
-	}
-	arrays
-}
-
-impl Processing<HashMap<Sv, HashMap<String, f64>>> for Record {
-	fn mean(&self) -> HashMap<Sv, HashMap<String, f64>> {
-		let mut ret: HashMap<Sv, HashMap<String, f64>> = HashMap::new();
-		let v = vectorize_epochs(&self);
-		for (sv, codes) in v {
-			for (code, data) in codes {
-				let arr = arr1(&data);	
-				if let Some(value) = arr.mean() {
-					if let Some(codes) = ret.get_mut(&sv) {
-						codes.insert(code, value);
-					} else {
-						let mut map: HashMap<String, f64> = HashMap::new();
-						map.insert(code, value);
-						ret.insert(sv, map);
+						let mut map: HashMap<Observable, f64> = HashMap::new();
+						map.insert(observable.clone(), observation.obs);
+						ret.insert(*sv, map);
 					}
 				}
 			}
 		}
 		ret
 	}
-	fn central_moment(&self, order: u16) -> HashMap<Sv, HashMap<String, f64>> {
-		let mut ret: HashMap<Sv, HashMap<String, f64>> = HashMap::new();
-		let v = vectorize_epochs(&self);
-		for (sv, codes) in v {
-			for (code, data) in codes {
-				let arr = arr1(&data);	
-				if let Ok(value) = arr.central_moment(order) {
-					if let Some(codes) = ret.get_mut(&sv) {
-						codes.insert(code, value);
+	fn max(&self) -> HashMap<Sv, HashMap<Observable, f64>> {
+		let mut ret: HashMap<Sv, HashMap<Observable, f64>> = HashMap::new();
+		for (_, (_, svs)) in self {
+			for (sv, observables) in svs {
+				for (observable, observation) in observables {
+					if let Some(data) = ret.get_mut(sv) {
+						if let Some(data) = data.get_mut(observable) {
+							if observation.obs > *data {
+								*data = observation.obs;
+							}
+						} else {
+							data.insert(observable.clone(), observation.obs);
+						}
 					} else {
-						let mut map: HashMap<String, f64> = HashMap::new();
-						map.insert(code, value);
-						ret.insert(sv, map);
+						let mut map: HashMap<Observable, f64> = HashMap::new();
+						map.insert(observable.clone(), observation.obs);
+						ret.insert(*sv, map);
 					}
 				}
 			}
 		}
 		ret
 	}
-	fn stddev(&self) -> HashMap<Sv, HashMap<String, f64>> {
-		let mut ret: HashMap<Sv, HashMap<String, f64>> = HashMap::new();
-		let v = vectorize_epochs(&self);
-		for (sv, codes) in v {
-			for (code, data) in codes {
-				let arr = arr1(&data);	
-				if let Ok(value) = arr.central_moment(2) {
-					if let Some(codes) = ret.get_mut(&sv) {
-						codes.insert(code, value);
+	fn mean(&self) -> HashMap<Sv, HashMap<Observable, f64>> {
+		let mut ret: HashMap<Sv, HashMap<Observable, f64>> = HashMap::new();
+		for (_, (_, svs)) in self {
+			for (sv, observables) in svs {
+				for (observable, observation) in observables {
+					if let Some(data) = ret.get_mut(sv) {
+						if let Some(data) = data.get_mut(observable) {
+							if observation.obs > *data {
+								*data = observation.obs;
+							}
+						} else {
+							data.insert(observable.clone(), observation.obs);
+						}
 					} else {
-						let mut map: HashMap<String, f64> = HashMap::new();
-						map.insert(code, value);
-						ret.insert(sv, map);
+						let mut map: HashMap<Observable, f64> = HashMap::new();
+						map.insert(observable.clone(), observation.obs);
+						ret.insert(*sv, map);
 					}
 				}
 			}
 		}
 		ret
 	}
-	fn skewness(&self) -> HashMap<Sv, HashMap<String, f64>> {
-		let mut ret: HashMap<Sv, HashMap<String, f64>> = HashMap::new();
-		let v = vectorize_epochs(&self);
-		for (sv, codes) in v {
-			for (code, data) in codes {
-				let arr = arr1(&data);	
-				if let Ok(value) = arr.skewness() {
-					if let Some(codes) = ret.get_mut(&sv) {
-						codes.insert(code, value);
+	fn stddev(&self) -> HashMap<Sv, HashMap<Observable, f64>> {
+		let mean = self.mean();
+		let mut sum: HashMap<Sv, HashMap<Observable, (u32, f64)>> = HashMap::new();
+		for (_, (_, svs)) in self {
+			for (sv, observables) in svs {
+				for (observable, observation) in observables {
+					if let Some(data) = sum.get_mut(sv) {
+						if let Some((count, sum)) = data.get_mut(observable) {
+							*count += 1;
+							*sum += observation.obs;
+						} else {
+							data.insert(observable.clone(), (1, observation.obs));
+						}
 					} else {
-						let mut map: HashMap<String, f64> = HashMap::new();
-						map.insert(code, value);
-						ret.insert(sv, map);
+						let mut map: HashMap<Observable, (u32, f64)> = HashMap::new();
+						map.insert(observable.clone(), (1, observation.obs));
+						sum.insert(*sv, map);
 					}
 				}
 			}
 		}
+		let ret: HashMap<Sv, HashMap<Observable, f64>> = sum.iter()
+			.map(|(sv, observables)| {
+				observables.iter()
+					.map(|(observable, (count, sum))| {
+						(observable, sum / *count as f64)
+					})
+			})
+			.collect();
 		ret
 	}
-	fn min(&self) -> HashMap<Sv, HashMap<String, f64>> {
-		let mut ret: HashMap<Sv, HashMap<String, f64>> = HashMap::new();
-		let v = vectorize_epochs(&self);
-		for (sv, codes) in v {
-			for (code, data) in codes {
-				let arr = arr1(&data);	
-				if let Ok(value) = arr.min() {
-					if let Some(codes) = ret.get_mut(&sv) {
-						codes.insert(code, *value);
+	fn derivative(&self) -> BTreeMap<Epoch, HashMap<Sv, HashMap<Observable, f64>>> {
+		let mut ret: BTreeMap<Epoch, HashMap<Sv, HashMap<Observable, f64>>> = BTreeMap::new();
+		let mut prev: HashMap<Sv, HashMap<Observable, (Epoch, f64)>> = HashMap::new();
+		for ((epoch, _), (_, svs)) in self {
+			for (sv, observables) in svs {
+				for (observable, observation) in observables {
+					if let Some(prev) = prev.get_mut(&sv) {
+						if let Some(prev) = prev.get_mut(&observable) {
+							if let Some(data) = ret.get_mut(&epoch) {
+								if let Some(data) = data.get_mut(&sv) {
+									if let Some(data) = data.get_mut(&observable) {
+										*data = (observation.obs - prev.1) / (*epoch - prev.0).to_unit(hifitime::Unit::Second);
+									} else {
+										data.insert(observable.clone(), (observation.obs - prev.1) / (*epoch - prev.0).to_unit(hifitime::Unit::Second));
+									}
+								} else {
+									let mut map: HashMap<Observable, f64> = HashMap::new();
+									map.insert(observable.clone(), (observation.obs - prev.1) / (*epoch - prev.0).to_unit(hifitime::Unit::Second));
+									data.insert(*sv, map);
+								}
+							} else {
+								let mut map: HashMap<Observable, f64> = HashMap::new();
+								map.insert(observable.clone(), (observation.obs - prev.1) / (*epoch - prev.0).to_unit(hifitime::Unit::Second));
+								let mut mmap: HashMap<Sv, HashMap<Observable, f64>> = HashMap::new();
+								mmap.insert(*sv, map);
+								ret.insert(*epoch, mmap);
+							}
+							*prev = (*epoch, observation.obs);
+						} else {
+							prev.insert(observable.clone(), (*epoch, observation.obs));
+						}
 					} else {
-						let mut map: HashMap<String, f64> = HashMap::new();
-						map.insert(code, *value);
-						ret.insert(sv, map);
-					}
-				}
-			}
-		}
-		ret
-	}
-	fn max(&self) -> HashMap<Sv, HashMap<String, f64>> {
-		let mut ret: HashMap<Sv, HashMap<String, f64>> = HashMap::new();
-		let v = vectorize_epochs(&self);
-		for (sv, codes) in v {
-			for (code, data) in codes {
-				let arr = arr1(&data);	
-				if let Ok(value) = arr.max() {
-					if let Some(codes) = ret.get_mut(&sv) {
-						codes.insert(code, *value);
-					} else {
-						let mut map: HashMap<String, f64> = HashMap::new();
-						map.insert(code, *value);
-						ret.insert(sv, map);
+						let mut map: HashMap<Observable, (Epoch, f64)> = HashMap::new();
+						map.insert(observable.clone(), (*epoch, observation.obs));
+						prev.insert(*sv, map);
 					}
 				}
 			}
@@ -1233,24 +1252,27 @@ mod test {
             .split_ascii_whitespace()
             .map(|s| Sv::from_str(s).unwrap())
             .collect();
+		
+		// MIN
+		let min = record.min();
+		let g01 = min.get(&Sv::from_str("G01").unwrap()).unwrap();
+		let s1c = g01.get(&Observable::from_str("S1C").unwrap()).unwrap();
+		assert_eq!(*s1c, 49.5);
+		
+		// MAX
+		let max = record.max();
+		let g01 = max.get(&Sv::from_str("G01").unwrap()).unwrap();
+		let s1c = g01.get(&Observable::from_str("S1C").unwrap()).unwrap();
+		assert_eq!(*s1c, 51.250);
+		
 		// MEAN
 		let mean = record.mean();
 		let g01 = mean.get(&Sv::from_str("G01").unwrap()).unwrap();
-		let s1c = g01.get("S1C").unwrap();
+		let s1c = g01.get(&Observable::from_str("S1C").unwrap()).unwrap();
 		assert_eq!(*s1c, (51.250 + 50.750 + 49.5)/3.0);
-
-		let g06 = mean.get(&Sv::from_str("G06").unwrap()).unwrap();
-		let s1c = g06.get("S1C").unwrap();
-		assert_eq!(*s1c, 43.0);
-
-		let max = record.max();
-		let g01 = max.get(&Sv::from_str("G01").unwrap()).unwrap();
-		let s1c = g01.get("S1C").unwrap();
-		assert_eq!(*s1c, 51.250);
 		
-		let min = record.min();
-		let g01 = min.get(&Sv::from_str("G01").unwrap()).unwrap();
-		let s1c = g01.get("S1C").unwrap();
-		assert_eq!(*s1c, 49.5);
+		let g06 = mean.get(&Sv::from_str("G06").unwrap()).unwrap();
+		let s1c = g01.get(&Observable::from_str("S1C").unwrap()).unwrap();
+		assert_eq!(*s1c, 43.0);
     }
 }

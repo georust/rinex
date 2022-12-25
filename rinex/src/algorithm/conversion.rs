@@ -1,7 +1,7 @@
 use crate::prelude::*;
 use crate::observation::ObservationData;
 use ndarray::{Array4, Array3, Array2, Array1, ShapeError};
-
+/*
 #[derive(Clone, Debug)]
 pub enum ConversionError {
     UnexpectedType,
@@ -97,3 +97,4 @@ pub trait Conversion {
     fn to_ndarray(&self) -> Result<Array2<CvItem>, ShapeError>;
     fn from_ndarray(&self, arr: Array4<CvItem>) -> Result<Self, ConversionError> where Self: Sized;
 }
+*/

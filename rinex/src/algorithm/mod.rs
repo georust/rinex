@@ -1,13 +1,11 @@
-mod sampling;
-pub use sampling::Decimation;
-
 mod mask;
-pub use mask::{Mask, MaskFilter, MaskOperand};
-
+mod sampling;
 mod processing;
-pub use processing::Processing;
-
 //mod partitioning;
+
+pub use sampling::Decimation;
+pub use mask::{Mask, MaskFilter, MaskOperand};
+pub use processing::Processing;
 //pub use partitioning::Partitioning;
 
 use thiserror::Error;
