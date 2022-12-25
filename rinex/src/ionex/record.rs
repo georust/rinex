@@ -446,6 +446,9 @@ impl Split<Record> for Record {
             .collect();
         Ok((r0, r1))
     }
+	fn split_dt(&self, duration: Duration) -> Result<Vec<Self>, split::Error> {
+		Ok(Vec::new())
+	}
 }
 
 impl Decimation<Record> for Record {

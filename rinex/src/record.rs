@@ -717,6 +717,9 @@ impl Split<Record> for Record {
             Err(split::Error::NoEpochIteration)
         }
     }
+	fn split_dt(&self, dt: Duration) -> Result<Vec<Self>, split::Error> {
+		Ok(Vec::new())
+	}
 }
 
 impl Decimation<Record> for Record {

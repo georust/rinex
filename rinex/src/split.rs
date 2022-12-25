@@ -1,8 +1,7 @@
-use super::Epoch;
 use thiserror::Error;
+use crate::{Epoch, Duration};
 
-/// Split operation related error(s)
-#[derive(Error, Debug)]
+#[derive(Error, Debug, Clone)]
 pub enum Error {
     #[error("this record type is not indexed by epoch")]
     NoEpochIteration,
@@ -27,4 +26,9 @@ pub trait Split<T> {
     fn split(&self, epoch: Epoch) -> Result<(Self, Self), Error>
     where
         Self: Sized;
+	
+	/// Splits Self into a serie of epoch of equal durations
+	fn split_dt(&self, dt: Duration) -> Result<Vec<Self>, Error>
+	where
+		Self: Sized;
 }

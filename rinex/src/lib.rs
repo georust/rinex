@@ -3187,6 +3187,9 @@ impl Split<Rinex> for Rinex {
             },
         ))
     }
+	fn split_dt(&self, duration: Duration) -> Result<Vec<Self>, split::Error> {
+		Ok(Vec::new())
+	}
 }
 
 impl Decimation<Rinex> for Rinex {
