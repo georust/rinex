@@ -1137,7 +1137,13 @@ mod test {
             .split_ascii_whitespace()
             .map(|s| Sv::from_str(s).unwrap())
             .collect();
-        //println!("====TEST===");
-        //println!("{:?}", array);
+		let mean = record.mean();
+		let g01 = mean.get(&Sv::from_str("G01").unwrap()).unwrap();
+		let s1c = g01.get("S1C").unwrap();
+		assert_eq!(*s1c, (51.250 + 50.750 + 49.5)/3.0);
+
+		let g06 = mean.get(&Sv::from_str("G06").unwrap()).unwrap();
+		let s1c = g06.get("S1C").unwrap();
+		assert_eq!(*s1c, 43.0);
     }
 }
