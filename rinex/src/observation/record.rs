@@ -1013,10 +1013,9 @@ impl MaskFilter for Record {
     }
 }
 
-use ndarray::{Array4, Array3, Array2, arr1, arr2, Array1, Axis, ShapeBuilder, ShapeError, ArrayBase, stack, concatenate};
-use crate::algorithm::{Processing};
+use ndarray::{arr1, Array1};
+use crate::algorithm::Processing;
 use ndarray_stats::SummaryStatisticsExt;
-use ndarray_stats::errors::EmptyInput;
 
 fn vectorize_epochs(rec: &Record) -> HashMap<Sv, HashMap<String, Vec<f64>>> {
 	let mut arrays: HashMap<Sv, HashMap<String, Vec<f64>>> = HashMap::new(); 
@@ -1048,11 +1047,69 @@ impl Processing<HashMap<Sv, HashMap<String, f64>>> for Record {
 		for (sv, codes) in v {
 			for (code, data) in codes {
 				let arr = arr1(&data);	
-				if let Some(mean) = arr.mean() {
+				if let Some(value) = arr.mean() {
 					if let Some(codes) = ret.get_mut(&sv) {
-						codes.insert(code, mean);
+						codes.insert(code, value);
 					} else {
 						let mut map: HashMap<String, f64> = HashMap::new();
+						map.insert(code, value);
+						ret.insert(sv, map);
+					}
+				}
+			}
+		}
+		ret
+	}
+	fn central_moment(&self, order: u16) -> HashMap<Sv, HashMap<String, f64>> {
+		let mut ret: HashMap<Sv, HashMap<String, f64>> = HashMap::new();
+		let v = vectorize_epochs(&self);
+		for (sv, codes) in v {
+			for (code, data) in codes {
+				let arr = arr1(&data);	
+				if let Ok(value) = arr.central_moment(order) {
+					if let Some(codes) = ret.get_mut(&sv) {
+						codes.insert(code, value);
+					} else {
+						let mut map: HashMap<String, f64> = HashMap::new();
+						map.insert(code, value);
+						ret.insert(sv, map);
+					}
+				}
+			}
+		}
+		ret
+	}
+	fn stddev(&self) -> HashMap<Sv, HashMap<String, f64>> {
+		let mut ret: HashMap<Sv, HashMap<String, f64>> = HashMap::new();
+		let v = vectorize_epochs(&self);
+		for (sv, codes) in v {
+			for (code, data) in codes {
+				let arr = arr1(&data);	
+				if let Ok(value) = arr.central_moment(2) {
+					if let Some(codes) = ret.get_mut(&sv) {
+						codes.insert(code, value);
+					} else {
+						let mut map: HashMap<String, f64> = HashMap::new();
+						map.insert(code, value);
+						ret.insert(sv, map);
+					}
+				}
+			}
+		}
+		ret
+	}
+	fn skewness(&self) -> HashMap<Sv, HashMap<String, f64>> {
+		let mut ret: HashMap<Sv, HashMap<String, f64>> = HashMap::new();
+		let v = vectorize_epochs(&self);
+		for (sv, codes) in v {
+			for (code, data) in codes {
+				let arr = arr1(&data);	
+				if let Ok(value) = arr.skewness() {
+					if let Some(codes) = ret.get_mut(&sv) {
+						codes.insert(code, value);
+					} else {
+						let mut map: HashMap<String, f64> = HashMap::new();
+						map.insert(code, value);
 						ret.insert(sv, map);
 					}
 				}
@@ -1137,6 +1194,7 @@ mod test {
             .split_ascii_whitespace()
             .map(|s| Sv::from_str(s).unwrap())
             .collect();
+		// MEAN
 		let mean = record.mean();
 		let g01 = mean.get(&Sv::from_str("G01").unwrap()).unwrap();
 		let s1c = g01.get("S1C").unwrap();

@@ -1,5 +1,8 @@
 pub trait Processing<A> {
 	fn mean(&self) -> A;
+	fn stddev(&self) -> A;
+	fn skewness(&self) -> A;
+	fn central_moment(&self, order: u16) -> A;
 /*
 	/// averages this subset with desired method
     fn average(&self) -> A;
