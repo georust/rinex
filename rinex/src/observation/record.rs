@@ -1015,7 +1015,8 @@ impl MaskFilter for Record {
 
 use ndarray::{arr1, Array1};
 use crate::algorithm::Processing;
-use ndarray_stats::SummaryStatisticsExt;
+use ndarray_stats::errors::{EmptyInput, MinMaxError};
+use ndarray_stats::{QuantileExt, SummaryStatisticsExt};
 
 fn vectorize_epochs(rec: &Record) -> HashMap<Sv, HashMap<String, Vec<f64>>> {
 	let mut arrays: HashMap<Sv, HashMap<String, Vec<f64>>> = HashMap::new(); 
@@ -1117,6 +1118,44 @@ impl Processing<HashMap<Sv, HashMap<String, f64>>> for Record {
 		}
 		ret
 	}
+	fn min(&self) -> HashMap<Sv, HashMap<String, f64>> {
+		let mut ret: HashMap<Sv, HashMap<String, f64>> = HashMap::new();
+		let v = vectorize_epochs(&self);
+		for (sv, codes) in v {
+			for (code, data) in codes {
+				let arr = arr1(&data);	
+				if let Ok(value) = arr.min() {
+					if let Some(codes) = ret.get_mut(&sv) {
+						codes.insert(code, *value);
+					} else {
+						let mut map: HashMap<String, f64> = HashMap::new();
+						map.insert(code, *value);
+						ret.insert(sv, map);
+					}
+				}
+			}
+		}
+		ret
+	}
+	fn max(&self) -> HashMap<Sv, HashMap<String, f64>> {
+		let mut ret: HashMap<Sv, HashMap<String, f64>> = HashMap::new();
+		let v = vectorize_epochs(&self);
+		for (sv, codes) in v {
+			for (code, data) in codes {
+				let arr = arr1(&data);	
+				if let Ok(value) = arr.max() {
+					if let Some(codes) = ret.get_mut(&sv) {
+						codes.insert(code, *value);
+					} else {
+						let mut map: HashMap<String, f64> = HashMap::new();
+						map.insert(code, *value);
+						ret.insert(sv, map);
+					}
+				}
+			}
+		}
+		ret
+	}
 }
 
 #[cfg(test)]
@@ -1203,5 +1242,15 @@ mod test {
 		let g06 = mean.get(&Sv::from_str("G06").unwrap()).unwrap();
 		let s1c = g06.get("S1C").unwrap();
 		assert_eq!(*s1c, 43.0);
+
+		let max = record.max();
+		let g01 = max.get(&Sv::from_str("G01").unwrap()).unwrap();
+		let s1c = g01.get("S1C").unwrap();
+		assert_eq!(*s1c, 51.250);
+		
+		let min = record.min();
+		let g01 = min.get(&Sv::from_str("G01").unwrap()).unwrap();
+		let s1c = g01.get("S1C").unwrap();
+		assert_eq!(*s1c, 49.5);
     }
 }

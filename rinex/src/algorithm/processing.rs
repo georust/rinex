@@ -1,4 +1,6 @@
 pub trait Processing<A> {
+	fn min(&self) -> A;
+	fn max(&self) -> A;
 	fn mean(&self) -> A;
 	fn stddev(&self) -> A;
 	fn skewness(&self) -> A;
