@@ -1014,63 +1014,52 @@ impl MaskFilter for Record {
 }
 
 use ndarray::{Array4, Array3, Array2, arr1, arr2, Array1, Axis, ShapeBuilder, ShapeError, ArrayBase, stack, concatenate};
-use crate::algorithm::{Conversion, CvItem, ConversionError};
+use crate::algorithm::{Processing};
+use ndarray_stats::SummaryStatisticsExt;
+use ndarray_stats::errors::EmptyInput;
 
-impl Conversion for Record {
-    fn to_ndarray(&self) -> Result<Array2<CvItem>, ShapeError> {
-        let nb_epochs = self.len();
-        let mut nb_sv: usize = 0;
-        let mut nb_obs: usize = 0;
-        for (_, (_, svs)) in self {
-            nb_sv = std::cmp::max(nb_sv, svs.len());
-            for (sv, observables) in svs {
-                nb_obs = std::cmp::max(nb_obs, observables.len());
-            }
-        }
-        
-        let mut ret: Array2<CvItem> = Array2::zeros((0, 2));
+fn vectorize_epochs(rec: &Record) -> HashMap<Sv, HashMap<String, Vec<f64>>> {
+	let mut arrays: HashMap<Sv, HashMap<String, Vec<f64>>> = HashMap::new(); 
+	for (_, (_, svs)) in rec {
+		for (sv, observables) in svs {
+			for (observable, observation) in observables {
+				let code = observable.to_string();
+				if let Some(codes) = arrays.get_mut(sv) {
+					if let Some(arr) = codes.get_mut(&code) {
+						arr.push(observation.obs);
+					} else {
+						codes.insert(code.clone(), vec![observation.obs]);
+					}
+				} else {
+					let mut codes: HashMap<String, Vec<f64>> = HashMap::new();
+					codes.insert(code.clone(), vec![observation.obs]);
+					arrays.insert(*sv, codes);
+				}
+			}
+		}
+	}
+	arrays
+}
 
-        for ((e, _), (_, svs)) in self {
-            let mut e_arr = arr1(&[CvItem::from(*e)]);
-            //let mut e_arr = arr1(&[CvItem::from(*e)]);
-            
-            let mut sv_vec: Vec<CvItem> = Vec::new();
-            for (sv, observables) in svs {
-                sv_vec.push(CvItem::from(*sv));
-            }
-            let sv_arr = Array1::from_vec(sv_vec);
-            let row = stack(Axis(1), &[e_arr.view()])?;
-            let row = stack(Axis(1), &[row.view(), sv_arr.insert_axis(Axis(1)).view()])?;
-            println!("{:?}", row);
-            //ret.append(Axis(0), row.view());
-/*
-            //e_arr.append(Axis(0), sv_arr.view())?;
-            let mut row = arr2(&[e_vec]);// sv_vec]);
-            let row = concatenate(Axis(0), &[row.view(), sv_arr.view()])?; 
-            //let row = concatenate(Axis(0), &[e_arr.view(), sv_arr.view()])?;
-            //let row = arr2(&[e_vec, sv_vec]); 
-
-            println!("ROW {:?}", row);
-            for col in row.columns() {
-                println!("col {:?}", col);
-            }
-            //println!("ROW {:?}", row.insert_axis(Axis(1)).into_shape((1, 2)));
-            //println!("ROW {:?}", row.insert_axis(Axis(0)));
-            //e_arr.append(Axis(0), sv_arr.view())?;
-
-            //ret = stack(Axis(0), &[ret.rows().view(), row.view()])?;
-            //ret.append(Axis(0), row.view()).unwrap();
-            //ret = stack(Axis(0), &[)?; 
-            //stack(Axis(0), &[ret.view(), row.view()])?;
-            //println!("RET {:?}", ret);
-            //ret.append(Axis(0), row.view())?;
-*/
-        }
-        Ok(ret)
-    }
-    fn from_ndarray(&self, arr: Array4<CvItem>) -> Result<Self, ConversionError> {
-        Ok(Self::new())
-    }
+impl Processing<HashMap<Sv, HashMap<String, f64>>> for Record {
+	fn mean(&self) -> HashMap<Sv, HashMap<String, f64>> {
+		let mut ret: HashMap<Sv, HashMap<String, f64>> = HashMap::new();
+		let v = vectorize_epochs(&self);
+		for (sv, codes) in v {
+			for (code, data) in codes {
+				let arr = arr1(&data);	
+				if let Some(mean) = arr.mean() {
+					if let Some(codes) = ret.get_mut(&sv) {
+						codes.insert(code, mean);
+					} else {
+						let mut map: HashMap<String, f64> = HashMap::new();
+						ret.insert(sv, map);
+					}
+				}
+			}
+		}
+		ret
+	}
 }
 
 #[cfg(test)]
@@ -1082,7 +1071,7 @@ mod test {
         assert_eq!(ssi, Ssi::DbHz0);
         assert_eq!(ssi.is_bad(), true);
         let ssi = Ssi::from_str("9").unwrap();
-        assert_eq!(ssi.is_excellent(), true);
+		assert_eq!(ssi.is_excellent(), true);
         let ssi = Ssi::from_str("10");
         assert_eq!(ssi.is_err(), true);
     }
@@ -1139,34 +1128,16 @@ mod test {
         );
     }
     #[test]
-    fn test_v3_duth0630_ndarray() {
+    fn test_v3_duth0630_processing() {
         let rinex = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
             .unwrap();
         let record = rinex.record.as_obs()
             .unwrap();
-        let array = record.to_ndarray();
-        //assert!(array.is_ok());
-        let array = array.unwrap();
-        let nb_epochs = 3;
-        let nb_sv = 18;
         let sv: Vec<Sv> = "G01 R01 R02 G03 G04 R08 G09 R09 R10 G17 R17 G19 G21 G22 R23 R24 G31 G32"
             .split_ascii_whitespace()
             .map(|s| Sv::from_str(s).unwrap())
             .collect();
-        println!("====TEST===");
-        println!("{:?}", array);
-        
-        /*println!("====ROWS===");
-        let rows = array.rows();
-        for row in rows {
-            println!("{:?}", row);
-        }
-        */
-
-        println!("====COLS===");
-        let columns = array.columns();
-        for col in columns {
-            println!("{:?}", col);
-        }
+        //println!("====TEST===");
+        //println!("{:?}", array);
     }
 }

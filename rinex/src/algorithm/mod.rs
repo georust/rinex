@@ -4,19 +4,11 @@ pub use sampling::Decimation;
 mod mask;
 pub use mask::{Mask, MaskFilter, MaskOperand};
 
-mod statistical;
-pub use statistical::Statistical;
-
-mod partitioning;
-pub use partitioning::Partitioning;
-
 mod processing;
-mod conversion;
-pub use conversion::{Conversion, CvItem, ConversionError};
-//pub use processing::Processing;
+pub use processing::Processing;
 
-//mod averaging;
-//use averaging::{Averager, AverageType};
+//mod partitioning;
+//pub use partitioning::Partitioning;
 
 use thiserror::Error;
 use crate::prelude::*;
