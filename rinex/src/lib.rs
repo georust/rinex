@@ -2091,136 +2091,7 @@ impl Rinex {
         s
     }
 
-    /// Geometry free [GF] combinations.
-    /// Cf. <https://github.com/gwbres/rinex/blob/main/rinex-cli/doc/gnss-combination.md>.
-    pub fn observation_gf_combinations(
-        &self,
-    ) -> HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
-        let mut ret: HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> =
-            HashMap::new();
-        if let Some(r) = self.record.as_obs() {
-            for (epoch, (_, vehicules)) in r {
-                for (sv, observations) in vehicules {
-                    for (lhs_observable, lhs_data) in observations {
-                        if !lhs_observable.is_phase_observable()
-                            && !lhs_observable.is_pseudorange_observable()
-                        {
-                            continue; // only for these two physics
-                        }
-                        let lhs_code = lhs_observable.to_string();
-                        let lhs_carrier = &lhs_code[1..2];
-                        let lhs_lambda: f64 = match lhs_observable.is_phase_observable() {
-                            true => {
-                                let channel = lhs_observable.carrier(sv.constellation).unwrap();
-                                channel.carrier_wavelength()
-                            },
-                            false => 1.0,
-                        };
-                        // determine another carrier
-                        let rhs_carrier = match lhs_carrier {
-                            // this will restrict to
-                            "1" => "2", // 1 against 2
-                            _ => "1",   // M against 1
-                        };
-                        // locate a reference code against another carrier
-                        let mut reference: Option<(String, f64)> = None;
-                        for (ref_observable, refdata) in observations {
-                            let mut shared_physics = ref_observable.is_phase_observable()
-                                && lhs_observable.is_phase_observable();
-                            shared_physics |= ref_observable.is_pseudorange_observable()
-                                && lhs_observable.is_pseudorange_observable();
-                            if !shared_physics {
-                                continue;
-                            }
-                            let refcode = ref_observable.to_string();
-                            let carrier_code = &refcode[1..2];
-                            if carrier_code == rhs_carrier {
-                                // expected carrier signal
-                                //  align B to A starting point
-                                let ref_lambda: f64 = match ref_observable.is_phase_observable() {
-                                    true => {
-                                        let channel =
-                                            ref_observable.carrier(sv.constellation).unwrap();
-                                        channel.carrier_wavelength()
-                                    },
-                                    false => 1.0,
-                                };
-                                reference = Some((refcode, refdata.obs * ref_lambda));
-                                break; // DONE searching
-                            }
-                        }
-
-                        if let Some((refcode, refdata)) = reference {
-                            // got a reference
-                            let op_title = format!("{}-{}", lhs_code, refcode);
-                            let ref_observable = Observable::from_str(&refcode).unwrap();
-                            // additionnal phase scaling
-                            let total_scaling: f64 = match ref_observable.is_phase_observable() {
-                                true => {
-                                    let rhs_ch = ref_observable.carrier(sv.constellation).unwrap();
-                                    let lhs_ch = Observable::from_str(&refcode)
-                                        .unwrap()
-                                        .carrier(sv.constellation)
-                                        .unwrap();
-                                    let f_rhs = rhs_ch.carrier_frequency_mhz();
-                                    let f_lhs = lhs_ch.carrier_frequency_mhz();
-                                    let gamma = f_lhs / f_rhs;
-                                    1.0 / (gamma.powf(2.0) - 1.0)
-                                },
-                                false => 1.0,
-                            };
-                            let yp: f64 = match ref_observable.is_phase_observable() {
-                                true => (lhs_data.obs * lhs_lambda - refdata) * total_scaling,
-                                false => {
-                                    // PR: sign differs
-                                    refdata - lhs_data.obs * lhs_lambda
-                                },
-                            };
-                            if let Some(data) = ret.get_mut(&op_title) {
-                                if let Some(data) = data.get_mut(&sv) {
-                                    // new data
-                                    data.insert(*epoch, yp);
-                                } else {
-                                    // new Sv
-                                    let mut bmap: BTreeMap<(Epoch, EpochFlag), f64> =
-                                        BTreeMap::new();
-                                    bmap.insert(*epoch, yp);
-                                    data.insert(*sv, bmap);
-                                }
-                            } else {
-                                // new combination
-                                let mut inject = true; // <!> only if `lhs` is not already being recombined
-                                for (ops, _) in &ret {
-                                    let items: Vec<&str> = ops.split("-").collect();
-                                    let lhs_operand = items[0];
-                                    let rhs_operand = items[1];
-                                    if lhs_operand == lhs_code {
-                                        inject = false;
-                                        break;
-                                    }
-                                    if rhs_operand == lhs_code {
-                                        inject = false;
-                                        break;
-                                    }
-                                }
-                                if inject {
-                                    let mut bmap: BTreeMap<(Epoch, EpochFlag), f64> =
-                                        BTreeMap::new();
-                                    bmap.insert(*epoch, yp);
-                                    let mut map: HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>> =
-                                        HashMap::new();
-                                    map.insert(*sv, bmap);
-                                    ret.insert(op_title.clone(), map);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        ret
-    }
-
+/*
     /// Ionospheric delay detector
     pub fn observation_iono_detector(&self) -> HashMap<String, HashMap<Sv, BTreeMap<Epoch, f64>>> {
         let mut ret: HashMap<String, HashMap<Sv, BTreeMap<Epoch, f64>>> = HashMap::new();
@@ -2276,7 +2147,7 @@ impl Rinex {
         }
         ret
     }
-
+*/
     /// Melbourne-Wübbena [MW] GNSS combination.
     /// Cf. <https://github.com/gwbres/rinex/blob/main/rinex-cli/doc/gnss-combination.md>.
     pub fn observation_mw_combinations(

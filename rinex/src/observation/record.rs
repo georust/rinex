@@ -1214,6 +1214,104 @@ impl Processing for Record {
 	}
 }
 
+use crate::processing::{Combination, Combine};
+
+/*
+ * Forms all GF combinations
+ */
+fn gf_combination(record: &Record) -> HashMap<(Observable, Observable), HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
+	let mut ret:  HashMap<(Observable, Observable), HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>
+		= HashMap::new();
+	for (epoch, (_, vehicules)) in record {
+		for (sv, observations) in vehicules {
+			for (lhs_observable, lhs_data) in observations {
+				if !lhs_observable.is_phase_observable()
+					&& !lhs_observable.is_pseudorange_observable()
+				{
+					continue; // only for these two physics
+				}
+				let lhs_code = lhs_observable.to_string();
+				let lhs_carrier = &lhs_code[1..2];
+				
+				// determine another carrier
+				let rhs_carrier = match lhs_carrier {
+					// this will restrict combinations to
+					"1" => "2", // 1 against 2
+					_ => "1",   // M > 1 against 1
+				};
+				
+				// locate a reference code against another carrier
+				let mut reference: Option<(Observable, f64)> = None;
+				for (ref_observable, ref_data) in observations {
+					let mut shared_physics = ref_observable.is_phase_observable()
+						&& lhs_observable.is_phase_observable();
+					shared_physics |= ref_observable.is_pseudorange_observable()
+						&& lhs_observable.is_pseudorange_observable();
+					if !shared_physics {
+						continue;
+					}
+
+					let refcode = ref_observable.to_string();
+					let carrier_code = &refcode[1..2];
+					if carrier_code == rhs_carrier {
+						reference = Some((ref_observable.clone(), ref_data.obs));
+						break; // DONE searching
+					}
+				}
+
+				if let Some((ref_observable, ref_data)) = reference { // got a reference
+					let gf = match ref_observable.is_phase_observable() {
+						true => lhs_data.obs - ref_data, 
+						false => ref_data - lhs_data.obs, // PR: sign differs
+					};
+					
+					if let Some(data) = ret.get_mut(&(lhs_observable.clone(), ref_observable.clone())) {
+						if let Some(data) = data.get_mut(&sv) {
+							data.insert(*epoch, gf);
+						} else {
+							let mut bmap: BTreeMap<(Epoch, EpochFlag), f64> =
+								BTreeMap::new();
+							bmap.insert(*epoch, gf);
+							data.insert(*sv, bmap);
+						}
+					} else { // new combination
+						let mut inject = true; // insert only if not already combined to some other signal 
+						for ((lhs, rhs), _) in &ret {
+							if lhs == lhs_observable {
+								inject = false;
+								break;
+							}
+							if rhs == lhs_observable {
+								inject = false;
+								break;
+							}
+						}
+						if inject {
+							let mut bmap: BTreeMap<(Epoch, EpochFlag), f64> =
+								BTreeMap::new();
+							bmap.insert(*epoch, gf);
+							let mut map: HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>> =
+								HashMap::new();
+							map.insert(*sv, bmap);
+							ret.insert((lhs_observable.clone(), ref_observable), map);
+						}
+					}
+				}
+			}
+		}
+	}
+	ret
+}
+
+impl Combine for Record {
+	fn combine(&self, combination: Combination) -> HashMap<(Observable, Observable), HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
+		match combination {
+			Combination::GeometryFree => gf_combination(&self),
+			_ => gf_combination(&self),
+		}
+	}
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -1278,46 +1376,5 @@ mod test {
             ),
             false
         );
-    }
-    #[test]
-    fn test_v3_duth0630_processing() {
-        let rinex = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
-            .unwrap();
-        let record = rinex.record.as_obs()
-            .unwrap();
-        let sv: Vec<Sv> = "G01 R01 R02 G03 G04 R08 G09 R09 R10 G17 R17 G19 G21 G22 R23 R24 G31 G32"
-            .split_ascii_whitespace()
-            .map(|s| Sv::from_str(s).unwrap())
-            .collect();
-		
-		// MIN
-		let min = record.min();
-		let g01 = min.get(&Sv::from_str("G01").unwrap()).unwrap();
-		let s1c = g01.get(&Observable::from_str("S1C").unwrap()).unwrap();
-		assert_eq!(*s1c, 49.5);
-		
-		// MAX
-		let max = record.max();
-		let g01 = max.get(&Sv::from_str("G01").unwrap()).unwrap();
-		let s1c = g01.get(&Observable::from_str("S1C").unwrap()).unwrap();
-		assert_eq!(*s1c, 51.250);
-		
-		// MEAN
-		let mean = record.mean();
-		let g01 = mean.get(&Sv::from_str("G01").unwrap()).unwrap();
-		let s1c = g01.get(&Observable::from_str("S1C").unwrap()).unwrap();
-		assert_eq!(*s1c, (51.250 + 50.750 + 49.5)/3.0);
-		
-		let g06 = mean.get(&Sv::from_str("G06").unwrap()).unwrap();
-		let s1c = g06.get(&Observable::from_str("S1C").unwrap()).unwrap();
-		assert_eq!(*s1c, 43.0);
-
-		// STDVAR
-		let stdvar = record.stdvar();
-		let mean = (51.25_f64 + 50.75_f64 + 49.5_f64)/3.0_f64;
-		let expected = ((51.25_f64 - mean).powf(2.0_f64) + (50.75_f64 - mean).powf(2.0_f64) + (49.5_f64 - mean).powf(2.0_f64)) / 3.0f64;
-		let g01 = stdvar.get(&Sv::from_str("G01").unwrap()).unwrap();
-		let s1c =  g01.get(&Observable::from_str("S1C").unwrap()).unwrap();
-		assert_eq!(*s1c, expected);
     }
 }

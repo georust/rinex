@@ -1,12 +1,16 @@
 mod mask;
 mod sampling;
 mod processing;
+mod combination;
 //mod partitioning;
+//mod ionospheric;
 
 pub use sampling::Decimation;
 pub use mask::{Mask, MaskFilter, MaskOperand};
 pub use processing::Processing;
+//pub use ionospheric::IonoDetector;
 //pub use partitioning::Partitioning;
+pub use combination::{Combination, Combine};
 
 use thiserror::Error;
 use crate::prelude::*;
