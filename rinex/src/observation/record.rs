@@ -1742,6 +1742,52 @@ impl IonoDelayDetector for Record {
 	}
 }
 
+use crate::processing::Smoothing;
+
+impl Smoothing for Record {
+	fn hatch_filter(&self) -> Self {
+		let mut s = self.clone();
+		s.hatch_filter_mut();
+		s
+	}
+	fn hatch_filter_mut(&mut self) {
+		let mut buffer: HashMap<Sv, HashMap<Observable, (u32, f64)>> = HashMap::new();
+		for (_, (_, svs)) in self {
+			for (sv, observables) in svs {
+				let rhs_observables = observables.clone();
+				for (pr_observable, pr_observation) in observables {
+					if !pr_observable.is_pseudorange_observable() {
+						continue;
+					}
+					let pr_code = pr_observable.code()
+						.unwrap();
+					let ph_tolocate = "L".to_owned() + &pr_code;
+					let mut ph_data: Option<f64> = None;
+					for (rhs_observable, rhs_observation) in &rhs_observables { 
+						let rhs_code = rhs_observable.to_string();
+						if rhs_code == ph_tolocate {
+							ph_data = Some(rhs_observation.obs);
+							break;
+						}
+					}
+					if let Some(ph_observation) = ph_data {
+						if let Some(data) = buffer.get_mut(&sv) {
+							if let Some((k, rms)) = data.get_mut(&pr_observable) {
+								let x_k = pr_observation.obs - ph_observation;
+								*rms = (x_k / *k as f64) + (((*k-1)/ *k) as f64) * *rms;
+								*k += 1;
+								pr_observation.obs = ph_observation - *rms;
+							} else { // new observable
+							}
+						} else { // new sv
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
 #[cfg(test)]
 mod test {
     use super::*;

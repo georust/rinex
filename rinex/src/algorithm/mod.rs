@@ -1,18 +1,20 @@
 mod dcb;
 mod mask;
 mod sampling;
+mod smoothing;
 mod processing;
 mod combination;
 mod ionospheric;
 //mod partitioning;
 
 pub use dcb::Dcb;
+pub use smoothing::Smoothing;
 pub use sampling::Decimation;
-pub use mask::{Mask, MaskFilter, MaskOperand};
 pub use processing::Processing;
 pub use ionospheric::IonoDelayDetector;
 //pub use partitioning::Partitioning;
 pub use combination::{Combination, Combine};
+pub use mask::{Mask, MaskFilter, MaskOperand};
 
 use thiserror::Error;
 use crate::prelude::*;
