@@ -1108,14 +1108,41 @@ mod test {
 		}
 	}
 	#[test]
+	fn test_v2_aopr0010_17o() {
+        let rinex = Rinex::from_file("../test_resources/OBS/V2/aopr0010.17o")
+            .unwrap();
+        let record = rinex.record.as_obs()
+			.unwrap();
+		let mut signals = vec![
+			Observable::from_str("L1").unwrap(),
+			Observable::from_str("L2").unwrap(),
+			Observable::from_str("C1").unwrap(),
+			Observable::from_str("P1").unwrap(),
+			Observable::from_str("P2").unwrap(),
+		];
+		for combination in [
+			Combination::GeometryFree, 
+			Combination::NarrowLane, 
+			Combination::WideLane, 
+			Combination::MelbourneWubbena,
+		] {
+			let combined = record.combine(combination);
+			let mut combinations: Vec<(Observable, Observable)> = 
+				combined.keys().map(|(lhs, rhs)| (lhs.clone(), rhs.clone())).collect();
+			test_combinations(combinations, signals.clone());
+		}
+		/*
+		 * Iono Delay Detector
+		 */
+		let dt = rinex.sampling_interval().unwrap();
+		let ionod = record.iono_delay_detector(dt);
+	}
+	#[test]
 	fn test_v3_duth0630_gnss_combinations() {
         let rinex = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
             .unwrap();
         let record = rinex.record.as_obs()
             .unwrap();
-		let gf = record.combine(Combination::GeometryFree);
-		let mut combinations: Vec<(Observable, Observable)> = 
-			gf.keys().map(|(lhs, rhs)| (lhs.clone(), rhs.clone())).collect();
 		let mut signals = vec![
 			Observable::from_str("C1C").unwrap(),
 			Observable::from_str("C2W").unwrap(),
@@ -1124,7 +1151,22 @@ mod test {
 			Observable::from_str("L2P").unwrap(),
 			Observable::from_str("L2W").unwrap(),
 		];
-		test_combinations(combinations, signals);
+		for combination in [
+			Combination::GeometryFree, 
+			Combination::NarrowLane, 
+			Combination::WideLane, 
+			Combination::MelbourneWubbena,
+		] {
+			let combined = record.combine(combination);
+			let mut combinations: Vec<(Observable, Observable)> = 
+				combined.keys().map(|(lhs, rhs)| (lhs.clone(), rhs.clone())).collect();
+			test_combinations(combinations, signals.clone());
+		}
+		/*
+		 * Iono Delay Detector
+		 */
+		let dt = rinex.sampling_interval().unwrap();
+		let ionod = record.iono_delay_detector(dt);
 	}
 	#[test]
 	fn test_v3_esbcd00dnk_r_2020_gnss_combinations() {
@@ -1152,6 +1194,7 @@ mod test {
 			Observable::from_str("L1C").unwrap(),
 			Observable::from_str("L2I").unwrap(),
 			Observable::from_str("L2L").unwrap(),
+			Observable::from_str("L3Q").unwrap(),
 			Observable::from_str("L2W").unwrap(),
 			Observable::from_str("L5I").unwrap(),
 			Observable::from_str("L5Q").unwrap(),
