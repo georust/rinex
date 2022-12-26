@@ -1126,4 +1126,41 @@ mod test {
 		];
 		test_combinations(combinations, signals);
 	}
+	#[test]
+	fn test_v3_esbcd00dnk_r_2020_gnss_combinations() {
+        let rinex = Rinex::from_file("../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
+			.unwrap();
+        let record = rinex.record.as_obs()
+            .unwrap();
+		let gf = record.combine(Combination::GeometryFree);
+		let mut combinations: Vec<(Observable, Observable)> = 
+			gf.keys().map(|(lhs, rhs)| (lhs.clone(), rhs.clone())).collect();
+		let mut signals = vec![
+			Observable::from_str("C1C").unwrap(),
+			Observable::from_str("C1W").unwrap(),
+			Observable::from_str("C2I").unwrap(),
+			Observable::from_str("C2L").unwrap(),
+			Observable::from_str("C2W").unwrap(),
+			Observable::from_str("C5I").unwrap(),
+			Observable::from_str("C5Q").unwrap(),
+			Observable::from_str("C6C").unwrap(),
+			Observable::from_str("C6I").unwrap(),
+			Observable::from_str("C7I").unwrap(),
+			Observable::from_str("C7Q").unwrap(),
+			Observable::from_str("C8Q").unwrap(),
+			
+			Observable::from_str("L1C").unwrap(),
+			Observable::from_str("L2I").unwrap(),
+			Observable::from_str("L2L").unwrap(),
+			Observable::from_str("L2W").unwrap(),
+			Observable::from_str("L5I").unwrap(),
+			Observable::from_str("L5Q").unwrap(),
+			Observable::from_str("L6C").unwrap(),
+			Observable::from_str("L6I").unwrap(),
+			Observable::from_str("L7I").unwrap(),
+			Observable::from_str("L7Q").unwrap(),
+			Observable::from_str("L8Q").unwrap(),
+		];
+		test_combinations(combinations, signals);
+	}
 }
