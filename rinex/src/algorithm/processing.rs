@@ -21,6 +21,8 @@ pub trait Processing {
 	fn stddev(&self) -> HashMap<Sv, HashMap<Observable, f64>>;
 	//fn stddev_sv(&self) -> HashMap<Sv, HashMap<Observable, f64>>;
 	//fn stddev_observable(&self) -> HashMap<Sv, HashMap<Observable, f64>>;
+	
+	fn stdvar(&self) -> HashMap<Sv, HashMap<Observable, f64>>;
 
 	//smoothing(&self) -> Self {}
 	//smoothing_mut(&self);

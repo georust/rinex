@@ -1119,7 +1119,56 @@ impl Processing for Record {
 		ret
 	}
 	fn stddev(&self) -> HashMap<Sv, HashMap<Observable, f64>> {
-		let ret: HashMap<Sv, HashMap<Observable, f64>> = HashMap::new();
+		let mut stddev = self.stddev();
+		for (_, observables) in stddev.iter_mut() {
+			for (observable, data) in observables.iter_mut() {
+				*data = data.sqrt();
+			}
+		}
+		stddev
+	}
+	fn stdvar(&self) -> HashMap<Sv, HashMap<Observable, f64>> {
+		let mean = self.mean();
+		let mut ret: HashMap<Sv, HashMap<Observable, f64>> = HashMap::new();
+		let mut diff: HashMap<Sv, HashMap<Observable, (u32, f64)>> = HashMap::new();
+		for (_, (_, svs)) in self {
+			for (sv, observables) in svs {
+				for (observable, observation) in observables {
+					let mean = mean.get(&sv)
+						.unwrap()
+							.get(&observable)
+							.unwrap();
+					if let Some(data) = diff.get_mut(sv) {
+						if let Some((count, diff)) = data.get_mut(observable) {
+							*count += 1;
+							*diff += (observation.obs - mean).powf(2.0);
+						} else {
+							data.insert(observable.clone(), (1, (observation.obs - mean).powf(2.0))); 
+						}
+					} else {
+						let mut map: HashMap<Observable, (u32, f64)> = HashMap::new();
+						map.insert(observable.clone(), (1, (observation.obs - mean).powf(2.0))); 
+						diff.insert(*sv, map);
+					}
+				}
+			}
+		}
+		let mut ret: HashMap<Sv, HashMap<Observable, f64>> = HashMap::new();
+		for (sv, observables) in diff {
+			for (observable, (count, diff)) in observables {
+				if let Some(data) = ret.get_mut(&sv) {
+					if let Some(data) = data.get_mut(&observable) {
+						*data = diff /  count as f64;
+					} else {
+						data.insert(observable.clone(), diff /  count as f64); 
+					}
+				} else {
+					let mut map: HashMap<Observable, f64> = HashMap::new();
+					map.insert(observable.clone(), diff /  count as f64); 
+					ret.insert(sv, map);
+				}
+			}
+		}
 		ret
 	}
 	fn derivative(&self) -> BTreeMap<Epoch, HashMap<Sv, HashMap<Observable, f64>>> {
@@ -1262,5 +1311,13 @@ mod test {
 		let g06 = mean.get(&Sv::from_str("G06").unwrap()).unwrap();
 		let s1c = g06.get(&Observable::from_str("S1C").unwrap()).unwrap();
 		assert_eq!(*s1c, 43.0);
+
+		// STDVAR
+		let stdvar = record.stdvar();
+		let mean = (51.25_f64 + 50.75_f64 + 49.5_f64)/3.0_f64;
+		let expected = ((51.25_f64 - mean).powf(2.0_f64) + (50.75_f64 - mean).powf(2.0_f64) + (49.5_f64 - mean).powf(2.0_f64)) / 3.0f64;
+		let g01 = stdvar.get(&Sv::from_str("G01").unwrap()).unwrap();
+		let s1c =  g01.get(&Observable::from_str("S1C").unwrap()).unwrap();
+		assert_eq!(*s1c, expected);
     }
 }
