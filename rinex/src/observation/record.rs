@@ -1214,6 +1214,7 @@ impl Processing for Record {
 	}
 }
 
+use crate::Carrier;
 use crate::processing::{Combination, Combine};
 
 /*
@@ -1232,7 +1233,7 @@ fn gf_combination(record: &Record) -> HashMap<(Observable, Observable), HashMap<
 				}
 				let lhs_code = lhs_observable.to_string();
 				let lhs_carrier = &lhs_code[1..2];
-				
+
 				// determine another carrier
 				let rhs_carrier = match lhs_carrier {
 					// this will restrict combinations to
@@ -1241,7 +1242,7 @@ fn gf_combination(record: &Record) -> HashMap<(Observable, Observable), HashMap<
 				};
 				
 				// locate a reference code against another carrier
-				let mut reference: Option<(Observable, f64)> = None;
+				let mut reference: Option<(Observable, (f64, f64, f64))> = None;
 				for (ref_observable, ref_data) in observations {
 					let mut shared_physics = ref_observable.is_phase_observable()
 						&& lhs_observable.is_phase_observable();
@@ -1254,14 +1255,28 @@ fn gf_combination(record: &Record) -> HashMap<(Observable, Observable), HashMap<
 					let refcode = ref_observable.to_string();
 					let carrier_code = &refcode[1..2];
 					if carrier_code == rhs_carrier {
-						reference = Some((ref_observable.clone(), ref_data.obs));
+						if ref_observable.is_phase_observable() {
+							let carrier = Carrier::from_code(sv.constellation, &refcode)
+								.unwrap();
+							reference = Some((ref_observable.clone(), (carrier.carrier_wavelength(), carrier.carrier_frequency_mhz(), ref_data.obs)));
+						} else {
+							reference = Some((ref_observable.clone(), (1.0, 1.0, ref_data.obs)));
+						}
 						break; // DONE searching
 					}
 				}
 
-				if let Some((ref_observable, ref_data)) = reference { // got a reference
+				if let Some((ref_observable, (ref_lambda, ref_freq, ref_data))) = reference { // got a reference
 					let gf = match ref_observable.is_phase_observable() {
-						true => lhs_data.obs - ref_data, 
+						true => {
+							let carrier = Carrier::from_code(sv.constellation, &lhs_code)
+								.unwrap();
+							let lhs_lambda = carrier.carrier_wavelength();
+							let lhs_freq = carrier.carrier_frequency_mhz();
+							let gamma = lhs_freq / ref_freq;
+							let total_scaling = 1.0 / (gamma.powf(2.0) - 1.0);
+							(lhs_data.obs * lhs_lambda - ref_data * ref_lambda) * total_scaling 
+						},
 						false => ref_data - lhs_data.obs, // PR: sign differs
 					};
 					
@@ -1575,6 +1590,104 @@ impl Combine for Record {
 	}
 }
 
+use crate::{carrier, processing::Dcb};
+
+impl Dcb for Record {
+	fn dcb(&self) -> HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
+        let mut ret: HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> =
+            HashMap::new();
+		for (epoch, (_, vehicules)) in self {
+			for (sv, observations) in vehicules {
+				for (lhs_observable, lhs_observation) in observations {
+					if !lhs_observable.is_phase_observable() {
+						if !lhs_observable.is_pseudorange_observable() {
+							continue;
+						}
+					}
+					let lhs_code = lhs_observable.to_string();
+					let lhs_carrier = &lhs_code[1..2];
+					let lhs_code = &lhs_code[1..];
+
+					for rhs_code in carrier::KNOWN_CODES.iter() { // locate a reference code
+						if *rhs_code != lhs_code { // code differs
+							if rhs_code.starts_with(lhs_carrier) { // same carrier
+								let tolocate = match lhs_observable.is_phase_observable() {
+									true => "L".to_owned() + rhs_code, // same physics
+									false => "C".to_owned() + rhs_code, // same physics
+								};
+								let tolocate = Observable::from_str(&tolocate)
+									.unwrap();
+								if let Some(rhs_observation) = observations.get(&tolocate) { // got a reference code
+									let mut already_diffd = false;
+
+									for (op, vehicules) in ret.iter_mut() {
+										if op.contains(lhs_code) {
+											already_diffd = true;
+
+											// determine this code's role in the diff op
+											// so it remains consistent
+											let items: Vec<&str> = op.split("-").collect();
+											
+											if lhs_code == items[0] {
+												// code is differenced
+												if let Some(data) = vehicules.get_mut(&sv) {
+													data.insert(
+														*epoch,
+														lhs_observation.obs - rhs_observation.obs,
+													);
+												} else {
+													let mut bmap: BTreeMap<
+														(Epoch, EpochFlag),
+														f64,
+													> = BTreeMap::new();
+													bmap.insert(
+														*epoch,
+														lhs_observation.obs - rhs_observation.obs,
+													);
+													vehicules.insert(*sv, bmap);
+												}
+											} else { // code is refered to 
+												if let Some(data) = vehicules.get_mut(&sv) {
+													data.insert(
+														*epoch,
+														rhs_observation.obs - lhs_observation.obs,
+													);
+												} else {
+													let mut bmap: BTreeMap<
+														(Epoch, EpochFlag),
+														f64,
+													> = BTreeMap::new();
+													bmap.insert(
+														*epoch,
+														rhs_observation.obs - lhs_observation.obs,
+													);
+													vehicules.insert(*sv, bmap);
+												}
+											}
+										}
+									}
+									if !already_diffd {
+										let mut bmap: BTreeMap<(Epoch, EpochFlag), f64> =
+											BTreeMap::new();
+										bmap.insert(*epoch, lhs_observation.obs - rhs_observation.obs);
+										let mut map: HashMap<
+											Sv,
+											BTreeMap<(Epoch, EpochFlag), f64>,
+										> = HashMap::new();
+										map.insert(*sv, bmap);
+										ret.insert(format!("{}-{}", lhs_code, rhs_code), map);
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		ret
+	}
+}
+
 use crate::processing::IonoDelayDetector;
 
 impl IonoDelayDetector for Record {
@@ -1583,7 +1696,7 @@ impl IonoDelayDetector for Record {
 		let mut ret:  HashMap<Observable, HashMap<Sv, BTreeMap<Epoch, f64>>>  = HashMap::new();
 		let mut prev_data: HashMap<(Observable, Observable), HashMap<Sv, (Epoch, f64)>> = HashMap::new();
 		for (combination, vehicles) in gf {
-			let (lhs_observable, ref_observable) = combination.clone();
+		let (lhs_observable, ref_observable) = combination.clone();
 			if !ref_observable.is_phase_observable() {
 				continue ; // only on phase data
 			}

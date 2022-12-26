@@ -1,3 +1,4 @@
+mod dcb;
 mod mask;
 mod sampling;
 mod processing;
@@ -5,6 +6,7 @@ mod combination;
 mod ionospheric;
 //mod partitioning;
 
+pub use dcb::Dcb;
 pub use sampling::Decimation;
 pub use mask::{Mask, MaskFilter, MaskOperand};
 pub use processing::Processing;

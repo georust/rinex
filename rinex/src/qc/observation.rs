@@ -62,7 +62,6 @@ impl QcReport {
         //let mut ssi_avg: HashMap<String, Averager> = HashMap::with_capacity(total_sv);
         let mut mean_ssi: HashMap<String, Vec<(Epoch, f64)>> = HashMap::with_capacity(total_sv);
         // DCBs
-        let mut dcbs = rnx.observation_phase_dcb();
         // MPx
         let mut mp = rnx.observation_code_multipath();
 
@@ -167,7 +166,7 @@ impl QcReport {
             total_clk,
             clk_drift,
             mean_ssi,
-            dcbs,
+            dcbs: HashMap::new(),
             mp,
             sv_angles,
             apc_estimate: apc,

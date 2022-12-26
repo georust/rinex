@@ -87,8 +87,11 @@ use gnss_time::TimeScaling;
 
 pub use merge::Merge;
 pub use split::Split;
+
+use algorithm::Dcb; 
 use algorithm::Decimation;
 use algorithm::IonoDelayDetector; 
+use algorithm::{Combine, Combination}; 
 
 #[macro_use]
 extern crate horrorshow;
@@ -1910,7 +1913,23 @@ impl Rinex {
 			HashMap::new()
 		}
 	}
-    /// Code multipath analysis (MP_i), cf.
+	/// GNSS signal combinations
+	pub fn observation_combination(&self, combination: Combination) ->  HashMap<(Observable, Observable), HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
+		if let Some(r) = self.record.as_obs() {
+			r.combine(combination)
+		} else {
+			HashMap::new()
+		}
+	}
+	/// GNSS code biases
+	pub fn observation_dcb(&self) -> HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
+		if let Some(r) = self.record.as_obs() {
+			r.dcb()
+		} else {
+			HashMap::new()
+		}
+	}
+	/// Code multipath analysis (MP_i), cf.
     /// phase data model <https://github.com/gwbres/rinex/blob/main/rinex-cli/doc/gnss-combination.md>.
     pub fn observation_code_multipath(
         &self,
@@ -2370,207 +2389,6 @@ impl Rinex {
             results
         }
     */
-    /// (Phase) Differential Code biases,
-    /// cf. phase data model <https://github.com/gwbres/rinex/blob/main/rinex-cli/doc/gnss-combination.md>.
-    pub fn observation_phase_dcb(
-        &self,
-    ) -> HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
-        let mut ret: HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> =
-            HashMap::new();
-        if let Some(record) = self.record.as_obs() {
-            for (epoch, (_, vehicules)) in record {
-                for (sv, observations) in vehicules {
-                    for (observable, obsdata) in observations {
-                        if observable.is_phase_observable() {
-                            // => phase observation
-                            let code = observable.code().unwrap();
-                            let carrier_id = &code[1..2];
-                            let code = &code[1..];
-                            // locate a reference PH code for this PH code
-                            for k_code in carrier::KNOWN_CODES.iter() {
-                                if *k_code != code {
-                                    // different code
-                                    if k_code.starts_with(carrier_id) {
-                                        // same carrier
-                                        let tolocate = "L".to_owned() + k_code;
-                                        let tolocate = Observable::from_str(&tolocate).unwrap();
-                                        if let Some(otherdata) = observations.get(&tolocate) {
-                                            // we found another PH code
-                                            let mut found = false;
-                                            for (op, vehicules) in ret.iter_mut() {
-                                                if op.contains(code) {
-                                                    found = true;
-                                                    // Diff Op already under progress
-                                                    // now we need to determine code' and k_code' roles
-                                                    // so referencing remains consistent
-                                                    let items: Vec<&str> = op.split("-").collect();
-                                                    if code == items[0] {
-                                                        // code is differentiated
-                                                        // -- is this a new entry ?
-                                                        if let Some(data) = vehicules.get_mut(&sv) {
-                                                            data.insert(
-                                                                *epoch,
-                                                                obsdata.obs - otherdata.obs,
-                                                            );
-                                                        } else {
-                                                            let mut bmap: BTreeMap<
-                                                                (Epoch, EpochFlag),
-                                                                f64,
-                                                            > = BTreeMap::new();
-                                                            bmap.insert(
-                                                                *epoch,
-                                                                obsdata.obs - otherdata.obs,
-                                                            );
-                                                            vehicules.insert(*sv, bmap);
-                                                        }
-                                                    } else {
-                                                        // code is differentiated
-                                                        // -- is this a new entry ?
-                                                        if let Some(data) = vehicules.get_mut(&sv) {
-                                                            data.insert(
-                                                                *epoch,
-                                                                otherdata.obs - obsdata.obs,
-                                                            );
-                                                        } else {
-                                                            let mut bmap: BTreeMap<
-                                                                (Epoch, EpochFlag),
-                                                                f64,
-                                                            > = BTreeMap::new();
-                                                            bmap.insert(
-                                                                *epoch,
-                                                                otherdata.obs - obsdata.obs,
-                                                            );
-                                                            vehicules.insert(*sv, bmap);
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                            if !found {
-                                                // this is a new Diff Op
-                                                // => initiate it
-                                                let mut bmap: BTreeMap<(Epoch, EpochFlag), f64> =
-                                                    BTreeMap::new();
-                                                bmap.insert(*epoch, otherdata.obs - obsdata.obs);
-                                                let mut map: HashMap<
-                                                    Sv,
-                                                    BTreeMap<(Epoch, EpochFlag), f64>,
-                                                > = HashMap::new();
-                                                map.insert(*sv, bmap);
-                                                ret.insert(format!("{}-{}", code, k_code), map);
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        ret
-    }
-    /// (PR) Differential Code biases,
-    /// cf. phase data model <https://github.com/gwbres/rinex/blob/main/rinex-cli/doc/gnss-combination.md>.
-    /// Cf. page 12
-    /// <http://navigation-office.esa.int/attachments_12649498_1_Reichel_5thGalSciCol_2015.pdf>.
-    pub fn observation_pseudorange_dcb(
-        &self,
-    ) -> HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
-        let mut ret: HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> =
-            HashMap::new();
-        if let Some(record) = self.record.as_obs() {
-            for (epoch, (_, vehicules)) in record {
-                for (sv, observations) in vehicules {
-                    for (observable, obsdata) in observations {
-                        if observable.is_pseudorange_observable() {
-                            // => PR
-                            let code = observable.code().unwrap();
-                            let carrier_id = &code[1..2];
-                            let code = &code[1..];
-                            // locate a reference PR code for this PR code
-                            for k_code in carrier::KNOWN_CODES.iter() {
-                                if *k_code != code {
-                                    // different code
-                                    if k_code.starts_with(carrier_id) {
-                                        // same carrier
-                                        let tolocate = "C".to_owned() + k_code;
-                                        let tolocate = Observable::from_str(&tolocate).unwrap();
-                                        if let Some(otherdata) = observations.get(&tolocate) {
-                                            // we found a ref. code
-                                            let mut found = false;
-                                            for (op, vehicules) in ret.iter_mut() {
-                                                if op.contains(code) {
-                                                    found = true;
-                                                    // Diff Op already under progress
-                                                    // now we need to determine code' and k_code' roles
-                                                    // so referencing remains consistent
-                                                    let items: Vec<&str> = op.split("-").collect();
-                                                    if code == items[0] {
-                                                        // code is differentiated
-                                                        // -- is this a new entry ?
-                                                        if let Some(data) = vehicules.get_mut(&sv) {
-                                                            data.insert(
-                                                                *epoch,
-                                                                obsdata.obs - otherdata.obs,
-                                                            );
-                                                        } else {
-                                                            let mut bmap: BTreeMap<
-                                                                (Epoch, EpochFlag),
-                                                                f64,
-                                                            > = BTreeMap::new();
-                                                            bmap.insert(
-                                                                *epoch,
-                                                                obsdata.obs - otherdata.obs,
-                                                            );
-                                                            vehicules.insert(*sv, bmap);
-                                                        }
-                                                    } else {
-                                                        // code is differentiated
-                                                        // -- is this a new entry ?
-                                                        if let Some(data) = vehicules.get_mut(&sv) {
-                                                            data.insert(
-                                                                *epoch,
-                                                                otherdata.obs - obsdata.obs,
-                                                            );
-                                                        } else {
-                                                            let mut bmap: BTreeMap<
-                                                                (Epoch, EpochFlag),
-                                                                f64,
-                                                            > = BTreeMap::new();
-                                                            bmap.insert(
-                                                                *epoch,
-                                                                otherdata.obs - obsdata.obs,
-                                                            );
-                                                            vehicules.insert(*sv, bmap);
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                            if !found {
-                                                // this is a new Diff Op
-                                                // => initiate it
-                                                let mut bmap: BTreeMap<(Epoch, EpochFlag), f64> =
-                                                    BTreeMap::new();
-                                                bmap.insert(*epoch, otherdata.obs - obsdata.obs);
-                                                let mut map: HashMap<
-                                                    Sv,
-                                                    BTreeMap<(Epoch, EpochFlag), f64>,
-                                                > = HashMap::new();
-                                                map.insert(*sv, bmap);
-                                                ret.insert(format!("{}-{}", code, k_code), map);
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        ret
-    }
-
     /*
         /// Applies Hatch filter to all Pseudo Range observations.
         /// When feasible dual frequency dual code method is prefered
