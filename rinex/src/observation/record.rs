@@ -1081,30 +1081,6 @@ impl Processing for Record {
 		ret
 	}
 	fn mean(&self) -> HashMap<Sv, HashMap<Observable, f64>> {
-		let mut ret: HashMap<Sv, HashMap<Observable, f64>> = HashMap::new();
-		for (_, (_, svs)) in self {
-			for (sv, observables) in svs {
-				for (observable, observation) in observables {
-					if let Some(data) = ret.get_mut(sv) {
-						if let Some(data) = data.get_mut(observable) {
-							if observation.obs > *data {
-								*data = observation.obs;
-							}
-						} else {
-							data.insert(observable.clone(), observation.obs);
-						}
-					} else {
-						let mut map: HashMap<Observable, f64> = HashMap::new();
-						map.insert(observable.clone(), observation.obs);
-						ret.insert(*sv, map);
-					}
-				}
-			}
-		}
-		ret
-	}
-	fn stddev(&self) -> HashMap<Sv, HashMap<Observable, f64>> {
-		let mean = self.mean();
 		let mut sum: HashMap<Sv, HashMap<Observable, (u32, f64)>> = HashMap::new();
 		for (_, (_, svs)) in self {
 			for (sv, observables) in svs {
@@ -1124,14 +1100,26 @@ impl Processing for Record {
 				}
 			}
 		}
-		let ret: HashMap<Sv, HashMap<Observable, f64>> = sum.iter()
-			.map(|(sv, observables)| {
-				observables.iter()
-					.map(|(observable, (count, sum))| {
-						(observable, sum / *count as f64)
-					})
-			})
-			.collect();
+		let mut ret: HashMap<Sv, HashMap<Observable, f64>> = HashMap::new();
+		for (sv, observables) in sum {
+			for (observable, (count, sum)) in observables {
+				if let Some(data) = ret.get_mut(&sv) {
+					if let Some(data) = data.get_mut(&observable) {
+						*data = sum / count as f64;
+					} else {
+						data.insert(observable.clone(), sum / count as f64);
+					}
+				} else {
+					let mut map: HashMap<Observable, f64> = HashMap::new();
+					map.insert(observable.clone(), sum / count as f64);
+					ret.insert(sv, map);
+				}
+			}
+		}
+		ret
+	}
+	fn stddev(&self) -> HashMap<Sv, HashMap<Observable, f64>> {
+		let ret: HashMap<Sv, HashMap<Observable, f64>> = HashMap::new();
 		ret
 	}
 	fn derivative(&self) -> BTreeMap<Epoch, HashMap<Sv, HashMap<Observable, f64>>> {
@@ -1272,7 +1260,7 @@ mod test {
 		assert_eq!(*s1c, (51.250 + 50.750 + 49.5)/3.0);
 		
 		let g06 = mean.get(&Sv::from_str("G06").unwrap()).unwrap();
-		let s1c = g01.get(&Observable::from_str("S1C").unwrap()).unwrap();
+		let s1c = g06.get(&Observable::from_str("S1C").unwrap()).unwrap();
 		assert_eq!(*s1c, 43.0);
     }
 }
