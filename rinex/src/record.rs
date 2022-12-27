@@ -18,6 +18,7 @@ use super::{
     split::Split,
     types::Type,
     writer::BufferedWriter,
+	algorithm::{Preprocessing, Filter},
     *,
 };
 use hifitime::Duration;
@@ -816,25 +817,23 @@ impl TimeScaling<Record> for Record {
     }
 }
 
-use crate::processing::{Mask, MaskFilter};
-
-impl MaskFilter for Record {
-    fn apply(&self, mask: Mask) -> Self {
+impl Preprocessing for Record {
+    fn filter(&self, f: Filter) -> Self {
         let mut s = self.clone();
-        s.apply_mut(mask);
+        s.filter_mut(f);
         s
     }
-    fn apply_mut(&mut self, mask: Mask) {
+    fn filter_mut(&mut self, f: Filter) {
         if let Some(r) = self.as_mut_obs() {
-            r.apply_mut(mask);
-        } else if let Some(r) = self.as_mut_nav() {
-            r.apply_mut(mask);
+            r.filter_mut(f);
+        }/* else if let Some(r) = self.as_mut_nav() {
+            r.filter_mut(mask);
         } else if let Some(r) = self.as_mut_clock() {
-            r.apply_mut(mask);
+            r.filter_mut(mask);
         } else if let Some(r) = self.as_mut_meteo() {
-            r.apply_mut(mask);
+            r.filter_mut(mask);
         } else if let Some(r) = self.as_mut_ionex() {
-            r.apply_mut(mask);
-        }
+            r.filter_mut(mask);
+        }*/
     }
 }

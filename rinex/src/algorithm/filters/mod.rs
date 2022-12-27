@@ -1,6 +1,6 @@
 mod mask;
 use super::TargetItem;
-use mask::{MaskFilter, MaskOperand};
+pub use mask::{MaskFilter, MaskOperand};
 
 use thiserror::Error;
 
@@ -14,16 +14,21 @@ pub enum Error {
 	MaskError(String),
 	#[error("invalid filter target")]
 	TargetItemError(#[from] super::target::Error),
+	#[error("failed to apply filter")]
+	FilterError,
 }
 
 /// Smoothing Filter to smooth data subsets
+#[derive(Debug, Clone)]
 pub enum SmoothingFilter {
 	/// Hatch filter to smooth pseudo range observations
 	HatchFilter,
 }
 
-/// Preprocessing filters /algorithms to preprocess RINEX data 
-pub enum PreFilter {
+/// Preprocessing filters, to process RINEX data 
+/// prior analysis
+#[derive(Debug, Clone)]
+pub enum Filter {
 	/// Mask filter is used to focus or remove a specific data subset
 	Mask(mask::MaskFilter),
 	/// Smoothing filter is used to smooth a data subset
@@ -32,12 +37,12 @@ pub enum PreFilter {
 	// Interp(MaskFilter),
 }
 
-impl std::str::FromStr for PreFilter {
+impl std::str::FromStr for Filter {
 	type Err = Error;
 	fn from_str(content: &str) -> Result<Self, Self::Err> {
 		let items: Vec<&str> = content.split(":")
 			.collect();
-		if items.len() < 3 {
+		if items.len() < 2 {
 			return Err(Error::InvalidDescriptor);
 		}
 		if items[0].trim().eq("mask") {
@@ -61,11 +66,10 @@ impl std::str::FromStr for PreFilter {
 	}
 }
 
-/*
 pub trait Preprocessing {
-	fn apply(&self, filt: PreFilter) -> Result<Self, AlgorithmError> where Self: Sized;
-	fn apply_mut(&mut self, filt: PreFilter) -> Result<(), AlgorithmError>;
-}*/
+	fn filter(&self, filt: Filter) -> Self;
+	fn filter_mut(&mut self, filt: Filter);
+}
 
 #[cfg(test)]
 mod test {
@@ -74,16 +78,31 @@ mod test {
 	#[test]
 	fn algo_filter_maskfilter() {
 		for desc in vec![
-			"mask: gt: elev: 10.0",
-			"mask: gnss: GPS",
-			"mask: sv: G08, G09, G10",
-			"mask: eq: gnss: GPS",
-			"mask: eq: gnss: GLO, GAL",
-			"mask: ineaeq: gnss: GLO, GAL",
-			"mask: sv: G08, G09",
+			"mask:gt: 10.0",
+			"mask:eq:GPS",
+			"mask:neq: GPS",
+			"mask:eq:G08, G09, G10",
+			"mask:neq:GPS, GAL",
+			"mask:gt: G08, G09",
+			"mask:eq:GPS",
+			"mask:eq:GPS, GAL",
+			"mask:eq:G08, G09",
 		] {
-			let filt = PreFilter::from_str(desc);
-			assert!(filt.is_ok());
+			let filt = Filter::from_str(desc);
+			assert!(filt.is_ok(), "Filter::from_str error on \"{}\"", desc);
+		}
+	}
+	#[test]
+	fn algo_filter_omitted_operands() {
+		for desc in vec![
+			"mask:10.0",
+			"mask:10.0, 13.0",
+			"mask:GPS",
+			"mask:GPS,GAL",
+			"mask:G08, G09, G10",
+		] {
+			let filt = Filter::from_str(desc);
+			assert!(filt.is_ok(), "Filter::from_str error on \"{}\"", desc);
 		}
 	}
 }

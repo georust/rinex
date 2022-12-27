@@ -1,5 +1,5 @@
 use thiserror::Error;
-use crate::processing::{AlgorithmError, TargetItem};
+use crate::processing::TargetItem;
 
 #[derive(Error, Debug)]
 pub enum Error {

@@ -82,11 +82,10 @@ depicts shared epochs and vehicles between the two contexts."))
                         .short('S')
                         .action(ArgAction::SetTrue)
                         .help("Filters out all SBAS vehicles"))
-                    .arg(Arg::new("filter")
-                        .short('F')
-                        .num_args(1..)
-                        .help("Design filter(s) to retain data of interest
-and exclude other subsets. Refer to the filter design section of the README."))
+					.arg(Arg::new("preprocessing")
+						.short('P')
+						.num_args(1..)
+						.help("Apply a preprocessing filter. Refer to filter design section of the README."))
                     .arg(Arg::new("resample-ratio")
                         .long("resample-ratio")
                         .short('r')
@@ -244,7 +243,7 @@ For example -fp was filtered and decimated, use --output to dump results into a 
                         .help("Custom header attributes, in case we're generating data.
 --custom-header must either be plain JSON or an external JSON descriptor.
 Refer to README"))
-                .next_help_heading("Terminal options")
+                .next_help_heading("Terminal (options)")
                     .arg(Arg::new("quiet")
                         .short('q')
                         .action(ArgAction::SetTrue)
@@ -254,7 +253,7 @@ Refer to README"))
                         .long("pretty")
                         .action(ArgAction::SetTrue)
                         .help("Make terminal output more readable"))
-                .next_help_heading("HTML options")
+                .next_help_heading("HTML (options)")
                     .arg(Arg::new("tiny-html")
                         .long("tiny-html")
                         .action(ArgAction::SetTrue)
@@ -275,8 +274,15 @@ Refer to README"))
             None
         }
     }
-    pub fn filters(&self) -> Vec<&String> {
-        if let Some(filters) = self.matches.get_many::<String>("filter") {
+    pub fn mask_filters(&self) -> Vec<&String> {
+        if let Some(filters) = self.matches.get_many::<String>("mask-filter") {
+            filters.collect()
+        } else {
+            Vec::new()
+        }
+    }
+    pub fn preprocessing(&self) -> Vec<&String> {
+        if let Some(filters) = self.matches.get_many::<String>("preprocessing") {
             filters.collect()
         } else {
             Vec::new()
