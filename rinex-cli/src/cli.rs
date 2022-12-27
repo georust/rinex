@@ -210,14 +210,18 @@ Most useful when combined to Observation RINEX. Also enables the complete (full)
                         .help("Enable Quality Check (QC) mode.
 Runs thorough analysis on provided RINEX data.
 The summary report by default is integrated to the global HTML report."))
+					.arg(Arg::new("qc-config")
+						.long("conf")
+						.value_name("[FILE]")
+						.help("Pass a QC configuration file."))
                     .arg(Arg::new("qc-separate")
                         .long("qc-separate")
                         .action(ArgAction::SetTrue)
-                        .help("Dump QC report in separate HTML"))
+                        .help("Seperate QC report from other HTML reports."))
                     .arg(Arg::new("qc-only")
                         .long("qc-only")
                         .action(ArgAction::SetTrue)
-                        .help("Enables QC mode and disables all other graphs: smallest QC report possible."))
+                        .help("Enables QC mode and disables all other graphs: smallest HTML report possible."))
                 .next_help_heading("File operations")
                     .arg(Arg::new("merge")
                         .short('m')
@@ -291,6 +295,24 @@ Refer to README"))
     pub fn quality_check(&self) -> bool {
         self.matches.get_flag("qc")
     }
+	fn qc_config_path(&self) -> Option<&String> {
+		if let Some(path) = self.matches.get_one::<String>("qc-config") {
+			Some(path)
+		} else {
+			None
+		}
+	}
+	fn qc_config(&self) -> Option<QcOpts> {
+		if let Some(path) = self.qc_config_path() {
+			if let Ok(json) = json::deserialize(path) {
+				if let Ok(opts) = QcOpts::deserialize(json) {
+					Some(opts)
+				}
+			}
+		} else {
+			None
+		}
+	}
     pub fn quality_check_separate(&self) -> bool {
         self.matches.get_flag("qc-separate")
     }

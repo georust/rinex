@@ -1,0 +1,6 @@
+{
+	"reporting": "PerConstellation",
+	"statistical": {
+		"window": "25%"	
+	}
+}

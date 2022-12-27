@@ -44,6 +44,7 @@ pub struct QcReport {
 }
 
 impl QcReport {
+	/// Builds a basic QC report using default reporting and generation options
     pub fn basic(rnx: &Rinex, nav: &Option<Rinex>) -> Self {
         Self::new(rnx, nav, None)
     }

@@ -38,6 +38,7 @@ pub fn main() -> Result<(), rinex::Error> {
 
     let quiet = cli.quiet();
 
+	let qc_opts = cli.qc_config();
     let qc_only = cli.quality_check_only();
     let qc = cli.quality_check() || qc_only;
 
@@ -252,7 +253,7 @@ pub fn main() -> Result<(), rinex::Error> {
      */
     if qc {
         info!("qc mode");
-        let report = QcReport::basic(&ctx.primary_rinex, &ctx.nav_rinex);
+        let report = QcReport::new(&ctx.primary_rinex, &ctx.nav_rinex, qc_config);
 
         if cli.quality_check_separate() {
             let qc_absolute_path = ctx.prefix.to_owned() + "/qc.html";
