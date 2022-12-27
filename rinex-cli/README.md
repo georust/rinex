@@ -84,8 +84,14 @@ rinex-cli --fp test_resources/NAV/V2/amel010.21g
 
 ## HTML and analysis report
 
-When an operation is requested, it gets added to the general report
-being generated. Most analysis are graphical. The Quality Check (`--qc`) summary report
+When an operation is requested, it gets added to the report
+being generated. Most analysis are graphical, based on `plotly`.  
+
+`plotly` is a powerful interface that will provide a tiny GUI for each analysis
+requested. Use a double click on the legend to focus and filter out a dataset.  
+Use the "export to PNG" feature to save the current view as a file.
+
+The Quality Check (`--qc`) summary report
 is a more verbose approach, where information you may get from graphs analysis
 or graphs manipulation are exposed or depicted in another form.  
   
@@ -115,147 +121,31 @@ are interested in some of the graphs we developed.
 
 ## Basic operations
 
-TODO
+Basic operations consist in data enumeration mainly. There the only ones that only generate a Terminal output (_stdout_).
 
-To proceed towards advanced operations, start with the [record analysis](#record-analysis) 
-paragraph down below.  
-
-## Filter designer
-
-RINEX files are huge and the information you're interested might not be directly visible.    
-This tool also supports a lot of operations. A filter design interface is now introduced to address
-that problem.  
-  
-It is important to master the _filter designer_ to operate this tool efficiently.  
-  
-A filter is specified with a verbose description, prefixed with `-F`. 
-
-Currently we define them as "preprocessing" filter, they apply prior further analysis
-and their mostly used to reduce the whole dataset to an interesting smaller / focused dataset.  
-  
-One can stack as many filters as desired, they will apply in the specified order.
-
-Three types of preprocessing filter are known to this day
-
-* `mask` filters
-* `smoothing` filters
-* `interpolation` filters
-
-A filter description has always the form 'type:description'.   
-The description is "type" dependent and is described down below.  
-
-### Mask filter
-
-Mask filter are used to zoom in on a data subset or drop non interesting data subsets.    
-They support a broad range of targets. Their description always starts with `-F 'mask:`.  
-  
-Here are a few examples of masking operations:
-
-1. Apply a unique filter, to only keep Sv we're interested in:
-
-```bash
-rinex-cli \
-    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.gz \
-    -F 'mask:sv:G08,G09,G10'
-```
-
-### Supported filter operands
-
-* `gt`:  Greater than (>)
-* `geq`: Greater than included (>=)
-* `lt`:  Lower than (<)
-* `leq`: Lower than included (<=)
-* `eq`: Equality condition (=)
-* `neq`: Non Equality (!=)
-
-When the operand is omited, "=" is implied, for example these  
-are two equivalent filters
-
-```bash
-`-F mask:gnss:gps,glo`
-`-F mask:eq:gnss:GPS, GLO` 
-```
-
-Some operands do not make sense depending on the targeted items.  
-That is true for example for the `gnss` categories with `lt` or `gt` operands
-for example.  
-  
-These are examples of invalid filter descriptions
-
-```bash
-`-F mask:gt:gps,glo`
-`-F mask:geq:GNSS:GPS, GLO` 
-```
-
-The '>' and '>=' operands do not apply to GNSS constellations.  
-  
-One exception exist for the `Sv` target.   
-For example, with the following filter, we retain PRN above 08 for the GPS and 15 for Glonass
-
-```bash
-`-F mask:gt:sv:G08`
-```
-
-### Combining filters
-
-Any amount of filters is supported.  
-For example, retain PRN above 08 for GPS and below 15 (included) for Glonass:
-
-```bash
-rinex-cli \
-    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.gz \
-    -F mask:gt:sv:G08 mask:leq:R15
-```
-
-### Filter summary
-
-* `-F 'description'` is how you describe a filter. Use inverted commas  
-if $description contains whitespaces  
-  
-* `-F mask:sv:G08,G09` describes a mask filter targetting vehicles G08, G09.   
-The filter operand is omited: "equality" is implied: we'll retain all data from these vehicles.
-  
-* `-F mask:neq:sv:G08` operand is specified, we'll retain all data from all vehicles but G08.
-
-* `-F mask:gnss:GPS, GAL' `sv` or `gnss` are targeted items.  
-See down below for the complete list of known targets.  
-When several targets are targeted, the payload is a CSV string and whitespaces are allowed.
-
-* `-F smooth:hatch`  the first keyword describes the filter type.  
-  
-* `-F mask:gt:gnss:GPS` some operands  
-
-## Data identification
-
-Basic Identification consists in extracting high level information to understand which 
-data is contained in a given RINEX.
-Examples of such information would be `Epoch` or `Sv` enumerations.
+* `--header` to print the header content (as is)
+* `--epochs` to enumerate encountered Epochs, in chronological order
+* `--sv` to enumerate encountered Sv
+* `--gnss` to enumerate encountered Constellations
+* `--observables` to enumerate encountered Observables
+* `--orbits` to enumerate encountered Orbit fields
 
 For example:
 
 ```bash
-rinex-cli -f KOSG0010.95O --epoch
+rinex-cli --fp test_resources/OBS/V2/KOSG0010.95O --epochs --sv
 ``` 
 
-As always, Identification operations can be stacked together, to perform several at once.
-For example, identify encountered vehicules at the same time:
+A `--pretty` option exists, to make the enumeration more readable
 
 ```bash
-rinex-cli -f test_resources/OBS/V2/KOSG0010.95O --epoch --sv
+rinex-cli --fp test_resources/OBS/V2/KOSG0010.95O --epoch --sv --pretty
 ``` 
 
-Basic operations like these only output to "stdout" currently.  
-The `--pretty` option is there to make the datasets more readable: 
+## Basic analysis
 
-```bash
-rinex-cli -f test_resources/OBS/V2/KOSG0010.95O --epoch --sv --pretty
-``` 
-
-## Data analysis
-
-Several analysis can be stacked to the generated report, 
-like `--sv-epoch` or sample rate analysis with `--epoch-hist`.   
-Refer to their [dedicated page](doc/analysis.md) documentation.
+Several analysis can be stacked to the generated report,    
+see their [dedicated page](doc/analysis.md).
 
 ## Record analysis
 
@@ -270,6 +160,11 @@ distinguish two categories:
 
 Move on to the [record analysis mode](doc/record.md) for thorough
 examples of RINEX record manipulations.
+
+## Pre processing
+
+Learn all our [preprocessing algorithms](doc/preprocessing.md)
+for efficient data analysis.
 
 ## File generation
 
