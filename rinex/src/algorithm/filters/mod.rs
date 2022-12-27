@@ -1,6 +1,9 @@
 mod mask;
+mod smoothing;
+
 use super::TargetItem;
 pub use mask::{MaskFilter, MaskOperand};
+pub use smoothing::{SmoothingFilter};
 
 use thiserror::Error;
 
@@ -16,13 +19,6 @@ pub enum Error {
 	TargetItemError(#[from] super::target::Error),
 	#[error("failed to apply filter")]
 	FilterError,
-}
-
-/// Smoothing Filter to smooth data subsets
-#[derive(Debug, Clone)]
-pub enum SmoothingFilter {
-	/// Hatch filter to smooth pseudo range observations
-	HatchFilter,
 }
 
 /// Preprocessing filters, to process RINEX data 
@@ -58,6 +54,12 @@ impl std::str::FromStr for Filter {
 				))
 			} else {
 				Err(Error::MaskError(content[5..].trim().to_string()))
+			}
+		} else if items[0].trim().eq("smooth") {
+			if let Ok(filt) = SmoothingFilter::from_str(&content[7..].trim()) {
+				Ok(Self::Smoothing(filt))
+			} else {
+				Err(Error::MaskError(content[7..].trim().to_string()))
 			}
 
 		} else {

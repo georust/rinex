@@ -78,7 +78,6 @@ pub fn main() -> Result<(), rinex::Error> {
         info!("epoch histogram analysis");
         analysis::epoch_histogram(&ctx, &mut plot_ctx);
     }
-/*
     /*
      * DCB analysis requested
      */
@@ -168,7 +167,6 @@ pub fn main() -> Result<(), rinex::Error> {
         );
         info!("mw recombination");
     }
-*/
     /*
      * MERGE
      */

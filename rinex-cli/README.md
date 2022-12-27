@@ -147,20 +147,6 @@ rinex-cli --fp test_resources/OBS/V2/KOSG0010.95O --epoch --sv --pretty
 Several analysis can be stacked to the generated report,    
 see their [dedicated page](doc/analysis.md).
 
-## Record analysis
-
-When analyzing a RINEX, it is probably needed to reduce
-the file content and focus on data you're interested in.
-
-We developed several filter operations, from which we
-distinguish two categories:
-
-* [Filtering operations](doc/filtering.md) 
-* [Resampling operations](doc/resampling.md) 
-
-Move on to the [record analysis mode](doc/record.md) for thorough
-examples of RINEX record manipulations.
-
 ## Pre processing
 
 Learn all our [preprocessing algorithms](doc/preprocessing.md)

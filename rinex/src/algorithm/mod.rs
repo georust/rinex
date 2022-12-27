@@ -13,4 +13,4 @@ pub use processing::Processing;
 pub use ionospheric::IonoDelayDetector;
 //pub use partitioning::Partitioning;
 pub use combination::{Combination, Combine};
-pub use filters::{Preprocessing, Filter, MaskFilter, MaskOperand};
+pub use filters::{Preprocessing, Filter, MaskFilter, MaskOperand, SmoothingFilter};

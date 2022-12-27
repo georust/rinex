@@ -826,14 +826,14 @@ impl Preprocessing for Record {
     fn filter_mut(&mut self, f: Filter) {
         if let Some(r) = self.as_mut_obs() {
             r.filter_mut(f);
-        }/* else if let Some(r) = self.as_mut_nav() {
-            r.filter_mut(mask);
+        } else if let Some(r) = self.as_mut_nav() {
+            r.filter_mut(f);
         } else if let Some(r) = self.as_mut_clock() {
-            r.filter_mut(mask);
+            r.filter_mut(f);
         } else if let Some(r) = self.as_mut_meteo() {
-            r.filter_mut(mask);
+            r.filter_mut(f);
         } else if let Some(r) = self.as_mut_ionex() {
-            r.filter_mut(mask);
-        }*/
+            r.filter_mut(f);
+        }
     }
 }

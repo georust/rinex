@@ -1901,6 +1901,22 @@ impl Rinex {
         s.observation_align_phase_origins_mut();
         s
     }
+	/// Form desired signal combinations
+	pub fn observation_combination(&self, combination: Combination) ->  HashMap<(Observable, Observable), HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
+		if let Some(r) = self.record.as_obs() {
+			r.combine(combination)
+		} else {
+			HashMap::new()
+		}
+	}
+	/// GNSS (differential) code biases
+	pub fn observation_dcb(&self) -> HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
+		if let Some(r) = self.record.as_obs() {
+			r.dcb()
+		} else {
+			HashMap::new()
+		}
+	}
     /// Ionospheric delay detector
 	pub fn observation_iono_delay_detector(&self) ->  HashMap<Observable, HashMap<Sv, BTreeMap<Epoch, f64>>> {
 		if let Some(r) = self.record.as_obs() {
@@ -1909,22 +1925,6 @@ impl Rinex {
 			} else {
 				HashMap::new()
 			}
-		} else {
-			HashMap::new()
-		}
-	}
-	/// GNSS signal combinations
-	pub fn observation_combination(&self, combination: Combination) ->  HashMap<(Observable, Observable), HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
-		if let Some(r) = self.record.as_obs() {
-			r.combine(combination)
-		} else {
-			HashMap::new()
-		}
-	}
-	/// GNSS code biases
-	pub fn observation_dcb(&self) -> HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
-		if let Some(r) = self.record.as_obs() {
-			r.dcb()
 		} else {
 			HashMap::new()
 		}
@@ -2626,16 +2626,16 @@ impl TimeScaling<Rinex> for Rinex {
     }
 }
 
-use crate::processing::{Mask, MaskFilter};
+use crate::algorithm::{Preprocessing, Filter};
 
-impl MaskFilter for Rinex {
-    fn apply(&self, mask: Mask) -> Self {
+impl Preprocessing for Rinex {
+    fn filter(&self, f: Filter) -> Self {
         let mut s = self.clone();
-        s.apply_mut(mask);
+        s.filter_mut(f);
         s
     }
-    fn apply_mut(&mut self, mask: Mask) {
-        self.record.apply_mut(mask);
+    fn filter_mut(&mut self, f: Filter) {
+        self.record.filter_mut(f);
     }
 }
 

@@ -1,6 +1,7 @@
 use crate::{
     algorithm::Decimation, epoch, gnss_time::TimeScaling, merge, merge::Merge, prelude::*, split,
     split::Split, version::Version,
+	processing::{Filter, Preprocessing, MaskOperand, TargetItem},
 };
 use hifitime::Duration;
 use std::collections::{BTreeMap, HashMap};
@@ -437,55 +438,58 @@ impl TimeScaling<Record> for Record {
     }
 }
 
-use crate::processing::{Mask, MaskFilter, MaskOperand, TargetItem};
-
-impl MaskFilter for Record {
-    fn apply(&self, mask: Mask) -> Self {
+impl Preprocessing for Record {
+    fn filter(&self, f: Filter) -> Self {
         let mut s = self.clone();
-        s.apply_mut(mask);
+        s.filter_mut(f);
         s
     }
-    fn apply_mut(&mut self, mask: Mask) {
-        match mask.operand {
-            MaskOperand::Equal => match mask.item {
-                TargetItem::EpochItem(epoch) => self.retain(|e, _| *e == epoch),
-                TargetItem::ConstellationItem(mask) => {
-                    self.retain(|_, dtypes| {
-                        dtypes.retain(|_, systems| {
-                            systems.retain(|system, _| {
-                                if let Some(sv) = system.as_sv() {
-                                    mask.contains(&sv.constellation)
-                                } else {
-                                    true // retain other system types
-                                }
-                            });
-                            systems.len() > 0
-                        });
-                        dtypes.len() > 0
-                    });
-                },
-                _ => {},
-            },
-            MaskOperand::NotEqual => match mask.item {
-                TargetItem::EpochItem(epoch) => self.retain(|e, _| *e != epoch),
-                _ => {},
-            },
-            MaskOperand::Above => match mask.item {
-                TargetItem::EpochItem(epoch) => self.retain(|e, _| *e >= epoch),
-                _ => {},
-            },
-            MaskOperand::StrictlyAbove => match mask.item {
-                TargetItem::EpochItem(epoch) => self.retain(|e, _| *e > epoch),
-                _ => {},
-            },
-            MaskOperand::Below => match mask.item {
-                TargetItem::EpochItem(epoch) => self.retain(|e, _| *e <= epoch),
-                _ => {},
-            },
-            MaskOperand::StrictlyBelow => match mask.item {
-                TargetItem::EpochItem(epoch) => self.retain(|e, _| *e < epoch),
-                _ => {},
-            },
-        }
-    }
+    fn filter_mut(&mut self, f: Filter) {
+		match f {
+			Filter::Mask(mask) => { 
+				match mask.operand {
+					MaskOperand::Equals => match mask.item {
+						TargetItem::EpochItem(epoch) => self.retain(|e, _| *e == epoch),
+						TargetItem::ConstellationItem(mask) => {
+							self.retain(|_, dtypes| {
+								dtypes.retain(|_, systems| {
+									systems.retain(|system, _| {
+										if let Some(sv) = system.as_sv() {
+											mask.contains(&sv.constellation)
+										} else {
+											true // retain other system types
+										}
+									});
+									systems.len() > 0
+								});
+								dtypes.len() > 0
+							});
+						},
+						_ => {}, // TargetItem::
+					},
+					MaskOperand::NotEquals => match mask.item {
+						TargetItem::EpochItem(epoch) => self.retain(|e, _| *e != epoch),
+						_ => {}, // TargetItem::
+					},
+					MaskOperand::GreaterEquals => match mask.item {
+						TargetItem::EpochItem(epoch) => self.retain(|e, _| *e >= epoch),
+						_ => {}, // TargetItem::
+					},
+					MaskOperand::GreaterThan => match mask.item {
+						TargetItem::EpochItem(epoch) => self.retain(|e, _| *e > epoch),
+						_ => {}, // TargetItem::
+					},
+					MaskOperand::LowerEquals => match mask.item {
+						TargetItem::EpochItem(epoch) => self.retain(|e, _| *e <= epoch),
+						_ => {}, // TargetItem::
+					},
+					MaskOperand::LowerThan => match mask.item {
+						TargetItem::EpochItem(epoch) => self.retain(|e, _| *e < epoch),
+						_ => {}, // TargetItem::
+					},
+				}
+			},
+			Filter::Smoothing(_) => todo!(),
+		}
+	}
 }
