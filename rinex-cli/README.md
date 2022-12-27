@@ -43,18 +43,18 @@ This allows generating and saving multiple reports in successive tool invokation
 Grab the binary for your architecture 
 [from the latest release](https://github.com/gwbres/rinex/releases).
 
-Or compile the application manually:
+or compile the application manually:
 
 ```shell
 cargo build --release
 ./target/release/rinex-cli -h
 ```
 
-When we say "rinex-cli", we now imply "target/release/rinex-cli" - previously installed.  
+When we say "rinex-cli", we now imply "target/release/rinex-cli".  
 
-All examples described here are based off our 
+All examples described here are based around our 
 [test data](https://github.com/gwbres/rinex/tree/main/test_resources).  
-This means you have everything to reproduce the provided command lines on your side.   
+This means you have everything to reproduce the examples on your side.   
 
 ## Command line interface
 
@@ -84,44 +84,35 @@ rinex-cli --fp test_resources/NAV/V2/amel010.21g
 
 ## HTML and analysis report
 
-When an operation is requested, it gets added to the report
-being generated. Most analysis are graphical, based on `plotly`.  
-
-`plotly` is a powerful interface that will provide a tiny GUI for each analysis
-requested. Use a double click on the legend to focus and filter out a dataset.  
-Use the "export to PNG" feature to save the current view as a file.
+When an operation is requested, it gets added to an HTML report. 
+In the future, this tool may support other formats. 
+Most analysis are graphical, we use `plotly` which is a powerful javascript library.  
+For each graph, you can export to PNG or focus on a data subset by double clicking on its name
+in the plot legend.  
 
 The Quality Check (`--qc`) summary report
-is a more verbose approach, where information you may get from graphs analysis
-or graphs manipulation are exposed or depicted in another form.  
-  
-There also are information you only get with the Quality Check summary.   
-Refer to its [dedicated section](doc/qc.md).
+is another mode of this tool which increments the HTML report with other informations,
+like general file information, analysis. Some information and analysis are only available
+in the QC mode. Refer to its [dedicated section](doc/qc.md) for more information.
 
-The report is written in HTML and is supposed to be opened in a web browser.    
-In the future, this tool may support other formats.  
-  
 When the analysis is concluded, the application will try to open the report
-that has just been generated, with the "default" web browser.   
-Depending on the OS context, this may not be feasible.  
+with the "default" web browser. Depending on the OS context, this may not be feasible.  
 This "automated" feature is turned off when the quiet mode is activated with `-q`.
 
 When graphs are to be included in the report, its size grows significantly.    
-In order to share report easily, a `--tiny-html` option is there to reduce
+In order to share reports easily, a `--tiny-html` option is there to reduce
 the report size. The reduction factor is approximately 8.  
 
-When this option is used, the plotting (javascript) library is not included in the HTML,  
-it will be retrieved from the web when the user first opens such a graph.  
-Basically, the report is slower to open but smaller in size.  
-
-Modern web browsers are cache performant, there is litterally no performance degradation
-when using this option which might aswell become the standard behavior in the future.
-We recommend to use it, especially if you generate a lot of reports, store them and
-are interested in some of the graphs we developed.
+When this option is used, the HTML report is not self sufficient, the plotting
+javascrit library must be retrieved from the web (at least, cached once).  
+Basically, you get a smaller report that is longer to display on the first time.  
+Modern web browsers are so efficient at caching that the performance degradation
+is barely noticeable, and this feature may become the standard behavior in the future.
 
 ## Basic operations
 
-Basic operations consist in data enumeration mainly. There the only ones that only generate a Terminal output (_stdout_).
+Basic operations consist of simple data enumerations. 
+The results of these enumeration are displayed in the terminal (_stdout_).
 
 * `--header` to print the header content (as is)
 * `--epochs` to enumerate encountered Epochs, in chronological order
@@ -142,15 +133,16 @@ A `--pretty` option exists, to make the enumeration more readable
 rinex-cli --fp test_resources/OBS/V2/KOSG0010.95O --epoch --sv --pretty
 ``` 
 
+All other operations cannot be displayed in the terminal, they're integrated 
+in the HTML report.  
+
 ## Basic analysis
 
-Several analysis can be stacked to the generated report,    
-see their [dedicated page](doc/analysis.md).
+Several analysis can be stacked to the generated report, see their [dedicated page](doc/analysis.md).
 
 ## Pre processing
 
-Learn all our [preprocessing algorithms](doc/preprocessing.md)
-for efficient data analysis.
+Learn all our [preprocessing algorithms](doc/preprocessing.md) for efficient data analysis.
 
 ## File generation
 
