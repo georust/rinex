@@ -142,7 +142,8 @@ Several analysis can be stacked to the generated report, see their [dedicated pa
 
 ## Pre processing
 
-Learn all our [preprocessing algorithms](doc/preprocessing.md) for efficient data analysis.
+Learn all our [preprocessing algorithms](doc/preprocessing.md) to prepare efficiently the data
+for analysis.
 
 ## File generation
 

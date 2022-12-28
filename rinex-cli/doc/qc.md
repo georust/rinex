@@ -62,51 +62,48 @@ on the data that is still left out:
 
 ```bash
 rinex-cli \
-    --qc \
-   --fp test_resources/CRNX/V3/KMS300DNK_R_20221591000_01H_30S_MO.crx
+    --qc-only \
+    --fp test_resources/CRNX/V3/KMS300DNK_R_20221591000_01H_30S_MO.crx
 ```
 
-(Enable and) Separate the report:
+With `--qc-only`, the Data QC is activated and the total report is only made of the QC analysis.
 
-```bash
-rinex-cli \
-    --qc-separate \
-   --fp test_resources/CRNX/V3/KMS300DNK_R_20221591000_01H_30S_MO.crx
-```
-
-Run this configuration for a very basic QC:
+Run this configuration for the most basic QC:
 
 ```bash
 rinex-cli \
     -F mask:gps,glo \
-    --qc-separate \
+    --qc-only \
     --qc-conf rinex-cli/config/basic.json \
    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz
 ```
-  
+
+`--qc-conf` is independent to `--qc` activation.   
+If you activate QC without any configuration, the default configuration is used.
+
 basic.json specifies that we want to report on a constellation basis.  
 If you compare this report to the previous one
 
-1. you get one table per constellation. We kept GPS and Glonass only, therefore you have two tables.
-2. therefore all statistical analysis are independent, for each constellation.  
-3.  A "25%" statistical window is specified. "window" accepts either a Duration  
+1. you get one table per constellation. We only retained GPS and Glonass in this example,   
+therefore the report is made of two tables.
+2. All statistical analysis are made on constellations separately and independently    
+3. A "25%" statistical window is specified. "window" accepts either a Duration  
 or a percentage of the file. Here we use the latter, and 25% means we will have 4 statistical  
-analysis performed over the course of 8 hours, based on this file.
-4. you also have less information, that is because basic.json has turned off  
-several calculations (see down below)
+analysis performed over the course of 6 hours, because this file is 24h long.  
+4. You also have less information in this basic configuration, because most calculations are turned off
 
 Try this configuration now:
 
 ```bash
 rinex-cli \
     -F mask:gps,glo \
-    --qc-separate \
+    --qc-only \
     --qc-conf rinex-cli/config/basic_manual_gap.json \
-   --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz
+    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz
 ```
 
-A "10%" statistical slot is specified, you get shorted statistical analysis spanning  
-around 2 hours in this context.  
+A "10%" statistical slot is specified, you get more statistical analysis because the time slot   
+now spans approximately 2 hours. 
 Also "manual_gap" is specified and set to "10 seconds". That means that a duration  
 of 10 seconds is now considered as an abnormal gap, in the data gap analysis.  
 In default configuration, there is no manual gap. That means an abnormal gap  
