@@ -2,7 +2,7 @@ use crate::fops::filename;
 use crate::parser::parse_epoch;
 use clap::{Arg, ArgAction, ArgMatches, ColorChoice, Command};
 use log::{error, info, warn};
-use rinex::{prelude::*, Merge};
+use rinex::{prelude::*, Merge, processing::QcOpts};
 use std::str::FromStr;
 
 pub struct Cli {
@@ -214,14 +214,10 @@ The summary report by default is integrated to the global HTML report."))
 						.long("conf")
 						.value_name("[FILE]")
 						.help("Pass a QC configuration file."))
-                    .arg(Arg::new("qc-separate")
-                        .long("qc-separate")
-                        .action(ArgAction::SetTrue)
-                        .help("Seperate QC report from other HTML reports."))
                     .arg(Arg::new("qc-only")
                         .long("qc-only")
                         .action(ArgAction::SetTrue)
-                        .help("Enables QC mode and disables all other graphs: smallest HTML report possible."))
+                        .help("Enables QC mode and ensures no other analysis are performed (quickest qc rendition)."))
                 .next_help_heading("File operations")
                     .arg(Arg::new("merge")
                         .short('m')
@@ -257,11 +253,6 @@ Refer to README"))
                         .long("pretty")
                         .action(ArgAction::SetTrue)
                         .help("Make terminal output more readable"))
-                .next_help_heading("HTML (options)")
-                    .arg(Arg::new("tiny-html")
-                        .long("tiny-html")
-                        .action(ArgAction::SetTrue)
-                        .help("Generates smaller HTML content, but slower to render in a web browser"))
                     .get_matches()
             },
         }
@@ -302,15 +293,15 @@ Refer to README"))
 			None
 		}
 	}
-	fn qc_config(&self) -> Option<QcOpts> {
+	pub fn qc_config(&self) -> QcOpts {
 		if let Some(path) = self.qc_config_path() {
-			if let Ok(json) = json::deserialize(path) {
-				if let Ok(opts) = QcOpts::deserialize(json) {
-					Some(opts)
-				}
-			}
+			let s = std::fs::read_to_string(path)
+				.expect(&format!("failed to read \"{}\"", path));
+			let opts: QcOpts = serde_json::from_str(&s)
+				.expect("faulty qc configuration");
+			opts
 		} else {
-			None
+			QcOpts::default()
 		}
 	}
     pub fn quality_check_separate(&self) -> bool {

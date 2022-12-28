@@ -40,6 +40,7 @@ hifitime = { git = "https://github.com/nyx-space/hifitime", features = ["serde",
 
 [dev-dependencies]
 criterion = "0.4"
+serde_json = "1"
 
 [[bench]]
 name = "benchmark"

@@ -1613,27 +1613,6 @@ impl Rinex {
         }
         results
     }
-
-    /// Retains only Navigation Ephemeris
-    pub fn retain_navigation_ephemeris_mut(&mut self) {
-        if let Some(record) = self.record.as_mut_nav() {
-            record.retain(|_, classes| {
-                classes.retain(|class, _| *class == navigation::FrameClass::Ephemeris);
-                classes.len() > 0
-            });
-        }
-    }
-
-    /// Retains only Navigation Ionospheric models
-    pub fn retain_navigation_ionospheric_models_mut(&mut self) {
-        if let Some(record) = self.record.as_mut_nav() {
-            record.retain(|_, classes| {
-                classes.retain(|class, _| *class == navigation::FrameClass::IonosphericModel);
-                classes.len() > 0
-            });
-        }
-    }
-
     /*
         /// Applies given elevation mask
         pub fn elevation_mask_mut(
@@ -1822,54 +1801,6 @@ impl Rinex {
         }
         results
     }
-    /*
-        /// Extracts Pseudo Range observations.
-        /// ```
-        /// use rinex::prelude::*;
-        /// let rnx = Rinex::from_file("../test_resources/OBS/V2/npaz3550.21o")
-        ///     .unwrap();
-        /// let pseudo_ranges = rnx.observation_pseudoranges();
-        /// for ((epoch, flag), vehicules) in pseudo_ranges {
-        ///     assert_eq!(flag, EpochFlag::Ok); // no abnormal markers in this file
-        ///     for (sv, observations) in vehicules {
-        ///         for (observation, pr) in observations {
-        ///             if observation == "L1" { // old fashion, applies here
-        ///                 // pr is f64 value
-        ///             } else if observation == "L1C" { // modern codes do not apply here
-        ///             }
-        ///         }
-        ///     }
-        /// }
-        /// ```
-        pub fn observation_pseudoranges(
-            &self,
-        ) -> BTreeMap<(Epoch, EpochFlag), BTreeMap<Sv, Vec<(String, f64)>>> {
-            let mut results: BTreeMap<(Epoch, EpochFlag), BTreeMap<Sv, Vec<(String, f64)>>> =
-                BTreeMap::new();
-            if let Some(r) = self.record.as_obs() {
-                for (e, (_, sv)) in r.iter() {
-                    let mut map: BTreeMap<Sv, Vec<(String, f64)>> = BTreeMap::new();
-                    for (sv, obs) in sv.iter() {
-                        let mut v: Vec<(String, f64)> = Vec::new();
-                        for (observable, data) in obs.iter() {
-                            if is_pseudorange_observation(code) {
-                                v.push((code.clone(), data.obs));
-                            }
-                        }
-                        if v.len() > 0 {
-                            // did come with at least 1 PR
-                            map.insert(*sv, v);
-                        }
-                    }
-                    if map.len() > 0 {
-                        // did produce something
-                        results.insert(*e, map);
-                    }
-                }
-            }
-            results
-        }
-    */
     /// Aligns Phase observations at origins
     pub fn observation_align_phase_origins_mut(&mut self) {
         let mut init_phases: HashMap<Sv, HashMap<Observable, f64>> = HashMap::new();

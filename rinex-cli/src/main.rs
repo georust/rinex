@@ -26,7 +26,7 @@ extern crate pretty_env_logger;
 #[macro_use]
 extern crate log;
 
-use fops::open_html_with_default_app;
+use fops::{open_html_with_default_app, filename};
 use std::io::Write;
 
 pub fn main() -> Result<(), rinex::Error> {
@@ -38,7 +38,6 @@ pub fn main() -> Result<(), rinex::Error> {
 
     let quiet = cli.quiet();
 
-	let qc_opts = cli.qc_config();
     let qc_only = cli.quality_check_only();
     let qc = cli.quality_check() || qc_only;
 
@@ -242,40 +241,43 @@ pub fn main() -> Result<(), rinex::Error> {
     }
 
     /*
-     * Render HTML
+     * Render Graphs (HTML)
      */
-    let html_absolute_path = ctx.prefix.to_owned() + "/analysis.html";
-    let mut html_fd = std::fs::File::create(&html_absolute_path)
-        .expect(&format!("failed to create \"{}\"", &html_absolute_path));
-    let mut html = plot_ctx.to_html(cli.tiny_html());
-    /*
-     * Quality Check summary
+	if !qc_only {
+		let html_path = ctx.prefix.to_owned() + "/graphs.html";
+		let mut html_fd = std::fs::File::create(&html_path)
+			.expect(&format!("failed to create \"{}\"", &html_path));
+    	write!(html_fd, "{}", plot_ctx.to_html())
+			.expect(&format!("failed to render graphs"));
+    	info!("graphs rendered in \"{}\"", &html_path);
+		if !quiet {
+			open_html_with_default_app(&html_path);
+		}
+	}
+	
+	/*
+     * QC Mode
      */
     if qc {
         info!("qc mode");
-        let report = QcReport::new(&ctx.primary_rinex, &ctx.nav_rinex, qc_config);
+		let mut qc_opts = cli.qc_config();
+		if qc_opts.manual_pos_ecef.is_none() {
+			if let Some(pos) = cli.manual_position() { 
+				qc_opts.manual_pos_ecef = Some(pos); 
+			}
+		}
 
-        if cli.quality_check_separate() {
-            let qc_absolute_path = ctx.prefix.to_owned() + "/qc.html";
-            let mut qc_fd = std::fs::File::create(&qc_absolute_path)
-                .expect(&format!("failed to create \"{}\"", &qc_absolute_path));
-            write!(qc_fd, "{}", report.to_html()).expect("failed to generate QC summary report");
-            info!("qc summary report \"{}\" generated", &qc_absolute_path);
-        } else {
-            // append QC to global html
-            html.push_str("<div=\"qc-report\">\n");
-            html.push_str(&report.to_inline_html().into_string().unwrap());
-            html.push_str("</div>\n");
-            info!("qc summary added to html report");
-        }
+        let report = QcReport::new(&filename(cli.input_path()), &ctx.primary_rinex, qc_opts); // &ctx.nav_rinex
+
+		let qc_path = ctx.prefix.to_owned() + "/report.html";
+		let mut qc_fd = std::fs::File::create(&qc_path)
+			.expect(&format!("failed to create \"{}\"", &qc_path));
+		write!(qc_fd, "{}", report.to_html())
+			.expect("failed to generate QC summary report");
+		info!("qc summary report \"{}\" generated", &qc_path);
+		if !quiet {
+			open_html_with_default_app(&qc_path);
+		}
     }
-
-    write!(html_fd, "{}", html).expect(&format!("failed to write HTML content"));
-
-    if !quiet {
-        open_html_with_default_app(&html_absolute_path);
-    }
-
-    info!("html report \"{}\" generated", &html_absolute_path);
     Ok(())
 } // main
