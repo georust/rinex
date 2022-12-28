@@ -37,23 +37,18 @@ impl PlotContext {
         let len = self.plots.len() - 1;
         self.plots[len].add_trace(trace);
     }
-    pub fn to_html(&mut self, tiny: bool) -> String {
+    pub fn to_html(&mut self) -> String {
         let mut html = String::new();
         for (index, p) in self.plots.iter_mut().enumerate() {
-            if !tiny {
+            /*if !tiny {
                 p.use_local_plotly();
-            }
+            }*/
             if index == 0 {
                 html.push_str(&p.to_html());
             } else {
                 html.push_str(&p.to_inline_html(None));
             }
             html.push_str("\n");
-        }
-        if tiny {
-            trace!("rendered html graphs with --tiny option");
-        } else {
-            trace!("rendered html graphs");
         }
         html
     }
