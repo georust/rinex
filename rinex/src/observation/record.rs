@@ -1125,6 +1125,38 @@ impl Processing for Record {
 		}
 		ret
 	}
+	fn min_observable(&self) -> HashMap<Observable, f64> {
+		let mut ret: HashMap<Observable, f64> = HashMap::new();
+		let min = self.min();
+		for (sv, observables) in min {
+			for (observable, minimum) in observables {
+				if let Some(mmin) = ret.get_mut(&observable) {
+					if minimum < *mmin {
+						*mmin = minimum;
+					}
+				} else {
+					ret.insert(observable.clone(), minimum);
+				}
+			}
+		}
+		ret
+	}
+	fn min_sv(&self) -> HashMap<Sv, f64> {
+		let mut ret: HashMap<Sv, f64> = HashMap::new();
+		let min = self.min();
+		for (sv, observables) in min {
+			for (observable, minimum) in observables {
+				if let Some(mmin) = ret.get_mut(&sv) {
+					if minimum < *mmin {
+						*mmin = minimum;
+					}
+				} else {
+					ret.insert(sv, minimum);
+				}
+			}
+		}
+		ret
+	}
 	fn max(&self) -> HashMap<Sv, HashMap<Observable, f64>> {
 		let mut ret: HashMap<Sv, HashMap<Observable, f64>> = HashMap::new();
 		for (_, (_, svs)) in self {
@@ -1143,6 +1175,38 @@ impl Processing for Record {
 						map.insert(observable.clone(), observation.obs);
 						ret.insert(*sv, map);
 					}
+				}
+			}
+		}
+		ret
+	}
+	fn max_observable(&self) -> HashMap<Observable, f64> {
+		let mut ret: HashMap<Observable, f64> = HashMap::new();
+		let max = self.max();
+		for (sv, observables) in max {
+			for (observable, maximum) in observables {
+				if let Some(mmax) = ret.get_mut(&observable) {
+					if maximum > *mmax {
+						*mmax = maximum;
+					}
+				} else {
+					ret.insert(observable.clone(), maximum);
+				}
+			}
+		}
+		ret
+	}
+	fn max_sv(&self) -> HashMap<Sv, f64> {
+		let mut ret: HashMap<Sv, f64> = HashMap::new();
+		let max = self.max();
+		for (sv, observables) in max {
+			for (observable, maximum) in observables {
+				if let Some(mmax) = ret.get_mut(&sv) {
+					if maximum < *mmax {
+						*mmax = maximum;
+					}
+				} else {
+					ret.insert(sv, maximum);
 				}
 			}
 		}
@@ -1186,14 +1250,66 @@ impl Processing for Record {
 		}
 		ret
 	}
+	fn mean_observable(&self) -> HashMap<Observable, f64> {
+		let mean = self.mean();
+		let mut sum:  HashMap<Observable, (u32, f64)> = HashMap::new();
+		for (sv, observables) in mean {
+			for (observable, mean) in observables {
+				if let Some((count, sum)) = sum.get_mut(&observable) {
+					*count += 1;
+					*sum += mean;
+				} else {
+					sum.insert(observable.clone(), (1, mean));
+				}
+			}
+		}
+		sum.iter()
+			.map(|(k, (count, sum))| {
+				(k.clone(), sum / *count as f64)
+			})
+			.collect()
+	}
+	fn mean_sv(&self) -> HashMap<Sv, f64> {
+		let mean = self.mean();
+		let mut sum:  HashMap<Sv, (u32, f64)> = HashMap::new();
+		for (sv, observables) in mean {
+			for (observable, mean) in observables {
+				if let Some((count, sum)) = sum.get_mut(&sv) {
+					*count += 1;
+					*sum += mean;
+				} else {
+					sum.insert(sv.clone(), (1, mean));
+				}
+			}
+		}
+		sum.iter()
+			.map(|(k, (count, sum))| {
+				(k.clone(), sum / *count as f64)
+			})
+			.collect()
+	}
 	fn stddev(&self) -> HashMap<Sv, HashMap<Observable, f64>> {
-		let mut stddev = self.stddev();
-		for (_, observables) in stddev.iter_mut() {
+		let mut stdvar = self.stdvar();
+		for (_, observables) in stdvar.iter_mut() {
 			for (observable, data) in observables.iter_mut() {
 				*data = data.sqrt();
 			}
 		}
-		stddev
+		stdvar
+	}
+	fn stddev_observable(&self) -> HashMap<Observable, f64> {
+		let mut stdvar = self.stdvar_observable();
+		for (_, data) in stdvar.iter_mut() {
+			*data = data.sqrt();
+		}
+		stdvar
+	}
+	fn stddev_sv(&self) -> HashMap<Sv, f64> {
+		let mut stdvar = self.stdvar_sv();
+		for (_, data) in stdvar.iter_mut() {
+			*data = data.sqrt();
+		}
+		stdvar
 	}
 	fn stdvar(&self) -> HashMap<Sv, HashMap<Observable, f64>> {
 		let mean = self.mean();
@@ -1238,6 +1354,52 @@ impl Processing for Record {
 			}
 		}
 		ret
+	}
+	fn stdvar_sv(&self) -> HashMap<Sv, f64> {
+		let mean = self.mean_sv();
+		let mut diff: HashMap<Sv, (u32, f64)> = HashMap::new();
+		for (_, (_, svs)) in self {
+			for (sv, observables) in svs {
+				for (observable, observation) in observables {
+					let mean = mean.get(&sv)
+						.unwrap();
+					if let Some((count, diff)) = diff.get_mut(sv) {
+						*count += 1;
+						*diff += (observation.obs - mean).powf(2.0);
+					} else {
+						diff.insert(*sv, (1, (observation.obs - mean).powf(2.0)));
+					}
+				}
+			}
+		}
+		diff.iter()
+			.map(|(sv, (count, diff))| {
+				(*sv, diff / *count as f64)
+			})
+			.collect()
+	}
+	fn stdvar_observable(&self) -> HashMap<Observable, f64> {
+		let mean = self.mean_observable();
+		let mut diff: HashMap<Observable, (u32, f64)> = HashMap::new();
+		for (_, (_, svs)) in self {
+			for (sv, observables) in svs {
+				for (observable, observation) in observables {
+					let mean = mean.get(&observable)
+						.unwrap();
+					if let Some((count, diff)) = diff.get_mut(observable) {
+						*count += 1;
+						*diff += (observation.obs - mean).powf(2.0);
+					} else {
+						diff.insert(observable.clone(), (1, (observation.obs - mean).powf(2.0)));
+					}
+				}
+			}
+		}
+		diff.iter()
+			.map(|(observable, (count, diff))| {
+				(observable.clone(), diff / *count as f64)
+			})
+			.collect()
 	}
 	fn derivative(&self) -> BTreeMap<Epoch, HashMap<Sv, HashMap<Observable, f64>>> {
 		let mut ret: BTreeMap<Epoch, HashMap<Sv, HashMap<Observable, f64>>> = BTreeMap::new();
