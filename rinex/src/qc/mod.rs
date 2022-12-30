@@ -206,43 +206,31 @@ impl <'a> HtmlReport for QcReport<'a> {
 								}
 							}
 						}
-						@if let Some(ground_pos) = &self.rinex.header.ground_position {
-							table(class="table is-bordered") {
-								thead {
+						table(class="table is-bordered") {
+							thead {
+								th {
 									: "Header Ground Position"
 								}
-								tbody {
-									: ground_pos.to_inline_html()
-								}
 							}
-						} else {
-							tr {
-								th {
-									: "Header Ground position"
-								}
-								td {
-									b {
-										: "Unkonwn"
-									}
+							tbody {
+								@if let Some(ground_pos) = &self.rinex.header.ground_position {
+									: ground_pos.to_inline_html()
+								} else {
+									: "Undefined"
 								}
 							}
 						}
-						@ if let Some(ground_pos) = &self.opts.ground_position {
-							table(class="table is-bordered") {
-								thead {
-									: "Manual Ground position"
-								}
-								tbody {
-									: ground_pos.to_inline_html()
-								}
-							}
-						} else {
-							tr {
+						table(class="table is-bordered") {
+							thead {
 								th {
 									: "Manual Ground position"
 								}
-								td {
-									: "Undefined"
+							}
+							tbody {
+								@ if let Some(ground_pos) = &self.opts.ground_position {
+									: ground_pos.to_inline_html()
+								} else {
+									: "Unknown"
 								}
 							}
 						}

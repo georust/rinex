@@ -3,12 +3,153 @@ use crate::Carrier;
 use crate::Observable;
 use std::collections::HashMap;
 
+/*
+ * Array (CSV) pretty formatter
+ */
+fn pretty_array<A: std::fmt::Display>(list: &Vec<A>) -> String {
+    let mut s = String::with_capacity(8 * list.len());
+    for index in 0..list.len() - 1 {
+        s.push_str(&format!("{}, ", list[index]));
+    }
+    s.push_str(&list[list.len() - 1].to_string());
+    s
+}
+
+/*
+ * Lx signals special formatting
+ */
+fn report_signals(list: &Vec<Carrier>) -> String {
+	let mut s = String::with_capacity(3*list.len());
+	for index in 0..list.len() -1 {
+		s.push_str(&format!("{} ({:.3} MHz), ", list[index],
+			list[index].carrier_frequency_mhz()));
+	}
+	s.push_str(&format!("{} ({:.3} MHz)", list[list.len()-1],
+		list[list.len()-1].carrier_frequency_mhz()));
+	s
+}
+
+/*
+ * Epoch anomalies formatter
+ */
+fn report_anomalies(anomalies: &Vec<(Epoch, EpochFlag)>) -> Box<dyn RenderBox + '_> {
+	if anomalies.len() == 0 {
+		box_html! {
+			table(class="table is-bordered") {
+				th {
+					: "Anomalies"
+				}
+				td {
+					: "None"
+				}
+			}
+		}
+	} else {
+		box_html! {
+			table(class="table is-bordered") {
+				thead {
+					th {
+						: "Anomalies"
+					}
+					th {
+						: "Power failure"
+					}
+					th {
+						: "Antenna movement detected"
+					}
+					th {
+						: "Kinematic"
+					}
+					th {
+						: "External event"
+					}
+					th {
+						: "Cycle Slips"
+					}
+				}
+				tbody {
+					@ for (epoch, flag) in anomalies {
+						tr { 
+							td {
+								: epoch.to_string()
+							}
+							/*@match flag {
+								EpochFlag::PowerFailure => {
+									td {
+										: "x"
+									}
+								},
+								EpochFlag::AntennaBeingMoved => {
+									td {
+										: ""
+									}
+									td {
+										: "x"
+									}
+								},
+								EpochFlag::NewSiteOccupation => {
+									td {
+										: ""
+									}
+									td {
+										: ""
+									}
+									td {
+										: "x"
+									}
+								},
+								EpochFlag::ExternalEvent => {
+									td {
+										: ""
+									}
+									td {
+										: ""
+									}
+									td {
+										: ""
+									}
+									td {
+										: "x"
+									}
+								},
+								EpochFlag::CycleSlip => {
+									td {
+										: ""
+									}
+									td {
+										: ""
+									}
+									td {
+										: ""
+									}
+									td {
+										: ""
+									}
+									td {
+										: "x"
+									}
+								},
+							}*/
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
 #[derive(Debug, Clone)]
 pub struct QcObsAnalysis {
-	pub has_doppler: bool,
-	pub observables: Vec<String>,
-	pub signals: Vec<Carrier>,
-	pub codes: Vec<String>,
+	/// list of observables identified
+	observables: Vec<String>,
+	/// list of signals identified
+	signals: Vec<Carrier>,
+	/// list of codes encountered
+	codes: Vec<String>,
+	/// true if doppler observation is present
+	has_doppler: bool,
+	/// Abornmal events, by chronological epochs
+	anomalies: Vec<(Epoch, EpochFlag)>,
 	//pub data_missing: HashMap<Sv, HashMap<String, (u32, u32)>>,
 }
 
@@ -24,12 +165,19 @@ impl QcObsAnalysis {
 			.codes
 			.get(&sv[0].constellation)
 			.unwrap();
+		let mut nb_epochs: usize = 0;;
 		let mut signals: Vec<Carrier> = Vec::new();
 		let mut codes: Vec<String> = Vec::new();
+		let mut anomalies: Vec<(Epoch, EpochFlag)> = Vec::new();
 		//let mut data_missing: HashMap<Sv, HashMap<String, (u32,u32)>> = HashMap::new();
 
 		if let Some(r) = rnx.record.as_obs() {
-			for (_, (_, svs)) in r {
+			nb_epochs = r.len();
+
+			for ((epoch, flag), (_, svs)) in r {
+				if !flag.is_ok() {
+					anomalies.push((*epoch, *flag));
+				}
 				for (sv, observables) in svs {
 					for (observable, observation) in observables {
 						let code = observable.code()
@@ -67,6 +215,7 @@ impl QcObsAnalysis {
 			//data_missing,
 			codes,
 			signals,
+			anomalies,
         }
     }
 }
@@ -85,7 +234,7 @@ impl HtmlReport for QcObsAnalysis {
 					: "Signals"
 				}
 				td {
-					: format!("{:?}", self.signals)
+					: report_signals(&self.signals)
 				}
 			}
 			tr {
@@ -93,7 +242,7 @@ impl HtmlReport for QcObsAnalysis {
 					: "Codes"
 				}
 				td {
-					: format!("{:?}", self.codes)
+					: pretty_array(&self.codes)
 				}
 			}
 			tr {
@@ -101,7 +250,7 @@ impl HtmlReport for QcObsAnalysis {
 					: "Observables"
 				}
 				td {
-					: format!("{:?}", self.observables)
+					: pretty_array(&self.observables)
 				}
 			}
 			tr {
@@ -111,6 +260,9 @@ impl HtmlReport for QcObsAnalysis {
 				td {
 					: self.has_doppler.to_string()
 				}
+			}
+			div(class="table-container") {	
+				: report_anomalies(&self.anomalies)
 			}
         }
     }
