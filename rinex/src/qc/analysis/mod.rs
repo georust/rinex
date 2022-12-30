@@ -8,9 +8,13 @@ use sampling::QcSamplingAnalysis;
 mod obs;
 use obs::QcObsAnalysis;
 
+mod sv;
+use sv::QcSvAnalysis;
+
 #[derive(Debug, Clone)]
 pub struct QcAnalysis {
 	pub classifier: Constellation,
+	sv: QcSvAnalysis,
 	observ: QcObsAnalysis,
 	sampling: QcSamplingAnalysis,
 }
@@ -19,6 +23,7 @@ impl QcAnalysis {
 	pub fn new(classifier: Constellation, rnx: &Rinex) -> Self {
 		Self {
 			classifier,
+			sv: QcSvAnalysis::new(rnx),
 			observ: QcObsAnalysis::new(rnx),
 			sampling: QcSamplingAnalysis::new(rnx),
 		}
@@ -59,6 +64,18 @@ impl HtmlReport for QcAnalysis {
 						}
 						tbody {
 							: self.sampling.to_inline_html()
+						}
+					}
+				}
+				div(id="sv") {
+					table(class="table is-bordered") {
+						thead {
+							th {
+								: "Sv"
+							}
+						}
+						tbody {
+							: self.sv.to_inline_html()
 						}
 					}
 				}
