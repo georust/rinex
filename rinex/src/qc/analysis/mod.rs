@@ -1,6 +1,7 @@
 use crate::prelude::*;
 use super::HtmlReport;
 use horrorshow::{helper::doctype, RenderBox};
+use super::pretty_array;
 
 mod sampling;
 use sampling::QcSamplingAnalysis;

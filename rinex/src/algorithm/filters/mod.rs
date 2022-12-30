@@ -33,6 +33,12 @@ pub enum Filter {
 	// Interp(MaskFilter),
 }
 
+impl From<MaskFilter> for Filter {
+	fn from(mask: mask::MaskFilter) -> Self {
+		Self::Mask(mask)
+	}
+}
+
 impl std::str::FromStr for Filter {
 	type Err = Error;
 	fn from_str(content: &str) -> Result<Self, Self::Err> {

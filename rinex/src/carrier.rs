@@ -15,7 +15,7 @@ lazy_static! {
 
 //pub(crate) fn parse_glonass_channels(content: &str)
 
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum Carrier {
     /// L1 (GPS, SBAS, QZSS)

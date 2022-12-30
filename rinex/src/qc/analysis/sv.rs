@@ -10,8 +10,9 @@ pub struct QcSvAnalysis {
 
 impl QcSvAnalysis {
     pub fn new(rnx: &Rinex) -> Self {
-		let sv = rnx
+		let mut sv = rnx
 			.space_vehicules();
+		sv.sort();
         Self {
 			sv: {
 				sv.iter()

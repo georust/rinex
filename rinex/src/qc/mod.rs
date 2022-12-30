@@ -3,12 +3,26 @@ use horrorshow::{helper::doctype, RenderBox};
 use strum_macros::EnumString;
 use crate::types::Type;
 use crate::Constellation;
+use std::str::FromStr;
+use crate::processing::{MaskFilter, Preprocessing};
 
 mod opts;
 pub use opts::QcOpts;
 
 mod analysis;
 use analysis::QcAnalysis;
+
+/*
+ * Array (CSV) pretty formatter
+ */
+pub (crate)fn pretty_array<A: std::fmt::Display>(list: &Vec<A>) -> String {
+    let mut s = String::with_capacity(8 * list.len());
+    for index in 0..list.len() - 1 {
+        s.push_str(&format!("{}, ", list[index]));
+    }
+    s.push_str(&list[list.len() - 1].to_string());
+    s
+}
 
 pub trait HtmlReport {
 	/// Renders self to HTML
@@ -70,11 +84,25 @@ impl <'a> QcReport<'a> {
     }
     /// Builds a new QC Report
     pub fn new(filename: &str, rnx: &'a Rinex, opts: QcOpts) -> Self {
-		let classifiers = rnx.list_constellations();
+		/*
+		 * Currently, we only sort analysis by GNSS system
+		 */
+		let mut classifiers = rnx.list_constellations();
+		classifiers.sort();
+		/*
+		 * Build analysis
+		 */
 		let mut analysis: Vec<QcAnalysis> = Vec::with_capacity(classifiers.len());
 		for classifier in classifiers {
-			analysis.push(QcAnalysis::new(classifier, rnx));
+			// create a retain mask
+			let mask = MaskFilter::from_str(&format!("eq:{}", classifier))
+				.expect("invalid analysis subset");
+			// apply it 
+			let subset = rnx.filter(mask.into());
+			// and analyze this subset
+			analysis.push(QcAnalysis::new(classifier, &subset));
 		}
+		
 		Self {
 			filename: filename.to_string(),
 			opts,	
@@ -238,12 +266,12 @@ impl <'a> HtmlReport for QcReport<'a> {
 								}
 							}
 						}
-						tr {
+						table(class="table is-bordered") {
 							th {
 								: "GNSS Constellations"
 							}
 							td {
-								: format!("{:?}", self.rinex.list_constellations())
+								: pretty_array(&self.rinex.list_constellations())
 							}
 						}
 					}//header/tablebody

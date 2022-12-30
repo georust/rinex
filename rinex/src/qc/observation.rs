@@ -5,15 +5,6 @@ use horrorshow::RenderBox;
 use itertools::Itertools;
 use std::collections::{BTreeMap, HashMap};
 
-fn pretty_sv(list: &Vec<Sv>) -> String {
-    let mut s = String::with_capacity(3 * list.len());
-    for sv in 0..list.len() - 1 {
-        s.push_str(&format!("{}, ", list[sv]));
-    }
-    s.push_str(&list[list.len() - 1].to_string());
-    s
-}
-
 /// Observ1.0tion RINEX specific QC report
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -26,7 +17,7 @@ pub struct QcReport {
     pub sv_with_obs: Vec<Sv>,
     pub sv_without_obs: Vec<Sv>,
     pub total_clk: usize,
-    pub anomalies: Vec<Epoch>,
+    pub anomalies: Vec<(Epoch, String)>,
     pub power_failures: Vec<(Epoch, Epoch)>,
     pub apc_estimate: (u32, (f64, f64, f64)), //nb of estimates + (ECEF)
     pub mean_ssi: HashMap<String, Vec<(Epoch, f64)>>,

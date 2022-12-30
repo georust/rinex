@@ -2,18 +2,7 @@ use crate::prelude::*;
 use crate::Carrier;
 use crate::Observable;
 use std::collections::HashMap;
-
-/*
- * Array (CSV) pretty formatter
- */
-fn pretty_array<A: std::fmt::Display>(list: &Vec<A>) -> String {
-    let mut s = String::with_capacity(8 * list.len());
-    for index in 0..list.len() - 1 {
-        s.push_str(&format!("{}, ", list[index]));
-    }
-    s.push_str(&list[list.len() - 1].to_string());
-    s
-}
+use super::pretty_array;
 
 /*
  * Lx signals special formatting
@@ -150,6 +139,7 @@ pub struct QcObsAnalysis {
 	has_doppler: bool,
 	/// Abornmal events, by chronological epochs
 	anomalies: Vec<(Epoch, EpochFlag)>,
+	//TODO
 	//pub data_missing: HashMap<Sv, HashMap<String, (u32, u32)>>,
 }
 
@@ -157,13 +147,10 @@ impl QcObsAnalysis {
     pub fn new(rnx: &Rinex) -> Self {
 		let sv = rnx
 			.space_vehicules();
-		let observables = &rnx
-			.header
-			.obs
-			.as_ref()
-			.unwrap()
-			.codes
-			.get(&sv[0].constellation)
+		let obs = rnx.header.obs.as_ref().unwrap();
+		let mut observables = obs.codes.clone();
+		let mut observables = observables
+			.get_mut(&sv[0].constellation)
 			.unwrap();
 		let mut nb_epochs: usize = 0;;
 		let mut signals: Vec<Carrier> = Vec::new();
@@ -196,6 +183,11 @@ impl QcObsAnalysis {
 				}
 			}
 		}
+		
+		codes.sort();
+		signals.sort();
+		observables.sort();
+
         Self {
 			observables: {
 				observables.iter()
@@ -212,7 +204,6 @@ impl QcObsAnalysis {
 				}
 				ret
 			},
-			//data_missing,
 			codes,
 			signals,
 			anomalies,
