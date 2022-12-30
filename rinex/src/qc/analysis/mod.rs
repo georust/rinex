@@ -1,7 +1,8 @@
 use crate::prelude::*;
-use super::HtmlReport;
+use crate::processing::TargetItem;
+
+use super::{pretty_array, HtmlReport};
 use horrorshow::{helper::doctype, RenderBox};
-use super::pretty_array;
 
 mod sampling;
 use sampling::QcSamplingAnalysis;
@@ -14,14 +15,14 @@ use sv::QcSvAnalysis;
 
 #[derive(Debug, Clone)]
 pub struct QcAnalysis {
-	pub classifier: Constellation,
+	pub classifier: TargetItem,
 	sv: QcSvAnalysis,
 	observ: QcObsAnalysis,
 	sampling: QcSamplingAnalysis,
 }
 
 impl QcAnalysis {
-	pub fn new(classifier: Constellation, rnx: &Rinex) -> Self {
+	pub fn new(classifier: TargetItem, rnx: &Rinex) -> Self {
 		Self {
 			classifier,
 			sv: QcSvAnalysis::new(rnx),
@@ -43,7 +44,7 @@ impl HtmlReport for QcAnalysis {
 						meta(name="viewport", content="width=device-width, initial-scale=1");
 						link(rel="stylesheet", href="https:////cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css");
                         title {
-							: format!("{} QC Analysis", self.classifier)
+							: format!("{:?} QC Analysis", self.classifier)
 						}
                     }
                     body {

@@ -1,4 +1,6 @@
 use crate::prelude::*;
+use strum_macros::EnumString;
+use crate::observation::Ssi;
 use crate::ground_position::GroundPosition;
 
 #[cfg(feature = "serde")]
@@ -61,7 +63,7 @@ impl<'de> Deserialize<'de> for Slot {
 */
 
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Deserialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum CsStrategy {
 	/// Study CS events and report them
 	Study,
@@ -116,9 +118,36 @@ impl Default for ProcessingOpts {
 	}
 }
 
+/// Qc Report classification method
+#[derive(Debug, Clone, EnumString)]
+#[cfg_attr(feature = "serde", derive(Deserialize))]
+pub enum QcClassificationMethod {
+	/// Report per GNSS system
+    #[strum(serialize = "gnss")]
+	Gnss,
+	/// Report per Sv
+    #[strum(serialize = "sv")]
+	Sv,
+	/// Report per Physics (Observable, Orbit..)
+    #[strum(serialize = "physics")]
+	Physics,
+}
+
+impl Default for QcClassificationMethod {
+	fn default() -> Self {
+		Self::Gnss
+	}
+}
+
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(Deserialize))]
 pub struct QcOpts {
+	/// Classification Method
+	pub classification: QcClassificationMethod,
+	/// Minimum SNR level to consider in our analysis.
+	/// For example, this is used when determining whether
+	/// an epoch is "complete" or not.
+	pub min_snr: Ssi,
 	/// Custom duration considered as a data gap
     pub manual_gap: Option<Duration>,
 	/// Manually defined Ground position (ECEF)
@@ -126,6 +155,11 @@ pub struct QcOpts {
 }
 
 impl QcOpts {
+	pub fn with_min_snr(&self, snr: Ssi) -> Self {
+		let mut s = self.clone();
+		s.min_snr = snr;
+		s
+	}
 	pub fn with_ground_position_ecef(&self, pos: (f64,f64,f64)) -> Self {
 		let mut s = self.clone();
 		s.ground_position = Some(GroundPosition::from_ecef_wgs84(pos));
@@ -143,6 +177,8 @@ impl Default for QcOpts {
         Self {
             manual_gap: None,
 			ground_position: None,
+			min_snr: Ssi::DbHz30_35,
+			classification: QcClassificationMethod::default(),
         }
     }
 }

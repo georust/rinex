@@ -1,13 +1,21 @@
-use super::prelude::*;
-use horrorshow::{helper::doctype, RenderBox};
-use strum_macros::EnumString;
-use crate::types::Type;
-use crate::Constellation;
 use std::str::FromStr;
-use crate::processing::{MaskFilter, Preprocessing};
+use crate::{
+	prelude::*,
+	types::Type,
+	processing::{
+		MaskFilter, 
+		TargetItem, 
+		Preprocessing,
+	},
+};
+use strum_macros::EnumString;
+use horrorshow::{helper::doctype, RenderBox};
 
 mod opts;
-pub use opts::QcOpts;
+pub use opts::{
+	QcOpts,
+	QcClassificationMethod,
+};
 
 mod analysis;
 use analysis::QcAnalysis;
@@ -52,6 +60,12 @@ pub enum Grade {
 }
 
 #[derive(Debug, Clone)]
+pub struct Augmentation<'a> {
+	pub rnx: &'a Rinex,
+	pub filename: String,
+}
+
+#[derive(Debug, Clone)]
 pub struct QcReport<'a> { 
 	/// Configuration / options 
 	opts: QcOpts,
@@ -59,22 +73,10 @@ pub struct QcReport<'a> {
 	filename: String,
 	/// RINEX context
 	rinex: &'a Rinex,
+	/// Navigation augmentation context
+	nav_rinex: Option<Augmentation<'a>>,
 	/// Analysis that were performed
 	analysis: Vec<QcAnalysis>,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, EnumString)]
-#[cfg_attr(feature = "serde", derive(Deserialize))]
-pub enum QcAnalysisStrategy {
-	/// Analyze per Sv and per signal
-	#[strum(serialize = "all")]
-	All,
-	/// Analyze per Sv: average signals together 
-	#[strum(serialize = "per-sv")]
-	PerSv,
-	/// Analyze per Obserfable: average Sv together 
-	#[strum(serialize = "per-observable")]
-	PerObservable,
 }
 
 impl <'a> QcReport<'a> {
@@ -84,23 +86,66 @@ impl <'a> QcReport<'a> {
     }
     /// Builds a new QC Report
     pub fn new(filename: &str, rnx: &'a Rinex, opts: QcOpts) -> Self {
-		/*
-		 * Currently, we only sort analysis by GNSS system
-		 */
-		let mut classifiers = rnx.list_constellations();
-		classifiers.sort();
+			
+		let mut classifier: TargetItem = match opts.classification {
+			QcClassificationMethod::Gnss => {
+				TargetItem::from(rnx.list_constellations())
+			},
+			QcClassificationMethod::Sv => {
+				TargetItem::from(rnx.space_vehicules())
+			},
+			QcClassificationMethod::Physics => {
+				let observables: Vec<Observable> = rnx.observables()
+					.iter()
+					.map(|k| Observable::from_str(k).unwrap())
+					.collect();
+				TargetItem::from(observables)
+			},
+		};
+		//TODO
+		//classifier.sort();
+
 		/*
 		 * Build analysis
 		 */
-		let mut analysis: Vec<QcAnalysis> = Vec::with_capacity(classifiers.len());
-		for classifier in classifiers {
-			// create a retain mask
-			let mask = MaskFilter::from_str(&format!("eq:{}", classifier))
-				.expect("invalid analysis subset");
-			// apply it 
-			let subset = rnx.filter(mask.into());
-			// and analyze this subset
-			analysis.push(QcAnalysis::new(classifier, &subset));
+		let mut analysis: Vec<QcAnalysis> = Vec::new();
+
+		match classifier {
+			TargetItem::ConstellationItem(cs) => {
+				for c in cs {
+					// create the classification mask
+					let mask = MaskFilter::from_str(&format!("eq:{}", c))
+						.expect("invalid classification mask");
+					// apply it 
+					let subset = rnx.filter(mask.into());
+					// and analyze this subset
+					analysis.push(QcAnalysis::new(TargetItem::from(c), &subset));
+				}
+			},
+			TargetItem::SvItem(svs) => {
+				for sv in svs {
+					// create the classification mask
+					let mask = MaskFilter::from_str(&format!("eq:{}", sv))
+						.expect("invalid classification mask");
+					// apply it 
+					let subset = rnx.filter(mask.into());
+					// and analyze this subset
+					analysis.push(QcAnalysis::new(
+						TargetItem::from(sv), &subset));
+				}
+			},
+			TargetItem::ObservableItem(obs) => {
+				for ob in obs {
+					// create the classification mask
+					let mask = MaskFilter::from_str(&format!("eq:{}", ob))
+						.expect("invalid classification mask");
+					// apply it 
+					let subset = rnx.filter(mask.into());
+					// and analyze this subset
+					analysis.push(QcAnalysis::new(TargetItem::from(ob), &subset));
+				}
+			},
+			_ => unreachable!(),
 		}
 		
 		Self {
@@ -108,6 +153,7 @@ impl <'a> QcReport<'a> {
 			opts,	
 			rinex: rnx, 
 			analysis,
+			nav_rinex: None,
         }
     }
 }
@@ -169,6 +215,23 @@ impl <'a> HtmlReport for QcReport<'a> {
 							} else {
 								td {
 									: format!("{:?} file", self.rinex.header.rinex_type)
+								}
+							}
+						}
+						@ for augmentation in &self.nav_rinex {
+							td {
+								: ""
+							}
+							td {
+								: augmentation.filename.to_string()
+							}
+							@ if let Some(gnss) = augmentation.rnx.header.constellation {
+								td {
+									: format!("{} {:?}", gnss, augmentation.rnx.header.rinex_type)
+								}
+							} else {
+								td {
+									: format!("{:?} file", augmentation.rnx.header.rinex_type)
 								}
 							}
 						}

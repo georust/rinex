@@ -9,16 +9,12 @@ use std::collections::{BTreeMap, HashMap};
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct QcReport {
-    first_epoch: Epoch,
-    pub has_doppler: bool,
     pub total_sv: usize,
     pub total_epochs: usize,
     pub epochs_with_obs: usize,
     pub sv_with_obs: Vec<Sv>,
     pub sv_without_obs: Vec<Sv>,
     pub total_clk: usize,
-    pub anomalies: Vec<(Epoch, String)>,
-    pub power_failures: Vec<(Epoch, Epoch)>,
     pub apc_estimate: (u32, (f64, f64, f64)), //nb of estimates + (ECEF)
     pub mean_ssi: HashMap<String, Vec<(Epoch, f64)>>,
     pub dcbs: HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>,

@@ -25,7 +25,7 @@ impl QcSvAnalysis {
 }
 
 use crate::qc::HtmlReport;
-use horrorshow::{helper::doctype, RenderBox};
+use horrorshow::RenderBox;
 
 impl HtmlReport for QcSvAnalysis {
 	fn to_html(&self) -> String {

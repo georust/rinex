@@ -38,7 +38,7 @@ pub enum Error {
 
 /// Target Item represents items that filter operations
 /// or algorithms may target
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, PartialOrd)]
 pub enum TargetItem {
     /// Epoch Item
     EpochItem(Epoch),
@@ -46,6 +46,10 @@ pub enum TargetItem {
     DurationItem(Duration),
     /// Epoch Flag Item
     EpochFlagItem(EpochFlag),
+	/// SNR value
+	SnrItem(f64),
+	/// SNR Range 
+	SnrRangeItem((f64, f64)),
     /// Elevation Angle Item
     ElevationItem(f64),
     /// Elevation Range Item
@@ -66,6 +70,12 @@ pub enum TargetItem {
     NavMsgItem(Vec<MsgType>),
     /// List of Navigation Frame types
     NavFrameItem(Vec<FrameClass>),
+}
+
+enum Token {
+	Key,
+	Operand,
+	Payload,
 }
 
 impl std::ops::BitOrAssign for TargetItem {
@@ -196,26 +206,32 @@ impl std::str::FromStr for TargetItem {
          * native parsing: epoch
          */
 		if c.contains(":") {
-			/*let items: Vec<&str> = c.split(":")
+			let items: Vec<&str> = c.split(":")
 				.collect();
 			let key = items[0].trim();
 			match key {
+				"snr" => {
+					if let Ok(s1) = f64::from_str(items[1].trim()) {
+						Ok(Self::SnrItem(s1))
+					} else {
+						Err(Error::UnknownTarget(c.to_string()))
+					}
+				},
+				/* TODO
+				"elev" => {
+				},
 				"eflag" => {
 					let flag = EpochFlag::from_str(items[1].trim())?;
 					Ok(Self::EpochFlagItem(flag))
 				},
-				"elev" => {
-				},
 				"azi" => {
 				},
 				"obs" => {
-
 				},
 				"orb" => {
-
-				},
-			}*/
-			Err(Error::UnknownTarget(c.to_string()))
+				}, */
+				_ => Err(Error::UnknownTarget(c.to_string())),
+			}
 			
 		} else {
 			let items: Vec<&str> = c.split(",")
@@ -306,10 +322,22 @@ impl From<Sv> for TargetItem {
     }
 }
 
+impl From<Vec<Sv>> for TargetItem {
+	fn from(sv: Vec<Sv>) -> Self {
+		Self::SvItem(sv.clone())
+	}
+}
+
 impl From<Constellation> for TargetItem {
     fn from(c: Constellation) -> Self {
         Self::ConstellationItem(vec![c])
     }
+}
+
+impl From<Vec<Constellation>> for TargetItem {
+	fn from(c: Vec<Constellation>) -> Self {
+		Self::ConstellationItem(c.clone())
+	}
 }
 
 impl From<MsgType> for TargetItem {
@@ -328,6 +356,29 @@ impl From<Observable> for TargetItem {
     fn from(obs: Observable) -> Self {
         Self::ObservableItem(vec![obs])
     }
+}
+
+impl From<Vec<Observable>> for TargetItem {
+    fn from(obs: Vec<Observable>) -> Self {
+        Self::ObservableItem(obs.clone())
+    }
+}
+
+impl std::fmt::Display for TargetItem {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+			Self::ObservableItem(observables) => {
+				write!(f, "physics: {:?}", observables)
+			},
+			Self::ConstellationItem(gnss) => {
+				write!(f, "gnss: {:?}", gnss)
+			},
+			Self::SvItem(svs) => {
+				write!(f, "sv: {:?}", svs)
+			},
+			_ => Ok(())
+		}
+	}
 }
 
 #[cfg(test)]

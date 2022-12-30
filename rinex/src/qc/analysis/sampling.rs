@@ -29,7 +29,7 @@ impl QcSamplingAnalysis {
         Self {
             first_epoch,
             last_epoch,
-			epoch_span: (last_epoch - first_epoch),
+			epoch_span: (last_epoch - first_epoch) + sample_interval,
             sample_interval,
 			sample_rate_hz: 1.0 / sample_interval.to_unit(Unit::Second),
             time_line: last_epoch - first_epoch,
@@ -74,10 +74,7 @@ impl HtmlReport for QcSamplingAnalysis {
 					: "Sampling"
 				}
 				td {
-					: self.sample_interval.to_string()
-				}
-				td {
-					: format!("rate: {:.3e} Hz", self.sample_rate_hz)
+					: format!("{} ({:.3} Hz)", self.sample_interval, self.sample_rate_hz)
 				}
 			}
 			@ if self.gaps.len() == 0 {
