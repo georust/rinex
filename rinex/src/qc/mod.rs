@@ -228,9 +228,13 @@ impl <'a> HtmlReport for QcReport<'a> {
 							}
 							tbody {
 								@ if let Some(ground_pos) = &self.opts.ground_position {
-									: ground_pos.to_inline_html()
+									td {
+										: ground_pos.to_inline_html()
+									}
 								} else {
-									: "Unknown"
+									td {
+										: "Unknown"
+									}
 								}
 							}
 						}

@@ -85,9 +85,7 @@ impl HtmlReport for QcSamplingAnalysis {
 					: "Gap analysis"
 				}
 				td {
-					b {
-						: "None"
-					}
+					: "None"
 				}
 			} else {
 				div(class="table-container") {
