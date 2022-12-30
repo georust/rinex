@@ -1,4 +1,4 @@
-use map_3d::Ellipsoid;
+use map_3d::{ecef2geodetic, geodetic2ecef, rad2deg, deg2rad, Ellipsoid};
 
 #[cfg(feature = "serde")]
 use serde::{Serialize, Deserialize};
@@ -13,7 +13,7 @@ impl GroundPosition {
 	}
 	pub fn from_geodetic(pos: (f64,f64,f64)) -> Self {
 		let (x, y, z) = pos;
-		let (x, y, z) = map_3d::geodetic2ecef(x, y, z, Ellipsoid::WGS84);
+		let (x, y, z) = geodetic2ecef(deg2rad(x), deg2rad(y), deg2rad(z), Ellipsoid::WGS84);
 		Self(x, y, z)
 	}
 	pub fn to_ecef_wgs84(&self) -> (f64, f64, f64) {
@@ -21,7 +21,8 @@ impl GroundPosition {
 	}
 	pub fn to_geodetic(&self) -> (f64,f64,f64) {
 		let (x, y, z) = (self.0, self.1, self.2);
-		map_3d::ecef2geodetic(x, y, z, Ellipsoid::WGS84)
+		let (lat, lon, alt) = ecef2geodetic(x, y, z, Ellipsoid::WGS84);
+		(rad2deg(lat), rad2deg(lon), alt)
 	}
 }
 
