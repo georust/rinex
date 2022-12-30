@@ -42,13 +42,13 @@ impl HtmlReport for GroundPosition {
 					: "ECEF (WGS84)"
 				}
 				td {
-					: format!("X: {:.6}", ecef.0)
+					: format!("X: {:.6} m", ecef.0)
 				}
 				td {
-					: format!("Y: {:.6}", ecef.1)
+					: format!("Y: {:.6} m", ecef.1)
 				}
 				td {
-					: format!("Z: {:.6}", ecef.2)
+					: format!("Z: {:.6} m", ecef.2)
 				}
 			}
 			tr { 
