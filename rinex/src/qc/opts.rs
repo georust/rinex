@@ -1,4 +1,5 @@
 use crate::prelude::*;
+use crate::ground_position::GroundPosition;
 
 #[cfg(feature = "serde")]
 use std::str::FromStr;
@@ -117,28 +118,6 @@ impl Default for ProcessingOpts {
 
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(Deserialize))]
-pub struct GroundPosition {
-	pub ecef: (f64,f64,f64),
-	pub geo: (f64,f64,f64),
-}
-
-impl GroundPosition {
-	fn from_ecef_wgs84(pos: (f64,f64,f64)) -> Self {
-		Self {
-			ecef: pos.clone(),
-			geo: map_3d::ecef2geodetic(pos.0, pos.1, pos.2, map_3d::Ellipsoid::WGS84)
-		}
-	}
-	fn from_geo_wgs84(pos: (f64,f64,f64)) -> Self {
-		Self {
-			geo: pos.clone(),
-			ecef: map_3d::geodetic2ecef(pos.0, pos.1, pos.2, map_3d::Ellipsoid::WGS84)
-		}
-	}
-}
-
-#[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Deserialize))]
 pub struct QcOpts {
 	/// Custom duration considered as a data gap
     pub manual_gap: Option<Duration>,
@@ -154,7 +133,7 @@ impl QcOpts {
 	}
 	pub fn with_ground_position_geo(&self, pos: (f64,f64,f64)) -> Self {
 		let mut s = self.clone();
-		s.ground_position = Some(GroundPosition::from_geo_wgs84(pos));
+		s.ground_position = Some(GroundPosition::from_geodetic(pos));
 		s
 	}
 }

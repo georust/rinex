@@ -380,9 +380,9 @@ impl Ephemeris {
     }
 
     /// Computes and returns vehicle elevation and azimuth angles in degrees
-    pub fn sat_elev_azim(&self, epoch: Epoch, ref_pos: (f64, f64, f64)) -> Option<(f64, f64)> {
+    pub fn sat_elev_azim(&self, epoch: Epoch, position: GroundPosition) -> Option<(f64, f64)> {
         let (sv_x, sv_y, sv_z) = self.sat_pos_ecef(epoch)?;
-        let (ref_x, ref_y, ref_z) = ref_pos;
+        let (ref_x, ref_y, ref_z) = position.to_ecef_wgs84();
         let (sv_lat, sv_lon, _) = map_3d::ecef2geodetic(sv_x, sv_y, sv_z, map_3d::Ellipsoid::WGS84);
         // pseudo range
         let a_i = (sv_x - ref_x, sv_y - ref_y, sv_z - ref_z);

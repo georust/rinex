@@ -24,6 +24,7 @@ pub mod version;
 
 mod leap;
 mod observable;
+mod ground_position;
 
 extern crate num;
 
@@ -60,6 +61,7 @@ pub mod prelude {
     pub use crate::sv::Sv;
     pub use crate::Rinex;
     pub use hifitime::{Duration, Epoch, TimeScale};
+	pub use crate::ground_position::GroundPosition;
 }
 
 /// SBAS related package
@@ -1110,14 +1112,14 @@ impl Rinex {
     /// ```
     pub fn navigation_sat_angles(
         &self,
-        ref_pos: Option<(f64, f64, f64)>,
+        ref_pos: Option<GroundPosition>,
     ) -> HashMap<Sv, BTreeMap<Epoch, (f64, f64)>> {
         let mut ret: HashMap<Sv, BTreeMap<Epoch, (f64, f64)>> = HashMap::new();
-        let ref_pos: (f64, f64, f64) = match ref_pos {
+        let ref_pos = match ref_pos {
             Some(pos) => pos,
             None => {
-                match self.header.coords {
-                    Some(pos) => pos,
+                match &self.header.ground_position {
+                    Some(pos) => pos.clone(),
                     _ => return ret, // missing ground position
                 }
             },

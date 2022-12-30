@@ -206,114 +206,34 @@ impl <'a> HtmlReport for QcReport<'a> {
 								}
 							}
 						}
-						@if let Some((x, y, z)) = &self.rinex.header.coords {
-							tr {
-								th {
-									: "ECEF (WGS84)"
+						@if let Some(ground_pos) = &self.rinex.header.ground_position {
+							table(class="table is-bordered") {
+								thead {
+									: "Header Ground Position"
 								}
-								th {
-									: "X"
-								}
-								th {
-									: "Y"
-								}
-								th {
-									: "Z"
-								}
-							}
-							tr {
-								td {
-									: ""
-								}
-								td {
-									: x.to_string()
-								}
-								td {
-									: y.to_string()
-								}
-								td {
-									: z.to_string()
-								}
-							}
-							tr {
-								th {
-									: "GEO"
-								}
-								th {
-									: "Latitude"
-								}
-								th {
-									: "Longitude"
-								}
-								th {
-									: "Altitude"
+								tbody {
+									: ground_pos.to_inline_html()
 								}
 							}
 						} else {
 							tr {
 								th {
-									: "Header position"
+									: "Header Ground position"
 								}
 								td {
-									: "Unkonwn"
+									b {
+										: "Unkonwn"
+									}
 								}
 							}
 						}
-						@ if let Some(pos) = &self.opts.ground_position {
-							tr {
-								th {
+						@ if let Some(ground_pos) = &self.opts.ground_position {
+							table(class="table is-bordered") {
+								thead {
 									: "Manual Ground position"
 								}
-								tr {
-									th {
-										: "ECEF (WGS84)"
-									}
-									th {
-										: "X"
-									}
-									th {
-										: "Y"
-									}
-									th {
-										: "Z"
-									}
-								}
-								tr {
-									td {
-										: ""
-									}
-									td {
-										: pos.ecef.0.to_string()
-									}
-									td {
-										: pos.ecef.1.to_string()
-									}
-									td {
-										: pos.ecef.2.to_string()
-									}
-								}
-								tr {
-									th {
-										: "GEO"
-									}
-									th {
-										: "Latitude"
-									}
-									th {
-										: "Longitude"
-									}
-									th {
-										: "Altitude"
-									}
-									td {
-										: pos.geo.0.to_string()
-									}
-									td {
-										: pos.geo.1.to_string()
-									}
-									td {
-										: pos.geo.2.to_string()
-									}
+								tbody {
+									: ground_pos.to_inline_html()
 								}
 							}
 						} else {

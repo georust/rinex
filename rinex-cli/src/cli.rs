@@ -2,7 +2,7 @@ use crate::fops::filename;
 use crate::parser::parse_epoch;
 use clap::{Arg, ArgAction, ArgMatches, ColorChoice, Command};
 use log::{error, info, warn};
-use rinex::{prelude::*, Merge, processing::QcOpts};
+use rinex::{prelude::*, Merge, quality::QcOpts};
 use std::str::FromStr;
 
 pub struct Cli {
@@ -176,10 +176,16 @@ If you're just interested in CS information, you probably just want `-qc` instea
                         .long("orbits")
                         .action(ArgAction::SetTrue)
                         .help("Enumerate orbit fields."))
-                    .arg(Arg::new("ref-pos")
-                        .long("ref-pos")
-                        .value_name("x,y,z coordinates [m] ECEF")
-                        .help("Reference position in [m] ECEF system.
+                    .arg(Arg::new("pos-ecef")
+                        .long("--pos-ecef")
+                        .value_name("\"x,y,z\" coordinates in ECEF [m]")
+                        .help("Define the ground position manualy, in [m] ECEF system.
+Some calculations require a reference position.
+Ideally this information is contained in the file Header, but user can manually define them (superceeds)."))
+                    .arg(Arg::new("pos-geo")
+                        .long("--pos-geo")
+                        .value_name("\"lat,lon,alt\" coordinates in ddeg [°]")
+                        .help("Define the ground position manualy, in decimal degrees.
 Some calculations require a reference position.
 Ideally this information is contained in the file Header, but user can manually define them (superceeds)."))
                     .arg(Arg::new("nav-msg")
@@ -499,23 +505,51 @@ Refer to README"))
         }
         None
     }
-    /// Returns ECEF position passed by usuer
-    pub fn manual_position(&self) -> Option<(f64, f64, f64)> {
-        let args = self.matches.get_one::<String>("ref-pos")?;
-        let content: Vec<&str> = args.split(",").collect();
-        if let Ok(pos_x) = f64::from_str(content[0].trim()) {
-            if let Ok(pos_y) = f64::from_str(content[1].trim()) {
-                if let Ok(pos_z) = f64::from_str(content[2].trim()) {
-                    return Some((pos_x, pos_y, pos_z));
-                } else {
-                    error!("pos(z) should be f64 ECEF [m]");
-                }
-            } else {
-                error!("pos(y) should be f64 ECEF [m]");
-            }
-        } else {
-            error!("pos(x) should be f64 ECEF [m]");
-        }
-        None
+	fn manual_ecef(&self) -> Option<&String> {
+		self.matches.get_one::<String>("pos-ecef")
+	}
+	fn manual_geodetic(&self) -> Option<&String> {
+		self.matches.get_one::<String>("pos-geo")
+	}
+    /// Returns Ground Position possibly specified by user
+    pub fn manual_position(&self) -> Option<GroundPosition> {
+		if let Some(args) = self.manual_ecef() {
+        	let content: Vec<&str> = args.split(",").collect();
+			if content.len() != 3 {
+				panic!("expecting \"x, y, z\" description");
+			}
+			if let Ok(pos_x) = f64::from_str(content[0].trim()) {
+				if let Ok(pos_y) = f64::from_str(content[1].trim()) {
+					if let Ok(pos_z) = f64::from_str(content[2].trim()) {
+						return Some(GroundPosition::from_ecef_wgs84((pos_x, pos_y, pos_z)));
+					} else {
+						error!("pos(z) should be f64 ECEF [m]");
+					}
+				} else {
+					error!("pos(y) should be f64 ECEF [m]");
+				}
+			} else {
+				error!("pos(x) should be f64 ECEF [m]");
+			}
+		} else if let Some(args) = self.manual_geodetic() {
+        	let content: Vec<&str> = args.split(",").collect();
+			if content.len() != 3 {
+				panic!("expecting \"lat, lon, alt\" description");
+			}
+			if let Ok(lat) = f64::from_str(content[0].trim()) {
+				if let Ok(long) = f64::from_str(content[1].trim()) {
+					if let Ok(alt) = f64::from_str(content[2].trim()) {
+						return Some(GroundPosition::from_geodetic((lat, long, alt)));
+					} else {
+						error!("altitude should be f64 [ddeg]");
+					}
+				} else {
+					error!("altitude should be f64 [ddeg]");
+				}
+			} else {
+				error!("altitude should be f64 [ddeg]");
+			}
+		}
+		None
     }
 }

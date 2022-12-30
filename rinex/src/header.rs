@@ -10,6 +10,7 @@ use crate::{
     types::{Type, TypeError},
     version::Version,
     Observable,
+	ground_position::GroundPosition,
 };
 
 use std::io::prelude::*;
@@ -131,7 +132,7 @@ pub struct Header {
     // /// Optionnal system time correction
     // pub time_corrections: Option<gnss_time::Correction>,
     /// Station approximate coordinates
-    pub coords: Option<(f64, f64, f64)>,
+    pub ground_position: Option<GroundPosition>,
     /// Optionnal observation wavelengths
     pub wavelengths: Option<(u32, u32)>,
     /// Optionnal sampling interval (s)
@@ -225,7 +226,7 @@ impl Default for Header {
             rcvr: None,
             rcvr_antenna: None,
             sv_antenna: None,
-            coords: None,
+            ground_position: None,
             wavelengths: None,
             data_scaling: None,
             sampling_interval: None,
@@ -262,7 +263,7 @@ impl Header {
         let mut sv_antenna: Option<SvAntenna> = None;
         let mut leap: Option<leap::Leap> = None;
         let mut sampling_interval: Option<Duration> = None;
-        let mut coords: Option<(f64, f64, f64)> = None;
+        let mut ground_position: Option<GroundPosition> = None;
         // RINEX specific fields
         let mut current_constell: Option<Constellation> = None;
         let mut observation = observation::HeaderFields::default();
@@ -517,11 +518,7 @@ impl Header {
                 if let Ok(x) = f64::from_str(items[0].trim()) {
                     if let Ok(y) = f64::from_str(items[1].trim()) {
                         if let Ok(z) = f64::from_str(items[2].trim()) {
-                            if let Some(c) = &mut coords {
-                                *c = (x, y, z);
-                            } else {
-                                coords = Some((x, y, z));
-                            }
+							ground_position = Some(GroundPosition::from_ecef_wgs84((x, y, z)));
                         }
                     }
                 }
@@ -872,7 +869,7 @@ impl Header {
             rcvr,
             glo_channels,
             leap,
-            coords,
+            ground_position,
             wavelengths: None,
             gps_utc_delta: None,
             sampling_interval,
@@ -1067,11 +1064,11 @@ impl Header {
                     None
                 }
             },
-            coords: {
-                if let Some(coords) = &self.coords {
-                    Some(coords.clone())
-                } else if let Some(coords) = &header.coords {
-                    Some(coords.clone())
+            ground_position: {
+                if let Some(pos) = &self.ground_position {
+                    Some(pos.clone())
+                } else if let Some(pos) = &header.ground_position {
+                    Some(pos.clone())
                 } else {
                     None
                 }
@@ -1730,7 +1727,7 @@ impl Merge<Header> for Header {
         merge::merge_mut_option(&mut self.rcvr, &rhs.rcvr);
         merge::merge_mut_option(&mut self.rcvr_antenna, &rhs.rcvr_antenna);
         merge::merge_mut_option(&mut self.sv_antenna, &rhs.sv_antenna);
-        merge::merge_mut_option(&mut self.coords, &rhs.coords);
+        merge::merge_mut_option(&mut self.ground_position, &rhs.ground_position);
         merge::merge_mut_option(&mut self.wavelengths, &rhs.wavelengths);
 
         // RINEX specific operation

@@ -15,7 +15,7 @@ mod preprocessing;
 use preprocessing::preprocess;
 
 use horrorshow::Template;
-use rinex::{merge::Merge, processing::*, split::Split};
+use rinex::{merge::Merge, processing::*, split::Split, quality::*};
 
 use cli::Cli;
 pub use context::Context;
@@ -261,9 +261,9 @@ pub fn main() -> Result<(), rinex::Error> {
     if qc {
         info!("qc mode");
 		let mut qc_opts = cli.qc_config();
-		if qc_opts.manual_pos_ecef.is_none() {
-			if let Some(pos) = cli.manual_position() { 
-				qc_opts.manual_pos_ecef = Some(pos); 
+		if qc_opts.ground_position.is_none() { // config did not specify it 
+			if let Some(pos) = cli.manual_position() { // manually passed 
+				qc_opts = qc_opts.with_ground_position_ecef(pos.to_ecef_wgs84());
 			}
 		}
 
