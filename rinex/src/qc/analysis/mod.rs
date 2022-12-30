@@ -5,9 +5,13 @@ use horrorshow::{helper::doctype, RenderBox};
 mod sampling;
 use sampling::QcSamplingAnalysis;
 
+mod obs;
+use obs::QcObsAnalysis;
+
 #[derive(Debug, Clone)]
 pub struct QcAnalysis {
 	pub classifier: Constellation,
+	observ: QcObsAnalysis,
 	sampling: QcSamplingAnalysis,
 }
 
@@ -15,6 +19,7 @@ impl QcAnalysis {
 	pub fn new(classifier: Constellation, rnx: &Rinex) -> Self {
 		Self {
 			classifier,
+			observ: QcObsAnalysis::new(rnx),
 			sampling: QcSamplingAnalysis::new(rnx),
 		}
 	}
@@ -45,15 +50,28 @@ impl HtmlReport for QcAnalysis {
     fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
         box_html! {
 			div(id="analysis") {
-				h1(class="title") {
-					: self.classifier.to_string()
-				}
-				div(id="sampling report") {
-					h1(class="title") {
-						: "Sampling"
-					}
+				div(id="sampling") {
 					table(class="table is-bordered") {
-						: self.sampling.to_inline_html()
+						thead {
+							th {
+								: "Sampling"
+							}
+						}
+						tbody {
+							: self.sampling.to_inline_html()
+						}
+					}
+				}
+				div(id="observations") {
+					table(class="table is-bordered") {
+						thead {
+							th {
+								: "Observations"
+							}
+						}
+						tbody {
+							: self.observ.to_inline_html()
+						}
 					}
 				}
 			}

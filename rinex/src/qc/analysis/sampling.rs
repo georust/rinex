@@ -77,23 +77,34 @@ impl HtmlReport for QcSamplingAnalysis {
 					: self.sample_interval.to_string()
 				}
 				td {
-					: format!("rate: {:.1} Hz", self.sample_rate_hz)
+					: format!("rate: {:.3e} Hz", self.sample_rate_hz)
 				}
 			}
-			tr {
+			@ if self.gaps.len() == 0 {
 				th {
 					: "Gap analysis"
 				}
-			}
-            @ if self.gaps.len() == 0 {
-				tr {
-					td {
-						b {
-							: "None"
-						}
+				td {
+					b {
+						: "None"
 					}
 				}
-           	} 
+			} else {
+				div(class="table-container") {
+					table(class="table is-bordered") {
+						thead {
+							th {
+								: "Gap analysis"
+							}
+						}
+						tbody {
+							@ for (epoch, dt) in &self.gaps {
+
+							}
+						}
+					}
+				}//gap analysis/table
+			}
         }
     }
 }

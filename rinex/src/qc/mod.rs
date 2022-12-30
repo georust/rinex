@@ -95,6 +95,7 @@ impl <'a> HtmlReport for QcReport<'a> {
                         meta(charset="utf-8");
 						meta(name="viewport", content="width=device-width, initial-scale=1");
 						link(rel="stylesheet", href="https:////cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css");
+						script(defer="true", src="https://use.fontawesome.com/releases/v5.3.1/js/all.js");
                         title: format!("{}", self.filename);
                     }
                     body {
@@ -112,19 +113,20 @@ impl <'a> HtmlReport for QcReport<'a> {
 				}
 				table(class="table is-bordered") {
 					thead {
+						: "File"
+					}
+					tbody {
 						tr {
 							th {
 								: "Program"
 							}
 							th {
-								: "File"
+								: "Name"
 							}
 							th {
 								: "Type"
 							}
 						}
-					}
-					tbody {
 						tr {
 							td {
 								: format!("rust-rnx: v{}", env!("CARGO_PKG_VERSION"))
@@ -148,123 +150,63 @@ impl <'a> HtmlReport for QcReport<'a> {
             div(id="header") {
 				table(class="table is-bordered") {
 					thead {
-						: "Header"
-					}
-
-					@if let Some(ant) = &self.rinex.header.rcvr_antenna {
-						tr {
-							th {
-								: "Antenna model"
+						th {
+							: "Header"
+						}
+					}//header/tablehead
+					tbody {
+						@if let Some(ant) = &self.rinex.header.rcvr_antenna {
+							tr {
+								th {
+									: "Antenna model"
+								}
+								th {
+									: "SN#"
+								}
 							}
-							th {
-								: "SN#"
+							tr {
+								td {
+									: ant.model.clone()
+								}
+								td {
+									: ant.model.clone()
+								}
+							}
+						} else {
+							tr {
+								th {
+									: "Antenna"
+								}
+								td {
+									: "Unknown"
+								}
 							}
 						}
-						tr {
-							td {
-								: ant.model.clone()
+						@if let Some(rcvr) = &self.rinex.header.rcvr {
+							tr {
+								th {
+									: "Receiver model"
+								}
+								th {
+									: "SN#"
+								}
+								th {
+									: "Firmware"
+								}
 							}
-							td {
-								: ant.model.clone()
-							}
-						}
-					} else {
-						tr {
-							th {
-								: "Antenna"
-							}
-							td {
-								: "Unknown"
-							}
-						}
-					}
-					@if let Some(rcvr) = &self.rinex.header.rcvr {
-						tr {
-                            th {
-                                : "Receiver model"
-                            }
-                            th {
-                                : "SN#"
-                            }
-                            th {
-                                : "Firmware"
+							tr {
+								td {
+									: rcvr.model.clone()
+								}
+								td {
+									: rcvr.sn.clone()
+								}
+								td {
+									: rcvr.firmware.clone()
+								}
 							}
 						}
-						tr {
-							td {
-								: rcvr.model.clone()
-							}
-							td {
-								: rcvr.sn.clone()
-							}
-							td {
-								: rcvr.firmware.clone()
-							}
-						}
-					}
-					@if let Some((x, y, z)) = &self.rinex.header.coords {
-						tr {
-							th {
-								: "Header position"
-							}
-						}
-						tr {
-							th {
-								: "ECEF (WGS84)"
-							}
-							th {
-								: "X"
-							}
-							th {
-								: "Y"
-							}
-							th {
-								: "Z"
-							}
-						}
-						tr {
-							td {
-								: ""
-							}
-							td {
-								: x.to_string()
-							}
-							td {
-								: y.to_string()
-							}
-							td {
-								: z.to_string()
-							}
-						}
-						tr {
-							th {
-								: "GEO"
-							}
-							th {
-								: "Latitude"
-							}
-							th {
-								: "Longitude"
-							}
-							th {
-								: "Altitude"
-							}
-						}
-					} else {
-						tr {
-							th {
-								: "Header position"
-							}
-							td {
-								: "Unkonwn"
-							}
-						}
-					}
-					@ if let Some(pos) = &self.opts.ground_position {
-						tr {
-							th {
-								: "Manual Ground position"
-							}
+						@if let Some((x, y, z)) = &self.rinex.header.coords {
 							tr {
 								th {
 									: "ECEF (WGS84)"
@@ -284,13 +226,13 @@ impl <'a> HtmlReport for QcReport<'a> {
 									: ""
 								}
 								td {
-									: pos.ecef.0.to_string()
+									: x.to_string()
 								}
 								td {
-									: pos.ecef.1.to_string()
+									: y.to_string()
 								}
 								td {
-									: pos.ecef.2.to_string()
+									: z.to_string()
 								}
 							}
 							tr {
@@ -306,35 +248,93 @@ impl <'a> HtmlReport for QcReport<'a> {
 								th {
 									: "Altitude"
 								}
-								td {
-									: pos.geo.0.to_string()
+							}
+						} else {
+							tr {
+								th {
+									: "Header position"
 								}
 								td {
-									: pos.geo.1.to_string()
-								}
-								td {
-									: pos.geo.2.to_string()
+									: "Unkonwn"
 								}
 							}
 						}
-					} else {
+						@ if let Some(pos) = &self.opts.ground_position {
+							tr {
+								th {
+									: "Manual Ground position"
+								}
+								tr {
+									th {
+										: "ECEF (WGS84)"
+									}
+									th {
+										: "X"
+									}
+									th {
+										: "Y"
+									}
+									th {
+										: "Z"
+									}
+								}
+								tr {
+									td {
+										: ""
+									}
+									td {
+										: pos.ecef.0.to_string()
+									}
+									td {
+										: pos.ecef.1.to_string()
+									}
+									td {
+										: pos.ecef.2.to_string()
+									}
+								}
+								tr {
+									th {
+										: "GEO"
+									}
+									th {
+										: "Latitude"
+									}
+									th {
+										: "Longitude"
+									}
+									th {
+										: "Altitude"
+									}
+									td {
+										: pos.geo.0.to_string()
+									}
+									td {
+										: pos.geo.1.to_string()
+									}
+									td {
+										: pos.geo.2.to_string()
+									}
+								}
+							}
+						} else {
+							tr {
+								th {
+									: "Manual Ground position"
+								}
+								td {
+									: "Undefined"
+								}
+							}
+						}
 						tr {
 							th {
-								: "Manual Ground position"
+								: "GNSS Constellations"
 							}
 							td {
-								: "Undefined"
+								: format!("{:?}", self.rinex.list_constellations())
 							}
 						}
-					}
-					tr {
-						th {
-							: "GNSS Constellations"
-						}
-						td {
-							: format!("{:?}", self.rinex.list_constellations())
-						}
-					}
+					}//header/tablebody
                 }//table
 			}//div=header
 			/*
