@@ -149,7 +149,7 @@ impl <'a> HtmlReport for QcReport<'a> {
 								: "Program"
 							}
 							th {
-								: "Name"
+								: "File"
 							}
 							th {
 								: "Type"
@@ -164,7 +164,7 @@ impl <'a> HtmlReport for QcReport<'a> {
 							}
 							@ if let Some(gnss) = self.rinex.header.constellation {
 								td {
-									: format!("{} {:?} file", gnss, self.rinex.header.rinex_type)
+									: format!("{} {:?}", gnss, self.rinex.header.rinex_type)
 								}
 							} else {
 								td {
