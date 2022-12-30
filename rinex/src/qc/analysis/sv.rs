@@ -5,7 +5,7 @@ use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub struct QcSvAnalysis {
-	pub sv: Vec<Sv>
+	pub sv: Vec<String>
 }
 
 impl QcSvAnalysis {
@@ -13,7 +13,11 @@ impl QcSvAnalysis {
 		let sv = rnx
 			.space_vehicules();
         Self {
-			sv
+			sv: {
+				sv.iter()
+					.map(|sv| sv.to_string())
+					.collect()
+			}
         }
     }
 }
