@@ -26,7 +26,7 @@ extern crate pretty_env_logger;
 #[macro_use]
 extern crate log;
 
-use fops::{open_html_with_default_app, filename};
+use fops::{open_with_web_browser, filename};
 use std::io::Write;
 
 pub fn main() -> Result<(), rinex::Error> {
@@ -251,7 +251,7 @@ pub fn main() -> Result<(), rinex::Error> {
 			.expect(&format!("failed to render graphs"));
     	info!("graphs rendered in \"{}\"", &html_path);
 		if !quiet {
-			open_html_with_default_app(&html_path);
+			open_with_web_browser(&html_path);
 		}
 	}
 	
@@ -276,7 +276,7 @@ pub fn main() -> Result<(), rinex::Error> {
 			.expect("failed to generate QC summary report");
 		info!("qc summary report \"{}\" generated", &qc_path);
 		if !quiet {
-			open_html_with_default_app(&qc_path);
+			open_with_web_browser(&qc_path);
 		}
     }
     Ok(())
