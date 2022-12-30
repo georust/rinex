@@ -7,10 +7,10 @@ use crate::Constellation;
 mod opts;
 pub use opts::QcOpts;
 
-mod sampling;
-use sampling::QcSamplingAnalysis;
+mod analysis;
+use analysis::QcAnalysis;
 
-pub trait Report {
+pub trait HtmlReport {
 	/// Renders self to HTML
 	fn to_html(&self) -> String;  
 	/// Renders self to embedded HTML
@@ -18,7 +18,6 @@ pub trait Report {
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, EnumString)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum Grade {
     #[strum(serialize = "A++")]
     GradeApp,
@@ -39,48 +38,15 @@ pub enum Grade {
 }
 
 #[derive(Debug, Clone)]
-pub struct QcReport { 
-	filename: String,
-	rinex_type: Type,
-	rinex_constellation: Option<Constellation>,
-	constellations: Vec<Constellation>,
+pub struct QcReport<'a> { 
+	/// Configuration / options 
 	opts: QcOpts,
-    // stored header information for later use
-    header: Header,
-}
-
-/// Types of analysis we can perform
-#[derive(Clone, Debug, PartialEq, Eq, EnumString)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub enum QcAnalysisType {
-	#[strum(serialize = "sampling")]
-	Sampling,
-	#[strum(serialize = "gaps")]
-	DataGaps,
-	#[strum(serialize = "ground-pos")]
-	GroundPosition,
-	#[strum(serialize = "obs-quality")]
-	ObsQuality,
-	#[strum(serialize = "nav-quality")]
-	NavQuality,
-	#[strum(serialize = "phase-slips")]
-	PhaseSlipAnalysis,
-	#[strum(serialize = "dcb")]
-	DcbAnalysis,
-	#[strum(serialize = "mp")]
-	MpAnalysis,
-	#[strum(serialize = "iono")]
-	IonoAnalysis,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum QcAbstractAnalysis {
-	Sampling(QcSamplingAnalysis),	
-}
-
-pub struct QcAnalysis {
-	strategy: QcAnalysisStrategy,
-	analysis: QcAbstractAnalysis
+	/// File name 
+	filename: String,
+	/// RINEX context
+	rinex: &'a Rinex,
+	/// Analysis that were performed
+	analysis: Vec<QcAnalysis>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, EnumString)]
@@ -97,43 +63,29 @@ pub enum QcAnalysisStrategy {
 	PerObservable,
 }
 
-impl Default for ReportingStrategy {
-	fn default() -> Self {
-		Self::PerConstellation
-	}
-}
-
-impl QcReport {
+impl <'a> QcReport<'a> {
     /// Builds a new basic QC Report using default options
-    pub fn basic(filename: &str, rnx: &Rinex) -> Self {
+    pub fn basic(filename: &str, rnx: &'a Rinex) -> Self {
         Self::new(filename, rnx, QcOpts::default())
     }
     /// Builds a new QC Report
-    pub fn new(filename: &str, rnx: &Rinex, opts: QcOpts) -> Self {
-		let constellations = rnx.list_constellations();
-        Self {
+    pub fn new(filename: &str, rnx: &'a Rinex, opts: QcOpts) -> Self {
+		let classifiers = rnx.list_constellations();
+		let mut analysis: Vec<QcAnalysis> = Vec::with_capacity(classifiers.len());
+		for classifier in classifiers {
+			analysis.push(QcAnalysis::new(classifier, rnx));
+		}
+		Self {
 			filename: filename.to_string(),
-			constellations: constellations.clone(),
-			rinex_type: rnx.header.rinex_type,
-			rinex_constellation: rnx.header.constellation.clone(),
 			opts,	
-            header: rnx.header.clone(),
-			/*analysis: {
-				let mut analysis: Vec<QcAnalysis> = Vec::with_capacity(constellations.len());
-				/*for constellation in constellations {
-					let mask = MaskFilter {
-						operand: MaskOperand::Equals,
-						item: TargetItem::ConstellationItem(vec![constellation]),
-					};
-					let rnx = rnx.apply(mask);
-					let sampling = QcSamplingAnalsysis::new(&rnx);
-				}*/
-				analysis
-			},*/
+			rinex: rnx, 
+			analysis,
         }
     }
-    /// Dumps self into (self sufficient) HTML
-    pub fn to_html(&self) -> String {
+}
+
+impl <'a> HtmlReport for QcReport<'a> {
+    fn to_html(&self) -> String {
         format!(
             "{}",
             html! {
@@ -152,8 +104,7 @@ impl QcReport {
             }
         )
     }
-    /// Dumps self into HTML <div> section, named as suggested
-    pub fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
+    fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
         box_html! {
 			div(id="general") {
 				h3(class="title") {
@@ -181,13 +132,13 @@ impl QcReport {
 							td {
 								: self.filename.to_string()
 							}
-							@ if let Some(gnss) = self.rinex_constellation {
+							@ if let Some(gnss) = self.rinex.header.constellation {
 								td {
-									: format!("{} {:?} file", gnss, self.rinex_type)
+									: format!("{} {:?} file", gnss, self.rinex.header.rinex_type)
 								}
 							} else {
 								td {
-									: format!("{:?} file", self.rinex_type)
+									: format!("{:?} file", self.rinex.header.rinex_type)
 								}
 							}
 						}
@@ -195,11 +146,12 @@ impl QcReport {
 				}
             }
             div(id="header") {
-				h4(class="title") {
-					: "Header"
-				}
 				table(class="table is-bordered") {
-					@if let Some(ant) = &self.header.rcvr_antenna {
+					thead {
+						: "Header"
+					}
+
+					@if let Some(ant) = &self.rinex.header.rcvr_antenna {
 						tr {
 							th {
 								: "Antenna model"
@@ -226,7 +178,7 @@ impl QcReport {
 							}
 						}
 					}
-					@if let Some(rcvr) = &self.header.rcvr {
+					@if let Some(rcvr) = &self.rinex.header.rcvr {
 						tr {
                             th {
                                 : "Receiver model"
@@ -250,7 +202,7 @@ impl QcReport {
 							}
 						}
 					}
-					@if let Some((x, y, z)) = &self.header.coords {
+					@if let Some((x, y, z)) = &self.rinex.header.coords {
 						tr {
 							th {
 								: "Header position"
@@ -297,13 +249,6 @@ impl QcReport {
 							th {
 								: "Altitude"
 							}
-							/*@let geo = map_3d::ecef2geodetic(pos.0, pos.1, pos.2, map_3d::Ellipsoid::WGS84) {
-								(pos_x, pos_y, pos_z) => {
-									td {
-										: format!("lat: {} lon: {} alt: {}", pos_x, pos_y, pos_z) 
-									},
-								}
-							}*/
 						}
 					} else {
 						tr {
@@ -315,7 +260,7 @@ impl QcReport {
 							}
 						}
 					}
-					@ if let Some((x, y, z)) = self.opts.manual_pos_ecef {
+					@ if let Some(pos) = &self.opts.ground_position {
 						tr {
 							th {
 								: "Manual Ground position"
@@ -339,13 +284,13 @@ impl QcReport {
 									: ""
 								}
 								td {
-									: x.to_string()
+									: pos.ecef.0.to_string()
 								}
 								td {
-									: y.to_string()
+									: pos.ecef.1.to_string()
 								}
 								td {
-									: z.to_string()
+									: pos.ecef.2.to_string()
 								}
 							}
 							tr {
@@ -361,10 +306,15 @@ impl QcReport {
 								th {
 									: "Altitude"
 								}
-								/*td {
-									@ let geo = map_3d::ecef2geodetic(pos.0, pos.1, pos.2, map_3d::Ellipsoid::WGS84);
-									: format!("lat: {} lon: {} alt: {}", geo.0, geo.1, geo.2)
-								}*/
+								td {
+									: pos.geo.0.to_string()
+								}
+								td {
+									: pos.geo.1.to_string()
+								}
+								td {
+									: pos.geo.2.to_string()
+								}
 							}
 						}
 					} else {
@@ -382,14 +332,28 @@ impl QcReport {
 							: "GNSS Constellations"
 						}
 						td {
-							: format!("{:?}", self.constellations)
+							: format!("{:?}", self.rinex.list_constellations())
 						}
 					}
                 }//table
 			}//div=header
 			/*
-			* Report all analysis performed
-			*/
+			 * Report all analysis that were performed
+			 */
+			div(id="analysis") {
+				@ for analysis in &self.analysis {
+					table(class="table is-bordered") {
+						thead {
+							th {
+								: analysis.classifier.to_string()
+							}
+						}
+						tbody {
+							: analysis.to_inline_html()
+						}
+					}
+				}
+			}
         }
     }
 }

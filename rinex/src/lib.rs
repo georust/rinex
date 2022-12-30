@@ -68,17 +68,21 @@ pub mod sbas {
     pub use crate::constellation::selection_helper;
 }
 
-mod qc;
-//mod cs;
 mod algorithm;
 
 /// Processing package, regroups sampling
 /// and file quality analysis.
 pub mod processing {
     pub use crate::algorithm::*;
-    pub use crate::qc::{QcOpts, QcReport};
     //pub use differential::*;
     //pub use crate::cs::{CsDetector, CsSelectionMethod, CsStrategy};
+}
+
+mod qc;
+
+/// RINEX quality package
+pub mod quality {
+	pub use crate::qc::{QcOpts, QcReport, HtmlReport};
 }
 
 use prelude::*;

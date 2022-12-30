@@ -1,5 +1,4 @@
 use crate::prelude::*;
-use super::{QcAnalysis, QcAnalysisStrategy};
 
 #[cfg(feature = "serde")]
 use std::str::FromStr;
@@ -118,27 +117,53 @@ impl Default for ProcessingOpts {
 
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(Deserialize))]
-pub struct QcAnalysisOpts {
-	strategy: QcAnalysisStrategy,
-	analysis: Vec<QcAnalysisType>,
+pub struct GroundPosition {
+	pub ecef: (f64,f64,f64),
+	pub geo: (f64,f64,f64),
+}
+
+impl GroundPosition {
+	fn from_ecef_wgs84(pos: (f64,f64,f64)) -> Self {
+		Self {
+			ecef: pos.clone(),
+			geo: map_3d::ecef2geodetic(pos.0, pos.1, pos.2, map_3d::Ellipsoid::WGS84)
+		}
+	}
+	fn from_geo_wgs84(pos: (f64,f64,f64)) -> Self {
+		Self {
+			geo: pos.clone(),
+			ecef: map_3d::geodetic2ecef(pos.0, pos.1, pos.2, map_3d::Ellipsoid::WGS84)
+		}
+	}
 }
 
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(Deserialize))]
 pub struct QcOpts {
-	pub analysis: Vec<QcAnalysis>,
 	/// Custom duration considered as a data gap
     pub manual_gap: Option<Duration>,
 	/// Manually defined Ground position (ECEF)
-	pub manual_pos_ecef: Option<(f64,f64,f64)>,
+	pub ground_position: Option<GroundPosition>,
+}
+
+impl QcOpts {
+	pub fn with_ground_position_ecef(&self, pos: (f64,f64,f64)) -> Self {
+		let mut s = self.clone();
+		s.ground_position = Some(GroundPosition::from_ecef_wgs84(pos));
+		s
+	}
+	pub fn with_ground_position_geo(&self, pos: (f64,f64,f64)) -> Self {
+		let mut s = self.clone();
+		s.ground_position = Some(GroundPosition::from_geo_wgs84(pos));
+		s
+	}
 }
 
 impl Default for QcOpts {
     fn default() -> Self {
         Self {
-			analysis: vec![QcAnalysis::Sampling, QcAnalysis::DataGaps],
-			manual_pos_ecef: None,
             manual_gap: None,
+			ground_position: None,
         }
     }
 }
@@ -151,13 +176,12 @@ mod test {
 	fn qc_opts_serdes() {
 		let content = r#"
 			{
-				"reporting": "PerConstellation"
+				"ground_pos_ecef": "(1.0, 2.0, 3.0)"
 			}"#;
 		let opts: QcOpts = serde_json::from_str(content).unwrap();
-		assert_eq!(opts.reporting, ReportingStrategy::PerConstellation);
 		assert!(opts.manual_gap.is_none());
 		
-		let content = r#"
+		/*let content = r#"
 			{
 				"reporting": "PerSv",
 				"statistics": {
@@ -186,5 +210,6 @@ mod test {
 			window: Slot::Percentage(10.0_f64),
 		}));
 		assert!(opts.processing.is_none());
+		*/
 	}
 }
