@@ -44,7 +44,7 @@ use serde::Serialize;
 /// `Ssi` describes signals strength
 #[repr(u8)]
 #[derive(PartialOrd, Ord, PartialEq, Eq, Copy, Clone, Debug)]
-#[cfg_attr(feature = "serde", derive(Serialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum Ssi {
     /// Ssi ~= 0 dB/Hz
     DbHz0 = 0,
@@ -89,6 +89,38 @@ impl Default for Ssi {
     fn default() -> Ssi {
         Ssi::DbHz54
     }
+}
+
+impl From<f64> for Ssi {
+	fn from(f: f64) -> Self {
+		Self::from(f as u8)
+	}
+}
+
+impl From<u8> for Ssi {
+	fn from(u: u8) -> Self {
+		if u >= 54 {
+			Self::DbHz54
+		} else if u >= 48 {
+			Self::DbHz48_53
+		} else if u >= 42 {
+			Self::DbHz42_47
+		} else if u >= 36 {
+			Self::DbHz36_41
+		} else if u >= 30 {
+			Self::DbHz30_35
+		} else if u >= 24 {
+			Self::DbHz24_29
+		} else if u >= 18 {
+			Self::DbHz18_23
+		} else if u >= 12 {
+			Self::DbHz12_17
+		} else if u > 1 {
+			Self::DbHz12
+		} else {
+			Self::DbHz0
+		}
+	}
 }
 
 impl FromStr for Ssi {
@@ -1971,7 +2003,7 @@ impl IonoDelayDetector for Record {
 mod test {
     use super::*;
     #[test]
-    fn ssi() {
+    fn obs_record_ssi() {
         let ssi = Ssi::from_str("0").unwrap();
         assert_eq!(ssi, Ssi::DbHz0);
         assert_eq!(ssi.is_bad(), true);
@@ -1979,9 +2011,15 @@ mod test {
 		assert_eq!(ssi.is_excellent(), true);
         let ssi = Ssi::from_str("10");
         assert_eq!(ssi.is_err(), true);
+		let snr = 48_u8;
+		assert_eq!(Ssi::from(snr), SSi::DbHz48_53);
+		let snr = 31.3;
+		assert_eq!(Ssi::from(snr), Ssi::DbHz30_35);
+		let snr = 3.0;
+		assert_eq!(Ssi::from(snr), Ssi::DbHz12);
     }
     #[test]
-    fn test_is_new_epoch() {
+    fn obs_record_is_new_epoch() {
         assert_eq!(
             is_new_epoch(
                 "95 01 01 00 00 00.0000000  0  7 06 17 21 22 23 28 31",
