@@ -249,7 +249,7 @@ mod test {
     }
     #[test]
     fn algo_filter_mask_gnss() {
-        let mask = MaskFilter::from_str("eq:gnss:GPS").unwrap();
+        let mask = MaskFilter::from_str("eq: GPS").unwrap();
         assert_eq!(
             mask,
             MaskFilter {
@@ -257,10 +257,10 @@ mod test {
                 item: TargetItem::ConstellationItem(vec![Constellation::GPS]),
             }
         );
-        let m2 = MaskFilter::from_str("eq:gnss:GPS").unwrap();
+        let m2 = MaskFilter::from_str("eq:GPS").unwrap();
         assert_eq!(mask, m2);
 
-        let mask = MaskFilter::from_str("eq:gnss: GPS,GAL,GLO").unwrap();
+        let mask = MaskFilter::from_str("eq: GPS,GAL,GLO").unwrap();
         assert_eq!(
             mask,
             MaskFilter {
@@ -272,10 +272,10 @@ mod test {
                 ]),
             }
         );
-        let m2 = MaskFilter::from_str("eq:gnss:GPS,GAL,GLO").unwrap();
+        let m2 = MaskFilter::from_str("eq:GPS,GAL,GLO").unwrap();
         assert_eq!(mask, m2);
 
-        let mask = MaskFilter::from_str("neq:gnss:BDS").unwrap();
+        let mask = MaskFilter::from_str("neq:BDS").unwrap();
         assert_eq!(
             mask,
             MaskFilter {
@@ -283,12 +283,12 @@ mod test {
                 item: TargetItem::ConstellationItem(vec![Constellation::BeiDou]),
             }
         );
-        let m2 = MaskFilter::from_str("neq:gnss:BDS").unwrap();
+        let m2 = MaskFilter::from_str("neq:BDS").unwrap();
         assert_eq!(mask, m2);
     }
     #[test]
     fn algo_filter_mask_sv() {
-        let mask = MaskFilter::from_str("eq:sv:G08,  G09, R03").unwrap();
+        let mask = MaskFilter::from_str("eq:G08,  G09, R03").unwrap();
         assert_eq!(
             mask,
             MaskFilter {
@@ -300,10 +300,10 @@ mod test {
                 ]),
             }
         );
-        let m2 = MaskFilter::from_str("eq:sv:G08,G09,R03").unwrap();
+        let m2 = MaskFilter::from_str("eq:G08,G09,R03").unwrap();
         assert_eq!(mask, m2);
 
-        let mask = MaskFilter::from_str("neq:sv:G31").unwrap();
+        let mask = MaskFilter::from_str("neq:G31").unwrap();
         assert_eq!(
             mask,
             MaskFilter {
@@ -311,12 +311,12 @@ mod test {
                 item: TargetItem::SvItem(vec![Sv::from_str("G31").unwrap(),]),
             }
         );
-        let m2 = MaskFilter::from_str("neq:sv:G31").unwrap();
+        let m2 = MaskFilter::from_str("neq:G31").unwrap();
         assert_eq!(mask, m2);
     }
     #[test]
     fn algo_filter_mask_observable() {
-        let mask = MaskFilter::from_str("eq:obs:L1C,S1C,D1P,C1W").unwrap();
+        let mask = MaskFilter::from_str("eq:L1C,S1C,D1P,C1W").unwrap();
         assert_eq!(
             mask,
             MaskFilter {
@@ -332,7 +332,7 @@ mod test {
     }
     #[test]
     fn algo_filter_mask_orbit() {
-        let mask = MaskFilter::from_str("eq:orb:iode").unwrap();
+        let mask = MaskFilter::from_str("eq:iode").unwrap();
         assert_eq!(
             mask,
             MaskFilter {
@@ -343,7 +343,7 @@ mod test {
     }
     #[test]
     fn algo_filter_mask_nav() {
-        let mask = MaskFilter::from_str("eq:nav:fr:eph").unwrap();
+        let mask = MaskFilter::from_str("eq:eph").unwrap();
         assert_eq!(
             mask,
             MaskFilter {
@@ -351,7 +351,7 @@ mod test {
                 item: TargetItem::NavFrameItem(vec![FrameClass::Ephemeris]),
             }
         );
-        let mask = MaskFilter::from_str("eq:nav:fr:eph,ion").unwrap();
+        let mask = MaskFilter::from_str("eq:eph,ion").unwrap();
         assert_eq!(
             mask,
             MaskFilter {
@@ -362,7 +362,7 @@ mod test {
                 ])
             }
         );
-        let mask = MaskFilter::from_str("eq:nav:msg:lnav").unwrap();
+        let mask = MaskFilter::from_str("eq:lnav").unwrap();
         assert_eq!(
             mask,
             MaskFilter {
