@@ -22,8 +22,9 @@ pub enum Error {
     SvParingError(#[from] sv::Error),
     #[error("failed to parse constellation")]
     ConstellationParingError(#[from] constellation::Error),
-    #[error("failed to parse (float) value")]
-    FilterParsingError(#[from] std::num::ParseFloatError),
+    #[error("failed to parse (float) payload")]
+    //FilterParsingError(#[from] std::num::ParseFloatError),
+	ParseFloatItemError,
     #[error("failed to parse epoch flag")]
     EpochFlagParsingError(#[from] crate::epoch::flag::Error),
     #[error("failed to parse constellation")]
@@ -36,7 +37,7 @@ pub enum Error {
     InvalidDurationItem(#[from] hifitime::Errors),
 }
 
-/// Target Item represents items that filter operations
+/// Target Item represents items that filters
 /// or algorithms may target
 #[derive(Clone, Debug, PartialEq, PartialOrd)]
 pub enum TargetItem {
@@ -70,12 +71,6 @@ pub enum TargetItem {
     NavMsgItem(Vec<MsgType>),
     /// List of Navigation Frame types
     NavFrameItem(Vec<FrameClass>),
-}
-
-enum Token {
-	Key,
-	Operand,
-	Payload,
 }
 
 impl std::ops::BitOrAssign for TargetItem {
@@ -198,6 +193,18 @@ fn parse_nav_msg(items: Vec<&str>) -> Result<Vec<MsgType>, navigation::record::E
 	Ok(ret)
 }
 
+fn parse_float_payload(item: &str) -> Result<(f64, Option<f64>), std::num::ParseFloatError> {
+	let items: Vec<&str> = item.trim().split(",").collect();
+	if items.len() >= 2 {
+		let f1 = f64::from_str(items[0].trim())?;
+		let f2 = f64::from_str(items[1].trim())?;
+		Ok((f1, Some(f2)))
+	} else { 
+		let f1 = f64::from_str(items[0].trim())?;
+		Ok((f1, None))
+	}
+}
+
 impl std::str::FromStr for TargetItem {
     type Err = Error;
     fn from_str(content: &str) -> Result<Self, Self::Err> {
@@ -211,26 +218,29 @@ impl std::str::FromStr for TargetItem {
 			let key = items[0].trim();
 			match key {
 				"snr" => {
-					if let Ok(s1) = f64::from_str(items[1].trim()) {
-						Ok(Self::SnrItem(s1))
-					} else {
-						Err(Error::UnknownTarget(c.to_string()))
+					match parse_float_payload(items[1]) {
+						Ok((s1, Some(s2))) => {
+							Ok(Self::SnrRangeItem((s1,s2)))
+						},
+						Ok((s1, None)) => {
+							Ok(Self::SnrItem(s1))
+						},
+						_ => Err(Error::ParseFloatItemError),
 					}
 				},
-				/* TODO
 				"elev" => {
+					match parse_float_payload(items[1]) {
+						Ok((s1, Some(s2))) => {
+							Ok(Self::ElevationRangeItem((s1,s2)))
+						},
+						Ok((s1, None)) => {
+							Ok(Self::ElevationItem(s1))
+						},
+						_ => Err(Error::ParseFloatItemError),
+					}
 				},
-				"eflag" => {
-					let flag = EpochFlag::from_str(items[1].trim())?;
-					Ok(Self::EpochFlagItem(flag))
-				},
-				"azi" => {
-				},
-				"obs" => {
-				},
-				"orb" => {
-				}, */
-				_ => Err(Error::UnknownTarget(c.to_string())),
+				_ => todo!(),
+				//_ => Err(Error::UnknownTarget(c.to_string())),
 			}
 			
 		} else {
@@ -392,33 +402,33 @@ mod test {
         let target: TargetItem = e.into();
         assert_eq!(target, TargetItem::EpochItem(e));
 
-        let f = EpochFlag::default();
+        /*let f = EpochFlag::default();
         let target: TargetItem = f.into();
         assert_eq!(target, TargetItem::EpochFlagItem(f));
-        assert_eq!(TargetItem::from_str("f:0").unwrap(), target);
+        assert_eq!(TargetItem::from_str("f:0").unwrap(), target);*/
 
         let obs = Observable::default();
         let target: TargetItem = obs.clone().into();
         assert_eq!(target, TargetItem::ObservableItem(vec![obs.clone()]));
-        assert_eq!(TargetItem::from_str("obs:L1C").unwrap(), target);
+        assert_eq!(TargetItem::from_str("L1C").unwrap(), target);
 
         let msg = MsgType::LNAV;
         let target: TargetItem = msg.into();
         assert_eq!(target, TargetItem::NavMsgItem(vec![msg]));
-        assert_eq!(TargetItem::from_str("nav:msg:LNAV").unwrap(), target);
+        assert_eq!(TargetItem::from_str("LNAV").unwrap(), target);
 
         let fr = FrameClass::Ephemeris;
         let target: TargetItem = fr.into();
         assert_eq!(target, TargetItem::NavFrameItem(vec![fr]));
-        assert_eq!(TargetItem::from_str("nav:fr:eph").unwrap(), target);
+        assert_eq!(TargetItem::from_str("eph").unwrap(), target);
 
         assert_eq!(
-            TargetItem::from_str("nav:fr:eph, ion").unwrap(),
+            TargetItem::from_str("eph, ion").unwrap(),
             TargetItem::NavFrameItem(vec![FrameClass::Ephemeris, FrameClass::IonosphericModel])
         );
 
         assert_eq!(
-            TargetItem::from_str("sv:g08,g09,R03").unwrap(),
+            TargetItem::from_str("g08,g09,R03").unwrap(),
             TargetItem::SvItem(vec![
                 Sv::from_str("G08").unwrap(),
                 Sv::from_str("G09").unwrap(),
@@ -427,13 +437,22 @@ mod test {
         );
 
         assert_eq!(
-            TargetItem::from_str("gnss:GPS , BDS").unwrap(),
+            TargetItem::from_str("GPS , BDS").unwrap(),
             TargetItem::ConstellationItem(vec![Constellation::GPS, Constellation::BeiDou])
         );
 
         let dt = Duration::from_str("1 d").unwrap();
         let target: TargetItem = dt.into();
         assert_eq!(target, TargetItem::DurationItem(dt));
-        assert_eq!(TargetItem::from_str("dt: 1 d").unwrap(), target);
+
+		let snr = TargetItem::from_str("snr:10");
+		assert!(snr.is_ok());
+		let snr = TargetItem::from_str("snr:10,12");
+		assert!(snr.is_ok());
+		
+		let elev = TargetItem::from_str("elev:30");
+		assert!(elev.is_ok());
+		let elev = TargetItem::from_str("elev:30,38");
+		assert!(elev.is_ok());
     }
 }

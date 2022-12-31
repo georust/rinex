@@ -18,6 +18,7 @@ use crate::{
 	},
 };
 
+use super::Snr;
 use hifitime::Duration;
 
 #[derive(Error, Debug)]
@@ -40,134 +41,6 @@ pub enum Error {
 
 #[cfg(feature = "serde")]
 use serde::Serialize;
-
-/// `Ssi` describes signals strength
-#[repr(u8)]
-#[derive(PartialOrd, Ord, PartialEq, Eq, Copy, Clone, Debug)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub enum Ssi {
-    /// Ssi ~= 0 dB/Hz
-    DbHz0 = 0,
-    /// Ssi < 12 dB/Hz
-    DbHz12 = 1,
-    /// 12 dB/Hz <= Ssi < 17 dB/Hz
-    DbHz12_17 = 2,
-    /// 18 dB/Hz <= Ssi < 23 dB/Hz
-    DbHz18_23 = 3,
-    /// 24 dB/Hz <= Ssi < 29 dB/Hz
-    DbHz24_29 = 4,
-    /// 30 dB/Hz <= Ssi < 35 dB/Hz
-    DbHz30_35 = 5,
-    /// 36 dB/Hz <= Ssi < 41 dB/Hz
-    DbHz36_41 = 6,
-    /// 42 dB/Hz <= Ssi < 47 dB/Hz
-    DbHz42_47 = 7,
-    /// 48 dB/Hz <= Ssi < 53 dB/Hz
-    DbHz48_53 = 8,
-    /// Ssi >= 54 dB/Hz
-    DbHz54 = 9,
-}
-
-impl std::fmt::Display for Ssi {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match self {
-            Self::DbHz0 => "0".fmt(f),
-            Self::DbHz12 => "1".fmt(f),
-            Self::DbHz12_17 => "2".fmt(f),
-            Self::DbHz18_23 => "3".fmt(f),
-            Self::DbHz24_29 => "4".fmt(f),
-            Self::DbHz30_35 => "5".fmt(f),
-            Self::DbHz36_41 => "6".fmt(f),
-            Self::DbHz42_47 => "7".fmt(f),
-            Self::DbHz48_53 => "8".fmt(f),
-            Self::DbHz54 => "9".fmt(f),
-        }
-    }
-}
-
-impl Default for Ssi {
-    fn default() -> Ssi {
-        Ssi::DbHz54
-    }
-}
-
-impl From<f64> for Ssi {
-	fn from(f: f64) -> Self {
-		Self::from(f as u8)
-	}
-}
-
-impl From<u8> for Ssi {
-	fn from(u: u8) -> Self {
-		if u >= 54 {
-			Self::DbHz54
-		} else if u >= 48 {
-			Self::DbHz48_53
-		} else if u >= 42 {
-			Self::DbHz42_47
-		} else if u >= 36 {
-			Self::DbHz36_41
-		} else if u >= 30 {
-			Self::DbHz30_35
-		} else if u >= 24 {
-			Self::DbHz24_29
-		} else if u >= 18 {
-			Self::DbHz18_23
-		} else if u >= 12 {
-			Self::DbHz12_17
-		} else if u > 1 {
-			Self::DbHz12
-		} else {
-			Self::DbHz0
-		}
-	}
-}
-
-impl FromStr for Ssi {
-    type Err = std::io::Error;
-    fn from_str(code: &str) -> Result<Self, Self::Err> {
-        match code {
-            "0" => Ok(Ssi::DbHz0),
-            "1" => Ok(Ssi::DbHz12),
-            "2" => Ok(Ssi::DbHz12_17),
-            "3" => Ok(Ssi::DbHz18_23),
-            "4" => Ok(Ssi::DbHz24_29),
-            "5" => Ok(Ssi::DbHz30_35),
-            "6" => Ok(Ssi::DbHz36_41),
-            "7" => Ok(Ssi::DbHz42_47),
-            "8" => Ok(Ssi::DbHz48_53),
-            "9" => Ok(Ssi::DbHz54),
-            _ => Err(std::io::Error::new(
-                std::io::ErrorKind::InvalidData,
-                "invalid Ssi code",
-            )),
-        }
-    }
-}
-
-impl Ssi {
-    /// Returns true if `self` is a bad signal level, very poor quality,
-    /// measurements should be discarded
-    pub fn is_bad(self) -> bool {
-        self <= Ssi::DbHz18_23
-    }
-    /// Returns true if `self` is a weak signal level, poor quality
-    pub fn is_weak(self) -> bool {
-        self < Ssi::DbHz30_35
-    }
-    /// Returns true if `self` is a strong signal level, good quality as defined by standard
-    pub fn is_strong(self) -> bool {
-        self >= Ssi::DbHz30_35
-    }
-    /// Returns true if `self` is a very strong signal level, very high quality
-    pub fn is_excellent(self) -> bool {
-        self > Ssi::DbHz42_47
-    }
-    /// Returns true if `self` matches a strong signal level (defined by standard)
-    pub fn is_ok(self) -> bool {
-        self.is_strong()
-    }
-}
 
 bitflags! {
     #[cfg_attr(feature = "serde", derive(Serialize))]
@@ -193,7 +66,7 @@ pub struct ObservationData {
     /// Lock loss indicator
     pub lli: Option<LliFlags>,
     /// Signal strength indicator
-    pub ssi: Option<Ssi>,
+    pub snr: Option<Snr>,
 }
 
 impl std::ops::Add for ObservationData {
@@ -201,7 +74,7 @@ impl std::ops::Add for ObservationData {
     fn add(self, rhs: Self) -> Self {
         Self {
             lli: self.lli,
-            ssi: self.ssi,
+            snr: self.snr,
             obs: self.obs + rhs.obs,
         }
     }
@@ -215,8 +88,8 @@ impl std::ops::AddAssign for ObservationData {
 
 impl ObservationData {
     /// Builds new ObservationData structure from given predicates
-    pub fn new(obs: f64, lli: Option<LliFlags>, ssi: Option<Ssi>) -> ObservationData {
-        ObservationData { obs, lli, ssi }
+    pub fn new(obs: f64, lli: Option<LliFlags>, snr: Option<Snr>) -> ObservationData {
+        ObservationData { obs, lli, snr }
     }
     /// Returns `true` if self is determined as `ok`.    
     /// self is declared `ok` if LLI and SSI flags are not provided,
@@ -224,11 +97,11 @@ impl ObservationData {
     /// If LLI exists:    
     ///    + LLI must match the LliFlags::OkOrUnknown flag (strictly)    
     /// if SSI exists:    
-    ///    + SSI must match the .is_ok() criteria, refer to API
+    ///    + SNR must match the .is_ok() criteria, refer to API
     pub fn is_ok(self) -> bool {
         let lli_ok = self.lli.unwrap_or(LliFlags::OK_OR_UNKNOWN) == LliFlags::OK_OR_UNKNOWN;
-        let ssi_ok = self.ssi.unwrap_or(Ssi::default()).is_ok();
-        lli_ok && ssi_ok
+        let snr_ok = self.snr.unwrap_or(Snr::default()).strong();
+        lli_ok && snr_ok
     }
 
     /// Returns Real Distance, by converting observed pseudo range,
@@ -272,7 +145,7 @@ impl ObservationData {
 ///                // for convenient binary masking
 ///
 ///            }
-///            if let Some(ssii) = observation.ssi {
+///            if let Some(snri) = observation.snr {
 ///                // Sometimes observations come with an SSI indicator
 ///            }
 ///        }
@@ -514,7 +387,7 @@ fn parse_v2(
                 let obs = &slice[0..std::cmp::min(slice.len(), 14)]; // trimmed observations
                                                                      //println!("OBS \"{}\"", obs); //DEBUG
                 let mut lli: Option<LliFlags> = None;
-                let mut ssi: Option<Ssi> = None;
+                let mut snr: Option<Snr> = None;
                 if let Ok(obs) = f64::from_str(obs.trim()) {
                     // parse obs
                     if slice.len() > 14 {
@@ -523,16 +396,16 @@ fn parse_v2(
                             lli = LliFlags::from_bits(u);
                         }
                         if slice.len() > 15 {
-                            let ssi_str = &slice[15..16];
-                            if let Ok(s) = Ssi::from_str(ssi_str) {
-                                ssi = Some(s);
+                            let snr_str = &slice[15..16];
+                            if let Ok(s) = Snr::from_str(snr_str) {
+                                snr = Some(s);
                             }
                         }
                     }
-                    //println!("{} {:?} {:?} ==> {}", obs, lli, ssi, obscodes[obs_ptr-1]); //DEBUG
+                    //println!("{} {:?} {:?} ==> {}", obs, lli, snr, obscodes[obs_ptr-1]); //DEBUG
                     inner.insert(
                         observables[obs_ptr - 1].clone(),
-                        ObservationData { obs, lli, ssi },
+                        ObservationData { obs, lli, snr },
                     );
                 } //f64::obs
             } // parsing all observations
@@ -620,7 +493,7 @@ fn parse_v3(
                     //println!("content \"{}\" \"{}\"", content, r); //DEBUG
                     rem = r.clone();
                     let content_len = content.len();
-                    let mut ssi: Option<Ssi> = None;
+                    let mut snr: Option<Snr> = None;
                     let mut lli: Option<LliFlags> = None;
                     let obs = &content[0..std::cmp::min(observable_width - 2, content_len)];
                     //println!("OBS \"{}\"", obs); //DEBUG
@@ -632,15 +505,15 @@ fn parse_v3(
                             }
                         }
                         if content_len > observable_width - 1 {
-                            let ssi_str = &content[observable_width - 1..observable_width];
-                            if let Ok(s) = Ssi::from_str(ssi_str) {
-                                ssi = Some(s);
+                            let snr_str = &content[observable_width - 1..observable_width];
+                            if let Ok(s) = Snr::from_str(snr_str) {
+                                snr = Some(s);
                             }
                         }
                         //println!("LLI {:?}", lli); //DEBUG
-                        //println!("SSI {:?}", ssi);
+                        //println!("SSI {:?}", snr);
                         // build content
-                        inner.insert(obscodes[i].clone(), ObservationData { obs, lli, ssi });
+                        inner.insert(obscodes[i].clone(), ObservationData { obs, lli, snr });
                     }
                 }
                 if inner.len() > 0 {
@@ -699,7 +572,7 @@ fn fmt_epoch_v3(
                     } else {
                         lines.push_str(" ");
                     }
-                    if let Some(flag) = observation.ssi {
+                    if let Some(flag) = observation.snr {
                         lines.push_str(&format!("{}", flag));
                     } else {
                         lines.push_str(" ");
@@ -759,12 +632,12 @@ fn fmt_epoch_v2(
                 if let Some(observation) = observations.get(observable) {
                     let formatted_obs = format!("{:14.3}", observation.obs);
                     let formatted_flags: String = match observation.lli {
-                        Some(lli) => match observation.ssi {
-                            Some(ssi) => format!("{}{}", lli.bits(), ssi),
+                        Some(lli) => match observation.snr {
+                            Some(snr) => format!("{}{}", lli.bits(), snr),
                             _ => format!("{} ", lli.bits()),
                         },
-                        _ => match observation.ssi {
-                            Some(ssi) => format!(" {}", ssi),
+                        _ => match observation.snr {
+                            Some(snr) => format!(" {}", snr),
                             _ => "  ".to_string(),
                         },
                     };
@@ -808,9 +681,9 @@ impl Merge<Record> for Record {
                                         ddata.lli = Some(lli);
                                     }
                                 }
-                                if let Some(ssi) = data.ssi {
-                                    if ddata.ssi.is_none() {
-                                        ddata.ssi = Some(ssi);
+                                if let Some(snr) = data.snr {
+                                    if ddata.snr.is_none() {
+                                        ddata.snr = Some(snr);
                                     }
                                 }
                             } else {
@@ -2002,22 +1875,6 @@ impl IonoDelayDetector for Record {
 #[cfg(test)]
 mod test {
     use super::*;
-    #[test]
-    fn obs_record_ssi() {
-        let ssi = Ssi::from_str("0").unwrap();
-        assert_eq!(ssi, Ssi::DbHz0);
-        assert_eq!(ssi.is_bad(), true);
-        let ssi = Ssi::from_str("9").unwrap();
-		assert_eq!(ssi.is_excellent(), true);
-        let ssi = Ssi::from_str("10");
-        assert_eq!(ssi.is_err(), true);
-		let snr = 48_u8;
-		assert_eq!(Ssi::from(snr), SSi::DbHz48_53);
-		let snr = 31.3;
-		assert_eq!(Ssi::from(snr), Ssi::DbHz30_35);
-		let snr = 3.0;
-		assert_eq!(Ssi::from(snr), Ssi::DbHz12);
-    }
     #[test]
     fn obs_record_is_new_epoch() {
         assert_eq!(

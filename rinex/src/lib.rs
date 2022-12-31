@@ -1485,7 +1485,7 @@ impl Rinex {
     /// to them get thrown away too (can't make a decision).
     /// This can act as a simple signal quality filter.
     /// This has no effect on non Observation Data.
-    pub fn minimum_sig_strength_filter_mut(&mut self, minimum: observation::Ssi) {
+    pub fn minimum_snr_filter_mut(&mut self, minimum: observation::Snr) {
         if !self.is_observation_rinex() {
             return; // nothing to browse
         }
@@ -1493,10 +1493,10 @@ impl Rinex {
         record.retain(|_, (_clk, vehicules)| {
             vehicules.retain(|_, obs| {
                 obs.retain(|_, data| {
-                    if let Some(ssi) = data.ssi {
-                        ssi > minimum
+                    if let Some(snr) = data.snr {
+                        snr > minimum
                     } else {
-                        false // no ssi: drop out
+                        false // no snr: drop out
                     }
                 });
                 obs.len() > 0
@@ -1506,27 +1506,27 @@ impl Rinex {
     }
 
     /// Immutable implementation of [minimum_sig_strength_filter_mut]
-    pub fn minimum_sig_strength_filter(&self, minimum: observation::Ssi) -> Self {
+    pub fn minimum_snr_filter(&self, minimum: observation::Snr) -> Self {
         let mut filtered = self.clone();
-        filtered.minimum_sig_strength_filter_mut(minimum);
+        filtered.minimum_snr_filter_mut(minimum);
         filtered
     }
 
     /// Extracts signal strength as (min, max) duplet,
     /// accross all vehicules.
     /// Only relevant on Observation RINEX.
-    pub fn observation_ssi_minmax(&self) -> Option<(observation::Ssi, observation::Ssi)> {
-        let mut ret: Option<(observation::Ssi, observation::Ssi)> = None;
+    pub fn observation_ssi_minmax(&self) -> Option<(observation::Snr, observation::Snr)> {
+        let mut ret: Option<(observation::Snr, observation::Snr)> = None;
         if let Some(r) = self.record.as_obs() {
             for (_, (_, vehicules)) in r.iter() {
                 for (_, observation) in vehicules.iter() {
                     for (_, data) in observation.iter() {
-                        if let Some(ssi) = data.ssi {
+                        if let Some(snr) = data.snr {
                             if let Some((min, max)) = &mut ret {
-                                if ssi < *min {
-                                    *min = ssi
-                                } else if ssi > *max {
-                                    *max = ssi
+                                if snr < *min {
+                                    *min = snr;
+                                } else if snr > *max {
+                                    *max = snr;
                                 }
                             }
                         }
@@ -1539,14 +1539,14 @@ impl Rinex {
 
     /// Extracts signal strength as (min, max) duplet,
     /// per vehicule. Only relevant on Observation RINEX
-    pub fn observation_ssi_sv_minmax(&self) -> HashMap<Sv, (observation::Ssi, observation::Ssi)> {
-        let mut map: HashMap<Sv, (observation::Ssi, observation::Ssi)> = HashMap::new();
+    pub fn observation_ssi_sv_minmax(&self) -> HashMap<Sv, (observation::Snr, observation::Snr)> {
+        let mut map: HashMap<Sv, (observation::Snr, observation::Snr)> = HashMap::new();
         if let Some(r) = self.record.as_obs() {
             for (_, (_, vehicules)) in r.iter() {
                 for (sv, observations) in vehicules.iter() {
-                    let (mut min, mut max) = (observation::Ssi::DbHz54, observation::Ssi::DbHz0);
+                    let (mut min, mut max) = (observation::Snr::DbHz54, observation::Snr::DbHz0);
                     for (_, observation) in observations.iter() {
-                        if let Some(ssi) = observation.ssi {
+                        if let Some(ssi) = observation.snr {
                             min = std::cmp::min(min, ssi);
                             max = std::cmp::max(max, ssi);
                         }

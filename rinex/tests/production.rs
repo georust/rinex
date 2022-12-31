@@ -27,9 +27,9 @@ mod test {
                                     e_a, sv_a, code_a, obs_b.lli, obs_a.lli
                                 );
                                 assert_eq!(
-                                    obs_a.ssi, obs_b.ssi,
-                                    "epoch {:?} - {:?} - \"{}\" - SSI expecting {:?} got {:?}",
-                                    e_a, sv_a, code_a, obs_b.ssi, obs_a.ssi
+                                    obs_a.snr, obs_b.snr,
+                                    "epoch {:?} - {:?} - \"{}\" - SNR expecting {:?} got {:?}",
+                                    e_a, sv_a, code_a, obs_b.snr, obs_a.snr
                                 );
                             } else {
                                 panic!(
@@ -69,9 +69,9 @@ mod test {
                                     e_b, sv_b, code_b, obs_b.lli, obs_a.lli
                                 );
                                 assert_eq!(
-                                    obs_a.ssi, obs_b.ssi,
-                                    "epoch {:?} - {:?} - \"{}\" - SSI expecting {:?} got {:?}",
-                                    e_b, sv_b, code_b, obs_b.ssi, obs_a.ssi
+                                    obs_a.snr, obs_b.snr,
+                                    "epoch {:?} - {:?} - \"{}\" - SNR expecting {:?} got {:?}",
+                                    e_b, sv_b, code_b, obs_b.snr, obs_a.snr
                                 );
                             } else {
                                 panic!(

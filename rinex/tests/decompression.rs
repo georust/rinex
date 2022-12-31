@@ -38,9 +38,9 @@ mod test {
                                     e_model, sv_model, code_model, obs_model.lli, obs_b.lli
                                 );
                                 assert_eq!(
-                                    obs_model.ssi, obs_b.ssi,
-                                    "epoch {:?} - {:?} - \"{}\" - SSI expecting {:?} got {:?}",
-                                    e_model, sv_model, code_model, obs_model.ssi, obs_b.ssi
+                                    obs_model.snr, obs_b.snr,
+                                    "epoch {:?} - {:?} - \"{}\" - SNR expecting {:?} got {:?}",
+                                    e_model, sv_model, code_model, obs_model.snr, obs_b.snr
                                 );
                             } else {
                                 panic!(
@@ -80,9 +80,9 @@ mod test {
                                     e_b, sv_b, code_b, obs_model.lli, obs_b.lli
                                 );
                                 assert_eq!(
-                                    obs_model.ssi, obs_b.ssi,
-                                    "epoch {:?} - {:?} - \"{}\" - SSI expecting {:?} got {:?}",
-                                    e_b, sv_b, code_b, obs_model.ssi, obs_b.ssi
+                                    obs_model.snr, obs_b.snr,
+                                    "epoch {:?} - {:?} - \"{}\" - SNR expecting {:?} got {:?}",
+                                    e_b, sv_b, code_b, obs_model.snr, obs_b.snr
                                 );
                             } else {
                                 panic!(
@@ -590,7 +590,7 @@ mod test {
                 let c2i = c58.get(&Observable::from_str("C2I").unwrap()).unwrap();
                 assert_eq!(c2i.obs, 32241892.280);
                 assert!(c2i.lli.is_none());
-                assert!(c2i.ssi.is_none());
+                assert!(c2i.snr.is_none());
 
                 let l2i = c58.get(&Observable::from_str("L2I").unwrap()).unwrap();
                 assert_eq!(l2i.obs, 167892006.433);

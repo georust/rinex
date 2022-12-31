@@ -1,9 +1,11 @@
+use std::collections::HashMap;
 use super::{epoch, prelude::*, version::Version};
 
+mod snr;
 pub mod record;
-pub use record::{LliFlags, ObservationData, Record, Ssi};
 
-use std::collections::HashMap;
+pub use snr::Snr;
+pub use record::{LliFlags, ObservationData, Record};
 
 macro_rules! fmt_month {
     ($m: expr) => {

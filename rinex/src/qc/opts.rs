@@ -1,6 +1,6 @@
 use crate::prelude::*;
 use strum_macros::EnumString;
-use crate::observation::Ssi;
+use crate::observation::Snr;
 use crate::ground_position::GroundPosition;
 
 #[cfg(feature = "serde")]
@@ -147,7 +147,7 @@ pub struct QcOpts {
 	/// Minimum SNR level to consider in our analysis.
 	/// For example, this is used when determining whether
 	/// an epoch is "complete" or not.
-	pub min_snr: Ssi,
+	pub min_snr: Snr,
 	/// Custom duration considered as a data gap
     pub manual_gap: Option<Duration>,
 	/// Manually defined Ground position (ECEF)
@@ -155,7 +155,7 @@ pub struct QcOpts {
 }
 
 impl QcOpts {
-	pub fn with_min_snr(&self, snr: Ssi) -> Self {
+	pub fn with_min_snr(&self, snr: Snr) -> Self {
 		let mut s = self.clone();
 		s.min_snr = snr;
 		s
@@ -177,7 +177,7 @@ impl Default for QcOpts {
         Self {
             manual_gap: None,
 			ground_position: None,
-			min_snr: Ssi::DbHz30_35,
+			min_snr: Snr::new("strong"),
 			classification: QcClassificationMethod::default(),
         }
     }
