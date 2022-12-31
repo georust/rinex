@@ -891,6 +891,38 @@ impl Preprocessing for Record {
 								svs.len() > 0
 							});
 						},
+						TargetItem::SnrItem(filter) => {
+							let filter = Snr::from(filter);
+							self.retain(|_, (_, svs)| {
+								svs.retain(|_, obs| {
+									obs.retain(|_, data| {
+										if let Some(snr) = data.snr {
+											snr == filter
+										} else {
+											false // no snr: drop out
+										}
+									});
+									obs.len() > 0
+								});
+								svs.len() > 0
+							});
+						},
+						TargetItem::SnrRangeItem((min, max)) => {
+							let (min, max) = (Snr::from(min), Snr::from(max));
+							self.retain(|_, (_, svs)| {
+								svs.retain(|_, obs| {
+									obs.retain(|_, data| {
+										if let Some(snr) = data.snr {
+											snr >= min && snr <= max
+										} else {
+											false // no snr: drop out
+										}
+									});
+									obs.len() > 0
+								});
+								svs.len() > 0
+							});
+						},
 						_ => {},
 					},
 					MaskOperand::NotEquals => match mask.item {
@@ -937,6 +969,22 @@ impl Preprocessing for Record {
 								svs.len() > 0
 							});
 						},
+						TargetItem::SnrItem(filter) => {
+							let filter = Snr::from(filter);
+							self.retain(|_, (_, svs)| {
+								svs.retain(|_, obs| {
+									obs.retain(|_, data| {
+										if let Some(snr) = data.snr {
+											snr >= filter
+										} else {
+											false // no snr: drop out
+										}
+									});
+									obs.len() > 0
+								});
+								svs.len() > 0
+							});
+						},
 						_ => {},
 					},
 					MaskOperand::GreaterThan => match mask.item {
@@ -953,6 +1001,22 @@ impl Preprocessing for Record {
 										}
 									}
 									retain
+								});
+								svs.len() > 0
+							});
+						},
+						TargetItem::SnrItem(filter) => {
+							let filter = Snr::from(filter);
+							self.retain(|_, (_, svs)| {
+								svs.retain(|_, obs| {
+									obs.retain(|_, data| {
+										if let Some(snr) = data.snr {
+											snr > filter
+										} else {
+											false // no snr: drop out
+										}
+									});
+									obs.len() > 0
 								});
 								svs.len() > 0
 							});
@@ -977,6 +1041,22 @@ impl Preprocessing for Record {
 								svs.len() > 0
 							});
 						},
+						TargetItem::SnrItem(filter) => {
+							let filter = Snr::from(filter);
+							self.retain(|_, (_, svs)| {
+								svs.retain(|_, obs| {
+									obs.retain(|_, data| {
+										if let Some(snr) = data.snr {
+											snr <= filter
+										} else {
+											false // no snr: drop out
+										}
+									});
+									obs.len() > 0
+								});
+								svs.len() > 0
+							});
+						},
 						_ => {},
 					},
 					MaskOperand::LowerThan => match mask.item {
@@ -993,6 +1073,22 @@ impl Preprocessing for Record {
 										}
 									}
 									retain
+								});
+								svs.len() > 0
+							});
+						},
+						TargetItem::SnrItem(filter) => {
+							let filter = Snr::from(filter);
+							self.retain(|_, (_, svs)| {
+								svs.retain(|_, obs| {
+									obs.retain(|_, data| {
+										if let Some(snr) = data.snr {
+											snr < filter
+										} else {
+											false // no snr: drop out
+										}
+									});
+									obs.len() > 0
 								});
 								svs.len() > 0
 							});

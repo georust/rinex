@@ -1479,39 +1479,6 @@ impl Rinex {
         c
     }
 
-    /// Retains data with a minimum SSI Signal Strength requirement.
-    /// All observation that do not match the |s| > ssi (excluded) predicate,
-    /// get thrown away. All observation that did not come with an SSI attached
-    /// to them get thrown away too (can't make a decision).
-    /// This can act as a simple signal quality filter.
-    /// This has no effect on non Observation Data.
-    pub fn minimum_snr_filter_mut(&mut self, minimum: observation::Snr) {
-        if !self.is_observation_rinex() {
-            return; // nothing to browse
-        }
-        let record = self.record.as_mut_obs().unwrap();
-        record.retain(|_, (_clk, vehicules)| {
-            vehicules.retain(|_, obs| {
-                obs.retain(|_, data| {
-                    if let Some(snr) = data.snr {
-                        snr > minimum
-                    } else {
-                        false // no snr: drop out
-                    }
-                });
-                obs.len() > 0
-            });
-            vehicules.len() > 0
-        });
-    }
-
-    /// Immutable implementation of [minimum_sig_strength_filter_mut]
-    pub fn minimum_snr_filter(&self, minimum: observation::Snr) -> Self {
-        let mut filtered = self.clone();
-        filtered.minimum_snr_filter_mut(minimum);
-        filtered
-    }
-
     /// Extracts signal strength as (min, max) duplet,
     /// accross all vehicules.
     /// Only relevant on Observation RINEX.
