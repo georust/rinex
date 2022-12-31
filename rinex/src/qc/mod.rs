@@ -88,7 +88,7 @@ impl <'a> QcReport<'a> {
     pub fn new(filename: &str, rnx: &'a Rinex, opts: QcOpts) -> Self {
 			
 		let mut classifier: TargetItem = match opts.classification {
-			QcClassificationMethod::Gnss => {
+			QcClassificationMethod::GNSS => {
 				TargetItem::from(rnx.list_constellations())
 			},
 			QcClassificationMethod::Sv => {

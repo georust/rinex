@@ -119,23 +119,20 @@ impl Default for ProcessingOpts {
 }
 
 /// Qc Report classification method
-#[derive(Debug, Clone, EnumString)]
-#[cfg_attr(feature = "serde", derive(Deserialize))]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum QcClassificationMethod {
 	/// Report per GNSS system
-    #[strum(serialize = "gnss")]
-	Gnss,
+	GNSS,
 	/// Report per Sv
-    #[strum(serialize = "sv")]
 	Sv,
 	/// Report per Physics (Observable, Orbit..)
-    #[strum(serialize = "physics")]
 	Physics,
 }
 
 impl Default for QcClassificationMethod {
 	fn default() -> Self {
-		Self::Gnss
+		Self::GNSS
 	}
 }
 
@@ -143,19 +140,23 @@ impl Default for QcClassificationMethod {
 #[cfg_attr(feature = "serde", derive(Deserialize))]
 pub struct QcOpts {
 	/// Classification Method
+	#[serde(default)]
 	pub classification: QcClassificationMethod,
 	/// Minimum SNR level to consider in our analysis.
 	/// For example, this is used when determining whether
 	/// an epoch is "complete" or not.
-	pub min_snr: Snr,
-	/// Custom duration considered as a data gap
+	#[serde(default)]
+	pub min_snr: f64,
+	/// Elevation mask
+	pub elev_mask: Option<f64>,
+	/// Duration considered as a data gap
     pub manual_gap: Option<Duration>,
 	/// Manually defined Ground position (ECEF)
 	pub ground_position: Option<GroundPosition>,
 }
 
 impl QcOpts {
-	pub fn with_min_snr(&self, snr: Snr) -> Self {
+	pub fn with_min_snr(&self, snr: f64) -> Self {
 		let mut s = self.clone();
 		s.min_snr = snr;
 		s
@@ -177,7 +178,8 @@ impl Default for QcOpts {
         Self {
             manual_gap: None,
 			ground_position: None,
-			min_snr: Snr::new("strong"),
+			min_snr: (Snr::new("strong") as u8).into(),
+			elev_mask: None,
 			classification: QcClassificationMethod::default(),
         }
     }
@@ -191,14 +193,18 @@ mod test {
 	fn qc_opts_serdes() {
 		let content = r#"
 			{
-				"ground_pos_ecef": "(1.0, 2.0, 3.0)"
+				"classification": "GNSS"
 			}"#;
 		let opts: QcOpts = serde_json::from_str(content).unwrap();
-		assert!(opts.manual_gap.is_none());
+		
+		let content = r#"
+			{
+				"classification": "Sv"
+			}"#;
+		let opts: QcOpts = serde_json::from_str(content).unwrap();
 		
 		/*let content = r#"
 			{
-				"reporting": "PerSv",
 				"statistics": {
 					"window": "10 seconds"
 				}
@@ -213,7 +219,6 @@ mod test {
 		
 		let content = r#"
 			{
-				"reporting": "PerSignal",
 				"statistics": {
 					"window": "10 %"
 				}
