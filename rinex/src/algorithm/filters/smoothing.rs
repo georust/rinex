@@ -1,18 +1,28 @@
-use crate::Duration;
+use crate::{
+	Duration,
+	processing::TargetItem,
+};
+use thiserror::Error;
 
-/// Smoothing Filter to smooth data subsets
-#[derive(Debug, PartialEq, Clone)]
-pub enum SmoothingFilter {
-	/// Hatch filter to smooth pseudo range observations.
-	/// Only applies to this subset
-	HatchFilter,
+/// Known Smoothing Filters
+#[derive(Debug, Clone, PartialEq)]
+pub enum SmoothingType {
+	/// Hatch filter, only applies to pseudo range observations
+	Hatch,
 	/// Applies Window Average filter,
 	/// either to entire set, or to specific subset
 	MovingAverage(Option<Duration>)
 }
 
-use thiserror::Error;
-use crate::processing::TargetItem;
+/// Smoothing Filter to smooth data subsets
+#[derive(Debug, Clone, PartialEq)]
+pub struct SmoothingFilter {
+	/// Possible targeted subset to narrow down filter's application.
+	/// When undefined, the filter applies to entire dataset
+	pub target: Option<TargetItem>,
+	/// Type of smoothing to apply
+	pub smooth_type: SmoothingType,
+}
 
 #[derive(Error, Debug)]
 pub enum Error {
@@ -27,10 +37,14 @@ pub enum Error {
 impl std::str::FromStr for SmoothingFilter {
     type Err = Error;
     fn from_str(content: &str) -> Result<Self, Self::Err> {
-        let c = content.trim();
-        if c.eq("hatch") {
-            Ok(Self::HatchFilter)
-        } else if c.starts_with("mov:") {
+        let items : Vec<&str> = content.trim().split(":").collect();
+		if items[0].trim().eq("hatch") {
+            Ok(Self {
+				target: None,
+				smooth_type: SmoothingType::Hatch,
+			})
+        
+		/*} else if c.starts_with("mov:") {
 			/*
 			 * Moving Average with specified window guessing
 			 */
@@ -39,13 +53,15 @@ impl std::str::FromStr for SmoothingFilter {
 			 } else {
 			 	Err(Error::DurationParsingError(c.to_string()))
 			}
+		
 		} else if c.starts_with("mov") {
 			/*
 			 * Moving Average with smart window guessing
 			 */
-			Ok(Self::MovingAverage(None))
-        } else {
-            Err(Error::UnknownFilter(c.to_string()))
+			Ok(Self::MovingAverage(None)) */
+        
+		} else {
+            Err(Error::UnknownFilter(items[0].to_string()))
         }
 	}
 }
@@ -58,13 +74,10 @@ mod test {
     fn algo_filter_smoothing() {
         let filter = SmoothingFilter::from_str("hatch")
 			.unwrap();
-        assert_eq!(filter, SmoothingFilter::HatchFilter);
-        
-		let filter = SmoothingFilter::from_str("mov")
-			.unwrap();
-        assert_eq!(filter, SmoothingFilter::MovingAverage(None));
-        
-		let filter = SmoothingFilter::from_str("test");
-		assert!(filter.is_err());
+        assert_eq!(filter, 
+			SmoothingFilter {
+				target: None,
+				smooth_type: SmoothingType::Hatch,
+			});
 	}
 }

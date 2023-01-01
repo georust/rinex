@@ -11,7 +11,7 @@ use crate::{
 		TargetItem,
 		Preprocessing, 
 		Filter, MaskOperand, 
-		SmoothingFilter,
+		SmoothingType, SmoothingFilter,
 		Combination, Combine,
 		Processing,
 		IonoDelayDetector,
@@ -810,15 +810,18 @@ impl TimeScaling<Record> for Record {
 }
 
 fn smoothing_filter(record: &mut Record, filter: SmoothingFilter) {
-	match filter {
-		SmoothingFilter::HatchFilter => hatch_filter(record),
-		SmoothingFilter::MovingAverage(Some(dt)) => {
-		},
-		SmoothingFilter::MovingAverage(None) => {
-		},
+	match filter.smooth_type {
+		SmoothingType::Hatch => hatch_filter(record),
+		//SmoothingFilter::MovingAverage(Some(dt)) => {},
+		//SmoothingFilter::MovingAverage(None) => {},
+		_ => todo!(),
 	}
 }
-	
+
+/*
+ * Hatch smoothing filter
+ * smoothes pseudo range observations using special algorithm
+ */
 fn hatch_filter(rec: &mut Record) {
 	let mut buffer: HashMap<Sv, HashMap<Observable, (u32, f64)>> = HashMap::new();
 	for (_, (_, svs)) in rec {

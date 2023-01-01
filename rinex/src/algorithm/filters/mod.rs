@@ -3,7 +3,7 @@ mod smoothing;
 
 use super::TargetItem;
 pub use mask::{MaskFilter, MaskOperand};
-pub use smoothing::{SmoothingFilter};
+pub use smoothing::{SmoothingType, SmoothingFilter};
 
 use thiserror::Error;
 
