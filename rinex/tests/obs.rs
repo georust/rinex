@@ -1,10 +1,12 @@
 #[cfg(test)]
 mod test {
-    use rinex::header::*;
-    use rinex::observation::*;
-    use rinex::prelude::*;
+    use rinex::{
+		prelude::*,
+		header::*,
+		observation::*,
+		processing::*,
+	};
     use std::str::FromStr;
-	use rinex::processing::*;
 	use itertools::Itertools;
     /*
      * General testbench
@@ -1039,7 +1041,7 @@ mod test {
     }
 /*
     #[test]
-    fn test_v3_duth0630_processing() {
+    fn obs_v3_duth0630_processing() {
         let rinex = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
             .unwrap();
         let record = rinex.record.as_obs()
@@ -1109,7 +1111,7 @@ mod test {
 		}
 	}
 	#[test]
-	fn test_v2_aopr0010_17o() {
+	fn obs_v2_aopr0010_17o() {
         let rinex = Rinex::from_file("../test_resources/OBS/V2/aopr0010.17o")
             .unwrap();
         let record = rinex.record.as_obs()
@@ -1139,7 +1141,7 @@ mod test {
 		let ionod = record.iono_delay_detector(dt);
 	}
 	#[test]
-	fn test_v3_duth0630_gnss_combinations() {
+	fn obs_v3_duth0630_gnss_combinations() {
         let rinex = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
             .unwrap();
         let record = rinex.record.as_obs()
@@ -1170,7 +1172,7 @@ mod test {
 		let ionod = record.iono_delay_detector(dt);
 	}
 	#[test]
-	fn test_v3_esbcd00dnk_r_2020_gnss_combinations() {
+	fn obs_v3_esbcd00dnk_r_2020_gnss_combinations() {
         let rinex = Rinex::from_file("../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
 			.unwrap();
         let record = rinex.record.as_obs()

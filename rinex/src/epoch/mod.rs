@@ -187,7 +187,7 @@ mod test {
     use super::*;
     use hifitime::TimeScale;
     #[test]
-    fn parse_nav_v2() {
+    fn epoch_parse_nav_v2() {
         let e = parse("20 12 31 23 45  0.0");
         assert_eq!(e.is_ok(), true);
         let (e, flag) = e.unwrap();
@@ -225,7 +225,7 @@ mod test {
         );
     }
     #[test]
-    fn parse_nav_v2_nanos() {
+    fn epoch_parse_nav_v2_nanos() {
         let e = parse("20 12 31 23 45  0.1");
         assert_eq!(e.is_ok(), true);
         let (e, _) = e.unwrap();
@@ -238,7 +238,7 @@ mod test {
         );
     }
     #[test]
-    fn parse_nav_v3() {
+    fn epoch_parse_nav_v3() {
         let e = parse("2021 01 01 00 00 00 ");
         assert_eq!(e.is_ok(), true);
         let (e, _) = e.unwrap();
@@ -305,7 +305,7 @@ mod test {
         );
     }
     #[test]
-    fn parse_obs_v2() {
+    fn epoch_parse_obs_v2() {
         let e = parse(" 21 12 21  0  0  0.0000000  0");
         assert_eq!(e.is_ok(), true);
         let (e, flag) = e.unwrap();
@@ -401,7 +401,7 @@ mod test {
         //assert_eq!(format!("{:o}", e), "21  1  1  0  7 30.0000000  0");
     }
     #[test]
-    fn parse_obs_v3() {
+    fn epoch_parse_obs_v3() {
         let e = parse(" 2022 01 09 00 00  0.0000000  0");
         assert_eq!(e.is_ok(), true);
         let (e, flag) = e.unwrap();
@@ -459,7 +459,7 @@ mod test {
         //assert_eq!(format!("{}", e), "2022 03 04 00 02 30.0000000  0");
     }
     #[test]
-    fn parse_obs_v2_nanos() {
+    fn epoch_parse_obs_v2_nanos() {
         let e = parse(" 21  1  1  0  7 39.1234567  0");
         assert_eq!(e.is_ok(), true);
         let (e, _) = e.unwrap();
@@ -468,7 +468,7 @@ mod test {
         assert_eq!(ns, 123_456_700);
     }
     #[test]
-    fn test_obs_v3_nanos() {
+    fn epoch_parse_obs_v3_nanos() {
         let e = parse("2022 01 09 00 00  0.1000000  0");
         assert_eq!(e.is_ok(), true);
         let (e, _) = e.unwrap();
@@ -494,7 +494,7 @@ mod test {
         //assert_eq!(format!("{}", e), "2022 01 09 00 00  8.7654321  0");
     }
     #[test]
-    fn parse_meteo_v2() {
+    fn epoch_parse_meteo_v2() {
         let e = parse(" 22  1  4  0  0  0  ");
         assert_eq!(e.is_ok(), true);
         let (e, _) = e.unwrap();
