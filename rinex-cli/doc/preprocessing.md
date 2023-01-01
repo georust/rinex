@@ -1,44 +1,37 @@
-RINEX Pre-Processing
-====================
+RINEX Preprocessing
+=================== 
+  
+It is important to master the preprocessing filer designer to operate this tool efficiently.
 
-RINEX files are huge and the information you're interested might not be directly visible.    
-This tool also supports a lot of operations. A filter design interface is now introduced to address
-that problem.  
-  
-It is important to master the _filter designer_ to operate this tool efficiently.  
-  
+Several algorithms are known:  
+
+* `mask` for [mask filters](#masking-operations): to focus or get rid of specific data subsets
+* `decim` for [record decimation](#data-decimation): to get rid of specific epochs (as is)
+* `smooth` for [smoothing filters](#smoothing-filters)
+* `interp` for [interpolation filters](#interpolation-filters)
+
 A preprocessing algorithm is described with a string and passed with `-P`,
 for example:
 
 ```bash
 rinex-cli \
-    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.gz \
     -P mask:G08,G09,G10
+    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.gz \
 ```
   
-Stack as many filters as you want:
+Any amount of preprocessing algorithm can be stacked:
 
 ```bash
 rinex-cli \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.gz \
-    -P mask:G08,G09,G10 \
-    -P mask:L1C
+    -P mask:L1C mask:G08,G09,G10
 ```
-
-The following preprocessing algorithms are known to this day:
-
-* `mask:` for [mask filters](#masking-operations)
-* `decim:` [decimation](#data-decimation) to get rid of specific epochs (as is)
-* `smooth:` [smoothing filters](#smoothing-filters)
-* `resampling:` [resampling filters](#resampling) interpolation or decimation filters
-
-The description depends on the algorithm to invoke, see down below.  
 
 ## Masking operations
 
 Use Mask filters to focus on data you're interested in, or get rid of entire data subsets.
 
-As mask filter is one operand and a mask to apply to a particular kind of data.    
+As mask filter is one operand and a mask to apply to a particular kind of data.   
 
 ### Mask Operands
 

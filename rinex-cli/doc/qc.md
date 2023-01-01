@@ -10,19 +10,30 @@ QC is a well known procedure in data preprocessing.
 There are a few differences people who are very familiar with `teqc` must
 take into account when using our command line interface.
 
+## Similarities with `teqc`
+
+We share similarities with `teqc` which will prove convenient  
+to advanced "teqc" users.  Among them:
+
+* Quick GNSS filters (`-G`, `-R`, ...) still exist
+* In augmented mode, `-no_orbit X` is feasible if you know how to operate the [preprocessor](doc/preprocessing.md)
+* Similar position anlysis and reporting
+* Similar signals analysis and reporting
+
 ## Differences with `teqc`
 
 Unlike teqc we are not limited to RINEX V2, V3 and V4 Observations
 are fully supported.
 
 Unlike teqc we expect the user to provide the file context
-himself. There is not such thing as auto determining possible Navigation context
-in predefined folders. This tool expects all files to be provided with an argument
+himself. We do not have the ability to browse and search for Navigation context for examples.    
+Although we support as many Navigation files to be specified, when the _augmented_ mode is being activated.  
+This allows for example Glonass and other NAV context to be correctly defined.
   
 1. `--fp [FILE]` for the Observation file
 2. `--nav [FILE1] [FILE2]..` for secondary Navigation files  
 
-Like most UNAVCO tools, we will generate products in a dedicated folder.  
+We will generate products in a dedicated folder.  
 
 The current behavior is to use the 
 [product](https://github.com/gwbres/rinex/tree/rinex-cli/product)
@@ -33,12 +44,11 @@ Unlike teqc, we do not support BINEX nor SP3 input data/files as of today.
 Unlike teqc we do not limit ourselves to the analysis of
 GPS and Glonass constellations.
 
-Unlike teqc, we have no means to detect epoch duplicates
-and duplicated SV accross epochs. This information is therefore missing.
+Unlike teqc, we have no means to detect data duplicates, therefore
+such information is not reported.
 
 Unlike teqc, we do not limit ourselves to L1/L2 analysis.  
-This applies for instance to MPx (Code Multipath biases),
-averaged received signal strength estimates, etc.. 
+This applies for instance to MP or DCB analyses. 
 
 Unlike teqc, this tool allows accurate time description, down to 1 ns precision.  
 For example, this would apply to
@@ -48,8 +58,10 @@ For example, this would apply to
 
 ## QC specific command line options
 
-* `--qc-separate`: use this option to generate the QC report in its own HTML report
-* `--qc-only`: ensures the tool will only perform the QCs, other graphs and analysis are turned off
+* `--qc-only`: ensures the tool will only perform the QCs,   
+other graphs or record analysis is turned off. This is the most efficient  
+QC mode.  
+
 * `--qc-config`: pass a configuration file for QC reporting and calculations management (see down below) 
 
 ## Basic QC (No NAV)
