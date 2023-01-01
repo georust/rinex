@@ -4,14 +4,14 @@ use crate::{
 };
 use thiserror::Error;
 
-/// Known Smoothing Filters
+/// Supported Smoothing Filters
 #[derive(Debug, Clone, PartialEq)]
 pub enum SmoothingType {
 	/// Hatch filter, only applies to pseudo range observations
 	Hatch,
-	/// Applies Window Average filter,
-	/// either to entire set, or to specific subset
-	MovingAverage(Option<Duration>)
+	// /// Applies Window Average filter,
+	// /// either to entire set, or to specific subset
+	// MovingAverage(Option<Duration>)
 }
 
 /// Smoothing Filter to smooth data subsets
@@ -21,7 +21,7 @@ pub struct SmoothingFilter {
 	/// When undefined, the filter applies to entire dataset
 	pub target: Option<TargetItem>,
 	/// Type of smoothing to apply
-	pub smooth_type: SmoothingType,
+	pub stype: SmoothingType,
 }
 
 #[derive(Error, Debug)]
@@ -41,29 +41,19 @@ impl std::str::FromStr for SmoothingFilter {
 		if items[0].trim().eq("hatch") {
             Ok(Self {
 				target: None,
-				smooth_type: SmoothingType::Hatch,
+				stype: SmoothingType::Hatch,
 			})
-        
-		/*} else if c.starts_with("mov:") {
-			/*
-			 * Moving Average with specified window guessing
-			 */
-			 if let Ok(dt) = Duration::from_str(&c[4..].trim()) {
-				Ok(Self::MovingAverage(Some(dt)))
-			 } else {
-			 	Err(Error::DurationParsingError(c.to_string()))
-			}
-		
-		} else if c.starts_with("mov") {
-			/*
-			 * Moving Average with smart window guessing
-			 */
-			Ok(Self::MovingAverage(None)) */
-        
 		} else {
             Err(Error::UnknownFilter(items[0].to_string()))
         }
 	}
+}
+
+pub trait Smooth<T> {
+	/// Applies a Hatch smoothing filter to Pseudo Range observations
+	fn hatch_smoothing(&self) -> Self;
+	/// Applies a Hatch smoothing filter to Pseudo Range observations
+	fn hatch_smoothing_mut(&mut self);
 }
 
 #[cfg(test)]
@@ -77,7 +67,7 @@ mod test {
         assert_eq!(filter, 
 			SmoothingFilter {
 				target: None,
-				smooth_type: SmoothingType::Hatch,
+				stype: SmoothingType::Hatch,
 			});
 	}
 }

@@ -6,7 +6,6 @@ use thiserror::Error;
 use serde::Serialize;
 
 use super::{
-    algorithm::Decimation,
     antex, clocks,
     gnss_time::TimeScaling,
     hatanaka::{Compressor, Decompressor},
@@ -18,7 +17,12 @@ use super::{
     split::Split,
     types::Type,
     writer::BufferedWriter,
-	algorithm::{Preprocessing, Filter},
+	algorithm::{
+		Preprocessing, 
+		Filter,
+		Smooth,
+		Decimate,
+	},
     *,
 };
 use hifitime::Duration;
@@ -723,55 +727,46 @@ impl Split<Record> for Record {
 	}
 }
 
-impl Decimation<Record> for Record {
-    /// Decimates Self by desired factor
-    fn decim_by_ratio_mut(&mut self, r: u32) {
+impl Decimate<Record> for Record {
+    fn decimate_by_ratio_mut(&mut self, r: u32) {
         if let Some(rec) = self.as_mut_obs() {
-            rec.decim_by_ratio_mut(r);
-        } else if let Some(rec) = self.as_mut_nav() {
-            rec.decim_by_ratio_mut(r);
-        } else if let Some(rec) = self.as_mut_meteo() {
-            rec.decim_by_ratio_mut(r);
-        } else if let Some(rec) = self.as_mut_ionex() {
-            rec.decim_by_ratio_mut(r);
-        } else if let Some(rec) = self.as_mut_clock() {
-            rec.decim_by_ratio_mut(r);
-        } else if let Some(rec) = self.as_mut_antex() {
-            rec.decim_by_ratio_mut(r);
-        }
+            rec.decimate_by_ratio_mut(r);
+        //} else if let Some(rec) = self.as_mut_nav() {
+        //} else if let Some(rec) = self.as_mut_meteo() {
+        //} else if let Some(rec) = self.as_mut_ionex() {
+        //} else if let Some(rec) = self.as_mut_clock() {
+        //} else if let Some(rec) = self.as_mut_antex() {
+		} else {
+			todo!()
+		}
     }
-    /// Copies and Decimates Self by desired factor
-    fn decim_by_ratio(&self, r: u32) -> Self {
+    fn decimate_by_ratio(&self, r: u32) -> Self {
         let mut s = self.clone();
-        s.decim_by_ratio_mut(r);
+        s.decimate_by_ratio_mut(r);
         s
     }
-    /// Decimates Self to fit minimum epoch interval
-    fn decim_by_interval_mut(&mut self, interval: Duration) {
+    fn decimate_by_interval_mut(&mut self, interval: Duration) {
         if let Some(r) = self.as_mut_obs() {
-            r.decim_by_interval_mut(interval);
-        } else if let Some(r) = self.as_mut_nav() {
-            r.decim_by_interval_mut(interval);
-        } else if let Some(r) = self.as_mut_meteo() {
-            r.decim_by_interval_mut(interval);
+            r.decimate_by_interval_mut(interval);
+        //} else if let Some(r) = self.as_mut_nav() {
+        //} else if let Some(r) = self.as_mut_meteo() {
         //} else if let Some(r) = self.as_mut_ionex() {
-        //    r.decim_by_interval_mut(interval);
-        } else if let Some(r) = self.as_mut_clock() {
-            r.decim_by_interval_mut(interval);
-        }
+        //} else if let Some(r) = self.as_mut_clock() {
+        } else {
+			todo!()
+		}
     }
-    /// Copies and Decimates Self to fit minimum epoch interval
-    fn decim_by_interval(&self, interval: Duration) -> Self {
+    fn decimate_by_interval(&self, interval: Duration) -> Self {
         let mut s = self.clone();
-        s.decim_by_interval_mut(interval);
+        s.decimate_by_interval_mut(interval);
         s
     }
-    fn decim_match_mut(&mut self, rhs: &Self) {
+    fn decimate_match_mut(&mut self, rhs: &Self) {
         if let Some(a) = self.as_mut_obs() {
             if let Some(b) = rhs.as_obs() {
-                a.decim_match_mut(b);
+                a.decimate_match_mut(b);
             }
-        } else if let Some(a) = self.as_mut_nav() {
+        /*} else if let Some(a) = self.as_mut_nav() {
             if let Some(b) = rhs.as_nav() {
                 a.decim_match_mut(b);
             }
@@ -786,12 +781,14 @@ impl Decimation<Record> for Record {
         } else if let Some(a) = self.as_mut_clock() {
             if let Some(b) = rhs.as_clock() {
                 a.decim_match_mut(b);
-            }
-        }
+            }*/
+		} else {
+			todo!()
+		}
     }
-    fn decim_match(&self, rhs: &Self) -> Self {
+    fn decimate_match(&self, rhs: &Self) -> Self {
         let mut s = self.clone();
-        s.decim_match_mut(rhs);
+        s.decimate_match_mut(rhs);
         s
     }
 }

@@ -1,6 +1,6 @@
 //! This library provides a set of tools to parse, analyze
 //! and process RINEX files.
-//! Refer to README and official documentation here
+//! Refer to README and documentation provided here
 //! <https://github.com/gwbres/rinex>
 pub mod antex;
 pub mod carrier;
@@ -95,8 +95,8 @@ pub use merge::Merge;
 pub use split::Split;
 
 use algorithm::Dcb; 
-use algorithm::Decimation;
 use algorithm::IonoDelayDetector; 
+use algorithm::Decimate;
 use algorithm::{Combine, Combination}; 
 
 #[macro_use]
@@ -2474,10 +2474,9 @@ impl Split<Rinex> for Rinex {
 	}
 }
 
-impl Decimation<Rinex> for Rinex {
-    /// Decimates Self by desired factor
-    fn decim_by_ratio_mut(&mut self, r: u32) {
-        self.record.decim_by_ratio_mut(r);
+impl Decimate<Rinex> for Rinex {
+    fn decimate_by_ratio_mut(&mut self, r: u32) {
+        self.record.decimate_by_ratio_mut(r);
         if let Some(_) = self.header.sampling_interval {
             self.header.sampling_interval = Some(
                 //update
@@ -2485,36 +2484,33 @@ impl Decimation<Rinex> for Rinex {
             );
         }
     }
-    /// Copies and Decimates Self by desired factor
-    fn decim_by_ratio(&self, r: u32) -> Self {
+    fn decimate_by_ratio(&self, r: u32) -> Self {
         let mut s = self.clone();
-        s.decim_by_ratio_mut(r);
+        s.decimate_by_ratio_mut(r);
         s
     }
-    /// Decimates Self to fit minimum epoch interval
-    fn decim_by_interval_mut(&mut self, interval: Duration) {
-        self.record.decim_by_interval_mut(interval);
+    fn decimate_by_interval_mut(&mut self, interval: Duration) {
+        self.record.decimate_by_interval_mut(interval);
         if let Some(_) = self.header.sampling_interval {
             self.header.sampling_interval = Some(interval);
         }
     }
-    /// Copies and Decimates Self to fit minimum epoch interval
-    fn decim_by_interval(&self, interval: Duration) -> Self {
+    fn decimate_by_interval(&self, interval: Duration) -> Self {
         let mut s = self.clone();
-        s.decim_by_interval_mut(interval);
+        s.decimate_by_interval_mut(interval);
         s
     }
-    fn decim_match_mut(&mut self, rhs: &Self) {
-        self.record.decim_match_mut(&rhs.record);
+    fn decimate_match_mut(&mut self, rhs: &Self) {
+        self.record.decimate_match_mut(&rhs.record);
         if self.header.sampling_interval.is_some() {
             if let Some(b) = rhs.header.sampling_interval {
                 self.header.sampling_interval = Some(b);
             }
         }
     }
-    fn decim_match(&self, rhs: &Self) -> Self {
+    fn decimate_match(&self, rhs: &Self) -> Self {
         let mut s = self.clone();
-        s.decim_match_mut(&rhs);
+        s.decimate_match_mut(&rhs);
         s
     }
 }

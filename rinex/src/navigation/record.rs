@@ -3,7 +3,12 @@ use regex::{Captures, Regex};
 use std::collections::BTreeMap;
 use std::str::FromStr;
 use thiserror::Error;
-use crate::processing::{Filter, Preprocessing, MaskOperand, TargetItem};
+use crate::processing::{
+	Filter, 
+	Preprocessing, 
+	MaskOperand, 
+	TargetItem,
+};
 
 /*
  * When formatting floating point number in Navigation RINEX,
@@ -20,7 +25,7 @@ fn double_exponent_digits(content: &str) -> String {
 }
 
 use crate::{
-    algorithm::Decimation, epoch, gnss_time::TimeScaling, merge, merge::Merge, prelude::*, split,
+    epoch, gnss_time::TimeScaling, merge, merge::Merge, prelude::*, split,
     split::Split, sv, types::Type, version::Version,
 };
 
@@ -1285,52 +1290,6 @@ impl Split<Record> for Record {
 	}
 }
 
-impl Decimation<Record> for Record {
-    /// Decimates Self by desired factor
-    fn decim_by_ratio_mut(&mut self, r: u32) {
-        let mut i = 0;
-        self.retain(|_, _| {
-            let retained = (i % r) == 0;
-            i += 1;
-            retained
-        });
-    }
-    /// Copies and Decimates Self by desired factor
-    fn decim_by_ratio(&self, r: u32) -> Self {
-        let mut s = self.clone();
-        s.decim_by_ratio_mut(r);
-        s
-    }
-    /// Decimates Self to fit minimum epoch interval
-    fn decim_by_interval_mut(&mut self, interval: Duration) {
-        let mut last_retained: Option<Epoch> = None;
-        self.retain(|e, _| {
-            if last_retained.is_some() {
-                let dt = *e - last_retained.unwrap();
-                last_retained = Some(*e);
-                dt > interval
-            } else {
-                last_retained = Some(*e);
-                true // always retain 1st epoch
-            }
-        });
-    }
-    /// Copies and Decimates Self to fit minimum epoch interval
-    fn decim_by_interval(&self, interval: Duration) -> Self {
-        let mut s = self.clone();
-        s.decim_by_interval_mut(interval);
-        s
-    }
-    fn decim_match_mut(&mut self, rhs: &Self) {
-        self.retain(|e, _| rhs.get(e).is_some());
-    }
-    fn decim_match(&self, rhs: &Self) -> Self {
-        let mut s = self.clone();
-        s.decim_match_mut(&rhs);
-        s
-    }
-}
-
 impl TimeScaling<Record> for Record {
     fn convert_timescale(&mut self, ts: TimeScale) {
         self.iter_mut()
@@ -1612,6 +1571,7 @@ impl Preprocessing for Record {
 				}
 			}
 			Filter::Smoothing(_) => todo!(),
+			Filter::Decimation(_) => todo!(),
 		}
 	}
 }

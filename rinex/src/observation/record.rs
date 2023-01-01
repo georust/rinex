@@ -4,17 +4,25 @@ use std::str::FromStr;
 use thiserror::Error;
 
 use crate::{
-    algorithm::Decimation, constellation, epoch, gnss_time::TimeScaling, merge, merge::Merge,
+	constellation, 
+	epoch, 
+	gnss_time::TimeScaling, 
+	merge, merge::Merge,
 	Carrier,
-    prelude::*, split, split::Split, sv, types::Type, version::Version, Observable,
+    prelude::*, 
+	split, split::Split, 
+	sv, types::Type, 
+	version::Version, 
+	Observable,
 	processing::{
 		TargetItem,
 		Preprocessing, 
 		Filter, MaskOperand, 
-		SmoothingType, SmoothingFilter,
 		Combination, Combine,
 		Processing,
 		IonoDelayDetector,
+		Smooth, SmoothingType, SmoothingFilter,
+		Decimate, DecimationFilter, DecimationType,
 	},
 };
 
@@ -750,9 +758,9 @@ impl Split<Record> for Record {
 	}
 }
 
-impl Decimation<Record> for Record {
+impl Decimate<Record> for Record {
     /// Decimates Self by desired factor
-    fn decim_by_ratio_mut(&mut self, r: u32) {
+    fn decimate_by_ratio_mut(&mut self, r: u32) {
         let mut i = 0;
         self.retain(|_, _| {
             let retained = (i % r) == 0;
@@ -761,13 +769,13 @@ impl Decimation<Record> for Record {
         });
     }
     /// Copies and Decimates Self by desired factor
-    fn decim_by_ratio(&self, r: u32) -> Self {
+    fn decimate_by_ratio(&self, r: u32) -> Self {
         let mut s = self.clone();
-        s.decim_by_ratio_mut(r);
+        s.decimate_by_ratio_mut(r);
         s
     }
     /// Decimates Self to fit minimum epoch interval
-    fn decim_by_interval_mut(&mut self, interval: Duration) {
+    fn decimate_by_interval_mut(&mut self, interval: Duration) {
         let mut last_retained: Option<Epoch> = None;
         self.retain(|(e, _), _| {
             if last_retained.is_some() {
@@ -781,17 +789,17 @@ impl Decimation<Record> for Record {
         });
     }
     /// Copies and Decimates Self to fit minimum epoch interval
-    fn decim_by_interval(&self, interval: Duration) -> Self {
+    fn decimate_by_interval(&self, interval: Duration) -> Self {
         let mut s = self.clone();
-        s.decim_by_interval_mut(interval);
+        s.decimate_by_interval_mut(interval);
         s
     }
-    fn decim_match_mut(&mut self, rhs: &Self) {
+    fn decimate_match_mut(&mut self, rhs: &Self) {
         self.retain(|e, _| rhs.get(e).is_some());
     }
-    fn decim_match(&self, rhs: &Self) -> Self {
+    fn decimate_match(&self, rhs: &Self) -> Self {
         let mut s = self.clone();
-        s.decim_match_mut(&rhs);
+        s.decimate_match_mut(&rhs);
         s
     }
 }
@@ -809,49 +817,48 @@ impl TimeScaling<Record> for Record {
     }
 }
 
-fn smoothing_filter(record: &mut Record, filter: SmoothingFilter) {
-	match filter.smooth_type {
-		SmoothingType::Hatch => hatch_filter(record),
-		//SmoothingFilter::MovingAverage(Some(dt)) => {},
-		//SmoothingFilter::MovingAverage(None) => {},
-		_ => todo!(),
+impl Smooth<Record> for Record {
+	/// Applies Hatch smoothing filter, returns smoothed Pseudo Range observations
+	fn hatch_smoothing(&self) -> Self {
+		let mut s = self.clone();
+		s.hatch_smoothing_mut();
+		s
 	}
-}
-
-/*
- * Hatch smoothing filter
- * smoothes pseudo range observations using special algorithm
- */
-fn hatch_filter(rec: &mut Record) {
-	let mut buffer: HashMap<Sv, HashMap<Observable, (u32, f64)>> = HashMap::new();
-	for (_, (_, svs)) in rec {
-		for (sv, observables) in svs {
-			let rhs_observables = observables.clone();
-			for (pr_observable, pr_observation) in observables {
-				if !pr_observable.is_pseudorange_observable() {
-					continue;
-				}
-				let pr_code = pr_observable.code()
-					.unwrap();
-				let ph_tolocate = "L".to_owned() + &pr_code;
-				let mut ph_data: Option<f64> = None;
-				for (rhs_observable, rhs_observation) in &rhs_observables { 
-					let rhs_code = rhs_observable.to_string();
-					if rhs_code == ph_tolocate {
-						ph_data = Some(rhs_observation.obs);
-						break;
+	/// Applies Hatch smoothing filter in place
+	fn hatch_smoothing_mut(&mut self) {
+		/*
+		 * smoothes pseudo range observations using special algorithm
+		 */
+		let mut buffer: HashMap<Sv, HashMap<Observable, (u32, f64)>> = HashMap::new();
+		for (_, (_, svs)) in self {
+			for (sv, observables) in svs {
+				let rhs_observables = observables.clone();
+				for (pr_observable, pr_observation) in observables {
+					if !pr_observable.is_pseudorange_observable() {
+						continue;
 					}
-				}
-				if let Some(ph_observation) = ph_data {
-					if let Some(data) = buffer.get_mut(&sv) {
-						if let Some((k, rms)) = data.get_mut(&pr_observable) {
-							let x_k = pr_observation.obs - ph_observation;
-							*rms = (x_k / *k as f64) + (((*k-1)/ *k) as f64) * *rms;
-							*k += 1;
-							pr_observation.obs = ph_observation - *rms;
-						} else { // new observable
+					let pr_code = pr_observable.code()
+						.unwrap();
+					let ph_tolocate = "L".to_owned() + &pr_code;
+					let mut ph_data: Option<f64> = None;
+					for (rhs_observable, rhs_observation) in &rhs_observables { 
+						let rhs_code = rhs_observable.to_string();
+						if rhs_code == ph_tolocate {
+							ph_data = Some(rhs_observation.obs);
+							break;
 						}
-					} else { // new sv
+					}
+					if let Some(ph_observation) = ph_data {
+						if let Some(data) = buffer.get_mut(&sv) {
+							if let Some((k, rms)) = data.get_mut(&pr_observable) {
+								let x_k = pr_observation.obs - ph_observation;
+								*rms = (x_k / *k as f64) + (((*k-1)/ *k) as f64) * *rms;
+								*k += 1;
+								pr_observation.obs = ph_observation - *rms;
+							} else { // new observable
+							}
+						} else { // new sv
+						}
 					}
 				}
 			}
@@ -867,7 +874,6 @@ impl Preprocessing for Record {
     }
     fn filter_mut(&mut self, filter: Filter) { 
 		match filter {
-			Filter::Smoothing(filter) => smoothing_filter(self, filter),
 			Filter::Mask(mask) => {
 				match mask.operand {
 					MaskOperand::Equals => match mask.item {
@@ -1100,7 +1106,17 @@ impl Preprocessing for Record {
 					},
 				}
 			},
-			_ => {},
+			Filter::Smoothing(filter) => match filter.stype {
+				SmoothingType::Hatch => self.hatch_smoothing_mut(),
+			},
+			Filter::Decimation(filter) => match filter.dtype {
+				DecimationType::DecimByRatio(r) => {
+					self.decimate_by_ratio_mut(r)	
+				},
+				DecimationType::DecimByInterval(dt) => {
+					self.decimate_by_interval_mut(dt)
+				},
+			}
 		}
 	}
 }
