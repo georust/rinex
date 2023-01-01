@@ -59,8 +59,8 @@ pub mod prelude {
     pub use crate::observable::Observable;
     pub use crate::sv::Sv;
     pub use crate::Rinex;
-    pub use hifitime::{Duration, Epoch, TimeScale};
 	pub use crate::ground_position::GroundPosition;
+    pub use hifitime::{Duration, Epoch, TimeScale, TimeSeries};
 }
 
 /// SBAS related package
@@ -88,7 +88,7 @@ pub mod quality {
 
 use prelude::*;
 use carrier::Carrier;
-use gnss_time::TimeScaling;
+use gnss_time::GnssTime;
 
 pub use merge::Merge;
 pub use split::Split;
@@ -307,6 +307,27 @@ impl Rinex {
             None
         }
     }
+
+	/// Forms timeseries from all Epochs contained in this record
+	pub fn timeseries(&self) -> Option<TimeSeries> {
+		if let Some(dt) = self.sampling_interval() {
+			Some(self.record.timeseries(dt))
+		} else {
+			None
+		}
+	}
+
+	/// Converts self into given timescale
+	pub fn into_timescale(&mut self, ts: TimeScale) {
+		self.record.convert_timescale(ts);
+	}
+
+	/// Converts self to given timescale
+	pub fn with_timescale(&self, ts: TimeScale) -> Self {
+		let mut s = self.clone();
+		s.into_timescale(ts);
+		s
+	}
 
     /// Converts a CRINEX (compressed RINEX) into readable RINEX.
     /// This has no effect if self is not an Observation RINEX.
@@ -2524,17 +2545,6 @@ impl Smooth<Rinex> for Rinex {
 			r.hatch_smoothing_mut();
 		}
 	}
-}
-
-impl TimeScaling<Rinex> for Rinex {
-    fn convert_timescale(&mut self, ts: TimeScale) {
-        self.record.convert_timescale(ts);
-    }
-    fn with_timescale(&self, ts: TimeScale) -> Self {
-        let mut s = self.clone();
-        s.convert_timescale(ts);
-        s
-    }
 }
 
 use crate::algorithm::{Preprocessing, Filter};

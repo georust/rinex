@@ -1,5 +1,5 @@
 use crate::{
-    epoch, gnss_time::TimeScaling, merge, merge::Merge, prelude::*, split,
+    epoch, gnss_time::GnssTime, merge, merge::Merge, prelude::*, split,
     split::Split, version::Version,
 	processing::{Filter, Preprocessing, MaskOperand, TargetItem},
 };
@@ -379,7 +379,16 @@ impl Split<Record> for Record {
 	}
 }
 
-impl TimeScaling<Record> for Record {
+impl GnssTime<Record> for Record {
+	fn timeseries(&self, dt: Duration) -> TimeSeries {
+		let epochs: Vec<_> = self.keys().collect();
+		TimeSeries::inclusive(
+			**epochs.get(0)
+				.expect("failed to determine first epoch"),
+			**epochs.get(epochs.len()-1)
+				.expect("failed to determine last epoch"),
+			dt)
+	}
     fn convert_timescale(&mut self, ts: TimeScale) {
         self.iter_mut()
             .map(|(k, v)| (k.in_time_scale(ts), v))

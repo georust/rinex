@@ -1,7 +1,11 @@
 use super::prelude::*;
 //use thiserror::Error;
 //use std::str::FromStr;
-pub trait TimeScaling<T> {
+
+pub trait GnssTime<T> {
+	/// Returns TimeSeries formed by Self's epoch
+	fn timeseries(&self, dt: Duration) -> TimeSeries;
+
     /// Copies self and converts all Epochs to desired
     /// [hifitime::TimeScale].
     /// ```

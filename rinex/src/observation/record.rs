@@ -6,7 +6,7 @@ use thiserror::Error;
 use crate::{
 	constellation, 
 	epoch, 
-	gnss_time::TimeScaling, 
+	gnss_time::GnssTime, 
 	merge, merge::Merge,
 	Carrier,
     prelude::*, 
@@ -804,7 +804,16 @@ impl Decimate<Record> for Record {
     }
 }
 
-impl TimeScaling<Record> for Record {
+impl GnssTime<Record> for Record {
+	fn timeseries(&self, dt: Duration) -> TimeSeries {
+		let epochs: Vec<_> = self.keys().collect();
+		TimeSeries::inclusive(
+			epochs.get(0)
+				.expect("failed to determine first epoch").0,
+			epochs.get(epochs.len()-1)
+				.expect("failed to determine last epoch").0,
+			dt)
+	}
     fn convert_timescale(&mut self, ts: TimeScale) {
         self.iter_mut()
             .map(|((k, f), v)| ((k.in_time_scale(ts), f), v))

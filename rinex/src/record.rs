@@ -7,7 +7,7 @@ use serde::Serialize;
 
 use super::{
     antex, clocks,
-    gnss_time::TimeScaling,
+    gnss_time::GnssTime,
     hatanaka::{Compressor, Decompressor},
     header, ionex, is_comment, merge,
     merge::Merge,
@@ -792,7 +792,14 @@ impl Decimate<Record> for Record {
     }
 }
 
-impl TimeScaling<Record> for Record {
+impl GnssTime<Record> for Record {
+	fn timeseries(&self, dt: Duration) -> TimeSeries {
+		if let Some(r) = self.as_obs() {
+			r.timeseries(dt)
+		} else {
+			todo!()
+		}
+	}
     fn convert_timescale(&mut self, ts: TimeScale) {
         if let Some(r) = self.as_mut_obs() {
             r.convert_timescale(ts);
