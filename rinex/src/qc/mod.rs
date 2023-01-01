@@ -82,34 +82,35 @@ pub struct QcReport<'a> {
 impl <'a> QcReport<'a> {
     /// Builds a new basic QC Report using default options
     pub fn basic(filename: &str, rnx: &'a Rinex) -> Self {
-        Self::new(filename, rnx, QcOpts::default())
+        Self::new(filename, rnx, None, QcOpts::default())
     }
     /// Builds a new QC Report
-    pub fn new(filename: &str, rnx: &'a Rinex, opts: QcOpts) -> Self {
-			
+    pub fn new(filename: &str, rnx: &'a Rinex, nav: Option<Rinex>, opts: QcOpts) -> Self {
+		// Classification method	
 		let mut classifier: TargetItem = match opts.classification {
 			QcClassificationMethod::GNSS => {
-				TargetItem::from(rnx.list_constellations())
+				let mut gnss = rnx.list_constellations();
+				gnss.sort();
+				TargetItem::from(gnss)
 			},
 			QcClassificationMethod::Sv => {
-				TargetItem::from(rnx.space_vehicules())
+				let mut sv = rnx.space_vehicules();
+				sv.sort();
+				TargetItem::from(sv)
 			},
 			QcClassificationMethod::Physics => {
-				let observables: Vec<Observable> = rnx.observables()
+				let mut observables: Vec<Observable> = rnx.observables()
 					.iter()
 					.map(|k| Observable::from_str(k).unwrap())
 					.collect();
+				observables.sort();
 				TargetItem::from(observables)
 			},
 		};
-		//TODO
-		//classifier.sort();
-
 		/*
 		 * Build analysis
 		 */
 		let mut analysis: Vec<QcAnalysis> = Vec::new();
-
 		match classifier {
 			TargetItem::ConstellationItem(cs) => {
 				for c in cs {
@@ -117,11 +118,22 @@ impl <'a> QcReport<'a> {
 					let mask = MaskFilter::from_str(&format!("eq:{}", c))
 						.expect("invalid classification mask");
 					// apply it 
-					let subset = rnx.filter(mask.into());
+					let subset = rnx.filter(mask.clone().into());
+					/*
+					 * possible NAV subset:
+					 *  + apply same GNSS filter
+					 *  + apply interpolation filter,
+					 *          to match epoch rate
+					 */
+					let nav_subset: Option<Rinex> = match nav {
+						Some(ref rnx) => Some(rnx.filter(mask.clone().into())),
+						_ => None,
+					};
 					// and analyze this subset
-					analysis.push(QcAnalysis::new(TargetItem::from(c), &subset));
+					analysis.push(QcAnalysis::new(TargetItem::from(c), &subset, &nav_subset, &opts));
 				}
 			},
+			/*
 			TargetItem::SvItem(svs) => {
 				for sv in svs {
 					// create the classification mask
@@ -131,7 +143,7 @@ impl <'a> QcReport<'a> {
 					let subset = rnx.filter(mask.into());
 					// and analyze this subset
 					analysis.push(QcAnalysis::new(
-						TargetItem::from(sv), &subset));
+						TargetItem::from(sv), &subset, &opts));
 				}
 			},
 			TargetItem::ObservableItem(obs) => {
@@ -142,9 +154,9 @@ impl <'a> QcReport<'a> {
 					// apply it 
 					let subset = rnx.filter(mask.into());
 					// and analyze this subset
-					analysis.push(QcAnalysis::new(TargetItem::from(ob), &subset));
+					analysis.push(QcAnalysis::new(TargetItem::from(ob), &subset, &opts));
 				}
-			},
+			},*/
 			_ => unreachable!(),
 		}
 		

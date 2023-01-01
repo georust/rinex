@@ -1,7 +1,7 @@
 use crate::prelude::*;
 use crate::processing::TargetItem;
 
-use super::{pretty_array, HtmlReport};
+use super::{pretty_array, HtmlReport, QcOpts};
 use horrorshow::{helper::doctype, RenderBox};
 
 mod sampling;
@@ -22,11 +22,11 @@ pub struct QcAnalysis {
 }
 
 impl QcAnalysis {
-	pub fn new(classifier: TargetItem, rnx: &Rinex) -> Self {
+	pub fn new(classifier: TargetItem, rnx: &Rinex, nav: &Option<Rinex>, opts: &QcOpts) -> Self {
 		Self {
 			classifier,
 			sv: QcSvAnalysis::new(rnx),
-			observ: QcObsAnalysis::new(rnx),
+			observ: QcObsAnalysis::new(rnx, opts),
 			sampling: QcSamplingAnalysis::new(rnx),
 		}
 	}

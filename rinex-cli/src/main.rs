@@ -259,22 +259,42 @@ pub fn main() -> Result<(), rinex::Error> {
      * QC Mode
      */
     if qc {
-        info!("qc mode");
+        info!("qc - enabled");
+
 		let mut qc_opts = cli.qc_config();
+		/* 
+		 * ground position:
+         * if not defined in the configuration,
+		 *  and user defined it through the CLI
+		 *  ==> use this value
+		 */
 		if qc_opts.ground_position.is_none() { // config did not specify it 
 			if let Some(pos) = cli.manual_position() { // manually passed 
 				qc_opts = qc_opts.with_ground_position_ecef(pos.to_ecef_wgs84());
+				trace!("qc - ground position manual set {}", pos);
 			}
 		}
 
-        let report = QcReport::new(&filename(cli.input_path()), &ctx.primary_rinex, qc_opts); // &ctx.nav_rinex
+		if qc_opts.min_snr > 0.0 {
+			trace!("qc - minimal SNR: {} dB", qc_opts.min_snr);
+		}
+		
+		if qc_opts.ground_position.is_none() {
+			warn!("qc - undetermined ground position");
+		}
+
+        let report = QcReport::new(
+			&filename(cli.input_path()), 
+			&ctx.primary_rinex, 
+			ctx.nav_rinex,
+			qc_opts); // &ctx.nav_rinex
 
 		let qc_path = ctx.prefix.to_owned() + "/report.html";
 		let mut qc_fd = std::fs::File::create(&qc_path)
 			.expect(&format!("failed to create \"{}\"", &qc_path));
 		write!(qc_fd, "{}", report.to_html())
 			.expect("failed to generate QC summary report");
-		info!("qc summary report \"{}\" generated", &qc_path);
+		info!("qc - summary report \"{}\" generated", &qc_path);
 		if !quiet {
 			open_with_web_browser(&qc_path);
 		}

@@ -217,7 +217,7 @@ Most useful when combined to Observation RINEX. Also enables the complete (full)
 Runs thorough analysis on provided RINEX data.
 The summary report by default is integrated to the global HTML report."))
 					.arg(Arg::new("qc-config")
-						.long("conf")
+						.long("qc-cfg")
 						.value_name("[FILE]")
 						.help("Pass a QC configuration file."))
                     .arg(Arg::new("qc-only")
