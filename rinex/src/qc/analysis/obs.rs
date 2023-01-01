@@ -1,9 +1,13 @@
-use crate::prelude::*;
-use crate::Carrier;
-use crate::Observable;
+use crate::{
+	prelude::*,
+	Carrier,
+	Observable,
+	carrier,
+	observation::Snr,
+};
+
 use std::collections::HashMap;
-use super::pretty_array;
-use crate::carrier;
+use super::{QcOpts, pretty_array};
 
 /*
  * Lx signals special formatting
@@ -134,7 +138,7 @@ fn report_anomalies(anomalies: &Vec<(Epoch, EpochFlag)>) -> Box<dyn RenderBox + 
  * "rhs" signal, 
  * also SNR condition for both signals above current mask
  */
-fn report_epoch_completion(total: usize, total_with_obs: usize, complete: &HashMap<Carrier, usize>) -> Box<dyn RenderBox + '_> {
+fn report_epoch_completion(total: usize, total_with_obs: usize, complete: &Vec<(Carrier, usize)>) -> Box<dyn RenderBox + '_> {
 	box_html! {
 		table(class="table is-bordered") {
 			thead {
@@ -184,11 +188,11 @@ pub struct QcObsAnalysis {
 	/// Epochs with at least 1 observation
 	total_with_obs: usize,
 	/// Complete epochs, with respect to given signal
-	complete_epochs: HashMap<Carrier, usize>,
+	complete_epochs: Vec<(Carrier, usize)>,
 }
 
 impl QcObsAnalysis {
-    pub fn new(rnx: &Rinex) -> Self {
+    pub fn new(rnx: &Rinex, opts: &QcOpts) -> Self {
 		let sv = rnx
 			.space_vehicules();
 		let obs = rnx.header.obs.as_ref().unwrap();
@@ -238,13 +242,28 @@ impl QcObsAnalysis {
 			for (_, (_, svs)) in r {
 				let mut complete: HashMap<Carrier, bool> = HashMap::new();
 				for (sv, observables) in svs {
-					for (observable, _) in observables {
+					for (observable, observation) in observables {
 						if !observable.is_phase_observable() {
 							if !observable.is_pseudorange_observable() {
 								continue ;
 							}
 						}
+						/*
+						 * SNR condition
+						 */
+						if let Some(snr) = observation.snr {
+							if snr < Snr::from(opts.min_snr) {
+								continue ; // not to be considered
+							}
+						} else {
+							if observable.is_phase_observable() {
+								continue ; // phase should have SNR information attached to it
+							}
+						}
 						
+						/*
+						 * Signal condition
+						 */
 						let carrier_code = &observable.to_string()[1..2];
 						if carrier_code == "1" { // we only search for other signals
 							continue;
@@ -297,8 +316,6 @@ impl QcObsAnalysis {
 		codes.sort();
 		signals.sort();
 		observables.sort();
-		//TODO
-		//complete_epochs.sort_by_key();
 
         Self {
 			observables: {
@@ -321,7 +338,14 @@ impl QcObsAnalysis {
 			anomalies,
 			total_epochs,
 			total_with_obs: epoch_with_obs.len(),
-			complete_epochs,
+			complete_epochs: {
+				let mut ret: Vec<(Carrier, usize)> = 
+					complete_epochs.iter()
+						.map(|(k, v)| (*k, *v))
+						.collect();
+				ret.sort();
+				ret
+			},
         }
     }
 }
