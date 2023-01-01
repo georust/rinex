@@ -39,7 +39,7 @@ impl QcSamplingAnalysis {
 }
 
 use crate::qc::HtmlReport;
-use horrorshow::{helper::doctype, RenderBox};
+use horrorshow::{RenderBox};
 
 impl HtmlReport for QcSamplingAnalysis {
 	fn to_html(&self) -> String {

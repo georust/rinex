@@ -20,7 +20,6 @@ use super::{
 	algorithm::{
 		Preprocessing, 
 		Filter,
-		Smooth,
 		Decimate,
 	},
     *,

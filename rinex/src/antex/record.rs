@@ -1,4 +1,3 @@
-use hifitime::Duration;
 use std::str::FromStr;
 use thiserror::Error;
 

@@ -41,9 +41,8 @@ use std::io::Write; //, Read};
 pub mod writer;
 use writer::BufferedWriter;
 
-use std::collections::{BTreeMap, HashMap};
-use std::str::FromStr;
 use thiserror::Error;
+use std::collections::{BTreeMap, HashMap};
 
 use hifitime::Duration;
 use navigation::OrbitItem;
@@ -1255,7 +1254,7 @@ impl Rinex {
 
                                             }
                                             // compute new accell
-                                            if let Some((ddx, ddy, ddz)) = ephemeris.sat_accel_ecef(*epoch, *p_pos, *p_speed, *p_epoch) {
+                                            if let Some((ddx, ddy, ddz)) = ephemeris.sat_accel_ecef(*epoch, *p_speed, *p_epoch) {
 
                                             }
                                             map.insert(*sv, (sat_pos, (0.0_f64, 0.0_f64, 0.0_f64), (0.0_f64, 0.0_f64, 0.0_f64));
@@ -2000,8 +1999,6 @@ impl Rinex {
                                 } else {
                                     let mut bmap: BTreeMap<(Epoch, EpochFlag), f64> =
                                         BTreeMap::new();
-                                    let mut map: HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>> =
-                                        HashMap::new();
                                     bmap.insert(*epoch, mp);
                                     data.insert(*sv, bmap);
                                 }

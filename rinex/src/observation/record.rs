@@ -21,8 +21,8 @@ use crate::{
 		Combination, Combine,
 		Processing,
 		IonoDelayDetector,
-		Smooth, SmoothingType, SmoothingFilter,
-		Decimate, DecimationFilter, DecimationType,
+		Smooth, SmoothingType, 
+		Decimate, DecimationType,
 	},
 };
 
@@ -1148,7 +1148,7 @@ impl Processing for Record {
 	fn min_observable(&self) -> HashMap<Observable, f64> {
 		let mut ret: HashMap<Observable, f64> = HashMap::new();
 		let min = self.min();
-		for (sv, observables) in min {
+		for (_, observables) in min {
 			for (observable, minimum) in observables {
 				if let Some(mmin) = ret.get_mut(&observable) {
 					if minimum < *mmin {
@@ -1165,7 +1165,7 @@ impl Processing for Record {
 		let mut ret: HashMap<Sv, f64> = HashMap::new();
 		let min = self.min();
 		for (sv, observables) in min {
-			for (observable, minimum) in observables {
+			for (_, minimum) in observables {
 				if let Some(mmin) = ret.get_mut(&sv) {
 					if minimum < *mmin {
 						*mmin = minimum;
@@ -1203,7 +1203,7 @@ impl Processing for Record {
 	fn max_observable(&self) -> HashMap<Observable, f64> {
 		let mut ret: HashMap<Observable, f64> = HashMap::new();
 		let max = self.max();
-		for (sv, observables) in max {
+		for (_, observables) in max {
 			for (observable, maximum) in observables {
 				if let Some(mmax) = ret.get_mut(&observable) {
 					if maximum > *mmax {

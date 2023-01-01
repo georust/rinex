@@ -1,7 +1,6 @@
 use crate::{
 	prelude::*,
 	Carrier,
-	Observable,
 	carrier,
 	observation::Snr,
 };
@@ -351,7 +350,7 @@ impl QcObsAnalysis {
 }
 
 use crate::qc::HtmlReport;
-use horrorshow::{helper::doctype, RenderBox};
+use horrorshow::{RenderBox};
 
 impl HtmlReport for QcObsAnalysis {
 	fn to_html(&self) -> String {

@@ -306,7 +306,6 @@ impl Ephemeris {
     pub fn sat_accel_ecef(
         &self,
         epoch: Epoch,
-        prev_pos: (f64, f64, f64),
         prev_speed: (f64, f64, f64),
         prev_epoch: Epoch,
     ) -> Option<(f64, f64, f64)> {

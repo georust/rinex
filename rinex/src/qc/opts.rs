@@ -1,5 +1,4 @@
 use crate::prelude::*;
-use strum_macros::EnumString;
 use crate::observation::Snr;
 use crate::ground_position::GroundPosition;
 
@@ -7,7 +6,13 @@ use crate::ground_position::GroundPosition;
 use std::str::FromStr;
 
 #[cfg(feature = "serde")]
-use serde::{Serialize, Serializer, Deserialize, Deserializer, de::Error};
+use serde::{
+	Serialize, 
+	//Serializer, 
+	Deserialize, 
+	Deserializer, 
+	de::Error,
+};
 
 #[derive(Clone, Debug)]
 pub enum SlotError {
