@@ -1,6 +1,4 @@
 {
-	"reporting": "PerConstellation",
-	"statistical": {
-		"window": "25%"	
-	}
+	"classification": "GNSS",
+	"min_snr": 30.0
 }
