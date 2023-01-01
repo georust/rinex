@@ -172,10 +172,12 @@ Helps visualize what the CS detector is doing and fine tune its operation.
 CS do not get repaired with this command.
 If you're just interested in CS information, you probably just want `-qc` instead, avoid combining the two."))
                 .next_help_heading("Navigation RINEX")
-                    .arg(Arg::new("orbits")
-                        .long("orbits")
-                        .action(ArgAction::SetTrue)
-                        .help("Enumerate orbit fields."))
+                    .arg(Arg::new("nav")
+                        .long("nav")
+                        .num_args(1..)
+                        .value_name("FILE")
+                        .help("Augment `--fp` analysis with Navigation data.
+Most useful when combined to Observation RINEX. Enables the complete (full) `--qc` mode.")) 
                     .arg(Arg::new("pos-ecef")
                         .long("--pos-ecef")
                         .value_name("\"x,y,z\" coordinates in ECEF [m]")
@@ -188,6 +190,10 @@ Ideally this information is contained in the file Header, but user can manually 
                         .help("Define the ground position manualy, in decimal degrees.
 Some calculations require a reference position.
 Ideally this information is contained in the file Header, but user can manually define them (superceeds)."))
+                    .arg(Arg::new("orbits")
+                        .long("orbits")
+                        .action(ArgAction::SetTrue)
+                        .help("Enumerate orbit fields."))
                     .arg(Arg::new("nav-msg")
                         .long("nav-msg")
                         .action(ArgAction::SetTrue)
@@ -197,13 +203,6 @@ Ideally this information is contained in the file Header, but user can manually 
                         .action(ArgAction::SetTrue)
                         .help("Display clock biases (offset, drift, drift changes) per epoch and vehicule.
 -fp must be a NAV file"))
-                .next_help_heading("Navigation Data")
-                    .arg(Arg::new("nav")
-                        .long("nav")
-                        .num_args(1..)
-                        .value_name("FILE")
-                        .help("Augment `--fp` analysis with Navigation data.
-Most useful when combined to Observation RINEX. Also enables the complete (full) `--qc` mode.")) 
                 .next_help_heading("ANTEX / APC ")
                     .arg(Arg::new("--atx")
                         .long("atx")
