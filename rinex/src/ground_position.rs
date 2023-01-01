@@ -26,6 +26,12 @@ impl GroundPosition {
 	}
 }
 
+impl std::fmt::Display for GroundPosition {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+		write!(f, "WGS84 ({}m {}m {}m)", self.0, self.1, self.2)
+	}
+}
+
 use horrorshow::RenderBox;
 use crate::quality::HtmlReport;
 
