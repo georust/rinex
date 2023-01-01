@@ -94,10 +94,11 @@ use gnss_time::TimeScaling;
 pub use merge::Merge;
 pub use split::Split;
 
-use algorithm::Dcb; 
-use algorithm::IonoDelayDetector; 
-use algorithm::Decimate;
-use algorithm::{Combine, Combination}; 
+use algorithm::{
+	Dcb, Smooth, Decimate,
+	Combine, Combination,
+	IonoDelayDetector,
+};
 
 #[macro_use]
 extern crate horrorshow;
@@ -2513,6 +2514,19 @@ impl Decimate<Rinex> for Rinex {
         s.decimate_match_mut(&rhs);
         s
     }
+}
+
+impl Smooth<Rinex> for Rinex {
+	fn hatch_smoothing(&self) -> Self {
+		let mut s = self.clone();
+		s.hatch_smoothing_mut();
+		s
+	}
+	fn hatch_smoothing_mut(&mut self) {
+		if let Some(r) = self.record.as_mut_obs() {
+			r.hatch_smoothing_mut();
+		}
+	}
 }
 
 impl TimeScaling<Rinex> for Rinex {
