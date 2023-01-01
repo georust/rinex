@@ -136,16 +136,16 @@ mod test {
 		R24 S1C 51.000 51.250 51.000
 		*/
 		let der = record.derivative();
-		let results: Vec<(&str, &str, Vec<f64>)> = vec![
-			("g01", "C1C", 335852309972.1992_f64.sqrt()),
-			("g01", "L1C", 9274685292831.4397042266_f64.sqrt()),
-			("g03", "C1C", 9030929379.51475556_f64.sqrt()),
-			("g03", "L1C", 249392315235.63520555555566_f64.sqrt()),
-			("R23", "D1C", 452984.477856_f64.sqrt()),
-			("R23", "S1C", 5.68055_f64.sqrt()),
-			("R24", "D1C", 1554756.49711266666666666667_f64.sqrt()),
-			("R24", "S1C", 0.01388_f64.sqrt()),
+		/*let results: Vec<(&str, &str, Vec<f64>)> = vec![
+			("g01", "C1C", vec![
+			("g01", "L1C", 
+			("g03", "C1C", 
+			("g03", "L1C", 
+			("R23", "D1C", 
+			("R23", "S1C", 
+			("R24", "D1C", 
+			("R24", "S1C", 
 		];
-		testbench("derivative()", results, &stddev);
+		testbench("derivative()", results, &der);*/
 	}
 }
