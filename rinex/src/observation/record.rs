@@ -1359,6 +1359,21 @@ impl Processing for Record {
 			})
 			.collect()
 	}
+    fn mean_sv_observable(&self) -> Option<f64> {
+        let observables: Vec<f64> = self
+            .mean_observable()
+            .values()
+            .map(|v| *v)
+            .collect();
+        let len = observables.len();
+        let sum = observables.into_iter()
+            .reduce(|a, b| a+b);
+        if let Some(sum) = sum {
+            Some(sum / len as f64)
+        } else {
+            None
+        }
+    }
 	fn stddev(&self) -> HashMap<Sv, HashMap<Observable, f64>> {
 		let mut stdvar = self.stdvar();
 		for (_, observables) in stdvar.iter_mut() {
@@ -1383,6 +1398,9 @@ impl Processing for Record {
 		stdvar
 	}
 	fn stdvar(&self) -> HashMap<Sv, HashMap<Observable, f64>> {
+        self.central_moment(2)
+    }
+    fn central_moment(&self, order: u16) -> HashMap<Sv, HashMap<Observable, f64>> {
 		let mean = self.mean();
 		let mut ret: HashMap<Sv, HashMap<Observable, f64>> = HashMap::new();
 		let mut diff: HashMap<Sv, HashMap<Observable, (u32, f64)>> = HashMap::new();
@@ -1396,13 +1414,13 @@ impl Processing for Record {
 					if let Some(data) = diff.get_mut(sv) {
 						if let Some((count, diff)) = data.get_mut(observable) {
 							*count += 1;
-							*diff += (observation.obs - mean).powf(2.0);
+							*diff += (observation.obs - mean).powf(order as f64);
 						} else {
-							data.insert(observable.clone(), (1, (observation.obs - mean).powf(2.0))); 
+							data.insert(observable.clone(), (1, (observation.obs - mean).powf(order as f64))); 
 						}
 					} else {
 						let mut map: HashMap<Observable, (u32, f64)> = HashMap::new();
-						map.insert(observable.clone(), (1, (observation.obs - mean).powf(2.0))); 
+						map.insert(observable.clone(), (1, (observation.obs - mean).powf(order as f64))); 
 						diff.insert(*sv, map);
 					}
 				}
