@@ -188,6 +188,8 @@ pub struct QcObsAnalysis {
 	total_with_obs: usize,
 	/// Complete epochs, with respect to given signal
 	complete_epochs: Vec<(Carrier, usize)>,
+    /// Min. Max. SNR (sv @ epoch)
+    min_max_snr: ((Sv, Epoch, Snr), (Sv, Epoch, Snr)),
 }
 
 impl QcObsAnalysis {
@@ -205,6 +207,10 @@ impl QcObsAnalysis {
 		let mut total_epochs: usize = 0;
 		let mut epoch_with_obs: Vec<Epoch> = Vec::new();
 		let mut complete_epochs: HashMap<Carrier, usize> = HashMap::new();
+        let mut min_max_snr = (
+            (Sv::default(), Epoch::default(), Snr::DbHz54), 
+            (Sv::default(), Epoch::default(), Snr::DbHz0),
+        );
 
 		if let Some(r) = rnx.record.as_obs() {
 			total_epochs = r.len();
@@ -230,6 +236,19 @@ impl QcObsAnalysis {
 						if !codes.contains(&code) {
 							codes.push(code);
 						}
+
+                        if let Some(snr) = observation.snr {
+                            if snr < min_max_snr.0.2 {
+                                min_max_snr.0.0 = *sv;
+                                min_max_snr.0.1 = *epoch;
+                                min_max_snr.0.2 = snr;
+                            }
+                            if snr > min_max_snr.1.2 {
+                                min_max_snr.1.0 = *sv;
+                                min_max_snr.1.1 = *epoch;
+                                min_max_snr.1.2 = snr;
+                            }
+                        }
 					}
 				}
 			}
@@ -345,6 +364,7 @@ impl QcObsAnalysis {
 				ret.sort();
 				ret
 			},
+            min_max_snr,
         }
     }
 }
@@ -402,6 +422,28 @@ impl HtmlReport for QcObsAnalysis {
 			div(class="epoch-completion") {
 				: report_epoch_completion(self.total_epochs, self.total_with_obs, &self.complete_epochs)
 			}
+            table(class="table is-bordered") {
+                thead {
+                    tr {
+                        th {
+                            : "Worst SNR"
+                        }
+                        th {
+                            : "Best SNR"
+                        }
+                    }
+                }
+                tbody {
+                    tr {
+                        td {
+                            : format!("{}: {:e} @{}", self.min_max_snr.0.0, self.min_max_snr.0.2, self.min_max_snr.0.1)
+                        }
+                        td {
+                            : format!("{}: {:e} @{}", self.min_max_snr.1.0, self.min_max_snr.1.2, self.min_max_snr.1.1)
+                        }
+                    }
+                }
+            }
         }
     }
 }

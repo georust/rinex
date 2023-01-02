@@ -7,46 +7,64 @@ pub enum Error {
 
 /// `Snr` Signal to noise ratio description,
 /// is attached to some observations
-#[repr(u8)]
 #[derive(PartialOrd, Ord, PartialEq, Eq, Copy, Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum Snr {
     /// Snr ~= 0 dB/Hz
-    DbHz0 = 0,
+    DbHz0,
     /// Snr < 12 dB/Hz
-    DbHz12 = 1,
+    DbHz12,
     /// 12 dB/Hz <= Snr < 17 dB/Hz
-    DbHz12_17 = 2,
+    DbHz12_17,
     /// 18 dB/Hz <= Snr < 23 dB/Hz
-    DbHz18_23 = 3,
+    DbHz18_23,
     /// 24 dB/Hz <= Snr < 29 dB/Hz
-    DbHz24_29 = 4,
+    DbHz24_29,
     /// 30 dB/Hz <= Snr < 35 dB/Hz
-    DbHz30_35 = 5,
+    DbHz30_35,
     /// 36 dB/Hz <= Snr < 41 dB/Hz
-    DbHz36_41 = 6,
+    DbHz36_41,
     /// 42 dB/Hz <= Snr < 47 dB/Hz
-    DbHz42_47 = 7,
+    DbHz42_47,
     /// 48 dB/Hz <= Snr < 53 dB/Hz
-    DbHz48_53 = 8,
+    DbHz48_53,
     /// Snr >= 54 dB/Hz
-    DbHz54 = 9,
+    DbHz54,
 }
 
-impl std::fmt::Display for Snr {
+impl std::fmt::LowerHex for Snr {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match self {
-            Self::DbHz0 => "0".fmt(f),
-            Self::DbHz12 => "1".fmt(f),
-            Self::DbHz12_17 => "2".fmt(f),
-            Self::DbHz18_23 => "3".fmt(f),
-            Self::DbHz24_29 => "4".fmt(f),
-            Self::DbHz30_35 => "5".fmt(f),
-            Self::DbHz36_41 => "6".fmt(f),
-            Self::DbHz42_47 => "7".fmt(f),
-            Self::DbHz48_53 => "8".fmt(f),
-            Self::DbHz54 => "9".fmt(f),
-        }
+        let descriptor = match self {
+            Self::DbHz0 => "0",
+            Self::DbHz12 => "1",
+            Self::DbHz12_17 => "2",
+            Self::DbHz18_23 => "3",
+            Self::DbHz24_29 => "4",
+            Self::DbHz30_35 => "5",
+            Self::DbHz36_41 => "6",
+            Self::DbHz42_47 => "7",
+            Self::DbHz48_53 => "8",
+            Self::DbHz54 => "9",
+        };
+        f.write_str(descriptor)
+    }
+}
+
+impl std::fmt::LowerExp for Snr {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let descriptor = match self {
+            Self::DbHz0 =>     "<< 12 dB", 
+            Self::DbHz12 =>    "< 12 dB",
+            Self::DbHz12_17 => "[12, 17[ dB",
+            Self::DbHz18_23 => "[18, 23[ dB",
+            Self::DbHz24_29 => "[24, 29[ dB",
+            Self::DbHz30_35 => "[30, 35[ dB",
+            Self::DbHz36_41 => "[36, 41[ dB",
+            Self::DbHz42_47 => "[42, 47[ dB",
+            Self::DbHz48_53 => "[48, 53[ dB",
+            Self::DbHz54 =>    "> 54 dB",
+        };
+        f.write_str(descriptor)
     }
 }
 
@@ -71,7 +89,7 @@ impl FromStr for Snr {
 
 impl Default for Snr {
     fn default() -> Snr {
-        Snr::DbHz24_29
+        Snr::DbHz24_29 // "weak"
     }
 }
 
@@ -154,6 +172,8 @@ mod test {
 		let snr: Snr = Snr::from(48_u8);
 		assert_eq!(snr, Snr::DbHz48_53);
 		assert!(snr.excellent());
+        assert_eq!(format!("{:x}", snr), "8"); 
+        assert_eq!(format!("{:e}", snr), "8"); 
 
 		let snr: Snr = Snr::from(31.3);
 		assert_eq!(snr, Snr::DbHz30_35);
@@ -167,5 +187,6 @@ mod test {
 		assert_eq!(Snr::new("strong"), Snr::DbHz30_35);
 		assert_eq!(Snr::new("weak"), Snr::DbHz24_29);
 		assert_eq!(Snr::new("bad"), Snr::DbHz18_23);
+
     }
 }

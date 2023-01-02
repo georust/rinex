@@ -196,58 +196,64 @@ impl <'a> HtmlReport for QcReport<'a> {
 				h3(class="title") {
 					: "RINEX Quality Check summary"
 				}
-				table(class="table is-bordered") {
-					thead {
-						: "File"
-					}
-					tbody {
-						tr {
-							th {
-								: "Program"
-							}
-							th {
-								: "File"
-							}
-							th {
-								: "Type"
-							}
-						}
-						tr {
-							td {
-								: format!("rust-rnx: v{}", env!("CARGO_PKG_VERSION"))
-							}
-							td {
-								: self.filename.to_string()
-							}
-							@ if let Some(gnss) = self.rinex.header.constellation {
-								td {
-									: format!("{} {:?}", gnss, self.rinex.header.rinex_type)
-								}
-							} else {
-								td {
-									: format!("{:?} file", self.rinex.header.rinex_type)
-								}
-							}
-						}
-						@ for augmentation in &self.nav_rinex {
-							td {
-								: ""
-							}
-							td {
-								: augmentation.filename.to_string()
-							}
-							@ if let Some(gnss) = augmentation.rnx.header.constellation {
-								td {
-									: format!("{} {:?}", gnss, augmentation.rnx.header.rinex_type)
-								}
-							} else {
-								td {
-									: format!("{:?} file", augmentation.rnx.header.rinex_type)
-								}
-							}
-						}
-					}
-				}
+                div(id="file") {
+                    table(class="table is-bordered") {
+                        thead {
+                            tr {
+                                th {
+                                    : "File"
+                                }
+                            }
+                        }
+                        tbody {
+                            tr {
+                                th {
+                                    : "Program"
+                                }
+                                th {
+                                    : "Name"
+                                }
+                                th {
+                                    : "Type"
+                                }
+                            }
+                            tr {
+                                td {
+                                    : format!("rust-rnx: v{}", env!("CARGO_PKG_VERSION"))
+                                }
+                                td {
+                                    : self.filename.to_string()
+                                }
+                                @ if let Some(gnss) = self.rinex.header.constellation {
+                                    td {
+                                        : format!("{} {:?}", gnss, self.rinex.header.rinex_type)
+                                    }
+                                } else {
+                                    td {
+                                        : format!("{:?} file", self.rinex.header.rinex_type)
+                                    }
+                                }
+                            }
+                            @ for augmentation in &self.nav_rinex {
+                                td {
+                                    : ""
+                                }
+                                td {
+                                    : augmentation.filename.to_string()
+                                }
+                                @ if let Some(gnss) = augmentation.rnx.header.constellation {
+                                    td {
+                                        : format!("{} {:?}", gnss, augmentation.rnx.header.rinex_type)
+                                    }
+                                } else {
+                                    td {
+                                        : format!("{:?} file", augmentation.rnx.header.rinex_type)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }//div="file"
             }
             div(id="header") {
 				table(class="table is-bordered") {
