@@ -28,7 +28,7 @@ mod test {
 		}
 	}
 	#[test]
-	fn v3_duth0630_stats() {
+	fn stats_v3_duth0630() {
         let rinex = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
 			.unwrap();
 		let record = rinex.record.as_obs().unwrap();
