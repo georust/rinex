@@ -2,7 +2,7 @@ use super::prelude::*;
 //use thiserror::Error;
 //use std::str::FromStr;
 
-pub trait GnssTime<T> {
+pub trait GnssTime {
 	/// Returns TimeSeries formed by Self's epoch
 	fn timeseries(&self, dt: Duration) -> TimeSeries;
 

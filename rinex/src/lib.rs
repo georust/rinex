@@ -2432,7 +2432,7 @@ impl Rinex {
     }
 }
 
-impl Merge<Rinex> for Rinex {
+impl Merge for Rinex {
     /// Merges `rhs` into `Self` without mutable access, at the expense of memcopies
     fn merge(&self, rhs: &Self) -> Result<Self, merge::Error> {
         let mut lhs = self.clone();
@@ -2471,7 +2471,7 @@ impl Merge<Rinex> for Rinex {
     }
 }
 
-impl Split<Rinex> for Rinex {
+impl Split for Rinex {
     /// Splits `Self` at desired epoch
     fn split(&self, epoch: Epoch) -> Result<(Self, Self), split::Error> {
         let (r0, r1) = self.record.split(epoch)?;
@@ -2493,7 +2493,7 @@ impl Split<Rinex> for Rinex {
 	}
 }
 
-impl Decimate<Rinex> for Rinex {
+impl Decimate for Rinex {
     fn decimate_by_ratio_mut(&mut self, r: u32) {
         self.record.decimate_by_ratio_mut(r);
         if let Some(_) = self.header.sampling_interval {
@@ -2534,7 +2534,7 @@ impl Decimate<Rinex> for Rinex {
     }
 }
 
-impl Smooth<Rinex> for Rinex {
+impl Smooth for Rinex {
 	fn hatch_smoothing(&self) -> Self {
 		let mut s = self.clone();
 		s.hatch_smoothing_mut();

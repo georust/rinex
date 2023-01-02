@@ -1690,7 +1690,7 @@ impl std::fmt::Display for Header {
     }
 }
 
-impl Merge<Header> for Header {
+impl Merge for Header {
     /// Merges `rhs` into `Self` without mutable access, at the expense of memcopies
     fn merge(&self, rhs: &Self) -> Result<Self, merge::Error> {
         if self.rinex_type != rhs.rinex_type {

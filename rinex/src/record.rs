@@ -662,7 +662,7 @@ pub fn parse_record(
     Ok((record, comments))
 }
 
-impl Merge<Record> for Record {
+impl Merge for Record {
     /// Merges `rhs` into `Self` without mutable access at the expense of more memcopies
     fn merge(&self, rhs: &Self) -> Result<Self, merge::Error> {
         let mut lhs = self.clone();
@@ -700,7 +700,7 @@ impl Merge<Record> for Record {
     }
 }
 
-impl Split<Record> for Record {
+impl Split for Record {
     fn split(&self, epoch: Epoch) -> Result<(Self, Self), split::Error> {
         if let Some(r) = self.as_obs() {
             let (r0, r1) = r.split(epoch)?;
@@ -726,7 +726,7 @@ impl Split<Record> for Record {
 	}
 }
 
-impl Decimate<Record> for Record {
+impl Decimate for Record {
     fn decimate_by_ratio_mut(&mut self, r: u32) {
         if let Some(rec) = self.as_mut_obs() {
             rec.decimate_by_ratio_mut(r);
@@ -792,7 +792,7 @@ impl Decimate<Record> for Record {
     }
 }
 
-impl GnssTime<Record> for Record {
+impl GnssTime for Record {
 	fn timeseries(&self, dt: Duration) -> TimeSeries {
 		if let Some(r) = self.as_obs() {
 			r.timeseries(dt)

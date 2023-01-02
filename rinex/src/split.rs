@@ -7,7 +7,7 @@ pub enum Error {
     NoEpochIteration,
 }
 
-pub trait Split<T> {
+pub trait Split {
     /// Splits Self at desired epoch,
     /// retaining |e(k) < epoch| ("before"), as left component,
     /// and |e(k) >= epoch| ("inclusive after"), as right component.

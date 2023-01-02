@@ -65,7 +65,7 @@ pub fn merge_mut_option<T: Clone>(lhs: &mut Option<T>, rhs: &Option<T>) {
     }
 }
 
-pub trait Merge<T> {
+pub trait Merge {
     /// Merge immutable implementation.
     /// When merging, Self attributes are always prefered.
     /// Only `rhs` new header information is introduced,
@@ -96,11 +96,11 @@ pub trait Merge<T> {
     /// merged.to_file("merge.rnx")
     ///     .unwrap();
     /// ```
-    fn merge(&self, rhs: &T) -> Result<Self, Error>
+    fn merge(&self, rhs: &Self) -> Result<Self, Error>
     where
         Self: Sized;
 
     /// Merges Self and `rhs` into a single RINEX.
     /// See [merge] for an example of use.
-    fn merge_mut(&mut self, rhs: &T) -> Result<(), Error>;
+    fn merge_mut(&mut self, rhs: &Self) -> Result<(), Error>;
 }
