@@ -3,6 +3,7 @@ use crate::{
 	Carrier,
 	carrier,
 	observation::Snr,
+    processing::Processing,
 };
 
 use std::collections::HashMap;
@@ -170,6 +171,60 @@ fn report_epoch_completion(total: usize, total_with_obs: usize, complete: &Vec<(
 	}
 }
 
+/*
+ * Reports statistical analysis results for SSx observations
+ */
+fn report_ssi_statistics(ssi_stats: &HashMap<Observable, (f64,f64,f64)>) -> Box<dyn RenderBox + '_> {
+	box_html! {
+		table(class="table is-bordered") {
+            thead {
+                tr {
+                    td {
+                        : ""
+                    }
+                    @ for (signal, _) in ssi_stats {
+                        th {
+                            : signal.to_string()
+                        }
+                    }
+                }
+            }
+            tbody {
+                tr {
+                    th {
+                        : "Mean"
+                    }
+                    @ for (_, (mean, _, _)) in ssi_stats {
+                        td {
+                            : format!("{:.3} dB", mean)
+                        }
+                    }
+                }
+                tr {
+                    th {
+                        : "Deviation" // (&#x03C3;)"
+                    }
+                    @ for (_, (_, sigma, _)) in ssi_stats {
+                        td {
+                            : format!("{:.3} dB", sigma)
+                        }
+                    }
+                }
+                tr {
+                    th {
+                        : "Skewness" //(&#x03BC; / &#x03C3;&#x03B3;)"
+                    }
+                    @ for (_, (_, _, sk)) in ssi_stats {
+                        td {
+                            : format!("{:.3}", sk)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct QcObsAnalysis {
 	/// list of observables identified
@@ -190,6 +245,8 @@ pub struct QcObsAnalysis {
 	complete_epochs: Vec<(Carrier, usize)>,
     /// Min. Max. SNR (sv @ epoch)
     min_max_snr: ((Sv, Epoch, Snr), (Sv, Epoch, Snr)),
+    /// SSi statistical analysis (mean, stddev, skew)
+    ssi_stats: HashMap<Observable, (f64,f64,f64)>,
 }
 
 impl QcObsAnalysis {
@@ -211,6 +268,7 @@ impl QcObsAnalysis {
             (Sv::default(), Epoch::default(), Snr::DbHz54), 
             (Sv::default(), Epoch::default(), Snr::DbHz0),
         );
+        let mut ssi_stats: HashMap<Observable, (f64,f64,f64)> = HashMap::new();
 
 		if let Some(r) = rnx.record.as_obs() {
 			total_epochs = r.len();
@@ -329,8 +387,33 @@ impl QcObsAnalysis {
 					}
 				}
 			}
+            
+            /*
+             * SSI statistical analysis
+             */
+            let mut mean_ssi: HashMap<_, _> = r.mean_observable();
+            mean_ssi.retain(|obs, _| obs.is_ssi_observable());
+            for (obs, mean) in mean_ssi {
+                ssi_stats.insert(obs.clone(), (mean, 0.0_f64, 0.0_f64));
+            }
+            
+            let mut stddev_ssi: HashMap<_, _> = r.stddev_observable();
+            stddev_ssi.retain(|obs, _| obs.is_ssi_observable());
+            for (obs, stddev) in stddev_ssi {
+                if let Some((_, dev, _)) = ssi_stats.get_mut(&obs) {
+                    *dev = stddev;
+                }
+            }
+            
+            let mut skew_ssi: HashMap<_, _> = r.skewness_observable();
+            skew_ssi.retain(|obs, _| obs.is_ssi_observable());
+            for (obs, skew) in skew_ssi {
+                if let Some((_, _, sk)) = ssi_stats.get_mut(&obs) {
+                    *sk = skew;
+                }
+            }
 		}
-		
+
 		codes.sort();
 		signals.sort();
 		observables.sort();
@@ -365,6 +448,7 @@ impl QcObsAnalysis {
 				ret
 			},
             min_max_snr,
+            ssi_stats,
         }
     }
 }
@@ -444,6 +528,9 @@ impl HtmlReport for QcObsAnalysis {
                     }
                 }
             }
+			div(class="epoch-completion") {
+				: report_ssi_statistics(&self.ssi_stats)
+			}
         }
     }
 }

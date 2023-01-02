@@ -1212,22 +1212,6 @@ impl Processing for Record {
 		}
 		ret
 	}
-	fn min_sv(&self) -> HashMap<Sv, f64> {
-		let mut ret: HashMap<Sv, f64> = HashMap::new();
-		let min = self.min();
-		for (sv, observables) in min {
-			for (_, minimum) in observables {
-				if let Some(mmin) = ret.get_mut(&sv) {
-					if minimum < *mmin {
-						*mmin = minimum;
-					}
-				} else {
-					ret.insert(sv, minimum);
-				}
-			}
-		}
-		ret
-	}
 	fn max(&self) -> HashMap<Sv, HashMap<Observable, f64>> {
 		let mut ret: HashMap<Sv, HashMap<Observable, f64>> = HashMap::new();
 		for (_, (_, svs)) in self {
@@ -1262,22 +1246,6 @@ impl Processing for Record {
 					}
 				} else {
 					ret.insert(observable.clone(), maximum);
-				}
-			}
-		}
-		ret
-	}
-	fn max_sv(&self) -> HashMap<Sv, f64> {
-		let mut ret: HashMap<Sv, f64> = HashMap::new();
-		let max = self.max();
-		for (sv, observables) in max {
-			for (observable, maximum) in observables {
-				if let Some(mmax) = ret.get_mut(&sv) {
-					if maximum < *mmax {
-						*mmax = maximum;
-					}
-				} else {
-					ret.insert(sv, maximum);
 				}
 			}
 		}
@@ -1340,40 +1308,6 @@ impl Processing for Record {
 			})
 			.collect()
 	}
-	fn mean_sv(&self) -> HashMap<Sv, f64> {
-		let mean = self.mean();
-		let mut sum:  HashMap<Sv, (u32, f64)> = HashMap::new();
-		for (sv, observables) in mean {
-			for (observable, mean) in observables {
-				if let Some((count, sum)) = sum.get_mut(&sv) {
-					*count += 1;
-					*sum += mean;
-				} else {
-					sum.insert(sv.clone(), (1, mean));
-				}
-			}
-		}
-		sum.iter()
-			.map(|(k, (count, sum))| {
-				(k.clone(), sum / *count as f64)
-			})
-			.collect()
-	}
-    fn mean_sv_observable(&self) -> Option<f64> {
-        let observables: Vec<f64> = self
-            .mean_observable()
-            .values()
-            .map(|v| *v)
-            .collect();
-        let len = observables.len();
-        let sum = observables.into_iter()
-            .reduce(|a, b| a+b);
-        if let Some(sum) = sum {
-            Some(sum / len as f64)
-        } else {
-            None
-        }
-    }
 	fn stddev(&self) -> HashMap<Sv, HashMap<Observable, f64>> {
 		let mut stdvar = self.stdvar();
 		for (_, observables) in stdvar.iter_mut() {
@@ -1385,13 +1319,6 @@ impl Processing for Record {
 	}
 	fn stddev_observable(&self) -> HashMap<Observable, f64> {
 		let mut stdvar = self.stdvar_observable();
-		for (_, data) in stdvar.iter_mut() {
-			*data = data.sqrt();
-		}
-		stdvar
-	}
-	fn stddev_sv(&self) -> HashMap<Sv, f64> {
-		let mut stdvar = self.stdvar_sv();
 		for (_, data) in stdvar.iter_mut() {
 			*data = data.sqrt();
 		}
@@ -1443,32 +1370,6 @@ impl Processing for Record {
 			}
 		}
 		ret
-	}
-	fn stdvar_sv(&self) -> HashMap<Sv, f64> {
-        self.central_moment_sv(2)
-    }
-    fn central_moment_sv(&self, order: u16) -> HashMap<Sv, f64> {
-		let mean = self.mean_sv();
-		let mut diff: HashMap<Sv, (u32, f64)> = HashMap::new();
-		for (_, (_, svs)) in self {
-			for (sv, observables) in svs {
-				for (observable, observation) in observables {
-					let mean = mean.get(&sv)
-						.unwrap();
-					if let Some((count, diff)) = diff.get_mut(sv) {
-						*count += 1;
-						*diff += (observation.obs - mean).powf(order as f64);
-					} else {
-						diff.insert(*sv, (1, (observation.obs - mean).powf(order as f64)));
-					}
-				}
-			}
-		}
-		diff.iter()
-			.map(|(sv, (count, diff))| {
-				(*sv, diff / *count as f64)
-			})
-			.collect()
 	}
 	fn stdvar_observable(&self) -> HashMap<Observable, f64> {
         self.central_moment_observable(2)
@@ -1537,6 +1438,38 @@ impl Processing for Record {
 		}
 		ret
 	}
+    fn skewness(&self) -> HashMap<Sv, HashMap<Observable, f64>> {
+        let stddev = self.stddev();
+        let central_moment = self.central_moment(3);
+        let mut ret: HashMap<Sv, HashMap<Observable, f64>> = HashMap::with_capacity(stddev.len());
+        for (sv, observables) in stddev {
+            if let Some(moment_observables) = central_moment.get(&sv) {
+                for (observable, stddev) in observables {
+                    if let Some(moment) = moment_observables.get(&observable) {
+                        if let Some(data) = ret.get_mut(&sv) {
+                            data.insert(observable.clone(), moment/ stddev.powf(3.0));
+                        } else {
+                            let mut map:  HashMap<Observable, f64> = HashMap::new();
+                            map.insert(observable.clone(), moment / stddev.powf(3.0));
+                            ret.insert(sv, map);
+                        }
+                    }
+                }
+            }
+        }
+        ret
+    }
+    fn skewness_observable(&self) -> HashMap<Observable, f64> {
+        let stddev = self.stddev_observable();
+        let central_moment = self.central_moment_observable(3);
+        let mut ret: HashMap<Observable, f64> = HashMap::with_capacity(stddev.len());
+        for (observable, stddev) in stddev {
+            if let Some(moment) = central_moment.get(&observable) {
+                ret.insert(observable.clone(), moment / stddev.powf(3.0));
+            }
+        }
+        ret
+    }
 }
 
 /*
