@@ -1,8 +1,8 @@
 #[cfg(test)]
 mod sampling {
     use rinex::prelude::*;
-    use rinex::processing::*;
     use std::collections::HashMap;
+    use rinex::processing::Decimate;
     #[test]
     fn epoch_intervals() {
         let path = env!("CARGO_MANIFEST_DIR").to_owned()
@@ -27,9 +27,9 @@ mod sampling {
             + "/../test_resources/NAV/V3/AMEL00NLD_R_20210010000_01D_MN.rnx";
         let mut rinex = Rinex::from_file(&path).unwrap();
         let initial_epochs = rinex.epochs();
-        rinex.decim_by_interval_mut(Duration::from_seconds(10.0));
+        rinex.decimate_by_interval_mut(Duration::from_seconds(10.0));
         assert_eq!(rinex.epochs(), initial_epochs); // unchanged, interval too small for this file
-        rinex.decim_by_interval_mut(Duration::from_hours(1.0));
+        rinex.decimate_by_interval_mut(Duration::from_hours(1.0));
         assert_eq!(rinex.epochs().len(), initial_epochs.len() - 2);
     }
     #[test]
@@ -38,9 +38,9 @@ mod sampling {
             + "/../test_resources/NAV/V3/AMEL00NLD_R_20210010000_01D_MN.rnx";
         let mut rinex = Rinex::from_file(&path).unwrap();
         let initial_epochs = rinex.epochs();
-        rinex.decim_by_ratio_mut(2);
+        rinex.decimate_by_ratio_mut(2);
         assert_eq!(rinex.epochs().len(), 3);
-        rinex.decim_by_ratio_mut(2);
+        rinex.decimate_by_ratio_mut(2);
         assert_eq!(rinex.epochs().len(), 2);
     }
 }
