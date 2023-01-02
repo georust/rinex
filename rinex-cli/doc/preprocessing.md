@@ -29,7 +29,7 @@ rinex-cli \
 
 ## Masking operations
 
-Use Mask filters to focus on data you're interested in, or get rid of entire data subsets.
+Use Mask filters to focus on data you are interested in, or get rid of entire data subsets.
 
 As mask filter is one operand and a mask to apply to a particular kind of data.   
 
@@ -73,7 +73,7 @@ Record would become empty if it does not exist
 ```bash
 rinex-cli \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    -P 'mask:2020-06-12 08:00:00'
+    -P mask:2020-06-12 08:00:00
 ```
 
 Use a different operand to grab a portion of the day.  
@@ -82,55 +82,63 @@ The following mask retains the last 16hours of that file:
 ```bash
 rinex-cli \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    -P 'mask:gt:2020-06-12 08:00:00'
+    -P mask:gt:2020-06-12 08:00:00
+```
+
+For example, use two epoch masks to zoom in on 
+the ]2020-06-12 08:00:00 ; 2020-06-12 10:00:00] time window:
+
+```bash
+rinex-cli \
+    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
+    -P mask:gt:2020-06-12 08:00:00 mask:leq:2020-06-12 10:00:00 
 ```
 
 ## Duration target
-TODO
 
 ## Sv target
 
 A comma separated list of Sv is supported.  
-For example, with the following, we're left with data from _R03_ and _E10_
+For example, with the following, we are left with data from _R03_ and _E10_
 
 ```bash
 rinex-cli \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    -P 'mask:G08,R03,E10'
-    -P 'mask:neq:R03,E10'
+    -P mask:G08,R03,E10
+    -P mask:neq:R03,E10
 ```
 
 The `sv` target supports more than "=" or "!=". With this command for example,
-we're left with PRN above 03 for GPS and below 10 (included) for Galileo
+we are left with PRN above 03 for GPS and below 10 (included) for Galileo
 
 ```bash
 rinex-cli \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    -P 'mask:gt:G08'
-    -P 'mask:leq:E10'
+    -P mask:gt:G08
+    -P mask:leq:E10
 ```
 
 ## GNSS target
 
 A comma separated list of Constellation is supported.  
-For example, with the following, we're left with data from Glonass and GPS  
+For example, with the following, we are left with data from Glonass and GPS  
 
 ```bash
 rinex-cli \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    -P 'mask:neq:bds'
-    -P 'mask:GPS,GLO'
+    -P mask:neq:bds
+    -P mask:GPS,GLO
 ```
 
 ## Carrier signals
 
 A comma separated list of Carrier signals is supported.  
-For example, with the following, we're only left with observations against L1 and L5
+For example, with the following, we are only left with observations against L1 and L5
 
 ```bash
 rinex-cli \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    -P 'mask:l1,l5'
+    -P mask:l1,l5
 ```
 
 Carrier signals are one of the exceptions that support more than`eq` and `neq` operands.  
@@ -139,41 +147,41 @@ For example, with the following we retain L2, L5 signals and L1 is excluded:
 ```bash
 rinex-cli \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    -P 'mask:gt:l1'
+    -P mask:gt:l1
 ```
 
 ## Observables
 
 A comma separated list of Observables is supported.  
-For example, with the following, we're only left with phase observations,
+For example, with the following, we are only left with phase observations,
 against L1 and L2 carriers 
 
 ```bash
 rinex-cli \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    -P 'mask:L1C,l2c'
+    -P mask:L1C,l2c
 ```
 
 ## Navigation frames
 
 A comma separated list of Navigation Frames is supported.  
-For example, with the following, we're only left with Ephemerides
+For example, with the following, we are only left with Ephemerides
 
 ```bash
 rinex-cli \
     --fp test_resources/NAV/V3/ESBC00DNK_R_20201770000.crx.gz \
-    -P 'mask:eph'
+    -P mask:eph
 ```
 
 ## Navigation Messages
 
 A comma separated list of Navigation Messages is supported.  
-For example, with the following, we're only left with legacy messages
+For example, with the following, we are only left with legacy messages
 
 ```bash
 rinex-cli \
     --fp test_resources/NAV/V3/ESBC00DNK_R_20201770000.crx.gz \
-    -P 'mask:lnav'
+    -P mask:lnav
 ```
  
 Navigation Messages is one of those exceptions that support more that "=" (`eq`) or "!=" (`neq`) operands.  
@@ -183,7 +191,7 @@ With the following mask, we retain only modern navigation messages
 ```bash
 rinex-cli \
     --fp test_resources/NAV/V3/ESBC00DNK_R_20201770000.crx.gz \
-    -P 'mask:gt:lnav'
+    -P mask:gt:lnav
 ```
 
 ### Unfeasible operations
@@ -207,29 +215,55 @@ rinex-cli \
     -P 'mask: leq: R15'
 ```
 
-## Signal condition filters
+## Elevation mask
 
-Observation data might have an "LLI" flag attached to them.
-It is possible to apply an And() mask on this field. In this case,
-all epochs that did not come with an LLI flag get also dropped out.
+## Decimation filter
 
-In this example, we focus on epochs where a `Loss of Lock` event happened
+One preprocessing algorithm is record _decimation_ to reduce
+data quantity or increase sampling interval. It is described with `decim:`. 
 
-```shell
-rinex-cli --pretty --lli-mask 1 --sv R01 \ 
-          -f test_resources/OBS/V2/zegv0010.21o
+### By a ratio
+
+Decimate an entire record to reduce the data quantity by 2 (-50%)
+
+```bash
+rinex-cli \
+    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.gz \
+    -P 'decim:2'
 ```
 
-SSI field is another data field that might come with an observation
-and it gives the estimated receiver power / SNR at the sampling instant.
+### By an interval
 
-It is possible to filter data on minimum signal strength, which
-is equivalent to a data "quality" filter
+Decimate this record to increase the epoch interval (reduce the sample rate)
+to it matches 10 minutes:
 
-With the following command, we only retain data with SSI >= 5
-that means at least 30 dB SNR. 
+```bash
+rinex-cli \
+    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.gz \
+    -P 'decim:10 minutes'
+```
 
-```shell
-rinex-cli --pretty -f test_resources/OBS/V2/zegv0010.21o \
-        --ssi-filter 5 --sv-filter R01
+### Advanced: Decimate a data subset
+
+Algorithms apply to the entire record by default, but you can specify
+to apply it only a subset.
+Subsets are described like Data Masks previously defined.
+
+Decimate L1C observations by a factor of 10: 
+
+```bash
+rinex-cli \
+    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.gz \
+    -P 'mask:L1C,L2C' 'decim:2:l1c'
+```
+
+Now open the `graphs.html` report and see how the L1C graph differs from the L2C graph.
+
+This applies to any filter opmodes. For example, lets reduce the L1C rate
+by 2 with the following command
+
+```bash
+rinex-cli \
+    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.gz \
+    -P 'mask:L1C,L2C' 'decim:1 min:l1c'
 ```
