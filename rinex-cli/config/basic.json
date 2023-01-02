@@ -1,4 +1,4 @@
 {
 	"classification": "GNSS",
-	"min_snr": 30.0
+	"min_snr_db": 30.0
 }

@@ -141,30 +141,41 @@ fn report_anomalies(anomalies: &Vec<(Epoch, EpochFlag)>) -> Box<dyn RenderBox + 
 fn report_epoch_completion(total: usize, total_with_obs: usize, complete: &Vec<(Carrier, usize)>) -> Box<dyn RenderBox + '_> {
 	box_html! {
 		table(class="table is-bordered") {
-			thead {
-				th {
-					: "Total"
-				}
-				th {
-					: "Epochs w/ observations"
-				}
-				@ for (signal, _) in complete {
-					th {
-						: format!("Complete (L1/{})", signal)
-					}
-				}
-			}
 			tbody {
-				td {
-					: total.to_string()
+				tr {
+                    th {
+					    : "Total Epochs"
+                    }
+                    td {
+                        : total.to_string()
+                    }
 				}
-				td {
-					: format!("{} ({}%)", total_with_obs, total_with_obs * 100 / total)
+                tr {
+                    th {
+                        : "w/ observations"
+                    }
+                    td {
+                        : format!("{} ({}%)", total_with_obs, total_with_obs * 100 / total)
+                    }
 				}
-				@ for (_, count) in complete {
-					td {
-						: format!("{} ({}%)", count, count * 100 / total)
-					}
+                tr {
+                    th {
+                        : "Complete" 
+                    }
+				    @ for (signal, count) in complete {
+					    td {
+                            b {
+                                : format!("L1/{}", signal)
+                            }
+                            p {
+                                : count.to_string()
+                            }
+                            b {
+                                : format!("{}%", count * 100/total)
+                            }
+						    //: format!("<b>L1/{}</b>: {} (<b>{}%</b>)", signal, count, count *100/total)
+					    }
+                    }
 				}
 			}
 		}
@@ -328,7 +339,7 @@ impl QcObsAnalysis {
 						 * SNR condition
 						 */
 						if let Some(snr) = observation.snr {
-							if snr < Snr::from(opts.min_snr) {
+							if snr < Snr::from(opts.min_snr_db) {
 								continue ; // not to be considered
 							}
 						} else {
@@ -520,10 +531,26 @@ impl HtmlReport for QcObsAnalysis {
                 tbody {
                     tr {
                         td {
-                            : format!("{}: {:e} @{}", self.min_max_snr.0.0, self.min_max_snr.0.2, self.min_max_snr.0.1)
+                            p {
+                                :  self.min_max_snr.0.0.to_string()
+                            }
+                            b {
+                                : format!("{:e}", self.min_max_snr.0.2)
+                            }
+                            p {
+                                : format!("@{}", self.min_max_snr.0.1)
+                            }
                         }
                         td {
-                            : format!("{}: {:e} @{}", self.min_max_snr.1.0, self.min_max_snr.1.2, self.min_max_snr.1.1)
+                            p {
+                                :  self.min_max_snr.1.0.to_string()
+                            }
+                            b {
+                                : format!("{:e}", self.min_max_snr.1.2)
+                            }
+                            p {
+                                : format!("@{}", self.min_max_snr.1.1)
+                            }
                         }
                     }
                 }

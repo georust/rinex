@@ -28,29 +28,29 @@ impl Context {
 
         let ground_position = match &primary_rinex.header.ground_position {
             Some(position) => {
-				info!("identified position: {}", position);
+                info!("antenna position: {}", position);
 				Some(position.clone())
             },
             _ => {
                 if let Some(ref nav) = nav_rinex {
                     if let Some(pos) = &nav.header.ground_position {
-						info!("identified position: {}", pos);
+				        info!("antenna position: {}", pos);
                         Some(pos.clone())
                     } else {
                         if let Some(pos) = &cli.manual_position() {
-							info!("manual position: {}", pos);
+							info!("user defined antenna position: {}", pos);
                             Some(pos.clone())
                         } else {
-                            trace!("undetermined ground position");
+                            trace!("undetermined antenna position");
                             None
                         }
                     }
                 } else {
                     if let Some(pos) = &cli.manual_position() {
-						info!("manual position: {}", pos);
+                        info!("user defined antenna position: {}", pos);
                         Some(pos.clone())
                     } else {
-                        trace!("undetermined ground position");
+                        trace!("undetermined antenna position");
                         None
                     }
                 }

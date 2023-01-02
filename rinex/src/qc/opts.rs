@@ -1,6 +1,8 @@
 use crate::prelude::*;
 use crate::observation::Snr;
 use crate::ground_position::GroundPosition;
+use super::HtmlReport;
+use horrorshow::RenderBox;
 
 #[cfg(feature = "serde")]
 use std::str::FromStr;
@@ -151,7 +153,7 @@ pub struct QcOpts {
 	/// For example, this is used when determining whether
 	/// an epoch is "complete" or not.
 	#[serde(default)]
-	pub min_snr: f64,
+	pub min_snr_db: f64,
 	/// Elevation mask
 	pub elev_mask: Option<f64>,
 	/// Duration considered as a data gap
@@ -161,9 +163,9 @@ pub struct QcOpts {
 }
 
 impl QcOpts {
-	pub fn with_min_snr(&self, snr: f64) -> Self {
+	pub fn with_min_snr(&self, snr_db: f64) -> Self {
 		let mut s = self.clone();
-		s.min_snr = snr;
+		s.min_snr_db = snr_db;
 		s
 	}
 	pub fn with_ground_position_ecef(&self, pos: (f64,f64,f64)) -> Self {
@@ -183,9 +185,61 @@ impl Default for QcOpts {
         Self {
             manual_gap: None,
 			ground_position: None,
-			min_snr: (Snr::new("strong") as u8).into(),
+			min_snr_db: 20.0, // dB
 			elev_mask: None,
 			classification: QcClassificationMethod::default(),
+        }
+    }
+}
+
+impl HtmlReport for QcOpts {
+    fn to_html(&self) -> String { todo!() }
+    fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
+        box_html! {
+            tr {
+                th {
+                    : "Report classification"
+                }
+                td {
+                    : format!("{:?}", self.classification)
+                }
+            }
+            tr {
+                th {
+                    : "Data gap"
+                }
+                @ if let Some(gap) = self.manual_gap {
+                    th {
+                        : format!("Manual ({})", gap) 
+                    }
+                } else {
+                    th {
+                        : "Auto"
+                    }
+                }
+            }
+            tr {
+                th {
+                    : "Min. SNR"
+                }
+                td {
+                    : format!("{} dB", self.min_snr_db)
+                }
+            }
+            tr {
+                th {
+                    : "Elev. mask"
+                }
+                @ if let Some(mask) = self.elev_mask {
+                    td {
+                        : format!("{} °", mask) 
+                    }
+                } else {
+                    td {
+                        : "None"
+                    }
+                }
+            }
         }
     }
 }

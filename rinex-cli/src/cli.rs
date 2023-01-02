@@ -181,13 +181,13 @@ Most useful when combined to Observation RINEX. Enables the complete (full) `--q
                     .arg(Arg::new("pos-ecef")
                         .long("--pos-ecef")
                         .value_name("\"x,y,z\" coordinates in ECEF [m]")
-                        .help("Define the ground position manualy, in [m] ECEF system.
+                        .help("Define the (RX) antenna ground position manualy, in [m] ECEF system.
 Some calculations require a reference position.
 Ideally this information is contained in the file Header, but user can manually define them (superceeds)."))
                     .arg(Arg::new("pos-geo")
                         .long("--pos-geo")
                         .value_name("\"lat,lon,alt\" coordinates in ddeg [°]")
-                        .help("Define the ground position manualy, in decimal degrees.
+                        .help("Define the (RX) antenna ground position manualy, in decimal degrees.
 Some calculations require a reference position.
 Ideally this information is contained in the file Header, but user can manually define them (superceeds)."))
                     .arg(Arg::new("orbits")

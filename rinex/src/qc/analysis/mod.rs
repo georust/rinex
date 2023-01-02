@@ -4,14 +4,14 @@ use crate::processing::TargetItem;
 use super::{pretty_array, HtmlReport, QcOpts};
 use horrorshow::{helper::doctype, RenderBox};
 
-mod sampling;
-use sampling::QcSamplingAnalysis;
-
-mod obs;
-use obs::QcObsAnalysis;
-
 mod sv;
+mod obs;
+mod antenna;
+mod sampling;
+
 use sv::QcSvAnalysis;
+use obs::QcObsAnalysis;
+use sampling::QcSamplingAnalysis;
 
 #[derive(Debug, Clone)]
 pub struct QcAnalysis {

@@ -270,17 +270,18 @@ pub fn main() -> Result<(), rinex::Error> {
 		 */
 		if qc_opts.ground_position.is_none() { // config did not specify it 
 			if let Some(pos) = cli.manual_position() { // manually passed 
-				qc_opts = qc_opts.with_ground_position_ecef(pos.to_ecef_wgs84());
-				trace!("qc - ground position manual set {}", pos);
-			}
+				qc_opts = qc_opts
+                    .with_ground_position_ecef(
+                        pos.to_ecef_wgs84()
+                    );
+				trace!("qc - antenna position manual set to {}", pos);
+            } else if ctx.ground_position.is_none() {
+			    warn!("qc - undetermined antenna position");
+            }
 		}
 
-		if qc_opts.min_snr > 0.0 {
-			trace!("qc - minimal SNR: {} dB", qc_opts.min_snr);
-		}
-		
-		if qc_opts.ground_position.is_none() {
-			warn!("qc - undetermined ground position");
+		if qc_opts.min_snr_db > 0.0 {
+			trace!("qc - minimal SNR: {} dB", qc_opts.min_snr_db);
 		}
 
         let report = QcReport::new(
