@@ -185,7 +185,7 @@ mod test {
     use crate::prelude::*;
     use std::str::FromStr;
     #[test]
-    fn algo_filter_mask_operand() {
+    fn mask_operand() {
         let operand = MaskOperand::from_str("geq").unwrap();
         assert_eq!(operand, MaskOperand::GreaterEquals);
         assert_eq!(!operand, MaskOperand::from_str("lt").unwrap());
@@ -218,7 +218,7 @@ mod test {
         assert!(operand.is_err());
     }
     #[test]
-    fn algo_filter_mask_epoch() {
+    fn mask_epoch() {
         let mask = MaskFilter::from_str("gt:2020-01-14T00:31:55 UTC").unwrap();
         assert_eq!(
             mask,
@@ -231,7 +231,7 @@ mod test {
         assert!(mask.is_ok());
     }
     #[test]
-    fn algo_filter_mask_elev() {
+    fn mask_elev() {
         let mask = MaskFilter::from_str("lt:elev: 40.0").unwrap();
         assert_eq!(
             mask,
@@ -253,7 +253,7 @@ mod test {
         assert_eq!(!mask, m2);
     }
     #[test]
-    fn algo_filter_mask_gnss() {
+    fn mask_gnss() {
         let mask = MaskFilter::from_str("eq: GPS").unwrap();
         assert_eq!(
             mask,
@@ -292,7 +292,7 @@ mod test {
         assert_eq!(mask, m2);
     }
     #[test]
-    fn algo_filter_mask_sv() {
+    fn mask_sv() {
         let mask = MaskFilter::from_str("eq:G08,  G09, R03").unwrap();
         assert_eq!(
             mask,
@@ -320,7 +320,7 @@ mod test {
         assert_eq!(mask, m2);
     }
     #[test]
-    fn algo_filter_mask_observable() {
+    fn mask_observable() {
         let mask = MaskFilter::from_str("eq:L1C,S1C,D1P,C1W").unwrap();
         assert_eq!(
             mask,
@@ -336,7 +336,7 @@ mod test {
         );
     }
     #[test]
-    fn algo_filter_mask_orbit() {
+    fn mask_orbit() {
         let mask = MaskFilter::from_str("eq:iode").unwrap();
         assert_eq!(
             mask,
@@ -347,7 +347,7 @@ mod test {
         );
     }
     #[test]
-    fn algo_filter_mask_nav() {
+    fn mask_nav() {
         let mask = MaskFilter::from_str("eq:eph").unwrap();
         assert_eq!(
             mask,
