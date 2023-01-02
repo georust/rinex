@@ -267,3 +267,19 @@ rinex-cli \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.gz \
     -P 'mask:L1C,L2C' 'decim:1 min:l1c'
 ```
+
+## Advanced: Hatch Smoothing Filter
+
+If you are working on Pseudo Range observations (only?) but want to reduce
+the noise they come with, the Hatch filter algorithm is a standard solution to that problem.  
+The hatch smoothing filter is requested with `smooth:hatch` and can be applied either
+to all Pseudo Range observations or specific observations.
+
+For example, compare the smoothed L1C observations to noisy L2C observations,
+after the following command
+
+```bash
+rinex-cli \
+    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.gz \
+    -P 'mask:L1C,L2C' 'smooth:hatch:l1c'
+```
