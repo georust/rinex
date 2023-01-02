@@ -2,7 +2,7 @@ use crate::{
 	gnss_time::GnssTime, merge, merge::Merge, prelude::*, split,
     split::Split,
 	algorithm::{
-		Filter, Preprocessing, MaskOperand, TargetItem,
+		Filter, Preprocessing, MaskFilter, MaskOperand, TargetItem, Interpolate,
 	},
 };
 
@@ -385,7 +385,7 @@ mod test {
     }
 }
 
-impl Merge<Record> for Record {
+impl Merge for Record {
     /// Merges `rhs` into `Self` without mutable access at the expense of more memcopies
     fn merge(&self, rhs: &Self) -> Result<Self, merge::Error> {
         let mut lhs = self.clone();
@@ -425,7 +425,7 @@ impl Merge<Record> for Record {
     }
 }
 
-impl Split<Record> for Record {
+impl Split for Record {
     fn split(&self, epoch: Epoch) -> Result<(Self, Self), split::Error> {
         let r0 = self
             .iter()
@@ -454,7 +454,7 @@ impl Split<Record> for Record {
 	}
 }
 
-impl GnssTime<Record> for Record {
+impl GnssTime for Record {
 	fn timeseries(&self, dt: Duration) -> TimeSeries {
 		let epochs: Vec<_> = self.keys().collect();
 		TimeSeries::inclusive(
@@ -514,6 +514,25 @@ impl Preprocessing for Record {
 			},
 			Filter::Smoothing(_) => todo!(),
 			Filter::Decimation(_) => todo!(),
+            Filter::Interp(filter) => self.interpolate_mut(filter.series, filter.target),
 		}
 	}
+}
+
+impl Interpolate for Record {
+    fn interpolate(&self, series: TimeSeries, target: Option<TargetItem>) -> Self {
+        let mut s = self.clone();
+        s.interpolate(series, target);
+        s
+    }
+    fn interpolate_mut(&mut self, series: TimeSeries, target: Option<TargetItem>) {
+        if let Some(target) = target {
+            let mask = Filter::Mask(
+                MaskFilter {
+                    operand: MaskOperand::Equals,
+                    item: target,
+                });
+            self.filter_mut(mask);
+        }
+    }
 }

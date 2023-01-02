@@ -17,12 +17,14 @@ use crate::{
 	processing::{
 		TargetItem,
 		Preprocessing, 
-		Filter, MaskOperand, 
+		Filter, 
+        Mask, MaskFilter, MaskOperand, 
 		Combination, Combine,
 		Processing,
 		IonoDelayDetector,
 		Smooth, SmoothingType, 
 		Decimate, DecimationType,
+        Interpolate, InterpMethod,
 	},
 };
 
@@ -95,13 +97,12 @@ impl std::ops::AddAssign for ObservationData {
 }
 
 impl ObservationData {
-    /// Builds new ObservationData structure from given predicates
+    /// Builds new ObservationData structure
     pub fn new(obs: f64, lli: Option<LliFlags>, snr: Option<Snr>) -> ObservationData {
         ObservationData { obs, lli, snr }
     }
     /// Returns `true` if self is determined as `ok`.    
-    /// self is declared `ok` if LLI and SSI flags are not provided,
-    /// because they are considered as unknown/ok if missing by default.   
+    /// Self is declared `ok` if LLI and SSI flags missing.
     /// If LLI exists:    
     ///    + LLI must match the LliFlags::OkOrUnknown flag (strictly)    
     /// if SSI exists:    
@@ -110,6 +111,20 @@ impl ObservationData {
         let lli_ok = self.lli.unwrap_or(LliFlags::OK_OR_UNKNOWN) == LliFlags::OK_OR_UNKNOWN;
         let snr_ok = self.snr.unwrap_or(Snr::default()).strong();
         lli_ok && snr_ok
+    }
+
+    /// Returns true if self is considered Ok with respect to given
+    /// SNR condition (>=)
+    pub fn is_ok_snr(&self, min_snr: Snr) -> bool {
+        if self.lli.unwrap_or(LliFlags::OK_OR_UNKNOWN).intersects(LliFlags::OK_OR_UNKNOWN) {
+            if let Some(snr) = self.snr {
+                snr >= snr
+            } else {
+                false
+            }
+        } else {
+            false
+        }
     }
 
     /// Returns Real Distance, by converting observed pseudo range,
@@ -581,7 +596,7 @@ fn fmt_epoch_v3(
                         lines.push_str(" ");
                     }
                     if let Some(flag) = observation.snr {
-                        lines.push_str(&format!("{}", flag));
+                        lines.push_str(&format!("{:x}", flag));
                     } else {
                         lines.push_str(" ");
                     }
@@ -641,11 +656,11 @@ fn fmt_epoch_v2(
                     let formatted_obs = format!("{:14.3}", observation.obs);
                     let formatted_flags: String = match observation.lli {
                         Some(lli) => match observation.snr {
-                            Some(snr) => format!("{}{}", lli.bits(), snr),
+                            Some(snr) => format!("{}{:x}", lli.bits(), snr),
                             _ => format!("{} ", lli.bits()),
                         },
                         _ => match observation.snr {
-                            Some(snr) => format!(" {}", snr),
+                            Some(snr) => format!(" {:x}", snr),
                             _ => "  ".to_string(),
                         },
                     };
@@ -662,7 +677,7 @@ fn fmt_epoch_v2(
     lines
 }
 
-impl Merge<Record> for Record {
+impl Merge for Record {
     /// Merges `rhs` into `Self` without mutable access at the expense of more memcopies
     fn merge(&self, rhs: &Self) -> Result<Self, merge::Error> {
         let mut lhs = self.clone();
@@ -713,7 +728,7 @@ impl Merge<Record> for Record {
     }
 }
 
-impl Split<Record> for Record {
+impl Split for Record {
     fn split(&self, epoch: Epoch) -> Result<(Self, Self), split::Error> {
         let r0 = self
             .iter()
@@ -758,7 +773,7 @@ impl Split<Record> for Record {
 	}
 }
 
-impl Decimate<Record> for Record {
+impl Decimate for Record {
     /// Decimates Self by desired factor
     fn decimate_by_ratio_mut(&mut self, r: u32) {
         let mut i = 0;
@@ -804,7 +819,7 @@ impl Decimate<Record> for Record {
     }
 }
 
-impl GnssTime<Record> for Record {
+impl GnssTime for Record {
 	fn timeseries(&self, dt: Duration) -> TimeSeries {
 		let epochs: Vec<_> = self.keys().collect();
 		TimeSeries::inclusive(
@@ -826,7 +841,7 @@ impl GnssTime<Record> for Record {
     }
 }
 
-impl Smooth<Record> for Record {
+impl Smooth for Record {
 	/// Applies Hatch smoothing filter, returns smoothed Pseudo Range observations
 	fn hatch_smoothing(&self) -> Self {
 		let mut s = self.clone();
@@ -875,249 +890,276 @@ impl Smooth<Record> for Record {
 	}
 }
 
+impl Mask for Record {
+    fn mask(&self, mask: MaskFilter) -> Self {
+        let mut s = self.clone();
+        s.mask_mut(mask);
+        s
+    }
+    fn mask_mut(&mut self, mask: MaskFilter) {
+        match mask.operand {
+            MaskOperand::Equals => match mask.item {
+                TargetItem::EpochItem(epoch) => self.retain(|(e, _), _| *e == epoch),
+                TargetItem::EpochFlagItem(flag) => self.retain(|(_, f), _| *f == flag),
+                TargetItem::ConstellationItem(constells) => {
+                    self.retain(|_, (_, svs)| {
+                        svs.retain(|sv, _| constells.contains(&sv.constellation));
+                        svs.len() > 0
+                    });
+                },
+                TargetItem::SvItem(items) => {
+                    self.retain(|_, (_, svs)| {
+                        svs.retain(|sv, _| items.contains(&sv));
+                        svs.len() > 0
+                    });
+                },
+                TargetItem::ObservableItem(filter) => {
+                    self.retain(|_, (_, svs)| {
+                        svs.retain(|_, obs| {
+                            obs.retain(|code, _| filter.contains(&code));
+                            obs.len() > 0
+                        });
+                        svs.len() > 0
+                    });
+                },
+                TargetItem::SnrItem(filter) => {
+                    let filter = Snr::from(filter);
+                    self.retain(|_, (_, svs)| {
+                        svs.retain(|_, obs| {
+                            obs.retain(|_, data| {
+                                if let Some(snr) = data.snr {
+                                    snr == filter
+                                } else {
+                                    false // no snr: drop out
+                                }
+                            });
+                            obs.len() > 0
+                        });
+                        svs.len() > 0
+                    });
+                },
+                TargetItem::SnrRangeItem((min, max)) => {
+                    let (min, max) = (Snr::from(min), Snr::from(max));
+                    self.retain(|_, (_, svs)| {
+                        svs.retain(|_, obs| {
+                            obs.retain(|_, data| {
+                                if let Some(snr) = data.snr {
+                                    snr >= min && snr <= max
+                                } else {
+                                    false // no snr: drop out
+                                }
+                            });
+                            obs.len() > 0
+                        });
+                        svs.len() > 0
+                    });
+                },
+                _ => {},
+            },
+            MaskOperand::NotEquals => match mask.item {
+                TargetItem::EpochItem(epoch) => self.retain(|(e, _), _| *e != epoch),
+                TargetItem::EpochFlagItem(flag) => self.retain(|(_, f), _| *f != flag),
+                TargetItem::ConstellationItem(constells) => {
+                    self.retain(|_, (_, svs)| {
+                        svs.retain(|sv, _| !constells.contains(&sv.constellation));
+                        svs.len() > 0
+                    });
+                },
+                TargetItem::SvItem(items) => {
+                    self.retain(|_, (_, svs)| {
+                        svs.retain(|sv, _| !items.contains(&sv));
+                        svs.len() > 0
+                    });
+                },
+                TargetItem::ObservableItem(filter) => {
+                    self.retain(|_, (_, svs)| {
+                        svs.retain(|_, obs| {
+                            obs.retain(|code, _| !filter.contains(&code));
+                            obs.len() > 0
+                        });
+                        svs.len() > 0
+                    });
+                },
+                _ => {},
+            },
+            MaskOperand::GreaterEquals => match mask.item {
+                TargetItem::EpochItem(epoch) => self.retain(|(e, _), _| *e >= epoch),
+                TargetItem::SvItem(items) => {
+                    self.retain(|_, (_, svs)| {
+                        svs.retain(|sv, _| {
+                            let mut retain = false;
+                            for item in &items {
+                                if item.constellation == sv.constellation {
+                                    retain = sv.prn >= item.prn;
+                                } else {
+                                    retain = true;
+                                }
+                            }
+                            retain
+                        });
+                        svs.len() > 0
+                    });
+                },
+                TargetItem::SnrItem(filter) => {
+                    let filter = Snr::from(filter);
+                    self.retain(|_, (_, svs)| {
+                        svs.retain(|_, obs| {
+                            obs.retain(|_, data| {
+                                if let Some(snr) = data.snr {
+                                    snr >= filter
+                                } else {
+                                    false // no snr: drop out
+                                }
+                            });
+                            obs.len() > 0
+                        });
+                        svs.len() > 0
+                    });
+                },
+                _ => {},
+            },
+            MaskOperand::GreaterThan => match mask.item {
+                TargetItem::EpochItem(epoch) => self.retain(|(e, _), _| *e > epoch),
+                TargetItem::SvItem(items) => {
+                    self.retain(|_, (_, svs)| {
+                        svs.retain(|sv, _| {
+                            let mut retain = false;
+                            for item in &items {
+                                if item.constellation == sv.constellation {
+                                    retain = sv.prn > item.prn;
+                                } else {
+                                    retain = true;
+                                }
+                            }
+                            retain
+                        });
+                        svs.len() > 0
+                    });
+                },
+                TargetItem::SnrItem(filter) => {
+                    let filter = Snr::from(filter);
+                    self.retain(|_, (_, svs)| {
+                        svs.retain(|_, obs| {
+                            obs.retain(|_, data| {
+                                if let Some(snr) = data.snr {
+                                    snr > filter
+                                } else {
+                                    false // no snr: drop out
+                                }
+                            });
+                            obs.len() > 0
+                        });
+                        svs.len() > 0
+                    });
+                },
+                _ => {},
+            },
+            MaskOperand::LowerEquals => match mask.item {
+                TargetItem::EpochItem(epoch) => self.retain(|(e, _), _| *e <= epoch),
+                TargetItem::SvItem(items) => {
+                    self.retain(|_, (_, svs)| {
+                        svs.retain(|sv, _| {
+                            let mut retain = false;
+                            for item in &items {
+                                if item.constellation == sv.constellation {
+                                    retain = sv.prn <= item.prn;
+                                } else {
+                                    retain = true;
+                                }
+                            }
+                            retain
+                        });
+                        svs.len() > 0
+                    });
+                },
+                TargetItem::SnrItem(filter) => {
+                    let filter = Snr::from(filter);
+                    self.retain(|_, (_, svs)| {
+                        svs.retain(|_, obs| {
+                            obs.retain(|_, data| {
+                                if let Some(snr) = data.snr {
+                                    snr <= filter
+                                } else {
+                                    false // no snr: drop out
+                                }
+                            });
+                            obs.len() > 0
+                        });
+                        svs.len() > 0
+                    });
+                },
+                _ => {},
+            },
+            MaskOperand::LowerThan => match mask.item {
+                TargetItem::EpochItem(epoch) => self.retain(|(e, _), _| *e < epoch),
+                TargetItem::SvItem(items) => {
+                    self.retain(|_, (_, svs)| {
+                        svs.retain(|sv, _| {
+                            let mut retain = false;
+                            for item in &items {
+                                if item.constellation == sv.constellation {
+                                    retain = sv.prn < item.prn;
+                                } else {
+                                    retain = true;
+                                }
+                            }
+                            retain
+                        });
+                        svs.len() > 0
+                    });
+                },
+                TargetItem::SnrItem(filter) => {
+                    let filter = Snr::from(filter);
+                    self.retain(|_, (_, svs)| {
+                        svs.retain(|_, obs| {
+                            obs.retain(|_, data| {
+                                if let Some(snr) = data.snr {
+                                    snr < filter
+                                } else {
+                                    false // no snr: drop out
+                                }
+                            });
+                            obs.len() > 0
+                        });
+                        svs.len() > 0
+                    });
+                },
+                _ => {},
+            }
+        }
+    }
+}
+
+impl Interpolate for Record {
+    fn interpolate(&self, series: TimeSeries, target: Option<TargetItem>) -> Self {
+        let mut s = self.clone();
+        s.interpolate(series, target);
+        s
+    }
+    fn interpolate_mut(&mut self, series: TimeSeries, target: Option<TargetItem>) {
+        if let Some(target) = target {
+            let mask = MaskFilter {
+                operand: MaskOperand::Equals,
+                item: target,
+            };
+            self.mask_mut(mask);
+        }
+    }
+}
+
 impl Preprocessing for Record {
     fn filter(&self, filter: Filter) -> Self {
         let mut s = self.clone();
         s.filter_mut(filter);
         s
     }
-    fn filter_mut(&mut self, filter: Filter) { 
+    fn filter_mut(&mut self, filter: Filter) {
 		match filter {
-			Filter::Mask(mask) => {
-				match mask.operand {
-					MaskOperand::Equals => match mask.item {
-						TargetItem::EpochItem(epoch) => self.retain(|(e, _), _| *e == epoch),
-						TargetItem::EpochFlagItem(flag) => self.retain(|(_, f), _| *f == flag),
-						TargetItem::ConstellationItem(constells) => {
-							self.retain(|_, (_, svs)| {
-								svs.retain(|sv, _| constells.contains(&sv.constellation));
-								svs.len() > 0
-							});
-						},
-						TargetItem::SvItem(items) => {
-							self.retain(|_, (_, svs)| {
-								svs.retain(|sv, _| items.contains(&sv));
-								svs.len() > 0
-							});
-						},
-						TargetItem::ObservableItem(filter) => {
-							self.retain(|_, (_, svs)| {
-								svs.retain(|_, obs| {
-									obs.retain(|code, _| filter.contains(&code));
-									obs.len() > 0
-								});
-								svs.len() > 0
-							});
-						},
-						TargetItem::SnrItem(filter) => {
-							let filter = Snr::from(filter);
-							self.retain(|_, (_, svs)| {
-								svs.retain(|_, obs| {
-									obs.retain(|_, data| {
-										if let Some(snr) = data.snr {
-											snr == filter
-										} else {
-											false // no snr: drop out
-										}
-									});
-									obs.len() > 0
-								});
-								svs.len() > 0
-							});
-						},
-						TargetItem::SnrRangeItem((min, max)) => {
-							let (min, max) = (Snr::from(min), Snr::from(max));
-							self.retain(|_, (_, svs)| {
-								svs.retain(|_, obs| {
-									obs.retain(|_, data| {
-										if let Some(snr) = data.snr {
-											snr >= min && snr <= max
-										} else {
-											false // no snr: drop out
-										}
-									});
-									obs.len() > 0
-								});
-								svs.len() > 0
-							});
-						},
-						_ => {},
-					},
-					MaskOperand::NotEquals => match mask.item {
-						TargetItem::EpochItem(epoch) => self.retain(|(e, _), _| *e != epoch),
-						TargetItem::EpochFlagItem(flag) => self.retain(|(_, f), _| *f != flag),
-						TargetItem::ConstellationItem(constells) => {
-							self.retain(|_, (_, svs)| {
-								svs.retain(|sv, _| !constells.contains(&sv.constellation));
-								svs.len() > 0
-							});
-						},
-						TargetItem::SvItem(items) => {
-							self.retain(|_, (_, svs)| {
-								svs.retain(|sv, _| !items.contains(&sv));
-								svs.len() > 0
-							});
-						},
-						TargetItem::ObservableItem(filter) => {
-							self.retain(|_, (_, svs)| {
-								svs.retain(|_, obs| {
-									obs.retain(|code, _| !filter.contains(&code));
-									obs.len() > 0
-								});
-								svs.len() > 0
-							});
-						},
-						_ => {},
-					},
-					MaskOperand::GreaterEquals => match mask.item {
-						TargetItem::EpochItem(epoch) => self.retain(|(e, _), _| *e >= epoch),
-						TargetItem::SvItem(items) => {
-							self.retain(|_, (_, svs)| {
-								svs.retain(|sv, _| {
-									let mut retain = false;
-									for item in &items {
-										if item.constellation == sv.constellation {
-											retain = sv.prn >= item.prn;
-										} else {
-											retain = true;
-										}
-									}
-									retain
-								});
-								svs.len() > 0
-							});
-						},
-						TargetItem::SnrItem(filter) => {
-							let filter = Snr::from(filter);
-							self.retain(|_, (_, svs)| {
-								svs.retain(|_, obs| {
-									obs.retain(|_, data| {
-										if let Some(snr) = data.snr {
-											snr >= filter
-										} else {
-											false // no snr: drop out
-										}
-									});
-									obs.len() > 0
-								});
-								svs.len() > 0
-							});
-						},
-						_ => {},
-					},
-					MaskOperand::GreaterThan => match mask.item {
-						TargetItem::EpochItem(epoch) => self.retain(|(e, _), _| *e > epoch),
-						TargetItem::SvItem(items) => {
-							self.retain(|_, (_, svs)| {
-								svs.retain(|sv, _| {
-									let mut retain = false;
-									for item in &items {
-										if item.constellation == sv.constellation {
-											retain = sv.prn > item.prn;
-										} else {
-											retain = true;
-										}
-									}
-									retain
-								});
-								svs.len() > 0
-							});
-						},
-						TargetItem::SnrItem(filter) => {
-							let filter = Snr::from(filter);
-							self.retain(|_, (_, svs)| {
-								svs.retain(|_, obs| {
-									obs.retain(|_, data| {
-										if let Some(snr) = data.snr {
-											snr > filter
-										} else {
-											false // no snr: drop out
-										}
-									});
-									obs.len() > 0
-								});
-								svs.len() > 0
-							});
-						},
-						_ => {},
-					},
-					MaskOperand::LowerEquals => match mask.item {
-						TargetItem::EpochItem(epoch) => self.retain(|(e, _), _| *e <= epoch),
-						TargetItem::SvItem(items) => {
-							self.retain(|_, (_, svs)| {
-								svs.retain(|sv, _| {
-									let mut retain = false;
-									for item in &items {
-										if item.constellation == sv.constellation {
-											retain = sv.prn <= item.prn;
-										} else {
-											retain = true;
-										}
-									}
-									retain
-								});
-								svs.len() > 0
-							});
-						},
-						TargetItem::SnrItem(filter) => {
-							let filter = Snr::from(filter);
-							self.retain(|_, (_, svs)| {
-								svs.retain(|_, obs| {
-									obs.retain(|_, data| {
-										if let Some(snr) = data.snr {
-											snr <= filter
-										} else {
-											false // no snr: drop out
-										}
-									});
-									obs.len() > 0
-								});
-								svs.len() > 0
-							});
-						},
-						_ => {},
-					},
-					MaskOperand::LowerThan => match mask.item {
-						TargetItem::EpochItem(epoch) => self.retain(|(e, _), _| *e < epoch),
-						TargetItem::SvItem(items) => {
-							self.retain(|_, (_, svs)| {
-								svs.retain(|sv, _| {
-									let mut retain = false;
-									for item in &items {
-										if item.constellation == sv.constellation {
-											retain = sv.prn < item.prn;
-										} else {
-											retain = true;
-										}
-									}
-									retain
-								});
-								svs.len() > 0
-							});
-						},
-						TargetItem::SnrItem(filter) => {
-							let filter = Snr::from(filter);
-							self.retain(|_, (_, svs)| {
-								svs.retain(|_, obs| {
-									obs.retain(|_, data| {
-										if let Some(snr) = data.snr {
-											snr < filter
-										} else {
-											false // no snr: drop out
-										}
-									});
-									obs.len() > 0
-								});
-								svs.len() > 0
-							});
-						},
-						_ => {},
-					},
-				}
-			},
+			Filter::Mask(mask) => self.mask_mut(mask),
 			Filter::Smoothing(filter) => match filter.stype {
 				SmoothingType::Hatch => self.hatch_smoothing_mut(),
 			},
+            Filter::Interp(filter) => self.interpolate_mut(filter.series, filter.target),
 			Filter::Decimation(filter) => match filter.dtype {
 				DecimationType::DecimByRatio(r) => {
 					self.decimate_by_ratio_mut(r)	

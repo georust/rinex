@@ -55,7 +55,7 @@ pub struct DecimationFilter {
 	pub dtype: DecimationType, 
 }
 
-pub trait Decimate<T> {
+pub trait Decimate {
 	fn decimate_by_ratio(&self, r: u32) -> Self;
 	fn decimate_by_ratio_mut(&mut self, r: u32);
 	fn decimate_by_interval(&self, dt: Duration) -> Self;

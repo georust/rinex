@@ -14,12 +14,16 @@ pub use combination::{Combination, Combine};
 pub use filters::{
 	Preprocessing, 
 	Filter, 
-	MaskFilter, 
+    Mask,
 	MaskOperand, 
+	MaskFilter, 
 	Smooth,
 	SmoothingType,
 	SmoothingFilter,
 	Decimate,
 	DecimationType,
 	DecimationFilter,
+    Interpolate,
+    InterpMethod,
+    InterpFilter,
 };

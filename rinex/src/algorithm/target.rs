@@ -71,6 +71,8 @@ pub enum TargetItem {
     NavMsgItem(Vec<MsgType>),
     /// List of Navigation Frame types
     NavFrameItem(Vec<FrameClass>),
+    /// (Rx) Clock 
+    Clock,
 }
 
 impl std::ops::BitOrAssign for TargetItem {
@@ -239,6 +241,7 @@ impl std::str::FromStr for TargetItem {
 						_ => Err(Error::ParseFloatItemError),
 					}
 				},
+                "clk" => Ok(Self::Clock),
 				_ => todo!(),
 				//_ => Err(Error::UnknownTarget(c.to_string())),
 			}

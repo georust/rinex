@@ -1,9 +1,11 @@
 mod mask;
 mod decim;
+mod interp;
 mod smoothing;
 
 use super::TargetItem;
-pub use mask::{MaskFilter, MaskOperand};
+pub use mask::{Mask, MaskFilter, MaskOperand};
+pub use interp::{Interpolate, InterpMethod, InterpFilter};
 pub use decim::{Decimate, DecimationType, DecimationFilter};
 pub use smoothing::{Smooth, SmoothingType, SmoothingFilter};
 
@@ -35,8 +37,8 @@ pub enum Filter {
 	Smoothing(SmoothingFilter),
 	/// Decimation filter to reduce sample rate
 	Decimation(DecimationFilter),
-	// /// Interpolation filter to increase sample rate
-	// Interp(MaskFilter),
+	/// Interpolation filter to increase sample rate
+	Interp(InterpFilter),
 }
 
 impl From<MaskFilter> for Filter {
@@ -56,6 +58,7 @@ impl From<SmoothingFilter> for Filter {
 		Self::Smoothing(smoothing)
 	}
 }
+
 impl std::str::FromStr for Filter {
 	type Err = Error;
 	fn from_str(content: &str) -> Result<Self, Self::Err> {

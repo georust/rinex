@@ -48,7 +48,7 @@ impl std::str::FromStr for SmoothingFilter {
 	}
 }
 
-pub trait Smooth<T> {
+pub trait Smooth {
 	/// Applies a Hatch smoothing filter to Pseudo Range observations
 	fn hatch_smoothing(&self) -> Self;
 	/// Applies a Hatch smoothing filter to Pseudo Range observations

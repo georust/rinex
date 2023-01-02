@@ -11,6 +11,11 @@ pub enum Error {
 	InvalidDescriptor,
 }
 
+pub trait Mask {
+    fn mask(&self, mask: MaskFilter) -> Self;
+    fn mask_mut(&mut self, mask: MaskFilter);
+}
+
 /// MaskOperand describe how to apply a mask
 /// in related filter operation
 #[derive(Debug, Clone, PartialEq)]

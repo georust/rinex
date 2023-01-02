@@ -194,7 +194,7 @@ mod test {
     }
 }
 
-impl Merge<Record> for Record {
+impl Merge for Record {
     /// Merges `rhs` into `Self` without mutable access at the expense of more memcopies
     fn merge(&self, rhs: &Self) -> Result<Self, merge::Error> {
         let mut lhs = self.clone();
