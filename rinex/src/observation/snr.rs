@@ -173,7 +173,7 @@ mod test {
 		assert_eq!(snr, Snr::DbHz48_53);
 		assert!(snr.excellent());
         assert_eq!(format!("{:x}", snr), "8"); 
-        assert_eq!(format!("{:e}", snr), "8"); 
+        assert_eq!(format!("{:e}", snr), "[48, 53[ dB"); 
 
 		let snr: Snr = Snr::from(31.3);
 		assert_eq!(snr, Snr::DbHz30_35);
