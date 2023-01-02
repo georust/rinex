@@ -1445,6 +1445,9 @@ impl Processing for Record {
 		ret
 	}
 	fn stdvar_sv(&self) -> HashMap<Sv, f64> {
+        self.central_moment_sv(2)
+    }
+    fn central_moment_sv(&self, order: u16) -> HashMap<Sv, f64> {
 		let mean = self.mean_sv();
 		let mut diff: HashMap<Sv, (u32, f64)> = HashMap::new();
 		for (_, (_, svs)) in self {
@@ -1454,9 +1457,9 @@ impl Processing for Record {
 						.unwrap();
 					if let Some((count, diff)) = diff.get_mut(sv) {
 						*count += 1;
-						*diff += (observation.obs - mean).powf(2.0);
+						*diff += (observation.obs - mean).powf(order as f64);
 					} else {
-						diff.insert(*sv, (1, (observation.obs - mean).powf(2.0)));
+						diff.insert(*sv, (1, (observation.obs - mean).powf(order as f64)));
 					}
 				}
 			}
@@ -1468,6 +1471,9 @@ impl Processing for Record {
 			.collect()
 	}
 	fn stdvar_observable(&self) -> HashMap<Observable, f64> {
+        self.central_moment_observable(2)
+    }
+    fn central_moment_observable(&self, order: u16) -> HashMap<Observable, f64> {
 		let mean = self.mean_observable();
 		let mut diff: HashMap<Observable, (u32, f64)> = HashMap::new();
 		for (_, (_, svs)) in self {
@@ -1477,9 +1483,9 @@ impl Processing for Record {
 						.unwrap();
 					if let Some((count, diff)) = diff.get_mut(observable) {
 						*count += 1;
-						*diff += (observation.obs - mean).powf(2.0);
+						*diff += (observation.obs - mean).powf(order as f64);
 					} else {
-						diff.insert(observable.clone(), (1, (observation.obs - mean).powf(2.0)));
+						diff.insert(observable.clone(), (1, (observation.obs - mean).powf(order as f64)));
 					}
 				}
 			}

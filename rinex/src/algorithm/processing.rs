@@ -45,12 +45,8 @@ pub trait Processing {
 
     /// Evaluates nth order central moment for all Signals for all Sv
 	fn central_moment(&self, order: u16) -> HashMap<Sv, HashMap<Observable, f64>>;
-/*
     /// Evaluates nth order central moment for all Sv, accross signals 
-	fn central_moment_sv(&self, order: u16) -> HashMap<Sv, f64>>;
+	fn central_moment_sv(&self, order: u16) -> HashMap<Sv, f64>;
     /// Evaluates nth order central moment for all Signals, accross Sv
-	fn central_moment_observable(&self, order: u16) -> HashMap<Observable, f64>>;
-    /// Evaluates nth order central moment for all signals and Sv combined
-    fn central_moment_sv_observable(&self, order: u16) -> f64;
-*/
+	fn central_moment_observable(&self, order: u16) -> HashMap<Observable, f64>;
 }
