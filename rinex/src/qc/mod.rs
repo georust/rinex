@@ -59,12 +59,6 @@ pub enum Grade {
 }
 
 #[derive(Debug, Clone)]
-pub struct Augmentation<'a> {
-	pub rnx: &'a Rinex,
-	pub filename: String,
-}
-
-#[derive(Debug, Clone)]
 pub struct QcReport<'a> { 
 	/// Configuration / options 
 	opts: QcOpts,
@@ -73,19 +67,28 @@ pub struct QcReport<'a> {
 	/// RINEX context
 	rinex: &'a Rinex,
 	/// Navigation augmentation context
-	nav_rinex: Option<Augmentation<'a>>,
-	/// Analysis that were performed
+    nav_filenames: Vec<String>,
+	/// Navigation augmentation context
+	nav_rinex: Option<Rinex>,
+	/// Analysis that were performed per classification method
 	analysis: Vec<QcAnalysis>,
 }
 
 impl <'a> QcReport<'a> {
     /// Builds a new basic QC Report using default options
     pub fn basic(filename: &str, rnx: &'a Rinex) -> Self {
-        Self::new(filename, rnx, None, QcOpts::default())
+        Self::new(filename, rnx, Vec::new(), None, QcOpts::default())
     }
     /// Builds a new QC Report
-    pub fn new(filename: &str, rnx: &'a Rinex, nav: Option<Rinex>, opts: QcOpts) -> Self {
-		// Classification method	
+    pub fn new(filename: &str, 
+        rnx: &'a Rinex, 
+        nav_filenames: Vec<String>, // possible augmentation fp
+        nav_rinex: Option<Rinex>, // possiblement augmentation context
+        opts: QcOpts,
+    ) -> Self {
+        /*
+         * Classification Method
+         */
 		let mut classifier: TargetItem = match opts.classification {
 			QcClassificationMethod::GNSS => {
 				let mut gnss = rnx.list_constellations();
@@ -107,7 +110,7 @@ impl <'a> QcReport<'a> {
 			},
 		};
 		/*
-		 * Build analysis
+		 * Build (record) analysis
 		 */
 		let mut analysis: Vec<QcAnalysis> = Vec::new();
 		match classifier {
@@ -121,10 +124,8 @@ impl <'a> QcReport<'a> {
 					/*
 					 * possible NAV subset:
 					 *  + apply same GNSS filter
-					 *  + apply interpolation filter,
-					 *          to match epoch rate
 					 */
-					let nav_subset: Option<Rinex> = match nav {
+					let nav_subset = match nav_rinex {
 						Some(ref rnx) => Some(rnx.filter(mask.clone().into())),
 						_ => None,
 					};
@@ -132,7 +133,7 @@ impl <'a> QcReport<'a> {
 					analysis.push(QcAnalysis::new(TargetItem::from(c), &subset, &nav_subset, &opts));
 				}
 			},
-			/*
+			/* >>>>TODO<<<<<
 			TargetItem::SvItem(svs) => {
 				for sv in svs {
 					// create the classification mask
@@ -164,7 +165,8 @@ impl <'a> QcReport<'a> {
 			opts,	
 			rinex: rnx, 
 			analysis,
-			nav_rinex: None,
+			nav_rinex,
+            nav_filenames,
         }
     }
 }
@@ -198,62 +200,74 @@ impl <'a> HtmlReport for QcReport<'a> {
 				}
                 div(id="file") {
                     table(class="table is-bordered") {
-                        thead {
-                            tr {
-                                th {
-                                    : "File"
-                                }
-                            }
-                        }
                         tbody {
                             tr {
                                 th {
-                                    : "Program"
+                                    : "Version"
                                 }
-                                th {
-                                    : "Name"
-                                }
-                                th {
-                                    : "Type"
-                                }
-                            }
-                            tr {
                                 td {
                                     : format!("rust-rnx: v{}", env!("CARGO_PKG_VERSION"))
                                 }
-                                td {
-                                    : self.filename.to_string()
-                                }
-                                @ if let Some(gnss) = self.rinex.header.constellation {
-                                    td {
-                                        : format!("{} {:?}", gnss, self.rinex.header.rinex_type)
+                            }
+                            tr {
+                                th {
+                                    p {
+                                        : "Name"
                                     }
-                                } else {
-                                    td {
-                                        : format!("{:?} file", self.rinex.header.rinex_type)
+                                }
+                                td {
+                                    p {
+                                        : self.filename.to_string()
+                                    }
+                                    @ for fp in &self.nav_filenames {
+                                        p {
+                                            : fp.to_string()
+                                        }
                                     }
                                 }
                             }
-                            @ for augmentation in &self.nav_rinex {
-                                td {
-                                    : ""
+                            tr {
+                                th {
+                                    : "Type"
                                 }
                                 td {
-                                    : augmentation.filename.to_string()
-                                }
-                                @ if let Some(gnss) = augmentation.rnx.header.constellation {
-                                    td {
-                                        : format!("{} {:?}", gnss, augmentation.rnx.header.rinex_type)
-                                    }
-                                } else {
-                                    td {
-                                        : format!("{:?} file", augmentation.rnx.header.rinex_type)
+                                    @ if let Some(gnss) = self.rinex.header.constellation {
+                                        p {
+                                            : format!("{} {:?}", gnss, self.rinex.header.rinex_type)
+                                        }
+                                        @ if let Some(nav) = &self.nav_rinex {
+                                            @ if let Some(gnss) = nav.header.constellation {
+                                                p {
+                                                    : format!("{} {:?}", gnss, nav.header.rinex_type)
+                                                }
+                                            } else {
+                                                p {
+                                                    : format!("{:?} file", nav.header.rinex_type)
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        p {
+                                            : format!("{:?} file", self.rinex.header.rinex_type)
+                                        }
                                     }
                                 }
                             }
                         }
                     }
                 }//div="file"
+                div(id="parameters") {
+                    table(class="table is-bordered") {
+                        thead {
+                            th {
+                                : "Parameters"
+                            }
+                        }
+                        tbody {
+                            : self.opts.to_inline_html()
+                        }
+                    }
+                }//div="parameters"
             }
             div(id="header") {
 				table(class="table is-bordered") {
@@ -317,32 +331,33 @@ impl <'a> HtmlReport for QcReport<'a> {
 						table(class="table is-bordered") {
 							thead {
 								th {
-									: "Header Ground Position"
+									: "Antenna"
 								}
 							}
 							tbody {
-								@if let Some(ground_pos) = &self.rinex.header.ground_position {
-									: ground_pos.to_inline_html()
-								} else {
-									: "Undefined"
+                                tr {
+                                    th {
+                                        : "Header position"
+                                    }
+								    @if let Some(ground_pos) = &self.rinex.header.ground_position {
+                                        : ground_pos.to_inline_html()
+								    } else {
+                                        td {
+									        : "Undefined"
+                                        }
+                                    }
 								}
-							}
-						}
-						table(class="table is-bordered") {
-							thead {
-								th {
-									: "Manual Ground position"
-								}
-							}
-							tbody {
-								@ if let Some(ground_pos) = &self.opts.ground_position {
-									td {
-										: ground_pos.to_inline_html()
-									}
-								} else {
-									td {
-										: "Unknown"
-									}
+                                tr {
+                                    th {
+                                        : "User defined position"
+                                    }
+                                    @ if let Some(ground_pos) = &self.opts.ground_position {
+                                        : ground_pos.to_inline_html()
+                                    } else {
+									    td {
+										    : "None"
+									    }
+                                    }
 								}
 							}
 						}

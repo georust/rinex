@@ -25,7 +25,7 @@ impl QcAnalysis {
 	pub fn new(classifier: TargetItem, rnx: &Rinex, nav: &Option<Rinex>, opts: &QcOpts) -> Self {
 		Self {
 			classifier,
-			sv: QcSvAnalysis::new(rnx),
+			sv: QcSvAnalysis::new(rnx, nav, opts),
 			observ: QcObsAnalysis::new(rnx, opts),
 			sampling: QcSamplingAnalysis::new(rnx),
 		}

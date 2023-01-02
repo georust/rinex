@@ -15,7 +15,7 @@ mod preprocessing;
 use preprocessing::preprocess;
 
 use horrorshow::Template;
-use rinex::{merge::Merge, processing::*, split::Split, quality::*};
+use rinex::{Rinex, merge::Merge, processing::*, split::Split, quality::*};
 
 use cli::Cli;
 pub use context::Context;
@@ -284,10 +284,16 @@ pub fn main() -> Result<(), rinex::Error> {
 			trace!("qc - minimal SNR: {} dB", qc_opts.min_snr_db);
 		}
 
+        let nav_paths: Vec<_> = cli.nav_paths()
+            .iter()
+            .map(|k| filename(&k))
+            .collect();
+
         let report = QcReport::new(
 			&filename(cli.input_path()), 
 			&ctx.primary_rinex, 
-			ctx.nav_rinex,
+            nav_paths,
+            ctx.nav_rinex,
 			qc_opts); // &ctx.nav_rinex
 
 		let qc_path = ctx.prefix.to_owned() + "/report.html";

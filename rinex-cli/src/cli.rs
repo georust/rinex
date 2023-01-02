@@ -457,7 +457,7 @@ Refer to README"))
         }
     }
     /// Returns optionnal Nav path, for enhanced capabilities
-    fn nav_paths(&self) -> Vec<&String> {
+    pub fn nav_paths(&self) -> Vec<&String> {
         if let Some(paths) = self.matches.get_many::<String>("nav") {
             paths.collect()
         } else {
@@ -473,7 +473,7 @@ Refer to README"))
                 if let Some(ref mut ctx) = nav_ctx {
                     let _ = ctx.merge_mut(&rnx);
                 } else {
-                    info!("--nav augmented mode");
+                    trace!("(nav) augmentation: \"{}\"", filename(&path));
                     nav_ctx = Some(rnx);
                 }
             } else {

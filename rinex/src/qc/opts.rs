@@ -200,7 +200,7 @@ impl HtmlReport for QcOpts {
                 th {
                     : "Report classification"
                 }
-                td {
+                th {
                     : format!("{:?}", self.classification)
                 }
             }
