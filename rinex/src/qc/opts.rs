@@ -198,24 +198,10 @@ impl HtmlReport for QcOpts {
         box_html! {
             tr {
                 th {
-                    : "Report classification"
+                    : "Classification"
                 }
                 th {
                     : format!("{:?}", self.classification)
-                }
-            }
-            tr {
-                th {
-                    : "Data gap"
-                }
-                @ if let Some(gap) = self.manual_gap {
-                    th {
-                        : format!("Manual ({})", gap) 
-                    }
-                } else {
-                    th {
-                        : "Auto"
-                    }
                 }
             }
             tr {
@@ -237,6 +223,20 @@ impl HtmlReport for QcOpts {
                 } else {
                     td {
                         : "None"
+                    }
+                }
+            }
+            tr {
+                th {
+                    : "Data gap"
+                }
+                @ if let Some(gap) = self.manual_gap {
+                    th {
+                        : format!("Manual ({})", gap) 
+                    }
+                } else {
+                    th {
+                        : "Auto"
                     }
                 }
             }

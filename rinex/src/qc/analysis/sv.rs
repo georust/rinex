@@ -1,13 +1,13 @@
 use crate::prelude::*;
-use super::pretty_array;
+use super::{QcOpts, pretty_array};
 
 #[derive(Debug, Clone)]
 pub struct QcSvAnalysis {
-	pub sv: Vec<String>
+	pub sv: Vec<String>,
 }
 
 impl QcSvAnalysis {
-    pub fn new(rnx: &Rinex) -> Self {
+    pub fn new(rnx: &Rinex, nav: &Option<Rinex>, opts: &QcOpts) -> Self {
 		let mut sv = rnx
 			.space_vehicules();
 		sv.sort();

@@ -26,7 +26,7 @@ impl QcAnalysis {
 		Self {
 			classifier,
 			sv: QcSvAnalysis::new(rnx, nav, opts),
-			observ: QcObsAnalysis::new(rnx, opts),
+			observ: QcObsAnalysis::new(rnx, nav, opts),
 			sampling: QcSamplingAnalysis::new(rnx),
 		}
 	}

@@ -82,7 +82,7 @@ impl HtmlReport for QcSamplingAnalysis {
 					: "Gap analysis"
 				}
 				td {
-					: "None"
+					: "No Data Gaps"
 				}
 			} else {
 				div(class="table-container") {
