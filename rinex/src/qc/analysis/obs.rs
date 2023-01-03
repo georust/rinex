@@ -2,8 +2,8 @@ use crate::{
 	prelude::*,
 	Carrier,
 	carrier,
+    processing::*,
 	observation::Snr,
-    processing::Processing,
 };
 
 use std::collections::HashMap;
@@ -258,6 +258,8 @@ pub struct QcObsAnalysis {
     min_max_snr: ((Sv, Epoch, Snr), (Sv, Epoch, Snr)),
     /// SSi statistical analysis (mean, stddev, skew)
     ssi_stats: HashMap<Observable, (f64,f64,f64)>,
+    /// clock_drift
+    clock_drift: Option<f64>,
 }
 
 impl QcObsAnalysis {
@@ -280,7 +282,21 @@ impl QcObsAnalysis {
             (Sv::default(), Epoch::default(), Snr::DbHz0),
         );
         let mut ssi_stats: HashMap<Observable, (f64,f64,f64)> = HashMap::new();
-        let mut clock_drift: Vec<(Epoch, Epoch, u32, f64)> = Vec::new();
+
+        let clock_drift: Option<f64> = match rnx.record.as_obs() {
+            Some(r) => {
+                let mask: Filter = Filter::from(
+                    MaskFilter {
+                        operand: MaskOperand::Equals,
+                        item: TargetItem::ClockItem,
+                    });
+                let clk_data = r.filter(mask);
+                let der = clk_data.derivative();
+                let mov = der.moving_average(Duration::from_seconds(600.0), None);
+                None
+            },
+            _ => None,
+        };
 
 		if let Some(r) = rnx.record.as_obs() {
 			total_epochs = r.len();
@@ -301,10 +317,8 @@ impl QcObsAnalysis {
 					for (observable, observation) in observables {
 						let code = observable.code()
 							.unwrap();
-						let carrier = Carrier::from_code(
-							sv.constellation,
-							&code)
-								.unwrap();
+                        let carrier = observable.carrier(sv.constellation)
+                            .unwrap();
 						if !signals.contains(&carrier) {
 							signals.push(carrier);
 						}
@@ -364,11 +378,8 @@ impl QcObsAnalysis {
 						
 						let code = observable.code()
 							.unwrap();
-						let carrier = Carrier::from_code(
-							sv.constellation,
-							&code)
-							.unwrap();
-						
+						let carrier = observable.carrier(sv.constellation)
+                            .unwrap();
 						if let Some(complete) = complete.get_mut(&carrier) {
 							if !*complete {
 								for k_code in carrier::KNOWN_CODES.iter() {
@@ -466,6 +477,7 @@ impl QcObsAnalysis {
 			},
             min_max_snr,
             ssi_stats,
+            clock_drift,
         }
     }
 }
