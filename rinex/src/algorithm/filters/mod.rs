@@ -109,7 +109,7 @@ mod test {
 	use super::*;
 	use std::str::FromStr;
 	#[test]
-	fn algo_filter_maskfilter() {
+	fn from_str() {
 		for desc in vec![
 			"mask:gt: 10.0",
 			"mask:eq:GPS",
@@ -122,11 +122,8 @@ mod test {
 			"mask:eq:G08, G09",
 		] {
 			let filt = Filter::from_str(desc);
-			assert!(filt.is_ok(), "Filter::from_str error on \"{}\"", desc);
+			assert!(filt.is_ok(), "Filter::from_str failed on \"{}\"", desc);
 		}
-	}
-	#[test]
-	fn algo_filter_maskfilter_omitted_operands() {
 		for desc in vec![
 			"mask:10.0",
 			"mask:10.0, 13.0",
@@ -135,18 +132,24 @@ mod test {
 			"mask:G08, G09, G10",
 		] {
 			let filt = Filter::from_str(desc);
-			assert!(filt.is_ok(), "Filter::from_str error on \"{}\"", desc);
+			assert!(filt.is_ok(), "Filter::from_str failed on \"{}\"", desc);
 		}
-	}
-	#[test]
-	fn algo_filter_decim_filter() {
 		for desc in vec![
 			"decim:10",
 			"decim:10 min",
 			"decim:1 hour",
 		] {
 			let filt = Filter::from_str(desc);
-			assert!(filt.is_ok(), "Filter::from_str error on \"{}\"", desc);
+			assert!(filt.is_ok(), "Filter::from_str failed on \"{}\"", desc);
 		}
-	}
+        for desc in vec![
+            "smooth:mov:10 min",
+            "smooth:mov:1 hour",
+            "smooth:mov:1 hour:l1c",
+            "smooth:mov:10 min:clk",
+        ] {
+            let filt = Filter::from_str(desc);
+            assert!(filt.is_ok(), "Filter::from_str failed on \"{}\"", desc);
+        }
+    }
 }

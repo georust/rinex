@@ -94,6 +94,7 @@ pub use merge::Merge;
 pub use split::Split;
 
 use algorithm::{
+    TargetItem,
 	Dcb, Smooth, Decimate,
 	Combine, Combination,
 	IonoDelayDetector,
@@ -2535,14 +2536,24 @@ impl Decimate for Rinex {
 }
 
 impl Smooth for Rinex {
-	fn hatch_smoothing(&self) -> Self {
+	fn moving_average(&self, window: Duration, target: Option<TargetItem>) -> Self {
 		let mut s = self.clone();
-		s.hatch_smoothing_mut();
+		s.moving_average_mut(window, target);
 		s
 	}
-	fn hatch_smoothing_mut(&mut self) {
+	fn moving_average_mut(&mut self, window: Duration, target: Option<TargetItem>) {
 		if let Some(r) = self.record.as_mut_obs() {
-			r.hatch_smoothing_mut();
+			r.moving_average_mut(window, target);
+		}
+	}
+	fn hatch_smoothing(&self, target: Option<TargetItem>) -> Self {
+		let mut s = self.clone();
+		s.hatch_smoothing_mut(target);
+		s
+	}
+	fn hatch_smoothing_mut(&mut self, target: Option<TargetItem>) {
+		if let Some(r) = self.record.as_mut_obs() {
+			r.hatch_smoothing_mut(target);
 		}
 	}
 }

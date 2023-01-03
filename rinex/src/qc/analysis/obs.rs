@@ -280,10 +280,16 @@ impl QcObsAnalysis {
             (Sv::default(), Epoch::default(), Snr::DbHz0),
         );
         let mut ssi_stats: HashMap<Observable, (f64,f64,f64)> = HashMap::new();
+        let mut clock_drift: Vec<(Epoch, Epoch, u32, f64)> = Vec::new();
 
 		if let Some(r) = rnx.record.as_obs() {
 			total_epochs = r.len();
-			for ((epoch, flag), (_, svs)) in r {
+			for ((epoch, flag), (clk, svs)) in r {
+                
+                if let Some(clk) = clk {
+                        
+                }
+
 				if !flag.is_ok() {
 					anomalies.push((*epoch, *flag));
 				}

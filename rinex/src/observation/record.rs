@@ -843,13 +843,20 @@ impl GnssTime for Record {
 
 impl Smooth for Record {
 	/// Applies Hatch smoothing filter, returns smoothed Pseudo Range observations
-	fn hatch_smoothing(&self) -> Self {
+	fn hatch_smoothing(&self, target: Option<TargetItem>) -> Self {
 		let mut s = self.clone();
-		s.hatch_smoothing_mut();
+		s.hatch_smoothing_mut(target);
 		s
 	}
 	/// Applies Hatch smoothing filter in place
-	fn hatch_smoothing_mut(&mut self) {
+	fn hatch_smoothing_mut(&mut self, target: Option<TargetItem>) {
+        if let Some(item) = target {
+            let mask = MaskFilter {
+                item,
+                operand: MaskOperand::Equals,
+            };
+            self.mask_mut(mask);
+        }
 		/*
 		 * smoothes pseudo range observations using special algorithm
 		 */
@@ -888,6 +895,20 @@ impl Smooth for Record {
 			}
 		}
 	}
+    fn moving_average(&self, window: Duration, target: Option<TargetItem>) -> Self {
+        let mut s = self.clone();
+        s.moving_average_mut(window, target);
+        s
+    }
+    fn moving_average_mut(&mut self, window: Duration, target: Option<TargetItem>) {
+        if let Some(item) = target {
+            let mask = MaskFilter {
+                item,
+                operand: MaskOperand::Equals,
+            };
+            self.mask_mut(mask);
+        }
+    }
 }
 
 impl Mask for Record {
@@ -1157,7 +1178,8 @@ impl Preprocessing for Record {
 		match filter {
 			Filter::Mask(mask) => self.mask_mut(mask),
 			Filter::Smoothing(filter) => match filter.stype {
-				SmoothingType::Hatch => self.hatch_smoothing_mut(),
+				SmoothingType::Hatch => self.hatch_smoothing_mut(filter.target),
+                SmoothingType::MovingAverage(dt) => self.moving_average_mut(dt, filter.target),
 			},
             Filter::Interp(filter) => self.interpolate_mut(filter.series, filter.target),
 			Filter::Decimation(filter) => match filter.dtype {
