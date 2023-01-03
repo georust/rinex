@@ -4,6 +4,7 @@ use std::collections::{HashMap, BTreeMap};
 
 /// GNSS Combinations,
 /// cf. <https://github.com/gwbres/rinex/blob/main/rinex-cli/doc/gnss-combination.md>.
+#[derive(Debug, Clone, Copy)]
 pub enum Combination {
 	/// Geometry Free (Gf) combination cancels out geometric
 	/// biases and leaves frequency dependent terms out,
