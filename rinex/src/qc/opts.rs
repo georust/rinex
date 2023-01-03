@@ -1,5 +1,4 @@
 use crate::prelude::*;
-use crate::observation::Snr;
 use crate::ground_position::GroundPosition;
 use super::HtmlReport;
 use horrorshow::RenderBox;

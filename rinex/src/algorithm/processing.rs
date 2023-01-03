@@ -1,6 +1,6 @@
 use crate::prelude::*;
+use std::collections::HashMap;
 use crate::observation::Record;
-use std::collections::{BTreeMap, HashMap};
 
 pub trait Processing {
 	/// Evaluates minimal observation for all signals and Sv
