@@ -1590,7 +1590,7 @@ impl Preprocessing for Record {
 impl Interpolate for Record {
     fn interpolate(&self, series: TimeSeries, target: Option<TargetItem>) -> Self {
         let mut s = self.clone();
-        s.interpolate(series, target);
+        s.interpolate_mut(series, target);
         s
     }
     fn interpolate_mut(&mut self, series: TimeSeries, target: Option<TargetItem>) {

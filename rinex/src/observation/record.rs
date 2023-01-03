@@ -8,7 +8,6 @@ use crate::{
 	epoch, 
 	gnss_time::GnssTime, 
 	merge, merge::Merge,
-	Carrier,
     prelude::*, 
 	split, split::Split, 
 	sv, types::Type, 
@@ -24,7 +23,7 @@ use crate::{
 		IonoDelayDetector,
 		Smooth, SmoothingType, 
 		Decimate, DecimationType,
-        Interpolate, InterpMethod,
+        Interpolate,
 	},
 };
 
@@ -118,7 +117,7 @@ impl ObservationData {
     pub fn is_ok_snr(&self, min_snr: Snr) -> bool {
         if self.lli.unwrap_or(LliFlags::OK_OR_UNKNOWN).intersects(LliFlags::OK_OR_UNKNOWN) {
             if let Some(snr) = self.snr {
-                snr >= snr
+                snr >= min_snr
             } else {
                 false
             }
@@ -757,10 +756,10 @@ impl Split for Record {
 		let mut ret: Vec<Self> = Vec::new();
 		let mut prev: Option<Epoch> = None;
 		for ((epoch, flag), data) in self {
-			if let Some(mut prev) = prev {
-				let dt = *epoch - prev;
+			if let Some(p_epoch) = prev {
+				let dt = *epoch - p_epoch;
 				if dt >= duration {
-					prev = *epoch;
+					prev = Some(*epoch);
 					ret.push(curr);
 					curr = Self::new();
 				}
@@ -1164,7 +1163,7 @@ impl Mask for Record {
 impl Interpolate for Record {
     fn interpolate(&self, series: TimeSeries, target: Option<TargetItem>) -> Self {
         let mut s = self.clone();
-        s.interpolate(series, target);
+        s.interpolate_mut(series, target);
         s
     }
     fn interpolate_mut(&mut self, series: TimeSeries, target: Option<TargetItem>) {
@@ -1212,9 +1211,9 @@ impl Processing for Record {
              * min{clock} 
              */
             if let Some(clk) = clk {
-                if let Some(mut data) = ret.0 {
+                if let Some(data) = ret.0 {
                     if *clk < data {
-                        data = *clk;
+                        ret.0 = Some(*clk);
                     }
                 } else {
                     ret.0 = Some(*clk);
@@ -1320,9 +1319,8 @@ impl Processing for Record {
              * mean{clk}
              */
             if let Some(clk) = clk {
-                if let Some((mut count, mut sum)) = sum.0 {
-                    sum += clk;
-                    count += 1;
+                if let Some((count, data)) = sum.0 {
+                    sum.0 = Some((count +1, data + clk));
                 } else {
                     sum.0 = Some((1, *clk));
                 }

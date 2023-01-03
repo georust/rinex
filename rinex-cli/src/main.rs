@@ -152,7 +152,7 @@ pub fn main() -> Result<(), rinex::Error> {
             "Meters of Li-Lj delay",
             &data,
         );
-        info!("nl recombination");
+        info!("--nl recombination");
     }
     /*
      * [MW] recombination
@@ -165,7 +165,7 @@ pub fn main() -> Result<(), rinex::Error> {
             "Meters of Li-Lj delay",
             &data,
         );
-        info!("mw recombination");
+        info!("--mw recombination");
     }
     /*
      * MERGE
