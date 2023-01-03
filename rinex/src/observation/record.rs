@@ -922,6 +922,11 @@ impl Mask for Record {
             MaskOperand::Equals => match mask.item {
                 TargetItem::EpochItem(epoch) => self.retain(|(e, _), _| *e == epoch),
                 TargetItem::EpochFlagItem(flag) => self.retain(|(_, f), _| *f == flag),
+                TargetItem::Clock => {
+                    self.retain(|_, (clk, _)| {
+                        clk.is_some()
+                    });
+                },
                 TargetItem::ConstellationItem(constells) => {
                     self.retain(|_, (_, svs)| {
                         svs.retain(|sv, _| constells.contains(&sv.constellation));
@@ -980,6 +985,11 @@ impl Mask for Record {
             MaskOperand::NotEquals => match mask.item {
                 TargetItem::EpochItem(epoch) => self.retain(|(e, _), _| *e != epoch),
                 TargetItem::EpochFlagItem(flag) => self.retain(|(_, f), _| *f != flag),
+                TargetItem::Clock => {
+                    self.retain(|_, (clk, _)| {
+                        clk.is_none()
+                    });
+                },
                 TargetItem::ConstellationItem(constells) => {
                     self.retain(|_, (_, svs)| {
                         svs.retain(|sv, _| !constells.contains(&sv.constellation));
@@ -1195,12 +1205,27 @@ impl Preprocessing for Record {
 }
 
 impl Processing for Record {
-	fn min(&self) -> HashMap<Sv, HashMap<Observable, f64>> {
-		let mut ret: HashMap<Sv, HashMap<Observable, f64>> = HashMap::new();
-		for (_, (_, svs)) in self {
+	fn min(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
+		let mut ret: (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) = (None, HashMap::new());
+		for (_, (clk, svs)) in self {
+            /*
+             * min{clock} 
+             */
+            if let Some(clk) = clk {
+                if let Some(mut data) = ret.0 {
+                    if *clk < data {
+                        data = *clk;
+                    }
+                } else {
+                    ret.0 = Some(*clk);
+                }
+            }
+            /*
+             * min{data}
+             */
 			for (sv, observables) in svs {
 				for (observable, observation) in observables {
-					if let Some(data) = ret.get_mut(sv) {
+					if let Some(data) = ret.1.get_mut(sv) {
 						if let Some(data) = data.get_mut(observable) {
 							if observation.obs < *data {
 								*data = observation.obs;
@@ -1211,7 +1236,7 @@ impl Processing for Record {
 					} else {
 						let mut map: HashMap<Observable, f64> = HashMap::new();
 						map.insert(observable.clone(), observation.obs);
-						ret.insert(*sv, map);
+						ret.1.insert(*sv, map);
 					}
 				}
 			}
@@ -1220,7 +1245,7 @@ impl Processing for Record {
 	}
 	fn min_observable(&self) -> HashMap<Observable, f64> {
 		let mut ret: HashMap<Observable, f64> = HashMap::new();
-		let min = self.min();
+		let min = self.min().1;
 		for (_, observables) in min {
 			for (observable, minimum) in observables {
 				if let Some(mmin) = ret.get_mut(&observable) {
@@ -1234,12 +1259,27 @@ impl Processing for Record {
 		}
 		ret
 	}
-	fn max(&self) -> HashMap<Sv, HashMap<Observable, f64>> {
-		let mut ret: HashMap<Sv, HashMap<Observable, f64>> = HashMap::new();
-		for (_, (_, svs)) in self {
+	fn max(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
+		let mut ret: (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) = (None, HashMap::new());
+		for (_, (clk, svs)) in self {
+            /*
+             * max{clock}
+             */
+            if let Some(clk) = clk {
+                if let Some(mut data) = ret.0 {
+                    if *clk > data {
+                        data = *clk;
+                    }
+                } else {
+                    ret.0 = Some(*clk);
+                }
+            }
+            /*
+             * max{data}
+             */
 			for (sv, observables) in svs {
 				for (observable, observation) in observables {
-					if let Some(data) = ret.get_mut(sv) {
+					if let Some(data) = ret.1.get_mut(sv) {
 						if let Some(data) = data.get_mut(observable) {
 							if observation.obs > *data {
 								*data = observation.obs;
@@ -1250,7 +1290,7 @@ impl Processing for Record {
 					} else {
 						let mut map: HashMap<Observable, f64> = HashMap::new();
 						map.insert(observable.clone(), observation.obs);
-						ret.insert(*sv, map);
+						ret.1.insert(*sv, map);
 					}
 				}
 			}
@@ -1259,7 +1299,7 @@ impl Processing for Record {
 	}
 	fn max_observable(&self) -> HashMap<Observable, f64> {
 		let mut ret: HashMap<Observable, f64> = HashMap::new();
-		let max = self.max();
+		let max = self.max().1;
 		for (_, observables) in max {
 			for (observable, maximum) in observables {
 				if let Some(mmax) = ret.get_mut(&observable) {
@@ -1273,12 +1313,26 @@ impl Processing for Record {
 		}
 		ret
 	}
-	fn mean(&self) -> HashMap<Sv, HashMap<Observable, f64>> {
-		let mut sum: HashMap<Sv, HashMap<Observable, (u32, f64)>> = HashMap::new();
-		for (_, (_, svs)) in self {
+	fn mean(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
+		let mut sum: (Option<(u32, f64)>, HashMap<Sv, HashMap<Observable, (u32, f64)>>) = (None, HashMap::new());
+		for (_, (clk, svs)) in self {
+            /*
+             * mean{clk}
+             */
+            if let Some(clk) = clk {
+                if let Some((mut count, mut sum)) = sum.0 {
+                    sum += clk;
+                    count += 1;
+                } else {
+                    sum.0 = Some((1, *clk));
+                }
+            }
+            /*
+             * mean{data}
+             */
 			for (sv, observables) in svs {
 				for (observable, observation) in observables {
-					if let Some(data) = sum.get_mut(sv) {
+					if let Some(data) = sum.1.get_mut(sv) {
 						if let Some((count, sum)) = data.get_mut(observable) {
 							*count += 1;
 							*sum += observation.obs;
@@ -1288,15 +1342,24 @@ impl Processing for Record {
 					} else {
 						let mut map: HashMap<Observable, (u32, f64)> = HashMap::new();
 						map.insert(observable.clone(), (1, observation.obs));
-						sum.insert(*sv, map);
+						sum.1.insert(*sv, map);
 					}
 				}
 			}
 		}
-		let mut ret: HashMap<Sv, HashMap<Observable, f64>> = HashMap::new();
-		for (sv, observables) in sum {
+		let mut ret: (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) = (None, HashMap::new());
+        /*
+         * mean{clk}
+         */
+        if let Some((count, data)) = sum.0 {
+            ret.0 = Some(data / count as f64);
+        }
+        /*
+         * mean{data}
+         */
+		for (sv, observables) in sum.1 {
 			for (observable, (count, sum)) in observables {
-				if let Some(data) = ret.get_mut(&sv) {
+				if let Some(data) = ret.1.get_mut(&sv) {
 					if let Some(data) = data.get_mut(&observable) {
 						*data = sum / count as f64;
 					} else {
@@ -1305,14 +1368,14 @@ impl Processing for Record {
 				} else {
 					let mut map: HashMap<Observable, f64> = HashMap::new();
 					map.insert(observable.clone(), sum / count as f64);
-					ret.insert(sv, map);
+					ret.1.insert(sv, map);
 				}
 			}
 		}
 		ret
 	}
 	fn mean_observable(&self) -> HashMap<Observable, f64> {
-		let mean = self.mean();
+		let mean = self.mean().1;
 		let mut sum:  HashMap<Observable, (u32, f64)> = HashMap::new();
 		for (sv, observables) in mean {
 			for (observable, mean) in observables {
@@ -1330,9 +1393,12 @@ impl Processing for Record {
 			})
 			.collect()
 	}
-	fn stddev(&self) -> HashMap<Sv, HashMap<Observable, f64>> {
+	fn stddev(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
 		let mut stdvar = self.stdvar();
-		for (_, observables) in stdvar.iter_mut() {
+        if let Some(mut stdvar) = stdvar.0 { // {clk}
+            stdvar = stdvar.sqrt();
+        }
+		for (_, observables) in stdvar.1.iter_mut() { // {data}
 			for (observable, data) in observables.iter_mut() {
 				*data = data.sqrt();
 			}
@@ -1346,21 +1412,35 @@ impl Processing for Record {
 		}
 		stdvar
 	}
-	fn stdvar(&self) -> HashMap<Sv, HashMap<Observable, f64>> {
+	fn stdvar(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
         self.central_moment(2)
     }
-    fn central_moment(&self, order: u16) -> HashMap<Sv, HashMap<Observable, f64>> {
+    fn central_moment(&self, order: u16) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
 		let mean = self.mean();
-		let mut ret: HashMap<Sv, HashMap<Observable, f64>> = HashMap::new();
-		let mut diff: HashMap<Sv, HashMap<Observable, (u32, f64)>> = HashMap::new();
-		for (_, (_, svs)) in self {
+		let mut ret: (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) = (None, HashMap::new());
+		let mut diff: (Option<(u32, f64)>, HashMap<Sv, HashMap<Observable, (u32, f64)>>) = (None, HashMap::new());
+		for (_, (clk, svs)) in self {
+            /*
+             * |x_i -x|{clk}
+             */
+            if let Some(clk) = clk {
+                if let Some(mean) = mean.0 {
+                    if let Some((mut count, mut diff)) = diff.0 {
+                        count += 1;
+                        diff += (*clk - mean).powf(order as f64);
+                    }
+                }
+            }
+            /*
+             * |x_i -x|{data}
+             */
 			for (sv, observables) in svs {
 				for (observable, observation) in observables {
-					let mean = mean.get(&sv)
+					let mean = mean.1.get(&sv)
 						.unwrap()
 							.get(&observable)
 							.unwrap();
-					if let Some(data) = diff.get_mut(sv) {
+					if let Some(data) = diff.1.get_mut(sv) {
 						if let Some((count, diff)) = data.get_mut(observable) {
 							*count += 1;
 							*diff += (observation.obs - mean).powf(order as f64);
@@ -1370,15 +1450,24 @@ impl Processing for Record {
 					} else {
 						let mut map: HashMap<Observable, (u32, f64)> = HashMap::new();
 						map.insert(observable.clone(), (1, (observation.obs - mean).powf(order as f64))); 
-						diff.insert(*sv, map);
+						diff.1.insert(*sv, map);
 					}
 				}
 			}
 		}
-		let mut ret: HashMap<Sv, HashMap<Observable, f64>> = HashMap::new();
-		for (sv, observables) in diff {
+		let mut ret: (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) = (None, HashMap::new());
+        /*
+         * stdvar{clk}
+         */
+        if let Some((count, diff)) = diff.0 {
+            ret.0 = Some(diff / count as f64);
+        }
+        /*
+         * stdvar{data}
+         */
+		for (sv, observables) in diff.1 {
 			for (observable, (count, diff)) in observables {
-				if let Some(data) = ret.get_mut(&sv) {
+				if let Some(data) = ret.1.get_mut(&sv) {
 					if let Some(data) = data.get_mut(&observable) {
 						*data = diff /  count as f64;
 					} else {
@@ -1387,7 +1476,7 @@ impl Processing for Record {
 				} else {
 					let mut map: HashMap<Observable, f64> = HashMap::new();
 					map.insert(observable.clone(), diff /  count as f64); 
-					ret.insert(sv, map);
+					ret.1.insert(sv, map);
 				}
 			}
 		}
@@ -1419,61 +1508,90 @@ impl Processing for Record {
 			})
 			.collect()
 	}
-	fn derivative(&self) -> BTreeMap<Epoch, HashMap<Sv, HashMap<Observable, f64>>> {
-		let mut ret: BTreeMap<Epoch, HashMap<Sv, HashMap<Observable, f64>>> = BTreeMap::new();
-		let mut prev: HashMap<Sv, HashMap<Observable, (Epoch, f64)>> = HashMap::new();
-		for ((epoch, _), (_, svs)) in self {
+	fn derivative(&self) -> BTreeMap<Epoch, (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>)> {
+		let mut prev: (Option<(Epoch, f64)>, HashMap<Sv, HashMap<Observable, (Epoch, f64)>>) = (None, HashMap::new());
+		let mut ret: BTreeMap<Epoch, (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>)> = BTreeMap::new();
+		for ((epoch, _), (clk, svs)) in self {
+            /*
+             * d/dt{clk}
+             */
+            let mut new_clk: Option<f64> = None;
+            if let Some(clk) = clk {
+                if let Some((mut prev_epoch, mut prev_data)) = prev.0 {
+                    new_clk = Some((*clk - prev_data) / (*epoch - prev_epoch).to_unit(hifitime::Unit::Second));
+                    prev_epoch = *epoch;
+                    prev_data = *clk;
+                } else {
+                    prev.0 = Some((*epoch, *clk));
+                }
+            }
+            /*
+             * d/dt{data} 
+             */
 			for (sv, observables) in svs {
 				for (observable, observation) in observables {
-					if let Some(prev) = prev.get_mut(&sv) {
-						if let Some(prev) = prev.get_mut(&observable) {
-							if let Some(data) = ret.get_mut(&epoch) {
+					if let Some(prev) = prev.1.get_mut(&sv) {
+						if let Some((mut prev_epoch, mut prev_data)) = prev.get_mut(&observable) {
+							if let Some((clk, data)) = ret.get_mut(&epoch) {
+                                *clk = new_clk;
 								if let Some(data) = data.get_mut(&sv) {
 									if let Some(data) = data.get_mut(&observable) {
-										*data = (observation.obs - prev.1) / (*epoch - prev.0).to_unit(hifitime::Unit::Second);
+										*data = (observation.obs - prev_data) / (*epoch - prev_epoch).to_unit(hifitime::Unit::Second);
 									} else {
-										data.insert(observable.clone(), (observation.obs - prev.1) / (*epoch - prev.0).to_unit(hifitime::Unit::Second));
+										data.insert(observable.clone(), (observation.obs - prev_data) / (*epoch - prev_epoch).to_unit(hifitime::Unit::Second));
 									}
 								} else {
 									let mut map: HashMap<Observable, f64> = HashMap::new();
-									map.insert(observable.clone(), (observation.obs - prev.1) / (*epoch - prev.0).to_unit(hifitime::Unit::Second));
+									map.insert(observable.clone(), (observation.obs - prev_data) / (*epoch - prev_epoch).to_unit(hifitime::Unit::Second));
 									data.insert(*sv, map);
 								}
 							} else {
 								let mut map: HashMap<Observable, f64> = HashMap::new();
-								map.insert(observable.clone(), (observation.obs - prev.1) / (*epoch - prev.0).to_unit(hifitime::Unit::Second));
+								map.insert(observable.clone(), (observation.obs - prev_data) / (*epoch - prev_epoch).to_unit(hifitime::Unit::Second));
 								let mut mmap: HashMap<Sv, HashMap<Observable, f64>> = HashMap::new();
 								mmap.insert(*sv, map);
-								ret.insert(*epoch, mmap);
+								ret.insert(*epoch, (new_clk, mmap));
 							}
-							*prev = (*epoch, observation.obs);
+                            prev_epoch = *epoch;
+                            prev_data = observation.obs;
 						} else {
 							prev.insert(observable.clone(), (*epoch, observation.obs));
 						}
 					} else {
 						let mut map: HashMap<Observable, (Epoch, f64)> = HashMap::new();
 						map.insert(observable.clone(), (*epoch, observation.obs));
-						prev.insert(*sv, map);
+						prev.1.insert(*sv, map);
 					}
 				}
 			}
 		}
 		ret
 	}
-    fn skewness(&self) -> HashMap<Sv, HashMap<Observable, f64>> {
+    fn skewness(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
         let stddev = self.stddev();
         let central_moment = self.central_moment(3);
-        let mut ret: HashMap<Sv, HashMap<Observable, f64>> = HashMap::with_capacity(stddev.len());
-        for (sv, observables) in stddev {
-            if let Some(moment_observables) = central_moment.get(&sv) {
+        let mut ret: (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) = (None, HashMap::with_capacity(stddev.1.len()));
+        /*
+         * skew{clk}
+         */
+        if let Some(stddev) = stddev.0 {
+            if let Some(moment) = central_moment.0 {
+                ret.0 = Some(moment / stddev.powf(3.0));
+            }
+        }
+        /*
+         * skew{data}
+         */
+        for (sv, observables) in stddev.1 {
+            if let Some(moment_observables) = central_moment.1.get(&sv) {
                 for (observable, stddev) in observables {
                     if let Some(moment) = moment_observables.get(&observable) {
-                        if let Some(data) = ret.get_mut(&sv) {
+                        if let Some(data) = ret.1.get_mut(&sv) {
                             data.insert(observable.clone(), moment/ stddev.powf(3.0));
                         } else {
                             let mut map:  HashMap<Observable, f64> = HashMap::new();
                             map.insert(observable.clone(), moment / stddev.powf(3.0));
-                            ret.insert(sv, map);
+                            ret.1.insert(sv, map);
                         }
                     }
                 }

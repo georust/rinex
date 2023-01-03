@@ -43,7 +43,7 @@ mod test {
 		R24 D1C 865.820 -700.187 -2188.113
 		R24 S1C 51.000 51.250 51.000
 		*/
-		let min = record.min();
+		let (_, min) = record.min();
 		let results: Vec<(&str, &str, f64)> = vec![
 			("g01", "C1C", 20243517.560),
 			("g01", "L1C", 106380411.418),
@@ -66,7 +66,7 @@ mod test {
 		R24 D1C 865.820 -700.187 -2188.113
 		R24 S1C 51.000 51.250 51.000
 		*/
-		let max = record.max();
+		let (_, max) = record.max();
 		let results: Vec<(&str, &str, f64)> = vec![
 			("g01", "C1C", 21653418.260),
 			("g01", "L1C", 113789485.670),
@@ -89,7 +89,7 @@ mod test {
 		R24 D1C 865.820 -700.187 -2188.113
 		R24 S1C 51.000 51.250 51.000
 		*/
-		let mean = record.mean();
+		let (_, mean) = record.mean();
 		let results: Vec<(&str, &str, f64)> = vec![
 			("g01", "C1C", 20900776.3),
 			("g01", "L1C", 109834327.5676),
@@ -112,7 +112,7 @@ mod test {
 		R24 D1C 865.820 -700.187 -2188.113
 		R24 S1C 51.000 51.250 51.000
 		*/
-		let stddev = record.stddev();
+		let (_, stddev) = record.stddev();
 		let results: Vec<(&str, &str, f64)> = vec![
 			("g01", "C1C", 335852309972.1992_f64.sqrt()),
 			("g01", "L1C", 9274685292831.4397042266_f64.sqrt()),
