@@ -1,4 +1,4 @@
-use crate::{Carrier, Constellation};
+use crate::{carrier, Carrier, Constellation};
 use thiserror::Error;
 
 #[derive(Error, Debug, Clone, PartialEq)]
@@ -89,13 +89,8 @@ impl Observable {
             _ => None,
         }
     }
-    pub fn carrier(&self, c: Constellation) -> Option<Carrier> {
-        let code = self.code()?;
-        if let Ok(carrier) = Carrier::from_code(c, &code) {
-            Some(carrier)
-        } else {
-            None
-        }
+    pub fn carrier(&self, c: Constellation) -> Result<Carrier, carrier::Error> {
+        Carrier::from_observable(c, self)
     }
 }
 
