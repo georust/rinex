@@ -207,22 +207,31 @@ fn parse_float_payload(item: &str) -> Result<(f64, Option<f64>), std::num::Parse
 	}
 }
 
+fn parse_orbits(item: &str) -> Vec<String> {
+	item.trim()
+        .split(",")
+        .map(|s| s.trim().to_string())
+        .collect()
+}
+
 impl std::str::FromStr for TargetItem {
     type Err = Error;
     fn from_str(content: &str) -> Result<Self, Self::Err> {
         let c = content.trim();
         if c.starts_with("snr:") {
-            match parse_float_payload(&c[4..]) {
+            match parse_float_payload(&c[4..].trim()) {
                 Ok((s1, None)) => Ok(Self::SnrItem(s1)),
                 Ok((s1, Some(s2))) => Ok(Self::SnrRangeItem((s1,s2))),
                 _ => Err(Error::ParseFloatItemError)
             }
         } else if c.starts_with("elev:") {
-            match parse_float_payload(&c[5..]) {
-                Ok((s1, None)) => Ok(Self::SnrItem(s1)),
-                Ok((s1, Some(s2))) => Ok(Self::SnrRangeItem((s1,s2))),
+            match parse_float_payload(&c[5..].trim()) {
+                Ok((s1, None)) => Ok(Self::ElevationItem(s1)),
+                Ok((s1, Some(s2))) => Ok(Self::ElevationRangeItem((s1,s2))),
                 _ => Err(Error::ParseFloatItemError)
             }
+        } else if c.starts_with("orb:") {
+            Ok(Self::OrbitItem(parse_orbits(&c[4..].trim()))) 
         } else if c.starts_with("clk") {
             Ok(Self::ClockItem)
         } else {

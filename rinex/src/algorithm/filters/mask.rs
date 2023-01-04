@@ -240,7 +240,6 @@ mod test {
                 item: TargetItem::ElevationItem(40.0_f64),
             }
         );
-
         let mask = MaskFilter::from_str("geq:elev:10.0").unwrap();
         assert_eq!(
             mask,
@@ -337,7 +336,7 @@ mod test {
     }
     #[test]
     fn mask_orbit() {
-        let mask = MaskFilter::from_str("eq:iode").unwrap();
+        let mask = MaskFilter::from_str("eq:orb:iode").unwrap();
         assert_eq!(
             mask,
             MaskFilter {
