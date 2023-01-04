@@ -10,10 +10,10 @@ pub enum Combination {
 	/// biases and leaves frequency dependent terms out,
 	/// like the ionospheric delay
 	GeometryFree,
-	/// Narrow Lane (NL) combination
-	NarrowLane,
-	/// Wide Lane (WL) combination
+	/// Wide Lane (WL) Phase combination
 	WideLane,
+	/// Narrow Lane (NL) Pseudo Range Combination
+	NarrowLane,
     /// Melbourne-Wübbena (MW) combination
 	MelbourneWubbena,
 }
@@ -28,7 +28,7 @@ pub trait Combine {
 	///		.unwrap();
 	/// let gf = rinex.combine<Combination::GeometryFree>;
 	/// ```
-	fn combine(&self, combination: Combination) -> HashMap<(Observable, Observable), HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>;
+	fn combine(&self, combination: Combination) -> HashMap<(Observable, Observable), BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>;
 
 	// /// Form the combination for desired (lhs, reference) signals
 	// fn combine_signals(&self, combination: Combination, signals: (Observable, Observable)) -> Option<HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>;

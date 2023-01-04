@@ -10,7 +10,7 @@ pub fn plot_gnss_recombination(
     ctx: &mut PlotContext,
     plot_title: &str,
     y_title: &str,
-    data: &HashMap<(Observable, Observable), HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>,
+    data: &HashMap<(Observable, Observable), BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>,
 ) {
     // add a plot
     ctx.add_cartesian2d_plot(plot_title, y_title);

@@ -1828,7 +1828,7 @@ impl Rinex {
         s
     }
 	/// Form desired signal combinations
-	pub fn observation_combination(&self, combination: Combination) ->  HashMap<(Observable, Observable), HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
+	pub fn observation_combination(&self, combination: Combination) ->  HashMap<(Observable, Observable), BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
 		if let Some(r) = self.record.as_obs() {
 			r.combine(combination)
 		} else {

@@ -46,15 +46,14 @@ pub fn main() -> Result<(), rinex::Error> {
      */
     preprocess(&mut ctx, &cli);
 
-    /*
-      <!>    <!>     <!>      <!>      <!>      <!>      <!>
+     /* <!>    <!>     <!>      <!>      <!>      <!>      <!>
      * Observation RINEX:
      *  align phase origins at this point
      *  this allows easy GNSS combination and processing,
      *  gives more meaningful phase data plots..
-      <!>    <!>     <!>      <!>      <!>      <!>      <!>
-    ctx.primary_rinex.observation_align_phase_origins_mut();
-     */
+      <!>    <!>     <!>      <!>      <!>      <!>      <!> */
+    //ctx.primary_rinex
+        //.observation_align_phase_origins_mut();
 
     /*
      * Basic file identification
