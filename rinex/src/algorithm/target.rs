@@ -211,42 +211,22 @@ impl std::str::FromStr for TargetItem {
     type Err = Error;
     fn from_str(content: &str) -> Result<Self, Self::Err> {
         let c = content.trim();
-        /*
-         * native parsing: epoch
-         */
-		if c.contains(":") {
-			let items: Vec<&str> = c.split(":")
-				.collect();
-			let key = items[0].trim();
-			match key {
-				"snr" => {
-					match parse_float_payload(items[1]) {
-						Ok((s1, Some(s2))) => {
-							Ok(Self::SnrRangeItem((s1,s2)))
-						},
-						Ok((s1, None)) => {
-							Ok(Self::SnrItem(s1))
-						},
-						_ => Err(Error::ParseFloatItemError),
-					}
-				},
-				"elev" => {
-					match parse_float_payload(items[1]) {
-						Ok((s1, Some(s2))) => {
-							Ok(Self::ElevationRangeItem((s1,s2)))
-						},
-						Ok((s1, None)) => {
-							Ok(Self::ElevationItem(s1))
-						},
-						_ => Err(Error::ParseFloatItemError),
-					}
-				},
-                "clk" => Ok(Self::ClockItem),
-				//_ => todo!(),
-				_ => Err(Error::UnknownTarget(c.to_string())),
-			}
-			
-		} else {
+        if c.starts_with("snr:") {
+            match parse_float_payload(&c[4..]) {
+                Ok((s1, None)) => Ok(Self::SnrItem(s1)),
+                Ok((s1, Some(s2))) => Ok(Self::SnrRangeItem((s1,s2))),
+                _ => Err(Error::ParseFloatItemError)
+            }
+        } else if c.starts_with("elev:") {
+            match parse_float_payload(&c[5..]) {
+                Ok((s1, None)) => Ok(Self::SnrItem(s1)),
+                Ok((s1, Some(s2))) => Ok(Self::SnrRangeItem((s1,s2))),
+                _ => Err(Error::ParseFloatItemError)
+            }
+        } else if c.starts_with("clk") {
+            Ok(Self::ClockItem)
+        } else {
+            /* type guessing */
 			let items: Vec<&str> = c.split(",")
 				.collect();
 			/*
