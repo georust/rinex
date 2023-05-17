@@ -56,7 +56,7 @@ YYYY-MM-DD-HH:MM:SS{TS} where TS is the timescale under use, for example "UTC".
 This mainly impact "Time of start and end" windows reporting.
 
 - Tick rate, or sample rate is reported in a more convenient fashion.
-Mainly, we do not limit ourselves to a 1 hour granularity.
+Mainly, we do not limit ourselves to a 1-hour granularity.
 Our theoretical limitation is 1 ns, 100 ns in practice.
 This only impacts the "Time line window length" report.
 

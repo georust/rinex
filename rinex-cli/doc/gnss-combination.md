@@ -4,11 +4,11 @@ GNSS signal combinations
 This page focuses on RINEX Observation Data.
 
 Phase (PH) observations are precise but ambiguous (N in the following equations).  
-Pseudo Range (PR) observations are not precise but they are unambiguous.  
-You will see this characteristic if you ever use this tool serie
+Pseudo Range (PR) observations are not precise, but they are unambiguous.  
+You will see this characteristic if you ever use this tool series
 to visualize PR observations against PH observations.
 
-Both of them are subject to so called Cycle Slips [CS], 
+Both of them are subject to so-called Cycle Slips [CS], 
 which are discontinuities in phase measurements due to
 temporary loss of lock on the receiver side.  
 One source of CS is a local clock jump.
@@ -17,7 +17,7 @@ For advanced computations, it is most often a prerequisites.
 That means such operations are not feasible or will not return
 correct results if CSs were not cancelled prior to moving forward.
 
-Cycle slips happen randomly, seperately accross receiver channels,
+Cycle slips happen randomly, separately across receiver channels,
 and they affect Phase/Pseudo Range measurements.   
 
 Phase model 
@@ -32,7 +32,7 @@ $$\lambda_{Li} \Phi_{Li}(k) = \rho(k)  + T(k) + S(k) + M_{Li}(k) - \frac{\lambda
 where we note $\lambda_{Li}$, the $L_i$ carrier wavelength,  
 $c$ the speed of light,  
 $\rho$ the distance between the receiver APC and the vehicule APC - to be referred to as the _geometric_ distance,    
-$\tau_{sv}$ is the vehicule clock bias [s],   
+$\tau_{sv}$ is the vehicle clock bias [s],   
 $\tau_{r}(k)$ the receiver clock bias [s],   
 $M_{Li}$ the multipath biases,   
 $e_{Li}$ the carrier phase thermal noise
@@ -61,7 +61,7 @@ the phase ambiguities difference two different carrier signals:
 [TODO]
 
 GF combination is requested with `--gf` when analyzing Observation RINEX.  
-`--gf` is processed seperately, it does not impact the remaining record analysis (raw data),
+`--gf` is processed separately, it does not impact the remaining record analysis (raw data),
 it will just create a new visualization, in the form of "gf.png".   
 GF expresses fractions of $L_i - L_j$ delay.
 
@@ -111,12 +111,12 @@ GF as a CS detector
 When analyzing Observation RINEX, we saw that we emphasize _possible_ CSs
 when plotting the phase data.
 
-CS affect RX channels independantly, randomly and is unpredictable.  
+CS affect RX channels independently, randomly and is unpredictable.  
 
 The GF signal combination is a good option to spot cycle slip events, 
 because they appear as discontinuities in the signal we get from the recombination.  
 
-We can emphasize such a instant, if we focus the previous plot to the 1st hour of that day:
+We can emphasize such an instant, if we focus the previous plot to the 1st hour of that day:
 
 ```bash
 rinex-cli \
@@ -186,12 +186,12 @@ rinex-cli \
 CS detection
 ============
 
-It is important to understand the previous information is not garanteed and simply an indicator.  
+It is important to understand the previous information is not guaranteed and simply an indicator.  
 False positives happen due to simplistic algorithm in the receivers.  
 False negatives happen due to lack of receiver capacity.  
 Therefore, cycle slip determination algorithms are used to verify previous indications.
 
-In any case, this library is not limitated to $L_1$ and $L_2$ carriers, 
+In any case, this library is not limited to $L_1$ and $L_2$ carriers, 
 and is smart enough to form all possible combinations and scale them properly ( $\lambda_i$ ). 
 
 We form the geometry-free [GF] combinations easily:
@@ -205,7 +205,7 @@ at the expense of RINEX data complexity.
 
 Cycle slip determination is possible in all scenarios.  
 
-- [D] is prefered due to its simplicity
+- [D] is preferred due to its simplicity
 - [GF] is the fallback method for modern contexts when Doppler shifts are missing.  
 - [HOD] is the fallback method for basic contexts when Dopplers shifts are missing,
 at the expense of a parametrization complexity

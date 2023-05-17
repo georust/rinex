@@ -17,7 +17,7 @@ The `Record` type should define that RINEX file body content efficiently.
 At the moment, `records` are indexed by `epochs`. If another object would suite better to index
 a new RINEX format, it might conflict with existing parts of the project and must be dealt with carefuly.
 
-+ Declare the new enum value in the `src/record.rs` record enum with an new unwrapping method
++ Declare the new enum value in the `src/record.rs` record enum with a new unwrapping method
 + Customize `src/record.rs::is_new_epoch` so the parser knows how to identify the new type
 + provide a new method to parse a block of content (usually an epoch) insde the new module `src/module.rs::build_new_record`
 
