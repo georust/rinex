@@ -125,7 +125,7 @@ When the analysis is concluded, the report
 is opened in the default web browser. This is turned off
 if the quiet (`-q`) is active.
 
-The HTML content is self sufficient, all Javascript
+The HTML content is self-sufficient, all Javascript
 and other dependencies are integrated . 
 This results in a large file whose rendering is quick.
 To change that behavior, the `--tiny-html` option is there. 

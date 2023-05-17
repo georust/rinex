@@ -61,6 +61,6 @@ same combinations on both Wl/Nl sides
   - [ ] Make GUI an application feature? for users not interested in such option
 
 - [ ] Ublox
-  - [ ] Have an header field attributes customization interface similar to `cli` application
+  - [ ] Have a header field attributes customization interface similar to `cli` application
   - [ ] Generate Observation Data (requires `observation::to_file` to be completed)
   - [ ] Generate Ephemeris Data (requires `navigation::to_file` to be completed)

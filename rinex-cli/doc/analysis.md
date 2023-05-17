@@ -54,7 +54,7 @@ Sample rate analysis
 ====================
 
 Sample rate steadyness might be important in operations to perform.  
-`--epoch-hist` performs an histogram analysis of all epoch durations accross `-fp`.  
+`--epoch-hist` performs a histogram analysis of all epoch durations across `-fp`.  
 
 For example, `ESBC00DNK_R_20201` is a large file with steady 30s sample rate.
 
@@ -64,7 +64,7 @@ rinex-cli --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz 
 
 <img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_hist.png">
 
-When applying to non steady files, this plot emphasizes the average (dominant) sample rate and the amount of anomalies.   
+When applying to non-steady files, this plot emphasizes the average (dominant) sample rate and the amount of anomalies.   
 In this example, 16 epochs were generated, dominant sample rate is 30s and 2 epochs are missing.
 
 <img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/hist2.png">
