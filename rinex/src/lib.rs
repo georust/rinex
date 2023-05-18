@@ -1912,7 +1912,7 @@ impl Rinex {
                                                                           // for operation consistency
             for (epoch, (_, vehicules)) in record {
                 for (sv, observations) in vehicules {
-                    let mean_sv = mean.get(&sv).unwrap();
+                    let _mean_sv = mean.get(&sv).unwrap();
                     for (lhs_observable, lhs_data) in observations {
                         if lhs_observable.is_pseudorange_observable() {
                             let pr_i = lhs_data.obs; // - mean_sv.get(lhs_code).unwrap().1;
@@ -2489,7 +2489,7 @@ impl Split for Rinex {
             },
         ))
     }
-	fn split_dt(&self, duration: Duration) -> Result<Vec<Self>, split::Error> {
+	fn split_dt(&self, _duration: Duration) -> Result<Vec<Self>, split::Error> {
 		Ok(Vec::new())
 	}
 }

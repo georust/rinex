@@ -256,27 +256,37 @@ impl std::str::FromStr for TargetItem {
 			/*
 			 * Sv
 			 */
-			} else if let Ok(sv) = Sv::from_str(items[0].trim()) {
+			} else if let Ok(_sv) = Sv::from_str(items[0].trim()) {
+                //TODO improve this:
+                // do not test 1st entry only but all possible content
 				Ok(Self::SvItem(parse_sv_list(items)?))
 			/*
 			 * GNSS
 			 */
-			} else if let Ok(c) = Constellation::from_str(items[0].trim()) {
+			} else if let Ok(_c) = Constellation::from_str(items[0].trim()) {
+                 //TODO improve this:
+                // do not test 1st entry only but all possible content
 				Ok(Self::ConstellationItem(parse_gnss_list(items)?))
 			/*
 			 * Observables
 			 */
-			} else if let Ok(obs) = Observable::from_str(items[0].trim()) {
+			} else if let Ok(_obs) = Observable::from_str(items[0].trim()) {
+                //TODO improve this:
+                // do not test 1st entry only but all possible content
 				Ok(Self::ObservableItem(parse_obs_list(items)?))
 			/* 
 			 * Navigation Frames 
 			 */
-			} else if let Ok(fr) = FrameClass::from_str(items[0].trim()) {
+			} else if let Ok(_fr) = FrameClass::from_str(items[0].trim()) {
+                //TODO improve this:
+                // do not test 1st entry only but all possible content
 				Ok(Self::NavFrameItem(parse_nav_frames(items)?))
 			/* 
 			 * Navigation Msg
 			 */
-			} else if let Ok(msg) = MsgType::from_str(items[0].trim()) {
+			} else if let Ok(_msg) = MsgType::from_str(items[0].trim()) {
+                //TODO improve this:
+                // do not test 1st entry only but all possible content
 				Ok(Self::NavMsgItem(parse_nav_msg(items)?))
 			/*
 			 * Elevation Angle 

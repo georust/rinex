@@ -302,7 +302,7 @@ impl QcObsAnalysis {
 			total_epochs = r.len();
 			for ((epoch, flag), (clk, svs)) in r {
                 
-                if let Some(clk) = clk {
+                if let Some(_clk) = clk {
                         
                 }
 
@@ -376,7 +376,7 @@ impl QcObsAnalysis {
 							continue;
 						}
 						
-						let code = observable.code()
+						let _code = observable.code()
 							.unwrap();
 						let carrier = observable.carrier(sv.constellation)
                             .unwrap();
@@ -390,7 +390,7 @@ impl QcObsAnalysis {
 										true => "C".to_owned() + k_code, // looking for PR
 										false => "L".to_owned() + k_code, // looking for PH
 									};
-									for (observable, observation) in observables {
+									for (observable, _observation) in observables {
 										if observable.to_string() == to_find {
 											*complete = true;
 										}

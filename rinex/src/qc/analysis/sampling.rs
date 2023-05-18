@@ -93,7 +93,7 @@ impl HtmlReport for QcSamplingAnalysis {
 							}
 						}
 						tbody {
-							@ for (epoch, dt) in &self.gaps {
+							@ for (_epoch, _dt) in &self.gaps {
 
 							}
 						}

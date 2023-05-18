@@ -1376,7 +1376,7 @@ impl Processing for Record {
 	fn mean_observable(&self) -> HashMap<Observable, f64> {
 		let mean = self.mean().1;
 		let mut sum:  HashMap<Observable, (u32, f64)> = HashMap::new();
-		for (sv, observables) in mean {
+		for (_sv, observables) in mean {
 			for (observable, mean) in observables {
 				if let Some((count, sum)) = sum.get_mut(&observable) {
 					*count += 1;
@@ -1394,11 +1394,11 @@ impl Processing for Record {
 	}
 	fn stddev(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
 		let mut stdvar = self.stdvar();
-        if let Some(mut stdvar) = stdvar.0 { // {clk}
-            stdvar = stdvar.sqrt();
+        if let Some(mut data) = stdvar.0 { // {clk}
+            data = stdvar.0.sqrt();
         }
 		for (_, observables) in stdvar.1.iter_mut() { // {data}
-			for (observable, data) in observables.iter_mut() {
+			for (_observable, data) in observables.iter_mut() {
 				*data = data.sqrt();
 			}
 		}

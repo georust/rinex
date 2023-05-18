@@ -449,7 +449,7 @@ impl Split for Record {
             .collect();
         Ok((r0, r1))
     }
-	fn split_dt(&self, duration: Duration) -> Result<Vec<Self>, split::Error> {
+	fn split_dt(&self, _duration: Duration) -> Result<Vec<Self>, split::Error> {
 		Ok(Vec::new())
 	}
 }
@@ -525,7 +525,7 @@ impl Interpolate for Record {
         s.interpolate_mut(series, target);
         s
     }
-    fn interpolate_mut(&mut self, series: TimeSeries, target: Option<TargetItem>) {
+    fn interpolate_mut(&mut self, _series: TimeSeries, target: Option<TargetItem>) {
         if let Some(target) = target {
             let mask = Filter::Mask(
                 MaskFilter {

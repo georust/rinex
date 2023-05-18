@@ -233,7 +233,7 @@ impl Split for Record {
             .collect();
         Ok((r0, r1))
     }
-	fn split_dt(&self, duration: Duration) -> Result<Vec<Self>, split::Error> {
+	fn split_dt(&self, _duration: Duration) -> Result<Vec<Self>, split::Error> {
 		Ok(Vec::new())
 	}
 }

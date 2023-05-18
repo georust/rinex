@@ -721,7 +721,7 @@ impl Split for Record {
             Err(split::Error::NoEpochIteration)
         }
     }
-	fn split_dt(&self, dt: Duration) -> Result<Vec<Self>, split::Error> {
+	fn split_dt(&self, _dt: Duration) -> Result<Vec<Self>, split::Error> {
 		Ok(Vec::new())
 	}
 }
