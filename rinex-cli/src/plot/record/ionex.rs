@@ -19,7 +19,7 @@ pub fn plot_tec_map(
 
     let mut grid_lat: Vec<f64> = Vec::new();
     let mut grid_lon: Vec<f64> = Vec::new();
-    let mut tec_max = -std::f64::INFINITY;
+    let mut tec_max = -f64::INFINITY;
     for (e_index, (e, (tec, _, _))) in record.iter().enumerate() {
         for point in tec {
             if e_index == 0 {
