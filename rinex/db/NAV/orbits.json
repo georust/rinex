@@ -129,7 +129,7 @@
             "tgd": "f64",
             "uraiNed2": "f64",
             "iscL1Ca": "f64",
-            "iscL1C": "f64",
+            "iscL2C": "f64",
             "iscL5I5": "f64",
             "iscL5Q5": "f64",
             "t_tm": "f64",
