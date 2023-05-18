@@ -151,13 +151,13 @@ mod test {
                 .unwrap(); // already tested elsewhere 
         let copy_path = path.to_owned() + "-copy";
         assert_eq!(rnx.to_file(&copy_path).is_ok(), true); // test writer
-        let copy = Rinex::from_file(copy_path);
+        let copy = Rinex::from_file(&copy_path);
         assert_eq!(copy.is_ok(), true); // content should be valid 
         let copy = copy
             .unwrap();
         // run comparison
         if copy != rnx {
-            let content = std::fs::read_to_string(copy_path)
+            let content = std::fs::read_to_string(&copy_path)
                 .unwrap();
             panic!("\"{}\"::.to_file() generated faulty content\n\"{}\"\nExpected:\n{:#?}\nGenerated:\n{:#?}", filename, content, rnx, copy); 
         }
