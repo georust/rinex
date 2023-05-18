@@ -1395,7 +1395,7 @@ impl Processing for Record {
 	fn stddev(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
 		let mut stdvar = self.stdvar();
         if let Some(mut data) = stdvar.0 { // {clk}
-            *data = data.sqrt();
+            data = data.sqrt();
         }
 		for (_, observables) in stdvar.1.iter_mut() { // {data}
 			for (_observable, data) in observables.iter_mut() {
