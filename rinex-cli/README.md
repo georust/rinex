@@ -114,6 +114,39 @@ is barely noticeable, and this feature may become the standard behavior in the f
 Basic operations consist of simple data enumerations. 
 The results of these enumeration are displayed in the terminal (_stdout_).
 
+Any amount of filters is supported.  
+For example, retain PRN above 08 for GPS and below 15 (included) for Glonass:
+
+```bash
+rinex-cli \
+    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.gz \
+    -F mask:gt:sv:G08 mask:leq:R15
+```
+
+### Filter summary
+
+* `-F 'content'` is how you describe a filter. Use inverted commas  
+if _content_ contains whitespaces  
+  
+* `-F mask:sv:G08,G09` describes a mask filter targetting vehicles G08, G09.   
+The filter operand is omited: "equality" is implied: we'll retain all data from these vehicles.
+  
+* `-F mask:neq:sv:G08` operand is specified, we'll retain all data from all vehicles but G08.
+
+* `-F mask:gnss:GPS, GAL' `sv` or `gnss` are targeted items.  
+See down below for the complete list of known targets.  
+When several targets are targeted, the payload is a CSV string and whitespaces are allowed.
+
+* `-F smooth:hatch`  the first keyword describes the filter type.  
+  
+* `-F mask:gt:gnss:GPS` some operands  
+
+## Data identification
+
+Basic Identification consists in extracting high level information to understand which 
+data is contained in a given RINEX.
+Examples of such information would be:
+
 * `--header` to print the header content (as is)
 * `--epochs` to enumerate encountered Epochs, in chronological order
 * `--sv` to enumerate encountered Sv
