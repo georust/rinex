@@ -2,7 +2,7 @@
 mod test {
     use rinex::*;
     /// OBS RINEX thorough comparison
-    fn observation_comparison(rnx_a: &Rinex, rnx_b: &Rinex, path: &str) {
+    fn observation_comparison(rnx_a: &Rinex, rnx_b: &Rinex, filename: &str) {
         let rec_a = rnx_a.record.as_obs().unwrap();
         let rec_b = rnx_b.record.as_obs().unwrap();
         for (e_a, (clk_offset_a, vehicules_a)) in rec_a.iter() {
@@ -15,7 +15,7 @@ mod test {
                                 assert!(
                                     (obs_a.obs - obs_b.obs).abs() < 1.0E-6,
                                     "\"{}\" - epoch {:?} - {:?} - \"{}\" expecting {} got {}",
-                                    path,
+                                    filename,
                                     e_a,
                                     sv_a,
                                     code_a,
@@ -25,26 +25,26 @@ mod test {
                                 assert_eq!(
                                     obs_a.lli, obs_b.lli,
                                     "\"{}\" - epoch {:?} - {:?} - \"{}\" - LLI expecting {:?} got {:?}",
-                                    path, e_a, sv_a, code_a, obs_b.lli, obs_a.lli
+                                    filename, e_a, sv_a, code_a, obs_b.lli, obs_a.lli
                                 );
                                 assert_eq!(
                                     obs_a.snr, obs_b.snr,
                                     "\"{}\" - epoch {:?} - {:?} - \"{}\" - LLI expecting {:?} got {:?}",
-                                    path, e_a, sv_a, code_a, obs_b.snr, obs_a.snr
+                                    filename, e_a, sv_a, code_a, obs_b.snr, obs_a.snr
                                 );
                             } else {
                                 panic!(
                                     "\"{}\" - epoch {:?} - {:?} : missing \"{}\" observation",
-                                    path, e_a, sv_a, code_a
+                                    filename, e_a, sv_a, code_a
                                 );
                             }
                         }
                     } else {
-                        panic!("\"{}\" - epoch {:?} - missing vehicule {:?}", path, e_a, sv_a);
+                        panic!("\"{}\" - epoch {:?} - missing vehicule {:?}", filename, e_a, sv_a);
                     }
                 }
             } else {
-                panic!("\"{}\" - missing epoch {:?}", path, e_a);
+                panic!("\"{}\" - missing epoch {:?}", filename, e_a);
             }
         }
 
@@ -58,7 +58,7 @@ mod test {
                                 assert!(
                                     (obs_a.obs - obs_b.obs).abs() < 1.0E-6,
                                     "\"{}\" - epoch {:?} - {:?} - \"{}\" expecting {} got {}",
-                                    path,
+                                    filename,
                                     e_b,
                                     sv_b,
                                     code_b,
@@ -68,31 +68,31 @@ mod test {
                                 assert_eq!(
                                     obs_a.lli, obs_b.lli,
                                     "\"{}\" - epoch {:?} - {:?} - \"{}\" - LLI expecting {:?} got {:?}",
-                                    path, e_b, sv_b, code_b, obs_b.lli, obs_a.lli
+                                    filename, e_b, sv_b, code_b, obs_b.lli, obs_a.lli
                                 );
                                 assert_eq!(
                                     obs_a.snr, obs_b.snr,
                                     "\"{}\" - epoch {:?} - {:?} - \"{}\" - SNR expecting {:?} got {:?}",
-                                    path, e_b, sv_b, code_b, obs_b.snr, obs_a.snr
+                                    filename, e_b, sv_b, code_b, obs_b.snr, obs_a.snr
                                 );
                             } else {
                                 panic!(
                                     "\"{}\" - epoch {:?} - {:?} : parsed \"{}\" unexpectedly",
-                                    path, e_b, sv_b, code_b
+                                    filename, e_b, sv_b, code_b
                                 );
                             }
                         }
                     } else {
-                        panic!("\"{}\" - epoch {:?} - parsed {:?} unexpectedly", path, e_b, sv_b);
+                        panic!("\"{}\" - epoch {:?} - parsed {:?} unexpectedly", filename, e_b, sv_b);
                     }
                 }
             } else {
-                panic!("\"{}\" - parsed epoch {:?} unexpectedly", path, e_b);
+                panic!("\"{}\" - parsed epoch {:?} unexpectedly", filename, e_b);
             }
         }
     }
     /// CLOCK Rinex thorough comparison
-    fn clocks_comparison(rnx_a: &Rinex, rnx_b: &Rinex, path: &str) {
+    fn clocks_comparison(rnx_a: &Rinex, rnx_b: &Rinex, filename: &str) {
         let rec_a = rnx_a.record.as_clock().unwrap();
         let rec_b = rnx_a.record.as_clock().unwrap();
         for (e_a, data_types) in rec_a.iter() {
@@ -102,7 +102,7 @@ mod test {
         }
     }
     /// Meteo RINEX thorough comparison
-    fn meteo_comparison(rnx_a: &Rinex, rnx_b: &Rinex, path: &str) {
+    fn meteo_comparison(rnx_a: &Rinex, rnx_b: &Rinex, filename: &str) {
         let rec_a = rnx_a.record.as_meteo().unwrap();
         let rec_b = rnx_b.record.as_meteo().unwrap();
         for (e_a, obscodes_a) in rec_a.iter() {
@@ -111,11 +111,11 @@ mod test {
                     if let Some(observation_b) = obscodes_b.get(code_a) {
                         assert_eq!(observation_a, observation_b);
                     } else {
-                        panic!("\"{}\" - epoch {:?} missing \"{}\" observation", path, e_a, code_a);
+                        panic!("\"{}\" - epoch {:?} missing \"{}\" observation", filename, e_a, code_a);
                     }
                 }
             } else {
-                panic!("\"{}\" - missing epoch {:?}", path, e_a);
+                panic!("\"{}\" - missing epoch {:?}", filename, e_a);
             }
         }
 
@@ -125,40 +125,47 @@ mod test {
                     if let Some(observation_a) = obscodes_a.get(code_b) {
                         assert_eq!(observation_a, observation_b);
                     } else {
-                        panic!("\"{}\" - epoch {:?} parsed \"{}\" unexpectedly", path, e_b, code_b);
+                        panic!("\"{}\" - epoch {:?} parsed \"{}\" unexpectedly", filename, e_b, code_b);
                     }
                 }
             } else {
-                panic!("\"{}\" - parsed {:?} unexpectedly", path, e_b);
+                panic!("\"{}\" - parsed {:?} unexpectedly", filename, e_b);
             }
         }
     }
-    fn compare_with_panic(rnx_a: &Rinex, rnx_b: &Rinex, path: &str) {
+    fn compare_with_panic(rnx_a: &Rinex, rnx_b: &Rinex, filename: &str) {
         if rnx_a.is_observation_rinex() {
-            observation_comparison(&rnx_a, &rnx_b, path);
+            observation_comparison(&rnx_a, &rnx_b, filename);
         } else if rnx_a.is_meteo_rinex() {
-            meteo_comparison(&rnx_a, &rnx_b, path);
+            meteo_comparison(&rnx_a, &rnx_b, filename);
         } else if rnx_a.is_clocks_rinex() {
-            clocks_comparison(&rnx_a, &rnx_b, path);
+            clocks_comparison(&rnx_a, &rnx_b, filename);
         }
     }
     fn testbench(path: &str) {
-        let rnx_a = Rinex::from_file(path).unwrap(); // tested in parser dedicated testsuite
-                                                     // generate a copy
+        // determine filename for debug
+        let filename : Vec<_> = path.split("/").collect();
+        let filename = filename[filename.len()-1];
+        // parse this file
+        let rnx = Rinex::from_file(path)
+                .unwrap(); // already tested elsewhere 
         let copy_path = path.to_owned() + "-copy";
-        assert_eq!(rnx_a.to_file(&copy_path).is_ok(), true);
-        // parse copy
-        let rnx_b = Rinex::from_file(&copy_path);
-        assert_eq!(rnx_b.is_ok(), true);
-        let rnx_b = rnx_b.unwrap();
-        if rnx_a != rnx_b {
-            compare_with_panic(&rnx_a, &rnx_b, path);
+        assert_eq!(rnx.to_file(&copy_path).is_ok(), true); // test writer
+        let copy = Rinex::from_file(copy_path);
+        assert_eq!(copy.is_ok(), true); // content should be valid 
+        let copy = copy
+            .unwrap();
+        // run comparison
+        if copy != rnx {
+            let content = std::fs::read_to_string(copy_path)
+                .unwrap();
+            panic!("\"{}\"::.to_file() generated faulty content\n\"{}\"\nExpected:\n{:#?}\nGenerated:\n{:#?}", filename, content, rnx, copy); 
         }
         // remove copy not to disturb other test browsers
         let _ = std::fs::remove_file(copy_path);
-        // sleeping here for a bit,
+        // sleep for a bit
         // avoids this (temporary) file being picked up by other automated tests
-        std::thread::sleep(std::time::Duration::from_secs(1));
+        // std::thread::sleep(std::time::Duration::from_secs(1));
     }
     #[test]
     fn obs_v2() {
