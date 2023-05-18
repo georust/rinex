@@ -1,6 +1,6 @@
 ## RINEX resampling
 
-Resampling operations are designed to reduced the record data quantity.
+Resampling operations are designed to reduce the record data quantity.
 They do not impact the file Header section. 
 They also only apply to RINEX files that are indexed by `Epochs`,
 refer to the [main table](https://github.com/gwbres/rinex/blob/main/README/#supported-rinex-types)
@@ -11,7 +11,7 @@ Decimation (down sampling) can be performed in several ways
 - or by a minimum epoch interval ("sampling interval") to follow
 
 It is also possible to apply a "time window" to the RINEX
-record, all epochs that do not lie within the a < e(k) < b predicate
+record, all epochs that do not lie within the `a < e(k) < b` predicate
 will get filtered out.
 
 Example: decimate record by 2.
