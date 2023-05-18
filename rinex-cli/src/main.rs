@@ -14,8 +14,8 @@ mod plot; // plotting operations
 mod preprocessing;
 use preprocessing::preprocess;
 
-use horrorshow::Template;
-use rinex::{Rinex, merge::Merge, processing::*, split::Split, quality::*};
+//use horrorshow::Template;
+use rinex::{merge::Merge, processing::*, split::Split, quality::*};
 
 use cli::Cli;
 pub use context::Context;

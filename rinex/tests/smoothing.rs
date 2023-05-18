@@ -2,8 +2,8 @@
 mod test {
     use rinex::{
 		prelude::*,
-		header::*,
-		observation::*,
+		//header::*,
+		//observation::*,
 		observation::Record,
 		processing::*,
 	};
@@ -37,7 +37,7 @@ mod test {
 		let filter = Filter::from_str("smooth:hatch")
 			.unwrap();
 
-		let filtered = record.filter(filter);
+		let _filtered = record.filter(filter);
 
 		let results: Vec<(&str, &str, Vec<f64>)> = vec![(
 			"g01", 

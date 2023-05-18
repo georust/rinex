@@ -1416,7 +1416,7 @@ impl Processing for Record {
     }
     fn central_moment(&self, order: u16) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
 		let mean = self.mean();
-		let mut ret: (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) = (None, HashMap::new());
+		let ret: (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) = (None, HashMap::new());
 		let mut diff: (Option<(u32, f64)>, HashMap<Sv, HashMap<Observable, (u32, f64)>>) = (None, HashMap::new());
 		for (_, (clk, svs)) in self {
             /*

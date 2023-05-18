@@ -2,9 +2,9 @@
 mod test {
     use rinex::clocks;
     use rinex::clocks::record::{DataType, System};
-    use rinex::epoch;
+    //use rinex::epoch;
     use rinex::prelude::*;
-    use std::str::FromStr;
+    //use std::str::FromStr;
     #[test]
     fn v3_usno_example() {
         let test_resource =

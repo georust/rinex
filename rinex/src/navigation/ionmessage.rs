@@ -314,7 +314,7 @@ mod test {
             "    2022 06 08 09 59 48 1.024454832077E-08 2.235174179077E-08-5.960464477539E-08
     -1.192092895508E-07 9.625600000000E+04 1.310720000000E+05-6.553600000000E+04
     -5.898240000000E+05 0.000000000000E+00";
-        let mut content = content.lines();
+        let content = content.lines();
         let parsed = KbModel::parse(content);
         assert!(parsed.is_ok());
         let (epoch, message) = parsed.unwrap();
@@ -346,7 +346,7 @@ mod test {
         let content =
             "    2022 06 08 09 59 57 7.850000000000E+01 5.390625000000E-01 2.713012695312E-02
      0.000000000000E+00";
-        let mut content = content.lines();
+        let content = content.lines();
         let parsed = NgModel::parse(content);
         assert!(parsed.is_ok());
         let (epoch, message) = parsed.unwrap();

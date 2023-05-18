@@ -1,7 +1,7 @@
 use super::{
     build_default_2y_plot, build_default_plot, build_default_polar_plot, build_world_map, Plot,
 };
-use log::trace;
+//use log::trace;
 use plotly::{layout::MapboxStyle, Trace};
 
 /// Plot Context

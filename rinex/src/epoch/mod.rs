@@ -343,33 +343,33 @@ mod test {
 
         let e = parse(" 21 12 21  0  0 30.0000000  1");
         assert_eq!(e.is_ok(), true);
-        let (e, flag) = e.unwrap();
+        let (_e, flag) = e.unwrap();
         assert_eq!(flag, EpochFlag::PowerFailure);
         //assert_eq!(format!("{:o}", e), "21 12 21  0  0 30.0000000  1");
 
         let e = parse(" 21 12 21  0  0 30.0000000  2");
         assert_eq!(e.is_ok(), true);
-        let (e, flag) = e.unwrap();
+        let (_e, flag) = e.unwrap();
         assert_eq!(flag, EpochFlag::AntennaBeingMoved);
 
         let e = parse(" 21 12 21  0  0 30.0000000  3");
         assert_eq!(e.is_ok(), true);
-        let (e, flag) = e.unwrap();
+        let (_e, flag) = e.unwrap();
         assert_eq!(flag, EpochFlag::NewSiteOccupation);
 
         let e = parse(" 21 12 21  0  0 30.0000000  4");
         assert_eq!(e.is_ok(), true);
-        let (e, flag) = e.unwrap();
+        let (_e, flag) = e.unwrap();
         assert_eq!(flag, EpochFlag::HeaderInformationFollows);
 
         let e = parse(" 21 12 21  0  0 30.0000000  5");
         assert_eq!(e.is_ok(), true);
-        let (e, flag) = e.unwrap();
+        let (_e, flag) = e.unwrap();
         assert_eq!(flag, EpochFlag::ExternalEvent);
 
         let e = parse(" 21 12 21  0  0 30.0000000  6");
         assert_eq!(e.is_ok(), true);
-        let (e, flag) = e.unwrap();
+        let (_e, flag) = e.unwrap();
         assert_eq!(flag, EpochFlag::CycleSlip);
 
         let e = parse(" 21  1  1  0  0  0.0000000  0");
