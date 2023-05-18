@@ -87,7 +87,7 @@ rinex-cli --pretty --lli-mask 1 --sv R01 \
           -f test_resources/OBS/V2/zegv0010.21o
 ```
 
-SSI field is another data field that might come with an observation
+SSI field is another data field that might come with an observation,
 and it gives the estimated receiver power / SNR at the sampling instant.
 
 It is possible to filter data on minimum signal strength, which

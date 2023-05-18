@@ -27,7 +27,7 @@ receiver and generates RINEX data quickly & easily.
 It is the combination of the [ublox](https://github.com/lkolbly/ublox)
 and [rinex](rinex/) crates.
 
-By default all timestamps are in UTC with leap seconds correctly managed.
+By default, all timestamps are in UTC with leap seconds correctly managed.
 
 :warning: Years encoded on two digits in files generated prior Jan 1 2000,
 get falsely offset to the 21st century. This only applies to OBS(V2)
@@ -70,7 +70,7 @@ __CLI__ + :chart_with_upwards_trend: means record analysis is supported by the C
 
 ## Known weaknesses :warning:
 
-- For old files generated prior January 01 2000:
+- For old files generated prior January 01, 2000:
 if year is encoded on two digits, they get falsely shifted into the 21st century.
 For instance, "95" becomes "2095". Other than that, data is correctly parsed.
 
