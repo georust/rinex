@@ -22,7 +22,11 @@ fn observable_to_physics(observable: &Observable) -> String {
  * Plots given Observation RINEX content
  */
 pub fn plot_observation(ctx: &Context, plot_ctx: &mut PlotContext) {
-    let record = ctx.primary_rinex.record.as_obs().unwrap();
+    let obs = ctx.primary_rinex
+        .observation_align_phase_origins();
+    let record = obs.record
+        .as_obs()
+        .unwrap();
 
     let mut clk_offset: Vec<(Epoch, f64)> = Vec::new();
     // dataset
