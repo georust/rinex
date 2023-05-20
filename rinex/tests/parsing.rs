@@ -46,6 +46,31 @@ mod test {
                             assert!(rinex.header.obs.is_some());
                             assert!(rinex.is_observation_rinex());
                             assert!(rinex.epochs().len() > 0);
+                            /*
+                                                        let gf = rinex.observation_gf_combinations();
+                                                        let nl = rinex.observation_nl_combinations();
+                                                        let wl = rinex.observation_wl_combinations();
+                                                        let mw = rinex.observation_mw_combinations();
+
+                                                        let mut gf_combinations: Vec<_> = gf.keys().collect();
+                                                        let mut nl_combinations: Vec<_> = nl.keys().collect();
+                                                        let mut wl_combinations: Vec<_> = wl.keys().collect();
+                                                        let mut mw_combinations: Vec<_> = mw.keys().collect();
+
+                                                        gf_combinations.sort();
+                                                        nl_combinations.sort();
+                                                        wl_combinations.sort();
+                                                        mw_combinations.sort();
+
+                                                        assert_eq!(gf_combinations, nl_combinations);
+                                                        assert_eq!(gf_combinations, wl_combinations);
+                                                        assert_eq!(gf_combinations, mw_combinations);
+
+                                                        assert_eq!(nl_combinations, wl_combinations);
+                                                        assert_eq!(nl_combinations, mw_combinations);
+
+                                                        assert_eq!(wl_combinations, mw_combinations);
+                            */
                         },
                         "CRNX" => {
                             assert!(rinex.header.obs.is_some());

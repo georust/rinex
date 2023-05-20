@@ -117,7 +117,10 @@ mod test {
                     if let Some(observation_b) = obscodes_b.get(code_a) {
                         assert_eq!(observation_a, observation_b);
                     } else {
-                        panic!("\"{}\" - epoch {:?} missing \"{}\" observation|EXPECTED\n{:#?}|GENERATED\n{:#?}", filename, e_a, code_a, rec_a, rec_b);
+                        panic!(
+                            "\"{}\" - epoch {:?} missing \"{}\" observation",
+                            filename, e_a, code_a
+                        );
                     }
                 }
             } else {

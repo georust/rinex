@@ -726,8 +726,6 @@ impl Decimate for Record {
     fn decimate_by_ratio_mut(&mut self, r: u32) {
         if let Some(rec) = self.as_mut_obs() {
             rec.decimate_by_ratio_mut(r);
-        } else if let Some(rec) = self.as_mut_nav() {
-            rec.decimate_by_ratio_mut(r);
             //} else if let Some(rec) = self.as_mut_meteo() {
             //} else if let Some(rec) = self.as_mut_ionex() {
             //} else if let Some(rec) = self.as_mut_clock() {
@@ -744,11 +742,6 @@ impl Decimate for Record {
     fn decimate_by_interval_mut(&mut self, interval: Duration) {
         if let Some(r) = self.as_mut_obs() {
             r.decimate_by_interval_mut(interval);
-        } else if let Some(r) = self.as_mut_nav() {
-            r.decimate_by_interval_mut(interval);
-        //} else if let Some(r) = self.as_mut_meteo() {
-        //} else if let Some(r) = self.as_mut_ionex() {
-        //} else if let Some(r) = self.as_mut_clock() {
         } else {
             todo!()
         }
@@ -763,11 +756,11 @@ impl Decimate for Record {
             if let Some(b) = rhs.as_obs() {
                 a.decimate_match_mut(b);
             }
-        } else if let Some(a) = self.as_mut_nav() {
-            if let Some(b) = rhs.as_nav() {
-                a.decimate_match_mut(b);
-            }
-            /*} else if let Some(a) = self.as_mut_meteo() {
+            /*} else if let Some(a) = self.as_mut_nav() {
+                if let Some(b) = rhs.as_nav() {
+                    a.decim_match_mut(b);
+                }
+            } else if let Some(a) = self.as_mut_meteo() {
                 if let Some(b) = rhs.as_meteo() {
                     a.decim_match_mut(b);
                 }
