@@ -899,7 +899,7 @@ impl Smooth for Record {
         s.moving_average_mut(window, target);
         s
     }
-    fn moving_average_mut(&mut self, window: Duration, target: Option<TargetItem>) {
+    fn moving_average_mut(&mut self, _window: Duration, target: Option<TargetItem>) {
         if let Some(item) = target {
             let mask = MaskFilter {
                 item,
@@ -1162,7 +1162,7 @@ impl Interpolate for Record {
         s.interpolate_mut(series, target);
         s
     }
-    fn interpolate_mut(&mut self, series: TimeSeries, target: Option<TargetItem>) {
+    fn interpolate_mut(&mut self, _series: TimeSeries, target: Option<TargetItem>) {
         if let Some(target) = target {
             let mask = MaskFilter {
                 operand: MaskOperand::Equals,
@@ -1410,6 +1410,7 @@ impl Processing for Record {
     }
     fn central_moment(&self, order: u16) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
         let mean = self.mean();
+        let _ret: (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) = (None, HashMap::new());
         let mut diff: (
             Option<(u32, f64)>,
             HashMap<Sv, HashMap<Observable, (u32, f64)>>,

@@ -7,7 +7,7 @@ pub struct QcSvAnalysis {
 }
 
 impl QcSvAnalysis {
-    pub fn new(rnx: &Rinex, nav: &Option<Rinex>, _opts: &QcOpts) -> Self {
+    pub fn new(rnx: &Rinex, _nav: &Option<Rinex>, _opts: &QcOpts) -> Self {
         let mut sv = rnx.space_vehicules();
         sv.sort();
         Self {
