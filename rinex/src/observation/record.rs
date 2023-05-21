@@ -1257,9 +1257,9 @@ impl Processing for Record {
              * max{clock}
              */
             if let Some(clk) = clk {
-                if let Some(mut data) = ret.0 {
+                if let Some(data) = ret.0 {
                     if *clk > data {
-                        data = *clk;
+                        ret.0 = Some(*clk);
                     }
                 } else {
                     ret.0 = Some(*clk);
@@ -1386,9 +1386,9 @@ impl Processing for Record {
     }
     fn stddev(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
         let mut stdvar = self.stdvar();
-        if let Some(mut data) = stdvar.0 {
+        if let Some(data) = stdvar.0 {
             // {clk}
-            data = data.sqrt();
+            stdvar.0 = Some(data.sqrt());
         }
         for (_, observables) in stdvar.1.iter_mut() {
             // {data}
@@ -1410,7 +1410,6 @@ impl Processing for Record {
     }
     fn central_moment(&self, order: u16) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
         let mean = self.mean();
-        let ret: (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) = (None, HashMap::new());
         let mut diff: (
             Option<(u32, f64)>,
             HashMap<Sv, HashMap<Observable, (u32, f64)>>,
@@ -1421,9 +1420,9 @@ impl Processing for Record {
              */
             if let Some(clk) = clk {
                 if let Some(mean) = mean.0 {
-                    if let Some((mut count, mut diff)) = diff.0 {
-                        count += 1;
-                        diff += (*clk - mean).powf(order as f64);
+                    if let Some((count, dv)) = diff.0 {
+                        let dv = dv + (*clk - mean).powf(order as f64);
+                        diff.0 = Some((count +1, dv));
                     }
                 }
             }
@@ -1488,7 +1487,7 @@ impl Processing for Record {
         let mean = self.mean_observable();
         let mut diff: HashMap<Observable, (u32, f64)> = HashMap::new();
         for (_, (_, svs)) in self {
-            for (sv, observables) in svs {
+            for (_sv, observables) in svs {
                 for (observable, observation) in observables {
                     let mean = mean.get(&observable).unwrap();
                     if let Some((count, diff)) = diff.get_mut(observable) {
@@ -1519,12 +1518,11 @@ impl Processing for Record {
              */
             let mut new_clk: Option<f64> = None;
             if let Some(clk) = clk {
-                if let Some((mut prev_epoch, mut prev_data)) = prev.0 {
+                if let Some((prev_epoch, prev_data)) = prev.0 {
                     new_clk = Some(
                         (*clk - prev_data) / (*epoch - prev_epoch).to_unit(hifitime::Unit::Second),
                     );
-                    prev_epoch = *epoch;
-                    prev_data = *clk;
+                    prev.0 = Some((*epoch, *clk)); // {prev_epoch, prev_data}
                 } else {
                     prev.0 = Some((*epoch, *clk));
                 }
