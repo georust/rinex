@@ -52,7 +52,7 @@ pub(crate) fn format(epoch: Epoch, flag: Option<EpochFlag>, t: Type, revision: u
                 let mut y = y - 2000;
                 if y < 0 {
                     // fix: files recorded prior 21st century
-                    y += 100; 
+                    y += 100;
                 }
                 format!(
                     "{:02} {:>2} {:>2} {:>2} {:>2} {:>2}.{:07}  {}",
@@ -85,7 +85,7 @@ pub(crate) fn format(epoch: Epoch, flag: Option<EpochFlag>, t: Type, revision: u
                 let mut y = y - 2000;
                 if y < 0 {
                     // fix: files recorded prior 21st century
-                    y += 100; 
+                    y += 100;
                 }
                 format!(
                     "{:02} {:>2} {:>2} {:>2} {:>2} {:>2}.{:1}",
@@ -111,17 +111,9 @@ pub(crate) fn format(epoch: Epoch, flag: Option<EpochFlag>, t: Type, revision: u
                 let mut y = y - 2000;
                 if y < 0 {
                     // fix: files recorded prior 21st century
-                    y += 100; 
+                    y += 100;
                 }
-                format!(
-                    "{:02} {:>2} {:>2} {:>2} {:>2} {:>2}",
-                    y,
-                    m,
-                    d,
-                    hh,
-                    mm,
-                    ss
-                )
+                format!("{:02} {:>2} {:>2} {:>2} {:>2} {:>2}", y, m, d, hh, mm, ss)
             } else {
                 format!("{:04} {:>2} {:>2} {:>2} {:>2} {:>2}", y, m, d, hh, mm, ss)
             }

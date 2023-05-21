@@ -21,16 +21,20 @@ pub fn plot_gnss_recombination(
         for (sv, epochs) in vehicules {
             let data_x: Vec<Epoch> = epochs.iter().map(|((e, _flag), _v)| *e).collect();
             let data_y: Vec<f64> = epochs.iter().map(|(_, v)| *v).collect();
-            let trace =
-                build_chart_epoch_axis(&format!("{}({}-{})", sv, lhs_observable, ref_observable), Mode::Markers, data_x, data_y)
-                    .marker(Marker::new().symbol(markers[op_index].clone()))
-                    .visible({
-                        if op_index < 1 {
-                            Visible::True
-                        } else {
-                            Visible::LegendOnly
-                        }
-                    });
+            let trace = build_chart_epoch_axis(
+                &format!("{}({}-{})", sv, lhs_observable, ref_observable),
+                Mode::Markers,
+                data_x,
+                data_y,
+            )
+            .marker(Marker::new().symbol(markers[op_index].clone()))
+            .visible({
+                if op_index < 1 {
+                    Visible::True
+                } else {
+                    Visible::LegendOnly
+                }
+            });
             ctx.add_trace(trace);
         }
     }
@@ -54,16 +58,15 @@ pub fn plot_gnss_dcb(
         for (_sv, epochs) in vehicules {
             let data_x: Vec<Epoch> = epochs.iter().map(|((e, _flag), _v)| *e).collect();
             let data_y: Vec<f64> = epochs.iter().map(|(_, v)| *v).collect();
-            let trace =
-                build_chart_epoch_axis(&op, Mode::Markers, data_x, data_y)
-                    .marker(Marker::new().symbol(markers[op_index].clone()))
-                    .visible({
-                        if op_index < 1 {
-                            Visible::True
-                        } else {
-                            Visible::LegendOnly
-                        }
-                    });
+            let trace = build_chart_epoch_axis(&op, Mode::Markers, data_x, data_y)
+                .marker(Marker::new().symbol(markers[op_index].clone()))
+                .visible({
+                    if op_index < 1 {
+                        Visible::True
+                    } else {
+                        Visible::LegendOnly
+                    }
+                });
             ctx.add_trace(trace);
         }
     }

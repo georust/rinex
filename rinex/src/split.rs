@@ -1,5 +1,5 @@
+use crate::{Duration, Epoch};
 use thiserror::Error;
-use crate::{Epoch, Duration};
 
 #[derive(Error, Debug, Clone)]
 pub enum Error {
@@ -26,9 +26,9 @@ pub trait Split {
     fn split(&self, epoch: Epoch) -> Result<(Self, Self), Error>
     where
         Self: Sized;
-	
-	/// Splits Self into a serie of epoch of equal durations
-	fn split_dt(&self, dt: Duration) -> Result<Vec<Self>, Error>
-	where
-		Self: Sized;
+
+    /// Splits Self into a serie of epoch of equal durations
+    fn split_dt(&self, dt: Duration) -> Result<Vec<Self>, Error>
+    where
+        Self: Sized;
 }

@@ -22,9 +22,9 @@ pub mod sv;
 pub mod types;
 pub mod version;
 
+mod ground_position;
 mod leap;
 mod observable;
-mod ground_position;
 
 extern crate num;
 
@@ -41,8 +41,8 @@ use std::io::Write; //, Read};
 pub mod writer;
 use writer::BufferedWriter;
 
-use thiserror::Error;
 use std::collections::{BTreeMap, HashMap};
+use thiserror::Error;
 
 use hifitime::Duration;
 use navigation::OrbitItem;
@@ -55,11 +55,11 @@ use version::Version;
 pub mod prelude {
     pub use crate::constellation::{Augmentation, Constellation};
     pub use crate::epoch::EpochFlag;
+    pub use crate::ground_position::GroundPosition;
     pub use crate::header::Header;
     pub use crate::observable::Observable;
     pub use crate::sv::Sv;
     pub use crate::Rinex;
-	pub use crate::ground_position::GroundPosition;
     pub use hifitime::{Duration, Epoch, TimeScale, TimeSeries};
 }
 
@@ -83,22 +83,17 @@ mod qc;
 
 /// RINEX quality package
 pub mod quality {
-	pub use crate::qc::{QcOpts, QcReport, HtmlReport};
+    pub use crate::qc::{HtmlReport, QcOpts, QcReport};
 }
 
-use prelude::*;
 use carrier::Carrier;
 use gnss_time::GnssTime;
+use prelude::*;
 
 pub use merge::Merge;
 pub use split::Split;
 
-use algorithm::{
-    TargetItem,
-	Dcb, Smooth, Decimate,
-	Combine, Combination,
-	IonoDelayDetector,
-};
+use algorithm::{Combination, Combine, Dcb, Decimate, IonoDelayDetector, Smooth, TargetItem};
 
 #[macro_use]
 extern crate horrorshow;
@@ -309,26 +304,26 @@ impl Rinex {
         }
     }
 
-	/// Forms timeseries from all Epochs contained in this record
-	pub fn timeseries(&self) -> Option<TimeSeries> {
-		if let Some(dt) = self.sampling_interval() {
-			Some(self.record.timeseries(dt))
-		} else {
-			None
-		}
-	}
+    /// Forms timeseries from all Epochs contained in this record
+    pub fn timeseries(&self) -> Option<TimeSeries> {
+        if let Some(dt) = self.sampling_interval() {
+            Some(self.record.timeseries(dt))
+        } else {
+            None
+        }
+    }
 
-	/// Converts self into given timescale
-	pub fn into_timescale(&mut self, ts: TimeScale) {
-		self.record.convert_timescale(ts);
-	}
+    /// Converts self into given timescale
+    pub fn into_timescale(&mut self, ts: TimeScale) {
+        self.record.convert_timescale(ts);
+    }
 
-	/// Converts self to given timescale
-	pub fn with_timescale(&self, ts: TimeScale) -> Self {
-		let mut s = self.clone();
-		s.into_timescale(ts);
-		s
-	}
+    /// Converts self to given timescale
+    pub fn with_timescale(&self, ts: TimeScale) -> Self {
+        let mut s = self.clone();
+        s.into_timescale(ts);
+        s
+    }
 
     /// Converts a CRINEX (compressed RINEX) into readable RINEX.
     /// This has no effect if self is not an Observation RINEX.
@@ -1827,35 +1822,42 @@ impl Rinex {
         s.observation_align_phase_origins_mut();
         s
     }
-	/// Form desired signal combinations
-	pub fn observation_combination(&self, combination: Combination) ->  HashMap<(Observable, Observable), BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
-		if let Some(r) = self.record.as_obs() {
-			r.combine(combination)
-		} else {
-			HashMap::new()
-		}
-	}
-	/// GNSS (differential) code biases
-	pub fn observation_dcb(&self) -> HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
-		if let Some(r) = self.record.as_obs() {
-			r.dcb()
-		} else {
-			HashMap::new()
-		}
-	}
+    /// Form desired signal combinations
+    pub fn observation_combination(
+        &self,
+        combination: Combination,
+    ) -> HashMap<(Observable, Observable), BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
+        if let Some(r) = self.record.as_obs() {
+            r.combine(combination)
+        } else {
+            HashMap::new()
+        }
+    }
+    /// GNSS (differential) code biases
+    pub fn observation_dcb(
+        &self,
+    ) -> HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
+        if let Some(r) = self.record.as_obs() {
+            r.dcb()
+        } else {
+            HashMap::new()
+        }
+    }
     /// Ionospheric delay detector
-	pub fn observation_iono_delay_detector(&self) ->  HashMap<Observable, HashMap<Sv, BTreeMap<Epoch, f64>>> {
-		if let Some(r) = self.record.as_obs() {
-			if let Some(dt) = self.sampling_interval() {
-				r.iono_delay_detector(dt)
-			} else {
-				HashMap::new()
-			}
-		} else {
-			HashMap::new()
-		}
-	}
-	/// Code multipath analysis (MP_i), cf.
+    pub fn observation_iono_delay_detector(
+        &self,
+    ) -> HashMap<Observable, HashMap<Sv, BTreeMap<Epoch, f64>>> {
+        if let Some(r) = self.record.as_obs() {
+            if let Some(dt) = self.sampling_interval() {
+                r.iono_delay_detector(dt)
+            } else {
+                HashMap::new()
+            }
+        } else {
+            HashMap::new()
+        }
+    }
+    /// Code multipath analysis (MP_i), cf.
     /// phase data model <https://github.com/gwbres/rinex/blob/main/rinex-cli/doc/gnss-combination.md>.
     pub fn observation_code_multipath(
         &self,
@@ -2489,9 +2491,9 @@ impl Split for Rinex {
             },
         ))
     }
-	fn split_dt(&self, _duration: Duration) -> Result<Vec<Self>, split::Error> {
-		Ok(Vec::new())
-	}
+    fn split_dt(&self, _duration: Duration) -> Result<Vec<Self>, split::Error> {
+        Ok(Vec::new())
+    }
 }
 
 impl Decimate for Rinex {
@@ -2536,29 +2538,29 @@ impl Decimate for Rinex {
 }
 
 impl Smooth for Rinex {
-	fn moving_average(&self, window: Duration, target: Option<TargetItem>) -> Self {
-		let mut s = self.clone();
-		s.moving_average_mut(window, target);
-		s
-	}
-	fn moving_average_mut(&mut self, window: Duration, target: Option<TargetItem>) {
-		if let Some(r) = self.record.as_mut_obs() {
-			r.moving_average_mut(window, target);
-		}
-	}
-	fn hatch_smoothing(&self, target: Option<TargetItem>) -> Self {
-		let mut s = self.clone();
-		s.hatch_smoothing_mut(target);
-		s
-	}
-	fn hatch_smoothing_mut(&mut self, target: Option<TargetItem>) {
-		if let Some(r) = self.record.as_mut_obs() {
-			r.hatch_smoothing_mut(target);
-		}
-	}
+    fn moving_average(&self, window: Duration, target: Option<TargetItem>) -> Self {
+        let mut s = self.clone();
+        s.moving_average_mut(window, target);
+        s
+    }
+    fn moving_average_mut(&mut self, window: Duration, target: Option<TargetItem>) {
+        if let Some(r) = self.record.as_mut_obs() {
+            r.moving_average_mut(window, target);
+        }
+    }
+    fn hatch_smoothing(&self, target: Option<TargetItem>) -> Self {
+        let mut s = self.clone();
+        s.hatch_smoothing_mut(target);
+        s
+    }
+    fn hatch_smoothing_mut(&mut self, target: Option<TargetItem>) {
+        if let Some(r) = self.record.as_mut_obs() {
+            r.hatch_smoothing_mut(target);
+        }
+    }
 }
 
-use crate::algorithm::{Preprocessing, Filter};
+use crate::algorithm::{Filter, Preprocessing};
 
 impl Preprocessing for Rinex {
     fn filter(&self, f: Filter) -> Self {

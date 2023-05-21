@@ -1,15 +1,15 @@
-use hifitime::Unit;
 use crate::prelude::*;
+use hifitime::Unit;
 
 #[derive(Debug, Clone)]
 pub struct QcSamplingAnalysis {
-	pub first_epoch: Epoch,
-	pub last_epoch: Epoch,
-	pub epoch_span: Duration,
+    pub first_epoch: Epoch,
+    pub last_epoch: Epoch,
+    pub epoch_span: Duration,
     /// Dominant sample rate
     pub sample_interval: Duration,
-	pub sample_rate_hz: f64,
-	/// Epoch span
+    pub sample_rate_hz: f64,
+    /// Epoch span
     pub time_line: Duration,
     /// Unusual data gaps
     pub gaps: Vec<(Epoch, Duration)>,
@@ -29,9 +29,9 @@ impl QcSamplingAnalysis {
         Self {
             first_epoch,
             last_epoch,
-			epoch_span: (last_epoch - first_epoch) + sample_interval,
+            epoch_span: (last_epoch - first_epoch) + sample_interval,
             sample_interval,
-			sample_rate_hz: 1.0 / sample_interval.to_unit(Unit::Second),
+            sample_rate_hz: 1.0 / sample_interval.to_unit(Unit::Second),
             time_line: last_epoch - first_epoch,
             gaps: rnx.data_gaps(),
         }
@@ -39,67 +39,67 @@ impl QcSamplingAnalysis {
 }
 
 use crate::qc::HtmlReport;
-use horrorshow::{RenderBox};
+use horrorshow::RenderBox;
 
 impl HtmlReport for QcSamplingAnalysis {
-	fn to_html(&self) -> String {
-		todo!()
-	}
+    fn to_html(&self) -> String {
+        todo!()
+    }
     fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
         box_html! {
-			tr {
-				th { 
-					: "Start"
-				}
-				th {
-					: "End"
-				}
-				th {
-					: "Span"
-				}
-			}
-			tr {
-				td {
-					: self.first_epoch.to_string()
-				}
-				td {
-					: self.last_epoch.to_string()
-				}
-				td {
-					: self.epoch_span.to_string()
-				}
-			}
-			tr {
-				th {
-					: "Sampling"
-				}
-				td {
-					: format!("{} ({:.3} Hz)", self.sample_interval, self.sample_rate_hz)
-				}
-			}
-			@ if self.gaps.len() == 0 {
-				th {
-					: "Gap analysis"
-				}
-				td {
-					: "No Data Gaps"
-				}
-			} else {
-				div(class="table-container") {
-					table(class="table is-bordered") {
-						thead {
-							th {
-								: "Gap analysis"
-							}
-						}
-						tbody {
-							@ for (_epoch, _dt) in &self.gaps {
+            tr {
+                th {
+                    : "Start"
+                }
+                th {
+                    : "End"
+                }
+                th {
+                    : "Span"
+                }
+            }
+            tr {
+                td {
+                    : self.first_epoch.to_string()
+                }
+                td {
+                    : self.last_epoch.to_string()
+                }
+                td {
+                    : self.epoch_span.to_string()
+                }
+            }
+            tr {
+                th {
+                    : "Sampling"
+                }
+                td {
+                    : format!("{} ({:.3} Hz)", self.sample_interval, self.sample_rate_hz)
+                }
+            }
+            @ if self.gaps.len() == 0 {
+                th {
+                    : "Gap analysis"
+                }
+                td {
+                    : "No Data Gaps"
+                }
+            } else {
+                div(class="table-container") {
+                    table(class="table is-bordered") {
+                        thead {
+                            th {
+                                : "Gap analysis"
+                            }
+                        }
+                        tbody {
+                            @ for (_epoch, _dt) in &self.gaps {
 
-							}
-						}
-					}
-				}//gap analysis/table
-			}
+                            }
+                        }
+                    }
+                }//gap analysis/table
+            }
         }
     }
 }

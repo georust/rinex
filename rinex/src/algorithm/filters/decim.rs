@@ -1,15 +1,12 @@
-use crate::{
-	Duration,
-	processing::TargetItem,
-};
+use crate::{processing::TargetItem, Duration};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum Error {
-	#[error("unknown decimation target")]
-	TargetError(#[from] crate::algorithm::target::Error),
-	#[error("failed to parse decimation attribute \"{0}\"")]
-	AttributeParsingError(String),
+    #[error("unknown decimation target")]
+    TargetError(#[from] crate::algorithm::target::Error),
+    #[error("failed to parse decimation attribute \"{0}\"")]
+    AttributeParsingError(String),
 }
 
 /// Decimation Filters type
@@ -28,7 +25,7 @@ pub enum DecimationType {
     /// rnx.decim_by_ratio_mut(2); // reduce record size by 2
     /// assert_eq!(rnx.epochs().len(), 53);
     /// ```
-	DecimByRatio(u32),
+    DecimByRatio(u32),
     /// Decimates Self by minimum epoch duration.
     /// Successive epochs |e_k+1 - e_k| < interval that do not fit
     /// within this minimal interval are discarded.
@@ -44,44 +41,42 @@ pub enum DecimationType {
     /// rinex.decim_by_interval_mut(Duration::from_hours(1.0));
     /// assert_eq!(rinex.epochs().len(), initial_epochs.len()-2); // got rid of 2 epochs (15' and 25')
     /// ```
-	DecimByInterval(Duration),
+    DecimByInterval(Duration),
 }
 
 #[derive(Clone, Debug)]
 pub struct DecimationFilter {
-	/// Optional data subset 
-	target: Option<TargetItem>,
-	/// Type of decimation filter
-	pub dtype: DecimationType, 
+    /// Optional data subset
+    target: Option<TargetItem>,
+    /// Type of decimation filter
+    pub dtype: DecimationType,
 }
 
 pub trait Decimate {
-	fn decimate_by_ratio(&self, r: u32) -> Self;
-	fn decimate_by_ratio_mut(&mut self, r: u32);
-	fn decimate_by_interval(&self, dt: Duration) -> Self;
-	fn decimate_by_interval_mut(&mut self, dt: Duration);
-	fn decimate_match(&self, rhs: &Self) -> Self;
-	fn decimate_match_mut(&mut self, rhs: &Self);
+    fn decimate_by_ratio(&self, r: u32) -> Self;
+    fn decimate_by_ratio_mut(&mut self, r: u32);
+    fn decimate_by_interval(&self, dt: Duration) -> Self;
+    fn decimate_by_interval_mut(&mut self, dt: Duration);
+    fn decimate_match(&self, rhs: &Self) -> Self;
+    fn decimate_match_mut(&mut self, rhs: &Self);
 }
 
 impl std::str::FromStr for DecimationFilter {
-	type Err = Error;
-	fn from_str(content: &str) -> Result<Self, Self::Err> {
-		let items: Vec<&str> = content.trim()
-			.split(":")
-			.collect();
-		if let Ok(dt) = Duration::from_str(items[0].trim()) {
-			Ok(Self {
-				target: None,
-				dtype: DecimationType::DecimByInterval(dt)
-			})
-		} else if let Ok(r) = u32::from_str_radix(items[0].trim(), 10) {
-			Ok(Self {
-				target: None,
-				dtype: DecimationType::DecimByRatio(r)
-			})
-		} else {
-			Err(Error::AttributeParsingError(items[0].to_string()))
-		}
-	}
+    type Err = Error;
+    fn from_str(content: &str) -> Result<Self, Self::Err> {
+        let items: Vec<&str> = content.trim().split(":").collect();
+        if let Ok(dt) = Duration::from_str(items[0].trim()) {
+            Ok(Self {
+                target: None,
+                dtype: DecimationType::DecimByInterval(dt),
+            })
+        } else if let Ok(r) = u32::from_str_radix(items[0].trim(), 10) {
+            Ok(Self {
+                target: None,
+                dtype: DecimationType::DecimByRatio(r),
+            })
+        } else {
+            Err(Error::AttributeParsingError(items[0].to_string()))
+        }
+    }
 }

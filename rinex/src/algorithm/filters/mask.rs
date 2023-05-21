@@ -1,14 +1,14 @@
-use thiserror::Error;
 use crate::processing::TargetItem;
+use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum Error {
-	#[error("invalid mask target")]
-	TargetError(#[from] crate::algorithm::target::Error),
-	#[error("invalid mask operand")]
-	InvalidOperand,
-	#[error("invalid mask description")]
-	InvalidDescriptor,
+    #[error("invalid mask target")]
+    TargetError(#[from] crate::algorithm::target::Error),
+    #[error("invalid mask operand")]
+    InvalidOperand,
+    #[error("invalid mask description")]
+    InvalidDescriptor,
 }
 
 pub trait Mask {
@@ -20,17 +20,17 @@ pub trait Mask {
 /// in related filter operation
 #[derive(Debug, Clone, PartialEq)]
 pub enum MaskOperand {
-	/// Greater than
+    /// Greater than
     GreaterThan,
-	/// Greater Equals
+    /// Greater Equals
     GreaterEquals,
-	/// Lower than
+    /// Lower than
     LowerThan,
-	/// Lower Equals
-	LowerEquals,
-	/// Equals
+    /// Lower Equals
+    LowerEquals,
+    /// Equals
     Equals,
-	/// Not Equals
+    /// Not Equals
     NotEquals,
 }
 
@@ -59,8 +59,8 @@ impl std::str::FromStr for MaskOperand {
 impl MaskOperand {
     pub(crate) const fn formatted_len(&self) -> usize {
         match &self {
-			Self::Equals | Self::GreaterThan | Self::LowerThan => 2,
-			Self::NotEquals | Self::LowerEquals | Self::GreaterEquals => 3,
+            Self::Equals | Self::GreaterThan | Self::LowerThan => 2,
+            Self::NotEquals | Self::LowerEquals | Self::GreaterEquals => 3,
         }
     }
 }
@@ -159,10 +159,9 @@ impl std::ops::BitOrAssign for MaskFilter {
 }
 
 impl std::str::FromStr for MaskFilter {
-	type Err = Error;
-   	fn from_str(content: &str) -> Result<Self, Self::Err> {
-        let items: Vec<&str> = content.split(":")
-			.collect();
+    type Err = Error;
+    fn from_str(content: &str) -> Result<Self, Self::Err> {
+        let items: Vec<&str> = content.split(":").collect();
         if items.len() < 2 {
             return Err(Error::InvalidDescriptor);
         }
@@ -170,7 +169,7 @@ impl std::str::FromStr for MaskFilter {
             let offset = operand.formatted_len();
             Ok(Self {
                 operand,
-                item: TargetItem::from_str(&content[offset+1..].trim())?, // +1: ":"
+                item: TargetItem::from_str(&content[offset + 1..].trim())?, // +1: ":"
             })
         } else {
             Err(Error::InvalidOperand)

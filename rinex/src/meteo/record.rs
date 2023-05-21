@@ -1,7 +1,14 @@
 use crate::{
-    epoch, gnss_time::GnssTime, merge, merge::Merge, prelude::*, split,
-    split::Split, types::Type, version, Observable,
-	processing::{Filter, Preprocessing, MaskFilter, MaskOperand, TargetItem, Interpolate},
+    epoch,
+    gnss_time::GnssTime,
+    merge,
+    merge::Merge,
+    prelude::*,
+    processing::{Filter, Interpolate, MaskFilter, MaskOperand, Preprocessing, TargetItem},
+    split,
+    split::Split,
+    types::Type,
+    version, Observable,
 };
 use hifitime::Duration;
 use std::collections::{BTreeMap, HashMap};
@@ -233,21 +240,22 @@ impl Split for Record {
             .collect();
         Ok((r0, r1))
     }
-	fn split_dt(&self, _duration: Duration) -> Result<Vec<Self>, split::Error> {
-		Ok(Vec::new())
-	}
+    fn split_dt(&self, _duration: Duration) -> Result<Vec<Self>, split::Error> {
+        Ok(Vec::new())
+    }
 }
 
 impl GnssTime for Record {
-	fn timeseries(&self, dt: Duration) -> TimeSeries {
-		let epochs: Vec<_> = self.keys().collect();
-		TimeSeries::inclusive(
-			**epochs.get(0)
-				.expect("failed to determine first epoch"),
-			**epochs.get(epochs.len()-1)
-				.expect("failed to determine last epoch"),
-			dt)
-	}
+    fn timeseries(&self, dt: Duration) -> TimeSeries {
+        let epochs: Vec<_> = self.keys().collect();
+        TimeSeries::inclusive(
+            **epochs.get(0).expect("failed to determine first epoch"),
+            **epochs
+                .get(epochs.len() - 1)
+                .expect("failed to determine last epoch"),
+            dt,
+        )
+    }
     fn convert_timescale(&mut self, ts: TimeScale) {
         self.iter_mut()
             .map(|(k, v)| (k.in_time_scale(ts), v))
@@ -267,52 +275,50 @@ impl Preprocessing for Record {
         s
     }
     fn filter_mut(&mut self, f: Filter) {
-		match f {
-			Filter::Mask(mask) => {
-				match mask.operand {
-					MaskOperand::Equals => match mask.item {
-						TargetItem::EpochItem(epoch) => self.retain(|e, _| *e == epoch),
-						TargetItem::ObservableItem(filter) => {
-							self.retain(|_, data| {
-								data.retain(|code, _| filter.contains(code));
-								data.len() > 0
-							});
-						},
-						_ => {},
-					},
-					MaskOperand::NotEquals => match mask.item {
-						TargetItem::EpochItem(epoch) => self.retain(|e, _| *e != epoch),
-						TargetItem::ObservableItem(filter) => {
-							self.retain(|_, data| {
-								data.retain(|code, _| !filter.contains(code));
-								data.len() > 0
-							});
-						},
-						_ => {},
-					},
-					MaskOperand::GreaterEquals => match mask.item {
-						TargetItem::EpochItem(epoch) => self.retain(|e, _| *e >= epoch),
-						_ => {},
-					},
-					MaskOperand::GreaterThan => match mask.item {
-						TargetItem::EpochItem(epoch) => self.retain(|e, _| *e > epoch),
-						_ => {},
-					},
-					MaskOperand::LowerEquals => match mask.item {
-						TargetItem::EpochItem(epoch) => self.retain(|e, _| *e <= epoch),
-						_ => {},
-					},
-					MaskOperand::LowerThan => match mask.item {
-						TargetItem::EpochItem(epoch) => self.retain(|e, _| *e < epoch),
-						_ => {},
-					},
-				}
-			},
-			Filter::Smoothing(_) => todo!(),
-			Filter::Decimation(_) => todo!(),
+        match f {
+            Filter::Mask(mask) => match mask.operand {
+                MaskOperand::Equals => match mask.item {
+                    TargetItem::EpochItem(epoch) => self.retain(|e, _| *e == epoch),
+                    TargetItem::ObservableItem(filter) => {
+                        self.retain(|_, data| {
+                            data.retain(|code, _| filter.contains(code));
+                            data.len() > 0
+                        });
+                    },
+                    _ => {},
+                },
+                MaskOperand::NotEquals => match mask.item {
+                    TargetItem::EpochItem(epoch) => self.retain(|e, _| *e != epoch),
+                    TargetItem::ObservableItem(filter) => {
+                        self.retain(|_, data| {
+                            data.retain(|code, _| !filter.contains(code));
+                            data.len() > 0
+                        });
+                    },
+                    _ => {},
+                },
+                MaskOperand::GreaterEquals => match mask.item {
+                    TargetItem::EpochItem(epoch) => self.retain(|e, _| *e >= epoch),
+                    _ => {},
+                },
+                MaskOperand::GreaterThan => match mask.item {
+                    TargetItem::EpochItem(epoch) => self.retain(|e, _| *e > epoch),
+                    _ => {},
+                },
+                MaskOperand::LowerEquals => match mask.item {
+                    TargetItem::EpochItem(epoch) => self.retain(|e, _| *e <= epoch),
+                    _ => {},
+                },
+                MaskOperand::LowerThan => match mask.item {
+                    TargetItem::EpochItem(epoch) => self.retain(|e, _| *e < epoch),
+                    _ => {},
+                },
+            },
+            Filter::Smoothing(_) => todo!(),
+            Filter::Decimation(_) => todo!(),
             Filter::Interp(filter) => self.interpolate_mut(filter.series, filter.target),
-		}
-	}
+        }
+    }
 }
 
 impl Interpolate for Record {
@@ -323,11 +329,10 @@ impl Interpolate for Record {
     }
     fn interpolate_mut(&mut self, _series: TimeSeries, target: Option<TargetItem>) {
         if let Some(target) = target {
-            let mask = Filter::Mask(
-                MaskFilter {
-                    operand: MaskOperand::Equals,
-                    item: target,
-                });
+            let mask = Filter::Mask(MaskFilter {
+                operand: MaskOperand::Equals,
+                item: target,
+            });
             self.filter_mut(mask);
         }
     }

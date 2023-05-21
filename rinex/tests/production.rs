@@ -40,7 +40,10 @@ mod test {
                             }
                         }
                     } else {
-                        panic!("\"{}\" - epoch {:?} - missing vehicule {:?}", filename, e_a, sv_a);
+                        panic!(
+                            "\"{}\" - epoch {:?} - missing vehicule {:?}",
+                            filename, e_a, sv_a
+                        );
                     }
                 }
             } else {
@@ -83,7 +86,10 @@ mod test {
                             }
                         }
                     } else {
-                        panic!("\"{}\" - epoch {:?} - parsed {:?} unexpectedly", filename, e_b, sv_b);
+                        panic!(
+                            "\"{}\" - epoch {:?} - parsed {:?} unexpectedly",
+                            filename, e_b, sv_b
+                        );
                     }
                 }
             } else {
@@ -125,7 +131,10 @@ mod test {
                     if let Some(observation_a) = obscodes_a.get(code_b) {
                         assert_eq!(observation_a, observation_b);
                     } else {
-                        panic!("\"{}\" - epoch {:?} parsed \"{}\" unexpectedly", filename, e_b, code_b);
+                        panic!(
+                            "\"{}\" - epoch {:?} parsed \"{}\" unexpectedly",
+                            filename, e_b, code_b
+                        );
                     }
                 }
             } else {
@@ -144,17 +153,15 @@ mod test {
     }
     fn testbench(path: &str) {
         // determine filename for debug
-        let filename : Vec<_> = path.split("/").collect();
-        let filename = filename[filename.len()-1];
+        let filename: Vec<_> = path.split("/").collect();
+        let filename = filename[filename.len() - 1];
         // parse this file
-        let rnx = Rinex::from_file(path)
-                .unwrap(); // already tested elsewhere 
+        let rnx = Rinex::from_file(path).unwrap(); // already tested elsewhere
         let copy_path = path.to_owned() + "-copy";
         assert_eq!(rnx.to_file(&copy_path).is_ok(), true); // test writer
         let copy = Rinex::from_file(&copy_path);
-        assert_eq!(copy.is_ok(), true); // content should be valid 
-        let copy = copy
-            .unwrap();
+        assert_eq!(copy.is_ok(), true); // content should be valid
+        let copy = copy.unwrap();
         // run comparison
         if copy != rnx {
             compare_with_panic(&rnx, &copy, filename);

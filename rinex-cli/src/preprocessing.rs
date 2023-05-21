@@ -1,6 +1,7 @@
 use crate::{
     //parser::{parse_duration, parse_epoch},
-    Cli, Context,
+    Cli,
+    Context,
 };
 use log::error;
 use rinex::processing::*;
@@ -62,7 +63,7 @@ pub fn preprocess(ctx: &mut Context, cli: &Cli) {
             if let Some(ref mut nav) = ctx.nav_rinex {
                 nav.filter_mut(filt.clone());
             }
-			trace!("applied filter \"{}\"", filt_str);
+            trace!("applied filter \"{}\"", filt_str);
         } else {
             error!("invalid filter description \"{}\"", filt_str);
         }

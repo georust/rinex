@@ -194,7 +194,7 @@ impl Solution {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{Sinex};
+    use crate::Sinex;
     use rinex::constellation::Constellation;
     use std::str::FromStr;
     #[test]

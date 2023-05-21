@@ -739,7 +739,11 @@ mod test {
         };
 
         let epoch = Epoch::from_time_of_week(910, 4.0327293e14 as u64, TimeScale::GPST);
-        let ref_pos = GroundPosition::from_ecef_wgs84((-5.67841101e6_f64, -2.49239629e7_f64, 7.05651887e6_f64));
+        let ref_pos = GroundPosition::from_ecef_wgs84((
+            -5.67841101e6_f64,
+            -2.49239629e7_f64,
+            7.05651887e6_f64,
+        ));
         let xyz = ephemeris.kepler2ecef(epoch);
         let el_azim = ephemeris.sat_elev_azim(epoch, ref_pos);
 

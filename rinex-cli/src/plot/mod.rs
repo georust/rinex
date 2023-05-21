@@ -26,7 +26,7 @@ mod skyplot;
 pub use skyplot::skyplot;
 
 mod combination;
-pub use combination::{plot_gnss_recombination, plot_gnss_dcb, plot_iono_detector};
+pub use combination::{plot_gnss_dcb, plot_gnss_recombination, plot_iono_detector};
 
 /*
  * Generates N marker symbols to be used

@@ -1,8 +1,8 @@
 #[cfg(test)]
 mod sampling {
     use rinex::prelude::*;
-    use std::collections::HashMap;
     use rinex::processing::Decimate;
+    use std::collections::HashMap;
     #[test]
     fn epoch_intervals() {
         let path = env!("CARGO_MANIFEST_DIR").to_owned()

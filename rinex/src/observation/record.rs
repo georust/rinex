@@ -4,28 +4,22 @@ use std::str::FromStr;
 use thiserror::Error;
 
 use crate::{
-	constellation, 
-	epoch, 
-    Carrier,
-	gnss_time::GnssTime, 
-	merge, merge::Merge,
-    prelude::*, 
-	split, split::Split, 
-	sv, types::Type, 
-	version::Version, 
-	Observable,
-	processing::{
-		TargetItem,
-		Preprocessing, 
-		Filter, 
-        Mask, MaskFilter, MaskOperand, 
-		Combination, Combine,
-		Processing,
-		IonoDelayDetector,
-		Smooth, SmoothingType, 
-		Decimate, DecimationType,
-        Interpolate,
-	},
+    constellation, epoch,
+    gnss_time::GnssTime,
+    merge,
+    merge::Merge,
+    prelude::*,
+    processing::{
+        Combination, Combine, Decimate, DecimationType, Filter, Interpolate, IonoDelayDetector,
+        Mask, MaskFilter, MaskOperand, Preprocessing, Processing, Smooth, SmoothingType,
+        TargetItem,
+    },
+    split,
+    split::Split,
+    sv,
+    types::Type,
+    version::Version,
+    Carrier, Observable,
 };
 
 use super::Snr;
@@ -116,7 +110,11 @@ impl ObservationData {
     /// Returns true if self is considered Ok with respect to given
     /// SNR condition (>=)
     pub fn is_ok_snr(&self, min_snr: Snr) -> bool {
-        if self.lli.unwrap_or(LliFlags::OK_OR_UNKNOWN).intersects(LliFlags::OK_OR_UNKNOWN) {
+        if self
+            .lli
+            .unwrap_or(LliFlags::OK_OR_UNKNOWN)
+            .intersects(LliFlags::OK_OR_UNKNOWN)
+        {
             if let Some(snr) = self.snr {
                 snr >= min_snr
             } else {
@@ -750,27 +748,27 @@ impl Split for Record {
                 }
             })
             .collect();
-		Ok((r0, r1))
+        Ok((r0, r1))
     }
-	fn split_dt(&self, duration: Duration) -> Result<Vec<Self>, split::Error> {
-		let mut curr = Self::new();
-		let mut ret: Vec<Self> = Vec::new();
-		let mut prev: Option<Epoch> = None;
-		for ((epoch, flag), data) in self {
-			if let Some(p_epoch) = prev {
-				let dt = *epoch - p_epoch;
-				if dt >= duration {
-					prev = Some(*epoch);
-					ret.push(curr);
-					curr = Self::new();
-				}
-				curr.insert((*epoch, *flag), data.clone());
-			} else {
-				prev = Some(*epoch);
-			}
-		}
-		Ok(ret)	
-	}
+    fn split_dt(&self, duration: Duration) -> Result<Vec<Self>, split::Error> {
+        let mut curr = Self::new();
+        let mut ret: Vec<Self> = Vec::new();
+        let mut prev: Option<Epoch> = None;
+        for ((epoch, flag), data) in self {
+            if let Some(p_epoch) = prev {
+                let dt = *epoch - p_epoch;
+                if dt >= duration {
+                    prev = Some(*epoch);
+                    ret.push(curr);
+                    curr = Self::new();
+                }
+                curr.insert((*epoch, *flag), data.clone());
+            } else {
+                prev = Some(*epoch);
+            }
+        }
+        Ok(ret)
+    }
 }
 
 impl Decimate for Record {
@@ -820,15 +818,17 @@ impl Decimate for Record {
 }
 
 impl GnssTime for Record {
-	fn timeseries(&self, dt: Duration) -> TimeSeries {
-		let epochs: Vec<_> = self.keys().collect();
-		TimeSeries::inclusive(
-			epochs.get(0)
-				.expect("failed to determine first epoch").0,
-			epochs.get(epochs.len()-1)
-				.expect("failed to determine last epoch").0,
-			dt)
-	}
+    fn timeseries(&self, dt: Duration) -> TimeSeries {
+        let epochs: Vec<_> = self.keys().collect();
+        TimeSeries::inclusive(
+            epochs.get(0).expect("failed to determine first epoch").0,
+            epochs
+                .get(epochs.len() - 1)
+                .expect("failed to determine last epoch")
+                .0,
+            dt,
+        )
+    }
     fn convert_timescale(&mut self, ts: TimeScale) {
         self.iter_mut()
             .map(|((k, f), v)| ((k.in_time_scale(ts), f), v))
@@ -842,14 +842,14 @@ impl GnssTime for Record {
 }
 
 impl Smooth for Record {
-	/// Applies Hatch smoothing filter, returns smoothed Pseudo Range observations
-	fn hatch_smoothing(&self, target: Option<TargetItem>) -> Self {
-		let mut s = self.clone();
-		s.hatch_smoothing_mut(target);
-		s
-	}
-	/// Applies Hatch smoothing filter in place
-	fn hatch_smoothing_mut(&mut self, target: Option<TargetItem>) {
+    /// Applies Hatch smoothing filter, returns smoothed Pseudo Range observations
+    fn hatch_smoothing(&self, target: Option<TargetItem>) -> Self {
+        let mut s = self.clone();
+        s.hatch_smoothing_mut(target);
+        s
+    }
+    /// Applies Hatch smoothing filter in place
+    fn hatch_smoothing_mut(&mut self, target: Option<TargetItem>) {
         if let Some(item) = target {
             let mask = MaskFilter {
                 item,
@@ -857,44 +857,43 @@ impl Smooth for Record {
             };
             self.mask_mut(mask);
         }
-		/*
-		 * smoothes pseudo range observations using special algorithm
-		 */
-		let mut buffer: HashMap<Sv, HashMap<Observable, (u32, f64)>> = HashMap::new();
-		for (_, (_, svs)) in self {
-			for (sv, observables) in svs {
-				let rhs_observables = observables.clone();
-				for (pr_observable, pr_observation) in observables {
-					if !pr_observable.is_pseudorange_observable() {
-						continue;
-					}
-					let pr_code = pr_observable.code()
-						.unwrap();
-					let ph_tolocate = "L".to_owned() + &pr_code;
-					let mut ph_data: Option<f64> = None;
-					for (rhs_observable, rhs_observation) in &rhs_observables { 
-						let rhs_code = rhs_observable.to_string();
-						if rhs_code == ph_tolocate {
-							ph_data = Some(rhs_observation.obs);
-							break;
-						}
-					}
-					if let Some(ph_observation) = ph_data {
-						if let Some(data) = buffer.get_mut(&sv) {
-							if let Some((k, rms)) = data.get_mut(&pr_observable) {
-								let x_k = pr_observation.obs - ph_observation;
-								*rms = (x_k / *k as f64) + (((*k-1)/ *k) as f64) * *rms;
-								*k += 1;
-								pr_observation.obs = ph_observation - *rms;
-							} else { // new observable
-							}
-						} else { // new sv
-						}
-					}
-				}
-			}
-		}
-	}
+        /*
+         * smoothes pseudo range observations using special algorithm
+         */
+        let mut buffer: HashMap<Sv, HashMap<Observable, (u32, f64)>> = HashMap::new();
+        for (_, (_, svs)) in self {
+            for (sv, observables) in svs {
+                let rhs_observables = observables.clone();
+                for (pr_observable, pr_observation) in observables {
+                    if !pr_observable.is_pseudorange_observable() {
+                        continue;
+                    }
+                    let pr_code = pr_observable.code().unwrap();
+                    let ph_tolocate = "L".to_owned() + &pr_code;
+                    let mut ph_data: Option<f64> = None;
+                    for (rhs_observable, rhs_observation) in &rhs_observables {
+                        let rhs_code = rhs_observable.to_string();
+                        if rhs_code == ph_tolocate {
+                            ph_data = Some(rhs_observation.obs);
+                            break;
+                        }
+                    }
+                    if let Some(ph_observation) = ph_data {
+                        if let Some(data) = buffer.get_mut(&sv) {
+                            if let Some((k, rms)) = data.get_mut(&pr_observable) {
+                                let x_k = pr_observation.obs - ph_observation;
+                                *rms = (x_k / *k as f64) + (((*k - 1) / *k) as f64) * *rms;
+                                *k += 1;
+                                pr_observation.obs = ph_observation - *rms;
+                            } else { // new observable
+                            }
+                        } else { // new sv
+                        }
+                    }
+                }
+            }
+        }
+    }
     fn moving_average(&self, window: Duration, target: Option<TargetItem>) -> Self {
         let mut s = self.clone();
         s.moving_average_mut(window, target);
@@ -923,9 +922,7 @@ impl Mask for Record {
                 TargetItem::EpochItem(epoch) => self.retain(|(e, _), _| *e == epoch),
                 TargetItem::EpochFlagItem(flag) => self.retain(|(_, f), _| *f == flag),
                 TargetItem::ClockItem => {
-                    self.retain(|_, (clk, _)| {
-                        clk.is_some()
-                    });
+                    self.retain(|_, (clk, _)| clk.is_some());
                 },
                 TargetItem::ConstellationItem(constells) => {
                     self.retain(|_, (_, svs)| {
@@ -986,9 +983,7 @@ impl Mask for Record {
                 TargetItem::EpochItem(epoch) => self.retain(|(e, _), _| *e != epoch),
                 TargetItem::EpochFlagItem(flag) => self.retain(|(_, f), _| *f != flag),
                 TargetItem::ClockItem => {
-                    self.retain(|_, (clk, _)| {
-                        clk.is_none()
-                    });
+                    self.retain(|_, (clk, _)| clk.is_none());
                 },
                 TargetItem::ConstellationItem(constells) => {
                     self.retain(|_, (_, svs)| {
@@ -1156,7 +1151,7 @@ impl Mask for Record {
                     });
                 },
                 _ => {},
-            }
+            },
         }
     }
 }
@@ -1185,31 +1180,27 @@ impl Preprocessing for Record {
         s
     }
     fn filter_mut(&mut self, filter: Filter) {
-		match filter {
-			Filter::Mask(mask) => self.mask_mut(mask),
-			Filter::Smoothing(filter) => match filter.stype {
-				SmoothingType::Hatch => self.hatch_smoothing_mut(filter.target),
+        match filter {
+            Filter::Mask(mask) => self.mask_mut(mask),
+            Filter::Smoothing(filter) => match filter.stype {
+                SmoothingType::Hatch => self.hatch_smoothing_mut(filter.target),
                 SmoothingType::MovingAverage(dt) => self.moving_average_mut(dt, filter.target),
-			},
+            },
             Filter::Interp(filter) => self.interpolate_mut(filter.series, filter.target),
-			Filter::Decimation(filter) => match filter.dtype {
-				DecimationType::DecimByRatio(r) => {
-					self.decimate_by_ratio_mut(r)	
-				},
-				DecimationType::DecimByInterval(dt) => {
-					self.decimate_by_interval_mut(dt)
-				},
-			}
-		}
-	}
+            Filter::Decimation(filter) => match filter.dtype {
+                DecimationType::DecimByRatio(r) => self.decimate_by_ratio_mut(r),
+                DecimationType::DecimByInterval(dt) => self.decimate_by_interval_mut(dt),
+            },
+        }
+    }
 }
 
 impl Processing for Record {
-	fn min(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
-		let mut ret: (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) = (None, HashMap::new());
-		for (_, (clk, svs)) in self {
+    fn min(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
+        let mut ret: (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) = (None, HashMap::new());
+        for (_, (clk, svs)) in self {
             /*
-             * min{clock} 
+             * min{clock}
              */
             if let Some(clk) = clk {
                 if let Some(data) = ret.0 {
@@ -1223,45 +1214,45 @@ impl Processing for Record {
             /*
              * min{data}
              */
-			for (sv, observables) in svs {
-				for (observable, observation) in observables {
-					if let Some(data) = ret.1.get_mut(sv) {
-						if let Some(data) = data.get_mut(observable) {
-							if observation.obs < *data {
-								*data = observation.obs;
-							}
-						} else {
-							data.insert(observable.clone(), observation.obs);
-						}
-					} else {
-						let mut map: HashMap<Observable, f64> = HashMap::new();
-						map.insert(observable.clone(), observation.obs);
-						ret.1.insert(*sv, map);
-					}
-				}
-			}
-		}
-		ret
-	}
-	fn min_observable(&self) -> HashMap<Observable, f64> {
-		let mut ret: HashMap<Observable, f64> = HashMap::new();
-		let min = self.min().1;
-		for (_, observables) in min {
-			for (observable, minimum) in observables {
-				if let Some(mmin) = ret.get_mut(&observable) {
-					if minimum < *mmin {
-						*mmin = minimum;
-					}
-				} else {
-					ret.insert(observable.clone(), minimum);
-				}
-			}
-		}
-		ret
-	}
-	fn max(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
-		let mut ret: (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) = (None, HashMap::new());
-		for (_, (clk, svs)) in self {
+            for (sv, observables) in svs {
+                for (observable, observation) in observables {
+                    if let Some(data) = ret.1.get_mut(sv) {
+                        if let Some(data) = data.get_mut(observable) {
+                            if observation.obs < *data {
+                                *data = observation.obs;
+                            }
+                        } else {
+                            data.insert(observable.clone(), observation.obs);
+                        }
+                    } else {
+                        let mut map: HashMap<Observable, f64> = HashMap::new();
+                        map.insert(observable.clone(), observation.obs);
+                        ret.1.insert(*sv, map);
+                    }
+                }
+            }
+        }
+        ret
+    }
+    fn min_observable(&self) -> HashMap<Observable, f64> {
+        let mut ret: HashMap<Observable, f64> = HashMap::new();
+        let min = self.min().1;
+        for (_, observables) in min {
+            for (observable, minimum) in observables {
+                if let Some(mmin) = ret.get_mut(&observable) {
+                    if minimum < *mmin {
+                        *mmin = minimum;
+                    }
+                } else {
+                    ret.insert(observable.clone(), minimum);
+                }
+            }
+        }
+        ret
+    }
+    fn max(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
+        let mut ret: (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) = (None, HashMap::new());
+        for (_, (clk, svs)) in self {
             /*
              * max{clock}
              */
@@ -1277,51 +1268,54 @@ impl Processing for Record {
             /*
              * max{data}
              */
-			for (sv, observables) in svs {
-				for (observable, observation) in observables {
-					if let Some(data) = ret.1.get_mut(sv) {
-						if let Some(data) = data.get_mut(observable) {
-							if observation.obs > *data {
-								*data = observation.obs;
-							}
-						} else {
-							data.insert(observable.clone(), observation.obs);
-						}
-					} else {
-						let mut map: HashMap<Observable, f64> = HashMap::new();
-						map.insert(observable.clone(), observation.obs);
-						ret.1.insert(*sv, map);
-					}
-				}
-			}
-		}
-		ret
-	}
-	fn max_observable(&self) -> HashMap<Observable, f64> {
-		let mut ret: HashMap<Observable, f64> = HashMap::new();
-		let max = self.max().1;
-		for (_, observables) in max {
-			for (observable, maximum) in observables {
-				if let Some(mmax) = ret.get_mut(&observable) {
-					if maximum > *mmax {
-						*mmax = maximum;
-					}
-				} else {
-					ret.insert(observable.clone(), maximum);
-				}
-			}
-		}
-		ret
-	}
-	fn mean(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
-		let mut sum: (Option<(u32, f64)>, HashMap<Sv, HashMap<Observable, (u32, f64)>>) = (None, HashMap::new());
-		for (_, (clk, svs)) in self {
+            for (sv, observables) in svs {
+                for (observable, observation) in observables {
+                    if let Some(data) = ret.1.get_mut(sv) {
+                        if let Some(data) = data.get_mut(observable) {
+                            if observation.obs > *data {
+                                *data = observation.obs;
+                            }
+                        } else {
+                            data.insert(observable.clone(), observation.obs);
+                        }
+                    } else {
+                        let mut map: HashMap<Observable, f64> = HashMap::new();
+                        map.insert(observable.clone(), observation.obs);
+                        ret.1.insert(*sv, map);
+                    }
+                }
+            }
+        }
+        ret
+    }
+    fn max_observable(&self) -> HashMap<Observable, f64> {
+        let mut ret: HashMap<Observable, f64> = HashMap::new();
+        let max = self.max().1;
+        for (_, observables) in max {
+            for (observable, maximum) in observables {
+                if let Some(mmax) = ret.get_mut(&observable) {
+                    if maximum > *mmax {
+                        *mmax = maximum;
+                    }
+                } else {
+                    ret.insert(observable.clone(), maximum);
+                }
+            }
+        }
+        ret
+    }
+    fn mean(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
+        let mut sum: (
+            Option<(u32, f64)>,
+            HashMap<Sv, HashMap<Observable, (u32, f64)>>,
+        ) = (None, HashMap::new());
+        for (_, (clk, svs)) in self {
             /*
              * mean{clk}
              */
             if let Some(clk) = clk {
                 if let Some((count, data)) = sum.0 {
-                    sum.0 = Some((count +1, data + clk));
+                    sum.0 = Some((count + 1, data + clk));
                 } else {
                     sum.0 = Some((1, *clk));
                 }
@@ -1329,24 +1323,24 @@ impl Processing for Record {
             /*
              * mean{data}
              */
-			for (sv, observables) in svs {
-				for (observable, observation) in observables {
-					if let Some(data) = sum.1.get_mut(sv) {
-						if let Some((count, sum)) = data.get_mut(observable) {
-							*count += 1;
-							*sum += observation.obs;
-						} else {
-							data.insert(observable.clone(), (1, observation.obs));
-						}
-					} else {
-						let mut map: HashMap<Observable, (u32, f64)> = HashMap::new();
-						map.insert(observable.clone(), (1, observation.obs));
-						sum.1.insert(*sv, map);
-					}
-				}
-			}
-		}
-		let mut ret: (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) = (None, HashMap::new());
+            for (sv, observables) in svs {
+                for (observable, observation) in observables {
+                    if let Some(data) = sum.1.get_mut(sv) {
+                        if let Some((count, sum)) = data.get_mut(observable) {
+                            *count += 1;
+                            *sum += observation.obs;
+                        } else {
+                            data.insert(observable.clone(), (1, observation.obs));
+                        }
+                    } else {
+                        let mut map: HashMap<Observable, (u32, f64)> = HashMap::new();
+                        map.insert(observable.clone(), (1, observation.obs));
+                        sum.1.insert(*sv, map);
+                    }
+                }
+            }
+        }
+        let mut ret: (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) = (None, HashMap::new());
         /*
          * mean{clk}
          */
@@ -1356,69 +1350,72 @@ impl Processing for Record {
         /*
          * mean{data}
          */
-		for (sv, observables) in sum.1 {
-			for (observable, (count, sum)) in observables {
-				if let Some(data) = ret.1.get_mut(&sv) {
-					if let Some(data) = data.get_mut(&observable) {
-						*data = sum / count as f64;
-					} else {
-						data.insert(observable.clone(), sum / count as f64);
-					}
-				} else {
-					let mut map: HashMap<Observable, f64> = HashMap::new();
-					map.insert(observable.clone(), sum / count as f64);
-					ret.1.insert(sv, map);
-				}
-			}
-		}
-		ret
-	}
-	fn mean_observable(&self) -> HashMap<Observable, f64> {
-		let mean = self.mean().1;
-		let mut sum:  HashMap<Observable, (u32, f64)> = HashMap::new();
-		for (_sv, observables) in mean {
-			for (observable, mean) in observables {
-				if let Some((count, sum)) = sum.get_mut(&observable) {
-					*count += 1;
-					*sum += mean;
-				} else {
-					sum.insert(observable.clone(), (1, mean));
-				}
-			}
-		}
-		sum.iter()
-			.map(|(k, (count, sum))| {
-				(k.clone(), sum / *count as f64)
-			})
-			.collect()
-	}
-	fn stddev(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
-		let mut stdvar = self.stdvar();
-        if let Some(mut data) = stdvar.0 { // {clk}
+        for (sv, observables) in sum.1 {
+            for (observable, (count, sum)) in observables {
+                if let Some(data) = ret.1.get_mut(&sv) {
+                    if let Some(data) = data.get_mut(&observable) {
+                        *data = sum / count as f64;
+                    } else {
+                        data.insert(observable.clone(), sum / count as f64);
+                    }
+                } else {
+                    let mut map: HashMap<Observable, f64> = HashMap::new();
+                    map.insert(observable.clone(), sum / count as f64);
+                    ret.1.insert(sv, map);
+                }
+            }
+        }
+        ret
+    }
+    fn mean_observable(&self) -> HashMap<Observable, f64> {
+        let mean = self.mean().1;
+        let mut sum: HashMap<Observable, (u32, f64)> = HashMap::new();
+        for (_sv, observables) in mean {
+            for (observable, mean) in observables {
+                if let Some((count, sum)) = sum.get_mut(&observable) {
+                    *count += 1;
+                    *sum += mean;
+                } else {
+                    sum.insert(observable.clone(), (1, mean));
+                }
+            }
+        }
+        sum.iter()
+            .map(|(k, (count, sum))| (k.clone(), sum / *count as f64))
+            .collect()
+    }
+    fn stddev(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
+        let mut stdvar = self.stdvar();
+        if let Some(mut data) = stdvar.0 {
+            // {clk}
             data = data.sqrt();
         }
-		for (_, observables) in stdvar.1.iter_mut() { // {data}
-			for (_observable, data) in observables.iter_mut() {
-				*data = data.sqrt();
-			}
-		}
-		stdvar
-	}
-	fn stddev_observable(&self) -> HashMap<Observable, f64> {
-		let mut stdvar = self.stdvar_observable();
-		for (_, data) in stdvar.iter_mut() {
-			*data = data.sqrt();
-		}
-		stdvar
-	}
-	fn stdvar(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
+        for (_, observables) in stdvar.1.iter_mut() {
+            // {data}
+            for (_observable, data) in observables.iter_mut() {
+                *data = data.sqrt();
+            }
+        }
+        stdvar
+    }
+    fn stddev_observable(&self) -> HashMap<Observable, f64> {
+        let mut stdvar = self.stdvar_observable();
+        for (_, data) in stdvar.iter_mut() {
+            *data = data.sqrt();
+        }
+        stdvar
+    }
+    fn stdvar(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
         self.central_moment(2)
     }
     fn central_moment(&self, order: u16) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
-		let mean = self.mean();
-		let ret: (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) = (None, HashMap::new());
-		let mut diff: (Option<(u32, f64)>, HashMap<Sv, HashMap<Observable, (u32, f64)>>) = (None, HashMap::new());
-		for (_, (clk, svs)) in self {
+        let mean = self.mean();
+        let ret: (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) = (None, HashMap::new());
+        let mut diff: (
+            Option<(u32, f64)>,
+            HashMap<Sv, HashMap<Observable, (u32, f64)>>,
+        ) = (None, HashMap::new());
+        for (_, (clk, svs)) in self {
             /*
              * |x_i -x|{clk}
              */
@@ -1433,28 +1430,31 @@ impl Processing for Record {
             /*
              * |x_i -x|{data}
              */
-			for (sv, observables) in svs {
-				for (observable, observation) in observables {
-					let mean = mean.1.get(&sv)
-						.unwrap()
-							.get(&observable)
-							.unwrap();
-					if let Some(data) = diff.1.get_mut(sv) {
-						if let Some((count, diff)) = data.get_mut(observable) {
-							*count += 1;
-							*diff += (observation.obs - mean).powf(order as f64);
-						} else {
-							data.insert(observable.clone(), (1, (observation.obs - mean).powf(order as f64))); 
-						}
-					} else {
-						let mut map: HashMap<Observable, (u32, f64)> = HashMap::new();
-						map.insert(observable.clone(), (1, (observation.obs - mean).powf(order as f64))); 
-						diff.1.insert(*sv, map);
-					}
-				}
-			}
-		}
-		let mut ret: (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) = (None, HashMap::new());
+            for (sv, observables) in svs {
+                for (observable, observation) in observables {
+                    let mean = mean.1.get(&sv).unwrap().get(&observable).unwrap();
+                    if let Some(data) = diff.1.get_mut(sv) {
+                        if let Some((count, diff)) = data.get_mut(observable) {
+                            *count += 1;
+                            *diff += (observation.obs - mean).powf(order as f64);
+                        } else {
+                            data.insert(
+                                observable.clone(),
+                                (1, (observation.obs - mean).powf(order as f64)),
+                            );
+                        }
+                    } else {
+                        let mut map: HashMap<Observable, (u32, f64)> = HashMap::new();
+                        map.insert(
+                            observable.clone(),
+                            (1, (observation.obs - mean).powf(order as f64)),
+                        );
+                        diff.1.insert(*sv, map);
+                    }
+                }
+            }
+        }
+        let mut ret: (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) = (None, HashMap::new());
         /*
          * stdvar{clk}
          */
@@ -1464,60 +1464,65 @@ impl Processing for Record {
         /*
          * stdvar{data}
          */
-		for (sv, observables) in diff.1 {
-			for (observable, (count, diff)) in observables {
-				if let Some(data) = ret.1.get_mut(&sv) {
-					if let Some(data) = data.get_mut(&observable) {
-						*data = diff /  count as f64;
-					} else {
-						data.insert(observable.clone(), diff /  count as f64); 
-					}
-				} else {
-					let mut map: HashMap<Observable, f64> = HashMap::new();
-					map.insert(observable.clone(), diff /  count as f64); 
-					ret.1.insert(sv, map);
-				}
-			}
-		}
-		ret
-	}
-	fn stdvar_observable(&self) -> HashMap<Observable, f64> {
+        for (sv, observables) in diff.1 {
+            for (observable, (count, diff)) in observables {
+                if let Some(data) = ret.1.get_mut(&sv) {
+                    if let Some(data) = data.get_mut(&observable) {
+                        *data = diff / count as f64;
+                    } else {
+                        data.insert(observable.clone(), diff / count as f64);
+                    }
+                } else {
+                    let mut map: HashMap<Observable, f64> = HashMap::new();
+                    map.insert(observable.clone(), diff / count as f64);
+                    ret.1.insert(sv, map);
+                }
+            }
+        }
+        ret
+    }
+    fn stdvar_observable(&self) -> HashMap<Observable, f64> {
         self.central_moment_observable(2)
     }
     fn central_moment_observable(&self, order: u16) -> HashMap<Observable, f64> {
-		let mean = self.mean_observable();
-		let mut diff: HashMap<Observable, (u32, f64)> = HashMap::new();
-		for (_, (_, svs)) in self {
-			for (sv, observables) in svs {
-				for (observable, observation) in observables {
-					let mean = mean.get(&observable)
-						.unwrap();
-					if let Some((count, diff)) = diff.get_mut(observable) {
-						*count += 1;
-						*diff += (observation.obs - mean).powf(order as f64);
-					} else {
-						diff.insert(observable.clone(), (1, (observation.obs - mean).powf(order as f64)));
-					}
-				}
-			}
-		}
-		diff.iter()
-			.map(|(observable, (count, diff))| {
-				(observable.clone(), diff / *count as f64)
-			})
-			.collect()
-	}
-	fn derivative(&self) -> Record {
-		let mut prev: (Option<(Epoch, f64)>, BTreeMap<Sv, HashMap<Observable, (Epoch, f64)>>) = (None, BTreeMap::new());
-		let mut ret: Record = Record::new();
-		for ((epoch, flag), (clk, svs)) in self {
+        let mean = self.mean_observable();
+        let mut diff: HashMap<Observable, (u32, f64)> = HashMap::new();
+        for (_, (_, svs)) in self {
+            for (sv, observables) in svs {
+                for (observable, observation) in observables {
+                    let mean = mean.get(&observable).unwrap();
+                    if let Some((count, diff)) = diff.get_mut(observable) {
+                        *count += 1;
+                        *diff += (observation.obs - mean).powf(order as f64);
+                    } else {
+                        diff.insert(
+                            observable.clone(),
+                            (1, (observation.obs - mean).powf(order as f64)),
+                        );
+                    }
+                }
+            }
+        }
+        diff.iter()
+            .map(|(observable, (count, diff))| (observable.clone(), diff / *count as f64))
+            .collect()
+    }
+    fn derivative(&self) -> Record {
+        let mut prev: (
+            Option<(Epoch, f64)>,
+            BTreeMap<Sv, HashMap<Observable, (Epoch, f64)>>,
+        ) = (None, BTreeMap::new());
+        let mut ret: Record = Record::new();
+        for ((epoch, flag), (clk, svs)) in self {
             /*
              * d/dt{clk}
              */
             let mut new_clk: Option<f64> = None;
             if let Some(clk) = clk {
                 if let Some((mut prev_epoch, mut prev_data)) = prev.0 {
-                    new_clk = Some((*clk - prev_data) / (*epoch - prev_epoch).to_unit(hifitime::Unit::Second));
+                    new_clk = Some(
+                        (*clk - prev_data) / (*epoch - prev_epoch).to_unit(hifitime::Unit::Second),
+                    );
                     prev_epoch = *epoch;
                     prev_data = *clk;
                 } else {
@@ -1525,74 +1530,86 @@ impl Processing for Record {
                 }
             }
             /*
-             * d/dt{data} 
+             * d/dt{data}
              */
-			for (sv, observables) in svs {
-				for (observable, observation) in observables {
-					if let Some(prev) = prev.1.get_mut(&sv) {
-						if let Some((mut prev_epoch, mut prev_data)) = prev.get_mut(&observable) {
-							if let Some((clk, data)) = ret.get_mut(&(*epoch, *flag)) {
+            for (sv, observables) in svs {
+                for (observable, observation) in observables {
+                    if let Some(prev) = prev.1.get_mut(&sv) {
+                        if let Some((mut prev_epoch, mut prev_data)) = prev.get_mut(&observable) {
+                            if let Some((clk, data)) = ret.get_mut(&(*epoch, *flag)) {
                                 *clk = new_clk;
-								if let Some(data) = data.get_mut(&sv) {
-									if let Some(data) = data.get_mut(&observable) {
-										*data = ObservationData {
-                                            obs: (observation.obs - prev_data) / (*epoch - prev_epoch).to_unit(hifitime::Unit::Second),
+                                if let Some(data) = data.get_mut(&sv) {
+                                    if let Some(data) = data.get_mut(&observable) {
+                                        *data = ObservationData {
+                                            obs: (observation.obs - prev_data)
+                                                / (*epoch - prev_epoch)
+                                                    .to_unit(hifitime::Unit::Second),
                                             lli: data.lli,
                                             snr: data.snr,
                                         };
-
-									} else {
-										data.insert(
-                                            observable.clone(), 
+                                    } else {
+                                        data.insert(
+                                            observable.clone(),
                                             ObservationData {
-                                                obs: (observation.obs - prev_data) / (*epoch - prev_epoch).to_unit(hifitime::Unit::Second),
+                                                obs: (observation.obs - prev_data)
+                                                    / (*epoch - prev_epoch)
+                                                        .to_unit(hifitime::Unit::Second),
                                                 lli: observation.lli,
                                                 snr: observation.snr,
-                                            });
-									}
-								} else {
-									let mut map: HashMap<Observable, ObservationData> = HashMap::new();
-									map.insert(
-                                        observable.clone(), 
+                                            },
+                                        );
+                                    }
+                                } else {
+                                    let mut map: HashMap<Observable, ObservationData> =
+                                        HashMap::new();
+                                    map.insert(
+                                        observable.clone(),
                                         ObservationData {
-                                            obs: (observation.obs - prev_data) / (*epoch - prev_epoch).to_unit(hifitime::Unit::Second),
+                                            obs: (observation.obs - prev_data)
+                                                / (*epoch - prev_epoch)
+                                                    .to_unit(hifitime::Unit::Second),
                                             lli: observation.lli,
                                             snr: observation.snr,
-                                        });
-									data.insert(*sv, map);
-								}
-							} else {
-								let mut map: HashMap<Observable, ObservationData> = HashMap::new();
-								map.insert(
-                                    observable.clone(), 
+                                        },
+                                    );
+                                    data.insert(*sv, map);
+                                }
+                            } else {
+                                let mut map: HashMap<Observable, ObservationData> = HashMap::new();
+                                map.insert(
+                                    observable.clone(),
                                     ObservationData {
-                                        obs: (observation.obs - prev_data) / (*epoch - prev_epoch).to_unit(hifitime::Unit::Second),
+                                        obs: (observation.obs - prev_data)
+                                            / (*epoch - prev_epoch).to_unit(hifitime::Unit::Second),
                                         lli: observation.lli,
                                         snr: observation.snr,
-                                    });
-								let mut mmap: BTreeMap<Sv, HashMap<Observable, ObservationData>> = BTreeMap::new();
-								mmap.insert(*sv, map);
-								ret.insert((*epoch, *flag), (new_clk, mmap));
-							}
+                                    },
+                                );
+                                let mut mmap: BTreeMap<Sv, HashMap<Observable, ObservationData>> =
+                                    BTreeMap::new();
+                                mmap.insert(*sv, map);
+                                ret.insert((*epoch, *flag), (new_clk, mmap));
+                            }
                             prev_epoch = *epoch;
                             prev_data = observation.obs;
-						} else {
-							prev.insert(observable.clone(), (*epoch, observation.obs));
-						}
-					} else {
-						let mut map: HashMap<Observable, (Epoch, f64)> = HashMap::new();
-						map.insert(observable.clone(), (*epoch, observation.obs));
-						prev.1.insert(*sv, map);
-					}
-				}
-			}
-		}
-		ret
-	}
+                        } else {
+                            prev.insert(observable.clone(), (*epoch, observation.obs));
+                        }
+                    } else {
+                        let mut map: HashMap<Observable, (Epoch, f64)> = HashMap::new();
+                        map.insert(observable.clone(), (*epoch, observation.obs));
+                        prev.1.insert(*sv, map);
+                    }
+                }
+            }
+        }
+        ret
+    }
     fn skewness(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
         let stddev = self.stddev();
         let central_moment = self.central_moment(3);
-        let mut ret: (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) = (None, HashMap::with_capacity(stddev.1.len()));
+        let mut ret: (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) =
+            (None, HashMap::with_capacity(stddev.1.len()));
         /*
          * skew{clk}
          */
@@ -1609,9 +1626,9 @@ impl Processing for Record {
                 for (observable, stddev) in observables {
                     if let Some(moment) = moment_observables.get(&observable) {
                         if let Some(data) = ret.1.get_mut(&sv) {
-                            data.insert(observable.clone(), moment/ stddev.powf(3.0));
+                            data.insert(observable.clone(), moment / stddev.powf(3.0));
                         } else {
-                            let mut map:  HashMap<Observable, f64> = HashMap::new();
+                            let mut map: HashMap<Observable, f64> = HashMap::new();
                             map.insert(observable.clone(), moment / stddev.powf(3.0));
                             ret.1.insert(sv, map);
                         }
@@ -1637,527 +1654,572 @@ impl Processing for Record {
 /*
  * Forms all GF combinations
  */
-fn gf_combination(record: &Record) -> HashMap<(Observable, Observable), BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
-	let mut ret:  HashMap<(Observable, Observable), BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>
-		= HashMap::new();
-	for (epoch, (_, vehicules)) in record {
-		for (sv, observations) in vehicules {
-			for (lhs_observable, lhs_data) in observations {
-				if !lhs_observable.is_phase_observable()
-					&& !lhs_observable.is_pseudorange_observable()
-				{
-					continue; // only for these two physics
-				}
-				let lhs_code = lhs_observable.to_string();
-				let lhs_carrier = &lhs_code[1..2];
+fn gf_combination(
+    record: &Record,
+) -> HashMap<(Observable, Observable), BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
+    let mut ret: HashMap<
+        (Observable, Observable),
+        BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>,
+    > = HashMap::new();
+    for (epoch, (_, vehicules)) in record {
+        for (sv, observations) in vehicules {
+            for (lhs_observable, lhs_data) in observations {
+                if !lhs_observable.is_phase_observable()
+                    && !lhs_observable.is_pseudorange_observable()
+                {
+                    continue; // only for these two physics
+                }
+                let lhs_code = lhs_observable.to_string();
+                let lhs_carrier = &lhs_code[1..2];
 
-				// determine another carrier
-				let rhs_carrier = match lhs_carrier {
-					// this will restrict combinations to
-					"1" => "2", // 1 against 2
-					_ => "1",   // M > 1 against 1
-				};
-				
-				// locate a reference code against another carrier
-				let mut reference: Option<(Observable, (f64, f64, f64))> = None;
-				for (ref_observable, ref_data) in observations {
-					let mut shared_physics = ref_observable.is_phase_observable()
-						&& lhs_observable.is_phase_observable();
-					shared_physics |= ref_observable.is_pseudorange_observable()
-						&& lhs_observable.is_pseudorange_observable();
-					if !shared_physics {
-						continue;
-					}
+                // determine another carrier
+                let rhs_carrier = match lhs_carrier {
+                    // this will restrict combinations to
+                    "1" => "2", // 1 against 2
+                    _ => "1",   // M > 1 against 1
+                };
 
-					let refcode = ref_observable.to_string();
-					let carrier_code = &refcode[1..2];
-					if carrier_code == rhs_carrier {
-						if ref_observable.is_phase_observable() {
-							let carrier = ref_observable.carrier(sv.constellation)
-                                .unwrap();
-							reference = Some((ref_observable.clone(), (carrier.carrier_wavelength(), carrier.carrier_frequency(), ref_data.obs)));
-						} else {
-							reference = Some((ref_observable.clone(), (1.0, 1.0, ref_data.obs)));
-						}
-						break; // DONE searching
-					}
-				}
+                // locate a reference code against another carrier
+                let mut reference: Option<(Observable, (f64, f64, f64))> = None;
+                for (ref_observable, ref_data) in observations {
+                    let mut shared_physics = ref_observable.is_phase_observable()
+                        && lhs_observable.is_phase_observable();
+                    shared_physics |= ref_observable.is_pseudorange_observable()
+                        && lhs_observable.is_pseudorange_observable();
+                    if !shared_physics {
+                        continue;
+                    }
 
-				if let Some((ref_observable, (ref_lambda, ref_freq, ref_data))) = reference { // got a reference
-					let gf = match ref_observable.is_phase_observable() {
-						true => {
-							let carrier = lhs_observable.carrier(sv.constellation)
-                                .unwrap();
-							let lhs_lambda = carrier.carrier_wavelength();
-							let lhs_freq = carrier.carrier_frequency();
-							let gamma = lhs_freq / ref_freq;
-							let total_scaling = 1.0 / (gamma.powf(2.0) - 1.0);
-							(lhs_data.obs * lhs_lambda - ref_data * ref_lambda) * total_scaling 
-						},
-						false => ref_data - lhs_data.obs, // PR: sign differs
-					};
-					
-					if let Some(data) = ret.get_mut(&(lhs_observable.clone(), ref_observable.clone())) {
-						if let Some(data) = data.get_mut(&sv) {
-							data.insert(*epoch, gf);
-						} else {
-							let mut bmap: BTreeMap<(Epoch, EpochFlag), f64> =
-								BTreeMap::new();
-							bmap.insert(*epoch, gf);
-							data.insert(*sv, bmap);
-						}
-					} else { // new combination
-						let mut inject = true; // insert only if not already combined to some other signal 
-						for ((lhs, rhs), _) in &ret {
-							if lhs == lhs_observable {
-								inject = false;
-								break;
-							}
-							if rhs == lhs_observable {
-								inject = false;
-								break;
-							}
-						}
-						if inject {
-							let mut bmap: BTreeMap<(Epoch, EpochFlag), f64> =
-								BTreeMap::new();
-							bmap.insert(*epoch, gf);
-							let mut map: BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>> =
-								BTreeMap::new();
-							map.insert(*sv, bmap);
-							ret.insert((lhs_observable.clone(), ref_observable), map);
-						}
-					}
-				}
-			}
-		}
-	}
-	ret
+                    let refcode = ref_observable.to_string();
+                    let carrier_code = &refcode[1..2];
+                    if carrier_code == rhs_carrier {
+                        if ref_observable.is_phase_observable() {
+                            let carrier = ref_observable.carrier(sv.constellation).unwrap();
+                            reference = Some((
+                                ref_observable.clone(),
+                                (
+                                    carrier.carrier_wavelength(),
+                                    carrier.carrier_frequency(),
+                                    ref_data.obs,
+                                ),
+                            ));
+                        } else {
+                            reference = Some((ref_observable.clone(), (1.0, 1.0, ref_data.obs)));
+                        }
+                        break; // DONE searching
+                    }
+                }
+
+                if let Some((ref_observable, (ref_lambda, ref_freq, ref_data))) = reference {
+                    // got a reference
+                    let gf = match ref_observable.is_phase_observable() {
+                        true => {
+                            let carrier = lhs_observable.carrier(sv.constellation).unwrap();
+                            let lhs_lambda = carrier.carrier_wavelength();
+                            let lhs_freq = carrier.carrier_frequency();
+                            let gamma = lhs_freq / ref_freq;
+                            let total_scaling = 1.0 / (gamma.powf(2.0) - 1.0);
+                            (lhs_data.obs * lhs_lambda - ref_data * ref_lambda) * total_scaling
+                        },
+                        false => ref_data - lhs_data.obs, // PR: sign differs
+                    };
+
+                    if let Some(data) =
+                        ret.get_mut(&(lhs_observable.clone(), ref_observable.clone()))
+                    {
+                        if let Some(data) = data.get_mut(&sv) {
+                            data.insert(*epoch, gf);
+                        } else {
+                            let mut bmap: BTreeMap<(Epoch, EpochFlag), f64> = BTreeMap::new();
+                            bmap.insert(*epoch, gf);
+                            data.insert(*sv, bmap);
+                        }
+                    } else {
+                        // new combination
+                        let mut inject = true; // insert only if not already combined to some other signal
+                        for ((lhs, rhs), _) in &ret {
+                            if lhs == lhs_observable {
+                                inject = false;
+                                break;
+                            }
+                            if rhs == lhs_observable {
+                                inject = false;
+                                break;
+                            }
+                        }
+                        if inject {
+                            let mut bmap: BTreeMap<(Epoch, EpochFlag), f64> = BTreeMap::new();
+                            bmap.insert(*epoch, gf);
+                            let mut map: BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>> =
+                                BTreeMap::new();
+                            map.insert(*sv, bmap);
+                            ret.insert((lhs_observable.clone(), ref_observable), map);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    ret
 }
 
 /*
  * Forms all NL combinations
  */
-fn nl_combination(record: &Record) -> HashMap<(Observable, Observable), BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
-	let mut ret:  HashMap<(Observable, Observable), BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>
-		= HashMap::new();
-	for (epoch, (_, vehicules)) in record {
-		for (sv, observations) in vehicules {
-			for (lhs_observable, lhs_data) in observations {
-				if !lhs_observable.is_phase_observable()
-					&& !lhs_observable.is_pseudorange_observable()
-				{
-					continue; // only for these two physics
-				}
-				let lhs_code = lhs_observable.to_string();
-				let lhs_carrier = &lhs_code[1..2];
-				
-				// determine another carrier
-				let rhs_carrier = match lhs_carrier {
-					// this will restrict combinations to
-					"1" => "2", // 1 against 2
-					_ => "1",   // M > 1 against 1
-				};
-				
-				// locate a reference code against another carrier
-				let mut reference: Option<(Observable, f64)> = None;
-				for (ref_observable, ref_data) in observations {
-					let mut shared_physics = ref_observable.is_phase_observable()
-						&& lhs_observable.is_phase_observable();
-					shared_physics |= ref_observable.is_pseudorange_observable()
-						&& lhs_observable.is_pseudorange_observable();
-					if !shared_physics {
-						continue;
-					}
+fn nl_combination(
+    record: &Record,
+) -> HashMap<(Observable, Observable), BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
+    let mut ret: HashMap<
+        (Observable, Observable),
+        BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>,
+    > = HashMap::new();
+    for (epoch, (_, vehicules)) in record {
+        for (sv, observations) in vehicules {
+            for (lhs_observable, lhs_data) in observations {
+                if !lhs_observable.is_phase_observable()
+                    && !lhs_observable.is_pseudorange_observable()
+                {
+                    continue; // only for these two physics
+                }
+                let lhs_code = lhs_observable.to_string();
+                let lhs_carrier = &lhs_code[1..2];
 
-					let refcode = ref_observable.to_string();
-					let carrier_code = &refcode[1..2];
-					if carrier_code == rhs_carrier {
-						reference = Some((ref_observable.clone(), ref_data.obs));
-						break; // DONE searching
-					}
-				}
+                // determine another carrier
+                let rhs_carrier = match lhs_carrier {
+                    // this will restrict combinations to
+                    "1" => "2", // 1 against 2
+                    _ => "1",   // M > 1 against 1
+                };
 
-				if let Some((ref_observable, ref_data)) = reference { // got a reference
-					let gf = match ref_observable.is_phase_observable() {
-						true => lhs_data.obs - ref_data, 
-						false => ref_data - lhs_data.obs, // PR: sign differs
-					};
-					
-					if let Some(data) = ret.get_mut(&(lhs_observable.clone(), ref_observable.clone())) {
-						if let Some(data) = data.get_mut(&sv) {
-							data.insert(*epoch, gf);
-						} else {
-							let mut bmap: BTreeMap<(Epoch, EpochFlag), f64> =
-								BTreeMap::new();
-							bmap.insert(*epoch, gf);
-							data.insert(*sv, bmap);
-						}
-					} else { // new combination
-						let mut inject = true; // insert only if not already combined to some other signal 
-						for ((lhs, rhs), _) in &ret {
-							if lhs == lhs_observable {
-								inject = false;
-								break;
-							}
-							if rhs == lhs_observable {
-								inject = false;
-								break;
-							}
-						}
-						if inject {
-							let mut bmap: BTreeMap<(Epoch, EpochFlag), f64> =
-								BTreeMap::new();
-							bmap.insert(*epoch, gf);
-							let mut map: BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>> =
-								BTreeMap::new();
-							map.insert(*sv, bmap);
-							ret.insert((lhs_observable.clone(), ref_observable), map);
-						}
-					}
-				}
-			}
-		}
-	}
-	ret
+                // locate a reference code against another carrier
+                let mut reference: Option<(Observable, f64)> = None;
+                for (ref_observable, ref_data) in observations {
+                    let mut shared_physics = ref_observable.is_phase_observable()
+                        && lhs_observable.is_phase_observable();
+                    shared_physics |= ref_observable.is_pseudorange_observable()
+                        && lhs_observable.is_pseudorange_observable();
+                    if !shared_physics {
+                        continue;
+                    }
+
+                    let refcode = ref_observable.to_string();
+                    let carrier_code = &refcode[1..2];
+                    if carrier_code == rhs_carrier {
+                        reference = Some((ref_observable.clone(), ref_data.obs));
+                        break; // DONE searching
+                    }
+                }
+
+                if let Some((ref_observable, ref_data)) = reference {
+                    // got a reference
+                    let gf = match ref_observable.is_phase_observable() {
+                        true => lhs_data.obs - ref_data,
+                        false => ref_data - lhs_data.obs, // PR: sign differs
+                    };
+
+                    if let Some(data) =
+                        ret.get_mut(&(lhs_observable.clone(), ref_observable.clone()))
+                    {
+                        if let Some(data) = data.get_mut(&sv) {
+                            data.insert(*epoch, gf);
+                        } else {
+                            let mut bmap: BTreeMap<(Epoch, EpochFlag), f64> = BTreeMap::new();
+                            bmap.insert(*epoch, gf);
+                            data.insert(*sv, bmap);
+                        }
+                    } else {
+                        // new combination
+                        let mut inject = true; // insert only if not already combined to some other signal
+                        for ((lhs, rhs), _) in &ret {
+                            if lhs == lhs_observable {
+                                inject = false;
+                                break;
+                            }
+                            if rhs == lhs_observable {
+                                inject = false;
+                                break;
+                            }
+                        }
+                        if inject {
+                            let mut bmap: BTreeMap<(Epoch, EpochFlag), f64> = BTreeMap::new();
+                            bmap.insert(*epoch, gf);
+                            let mut map: BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>> =
+                                BTreeMap::new();
+                            map.insert(*sv, bmap);
+                            ret.insert((lhs_observable.clone(), ref_observable), map);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    ret
 }
 
 /*
  * Forms all WL combinations
  */
-fn wl_combination(record: &Record) -> HashMap<(Observable, Observable), BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
-	let mut ret:  HashMap<(Observable, Observable), BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>
-		= HashMap::new();
-	for (epoch, (_, vehicules)) in record {
-		for (sv, observations) in vehicules {
-			for (lhs_observable, lhs_data) in observations {
-				if !lhs_observable.is_phase_observable() {
-					continue; // only on phase data 
-				}
-				let lhs_code = lhs_observable.to_string();
-				let lhs_carrier = &lhs_code[1..2];
-				
-				// determine another carrier
-				let rhs_carrier = match lhs_carrier {
-					// this will restrict combinations to
-					"1" => "2", // 1 against 2
-					_ => "1",   // M > 1 against 1
-				};
-                
-                let lhs_carrier = Carrier::from_observable(sv.constellation, lhs_observable)
-                    .unwrap();
-				
-				// locate a reference code against another carrier
-				let mut reference: Option<(Observable, f64, f64)> = None;
-				for (ref_observable, ref_data) in observations {
+fn wl_combination(
+    record: &Record,
+) -> HashMap<(Observable, Observable), BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
+    let mut ret: HashMap<
+        (Observable, Observable),
+        BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>,
+    > = HashMap::new();
+    for (epoch, (_, vehicules)) in record {
+        for (sv, observations) in vehicules {
+            for (lhs_observable, lhs_data) in observations {
+                if !lhs_observable.is_phase_observable() {
+                    continue; // only on phase data
+                }
+                let lhs_code = lhs_observable.to_string();
+                let lhs_carrier = &lhs_code[1..2];
+
+                // determine another carrier
+                let rhs_carrier = match lhs_carrier {
+                    // this will restrict combinations to
+                    "1" => "2", // 1 against 2
+                    _ => "1",   // M > 1 against 1
+                };
+
+                let lhs_carrier =
+                    Carrier::from_observable(sv.constellation, lhs_observable).unwrap();
+
+                // locate a reference code against another carrier
+                let mut reference: Option<(Observable, f64, f64)> = None;
+                for (ref_observable, ref_data) in observations {
                     if ref_observable == lhs_observable {
-                        continue ; // must differ
+                        continue; // must differ
                     }
-					let both_phase = ref_observable.is_phase_observable()
-						&& lhs_observable.is_phase_observable();
-					if !both_phase {
-						continue;
-					}
+                    let both_phase = ref_observable.is_phase_observable()
+                        && lhs_observable.is_phase_observable();
+                    if !both_phase {
+                        continue;
+                    }
 
-					let refcode = ref_observable.to_string();
-					let carrier_code = &refcode[1..2];
-					if carrier_code != rhs_carrier {
-                        let rhs_carrier = 
-                            Carrier::from_observable(sv.constellation, ref_observable)
-                            .unwrap();
-						reference = Some((ref_observable.clone(), ref_data.obs, rhs_carrier.carrier_frequency()));
-						break; // DONE searching
-					}
-				}
+                    let refcode = ref_observable.to_string();
+                    let carrier_code = &refcode[1..2];
+                    if carrier_code != rhs_carrier {
+                        let rhs_carrier =
+                            Carrier::from_observable(sv.constellation, ref_observable).unwrap();
+                        reference = Some((
+                            ref_observable.clone(),
+                            ref_data.obs,
+                            rhs_carrier.carrier_frequency(),
+                        ));
+                        break; // DONE searching
+                    }
+                }
 
-				if let Some((ref_observable, ref_data, ref_freq)) = reference { // got a reference
+                if let Some((ref_observable, ref_data, ref_freq)) = reference {
+                    // got a reference
                     let yp = 299_792_458.0_f64 * (lhs_data.obs - ref_data)
-                        / (lhs_carrier.carrier_frequency() - ref_freq); 
-					
-					if let Some(data) = ret.get_mut(&(lhs_observable.clone(), ref_observable.clone())) {
-						if let Some(data) = data.get_mut(&sv) {
-							data.insert(*epoch, yp);
-						} else {
-							let mut bmap: BTreeMap<(Epoch, EpochFlag), f64> =
-								BTreeMap::new();
-							bmap.insert(*epoch, yp);
-							data.insert(*sv, bmap);
-						}
-					} else { // new combination
-						let mut inject = true; // insert only if not already combined to some other signal 
-						for ((lhs, rhs), _) in &ret {
-							if lhs == lhs_observable {
-								inject = false;
-								break;
-							}
-							if rhs == lhs_observable {
-								inject = false;
-								break;
-							}
-						}
-						if inject {
-							let mut bmap: BTreeMap<(Epoch, EpochFlag), f64> =
-								BTreeMap::new();
-							bmap.insert(*epoch, yp);
-							let mut map: BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>> =
-								BTreeMap::new();
-							map.insert(*sv, bmap);
-							ret.insert((lhs_observable.clone(), ref_observable), map);
-						}
-					}
-				}
-			}
-		}
-	}
-	ret
+                        / (lhs_carrier.carrier_frequency() - ref_freq);
+
+                    if let Some(data) =
+                        ret.get_mut(&(lhs_observable.clone(), ref_observable.clone()))
+                    {
+                        if let Some(data) = data.get_mut(&sv) {
+                            data.insert(*epoch, yp);
+                        } else {
+                            let mut bmap: BTreeMap<(Epoch, EpochFlag), f64> = BTreeMap::new();
+                            bmap.insert(*epoch, yp);
+                            data.insert(*sv, bmap);
+                        }
+                    } else {
+                        // new combination
+                        let mut inject = true; // insert only if not already combined to some other signal
+                        for ((lhs, rhs), _) in &ret {
+                            if lhs == lhs_observable {
+                                inject = false;
+                                break;
+                            }
+                            if rhs == lhs_observable {
+                                inject = false;
+                                break;
+                            }
+                        }
+                        if inject {
+                            let mut bmap: BTreeMap<(Epoch, EpochFlag), f64> = BTreeMap::new();
+                            bmap.insert(*epoch, yp);
+                            let mut map: BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>> =
+                                BTreeMap::new();
+                            map.insert(*sv, bmap);
+                            ret.insert((lhs_observable.clone(), ref_observable), map);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    ret
 }
 
 /*
  * Forms all MW combinations
  */
-fn mw_combination(record: &Record) -> HashMap<(Observable, Observable), BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
-	let mut ret:  HashMap<(Observable, Observable), BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>
-		= HashMap::new();
-	for (epoch, (_, vehicules)) in record {
-		for (sv, observations) in vehicules {
-			for (lhs_observable, lhs_data) in observations {
-				if !lhs_observable.is_phase_observable()
-					&& !lhs_observable.is_pseudorange_observable()
-				{
-					continue; // only for these two physics
-				}
-				let lhs_code = lhs_observable.to_string();
-				let lhs_carrier = &lhs_code[1..2];
-				
-				// determine another carrier
-				let rhs_carrier = match lhs_carrier {
-					// this will restrict combinations to
-					"1" => "2", // 1 against 2
-					_ => "1",   // M > 1 against 1
-				};
-				
-				// locate a reference code against another carrier
-				let mut reference: Option<(Observable, f64)> = None;
-				for (ref_observable, ref_data) in observations {
-					let mut shared_physics = ref_observable.is_phase_observable()
-						&& lhs_observable.is_phase_observable();
-					shared_physics |= ref_observable.is_pseudorange_observable()
-						&& lhs_observable.is_pseudorange_observable();
-					if !shared_physics {
-						continue;
-					}
+fn mw_combination(
+    record: &Record,
+) -> HashMap<(Observable, Observable), BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
+    let mut ret: HashMap<
+        (Observable, Observable),
+        BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>,
+    > = HashMap::new();
+    for (epoch, (_, vehicules)) in record {
+        for (sv, observations) in vehicules {
+            for (lhs_observable, lhs_data) in observations {
+                if !lhs_observable.is_phase_observable()
+                    && !lhs_observable.is_pseudorange_observable()
+                {
+                    continue; // only for these two physics
+                }
+                let lhs_code = lhs_observable.to_string();
+                let lhs_carrier = &lhs_code[1..2];
 
-					let refcode = ref_observable.to_string();
-					let carrier_code = &refcode[1..2];
-					if carrier_code == rhs_carrier {
-						reference = Some((ref_observable.clone(), ref_data.obs));
-						break; // DONE searching
-					}
-				}
+                // determine another carrier
+                let rhs_carrier = match lhs_carrier {
+                    // this will restrict combinations to
+                    "1" => "2", // 1 against 2
+                    _ => "1",   // M > 1 against 1
+                };
 
-				if let Some((ref_observable, ref_data)) = reference { // got a reference
-					let gf = match ref_observable.is_phase_observable() {
-						true => lhs_data.obs - ref_data, 
-						false => ref_data - lhs_data.obs, // PR: sign differs
-					};
-					
-					if let Some(data) = ret.get_mut(&(lhs_observable.clone(), ref_observable.clone())) {
-						if let Some(data) = data.get_mut(&sv) {
-							data.insert(*epoch, gf);
-						} else {
-							let mut bmap: BTreeMap<(Epoch, EpochFlag), f64> =
-								BTreeMap::new();
-							bmap.insert(*epoch, gf);
-							data.insert(*sv, bmap);
-						}
-					} else { // new combination
-						let mut inject = true; // insert only if not already combined to some other signal 
-						for ((lhs, rhs), _) in &ret {
-							if lhs == lhs_observable {
-								inject = false;
-								break;
-							}
-							if rhs == lhs_observable {
-								inject = false;
-								break;
-							}
-						}
-						if inject {
-							let mut bmap: BTreeMap<(Epoch, EpochFlag), f64> =
-								BTreeMap::new();
-							bmap.insert(*epoch, gf);
-							let mut map: BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>> =
-								BTreeMap::new();
-							map.insert(*sv, bmap);
-							ret.insert((lhs_observable.clone(), ref_observable), map);
-						}
-					}
-				}
-			}
-		}
-	}
-	ret
+                // locate a reference code against another carrier
+                let mut reference: Option<(Observable, f64)> = None;
+                for (ref_observable, ref_data) in observations {
+                    let mut shared_physics = ref_observable.is_phase_observable()
+                        && lhs_observable.is_phase_observable();
+                    shared_physics |= ref_observable.is_pseudorange_observable()
+                        && lhs_observable.is_pseudorange_observable();
+                    if !shared_physics {
+                        continue;
+                    }
+
+                    let refcode = ref_observable.to_string();
+                    let carrier_code = &refcode[1..2];
+                    if carrier_code == rhs_carrier {
+                        reference = Some((ref_observable.clone(), ref_data.obs));
+                        break; // DONE searching
+                    }
+                }
+
+                if let Some((ref_observable, ref_data)) = reference {
+                    // got a reference
+                    let gf = match ref_observable.is_phase_observable() {
+                        true => lhs_data.obs - ref_data,
+                        false => ref_data - lhs_data.obs, // PR: sign differs
+                    };
+
+                    if let Some(data) =
+                        ret.get_mut(&(lhs_observable.clone(), ref_observable.clone()))
+                    {
+                        if let Some(data) = data.get_mut(&sv) {
+                            data.insert(*epoch, gf);
+                        } else {
+                            let mut bmap: BTreeMap<(Epoch, EpochFlag), f64> = BTreeMap::new();
+                            bmap.insert(*epoch, gf);
+                            data.insert(*sv, bmap);
+                        }
+                    } else {
+                        // new combination
+                        let mut inject = true; // insert only if not already combined to some other signal
+                        for ((lhs, rhs), _) in &ret {
+                            if lhs == lhs_observable {
+                                inject = false;
+                                break;
+                            }
+                            if rhs == lhs_observable {
+                                inject = false;
+                                break;
+                            }
+                        }
+                        if inject {
+                            let mut bmap: BTreeMap<(Epoch, EpochFlag), f64> = BTreeMap::new();
+                            bmap.insert(*epoch, gf);
+                            let mut map: BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>> =
+                                BTreeMap::new();
+                            map.insert(*sv, bmap);
+                            ret.insert((lhs_observable.clone(), ref_observable), map);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    ret
 }
 
 impl Combine for Record {
-	fn combine(&self, combination: Combination) -> HashMap<(Observable, Observable), BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
-		match combination {
-			Combination::GeometryFree => gf_combination(&self),
-			Combination::NarrowLane => nl_combination(&self),
-			Combination::WideLane => wl_combination(&self),
-			Combination::MelbourneWubbena => mw_combination(&self),
-		}
-	}
+    fn combine(
+        &self,
+        combination: Combination,
+    ) -> HashMap<(Observable, Observable), BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
+        match combination {
+            Combination::GeometryFree => gf_combination(&self),
+            Combination::NarrowLane => nl_combination(&self),
+            Combination::WideLane => wl_combination(&self),
+            Combination::MelbourneWubbena => mw_combination(&self),
+        }
+    }
 }
 
 use crate::{carrier, processing::Dcb};
 
 impl Dcb for Record {
-	fn dcb(&self) -> HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
+    fn dcb(&self) -> HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
         let mut ret: HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> =
             HashMap::new();
-		for (epoch, (_, vehicules)) in self {
-			for (sv, observations) in vehicules {
-				for (lhs_observable, lhs_observation) in observations {
-					if !lhs_observable.is_phase_observable() {
-						if !lhs_observable.is_pseudorange_observable() {
-							continue;
-						}
-					}
-					let lhs_code = lhs_observable.to_string();
-					let lhs_carrier = &lhs_code[1..2];
-					let lhs_code = &lhs_code[1..];
+        for (epoch, (_, vehicules)) in self {
+            for (sv, observations) in vehicules {
+                for (lhs_observable, lhs_observation) in observations {
+                    if !lhs_observable.is_phase_observable() {
+                        if !lhs_observable.is_pseudorange_observable() {
+                            continue;
+                        }
+                    }
+                    let lhs_code = lhs_observable.to_string();
+                    let lhs_carrier = &lhs_code[1..2];
+                    let lhs_code = &lhs_code[1..];
 
-					for rhs_code in carrier::KNOWN_CODES.iter() { // locate a reference code
-						if *rhs_code != lhs_code { // code differs
-							if rhs_code.starts_with(lhs_carrier) { // same carrier
-								let tolocate = match lhs_observable.is_phase_observable() {
-									true => "L".to_owned() + rhs_code, // same physics
-									false => "C".to_owned() + rhs_code, // same physics
-								};
-								let tolocate = Observable::from_str(&tolocate)
-									.unwrap();
-								if let Some(rhs_observation) = observations.get(&tolocate) { // got a reference code
-									let mut already_diffd = false;
+                    for rhs_code in carrier::KNOWN_CODES.iter() {
+                        // locate a reference code
+                        if *rhs_code != lhs_code {
+                            // code differs
+                            if rhs_code.starts_with(lhs_carrier) {
+                                // same carrier
+                                let tolocate = match lhs_observable.is_phase_observable() {
+                                    true => "L".to_owned() + rhs_code,  // same physics
+                                    false => "C".to_owned() + rhs_code, // same physics
+                                };
+                                let tolocate = Observable::from_str(&tolocate).unwrap();
+                                if let Some(rhs_observation) = observations.get(&tolocate) {
+                                    // got a reference code
+                                    let mut already_diffd = false;
 
-									for (op, vehicules) in ret.iter_mut() {
-										if op.contains(lhs_code) {
-											already_diffd = true;
+                                    for (op, vehicules) in ret.iter_mut() {
+                                        if op.contains(lhs_code) {
+                                            already_diffd = true;
 
-											// determine this code's role in the diff op
-											// so it remains consistent
-											let items: Vec<&str> = op.split("-").collect();
-											
-											if lhs_code == items[0] {
-												// code is differenced
-												if let Some(data) = vehicules.get_mut(&sv) {
-													data.insert(
-														*epoch,
-														lhs_observation.obs - rhs_observation.obs,
-													);
-												} else {
-													let mut bmap: BTreeMap<
-														(Epoch, EpochFlag),
-														f64,
-													> = BTreeMap::new();
-													bmap.insert(
-														*epoch,
-														lhs_observation.obs - rhs_observation.obs,
-													);
-													vehicules.insert(*sv, bmap);
-												}
-											} else { // code is refered to 
-												if let Some(data) = vehicules.get_mut(&sv) {
-													data.insert(
-														*epoch,
-														rhs_observation.obs - lhs_observation.obs,
-													);
-												} else {
-													let mut bmap: BTreeMap<
-														(Epoch, EpochFlag),
-														f64,
-													> = BTreeMap::new();
-													bmap.insert(
-														*epoch,
-														rhs_observation.obs - lhs_observation.obs,
-													);
-													vehicules.insert(*sv, bmap);
-												}
-											}
-										}
-									}
-									if !already_diffd {
-										let mut bmap: BTreeMap<(Epoch, EpochFlag), f64> =
-											BTreeMap::new();
-										bmap.insert(*epoch, lhs_observation.obs - rhs_observation.obs);
-										let mut map: HashMap<
-											Sv,
-											BTreeMap<(Epoch, EpochFlag), f64>,
-										> = HashMap::new();
-										map.insert(*sv, bmap);
-										ret.insert(format!("{}-{}", lhs_code, rhs_code), map);
-									}
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-		ret
-	}
+                                            // determine this code's role in the diff op
+                                            // so it remains consistent
+                                            let items: Vec<&str> = op.split("-").collect();
+
+                                            if lhs_code == items[0] {
+                                                // code is differenced
+                                                if let Some(data) = vehicules.get_mut(&sv) {
+                                                    data.insert(
+                                                        *epoch,
+                                                        lhs_observation.obs - rhs_observation.obs,
+                                                    );
+                                                } else {
+                                                    let mut bmap: BTreeMap<
+                                                        (Epoch, EpochFlag),
+                                                        f64,
+                                                    > = BTreeMap::new();
+                                                    bmap.insert(
+                                                        *epoch,
+                                                        lhs_observation.obs - rhs_observation.obs,
+                                                    );
+                                                    vehicules.insert(*sv, bmap);
+                                                }
+                                            } else {
+                                                // code is refered to
+                                                if let Some(data) = vehicules.get_mut(&sv) {
+                                                    data.insert(
+                                                        *epoch,
+                                                        rhs_observation.obs - lhs_observation.obs,
+                                                    );
+                                                } else {
+                                                    let mut bmap: BTreeMap<
+                                                        (Epoch, EpochFlag),
+                                                        f64,
+                                                    > = BTreeMap::new();
+                                                    bmap.insert(
+                                                        *epoch,
+                                                        rhs_observation.obs - lhs_observation.obs,
+                                                    );
+                                                    vehicules.insert(*sv, bmap);
+                                                }
+                                            }
+                                        }
+                                    }
+                                    if !already_diffd {
+                                        let mut bmap: BTreeMap<(Epoch, EpochFlag), f64> =
+                                            BTreeMap::new();
+                                        bmap.insert(
+                                            *epoch,
+                                            lhs_observation.obs - rhs_observation.obs,
+                                        );
+                                        let mut map: HashMap<
+                                            Sv,
+                                            BTreeMap<(Epoch, EpochFlag), f64>,
+                                        > = HashMap::new();
+                                        map.insert(*sv, bmap);
+                                        ret.insert(format!("{}-{}", lhs_code, rhs_code), map);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        ret
+    }
 }
 
 impl IonoDelayDetector for Record {
-	fn iono_delay_detector(&self, max_dt: Duration) -> HashMap<Observable, HashMap<Sv, BTreeMap<Epoch, f64>>> {
-		let gf = self.combine(Combination::GeometryFree);
-		let mut ret:  HashMap<Observable, HashMap<Sv, BTreeMap<Epoch, f64>>>  = HashMap::new();
-		let mut prev_data: HashMap<(Observable, Observable), HashMap<Sv, (Epoch, f64)>> = HashMap::new();
-		for (combination, vehicles) in gf {
-		let (_lhs_observable, ref_observable) = combination.clone();
-			if !ref_observable.is_phase_observable() {
-				continue ; // only on phase data
-			}
-			for (sv, epochs) in vehicles {
-				for ((epoch, _flag), data) in epochs {
-					if let Some(prev) = prev_data.get_mut(&combination) {
-						if let Some((prev_epoch, prev_data)) = prev.get_mut(&sv) {
-							let dt = epoch - *prev_epoch;
-							if dt <= max_dt {
-								// accepted: push a new dy value
-								let dy = data - *prev_data;
-								if let Some(data) = ret.get_mut(&ref_observable) {
-									if let Some(data) = data.get_mut(&sv) {
-										data.insert(epoch, dy);
-									} else {
-										let mut bmap: BTreeMap<Epoch, f64> = BTreeMap::new();
-										bmap.insert(epoch, dy);
-										data.insert(sv, bmap);
-									}
-								} else {
-									let mut bmap: BTreeMap<Epoch, f64> = BTreeMap::new();
-									bmap.insert(epoch, dy);
-									let mut map: HashMap<Sv, BTreeMap<Epoch, f64>> =
-										HashMap::new();
-									map.insert(sv, bmap);
-									ret.insert(ref_observable.clone(), map);
-								}
-							}
-							*prev_epoch = epoch;
-							*prev_data = data;
-						} else {
-							prev.insert(sv, (epoch, data));
-						}
-					} else {
-						let mut map: HashMap<Sv, (Epoch, f64)> = HashMap::new();
-						map.insert(sv, (epoch, data));
-						prev_data.insert(combination.clone(), map);
-					}
-				}
+    fn iono_delay_detector(
+        &self,
+        max_dt: Duration,
+    ) -> HashMap<Observable, HashMap<Sv, BTreeMap<Epoch, f64>>> {
+        let gf = self.combine(Combination::GeometryFree);
+        let mut ret: HashMap<Observable, HashMap<Sv, BTreeMap<Epoch, f64>>> = HashMap::new();
+        let mut prev_data: HashMap<(Observable, Observable), HashMap<Sv, (Epoch, f64)>> =
+            HashMap::new();
+        for (combination, vehicles) in gf {
+            let (_lhs_observable, ref_observable) = combination.clone();
+            if !ref_observable.is_phase_observable() {
+                continue; // only on phase data
+            }
+            for (sv, epochs) in vehicles {
+                for ((epoch, _flag), data) in epochs {
+                    if let Some(prev) = prev_data.get_mut(&combination) {
+                        if let Some((prev_epoch, prev_data)) = prev.get_mut(&sv) {
+                            let dt = epoch - *prev_epoch;
+                            if dt <= max_dt {
+                                // accepted: push a new dy value
+                                let dy = data - *prev_data;
+                                if let Some(data) = ret.get_mut(&ref_observable) {
+                                    if let Some(data) = data.get_mut(&sv) {
+                                        data.insert(epoch, dy);
+                                    } else {
+                                        let mut bmap: BTreeMap<Epoch, f64> = BTreeMap::new();
+                                        bmap.insert(epoch, dy);
+                                        data.insert(sv, bmap);
+                                    }
+                                } else {
+                                    let mut bmap: BTreeMap<Epoch, f64> = BTreeMap::new();
+                                    bmap.insert(epoch, dy);
+                                    let mut map: HashMap<Sv, BTreeMap<Epoch, f64>> = HashMap::new();
+                                    map.insert(sv, bmap);
+                                    ret.insert(ref_observable.clone(), map);
+                                }
+                            }
+                            *prev_epoch = epoch;
+                            *prev_data = data;
+                        } else {
+                            prev.insert(sv, (epoch, data));
+                        }
+                    } else {
+                        let mut map: HashMap<Sv, (Epoch, f64)> = HashMap::new();
+                        map.insert(sv, (epoch, data));
+                        prev_data.insert(combination.clone(), map);
+                    }
+                }
             }
         }
-		ret
-	}
+        ret
+    }
 }
 
 #[cfg(test)]

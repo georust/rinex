@@ -1,13 +1,8 @@
 #[cfg(test)]
 mod test {
-    use rinex::{
-		prelude::*,
-		header::*,
-		observation::*,
-		processing::*,
-	};
+    use itertools::Itertools;
+    use rinex::{header::*, observation::*, prelude::*, processing::*};
     use std::str::FromStr;
-	use itertools::Itertools;
     /*
      * General testbench
      * shared accross all Observation files
@@ -314,7 +309,11 @@ mod test {
         assert!(header.meteo.is_none());
         assert_eq!(
             header.ground_position,
-            Some(GroundPosition::from_ecef_wgs84((3859571.8076, 413007.6749, 5044091.5729)))
+            Some(GroundPosition::from_ecef_wgs84((
+                3859571.8076,
+                413007.6749,
+                5044091.5729
+            )))
         );
         assert_eq!(header.station_id, "13544M001");
         assert_eq!(header.observer, "Hans van der Marel");
@@ -1039,175 +1038,175 @@ mod test {
             values
         );
     }
-/*
-    #[test]
-    fn obs_v3_duth0630_processing() {
-        let rinex = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
-            .unwrap();
-        let record = rinex.record.as_obs()
-            .unwrap();
-		
-		// MIN
-		let min = record.min();
-		let g01 = min.get(&Sv::from_str("G01").unwrap()).unwrap();
-		let s1c = g01.get(&Observable::from_str("S1C").unwrap()).unwrap();
-		assert_eq!(*s1c, 49.5);
-		
-		// MAX
-		let max = record.max();
-		let g01 = max.get(&Sv::from_str("G01").unwrap()).unwrap();
-		let s1c = g01.get(&Observable::from_str("S1C").unwrap()).unwrap();
-		assert_eq!(*s1c, 51.250);
-		
-		// MEAN
-		let mean = record.mean();
-		let g01 = mean.get(&Sv::from_str("G01").unwrap()).unwrap();
-		let s1c = g01.get(&Observable::from_str("S1C").unwrap()).unwrap();
-		assert_eq!(*s1c, (51.250 + 50.750 + 49.5)/3.0);
-		
-		let g06 = mean.get(&Sv::from_str("G06").unwrap()).unwrap();
-		let s1c = g06.get(&Observable::from_str("S1C").unwrap()).unwrap();
-		assert_eq!(*s1c, 43.0);
+    /*
+        #[test]
+        fn obs_v3_duth0630_processing() {
+            let rinex = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
+                .unwrap();
+            let record = rinex.record.as_obs()
+                .unwrap();
 
-		// STDVAR
-		let stdvar = record.stdvar();
-		let mean = (51.25_f64 + 50.75_f64 + 49.5_f64)/3.0_f64;
-		let expected = ((51.25_f64 - mean).powf(2.0_f64) + (50.75_f64 - mean).powf(2.0_f64) + (49.5_f64 - mean).powf(2.0_f64)) / 3.0f64;
-		let g01 = stdvar.get(&Sv::from_str("G01").unwrap()).unwrap();
-		let s1c =  g01.get(&Observable::from_str("S1C").unwrap()).unwrap();
-		assert_eq!(*s1c, expected);
-    }
-	fn test_combinations(combinations: Vec<(Observable, Observable)>, signals: Vec<Observable>) {
-		/*
-		 * test nb of combinations
-		 */
-		let mut nb_pr = 0;
-		let mut nb_ph = 0;
-		for sig in signals {
-			let code = sig.code();
-			if sig.is_phase_observable() {
-				nb_pr += 1;				
-			}
-			if sig.is_pseudorange_observable() {
-				nb_ph += 1;
-			}
-		}
-		assert_eq!(combinations.len(), nb_pr-1+nb_ph-1, "Wrong number of combinations, expecting {} | got: {:?}", nb_pr+nb_ph-2, combinations);
-		/*
-		 * test formed combinations
-		 * (M > 1) => 1
-		 * 1       => 2 
-		 */
-		for (lhs, reference) in combinations {
-			let lhs_code = lhs.to_string();
-			let reference_code = reference.to_string();
-			let lhs_carrier = &lhs_code[1..2];
-			let reference_carrier = &reference_code[1..2];
-			if lhs_carrier != "1" {
-				assert_eq!(reference_carrier, "1");
-			} else {
-				assert_eq!(reference_carrier, "2");
-			}
-		}
-	}
-	#[test]
-	fn obs_v2_aopr0010_17o() {
-        let rinex = Rinex::from_file("../test_resources/OBS/V2/aopr0010.17o")
-            .unwrap();
-        let record = rinex.record.as_obs()
-			.unwrap();
-		let mut signals = vec![
-			Observable::from_str("L1").unwrap(),
-			Observable::from_str("L2").unwrap(),
-			Observable::from_str("C1").unwrap(),
-			Observable::from_str("P1").unwrap(),
-			Observable::from_str("P2").unwrap(),
-		];
-		for combination in [
-			Combination::GeometryFree, 
-			Combination::NarrowLane, 
-			Combination::WideLane, 
-			Combination::MelbourneWubbena,
-		] {
-			let combined = record.combine(combination);
-			let mut combinations: Vec<(Observable, Observable)> = 
-				combined.keys().map(|(lhs, rhs)| (lhs.clone(), rhs.clone())).collect();
-			test_combinations(combinations, signals.clone());
-		}
-		/*
-		 * Iono Delay Detector
-		 */
-		let dt = rinex.sampling_interval().unwrap();
-		let ionod = record.iono_delay_detector(dt);
-	}
-	#[test]
-	fn obs_v3_duth0630_gnss_combinations() {
-        let rinex = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
-            .unwrap();
-        let record = rinex.record.as_obs()
-            .unwrap();
-		let mut signals = vec![
-			Observable::from_str("C1C").unwrap(),
-			Observable::from_str("C2W").unwrap(),
-			Observable::from_str("C2P").unwrap(),
-			Observable::from_str("L1C").unwrap(),
-			Observable::from_str("L2P").unwrap(),
-			Observable::from_str("L2W").unwrap(),
-		];
-		for combination in [
-			Combination::GeometryFree, 
-			Combination::NarrowLane, 
-			Combination::WideLane, 
-			Combination::MelbourneWubbena,
-		] {
-			let combined = record.combine(combination);
-			let mut combinations: Vec<(Observable, Observable)> = 
-				combined.keys().map(|(lhs, rhs)| (lhs.clone(), rhs.clone())).collect();
-			test_combinations(combinations, signals.clone());
-		}
-		/*
-		 * Iono Delay Detector
-		 */
-		let dt = rinex.sampling_interval().unwrap();
-		let ionod = record.iono_delay_detector(dt);
-	}
-	#[test]
-	fn obs_v3_esbcd00dnk_r_2020_gnss_combinations() {
-        let rinex = Rinex::from_file("../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
-			.unwrap();
-        let record = rinex.record.as_obs()
-            .unwrap();
-		let gf = record.combine(Combination::GeometryFree);
-		let mut combinations: Vec<(Observable, Observable)> = 
-			gf.keys().map(|(lhs, rhs)| (lhs.clone(), rhs.clone())).collect();
-		let mut signals = vec![
-			Observable::from_str("C1C").unwrap(),
-			Observable::from_str("C1W").unwrap(),
-			Observable::from_str("C2I").unwrap(),
-			Observable::from_str("C2L").unwrap(),
-			Observable::from_str("C2W").unwrap(),
-			Observable::from_str("C5I").unwrap(),
-			Observable::from_str("C5Q").unwrap(),
-			Observable::from_str("C6C").unwrap(),
-			Observable::from_str("C6I").unwrap(),
-			Observable::from_str("C7I").unwrap(),
-			Observable::from_str("C7Q").unwrap(),
-			Observable::from_str("C8Q").unwrap(),
-			
-			Observable::from_str("L1C").unwrap(),
-			Observable::from_str("L2I").unwrap(),
-			Observable::from_str("L2L").unwrap(),
-			Observable::from_str("L3Q").unwrap(),
-			Observable::from_str("L2W").unwrap(),
-			Observable::from_str("L5I").unwrap(),
-			Observable::from_str("L5Q").unwrap(),
-			Observable::from_str("L6C").unwrap(),
-			Observable::from_str("L6I").unwrap(),
-			Observable::from_str("L7I").unwrap(),
-			Observable::from_str("L7Q").unwrap(),
-			Observable::from_str("L8Q").unwrap(),
-		];
-		test_combinations(combinations, signals);
-	}
-*/
+            // MIN
+            let min = record.min();
+            let g01 = min.get(&Sv::from_str("G01").unwrap()).unwrap();
+            let s1c = g01.get(&Observable::from_str("S1C").unwrap()).unwrap();
+            assert_eq!(*s1c, 49.5);
+
+            // MAX
+            let max = record.max();
+            let g01 = max.get(&Sv::from_str("G01").unwrap()).unwrap();
+            let s1c = g01.get(&Observable::from_str("S1C").unwrap()).unwrap();
+            assert_eq!(*s1c, 51.250);
+
+            // MEAN
+            let mean = record.mean();
+            let g01 = mean.get(&Sv::from_str("G01").unwrap()).unwrap();
+            let s1c = g01.get(&Observable::from_str("S1C").unwrap()).unwrap();
+            assert_eq!(*s1c, (51.250 + 50.750 + 49.5)/3.0);
+
+            let g06 = mean.get(&Sv::from_str("G06").unwrap()).unwrap();
+            let s1c = g06.get(&Observable::from_str("S1C").unwrap()).unwrap();
+            assert_eq!(*s1c, 43.0);
+
+            // STDVAR
+            let stdvar = record.stdvar();
+            let mean = (51.25_f64 + 50.75_f64 + 49.5_f64)/3.0_f64;
+            let expected = ((51.25_f64 - mean).powf(2.0_f64) + (50.75_f64 - mean).powf(2.0_f64) + (49.5_f64 - mean).powf(2.0_f64)) / 3.0f64;
+            let g01 = stdvar.get(&Sv::from_str("G01").unwrap()).unwrap();
+            let s1c =  g01.get(&Observable::from_str("S1C").unwrap()).unwrap();
+            assert_eq!(*s1c, expected);
+        }
+        fn test_combinations(combinations: Vec<(Observable, Observable)>, signals: Vec<Observable>) {
+            /*
+             * test nb of combinations
+             */
+            let mut nb_pr = 0;
+            let mut nb_ph = 0;
+            for sig in signals {
+                let code = sig.code();
+                if sig.is_phase_observable() {
+                    nb_pr += 1;
+                }
+                if sig.is_pseudorange_observable() {
+                    nb_ph += 1;
+                }
+            }
+            assert_eq!(combinations.len(), nb_pr-1+nb_ph-1, "Wrong number of combinations, expecting {} | got: {:?}", nb_pr+nb_ph-2, combinations);
+            /*
+             * test formed combinations
+             * (M > 1) => 1
+             * 1       => 2
+             */
+            for (lhs, reference) in combinations {
+                let lhs_code = lhs.to_string();
+                let reference_code = reference.to_string();
+                let lhs_carrier = &lhs_code[1..2];
+                let reference_carrier = &reference_code[1..2];
+                if lhs_carrier != "1" {
+                    assert_eq!(reference_carrier, "1");
+                } else {
+                    assert_eq!(reference_carrier, "2");
+                }
+            }
+        }
+        #[test]
+        fn obs_v2_aopr0010_17o() {
+            let rinex = Rinex::from_file("../test_resources/OBS/V2/aopr0010.17o")
+                .unwrap();
+            let record = rinex.record.as_obs()
+                .unwrap();
+            let mut signals = vec![
+                Observable::from_str("L1").unwrap(),
+                Observable::from_str("L2").unwrap(),
+                Observable::from_str("C1").unwrap(),
+                Observable::from_str("P1").unwrap(),
+                Observable::from_str("P2").unwrap(),
+            ];
+            for combination in [
+                Combination::GeometryFree,
+                Combination::NarrowLane,
+                Combination::WideLane,
+                Combination::MelbourneWubbena,
+            ] {
+                let combined = record.combine(combination);
+                let mut combinations: Vec<(Observable, Observable)> =
+                    combined.keys().map(|(lhs, rhs)| (lhs.clone(), rhs.clone())).collect();
+                test_combinations(combinations, signals.clone());
+            }
+            /*
+             * Iono Delay Detector
+             */
+            let dt = rinex.sampling_interval().unwrap();
+            let ionod = record.iono_delay_detector(dt);
+        }
+        #[test]
+        fn obs_v3_duth0630_gnss_combinations() {
+            let rinex = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
+                .unwrap();
+            let record = rinex.record.as_obs()
+                .unwrap();
+            let mut signals = vec![
+                Observable::from_str("C1C").unwrap(),
+                Observable::from_str("C2W").unwrap(),
+                Observable::from_str("C2P").unwrap(),
+                Observable::from_str("L1C").unwrap(),
+                Observable::from_str("L2P").unwrap(),
+                Observable::from_str("L2W").unwrap(),
+            ];
+            for combination in [
+                Combination::GeometryFree,
+                Combination::NarrowLane,
+                Combination::WideLane,
+                Combination::MelbourneWubbena,
+            ] {
+                let combined = record.combine(combination);
+                let mut combinations: Vec<(Observable, Observable)> =
+                    combined.keys().map(|(lhs, rhs)| (lhs.clone(), rhs.clone())).collect();
+                test_combinations(combinations, signals.clone());
+            }
+            /*
+             * Iono Delay Detector
+             */
+            let dt = rinex.sampling_interval().unwrap();
+            let ionod = record.iono_delay_detector(dt);
+        }
+        #[test]
+        fn obs_v3_esbcd00dnk_r_2020_gnss_combinations() {
+            let rinex = Rinex::from_file("../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
+                .unwrap();
+            let record = rinex.record.as_obs()
+                .unwrap();
+            let gf = record.combine(Combination::GeometryFree);
+            let mut combinations: Vec<(Observable, Observable)> =
+                gf.keys().map(|(lhs, rhs)| (lhs.clone(), rhs.clone())).collect();
+            let mut signals = vec![
+                Observable::from_str("C1C").unwrap(),
+                Observable::from_str("C1W").unwrap(),
+                Observable::from_str("C2I").unwrap(),
+                Observable::from_str("C2L").unwrap(),
+                Observable::from_str("C2W").unwrap(),
+                Observable::from_str("C5I").unwrap(),
+                Observable::from_str("C5Q").unwrap(),
+                Observable::from_str("C6C").unwrap(),
+                Observable::from_str("C6I").unwrap(),
+                Observable::from_str("C7I").unwrap(),
+                Observable::from_str("C7Q").unwrap(),
+                Observable::from_str("C8Q").unwrap(),
+
+                Observable::from_str("L1C").unwrap(),
+                Observable::from_str("L2I").unwrap(),
+                Observable::from_str("L2L").unwrap(),
+                Observable::from_str("L3Q").unwrap(),
+                Observable::from_str("L2W").unwrap(),
+                Observable::from_str("L5I").unwrap(),
+                Observable::from_str("L5Q").unwrap(),
+                Observable::from_str("L6C").unwrap(),
+                Observable::from_str("L6I").unwrap(),
+                Observable::from_str("L7I").unwrap(),
+                Observable::from_str("L7Q").unwrap(),
+                Observable::from_str("L8Q").unwrap(),
+            ];
+            test_combinations(combinations, signals);
+        }
+    */
 }

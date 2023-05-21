@@ -1,22 +1,19 @@
 //#![feature(test)]
 use rinex::{
+    hatanaka::{numdiff::NumDiff, textdiff::TextDiff},
+    observation::*,
     prelude::*,
     processing::*,
-    observation::*, 
+    reader::BufferedReader,
     record::parse_record,
-    reader::BufferedReader, 
-    hatanaka::{
-        numdiff::NumDiff,
-        textdiff::TextDiff,
-    }, 
 };
 
 extern crate criterion;
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, *};
 
+use std::collections::HashMap;
 use std::io::BufRead;
 use std::str::FromStr;
-use std::collections::HashMap;
 
 /*struct CpuProfiler;
 
@@ -208,32 +205,32 @@ fn record_parsing_benchmark(c: &mut Criterion) {
             map.insert(
                 Constellation::GPS,
                 vec![
-                    Observable::from_str("C1").unwrap(), 
-                    Observable::from_str("C2").unwrap(), 
-                    Observable::from_str("C5").unwrap(), 
-                    Observable::from_str("L1").unwrap(), 
-                    Observable::from_str("L2").unwrap(), 
-                    Observable::from_str("L5").unwrap(), 
-                    Observable::from_str("P1").unwrap(), 
-                    Observable::from_str("P2").unwrap(), 
-                    Observable::from_str("S1").unwrap(), 
-                    Observable::from_str("S2").unwrap(), 
+                    Observable::from_str("C1").unwrap(),
+                    Observable::from_str("C2").unwrap(),
+                    Observable::from_str("C5").unwrap(),
+                    Observable::from_str("L1").unwrap(),
+                    Observable::from_str("L2").unwrap(),
+                    Observable::from_str("L5").unwrap(),
+                    Observable::from_str("P1").unwrap(),
+                    Observable::from_str("P2").unwrap(),
+                    Observable::from_str("S1").unwrap(),
+                    Observable::from_str("S2").unwrap(),
                     Observable::from_str("S5").unwrap(),
                 ],
             );
             map.insert(
                 Constellation::Glonass,
                 vec![
-                    Observable::from_str("C1").unwrap(), 
-                    Observable::from_str("C2").unwrap(), 
-                    Observable::from_str("C5").unwrap(), 
-                    Observable::from_str("L1").unwrap(), 
-                    Observable::from_str("L2").unwrap(), 
-                    Observable::from_str("L5").unwrap(), 
-                    Observable::from_str("P1").unwrap(), 
-                    Observable::from_str("P2").unwrap(), 
-                    Observable::from_str("S1").unwrap(), 
-                    Observable::from_str("S2").unwrap(), 
+                    Observable::from_str("C1").unwrap(),
+                    Observable::from_str("C2").unwrap(),
+                    Observable::from_str("C5").unwrap(),
+                    Observable::from_str("L1").unwrap(),
+                    Observable::from_str("L2").unwrap(),
+                    Observable::from_str("L5").unwrap(),
+                    Observable::from_str("P1").unwrap(),
+                    Observable::from_str("P2").unwrap(),
+                    Observable::from_str("S1").unwrap(),
+                    Observable::from_str("S2").unwrap(),
                     Observable::from_str("S5").unwrap(),
                 ],
             );
@@ -257,16 +254,16 @@ fn record_parsing_benchmark(c: &mut Criterion) {
             map.insert(
                 Constellation::GPS,
                 vec![
-                    Observable::from_str("C1C").unwrap(), 
-                    Observable::from_str("L1C").unwrap(), 
-                    Observable::from_str("S1C").unwrap(), 
-                    Observable::from_str("C2S").unwrap(), 
-                    Observable::from_str("L2S").unwrap(), 
-                    Observable::from_str("S2S").unwrap(), 
-                    Observable::from_str("C2W").unwrap(), 
-                    Observable::from_str("L2W").unwrap(), 
-                    Observable::from_str("S2W").unwrap(), 
-                    Observable::from_str("C5Q").unwrap(), 
+                    Observable::from_str("C1C").unwrap(),
+                    Observable::from_str("L1C").unwrap(),
+                    Observable::from_str("S1C").unwrap(),
+                    Observable::from_str("C2S").unwrap(),
+                    Observable::from_str("L2S").unwrap(),
+                    Observable::from_str("S2S").unwrap(),
+                    Observable::from_str("C2W").unwrap(),
+                    Observable::from_str("L2W").unwrap(),
+                    Observable::from_str("S2W").unwrap(),
+                    Observable::from_str("C5Q").unwrap(),
                     Observable::from_str("L5Q").unwrap(),
                     Observable::from_str("S5Q").unwrap(),
                 ],
@@ -274,16 +271,16 @@ fn record_parsing_benchmark(c: &mut Criterion) {
             map.insert(
                 Constellation::Glonass,
                 vec![
-                    Observable::from_str("C1C").unwrap(), 
-                    Observable::from_str("L1C").unwrap(), 
-                    Observable::from_str("S1C").unwrap(), 
-                    Observable::from_str("C2P").unwrap(), 
-                    Observable::from_str("L2P").unwrap(), 
-                    Observable::from_str("S2P").unwrap(), 
-                    Observable::from_str("C2C").unwrap(), 
-                    Observable::from_str("L2C").unwrap(), 
-                    Observable::from_str("S2C").unwrap(), 
-                    Observable::from_str("C3Q").unwrap(), 
+                    Observable::from_str("C1C").unwrap(),
+                    Observable::from_str("L1C").unwrap(),
+                    Observable::from_str("S1C").unwrap(),
+                    Observable::from_str("C2P").unwrap(),
+                    Observable::from_str("L2P").unwrap(),
+                    Observable::from_str("S2P").unwrap(),
+                    Observable::from_str("C2C").unwrap(),
+                    Observable::from_str("L2C").unwrap(),
+                    Observable::from_str("S2C").unwrap(),
+                    Observable::from_str("C3Q").unwrap(),
                     Observable::from_str("L3Q").unwrap(),
                     Observable::from_str("S3Q").unwrap(),
                 ],
@@ -291,34 +288,34 @@ fn record_parsing_benchmark(c: &mut Criterion) {
             map.insert(
                 Constellation::Galileo,
                 vec![
-                    Observable::from_str("C1C").unwrap(), 
-                    Observable::from_str("L1C").unwrap(), 
-                    Observable::from_str("S1C").unwrap(), 
-                    Observable::from_str("C5Q").unwrap(), 
-                    Observable::from_str("L5Q").unwrap(), 
-                    Observable::from_str("S5Q").unwrap(), 
-                    Observable::from_str("C6C").unwrap(), 
-                    Observable::from_str("L6C").unwrap(), 
-                    Observable::from_str("S6C").unwrap(), 
-                    Observable::from_str("C7Q").unwrap(), 
+                    Observable::from_str("C1C").unwrap(),
+                    Observable::from_str("L1C").unwrap(),
+                    Observable::from_str("S1C").unwrap(),
+                    Observable::from_str("C5Q").unwrap(),
+                    Observable::from_str("L5Q").unwrap(),
+                    Observable::from_str("S5Q").unwrap(),
+                    Observable::from_str("C6C").unwrap(),
+                    Observable::from_str("L6C").unwrap(),
+                    Observable::from_str("S6C").unwrap(),
+                    Observable::from_str("C7Q").unwrap(),
                     Observable::from_str("L7Q").unwrap(),
-                    Observable::from_str("S7Q").unwrap(), 
-                    Observable::from_str("C8Q").unwrap(), 
-                    Observable::from_str("L8Q").unwrap(), 
+                    Observable::from_str("S7Q").unwrap(),
+                    Observable::from_str("C8Q").unwrap(),
+                    Observable::from_str("L8Q").unwrap(),
                     Observable::from_str("S8Q").unwrap(),
                 ],
             );
             map.insert(
                 Constellation::BeiDou,
                 vec![
-                    Observable::from_str("C2I").unwrap(), 
-                    Observable::from_str("L2I").unwrap(), 
-                    Observable::from_str("S2I").unwrap(), 
-                    Observable::from_str("C6I").unwrap(), 
-                    Observable::from_str("L6I").unwrap(), 
-                    Observable::from_str("S6I").unwrap(), 
-                    Observable::from_str("C7I").unwrap(), 
-                    Observable::from_str("L7I").unwrap(), 
+                    Observable::from_str("C2I").unwrap(),
+                    Observable::from_str("L2I").unwrap(),
+                    Observable::from_str("S2I").unwrap(),
+                    Observable::from_str("C6I").unwrap(),
+                    Observable::from_str("L6I").unwrap(),
+                    Observable::from_str("S6I").unwrap(),
+                    Observable::from_str("C7I").unwrap(),
+                    Observable::from_str("L7I").unwrap(),
                     Observable::from_str("S7I").unwrap(),
                 ],
             );
@@ -347,26 +344,33 @@ fn record_parsing_benchmark(c: &mut Criterion) {
 
 fn processing_benchmark(c: &mut Criterion) {
     let mut group = c.benchmark_group("processing");
-    let rinex = Rinex::from_file("../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
-        .unwrap();
+    let rinex =
+        Rinex::from_file("../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
+            .unwrap();
     let record = rinex.record.as_obs().unwrap();
-    
+
     for filter in vec![
         (Filter::from_str("mask:GPS,GLO,BDS").unwrap(), "mask:gnss"),
         //(Filter::from_str("mask:gt:10 minutes").unwrap(), "mask:dt"),
-        (Filter::from_str("mask:L1C,C1C,L2P,L2W").unwrap(), "mask:obs"),
-        (Filter::from_str("mask:g08,g15,g19,r03,r09").unwrap(), "mask:sv"),
+        (
+            Filter::from_str("mask:L1C,C1C,L2P,L2W").unwrap(),
+            "mask:obs",
+        ),
+        (
+            Filter::from_str("mask:g08,g15,g19,r03,r09").unwrap(),
+            "mask:sv",
+        ),
         //(Filter::from_str("mask:2020-06-25 08:00:00UTC").unwrap(), "mask:epoch"),
         (Filter::from_str("smooth:hatch").unwrap(), "smoothing:hatch"),
-        (Filter::from_str("smooth:hatch:l1c,l2c").unwrap(), "smoothing:hatch:l1c,l2c"),
+        (
+            Filter::from_str("smooth:hatch:l1c,l2c").unwrap(),
+            "smoothing:hatch:l1c,l2c",
+        ),
         //(Filter::from_str("smooth:mov:10 minutes").unwrap(), "smoothing:mov:10 mins"),
     ] {
         let (filter, name) = filter;
-        group.bench_function(
-            &format!("esbc00dnk_r_2021/{}", name), |b| {
-                b.iter(|| {
-                    record.filter(filter.clone())
-                })
+        group.bench_function(&format!("esbc00dnk_r_2021/{}", name), |b| {
+            b.iter(|| record.filter(filter.clone()))
         });
     }
 
@@ -379,13 +383,13 @@ fn processing_benchmark(c: &mut Criterion) {
         let (combination, name) = combination;
         group.bench_function(&format!("esbc00dnk_r_2021/{}", name), |b| {
             b.iter(|| {
-                record.combine(combination); 
+                record.combine(combination);
             })
         });
     }
     group.bench_function("esbc00dnk_r_2021/dcb", |b| {
         b.iter(|| {
-            record.dcb(); 
+            record.dcb();
         })
     });
     group.bench_function("esbc00dnk_r_2021/ionod", |b| {

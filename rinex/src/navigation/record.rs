@@ -1,15 +1,11 @@
 //! `NavigationData` parser and related methods
+use crate::processing::{
+    Decimate, Filter, Interpolate, MaskFilter, MaskOperand, Preprocessing, TargetItem,
+};
 use regex::{Captures, Regex};
 use std::collections::BTreeMap;
 use std::str::FromStr;
 use thiserror::Error;
-use crate::processing::{
-	Filter, 
-	Preprocessing, 
-	MaskFilter, MaskOperand, 
-	TargetItem,
-    Interpolate,
-};
 
 /*
  * When formatting floating point number in Navigation RINEX,
@@ -26,8 +22,8 @@ fn double_exponent_digits(content: &str) -> String {
 }
 
 use crate::{
-    epoch, gnss_time::GnssTime, merge, merge::Merge, prelude::*, split,
-    split::Split, sv, types::Type, version::Version,
+    epoch, gnss_time::GnssTime, merge, merge::Merge, prelude::*, split, split::Split, sv,
+    types::Type, version::Version,
 };
 
 use super::{
@@ -1286,21 +1282,22 @@ impl Split for Record {
             .collect();
         Ok((r0, r1))
     }
-	fn split_dt(&self, _duration: Duration) -> Result<Vec<Self>, split::Error> {
-		Ok(Vec::new())
-	}
+    fn split_dt(&self, _duration: Duration) -> Result<Vec<Self>, split::Error> {
+        Ok(Vec::new())
+    }
 }
 
 impl GnssTime for Record {
-	fn timeseries(&self, dt: Duration) -> TimeSeries {
-		let epochs: Vec<_> = self.keys().collect();
-		TimeSeries::inclusive(
-			**epochs.get(0)
-				.expect("failed to determine first epoch"),
-			**epochs.get(epochs.len()-1)
-				.expect("failed to determine last epoch"),
-			dt)
-	}
+    fn timeseries(&self, dt: Duration) -> TimeSeries {
+        let epochs: Vec<_> = self.keys().collect();
+        TimeSeries::inclusive(
+            **epochs.get(0).expect("failed to determine first epoch"),
+            **epochs
+                .get(epochs.len() - 1)
+                .expect("failed to determine last epoch"),
+            dt,
+        )
+    }
     fn convert_timescale(&mut self, ts: TimeScale) {
         self.iter_mut()
             .map(|(k, v)| (k.in_time_scale(ts), v))
@@ -1320,271 +1317,271 @@ impl Preprocessing for Record {
         s
     }
     fn filter_mut(&mut self, filt: Filter) {
-		match filt {
-			Filter::Mask(mask) => {
-				match mask.operand {
-					MaskOperand::Equals => match mask.item {
-						TargetItem::EpochItem(epoch) => self.retain(|e, _| *e == epoch),
-						TargetItem::SvItem(filter) => {
-							self.retain(|_, classes| {
-								classes.retain(|class, frames| {
-									if *class == FrameClass::Ephemeris {
-										frames.retain(|fr| {
-											let (_, sv, _) = fr.as_eph().unwrap();
-											filter.contains(&sv)
-										});
-										frames.len() > 0
-									} else {
-										true // do not affect other frame types
-									}
-								});
-								classes.len() > 0
-							});
-						},
-						TargetItem::ConstellationItem(filter) => {
-							self.retain(|_, classes| {
-								classes.retain(|class, frames| {
-									if *class == FrameClass::Ephemeris {
-										frames.retain(|fr| {
-											let (_, sv, _) = fr.as_eph().unwrap();
-											filter.contains(&sv.constellation)
-										});
-										frames.len() > 0
-									} else {
-										true // do not affect other frame types
-									}
-								});
-								classes.len() > 0
-							});
-						},
-						TargetItem::OrbitItem(filter) => {
-							self.retain(|_, classes| {
-								classes.retain(|class, frames| {
-									if *class == FrameClass::Ephemeris {
-										frames.retain_mut(|fr| {
-											let (_, _, ephemeris) = fr.as_mut_eph().unwrap();
-											let orbits = &mut ephemeris.orbits;
-											orbits.retain(|k, _| filter.contains(&k));
-											orbits.len() > 0
-										});
-										frames.len() > 0
-									} else {
-										true // do not affect other frame types
-									}
-								});
-								classes.len() > 0
-							});
-						},
-						TargetItem::NavFrameItem(filter) => {
-							self.retain(|_, classes| {
-								classes.retain(|class, _| filter.contains(&class));
-								classes.len() > 0
-							});
-						},
-						TargetItem::NavMsgItem(filter) => {
-							self.retain(|_, classes| {
-								classes.retain(|class, frames| {
-									if *class == FrameClass::Ephemeris {
-										frames.retain(|fr| {
-											let (msg, _, _) = fr.as_eph().unwrap();
-											filter.contains(&msg)
-										});
-									} else if *class == FrameClass::SystemTimeOffset {
-										frames.retain(|fr| {
-											let (msg, _, _) = fr.as_sto().unwrap();
-											filter.contains(&msg)
-										});
-									} else if *class == FrameClass::IonosphericModel {
-										frames.retain(|fr| {
-											let (msg, _, _) = fr.as_ion().unwrap();
-											filter.contains(&msg)
-										});
-									} else {
-										frames.retain(|fr| {
-											let (msg, _, _) = fr.as_eop().unwrap();
-											filter.contains(&msg)
-										});
-									}
-									frames.len() > 0
-								});
-								classes.len() > 0
-							});
-						},
-						_ => {}, // TargetItem::
-					},
-					MaskOperand::NotEquals => match mask.item {
-						TargetItem::EpochItem(epoch) => self.retain(|e, _| *e != epoch),
-						TargetItem::ConstellationItem(filter) => {
-							self.retain(|_, classes| {
-								classes.retain(|class, frames| {
-									if *class == FrameClass::Ephemeris {
-										frames.retain(|fr| {
-											let (_, sv, _) = fr.as_eph().unwrap();
-											!filter.contains(&sv.constellation)
-										});
-										frames.len() > 0
-									} else {
-										true // do not affect other frame types
-									}
-								});
-								classes.len() > 0
-							});
-						},
-						TargetItem::SvItem(filter) => {
-							self.retain(|_, classes| {
-								classes.retain(|class, frames| {
-									if *class == FrameClass::Ephemeris {
-										frames.retain(|fr| {
-											let (_, sv, _) = fr.as_eph().unwrap();
-											!filter.contains(&sv)
-										});
-										frames.len() > 0
-									} else {
-										true // do not affect other frame types
-									}
-								});
-								classes.len() > 0
-							});
-						},
-						TargetItem::OrbitItem(filter) => {
-							self.retain(|_, classes| {
-								classes.retain(|class, frames| {
-									if *class == FrameClass::Ephemeris {
-										frames.retain_mut(|fr| {
-											let (_, _, ephemeris) = fr.as_mut_eph().unwrap();
-											let orbits = &mut ephemeris.orbits;
-											orbits.retain(|k, _| !filter.contains(&k));
-											orbits.len() > 0
-										});
-										frames.len() > 0
-									} else {
-										true // do not affect other frame types
-									}
-								});
-								classes.len() > 0
-							});
-						},
-						_ => {}, // TargetItem::
-					},
-					MaskOperand::GreaterThan => match mask.item {
-						TargetItem::EpochItem(epoch) => self.retain(|e, _| *e > epoch),
-						TargetItem::SvItem(filter) => {
-							self.retain(|_, classes| {
-								classes.retain(|class, frames| {
-									if *class == FrameClass::Ephemeris {
-										frames.retain(|fr| {
-											let mut retain = false;
-											let (_, sv, _) = fr.as_eph().unwrap();
-											for item in &filter {
-												if item.constellation == sv.constellation {
-													retain = sv.prn > item.prn;
-												} else {
-													retain = true;
-												}
-											}
-											retain
-										});
-										frames.len() > 0
-									} else {
-										true // do not affect other frame types
-									}
-								});
-								classes.len() > 0
-							});
-						},
-						_ => {}, // TargetItem::
-					},
-					MaskOperand::GreaterEquals => match mask.item {
-						TargetItem::EpochItem(epoch) => self.retain(|e, _| *e >= epoch),
-						TargetItem::SvItem(filter) => {
-							self.retain(|_, classes| {
-								classes.retain(|class, frames| {
-									if *class == FrameClass::Ephemeris {
-										frames.retain(|fr| {
-											let mut retain = false;
-											let (_, sv, _) = fr.as_eph().unwrap();
-											for item in &filter {
-												if item.constellation == sv.constellation {
-													retain = sv.prn >= item.prn;
-												} else {
-													retain = true;
-												}
-											}
-											retain
-										});
-										frames.len() > 0
-									} else {
-										true // do not affect other frame types
-									}
-								});
-								classes.len() > 0
-							});
-						},
-						_ => {}, // TargetItem::
-					},
-					MaskOperand::LowerThan => match mask.item {
-						TargetItem::EpochItem(epoch) => self.retain(|e, _| *e < epoch),
-						TargetItem::SvItem(filter) => {
-							self.retain(|_, classes| {
-								classes.retain(|class, frames| {
-									if *class == FrameClass::Ephemeris {
-										frames.retain(|fr| {
-											let mut retain = false;
-											let (_, sv, _) = fr.as_eph().unwrap();
-											for item in &filter {
-												if item.constellation == sv.constellation {
-													retain = sv.prn < item.prn;
-												} else {
-													retain = true;
-												}
-											}
-											retain
-										});
-										frames.len() > 0
-									} else {
-										true // do not affect other frame types
-									}
-								});
-								classes.len() > 0
-							});
-						},
-						_ => {}, // TargetItem::
-					},
-					MaskOperand::LowerEquals => match mask.item {
-						TargetItem::EpochItem(epoch) => self.retain(|e, _| *e <= epoch),
-						TargetItem::SvItem(filter) => {
-							self.retain(|_, classes| {
-								classes.retain(|class, frames| {
-									if *class == FrameClass::Ephemeris {
-										frames.retain(|fr| {
-											let mut retain = false;
-											let (_, sv, _) = fr.as_eph().unwrap();
-											for item in &filter {
-												if item.constellation == sv.constellation {
-													retain = sv.prn > item.prn;
-												} else {
-													retain = true;
-												}
-											}
-											retain
-										});
-										frames.len() > 0
-									} else {
-										true // do not affect other frame types
-									}
-								});
-								classes.len() > 0
-							});
-						},
-						_ => {}, // TargetItem::
-					},
-				}
-			}
+        match filt {
+            Filter::Mask(mask) => {
+                match mask.operand {
+                    MaskOperand::Equals => match mask.item {
+                        TargetItem::EpochItem(epoch) => self.retain(|e, _| *e == epoch),
+                        TargetItem::SvItem(filter) => {
+                            self.retain(|_, classes| {
+                                classes.retain(|class, frames| {
+                                    if *class == FrameClass::Ephemeris {
+                                        frames.retain(|fr| {
+                                            let (_, sv, _) = fr.as_eph().unwrap();
+                                            filter.contains(&sv)
+                                        });
+                                        frames.len() > 0
+                                    } else {
+                                        true // do not affect other frame types
+                                    }
+                                });
+                                classes.len() > 0
+                            });
+                        },
+                        TargetItem::ConstellationItem(filter) => {
+                            self.retain(|_, classes| {
+                                classes.retain(|class, frames| {
+                                    if *class == FrameClass::Ephemeris {
+                                        frames.retain(|fr| {
+                                            let (_, sv, _) = fr.as_eph().unwrap();
+                                            filter.contains(&sv.constellation)
+                                        });
+                                        frames.len() > 0
+                                    } else {
+                                        true // do not affect other frame types
+                                    }
+                                });
+                                classes.len() > 0
+                            });
+                        },
+                        TargetItem::OrbitItem(filter) => {
+                            self.retain(|_, classes| {
+                                classes.retain(|class, frames| {
+                                    if *class == FrameClass::Ephemeris {
+                                        frames.retain_mut(|fr| {
+                                            let (_, _, ephemeris) = fr.as_mut_eph().unwrap();
+                                            let orbits = &mut ephemeris.orbits;
+                                            orbits.retain(|k, _| filter.contains(&k));
+                                            orbits.len() > 0
+                                        });
+                                        frames.len() > 0
+                                    } else {
+                                        true // do not affect other frame types
+                                    }
+                                });
+                                classes.len() > 0
+                            });
+                        },
+                        TargetItem::NavFrameItem(filter) => {
+                            self.retain(|_, classes| {
+                                classes.retain(|class, _| filter.contains(&class));
+                                classes.len() > 0
+                            });
+                        },
+                        TargetItem::NavMsgItem(filter) => {
+                            self.retain(|_, classes| {
+                                classes.retain(|class, frames| {
+                                    if *class == FrameClass::Ephemeris {
+                                        frames.retain(|fr| {
+                                            let (msg, _, _) = fr.as_eph().unwrap();
+                                            filter.contains(&msg)
+                                        });
+                                    } else if *class == FrameClass::SystemTimeOffset {
+                                        frames.retain(|fr| {
+                                            let (msg, _, _) = fr.as_sto().unwrap();
+                                            filter.contains(&msg)
+                                        });
+                                    } else if *class == FrameClass::IonosphericModel {
+                                        frames.retain(|fr| {
+                                            let (msg, _, _) = fr.as_ion().unwrap();
+                                            filter.contains(&msg)
+                                        });
+                                    } else {
+                                        frames.retain(|fr| {
+                                            let (msg, _, _) = fr.as_eop().unwrap();
+                                            filter.contains(&msg)
+                                        });
+                                    }
+                                    frames.len() > 0
+                                });
+                                classes.len() > 0
+                            });
+                        },
+                        _ => {}, // TargetItem::
+                    },
+                    MaskOperand::NotEquals => match mask.item {
+                        TargetItem::EpochItem(epoch) => self.retain(|e, _| *e != epoch),
+                        TargetItem::ConstellationItem(filter) => {
+                            self.retain(|_, classes| {
+                                classes.retain(|class, frames| {
+                                    if *class == FrameClass::Ephemeris {
+                                        frames.retain(|fr| {
+                                            let (_, sv, _) = fr.as_eph().unwrap();
+                                            !filter.contains(&sv.constellation)
+                                        });
+                                        frames.len() > 0
+                                    } else {
+                                        true // do not affect other frame types
+                                    }
+                                });
+                                classes.len() > 0
+                            });
+                        },
+                        TargetItem::SvItem(filter) => {
+                            self.retain(|_, classes| {
+                                classes.retain(|class, frames| {
+                                    if *class == FrameClass::Ephemeris {
+                                        frames.retain(|fr| {
+                                            let (_, sv, _) = fr.as_eph().unwrap();
+                                            !filter.contains(&sv)
+                                        });
+                                        frames.len() > 0
+                                    } else {
+                                        true // do not affect other frame types
+                                    }
+                                });
+                                classes.len() > 0
+                            });
+                        },
+                        TargetItem::OrbitItem(filter) => {
+                            self.retain(|_, classes| {
+                                classes.retain(|class, frames| {
+                                    if *class == FrameClass::Ephemeris {
+                                        frames.retain_mut(|fr| {
+                                            let (_, _, ephemeris) = fr.as_mut_eph().unwrap();
+                                            let orbits = &mut ephemeris.orbits;
+                                            orbits.retain(|k, _| !filter.contains(&k));
+                                            orbits.len() > 0
+                                        });
+                                        frames.len() > 0
+                                    } else {
+                                        true // do not affect other frame types
+                                    }
+                                });
+                                classes.len() > 0
+                            });
+                        },
+                        _ => {}, // TargetItem::
+                    },
+                    MaskOperand::GreaterThan => match mask.item {
+                        TargetItem::EpochItem(epoch) => self.retain(|e, _| *e > epoch),
+                        TargetItem::SvItem(filter) => {
+                            self.retain(|_, classes| {
+                                classes.retain(|class, frames| {
+                                    if *class == FrameClass::Ephemeris {
+                                        frames.retain(|fr| {
+                                            let mut retain = false;
+                                            let (_, sv, _) = fr.as_eph().unwrap();
+                                            for item in &filter {
+                                                if item.constellation == sv.constellation {
+                                                    retain = sv.prn > item.prn;
+                                                } else {
+                                                    retain = true;
+                                                }
+                                            }
+                                            retain
+                                        });
+                                        frames.len() > 0
+                                    } else {
+                                        true // do not affect other frame types
+                                    }
+                                });
+                                classes.len() > 0
+                            });
+                        },
+                        _ => {}, // TargetItem::
+                    },
+                    MaskOperand::GreaterEquals => match mask.item {
+                        TargetItem::EpochItem(epoch) => self.retain(|e, _| *e >= epoch),
+                        TargetItem::SvItem(filter) => {
+                            self.retain(|_, classes| {
+                                classes.retain(|class, frames| {
+                                    if *class == FrameClass::Ephemeris {
+                                        frames.retain(|fr| {
+                                            let mut retain = false;
+                                            let (_, sv, _) = fr.as_eph().unwrap();
+                                            for item in &filter {
+                                                if item.constellation == sv.constellation {
+                                                    retain = sv.prn >= item.prn;
+                                                } else {
+                                                    retain = true;
+                                                }
+                                            }
+                                            retain
+                                        });
+                                        frames.len() > 0
+                                    } else {
+                                        true // do not affect other frame types
+                                    }
+                                });
+                                classes.len() > 0
+                            });
+                        },
+                        _ => {}, // TargetItem::
+                    },
+                    MaskOperand::LowerThan => match mask.item {
+                        TargetItem::EpochItem(epoch) => self.retain(|e, _| *e < epoch),
+                        TargetItem::SvItem(filter) => {
+                            self.retain(|_, classes| {
+                                classes.retain(|class, frames| {
+                                    if *class == FrameClass::Ephemeris {
+                                        frames.retain(|fr| {
+                                            let mut retain = false;
+                                            let (_, sv, _) = fr.as_eph().unwrap();
+                                            for item in &filter {
+                                                if item.constellation == sv.constellation {
+                                                    retain = sv.prn < item.prn;
+                                                } else {
+                                                    retain = true;
+                                                }
+                                            }
+                                            retain
+                                        });
+                                        frames.len() > 0
+                                    } else {
+                                        true // do not affect other frame types
+                                    }
+                                });
+                                classes.len() > 0
+                            });
+                        },
+                        _ => {}, // TargetItem::
+                    },
+                    MaskOperand::LowerEquals => match mask.item {
+                        TargetItem::EpochItem(epoch) => self.retain(|e, _| *e <= epoch),
+                        TargetItem::SvItem(filter) => {
+                            self.retain(|_, classes| {
+                                classes.retain(|class, frames| {
+                                    if *class == FrameClass::Ephemeris {
+                                        frames.retain(|fr| {
+                                            let mut retain = false;
+                                            let (_, sv, _) = fr.as_eph().unwrap();
+                                            for item in &filter {
+                                                if item.constellation == sv.constellation {
+                                                    retain = sv.prn > item.prn;
+                                                } else {
+                                                    retain = true;
+                                                }
+                                            }
+                                            retain
+                                        });
+                                        frames.len() > 0
+                                    } else {
+                                        true // do not affect other frame types
+                                    }
+                                });
+                                classes.len() > 0
+                            });
+                        },
+                        _ => {}, // TargetItem::
+                    },
+                }
+            },
             Filter::Interp(filter) => self.interpolate_mut(filter.series, filter.target),
-			Filter::Smoothing(_) => todo!(),
-			Filter::Decimation(_) => todo!(),
-		}
-	}
+            Filter::Smoothing(_) => todo!(),
+            Filter::Decimation(_) => todo!(),
+        }
+    }
 }
 
 impl Interpolate for Record {
@@ -1595,12 +1592,57 @@ impl Interpolate for Record {
     }
     fn interpolate_mut(&mut self, _series: TimeSeries, target: Option<TargetItem>) {
         if let Some(target) = target {
-            let mask = Filter::Mask(
-                MaskFilter {
-                    operand: MaskOperand::Equals,
-                    item: target,
-                });
+            let mask = Filter::Mask(MaskFilter {
+                operand: MaskOperand::Equals,
+                item: target,
+            });
             self.filter_mut(mask);
         }
+    }
+}
+
+impl Decimate for Record {
+    /// Decimates Self by desired factor
+    fn decimate_by_ratio_mut(&mut self, r: u32) {
+        let mut i = 0;
+        self.retain(|_, _| {
+            let retained = (i % r) == 0;
+            i += 1;
+            retained
+        });
+    }
+    /// Copies and Decimates Self by desired factor
+    fn decimate_by_ratio(&self, r: u32) -> Self {
+        let mut s = self.clone();
+        s.decimate_by_ratio_mut(r);
+        s
+    }
+    /// Decimates Self to fit minimum epoch interval
+    fn decimate_by_interval_mut(&mut self, interval: Duration) {
+        let mut last_retained: Option<Epoch> = None;
+        self.retain(|e, _| {
+            if last_retained.is_some() {
+                let dt = *e - last_retained.unwrap();
+                last_retained = Some(*e);
+                dt > interval
+            } else {
+                last_retained = Some(*e);
+                true // always retain 1st epoch
+            }
+        });
+    }
+    /// Copies and Decimates Self to fit minimum epoch interval
+    fn decimate_by_interval(&self, interval: Duration) -> Self {
+        let mut s = self.clone();
+        s.decimate_by_interval_mut(interval);
+        s
+    }
+    fn decimate_match_mut(&mut self, rhs: &Self) {
+        self.retain(|e, _| rhs.get(e).is_some());
+    }
+    fn decimate_match(&self, rhs: &Self) -> Self {
+        let mut s = self.clone();
+        s.decimate_match_mut(&rhs);
+        s
     }
 }

@@ -15,7 +15,7 @@ mod preprocessing;
 use preprocessing::preprocess;
 
 //use horrorshow::Template;
-use rinex::{merge::Merge, processing::*, split::Split, quality::*};
+use rinex::{merge::Merge, processing::*, quality::*, split::Split};
 
 use cli::Cli;
 pub use context::Context;
@@ -26,7 +26,7 @@ extern crate pretty_env_logger;
 #[macro_use]
 extern crate log;
 
-use fops::{open_with_web_browser, filename};
+use fops::{filename, open_with_web_browser};
 use std::io::Write;
 
 pub fn main() -> Result<(), rinex::Error> {
@@ -46,14 +46,14 @@ pub fn main() -> Result<(), rinex::Error> {
      */
     preprocess(&mut ctx, &cli);
 
-     /* <!>    <!>     <!>      <!>      <!>      <!>      <!>
-     * Observation RINEX:
-     *  align phase origins at this point
-     *  this allows easy GNSS combination and processing,
-     *  gives more meaningful phase data plots..
-      <!>    <!>     <!>      <!>      <!>      <!>      <!> */
+    /* <!>    <!>     <!>      <!>      <!>      <!>      <!>
+    * Observation RINEX:
+    *  align phase origins at this point
+    *  this allows easy GNSS combination and processing,
+    *  gives more meaningful phase data plots..
+     <!>    <!>     <!>      <!>      <!>      <!>      <!> */
     //ctx.primary_rinex
-        //.observation_align_phase_origins_mut();
+    //.observation_align_phase_origins_mut();
 
     /*
      * Basic file identification
@@ -110,7 +110,9 @@ pub fn main() -> Result<(), rinex::Error> {
      * [GF] recombination visualization requested
      */
     if cli.gf_recombination() {
-        let data = ctx.primary_rinex.observation_combination(Combination::GeometryFree);
+        let data = ctx
+            .primary_rinex
+            .observation_combination(Combination::GeometryFree);
         plot::plot_gnss_recombination(
             &mut plot_ctx,
             "Geometry Free signal combination",
@@ -131,7 +133,9 @@ pub fn main() -> Result<(), rinex::Error> {
      * [WL] recombination
      */
     if cli.wl_recombination() {
-        let data = ctx.primary_rinex.observation_combination(Combination::WideLane);
+        let data = ctx
+            .primary_rinex
+            .observation_combination(Combination::WideLane);
         plot::plot_gnss_recombination(
             &mut plot_ctx,
             "Wide Lane signal combination",
@@ -144,7 +148,9 @@ pub fn main() -> Result<(), rinex::Error> {
      * [NL] recombination
      */
     if cli.nl_recombination() {
-        let data = ctx.primary_rinex.observation_combination(Combination::NarrowLane);
+        let data = ctx
+            .primary_rinex
+            .observation_combination(Combination::NarrowLane);
         plot::plot_gnss_recombination(
             &mut plot_ctx,
             "Narrow Lane signal combination",
@@ -157,7 +163,9 @@ pub fn main() -> Result<(), rinex::Error> {
      * [MW] recombination
      */
     if cli.mw_recombination() {
-        let data = ctx.primary_rinex.observation_combination(Combination::MelbourneWubbena);
+        let data = ctx
+            .primary_rinex
+            .observation_combination(Combination::MelbourneWubbena);
         plot::plot_gnss_recombination(
             &mut plot_ctx,
             "Melbourne-Wübbena signal combination",
@@ -242,68 +250,63 @@ pub fn main() -> Result<(), rinex::Error> {
     /*
      * Render Graphs (HTML)
      */
-	if !qc_only {
-		let html_path = ctx.prefix.to_owned() + "/graphs.html";
-		let mut html_fd = std::fs::File::create(&html_path)
-			.expect(&format!("failed to create \"{}\"", &html_path));
-    	write!(html_fd, "{}", plot_ctx.to_html())
-			.expect(&format!("failed to render graphs"));
-    	info!("graphs rendered in \"{}\"", &html_path);
-		if !quiet {
-			open_with_web_browser(&html_path);
-		}
-	}
-	
-	/*
+    if !qc_only {
+        let html_path = ctx.prefix.to_owned() + "/graphs.html";
+        let mut html_fd = std::fs::File::create(&html_path)
+            .expect(&format!("failed to create \"{}\"", &html_path));
+        write!(html_fd, "{}", plot_ctx.to_html()).expect(&format!("failed to render graphs"));
+        info!("graphs rendered in \"{}\"", &html_path);
+        if !quiet {
+            open_with_web_browser(&html_path);
+        }
+    }
+
+    /*
      * QC Mode
      */
     if qc {
         info!("qc - enabled");
 
-		let mut qc_opts = cli.qc_config();
-		/* 
-		 * ground position:
+        let mut qc_opts = cli.qc_config();
+        /*
+         * ground position:
          * if not defined in the configuration,
-		 *  and user defined it through the CLI
-		 *  ==> use this value
-		 */
-		if qc_opts.ground_position.is_none() { // config did not specify it 
-			if let Some(pos) = cli.manual_position() { // manually passed 
-				qc_opts = qc_opts
-                    .with_ground_position_ecef(
-                        pos.to_ecef_wgs84()
-                    );
-				trace!("qc - antenna position manual set to {}", pos);
+         *  and user defined it through the CLI
+         *  ==> use this value
+         */
+        if qc_opts.ground_position.is_none() {
+            // config did not specify it
+            if let Some(pos) = cli.manual_position() {
+                // manually passed
+                qc_opts = qc_opts.with_ground_position_ecef(pos.to_ecef_wgs84());
+                trace!("qc - antenna position manual set to {}", pos);
             } else if ctx.ground_position.is_none() {
-			    warn!("qc - undetermined antenna position");
+                warn!("qc - undetermined antenna position");
             }
-		}
+        }
 
-		if qc_opts.min_snr_db > 0.0 {
-			trace!("qc - minimal SNR: {} dB", qc_opts.min_snr_db);
-		}
+        if qc_opts.min_snr_db > 0.0 {
+            trace!("qc - minimal SNR: {} dB", qc_opts.min_snr_db);
+        }
 
-        let nav_paths: Vec<_> = cli.nav_paths()
-            .iter()
-            .map(|k| filename(&k))
-            .collect();
+        let nav_paths: Vec<_> = cli.nav_paths().iter().map(|k| filename(&k)).collect();
 
         let report = QcReport::new(
-			&filename(cli.input_path()), 
-			&ctx.primary_rinex, 
+            &filename(cli.input_path()),
+            &ctx.primary_rinex,
             nav_paths,
             ctx.nav_rinex,
-			qc_opts); // &ctx.nav_rinex
+            qc_opts,
+        ); // &ctx.nav_rinex
 
-		let qc_path = ctx.prefix.to_owned() + "/report.html";
-		let mut qc_fd = std::fs::File::create(&qc_path)
-			.expect(&format!("failed to create \"{}\"", &qc_path));
-		write!(qc_fd, "{}", report.to_html())
-			.expect("failed to generate QC summary report");
-		info!("qc - summary report \"{}\" generated", &qc_path);
-		if !quiet {
-			open_with_web_browser(&qc_path);
-		}
+        let qc_path = ctx.prefix.to_owned() + "/report.html";
+        let mut qc_fd =
+            std::fs::File::create(&qc_path).expect(&format!("failed to create \"{}\"", &qc_path));
+        write!(qc_fd, "{}", report.to_html()).expect("failed to generate QC summary report");
+        info!("qc - summary report \"{}\" generated", &qc_path);
+        if !quiet {
+            open_with_web_browser(&qc_path);
+        }
     }
     Ok(())
 } // main

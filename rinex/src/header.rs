@@ -3,6 +3,7 @@
 use super::*;
 use crate::{
     antex, clocks,
+    ground_position::GroundPosition,
     hardware::{Antenna, Rcvr, SvAntenna},
     ionex, leap, meteo, observation,
     observation::Crinex,
@@ -10,7 +11,6 @@ use crate::{
     types::{Type, TypeError},
     version::Version,
     Observable,
-	ground_position::GroundPosition,
 };
 
 use std::io::prelude::*;
@@ -518,7 +518,7 @@ impl Header {
                 if let Ok(x) = f64::from_str(items[0].trim()) {
                     if let Ok(y) = f64::from_str(items[1].trim()) {
                         if let Ok(z) = f64::from_str(items[2].trim()) {
-							ground_position = Some(GroundPosition::from_ecef_wgs84((x, y, z)));
+                            ground_position = Some(GroundPosition::from_ecef_wgs84((x, y, z)));
                         }
                     }
                 }
@@ -1504,7 +1504,8 @@ impl std::fmt::Display for Header {
                                     if (i % 9) == 0 && i > 0 {
                                         //ADD LABEL
                                         descriptor.push_str("# / TYPES OF OBSERV\n");
-                                        descriptor.push_str(&format!("{:<6}", "")); //TAB
+                                        descriptor.push_str(&format!("{:<6}", ""));
+                                        //TAB
                                     }
                                     // <!> this will not work if observable
                                     //     does not fit on 2 characters
@@ -1520,7 +1521,7 @@ impl std::fmt::Display for Header {
                                     ));
                                 } else {
                                     let nb_lines = observables.len() / 9;
-                                    let blanking = 80 - (descriptor.len() - 80*nb_lines); //98 = 80 + # / TYPESOFOBSERV
+                                    let blanking = 80 - (descriptor.len() - 80 * nb_lines); //98 = 80 + # / TYPESOFOBSERV
                                     descriptor.push_str(&format!(
                                         "{:<width$}",
                                         "",
@@ -1531,7 +1532,7 @@ impl std::fmt::Display for Header {
                                 descriptor.push_str("# / TYPES OF OBSERV\n");
                                 write!(f, "{}", descriptor)?;
                                 // NOTE ON THIS BREAK
-                                //      header contains obs.codes[] copied for every possible constellation system 
+                                //      header contains obs.codes[] copied for every possible constellation system
                                 //      because we have no means to known which ones are to be encountered
                                 //      in this great/magnificent RINEX2 format.
                                 //      On the other hand, we're expected to only declare a single #/TYPESOFOBSERV label
@@ -1553,7 +1554,7 @@ impl std::fmt::Display for Header {
                                         line.push_str("SYS / # / OBS TYPES\n");
                                         write!(f, "{}", line)?;
                                         line.clear();
-                                        line.push_str(&format!("{:<6}", ""));//TAB
+                                        line.push_str(&format!("{:<6}", "")); //TAB
                                     }
                                     line.push_str(&format!(" {}", codes[i]))
                                 }
@@ -1578,7 +1579,11 @@ impl std::fmt::Display for Header {
                         }
                         description.push_str(&format!("    {}", obs.codes[i]));
                     }
-                    description.push_str(&format!("{:<width$}", "", width = 54 - description.len()));
+                    description.push_str(&format!(
+                        "{:<width$}",
+                        "",
+                        width = 54 - description.len()
+                    ));
                     description.push_str("# / TYPES OF OBSERV\n");
                     write!(f, "{}", description)?
                 }

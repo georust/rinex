@@ -3,8 +3,8 @@ use super::prelude::*;
 //use std::str::FromStr;
 
 pub trait GnssTime {
-	/// Returns TimeSeries formed by Self's epoch
-	fn timeseries(&self, dt: Duration) -> TimeSeries;
+    /// Returns TimeSeries formed by Self's epoch
+    fn timeseries(&self, dt: Duration) -> TimeSeries;
 
     /// Copies self and converts all Epochs to desired
     /// [hifitime::TimeScale].
