@@ -2114,7 +2114,7 @@ impl IonoDelayDetector for Record {
 		let mut ret:  HashMap<Observable, HashMap<Sv, BTreeMap<Epoch, f64>>>  = HashMap::new();
 		let mut prev_data: HashMap<(Observable, Observable), HashMap<Sv, (Epoch, f64)>> = HashMap::new();
 		for (combination, vehicles) in gf {
-		let (lhs_observable, ref_observable) = combination.clone();
+		let (_lhs_observable, ref_observable) = combination.clone();
 			if !ref_observable.is_phase_observable() {
 				continue ; // only on phase data
 			}

@@ -1,4 +1,3 @@
-/*
 use crate::{Cli, Context};
 use rinex::{navigation::MsgType, prelude::*};
 use std::str::FromStr;
@@ -105,5 +104,4 @@ pub fn retain_filters(ctx: &mut Context, cli: &Cli) {
             }
         }
     }
-    */
 }

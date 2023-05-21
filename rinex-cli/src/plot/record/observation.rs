@@ -117,8 +117,8 @@ pub fn plot_observation(ctx: &Context, plot_ctx: &mut PlotContext) {
         let markers = generate_markers(carriers.len()); // one symbol per carrier
         for (index, (carrier, vehicules)) in carriers.iter().enumerate() {
             for (sv, data) in vehicules {
-                let data_x: Vec<Epoch> = data.iter().map(|(cs, e, _y)| *e).collect();
-                let data_y: Vec<f64> = data.iter().map(|(cs, _e, y)| *y).collect();
+                let data_x: Vec<Epoch> = data.iter().map(|(_cs, e, _y)| *e).collect();
+                let data_y: Vec<f64> = data.iter().map(|(_cs, _e, y)| *y).collect();
                 let trace = build_chart_epoch_axis(
                     &format!("{}(L{})", sv, carrier),
                     Mode::Markers,

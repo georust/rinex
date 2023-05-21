@@ -51,7 +51,7 @@ pub fn plot_gnss_dcb(
     let markers = generate_markers(data.len());
     // plot all ops
     for (op_index, (op, vehicules)) in data.iter().enumerate() {
-        for (sv, epochs) in vehicules {
+        for (_sv, epochs) in vehicules {
             let data_x: Vec<Epoch> = epochs.iter().map(|((e, _flag), _v)| *e).collect();
             let data_y: Vec<f64> = epochs.iter().map(|(_, v)| *v).collect();
             let trace =

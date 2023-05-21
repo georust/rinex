@@ -2,9 +2,9 @@
 mod test {
     use rinex::*;
     /// OBS RINEX thorough comparison
-    fn observation_comparison(rnx_a: &Rinex, rnx_b: &Rinex, filename: &str) {
-        let rec_a = rnx_a.record.as_obs().unwrap();
-        let rec_b = rnx_b.record.as_obs().unwrap();
+    fn observation_comparison(model: &Rinex, copy: &Rinex, filename: &str) {
+        let rec_a = model.record.as_obs().unwrap();
+        let rec_b = copy.record.as_obs().unwrap();
         for (e_a, (clk_offset_a, vehicules_a)) in rec_a.iter() {
             if let Some((clk_offset_b, vehicules_b)) = rec_b.get(e_a) {
                 assert_eq!(clk_offset_a, clk_offset_b);
@@ -92,9 +92,9 @@ mod test {
         }
     }
     /// CLOCK Rinex thorough comparison
-    fn clocks_comparison(rnx_a: &Rinex, rnx_b: &Rinex, filename: &str) {
-        let rec_a = rnx_a.record.as_clock().unwrap();
-        let rec_b = rnx_a.record.as_clock().unwrap();
+    fn clocks_comparison(model: &Rinex, copy: &Rinex, filename: &str) {
+        let rec_a = model.record.as_clock().unwrap();
+        let rec_b = model.record.as_clock().unwrap();
         for (e_a, data_types) in rec_a.iter() {
             for (data_type, systems) in rec_a.iter() {
                 for (system, data) in systems.iter() {}
@@ -102,16 +102,16 @@ mod test {
         }
     }
     /// Meteo RINEX thorough comparison
-    fn meteo_comparison(rnx_a: &Rinex, rnx_b: &Rinex, filename: &str) {
-        let rec_a = rnx_a.record.as_meteo().unwrap();
-        let rec_b = rnx_b.record.as_meteo().unwrap();
+    fn meteo_comparison(model: &Rinex, copy: &Rinex, filename: &str) {
+        let rec_a = model.record.as_meteo().unwrap();
+        let rec_b = copy.record.as_meteo().unwrap();
         for (e_a, obscodes_a) in rec_a.iter() {
             if let Some(obscodes_b) = rec_b.get(e_a) {
                 for (code_a, observation_a) in obscodes_a.iter() {
                     if let Some(observation_b) = obscodes_b.get(code_a) {
                         assert_eq!(observation_a, observation_b);
                     } else {
-                        panic!("\"{}\" - epoch {:?} missing \"{}\" observation", filename, e_a, code_a);
+                        panic!("\"{}\" - epoch {:?} missing \"{}\" observation|EXPECTED\n{:#?}|GENERATED\n{:#?}", filename, e_a, code_a, rec_a, rec_b);
                     }
                 }
             } else {
@@ -133,13 +133,13 @@ mod test {
             }
         }
     }
-    fn compare_with_panic(rnx_a: &Rinex, rnx_b: &Rinex, filename: &str) {
-        if rnx_a.is_observation_rinex() {
-            observation_comparison(&rnx_a, &rnx_b, filename);
-        } else if rnx_a.is_meteo_rinex() {
-            meteo_comparison(&rnx_a, &rnx_b, filename);
-        } else if rnx_a.is_clocks_rinex() {
-            clocks_comparison(&rnx_a, &rnx_b, filename);
+    fn compare_with_panic(model: &Rinex, copy: &Rinex, filename: &str) {
+        if model.is_observation_rinex() {
+            observation_comparison(&model, &copy, filename);
+        } else if model.is_meteo_rinex() {
+            meteo_comparison(&model, &copy, filename);
+        } else if model.is_clocks_rinex() {
+            clocks_comparison(&model, &copy, filename);
         }
     }
     fn testbench(path: &str) {
@@ -157,9 +157,7 @@ mod test {
             .unwrap();
         // run comparison
         if copy != rnx {
-            let content = std::fs::read_to_string(&copy_path)
-                .unwrap();
-            panic!("\"{}\"::.to_file() generated faulty content\n\"{}\"\nExpected:\n{:#?}\nGenerated:\n{:#?}", filename, content, rnx, copy); 
+            compare_with_panic(&rnx, &copy, filename);
         }
         // remove copy not to disturb other test browsers
         let _ = std::fs::remove_file(copy_path);

@@ -32,33 +32,46 @@ This tool supports gzip compressed files, as long as their name is terminated by
 ### Analysis and report files
 
 Analysis and reports are generated in HTML, in the `rinex/rinex-cli/product` directory.  
+Analysis is named after the primary RINEX file, so it is possible to generate
+several products and keep them.
 
-For each session, you get a `rinex/rinex-cli/product/$PRIMARY` folder, where $PRIMARY
-is the name of the `--fp`  primary RINEX file that was given to the command line.  
-  
-This allows generating and saving multiple reports in successive tool invokations.
+Some advanced computations and analysis are possible with this tool,
+refer to the dedicated sections.
+
+## `teqc` operations
+
+`teqc` is a well known application to process RINEX.   
+Unlike teqc, this application is not capable of processing Binary RINEX ("BINEX") and 
+proprietary formats in general.
+
+Some teqc operations are supported:
+
+- [merge](doc/merge.md) several RINEX together into a single file.
+- [split](doc/split.md) given RINEX into two
+- [resampling](doc/sampling.md) to reduce data quantity
+- [quality check](doc/qc.md): file quality check, mainly Observations
 
 ## Getting started
 
 Grab the binary for your architecture 
 [from the latest release](https://github.com/gwbres/rinex/releases).
 
-or compile the application manually:
+Or compile the application manually:
 
 ```shell
 cargo build --release
 ./target/release/rinex-cli -h
 ```
 
-When we say "rinex-cli", we now imply "target/release/rinex-cli".  
+From now on, "rinex-cli" means "target/release/rinex-cli" previously compiled.  
 
-All examples described here are based around our 
+All examples depicted in this documentation suite uses our
 [test data](https://github.com/gwbres/rinex/tree/main/test_resources).  
-This means you have everything to reproduce the examples on your side.   
+That means you have everything to reproduce the provided examples on your side. 
 
 ## Command line interface
 
-File paths have to be absolute. 
+File paths have to be absolute.   
 Arguments order does not matter to this application: 
 
 ```bash
@@ -66,14 +79,9 @@ rinex-cli --fp test_resources/NAV/V2/amel010.21g
 rinex-cli --sv-epoch --fp /tmp/amel010.21g
 ```
 
-`--fp` is the only mandatory flag and is how the "primary" RINEX file is given.  
-
-In advanced modes, we'll see that other (secondary) files can be passed, to unlock
-advanced operations. 
-
-Use the `RUST_LOG` environment variable to take advantage of the logger.  
+Use the `RUST_LOG` environment variable to enjoy the env logger.  
 Set the sensitivy as desired, "trace" being the most sensitive,
-"info" is the standard value:
+"info" the standard value:
 
 ```bash
 RUST_LOG=trace rinex-cli --fp test_resources/NAV/V2/amel010.21g
@@ -82,101 +90,95 @@ export RUST_LOG=info
 rinex-cli --fp test_resources/NAV/V2/amel010.21g
 ```
 
-## HTML and analysis report
+Some operations may require an argument. In this case we expect a CSV description,
+for example, `--retain-sv` to focus on vehicles of interest is one of those:
 
-When an operation is requested, it gets added to an HTML report. 
-In the future, this tool may support other formats. 
-Most analysis are graphical, we use `plotly` which is a powerful javascript library.  
-For each graph, you can export to PNG or focus on a data subset by double clicking on its name
-in the plot legend.  
+```bash
+rinex-cli --fp rovn0010.21o --retain-sv G01,G02
+```
 
-The Quality Check (`--qc`) summary report
-is another mode of this tool which increments the HTML report with other informations,
-like general file information, analysis. Some information and analysis are only available
-in the QC mode. Refer to its [dedicated section](doc/qc.md) for more information.
+As previously said, [rinex-cli/product](product/) is where we generate
+analysis reports.
 
-When the analysis is concluded, the application will try to open the report
-with the "default" web browser. Depending on the OS context, this may not be feasible.  
-This "automated" feature is turned off when the quiet mode is activated with `-q`.
-
-When graphs are to be included in the report, its size grows significantly.    
-In order to share reports easily, a `--tiny-html` option is there to reduce
-the report size. The reduction factor is approximately 8.  
-
-When this option is used, the HTML report is not self sufficient, the plotting
-javascrit library must be retrieved from the web (at least, cached once).  
-Basically, you get a smaller report that is longer to display on the first time.  
-Modern web browsers are so efficient at caching that the performance degradation
-is barely noticeable, and this feature may become the standard behavior in the future.
-
-## Basic operations
-
-Basic operations consist of simple data enumerations. 
-The results of these enumeration are displayed in the terminal (_stdout_).
-
-Any amount of filters is supported.  
-For example, retain PRN above 08 for GPS and below 15 (included) for Glonass:
+Analysis are stacked to one another, and order does not matter.  
+For example, when providing an Observation RINEX data, 
+one plot per physic is to be generated, and here we request
+two other analysis to be performed:
 
 ```bash
 rinex-cli \
-    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.gz \
-    -F mask:gt:sv:G08 mask:leq:R15
+    --retain-sv R01,R08,R19,G08,G21,G31 \ # focus
+    --sv-epoch \ # Sv per Epoch identification
+    --epoch-hist \  # sampling rate histogram analysis
+    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz 
+
+ls rinex-cli/product/ESBC00DNK_R_20201770000_01D_30S_MO/analysis.html
 ```
 
-### Filter summary
+## HTML content
 
-* `-F 'content'` is how you describe a filter. Use inverted commas  
-if _content_ contains whitespaces  
-  
-* `-F mask:sv:G08,G09` describes a mask filter targetting vehicles G08, G09.   
-The filter operand is omited: "equality" is implied: we'll retain all data from these vehicles.
-  
-* `-F mask:neq:sv:G08` operand is specified, we'll retain all data from all vehicles but G08.
+The analysis report is generated in HTML.  
+In the future, we will allow other formats to be generated
+(like JSON). 
 
-* `-F mask:gnss:GPS, GAL' `sv` or `gnss` are targeted items.  
-See down below for the complete list of known targets.  
-When several targets are targeted, the payload is a CSV string and whitespaces are allowed.
+When the analysis is concluded, the report
+is opened in the default web browser. This is turned off
+if the quiet (`-q`) is active.
 
-* `-F smooth:hatch`  the first keyword describes the filter type.  
-  
-* `-F mask:gt:gnss:GPS` some operands  
+The HTML content is self-sufficient, all Javascript
+and other dependencies are integrated . 
+This results in a large file whose rendering is quick.
+To change that behavior, the `--tiny-html` option is there. 
+The resulting report gets reduced (about 8 times smaller), but
+graphical views (if any) are longer to render in the browser.
+This is actually only true if the javascript has not been cached
+by the web browser.
 
 ## Data identification
 
 Basic Identification consists in extracting high level information to understand which 
 data is contained in a given RINEX.
-Examples of such information would be:
-
-* `--header` to print the header content (as is)
-* `--epochs` to enumerate encountered Epochs, in chronological order
-* `--sv` to enumerate encountered Sv
-* `--gnss` to enumerate encountered Constellations
-* `--observables` to enumerate encountered Observables
-* `--orbits` to enumerate encountered Orbit fields
+Examples of such information would be `Epoch` or `Sv` enumerations.
 
 For example:
 
 ```bash
-rinex-cli --fp test_resources/OBS/V2/KOSG0010.95O --epochs --sv
+rinex-cli -f KOSG0010.95O --epoch
 ``` 
 
-A `--pretty` option exists, to make the enumeration more readable
+As always, Identification operations can be stacked together, to perform several at once.
+For example, identify encountered vehicules at the same time:
 
 ```bash
-rinex-cli --fp test_resources/OBS/V2/KOSG0010.95O --epoch --sv --pretty
+rinex-cli -f test_resources/OBS/V2/KOSG0010.95O --epoch --sv
 ``` 
 
-All other operations cannot be displayed in the terminal, they're integrated 
-in the HTML report.  
+Basic operations like these only output to "stdout" currently.  
+The `--pretty` option is there to make the datasets more readable: 
 
-## Basic analysis
+```bash
+rinex-cli -f test_resources/OBS/V2/KOSG0010.95O --epoch --sv --pretty
+``` 
 
-Several analysis can be stacked to the generated report, see their [dedicated page](doc/analysis.md).
+## Data analysis
 
-## Pre processing
+Several analysis can be stacked to the generated report, 
+like `--sv-epoch` or sample rate analysis with `--epoch-hist`.   
+Refer to their [dedicated page](doc/analysis.md) documentation.
 
-Learn all our [preprocessing algorithms](doc/preprocessing.md) to prepare efficiently the data
-for analysis.
+## Record analysis
+
+When analyzing a RINEX, it is probably needed to reduce
+the file content and focus on data you're interested in.
+
+We developed several filter operations, from which we
+distinguish two categories:
+
+* [Filtering operations](doc/filtering.md) 
+* [Resampling operations](doc/resampling.md) 
+
+Move on to the [record analysis mode](doc/record.md) for thorough
+examples of RINEX record manipulations.
 
 ## File generation
 
@@ -228,17 +230,3 @@ to customize such section of the RINEX to be generated.
 The `custom-header` flag accepts either a direct JSON description
 of the `Rinex::Header` structure, or a local file containing
 such a description.
-
-
-## `teqc` operations
-
-`teqc` is a well known application to process RINEX.   
-Unlike teqc, this application is not capable of processing Binary RINEX ("BINEX") and 
-proprietary formats in general.
-
-Some teqc operations are supported:
-
-- [merge](doc/merge.md) several RINEX together into a single file.
-- [split](doc/split.md) given RINEX into two
-- [resampling](doc/sampling.md) to reduce data quantity
-- [quality check](doc/qc.md): file quality check, mainly Observations

@@ -710,9 +710,9 @@ mod test {
     fn v2_kosg0010_95o() {
         let rnx = Rinex::from_file("../test_resources/OBS/V2/KOSG0010.95O").unwrap();
         let expected: Vec<Epoch> = vec![
-            Epoch::from_gregorian_utc(2095, 01, 01, 00, 00, 00, 00),
-            Epoch::from_gregorian_utc(2095, 01, 01, 11, 00, 00, 00),
-            Epoch::from_gregorian_utc(2095, 01, 01, 20, 44, 30, 00),
+            Epoch::from_gregorian_utc(1995, 01, 01, 00, 00, 00, 00),
+            Epoch::from_gregorian_utc(1995, 01, 01, 11, 00, 00, 00),
+            Epoch::from_gregorian_utc(1995, 01, 01, 20, 44, 30, 00),
         ];
         assert_eq!(rnx.epochs(), expected);
     }

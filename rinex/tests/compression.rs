@@ -13,7 +13,6 @@ mod test {
         assert!(r1.is_some());
         let r1 = r1.unwrap();
         let r2 = f2.record.as_obs().unwrap();
-
         /*
          * testbench
          */
@@ -32,6 +31,7 @@ mod test {
                     expected_e
                 );
                 let obss = sv.unwrap();
+                //TODO test observations
             }
         }
     }

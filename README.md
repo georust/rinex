@@ -61,10 +61,6 @@ __CLI__ + :chart_with_upwards_trend: means record analysis is supported by the C
 
 ## Known weaknesses :warning:
 
-- For old files generated prior January 01, 2000:
-if year is encoded on two digits, they get falsely shifted into the 21st century.
-For instance, "95" becomes "2095". Other than that, data is correctly parsed.
-
 - Glonass Time Scale is not known to this day.
 We cannot parse and apply system time corrections from other time scales into the glonass time scale.
 

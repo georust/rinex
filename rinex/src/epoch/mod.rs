@@ -44,12 +44,19 @@ pub(crate) fn now() -> Epoch {
  */
 pub(crate) fn format(epoch: Epoch, flag: Option<EpochFlag>, t: Type, revision: u8) -> String {
     let (y, m, d, hh, mm, ss, nanos) = epoch.to_gregorian_utc();
+
     match t {
         Type::ObservationData => {
             if revision < 3 {
+                // old RINEX wants 2 digit YY field
+                let mut y = y - 2000;
+                if y < 0 {
+                    // fix: files recorded prior 21st century
+                    y += 100; 
+                }
                 format!(
                     "{:02} {:>2} {:>2} {:>2} {:>2} {:>2}.{:07}  {}",
-                    y - 2000,
+                    y,
                     m,
                     d,
                     hh,
@@ -74,9 +81,15 @@ pub(crate) fn format(epoch: Epoch, flag: Option<EpochFlag>, t: Type, revision: u
         },
         Type::NavigationData => {
             if revision < 3 {
+                // old RINEX wants 2 digit YY field
+                let mut y = y - 2000;
+                if y < 0 {
+                    // fix: files recorded prior 21st century
+                    y += 100; 
+                }
                 format!(
                     "{:02} {:>2} {:>2} {:>2} {:>2} {:>2}.{:1}",
-                    y - 2000,
+                    y,
                     m,
                     d,
                     hh,
@@ -94,9 +107,15 @@ pub(crate) fn format(epoch: Epoch, flag: Option<EpochFlag>, t: Type, revision: u
         ),
         _ => {
             if revision < 3 {
+                // old RINEX wants 2 digit YY field
+                let mut y = y - 2000;
+                if y < 0 {
+                    // fix: files recorded prior 21st century
+                    y += 100; 
+                }
                 format!(
                     "{:02} {:>2} {:>2} {:>2} {:>2} {:>2}",
-                    y - 2000,
+                    y,
                     m,
                     d,
                     hh,
@@ -123,7 +142,14 @@ pub(crate) fn parse(s: &str) -> Result<(Epoch, EpochFlag), Error> {
     }
     if let Ok(mut y) = i32::from_str_radix(items[0], 10) {
         if y < 100 {
-            y += 2000;
+            // OLD RINEX two digit YY fields dirty management
+            if y < 70 {
+                // old RINEX recorded in 21st century
+                y += 2000;
+            } else {
+                // old RINEX recorded prior 21st century
+                y += 1900;
+            }
         }
         if let Ok(m) = u8::from_str_radix(items[1], 10) {
             if let Ok(d) = u8::from_str_radix(items[2], 10) {
@@ -136,8 +162,12 @@ pub(crate) fn parse(s: &str) -> Result<(Epoch, EpochFlag), Error> {
                                     u32::from_str_radix(&items[5][dot + 1..].trim(), 10)
                                 {
                                     if is_nav {
+                                        // NAV RINEX:
+                                        // precision is 0.1 sec
                                         ns *= 100_000_000;
                                     } else {
+                                        // OBS RINEX:
+                                        // precision is 0.1 usec
                                         ns *= 100;
                                     }
                                     let e = Epoch::from_gregorian_utc(y, m, d, hh, mm, ss, ns);

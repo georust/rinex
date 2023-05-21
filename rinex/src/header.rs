@@ -1486,8 +1486,8 @@ impl std::fmt::Display for Header {
         }
         // INTERVAL
         if let Some(interval) = &self.sampling_interval {
-            write!(f, "{:10.3}", interval)?;
-            write!(f, "{:<50}", "")?;
+            write!(f, "{:6}", interval.to_seconds())?;
+            write!(f, "{:<54}", "")?;
             write!(f, "INTERVAL\n")?
         }
         // List of Observables
@@ -1499,36 +1499,43 @@ impl std::fmt::Display for Header {
                             // old revisions
                             for (_, observables) in obs.codes.iter() {
                                 write!(f, "{:6}", observables.len())?;
-                                let mut line = String::new();
+                                let mut descriptor = String::new();
                                 for i in 0..observables.len() {
                                     if (i % 9) == 0 && i > 0 {
-                                        line.push_str("# / TYPES OF OBSERV\n");
-                                        write!(f, "{}", line)?;
-                                        line.clear();
-                                        line.push_str(&format!("{:6}", "")); // tab
+                                        //ADD LABEL
+                                        descriptor.push_str("# / TYPES OF OBSERV\n");
+                                        descriptor.push_str(&format!("{:<6}", "")); //TAB
                                     }
-                                    line.push_str(&format!("{:>6}", observables[i]));
+                                    // <!> this will not work if observable
+                                    //     does not fit on 2 characters
+                                    descriptor.push_str(&format!("    {}", observables[i]));
                                 }
-                                if line.len() > 0 {
-                                    // residues
-                                    if observables.len() > 9 {
-                                        line.push_str(&format!(
-                                            "{:<width$}",
-                                            "",
-                                            width = 60 - line.len()
-                                        ));
-                                    } else {
-                                        line.push_str(&format!(
-                                            "{:<width$}",
-                                            "",
-                                            width = 54 - line.len()
-                                        ));
-                                    }
-                                    line.push_str("# / TYPES OF OBSERV\n");
-                                    //line.push_str(&format!("{:>width$}", "# / TYPES OF OBSERV\n", width=74-line.len()));
-                                    write!(f, "{}", line)?
+                                //ADD BLANK on last line
+                                if observables.len() <= 9 {
+                                    // fits on one line
+                                    descriptor.push_str(&format!(
+                                        "{:<width$}",
+                                        "",
+                                        width = 80 - descriptor.len()
+                                    ));
+                                } else {
+                                    let nb_lines = observables.len() / 9;
+                                    let blanking = 80 - (descriptor.len() - 80*nb_lines); //98 = 80 + # / TYPESOFOBSERV
+                                    descriptor.push_str(&format!(
+                                        "{:<width$}",
+                                        "",
+                                        width = blanking
+                                    ));
                                 }
-                                break; // run only once, <=> for 1 constellation
+                                //ADD LABEL
+                                descriptor.push_str("# / TYPES OF OBSERV\n");
+                                write!(f, "{}", descriptor)?;
+                                // NOTE ON THIS BREAK
+                                //      header contains obs.codes[] copied for every possible constellation system 
+                                //      because we have no means to known which ones are to be encountered
+                                //      in this great/magnificent RINEX2 format.
+                                //      On the other hand, we're expected to only declare a single #/TYPESOFOBSERV label
+                                break;
                             }
                         },
                         _ => {
@@ -1546,7 +1553,7 @@ impl std::fmt::Display for Header {
                                         line.push_str("SYS / # / OBS TYPES\n");
                                         write!(f, "{}", line)?;
                                         line.clear();
-                                        line.push_str(&format!("{:<6}", ""));
+                                        line.push_str(&format!("{:<6}", ""));//TAB
                                     }
                                     line.push_str(&format!(" {}", codes[i]))
                                 }
@@ -1557,32 +1564,25 @@ impl std::fmt::Display for Header {
                         },
                     }
                 }
-            }, //ObservationData
+            }, //ObservationData observables description
             Type::MeteoData => {
                 if let Some(obs) = &self.meteo {
                     write!(f, "{:6}", obs.codes.len())?;
-                    let mut line = String::new();
+                    let mut description = String::new();
                     for i in 0..obs.codes.len() {
                         if (i % 9) == 0 && i > 0 {
-                            line.push_str("# / TYPES OF OBSERV\n");
-                            write!(f, "{}", line)?;
-                            line.clear();
-                            line.push_str(&format!("{:6}", "")); // tab
+                            description.push_str("# / TYPES OF OBSERV\n");
+                            write!(f, "{}", description)?;
+                            description.clear();
+                            description.push_str(&format!("{:<6}", "")); //TAB
                         }
-                        line.push_str(&format!("{:>6}", obs.codes[i]));
+                        description.push_str(&format!("    {}", obs.codes[i]));
                     }
-                    if line.len() > 0 {
-                        // residues
-                        if obs.codes.len() > 9 {
-                            line.push_str(&format!("{:<width$}", "", width = 60 - line.len()));
-                        } else {
-                            line.push_str(&format!("{:<width$}", "", width = 54 - line.len()));
-                        }
-                        line.push_str("# / TYPES OF OBSERV\n");
-                    }
-                    write!(f, "{}", line)?
+                    description.push_str(&format!("{:<width$}", "", width = 54 - description.len()));
+                    description.push_str("# / TYPES OF OBSERV\n");
+                    write!(f, "{}", description)?
                 }
-            }, //meteo data
+            }, //MeteoData observables description
             _ => {},
         }
         // Must take place after list of Observables:

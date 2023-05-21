@@ -81,7 +81,7 @@ pub fn main() -> Result<(), rinex::Error> {
      * DCB analysis requested
      */
     if cli.dcb() {
-        let mut data = ctx.primary_rinex.observation_dcb();
+        let data = ctx.primary_rinex.observation_dcb();
         plot::plot_gnss_dcb(
             &mut plot_ctx,
             "Differential Code Biases",

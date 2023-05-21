@@ -89,7 +89,7 @@ impl <'a> QcReport<'a> {
         /*
          * Classification Method
          */
-		let mut classifier: TargetItem = match opts.classification {
+		let classifier: TargetItem = match opts.classification {
 			QcClassificationMethod::GNSS => {
 				let mut gnss = rnx.list_constellations();
 				gnss.sort();

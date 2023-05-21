@@ -62,7 +62,7 @@ fn report_anomalies(anomalies: &Vec<(Epoch, EpochFlag)>) -> Box<dyn RenderBox + 
 					}
 				}
 				tbody {
-					@ for (epoch, flag) in anomalies {
+					@ for (epoch, _flag) in anomalies {
 						tr { 
 							td {
 								: epoch.to_string()
@@ -268,7 +268,7 @@ impl QcObsAnalysis {
 			.space_vehicules();
 		let obs = rnx.header.obs.as_ref().unwrap();
 		let mut observables = obs.codes.clone();
-		let mut observables = observables
+		let observables = observables
 			.get_mut(&sv[0].constellation)
 			.unwrap();
 		let mut signals: Vec<Carrier> = Vec::new();
@@ -293,6 +293,7 @@ impl QcObsAnalysis {
                 let clk_data = r.filter(mask);
                 let der = clk_data.derivative();
                 let mov = der.moving_average(Duration::from_seconds(600.0), None);
+                //TODO
                 None
             },
             _ => None,

@@ -321,7 +321,7 @@ impl Interpolate for Record {
         s.interpolate_mut(series, target);
         s
     }
-    fn interpolate_mut(&mut self, series: TimeSeries, target: Option<TargetItem>) {
+    fn interpolate_mut(&mut self, _series: TimeSeries, target: Option<TargetItem>) {
         if let Some(target) = target {
             let mask = Filter::Mask(
                 MaskFilter {
