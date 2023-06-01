@@ -128,6 +128,8 @@ impl Ssi {
 }
 
 bitflags! {
+    #[derive(Debug, Copy, Clone)]
+    #[derive(PartialEq, PartialOrd)]
     #[cfg_attr(feature = "serde", derive(Serialize))]
     pub struct LliFlags: u8 {
         /// Current epoch is marked Ok or Unknown status

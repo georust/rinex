@@ -127,7 +127,8 @@ impl KbModel {
 }
 
 bitflags! {
-    #[derive(Default)]
+    #[derive(Debug, Default, Clone, Copy)]
+    #[derive(PartialEq, PartialOrd)]
     #[cfg_attr(feature = "serde", derive(Serialize))]
     pub struct NgRegionFlags: u16 {
         const REGION5 = 0x01;

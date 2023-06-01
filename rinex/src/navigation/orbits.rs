@@ -12,7 +12,8 @@ use thiserror::Error;
 include!(concat!(env!("OUT_DIR"), "/nav_orbits.rs"));
 
 bitflags! {
-    #[derive(Default)]
+    #[derive(Default, Debug, Clone)]
+    #[derive(PartialEq, PartialOrd)]
     #[cfg_attr(feature = "serde", derive(Serialize))]
     pub struct GloStatus: u32 {
         const GROUND_GPS_ONBOARD_OFFSET = 0x01;
