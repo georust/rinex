@@ -1423,7 +1423,7 @@ impl Processing for Record {
                 if let Some(mean) = mean.0 {
                     if let Some((count, dv)) = diff.0 {
                         let dv = dv + (*clk - mean).powf(order as f64);
-                        diff.0 = Some((count +1, dv));
+                        diff.0 = Some((count + 1, dv));
                     }
                 }
             }
