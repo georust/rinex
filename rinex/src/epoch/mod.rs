@@ -133,8 +133,10 @@ pub(crate) fn parse(s: &str) -> Result<(Epoch, EpochFlag), Error> {
         }
     }
     if let Ok(mut y) = i32::from_str_radix(items[0], 10) {
-        if y < 100 { // two digit issues (old rinex format)
-            if y < 80 { // RINEX did not exist
+        if y < 100 {
+            // two digit issues (old rinex format)
+            if y < 80 {
+                // RINEX did not exist
                 // modern file (2000+) that uses old revision,
                 y += 2000;
             } else {

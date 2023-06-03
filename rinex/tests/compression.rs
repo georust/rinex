@@ -49,20 +49,22 @@ mod test {
             let (crnx_name, rnx_name) = duplet;
             let crnx_path = format!("../test_resources/CRNX/V1/{}", crnx_name);
             let rnx_path = format!("../test_resources/OBS/V2/{}", rnx_name);
-            
-            let rnx = Rinex::from_file(&rnx_path)
-                .expect("failed to parse test pool file");
-            
-            // convert to CRINEX1 
+
+            let rnx = Rinex::from_file(&rnx_path).expect("failed to parse test pool file");
+
+            // convert to CRINEX1
             println!("compressing \"{}\"..", rnx_path);
-            let dut = rnx.rnx2crnx1(); 
-            
+            let dut = rnx.rnx2crnx1();
+
             // parse model
-            let model = Rinex::from_file(&crnx_path)
-                .expect("failed to parse test pool file");
-            
+            let model = Rinex::from_file(&crnx_path).expect("failed to parse test pool file");
+
             // compare to CRINEX1 model
-            test_toolkit::compare_with_panic(&dut, &model, &format!("compression::crinx1::{}", rnx_path));
+            test_toolkit::compare_with_panic(
+                &dut,
+                &model,
+                &format!("compression::crinx1::{}", rnx_path),
+            );
         }
     }
     //#[test]
@@ -77,22 +79,27 @@ mod test {
         ];
         for testfile in pool {
             let rnx_path = format!("../test_resources/OBS/V2/{}", testfile);
-            
-            let rnx = Rinex::from_file(&rnx_path)
-                .expect("failed to parse test pool file");
-            
-            // compress
-            let compressed = rnx.rnx2crnx1(); 
 
-            assert!(compressed.to_file("test.crx").is_ok(),
-                "{}{}", 
-                "failed to format compressed rinex", testfile);
+            let rnx = Rinex::from_file(&rnx_path).expect("failed to parse test pool file");
+
+            // compress
+            let compressed = rnx.rnx2crnx1();
+
+            assert!(
+                compressed.to_file("test.crx").is_ok(),
+                "{}{}",
+                "failed to format compressed rinex",
+                testfile
+            );
 
             // test reciprocity
             let uncompressed = compressed.crnx2rnx();
-            assert!(rnx == uncompressed, 
-                "{}{}", 
-                "reciprocity test failed for \"{}\"", testfile);
+            assert!(
+                rnx == uncompressed,
+                "{}{}",
+                "reciprocity test failed for \"{}\"",
+                testfile
+            );
         }
     }
 }

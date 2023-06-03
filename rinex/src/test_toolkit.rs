@@ -2,16 +2,22 @@ use crate::*;
 
 /// OBS RINEX thorough comparison
 fn observation_comparison(dut: &Rinex, model: &Rinex, filename: &str) {
-    let rec_dut = dut.record.as_obs()
+    let rec_dut = dut
+        .record
+        .as_obs()
         .expect("failed to unwrap as observation rinex record");
-    let rec_model = model.record.as_obs()
+    let rec_model = model
+        .record
+        .as_obs()
         .expect("failed to unwrap as observation rinex record");
 
     for (e_model, (clk_offset_model, vehicules_model)) in rec_model.iter() {
         if let Some((clk_offset_dut, vehicules_dut)) = rec_dut.get(e_model) {
-            assert_eq!(clk_offset_model, clk_offset_dut, 
+            assert_eq!(
+                clk_offset_model, clk_offset_dut,
                 "\"{}\" - epoch {:?} - faulty clock offset, expecting {:?} got {:?}",
-                    filename, e_model, clk_offset_model, clk_offset_dut);
+                filename, e_model, clk_offset_model, clk_offset_dut
+            );
             for (sv_model, observables_model) in vehicules_model.iter() {
                 if let Some(observables_dut) = vehicules_dut.get(sv_model) {
                     for (code_model, obs_model) in observables_model {
@@ -29,25 +35,25 @@ fn observation_comparison(dut: &Rinex, model: &Rinex, filename: &str) {
                             assert_eq!(
                                 obs_model.lli, obs_dut.lli,
                                 "\"{}\" - epoch {:?} - {:?} - \"{}\" - LLI expecting {:?} got {:?}",
-                                filename,
-                                e_model, sv_model, code_model, obs_model.lli, obs_dut.lli
+                                filename, e_model, sv_model, code_model, obs_model.lli, obs_dut.lli
                             );
                             assert_eq!(
                                 obs_model.snr, obs_dut.snr,
                                 "\"{}\" - epoch {:?} - {:?} - \"{}\" - SNR expecting {:?} got {:?}",
-                                filename,
-                                e_model, sv_model, code_model, obs_model.snr, obs_dut.snr
+                                filename, e_model, sv_model, code_model, obs_model.snr, obs_dut.snr
                             );
                         } else {
                             panic!(
                                 "\"{}\" - epoch {:?} - {:?} : missing \"{}\" observation",
-                                filename,
-                                e_model, sv_model, code_model
+                                filename, e_model, sv_model, code_model
                             );
                         }
                     }
                 } else {
-                    panic!("\"{}\" - epoch {:?} - missing vehicule {:?}", filename, e_model, sv_model);
+                    panic!(
+                        "\"{}\" - epoch {:?} - missing vehicule {:?}",
+                        filename, e_model, sv_model
+                    );
                 }
             }
         } else {
@@ -90,7 +96,10 @@ fn observation_comparison(dut: &Rinex, model: &Rinex, filename: &str) {
                         }
                     }
                 } else {
-                    panic!("\"{}\" - epoch {:?} - parsed {:?} unexpectedly", filename, e_b, sv_b);
+                    panic!(
+                        "\"{}\" - epoch {:?} - parsed {:?} unexpectedly",
+                        filename, e_b, sv_b
+                    );
                 }
             }
         } else {
@@ -101,9 +110,13 @@ fn observation_comparison(dut: &Rinex, model: &Rinex, filename: &str) {
 
 /// CLOCK Rinex thorough comparison
 fn clocks_comparison(dut: &Rinex, model: &Rinex, filename: &str) {
-    let rec_dut = dut.record.as_clock()
+    let rec_dut = dut
+        .record
+        .as_clock()
         .expect("failed to unwrap as clock rinex record");
-    let rec_model = model.record.as_clock()
+    let rec_model = model
+        .record
+        .as_clock()
         .expect("failed to unwrap as clock rinex record");
     for (e_a, data_types) in rec_dut.iter() {
         for (data_type, systems) in rec_dut.iter() {
@@ -113,17 +126,22 @@ fn clocks_comparison(dut: &Rinex, model: &Rinex, filename: &str) {
 }
 /// Meteo RINEX thorough comparison
 fn meteo_comparison(dut: &Rinex, model: &Rinex, filename: &str) {
-    let rec_dut = dut.record.as_meteo()
+    let rec_dut = dut
+        .record
+        .as_meteo()
         .expect("failed to unwrap as meteo rinex record");
-    let rec_model = model.record.as_meteo()
+    let rec_model = model
+        .record
+        .as_meteo()
         .expect("failed to unwrap as meteo rinex record");
     for (e_model, obscodes_model) in rec_model.iter() {
         if let Some(obscodes_dut) = rec_dut.get(e_model) {
             for (code_model, observation_model) in obscodes_model.iter() {
                 if let Some(observation_dut) = obscodes_dut.get(code_model) {
-                    assert_eq!(observation_model, observation_dut,
+                    assert_eq!(
+                        observation_model, observation_dut,
                         "\"{}\" - epoch {:?} - faulty \"{}\" observation - expecting {} - got {}",
-                            filename, e_model, code_model, observation_model, observation_dut
+                        filename, e_model, code_model, observation_model, observation_dut
                     );
                 } else {
                     panic!(
@@ -141,9 +159,10 @@ fn meteo_comparison(dut: &Rinex, model: &Rinex, filename: &str) {
         if let Some(obscodes_model) = rec_model.get(e_dut) {
             for (code_dut, observation_dut) in obscodes_dut.iter() {
                 if let Some(observation_model) = obscodes_model.get(code_dut) {
-                    assert_eq!(observation_model, observation_dut,
+                    assert_eq!(
+                        observation_model, observation_dut,
                         "\"{}\" - epoch {:?} - faulty \"{}\" observation - expecting {} - got {}",
-                            filename, e_dut, code_dut, observation_model, observation_dut
+                        filename, e_dut, code_dut, observation_model, observation_dut
                     );
                 } else {
                     panic!(

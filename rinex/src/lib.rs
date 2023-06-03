@@ -73,7 +73,7 @@ pub mod sbas {
 
 mod algorithm;
 
-/// Processing package, 
+/// Processing package,
 /// includes preprocessing methods and analysis methods.
 pub mod processing {
     pub use crate::algorithm::*;
