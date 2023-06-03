@@ -27,8 +27,34 @@ pub enum Error {
     FilterError,
 }
 
-/// Preprocessing filters, to process RINEX data
-/// prior analysis
+/// Preprocessing filters, to preprocess RINEX data
+/// prior further analysis.
+/// 
+/// Apply masks to your dataset, to focus (retain)
+/// on the subsets you're interested in
+/// ```
+/// let rinex = Rinex::from_file("../test_resource/OBS/V2/KOSG0010.95O")
+///     .unwrap();
+/// // retain specific Space Vehicules with an Sv mask
+/// let mask = Filter::from_str("g01,g02,g03, g05")
+///     .unwrap();
+/// let masked = rinex.apply(mask);
+/// // we're left with "G01", "G02", "G05", since "G03" does not exist in this file
+/// //TODO
+/// 
+/// // Several operands exist, when ommited, the Equality ("eq") operand is implied. 
+/// // For example with the GreaterThan (>) operand, we retain 
+/// // GPS vehicules above PRN10
+/// let mask = Filter::from_str("gt:g01,g02,g03, g05")
+///     .unwrap();
+///
+/// // use AND() to create complex (combined) masks
+/// let complex = Filter::from_str("GPS")
+///     .unwrap()
+///     .and(Filter::from_str("GLO").unwrap());
+/// // retrieve GPS + GLONASS vehicules
+/// let masked = rinex.apply(mask);
+/// ```
 #[derive(Debug, Clone)]
 pub enum Filter {
     /// Mask filter is used to focus or remove a specific data subset
@@ -106,6 +132,9 @@ mod test {
     use std::str::FromStr;
     #[test]
     fn from_str() {
+        /*
+         * Test MASK FILTER description
+         */
         for desc in vec![
             "mask:gt: 10.0",
             "mask:eq:GPS",
@@ -120,6 +149,9 @@ mod test {
             let filt = Filter::from_str(desc);
             assert!(filt.is_ok(), "Filter::from_str failed on \"{}\"", desc);
         }
+        /*
+         * Test MASK FILTER description
+         */
         for desc in vec![
             "mask:10.0",
             "mask:10.0, 13.0",
@@ -130,10 +162,16 @@ mod test {
             let filt = Filter::from_str(desc);
             assert!(filt.is_ok(), "Filter::from_str failed on \"{}\"", desc);
         }
+        /*
+         * Test DECIMATION FILTER description
+         */
         for desc in vec!["decim:10", "decim:10 min", "decim:1 hour"] {
             let filt = Filter::from_str(desc);
             assert!(filt.is_ok(), "Filter::from_str failed on \"{}\"", desc);
         }
+        /*
+         * Test SMOOTHING FILTER description
+         */
         for desc in vec![
             "smooth:mov:10 min",
             "smooth:mov:1 hour",

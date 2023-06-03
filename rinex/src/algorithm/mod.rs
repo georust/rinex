@@ -8,8 +8,10 @@ mod target;
 pub use combination::{Combination, Combine};
 pub use dcb::Dcb;
 pub use ionospheric::IonoDelayDetector;
-pub use processing::Processing;
 pub use target::TargetItem;
+
+pub use processing::Processing;
+pub(crate) use processing::StatisticalOps;
 
 pub use filters::{
     Decimate, DecimationFilter, DecimationType, Filter, InterpFilter, InterpMethod, Interpolate,

@@ -422,7 +422,7 @@ impl QcObsAnalysis {
                 ssi_stats.insert(obs.clone(), (mean, 0.0_f64, 0.0_f64));
             }
 
-            let mut stddev_ssi: HashMap<_, _> = r.stddev_observable();
+            let mut stddev_ssi: HashMap<_, _> = r.mean_observable(); // TODO r.stddev_observable();
             stddev_ssi.retain(|obs, _| obs.is_ssi_observable());
             for (obs, stddev) in stddev_ssi {
                 if let Some((_, dev, _)) = ssi_stats.get_mut(&obs) {
@@ -430,7 +430,7 @@ impl QcObsAnalysis {
                 }
             }
 
-            let mut skew_ssi: HashMap<_, _> = r.skewness_observable();
+            let mut skew_ssi: HashMap<_, _> = r.mean_observable(); // TODO r.skewness_observable();
             skew_ssi.retain(|obs, _| obs.is_ssi_observable());
             for (obs, skew) in skew_ssi {
                 if let Some((_, _, sk)) = ssi_stats.get_mut(&obs) {

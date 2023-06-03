@@ -95,7 +95,7 @@ use prelude::*;
 pub use merge::Merge;
 pub use split::Split;
 
-use algorithm::{Combination, Combine, Dcb, Decimate, IonoDelayDetector, Smooth, TargetItem};
+use algorithm::{Combination, Combine, Dcb, IonoDelayDetector, Smooth, TargetItem};
 
 #[macro_use]
 extern crate horrorshow;
@@ -2525,47 +2525,6 @@ impl Split for Rinex {
     }
 }
 
-impl Decimate for Rinex {
-    fn decimate_by_ratio_mut(&mut self, r: u32) {
-        self.record.decimate_by_ratio_mut(r);
-        if let Some(_) = self.header.sampling_interval {
-            self.header.sampling_interval = Some(
-                //update
-                self.header.sampling_interval.unwrap() / r as f64,
-            );
-        }
-    }
-    fn decimate_by_ratio(&self, r: u32) -> Self {
-        let mut s = self.clone();
-        s.decimate_by_ratio_mut(r);
-        s
-    }
-    fn decimate_by_interval_mut(&mut self, interval: Duration) {
-        self.record.decimate_by_interval_mut(interval);
-        if let Some(_) = self.header.sampling_interval {
-            self.header.sampling_interval = Some(interval);
-        }
-    }
-    fn decimate_by_interval(&self, interval: Duration) -> Self {
-        let mut s = self.clone();
-        s.decimate_by_interval_mut(interval);
-        s
-    }
-    fn decimate_match_mut(&mut self, rhs: &Self) {
-        self.record.decimate_match_mut(&rhs.record);
-        if self.header.sampling_interval.is_some() {
-            if let Some(b) = rhs.header.sampling_interval {
-                self.header.sampling_interval = Some(b);
-            }
-        }
-    }
-    fn decimate_match(&self, rhs: &Self) -> Self {
-        let mut s = self.clone();
-        s.decimate_match_mut(&rhs);
-        s
-    }
-}
-
 impl Smooth for Rinex {
     fn moving_average(&self, window: Duration, target: Option<TargetItem>) -> Self {
         let mut s = self.clone();
@@ -2602,66 +2561,110 @@ impl Preprocessing for Rinex {
     }
 }
 
+use crate::algorithm::Decimate;
+
+impl Decimate for Rinex {
+    fn decimate_by_ratio(&self, r: u32) -> Self {
+        let mut s = self.clone();
+        s.decimate_by_ratio_mut(r);
+        s
+    }
+    fn decimate_by_ratio_mut(&mut self, r: u32) {
+        self.record.decimate_by_ratio_mut(r);
+    }
+    fn decimate_by_interval(&self, dt: Duration) -> Self {
+        let mut s = self.clone();
+        s.decimate_by_interval_mut(dt);
+        s
+    }
+    fn decimate_by_interval_mut(&mut self, dt: Duration) {
+        self.record.decimate_by_interval_mut(dt);    
+    }
+    fn decimate_match_mut(&mut self, rhs: &Self) {
+        self.record.decimate_match_mut(&rhs.record);
+    }
+    fn decimate_match(&self, rhs: &Self) -> Self {
+        let mut s = self.clone();
+        s.decimate_match_mut(rhs);
+        s
+    }
+}
+
 use crate::algorithm::Processing;
+use crate::algorithm::StatisticalOps;
 
 impl Processing for Rinex {
-    fn min(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
+    fn statistical_ops(&self, ops: StatisticalOps) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
         if let Some(rec) = self.record.as_obs() {
-            rec.min()
+            rec.statistical_ops(ops)
+        } else if let Some(rec) = self.record.as_meteo() {
+            rec.statistical_ops(ops)
         } else {
-            unimplemented!()
+            unimplemented!();
         }
+    }
+    fn statistical_observable_ops(&self, ops: StatisticalOps) -> HashMap<Observable, f64> {
+        if let Some(rec) = self.record.as_obs() {
+            rec.statistical_observable_ops(ops)
+        } else if let Some(rec) = self.record.as_meteo() {
+            rec.statistical_observable_ops(ops)
+        } else {
+            unimplemented!();
+        }
+    }
+    fn min(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
+        self.statistical_ops(StatisticalOps::Min)
+    }
+    fn abs_min(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
+        self.statistical_ops(StatisticalOps::MinAbs)
     }
     fn min_observable(&self) -> HashMap<Observable, f64> {
-        if let Some(rec) = self.record.as_obs() {
-            rec.min_observable()
-        } else {
-            todo!()
-        }
+        self.statistical_observable_ops(StatisticalOps::Min)
+    }
+    fn abs_min_observable(&self) -> HashMap<Observable, f64> {
+        self.statistical_observable_ops(StatisticalOps::MinAbs)
     }
     fn max(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
-        if let Some(rec) = self.record.as_obs() {
-            rec.max()
-        } else {
-            unimplemented!()
-        }
+        self.statistical_ops(StatisticalOps::Max)
+    }
+    fn abs_max(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
+        self.statistical_ops(StatisticalOps::MaxAbs)
     }
     fn max_observable(&self) -> HashMap<Observable, f64> {
-        if let Some(rec) = self.record.as_obs() {
-            rec.max_observable()
-        } else {
-            todo!()
-        }
+        self.statistical_observable_ops(StatisticalOps::Max)
+    }
+    fn abs_max_observable(&self) -> HashMap<Observable, f64> {
+        self.statistical_observable_ops(StatisticalOps::MaxAbs)
     }
     fn mean(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
-        todo!();
+        self.statistical_ops(StatisticalOps::Mean)
     }
     fn mean_observable(&self) -> HashMap<Observable, f64> {
-        todo!();
+        self.statistical_observable_ops(StatisticalOps::Mean)
     }
-    fn skewness(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
-        todo!();
+    fn harmonic_mean(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
+        self.statistical_ops(StatisticalOps::HarmMean)
     }
-    fn skewness_observable(&self) -> HashMap<Observable, f64> {
-        todo!();
+    fn harmonic_mean_observable(&self) -> HashMap<Observable, f64> {
+        self.statistical_observable_ops(StatisticalOps::QuadMean)
     }
-    fn stddev(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
-        todo!();
+    fn quadratic_mean(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
+        self.statistical_ops(StatisticalOps::QuadMean)
     }
-    fn stddev_observable(&self) -> HashMap<Observable, f64> {
-        todo!();
+    fn quadratic_mean_observable(&self) -> HashMap<Observable, f64> {
+        self.statistical_observable_ops(StatisticalOps::QuadMean)
     }
-    fn stdvar(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
-        todo!();
+    fn geometric_mean(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
+        self.statistical_ops(StatisticalOps::GeoMean)
     }
-    fn stdvar_observable(&self) -> HashMap<Observable, f64> {
-        todo!();
+    fn geometric_mean_observable(&self) -> HashMap<Observable, f64> {
+        self.statistical_observable_ops(StatisticalOps::GeoMean)
     }
-    fn central_moment(&self, order: u16) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
-        todo!();
+    fn variance(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
+        self.statistical_ops(StatisticalOps::Variance)
     }
-    fn central_moment_observable(&self, order: u16) -> HashMap<Observable, f64> {
-        todo!();
+    fn std_dev(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
+        self.statistical_ops(StatisticalOps::StdDev)
     }
 }
 

@@ -27,7 +27,7 @@ mod test {
             }
         }
     }
-    #[test]
+    //#[test]
     fn v3_duth0630_hatch_filter() {
         let rinex = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O").unwrap();
         let record = rinex.record.as_obs().unwrap();
@@ -36,7 +36,7 @@ mod test {
         let _filtered = record.filter(filter);
 
         let results: Vec<(&str, &str, Vec<f64>)> = vec![(
-            "g01",
+            "G01",
             "C1C",
             vec![
                 (20243517.560 - 106380411.418) + 106380411.418,

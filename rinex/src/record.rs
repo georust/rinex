@@ -6,7 +6,7 @@ use thiserror::Error;
 use serde::Serialize;
 
 use super::{
-    algorithm::{Decimate, Filter, Preprocessing},
+    algorithm::{Filter, Preprocessing},
     antex, clocks,
     gnss_time::GnssTime,
     hatanaka::{Compressor, Decompressor},
@@ -722,67 +722,6 @@ impl Split for Record {
     }
 }
 
-impl Decimate for Record {
-    fn decimate_by_ratio_mut(&mut self, r: u32) {
-        if let Some(rec) = self.as_mut_obs() {
-            rec.decimate_by_ratio_mut(r);
-            //} else if let Some(rec) = self.as_mut_meteo() {
-            //} else if let Some(rec) = self.as_mut_ionex() {
-            //} else if let Some(rec) = self.as_mut_clock() {
-            //} else if let Some(rec) = self.as_mut_antex() {
-        } else {
-            todo!()
-        }
-    }
-    fn decimate_by_ratio(&self, r: u32) -> Self {
-        let mut s = self.clone();
-        s.decimate_by_ratio_mut(r);
-        s
-    }
-    fn decimate_by_interval_mut(&mut self, interval: Duration) {
-        if let Some(r) = self.as_mut_obs() {
-            r.decimate_by_interval_mut(interval);
-        } else {
-            todo!()
-        }
-    }
-    fn decimate_by_interval(&self, interval: Duration) -> Self {
-        let mut s = self.clone();
-        s.decimate_by_interval_mut(interval);
-        s
-    }
-    fn decimate_match_mut(&mut self, rhs: &Self) {
-        if let Some(a) = self.as_mut_obs() {
-            if let Some(b) = rhs.as_obs() {
-                a.decimate_match_mut(b);
-            }
-            /*} else if let Some(a) = self.as_mut_nav() {
-                if let Some(b) = rhs.as_nav() {
-                    a.decim_match_mut(b);
-                }
-            } else if let Some(a) = self.as_mut_meteo() {
-                if let Some(b) = rhs.as_meteo() {
-                    a.decim_match_mut(b);
-                }
-            } else if let Some(a) = self.as_mut_ionex() {
-                if let Some(b) = rhs.as_ionex() {
-                    a.decim_match_mut(b);
-                }
-            } else if let Some(a) = self.as_mut_clock() {
-                if let Some(b) = rhs.as_clock() {
-                    a.decim_match_mut(b);
-                }*/
-        } else {
-            todo!()
-        }
-    }
-    fn decimate_match(&self, rhs: &Self) -> Self {
-        let mut s = self.clone();
-        s.decimate_match_mut(rhs);
-        s
-    }
-}
-
 impl GnssTime for Record {
     fn timeseries(&self, dt: Duration) -> TimeSeries {
         if let Some(r) = self.as_obs() {
@@ -828,6 +767,54 @@ impl Preprocessing for Record {
             r.filter_mut(f);
         } else if let Some(r) = self.as_mut_ionex() {
             r.filter_mut(f);
+        }
+    }
+}
+
+use crate::algorithm::Decimate;
+
+impl Decimate for Record {
+    fn decimate_by_ratio(&self, r: u32) -> Self {
+        let mut s = self.clone();
+        s.decimate_by_ratio_mut(r);
+        s
+    }
+    fn decimate_by_ratio_mut(&mut self, r: u32) {
+        if let Some(rec) = self.as_mut_obs() {
+            rec.decimate_by_ratio_mut(r);
+        }
+        else if let Some(rec) = self.as_mut_nav() {
+            rec.decimate_by_ratio_mut(r);
+        }
+    }
+    fn decimate_by_interval(&self, dt: Duration) -> Self {
+        let mut s = self.clone();
+        s.decimate_by_interval_mut(dt);
+        s
+    }
+    fn decimate_by_interval_mut(&mut self, dt: Duration) {
+        if let Some(rec) = self.as_mut_obs() {
+            rec.decimate_by_interval_mut(dt);
+        }
+        else if let Some(rec) = self.as_mut_nav() {
+            rec.decimate_by_interval_mut(dt);
+        }
+    }
+    fn decimate_match(&self, rhs: &Self) -> Self {
+        let mut s = self.clone();
+        s.decimate_match_mut(rhs);
+        s
+    }
+    fn decimate_match_mut(&mut self, rhs: &Self) {
+        if let Some(rec) = self.as_mut_obs() {
+            if let Some(rhs) = rhs.as_obs() {
+                rec.decimate_match_mut(rhs);
+            }
+        }
+        else if let Some(rec) = self.as_mut_nav() {
+            if let Some(rhs) = rhs.as_nav() {
+                rec.decimate_match_mut(rhs);
+            }
         }
     }
 }

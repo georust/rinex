@@ -1,8 +1,30 @@
 use crate::prelude::*;
 use std::collections::HashMap;
 
+#[derive(Debug, Copy, Clone)]
+pub enum StatisticalOps {
+    Max,
+    Min,
+    MaxAbs,
+    MinAbs,
+    Variance,
+    StdDev,
+    Mean,
+    QuadMean,
+    HarmMean,
+    GeoMean,
+}
+
 pub trait Processing {
-    /// Evaluates min() for all Observations and Sv, across all epochs.  
+    /// If you're interested in the .min() of this RINEX
+    /// dataset for example, invoke and refer to .min() directly.  
+    /// <!> Only implemented on Observation RINEX <!>
+    fn statistical_ops(&self, ops: StatisticalOps) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>);
+    /// If you're interested in the .min() of this RINEX
+    /// dataset for example, invoke and refer to .min_observable() directly.
+    /// This is only feasible on either Observation or Meteo RINEX.
+    fn statistical_observable_ops(&self, ops: StatisticalOps) -> HashMap<Observable, f64>;
+    /// Evaluates min() for all Observations and Sv, and also for Clock Offsets, across all epochs.  
     /// This is only feasible on Observation RINEX.
     /// ```
     /// use rinex::prelude::*;
@@ -21,7 +43,7 @@ pub trait Processing {
     /// ```
     fn min(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>);
     /// Evaluates min() for all Observables across all epochs.
-    /// Observation RINEX: min() is performed across vehicules.
+    /// This is only feasible on either Observation or Meteo RINEX.
     /// ```
     /// use rinex::prelude::*;
     /// use rinex::Processing;
@@ -40,43 +62,71 @@ pub trait Processing {
     /// use rinex::Processing;
     /// let rinex = Rinex::from_file("../test_resources/MET/V2/clar0020.00m")
     ///     .unwrap();
-    /// let min = rinex.min();
+    /// let min = rinex.min_observable();
     /// for (observable, minimum) in min {
     ///     if observable == Observable::Temperature {
-    ///         assert_eq!(minimum, 8.4); // lowest temperature observed that day was +4°C
+    ///         assert_eq!(minimum, 8.4); // lowest temperature observed that day was +8.4°C
     ///     }
     /// }
     fn min_observable(&self) -> HashMap<Observable, f64>;
 
-    /// Evaluates maximal observation, for all signals and Sv
+    /// This is only feasible on Observation RINEX.
+    fn abs_min(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>);
+    /// This is only feasible on either Observation or Meteo RINEX.
+    fn abs_min_observable(&self) -> HashMap<Observable, f64>;
+
+    /// This is only feasible on Observation RINEX.
     fn max(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>);
-    /// Evaluates maximal observation for all signals
+    /// This is only feasible on Observation RINEX.
+    fn abs_max(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>);
+    
+    /// Evaluates max() for all Observables across all epochs.  
+    /// This is only feasible on either Observation or Meteo RINEX.
+    ///
+    /// Meteo RINEX:
+    /// ```
+    /// use rinex::prelude::*;
+    /// use rinex::Processing;
+    /// let rinex = Rinex::from_file("../test_resources/MET/V2/clar0020.00m")
+    ///     .unwrap();
+    /// let max = rinex.max_observable();
+    /// for (observable, max) in max {
+    ///     if observable == Observable::Temperature {
+    ///         assert_eq!(minimum, 16.2); // highest temperature observed that day was +16.2°C
+    ///     }
+    /// }
     fn max_observable(&self) -> HashMap<Observable, f64>;
+    /// This is only feasible on either Observation or Meteo RINEX.
+    fn abs_max_observable(&self) -> HashMap<Observable, f64>;
 
-    /// Evaluates average value for all signals and Sv
+    /// This is only feasible on Observation RINEX.
     fn mean(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>);
-    /// Evalutes average value for all signals (averages accross Sv)
+    /// This is only feasible on Observation RINEX.
+    fn quadratic_mean(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>);
+    /// This is only feasible on Observation RINEX.
+    fn harmonic_mean(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>);
+    /// This is only feasible on Observation RINEX.
+    fn geometric_mean(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>);
+
+    /// This is only feasible on either Observation or Meteo RINEX.
     fn mean_observable(&self) -> HashMap<Observable, f64>;
+    /// This is only feasible on either Observation or Meteo RINEX.
+    fn quadratic_mean_observable(&self) -> HashMap<Observable, f64>;
+    /// This is only feasible on either Observation or Meteo RINEX.
+    fn harmonic_mean_observable(&self) -> HashMap<Observable, f64>;
+    /// This is only feasible on either Observation or Meteo RINEX.
+    fn geometric_mean_observable(&self) -> HashMap<Observable, f64>;
 
-    /// Evaluates observation skewness per Sv per signal
-    fn skewness(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>);
-    fn skewness_observable(&self) -> HashMap<Observable, f64>;
+    // fn skewness(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>);
+    // fn skewness_observable(&self) -> HashMap<Observable, f64>;
 
-    /// Evaluates standard deviation for all signals and Sv
-    fn stddev(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>);
-    /// Evaluates standard deviation for all signals
-    fn stddev_observable(&self) -> HashMap<Observable, f64>;
+    /// This is only feasible on Observation RINEX.
+    fn std_dev(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>);
+    /// This is only feasible on Observation RINEX.
+    fn variance(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>);
 
-    /// Evaluates standard variance for all signals and Sv
-    fn stdvar(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>);
-    /// Evaluates standard deviation for all signals
-    fn stdvar_observable(&self) -> HashMap<Observable, f64>;
-
-    /// Evaluates nth order central moment for all Signals for all Sv
-    fn central_moment(&self, order: u16) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>);
-    /// Evaluates nth order central moment for all Signals, accross Sv
-    fn central_moment_observable(&self, order: u16) -> HashMap<Observable, f64>;
-
+    //fn central_moment(&self, order: u16) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>);
+    //fn central_moment_observable(&self, order: u16) -> HashMap<Observable, f64>;
     // fn derivative(&self) -> Record;
     // /// computes nth order derivative of this subset
     // fn derivative_nth(&self, order: u8) -> A;

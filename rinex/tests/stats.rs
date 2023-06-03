@@ -5,6 +5,9 @@ mod test {
     use std::str::FromStr;
     #[test]
     fn test_min() {
+        /*
+         * Test on OBSERVATION RINEX
+         */
         let rinex = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
             .expect("failed to parse RINEX file");
         let (min_clock, min) = rinex.min();
@@ -23,9 +26,24 @@ mod test {
             .get(&Observable::from_str("S1C").unwrap())
             .expect("min{dataset} is missing results for S1C observable");
         assert_eq!(*min_s1c_observations, 37.750);
+        
+        /*
+         * Test on METEO RINEX
+         */
+        let rinex = Rinex::from_file("../test_resources/MET/V2/clar0020.00m")
+            .unwrap();
+        let min = rinex.min_observable();
+        for (observable, minimum) in min {
+            if observable == Observable::Temperature {
+                assert_eq!(minimum, 8.4);
+            }
+        }
     }
     #[test]
     fn test_max() {
+        /*
+         * Test on OBSERVATION RINEX
+         */
         let rinex = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
             .expect("failed to parse RINEX file");
         let (max_clock, max) = rinex.max();
@@ -44,6 +62,18 @@ mod test {
             .get(&Observable::from_str("S1C").unwrap())
             .expect("max{dataset} is missing results for S1C observable");
         assert_eq!(*max_s1c_observations, 51.25);
+        
+        /*
+         * Test on METEO RINEX
+         */
+        let rinex = Rinex::from_file("../test_resources/MET/V2/clar0020.00m")
+            .unwrap();
+        let max = rinex.max_observable();
+        for (observable, max) in max {
+            if observable == Observable::Temperature {
+                assert_eq!(max, 16.2);
+            }
+        }
     }
     /*
         fn testbench(

@@ -1,6 +1,6 @@
 //! `NavigationData` parser and related methods
 use crate::processing::{
-    Decimate, Filter, Interpolate, MaskFilter, MaskOperand, Preprocessing, TargetItem,
+    Filter, Interpolate, MaskFilter, MaskOperand, Preprocessing, TargetItem,
 };
 use regex::{Captures, Regex};
 use std::collections::BTreeMap;
@@ -1601,6 +1601,8 @@ impl Interpolate for Record {
     }
 }
 
+use crate::processing::Decimate;
+
 impl Decimate for Record {
     /// Decimates Self by desired factor
     fn decimate_by_ratio_mut(&mut self, r: u32) {
@@ -1631,10 +1633,9 @@ impl Decimate for Record {
             }
         });
     }
-    /// Copies and Decimates Self to fit minimum epoch interval
-    fn decimate_by_interval(&self, interval: Duration) -> Self {
+    fn decimate_by_interval(&self, dt: Duration) -> Self {
         let mut s = self.clone();
-        s.decimate_by_interval_mut(interval);
+        s.decimate_by_interval_mut(dt);
         s
     }
     fn decimate_match_mut(&mut self, rhs: &Self) {
