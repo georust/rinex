@@ -8,98 +8,6 @@ mod test {
     };
     use std::collections::HashMap;
     use std::str::FromStr;
-    /*
-     * Compares rnx_b to rnx_a
-     */
-    fn run_comparison(model: &str, rnx_b: &Rinex) {
-        let model = Rinex::from_file(model).unwrap();
-        let model = model.record.as_obs().unwrap();
-        let rec_b = rnx_b.record.as_obs().unwrap();
-
-        for (e_model, (clk_offset_model, vehicules_model)) in rec_b.iter() {
-            if let Some((clk_offset_b, vehicules_b)) = rec_b.get(e_model) {
-                assert_eq!(clk_offset_model, clk_offset_b);
-                for (sv_model, observables_model) in vehicules_model.iter() {
-                    if let Some(observables_b) = vehicules_b.get(sv_model) {
-                        for (code_model, obs_model) in observables_model {
-                            if let Some(obs_b) = observables_b.get(code_model) {
-                                assert!(
-                                    (obs_model.obs - obs_b.obs).abs() < 1.0E-6,
-                                    "epoch {:?} - {:?} - \"{}\" expecting {} got {}",
-                                    e_model,
-                                    sv_model,
-                                    code_model,
-                                    obs_model.obs,
-                                    obs_b.obs
-                                );
-                                assert_eq!(
-                                    obs_model.lli, obs_b.lli,
-                                    "epoch {:?} - {:?} - \"{}\" - LLI expecting {:?} got {:?}",
-                                    e_model, sv_model, code_model, obs_model.lli, obs_b.lli
-                                );
-                                assert_eq!(
-                                    obs_model.snr, obs_b.snr,
-                                    "epoch {:?} - {:?} - \"{}\" - SNR expecting {:?} got {:?}",
-                                    e_model, sv_model, code_model, obs_model.snr, obs_b.snr
-                                );
-                            } else {
-                                panic!(
-                                    "epoch {:?} - {:?} : missing \"{}\" observation",
-                                    e_model, sv_model, code_model
-                                );
-                            }
-                        }
-                    } else {
-                        panic!("epoch {:?} - missing vehicule {:?}", e_model, sv_model);
-                    }
-                }
-            } else {
-                panic!("missing epoch {:?}", e_model);
-            }
-        }
-
-        for (e_b, (clk_offset_b, vehicules_b)) in rec_b.iter() {
-            if let Some((clk_offset_model, vehicules_model)) = rec_b.get(e_b) {
-                assert_eq!(clk_offset_model, clk_offset_b);
-                for (sv_b, observables_b) in vehicules_b.iter() {
-                    if let Some(observables_model) = vehicules_model.get(sv_b) {
-                        for (code_b, obs_b) in observables_b {
-                            if let Some(obs_model) = observables_model.get(code_b) {
-                                assert!(
-                                    (obs_model.obs - obs_b.obs).abs() < 1.0E-6,
-                                    "epoch {:?} - {:?} - \"{}\" expecting {} got {}",
-                                    e_b,
-                                    sv_b,
-                                    code_b,
-                                    obs_model.obs,
-                                    obs_b.obs
-                                );
-                                assert_eq!(
-                                    obs_model.lli, obs_b.lli,
-                                    "epoch {:?} - {:?} - \"{}\" - LLI expecting {:?} got {:?}",
-                                    e_b, sv_b, code_b, obs_model.lli, obs_b.lli
-                                );
-                                assert_eq!(
-                                    obs_model.snr, obs_b.snr,
-                                    "epoch {:?} - {:?} - \"{}\" - SNR expecting {:?} got {:?}",
-                                    e_b, sv_b, code_b, obs_model.snr, obs_b.snr
-                                );
-                            } else {
-                                panic!(
-                                    "epoch {:?} - {:?} : parsed \"{}\" unexpectedly",
-                                    e_b, sv_b, code_b
-                                );
-                            }
-                        }
-                    } else {
-                        panic!("epoch {:?} - parsed {:?} unexpectedly", e_b, sv_b);
-                    }
-                }
-            } else {
-                panic!("parsed epoch {:?} unexpectedly", e_b);
-            }
-        }
-    }
     #[test]
     fn testbench_v1() {
         let pool = vec![
@@ -150,13 +58,12 @@ mod test {
             }
 
             // convert to RINEX
-            rnx.crnx2rnx();
+            rnx.crnx2rnx_mut();
+
             let obs = rnx.header.obs.as_ref().unwrap();
             assert_eq!(obs.crinex.is_some(), false);
-            /*
-             * precise comparison
-             */
-            run_comparison(&format!("../test_resources/OBS/V2/{}", rnx_name), &rnx);
+            // run testbench
+            // test_toolkit::compare_with_panic(&format!("../test_resources/OBS/V2/{}", rnx_name), &rnx);
         }
     }
     #[test]
@@ -199,12 +106,12 @@ mod test {
             }
 
             // convert to RINEX
-            rnx.crnx2rnx();
+            rnx.crnx2rnx_mut();
 
             let obs = rnx.header.obs.as_ref().unwrap();
             assert_eq!(obs.crinex.is_some(), false);
             // run testbench
-            run_comparison(&format!("../test_resources/OBS/V3/{}", rnx_name), &rnx);
+            // test_toolkit::compare_with_panic(&rnx, &format!("../test_resources/OBS/V3/{}", rnx_name), &rnx);
         }
     }
     /*

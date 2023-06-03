@@ -22,6 +22,8 @@ pub mod sv;
 pub mod types;
 pub mod version;
 
+pub mod test_toolkit;
+
 mod ground_position;
 mod leap;
 mod observable;
@@ -71,8 +73,8 @@ pub mod sbas {
 
 mod algorithm;
 
-/// Processing package, regroups sampling
-/// and file quality analysis.
+/// Processing package, 
+/// includes preprocessing methods and analysis methods.
 pub mod processing {
     pub use crate::algorithm::*;
     //pub use differential::*;
@@ -254,7 +256,14 @@ impl Rinex {
     /// If current revision is < 3 then file gets converted to CRINEX1
     /// format, otherwise, modern Observations are converted to CRINEX3.
     /// This has no effect if self is not an Observation RINEX.
-    pub fn rnx2crnx(&mut self) {
+    pub fn rnx2crnx(&self) -> Self {
+        let mut s = self.clone();
+        s.rnx2crnx_mut();
+        s
+    }
+
+    /// [rnx2crnx] mutable implementation
+    pub fn rnx2crnx_mut(&mut self) {
         if self.is_observation_rinex() {
             let mut crinex = Crinex::default();
             crinex.version.major = match self.header.version.major {
@@ -268,7 +277,14 @@ impl Rinex {
     /// Converts self to CRINEX1 compressed format,
     /// whatever the RINEX revision might be.
     /// This can be used to "force" compression of a RINEX1 into CRINEX3
-    pub fn rnx2crnx1(&mut self) {
+    pub fn rnx2crnx1(&self) -> Self {
+        let mut s = self.clone();
+        s.rnx2crnx1_mut();
+        s
+    }
+
+    /// [rnx2crnx1] mutable implementation
+    pub fn rnx2crnx1_mut(&mut self) {
         if self.is_observation_rinex() {
             self.header = self.header.with_crinex(Crinex {
                 version: Version { major: 1, minor: 0 },
@@ -281,7 +297,13 @@ impl Rinex {
     /// Converts self to CRINEX3 compressed format,
     /// whatever the RINEX revision might be.
     /// This can be used to "force" compression of a RINEX1 into CRINEX3
-    pub fn rnx2crnx3(&mut self) {
+    pub fn rnx2crnx3(&self) -> Self {
+        let mut s = self.clone();
+        s.rnx2crnx1_mut();
+        s
+    }
+
+    pub fn rnx2crnx3_mut(&mut self) {
         if self.is_observation_rinex() {
             self.header = self.header.with_crinex(Crinex {
                 date: epoch::now(),
@@ -327,7 +349,14 @@ impl Rinex {
 
     /// Converts a CRINEX (compressed RINEX) into readable RINEX.
     /// This has no effect if self is not an Observation RINEX.
-    pub fn crnx2rnx(&mut self) {
+    pub fn crnx2rnx(&self) -> Self {
+        let mut s = self.clone();
+        s.crnx2rnx_mut();
+        s
+    }
+
+    /// [crnx2rnx] mutable implementation
+    pub fn crnx2rnx_mut(&mut self) {
         if self.is_observation_rinex() {
             let params = self.header.obs.as_ref().unwrap();
             self.header = self
