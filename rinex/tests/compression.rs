@@ -1,40 +1,7 @@
 #[cfg(test)]
 mod test {
     use rinex::prelude::*;
-    /*
-     * compare produced CRINEX to official CRINEX
-     */
-    fn testbench(produced: &str, official: &str) {
-        let f1 = Rinex::from_file(produced);
-        assert!(f1.is_ok());
-        let f1 = f1.unwrap();
-        let f2 = Rinex::from_file(official).unwrap();
-        let r1 = f1.record.as_obs();
-        assert!(r1.is_some());
-        let r1 = r1.unwrap();
-        let r2 = f2.record.as_obs().unwrap();
-        /*
-         * testbench
-         */
-        assert_eq!(r1.len(), r2.len());
-        for (expected_e, (expected_clk, expected_svs)) in r2 {
-            let epoch = r1.get(expected_e);
-            assert!(epoch.is_some());
-            let (clk, svs) = epoch.unwrap();
-            assert_eq!(clk, expected_clk);
-            for (expected_sv, expected_obss) in expected_svs {
-                let sv = svs.get(expected_sv);
-                assert!(
-                    sv.is_some(),
-                    "missing {:?} in epoch {:?}",
-                    expected_sv,
-                    expected_e
-                );
-                let obss = sv.unwrap();
-                //TODO test observations
-            }
-        }
-    }
+    use rinex::test_toolkit;
     //#[test]
     fn crinex1() {
         let pool = vec![

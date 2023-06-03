@@ -17,7 +17,7 @@ mod test {
             test_toolkit::compare_with_panic(&copy, &rnx, path);
         }
         // remove copy not to disturb other test browsers
-        // let _ = std::fs::remove_file(copy_path);
+        let _ = std::fs::remove_file(copy_path);
         // sleep for a bit
         // avoids this (temporary) file being picked up by other automated tests
         // std::thread::sleep(std::time::Duration::from_secs(1));
