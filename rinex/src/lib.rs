@@ -2602,6 +2602,69 @@ impl Preprocessing for Rinex {
     }
 }
 
+use crate::algorithm::Processing;
+
+impl Processing for Rinex {
+    fn min(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
+        if let Some(rec) = self.record.as_obs() {
+            rec.min()
+        } else {
+            unimplemented!()
+        }
+    }
+    fn min_observable(&self) -> HashMap<Observable, f64> {
+        if let Some(rec) = self.record.as_obs() {
+            rec.min_observable()
+        } else {
+            todo!()
+        }
+    }
+    fn max(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
+        if let Some(rec) = self.record.as_obs() {
+            rec.max()
+        } else {
+            unimplemented!()
+        }
+    }
+    fn max_observable(&self) -> HashMap<Observable, f64> {
+        if let Some(rec) = self.record.as_obs() {
+            rec.max_observable()
+        } else {
+            todo!()
+        }
+    }
+    fn mean(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
+        todo!();
+    }
+    fn mean_observable(&self) -> HashMap<Observable, f64> {
+        todo!();
+    }
+    fn skewness(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
+        todo!();
+    }
+    fn skewness_observable(&self) -> HashMap<Observable, f64> {
+        todo!();
+    }
+    fn stddev(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
+        todo!();
+    }
+    fn stddev_observable(&self) -> HashMap<Observable, f64> {
+        todo!();
+    }
+    fn stdvar(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
+        todo!();
+    }
+    fn stdvar_observable(&self) -> HashMap<Observable, f64> {
+        todo!();
+    }
+    fn central_moment(&self, order: u16) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
+        todo!();
+    }
+    fn central_moment_observable(&self, order: u16) -> HashMap<Observable, f64> {
+        todo!();
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;

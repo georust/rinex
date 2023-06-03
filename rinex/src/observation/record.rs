@@ -1197,38 +1197,49 @@ impl Preprocessing for Record {
     }
 }
 
+use statrs::statistics::Statistics;
+
 impl Processing for Record {
     fn min(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
         let mut ret: (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) = (None, HashMap::new());
-        for (_, (clk, svs)) in self {
-            /*
-             * min{clock}
-             */
-            if let Some(clk) = clk {
-                if let Some(data) = ret.0 {
-                    if *clk < data {
-                        ret.0 = Some(*clk);
-                    }
+        // eval for clock offsets, if such data exist
+        let clock_offsets: Vec<_> = self
+            .iter()
+            .filter_map(|(_, (clk, _))| {
+                if let Some(clk) = clk {
+                    Some(*clk)
                 } else {
-                    ret.0 = Some(*clk);
+                    None
                 }
-            }
-            /*
-             * min{data}
-             */
-            for (sv, observables) in svs {
-                for (observable, observation) in observables {
-                    if let Some(data) = ret.1.get_mut(sv) {
-                        if let Some(data) = data.get_mut(observable) {
-                            if observation.obs < *data {
-                                *data = observation.obs;
+            })
+            .collect();
+        if clock_offsets.len() > 0 {
+            ret.0 = Some(clock_offsets.min());
+        }
+        // eval for accross all epochs, for all observation and vehicules
+        for (_epoch, (_clk, sv)) in self {
+            for (sv, observables) in sv {
+                for (observable, observations) in observables {
+                    // vectorize all data for this vehicule + observation, accross epochs
+                    // so we can compute Statistics.Max()
+                    let mut data = Vec::<f64>::new();
+                    for (_, (_, svnn)) in self {
+                        for (svnn, svnn_observations) in svnn {
+                            if svnn == sv {
+                                for (svnn_observable, svnn_observation) in svnn_observations {
+                                    if svnn_observable == observable {
+                                        data.push(svnn_observation.obs);
+                                    }
+                                }
                             }
-                        } else {
-                            data.insert(observable.clone(), observation.obs);
                         }
+                    }
+                    // build resulting data set
+                    if let Some(observables) = ret.1.get_mut(sv) {
+                        observables.insert(observable.clone(), data.min());
                     } else {
                         let mut map: HashMap<Observable, f64> = HashMap::new();
-                        map.insert(observable.clone(), observation.obs);
+                        map.insert(observable.clone(), data.min());
                         ret.1.insert(*sv, map);
                     }
                 }
@@ -1237,52 +1248,64 @@ impl Processing for Record {
         ret
     }
     fn min_observable(&self) -> HashMap<Observable, f64> {
-        let mut ret: HashMap<Observable, f64> = HashMap::new();
-        let min = self.min().1;
-        for (_, observables) in min {
-            for (observable, minimum) in observables {
-                if let Some(mmin) = ret.get_mut(&observable) {
-                    if minimum < *mmin {
-                        *mmin = minimum;
+        let mut ret = HashMap::<Observable, f64>::new();
+        let (_, min) = self.min(); // drop min{clock_offset}
+        for (_, observables) in &min {
+            for (observable, _) in observables {
+                // vectorize matching obs for min() ops
+                let mut data = Vec::<f64>::new();
+                for (_, svnn_observables) in &min {
+                    for (svnn_observable, observation) in svnn_observables {
+                        if svnn_observable == observable {
+                            data.push(*observation);
+                        }
                     }
-                } else {
-                    ret.insert(observable.clone(), minimum);
                 }
+                ret.insert(observable.clone(), data.min());
             }
         }
         ret
     }
     fn max(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
         let mut ret: (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) = (None, HashMap::new());
-        for (_, (clk, svs)) in self {
-            /*
-             * max{clock}
-             */
-            if let Some(clk) = clk {
-                if let Some(data) = ret.0 {
-                    if *clk > data {
-                        ret.0 = Some(*clk);
-                    }
+        // eval for clock offsets, if such data exist
+        let clock_offsets: Vec<_> = self
+            .iter()
+            .filter_map(|(_, (clk, _))| {
+                if let Some(clk) = clk {
+                    Some(*clk)
                 } else {
-                    ret.0 = Some(*clk);
+                    None
                 }
-            }
-            /*
-             * max{data}
-             */
-            for (sv, observables) in svs {
-                for (observable, observation) in observables {
-                    if let Some(data) = ret.1.get_mut(sv) {
-                        if let Some(data) = data.get_mut(observable) {
-                            if observation.obs > *data {
-                                *data = observation.obs;
+            })
+            .collect();
+        if clock_offsets.len() > 0 {
+            ret.0 = Some(clock_offsets.max());
+        }
+        // eval for accross all epochs, for all observation and vehicules
+        for (_epoch, (_clk, sv)) in self {
+            for (sv, observables) in sv {
+                for (observable, observations) in observables {
+                    // vectorize all data for this vehicule + observation, accross epochs
+                    // so we can compute Statistics.Max()
+                    let mut data = Vec::<f64>::new();
+                    for (_, (_, svnn)) in self {
+                        for (svnn, svnn_observations) in svnn {
+                            if svnn == sv {
+                                for (svnn_observable, svnn_observation) in svnn_observations {
+                                    if svnn_observable == observable {
+                                        data.push(svnn_observation.obs);
+                                    }
+                                }
                             }
-                        } else {
-                            data.insert(observable.clone(), observation.obs);
                         }
+                    }
+                    // build resulting data set
+                    if let Some(observables) = ret.1.get_mut(sv) {
+                        observables.insert(observable.clone(), data.max());
                     } else {
                         let mut map: HashMap<Observable, f64> = HashMap::new();
-                        map.insert(observable.clone(), observation.obs);
+                        map.insert(observable.clone(), data.max());
                         ret.1.insert(*sv, map);
                     }
                 }
@@ -1291,17 +1314,20 @@ impl Processing for Record {
         ret
     }
     fn max_observable(&self) -> HashMap<Observable, f64> {
-        let mut ret: HashMap<Observable, f64> = HashMap::new();
-        let max = self.max().1;
-        for (_, observables) in max {
-            for (observable, maximum) in observables {
-                if let Some(mmax) = ret.get_mut(&observable) {
-                    if maximum > *mmax {
-                        *mmax = maximum;
+        let mut ret = HashMap::<Observable, f64>::new();
+        let (_, max) = self.max(); // drop max{clock_offset}
+        for (_, observables) in &max {
+            for (observable, _) in observables {
+                // vectorize matching obs for min() ops
+                let mut data = Vec::<f64>::new();
+                for (_, svnn_observables) in &max {
+                    for (svnn_observable, observation) in svnn_observables {
+                        if svnn_observable == observable {
+                            data.push(*observation);
+                        }
                     }
-                } else {
-                    ret.insert(observable.clone(), maximum);
                 }
+                ret.insert(observable.clone(), data.max());
             }
         }
         ret
@@ -1509,47 +1535,62 @@ impl Processing for Record {
             .map(|(observable, (count, diff))| (observable.clone(), diff / *count as f64))
             .collect()
     }
-    fn derivative(&self) -> Record {
-        let mut prev: (
-            Option<(Epoch, f64)>,
-            BTreeMap<Sv, HashMap<Observable, (Epoch, f64)>>,
-        ) = (None, BTreeMap::new());
-        let mut ret: Record = Record::new();
-        for ((epoch, flag), (clk, svs)) in self {
-            /*
-             * d/dt{clk}
-             */
-            let mut new_clk: Option<f64> = None;
-            if let Some(clk) = clk {
-                if let Some((prev_epoch, prev_data)) = prev.0 {
-                    new_clk = Some(
-                        (*clk - prev_data) / (*epoch - prev_epoch).to_unit(hifitime::Unit::Second),
-                    );
-                    prev.0 = Some((*epoch, *clk)); // {prev_epoch, prev_data}
-                } else {
-                    prev.0 = Some((*epoch, *clk));
+    /*
+        fn derivative(&self) -> Record {
+            let mut prev: (
+                Option<(Epoch, f64)>,
+                BTreeMap<Sv, HashMap<Observable, (Epoch, f64)>>,
+            ) = (None, BTreeMap::new());
+            let mut ret: Record = Record::new();
+            for ((epoch, flag), (clk, svs)) in self {
+                /*
+                 * d/dt{clk}
+                 */
+                let mut new_clk: Option<f64> = None;
+                if let Some(clk) = clk {
+                    if let Some((prev_epoch, prev_data)) = prev.0 {
+                        new_clk = Some(
+                            (*clk - prev_data) / (*epoch - prev_epoch).to_unit(hifitime::Unit::Second),
+                        );
+                        prev.0 = Some((*epoch, *clk)); // {prev_epoch, prev_data}
+                    } else {
+                        prev.0 = Some((*epoch, *clk));
+                    }
                 }
-            }
-            /*
-             * d/dt{data}
-             */
-            for (sv, observables) in svs {
-                for (observable, observation) in observables {
-                    if let Some(prev) = prev.1.get_mut(&sv) {
-                        if let Some((mut prev_epoch, mut prev_data)) = prev.get_mut(&observable) {
-                            if let Some((clk, data)) = ret.get_mut(&(*epoch, *flag)) {
-                                *clk = new_clk;
-                                if let Some(data) = data.get_mut(&sv) {
-                                    if let Some(data) = data.get_mut(&observable) {
-                                        *data = ObservationData {
-                                            obs: (observation.obs - prev_data)
-                                                / (*epoch - prev_epoch)
-                                                    .to_unit(hifitime::Unit::Second),
-                                            lli: data.lli,
-                                            snr: data.snr,
-                                        };
+                /*
+                 * d/dt{data}
+                 */
+                for (sv, observables) in svs {
+                    for (observable, observation) in observables {
+                        if let Some(prev) = prev.1.get_mut(&sv) {
+                            if let Some((mut prev_epoch, mut prev_data)) = prev.get_mut(&observable) {
+                                if let Some((clk, data)) = ret.get_mut(&(*epoch, *flag)) {
+                                    *clk = new_clk;
+                                    if let Some(data) = data.get_mut(&sv) {
+                                        if let Some(data) = data.get_mut(&observable) {
+                                            *data = ObservationData {
+                                                obs: (observation.obs - prev_data)
+                                                    / (*epoch - prev_epoch)
+                                                        .to_unit(hifitime::Unit::Second),
+                                                lli: data.lli,
+                                                snr: data.snr,
+                                            };
+                                        } else {
+                                            data.insert(
+                                                observable.clone(),
+                                                ObservationData {
+                                                    obs: (observation.obs - prev_data)
+                                                        / (*epoch - prev_epoch)
+                                                            .to_unit(hifitime::Unit::Second),
+                                                    lli: observation.lli,
+                                                    snr: observation.snr,
+                                                },
+                                            );
+                                        }
                                     } else {
-                                        data.insert(
+                                        let mut map: HashMap<Observable, ObservationData> =
+                                            HashMap::new();
+                                        map.insert(
                                             observable.clone(),
                                             ObservationData {
                                                 obs: (observation.obs - prev_data)
@@ -1559,53 +1600,40 @@ impl Processing for Record {
                                                 snr: observation.snr,
                                             },
                                         );
+                                        data.insert(*sv, map);
                                     }
                                 } else {
-                                    let mut map: HashMap<Observable, ObservationData> =
-                                        HashMap::new();
+                                    let mut map: HashMap<Observable, ObservationData> = HashMap::new();
                                     map.insert(
                                         observable.clone(),
                                         ObservationData {
                                             obs: (observation.obs - prev_data)
-                                                / (*epoch - prev_epoch)
-                                                    .to_unit(hifitime::Unit::Second),
+                                                / (*epoch - prev_epoch).to_unit(hifitime::Unit::Second),
                                             lli: observation.lli,
                                             snr: observation.snr,
                                         },
                                     );
-                                    data.insert(*sv, map);
+                                    let mut mmap: BTreeMap<Sv, HashMap<Observable, ObservationData>> =
+                                        BTreeMap::new();
+                                    mmap.insert(*sv, map);
+                                    ret.insert((*epoch, *flag), (new_clk, mmap));
                                 }
+                                prev_epoch = *epoch;
+                                prev_data = observation.obs;
                             } else {
-                                let mut map: HashMap<Observable, ObservationData> = HashMap::new();
-                                map.insert(
-                                    observable.clone(),
-                                    ObservationData {
-                                        obs: (observation.obs - prev_data)
-                                            / (*epoch - prev_epoch).to_unit(hifitime::Unit::Second),
-                                        lli: observation.lli,
-                                        snr: observation.snr,
-                                    },
-                                );
-                                let mut mmap: BTreeMap<Sv, HashMap<Observable, ObservationData>> =
-                                    BTreeMap::new();
-                                mmap.insert(*sv, map);
-                                ret.insert((*epoch, *flag), (new_clk, mmap));
+                                prev.insert(observable.clone(), (*epoch, observation.obs));
                             }
-                            prev_epoch = *epoch;
-                            prev_data = observation.obs;
                         } else {
-                            prev.insert(observable.clone(), (*epoch, observation.obs));
+                            let mut map: HashMap<Observable, (Epoch, f64)> = HashMap::new();
+                            map.insert(observable.clone(), (*epoch, observation.obs));
+                            prev.1.insert(*sv, map);
                         }
-                    } else {
-                        let mut map: HashMap<Observable, (Epoch, f64)> = HashMap::new();
-                        map.insert(observable.clone(), (*epoch, observation.obs));
-                        prev.1.insert(*sv, map);
                     }
                 }
             }
+            ret
         }
-        ret
-    }
+    */
     fn skewness(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
         let stddev = self.stddev();
         let central_moment = self.central_moment(3);
