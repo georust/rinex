@@ -1,9 +1,9 @@
-mod dcb;
-mod target;
-mod filters;
-mod processing;
-mod ionospheric;
 mod combination;
+mod dcb;
+mod filters;
+mod ionospheric;
+mod processing;
+mod target;
 
 pub use combination::{Combination, Combine};
 pub use dcb::Dcb;

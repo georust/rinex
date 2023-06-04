@@ -10,8 +10,7 @@ pub enum Error {
 }
 
 /// Decimation Filters type
-#[derive(Clone, Debug)]
-#[derive(PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum DecimationType {
     /// Decimates Dataset by given factor.
     DecimByRatio(u32),
@@ -19,8 +18,7 @@ pub enum DecimationType {
     DecimByInterval(Duration),
 }
 
-#[derive(Clone, Debug)]
-#[derive(PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct DecimationFilter {
     /// Optional data subset
     target: Option<TargetItem>,

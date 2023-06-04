@@ -77,7 +77,7 @@ pub trait Processing {
     /// }
     fn min_observable(&self) -> HashMap<Observable, f64>;
 
-    /// Evaluates |.min()| on Self. 
+    /// Evaluates |.min()| on Self.
     /// This is only feasible on Observation RINEX.  
     /// See [Processing::min] for more detail.
     fn abs_min(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>);
@@ -87,11 +87,11 @@ pub trait Processing {
     /// See [Processing::min_observable] for more detail.
     fn abs_min_observable(&self) -> HashMap<Observable, f64>;
 
-    /// Evalutes max() across all Epochs, for each individual physics. 
+    /// Evalutes max() across all Epochs, for each individual physics.
     /// This is only feasible on Observation RINEX.  
     /// See [Processing::min_observable] for more detail.
     fn max(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>);
-    
+
     /// Evalutes |.max()| across Sv and Epochs.  
     /// This is only feasible on Observation RINEX.  
     /// See [Processing::min] for more detail.
@@ -118,13 +118,13 @@ pub trait Processing {
     /// This is only feasible on either Observation RINEX.
     /// See [Processing::min] to understand how results are sorted.
     fn quadratic_mean(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>);
-    
+
     /// Computes harmonic mean for both clock offsets (if feasible)
     /// and across all Epochs for each individual physics.
     /// This is only feasible on either Observation RINEX.
     /// See [Processing::min] to understand how results are sorted.
     fn harmonic_mean(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>);
-    
+
     /// Computes geometric mean for both clock offsets (if feasible)
     /// and across all Epochs for each individual physics.
     /// This is only feasible on either Observation RINEX.
@@ -142,13 +142,13 @@ pub trait Processing {
     /// This is only feasible on either Observation or Meteo RINEX.  
     /// See [Processing::min_observable] to understand how results are sorted.
     fn quadratic_mean_observable(&self) -> HashMap<Observable, f64>;
-    
+
     /// Computes harmonic mean for each individual physics.
     /// For OBS RINEX, measurements are averaged across vehicles.
     /// This is only feasible on either Observation or Meteo RINEX.  
     /// See [Processing::min_observable] to understand how results are sorted.
     fn harmonic_mean_observable(&self) -> HashMap<Observable, f64>;
-    
+
     /// Computes geometric mean for each individual physics.
     /// For OBS RINEX, measurements are averaged across vehicles.
     /// This is only feasible on either Observation or Meteo RINEX.  
@@ -163,7 +163,7 @@ pub trait Processing {
     /// This is only feasible on OBS RINEX.  
     /// See [Processing::min] to understand how results are sorted.
     fn std_dev(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>);
-    
+
     /// Computes standard variance for both clock offsets (if feasible),
     /// and each individual physics per Epoch and per Sv.
     /// This is only feasible on OBS RINEX.  

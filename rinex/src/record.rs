@@ -828,13 +828,13 @@ impl Dcb for Record {
     }
 }
 
-
-use crate::processing::{Combine, Combination};
+use crate::processing::{Combination, Combine};
 
 impl Combine for Record {
-    fn combine(&self, combination: Combination
-    ) -> HashMap<(Observable, Observable), BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>
-    {
+    fn combine(
+        &self,
+        combination: Combination,
+    ) -> HashMap<(Observable, Observable), BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
         if let Some(rec) = self.as_obs() {
             rec.combine(combination)
         } else {
@@ -842,4 +842,3 @@ impl Combine for Record {
         }
     }
 }
-

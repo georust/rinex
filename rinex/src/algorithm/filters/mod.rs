@@ -77,26 +77,23 @@ impl std::str::FromStr for Filter {
     type Err = Error;
     fn from_str(content: &str) -> Result<Self, Self::Err> {
         let items: Vec<&str> = content.split(":").collect();
-        
+
         let identifier = items[0].trim();
         if identifier.eq("decim") {
             let offset = 6; //"decim:"
-            Ok(Self::Decimation(
-                DecimationFilter::from_str(content[offset..].trim())?))
-
+            Ok(Self::Decimation(DecimationFilter::from_str(
+                content[offset..].trim(),
+            )?))
         } else if identifier.eq("smooth") {
             let offset = 7; //"smooth:"
-            Ok(Self::Smoothing(
-                SmoothingFilter::from_str(content[offset..].trim())?))
-
+            Ok(Self::Smoothing(SmoothingFilter::from_str(
+                content[offset..].trim(),
+            )?))
         } else if identifier.eq("interp") {
             todo!("InterpolationFilter::from_str()");
-
         } else if identifier.eq("mask") {
             let offset = 5; //"mask:"
-            Ok(Self::Mask(
-                MaskFilter::from_str(content[offset..].trim())?))
-
+            Ok(Self::Mask(MaskFilter::from_str(content[offset..].trim())?))
         } else {
             // assume Mask (omitted identifier)
             if let Ok(f) = MaskFilter::from_str(content.trim()) {
@@ -123,7 +120,7 @@ mod test {
          * MASK FILTER description
          */
         for descriptor in vec![
-            "GPS", 
+            "GPS",
             "=GPS",
             " != GPS",
             "G08, G09, G10",

@@ -1588,8 +1588,8 @@ impl Preprocessing for Record {
             },
             Filter::Interp(filter) => self.interpolate_mut(filter.series, filter.target),
             Filter::Decimation(filter) => match filter.dtype {
-                DecimationType::DecimByRatio(r) => self.decimate_by_ratio_mut(r), 
-                DecimationType::DecimByInterval(r) => self.decimate_by_interval_mut(r), 
+                DecimationType::DecimByRatio(r) => self.decimate_by_ratio_mut(r),
+                DecimationType::DecimByInterval(r) => self.decimate_by_interval_mut(r),
             },
             Filter::Smoothing(_) => todo!(),
         }

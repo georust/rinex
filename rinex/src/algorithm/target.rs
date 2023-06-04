@@ -156,7 +156,9 @@ pub(crate) fn parse_sv_list(items: Vec<&str>) -> Result<Vec<Sv>, sv::Error> {
     Ok(ret)
 }
 
-pub(crate) fn parse_gnss_list(items: Vec<&str>) -> Result<Vec<Constellation>, constellation::Error> {
+pub(crate) fn parse_gnss_list(
+    items: Vec<&str>,
+) -> Result<Vec<Constellation>, constellation::Error> {
     let mut ret: Vec<Constellation> = Vec::with_capacity(items.len());
     for item in items {
         let c = Constellation::from_str(item.trim())?;
@@ -174,7 +176,9 @@ pub(crate) fn parse_obs_list(items: Vec<&str>) -> Result<Vec<Observable>, observ
     Ok(ret)
 }
 
-pub(crate) fn parse_nav_frames(items: Vec<&str>) -> Result<Vec<FrameClass>, navigation::record::Error> {
+pub(crate) fn parse_nav_frames(
+    items: Vec<&str>,
+) -> Result<Vec<FrameClass>, navigation::record::Error> {
     let mut ret: Vec<FrameClass> = Vec::with_capacity(items.len());
     for item in items {
         let sv = FrameClass::from_str(item.trim())?;

@@ -1,14 +1,12 @@
 use super::TargetItem;
 use crate::TimeSeries;
 
-#[derive(Debug, Clone)]
-#[derive(PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum InterpMethod {
     Linear,
 }
 
-#[derive(Debug, Clone)]
-#[derive(PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct InterpFilter {
     pub series: TimeSeries,
     pub method: InterpMethod,

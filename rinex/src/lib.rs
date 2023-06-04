@@ -2718,9 +2718,10 @@ impl Dcb for Rinex {
 }
 
 impl Combine for Rinex {
-    fn combine(&self, combination: Combination
-    ) -> HashMap<(Observable, Observable), BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>
-    {
+    fn combine(
+        &self,
+        combination: Combination,
+    ) -> HashMap<(Observable, Observable), BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
         self.record.combine(combination)
     }
 }
