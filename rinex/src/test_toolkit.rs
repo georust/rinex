@@ -1,6 +1,7 @@
 use crate::*;
-
-/// OBS RINEX thorough comparison
+/*
+ * OBS RINEX thorough comparison
+ */
 fn observation_comparison(dut: &Rinex, model: &Rinex, filename: &str) {
     let rec_dut = dut
         .record
@@ -15,7 +16,7 @@ fn observation_comparison(dut: &Rinex, model: &Rinex, filename: &str) {
         if let Some((clk_offset_dut, vehicules_dut)) = rec_dut.get(e_model) {
             assert_eq!(
                 clk_offset_model, clk_offset_dut,
-                "\"{}\" - epoch {:?} - faulty clock offset, expecting {:?} got {:?}",
+                "\"{}\" - {:?} - faulty clock offset, expecting {:?} got {:?}",
                 filename, e_model, clk_offset_model, clk_offset_dut
             );
             for (sv_model, observables_model) in vehicules_model.iter() {
@@ -24,7 +25,7 @@ fn observation_comparison(dut: &Rinex, model: &Rinex, filename: &str) {
                         if let Some(obs_dut) = observables_dut.get(code_model) {
                             assert!(
                                 (obs_model.obs - obs_dut.obs).abs() < 1.0E-6,
-                                "\"{}\" - epoch {:?} - {:?} - \"{}\" expecting {} got {}",
+                                "\"{}\" - {:?} - {:?} - \"{}\" expecting {} got {}",
                                 filename,
                                 e_model,
                                 sv_model,
@@ -34,24 +35,24 @@ fn observation_comparison(dut: &Rinex, model: &Rinex, filename: &str) {
                             );
                             assert_eq!(
                                 obs_model.lli, obs_dut.lli,
-                                "\"{}\" - epoch {:?} - {:?} - \"{}\" - LLI expecting {:?} got {:?}",
+                                "\"{}\" - {:?} - {:?} - \"{}\" - LLI expecting {:?} got {:?}",
                                 filename, e_model, sv_model, code_model, obs_model.lli, obs_dut.lli
                             );
                             assert_eq!(
                                 obs_model.snr, obs_dut.snr,
-                                "\"{}\" - epoch {:?} - {:?} - \"{}\" - SNR expecting {:?} got {:?}",
+                                "\"{}\" - {:?} - {:?} - \"{}\" - SNR expecting {:?} got {:?}",
                                 filename, e_model, sv_model, code_model, obs_model.snr, obs_dut.snr
                             );
                         } else {
                             panic!(
-                                "\"{}\" - epoch {:?} - {:?} : missing \"{}\" observation",
+                                "\"{}\" - {:?} - {:?} : missing \"{}\" observation",
                                 filename, e_model, sv_model, code_model
                             );
                         }
                     }
                 } else {
                     panic!(
-                        "\"{}\" - epoch {:?} - missing vehicule {:?}",
+                        "\"{}\" - {:?} - missing vehicule {:?}",
                         filename, e_model, sv_model
                     );
                 }
@@ -70,7 +71,7 @@ fn observation_comparison(dut: &Rinex, model: &Rinex, filename: &str) {
                         if let Some(obs_model) = observables_model.get(code_b) {
                             assert!(
                                 (obs_model.obs - obs_b.obs).abs() < 1.0E-6,
-                                "\"{}\" - epoch {:?} - {:?} - \"{}\" expecting {} got {}",
+                                "\"{}\" - {:?} - {:?} - \"{}\" expecting {} got {}",
                                 filename,
                                 e_b,
                                 sv_b,
@@ -80,24 +81,24 @@ fn observation_comparison(dut: &Rinex, model: &Rinex, filename: &str) {
                             );
                             assert_eq!(
                                 obs_model.lli, obs_b.lli,
-                                "\"{}\" - epoch {:?} - {:?} - \"{}\" - LLI expecting {:?} got {:?}",
+                                "\"{}\" - {:?} - {:?} - \"{}\" - LLI expecting {:?} got {:?}",
                                 filename, e_b, sv_b, code_b, obs_model.lli, obs_b.lli
                             );
                             assert_eq!(
                                 obs_model.snr, obs_b.snr,
-                                "\"{}\" - epoch {:?} - {:?} - \"{}\" - SNR expecting {:?} got {:?}",
+                                "\"{}\" - {:?} - {:?} - \"{}\" - SNR expecting {:?} got {:?}",
                                 filename, e_b, sv_b, code_b, obs_model.snr, obs_b.snr
                             );
                         } else {
                             panic!(
-                                "\"{}\" - epoch {:?} - {:?} : parsed \"{}\" unexpectedly",
+                                "\"{}\" - {:?} - {:?} : parsed \"{}\" unexpectedly",
                                 filename, e_b, sv_b, code_b
                             );
                         }
                     }
                 } else {
                     panic!(
-                        "\"{}\" - epoch {:?} - parsed {:?} unexpectedly",
+                        "\"{}\" - {:?} - parsed {:?} unexpectedly",
                         filename, e_b, sv_b
                     );
                 }
@@ -108,7 +109,9 @@ fn observation_comparison(dut: &Rinex, model: &Rinex, filename: &str) {
     }
 }
 
-/// CLOCK Rinex thorough comparison
+/*
+ * CLOCK Rinex thorough comparison
+ */
 fn clocks_comparison(dut: &Rinex, model: &Rinex, filename: &str) {
     let rec_dut = dut
         .record
@@ -118,13 +121,24 @@ fn clocks_comparison(dut: &Rinex, model: &Rinex, filename: &str) {
         .record
         .as_clock()
         .expect("failed to unwrap as clock rinex record");
-    for (e_a, data_types) in rec_dut.iter() {
-        for (data_type, systems) in rec_dut.iter() {
-            for (system, data) in systems.iter() {}
+    for (e_model, model_types) in rec_model.iter() {
+        if let Some(dut_types) = rec_dut.get(e_model) {
+            for (model_data, model_systems) in model_types.iter() {
+                if let Some(systems) = dut_types.get(model_data) {
+
+                } else {
+                    panic!("\"{}\" - {:?} - missing data {:?}", filename, e_model, model_data);
+                }
+            }
+        } else {
+            panic!("\"{}\" - missing epoch {:?}", filename, e_model);
         }
     }
 }
-/// Meteo RINEX thorough comparison
+
+/* 
+ * Meteo RINEX thorough comparison
+ */
 fn meteo_comparison(dut: &Rinex, model: &Rinex, filename: &str) {
     let rec_dut = dut
         .record
@@ -140,12 +154,12 @@ fn meteo_comparison(dut: &Rinex, model: &Rinex, filename: &str) {
                 if let Some(observation_dut) = obscodes_dut.get(code_model) {
                     assert_eq!(
                         observation_model, observation_dut,
-                        "\"{}\" - epoch {:?} - faulty \"{}\" observation - expecting {} - got {}",
+                        "\"{}\" - {:?} - faulty \"{}\" observation - expecting {} - got {}",
                         filename, e_model, code_model, observation_model, observation_dut
                     );
                 } else {
                     panic!(
-                        "\"{}\" - epoch {:?} missing \"{}\" observation",
+                        "\"{}\" - {:?} missing \"{}\" observation",
                         filename, e_model, code_model
                     );
                 }
@@ -161,12 +175,12 @@ fn meteo_comparison(dut: &Rinex, model: &Rinex, filename: &str) {
                 if let Some(observation_model) = obscodes_model.get(code_dut) {
                     assert_eq!(
                         observation_model, observation_dut,
-                        "\"{}\" - epoch {:?} - faulty \"{}\" observation - expecting {} - got {}",
+                        "\"{}\" - {:?} - faulty \"{}\" observation - expecting {} - got {}",
                         filename, e_dut, code_dut, observation_model, observation_dut
                     );
                 } else {
                     panic!(
-                        "\"{}\" - epoch {:?} parsed \"{}\" unexpectedly",
+                        "\"{}\" - {:?} parsed \"{}\" unexpectedly",
                         filename, e_dut, code_dut
                     );
                 }
@@ -177,8 +191,10 @@ fn meteo_comparison(dut: &Rinex, model: &Rinex, filename: &str) {
     }
 }
 
-/// Compares "dut" Device Under Test to given Model,  
-/// panics on unexpected content with detailed explanations.
+/*
+ * Compares "dut" Device Under Test to given Model,  
+ * panics on unexpected content with detailed explanations.
+ */
 pub fn compare_with_panic(dut: &Rinex, model: &Rinex, filename: &str) {
     if dut.is_observation_rinex() {
         observation_comparison(&dut, &model, filename);

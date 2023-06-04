@@ -22,6 +22,7 @@ pub mod sv;
 pub mod types;
 pub mod version;
 
+#[cfg(feature = "tests")]
 pub mod test_toolkit;
 
 mod ground_position;
