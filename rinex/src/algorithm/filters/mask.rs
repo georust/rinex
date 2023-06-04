@@ -70,7 +70,7 @@ impl MaskOperand {
 }
 
 impl std::ops::Not for MaskOperand {
-    type Output = MaskOperand;
+    type Output = Self;
     fn not(self) -> Self {
         match self {
             Self::Equals => Self::NotEquals,
@@ -85,46 +85,40 @@ impl std::ops::Not for MaskOperand {
 
 /// Apply MaskFilters to focus on datasubsets you're interested in.
 /// ```
-/// use rinex::prelude::*;
-/// use rinex::processing::*;
+/// use rinex::*;
+/// use std::str::FromStr; // filter!
+/// use rinex::processing::*; // .filter_mut()
+/// // Grab a RINEX
 /// let rinex = Rinex::from_file("../test_resources/OBS/V2/KOSG0010.95O")
 ///     .unwrap();
 ///
 /// // Describe an [Hifitime::Epoch] for efficient datetime focus
-/// let after = Filter::from_str(">2022-01-01 10:00:00UTC")
-///     .unwrap();
-/// let before = Filter::from_str("<2022-01-01 10:00:00UTC")
-///     .unwrap();
+/// let after = filter!(">2022-01-01T10:00:00 UTC");
+/// let before = filter!("< 2022-01-01T10:00:00 UTC"); // whitespace tolerant
 ///
 /// // logical Not() operation is supported on all mask operands.
 /// // This may facilitate complex masking operations.
 /// assert_eq!(before, !after);
 ///
-/// // use the .apply() API to apply any filter ops.
-/// let filtered = rinex.apply(after);
-///
 /// // Any valid [Hifitime::Epoch] description is supported.
-/// let equals = Filter::from_str("=MJD 2960")
-///     .unwrap();
+/// let equals = filter!("=JD 2960 TAI");
 ///
 /// // Greater than ">" and lower than "<"
 /// // truly apply to Epochs and Durations only,
 /// // Whereas Equality masks ("=", "!=") apply to any data subsets.
-/// let equals = Filter::from_str("=GPS,GLO")
-///     .unwrap();
+/// let equals = filter!("=GPS,GLO");
 ///
 /// // One exception exist for "Sv" items, for example with this:
-/// let greater_than = Mask::from_str("> G08,R03")
-///     .unwrap();
+/// let greater_than = filter!("> G08,R03");
+///
 /// // will retain PRN > 08 for GPS Constellation
 /// // and PRN > 3 for Glonass Constellation.
-/// let filtered = rinex.apply(greater_than);
+/// let filtered = rinex.filter(greater_than);
 ///
 /// // Focus on desired Observables, with an observable mask.
 /// // This can apply to both OBS and Meteo RINEX.
-/// let phase_mask = Mask::from_str("L1C,L2C") // Equals operand is implied
-///     .unwrap();
-/// let filtered = rinex.apply(phase_mask);
+/// let phase_mask = filter!("L1C,L2C"); // Equals operand is implied
+/// let filtered = rinex.filter(phase_mask);
 ///
 /// // Elevation angle filter can only apply to NAV RINEX
 /// // content at the moment.
@@ -133,19 +127,21 @@ impl std::ops::Not for MaskOperand {
 /// let rinex = Rinex::from_file("../test_resources/NAV/V3/MOJN00DNK_R_20201770000_01D_MN.rnx.gz")
 ///     .unwrap();
 ///
-/// let mask = Filter::from("e > 10.0"); // strictly above 10° elevation
-/// let filtered = rinex.apply(mask);
-/// let mask = Filter::from("a >= 25.0"); // above 25° azimuth
-/// let filtered = rinex.apply(mask);
+/// let mask = filter!("e > 10.0"); // strictly above 10° elevation
+/// let filtered = rinex.filter(mask);
+/// let mask = filter!("a >= 25.0"); // above 25° azimuth
+/// let filtered = rinex.filter(mask);
 ///
 /// // Apply an elevation range mask by combining two elevation masks
-/// let mask = Filter::from("e <= 45.0"); // below 45°
-/// let filtered = rinex.apply(mask);
+/// let mask = filter!("e <= 45.0"); // below 45°
+/// let filtered = rinex.filter(mask);
 ///
 /// // Retain only NAV RINEX Orbit fields you're interested in,
 /// // with an Orbit mask:
-/// let mask = Filter::from("orb:iode"); // retain only this field
-/// let filtered = rinex.apply(mask);
+/// let mask = filter!("iode,crs"); // retain only these fields,
+///                             // notice: case insensitive,
+///                             // notice: invalid orbit fields get dropped out
+/// let filtered = rinex.filter(mask);
 ///
 /// // Three other NAV RINEX specific cases exist
 ///
@@ -155,13 +151,11 @@ impl std::ops::Not for MaskOperand {
 /// // [2] : Message Type mask
 /// // For example: retain Legacy NAV frames only.
 /// // Any valid NavMessageType description works here
-/// let mask = Filter::from("lnav") // Eq() is implied
-///     .unwrap();
+/// let mask = filter!("lnav"); // Eq() is implied
 ///
 /// // [3] : Frame type mask
 /// // For example: retain anything but Ephemeris and IonMessage frames with this.
-/// let mask = Filter::from("!=eph,ion") // Not an Eq(): we must specify the operand
-///     .unwrap();
+/// let mask = filter!("!=eph,ion"); // Not an Eq(): we must specify the operand
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct MaskFilter {
@@ -256,21 +250,21 @@ impl std::str::FromStr for MaskFilter {
             let start = &cleanedup[..operand_offset];
             if start[0..1].eq("e") {
                 // --> Elevation Mask case
-                let float_offset = operand_offset + 1;
+                let float_offset = operand_offset + operand.formatted_len() +2;
                 Ok(Self {
                     operand,
                     item: TargetItem::from_elevation(&cleanedup[float_offset..].trim())?,
                 })
             } else if content[0..1].eq("a") {
                 // --> Azimuth Mask case
-                let float_offset = operand_offset + 1;
+                let float_offset = operand_offset + operand.formatted_len() +2;
                 Ok(Self {
                     operand,
                     item: TargetItem::from_azimuth(&cleanedup[float_offset..].trim())?,
                 })
             } else {
                 // We're only left with SNR mask case
-                let float_offset = operand_offset + 1;
+                let float_offset = operand_offset + operand.formatted_len() +2;
                 if content[0..3].eq("snr") {
                     Ok(Self {
                         operand,
@@ -352,8 +346,8 @@ mod test {
     }
     #[test]
     fn mask_elev() {
-        for desc in vec!["e < 40.0", "e != 30", " e >= 120", " e = 30"] {
-            let mask = MaskFilter::from_str("e< 40.0");
+        for desc in vec!["e< 40.0", "e != 30", " e<40.0", " e < 40.0", " e > 120", " e >= 120", " e = 30"] {
+            let mask = MaskFilter::from_str(desc);
             assert!(
                 mask.is_ok(),
                 "Failed to parse Elevation Mask Filter from \"{}\"",

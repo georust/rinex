@@ -15,7 +15,7 @@ for example:
 
 ```bash
 rinex-cli \
-    -P mask:G08,G09,G10
+    -P G08,G09,G10
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.gz \
 ```
   
@@ -24,8 +24,11 @@ Any amount of preprocessing algorithm can be stacked:
 ```bash
 rinex-cli \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.gz \
-    -P mask:L1C mask:G08,G09,G10
+    -P L1C \ 
+    -P G08,G09,G10
 ```
+
+In any case, invalid descriptors will not crash the app, but only generate an error trace.
 
 ## Masking operations
 
@@ -37,43 +40,47 @@ As mask filter is one operand and a mask to apply to a particular kind of data.
 
 List of supported Mask Operands:
 
-* `lt` Lower Than (<) 
-* `leq` Lower Than (<=) 
-* `gt` Greater Than (>)
-* `geq` Greater Than (>=)
-* `eq` Equals Than (=)
-* `neq` Lower Than (!=)
+* Lower Than (<) 
+* Lower Than (<=) 
+* Greater Than (>)
+* Greater Than (>=)
+* Equals Than (=)
+* Lower Than (!=)
 
 Example:
 
 ```bash
 rinex-cli \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    -P mask:neq:G08,G09,G10
+    -P "!=G08,G09,G10"
 ```
 
-When the operand is omitted, the _Equals_ (=) operand is implied
+When the operand is omitted, _Equals_ (=) operand is implied
 
 ```bash
 rinex-cli \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    -P mask:G08,G09,G10
+    -P "G08,R03"
 ```
 
-## Mask Targets
+Refer to the MaskFilter API in the RINEX official documentation for more
+advanced mask filters.
 
-A mask can apply to most major RINEX subsets
+### Targetted subsets
+
+Most RINEX data subsets can be targetted by a mask filter. 
 
 ## Epoch target
   
 Any valid Hifitime::Epoch string description is supported.  
-For example, this mask will strip the record to a unique _Epoch_.  
-Record would become empty if it does not exist
+
+For example, this mask will strip the record to a unique _Epoch_
+because _Equals()_ operand is implied:
 
 ```bash
 rinex-cli \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    -P mask:2020-06-12 08:00:00
+    -P "2020-06-12 08:00:00"
 ```
 
 Use a different operand to grab a portion of the day.  
@@ -82,7 +89,7 @@ The following mask retains the last 16hours of that file:
 ```bash
 rinex-cli \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    -P mask:gt:2020-06-12 08:00:00
+    -P ">2020-06-12 08:00:00"
 ```
 
 For example, use two epoch masks to zoom in on 
@@ -91,10 +98,13 @@ the ]2020-06-12 08:00:00 ; 2020-06-12 10:00:00] time window:
 ```bash
 rinex-cli \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    -P mask:gt:2020-06-12 08:00:00 mask:leq:2020-06-12 10:00:00 
+    -P ">2020-06-12 08:00:00" \
+    -P "<=2020-06-12 10:00:00" 
 ```
 
 ## Duration target
+
+TODO
 
 ## Sv target
 
@@ -104,8 +114,8 @@ For example, with the following, we are left with data from _R03_ and _E10_
 ```bash
 rinex-cli \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    -P mask:G08,R03,E10
-    -P mask:neq:R03,E10
+    -P G08,R03,E10 \
+    -P R03,E10
 ```
 
 The `sv` target supports more than "=" or "!=". With this command for example,
@@ -114,8 +124,8 @@ we are left with PRN above 03 for GPS and below 10 (included) for Galileo
 ```bash
 rinex-cli \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    -P mask:gt:G08
-    -P mask:leq:E10
+    -P ">G08" \
+    -P "<=E10"
 ```
 
 ## GNSS target
@@ -126,11 +136,11 @@ For example, with the following, we are left with data from Glonass and GPS
 ```bash
 rinex-cli \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    -P mask:neq:bds
-    -P mask:GPS,GLO
+    -P "!=BDS" \ 
+    -P "GPS,GLO"
 ```
 
-## Carrier signals
+## GNSS Signals
 
 A comma separated list of Carrier signals is supported.  
 For example, with the following, we are only left with observations against L1 and L5
@@ -138,28 +148,20 @@ For example, with the following, we are only left with observations against L1 a
 ```bash
 rinex-cli \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    -P mask:l1,l5
-```
-
-Carrier signals are one of the exceptions that support more than`eq` and `neq` operands.  
-For example, with the following we retain L2, L5 signals and L1 is excluded:
-
-```bash
-rinex-cli \
-    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    -P mask:gt:l1
+    -P "l1,l5"
 ```
 
 ## Observables
 
 A comma separated list of Observables is supported.  
 For example, with the following, we are only left with phase observations,
-against L1 and L2 carriers 
+against L1 and L2 carriers. As always, most commands are case insensitive,
+to help the user form them easily:
 
 ```bash
 rinex-cli \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    -P mask:L1C,l2c
+    -P "L1C,l2c"
 ```
 
 ## Navigation frames
@@ -170,7 +172,7 @@ For example, with the following, we are only left with Ephemerides
 ```bash
 rinex-cli \
     --fp test_resources/NAV/V3/ESBC00DNK_R_20201770000.crx.gz \
-    -P mask:eph
+    -P eph
 ```
 
 ## Navigation Messages
@@ -181,41 +183,50 @@ For example, with the following, we are only left with legacy messages
 ```bash
 rinex-cli \
     --fp test_resources/NAV/V3/ESBC00DNK_R_20201770000.crx.gz \
-    -P mask:lnav
+    -P lnav
 ```
  
-Navigation Messages is one of those exceptions that support more that "=" (`eq`) or "!=" (`neq`) operands.  
+## Elevation mask
 
-With the following mask, we retain only modern navigation messages
+The "e" prefix is used to describe an elevation mask.  
+Currently, an Elevation Mask can only apply to NAV RINEX.
+
+For example, with the following mask we retain all vehicles with
+an elevation angle above 10°:
 
 ```bash
 rinex-cli \
     --fp test_resources/NAV/V3/ESBC00DNK_R_20201770000.crx.gz \
-    -P mask:gt:lnav
+    -P "e> 10.0"
 ```
 
-### Unfeasible operations
-  
-Some data targets do not support all operands.  
-For example, it is impossible to use the (>) or (<=) operand on `gnss:` or `obs:` categories,  
-because it does not make sense.    
-  
-Exceptions exist for `Sv` and `NavMsg` targets.   
-
-### Filter description
-
-The description is case insensitive: `mask:R15` is the same as `mask:eq:r15`.  
-  
-The description is whitespace tolerant, but you then need inverted commands when using the command line:
+Combine two elevation masks to create an elevation range condition:
 
 ```bash
 rinex-cli \
-    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.gz \
-    -P 'mask: gt: G08, R13' \
-    -P 'mask: leq: R15'
+    --fp test_resources/NAV/V3/ESBC00DNK_R_20201770000.crx.gz \
+    -P "e> 10.0" \
+    -P "e <= 45"
 ```
 
-## Elevation mask
+## Azimuth mask
+
+Use the prefix "a" for an Azimuth angle mask (follow the Elevation Mask procedure).
+
+## Orbit fields
+
+When parsing NAV RINEX, focus or discard orbits you're not interested by
+using official orbit fields as the filter payload.
+
+For example, with the following we only retain "iode" and "crs" fields, because _Eq()_ is implied:
+
+```bash
+rinex-cli \
+    --fp test_resources/NAV/V3/ESBC00DNK_R_20201770000.crx.gz \
+    -P "iode,CRS" \
+```
+
+Notice once again that this is case unsensitive.
 
 ## Decimation filter
 
@@ -240,37 +251,29 @@ to it matches 10 minutes:
 ```bash
 rinex-cli \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.gz \
-    -P 'decim:10 minutes'
+    -P 'decim:10 min'
 ```
 
-### Advanced: Decimate a data subset
+### Advanced: Use data subsets
 
 Algorithms apply to the entire record by default, but you can specify
 to apply it only a subset.
 Subsets are described like Data Masks previously defined.
 
-Decimate L1C observations by a factor of 10: 
+For example, here we retain both L1C and L2C phase data,
+but we only reduce the quantity of L1C observations by 50%:
 
 ```bash
 rinex-cli \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.gz \
-    -P 'mask:L1C,L2C' 'decim:2:l1c'
+    -P "mask:L1C,L2C" "decim:2:l1c"
 ```
 
 Now open the `graphs.html` report and see how the L1C graph differs from the L2C graph.
 
-This applies to any filter opmodes. For example, lets reduce the L1C rate
-by 2 with the following command
-
-```bash
-rinex-cli \
-    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.gz \
-    -P 'mask:L1C,L2C' 'decim:1 min:l1c'
-```
-
 ## Advanced: Hatch Smoothing Filter
 
-If you are working on Pseudo Range observations (only?) but want to reduce
+If you are working on Pseudo Range observations but want to reduce
 the noise they come with, the Hatch filter algorithm is a standard solution to that problem.  
 The hatch smoothing filter is requested with `smooth:hatch` and can be applied either
 to all Pseudo Range observations or specific observations.

@@ -815,3 +815,31 @@ impl Decimate for Record {
         }
     }
 }
+
+use crate::processing::Dcb;
+
+impl Dcb for Record {
+    fn dcb(&self) -> HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
+        if let Some(rec) = self.as_obs() {
+            rec.dcb()
+        } else {
+            HashMap::new()
+        }
+    }
+}
+
+
+use crate::processing::{Combine, Combination};
+
+impl Combine for Record {
+    fn combine(&self, combination: Combination
+    ) -> HashMap<(Observable, Observable), BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>
+    {
+        if let Some(rec) = self.as_obs() {
+            rec.combine(combination)
+        } else {
+            HashMap::new()
+        }
+    }
+}
+

@@ -132,11 +132,19 @@ macro_rules! gnss {
 }
 
 #[macro_export]
-/// Creats an [observable::Observable] from given string
+/// Creates an [observable::Observable] from given string
 /// description, which must be valid.
 macro_rules! observable {
     ($desc: expr) => {
         Observable::from_str($desc).unwrap()
+    };
+}
+
+#[macro_export]
+/// Returns a filter object, from a given description which must be valid
+macro_rules! filter {
+    ($desc: expr) => {
+        Filter::from_str($desc).unwrap()
     };
 }
 
@@ -187,7 +195,7 @@ macro_rules! hourly_session {
 /// // Some information on the hardware being used might be stored
 /// println!("{:#?}", rnx.header.rcvr);
 /// // WGS84 receiver approximate position
-/// println!("{:#?}", rnx.header.coords);
+/// println!("{:#?}", rnx.header.ground_position);
 /// // comments encountered in the Header section
 /// println!("{:#?}", rnx.header.comments);
 /// // sampling interval was set
@@ -284,6 +292,20 @@ impl Rinex {
     /// If current revision is < 3 then file gets converted to CRINEX1
     /// format, otherwise, modern Observations are converted to CRINEX3.
     /// This has no effect if self is not an Observation RINEX.
+    ///
+    /// ```
+    /// use rinex::prelude::*;
+    ///
+    /// // parse a RINEX
+    /// let rinex = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
+    ///     .unwrap();
+    /// // convert to CRINEX
+    /// let crinex = rinex.rnx2crnx();
+    ///
+    /// // generate
+    /// crinex.to_file("test.crx")
+    ///     .unwrap();
+    /// ```
     pub fn rnx2crnx(&self) -> Self {
         let mut s = self.clone();
         s.rnx2crnx_mut();
@@ -949,22 +971,16 @@ impl Rinex {
     ///
     /// Example:
     /// ```
-    /// use rinex::prelude::*;
+    /// use rinex::*;
+    /// use std::str::FromStr; // filter!
+    /// use rinex::processing::*; // .filter_mut()
+    ///
     /// let mut rinex = Rinex::from_file("../test_resources/NAV/V3/CBW100NLD_R_20210010000_01D_MN.rnx")
     ///     .unwrap();
-    /// // Retain G07 + G08 vehicules
-    /// // to perform further calculations on these vehicules data (GPS + Svnn filter)
-    /// let filter = vec![
-    ///     Sv {
-    ///         constellation: Constellation::GPS,
-    ///         prn: 7,
-    ///     },
-    ///     Sv {
-    ///         constellation: Constellation::GPS,
-    ///         prn: 8,
-    ///     },
-    /// ];
-    /// rinex.retain_space_vehicule_mut(filter.clone());
+    ///
+    /// // Retain G07 + G08 vehicles
+    /// rinex.filter_mut(filter!("G07, G08"));
+    ///
     /// let clk_offsets = rinex.space_vehicules_clock_offset();
     /// for (epoch, sv) in clk_offsets {
     ///     for (sv, offset) in sv {
@@ -1003,22 +1019,14 @@ impl Rinex {
     ///
     /// Example:
     /// ```
-    /// use rinex::prelude::*;
+    /// use rinex::*;
+    /// use std::str::FromStr; // filter!
+    /// use rinex::processing::*; // .filter_mut()
+    ///
     /// let mut rinex = Rinex::from_file("../test_resources/NAV/V3/CBW100NLD_R_20210010000_01D_MN.rnx")
     ///     .unwrap();
-    /// // Retain G07 + G08 vehicules
-    /// // to perform further calculations on these vehicules data (GPS + Svnn filter)
-    /// let filter = vec![
-    ///     Sv {
-    ///         constellation: Constellation::GPS,
-    ///         prn: 7,
-    ///     },
-    ///     Sv {
-    ///         constellation: Constellation::GPS,
-    ///         prn: 8,
-    ///     },
-    /// ];
-    /// rinex.retain_space_vehicule_mut(filter.clone());
+    /// rinex.filter_mut(filter!("G08,G07"));
+    ///
     /// let biases = rinex.navigation_clock_biases();
     /// for (epoch, sv) in biases {
     ///     for (sv, (offset, dr, drr)) in sv {
@@ -1177,7 +1185,7 @@ impl Rinex {
     /// use rinex::prelude::*;
     /// let rinex = Rinex::from_file("../test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz")
     ///     .unwrap();
-    /// let ref_pos = (3582105.2910_f64, 532589.7313_f64, 5232754.8054_f64);
+    /// let ref_pos = GroundPosition::from_ecef_wgs84((3582105.2910_f64, 532589.7313_f64, 5232754.8054_f64));
     /// let sv_angles = rinex.navigation_sat_angles(Some(ref_pos));
     /// for (sv, epochs) in sv_angles {
     ///     for (epoch, (el, azi)) in epochs {
@@ -1225,17 +1233,21 @@ impl Rinex {
     /// Computes and extracts from Navigation Data, all satellite positions, in ECEF,
     /// on an epoch basis.
     /// ```
-    /// use rinex::prelude::*;
-    /// use std::str::FromStr;
-    /// use map_3d::{ecef2geodetic, Ellipsoid};
+    /// use rinex::*;
+    /// use std::str::FromStr; // filter!
+    /// use rinex::processing::*; // .filter_mut()
+    /// use map_3d::{ecef2geodetic, Ellipsoid}; // example
+    ///
     /// let mut rinex =
     ///     Rinex::from_file("../test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz")
     ///         .unwrap();
-    /// let g08 = Sv::from_str("G08")
-    ///     .unwrap();
-    /// rinex.retain_space_vehicule_mut(vec![g08]);
+    ///
+    /// rinex.filter_mut(filter!("G08"));
+    ///
     /// let sat_pos_ecef = rinex.navigation_sat_pos_ecef();
-    /// // example: convert to LLA
+    /// // Just an example of exploitation,
+    /// // Converts ECEF to Geodetic as an example.
+    /// // Use `navigation_sat_pos_geodetic` if you want LLA coordinates directly
     /// let sat_pos_lla = rinex.navigation_sat_pos_ecef()
     ///     .iter_mut()
     ///         .map(|(_, epochs)| {
@@ -2699,6 +2711,20 @@ impl Processing for Rinex {
     }
 }
 
+impl Dcb for Rinex {
+    fn dcb(&self) -> HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
+        self.record.dcb()
+    }
+}
+
+impl Combine for Rinex {
+    fn combine(&self, combination: Combination
+    ) -> HashMap<(Observable, Observable), BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>
+    {
+        self.record.combine(combination)
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -2711,6 +2737,8 @@ mod test {
         let _ = sv!("R03");
         let _ = gnss!("GPS");
         let _ = observable!("L1C");
+        let _ = filter!("GPS");
+        let _ = filter!("G08, G09");
     }
     #[test]
     fn test_hourly_session() {

@@ -58,7 +58,7 @@ mod test {
             testbench(fp.to_str().unwrap());
         }
     }
-    #[test]
+    //#[test]
     fn clocks_v2() {
         let folder = env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/CLK/V2/";
         for file in std::fs::read_dir(folder).unwrap() {

@@ -7,6 +7,7 @@ use crate::prelude::*;
 use crate::sv;
 use std::str::FromStr;
 use thiserror::Error;
+use itertools::Itertools;
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -147,7 +148,7 @@ impl std::ops::BitOr for TargetItem {
     }
 }
 
-pub fn parse_sv_list(items: Vec<&str>) -> Result<Vec<Sv>, sv::Error> {
+pub(crate) fn parse_sv_list(items: Vec<&str>) -> Result<Vec<Sv>, sv::Error> {
     let mut ret: Vec<Sv> = Vec::with_capacity(items.len());
     for item in items {
         let sv = Sv::from_str(item.trim())?;
@@ -156,7 +157,7 @@ pub fn parse_sv_list(items: Vec<&str>) -> Result<Vec<Sv>, sv::Error> {
     Ok(ret)
 }
 
-pub fn parse_gnss_list(items: Vec<&str>) -> Result<Vec<Constellation>, constellation::Error> {
+pub(crate) fn parse_gnss_list(items: Vec<&str>) -> Result<Vec<Constellation>, constellation::Error> {
     let mut ret: Vec<Constellation> = Vec::with_capacity(items.len());
     for item in items {
         let c = Constellation::from_str(item.trim())?;
@@ -174,7 +175,7 @@ pub(crate) fn parse_obs_list(items: Vec<&str>) -> Result<Vec<Observable>, observ
     Ok(ret)
 }
 
-pub fn parse_nav_frames(items: Vec<&str>) -> Result<Vec<FrameClass>, navigation::record::Error> {
+pub(crate) fn parse_nav_frames(items: Vec<&str>) -> Result<Vec<FrameClass>, navigation::record::Error> {
     let mut ret: Vec<FrameClass> = Vec::with_capacity(items.len());
     for item in items {
         let sv = FrameClass::from_str(item.trim())?;
@@ -183,7 +184,7 @@ pub fn parse_nav_frames(items: Vec<&str>) -> Result<Vec<FrameClass>, navigation:
     Ok(ret)
 }
 
-pub fn parse_nav_msg(items: Vec<&str>) -> Result<Vec<MsgType>, navigation::record::Error> {
+pub(crate) fn parse_nav_msg(items: Vec<&str>) -> Result<Vec<MsgType>, navigation::record::Error> {
     let mut ret: Vec<MsgType> = Vec::with_capacity(items.len());
     for item in items {
         let msg = MsgType::from_str(item.trim())?;
@@ -192,15 +193,8 @@ pub fn parse_nav_msg(items: Vec<&str>) -> Result<Vec<MsgType>, navigation::recor
     Ok(ret)
 }
 
-pub fn parse_float_payload(content: &str) -> Result<f64, std::num::ParseFloatError> {
+pub(crate) fn parse_float_payload(content: &str) -> Result<f64, std::num::ParseFloatError> {
     f64::from_str(content.trim())
-}
-
-pub fn parse_orbits(item: &str) -> Vec<String> {
-    item.trim()
-        .split(",")
-        .map(|s| s.trim().to_string())
-        .collect()
 }
 
 impl TargetItem {
@@ -302,20 +296,20 @@ impl std::str::FromStr for TargetItem {
                             // makes this case unsensitive
                             // easier on the user end to describe Orbit fields he's interested in
                             if item.to_ascii_lowercase().eq(field) {
-                                orbits.push(field.to_string());
+                                if !orbits.contains(&field.to_string()) {
+                                    orbits.push(field.to_string());
+                                }
                             }
                         }
                     }
                 }
             }
 
-            orbits.dedup();
-
-            if orbits.len() == 0 {
+            if orbits.len() > 0 {
+                Ok(Self::OrbitItem(orbits))
+            } else {
                 // not a single match
                 Err(Error::TypeGuessingError(c.to_string()))
-            } else {
-                Ok(Self::OrbitItem(orbits))
             }
         }
     }

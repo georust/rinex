@@ -90,13 +90,6 @@ export RUST_LOG=info
 rinex-cli --fp test_resources/NAV/V2/amel010.21g
 ```
 
-Some operations may require an argument. In this case we expect a CSV description,
-for example, `--retain-sv` to focus on vehicles of interest is one of those:
-
-```bash
-rinex-cli --fp rovn0010.21o --retain-sv G01,G02
-```
-
 As previously said, [rinex-cli/product](product/) is where we generate
 analysis reports.
 

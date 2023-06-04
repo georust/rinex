@@ -17,10 +17,12 @@ pub enum Error {
     InvalidDescriptor,
     #[error("unknown filter type \"{0}\"")]
     UnknownFilterType(String),
-    #[error("invalid mask filter \"{0}\"")]
-    MaskError(String),
-    #[error("invalid decim filter \"{0}\"")]
-    DecimError(String),
+    #[error("invalid mask filter")]
+    MaskFilterParsingError(#[from] mask::Error),
+    #[error("invalid decimation filter")]
+    DecimationFilterParsingError(#[from] decim::Error),
+    #[error("invalid smoothing filter")]
+    SmoothingFilterParsingError(#[from] smoothing::Error),
     #[error("invalid filter target")]
     TargetItemError(#[from] super::target::Error),
     #[error("failed to apply filter")]
@@ -31,7 +33,7 @@ pub enum Error {
 /// Filters can apply either on entire RINEX or subsets.
 /// Refer to [TargetItem] definition to understand which data subsets exist.  
 /// ```
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Filter {
     /// Mask filter, to focus on specific data subsets
     Mask(MaskFilter),
@@ -46,6 +48,16 @@ pub enum Filter {
 impl From<MaskFilter> for Filter {
     fn from(mask: MaskFilter) -> Self {
         Self::Mask(mask)
+    }
+}
+
+impl std::ops::Not for Filter {
+    type Output = Self;
+    fn not(self) -> Self {
+        match self {
+            Self::Mask(f) => Self::Mask(!f),
+            f => f.clone(), // impossible
+        }
     }
 }
 
@@ -65,14 +77,33 @@ impl std::str::FromStr for Filter {
     type Err = Error;
     fn from_str(content: &str) -> Result<Self, Self::Err> {
         let items: Vec<&str> = content.split(":").collect();
-        if let Ok(f) = MaskFilter::from_str(content.trim()) {
-            Ok(Self::Mask(f))
-        } else if let Ok(f) = DecimationFilter::from_str(content.trim()) {
-            Ok(Self::Decimation(f))
-        } else if let Ok(f) = SmoothingFilter::from_str(content.trim()) {
-            Ok(Self::Smoothing(f))
+        
+        let identifier = items[0].trim();
+        if identifier.eq("decim") {
+            let offset = 6; //"decim:"
+            Ok(Self::Decimation(
+                DecimationFilter::from_str(content[offset..].trim())?))
+
+        } else if identifier.eq("smooth") {
+            let offset = 7; //"smooth:"
+            Ok(Self::Smoothing(
+                SmoothingFilter::from_str(content[offset..].trim())?))
+
+        } else if identifier.eq("interp") {
+            todo!("InterpolationFilter::from_str()");
+
+        } else if identifier.eq("mask") {
+            let offset = 5; //"mask:"
+            Ok(Self::Mask(
+                MaskFilter::from_str(content[offset..].trim())?))
+
         } else {
-            Err(Error::UnknownFilterType(content.to_string()))
+            // assume Mask (omitted identifier)
+            if let Ok(f) = MaskFilter::from_str(content.trim()) {
+                Ok(Self::Mask(f))
+            } else {
+                Err(Error::UnknownFilterType(content.to_string()))
+            }
         }
     }
 }
@@ -91,42 +122,25 @@ mod test {
         /*
          * MASK FILTER description
          */
-        for (verbal_desc, math_desc) in vec![
-            ("eq:GPS", "=:GPS"),
-            ("neq: GPS", "!=:GPS"),
-            ("eq:G08, G09, G10", "=:G08,G09,G10"),
-            ("neq:GPS, GAL", "!=:GPS, GAL"),
-            ("gt: G08, G09", ">:G08, G09"),
-            ("eq:GPS", "!=:GPS"),
-            ("eq:GPS, GAL", "=:GPS"),
-            ("eq:G08, G09", "=:G08, G09"),
+        for descriptor in vec![
+            "GPS", 
+            "=GPS",
+            " != GPS",
+            "G08, G09, G10",
+            "=G08, G09, G10",
+            "!= GPS, GAL",
+            ">G08, G09",
+            "iode",
+            "iode,gps",
+            "iode,crs,gps",
+            "iode,crs",
+            ">2020-01-14T00:31:55 UTC",
         ] {
-            let verbal_filt = Filter::from_str(verbal_desc);
             assert!(
-                verbal_filt.is_ok(),
+                Filter::from_str(descriptor).is_ok(),
                 "Filter::from_str failed on \"{}\"",
-                verbal_desc
+                descriptor
             );
-
-            let math_filt = Filter::from_str(math_desc);
-            assert!(
-                math_filt.is_ok(),
-                "Filter::from_str failed on \"{}\"",
-                math_desc
-            );
-        }
-        /*
-         * MASK FILTER description (omitted operand)
-         */
-        for desc in vec![
-            "mask:10.0",
-            "mask:10.0, 13.0",
-            "mask:GPS",
-            "mask:GPS,GAL",
-            "mask:G08, G09, G10",
-        ] {
-            let filt = Filter::from_str(desc);
-            assert!(filt.is_ok(), "Filter::from_str failed on \"{}\"", desc);
         }
         /*
          * DECIMATION FILTER description

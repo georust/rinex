@@ -1587,8 +1587,11 @@ impl Preprocessing for Record {
                 }
             },
             Filter::Interp(filter) => self.interpolate_mut(filter.series, filter.target),
+            Filter::Decimation(filter) => match filter.dtype {
+                DecimationType::DecimByRatio(r) => self.decimate_by_ratio_mut(r), 
+                DecimationType::DecimByInterval(r) => self.decimate_by_interval_mut(r), 
+            },
             Filter::Smoothing(_) => todo!(),
-            Filter::Decimation(_) => todo!(),
         }
     }
 }
@@ -1610,7 +1613,7 @@ impl Interpolate for Record {
     }
 }
 
-use crate::processing::Decimate;
+use crate::processing::{Decimate, DecimationType};
 
 impl Decimate for Record {
     /// Decimates Self by desired factor

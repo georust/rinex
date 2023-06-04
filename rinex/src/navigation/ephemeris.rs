@@ -38,7 +38,7 @@ pub enum Error {
 /// // to permit Sv position determination (see down below).
 /// // Usually this is contained in the file header (header.coords),
 /// // but that is not the case for this file
-/// let ref_pos = GroundPosition::from_ecef_wgs84(1.0_f64, 2.0_f64, 3.0_f64);
+/// let ref_pos = GroundPosition::from_ecef_wgs84((1.0_f64, 2.0_f64, 3.0_f64));
 ///
 /// for (epoch, classes) in record {
 ///     for (class, frames) in classes {

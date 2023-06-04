@@ -146,12 +146,12 @@ impl Default for QcClassificationMethod {
 #[cfg_attr(feature = "serde", derive(Deserialize))]
 pub struct QcOpts {
     /// Classification Method
-    #[serde(default)]
+    #[cfg_attr(feature = "serde", serde(default))]
     pub classification: QcClassificationMethod,
     /// Minimum SNR level to consider in our analysis.
     /// For example, this is used when determining whether
     /// an epoch is "complete" or not.
-    #[serde(default)]
+    #[cfg_attr(feature = "serde", serde(default))]
     pub min_snr_db: f64,
     /// Elevation mask
     pub elev_mask: Option<f64>,
