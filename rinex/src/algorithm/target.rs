@@ -1,6 +1,6 @@
 use crate::constellation;
 use crate::navigation;
-use crate::navigation::{FrameClass, MsgType};
+use crate::navigation::{FrameClass, MsgType, orbits::NAV_ORBITS};
 use crate::observable;
 use crate::observable::Observable;
 use crate::prelude::*;
@@ -288,8 +288,34 @@ impl std::str::FromStr for TargetItem {
             //TODO improve this:
             // do not test 1st entry only but all possible content
             Ok(Self::NavMsgItem(parse_nav_msg(items)?))
-        } else {
-            Err(Error::TypeGuessingError(c.to_string()))
+        } 
+        else {
+            // try to match an existing Orbit field
+            // For this, we browse all known Orbit fields and try to match one of them
+            let mut orbits : Vec<String> = Vec::new();
+
+            for orbit in NAV_ORBITS.iter() { // need to browse all systems
+                for revision in orbit.revisions.iter() { // need to browse all revisions
+                    for (field, _type) in revision.items.iter() {
+                        for item in &items {
+                            // makes this case unsensitive 
+                            // easier on the user end to describe Orbit fields he's interested in
+                            if item.to_ascii_lowercase().eq(field) {
+                                orbits.push(field.to_string());
+                            }
+                        }
+                    }
+                }
+            }
+
+            orbits.dedup();
+
+            if orbits.len() == 0 {
+                // not a single match
+                Err(Error::TypeGuessingError(c.to_string()))
+            } else {
+                Ok(Self::OrbitItem(orbits))
+            }
         }
     }
 }

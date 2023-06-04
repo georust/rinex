@@ -234,15 +234,21 @@ impl std::str::FromStr for MaskFilter {
                 }
             }
         }
-        /*
-         * Mask operand is mandatory
-         */
-        if operand_offset.is_none() {
-            return Err(Error::MissingOperand);
-        }
 
-        let operand = operand.unwrap();
-        let operand_offset = operand_offset.unwrap();
+        let operand_omitted = operand_offset.is_none();
+
+        let (operand, operand_offset) : (MaskOperand, usize) = match operand_offset.is_some() {
+            true => {
+                (operand.unwrap(), operand_offset.unwrap())
+            },
+            false => {
+                /*
+                 * Operand was not found, it's either omitted and Eq() is implied,
+                 * or this parser will soon fail due to faulty content
+                 */
+                (MaskOperand::Equals, 0)
+            },
+        };
 
         if operand_offset > 0 {
             // Some characters exist between .start() and identified operand.
@@ -279,7 +285,13 @@ impl std::str::FromStr for MaskFilter {
         } else {
             // Descriptor starts with mask operand.
             // Filter target type guessing is possible.
-            let offset = operand_offset + operand.formatted_len();
+            let offset :usize = match operand_omitted {
+                false => {
+                    operand_offset + operand.formatted_len()
+                },
+                true => 0,
+            };
+            
             Ok(Self {
                 operand,
                 item: TargetItem::from_str(&cleanedup[offset..].trim_start())?,
@@ -399,7 +411,7 @@ mod test {
                 ]),
             }
         );
-        let m2 = MaskFilter::from_str("=G08,G09,R03").unwrap();
+        let m2 = MaskFilter::from_str("G08,G09,R03").unwrap();
         assert_eq!(mask, m2);
 
         let mask = MaskFilter::from_str("!=G31").unwrap();
@@ -431,7 +443,7 @@ mod test {
     }
     #[test]
     fn mask_orbit() {
-        let mask = MaskFilter::from_str("=orb:iode").unwrap();
+        let mask = MaskFilter::from_str("=iode").unwrap();
         assert_eq!(
             mask,
             MaskFilter {

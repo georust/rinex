@@ -3,9 +3,9 @@ mod eopmessage;
 mod ephemeris;
 mod health;
 mod ionmessage;
-mod orbits;
 mod stomessage;
 
+pub mod orbits;
 pub mod record;
 
 pub use eopmessage::EopMessage;

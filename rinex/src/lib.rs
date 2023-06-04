@@ -113,7 +113,34 @@ macro_rules! is_comment {
     };
 }
 
-/// Macro: used in file creation helper.
+#[macro_export]
+/// Creates an [sv::Sv] from given string description,
+/// which must be valid.
+macro_rules! sv {
+    ($desc: expr) => {
+        Sv::from_str($desc).unwrap()
+    };
+}
+
+#[macro_export]
+/// Creates a [constellation::Constellation] from given string
+/// description, which must be valid.
+macro_rules! gnss {
+    ($desc: expr) => {
+        Constellation::from_str($desc).unwrap()
+    };
+}
+
+#[macro_export]
+/// Creats an [observable::Observable] from given string
+/// description, which must be valid.
+macro_rules! observable {
+    ($desc: expr) => {
+        Observable::from_str($desc).unwrap()
+    };
+}
+
+/// File creation helper.
 /// Returns `str` description, as one letter
 /// lowercase, used in RINEX file name to describe
 /// the sampling period. RINEX specifications:   
@@ -2672,10 +2699,15 @@ impl Processing for Rinex {
 #[cfg(test)]
 mod test {
     use super::*;
+    use std::str::FromStr;
     #[test]
     fn test_macros() {
         assert_eq!(is_comment!("This is a comment COMMENT"), true);
         assert_eq!(is_comment!("This is a comment"), false);
+        let _ = sv!("G01");
+        let _ = sv!("R03");
+        let _ = gnss!("GPS");
+        let _ = observable!("L1C");
     }
     #[test]
     fn test_hourly_session() {
