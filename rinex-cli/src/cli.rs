@@ -178,14 +178,14 @@ If you're just interested in CS information, you probably just want `-qc` instea
                         .value_name("FILE")
                         .help("Augment `--fp` analysis with Navigation data.
 Most useful when combined to Observation RINEX. Enables the complete (full) `--qc` mode.")) 
-                    .arg(Arg::new("pos-ecef")
-                        .long("--pos-ecef")
+                    .arg(Arg::new("antenna-ecef")
+                        .long("antenna-ecef")
                         .value_name("\"x,y,z\" coordinates in ECEF [m]")
                         .help("Define the (RX) antenna ground position manualy, in [m] ECEF system.
 Some calculations require a reference position.
 Ideally this information is contained in the file Header, but user can manually define them (superceeds)."))
-                    .arg(Arg::new("pos-geo")
-                        .long("--pos-geo")
+                    .arg(Arg::new("antenna-lla")
+                        .long("antenna-lla")
                         .value_name("\"lat,lon,alt\" coordinates in ddeg [°]")
                         .help("Define the (RX) antenna ground position manualy, in decimal degrees.
 Some calculations require a reference position.
@@ -503,10 +503,10 @@ Refer to README"))
         None
     }
     fn manual_ecef(&self) -> Option<&String> {
-        self.matches.get_one::<String>("pos-ecef")
+        self.matches.get_one::<String>("antenna-ecef")
     }
     fn manual_geodetic(&self) -> Option<&String> {
-        self.matches.get_one::<String>("pos-geo")
+        self.matches.get_one::<String>("antenna-geo")
     }
     /// Returns Ground Position possibly specified by user
     pub fn manual_position(&self) -> Option<GroundPosition> {

@@ -123,7 +123,7 @@ fn clocks_comparison(dut: &Rinex, model: &Rinex, filename: &str) {
         .expect("failed to unwrap as clock rinex record");
     for (e_model, model_types) in rec_model.iter() {
         if let Some(dut_types) = rec_dut.get(e_model) {
-            for (model_data, model_systems) in model_types.iter() {
+            for (model_data, _model_systems) in model_types.iter() {
                 if let Some(systems) = dut_types.get(model_data) {
                 } else {
                     panic!(

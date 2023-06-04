@@ -17,12 +17,13 @@ pub struct InterpFilter {
 
 /*
  * Interpolates yp at xp
- */
+ *
 pub(crate) fn lerp(x0y0: (f64, f64), x1y1: (f64, f64), xp: f64) -> f64 {
     let (x0, y0) = x0y0;
     let (x1, y1) = x1y1;
     y0 * (x1 - xp) + y1 * (xp - x0) / (x1 - x0)
 }
+ */
 
 /*
 impl InterpFilter {

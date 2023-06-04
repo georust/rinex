@@ -11,6 +11,7 @@ Several algorithms are known:
 * `interp` for [interpolation filters](#interpolation-filters)
 
 A preprocessing algorithm is described with a string and passed with `-P`,
+
 for example:
 
 ```bash
@@ -24,11 +25,10 @@ Any amount of preprocessing algorithm can be stacked:
 ```bash
 rinex-cli \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.gz \
-    -P L1C \ 
-    -P G08,G09,G10
+    -P L1C G08,G09,G10
 ```
 
-In any case, invalid descriptors will not crash the app, but only generate an error trace.
+In any case, invalid descriptors will not crash the app but only generate an error trace.
 
 ## Masking operations
 
@@ -52,7 +52,7 @@ Example:
 ```bash
 rinex-cli \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    -P "!=G08,G09,G10"
+    -P !=G08,G09,G10
 ```
 
 When the operand is omitted, _Equals_ (=) operand is implied
@@ -60,11 +60,24 @@ When the operand is omitted, _Equals_ (=) operand is implied
 ```bash
 rinex-cli \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    -P "G08,R03"
+    -P G08,R03
 ```
 
 Refer to the MaskFilter API in the RINEX official documentation for more
 advanced mask filters.
+
+## Stacked preprocessing ops
+
+A whitespace separates two preprocessing operations.
+
+```bash
+rinex-cli \
+    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
+    -P GPS,GLO G08,R03  
+```
+
+Therefore, if a filter operation involves a whitespace, it requires to be wrapped
+in between inverted commas. Most common example is the [Epoch](epoch-target) description.
 
 ### Targetted subsets
 
@@ -80,16 +93,16 @@ because _Equals()_ operand is implied:
 ```bash
 rinex-cli \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    -P "2020-06-12 08:00:00"
+    -P ">2020-06-25T04:00:00 UTC" GPS >G08 # notice the \" due to whitespace requirement
 ```
 
-Use a different operand to grab a portion of the day.  
-The following mask retains the last 16hours of that file:
+Retain a single Epoch with _Equals()_ ops. Equals is the implicit
+operand if the operand is omitted:
 
 ```bash
 rinex-cli \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    -P ">2020-06-12 08:00:00"
+    -P "2020-06-25T04:00:00 UTC" GPS >G08 # notice the \" due to whitespace requirement
 ```
 
 For example, use two epoch masks to zoom in on 
@@ -98,8 +111,7 @@ the ]2020-06-12 08:00:00 ; 2020-06-12 10:00:00] time window:
 ```bash
 rinex-cli \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    -P ">2020-06-12 08:00:00" \
-    -P "<=2020-06-12 10:00:00" 
+    -P ">2020-06-12T08:00:00 UTC" "<=2020-06-25T16:00:00 UTC" GPS >G08
 ```
 
 ## Duration target
@@ -114,7 +126,6 @@ For example, with the following, we are left with data from _R03_ and _E10_
 ```bash
 rinex-cli \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    -P G08,R03,E10 \
     -P R03,E10
 ```
 
@@ -124,20 +135,18 @@ we are left with PRN above 03 for GPS and below 10 (included) for Galileo
 ```bash
 rinex-cli \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    -P ">G08" \
-    -P "<=E10"
+    -P >G08 "<=E10"
 ```
 
-## GNSS target
+## Constellations
 
-A comma separated list of Constellation is supported.  
+A comma separated list of Constellations is supported.  
 For example, with the following, we are left with data from Glonass and GPS  
 
 ```bash
 rinex-cli \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    -P "!=BDS" \ 
-    -P "GPS,GLO"
+    -P !=BDS GPS,GLO # ineq(BDS) AND eq(GPS,GLO)
 ```
 
 ## GNSS Signals
@@ -235,12 +244,15 @@ data quantity or increase sampling interval. It is described with `decim:`.
 
 ### By a ratio
 
-Decimate an entire record to reduce the data quantity by 2 (-50%)
+Decimate an entire record to reduce the data quantity.
+
+For example, decimate by 4 and zoom on a portion of the day:
+we now have 2 minutes in between two data points.
 
 ```bash
-rinex-cli \
-    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.gz \
-    -P 'decim:2'
+./target/release/rinex-cli \
+    -f test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
+    -P decim:4 ">2020-06-25T08:00:00 UTC" "<=2020-06-25T10:00:00 UTC"
 ```
 
 ### By an interval
@@ -251,7 +263,8 @@ to it matches 10 minutes:
 ```bash
 rinex-cli \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.gz \
-    -P 'decim:10 min'
+    -P "decim:10 min" \ # whitespace once again
+        ">2020-06-25T08:00:00 UTC" "<=2020-06-25T10:00:00 UTC"
 ```
 
 ### Advanced: Use data subsets
@@ -260,16 +273,15 @@ Algorithms apply to the entire record by default, but you can specify
 to apply it only a subset.
 Subsets are described like Data Masks previously defined.
 
-For example, here we retain both L1C and L2C phase data,
-but we only reduce the quantity of L1C observations by 50%:
+For example, here we retain both L1C and L2C phase data
+on GPS constellation (PRN >= 08). But we reduce the quantity
+of L1C observations by 4:
 
 ```bash
 rinex-cli \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.gz \
-    -P "mask:L1C,L2C" "decim:2:l1c"
+    -P GPS ">=G08" L1C,L2C "decim:4:l1c"
 ```
-
-Now open the `graphs.html` report and see how the L1C graph differs from the L2C graph.
 
 ## Advanced: Hatch Smoothing Filter
 
@@ -284,5 +296,5 @@ after the following command
 ```bash
 rinex-cli \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.gz \
-    -P 'mask:L1C,L2C' 'smooth:hatch:l1c'
+    -P 'L1C,L2C' 'smooth:hatch:l1c'
 ```

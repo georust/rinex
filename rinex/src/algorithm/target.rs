@@ -7,7 +7,6 @@ use crate::prelude::*;
 use crate::sv;
 use std::str::FromStr;
 use thiserror::Error;
-use itertools::Itertools;
 
 #[derive(Debug, Error)]
 pub enum Error {
