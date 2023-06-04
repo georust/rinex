@@ -1,6 +1,6 @@
 use crate::constellation;
 use crate::navigation;
-use crate::navigation::{FrameClass, MsgType, orbits::NAV_ORBITS};
+use crate::navigation::{orbits::NAV_ORBITS, FrameClass, MsgType};
 use crate::observable;
 use crate::observable::Observable;
 use crate::prelude::*;
@@ -208,21 +208,21 @@ impl TargetItem {
         if let Ok(float) = parse_float_payload(content) {
             Ok(Self::ElevationItem(float))
         } else {
-            Err(Error::InvalidElevationAngleDescription) 
+            Err(Error::InvalidElevationAngleDescription)
         }
     }
     pub(crate) fn from_azimuth(content: &str) -> Result<Self, Error> {
         if let Ok(float) = parse_float_payload(content) {
             Ok(Self::AzimuthItem(float))
         } else {
-            Err(Error::InvalidAzimuthAngleDescription) 
+            Err(Error::InvalidAzimuthAngleDescription)
         }
     }
     pub(crate) fn from_snr(content: &str) -> Result<Self, Error> {
         if let Ok(float) = parse_float_payload(content) {
             Ok(Self::SnrItem(float))
         } else {
-            Err(Error::InvalidSNRDescription) 
+            Err(Error::InvalidSNRDescription)
         }
     }
 }
@@ -231,7 +231,7 @@ impl std::str::FromStr for TargetItem {
     type Err = Error;
     fn from_str(content: &str) -> Result<Self, Self::Err> {
         let c = content.trim();
-        /* 
+        /*
          * Type guessing:
          * is used by Filter::from_str()
          * when operand comes first in description.
@@ -288,17 +288,18 @@ impl std::str::FromStr for TargetItem {
             //TODO improve this:
             // do not test 1st entry only but all possible content
             Ok(Self::NavMsgItem(parse_nav_msg(items)?))
-        } 
-        else {
+        } else {
             // try to match an existing Orbit field
             // For this, we browse all known Orbit fields and try to match one of them
-            let mut orbits : Vec<String> = Vec::new();
+            let mut orbits: Vec<String> = Vec::new();
 
-            for orbit in NAV_ORBITS.iter() { // need to browse all systems
-                for revision in orbit.revisions.iter() { // need to browse all revisions
+            for orbit in NAV_ORBITS.iter() {
+                // need to browse all systems
+                for revision in orbit.revisions.iter() {
+                    // need to browse all revisions
                     for (field, _type) in revision.items.iter() {
                         for item in &items {
-                            // makes this case unsensitive 
+                            // makes this case unsensitive
                             // easier on the user end to describe Orbit fields he's interested in
                             if item.to_ascii_lowercase().eq(field) {
                                 orbits.push(field.to_string());
@@ -455,16 +456,25 @@ mod test {
     #[test]
     fn test_from_elevation() {
         let desc = " 1234  ";
-        assert!(TargetItem::from_elevation(desc).is_ok(), "Failed to parse Elevation Target Item");
+        assert!(
+            TargetItem::from_elevation(desc).is_ok(),
+            "Failed to parse Elevation Target Item"
+        );
     }
     #[test]
     fn test_from_azimuth() {
         let desc = " 12.34  ";
-        assert!(TargetItem::from_azimuth(desc).is_ok(), "Failed to parse Azimuth Target Item");
+        assert!(
+            TargetItem::from_azimuth(desc).is_ok(),
+            "Failed to parse Azimuth Target Item"
+        );
     }
     #[test]
     fn test_from_snr() {
         let desc = " 12.34  ";
-        assert!(TargetItem::from_snr(desc).is_ok(), "Failed to parse SNR Target Item");
+        assert!(
+            TargetItem::from_snr(desc).is_ok(),
+            "Failed to parse SNR Target Item"
+        );
     }
 }

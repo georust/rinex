@@ -4,8 +4,8 @@ mod test {
         hatanaka::Decompressor,
         observation::{Crinex, HeaderFields},
         prelude::*,
-        version::Version,
         test_toolkit,
+        version::Version,
     };
     use std::collections::HashMap;
     use std::str::FromStr;
@@ -30,7 +30,7 @@ mod test {
 
             assert_eq!(rnx.header.obs.is_some(), true);
             let obs = rnx.header.obs.as_ref().unwrap();
-            
+
             assert_eq!(obs.crinex.is_some(), true);
             let infos = obs.crinex.as_ref().unwrap();
 
@@ -65,13 +65,13 @@ mod test {
 
             let obs = rnx.header.obs.as_ref().unwrap();
             assert_eq!(obs.crinex.is_some(), false);
-            
+
             // parse Model for testbench
             let path = format!("../test_resources/OBS/V2/{}", rnx_name);
             let model = Rinex::from_file(&path);
             assert!(model.is_ok(), "Failed to parse test model \"{}\"", path);
             let model = model.unwrap();
-            
+
             // run testbench
             // test_toolkit::compare_with_panic(&rnx, &model, &path);
         }
@@ -120,13 +120,13 @@ mod test {
 
             let obs = rnx.header.obs.as_ref().unwrap();
             assert_eq!(obs.crinex.is_some(), false);
-            
+
             // parse Model for testbench
             let path = format!("../test_resources/OBS/V3/{}", rnx_name);
             let model = Rinex::from_file(&path);
             assert!(model.is_ok(), "Failed to parse test model \"{}\"", path);
             let model = model.unwrap();
-            
+
             // run testbench
             // test_toolkit::compare_with_panic(&rnx, &model, &path);
         }

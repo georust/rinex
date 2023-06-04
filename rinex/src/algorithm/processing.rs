@@ -19,7 +19,10 @@ pub trait Processing {
     /// If you're interested in the .min() of this RINEX
     /// dataset for example, invoke and refer to .min() directly.  
     /// <!> Only implemented on Observation RINEX <!>
-    fn statistical_ops(&self, ops: StatisticalOps) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>);
+    fn statistical_ops(
+        &self,
+        ops: StatisticalOps,
+    ) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>);
     /// If you're interested in the .min() of this RINEX
     /// dataset for example, invoke and refer to .min_observable() directly.
     /// This is only feasible on either Observation or Meteo RINEX.
@@ -79,7 +82,7 @@ pub trait Processing {
     fn max(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>);
     /// This is only feasible on Observation RINEX.
     fn abs_max(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>);
-    
+
     /// Evaluates max() for all Observables across all epochs.  
     /// This is only feasible on either Observation or Meteo RINEX.
     ///

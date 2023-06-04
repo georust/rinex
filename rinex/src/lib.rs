@@ -2606,7 +2606,7 @@ impl Decimate for Rinex {
         s
     }
     fn decimate_by_interval_mut(&mut self, dt: Duration) {
-        self.record.decimate_by_interval_mut(dt);    
+        self.record.decimate_by_interval_mut(dt);
     }
     fn decimate_match_mut(&mut self, rhs: &Self) {
         self.record.decimate_match_mut(&rhs.record);
@@ -2622,7 +2622,10 @@ use crate::algorithm::Processing;
 use crate::algorithm::StatisticalOps;
 
 impl Processing for Rinex {
-    fn statistical_ops(&self, ops: StatisticalOps) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
+    fn statistical_ops(
+        &self,
+        ops: StatisticalOps,
+    ) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
         if let Some(rec) = self.record.as_obs() {
             rec.statistical_ops(ops)
         } else if let Some(rec) = self.record.as_meteo() {

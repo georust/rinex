@@ -1,7 +1,5 @@
 //! `NavigationData` parser and related methods
-use crate::processing::{
-    Filter, Interpolate, MaskFilter, MaskOperand, Preprocessing, TargetItem,
-};
+use crate::processing::{Filter, Interpolate, MaskFilter, MaskOperand, Preprocessing, TargetItem};
 use regex::{Captures, Regex};
 use std::collections::BTreeMap;
 use std::str::FromStr;
@@ -16,35 +14,19 @@ use thiserror::Error;
 fn double_exponent_digits(content: &str) -> String {
     // replace "eN " with "E+0N"
     let re = Regex::new(r"e\d{1} ").unwrap();
-    let lines = re.replace_all(
-        &content, 
-        |caps: &Captures| {
-            format!("E+0{}", &caps[0][1..])
-        });
-    
+    let lines = re.replace_all(&content, |caps: &Captures| format!("E+0{}", &caps[0][1..]));
+
     // replace "eN" with "E+0N"
     let re = Regex::new(r"e\d{1}").unwrap();
-    let lines = re.replace_all(
-        &lines, 
-        |caps: &Captures| {
-            format!("E+0{}", &caps[0][1..])
-        });
+    let lines = re.replace_all(&lines, |caps: &Captures| format!("E+0{}", &caps[0][1..]));
 
     // replace "e-N " with "E-0N"
     let re = Regex::new(r"e-\d{1} ").unwrap();
-    let lines = re.replace_all(
-        &lines, 
-        |caps: &Captures| {
-            format!("E-0{}", &caps[0][2..])
-        });
-    
+    let lines = re.replace_all(&lines, |caps: &Captures| format!("E-0{}", &caps[0][2..]));
+
     // replace "e-N" with "e-0N"
     let re = Regex::new(r"e-\d{1}").unwrap();
-    let lines = re.replace_all(
-        &lines, 
-        |caps: &Captures| {
-            format!("E-0{}", &caps[0][2..])
-        });
+    let lines = re.replace_all(&lines, |caps: &Captures| format!("E-0{}", &caps[0][2..]));
 
     lines.to_string()
 }
@@ -442,14 +424,14 @@ fn parse_v2_v3_record_entry(
  * Reworks generated/formatted line to match standards
  */
 fn fmt_rework(major: u8, lines: &str) -> String {
-    /* 
+    /*
      * There's an issue when formatting the exponent 00 in XXXXX.E00
      * Rust does not know how to format an exponent on multiples digits,
      * and RINEX expects two.
-     * If we try to rework this line, it may corrupt some SVNN fields. 
+     * If we try to rework this line, it may corrupt some SVNN fields.
      */
     let mut lines = double_exponent_digits(lines);
-    
+
     if major < 3 {
         /*
          * In old RINEX, D+00 D-01 is used instead of E+00 E-01

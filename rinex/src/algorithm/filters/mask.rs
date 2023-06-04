@@ -89,7 +89,7 @@ impl std::ops::Not for MaskOperand {
 /// use rinex::processing::*;
 /// let rinex = Rinex::from_file("../test_resources/OBS/V2/KOSG0010.95O")
 ///     .unwrap();
-/// 
+///
 /// // Describe an [Hifitime::Epoch] for efficient datetime focus
 /// let after = Filter::from_str(">2022-01-01 10:00:00UTC")
 ///     .unwrap();
@@ -112,11 +112,11 @@ impl std::ops::Not for MaskOperand {
 /// // Whereas Equality masks ("=", "!=") apply to any data subsets.
 /// let equals = Filter::from_str("=GPS,GLO")
 ///     .unwrap();
-/// 
+///
 /// // One exception exist for "Sv" items, for example with this:
 /// let greater_than = Mask::from_str("> G08,R03")
 ///     .unwrap();
-/// // will retain PRN > 08 for GPS Constellation 
+/// // will retain PRN > 08 for GPS Constellation
 /// // and PRN > 3 for Glonass Constellation.
 /// let filtered = rinex.apply(greater_than);
 ///
@@ -132,12 +132,12 @@ impl std::ops::Not for MaskOperand {
 /// // is combined to NAV RINEX context.
 /// let rinex = Rinex::from_file("../test_resources/NAV/V3/MOJN00DNK_R_20201770000_01D_MN.rnx.gz")
 ///     .unwrap();
-/// 
+///
 /// let mask = Filter::from("e > 10.0"); // strictly above 10° elevation
 /// let filtered = rinex.apply(mask);
 /// let mask = Filter::from("a >= 25.0"); // above 25° azimuth
 /// let filtered = rinex.apply(mask);
-/// 
+///
 /// // Apply an elevation range mask by combining two elevation masks
 /// let mask = Filter::from("e <= 45.0"); // below 45°
 /// let filtered = rinex.apply(mask);
@@ -155,12 +155,12 @@ impl std::ops::Not for MaskOperand {
 /// // [2] : Message Type mask
 /// // For example: retain Legacy NAV frames only.
 /// // Any valid NavMessageType description works here
-/// let mask = Filter::from("lnav") // Eq() is implied 
+/// let mask = Filter::from("lnav") // Eq() is implied
 ///     .unwrap();
 ///
 /// // [3] : Frame type mask
 /// // For example: retain anything but Ephemeris and IonMessage frames with this.
-/// let mask = Filter::from("!=eph,ion") // Not an Eq(): we must specify the operand 
+/// let mask = Filter::from("!=eph,ion") // Not an Eq(): we must specify the operand
 ///     .unwrap();
 /// ```
 #[derive(Debug, Clone, PartialEq)]
@@ -212,22 +212,22 @@ impl std::str::FromStr for MaskFilter {
             return Err(Error::InvalidDescriptor);
         }
 
-        let mut operand : Option<MaskOperand> = None;
+        let mut operand: Option<MaskOperand> = None;
         let mut operand_offset: Option<usize> = None;
         // In some cases, the target item comes first.
         // This allows more "human readable" descriptions,
         // but makes parsing a little harder.
 
         // Try to locate a mask operand within given content
-        for i in 0..cleanedup.len()-1 {
-            if i < cleanedup.len()-2 {
-                if let Ok(op) = MaskOperand::from_str(&cleanedup[i..i+2]) {
+        for i in 0..cleanedup.len() - 1 {
+            if i < cleanedup.len() - 2 {
+                if let Ok(op) = MaskOperand::from_str(&cleanedup[i..i + 2]) {
                     operand = Some(op.clone());
                     operand_offset = Some(i);
                     break;
                 }
             } else {
-                if let Ok(op) = MaskOperand::from_str(&cleanedup[i..i+1]) {
+                if let Ok(op) = MaskOperand::from_str(&cleanedup[i..i + 1]) {
                     operand = Some(op.clone());
                     operand_offset = Some(i);
                     break;
@@ -237,10 +237,8 @@ impl std::str::FromStr for MaskFilter {
 
         let operand_omitted = operand_offset.is_none();
 
-        let (operand, operand_offset) : (MaskOperand, usize) = match operand_offset.is_some() {
-            true => {
-                (operand.unwrap(), operand_offset.unwrap())
-            },
+        let (operand, operand_offset): (MaskOperand, usize) = match operand_offset.is_some() {
+            true => (operand.unwrap(), operand_offset.unwrap()),
             false => {
                 /*
                  * Operand was not found, it's either omitted and Eq() is implied,
@@ -258,40 +256,40 @@ impl std::str::FromStr for MaskFilter {
             let start = &cleanedup[..operand_offset];
             if start[0..1].eq("e") {
                 // --> Elevation Mask case
-                let float_offset = operand_offset +1;
+                let float_offset = operand_offset + 1;
                 Ok(Self {
                     operand,
                     item: TargetItem::from_elevation(&cleanedup[float_offset..].trim())?,
                 })
             } else if content[0..1].eq("a") {
                 // --> Azimuth Mask case
-                let float_offset = operand_offset +1;
+                let float_offset = operand_offset + 1;
                 Ok(Self {
                     operand,
                     item: TargetItem::from_azimuth(&cleanedup[float_offset..].trim())?,
                 })
             } else {
                 // We're only left with SNR mask case
-                let float_offset = operand_offset +1;
+                let float_offset = operand_offset + 1;
                 if content[0..3].eq("snr") {
                     Ok(Self {
                         operand,
                         item: TargetItem::from_snr(&cleanedup[float_offset..].trim())?,
                     })
                 } else {
-                    Err(Error::InvalidTarget(cleanedup[..operand_offset].to_string()))
+                    Err(Error::InvalidTarget(
+                        cleanedup[..operand_offset].to_string(),
+                    ))
                 }
             }
         } else {
             // Descriptor starts with mask operand.
             // Filter target type guessing is possible.
-            let offset :usize = match operand_omitted {
-                false => {
-                    operand_offset + operand.formatted_len()
-                },
+            let offset: usize = match operand_omitted {
+                false => operand_offset + operand.formatted_len(),
                 true => 0,
             };
-            
+
             Ok(Self {
                 operand,
                 item: TargetItem::from_str(&cleanedup[offset..].trim_start())?,
@@ -316,14 +314,28 @@ mod test {
             ("<=", ">="),
         ] {
             let operand = MaskOperand::from_str(descriptor);
-            assert!(operand.is_ok(), "{} \"{}\"", "Failed to parse MaskOperand from", descriptor);
+            assert!(
+                operand.is_ok(),
+                "{} \"{}\"",
+                "Failed to parse MaskOperand from",
+                descriptor
+            );
             let opposite = MaskOperand::from_str(opposite_desc);
-            assert!(opposite.is_ok(), "{} \"{}\"", "Failed to parse MaskOperand from", opposite_desc);
+            assert!(
+                opposite.is_ok(),
+                "{} \"{}\"",
+                "Failed to parse MaskOperand from",
+                opposite_desc
+            );
             assert_eq!(!operand.unwrap(), opposite.unwrap(), "MaskOperand::Not()");
         }
 
         let operand = MaskOperand::from_str("a");
-        assert!(operand.is_err(), "Parsed unexpectedly \"{}\" MaskOperand correctly", "a");
+        assert!(
+            operand.is_err(),
+            "Parsed unexpectedly \"{}\" MaskOperand correctly",
+            "a"
+        );
     }
     #[test]
     fn mask_epoch() {
@@ -340,14 +352,13 @@ mod test {
     }
     #[test]
     fn mask_elev() {
-        for desc in vec![
-            "e < 40.0",
-            "e != 30",
-            " e >= 120",
-            " e = 30",
-        ] {
+        for desc in vec!["e < 40.0", "e != 30", " e >= 120", " e = 30"] {
             let mask = MaskFilter::from_str("e< 40.0");
-            assert!(mask.is_ok(), "Failed to parse Elevation Mask Filter from \"{}\"", desc);
+            assert!(
+                mask.is_ok(),
+                "Failed to parse Elevation Mask Filter from \"{}\"",
+                desc
+            );
         }
     }
     #[test]
@@ -358,9 +369,17 @@ mod test {
             (" =GLO,GAL", "!=  GLO,GAL"),
         ] {
             let mask = MaskFilter::from_str(descriptor);
-            assert!(mask.is_ok(), "Unable to parse MaskFilter from \"{}\"", descriptor);
+            assert!(
+                mask.is_ok(),
+                "Unable to parse MaskFilter from \"{}\"",
+                descriptor
+            );
             let opposite = MaskFilter::from_str(opposite_desc);
-            assert!(opposite.is_ok(), "Unable to parse MaskFilter from \"{}\"", opposite_desc);
+            assert!(
+                opposite.is_ok(),
+                "Unable to parse MaskFilter from \"{}\"",
+                opposite_desc
+            );
             assert_eq!(!mask.unwrap(), opposite.unwrap(), "{}", "MaskFilter::Not()");
         }
 
@@ -388,14 +407,21 @@ mod test {
     }
     #[test]
     fn mask_sv() {
-        for (descriptor, opposite_desc) in vec![
-            (" = G01", "!= G01"),
-            ("= R03,  G31", "!= R03,  G31"),
-        ] {
+        for (descriptor, opposite_desc) in
+            vec![(" = G01", "!= G01"), ("= R03,  G31", "!= R03,  G31")]
+        {
             let mask = MaskFilter::from_str(descriptor);
-            assert!(mask.is_ok(), "Unable to parse MaskFilter from \"{}\"", descriptor);
+            assert!(
+                mask.is_ok(),
+                "Unable to parse MaskFilter from \"{}\"",
+                descriptor
+            );
             let opposite = MaskFilter::from_str(opposite_desc);
-            assert!(opposite.is_ok(), "Unable to parse MaskFilter from \"{}\"", opposite_desc);
+            assert!(
+                opposite.is_ok(),
+                "Unable to parse MaskFilter from \"{}\"",
+                opposite_desc
+            );
             assert_eq!(!mask.unwrap(), opposite.unwrap(), "{}", "MaskFilter::Not()");
         }
 

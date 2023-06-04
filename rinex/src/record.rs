@@ -782,8 +782,7 @@ impl Decimate for Record {
     fn decimate_by_ratio_mut(&mut self, r: u32) {
         if let Some(rec) = self.as_mut_obs() {
             rec.decimate_by_ratio_mut(r);
-        }
-        else if let Some(rec) = self.as_mut_nav() {
+        } else if let Some(rec) = self.as_mut_nav() {
             rec.decimate_by_ratio_mut(r);
         }
     }
@@ -795,8 +794,7 @@ impl Decimate for Record {
     fn decimate_by_interval_mut(&mut self, dt: Duration) {
         if let Some(rec) = self.as_mut_obs() {
             rec.decimate_by_interval_mut(dt);
-        }
-        else if let Some(rec) = self.as_mut_nav() {
+        } else if let Some(rec) = self.as_mut_nav() {
             rec.decimate_by_interval_mut(dt);
         }
     }
@@ -810,8 +808,7 @@ impl Decimate for Record {
             if let Some(rhs) = rhs.as_obs() {
                 rec.decimate_match_mut(rhs);
             }
-        }
-        else if let Some(rec) = self.as_mut_nav() {
+        } else if let Some(rec) = self.as_mut_nav() {
             if let Some(rhs) = rhs.as_nav() {
                 rec.decimate_match_mut(rhs);
             }

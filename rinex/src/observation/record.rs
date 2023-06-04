@@ -1177,8 +1177,8 @@ impl Decimate for Record {
     }
 }
 
-use statrs::statistics::Statistics;
 use crate::algorithm::StatisticalOps;
+use statrs::statistics::Statistics;
 
 impl Processing for Record {
     /*
@@ -1312,13 +1312,10 @@ impl Processing for Record {
      * Statistical method wrapper,
      * applies given statistical function to self (entire record) across Sv
      */
-    fn statistical_observable_ops(
-        &self,
-        ops: StatisticalOps,
-    ) -> HashMap<Observable, f64> {
+    fn statistical_observable_ops(&self, ops: StatisticalOps) -> HashMap<Observable, f64> {
         let mut ret = HashMap::<Observable, f64>::new();
         let (_, stats) = self.statistical_ops(ops); // drop statistics over clock_offsets
-                                            // because it's not considered an "observable"
+                                                    // because it's not considered an "observable"
         for (_, observables) in &stats {
             for (observable, _) in observables {
                 // vectorize matching obs for min() ops

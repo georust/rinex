@@ -513,7 +513,7 @@ impl Ephemeris {
 /*
  * Parses constellation + revision dependent orbits data fields.
  * Retrieves all of this information from the databased stored and maintained
- * in db/NAV/orbits. 
+ * in db/NAV/orbits.
  */
 fn parse_orbits(
     version: Version,

@@ -18,7 +18,11 @@ mod test {
             let rnx_path = format!("../test_resources/OBS/V2/{}", rnx_name);
 
             let rnx = Rinex::from_file(&rnx_path);
-            assert!(rnx.is_ok(), "Failed to parse test pool file \"{}\"", rnx_path);
+            assert!(
+                rnx.is_ok(),
+                "Failed to parse test pool file \"{}\"",
+                rnx_path
+            );
 
             // convert to CRINEX1
             println!("compressing \"{}\"..", rnx_path);
@@ -27,7 +31,11 @@ mod test {
 
             // parse model
             let model = Rinex::from_file(&crnx_path);
-            assert!(model.is_ok(), "Failed to parse test pool file \"{}\"", crnx_path);
+            assert!(
+                model.is_ok(),
+                "Failed to parse test pool file \"{}\"",
+                crnx_path
+            );
 
             // compare to CRINEX1 model
             let model = model.unwrap();
@@ -52,7 +60,11 @@ mod test {
             let rnx_path = format!("../test_resources/OBS/V2/{}", testfile);
 
             let rnx = Rinex::from_file(&rnx_path);
-            assert!(rnx.is_ok(), "Failed to parse test pool file \"{}\"", testfile);
+            assert!(
+                rnx.is_ok(),
+                "Failed to parse test pool file \"{}\"",
+                testfile
+            );
 
             // compress
             let rnx = rnx.unwrap();

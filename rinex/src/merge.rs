@@ -21,7 +21,7 @@ pub enum Error {
     IonexBaseRadiusMismatch,
 }
 
-/* 
+/*
  * Appends given vector into self.
  * Used in merge::ops
  */

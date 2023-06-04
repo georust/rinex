@@ -125,9 +125,11 @@ fn clocks_comparison(dut: &Rinex, model: &Rinex, filename: &str) {
         if let Some(dut_types) = rec_dut.get(e_model) {
             for (model_data, model_systems) in model_types.iter() {
                 if let Some(systems) = dut_types.get(model_data) {
-
                 } else {
-                    panic!("\"{}\" - {:?} - missing data {:?}", filename, e_model, model_data);
+                    panic!(
+                        "\"{}\" - {:?} - missing data {:?}",
+                        filename, e_model, model_data
+                    );
                 }
             }
         } else {
@@ -136,7 +138,7 @@ fn clocks_comparison(dut: &Rinex, model: &Rinex, filename: &str) {
     }
 }
 
-/* 
+/*
  * Meteo RINEX thorough comparison
  */
 fn meteo_comparison(dut: &Rinex, model: &Rinex, filename: &str) {
@@ -192,7 +194,7 @@ fn meteo_comparison(dut: &Rinex, model: &Rinex, filename: &str) {
 }
 
 /*
- * Compares "dut" Device Under Test to given Model,  
+ * Compares "dut" Device Under Test to given Model,
  * panics on unexpected content with detailed explanations.
  */
 pub fn compare_with_panic(dut: &Rinex, model: &Rinex, filename: &str) {

@@ -128,7 +128,7 @@ pub(crate) fn parse_epoch(
     Ok((epoch, map))
 }
 
-/* 
+/*
  * Epoch formatter
  * is used when we're dumping a Meteo RINEX record entry
  */
@@ -343,9 +343,9 @@ impl Interpolate for Record {
     }
 }
 
+use crate::algorithm::StatisticalOps;
 use crate::processing::Processing;
 use statrs::statistics::Statistics;
-use crate::algorithm::StatisticalOps;
 
 impl Processing for Record {
     /*
@@ -357,8 +357,8 @@ impl Processing for Record {
         _ops: StatisticalOps,
     ) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
         unimplemented!();
-        /* 
-         * User is expected to use the _observable() API 
+        /*
+         * User is expected to use the _observable() API
          * on Meteo RINEX: we only perform statistical calculations
          * on observation basis
          */
@@ -367,14 +367,11 @@ impl Processing for Record {
      * Statistical method wrapper,
      * applies given statistical function to self (entire record) across Sv
      */
-    fn statistical_observable_ops(
-        &self,
-        ops: StatisticalOps,
-    ) -> HashMap<Observable, f64> {
+    fn statistical_observable_ops(&self, ops: StatisticalOps) -> HashMap<Observable, f64> {
         let mut ret = HashMap::<Observable, f64>::new();
         for (_, observables) in self {
             for (observable, _) in observables {
-                // vectorize matching obs 
+                // vectorize matching obs
                 let mut data = Vec::<f64>::new();
                 for (_, oobservables) in self {
                     for (oobservable, observation) in oobservables {

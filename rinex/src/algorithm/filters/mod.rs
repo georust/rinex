@@ -102,10 +102,18 @@ mod test {
             ("eq:G08, G09", "=:G08, G09"),
         ] {
             let verbal_filt = Filter::from_str(verbal_desc);
-            assert!(verbal_filt.is_ok(), "Filter::from_str failed on \"{}\"", verbal_desc);
+            assert!(
+                verbal_filt.is_ok(),
+                "Filter::from_str failed on \"{}\"",
+                verbal_desc
+            );
 
             let math_filt = Filter::from_str(math_desc);
-            assert!(math_filt.is_ok(), "Filter::from_str failed on \"{}\"", math_desc);
+            assert!(
+                math_filt.is_ok(),
+                "Filter::from_str failed on \"{}\"",
+                math_desc
+            );
         }
         /*
          * MASK FILTER description (omitted operand)
