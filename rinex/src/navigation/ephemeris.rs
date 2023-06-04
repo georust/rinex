@@ -33,11 +33,13 @@ pub enum Error {
 ///     .unwrap();
 /// let record = rnx.record.as_nav()
 ///     .unwrap();
+///
 /// // reference station (ground position) must be given somehow
 /// // to permit Sv position determination (see down below).
 /// // Usually this is contained in the file header (header.coords),
 /// // but that is not the case for this file
-/// let ref_pos = (1.0_f64, 2.0_f64, 3.0_f64);
+/// let ref_pos = GroundPosition::from_ecef_wgs84(1.0_f64, 2.0_f64, 3.0_f64);
+///
 /// for (epoch, classes) in record {
 ///     for (class, frames) in classes {
 ///         for fr in frames {
@@ -166,12 +168,11 @@ pub struct Perturbations {
 }
 
 impl Ephemeris {
-    /// Retrieve all clock biases (bias, drift, drift_rate) at once
+    /// Retrieve all clock biases (bias, drift, drift rate) at once
     pub fn clock_data(&self) -> (f64, f64, f64) {
         (self.clock_bias, self.clock_drift, self.clock_drift_rate)
     }
-
-    /// Retrieves orbit data as f64 value, if possible
+    /// Retrieves orbit data as f64 value, if possible (if field exists)
     pub fn get_orbit_f64(&self, field: &str) -> Option<f64> {
         if let Some(v) = self.orbits.get(field) {
             v.as_f64()
@@ -179,7 +180,6 @@ impl Ephemeris {
             None
         }
     }
-
     /// Tries to retrieve week counter
     pub fn get_weeks(&self) -> Option<u32> {
         //TODO:
@@ -200,7 +200,7 @@ impl Ephemeris {
         None
     }
 
-    /// Retrieves Keplerian parameters
+    /// Retrieves Orbit Keplerian parameters
     pub fn kepler(&self) -> Option<Kepler> {
         if let Some(sqrt_a) = self.get_orbit_f64("sqrta") {
             if let Some(e) = self.get_orbit_f64("e") {
@@ -228,7 +228,7 @@ impl Ephemeris {
         None
     }
 
-    /// Retrieves Perturbations
+    /// Retrieves Orbit Perturbations parameters
     pub fn perturbations(&self) -> Option<Perturbations> {
         if let Some(cuc) = self.get_orbit_f64("cuc") {
             if let Some(cus) = self.get_orbit_f64("cus") {
@@ -262,7 +262,7 @@ impl Ephemeris {
         None
     }
 
-    /// Returns satellite position vector, in ECEF
+    /// Returns Satellite position vector, in ECEF
     pub fn sat_pos_ecef(&self, epoch: Epoch) -> Option<(f64, f64, f64)> {
         if let Some(pos_x) = self.get_orbit_f64("satPosX") {
             if let Some(pos_y) = self.get_orbit_f64("satPosY") {
@@ -302,7 +302,7 @@ impl Ephemeris {
         None
     }
 
-    /// Returns satellite instantaneous acelleration estimate, in ECEF
+    /// Returns satellite instantaneous acceleration estimate, in ECEF
     pub fn sat_accel_ecef(
         &self,
         epoch: Epoch,
@@ -371,14 +371,15 @@ impl Ephemeris {
         Some((x_k, y_k, z_k))
     }
 
-    /// Computes satellite position in (latitude, longitude, altitude) ddeg
+    /// Computes satellite position expressed in geodetic {latitude, longitude, altitude},
+    /// all coordinates in decimal degrees.
     pub fn sat_geodetic(&self, epoch: Epoch) -> Option<(f64, f64, f64)> {
         let (x_k, y_k, z_k) = self.sat_pos_ecef(epoch)?;
         let (lat, lon, alt) = map_3d::ecef2geodetic(x_k, y_k, z_k, map_3d::Ellipsoid::WGS84);
         Some((map_3d::rad2deg(lat), map_3d::rad2deg(lon), alt))
     }
 
-    /// Computes and returns vehicle elevation and azimuth angles in degrees
+    /// Computes and returns vehicule elevation and azimuth angles, expressed in degrees.
     pub fn sat_elev_azim(&self, epoch: Epoch, position: GroundPosition) -> Option<(f64, f64)> {
         let (sv_x, sv_y, sv_z) = self.sat_pos_ecef(epoch)?;
         let (ref_x, ref_y, ref_z) = position.to_ecef_wgs84();
@@ -413,9 +414,10 @@ impl Ephemeris {
         }
         Some((map_3d::rad2deg(elev), azim))
     }
-
-    /// Parses ephemeris from given line iterator
-    pub fn parse_v2v3(
+    /*
+     * Parses ephemeris from given line iterator
+     */
+    pub(crate) fn parse_v2v3(
         version: Version,
         constellation: Constellation,
         mut lines: std::str::Lines<'_>,
@@ -474,8 +476,11 @@ impl Ephemeris {
             },
         ))
     }
-
-    pub fn parse_v4(mut lines: std::str::Lines<'_>) -> Result<(Epoch, Sv, Self), Error> {
+    /*
+     * Parses ephemeris from given line iterator
+     * RINEX V4 content specific method
+     */
+    pub(crate) fn parse_v4(mut lines: std::str::Lines<'_>) -> Result<(Epoch, Sv, Self), Error> {
         let line = match lines.next() {
             Some(l) => l,
             _ => return Err(Error::MissingData),
@@ -505,7 +510,11 @@ impl Ephemeris {
     }
 }
 
-/// Parses constellation + revision dependent orbits data
+/*
+ * Parses constellation + revision dependent orbits data fields.
+ * Retrieves all of this information from the databased stored and maintained
+ * in db/NAV/orbits. 
+ */
 fn parse_orbits(
     version: Version,
     constell: Constellation,

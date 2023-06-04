@@ -292,7 +292,7 @@ impl QcObsAnalysis {
                     operand: MaskOperand::Equals,
                     item: TargetItem::ClockItem,
                 });
-                let clk_data = r.filter(mask);
+                let _clk_data = r.filter(mask);
                 //let der = clk_data.derivative();
                 //let mov = der.moving_average(Duration::from_seconds(600.0), None);
                 //TODO

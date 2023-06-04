@@ -16,11 +16,9 @@ use std::str::FromStr;
 use thiserror::Error;
 
 /// Meteo RINEX Record content.
-/// Data is sorted by [epoch::Epoch] and by Observable.
-/// Example of Meteo record browsing and manipulation
+/// Dataset is sorted by [epoch::Epoch] and by [Observable].
 /// ```
-/// use rinex::*;
-/// // grab a METEO RINEX
+/// use rinex::prelude::*;
 /// let rnx = Rinex::from_file("../test_resources/MET/V2/abvi0010.15m")
 ///    .unwrap();
 /// // grab record
@@ -28,8 +26,8 @@ use thiserror::Error;
 ///    .unwrap();
 /// for (epoch, observables) in record.iter() {
 ///     for (observable, data) in observables.iter() {
-///         if observable == Observable::Temperature {
-///             if data > 20.0 { // °C
+///         if *observable == Observable::Temperature {
+///             if *data > 20.0 { // °C
 ///             }
 ///         }
 ///     }
@@ -37,7 +35,11 @@ use thiserror::Error;
 /// ```
 pub type Record = BTreeMap<Epoch, HashMap<Observable, f64>>;
 
-/// Returns true if given line matches a new Meteo Record `epoch`
+/*
+ * Returns true if given line matches a new Meteo Record `epoch`.
+ * We use this when browsing a RINEX file, to determine whether
+ * we should initiate the parsing of a meteo record entry.
+ */
 pub(crate) fn is_new_epoch(line: &str, v: version::Version) -> bool {
     if v.major < 4 {
         let min_len = " 15  1  1  0  0  0";
@@ -69,8 +71,10 @@ pub enum Error {
     ParseFloatError(#[from] std::num::ParseFloatError),
 }
 
-/// Builds `Record` entry for `MeteoData`
-pub fn parse_epoch(
+/*
+ * Meteo record entry parsing method
+ */
+pub(crate) fn parse_epoch(
     header: &Header,
     content: &str,
 ) -> Result<(Epoch, HashMap<Observable, f64>), Error> {
@@ -124,7 +128,10 @@ pub fn parse_epoch(
     Ok((epoch, map))
 }
 
-/// Writes epoch into given streamer
+/* 
+ * Epoch formatter
+ * is used when we're dumping a Meteo RINEX record entry
+ */
 pub(crate) fn fmt_epoch(
     epoch: &Epoch,
     data: &HashMap<Observable, f64>,
@@ -191,13 +198,11 @@ mod test {
 }
 
 impl Merge for Record {
-    /// Merges `rhs` into `Self` without mutable access at the expense of more memcopies
     fn merge(&self, rhs: &Self) -> Result<Self, merge::Error> {
         let mut lhs = self.clone();
         lhs.merge_mut(rhs)?;
         Ok(lhs)
     }
-    /// Merges `rhs` into `Self`
     fn merge_mut(&mut self, rhs: &Self) -> Result<(), merge::Error> {
         for (epoch, observations) in rhs.iter() {
             if let Some(oobservations) = self.get_mut(epoch) {
@@ -349,7 +354,7 @@ impl Processing for Record {
      */
     fn statistical_ops(
         &self,
-        ops: StatisticalOps,
+        _ops: StatisticalOps,
     ) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
         unimplemented!();
         /* 

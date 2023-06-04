@@ -414,7 +414,16 @@ fn parse_v2_v3_record_entry(
  * Reworks generated/formatted line to match standards
  */
 fn fmt_rework(major: u8, lines: &str) -> String {
-    let mut lines = double_exponent_digits(lines);
+    //TODO:
+    /* 
+     * There's an issue when formatting the exponent 00 in XXXXX.E00
+     * Rust does not know how to format an exponent on multiples digits,
+     * and RINEX expects two.
+     * If we try to rework this line, it may corrupt some SVNN fields. 
+     */
+    //let mut lines = double_exponent_digits(lines);
+    
+    let mut lines = lines.to_string();
     if major < 3 {
         lines = lines.replace("E-", "D-");
         lines = lines.replace("E+", "D+");
@@ -457,7 +466,7 @@ fn fmt_epoch_v2v3(
                         lines.push_str(&format!("{:2} ", sv.prn));
                     },
                     None => {
-                        panic!("producing data with no constellation previously defined");
+                        panic!("can't generate data without predefined constellations");
                     },
                 }
                 lines.push_str(&format!(
