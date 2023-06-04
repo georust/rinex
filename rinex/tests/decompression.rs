@@ -5,6 +5,7 @@ mod test {
         observation::{Crinex, HeaderFields},
         prelude::*,
         version::Version,
+        test_toolkit,
     };
     use std::collections::HashMap;
     use std::str::FromStr;
@@ -26,8 +27,10 @@ mod test {
 
             assert_eq!(crnx.is_ok(), true);
             let mut rnx = crnx.unwrap();
+
             assert_eq!(rnx.header.obs.is_some(), true);
             let obs = rnx.header.obs.as_ref().unwrap();
+            
             assert_eq!(obs.crinex.is_some(), true);
             let infos = obs.crinex.as_ref().unwrap();
 
@@ -62,8 +65,15 @@ mod test {
 
             let obs = rnx.header.obs.as_ref().unwrap();
             assert_eq!(obs.crinex.is_some(), false);
+            
+            // parse Model for testbench
+            let path = format!("../test_resources/OBS/V2/{}", rnx_name);
+            let model = Rinex::from_file(&path);
+            assert!(model.is_ok(), "Failed to parse test model \"{}\"", path);
+            let model = model.unwrap();
+            
             // run testbench
-            // test_toolkit::compare_with_panic(&format!("../test_resources/OBS/V2/{}", rnx_name), &rnx);
+            // test_toolkit::compare_with_panic(&rnx, &model, &path);
         }
     }
     #[test]
@@ -110,8 +120,15 @@ mod test {
 
             let obs = rnx.header.obs.as_ref().unwrap();
             assert_eq!(obs.crinex.is_some(), false);
+            
+            // parse Model for testbench
+            let path = format!("../test_resources/OBS/V3/{}", rnx_name);
+            let model = Rinex::from_file(&path);
+            assert!(model.is_ok(), "Failed to parse test model \"{}\"", path);
+            let model = model.unwrap();
+            
             // run testbench
-            // test_toolkit::compare_with_panic(&rnx, &format!("../test_resources/OBS/V3/{}", rnx_name), &rnx);
+            // test_toolkit::compare_with_panic(&rnx, &model, &path);
         }
     }
     /*
@@ -324,7 +341,7 @@ mod test {
             }
         }
     }
-    //#[test]
+    #[test]
     fn v3_acor00esp_r_2021_crx() {
         let crnx =
             Rinex::from_file("../test_resources/CRNX/V3/ACOR00ESP_R_20213550000_01D_30S_MO.crx");

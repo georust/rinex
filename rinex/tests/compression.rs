@@ -17,16 +17,20 @@ mod test {
             let crnx_path = format!("../test_resources/CRNX/V1/{}", crnx_name);
             let rnx_path = format!("../test_resources/OBS/V2/{}", rnx_name);
 
-            let rnx = Rinex::from_file(&rnx_path).expect("failed to parse test pool file");
+            let rnx = Rinex::from_file(&rnx_path);
+            assert!(rnx.is_ok(), "Failed to parse test pool file \"{}\"", rnx_path);
 
             // convert to CRINEX1
             println!("compressing \"{}\"..", rnx_path);
+            let rnx = rnx.unwrap();
             let dut = rnx.rnx2crnx1();
 
             // parse model
-            let model = Rinex::from_file(&crnx_path).expect("failed to parse test pool file");
+            let model = Rinex::from_file(&crnx_path);
+            assert!(model.is_ok(), "Failed to parse test pool file \"{}\"", crnx_path);
 
             // compare to CRINEX1 model
+            let model = model.unwrap();
             test_toolkit::compare_with_panic(
                 &dut,
                 &model,
@@ -47,9 +51,11 @@ mod test {
         for testfile in pool {
             let rnx_path = format!("../test_resources/OBS/V2/{}", testfile);
 
-            let rnx = Rinex::from_file(&rnx_path).expect("failed to parse test pool file");
+            let rnx = Rinex::from_file(&rnx_path);
+            assert!(rnx.is_ok(), "Failed to parse test pool file \"{}\"", testfile);
 
             // compress
+            let rnx = rnx.unwrap();
             let compressed = rnx.rnx2crnx1();
 
             assert!(
