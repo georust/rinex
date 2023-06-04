@@ -917,22 +917,6 @@ impl Mask for Record {
                         svs.len() > 0
                     });
                 },
-                TargetItem::SnrRangeItem((min, max)) => {
-                    let (min, max) = (Snr::from(min), Snr::from(max));
-                    self.retain(|_, (_, svs)| {
-                        svs.retain(|_, obs| {
-                            obs.retain(|_, data| {
-                                if let Some(snr) = data.snr {
-                                    snr >= min && snr <= max
-                                } else {
-                                    false // no snr: drop out
-                                }
-                            });
-                            obs.len() > 0
-                        });
-                        svs.len() > 0
-                    });
-                },
                 _ => {},
             },
             MaskOperand::NotEquals => match mask.item {
@@ -1234,7 +1218,7 @@ impl Processing for Record {
         // eval for accross all epochs, for all observation and vehicules
         for (_epoch, (_clk, sv)) in self {
             for (sv, observables) in sv {
-                for (observable, observations) in observables {
+                for (observable, _) in observables {
                     // vectorize all data for this vehicule + observation, accross epochs
                     // so we can compute Statistics.Max()
                     let mut data = Vec::<f64>::new();

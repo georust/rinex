@@ -26,7 +26,7 @@ pub trait Combine {
     /// use rinex::processing::{Combination, Combine};
     /// let rinex = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
     ///		.unwrap();
-    /// let gf = rinex.combine<Combination::GeometryFree>;
+    /// let gf = rinex.combine(Combination::GeometryFree);
     /// ```
     fn combine(
         &self,

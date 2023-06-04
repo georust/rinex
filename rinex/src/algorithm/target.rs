@@ -12,19 +12,22 @@ use thiserror::Error;
 pub enum Error {
     #[error("unknown target \"{0}\"")]
     UnknownTarget(String),
+    #[error("type guessing error \"{0}\"")]
+    TypeGuessingError(String),
     #[error("expecting two epochs when describing a duration")]
     InvalidDuration,
     #[error("bad epoch description")]
     InvalidEpochDescription,
-    #[error("bad elevation range description")]
-    InvalidElevationRangeDescription,
+    #[error("bad elevation angle description")]
+    InvalidElevationAngleDescription,
+    #[error("bad azimuth angle description")]
+    InvalidAzimuthAngleDescription,
+    #[error("bad snr description")]
+    InvalidSNRDescription,
     #[error("failed to parse sv")]
     SvParingError(#[from] sv::Error),
     #[error("failed to parse constellation")]
     ConstellationParingError(#[from] constellation::Error),
-    #[error("failed to parse (float) payload")]
-    //FilterParsingError(#[from] std::num::ParseFloatError),
-    ParseFloatItemError,
     #[error("failed to parse epoch flag")]
     EpochFlagParsingError(#[from] crate::epoch::flag::Error),
     #[error("failed to parse constellation")]
@@ -49,16 +52,10 @@ pub enum TargetItem {
     EpochFlagItem(EpochFlag),
     /// SNR value
     SnrItem(f64),
-    /// SNR Range
-    SnrRangeItem((f64, f64)),
     /// Elevation Angle Item
     ElevationItem(f64),
-    /// Elevation Range Item
-    ElevationRangeItem((f64, f64)),
     /// Azimuth Angle Item
     AzimuthItem(f64),
-    /// Azimuth Range Item
-    AzimuthRangeItem((f64, f64)),
     /// List of Sv Item
     SvItem(Vec<Sv>),
     /// List of Constellation Item
@@ -150,7 +147,7 @@ impl std::ops::BitOr for TargetItem {
     }
 }
 
-fn parse_sv_list(items: Vec<&str>) -> Result<Vec<Sv>, sv::Error> {
+pub fn parse_sv_list(items: Vec<&str>) -> Result<Vec<Sv>, sv::Error> {
     let mut ret: Vec<Sv> = Vec::with_capacity(items.len());
     for item in items {
         let sv = Sv::from_str(item.trim())?;
@@ -159,7 +156,7 @@ fn parse_sv_list(items: Vec<&str>) -> Result<Vec<Sv>, sv::Error> {
     Ok(ret)
 }
 
-fn parse_gnss_list(items: Vec<&str>) -> Result<Vec<Constellation>, constellation::Error> {
+pub fn parse_gnss_list(items: Vec<&str>) -> Result<Vec<Constellation>, constellation::Error> {
     let mut ret: Vec<Constellation> = Vec::with_capacity(items.len());
     for item in items {
         let c = Constellation::from_str(item.trim())?;
@@ -168,7 +165,7 @@ fn parse_gnss_list(items: Vec<&str>) -> Result<Vec<Constellation>, constellation
     Ok(ret)
 }
 
-fn parse_obs_list(items: Vec<&str>) -> Result<Vec<Observable>, observable::Error> {
+pub(crate) fn parse_obs_list(items: Vec<&str>) -> Result<Vec<Observable>, observable::Error> {
     let mut ret: Vec<Observable> = Vec::with_capacity(items.len());
     for item in items {
         let obs = Observable::from_str(item.trim())?;
@@ -177,7 +174,7 @@ fn parse_obs_list(items: Vec<&str>) -> Result<Vec<Observable>, observable::Error
     Ok(ret)
 }
 
-fn parse_nav_frames(items: Vec<&str>) -> Result<Vec<FrameClass>, navigation::record::Error> {
+pub fn parse_nav_frames(items: Vec<&str>) -> Result<Vec<FrameClass>, navigation::record::Error> {
     let mut ret: Vec<FrameClass> = Vec::with_capacity(items.len());
     for item in items {
         let sv = FrameClass::from_str(item.trim())?;
@@ -186,7 +183,7 @@ fn parse_nav_frames(items: Vec<&str>) -> Result<Vec<FrameClass>, navigation::rec
     Ok(ret)
 }
 
-fn parse_nav_msg(items: Vec<&str>) -> Result<Vec<MsgType>, navigation::record::Error> {
+pub fn parse_nav_msg(items: Vec<&str>) -> Result<Vec<MsgType>, navigation::record::Error> {
     let mut ret: Vec<MsgType> = Vec::with_capacity(items.len());
     for item in items {
         let msg = MsgType::from_str(item.trim())?;
@@ -195,116 +192,104 @@ fn parse_nav_msg(items: Vec<&str>) -> Result<Vec<MsgType>, navigation::record::E
     Ok(ret)
 }
 
-fn parse_float_payload(item: &str) -> Result<(f64, Option<f64>), std::num::ParseFloatError> {
-    let items: Vec<&str> = item.trim().split(",").collect();
-    if items.len() >= 2 {
-        let f1 = f64::from_str(items[0].trim())?;
-        let f2 = f64::from_str(items[1].trim())?;
-        Ok((f1, Some(f2)))
-    } else {
-        let f1 = f64::from_str(items[0].trim())?;
-        Ok((f1, None))
-    }
+pub fn parse_float_payload(content: &str) -> Result<f64, std::num::ParseFloatError> {
+    f64::from_str(content.trim())
 }
 
-fn parse_orbits(item: &str) -> Vec<String> {
+pub fn parse_orbits(item: &str) -> Vec<String> {
     item.trim()
         .split(",")
         .map(|s| s.trim().to_string())
         .collect()
 }
 
+impl TargetItem {
+    pub(crate) fn from_elevation(content: &str) -> Result<Self, Error> {
+        if let Ok(float) = parse_float_payload(content) {
+            Ok(Self::ElevationItem(float))
+        } else {
+            Err(Error::InvalidElevationAngleDescription) 
+        }
+    }
+    pub(crate) fn from_azimuth(content: &str) -> Result<Self, Error> {
+        if let Ok(float) = parse_float_payload(content) {
+            Ok(Self::AzimuthItem(float))
+        } else {
+            Err(Error::InvalidAzimuthAngleDescription) 
+        }
+    }
+    pub(crate) fn from_snr(content: &str) -> Result<Self, Error> {
+        if let Ok(float) = parse_float_payload(content) {
+            Ok(Self::SnrItem(float))
+        } else {
+            Err(Error::InvalidSNRDescription) 
+        }
+    }
+}
+
 impl std::str::FromStr for TargetItem {
     type Err = Error;
     fn from_str(content: &str) -> Result<Self, Self::Err> {
         let c = content.trim();
-        if c.starts_with("snr:") {
-            match parse_float_payload(&c[4..].trim()) {
-                Ok((s1, None)) => Ok(Self::SnrItem(s1)),
-                Ok((s1, Some(s2))) => Ok(Self::SnrRangeItem((s1, s2))),
-                _ => Err(Error::ParseFloatItemError),
-            }
-        } else if c.starts_with("elev:") {
-            match parse_float_payload(&c[5..].trim()) {
-                Ok((s1, None)) => Ok(Self::ElevationItem(s1)),
-                Ok((s1, Some(s2))) => Ok(Self::ElevationRangeItem((s1, s2))),
-                _ => Err(Error::ParseFloatItemError),
-            }
-        } else if c.starts_with("orb:") {
-            Ok(Self::OrbitItem(parse_orbits(&c[4..].trim())))
-        } else if c.starts_with("clk") {
-            Ok(Self::ClockItem)
-        } else {
-            /* type guessing */
-            let items: Vec<&str> = c.split(",").collect();
-            /*
-             * Epoch and Durations
-             */
-            if let Ok(start) = Epoch::from_str(items[0].trim()) {
-                if items.len() == 1 {
-                    Ok(Self::EpochItem(start))
-                } else if items.len() == 2 {
-                    if let Ok(end) = Epoch::from_str(items[1].trim()) {
-                        Ok(Self::DurationItem(end - start))
-                    } else {
-                        Err(Error::InvalidEpochDescription)
-                    }
+        /* 
+         * Type guessing:
+         * is used by Filter::from_str()
+         * when operand comes first in description.
+         * Otherwise, we muse use other methods
+         */
+        let items: Vec<&str> = c.split(",").collect();
+        /*
+         * Epoch and Durations
+         */
+        if let Ok(start) = Epoch::from_str(items[0].trim()) {
+            if items.len() == 1 {
+                Ok(Self::EpochItem(start))
+            } else if items.len() == 2 {
+                if let Ok(end) = Epoch::from_str(items[1].trim()) {
+                    Ok(Self::DurationItem(end - start))
                 } else {
-                    Err(Error::InvalidDuration)
-                }
-            /*
-             * Sv
-             */
-            } else if let Ok(_sv) = Sv::from_str(items[0].trim()) {
-                //TODO improve this:
-                // do not test 1st entry only but all possible content
-                Ok(Self::SvItem(parse_sv_list(items)?))
-            /*
-             * GNSS
-             */
-            } else if let Ok(_c) = Constellation::from_str(items[0].trim()) {
-                //TODO improve this:
-                // do not test 1st entry only but all possible content
-                Ok(Self::ConstellationItem(parse_gnss_list(items)?))
-            /*
-             * Observables
-             */
-            } else if let Ok(_obs) = Observable::from_str(items[0].trim()) {
-                //TODO improve this:
-                // do not test 1st entry only but all possible content
-                Ok(Self::ObservableItem(parse_obs_list(items)?))
-            /*
-             * Navigation Frames
-             */
-            } else if let Ok(_fr) = FrameClass::from_str(items[0].trim()) {
-                //TODO improve this:
-                // do not test 1st entry only but all possible content
-                Ok(Self::NavFrameItem(parse_nav_frames(items)?))
-            /*
-             * Navigation Msg
-             */
-            } else if let Ok(_msg) = MsgType::from_str(items[0].trim()) {
-                //TODO improve this:
-                // do not test 1st entry only but all possible content
-                Ok(Self::NavMsgItem(parse_nav_msg(items)?))
-            /*
-             * Elevation Angle
-             */
-            } else if let Ok(e1) = f64::from_str(items[0].trim()) {
-                if items.len() == 1 {
-                    Ok(Self::ElevationItem(e1))
-                } else if items.len() == 2 {
-                    if let Ok(e2) = f64::from_str(items[1].trim()) {
-                        Ok(Self::ElevationRangeItem((e1, e2)))
-                    } else {
-                        Err(Error::InvalidElevationRangeDescription)
-                    }
-                } else {
-                    Err(Error::InvalidElevationRangeDescription)
+                    Err(Error::InvalidEpochDescription)
                 }
             } else {
-                Err(Error::UnknownTarget(c.to_string()))
+                Err(Error::InvalidDuration)
             }
+        /*
+         * Sv
+         */
+        } else if let Ok(_sv) = Sv::from_str(items[0].trim()) {
+            //TODO improve this:
+            // do not test 1st entry only but all possible content
+            Ok(Self::SvItem(parse_sv_list(items)?))
+        /*
+         * GNSS
+         */
+        } else if let Ok(_c) = Constellation::from_str(items[0].trim()) {
+            //TODO improve this:
+            // do not test 1st entry only but all possible content
+            Ok(Self::ConstellationItem(parse_gnss_list(items)?))
+        /*
+         * Observables
+         */
+        } else if let Ok(_obs) = Observable::from_str(items[0].trim()) {
+            //TODO improve this:
+            // do not test 1st entry only but all possible content
+            Ok(Self::ObservableItem(parse_obs_list(items)?))
+        /*
+         * Navigation Frames
+         */
+        } else if let Ok(_fr) = FrameClass::from_str(items[0].trim()) {
+            //TODO improve this:
+            // do not test 1st entry only but all possible content
+            Ok(Self::NavFrameItem(parse_nav_frames(items)?))
+        /*
+         * Navigation Msg
+         */
+        } else if let Ok(_msg) = MsgType::from_str(items[0].trim()) {
+            //TODO improve this:
+            // do not test 1st entry only but all possible content
+            Ok(Self::NavMsgItem(parse_nav_msg(items)?))
+        } else {
+            Err(Error::TypeGuessingError(c.to_string()))
         }
     }
 }
@@ -403,11 +388,6 @@ mod test {
         let target: TargetItem = e.into();
         assert_eq!(target, TargetItem::EpochItem(e));
 
-        /*let f = EpochFlag::default();
-        let target: TargetItem = f.into();
-        assert_eq!(target, TargetItem::EpochFlagItem(f));
-        assert_eq!(TargetItem::from_str("f:0").unwrap(), target);*/
-
         let obs = Observable::default();
         let target: TargetItem = obs.clone().into();
         assert_eq!(target, TargetItem::ObservableItem(vec![obs.clone()]));
@@ -445,15 +425,20 @@ mod test {
         let dt = Duration::from_str("1 d").unwrap();
         let target: TargetItem = dt.into();
         assert_eq!(target, TargetItem::DurationItem(dt));
-
-        let snr = TargetItem::from_str("snr:10");
-        assert!(snr.is_ok());
-        let snr = TargetItem::from_str("snr:10,12");
-        assert!(snr.is_ok());
-
-        let elev = TargetItem::from_str("elev:30");
-        assert!(elev.is_ok());
-        let elev = TargetItem::from_str("elev:30,38");
-        assert!(elev.is_ok());
+    }
+    #[test]
+    fn test_from_elevation() {
+        let desc = " 1234  ";
+        assert!(TargetItem::from_elevation(desc).is_ok(), "Failed to parse Elevation Target Item");
+    }
+    #[test]
+    fn test_from_azimuth() {
+        let desc = " 12.34  ";
+        assert!(TargetItem::from_azimuth(desc).is_ok(), "Failed to parse Azimuth Target Item");
+    }
+    #[test]
+    fn test_from_snr() {
+        let desc = " 12.34  ";
+        assert!(TargetItem::from_snr(desc).is_ok(), "Failed to parse SNR Target Item");
     }
 }

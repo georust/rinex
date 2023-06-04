@@ -27,43 +27,19 @@ pub enum Error {
     FilterError,
 }
 
-/// Preprocessing filters, to preprocess RINEX data
-/// prior further analysis.
-/// 
-/// Apply masks to your dataset, to focus (retain)
-/// on the subsets you're interested in
-/// ```
-/// let rinex = Rinex::from_file("../test_resource/OBS/V2/KOSG0010.95O")
-///     .unwrap();
-/// // retain specific Space Vehicules with an Sv mask
-/// let mask = Filter::from_str("g01,g02,g03, g05")
-///     .unwrap();
-/// let masked = rinex.apply(mask);
-/// // we're left with "G01", "G02", "G05", since "G03" does not exist in this file
-/// //TODO
-/// 
-/// // Several operands exist, when ommited, the Equality ("eq") operand is implied. 
-/// // For example with the GreaterThan (>) operand, we retain 
-/// // GPS vehicules above PRN10
-/// let mask = Filter::from_str("gt:g01,g02,g03, g05")
-///     .unwrap();
-///
-/// // use AND() to create complex (combined) masks
-/// let complex = Filter::from_str("GPS")
-///     .unwrap()
-///     .and(Filter::from_str("GLO").unwrap());
-/// // retrieve GPS + GLONASS vehicules
-/// let masked = rinex.apply(mask);
+/// Preprocessing filters, to preprocess RINEX data prior further analysis.
+/// Filters can apply either on entire RINEX or subsets.
+/// Refer to [TargetItem] definition to understand which data subsets exist.  
 /// ```
 #[derive(Debug, Clone)]
 pub enum Filter {
-    /// Mask filter is used to focus or remove a specific data subset
+    /// Mask filter, to focus on specific data subsets
     Mask(MaskFilter),
-    /// Smoothing filter is used to smooth a data subset
+    /// Smoothing filters, used to smooth a data subset
     Smoothing(SmoothingFilter),
-    /// Decimation filter to reduce sample rate
+    /// Decimation filter, filters to reduce sample rate
     Decimation(DecimationFilter),
-    /// Interpolation filter to increase sample rate
+    /// Interpolation filter is work in progress and cannot be used at the moment
     Interp(InterpFilter),
 }
 
@@ -89,34 +65,14 @@ impl std::str::FromStr for Filter {
     type Err = Error;
     fn from_str(content: &str) -> Result<Self, Self::Err> {
         let items: Vec<&str> = content.split(":").collect();
-        if items.len() < 2 {
-            return Err(Error::InvalidDescriptor);
-        }
-        if items[0].trim().eq("mask") {
-            if let Ok(filt) = MaskFilter::from_str(&content[5..].trim()) {
-                Ok(Self::Mask(filt))
-            } else if let Ok(item) = TargetItem::from_str(&content[5..].trim()) {
-                Ok(Self::Mask(MaskFilter {
-                    operand: MaskOperand::Equals,
-                    item,
-                }))
-            } else {
-                Err(Error::MaskError(content[5..].trim().to_string()))
-            }
-        } else if items[0].trim().eq("smooth") {
-            if let Ok(filt) = SmoothingFilter::from_str(&content[7..].trim()) {
-                Ok(Self::Smoothing(filt))
-            } else {
-                Err(Error::MaskError(content[7..].trim().to_string()))
-            }
-        } else if items[0].trim().eq("decim") {
-            if let Ok(filt) = DecimationFilter::from_str(&content[6..].trim()) {
-                Ok(Self::Decimation(filt))
-            } else {
-                Err(Error::DecimError(content[6..].trim().to_string()))
-            }
+        if let Ok(f) = MaskFilter::from_str(content.trim()) {
+            Ok(Self::Mask(f))
+        } else if let Ok(f) = DecimationFilter::from_str(content.trim()) {
+            Ok(Self::Decimation(f))
+        } else if let Ok(f) = SmoothingFilter::from_str(content.trim()) {
+            Ok(Self::Smoothing(f))
         } else {
-            Err(Error::UnknownFilterType(items[0].to_string()))
+            Err(Error::UnknownFilterType(content.to_string()))
         }
     }
 }
@@ -133,24 +89,26 @@ mod test {
     #[test]
     fn from_str() {
         /*
-         * Test MASK FILTER description
+         * MASK FILTER description
          */
-        for desc in vec![
-            "mask:gt: 10.0",
-            "mask:eq:GPS",
-            "mask:neq: GPS",
-            "mask:eq:G08, G09, G10",
-            "mask:neq:GPS, GAL",
-            "mask:gt: G08, G09",
-            "mask:eq:GPS",
-            "mask:eq:GPS, GAL",
-            "mask:eq:G08, G09",
+        for (verbal_desc, math_desc) in vec![
+            ("eq:GPS", "=:GPS"),
+            ("neq: GPS", "!=:GPS"),
+            ("eq:G08, G09, G10", "=:G08,G09,G10"),
+            ("neq:GPS, GAL", "!=:GPS, GAL"),
+            ("gt: G08, G09", ">:G08, G09"),
+            ("eq:GPS", "!=:GPS"),
+            ("eq:GPS, GAL", "=:GPS"),
+            ("eq:G08, G09", "=:G08, G09"),
         ] {
-            let filt = Filter::from_str(desc);
-            assert!(filt.is_ok(), "Filter::from_str failed on \"{}\"", desc);
+            let verbal_filt = Filter::from_str(verbal_desc);
+            assert!(verbal_filt.is_ok(), "Filter::from_str failed on \"{}\"", verbal_desc);
+
+            let math_filt = Filter::from_str(math_desc);
+            assert!(math_filt.is_ok(), "Filter::from_str failed on \"{}\"", math_desc);
         }
         /*
-         * Test MASK FILTER description
+         * MASK FILTER description (omitted operand)
          */
         for desc in vec![
             "mask:10.0",
@@ -163,14 +121,14 @@ mod test {
             assert!(filt.is_ok(), "Filter::from_str failed on \"{}\"", desc);
         }
         /*
-         * Test DECIMATION FILTER description
+         * DECIMATION FILTER description
          */
         for desc in vec!["decim:10", "decim:10 min", "decim:1 hour"] {
             let filt = Filter::from_str(desc);
             assert!(filt.is_ok(), "Filter::from_str failed on \"{}\"", desc);
         }
         /*
-         * Test SMOOTHING FILTER description
+         * SMOOTHING FILTER description
          */
         for desc in vec![
             "smooth:mov:10 min",

@@ -13,7 +13,7 @@ pub trait Dcb {
     /// use rinex::processing::{Combination, Combine};
     /// let rinex = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
     ///		.unwrap();
-    /// let gf = rinex.combine<Combination::GeometryFree>;
+    /// let dcb = rinex.dcb();
     /// ```
     fn dcb(&self) -> HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>;
 }

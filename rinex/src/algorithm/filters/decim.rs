@@ -12,35 +12,9 @@ pub enum Error {
 /// Decimation Filters type
 #[derive(Clone, Debug)]
 pub enum DecimationType {
-    /// Decimates Self by given factor.
-    /// For example, if record contains epochs {e_0, e_1, .., e_k, ..., e_n}
-    /// and we decimate by 2, we're left with epochs {e_0, e_2, ..., e_k, e_k+2, ..}.
-    /// Header sampling interval (if any) is automatically adjusted.
-    /// ```
-    /// use rinex::prelude::*;
-    /// use rinex::processing::Decimation;
-    /// let mut rnx = Rinex::from_file("../test_resources/OBS/V2/delf0010.21o")
-    ///     .unwrap();
-    /// assert_eq!(rnx.epochs().len(), 105);
-    /// rnx.decim_by_ratio_mut(2); // reduce record size by 2
-    /// assert_eq!(rnx.epochs().len(), 53);
-    /// ```
+    /// Decimates Dataset by given factor.
     DecimByRatio(u32),
-    /// Decimates Self by minimum epoch duration.
-    /// Successive epochs |e_k+1 - e_k| < interval that do not fit
-    /// within this minimal interval are discarded.
-    /// Header sampling interval (if any) is automatically adjusted.
-    /// ```
-    /// use rinex::prelude::*;
-    /// use rinex::processing::*; // Decimation
-    /// let mut rinex = Rinex::from_file("../test_resources/NAV/V3/AMEL00NLD_R_20210010000_01D_MN.rnx")
-    ///     .unwrap();
-    /// let initial_epochs = rinex.epochs();
-    /// rinex.decim_by_interval_mut(Duration::from_seconds(10.0));
-    /// assert_eq!(rinex.epochs(), initial_epochs); // unchanged, interval is too small
-    /// rinex.decim_by_interval_mut(Duration::from_hours(1.0));
-    /// assert_eq!(rinex.epochs().len(), initial_epochs.len()-2); // got rid of 2 epochs (15' and 25')
-    /// ```
+    /// Decimates Dataset so sampling rate matches given duration
     DecimByInterval(Duration),
 }
 
@@ -53,11 +27,48 @@ pub struct DecimationFilter {
 }
 
 pub trait Decimate {
+    /// Decimate by a constant ratio.
+    /// For example, if we decimate epochs {e_0, e_1, .., e_k, ..., e_n}
+    /// by 2, we get {e_0, e_2, ..., e_k, e_k+2, ..}.
+    /// Header sampling interval (if any) is automatically updated.
+    /// ```
+    /// use rinex::prelude::*;
+    /// use rinex::processing::*;
+    /// let mut rnx = Rinex::from_file("../test_resources/OBS/V2/delf0010.21o")
+    ///     .unwrap();
+    /// assert_eq!(rnx.epochs().len(), 105);
+    /// assert_eq!(rnx.decimate_by_ratio(2).epochs().len(), 53);
+    /// ```
     fn decimate_by_ratio(&self, r: u32) -> Self;
+    /// [decimate_by_ratio] mutable implementation.
     fn decimate_by_ratio_mut(&mut self, r: u32);
+    /// Decimate Dataset so sampling interval matches given duration.
+    /// Successive epochs |e_k+1 - e_k| < interval that do not fit
+    /// within this minimal interval are discarded.
+    /// Header sampling interval (if any) is automatically update.
+    /// ```
+    /// use rinex::prelude::*;
+    /// use rinex::processing::*; // Decimation
+    /// let mut rinex = Rinex::from_file("../test_resources/NAV/V3/AMEL00NLD_R_20210010000_01D_MN.rnx")
+    ///     .unwrap();
+    ///
+    /// let initial_epochs = rinex.epochs();
+    ///
+    /// // reduce to 10s sampling interval
+    /// rinex.decimate_by_interval_mut(Duration::from_seconds(10.0));
+    /// assert_eq!(rinex.epochs(), initial_epochs); // unchanged: dt is too short
+    ///
+    /// // reduce to 1hour sampling interval
+    /// rinex.decimate_by_interval_mut(Duration::from_hours(1.0));
+    /// assert_eq!(rinex.epochs().len(), initial_epochs.len()-2);
+    /// ```
     fn decimate_by_interval(&self, dt: Duration) -> Self;
+    /// [decimate_by_interval] mutable implementation
     fn decimate_by_interval_mut(&mut self, dt: Duration);
+    /// Decimate Dataset so sampling matches given `rhs` sampling.
+    /// Both types must match.
     fn decimate_match(&self, rhs: &Self) -> Self;
+    /// [decimate_match] mutable implementation
     fn decimate_match_mut(&mut self, rhs: &Self);
 }
 

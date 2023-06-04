@@ -5,8 +5,12 @@ use thiserror::Error;
 pub enum Error {
     #[error("invalid mask target")]
     TargetError(#[from] crate::algorithm::target::Error),
+    #[error("missing a mask operand")]
+    MissingOperand,
     #[error("invalid mask operand")]
     InvalidOperand,
+    #[error("invalid mask target \"{0}\"")]
+    InvalidTarget(String),
     #[error("invalid mask description")]
     InvalidDescriptor,
 }
@@ -16,21 +20,21 @@ pub trait Mask {
     fn mask_mut(&mut self, mask: MaskFilter);
 }
 
-/// MaskOperand describe how to apply a mask
-/// in related filter operation
+/// MaskOperand describes how to apply a given mask
 #[derive(Debug, Clone, PartialEq)]
 pub enum MaskOperand {
-    /// Greater than
+    /// Greater than, is symbolized by ">".
     GreaterThan,
-    /// Greater Equals
+    /// Greater Equals, symbolized by ">=".
     GreaterEquals,
-    /// Lower than
+    /// Lower than, symbolized by "<"."
     LowerThan,
-    /// Lower Equals
+    /// Lower Equals, symbolized by "<=".
     LowerEquals,
-    /// Equals
+    /// Equals, symbolized by "=".
+    /// Equals operand is implied anytime the operand is omitted in the description.
     Equals,
-    /// Not Equals
+    /// Not Equals, symbolized by "!=".
     NotEquals,
 }
 
@@ -38,17 +42,17 @@ impl std::str::FromStr for MaskOperand {
     type Err = Error;
     fn from_str(content: &str) -> Result<Self, Self::Err> {
         let c = content.trim();
-        if c.starts_with("geq") {
+        if c.starts_with(">=") {
             Ok(Self::GreaterEquals)
-        } else if c.starts_with("gt") {
+        } else if c.starts_with(">") {
             Ok(Self::GreaterThan)
-        } else if c.starts_with("leq") {
+        } else if c.starts_with("<=") {
             Ok(Self::LowerEquals)
-        } else if c.starts_with("lt") {
+        } else if c.starts_with("<") {
             Ok(Self::LowerThan)
-        } else if c.starts_with("eq") {
+        } else if c.starts_with("=") {
             Ok(Self::Equals)
-        } else if c.starts_with("neq") {
+        } else if c.starts_with("!=") {
             Ok(Self::NotEquals)
         } else {
             Err(Error::InvalidOperand)
@@ -59,8 +63,8 @@ impl std::str::FromStr for MaskOperand {
 impl MaskOperand {
     pub(crate) const fn formatted_len(&self) -> usize {
         match &self {
-            Self::Equals | Self::GreaterThan | Self::LowerThan => 2,
-            Self::NotEquals | Self::LowerEquals | Self::GreaterEquals => 3,
+            Self::Equals | Self::GreaterThan | Self::LowerThan => 1,
+            Self::NotEquals | Self::LowerEquals | Self::GreaterEquals => 2,
         }
     }
 }
@@ -71,55 +75,93 @@ impl std::ops::Not for MaskOperand {
         match self {
             Self::Equals => Self::NotEquals,
             Self::NotEquals => Self::Equals,
-            Self::GreaterEquals => Self::LowerThan,
-            Self::GreaterThan => Self::LowerEquals,
-            Self::LowerThan => Self::GreaterEquals,
-            Self::LowerEquals => Self::GreaterThan,
+            Self::GreaterEquals => Self::LowerEquals,
+            Self::GreaterThan => Self::LowerThan,
+            Self::LowerThan => Self::GreaterThan,
+            Self::LowerEquals => Self::GreaterEquals,
         }
     }
 }
 
-/// A Mask is an effecient way to describe a filter operation
-/// to apply on a RINEX record.
-/// See [Mask::apply] definition for compelling examples.
+/// Apply MaskFilters to focus on datasubsets you're interested in.
 /// ```
 /// use rinex::prelude::*;
 /// use rinex::processing::*;
-/// // after "epoch" condition
-/// let after = Mask::from_str("gt:2022-01-01 10:00:00UTC")
+/// let rinex = Rinex::from_file("../test_resources/OBS/V2/KOSG0010.95O")
 ///     .unwrap();
-/// let before = Mask::from_str("leq:2022-01-01 10:00:00UTC")
+/// 
+/// // Describe an [Hifitime::Epoch] for efficient datetime focus
+/// let after = Filter::from_str(">2022-01-01 10:00:00UTC")
 ///     .unwrap();
-/// assert_eq!(before, !after); // logical not() is supported for all mask operands
+/// let before = Filter::from_str("<2022-01-01 10:00:00UTC")
+///     .unwrap();
 ///
-/// // the payload can be any valid Epoch Description,
-/// // refer to [Hifitime::Epoch]
-/// let equals = Mask::from_str("eq:JD 2960")
-///     .unwrap();
-/// assert_eq!(Mask::from_str("neq:JD 2960").unwrap(), !equals);
+/// // logical Not() operation is supported on all mask operands.
+/// // This may facilitate complex masking operations.
+/// assert_eq!(before, !after);
 ///
-/// // mask can apply to a lot of different data subsets,
-/// // refer to the [TargetItem] definition,
+/// // use the .apply() API to apply any filter ops.
+/// let filtered = rinex.apply(after);
+///
+/// // Any valid [Hifitime::Epoch] description is supported.
+/// let equals = Filter::from_str("=MJD 2960")
+///     .unwrap();
 ///
 /// // Greater than ">" and lower than "<"
 /// // truly apply to Epochs and Durations only,
-/// // whereas Equality masks ("=", "!=") apply to any known item.
+/// // Whereas Equality masks ("=", "!=") apply to any data subsets.
+/// let equals = Filter::from_str("=GPS,GLO")
+///     .unwrap();
+/// 
 /// // One exception exist for "Sv" items, for example with this:
-/// let greater_than = Mask::from_str("gt: G08,R03")
+/// let greater_than = Mask::from_str("> G08,R03")
 ///     .unwrap();
-/// // will retain PRN >= 08 for GPS and PRN >= 3 for Glonass
+/// // will retain PRN > 08 for GPS Constellation 
+/// // and PRN > 3 for Glonass Constellation.
+/// let filtered = rinex.apply(greater_than);
 ///
-/// // Logical not() is supported for a mask filter:
-/// let lower_than = Mask::from_str("leq: G08,R03")
+/// // Focus on desired Observables, with an observable mask.
+/// // This can apply to both OBS and Meteo RINEX.
+/// let phase_mask = Mask::from_str("L1C,L2C") // Equals operand is implied
 ///     .unwrap();
-/// assert_eq!(lower_than, !greater_than);
+/// let filtered = rinex.apply(phase_mask);
 ///
-/// // Logical Or() is supported, and allows putting toghether
-/// // an array of values. It does not apply to Epoch, Duration Items for example..
-/// let mut observable_mask = Mask::from_str("eq: L1C")
+/// // Elevation angle filter can only apply to NAV RINEX
+/// // content at the moment.
+/// // In the future, this ops will be feasible if an OBS RINEX content
+/// // is combined to NAV RINEX context.
+/// let rinex = Rinex::from_file("../test_resources/NAV/V3/MOJN00DNK_R_20201770000_01D_MN.rnx.gz")
 ///     .unwrap();
-/// observable_mask |= Mask::from_str("eq: L1P").unwrap();
-/// assert_eq!(observable_mask, Mask::from_str("eq: L1C,L1P").unwrap());
+/// 
+/// let mask = Filter::from("e > 10.0"); // strictly above 10° elevation
+/// let filtered = rinex.apply(mask);
+/// let mask = Filter::from("a >= 25.0"); // above 25° azimuth
+/// let filtered = rinex.apply(mask);
+/// 
+/// // Apply an elevation range mask by combining two elevation masks
+/// let mask = Filter::from("e <= 45.0"); // below 45°
+/// let filtered = rinex.apply(mask);
+///
+/// // Retain only NAV RINEX Orbit fields you're interested in,
+/// // with an Orbit mask:
+/// let mask = Filter::from("orb:iode"); // retain only this field
+/// let filtered = rinex.apply(mask);
+///
+/// // Three other NAV RINEX specific cases exist
+///
+/// // [1] : Orbit fields mask
+/// // To retain specific Orbit fields
+///
+/// // [2] : Message Type mask
+/// // For example: retain Legacy NAV frames only.
+/// // Any valid NavMessageType description works here
+/// let mask = Filter::from("lnav") // Eq() is implied 
+///     .unwrap();
+///
+/// // [3] : Frame type mask
+/// // For example: retain anything but Ephemeris and IonMessage frames with this.
+/// let mask = Filter::from("!=eph,ion") // Not an Eq(): we must specify the operand 
+///     .unwrap();
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct MaskFilter {
@@ -146,7 +188,7 @@ impl std::ops::BitOr for MaskFilter {
                 item: self.item | rhs.item,
             }
         } else {
-            // not permitted
+            // not permitted on operand mismatch
             self.clone()
         }
     }
@@ -161,18 +203,87 @@ impl std::ops::BitOrAssign for MaskFilter {
 impl std::str::FromStr for MaskFilter {
     type Err = Error;
     fn from_str(content: &str) -> Result<Self, Self::Err> {
-        let items: Vec<&str> = content.split(":").collect();
-        if items.len() < 2 {
+        let cleanedup = content.trim_start();
+        if cleanedup.len() < 3 {
+            /*
+             * we're most likely unable to parsed both
+             * an operand and a filter payload
+             */
             return Err(Error::InvalidDescriptor);
         }
-        if let Ok(operand) = MaskOperand::from_str(items[0].trim()) {
-            let offset = operand.formatted_len();
+
+        let mut operand : Option<MaskOperand> = None;
+        let mut operand_offset: Option<usize> = None;
+        // In some cases, the target item comes first.
+        // This allows more "human readable" descriptions,
+        // but makes parsing a little harder.
+
+        // Try to locate a mask operand within given content
+        for i in 0..cleanedup.len()-1 {
+            if i < cleanedup.len()-2 {
+                if let Ok(op) = MaskOperand::from_str(&cleanedup[i..i+2]) {
+                    operand = Some(op.clone());
+                    operand_offset = Some(i);
+                    break;
+                }
+            } else {
+                if let Ok(op) = MaskOperand::from_str(&cleanedup[i..i+1]) {
+                    operand = Some(op.clone());
+                    operand_offset = Some(i);
+                    break;
+                }
+            }
+        }
+        /*
+         * Mask operand is mandatory
+         */
+        if operand_offset.is_none() {
+            return Err(Error::MissingOperand);
+        }
+
+        let operand = operand.unwrap();
+        let operand_offset = operand_offset.unwrap();
+
+        if operand_offset > 0 {
+            // Some characters exist between .start() and identified operand.
+            // Type guessing for filter target will not work.
+            // This only exits for Elevation Angle, Azimuth Angle and SNR masks at the moment.
+
+            let start = &cleanedup[..operand_offset];
+            if start[0..1].eq("e") {
+                // --> Elevation Mask case
+                let float_offset = operand_offset +1;
+                Ok(Self {
+                    operand,
+                    item: TargetItem::from_elevation(&cleanedup[float_offset..].trim())?,
+                })
+            } else if content[0..1].eq("a") {
+                // --> Azimuth Mask case
+                let float_offset = operand_offset +1;
+                Ok(Self {
+                    operand,
+                    item: TargetItem::from_azimuth(&cleanedup[float_offset..].trim())?,
+                })
+            } else {
+                // We're only left with SNR mask case
+                let float_offset = operand_offset +1;
+                if content[0..3].eq("snr") {
+                    Ok(Self {
+                        operand,
+                        item: TargetItem::from_snr(&cleanedup[float_offset..].trim())?,
+                    })
+                } else {
+                    Err(Error::InvalidTarget(cleanedup[..operand_offset].to_string()))
+                }
+            }
+        } else {
+            // Descriptor starts with mask operand.
+            // Filter target type guessing is possible.
+            let offset = operand_offset + operand.formatted_len();
             Ok(Self {
                 operand,
-                item: TargetItem::from_str(&content[offset + 1..].trim())?, // +1: ":"
+                item: TargetItem::from_str(&cleanedup[offset..].trim_start())?,
             })
-        } else {
-            Err(Error::InvalidOperand)
         }
     }
 }
@@ -185,40 +296,26 @@ mod test {
     use std::str::FromStr;
     #[test]
     fn mask_operand() {
-        let operand = MaskOperand::from_str("geq").unwrap();
-        assert_eq!(operand, MaskOperand::GreaterEquals);
-        assert_eq!(!operand, MaskOperand::from_str("lt").unwrap());
+        for (descriptor, opposite_desc) in vec![
+            (">=", "<="),
+            (">", "<"),
+            ("=", "!="),
+            ("<", ">"),
+            ("<=", ">="),
+        ] {
+            let operand = MaskOperand::from_str(descriptor);
+            assert!(operand.is_ok(), "{} \"{}\"", "Failed to parse MaskOperand from", descriptor);
+            let opposite = MaskOperand::from_str(opposite_desc);
+            assert!(opposite.is_ok(), "{} \"{}\"", "Failed to parse MaskOperand from", opposite_desc);
+            assert_eq!(!operand.unwrap(), opposite.unwrap(), "MaskOperand::Not()");
+        }
 
-        let operand = MaskOperand::from_str("gt").unwrap();
-        assert_eq!(operand, MaskOperand::GreaterThan);
-        assert_eq!(!operand, MaskOperand::from_str("leq").unwrap());
-
-        let operand = MaskOperand::from_str("lt").unwrap();
-        assert_eq!(operand, MaskOperand::LowerThan);
-        assert_eq!(!operand, MaskOperand::from_str("geq").unwrap());
-
-        let operand = MaskOperand::from_str("leq").unwrap();
-        assert_eq!(operand, MaskOperand::LowerEquals);
-        assert_eq!(!operand, MaskOperand::from_str("gt").unwrap());
-
-        let operand = MaskOperand::from_str("geq: 123").unwrap();
-        assert_eq!(operand, MaskOperand::GreaterEquals);
-        assert_eq!(!operand, MaskOperand::LowerThan);
-
-        let operand = MaskOperand::from_str("geq:123.0").unwrap();
-        assert_eq!(operand, MaskOperand::GreaterEquals);
-        assert_eq!(!operand, MaskOperand::from_str("lt").unwrap());
-
-        let operand = MaskOperand::from_str("gt:abcdefg").unwrap();
-        assert_eq!(operand, MaskOperand::GreaterThan);
-        assert_eq!(!operand, MaskOperand::from_str("leq").unwrap());
-
-        let operand = MaskOperand::from_str("!>");
-        assert!(operand.is_err());
+        let operand = MaskOperand::from_str("a");
+        assert!(operand.is_err(), "Parsed unexpectedly \"{}\" MaskOperand correctly", "a");
     }
     #[test]
     fn mask_epoch() {
-        let mask = MaskFilter::from_str("gt:2020-01-14T00:31:55 UTC").unwrap();
+        let mask = MaskFilter::from_str(">2020-01-14T00:31:55 UTC").unwrap();
         assert_eq!(
             mask,
             MaskFilter {
@@ -226,44 +323,36 @@ mod test {
                 item: TargetItem::EpochItem(Epoch::from_str("2020-01-14T00:31:55 UTC").unwrap()),
             }
         );
-        let mask = MaskFilter::from_str("gt:JD 2452312.500372511 TAI");
+        let mask = MaskFilter::from_str(">JD 2452312.500372511 TAI");
         assert!(mask.is_ok());
     }
     #[test]
     fn mask_elev() {
-        let mask = MaskFilter::from_str("lt:elev: 40.0").unwrap();
-        assert_eq!(
-            mask,
-            MaskFilter {
-                operand: MaskOperand::LowerThan,
-                item: TargetItem::ElevationItem(40.0_f64),
-            }
-        );
-        let mask = MaskFilter::from_str("geq:elev:10.0").unwrap();
-        assert_eq!(
-            mask,
-            MaskFilter {
-                operand: MaskOperand::GreaterEquals,
-                item: TargetItem::ElevationItem(10.0_f64),
-            }
-        );
-        let m2 = MaskFilter::from_str("lt:elev:10.0").unwrap();
-        assert_eq!(!mask, m2);
+        for desc in vec![
+            "e < 40.0",
+            "e != 30",
+            " e >= 120",
+            " e = 30",
+        ] {
+            let mask = MaskFilter::from_str("e< 40.0");
+            assert!(mask.is_ok(), "Failed to parse Elevation Mask Filter from \"{}\"", desc);
+        }
     }
     #[test]
     fn mask_gnss() {
-        let mask = MaskFilter::from_str("eq: GPS").unwrap();
-        assert_eq!(
-            mask,
-            MaskFilter {
-                operand: MaskOperand::Equals,
-                item: TargetItem::ConstellationItem(vec![Constellation::GPS]),
-            }
-        );
-        let m2 = MaskFilter::from_str("eq:GPS").unwrap();
-        assert_eq!(mask, m2);
+        for (descriptor, opposite_desc) in vec![
+            (" = GPS", "!= GPS"),
+            ("= GAL,GPS", "!= GAL,GPS"),
+            (" =GLO,GAL", "!=  GLO,GAL"),
+        ] {
+            let mask = MaskFilter::from_str(descriptor);
+            assert!(mask.is_ok(), "Unable to parse MaskFilter from \"{}\"", descriptor);
+            let opposite = MaskFilter::from_str(opposite_desc);
+            assert!(opposite.is_ok(), "Unable to parse MaskFilter from \"{}\"", opposite_desc);
+            assert_eq!(!mask.unwrap(), opposite.unwrap(), "{}", "MaskFilter::Not()");
+        }
 
-        let mask = MaskFilter::from_str("eq: GPS,GAL,GLO").unwrap();
+        let mask = MaskFilter::from_str("=GPS,GAL,GLO").unwrap();
         assert_eq!(
             mask,
             MaskFilter {
@@ -275,10 +364,8 @@ mod test {
                 ]),
             }
         );
-        let m2 = MaskFilter::from_str("eq:GPS,GAL,GLO").unwrap();
-        assert_eq!(mask, m2);
 
-        let mask = MaskFilter::from_str("neq:BDS").unwrap();
+        let mask = MaskFilter::from_str("!=BDS").unwrap();
         assert_eq!(
             mask,
             MaskFilter {
@@ -286,12 +373,21 @@ mod test {
                 item: TargetItem::ConstellationItem(vec![Constellation::BeiDou]),
             }
         );
-        let m2 = MaskFilter::from_str("neq:BDS").unwrap();
-        assert_eq!(mask, m2);
     }
     #[test]
     fn mask_sv() {
-        let mask = MaskFilter::from_str("eq:G08,  G09, R03").unwrap();
+        for (descriptor, opposite_desc) in vec![
+            (" = G01", "!= G01"),
+            ("= R03,  G31", "!= R03,  G31"),
+        ] {
+            let mask = MaskFilter::from_str(descriptor);
+            assert!(mask.is_ok(), "Unable to parse MaskFilter from \"{}\"", descriptor);
+            let opposite = MaskFilter::from_str(opposite_desc);
+            assert!(opposite.is_ok(), "Unable to parse MaskFilter from \"{}\"", opposite_desc);
+            assert_eq!(!mask.unwrap(), opposite.unwrap(), "{}", "MaskFilter::Not()");
+        }
+
+        let mask = MaskFilter::from_str("=G08,  G09, R03").unwrap();
         assert_eq!(
             mask,
             MaskFilter {
@@ -303,10 +399,10 @@ mod test {
                 ]),
             }
         );
-        let m2 = MaskFilter::from_str("eq:G08,G09,R03").unwrap();
+        let m2 = MaskFilter::from_str("=G08,G09,R03").unwrap();
         assert_eq!(mask, m2);
 
-        let mask = MaskFilter::from_str("neq:G31").unwrap();
+        let mask = MaskFilter::from_str("!=G31").unwrap();
         assert_eq!(
             mask,
             MaskFilter {
@@ -314,12 +410,12 @@ mod test {
                 item: TargetItem::SvItem(vec![Sv::from_str("G31").unwrap(),]),
             }
         );
-        let m2 = MaskFilter::from_str("neq:G31").unwrap();
+        let m2 = MaskFilter::from_str("!=G31").unwrap();
         assert_eq!(mask, m2);
     }
     #[test]
     fn mask_observable() {
-        let mask = MaskFilter::from_str("eq:L1C,S1C,D1P,C1W").unwrap();
+        let mask = MaskFilter::from_str("=L1C,S1C,D1P,C1W").unwrap();
         assert_eq!(
             mask,
             MaskFilter {
@@ -335,7 +431,7 @@ mod test {
     }
     #[test]
     fn mask_orbit() {
-        let mask = MaskFilter::from_str("eq:orb:iode").unwrap();
+        let mask = MaskFilter::from_str("=orb:iode").unwrap();
         assert_eq!(
             mask,
             MaskFilter {
@@ -346,7 +442,7 @@ mod test {
     }
     #[test]
     fn mask_nav() {
-        let mask = MaskFilter::from_str("eq:eph").unwrap();
+        let mask = MaskFilter::from_str("=eph").unwrap();
         assert_eq!(
             mask,
             MaskFilter {
@@ -354,7 +450,7 @@ mod test {
                 item: TargetItem::NavFrameItem(vec![FrameClass::Ephemeris]),
             }
         );
-        let mask = MaskFilter::from_str("eq:eph,ion").unwrap();
+        let mask = MaskFilter::from_str("=eph,ion").unwrap();
         assert_eq!(
             mask,
             MaskFilter {
@@ -365,7 +461,7 @@ mod test {
                 ])
             }
         );
-        let mask = MaskFilter::from_str("eq:lnav").unwrap();
+        let mask = MaskFilter::from_str("=lnav").unwrap();
         assert_eq!(
             mask,
             MaskFilter {
