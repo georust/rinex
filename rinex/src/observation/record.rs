@@ -787,18 +787,20 @@ impl GnssTime for Record {
 }
 
 impl Smooth for Record {
-    /// Applies Hatch smoothing filter, returns smoothed Pseudo Range observations
     fn hatch_smoothing(&self) -> Self {
         let mut s = self.clone();
         s.hatch_smoothing_mut();
         s
     }
-    /// Applies Hatch smoothing filter in place
     fn hatch_smoothing_mut(&mut self) {
-        /*
-         * smoothes pseudo range observations using special algorithm
-         */
-        let mut buffer: HashMap<Sv, HashMap<Observable, (u32, f64)>> = HashMap::new();
+        // buffer:
+        // stores n index, previously associated phase point and previous result
+        // for every observable we're computing
+        let mut buffer: HashMap<Sv, HashMap<Observable, (f64, f64, f64)>> = HashMap::new();
+        // for each pseudo range observation for all epochs,
+        // the operation is only feasible if an associated phase_point exists
+        //   Ex: C1C with L1C, not L1W
+        //   and C2P with L2P not L2W
         for (_, (_, svs)) in self.iter_mut() {
             for (sv, observables) in svs.iter_mut() {
                 let rhs_observables = observables.clone();
@@ -806,8 +808,12 @@ impl Smooth for Record {
                     if !pr_observable.is_pseudorange_observable() {
                         continue;
                     }
+
                     let pr_code = pr_observable.code().unwrap();
+
+                    // locate associated L code
                     let ph_tolocate = "L".to_owned() + &pr_code;
+
                     let mut ph_data: Option<f64> = None;
                     for (rhs_observable, rhs_observation) in &rhs_observables {
                         let rhs_code = rhs_observable.to_string();
@@ -816,15 +822,41 @@ impl Smooth for Record {
                             break;
                         }
                     }
-                    if let Some(ph_observation) = ph_data {
-                        if let Some(data) = buffer.get_mut(&sv) {
-                            if let Some((k, rms)) = data.get_mut(&pr_observable) {
-                                let x_k = pr_observation.obs - ph_observation;
-                                *rms = (x_k / *k as f64) + (((*k - 1) / *k) as f64) * *rms;
-                                *k += 1;
-                                pr_observation.obs = ph_observation - *rms;
-                            }
+
+                    if ph_data.is_none() {
+                        continue; // can't progress at this point
+                    }
+
+                    let phase_data = ph_data.unwrap();
+
+                    if let Some(data) = buffer.get_mut(&sv) {
+                        if let Some((n, prev_result, prev_phase)) = data.get_mut(&pr_observable) {
+                            let delta_phase = phase_data - *prev_phase;
+                            // implement corrector equation
+                            pr_observation.obs = 1.0 / *n * pr_observation.obs
+                                + (*n - 1.0) / *n * (*prev_result + delta_phase);
+                            // update buffer storage for next iteration
+                            *n += 1.0_f64;
+                            *prev_result = pr_observation.obs;
+                            *prev_phase = phase_data;
+                        } else {
+                            // first time we encounter this observable
+                            // initiate buffer
+                            data.insert(
+                                pr_observable.clone(),
+                                (2.0_f64, pr_observation.obs, phase_data),
+                            );
                         }
+                    } else {
+                        // first time we encounter this sv
+                        // pr observation is untouched on S(0)
+                        // initiate buffer
+                        let mut map: HashMap<Observable, (f64, f64, f64)> = HashMap::new();
+                        map.insert(
+                            pr_observable.clone(),
+                            (2.0_f64, pr_observation.obs, phase_data),
+                        );
+                        buffer.insert(*sv, map);
                     }
                 }
             }
@@ -1077,7 +1109,7 @@ impl Interpolate for Record {
         s
     }
     fn interpolate_mut(&mut self, _series: TimeSeries) {
-        unimplemented!()
+        unimplemented!("observation:record:interpolate_mut()")
     }
 }
 
