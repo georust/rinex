@@ -3,11 +3,11 @@ use super::prelude::*;
 //use std::str::FromStr;
 
 pub trait GnssTime {
-    /// Returns TimeSeries formed by Self's epoch
+    /// Returns a serie formed by all epochs contained in
+    /// Self, in the form of a [hifitime::TimeSeries].
     fn timeseries(&self, dt: Duration) -> TimeSeries;
-
-    /// Copies self and converts all Epochs to desired
-    /// [hifitime::TimeScale].
+    /// Copies and converts all Epochs contained in this
+    /// record set, to desired [hifitime::TimeScale]
     /// ```
     /// use rinex::prelude::*;
     /// use rinex::gnss_time::*;
@@ -17,8 +17,7 @@ pub trait GnssTime {
     /// assert_eq!(rnx.timescale(), Some(TimeScale::UTC));
     /// ```
     fn with_timescale(&self, ts: TimeScale) -> Self;
-    /// Converts converts all Epochs to desired
-    /// [hifitime::TimeScale].
+    /// Convers Self (entire record set) to specified [hifitime::TimeScale]
     /// ```
     /// use rinex::prelude::*;
     /// use rinex::gnss_time::*;
@@ -31,23 +30,6 @@ pub trait GnssTime {
 }
 
 /*
-pub enum UTCProvider {
-    /// NIST: National Institute of Standards and Tech. (USA)
-    NIST,
-    /// USNO: US Naval Observatory
-    USNO,
-    /// UTC_RU: Russia
-    SU,
-    /// BIPM: Bureau International des Poids & des Mesures
-    BIPM,
-    /// European Laboratory
-    Europe,
-    // CRL
-    CRL,
-    /// NTSC
-    NTSC,
-}
-
 /// System Time corrections decoding error
 #[derive(Error, Debug)]
 #[derive(PartialEq)]

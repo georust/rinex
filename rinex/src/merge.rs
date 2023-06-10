@@ -23,7 +23,6 @@ pub enum Error {
 
 /*
  * Appends given vector into self.
- * Used in merge::ops
  */
 pub(crate) fn merge_mut_vec<T: Clone>(lhs: &mut Vec<T>, rhs: &Vec<T>) {
     for item in rhs {
@@ -33,7 +32,6 @@ pub(crate) fn merge_mut_vec<T: Clone>(lhs: &mut Vec<T>, rhs: &Vec<T>) {
 
 /*
  * Merges given vector into self, but ensures values are unique.
- * Used in merge::ops
  */
 pub(crate) fn merge_mut_unique_vec<T: Clone + PartialEq>(lhs: &mut Vec<T>, rhs: &Vec<T>) {
     for item in rhs {
@@ -45,7 +43,6 @@ pub(crate) fn merge_mut_unique_vec<T: Clone + PartialEq>(lhs: &mut Vec<T>, rhs: 
 
 /*
  * Merges given map into self but ensures both keys and values are unique.
- * Used in merge::ops
  */
 pub(crate) fn merge_mut_unique_map2d<K: PartialEq + Eq + Hash + Clone, V: Clone + PartialEq>(
     lhs: &mut HashMap<K, Vec<V>>,
@@ -65,9 +62,7 @@ pub(crate) fn merge_mut_unique_map2d<K: PartialEq + Eq + Hash + Clone, V: Clone 
 }
 
 /*
- * Merges optionnal data field,
- * rhs overwrites lhs, only if lhs is not previously defined.
- * Used in merge::ops
+ * Merges optionnal data fields, rhs overwrites lhs, only if lhs is not previously defined.
  */
 pub(crate) fn merge_mut_option<T: Clone>(lhs: &mut Option<T>, rhs: &Option<T>) {
     if lhs.is_none() {
@@ -78,13 +73,25 @@ pub(crate) fn merge_mut_option<T: Clone>(lhs: &mut Option<T>, rhs: &Option<T>) {
 }
 
 pub trait Merge {
-    /// Merge "rhs" Dataset into self, to form a new Dataset
-    /// (immutable implementation).  
-    /// Dataset remains sorted by epoch in natural order.
-    /// When merging, Self attributes are always prefered
-    /// over "rhs" attributes.  
-    /// If header fields coexist, Self's content is preserved.  
-    /// If "rhs" header fields are unique, they get introduced.  
+    /// Merge "rhs" dataset into self, to form a new dataset.
+    /// When merging two RINEX toghether, the data records
+    /// remain sorted by epoch in chrnonological order.
+    /// The merge operation behavior differs when dealing with
+    /// either a/the header sections, than dealing with the record set.
+    /// When dealing with the header sections, the behavior is to
+    /// preserve existing attributes and only new information contained
+    /// in "rhs" is introduced.  
+    /// When dealing with the record set, "lhs" content is completely
+    /// overwritten, that means:
+    ///   - existing epochs get replaced
+    ///   - new epochs can be introduced
+    /// This currently is the only behavior supported.
+    /// It was mainly developped for two reasons:
+    ///   - allow meaningful and high level operations
+    /// in a data production context
+    ///   - allow complex operations on a data subset,
+    /// where only specific data subset fields are targetted by
+    /// said operation, in preprocessing toolkit.
     /// ```
     /// use rinex::prelude::*;
     /// use rinex::merge::Merge;

@@ -124,7 +124,7 @@ fn clocks_comparison(dut: &Rinex, model: &Rinex, filename: &str) {
     for (e_model, model_types) in rec_model.iter() {
         if let Some(dut_types) = rec_dut.get(e_model) {
             for (model_data, _model_systems) in model_types.iter() {
-                if let Some(systems) = dut_types.get(model_data) {
+                if let Some(_systems) = dut_types.get(model_data) {
                 } else {
                     panic!(
                         "\"{}\" - {:?} - missing data {:?}",
