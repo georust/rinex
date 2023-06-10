@@ -37,35 +37,33 @@ impl std::str::FromStr for SmoothingFilter {
     fn from_str(content: &str) -> Result<Self, Self::Err> {
         let items: Vec<&str> = content.trim().split(":").collect();
         if items[0].trim().eq("hatch") {
-            if items.len() > 1 {
-                let target = TargetItem::from_str(items[1].trim())?;
-                Ok(Self {
-                    target: Some(target),
-                    stype: SmoothingType::Hatch,
-                })
-            } else {
-                Ok(Self {
-                    target: None,
-                    stype: SmoothingType::Hatch,
-                })
-            }
+            Ok(Self {
+                target: {
+                    if items.len() > 1 {
+                        let target = TargetItem::from_str(items[1].trim())?;
+                        Some(target)
+                    } else {
+                        None // no subset description
+                    }
+                },
+                stype: SmoothingType::Hatch,
+            })
         } else if items[0].trim().eq("mov") {
             if items.len() < 2 {
                 return Err(Error::InvalidDescriptionError(format!("{:?}", items)));
             }
             let dt = Duration::from_str(items[1].trim())?;
-            if items.len() > 2 {
-                let target = TargetItem::from_str(items[2].trim())?;
-                Ok(Self {
-                    target: Some(target),
-                    stype: SmoothingType::MovingAverage(dt),
-                })
-            } else {
-                Ok(Self {
-                    target: None,
-                    stype: SmoothingType::MovingAverage(dt),
-                })
-            }
+            Ok(Self {
+                target: {
+                    if items.len() > 2 {
+                        let target = TargetItem::from_str(items[2].trim())?;
+                        Some(target)
+                    } else {
+                        None // no data subset
+                    }
+                },
+                stype: SmoothingType::MovingAverage(dt),
+            })
         } else {
             Err(Error::UnknownFilter(items[0].to_string()))
         }
@@ -74,13 +72,13 @@ impl std::str::FromStr for SmoothingFilter {
 
 pub trait Smooth {
     /// Applies mov average filter to self
-    fn moving_average(&self, window: Duration, target: Option<TargetItem>) -> Self;
+    fn moving_average(&self, window: Duration) -> Self;
     /// Moving average mutable implementation
-    fn moving_average_mut(&mut self, window: Duration, target: Option<TargetItem>);
+    fn moving_average_mut(&mut self, window: Duration);
     /// Applies a Hatch smoothing filter to Pseudo Range observations
-    fn hatch_smoothing(&self, target: Option<TargetItem>) -> Self;
+    fn hatch_smoothing(&self) -> Self;
     /// Hatch filter mutable implementation
-    fn hatch_smoothing_mut(&mut self, target: Option<TargetItem>);
+    fn hatch_smoothing_mut(&mut self);
 }
 
 #[cfg(test)]

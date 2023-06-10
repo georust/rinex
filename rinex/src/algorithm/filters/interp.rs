@@ -38,6 +38,6 @@ impl InterpFilter {
 }*/
 
 pub trait Interpolate {
-    fn interpolate(&self, series: TimeSeries, target: Option<TargetItem>) -> Self;
-    fn interpolate_mut(&mut self, series: TimeSeries, target: Option<TargetItem>);
+    fn interpolate(&self, series: TimeSeries) -> Self;
+    fn interpolate_mut(&mut self, series: TimeSeries);
 }

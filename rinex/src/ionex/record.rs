@@ -1,5 +1,5 @@
 use crate::{
-    algorithm::{Filter, Interpolate, MaskFilter, MaskOperand, Preprocessing, TargetItem},
+    algorithm::{Filter, Interpolate, Mask, MaskFilter, MaskOperand, Preprocessing, TargetItem},
     gnss_time::GnssTime,
     merge,
     merge::Merge,
@@ -479,6 +479,42 @@ impl GnssTime for Record {
     }
 }
 
+impl Mask for Record {
+    fn mask(&self, mask: MaskFilter) -> Self {
+        let mut s = self.clone();
+        s.mask_mut(mask);
+        s
+    }
+    fn mask_mut(&mut self, mask: MaskFilter) {
+        match mask.operand {
+            MaskOperand::Equals => match mask.item {
+                TargetItem::EpochItem(epoch) => self.retain(|e, _| *e == epoch),
+                _ => {}, // TargetItem:: does not apply
+            },
+            MaskOperand::NotEquals => match mask.item {
+                TargetItem::EpochItem(epoch) => self.retain(|e, _| *e != epoch),
+                _ => {}, // TargetItem:: does not apply
+            },
+            MaskOperand::GreaterEquals => match mask.item {
+                TargetItem::EpochItem(epoch) => self.retain(|e, _| *e >= epoch),
+                _ => {}, // TargetItem:: does not apply
+            },
+            MaskOperand::GreaterThan => match mask.item {
+                TargetItem::EpochItem(epoch) => self.retain(|e, _| *e > epoch),
+                _ => {}, // TargetItem:: does not apply
+            },
+            MaskOperand::LowerEquals => match mask.item {
+                TargetItem::EpochItem(epoch) => self.retain(|e, _| *e <= epoch),
+                _ => {}, // TargetItem:: does not apply
+            },
+            MaskOperand::LowerThan => match mask.item {
+                TargetItem::EpochItem(epoch) => self.retain(|e, _| *e < epoch),
+                _ => {}, // TargetItem:: does not apply
+            },
+        }
+    }
+}
+
 impl Preprocessing for Record {
     fn filter(&self, f: Filter) -> Self {
         let mut s = self.clone();
@@ -487,54 +523,21 @@ impl Preprocessing for Record {
     }
     fn filter_mut(&mut self, f: Filter) {
         match f {
-            Filter::Mask(mask) => {
-                match mask.operand {
-                    MaskOperand::Equals => match mask.item {
-                        TargetItem::EpochItem(epoch) => self.retain(|e, _| *e == epoch),
-                        _ => {}, // TargetItem::
-                    },
-                    MaskOperand::NotEquals => match mask.item {
-                        TargetItem::EpochItem(epoch) => self.retain(|e, _| *e != epoch),
-                        _ => {}, // TargetItem::
-                    },
-                    MaskOperand::GreaterEquals => match mask.item {
-                        TargetItem::EpochItem(epoch) => self.retain(|e, _| *e >= epoch),
-                        _ => {}, // TargetItem::
-                    },
-                    MaskOperand::GreaterThan => match mask.item {
-                        TargetItem::EpochItem(epoch) => self.retain(|e, _| *e > epoch),
-                        _ => {}, // TargetItem::
-                    },
-                    MaskOperand::LowerEquals => match mask.item {
-                        TargetItem::EpochItem(epoch) => self.retain(|e, _| *e <= epoch),
-                        _ => {}, // TargetItem::
-                    },
-                    MaskOperand::LowerThan => match mask.item {
-                        TargetItem::EpochItem(epoch) => self.retain(|e, _| *e < epoch),
-                        _ => {}, // TargetItem::
-                    },
-                }
-            },
+            Filter::Mask(mask) => self.mask_mut(mask),
             Filter::Smoothing(_) => todo!(),
             Filter::Decimation(_) => todo!(),
-            Filter::Interp(filter) => self.interpolate_mut(filter.series, filter.target),
+            Filter::Interp(filter) => self.interpolate_mut(filter.series),
         }
     }
 }
 
 impl Interpolate for Record {
-    fn interpolate(&self, series: TimeSeries, target: Option<TargetItem>) -> Self {
+    fn interpolate(&self, series: TimeSeries) -> Self {
         let mut s = self.clone();
-        s.interpolate_mut(series, target);
+        s.interpolate_mut(series);
         s
     }
-    fn interpolate_mut(&mut self, _series: TimeSeries, target: Option<TargetItem>) {
-        if let Some(target) = target {
-            let mask = Filter::Mask(MaskFilter {
-                operand: MaskOperand::Equals,
-                item: target,
-            });
-            self.filter_mut(mask);
-        }
+    fn interpolate_mut(&mut self, _series: TimeSeries) {
+        unimplemented!("ionex:record:interpolate()")
     }
 }

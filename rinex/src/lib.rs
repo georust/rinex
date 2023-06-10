@@ -96,7 +96,7 @@ use prelude::*;
 pub use merge::Merge;
 pub use split::Split;
 
-use algorithm::{Combination, Combine, Dcb, IonoDelayDetector, Smooth, TargetItem};
+use algorithm::{Combination, Combine, Dcb, IonoDelayDetector, Smooth};
 
 #[macro_use]
 extern crate horrorshow;
@@ -2566,24 +2566,24 @@ impl Split for Rinex {
 }
 
 impl Smooth for Rinex {
-    fn moving_average(&self, window: Duration, target: Option<TargetItem>) -> Self {
+    fn moving_average(&self, window: Duration) -> Self {
         let mut s = self.clone();
-        s.moving_average_mut(window, target);
+        s.moving_average_mut(window);
         s
     }
-    fn moving_average_mut(&mut self, window: Duration, target: Option<TargetItem>) {
+    fn moving_average_mut(&mut self, window: Duration) {
         if let Some(r) = self.record.as_mut_obs() {
-            r.moving_average_mut(window, target);
+            r.moving_average_mut(window);
         }
     }
-    fn hatch_smoothing(&self, target: Option<TargetItem>) -> Self {
+    fn hatch_smoothing(&self) -> Self {
         let mut s = self.clone();
-        s.hatch_smoothing_mut(target);
+        s.hatch_smoothing_mut();
         s
     }
-    fn hatch_smoothing_mut(&mut self, target: Option<TargetItem>) {
+    fn hatch_smoothing_mut(&mut self) {
         if let Some(r) = self.record.as_mut_obs() {
-            r.hatch_smoothing_mut(target);
+            r.hatch_smoothing_mut();
         }
     }
 }

@@ -788,29 +788,18 @@ impl GnssTime for Record {
 
 impl Smooth for Record {
     /// Applies Hatch smoothing filter, returns smoothed Pseudo Range observations
-    fn hatch_smoothing(&self, target: Option<TargetItem>) -> Self {
+    fn hatch_smoothing(&self) -> Self {
         let mut s = self.clone();
-        s.hatch_smoothing_mut(target);
+        s.hatch_smoothing_mut();
         s
     }
     /// Applies Hatch smoothing filter in place
-    fn hatch_smoothing_mut(&mut self, target: Option<TargetItem>) {
-        // apply mask, if any: retains a specific data subset
-        let mut data_set: Self = match target {
-            Some(item) => {
-                let mask = MaskFilter {
-                    item,
-                    operand: MaskOperand::Equals,
-                };
-                self.mask(mask)
-            },
-            None => self.clone(),
-        };
+    fn hatch_smoothing_mut(&mut self) {
         /*
          * smoothes pseudo range observations using special algorithm
          */
         let mut buffer: HashMap<Sv, HashMap<Observable, (u32, f64)>> = HashMap::new();
-        for (_, (_, svs)) in data_set.iter_mut() {
+        for (_, (_, svs)) in self.iter_mut() {
             for (sv, observables) in svs.iter_mut() {
                 let rhs_observables = observables.clone();
                 for (pr_observable, pr_observation) in observables.iter_mut() {
@@ -834,28 +823,20 @@ impl Smooth for Record {
                                 *rms = (x_k / *k as f64) + (((*k - 1) / *k) as f64) * *rms;
                                 *k += 1;
                                 pr_observation.obs = ph_observation - *rms;
-                            } else { // new observable
                             }
-                        } else { // new sv
                         }
                     }
                 }
             }
         }
-        /*
-         * Form resulting data set
-         * By combining Self (initial) data set, and
-         * filtered data_set
-         */
-        let _ = self.merge_mut(&data_set); // infaillible: types do match here
     }
-    fn moving_average(&self, window: Duration, target: Option<TargetItem>) -> Self {
+    fn moving_average(&self, window: Duration) -> Self {
         let mut s = self.clone();
-        s.moving_average_mut(window, target);
+        s.moving_average_mut(window);
         s
     }
-    fn moving_average_mut(&mut self, _window: Duration, target: Option<TargetItem>) {
-        unimplemented!()
+    fn moving_average_mut(&mut self, _window: Duration) {
+        unimplemented!("observation:record:mov_average_mut()")
     }
 }
 
@@ -1090,12 +1071,12 @@ impl Mask for Record {
 }
 
 impl Interpolate for Record {
-    fn interpolate(&self, series: TimeSeries, target: Option<TargetItem>) -> Self {
+    fn interpolate(&self, series: TimeSeries) -> Self {
         let mut s = self.clone();
-        s.interpolate_mut(series, target);
+        s.interpolate_mut(series);
         s
     }
-    fn interpolate_mut(&mut self, _series: TimeSeries, target: Option<TargetItem>) {
+    fn interpolate_mut(&mut self, _series: TimeSeries) {
         unimplemented!()
     }
 }
@@ -1163,8 +1144,8 @@ fn decimate_data_subset(record: &mut Record, subset: &Record, target: &TargetIte
                 }
             }
         },
-        TargetItem::SnrItem(snr) => unimplemented!("decimate_data_subset::snr"), //TODO: implement in future
-        _ => {},                                                                 // does not apply
+        TargetItem::SnrItem(_) => unimplemented!("decimate_data_subset::snr"),
+        _ => {},
     }
 }
 
@@ -1178,10 +1159,48 @@ impl Preprocessing for Record {
         match filter {
             Filter::Mask(mask) => self.mask_mut(mask),
             Filter::Smoothing(filter) => match filter.stype {
-                SmoothingType::Hatch => self.hatch_smoothing_mut(filter.target),
-                SmoothingType::MovingAverage(dt) => self.moving_average_mut(dt, filter.target),
+                SmoothingType::Hatch => {
+                    if filter.target.is_none() {
+                        self.hatch_smoothing_mut();
+                        return; // no need to proceed further
+                    }
+
+                    let item = filter.target.unwrap();
+
+                    // apply mask to retain desired subset
+                    let mask = MaskFilter {
+                        item: item.clone(),
+                        operand: MaskOperand::Equals,
+                    };
+
+                    // apply smoothing
+                    let mut subset = self.mask(mask);
+                    subset.hatch_smoothing_mut();
+                    // overwrite targetted content
+                    let _ = self.merge_mut(&subset); // cannot fail here (record types match)
+                },
+                SmoothingType::MovingAverage(dt) => {
+                    if filter.target.is_none() {
+                        self.moving_average_mut(dt);
+                        return; // no need to proceed further
+                    }
+
+                    let item = filter.target.unwrap();
+
+                    // apply mask to retain desired subset
+                    let mask = MaskFilter {
+                        item: item.clone(),
+                        operand: MaskOperand::Equals,
+                    };
+
+                    // apply smoothing
+                    let mut subset = self.mask(mask);
+                    subset.moving_average_mut(dt);
+                    // overwrite targetted content
+                    let _ = self.merge_mut(&subset); // cannot fail here (record types match)
+                },
             },
-            Filter::Interp(filter) => self.interpolate_mut(filter.series, filter.target),
+            Filter::Interp(filter) => self.interpolate_mut(filter.series),
             Filter::Decimation(filter) => match filter.dtype {
                 DecimationType::DecimByRatio(r) => {
                     if filter.target.is_none() {
@@ -1223,7 +1242,6 @@ impl Preprocessing for Record {
                     // adapt self's subset to new data rates
                     decimate_data_subset(self, &subset, &item);
                 },
-                _ => unimplemented!("observation::record::decimation"), //TODO
             },
         }
     }
