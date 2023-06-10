@@ -4,7 +4,10 @@ use crate::{
     merge,
     merge::Merge,
     prelude::*,
-    processing::{Filter, Interpolate, Mask, MaskFilter, MaskOperand, Preprocessing, TargetItem},
+    processing::{
+        Decimate, DecimationType, Filter, Interpolate, Mask, MaskFilter, MaskOperand,
+        Preprocessing, TargetItem,
+    },
     split,
     split::Split,
     types::Type,
@@ -321,6 +324,68 @@ impl Mask for Record {
     }
 }
 
+/*
+ * Decimates only a given record subset
+ */
+fn decimate_data_subset(record: &mut Record, subset: &Record, target: &TargetItem) {
+    match target {
+        TargetItem::ObservableItem(obs_list) => {
+            /*
+             * Remove given observations where it should now be missing
+             */
+            for (epoch, observables) in record.iter_mut() {
+                if subset.get(epoch).is_none() {
+                    // should be missing
+                    observables.retain(|observable, _| !obs_list.contains(observable));
+                }
+            }
+        },
+        _ => {},
+    }
+}
+
+impl Decimate for Record {
+    fn decimate_by_ratio_mut(&mut self, r: u32) {
+        let mut i = 0;
+        self.retain(|_, _| {
+            let retained = (i % r) == 0;
+            i += 1;
+            retained
+        });
+    }
+    fn decimate_by_ratio(&self, r: u32) -> Self {
+        let mut s = self.clone();
+        s.decimate_by_ratio_mut(r);
+        s
+    }
+    fn decimate_by_interval_mut(&mut self, interval: Duration) {
+        let mut last_retained: Option<Epoch> = None;
+        self.retain(|e, _| {
+            if last_retained.is_some() {
+                let dt = *e - last_retained.unwrap();
+                last_retained = Some(*e);
+                dt > interval
+            } else {
+                last_retained = Some(*e);
+                true // always retain 1st epoch
+            }
+        });
+    }
+    fn decimate_by_interval(&self, interval: Duration) -> Self {
+        let mut s = self.clone();
+        s.decimate_by_interval_mut(interval);
+        s
+    }
+    fn decimate_match_mut(&mut self, rhs: &Self) {
+        self.retain(|e, _| rhs.get(e).is_some());
+    }
+    fn decimate_match(&self, rhs: &Self) -> Self {
+        let mut s = self.clone();
+        s.decimate_match_mut(&rhs);
+        s
+    }
+}
+
 impl Preprocessing for Record {
     fn filter(&self, f: Filter) -> Self {
         let mut s = self.clone();
@@ -330,8 +395,49 @@ impl Preprocessing for Record {
     fn filter_mut(&mut self, f: Filter) {
         match f {
             Filter::Mask(mask) => self.mask_mut(mask),
+            Filter::Decimation(filter) => match filter.dtype {
+                DecimationType::DecimByRatio(r) => {
+                    if filter.target.is_none() {
+                        self.decimate_by_ratio_mut(r);
+                        return; // no need to proceed further
+                    }
+
+                    let item = filter.target.unwrap();
+
+                    // apply mask to retain desired subset
+                    let mask = MaskFilter {
+                        item: item.clone(),
+                        operand: MaskOperand::Equals,
+                    };
+
+                    // and decimate
+                    let subset = self.mask(mask).decimate_by_ratio(r);
+
+                    // adapt self's subset to new data rates
+                    decimate_data_subset(self, &subset, &item);
+                },
+                DecimationType::DecimByInterval(dt) => {
+                    if filter.target.is_none() {
+                        self.decimate_by_interval_mut(dt);
+                        return; // no need to proceed further
+                    }
+
+                    let item = filter.target.unwrap();
+
+                    // apply mask to retain desired subset
+                    let mask = MaskFilter {
+                        item: item.clone(),
+                        operand: MaskOperand::Equals,
+                    };
+
+                    // and decimate
+                    let subset = self.mask(mask).decimate_by_interval(dt);
+
+                    // adapt self's subset to new data rates
+                    decimate_data_subset(self, &subset, &item);
+                },
+            },
             Filter::Smoothing(_) => todo!(),
-            Filter::Decimation(_) => todo!(),
             Filter::Interp(filter) => self.interpolate_mut(filter.series),
         }
     }
