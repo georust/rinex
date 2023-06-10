@@ -12,34 +12,29 @@ capabilities, in a high level and easy to use interface.
 
 ## RINEX files
 
-Several RINEX files exist. The tool support most RINEX formats, some exotic formats
-are still under development, refer to the 
+Several RINEX files exist, this tool supports already quite a few.  
+Refer to the 
 [main table](https://github.com/gwbres/rinex/blob/main/README.md#supported-rinex-types)
+to understand what is doable.
 
 ### File naming conventions
 
-File names are disregarded by this tool, you can analyze
-& parse files that do not follow naming conventions.
-
-When producing data, this tool will eventually help the user to generate RINEX that follows
-naming conventions, but that is currently under development.
+File names are disregarded by this tool, you can parse & analyze
+files that do not follow naming conventions.
 
 ### Compressed data
 
 CRINEX (V1 and V3) are natively supported.  
-This tool supports gzip compressed files, as long as their name is terminated by `.gz`.
+This tool supports gzip compressed files but the file name must be terminated by `.gz`.
 
 ### Analysis and report files
 
-Analysis and reports are generated in HTML, in the `rinex/rinex-cli/product` directory.  
+Reports and plots are rendered in HTML in the `rinex/rinex-cli/product` directory.  
 Analysis is named after the primary RINEX file.
-
-Some advanced computations and analysis are possible with this tool,
-refer to the dedicated sections.
 
 ## `teqc` operations
 
-`teqc` is a well known application to process RINEX.   
+`teqc` is a well known application to process RINEX files.   
 Unlike teqc, this application is not capable of processing Binary RINEX ("BINEX") and 
 proprietary formats in general.
 
@@ -50,22 +45,21 @@ Some teqc operations are supported:
 - [resampling](doc/preprocessing.md): Resampling operations can be performed 
 if you know how to operate the preprocessing toolkit
 - [quality check](doc/qc.md): RINEX data quality analysis (mainly statistics and only on OBS RINEX at the moment)
-- other advanced operations are documented in the [processing](doc/processing.md) serie
+- other advanced operations are documented in the [processing](doc/processing.md) suite
 
 ## Getting started
 
-Grab the binary for your architecture 
-[from the latest release](https://github.com/gwbres/rinex/releases).
+Download the latest release for your architecture 
+[from the release portal](https://github.com/gwbres/rinex/releases).
 
 Or compile the application manually:
 
 ```shell
-cargo build --release
-./target/release/rinex-cli -h
+cargo build --all-features --release
 ```
 
-From now on, "rinex-cli" means "target/release/rinex-cli" previously compiled
-(always prefer the `released` binary for optimal performances).
+The program is located in  "target/release/rinex-cli",
+which we might simply refer in some examples as `rinex-cli`.
 
 All examples depicted in this documentation suite uses our
 [test data](https://github.com/gwbres/rinex/tree/main/test_resources).  
@@ -73,7 +67,13 @@ That means you have everything to reproduce the provided examples on your side.
 
 ## Command line interface
 
-File paths have to be absolute.   
+Refer to the help menu which provides extensive explanations:
+
+```bash
+./target/release/rinex-cli -h
+```
+
+File paths always have to be absolute.   
 Arguments order does not matter to this application: 
 
 ```bash
@@ -81,7 +81,7 @@ rinex-cli --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz
 rinex-cli --sv-epoch --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz 
 ```
 
-Use the `RUST_LOG` environment variable to enjoy the env logger.  
+Use the `RUST_LOG` environment variable to setup the logger.
 Set the sensitivy as desired, "trace" being the most sensitive,
 "info" the standard value:
 
@@ -92,8 +92,7 @@ export RUST_LOG=info
 rinex-cli --fp test_resources/NAV/V2/amel010.21g
 ```
 
-For example, here is the trace you get on a complex run (don't worry about
-the command line options yet)
+Here's an example of traces you might get on a complex run:
 
 ```bash
 ./target/release/rinex-cli \
@@ -113,11 +112,10 @@ the command line options yet)
  2023-06-10T10:37:31.058Z INFO  rinex_cli                            > graphs rendered in "product/ESBC00DNK_R_20201770000_01D_30S_MO/graphs.html"
 ```
 
-The `antenna position: WGS (x, y, z)` info means the provided context has a ground position defined. 
-This is a prerequisite to some advanced operations.   
+`antenna position: WGS (x, y, z)` was located in the provided context: some advanced operations are feasible.  
 A few preprocessing operations were requested with `-P`, you get a trace
 for every operation that did apply (correct command line description).  
-`> record analysis` means the analysis is being performed.  
+`> record analysis` means the analysis is starting at this point.   
 The location of the graphs that were rendered (if any) is given.
 
 [rinex-cli/product](product/) is where all analysis reports

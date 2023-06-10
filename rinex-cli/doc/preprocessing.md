@@ -44,11 +44,11 @@ As mask filter is one operand and a mask to apply to a particular kind of data.
 List of supported Mask Operands:
 
 * Lower Than (<) 
-* Lower Than (<=) 
+* Lower Than or Equals (<=) 
 * Greater Than (>)
-* Greater Than (>=)
-* Equals Than (=)
-* Lower Than (!=)
+* Greater Than or Equals (>=)
+* Equals (=)
+* Ineq (!=)
 
 Example:
 
@@ -58,7 +58,8 @@ rinex-cli \
     -P !=G08,G09,G10
 ```
 
-When the operand is omitted, _Equals_ (=) operand is implied
+When the operand is omitted, _Equals_ (=) operand is implied.  
+For example, here we retain vehicles G08 and R03 only.
 
 ```bash
 rinex-cli \
@@ -82,10 +83,6 @@ rinex-cli \
 Therefore, if a filter operation involves a whitespace, it requires to be wrapped
 in between inverted commas. Most common example is the [Epoch](epoch-target) description.
 
-### Targetted subsets
-
-Most RINEX data subsets can be targetted by a mask filter. 
-
 ## Epoch target
   
 Any valid Hifitime::Epoch string description is supported.  
@@ -96,19 +93,10 @@ because _Equals()_ operand is implied:
 ```bash
 rinex-cli \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    -P ">2020-06-25T04:00:00 UTC" GPS >G08 # notice the \" due to whitespace requirement
-```
-
-Retain a single Epoch with _Equals()_ ops. Equals is the implicit
-operand if the operand is omitted:
-
-```bash
-rinex-cli \
-    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
     -P "2020-06-25T04:00:00 UTC" GPS >G08 # notice the \" due to whitespace requirement
 ```
 
-For example, use two epoch masks to zoom in on 
+Use two epoch masks to zoom in on 
 the ]2020-06-12 08:00:00 ; 2020-06-12 10:00:00] time window:
 
 ```bash
@@ -123,8 +111,8 @@ TODO
 
 ## Sv target
 
-A comma separated list of Sv is supported.  
-For example, with the following, we are left with data from _R03_ and _E10_
+A comma separated list of Sv (of any length) is supported.  
+For example, retain _R03_ and _E10_ with the following:
 
 ```bash
 rinex-cli \
@@ -132,8 +120,9 @@ rinex-cli \
     -P R03,E10
 ```
 
-The `sv` target supports more than "=" or "!=". With this command for example,
-we are left with PRN above 03 for GPS and below 10 (included) for Galileo
+`Sv` target is the only one amongst CSV arrays that supports more than "=" or "!=" operands.   
+For example we can select PRN above 08 for GPS and below 10 for Galileo constellations (only, others are untouched)
+with this command:
 
 ```bash
 rinex-cli \
@@ -152,16 +141,14 @@ rinex-cli \
     -P !=BDS GPS,GLO # ineq(BDS) AND eq(GPS,GLO)
 ```
 
-## GNSS Signals
+`teqc` like quick GNSS filters also exist:
 
-A comma separated list of Carrier signals is supported.  
-For example, with the following, we are only left with observations against L1 and L5
-
-```bash
-rinex-cli \
-    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    -P "l1,l5"
-```
+- `-G` to remove GPS
+- `-C` to remove BDS
+- `-E` to remove Galileo
+- `-R` to remove Glonnass
+- `-J` to remove QZSS
+- `-S` to remove SBAS vehicles
 
 ## Observables
 
@@ -245,7 +232,7 @@ Notice once again that this is case unsensitive.
 One preprocessing algorithm is record _decimation_ to reduce
 data quantity or increase sampling interval. It is described with `decim:`. 
 
-### By a ratio
+### Decimate by a ratio
 
 Decimate an entire record to reduce the data quantity.
 
@@ -258,7 +245,7 @@ we now have 2 minutes in between two data points.
     -P decim:4 ">2020-06-25T08:00:00 UTC" "<=2020-06-25T10:00:00 UTC"
 ```
 
-### By an interval
+### Decimate to match a duration
 
 Decimate this record to increase the epoch interval (reduce the sample rate)
 to it matches 10 minutes:
@@ -272,18 +259,19 @@ rinex-cli \
 
 ### Advanced: data subsets
 
-Algorithms apply to the entire record by default, but you can specify
-to apply it only a subset.
-Subsets are described like Data Masks previously defined.
+Algorithms apply to the entire record by default, but you can also specify
+to apply it only a subset of the RINEX record.  
+This is done by adding `:X` after any preprocessing algorithm (like decimation for example)
+where X is a valid data Mask as previously defined.
 
-For example, here we retain both L1C and L2C phase data
-on GPS constellation (PRN >= 08). But we reduce the quantity
-of L1C observations by 4:
+For example, here we extract L1C and L2C phase data
+on GPS constellation (PRN >= 08), but we reduce the L1C observation
+quantity by 4:
 
 ```bash
 rinex-cli \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.gz \
-    -P GPS ">=G08" L1C,L2C "decim:4:l1c"
+    -P GPS ">=G08" L1C,L2C "decim:4:L1C"
 ```
 
 With the following command line, we retain L1C L2C observations
