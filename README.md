@@ -61,10 +61,6 @@ __CLI__ + :chart_with_upwards_trend: means record analysis is supported by the C
 
 ## Known weaknesses :warning:
 
-- For old files generated prior January 01, 2000:
-if year is encoded on two digits, they get falsely shifted into the 21st century.
-For instance, "95" becomes "2095". Other than that, data is correctly parsed.
-
 - Glonass Time Scale is not known to this day.
 We cannot parse and apply system time corrections from other time scales into the glonass time scale.
 
@@ -95,25 +91,20 @@ select a SBAS for a given location on Earth.
 * `--flate2`  
 allow native parsing of .gz compressed RINEX files. Otherwise, user must uncompress manually the `.gz` extension first.
 
-## `rinex-cli` benchmark
+## Benchmark
 
-Light operation: `--sv` enumeration
-
-File           |  RINEX 0.6 `debug`  | RINEX 0.7 `debug` | RINEX 0.7 `--release`        |
----------------|---------------------|-------------------|------------------------------|
-ESBC00DNK      |  26s                | 14s               | 2s                           |
-ESBC00DNK.gz   |  26s                | 14s               | 2s                           |
-MOJN00DNK      |  28s                | 13s               | 2s                           |
-MOJN00DNK.gz   |  28s                | 13s               | 2s                           |
-
-Heavy computations: observation `--dcb` + `--gf` + record analysis 
-
-File           |  RINEX 0.8 `--release`  |
+Test           | Results 
 ---------------|-------------------------|
-ESBC00DNK      |    x                     |
-ESBC00DNK.gz   |    x                    |
-MOJN00DNK      |    x                    |
-MOJN00DNK.gz   |    x                    |
+textdiff/decompression/epoch | 979.55 ns |
+textdiff/decompression/flag  | 147.16 ns | 
+numdiff/decompression/small  | 191.86 ns |
+numdiff/decompression/big    | 1.0973 µs |
+parsing/OBSv2/zegv0010.21o   | 951.40 µs |
+parsing/OBSv3/ACOR00ESP      | 4.1139 ms |
+processing/esbc00dnkr2021/mask:gnss | 352.81 ms |
+processing/esbc00dnkr2021/mask:obs |  438.73 ms |
+processing/esbc00dnkr2021/mask:sv | 341.42 ms | 
+processing/esbc00dnkr2021/smooth:hatch:l1c,l2c | 502.90 ms | 
 
 ## Contributions
 

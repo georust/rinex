@@ -1,5 +1,6 @@
 //! Meteo sensor
-use crate::meteo::observable::Observable;
+use crate::observable;
+use crate::Observable;
 use thiserror::Error;
 
 /// Meteo Observation Sensor
@@ -22,7 +23,7 @@ pub struct Sensor {
 #[derive(Error, Debug)]
 pub enum ParseSensorError {
     #[error("failed to identify observable")]
-    ParseObservableError(#[from] strum::ParseError),
+    ParseObservableError(#[from] observable::Error),
     #[error("failed to parse accuracy field")]
     ParseFloatError(#[from] std::num::ParseFloatError),
 }

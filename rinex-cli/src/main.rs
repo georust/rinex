@@ -6,43 +6,28 @@
 mod analysis; // basic analysis
 mod cli; // command line interface
 mod context; // RINEX context
-mod filter; // record filtering
-mod identification; // high level identification/macros
-mod plot; // plotting operations
-mod resampling; // record resampling
-mod retain; // record filtering // command line parsing utilities
-
 pub mod fops; // file operation helpers
+mod identification; // high level identification/macros
 pub mod parser;
+mod plot; // plotting operations
 
-use horrorshow::Template;
-use rinex::{merge::Merge, processing::*, split::Split};
+mod preprocessing;
+use preprocessing::preprocess;
+
+//use horrorshow::Template;
+use rinex::{merge::Merge, processing::*, quality::*, split::Split};
 
 use cli::Cli;
 pub use context::Context;
-use filter::{
-    apply_filters,         // special filters, with cli options
-    apply_gnss_filters,    // filter out undesired constellations
-    elevation_mask_filter, // apply given elevation mask
-};
-use plot::PlotContext;
-
-// preprocessing
 use identification::rinex_identification;
-use resampling::resampling;
-use retain::retain_filters;
+use plot::PlotContext;
 
 extern crate pretty_env_logger;
 #[macro_use]
 extern crate log;
 
-use fops::open_html_with_default_app;
+use fops::{filename, open_with_web_browser};
 use std::io::Write;
-
-/*
- * Applies elevation mask, to non Navigation RINEX
- */
-//fn apply_elevation_mask(rnx: &mut Rinex, sv_angles: ) {};
 
 pub fn main() -> Result<(), rinex::Error> {
     pretty_env_logger::init_timed();
@@ -57,28 +42,18 @@ pub fn main() -> Result<(), rinex::Error> {
     let qc = cli.quality_check() || qc_only;
 
     /*
-     * Preprocessing, filtering, resampling..
+     * Preprocessing
      */
-    if cli.resampling() {
-        resampling(&mut ctx, &cli);
-    }
-    if cli.retain() {
-        retain_filters(&mut ctx, &cli);
-    }
-    if cli.filter() {
-        apply_gnss_filters(&mut ctx, &cli);
-        apply_filters(&mut ctx, &cli);
-        elevation_mask_filter(&mut ctx, &cli);
-    }
+    preprocess(&mut ctx, &cli);
 
-    /*
-     * Observation RINEX:
-     *  align phase origins at this point
-     *  this allows easy GNSS combination and processing,
-     *  gives more meaningful phase data plots..
-     */
-    // <!>    <!>     <!>      <!>      <!>      <!>      <!>
-    //ctx.primary_rinex.observation_align_phase_origins_mut();
+    /* <!>    <!>     <!>      <!>      <!>      <!>      <!>
+    * Observation RINEX:
+    *  align phase origins at this point
+    *  this allows easy GNSS combination and processing,
+    *  gives more meaningful phase data plots..
+     <!>    <!>     <!>      <!>      <!>      <!>      <!> */
+    //ctx.primary_rinex
+    //.observation_align_phase_origins_mut();
 
     /*
      * Basic file identification
@@ -106,22 +81,19 @@ pub fn main() -> Result<(), rinex::Error> {
      * DCB analysis requested
      */
     if cli.dcb() {
-        let mut data = ctx.primary_rinex.observation_phase_dcb();
-        for (op, inner) in ctx.primary_rinex.observation_pseudorange_dcb() {
-            data.insert(op.clone(), inner.clone());
-        }
-        plot::plot_gnss_recombination(
+        let data = ctx.primary_rinex.observation_dcb();
+        plot::plot_gnss_dcb(
             &mut plot_ctx,
             "Differential Code Biases",
             "DBCs [n.a]",
             &data,
         );
-        info!("dcb analysis generated");
+        info!("--dcb analysis");
     }
     /*
      * Code Multipath analysis
      */
-    if cli.multipath() {
+    /*if cli.multipath() {
         let data = ctx
             .primary_rinex
             .observation_align_phase_origins()
@@ -132,67 +104,75 @@ pub fn main() -> Result<(), rinex::Error> {
             "Meters of delay",
             &data,
         );
-        info!("mp analysis generated");
-    }
+        info!("--mp analysis");
+    }*/
     /*
      * [GF] recombination visualization requested
      */
     if cli.gf_recombination() {
-        let data = ctx.primary_rinex.observation_gf_combinations();
+        let data = ctx
+            .primary_rinex
+            .observation_combination(Combination::GeometryFree);
         plot::plot_gnss_recombination(
             &mut plot_ctx,
             "Geometry Free signal combination",
             "Meters of Li-Lj delay",
             &data,
         );
-        info!("gf recombination");
+        info!("--gf recombination");
     }
     /*
      * Ionospheric Delay Detector (graph)
      */
     if cli.iono_detector() {
-        let data = ctx.primary_rinex.observation_iono_detector();
+        let data = ctx.primary_rinex.observation_iono_delay_detector();
         plot::plot_iono_detector(&mut plot_ctx, &data);
-        info!("ionospheric delay detector");
+        info!("--iono detector");
     }
     /*
      * [WL] recombination
      */
     if cli.wl_recombination() {
-        let data = ctx.primary_rinex.observation_wl_combinations();
+        let data = ctx
+            .primary_rinex
+            .observation_combination(Combination::WideLane);
         plot::plot_gnss_recombination(
             &mut plot_ctx,
             "Wide Lane signal combination",
             "Meters of Li-Lj delay",
             &data,
         );
-        info!("wl recombination");
+        info!("--wl recombination");
     }
     /*
      * [NL] recombination
      */
     if cli.nl_recombination() {
-        let data = ctx.primary_rinex.observation_nl_combinations();
+        let data = ctx
+            .primary_rinex
+            .observation_combination(Combination::NarrowLane);
         plot::plot_gnss_recombination(
             &mut plot_ctx,
             "Narrow Lane signal combination",
             "Meters of Li-Lj delay",
             &data,
         );
-        info!("nl recombination");
+        info!("--nl recombination");
     }
     /*
      * [MW] recombination
      */
     if cli.mw_recombination() {
-        let data = ctx.primary_rinex.observation_mw_combinations();
+        let data = ctx
+            .primary_rinex
+            .observation_combination(Combination::MelbourneWubbena);
         plot::plot_gnss_recombination(
             &mut plot_ctx,
             "Melbourne-Wübbena signal combination",
             "Meters of Li-Lj delay",
             &data,
         );
-        info!("mw recombination");
+        info!("--mw recombination");
     }
     /*
      * MERGE
@@ -254,8 +234,8 @@ pub fn main() -> Result<(), rinex::Error> {
      */
     if cli.cs_graph() {
         info!("cs detector");
-        let mut detector = CsDetector::default();
-        let cs = detector.cs_detection(&ctx.primary_rinex);
+        //let mut detector = CsDetector::default();
+        //let cs = detector.cs_detection(&ctx.primary_rinex);
     }
 
     /*
@@ -268,40 +248,65 @@ pub fn main() -> Result<(), rinex::Error> {
     }
 
     /*
-     * Render HTML
+     * Render Graphs (HTML)
      */
-    let html_absolute_path = ctx.prefix.to_owned() + "/analysis.html";
-    let mut html_fd = std::fs::File::create(&html_absolute_path)
-        .expect(&format!("failed to create \"{}\"", &html_absolute_path));
-    let mut html = plot_ctx.to_html(cli.tiny_html());
-    /*
-     * Quality Check summary
-     */
-    if qc {
-        info!("qc mode");
-        let report = QcReport::basic(&ctx.primary_rinex, &ctx.nav_rinex);
-
-        if cli.quality_check_separate() {
-            let qc_absolute_path = ctx.prefix.to_owned() + "/qc.html";
-            let mut qc_fd = std::fs::File::create(&qc_absolute_path)
-                .expect(&format!("failed to create \"{}\"", &qc_absolute_path));
-            write!(qc_fd, "{}", report.to_html()).expect("failed to generate QC summary report");
-            info!("qc summary report \"{}\" generated", &qc_absolute_path);
-        } else {
-            // append QC to global html
-            html.push_str("<div=\"qc-report\">\n");
-            html.push_str(&report.to_inline_html().into_string().unwrap());
-            html.push_str("</div>\n");
-            info!("qc summary added to html report");
+    if !qc_only {
+        let html_path = ctx.prefix.to_owned() + "/graphs.html";
+        let mut html_fd = std::fs::File::create(&html_path)
+            .expect(&format!("failed to create \"{}\"", &html_path));
+        write!(html_fd, "{}", plot_ctx.to_html()).expect(&format!("failed to render graphs"));
+        info!("graphs rendered in \"{}\"", &html_path);
+        if !quiet {
+            open_with_web_browser(&html_path);
         }
     }
 
-    write!(html_fd, "{}", html).expect(&format!("failed to write HTML content"));
+    /*
+     * QC Mode
+     */
+    if qc {
+        info!("qc - enabled");
 
-    if !quiet {
-        open_html_with_default_app(&html_absolute_path);
+        let mut qc_opts = cli.qc_config();
+        /*
+         * ground position:
+         * if not defined in the configuration,
+         *  and user defined it through the CLI
+         *  ==> use this value
+         */
+        if qc_opts.ground_position.is_none() {
+            // config did not specify it
+            if let Some(pos) = cli.manual_position() {
+                // manually passed
+                qc_opts = qc_opts.with_ground_position_ecef(pos.to_ecef_wgs84());
+                trace!("qc - antenna position manual set to {}", pos);
+            } else if ctx.ground_position.is_none() {
+                warn!("qc - undetermined antenna position");
+            }
+        }
+
+        if qc_opts.min_snr_db > 0.0 {
+            trace!("qc - minimal SNR: {} dB", qc_opts.min_snr_db);
+        }
+
+        let nav_paths: Vec<_> = cli.nav_paths().iter().map(|k| filename(&k)).collect();
+
+        let report = QcReport::new(
+            &filename(cli.input_path()),
+            &ctx.primary_rinex,
+            nav_paths,
+            ctx.nav_rinex,
+            qc_opts,
+        ); // &ctx.nav_rinex
+
+        let qc_path = ctx.prefix.to_owned() + "/report.html";
+        let mut qc_fd =
+            std::fs::File::create(&qc_path).expect(&format!("failed to create \"{}\"", &qc_path));
+        write!(qc_fd, "{}", report.to_html()).expect("failed to generate QC summary report");
+        info!("qc - summary report \"{}\" generated", &qc_path);
+        if !quiet {
+            open_with_web_browser(&qc_path);
+        }
     }
-
-    info!("html report \"{}\" generated", &html_absolute_path);
     Ok(())
 } // main

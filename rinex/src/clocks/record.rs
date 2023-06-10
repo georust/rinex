@@ -1,6 +1,13 @@
 use crate::{
-    epoch, gnss_time::TimeScaling, merge, merge::Merge, prelude::*, sampling::Decimation, split,
-    split::Split, version::Version,
+    epoch,
+    gnss_time::GnssTime,
+    merge,
+    merge::Merge,
+    prelude::*,
+    processing::{Filter, Interpolate, Mask, MaskFilter, MaskOperand, Preprocessing, TargetItem},
+    split,
+    split::Split,
+    version::Version,
 };
 use hifitime::Duration;
 use std::collections::{BTreeMap, HashMap};
@@ -289,7 +296,7 @@ mod test {
     }
 }
 
-impl Merge<Record> for Record {
+impl Merge for Record {
     /// Merges `rhs` into `Self` without mutable access at the expense of more memcopies
     fn merge(&self, rhs: &Self) -> Result<Self, merge::Error> {
         let mut lhs = self.clone();
@@ -349,7 +356,7 @@ impl Merge<Record> for Record {
     }
 }
 
-impl Split<Record> for Record {
+impl Split for Record {
     fn split(&self, epoch: Epoch) -> Result<(Self, Self), split::Error> {
         let r0 = self
             .iter()
@@ -373,55 +380,22 @@ impl Split<Record> for Record {
             .collect();
         Ok((r0, r1))
     }
-}
-
-impl Decimation<Record> for Record {
-    /// Decimates Self by desired factor
-    fn decim_by_ratio_mut(&mut self, r: u32) {
-        let mut i = 0;
-        self.retain(|_, _| {
-            let retained = (i % r) == 0;
-            i += 1;
-            retained
-        });
-    }
-    /// Copies and Decimates Self by desired factor
-    fn decim_by_ratio(&self, r: u32) -> Self {
-        let mut s = self.clone();
-        s.decim_by_ratio_mut(r);
-        s
-    }
-    /// Decimates Self to fit minimum epoch interval
-    fn decim_by_interval_mut(&mut self, interval: Duration) {
-        let mut last_retained: Option<Epoch> = None;
-        self.retain(|e, _| {
-            if last_retained.is_some() {
-                let dt = *e - last_retained.unwrap();
-                last_retained = Some(*e);
-                dt > interval
-            } else {
-                last_retained = Some(*e);
-                true // always retain 1st epoch
-            }
-        });
-    }
-    /// Copies and Decimates Self to fit minimum epoch interval
-    fn decim_by_interval(&self, interval: Duration) -> Self {
-        let mut s = self.clone();
-        s.decim_by_interval_mut(interval);
-        s
-    }
-    fn decim_match_mut(&mut self, rhs: &Self) {
-        self.retain(|e, _| rhs.get(e).is_some());
-    }
-    fn decim_match(&self, rhs: &Self) -> Self {
-        let mut s = self.clone();
-        s.decim_match_mut(&rhs);
-        s
+    fn split_dt(&self, _duration: Duration) -> Result<Vec<Self>, split::Error> {
+        Ok(Vec::new())
     }
 }
 
-impl TimeScaling<Record> for Record {
+impl GnssTime for Record {
+    fn timeseries(&self, dt: Duration) -> TimeSeries {
+        let epochs: Vec<_> = self.keys().collect();
+        TimeSeries::inclusive(
+            **epochs.get(0).expect("failed to determine first epoch"),
+            **epochs
+                .get(epochs.len() - 1)
+                .expect("failed to determine last epoch"),
+            dt,
+        )
+    }
     fn convert_timescale(&mut self, ts: TimeScale) {
         self.iter_mut()
             .map(|(k, v)| (k.in_time_scale(ts), v))
@@ -431,5 +405,83 @@ impl TimeScaling<Record> for Record {
         let mut s = self.clone();
         s.convert_timescale(ts);
         s
+    }
+}
+
+impl Mask for Record {
+    fn mask(&self, mask: MaskFilter) -> Self {
+        let mut s = self.clone();
+        s.mask_mut(mask);
+        s
+    }
+    fn mask_mut(&mut self, mask: MaskFilter) {
+        match mask.operand {
+            MaskOperand::Equals => match mask.item {
+                TargetItem::EpochItem(epoch) => self.retain(|e, _| *e == epoch),
+                TargetItem::ConstellationItem(mask) => {
+                    self.retain(|_, dtypes| {
+                        dtypes.retain(|_, systems| {
+                            systems.retain(|system, _| {
+                                if let Some(sv) = system.as_sv() {
+                                    mask.contains(&sv.constellation)
+                                } else {
+                                    true // retain other system types
+                                }
+                            });
+                            systems.len() > 0
+                        });
+                        dtypes.len() > 0
+                    });
+                },
+                _ => {}, // TargetItem::
+            },
+            MaskOperand::NotEquals => match mask.item {
+                TargetItem::EpochItem(epoch) => self.retain(|e, _| *e != epoch),
+                _ => {}, // TargetItem::
+            },
+            MaskOperand::GreaterEquals => match mask.item {
+                TargetItem::EpochItem(epoch) => self.retain(|e, _| *e >= epoch),
+                _ => {}, // TargetItem::
+            },
+            MaskOperand::GreaterThan => match mask.item {
+                TargetItem::EpochItem(epoch) => self.retain(|e, _| *e > epoch),
+                _ => {}, // TargetItem::
+            },
+            MaskOperand::LowerEquals => match mask.item {
+                TargetItem::EpochItem(epoch) => self.retain(|e, _| *e <= epoch),
+                _ => {}, // TargetItem::
+            },
+            MaskOperand::LowerThan => match mask.item {
+                TargetItem::EpochItem(epoch) => self.retain(|e, _| *e < epoch),
+                _ => {}, // TargetItem::
+            },
+        }
+    }
+}
+
+impl Preprocessing for Record {
+    fn filter(&self, f: Filter) -> Self {
+        let mut s = self.clone();
+        s.filter_mut(f);
+        s
+    }
+    fn filter_mut(&mut self, f: Filter) {
+        match f {
+            Filter::Mask(mask) => self.mask_mut(mask),
+            Filter::Smoothing(_) => todo!(),
+            Filter::Decimation(_) => todo!(),
+            Filter::Interp(filter) => self.interpolate_mut(filter.series),
+        }
+    }
+}
+
+impl Interpolate for Record {
+    fn interpolate(&self, series: TimeSeries) -> Self {
+        let mut s = self.clone();
+        s.interpolate_mut(series);
+        s
+    }
+    fn interpolate_mut(&mut self, _series: TimeSeries) {
+        unimplemented!("clocks:record:interpolate_mut()");
     }
 }

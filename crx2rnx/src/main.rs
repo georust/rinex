@@ -26,7 +26,7 @@ fn main() -> Result<(), rinex::Error> {
         },
     };
     let mut rinex = Rinex::from_file(input_path)?; // parse
-    rinex.crnx2rnx(); // convert to RINEX
+    rinex.crnx2rnx_mut(); // convert to RINEX
     rinex.to_file(&output_path)?; // dump
     println!("\"{}\" generated", output_path.clone());
     Ok(())

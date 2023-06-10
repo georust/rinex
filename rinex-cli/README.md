@@ -32,8 +32,7 @@ This tool supports gzip compressed files, as long as their name is terminated by
 ### Analysis and report files
 
 Analysis and reports are generated in HTML, in the `rinex/rinex-cli/product` directory.  
-Analysis is named after the primary RINEX file, so it is possible to generate
-several products and keep them.
+Analysis is named after the primary RINEX file.
 
 Some advanced computations and analysis are possible with this tool,
 refer to the dedicated sections.
@@ -46,10 +45,12 @@ proprietary formats in general.
 
 Some teqc operations are supported:
 
-- [merge](doc/merge.md) several RINEX together into a single file.
-- [split](doc/split.md) given RINEX into two
-- [resampling](doc/sampling.md) to reduce data quantity
-- [quality check](doc/qc.md): file quality check, mainly Observations
+- [merge](doc/merge.md): Merge two RINEX files together
+- [split](doc/split.md): Split a RINEX file into two
+- [resampling](doc/preprocessing.md): Resampling operations can be performed 
+if you know how to operate the preprocessing toolkit
+- [quality check](doc/qc.md): RINEX data quality analysis (mainly statistics and only on OBS RINEX at the moment)
+- other advanced operations are documented in the [processing](doc/processing.md) serie
 
 ## Getting started
 
@@ -63,7 +64,8 @@ cargo build --release
 ./target/release/rinex-cli -h
 ```
 
-From now on, "rinex-cli" means "target/release/rinex-cli" previously compiled.  
+From now on, "rinex-cli" means "target/release/rinex-cli" previously compiled
+(always prefer the `released` binary for optimal performances).
 
 All examples depicted in this documentation suite uses our
 [test data](https://github.com/gwbres/rinex/tree/main/test_resources).  
@@ -75,8 +77,8 @@ File paths have to be absolute.
 Arguments order does not matter to this application: 
 
 ```bash
-rinex-cli --fp test_resources/NAV/V2/amel010.21g
-rinex-cli --sv-epoch --fp /tmp/amel010.21g
+rinex-cli --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz
+rinex-cli --sv-epoch --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz 
 ```
 
 Use the `RUST_LOG` environment variable to enjoy the env logger.  
@@ -90,29 +92,50 @@ export RUST_LOG=info
 rinex-cli --fp test_resources/NAV/V2/amel010.21g
 ```
 
-Some operations may require an argument. In this case we expect a CSV description,
-for example, `--retain-sv` to focus on vehicles of interest is one of those:
+For example, here is the trace you get on a complex run (don't worry about
+the command line options yet)
 
 ```bash
-rinex-cli --fp rovn0010.21o --retain-sv G01,G02
+./target/release/rinex-cli \
+    -f test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
+        -P GPS L1C,L2L ">G18" "<=G25" \
+            decim:4:L1C ">2020-06-25T08:00:00 UTC" "<=2020-06-25T10:00:00 UTC"
+ 2023-06-10T10:37:30.951Z INFO  rinex_cli::context > antenna position: WGS84 (3582105.291m 532589.7313m 5232754.8054m)
+ 2023-06-10T10:37:30.988Z TRACE rinex_cli::preprocessing > applied filter "GPS"
+ 2023-06-10T10:37:31.007Z TRACE rinex_cli::preprocessing > applied filter "L1C,L2L"
+ 2023-06-10T10:37:31.013Z TRACE rinex_cli::preprocessing > applied filter ">G18"
+ 2023-06-10T10:37:31.015Z TRACE rinex_cli::preprocessing > applied filter "<=G25"
+ 2023-06-10T10:37:31.055Z TRACE rinex_cli::preprocessing > applied filter "decim:4:L1C"
+ 2023-06-10T10:37:31.056Z TRACE rinex_cli::preprocessing > applied filter ">2020-06-25T08:00:00 UTC"
+ 2023-06-10T10:37:31.057Z TRACE rinex_cli::preprocessing > applied filter "<=2020-06-25T10:00:00 UTC"
+ 2023-06-10T10:37:31.057Z INFO  rinex_cli                > record analysis
+ 2023-06-10T10:37:31.057Z TRACE rinex_cli::plot::record::observation > Carrier cycles observations
+ 2023-06-10T10:37:31.058Z INFO  rinex_cli                            > graphs rendered in "product/ESBC00DNK_R_20201770000_01D_30S_MO/graphs.html"
 ```
 
-As previously said, [rinex-cli/product](product/) is where we generate
-analysis reports.
+The `antenna position: WGS (x, y, z)` info means the provided context has a ground position defined. 
+This is a prerequisite to some advanced operations.   
+A few preprocessing operations were requested with `-P`, you get a trace
+for every operation that did apply (correct command line description).  
+`> record analysis` means the analysis is being performed.  
+The location of the graphs that were rendered (if any) is given.
+
+[rinex-cli/product](product/) is where all analysis reports
+get generated. It is named after the main RINEX file (`-fp`) which
+allows preserving sessions for different files.
 
 Analysis are stacked to one another, and order does not matter.  
-For example, when providing an Observation RINEX data, 
-one plot per physic is to be generated, and here we request
-two other analysis to be performed:
+
+For example, when providing OBS RINEX data, 
+one plot per physic is to be generated. 
+In this example, we also stack two more analysis,
+both of them are graphical, so two more graphs are rendered.
 
 ```bash
 rinex-cli \
-    --retain-sv R01,R08,R19,G08,G21,G31 \ # focus
     --sv-epoch \ # Sv per Epoch identification
     --epoch-hist \  # sampling rate histogram analysis
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz 
-
-ls rinex-cli/product/ESBC00DNK_R_20201770000_01D_30S_MO/analysis.html
 ```
 
 ## HTML content
@@ -123,7 +146,7 @@ In the future, we will allow other formats to be generated
 
 When the analysis is concluded, the report
 is opened in the default web browser. This is turned off
-if the quiet (`-q`) is active.
+if the quiet option (`-q`) is active.
 
 The HTML content is self-sufficient, all Javascript
 and other dependencies are integrated . 
@@ -143,21 +166,14 @@ Examples of such information would be `Epoch` or `Sv` enumerations.
 For example:
 
 ```bash
-rinex-cli -f KOSG0010.95O --epoch
+rinex-cli -f OBS/V2/KOSG0010.95O --epochs
+rinex-cli -f test_resources/OBS/V2/KOSG0010.95O --epochs --sv
 ``` 
 
-As always, Identification operations can be stacked together, to perform several at once.
-For example, identify encountered vehicules at the same time:
+The `--pretty` option is there to make the datasets more readable (json format): 
 
 ```bash
-rinex-cli -f test_resources/OBS/V2/KOSG0010.95O --epoch --sv
-``` 
-
-Basic operations like these only output to "stdout" currently.  
-The `--pretty` option is there to make the datasets more readable: 
-
-```bash
-rinex-cli -f test_resources/OBS/V2/KOSG0010.95O --epoch --sv --pretty
+rinex-cli -f test_resources/OBS/V2/KOSG0010.95O --epochs --sv --pretty
 ``` 
 
 ## Data analysis
@@ -165,20 +181,6 @@ rinex-cli -f test_resources/OBS/V2/KOSG0010.95O --epoch --sv --pretty
 Several analysis can be stacked to the generated report, 
 like `--sv-epoch` or sample rate analysis with `--epoch-hist`.   
 Refer to their [dedicated page](doc/analysis.md) documentation.
-
-## Record analysis
-
-When analyzing a RINEX, it is probably needed to reduce
-the file content and focus on data you're interested in.
-
-We developed several filter operations, from which we
-distinguish two categories:
-
-* [Filtering operations](doc/filtering.md) 
-* [Resampling operations](doc/resampling.md) 
-
-Move on to the [record analysis mode](doc/record.md) for thorough
-examples of RINEX record manipulations.
 
 ## File generation
 
@@ -188,16 +190,17 @@ follow naming conventions, but it is currenly under development.
 
 File generation applies to all the following operations
 
-* [filtering](doc/filtering.md): create a new RINEX from the stripped RINEX content
+* [preprocessing](doc/preprocessing.md): create a new RINEX from the stripped RINEX content
+that results from preprocessing algorithms
 * [merge](doc/merge.md): merge two files into a single RINEX
 * [split](doc/split.md): split a file into two.
 
-For example, let's extract G01 from this file
+For example, create a file that is only made of G08 data originally contained in this file:
 
 ```bash
 rinex-cli -f test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    --retain-sv \
-    --output g01.txt
+    -P G08 \ # see preprocessing toolkit
+    --output g01.txt # does not have to follow naming conventions
 ```
 
 Header section is simply copied and maintained.

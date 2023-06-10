@@ -11,16 +11,16 @@ use rinex::ionex::*;
 
 pub fn plot_tec_map(
     plot_ctx: &mut PlotContext,
-    borders: ((f64, f64), (f64, f64)),
+    _borders: ((f64, f64), (f64, f64)),
     record: &Record,
 ) {
-    let cmap = colorous::TURBO;
+    let _cmap = colorous::TURBO;
     plot_ctx.add_world_map(MapboxStyle::OpenStreetMap, (32.5, -40.0), 1);
 
     let mut grid_lat: Vec<f64> = Vec::new();
     let mut grid_lon: Vec<f64> = Vec::new();
     let mut tec_max = -f64::INFINITY;
-    for (e_index, (e, (tec, _, _))) in record.iter().enumerate() {
+    for (e_index, (_e, (tec, _, _))) in record.iter().enumerate() {
         for point in tec {
             if e_index == 0 {
                 // grab grid definition

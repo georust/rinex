@@ -21,15 +21,19 @@ pub enum Error {
     IonexBaseRadiusMismatch,
 }
 
-/// Appends given vector into self
-pub fn merge_mut_vec<T: Clone>(lhs: &mut Vec<T>, rhs: &Vec<T>) {
+/*
+ * Appends given vector into self.
+ */
+pub(crate) fn merge_mut_vec<T: Clone>(lhs: &mut Vec<T>, rhs: &Vec<T>) {
     for item in rhs {
         lhs.push(item.clone());
     }
 }
 
-/// Merges given vector into self, but ensures values are unique
-pub fn merge_mut_unique_vec<T: Clone + PartialEq>(lhs: &mut Vec<T>, rhs: &Vec<T>) {
+/*
+ * Merges given vector into self, but ensures values are unique.
+ */
+pub(crate) fn merge_mut_unique_vec<T: Clone + PartialEq>(lhs: &mut Vec<T>, rhs: &Vec<T>) {
     for item in rhs {
         if !lhs.contains(&item) {
             lhs.push(item.clone());
@@ -37,8 +41,10 @@ pub fn merge_mut_unique_vec<T: Clone + PartialEq>(lhs: &mut Vec<T>, rhs: &Vec<T>
     }
 }
 
-/// Merges given map into self but ensures both keys and values are unique
-pub fn merge_mut_unique_map2d<K: PartialEq + Eq + Hash + Clone, V: Clone + PartialEq>(
+/*
+ * Merges given map into self but ensures both keys and values are unique.
+ */
+pub(crate) fn merge_mut_unique_map2d<K: PartialEq + Eq + Hash + Clone, V: Clone + PartialEq>(
     lhs: &mut HashMap<K, Vec<V>>,
     rhs: &HashMap<K, Vec<V>>,
 ) {
@@ -55,9 +61,10 @@ pub fn merge_mut_unique_map2d<K: PartialEq + Eq + Hash + Clone, V: Clone + Parti
     }
 }
 
-/// Merges optionnal data field,
-/// rhs overwrites lhs, only if lhs is not previously defined
-pub fn merge_mut_option<T: Clone>(lhs: &mut Option<T>, rhs: &Option<T>) {
+/*
+ * Merges optionnal data fields, rhs overwrites lhs, only if lhs is not previously defined.
+ */
+pub(crate) fn merge_mut_option<T: Clone>(lhs: &mut Option<T>, rhs: &Option<T>) {
     if lhs.is_none() {
         if let Some(rhs) = rhs {
             *lhs = Some(rhs.clone());
@@ -65,12 +72,26 @@ pub fn merge_mut_option<T: Clone>(lhs: &mut Option<T>, rhs: &Option<T>) {
     }
 }
 
-pub trait Merge<T> {
-    /// Merge immutable implementation.
-    /// When merging, Self attributes are always prefered.
-    /// Only `rhs` new header information is introduced,
-    /// rhs.header does not overwrite the previously known header attributes.
-    /// Record is then form by combining both file bodies.
+pub trait Merge {
+    /// Merge "rhs" dataset into self, to form a new dataset.
+    /// When merging two RINEX toghether, the data records
+    /// remain sorted by epoch in chrnonological order.
+    /// The merge operation behavior differs when dealing with
+    /// either a/the header sections, than dealing with the record set.
+    /// When dealing with the header sections, the behavior is to
+    /// preserve existing attributes and only new information contained
+    /// in "rhs" is introduced.  
+    /// When dealing with the record set, "lhs" content is completely
+    /// overwritten, that means:
+    ///   - existing epochs get replaced
+    ///   - new epochs can be introduced
+    /// This currently is the only behavior supported.
+    /// It was mainly developped for two reasons:
+    ///   - allow meaningful and high level operations
+    /// in a data production context
+    ///   - allow complex operations on a data subset,
+    /// where only specific data subset fields are targetted by
+    /// said operation, in preprocessing toolkit.
     /// ```
     /// use rinex::prelude::*;
     /// use rinex::merge::Merge;
@@ -96,11 +117,9 @@ pub trait Merge<T> {
     /// merged.to_file("merge.rnx")
     ///     .unwrap();
     /// ```
-    fn merge(&self, rhs: &T) -> Result<Self, Error>
+    fn merge(&self, rhs: &Self) -> Result<Self, Error>
     where
         Self: Sized;
-
-    /// Merges Self and `rhs` into a single RINEX.
-    /// See [merge] for an example of use.
-    fn merge_mut(&mut self, rhs: &T) -> Result<(), Error>;
+    /// [merge] mutable implementation.
+    fn merge_mut(&mut self, rhs: &Self) -> Result<(), Error>;
 }

@@ -32,8 +32,8 @@ mod test {
                 prn: *prn,
             });
         }
-        let mut index = 0;
-        for (e, classes) in record.iter() {
+
+        for (index, (e, classes)) in record.iter().enumerate() {
             assert_eq!(*e, expected_epochs[index]);
             for (class, frames) in classes.iter() {
                 // only Legacy Ephemeris in V2
@@ -151,7 +151,6 @@ mod test {
                     }
                 }
             }
-            index += 1
         }
     }
     #[test]
@@ -837,7 +836,6 @@ mod test {
         let record = rinex.record.as_nav();
         assert_eq!(record.is_some(), true);
         let record = record.unwrap();
-        let mut index = 0;
         let mut epochs: Vec<Epoch> = vec![
             Epoch::from_gregorian_utc(2021, 01, 01, 00, 00, 00, 00),
             Epoch::from_gregorian_utc(2021, 01, 01, 01, 28, 00, 00),

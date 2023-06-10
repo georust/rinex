@@ -1,8 +1,7 @@
 #[cfg(test)]
 mod test {
-    use rinex::header::*;
-    use rinex::observation::*;
-    use rinex::prelude::*;
+    use itertools::Itertools;
+    use rinex::{header::*, observation::*, prelude::*, processing::*};
     use std::str::FromStr;
     /*
      * General testbench
@@ -77,30 +76,40 @@ mod test {
                  */
                 let sv = Sv::new(Constellation::GPS, 03);
                 let observations = vehicules.get(&sv).unwrap();
-                let l1 = observations.get("L1").unwrap();
+                let l1 = observations
+                    .get(&Observable::from_str("L1").unwrap())
+                    .unwrap();
                 assert_eq!(l1.obs, -9440000.265);
                 assert!(l1.lli.unwrap().intersects(LliFlags::UNDER_ANTI_SPOOFING));
-                assert_eq!(l1.ssi, Some(Ssi::DbHz48_53));
+                assert_eq!(l1.snr, Some(Snr::DbHz48_53));
 
-                let l2 = observations.get("L2").unwrap();
+                let l2 = observations
+                    .get(&Observable::from_str("L2").unwrap())
+                    .unwrap();
                 assert_eq!(l2.obs, -7293824.593);
                 assert!(l2.lli.unwrap().intersects(LliFlags::UNDER_ANTI_SPOOFING));
-                assert_eq!(l2.ssi, Some(Ssi::DbHz42_47));
+                assert_eq!(l2.snr, Some(Snr::DbHz42_47));
 
-                let c1 = observations.get("C1").unwrap();
+                let c1 = observations
+                    .get(&Observable::from_str("C1").unwrap())
+                    .unwrap();
                 assert_eq!(c1.obs, 23189944.587);
                 assert!(c1.lli.unwrap().intersects(LliFlags::UNDER_ANTI_SPOOFING));
-                assert!(c1.ssi.is_none());
+                assert!(c1.snr.is_none());
 
-                let p1 = observations.get("P1").unwrap();
+                let p1 = observations
+                    .get(&Observable::from_str("P1").unwrap())
+                    .unwrap();
                 assert_eq!(p1.obs, 23189944.999);
                 assert!(p1.lli.unwrap().intersects(LliFlags::UNDER_ANTI_SPOOFING));
-                assert!(p1.ssi.is_none());
+                assert!(p1.snr.is_none());
 
-                let p2 = observations.get("P2").unwrap();
+                let p2 = observations
+                    .get(&Observable::from_str("P2").unwrap())
+                    .unwrap();
                 assert_eq!(p2.obs, 23189951.464);
                 assert!(p2.lli.unwrap().intersects(LliFlags::UNDER_ANTI_SPOOFING));
-                assert!(p2.ssi.is_none());
+                assert!(p2.snr.is_none());
             } else if index == 1 {
                 assert_eq!(
                     keys,
@@ -159,12 +168,12 @@ mod test {
         assert_eq!(
             obscodes,
             &vec![
-                String::from("C1"),
-                String::from("L1"),
-                String::from("L2"),
-                String::from("P2"),
-                String::from("S1"),
-                String::from("S2")
+                Observable::from_str("C1").unwrap(),
+                Observable::from_str("L1").unwrap(),
+                Observable::from_str("L2").unwrap(),
+                Observable::from_str("P2").unwrap(),
+                Observable::from_str("S1").unwrap(),
+                Observable::from_str("S2").unwrap(),
             ]
         );
         let obscodes = obs_hd.codes.get(&Constellation::Glonass);
@@ -173,12 +182,12 @@ mod test {
         assert_eq!(
             obscodes,
             &vec![
-                String::from("C1"),
-                String::from("L1"),
-                String::from("L2"),
-                String::from("P2"),
-                String::from("S1"),
-                String::from("S2")
+                Observable::from_str("C1").unwrap(),
+                Observable::from_str("L1").unwrap(),
+                Observable::from_str("L2").unwrap(),
+                Observable::from_str("P2").unwrap(),
+                Observable::from_str("S1").unwrap(),
+                Observable::from_str("S2").unwrap(),
             ]
         );
 
@@ -201,47 +210,47 @@ mod test {
         let observations = observations.unwrap();
 
         // C1
-        let observed = observations.get(&String::from("C1"));
+        let observed = observations.get(&Observable::from_str("C1").unwrap());
         assert_eq!(observed.is_some(), true);
         let observed = observed.unwrap();
         assert_eq!(observed.obs, 22288985.512);
         assert_eq!(observed.lli, None);
-        assert_eq!(observed.ssi, None);
+        assert_eq!(observed.snr, None);
         // L1
-        let observed = observations.get(&String::from("L1"));
+        let observed = observations.get(&Observable::from_str("L1").unwrap());
         assert_eq!(observed.is_some(), true);
         let observed = observed.unwrap();
         //assert_eq!(observed.obs, 117129399.048);
         assert_eq!(observed.lli, Some(LliFlags::OK_OR_UNKNOWN));
-        assert_eq!(observed.ssi, Some(Ssi::DbHz36_41));
+        assert_eq!(observed.snr, Some(Snr::DbHz36_41));
         // L2
-        let observed = observations.get(&String::from("L2"));
+        let observed = observations.get(&Observable::from_str("L2").unwrap());
         assert_eq!(observed.is_some(), true);
         let observed = observed.unwrap();
         //assert_eq!(observed.obs, 91269672.416);
         assert_eq!(observed.lli, Some(LliFlags::UNDER_ANTI_SPOOFING));
-        assert_eq!(observed.ssi, Some(Ssi::DbHz36_41));
+        assert_eq!(observed.snr, Some(Snr::DbHz36_41));
         // P2
-        let observed = observations.get(&String::from("P2"));
+        let observed = observations.get(&Observable::from_str("P2").unwrap());
         assert_eq!(observed.is_some(), true);
         let observed = observed.unwrap();
         assert_eq!(observed.obs, 22288987.972);
         assert_eq!(observed.lli, None);
-        assert_eq!(observed.ssi, None);
+        assert_eq!(observed.snr, None);
         // S1
-        let observed = observations.get(&String::from("S1"));
+        let observed = observations.get(&Observable::from_str("S1").unwrap());
         assert_eq!(observed.is_some(), true);
         let observed = observed.unwrap();
         assert_eq!(observed.obs, 44.000);
         assert_eq!(observed.lli, None);
-        assert_eq!(observed.ssi, None);
+        assert_eq!(observed.snr, None);
         // S2
-        let observed = observations.get(&String::from("S2"));
+        let observed = observations.get(&Observable::from_str("S2").unwrap());
         assert_eq!(observed.is_some(), true);
         let observed = observed.unwrap();
         assert_eq!(observed.obs, 27.000);
         assert_eq!(observed.lli, None);
-        assert_eq!(observed.ssi, None);
+        assert_eq!(observed.snr, None);
 
         //R19
         let sv = Sv {
@@ -253,34 +262,34 @@ mod test {
         let observations = observations.unwrap();
 
         // C1
-        let observed = observations.get(&String::from("C1"));
+        let observed = observations.get(&Observable::from_str("C1").unwrap());
         assert_eq!(observed.is_some(), true);
         let observed = observed.unwrap();
         assert_eq!(observed.obs, 23250776.648);
         assert_eq!(observed.lli, None);
-        assert_eq!(observed.ssi, None);
+        assert_eq!(observed.snr, None);
         // L1
-        let observed = observations.get(&String::from("L1"));
+        let observed = observations.get(&Observable::from_str("L1").unwrap());
         assert_eq!(observed.is_some(), true);
         let observed = observed.unwrap();
         //assert_eq!(observed.obs, 124375967.254);
         assert_eq!(observed.lli, Some(LliFlags::OK_OR_UNKNOWN));
-        assert_eq!(observed.ssi, Some(Ssi::DbHz0));
+        assert_eq!(observed.snr, Some(Snr::DbHz0));
         // L2
-        let observed = observations.get(&String::from("L2"));
+        let observed = observations.get(&Observable::from_str("L2").unwrap());
         assert_eq!(observed.is_none(), true);
         // P2
-        let observed = observations.get(&String::from("P2"));
+        let observed = observations.get(&Observable::from_str("P2").unwrap());
         assert_eq!(observed.is_none(), true);
         // S1
-        let observed = observations.get(&String::from("S1"));
+        let observed = observations.get(&Observable::from_str("S1").unwrap());
         assert_eq!(observed.is_some(), true);
         let observed = observed.unwrap();
         assert_eq!(observed.obs, 32.000);
         assert_eq!(observed.lli, None);
-        assert_eq!(observed.ssi, None);
+        assert_eq!(observed.snr, None);
         // S2
-        let observed = observations.get(&String::from("S2"));
+        let observed = observations.get(&Observable::from_str("S2").unwrap());
         assert_eq!(observed.is_none(), true);
     }
     #[test]
@@ -299,8 +308,12 @@ mod test {
         assert!(header.obs.is_some());
         assert!(header.meteo.is_none());
         assert_eq!(
-            header.coords,
-            Some((3859571.8076, 413007.6749, 5044091.5729))
+            header.ground_position,
+            Some(GroundPosition::from_ecef_wgs84((
+                3859571.8076,
+                413007.6749,
+                5044091.5729
+            )))
         );
         assert_eq!(header.station_id, "13544M001");
         assert_eq!(header.observer, "Hans van der Marel");
@@ -322,17 +335,17 @@ mod test {
         assert_eq!(
             obscodes,
             &vec![
-                String::from("C1"),
-                String::from("C2"),
-                String::from("C5"),
-                String::from("L1"),
-                String::from("L2"),
-                String::from("L5"),
-                String::from("P1"),
-                String::from("P2"),
-                String::from("S1"),
-                String::from("S2"),
-                String::from("S5")
+                Observable::from_str("C1").unwrap(),
+                Observable::from_str("C2").unwrap(),
+                Observable::from_str("C5").unwrap(),
+                Observable::from_str("L1").unwrap(),
+                Observable::from_str("L2").unwrap(),
+                Observable::from_str("L5").unwrap(),
+                Observable::from_str("P1").unwrap(),
+                Observable::from_str("P2").unwrap(),
+                Observable::from_str("S1").unwrap(),
+                Observable::from_str("S2").unwrap(),
+                Observable::from_str("S5").unwrap(),
             ]
         );
 
@@ -342,17 +355,17 @@ mod test {
         assert_eq!(
             obscodes,
             &vec![
-                String::from("C1"),
-                String::from("C2"),
-                String::from("C5"),
-                String::from("L1"),
-                String::from("L2"),
-                String::from("L5"),
-                String::from("P1"),
-                String::from("P2"),
-                String::from("S1"),
-                String::from("S2"),
-                String::from("S5")
+                Observable::from_str("C1").unwrap(),
+                Observable::from_str("C2").unwrap(),
+                Observable::from_str("C5").unwrap(),
+                Observable::from_str("L1").unwrap(),
+                Observable::from_str("L2").unwrap(),
+                Observable::from_str("L5").unwrap(),
+                Observable::from_str("P1").unwrap(),
+                Observable::from_str("P2").unwrap(),
+                Observable::from_str("S1").unwrap(),
+                Observable::from_str("S2").unwrap(),
+                Observable::from_str("S5").unwrap(),
             ]
         );
 
@@ -374,69 +387,69 @@ mod test {
         let observations = observations.unwrap();
 
         // C1
-        let observed = observations.get(&String::from("C1"));
+        let observed = observations.get(&Observable::from_str("C1").unwrap());
         assert_eq!(observed.is_some(), true);
         let observed = observed.unwrap();
         assert_eq!(observed.obs, 24225566.040);
         assert_eq!(observed.lli, None);
-        assert_eq!(observed.ssi, Some(Ssi::DbHz36_41));
+        assert_eq!(observed.snr, Some(Snr::DbHz36_41));
         //C2
-        let observed = observations.get(&String::from("C2"));
+        let observed = observations.get(&Observable::from_str("C2").unwrap());
         assert_eq!(observed.is_some(), true);
         let observed = observed.unwrap();
         assert_eq!(observed.obs, 24225562.932);
         assert_eq!(observed.lli, None);
-        assert_eq!(observed.ssi, Some(Ssi::from_str("6").unwrap()));
+        assert_eq!(observed.snr, Some(Snr::from_str("6").unwrap()));
         //C5 [missing]
-        let observed = observations.get(&String::from("C5"));
+        let observed = observations.get(&Observable::from_str("C5").unwrap());
         assert_eq!(observed.is_none(), true);
         //L1
-        let observed = observations.get(&String::from("L1"));
+        let observed = observations.get(&Observable::from_str("L1").unwrap());
         assert_eq!(observed.is_some(), true);
         let observed = observed.unwrap();
         //assert_eq!(observed.obs, 127306204.852);
         assert_eq!(observed.lli, Some(LliFlags::OK_OR_UNKNOWN));
-        assert_eq!(observed.ssi, Some(Ssi::from_str("6").unwrap()));
+        assert_eq!(observed.snr, Some(Snr::from_str("6").unwrap()));
         //L2
-        let observed = observations.get(&String::from("L2"));
+        let observed = observations.get(&Observable::from_str("L2").unwrap());
         assert_eq!(observed.is_some(), true);
         let observed = observed.unwrap();
         //assert_eq!(observed.obs, 99199629.819);
         assert_eq!(observed.lli, Some(LliFlags::OK_OR_UNKNOWN));
-        assert_eq!(observed.ssi, Some(Ssi::from_str("4").unwrap()));
+        assert_eq!(observed.snr, Some(Snr::from_str("4").unwrap()));
         //L5 [missing]
-        let observed = observations.get(&String::from("L5"));
+        let observed = observations.get(&Observable::from_str("L5").unwrap());
         assert_eq!(observed.is_none(), true);
         //P1
-        let observed = observations.get(&String::from("P1"));
+        let observed = observations.get(&Observable::from_str("P1").unwrap());
         assert_eq!(observed.is_some(), true);
         let observed = observed.unwrap();
         assert_eq!(observed.obs, 24225565.620);
         assert_eq!(observed.lli, None);
-        assert_eq!(observed.ssi, Some(Ssi::from_str("4").unwrap()));
+        assert_eq!(observed.snr, Some(Snr::from_str("4").unwrap()));
         //P2
-        let observed = observations.get(&String::from("P2"));
+        let observed = observations.get(&Observable::from_str("P2").unwrap());
         assert_eq!(observed.is_some(), true);
         let observed = observed.unwrap();
         assert_eq!(observed.obs, 24225563.191);
         assert_eq!(observed.lli, None);
-        assert_eq!(observed.ssi, Some(Ssi::from_str("4").unwrap()));
+        assert_eq!(observed.snr, Some(Snr::from_str("4").unwrap()));
         //S1
-        let observed = observations.get(&String::from("S1"));
+        let observed = observations.get(&Observable::from_str("S1").unwrap());
         assert_eq!(observed.is_some(), true);
         let observed = observed.unwrap();
         assert_eq!(observed.obs, 40.586);
         assert_eq!(observed.lli, None);
-        assert_eq!(observed.ssi, None);
+        assert_eq!(observed.snr, None);
         //S2
-        let observed = observations.get(&String::from("S2"));
+        let observed = observations.get(&Observable::from_str("S2").unwrap());
         assert_eq!(observed.is_some(), true);
         let observed = observed.unwrap();
         assert_eq!(observed.obs, 25.564);
         assert_eq!(observed.lli, None);
-        assert_eq!(observed.ssi, None);
+        assert_eq!(observed.snr, None);
         //S5 (missing)
-        let observed = observations.get(&String::from("S5"));
+        let observed = observations.get(&Observable::from_str("S5").unwrap());
         assert_eq!(observed.is_none(), true);
 
         // G07
@@ -449,54 +462,54 @@ mod test {
         let observations = observations.unwrap();
 
         //C1,C2,C5
-        let observed = observations.get(&String::from("C1"));
+        let observed = observations.get(&Observable::from_str("C1").unwrap());
         assert_eq!(observed.is_some(), true);
         let observed = observed.unwrap();
         assert_eq!(observed.obs, 23126824.976);
         assert_eq!(observed.lli, None);
-        assert_eq!(observed.ssi, Some(Ssi::from_str("6").unwrap()));
-        let observed = observations.get(&String::from("C2"));
+        assert_eq!(observed.snr, Some(Snr::from_str("6").unwrap()));
+        let observed = observations.get(&Observable::from_str("C2").unwrap());
         assert_eq!(observed.is_some(), true);
         let observed = observed.unwrap();
         assert_eq!(observed.obs, 23126830.088);
         assert_eq!(observed.lli, None);
-        assert_eq!(observed.ssi, Some(Ssi::from_str("6").unwrap()));
-        let observed = observations.get(&String::from("C5"));
+        assert_eq!(observed.snr, Some(Snr::from_str("6").unwrap()));
+        let observed = observations.get(&Observable::from_str("C5").unwrap());
         assert_eq!(observed.is_none(), true);
         //L1,L2,L5
-        let observed = observations.get(&String::from("L1"));
+        let observed = observations.get(&Observable::from_str("L1").unwrap());
         assert_eq!(observed.is_some(), true);
         let observed = observed.unwrap();
         //assert_eq!(observed.obs, 123669526.377);
         assert_eq!(observed.lli, Some(LliFlags::OK_OR_UNKNOWN));
-        assert_eq!(observed.ssi, Some(Ssi::from_str("6").unwrap()));
-        let observed = observations.get(&String::from("L2"));
+        assert_eq!(observed.snr, Some(Snr::from_str("6").unwrap()));
+        let observed = observations.get(&Observable::from_str("L2").unwrap());
         assert_eq!(observed.is_some(), true);
         let observed = observed.unwrap();
         //assert_eq!(observed.obs, 96187435.849);
         assert_eq!(observed.lli, Some(LliFlags::OK_OR_UNKNOWN));
-        assert_eq!(observed.ssi, Some(Ssi::from_str("6").unwrap()));
-        let observed = observations.get(&String::from("L5"));
+        assert_eq!(observed.snr, Some(Snr::from_str("6").unwrap()));
+        let observed = observations.get(&Observable::from_str("L5").unwrap());
         assert_eq!(observed.is_none(), true);
         //P1, P2
-        let observed = observations.get(&String::from("P1"));
+        let observed = observations.get(&Observable::from_str("P1").unwrap());
         assert_eq!(observed.is_none(), true);
-        let observed = observations.get(&String::from("P2"));
+        let observed = observations.get(&Observable::from_str("P2").unwrap());
         assert_eq!(observed.is_none(), true);
         //S1,S2,S5
-        let observed = observations.get(&String::from("S1"));
+        let observed = observations.get(&Observable::from_str("S1").unwrap());
         assert_eq!(observed.is_some(), true);
         let observed = observed.unwrap();
         assert_eq!(observed.obs, 41.931);
         assert_eq!(observed.lli, None);
-        assert_eq!(observed.ssi, None);
-        let observed = observations.get(&String::from("S2"));
+        assert_eq!(observed.snr, None);
+        let observed = observations.get(&Observable::from_str("S2").unwrap());
         assert_eq!(observed.is_some(), true);
         let observed = observed.unwrap();
         assert_eq!(observed.obs, 39.856);
         assert_eq!(observed.lli, None);
-        assert_eq!(observed.ssi, None);
-        let observed = observations.get(&String::from("S5"));
+        assert_eq!(observed.snr, None);
+        let observed = observations.get(&Observable::from_str("S5").unwrap());
         assert_eq!(observed.is_none(), true);
     }
     #[test]
@@ -514,24 +527,31 @@ mod test {
          */
         let observables = obs.codes.get(&Constellation::Glonass);
         assert_eq!(observables.is_some(), true);
-        let observables = observables.unwrap();
-        let expected: Vec<_> = vec!["C1C", "L1C", "D1C", "S1C", "C2P", "L2P", "D2P", "S2P"]
-            .into_iter()
-            .map(|s| s.to_string())
+        let mut observables = observables.unwrap().clone();
+        observables.sort();
+
+        let mut expected: Vec<Observable> = "C1C L1C D1C S1C C2P L2P D2P S2P"
+            .split_ascii_whitespace()
+            .map(|k| Observable::from_str(k).unwrap())
             .collect();
-        assert_eq!(observables, &expected);
+        expected.sort();
+        assert_eq!(observables, expected);
 
         /*
          * test GPS observables
          */
         let observables = obs.codes.get(&Constellation::GPS);
         assert_eq!(observables.is_some(), true);
-        let observables = observables.unwrap();
-        let expected: Vec<_> = vec!["C1C", "L1C", "D1C", "S1C", "C2W", "L2W", "D2W", "S2W"]
-            .into_iter()
-            .map(|s| s.to_string())
+        let mut observables = observables.unwrap().clone();
+        observables.sort();
+
+        let mut expected: Vec<Observable> = "C1C L1C D1C S1C C2W L2W D2W S2W"
+            .split_ascii_whitespace()
+            .map(|k| Observable::from_str(k).unwrap())
             .collect();
-        assert_eq!(observables, &expected);
+        expected.sort();
+        assert_eq!(observables, expected);
+
         let record = rinex.record.as_obs();
         assert_eq!(record.is_some(), true);
         let record = record.unwrap();
@@ -560,26 +580,26 @@ mod test {
         let g01 = vehicules.get(&g01);
         assert_eq!(g01.is_some(), true);
         let data = g01.unwrap();
-        let c1c = data.get("C1C");
+        let c1c = data.get(&Observable::from_str("C1C").unwrap());
         assert_eq!(c1c.is_some(), true);
         let c1c = c1c.unwrap();
         assert_eq!(c1c.obs, 20243517.560);
         assert!(c1c.lli.is_none());
-        assert!(c1c.ssi.is_none());
+        assert!(c1c.snr.is_none());
 
-        let l1c = data.get("L1C");
+        let l1c = data.get(&Observable::from_str("L1C").unwrap());
         assert_eq!(l1c.is_some(), true);
         let l1c = l1c.unwrap();
         assert_eq!(l1c.obs, 106380411.418);
         assert_eq!(l1c.lli, Some(LliFlags::OK_OR_UNKNOWN));
-        assert_eq!(l1c.ssi, Some(Ssi::from_str("8").unwrap()));
+        assert_eq!(l1c.snr, Some(Snr::from_str("8").unwrap()));
 
-        let s1c = data.get("S1C");
+        let s1c = data.get(&Observable::from_str("S1C").unwrap());
         assert_eq!(s1c.is_some(), true);
         let s1c = s1c.unwrap();
         assert_eq!(s1c.obs, 51.250);
         assert!(s1c.lli.is_none());
-        assert!(s1c.ssi.is_none());
+        assert!(s1c.snr.is_none());
 
         let g03 = Sv {
             constellation: Constellation::GPS,
@@ -588,14 +608,14 @@ mod test {
         let g03 = vehicules.get(&g03);
         assert_eq!(g03.is_some(), true);
         let data = g03.unwrap();
-        let c1c = data.get("C1C");
+        let c1c = data.get(&Observable::from_str("C1C").unwrap());
         assert_eq!(c1c.is_some(), true);
         let c1c = c1c.unwrap();
         assert_eq!(c1c.obs, 20619020.680);
         assert_eq!(c1c.lli.is_none(), true);
-        assert_eq!(c1c.ssi.is_none(), true);
+        assert_eq!(c1c.snr.is_none(), true);
 
-        let l1c = data.get("L1C");
+        let l1c = data.get(&Observable::from_str("L1C").unwrap());
         assert_eq!(l1c.is_some(), true);
         let l1c = l1c.unwrap();
 
@@ -606,14 +626,14 @@ mod test {
         let g04 = vehicules.get(&g04);
         assert_eq!(g04.is_some(), true);
         let data = g04.unwrap();
-        let c1c = data.get("C1C");
+        let c1c = data.get(&Observable::from_str("C1C").unwrap());
         assert_eq!(c1c.is_some(), true);
         let c1c = c1c.unwrap();
         assert_eq!(c1c.obs, 21542633.500);
         assert_eq!(c1c.lli.is_none(), true);
-        assert_eq!(c1c.ssi.is_none(), true);
+        assert_eq!(c1c.snr.is_none(), true);
 
-        let l1c = data.get("L1C");
+        let l1c = data.get(&Observable::from_str("L1C").unwrap());
         assert_eq!(l1c.is_some(), true);
         let l1c = l1c.unwrap();
 
@@ -651,7 +671,7 @@ mod test {
         for code in vec![
             "C1C", "C1P", "C2C", "C2P", "C3Q", "L1C", "L1P", "L2C", "L2P", "L3Q",
         ] {
-            assert_eq!(glo_observables[index], code);
+            assert_eq!(glo_observables[index], Observable::from_str(code).unwrap());
             index += 1
         }
 
@@ -689,9 +709,9 @@ mod test {
     fn v2_kosg0010_95o() {
         let rnx = Rinex::from_file("../test_resources/OBS/V2/KOSG0010.95O").unwrap();
         let expected: Vec<Epoch> = vec![
-            Epoch::from_gregorian_utc(2095, 01, 01, 00, 00, 00, 00),
-            Epoch::from_gregorian_utc(2095, 01, 01, 11, 00, 00, 00),
-            Epoch::from_gregorian_utc(2095, 01, 01, 20, 44, 30, 00),
+            Epoch::from_gregorian_utc(1995, 01, 01, 00, 00, 00, 00),
+            Epoch::from_gregorian_utc(1995, 01, 01, 11, 00, 00, 00),
+            Epoch::from_gregorian_utc(1995, 01, 01, 20, 44, 30, 00),
         ];
         assert_eq!(rnx.epochs(), expected);
     }
@@ -715,42 +735,73 @@ mod test {
 
         let g07 = Sv::new(Constellation::GPS, 07);
         let observations = vehicules.get(&g07).unwrap();
-        let mut codes: Vec<_> = observations.keys().collect();
+        let mut codes: Vec<Observable> = observations.keys().map(|k| k.clone()).collect();
         codes.sort();
-        let mut expected = vec!["L1", "L2", "C1", "P2", "D1", "D2", "S1", "S2"];
+
+        let mut expected: Vec<Observable> = "L1 L2 C1 P2 D1 D2 S1 S2"
+            .split_ascii_whitespace()
+            .map(|k| Observable::from_str(k).unwrap())
+            .collect();
         expected.sort();
         assert_eq!(codes, expected);
 
-        let s1 = observations.get("S1").unwrap();
+        let s1 = observations
+            .get(&Observable::from_str("S1").unwrap())
+            .unwrap();
         assert_eq!(s1.obs, 37.350);
-        let s2 = observations.get("S2").unwrap();
+        let s2 = observations
+            .get(&Observable::from_str("S2").unwrap())
+            .unwrap();
         assert_eq!(s2.obs, 35.300);
 
         let r04 = Sv::new(Constellation::Glonass, 04);
         let observations = vehicules.get(&r04).unwrap();
-        let mut codes: Vec<_> = observations.keys().collect();
+
+        let mut codes: Vec<Observable> = observations.keys().map(|k| k.clone()).collect();
         codes.sort();
-        let mut expected = vec!["L1", "L2", "C1", "C2", "P2", "D1", "D2", "S1", "S2"];
+
+        let mut expected: Vec<Observable> = "L1 L2 C1 C2 P2 D1 D2 S1 S2"
+            .split_ascii_whitespace()
+            .map(|k| Observable::from_str(k).unwrap())
+            .collect();
         expected.sort();
         assert_eq!(codes, expected);
 
-        let l1 = observations.get("L1").unwrap();
+        let l1 = observations
+            .get(&Observable::from_str("L1").unwrap())
+            .unwrap();
         assert_eq!(l1.obs, 119147697.073);
-        let l2 = observations.get("L2").unwrap();
+        let l2 = observations
+            .get(&Observable::from_str("L2").unwrap())
+            .unwrap();
         assert_eq!(l2.obs, 92670417.710);
-        let c1 = observations.get("C1").unwrap();
+        let c1 = observations
+            .get(&Observable::from_str("C1").unwrap())
+            .unwrap();
         assert_eq!(c1.obs, 22249990.480);
-        let c2 = observations.get("C2").unwrap();
+        let c2 = observations
+            .get(&Observable::from_str("C2").unwrap())
+            .unwrap();
         assert_eq!(c2.obs, 22249983.480);
-        let p2 = observations.get("P2").unwrap();
+        let p2 = observations
+            .get(&Observable::from_str("P2").unwrap())
+            .unwrap();
         assert_eq!(p2.obs, 22249983.740);
-        let d1 = observations.get("D1").unwrap();
+        let d1 = observations
+            .get(&Observable::from_str("D1").unwrap())
+            .unwrap();
         assert_eq!(d1.obs, -1987.870);
-        let d2 = observations.get("D2").unwrap();
+        let d2 = observations
+            .get(&Observable::from_str("D2").unwrap())
+            .unwrap();
         assert_eq!(d2.obs, -1546.121);
-        let s1 = observations.get("S1").unwrap();
+        let s1 = observations
+            .get(&Observable::from_str("S1").unwrap())
+            .unwrap();
         assert_eq!(s1.obs, 47.300);
-        let s2 = observations.get("S2").unwrap();
+        let s2 = observations
+            .get(&Observable::from_str("S2").unwrap())
+            .unwrap();
         assert_eq!(s2.obs, 43.900);
 
         let epoch = epochs.get(1).unwrap();
@@ -761,29 +812,51 @@ mod test {
 
         let r04 = Sv::new(Constellation::Glonass, 04);
         let observations = vehicules.get(&r04).unwrap();
-        let mut codes: Vec<_> = observations.keys().collect();
+        let mut codes: Vec<Observable> = observations.keys().map(|k| k.clone()).collect();
         codes.sort();
-        let mut expected = vec!["L1", "L2", "C1", "C2", "P2", "D1", "D2", "S1", "S2"];
+
+        let mut expected: Vec<Observable> = "L1 L2 C1 C2 P2 D1 D2 S1 S2"
+            .split_ascii_whitespace()
+            .map(|k| Observable::from_str(k).unwrap())
+            .collect();
         expected.sort();
         assert_eq!(codes, expected);
 
-        let l1 = observations.get("L1").unwrap();
+        let l1 = observations
+            .get(&Observable::from_str("L1").unwrap())
+            .unwrap();
         assert_eq!(l1.obs, 119207683.536);
-        let l2 = observations.get("L2").unwrap();
+        let l2 = observations
+            .get(&Observable::from_str("L2").unwrap())
+            .unwrap();
         assert_eq!(l2.obs, 92717073.850);
-        let c1 = observations.get("C1").unwrap();
+        let c1 = observations
+            .get(&Observable::from_str("C1").unwrap())
+            .unwrap();
         assert_eq!(c1.obs, 22261192.380);
-        let c2 = observations.get("C2").unwrap();
+        let c2 = observations
+            .get(&Observable::from_str("C2").unwrap())
+            .unwrap();
         assert_eq!(c2.obs, 22261185.560);
-        let p2 = observations.get("P2").unwrap();
+        let p2 = observations
+            .get(&Observable::from_str("P2").unwrap())
+            .unwrap();
         assert_eq!(p2.obs, 22261185.940);
-        let d1 = observations.get("D1").unwrap();
+        let d1 = observations
+            .get(&Observable::from_str("D1").unwrap())
+            .unwrap();
         assert_eq!(d1.obs, -2011.414);
-        let d2 = observations.get("D2").unwrap();
+        let d2 = observations
+            .get(&Observable::from_str("D2").unwrap())
+            .unwrap();
         assert_eq!(d2.obs, -1564.434);
-        let s1 = observations.get("S1").unwrap();
+        let s1 = observations
+            .get(&Observable::from_str("S1").unwrap())
+            .unwrap();
         assert_eq!(s1.obs, 46.600);
-        let s2 = observations.get("S2").unwrap();
+        let s2 = observations
+            .get(&Observable::from_str("S2").unwrap())
+            .unwrap();
         assert_eq!(s2.obs, 43.650);
     }
     #[test]
@@ -863,47 +936,61 @@ mod test {
             if *k == Constellation::GPS {
                 let mut sorted = v.clone();
                 sorted.sort();
-                let expected: Vec<&str> =
+                let mut expected: Vec<Observable> =
                     "C1C C1W C2L C2W C5Q D1C D2L D2W D5Q L1C L2L L2W L5Q S1C S1W S2L S2W S5Q"
                         .split_ascii_whitespace()
+                        .map(|k| Observable::from_str(k).unwrap())
                         .collect();
+                expected.sort();
                 assert_eq!(sorted, expected);
             } else if *k == Constellation::Glonass {
                 let mut sorted = v.clone();
                 sorted.sort();
-                let expected: Vec<&str> =
+                let mut expected: Vec<Observable> =
                     "C1C C1P C2C C2P C3Q D1C D1P D2C D2P D3Q L1C L1P L2C L2P L3Q S1C S1P S2C S2P S3Q"
                     .split_ascii_whitespace()
+                    .map(|k| Observable::from_str(k).unwrap())
                     .collect();
+                expected.sort();
                 assert_eq!(sorted, expected);
             } else if *k == Constellation::BeiDou {
                 let mut sorted = v.clone();
                 sorted.sort();
-                let expected: Vec<&str> = "C2I C6I C7I D2I D6I D7I L2I L6I L7I S2I S6I S7I"
-                    .split_ascii_whitespace()
-                    .collect();
+                let mut expected: Vec<Observable> =
+                    "C2I C6I C7I D2I D6I D7I L2I L6I L7I S2I S6I S7I"
+                        .split_ascii_whitespace()
+                        .map(|k| Observable::from_str(k).unwrap())
+                        .collect();
+                expected.sort();
                 assert_eq!(sorted, expected);
             } else if *k == Constellation::QZSS {
                 let mut sorted = v.clone();
                 sorted.sort();
-                let expected: Vec<&str> = "C1C C2L C5Q D1C D2L D5Q L1C L2L L5Q S1C S2L S5Q"
-                    .split_ascii_whitespace()
-                    .collect();
+                let mut expected: Vec<Observable> =
+                    "C1C C2L C5Q D1C D2L D5Q L1C L2L L5Q S1C S2L S5Q"
+                        .split_ascii_whitespace()
+                        .map(|k| Observable::from_str(k).unwrap())
+                        .collect();
+                expected.sort();
                 assert_eq!(sorted, expected);
             } else if *k == Constellation::Galileo {
                 let mut sorted = v.clone();
                 sorted.sort();
-                let expected: Vec<&str> =
+                let mut expected: Vec<Observable> =
                     "C1C C5Q C6C C7Q C8Q D1C D5Q D6C D7Q D8Q L1C L5Q L6C L7Q L8Q S1C S5Q S6C S7Q S8Q"
                     .split_ascii_whitespace()
+                    .map(|k| Observable::from_str(k).unwrap())
                     .collect();
+                expected.sort();
                 assert_eq!(sorted, expected);
             } else if *k == Constellation::Geo {
                 let mut sorted = v.clone();
                 sorted.sort();
-                let expected: Vec<&str> = "C1C C5I D1C D5I L1C L5I S1C S5I"
+                let mut expected: Vec<Observable> = "C1C C5I D1C D5I L1C L5I S1C S5I"
                     .split_ascii_whitespace()
+                    .map(|k| Observable::from_str(k).unwrap())
                     .collect();
+                expected.sort();
                 assert_eq!(sorted, expected);
             } else {
                 panic!("decoded unexpected constellation");
@@ -951,4 +1038,175 @@ mod test {
             values
         );
     }
+    /*
+        #[test]
+        fn obs_v3_duth0630_processing() {
+            let rinex = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
+                .unwrap();
+            let record = rinex.record.as_obs()
+                .unwrap();
+
+            // MIN
+            let min = record.min();
+            let g01 = min.get(&Sv::from_str("G01").unwrap()).unwrap();
+            let s1c = g01.get(&Observable::from_str("S1C").unwrap()).unwrap();
+            assert_eq!(*s1c, 49.5);
+
+            // MAX
+            let max = record.max();
+            let g01 = max.get(&Sv::from_str("G01").unwrap()).unwrap();
+            let s1c = g01.get(&Observable::from_str("S1C").unwrap()).unwrap();
+            assert_eq!(*s1c, 51.250);
+
+            // MEAN
+            let mean = record.mean();
+            let g01 = mean.get(&Sv::from_str("G01").unwrap()).unwrap();
+            let s1c = g01.get(&Observable::from_str("S1C").unwrap()).unwrap();
+            assert_eq!(*s1c, (51.250 + 50.750 + 49.5)/3.0);
+
+            let g06 = mean.get(&Sv::from_str("G06").unwrap()).unwrap();
+            let s1c = g06.get(&Observable::from_str("S1C").unwrap()).unwrap();
+            assert_eq!(*s1c, 43.0);
+
+            // STDVAR
+            let stdvar = record.stdvar();
+            let mean = (51.25_f64 + 50.75_f64 + 49.5_f64)/3.0_f64;
+            let expected = ((51.25_f64 - mean).powf(2.0_f64) + (50.75_f64 - mean).powf(2.0_f64) + (49.5_f64 - mean).powf(2.0_f64)) / 3.0f64;
+            let g01 = stdvar.get(&Sv::from_str("G01").unwrap()).unwrap();
+            let s1c =  g01.get(&Observable::from_str("S1C").unwrap()).unwrap();
+            assert_eq!(*s1c, expected);
+        }
+        fn test_combinations(combinations: Vec<(Observable, Observable)>, signals: Vec<Observable>) {
+            /*
+             * test nb of combinations
+             */
+            let mut nb_pr = 0;
+            let mut nb_ph = 0;
+            for sig in signals {
+                let code = sig.code();
+                if sig.is_phase_observable() {
+                    nb_pr += 1;
+                }
+                if sig.is_pseudorange_observable() {
+                    nb_ph += 1;
+                }
+            }
+            assert_eq!(combinations.len(), nb_pr-1+nb_ph-1, "Wrong number of combinations, expecting {} | got: {:?}", nb_pr+nb_ph-2, combinations);
+            /*
+             * test formed combinations
+             * (M > 1) => 1
+             * 1       => 2
+             */
+            for (lhs, reference) in combinations {
+                let lhs_code = lhs.to_string();
+                let reference_code = reference.to_string();
+                let lhs_carrier = &lhs_code[1..2];
+                let reference_carrier = &reference_code[1..2];
+                if lhs_carrier != "1" {
+                    assert_eq!(reference_carrier, "1");
+                } else {
+                    assert_eq!(reference_carrier, "2");
+                }
+            }
+        }
+        #[test]
+        fn obs_v2_aopr0010_17o() {
+            let rinex = Rinex::from_file("../test_resources/OBS/V2/aopr0010.17o")
+                .unwrap();
+            let record = rinex.record.as_obs()
+                .unwrap();
+            let mut signals = vec![
+                Observable::from_str("L1").unwrap(),
+                Observable::from_str("L2").unwrap(),
+                Observable::from_str("C1").unwrap(),
+                Observable::from_str("P1").unwrap(),
+                Observable::from_str("P2").unwrap(),
+            ];
+            for combination in [
+                Combination::GeometryFree,
+                Combination::NarrowLane,
+                Combination::WideLane,
+                Combination::MelbourneWubbena,
+            ] {
+                let combined = record.combine(combination);
+                let mut combinations: Vec<(Observable, Observable)> =
+                    combined.keys().map(|(lhs, rhs)| (lhs.clone(), rhs.clone())).collect();
+                test_combinations(combinations, signals.clone());
+            }
+            /*
+             * Iono Delay Detector
+             */
+            let dt = rinex.sampling_interval().unwrap();
+            let ionod = record.iono_delay_detector(dt);
+        }
+        #[test]
+        fn obs_v3_duth0630_gnss_combinations() {
+            let rinex = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
+                .unwrap();
+            let record = rinex.record.as_obs()
+                .unwrap();
+            let mut signals = vec![
+                Observable::from_str("C1C").unwrap(),
+                Observable::from_str("C2W").unwrap(),
+                Observable::from_str("C2P").unwrap(),
+                Observable::from_str("L1C").unwrap(),
+                Observable::from_str("L2P").unwrap(),
+                Observable::from_str("L2W").unwrap(),
+            ];
+            for combination in [
+                Combination::GeometryFree,
+                Combination::NarrowLane,
+                Combination::WideLane,
+                Combination::MelbourneWubbena,
+            ] {
+                let combined = record.combine(combination);
+                let mut combinations: Vec<(Observable, Observable)> =
+                    combined.keys().map(|(lhs, rhs)| (lhs.clone(), rhs.clone())).collect();
+                test_combinations(combinations, signals.clone());
+            }
+            /*
+             * Iono Delay Detector
+             */
+            let dt = rinex.sampling_interval().unwrap();
+            let ionod = record.iono_delay_detector(dt);
+        }
+        #[test]
+        fn obs_v3_esbcd00dnk_r_2020_gnss_combinations() {
+            let rinex = Rinex::from_file("../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
+                .unwrap();
+            let record = rinex.record.as_obs()
+                .unwrap();
+            let gf = record.combine(Combination::GeometryFree);
+            let mut combinations: Vec<(Observable, Observable)> =
+                gf.keys().map(|(lhs, rhs)| (lhs.clone(), rhs.clone())).collect();
+            let mut signals = vec![
+                Observable::from_str("C1C").unwrap(),
+                Observable::from_str("C1W").unwrap(),
+                Observable::from_str("C2I").unwrap(),
+                Observable::from_str("C2L").unwrap(),
+                Observable::from_str("C2W").unwrap(),
+                Observable::from_str("C5I").unwrap(),
+                Observable::from_str("C5Q").unwrap(),
+                Observable::from_str("C6C").unwrap(),
+                Observable::from_str("C6I").unwrap(),
+                Observable::from_str("C7I").unwrap(),
+                Observable::from_str("C7Q").unwrap(),
+                Observable::from_str("C8Q").unwrap(),
+
+                Observable::from_str("L1C").unwrap(),
+                Observable::from_str("L2I").unwrap(),
+                Observable::from_str("L2L").unwrap(),
+                Observable::from_str("L3Q").unwrap(),
+                Observable::from_str("L2W").unwrap(),
+                Observable::from_str("L5I").unwrap(),
+                Observable::from_str("L5Q").unwrap(),
+                Observable::from_str("L6C").unwrap(),
+                Observable::from_str("L6I").unwrap(),
+                Observable::from_str("L7I").unwrap(),
+                Observable::from_str("L7Q").unwrap(),
+                Observable::from_str("L8Q").unwrap(),
+            ];
+            test_combinations(combinations, signals);
+        }
+    */
 }

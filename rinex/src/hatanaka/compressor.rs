@@ -1,6 +1,6 @@
 //! RINEX compression module
 use super::{numdiff::NumDiff, textdiff::TextDiff, Error};
-use crate::{is_comment, Constellation, Sv};
+use crate::{is_comment, Constellation, Observable, Sv};
 use std::collections::HashMap;
 use std::str::FromStr;
 
@@ -171,7 +171,7 @@ impl Compressor {
     pub fn compress(
         &mut self,
         _rnx_major: u8,
-        obs_codes: &HashMap<Constellation, Vec<String>>,
+        observables: &HashMap<Constellation, Vec<Observable>>,
         constellation: &Constellation,
         content: &str,
     ) -> Result<String, Error> {
@@ -191,7 +191,7 @@ impl Compressor {
                                 // identify current Sv
                                 if let Ok(sv) = self.current_vehicule(&constellation) {
                                     // nb of obs for this constellation
-                                    let sv_nb_obs = obs_codes[&sv.constellation].len();
+                                    let sv_nb_obs = observables[&sv.constellation].len();
                                     let nb_missing = std::cmp::min(5, sv_nb_obs - self.obs_ptr);
                                     //println!("Early empty line - missing {} field(s)", nb_missing); //DEBUG
                                     for i in 0..nb_missing {
@@ -298,7 +298,7 @@ impl Compressor {
                     // identify current satellite using stored epoch description
                     if let Ok(sv) = self.current_vehicule(&constellation) {
                         // nb of obs for this constellation
-                        let sv_nb_obs = obs_codes[&sv.constellation].len();
+                        let sv_nb_obs = observables[&sv.constellation].len();
                         if self.obs_ptr + nb_obs_line > sv_nb_obs {
                             // facing an overflow
                             // this means all final fields were omitted,

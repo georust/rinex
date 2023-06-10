@@ -2,7 +2,7 @@ use crate::fops::filename;
 use crate::parser::parse_epoch;
 use clap::{Arg, ArgAction, ArgMatches, ColorChoice, Command};
 use log::{error, info, warn};
-use rinex::{navigation::ElevationMask, prelude::*};
+use rinex::{prelude::*, quality::QcOpts, Merge};
 use std::str::FromStr;
 
 pub struct Cli {
@@ -28,36 +28,64 @@ impl Cli {
                         .help("Input RINEX file")
                         .action(ArgAction::Append)
                         .required(true))
-                .next_help_heading("RINEX identification commands")
+                .next_help_heading("Data identification")
                     .arg(Arg::new("epochs")
                         .long("epochs")
                         .action(ArgAction::SetTrue)
-                        .help("Identify epochs"))
+                        .help("Enumerate all epochs"))
                     .arg(Arg::new("constellations")
                         .long("constellations")
                         .short('c')
                         .action(ArgAction::SetTrue)
-                        .help("Identify GNSS constellations"))
+                        .help("Enumerate GNSS constellations"))
                     .arg(Arg::new("sv")
                         .long("sv")
                         .action(ArgAction::SetTrue)
-                        .help("Identify space vehicules"))
+                        .help("Enumerate Sv"))
                     .arg(Arg::new("sv-epoch")
                         .long("sv-epoch")
                         .action(ArgAction::SetTrue)
-                        .help("Plots encountered space vehicules per epoch.
-Useful graph to determine unexpected and determine vehicules of interest, inside this record.
-When both `--fp` and extra Navigation Context (`--nav`) are provided,
-this emphasizes epochs where vehicules were sampled on both contexts."))
+                        .help("Plot Sv against Epoch.
+Useful graph to determine vehicles of interest for specific operations.
+When both `--fp` and Navigation context (`--nav`) were provided, this 
+depicts shared epochs and vehicles between the two contexts."))
                     .arg(Arg::new("epoch-hist")
                         .long("epoch-hist")
                         .action(ArgAction::SetTrue)
-                        .help("Epoch duration histogram (graphical) analysis."))
+                        .help("Epoch duration histogram analysis."))
                     .arg(Arg::new("header")
                         .long("header")
                         .action(ArgAction::SetTrue)
-                        .help("Extract header fields"))
-                .next_help_heading("Record resampling methods")
+                        .help("Extracts (all) header fields"))
+                .next_help_heading("Preprocessing")
+                    .arg(Arg::new("gps-filter")
+                        .short('G')
+                        .action(ArgAction::SetTrue)
+                        .help("Filters out all GPS vehicles"))
+                    .arg(Arg::new("glo-filter")
+                        .short('R')
+                        .action(ArgAction::SetTrue)
+                        .help("Filters out all Glonass vehicles"))
+                    .arg(Arg::new("gal-filter")
+                        .short('E')
+                        .action(ArgAction::SetTrue)
+                        .help("Filters out all Galileo vehicles"))
+                    .arg(Arg::new("bds-filter")
+                        .short('C')
+                        .action(ArgAction::SetTrue)
+                        .help("Filters out all BeiDou vehicles"))
+                    .arg(Arg::new("qzss-filter")
+                        .short('J')
+                        .action(ArgAction::SetTrue)
+                        .help("Filters out all QZSS vehicles"))
+                    .arg(Arg::new("sbas-filter")
+                        .short('S')
+                        .action(ArgAction::SetTrue)
+                        .help("Filters out all SBAS vehicles"))
+					.arg(Arg::new("preprocessing")
+						.short('P')
+						.num_args(1..)
+						.help("Apply a preprocessing filter. Refer to filter design section of the README."))
                     .arg(Arg::new("resample-ratio")
                         .long("resample-ratio")
                         .short('r')
@@ -81,80 +109,12 @@ All epochs that do not lie within the specified (start, end)
 interval are dropped out. User must pass two valid Datetime description. Epochs are specified in UTC timescale.
 Example: -w \"2020-01-01 2020-01-02\" will restrict to 2020/01/01 midnight to 24hours.
 Example: -w \"2020-01-01 00:00:00 2020-01-01 01:00:00\" will restrict the first hour."))
-                .next_help_heading("Retain filters (focus on data of interest)")
-                    .arg(Arg::new("gps-filter")
-                        .short('G')
-                        .action(ArgAction::SetTrue)
-                        .help("Filter all GPS vehicles out"))
-                    .arg(Arg::new("glo-filter")
-                        .short('R')
-                        .action(ArgAction::SetTrue)
-                        .help("Filter all Glonass vehicles out"))
-                    .arg(Arg::new("gal-filter")
-                        .short('E')
-                        .action(ArgAction::SetTrue)
-                        .help("Filter all Galileo vehicles out"))
-                    .arg(Arg::new("bds-filter")
-                        .short('C')
-                        .action(ArgAction::SetTrue)
-                        .help("Filter all BeiDou vehicles out"))
-                    .arg(Arg::new("qzss-filter")
-                        .short('J')
-                        .action(ArgAction::SetTrue)
-                        .help("Filter all QZSS vehicles out"))
-                    .arg(Arg::new("sbas-filter")
-                        .short('S')
-                        .action(ArgAction::SetTrue)
-                        .help("Filter all SBAS vehicles out"))
-                    .arg(Arg::new("retain-constell")
-                        .long("retain-constell")
-                        .value_name("list(Constellation)")
-                        .help("Retain only given GNSS constellation"))
-                    .arg(Arg::new("retain-sv")
-                        .long("retain-sv")
-                        .value_name("list(Sv)")
-                        .help("Retain only given Space vehicules"))
-                    .arg(Arg::new("retain-epoch-ok")
-                        .long("retain-epoch-ok")
-                        .action(ArgAction::SetTrue)
-                        .help("Retain only epochs where associated flag is \"Ok\" or \"Unknown\".
-Truly applies to Observation RINEX only."))
-                    .arg(Arg::new("retain-epoch-nok")
-                        .long("retain-epoch-nok")
-                        .action(ArgAction::SetTrue)
-                        .help("Retain only non valid epochs.
-Truly applies to Observation RINEX only."))
-                    .arg(Arg::new("elev-mask")
-                        .short('e')
-                        .long("elev-mask")
-                        .help("Apply given elevation mask.
-Example: --elev-mask '>30' will retain Sv above 30°.
-Example: --elev-mask '<=40' will retain Sv below 40° included."))
                 .next_help_heading("Observation RINEX")
                     .arg(Arg::new("observables")
                         .long("observables")
                         .short('o')
                         .action(ArgAction::SetTrue)
                         .help("Identify observables. Applies to Observation and Meteo RINEX"))
-                    .arg(Arg::new("retain-obs")
-                        .long("retain-obs")
-                        .value_name("List(Observables)")
-                        .help("Retain only given list of Observables")) 
-                    .arg(Arg::new("retain-phase")
-                        .long("retain-phase")
-                        .action(ArgAction::SetTrue)
-                        .help("Retain only Phase Observations (all carriers)")) 
-                    .arg(Arg::new("retain-doppler")
-                        .long("retain-doppler")
-                        .action(ArgAction::SetTrue)
-                        .help("Retain only Doppler Observation (all carriers)")) 
-                    .arg(Arg::new("retain-pr")
-                        .long("retain-pr")
-                        .action(ArgAction::SetTrue)
-                        .help("Retain only Pseudo Range Observations (all carriers)")) 
-                    .arg(Arg::new("retain-ssi")
-                        .long("retain-ssi")
-                        .help("Retain only observations that have at least this signal quality"))
                     .arg(Arg::new("ssi-range")
                         .long("ssi-range")
                         .action(ArgAction::SetTrue)
@@ -212,16 +172,28 @@ Helps visualize what the CS detector is doing and fine tune its operation.
 CS do not get repaired with this command.
 If you're just interested in CS information, you probably just want `-qc` instead, avoid combining the two."))
                 .next_help_heading("Navigation RINEX")
+                    .arg(Arg::new("nav")
+                        .long("nav")
+                        .num_args(1..)
+                        .value_name("FILE")
+                        .help("Augment `--fp` analysis with Navigation data.
+Most useful when combined to Observation RINEX. Enables the complete (full) `--qc` mode.")) 
+                    .arg(Arg::new("antenna-ecef")
+                        .long("antenna-ecef")
+                        .value_name("\"x,y,z\" coordinates in ECEF [m]")
+                        .help("Define the (RX) antenna ground position manualy, in [m] ECEF system.
+Some calculations require a reference position.
+Ideally this information is contained in the file Header, but user can manually define them (superceeds)."))
+                    .arg(Arg::new("antenna-lla")
+                        .long("antenna-lla")
+                        .value_name("\"lat,lon,alt\" coordinates in ddeg [°]")
+                        .help("Define the (RX) antenna ground position manualy, in decimal degrees.
+Some calculations require a reference position.
+Ideally this information is contained in the file Header, but user can manually define them (superceeds)."))
                     .arg(Arg::new("orbits")
                         .long("orbits")
                         .action(ArgAction::SetTrue)
-                        .help("Identify orbit fields."))
-                    .arg(Arg::new("ref-pos")
-                        .long("ref-pos")
-                        .value_name("x,y,z coordinates [m] ECEF")
-                        .help("Reference position in [m] ECEF system.
-Some calculations require a reference position.
-Ideally this information is contained in the file Header, but user can manually define them (superceeds)."))
+                        .help("Enumerate orbit fields."))
                     .arg(Arg::new("nav-msg")
                         .long("nav-msg")
                         .action(ArgAction::SetTrue)
@@ -231,43 +203,6 @@ Ideally this information is contained in the file Header, but user can manually 
                         .action(ArgAction::SetTrue)
                         .help("Display clock biases (offset, drift, drift changes) per epoch and vehicule.
 -fp must be a NAV file"))
-                    .arg(Arg::new("retain-orb")
-                        .long("retain-orb")
-                        .help("Retain only given list of Orbits fields.
-For example, \"satPosX\" and \"satPosY\" are valid Glonass Orbit fields.
-Applies to either -fp or -nav context"))
-                    .arg(Arg::new("retain-lnav")
-                        .long("retain-lnav")
-                        .action(ArgAction::SetTrue)
-                        .help("Retain only Legacy Navigation frames.
-Applies to either -fp or -nav context"))
-                    .arg(Arg::new("retain-mnav")
-                        .long("retain-mnav")
-                        .action(ArgAction::SetTrue)
-                        .help("Retain only Modern Navigation frames.
-Applies to either -fp or -nav context"))
-                    .arg(Arg::new("retain-nav-msg")
-                        .long("retain-nav-msg")
-                        .action(ArgAction::SetTrue)
-                        .help("Retain only given list of Navigation messages.
-Applies to either -fp or -nav context"))
-                    .arg(Arg::new("retain-nav-eph")
-                        .long("retain-nav-eph")
-                        .action(ArgAction::SetTrue)
-                        .help("Retains only Navigation ephemeris frames.
-Applies to either -fp or -nav context"))
-                    .arg(Arg::new("retain-nav-iono")
-                        .long("retain-nav-iono")
-                        .action(ArgAction::SetTrue)
-                        .help("Retains only Navigation ionospheric models. 
--fp must be a NAV file"))
-                .next_help_heading("Navigation Data")
-                    .arg(Arg::new("nav")
-                        .long("nav")
-                        .value_name("FILE")
-                        .help("Augment `--fp` with related Navigation Context.
-Most useful when combined to Observation RINEX. 
-Enables full `--qc` summary."))
                 .next_help_heading("ANTEX / APC ")
                     .arg(Arg::new("--atx")
                         .long("atx")
@@ -280,14 +215,14 @@ Enables full `--qc` summary."))
                         .help("Enable Quality Check (QC) mode.
 Runs thorough analysis on provided RINEX data.
 The summary report by default is integrated to the global HTML report."))
-                    .arg(Arg::new("qc-separate")
-                        .long("qc-separate")
-                        .action(ArgAction::SetTrue)
-                        .help("Dump QC report in separate HTML"))
+					.arg(Arg::new("qc-config")
+						.long("qc-cfg")
+						.value_name("[FILE]")
+						.help("Pass a QC configuration file."))
                     .arg(Arg::new("qc-only")
                         .long("qc-only")
                         .action(ArgAction::SetTrue)
-                        .help("Enables QC mode and disables all other graphs: smallest QC report possible."))
+                        .help("Enables QC mode and ensures no other analysis are performed (quickest qc rendition)."))
                 .next_help_heading("File operations")
                     .arg(Arg::new("merge")
                         .short('m')
@@ -313,7 +248,7 @@ For example -fp was filtered and decimated, use --output to dump results into a 
                         .help("Custom header attributes, in case we're generating data.
 --custom-header must either be plain JSON or an external JSON descriptor.
 Refer to README"))
-                .next_help_heading("Terminal options")
+                .next_help_heading("Terminal (options)")
                     .arg(Arg::new("quiet")
                         .short('q')
                         .action(ArgAction::SetTrue)
@@ -323,18 +258,13 @@ Refer to README"))
                         .long("pretty")
                         .action(ArgAction::SetTrue)
                         .help("Make terminal output more readable"))
-                .next_help_heading("HTML options")
-                    .arg(Arg::new("tiny-html")
-                        .long("tiny-html")
-                        .action(ArgAction::SetTrue)
-                        .help("Generates smaller HTML content, but slower to render in a web browser"))
                     .get_matches()
             },
         }
     }
     /// Returns input filepaths
     pub fn input_path(&self) -> &str {
-        self.matches.get_one::<String>("filepath").unwrap()
+        self.matches.get_one::<String>("filepath").unwrap() // mandatory flag
     }
     /// Returns output filepaths
     pub fn output_path(&self) -> Option<&str> {
@@ -344,17 +274,38 @@ Refer to README"))
             None
         }
     }
-    pub fn elevation_mask(&self) -> Option<ElevationMask> {
-        let args = self.matches.get_one::<String>("elev-mask")?;
-        if let Ok(mask) = ElevationMask::from_str(args) {
-            Some(mask)
+    pub fn mask_filters(&self) -> Vec<&String> {
+        if let Some(filters) = self.matches.get_many::<String>("mask-filter") {
+            filters.collect()
         } else {
-            println!("failed to parse elevation mask from \"{}\"", args);
-            None
+            Vec::new()
+        }
+    }
+    pub fn preprocessing(&self) -> Vec<&String> {
+        if let Some(filters) = self.matches.get_many::<String>("preprocessing") {
+            filters.collect()
+        } else {
+            Vec::new()
         }
     }
     pub fn quality_check(&self) -> bool {
         self.matches.get_flag("qc")
+    }
+    fn qc_config_path(&self) -> Option<&String> {
+        if let Some(path) = self.matches.get_one::<String>("qc-config") {
+            Some(path)
+        } else {
+            None
+        }
+    }
+    pub fn qc_config(&self) -> QcOpts {
+        if let Some(path) = self.qc_config_path() {
+            let s = std::fs::read_to_string(path).expect(&format!("failed to read \"{}\"", path));
+            let opts: QcOpts = serde_json::from_str(&s).expect("faulty qc configuration");
+            opts
+        } else {
+            QcOpts::default()
+        }
     }
     pub fn quality_check_separate(&self) -> bool {
         self.matches.get_flag("qc-separate")
@@ -441,106 +392,15 @@ Refer to README"))
             .map(|x| *x)
             .collect()
     }
-    /// Returns true if at least one retain filter should be applied
-    pub fn retain(&self) -> bool {
-        self.matches.contains_id("retain-constell")
-            | self.matches.contains_id("retain-sv")
-            | self.matches.contains_id("retain-epoch-ok")
-            | self.matches.contains_id("retain-epoch-nok")
-            | self.matches.contains_id("retain-obs")
-            | self.matches.contains_id("retain-ssi")
-            | self.matches.contains_id("retain-orb")
-            | self.matches.contains_id("retain-lnav")
-            | self.matches.contains_id("retain-mnav")
-            | self.matches.contains_id("retain-nav-msg")
-            | self.matches.contains_id("retain-nav-eph")
-            | self.matches.contains_id("retain-nav-iono")
-            | self.matches.contains_id("retain-phase")
-            | self.matches.contains_id("retain-doppler")
-            | self.matches.contains_id("retain-pr")
-    }
-
-    pub fn retain_flags(&self) -> Vec<&str> {
-        let flags = vec![
-            "retain-epoch-ok",
-            "retain-epoch-nok",
-            "retain-lnav",
-            "retain-mnav",
-            "retain-nav-msg",
-            "retain-nav-eph",
-            "retain-nav-iono",
-            "retain-phase",
-            "retain-doppler",
-            "retain-pr",
-        ];
-        flags
-            .iter()
-            .filter_map(|x| {
-                if self.matches.get_flag(x) {
-                    Some(*x)
-                } else {
-                    None
-                }
-            })
-            .collect()
-    }
-    /// Returns list of retain ops to perform with given list of arguments
-    pub fn retain_ops(&self) -> Vec<(&str, Vec<&str>)> {
-        // this list order is actually important,
-        //   because they describe the filter operation order
-        //   it is better to have epochs filter first
-        //    then the rest will follow
-        let flags = vec![
-            "retain-constell",
-            "retain-sv",
-            "retain-obs",
-            "retain-ssi",
-            "retain-orb",
-        ];
-        flags
-            .iter()
-            .filter(|x| self.matches.contains_id(x))
-            .map(|id| {
-                let descriptor = self.matches.get_one::<String>(id).unwrap();
-                let args: Vec<&str> = descriptor.split(",").collect();
-                (id, args)
-            })
-            .map(|(id, args)| (*id, args))
-            .collect()
-    }
     /// Returns true if at least one resampling op is to be performed
     pub fn resampling(&self) -> bool {
         self.matches.contains_id("resample-ratio")
             | self.matches.contains_id("resample-interval")
             | self.matches.contains_id("time-window")
     }
-
     pub fn resampling_ops(&self) -> Vec<(&str, &str)> {
         // this order describes eventually the order of filtering operations
         let flags = vec!["resample-ratio", "resample-interval", "time-window"];
-        flags
-            .iter()
-            .filter(|x| self.matches.contains_id(x))
-            .map(|id| {
-                let args = self.matches.get_one::<String>(id).unwrap();
-                (id, args.as_str())
-            })
-            .map(|(id, args)| (*id, args))
-            .collect()
-    }
-
-    /// Returns true if at least one filter should be applied
-    pub fn filter(&self) -> bool {
-        self.matches.contains_id("lli-mask")
-            || self.matches.contains_id("gps-filter")
-            || self.matches.contains_id("glo-filter")
-            || self.matches.contains_id("gal-filter")
-            || self.matches.contains_id("bds-filter")
-            || self.matches.contains_id("qzss-filter")
-            || self.matches.contains_id("sbas-filter")
-    }
-    pub fn filter_ops(&self) -> Vec<(&str, &str)> {
-        let flags = vec!["lli-mask"];
         flags
             .iter()
             .filter(|x| self.matches.contains_id(x))
@@ -595,28 +455,30 @@ Refer to README"))
         }
     }
     /// Returns optionnal Nav path, for enhanced capabilities
-    fn nav_path(&self) -> Option<&String> {
-        if self.matches.contains_id("nav") {
-            self.matches.get_one::<String>("nav")
+    pub fn nav_paths(&self) -> Vec<&String> {
+        if let Some(paths) = self.matches.get_many::<String>("nav") {
+            paths.collect()
         } else {
-            None
+            Vec::new()
         }
     }
     /// Returns optionnal Navigation context
     pub fn nav_context(&self) -> Option<Rinex> {
-        if let Some(path) = self.nav_path() {
+        let mut nav_ctx: Option<Rinex> = None;
+        let paths = self.nav_paths();
+        for path in paths {
             if let Ok(rnx) = Rinex::from_file(&path) {
-                if rnx.is_navigation_rinex() {
-                    info!("--nav: augmented mode");
-                    return Some(rnx);
+                if let Some(ref mut ctx) = nav_ctx {
+                    let _ = ctx.merge_mut(&rnx);
                 } else {
-                    error!("--nav must should be navigation data");
+                    trace!("(nav) augmentation: \"{}\"", filename(&path));
+                    nav_ctx = Some(rnx);
                 }
             } else {
-                warn!("failed to parse navigation file \"{}\"", filename(&path));
+                error!("failed to parse navigation file \"{}\"", filename(&path));
             }
         }
-        None
+        nav_ctx
     }
     fn atx_path(&self) -> Option<&String> {
         if self.matches.contains_id("atx") {
@@ -640,22 +502,50 @@ Refer to README"))
         }
         None
     }
-    /// Returns ECEF position passed by usuer
-    pub fn manual_position(&self) -> Option<(f64, f64, f64)> {
-        let args = self.matches.get_one::<String>("ref-pos")?;
-        let content: Vec<&str> = args.split(",").collect();
-        if let Ok(pos_x) = f64::from_str(content[0].trim()) {
-            if let Ok(pos_y) = f64::from_str(content[1].trim()) {
-                if let Ok(pos_z) = f64::from_str(content[2].trim()) {
-                    return Some((pos_x, pos_y, pos_z));
+    fn manual_ecef(&self) -> Option<&String> {
+        self.matches.get_one::<String>("antenna-ecef")
+    }
+    fn manual_geodetic(&self) -> Option<&String> {
+        self.matches.get_one::<String>("antenna-geo")
+    }
+    /// Returns Ground Position possibly specified by user
+    pub fn manual_position(&self) -> Option<GroundPosition> {
+        if let Some(args) = self.manual_ecef() {
+            let content: Vec<&str> = args.split(",").collect();
+            if content.len() != 3 {
+                panic!("expecting \"x, y, z\" description");
+            }
+            if let Ok(pos_x) = f64::from_str(content[0].trim()) {
+                if let Ok(pos_y) = f64::from_str(content[1].trim()) {
+                    if let Ok(pos_z) = f64::from_str(content[2].trim()) {
+                        return Some(GroundPosition::from_ecef_wgs84((pos_x, pos_y, pos_z)));
+                    } else {
+                        error!("pos(z) should be f64 ECEF [m]");
+                    }
                 } else {
-                    error!("pos(z) should be f64 ECEF [m]");
+                    error!("pos(y) should be f64 ECEF [m]");
                 }
             } else {
-                error!("pos(y) should be f64 ECEF [m]");
+                error!("pos(x) should be f64 ECEF [m]");
             }
-        } else {
-            error!("pos(x) should be f64 ECEF [m]");
+        } else if let Some(args) = self.manual_geodetic() {
+            let content: Vec<&str> = args.split(",").collect();
+            if content.len() != 3 {
+                panic!("expecting \"lat, lon, alt\" description");
+            }
+            if let Ok(lat) = f64::from_str(content[0].trim()) {
+                if let Ok(long) = f64::from_str(content[1].trim()) {
+                    if let Ok(alt) = f64::from_str(content[2].trim()) {
+                        return Some(GroundPosition::from_geodetic((lat, long, alt)));
+                    } else {
+                        error!("altitude should be f64 [ddeg]");
+                    }
+                } else {
+                    error!("altitude should be f64 [ddeg]");
+                }
+            } else {
+                error!("altitude should be f64 [ddeg]");
+            }
         }
         None
     }
