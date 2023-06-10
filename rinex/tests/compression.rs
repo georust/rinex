@@ -85,6 +85,9 @@ mod test {
                 "reciprocity test failed for \"{}\"",
                 testfile
             );
+
+            // remove generated file
+            let _ = std::fs::remove_file("test.crx");
         }
     }
 }
