@@ -147,6 +147,26 @@ mod test {
             assert!(filt.is_ok(), "Filter::from_str failed on \"{}\"", desc);
         }
         /*
+         * Decimation with subset
+         */
+        for desc in vec!["decim:10:L1C", "decim:10 min:L1C,L2C", "decim:1 hour:L1C"] {
+            let filt = Filter::from_str(desc);
+            assert!(filt.is_ok(), "Filter::from_str failed on \"{}\"", desc);
+            let filt = filt.unwrap();
+            match filt {
+                Filter::Decimation(f) => {
+                    assert!(
+                        f.target.is_some(),
+                        "Filter::from_str failed to decode data subset in \"{}\"",
+                        desc
+                    );
+                },
+                f => {
+                    panic!("falsely decoded {:?} from \"{}\"", f, desc);
+                },
+            }
+        }
+        /*
          * SMOOTHING FILTER description
          */
         for desc in vec![

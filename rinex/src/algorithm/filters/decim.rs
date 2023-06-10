@@ -21,7 +21,7 @@ pub enum DecimationType {
 #[derive(Clone, Debug, PartialEq)]
 pub struct DecimationFilter {
     /// Optional data subset
-    target: Option<TargetItem>,
+    pub target: Option<TargetItem>,
     /// Type of decimation filter
     pub dtype: DecimationType,
 }
@@ -78,12 +78,26 @@ impl std::str::FromStr for DecimationFilter {
         let items: Vec<&str> = content.trim().split(":").collect();
         if let Ok(dt) = Duration::from_str(items[0].trim()) {
             Ok(Self {
-                target: None,
+                target: {
+                    if items.len() > 1 {
+                        let target = TargetItem::from_str(items[1].trim())?;
+                        Some(target)
+                    } else {
+                        None // no subset description
+                    }
+                },
                 dtype: DecimationType::DecimByInterval(dt),
             })
         } else if let Ok(r) = u32::from_str_radix(items[0].trim(), 10) {
             Ok(Self {
-                target: None,
+                target: {
+                    if items.len() > 1 {
+                        let target = TargetItem::from_str(items[1].trim())?;
+                        Some(target)
+                    } else {
+                        None
+                    }
+                },
                 dtype: DecimationType::DecimByRatio(r),
             })
         } else {

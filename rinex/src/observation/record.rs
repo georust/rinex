@@ -678,50 +678,39 @@ fn fmt_epoch_v2(
 }
 
 impl Merge for Record {
-    /// Merges `rhs` into `Self` without mutable access at the expense of more memcopies
+    /// Merge `rhs` into `Self`
     fn merge(&self, rhs: &Self) -> Result<Self, merge::Error> {
         let mut lhs = self.clone();
         lhs.merge_mut(rhs)?;
         Ok(lhs)
     }
-    /// Merges `rhs` into `Self`
+    /// Merge `rhs` into `Self`
     fn merge_mut(&mut self, rhs: &Self) -> Result<(), merge::Error> {
-        for (epoch, (clk_offset, vehicules)) in rhs.iter() {
-            if let Some((cclk_offset, vvehicules)) = self.get_mut(epoch) {
-                if let Some(clk_offset) = clk_offset {
-                    if cclk_offset.is_none() {
-                        *cclk_offset = Some(*clk_offset); // clock offset is now provided
-                    }
-                }
-                for (vehicule, observations) in vehicules.iter() {
-                    if let Some(oobservations) = vvehicules.get_mut(vehicule) {
-                        for (observable, data) in observations.iter() {
-                            if let Some(ddata) = oobservations.get_mut(observable) {
-                                // observation both provided
-                                //  fill missing flags but leave data untouched
-                                if let Some(lli) = data.lli {
-                                    if ddata.lli.is_none() {
-                                        ddata.lli = Some(lli);
-                                    }
-                                }
-                                if let Some(snr) = data.snr {
-                                    if ddata.snr.is_none() {
-                                        ddata.snr = Some(snr);
-                                    }
-                                }
+        for (rhs_epoch, (rhs_clk, rhs_vehicules)) in rhs {
+            if let Some((clk, vehicules)) = self.get_mut(rhs_epoch) {
+                // exact epoch (both timestamp and flag) did exist
+                //  --> overwrite clock field (as is)
+                *clk = *rhs_clk;
+                // other fields:
+                // either insert (if did not exist), or overwrite
+                for (rhs_vehicule, rhs_observations) in rhs_vehicules {
+                    if let Some(observations) = vehicules.get_mut(rhs_vehicule) {
+                        for (rhs_observable, rhs_data) in rhs_observations {
+                            if let Some(data) = observations.get_mut(rhs_observable) {
+                                *data = *rhs_data; // overwrite
                             } else {
-                                //new observation
-                                oobservations.insert(observable.clone(), data.clone());
+                                // new observation: insert it
+                                observations.insert(rhs_observable.clone(), rhs_data.clone());
                             }
                         }
                     } else {
-                        // new vehicule
-                        vvehicules.insert(*vehicule, observations.clone());
+                        // new Sv: insert it
+                        vehicules.insert(*rhs_vehicule, rhs_observations.clone());
                     }
                 }
             } else {
-                // new epoch
-                self.insert(*epoch, (*clk_offset, vehicules.clone()));
+                // this epoch did not exist previously: insert it
+                self.insert(*rhs_epoch, (*rhs_clk, rhs_vehicules.clone()));
             }
         }
         Ok(())
@@ -806,21 +795,25 @@ impl Smooth for Record {
     }
     /// Applies Hatch smoothing filter in place
     fn hatch_smoothing_mut(&mut self, target: Option<TargetItem>) {
-        if let Some(item) = target {
-            let mask = MaskFilter {
-                item,
-                operand: MaskOperand::Equals,
-            };
-            self.mask_mut(mask);
-        }
+        // apply mask, if any: retains a specific data subset
+        let mut data_set: Self = match target {
+            Some(item) => {
+                let mask = MaskFilter {
+                    item,
+                    operand: MaskOperand::Equals,
+                };
+                self.mask(mask)
+            },
+            None => self.clone(),
+        };
         /*
          * smoothes pseudo range observations using special algorithm
          */
         let mut buffer: HashMap<Sv, HashMap<Observable, (u32, f64)>> = HashMap::new();
-        for (_, (_, svs)) in self {
-            for (sv, observables) in svs {
+        for (_, (_, svs)) in data_set.iter_mut() {
+            for (sv, observables) in svs.iter_mut() {
                 let rhs_observables = observables.clone();
-                for (pr_observable, pr_observation) in observables {
+                for (pr_observable, pr_observation) in observables.iter_mut() {
                     if !pr_observable.is_pseudorange_observable() {
                         continue;
                     }
@@ -849,6 +842,12 @@ impl Smooth for Record {
                 }
             }
         }
+        /*
+         * Form resulting data set
+         * By combining Self (initial) data set, and
+         * filtered data_set
+         */
+        let _ = self.merge_mut(&data_set); // infaillible: types do match here
     }
     fn moving_average(&self, window: Duration, target: Option<TargetItem>) -> Self {
         let mut s = self.clone();
@@ -856,13 +855,7 @@ impl Smooth for Record {
         s
     }
     fn moving_average_mut(&mut self, _window: Duration, target: Option<TargetItem>) {
-        if let Some(item) = target {
-            let mask = MaskFilter {
-                item,
-                operand: MaskOperand::Equals,
-            };
-            self.mask_mut(mask);
-        }
+        unimplemented!()
     }
 }
 
@@ -1103,13 +1096,75 @@ impl Interpolate for Record {
         s
     }
     fn interpolate_mut(&mut self, _series: TimeSeries, target: Option<TargetItem>) {
-        if let Some(target) = target {
-            let mask = MaskFilter {
-                operand: MaskOperand::Equals,
-                item: target,
-            };
-            self.mask_mut(mask);
-        }
+        unimplemented!()
+    }
+}
+
+/*
+ * Decimates only a given record subset
+ */
+fn decimate_data_subset(record: &mut Record, subset: &Record, target: &TargetItem) {
+    match target {
+        TargetItem::ClockItem => {
+            /*
+             * Remove clock fields from self
+             * where it should now be missing
+             */
+            for (epoch, (clk, _)) in record.iter_mut() {
+                if subset.get(epoch).is_none() {
+                    // should be missing
+                    *clk = None; // now missing
+                }
+            }
+        },
+        TargetItem::SvItem(svs) => {
+            /*
+             * Remove Sv observations where it should now be missing
+             */
+            for (epoch, (_, vehicules)) in record.iter_mut() {
+                if subset.get(epoch).is_none() {
+                    // should be missing
+                    for sv in svs.iter() {
+                        vehicules.remove(sv); // now missing
+                    }
+                }
+            }
+        },
+        TargetItem::ObservableItem(obs_list) => {
+            /*
+             * Remove given observations where it should now be missing
+             */
+            for (epoch, (_, vehicules)) in record.iter_mut() {
+                if subset.get(epoch).is_none() {
+                    // should be missing
+                    for (_sv, observables) in vehicules.iter_mut() {
+                        observables.retain(|observable, _| !obs_list.contains(observable));
+                    }
+                }
+            }
+        },
+        TargetItem::ConstellationItem(constells_list) => {
+            /*
+             * Remove observations for given constellation(s) where it should now be missing
+             */
+            for (epoch, (_, vehicules)) in record.iter_mut() {
+                if subset.get(epoch).is_none() {
+                    // should be missing
+                    vehicules.retain(|sv, _| {
+                        let mut contained = false;
+                        for constell in constells_list.iter() {
+                            if sv.constellation == *constell {
+                                contained = true;
+                                break;
+                            }
+                        }
+                        !contained
+                    });
+                }
+            }
+        },
+        TargetItem::SnrItem(snr) => unimplemented!("decimate_data_subset::snr"), //TODO: implement in future
+        _ => {},                                                                 // does not apply
     }
 }
 
@@ -1128,8 +1183,47 @@ impl Preprocessing for Record {
             },
             Filter::Interp(filter) => self.interpolate_mut(filter.series, filter.target),
             Filter::Decimation(filter) => match filter.dtype {
-                DecimationType::DecimByRatio(r) => self.decimate_by_ratio_mut(r),
-                DecimationType::DecimByInterval(dt) => self.decimate_by_interval_mut(dt),
+                DecimationType::DecimByRatio(r) => {
+                    if filter.target.is_none() {
+                        self.decimate_by_ratio_mut(r);
+                        return; // no need to proceed further
+                    }
+
+                    let item = filter.target.unwrap();
+
+                    // apply mask to retain desired subset
+                    let mask = MaskFilter {
+                        item: item.clone(),
+                        operand: MaskOperand::Equals,
+                    };
+
+                    // and decimate
+                    let subset = self.mask(mask).decimate_by_ratio(r);
+
+                    // adapt self's subset to new data rates
+                    decimate_data_subset(self, &subset, &item);
+                },
+                DecimationType::DecimByInterval(dt) => {
+                    if filter.target.is_none() {
+                        self.decimate_by_interval_mut(dt);
+                        return; // no need to proceed further
+                    }
+
+                    let item = filter.target.unwrap();
+
+                    // apply mask to retain desired subset
+                    let mask = MaskFilter {
+                        item: item.clone(),
+                        operand: MaskOperand::Equals,
+                    };
+
+                    // and decimate
+                    let subset = self.mask(mask).decimate_by_interval(dt);
+
+                    // adapt self's subset to new data rates
+                    decimate_data_subset(self, &subset, &item);
+                },
+                _ => unimplemented!("observation::record::decimation"), //TODO
             },
         }
     }

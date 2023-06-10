@@ -32,8 +32,7 @@ This tool supports gzip compressed files, as long as their name is terminated by
 ### Analysis and report files
 
 Analysis and reports are generated in HTML, in the `rinex/rinex-cli/product` directory.  
-Analysis is named after the primary RINEX file, so it is possible to generate
-several products and keep them.
+Analysis is named after the primary RINEX file.
 
 Some advanced computations and analysis are possible with this tool,
 refer to the dedicated sections.
@@ -93,13 +92,44 @@ export RUST_LOG=info
 rinex-cli --fp test_resources/NAV/V2/amel010.21g
 ```
 
-As previously said, [rinex-cli/product](product/) is where we generate
-analysis reports.
+For example, here is the trace you get on a complex run (don't worry about
+the command line options yet)
+
+```bash
+./target/release/rinex-cli \
+    -f test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
+        -P GPS L1C,L2L ">G18" "<=G25" \
+            decim:4:L1C ">2020-06-25T08:00:00 UTC" "<=2020-06-25T10:00:00 UTC"
+ 2023-06-10T10:37:30.951Z INFO  rinex_cli::context > antenna position: WGS84 (3582105.291m 532589.7313m 5232754.8054m)
+ 2023-06-10T10:37:30.988Z TRACE rinex_cli::preprocessing > applied filter "GPS"
+ 2023-06-10T10:37:31.007Z TRACE rinex_cli::preprocessing > applied filter "L1C,L2L"
+ 2023-06-10T10:37:31.013Z TRACE rinex_cli::preprocessing > applied filter ">G18"
+ 2023-06-10T10:37:31.015Z TRACE rinex_cli::preprocessing > applied filter "<=G25"
+ 2023-06-10T10:37:31.055Z TRACE rinex_cli::preprocessing > applied filter "decim:4:L1C"
+ 2023-06-10T10:37:31.056Z TRACE rinex_cli::preprocessing > applied filter ">2020-06-25T08:00:00 UTC"
+ 2023-06-10T10:37:31.057Z TRACE rinex_cli::preprocessing > applied filter "<=2020-06-25T10:00:00 UTC"
+ 2023-06-10T10:37:31.057Z INFO  rinex_cli                > record analysis
+ 2023-06-10T10:37:31.057Z TRACE rinex_cli::plot::record::observation > Carrier cycles observations
+ 2023-06-10T10:37:31.058Z INFO  rinex_cli                            > graphs rendered in "product/ESBC00DNK_R_20201770000_01D_30S_MO/graphs.html"
+```
+
+The `antenna position: WGS (x, y, z)` info means the provided context has a ground position defined. 
+This is a prerequisite to some advanced operations.   
+A few preprocessing operations were requested with `-P`, you get a trace
+for every operation that did apply (correct command line description).  
+`> record analysis` means the analysis is being performed.  
+The location of the graphs that were rendered (if any) is given.
+
+[rinex-cli/product](product/) is where all analysis reports
+get generated. It is named after the main RINEX file (`-fp`) which
+allows preserving sessions for different files.
 
 Analysis are stacked to one another, and order does not matter.  
+
 For example, when providing OBS RINEX data, 
 one plot per physic is to be generated. 
-In this example, we also stack two more analysis:
+In this example, we also stack two more analysis,
+both of them are graphical, so two more graphs are rendered.
 
 ```bash
 rinex-cli \
@@ -107,9 +137,6 @@ rinex-cli \
     --epoch-hist \  # sampling rate histogram analysis
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz 
 ```
-
-In this example, one session was generated in the product folder,
-and the session is named "ESBC00DNK_R_20201770000_01D_30S_MO".
 
 ## HTML content
 

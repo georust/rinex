@@ -30,6 +30,9 @@ rinex-cli \
 
 In any case, invalid descriptors will not crash the app but only generate an error trace.
 
+All supported preprocessing operations can either apply to the entire data set
+or only to a specified data subset, see [this paragraph](#advanced-data-subsets) for more information.
+
 ## Masking operations
 
 Use Mask filters to focus on data you are interested in, or get rid of entire data subsets.
@@ -267,7 +270,7 @@ rinex-cli \
         ">2020-06-25T08:00:00 UTC" "<=2020-06-25T10:00:00 UTC"
 ```
 
-### Advanced: Use data subsets
+### Advanced: data subsets
 
 Algorithms apply to the entire record by default, but you can specify
 to apply it only a subset.
@@ -281,6 +284,19 @@ of L1C observations by 4:
 rinex-cli \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.gz \
     -P GPS ">=G08" L1C,L2C "decim:4:l1c"
+```
+
+With the following command line, we retain L1C L2C observations
+only for Vehicle >08 <25 of the american constellation.
+Entire set is decimated by 2 (reduces record quantity by 50%).  
+L1C observations are decimated by another factor of (total reduction is 75%)
+only for these observations.
+
+
+```bash
+rinex-cli \
+    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.gz \
+    -P GPS ">=G08" L1C,L2C decim:2  decim:2:L1C
 ```
 
 ## Advanced: Hatch Smoothing Filter
