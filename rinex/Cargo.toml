@@ -1,6 +1,6 @@
 [package]
 name = "rinex"
-version = "0.8.1"
+version = "0.9.0"
 license = "MIT OR Apache-2.0"
 authors = ["Guillaume W. Bres <guillaume.bressaix@gmail.com>"]
 description = "Package to parse and analyze RINEX data"
