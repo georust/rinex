@@ -17,14 +17,14 @@ for example:
 ```bash
 rinex-cli \
     -P G08,G09,G10
-    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.gz \
+    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
 ```
   
 Any amount of preprocessing algorithm can be stacked:
 
 ```bash
 rinex-cli \
-    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.gz \
+    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
     -P L1C G08,G09,G10
 ```
 
