@@ -21,20 +21,6 @@ impl Default for Version {
     }
 }
 
-#[cfg_attr(feature = "pyo3", pymethods)]
-impl Version {
-    #[cfg(feature = "pyo3")]
-    #[getter]
-    fn get_major(&self) -> u8 {
-        self.major
-    }
-    #[cfg(feature = "pyo3")]
-    #[getter]
-    fn get_minor(&self) -> u8 {
-        self.minor
-    }
-}
-
 impl std::fmt::Display for Version {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}.{}", self.major, self.minor)
@@ -60,10 +46,22 @@ impl std::str::FromStr for Version {
     }
 }
 
+#[cfg_attr(feature = "pyo3", pymethods)]
 impl Version {
     /// Builds a new `Version` object
+    #[new]
     pub fn new(major: u8, minor: u8) -> Self {
         Self { major, minor }
+    }
+    #[cfg(feature = "pyo3")]
+    #[getter]
+    fn get_major(&self) -> u8 {
+        self.major
+    }
+    #[cfg(feature = "pyo3")]
+    #[getter]
+    fn get_minor(&self) -> u8 {
+        self.minor
     }
     /// Returns true if this version is supported
     pub fn is_supported(&self) -> bool {
