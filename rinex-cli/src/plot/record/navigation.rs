@@ -95,7 +95,7 @@ pub fn plot(ctx: &mut PlotContext, record: &Record) {
         .unwrap()
         .clone()
         .restore(&plot);
-    for (_vehicule, bias) in bias {
+    for (_vehicle, bias) in bias {
         chart
             .draw_series(LineSeries::new(bias.iter().map(|point| *point), &BLACK))
             .expect("failed to draw clock biases")

@@ -6,14 +6,14 @@ use thiserror::Error;
 use serde::Serialize;
 
 use super::{
+    algorithm::{Filter, Preprocessing},
     antex, clocks,
-    gnss_time::TimeScaling,
+    gnss_time::GnssTime,
     hatanaka::{Compressor, Decompressor},
     header, ionex, is_comment, merge,
     merge::Merge,
     meteo, navigation, observation,
     reader::BufferedReader,
-    sampling::Decimation,
     split,
     split::Split,
     types::Type,
@@ -658,7 +658,7 @@ pub fn parse_record(
     Ok((record, comments))
 }
 
-impl Merge<Record> for Record {
+impl Merge for Record {
     /// Merges `rhs` into `Self` without mutable access at the expense of more memcopies
     fn merge(&self, rhs: &Self) -> Result<Self, merge::Error> {
         let mut lhs = self.clone();
@@ -696,7 +696,7 @@ impl Merge<Record> for Record {
     }
 }
 
-impl Split<Record> for Record {
+impl Split for Record {
     fn split(&self, epoch: Epoch) -> Result<(Self, Self), split::Error> {
         if let Some(r) = self.as_obs() {
             let (r0, r1) = r.split(epoch)?;
@@ -717,82 +717,19 @@ impl Split<Record> for Record {
             Err(split::Error::NoEpochIteration)
         }
     }
-}
-
-impl Decimation<Record> for Record {
-    /// Decimates Self by desired factor
-    fn decim_by_ratio_mut(&mut self, r: u32) {
-        if let Some(rec) = self.as_mut_obs() {
-            rec.decim_by_ratio_mut(r);
-        } else if let Some(rec) = self.as_mut_nav() {
-            rec.decim_by_ratio_mut(r);
-        } else if let Some(rec) = self.as_mut_meteo() {
-            rec.decim_by_ratio_mut(r);
-        } else if let Some(rec) = self.as_mut_ionex() {
-            rec.decim_by_ratio_mut(r);
-        } else if let Some(rec) = self.as_mut_clock() {
-            rec.decim_by_ratio_mut(r);
-        } else if let Some(rec) = self.as_mut_antex() {
-            rec.decim_by_ratio_mut(r);
-        }
-    }
-    /// Copies and Decimates Self by desired factor
-    fn decim_by_ratio(&self, r: u32) -> Self {
-        let mut s = self.clone();
-        s.decim_by_ratio_mut(r);
-        s
-    }
-    /// Decimates Self to fit minimum epoch interval
-    fn decim_by_interval_mut(&mut self, interval: Duration) {
-        if let Some(r) = self.as_mut_obs() {
-            r.decim_by_interval_mut(interval);
-        } else if let Some(r) = self.as_mut_nav() {
-            r.decim_by_interval_mut(interval);
-        } else if let Some(r) = self.as_mut_meteo() {
-            r.decim_by_interval_mut(interval);
-        //} else if let Some(r) = self.as_mut_ionex() {
-        //    r.decim_by_interval_mut(interval);
-        } else if let Some(r) = self.as_mut_clock() {
-            r.decim_by_interval_mut(interval);
-        }
-    }
-    /// Copies and Decimates Self to fit minimum epoch interval
-    fn decim_by_interval(&self, interval: Duration) -> Self {
-        let mut s = self.clone();
-        s.decim_by_interval_mut(interval);
-        s
-    }
-    fn decim_match_mut(&mut self, rhs: &Self) {
-        if let Some(a) = self.as_mut_obs() {
-            if let Some(b) = rhs.as_obs() {
-                a.decim_match_mut(b);
-            }
-        } else if let Some(a) = self.as_mut_nav() {
-            if let Some(b) = rhs.as_nav() {
-                a.decim_match_mut(b);
-            }
-        } else if let Some(a) = self.as_mut_meteo() {
-            if let Some(b) = rhs.as_meteo() {
-                a.decim_match_mut(b);
-            }
-        } else if let Some(a) = self.as_mut_ionex() {
-            if let Some(b) = rhs.as_ionex() {
-                a.decim_match_mut(b);
-            }
-        } else if let Some(a) = self.as_mut_clock() {
-            if let Some(b) = rhs.as_clock() {
-                a.decim_match_mut(b);
-            }
-        }
-    }
-    fn decim_match(&self, rhs: &Self) -> Self {
-        let mut s = self.clone();
-        s.decim_match_mut(rhs);
-        s
+    fn split_dt(&self, _dt: Duration) -> Result<Vec<Self>, split::Error> {
+        Ok(Vec::new())
     }
 }
 
-impl TimeScaling<Record> for Record {
+impl GnssTime for Record {
+    fn timeseries(&self, dt: Duration) -> TimeSeries {
+        if let Some(r) = self.as_obs() {
+            r.timeseries(dt)
+        } else {
+            todo!()
+        }
+    }
     fn convert_timescale(&mut self, ts: TimeScale) {
         if let Some(r) = self.as_mut_obs() {
             r.convert_timescale(ts);
@@ -810,5 +747,118 @@ impl TimeScaling<Record> for Record {
         let mut s = self.clone();
         s.convert_timescale(ts);
         s
+    }
+}
+
+impl Preprocessing for Record {
+    fn filter(&self, f: Filter) -> Self {
+        let mut s = self.clone();
+        s.filter_mut(f);
+        s
+    }
+    fn filter_mut(&mut self, f: Filter) {
+        if let Some(r) = self.as_mut_obs() {
+            r.filter_mut(f);
+        } else if let Some(r) = self.as_mut_nav() {
+            r.filter_mut(f);
+        } else if let Some(r) = self.as_mut_clock() {
+            r.filter_mut(f);
+        } else if let Some(r) = self.as_mut_meteo() {
+            r.filter_mut(f);
+        } else if let Some(r) = self.as_mut_ionex() {
+            r.filter_mut(f);
+        }
+    }
+}
+
+use crate::algorithm::Decimate;
+
+impl Decimate for Record {
+    fn decimate_by_ratio(&self, r: u32) -> Self {
+        let mut s = self.clone();
+        s.decimate_by_ratio_mut(r);
+        s
+    }
+    fn decimate_by_ratio_mut(&mut self, r: u32) {
+        if let Some(rec) = self.as_mut_obs() {
+            rec.decimate_by_ratio_mut(r);
+        } else if let Some(rec) = self.as_mut_nav() {
+            rec.decimate_by_ratio_mut(r);
+        } else if let Some(rec) = self.as_mut_meteo() {
+            rec.decimate_by_ratio_mut(r);
+        }
+    }
+    fn decimate_by_interval(&self, dt: Duration) -> Self {
+        let mut s = self.clone();
+        s.decimate_by_interval_mut(dt);
+        s
+    }
+    fn decimate_by_interval_mut(&mut self, dt: Duration) {
+        if let Some(rec) = self.as_mut_obs() {
+            rec.decimate_by_interval_mut(dt);
+        } else if let Some(rec) = self.as_mut_nav() {
+            rec.decimate_by_interval_mut(dt);
+        } else if let Some(rec) = self.as_mut_meteo() {
+            rec.decimate_by_interval_mut(dt);
+        }
+    }
+    fn decimate_match(&self, rhs: &Self) -> Self {
+        let mut s = self.clone();
+        s.decimate_match_mut(rhs);
+        s
+    }
+    fn decimate_match_mut(&mut self, rhs: &Self) {
+        if let Some(rec) = self.as_mut_obs() {
+            if let Some(rhs) = rhs.as_obs() {
+                rec.decimate_match_mut(rhs);
+            }
+        } else if let Some(rec) = self.as_mut_nav() {
+            if let Some(rhs) = rhs.as_nav() {
+                rec.decimate_match_mut(rhs);
+            }
+        } else if let Some(rec) = self.as_mut_meteo() {
+            if let Some(rhs) = rhs.as_meteo() {
+                rec.decimate_match_mut(rhs);
+            }
+        }
+    }
+}
+
+use crate::processing::Dcb;
+
+impl Dcb for Record {
+    fn dcb(&self) -> HashMap<String, BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
+        if let Some(rec) = self.as_obs() {
+            rec.dcb()
+        } else {
+            HashMap::new()
+        }
+    }
+}
+
+use crate::processing::Mp;
+
+impl Mp for Record {
+    fn mp(&self) -> HashMap<String, BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
+        if let Some(rec) = self.as_obs() {
+            rec.mp()
+        } else {
+            HashMap::new()
+        }
+    }
+}
+
+use crate::processing::{Combination, Combine};
+
+impl Combine for Record {
+    fn combine(
+        &self,
+        combination: Combination,
+    ) -> HashMap<(Observable, Observable), BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
+        if let Some(rec) = self.as_obs() {
+            rec.combine(combination)
+        } else {
+            HashMap::new()
+        }
     }
 }

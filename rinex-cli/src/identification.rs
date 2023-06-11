@@ -30,7 +30,7 @@ fn identification(rnx: &Rinex, pretty: bool, ops: Vec<&str>) {
             };
             println!("{}", content);
         } else if op.eq("sv") {
-            let data = &rnx.space_vehicules();
+            let data = &rnx.space_vehicles();
             let content = match pretty {
                 true => serde_json::to_string_pretty(data).unwrap(),
                 false => serde_json::to_string(data).unwrap(),
@@ -43,7 +43,7 @@ fn identification(rnx: &Rinex, pretty: bool, ops: Vec<&str>) {
                 false => serde_json::to_string(data).unwrap(),
             };
             println!("{}", content);
-        } else if op.eq("constellations") {
+        } else if op.eq("gnss") {
             let data = &rnx.list_constellations();
             let content = match pretty {
                 true => serde_json::to_string_pretty(data).unwrap(),

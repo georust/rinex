@@ -3,21 +3,19 @@ use crate::{
     Context,
 };
 use plotly::common::{Marker, MarkerSymbol, Mode, Visible};
-use rinex::{observation::*, prelude::*, *};
+use rinex::{observation::*, prelude::*};
 use std::collections::{BTreeMap, HashMap};
 
-macro_rules! code2physics {
-    ($code: expr) => {
-        if is_phase_observation($code) {
-            "Phase".to_string()
-        } else if is_doppler_observation($code) {
-            "Doppler".to_string()
-        } else if is_ssi_observation($code) {
-            "Signal Strength".to_string()
-        } else {
-            "Pseudo Range".to_string()
-        }
-    };
+fn observable_to_physics(observable: &Observable) -> String {
+    if observable.is_phase_observable() {
+        "Phase".to_string()
+    } else if observable.is_doppler_observable() {
+        "Doppler".to_string()
+    } else if observable.is_ssi_observable() {
+        "Signal Strength".to_string()
+    } else {
+        "Pseudo Range".to_string()
+    }
 }
 
 /*
@@ -28,12 +26,13 @@ pub fn plot_observation(ctx: &Context, plot_ctx: &mut PlotContext) {
 
     let mut clk_offset: Vec<(Epoch, f64)> = Vec::new();
     // dataset
-    //  per physics, per carrier signal (symbol)
-    //      per vehicule (color map)
+    //  per physics,
+    //   per observable (symbolized)
+    //      per vehicle (color map)
     //      bool: loss of lock - CS emphasis
     //      x: sampling timestamp,
     //      y: observation (raw),
-    let mut dataset: HashMap<String, HashMap<u8, HashMap<Sv, Vec<(bool, Epoch, f64)>>>> =
+    let mut dataset: HashMap<String, HashMap<String, HashMap<Sv, Vec<(bool, Epoch, f64)>>>> =
         HashMap::new();
 
     // augmented mode
@@ -42,18 +41,15 @@ pub fn plot_observation(ctx: &Context, plot_ctx: &mut PlotContext) {
         sat_angles = nav.navigation_sat_angles(ctx.ground_position);
     }
 
-    for ((epoch, _flag), (clock_offset, vehicules)) in record {
+    for ((epoch, _flag), (clock_offset, vehicles)) in record {
         if let Some(value) = clock_offset {
             clk_offset.push((*epoch, *value));
         }
 
-        for (sv, observations) in vehicules {
-            for (observation, data) in observations {
-                let p_code = &observation[0..1];
-                let c_code = &observation[1..2]; // carrier code
-                let c_code = u8::from_str_radix(c_code, 10).expect("failed to parse carrier code");
-
-                let physics = code2physics!(p_code);
+        for (sv, observations) in vehicles {
+            for (observable, data) in observations {
+                let observable_code = observable.to_string();
+                let physics = observable_to_physics(observable);
                 let y = data.obs;
                 let cycle_slip = match data.lli {
                     Some(lli) => lli.intersects(LliFlags::LOCK_LOSS),
@@ -61,7 +57,7 @@ pub fn plot_observation(ctx: &Context, plot_ctx: &mut PlotContext) {
                 };
 
                 if let Some(data) = dataset.get_mut(&physics) {
-                    if let Some(data) = data.get_mut(&c_code) {
+                    if let Some(data) = data.get_mut(&observable_code) {
                         if let Some(data) = data.get_mut(&sv) {
                             data.push((cycle_slip, *epoch, y));
                         } else {
@@ -70,14 +66,14 @@ pub fn plot_observation(ctx: &Context, plot_ctx: &mut PlotContext) {
                     } else {
                         let mut map: HashMap<Sv, Vec<(bool, Epoch, f64)>> = HashMap::new();
                         map.insert(*sv, vec![(cycle_slip, *epoch, y)]);
-                        data.insert(c_code, map);
+                        data.insert(observable_code, map);
                     }
                 } else {
                     let mut map: HashMap<Sv, Vec<(bool, Epoch, f64)>> = HashMap::new();
                     map.insert(*sv, vec![(cycle_slip, *epoch, y)]);
-                    let mut mmap: HashMap<u8, HashMap<Sv, Vec<(bool, Epoch, f64)>>> =
+                    let mut mmap: HashMap<String, HashMap<Sv, Vec<(bool, Epoch, f64)>>> =
                         HashMap::new();
-                    mmap.insert(c_code, map);
+                    mmap.insert(observable_code, map);
                     dataset.insert(physics.to_string(), mmap);
                 }
             }
@@ -116,12 +112,13 @@ pub fn plot_observation(ctx: &Context, plot_ctx: &mut PlotContext) {
         }
 
         let markers = generate_markers(carriers.len()); // one symbol per carrier
-        for (index, (carrier, vehicules)) in carriers.iter().enumerate() {
-            for (sv, data) in vehicules {
-                let data_x: Vec<Epoch> = data.iter().map(|(cs, e, _y)| *e).collect();
-                let data_y: Vec<f64> = data.iter().map(|(cs, _e, y)| *y).collect();
+        for (index, (observable, vehicles)) in carriers.iter().enumerate() {
+            for (sv, data) in vehicles {
+                let data_x: Vec<Epoch> = data.iter().map(|(_cs, e, _y)| *e).collect();
+                let data_y: Vec<f64> = data.iter().map(|(_cs, _e, y)| *y).collect();
+
                 let trace = build_chart_epoch_axis(
-                    &format!("{}(L{})", sv, carrier),
+                    &format!("{}({})", sv, observable),
                     Mode::Markers,
                     data_x,
                     data_y,
@@ -136,8 +133,9 @@ pub fn plot_observation(ctx: &Context, plot_ctx: &mut PlotContext) {
                 });
                 plot_ctx.add_trace(trace);
 
-                if index == 0 {
-                    // 1st Carrier encountered <=> plot Elev(Sv) only once..
+                if index == 0 && physics == "Signal Strength" {
+                    // 1st Carrier encountered: plot Sv only once
+                    // we also only augment the SSI plot
                     if let Some(epochs) = sat_angles.get(sv) {
                         let elev: Vec<f64> = epochs.iter().map(|(_, (el, _azi))| *el).collect();
                         let epochs: Vec<Epoch> = epochs.keys().map(|k| *k).collect();
@@ -148,13 +146,7 @@ pub fn plot_observation(ctx: &Context, plot_ctx: &mut PlotContext) {
                             elev,
                         )
                         .marker(Marker::new().symbol(markers[index].clone()))
-                        .visible({
-                            if index < 1 {
-                                Visible::True
-                            } else {
-                                Visible::LegendOnly
-                            }
-                        });
+                        .visible(Visible::LegendOnly);
                         plot_ctx.add_trace(trace);
                     }
                 }

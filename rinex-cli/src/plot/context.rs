@@ -1,7 +1,7 @@
 use super::{
     build_default_2y_plot, build_default_plot, build_default_polar_plot, build_world_map, Plot,
 };
-use log::trace;
+//use log::trace;
 use plotly::{layout::MapboxStyle, Trace};
 
 /// Plot Context
@@ -12,6 +12,13 @@ pub struct PlotContext {
 impl PlotContext {
     pub fn new() -> Self {
         Self { plots: Vec::new() }
+    }
+    /*pub fn plot_item(&self) -> Option<&Plot> {
+        self.plots.get(self.plots.len() - 1)
+    }*/
+    pub fn plot_item_mut(&mut self) -> Option<&mut Plot> {
+        let len = self.plots.len() - 1;
+        self.plots.get_mut(len)
     }
     pub fn add_cartesian2d_plot(&mut self, title: &str, y_label: &str) {
         self.plots.push(build_default_plot(title, y_label));
@@ -30,23 +37,18 @@ impl PlotContext {
         let len = self.plots.len() - 1;
         self.plots[len].add_trace(trace);
     }
-    pub fn to_html(&mut self, tiny: bool) -> String {
+    pub fn to_html(&mut self) -> String {
         let mut html = String::new();
         for (index, p) in self.plots.iter_mut().enumerate() {
-            if !tiny {
+            /*if !tiny {
                 p.use_local_plotly();
-            }
+            }*/
             if index == 0 {
                 html.push_str(&p.to_html());
             } else {
                 html.push_str(&p.to_inline_html(None));
             }
             html.push_str("\n");
-        }
-        if tiny {
-            trace!("rendered html graphs with --tiny option");
-        } else {
-            trace!("rendered html graphs");
         }
         html
     }

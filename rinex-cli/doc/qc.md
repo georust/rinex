@@ -1,125 +1,166 @@
 Quality Check (QC)
 ==================
 
-RINEX quality check is performed on Observation Data by providing
-such RINEX with `--fp` and requesting `--qc`.
+RINEX quality check is a special mode of this tool, activated with the `--qc` option.
 
-QC is a well known procedure in data preprocessing and this tool
-tries its best at emulating what `teqc` is capable of.   
+QC is first developed for Observation files analysis, but this tool  
+will accept other RINEX files, for which it will compute basic statistical anlysis. 
+
+QC is a well known procedure in data preprocessing. 
 There are a few differences people who are very familiar with `teqc` must
 take into account when using our command line interface.
 
-Teqc / Cli differences
-======================
+## Similarities with `teqc`
+
+We share similarities with `teqc` which will prove convenient  
+to advanced "teqc" users.  Among them:
+
+* Quick GNSS filters (`-G`, `-R`, ...) still exist
+* In augmented mode, `-no_orbit X` is feasible if you know how to operate the [preprocessor](doc/preprocessing.md)
+* Similar position anlysis and reporting
+* Similar signals analysis and reporting
+
+## Differences with `teqc`
 
 Unlike teqc we are not limited to RINEX V2, V3 and V4 Observations
 are fully supported.
 
 Unlike teqc we expect the user to provide the file context
-himself. There is not such thing as auto search of a possible Navigation
-Ephemeris for instance. This is provided with `--nav` for instance.
+himself. We do not have the ability to browse and search for Navigation context for examples.    
+Although we support as many Navigation files to be specified, when the _augmented_ mode is being activated.  
+This allows for example Glonass and other NAV context to be correctly defined.
+  
+1. `--fp [FILE]` for the Observation file
+2. `--nav [FILE1] [FILE2]..` : pass NAV contexts
 
-Like most UNAVCO tools, we will generate products in a dedicated folder.  
+We will generate products in a dedicated folder.  
+
 The current behavior is to use the 
 [product](https://github.com/gwbres/rinex/tree/rinex-cli/product)
-folder, that came with this tool, and we generate in this location,
-a folder that bears the `-fp` name. That means, you can
-run several analysis (against different `-fp`) and we maintain the results.
+folder to generate QC reports.
 
-Unlike teqc we will probably not limit the QC operation
-to Observation data, although that is not the case to this day.
-
-The following differences are important to understand or, at least be aware of,
-in case you intend to pass the reports we generate to a "teqc" report parser.
+Unlike teqc, we do not support BINEX nor SP3 input data/files as of today.
 
 Unlike teqc we do not limit ourselves to the analysis of
 GPS and Glonass constellations.
-Historically, teqc would analyze both (if requested),
-in two seperate sections of the summary report.
-We decided we would split our analysis into several summaries: one per constellation,
-to shorten the file length.
 
-Unlike teqc, we have no means to detect epoch duplicates
-and duplicated SV accross epochs. This information is not
-contained in the report we generate.
+Unlike teqc, we have no means to detect data duplicates, therefore
+such information is not reported.
 
 Unlike teqc, we do not limit ourselves to L1/L2 analysis.  
-This applies for instance to MPx (Code Multipath biases),
-averaged received signal strength estimates, etc.. 
+This applies for instance to MP or DCB analyses. 
 
-Differences and retro compatibility
-===================================
+Unlike teqc, this tool allows accurate time description, down to 1 ns precision.  
+For example, this would apply to
 
-- grab the report summary for the constellation you're interested in
-- The epoch timestamp are reported in a different format:
-YYYY-MM-DD-HH:MM:SS{TS} where TS is the timescale under use, for example "UTC".
-This mainly impact "Time of start and end" windows reporting.
+* the receiver clock drift analysis not being limited to 1ms/hour  
+* precise control of averaging windows, etc..
 
-- Tick rate, or sample rate is reported in a more convenient fashion.
-Mainly, we do not limit ourselves to a 1-hour granularity.
-Our theoretical limitation is 1 ns, 100 ns in practice.
-This only impacts the "Time line window length" report.
+## QC specific command line options
 
-- We don't report "infinity" but 0 when receiver was not reset during
-sampling. Also, this duration would not be limited to minutes in case
-such an event duration was to be estimated, as previously stated.
+* `--qc-only`: ensures the tool will only perform the QCs,   
+other graphs or record analysis is turned off. This is the most efficient  
+QC mode.  
 
-- Receiver clock drift reporting is no longer limited to milliseconds per hour.
-So unit must now be parsed: you can't assume we will always report ms/hr.
-This allows accurate drift reporting and estimates, below 1us/hr,
-which was the previous limitation.
+* `--qc-config`: pass a configuration file for QC reporting and calculations management (see down below) 
 
-- analysis against L>2 carrier may exist.
-For example, you may find "Mean S5" for averaged received L5 signal strength,
-or MP15 for 1/5 code multiath bias
-- "Obs w/ SV duplication" field cannot be formed, it no longer exists
-- "Epochs repeated" cannot be formed, it no longer exists
+## Basic QC (No NAV)
 
-Other than that, we strictly follow the teqc format.
+When `--qc` is activated and `--fp` is an observation file
+basically we can only study the provided signals and observations.
 
-Basic QC
-========
-
-Basic QC requires a navigation context to be provided,
-[otherwise](https://github.com/gwbres/rinex/blob/main/rinex-cli/qc.md#minialist-qc),
-most of the relevant calculations cannot be performed.
-
-When requested, QC generates a summary report in the product/ subfolder.  
-We form one report per encountered constellation, and we do not limit ourselves
-to GPS and Glonass. Obviously, if the provided data is stripped to a single
-constellation, you get a single report.
-
-Example of a standard qc:
+Preprocessing still apply, therefore all analysis are to be performed
+on the data that is still left out:
 
 ```bash
-rinex-cli --qc \
-   --fp test_resources/CRNX/V3/KMS300DNK_R_20221591000_01H_30S_MO.crx
+rinex-cli \
+    --qc-only \
+    --fp test_resources/CRNX/V3/KMS300DNK_R_20221591000_01H_30S_MO.crx
 ```
 
-Summary report
-==============
+With `--qc-only`, the Data QC is activated and the total report is only made of the QC analysis.
 
-<img align="center" width="400" src="https://github.com/gwbres/rinex/blob/main/doc/ascii-plot.png">
-
-Quiet QC
-========
-
-Quiet qc is requested by adding the `-q` flag, not to be mistaken with `--qc`. 
-`-q` basically turns off all terminal output this tool might generate.  
-In the case of QC, that means you get the summary report in the file, but not
-in stdout.
-
-Minimalist QC
-=============
-
-When `--nav` is not provided, several information cannot be determined.  
-Mainly elevation, satellite health and satellite attitude related informations.  
-The ascii plot is therefore reduced in this use case.
-
-Example of a minimalist qc
+Run this configuration for the most basic QC:
 
 ```bash
-rinex-cli --qc \
-   --fp test_resources/CRNX/V3/KMS300DNK_R_20221591000_01H_30S_MO.crx
+rinex-cli \
+    -P gps,glo \
+    --qc-only \
+    --qc-conf rinex-cli/config/basic.json \
+    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz
 ```
+
+`--qc-conf` is independent to `--qc` activation.   
+If you activate QC without any configuration, the default configuration is used.
+
+basic.json specifies that we want to report on a constellation basis.  
+If you compare this report to the previous one
+
+1. you get one table per constellation. We only retained GPS and Glonass in this example,   
+therefore the report is made of two tables.
+2. All statistical analysis are made on constellations separately and independently    
+3. A "25%" statistical window is specified. "window" accepts either a Duration  
+or a percentage of the file. Here we use the latter, and 25% means we will have 4 statistical  
+analysis performed over the course of 6 hours, because this file is 24h long.  
+4. You also have less information in this basic configuration, because most calculations are turned off
+
+Try this configuration now:
+
+```bash
+rinex-cli \
+    -F gps,glo \
+    --qc-only \
+    --qc-conf rinex-cli/config/basic_manual_gap.json \
+    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz
+```
+
+A "10%" statistical slot is specified, you get more statistical analysis because the time slot   
+now spans approximately 2 hours. 
+Also "manual_gap" is specified and set to "10 seconds". That means that a duration  
+of 10 seconds is now considered as an abnormal gap, in the data gap analysis.  
+In default configuration, there is no manual gap. That means an abnormal gap  
+is any abnormal duration above the dominant epoch interval (sample rate).
+
+When no configuration files are given, the default configuration is used
+
+```json
+TODO
+```
+
+## Advanced configurations
+
+Now let's move on to more "advanced" configuration, in which basically all   
+calculations are active and customized
+
+```bash
+rinex-cli \
+    -P gps,glo \
+    --qc-separate \
+    --qc-conf rinex-cli/config/basic_manual_gap.json \
+    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz
+```
+
+## Basic QC (with NAV)
+
+Let's go back to our basic demo and provide Navigation context:
+
+```bash
+rinex-cli \
+    -P gps,glo \
+    --qc-separate \
+    --qc-conf rinex-cli/config/basic.json \
+    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
+    --nav test_resources/OBS/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz
+```
+  
+Navigation context is fully taken into account in advanced calculations
+
+```bash
+rinex-cli \
+    -F gps,glo \
+    --qc-separate \
+    --qc-conf rinex-cli/config/advanced_study.json \
+    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
+    --nav test_resources/OBS/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz
+``
 

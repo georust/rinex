@@ -118,7 +118,7 @@ pub struct Solution {
     pub btype: BiasType,
     /// Satellite SVN
     pub svn: String,
-    /// Space Vehicule ID
+    /// Space Vehicle ID
     pub prn: String,
     /// Station codes
     pub station: Option<String>,
@@ -194,7 +194,7 @@ impl Solution {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{bias, Sinex};
+    use crate::Sinex;
     use rinex::constellation::Constellation;
     use std::str::FromStr;
     #[test]

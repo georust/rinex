@@ -1,9 +1,6 @@
 #[cfg(test)]
 mod test {
-    use rinex::epoch::*;
-    use rinex::ionex::*;
     use rinex::prelude::*;
-    use std::str::FromStr;
     #[test]
     fn v1_ckmg0020_22i() {
         let test_resource =

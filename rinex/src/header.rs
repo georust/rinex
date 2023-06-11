@@ -3,12 +3,14 @@
 use super::*;
 use crate::{
     antex, clocks,
+    ground_position::GroundPosition,
     hardware::{Antenna, Rcvr, SvAntenna},
     ionex, leap, meteo, observation,
     observation::Crinex,
     reader::BufferedReader,
     types::{Type, TypeError},
     version::Version,
+    Observable,
 };
 
 use std::io::prelude::*;
@@ -55,7 +57,7 @@ pub enum MarkerType {
     /// Generated from network
     #[strum(serialize = "NON PHYSICAL", serialize = "NonPhysical")]
     NonPhysical,
-    /// Orbiting space vehicule
+    /// Orbiting space vehicle
     #[strum(serialize = "SPACE BORNE", serialize = "Spaceborne")]
     Spaceborne,
     /// Aircraft, balloon..
@@ -64,7 +66,7 @@ pub enum MarkerType {
     /// Mobile water craft
     #[strum(serialize = "WATER CRAFT", serialize = "Watercraft")]
     Watercraft,
-    /// Mobile terrestrial vehicule
+    /// Mobile terrestrial vehicle
     #[strum(serialize = "GROUND CRAFT", serialize = "Groundcraft")]
     Groundcraft,
     /// Fixed on water surface
@@ -134,7 +136,7 @@ pub struct Header {
     // /// Optionnal system time correction
     // pub time_corrections: Option<gnss_time::Correction>,
     /// Station approximate coordinates
-    pub coords: Option<(f64, f64, f64)>,
+    pub ground_position: Option<GroundPosition>,
     /// Optionnal observation wavelengths
     pub wavelengths: Option<(u32, u32)>,
     /// Optionnal sampling interval (s)
@@ -153,7 +155,7 @@ pub struct Header {
     /// Optionnal Receiver Antenna information
     #[cfg_attr(feature = "serde", serde(default))]
     pub rcvr_antenna: Option<Antenna>,
-    /// Optionnal Vehicule Antenna information,
+    /// Optionnal Vehicle Antenna information,
     /// attached to a specifid Sv, only exists in ANTEX records
     #[cfg_attr(feature = "serde", serde(default))]
     pub sv_antenna: Option<SvAntenna>,
@@ -228,7 +230,7 @@ impl Default for Header {
             rcvr: None,
             rcvr_antenna: None,
             sv_antenna: None,
-            coords: None,
+            ground_position: None,
             wavelengths: None,
             data_scaling: None,
             sampling_interval: None,
@@ -265,7 +267,7 @@ impl Header {
         let mut sv_antenna: Option<SvAntenna> = None;
         let mut leap: Option<leap::Leap> = None;
         let mut sampling_interval: Option<Duration> = None;
-        let mut coords: Option<(f64, f64, f64)> = None;
+        let mut ground_position: Option<GroundPosition> = None;
         // RINEX specific fields
         let mut current_constell: Option<Constellation> = None;
         let mut observation = observation::HeaderFields::default();
@@ -480,7 +482,7 @@ impl Header {
                 let (y_str, rem) = rem.split_at(14);
                 let (z_str, rem) = rem.split_at(14);
                 let (h_str, phys_str) = rem.split_at(14);
-                if let Ok(observable) = meteo::observable::Observable::from_str(phys_str.trim()) {
+                if let Ok(observable) = Observable::from_str(phys_str.trim()) {
                     for sensor in meteo.sensors.iter_mut() {
                         if sensor.observable == observable {
                             if let Ok(x) = f64::from_str(x_str.trim()) {
@@ -520,11 +522,7 @@ impl Header {
                 if let Ok(x) = f64::from_str(items[0].trim()) {
                     if let Ok(y) = f64::from_str(items[1].trim()) {
                         if let Ok(z) = f64::from_str(items[2].trim()) {
-                            if let Some(c) = &mut coords {
-                                *c = (x, y, z);
-                            } else {
-                                coords = Some((x, y, z));
-                            }
+                            ground_position = Some(GroundPosition::from_ecef_wgs84((x, y, z)));
                         }
                     }
                 }
@@ -612,7 +610,7 @@ impl Header {
                 let (_, content) = content.split_at(6);
                 for i in 0..content.len() / 6 {
                     let obscode = &content[i * 6..std::cmp::min((i + 1) * 6, content.len())].trim();
-                    if obscode.len() > 0 {
+                    if let Ok(observable) = Observable::from_str(obscode) {
                         match constellation {
                             Some(Constellation::Mixed) => {
                                 lazy_static! {
@@ -627,24 +625,22 @@ impl Header {
                                 }
                                 for c in KNOWN_CONSTELLS.iter() {
                                     if let Some(codes) = observation.codes.get_mut(&c) {
-                                        codes.push(obscode.to_string());
+                                        codes.push(observable.clone());
                                     } else {
-                                        observation.codes.insert(*c, vec![obscode.to_string()]);
+                                        observation.codes.insert(*c, vec![observable.clone()]);
                                     }
                                 }
                             },
                             Some(c) => {
                                 if let Some(codes) = observation.codes.get_mut(&c) {
-                                    codes.push(obscode.to_string());
+                                    codes.push(observable.clone());
                                 } else {
-                                    observation.codes.insert(c, vec![obscode.to_string()]);
+                                    observation.codes.insert(c, vec![observable.clone()]);
                                 }
                             },
                             _ => {
                                 if rinex_type == Type::MeteoData {
-                                    if let Ok(obs) = meteo::Observable::from_str(obscode) {
-                                        meteo.codes.push(obs);
-                                    }
+                                    meteo.codes.push(observable);
                                 } else {
                                     panic!("can't have \"TYPES OF OBS\" when GNSS definition is missing");
                                 }
@@ -666,13 +662,13 @@ impl Header {
                     for i in 0..content.len() / 4 {
                         let obscode =
                             &content[i * 4..std::cmp::min((i + 1) * 4, content.len())].trim();
-                        if obscode.len() > 0 {
-                            if let Some(codes) = observation.codes.get_mut(&constell) {
-                                codes.push(obscode.to_string());
-                            } else {
-                                observation
-                                    .codes
-                                    .insert(constell, vec![obscode.to_string()]);
+                        if let Ok(observable) = Observable::from_str(obscode) {
+                            if obscode.len() > 0 {
+                                if let Some(codes) = observation.codes.get_mut(&constell) {
+                                    codes.push(observable);
+                                } else {
+                                    observation.codes.insert(constell, vec![observable]);
+                                }
                             }
                         }
                     }
@@ -877,7 +873,7 @@ impl Header {
             rcvr,
             glo_channels,
             leap,
-            coords,
+            ground_position,
             wavelengths: None,
             gps_utc_delta: None,
             sampling_interval,
@@ -1072,11 +1068,11 @@ impl Header {
                     None
                 }
             },
-            coords: {
-                if let Some(coords) = &self.coords {
-                    Some(coords.clone())
-                } else if let Some(coords) = &header.coords {
-                    Some(coords.clone())
+            ground_position: {
+                if let Some(pos) = &self.ground_position {
+                    Some(pos.clone())
+                } else if let Some(pos) = &header.ground_position {
+                    Some(pos.clone())
                 } else {
                     None
                 }
@@ -1494,8 +1490,8 @@ impl std::fmt::Display for Header {
         }
         // INTERVAL
         if let Some(interval) = &self.sampling_interval {
-            write!(f, "{:10.3}", interval)?;
-            write!(f, "{:<50}", "")?;
+            write!(f, "{:6}", interval.to_seconds())?;
+            write!(f, "{:<54}", "")?;
             write!(f, "INTERVAL\n")?
         }
         // List of Observables
@@ -1507,36 +1503,44 @@ impl std::fmt::Display for Header {
                             // old revisions
                             for (_, observables) in obs.codes.iter() {
                                 write!(f, "{:6}", observables.len())?;
-                                let mut line = String::new();
+                                let mut descriptor = String::new();
                                 for i in 0..observables.len() {
                                     if (i % 9) == 0 && i > 0 {
-                                        line.push_str("# / TYPES OF OBSERV\n");
-                                        write!(f, "{}", line)?;
-                                        line.clear();
-                                        line.push_str(&format!("{:6}", "")); // tab
+                                        //ADD LABEL
+                                        descriptor.push_str("# / TYPES OF OBSERV\n");
+                                        descriptor.push_str(&format!("{:<6}", ""));
+                                        //TAB
                                     }
-                                    line.push_str(&format!("{:>6}", observables[i]));
+                                    // <!> this will not work if observable
+                                    //     does not fit on 2 characters
+                                    descriptor.push_str(&format!("    {}", observables[i]));
                                 }
-                                if line.len() > 0 {
-                                    // residues
-                                    if observables.len() > 9 {
-                                        line.push_str(&format!(
-                                            "{:<width$}",
-                                            "",
-                                            width = 60 - line.len()
-                                        ));
-                                    } else {
-                                        line.push_str(&format!(
-                                            "{:<width$}",
-                                            "",
-                                            width = 54 - line.len()
-                                        ));
-                                    }
-                                    line.push_str("# / TYPES OF OBSERV\n");
-                                    //line.push_str(&format!("{:>width$}", "# / TYPES OF OBSERV\n", width=74-line.len()));
-                                    write!(f, "{}", line)?
+                                //ADD BLANK on last line
+                                if observables.len() <= 9 {
+                                    // fits on one line
+                                    descriptor.push_str(&format!(
+                                        "{:<width$}",
+                                        "",
+                                        width = 80 - descriptor.len()
+                                    ));
+                                } else {
+                                    let nb_lines = observables.len() / 9;
+                                    let blanking = 80 - (descriptor.len() - 80 * nb_lines); //98 = 80 + # / TYPESOFOBSERV
+                                    descriptor.push_str(&format!(
+                                        "{:<width$}",
+                                        "",
+                                        width = blanking
+                                    ));
                                 }
-                                break; // run only once, <=> for 1 constellation
+                                //ADD LABEL
+                                descriptor.push_str("# / TYPES OF OBSERV\n");
+                                write!(f, "{}", descriptor)?;
+                                // NOTE ON THIS BREAK
+                                //      header contains obs.codes[] copied for every possible constellation system
+                                //      because we have no means to known which ones are to be encountered
+                                //      in this great/magnificent RINEX2 format.
+                                //      On the other hand, we're expected to only declare a single #/TYPESOFOBSERV label
+                                break;
                             }
                         },
                         _ => {
@@ -1554,7 +1558,7 @@ impl std::fmt::Display for Header {
                                         line.push_str("SYS / # / OBS TYPES\n");
                                         write!(f, "{}", line)?;
                                         line.clear();
-                                        line.push_str(&format!("{:<6}", ""));
+                                        line.push_str(&format!("{:<6}", "")); //TAB
                                     }
                                     line.push_str(&format!(" {}", codes[i]))
                                 }
@@ -1565,32 +1569,29 @@ impl std::fmt::Display for Header {
                         },
                     }
                 }
-            }, //ObservationData
+            }, //ObservationData observables description
             Type::MeteoData => {
                 if let Some(obs) = &self.meteo {
                     write!(f, "{:6}", obs.codes.len())?;
-                    let mut line = String::new();
+                    let mut description = String::new();
                     for i in 0..obs.codes.len() {
                         if (i % 9) == 0 && i > 0 {
-                            line.push_str("# / TYPES OF OBSERV\n");
-                            write!(f, "{}", line)?;
-                            line.clear();
-                            line.push_str(&format!("{:6}", "")); // tab
+                            description.push_str("# / TYPES OF OBSERV\n");
+                            write!(f, "{}", description)?;
+                            description.clear();
+                            description.push_str(&format!("{:<6}", "")); //TAB
                         }
-                        line.push_str(&format!("{:>6}", obs.codes[i]));
+                        description.push_str(&format!("    {}", obs.codes[i]));
                     }
-                    if line.len() > 0 {
-                        // residues
-                        if obs.codes.len() > 9 {
-                            line.push_str(&format!("{:<width$}", "", width = 60 - line.len()));
-                        } else {
-                            line.push_str(&format!("{:<width$}", "", width = 54 - line.len()));
-                        }
-                        line.push_str("# / TYPES OF OBSERV\n");
-                    }
-                    write!(f, "{}", line)?
+                    description.push_str(&format!(
+                        "{:<width$}",
+                        "",
+                        width = 54 - description.len()
+                    ));
+                    description.push_str("# / TYPES OF OBSERV\n");
+                    write!(f, "{}", description)?
                 }
-            }, //meteo data
+            }, //MeteoData observables description
             _ => {},
         }
         // Must take place after list of Observables:
@@ -1698,7 +1699,7 @@ impl std::fmt::Display for Header {
     }
 }
 
-impl Merge<Header> for Header {
+impl Merge for Header {
     /// Merges `rhs` into `Self` without mutable access, at the expense of memcopies
     fn merge(&self, rhs: &Self) -> Result<Self, merge::Error> {
         if self.rinex_type != rhs.rinex_type {
@@ -1735,7 +1736,7 @@ impl Merge<Header> for Header {
         merge::merge_mut_option(&mut self.rcvr, &rhs.rcvr);
         merge::merge_mut_option(&mut self.rcvr_antenna, &rhs.rcvr_antenna);
         merge::merge_mut_option(&mut self.sv_antenna, &rhs.sv_antenna);
-        merge::merge_mut_option(&mut self.coords, &rhs.coords);
+        merge::merge_mut_option(&mut self.ground_position, &rhs.ground_position);
         merge::merge_mut_option(&mut self.wavelengths, &rhs.wavelengths);
 
         // RINEX specific operation

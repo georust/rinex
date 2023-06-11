@@ -1,10 +1,9 @@
-use hifitime::Duration;
 use std::str::FromStr;
 use thiserror::Error;
 
 use super::{Antenna, Calibration, CalibrationMethod, Frequency, Pattern};
 
-use crate::{carrier, merge, merge::Merge, sampling::Decimation, Epoch};
+use crate::{carrier, merge, merge::Merge, Epoch};
 
 /// Returns true if this line matches
 /// the beginning of a `epoch` for ATX file (special files),
@@ -195,7 +194,7 @@ mod test {
     }
 }
 
-impl Merge<Record> for Record {
+impl Merge for Record {
     /// Merges `rhs` into `Self` without mutable access at the expense of more memcopies
     fn merge(&self, rhs: &Self) -> Result<Self, merge::Error> {
         let mut lhs = self.clone();
@@ -223,33 +222,5 @@ impl Merge<Record> for Record {
             }
         }
         Ok(())
-    }
-}
-
-impl Decimation<Record> for Record {
-    /// Decimates Data quantity by given ratio
-    fn decim_by_ratio_mut(&mut self, r: u32) {
-        let mut i = 0;
-        self.retain(|_| {
-            let retained = (i % r) == 0;
-            i += 1;
-            retained
-        });
-    }
-    /// Copies & Decimates self by given ratio
-    fn decim_by_ratio(&self, r: u32) -> Self {
-        let mut s = self.clone();
-        s.decim_by_ratio_mut(r);
-        s
-    }
-    /// Antex Record cannot be decimated by an epoch interval
-    fn decim_by_interval_mut(&mut self, _interval: Duration) {}
-    /// Antex Record cannot be decimated by an epoch interval
-    fn decim_by_interval(&self, _interval: Duration) -> Self {
-        self.clone()
-    }
-    fn decim_match_mut(&mut self, _rhs: &Self) {}
-    fn decim_match(&self, _rhs: &Self) -> Self {
-        self.clone()
     }
 }

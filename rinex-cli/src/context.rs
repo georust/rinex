@@ -10,7 +10,7 @@ pub struct Context {
     pub to_merge: Option<Rinex>,
     pub nav_rinex: Option<Rinex>,
     pub atx_rinex: Option<Rinex>,
-    pub ground_position: Option<(f64, f64, f64)>,
+    pub ground_position: Option<GroundPosition>,
 }
 
 impl Context {
@@ -26,31 +26,31 @@ impl Context {
         let nav_rinex = cli.nav_context();
         let atx_rinex = cli.atx_context();
 
-        let ground_position = match primary_rinex.header.coords {
+        let ground_position = match &primary_rinex.header.ground_position {
             Some(position) => {
-                info!("ground position {:?} (ECEF)", position);
-                Some(position)
+                info!("antenna position: {}", position);
+                Some(position.clone())
             },
             _ => {
                 if let Some(ref nav) = nav_rinex {
-                    if let Some(pos) = nav.header.coords {
-                        info!("ground position {:?} (ECEF)", pos);
-                        Some(pos)
+                    if let Some(pos) = &nav.header.ground_position {
+                        info!("antenna position: {}", pos);
+                        Some(pos.clone())
                     } else {
-                        if let Some(pos) = cli.manual_position() {
-                            info!("manual ground position {:?} (ECEF)", pos);
-                            Some(pos)
+                        if let Some(pos) = &cli.manual_position() {
+                            info!("user defined antenna position: {}", pos);
+                            Some(pos.clone())
                         } else {
-                            trace!("undetermined ground position");
+                            trace!("undetermined antenna position");
                             None
                         }
                     }
                 } else {
-                    if let Some(pos) = cli.manual_position() {
-                        info!("manual ground position {:?} (ECEF)", pos);
-                        Some(pos)
+                    if let Some(pos) = &cli.manual_position() {
+                        info!("user defined antenna position: {}", pos);
+                        Some(pos.clone())
                     } else {
-                        trace!("undetermined ground position");
+                        trace!("undetermined antenna position");
                         None
                     }
                 }

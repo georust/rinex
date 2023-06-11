@@ -1,18 +1,37 @@
-use super::prelude::*;
+use crate::{
+    prelude::*,
+    processing::{MaskFilter, Preprocessing, TargetItem},
+};
 use horrorshow::{helper::doctype, RenderBox};
+use std::str::FromStr;
 use strum_macros::EnumString;
 
-mod averager;
-mod sampling;
-//mod advanced;
-//mod navigation;
-mod observation;
-
 mod opts;
-pub use opts::QcOpts;
+pub use opts::{QcClassificationMethod, QcOpts};
+
+mod analysis;
+use analysis::QcAnalysis;
+
+/*
+ * Array (CSV) pretty formatter
+ */
+pub(crate) fn pretty_array<A: std::fmt::Display>(list: &Vec<A>) -> String {
+    let mut s = String::with_capacity(8 * list.len());
+    for index in 0..list.len() - 1 {
+        s.push_str(&format!("{}, ", list[index]));
+    }
+    s.push_str(&list[list.len() - 1].to_string());
+    s
+}
+
+pub trait HtmlReport {
+    /// Renders self to HTML
+    fn to_html(&self) -> String;
+    /// Renders self to embedded HTML
+    fn to_inline_html(&self) -> Box<dyn RenderBox + '_>;
+}
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, EnumString)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum Grade {
     #[strum(serialize = "A++")]
     GradeApp,
@@ -32,70 +51,139 @@ pub enum Grade {
     GradeF,
 }
 
-#[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct QcReport {
-    // stored header, for further informations
-    header: Header,
-    /// Sampling QC
-    pub sampling: sampling::QcReport,
-    /// Observation RINEX specific QC
-    pub observation: Option<observation::QcReport>,
+#[derive(Debug, Clone)]
+pub struct QcReport<'a> {
+    /// Configuration / options
+    opts: QcOpts,
+    /// File name
+    filename: String,
+    /// RINEX context
+    rinex: &'a Rinex,
+    /// Navigation augmentation context
+    nav_filenames: Vec<String>,
+    /// Navigation augmentation context
+    nav_rinex: Option<Rinex>,
+    /// Analysis that were performed per classification method
+    analysis: Vec<QcAnalysis>,
 }
 
-impl QcReport {
-    pub fn basic(rnx: &Rinex, nav: &Option<Rinex>) -> Self {
-        Self::new(rnx, nav, None)
+impl<'a> QcReport<'a> {
+    /// Builds a new basic QC Report using default options
+    pub fn basic(filename: &str, rnx: &'a Rinex) -> Self {
+        Self::new(filename, rnx, Vec::new(), None, QcOpts::default())
     }
     /// Builds a new QC Report
-    pub fn new(rnx: &Rinex, nav: &Option<Rinex>, opts: Option<QcOpts>) -> Self {
-        let opts = opts.unwrap_or(QcOpts::default());
-        Self {
-            header: rnx.header.clone(),
-            sampling: sampling::QcReport::new(rnx),
-            observation: {
-                if rnx.is_observation_rinex() {
-                    Some(observation::QcReport::new(rnx, nav, opts))
-                } else {
-                    None
+    pub fn new(
+        filename: &str,
+        rnx: &'a Rinex,
+        nav_filenames: Vec<String>, // possible augmentation fp
+        nav_rinex: Option<Rinex>,   // possiblement augmentation context
+        opts: QcOpts,
+    ) -> Self {
+        /*
+         * Classification Method
+         */
+        let classifier: TargetItem = match opts.classification {
+            QcClassificationMethod::GNSS => {
+                let mut gnss = rnx.list_constellations();
+                gnss.sort();
+                TargetItem::from(gnss)
+            },
+            QcClassificationMethod::Sv => {
+                let mut sv = rnx.space_vehicles();
+                sv.sort();
+                TargetItem::from(sv)
+            },
+            QcClassificationMethod::Physics => {
+                let mut observables: Vec<Observable> = rnx
+                    .observables()
+                    .iter()
+                    .map(|k| Observable::from_str(k).unwrap())
+                    .collect();
+                observables.sort();
+                TargetItem::from(observables)
+            },
+        };
+        /*
+         * Build (record) analysis
+         */
+        let mut analysis: Vec<QcAnalysis> = Vec::new();
+        match classifier {
+            TargetItem::ConstellationItem(cs) => {
+                for c in cs {
+                    // create the classification mask
+                    let mask = MaskFilter::from_str(&format!("eq:{}", c))
+                        .expect("invalid classification mask");
+                    // apply it
+                    let subset = rnx.filter(mask.clone().into());
+                    /*
+                     * possible NAV subset:
+                     *  + apply same GNSS filter
+                     */
+                    let nav_subset = match nav_rinex {
+                        Some(ref rnx) => Some(rnx.filter(mask.clone().into())),
+                        _ => None,
+                    };
+                    // and analyze this subset
+                    analysis.push(QcAnalysis::new(
+                        TargetItem::from(c),
+                        &subset,
+                        &nav_subset,
+                        &opts,
+                    ));
                 }
             },
+            /* >>>>TODO<<<<<
+            TargetItem::SvItem(svs) => {
+                for sv in svs {
+                    // create the classification mask
+                    let mask = MaskFilter::from_str(&format!("eq:{}", sv))
+                        .expect("invalid classification mask");
+                    // apply it
+                    let subset = rnx.filter(mask.into());
+                    // and analyze this subset
+                    analysis.push(QcAnalysis::new(
+                        TargetItem::from(sv), &subset, &opts));
+                }
+            },
+            TargetItem::ObservableItem(obs) => {
+                for ob in obs {
+                    // create the classification mask
+                    let mask = MaskFilter::from_str(&format!("eq:{}", ob))
+                        .expect("invalid classification mask");
+                    // apply it
+                    let subset = rnx.filter(mask.into());
+                    // and analyze this subset
+                    analysis.push(QcAnalysis::new(TargetItem::from(ob), &subset, &opts));
+                }
+            },*/
+            _ => unreachable!(),
+        }
+
+        Self {
+            filename: filename.to_string(),
+            opts,
+            rinex: rnx,
+            analysis,
+            nav_rinex,
+            nav_filenames,
         }
     }
-    /// Dumps self into (self sufficient) HTML
-    pub fn to_html(&self) -> String {
+}
+
+impl<'a> HtmlReport for QcReport<'a> {
+    fn to_html(&self) -> String {
         format!(
             "{}",
             html! {
                 : doctype::HTML;
                 html {
                     head {
-                        meta(charset="utf-8");
-                        title: "RINEX QC summary";
-                        //to include JS:
-                        //script: Raw(include_str!("test.js"));
-                        //to include CSS (one option..)
-                        //style: Raw(include_str!("test.css"));
-                        style {
-                            table {
-                                font-family: "arial, sans-serif";
-                                border-collapse: "collapse";
-                                width: "100%";
-                            }
-                            td {
-                                border: "1px solid #dddddd";
-                                text-align: "left";
-                                padding: "8px";
-                            }
-                            th {
-                                border: "1px solid #dddddd";
-                                text-align: "left";
-                                padding: "8px";
-                            }
-                            /*tr:nth-child(event) {
-                                background-color: "#dddddd";
-                            }*/
-                        }
+                        meta(charset="UTF-8");
+                        meta(name="viewport", content="width=device-width, initial-scale=1");
+                        link(rel="stylesheet", href="https:////cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css");
+                        script(defer="true", src="https://use.fontawesome.com/releases/v5.3.1/js/all.js");
+                        title: format!("{}", self.filename);
                     }
                     body {
                         : self.to_inline_html()
@@ -104,57 +192,131 @@ impl QcReport {
             }
         )
     }
-    /// Dumps self into HTML <div> section, named as suggested
-    pub fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
+    fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
         box_html! {
-            h2(id="heading") {
-                : "RINEX Quality Check summary"
-            }
-            h4(id="version") {
-                program-version: format!("rust-rnx: v{}", env!("CARGO_PKG_VERSION"))
-            }
             div(id="general") {
-                div(id="antenna") {
-                    table {
-                        tr {
-                            th {
-                                : "Antenna model"
+                h3(class="title") {
+                    : "RINEX Quality Check summary"
+                }
+                div(id="file") {
+                    table(class="table is-bordered") {
+                        tbody {
+                            tr {
+                                th {
+                                    : "Version"
+                                }
+                                td {
+                                    : format!("rust-rnx: v{}", env!("CARGO_PKG_VERSION"))
+                                }
                             }
-                            th {
-                                : "SN#"
+                            tr {
+                                th {
+                                    p {
+                                        : "Name"
+                                    }
+                                }
+                                td {
+                                    p {
+                                        : self.filename.to_string()
+                                    }
+                                    @ for fp in &self.nav_filenames {
+                                        p {
+                                            : fp.to_string()
+                                        }
+                                    }
+                                }
+                            }
+                            tr {
+                                th {
+                                    : "Type"
+                                }
+                                td {
+                                    @ if let Some(gnss) = self.rinex.header.constellation {
+                                        p {
+                                            : format!("{} {:?}", gnss, self.rinex.header.rinex_type)
+                                        }
+                                        @ if let Some(nav) = &self.nav_rinex {
+                                            @ if let Some(gnss) = nav.header.constellation {
+                                                p {
+                                                    : format!("{} {:?}", gnss, nav.header.rinex_type)
+                                                }
+                                            } else {
+                                                p {
+                                                    : format!("{:?} file", nav.header.rinex_type)
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        p {
+                                            : format!("{:?} file", self.rinex.header.rinex_type)
+                                        }
+                                    }
+                                }
                             }
                         }
-                        tr {
-                            @if let Some(ant) = &self.header.rcvr_antenna {
+                    }
+                }//div="file"
+                div(id="parameters") {
+                    table(class="table is-bordered") {
+                        thead {
+                            th {
+                                : "Parameters"
+                            }
+                        }
+                        tbody {
+                            : self.opts.to_inline_html()
+                        }
+                    }
+                }//div="parameters"
+            }
+            div(id="header") {
+                table(class="table is-bordered") {
+                    thead {
+                        th {
+                            : "Header"
+                        }
+                    }//header/tablehead
+                    tbody {
+                        @if let Some(ant) = &self.rinex.header.rcvr_antenna {
+                            tr {
+                                th {
+                                    : "Antenna model"
+                                }
+                                th {
+                                    : "SN#"
+                                }
+                            }
+                            tr {
                                 td {
                                     : ant.model.clone()
                                 }
                                 td {
-                                    : ant.sn.clone()
+                                    : ant.model.clone()
                                 }
-                            } else {
+                            }
+                        } else {
+                            tr {
+                                th {
+                                    : "Antenna"
+                                }
                                 td {
                                     : "Unknown"
                                 }
                             }
                         }
-                    }
-                }//div=antenna
-                div(id="rcvr") {
-                    table {
-                        tr {
-                            th {
-                                : "Receiver model"
+                        @if let Some(rcvr) = &self.rinex.header.rcvr {
+                            tr {
+                                th {
+                                    : "Receiver model"
+                                }
+                                th {
+                                    : "SN#"
+                                }
+                                th {
+                                    : "Firmware"
+                                }
                             }
-                            th {
-                                : "SN#"
-                            }
-                            th {
-                                : "Firmware"
-                            }
-                        }
-                        tr {
-                            @ if let Some(rcvr) = &self.header.rcvr {
+                            tr {
                                 td {
                                     : rcvr.model.clone()
                                 }
@@ -164,51 +326,66 @@ impl QcReport {
                                 td {
                                     : rcvr.firmware.clone()
                                 }
-                            } else {
-                                td {
-                                    : "Unknown"
+                            }
+                        }
+                        table(class="table is-bordered") {
+                            thead {
+                                th {
+                                    : "Antenna"
+                                }
+                            }
+                            tbody {
+                                tr {
+                                    th {
+                                        : "Header position"
+                                    }
+                                    @if let Some(ground_pos) = &self.rinex.header.ground_position {
+                                        : ground_pos.to_inline_html()
+                                    } else {
+                                        td {
+                                            : "Undefined"
+                                        }
+                                    }
+                                }
+                                tr {
+                                    th {
+                                        : "User defined position"
+                                    }
+                                    @ if let Some(ground_pos) = &self.opts.ground_position {
+                                        : ground_pos.to_inline_html()
+                                    } else {
+                                        td {
+                                            : "None"
+                                        }
+                                    }
                                 }
                             }
                         }
-                    }
-                }//div="rcvr"
-                div(id="ground-pos") {
-                    table {
-                        tr {
+                        table(class="table is-bordered") {
                             th {
-                                : "Ground Position (ECEF)"
+                                : "GNSS Constellations"
                             }
                             td {
-                                @ if let Some((pos_x,pos_y,pos_z)) = &self.header.coords {
-                                    : format!("{}, {}, {}", pos_x, pos_y, pos_z)
-                                } else {
-                                    : "Unknown"
-                                }
+                                : pretty_array(&self.rinex.list_constellations())
                             }
                         }
-
-                    }
-                }//div="ground-pos"
-            }//div=general
-            div(id="sampling") {
-                table {
-                    tr {
-                        th {
-                            : "Sampling"
-                        }
-                    }
-                    : self.sampling.to_inline_html()
-                }
-            }
-            @ if let Some(observation) = &self.observation {
-                div(id="observations", style="max-width:350px;") {
-                    table {
-                        tr {
+                    }//header/tablebody
+                }//table
+            }//div=header
+            /*
+             * Report all analysis that were performed
+             */
+            div(id="analysis") {
+                @ for analysis in &self.analysis {
+                    table(class="table is-bordered") {
+                        thead {
                             th {
-                                : "Observations"
+                                : analysis.classifier.to_string()
                             }
                         }
-                        : observation.to_inline_html()
+                        tbody {
+                            : analysis.to_inline_html()
+                        }
                     }
                 }
             }

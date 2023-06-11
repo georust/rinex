@@ -39,7 +39,7 @@ impl QcReport {
     pub fn new(rnx: &Rinex, nav: &Option<Rinex>, opts: QcOpts) -> Self {
         let mut first_epoch = Epoch::default();
         let record = rnx.record.as_obs().unwrap();
-        let sv_list = rnx.space_vehicules();
+        let sv_list = rnx.space_vehicles();
         let total_sv = sv_list.len();
         let total_epochs = record.len();
 
@@ -56,14 +56,14 @@ impl QcReport {
         let mut clk_drift: HashMap<Epoch, f64> = HashMap::with_capacity(total_epochs);
 
         // APC
-        let mut apc = (0_32, (0.0_f64, 0.0_f64, 0.0_f64));
+        let apc = (0_32, (0.0_f64, 0.0_f64, 0.0_f64));
         // SSi
         let mut ssi_avg: HashMap<String, Averager> = HashMap::with_capacity(total_sv);
         let mut mean_ssi: HashMap<String, Vec<(Epoch, f64)>> = HashMap::with_capacity(total_sv);
         // DCBs
-        let mut dcbs = rnx.observation_phase_dcb();
+        let dcbs = rnx.observation_phase_dcb();
         // MPx
-        let mut mp = rnx.observation_code_multipath();
+        let mp = rnx.observation_code_multipath();
 
         for (index, ((epoch, flag), (clk_offset, vehicles))) in record.iter().enumerate() {
             if index == 0 {
@@ -110,7 +110,7 @@ impl QcReport {
                                 }
                             }
                         } else {
-                            let mut avg = Averager::new(opts.obs_avg_window);
+                            let avg = Averager::new(opts.obs_avg_window);
                             ssi_avg.insert(carrier.to_string(), avg);
                         }
                     }

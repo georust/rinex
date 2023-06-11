@@ -1,7 +1,17 @@
-use super::observable::Observable;
 use crate::{
-    epoch, gnss_time::TimeScaling, merge, merge::Merge, prelude::*, sampling::Decimation, split,
-    split::Split, types::Type, version,
+    epoch,
+    gnss_time::GnssTime,
+    merge,
+    merge::Merge,
+    prelude::*,
+    processing::{
+        Decimate, DecimationType, Filter, Interpolate, Mask, MaskFilter, MaskOperand,
+        Preprocessing, TargetItem,
+    },
+    split,
+    split::Split,
+    types::Type,
+    version, Observable,
 };
 use hifitime::Duration;
 use std::collections::{BTreeMap, HashMap};
@@ -9,26 +19,30 @@ use std::str::FromStr;
 use thiserror::Error;
 
 /// Meteo RINEX Record content.
-/// Data is sorted by [epoch::Epoch] and by Observable.
-/// Example of Meteo record browsing and manipulation
+/// Dataset is sorted by [epoch::Epoch] and by [Observable].
 /// ```
-/// use rinex::*;
-/// // grab a METEO RINEX
+/// use rinex::prelude::*;
 /// let rnx = Rinex::from_file("../test_resources/MET/V2/abvi0010.15m")
 ///    .unwrap();
 /// // grab record
 /// let record = rnx.record.as_meteo()
 ///    .unwrap();
 /// for (epoch, observables) in record.iter() {
-///    for (observable, data) in observables.iter() {
-///        // Observable is standard 3 letter string code
-///        // Data is raw floating point data
-///    }
+///     for (observable, data) in observables.iter() {
+///         if *observable == Observable::Temperature {
+///             if *data > 20.0 { // °C
+///             }
+///         }
+///     }
 /// }
 /// ```
 pub type Record = BTreeMap<Epoch, HashMap<Observable, f64>>;
 
-/// Returns true if given line matches a new Meteo Record `epoch`
+/*
+ * Returns true if given line matches a new Meteo Record `epoch`.
+ * We use this when browsing a RINEX file, to determine whether
+ * we should initiate the parsing of a meteo record entry.
+ */
 pub(crate) fn is_new_epoch(line: &str, v: version::Version) -> bool {
     if v.major < 4 {
         let min_len = " 15  1  1  0  0  0";
@@ -60,8 +74,10 @@ pub enum Error {
     ParseFloatError(#[from] std::num::ParseFloatError),
 }
 
-/// Builds `Record` entry for `MeteoData`
-pub fn parse_epoch(
+/*
+ * Meteo record entry parsing method
+ */
+pub(crate) fn parse_epoch(
     header: &Header,
     content: &str,
 ) -> Result<(Epoch, HashMap<Observable, f64>), Error> {
@@ -115,7 +131,10 @@ pub fn parse_epoch(
     Ok((epoch, map))
 }
 
-/// Writes epoch into given streamer
+/*
+ * Epoch formatter
+ * is used when we're dumping a Meteo RINEX record entry
+ */
 pub(crate) fn fmt_epoch(
     epoch: &Epoch,
     data: &HashMap<Observable, f64>,
@@ -181,14 +200,12 @@ mod test {
     }
 }
 
-impl Merge<Record> for Record {
-    /// Merges `rhs` into `Self` without mutable access at the expense of more memcopies
+impl Merge for Record {
     fn merge(&self, rhs: &Self) -> Result<Self, merge::Error> {
         let mut lhs = self.clone();
         lhs.merge_mut(rhs)?;
         Ok(lhs)
     }
-    /// Merges `rhs` into `Self`
     fn merge_mut(&mut self, rhs: &Self) -> Result<(), merge::Error> {
         for (epoch, observations) in rhs.iter() {
             if let Some(oobservations) = self.get_mut(epoch) {
@@ -207,7 +224,7 @@ impl Merge<Record> for Record {
     }
 }
 
-impl Split<Record> for Record {
+impl Split for Record {
     fn split(&self, epoch: Epoch) -> Result<(Self, Self), split::Error> {
         let r0 = self
             .iter()
@@ -231,11 +248,104 @@ impl Split<Record> for Record {
             .collect();
         Ok((r0, r1))
     }
+    fn split_dt(&self, _duration: Duration) -> Result<Vec<Self>, split::Error> {
+        Ok(Vec::new())
+    }
 }
 
-impl Decimation<Record> for Record {
-    /// Decimates Self by desired factor
-    fn decim_by_ratio_mut(&mut self, r: u32) {
+impl GnssTime for Record {
+    fn timeseries(&self, dt: Duration) -> TimeSeries {
+        let epochs: Vec<_> = self.keys().collect();
+        TimeSeries::inclusive(
+            **epochs.get(0).expect("failed to determine first epoch"),
+            **epochs
+                .get(epochs.len() - 1)
+                .expect("failed to determine last epoch"),
+            dt,
+        )
+    }
+    fn convert_timescale(&mut self, ts: TimeScale) {
+        self.iter_mut()
+            .map(|(k, v)| (k.in_time_scale(ts), v))
+            .count();
+    }
+    fn with_timescale(&self, ts: TimeScale) -> Self {
+        let mut s = self.clone();
+        s.convert_timescale(ts);
+        s
+    }
+}
+
+impl Mask for Record {
+    fn mask(&self, mask: MaskFilter) -> Self {
+        let mut s = self.clone();
+        s.mask_mut(mask);
+        s
+    }
+    fn mask_mut(&mut self, mask: MaskFilter) {
+        match mask.operand {
+            MaskOperand::Equals => match mask.item {
+                TargetItem::EpochItem(epoch) => self.retain(|e, _| *e == epoch),
+                TargetItem::ObservableItem(filter) => {
+                    self.retain(|_, data| {
+                        data.retain(|code, _| filter.contains(code));
+                        data.len() > 0
+                    });
+                },
+                _ => {},
+            },
+            MaskOperand::NotEquals => match mask.item {
+                TargetItem::EpochItem(epoch) => self.retain(|e, _| *e != epoch),
+                TargetItem::ObservableItem(filter) => {
+                    self.retain(|_, data| {
+                        data.retain(|code, _| !filter.contains(code));
+                        data.len() > 0
+                    });
+                },
+                _ => {},
+            },
+            MaskOperand::GreaterEquals => match mask.item {
+                TargetItem::EpochItem(epoch) => self.retain(|e, _| *e >= epoch),
+                _ => {},
+            },
+            MaskOperand::GreaterThan => match mask.item {
+                TargetItem::EpochItem(epoch) => self.retain(|e, _| *e > epoch),
+                _ => {},
+            },
+            MaskOperand::LowerEquals => match mask.item {
+                TargetItem::EpochItem(epoch) => self.retain(|e, _| *e <= epoch),
+                _ => {},
+            },
+            MaskOperand::LowerThan => match mask.item {
+                TargetItem::EpochItem(epoch) => self.retain(|e, _| *e < epoch),
+                _ => {},
+            },
+        }
+    }
+}
+
+/*
+ * Decimates only a given record subset
+ */
+fn decimate_data_subset(record: &mut Record, subset: &Record, target: &TargetItem) {
+    match target {
+        TargetItem::ObservableItem(obs_list) => {
+            /*
+             * Remove given observations where it should now be missing
+             */
+            for (epoch, observables) in record.iter_mut() {
+                if subset.get(epoch).is_none() {
+                    // should be missing
+                    observables.retain(|observable, _| !obs_list.contains(observable));
+                }
+            }
+        },
+        _ => {},
+    }
+}
+
+impl Decimate for Record {
+    fn decimate_by_ratio_mut(&mut self, r: u32) {
         let mut i = 0;
         self.retain(|_, _| {
             let retained = (i % r) == 0;
@@ -243,14 +353,12 @@ impl Decimation<Record> for Record {
             retained
         });
     }
-    /// Copies and Decimates Self by desired factor
-    fn decim_by_ratio(&self, r: u32) -> Self {
+    fn decimate_by_ratio(&self, r: u32) -> Self {
         let mut s = self.clone();
-        s.decim_by_ratio_mut(r);
+        s.decimate_by_ratio_mut(r);
         s
     }
-    /// Decimates Self to fit minimum epoch interval
-    fn decim_by_interval_mut(&mut self, interval: Duration) {
+    fn decimate_by_interval_mut(&mut self, interval: Duration) {
         let mut last_retained: Option<Epoch> = None;
         self.retain(|e, _| {
             if last_retained.is_some() {
@@ -263,31 +371,214 @@ impl Decimation<Record> for Record {
             }
         });
     }
-    /// Copies and Decimates Self to fit minimum epoch interval
-    fn decim_by_interval(&self, interval: Duration) -> Self {
+    fn decimate_by_interval(&self, interval: Duration) -> Self {
         let mut s = self.clone();
-        s.decim_by_interval_mut(interval);
+        s.decimate_by_interval_mut(interval);
         s
     }
-    fn decim_match_mut(&mut self, rhs: &Self) {
+    fn decimate_match_mut(&mut self, rhs: &Self) {
         self.retain(|e, _| rhs.get(e).is_some());
     }
-    fn decim_match(&self, rhs: &Self) -> Self {
+    fn decimate_match(&self, rhs: &Self) -> Self {
         let mut s = self.clone();
-        s.decim_match_mut(&rhs);
+        s.decimate_match_mut(&rhs);
         s
     }
 }
 
-impl TimeScaling<Record> for Record {
-    fn convert_timescale(&mut self, ts: TimeScale) {
-        self.iter_mut()
-            .map(|(k, v)| (k.in_time_scale(ts), v))
-            .count();
-    }
-    fn with_timescale(&self, ts: TimeScale) -> Self {
+impl Preprocessing for Record {
+    fn filter(&self, f: Filter) -> Self {
         let mut s = self.clone();
-        s.convert_timescale(ts);
+        s.filter_mut(f);
         s
+    }
+    fn filter_mut(&mut self, f: Filter) {
+        match f {
+            Filter::Mask(mask) => self.mask_mut(mask),
+            Filter::Decimation(filter) => match filter.dtype {
+                DecimationType::DecimByRatio(r) => {
+                    if filter.target.is_none() {
+                        self.decimate_by_ratio_mut(r);
+                        return; // no need to proceed further
+                    }
+
+                    let item = filter.target.unwrap();
+
+                    // apply mask to retain desired subset
+                    let mask = MaskFilter {
+                        item: item.clone(),
+                        operand: MaskOperand::Equals,
+                    };
+
+                    // and decimate
+                    let subset = self.mask(mask).decimate_by_ratio(r);
+
+                    // adapt self's subset to new data rates
+                    decimate_data_subset(self, &subset, &item);
+                },
+                DecimationType::DecimByInterval(dt) => {
+                    if filter.target.is_none() {
+                        self.decimate_by_interval_mut(dt);
+                        return; // no need to proceed further
+                    }
+
+                    let item = filter.target.unwrap();
+
+                    // apply mask to retain desired subset
+                    let mask = MaskFilter {
+                        item: item.clone(),
+                        operand: MaskOperand::Equals,
+                    };
+
+                    // and decimate
+                    let subset = self.mask(mask).decimate_by_interval(dt);
+
+                    // adapt self's subset to new data rates
+                    decimate_data_subset(self, &subset, &item);
+                },
+            },
+            Filter::Smoothing(_) => todo!(),
+            Filter::Interp(filter) => self.interpolate_mut(filter.series),
+        }
+    }
+}
+
+impl Interpolate for Record {
+    fn interpolate(&self, series: TimeSeries) -> Self {
+        let mut s = self.clone();
+        s.interpolate_mut(series);
+        s
+    }
+    fn interpolate_mut(&mut self, _series: TimeSeries) {
+        unimplemented!("meteo:record:interpolate_mut()")
+    }
+}
+
+use crate::algorithm::StatisticalOps;
+use crate::processing::Processing;
+use statrs::statistics::Statistics;
+
+impl Processing for Record {
+    /*
+     * Statistical method wrapper,
+     * applies given statistical function to self (entire record)
+     */
+    fn statistical_ops(
+        &self,
+        _ops: StatisticalOps,
+    ) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
+        unimplemented!();
+        /*
+         * User is expected to use the _observable() API
+         * on Meteo RINEX: we only perform statistical calculations
+         * on observation basis
+         */
+    }
+    /*
+     * Statistical method wrapper,
+     * applies given statistical function to self (entire record) across Sv
+     */
+    fn statistical_observable_ops(&self, ops: StatisticalOps) -> HashMap<Observable, f64> {
+        let mut ret = HashMap::<Observable, f64>::new();
+        for (_, observables) in self {
+            for (observable, _) in observables {
+                // vectorize matching obs
+                let mut data = Vec::<f64>::new();
+                for (_, oobservables) in self {
+                    for (oobservable, observation) in oobservables {
+                        if observable == oobservable {
+                            data.push(*observation);
+                        }
+                    }
+                }
+                match ops {
+                    StatisticalOps::Max => {
+                        ret.insert(observable.clone(), data.max());
+                    },
+                    StatisticalOps::MaxAbs => {
+                        ret.insert(observable.clone(), data.abs_max());
+                    },
+                    StatisticalOps::Min => {
+                        ret.insert(observable.clone(), data.min());
+                    },
+                    StatisticalOps::MinAbs => {
+                        ret.insert(observable.clone(), data.abs_min());
+                    },
+                    StatisticalOps::Mean => {
+                        ret.insert(observable.clone(), data.mean());
+                    },
+                    StatisticalOps::QuadMean => {
+                        ret.insert(observable.clone(), data.quadratic_mean());
+                    },
+                    StatisticalOps::GeoMean => {
+                        ret.insert(observable.clone(), data.geometric_mean());
+                    },
+                    StatisticalOps::HarmMean => {
+                        ret.insert(observable.clone(), data.harmonic_mean());
+                    },
+                    StatisticalOps::Variance => {
+                        ret.insert(observable.clone(), data.variance());
+                    },
+                    StatisticalOps::StdDev => {
+                        ret.insert(observable.clone(), data.std_dev());
+                    },
+                }
+            }
+        }
+        ret
+    }
+    fn min(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
+        self.statistical_ops(StatisticalOps::Min)
+    }
+    fn abs_min(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
+        self.statistical_ops(StatisticalOps::MinAbs)
+    }
+    fn min_observable(&self) -> HashMap<Observable, f64> {
+        self.statistical_observable_ops(StatisticalOps::Min)
+    }
+    fn abs_min_observable(&self) -> HashMap<Observable, f64> {
+        self.statistical_observable_ops(StatisticalOps::MinAbs)
+    }
+    fn max(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
+        self.statistical_ops(StatisticalOps::Max)
+    }
+    fn abs_max(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
+        self.statistical_ops(StatisticalOps::MaxAbs)
+    }
+    fn max_observable(&self) -> HashMap<Observable, f64> {
+        self.statistical_observable_ops(StatisticalOps::Max)
+    }
+    fn abs_max_observable(&self) -> HashMap<Observable, f64> {
+        self.statistical_observable_ops(StatisticalOps::MaxAbs)
+    }
+    fn mean(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
+        self.statistical_ops(StatisticalOps::Mean)
+    }
+    fn mean_observable(&self) -> HashMap<Observable, f64> {
+        self.statistical_observable_ops(StatisticalOps::Mean)
+    }
+    fn harmonic_mean(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
+        self.statistical_ops(StatisticalOps::HarmMean)
+    }
+    fn harmonic_mean_observable(&self) -> HashMap<Observable, f64> {
+        self.statistical_observable_ops(StatisticalOps::QuadMean)
+    }
+    fn quadratic_mean(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
+        self.statistical_ops(StatisticalOps::QuadMean)
+    }
+    fn quadratic_mean_observable(&self) -> HashMap<Observable, f64> {
+        self.statistical_observable_ops(StatisticalOps::QuadMean)
+    }
+    fn geometric_mean(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
+        self.statistical_ops(StatisticalOps::GeoMean)
+    }
+    fn geometric_mean_observable(&self) -> HashMap<Observable, f64> {
+        self.statistical_observable_ops(StatisticalOps::GeoMean)
+    }
+    fn variance(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
+        self.statistical_ops(StatisticalOps::Variance)
+    }
+    fn std_dev(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
+        self.statistical_ops(StatisticalOps::StdDev)
     }
 }

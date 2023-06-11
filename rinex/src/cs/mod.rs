@@ -1,4 +1,4 @@
-use crate::{observation::*, prelude::*, Carrier};
+use crate::{prelude::*, Carrier};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -54,8 +54,8 @@ impl CsDetector {
     /// Returns list of Epoch where detector determined a CS happened
     /// rnx: should be Observation RINEX
     pub fn cs_detection(&mut self, rnx: &Rinex) -> HashMap<Carrier, HashMap<Sv, Vec<Epoch>>> {
-        let mut ret: HashMap<Carrier, HashMap<Sv, Vec<Epoch>>> = HashMap::new();
-        let permutation_allowed = match self.method {
+        let ret: HashMap<Carrier, HashMap<Sv, Vec<Epoch>>> = HashMap::new();
+        let _permutation_allowed = match self.method {
             CsSelectionMethod::Auto | CsSelectionMethod::Prefered(_) => true,
             _ => false,
         };
@@ -71,12 +71,12 @@ impl CsDetector {
                  */
                 let iono = rnx.observation_iono_detector();
                 // op is feasible if at least two independent phase combinations were created
-                let mut is_feasible = false;
+                let mut _is_feasible = false;
                 let mut candidates: Vec<String> = Vec::with_capacity(iono.len());
                 let mut confirmed: Vec<String> = Vec::with_capacity(iono.len());
                 for (op, _) in &iono {
                     let items: Vec<&str> = op.split("-").collect();
-                    let (lhs_op, rhs_op) = (items[0], items[1]);
+                    let (_lhs_op, rhs_op) = (items[0], items[1]);
                     if candidates.contains(&rhs_op.to_string())
                         && !confirmed.contains(&rhs_op.to_string())
                     {

@@ -21,6 +21,11 @@ This tool supports standard GNSS recombinations, especially for modern RINEX.
 Refer to this page for [thorough documentation](gnss-combination.md).  
 It is important to understand GNSS signal recombinations and what they can represent.  
 
+The RINEX tool suites can estimate the following code biases:
+
+- the DCB code biases 
+- the MP code biases
+
 Differential Code Biases (DBCs)
 ===============================
 
@@ -45,52 +50,19 @@ Because data is not modified in place, and both results are exposed in seperate 
 * 2C/2P for GLO L2 (2)
 * 2L/2W for GPS L2 (3)
 
-A quick `--sv-epoch` shows that R01,R02,R08,R12,R19 for instance were seen for the first few hours.
-
 Analyze 1C/1P and 2C/2P with:
 
 ```bash
-rinex-cli --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    --dcb \
-    --retain-obs C1C,C1P,C2C,C2P \
-    --retain-sv R01,R02,R12,R19,R08 \ 
-    -w "2020-06-25 00:00:00 2020-06-25 06:00:00"
-```
-
-<img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_pr_dcbs.png">
-
-Like other recombinations, Pseudo Range DCBs reflects more noise in observations
-than Phase data. If we now focus on Phase observations:
-
-```bash
-rinex-cli --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    --dcb \
-    --retain-obs L1C,L1P,L2C,L2P \
-    --retain-sv R12,R08,R02,R19,R01 \
-    -w "2020-06-25 03:00:00 2020-06-25 05:00:00"
+rinex-cli \
+    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
+        -P G07 --dcb
 ```
 
 <img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_ph_dcbs.png">
 
-Biases on Phase data are 100 times less noisy than on Pseudo Range.  
-But phase data is also "harder" to manipulate. For best rendering, you need
-no discontinuity in the data. For rending reasons we had to
-narrow the previous 6 hours of data to only 2.
 
-Differential Processing
-=======================
-
-When moving to more advanced RINEX processing,
-Navigation RINEX (Ephemeris) must be provided with `--nav`.
-
-In this mode, `--fp` is expected to be an Observation RINEX.
-
-Let's remind the user that in this mode, `--sv-epoch` helps
-exhibit which vehicules share Ephemeris and Observations for a given epoch
-or epoch range. This feature is very important do determine
-which vehicule is a good candidate for the operations that follow.
-
-## Code Multipath (MP) analysis
+Code Multipath biases
+=====================
 
 MP ratios (so called "CMC" for Code Minus Carrier metrics) 
 are formed by combining Phase and PR observations sampled against different carrier frequencies
@@ -105,18 +77,32 @@ A very compelling use case of MP code analysis
 can be
 [found here](https://www.taoglas.com/wp-content/uploads/pdf/Multipath-Analysis-Using-Code-Minus-Carrier-Technique-in-GNSS-Antennas-_WhitePaper_VP__Final-1.pdf).
 
-In this example, `ESBC00DNK_R_2020` vehicule GPS#13 
-has enough data to compute MP ratio for codes "1C", "2W" and "5Q".
-This operation requires combining the associated Ephemeris, that we also provide
-for demonstration purposes:
+
+MP analysis is summoned with `--mp`.
+
+In this example, `ESBC00DNK_R_2020` vehicle GPS#13 
+has enough data to compute MP ratios:
 
 ```bash
 rinex-cli \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    --nav test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz \
-    --multipath \
-    --retain-sv G13
+        -P G13 --dcb --mp
 ```
+
+<img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_g13_dcb_mp.png">
+
+Differential Processing
+=======================
+
+When moving to more advanced RINEX processing,
+Navigation RINEX (Ephemeris) must be provided with `--nav`.
+
+In this mode, `--fp` is expected to be an Observation RINEX.
+
+Let's remind the user that in this mode, `--sv-epoch` helps
+exhibit which vehicles share Ephemeris and Observations for a given epoch
+or epoch range. This feature is very important do determine
+which vehicle is a good candidate for the operations that follow.
 
 ## Cycle slips analysis
 

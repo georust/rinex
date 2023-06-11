@@ -113,7 +113,8 @@ impl std::fmt::UpperExp for GloHealth {
 
 bitflags! {
     /// GAL orbit health indication
-    #[derive(Default)]
+    #[derive(Debug, Default, Copy, Clone)]
+    #[derive(PartialEq, PartialOrd)]
     #[cfg_attr(feature = "pyo3", pyclass)]
     #[cfg_attr(feature = "serde", derive(Serialize))]
     pub struct GalHealth: u8 {

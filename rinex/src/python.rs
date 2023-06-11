@@ -4,7 +4,7 @@ use crate::{
     hardware::*,
     header::MarkerType,
     navigation::*,
-    observation::{record::*, Crinex},
+    observation::{record::*, Crinex, Snr},
     prelude::*,
 };
 
@@ -30,7 +30,7 @@ fn rinex(_py: Python, m: &PyModule) -> PyResult<()> {
      * TODO: Observation module
      */
     m.add_class::<Crinex>()?;
-    m.add_class::<Ssi>()?;
+    m.add_class::<Snr>()?;
     m.add_class::<LliFlags>()?;
     m.add_class::<ObservationData>()?;
     /*

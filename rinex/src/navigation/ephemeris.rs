@@ -24,7 +24,7 @@ pub enum Error {
     ParseIntError(#[from] std::num::ParseIntError),
     #[error("failed to parse epoch")]
     EpochError(#[from] epoch::Error),
-    #[error("failed to identify sat vehicule")]
+    #[error("failed to identify sat vehicle")]
     ParseSvError(#[from] sv::Error),
 }
 
@@ -36,11 +36,13 @@ pub enum Error {
 ///     .unwrap();
 /// let record = rnx.record.as_nav()
 ///     .unwrap();
+///
 /// // reference station (ground position) must be given somehow
 /// // to permit Sv position determination (see down below).
 /// // Usually this is contained in the file header (header.coords),
 /// // but that is not the case for this file
-/// let ref_pos = (1.0_f64, 2.0_f64, 3.0_f64);
+/// let ref_pos = GroundPosition::from_ecef_wgs84((1.0_f64, 2.0_f64, 3.0_f64));
+///
 /// for (epoch, classes) in record {
 ///     for (class, frames) in classes {
 ///         for fr in frames {
@@ -173,12 +175,11 @@ pub struct Perturbations {
 
 #[cfg_attr(feature = "pyo3", pymethods)]
 impl Ephemeris {
-    /// Retrieve all clock biases (bias, drift, drift_rate) at once
+    /// Retrieve all clock biases (bias, drift, drift rate) at once
     pub fn clock_data(&self) -> (f64, f64, f64) {
         (self.clock_bias, self.clock_drift, self.clock_drift_rate)
     }
-
-    /// Retrieves orbit data as f64 value, if possible
+    /// Retrieves orbit data as f64 value, if possible (if field exists)
     pub fn get_orbit_f64(&self, field: &str) -> Option<f64> {
         if let Some(v) = self.orbits.get(field) {
             v.as_f64()
@@ -186,7 +187,6 @@ impl Ephemeris {
             None
         }
     }
-
     /// Tries to retrieve week counter
     pub fn get_weeks(&self) -> Option<u32> {
         //TODO:
@@ -207,7 +207,7 @@ impl Ephemeris {
         None
     }
 
-    /// Retrieves Keplerian parameters
+    /// Retrieves Orbit Keplerian parameters
     pub fn kepler(&self) -> Option<Kepler> {
         if let Some(sqrt_a) = self.get_orbit_f64("sqrta") {
             if let Some(e) = self.get_orbit_f64("e") {
@@ -235,7 +235,7 @@ impl Ephemeris {
         None
     }
 
-    /// Retrieves Perturbations
+    /// Retrieves Orbit Perturbations parameters
     pub fn perturbations(&self) -> Option<Perturbations> {
         if let Some(cuc) = self.get_orbit_f64("cuc") {
             if let Some(cus) = self.get_orbit_f64("cus") {
@@ -269,7 +269,7 @@ impl Ephemeris {
         None
     }
 
-    /// Returns satellite position vector, in ECEF
+    /// Returns Satellite position vector, in ECEF
     pub fn sat_pos_ecef(&self, epoch: Epoch) -> Option<(f64, f64, f64)> {
         if let Some(pos_x) = self.get_orbit_f64("satPosX") {
             if let Some(pos_y) = self.get_orbit_f64("satPosY") {
@@ -309,11 +309,10 @@ impl Ephemeris {
         None
     }
 
-    /// Returns satellite instantaneous acelleration estimate, in ECEF
+    /// Returns satellite instantaneous acceleration estimate, in ECEF
     pub fn sat_accel_ecef(
         &self,
         epoch: Epoch,
-        prev_pos: (f64, f64, f64),
         prev_speed: (f64, f64, f64),
         prev_epoch: Epoch,
     ) -> Option<(f64, f64, f64)> {
@@ -379,19 +378,19 @@ impl Ephemeris {
         Some((x_k, y_k, z_k))
     }
 
-    /// Computes satellite position in (latitude, longitude, altitude) ddeg
+    /// Computes satellite position expressed in geodetic {latitude, longitude, altitude},
+    /// all coordinates in decimal degrees.
     pub fn sat_geodetic(&self, epoch: Epoch) -> Option<(f64, f64, f64)> {
         let (x_k, y_k, z_k) = self.sat_pos_ecef(epoch)?;
         let (lat, lon, alt) = map_3d::ecef2geodetic(x_k, y_k, z_k, map_3d::Ellipsoid::WGS84);
         Some((map_3d::rad2deg(lat), map_3d::rad2deg(lon), alt))
     }
 
-    /// Computes and returns vehicle elevation and azimuth angles in degrees
-    pub fn sat_elev_azim(&self, epoch: Epoch, ref_pos: (f64, f64, f64)) -> Option<(f64, f64)> {
+    /// Computes and returns vehicle elevation and azimuth angles, expressed in degrees.
+    pub fn sat_elev_azim(&self, epoch: Epoch, position: GroundPosition) -> Option<(f64, f64)> {
         let (sv_x, sv_y, sv_z) = self.sat_pos_ecef(epoch)?;
-        let (ref_x, ref_y, ref_z) = ref_pos;
-        let (sv_lat, sv_lon, sv_alt) =
-            map_3d::ecef2geodetic(sv_x, sv_y, sv_z, map_3d::Ellipsoid::WGS84);
+        let (ref_x, ref_y, ref_z) = position.to_ecef_wgs84();
+        let (sv_lat, sv_lon, _) = map_3d::ecef2geodetic(sv_x, sv_y, sv_z, map_3d::Ellipsoid::WGS84);
         // pseudo range
         let a_i = (sv_x - ref_x, sv_y - ref_y, sv_z - ref_z);
         let norm = (a_i.0.powf(2.0) + a_i.1.powf(2.0) + a_i.2.powf(2.0)).sqrt();
@@ -422,9 +421,10 @@ impl Ephemeris {
         }
         Some((map_3d::rad2deg(elev), azim))
     }
-
-    /// Parses ephemeris from given line iterator
-    pub fn parse_v2v3(
+    /*
+     * Parses ephemeris from given line iterator
+     */
+    pub(crate) fn parse_v2v3(
         version: Version,
         constellation: Constellation,
         mut lines: std::str::Lines<'_>,
@@ -483,8 +483,11 @@ impl Ephemeris {
             },
         ))
     }
-
-    pub fn parse_v4(mut lines: std::str::Lines<'_>) -> Result<(Epoch, Sv, Self), Error> {
+    /*
+     * Parses ephemeris from given line iterator
+     * RINEX V4 content specific method
+     */
+    pub(crate) fn parse_v4(mut lines: std::str::Lines<'_>) -> Result<(Epoch, Sv, Self), Error> {
         let line = match lines.next() {
             Some(l) => l,
             _ => return Err(Error::MissingData),
@@ -514,7 +517,11 @@ impl Ephemeris {
     }
 }
 
-/// Parses constellation + revision dependent orbits data
+/*
+ * Parses constellation + revision dependent orbits data fields.
+ * Retrieves all of this information from the databased stored and maintained
+ * in db/NAV/orbits.
+ */
 fn parse_orbits(
     version: Version,
     constell: Constellation,
@@ -748,7 +755,11 @@ mod test {
         };
 
         let epoch = Epoch::from_time_of_week(910, 4.0327293e14 as u64, TimeScale::GPST);
-        let ref_pos = (-5.67841101e6_f64, -2.49239629e7_f64, 7.05651887e6_f64);
+        let ref_pos = GroundPosition::from_ecef_wgs84((
+            -5.67841101e6_f64,
+            -2.49239629e7_f64,
+            7.05651887e6_f64,
+        ));
         let xyz = ephemeris.kepler2ecef(epoch);
         let el_azim = ephemeris.sat_elev_azim(epoch, ref_pos);
 

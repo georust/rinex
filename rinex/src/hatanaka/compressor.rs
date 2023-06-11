@@ -1,6 +1,6 @@
 //! RINEX compression module
 use super::{numdiff::NumDiff, textdiff::TextDiff, Error};
-use crate::{is_comment, Constellation, Sv};
+use crate::{is_comment, Constellation, Observable, Sv};
 use std::collections::HashMap;
 use std::str::FromStr;
 
@@ -35,17 +35,17 @@ pub struct Compressor {
     epoch_descriptor: String,
     /// flags descriptor being constructed
     flags_descriptor: String,
-    /// vehicules counter in next body
-    nb_vehicules: usize,
-    /// vehicule pointer
-    vehicule_ptr: usize,
+    /// vehicles counter in next body
+    nb_vehicles: usize,
+    /// vehicle pointer
+    vehicle_ptr: usize,
     /// obs pointer
     obs_ptr: usize,
     /// Epoch differentiator
     epoch_diff: TextDiff,
     /// Clock offset differentiator
     clock_diff: NumDiff,
-    /// Vehicule differentiators
+    /// Vehicle differentiators
     sv_diff: HashMap<Sv, HashMap<usize, (NumDiff, TextDiff, TextDiff)>>,
     /// Pending kernel re-initialization
     forced_init: HashMap<Sv, Vec<usize>>,
@@ -70,8 +70,8 @@ impl Compressor {
             epoch_descriptor: String::new(),
             flags_descriptor: String::new(),
             state: State::default(),
-            nb_vehicules: 0,
-            vehicule_ptr: 0,
+            nb_vehicles: 0,
+            vehicle_ptr: 0,
             obs_ptr: 0,
             epoch_diff: TextDiff::new(),
             clock_diff: NumDiff::new(NumDiff::MAX_COMPRESSION_ORDER).unwrap(),
@@ -80,15 +80,15 @@ impl Compressor {
         }
     }
 
-    /// Identifies amount of vehicules to be provided in next iterations
+    /// Identifies amount of vehicles to be provided in next iterations
     /// by analyzing epoch descriptor
-    fn determine_nb_vehicules(&self, content: &str) -> Result<usize, Error> {
+    fn determine_nb_vehicles(&self, content: &str) -> Result<usize, Error> {
         if content.len() < 33 {
             Err(Error::MalformedEpochDescriptor)
         } else {
             let nb = &content[30..32];
             if let Ok(u) = u16::from_str_radix(nb.trim(), 10) {
-                //println!("Identified {} vehicules", u); //DEBUG
+                //println!("Identified {} vehicles", u); //DEBUG
                 Ok(u.into())
             } else {
                 Err(Error::MalformedEpochDescriptor)
@@ -96,30 +96,30 @@ impl Compressor {
         }
     }
 
-    /// Identifies vehicule from previously stored epoch descriptor
-    fn current_vehicule(&self, constellation: &Constellation) -> Result<Sv, Error> {
+    /// Identifies vehicle from previously stored epoch descriptor
+    fn current_vehicle(&self, constellation: &Constellation) -> Result<Sv, Error> {
         let sv_size = 3;
         let epoch_size = 32;
-        let vehicule_offset = self.vehicule_ptr * sv_size;
-        let min = epoch_size + vehicule_offset;
+        let vehicle_offset = self.vehicle_ptr * sv_size;
+        let min = epoch_size + vehicle_offset;
         let max = min + sv_size;
-        let vehicule = &mut self.epoch_descriptor[min..max].trim().to_string();
-        if let Some(constell_id) = vehicule.chars().nth(0) {
+        let vehicle = &mut self.epoch_descriptor[min..max].trim().to_string();
+        if let Some(constell_id) = vehicle.chars().nth(0) {
             if constell_id.is_ascii_digit() {
                 // in old RINEX + mono constell context
                 //   it is possible that constellation ID is omitted..
-                vehicule.insert_str(0, constellation.to_1_letter_code());
+                vehicle.insert_str(0, constellation.to_1_letter_code());
             }
-            let sv = Sv::from_str(&vehicule)?;
+            let sv = Sv::from_str(&vehicle)?;
             //println!("VEHICULE: {}", sv); //DEBUG
             Ok(sv)
         } else {
-            Err(Error::VehiculeIdentificationError)
+            Err(Error::VehicleIdentificationError)
         }
     }
 
-    /// Concludes current vehicule
-    fn conclude_vehicule(&mut self, content: &str) -> String {
+    /// Concludes current vehicle
+    fn conclude_vehicle(&mut self, content: &str) -> String {
         let mut result = content.to_string();
         //println!(">>> VEHICULE CONCLUDED"); //DEBUG
         // conclude line with lli/ssi flags
@@ -129,10 +129,10 @@ impl Compressor {
         }
         result.push_str("\n");
         self.flags_descriptor.clear();
-        // move to next vehicule
+        // move to next vehicle
         self.obs_ptr = 0;
-        self.vehicule_ptr += 1;
-        if self.vehicule_ptr == self.nb_vehicules {
+        self.vehicle_ptr += 1;
+        if self.vehicle_ptr == self.nb_vehicles {
             self.conclude_epoch();
         }
         result
@@ -143,7 +143,7 @@ impl Compressor {
         //DEBUG
         //println!(">>> EPOCH CONCLUDED \n");
         self.epoch_ptr = 0;
-        self.vehicule_ptr = 0;
+        self.vehicle_ptr = 0;
         self.epoch_descriptor.clear();
         self.state.reset();
     }
@@ -171,7 +171,7 @@ impl Compressor {
     pub fn compress(
         &mut self,
         _rnx_major: u8,
-        obs_codes: &HashMap<Constellation, Vec<String>>,
+        observables: &HashMap<Constellation, Vec<Observable>>,
         constellation: &Constellation,
         content: &str,
     ) -> Result<String, Error> {
@@ -189,9 +189,9 @@ impl Compressor {
                             if self.obs_ptr > 0 {
                                 // previously active
                                 // identify current Sv
-                                if let Ok(sv) = self.current_vehicule(&constellation) {
+                                if let Ok(sv) = self.current_vehicle(&constellation) {
                                     // nb of obs for this constellation
-                                    let sv_nb_obs = obs_codes[&sv.constellation].len();
+                                    let sv_nb_obs = observables[&sv.constellation].len();
                                     let nb_missing = std::cmp::min(5, sv_nb_obs - self.obs_ptr);
                                     //println!("Early empty line - missing {} field(s)", nb_missing); //DEBUG
                                     for i in 0..nb_missing {
@@ -202,8 +202,8 @@ impl Compressor {
                                     }
                                     self.obs_ptr += nb_missing;
                                     if self.obs_ptr == sv_nb_obs {
-                                        // vehicule completion
-                                        result = self.conclude_vehicule(&result);
+                                        // vehicle completion
+                                        result = self.conclude_vehicle(&result);
                                     }
 
                                     if nb_missing > 0 {
@@ -240,7 +240,7 @@ impl Compressor {
                     if self.epoch_ptr == 0 {
                         // 1st line
                         // identify #systems
-                        self.nb_vehicules = self.determine_nb_vehicules(line)?;
+                        self.nb_vehicles = self.determine_nb_vehicles(line)?;
                     }
                     self.epoch_ptr += 1;
                     self.epoch_descriptor.push_str(line);
@@ -257,7 +257,7 @@ impl Compressor {
                     //  otherwise append a BLANK
                     self.epoch_descriptor.push_str("\n");
 
-                    let nb_lines = num_integer::div_ceil(self.nb_vehicules, 12) as u8;
+                    let nb_lines = num_integer::div_ceil(self.nb_vehicles, 12) as u8;
                     if self.epoch_ptr == nb_lines {
                         // end of descriptor
                         // format to CRINEX
@@ -287,7 +287,7 @@ impl Compressor {
                         }
 
                         self.obs_ptr = 0;
-                        self.vehicule_ptr = 0;
+                        self.vehicle_ptr = 0;
                         self.flags_descriptor.clear();
                         self.state = State::Body;
                     }
@@ -296,9 +296,9 @@ impl Compressor {
                     // nb of obs in this line
                     let nb_obs_line = num_integer::div_ceil(line.len(), 17);
                     // identify current satellite using stored epoch description
-                    if let Ok(sv) = self.current_vehicule(&constellation) {
+                    if let Ok(sv) = self.current_vehicle(&constellation) {
                         // nb of obs for this constellation
-                        let sv_nb_obs = obs_codes[&sv.constellation].len();
+                        let sv_nb_obs = observables[&sv.constellation].len();
                         if self.obs_ptr + nb_obs_line > sv_nb_obs {
                             // facing an overflow
                             // this means all final fields were omitted,
@@ -311,16 +311,16 @@ impl Compressor {
                                                       // if we don't do this we break retro compatibility
                                 self.flags_descriptor.push_str("  ");
                             }
-                            result = self.conclude_vehicule(&result);
+                            result = self.conclude_vehicle(&result);
                             if self.state == State::EpochDescriptor {
                                 // epoch got also concluded
                                 // --> rewind fsm
-                                self.nb_vehicules = self.determine_nb_vehicules(line)?;
+                                self.nb_vehicles = self.determine_nb_vehicles(line)?;
                                 self.epoch_ptr = 1; // we already have a new descriptor
                                 self.epoch_descriptor.push_str(line);
                                 self.epoch_descriptor.push_str("\n");
                                 continue; // avoid end of this loop,
-                                          // as this vehicule is now concluded
+                                          // as this vehicle is now concluded
                             }
                         }
 
@@ -396,7 +396,7 @@ impl Compressor {
                                             sv_diffs.insert(self.obs_ptr, diff);
                                         }
                                     } else {
-                                        // first time dealing with this vehicule
+                                        // first time dealing with this vehicle
                                         let mut diff: (NumDiff, TextDiff, TextDiff) = (
                                             NumDiff::new(NumDiff::MAX_COMPRESSION_ORDER)?,
                                             TextDiff::new(),
@@ -479,7 +479,7 @@ impl Compressor {
                                             sv_diffs.insert(self.obs_ptr, diff);
                                         }
                                     } else {
-                                        // first time dealing with this vehicule
+                                        // first time dealing with this vehicle
                                         let mut diff: (NumDiff, TextDiff, TextDiff) = (
                                             NumDiff::new(NumDiff::MAX_COMPRESSION_ORDER)?,
                                             TextDiff::new(),
@@ -523,13 +523,13 @@ impl Compressor {
                         } //for i..nb_obs in this line
 
                         if self.obs_ptr == sv_nb_obs {
-                            // vehicule completion
-                            result = self.conclude_vehicule(&result);
+                            // vehicle completion
+                            result = self.conclude_vehicle(&result);
                         }
                     } else {
                         // sv::from_str()
-                        // failed to identify which vehicule we're dealing with
-                        return Err(Error::VehiculeIdentificationError);
+                        // failed to identify which vehicle we're dealing with
+                        return Err(Error::VehicleIdentificationError);
                     }
                 },
             } //match(state)

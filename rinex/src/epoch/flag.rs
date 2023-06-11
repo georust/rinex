@@ -4,7 +4,7 @@ use thiserror::Error;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
-#[derive(Error, Debug)]
+#[derive(Error, Clone, Debug, PartialEq)]
 pub enum Error {
     #[error("non recognized epoch flag")]
     UnknownFlag,

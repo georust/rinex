@@ -1,42 +1,14 @@
 use super::{epoch, prelude::*, version::Version};
-
-pub mod record;
-pub use record::{LliFlags, ObservationData, Record, Ssi};
-
 use std::collections::HashMap;
 
 #[cfg(feature = "pyo3")]
 use pyo3::prelude::*;
 
-/// Macro to determine whether this is a Phase observation or not
-pub fn is_phase_observation(content: &str) -> bool {
-    content.trim().starts_with("L")
-}
+pub mod record;
+mod snr;
 
-/// Macro to determine whether this is a Doppler observation or not
-pub fn is_doppler_observation(content: &str) -> bool {
-    content.trim().starts_with("D")
-}
-
-/// Macro to determine whether this is a Pseudo Range observation or not
-pub fn is_pseudorange_observation(content: &str) -> bool {
-    content.trim().starts_with("C") || content.trim().starts_with("P")
-}
-
-/// Macro to determine whether this is an SSI observation or not
-pub fn is_ssi_observation(content: &str) -> bool {
-    content.trim().starts_with("S")
-}
-
-/// Macro to extract observation code
-pub fn observation_code(content: &str) -> String {
-    let c = content.trim();
-    if c.len() > 2 {
-        c[1..].to_string()
-    } else {
-        c[..std::cmp::min(c.len(), 2)].to_string()
-    }
-}
+pub use record::{LliFlags, ObservationData, Record};
+pub use snr::Snr;
 
 macro_rules! fmt_month {
     ($m: expr) => {
@@ -151,38 +123,36 @@ impl std::fmt::Display for Crinex {
 #[derive(Debug, Clone, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct HeaderFields {
-    /// Optional CRINEX information,
-    /// only present on compressed OBS
+    /// Optional CRINEX information
     pub crinex: Option<Crinex>,
-    /// Observation codes present in this file, by Constellation
-    pub codes: HashMap<Constellation, Vec<String>>,
-    /// True if epochs & data compensate for local clock drift
+    /// Observables per constellation basis
+    pub codes: HashMap<Constellation, Vec<Observable>>,
+    /// True if local clock drift is compensated for
     pub clock_offset_applied: bool,
-    /// List of constellation for which (Phase and PR)
-    /// Differential Code Biases are compensated for
+    /// DCBs compensation per constellation basis
     pub dcb_compensations: Vec<Constellation>,
     /// Optionnal data scalings
-    pub scalings: HashMap<Constellation, HashMap<String, f64>>,
+    pub scalings: HashMap<Constellation, HashMap<Observable, f64>>,
 }
 
 impl HeaderFields {
     /// Add an optionnal data scaling
-    pub fn with_scaling(&self, c: Constellation, observation: &str, scaling: f64) -> Self {
+    pub fn with_scaling(&self, c: Constellation, observable: Observable, scaling: f64) -> Self {
         let mut s = self.clone();
         if let Some(scalings) = s.scalings.get_mut(&c) {
-            scalings.insert(observation.to_string(), scaling);
+            scalings.insert(observable, scaling);
         } else {
-            let mut map: HashMap<String, f64> = HashMap::new();
-            map.insert(observation.to_string(), scaling);
+            let mut map: HashMap<Observable, f64> = HashMap::new();
+            map.insert(observable, scaling);
             s.scalings.insert(c, map);
         }
         s
     }
     /// Returns given scaling to apply for given GNSS system
     /// and given observation. Returns 1.0 by default, so it always applies
-    pub fn scaling(&self, c: &Constellation, observation: &String) -> f64 {
+    pub fn scaling(&self, c: &Constellation, observable: Observable) -> f64 {
         if let Some(scalings) = self.scalings.get(c) {
-            if let Some(scaling) = scalings.get(observation) {
+            if let Some(scaling) = scalings.get(&observable) {
                 return *scaling;
             }
         }
@@ -253,23 +223,5 @@ rust-rinex-{}                        {:02}-{}-{} {:02}:{:02}     CRINEX PROG / D
             mm
         );
         assert_eq!(crinex.to_string(), expected);
-    }
-    #[test]
-    fn test_observables() {
-        assert_eq!(is_pseudorange_observation("C1P"), true);
-        assert_eq!(is_pseudorange_observation("P1P"), true);
-        assert_eq!(is_pseudorange_observation("L1P"), false);
-        assert_eq!(is_phase_observation("L1P"), true);
-        assert_eq!(is_phase_observation("D1P"), false);
-        assert_eq!(is_doppler_observation("D1P"), true);
-        assert_eq!(is_doppler_observation("L1P"), false);
-        assert_eq!(is_ssi_observation("S1P"), true);
-        assert_eq!(is_ssi_observation("L1P"), false);
-
-        assert_eq!(observation_code("C1P"), "1P");
-        assert_eq!(observation_code("C1"), "C1");
-        assert_eq!(observation_code("L1C"), "1C");
-        assert_eq!(observation_code("L1W"), "1W");
-        assert_eq!(observation_code("L1"), "L1");
     }
 }

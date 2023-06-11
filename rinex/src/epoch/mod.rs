@@ -44,12 +44,19 @@ pub(crate) fn now() -> Epoch {
  */
 pub(crate) fn format(epoch: Epoch, flag: Option<EpochFlag>, t: Type, revision: u8) -> String {
     let (y, m, d, hh, mm, ss, nanos) = epoch.to_gregorian_utc();
+
     match t {
         Type::ObservationData => {
             if revision < 3 {
+                // old RINEX wants 2 digit YY field
+                let mut y = y - 2000;
+                if y < 0 {
+                    // fix: files recorded prior 21st century
+                    y += 100;
+                }
                 format!(
                     "{:02} {:>2} {:>2} {:>2} {:>2} {:>2}.{:07}  {}",
-                    y - 2000,
+                    y,
                     m,
                     d,
                     hh,
@@ -74,9 +81,15 @@ pub(crate) fn format(epoch: Epoch, flag: Option<EpochFlag>, t: Type, revision: u
         },
         Type::NavigationData => {
             if revision < 3 {
+                // old RINEX wants 2 digit YY field
+                let mut y = y - 2000;
+                if y < 0 {
+                    // fix: files recorded prior 21st century
+                    y += 100;
+                }
                 format!(
                     "{:02} {:>2} {:>2} {:>2} {:>2} {:>2}.{:1}",
-                    y - 2000,
+                    y,
                     m,
                     d,
                     hh,
@@ -94,15 +107,13 @@ pub(crate) fn format(epoch: Epoch, flag: Option<EpochFlag>, t: Type, revision: u
         ),
         _ => {
             if revision < 3 {
-                format!(
-                    "{:02} {:>2} {:>2} {:>2} {:>2} {:>2}",
-                    y - 2000,
-                    m,
-                    d,
-                    hh,
-                    mm,
-                    ss
-                )
+                // old RINEX wants 2 digit YY field
+                let mut y = y - 2000;
+                if y < 0 {
+                    // fix: files recorded prior 21st century
+                    y += 100;
+                }
+                format!("{:02} {:>2} {:>2} {:>2} {:>2} {:>2}", y, m, d, hh, mm, ss)
             } else {
                 format!("{:04} {:>2} {:>2} {:>2} {:>2} {:>2}", y, m, d, hh, mm, ss)
             }
@@ -123,7 +134,14 @@ pub(crate) fn parse(s: &str) -> Result<(Epoch, EpochFlag), Error> {
     }
     if let Ok(mut y) = i32::from_str_radix(items[0], 10) {
         if y < 100 {
-            y += 2000;
+            // two digit issues (old rinex format)
+            if y < 80 {
+                // RINEX did not exist
+                // modern file (2000+) that uses old revision,
+                y += 2000;
+            } else {
+                y += 1900; // [1980:2000]
+            }
         }
         if let Ok(m) = u8::from_str_radix(items[1], 10) {
             if let Ok(d) = u8::from_str_radix(items[2], 10) {
@@ -136,8 +154,12 @@ pub(crate) fn parse(s: &str) -> Result<(Epoch, EpochFlag), Error> {
                                     u32::from_str_radix(&items[5][dot + 1..].trim(), 10)
                                 {
                                     if is_nav {
+                                        // NAV RINEX:
+                                        // precision is 0.1 sec
                                         ns *= 100_000_000;
                                     } else {
+                                        // OBS RINEX:
+                                        // precision is 0.1 usec
                                         ns *= 100;
                                     }
                                     let e = Epoch::from_gregorian_utc(y, m, d, hh, mm, ss, ns);
@@ -187,7 +209,7 @@ mod test {
     use super::*;
     use hifitime::TimeScale;
     #[test]
-    fn parse_nav_v2() {
+    fn epoch_parse_nav_v2() {
         let e = parse("20 12 31 23 45  0.0");
         assert_eq!(e.is_ok(), true);
         let (e, flag) = e.unwrap();
@@ -225,7 +247,7 @@ mod test {
         );
     }
     #[test]
-    fn parse_nav_v2_nanos() {
+    fn epoch_parse_nav_v2_nanos() {
         let e = parse("20 12 31 23 45  0.1");
         assert_eq!(e.is_ok(), true);
         let (e, _) = e.unwrap();
@@ -238,7 +260,7 @@ mod test {
         );
     }
     #[test]
-    fn parse_nav_v3() {
+    fn epoch_parse_nav_v3() {
         let e = parse("2021 01 01 00 00 00 ");
         assert_eq!(e.is_ok(), true);
         let (e, _) = e.unwrap();
@@ -305,7 +327,7 @@ mod test {
         );
     }
     #[test]
-    fn parse_obs_v2() {
+    fn epoch_parse_obs_v2() {
         let e = parse(" 21 12 21  0  0  0.0000000  0");
         assert_eq!(e.is_ok(), true);
         let (e, flag) = e.unwrap();
@@ -343,33 +365,33 @@ mod test {
 
         let e = parse(" 21 12 21  0  0 30.0000000  1");
         assert_eq!(e.is_ok(), true);
-        let (e, flag) = e.unwrap();
+        let (_e, flag) = e.unwrap();
         assert_eq!(flag, EpochFlag::PowerFailure);
         //assert_eq!(format!("{:o}", e), "21 12 21  0  0 30.0000000  1");
 
         let e = parse(" 21 12 21  0  0 30.0000000  2");
         assert_eq!(e.is_ok(), true);
-        let (e, flag) = e.unwrap();
+        let (_e, flag) = e.unwrap();
         assert_eq!(flag, EpochFlag::AntennaBeingMoved);
 
         let e = parse(" 21 12 21  0  0 30.0000000  3");
         assert_eq!(e.is_ok(), true);
-        let (e, flag) = e.unwrap();
+        let (_e, flag) = e.unwrap();
         assert_eq!(flag, EpochFlag::NewSiteOccupation);
 
         let e = parse(" 21 12 21  0  0 30.0000000  4");
         assert_eq!(e.is_ok(), true);
-        let (e, flag) = e.unwrap();
+        let (_e, flag) = e.unwrap();
         assert_eq!(flag, EpochFlag::HeaderInformationFollows);
 
         let e = parse(" 21 12 21  0  0 30.0000000  5");
         assert_eq!(e.is_ok(), true);
-        let (e, flag) = e.unwrap();
+        let (_e, flag) = e.unwrap();
         assert_eq!(flag, EpochFlag::ExternalEvent);
 
         let e = parse(" 21 12 21  0  0 30.0000000  6");
         assert_eq!(e.is_ok(), true);
-        let (e, flag) = e.unwrap();
+        let (_e, flag) = e.unwrap();
         assert_eq!(flag, EpochFlag::CycleSlip);
 
         let e = parse(" 21  1  1  0  0  0.0000000  0");
@@ -401,7 +423,7 @@ mod test {
         //assert_eq!(format!("{:o}", e), "21  1  1  0  7 30.0000000  0");
     }
     #[test]
-    fn parse_obs_v3() {
+    fn epoch_parse_obs_v3() {
         let e = parse(" 2022 01 09 00 00  0.0000000  0");
         assert_eq!(e.is_ok(), true);
         let (e, flag) = e.unwrap();
@@ -459,7 +481,7 @@ mod test {
         //assert_eq!(format!("{}", e), "2022 03 04 00 02 30.0000000  0");
     }
     #[test]
-    fn parse_obs_v2_nanos() {
+    fn epoch_parse_obs_v2_nanos() {
         let e = parse(" 21  1  1  0  7 39.1234567  0");
         assert_eq!(e.is_ok(), true);
         let (e, _) = e.unwrap();
@@ -468,7 +490,7 @@ mod test {
         assert_eq!(ns, 123_456_700);
     }
     #[test]
-    fn test_obs_v3_nanos() {
+    fn epoch_parse_obs_v3_nanos() {
         let e = parse("2022 01 09 00 00  0.1000000  0");
         assert_eq!(e.is_ok(), true);
         let (e, _) = e.unwrap();
@@ -494,7 +516,7 @@ mod test {
         //assert_eq!(format!("{}", e), "2022 01 09 00 00  8.7654321  0");
     }
     #[test]
-    fn parse_meteo_v2() {
+    fn epoch_parse_meteo_v2() {
         let e = parse(" 22  1  4  0  0  0  ");
         assert_eq!(e.is_ok(), true);
         let (e, _) = e.unwrap();
