@@ -144,7 +144,8 @@ impl ObservationData {
 /// but unlike other RINEX records, a [epoch::EpochFlag] is associated to it.
 /// An epoch possibly comprises the receiver clock offset
 /// and a list of physical measurements, sorted by Space vehicle and observable.
-/// Phase data is offset so they start at 0 (null initial phase).
+/// Phase data is preserved as is. You can use the origin alignment
+/// or offset/conversion methods later on if you have to.
 /// ```
 /// use rinex::*;
 /// // grab a CRINEX (compressed OBS RINEX)
@@ -1826,11 +1827,7 @@ fn gf_combination(
                             let carrier = ref_observable.carrier(sv.constellation).unwrap();
                             reference = Some((
                                 ref_observable.clone(),
-                                (
-                                    carrier.carrier_wavelength(),
-                                    carrier.carrier_frequency(),
-                                    ref_data.obs,
-                                ),
+                                (carrier.wavelength(), carrier.frequency(), ref_data.obs),
                             ));
                         } else {
                             reference = Some((ref_observable.clone(), (1.0, 1.0, ref_data.obs)));
@@ -1844,8 +1841,8 @@ fn gf_combination(
                     let gf = match ref_observable.is_phase_observable() {
                         true => {
                             let carrier = lhs_observable.carrier(sv.constellation).unwrap();
-                            let lhs_lambda = carrier.carrier_wavelength();
-                            let lhs_freq = carrier.carrier_frequency();
+                            let lhs_lambda = carrier.wavelength();
+                            let lhs_freq = carrier.frequency();
                             let gamma = lhs_freq / ref_freq;
                             let total_scaling = 1.0 / (gamma.powf(2.0) - 1.0);
                             (lhs_data.obs * lhs_lambda - ref_data * ref_lambda) * total_scaling
@@ -2034,7 +2031,7 @@ fn wl_combination(
                         reference = Some((
                             ref_observable.clone(),
                             ref_data.obs,
-                            rhs_carrier.carrier_frequency(),
+                            rhs_carrier.frequency(),
                         ));
                         break; // DONE searching
                     }
@@ -2043,7 +2040,7 @@ fn wl_combination(
                 if let Some((ref_observable, ref_data, ref_freq)) = reference {
                     // got a reference
                     let yp = 299_792_458.0_f64 * (lhs_data.obs - ref_data)
-                        / (lhs_carrier.carrier_frequency() - ref_freq);
+                        / (lhs_carrier.frequency() - ref_freq);
 
                     if let Some(data) =
                         ret.get_mut(&(lhs_observable.clone(), ref_observable.clone()))
@@ -2194,8 +2191,8 @@ impl Combine for Record {
 use crate::{carrier, processing::Dcb};
 
 impl Dcb for Record {
-    fn dcb(&self) -> HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
-        let mut ret: HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> =
+    fn dcb(&self) -> HashMap<String, BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
+        let mut ret: HashMap<String, BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> =
             HashMap::new();
         for (epoch, (_, vehicles)) in self {
             for (sv, observations) in vehicles {
@@ -2278,10 +2275,10 @@ impl Dcb for Record {
                                             *epoch,
                                             lhs_observation.obs - rhs_observation.obs,
                                         );
-                                        let mut map: HashMap<
+                                        let mut map: BTreeMap<
                                             Sv,
                                             BTreeMap<(Epoch, EpochFlag), f64>,
-                                        > = HashMap::new();
+                                        > = BTreeMap::new();
                                         map.insert(*sv, bmap);
                                         ret.insert(format!("{}-{}", lhs_code, rhs_code), map);
                                     }

@@ -2,7 +2,7 @@
 use crate::prelude::*;
 use std::collections::{BTreeMap, HashMap};
 
-/// GNSS Combinations,
+/// GNSS signals combinations,
 /// cf. <https://github.com/gwbres/rinex/blob/main/rinex-cli/doc/gnss-combination.md>.
 #[derive(Debug, Clone, Copy)]
 pub enum Combination {
@@ -19,7 +19,7 @@ pub enum Combination {
 }
 
 pub trait Combine {
-    /// Form the combination on all available signals
+    /// Form the combination on all available signals.
     /// ```
     /// use rinex::prelude::*;
     /// use rinex::observation::*;

@@ -17,5 +17,5 @@ pub trait Dcb {
     ///		.unwrap();
     /// let dcb = rinex.dcb();
     /// ```
-    fn dcb(&self) -> HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>;
+    fn dcb(&self) -> HashMap<String, BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>;
 }

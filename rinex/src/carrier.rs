@@ -178,10 +178,10 @@ impl std::str::FromStr for Carrier {
 
 impl Carrier {
     /// Returns frequency associated to this channel in MHz
-    pub fn carrier_frequency(&self) -> f64 {
-        self.carrier_frequency_mhz() * 1.0E6
+    pub fn frequency(&self) -> f64 {
+        self.frequency_mhz() * 1.0E6
     }
-    pub fn carrier_frequency_mhz(&self) -> f64 {
+    pub fn frequency_mhz(&self) -> f64 {
         match self {
             Self::L1 | Self::E1 => 1575.42_f64,
             Self::L2 | Self::E2 => 1227.60_f64,
@@ -213,8 +213,8 @@ impl Carrier {
         }
     }
     /// Returns carrier wavelength
-    pub fn carrier_wavelength(&self) -> f64 {
-        299_792_458.0_f64 / self.carrier_frequency()
+    pub fn wavelength(&self) -> f64 {
+        299_792_458.0_f64 / self.frequency()
     }
     /// Returns channel bandwidth in MHz
     pub fn bandwidth_mhz(&self) -> f64 {
@@ -609,8 +609,8 @@ mod test {
         assert!(Carrier::from_str("L5").is_ok());
 
         let l1 = Carrier::from_str("L1").unwrap();
-        assert_eq!(l1.carrier_frequency_mhz(), 1575.42_f64);
-        assert_eq!(l1.carrier_wavelength(), 299792458.0 / 1_575_420_000.0_f64);
+        assert_eq!(l1.frequency_mhz(), 1575.42_f64);
+        assert_eq!(l1.wavelength(), 299792458.0 / 1_575_420_000.0_f64);
 
         for constell in vec![
             Constellation::GPS,

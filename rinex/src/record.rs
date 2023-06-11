@@ -827,7 +827,7 @@ impl Decimate for Record {
 use crate::processing::Dcb;
 
 impl Dcb for Record {
-    fn dcb(&self) -> HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
+    fn dcb(&self) -> HashMap<String, BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
         if let Some(rec) = self.as_obs() {
             rec.dcb()
         } else {

@@ -1860,8 +1860,8 @@ impl Rinex {
         }
         results
     }
-    /// Aligns Phase observations at origins
-    pub fn observation_align_phase_origins_mut(&mut self) {
+    /// Aligns Phase observations at origin
+    pub fn observation_phase_align_origin_mut(&mut self) {
         let mut init_phases: HashMap<Sv, HashMap<Observable, f64>> = HashMap::new();
         if let Some(r) = self.record.as_mut_obs() {
             for (_, (_, vehicles)) in r.iter_mut() {
@@ -1884,34 +1884,39 @@ impl Rinex {
             }
         }
     }
-    /// Aligns Phase observations at origins,
+    /// Aligns Phase observations at origin,
     /// immutable implementation
-    pub fn observation_align_phase_origins(&self) -> Self {
+    pub fn observation_phase_align_origin(&self) -> Self {
         let mut s = self.clone();
-        s.observation_align_phase_origins_mut();
+        s.observation_phase_align_origin_mut();
         s
     }
-    /// Form desired signal combinations
-    pub fn observation_combination(
-        &self,
-        combination: Combination,
-    ) -> HashMap<(Observable, Observable), BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
-        if let Some(r) = self.record.as_obs() {
-            r.combine(combination)
-        } else {
-            HashMap::new()
+    /// Converts all Phase Data to Carrier Cycles by multiplying all phase points
+    /// by the carrier signal wavelength.
+    pub fn observation_phase_carrier_cycles_mut(&mut self) {
+        if let Some(r) = self.record.as_mut_obs() {
+            for (_, (_, vehicles)) in r.iter_mut() {
+                for (sv, observations) in vehicles.iter_mut() {
+                    for (observable, data) in observations.iter_mut() {
+                        if observable.is_phase_observable() {
+                            if let Ok(carrier) = observable.carrier(sv.constellation) {
+                                data.obs *= carrier.wavelength();
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
-    /// GNSS (differential) code biases
-    pub fn observation_dcb(
-        &self,
-    ) -> HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
-        if let Some(r) = self.record.as_obs() {
-            r.dcb()
-        } else {
-            HashMap::new()
-        }
+
+    /// Converts all Phase Data to Carrier Cycles by multiplying all phase points
+    /// by the carrier signal wavelength.
+    pub fn observation_phase_carrier_cycles(&self) -> Self {
+        let mut s = self.clone();
+        s.observation_phase_carrier_cycles_mut();
+        s
     }
+
     /// Ionospheric delay detector
     pub fn observation_iono_delay_detector(
         &self,
@@ -2077,14 +2082,14 @@ impl Rinex {
                                 lhs_observable //rhs_observable TODO
                                     .carrier(sv.constellation)
                                     .unwrap();
-                            /*let gamma = (lhs_carrier.carrier_frequency() / rhs_carrier.carrier_frequency()).powf(2.0);
+                            /*let gamma = (lhs_carrier.frequency() / rhs_carrier.frequency()).powf(2.0);
                             let alpha = (gamma +1.0_f64) / (gamma - 1.0_f64);
                             let beta = 2.0_f64 / (gamma - 1.0_f64);
                             let mp = pr_i - alpha * ph_i + beta * ph_j;*/
 
-                            let alpha = 2.0_f64 * rhs_carrier.carrier_frequency().powf(2.0)
-                                / (lhs_carrier.carrier_frequency().powf(2.0)
-                                    - rhs_carrier.carrier_frequency().powf(2.0));
+                            let alpha = 2.0_f64 * rhs_carrier.frequency().powf(2.0)
+                                / (lhs_carrier.frequency().powf(2.0)
+                                    - rhs_carrier.frequency().powf(2.0));
                             let mp = pr_i - ph_i - alpha * (ph_i - ph_j);
                             if let Some(data) = ret.get_mut(mp_code) {
                                 if let Some(data) = data.get_mut(&sv) {
@@ -2712,7 +2717,7 @@ impl Processing for Rinex {
 }
 
 impl Dcb for Rinex {
-    fn dcb(&self) -> HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
+    fn dcb(&self) -> HashMap<String, BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
         self.record.dcb()
     }
 }

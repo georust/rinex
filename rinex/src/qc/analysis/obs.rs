@@ -12,13 +12,13 @@ fn report_signals(list: &Vec<Carrier>) -> String {
         s.push_str(&format!(
             "{} ({:.3} MHz), ",
             list[index],
-            list[index].carrier_frequency_mhz()
+            list[index].frequency_mhz()
         ));
     }
     s.push_str(&format!(
         "{} ({:.3} MHz)",
         list[list.len() - 1],
-        list[list.len() - 1].carrier_frequency_mhz()
+        list[list.len() - 1].frequency_mhz()
     ));
     s
 }
