@@ -21,7 +21,7 @@ the curve color emphasizes the epoch spanning:
 Here is an example of a simple skyplot view
 
 ```bash
-rinex-cli -y --retain-sv G08,G18,R19,R03 \
+rinex-cli -y -P G08,G18,R19,R03 \
     --fp test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz
 ```
 
@@ -36,7 +36,7 @@ Here is an example of "enhanced" skyplot view,
 where both Navigation data and Observations were provided 
 
 ```bash
-rinex-cli -y --retain-sv G08,G18,R19,R03 \
+rinex-cli -y -P G08,G18,R19,R03 \
     --nav test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz
 ```

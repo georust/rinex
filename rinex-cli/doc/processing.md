@@ -98,8 +98,7 @@ for demonstration purposes:
 rinex-cli \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
     --nav test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz \
-    --multipath \
-    --retain-sv G13
+    -P G13 --mp
 ```
 
 ## Cycle slips analysis

@@ -19,7 +19,9 @@ when plotting raw phase data. For example, a few Glonass vehicles
 are affected in `ESBDNK2020`:
 
 ```bash
-./target/release/rinex-cli --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx --retain-sv R21,R12 -w "2020-06-25 00:00:00 2020-06-25 12:00:00"  --plot
+rinex-cli \
+    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx \
+       -P R21,R12 ">=2020-06-25T00:00:00 UTC" "<=2020-06-25T12:00:00 UTC"
 ```
 
 <img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_glo_cs_zoom.png">
@@ -62,7 +64,7 @@ on Glonass L3 from `ESBDNK`:
 ```bash
 rinex-cli \
     --fp ../../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-	--retain-sv R18
+	    -P R18
 ```
 
 CS detection

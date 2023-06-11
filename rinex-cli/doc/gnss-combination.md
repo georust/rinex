@@ -72,9 +72,8 @@ We form the GF combination, for both PR and Phase data for G21 and G08:
 ```bash
 rinex-cli \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    --retain-sv G08,G21 \
-    -w "2020-06-25 00:00:00 2020-06-25 08:00:00" \
-    --gf
+    -P G08,G21 ">=2020-06-25T00:00:00 UTC" "<=2020-06-25T08:00:00 UTC" \
+        --gf
 ```
 
 <img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_gf.png">
@@ -89,10 +88,9 @@ Let's focus on Phase data only:
 ```bash
 ./target/release/rinex-cli \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    --retain-sv G21,G08 \
-    --retain-obs L1C,L2L,L2W,L5Q \
-    -w "2020-06-25 00:00:00 2020-06-25 08:00:00" \
-    --gf
+    -P G21,G08 L1C,L2L,L2W,L5Q \
+        ">=2020-06-25T00:00:00 UTC" "<=2020-06-25T08:00:00 UTC" \
+            --gf
 ```
 
 <img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_gf_zoom.png">
@@ -121,10 +119,8 @@ We can emphasize such an instant, if we focus the previous plot to the 1st hour 
 ```bash
 rinex-cli \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    --retain-sv G12 \
-    --retain-obs L1C,L2W \
-    -w "2020-06-25 00:00:00 2020-06-25 01:00:00" \
-    --gf
+        -P G12 L1C,L2W "<=2020-06-25T00:00:00 UTC 2020-06-25T01:00:00 UTC" \
+            --gf
 ```
 
 <img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_gfcs.png">
@@ -180,7 +176,7 @@ on Glonass L3 from `ESBDNK`:
 ```bash
 rinex-cli \
     --fp ../../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-	--retain-sv R18
+	-P R18
 ```
 
 CS detection
