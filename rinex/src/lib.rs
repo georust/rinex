@@ -256,17 +256,24 @@ pub enum Error {
     IoError(#[from] std::io::Error),
 }
 
-//#[cfg_attr(feature = "pyo3", pymethods)]
+#[cfg_attr(feature = "pyo3", pymethods)]
 impl Rinex {
-    /// Builds a new `RINEX` struct from given header & body sections
-    pub fn new(header: Header, record: record::Record) -> Rinex {
-        Rinex {
-            header,
-            record,
-            comments: record::Comments::new(),
-        }
+    #[new]
+    fn new(path: String) -> Self {
+        Self::from_file(&path).unwrap()
     }
+    #[getter]
+    fn get_header(&self) -> PyResult<Header> {
+        Ok(self.header.clone())
+    }
+    #[setter]
+    fn set_header(&mut self, header: Header) -> PyResult<()> {
+        self.replace_header(header);
+        Ok(())
+    }
+}
 
+impl Rinex {
     /// Returns a copy of self with given header attributes
     pub fn with_header(&self, header: Header) -> Self {
         Rinex {

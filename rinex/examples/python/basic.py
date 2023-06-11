@@ -5,10 +5,16 @@ from rinex import *
 # all the basic structures from the rust crate
 
 def parser_example(fp):
-    pass
+    # parse a RINEX file
+    rinex = Rinex(fp)
+    # use header section 
+    print(rinex.header.is_crinex())
 
 def rinex_manual_constructor():
-    pass
+    # Manual construction example.
+    # This is handy in data production contexts
+    header = Header.basic_obs()
+    print(header.is_crinex())
 
 def sv_example():
     pass
@@ -16,13 +22,12 @@ def sv_example():
 def constellation_example():
     pass
 
-
 def epoch_example():
     print("Epoch.system_now(): ", Epoch.system_now())
 
 if __name__ == "__main__":
-    parser_example("test")
+    parser_example("../test_resources/OBS/V3/DUTH0630.22O")
     epoch_example()
-    rinex_manual_constructor()
     sv_example()
+    rinex_manual_constructor()
     constellation_example()
