@@ -31,7 +31,7 @@ Although we support as many Navigation files to be specified, when the _augmente
 This allows for example Glonass and other NAV context to be correctly defined.
   
 1. `--fp [FILE]` for the Observation file
-2. `--nav [FILE1] [FILE2]..` for secondary Navigation files  
+2. `--nav [FILE1] [FILE2]..` : pass NAV contexts
 
 We will generate products in a dedicated folder.  
 
@@ -84,10 +84,10 @@ Run this configuration for the most basic QC:
 
 ```bash
 rinex-cli \
-    -F mask:gps,glo \
+    -P gps,glo \
     --qc-only \
     --qc-conf rinex-cli/config/basic.json \
-   --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz
+    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz
 ```
 
 `--qc-conf` is independent to `--qc` activation.   
@@ -108,7 +108,7 @@ Try this configuration now:
 
 ```bash
 rinex-cli \
-    -F mask:gps,glo \
+    -F gps,glo \
     --qc-only \
     --qc-conf rinex-cli/config/basic_manual_gap.json \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz
@@ -134,10 +134,10 @@ calculations are active and customized
 
 ```bash
 rinex-cli \
-    -F mask:gps,glo \
+    -P gps,glo \
     --qc-separate \
     --qc-conf rinex-cli/config/basic_manual_gap.json \
-   --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz
+    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz
 ```
 
 ## Basic QC (with NAV)
@@ -146,7 +146,7 @@ Let's go back to our basic demo and provide Navigation context:
 
 ```bash
 rinex-cli \
-    -F mask:gps,glo \
+    -P gps,glo \
     --qc-separate \
     --qc-conf rinex-cli/config/basic.json \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
@@ -157,7 +157,7 @@ Navigation context is fully taken into account in advanced calculations
 
 ```bash
 rinex-cli \
-    -F mask:gps,glo \
+    -F gps,glo \
     --qc-separate \
     --qc-conf rinex-cli/config/advanced_study.json \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
