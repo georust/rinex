@@ -31,7 +31,7 @@ impl Default for System {
 }
 
 impl System {
-    /// Unwraps self as a `satellite vehicule`
+    /// Unwraps self as a `satellite vehicle`
     pub fn as_sv(&self) -> Option<Sv> {
         match self {
             System::Sv(s) => Some(*s),

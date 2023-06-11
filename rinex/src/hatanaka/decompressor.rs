@@ -32,10 +32,10 @@ pub struct Decompressor {
     epoch_descriptor: String,
     /// Clock offset differentiator
     clock_diff: NumDiff,
-    /// vehicule identification
+    /// vehicle identification
     sv_ptr: usize,
     nb_sv: usize, // sv_ptr range
-    /// Vehicule differentiators
+    /// Vehicle differentiators
     sv_diff: HashMap<Sv, Vec<(NumDiff, TextDiff, TextDiff)>>,
 }
 
@@ -53,7 +53,7 @@ fn format_epoch(
             // old RINEX
             // append Systems #ID,
             //  on as many lines as needed
-            let min_size = 32 + 3; // epoch descriptor + at least one vehicule
+            let min_size = 32 + 3; // epoch descriptor + at least one vehicle
             if content.len() < min_size {
                 // parsing would fail
                 return Err(Error::FaultyRecoveredEpoch);
@@ -352,7 +352,7 @@ impl Decompressor {
                     if let Some(n) = Self::parse_nb_sv(&self.epoch_descriptor, crx_major) {
                         self.nb_sv = n;
                     } else {
-                        return Err(Error::VehiculeIdentificationError);
+                        return Err(Error::VehicleIdentificationError);
                     }
 
                     if let Ok(descriptor) =
@@ -377,13 +377,13 @@ impl Decompressor {
                     {
                         //println!("SV: {:?}", sv); //DEBUG
                         self.sv_ptr += 1; // increment for next time
-                                          // vehicules are always described in a single line
+                                          // vehicles are always described in a single line
                         if rnx_major > 2 {
                             // RNX3 needs SVNN on every line
                             result.push_str(&format!("{} ", sv));
                         }
                         /*
-                         * Build compress tools in case this vehicule is new
+                         * Build compress tools in case this vehicle is new
                          */
                         if self.sv_diff.get(&sv).is_none() {
                             let mut inner: Vec<(NumDiff, TextDiff, TextDiff)> =
@@ -534,7 +534,7 @@ impl Decompressor {
                         //result.push_str("\n");
                     }
                     // end of line parsing
-                    //  if sv_ptr has reached the expected amount of vehicules
+                    //  if sv_ptr has reached the expected amount of vehicles
                     //  we reset to state (1)
                     if self.sv_ptr >= self.nb_sv {
                         self.state = State::EpochDescriptor;

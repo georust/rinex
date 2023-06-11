@@ -15,17 +15,19 @@ Cycle slips happen randomly, seperately accross receiver channels,
 and they affect Phase/Pseudo Range measurements.   
 
 We saw in the record analysis that we emphasize _possible_ cycle slips
-when plotting raw phase data. For example, a few Glonass vehicules
+when plotting raw phase data. For example, a few Glonass vehicles
 are affected in `ESBDNK2020`:
 
 ```bash
-./target/release/rinex-cli --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx --retain-sv R21,R12 -w "2020-06-25 00:00:00 2020-06-25 12:00:00"  --plot
+rinex-cli \
+    --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx \
+       -P R21,R12 ">=2020-06-25T00:00:00 UTC" "<=2020-06-25T12:00:00 UTC"
 ```
 
 <img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_glo_cs_zoom.png">
 
 Almost all epochs at the beginning of the day were affected for R12(L3) and one or two for R21(L2).  
-All GPS vehicules are sane, 95% of Glonass vehicules are sane too.
+All GPS vehicles are sane, 95% of Glonass vehicles are sane too.
 
 ## Definitions
 
@@ -38,8 +40,8 @@ $$\lambda_{Li} \Phi_{Li}(k) = \rho(k)  + T(k) + S(k) + M_{Li}(k) - \frac{\lambda
 
 where we note $\lambda_{Li}$, the $L_i$ carrier wavelength,  
 $c$ the speed of light,  
-$\rho$ the distance between the receiver APC and the vehicule APC - to be referred to as the _geometric_ distance,    
-$\tau_{sv}$ is the vehicule clock bias [s],   
+$\rho$ the distance between the receiver APC and the vehicle APC - to be referred to as the _geometric_ distance,    
+$\tau_{sv}$ is the vehicle clock bias [s],   
 $\tau_{r}(k)$ the receiver clock bias [s],   
 $M_{Li}$ the multipath biases,   
 $e_{Li}$ the carrier phase thermal noise
@@ -62,7 +64,7 @@ on Glonass L3 from `ESBDNK`:
 ```bash
 rinex-cli \
     --fp ../../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-	--retain-sv R18
+	    -P R18
 ```
 
 CS detection

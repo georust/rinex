@@ -12,13 +12,13 @@ fn report_signals(list: &Vec<Carrier>) -> String {
         s.push_str(&format!(
             "{} ({:.3} MHz), ",
             list[index],
-            list[index].carrier_frequency_mhz()
+            list[index].frequency_mhz()
         ));
     }
     s.push_str(&format!(
         "{} ({:.3} MHz)",
         list[list.len() - 1],
-        list[list.len() - 1].carrier_frequency_mhz()
+        list[list.len() - 1].frequency_mhz()
     ));
     s
 }
@@ -270,7 +270,7 @@ pub struct QcObsAnalysis {
 
 impl QcObsAnalysis {
     pub fn new(rnx: &Rinex, _nav: &Option<Rinex>, opts: &QcOpts) -> Self {
-        let sv = rnx.space_vehicules();
+        let sv = rnx.space_vehicles();
         let obs = rnx.header.obs.as_ref().unwrap();
         let mut observables = obs.codes.clone();
         let observables = observables.get_mut(&sv[0].constellation).unwrap();

@@ -1,17 +1,17 @@
-//! Satellite vehicule
+//! Satellite vehicle
 use super::{constellation, Constellation};
 use thiserror::Error;
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
-/// ̀`Sv` describes a Satellite Vehiculee
+/// ̀`Sv` describes a Satellite Vehicle
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Sv {
-    /// PRN identification # for this vehicule
+    /// PRN identification # for this vehicle
     pub prn: u8,
-    /// `GNSS` Constellation to which this vehicule is tied to
+    /// `GNSS` Constellation to which this vehicle is tied to
     pub constellation: Constellation,
 }
 
@@ -66,7 +66,7 @@ mod test {
         for t in tests {
             assert!(Sv::from_str(t).is_ok());
         }
-        // SBAS vehicules
+        // SBAS vehicles
         let sbas = Sv::from_str("S36");
         assert!(sbas.is_ok());
         assert_eq!(sbas.unwrap(), Sv::new(Constellation::Geo, 36));

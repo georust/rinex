@@ -118,7 +118,7 @@ pub struct Solution {
     pub btype: BiasType,
     /// Satellite SVN
     pub svn: String,
-    /// Space Vehicule ID
+    /// Space Vehicle ID
     pub prn: String,
     /// Station codes
     pub station: Option<String>,

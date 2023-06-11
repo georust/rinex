@@ -15,13 +15,13 @@ fn args_to_constellations(args: Vec<&str>) -> Vec<Constellation> {
         .collect()
 }
 
-fn args_to_space_vehicules(args: Vec<&str>) -> Vec<Sv> {
+fn args_to_space_vehicles(args: Vec<&str>) -> Vec<Sv> {
     args.iter()
         .filter_map(|x| {
             if let Ok(c) = Sv::from_str(x) {
                 Some(c)
             } else {
-                println!("non recognized vehicule description \"{}\"", x);
+                println!("non recognized vehicle description \"{}\"", x);
                 None
             }
         })
@@ -81,10 +81,10 @@ pub fn retain_filters(ctx: &mut Context, cli: &Cli) {
     }
     for (op, args) in ops.iter() {
         if op.eq(&"retain-sv") {
-            let filter = args_to_space_vehicules(args.clone());
-            ctx.primary_rinex.retain_space_vehicule_mut(filter.clone());
+            let filter = args_to_space_vehicles(args.clone());
+            ctx.primary_rinex.retain_space_vehicle_mut(filter.clone());
             if let Some(ref mut nav) = ctx.nav_rinex {
-                nav.retain_space_vehicule_mut(filter.clone());
+                nav.retain_space_vehicle_mut(filter.clone());
             }
         } else if op.eq(&"retain-constell") {
             let filter = args_to_constellations(args.clone());

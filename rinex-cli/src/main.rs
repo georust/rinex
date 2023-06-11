@@ -46,15 +46,6 @@ pub fn main() -> Result<(), rinex::Error> {
      */
     preprocess(&mut ctx, &cli);
 
-    /* <!>    <!>     <!>      <!>      <!>      <!>      <!>
-    * Observation RINEX:
-    *  align phase origins at this point
-    *  this allows easy GNSS combination and processing,
-    *  gives more meaningful phase data plots..
-     <!>    <!>     <!>      <!>      <!>      <!>      <!> */
-    //ctx.primary_rinex
-    //.observation_align_phase_origins_mut();
-
     /*
      * Basic file identification
      */
@@ -81,7 +72,11 @@ pub fn main() -> Result<(), rinex::Error> {
      * DCB analysis requested
      */
     if cli.dcb() {
-        let data = ctx.primary_rinex.observation_dcb();
+        let data = ctx
+            .primary_rinex
+            .observation_phase_align_origin()
+            .observation_phase_carrier_cycles()
+            .dcb();
         plot::plot_gnss_dcb(
             &mut plot_ctx,
             "Differential Code Biases",
@@ -93,26 +88,28 @@ pub fn main() -> Result<(), rinex::Error> {
     /*
      * Code Multipath analysis
      */
-    /*if cli.multipath() {
+    if cli.multipath() {
         let data = ctx
             .primary_rinex
-            .observation_align_phase_origins()
-            .observation_code_multipath();
-        plot::plot_gnss_recombination(
+            .observation_phase_align_origin()
+            .observation_phase_carrier_cycles()
+            .mp();
+        plot::plot_gnss_dcb(
             &mut plot_ctx,
             "Code Multipath Biases",
             "Meters of delay",
             &data,
         );
         info!("--mp analysis");
-    }*/
+    }
     /*
      * [GF] recombination visualization requested
      */
     if cli.gf_recombination() {
         let data = ctx
             .primary_rinex
-            .observation_combination(Combination::GeometryFree);
+            .observation_phase_align_origin()
+            .combine(Combination::GeometryFree);
         plot::plot_gnss_recombination(
             &mut plot_ctx,
             "Geometry Free signal combination",
@@ -133,9 +130,7 @@ pub fn main() -> Result<(), rinex::Error> {
      * [WL] recombination
      */
     if cli.wl_recombination() {
-        let data = ctx
-            .primary_rinex
-            .observation_combination(Combination::WideLane);
+        let data = ctx.primary_rinex.combine(Combination::WideLane);
         plot::plot_gnss_recombination(
             &mut plot_ctx,
             "Wide Lane signal combination",
@@ -148,9 +143,7 @@ pub fn main() -> Result<(), rinex::Error> {
      * [NL] recombination
      */
     if cli.nl_recombination() {
-        let data = ctx
-            .primary_rinex
-            .observation_combination(Combination::NarrowLane);
+        let data = ctx.primary_rinex.combine(Combination::NarrowLane);
         plot::plot_gnss_recombination(
             &mut plot_ctx,
             "Narrow Lane signal combination",
@@ -163,9 +156,7 @@ pub fn main() -> Result<(), rinex::Error> {
      * [MW] recombination
      */
     if cli.mw_recombination() {
-        let data = ctx
-            .primary_rinex
-            .observation_combination(Combination::MelbourneWubbena);
+        let data = ctx.primary_rinex.combine(Combination::MelbourneWubbena);
         plot::plot_gnss_recombination(
             &mut plot_ctx,
             "Melbourne-Wübbena signal combination",

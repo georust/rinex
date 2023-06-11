@@ -142,29 +142,15 @@ mod test {
         /*
          * DECIMATION FILTER description
          */
-        for desc in vec!["decim:10", "decim:10 min", "decim:1 hour"] {
+        for desc in vec![
+            "decim:10",
+            "decim:10 min",
+            "decim:1 hour",
+            "decim:10 min:l1c",
+            "decim:1 hour:L1C,L2C,L3C",
+        ] {
             let filt = Filter::from_str(desc);
             assert!(filt.is_ok(), "Filter::from_str failed on \"{}\"", desc);
-        }
-        /*
-         * Decimation with subset
-         */
-        for desc in vec!["decim:10:L1C", "decim:10 min:L1C,L2C", "decim:1 hour:L1C"] {
-            let filt = Filter::from_str(desc);
-            assert!(filt.is_ok(), "Filter::from_str failed on \"{}\"", desc);
-            let filt = filt.unwrap();
-            match filt {
-                Filter::Decimation(f) => {
-                    assert!(
-                        f.target.is_some(),
-                        "Filter::from_str failed to decode data subset in \"{}\"",
-                        desc
-                    );
-                },
-                f => {
-                    panic!("falsely decoded {:?} from \"{}\"", f, desc);
-                },
-            }
         }
         /*
          * SMOOTHING FILTER description
@@ -174,6 +160,8 @@ mod test {
             "smooth:mov:1 hour",
             "smooth:mov:1 hour:l1c",
             "smooth:mov:10 min:clk",
+            "smooth:hatch",
+            "smooth:hatch:l1c",
         ] {
             let filt = Filter::from_str(desc);
             assert!(filt.is_ok(), "Filter::from_str failed on \"{}\"", desc);

@@ -34,13 +34,13 @@ pub enum Error {
     EpochConstruct,
     #[error("Malformed epoch description (#nb sv)")]
     MalformedEpochDescriptor,
-    #[error("Vehicule identification failed")]
-    VehiculeIdentificationError,
+    #[error("Vehicle identification failed")]
+    VehicleIdentificationError,
     #[error("Malformed epoch content (#nb of observables)")]
     MalformedEpochBody,
     #[error("numdiff error")]
     NumDiffError(#[from] numdiff::Error),
-    #[error("failed to identify sat. vehicule")]
+    #[error("failed to identify sat. vehicle")]
     SvError(#[from] sv::Error),
     #[error("failed to parse integer number")]
     ParseIntError(#[from] std::num::ParseIntError),

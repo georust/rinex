@@ -22,7 +22,7 @@ mod test {
         let g01_min = min.get(&Sv::from_str("G01").unwrap());
         assert!(
             g01_min.is_some(),
-            "dataset.min() is missing results for vehicule G01"
+            "dataset.min() is missing results for vehicle G01"
         );
         let g01_min = g01_min.unwrap();
         let g01_c1c_min = g01_min.get(&Observable::from_str("C1C").unwrap());
@@ -72,7 +72,7 @@ mod test {
         let g01_max = max.get(&Sv::from_str("G01").unwrap());
         assert!(
             g01_max.is_some(),
-            "dataset.max() is missing results for vehicule G01"
+            "dataset.max() is missing results for vehicle G01"
         );
         let g01_max = g01_max.unwrap();
 

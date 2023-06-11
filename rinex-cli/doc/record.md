@@ -10,21 +10,20 @@ Let's analyze Observations for 4 vehicles:
 ```bash
 rinex-cli \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    --retain-sv R01,R08,G21,G31
+    -P R01,R08,G21,G31
 ```
 
 The received signal power analysis for example, extracted from the analysis report
 
 <img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_ssi.png">
 
-It is rapidly necessary to determine which vehicules can be encountered in a file.  
-For this reason, we developped the `--sv-epoch` analysis, which helps determine which vehicule to focus on.
+It is rapidly necessary to determine which vehicles can be encountered in a file.  
+For this reason, we developped the `--sv-epoch` analysis, which helps determine which vehicle to focus on.
 
 ```bash
 rinex-cli \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    --retain-sv G02,R02,R01,G01 \
-    --sv-epoch
+    -P G02,R02,R01,G01 --sv-epoch
 ```
 
 With the Sv per Epoch analysis, you know R01,R02 were both seen at 21:00UTC
@@ -36,12 +35,15 @@ When dealing with Observation RINEX, the following operations are most useful:
 
 - `--sv-epoch`: vehicle(s) accross epochs identification
 - `--observables`: observables identification
-- `-w [DATETIME] [DATETIME]`: time windowing
-- decimation: increase epoch interval - reduce data quantity
+- `-P [DATETIME] [DATETIME]`: time windowing
+- `-P decim:X `: reduce data quantity
+- `-P decim:X:Y `: reduce data quantity for given observable, for example Y="l1c"
 - `-R`, `-G`, `-C`, `-J`, `-E`, `-S`: quickly get rid of given GNSS constellation
-- `--retain-constell`: focus on constellation(s) of interest
-- `--retain-sv`: focus on vehicle(s) of interest 
-- `--retain-obs`: focus on observation(s) of interest
+- `-P GPS,GAL`: focus on constellation(s) you're interested in
+- `-P G01,E31..`: focus on vehicle(s) you're interested in 
+- `-P L1P,L2P`: focus on specific observables
+- `-P smooth:hatch:c1c,c2w` : smooth pseudo range observations, on C1C and C2W signals
+specifically, in this example
 
 Phase observations 
 ==================
@@ -81,8 +83,8 @@ In this example, we run it for all GPS vehicles:
 ```bash
 rinex-cli \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    --nav test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz \
-    --retain-constell GPS --sv-epoch
+        --nav test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz \
+            -P GPS --sv-epoch
 ```
 
 From the resuling "sv.png" product:
@@ -98,7 +100,6 @@ Let's plot it:
 ```bash
 rinex-cli \
     --fp test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz \
-    --nav test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz \
-    --retain-sv G25,G29,G31,G12 \
-    -w "2020-06-25 05:00:00 2020-06-25 10:00:00"
+        --nav test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz \
+            -P G25,G29,G31,G12 ">=2020-06-25T05:00:00 UTC" "<=2020-06-25T10:00:00 UTC"
 ```

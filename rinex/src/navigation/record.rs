@@ -162,7 +162,7 @@ impl std::str::FromStr for MsgType {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum Frame {
-    /// Ephemeris for a given Vehicule `Sv`
+    /// Ephemeris for a given Vehicle `Sv`
     Eph(MsgType, Sv, Ephemeris),
     /// Earth Orientation Parameters
     Eop(MsgType, Sv, EopMessage),
@@ -470,7 +470,7 @@ fn fmt_epoch_v2v3(
                 match &header.constellation {
                     Some(Constellation::Mixed) => {
                         // Mixed constellation context
-                        // we need to fully describe the vehicule
+                        // we need to fully describe the vehicle
                         lines.push_str(&format!("{} ", sv));
                     },
                     Some(_) => {
@@ -560,7 +560,7 @@ fn fmt_epoch_v4(
                 match &header.constellation {
                     Some(Constellation::Mixed) => {
                         // Mixed constellation context
-                        // we need to fully describe the vehicule
+                        // we need to fully describe the vehicle
                         lines.push_str(&sv.to_string());
                         lines.push_str(" ");
                     },

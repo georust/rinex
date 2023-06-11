@@ -1,8 +1,8 @@
 Sv per epoch
 ============
 
-Vehicules per epoch identification is requested with `--sv-epoch`.  
-This mode will generate a plot that emphasize which vehicules
+Vehicles per epoch identification is requested with `--sv-epoch`.  
+This mode will generate a plot that emphasize which vehicles
 were encountered per epoch.
 
 This analysis is very useful to emphasize data gaps in the Record,
@@ -20,16 +20,16 @@ rinex-cli \
 
 
 In case Differential context is activated (`--nav`) determining
-which vehicules were both sampled in
+which vehicles were both sampled in
 Ephemeris and Observation Context becomes rapidly mandatory.
-Otherwise, we just don't know which vehicule could be a good candidate
+Otherwise, we just don't know which vehicle could be a good candidate
 for Differential operations.
 
 `--sv-epoch` has a special behavior when `--nav` context is provided,
-in this scenario, we exhibit vehicules encountered in both files
+in this scenario, we exhibit vehicles encountered in both files
 accross epochs, and this help decide which one to use later on.
 
-This special behavior will work well if you select a unique vehicule,
+This special behavior will work well if you select a unique vehicle,
 otherwise plot becomes rapidly messy:
 
 ```bash
@@ -42,7 +42,7 @@ rinex-cli \
 
 <img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/sv_diff_esbc00dnk.png">
 
-With this command, user can rapidly determine which vehicule is eligible for
+With this command, user can rapidly determine which vehicle is eligible for
 RINEX differential processing. In this example, R04, R08 and R09 are excellent candidates,
 because most of the Observation context is covered by Ephemeris.
 

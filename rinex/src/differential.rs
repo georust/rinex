@@ -54,15 +54,15 @@ impl DiffContext {
             rover.retain_navigation_ephemeris_mut();
             // For Observation RINEX
             //  retain Phase and Pseudo Range observations only
-            //    and only shared vehicules
+            //    and only shared vehicles
             if let Some(record) = base.record.as_mut_obs() {
-                record.retain(|e, (_, vehicules)| {
-                    vehicules.retain(|sv, observations| {
+                record.retain(|e, (_, vehicles)| {
+                    vehicles.retain(|sv, observations| {
                         if let Some(obs_rov) = rover.record.as_obs() {
-                            let (_, rov_vehicules) = obs_rov.get(e)
+                            let (_, rov_vehicles) = obs_rov.get(e)
                                 .unwrap();
                             let mut shared = false;
-                            for (rov_sv, _) in rov_vehicules {
+                            for (rov_sv, _) in rov_vehicles {
                                 shared |= rov_sv == sv;
                             }
                             if shared {
@@ -96,11 +96,11 @@ impl DiffContext {
                             false
                         }
                     });
-                    vehicules.len() > 0
+                    vehicles.len() > 0
                 });
             }
             // For Navigation (ephemeris..) RINEX
-            //  retain only shared vehicules
+            //  retain only shared vehicles
             else if let Some(record) = base.record.as_mut_nav() {
                 record.retain(|e, classes| {
                     classes.retain(|class, frames| {
@@ -109,9 +109,9 @@ impl DiffContext {
                             let (_, sv, _) = fr.as_eph()
                                 .unwrap();
                             if let Some(obs_rec) = rover.record.as_obs() {
-                                let (_, obs_vehicules) = obs_rec.get(e)
+                                let (_, obs_vehicles) = obs_rec.get(e)
                                     .unwrap();
-                                for (obs_sv, _) in obs_vehicules {
+                                for (obs_sv, _) in obs_vehicles {
                                     shared |= obs_sv == sv;
                                 }
                             } else if let Some(nav_rec) = rover.record.as_nav() {
@@ -134,17 +134,17 @@ impl DiffContext {
             }
             /*
              * at this point "base" is ready for processing,
-             * let's strip "rover" to identical vehicules to
+             * let's strip "rover" to identical vehicles to
              * to speed up and eventually facilitate further operations
              */
             if let Some(record) = rover.record.as_mut_obs() {
-                record.retain(|e, (_, vehicules)| {
-                    vehicules.retain(|sv, _| {
+                record.retain(|e, (_, vehicles)| {
+                    vehicles.retain(|sv, _| {
                         let mut shared = false;
                         if let Some(obs_base) = base.record.as_obs() {
-                            let (_, base_vehicules) = obs_base.get(e)
+                            let (_, base_vehicles) = obs_base.get(e)
                                 .unwrap();
-                            for (base_sv, _) in base_vehicules {
+                            for (base_sv, _) in base_vehicles {
                                 shared |= base_sv == sv;
                             }
                         } else if let Some(nav_base) = base.record.as_nav() {
@@ -160,7 +160,7 @@ impl DiffContext {
                         }
                         false
                     });
-                    vehicules.len() > 0
+                    vehicles.len() > 0
                 });
             } else if let Some(record) = rover.record.as_mut_nav() {
                 record.retain(|e, classes| {
@@ -170,9 +170,9 @@ impl DiffContext {
                             let (_, sv, _) = fr.as_eph()
                                 .unwrap();
                             if let Some(obs_base) = base.record.as_obs() {
-                                let (_, base_vehicules) = obs_base.get(e)
+                                let (_, base_vehicles) = obs_base.get(e)
                                     .unwrap();
-                                for (base_sv, _) in base_vehicules {
+                                for (base_sv, _) in base_vehicles {
                                     shared |= sv == base_sv;
                                 }
                             } else if let Some(nav_base) = base.record.as_nav() {

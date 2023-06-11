@@ -30,8 +30,8 @@ pub enum MappingFunction {
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, EnumString)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum BiasSource {
-    /// Referenced against a given vehicule
-    SpaceVehicule(Sv),
+    /// Referenced against a given vehicle
+    SpaceVehicle(Sv),
     /// Referenced for an observation station on Earth
     Station(String),
 }
@@ -68,7 +68,7 @@ pub struct HeaderFields {
     /// exponent: scaling to apply in current TEC blocs
     pub exponent: i8,
     /// Differential Code Biases (DBCs),
-    /// per Vehicule #PRN, (Bias and RMS bias) values.
+    /// per Vehicle #PRN, (Bias and RMS bias) values.
     pub dcbs: HashMap<BiasSource, (f64, f64)>,
 }
 
@@ -180,7 +180,7 @@ impl HeaderFields {
         s
     }
     /// Copies & sets Diffenretial Code Bias estimates
-    /// for given vehicule
+    /// for given vehicle
     pub fn with_dcb(&self, src: BiasSource, value: (f64, f64)) -> Self {
         let mut s = self.clone();
         s.dcbs.insert(src, value);

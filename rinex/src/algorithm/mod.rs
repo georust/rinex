@@ -6,7 +6,7 @@ mod processing;
 mod target;
 
 pub use combination::{Combination, Combine};
-pub use dcb::Dcb;
+pub use dcb::{Dcb, Mp};
 pub use ionospheric::IonoDelayDetector;
 pub use target::TargetItem;
 
