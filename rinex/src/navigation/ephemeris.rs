@@ -94,8 +94,8 @@ pub enum Error {
 ///     }
 /// }
 /// ```
-#[cfg_attr(feature = "pyo3", pyclass)]
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "pyo3", pyclass)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Ephemeris {
     /// Clock bias [s]
@@ -421,6 +421,9 @@ impl Ephemeris {
         }
         Some((map_3d::rad2deg(elev), azim))
     }
+}
+
+impl Ephemeris {
     /*
      * Parses ephemeris from given line iterator
      */
