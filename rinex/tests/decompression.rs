@@ -6,6 +6,7 @@ mod test {
         prelude::*,
         test_toolkit,
         version::Version,
+        *,
     };
     use std::collections::HashMap;
     use std::str::FromStr;
@@ -522,6 +523,94 @@ mod test {
                 let s2i = c58.get(&Observable::from_str("S2I").unwrap()).unwrap();
                 assert_eq!(s2i.obs, 47.650);
             }
+        }
+    }
+    #[test]
+    fn v3_mojn00dnk_sig_strength_regression() {
+        let crnx =
+            Rinex::from_file("../test_resources/CRNX/V3/MOJN00DNK_R_20201770000_01D_30S_MO.crx.gz");
+        assert_eq!(crnx.is_ok(), true);
+        let mut rnx = crnx.unwrap();
+        /*
+         * Verify identified observables
+         */
+        let obs = rnx.header.obs.unwrap().codes.clone();
+        for constell in vec![Constellation::Glonass, Constellation::GPS] {
+            let codes = obs.get(&constell);
+            assert!(codes.is_some(), "MOJN00DNK_R_20201770000_01D_30S_MO: missing observable codes for constellation {:?}", constell);
+
+            let codes = codes.unwrap();
+
+            let expected: Vec<Observable> = match constell {
+                Constellation::Glonass => {
+                    vec![
+                        observable!("c1c"),
+                        observable!("c1p"),
+                        observable!("c2c"),
+                        observable!("c2p"),
+                        observable!("c3q"),
+                        observable!("d1c"),
+                        observable!("d1p"),
+                        observable!("d2c"),
+                        observable!("d2p"),
+                        observable!("d3q"),
+                        observable!("l1c"),
+                        observable!("l1p"),
+                        observable!("l2c"),
+                        observable!("l2p"),
+                        observable!("l3q"),
+                        observable!("s1c"),
+                        observable!("s1p"),
+                        observable!("s2c"),
+                        observable!("s2p"),
+                        observable!("s3q"),
+                    ]
+                },
+                Constellation::GPS => {
+                    vec![
+                        observable!("c1c"),
+                        observable!("c1w"),
+                        observable!("c2l"),
+                        observable!("c2w"),
+                        observable!("c5q"),
+                        observable!("d1c"),
+                        observable!("d2l"),
+                        observable!("d2w"),
+                        observable!("d5q"),
+                        observable!("l1c"),
+                        observable!("l2l"),
+                        observable!("l2w"),
+                        observable!("l5q"),
+                        observable!("s1c"),
+                        observable!("s1w"),
+                        observable!("s2l"),
+                        observable!("s2w"),
+                        observable!("s5q"),
+                    ]
+                },
+                _ => todo!("add this constell if you want to test it"),
+            };
+
+            if codes.len() != expected.len() {
+                panic!("mojn00dnk_r__20201770000_01D_30S_MO: {:?}: idenfied observables \"{:#?}\" - but we expect \"{:#?}\"", constell, codes, expected);
+            }
+            for i in 0..expected.len() {
+                let code = codes.get(i);
+                assert!(code.is_some(), "MOJN00DNK_R_20201770000_01D_30S_MO: missing observable \"{:?}\" for constellation {:?}", expected[i], constell);
+            }
+        }
+        /*
+         * Record content testing
+         */
+        let record = rnx.record.as_obs();
+        assert!(
+            record.is_some(),
+            "failed to unwrap MOJN00DNK_R_20201770000_01D_30S_MO as OBS RINEX"
+        );
+
+        let record = record.unwrap();
+        for (epoch, (clk_offset, svs)) in record {
+            assert!(clk_offset.is_none());
         }
     }
 }

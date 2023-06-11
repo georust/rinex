@@ -26,12 +26,13 @@ pub fn plot_observation(ctx: &Context, plot_ctx: &mut PlotContext) {
 
     let mut clk_offset: Vec<(Epoch, f64)> = Vec::new();
     // dataset
-    //  per physics, per carrier signal (symbol)
+    //  per physics,
+    //   per observable (symbolized)
     //      per vehicle (color map)
     //      bool: loss of lock - CS emphasis
     //      x: sampling timestamp,
     //      y: observation (raw),
-    let mut dataset: HashMap<String, HashMap<u8, HashMap<Sv, Vec<(bool, Epoch, f64)>>>> =
+    let mut dataset: HashMap<String, HashMap<String, HashMap<Sv, Vec<(bool, Epoch, f64)>>>> =
         HashMap::new();
 
     // augmented mode
@@ -47,11 +48,7 @@ pub fn plot_observation(ctx: &Context, plot_ctx: &mut PlotContext) {
 
         for (sv, observations) in vehicles {
             for (observable, data) in observations {
-                let code = observable.to_string();
-                let carrier_code = &code[1..2]; // carrier code
-                let c_code =
-                    u8::from_str_radix(carrier_code, 10).expect("failed to parse carrier code");
-
+                let observable_code = observable.to_string();
                 let physics = observable_to_physics(observable);
                 let y = data.obs;
                 let cycle_slip = match data.lli {
@@ -60,7 +57,7 @@ pub fn plot_observation(ctx: &Context, plot_ctx: &mut PlotContext) {
                 };
 
                 if let Some(data) = dataset.get_mut(&physics) {
-                    if let Some(data) = data.get_mut(&c_code) {
+                    if let Some(data) = data.get_mut(&observable_code) {
                         if let Some(data) = data.get_mut(&sv) {
                             data.push((cycle_slip, *epoch, y));
                         } else {
@@ -69,14 +66,14 @@ pub fn plot_observation(ctx: &Context, plot_ctx: &mut PlotContext) {
                     } else {
                         let mut map: HashMap<Sv, Vec<(bool, Epoch, f64)>> = HashMap::new();
                         map.insert(*sv, vec![(cycle_slip, *epoch, y)]);
-                        data.insert(c_code, map);
+                        data.insert(observable_code, map);
                     }
                 } else {
                     let mut map: HashMap<Sv, Vec<(bool, Epoch, f64)>> = HashMap::new();
                     map.insert(*sv, vec![(cycle_slip, *epoch, y)]);
-                    let mut mmap: HashMap<u8, HashMap<Sv, Vec<(bool, Epoch, f64)>>> =
+                    let mut mmap: HashMap<String, HashMap<Sv, Vec<(bool, Epoch, f64)>>> =
                         HashMap::new();
-                    mmap.insert(c_code, map);
+                    mmap.insert(observable_code, map);
                     dataset.insert(physics.to_string(), mmap);
                 }
             }
@@ -115,12 +112,13 @@ pub fn plot_observation(ctx: &Context, plot_ctx: &mut PlotContext) {
         }
 
         let markers = generate_markers(carriers.len()); // one symbol per carrier
-        for (index, (carrier, vehicles)) in carriers.iter().enumerate() {
+        for (index, (observable, vehicles)) in carriers.iter().enumerate() {
             for (sv, data) in vehicles {
                 let data_x: Vec<Epoch> = data.iter().map(|(_cs, e, _y)| *e).collect();
                 let data_y: Vec<f64> = data.iter().map(|(_cs, _e, y)| *y).collect();
+
                 let trace = build_chart_epoch_axis(
-                    &format!("{}(L{})", sv, carrier),
+                    &format!("{}({})", sv, observable),
                     Mode::Markers,
                     data_x,
                     data_y,
