@@ -11,6 +11,9 @@ use thiserror::Error;
 
 include!(concat!(env!("OUT_DIR"), "/nav_orbits.rs"));
 
+#[cfg(feature = "pyo3")]
+use pyo3::prelude::*;
+
 bitflags! {
     #[derive(Default, Debug, Clone)]
     #[derive(PartialEq, PartialOrd)]

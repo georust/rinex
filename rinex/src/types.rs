@@ -2,8 +2,12 @@
 use super::Constellation;
 use thiserror::Error;
 
+#[cfg(feature = "pyo3")]
+use pyo3::prelude::*;
+
 /// Describes all known `RINEX` file types
 #[derive(Copy, Clone, PartialEq, Debug)]
+#[cfg_attr(feature = "pyo3", pyclass)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum Type {
     /// Describes Observation Data (OBS),

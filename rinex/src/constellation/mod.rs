@@ -3,14 +3,15 @@ use thiserror::Error;
 
 mod augmentation;
 pub use augmentation::Augmentation;
-#[cfg(feature = "pyo3")]
-use pyo3::prelude::*;
 
 #[cfg(feature = "sbas")]
 pub use augmentation::selection_helper;
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
+
+#[cfg(feature = "pyo3")]
+use pyo3::prelude::*;
 
 #[derive(Error, Clone, Debug, PartialEq)]
 /// Constellation parsing & identification related errors
@@ -47,6 +48,15 @@ pub enum Constellation {
     /// `Mixed` for Mixed constellations
     /// RINEX files description
     Mixed,
+}
+
+#[cfg(feature = "pyo3")]
+use crate::prelude::Sv;
+#[cfg(feature = "pyo3")]
+impl From<&PyCell<Sv>> for Constellation {
+    fn from(cell: &PyCell<Sv>) -> Self {
+        Self::default()
+    }
 }
 
 impl std::fmt::Display for Constellation {

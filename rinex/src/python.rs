@@ -17,15 +17,21 @@ impl std::convert::From<Error> for PyErr {
 #[pymodule]
 fn rinex(_py: Python, m: &PyModule) -> PyResult<()> {
     /*
-     * TODO: prelude module
+     * TODO: follow the crate module names
+     * this should be the wrapped in the "prelude" module
      */
     m.add_class::<Epoch>()?;
     m.add_class::<EpochFlag>()?;
     m.add_class::<Rcvr>()?;
     m.add_class::<Antenna>()?;
+    //m.add_class::<GroundPosition>()?;
     m.add_class::<Augmentation>()?;
+    m.add_class::<Sv>()?;
     // header
     m.add_class::<MarkerType>()?;
+    // rinex
+    m.add_class::<Header>()?;
+    m.add_class::<Rinex>()?;
     /*
      * TODO: Observation module
      */
@@ -39,5 +45,6 @@ fn rinex(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<MsgType>()?;
     m.add_class::<FrameClass>()?;
     m.add_class::<Ephemeris>()?;
+
     Ok(())
 }

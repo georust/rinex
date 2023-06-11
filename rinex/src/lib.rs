@@ -42,10 +42,9 @@ use reader::BufferedReader;
 use std::io::Write; //, Read};
 
 pub mod writer;
-use writer::BufferedWriter;
-
 use std::collections::{BTreeMap, HashMap};
 use thiserror::Error;
+use writer::BufferedWriter;
 
 use hifitime::Duration;
 use navigation::OrbitItem;
@@ -257,6 +256,7 @@ pub enum Error {
     IoError(#[from] std::io::Error),
 }
 
+//#[cfg_attr(feature = "pyo3", pymethods)]
 impl Rinex {
     /// Builds a new `RINEX` struct from given header & body sections
     pub fn new(header: Header, record: record::Record) -> Rinex {

@@ -33,8 +33,8 @@ macro_rules! fmt_month {
 use serde::Serialize;
 
 /// Describes `Compact RINEX` specific information
-#[cfg_attr(feature = "pyo3", pyclass)]
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd)]
+#[cfg_attr(feature = "pyo3", pyclass)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Crinex {
     /// Compression program version
@@ -121,6 +121,7 @@ impl std::fmt::Display for Crinex {
 /// Describes known marker types
 /// Observation Record specific header fields
 #[derive(Debug, Clone, Default, PartialEq)]
+#[cfg_attr(feature = "pyo3", pyclass)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct HeaderFields {
     /// Optional CRINEX information

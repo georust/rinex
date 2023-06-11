@@ -1,6 +1,9 @@
 use crate::{carrier, Carrier, Constellation};
 use thiserror::Error;
 
+#[cfg(feature = "pyo3")]
+use pyo3::prelude::*;
+
 #[derive(Error, Debug, Clone, PartialEq)]
 pub enum Error {
     #[error("unknown observable")]

@@ -5,8 +5,12 @@ use thiserror::Error;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "pyo3")]
+use pyo3::prelude::*;
+
 /// ̀`Sv` describes a Satellite Vehicle
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[cfg_attr(feature = "pyo3", pyclass)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Sv {
     /// PRN identification # for this vehicle
@@ -24,6 +28,7 @@ pub enum Error {
     ParseIntError(#[from] std::num::ParseIntError),
 }
 
+#[cfg_attr(feature = "pyo3", pymethods)]
 impl Sv {
     /// Creates a new `Sv`
     pub fn new(constellation: Constellation, prn: u8) -> Self {

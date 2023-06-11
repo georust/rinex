@@ -100,6 +100,7 @@ impl Default for MarkerType {
 
 /// Describes `RINEX` file header
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "pyo3", pyclass)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Header {
     /// revision for this `RINEX`
@@ -1269,7 +1270,16 @@ impl Header {
             },
         })
     }
+    /// Adds desired constellation to Self
+    pub fn with_constellation(&self, c: Constellation) -> Self {
+        let mut s = self.clone();
+        s.constellation = Some(c);
+        s
+    }
+}
 
+#[cfg_attr(feature = "pyo3", pymethods)]
+impl Header {
     /// Returns true if self is a `Compressed RINEX`
     pub fn is_crinex(&self) -> bool {
         if let Some(obs) = &self.obs {
@@ -1281,6 +1291,7 @@ impl Header {
 
     /// Creates a Basic Header structure
     /// for Mixed Constellation Navigation RINEX
+    #[staticmethod]
     pub fn basic_nav() -> Self {
         Self::default()
             .with_type(Type::NavigationData)
@@ -1289,6 +1300,7 @@ impl Header {
 
     /// Creates a Basic Header structure
     /// for Mixed Constellation Observation RINEX
+    #[staticmethod]
     pub fn basic_obs() -> Self {
         Self::default()
             .with_type(Type::ObservationData)
@@ -1297,6 +1309,7 @@ impl Header {
 
     /// Creates Basic Header structure
     /// for Compact RINEX with Mixed Constellation context
+    #[staticmethod]
     pub fn basic_crinex() -> Self {
         Self::default()
             .with_type(Type::ObservationData)
@@ -1348,13 +1361,6 @@ impl Header {
     pub fn with_receiver_antenna(&self, a: Antenna) -> Self {
         let mut s = self.clone();
         s.rcvr_antenna = Some(a);
-        s
-    }
-
-    /// Adds desired constellation to Self
-    pub fn with_constellation(&self, c: Constellation) -> Self {
-        let mut s = self.clone();
-        s.constellation = Some(c);
         s
     }
 
