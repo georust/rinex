@@ -53,12 +53,6 @@ rinex-cli \
         -P G07 --dcb
 ```
 
-<img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_pr_dcbs.png">
-
-
-Notice the data dispersion if you compare the code bias estimate
-between Pseudo Range and Phase Data.
-
 <img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_ph_dcbs.png">
 
 Differential Processing
