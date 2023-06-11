@@ -6,11 +6,11 @@ A skyplot view is requested with `-y`.
 It is mandatory to provide Navigation Data to be able to access
 the skyplot view.
 
-The skyplot view exhibits the observed vehicules, accross epochs,
+The skyplot view exhibits the observed vehicles, accross epochs,
 in terms of azimuth and elevation angles (position in the sky).
 
-The first epoch where a vehicule appears is always depicted with a circle symbol.  
-The last epoch before a vehicule dissapears is always depiceted with a square symbol.
+The first epoch where a vehicle appears is always depicted with a circle symbol.  
+The last epoch before a vehicle dissapears is always depiceted with a square symbol.
 
 If only Navigation data is provided (`--fp`), 
 the curve color emphasizes the epoch spanning:

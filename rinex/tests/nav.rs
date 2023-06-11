@@ -25,9 +25,9 @@ mod test {
             Epoch::from_gregorian_utc(2021, 01, 01, 16, 15, 0, 0),
         ];
         let expected_prns: Vec<u8> = vec![1, 2, 7, 3, 4, 5];
-        let mut expected_vehicules: Vec<Sv> = Vec::new();
+        let mut expected_vehicles: Vec<Sv> = Vec::new();
         for prn in expected_prns.iter() {
-            expected_vehicules.push(Sv {
+            expected_vehicles.push(Sv {
                 constellation: Constellation::Glonass,
                 prn: *prn,
             });
@@ -44,7 +44,7 @@ mod test {
                     assert_eq!(ephemeris.is_some(), true);
                     let (msgtype, sv, ephemeris) = ephemeris.unwrap();
                     assert_eq!(msgtype, &MsgType::LNAV); // legacy NAV
-                    assert_eq!(expected_vehicules.contains(&sv), true);
+                    assert_eq!(expected_vehicles.contains(&sv), true);
                     if sv.prn == 1 {
                         assert_eq!(ephemeris.clock_bias, 7.282570004460E-5);
                         assert_eq!(ephemeris.clock_drift, 0.0);
@@ -230,7 +230,7 @@ mod test {
                                 let tgd1 = data.get("tgd1b1b3").unwrap();
                                 assert_eq!(tgd1.as_f64(), Some(0.143000002950e-07));
                             },
-                            _ => panic!("identified unexpected BDS vehicule \"{}\"", sv.prn),
+                            _ => panic!("identified unexpected BDS vehicle \"{}\"", sv.prn),
                         },
                         Constellation::Glonass => match sv.prn {
                             19 => {
@@ -257,7 +257,7 @@ mod test {
                                 let pos = data.get("satPosZ").unwrap();
                                 assert_eq!(pos.as_f64(), Some(0.214479208984e+05));
                             },
-                            _ => panic!("identified unexpected GLO vehicule \"{}\"", sv.prn),
+                            _ => panic!("identified unexpected GLO vehicle \"{}\"", sv.prn),
                         },
                         Constellation::Galileo => match sv.prn {
                             1 => {
@@ -300,7 +300,7 @@ mod test {
                                 let bgd = data.get("bgdE5aE1").unwrap();
                                 assert_eq!(bgd.as_f64(), Some(0.302679836750e-08));
                             },
-                            _ => panic!("identified unexpected GAL vehicule \"{}\"", sv.prn),
+                            _ => panic!("identified unexpected GAL vehicle \"{}\"", sv.prn),
                         },
                         _ => panic!("falsely identified \"{}\"", sv.to_string()),
                     }
@@ -805,7 +805,7 @@ mod test {
                         let (msgtype, sv, ephemeris) = frame.as_eph().unwrap();
                         if sv.constellation == Constellation::QZSS {
                             if sv.prn != 4 {
-                                panic!("got unexpected QZSS vehicule \"{}\"", sv.prn)
+                                panic!("got unexpected QZSS vehicle \"{}\"", sv.prn)
                             }
                             assert_eq!(*e, Epoch::from_gregorian_utc(2022, 06, 08, 11, 00, 00, 00));
                             assert_eq!(msgtype, &MsgType::LNAV);
@@ -845,14 +845,14 @@ mod test {
         epochs.sort();
         assert_eq!(rinex.epochs(), epochs);
 
-        let mut vehicules: Vec<Sv> = vec![
+        let mut vehicles: Vec<Sv> = vec![
             Sv::from_str("C01").unwrap(),
             Sv::from_str("S36").unwrap(),
             Sv::from_str("R10").unwrap(),
             Sv::from_str("E03").unwrap(),
         ];
-        vehicules.sort();
-        assert_eq!(rinex.space_vehicules(), vehicules);
+        vehicles.sort();
+        assert_eq!(rinex.space_vehicles(), vehicles);
 
         for (epoch, classes) in record {
             for (class, frames) in classes.iter() {

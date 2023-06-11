@@ -53,7 +53,7 @@ pub enum MarkerType {
     /// Generated from network
     #[strum(serialize = "NON PHYSICAL", serialize = "NonPhysical")]
     NonPhysical,
-    /// Orbiting space vehicule
+    /// Orbiting space vehicle
     #[strum(serialize = "SPACE BORNE", serialize = "Spaceborne")]
     Spaceborne,
     /// Aircraft, balloon..
@@ -62,7 +62,7 @@ pub enum MarkerType {
     /// Mobile water craft
     #[strum(serialize = "WATER CRAFT", serialize = "Watercraft")]
     Watercraft,
-    /// Mobile terrestrial vehicule
+    /// Mobile terrestrial vehicle
     #[strum(serialize = "GROUND CRAFT", serialize = "Groundcraft")]
     Groundcraft,
     /// Fixed on water surface
@@ -151,7 +151,7 @@ pub struct Header {
     /// Optionnal Receiver Antenna information
     #[cfg_attr(feature = "serde", serde(default))]
     pub rcvr_antenna: Option<Antenna>,
-    /// Optionnal Vehicule Antenna information,
+    /// Optionnal Vehicle Antenna information,
     /// attached to a specifid Sv, only exists in ANTEX records
     #[cfg_attr(feature = "serde", serde(default))]
     pub sv_antenna: Option<SvAntenna>,

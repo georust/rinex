@@ -28,7 +28,7 @@ pub fn plot_observation(ctx: &Context, plot_ctx: &mut PlotContext) {
     let mut clk_offset: Vec<(Epoch, f64)> = Vec::new();
     // dataset
     //  per physics, per carrier signal (symbol)
-    //      per vehicule (color map)
+    //      per vehicle (color map)
     //      bool: loss of lock - CS emphasis
     //      x: sampling timestamp,
     //      y: observation (raw),
@@ -41,12 +41,12 @@ pub fn plot_observation(ctx: &Context, plot_ctx: &mut PlotContext) {
         sat_angles = nav.navigation_sat_angles(ctx.ground_position);
     }
 
-    for ((epoch, _flag), (clock_offset, vehicules)) in record {
+    for ((epoch, _flag), (clock_offset, vehicles)) in record {
         if let Some(value) = clock_offset {
             clk_offset.push((*epoch, *value));
         }
 
-        for (sv, observations) in vehicules {
+        for (sv, observations) in vehicles {
             for (observable, data) in observations {
                 let code = observable.to_string();
                 let carrier_code = &code[1..2]; // carrier code
@@ -116,8 +116,8 @@ pub fn plot_observation(ctx: &Context, plot_ctx: &mut PlotContext) {
         }
 
         let markers = generate_markers(carriers.len()); // one symbol per carrier
-        for (index, (carrier, vehicules)) in carriers.iter().enumerate() {
-            for (sv, data) in vehicules {
+        for (index, (carrier, vehicles)) in carriers.iter().enumerate() {
+            for (sv, data) in vehicles {
                 let data_x: Vec<Epoch> = data.iter().map(|(_cs, e, _y)| *e).collect();
                 let data_y: Vec<f64> = data.iter().map(|(_cs, _e, y)| *y).collect();
                 let trace = build_chart_epoch_axis(

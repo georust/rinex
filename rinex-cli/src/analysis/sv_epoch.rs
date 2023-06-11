@@ -35,8 +35,8 @@ pub fn sv_epoch(ctx: &Context, plot_ctx: &mut PlotContext) {
 
     let markers = generate_markers(nb_markers);
 
-    let data = ctx.primary_rinex.space_vehicules_per_epoch();
-    for (sv_index, sv) in ctx.primary_rinex.space_vehicules().iter().enumerate() {
+    let data = ctx.primary_rinex.space_vehicles_per_epoch();
+    for (sv_index, sv) in ctx.primary_rinex.space_vehicles().iter().enumerate() {
         let epochs: Vec<Epoch> = data
             .iter()
             .filter_map(|(epoch, ssv)| {
@@ -68,10 +68,10 @@ pub fn sv_epoch(ctx: &Context, plot_ctx: &mut PlotContext) {
     }
 
     if let Some(ref nav) = ctx.nav_rinex {
-        let data = nav.space_vehicules_per_epoch();
+        let data = nav.space_vehicles_per_epoch();
         let nav_constell = nav.list_constellations();
 
-        for (sv_index, sv) in nav.space_vehicules().iter().enumerate() {
+        for (sv_index, sv) in nav.space_vehicles().iter().enumerate() {
             let epochs: Vec<Epoch> = data
                 .iter()
                 .filter_map(|(epoch, ssv)| {

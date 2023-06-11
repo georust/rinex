@@ -54,9 +54,9 @@ pub fn ascii_plot (x_width: u32, obs_rinex: &Rinex, nav_rinex: Option<Rinex>) ->
     let px_secs = time_span.num_seconds() as u32 / x_width; // nb of secs per px
     let dt_granularity = chrono::Duration::from_std(std::time::Duration::from_secs(px_secs.into())).unwrap();
     
-    // list vehicules, on an epoch basis
-    let mut vehicules = obs_rinex.space_vehicules();
-    vehicules.sort();
+    // list vehicles, on an epoch basis
+    let mut vehicles = obs_rinex.space_vehicles();
+    vehicles.sort();
 
     // extract record
     let record = obs_rinex.record
@@ -69,7 +69,7 @@ pub fn ascii_plot (x_width: u32, obs_rinex: &Rinex, nav_rinex: Option<Rinex>) ->
     result.push_str("+Sv");
     result.push_str("\n");
 
-    for sv in vehicules.iter() {
+    for sv in vehicles.iter() {
         // start new line for this svnn 
         result.push_str(&format!("{}{:>2}|", sv.constellation.to_1_letter_code(), sv.prn));
         let mut prev_epoch = epochs[0];
@@ -97,16 +97,16 @@ pub fn ascii_plot (x_width: u32, obs_rinex: &Rinex, nav_rinex: Option<Rinex>) ->
         //  _ satellite between horizon and elevation mask with no data collected by receiver; indicator is turned off with -hor option 
         // (blank) qc lite: no satellite tracked
         // --> browse epochs
-        for (epoch, (_, vehicules)) in record.iter() {
+        for (epoch, (_, vehicles)) in record.iter() {
             _epoch_empty = true;
-            if let Some(map) = vehicules.get(sv) {
+            if let Some(map) = vehicles.get(sv) {
                 _epoch_empty = false;
                 // if we do have ephemeris attached
                 // use them to determine elevation angle
-                for (e, vvehicules) in elev_angles.iter() {
+                for (e, vvehicles) in elev_angles.iter() {
                     if *e == *epoch {
-                        for (vvehicule, _angle) in vvehicules.iter() {
-                            if *vvehicule == *sv {
+                        for (vvehicle, _angle) in vvehicles.iter() {
+                            if *vvehicle == *sv {
                                 //above_elev = *angle > 30.0 ; // TODO
                             }
                         }
@@ -162,17 +162,17 @@ pub fn ascii_plot (x_width: u32, obs_rinex: &Rinex, nav_rinex: Option<Rinex>) ->
         } // epochs browsing
         // --> conclude svnn line
         result.push_str(&format!("|{}{:>2}\n", sv.constellation.to_1_letter_code(), sv.prn));
-    }// all vehicules in record
+    }// all vehicles in record
 
     ///////////////////////////////////////////////////
     // "-dn" line
     // emphasizes missing sv per epoch
     result.push_str("-dn|");
     let mut prev_epoch = epochs[0];
-    for (e, (_, vvehicules)) in record.iter() {
+    for (e, (_, vvehicles)) in record.iter() {
         let mut n_missing = 0;
-        for sv in vehicules.iter() {
-            if !vvehicules.keys().contains(&sv) {
+        for sv in vehicles.iter() {
+            if !vvehicles.keys().contains(&sv) {
                 n_missing += 1;
             }
         }
@@ -207,7 +207,7 @@ pub fn ascii_plot (x_width: u32, obs_rinex: &Rinex, nav_rinex: Option<Rinex>) ->
 
     ///////////////////////////////////////////////////
     // +DD line: emphasize receiver capacity
-    //     versus vehicules currently seen
+    //     versus vehicles currently seen
     //      Currently we assume a +12 receiver capacity
     //      which is the default teqc value,
     //      but we should have some interface for the user
@@ -215,8 +215,8 @@ pub fn ascii_plot (x_width: u32, obs_rinex: &Rinex, nav_rinex: Option<Rinex>) ->
     ///////////////////////////////////////////////////
     result.push_str("+12|");
     let mut prev_epoch = epochs[0];
-    for (e, (_, vehicules)) in record.iter() {
-        let n_seen = vehicules.len();
+    for (e, (_, vehicles)) in record.iter() {
+        let n_seen = vehicles.len();
         let dt = e.date - prev_epoch.date;
         if dt >= dt_granularity { // time to place new marker(s)
             let n_markers = dt.num_seconds() / dt_granularity.num_seconds();

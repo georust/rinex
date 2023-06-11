@@ -21,7 +21,7 @@ pub enum Error {
     ParseIntError(#[from] std::num::ParseIntError),
     #[error("failed to parse epoch")]
     EpochError(#[from] epoch::Error),
-    #[error("failed to identify sat vehicule")]
+    #[error("failed to identify sat vehicle")]
     ParseSvError(#[from] sv::Error),
 }
 
@@ -379,7 +379,7 @@ impl Ephemeris {
         Some((map_3d::rad2deg(lat), map_3d::rad2deg(lon), alt))
     }
 
-    /// Computes and returns vehicule elevation and azimuth angles, expressed in degrees.
+    /// Computes and returns vehicle elevation and azimuth angles, expressed in degrees.
     pub fn sat_elev_azim(&self, epoch: Epoch, position: GroundPosition) -> Option<(f64, f64)> {
         let (sv_x, sv_y, sv_z) = self.sat_pos_ecef(epoch)?;
         let (ref_x, ref_y, ref_z) = position.to_ecef_wgs84();

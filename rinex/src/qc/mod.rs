@@ -90,7 +90,7 @@ impl<'a> QcReport<'a> {
                 TargetItem::from(gnss)
             },
             QcClassificationMethod::Sv => {
-                let mut sv = rnx.space_vehicules();
+                let mut sv = rnx.space_vehicles();
                 sv.sort();
                 TargetItem::from(sv)
             },

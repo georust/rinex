@@ -12,15 +12,15 @@ fn observation_comparison(dut: &Rinex, model: &Rinex, filename: &str) {
         .as_obs()
         .expect("failed to unwrap as observation rinex record");
 
-    for (e_model, (clk_offset_model, vehicules_model)) in rec_model.iter() {
-        if let Some((clk_offset_dut, vehicules_dut)) = rec_dut.get(e_model) {
+    for (e_model, (clk_offset_model, vehicles_model)) in rec_model.iter() {
+        if let Some((clk_offset_dut, vehicles_dut)) = rec_dut.get(e_model) {
             assert_eq!(
                 clk_offset_model, clk_offset_dut,
                 "\"{}\" - {:?} - faulty clock offset, expecting {:?} got {:?}",
                 filename, e_model, clk_offset_model, clk_offset_dut
             );
-            for (sv_model, observables_model) in vehicules_model.iter() {
-                if let Some(observables_dut) = vehicules_dut.get(sv_model) {
+            for (sv_model, observables_model) in vehicles_model.iter() {
+                if let Some(observables_dut) = vehicles_dut.get(sv_model) {
                     for (code_model, obs_model) in observables_model {
                         if let Some(obs_dut) = observables_dut.get(code_model) {
                             assert!(
@@ -52,7 +52,7 @@ fn observation_comparison(dut: &Rinex, model: &Rinex, filename: &str) {
                     }
                 } else {
                     panic!(
-                        "\"{}\" - {:?} - missing vehicule {:?}",
+                        "\"{}\" - {:?} - missing vehicle {:?}",
                         filename, e_model, sv_model
                     );
                 }
@@ -62,11 +62,11 @@ fn observation_comparison(dut: &Rinex, model: &Rinex, filename: &str) {
         }
     }
 
-    for (e_b, (clk_offset_b, vehicules_b)) in rec_model.iter() {
-        if let Some((clk_offset_model, vehicules_model)) = rec_dut.get(e_b) {
+    for (e_b, (clk_offset_b, vehicles_b)) in rec_model.iter() {
+        if let Some((clk_offset_model, vehicles_model)) = rec_dut.get(e_b) {
             assert_eq!(clk_offset_model, clk_offset_b);
-            for (sv_b, observables_b) in vehicules_b.iter() {
-                if let Some(observables_model) = vehicules_model.get(sv_b) {
+            for (sv_b, observables_b) in vehicles_b.iter() {
+                if let Some(observables_model) = vehicles_model.get(sv_b) {
                     for (code_b, obs_b) in observables_b {
                         if let Some(obs_model) = observables_model.get(code_b) {
                             assert!(

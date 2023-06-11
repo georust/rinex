@@ -31,7 +31,7 @@ $$\lambda_{Li} \Phi_{Li}(k) = \rho(k)  + T(k) + S(k) + M_{Li}(k) - \frac{\lambda
 
 where we note $\lambda_{Li}$, the $L_i$ carrier wavelength,  
 $c$ the speed of light,  
-$\rho$ the distance between the receiver APC and the vehicule APC - to be referred to as the _geometric_ distance,    
+$\rho$ the distance between the receiver APC and the vehicle APC - to be referred to as the _geometric_ distance,    
 $\tau_{sv}$ is the vehicle clock bias [s],   
 $\tau_{r}(k)$ the receiver clock bias [s],   
 $M_{Li}$ the multipath biases,   

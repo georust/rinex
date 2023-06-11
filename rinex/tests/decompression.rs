@@ -194,12 +194,12 @@ mod test {
         assert_eq!(rnx.epochs(), epochs);
         let record = rnx.record.as_obs().unwrap();
 
-        for (index, ((e, flag), (clk_offset, vehicules))) in record.iter().enumerate() {
+        for (index, ((e, flag), (clk_offset, vehicles))) in record.iter().enumerate() {
             assert!(flag.is_ok());
             assert!(clk_offset.is_none());
             if index == 0 {
-                assert_eq!(vehicules.len(), 24);
-                for (sv, observations) in vehicules {
+                assert_eq!(vehicles.len(), 24);
+                for (sv, observations) in vehicles {
                     if *sv == Sv::new(Constellation::GPS, 07) {
                         let mut keys: Vec<_> = observations.keys().map(|k| k.clone()).collect();
                         keys.sort();
@@ -401,13 +401,13 @@ mod test {
         for e_index in 0..epochs.len() {
             let e = epochs.get(e_index).unwrap();
             let flag = EpochFlag::Ok;
-            let (_, vehicules) = record.get(&(*e, flag)).unwrap();
+            let (_, vehicles) = record.get(&(*e, flag)).unwrap();
             if e_index == 0 {
                 /*
                  * 1st epoch
                  */
-                assert_eq!(vehicules.len(), 38);
-                let keys: Vec<_> = vehicules.keys().map(|sv| *sv).collect();
+                assert_eq!(vehicles.len(), 38);
+                let keys: Vec<_> = vehicles.keys().map(|sv| *sv).collect();
                 let mut expected: Vec<Sv> = vec![
                     Sv::new(Constellation::GPS, 01),
                     Sv::new(Constellation::GPS, 07),
@@ -454,8 +454,8 @@ mod test {
                 /*
                  * last epoch
                  */
-                assert_eq!(vehicules.len(), 38);
-                let keys: Vec<_> = vehicules.keys().map(|sv| *sv).collect();
+                assert_eq!(vehicles.len(), 38);
+                let keys: Vec<_> = vehicles.keys().map(|sv| *sv).collect();
                 let mut expected: Vec<Sv> = vec![
                     Sv::new(Constellation::GPS, 01),
                     Sv::new(Constellation::GPS, 07),
@@ -498,7 +498,7 @@ mod test {
                 ];
                 expected.sort();
                 assert_eq!(keys, expected);
-                let c58 = vehicules.get(&Sv::new(Constellation::BeiDou, 58)).unwrap();
+                let c58 = vehicles.get(&Sv::new(Constellation::BeiDou, 58)).unwrap();
 
                 let mut keys: Vec<Observable> = c58.keys().map(|k| k.clone()).collect();
                 keys.sort();

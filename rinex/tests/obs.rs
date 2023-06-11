@@ -21,7 +21,7 @@ mod test {
         assert!(record.is_some());
         let record = record.unwrap();
         assert!(record.len() > 0);
-        for ((_, _), (clk_offset, vehicules)) in record {
+        for ((_, _), (clk_offset, vehicles)) in record {
             /*
              * We don't have any files with clock offsets as of today
              */
@@ -30,7 +30,7 @@ mod test {
              * test GNSS identification
              */
             if c != Constellation::Mixed {
-                for (sv, _) in vehicules {
+                for (sv, _) in vehicles {
                     assert_eq!(sv.constellation, c);
                 }
             }
@@ -52,8 +52,8 @@ mod test {
         testbench(&rinex, 2, 11, Constellation::GPS, epochs);
         let record = rinex.record.as_obs().unwrap();
 
-        for (index, (e, (_, vehicules))) in record.iter().enumerate() {
-            let keys: Vec<_> = vehicules.keys().collect();
+        for (index, (e, (_, vehicles))) in record.iter().enumerate() {
+            let keys: Vec<_> = vehicles.keys().collect();
             if index == 0 {
                 assert_eq!(
                     keys,
@@ -75,7 +75,7 @@ mod test {
                  * Test G03
                  */
                 let sv = Sv::new(Constellation::GPS, 03);
-                let observations = vehicules.get(&sv).unwrap();
+                let observations = vehicles.get(&sv).unwrap();
                 let l1 = observations
                     .get(&Observable::from_str("L1").unwrap())
                     .unwrap();
@@ -569,15 +569,15 @@ mod test {
         let epoch = Epoch::from_gregorian_utc(2022, 03, 04, 0, 0, 0, 0);
         let e = record.get(&(epoch, EpochFlag::Ok));
         assert_eq!(e.is_some(), true);
-        let (clk, vehicules) = e.unwrap();
+        let (clk, vehicles) = e.unwrap();
         assert_eq!(clk.is_none(), true);
-        assert_eq!(vehicules.len(), 18);
+        assert_eq!(vehicles.len(), 18);
 
         let g01 = Sv {
             constellation: Constellation::GPS,
             prn: 01,
         };
-        let g01 = vehicules.get(&g01);
+        let g01 = vehicles.get(&g01);
         assert_eq!(g01.is_some(), true);
         let data = g01.unwrap();
         let c1c = data.get(&Observable::from_str("C1C").unwrap());
@@ -605,7 +605,7 @@ mod test {
             constellation: Constellation::GPS,
             prn: 03,
         };
-        let g03 = vehicules.get(&g03);
+        let g03 = vehicles.get(&g03);
         assert_eq!(g03.is_some(), true);
         let data = g03.unwrap();
         let c1c = data.get(&Observable::from_str("C1C").unwrap());
@@ -623,7 +623,7 @@ mod test {
             constellation: Constellation::GPS,
             prn: 04,
         };
-        let g04 = vehicules.get(&g04);
+        let g04 = vehicles.get(&g04);
         assert_eq!(g04.is_some(), true);
         let data = g04.unwrap();
         let c1c = data.get(&Observable::from_str("C1C").unwrap());
@@ -640,16 +640,16 @@ mod test {
         let epoch = Epoch::from_gregorian_utc(2022, 03, 04, 00, 28, 30, 00);
         let e = record.get(&(epoch, EpochFlag::Ok));
         assert_eq!(e.is_some(), true);
-        let (clk, vehicules) = e.unwrap();
+        let (clk, vehicles) = e.unwrap();
         assert_eq!(clk.is_none(), true);
-        assert_eq!(vehicules.len(), 17);
+        assert_eq!(vehicles.len(), 17);
 
         let epoch = Epoch::from_gregorian_utc(2022, 03, 04, 00, 57, 0, 0);
         let e = record.get(&(epoch, EpochFlag::Ok));
         assert_eq!(e.is_some(), true);
-        let (clk, vehicules) = e.unwrap();
+        let (clk, vehicles) = e.unwrap();
         assert_eq!(clk.is_none(), true);
-        assert_eq!(vehicules.len(), 17);
+        assert_eq!(vehicles.len(), 17);
     }
     //#[test]
     fn v4_kms300dnk_r_2022_v3crx() {
@@ -728,13 +728,13 @@ mod test {
 
         let epoch = epochs.get(0).unwrap();
         let flag = EpochFlag::Ok;
-        let (clk_offset, vehicules) = record.get(&(*epoch, flag)).unwrap();
+        let (clk_offset, vehicles) = record.get(&(*epoch, flag)).unwrap();
         assert!(clk_offset.is_none());
-        let keys: Vec<_> = vehicules.keys().collect();
-        assert_eq!(vehicules.len(), 26);
+        let keys: Vec<_> = vehicles.keys().collect();
+        assert_eq!(vehicles.len(), 26);
 
         let g07 = Sv::new(Constellation::GPS, 07);
-        let observations = vehicules.get(&g07).unwrap();
+        let observations = vehicles.get(&g07).unwrap();
         let mut codes: Vec<Observable> = observations.keys().map(|k| k.clone()).collect();
         codes.sort();
 
@@ -755,7 +755,7 @@ mod test {
         assert_eq!(s2.obs, 35.300);
 
         let r04 = Sv::new(Constellation::Glonass, 04);
-        let observations = vehicules.get(&r04).unwrap();
+        let observations = vehicles.get(&r04).unwrap();
 
         let mut codes: Vec<Observable> = observations.keys().map(|k| k.clone()).collect();
         codes.sort();
@@ -806,12 +806,12 @@ mod test {
 
         let epoch = epochs.get(1).unwrap();
         let flag = EpochFlag::Ok;
-        let (clk_offset, vehicules) = record.get(&(*epoch, flag)).unwrap();
+        let (clk_offset, vehicles) = record.get(&(*epoch, flag)).unwrap();
         assert!(clk_offset.is_none());
-        assert_eq!(vehicules.len(), 26);
+        assert_eq!(vehicles.len(), 26);
 
         let r04 = Sv::new(Constellation::Glonass, 04);
-        let observations = vehicules.get(&r04).unwrap();
+        let observations = vehicles.get(&r04).unwrap();
         let mut codes: Vec<Observable> = observations.keys().map(|k| k.clone()).collect();
         codes.sort();
 
@@ -871,12 +871,12 @@ mod test {
         assert_eq!(rnx.epochs(), expected);
 
         let record = rnx.record.as_obs().unwrap();
-        for (e_index, ((e, flag), (clk_offset, vehicules))) in record.iter().enumerate() {
+        for (e_index, ((e, flag), (clk_offset, vehicles))) in record.iter().enumerate() {
             assert!(flag.is_ok());
             assert!(clk_offset.is_none());
-            assert_eq!(vehicules.len(), 9);
+            assert_eq!(vehicles.len(), 9);
             if e_index < 3 {
-                let keys: Vec<Sv> = vehicules.keys().map(|k| *k).collect();
+                let keys: Vec<Sv> = vehicles.keys().map(|k| *k).collect();
                 let expected: Vec<Sv> = vec![
                     Sv::new(Constellation::GPS, 01),
                     Sv::new(Constellation::GPS, 03),
@@ -890,7 +890,7 @@ mod test {
                 ];
                 assert_eq!(keys, expected);
             } else {
-                let keys: Vec<Sv> = vehicules.keys().map(|k| *k).collect();
+                let keys: Vec<Sv> = vehicles.keys().map(|k| *k).collect();
                 let expected: Vec<Sv> = vec![
                     Sv::new(Constellation::GPS, 01),
                     Sv::new(Constellation::GPS, 03),
@@ -904,7 +904,7 @@ mod test {
                 ];
                 assert_eq!(keys, expected);
             }
-            for (sv, observations) in vehicules {
+            for (sv, observations) in vehicles {
                 assert_eq!(sv.constellation, Constellation::GPS);
             }
         }

@@ -186,10 +186,10 @@ macro_rules! hourly_session {
 /// assert_eq!(rnx.header.observer, "H. VAN DER MAREL");
 /// assert_eq!(rnx.header.station_id, "13502M004");
 ///
-/// // Constellation describes which kind of vehicules
+/// // Constellation describes which kind of vehicles
 /// // are to be encountered in the record, or which
 /// // GNSS constellation the data will be referred to.
-/// // Mixed constellation, means a combination of vehicules or
+/// // Mixed constellation, means a combination of vehicles or
 /// // GNSS constellations is expected
 /// assert_eq!(rnx.header.constellation, Some(Constellation::Mixed));
 /// // Some information on the hardware being used might be stored
@@ -836,8 +836,8 @@ impl Rinex {
         match self.header.constellation {
             Some(Constellation::Mixed) => {
                 if let Some(r) = self.record.as_obs() {
-                    for (_e, (_clk, vehicules)) in r {
-                        for (sv, _) in vehicules {
+                    for (_e, (_clk, vehicles)) in r {
+                        for (sv, _) in vehicles {
                             if !ret.contains(&sv.constellation) {
                                 ret.push(sv.constellation.clone());
                             }
@@ -876,11 +876,11 @@ impl Rinex {
         ret
     }
 
-    /// Returns list of vehicules per constellation and on an epoch basis
+    /// Returns list of vehicles per constellation and on an epoch basis
     /// that are closest to Zenith. This is basically a max() operation
     /// on the elevation angle, per epoch and constellation.
     /// This can only be computed on Navigation ephemeris.
-    pub fn space_vehicules_best_elevation_angle(&self) -> BTreeMap<Epoch, Vec<Sv>> {
+    pub fn space_vehicles_best_elevation_angle(&self) -> BTreeMap<Epoch, Vec<Sv>> {
         let mut ret: BTreeMap<Epoch, Vec<Sv>> = BTreeMap::new();
         if let Some(record) = self.record.as_nav() {
             for (e, classes) in record.iter() {
@@ -920,10 +920,10 @@ impl Rinex {
     }
 
     pub fn retain_best_elevation_angles_mut(&mut self) {
-        let best_vehicules = self.space_vehicules_best_elevation_angle();
+        let best_vehicles = self.space_vehicles_best_elevation_angle();
         if let Some(record) = self.record.as_mut_nav() {
             record.retain(|e, classes| {
-                let best = best_vehicules.get(e).unwrap();
+                let best = best_vehicles.get(e).unwrap();
                 classes.retain(|class, frames| {
                     if *class == navigation::FrameClass::Ephemeris {
                         frames.retain(|fr| {
@@ -966,7 +966,7 @@ impl Rinex {
 
     /// Extracts distant clock offsets
     /// (also refered to as "clock biases") in [s],
-    /// on an epoch basis and per space vehicule,
+    /// on an epoch basis and per space vehicle,
     /// from this Navigation record.
     ///
     /// Example:
@@ -981,15 +981,15 @@ impl Rinex {
     /// // Retain G07 + G08 vehicles
     /// rinex.filter_mut(filter!("G07, G08"));
     ///
-    /// let clk_offsets = rinex.space_vehicules_clock_offset();
+    /// let clk_offsets = rinex.space_vehicles_clock_offset();
     /// for (epoch, sv) in clk_offsets {
     ///     for (sv, offset) in sv {
-    ///         // sv: space vehicule,
+    ///         // sv: space vehicle,
     ///         // offset: f64 [s]
     ///     }
     /// }
     /// ```
-    pub fn space_vehicules_clock_offset(&self) -> BTreeMap<Epoch, BTreeMap<Sv, f64>> {
+    pub fn space_vehicles_clock_offset(&self) -> BTreeMap<Epoch, BTreeMap<Sv, f64>> {
         let mut results: BTreeMap<Epoch, BTreeMap<Sv, f64>> = BTreeMap::new();
         if let Some(record) = self.record.as_nav() {
             for (e, classes) in record {
@@ -1011,7 +1011,7 @@ impl Rinex {
     }
 
     /// Extracts distant clock (offset[s], drift [s.s⁻¹], drift rate [s.s⁻²]) triplet,
-    /// on an epoch basis and per space vehicule,
+    /// on an epoch basis and per space vehicle,
     /// from all Ephemeris contained in this Navigation record.
     /// This does not produce anything if self is not a NAV RINEX
     /// or if this NAV RINEX does not contain any Ephemeris frames.
@@ -1030,7 +1030,7 @@ impl Rinex {
     /// let biases = rinex.navigation_clock_biases();
     /// for (epoch, sv) in biases {
     ///     for (sv, (offset, dr, drr)) in sv {
-    ///         // sv: space vehicule
+    ///         // sv: space vehicle
     ///         // offset [s]
     ///         // dr: clock drift [s.s⁻¹]
     ///         // drr: clock drift rate [s.s⁻²]
@@ -1121,16 +1121,16 @@ impl Rinex {
         result
     }
 
-    /// Returns list of space vehicules encountered per epoch
+    /// Returns list of space vehicles encountered per epoch
     /// ```
     /// use rinex::prelude::*;
     /// let rnx = Rinex::from_file("../test_resources/OBS/V2/aopr0010.17o")
     ///     .unwrap();
-    /// let data = rnx.space_vehicules_per_epoch();
+    /// let data = rnx.space_vehicles_per_epoch();
     /// let first_epoch = Epoch::from_gregorian_utc(2017, 1, 1, 0, 0, 0, 0);
-    /// let vehicules = data.get(&first_epoch)
+    /// let vehicles = data.get(&first_epoch)
     ///     .unwrap();
-    /// assert_eq!(*vehicules, vec![
+    /// assert_eq!(*vehicles, vec![
     ///     Sv::new(Constellation::GPS, 03),
     ///     Sv::new(Constellation::GPS, 08),
     ///     Sv::new(Constellation::GPS, 14),
@@ -1143,7 +1143,7 @@ impl Rinex {
     ///     Sv::new(Constellation::GPS, 32),
     /// ]);
     /// ```
-    pub fn space_vehicules_per_epoch(&self) -> BTreeMap<Epoch, Vec<Sv>> {
+    pub fn space_vehicles_per_epoch(&self) -> BTreeMap<Epoch, Vec<Sv>> {
         let mut map: BTreeMap<Epoch, Vec<Sv>> = BTreeMap::new();
         if let Some(r) = self.record.as_nav() {
             for (epoch, classes) in r {
@@ -1162,9 +1162,9 @@ impl Rinex {
                 }
             }
         } else if let Some(r) = self.record.as_obs() {
-            for ((epoch, _), (_, vehicules)) in r {
+            for ((epoch, _), (_, vehicles)) in r {
                 let mut inner: Vec<Sv> = Vec::new();
-                for (sv, _) in vehicules.iter() {
+                for (sv, _) in vehicles.iter() {
                     inner.push(*sv);
                 }
                 if inner.len() > 0 {
@@ -1360,15 +1360,15 @@ impl Rinex {
             ret
         }
     */
-    /// Returns list of space vehicules encountered in this file.
-    /// For Clocks RINEX: returns list of Vehicules used as reference
+    /// Returns list of space vehicles encountered in this file.
+    /// For Clocks RINEX: returns list of Vehicles used as reference
     /// in the record.
     /// ```
     /// use rinex::prelude::*;
     /// let rnx = Rinex::from_file("../test_resources/OBS/V2/aopr0010.17o")
     ///     .unwrap();
-    /// let vehicules = rnx.space_vehicules();
-    /// assert_eq!(vehicules, vec![
+    /// let vehicles = rnx.space_vehicles();
+    /// assert_eq!(vehicles, vec![
     ///     Sv::new(Constellation::GPS, 01),
     ///     Sv::new(Constellation::GPS, 03),
     ///     Sv::new(Constellation::GPS, 06),
@@ -1390,7 +1390,7 @@ impl Rinex {
     ///     Sv::new(Constellation::GPS, 32),
     /// ]);
     /// ```
-    pub fn space_vehicules(&self) -> Vec<Sv> {
+    pub fn space_vehicles(&self) -> Vec<Sv> {
         let mut map: Vec<Sv> = Vec::new();
         if let Some(r) = self.record.as_nav() {
             for (_, classes) in r {
@@ -1406,8 +1406,8 @@ impl Rinex {
                 }
             }
         } else if let Some(r) = self.record.as_obs() {
-            for (_, (_, vehicules)) in r {
-                for (sv, _) in vehicules {
+            for (_, (_, vehicles)) in r {
+                for (sv, _) in vehicles {
                     if !map.contains(&sv) {
                         map.push(*sv);
                     }
@@ -1434,7 +1434,7 @@ impl Rinex {
     }
 
     /// List clocks::System contained in this Clocks RINEX.
-    /// Reference systems can either be a Satellite vehicule
+    /// Reference systems can either be a Satellite vehicle
     /// or a ground station.
     pub fn clock_ref_systems(&self) -> Vec<clocks::record::System> {
         let mut map: Vec<clocks::record::System> = Vec::new();
@@ -1454,7 +1454,7 @@ impl Rinex {
     }
 
     /// List reference ground stations used in this Clock RINEX.
-    /// To list reference Satellite vehicule, simply use [Rinex::space_vehicules].
+    /// To list reference Satellite vehicle, simply use [Rinex::space_vehicles].
     pub fn clock_ref_stations(&self) -> Vec<String> {
         let mut ret: Vec<String> = Vec::with_capacity(32);
         if let Some(r) = self.record.as_clock() {
@@ -1477,7 +1477,7 @@ impl Rinex {
     }
 
     /// Lists systems contained in this Clocks RINEX,
-    /// on an epoch basis. Systems can either be a ground station or a satellite vehicule.
+    /// on an epoch basis. Systems can either be a ground station or a satellite vehicle.
     pub fn clock_ref_systems_per_epoch(&self) -> BTreeMap<Epoch, Vec<clocks::record::System>> {
         let mut map: BTreeMap<Epoch, Vec<clocks::record::System>> = BTreeMap::new();
         if let Some(r) = self.record.as_clock() {
@@ -1566,13 +1566,13 @@ impl Rinex {
     }
 
     /// Extracts signal strength as (min, max) duplet,
-    /// accross all vehicules.
+    /// accross all vehicles.
     /// Only relevant on Observation RINEX.
     pub fn observation_ssi_minmax(&self) -> Option<(observation::Snr, observation::Snr)> {
         let mut ret: Option<(observation::Snr, observation::Snr)> = None;
         if let Some(r) = self.record.as_obs() {
-            for (_, (_, vehicules)) in r.iter() {
-                for (_, observation) in vehicules.iter() {
+            for (_, (_, vehicles)) in r.iter() {
+                for (_, observation) in vehicles.iter() {
                     for (_, data) in observation.iter() {
                         if let Some(snr) = data.snr {
                             if let Some((min, max)) = &mut ret {
@@ -1591,12 +1591,12 @@ impl Rinex {
     }
 
     /// Extracts signal strength as (min, max) duplet,
-    /// per vehicule. Only relevant on Observation RINEX
+    /// per vehicle. Only relevant on Observation RINEX
     pub fn observation_ssi_sv_minmax(&self) -> HashMap<Sv, (observation::Snr, observation::Snr)> {
         let mut map: HashMap<Sv, (observation::Snr, observation::Snr)> = HashMap::new();
         if let Some(r) = self.record.as_obs() {
-            for (_, (_, vehicules)) in r.iter() {
-                for (sv, observations) in vehicules.iter() {
+            for (_, (_, vehicles)) in r.iter() {
+                for (sv, observations) in vehicles.iter() {
                     let (mut min, mut max) = (observation::Snr::DbHz54, observation::Snr::DbHz0);
                     for (_, observation) in observations.iter() {
                         if let Some(ssi) = observation.snr {
@@ -1614,8 +1614,8 @@ impl Rinex {
     /// Extracts all Ephemeris from this Navigation record,
     /// drops out possible STO / EOP / ION modern NAV frames.  
     /// This does not produce anything if self is not a Navigation RINEX.  
-    /// Ephemeris are sorted by epoch and per space vehicule, and comprise
-    /// vehicule clock offset, drift, drift rate and other complex data.
+    /// Ephemeris are sorted by epoch and per space vehicle, and comprise
+    /// vehicle clock offset, drift, drift rate and other complex data.
     ///
     /// ```
     /// use rinex::*;
@@ -1624,8 +1624,8 @@ impl Rinex {
     /// // extract ephemeris
     /// let ephemeris = rnx.ephemeris();
     /// // browse and exploit ephemeris
-    /// for (epoch, vehicules) in ephemeris.iter() {
-    ///     for (vehicule, (clk, clk_dr, clk_drr, map)) in vehicules.iter() {
+    /// for (epoch, vehicles) in ephemeris.iter() {
+    ///     for (vehicle, (clk, clk_dr, clk_drr, map)) in vehicles.iter() {
     ///         // clk is the embedded clock bias
     ///         // clk_dr is the embedded clock drift
     ///         // clk_drr is the embedded clock drift rate
@@ -1864,8 +1864,8 @@ impl Rinex {
     pub fn observation_align_phase_origins_mut(&mut self) {
         let mut init_phases: HashMap<Sv, HashMap<Observable, f64>> = HashMap::new();
         if let Some(r) = self.record.as_mut_obs() {
-            for (_, (_, vehicules)) in r.iter_mut() {
-                for (sv, observations) in vehicules.iter_mut() {
+            for (_, (_, vehicles)) in r.iter_mut() {
+                for (sv, observations) in vehicles.iter_mut() {
                     for (observable, data) in observations.iter_mut() {
                         if observable.is_phase_observable() {
                             if let Some(init_phase) = init_phases.get_mut(&sv) {
@@ -1981,8 +1981,8 @@ impl Rinex {
              */
             let mut associated: HashMap<String, String> = HashMap::new(); // Ph code to associate to this Mpx
                                                                           // for operation consistency
-            for (epoch, (_, vehicules)) in record {
-                for (sv, observations) in vehicules {
+            for (epoch, (_, vehicles)) in record {
+                for (sv, observations) in vehicles {
                     let _mean_sv = mean.get(&sv).unwrap();
                     for (lhs_observable, lhs_data) in observations {
                         if lhs_observable.is_pseudorange_observable() {
@@ -2121,7 +2121,7 @@ impl Rinex {
         }
 
         /// Computes High Order Phase Difference
-        /// accross vehicules and epochs,
+        /// accross vehicles and epochs,
         /// until differencing order is reached.
         /// This is used in Geometric biases estimation,
         /// in case of single channel receivers / old RINEX, where
@@ -2131,8 +2131,8 @@ impl Rinex {
         fn high_order_phase_difference(&self, order: usize) -> Result<BTreeMap<Epoch, HashMap<Sv, HashMap<String, f64>>> {
             let mut ret: BTreeMap<Epoch, HashMap<String, f64>> = BTreeMap::new();
             if let Some(rec) = self.record.as_obs() {
-                for (epoch, (_, vehicules)) in rec {
-                    for (sv, observations) in vehicules {
+                for (epoch, (_, vehicles)) in rec {
+                    for (sv, observations) in vehicles {
                         for (code, data) in observations {
                             if is_phase_observation(code) {
 
@@ -2155,7 +2155,7 @@ impl Rinex {
         /// Extracts Pseudo Ranges without Ionospheric path delay contributions,
         /// by extracting [pseudo_ranges] and using the differential (dual frequency) compensation.
         /// We can only compute such information if pseudo range was evaluted
-        /// on at least two seperate carrier frequencies, for a given space vehicule at a certain epoch.
+        /// on at least two seperate carrier frequencies, for a given space vehicle at a certain epoch.
         /// Does not produce anything if self is not an Observation RINEX.
         pub fn iono_free_pseudo_ranges (&self) -> BTreeMap<Epoch, BTreeMap<Sv, f64>> {
             let pr = self.observation_pseudo_ranges();
@@ -2193,7 +2193,7 @@ impl Rinex {
                         }
                     }
                     if let Some(result) = result {
-                        // conditions were met for this vehicule
+                        // conditions were met for this vehicle
                         // at this epoch
                         map.insert(*sv, result);
                     }
@@ -2207,7 +2207,7 @@ impl Rinex {
     */
     /*
         /// Extracts Raw Carrier Phase observations,
-        /// from this Observation record, on an epoch basis an per space vehicule.
+        /// from this Observation record, on an epoch basis an per space vehicle.
         /// Does not produce anything if self is not an Observation RINEX.
         pub fn observation_phase(&self) -> BTreeMap<(Epoch, EpochFlag), HashMap<Sv, Vec<(String, f64)>>> {
             let mut ret: BTreeMap<Epoch, BTreeMap<Sv, Vec<(String, f64)>>> = BTreeMap::new();
@@ -2239,7 +2239,7 @@ impl Rinex {
         /// Extracts Carrier phases without Ionospheric path delay contributions,
         /// by extracting [carrier_phases] and using the differential (dual frequency) compensation.
         /// We can only compute such information if carrier phase was evaluted
-        /// on at least two seperate carrier frequencies, for a given space vehicule at a certain epoch.
+        /// on at least two seperate carrier frequencies, for a given space vehicle at a certain epoch.
         /// Does not produce anything if self is not an Observation RINEX.
         pub fn iono_free_observation_carrier_phases (&self) -> BTreeMap<Epoch, BTreeMap<Sv, f64>> {
             let pr = self.observation_pseudoranges();
@@ -2277,7 +2277,7 @@ impl Rinex {
                         }
                     }
                     if let Some(result) = result {
-                        // conditions were met for this vehicule
+                        // conditions were met for this vehicle
                         // at this epoch
                         map.insert(*sv, result);
                     }
@@ -2296,8 +2296,8 @@ impl Rinex {
         /// local clock offset and distant clock offsets.
         /// We can only produce such data if local clock offset was found
         /// for a given epoch, and related distant clock offsets were given.
-        /// Distant clock offsets can be obtained with [space_vehicules_clock_offset].
-        /// Real distances are extracted on an epoch basis, and per space vehicule.
+        /// Distant clock offsets can be obtained with [space_vehicles_clock_offset].
+        /// Real distances are extracted on an epoch basis, and per space vehicle.
         /// This method has no effect on non observation data.
         ///
         /// Example:
@@ -2307,8 +2307,8 @@ impl Rinex {
         /// // (this is only an example..)
         /// let mut rinex = Rinex::from_file("../test_resources/NAV/V3/CBW100NLD_R_20210010000_01D_MN.rnx")
         ///     .unwrap();
-        /// // Retain G07 + G08 vehicules
-        /// // to perform further calculations on these vehicules data (GPS + Svnn filter)
+        /// // Retain G07 + G08 vehicles
+        /// // to perform further calculations on these vehicles data (GPS + Svnn filter)
         /// let filter = vec![
         ///     Sv {
         ///         constellation: Constellation::GPS,
@@ -2320,18 +2320,18 @@ impl Rinex {
         ///     },
         /// ];
         /// rinex
-        ///     .retain_space_vehicule_mut(filter.clone());
+        ///     .retain_space_vehicle_mut(filter.clone());
         /// // extract distant clock offsets
-        /// let sv_clk_offsets = rinex.space_vehicules_clock_offset();
+        /// let sv_clk_offsets = rinex.space_vehicles_clock_offset();
         /// let rinex = Rinex::from_file("../test_resources/OBS/V3/ACOR00ESP_R_20213550000_01D_30S_MO.rnx");
         /// let mut rinex = rinex.unwrap();
         /// // apply the same filter
         /// rinex
-        ///     .retain_space_vehicule_mut(filter.clone());
+        ///     .retain_space_vehicle_mut(filter.clone());
         /// let distances = rinex.observation_pseudodistances(sv_clk_offsets);
         /// // exploit distances
-        /// for (e, sv) in distances.iter() { // (epoch, vehicules)
-        ///     for (sv, obs) in sv.iter() { // (vehicule, distance)
+        /// for (e, sv) in distances.iter() { // (epoch, vehicles)
+        ///     for (sv, obs) in sv.iter() { // (vehicle, distance)
         ///         for ((code, distance)) in obs.iter() { // obscode, distance
         ///             // use the 3 letter code here,
         ///             // to determine the carrier you're dealing with.

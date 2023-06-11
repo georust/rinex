@@ -86,9 +86,9 @@ Navigation RINEX (Ephemeris) must be provided with `--nav`.
 In this mode, `--fp` is expected to be an Observation RINEX.
 
 Let's remind the user that in this mode, `--sv-epoch` helps
-exhibit which vehicules share Ephemeris and Observations for a given epoch
+exhibit which vehicles share Ephemeris and Observations for a given epoch
 or epoch range. This feature is very important do determine
-which vehicule is a good candidate for the operations that follow.
+which vehicle is a good candidate for the operations that follow.
 
 ## Code Multipath (MP) analysis
 
@@ -105,7 +105,7 @@ A very compelling use case of MP code analysis
 can be
 [found here](https://www.taoglas.com/wp-content/uploads/pdf/Multipath-Analysis-Using-Code-Minus-Carrier-Technique-in-GNSS-Antennas-_WhitePaper_VP__Final-1.pdf).
 
-In this example, `ESBC00DNK_R_2020` vehicule GPS#13 
+In this example, `ESBC00DNK_R_2020` vehicle GPS#13 
 has enough data to compute MP ratio for codes "1C", "2W" and "5Q".
 This operation requires combining the associated Ephemeris, that we also provide
 for demonstration purposes:

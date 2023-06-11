@@ -15,7 +15,7 @@ Cycle slips happen randomly, seperately accross receiver channels,
 and they affect Phase/Pseudo Range measurements.   
 
 We saw in the record analysis that we emphasize _possible_ cycle slips
-when plotting raw phase data. For example, a few Glonass vehicules
+when plotting raw phase data. For example, a few Glonass vehicles
 are affected in `ESBDNK2020`:
 
 ```bash
@@ -25,7 +25,7 @@ are affected in `ESBDNK2020`:
 <img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_glo_cs_zoom.png">
 
 Almost all epochs at the beginning of the day were affected for R12(L3) and one or two for R21(L2).  
-All GPS vehicules are sane, 95% of Glonass vehicules are sane too.
+All GPS vehicles are sane, 95% of Glonass vehicles are sane too.
 
 ## Definitions
 
@@ -38,8 +38,8 @@ $$\lambda_{Li} \Phi_{Li}(k) = \rho(k)  + T(k) + S(k) + M_{Li}(k) - \frac{\lambda
 
 where we note $\lambda_{Li}$, the $L_i$ carrier wavelength,  
 $c$ the speed of light,  
-$\rho$ the distance between the receiver APC and the vehicule APC - to be referred to as the _geometric_ distance,    
-$\tau_{sv}$ is the vehicule clock bias [s],   
+$\rho$ the distance between the receiver APC and the vehicle APC - to be referred to as the _geometric_ distance,    
+$\tau_{sv}$ is the vehicle clock bias [s],   
 $\tau_{r}(k)$ the receiver clock bias [s],   
 $M_{Li}$ the multipath biases,   
 $e_{Li}$ the carrier phase thermal noise

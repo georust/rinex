@@ -39,7 +39,7 @@ impl QcReport {
     pub fn new(rnx: &Rinex, nav: &Option<Rinex>, opts: QcOpts) -> Self {
         let mut first_epoch = Epoch::default();
         let record = rnx.record.as_obs().unwrap();
-        let sv_list = rnx.space_vehicules();
+        let sv_list = rnx.space_vehicles();
         let total_sv = sv_list.len();
         let total_epochs = record.len();
 

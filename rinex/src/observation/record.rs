@@ -37,7 +37,7 @@ pub enum Error {
     ParseIntError(#[from] std::num::ParseIntError),
     #[error("failed to parse float number")]
     ParseFloatError(#[from] std::num::ParseFloatError),
-    #[error("failed to parse vehicules properly (nb_sat mismatch)")]
+    #[error("failed to parse vehicles properly (nb_sat mismatch)")]
     EpochParsingError,
     #[error("line is empty")]
     MissingData,
@@ -143,7 +143,7 @@ impl ObservationData {
 /// Measurements are sorted by [hifitime::Epoch],
 /// but unlike other RINEX records, a [epoch::EpochFlag] is associated to it.
 /// An epoch possibly comprises the receiver clock offset
-/// and a list of physical measurements, sorted by Space vehicule and observable.
+/// and a list of physical measurements, sorted by Space vehicle and observable.
 /// Phase data is offset so they start at 0 (null initial phase).
 /// ```
 /// use rinex::*;
@@ -154,11 +154,11 @@ impl ObservationData {
 /// let record = rnx.record.as_obs()
 ///    .unwrap();
 /// // browse epochs
-/// for (epoch, (clock_offset, vehicules)) in record.iter() {
+/// for (epoch, (clock_offset, vehicles)) in record.iter() {
 ///    if let Some(clock_offset) = clock_offset {
 ///        // got clock offset @ given epoch
 ///    }
-///    for (vehicule, observables) in vehicules.iter() {
+///    for (vehicle, observables) in vehicles.iter() {
 ///        for (observable, observation) in observables.iter() {
 ///            /// `observable` is a standard 3 letter string code
 ///            /// main measurement is `observation.data` (f64)
@@ -315,8 +315,8 @@ pub(crate) fn parse_epoch(
 
 /*
  * Parses a V2 epoch from given lines iteratoor
- * Vehicule description is contained in the epoch descriptor
- * Each vehicule content is wrapped into several lines
+ * Vehicle description is contained in the epoch descriptor
+ * Each vehicle content is wrapped into several lines
  */
 fn parse_v2(
     header: &Header,
@@ -337,7 +337,7 @@ fn parse_v2(
 
     // parse first system we're dealing with
     if systems.len() < svnn_size {
-        // Can't even parse a single vehicule;
+        // Can't even parse a single vehicle;
         // epoch descriptor is totally corrupt, stop here
         return data;
     }
@@ -345,7 +345,7 @@ fn parse_v2(
     /*
      * identify 1st system
      */
-    let max = std::cmp::min(svnn_size, systems.len()); // covers epoch with a unique vehicule
+    let max = std::cmp::min(svnn_size, systems.len()); // covers epoch with a unique vehicle
     let system = &systems[0..max];
 
     if let Ok(ssv) = Sv::from_str(system) {
@@ -359,16 +359,16 @@ fn parse_v2(
                 panic!("faulty RINEX2 constellation /sv definition");
             }
         } else {
-            // can't parse 1st vehicule
+            // can't parse 1st vehicle
             return data;
         }
     }
     sv_ptr += svnn_size; // increment pointer
-                         // grab observables for this vehicule
+                         // grab observables for this vehicle
     if let Some(o) = header_observables.get(&sv.constellation) {
         observables = &o;
     } else {
-        // failed to identify observations for this vehicule
+        // failed to identify observations for this vehicle
         return data;
     }
 
@@ -379,7 +379,7 @@ fn parse_v2(
         if line_width < 10 {
             //println!("\nEMPTY LINE: \"{}\"", line); //DEBUG
             // line is empty
-            // add maximal amount of vehicules possible
+            // add maximal amount of vehicles possible
             obs_ptr += std::cmp::min(nb_max_observables, observables.len() - obs_ptr);
             // nothing to parse
         } else {
@@ -439,17 +439,17 @@ fn parse_v2(
         //println!("OBS COUNT {}", obs_ptr); //DEBUG
 
         if obs_ptr >= observables.len() {
-            // we're done with current vehicule
+            // we're done with current vehicle
             // build data
             data.insert(sv, inner.clone());
-            inner.clear(); // prepare for next vehicule
+            inner.clear(); // prepare for next vehicle
             obs_ptr = 0;
-            //identify next vehicule
+            //identify next vehicle
             if sv_ptr >= systems.len() {
-                // last vehicule
+                // last vehicle
                 return data;
             }
-            // identify next vehicule
+            // identify next vehicle
             let start = sv_ptr;
             let end = std::cmp::min(sv_ptr + svnn_size, systems.len()); // trimed epoch description
             let system = &systems[start..end];
@@ -465,16 +465,16 @@ fn parse_v2(
                         panic!("faulty RINEX2 constellation /sv definition");
                     }
                 } else {
-                    // can't parse vehicule
+                    // can't parse vehicle
                     return data;
                 }
             }
             sv_ptr += svnn_size; // increment pointer
-                                 // grab observables for this vehicule
+                                 // grab observables for this vehicle
             if let Some(o) = header_observables.get(&sv.constellation) {
                 observables = &o;
             } else {
-                // failed to identify observations for this vehicule
+                // failed to identify observations for this vehicle
                 return data;
             }
         }
@@ -484,7 +484,7 @@ fn parse_v2(
 
 /*
  * Parses a V3 epoch from given lines iteratoor
- * Format is much simpler, one vehicule is described in a single line
+ * Format is much simpler, one vehicle is described in a single line
  */
 fn parse_v3(
     observables: &HashMap<Constellation, Vec<Observable>>,
@@ -643,7 +643,7 @@ fn fmt_epoch_v2(
         index += 1;
     }
     let obs_per_line = 5;
-    // for each vehicule per epoch
+    // for each vehicle per epoch
     for (sv, observations) in data.iter() {
         // follow list of observables, as described in header section
         // for given constellation
@@ -686,15 +686,15 @@ impl Merge for Record {
     }
     /// Merge `rhs` into `Self`
     fn merge_mut(&mut self, rhs: &Self) -> Result<(), merge::Error> {
-        for (rhs_epoch, (rhs_clk, rhs_vehicules)) in rhs {
-            if let Some((clk, vehicules)) = self.get_mut(rhs_epoch) {
+        for (rhs_epoch, (rhs_clk, rhs_vehicles)) in rhs {
+            if let Some((clk, vehicles)) = self.get_mut(rhs_epoch) {
                 // exact epoch (both timestamp and flag) did exist
                 //  --> overwrite clock field (as is)
                 *clk = *rhs_clk;
                 // other fields:
                 // either insert (if did not exist), or overwrite
-                for (rhs_vehicule, rhs_observations) in rhs_vehicules {
-                    if let Some(observations) = vehicules.get_mut(rhs_vehicule) {
+                for (rhs_vehicle, rhs_observations) in rhs_vehicles {
+                    if let Some(observations) = vehicles.get_mut(rhs_vehicle) {
                         for (rhs_observable, rhs_data) in rhs_observations {
                             if let Some(data) = observations.get_mut(rhs_observable) {
                                 *data = *rhs_data; // overwrite
@@ -705,12 +705,12 @@ impl Merge for Record {
                         }
                     } else {
                         // new Sv: insert it
-                        vehicules.insert(*rhs_vehicule, rhs_observations.clone());
+                        vehicles.insert(*rhs_vehicle, rhs_observations.clone());
                     }
                 }
             } else {
                 // this epoch did not exist previously: insert it
-                self.insert(*rhs_epoch, (*rhs_clk, rhs_vehicules.clone()));
+                self.insert(*rhs_epoch, (*rhs_clk, rhs_vehicles.clone()));
             }
         }
         Ok(())
@@ -1134,11 +1134,11 @@ fn decimate_data_subset(record: &mut Record, subset: &Record, target: &TargetIte
             /*
              * Remove Sv observations where it should now be missing
              */
-            for (epoch, (_, vehicules)) in record.iter_mut() {
+            for (epoch, (_, vehicles)) in record.iter_mut() {
                 if subset.get(epoch).is_none() {
                     // should be missing
                     for sv in svs.iter() {
-                        vehicules.remove(sv); // now missing
+                        vehicles.remove(sv); // now missing
                     }
                 }
             }
@@ -1147,10 +1147,10 @@ fn decimate_data_subset(record: &mut Record, subset: &Record, target: &TargetIte
             /*
              * Remove given observations where it should now be missing
              */
-            for (epoch, (_, vehicules)) in record.iter_mut() {
+            for (epoch, (_, vehicles)) in record.iter_mut() {
                 if subset.get(epoch).is_none() {
                     // should be missing
-                    for (_sv, observables) in vehicules.iter_mut() {
+                    for (_sv, observables) in vehicles.iter_mut() {
                         observables.retain(|observable, _| !obs_list.contains(observable));
                     }
                 }
@@ -1160,10 +1160,10 @@ fn decimate_data_subset(record: &mut Record, subset: &Record, target: &TargetIte
             /*
              * Remove observations for given constellation(s) where it should now be missing
              */
-            for (epoch, (_, vehicules)) in record.iter_mut() {
+            for (epoch, (_, vehicles)) in record.iter_mut() {
                 if subset.get(epoch).is_none() {
                     // should be missing
-                    vehicules.retain(|sv, _| {
+                    vehicles.retain(|sv, _| {
                         let mut contained = false;
                         for constell in constells_list.iter() {
                             if sv.constellation == *constell {
@@ -1359,11 +1359,11 @@ impl Processing for Record {
                 StatisticalOps::StdDev => ret.0 = Some(clock_offsets.std_dev()),
             }
         }
-        // eval for accross all epochs, for all observation and vehicules
+        // eval for accross all epochs, for all observation and vehicles
         for (_epoch, (_clk, sv)) in self {
             for (sv, observables) in sv {
                 for (observable, _) in observables {
-                    // vectorize all data for this vehicule + observation, accross epochs
+                    // vectorize all data for this vehicle + observation, accross epochs
                     // so we can compute Statistics.Max()
                     let mut data = Vec::<f64>::new();
                     for (_, (_, svnn)) in self {
@@ -1790,8 +1790,8 @@ fn gf_combination(
         (Observable, Observable),
         BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>,
     > = HashMap::new();
-    for (epoch, (_, vehicules)) in record {
-        for (sv, observations) in vehicules {
+    for (epoch, (_, vehicles)) in record {
+        for (sv, observations) in vehicles {
             for (lhs_observable, lhs_data) in observations {
                 if !lhs_observable.is_phase_observable()
                     && !lhs_observable.is_pseudorange_observable()
@@ -1902,8 +1902,8 @@ fn nl_combination(
         (Observable, Observable),
         BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>,
     > = HashMap::new();
-    for (epoch, (_, vehicules)) in record {
-        for (sv, observations) in vehicules {
+    for (epoch, (_, vehicles)) in record {
+        for (sv, observations) in vehicles {
             for (lhs_observable, lhs_data) in observations {
                 if !lhs_observable.is_phase_observable()
                     && !lhs_observable.is_pseudorange_observable()
@@ -1995,8 +1995,8 @@ fn wl_combination(
         (Observable, Observable),
         BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>,
     > = HashMap::new();
-    for (epoch, (_, vehicules)) in record {
-        for (sv, observations) in vehicules {
+    for (epoch, (_, vehicles)) in record {
+        for (sv, observations) in vehicles {
             for (lhs_observable, lhs_data) in observations {
                 if !lhs_observable.is_phase_observable() {
                     continue; // only on phase data
@@ -2094,8 +2094,8 @@ fn mw_combination(
         (Observable, Observable),
         BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>,
     > = HashMap::new();
-    for (epoch, (_, vehicules)) in record {
-        for (sv, observations) in vehicules {
+    for (epoch, (_, vehicles)) in record {
+        for (sv, observations) in vehicles {
             for (lhs_observable, lhs_data) in observations {
                 if !lhs_observable.is_phase_observable()
                     && !lhs_observable.is_pseudorange_observable()
@@ -2197,8 +2197,8 @@ impl Dcb for Record {
     fn dcb(&self) -> HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
         let mut ret: HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> =
             HashMap::new();
-        for (epoch, (_, vehicules)) in self {
-            for (sv, observations) in vehicules {
+        for (epoch, (_, vehicles)) in self {
+            for (sv, observations) in vehicles {
                 for (lhs_observable, lhs_observation) in observations {
                     if !lhs_observable.is_phase_observable() {
                         if !lhs_observable.is_pseudorange_observable() {
@@ -2224,7 +2224,7 @@ impl Dcb for Record {
                                     // got a reference code
                                     let mut already_diffd = false;
 
-                                    for (op, vehicules) in ret.iter_mut() {
+                                    for (op, vehicles) in ret.iter_mut() {
                                         if op.contains(lhs_code) {
                                             already_diffd = true;
 
@@ -2234,7 +2234,7 @@ impl Dcb for Record {
 
                                             if lhs_code == items[0] {
                                                 // code is differenced
-                                                if let Some(data) = vehicules.get_mut(&sv) {
+                                                if let Some(data) = vehicles.get_mut(&sv) {
                                                     data.insert(
                                                         *epoch,
                                                         lhs_observation.obs - rhs_observation.obs,
@@ -2248,11 +2248,11 @@ impl Dcb for Record {
                                                         *epoch,
                                                         lhs_observation.obs - rhs_observation.obs,
                                                     );
-                                                    vehicules.insert(*sv, bmap);
+                                                    vehicles.insert(*sv, bmap);
                                                 }
                                             } else {
                                                 // code is refered to
-                                                if let Some(data) = vehicules.get_mut(&sv) {
+                                                if let Some(data) = vehicles.get_mut(&sv) {
                                                     data.insert(
                                                         *epoch,
                                                         rhs_observation.obs - lhs_observation.obs,
@@ -2266,7 +2266,7 @@ impl Dcb for Record {
                                                         *epoch,
                                                         rhs_observation.obs - lhs_observation.obs,
                                                     );
-                                                    vehicules.insert(*sv, bmap);
+                                                    vehicles.insert(*sv, bmap);
                                                 }
                                             }
                                         }

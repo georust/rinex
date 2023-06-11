@@ -17,8 +17,8 @@ The received signal power analysis for example, extracted from the analysis repo
 
 <img align="center" width="650" src="https://github.com/gwbres/rinex/blob/main/doc/plots/esbc00dnk_ssi.png">
 
-It is rapidly necessary to determine which vehicules can be encountered in a file.  
-For this reason, we developped the `--sv-epoch` analysis, which helps determine which vehicule to focus on.
+It is rapidly necessary to determine which vehicles can be encountered in a file.  
+For this reason, we developped the `--sv-epoch` analysis, which helps determine which vehicle to focus on.
 
 ```bash
 rinex-cli \

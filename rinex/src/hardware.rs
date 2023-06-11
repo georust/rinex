@@ -101,17 +101,17 @@ impl Antenna {
     }
 }
 
-/// Space vehicule antenna information,
+/// Space vehicle antenna information,
 /// only exists in ANTEX records
 #[derive(Clone, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct SvAntenna {
-    /// vehicule this antenna is attached to
+    /// vehicle this antenna is attached to
     pub sv: Sv,
     /// antenna model description
     pub model: String,
-    /// "YYYY-XXXA" year of vehicule launch
-    /// XXX sequential launch vehicule
+    /// "YYYY-XXXA" year of vehicle launch
+    /// XXX sequential launch vehicle
     /// A: alpha numeric sequence number within launch
     pub cospar: Option<String>,
 }

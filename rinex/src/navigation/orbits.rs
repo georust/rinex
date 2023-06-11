@@ -126,7 +126,7 @@ impl OrbitItem {
                         Ok(OrbitItem::IrnssHealth(flag))
                     },
                     _ => unreachable!(), // MIXED is not feasible here
-                                         // as we use the current vehicule's constellation,
+                                         // as we use the current vehicle's constellation,
                                          // which is always defined
                 }
             }, // "health"
