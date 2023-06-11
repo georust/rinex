@@ -2348,6 +2348,149 @@ impl IonoDelayDetector for Record {
     }
 }
 
+use crate::processing::Mp;
+
+impl Mp for Record {
+    fn mp(&self) -> HashMap<String, BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
+        let mut ret: HashMap<String, BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> =
+            HashMap::new();
+        /*
+         * Determine mean value of all datasets
+         */
+        let (_, mean) = self.mean(); // drop mean{clk}
+                                     //println!("MEAN VALUES {:?}", mean); //DEBUG
+                                     /*
+                                      * Run algorithm
+                                      */
+        let mut associated: HashMap<String, String> = HashMap::new(); // Ph code to associate to this Mpx
+                                                                      // for operation consistency
+        for (epoch, (_, vehicles)) in self {
+            for (sv, observations) in vehicles {
+                let _mean_sv = mean.get(&sv).unwrap();
+                for (lhs_observable, lhs_data) in observations {
+                    if lhs_observable.is_pseudorange_observable() {
+                        let pr_i = lhs_data.obs; // - mean_sv.get(lhs_code).unwrap().1;
+                        let lhs_code = lhs_observable.to_string();
+                        let mp_code = &lhs_code[2..]; //TODO will not work on RINEX2
+                        let lhs_carrier = &lhs_code[1..2];
+                        let mut ph_i: Option<f64> = None;
+                        let mut ph_j: Option<f64> = None;
+                        /*
+                         * This will restrict combinations to
+                         * 1 => 2
+                         * and M => 1
+                         */
+                        let rhs_carrier = match lhs_carrier {
+                            "1" => "2",
+                            _ => "1",
+                        };
+                        /*
+                         * locate related L_i PH code
+                         */
+                        for (observable, data) in observations {
+                            let ph_code = format!("L{}", mp_code);
+                            let code = observable.to_string();
+                            if code.eq(&ph_code) {
+                                ph_i = Some(data.obs); // - mean_sv.get(code).unwrap().1);
+                                break; // DONE
+                            }
+                        }
+                        /*
+                         * locate another L_j PH code
+                         */
+                        if let Some(to_locate) = associated.get(mp_code) {
+                            /*
+                             * We already have an association, keep it consistent throughout
+                             * operations
+                             */
+                            for (observable, data) in observations {
+                                let code = observable.to_string();
+                                let carrier_code = &code[1..2];
+                                if carrier_code == rhs_carrier {
+                                    // correct carrier signal
+                                    if code.eq(to_locate) {
+                                        // match
+                                        ph_j = Some(data.obs); // - mean_sv.get(code).unwrap().1);
+                                        break; // DONE
+                                    }
+                                }
+                            }
+                        } else {
+                            // first: prefer the same code against rhs carrier
+                            let to_locate = format!("L{}{}", rhs_carrier, &mp_code[1..]);
+                            for (observable, data) in observations {
+                                let code = observable.to_string();
+                                let carrier_code = &code[1..2];
+                                if carrier_code == rhs_carrier {
+                                    // correct carrier
+                                    if code.eq(&to_locate) {
+                                        // match
+                                        ph_j = Some(data.obs); // - mean_sv.get(code).unwrap().1);
+                                        associated.insert(mp_code.to_string(), code.clone());
+                                        break; // DONE
+                                    }
+                                }
+                            }
+                            if ph_j.is_none() {
+                                /*
+                                 * Same code against different carrier does not exist
+                                 * try to grab another PH code, against rhs carrier
+                                 */
+                                for (observable, data) in observations {
+                                    let code = observable.to_string();
+                                    let carrier_code = &code[1..2];
+                                    if carrier_code == rhs_carrier {
+                                        if observable.is_phase_observable() {
+                                            ph_j = Some(data.obs); // - mean_sv.get(code).unwrap().1);
+                                            associated.insert(mp_code.to_string(), code.clone());
+                                            break; // DONE
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        if ph_i.is_none() || ph_j.is_none() {
+                            break; // incomplete associations, do not proceed further
+                        }
+                        let ph_i = ph_i.unwrap();
+                        let ph_j = ph_j.unwrap();
+                        let lhs_carrier = lhs_observable.carrier(sv.constellation).unwrap();
+                        let rhs_carrier = lhs_observable //rhs_observable TODO
+                            .carrier(sv.constellation)
+                            .unwrap();
+                        /*let gamma = (lhs_carrier.frequency() / rhs_carrier.frequency()).powf(2.0);
+                        let alpha = (gamma +1.0_f64) / (gamma - 1.0_f64);
+                        let beta = 2.0_f64 / (gamma - 1.0_f64);
+                        let mp = pr_i - alpha * ph_i + beta * ph_j;*/
+
+                        let alpha = 2.0_f64 * rhs_carrier.frequency().powf(2.0)
+                            / (lhs_carrier.frequency().powf(2.0)
+                                - rhs_carrier.frequency().powf(2.0));
+                        let mp = pr_i - ph_i - alpha * (ph_i - ph_j);
+                        if let Some(data) = ret.get_mut(mp_code) {
+                            if let Some(data) = data.get_mut(&sv) {
+                                data.insert(*epoch, mp);
+                            } else {
+                                let mut bmap: BTreeMap<(Epoch, EpochFlag), f64> = BTreeMap::new();
+                                bmap.insert(*epoch, mp);
+                                data.insert(*sv, bmap);
+                            }
+                        } else {
+                            let mut bmap: BTreeMap<(Epoch, EpochFlag), f64> = BTreeMap::new();
+                            let mut map: BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>> =
+                                BTreeMap::new();
+                            bmap.insert(*epoch, mp);
+                            map.insert(*sv, bmap);
+                            ret.insert(mp_code.to_string(), map);
+                        }
+                    }
+                }
+            }
+        }
+        ret
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;

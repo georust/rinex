@@ -96,7 +96,7 @@ use prelude::*;
 pub use merge::Merge;
 pub use split::Split;
 
-use algorithm::{Combination, Combine, Dcb, IonoDelayDetector, Smooth};
+use algorithm::{Combination, Combine, Dcb, IonoDelayDetector, Mp, Smooth};
 
 #[macro_use]
 extern crate horrorshow;
@@ -1931,191 +1931,6 @@ impl Rinex {
             HashMap::new()
         }
     }
-    /// Code multipath analysis (MP_i), cf.
-    /// phase data model <https://github.com/gwbres/rinex/blob/main/rinex-cli/doc/gnss-combination.md>.
-    pub fn observation_code_multipath(
-        &self,
-    ) -> HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
-        let mut ret: HashMap<String, HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> =
-            HashMap::new();
-        if let Some(record) = self.record.as_obs() {
-            /*
-             * Determine mean value of all datasets
-             */
-            let mut mean: HashMap<Sv, HashMap<Observable, (u32, f64)>> = HashMap::new();
-            for (_epoch, (_, vehicles)) in record {
-                for (sv, observations) in vehicles {
-                    if let Some(data) = mean.get_mut(&sv) {
-                        for (observable, obs_data) in observations {
-                            if observable.is_phase_observable()
-                                || observable.is_pseudorange_observable()
-                            {
-                                if let Some((count, buf)) = data.get_mut(observable) {
-                                    *count += 1;
-                                    *buf += obs_data.obs;
-                                } else {
-                                    data.insert(observable.clone(), (1, obs_data.obs));
-                                }
-                            }
-                        }
-                    } else {
-                        for (observable, obs_data) in observations {
-                            if observable.is_phase_observable()
-                                || observable.is_pseudorange_observable()
-                            {
-                                let mut map: HashMap<Observable, (u32, f64)> = HashMap::new();
-                                map.insert(observable.clone(), (1, obs_data.obs));
-                                mean.insert(*sv, map);
-                            }
-                        }
-                    }
-                }
-            }
-            mean.iter_mut()
-                .map(|(_, data)| {
-                    data.iter_mut()
-                        .map(|(_, (n, buf))| {
-                            *buf = *buf / *n as f64;
-                        })
-                        .count()
-                })
-                .count();
-            //println!("MEAN VALUES {:?}", mean); //DEBUG
-            /*
-             * Run algorithm
-             */
-            let mut associated: HashMap<String, String> = HashMap::new(); // Ph code to associate to this Mpx
-                                                                          // for operation consistency
-            for (epoch, (_, vehicles)) in record {
-                for (sv, observations) in vehicles {
-                    let _mean_sv = mean.get(&sv).unwrap();
-                    for (lhs_observable, lhs_data) in observations {
-                        if lhs_observable.is_pseudorange_observable() {
-                            let pr_i = lhs_data.obs; // - mean_sv.get(lhs_code).unwrap().1;
-                            let lhs_code = lhs_observable.to_string();
-                            let mp_code = &lhs_code[2..]; //TODO will not work on RINEX2
-                            let lhs_carrier = &lhs_code[1..2];
-                            let mut ph_i: Option<f64> = None;
-                            let mut ph_j: Option<f64> = None;
-                            /*
-                             * This will restrict combinations to
-                             * 1 => 2
-                             * and M => 1
-                             */
-                            let rhs_carrier = match lhs_carrier {
-                                "1" => "2",
-                                _ => "1",
-                            };
-                            /*
-                             * locate related L_i PH code
-                             */
-                            for (observable, data) in observations {
-                                let ph_code = format!("L{}", mp_code);
-                                let code = observable.to_string();
-                                if code.eq(&ph_code) {
-                                    ph_i = Some(data.obs); // - mean_sv.get(code).unwrap().1);
-                                    break; // DONE
-                                }
-                            }
-                            /*
-                             * locate another L_j PH code
-                             */
-                            if let Some(to_locate) = associated.get(mp_code) {
-                                /*
-                                 * We already have an association, keep it consistent throughout
-                                 * operations
-                                 */
-                                for (observable, data) in observations {
-                                    let code = observable.to_string();
-                                    let carrier_code = &code[1..2];
-                                    if carrier_code == rhs_carrier {
-                                        // correct carrier signal
-                                        if code.eq(to_locate) {
-                                            // match
-                                            ph_j = Some(data.obs); // - mean_sv.get(code).unwrap().1);
-                                            break; // DONE
-                                        }
-                                    }
-                                }
-                            } else {
-                                // first: prefer the same code against rhs carrier
-                                let to_locate = format!("L{}{}", rhs_carrier, &mp_code[1..]);
-                                for (observable, data) in observations {
-                                    let code = observable.to_string();
-                                    let carrier_code = &code[1..2];
-                                    if carrier_code == rhs_carrier {
-                                        // correct carrier
-                                        if code.eq(&to_locate) {
-                                            // match
-                                            ph_j = Some(data.obs); // - mean_sv.get(code).unwrap().1);
-                                            associated.insert(mp_code.to_string(), code.clone());
-                                            break; // DONE
-                                        }
-                                    }
-                                }
-                                if ph_j.is_none() {
-                                    /*
-                                     * Same code against different carrier does not exist
-                                     * try to grab another PH code, against rhs carrier
-                                     */
-                                    for (observable, data) in observations {
-                                        let code = observable.to_string();
-                                        let carrier_code = &code[1..2];
-                                        if carrier_code == rhs_carrier {
-                                            if observable.is_phase_observable() {
-                                                ph_j = Some(data.obs); // - mean_sv.get(code).unwrap().1);
-                                                associated
-                                                    .insert(mp_code.to_string(), code.clone());
-                                                break; // DONE
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            if ph_i.is_none() || ph_j.is_none() {
-                                break; // incomplete associations, do not proceed further
-                            }
-                            let ph_i = ph_i.unwrap();
-                            let ph_j = ph_j.unwrap();
-                            let lhs_carrier = lhs_observable.carrier(sv.constellation).unwrap();
-                            let rhs_carrier =
-                                lhs_observable //rhs_observable TODO
-                                    .carrier(sv.constellation)
-                                    .unwrap();
-                            /*let gamma = (lhs_carrier.frequency() / rhs_carrier.frequency()).powf(2.0);
-                            let alpha = (gamma +1.0_f64) / (gamma - 1.0_f64);
-                            let beta = 2.0_f64 / (gamma - 1.0_f64);
-                            let mp = pr_i - alpha * ph_i + beta * ph_j;*/
-
-                            let alpha = 2.0_f64 * rhs_carrier.frequency().powf(2.0)
-                                / (lhs_carrier.frequency().powf(2.0)
-                                    - rhs_carrier.frequency().powf(2.0));
-                            let mp = pr_i - ph_i - alpha * (ph_i - ph_j);
-                            if let Some(data) = ret.get_mut(mp_code) {
-                                if let Some(data) = data.get_mut(&sv) {
-                                    data.insert(*epoch, mp);
-                                } else {
-                                    let mut bmap: BTreeMap<(Epoch, EpochFlag), f64> =
-                                        BTreeMap::new();
-                                    bmap.insert(*epoch, mp);
-                                    data.insert(*sv, bmap);
-                                }
-                            } else {
-                                let mut bmap: BTreeMap<(Epoch, EpochFlag), f64> = BTreeMap::new();
-                                let mut map: HashMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>> =
-                                    HashMap::new();
-                                bmap.insert(*epoch, mp);
-                                map.insert(*sv, bmap);
-                                ret.insert(mp_code.to_string(), map);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        ret
-    }
-
     /*
         /// Single step /stage, in high order phase differencing
         /// algorithm, which we use in case of old receiver data / old RINEX
@@ -2718,6 +2533,12 @@ impl Processing for Rinex {
 
 impl Dcb for Rinex {
     fn dcb(&self) -> HashMap<String, BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
+        self.record.dcb()
+    }
+}
+
+impl Mp for Rinex {
+    fn mp(&self) -> HashMap<String, BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
         self.record.dcb()
     }
 }

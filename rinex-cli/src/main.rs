@@ -88,19 +88,20 @@ pub fn main() -> Result<(), rinex::Error> {
     /*
      * Code Multipath analysis
      */
-    /*if cli.multipath() {
+    if cli.multipath() {
         let data = ctx
             .primary_rinex
-            .observation_align_phase_origins()
-            .observation_code_multipath();
-        plot::plot_gnss_recombination(
+            .observation_phase_align_origin()
+            .observation_phase_carrier_cycles()
+            .mp();
+        plot::plot_gnss_dcb(
             &mut plot_ctx,
             "Code Multipath Biases",
             "Meters of delay",
             &data,
         );
         info!("--mp analysis");
-    }*/
+    }
     /*
      * [GF] recombination visualization requested
      */

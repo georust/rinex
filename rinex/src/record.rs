@@ -836,6 +836,18 @@ impl Dcb for Record {
     }
 }
 
+use crate::processing::Mp;
+
+impl Mp for Record {
+    fn mp(&self) -> HashMap<String, BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
+        if let Some(rec) = self.as_obs() {
+            rec.mp()
+        } else {
+            HashMap::new()
+        }
+    }
+}
+
 use crate::processing::{Combination, Combine};
 
 impl Combine for Record {

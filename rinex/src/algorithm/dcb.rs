@@ -1,4 +1,4 @@
-//! GNSS code biases estimator
+//! GNSS code biases estimators
 use crate::prelude::*;
 use std::collections::{BTreeMap, HashMap};
 
@@ -18,4 +18,12 @@ pub trait Dcb {
     /// let dcb = rinex.dcb();
     /// ```
     fn dcb(&self) -> HashMap<String, BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>;
+}
+
+/// Code multipath analysis (MP_i), cf.
+/// phase data model <https://github.com/gwbres/rinex/blob/main/rinex-cli/doc/gnss-combination.md>.
+pub trait Mp {
+    /// Returns Code Biases estimates due to multipath reflection,
+    /// sorted per (unique) signal combinations aod for each individual Sv.
+    fn mp(&self) -> HashMap<String, BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>;
 }
