@@ -55,6 +55,16 @@ impl Default for Observable {
     }
 }
 
+#[cfg(feature = "pyo3")]
+impl IntoPy<PyObject> for Observable {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        match self {
+            Self::Phase(code) => code.into_py(py),
+            _ => panic!("not yet"),
+        }
+    }
+}
+
 impl Observable {
     pub fn is_phase_observable(&self) -> bool {
         match self {

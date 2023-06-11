@@ -208,6 +208,36 @@ pub type Record = BTreeMap<
     ),
 >;
 
+#[cfg(feature = "pyo3")]
+use crate::python::{PyBMap, PyMap};
+
+/*
+ * Type used by python binding,
+ * since we can't directly derive on external types
+ */
+#[cfg(feature = "pyo3")]
+pub type PyRecord =
+    PyBMap<(Epoch, EpochFlag), (Option<f64>, PyBMap<Sv, PyMap<Observable, ObservationData>>)>;
+
+/*
+ * Implement the casts when binding to python
+ */
+#[cfg(feature = "pyo3")]
+impl IntoPy<PyObject> for PyRecord {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        self.into_py(py)
+        //self.extract().into_py(py)
+        //PyBMap::<(Epoch, EpochFlag), (Option<f64>, PyBMap<Sv, PyMap<Observable, ObservationData>>)>::extract()
+    }
+}
+
+#[cfg(feature = "pyo3")]
+impl From<&Record> for PyRecord {
+    fn from(rec: &Record) -> Self {
+        Self::new()
+    }
+}
+
 /// Returns true if given content matches a new OBSERVATION data epoch
 pub(crate) fn is_new_epoch(line: &str, v: Version) -> bool {
     if v.major < 3 {

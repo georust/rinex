@@ -51,12 +51,12 @@ pub enum Constellation {
 }
 
 #[cfg(feature = "pyo3")]
-use crate::prelude::Sv;
-#[cfg(feature = "pyo3")]
-impl From<&PyCell<Sv>> for Constellation {
-    fn from(cell: &PyCell<Sv>) -> Self {
-        Self::default()
-    }
+#[cfg_attr(feature = "pyo3", pyclass)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum PyConstellation {
+    GPS,
+    Glonass,
+    Geo,
 }
 
 impl std::fmt::Display for Constellation {
@@ -196,6 +196,50 @@ impl std::str::FromStr for Constellation {
         }
     }
 }
+
+#[cfg(feature = "pyo3")]
+impl IntoPy<PyObject> for Constellation {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        let pyc: PyConstellation = self.into();
+        pyc.into_py(py)
+    }
+}
+
+#[cfg(feature = "pyo3")]
+impl From<Constellation> for PyConstellation {
+    fn from(c: Constellation) -> Self {
+        match c {
+            Constellation::SBAS(_) => Self::Geo,
+            Constellation::GPS => Self::GPS,
+            Constellation::Glonass => Self::Glonass,
+            _ => panic!("gnss not supported yet"),
+        }
+    }
+}
+
+#[cfg(feature = "pyo3")]
+impl From<PyConstellation> for Constellation {
+    fn from(c: PyConstellation) -> Self {
+        match c {
+            PyConstellation::GPS => Self::GPS,
+            PyConstellation::Glonass => Self::Glonass,
+            PyConstellation::Geo => Self::Geo,
+        }
+    }
+}
+
+/*#[cfg(feature = "pyo3")]
+use crate::prelude::Sv;
+#[cfg(feature = "pyo3")]
+impl From<&PyCell<Sv>> for Constellation {
+    fn from(cell: &PyCell<Sv>) -> Self {
+        if let Ok(sv) = cell.extract::<Sv>() {
+            sv.constellation
+        } else {
+            Self::default()
+        }
+    }
+}*/
 
 #[cfg(test)]
 mod tests {

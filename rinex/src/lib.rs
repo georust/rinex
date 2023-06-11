@@ -55,6 +55,9 @@ use version::Version;
 #[cfg(feature = "pyo3")]
 pub mod python;
 
+#[cfg(feature = "pyo3")]
+use python::PyMap;
+
 // Convenient package to import, that
 // comprises all basic and major structures
 pub mod prelude {
@@ -104,7 +107,7 @@ use algorithm::{Combination, Combine, Dcb, IonoDelayDetector, Mp, Smooth};
 extern crate horrorshow;
 
 #[cfg(feature = "pyo3")]
-use pyo3::prelude::*;
+use pyo3::{exceptions::PyTypeError, prelude::*, types::PyDict};
 
 #[cfg(feature = "serde")]
 #[macro_use]
@@ -270,6 +273,16 @@ impl Rinex {
     fn set_header(&mut self, header: Header) -> PyResult<()> {
         self.replace_header(header);
         Ok(())
+    }
+    #[getter]
+    fn get_record(&self) -> PyResult<observation::PyRecord> {
+        if let Some(rec) = self.record.as_obs() {
+            Ok(observation::PyRecord::new())
+        } else {
+            Err(PyTypeError::new_err(
+                "python binding not available for this type",
+            ))
+        }
     }
 }
 

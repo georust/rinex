@@ -10,6 +10,9 @@ mod snr;
 pub use record::{LliFlags, ObservationData, Record};
 pub use snr::Snr;
 
+#[cfg(feature = "pyo3")]
+pub use record::PyRecord;
+
 macro_rules! fmt_month {
     ($m: expr) => {
         match $m {

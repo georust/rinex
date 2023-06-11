@@ -232,6 +232,19 @@ impl Default for Record {
     }
 }
 
+#[cfg(feature = "pyo3")]
+use pyo3::prelude::*;
+
+#[cfg(feature = "pyo3")]
+impl IntoPy<PyObject> for Record {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        match self {
+            Self::ObsRecord(r) => py.None(), //r.into_py(py),
+            _ => panic!("into_py() not available for this type"),
+        }
+    }
+}
+
 #[derive(Error, Debug)]
 pub enum Error {
     #[error("record parsing not supported for type \"{0}\"")]

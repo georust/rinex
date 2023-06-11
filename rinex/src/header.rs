@@ -1289,6 +1289,10 @@ impl Header {
         }
     }
 
+    fn __str__(&self) -> String {
+        self.to_string()
+    }
+
     /// Creates a Basic Header structure
     /// for Mixed Constellation Navigation RINEX
     #[staticmethod]

@@ -8,6 +8,9 @@ use serde::{Deserialize, Serialize};
 #[cfg(feature = "pyo3")]
 use pyo3::prelude::*;
 
+#[cfg(feature = "pyo3")]
+use super::constellation::PyConstellation;
+
 /// ̀`Sv` describes a Satellite Vehicle
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[cfg_attr(feature = "pyo3", pyclass)]
@@ -28,11 +31,21 @@ pub enum Error {
     ParseIntError(#[from] std::num::ParseIntError),
 }
 
-#[cfg_attr(feature = "pyo3", pymethods)]
 impl Sv {
     /// Creates a new `Sv`
     pub fn new(constellation: Constellation, prn: u8) -> Self {
         Self { prn, constellation }
+    }
+}
+
+#[cfg_attr(feature = "pyo3", pymethods)]
+impl Sv {
+    #[new]
+    pub fn new_py(constellation: PyConstellation, prn: u8) -> Self {
+        Self {
+            prn,
+            constellation: constellation.into(),
+        }
     }
 }
 

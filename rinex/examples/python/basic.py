@@ -8,7 +8,10 @@ def parser_example(fp):
     # parse a RINEX file
     rinex = Rinex(fp)
     # use header section 
-    print(rinex.header.is_crinex())
+    print("is_crinex: ", rinex.header.is_crinex())
+    print("header : \n{:s}".format(str(rinex.header)))
+    # use record section
+    print(rinex.record)
 
 def rinex_manual_constructor():
     # Manual construction example.
