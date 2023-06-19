@@ -28,7 +28,7 @@ thiserror = "1"
 bitflags = { version = "2.3", features = ["serde"] } 
 lazy_static = "1.4"
 map_3d = "0.1.5"
-strum = "0.24"
+strum = "0.25"
 strum_macros = "0.25"
 num-integer = "0.1.44"
 itertools = "0.10.3"
