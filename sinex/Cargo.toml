@@ -19,5 +19,5 @@ readme = "README.md"
 chrono = "0.4"
 thiserror = "1"
 strum = { version = "0.24", features = ["derive"] }
-strum_macros = "0.24"
+strum_macros = "0.25"
 rinex = { path = "../rinex", features = ["serde"] }
