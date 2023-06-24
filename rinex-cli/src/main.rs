@@ -171,16 +171,6 @@ pub fn main() -> Result<(), rinex::Error> {
     if let Some(to_merge) = ctx.to_merge {
         info!("[merge] special mode");
         //TODO
-        /*if cli.resampling() {
-            record_resampling(&mut rnx_b, cli.resampling_ops());
-        }
-        if cli.retain() {
-            retain_filters(&mut rnx_b, cli.retain_flags(), cli.retain_ops());
-        }
-        if cli.filter() {
-            apply_filters(&mut rnx_b, cli.filter_ops());
-        }
-        */
         // [1] proceed to merge
         ctx.primary_rinex
             .merge_mut(&to_merge)
