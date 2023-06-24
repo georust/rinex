@@ -92,7 +92,7 @@ export RUST_LOG=info
 rinex-cli --fp test_resources/NAV/V2/amel010.21g
 ```
 
-Here's an example of traces you might get on a complex run:
+Here's an example of log traces: 
 
 ```bash
 ./target/release/rinex-cli \
@@ -179,6 +179,11 @@ rinex-cli -f test_resources/OBS/V2/KOSG0010.95O --epochs --sv --pretty
 Several analysis can be stacked to the generated report, 
 like `--sv-epoch` or sample rate analysis with `--epoch-hist`.   
 Refer to their [dedicated page](doc/analysis.md) documentation.
+
+## IONEX as primary file
+
+Refer to [this page](doc/ionex.md) to understand
+what can possibly be done if "--fp" is a IONEX file.
 
 ## File generation
 
