@@ -187,7 +187,7 @@ impl Record {
             },
             Type::IonosphereMaps => {
                 if let Some(r) = self.as_ionex() {
-                    for (index, (epoch, (_map, _, _))) in r.iter().enumerate() {
+                    for (index, (epoch, map3d)) in r.iter().enumerate() {
                         let _ = write!(writer, "{:6}                                                      START OF TEC MAP", index);
                         let _ = write!(
                             writer,
@@ -197,10 +197,11 @@ impl Record {
                         let _ = write!(writer, "{:6}                                                      END OF TEC MAP", index);
                     }
                     /*
-                     * not efficient browsing, but matches provided examples and common formatting.
-                     * RMS and Height maps are passed after TEC maps.
+                     * Double iteration over same content : not efficient.
+                     * But it is not clear whether it is permitted to declare RMS/H maps
+                     * prior TEC maps or not
                      */
-                    for (index, (epoch, (_, _map, _))) in r.iter().enumerate() {
+                    for (index, (epoch, map3d)) in r.iter().enumerate() {
                         let _ = write!(writer, "{:6}                                                      START OF RMS MAP", index);
                         let _ = write!(
                             writer,
@@ -209,7 +210,7 @@ impl Record {
                         );
                         let _ = write!(writer, "{:6}                                                      END OF RMS MAP", index);
                     }
-                    for (index, (epoch, (_, _, _map))) in r.iter().enumerate() {
+                    for (index, (epoch, map3d)) in r.iter().enumerate() {
                         let _ = write!(writer, "{:6}                                                      START OF HEIGHT MAP", index);
                         let _ = write!(
                             writer,
@@ -246,7 +247,7 @@ pub enum Error {
 
 /// Returns true if given line matches the start   
 /// of a new epoch, inside a RINEX record.
-pub fn is_new_epoch(line: &str, header: &header::Header) -> bool {
+pub(crate) fn is_new_epoch(line: &str, header: &header::Header) -> bool {
     if is_comment!(line) {
         return false;
     }
@@ -288,12 +289,9 @@ pub fn parse_record(
     //  but others may exist:
     //    in this case we used the previously identified Epoch
     //    and attach other kinds of maps
-    let mut ionx_rms = false;
-    let mut ionx_height = false;
-    let mut ionx_rec = ionex::Record::new();
-    // we need to store encountered epochs, to relate RMS and H maps
-    //    that might be provided in a separate sequence
-    let mut ionx_epochs: Vec<Epoch> = Vec::with_capacity(128);
+    let mut is_ionex_rms_map = false;
+    let mut is_ionex_h_map = false;
+    let mut ionex_rec = ionex::Record::new();
 
     for l in reader.lines() {
         // iterates one line at a time
@@ -372,8 +370,9 @@ pub fn parse_record(
             // in case of CRINEX -> RINEX < 3 being recovered,
             // we have more than 1 ligne to process
             let new_epoch = is_new_epoch(line, &header);
-            ionx_rms |= ionex::record::is_new_rms_map(line);
-            ionx_height |= ionex::record::is_new_height_map(line);
+
+            is_ionex_h_map |= ionex::record::is_new_height_map(line);
+            is_ionex_rms_map |= ionex::record::is_new_rms_map(line);
 
             if new_epoch && !first_epoch {
                 match &header.rinex_type {
@@ -472,34 +471,68 @@ pub fn parse_record(
                         }
                     },
                     Type::IonosphereMaps => {
-                        if let Ok((index, epoch, map)) =
-                            ionex::record::parse_map(header, &epoch_content)
+                        if let Ok((index, epoch, latitude, h, data)) =
+                            ionex::record::parse_map_entry(header, &epoch_content)
                         {
-                            if ionx_rms {
-                                ionx_rms = false;
-                                if let Some(e) = ionx_epochs.get(index) {
-                                    // relate
-                                    if let Some((_, rms, _)) = ionx_rec.get_mut(e) {
-                                        // locate
-                                        *rms = Some(map); // insert
-                                    }
-                                }
-                            } else if ionx_height {
-                                ionx_height = false;
-                                if let Some(e) = ionx_epochs.get(index) {
-                                    // relate
-                                    if let Some((_, _, h)) = ionx_rec.get_mut(e) {
-                                        // locate
-                                        *h = Some(map); // insert
-                                    }
-                                }
+                            // IONEX: several types of maps may be encountered
+                            //        usually TEC maps come first
+                            //        and other maps are defined for the same epochs.
+                            //        This parer is ordering tolerant: like RMS prior TEC
+                            //        and supports 3D IONEX
+                            if is_ionex_rms_map {
+                                is_ionex_rms_map = false; // update for next time
+                            } else if is_ionex_h_map {
+                                is_ionex_h_map = false; // update for next time
                             } else {
-                                // TEC map => insert epoch
-                                ionx_epochs.push(epoch.clone());
-                                ionx_rec.insert(epoch, (map, None, None));
+                                //TEC MAP
+                                if let Some(map3d) = ionex_rec.get_mut(&epoch) {
+                                    let mut found = false;
+                                    // try to locate this altitude: in case it was already
+                                    // encountered
+                                    for (map3d_h, map2d_lat) in map3d.iter_mut() {
+                                        if *map3d_h == h {
+                                            // found this altitude
+                                            // insert new latitude
+                                            // : we expect a different latitude entry per record
+                                            // entry.
+                                            let map1d: ionex::record::Map1d = data
+                                                .iter()
+                                                .map(|x| {
+                                                    (x.0, (x.1, None)) // longitude, tec not rms map
+                                                })
+                                                .collect();
+                                            map2d_lat.push((latitude, map1d));
+                                            found = true;
+                                            break;
+                                        }
+                                    }
+                                    if !found {
+                                        // insert new altitude
+                                        let map1d: ionex::record::Map1d = data
+                                            .iter()
+                                            .map(|x| {
+                                                (x.0, (x.1, None::<f64>)) // longitude, tec not rms map
+                                            })
+                                            .collect();
+                                        let mut map2d = ionex::record::Map2d::new();
+                                        map2d.push((latitude, map1d));
+                                        map3d.push((h, map2d.clone()));
+                                    }
+                                } else {
+                                    // introduce new epoch
+                                    let map1d: ionex::record::Map1d = data
+                                        .iter()
+                                        .map(|x| {
+                                            (x.0, (x.1, None::<f64>)) // longitude, tec not rms map
+                                        })
+                                        .collect();
+                                    let map2d: ionex::record::Map2d = vec![(latitude, map1d)];
+                                    let map3d: ionex::record::Map3d = vec![(h, map2d)];
+                                    ionex_rec.insert(epoch, map3d);
+                                }
                             }
-                        }
-                    },
+                        } //ok::parse(ionex)
+                    }, //match(Rinex::Type)
                 }
 
                 // new comments ?
@@ -601,26 +634,59 @@ pub fn parse_record(
             }
         },
         Type::IonosphereMaps => {
-            if let Ok((index, epoch, map)) = ionex::record::parse_map(header, &epoch_content) {
-                if ionx_rms {
-                    if let Some(e) = ionx_epochs.get(index) {
-                        // relate
-                        if let Some((_, rms, _)) = ionx_rec.get_mut(e) {
-                            // locate
-                            *rms = Some(map); // insert
-                        }
-                    }
-                } else if ionx_height {
-                    if let Some(e) = ionx_epochs.get(index) {
-                        // relate
-                        if let Some((_, _, h)) = ionx_rec.get_mut(e) {
-                            // locate
-                            *h = Some(map); // insert
-                        }
-                    }
+            if let Ok((index, epoch, latitude, h, data)) =
+                ionex::record::parse_map_entry(header, &epoch_content)
+            {
+                if is_ionex_rms_map {
+                    is_ionex_rms_map = false; // update for next time
+                } else if is_ionex_h_map {
+                    is_ionex_h_map = false; // update for next time
                 } else {
-                    // introduce TEC+epoch
-                    ionx_rec.insert(epoch, (map, None, None));
+                    // TEC MAP
+                    if let Some(map3d) = ionex_rec.get_mut(&epoch) {
+                        let mut found = false;
+                        // try to locate this altitude: in case it was already
+                        // encountered
+                        for (map3d_h, map2d_lat) in map3d.iter_mut() {
+                            if *map3d_h == h {
+                                // found this altitude
+                                // insert new latitude
+                                // : we expect a different latitude entry per record
+                                // entry.
+                                let map1d: ionex::record::Map1d = data
+                                    .iter()
+                                    .map(|x| {
+                                        (x.0, (x.1, None)) // longitude, tec not rms map
+                                    })
+                                    .collect();
+                                map2d_lat.push((latitude, map1d));
+                                found = true;
+                                break;
+                            }
+                        }
+                        if !found {
+                            // insert new altitude
+                            let map1d: ionex::record::Map1d = data
+                                .iter()
+                                .map(|x| {
+                                    (x.0, (x.1, None::<f64>)) // longitude, tec not rms map
+                                })
+                                .collect();
+                            let mut map2d = ionex::record::Map2d::new();
+                            map2d.push((latitude, map1d));
+                            map3d.push((h, map2d.clone()));
+                        }
+                    } else {
+                        // introduce new epoch
+                        let mut map2d = ionex::record::Map2d::new();
+                        let mut map3d = ionex::record::Map3d::new();
+                        let data : ionex::record::Map1d //Vec<_> 
+                                = data.iter()
+                                .map(|x| {
+                                   (x.0, (x.1, None::<f64>)) // longitude, tec not rms map
+                                }).collect();
+                        ionex_rec.insert(epoch, map3d);
+                    }
                 }
             }
         },
@@ -650,7 +716,7 @@ pub fn parse_record(
     let record = match &header.rinex_type {
         Type::AntennaData => Record::AntexRecord(atx_rec),
         Type::ClockData => Record::ClockRecord(clk_rec),
-        Type::IonosphereMaps => Record::IonexRecord(ionx_rec),
+        Type::IonosphereMaps => Record::IonexRecord(ionex_rec),
         Type::MeteoData => Record::MeteoRecord(met_rec),
         Type::NavigationData => Record::NavRecord(nav_rec),
         Type::ObservationData => Record::ObsRecord(obs_rec),

@@ -591,6 +591,11 @@ impl Rinex {
         self.header.rinex_type == types::Type::IonosphereMaps
     }
 
+    /// Returns true if self is a 2D IONEX
+    pub fn is_ionex_2d(&self) -> bool {
+        return self.is_ionex() && !self.is_ionex_3d();
+    }
+
     /// Returns true if self is a 3D IONEX
     pub fn is_ionex_3d(&self) -> bool {
         if let Some(ionex) = &self.header.ionex {
@@ -600,60 +605,14 @@ impl Rinex {
         }
     }
 
-    /// Returns true if self is a 2D IONEX,
-    /// ie., fixed altitude mode
-    pub fn is_ionex_2d(&self) -> bool {
-        if let Some(ionex) = &self.header.ionex {
-            ionex.map_dimension == 2
-        } else {
-            false
-        }
-    }
-
-    /// Converts 2D Ionex to 3D ionex by
-    /// providing some height maps.
-    pub fn with_height_maps(&self, height: BTreeMap<Epoch, ionex::Map>) -> Self {
-        let mut s = self.clone();
-        s.to_ionex_3d(height);
-        s
-    }
-
-    /// Add RMS maps to self, for epochs
-    /// where such map was not previously provided
-    pub fn with_rms_maps(&self, rms: BTreeMap<Epoch, ionex::Map>) -> Self {
-        let mut s = self.clone();
-        if let Some(r) = s.record.as_mut_ionex() {
-            for (e, (_, rms_map, _)) in r.iter_mut() {
-                if let Some(m) = rms.get(e) {
-                    *rms_map = Some(m.to_vec());
-                }
-            }
-        }
-        s
-    }
-
-    /// Provide Height maps for epochs where such map was not previously provided
-    pub fn to_ionex_3d(&mut self, height: BTreeMap<Epoch, ionex::Map>) {
-        if let Some(ionex) = self.header.ionex.as_mut() {
-            ionex.map_dimension = 3;
-        }
-        if let Some(r) = self.record.as_mut_ionex() {
-            for (e, (_, _, map_h)) in r.iter_mut() {
-                if let Some(m) = height.get(e) {
-                    *map_h = Some(m.to_vec());
-                }
-            }
-        }
-    }
-
     /// Returns ionex map borders, as North Eastern
-    /// and South Western latitude longitude coordinates,
+    /// and South Western (latitude, longitude) coordinates,
     /// expressed in ddeg°
     pub fn ionex_map_borders(&self) -> Option<((f64, f64), (f64, f64))> {
-        if let Some(params) = &self.header.ionex {
+        if let Some(ionex) = &self.header.ionex {
             Some((
-                (params.grid.latitude.start, params.grid.longitude.start),
-                (params.grid.latitude.end, params.grid.longitude.end),
+                (ionex.map_grid.lat_grid.start, ionex.map_grid.lon_grid.start),
+                (ionex.map_grid.lat_grid.end, ionex.map_grid.lon_grid.end),
             ))
         } else {
             None

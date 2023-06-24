@@ -48,13 +48,9 @@ impl GridLinspace {
             Err(Error::GridStartEndError)
         }
     }
-    // Returns grid length, in terms of data points
-    pub fn length(&self) -> usize {
-        (self.end / self.spacing).floor() as usize
-    }
-    /// Returns true if self is a single point space
-    pub fn is_single_point(&self) -> bool {
-        (self.end == self.start) && self.spacing == 0.0
+    /// Returns grid size, in terms of data points
+    pub fn size(&self) -> usize {
+        ((self.end - self.spacing) / self.spacing).ceil() as usize
     }
 }
 
@@ -68,31 +64,21 @@ impl From<(f64, f64, f64)> for GridLinspace {
     }
 }
 
-/// Reference Grid,
-/// defined in terms of Latitude, Longitude and Altitude.
-/// If 2D-TEC maps, static altitude is defined, ie.:
-/// start = end altitude and spacing = 0.
+/// IONEX grid definition
 #[derive(Debug, Clone, Default, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Grid {
-    /// Latitude
-    pub latitude: GridLinspace,
-    /// Longitude
-    pub longitude: GridLinspace,
-    /// Altitude
-    pub height: GridLinspace,
+    /// Latitude grid definition
+    pub lat_grid: GridLinspace,
+    /// Longitude grid definition
+    pub lon_grid: GridLinspace,
+    /// Altitude grid definition
+    pub h_grid: GridLinspace,
 }
 
 impl Grid {
-    /// Returns true if self is defined for 3D TEC map
-    pub fn is_3d_grid(&self) -> bool {
-        !self.is_2d_grid()
-    }
-    /// Returns true if self is defined to 2D TEC maps,
-    /// ie.: static altitude ref point with no altitude space
-    /// definition.
-    pub fn is_2d_grid(&self) -> bool {
-        self.height.is_single_point()
+    pub fn size(&self) -> usize {
+        self.lat_grid.size() * self.lon_grid.size() * self.h_grid.size()
     }
 }
 
@@ -112,6 +98,5 @@ mod test {
         );
         let grid = GridLinspace::new(1.0, 10.0, 1.0).unwrap();
         assert_eq!(grid.length(), 10);
-        assert_eq!(grid.is_single_point(), false);
     }
 }

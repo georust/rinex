@@ -1233,7 +1233,7 @@ impl Header {
                             },
                             map_dimension: d0.map_dimension,
                             base_radius: d0.base_radius,
-                            grid: d0.grid.clone(),
+                            map_grid: d0.map_grid.clone(),
                             elevation_cutoff: d0.elevation_cutoff,
                             observables: {
                                 if let Some(obs) = &d0.observables {
@@ -1658,19 +1658,19 @@ impl std::fmt::Display for Header {
             //  EPOCH OF FIRST and LAST MAP
             //   with epoch::format(Ionex)
             let _ = write!(f, "{:6}           MAP DIMENSION\n", ionex.map_dimension);
-            let h = &ionex.grid.height;
+            let h = &ionex.map_grid.h_grid;
             let _ = write!(
                 f,
                 "{} {}  {}     HGT1 / HGT2 / DHGT\n",
                 h.start, h.end, h.spacing
             );
-            let lat = &ionex.grid.latitude;
+            let lat = &ionex.map_grid.lat_grid;
             let _ = write!(
                 f,
                 "{} {}  {}     LAT1 / LON2 / DLAT\n",
                 lat.start, lat.end, lat.spacing
             );
-            let lon = &ionex.grid.longitude;
+            let lon = &ionex.map_grid.lon_grid;
             let _ = write!(
                 f,
                 "{} {}  {}     LON1 / LON2 / DLON\n",
@@ -1775,7 +1775,7 @@ impl Merge for Header {
                 if lhs.reference != rhs.reference {
                     return Err(merge::Error::IonexReferenceMismatch);
                 }
-                if lhs.grid != rhs.grid {
+                if lhs.map_grid != rhs.map_grid {
                     return Err(merge::Error::IonexMapGridMismatch);
                 }
                 if lhs.map_dimension != rhs.map_dimension {
@@ -1787,7 +1787,7 @@ impl Merge for Header {
                 merge::merge_mut_option(&mut lhs.description, &rhs.description);
                 merge::merge_mut_option(&mut lhs.mapping, &rhs.mapping);
                 if lhs.elevation_cutoff == 0.0 {
-                    // means "unknown"
+                    // 0 means "unknown"
                     lhs.elevation_cutoff = rhs.elevation_cutoff; // => overwrite in this case
                 }
                 merge::merge_mut_option(&mut lhs.observables, &rhs.observables);

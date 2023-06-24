@@ -8,7 +8,7 @@ use crate::{
     split::Split,
 };
 
-use super::{grid, GridLinspace};
+use super::GridLinspace;
 
 use hifitime::Duration;
 use std::collections::BTreeMap;
@@ -30,45 +30,15 @@ pub(crate) fn is_new_height_map(line: &str) -> bool {
 /// Returns true if given content describes the start of
 /// a Ionosphere map.
 pub(crate) fn is_new_map(line: &str) -> bool {
-    is_new_tec_map(line) || is_new_rms_map(line) || is_new_height_map(line)
+    is_new_tec_map(line) || is_new_rms_map(line) // || is_new_height_map(line)
 }
 
-/// A Map is a list of estimates for
-/// a given Latitude, Longitude, Altitude
-#[derive(Debug, Clone, PartialEq, PartialOrd)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct MapPoint {
-    /// Latitude of this estimate
-    pub latitude: f64,
-    /// Longitude of this estimate
-    pub longitude: f64,
-    /// Altitude of this estimate
-    pub altitude: f64,
-    /// Actual estimate (scaling applied)
-    pub value: f64,
-}
-
-pub type Map = Vec<MapPoint>;
-
-/*
- * Merges `rhs` into `lhs` in up to 3 dimensions
- */
-fn map_merge3d_mut(lhs: &mut Map, rhs: &Map) {
-    for rhs_p in rhs {
-        let mut found = false;
-        for lhs_p in lhs.into_iter() {
-            found |= (lhs_p.latitude == rhs_p.latitude)
-                && (lhs_p.longitude == rhs_p.longitude)
-                && (lhs_p.altitude == rhs_p.altitude);
-            if found {
-                break;
-            }
-        }
-        if !found {
-            lhs.push(rhs_p.clone());
-        }
-    }
-}
+/// A map of TEC values and possible RMS error for a given longitude coordinate
+pub type Map1d = Vec<(f64, (f64, Option<f64>))>;
+/// A 2D map of TEC values, and possible RMS error
+pub type Map2d = Vec<(f64, Map1d)>;
+/// A 3D map of TEC values, and possible RMS error
+pub type Map3d = Vec<(f64, Map2d)>;
 
 /// `IONEX` record is sorted by epoch.
 /// For each epoch, a TEC map is always given.
@@ -112,7 +82,7 @@ fn map_merge3d_mut(lhs: &mut Map, rhs: &Map) {
 ///     }
 /// }
 /// ```
-pub type Record = BTreeMap<Epoch, (Map, Option<Map>, Option<Map>)>;
+pub type Record = BTreeMap<Epoch, Map3d>;
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -120,25 +90,26 @@ pub enum Error {
     ParseIndexError,
     #[error("faulty epoch description")]
     EpochDescriptionError,
-    #[error("faulty longitude range definition")]
-    LongitudeRangeError(#[from] grid::Error),
 }
-
 /*
- * Parses following map, which can either be
- *  - a TEC map
- *  - an RMS tec map
- *  - an height map
- * defined for returned Epoch
+ * Parse data points per longitude coordinates.
+ * Returns (entry_index, Epoch, latitude, altitude and Vec<(longitude, datapoints)>.
+ * "entry_index" is present in the file, and is helpful since this Record definition
+ * is Vector<> based, we can only index with an integer value (not complex data).
+ * Data points can either be TEC or RMS map: this is determined at a higher level.
+ * Mut header access is required to support real time scaling adjustment.
  */
-pub(crate) fn parse_map(header: &mut Header, content: &str) -> Result<(usize, Epoch, Map), Error> {
+pub(crate) fn parse_map_entry(
+    header: &mut Header,
+    content: &str,
+) -> Result<(usize, Epoch, f64, f64, Vec<(f64, f64)>), Error> {
     let lines = content.lines();
-    let mut epoch = Epoch::default();
-    let mut map = Map::with_capacity(128); // result
-    let mut latitude: f64 = 0.0; // current latitude
-    let mut altitude: f64 = 0.0; // current altitude
-    let mut ptr: usize = 0; // pointer in longitude space
-    let mut linspace = GridLinspace::default(); // (longitude) linspace
+    let mut epoch = Epoch::default(); // to be parsed in this paragraph
+    let mut latitude: f64 = 0.0; // latitude, to be returned
+    let mut altitude: f64 = 0.0; // h, to be returned
+    let mut longitude: f64 = 0.0; // current longitude: to be updated
+    let mut d_lon: f64 = 0.0; // d_lon: difference in longitude ddeg° between two data points
+    let mut data: Vec<(f64, f64)> = Vec::new(); // longitude data points
     let ionex = header
         .ionex
         .as_mut()
@@ -149,9 +120,10 @@ pub(crate) fn parse_map(header: &mut Header, content: &str) -> Result<(usize, Ep
             if marker.contains("START OF") {
                 continue; // skip that one
             } else if marker.contains("END OF") && marker.contains("MAP") {
+                // conclude this entry
                 let index = content.split_at(6).0;
                 if let Ok(u) = u32::from_str_radix(index.trim(), 10) {
-                    return Ok((u as usize, epoch, map));
+                    return Ok((u as usize, epoch, latitude, altitude, data));
                 } else {
                     return Err(Error::ParseIndexError);
                 }
@@ -160,19 +132,15 @@ pub(crate) fn parse_map(header: &mut Header, content: &str) -> Result<(usize, Ep
                 let (_, rem) = content.split_at(2);
                 let (lat, rem) = rem.split_at(6);
                 let (lon1, rem) = rem.split_at(6);
-                let (lon2, rem) = rem.split_at(6);
+                let (_lon2, rem) = rem.split_at(6);
                 let (dlon, rem) = rem.split_at(6);
                 let (h, _) = rem.split_at(6);
                 latitude =
                     f64::from_str(lat.trim()).expect("failed to parse grid latitude start point");
-                let lon1 =
+                longitude =
                     f64::from_str(lon1.trim()).expect("failed to parse longitude start point");
-                let lon2 = f64::from_str(lon2.trim()).expect("failed to parse longitude end point");
-                let dlon =
-                    f64::from_str(dlon.trim()).expect("failed to parse longitude grid spacing");
+                d_lon = f64::from_str(dlon.trim()).expect("failed to parse longitude grid spacing");
                 altitude = f64::from_str(h.trim()).expect("failed to parse next grid altitude");
-                linspace = GridLinspace::new(lon1, lon2, dlon)?;
-                ptr = 0;
             } else if marker.contains("EPOCH OF CURRENT MAP") {
                 // time definition
                 let items: Vec<&str> = content.split_ascii_whitespace().collect();
@@ -195,7 +163,7 @@ pub(crate) fn parse_map(header: &mut Header, content: &str) -> Result<(usize, Ep
             } else if marker.contains("EXPONENT") {
                 // scaling redefinition
                 if let Ok(e) = i8::from_str_radix(content.trim(), 10) {
-                    *ionex = ionex.with_exponent(e); // scaling update
+                    *ionex = ionex.with_exponent(e); // update scaling
                 }
             } else {
                 // parsing TEC values
@@ -204,36 +172,25 @@ pub(crate) fn parse_map(header: &mut Header, content: &str) -> Result<(usize, Ep
                         // parse & apply correct scaling
                         let mut value = v as f64;
                         value *= 10.0_f64.powf(ionex.exponent as f64);
-                        map.push(MapPoint {
-                            latitude: latitude,
-                            longitude: linspace.start + linspace.spacing * ptr as f64,
-                            altitude: altitude,
-                            value: value,
-                        });
-                        ptr += 1;
+                        data.push((longitude, value));
+                        longitude += d_lon;
                     }
                 }
             }
         } else {
-            // less than 60 characters
-            // parsing TEC values
+            // less than 60 characters: we're inside the paragraph
             for item in line.split_ascii_whitespace().into_iter() {
                 if let Ok(v) = i32::from_str_radix(item.trim(), 10) {
                     // parse & apply correct scaling
                     let mut value = v as f64;
                     value *= 10.0_f64.powf(ionex.exponent as f64);
-                    map.push(MapPoint {
-                        latitude: latitude,
-                        longitude: linspace.start + linspace.spacing * ptr as f64,
-                        altitude: altitude,
-                        value: value,
-                    });
-                    ptr += 1;
+                    data.push((longitude, value));
+                    longitude += d_lon;
                 }
             }
         }
     }
-    Ok((0, epoch, map))
+    unreachable!("missing \"END OF MAP\" marker");
 }
 
 #[cfg(test)]
@@ -396,31 +353,12 @@ impl Merge for Record {
     }
     /// Merges `rhs` into `Self`
     fn merge_mut(&mut self, rhs: &Self) -> Result<(), merge::Error> {
-        for (epoch, maps) in rhs {
-            let (tec, rms, h) = maps;
-            if let Some(lhs_maps) = self.get_mut(epoch) {
-                let (lhs_tec, lhs_rms, lhs_h) = lhs_maps;
-
-                map_merge3d_mut(&mut lhs_tec.to_vec(), tec);
-
-                if let Some(map) = rms {
-                    if let Some(lhs_map) = lhs_rms {
-                        map_merge3d_mut(&mut lhs_map.to_vec(), map);
-                    } else {
-                        *lhs_rms = Some(map.to_vec()); // RMS map now provided
-                    }
-                }
-
-                if let Some(map) = h {
-                    if let Some(lhs_map) = lhs_h {
-                        map_merge3d_mut(&mut lhs_map.to_vec(), map);
-                    } else {
-                        *lhs_h = Some(map.to_vec()); // H map now provided
-                    }
-                }
+        for (epoch, rhs_map3d) in rhs {
+            if let Some(lhs_map3d) = self.get_mut(epoch) {
+                //TODO
             } else {
-                // new epoch
-                self.insert(*epoch, (tec.to_vec(), rms.clone(), h.clone()));
+                // new epoch: insert as is
+                self.insert(*epoch, rhs_map3d.clone());
             }
         }
         Ok(())

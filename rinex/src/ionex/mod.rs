@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use strum_macros::EnumString;
 
 pub mod record;
-pub use record::{Map, Record};
+pub use record::Record;
 
 pub mod grid;
 pub use grid::{Grid, GridLinspace};
@@ -54,8 +54,8 @@ pub struct HeaderFields {
     pub map_dimension: u8,
     /// Mean earth radius or bottom of height grid, in km.
     pub base_radius: f32,
-    /// Reference rid definition.
-    pub grid: grid::Grid,
+    /// Map grid definition
+    pub map_grid: grid::Grid,
     /// Minimum elevation angle filter used. In degrees.
     pub elevation_cutoff: f32,
     /// Verbose description of observables used in determination.
@@ -83,7 +83,7 @@ impl Default for HeaderFields {
             description: None,
             elevation_cutoff: 0.0,
             base_radius: 0.0,
-            grid: grid::Grid::default(),
+            map_grid: Grid::default(),
             nb_stations: 0,
             nb_satellites: 0,
             dcbs: HashMap::new(),
@@ -164,19 +164,19 @@ impl HeaderFields {
     /// Adds latitude grid definition
     pub fn with_latitude_grid(&self, grid: GridLinspace) -> Self {
         let mut s = self.clone();
-        s.grid.latitude = grid;
+        s.map_grid.lat_grid = grid;
         s
     }
     /// Adds longitude grid definition
     pub fn with_longitude_grid(&self, grid: GridLinspace) -> Self {
         let mut s = self.clone();
-        s.grid.longitude = grid;
+        s.map_grid.lon_grid = grid;
         s
     }
     /// Adds altitude grid definition
     pub fn with_altitude_grid(&self, grid: GridLinspace) -> Self {
         let mut s = self.clone();
-        s.grid.height = grid;
+        s.map_grid.h_grid = grid;
         s
     }
     /// Copies & sets Diffenretial Code Bias estimates
