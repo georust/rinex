@@ -111,4 +111,4 @@ processing/esbc00dnkr2021/smooth:hatch:l1c,l2c | 502.90 ms |
 Contributions are welcomed, do not hesitate to open new issues
 and submit Pull Requests.
 
-If you want to take part in active developments, checkout our [TODO list](TODO.md)
+If you want to take part in active developments, checkout our roadmap in the discussions tab.
