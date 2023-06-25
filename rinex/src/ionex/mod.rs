@@ -1,4 +1,4 @@
-use super::Sv;
+use super::{Epoch, Sv};
 use std::collections::HashMap;
 use strum_macros::EnumString;
 
@@ -193,6 +193,8 @@ pub trait Ionex {
     fn latitudes(&self) -> Vec<f64>;
     /// Returns all longitude coordinates in this dataset
     fn longitudes(&self) -> Vec<f64>;
+    /// Returns TEC map absolute maximal value
+    fn max(&self) -> (Epoch, f64, f64, f64, f64);
 }
 
 #[cfg(test)]

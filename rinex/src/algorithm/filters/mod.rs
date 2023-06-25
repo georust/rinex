@@ -1,12 +1,14 @@
 mod decim;
 mod interp;
 mod mask;
+mod scaling;
 mod smoothing;
 
 use super::TargetItem;
 pub use decim::{Decimate, DecimationFilter, DecimationType};
 pub use interp::{InterpFilter, InterpMethod, Interpolate};
 pub use mask::{Mask, MaskFilter, MaskOperand};
+pub use scaling::{Scale, ScalingFilter, ScalingType};
 pub use smoothing::{Smooth, SmoothingFilter, SmoothingType};
 
 use thiserror::Error;
@@ -23,6 +25,8 @@ pub enum Error {
     DecimationFilterParsingError(#[from] decim::Error),
     #[error("invalid smoothing filter")]
     SmoothingFilterParsingError(#[from] smoothing::Error),
+    #[error("invalid scaling filter")]
+    ScalingFilterParsingError(#[from] scaling::Error),
     #[error("invalid filter target")]
     TargetItemError(#[from] super::target::Error),
     #[error("failed to apply filter")]
@@ -37,6 +41,9 @@ pub enum Error {
 pub enum Filter {
     /// Mask filter, to focus on specific data subsets
     Mask(MaskFilter),
+    /// Scaling filters: modify, rescale or offset dataset
+    /// or a datasubset
+    Scaling(ScalingFilter),
     /// Smoothing filters, used to smooth a data subset
     Smoothing(SmoothingFilter),
     /// Decimation filter, filters to reduce sample rate
@@ -73,6 +80,12 @@ impl From<SmoothingFilter> for Filter {
     }
 }
 
+impl From<ScalingFilter> for Filter {
+    fn from(scaling: ScalingFilter) -> Self {
+        Self::Scaling(scaling)
+    }
+}
+
 impl std::str::FromStr for Filter {
     type Err = Error;
     fn from_str(content: &str) -> Result<Self, Self::Err> {
@@ -87,6 +100,11 @@ impl std::str::FromStr for Filter {
         } else if identifier.eq("smooth") {
             let offset = 7; //"smooth:"
             Ok(Self::Smoothing(SmoothingFilter::from_str(
+                content[offset..].trim(),
+            )?))
+        } else if identifier.eq("scale") {
+            let offset = 6; // "scale:"
+            Ok(Self::Scaling(ScalingFilter::from_str(
                 content[offset..].trim(),
             )?))
         } else if identifier.eq("interp") {
@@ -165,6 +183,19 @@ mod test {
         ] {
             let filt = Filter::from_str(desc);
             assert!(filt.is_ok(), "Filter::from_str failed on \"{}\"", desc);
+        }
+        /*
+         * SCALING filter description
+         */
+        for desc in vec![
+            "scaling:remap:10",
+            "scaling:remap:2",
+            "scaling:remap:1",
+            "scaling:offset:10",
+            "scaling:offset:12.4",
+        ] {
+            let filt = Filter::from_str(desc);
+            assert!(filt.is_ok(), "Filter::from_str failed to \"{}\"", desc);
         }
     }
 }

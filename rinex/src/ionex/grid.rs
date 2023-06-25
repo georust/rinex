@@ -97,6 +97,6 @@ mod test {
             }
         );
         let grid = GridLinspace::new(1.0, 10.0, 1.0).unwrap();
-        assert_eq!(grid.length(), 10);
+        assert_eq!(grid.size(), 10);
     }
 }

@@ -1,6 +1,7 @@
 //! `NavigationData` parser and related methods
 use crate::processing::{
-    Filter, Interpolate, Mask, MaskFilter, MaskOperand, Preprocessing, TargetItem,
+    Filter, Interpolate, Mask, MaskFilter, MaskOperand, Preprocessing, Scale, ScalingFilter,
+    TargetItem,
 };
 use regex::{Captures, Regex};
 use std::collections::BTreeMap;
@@ -1677,6 +1678,7 @@ impl Preprocessing for Record {
         match filt {
             Filter::Mask(mask) => self.mask_mut(mask),
             Filter::Interp(filter) => self.interpolate_mut(filter.series),
+            Filter::Scaling(filter) => unimplemented!("filter:scaling on nav record"),
             Filter::Decimation(filter) => match filter.dtype {
                 DecimationType::DecimByRatio(r) => {
                     if filter.target.is_none() {
@@ -1777,5 +1779,32 @@ impl Decimate for Record {
         let mut s = self.clone();
         s.decimate_match_mut(&rhs);
         s
+    }
+}
+
+impl Scale for Record {
+    fn offset(&self, b: f64) -> Self {
+        let mut s = self.clone();
+        s.offset_mut(b);
+        s
+    }
+    fn offset_mut(&mut self, b: f64) {
+        unimplemented!("navigation:record:offset_mut()");
+    }
+    fn scale(&self, a: f64, b: f64) -> Self {
+        let mut s = self.clone();
+        s.scale_mut(a, b);
+        s
+    }
+    fn scale_mut(&mut self, a: f64, b: f64) {
+        unimplemented!("navigation:record:scale_mut()");
+    }
+    fn remap(&self, bins: usize) -> Self {
+        let mut s = self.clone();
+        s.remap_mut(bins);
+        s
+    }
+    fn remap_mut(&mut self, bins: usize) {
+        unimplemented!("navigation:record:remap_mut()");
     }
 }

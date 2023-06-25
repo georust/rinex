@@ -11,8 +11,8 @@ use crate::{
     prelude::*,
     processing::{
         Combination, Combine, Decimate, DecimationType, Filter, Interpolate, IonoDelayDetector,
-        Mask, MaskFilter, MaskOperand, Preprocessing, Processing, Smooth, SmoothingType,
-        TargetItem,
+        Mask, MaskFilter, MaskOperand, Preprocessing, Processing, Scale, ScalingType, Smooth,
+        SmoothingType, TargetItem,
     },
     split,
     split::Split,
@@ -1276,6 +1276,29 @@ impl Preprocessing for Record {
                     decimate_data_subset(self, &subset, &item);
                 },
             },
+            Filter::Scaling(filter) => match filter.stype {
+                ScalingType::Offset(value) => {
+                    if filter.target.is_none() {
+                        self.offset_mut(value);
+                        return; // no need to proceed furtuer
+                    }
+                    unimplemented!("observation:record:offset a subset");
+                },
+                ScalingType::Scale((a, b)) => {
+                    if filter.target.is_none() {
+                        self.scale_mut(a, b);
+                        return; // no need to proceed further
+                    }
+                    unimplemented!("observation:record:scale a subset");
+                },
+                ScalingType::Remap(bins) => {
+                    if filter.target.is_none() {
+                        self.remap_mut(bins);
+                        return; // no need to proceed further
+                    }
+                    unimplemented!("observation:record:remap a subset");
+                },
+            },
         }
     }
 }
@@ -1319,6 +1342,33 @@ impl Decimate for Record {
         let mut s = self.clone();
         s.decimate_match_mut(&rhs);
         s
+    }
+}
+
+impl Scale for Record {
+    fn remap(&self, bins: usize) -> Self {
+        let mut s = self.clone();
+        s.remap_mut(bins);
+        s
+    }
+    fn remap_mut(&mut self, bins: usize) {
+        unimplemented!("observation:record:remap_mut");
+    }
+    fn offset(&self, value: f64) -> Self {
+        let mut s = self.clone();
+        s.offset_mut(value);
+        s
+    }
+    fn offset_mut(&mut self, value: f64) {
+        unimplemented!("observation:record:offset_mut");
+    }
+    fn scale(&self, a: f64, b: f64) -> Self {
+        let mut s = self.clone();
+        s.scale_mut(a, b);
+        s
+    }
+    fn scale_mut(&mut self, a: f64, b: f64) {
+        unimplemented!("observation:record:scale_mut");
     }
 }
 

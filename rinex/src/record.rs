@@ -856,3 +856,62 @@ impl Combine for Record {
         }
     }
 }
+
+use crate::processing::Scale;
+
+impl Scale for Record {
+    fn offset_mut(&mut self, b: f64) {
+        if let Some(rec) = self.as_mut_obs() {
+            rec.offset_mut(b);
+        } else if let Some(rec) = self.as_mut_meteo() {
+            rec.offset_mut(b);
+        } else if let Some(rec) = self.as_mut_nav() {
+            rec.offset_mut(b);
+        } else if let Some(rec) = self.as_mut_ionex() {
+            rec.offset_mut(b);
+        } else {
+            unimplemented!("offset_mut() for this type of rinex");
+        }
+    }
+    fn offset(&self, b: f64) -> Self {
+        let mut s = self.clone();
+        s.offset_mut(b);
+        s
+    }
+    fn remap(&self, bins: usize) -> Self {
+        let mut s = self.clone();
+        s.remap_mut(bins);
+        s
+    }
+    fn remap_mut(&mut self, bins: usize) {
+        if let Some(rec) = self.as_mut_obs() {
+            rec.remap_mut(bins)
+        } else if let Some(rec) = self.as_mut_meteo() {
+            rec.remap_mut(bins)
+        } else if let Some(rec) = self.as_mut_nav() {
+            rec.remap_mut(bins)
+        } else if let Some(rec) = self.as_mut_ionex() {
+            rec.remap_mut(bins)
+        } else {
+            unimplemented!("remap_mut() for this type of rinex");
+        }
+    }
+    fn scale(&self, a: f64, b: f64) -> Self {
+        let mut s = self.clone();
+        s.scale_mut(a, b);
+        s
+    }
+    fn scale_mut(&mut self, a: f64, b: f64) {
+        if let Some(rec) = self.as_mut_obs() {
+            rec.scale_mut(a, b)
+        } else if let Some(rec) = self.as_mut_meteo() {
+            rec.scale_mut(a, b)
+        } else if let Some(rec) = self.as_mut_nav() {
+            rec.scale_mut(a, b)
+        } else if let Some(rec) = self.as_mut_ionex() {
+            rec.scale_mut(a, b)
+        } else {
+            unimplemented!("remap_mut() for this type of rinex");
+        }
+    }
+}

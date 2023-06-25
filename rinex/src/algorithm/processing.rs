@@ -1,19 +1,7 @@
 use crate::prelude::*;
 use std::collections::HashMap;
 
-#[derive(Debug, Copy, Clone)]
-pub enum StatisticalOps {
-    Max,
-    Min,
-    MaxAbs,
-    MinAbs,
-    Variance,
-    StdDev,
-    Mean,
-    QuadMean,
-    HarmMean,
-    GeoMean,
-}
+use super::StatisticalOps;
 
 pub trait Processing {
     /// If you're interested in the .min() of this RINEX

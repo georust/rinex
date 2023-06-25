@@ -468,8 +468,9 @@ impl Preprocessing for Record {
     fn filter_mut(&mut self, f: Filter) {
         match f {
             Filter::Mask(mask) => self.mask_mut(mask),
-            Filter::Smoothing(_) => todo!(),
-            Filter::Decimation(_) => todo!(),
+            Filter::Smoothing(_) => unimplemented!("filter:smoothing on clocks rinex"),
+            Filter::Decimation(_) => unimplemented!("filter:decim on clocks rinex"),
+            Filter::Scaling(_) => unimplemented!("filter:scaling on clocks rinex"),
             Filter::Interp(filter) => self.interpolate_mut(filter.series),
         }
     }

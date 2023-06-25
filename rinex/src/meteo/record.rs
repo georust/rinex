@@ -6,7 +6,7 @@ use crate::{
     prelude::*,
     processing::{
         Decimate, DecimationType, Filter, Interpolate, Mask, MaskFilter, MaskOperand,
-        Preprocessing, TargetItem,
+        Preprocessing, Scale, ScalingType, TargetItem,
     },
     split,
     split::Split,
@@ -437,8 +437,31 @@ impl Preprocessing for Record {
                     decimate_data_subset(self, &subset, &item);
                 },
             },
-            Filter::Smoothing(_) => todo!(),
+            Filter::Scaling(filter) => match filter.stype {
+                ScalingType::Offset(b) => {
+                    if filter.target.is_none() {
+                        self.offset_mut(b);
+                        return; // no need to proceed further
+                    }
+                    unimplemented!("offset: on meteo subset");
+                },
+                ScalingType::Scale((a, b)) => {
+                    if filter.target.is_none() {
+                        self.scale_mut(a, b);
+                        return; // no need to proceed further
+                    }
+                    unimplemented!("scale: on meteo subset");
+                },
+                ScalingType::Remap(bins) => {
+                    if filter.target.is_none() {
+                        self.remap_mut(bins);
+                        return; // no need to proceed further
+                    }
+                    unimplemented!("remap: on meteo subset");
+                },
+            },
             Filter::Interp(filter) => self.interpolate_mut(filter.series),
+            Filter::Smoothing(_) => unimplemented!("filter:smooth on meteo record"),
         }
     }
 }
@@ -451,6 +474,41 @@ impl Interpolate for Record {
     }
     fn interpolate_mut(&mut self, _series: TimeSeries) {
         unimplemented!("meteo:record:interpolate_mut()")
+    }
+}
+
+impl Scale for Record {
+    fn offset(&self, b: f64) -> Self {
+        let mut s = self.clone();
+        s.offset_mut(b);
+        s
+    }
+    fn offset_mut(&mut self, b: f64) {
+        for (_e, observables) in self.iter_mut() {
+            for (_observable, value) in observables.iter_mut() {
+                *value += b;
+            }
+        }
+    }
+    fn scale(&self, a: f64, b: f64) -> Self {
+        let mut s = self.clone();
+        s.scale_mut(a, b);
+        s
+    }
+    fn scale_mut(&mut self, a: f64, b: f64) {
+        for (_e, observables) in self.iter_mut() {
+            for (_observable, value) in observables.iter_mut() {
+                *value = *value * a + b;
+            }
+        }
+    }
+    fn remap(&self, bins: usize) -> Self {
+        let mut s = self.clone();
+        s.remap_mut(bins);
+        s
+    }
+    fn remap_mut(&mut self, bins: usize) {
+        unimplemented!("remap_mut() on meteo record");
     }
 }
 
@@ -467,12 +525,12 @@ impl Processing for Record {
         &self,
         _ops: StatisticalOps,
     ) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
-        unimplemented!();
         /*
          * User is expected to use the _observable() API
          * on Meteo RINEX: we only perform statistical calculations
          * on observation basis
          */
+        unimplemented!("unevaluable statistics on meteo record");
     }
     /*
      * Statistical method wrapper,

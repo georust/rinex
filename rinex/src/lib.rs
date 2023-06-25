@@ -592,14 +592,14 @@ impl Rinex {
     }
 
     /// Returns true if self is a 2D IONEX
-    pub fn is_ionex_2d(&self) -> bool {
-        return self.is_ionex() && !self.is_ionex_3d();
+    pub fn is_2d_ionex(&self) -> bool {
+        return self.is_ionex() && !self.is_3d_ionex();
     }
 
     /// Returns true if self is a 3D IONEX
-    pub fn is_ionex_3d(&self) -> bool {
+    pub fn is_3d_ionex(&self) -> bool {
         if let Some(ionex) = &self.header.ionex {
-            ionex.map_dimension == 3
+            self.is_ionex() && ionex.map_dimension == 3
         } else {
             false
         }
@@ -2408,6 +2408,35 @@ impl Decimate for Rinex {
     }
 }
 
+use crate::algorithm::Scale;
+
+impl Scale for Rinex {
+    fn offset(&self, b: f64) -> Self {
+        let mut s = self.clone();
+        s.offset_mut(b);
+        s
+    }
+    fn offset_mut(&mut self, b: f64) {
+        self.record.offset_mut(b);
+    }
+    fn remap(&self, bins: usize) -> Self {
+        let mut s = self.clone();
+        s.remap_mut(bins);
+        s
+    }
+    fn remap_mut(&mut self, bins: usize) {
+        self.record.remap_mut(bins)
+    }
+    fn scale(&self, a: f64, b: f64) -> Self {
+        let mut s = self.clone();
+        s.scale_mut(a, b);
+        s
+    }
+    fn scale_mut(&mut self, a: f64, b: f64) {
+        self.record.scale_mut(a, b)
+    }
+}
+
 use crate::algorithm::Processing;
 use crate::algorithm::StatisticalOps;
 
@@ -2523,6 +2552,13 @@ impl ionex::Ionex for Rinex {
             r.longitudes()
         } else {
             vec![]
+        }
+    }
+    fn max(&self) -> (Epoch, f64, f64, f64, f64) {
+        if let Some(r) = self.record.as_ionex() {
+            r.max()
+        } else {
+            (Epoch::default(), 0.0_f64, 0.0_f64, 0.0_f64, 0.0_f64)
         }
     }
 }

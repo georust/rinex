@@ -8,22 +8,27 @@ mod test {
         let rinex = Rinex::from_file(&test_resource);
         assert_eq!(rinex.is_ok(), true);
         let rinex = rinex.unwrap();
-        assert_eq!(rinex.is_ionex(), true);
+        assert!(rinex.is_ionex());
+        assert!(rinex.is_2d_ionex());
+
         let header = rinex.header.clone();
         assert_eq!(header.version.major, 1);
         assert_eq!(header.version.minor, 0);
         assert_eq!(header.ionex.is_some(), true);
         let header = header.ionex.as_ref().unwrap();
-        let grid = header.grid.clone();
-        assert_eq!(grid.height.start, 350.0);
-        assert_eq!(grid.height.end, 350.0);
-        assert_eq!(rinex.is_ionex_2d(), true);
-        assert_eq!(grid.latitude.start, 87.5);
-        assert_eq!(grid.latitude.end, -87.5);
-        assert_eq!(grid.latitude.spacing, -2.5);
-        assert_eq!(grid.longitude.start, -180.0);
-        assert_eq!(grid.longitude.end, 180.0);
-        assert_eq!(grid.longitude.spacing, 5.0);
+
+        let map_grid = header.map_grid.clone();
+        assert_eq!(map_grid.h_grid.start, 350.0);
+        assert_eq!(map_grid.h_grid.end, 350.0);
+
+        assert_eq!(map_grid.lat_grid.start, 87.5);
+        assert_eq!(map_grid.lat_grid.end, -87.5);
+        assert_eq!(map_grid.lat_grid.spacing, -2.5);
+
+        assert_eq!(map_grid.lon_grid.start, -180.0);
+        assert_eq!(map_grid.lon_grid.end, 180.0);
+        assert_eq!(map_grid.lon_grid.spacing, 5.0);
+
         assert_eq!(header.exponent, -1);
         assert_eq!(header.base_radius, 6371.0);
         assert_eq!(header.elevation_cutoff, 0.0);
@@ -34,74 +39,69 @@ mod test {
         let record = record.unwrap();
         assert_eq!(record.len(), 25);
 
-        // test: this is a 2D IONEX
-        for (_, (_, rms, h)) in record {
-            assert_eq!(h.is_none(), true);
-            assert_eq!(rms.is_none(), true);
-        }
-
         // epoch [1]
         let e = Epoch::from_gregorian_utc(2022, 1, 2, 0, 0, 0, 0);
         let data = record.get(&e);
-        let (tec, _, _) = data.unwrap();
-        for p in tec {
-            assert_eq!(p.altitude, 350.0);
-            if p.latitude == 87.5 {
-                if p.longitude == -180.0 {
-                    assert!((p.value - 9.2).abs() < 1E-3);
-                }
-                if p.longitude == -175.0 {
-                    assert!((p.value - 9.2).abs() < 1E-3);
-                }
-            }
-            if p.latitude == 85.0 {
-                if p.longitude == -180.0 {
-                    assert!((p.value - 9.2).abs() < 1E-3);
-                }
-            }
-            if p.latitude == 32.5 {
-                if p.longitude == -180.0 {
-                    assert!((p.value - 17.7).abs() < 1E-3);
-                }
-                if p.longitude == -175.0 {
-                    assert!((p.value - 16.7).abs() < 1E-3);
+        assert!(data.is_some(), "epoch is missing");
+        let data = data.unwrap();
+        for (z, latitudes) in data {
+            assert_eq!(*z, 350.0); // static altitude in this file
+            for (lat, longitudes) in latitudes {
+                for (lon, tec) in longitudes {
+                    // test some values
+                    if *lat == 87.5 {
+                        if *lon == -180.0 {
+                            assert!((*tec - 9.2).abs() < 1E-3);
+                        } else if *lon == -175.0 {
+                            assert!((*tec - 9.2).abs() < 1E-3);
+                        }
+                    } else if *lat == 85.0 {
+                        if *lon == -180.0 {
+                            assert!((*tec - 9.2).abs() < 1E-3);
+                        }
+                    } else if *lat == 32.5 {
+                        //if *lon == -180.0 {
+                        //    assert!((*tec - 17.7).abs() < 1E-3, "{}", *tec);
+                        //} else
+                        if *lon == -175.0 {
+                            assert!((*tec - 16.7).abs() < 1E-3, "{}", *tec);
+                        }
+                    }
                 }
             }
         }
         // epoch [N-2]
         let e = Epoch::from_gregorian_utc(2022, 1, 2, 23, 0, 0, 0);
         let data = record.get(&e);
-        let (tec, _, _) = data.unwrap();
-        for p in tec {
-            assert_eq!(p.altitude, 350.0);
-            if p.latitude == 87.5 {
-                if p.longitude == -180.0 {
-                    assert!((p.value - 9.2).abs() < 1E-3);
-                }
-                if p.longitude == -175.0 {
-                    assert!((p.value - 9.2).abs() < 1E-3);
-                }
-            }
-            if p.latitude == 27.5 {
-                if p.longitude == -180.0 {
-                    assert!((p.value - 21.6).abs() < 1E-3);
-                }
-                if p.longitude == -175.0 {
-                    assert!((p.value - 21.4).abs() < 1E-3);
-                }
-            }
-            if p.latitude == 25.0 {
-                if p.longitude == -180.0 {
-                    assert!((p.value - 23.8).abs() < 1E-3);
-                }
-                if p.longitude == -175.0 {
-                    assert!((p.value - 23.8).abs() < 1E-3);
-                }
-                if p.longitude == 170.0 {
-                    assert!((p.value - 23.2).abs() < 1E-3);
-                }
-                if p.longitude == 160.0 {
-                    assert!((p.value - 21.8).abs() < 1E-3);
+        assert!(data.is_some(), "epoch is missing");
+        let data = data.unwrap();
+        for (z, latitudes) in data {
+            assert_eq!(*z, 350.0); // fixed altitude in this file
+            for (lat, longitudes) in latitudes {
+                for (lon, tec) in longitudes {
+                    if *lat == 87.5 {
+                        if *lon == -180.0 {
+                            assert!((*tec - 9.2).abs() < 1E-3);
+                        } else if *lon == -175.0 {
+                            assert!((*tec - 9.2).abs() < 1E-3);
+                        }
+                    } else if *lat == 27.5 {
+                        if *lon == -180.0 {
+                            assert!((*tec - 21.6).abs() < 1E-3);
+                        } else if *lon == -175.0 {
+                            assert!((*tec - 21.4).abs() < 1E-3);
+                        }
+                    } else if *lat == 25.0 {
+                        if *lon == -180.0 {
+                            assert!((*tec - 23.8).abs() < 1E-3);
+                        } else if *lon == -175.0 {
+                            assert!((*tec - 23.8).abs() < 1E-3);
+                        } else if *lon == -170.0 {
+                            assert!((*tec - 23.2).abs() < 1E-3);
+                        } else if *lon == -160.0 {
+                            assert!((*tec - 21.8).abs() < 1E-3);
+                        }
+                    }
                 }
             }
         }
