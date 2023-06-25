@@ -30,11 +30,13 @@ pub(crate) fn is_new_height_map(line: &str) -> bool {
 /// Returns true if given content describes the start of
 /// a Ionosphere map.
 pub(crate) fn is_new_map(line: &str) -> bool {
-    is_new_tec_map(line) || is_new_rms_map(line) // || is_new_height_map(line)
+    is_new_tec_map(line)
+    // || is_new_rms_map(line)
+    // || is_new_height_map(line)
 }
 
-/// A map of TEC values and possible RMS error for a given longitude coordinate
-pub type Map1d = Vec<(f64, (f64, Option<f64>))>;
+/// A map of TEC values
+pub type Map1d = Vec<(f64, f64)>;
 /// A 2D map of TEC values, and possible RMS error
 pub type Map2d = Vec<(f64, Map1d)>;
 /// A 3D map of TEC values, and possible RMS error
@@ -102,14 +104,15 @@ pub enum Error {
 pub(crate) fn parse_map_entry(
     header: &mut Header,
     content: &str,
-) -> Result<(usize, Epoch, f64, f64, Vec<(f64, f64)>), Error> {
+) -> Result<(usize, Epoch, Map3d), Error> {
     let lines = content.lines();
     let mut epoch = Epoch::default(); // to be parsed in this paragraph
     let mut latitude: f64 = 0.0; // latitude, to be returned
     let mut altitude: f64 = 0.0; // h, to be returned
     let mut longitude: f64 = 0.0; // current longitude: to be updated
     let mut d_lon: f64 = 0.0; // d_lon: difference in longitude ddeg° between two data points
-    let mut data: Vec<(f64, f64)> = Vec::new(); // longitude data points
+    let mut map1d = Map1d::new(); //map1d: points per longitude
+    let mut map2d = Map2d::new(); //map2d: longitudes points per latitude
     let ionex = header
         .ionex
         .as_mut()
@@ -118,12 +121,13 @@ pub(crate) fn parse_map_entry(
         if line.len() > 60 {
             let (content, marker) = line.split_at(60);
             if marker.contains("START OF") {
-                continue; // skip that one
+                continue; // header: skip it
             } else if marker.contains("END OF") && marker.contains("MAP") {
                 // conclude this entry
                 let index = content.split_at(6).0;
                 if let Ok(u) = u32::from_str_radix(index.trim(), 10) {
-                    return Ok((u as usize, epoch, latitude, altitude, data));
+                    let map3d: Map3d = vec![(altitude, map2d.clone())];
+                    return Ok((u as usize, epoch, map3d));
                 } else {
                     return Err(Error::ParseIndexError);
                 }
@@ -141,6 +145,11 @@ pub(crate) fn parse_map_entry(
                     f64::from_str(lon1.trim()).expect("failed to parse longitude start point");
                 d_lon = f64::from_str(dlon.trim()).expect("failed to parse longitude grid spacing");
                 altitude = f64::from_str(h.trim()).expect("failed to parse next grid altitude");
+                if map1d.len() > 0 {
+                    // avoid pushing an empty line, on first line
+                    map2d.push((latitude, map1d.clone()));
+                }
+                map1d.clear();
             } else if marker.contains("EPOCH OF CURRENT MAP") {
                 // time definition
                 let items: Vec<&str> = content.split_ascii_whitespace().collect();
@@ -172,7 +181,7 @@ pub(crate) fn parse_map_entry(
                         // parse & apply correct scaling
                         let mut value = v as f64;
                         value *= 10.0_f64.powf(ionex.exponent as f64);
-                        data.push((longitude, value));
+                        map1d.push((longitude, value));
                         longitude += d_lon;
                     }
                 }
@@ -184,7 +193,7 @@ pub(crate) fn parse_map_entry(
                     // parse & apply correct scaling
                     let mut value = v as f64;
                     value *= 10.0_f64.powf(ionex.exponent as f64);
-                    data.push((longitude, value));
+                    map1d.push((longitude, value));
                     longitude += d_lon;
                 }
             }
@@ -341,6 +350,37 @@ mod test {
         ];
         map_merge3d_mut(&mut lhs, &rhs);
         assert_eq!(&lhs, &expected);
+    }
+}
+
+use super::Ionex;
+
+impl Ionex for Record {
+    fn latitudes(&self) -> Vec<f64> {
+        if let Some((_e0, z_maps)) = self.first_key_value() {
+            if let Some((_z0, z0_map)) = z_maps.get(0) {
+                return z0_map.iter().map(|x| x.0).collect::<Vec<f64>>();
+            } else {
+                vec![]
+            }
+        } else {
+            vec![]
+        }
+    }
+    fn longitudes(&self) -> Vec<f64> {
+        if let Some((_, z_maps)) = self.first_key_value() {
+            if let Some((_z0, lat_map)) = z_maps.get(0) {
+                if let Some((lat0, lon0_map)) = lat_map.get(0) {
+                    return lon0_map.iter().map(|x| x.0).collect::<Vec<f64>>();
+                } else {
+                    vec![]
+                }
+            } else {
+                vec![]
+            }
+        } else {
+            vec![]
+        }
     }
 }
 

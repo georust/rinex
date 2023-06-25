@@ -63,6 +63,8 @@ __CLI__ + :chart_with_upwards_trend: means record analysis is supported by the C
 
 - Glonass Time Scale is not known to this day.
 We cannot parse and apply system time corrections from other time scales into the glonass time scale.
+- IONEX RMS errors are not parsed and cannot be visualized 
+- IONEX h maps are not parsed and cannot be visualized
 
 ## Record
 

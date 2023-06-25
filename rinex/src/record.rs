@@ -471,7 +471,7 @@ pub fn parse_record(
                         }
                     },
                     Type::IonosphereMaps => {
-                        if let Ok((index, epoch, latitude, h, data)) =
+                        if let Ok((index, epoch, map3d)) =
                             ionex::record::parse_map_entry(header, &epoch_content)
                         {
                             // IONEX: several types of maps may be encountered
@@ -484,50 +484,14 @@ pub fn parse_record(
                             } else if is_ionex_h_map {
                                 is_ionex_h_map = false; // update for next time
                             } else {
-                                //TEC MAP
+                                // TEC MAP
                                 if let Some(map3d) = ionex_rec.get_mut(&epoch) {
-                                    let mut found = false;
-                                    // try to locate this altitude: in case it was already
-                                    // encountered
-                                    for (map3d_h, map2d_lat) in map3d.iter_mut() {
-                                        if *map3d_h == h {
-                                            // found this altitude
-                                            // insert new latitude
-                                            // : we expect a different latitude entry per record
-                                            // entry.
-                                            let map1d: ionex::record::Map1d = data
-                                                .iter()
-                                                .map(|x| {
-                                                    (x.0, (x.1, None)) // longitude, tec not rms map
-                                                })
-                                                .collect();
-                                            map2d_lat.push((latitude, map1d));
-                                            found = true;
-                                            break;
-                                        }
-                                    }
-                                    if !found {
-                                        // insert new altitude
-                                        let map1d: ionex::record::Map1d = data
-                                            .iter()
-                                            .map(|x| {
-                                                (x.0, (x.1, None::<f64>)) // longitude, tec not rms map
-                                            })
-                                            .collect();
-                                        let mut map2d = ionex::record::Map2d::new();
-                                        map2d.push((latitude, map1d));
-                                        map3d.push((h, map2d.clone()));
-                                    }
+                                    //TODO: we will wind up here when RMS and/or H
+                                    //      maps are unlocked and they were declared
+                                    //      in first position in this file (although it is
+                                    //      not clear whether this is allowed or not)
                                 } else {
                                     // introduce new epoch
-                                    let map1d: ionex::record::Map1d = data
-                                        .iter()
-                                        .map(|x| {
-                                            (x.0, (x.1, None::<f64>)) // longitude, tec not rms map
-                                        })
-                                        .collect();
-                                    let map2d: ionex::record::Map2d = vec![(latitude, map1d)];
-                                    let map3d: ionex::record::Map3d = vec![(h, map2d)];
                                     ionex_rec.insert(epoch, map3d);
                                 }
                             }
@@ -634,7 +598,7 @@ pub fn parse_record(
             }
         },
         Type::IonosphereMaps => {
-            if let Ok((index, epoch, latitude, h, data)) =
+            if let Ok((index, epoch, map3d)) =
                 ionex::record::parse_map_entry(header, &epoch_content)
             {
                 if is_ionex_rms_map {
@@ -644,47 +608,11 @@ pub fn parse_record(
                 } else {
                     // TEC MAP
                     if let Some(map3d) = ionex_rec.get_mut(&epoch) {
-                        let mut found = false;
-                        // try to locate this altitude: in case it was already
-                        // encountered
-                        for (map3d_h, map2d_lat) in map3d.iter_mut() {
-                            if *map3d_h == h {
-                                // found this altitude
-                                // insert new latitude
-                                // : we expect a different latitude entry per record
-                                // entry.
-                                let map1d: ionex::record::Map1d = data
-                                    .iter()
-                                    .map(|x| {
-                                        (x.0, (x.1, None)) // longitude, tec not rms map
-                                    })
-                                    .collect();
-                                map2d_lat.push((latitude, map1d));
-                                found = true;
-                                break;
-                            }
-                        }
-                        if !found {
-                            // insert new altitude
-                            let map1d: ionex::record::Map1d = data
-                                .iter()
-                                .map(|x| {
-                                    (x.0, (x.1, None::<f64>)) // longitude, tec not rms map
-                                })
-                                .collect();
-                            let mut map2d = ionex::record::Map2d::new();
-                            map2d.push((latitude, map1d));
-                            map3d.push((h, map2d.clone()));
-                        }
+                        //TODO: we will wind up here when RMS and/or H
+                        //      maps are unlocked and they were declared
+                        //      in first position in this file (although it is
+                        //      not clear whether this is allowed or not)
                     } else {
-                        // introduce new epoch
-                        let mut map2d = ionex::record::Map2d::new();
-                        let mut map3d = ionex::record::Map3d::new();
-                        let data : ionex::record::Map1d //Vec<_> 
-                                = data.iter()
-                                .map(|x| {
-                                   (x.0, (x.1, None::<f64>)) // longitude, tec not rms map
-                                }).collect();
                         ionex_rec.insert(epoch, map3d);
                     }
                 }

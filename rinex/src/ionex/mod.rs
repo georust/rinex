@@ -188,6 +188,13 @@ impl HeaderFields {
     }
 }
 
+pub trait Ionex {
+    /// Returns all latitude coordinates in this dataset
+    fn latitudes(&self) -> Vec<f64>;
+    /// Returns all longitude coordinates in this dataset
+    fn longitudes(&self) -> Vec<f64>;
+}
+
 #[cfg(test)]
 mod test {
     use super::*;

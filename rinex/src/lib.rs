@@ -605,9 +605,8 @@ impl Rinex {
         }
     }
 
-    /// Returns ionex map borders, as North Eastern
-    /// and South Western (latitude, longitude) coordinates,
-    /// expressed in ddeg°
+    /// Returns ionex map borders expressed as North Eastern
+    /// and South Western (latitude, longitude) coordinates in ddeg°
     pub fn ionex_map_borders(&self) -> Option<((f64, f64), (f64, f64))> {
         if let Some(ionex) = &self.header.ionex {
             Some((
@@ -2508,6 +2507,23 @@ impl Combine for Rinex {
         combination: Combination,
     ) -> HashMap<(Observable, Observable), BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
         self.record.combine(combination)
+    }
+}
+
+impl ionex::Ionex for Rinex {
+    fn latitudes(&self) -> Vec<f64> {
+        if let Some(r) = self.record.as_ionex() {
+            r.latitudes()
+        } else {
+            vec![]
+        }
+    }
+    fn longitudes(&self) -> Vec<f64> {
+        if let Some(r) = self.record.as_ionex() {
+            r.longitudes()
+        } else {
+            vec![]
+        }
     }
 }
 
