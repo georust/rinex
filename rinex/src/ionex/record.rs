@@ -126,13 +126,22 @@ pub(crate) fn parse_map_entry(
                 // conclude this entry
                 let index = content.split_at(6).0;
                 if let Ok(u) = u32::from_str_radix(index.trim(), 10) {
+                    if map1d.len() > 0 {
+                        map2d.push((latitude, map1d.clone()));
+                    }
                     let map3d: Map3d = vec![(altitude, map2d.clone())];
                     return Ok((u as usize, epoch, map3d));
                 } else {
                     return Err(Error::ParseIndexError);
                 }
             } else if marker.contains("LAT/LON1/LON2/DLON/H") {
-                // space coordinates definition for next block
+                // append previous content, if it exists
+                if map1d.len() > 0 {
+                    // avoids pushing empty content on first entry
+                    map2d.push((latitude, map1d.clone()));
+                    map1d.clear();
+                }
+                // grid definition for next block
                 let (_, rem) = content.split_at(2);
                 let (lat, rem) = rem.split_at(6);
                 let (lon1, rem) = rem.split_at(6);
@@ -145,11 +154,6 @@ pub(crate) fn parse_map_entry(
                     f64::from_str(lon1.trim()).expect("failed to parse longitude start point");
                 d_lon = f64::from_str(dlon.trim()).expect("failed to parse longitude grid spacing");
                 altitude = f64::from_str(h.trim()).expect("failed to parse next grid altitude");
-                if map1d.len() > 0 {
-                    // avoid pushing an empty line, on first line
-                    map2d.push((latitude, map1d.clone()));
-                }
-                map1d.clear();
             } else if marker.contains("EPOCH OF CURRENT MAP") {
                 // time definition
                 let items: Vec<&str> = content.split_ascii_whitespace().collect();

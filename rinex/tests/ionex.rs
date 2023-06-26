@@ -51,27 +51,36 @@ mod test {
                     // test some values
                     if *lat == 87.5 {
                         if *lon == -180.0 {
-                            assert!((*tec - 9.2).abs() < 1E-3);
+                            assert!((*tec - 9.2).abs() < 1E-6);
                         } else if *lon == -175.0 {
-                            assert!((*tec - 9.2).abs() < 1E-3);
+                            assert!((*tec - 9.2).abs() < 1E-6);
                         }
                     } else if *lat == 85.0 {
                         if *lon == -180.0 {
-                            assert!((*tec - 9.2).abs() < 1E-3);
+                            assert!((*tec - 9.2).abs() < 1E-6);
+                        } else if *lon == 175.0 {
+                            assert!((*tec - 9.2).abs() < 1E-6);
+                        } else if *lon == 180.0 {
+                            assert!((*tec - 9.2).abs() < 1E-6);
                         }
                     } else if *lat == 32.5 {
-                        //if *lon == -180.0 {
-                        //    assert!((*tec - 17.7).abs() < 1E-3, "{}", *tec);
-                        //} else
-                        if *lon == -175.0 {
-                            assert!((*tec - 16.7).abs() < 1E-3, "{}", *tec);
+                        if *lon == -180.0 {
+                            assert!((*tec - 17.7).abs() < 1E-6, "{}", *tec);
+                        } else if *lon == -175.0 {
+                            assert!((*tec - 16.7).abs() < 1E-6, "{}", *tec);
+                        } else if *lon == -170.0 {
+                            assert!((*tec - 15.4).abs() < 1E-6, "{}", *tec);
+                        } else if *lon == 175.0 {
+                            assert!((*tec - 18.5).abs() < 1E-6, "{}", *tec);
+                        } else if *lon == 180.0 {
+                            assert!((*tec - 17.7).abs() < 1E-6, "{}", *tec);
                         }
                     }
                 }
             }
         }
         // epoch [N-2]
-        let e = Epoch::from_gregorian_utc(2022, 1, 2, 23, 0, 0, 0);
+        let e = Epoch::from_gregorian_utc(2022, 1, 2, 1, 0, 0, 0);
         let data = record.get(&e);
         assert!(data.is_some(), "epoch is missing");
         let data = data.unwrap();
@@ -81,25 +90,25 @@ mod test {
                 for (lon, tec) in longitudes {
                     if *lat == 87.5 {
                         if *lon == -180.0 {
-                            assert!((*tec - 9.2).abs() < 1E-3);
+                            assert!((*tec - 9.2).abs() < 1E-6);
                         } else if *lon == -175.0 {
-                            assert!((*tec - 9.2).abs() < 1E-3);
+                            assert!((*tec - 9.2).abs() < 1E-6);
                         }
                     } else if *lat == 27.5 {
                         if *lon == -180.0 {
-                            assert!((*tec - 21.6).abs() < 1E-3);
+                            assert!((*tec - 24.7).abs() < 1E-6);
                         } else if *lon == -175.0 {
-                            assert!((*tec - 21.4).abs() < 1E-3);
+                            assert!((*tec - 23.9).abs() < 1E-6);
                         }
                     } else if *lat == 25.0 {
                         if *lon == -180.0 {
-                            assert!((*tec - 23.8).abs() < 1E-3);
+                            assert!((*tec - 27.4).abs() < 1E-6);
                         } else if *lon == -175.0 {
-                            assert!((*tec - 23.8).abs() < 1E-3);
+                            assert!((*tec - 26.7).abs() < 1E-6);
                         } else if *lon == -170.0 {
-                            assert!((*tec - 23.2).abs() < 1E-3);
+                            assert!((*tec - 25.7).abs() < 1E-6);
                         } else if *lon == -160.0 {
-                            assert!((*tec - 21.8).abs() < 1E-3);
+                            assert!((*tec - 23.4).abs() < 1E-6);
                         }
                     }
                 }
