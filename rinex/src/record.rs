@@ -721,7 +721,7 @@ impl GnssTime for Record {
         if let Some(r) = self.as_obs() {
             r.timeseries(dt)
         } else {
-            todo!()
+            unimplemented!("timeseries for this rinex")
         }
     }
     fn convert_timescale(&mut self, ts: TimeScale) {
