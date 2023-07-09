@@ -50,7 +50,7 @@ impl GridLinspace {
     }
     /// Returns grid size, in terms of data points
     pub fn size(&self) -> usize {
-        ((self.end - self.spacing) / self.spacing).ceil() as usize
+        ((self.end - self.start) / self.spacing).ceil() as usize
     }
 }
 
@@ -96,7 +96,7 @@ mod test {
                 spacing: 0.0,
             }
         );
-        let grid = GridLinspace::new(1.0, 10.0, 1.0).unwrap();
-        assert_eq!(grid.size(), 10);
+        let grid = GridLinspace::new(-180.0, 180.0, 1.0).unwrap();
+        assert_eq!(grid.size(), 360);
     }
 }

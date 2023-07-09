@@ -195,6 +195,8 @@ pub trait Ionex {
     fn longitudes(&self) -> Vec<f64>;
     /// Returns TEC map absolute maximal value
     fn max(&self) -> (Epoch, f64, f64, f64, f64);
+    /// Returns TEC map absolute minmum value
+    fn min(&self) -> (Epoch, f64, f64, f64, f64);
 }
 
 #[cfg(test)]

@@ -102,8 +102,8 @@ impl std::str::FromStr for Filter {
             Ok(Self::Smoothing(SmoothingFilter::from_str(
                 content[offset..].trim(),
             )?))
-        } else if identifier.eq("scale") {
-            let offset = 6; // "scale:"
+        } else if identifier.eq("scaling") {
+            let offset = 8; // "scaling:"
             Ok(Self::Scaling(ScalingFilter::from_str(
                 content[offset..].trim(),
             )?))
@@ -188,14 +188,14 @@ mod test {
          * SCALING filter description
          */
         for desc in vec![
-            "scaling:remap:10",
-            "scaling:remap:2",
-            "scaling:remap:1",
+            "scaling:rescale:10",
+            "scaling:rescale:2",
+            "scaling:rescale:1",
             "scaling:offset:10",
             "scaling:offset:12.4",
         ] {
             let filt = Filter::from_str(desc);
-            assert!(filt.is_ok(), "Filter::from_str failed to \"{}\"", desc);
+            assert!(filt.is_ok(), "Filter::from_str failed on \"{}\"", desc);
         }
     }
 }

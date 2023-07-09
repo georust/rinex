@@ -2419,13 +2419,13 @@ impl Scale for Rinex {
     fn offset_mut(&mut self, b: f64) {
         self.record.offset_mut(b);
     }
-    fn remap(&self, bins: usize) -> Self {
+    fn rescale(&self, bins: usize) -> Self {
         let mut s = self.clone();
-        s.remap_mut(bins);
+        s.rescale_mut(bins);
         s
     }
-    fn remap_mut(&mut self, bins: usize) {
-        self.record.remap_mut(bins)
+    fn rescale_mut(&mut self, bins: usize) {
+        self.record.rescale_mut(bins)
     }
     fn scale(&self, a: f64, b: f64) -> Self {
         let mut s = self.clone();
@@ -2557,6 +2557,13 @@ impl ionex::Ionex for Rinex {
     fn max(&self) -> (Epoch, f64, f64, f64, f64) {
         if let Some(r) = self.record.as_ionex() {
             r.max()
+        } else {
+            (Epoch::default(), 0.0_f64, 0.0_f64, 0.0_f64, 0.0_f64)
+        }
+    }
+    fn min(&self) -> (Epoch, f64, f64, f64, f64) {
+        if let Some(r) = self.record.as_ionex() {
+            r.min()
         } else {
             (Epoch::default(), 0.0_f64, 0.0_f64, 0.0_f64, 0.0_f64)
         }

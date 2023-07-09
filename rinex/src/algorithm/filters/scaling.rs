@@ -22,10 +22,9 @@ pub enum ScalingType {
     Offset(f64),
     /// Rescale dataset with: y_k = x_k * a + b
     Scale((f64, f64)),
-    /// Remap dataset in terms of fraction of maximal value.
-    /// Maximal value for a dataset is defined as max|x_k|
-    /// for all Epoch k.
-    Remap(usize),
+    /// Rescale dataset so all data terms x_k fit in a
+    /// X = {x_1, ..., x_usize} ensemble
+    Rescale(usize),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -51,19 +50,19 @@ pub trait Scale {
     /// y_k = x_k * a + b
     fn scale_mut(&mut self, a: f64, b: f64);
     /// Rescale dataset or subset
-    fn remap(&self, bins: usize) -> Self;
+    fn rescale(&self, bins: usize) -> Self;
     /// Rescale dataset or subset  
-    fn remap_mut(&mut self, bins: usize);
+    fn rescale_mut(&mut self, bins: usize);
 }
 
 impl std::str::FromStr for ScalingFilter {
     type Err = Error;
     fn from_str(content: &str) -> Result<Self, Self::Err> {
         let items: Vec<&str> = content.trim().split(":").collect();
-        if items[0].eq("remap") {
+        if items[0].eq("rescale") {
             if let Ok(bins) = u32::from_str_radix(items[1].trim(), 10) {
                 Ok(Self {
-                    stype: ScalingType::Remap(bins as usize),
+                    stype: ScalingType::Rescale(bins as usize),
                     target: {
                         if items.len() > 2 {
                             let target = TargetItem::from_str(items[2].trim())?;

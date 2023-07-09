@@ -57,20 +57,17 @@ pub type Map3d = Vec<(f64, Map2d)>;
 /// let rinex = Rinex::from_file("../test_resources/IONEX/V1/CKMG0020.22I.gz")
 ///     .unwrap();
 /// assert_eq!(rinex.is_ionex(), true);
-/// assert_eq!(rinex.is_ionex_2d(), true);
+/// assert_eq!(rinex.is_2d_ionex(), true);
 /// if let Some(ionex) = rinex.header.ionex {
-///     assert_eq!(ionex.map_grid.height.start, 350.0); // 2D: record uses
-///     assert_eq!(ionex.map_grid.height.end, 350.0); // fixed altitude
+///     // map grid characteristics
+///     assert_eq!(ionex.map_grid.h_grid.start, 350.0); // 2D IONEX: fixed altitude
+///     assert_eq!(ionex.map_grid.h_grid.start, ionex.map_grid.h_grid.end); // 2D IONEX
 ///     assert_eq!(ionex.map_grid.lat_grid.start, 87.5);
 ///     assert_eq!(ionex.map_grid.lat_grid.end, -87.5);
-///     assert_eq!(ionex.map_grid.lat_grid.spacing, -2.5); // latitude granularity (degrees)
+///     assert_eq!(ionex.map_grid.lat_grid.spacing, -2.5); // latitude granularity (ddeg)
 ///     assert_eq!(ionex.map_grid.lon_grid.start, -180.0);
 ///     assert_eq!(ionex.map_grid.lon_grid.end, 180.0);
-///     assert_eq!(ionex.map_grid.lon_grid.spacing, 5.0); // longitude granularity (degrees)
-///     assert_eq!(ionex.exponent, -1); // data scaling. May vary accross epochs.
-///                             // so this is only the last value encountered
-///     assert_eq!(ionex.elevation_cutoff, 0.0);
-///     assert_eq!(ionex.mapping, None); // no mapping function
+///     assert_eq!(ionex.map_grid.lon_grid.spacing, 5.0); // longitude granularity (ddeg)
 /// }
 /// let record = rinex.record.as_ionex()
 ///     .unwrap();
@@ -79,6 +76,8 @@ pub type Map3d = Vec<(f64, Map2d)>;
 ///     for (z, latitudes) in altitudes {
 ///         for (lat, longitudes) in latitudes {
 ///             for (lon, tec) in longitudes {
+///                 // tec: is the TEC estimate,
+///                 // rms error is not available yet
 ///             }
 ///         }
 ///     }
@@ -407,7 +406,30 @@ impl Ionex for Record {
                 }
             }
         }
-        (epoch_max, lat_max, lon_max, z_max, 0.0_f64)
+        (epoch_max, lat_max, lon_max, z_max, tec_max)
+    }
+    fn min(&self) -> (Epoch, f64, f64, f64, f64) {
+        let mut epoch_min = Epoch::default();
+        let mut z_min = f64::INFINITY;
+        let mut lat_min = f64::INFINITY;
+        let mut lon_min = f64::INFINITY;
+        let mut tec_min = f64::INFINITY;
+        for (e, z_maps) in self {
+            for (z, lat_maps) in z_maps {
+                for (lat, lon_maps) in lat_maps {
+                    for (lon, tec) in lon_maps {
+                        if *tec < tec_min {
+                            tec_min = *tec;
+                            z_min = *z;
+                            lat_min = *lat;
+                            lon_min = *lon;
+                            epoch_min = *e;
+                        }
+                    }
+                }
+            }
+        }
+        (epoch_min, lat_min, lon_min, z_min, tec_min)
     }
 }
 
@@ -581,14 +603,16 @@ impl Scale for Record {
             }
         }
     }
-    fn remap(&self, bins: usize) -> Self {
+    fn rescale(&self, bins: usize) -> Self {
         let mut s = self.clone();
-        s.remap_mut(bins);
+        s.rescale_mut(bins);
         s
     }
-    fn remap_mut(&mut self, bins: usize) {
+    fn rescale_mut(&mut self, bins: usize) {
         // 1. determine max|TEC|
+        let (_, _, _, _, min) = self.min();
         let (_, _, _, _, max) = self.max();
-        let df = max / bins as f64;
+        let d = max - min;
+        let dx = d / bins as f64;
     }
 }
