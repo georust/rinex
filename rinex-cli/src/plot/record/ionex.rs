@@ -1,8 +1,8 @@
 use crate::plot::PlotContext;
 //use itertools::Itertools;
 use geo::{
-    coord, ClosestPoint, Contains, Coord, Intersects, LineString, MultiPolygon, Polygon, Simplify,
-    Winding,
+    coord, BoundingRect, ClosestPoint, Contains, Coord, Intersects, LineString, MultiPolygon,
+    Polygon, Simplify, Winding,
 };
 use itertools::Itertools;
 use plotly::{
@@ -144,7 +144,7 @@ pub fn plot_tec_map(plot_ctx: &mut PlotContext, map_grid: &Grid, record: &Record
         if *lon0 > 150.0 && *lon1 < 180.0 {
             //TODO: remove this filter
             for (lat0, lat1) in latitudes.iter().zip(latitudes.iter().skip(1)) {
-                if *lat1 < 10.0 && *lat0 > -10.0 {
+                if *lat1 < 50.0 && *lat0 > -50.0 {
                     // TODO: remove this filter
                     println!("LAT : {} {}, LON : {} {}", lat0, lat1, lon0, lon1);
                     // determine average tec value
@@ -183,26 +183,30 @@ pub fn plot_tec_map(plot_ctx: &mut PlotContext, map_grid: &Grid, record: &Record
                     ]);
                     let rect = Polygon::new(contour.clone(), vec![]);
                     let mut intersects = false;
-                    for (_, poly) in polygons.iter_mut() {
-                        let exterior = poly.exterior();
-                        intersects |= exterior.intersects(&rect);
-                        if intersects {
-                            println!("WESTERN: {}", western_longitude(&exterior));
-                            println!("SOUTHERN: {}", southern_latitude(&exterior));
-                            //let mut coords: Vec<Coord<f64>> = exterior.coords().into_iter().map(|c| *c).collect();
-                            //let _ = coords.pop();
-                            //println!("=====================");
-                            //println!("coords : {:?}", coords);
-                            //coords.push(Coord{ x: *lat1, y: *lon0});
-                            //coords.push(Coord{ x: *lat1, y: *lon1});
-                            //coords.push(Coord{ x: *lat0, y: *lon1});
-                            //coords.push(Coord{ x: *lat0, y: *lon0});
-                            //println!("coords : {:?}", coords);
-                            //println!("=====================");
-                            //let mut linestring = LineString::from(coords);
-                            //linestring.simplify(&100.0);
-                            ////linestring.make_cw_winding();
-                            //*poly = Polygon::new(linestring, vec![]);
+                    for (value, poly) in polygons.iter_mut() {
+                        if *value == tec {
+                            // same map value: area extension is allowed
+                            let exterior = poly.exterior();
+                            intersects |= exterior.intersects(&rect);
+                            if intersects {
+                                println!("WESTERN: {}", western_longitude(&exterior));
+                                println!("SOUTHERN: {}", southern_latitude(&exterior));
+                                let mut coords: Vec<Coord<f64>> =
+                                    exterior.coords().into_iter().map(|c| *c).collect();
+                                let _ = coords.pop();
+                                //println!("=====================");
+                                //println!("coords : {:?}", coords);
+                                coords.push(Coord { x: *lat1, y: *lon0 });
+                                coords.push(Coord { x: *lat1, y: *lon1 });
+                                coords.push(Coord { x: *lat0, y: *lon1 });
+                                coords.push(Coord { x: *lat0, y: *lon0 });
+                                //println!("coords : {:?}", coords);
+                                //println!("=====================");
+                                let mut linestring = LineString::from(coords);
+                                linestring.simplify(&simplify_dx);
+                                ////linestring.make_cw_winding();
+                                *poly = Polygon::new(linestring, vec![]);
+                            }
                         }
                     }
                     if !intersects {
@@ -235,12 +239,18 @@ pub fn plot_tec_map(plot_ctx: &mut PlotContext, map_grid: &Grid, record: &Record
     //    .fill_color(Rgba::new(30, 30, 30, 0.66));
     //plot_ctx.add_trace(area0);
     for (tec, polygon) in &polygons {
-        let ext = polygon.exterior();
-        let longitudes: Vec<f64> = ext.coords().into_iter().map(|c| c.x).collect();
-        let latitudes: Vec<f64> = ext.coords().into_iter().map(|c| c.y).collect();
-        let area = ScatterMapbox::new(latitudes, longitudes)
-            .fill(Fill::ToSelf)
-            .fill_color(Rgba::new(50, 50, 50, 0.66));
-        plot_ctx.add_trace(area);
+        if let Some(rect) = polygon.bounding_rect() {
+            let poly = rect.to_polygon();
+            let ext = poly.exterior();
+            let longitudes: Vec<f64> = ext.coords().into_iter().map(|c| c.x).collect();
+            let latitudes: Vec<f64> = ext.coords().into_iter().map(|c| c.y).collect();
+
+            let color = cmap.eval_continuous(tec / tec_max);
+            let (r, g, b) = (color.r, color.g, color.b);
+            let area = ScatterMapbox::new(latitudes, longitudes)
+                .fill(Fill::ToSelf)
+                .fill_color(Rgba::new(r, g, b, 0.66));
+            plot_ctx.add_trace(area);
+        }
     }
 }
