@@ -10,9 +10,9 @@ use crate::{
     merge::Merge,
     prelude::*,
     processing::{
-        Combination, Combine, Decimate, DecimationType, Filter, Interpolate, IonoDelayDetector,
-        Mask, MaskFilter, MaskOperand, Preprocessing, Processing, Scale, ScalingType, Smooth,
-        SmoothingType, TargetItem,
+        Combination, Combine, Decimate, DecimationFilter, DecimationType, Filter, Interpolate,
+        IonoDelayDetector, Mask, MaskFilter, MaskOperand, Preprocessing, Processing, Scale,
+        ScalingFilter, ScalingType, Smooth, SmoothingFilter, SmoothingType, TargetItem,
     },
     split,
     split::Split,
@@ -788,6 +788,49 @@ impl GnssTime for Record {
 }
 
 impl Smooth for Record {
+    fn smooth(&self, smoothing: SmoothingFilter) -> Self {
+        let mut s = self.clone();
+        s.smooth_mut(smoothing);
+        s
+    }
+    fn smooth_mut(&mut self, smoothing: SmoothingFilter) {
+        match smoothing.stype {
+            SmoothingType::Hatch => {
+                match smoothing.target {
+                    Some(item) => {
+                        // apply mask to retain desired subset
+                        let mask = MaskFilter {
+                            item: item.clone(),
+                            operand: MaskOperand::Equals,
+                        };
+                        // apply smoothing: on subset
+                        let mut subset = self.mask(mask);
+                        subset.hatch_smoothing_mut();
+                        // overwrite targetted subset
+                        let _ = self.merge_mut(&subset); // this cannot fail here
+                    },
+                    _ => self.hatch_smoothing_mut(),
+                }
+            },
+            SmoothingType::MovingAverage(dt) => {
+                match smoothing.target {
+                    Some(item) => {
+                        // apply mask to retain desired subset
+                        let mask = MaskFilter {
+                            item: item.clone(),
+                            operand: MaskOperand::Equals,
+                        };
+                        // apply smoothing: on subset
+                        let mut subset = self.mask(mask);
+                        subset.moving_average_mut(dt);
+                        // overwrite
+                        let _ = self.merge_mut(&subset);
+                    },
+                    _ => self.moving_average_mut(dt),
+                }
+            },
+        }
+    }
     fn hatch_smoothing(&self) -> Self {
         let mut s = self.clone();
         s.hatch_smoothing_mut();
@@ -1191,119 +1234,54 @@ impl Preprocessing for Record {
     fn filter_mut(&mut self, filter: Filter) {
         match filter {
             Filter::Mask(mask) => self.mask_mut(mask),
-            Filter::Smoothing(filter) => match filter.stype {
-                SmoothingType::Hatch => {
-                    if filter.target.is_none() {
-                        self.hatch_smoothing_mut();
-                        return; // no need to proceed further
-                    }
-
-                    let item = filter.target.unwrap();
-
-                    // apply mask to retain desired subset
-                    let mask = MaskFilter {
-                        item: item.clone(),
-                        operand: MaskOperand::Equals,
-                    };
-
-                    // apply smoothing
-                    let mut subset = self.mask(mask);
-                    subset.hatch_smoothing_mut();
-                    // overwrite targetted content
-                    let _ = self.merge_mut(&subset); // cannot fail here (record types match)
-                },
-                SmoothingType::MovingAverage(dt) => {
-                    if filter.target.is_none() {
-                        self.moving_average_mut(dt);
-                        return; // no need to proceed further
-                    }
-
-                    let item = filter.target.unwrap();
-
-                    // apply mask to retain desired subset
-                    let mask = MaskFilter {
-                        item: item.clone(),
-                        operand: MaskOperand::Equals,
-                    };
-
-                    // apply smoothing
-                    let mut subset = self.mask(mask);
-                    subset.moving_average_mut(dt);
-                    // overwrite targetted content
-                    let _ = self.merge_mut(&subset); // cannot fail here (record types match)
-                },
-            },
+            Filter::Smoothing(filter) => self.smooth_mut(filter),
             Filter::Interp(filter) => self.interpolate_mut(filter.series),
-            Filter::Decimation(filter) => match filter.dtype {
-                DecimationType::DecimByRatio(r) => {
-                    if filter.target.is_none() {
-                        self.decimate_by_ratio_mut(r);
-                        return; // no need to proceed further
-                    }
-
-                    let item = filter.target.unwrap();
-
-                    // apply mask to retain desired subset
-                    let mask = MaskFilter {
-                        item: item.clone(),
-                        operand: MaskOperand::Equals,
-                    };
-
-                    // and decimate
-                    let subset = self.mask(mask).decimate_by_ratio(r);
-
-                    // adapt self's subset to new data rates
-                    decimate_data_subset(self, &subset, &item);
-                },
-                DecimationType::DecimByInterval(dt) => {
-                    if filter.target.is_none() {
-                        self.decimate_by_interval_mut(dt);
-                        return; // no need to proceed further
-                    }
-
-                    let item = filter.target.unwrap();
-
-                    // apply mask to retain desired subset
-                    let mask = MaskFilter {
-                        item: item.clone(),
-                        operand: MaskOperand::Equals,
-                    };
-
-                    // and decimate
-                    let subset = self.mask(mask).decimate_by_interval(dt);
-
-                    // adapt self's subset to new data rates
-                    decimate_data_subset(self, &subset, &item);
-                },
-            },
-            Filter::Scaling(filter) => match filter.stype {
-                ScalingType::Offset(value) => {
-                    if filter.target.is_none() {
-                        self.offset_mut(value);
-                        return; // no need to proceed furtuer
-                    }
-                    unimplemented!("observation:record:offset a subset");
-                },
-                ScalingType::Scale((a, b)) => {
-                    if filter.target.is_none() {
-                        self.scale_mut(a, b);
-                        return; // no need to proceed further
-                    }
-                    unimplemented!("observation:record:scale a subset");
-                },
-                ScalingType::Rescale(bins) => {
-                    if filter.target.is_none() {
-                        self.rescale_mut(bins);
-                        return; // no need to proceed further
-                    }
-                    unimplemented!("observation:record:rescale a subset");
-                },
-            },
+            Filter::Decimation(filter) => self.decimate_mut(filter),
+            Filter::Scaling(filter) => self.scale_mut(filter),
         }
     }
 }
 
 impl Decimate for Record {
+    fn decimate(&self, decimation: DecimationFilter) -> Self {
+        let mut s = self.clone();
+        s.decimate_mut(decimation);
+        s
+    }
+    fn decimate_mut(&mut self, decimation: DecimationFilter) {
+        match decimation.dtype {
+            DecimationType::DecimByRatio(r) => {
+                match decimation.target {
+                    Some(item) => {
+                        // retain desired subset
+                        let mask = MaskFilter {
+                            item: item.clone(),
+                            operand: MaskOperand::Equals,
+                        };
+                        let subset = self.mask(mask).decimate_by_ratio(r);
+                        // adapt self's subset to new data rates
+                        decimate_data_subset(self, &subset, &item);
+                    },
+                    _ => self.decimate_by_ratio_mut(r),
+                }
+            },
+            DecimationType::DecimByInterval(dt) => {
+                match decimation.target {
+                    Some(item) => {
+                        // retain desired subset
+                        let mask = MaskFilter {
+                            item: item.clone(),
+                            operand: MaskOperand::Equals,
+                        };
+                        let subset = self.mask(mask).decimate_by_interval(dt);
+                        // adapt self's subset to new data rates
+                        decimate_data_subset(self, &subset, &item);
+                    },
+                    _ => self.decimate_by_interval_mut(dt),
+                }
+            },
+        }
+    }
     fn decimate_by_ratio_mut(&mut self, r: u32) {
         let mut i = 0;
         self.retain(|_, _| {
@@ -1346,6 +1324,17 @@ impl Decimate for Record {
 }
 
 impl Scale for Record {
+    fn scale(&self, scaling: ScalingFilter) -> Self {
+        let mut s = self.clone();
+        s.scale_mut(scaling);
+        s
+    }
+    fn scale_mut(&mut self, scaling: ScalingFilter) {
+        match scaling.stype {
+            ScalingType::Offset(b) => self.offset_mut(b),
+            ScalingType::Rescale(bins) => self.rescale_mut(bins),
+        }
+    }
     fn rescale(&self, bins: usize) -> Self {
         let mut s = self.clone();
         s.rescale_mut(bins);
@@ -1361,14 +1350,6 @@ impl Scale for Record {
     }
     fn offset_mut(&mut self, value: f64) {
         unimplemented!("observation:record:offset_mut");
-    }
-    fn scale(&self, a: f64, b: f64) -> Self {
-        let mut s = self.clone();
-        s.scale_mut(a, b);
-        s
-    }
-    fn scale_mut(&mut self, a: f64, b: f64) {
-        unimplemented!("observation:record:scale_mut");
     }
 }
 

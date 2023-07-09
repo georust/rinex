@@ -1,7 +1,7 @@
 //! `NavigationData` parser and related methods
 use crate::processing::{
     Filter, Interpolate, Mask, MaskFilter, MaskOperand, Preprocessing, Scale, ScalingFilter,
-    TargetItem,
+    ScalingType, TargetItem,
 };
 use regex::{Captures, Regex};
 use std::collections::BTreeMap;
@@ -1678,47 +1678,8 @@ impl Preprocessing for Record {
         match filt {
             Filter::Mask(mask) => self.mask_mut(mask),
             Filter::Interp(filter) => self.interpolate_mut(filter.series),
-            Filter::Scaling(filter) => unimplemented!("filter:scaling on nav record"),
-            Filter::Decimation(filter) => match filter.dtype {
-                DecimationType::DecimByRatio(r) => {
-                    if filter.target.is_none() {
-                        self.decimate_by_ratio_mut(r);
-                        return; // no need to proceed further
-                    }
-
-                    let item = filter.target.unwrap();
-
-                    // apply mask to retain desired subset
-                    let mask = MaskFilter {
-                        item: item.clone(),
-                        operand: MaskOperand::Equals,
-                    };
-
-                    // decimate
-                    let subset = self.mask(mask).decimate_by_ratio(r);
-                    // adapt self's subset to new data rate
-                    decimate_data_subset(self, &subset, &item);
-                },
-                DecimationType::DecimByInterval(dt) => {
-                    if filter.target.is_none() {
-                        self.decimate_by_interval_mut(dt);
-                        return; // no need to proceed further
-                    }
-
-                    let item = filter.target.unwrap();
-
-                    // apply mask to retain desired subset
-                    let mask = MaskFilter {
-                        item: item.clone(),
-                        operand: MaskOperand::Equals,
-                    };
-
-                    // decimate
-                    let subset = self.mask(mask).decimate_by_interval(dt);
-                    // adapt self's subset to new data rate
-                    decimate_data_subset(self, &subset, &item);
-                },
-            },
+            Filter::Scaling(filter) => self.scale_mut(filter),
+            Filter::Decimation(filter) => self.decimate_mut(filter),
             Filter::Smoothing(_) => unimplemented!("navigation:record:smoothing"),
         }
     }
@@ -1735,9 +1696,48 @@ impl Interpolate for Record {
     }
 }
 
-use crate::processing::{Decimate, DecimationType};
+use crate::processing::{Decimate, DecimationFilter, DecimationType};
 
 impl Decimate for Record {
+    fn decimate(&self, decimation: DecimationFilter) -> Self {
+        let mut s = self.clone();
+        s.decimate_mut(decimation);
+        s
+    }
+    fn decimate_mut(&mut self, decimation: DecimationFilter) {
+        match decimation.dtype {
+            DecimationType::DecimByRatio(r) => {
+                match decimation.target {
+                    Some(item) => {
+                        // select desired subset
+                        let mask = MaskFilter {
+                            item: item.clone(),
+                            operand: MaskOperand::Equals,
+                        };
+                        let subset = self.mask(mask).decimate_by_ratio(r);
+                        // rework sample rate
+                        decimate_data_subset(self, &subset, &item);
+                    },
+                    _ => self.decimate_by_ratio_mut(r),
+                }
+            },
+            DecimationType::DecimByInterval(dt) => {
+                match decimation.target {
+                    Some(item) => {
+                        // select desired subset
+                        let mask = MaskFilter {
+                            item: item.clone(),
+                            operand: MaskOperand::Equals,
+                        };
+                        let subset = self.mask(mask).decimate_by_interval(dt);
+                        // rework sample rate
+                        decimate_data_subset(self, &subset, &item);
+                    },
+                    _ => self.decimate_by_interval_mut(dt),
+                }
+            },
+        }
+    }
     /// Decimates Self by desired factor
     fn decimate_by_ratio_mut(&mut self, r: u32) {
         let mut i = 0;
@@ -1783,6 +1783,17 @@ impl Decimate for Record {
 }
 
 impl Scale for Record {
+    fn scale(&self, scaling: ScalingFilter) -> Self {
+        let mut s = self.clone();
+        s.scale_mut(scaling);
+        s
+    }
+    fn scale_mut(&mut self, scaling: ScalingFilter) {
+        match scaling.stype {
+            ScalingType::Offset(b) => self.offset_mut(b),
+            ScalingType::Rescale(bins) => self.rescale_mut(bins),
+        }
+    }
     fn offset(&self, b: f64) -> Self {
         let mut s = self.clone();
         s.offset_mut(b);
@@ -1790,14 +1801,6 @@ impl Scale for Record {
     }
     fn offset_mut(&mut self, b: f64) {
         unimplemented!("navigation:record:offset_mut()");
-    }
-    fn scale(&self, a: f64, b: f64) -> Self {
-        let mut s = self.clone();
-        s.scale_mut(a, b);
-        s
-    }
-    fn scale_mut(&mut self, a: f64, b: f64) {
-        unimplemented!("navigation:record:scale_mut()");
     }
     fn rescale(&self, bins: usize) -> Self {
         let mut s = self.clone();

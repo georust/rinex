@@ -20,8 +20,6 @@ pub enum Error {
 pub enum ScalingType {
     /// Apply a static offset: y_k = x_k + a
     Offset(f64),
-    /// Rescale dataset with: y_k = x_k * a + b
-    Scale((f64, f64)),
     /// Rescale dataset so all data terms x_k fit in a
     /// X = {x_1, ..., x_usize} ensemble
     Rescale(usize),
@@ -37,18 +35,16 @@ pub struct ScalingFilter {
 }
 
 pub trait Scale {
+    /// Apply given scaling filter
+    fn scale(&self, scaling: ScalingFilter) -> Self;
+    /// Apply given scaling filter in place
+    fn scale_mut(&mut self, scaling: ScalingFilter);
     /// Offset dataset or subset by a static value
     /// y_k = x_k + b
     fn offset(&self, b: f64) -> Self;
     /// Offset dataset or subset by a static value
     /// y_k = x_k + b
     fn offset_mut(&mut self, b: f64);
-    /// Scale dataset or subset values to
-    /// y_k = x_k * a + b
-    fn scale(&self, a: f64, b: f64) -> Self;
-    /// Scale dataset or subset values to
-    /// y_k = x_k * a + b
-    fn scale_mut(&mut self, a: f64, b: f64);
     /// Rescale dataset or subset
     fn rescale(&self, bins: usize) -> Self;
     /// Rescale dataset or subset  

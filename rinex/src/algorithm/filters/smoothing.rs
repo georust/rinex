@@ -71,6 +71,8 @@ impl std::str::FromStr for SmoothingFilter {
 }
 
 pub trait Smooth {
+    fn smooth(&self, smoothing: SmoothingFilter) -> Self;
+    fn smooth_mut(&mut self, smoothing: SmoothingFilter);
     /// Applies mov average filter to self
     fn moving_average(&self, window: Duration) -> Self;
     /// Moving average mutable implementation

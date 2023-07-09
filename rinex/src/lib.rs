@@ -96,7 +96,7 @@ use prelude::*;
 pub use merge::Merge;
 pub use split::Split;
 
-use algorithm::{Combination, Combine, Dcb, IonoDelayDetector, Mp, Smooth};
+use algorithm::{Combination, Combine, Dcb, IonoDelayDetector, Mp, Smooth, SmoothingFilter};
 
 #[macro_use]
 extern crate horrorshow;
@@ -2344,6 +2344,18 @@ impl Split for Rinex {
 }
 
 impl Smooth for Rinex {
+    fn smooth(&self, smoothing: SmoothingFilter) -> Self {
+        let mut s = self.clone();
+        s.smooth_mut(smoothing);
+        s
+    }
+    fn smooth_mut(&mut self, smoothing: SmoothingFilter) {
+        if let Some(r) = self.record.as_mut_obs() {
+            r.smooth_mut(smoothing);
+        } else {
+            unimplemented!("smooth_mut() for this type of rinex");
+        }
+    }
     fn moving_average(&self, window: Duration) -> Self {
         let mut s = self.clone();
         s.moving_average_mut(window);
@@ -2379,9 +2391,17 @@ impl Preprocessing for Rinex {
     }
 }
 
-use crate::algorithm::Decimate;
+use crate::algorithm::{Decimate, DecimationFilter};
 
 impl Decimate for Rinex {
+    fn decimate(&self, decimation: DecimationFilter) -> Self {
+        let mut s = self.clone();
+        s.decimate_mut(decimation);
+        s
+    }
+    fn decimate_mut(&mut self, decimation: DecimationFilter) {
+        self.record.decimate_mut(decimation);
+    }
     fn decimate_by_ratio(&self, r: u32) -> Self {
         let mut s = self.clone();
         s.decimate_by_ratio_mut(r);
@@ -2408,9 +2428,17 @@ impl Decimate for Rinex {
     }
 }
 
-use crate::algorithm::Scale;
+use crate::algorithm::{Scale, ScalingFilter};
 
 impl Scale for Rinex {
+    fn scale(&self, scaling: ScalingFilter) -> Self {
+        let mut s = self.clone();
+        s.scale(scaling);
+        s
+    }
+    fn scale_mut(&mut self, scaling: ScalingFilter) {
+        self.record.scale_mut(scaling);
+    }
     fn offset(&self, b: f64) -> Self {
         let mut s = self.clone();
         s.offset_mut(b);
@@ -2426,14 +2454,6 @@ impl Scale for Rinex {
     }
     fn rescale_mut(&mut self, bins: usize) {
         self.record.rescale_mut(bins)
-    }
-    fn scale(&self, a: f64, b: f64) -> Self {
-        let mut s = self.clone();
-        s.scale_mut(a, b);
-        s
-    }
-    fn scale_mut(&mut self, a: f64, b: f64) {
-        self.record.scale_mut(a, b)
     }
 }
 

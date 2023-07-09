@@ -1,7 +1,7 @@
 use crate::{
     algorithm::{
-        Filter, Interpolate, Mask, MaskFilter, MaskOperand, Preprocessing, Scale, ScalingType,
-        TargetItem,
+        Filter, Interpolate, Mask, MaskFilter, MaskOperand, Preprocessing, Scale, ScalingFilter,
+        ScalingType, TargetItem,
     },
     gnss_time::GnssTime,
     merge,
@@ -551,10 +551,10 @@ impl Preprocessing for Record {
     fn filter_mut(&mut self, f: Filter) {
         match f {
             Filter::Mask(mask) => self.mask_mut(mask),
+            Filter::Scaling(f) => self.scale_mut(f),
             Filter::Smoothing(_) => unimplemented!("filter:smoothing on ionex"),
             Filter::Decimation(_) => unimplemented!("filter:decimation on ionex"),
             Filter::Interp(filter) => self.interpolate_mut(filter.series),
-            Filter::Scaling(filter) => unimplemented!("filter:scaling on ionex"),
         }
     }
 }
@@ -571,6 +571,17 @@ impl Interpolate for Record {
 }
 
 impl Scale for Record {
+    fn scale(&self, scaling: ScalingFilter) -> Self {
+        let mut s = self.clone();
+        s.scale_mut(scaling);
+        s
+    }
+    fn scale_mut(&mut self, scaling: ScalingFilter) {
+        match scaling.stype {
+            ScalingType::Offset(b) => self.offset_mut(b),
+            ScalingType::Rescale(bins) => self.rescale_mut(bins),
+        }
+    }
     fn offset(&self, b: f64) -> Self {
         let mut s = self.clone();
         s.offset_mut(b);
@@ -587,22 +598,6 @@ impl Scale for Record {
             }
         }
     }
-    fn scale(&self, a: f64, b: f64) -> Self {
-        let mut s = self.clone();
-        s.scale_mut(a, b);
-        s
-    }
-    fn scale_mut(&mut self, a: f64, b: f64) {
-        for (_e, z_maps) in self.iter_mut() {
-            for (_z, lat_maps) in z_maps.iter_mut() {
-                for (_lat, lon_maps) in lat_maps.iter_mut() {
-                    for (_lon, tec) in lon_maps.iter_mut() {
-                        *tec = *tec * a + b;
-                    }
-                }
-            }
-        }
-    }
     fn rescale(&self, bins: usize) -> Self {
         let mut s = self.clone();
         s.rescale_mut(bins);
@@ -612,7 +607,32 @@ impl Scale for Record {
         // 1. determine max|TEC|
         let (_, _, _, _, min) = self.min();
         let (_, _, _, _, max) = self.max();
-        let d = max - min;
-        let dx = d / bins as f64;
+        let dtot = max - min;
+        let dtec = dtot / bins as f64;
+        // min   <dtec>    max
+        // |----|-----|-----|
+        for (_, altitudes) in self.iter_mut() {
+            for (_, latitudes) in altitudes.iter_mut() {
+                for (_, longitudes) in latitudes.iter_mut() {
+                    for (_, tec) in longitudes.iter_mut() {
+                        for i in 0..bins {
+                            let d_i = dtec * ((i as f64) + 1.0);
+                            let d_j = dtec * ((i as f64) + 2.0);
+                            if *tec >= d_i && *tec <= d_j {
+                                // this value is contained in that space
+                                // -> map to closest limit
+                                let dest_i = (*tec - d_i).abs();
+                                let dest_j = (*tec - d_j).abs();
+                                if dest_i < dest_j {
+                                    *tec = d_i;
+                                } else {
+                                    *tec = d_j;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }

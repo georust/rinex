@@ -27,6 +27,8 @@ pub struct DecimationFilter {
 }
 
 pub trait Decimate {
+    fn decimate(&self, decimation: DecimationFilter) -> Self;
+    fn decimate_mut(&mut self, decimation: DecimationFilter);
     /// Decimate by a constant ratio.
     /// For example, if we decimate epochs {e_0, e_1, .., e_k, ..., e_n}
     /// by 2, we get {e_0, e_2, ..., e_k, e_k+2, ..}.
