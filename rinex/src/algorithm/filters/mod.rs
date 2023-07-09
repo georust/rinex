@@ -108,7 +108,7 @@ impl std::str::FromStr for Filter {
                 content[offset..].trim(),
             )?))
         } else if identifier.eq("interp") {
-            todo!("InterpolationFilter::from_str()");
+            unimplemented!("InterpolationFilter::from_str()");
         } else if identifier.eq("mask") {
             let offset = 5; //"mask:"
             Ok(Self::Mask(MaskFilter::from_str(content[offset..].trim())?))
@@ -116,6 +116,10 @@ impl std::str::FromStr for Filter {
             // assume Mask (omitted identifier)
             if let Ok(f) = MaskFilter::from_str(content.trim()) {
                 Ok(Self::Mask(f))
+            } else if let Ok(f) = ScalingFilter::from_str(content.trim()) {
+                Ok(Self::Scaling(f))
+            } else if let Ok(f) = SmoothingFilter::from_str(content.trim()) {
+                Ok(Self::Smoothing(f))
             } else {
                 Err(Error::UnknownFilterType(content.to_string()))
             }
@@ -132,6 +136,8 @@ pub trait Preprocessing {
 mod test {
     use super::*;
     use std::str::FromStr;
+    use hifitime::Duration;
+    use crate::Observable;
     #[test]
     fn from_str() {
         /*
@@ -173,29 +179,82 @@ mod test {
         /*
          * SMOOTHING FILTER description
          */
-        for desc in vec![
-            "smooth:mov:10 min",
-            "smooth:mov:1 hour",
-            "smooth:mov:1 hour:l1c",
-            "smooth:mov:10 min:clk",
-            "smooth:hatch",
-            "smooth:hatch:l1c",
+        for (desc, expected) in vec![
+            ("mov:10 min", 
+                Filter::Smoothing(SmoothingFilter {
+                    target: None,
+                    stype: SmoothingType::MovingAverage(Duration::from_seconds(10.0*60.0)),
+                })
+            ),
+            ("mov:1 hour", 
+                Filter::Smoothing(SmoothingFilter {
+                    target: None,
+                    stype: SmoothingType::MovingAverage(Duration::from_hours(1.0)),
+                })
+            ),
+            ("mov:1 hour:l1c",
+                Filter::Smoothing(SmoothingFilter {
+                    target: Some(TargetItem::ObservableItem(vec![Observable::from_str("l1c").unwrap()])),
+                    stype: SmoothingType::MovingAverage(Duration::from_hours(1.0)),
+                })
+            ),
+            ("mov:10 min:clk",
+                Filter::Smoothing(SmoothingFilter {
+                    target: Some(TargetItem::ClockItem),
+                    stype: SmoothingType::MovingAverage(Duration::from_seconds(10.0 * 60.0)),
+                })
+            ),
+            ("hatch",
+                Filter::Smoothing(SmoothingFilter {
+                    target: None,
+                    stype: SmoothingType::Hatch,
+                })
+            ),
+            ("hatch:l1c",
+                Filter::Smoothing(SmoothingFilter {
+                    target: Some(TargetItem::ObservableItem(vec![Observable::from_str("l1c").unwrap()])),
+                    stype: SmoothingType::Hatch,
+                })
+            ),
         ] {
             let filt = Filter::from_str(desc);
-            assert!(filt.is_ok(), "Filter::from_str failed on \"{}\"", desc);
+            assert!(filt.is_ok(), "filter::from_str: failed on \"{}\"", desc);
+            let filt = filt.unwrap();
+            assert_eq!(filt, expected, "filter::from_str: badly parsed {:?} from \"{}\"", filt, desc);
         }
         /*
          * SCALING filter description
          */
-        for desc in vec![
-            "scaling:rescale:10",
-            "scaling:rescale:2",
-            "scaling:rescale:1",
-            "scaling:offset:10",
-            "scaling:offset:12.4",
+        for (desc, expected) in vec![
+            ("rescale:10", 
+                Filter::Scaling(ScalingFilter {
+                    target: None,
+                    stype: ScalingType::Remap(10),
+                }),
+            ),
+            ("rescale:2:l1c",
+                Filter::Scaling(ScalingFilter {
+                    target: Some(TargetItem::ObservableItem(vec![Observable::from_str("l1c").unwrap()])),
+                    stype: ScalingType::Remap(2),
+                }),
+            ),
+            ("offset:10",
+                Filter::Scaling(ScalingFilter {
+                    target: None,
+                    stype: ScalingType::Offset(10.0),
+                }),
+            ),
+            ("offset:12.4",
+                Filter::Scaling(ScalingFilter {
+                    target: None,
+                    stype: ScalingType::Offset(12.4),
+                }),
+            ),
         ] {
             let filt = Filter::from_str(desc);
-            assert!(filt.is_ok(), "Filter::from_str failed on \"{}\"", desc);
+            assert!(filt.is_ok(), "filter::from_str: failed on \"{}\"", desc);
+            let filt = filt.unwrap();
+            assert_eq!(filt, expected, "filter::from_str: badly parsed {:?} from \"{}\"", filt, desc);
         }
     }
 }

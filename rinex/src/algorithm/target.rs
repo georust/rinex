@@ -251,6 +251,11 @@ impl std::str::FromStr for TargetItem {
                 Err(Error::InvalidDuration)
             }
         /*
+         *  "clk" special key word: clock data special subset
+         */
+        } else if c.eq("clk") {
+            Ok(Self::ClockItem)
+        /*
          * Sv
          */
         } else if let Ok(_sv) = Sv::from_str(items[0].trim()) {
