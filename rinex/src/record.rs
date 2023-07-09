@@ -878,22 +878,22 @@ impl Scale for Record {
         s.offset_mut(b);
         s
     }
-    fn remap(&self, bins: usize) -> Self {
+    fn rescale(&self, bins: usize) -> Self {
         let mut s = self.clone();
-        s.remap_mut(bins);
+        s.rescale_mut(bins);
         s
     }
-    fn remap_mut(&mut self, bins: usize) {
+    fn rescale_mut(&mut self, bins: usize) {
         if let Some(rec) = self.as_mut_obs() {
-            rec.remap_mut(bins)
+            rec.rescale_mut(bins)
         } else if let Some(rec) = self.as_mut_meteo() {
-            rec.remap_mut(bins)
+            rec.rescale_mut(bins)
         } else if let Some(rec) = self.as_mut_nav() {
-            rec.remap_mut(bins)
+            rec.rescale_mut(bins)
         } else if let Some(rec) = self.as_mut_ionex() {
-            rec.remap_mut(bins)
+            rec.rescale_mut(bins)
         } else {
-            unimplemented!("remap_mut() for this type of rinex");
+            unimplemented!("rescale_mut() for this type of rinex");
         }
     }
     fn scale(&self, a: f64, b: f64) -> Self {
@@ -911,7 +911,7 @@ impl Scale for Record {
         } else if let Some(rec) = self.as_mut_ionex() {
             rec.scale_mut(a, b)
         } else {
-            unimplemented!("remap_mut() for this type of rinex");
+            unimplemented!("scale_mut() for this type of rinex");
         }
     }
 }

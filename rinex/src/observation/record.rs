@@ -1291,12 +1291,12 @@ impl Preprocessing for Record {
                     }
                     unimplemented!("observation:record:scale a subset");
                 },
-                ScalingType::Remap(bins) => {
+                ScalingType::Rescale(bins) => {
                     if filter.target.is_none() {
-                        self.remap_mut(bins);
+                        self.rescale_mut(bins);
                         return; // no need to proceed further
                     }
-                    unimplemented!("observation:record:remap a subset");
+                    unimplemented!("observation:record:rescale a subset");
                 },
             },
         }
@@ -1346,13 +1346,13 @@ impl Decimate for Record {
 }
 
 impl Scale for Record {
-    fn remap(&self, bins: usize) -> Self {
+    fn rescale(&self, bins: usize) -> Self {
         let mut s = self.clone();
-        s.remap_mut(bins);
+        s.rescale_mut(bins);
         s
     }
-    fn remap_mut(&mut self, bins: usize) {
-        unimplemented!("observation:record:remap_mut");
+    fn rescale_mut(&mut self, bins: usize) {
+        unimplemented!("observation:record:rescale_mut");
     }
     fn offset(&self, value: f64) -> Self {
         let mut s = self.clone();

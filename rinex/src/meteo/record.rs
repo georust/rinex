@@ -452,9 +452,9 @@ impl Preprocessing for Record {
                     }
                     unimplemented!("scale: on meteo subset");
                 },
-                ScalingType::Remap(bins) => {
+                ScalingType::Rescale(bins) => {
                     if filter.target.is_none() {
-                        self.remap_mut(bins);
+                        self.rescale_mut(bins);
                         return; // no need to proceed further
                     }
                     unimplemented!("remap: on meteo subset");
@@ -502,13 +502,13 @@ impl Scale for Record {
             }
         }
     }
-    fn remap(&self, bins: usize) -> Self {
+    fn rescale(&self, bins: usize) -> Self {
         let mut s = self.clone();
-        s.remap_mut(bins);
+        s.rescale_mut(bins);
         s
     }
-    fn remap_mut(&mut self, bins: usize) {
-        unimplemented!("remap_mut() on meteo record");
+    fn rescale_mut(&mut self, bins: usize) {
+        unimplemented!("rescale_mut() on meteo record");
     }
 }
 

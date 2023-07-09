@@ -1799,12 +1799,12 @@ impl Scale for Record {
     fn scale_mut(&mut self, a: f64, b: f64) {
         unimplemented!("navigation:record:scale_mut()");
     }
-    fn remap(&self, bins: usize) -> Self {
+    fn rescale(&self, bins: usize) -> Self {
         let mut s = self.clone();
-        s.remap_mut(bins);
+        s.rescale_mut(bins);
         s
     }
-    fn remap_mut(&mut self, bins: usize) {
-        unimplemented!("navigation:record:remap_mut()");
+    fn rescale_mut(&mut self, bins: usize) {
+        unimplemented!("navigation:record:recale_mut()");
     }
 }
