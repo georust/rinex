@@ -2,7 +2,7 @@ RINEX
 =====
 
 [![Rust](https://github.com/gwbres/rinex/actions/workflows/rust.yml/badge.svg)](https://github.com/gwbres/rinex/actions/workflows/rust.yml)
-[![crates.io](https://docs.rs/rinex/badge.svg)](https://docs.rs/rinex/badge.svg)
+[![crates.io](https://docs.rs/rinex/badge.svg)](https://docs.rs/rinex/)
 [![crates.io](https://img.shields.io/crates/d/rinex.svg)](https://crates.io/crates/rinex)
 
 [![minimum rustc: 1.61](https://img.shields.io/badge/minimum%20rustc-1.61-blue?logo=rust)](https://www.whatrustisit.com)
