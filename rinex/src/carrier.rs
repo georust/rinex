@@ -568,11 +568,12 @@ impl Carrier {
                 _ => Ok(Self::L1),
             },
             Constellation::BeiDou => match sv.prn {
-                1 => Ok(Self::E1),
-                2 => Ok(Self::E2),
-                5 => Ok(Self::E5),
-                6 => Ok(Self::E6),
-                7 => Ok(Self::E5b),
+                1 => Ok(Self::B1C),
+                2 => Ok(Self::B1I),
+                5 => Ok(Self::B2A),
+                6 => Ok(Self::B3),
+                7 => Ok(Self::B2B),
+                8 => Ok(Self::B2),
                 _ => Ok(Self::E1),
             },
             Constellation::QZSS => match sv.prn {
@@ -585,6 +586,7 @@ impl Carrier {
             Constellation::IRNSS => match sv.prn {
                 1 => Ok(Self::L1),
                 5 => Ok(Self::L5),
+                9 => Ok(Self::S),
                 _ => Ok(Self::L1),
             },
             _ => panic!(
