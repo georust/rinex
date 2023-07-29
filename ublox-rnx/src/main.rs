@@ -34,6 +34,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
         .expect(&format!("failed to open serial port \"{}\"", port));
     let mut device = device::Device::new(port);
 
+    /* needs ublox crate update !!
     // Enable UBX protocol on all ports
     // so User can connect to all of them
     device.write_all(
@@ -51,7 +52,9 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
         .into_packet_bytes(),
     )?;
     device.wait_for_ack::<CfgPrtUart>().unwrap();
+    */
 
+    /* NEED UBX CRATE UPDATE!!
     device.write_all(
         &CfgPrtUartBuilder {
             portid: UartPortId::Uart2,
@@ -67,7 +70,9 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
         .into_packet_bytes(),
     )?;
     device.wait_for_ack::<CfgPrtUart>().unwrap();
+    */
 
+    /* NEED UBX CRATE UPDATE!!
     device.write_all(
         &CfgPrtUartBuilder {
             portid: UartPortId::Usb,
@@ -83,6 +88,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
         .into_packet_bytes(),
     )?;
     device.wait_for_ack::<CfgPrtUart>().unwrap();
+    */
 
     ///////////////////////
     // Observation opmode
@@ -98,6 +104,8 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Navigation opmode
     ///////////////////////
     // Enable GPS Ephemeris + GPS Iono
+
+    /* NEED UBX Crate update!!
     device
         .write_all(
             &CfgMsgAllPortsBuilder::set_rate_for::<MgaGpsEph>([0, 1, 0, 0, 0, 0])
@@ -112,6 +120,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
         )
         .unwrap();
     device.wait_for_ack::<CfgMsgAllPorts>().unwrap();
+    */
 
     // Create header section
     let _header = header::Header::basic_obs();
@@ -140,11 +149,13 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
                         //flags.ephemeris_available();
                     }
                 },
+                /* NEED UBX CRATE UPDATE !!
                 PacketRef::NavEoe(pkt) => {
                     // End of epoch notification
                     let _itow = pkt.itow();
                     // ==> push into file
                 },
+                */
                 _ => {},
             }
         });
