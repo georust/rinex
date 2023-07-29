@@ -1,11 +1,11 @@
 [package]
 name = "sinex"
-version = "0.1.1"
+version = "0.2.0"
 license = "MIT OR Apache-2.0"
 authors = ["Guillaume W. Bres <guillaume.bressaix@gmail.com>"]
 description = "Package to parse and analyze SINEX data"
-homepage = "https://github.com/gwbres/rinex/sinex"
-repository = "https://github.com/gwbres/rinex/sinex"
+homepage = "https://github.com/georust/rinex/sinex"
+repository = "https://github.com/georust/rinex/sinex"
 keywords = ["sinex", "timing", "gps", "glonass", "galileo"]
 categories = ["science", "parsing"]
 edition = "2021"

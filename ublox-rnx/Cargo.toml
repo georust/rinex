@@ -1,10 +1,11 @@
 [package]
 name = "ublox-rnx"
-version = "0.0.2"
+version = "0.1.0"
 license = "MIT OR Apache-2.0"
 authors = ["Guillaume W. Bres <guillaume.bressaix@gmail.com>"]
 description = "Efficient RINEX production from a Ublox GNSS receiver"
-homepage = "https://github.com/gwbres/rinex"
+homepage = "https://github.com/georust/rinex"
+repository = "https://github.com/georust/rinex"
 keywords = ["rinex", "gps", "glonass", "galileo", "timing"]
 categories = ["science", "command-line-interface", "command-line-utilities"]
 edition = "2021"
