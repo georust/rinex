@@ -1,7 +1,7 @@
 //! Command line tool to parse and analyze `RINEX` files.    
 //! Refer to README for command line arguments.    
 //! Based on crate <https://github.com/gwbres/rinex>     
-//! Homepage: <https://github.com/gwbres/rinex-cli>
+//! Homepage: <https://github.com/georust/rinex-cli>
 
 mod analysis; // basic analysis
 mod cli; // command line interface
