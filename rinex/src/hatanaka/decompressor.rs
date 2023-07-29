@@ -5,17 +5,12 @@ use crate::{is_comment, prelude::*};
 use std::collections::HashMap;
 use std::str::FromStr;
 
-#[derive(Debug, Clone)]
+#[derive(Default, Debug, Clone)]
 pub enum State {
+    #[default]
     EpochDescriptor,
     ClockOffsetDescriptor,
     Body,
-}
-
-impl Default for State {
-    fn default() -> Self {
-        Self::EpochDescriptor
-    }
 }
 
 /// Structure to decompress CRINEX data

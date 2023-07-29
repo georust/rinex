@@ -167,7 +167,7 @@ macro_rules! hourly_session {
     };
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Default, Debug, PartialEq)]
 /// `Rinex` describes a `RINEX` file.
 /// ```
 /// use rinex::prelude::*;
@@ -226,17 +226,6 @@ pub struct Rinex {
     /// `record` contains `RINEX` file body
     /// and is type and constellation dependent
     pub record: record::Record,
-}
-
-impl Default for Rinex {
-    /// Builds a default `RINEX`
-    fn default() -> Rinex {
-        Rinex {
-            header: Header::default(),
-            comments: record::Comments::new(),
-            record: record::Record::default(),
-        }
-    }
 }
 
 #[derive(Error, Debug)]

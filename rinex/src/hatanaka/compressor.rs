@@ -4,16 +4,11 @@ use crate::{is_comment, Constellation, Observable, Sv};
 use std::collections::HashMap;
 use std::str::FromStr;
 
-#[derive(PartialEq)]
+#[derive(Default, PartialEq)]
 pub enum State {
+    #[default]
     EpochDescriptor,
     Body,
-}
-
-impl Default for State {
-    fn default() -> Self {
-        Self::EpochDescriptor
-    }
 }
 
 impl State {

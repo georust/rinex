@@ -26,6 +26,12 @@ pub enum Slot {
     Percentage(f64),
 }
 
+impl Default for Slot {
+    fn default() -> Self {
+        Self::Percentage(25.0)
+    }
+}
+
 impl std::str::FromStr for Slot {
     type Err = SlotError;
     fn from_str(content: &str) -> Result<Self, Self::Err> {
@@ -68,34 +74,21 @@ impl<'de> Deserialize<'de> for Slot {
     }
 */
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Default, Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum CsStrategy {
     /// Study CS events and report them
+    #[default]
     Study,
     /// Study CS events and repair them
     StudyAndRepair,
 }
 
-impl Default for CsStrategy {
-    fn default() -> Self {
-        Self::Study
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Default, Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Deserialize))]
 pub struct StatisticsOpts {
     /// Window/slot duration, on which we evaluate all statistics
     pub window: Slot,
-}
-
-impl Default for StatisticsOpts {
-    fn default() -> Self {
-        Self {
-            window: Slot::Percentage(25.0),
-        }
-    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -125,21 +118,16 @@ impl Default for ProcessingOpts {
 }
 
 /// Qc Report classification method
-#[derive(Debug, Clone)]
+#[derive(Default, Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum QcClassificationMethod {
     /// Report per GNSS system
+    #[default]
     GNSS,
     /// Report per Sv
     Sv,
     /// Report per Physics (Observable, Orbit..)
     Physics,
-}
-
-impl Default for QcClassificationMethod {
-    fn default() -> Self {
-        Self::GNSS
-    }
 }
 
 #[derive(Debug, Clone)]

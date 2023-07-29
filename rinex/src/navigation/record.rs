@@ -47,19 +47,14 @@ use super::{
 use hifitime::Duration;
 
 /// Possible Navigation Frame declinations for an epoch
-#[derive(Debug, Copy, Clone, PartialEq, PartialOrd, Eq, Ord)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, PartialOrd, Eq, Ord)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum FrameClass {
+    #[default]
     Ephemeris,
     SystemTimeOffset,
     EarthOrientation,
     IonosphericModel,
-}
-
-impl Default for FrameClass {
-    fn default() -> Self {
-        Self::Ephemeris
-    }
 }
 
 impl std::fmt::Display for FrameClass {

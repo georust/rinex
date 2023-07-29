@@ -3,11 +3,12 @@ use super::Constellation;
 use thiserror::Error;
 
 /// Describes all known `RINEX` file types
-#[derive(Copy, Clone, PartialEq, Debug)]
+#[derive(Default, Copy, Clone, PartialEq, Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum Type {
     /// Describes Observation Data (OBS),
     /// Phase & Pseudo range measurements
+    #[default]
     ObservationData,
     /// Describes Navigation Data (NAV)
     /// Ephemeris data, and other possible
@@ -33,13 +34,6 @@ pub enum Type {
 pub enum TypeError {
     #[error("Unknown RINEX type identifier \"{0}\"")]
     UnknownType(String),
-}
-
-impl Default for Type {
-    /// Builds a default `Type`
-    fn default() -> Type {
-        Self::ObservationData
-    }
 }
 
 impl Type {

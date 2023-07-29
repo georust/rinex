@@ -5,12 +5,13 @@ use strum_macros::EnumString;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, EnumString)]
+#[derive(Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, EnumString)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 /// GNSS Augmentation systems,
 /// must be used based on current location
 pub enum Augmentation {
     /// Augmentation Unknown
+    #[default]
     Unknown,
     /// American augmentation system,
     WAAS,
@@ -30,12 +31,6 @@ pub enum Augmentation {
     ASBAS,
     /// Autralia / NZ augmentation system
     SPAN,
-}
-
-impl Default for Augmentation {
-    fn default() -> Augmentation {
-        Augmentation::Unknown
-    }
 }
 
 #[cfg(feature = "sbas")]
