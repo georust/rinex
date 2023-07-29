@@ -7,7 +7,7 @@ description = "Efficient RINEX production from a Ublox GNSS receiver"
 homepage = "https://github.com/georust/rinex"
 repository = "https://github.com/georust/rinex"
 keywords = ["rinex", "gps", "glonass", "galileo", "timing"]
-categories = ["science", "command-line-interface", "command-line-utilities"]
+categories = ["science", "science::geo", "command-line-interface", "command-line-utilities"]
 edition = "2021"
 readme = "README.md"
 

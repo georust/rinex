@@ -7,7 +7,7 @@ description = "Package to parse and analyze SINEX data"
 homepage = "https://github.com/georust/rinex/sinex"
 repository = "https://github.com/georust/rinex/sinex"
 keywords = ["sinex", "timing", "gps", "glonass", "galileo"]
-categories = ["science", "parsing"]
+categories = ["science", "science::geo", "parsing"]
 edition = "2021"
 readme = "README.md"
 
