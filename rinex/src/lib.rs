@@ -2,7 +2,7 @@
 //! and process RINEX files.
 //! Refer to README and documentation provided here
 //! <https://github.com/georust/rinex>
-#![feature(doc_cfg)]
+#![cfg_attr(docrs, feature(doc_cfg))]
 
 pub mod antex;
 pub mod carrier;
@@ -25,7 +25,7 @@ pub mod types;
 pub mod version;
 
 #[cfg(feature = "tests")]
-#[doc(cfg(feature = "tests"))]
+#[cfg_attr(docrs, doc(cfg(feature = "tests")))]
 pub mod test_toolkit;
 
 mod ground_position;
@@ -70,7 +70,7 @@ pub mod prelude {
 }
 
 #[cfg(feature = "sbas")]
-#[doc(cfg(feature = "sbas"))]
+#[cfg_attr(docrs, doc(cfg(feature = "sbas")))]
 /// SBAS related package
 pub mod sbas {
     pub use crate::constellation::selection_helper;
@@ -95,7 +95,7 @@ extern crate horrorshow;
 
 /// Quality analysis package: mainly statistical analysis on OBS RINEX
 #[cfg(feature = "qc")]
-#[doc(cfg(feature = "qc"))]
+#[cfg_attr(docrs, doc(cfg(feature = "qc")))]
 pub mod quality {
     pub use crate::qc::{HtmlReport, QcOpts, QcReport};
 }
