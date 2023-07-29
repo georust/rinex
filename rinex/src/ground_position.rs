@@ -32,9 +32,13 @@ impl std::fmt::Display for GroundPosition {
     }
 }
 
+#[cfg(feature = "qc")]
 use crate::quality::HtmlReport;
+
+#[cfg(feature = "qc")]
 use horrorshow::RenderBox;
 
+#[cfg(feature = "qc")]
 impl HtmlReport for GroundPosition {
     fn to_html(&self) -> String {
         todo!()

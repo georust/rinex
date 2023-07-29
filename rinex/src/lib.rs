@@ -1,7 +1,9 @@
 //! This library provides a set of tools to parse, analyze
 //! and process RINEX files.
 //! Refer to README and documentation provided here
-//! <https://github.com/gwbres/rinex>
+//! <https://github.com/georust/rinex>
+#![feature(doc_cfg)]
+
 pub mod antex;
 pub mod carrier;
 pub mod clocks;
@@ -23,6 +25,7 @@ pub mod types;
 pub mod version;
 
 #[cfg(feature = "tests")]
+#[doc(cfg(feature = "tests"))]
 pub mod test_toolkit;
 
 mod ground_position;
@@ -66,8 +69,9 @@ pub mod prelude {
     pub use hifitime::{Duration, Epoch, TimeScale, TimeSeries};
 }
 
-/// SBAS related package
 #[cfg(feature = "sbas")]
+#[doc(cfg(feature = "sbas"))]
+/// SBAS related package
 pub mod sbas {
     pub use crate::constellation::selection_helper;
 }
@@ -82,9 +86,16 @@ pub mod processing {
     //pub use crate::cs::{CsDetector, CsSelectionMethod, CsStrategy};
 }
 
+#[cfg(feature = "qc")]
 mod qc;
 
-/// RINEX quality package
+#[cfg(feature = "qc")]
+#[macro_use]
+extern crate horrorshow;
+
+/// Quality analysis package: mainly statistical analysis on OBS RINEX
+#[cfg(feature = "qc")]
+#[doc(cfg(feature = "qc"))]
 pub mod quality {
     pub use crate::qc::{HtmlReport, QcOpts, QcReport};
 }
@@ -97,9 +108,6 @@ pub use merge::Merge;
 pub use split::Split;
 
 use algorithm::{Combination, Combine, Dcb, IonoDelayDetector, Mp, Smooth};
-
-#[macro_use]
-extern crate horrorshow;
 
 #[cfg(feature = "serde")]
 #[macro_use]
