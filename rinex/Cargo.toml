@@ -17,6 +17,9 @@ default = [] # no features by default
 sbas = ["geo", "wkt"]
 tests = [] # used to import shared test methods
 
+[package.metadata.docs.rs]
+all-features = true
+
 [build-dependencies]
 serde_json = { version = "1.0", features = ["preserve_order"] }
 
