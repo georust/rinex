@@ -1,3 +1,4 @@
+//! Observation RINEX module
 use super::{epoch, prelude::*, version::Version};
 use std::collections::HashMap;
 
@@ -181,7 +182,7 @@ pub(crate) enum StatisticalOps {
 }
 
 #[cfg(feature = "obs")]
-use std::collections::{BTreeMap};
+use std::collections::BTreeMap;
 
 /// OBS RINEX specific analysis trait.
 /// Include this trait to unlock Observation analysis, mainly statistical analysis.
@@ -194,6 +195,7 @@ pub trait Observation {
     /// ```
     /// use rinex::prelude::*; // basics
     /// use std::str::FromStr; // observable!
+    /// use rinex::observable::*; // observable!
     /// use rinex::observation::Observation; // .min_observable()
     ///
     /// // OBS RINEX example
@@ -235,6 +237,7 @@ pub trait Observation {
     /// RINEX files.
     /// ```
     /// use rinex::prelude::*; // basics
+    /// use rinex::observable::*;
     /// use std::str::FromStr; // sv!, observable!
     /// use rinex::observation::Observation; // .min()
     ///
@@ -272,10 +275,10 @@ pub trait Observation {
 }
 
 /// GNSS code bias estimation trait.
-/// Refer to 
-/// <http://navigation-office.esa.int/attachments_12649498_1_Reichel_5thGalSciCol_2015.pdf> 
-/// and phase data model 
-/// <https://github.com/gwbres/rinex/blob/main/rinex-cli/doc/gnss-combination.md> 
+/// Refer to
+/// <http://navigation-office.esa.int/attachments_12649498_1_Reichel_5thGalSciCol_2015.pdf>
+/// and phase data model
+/// <https://github.com/gwbres/rinex/blob/main/rinex-cli/doc/gnss-combination.md>
 #[cfg(feature = "obs")]
 #[cfg_attr(docrs, doc(cfg(feature = "obs")))]
 pub trait Dcb {
@@ -292,15 +295,15 @@ pub trait Dcb {
     fn dcb(&self) -> HashMap<String, BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>;
 }
 
-/// Multipath biases estimation. 
-/// Refer to 
-/// <http://navigation-office.esa.int/attachments_12649498_1_Reichel_5thGalSciCol_2015.pdf> 
+/// Multipath biases estimation.
+/// Refer to
+/// <http://navigation-office.esa.int/attachments_12649498_1_Reichel_5thGalSciCol_2015.pdf>
 /// or MP_i factors in phase data model
 /// <https://github.com/gwbres/rinex/blob/main/rinex-cli/doc/gnss-combination.md>.
 #[cfg(feature = "obs")]
 #[cfg_attr(docrs, doc(cfg(feature = "obs")))]
 pub trait Mp {
-    /// Returns Multipath bias estiamtes, 
+    /// Returns Multipath bias estiamtes,
     /// sorted per (unique) signal combinations and for each individual Sv.
     fn mp(&self) -> HashMap<String, BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>;
 }
