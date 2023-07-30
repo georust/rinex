@@ -56,8 +56,7 @@ use observable::Observable;
 use observation::Crinex;
 use version::Version;
 
-// Convenient package to import, that
-// comprises all basic and major structures
+/// Package to include all basic structures
 pub mod prelude {
     pub use crate::constellation::{Augmentation, Constellation};
     pub use crate::epoch::EpochFlag;
@@ -67,13 +66,6 @@ pub mod prelude {
     pub use crate::sv::Sv;
     pub use crate::Rinex;
     pub use hifitime::{Duration, Epoch, TimeScale, TimeSeries};
-}
-
-#[cfg(feature = "sbas")]
-#[cfg_attr(docrs, doc(cfg(feature = "sbas")))]
-/// SBAS related package
-pub mod sbas {
-    pub use crate::constellation::selection_helper;
 }
 
 mod algorithm;
