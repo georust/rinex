@@ -78,7 +78,8 @@ For example, here is the
 [Observation Record](https://docs.rs/rinex/latest/rinex/observation/record/type.Record.html)
 definition.
 
-## Features
+Features (compilation options)
+==============================
 
 * `--serde` enables main RINEX structures serialization and deserialization 
 
@@ -91,7 +92,8 @@ select a SBAS for a given location on Earth.
 * `--flate2`  
 allow native parsing of .gz compressed RINEX files. Otherwise, user must uncompress manually the `.gz` extension first.
 
-## Benchmark
+Benchmarking and lib performances
+=================================
 
 Test           | Results 
 ---------------|-------------------------|
@@ -106,9 +108,10 @@ processing/esbc00dnkr2021/mask:obs |  438.73 ms |
 processing/esbc00dnkr2021/mask:sv | 341.42 ms | 
 processing/esbc00dnkr2021/smooth:hatch:l1c,l2c | 502.90 ms | 
 
-## Contributions
+Contributions
+=============
 
 Contributions are welcomed, do not hesitate to open new issues
-and submit Pull Requests.
+and submit Pull Requests through Github.
 
-If you want to take part in active developments, checkout our [TODO list](TODO.md)
+If you want to take part in active developments, checkout our [contribution guidelines and hints](CONTRIBUTE.md) to navigate this library quicker.
