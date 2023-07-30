@@ -83,6 +83,11 @@ Features (compilation options)
 
 * `--serde` enables main RINEX structures serialization and deserialization 
 
+* `--obs` enables OBS RINEX processing
+  - statistical analysis
+  - GNSS signal combination and studies
+  - refer to OBS record documentation online
+
 <img align="right" width="400" src="https://upload.wikimedia.org/wikipedia/commons/4/46/SBAS_Service_Areas.png">
 
 * `--sbas`: SBAS (stationnary augmentation systems related features).    
