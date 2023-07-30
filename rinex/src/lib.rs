@@ -251,7 +251,7 @@ impl Rinex {
     /// use rinex::prelude::*;
     /// let rinex = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
     ///     .unwrap();
-
+    ///
     /// // convert to CRINEX
     /// let crinex = rinex.rnx2crnx();
     /// // generate
@@ -896,9 +896,9 @@ impl Rinex {
     ///     .unwrap();
     /// rinex.filter_mut(filter!("G08,G07"));
     ///
-    /// let biases = rinex.navigation_clock_biases();
-    /// for (epoch, sv) in biases {
-    ///     for (sv, (offset, dr, drr)) in sv {
+    /// let sv_clock = rinex.sv_clock();
+    /// for (epoch, vehicles) in sv_clock {
+    ///     for (sv, (offset, dr, drr)) in vehicles {
     ///         // sv: space vehicle
     ///         // offset [s]
     ///         // dr: clock drift [s.s⁻¹]
@@ -994,10 +994,14 @@ impl Rinex {
     /// For Clocks RINEX: returns list of Vehicles used as reference
     /// in the record.
     /// ```
+    /// use rinex::*;
     /// use rinex::prelude::*;
+    /// use std::str::FromStr;
+    ///
     /// let rnx = Rinex::from_file("../test_resources/OBS/V2/aopr0010.17o")
     ///     .unwrap();
-    /// let vehicles = rnx.space_vehicles();
+    /// let vehicles = rnx.sv();
+    ///
     /// assert_eq!(vehicles, vec![
     ///     sv!("G01"), sv!("G03"), sv!("G06"),
     ///     sv!("G07"), sv!("G08"), sv!("G09"),
@@ -1055,8 +1059,11 @@ impl Rinex {
     /// use rinex::prelude::*;
     /// let rnx = Rinex::from_file("../test_resources/OBS/V2/aopr0010.17o")
     ///     .unwrap();
-    /// let data = rnx.space_vehicles_per_epoch();
+    ///
+    /// let data = rnx.sv_epoch();
+    ///
     /// let first_epoch = Epoch::from_gregorian_utc(2017, 1, 1, 0, 0, 0, 0);
+    ///
     /// let vehicles = data.get(&first_epoch)
     ///     .unwrap();
     /// assert_eq!(*vehicles, vec![
@@ -1991,9 +1998,9 @@ impl Rinex {
     ///     Rinex::from_file("../test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz")
     ///         .unwrap();
     ///
-    /// let sv_position = rinex.sv_position_geo();
+    /// let sv_positions = rinex.sv_position_geo();
     /// for (sv, epochs) in sv_positions {
-    ///     for (epoch, (sv_lat, sv_lon, sv_alt)) in sv_positions {
+    ///     for (epoch, (sv_lat, sv_lon, sv_alt)) in epochs {
     ///     }
     /// }
     /// ```
@@ -2016,15 +2023,18 @@ impl Rinex {
     ///   - either it is defined in Self
     ///   - otherwise it can be superceeded by user defined position
     /// ```
+    /// use rinex::*;
     /// use rinex::prelude::*;
     /// let ref_pos = wgs84!(3582105.291, 532589.7313, 5232754.8054);
     ///
     /// let rinex = Rinex::from_file("../test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz")
     ///     .unwrap();
     ///
-    /// let sv_angles = rinex.sv_elev_azim(Some(ref_pos));
-    /// for (epoch, angles) in sv_angles {
-    ///     let (elev, azim) = angles;
+    /// let sv_angles = rinex.sv_elev_azim_angles(Some(ref_pos));
+    /// for (sv, epochs) in sv_angles {
+    ///     for (epoch, (elev, azim)) in epochs {
+    ///         // do something
+    ///     }
     /// }
     /// ```
     pub fn sv_elev_azim_angles(

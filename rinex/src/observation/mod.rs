@@ -193,9 +193,9 @@ pub trait Observation {
     /// This also applies to clock receiver estimate,
     /// when requested on OBS RINEX files, not METEO files.
     /// ```
-    /// use rinex::prelude::*; // basics
+    /// use rinex::*; // prelude + macros
+    /// use rinex::prelude::*;
     /// use std::str::FromStr; // observable!
-    /// use rinex::observable::*; // observable!
     /// use rinex::observation::Observation; // .min_observable()
     ///
     /// // OBS RINEX example
@@ -205,7 +205,7 @@ pub trait Observation {
     /// for (observable, min_value) in min_values {
     ///     if observable == observable!("S1C") {
     ///         // minimum signal strength for carrier 1
-    ///         assert_eq!(min_value, 0.0); // L1 carrier min (worst) RSSI
+    ///         assert_eq!(min_value, 37.75); // L1 carrier min (worst) RSSI
     ///     }
     /// }
     ///
@@ -241,21 +241,25 @@ pub trait Observation {
     /// Satellite vehicle and Observable. This does not apply to METEO
     /// RINEX files.
     /// ```
+    /// use rinex::*;
     /// use rinex::prelude::*; // basics
-    /// use rinex::observable::*;
     /// use std::str::FromStr; // sv!, observable!
     /// use rinex::observation::Observation; // .min()
     ///
     /// // OBS RINEX example
     /// let rinex = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
     ///     .unwrap();
-    /// let (min_clock, svnn) = rinex.min();
+    ///
+    /// let (min_clock, min_values) = rinex.min();
     /// assert!(min_clock.is_none()); // we don't have an example file with such information yet
-    /// for (sv, min_value) in svnn {
-    ///     if sv == sv!("g01") {
-    ///         if observable == observable!("S1C") {
-    ///             // minimum signal strength for carrier 1
-    ///             // for that particular vehicle
+    ///
+    /// for (sv, observables) in min_values {
+    ///     if sv == sv!("G08") {
+    ///         for (observable, min_value) in observables {
+    ///             if observable == observable!("S1C") {
+    ///                 // minimum signal strength for carrier 1
+    ///                 // for that particular vehicle
+    ///             }
     ///         }
     ///     }
     /// }
@@ -333,7 +337,7 @@ mod crinex {
     fn test_display() {
         let crinex = Crinex::default();
         let now = Epoch::now().unwrap();
-        let (y, m, d, hh, mm, _, _) = now.to_gregorian_utc();
+        let (_y, _m, _d, _hh, _mm, _, _) = now.to_gregorian_utc();
         let content = crinex.to_string();
         let lines: Vec<&str> = content.lines().collect();
         assert_eq!(lines.len(), 2); // main title should span 2 lines

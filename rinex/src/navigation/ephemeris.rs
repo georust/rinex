@@ -50,17 +50,13 @@ pub enum Error {
 ///             assert_eq!(*msg_type, MsgType::LNAV); // LNAV for Legacy NAV
 ///                 // is the only existing value up until RINEX4.
 ///                 // msg_type is truly only exploited in RINEX4 anyways.
+///
 ///             // Ephemeris come with Sv embedded clock estimates
 ///             // Sv Clock offset, or clock bias [s]
 ///             // Sv Clock Drift (d(offset)/dt) [s.s¯¹]
 ///             // Sv Clock Drift Rate (d(drift)/dt) [s.s¯²]
 ///             let (clk_offset, clk_drift, clk_drift_r) = ephemeris.sv_clock();
-///             // Navigation Data
-///             let sv_pos = ephemeris.sat_pos_ecef(*epoch);
-///             if let Some((el, azi)) = ephemeris.sat_elev_azim(*epoch, ref_pos) {
-///                 // elevation angle [°]
-///                 // azimuth angle [°]
-///             }
+///
 ///             // Orbits data (raw) access
 ///             let orbits = &ephemeris.orbits;
 ///             for (field, data) in orbits {

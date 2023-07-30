@@ -243,13 +243,13 @@ mod test {
 			{
 				"classification": "GNSS"
 			}"#;
-        let opts: QcOpts = serde_json::from_str(content).unwrap();
+        let _opts: QcOpts = serde_json::from_str(content).unwrap();
 
         let content = r#"
 			{
 				"classification": "Sv"
 			}"#;
-        let opts: QcOpts = serde_json::from_str(content).unwrap();
+        let _opts: QcOpts = serde_json::from_str(content).unwrap();
 
         /*let content = r#"
             {
