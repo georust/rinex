@@ -24,13 +24,17 @@ pub mod sv;
 pub mod types;
 pub mod version;
 
+mod leap;
+mod observable;
+mod ground_position;
+
+#[macro_use]
+#[macro_export]
+mod macros;
+
 #[cfg(feature = "tests")]
 #[cfg_attr(docrs, doc(cfg(feature = "tests")))]
 pub mod test_toolkit;
-
-mod ground_position;
-mod leap;
-mod observable;
 
 extern crate num;
 
@@ -105,46 +109,11 @@ use algorithm::{Combination, Combine, IonoDelayDetector, Smooth};
 #[macro_use]
 extern crate serde;
 
-#[macro_export]
 /// Returns `true` if given `Rinex` line is a comment
+#[macro_export]
 macro_rules! is_comment {
     ($line: expr) => {
         $line.trim_end().ends_with("COMMENT")
-    };
-}
-
-#[macro_export]
-/// Creates an [sv::Sv] from given string description,
-/// which must be valid.
-macro_rules! sv {
-    ($desc: expr) => {
-        Sv::from_str($desc).unwrap()
-    };
-}
-
-#[macro_export]
-/// Creates a [constellation::Constellation] from given string
-/// description, which must be valid.
-macro_rules! gnss {
-    ($desc: expr) => {
-        Constellation::from_str($desc).unwrap()
-    };
-}
-
-#[macro_export]
-/// Creates an [observable::Observable] from given string
-/// description, which must be valid.
-macro_rules! observable {
-    ($desc: expr) => {
-        Observable::from_str($desc).unwrap()
-    };
-}
-
-#[macro_export]
-/// Returns a filter object, from a given description which must be valid
-macro_rules! filter {
-    ($desc: expr) => {
-        Filter::from_str($desc).unwrap()
     };
 }
 
