@@ -81,20 +81,25 @@ definition.
 Features (compilation options)
 ==============================
 
-* `--serde` enables main RINEX structures serialization and deserialization 
+* `serde` enables main RINEX structures serialization and deserialization 
 
-* `--obs` enables OBS RINEX processing
+* `obs` enables OBS RINEX processing
   - statistical analysis on either OBS or Meteo files
   - GNSS signal combination and studies (OBS RINEX)
   - refer to OBS and Meteo records documentation online
 
+* `qc`: enables file Quality Check, ie., statistical analysis
+on RINEX files. Reports are generated in HTML.
+Complete QC is only feasible if you combine this feature to
+the related type feature, `obs` + `nav` is the typical combination.
+
 <img align="right" width="400" src="https://upload.wikimedia.org/wikipedia/commons/4/46/SBAS_Service_Areas.png">
 
-* `--sbas`: SBAS (stationnary augmentation systems related features).    
+* `sbas`: SBAS (stationnary augmentation systems related features).    
 [selection_helper()](https://docs.rs/rinex/latest/rinex/struct.Rinex.html),
 select a SBAS for a given location on Earth.
 
-* `--flate2`  
+* `flate2`  
 allow native parsing of .gz compressed RINEX files. Otherwise, user must uncompress manually the `.gz` extension first.
 
 Benchmarking and lib performances

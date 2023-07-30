@@ -4,12 +4,19 @@ use crate::processing::TargetItem;
 use super::{pretty_array, HtmlReport, QcOpts};
 use horrorshow::{helper::doctype, RenderBox};
 
-mod obs;
 mod sv;
+
+// full OBS QC is truly available only when both features exist
+#[cfg(feature = "obs")]
+#[cfg_attr(docrs, doc(cfg(feature = "obs")))]
+mod obs;
+
+#[cfg(feature = "obs")]
+use obs::QcObsAnalysis;
+
 //mod antenna;
 mod sampling;
 
-use obs::QcObsAnalysis;
 use sampling::QcSamplingAnalysis;
 use sv::QcSvAnalysis;
 
@@ -17,6 +24,8 @@ use sv::QcSvAnalysis;
 pub struct QcAnalysis {
     pub classifier: TargetItem,
     sv: QcSvAnalysis,
+    #[cfg(feature = "obs")]
+    #[cfg_attr(docrs, doc(cfg(feature = "obs")))]
     observ: QcObsAnalysis,
     sampling: QcSamplingAnalysis,
 }
@@ -26,6 +35,7 @@ impl QcAnalysis {
         Self {
             classifier,
             sv: QcSvAnalysis::new(rnx, nav, opts),
+            #[cfg(feature = "obs")]
             observ: QcObsAnalysis::new(rnx, nav, opts),
             sampling: QcSamplingAnalysis::new(rnx),
         }
