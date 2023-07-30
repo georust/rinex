@@ -163,7 +163,7 @@ mod test {
         assert_eq!(rinex.epochs().len(), 1);
         let record = rinex.record.as_clock();
         assert_eq!(record.is_some(), true);
-        let record = record.unwrap();
+        //let record = record.unwrap();
         /*for (e, data_types) in record.iter() {
             assert_eq!(*e, Epoch::from_gregorian_utc(2017, 03, 11, 00, 00, 00, 00));
             for (data_type, systems) in data_types.iter() {

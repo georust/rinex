@@ -177,8 +177,7 @@ mod test {
         ];
         assert_eq!(rinex.epochs(), expected_epochs);
 
-        let mut index = 0;
-        for (e, classes) in record.iter() {
+        for (_e, classes) in record.iter() {
             for (class, frames) in classes.iter() {
                 // only Legacy Ephemeris in V3
                 assert_eq!(*class, FrameClass::Ephemeris);
@@ -306,7 +305,6 @@ mod test {
                     }
                 }
             }
-            index += 1
         }
     }
     //#[cfg(feature = "flate2")]
@@ -718,7 +716,7 @@ mod test {
                 if *class == FrameClass::SystemTimeOffset {
                     sto_count += frames.len(); // STO testbench
                     for frame in frames.iter() {
-                        let (msg, sv, sto) = frame.as_sto().unwrap();
+                        let (_msg, _sv, sto) = frame.as_sto().unwrap();
                         if sto.system.eq("GAUT") {
                             assert_eq!(*e, Epoch::from_gregorian_utc(2022, 06, 08, 00, 00, 00, 00));
                             assert_eq!(sto.t_tm, 295207);
@@ -749,7 +747,7 @@ mod test {
                 } else if *class == FrameClass::IonosphericModel {
                     ion_count += frames.len(); // ION testbench
                     for frame in frames.iter() {
-                        let (msg, sv, model) = frame.as_ion().unwrap();
+                        let (_msg, _sv, model) = frame.as_ion().unwrap();
                         if let Some(model) = model.as_klobuchar() {
                             let e0 = Epoch::from_gregorian_utc(2022, 06, 08, 09, 59, 48, 0);
                             let e1 = Epoch::from_gregorian_utc(2022, 06, 08, 09, 59, 50, 0);
@@ -854,11 +852,11 @@ mod test {
         vehicles.sort();
         assert_eq!(rinex.sv(), vehicles);
 
-        for (epoch, classes) in record {
+        for (_epoch, classes) in record {
             for (class, frames) in classes.iter() {
                 if *class == FrameClass::Ephemeris {
                     for frame in frames.iter() {
-                        let (_, sv, _) = frame.as_eph().unwrap();
+                        let (_, _sv, _) = frame.as_eph().unwrap();
                     }
                 }
             }

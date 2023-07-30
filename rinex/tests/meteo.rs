@@ -1,8 +1,7 @@
 #[cfg(test)]
 mod test {
-    use rinex::meteo::*;
     use rinex::prelude::*;
-    use std::str::FromStr;
+    //use std::str::FromStr;
     #[test]
     fn v2_abvi0010_15m() {
         let test_resource =
@@ -22,17 +21,14 @@ mod test {
         let epoch = Epoch::from_gregorian_utc(2015, 01, 01, 00, 00, 00, 00);
         let content = record.get(&epoch);
         assert_eq!(content.is_some(), true);
-        let content = content.unwrap();
 
         let epoch = Epoch::from_gregorian_utc(2015, 01, 01, 9, 00, 00, 00);
         let content = record.get(&epoch);
         assert_eq!(content.is_some(), true);
-        let content = content.unwrap();
 
         let epoch = Epoch::from_gregorian_utc(2015, 01, 01, 19, 25, 0, 0);
         let content = record.get(&epoch);
         assert_eq!(content.is_some(), true);
-        let content = content.unwrap();
     }
     #[test]
     fn v4_example1() {

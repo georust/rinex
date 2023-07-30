@@ -1,13 +1,13 @@
 #[cfg(test)]
 mod test {
-    use itertools::Itertools;
-    use rinex::{header::*, observation::*, prelude::*, processing::*};
+    //use itertools::Itertools;
+    use rinex::{header::*, observation::*, prelude::*};
     use std::str::FromStr;
     /*
      * General testbench
      * shared accross all Observation files
      */
-    fn testbench(rnx: &Rinex, major: u8, minor: u8, c: Constellation, epochs: Vec<Epoch>) {
+    fn testbench(rnx: &Rinex, _major: u8, _minor: u8, c: Constellation, epochs: Vec<Epoch>) {
         // must have dedicated fields
         assert!(rnx.header.obs.is_some());
         /*
@@ -52,7 +52,7 @@ mod test {
         testbench(&rinex, 2, 11, Constellation::GPS, epochs);
         let record = rinex.record.as_obs().unwrap();
 
-        for (index, (e, (_, vehicles))) in record.iter().enumerate() {
+        for (index, (_e, (_, vehicles))) in record.iter().enumerate() {
             let keys: Vec<_> = vehicles.keys().collect();
             if index == 0 {
                 assert_eq!(
@@ -617,7 +617,6 @@ mod test {
 
         let l1c = data.get(&Observable::from_str("L1C").unwrap());
         assert_eq!(l1c.is_some(), true);
-        let l1c = l1c.unwrap();
 
         let g04 = Sv {
             constellation: Constellation::GPS,
@@ -635,7 +634,6 @@ mod test {
 
         let l1c = data.get(&Observable::from_str("L1C").unwrap());
         assert_eq!(l1c.is_some(), true);
-        let l1c = l1c.unwrap();
 
         let epoch = Epoch::from_gregorian_utc(2022, 03, 04, 00, 28, 30, 00);
         let e = record.get(&(epoch, EpochFlag::Ok));
@@ -730,7 +728,6 @@ mod test {
         let flag = EpochFlag::Ok;
         let (clk_offset, vehicles) = record.get(&(*epoch, flag)).unwrap();
         assert!(clk_offset.is_none());
-        let keys: Vec<_> = vehicles.keys().collect();
         assert_eq!(vehicles.len(), 26);
 
         let g07 = Sv::new(Constellation::GPS, 07);
@@ -871,7 +868,7 @@ mod test {
         assert_eq!(rnx.epochs(), expected);
 
         let record = rnx.record.as_obs().unwrap();
-        for (e_index, ((e, flag), (clk_offset, vehicles))) in record.iter().enumerate() {
+        for (e_index, ((_e, flag), (clk_offset, vehicles))) in record.iter().enumerate() {
             assert!(flag.is_ok());
             assert!(clk_offset.is_none());
             assert_eq!(vehicles.len(), 9);
@@ -904,7 +901,7 @@ mod test {
                 ];
                 assert_eq!(keys, expected);
             }
-            for (sv, observations) in vehicles {
+            for (sv, _observations) in vehicles {
                 assert_eq!(sv.constellation, Constellation::GPS);
             }
         }

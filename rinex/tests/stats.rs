@@ -1,8 +1,7 @@
 #[cfg(test)]
 mod test {
     use rinex::*;
-    use rinex::{header::*, observation::Record, observation::*, prelude::*, processing::*};
-    use std::collections::HashMap;
+    use rinex::{observation::*, prelude::*};
     use std::str::FromStr;
     fn run_test(rinex: &Rinex, ops: &str, expected: Vec<(Sv, Vec<(Observable, f64)>)>) {
         let (clk_stats, stats) = match ops {
