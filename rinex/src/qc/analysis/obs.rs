@@ -4,8 +4,11 @@ use crate::{carrier, observation::Snr, prelude::*, processing::*, Carrier};
 use super::{pretty_array, QcOpts};
 use std::collections::HashMap;
 
+//#[cfg(feature = "obs")]
+//#[cfg_attr(docrs, doc(cfg(feature = "obs")))]
+
 /*
- * Lx signals special formatting
+ * GNSS signal special formatting
  */
 fn report_signals(list: &Vec<Carrier>) -> String {
     let mut s = String::with_capacity(3 * list.len());
@@ -262,8 +265,12 @@ pub struct QcObsAnalysis {
     /// Complete epochs, with respect to given signal
     complete_epochs: Vec<(Carrier, usize)>,
     /// Min. Max. SNR (sv @ epoch)
+    #[cfg(feature = "obs")]
+    #[cfg_attr(docrs, doc(cfg(feature = "obs")))]
     min_max_snr: ((Sv, Epoch, Snr), (Sv, Epoch, Snr)),
     /// SSi statistical analysis (mean, stddev, skew)
+    #[cfg(feature = "obs")]
+    #[cfg_attr(docrs, doc(cfg(feature = "obs")))]
     ssi_stats: HashMap<Observable, (f64, f64, f64)>,
     /// clock_drift
     clock_drift: Option<f64>,

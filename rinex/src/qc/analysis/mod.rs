@@ -6,12 +6,7 @@ use horrorshow::{helper::doctype, RenderBox};
 
 mod sv;
 
-// full OBS QC is truly available only when both features exist
-#[cfg(feature = "obs")]
-#[cfg_attr(docrs, doc(cfg(feature = "obs")))]
 mod obs;
-
-#[cfg(feature = "obs")]
 use obs::QcObsAnalysis;
 
 //mod antenna;
@@ -24,8 +19,6 @@ use sv::QcSvAnalysis;
 pub struct QcAnalysis {
     pub classifier: TargetItem,
     sv: QcSvAnalysis,
-    #[cfg(feature = "obs")]
-    #[cfg_attr(docrs, doc(cfg(feature = "obs")))]
     observ: QcObsAnalysis,
     sampling: QcSamplingAnalysis,
 }
