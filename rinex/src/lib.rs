@@ -70,8 +70,6 @@ pub mod prelude {
     pub use hifitime::{Duration, Epoch, TimeScale, TimeSeries};
 }
 
-mod algorithm;
-
 /// Processing package,
 /// includes preprocessing methods and analysis methods.
 pub mod processing {
@@ -101,7 +99,8 @@ use prelude::*;
 pub use merge::Merge;
 pub use split::Split;
 
-use algorithm::{Combination, Combine, IonoDelayDetector, Smooth};
+mod algorithm;
+use algorithm::{IonoDelayDetector, Smooth};
 
 #[cfg(feature = "serde")]
 #[macro_use]
@@ -2413,12 +2412,46 @@ impl Mp for Rinex {
     }
 }
 
+#[cfg(feature = "obs")]
+use observation::Combine;
+
+#[cfg(feature = "obs")]
 impl Combine for Rinex {
-    fn combine(
+    fn geo_free(
         &self,
-        combination: Combination,
     ) -> HashMap<(Observable, Observable), BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
-        self.record.combine(combination)
+        if let Some(r) = self.record.as_obs() {
+            r.geo_free()
+        } else {
+            panic!("wrong RINEX type");
+        }
+    }
+    fn wide_lane(
+        &self,
+    ) -> HashMap<(Observable, Observable), BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
+        if let Some(r) = self.record.as_obs() {
+            r.wide_lane()
+        } else {
+            panic!("wrong RINEX type");
+        }
+    }
+    fn narrow_lane(
+        &self,
+    ) -> HashMap<(Observable, Observable), BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
+        if let Some(r) = self.record.as_obs() {
+            r.narrow_lane()
+        } else {
+            panic!("wrong RINEX type");
+        }
+    }
+    fn melbourne_wubbena(
+        &self,
+    ) -> HashMap<(Observable, Observable), BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
+        if let Some(r) = self.record.as_obs() {
+            r.melbourne_wubbena()
+        } else {
+            panic!("wrong RINEX type");
+        }
     }
 }
 

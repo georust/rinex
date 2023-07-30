@@ -287,6 +287,64 @@ pub trait Observation {
     fn std_var(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>);
 }
 
+/// GNSS signal recombination trait.    
+/// Import this to recombine OBS RINEX with usual recombination methods.   
+/// This only applies to OBS RINEX records.  
+/// See this page for more information
+/// <https://github.com/gwbres/rinex/blob/main/rinex-cli/doc/gnss-combination.md>.
+#[cfg(feature = "obs")]
+#[cfg_attr(docrs, doc(cfg(feature = "obs")))]
+pub trait Combine {
+    /// Perform Geometry Free signal recombination on all phase
+    /// and pseudo range observations, for each individual Sv
+    /// and individual Epoch.   
+    /// Geometry Free (Gf) recombination cancels out geometric
+    /// biases and leaves frequency dependent terms out,
+    /// like Ionospheric induced time delay.  
+    /// ```
+    /// use rinex::prelude::*;
+    /// use rinex::observation::*;
+    ///
+    /// let rinex = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
+    ///		.unwrap();
+    ///
+    /// let gf = rinex.geo_free();
+    /// for ((ref_observable, rhs_observable), data) in gf {
+    ///     // for each recombination that we were able to form,
+    ///     // a "reference" observable was chosen,
+    ///     // and RHS observable is compared to it.
+    ///     // For example "L2C-L1C" : L1C is the reference observable
+    ///     for (sv, epochs) in data {
+    ///         // applied to all possible Sv
+    ///         for ((epoch, _flag), value) in epochs {
+    ///             // value: actual recombination result
+    ///         }
+    ///     }
+    /// }
+    /// ```
+    fn geo_free(
+        &self,
+    ) -> HashMap<(Observable, Observable), BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>;
+
+    /// Perform Wide Lane recombination.   
+    /// See [Self::geo_free] for API example
+    fn wide_lane(
+        &self,
+    ) -> HashMap<(Observable, Observable), BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>;
+
+    /// Perform Narrow Lane recombination.   
+    /// See [Self::geo_free] for API example
+    fn narrow_lane(
+        &self,
+    ) -> HashMap<(Observable, Observable), BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>;
+
+    /// Perform Melbourne-Wübbena recombination.   
+    /// See [Self::geo_free] for API example
+    fn melbourne_wubbena(
+        &self,
+    ) -> HashMap<(Observable, Observable), BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>;
+}
+
 /// GNSS code bias estimation trait.
 /// Refer to
 /// <http://navigation-office.esa.int/attachments_12649498_1_Reichel_5thGalSciCol_2015.pdf>
@@ -316,7 +374,7 @@ pub trait Dcb {
 #[cfg(feature = "obs")]
 #[cfg_attr(docrs, doc(cfg(feature = "obs")))]
 pub trait Mp {
-    /// Returns Multipath bias estiamtes,
+    /// Returns Multipath bias estimates,
     /// sorted per (unique) signal combinations and for each individual Sv.
     fn mp(&self) -> HashMap<String, BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>;
 }

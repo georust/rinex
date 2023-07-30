@@ -1,9 +1,7 @@
-mod combination;
 mod filters;
 mod ionospheric;
 mod target;
 
-pub use combination::{Combination, Combine};
 pub use ionospheric::IonoDelayDetector;
 pub use target::TargetItem;
 

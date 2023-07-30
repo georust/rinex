@@ -16,7 +16,11 @@ use preprocessing::preprocess;
 
 //use horrorshow::Template;
 use rinex::{
-    merge::Merge, observation::Dcb, observation::Mp, processing::*, quality::*, split::Split,
+    merge::Merge,
+    observation::{Combine, Dcb, Mp},
+    processing::*,
+    quality::*,
+    split::Split,
 };
 
 use cli::Cli;
@@ -111,7 +115,7 @@ pub fn main() -> Result<(), rinex::Error> {
         let data = ctx
             .primary_rinex
             .observation_phase_align_origin()
-            .combine(Combination::GeometryFree);
+            .geo_free();
         plot::plot_gnss_recombination(
             &mut plot_ctx,
             "Geometry Free signal combination",
@@ -132,7 +136,7 @@ pub fn main() -> Result<(), rinex::Error> {
      * [WL] recombination
      */
     if cli.wl_recombination() {
-        let data = ctx.primary_rinex.combine(Combination::WideLane);
+        let data = ctx.primary_rinex.wide_lane();
         plot::plot_gnss_recombination(
             &mut plot_ctx,
             "Wide Lane signal combination",
@@ -145,7 +149,7 @@ pub fn main() -> Result<(), rinex::Error> {
      * [NL] recombination
      */
     if cli.nl_recombination() {
-        let data = ctx.primary_rinex.combine(Combination::NarrowLane);
+        let data = ctx.primary_rinex.narrow_lane();
         plot::plot_gnss_recombination(
             &mut plot_ctx,
             "Narrow Lane signal combination",
@@ -158,7 +162,7 @@ pub fn main() -> Result<(), rinex::Error> {
      * [MW] recombination
      */
     if cli.mw_recombination() {
-        let data = ctx.primary_rinex.combine(Combination::MelbourneWubbena);
+        let data = ctx.primary_rinex.melbourne_wubbena();
         plot::plot_gnss_recombination(
             &mut plot_ctx,
             "Melbourne-Wübbena signal combination",
