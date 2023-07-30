@@ -1,3 +1,4 @@
+use crate::observation::Observation;
 use crate::{carrier, observation::Snr, prelude::*, processing::*, Carrier};
 
 use super::{pretty_array, QcOpts};
