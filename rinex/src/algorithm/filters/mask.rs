@@ -198,7 +198,7 @@ impl std::str::FromStr for MaskFilter {
     type Err = Error;
     fn from_str(content: &str) -> Result<Self, Self::Err> {
         let cleanedup = content.trim_start();
-        if cleanedup.len() < 3 {
+        if cleanedup.len() < 2 {
             /*
              * we're most likely unable to parsed both
              * an operand and a filter payload
@@ -246,6 +246,9 @@ impl std::str::FromStr for MaskFilter {
             // Some characters exist between .start() and identified operand.
             // Type guessing for filter target will not work.
             // This only exits for Elevation Angle, Azimuth Angle and SNR masks at the moment.
+
+            // Simply due to the fact that the operand is located
+            // after the identifier, in those cases
 
             let start = &cleanedup[..operand_offset];
             if start[0..1].eq("e") {
