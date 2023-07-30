@@ -1892,7 +1892,7 @@ impl Combine for Record {
 #[cfg(feature = "obs")]
 use crate::{
     carrier,
-    observation::{Mp, Dcb},
+    observation::{Dcb, Mp},
 };
 
 #[cfg(feature = "obs")]
