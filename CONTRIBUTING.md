@@ -31,6 +31,9 @@ It also contains its dedicated parsing methods.
 - src/meteo/mod.rs : Meteo RINEX entry point
   - src/meteo/record.rs : specific record definitions, including parsing methods
   - src/hatanaka/mod.rs : Compression / Decompression module 
+  - src/qc/mod.rs : Quality Check module
+  - src/qc/analysis/sv.rs : Satellite Vehicle general analysis
+  - src/qc/analysis/obs.rs : OBS RINEX specific analysis
 
 NAV RINEX
 =========
