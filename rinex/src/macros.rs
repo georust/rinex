@@ -46,15 +46,15 @@ macro_rules! is_comment {
 /// Builds a [crate::GroundPosition] in WGS84
 #[macro_export]
 macro_rules! wgs84 {
-    ($desc: expr) => {
-        GroundPosition::from_ecef_wgs84(($desc.0, $desc.1, $desc.2))
+    ($x: expr, $y: expr, $z: expr) => {
+        GroundPosition::from_ecef_wgs84(($x, $y, $z))
     };
 }
 
 /// Builds a [crate::GroundPosition] from geodetic coordinates in ddeg
 #[macro_export]
 macro_rules! geodetic {
-    ($desc: expr) => {
-        GroundPosition::from_geodetic(($desc.0, $desc.1, $desc.2))
+    ($lat: expr, $lon: expr, $alt: expr) => {
+        GroundPosition::from_geodetic(($lat, $lon, $alt))
     };
 }
