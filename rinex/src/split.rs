@@ -1,3 +1,4 @@
+//! RINEX File splitting operation
 use crate::{Duration, Epoch};
 use thiserror::Error;
 
