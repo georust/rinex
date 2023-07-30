@@ -1889,8 +1889,13 @@ impl Combine for Record {
     }
 }
 
-use crate::{carrier, processing::Dcb};
+#[cfg(feature = "obs")]
+use crate::{
+    carrier,
+    observation::{Mp, Dcb},
+};
 
+#[cfg(feature = "obs")]
 impl Dcb for Record {
     fn dcb(&self) -> HashMap<String, BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
         let mut ret: HashMap<String, BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> =
@@ -2049,8 +2054,7 @@ impl IonoDelayDetector for Record {
     }
 }
 
-use crate::processing::Mp;
-
+#[cfg(feature = "obs")]
 impl Mp for Record {
     fn mp(&self) -> HashMap<String, BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
         let mut ret: HashMap<String, BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> =

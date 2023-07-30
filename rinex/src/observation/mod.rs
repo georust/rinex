@@ -181,9 +181,12 @@ pub(crate) enum StatisticalOps {
 }
 
 #[cfg(feature = "obs")]
-#[cfg_attr(docrs, doc(cfg(feature = "obs")))]
+use std::collections::{BTreeMap};
+
 /// OBS RINEX specific analysis trait.
 /// Include this trait to unlock Observation analysis, mainly statistical analysis.
+#[cfg(feature = "obs")]
+#[cfg_attr(docrs, doc(cfg(feature = "obs")))]
 pub trait Observation {
     /// Returns minimum value observed, throughout all epochs, sorted by Observable.
     /// This also applies to clock receiver estimate,
@@ -266,6 +269,40 @@ pub trait Observation {
     /// Satellite vehicle and Observable. This does not apply to METEO
     /// RINEX files. See [min()] for API example.
     fn std_var(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>);
+}
+
+/// GNSS code bias estimation trait.
+/// Refer to 
+/// <http://navigation-office.esa.int/attachments_12649498_1_Reichel_5thGalSciCol_2015.pdf> 
+/// and phase data model 
+/// <https://github.com/gwbres/rinex/blob/main/rinex-cli/doc/gnss-combination.md> 
+#[cfg(feature = "obs")]
+#[cfg_attr(docrs, doc(cfg(feature = "obs")))]
+pub trait Dcb {
+    /// Returns Differential Code Bias estimates, sorted per (unique)
+    /// signals combinations and for each individual Sv.
+    /// ```
+    /// use rinex::prelude::*;
+    /// use rinex::observation::*; // .dcb()
+    ///
+    /// let rinex = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
+    ///		.unwrap();
+    /// let dcb = rinex.dcb();
+    /// ```
+    fn dcb(&self) -> HashMap<String, BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>;
+}
+
+/// Multipath biases estimation. 
+/// Refer to 
+/// <http://navigation-office.esa.int/attachments_12649498_1_Reichel_5thGalSciCol_2015.pdf> 
+/// or MP_i factors in phase data model
+/// <https://github.com/gwbres/rinex/blob/main/rinex-cli/doc/gnss-combination.md>.
+#[cfg(feature = "obs")]
+#[cfg_attr(docrs, doc(cfg(feature = "obs")))]
+pub trait Mp {
+    /// Returns Multipath bias estiamtes, 
+    /// sorted per (unique) signal combinations and for each individual Sv.
+    fn mp(&self) -> HashMap<String, BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>;
 }
 
 #[cfg(test)]

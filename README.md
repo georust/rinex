@@ -83,10 +83,13 @@ Features (compilation options)
 
 * `serde` enables main RINEX structures serialization and deserialization 
 
-* `obs` enables OBS RINEX processing
-  - statistical analysis on either OBS or Meteo files
-  - GNSS signal combination and studies (OBS RINEX)
-  - refer to OBS and Meteo records documentation online
+* `obs` unlocks several features:
+  - the [Observation trait](https://doc.rs/rinex/latest/rinex/observation/Observation.html) for 
+  quick & efficient statistical analysis on both OBS and Meteo records. Mainly serves Quality Check purposes.
+  - the [DCB trait](https://doc.rs/rinex/latest/rinex/observation/Dcb.html)
+  for Differential Code bias estimation
+  - the [MP trait](https://doc.rs/rinex/latest/rinex/observation/Dcb.html)
+  for Multi Path biases estimation
 
 * `qc`: enables file Quality Check, ie., statistical analysis
 on RINEX files. Reports are generated in HTML.

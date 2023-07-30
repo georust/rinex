@@ -107,7 +107,7 @@ use prelude::*;
 pub use merge::Merge;
 pub use split::Split;
 
-use algorithm::{Combination, Combine, Dcb, IonoDelayDetector, Mp, Smooth};
+use algorithm::{Combination, Combine, IonoDelayDetector, Smooth};
 
 #[cfg(feature = "serde")]
 #[macro_use]
@@ -2522,15 +2522,31 @@ impl Observation for Rinex {
     }
 }
 
+#[cfg(feature = "obs")]
+use observation::Dcb;
+
+#[cfg(feature = "obs")]
 impl Dcb for Rinex {
     fn dcb(&self) -> HashMap<String, BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
-        self.record.dcb()
+        if let Some(r) = self.record.as_obs() {
+            r.dcb()
+        } else {
+            panic!("wrong rinex type");
+        }
     }
 }
 
+#[cfg(feature = "obs")]
+use observation::Mp;
+
+#[cfg(feature = "obs")]
 impl Mp for Rinex {
     fn mp(&self) -> HashMap<String, BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
-        self.record.dcb()
+        if let Some(r) = self.record.as_obs() {
+            r.dcb()
+        } else {
+            panic!("wrong rinex type");
+        }
     }
 }
 
