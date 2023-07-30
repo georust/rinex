@@ -28,7 +28,7 @@ pub enum RefSystem {
     ObservationSystem(ObsSystem),
     /// Theoretical Model.
     /// When a theoretical model is used, refer to
-    /// the Description provided in [ionosphere::HeaderFields]
+    /// the Description provided in [crate::ionex::HeaderFields]
     /// for further explanations
     Model(Model),
 }

@@ -4,10 +4,10 @@ use super::{
 };
 use crate::{epoch, prelude::*, sv, version::Version};
 
-use thiserror::Error;
-use std::str::FromStr;
 use hifitime::GPST_REF_EPOCH;
 use std::collections::HashMap;
+use std::str::FromStr;
+use thiserror::Error;
 
 /// Parsing errors
 #[derive(Debug, Error)]
@@ -95,11 +95,11 @@ pub enum Error {
 #[derive(Default, Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Ephemeris {
-    /// Clock bias [s]
+    /// Clock bias (in seconds)
     pub clock_bias: f64,
-    /// Clock Drift [s/s]
+    /// Clock drift (s.s⁻¹)
     pub clock_drift: f64,
-    /// Clock Drift Rate [s/s^2]
+    /// Clock drift rate (s.s⁻²)).   
     pub clock_drift_rate: f64,
     /// Orbits are revision and constellation dependent,
     /// sorted by key and content, described in navigation::database
@@ -383,7 +383,11 @@ impl Ephemeris {
     /*
      * Computes elev, azim angles
      */
-    pub(crate) fn sv_elev_azim(&self, reference: GroundPosition, epoch: Epoch) -> Option<(f64, f64)> {
+    pub(crate) fn sv_elev_azim(
+        &self,
+        reference: GroundPosition,
+        epoch: Epoch,
+    ) -> Option<(f64, f64)> {
         let (sv_x, sv_y, sv_z) = self.sv_position(epoch)?;
         let (ref_x, ref_y, ref_z) = reference.to_ecef_wgs84();
         let (sv_lat, sv_lon, _) = map_3d::ecef2geodetic(sv_x, sv_y, sv_z, map_3d::Ellipsoid::WGS84);

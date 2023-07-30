@@ -184,7 +184,7 @@ impl std::str::FromStr for Constellation {
         } else if let Ok(sbas) = Augmentation::from_str(code) {
             Ok(Self::SBAS(sbas))
         } else {
-            Err(Error::UnknownCode(code.to_string())) 
+            Err(Error::UnknownCode(code.to_string()))
         }
     }
 }

@@ -52,10 +52,10 @@ impl Default for KbRegionCode {
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct KbModel {
     /// Alpha coefficients
-    /// ([sec], [sec.semi-circle⁻¹], [sec.semi-circle⁻²], [sec.semi-circle⁻³])
+    /// ((sec), (sec.semi-circle⁻¹), (sec.semi-circle⁻²), (sec.semi-circle⁻³))
     pub alpha: (f64, f64, f64, f64),
     /// Beta coefficients
-    /// ([sec], [sec.semi-circle⁻¹], [sec.semi-circle⁻²], [sec.semi-circle⁻³])
+    /// ((sec), (sec.semi-circle⁻¹), (sec.semi-circle⁻²), (sec.semi-circle⁻³))
     pub beta: (f64, f64, f64, f64),
     /// Region flag
     pub region: KbRegionCode,
@@ -144,7 +144,7 @@ bitflags! {
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct NgModel {
     /// a_i coefficients
-    /// ([sfu], [sfu.semi-circle⁻¹], [sfu.semi-circle⁻²])
+    /// (sfu, (sfu.semi-circle⁻¹), (sfu.semi-circle⁻²))
     pub a: (f64, f64, f64),
     /// Region flags
     pub region: NgRegionFlags,
@@ -186,7 +186,7 @@ impl NgModel {
 #[derive(Debug, Copy, Clone, Default, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct BdModel {
-    /// Alpha coefficients [TECu]
+    /// Alpha coefficients in TEC unit
     pub alpha: (f64, f64, f64, f64, f64, f64, f64, f64, f64),
 }
 

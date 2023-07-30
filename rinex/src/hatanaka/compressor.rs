@@ -1,6 +1,7 @@
 //! RINEX compression module
 use super::{numdiff::NumDiff, textdiff::TextDiff, Error};
-use crate::{is_comment, Constellation, Observable, Sv};
+use crate::is_comment;
+use crate::{Constellation, Observable, Sv};
 use std::collections::HashMap;
 use std::str::FromStr;
 

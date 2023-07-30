@@ -220,18 +220,23 @@ pub trait Observation {
     /// }
     /// ```
     fn min_observable(&self) -> HashMap<Observable, f64>;
+
     /// Returns maximal value observed, throughout all epochs, sorted by Observable.
-    /// See [min_observable()] for API example.
+    /// See [Self::min_observable()] for API example.
     fn max_observable(&self) -> HashMap<Observable, f64>;
+
     /// Returns mean observation, throughout all epochs, sorted by Observable.
-    /// See [min_observable()] for API example.
+    /// See [Self::min_observable()] for API example.
     fn mean_observable(&self) -> HashMap<Observable, f64>;
+
     /// Returns standard deviation for all Observables.
-    /// See [min_observable()] for API example.
+    /// See [Self::min_observable()] for API example.
     fn std_dev_observable(&self) -> HashMap<Observable, f64>;
+
     /// Returns standard variance for all Observables.
-    /// See [min_observable()] for API example.
+    /// See [Self::min_observable()] for API example.
     fn std_var_observable(&self) -> HashMap<Observable, f64>;
+
     /// Returns minimum value observed throughout all epochs sorted by
     /// Satellite vehicle and Observable. This does not apply to METEO
     /// RINEX files.
@@ -256,21 +261,25 @@ pub trait Observation {
     /// }
     /// ```
     fn min(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>);
+
     /// Returns maximal value observed throughout all epochs sorted by
     /// Satellite vehicle and Observable. This does not apply to METEO
-    /// RINEX files. See [min()] for API example.
+    /// RINEX files. See [Self::min()] for API example.
     fn max(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>);
+
     /// Returns mean value observed throughout all epochs sorted by
     /// Satellite vehicle and Observable. This does not apply to METEO
-    /// RINEX files. See [min()] for API example.
+    /// RINEX files. See [Self::min()] for API example.
     fn mean(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>);
+
     /// Returns observations deviation throughout all epochs sorted by
     /// Satellite vehicle and Observable. This does not apply to METEO
-    /// RINEX files. See [min()] for API example.
+    /// RINEX files. See [Self::min()] for API example.
     fn std_dev(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>);
+
     /// Returns observations variance throughout all epochs sorted by
     /// Satellite vehicle and Observable. This does not apply to METEO
-    /// RINEX files. See [min()] for API example.
+    /// RINEX files. See [Self::min()] for API example.
     fn std_var(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>);
 }
 

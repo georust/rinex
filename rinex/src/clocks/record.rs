@@ -119,8 +119,7 @@ impl std::fmt::Display for DataType {
 }
 
 /// Clocks RINEX record content.
-/// RINEX record for CLOCKS files,
-/// Data is sorted by [epoch::Epoch], by [DataType] and by [System].
+/// Data is sorted by [Epoch], by [DataType] and by [System].
 /* TODO
 /// Example of Clock record browsing:
 /// ```

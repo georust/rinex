@@ -19,7 +19,7 @@ use std::str::FromStr;
 use thiserror::Error;
 
 /// Meteo RINEX Record content.
-/// Dataset is sorted by [epoch::Epoch] and by [Observable].
+/// Dataset is sorted by [Epoch] and by [Observable].
 /// ```
 /// use rinex::prelude::*;
 /// let rnx = Rinex::from_file("../test_resources/MET/V2/abvi0010.15m")

@@ -40,8 +40,10 @@ pub trait Decimate {
     /// assert_eq!(rnx.decimate_by_ratio(2).epochs().len(), 53);
     /// ```
     fn decimate_by_ratio(&self, r: u32) -> Self;
-    /// [decimate_by_ratio] mutable implementation.
+
+    /// [Self::decimate_by_ratio] mutable implementation.
     fn decimate_by_ratio_mut(&mut self, r: u32);
+
     /// Decimate Dataset so sampling interval matches given duration.
     /// Successive epochs |e_k+1 - e_k| < interval that do not fit
     /// within this minimal interval are discarded.
@@ -63,12 +65,15 @@ pub trait Decimate {
     /// assert_eq!(rinex.epochs().len(), initial_epochs.len()-2);
     /// ```
     fn decimate_by_interval(&self, dt: Duration) -> Self;
-    /// [decimate_by_interval] mutable implementation
+
+    /// [Self::decimate_by_interval] mutable implementation
     fn decimate_by_interval_mut(&mut self, dt: Duration);
+
     /// Decimate Dataset so sampling matches given `rhs` sampling.
     /// Both types must match.
     fn decimate_match(&self, rhs: &Self) -> Self;
-    /// [decimate_match] mutable implementation
+
+    /// [Self::decimate_match] mutable implementation
     fn decimate_match_mut(&mut self, rhs: &Self);
 }
 

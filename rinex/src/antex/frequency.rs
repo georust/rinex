@@ -56,8 +56,7 @@ pub struct Frequency {
     /// relative to the antenna reference point (ARP), in `mm`.
     pub east: f64,
     /// Z component of the mean antenna phase center relative
-    /// to the antenna reference point (ARP),
-    /// in [mm]
+    /// to the antenna reference point (ARP), in `mm`.
     pub up: f64,
     /// Phase pattern, values in `mm` from antenna.zen1 to antenna.zen2
     /// with increment antenna.dzen, can either be azimuth or non azimmuth dependent

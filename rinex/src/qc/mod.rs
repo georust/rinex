@@ -85,13 +85,11 @@ impl<'a> QcReport<'a> {
          */
         let classifier: TargetItem = match opts.classification {
             QcClassificationMethod::GNSS => {
-                let mut gnss = rnx.list_constellations();
-                gnss.sort();
+                let mut gnss = rnx.constellations();
                 TargetItem::from(gnss)
             },
             QcClassificationMethod::Sv => {
-                let mut sv = rnx.space_vehicles();
-                sv.sort();
+                let mut sv = rnx.sv();
                 TargetItem::from(sv)
             },
             QcClassificationMethod::Physics => {
@@ -366,7 +364,7 @@ impl<'a> HtmlReport for QcReport<'a> {
                                 : "GNSS Constellations"
                             }
                             td {
-                                : pretty_array(&self.rinex.list_constellations())
+                                : pretty_array(&self.rinex.constellations())
                             }
                         }
                     }//header/tablebody

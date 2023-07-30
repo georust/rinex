@@ -19,11 +19,11 @@ pub enum Error {
 #[derive(Debug, Clone, Default, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct GridLinspace {
-    /// Grid start coordinates [ddeg]
+    /// Grid start coordinates in decimal degrees
     pub start: f64,
-    /// Grid end coordinates [ddeg]
+    /// Grid end coordinates in decimal degrees
     pub end: f64,
-    /// Grid spacing (inncrement value), [ddeg]
+    /// Grid spacing (inncrement value), in decimal degrees
     pub spacing: f64,
 }
 

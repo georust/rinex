@@ -139,19 +139,19 @@ impl HeaderFields {
     pub fn is_theoretical_model(&self) -> bool {
         self.observables.is_some()
     }
-    /// Copies self and set Nb of stations
+    /// Copies self and set number of stations
     pub fn with_nb_stations(&self, n: u32) -> Self {
         let mut s = self.clone();
         s.nb_stations = n;
         s
     }
-    /// Copies self and set Nb of satellites
+    /// Copies self and set number of satellites
     pub fn with_nb_satellites(&self, n: u32) -> Self {
         let mut s = self.clone();
         s.nb_satellites = n;
         s
     }
-    /// Copies & set Base Radius [km]
+    /// Copies & set Base Radius in `km`
     pub fn with_base_radius(&self, b: f32) -> Self {
         let mut s = self.clone();
         s.base_radius = b;

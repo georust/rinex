@@ -44,13 +44,13 @@ pub enum Error {
 #[derive(Debug, Clone, Default, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct EopMessage {
-    /// ([arc-sec], [arc-sec.day⁻¹], [arc-sec.day⁻²])
+    /// ((arc-sec), (arc-sec.day⁻¹), (arc-sec.day⁻²))
     pub x: (f64, f64, f64),
-    /// ([arc-sec], [arc-sec.day⁻¹], [arc-sec.day⁻²])
+    /// ((arc-sec), (arc-sec.day⁻¹), (arc-sec.day⁻²))
     pub y: (f64, f64, f64),
-    /// Message transmmission time [s] of GNSS week
+    /// Message transmmission time in seconds of GNSS week
     pub t_tm: u32,
-    /// Delta UT1 ([sec], [sec.day⁻¹], [-sec.day⁻²])
+    /// Delta UT1 ((sec), (sec.day⁻¹), (sec.day⁻²))
     pub delta_ut1: (f64, f64, f64),
 }
 

@@ -15,7 +15,9 @@ mod preprocessing;
 use preprocessing::preprocess;
 
 //use horrorshow::Template;
-use rinex::{merge::Merge, processing::*, quality::*, split::Split, observation::Mp, observation::Dcb};
+use rinex::{
+    merge::Merge, observation::Dcb, observation::Mp, processing::*, quality::*, split::Split,
+};
 
 use cli::Cli;
 pub use context::Context;

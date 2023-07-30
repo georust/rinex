@@ -278,7 +278,7 @@ pub struct QcObsAnalysis {
 
 impl QcObsAnalysis {
     pub fn new(rnx: &Rinex, _nav: &Option<Rinex>, opts: &QcOpts) -> Self {
-        let sv = rnx.space_vehicles();
+        let sv = rnx.sv();
         let obs = rnx.header.obs.as_ref().unwrap();
         let mut observables = obs.codes.clone();
         let observables = observables.get_mut(&sv[0].constellation).unwrap();

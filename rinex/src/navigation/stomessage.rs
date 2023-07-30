@@ -45,9 +45,9 @@ pub struct StoMessage {
     pub system: String,
     /// UTC ID
     pub utc: String,
-    /// Message transmmission time [s] of GNSS week
+    /// Message transmmission time in seconds of GNSS week
     pub t_tm: u32,
-    /// ([sec], [sec.sec⁻¹], [sec.sec⁻²])
+    /// ((s), (s.s⁻¹), (s.s⁻²))
     pub a: (f64, f64, f64),
 }
 
