@@ -7,17 +7,16 @@ use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub struct Description {
-    /// Observation Sampling: sampling interval [s]
-    /// used for data analysis
+    /// Observation Sampling: sampling interval in seconds
     pub sampling: Option<u32>,
-    /// Parameter Spacing: spacing interval [s]
+    /// Parameter Spacing: spacing interval in seconds,
     /// used for parameter representation
     pub spacing: Option<u32>,
     /// Method used to generate the bias results
     pub method: Option<bias::DeterminationMethod>,
-    /// See [BiasMode]
+    /// See [bias::header::BiasMode]
     pub bias_mode: bias::header::BiasMode,
-    /// TimeSystem, see [TimeSystem]
+    /// TimeSystem, see [bias::TimeSystem]
     pub system: bias::TimeSystem,
     /// Receiver clock reference GNSS
     pub rcvr_clock_ref: Option<Constellation>,
