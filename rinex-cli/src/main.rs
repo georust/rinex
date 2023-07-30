@@ -17,7 +17,8 @@ use preprocessing::preprocess;
 //use horrorshow::Template;
 use rinex::{
     merge::Merge,
-    observation::{Combine, Dcb, Mp},
+    observation::{Combine, Dcb, IonoDelay, Mp},
+    prelude::*,
     processing::*,
     quality::*,
     split::Split,
@@ -128,7 +129,7 @@ pub fn main() -> Result<(), rinex::Error> {
      * Ionospheric Delay Detector (graph)
      */
     if cli.iono_detector() {
-        let data = ctx.primary_rinex.observation_iono_delay_detector();
+        let data = ctx.primary_rinex.iono_delay(Duration::from_seconds(360.0));
         plot::plot_iono_detector(&mut plot_ctx, &data);
         info!("--iono detector");
     }

@@ -100,7 +100,7 @@ pub use merge::Merge;
 pub use split::Split;
 
 mod algorithm;
-use algorithm::{IonoDelayDetector, Smooth};
+use algorithm::Smooth;
 
 #[cfg(feature = "serde")]
 #[macro_use]
@@ -1515,20 +1515,6 @@ impl Rinex {
         s
     }
 
-    /// Ionospheric delay detector
-    pub fn observation_iono_delay_detector(
-        &self,
-    ) -> HashMap<Observable, HashMap<Sv, BTreeMap<Epoch, f64>>> {
-        if let Some(r) = self.record.as_obs() {
-            if let Some(dt) = self.sampling_interval() {
-                r.iono_delay_detector(dt)
-            } else {
-                HashMap::new()
-            }
-        } else {
-            HashMap::new()
-        }
-    }
     /*
         /// Single step /stage, in high order phase differencing
         /// algorithm, which we use in case of old receiver data / old RINEX
@@ -2449,6 +2435,23 @@ impl Combine for Rinex {
     ) -> HashMap<(Observable, Observable), BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
         if let Some(r) = self.record.as_obs() {
             r.melbourne_wubbena()
+        } else {
+            panic!("wrong RINEX type");
+        }
+    }
+}
+
+#[cfg(feature = "obs")]
+use observation::IonoDelay;
+
+#[cfg(feature = "obs")]
+impl IonoDelay for Rinex {
+    fn iono_delay(
+        &self,
+        max_dt: Duration,
+    ) -> HashMap<Observable, HashMap<Sv, BTreeMap<Epoch, f64>>> {
+        if let Some(r) = self.record.as_obs() {
+            r.iono_delay(max_dt)
         } else {
             panic!("wrong RINEX type");
         }

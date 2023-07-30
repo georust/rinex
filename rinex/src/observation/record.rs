@@ -10,8 +10,8 @@ use crate::{
     merge::Merge,
     prelude::*,
     processing::{
-        Decimate, DecimationType, Filter, Interpolate, IonoDelayDetector, Mask, MaskFilter,
-        MaskOperand, Preprocessing, Smooth, SmoothingType, TargetItem,
+        Decimate, DecimationType, Filter, Interpolate, Mask, MaskFilter, MaskOperand,
+        Preprocessing, Smooth, SmoothingType, TargetItem,
     },
     split,
     split::Split,
@@ -1980,8 +1980,12 @@ impl Dcb for Record {
     }
 }
 
-impl IonoDelayDetector for Record {
-    fn iono_delay_detector(
+#[cfg(feature = "obs")]
+use crate::observation::IonoDelay;
+
+#[cfg(feature = "obs")]
+impl IonoDelay for Record {
+    fn iono_delay(
         &self,
         max_dt: Duration,
     ) -> HashMap<Observable, HashMap<Sv, BTreeMap<Epoch, f64>>> {

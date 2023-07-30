@@ -379,6 +379,26 @@ pub trait Mp {
     fn mp(&self) -> HashMap<String, BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>;
 }
 
+/// Ionospheric Delay estimation trait.
+#[cfg(feature = "obs")]
+#[cfg_attr(docrs, doc(cfg(feature = "obs")))]
+pub trait IonoDelay {
+    /// The Iono delay estimator is the derivative of the [Combine::geo_free]
+    /// recombination. One can then use a peak detector for example,
+    /// to determine signal perturbations, due to ionospheric activity.
+    /// To improve behavior and avoid discontinuities on data gaps,
+    /// we perform the derivative only if the previous point was sampled at worst
+    /// `max_dt` prior current point.  
+    /// This is intended to be used on raw Phase data only,
+    /// but can be evaluated on PR too (if such data is passed).  
+    /// In that scenario, ideally the user used a smoothing algorithm,
+    /// prior invoking this method: see preprocessing toolkit.
+    fn iono_delay(
+        &self,
+        max_dt: Duration,
+    ) -> HashMap<Observable, HashMap<Sv, BTreeMap<Epoch, f64>>>;
+}
+
 #[cfg(test)]
 mod crinex {
     use super::*;
