@@ -1,3 +1,4 @@
+//! IONEX module
 use super::Sv;
 use std::collections::HashMap;
 use strum_macros::EnumString;

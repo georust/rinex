@@ -1,4 +1,4 @@
-//! `Meteo` RINEX
+//! Meteo RINEX module
 pub mod record;
 pub mod sensor;
 pub use record::Record;

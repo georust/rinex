@@ -1,4 +1,4 @@
-//! RINEX Merge operation
+//! RINEX File merging (combination)
 use std::cmp::{Eq, PartialEq};
 use std::collections::HashMap;
 use std::hash::Hash;
