@@ -85,11 +85,11 @@ impl<'a> QcReport<'a> {
          */
         let classifier: TargetItem = match opts.classification {
             QcClassificationMethod::GNSS => {
-                let mut gnss = rnx.constellations();
+                let gnss = rnx.constellations();
                 TargetItem::from(gnss)
             },
             QcClassificationMethod::Sv => {
-                let mut sv = rnx.sv();
+                let sv = rnx.sv();
                 TargetItem::from(sv)
             },
             QcClassificationMethod::Physics => {

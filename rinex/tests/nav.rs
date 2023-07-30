@@ -852,7 +852,7 @@ mod test {
             Sv::from_str("E03").unwrap(),
         ];
         vehicles.sort();
-        assert_eq!(rinex.space_vehicles(), vehicles);
+        assert_eq!(rinex.sv(), vehicles);
 
         for (epoch, classes) in record {
             for (class, frames) in classes.iter() {
