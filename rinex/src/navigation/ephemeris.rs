@@ -3,10 +3,11 @@ use super::{
     OrbitItem,
 };
 use crate::{epoch, prelude::*, sv, version::Version};
-use hifitime::{Unit, GPST_REF_EPOCH};
-use std::collections::HashMap;
-use std::str::FromStr;
+
 use thiserror::Error;
+use std::str::FromStr;
+use hifitime::GPST_REF_EPOCH;
+use std::collections::HashMap;
 
 /// Parsing errors
 #[derive(Debug, Error)]
@@ -289,8 +290,8 @@ impl Ephemeris {
     }
 }
 
-#[cfg(feature = "nav")]
-use std::collections::BTreeMap;
+//#[cfg(feature = "nav")]
+//use std::collections::BTreeMap;
 
 #[cfg(feature = "nav")]
 impl Ephemeris {

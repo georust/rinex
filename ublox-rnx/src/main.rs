@@ -12,7 +12,7 @@ use rinex::prelude::*;
 
 extern crate ublox;
 use ublox::*;
-use ublox::{CfgPrtUart, UartPortId};
+//use ublox::{CfgPrtUart, UartPortId};
 
 mod device;
 
