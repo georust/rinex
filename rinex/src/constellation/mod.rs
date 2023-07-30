@@ -4,14 +4,14 @@ use thiserror::Error;
 mod augmentation;
 pub use augmentation::Augmentation;
 
-#[cfg(feature = "sbas")]
-pub use augmentation::selection_helper;
-
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
-#[derive(Error, Clone, Debug, PartialEq)]
+#[cfg(feature = "sbas")]
+pub use augmentation::sbas_selection_helper;
+
 /// Constellation parsing & identification related errors
+#[derive(Error, Clone, Debug, PartialEq)]
 pub enum Error {
     #[error("code length mismatch, expecting {0} got {1}")]
     CodeLengthMismatch(usize, usize),
