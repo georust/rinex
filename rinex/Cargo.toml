@@ -18,6 +18,7 @@ qc = ["horrorshow"] # rinex Quality Check (mainly OBS RINEX)
 sbas = ["geo", "wkt"]
 tests = [] # used to import shared methods for efficient CI/CD
 obs = ["statrs"]
+nav = []
 
 [package.metadata.docs.rs]
 all-features = true

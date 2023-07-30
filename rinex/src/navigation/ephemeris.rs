@@ -53,7 +53,7 @@ pub enum Error {
 ///             // Sv Clock offset, or clock bias [s]
 ///             // Sv Clock Drift (d(offset)/dt) [s.s¯¹]
 ///             // Sv Clock Drift Rate (d(drift)/dt) [s.s¯²]
-///             let (clk_offset, clk_drift, clk_drift_r) = ephemeris.clock_data();
+///             let (clk_offset, clk_drift, clk_drift_r) = ephemeris.sv_clock();
 ///             // Navigation Data
 ///             let sv_pos = ephemeris.sat_pos_ecef(*epoch);
 ///             if let Some((el, azi)) = ephemeris.sat_elev_azim(*epoch, ref_pos) {
@@ -91,7 +91,7 @@ pub enum Error {
 ///     }
 /// }
 /// ```
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Default, Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Ephemeris {
     /// Clock bias [s]
@@ -105,19 +105,10 @@ pub struct Ephemeris {
     pub orbits: HashMap<String, OrbitItem>,
 }
 
-impl Default for Ephemeris {
-    fn default() -> Self {
-        Self {
-            clock_bias: 0.0_f64,
-            clock_drift: 0.0_f64,
-            clock_drift_rate: 0.0_f64,
-            orbits: HashMap::new(),
-        }
-    }
-}
-
 /// Kepler parameters
-#[derive(Clone, Debug)]
+#[cfg(feature = "nav")]
+#[derive(Default, Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Kepler {
     /// sqrt(semi major axis) [sqrt(m)]
     pub a: f64,
@@ -135,6 +126,7 @@ pub struct Kepler {
     pub toe: f64,
 }
 
+#[cfg(feature = "nav")]
 impl Kepler {
     /// Eearth mass * Gravitationnal field constant [m^3/s^2]
     pub const EARTH_GM_CONSTANT: f64 = 3.986004418E14_f64;
@@ -143,7 +135,9 @@ impl Kepler {
 }
 
 /// Perturbation parameters
-#[derive(Clone, Debug)]
+#[cfg(feature = "nav")]
+#[derive(Default, Clone, Debug)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Perturbations {
     /// Mean motion difference from computed value [semicircles.s-1]
     pub dn: f64,
@@ -168,11 +162,11 @@ pub struct Perturbations {
 }
 
 impl Ephemeris {
-    /// Retrieve all clock biases (bias, drift, drift rate) at once
-    pub fn clock_data(&self) -> (f64, f64, f64) {
+    /// Retrieve all Sv clock biases (error, drift, drift rate).
+    pub fn sv_clock(&self) -> (f64, f64, f64) {
         (self.clock_bias, self.clock_drift, self.clock_drift_rate)
     }
-    /// Retrieves orbit data as f64 value, if possible (if field exists)
+    /// Retrieves orbit data field expressed as f64 value, if such field exists.
     pub fn get_orbit_f64(&self, field: &str) -> Option<f64> {
         if let Some(v) = self.orbits.get(field) {
             v.as_f64()
@@ -180,7 +174,7 @@ impl Ephemeris {
             None
         }
     }
-    /// Tries to retrieve week counter
+    /// Retrieve week counter, if such field exists.
     pub fn get_weeks(&self) -> Option<u32> {
         //TODO:
         // cast/scalings per constellation ??
@@ -198,221 +192,6 @@ impl Ephemeris {
             }
         }
         None
-    }
-
-    /// Retrieves Orbit Keplerian parameters
-    pub fn kepler(&self) -> Option<Kepler> {
-        if let Some(sqrt_a) = self.get_orbit_f64("sqrta") {
-            if let Some(e) = self.get_orbit_f64("e") {
-                if let Some(i_0) = self.get_orbit_f64("i0") {
-                    if let Some(omega_0) = self.get_orbit_f64("omega0") {
-                        if let Some(m_0) = self.get_orbit_f64("m0") {
-                            if let Some(omega) = self.get_orbit_f64("omega") {
-                                if let Some(toe) = self.get_orbit_f64("toe") {
-                                    return Some(Kepler {
-                                        a: sqrt_a.powf(2.0),
-                                        e,
-                                        i_0,
-                                        omega_0,
-                                        m_0,
-                                        omega,
-                                        toe,
-                                    });
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        None
-    }
-
-    /// Retrieves Orbit Perturbations parameters
-    pub fn perturbations(&self) -> Option<Perturbations> {
-        if let Some(cuc) = self.get_orbit_f64("cuc") {
-            if let Some(cus) = self.get_orbit_f64("cus") {
-                if let Some(cic) = self.get_orbit_f64("cic") {
-                    if let Some(cis) = self.get_orbit_f64("cis") {
-                        if let Some(crc) = self.get_orbit_f64("crc") {
-                            if let Some(crs) = self.get_orbit_f64("crs") {
-                                if let Some(dn) = self.get_orbit_f64("deltaN") {
-                                    if let Some(i_dot) = self.get_orbit_f64("idot") {
-                                        if let Some(omega_dot) = self.get_orbit_f64("omegaDot") {
-                                            return Some(Perturbations {
-                                                dn,
-                                                i_dot,
-                                                omega_dot,
-                                                cuc,
-                                                cus,
-                                                cic,
-                                                cis,
-                                                crc,
-                                                crs,
-                                            });
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        None
-    }
-
-    /// Returns Satellite position vector, in ECEF
-    pub fn sat_pos_ecef(&self, epoch: Epoch) -> Option<(f64, f64, f64)> {
-        if let Some(pos_x) = self.get_orbit_f64("satPosX") {
-            if let Some(pos_y) = self.get_orbit_f64("satPosY") {
-                if let Some(pos_z) = self.get_orbit_f64("satPosZ") {
-                    //TODO PZ90
-                    //     add check for SBAS
-                    return Some((pos_x, pos_y, pos_z));
-                }
-            }
-        }
-        self.kepler2ecef(epoch)
-    }
-
-    /// Returns satellite instantaneous speed estimate, in ECEF
-    pub fn sat_speed_ecef(
-        &self,
-        epoch: Epoch,
-        prev_pos: (f64, f64, f64),
-        prev_epoch: Epoch,
-    ) -> Option<(f64, f64, f64)> {
-        if let Some(vel_x) = self.get_orbit_f64("velX") {
-            if let Some(vel_y) = self.get_orbit_f64("velY") {
-                if let Some(vel_z) = self.get_orbit_f64("velZ") {
-                    //TODO PZ90
-                    //     add check for SBAS
-                    return Some((vel_x, vel_y, vel_z));
-                }
-            }
-        }
-        if let Some((pos_x, pos_y, pos_z)) = self.kepler2ecef(epoch) {
-            let dt = (epoch - prev_epoch).to_unit(Unit::Second);
-            let dx = (pos_x - prev_pos.0) / dt;
-            let dy = (pos_y - prev_pos.1) / dt;
-            let dz = (pos_z - prev_pos.2) / dt;
-            return Some((dx, dy, dz));
-        }
-        None
-    }
-
-    /// Returns satellite instantaneous acceleration estimate, in ECEF
-    pub fn sat_accel_ecef(
-        &self,
-        epoch: Epoch,
-        prev_speed: (f64, f64, f64),
-        prev_epoch: Epoch,
-    ) -> Option<(f64, f64, f64)> {
-        if let Some(accel_x) = self.get_orbit_f64("accelX") {
-            if let Some(accel_y) = self.get_orbit_f64("accelY") {
-                if let Some(accel_z) = self.get_orbit_f64("accelZ") {
-                    //TODO PZ90
-                    //     add check for SBAS
-                    return Some((accel_x, accel_y, accel_z));
-                }
-            }
-        }
-        if let Some((dx, dy, dz)) = self.sat_speed_ecef(epoch, prev_speed, prev_epoch) {
-            let dt = (epoch - prev_epoch).to_unit(Unit::Second);
-            let ddx = (dx - prev_speed.0) / dt;
-            let ddy = (dy - prev_speed.1) / dt;
-            let ddz = (dz - prev_speed.2) / dt;
-            return Some((ddx, ddy, ddz));
-        }
-        None
-    }
-
-    /// Manual calculations of satellite position vector, in ECEF.
-    /// `epoch`: orbit epoch
-    pub fn kepler2ecef(&self, epoch: Epoch) -> Option<(f64, f64, f64)> {
-        let kepler = self.kepler()?;
-        let perturbations = self.perturbations()?;
-
-        let weeks = self.get_weeks()?;
-        let t0 = GPST_REF_EPOCH + Duration::from_days((weeks * 7).into());
-        let toe = t0 + Duration::from_seconds(kepler.toe as f64);
-        let t_k = (epoch - toe).to_seconds();
-
-        let n0 = (Kepler::EARTH_GM_CONSTANT / kepler.a.powf(3.0)).sqrt();
-        let n = n0 + perturbations.dn;
-        let m_k = kepler.m_0 + n * t_k;
-        let e_k = m_k + kepler.e * m_k.sin();
-        let nu_k = ((1.0 - kepler.e.powf(2.0)).sqrt() * e_k.sin()).atan2(e_k.cos() - kepler.e);
-        let phi_k = nu_k + kepler.omega;
-
-        let du_k =
-            perturbations.cuc * (2.0 * phi_k).cos() + perturbations.cus * (2.0 * phi_k).sin();
-        let u_k = phi_k + du_k;
-
-        let di_k =
-            perturbations.cic * (2.0 * phi_k).cos() + perturbations.cis * (2.0 * phi_k).sin();
-        let i_k = kepler.i_0 + perturbations.i_dot * t_k + di_k;
-
-        let dr_k =
-            perturbations.crc * (2.0 * phi_k).cos() + perturbations.crs * (2.0 * phi_k).sin();
-        let r_k = kepler.a * (1.0 - kepler.e * e_k.cos()) + dr_k;
-
-        let omega_k = kepler.omega_0
-            + (perturbations.omega_dot - Kepler::EARTH_OMEGA_E_WGS84) * t_k
-            - Kepler::EARTH_OMEGA_E_WGS84 * kepler.toe;
-        let xp_k = r_k * u_k.cos();
-        let yp_k = r_k * u_k.sin();
-
-        let x_k = xp_k * omega_k.cos() - yp_k * omega_k.sin() * i_k.cos();
-        let y_k = xp_k * omega_k.sin() + yp_k * omega_k.cos() * i_k.cos();
-        let z_k = yp_k * i_k.sin();
-
-        Some((x_k, y_k, z_k))
-    }
-
-    /// Computes satellite position expressed in geodetic {latitude, longitude, altitude},
-    /// all coordinates in decimal degrees.
-    pub fn sat_geodetic(&self, epoch: Epoch) -> Option<(f64, f64, f64)> {
-        let (x_k, y_k, z_k) = self.sat_pos_ecef(epoch)?;
-        let (lat, lon, alt) = map_3d::ecef2geodetic(x_k, y_k, z_k, map_3d::Ellipsoid::WGS84);
-        Some((map_3d::rad2deg(lat), map_3d::rad2deg(lon), alt))
-    }
-
-    /// Computes and returns vehicle elevation and azimuth angles, expressed in degrees.
-    pub fn sat_elev_azim(&self, epoch: Epoch, position: GroundPosition) -> Option<(f64, f64)> {
-        let (sv_x, sv_y, sv_z) = self.sat_pos_ecef(epoch)?;
-        let (ref_x, ref_y, ref_z) = position.to_ecef_wgs84();
-        let (sv_lat, sv_lon, _) = map_3d::ecef2geodetic(sv_x, sv_y, sv_z, map_3d::Ellipsoid::WGS84);
-        // pseudo range
-        let a_i = (sv_x - ref_x, sv_y - ref_y, sv_z - ref_z);
-        let norm = (a_i.0.powf(2.0) + a_i.1.powf(2.0) + a_i.2.powf(2.0)).sqrt();
-        let a_i = (a_i.0 / norm, a_i.1 / norm, a_i.2 / norm); // normalize
-                                                              // dot product
-        let ecef2enu = (
-            (-sv_lon.sin(), sv_lon.cos(), 0.0_f64),
-            (
-                -sv_lon.cos() * sv_lat.sin(),
-                -sv_lon.sin() * sv_lat.sin(),
-                sv_lat.cos(),
-            ),
-            (
-                sv_lon.cos() * sv_lat.cos(),
-                sv_lon.sin() * sv_lat.cos(),
-                sv_lat.sin(),
-            ),
-        );
-        let a_enu = (
-            ecef2enu.0 .0 * a_i.0 + ecef2enu.0 .1 * a_i.1 + ecef2enu.0 .2 * a_i.2,
-            ecef2enu.1 .0 * a_i.0 + ecef2enu.1 .1 * a_i.1 + ecef2enu.1 .2 * a_i.2,
-            ecef2enu.2 .0 * a_i.0 + ecef2enu.2 .1 * a_i.1 + ecef2enu.2 .2 * a_i.2,
-        );
-        let elev = a_enu.2.asin();
-        let mut azim = map_3d::rad2deg(a_enu.0.atan2(a_enu.1));
-        if azim < 0.0 {
-            azim += 360.0;
-        }
-        Some((map_3d::rad2deg(elev), azim))
     }
     /*
      * Parses ephemeris from given line iterator
@@ -507,6 +286,135 @@ impl Ephemeris {
                 orbits,
             },
         ))
+    }
+}
+
+#[cfg(feature = "nav")]
+use std::collections::BTreeMap;
+
+#[cfg(feature = "nav")]
+impl Ephemeris {
+    /// Retrieves Orbit Keplerian parameters
+    pub fn kepler(&self) -> Option<Kepler> {
+        Some(Kepler {
+            a: self.get_orbit_f64("sqrta")?.powf(2.0),
+            e: self.get_orbit_f64("e")?,
+            i_0: self.get_orbit_f64("i0")?,
+            omega: self.get_orbit_f64("omega")?,
+            omega_0: self.get_orbit_f64("omega0")?,
+            m_0: self.get_orbit_f64("m0")?,
+            toe: self.get_orbit_f64("toe")?,
+        })
+    }
+    /// Retrieves Orbit Perturbations parameters
+    pub fn perturbations(&self) -> Option<Perturbations> {
+        Some(Perturbations {
+            cuc: self.get_orbit_f64("cuc")?,
+            cus: self.get_orbit_f64("cus")?,
+            cic: self.get_orbit_f64("cic")?,
+            cis: self.get_orbit_f64("cis")?,
+            crc: self.get_orbit_f64("crc")?,
+            crs: self.get_orbit_f64("crs")?,
+            dn: self.get_orbit_f64("deltaN")?,
+            i_dot: self.get_orbit_f64("idot")?,
+            omega_dot: self.get_orbit_f64("omegaDot")?,
+        })
+    }
+    /*
+     * Manual calculations of satellite position vector, in ECEF.
+     * `epoch`: orbit epoch
+     * TODO: this only works in GPS Time frame, need to support GAL/BDS/GLO
+     * TODO: this only works in ECEF coordinates system, need to support GLO system
+     */
+    pub(crate) fn kepler2ecef(&self, epoch: Epoch) -> Option<(f64, f64, f64)> {
+        let kepler = self.kepler()?;
+        let perturbations = self.perturbations()?;
+
+        let weeks = self.get_weeks()?;
+        let t0 = GPST_REF_EPOCH + Duration::from_days((weeks * 7).into());
+        let toe = t0 + Duration::from_seconds(kepler.toe as f64);
+        let t_k = (epoch - toe).to_seconds();
+
+        let n0 = (Kepler::EARTH_GM_CONSTANT / kepler.a.powf(3.0)).sqrt();
+        let n = n0 + perturbations.dn;
+        let m_k = kepler.m_0 + n * t_k;
+        let e_k = m_k + kepler.e * m_k.sin();
+        let nu_k = ((1.0 - kepler.e.powf(2.0)).sqrt() * e_k.sin()).atan2(e_k.cos() - kepler.e);
+        let phi_k = nu_k + kepler.omega;
+
+        let du_k =
+            perturbations.cuc * (2.0 * phi_k).cos() + perturbations.cus * (2.0 * phi_k).sin();
+        let u_k = phi_k + du_k;
+
+        let di_k =
+            perturbations.cic * (2.0 * phi_k).cos() + perturbations.cis * (2.0 * phi_k).sin();
+        let i_k = kepler.i_0 + perturbations.i_dot * t_k + di_k;
+
+        let dr_k =
+            perturbations.crc * (2.0 * phi_k).cos() + perturbations.crs * (2.0 * phi_k).sin();
+        let r_k = kepler.a * (1.0 - kepler.e * e_k.cos()) + dr_k;
+
+        let omega_k = kepler.omega_0
+            + (perturbations.omega_dot - Kepler::EARTH_OMEGA_E_WGS84) * t_k
+            - Kepler::EARTH_OMEGA_E_WGS84 * kepler.toe;
+        let xp_k = r_k * u_k.cos();
+        let yp_k = r_k * u_k.sin();
+
+        let x_k = xp_k * omega_k.cos() - yp_k * omega_k.sin() * i_k.cos();
+        let y_k = xp_k * omega_k.sin() + yp_k * omega_k.cos() * i_k.cos();
+        let z_k = yp_k * i_k.sin();
+
+        Some((x_k, y_k, z_k))
+    }
+
+    pub(crate) fn sv_position(&self, epoch: Epoch) -> Option<(f64, f64, f64)> {
+        if let Some(pos_x) = self.get_orbit_f64("satPosX") {
+            if let Some(pos_y) = self.get_orbit_f64("satPosY") {
+                if let Some(pos_z) = self.get_orbit_f64("satPosZ") {
+                    //TODO PZ90 case
+                    //     add check for SBAS
+                    return Some((pos_x, pos_y, pos_z));
+                }
+            }
+        }
+        self.kepler2ecef(epoch)
+    }
+    /*
+     * Computes elev, azim angles
+     */
+    pub(crate) fn sv_elev_azim(&self, reference: GroundPosition, epoch: Epoch) -> Option<(f64, f64)> {
+        let (sv_x, sv_y, sv_z) = self.sv_position(epoch)?;
+        let (ref_x, ref_y, ref_z) = reference.to_ecef_wgs84();
+        let (sv_lat, sv_lon, _) = map_3d::ecef2geodetic(sv_x, sv_y, sv_z, map_3d::Ellipsoid::WGS84);
+        // pseudo range
+        let a_i = (sv_x - ref_x, sv_y - ref_y, sv_z - ref_z);
+        let norm = (a_i.0.powf(2.0) + a_i.1.powf(2.0) + a_i.2.powf(2.0)).sqrt();
+        let a_i = (a_i.0 / norm, a_i.1 / norm, a_i.2 / norm); // normalized
+                                                              // dot product
+        let ecef2enu = (
+            (-sv_lon.sin(), sv_lon.cos(), 0.0_f64),
+            (
+                -sv_lon.cos() * sv_lat.sin(),
+                -sv_lon.sin() * sv_lat.sin(),
+                sv_lat.cos(),
+            ),
+            (
+                sv_lon.cos() * sv_lat.cos(),
+                sv_lon.sin() * sv_lat.cos(),
+                sv_lat.sin(),
+            ),
+        );
+        let a_enu = (
+            ecef2enu.0 .0 * a_i.0 + ecef2enu.0 .1 * a_i.1 + ecef2enu.0 .2 * a_i.2,
+            ecef2enu.1 .0 * a_i.0 + ecef2enu.1 .1 * a_i.1 + ecef2enu.1 .2 * a_i.2,
+            ecef2enu.2 .0 * a_i.0 + ecef2enu.2 .1 * a_i.1 + ecef2enu.2 .2 * a_i.2,
+        );
+        let elev = a_enu.2.asin();
+        let mut azim = map_3d::rad2deg(a_enu.0.atan2(a_enu.1));
+        if azim < 0.0 {
+            azim += 360.0;
+        }
+        Some((map_3d::rad2deg(elev), azim))
     }
 }
 
@@ -716,6 +624,7 @@ mod test {
         assert_eq!(ephemeris.get_orbit_f64("t_tm"), Some(0.432000000000e+06));
         assert_eq!(ephemeris.get_orbit_f64("aodc"), Some(0.0));
     }
+    #[cfg(feature = "nav")]
     #[test]
     fn test_kepler2ecef() {
         let orbits = build_orbits(
@@ -754,7 +663,7 @@ mod test {
             7.05651887e6_f64,
         ));
         let xyz = ephemeris.kepler2ecef(epoch);
-        let el_azim = ephemeris.sat_elev_azim(epoch, ref_pos);
+        let el_azim = ephemeris.sv_elev_azim(ref_pos, epoch);
 
         assert!(xyz.is_some());
         let (x, y, z) = xyz.unwrap();

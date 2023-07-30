@@ -15,7 +15,7 @@ pub fn skyplot(ctx: &Context, plot_ctx: &mut PlotContext) {
          * observations were provided
          * color gradient emphasizes the SSI[dB]
          */
-        let sat_angles = nav.navigation_sat_angles(ctx.ground_position);
+        let sat_angles = nav.sv_elev_azim_angles(ctx.ground_position);
         for (index, (sv, epochs)) in sat_angles.iter().enumerate() {
             let theta: Vec<f64> = epochs.iter().map(|(_, (_, azi))| *azi).collect();
             let r: Vec<f64> = epochs.iter().map(|(_, (elev, _))| *elev).collect();
@@ -38,7 +38,7 @@ pub fn skyplot(ctx: &Context, plot_ctx: &mut PlotContext) {
          * "simplified" skyplot view,
          * color gradient emphasizes the epoch/timestamp
          */
-        let sat_angles = ctx.primary_rinex.navigation_sat_angles(ctx.ground_position);
+        let sat_angles = ctx.primary_rinex.sv_elev_azim_angles(ctx.ground_position);
         for (index, (sv, epochs)) in sat_angles.iter().enumerate() {
             let theta: Vec<f64> = epochs.iter().map(|(_, (_, azi))| *azi).collect();
             let r: Vec<f64> = epochs.iter().map(|(_, (elev, _))| *elev).collect();

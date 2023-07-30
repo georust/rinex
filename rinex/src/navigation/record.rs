@@ -1,4 +1,4 @@
-//! `NavigationData` parser and related methods
+//! NAV Ephemeris parser and related methods
 use crate::processing::{
     Filter, Interpolate, Mask, MaskFilter, MaskOperand, Preprocessing, TargetItem,
 };
