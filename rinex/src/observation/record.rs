@@ -11,8 +11,7 @@ use crate::{
     prelude::*,
     processing::{
         Combination, Combine, Decimate, DecimationType, Filter, Interpolate, IonoDelayDetector,
-        Mask, MaskFilter, MaskOperand, Preprocessing, Processing, Smooth, SmoothingType,
-        TargetItem,
+        Mask, MaskFilter, MaskOperand, Preprocessing, Smooth, SmoothingType, TargetItem,
     },
     split,
     split::Split,
@@ -1322,463 +1321,165 @@ impl Decimate for Record {
     }
 }
 
-use crate::algorithm::StatisticalOps;
+#[cfg(feature = "obs")]
 use statrs::statistics::Statistics;
 
-impl Processing for Record {
-    /*
-     * Statistical method wrapper,
-     * applies given statistical function to self (entire record)
-     */
-    fn statistical_ops(
-        &self,
-        ops: StatisticalOps,
-    ) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
-        let mut ret: (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) = (None, HashMap::new());
-        // eval for clock offsets, if such data exist
-        let clock_offsets: Vec<_> = self
-            .iter()
-            .filter_map(|(_, (clk, _))| {
-                if let Some(clk) = clk {
-                    Some(*clk)
-                } else {
-                    None
-                }
-            })
-            .collect();
-        if clock_offsets.len() > 0 {
-            match ops {
-                StatisticalOps::Max => ret.0 = Some(clock_offsets.max()),
-                StatisticalOps::MaxAbs => ret.0 = Some(clock_offsets.abs_max()),
-                StatisticalOps::Min => ret.0 = Some(clock_offsets.min()),
-                StatisticalOps::MinAbs => ret.0 = Some(clock_offsets.abs_min()),
-                StatisticalOps::Mean => ret.0 = Some(clock_offsets.mean()),
-                StatisticalOps::QuadMean => ret.0 = Some(clock_offsets.quadratic_mean()),
-                StatisticalOps::GeoMean => ret.0 = Some(clock_offsets.geometric_mean()),
-                StatisticalOps::HarmMean => ret.0 = Some(clock_offsets.harmonic_mean()),
-                StatisticalOps::Variance => ret.0 = Some(clock_offsets.variance()),
-                StatisticalOps::StdDev => ret.0 = Some(clock_offsets.std_dev()),
+#[cfg(feature = "obs")]
+use crate::observation::{Observation, StatisticalOps};
+
+#[cfg(feature = "obs")]
+/*
+ * Evaluate specific statistical esimate on this record data set
+ */
+fn statistical_estimate(
+    rec: &Record,
+    ops: StatisticalOps,
+) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
+    let mut ret: (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) = (None, HashMap::new());
+
+    // Vectorize clock offset (in time), so we can invoke statrs() on it
+    let data: Vec<f64> = rec
+        .iter()
+        .filter_map(|(_, (clk, _))| {
+            if let Some(clk) = clk {
+                Some(*clk)
+            } else {
+                None
             }
+        })
+        .collect();
+
+    if data.len() > 0 {
+        // data exists
+        match ops {
+            StatisticalOps::Max => ret.0 = Some(data.max()),
+            StatisticalOps::Min => ret.0 = Some(data.min()),
+            StatisticalOps::Mean => ret.0 = Some(data.mean()),
+            StatisticalOps::StdVar => ret.0 = Some(data.variance()),
+            StatisticalOps::StdDev => ret.0 = Some(data.std_dev()),
         }
-        // eval for accross all epochs, for all observation and vehicles
-        for (_epoch, (_clk, sv)) in self {
-            for (sv, observables) in sv {
-                for (observable, _) in observables {
-                    // vectorize all data for this vehicle + observation, accross epochs
-                    // so we can compute Statistics.Max()
-                    let mut data = Vec::<f64>::new();
-                    for (_, (_, svnn)) in self {
-                        for (svnn, svnn_observations) in svnn {
-                            if svnn == sv {
-                                for (svnn_observable, svnn_observation) in svnn_observations {
-                                    if svnn_observable == observable {
-                                        data.push(svnn_observation.obs);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    // build resulting data set
-                    if let Some(observables) = ret.1.get_mut(&sv) {
-                        match ops {
-                            StatisticalOps::Max => {
-                                observables.insert(observable.clone(), data.max());
-                            },
-                            StatisticalOps::MaxAbs => {
-                                observables.insert(observable.clone(), data.abs_max());
-                            },
-                            StatisticalOps::Min => {
-                                observables.insert(observable.clone(), data.min());
-                            },
-                            StatisticalOps::MinAbs => {
-                                observables.insert(observable.clone(), data.abs_min());
-                            },
-                            StatisticalOps::Mean => {
-                                observables.insert(observable.clone(), data.mean());
-                            },
-                            StatisticalOps::QuadMean => {
-                                observables.insert(observable.clone(), data.quadratic_mean());
-                            },
-                            StatisticalOps::GeoMean => {
-                                observables.insert(observable.clone(), data.geometric_mean());
-                            },
-                            StatisticalOps::HarmMean => {
-                                observables.insert(observable.clone(), data.harmonic_mean());
-                            },
-                            StatisticalOps::Variance => {
-                                observables.insert(observable.clone(), data.variance());
-                            },
-                            StatisticalOps::StdDev => {
-                                observables.insert(observable.clone(), data.std_dev());
-                            },
-                        }
-                    } else {
-                        let mut map = HashMap::<Observable, f64>::new();
-                        match ops {
-                            StatisticalOps::Max => {
-                                map.insert(observable.clone(), data.max());
-                            },
-                            StatisticalOps::MaxAbs => {
-                                map.insert(observable.clone(), data.abs_max());
-                            },
-                            StatisticalOps::Min => {
-                                map.insert(observable.clone(), data.min());
-                            },
-                            StatisticalOps::MinAbs => {
-                                map.insert(observable.clone(), data.abs_min());
-                            },
-                            StatisticalOps::Mean => {
-                                map.insert(observable.clone(), data.mean());
-                            },
-                            StatisticalOps::QuadMean => {
-                                map.insert(observable.clone(), data.quadratic_mean());
-                            },
-                            StatisticalOps::GeoMean => {
-                                map.insert(observable.clone(), data.geometric_mean());
-                            },
-                            StatisticalOps::HarmMean => {
-                                map.insert(observable.clone(), data.harmonic_mean());
-                            },
-                            StatisticalOps::Variance => {
-                                map.insert(observable.clone(), data.variance());
-                            },
-                            StatisticalOps::StdDev => {
-                                map.insert(observable.clone(), data.std_dev());
-                            },
-                        };
-                        ret.1.insert(*sv, map);
-                    }
-                }
-            }
-        }
-        ret
     }
-    /*
-     * Statistical method wrapper,
-     * applies given statistical function to self (entire record) across Sv
-     */
-    fn statistical_observable_ops(&self, ops: StatisticalOps) -> HashMap<Observable, f64> {
-        let mut ret = HashMap::<Observable, f64>::new();
-        let (_, stats) = self.statistical_ops(ops); // drop statistics over clock_offsets
-                                                    // because it's not considered an "observable"
-        for (_, observables) in &stats {
-            for (observable, _) in observables {
-                // vectorize matching obs for min() ops
-                let mut data = Vec::<f64>::new();
-                for (_, svnn_observables) in &stats {
-                    for (svnn_observable, observation) in svnn_observables {
-                        if svnn_observable == observable {
-                            data.push(*observation);
-                        }
+
+    // Vectorize data (in time) so we can invoke statrs() on it
+    let mut data: HashMap<Sv, HashMap<Observable, Vec<f64>>> = HashMap::new();
+
+    for (_epoch, (_clk, svnn)) in rec {
+        for (sv, observations) in svnn {
+            for (observable, obs_data) in observations {
+                if let Some(data) = data.get_mut(&sv) {
+                    if let Some(data) = data.get_mut(&observable) {
+                        data.push(obs_data.obs); // append
+                    } else {
+                        data.insert(observable.clone(), vec![obs_data.obs]);
+                    }
+                } else {
+                    let mut map: HashMap<Observable, Vec<f64>> = HashMap::new();
+                    map.insert(observable.clone(), vec![obs_data.obs]);
+                    data.insert(sv.clone(), map);
+                }
+            }
+        }
+    }
+
+    // build returned data
+    for (sv, observables) in data {
+        for (observable, data) in observables {
+            // invoke statrs
+            let stats = match ops {
+                StatisticalOps::Min => data.min(),
+                StatisticalOps::Max => data.max(),
+                StatisticalOps::Mean => data.mean(),
+                StatisticalOps::StdDev => data.std_dev(),
+                StatisticalOps::StdVar => data.variance(),
+            };
+            if let Some(data) = ret.1.get_mut(&sv) {
+                data.insert(observable.clone(), stats);
+            } else {
+                let mut map: HashMap<Observable, f64> = HashMap::new();
+                map.insert(observable.clone(), stats);
+                ret.1.insert(sv.clone(), map);
+            }
+        }
+    }
+
+    ret
+}
+
+#[cfg(feature = "obs")]
+/*
+ * Evaluate specific statistical esimate on this record data set
+ */
+fn statistical_observable_estimate(rec: &Record, ops: StatisticalOps) -> HashMap<Observable, f64> {
+    let mut ret: HashMap<Observable, f64> = HashMap::new();
+    // For all statistical estimates but StdDev/StdVar
+    // We can compute across all vehicles then shrink 1D
+    match ops {
+        StatisticalOps::StdVar | StatisticalOps::StdDev => {},
+        _ => {
+            // compute across all observables, then per Sv
+            let (_, data) = statistical_estimate(rec, ops);
+            let mut data_set: HashMap<Observable, Vec<f64>> = HashMap::new();
+            for (_sv, observables) in data {
+                for (observable, value) in observables {
+                    if let Some(data) = data_set.get_mut(&observable) {
+                        data.push(value);
+                    } else {
+                        data_set.insert(observable.clone(), vec![value]);
                     }
                 }
+            }
+            for (observable, values) in data_set {
+                // invoke statrs
                 match ops {
-                    StatisticalOps::Max => {
-                        ret.insert(observable.clone(), data.max());
-                    },
-                    StatisticalOps::MaxAbs => {
-                        ret.insert(observable.clone(), data.abs_max());
-                    },
                     StatisticalOps::Min => {
-                        ret.insert(observable.clone(), data.min());
+                        ret.insert(observable.clone(), values.min());
                     },
-                    StatisticalOps::MinAbs => {
-                        ret.insert(observable.clone(), data.abs_min());
+                    StatisticalOps::Max => {
+                        ret.insert(observable.clone(), values.max());
                     },
                     StatisticalOps::Mean => {
-                        ret.insert(observable.clone(), data.mean());
+                        ret.insert(observable.clone(), values.mean());
                     },
-                    StatisticalOps::QuadMean => {
-                        ret.insert(observable.clone(), data.quadratic_mean());
-                    },
-                    StatisticalOps::GeoMean => {
-                        ret.insert(observable.clone(), data.geometric_mean());
-                    },
-                    StatisticalOps::HarmMean => {
-                        ret.insert(observable.clone(), data.harmonic_mean());
-                    },
-                    StatisticalOps::Variance => {
-                        ret.insert(observable.clone(), data.variance());
-                    },
-                    StatisticalOps::StdDev => {
-                        ret.insert(observable.clone(), data.std_dev());
-                    },
-                }
+                    _ => {}, // does not apply
+                };
             }
-        }
-        ret
+        },
     }
+    ret
+}
+
+#[cfg(feature = "obs")]
+impl Observation for Record {
     fn min(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
-        self.statistical_ops(StatisticalOps::Min)
-    }
-    fn abs_min(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
-        self.statistical_ops(StatisticalOps::MinAbs)
-    }
-    fn min_observable(&self) -> HashMap<Observable, f64> {
-        self.statistical_observable_ops(StatisticalOps::Min)
-    }
-    fn abs_min_observable(&self) -> HashMap<Observable, f64> {
-        self.statistical_observable_ops(StatisticalOps::MinAbs)
+        statistical_estimate(self, StatisticalOps::Min)
     }
     fn max(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
-        self.statistical_ops(StatisticalOps::Max)
-    }
-    fn abs_max(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
-        self.statistical_ops(StatisticalOps::MaxAbs)
-    }
-    fn max_observable(&self) -> HashMap<Observable, f64> {
-        self.statistical_observable_ops(StatisticalOps::Max)
-    }
-    fn abs_max_observable(&self) -> HashMap<Observable, f64> {
-        self.statistical_observable_ops(StatisticalOps::MaxAbs)
+        statistical_estimate(self, StatisticalOps::Max)
     }
     fn mean(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
-        self.statistical_ops(StatisticalOps::Mean)
+        statistical_estimate(self, StatisticalOps::Mean)
     }
-    fn mean_observable(&self) -> HashMap<Observable, f64> {
-        self.statistical_observable_ops(StatisticalOps::Mean)
-    }
-    fn harmonic_mean(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
-        self.statistical_ops(StatisticalOps::HarmMean)
-    }
-    fn harmonic_mean_observable(&self) -> HashMap<Observable, f64> {
-        self.statistical_observable_ops(StatisticalOps::QuadMean)
-    }
-    fn quadratic_mean(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
-        self.statistical_ops(StatisticalOps::QuadMean)
-    }
-    fn quadratic_mean_observable(&self) -> HashMap<Observable, f64> {
-        self.statistical_observable_ops(StatisticalOps::QuadMean)
-    }
-    fn geometric_mean(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
-        self.statistical_ops(StatisticalOps::GeoMean)
-    }
-    fn geometric_mean_observable(&self) -> HashMap<Observable, f64> {
-        self.statistical_observable_ops(StatisticalOps::GeoMean)
-    }
-    fn variance(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
-        self.statistical_ops(StatisticalOps::Variance)
+    fn std_var(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
+        statistical_estimate(self, StatisticalOps::StdVar)
     }
     fn std_dev(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
-        self.statistical_ops(StatisticalOps::StdDev)
+        statistical_estimate(self, StatisticalOps::StdDev)
     }
-    /*    fn central_moment(&self, order: u16) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
-            let mean = self.mean();
-            let _ret: (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) = (None, HashMap::new());
-            let mut diff: (
-                Option<(u32, f64)>,
-                HashMap<Sv, HashMap<Observable, (u32, f64)>>,
-            ) = (None, HashMap::new());
-            for (_, (clk, svs)) in self {
-                /*
-                 * |x_i -x|{clk}
-                 */
-                if let Some(clk) = clk {
-                    if let Some(mean) = mean.0 {
-                        if let Some((count, dv)) = diff.0 {
-                            let dv = dv + (*clk - mean).powf(order as f64);
-                            diff.0 = Some((count + 1, dv));
-                        }
-                    }
-                }
-                /*
-                 * |x_i -x|{data}
-                 */
-                for (sv, observables) in svs {
-                    for (observable, observation) in observables {
-                        let mean = mean.1.get(&sv).unwrap().get(&observable).unwrap();
-                        if let Some(data) = diff.1.get_mut(sv) {
-                            if let Some((count, diff)) = data.get_mut(observable) {
-                                *count += 1;
-                                *diff += (observation.obs - mean).powf(order as f64);
-                            } else {
-                                data.insert(
-                                    observable.clone(),
-                                    (1, (observation.obs - mean).powf(order as f64)),
-                                );
-                            }
-                        } else {
-                            let mut map: HashMap<Observable, (u32, f64)> = HashMap::new();
-                            map.insert(
-                                observable.clone(),
-                                (1, (observation.obs - mean).powf(order as f64)),
-                            );
-                            diff.1.insert(*sv, map);
-                        }
-                    }
-                }
-            }
-            let mut ret: (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) = (None, HashMap::new());
-            /*
-             * stdvar{clk}
-             */
-            if let Some((count, diff)) = diff.0 {
-                ret.0 = Some(diff / count as f64);
-            }
-            /*
-             * stdvar{data}
-             */
-            for (sv, observables) in diff.1 {
-                for (observable, (count, diff)) in observables {
-                    if let Some(data) = ret.1.get_mut(&sv) {
-                        if let Some(data) = data.get_mut(&observable) {
-                            *data = diff / count as f64;
-                        } else {
-                            data.insert(observable.clone(), diff / count as f64);
-                        }
-                    } else {
-                        let mut map: HashMap<Observable, f64> = HashMap::new();
-                        map.insert(observable.clone(), diff / count as f64);
-                        ret.1.insert(sv, map);
-                    }
-                }
-            }
-            ret
-        }
-    */
-    /*
-        fn derivative(&self) -> Record {
-            let mut prev: (
-                Option<(Epoch, f64)>,
-                BTreeMap<Sv, HashMap<Observable, (Epoch, f64)>>,
-            ) = (None, BTreeMap::new());
-            let mut ret: Record = Record::new();
-            for ((epoch, flag), (clk, svs)) in self {
-                /*
-                 * d/dt{clk}
-                 */
-                let mut new_clk: Option<f64> = None;
-                if let Some(clk) = clk {
-                    if let Some((prev_epoch, prev_data)) = prev.0 {
-                        new_clk = Some(
-                            (*clk - prev_data) / (*epoch - prev_epoch).to_unit(hifitime::Unit::Second),
-                        );
-                        prev.0 = Some((*epoch, *clk)); // {prev_epoch, prev_data}
-                    } else {
-                        prev.0 = Some((*epoch, *clk));
-                    }
-                }
-                /*
-                 * d/dt{data}
-                 */
-                for (sv, observables) in svs {
-                    for (observable, observation) in observables {
-                        if let Some(prev) = prev.1.get_mut(&sv) {
-                            if let Some((mut prev_epoch, mut prev_data)) = prev.get_mut(&observable) {
-                                if let Some((clk, data)) = ret.get_mut(&(*epoch, *flag)) {
-                                    *clk = new_clk;
-                                    if let Some(data) = data.get_mut(&sv) {
-                                        if let Some(data) = data.get_mut(&observable) {
-                                            *data = ObservationData {
-                                                obs: (observation.obs - prev_data)
-                                                    / (*epoch - prev_epoch)
-                                                        .to_unit(hifitime::Unit::Second),
-                                                lli: data.lli,
-                                                snr: data.snr,
-                                            };
-                                        } else {
-                                            data.insert(
-                                                observable.clone(),
-                                                ObservationData {
-                                                    obs: (observation.obs - prev_data)
-                                                        / (*epoch - prev_epoch)
-                                                            .to_unit(hifitime::Unit::Second),
-                                                    lli: observation.lli,
-                                                    snr: observation.snr,
-                                                },
-                                            );
-                                        }
-                                    } else {
-                                        let mut map: HashMap<Observable, ObservationData> =
-                                            HashMap::new();
-                                        map.insert(
-                                            observable.clone(),
-                                            ObservationData {
-                                                obs: (observation.obs - prev_data)
-                                                    / (*epoch - prev_epoch)
-                                                        .to_unit(hifitime::Unit::Second),
-                                                lli: observation.lli,
-                                                snr: observation.snr,
-                                            },
-                                        );
-                                        data.insert(*sv, map);
-                                    }
-                                } else {
-                                    let mut map: HashMap<Observable, ObservationData> = HashMap::new();
-                                    map.insert(
-                                        observable.clone(),
-                                        ObservationData {
-                                            obs: (observation.obs - prev_data)
-                                                / (*epoch - prev_epoch).to_unit(hifitime::Unit::Second),
-                                            lli: observation.lli,
-                                            snr: observation.snr,
-                                        },
-                                    );
-                                    let mut mmap: BTreeMap<Sv, HashMap<Observable, ObservationData>> =
-                                        BTreeMap::new();
-                                    mmap.insert(*sv, map);
-                                    ret.insert((*epoch, *flag), (new_clk, mmap));
-                                }
-                                prev_epoch = *epoch;
-                                prev_data = observation.obs;
-                            } else {
-                                prev.insert(observable.clone(), (*epoch, observation.obs));
-                            }
-                        } else {
-                            let mut map: HashMap<Observable, (Epoch, f64)> = HashMap::new();
-                            map.insert(observable.clone(), (*epoch, observation.obs));
-                            prev.1.insert(*sv, map);
-                        }
-                    }
-                }
-            }
-            ret
-        }
-    fn skewness(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
-        let stddev = self.stddev();
-        let central_moment = self.central_moment(3);
-        let mut ret: (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) =
-            (None, HashMap::with_capacity(stddev.1.len()));
-        /*
-         * skew{clk}
-         */
-        if let Some(stddev) = stddev.0 {
-            if let Some(moment) = central_moment.0 {
-                ret.0 = Some(moment / stddev.powf(3.0));
-            }
-        }
-        /*
-         * skew{data}
-         */
-        for (sv, observables) in stddev.1 {
-            if let Some(moment_observables) = central_moment.1.get(&sv) {
-                for (observable, stddev) in observables {
-                    if let Some(moment) = moment_observables.get(&observable) {
-                        if let Some(data) = ret.1.get_mut(&sv) {
-                            data.insert(observable.clone(), moment / stddev.powf(3.0));
-                        } else {
-                            let mut map: HashMap<Observable, f64> = HashMap::new();
-                            map.insert(observable.clone(), moment / stddev.powf(3.0));
-                            ret.1.insert(sv, map);
-                        }
-                    }
-                }
-            }
-        }
-        ret
+    fn min_observable(&self) -> HashMap<Observable, f64> {
+        statistical_observable_estimate(self, StatisticalOps::Min)
     }
-    fn skewness_observable(&self) -> HashMap<Observable, f64> {
-        let stddev = self.stddev_observable();
-        let central_moment = self.central_moment_observable(3);
-        let mut ret: HashMap<Observable, f64> = HashMap::with_capacity(stddev.len());
-        for (observable, stddev) in stddev {
-            if let Some(moment) = central_moment.get(&observable) {
-                ret.insert(observable.clone(), moment / stddev.powf(3.0));
-            }
-        }
-        ret
+    fn max_observable(&self) -> HashMap<Observable, f64> {
+        statistical_observable_estimate(self, StatisticalOps::Max)
     }
-    */
+    fn std_dev_observable(&self) -> HashMap<Observable, f64> {
+        statistical_observable_estimate(self, StatisticalOps::StdDev)
+    }
+    fn std_var_observable(&self) -> HashMap<Observable, f64> {
+        statistical_observable_estimate(self, StatisticalOps::StdVar)
+    }
+    fn mean_observable(&self) -> HashMap<Observable, f64> {
+        statistical_observable_estimate(self, StatisticalOps::Mean)
+    }
 }
 
 /*

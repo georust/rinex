@@ -454,131 +454,67 @@ impl Interpolate for Record {
     }
 }
 
-use crate::algorithm::StatisticalOps;
-use crate::processing::Processing;
+#[cfg(feature = "obs")]
+use crate::observation::{Observation, StatisticalOps};
+
+#[cfg(feature = "obs")]
 use statrs::statistics::Statistics;
 
-impl Processing for Record {
-    /*
-     * Statistical method wrapper,
-     * applies given statistical function to self (entire record)
-     */
-    fn statistical_ops(
-        &self,
-        _ops: StatisticalOps,
-    ) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
-        unimplemented!();
-        /*
-         * User is expected to use the _observable() API
-         * on Meteo RINEX: we only perform statistical calculations
-         * on observation basis
-         */
-    }
-    /*
-     * Statistical method wrapper,
-     * applies given statistical function to self (entire record) across Sv
-     */
-    fn statistical_observable_ops(&self, ops: StatisticalOps) -> HashMap<Observable, f64> {
-        let mut ret = HashMap::<Observable, f64>::new();
-        for (_, observables) in self {
-            for (observable, _) in observables {
-                // vectorize matching obs
-                let mut data = Vec::<f64>::new();
-                for (_, oobservables) in self {
-                    for (oobservable, observation) in oobservables {
-                        if observable == oobservable {
-                            data.push(*observation);
-                        }
-                    }
-                }
-                match ops {
-                    StatisticalOps::Max => {
-                        ret.insert(observable.clone(), data.max());
-                    },
-                    StatisticalOps::MaxAbs => {
-                        ret.insert(observable.clone(), data.abs_max());
-                    },
-                    StatisticalOps::Min => {
-                        ret.insert(observable.clone(), data.min());
-                    },
-                    StatisticalOps::MinAbs => {
-                        ret.insert(observable.clone(), data.abs_min());
-                    },
-                    StatisticalOps::Mean => {
-                        ret.insert(observable.clone(), data.mean());
-                    },
-                    StatisticalOps::QuadMean => {
-                        ret.insert(observable.clone(), data.quadratic_mean());
-                    },
-                    StatisticalOps::GeoMean => {
-                        ret.insert(observable.clone(), data.geometric_mean());
-                    },
-                    StatisticalOps::HarmMean => {
-                        ret.insert(observable.clone(), data.harmonic_mean());
-                    },
-                    StatisticalOps::Variance => {
-                        ret.insert(observable.clone(), data.variance());
-                    },
-                    StatisticalOps::StdDev => {
-                        ret.insert(observable.clone(), data.std_dev());
-                    },
-                }
+fn statistical_estimate(rec: &Record, ops: StatisticalOps) -> HashMap<Observable, f64> {
+    let mut ret: HashMap<Observable, f64> = HashMap::new();
+    let mut dataset: HashMap<Observable, Vec<f64>> = HashMap::new();
+    for (_t, observables) in rec {
+        for (observable, point) in observables {
+            if let Some(data) = dataset.get_mut(&observable) {
+                data.push(*point);
+            } else {
+                dataset.insert(observable.clone(), vec![*point]);
             }
         }
-        ret
     }
+    for (observable, data) in dataset {
+        let stats = match ops {
+            StatisticalOps::Min => data.min(),
+            StatisticalOps::Max => data.max(),
+            StatisticalOps::Mean => data.mean(),
+            StatisticalOps::StdDev => data.std_dev(),
+            StatisticalOps::StdVar => data.variance(),
+        };
+        ret.insert(observable.clone(), stats);
+    }
+    ret
+}
+
+#[cfg(feature = "obs")]
+impl Observation for Record {
     fn min(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
-        self.statistical_ops(StatisticalOps::Min)
-    }
-    fn abs_min(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
-        self.statistical_ops(StatisticalOps::MinAbs)
-    }
-    fn min_observable(&self) -> HashMap<Observable, f64> {
-        self.statistical_observable_ops(StatisticalOps::Min)
-    }
-    fn abs_min_observable(&self) -> HashMap<Observable, f64> {
-        self.statistical_observable_ops(StatisticalOps::MinAbs)
+        unimplemented!("only on OBS RINEX!");
     }
     fn max(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
-        self.statistical_ops(StatisticalOps::Max)
-    }
-    fn abs_max(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
-        self.statistical_ops(StatisticalOps::MaxAbs)
-    }
-    fn max_observable(&self) -> HashMap<Observable, f64> {
-        self.statistical_observable_ops(StatisticalOps::Max)
-    }
-    fn abs_max_observable(&self) -> HashMap<Observable, f64> {
-        self.statistical_observable_ops(StatisticalOps::MaxAbs)
+        unimplemented!("only on OBS RINEX!");
     }
     fn mean(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
-        self.statistical_ops(StatisticalOps::Mean)
+        unimplemented!("only on OBS RINEX!");
     }
-    fn mean_observable(&self) -> HashMap<Observable, f64> {
-        self.statistical_observable_ops(StatisticalOps::Mean)
-    }
-    fn harmonic_mean(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
-        self.statistical_ops(StatisticalOps::HarmMean)
-    }
-    fn harmonic_mean_observable(&self) -> HashMap<Observable, f64> {
-        self.statistical_observable_ops(StatisticalOps::QuadMean)
-    }
-    fn quadratic_mean(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
-        self.statistical_ops(StatisticalOps::QuadMean)
-    }
-    fn quadratic_mean_observable(&self) -> HashMap<Observable, f64> {
-        self.statistical_observable_ops(StatisticalOps::QuadMean)
-    }
-    fn geometric_mean(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
-        self.statistical_ops(StatisticalOps::GeoMean)
-    }
-    fn geometric_mean_observable(&self) -> HashMap<Observable, f64> {
-        self.statistical_observable_ops(StatisticalOps::GeoMean)
-    }
-    fn variance(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
-        self.statistical_ops(StatisticalOps::Variance)
+    fn std_var(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
+        unimplemented!("only on OBS RINEX!");
     }
     fn std_dev(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
-        self.statistical_ops(StatisticalOps::StdDev)
+        unimplemented!("only on OBS RINEX!");
+    }
+    fn min_observable(&self) -> HashMap<Observable, f64> {
+        statistical_estimate(self, StatisticalOps::Min)
+    }
+    fn max_observable(&self) -> HashMap<Observable, f64> {
+        statistical_estimate(self, StatisticalOps::Max)
+    }
+    fn std_dev_observable(&self) -> HashMap<Observable, f64> {
+        statistical_estimate(self, StatisticalOps::StdDev)
+    }
+    fn std_var_observable(&self) -> HashMap<Observable, f64> {
+        statistical_estimate(self, StatisticalOps::StdVar)
+    }
+    fn mean_observable(&self) -> HashMap<Observable, f64> {
+        statistical_estimate(self, StatisticalOps::Mean)
     }
 }

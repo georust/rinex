@@ -17,6 +17,7 @@ default = [] # no features by default
 qc = ["horrorshow"] # rinex Quality Check (mainly OBS RINEX) 
 sbas = ["geo", "wkt"]
 tests = [] # used to import shared methods for efficient CI/CD
+obs = ["statrs"]
 
 [package.metadata.docs.rs]
 all-features = true
@@ -44,7 +45,7 @@ serde = { version = "1.0", optional = true, default-features = false, features =
 flate2 = { version = "1.0.24", optional = true, default-features = false, features = ["zlib"] }
 hifitime = { version = "3.8", features = ["serde", "std"] }
 horrorshow = { version = "0.8", optional = true }
-statrs = "0.16"
+statrs = { version = "0.16", optional = true }
 
 [dev-dependencies]
 serde_json = "1"

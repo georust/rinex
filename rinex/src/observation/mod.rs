@@ -170,6 +170,104 @@ impl HeaderFields {
     }
 }
 
+#[cfg(feature = "obs")]
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum StatisticalOps {
+    Min,
+    Max,
+    Mean,
+    StdDev,
+    StdVar,
+}
+
+#[cfg(feature = "obs")]
+#[cfg_attr(docrs, doc(cfg(feature = "obs")))]
+/// OBS RINEX specific analysis trait.
+/// Include this trait to unlock Observation analysis, mainly statistical analysis.
+pub trait Observation {
+    /// Returns minimum value observed, throughout all epochs, sorted by Observable.
+    /// This also applies to clock receiver estimate,
+    /// when requested on OBS RINEX files, not METEO files.
+    /// ```
+    /// use rinex::prelude::*; // basics
+    /// use std::str::FromStr; // observable!
+    /// use rinex::observation::Observation; // .min_observable()
+    ///
+    /// // OBS RINEX example
+    /// let rinex = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
+    ///     .unwrap();
+    /// let min_values = rinex.min_observable();
+    /// for (observable, min_value) in min_values {
+    ///     if observable == observable!("S1C") {
+    ///         // minimum signal strength for carrier 1
+    ///         assert_eq!(min_value, 0.0); // L1 carrier min (worst) RSSI
+    ///     }
+    /// }
+    ///
+    /// // METEO RINEX example
+    /// let rinex = Rinex::from_file("../test_resources/MET/V2/clar0020.00m")
+    ///     .unwrap();
+    /// let min_values = rinex.min_observable();
+    /// for (observable, min_value) in min_values {
+    ///     if observable == Observable::Temperature {
+    ///         assert_eq!(min_value, 8.4); // min value encountered on that day
+    ///     }
+    /// }
+    /// ```
+    fn min_observable(&self) -> HashMap<Observable, f64>;
+    /// Returns maximal value observed, throughout all epochs, sorted by Observable.
+    /// See [min_observable()] for API example.
+    fn max_observable(&self) -> HashMap<Observable, f64>;
+    /// Returns mean observation, throughout all epochs, sorted by Observable.
+    /// See [min_observable()] for API example.
+    fn mean_observable(&self) -> HashMap<Observable, f64>;
+    /// Returns standard deviation for all Observables.
+    /// See [min_observable()] for API example.
+    fn std_dev_observable(&self) -> HashMap<Observable, f64>;
+    /// Returns standard variance for all Observables.
+    /// See [min_observable()] for API example.
+    fn std_var_observable(&self) -> HashMap<Observable, f64>;
+    /// Returns minimum value observed throughout all epochs sorted by
+    /// Satellite vehicle and Observable. This does not apply to METEO
+    /// RINEX files.
+    /// ```
+    /// use rinex::prelude::*; // basics
+    /// use std::str::FromStr; // sv!, observable!
+    /// use rinex::observation::Observation; // .min()
+    ///
+    /// // OBS RINEX example
+    /// let rinex = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
+    ///     .unwrap();
+    /// let (min_clock, svnn) = rinex.min();
+    /// assert!(min_clock.is_none()); // we don't have an example file with such information yet
+    /// for (sv, min_value) in svnn {
+    ///     if sv == sv!("g01") {
+    ///         if observable == observable!("S1C") {
+    ///             // minimum signal strength for carrier 1
+    ///             // for that particular vehicle
+    ///         }
+    ///     }
+    /// }
+    /// ```
+    fn min(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>);
+    /// Returns maximal value observed throughout all epochs sorted by
+    /// Satellite vehicle and Observable. This does not apply to METEO
+    /// RINEX files. See [min()] for API example.
+    fn max(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>);
+    /// Returns mean value observed throughout all epochs sorted by
+    /// Satellite vehicle and Observable. This does not apply to METEO
+    /// RINEX files. See [min()] for API example.
+    fn mean(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>);
+    /// Returns observations deviation throughout all epochs sorted by
+    /// Satellite vehicle and Observable. This does not apply to METEO
+    /// RINEX files. See [min()] for API example.
+    fn std_dev(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>);
+    /// Returns observations variance throughout all epochs sorted by
+    /// Satellite vehicle and Observable. This does not apply to METEO
+    /// RINEX files. See [min()] for API example.
+    fn std_var(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>);
+}
+
 #[cfg(test)]
 mod crinex {
     use super::*;

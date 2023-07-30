@@ -2447,84 +2447,78 @@ impl Decimate for Rinex {
     }
 }
 
-use crate::algorithm::Processing;
-use crate::algorithm::StatisticalOps;
+#[cfg(feature = "obs")]
+use crate::observation::Observation;
 
-impl Processing for Rinex {
-    fn statistical_ops(
-        &self,
-        ops: StatisticalOps,
-    ) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
-        if let Some(rec) = self.record.as_obs() {
-            rec.statistical_ops(ops)
-        } else if let Some(rec) = self.record.as_meteo() {
-            rec.statistical_ops(ops)
-        } else {
-            unimplemented!();
-        }
-    }
-    fn statistical_observable_ops(&self, ops: StatisticalOps) -> HashMap<Observable, f64> {
-        if let Some(rec) = self.record.as_obs() {
-            rec.statistical_observable_ops(ops)
-        } else if let Some(rec) = self.record.as_meteo() {
-            rec.statistical_observable_ops(ops)
-        } else {
-            unimplemented!();
-        }
-    }
+#[cfg(feature = "obs")]
+impl Observation for Rinex {
     fn min(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
-        self.statistical_ops(StatisticalOps::Min)
-    }
-    fn abs_min(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
-        self.statistical_ops(StatisticalOps::MinAbs)
+        if let Some(r) = self.record.as_obs() {
+            r.min()
+        } else {
+            (None, HashMap::new())
+        }
     }
     fn min_observable(&self) -> HashMap<Observable, f64> {
-        self.statistical_observable_ops(StatisticalOps::Min)
-    }
-    fn abs_min_observable(&self) -> HashMap<Observable, f64> {
-        self.statistical_observable_ops(StatisticalOps::MinAbs)
+        if let Some(r) = self.record.as_obs() {
+            r.min_observable()
+        } else if let Some(r) = self.record.as_meteo() {
+            r.min_observable()
+        } else {
+            HashMap::new()
+        }
     }
     fn max(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
-        self.statistical_ops(StatisticalOps::Max)
-    }
-    fn abs_max(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
-        self.statistical_ops(StatisticalOps::MaxAbs)
+        if let Some(r) = self.record.as_obs() {
+            r.max()
+        } else {
+            (None, HashMap::new())
+        }
     }
     fn max_observable(&self) -> HashMap<Observable, f64> {
-        self.statistical_observable_ops(StatisticalOps::Max)
-    }
-    fn abs_max_observable(&self) -> HashMap<Observable, f64> {
-        self.statistical_observable_ops(StatisticalOps::MaxAbs)
+        if let Some(r) = self.record.as_obs() {
+            r.max_observable()
+        } else if let Some(r) = self.record.as_meteo() {
+            r.max_observable()
+        } else {
+            HashMap::new()
+        }
     }
     fn mean(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
-        self.statistical_ops(StatisticalOps::Mean)
+        if let Some(r) = self.record.as_obs() {
+            r.mean()
+        } else {
+            (None, HashMap::new())
+        }
     }
     fn mean_observable(&self) -> HashMap<Observable, f64> {
-        self.statistical_observable_ops(StatisticalOps::Mean)
-    }
-    fn harmonic_mean(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
-        self.statistical_ops(StatisticalOps::HarmMean)
-    }
-    fn harmonic_mean_observable(&self) -> HashMap<Observable, f64> {
-        self.statistical_observable_ops(StatisticalOps::QuadMean)
-    }
-    fn quadratic_mean(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
-        self.statistical_ops(StatisticalOps::QuadMean)
-    }
-    fn quadratic_mean_observable(&self) -> HashMap<Observable, f64> {
-        self.statistical_observable_ops(StatisticalOps::QuadMean)
-    }
-    fn geometric_mean(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
-        self.statistical_ops(StatisticalOps::GeoMean)
-    }
-    fn geometric_mean_observable(&self) -> HashMap<Observable, f64> {
-        self.statistical_observable_ops(StatisticalOps::GeoMean)
-    }
-    fn variance(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
-        self.statistical_ops(StatisticalOps::Variance)
+        if let Some(r) = self.record.as_obs() {
+            r.mean_observable()
+        } else if let Some(r) = self.record.as_meteo() {
+            r.mean_observable()
+        } else {
+            HashMap::new()
+        }
     }
     fn std_dev(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
-        self.statistical_ops(StatisticalOps::StdDev)
+        if let Some(r) = self.record.as_obs() {
+            r.std_dev()
+        } else {
+            (None, HashMap::new())
+        }
+    }
+    fn std_dev_observable(&self) -> HashMap<Observable, f64> {
+        HashMap::new()
+    }
+    fn std_var(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
+        if let Some(r) = self.record.as_obs() {
+            r.std_var()
+        } else {
+            (None, HashMap::new())
+        }
+    }
+    fn std_var_observable(&self) -> HashMap<Observable, f64> {
+        HashMap::new()
     }
 }
 
