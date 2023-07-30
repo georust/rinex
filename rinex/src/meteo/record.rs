@@ -460,6 +460,7 @@ use crate::observation::{Observation, StatisticalOps};
 #[cfg(feature = "obs")]
 use statrs::statistics::Statistics;
 
+#[cfg(feature = "obs")]
 fn statistical_estimate(rec: &Record, ops: StatisticalOps) -> HashMap<Observable, f64> {
     let mut ret: HashMap<Observable, f64> = HashMap::new();
     let mut dataset: HashMap<Observable, Vec<f64>> = HashMap::new();
