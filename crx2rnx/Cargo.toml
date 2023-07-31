@@ -1,12 +1,12 @@
 [package]
 name = "crx2rnx"
-version = "2.0.0"
+version = "2.1.0"
 license = "MIT OR Apache-2.0"
 authors = ["Guillaume W. Bres <guillaume.bressaix@gmail.com>"]
 description = "RINEX data decompressor"
-homepage = "https://github.com/gwbres/rinex"
+homepage = "https://github.com/georust/rinex"
 keywords = ["rinex", "compression", "decompression", "crinex"] 
-categories = ["science", "command-line-interface", "command-line-utilities"]
+categories = ["science", "science::geo", "command-line-interface", "command-line-utilities"]
 edition = "2021"
 readme = "README.md"
 

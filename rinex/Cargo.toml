@@ -1,12 +1,13 @@
 [package]
 name = "rinex"
-version = "0.9.0"
+version = "0.10.1"
 license = "MIT OR Apache-2.0"
 authors = ["Guillaume W. Bres <guillaume.bressaix@gmail.com>"]
 description = "Package to parse and analyze RINEX data"
-homepage = "https://github.com/gwbres/rinex"
+homepage = "https://github.com/georust/rinex"
+repository = "https://github.com/georust/rinex"
 keywords = ["rinex", "timing", "gps", "glonass", "galileo"]
-categories = ["science", "parsing"]
+categories = ["science", "science::geo", "parsing"]
 edition = "2021"
 readme = "README.md"
 rust-version = "1.61"
@@ -33,7 +34,7 @@ strum = "0.25"
 strum_macros = "0.25"
 num-integer = "0.1.44"
 itertools = "0.11.0"
-geo = { version = "0.25", optional = true }
+geo = { version = "0.26", optional = true }
 wkt = { version = "0.10.0", default-features = false, optional = true }
 serde = { version = "1.0", optional = true, default-features = false, features = ["derive"] }
 flate2 = { version = "1.0.24", optional = true, default-features = false, features = ["zlib"] }
