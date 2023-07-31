@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod test {
-    use rinex::{prelude::*, processing::*};
+    use rinex::prelude::*;
+    use rinex::preprocessing::*;
     use std::str::FromStr;
     fn testbench(filter_name: &str, expected: Vec<(&str, &str, Vec<f64>)>, rinex: &Rinex) {
         for (sv, code, dataset) in expected {

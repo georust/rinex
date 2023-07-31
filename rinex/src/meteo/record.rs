@@ -1,18 +1,8 @@
 use crate::{
-    epoch,
-    gnss_time::GnssTime,
-    merge,
-    merge::Merge,
-    prelude::*,
-    processing::{
-        Decimate, DecimationType, Filter, Interpolate, Mask, MaskFilter, MaskOperand,
-        Preprocessing, TargetItem,
-    },
-    split,
-    split::Split,
-    types::Type,
+    epoch, gnss_time::GnssTime, merge, merge::Merge, prelude::*, split, split::Split, types::Type,
     version, Observable,
 };
+
 use hifitime::Duration;
 use std::collections::{BTreeMap, HashMap};
 use std::str::FromStr;
@@ -276,6 +266,10 @@ impl GnssTime for Record {
     }
 }
 
+#[cfg(feature = "processing")]
+use crate::preprocessing::*;
+
+#[cfg(feature = "processing")]
 impl Mask for Record {
     fn mask(&self, mask: MaskFilter) -> Self {
         let mut s = self.clone();
@@ -327,6 +321,7 @@ impl Mask for Record {
 /*
  * Decimates only a given record subset
  */
+#[cfg(feature = "processing")]
 fn decimate_data_subset(record: &mut Record, subset: &Record, target: &TargetItem) {
     match target {
         TargetItem::ObservableItem(obs_list) => {
@@ -344,6 +339,7 @@ fn decimate_data_subset(record: &mut Record, subset: &Record, target: &TargetIte
     }
 }
 
+#[cfg(feature = "processing")]
 impl Decimate for Record {
     fn decimate_by_ratio_mut(&mut self, r: u32) {
         let mut i = 0;
@@ -386,6 +382,7 @@ impl Decimate for Record {
     }
 }
 
+#[cfg(feature = "processing")]
 impl Preprocessing for Record {
     fn filter(&self, f: Filter) -> Self {
         let mut s = self.clone();
@@ -443,6 +440,7 @@ impl Preprocessing for Record {
     }
 }
 
+#[cfg(feature = "processing")]
 impl Interpolate for Record {
     fn interpolate(&self, series: TimeSeries) -> Self {
         let mut s = self.clone();

@@ -1,16 +1,16 @@
-use crate::{
-    prelude::*,
-    processing::{MaskFilter, Preprocessing, TargetItem},
-};
+use crate::prelude::*;
 use horrorshow::{helper::doctype, RenderBox};
 use std::str::FromStr;
 use strum_macros::EnumString;
 
 mod opts;
-pub use opts::{QcClassificationMethod, QcOpts};
+pub use opts::{QcClassification, QcOpts};
 
 mod analysis;
 use analysis::QcAnalysis;
+
+#[cfg(feature = "processing")]
+use crate::preprocessing::*;
 
 /*
  * Array (CSV) pretty formatter
@@ -52,6 +52,10 @@ pub enum Grade {
 }
 
 #[derive(Debug, Clone)]
+//TODO: improve this structure's definition:
+//      we should only store all file header sections,
+//      not file bodies. They were already used when Vec<QcAnalysis>
+//      was built.
 pub struct QcReport<'a> {
     /// Configuration / options
     opts: QcOpts,
@@ -63,7 +67,8 @@ pub struct QcReport<'a> {
     nav_filenames: Vec<String>,
     /// Navigation augmentation context
     nav_rinex: Option<Rinex>,
-    /// Analysis that were performed per classification method
+    /// All analysis that were performed, sorted by
+    /// opts.classification (if possible)
     analysis: Vec<QcAnalysis>,
 }
 
@@ -72,7 +77,7 @@ impl<'a> QcReport<'a> {
     pub fn basic(filename: &str, rnx: &'a Rinex) -> Self {
         Self::new(filename, rnx, Vec::new(), None, QcOpts::default())
     }
-    /// Builds a new QC Report
+    /// Builds a new QC Report, with possible complex RINEX context
     pub fn new(
         filename: &str,
         rnx: &'a Rinex,
@@ -80,82 +85,86 @@ impl<'a> QcReport<'a> {
         nav_rinex: Option<Rinex>,   // possiblement augmentation context
         opts: QcOpts,
     ) -> Self {
-        /*
-         * Classification Method
-         */
-        let classifier: TargetItem = match opts.classification {
-            QcClassificationMethod::GNSS => {
-                let gnss = rnx.constellations();
-                TargetItem::from(gnss)
-            },
-            QcClassificationMethod::Sv => {
-                let sv = rnx.sv();
-                TargetItem::from(sv)
-            },
-            QcClassificationMethod::Physics => {
-                let mut observables: Vec<Observable> = rnx
-                    .observables()
-                    .iter()
-                    .map(|k| Observable::from_str(k).unwrap())
-                    .collect();
-                observables.sort();
-                TargetItem::from(observables)
-            },
-        };
-        /*
-         * Build (record) analysis
-         */
+        if cfg!(feature = "processing") {
+            // classification of the QC report is feasible
+            Self::make_sorted_report(filename, rnx, nav_filenames, nav_rinex, opts)
+        } else {
+            // classification is infeasible, create report as is
+            Self {
+                filename: filename.to_string(),
+                rinex: rnx,
+                nav_filenames,
+                nav_rinex: nav_rinex.clone(),
+                analysis: vec![QcAnalysis::new(rnx, &nav_rinex, &opts)],
+                opts,
+            }
+        }
+    }
+    #[cfg(feature = "processing")]
+    /*
+     * When the "processing" feature is enabled
+     * we have the capacity to let the user classify the generated report
+     * per desired physics or other criteria
+     */
+    fn make_sorted_report(
+        filename: &str,
+        rnx: &'a Rinex,
+        nav_filenames: Vec<String>, // possible augmentation fp
+        nav_rinex: Option<Rinex>,   // possiblement augmentation context
+        opts: QcOpts,
+    ) -> Self {
+        // build analysis to perform
         let mut analysis: Vec<QcAnalysis> = Vec::new();
-        match classifier {
-            TargetItem::ConstellationItem(cs) => {
-                for c in cs {
-                    // create the classification mask
-                    let mask = MaskFilter::from_str(&format!("eq:{}", c))
-                        .expect("invalid classification mask");
-                    // apply it
-                    let subset = rnx.filter(mask.clone().into());
-                    /*
-                     * possible NAV subset:
-                     *  + apply same GNSS filter
-                     */
-                    let nav_subset = match nav_rinex {
-                        Some(ref rnx) => Some(rnx.filter(mask.clone().into())),
-                        _ => None,
-                    };
-                    // and analyze this subset
-                    analysis.push(QcAnalysis::new(
-                        TargetItem::from(c),
-                        &subset,
-                        &nav_subset,
-                        &opts,
-                    ));
+        /*
+         * QC Classification:
+         *    the end user has the ability to sort the generated report per physics,
+         *    signals, or any other usual data subsets.
+         * To support that, we use the preprocessing toolkit, if available,
+         * first convert the classification method to a compatible object,
+         * so we can apply a mask filter
+         */
+        let mut filter_targets: Vec<TargetItem> = Vec::new();
+
+        match opts.classification {
+            QcClassification::GNSS => {
+                for gnss in rnx.constellations() {
+                    filter_targets.push(TargetItem::from(gnss));
                 }
             },
-            /* >>>>TODO<<<<<
-            TargetItem::SvItem(svs) => {
-                for sv in svs {
-                    // create the classification mask
-                    let mask = MaskFilter::from_str(&format!("eq:{}", sv))
-                        .expect("invalid classification mask");
-                    // apply it
-                    let subset = rnx.filter(mask.into());
-                    // and analyze this subset
-                    analysis.push(QcAnalysis::new(
-                        TargetItem::from(sv), &subset, &opts));
+            QcClassification::Sv => {
+                for sv in rnx.sv() {
+                    filter_targets.push(TargetItem::from(sv));
                 }
             },
-            TargetItem::ObservableItem(obs) => {
-                for ob in obs {
-                    // create the classification mask
-                    let mask = MaskFilter::from_str(&format!("eq:{}", ob))
-                        .expect("invalid classification mask");
-                    // apply it
-                    let subset = rnx.filter(mask.into());
-                    // and analyze this subset
-                    analysis.push(QcAnalysis::new(TargetItem::from(ob), &subset, &opts));
+            QcClassification::Physics => {
+                let mut observables = rnx.observables();
+                observables.sort(); // makes reportining nicer
+                for obsv in observables {
+                    if let Ok(obsv) = Observable::from_str(&obsv) {
+                        filter_targets.push(TargetItem::from(obsv));
+                    }
                 }
-            },*/
-            _ => unreachable!(),
+            },
+        }
+
+        // apply all mask, and generate an analysis on such data set
+        for target in filter_targets {
+            let mask = MaskFilter {
+                item: target,
+                operand: MaskOperand::Equals,
+            };
+
+            // drop any other data set
+            let subset = rnx.filter(mask.clone().into());
+            // also apply it to other part of the RINEx context
+            let nav_subset = if let Some(nav) = &nav_rinex {
+                Some(nav.filter(mask.clone().into()))
+            } else {
+                None
+            };
+
+            // perform analysis on left overs
+            analysis.push(QcAnalysis::new(&subset, &nav_subset, &opts));
         }
 
         Self {
@@ -376,11 +385,6 @@ impl<'a> HtmlReport for QcReport<'a> {
             div(id="analysis") {
                 @ for analysis in &self.analysis {
                     table(class="table is-bordered") {
-                        thead {
-                            th {
-                                : analysis.classifier.to_string()
-                            }
-                        }
                         tbody {
                             : analysis.to_inline_html()
                         }

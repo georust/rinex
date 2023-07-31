@@ -1,4 +1,4 @@
-use crate::{processing::TargetItem, Duration};
+use crate::{preprocessing::TargetItem, Duration};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -33,7 +33,7 @@ pub trait Decimate {
     /// Header sampling interval (if any) is automatically updated.
     /// ```
     /// use rinex::prelude::*;
-    /// use rinex::processing::*;
+    /// use rinex::preprocessing::*; // Decimate
     /// let mut rnx = Rinex::from_file("../test_resources/OBS/V2/delf0010.21o")
     ///     .unwrap();
     /// assert_eq!(rnx.epochs().len(), 105);
@@ -50,7 +50,7 @@ pub trait Decimate {
     /// Header sampling interval (if any) is automatically update.
     /// ```
     /// use rinex::prelude::*;
-    /// use rinex::processing::*; // Decimation
+    /// use rinex::preprocessing::*; // Decimation
     /// let mut rinex = Rinex::from_file("../test_resources/NAV/V3/AMEL00NLD_R_20210010000_01D_MN.rnx")
     ///     .unwrap();
     ///

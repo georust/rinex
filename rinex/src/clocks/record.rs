@@ -1,12 +1,5 @@
 use crate::{
-    epoch,
-    gnss_time::GnssTime,
-    merge,
-    merge::Merge,
-    prelude::*,
-    processing::{Filter, Interpolate, Mask, MaskFilter, MaskOperand, Preprocessing, TargetItem},
-    split,
-    split::Split,
+    epoch, gnss_time::GnssTime, merge, merge::Merge, prelude::*, split, split::Split,
     version::Version,
 };
 use hifitime::Duration;
@@ -407,6 +400,10 @@ impl GnssTime for Record {
     }
 }
 
+#[cfg(feature = "processing")]
+use crate::preprocessing::*;
+
+#[cfg(feature = "processing")]
 impl Mask for Record {
     fn mask(&self, mask: MaskFilter) -> Self {
         let mut s = self.clone();
@@ -458,6 +455,7 @@ impl Mask for Record {
     }
 }
 
+#[cfg(feature = "processing")]
 impl Preprocessing for Record {
     fn filter(&self, f: Filter) -> Self {
         let mut s = self.clone();
@@ -474,6 +472,7 @@ impl Preprocessing for Record {
     }
 }
 
+#[cfg(feature = "processing")]
 impl Interpolate for Record {
     fn interpolate(&self, series: TimeSeries) -> Self {
         let mut s = self.clone();

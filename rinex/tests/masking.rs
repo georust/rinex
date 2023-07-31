@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod test {
-    use rinex::{processing::*, *};
+    use rinex::preprocessing::*;
+    use rinex::*;
     use std::str::FromStr;
     #[test]
     fn v3_duth0630_g01_g02_filter() {

@@ -1,4 +1,4 @@
-use crate::processing::TargetItem;
+use crate::preprocessing::TargetItem;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -15,9 +15,16 @@ pub enum Error {
     InvalidDescriptor,
 }
 
+/// Masking trait, to retain specific data subsets.  
+/// Masking a RINEX file allows dropping things like undesired
+/// Constellations, Satellite Vehicles, Data based on its sources or values.
 pub trait Mask {
-    fn mask(&self, mask: MaskFilter) -> Self;
+    /// Apply given mask file to self, see [crate::preprocessing::MaskFilter]
+    /// for examples of use.
     fn mask_mut(&mut self, mask: MaskFilter);
+
+    /// Immutable mask filter.
+    fn mask(&self, mask: MaskFilter) -> Self;
 }
 
 /// MaskOperand describes how to apply a given mask
@@ -87,8 +94,8 @@ impl std::ops::Not for MaskOperand {
 /// ```
 /// use rinex::*;
 /// use std::str::FromStr; // filter!
-/// use rinex::processing::*; // .filter_mut()
-/// // Grab a RINEX
+/// use rinex::preprocessing::*; // .filter_mut()
+///
 /// let rinex = Rinex::from_file("../test_resources/OBS/V2/KOSG0010.95O")
 ///     .unwrap();
 ///

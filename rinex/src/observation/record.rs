@@ -4,21 +4,8 @@ use std::str::FromStr;
 use thiserror::Error;
 
 use crate::{
-    constellation, epoch,
-    gnss_time::GnssTime,
-    merge,
-    merge::Merge,
-    prelude::*,
-    processing::{
-        Decimate, DecimationType, Filter, Interpolate, Mask, MaskFilter, MaskOperand,
-        Preprocessing, Smooth, SmoothingType, TargetItem,
-    },
-    split,
-    split::Split,
-    sv,
-    types::Type,
-    version::Version,
-    Carrier, Observable,
+    constellation, epoch, gnss_time::GnssTime, merge, merge::Merge, prelude::*, split,
+    split::Split, sv, types::Type, version::Version, Carrier, Observable,
 };
 
 use super::Snr;
@@ -786,6 +773,10 @@ impl GnssTime for Record {
     }
 }
 
+#[cfg(feature = "processing")]
+use crate::preprocessing::*;
+
+#[cfg(feature = "processing")]
 impl Smooth for Record {
     fn hatch_smoothing(&self) -> Self {
         let mut s = self.clone();
@@ -872,6 +863,7 @@ impl Smooth for Record {
     }
 }
 
+#[cfg(feature = "processing")]
 impl Mask for Record {
     fn mask(&self, mask: MaskFilter) -> Self {
         let mut s = self.clone();
@@ -1102,6 +1094,7 @@ impl Mask for Record {
     }
 }
 
+#[cfg(feature = "processing")]
 impl Interpolate for Record {
     fn interpolate(&self, series: TimeSeries) -> Self {
         let mut s = self.clone();
@@ -1116,6 +1109,7 @@ impl Interpolate for Record {
 /*
  * Decimates only a given record subset
  */
+#[cfg(feature = "processing")]
 fn decimate_data_subset(record: &mut Record, subset: &Record, target: &TargetItem) {
     match target {
         TargetItem::ClockItem => {
@@ -1181,6 +1175,7 @@ fn decimate_data_subset(record: &mut Record, subset: &Record, target: &TargetIte
     }
 }
 
+#[cfg(feature = "processing")]
 impl Preprocessing for Record {
     fn filter(&self, filter: Filter) -> Self {
         let mut s = self.clone();
@@ -1279,6 +1274,7 @@ impl Preprocessing for Record {
     }
 }
 
+#[cfg(feature = "processing")]
 impl Decimate for Record {
     fn decimate_by_ratio_mut(&mut self, r: u32) {
         let mut i = 0;

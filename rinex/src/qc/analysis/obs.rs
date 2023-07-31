@@ -1,11 +1,14 @@
-use crate::observation::Observation;
-use crate::{carrier, observation::Snr, prelude::*, processing::*, Carrier};
+use crate::{carrier, observation::Snr, prelude::*, Carrier};
 
 use super::{pretty_array, QcOpts};
 use std::collections::HashMap;
 
-//#[cfg(feature = "obs")]
-//#[cfg_attr(docrs, doc(cfg(feature = "obs")))]
+#[cfg(feature = "processing")]
+use crate::preprocessing::*; // include preprocessing toolkit when feasible,
+                             // for complete analysis
+
+#[cfg(feature = "obs")]
+use crate::observation::Observation; // having this feature unlocks full OBS RINEX analysis
 
 /*
  * GNSS signal special formatting
@@ -247,32 +250,36 @@ fn report_ssi_statistics(
 }
 
 #[derive(Debug, Clone)]
+/// OBS RINEX specific QC analysis.  
+/// Full OBS RINEX analysis requires both the "obs" and "processing" features.
 pub struct QcObsAnalysis {
-    /// list of observables identified
+    /// Identified Observables
     observables: Vec<String>,
-    /// list of signals identified
+    /// Identified Signals
     signals: Vec<Carrier>,
-    /// list of codes encountered
+    /// Codes that were idenfitied
     codes: Vec<String>,
-    /// true if doppler observation is present
+    /// true if doppler observations were identified
     has_doppler: bool,
     /// Abnormal events, by chronological epochs
     anomalies: Vec<(Epoch, EpochFlag)>,
-    /// Total epochs
+    /// Total number of epochs identified
     total_epochs: usize,
     /// Epochs with at least 1 observation
     total_with_obs: usize,
     /// Complete epochs, with respect to given signal
     complete_epochs: Vec<(Carrier, usize)>,
-    /// Min. Max. SNR (sv @ epoch)
     #[cfg(feature = "obs")]
     #[cfg_attr(docrs, doc(cfg(feature = "obs")))]
+    /// Min. Max. SNR (sv @ epoch)
     min_max_snr: ((Sv, Epoch, Snr), (Sv, Epoch, Snr)),
     /// SSi statistical analysis (mean, stddev, skew)
     #[cfg(feature = "obs")]
     #[cfg_attr(docrs, doc(cfg(feature = "obs")))]
     ssi_stats: HashMap<Observable, (f64, f64, f64)>,
-    /// clock_drift
+    #[cfg(feature = "processing")]
+    /// Receiver clock drift analysis
+    #[cfg_attr(docrs, doc(cfg(feature = "processing")))]
     clock_drift: Option<f64>,
 }
 
@@ -294,20 +301,18 @@ impl QcObsAnalysis {
         );
         let mut ssi_stats: HashMap<Observable, (f64, f64, f64)> = HashMap::new();
 
-        let clock_drift: Option<f64> = match rnx.record.as_obs() {
-            Some(r) => {
-                let mask: Filter = Filter::from(MaskFilter {
-                    operand: MaskOperand::Equals,
-                    item: TargetItem::ClockItem,
-                });
-                let _clk_data = r.filter(mask);
-                //let der = clk_data.derivative();
-                //let mov = der.moving_average(Duration::from_seconds(600.0), None);
-                //TODO
-                None
-            },
-            _ => None,
-        };
+        let mut clock_drift: Option<f64> = None;
+
+        if let Some(rec) = rnx.record.as_obs() {
+            let mask: Filter = Filter::from(MaskFilter {
+                operand: MaskOperand::Equals,
+                item: TargetItem::ClockItem,
+            });
+            let clk_data = rec.filter(mask);
+            //TODO: run analysis on smoothed derivative
+            //let der = clk_data.derivative();
+            //let mov = der.moving_average(Duration::from_seconds(600.0), None);
+        }
 
         if let Some(r) = rnx.record.as_obs() {
             total_epochs = r.len();

@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod sampling {
     use rinex::prelude::*;
-    use rinex::processing::Decimate;
+    use rinex::preprocessing::*;
     use std::collections::HashMap;
     #[test]
     fn epoch_intervals() {

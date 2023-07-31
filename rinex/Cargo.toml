@@ -14,11 +14,12 @@ rust-version = "1.61"
 
 [features]
 default = [] # no features by default
-qc = ["horrorshow"] # rinex Quality Check (mainly OBS RINEX) 
 sbas = ["geo", "wkt"]
 tests = [] # used to import shared methods for efficient CI/CD
 obs = ["statrs"]
 nav = []
+processing = []
+qc = ["horrorshow", "processing"] # rinex Quality Check (mainly OBS RINEX) 
 
 [package.metadata.docs.rs]
 all-features = true

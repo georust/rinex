@@ -1,6 +1,6 @@
 //! This library provides a set of tools to parse, analyze
 //! and process RINEX files.
-//! Refer to README and documentation provided here
+//! Refer to README and documentation hosted here
 //! <https://github.com/georust/rinex>
 #![cfg_attr(docrs, feature(doc_cfg))]
 
@@ -70,12 +70,15 @@ pub mod prelude {
     pub use hifitime::{Duration, Epoch, TimeScale, TimeSeries};
 }
 
-/// Processing package,
-/// includes preprocessing methods and analysis methods.
-pub mod processing {
+#[cfg(feature = "processing")]
+mod algorithm;
+
+/// Precessing package, includes all preprocessing
+/// methods like filtering, data smoothing and masking.
+#[cfg(feature = "processing")]
+#[cfg_attr(docrs, doc(cfg(feature = "processing")))]
+pub mod preprocessing {
     pub use crate::algorithm::*;
-    //pub use differential::*;
-    //pub use crate::cs::{CsDetector, CsSelectionMethod, CsStrategy};
 }
 
 #[cfg(feature = "qc")]
@@ -98,9 +101,6 @@ use prelude::*;
 
 pub use merge::Merge;
 pub use split::Split;
-
-mod algorithm;
-use algorithm::Smooth;
 
 #[cfg(feature = "serde")]
 #[macro_use]
@@ -889,7 +889,7 @@ impl Rinex {
     /// ```
     /// use rinex::*;
     /// use std::str::FromStr; // filter!
-    /// use rinex::processing::*; // .filter_mut()
+    /// use rinex::preprocessing::*; // .filter_mut()
     ///
     /// let mut rinex = Rinex::from_file("../test_resources/NAV/V3/CBW100NLD_R_20210010000_01D_MN.rnx")
     ///     .unwrap();
@@ -2229,6 +2229,10 @@ impl Split for Rinex {
     }
 }
 
+#[cfg(feature = "processing")]
+use preprocessing::Smooth;
+
+#[cfg(feature = "processing")]
 impl Smooth for Rinex {
     fn moving_average(&self, window: Duration) -> Self {
         let mut s = self.clone();
@@ -2252,8 +2256,10 @@ impl Smooth for Rinex {
     }
 }
 
+#[cfg(feature = "processing")]
 use crate::algorithm::{Filter, Preprocessing};
 
+#[cfg(feature = "processing")]
 impl Preprocessing for Rinex {
     fn filter(&self, f: Filter) -> Self {
         let mut s = self.clone();
