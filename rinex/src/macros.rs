@@ -1,6 +1,6 @@
 //! Macros and helpers
 
-/// Creates an [crate::Sv] from given string description,
+/// Creates an [`crate::Sv`] from given string description,
 /// which must be valid.
 #[macro_export]
 macro_rules! sv {
