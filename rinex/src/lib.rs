@@ -1216,7 +1216,7 @@ impl Rinex {
         }
     }
 
-    /// [Rinex::lli_and_mask] immutable implementation.   
+    /// [`Rinex::lli_and_mask`] immutable implementation.   
     /// Only relevant on OBS RINEX.
     pub fn lli_and_mask(&self, mask: observation::LliFlags) -> Self {
         let mut c = self.clone();
