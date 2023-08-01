@@ -392,7 +392,7 @@ pub trait IonoDelay {
     /// This is intended to be used on raw Phase data only,
     /// but can be evaluated on PR too (if such data is passed).  
     /// In that scenario, ideally the user used a smoothing algorithm,
-    /// prior invoking this method: see preprocessing toolkit.
+    /// prior to invoking this method: see the preprocessing toolkit.
     fn iono_delay(
         &self,
         max_dt: Duration,
