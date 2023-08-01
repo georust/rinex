@@ -776,7 +776,7 @@ impl Rinex {
         }
     }
 
-    /// Returns Epochs where a loss of lock event happened.   
+    /// Returns [`Epoch`]s where a loss of lock event happened.   
     /// This is only relevant on OBS RINEX.
     pub fn epoch_lock_loss(&self) -> Vec<Epoch> {
         self.lli_and_mask(observation::LliFlags::LOCK_LOSS).epochs()
