@@ -38,7 +38,7 @@ It also contains its dedicated parsing methods.
 NAV RINEX
 =========
 
-Abstraction for NAV files parsing is provided by the _navigation.json_ descriptor.  
+Abstraction for NAV files parsing is provided by the `navigation.json` descriptor.  
 This is how we describe all supported revisions and their data fields.  
 
 Improving or updating NAV file parsing either means updating this database, 
