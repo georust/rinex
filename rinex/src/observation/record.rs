@@ -1348,11 +1348,11 @@ fn statistical_estimate(
     if data.len() > 0 {
         // data exists
         match ops {
-            StatisticalOps::Max => ret.0 = Some(data.max()),
             StatisticalOps::Min => ret.0 = Some(data.min()),
+            StatisticalOps::Max => ret.0 = Some(data.max()),
             StatisticalOps::Mean => ret.0 = Some(data.mean()),
-            StatisticalOps::StdVar => ret.0 = Some(data.variance()),
             StatisticalOps::StdDev => ret.0 = Some(data.std_dev()),
+            StatisticalOps::StdVar => ret.0 = Some(data.variance()),
         }
     }
 
