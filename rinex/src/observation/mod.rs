@@ -370,7 +370,7 @@ pub trait Dcb {
 /// Refer to
 /// <http://navigation-office.esa.int/attachments_12649498_1_Reichel_5thGalSciCol_2015.pdf>
 /// or MP_i factors in phase data model
-/// <https://github.com/gwbres/rinex/blob/main/rinex-cli/doc/gnss-combination.md>.
+/// <https://github.com/georust/rinex/blob/main/rinex-cli/doc/gnss-combination.md>.
 #[cfg(feature = "obs")]
 #[cfg_attr(docrs, doc(cfg(feature = "obs")))]
 pub trait Mp {
