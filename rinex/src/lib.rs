@@ -1225,7 +1225,7 @@ impl Rinex {
     }
 
     /// Extracts signal strength as (min, max) duplet,
-    /// accross all vehicles.   
+    /// accross all vehicles.
     /// Only relevant on Observation RINEX.
     pub fn observation_ssi_minmax(&self) -> Option<(observation::Snr, observation::Snr)> {
         let mut ret: Option<(observation::Snr, observation::Snr)> = None;
