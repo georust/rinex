@@ -1325,7 +1325,7 @@ use crate::observation::{Observation, StatisticalOps};
 
 #[cfg(feature = "obs")]
 /*
- * Evaluate specific statistical esimate on this record data set
+ * Evaluate a specific statistical estimate on this record data set
  */
 fn statistical_estimate(
     rec: &Record,
