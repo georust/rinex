@@ -788,7 +788,7 @@ impl Rinex {
         self.lli_and_mask_mut(observation::LliFlags::LOCK_LOSS)
     }
 
-    /// Lists all [Constellation] contained in record.    
+    /// Lists all [`Constellation`] contained in record.    
     /// This applies to OBS, NAV and CLK RINEX.
     pub fn constellations(&self) -> Vec<Constellation> {
         let mut ret: Vec<Constellation> = Vec::new();
