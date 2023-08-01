@@ -151,7 +151,7 @@ impl HeaderFields {
         s.nb_satellites = n;
         s
     }
-    /// Copies & set Base Radius in `km`
+    /// Copies & set Base Radius in km
     pub fn with_base_radius(&self, b: f32) -> Self {
         let mut s = self.clone();
         s.base_radius = b;

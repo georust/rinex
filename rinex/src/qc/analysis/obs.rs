@@ -270,16 +270,13 @@ pub struct QcObsAnalysis {
     /// Complete epochs, with respect to given signal
     complete_epochs: Vec<(Carrier, usize)>,
     #[cfg(feature = "obs")]
-    #[cfg_attr(docrs, doc(cfg(feature = "obs")))]
     /// Min. Max. SNR (sv @ epoch)
     min_max_snr: ((Sv, Epoch, Snr), (Sv, Epoch, Snr)),
-    /// SSi statistical analysis (mean, stddev, skew)
     #[cfg(feature = "obs")]
-    #[cfg_attr(docrs, doc(cfg(feature = "obs")))]
+    /// SSi statistical analysis (mean, stddev, skew)
     ssi_stats: HashMap<Observable, (f64, f64, f64)>,
     #[cfg(feature = "processing")]
     /// Receiver clock drift analysis
-    #[cfg_attr(docrs, doc(cfg(feature = "processing")))]
     clock_drift: Option<f64>,
 }
 

@@ -1,6 +1,5 @@
 #[cfg(test)]
 mod test {
-    //use itertools::Itertools;
     use rinex::{header::*, observation::*, prelude::*};
     use std::str::FromStr;
     /*

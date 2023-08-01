@@ -1,7 +1,6 @@
 #[cfg(test)]
 mod test {
     use rinex::prelude::*;
-    //use std::str::FromStr;
     #[test]
     fn v2_abvi0010_15m() {
         let test_resource =

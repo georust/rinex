@@ -73,7 +73,7 @@ pub mod prelude {
 #[cfg(feature = "processing")]
 mod algorithm;
 
-/// Precessing package, includes all preprocessing
+/// Package to include all preprocessing
 /// methods like filtering, data smoothing and masking.
 #[cfg(feature = "processing")]
 #[cfg_attr(docrs, doc(cfg(feature = "processing")))]

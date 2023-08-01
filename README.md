@@ -90,7 +90,7 @@ Several compilation options, mostly to unlock heavy computations and advanced fe
   - [Elevation and azimuth](https://doc.rs/rinex/latest/rinex/navigation/Navigation.html) angles solver
 
 * `processing` 
-  - unlocks the [Preprocessing toolkit](https://doc.rs/rinex/latest/rinex/preprocessing.html) package,
+  - unlocks the [Preprocessing package](https://doc.rs/rinex/latest/rinex/preprocessing.html),
   which contains several methods to resample, downsample, filter and sort RINEX datasets.
 
 * `qc`: enables file Quality Check, ie., statistical analysis
@@ -129,4 +129,4 @@ Contributions
 Contributions are welcomed, do not hesitate to open new issues
 and submit Pull Requests through Github.
 
-If you want to take part in active developments, check out our [contribution guidelines and hints](CONTRIBUTE.md) to navigate this library quicker.
+If you want to take part in active developments, check out our [contribution guidelines and hints](CONTRIBUTING.md) to navigate this library quicker.
