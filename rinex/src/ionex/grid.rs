@@ -23,7 +23,7 @@ pub struct GridLinspace {
     pub start: f64,
     /// Grid end coordinates in decimal degrees
     pub end: f64,
-    /// Grid spacing (inncrement value), in decimal degrees
+    /// Grid spacing (increment value), in decimal degrees
     pub spacing: f64,
 }
 
