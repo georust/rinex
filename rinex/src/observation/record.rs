@@ -1403,7 +1403,7 @@ fn statistical_estimate(
 
 #[cfg(feature = "obs")]
 /*
- * Evaluate specific statistical esimate on this record data set
+ * Evaluate a specific statistical estimate on this record data set
  */
 fn statistical_observable_estimate(rec: &Record, ops: StatisticalOps) -> HashMap<Observable, f64> {
     let mut ret: HashMap<Observable, f64> = HashMap::new();
