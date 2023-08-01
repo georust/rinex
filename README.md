@@ -51,7 +51,7 @@ RINEX files
 :construction: under development   
 __CLI__ + :chart_with_upwards_trend: means record analysis is supported by the CLI, [README](rinex-cli/README.md)
 
-Files format
+File formats
 ============
 
 | Format                 | File name restrictions            |    Support                         |
