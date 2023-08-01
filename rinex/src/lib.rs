@@ -699,7 +699,7 @@ impl Rinex {
         histogram
     }
 
-    /// Returns Epochs where unexpected data gap took place.   
+    /// Returns [`Epoch`]s where unexpected data gap took place.   
     /// Data gap is determined by comparing |e(k) - e(k-1)|,   
     /// the instantaneous epoch interval, to the dominant sampling interval
     /// determined by [Rinex::sampling_interval].
