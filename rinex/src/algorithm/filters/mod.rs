@@ -32,7 +32,6 @@ pub enum Error {
 /// Preprocessing filters, to preprocess RINEX data prior further analysis.
 /// Filters can apply either on entire RINEX or subsets.
 /// Refer to [TargetItem] definition to understand which data subsets exist.  
-/// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum Filter {
     /// Mask filter, to focus on specific data subsets

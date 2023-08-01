@@ -1,3 +1,4 @@
+//! Observation RINEX module
 use super::{epoch, prelude::*, version::Version};
 use std::collections::HashMap;
 
@@ -170,6 +171,234 @@ impl HeaderFields {
     }
 }
 
+#[cfg(feature = "obs")]
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum StatisticalOps {
+    Min,
+    Max,
+    Mean,
+    StdDev,
+    StdVar,
+}
+
+#[cfg(feature = "obs")]
+use std::collections::BTreeMap;
+
+/// OBS RINEX specific analysis trait.
+/// Include this trait to unlock Observation analysis, mainly statistical analysis.
+#[cfg(feature = "obs")]
+#[cfg_attr(docrs, doc(cfg(feature = "obs")))]
+pub trait Observation {
+    /// Returns minimum value observed, throughout all epochs, sorted by Observable.
+    /// This also applies to clock receiver estimate,
+    /// when requested on OBS RINEX files, not METEO files.
+    /// ```
+    /// use rinex::*; // prelude + macros
+    /// use rinex::prelude::*;
+    /// use std::str::FromStr; // observable!
+    /// use rinex::observation::Observation; // .min_observable()
+    ///
+    /// // OBS RINEX example
+    /// let rinex = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
+    ///     .unwrap();
+    /// let min_values = rinex.min_observable();
+    /// for (observable, min_value) in min_values {
+    ///     if observable == observable!("S1C") {
+    ///         // minimum signal strength for carrier 1
+    ///         assert_eq!(min_value, 37.75); // L1 carrier min (worst) RSSI
+    ///     }
+    /// }
+    ///
+    /// // METEO RINEX example
+    /// let rinex = Rinex::from_file("../test_resources/MET/V2/clar0020.00m")
+    ///     .unwrap();
+    /// let min_values = rinex.min_observable();
+    /// for (observable, min_value) in min_values {
+    ///     if observable == Observable::Temperature {
+    ///         assert_eq!(min_value, 8.4); // min value encountered on that day
+    ///     }
+    /// }
+    /// ```
+    fn min_observable(&self) -> HashMap<Observable, f64>;
+
+    /// Returns maximal value observed, throughout all epochs, sorted by Observable.
+    /// See [Self::min_observable()] for API example.
+    fn max_observable(&self) -> HashMap<Observable, f64>;
+
+    /// Returns mean observation, throughout all epochs, sorted by Observable.
+    /// See [Self::min_observable()] for API example.
+    fn mean_observable(&self) -> HashMap<Observable, f64>;
+
+    /// Returns standard deviation for all Observables.
+    /// See [Self::min_observable()] for API example.
+    fn std_dev_observable(&self) -> HashMap<Observable, f64>;
+
+    /// Returns standard variance for all Observables.
+    /// See [Self::min_observable()] for API example.
+    fn std_var_observable(&self) -> HashMap<Observable, f64>;
+
+    /// Returns minimum value observed throughout all epochs sorted by
+    /// Satellite vehicle and Observable. This does not apply to METEO
+    /// RINEX files.
+    /// ```
+    /// use rinex::*;
+    /// use rinex::prelude::*; // basics
+    /// use std::str::FromStr; // sv!, observable!
+    /// use rinex::observation::Observation; // .min()
+    ///
+    /// // OBS RINEX example
+    /// let rinex = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
+    ///     .unwrap();
+    ///
+    /// let (min_clock, min_values) = rinex.min();
+    /// assert!(min_clock.is_none()); // we don't have an example file with such information yet
+    ///
+    /// for (sv, observables) in min_values {
+    ///     if sv == sv!("G08") {
+    ///         for (observable, min_value) in observables {
+    ///             if observable == observable!("S1C") {
+    ///                 // minimum signal strength for carrier 1
+    ///                 // for that particular vehicle
+    ///             }
+    ///         }
+    ///     }
+    /// }
+    /// ```
+    fn min(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>);
+
+    /// Returns maximal value observed throughout all epochs sorted by
+    /// Satellite vehicle and Observable. This does not apply to METEO
+    /// RINEX files. See [Self::min()] for API example.
+    fn max(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>);
+
+    /// Returns mean value observed throughout all epochs sorted by
+    /// Satellite vehicle and Observable. This does not apply to METEO
+    /// RINEX files. See [Self::min()] for API example.
+    fn mean(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>);
+
+    /// Returns observations deviation throughout all epochs sorted by
+    /// Satellite vehicle and Observable. This does not apply to METEO
+    /// RINEX files. See [Self::min()] for API example.
+    fn std_dev(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>);
+
+    /// Returns observations variance throughout all epochs sorted by
+    /// Satellite vehicle and Observable. This does not apply to METEO
+    /// RINEX files. See [Self::min()] for API example.
+    fn std_var(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>);
+}
+
+/// GNSS signal recombination trait.    
+/// Import this to recombine OBS RINEX with usual recombination methods.   
+/// This only applies to OBS RINEX records.  
+/// See this page for more information
+/// <https://github.com/gwbres/rinex/blob/main/rinex-cli/doc/gnss-combination.md>.
+#[cfg(feature = "obs")]
+#[cfg_attr(docrs, doc(cfg(feature = "obs")))]
+pub trait Combine {
+    /// Perform Geometry Free signal recombination on all phase
+    /// and pseudo range observations, for each individual Sv
+    /// and individual Epoch.   
+    /// Geometry Free (Gf) recombination cancels out geometric
+    /// biases and leaves frequency dependent terms out,
+    /// like Ionospheric induced time delay.  
+    /// ```
+    /// use rinex::prelude::*;
+    /// use rinex::observation::*;
+    ///
+    /// let rinex = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
+    ///		.unwrap();
+    ///
+    /// let gf = rinex.geo_free();
+    /// for ((ref_observable, rhs_observable), data) in gf {
+    ///     // for each recombination that we were able to form,
+    ///     // a "reference" observable was chosen,
+    ///     // and RHS observable is compared to it.
+    ///     // For example "L2C-L1C" : L1C is the reference observable
+    ///     for (sv, epochs) in data {
+    ///         // applied to all possible Sv
+    ///         for ((epoch, _flag), value) in epochs {
+    ///             // value: actual recombination result
+    ///         }
+    ///     }
+    /// }
+    /// ```
+    fn geo_free(
+        &self,
+    ) -> HashMap<(Observable, Observable), BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>;
+
+    /// Perform Wide Lane recombination.   
+    /// See [Self::geo_free] for API example
+    fn wide_lane(
+        &self,
+    ) -> HashMap<(Observable, Observable), BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>;
+
+    /// Perform Narrow Lane recombination.   
+    /// See [Self::geo_free] for API example
+    fn narrow_lane(
+        &self,
+    ) -> HashMap<(Observable, Observable), BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>;
+
+    /// Perform Melbourne-Wübbena recombination.   
+    /// See [`Self::geo_free`] for API example
+    fn melbourne_wubbena(
+        &self,
+    ) -> HashMap<(Observable, Observable), BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>;
+}
+
+/// GNSS code bias estimation trait.
+/// Refer to
+/// <http://navigation-office.esa.int/attachments_12649498_1_Reichel_5thGalSciCol_2015.pdf>
+/// and phase data model
+/// <https://github.com/georust/rinex/blob/main/rinex-cli/doc/gnss-combination.md>
+#[cfg(feature = "obs")]
+#[cfg_attr(docrs, doc(cfg(feature = "obs")))]
+pub trait Dcb {
+    /// Returns Differential Code Bias estimates, sorted per (unique)
+    /// signals combinations and for each individual Sv.
+    /// ```
+    /// use rinex::prelude::*;
+    /// use rinex::observation::*; // .dcb()
+    ///
+    /// let rinex = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
+    ///		.unwrap();
+    /// let dcb = rinex.dcb();
+    /// ```
+    fn dcb(&self) -> HashMap<String, BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>;
+}
+
+/// Multipath biases estimation.
+/// Refer to
+/// <http://navigation-office.esa.int/attachments_12649498_1_Reichel_5thGalSciCol_2015.pdf>
+/// or MP_i factors in phase data model
+/// <https://github.com/georust/rinex/blob/main/rinex-cli/doc/gnss-combination.md>.
+#[cfg(feature = "obs")]
+#[cfg_attr(docrs, doc(cfg(feature = "obs")))]
+pub trait Mp {
+    /// Returns Multipath bias estimates,
+    /// sorted per (unique) signal combinations and for each individual Sv.
+    fn mp(&self) -> HashMap<String, BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>;
+}
+
+/// Ionospheric Delay estimation trait.
+#[cfg(feature = "obs")]
+#[cfg_attr(docrs, doc(cfg(feature = "obs")))]
+pub trait IonoDelay {
+    /// The Iono delay estimator is the derivative of the [Combine::geo_free]
+    /// recombination. One can then use a peak detector for example,
+    /// to determine signal perturbations, due to ionospheric activity.
+    /// To improve behavior and avoid discontinuities on data gaps,
+    /// we perform the derivative only if the previous point was sampled at worst
+    /// `max_dt` prior current point.  
+    /// This is intended to be used on raw Phase data only,
+    /// but can be evaluated on PR too (if such data is passed).  
+    /// In that scenario, ideally the user used a smoothing algorithm,
+    /// prior to invoking this method: see the preprocessing toolkit.
+    fn iono_delay(
+        &self,
+        max_dt: Duration,
+    ) -> HashMap<Observable, HashMap<Sv, BTreeMap<Epoch, f64>>>;
+}
+
 #[cfg(test)]
 mod crinex {
     use super::*;
@@ -186,7 +415,7 @@ mod crinex {
     fn test_display() {
         let crinex = Crinex::default();
         let now = Epoch::now().unwrap();
-        let (y, m, d, hh, mm, _, _) = now.to_gregorian_utc();
+        let (_y, _m, _d, _hh, _mm, _, _) = now.to_gregorian_utc();
         let content = crinex.to_string();
         let lines: Vec<&str> = content.lines().collect();
         assert_eq!(lines.len(), 2); // main title should span 2 lines

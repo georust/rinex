@@ -1,6 +1,7 @@
 use super::HtmlReport;
-use crate::ground_position::GroundPosition;
 use crate::prelude::*;
+use crate::{geodetic, wgs84, GroundPosition};
+
 use horrorshow::RenderBox;
 
 #[cfg(feature = "serde")]
@@ -24,6 +25,12 @@ pub enum SlotError {
 pub enum Slot {
     Duration(Duration),
     Percentage(f64),
+}
+
+impl Default for Slot {
+    fn default() -> Self {
+        Self::Percentage(25.0)
+    }
 }
 
 impl std::str::FromStr for Slot {
@@ -68,34 +75,21 @@ impl<'de> Deserialize<'de> for Slot {
     }
 */
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Default, Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum CsStrategy {
     /// Study CS events and report them
+    #[default]
     Study,
     /// Study CS events and repair them
     StudyAndRepair,
 }
 
-impl Default for CsStrategy {
-    fn default() -> Self {
-        Self::Study
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Default, Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Deserialize))]
 pub struct StatisticsOpts {
     /// Window/slot duration, on which we evaluate all statistics
     pub window: Slot,
-}
-
-impl Default for StatisticsOpts {
-    fn default() -> Self {
-        Self {
-            window: Slot::Percentage(25.0),
-        }
-    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -125,10 +119,12 @@ impl Default for ProcessingOpts {
 }
 
 /// Qc Report classification method
-#[derive(Debug, Clone)]
+#[derive(Default, Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub enum QcClassificationMethod {
+/// Classify the QC report by desired data set
+pub enum QcClassification {
     /// Report per GNSS system
+    #[default]
     GNSS,
     /// Report per Sv
     Sv,
@@ -136,18 +132,23 @@ pub enum QcClassificationMethod {
     Physics,
 }
 
-impl Default for QcClassificationMethod {
-    fn default() -> Self {
-        Self::GNSS
+impl std::fmt::Display for QcClassification {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            QcClassification::GNSS => f.write_str("GNSS Constellations"),
+            QcClassification::Sv => f.write_str("Satellite Vehicles"),
+            QcClassification::Physics => f.write_str("Physics"),
+        }
     }
 }
 
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(Deserialize))]
 pub struct QcOpts {
-    /// Classification Method
+    #[cfg(feature = "processing")]
     #[cfg_attr(feature = "serde", serde(default))]
-    pub classification: QcClassificationMethod,
+    #[cfg_attr(docs, doc(cfg(feature = "processing")))]
+    pub classification: QcClassification,
     /// Minimum SNR level to consider in our analysis.
     /// For example, this is used when determining whether
     /// an epoch is "complete" or not.
@@ -162,19 +163,28 @@ pub struct QcOpts {
 }
 
 impl QcOpts {
+    #[cfg(feature = "processing")]
+    pub fn with_classification(&self, classification: QcClassification) -> Self {
+        let mut s = self.clone();
+        s.classification = classification;
+        s
+    }
+
     pub fn with_min_snr(&self, snr_db: f64) -> Self {
         let mut s = self.clone();
         s.min_snr_db = snr_db;
         s
     }
+
     pub fn with_ground_position_ecef(&self, pos: (f64, f64, f64)) -> Self {
         let mut s = self.clone();
-        s.ground_position = Some(GroundPosition::from_ecef_wgs84(pos));
+        s.ground_position = Some(wgs84!(pos.0, pos.1, pos.2));
         s
     }
+
     pub fn with_ground_position_geo(&self, pos: (f64, f64, f64)) -> Self {
         let mut s = self.clone();
-        s.ground_position = Some(GroundPosition::from_geodetic(pos));
+        s.ground_position = Some(geodetic!(pos.0, pos.1, pos.2));
         s
     }
 }
@@ -186,7 +196,7 @@ impl Default for QcOpts {
             ground_position: None,
             min_snr_db: 20.0, // dB
             elev_mask: None,
-            classification: QcClassificationMethod::default(),
+            classification: QcClassification::default(),
         }
     }
 }
@@ -202,7 +212,7 @@ impl HtmlReport for QcOpts {
                     : "Classification"
                 }
                 th {
-                    : format!("{:?}", self.classification)
+                    : format!("{}", self.classification)
                 }
             }
             tr {
@@ -255,13 +265,13 @@ mod test {
 			{
 				"classification": "GNSS"
 			}"#;
-        let opts: QcOpts = serde_json::from_str(content).unwrap();
+        let _opts: QcOpts = serde_json::from_str(content).unwrap();
 
         let content = r#"
 			{
 				"classification": "Sv"
 			}"#;
-        let opts: QcOpts = serde_json::from_str(content).unwrap();
+        let _opts: QcOpts = serde_json::from_str(content).unwrap();
 
         /*let content = r#"
             {

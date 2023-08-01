@@ -8,19 +8,14 @@ pub enum Error {
 }
 
 /// Antenna Phase Center Variation types
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Default, Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum Pcv {
     /// Given data is absolute
+    #[default]
     Absolute,
     /// Given data is relative, with type of relativity
     Relative(String),
-}
-
-impl Default for Pcv {
-    fn default() -> Self {
-        Self::Absolute
-    }
 }
 
 impl std::str::FromStr for Pcv {

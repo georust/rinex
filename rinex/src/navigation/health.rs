@@ -1,9 +1,10 @@
 use bitflags::bitflags;
 
 /// GNSS / GPS orbit health indication
-#[derive(Debug, Clone, FromPrimitive, PartialEq, PartialOrd)]
+#[derive(Default, Debug, Clone, FromPrimitive, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum Health {
+    #[default]
     Unhealthy = 0,
     L1Healthy = 1,
     L2Healthy = 2,
@@ -12,12 +13,6 @@ pub enum Health {
     L1L5Healthy = 5,
     L2L5Healthy = 6,
     L1L2L5Healthy = 7,
-}
-
-impl Default for Health {
-    fn default() -> Self {
-        Self::Unhealthy
-    }
 }
 
 impl std::fmt::UpperExp for Health {
@@ -36,17 +31,12 @@ impl std::fmt::UpperExp for Health {
 }
 
 /// IRNSS orbit health indication
-#[derive(Debug, Clone, FromPrimitive, PartialEq, PartialOrd)]
+#[derive(Default, Debug, Clone, FromPrimitive, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum IrnssHealth {
     Healthy = 0,
+    #[default]
     Unknown = 1,
-}
-
-impl Default for IrnssHealth {
-    fn default() -> Self {
-        Self::Unknown
-    }
 }
 
 impl std::fmt::UpperExp for IrnssHealth {
@@ -59,17 +49,12 @@ impl std::fmt::UpperExp for IrnssHealth {
 }
 
 /// SBAS/GEO orbit health indication
-#[derive(Debug, Clone, FromPrimitive, PartialEq, PartialOrd)]
+#[derive(Default, Debug, Clone, FromPrimitive, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum GeoHealth {
+    #[default]
     Unknown = 0,
     Reserved = 8,
-}
-
-impl Default for GeoHealth {
-    fn default() -> Self {
-        Self::Unknown
-    }
 }
 
 impl std::fmt::UpperExp for GeoHealth {
@@ -82,17 +67,12 @@ impl std::fmt::UpperExp for GeoHealth {
 }
 
 /// GLO orbit health indication
-#[derive(Debug, Clone, FromPrimitive, PartialEq, PartialOrd)]
+#[derive(Default, Debug, Clone, FromPrimitive, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum GloHealth {
     Healthy = 0,
+    #[default]
     Unhealthy = 4,
-}
-
-impl Default for GloHealth {
-    fn default() -> Self {
-        Self::Unhealthy
-    }
 }
 
 impl std::fmt::UpperExp for GloHealth {

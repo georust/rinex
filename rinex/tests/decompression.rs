@@ -1,13 +1,6 @@
 #[cfg(test)]
 mod test {
-    use rinex::{
-        hatanaka::Decompressor,
-        observation::{Crinex, HeaderFields},
-        prelude::*,
-        test_toolkit,
-        version::Version,
-        *,
-    };
+    use rinex::{hatanaka::Decompressor, prelude::*, *};
     use std::collections::HashMap;
     use std::str::FromStr;
     #[test]
@@ -71,8 +64,8 @@ mod test {
             let path = format!("../test_resources/OBS/V2/{}", rnx_name);
             let model = Rinex::from_file(&path);
             assert!(model.is_ok(), "Failed to parse test model \"{}\"", path);
-            let model = model.unwrap();
 
+            //let model = model.unwrap();
             // run testbench
             // test_toolkit::compare_with_panic(&rnx, &model, &path);
         }
@@ -126,7 +119,6 @@ mod test {
             let path = format!("../test_resources/OBS/V3/{}", rnx_name);
             let model = Rinex::from_file(&path);
             assert!(model.is_ok(), "Failed to parse test model \"{}\"", path);
-            let model = model.unwrap();
 
             // run testbench
             // test_toolkit::compare_with_panic(&rnx, &model, &path);
@@ -195,7 +187,7 @@ mod test {
         assert_eq!(rnx.epochs(), epochs);
         let record = rnx.record.as_obs().unwrap();
 
-        for (index, ((e, flag), (clk_offset, vehicles))) in record.iter().enumerate() {
+        for (index, ((_e, flag), (clk_offset, vehicles))) in record.iter().enumerate() {
             assert!(flag.is_ok());
             assert!(clk_offset.is_none());
             if index == 0 {
@@ -347,7 +339,7 @@ mod test {
         let crnx =
             Rinex::from_file("../test_resources/CRNX/V3/ACOR00ESP_R_20213550000_01D_30S_MO.crx");
         assert_eq!(crnx.is_ok(), true);
-        let mut rnx = crnx.unwrap();
+        let rnx = crnx.unwrap();
 
         assert_eq!(rnx.header.obs.is_some(), true);
         let obs = rnx.header.obs.as_ref().unwrap();
@@ -530,7 +522,8 @@ mod test {
         let crnx =
             Rinex::from_file("../test_resources/CRNX/V3/MOJN00DNK_R_20201770000_01D_30S_MO.crx.gz");
         assert_eq!(crnx.is_ok(), true);
-        let mut rnx = crnx.unwrap();
+        let rnx = crnx.unwrap();
+
         /*
          * Verify identified observables
          */
@@ -609,7 +602,7 @@ mod test {
         );
 
         let record = record.unwrap();
-        for (epoch, (clk_offset, svs)) in record {
+        for (_epoch, (clk_offset, _svs)) in record {
             assert!(clk_offset.is_none());
         }
     }

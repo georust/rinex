@@ -1,4 +1,4 @@
-use crate::{processing::TargetItem, Duration};
+use crate::{preprocessing::TargetItem, Duration};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -33,22 +33,24 @@ pub trait Decimate {
     /// Header sampling interval (if any) is automatically updated.
     /// ```
     /// use rinex::prelude::*;
-    /// use rinex::processing::*;
+    /// use rinex::preprocessing::Decimate;
     /// let mut rnx = Rinex::from_file("../test_resources/OBS/V2/delf0010.21o")
     ///     .unwrap();
     /// assert_eq!(rnx.epochs().len(), 105);
     /// assert_eq!(rnx.decimate_by_ratio(2).epochs().len(), 53);
     /// ```
     fn decimate_by_ratio(&self, r: u32) -> Self;
-    /// [decimate_by_ratio] mutable implementation.
+
+    /// [Self::decimate_by_ratio] mutable implementation.
     fn decimate_by_ratio_mut(&mut self, r: u32);
+
     /// Decimate Dataset so sampling interval matches given duration.
     /// Successive epochs |e_k+1 - e_k| < interval that do not fit
     /// within this minimal interval are discarded.
     /// Header sampling interval (if any) is automatically update.
     /// ```
     /// use rinex::prelude::*;
-    /// use rinex::processing::*; // Decimation
+    /// use rinex::preprocessing::Decimate;
     /// let mut rinex = Rinex::from_file("../test_resources/NAV/V3/AMEL00NLD_R_20210010000_01D_MN.rnx")
     ///     .unwrap();
     ///
@@ -63,12 +65,15 @@ pub trait Decimate {
     /// assert_eq!(rinex.epochs().len(), initial_epochs.len()-2);
     /// ```
     fn decimate_by_interval(&self, dt: Duration) -> Self;
-    /// [decimate_by_interval] mutable implementation
+
+    /// [Self::decimate_by_interval] mutable implementation
     fn decimate_by_interval_mut(&mut self, dt: Duration);
+
     /// Decimate Dataset so sampling matches given `rhs` sampling.
     /// Both types must match.
     fn decimate_match(&self, rhs: &Self) -> Self;
-    /// [decimate_match] mutable implementation
+
+    /// [Self::decimate_match] mutable implementation
     fn decimate_match_mut(&mut self, rhs: &Self);
 }
 

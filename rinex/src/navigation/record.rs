@@ -1,7 +1,4 @@
-//! `NavigationData` parser and related methods
-use crate::processing::{
-    Filter, Interpolate, Mask, MaskFilter, MaskOperand, Preprocessing, TargetItem,
-};
+//! NAV Ephemeris parser and related methods
 use regex::{Captures, Regex};
 use std::collections::BTreeMap;
 use std::str::FromStr;
@@ -47,19 +44,14 @@ use super::{
 use hifitime::Duration;
 
 /// Possible Navigation Frame declinations for an epoch
-#[derive(Debug, Copy, Clone, PartialEq, PartialOrd, Eq, Ord)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, PartialOrd, Eq, Ord)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum FrameClass {
+    #[default]
     Ephemeris,
     SystemTimeOffset,
     EarthOrientation,
     IonosphericModel,
-}
-
-impl Default for FrameClass {
-    fn default() -> Self {
-        Self::Ephemeris
-    }
 }
 
 impl std::fmt::Display for FrameClass {
@@ -1321,6 +1313,10 @@ impl GnssTime for Record {
     }
 }
 
+#[cfg(feature = "processing")]
+use crate::preprocessing::*;
+
+#[cfg(feature = "processing")]
 impl Mask for Record {
     fn mask(&self, mask: MaskFilter) -> Self {
         let mut s = self.clone();
@@ -1591,6 +1587,7 @@ impl Mask for Record {
 /*
  * Decimates only a given record subset
  */
+#[cfg(feature = "processing")]
 fn decimate_data_subset(record: &mut Record, subset: &Record, target: &TargetItem) {
     match target {
         TargetItem::SvItem(svs) => {
@@ -1667,6 +1664,7 @@ fn decimate_data_subset(record: &mut Record, subset: &Record, target: &TargetIte
     }
 }
 
+#[cfg(feature = "processing")]
 impl Preprocessing for Record {
     fn filter(&self, f: Filter) -> Self {
         let mut s = self.clone();
@@ -1722,6 +1720,7 @@ impl Preprocessing for Record {
     }
 }
 
+#[cfg(feature = "processing")]
 impl Interpolate for Record {
     fn interpolate(&self, series: TimeSeries) -> Self {
         let mut s = self.clone();
@@ -1733,8 +1732,7 @@ impl Interpolate for Record {
     }
 }
 
-use crate::processing::{Decimate, DecimationType};
-
+#[cfg(feature = "processing")]
 impl Decimate for Record {
     /// Decimates Self by desired factor
     fn decimate_by_ratio_mut(&mut self, r: u32) {

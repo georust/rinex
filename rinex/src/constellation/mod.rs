@@ -4,14 +4,14 @@ use thiserror::Error;
 mod augmentation;
 pub use augmentation::Augmentation;
 
-#[cfg(feature = "sbas")]
-pub use augmentation::selection_helper;
-
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
-#[derive(Error, Clone, Debug, PartialEq)]
+#[cfg(feature = "sbas")]
+pub use augmentation::sbas_selection_helper;
+
 /// Constellation parsing & identification related errors
+#[derive(Error, Clone, Debug, PartialEq)]
 pub enum Error {
     #[error("code length mismatch, expecting {0} got {1}")]
     CodeLengthMismatch(usize, usize),
@@ -104,7 +104,7 @@ impl Constellation {
     /// Identifies `gnss` constellation from given 3 letter code.    
     /// Given code should match official RINEX codes.    
     /// This method is case insensitive though
-    pub fn from_3_letter_code(code: &str) -> Result<Constellation, Error> {
+    pub(crate) fn from_3_letter_code(code: &str) -> Result<Constellation, Error> {
         if code.len() != 3 {
             return Err(Error::CodeLengthMismatch(3, code.len()));
         }
@@ -128,7 +128,7 @@ impl Constellation {
         }
     }
     /// Converts self to 3 letter code (RINEX standard code)
-    pub fn to_3_letter_code(&self) -> &str {
+    pub(crate) fn to_3_letter_code(&self) -> &str {
         match self {
             Constellation::GPS => "GPS",
             Constellation::Glonass => "GLO",
@@ -142,7 +142,7 @@ impl Constellation {
     }
     /// Identifies `gnss` constellation from given standard plain name,
     /// like "GPS", or "Galileo". This method is not case sensitive.
-    pub fn from_plain_name(code: &str) -> Result<Constellation, Error> {
+    pub(crate) fn from_plain_name(code: &str) -> Result<Constellation, Error> {
         let code = code.to_lowercase();
         if code.contains("gps") {
             Ok(Constellation::GPS)
@@ -179,8 +179,12 @@ impl std::str::FromStr for Constellation {
             Ok(Constellation::from_3_letter_code(code)?)
         } else if code.len() == 1 {
             Ok(Constellation::from_1_letter_code(code)?)
+        } else if let Ok(s) = Constellation::from_plain_name(code) {
+            Ok(s)
+        } else if let Ok(sbas) = Augmentation::from_str(code) {
+            Ok(Self::SBAS(sbas))
         } else {
-            Ok(Constellation::from_plain_name(code)?)
+            Err(Error::UnknownCode(code.to_string()))
         }
     }
 }

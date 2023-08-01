@@ -5,7 +5,7 @@ use thiserror::Error;
 /// `Leap` to describe leap seconds.
 /// GLO = UTC = GPS - ΔtLS   
 /// GPS = UTC + ΔtLS   
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+#[derive(Default, Copy, Clone, PartialEq, Eq, Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Leap {
     /// current number
@@ -28,19 +28,6 @@ pub enum Error {
     ParseIntError(#[from] std::num::ParseIntError),
     #[error("failed to parse leap timescale")]
     TimeScaleError(#[from] hifitime::Errors),
-}
-
-impl Default for Leap {
-    /// Builds a default (null) `Leap`
-    fn default() -> Leap {
-        Leap {
-            leap: 0,
-            delta_tls: None,
-            week: None,
-            day: None,
-            timescale: None,
-        }
-    }
 }
 
 impl Leap {

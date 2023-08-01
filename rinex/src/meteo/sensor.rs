@@ -4,7 +4,7 @@ use crate::Observable;
 use thiserror::Error;
 
 /// Meteo Observation Sensor
-#[derive(Clone, Debug, PartialEq, PartialOrd)]
+#[derive(Default, Clone, Debug, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Sensor {
     /// Physics measured by this sensor
@@ -26,18 +26,6 @@ pub enum ParseSensorError {
     ParseObservableError(#[from] observable::Error),
     #[error("failed to parse accuracy field")]
     ParseFloatError(#[from] std::num::ParseFloatError),
-}
-
-impl Default for Sensor {
-    fn default() -> Sensor {
-        Sensor {
-            observable: Observable::default(),
-            model: None,
-            sensor_type: None,
-            accuracy: None,
-            position: None,
-        }
-    }
 }
 
 impl std::str::FromStr for Sensor {

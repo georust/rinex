@@ -120,7 +120,6 @@ impl QcReport {
                 epochs_with_obs += 1;
             }
         }
-
         /*
          * Augmented study
          */

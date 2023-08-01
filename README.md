@@ -9,11 +9,11 @@ RINEX
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square)](https://github.com/gwbres/rinex/blob/main/LICENSE-APACHE)
 [![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](https://github.com/gwbres/rinex/blob/main/LICENSE-MIT) 
 
-Rust tool suites to parse, analyze and process `RINEX` files
+Rust tool suites to parse, analyze and process RINEX Data.
 
 * [`rinex`](rinex/) is the core library 
 * [`rinex-cli`](rinex-cli/) is a command line application based on the core library.  
-It can be used to process RINEX files or perform operations similar to `teqc`.   
+It can be used to process RINEX files and perform operations similar to `teqc`.   
 The application is auto-generated for a few architectures, download it from the 
 [release portal](https://github.com/gwbres/rinex/releases)
 
@@ -28,7 +28,11 @@ and [rinex](rinex/) crates.
 
 By default, all timestamps are in UTC with leap seconds correctly managed.
 
-## Supported `RINEX` types
+This RINEX toolsuite is part of the [GeoRust community](https://github.com/georust),
+and we aim towards advanced geodesic and ionospheric analysis.
+
+RINEX files
+===========
 
 | Type                       | Parser            | Writer              |  CLI                 | UBX                  |           Notes          |
 |----------------------------|-------------------|---------------------|----------------------|-------------------|-------------------------
@@ -47,15 +51,15 @@ By default, all timestamps are in UTC with leap seconds correctly managed.
 :construction: under development   
 __CLI__ + :chart_with_upwards_trend: means record analysis is supported by the CLI, [README](rinex-cli/README.md)
 
-## File formats
+File formats
+============
 
-| Format   | File name restrictions  |    Support          |
-|----------|-------------------------|---------------------|
-| RINEX    | :heavy_minus_sign: | :heavy_check_mark: but refer to first table |
-| CRINEX   | :heavy_minus_sign: | :heavy_check_mark:  | 
-| RINEX + `gzip`   | Must end with `.gz` | Compile with `--flate2` feature, or uncompress manually first |
-| CRINEX + `gzip` | Must end with `.gz` | Compile with `--flate2` feature, or uncompress manually first |
-| `.Z` | :heavy_minus_sign:  | :x: |
+| Format                 | File name restrictions            |    Support                         |
+|------------------------|-----------------------------------|------------------------------------|
+| RINEX                  | :heavy_minus_sign:                | :heavy_check_mark:                 |
+| CRINEX                 | :heavy_minus_sign:                | :heavy_check_mark:                 | 
+| gzip compressed RINEX  | Name must end with `.gz`          | `--flate2` feature must be enabled |
+| gzip compressed CRINEX | Name must end with `.gz`          | `--flate2` feature must be enabled |
 
 :heavy_minus_sign: No restrictions: file names do not have to follow naming conventions.  
 
@@ -64,34 +68,47 @@ __CLI__ + :chart_with_upwards_trend: means record analysis is supported by the C
 - Glonass Time Scale is not known to this day.
 We cannot parse and apply system time corrections from other time scales into the glonass time scale.
 
-## Record
+Features
+========
 
-High level operations can be performed on RINEX records and
-RINEX structure in general.
-Refer to the [official Documentation](https://docs.rs/rinex/latest/rinex/struct.Rinex.html).
+Several compilation options, mostly to unlock heavy computations and advanced features
 
-RINEX Records vary a lot from one revision to another
-and from one file type to another.
-To learn how to browse the RINEX record you are interested in,
-refer to its definition in the official documentation.
-For example, here is the 
-[Observation Record](https://docs.rs/rinex/latest/rinex/observation/record/type.Record.html)
-definition.
+* `serde` enables main RINEX structures serialization and deserialization 
 
-## Features
+* `obs` unlocks several features:
+  - the [Observation trait](https://doc.rs/rinex/latest/rinex/observation/Observation.html) for 
+  quick & efficient statistical analysis on both OBS and Meteo records. Mainly serves Quality Check purposes.
+  - the [DCB trait](https://doc.rs/rinex/latest/rinex/observation/Dcb.html)
+  for Differential Code bias estimation
+  - the [MP trait](https://doc.rs/rinex/latest/rinex/observation/Dcb.html)
+  for Multi Path biases estimation
+  - the [Iono Delay](https://doc.rs/rinex/latest/rinex/observation/IonoDelay.html) 
+  estimator.
 
-* `--serde` enables main RINEX structures serialization and deserialization 
+* `nav` : unlocks advanced NAV features, like
+  - [Sv position](https://doc.rs/rinex/latest/rinex/navigation/Navigation.html) solver
+  - [Elevation and azimuth](https://doc.rs/rinex/latest/rinex/navigation/Navigation.html) angles solver
+
+* `processing` 
+  - unlocks the [Preprocessing package](https://doc.rs/rinex/latest/rinex/preprocessing.html),
+  which contains several methods to resample, downsample, filter and sort RINEX datasets.
+
+* `qc`: enables file Quality Check, ie., statistical analysis
+on RINEX files. Reports are generated in HTML.
+Complete QC is only feasible if you combine this feature to
+the related type feature, `obs` + `nav` is the typical combination.
 
 <img align="right" width="400" src="https://upload.wikimedia.org/wikipedia/commons/4/46/SBAS_Service_Areas.png">
 
-* `--sbas`: SBAS (stationnary augmentation systems related features).    
-[selection_helper()](https://docs.rs/rinex/latest/rinex/struct.Rinex.html),
-select a SBAS for a given location on Earth.
+* `sbas`: SBAS (stationary augmentation systems) selection
+helper method, to select appropriate augmentation based on current
+location on Earth
 
-* `--flate2`  
+* `flate2`  
 allow native parsing of .gz compressed RINEX files. Otherwise, user must uncompress manually the `.gz` extension first.
 
-## Benchmark
+Benchmarking and lib performances
+=================================
 
 Test           | Results 
 ---------------|-------------------------|
@@ -106,9 +123,10 @@ processing/esbc00dnkr2021/mask:obs |  438.73 ms |
 processing/esbc00dnkr2021/mask:sv | 341.42 ms | 
 processing/esbc00dnkr2021/smooth:hatch:l1c,l2c | 502.90 ms | 
 
-## Contributions
+Contributions
+=============
 
 Contributions are welcomed, do not hesitate to open new issues
-and submit Pull Requests.
+and submit Pull Requests through Github.
 
-If you want to take part in active developments, checkout our [TODO list](TODO.md)
+If you want to take part in active developments, check out our [contribution guidelines and hints](CONTRIBUTING.md) to navigate this library quicker.

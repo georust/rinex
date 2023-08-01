@@ -30,7 +30,7 @@ fn identification(rnx: &Rinex, pretty: bool, ops: Vec<&str>) {
             };
             println!("{}", content);
         } else if op.eq("sv") {
-            let data = &rnx.space_vehicles();
+            let data = &rnx.sv();
             let content = match pretty {
                 true => serde_json::to_string_pretty(data).unwrap(),
                 false => serde_json::to_string(data).unwrap(),
@@ -44,7 +44,7 @@ fn identification(rnx: &Rinex, pretty: bool, ops: Vec<&str>) {
             };
             println!("{}", content);
         } else if op.eq("gnss") {
-            let data = &rnx.list_constellations();
+            let data = &rnx.constellations();
             let content = match pretty {
                 true => serde_json::to_string_pretty(data).unwrap(),
                 false => serde_json::to_string(data).unwrap(),
@@ -65,10 +65,10 @@ fn identification(rnx: &Rinex, pretty: bool, ops: Vec<&str>) {
             };
             println!("{}", content);
         } else if op.eq("nav-msg") {
-            let data = &rnx.navigation_message_types();
+            let data = &rnx.nav_message_types();
             println!("{:?}", data);
         } else if op.eq("anomalies") {
-            let data = &rnx.observation_epoch_anomalies();
+            let data = &rnx.epoch_anomalies();
             println!("{:#?}", data);
         }
     }

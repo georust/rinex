@@ -2,9 +2,6 @@
 mod test {
     use rinex::*;
     fn testbench(path: &str) {
-        // determine filename for debug
-        let filename: Vec<_> = path.split("/").collect();
-        let filename = filename[filename.len() - 1];
         // parse this file
         let rnx = Rinex::from_file(path).unwrap(); // already tested elsewhere
         let copy_path = path.to_owned() + "-copy";

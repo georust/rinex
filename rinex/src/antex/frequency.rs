@@ -50,20 +50,16 @@ pub struct Frequency {
     /// Carrier, example: "L1", "L2" for GPS, "E1", "E5" for GAL...
     pub carrier: Carrier,
     /// Northern component of the mean antenna phase center
-    /// relative to the antenna reference point (ARP),
-    /// in [mm]
+    /// relative to the antenna reference point (ARP), in `mm`.
     pub north: f64,
     /// Eastern component of the mean antenna phase center
-    /// relative to the antenna reference point (ARP),
-    /// in [mm]
+    /// relative to the antenna reference point (ARP), in `mm`.
     pub east: f64,
     /// Z component of the mean antenna phase center relative
-    /// to the antenna reference point (ARP),
-    /// in [mm]
+    /// to the antenna reference point (ARP), in `mm`.
     pub up: f64,
-    /// Phase pattern, values in [mm] from antenna.zen1 to antenna.zen2
-    /// with increment antenna.dzen, can either be Azimuth or NonAzimmuth
-    /// dependent
+    /// Phase pattern, values in `mm` from antenna.zen1 to antenna.zen2
+    /// with increment antenna.dzen, can either be azimuth or non azimmuth dependent
     pub patterns: Vec<Pattern>,
 }
 
@@ -80,8 +76,8 @@ impl Default for Frequency {
 }
 
 impl Frequency {
-    /// Returns ARP coordinates in Geodetic system.
-    /// Ref. position must be given in (lat, lon, altitude) [m]
+    /// Returns ARP in geodetic coordinates expressed in decimal degrees.
+    /// Reference point must be in the same coordinates system.
     pub fn arp_geodetic(&self, ref_pos: (f64, f64, f64)) -> (f64, f64, f64) {
         map_3d::enu2geodetic(
             self.east * 10.0E-3,

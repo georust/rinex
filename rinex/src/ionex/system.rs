@@ -28,18 +28,19 @@ pub enum RefSystem {
     ObservationSystem(ObsSystem),
     /// Theoretical Model.
     /// When a theoretical model is used, refer to
-    /// the Description provided in [ionosphere::HeaderFields]
+    /// the Description provided in [crate::ionex::HeaderFields]
     /// for further explanations
     Model(Model),
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, EnumString)]
+#[derive(Default, Debug, Clone, PartialEq, PartialOrd, EnumString)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum ObsSystem {
     /// BENt
     #[strum(serialize = "BEN")]
     BENt,
     /// ENVisat is an ESA Earth Observation satellite
+    #[default]
     #[strum(serialize = "ENV")]
     ENVisat,
     /// European Remote Sensing Satellite (ESA).
@@ -56,10 +57,11 @@ impl std::fmt::Display for ObsSystem {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, EnumString)]
+#[derive(Default, Debug, Clone, PartialEq, PartialOrd, EnumString)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum Model {
     /// Mixed / combined models.
+    #[default]
     MIX,
     /// NNS transit
     NNS,

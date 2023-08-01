@@ -1,33 +1,48 @@
-use crate::prelude::*;
-use crate::processing::TargetItem;
-
 use super::{pretty_array, HtmlReport, QcOpts};
+use crate::prelude::*;
+
+#[cfg(feature = "processing")]
+use crate::preprocessing::TargetItem;
+
 use horrorshow::{helper::doctype, RenderBox};
 
-mod obs;
 mod sv;
-//mod antenna;
+
+mod obs;
+use obs::QcObsAnalysis;
+
 mod sampling;
 
-use obs::QcObsAnalysis;
 use sampling::QcSamplingAnalysis;
 use sv::QcSvAnalysis;
 
 #[derive(Debug, Clone)]
+/// RINEX File Quality analysis report
 pub struct QcAnalysis {
-    pub classifier: TargetItem,
-    sv: QcSvAnalysis,
-    observ: QcObsAnalysis,
+    /// RINEX file sampling analysis
+    ///   - dominant sample rate
+    ///   - data gaps, etc..
     sampling: QcSamplingAnalysis,
+    /// [crate::Sv] specific analysis
+    ///  - identifies, PRN# versus time
+    ///  - Rise and Fall datetime, etc..
+    sv: QcSvAnalysis,
+    /// [crate::observation::Record] specific analysis,
+    /// is truly complete when both "obs" and "processing"
+    /// features are enabled
+    observ: QcObsAnalysis,
 }
 
 impl QcAnalysis {
-    pub fn new(classifier: TargetItem, rnx: &Rinex, nav: &Option<Rinex>, opts: &QcOpts) -> Self {
+    /// Creates a new Analysis Report from given RINEX context.  
+    ///   - `rnx` : primary file
+    ///   - `nav` : Optional secondary file to augment feasible anlysis
+    pub fn new(rnx: &Rinex, nav: &Option<Rinex>, opts: &QcOpts) -> Self {
         Self {
-            classifier,
             sv: QcSvAnalysis::new(rnx, nav, opts),
-            observ: QcObsAnalysis::new(rnx, nav, opts),
             sampling: QcSamplingAnalysis::new(rnx),
+            #[cfg(feature = "obs")]
+            observ: QcObsAnalysis::new(rnx, nav, opts),
         }
     }
 }
@@ -44,7 +59,7 @@ impl HtmlReport for QcAnalysis {
                         meta(name="viewport", content="width=device-width, initial-scale=1");
                         link(rel="stylesheet", href="https:////cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css");
                         title {
-                            : format!("{:?} QC Analysis", self.classifier)
+                            : "RINEX QC analysis"
                         }
                     }
                     body {

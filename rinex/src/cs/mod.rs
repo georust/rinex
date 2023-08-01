@@ -1,10 +1,11 @@
 use crate::{prelude::*, Carrier};
 use std::collections::HashMap;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Default, Debug, Clone, PartialEq)]
 pub enum CsStrategy {
     /// Ultimate detection method, not particularly more intense
     /// than others, but requires modern Multi carrier frequencies
+    #[default]
     GfAdvanced,
     /// Simple GF based CS detection method.
     /// This does not work well in case of high ionospheric
@@ -20,26 +21,15 @@ pub enum CsStrategy {
     SingleFrequency,
 }
 
-impl Default for CsStrategy {
-    fn default() -> Self {
-        Self::GfAdvanced
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Default, Debug, Clone, PartialEq)]
 pub enum CsSelectionMethod {
     /// Selects most suited method automatically
+    #[default]
     Auto,
     /// Use this stragegy ideally
     Prefered(CsStrategy),
     /// Use this stragegy and only this one
     Manual(CsStrategy),
-}
-
-impl Default for CsSelectionMethod {
-    fn default() -> Self {
-        Self::Auto
-    }
 }
 
 #[derive(Debug, Default, Clone)]

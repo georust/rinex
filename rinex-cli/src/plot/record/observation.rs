@@ -38,7 +38,7 @@ pub fn plot_observation(ctx: &Context, plot_ctx: &mut PlotContext) {
     // augmented mode
     let mut sat_angles: HashMap<Sv, BTreeMap<Epoch, (f64, f64)>> = HashMap::new();
     if let Some(ref nav) = ctx.nav_rinex {
-        sat_angles = nav.navigation_sat_angles(ctx.ground_position);
+        sat_angles = nav.sv_elev_azim_angles(ctx.ground_position);
     }
 
     for ((epoch, _flag), (clock_offset, vehicles)) in record {

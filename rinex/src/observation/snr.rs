@@ -7,7 +7,7 @@ pub enum Error {
 
 /// `Snr` Signal to noise ratio description,
 /// is attached to some observations
-#[derive(PartialOrd, Ord, PartialEq, Eq, Copy, Clone, Debug)]
+#[derive(Default, PartialOrd, Ord, PartialEq, Eq, Copy, Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum Snr {
     /// Snr ~= 0 dB/Hz
@@ -19,6 +19,7 @@ pub enum Snr {
     /// 18 dB/Hz <= Snr < 23 dB/Hz
     DbHz18_23,
     /// 24 dB/Hz <= Snr < 29 dB/Hz
+    #[default]
     DbHz24_29,
     /// 30 dB/Hz <= Snr < 35 dB/Hz
     DbHz30_35,
@@ -84,12 +85,6 @@ impl FromStr for Snr {
             "9" => Ok(Snr::DbHz54),
             _ => Err(Error::InvalidSnrCode),
         }
-    }
-}
-
-impl Default for Snr {
-    fn default() -> Snr {
-        Snr::DbHz24_29 // "weak"
     }
 }
 

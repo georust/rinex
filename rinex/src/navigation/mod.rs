@@ -1,4 +1,4 @@
-//! `Navigation` data module
+//! NAV RINEX module
 mod eopmessage;
 mod ephemeris;
 mod health;

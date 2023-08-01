@@ -356,6 +356,7 @@ impl std::str::FromStr for AugmentationSystem {
 /// `augmentation system`: (EGNOS,WAAS,MSAS)
 /// utc_provider: provider identifier
 #[allow(dead_code)]
+#[derive(Default, Debug)]
 pub struct GnssTimeCorrection {
     corr_type: TimeCorrectionType,
     params: (f64,f64),
@@ -363,19 +364,6 @@ pub struct GnssTimeCorrection {
     week: u32,
     augmentation: Option<AugmentationSystem>,
     utc_provider: Option<UtcProvider>,
-}
-
-impl Default for GnssTimeCorrection {
-    fn default() -> GnssTimeCorrection {
-        GnssTimeCorrection {
-            corr_type: TimeCorrectionType::GPUT,
-            params: (0.0_f64, 0.0_f64),
-            delta_t: 0,
-            week: 0,
-            augmentation: None,
-            utc_provider: None,
-        }
-    }
 }
 
 impl std::str::FromStr for GnssTimeCorrection {

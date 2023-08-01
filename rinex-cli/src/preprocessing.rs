@@ -5,7 +5,7 @@ use crate::{
 };
 use log::error;
 use rinex::filter;
-use rinex::processing::*;
+use rinex::preprocessing::*;
 use std::str::FromStr;
 
 pub fn preprocess(ctx: &mut Context, cli: &Cli) {

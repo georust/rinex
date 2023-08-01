@@ -12,12 +12,11 @@ lazy_static! {
     ];
 }
 
-//pub(crate) fn parse_glonass_channels(content: &str)
-
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Default, Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum Carrier {
     /// L1 (GPS, SBAS, QZSS)
+    #[default]
     L1,
     /// L2 (GPS, QZSS)
     L2,
@@ -67,12 +66,6 @@ pub enum Carrier {
     B3A,
     /// IRNSS S
     S,
-}
-
-impl Default for Carrier {
-    fn default() -> Self {
-        Self::L1
-    }
 }
 
 #[derive(Error, Debug, Clone, PartialEq)]

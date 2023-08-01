@@ -5,7 +5,7 @@ use super::prelude::Sv;
 use serde::{Deserialize, Serialize};
 
 /// GNSS receiver description
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Default, Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Rcvr {
     /// Receiver (hardware) model
@@ -14,17 +14,6 @@ pub struct Rcvr {
     pub sn: String, // serial #
     /// Receiver embedded software info
     pub firmware: String, // firmware #
-}
-
-impl Default for Rcvr {
-    /// Builds a `default` Receiver
-    fn default() -> Rcvr {
-        Rcvr {
-            model: String::new(),
-            sn: String::new(),
-            firmware: String::new(),
-        }
-    }
 }
 
 impl std::str::FromStr for Rcvr {

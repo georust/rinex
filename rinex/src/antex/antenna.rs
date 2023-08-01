@@ -2,11 +2,12 @@ use crate::Epoch;
 use strum_macros::EnumString;
 
 /// Known Calibration Methods
-#[derive(Clone, Debug, PartialEq, PartialOrd, EnumString)]
+#[derive(Default, Clone, Debug, PartialEq, PartialOrd, EnumString)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum CalibrationMethod {
     #[strum(serialize = "")]
     Unknown,
+    #[default]
     #[strum(serialize = "CHAMBER")]
     Chamber,
     #[strum(serialize = "FIELD")]
@@ -21,14 +22,8 @@ pub enum CalibrationMethod {
     Converted,
 }
 
-impl Default for CalibrationMethod {
-    fn default() -> Self {
-        Self::Chamber
-    }
-}
-
 /// Calibration information
-#[derive(Clone, Debug, PartialEq, PartialOrd)]
+#[derive(Default, Clone, Debug, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Calibration {
     /// Calibration method
@@ -37,16 +32,6 @@ pub struct Calibration {
     pub agency: String,
     /// Date of calibration
     pub date: String,
-}
-
-impl Default for Calibration {
-    fn default() -> Self {
-        Self {
-            method: CalibrationMethod::default(),
-            agency: String::from("Unknown"),
-            date: String::from("Unknown"),
-        }
-    }
 }
 
 /// Describes an Antenna section inside the ATX record

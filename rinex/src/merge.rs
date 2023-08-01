@@ -1,4 +1,4 @@
-//! RINEX Merge operation
+//! RINEX File merging (combination)
 use std::cmp::{Eq, PartialEq};
 use std::collections::HashMap;
 use std::hash::Hash;
@@ -120,6 +120,7 @@ pub trait Merge {
     fn merge(&self, rhs: &Self) -> Result<Self, Error>
     where
         Self: Sized;
-    /// [merge] mutable implementation.
+
+    /// [Self::merge] mutable implementation.
     fn merge_mut(&mut self, rhs: &Self) -> Result<(), Error>;
 }

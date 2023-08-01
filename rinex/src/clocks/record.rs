@@ -1,12 +1,5 @@
 use crate::{
-    epoch,
-    gnss_time::GnssTime,
-    merge,
-    merge::Merge,
-    prelude::*,
-    processing::{Filter, Interpolate, Mask, MaskFilter, MaskOperand, Preprocessing, TargetItem},
-    split,
-    split::Split,
+    epoch, gnss_time::GnssTime, merge, merge::Merge, prelude::*, split, split::Split,
     version::Version,
 };
 use hifitime::Duration;
@@ -119,8 +112,7 @@ impl std::fmt::Display for DataType {
 }
 
 /// Clocks RINEX record content.
-/// RINEX record for CLOCKS files,
-/// Data is sorted by [epoch::Epoch], by [DataType] and by [System].
+/// Data is sorted by [Epoch], by [DataType] and by [System].
 /* TODO
 /// Example of Clock record browsing:
 /// ```
@@ -408,6 +400,10 @@ impl GnssTime for Record {
     }
 }
 
+#[cfg(feature = "processing")]
+use crate::preprocessing::*;
+
+#[cfg(feature = "processing")]
 impl Mask for Record {
     fn mask(&self, mask: MaskFilter) -> Self {
         let mut s = self.clone();
@@ -459,6 +455,7 @@ impl Mask for Record {
     }
 }
 
+#[cfg(feature = "processing")]
 impl Preprocessing for Record {
     fn filter(&self, f: Filter) -> Self {
         let mut s = self.clone();
@@ -475,6 +472,7 @@ impl Preprocessing for Record {
     }
 }
 
+#[cfg(feature = "processing")]
 impl Interpolate for Record {
     fn interpolate(&self, series: TimeSeries) -> Self {
         let mut s = self.clone();

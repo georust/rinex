@@ -1,7 +1,7 @@
 //! Command line tool to parse and analyze `RINEX` files.    
 //! Refer to README for command line arguments.    
 //! Based on crate <https://github.com/gwbres/rinex>     
-//! Homepage: <https://github.com/gwbres/rinex-cli>
+//! Homepage: <https://github.com/georust/rinex-cli>
 
 mod analysis; // basic analysis
 mod cli; // command line interface
@@ -15,7 +15,13 @@ mod preprocessing;
 use preprocessing::preprocess;
 
 //use horrorshow::Template;
-use rinex::{merge::Merge, processing::*, quality::*, split::Split};
+use rinex::{
+    merge::Merge,
+    observation::{Combine, Dcb, IonoDelay, Mp},
+    prelude::*,
+    quality::*,
+    split::Split,
+};
 
 use cli::Cli;
 pub use context::Context;
@@ -109,7 +115,7 @@ pub fn main() -> Result<(), rinex::Error> {
         let data = ctx
             .primary_rinex
             .observation_phase_align_origin()
-            .combine(Combination::GeometryFree);
+            .geo_free();
         plot::plot_gnss_recombination(
             &mut plot_ctx,
             "Geometry Free signal combination",
@@ -122,7 +128,7 @@ pub fn main() -> Result<(), rinex::Error> {
      * Ionospheric Delay Detector (graph)
      */
     if cli.iono_detector() {
-        let data = ctx.primary_rinex.observation_iono_delay_detector();
+        let data = ctx.primary_rinex.iono_delay(Duration::from_seconds(360.0));
         plot::plot_iono_detector(&mut plot_ctx, &data);
         info!("--iono detector");
     }
@@ -130,7 +136,7 @@ pub fn main() -> Result<(), rinex::Error> {
      * [WL] recombination
      */
     if cli.wl_recombination() {
-        let data = ctx.primary_rinex.combine(Combination::WideLane);
+        let data = ctx.primary_rinex.wide_lane();
         plot::plot_gnss_recombination(
             &mut plot_ctx,
             "Wide Lane signal combination",
@@ -143,7 +149,7 @@ pub fn main() -> Result<(), rinex::Error> {
      * [NL] recombination
      */
     if cli.nl_recombination() {
-        let data = ctx.primary_rinex.combine(Combination::NarrowLane);
+        let data = ctx.primary_rinex.narrow_lane();
         plot::plot_gnss_recombination(
             &mut plot_ctx,
             "Narrow Lane signal combination",
@@ -156,7 +162,7 @@ pub fn main() -> Result<(), rinex::Error> {
      * [MW] recombination
      */
     if cli.mw_recombination() {
-        let data = ctx.primary_rinex.combine(Combination::MelbourneWubbena);
+        let data = ctx.primary_rinex.melbourne_wubbena();
         plot::plot_gnss_recombination(
             &mut plot_ctx,
             "Melbourne-Wübbena signal combination",
