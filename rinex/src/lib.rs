@@ -296,7 +296,7 @@ impl Rinex {
     }
 
     /// Converts self to CRINEX3 compressed format,
-    /// whatever the RINEX revision might be.   
+    /// whatever the RINEX revision might be.
     /// This can be used to "force" compression of a RINEX1 into CRINEX3
     pub fn rnx2crnx3(&self) -> Self {
         let mut s = self.clone();
