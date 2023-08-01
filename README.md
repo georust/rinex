@@ -129,4 +129,4 @@ Contributions
 Contributions are welcomed, do not hesitate to open new issues
 and submit Pull Requests through Github.
 
-If you want to take part in active developments, checkout our [contribution guidelines and hints](CONTRIBUTE.md) to navigate this library quicker.
+If you want to take part in active developments, check out our [contribution guidelines and hints](CONTRIBUTE.md) to navigate this library quicker.
