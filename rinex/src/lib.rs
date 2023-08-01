@@ -664,7 +664,7 @@ impl Rinex {
         }
     }
 
-    /// Epoch Interval Histogram analysis.   
+    /// Epoch Interval Histogram analysis.
     /// Non steady sample rates are present in IONEX but in practice
     /// might be encountered in other RINEX formats too.  
     /// This is most often highly dependent on receiver hardware
