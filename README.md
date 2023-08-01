@@ -100,7 +100,7 @@ the related type feature, `obs` + `nav` is the typical combination.
 
 <img align="right" width="400" src="https://upload.wikimedia.org/wikipedia/commons/4/46/SBAS_Service_Areas.png">
 
-* `sbas`: SBAS (stationnary augmentation systems) selection
+* `sbas`: SBAS (stationary augmentation systems) selection
 helper method, to select appropriate augmentation based on current
 location on Earth
 
