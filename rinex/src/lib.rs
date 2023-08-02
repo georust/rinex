@@ -1885,6 +1885,186 @@ impl Rinex {
     }
 }
 
+use meteo::Meteo;
+
+/*
+ * Meteo RINEX specific iterator
+ */
+impl Meteo for Rinex {
+    fn temperature(&self) -> Box<dyn Iterator<Item = (Epoch, f64)> + '_> {
+        if let Some(r) = self.record.as_meteo() {
+            Box::new(r.iter().flat_map(|(e, v)| {
+                v.iter().filter_map(|(k, v)| {
+                    if *k == Observable::Temperature {
+                        Some((*e, *v))
+                    } else {
+                        None
+                    }
+                })
+            }))
+        } else {
+            Box::new(Vec::<(Epoch, f64)>::new().into_iter())
+        }
+    }
+    fn pressure(&self) -> Box<dyn Iterator<Item = (Epoch, f64)> + '_> {
+        if let Some(r) = self.record.as_meteo() {
+            Box::new(r.iter().flat_map(|(e, v)| {
+                v.iter().filter_map(|(k, v)| {
+                    if *k == Observable::Pressure {
+                        Some((*e, *v))
+                    } else {
+                        None
+                    }
+                })
+            }))
+        } else {
+            Box::new(Vec::<(Epoch, f64)>::new().into_iter())
+        }
+    }
+    fn moisture(&self) -> Box<dyn Iterator<Item = (Epoch, f64)> + '_> {
+        if let Some(r) = self.record.as_meteo() {
+            Box::new(r.iter().flat_map(|(e, v)| {
+                v.iter().filter_map(|(k, v)| {
+                    if *k == Observable::HumidityRate {
+                        Some((*e, *v))
+                    } else {
+                        None
+                    }
+                })
+            }))
+        } else {
+            Box::new(Vec::<(Epoch, f64)>::new().into_iter())
+        }
+    }
+    fn wind_speed(&self) -> Box<dyn Iterator<Item = (Epoch, f64)> + '_> {
+        if let Some(r) = self.record.as_meteo() {
+            Box::new(r.iter().flat_map(|(e, v)| {
+                v.iter().filter_map(|(k, v)| {
+                    if *k == Observable::WindSpeed {
+                        Some((*e, *v))
+                    } else {
+                        None
+                    }
+                })
+            }))
+        } else {
+            Box::new(Vec::<(Epoch, f64)>::new().into_iter())
+        }
+    }
+    fn wind_direction(&self) -> Box<dyn Iterator<Item = (Epoch, f64)> + '_> {
+        if let Some(r) = self.record.as_meteo() {
+            Box::new(r.iter().flat_map(|(e, v)| {
+                v.iter().filter_map(|(k, v)| {
+                    if *k == Observable::WindDirection {
+                        Some((*e, *v))
+                    } else {
+                        None
+                    }
+                })
+            }))
+        } else {
+            Box::new(Vec::<(Epoch, f64)>::new().into_iter())
+        }
+    }
+    fn rain_increment(&self) -> Box<dyn Iterator<Item = (Epoch, f64)> + '_> {
+        if let Some(r) = self.record.as_meteo() {
+            Box::new(r.iter().flat_map(|(e, v)| {
+                v.iter().filter_map(|(k, v)| {
+                    if *k == Observable::RainIncrement {
+                        Some((*e, *v))
+                    } else {
+                        None
+                    }
+                })
+            }))
+        } else {
+            Box::new(Vec::<(Epoch, f64)>::new().into_iter())
+        }
+    }
+    fn rain_detected(&self) -> bool {
+        for (_, ri) in self.rain_increment() {
+            if ri > 0.0 {
+                return true;
+            }
+        }
+        false
+    }
+    fn accumulated_rain(&self) -> f64 {
+        let mut prev = 0.0_f64;
+        let mut acc = 0.0_f64;
+        for (index, (_, ri)) in self.rain_increment().skip(1).enumerate() {
+            if index == 0 {
+                acc = ri;
+            } else {
+                acc += ri - prev;
+            }
+            prev = ri;
+        }
+        acc
+    }
+    fn hail_detected(&self) -> bool {
+        if let Some(r) = self.record.as_meteo() {
+            for (_, observables) in r {
+                for (observ, value) in observables {
+                    if *observ == Observable::HailIndicator {
+                        if *value > 0.0 {
+                            return true;
+                        }
+                    }
+                }
+            }
+            false
+        } else {
+            false
+        }
+    }
+    fn zenith_delay(&self) -> Box<dyn Iterator<Item = (Epoch, f64)> + '_> {
+        if let Some(r) = self.record.as_meteo() {
+            Box::new(r.iter().flat_map(|(e, v)| {
+                v.iter().filter_map(|(k, v)| {
+                    if *k == Observable::ZenithTotalDelay {
+                        Some((*e, *v))
+                    } else {
+                        None
+                    }
+                })
+            }))
+        } else {
+            Box::new(Vec::<(Epoch, f64)>::new().into_iter())
+        }
+    }
+    fn zenith_dry_delay(&self) -> Box<dyn Iterator<Item = (Epoch, f64)> + '_> {
+        if let Some(r) = self.record.as_meteo() {
+            Box::new(r.iter().flat_map(|(e, v)| {
+                v.iter().filter_map(|(k, v)| {
+                    if *k == Observable::ZenithDryDelay {
+                        Some((*e, *v))
+                    } else {
+                        None
+                    }
+                })
+            }))
+        } else {
+            Box::new(Vec::<(Epoch, f64)>::new().into_iter())
+        }
+    }
+    fn zenith_wet_delay(&self) -> Box<dyn Iterator<Item = (Epoch, f64)> + '_> {
+        if let Some(r) = self.record.as_meteo() {
+            Box::new(r.iter().flat_map(|(e, v)| {
+                v.iter().filter_map(|(k, v)| {
+                    if *k == Observable::ZenithWetDelay {
+                        Some((*e, *v))
+                    } else {
+                        None
+                    }
+                })
+            }))
+        } else {
+            Box::new(Vec::<(Epoch, f64)>::new().into_iter())
+        }
+    }
+}
+
 impl Merge for Rinex {
     /// Merges `rhs` into `Self` without mutable access, at the expense of memcopies
     fn merge(&self, rhs: &Self) -> Result<Self, merge::Error> {

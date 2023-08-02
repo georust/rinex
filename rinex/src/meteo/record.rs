@@ -84,8 +84,8 @@ pub(crate) fn parse_epoch(
     let (epoch, _) = epoch::parse(&line[0..offset])?;
 
     let codes = &header.meteo.as_ref().unwrap().codes;
-    let n_codes = codes.len();
-    let nb_lines: usize = num_integer::div_ceil(n_codes, 8).into();
+    let nb_codes = codes.len();
+    let nb_lines: usize = num_integer::div_ceil(nb_codes, 8).into();
     let mut code_index: usize = 0;
 
     for i in 0..nb_lines {
@@ -100,7 +100,7 @@ pub(crate) fn parse_epoch(
                 map.insert(code.clone(), obs);
             }
             code_index += 1;
-            if code_index >= n_codes {
+            if code_index >= nb_codes {
                 break;
             }
 
