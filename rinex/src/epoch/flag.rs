@@ -38,7 +38,7 @@ impl Default for EpochFlag {
 }
 
 impl EpochFlag {
-    /// Returns True if self is a valid epoch
+    /// Returns true if [`Epoch`] attached to this flag is valid
     pub fn is_ok(self) -> bool {
         self == Self::Ok
     }

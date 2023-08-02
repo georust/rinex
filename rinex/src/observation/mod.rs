@@ -186,8 +186,6 @@ use std::collections::BTreeMap;
 
 /// OBS RINEX specific analysis trait.
 /// Include this trait to unlock Observation analysis, mainly statistical analysis.
-#[cfg(feature = "obs")]
-#[cfg_attr(docrs, doc(cfg(feature = "obs")))]
 pub trait Observation {
     /// Returns minimum value observed, throughout all epochs, sorted by Observable.
     /// This also applies to clock receiver estimate,

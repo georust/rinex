@@ -156,8 +156,9 @@ pub struct QcOpts {
     pub min_snr_db: f64,
     /// Elevation mask
     pub elev_mask: Option<f64>,
-    /// Duration considered as a data gap
-    pub manual_gap: Option<Duration>,
+    /// Min. duration tolerated, so it is not reported as a data gap.
+    /// If None: dominant sample rate is prefered.
+    pub gap_tolerance: Option<Duration>,
     /// Manually defined Ground position (ECEF)
     pub ground_position: Option<GroundPosition>,
 }
@@ -192,7 +193,7 @@ impl QcOpts {
 impl Default for QcOpts {
     fn default() -> Self {
         Self {
-            manual_gap: None,
+            gap_tolerance: None,
             ground_position: None,
             min_snr_db: 20.0, // dB
             elev_mask: None,
@@ -241,13 +242,13 @@ impl HtmlReport for QcOpts {
                 th {
                     : "Data gap"
                 }
-                @ if let Some(gap) = self.manual_gap {
+                @ if let Some(tol) = self.gap_tolerance {
                     th {
-                        : format!("Manual ({})", gap)
+                        : format!("Tolerance: ({})", tol)
                     }
                 } else {
                     th {
-                        : "Auto"
+                        : "No tolerance"
                     }
                 }
             }

@@ -1,39 +1,42 @@
-use crate::prelude::*;
 use hifitime::Unit;
+
+use super::QcOpts;
+use crate::prelude::*;
+use crate::RinexIter;
+use crate::Sampling;
 
 #[derive(Debug, Clone)]
 pub struct QcSamplingAnalysis {
-    pub first_epoch: Epoch,
-    pub last_epoch: Epoch,
-    pub epoch_span: Duration,
+    /// First [`Epoch`] identified in time
+    pub first_epoch: Option<Epoch>,
+    /// Last [`Epoch`] identified in time
+    pub last_epoch: Option<Epoch>,
+    /// Time span of this RINEX context
+    pub duration: Option<Duration>,
+    /// File [`Header`] sample rate
+    pub sample_rate: Option<Duration>,
     /// Dominant sample rate
-    pub sample_interval: Duration,
-    pub sample_rate_hz: f64,
-    /// Epoch span
-    pub time_line: Duration,
+    pub dominant_sample_rate: Option<Duration>,
     /// Unusual data gaps
     pub gaps: Vec<(Epoch, Duration)>,
+    /// Epoch anomalies such as
+    /// possible receiver loss of lock, bad conditions..
+    #[cfg(feature = "obs")]
+    #[cfg_attr(docrs, doc(cfg(feature = "obs")))]
+    pub anomalies: Vec<(Epoch, EpochFlag)>,
 }
 
 impl QcSamplingAnalysis {
-    pub fn new(rnx: &Rinex) -> Self {
-        let first_epoch = rnx
-            .first_epoch()
-            .expect("Sampling QC expects a RINEX indexed by epochs");
-        let last_epoch = rnx
-            .last_epoch()
-            .expect("Sampling QC expects a RINEX indexed by epochs");
-        let sample_interval = rnx
-            .sampling_interval()
-            .expect("failed to determine sample rate");
+    pub fn new(rnx: &Rinex, opts: &QcOpts) -> Self {
         Self {
-            first_epoch,
-            last_epoch,
-            epoch_span: (last_epoch - first_epoch) + sample_interval,
-            sample_interval,
-            sample_rate_hz: 1.0 / sample_interval.to_unit(Unit::Second),
-            time_line: last_epoch - first_epoch,
-            gaps: rnx.data_gaps(),
+            first_epoch: rnx.first_epoch(),
+            last_epoch: rnx.last_epoch(),
+            duration: rnx.duration(),
+            sample_rate: rnx.sample_rate(),
+            dominant_sample_rate: rnx.dominant_sample_rate(),
+            gaps: rnx.data_gaps(opts.gap_tolerance).collect(),
+            #[cfg(feature = "obs")]
+            anomalies: rnx.epoch_anomalies().collect(),
         }
     }
 }
@@ -59,47 +62,62 @@ impl HtmlReport for QcSamplingAnalysis {
                 }
             }
             tr {
-                td {
-                    : self.first_epoch.to_string()
+                @ if let Some(epoch) = self.first_epoch {
+                    td {
+                        : epoch.to_string()
+                    }
+                } else {
+                    td {
+                        : "Unknown"
+                    }
                 }
-                td {
-                    : self.last_epoch.to_string()
+                @ if let Some(epoch) = self.last_epoch {
+                    td {
+                        : epoch.to_string()
+                    }
+                } else {
+                    td {
+                        : "Unknown"
+                    }
                 }
-                td {
-                    : self.epoch_span.to_string()
+                @ if let Some(duration) = self.duration {
+                    td {
+                        : duration.to_string()
+                    }
+                } else {
+                    td {
+                        : "Unknown"
+                    }
                 }
             }
             tr {
                 th {
-                    : "Sampling"
+                    : "Sample rate"
                 }
-                td {
-                    : format!("{} ({:.3} Hz)", self.sample_interval, self.sample_rate_hz)
+                @ if let Some(rate) = self.sample_rate {
+                    td {
+                        : format!("{} ({:.3} Hz)", rate, 1.0 / rate.to_unit(Unit::Second))
+                    }
+                } else {
+                    td {
+                        : "Unknown"
+                    }
                 }
             }
-            @ if self.gaps.len() == 0 {
-                th {
-                    : "Gap analysis"
-                }
-                td {
-                    : "No Data Gaps"
-                }
-            } else {
-                div(class="table-container") {
-                    table(class="table is-bordered") {
-                        thead {
-                            th {
-                                : "Gap analysis"
-                            }
-                        }
-                        tbody {
-                            @ for (_epoch, _dt) in &self.gaps {
-
-                            }
+            div(class="table-container") {
+                table(class="table is-bordered") {
+                    thead {
+                        th {
+                            : "Gap analysis"
                         }
                     }
-                }//gap analysis/table
-            }
+                    tbody {
+                        @ for (_epoch, _dt) in &self.gaps {
+
+                        }
+                    }
+                }
+            }//table: gap analysis
         }
     }
 }

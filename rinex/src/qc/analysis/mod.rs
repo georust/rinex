@@ -40,7 +40,7 @@ impl QcAnalysis {
     pub fn new(rnx: &Rinex, nav: &Option<Rinex>, opts: &QcOpts) -> Self {
         Self {
             sv: QcSvAnalysis::new(rnx, nav, opts),
-            sampling: QcSamplingAnalysis::new(rnx),
+            sampling: QcSamplingAnalysis::new(rnx, opts),
             #[cfg(feature = "obs")]
             observ: QcObsAnalysis::new(rnx, nav, opts),
         }

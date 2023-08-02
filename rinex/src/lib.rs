@@ -192,6 +192,88 @@ pub struct Rinex {
     pub record: record::Record,
 }
 
+pub trait RinexIter {
+    /// Returns [`Epoch`] iterator. This method will fail
+    /// if used on a RINEX type that is not iterated by [`Epoch`]
+    fn epochs(&self) -> Box<dyn Iterator<Item = Epoch> + '_>;
+
+    /// Returns ([`Epoch`] [`EpochFlag`]) iterator. This method will fail
+    /// if used on other types than OBS RINEX.
+    fn epoch_flags(&self) -> Box<dyn Iterator<Item = (Epoch, EpochFlag)> + '_>;
+
+    /// Returns Unique [`Sv`] iterator.
+    /// Use this to browse all identified vehicles.
+    fn sv(&self) -> Box<dyn Iterator<Item = Sv> + '_>;
+
+    /// Returns Unique [`Sv`] iterator per [`Epoch`].
+    /// Use this to browse identify vehicles for each separate [`Epoch`].
+    fn sv_epoch(&self) -> Box<dyn Iterator<Item = (Epoch, Vec<Sv>)> + '_>;
+
+    /// Returns an iterator over unexpected data gaps,
+    /// in the form ([`Epoch`], [`Duration`]), where
+    /// epoch is the starting datetime, and its related duration.
+    fn data_gaps(
+        &self,
+        tolerance: Option<Duration>,
+    ) -> Box<dyn Iterator<Item = (Epoch, Duration)> + '_>;
+
+    #[cfg(feature = "obs")]
+    #[cfg_attr(docrs, doc(cfg(feature = "obs")))]
+    /// Returns an Iterator over all abnormal [`Epoch`]s
+    /// and reports given event nature.  
+    /// Refer to [`epoch::EpochFlag`] for all possible events.  
+    /// This only applies to OBS RINEX.
+    fn epoch_anomalies(&self) -> Box<dyn Iterator<Item = (Epoch, EpochFlag)> + '_>;
+}
+
+pub trait Sampling {
+    /// Returns first [`Epoch`] encountered in time
+    fn first_epoch(&self) -> Option<Epoch>;
+
+    /// Returns last [`Epoch`] encountered in time
+    fn last_epoch(&self) -> Option<Epoch>;
+
+    /// Returns Duration of this RINEX
+    fn duration(&self) -> Option<Duration>;
+
+    /// Form a [`Timeseries`] iterator spanning [Self::duration]
+    /// with [Self::dominant_sample_rate] spacing
+    fn timeseries(&self) -> Option<TimeSeries>;
+
+    /// Returns sample rate of self.
+    /// For a RINEX, it is the value specified in the
+    /// file [`Header`]. In reality, [Self::dominant_sample_rate]
+    /// might differ, due to hardware issues or changes in receiving
+    /// conditions for example.
+    /// Non steady sample rates are common in IONEX files.
+    fn sample_rate(&self) -> Option<Duration>;
+
+    /// Returns sample rate histogram analysis.
+    /// ```
+    /// use rinex::prelude::*;
+    /// use std::collections::HashMap;
+    /// let rinex = Rinex::from_file("../test_resources/NAV/V3/AMEL00NLD_R_20210010000_01D_MN.rnx")
+    ///     .unwrap();
+    /// let histogram: HashMap<_, _> = [
+    ///     (Duration::from_seconds(15.0*60.0), 1),
+    ///     (Duration::from_seconds(4.0*3600.0 + 45.0*60.0), 2),
+    ///     (Duration::from_seconds(25.0*60.0), 1),
+    ///     (Duration::from_seconds(5.0*3600.0 + 30.0*60.0), 1),
+    /// ].into_iter()
+    ///     .collect();
+    /// assert_eq!(rinex.sampling_histogram(), histogram);
+    /// ```
+    fn sampling_histogram(&self) -> HashMap<Duration, usize>;
+
+    /// Returns dominant sample rate
+    /// ```
+    /// use rinex::prelude::*;
+    /// let rnx = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O").unwrap();
+    /// assert_eq!(rnx.sampling_histogram(), Some(Duration::from_seconds(30.0)));
+    /// ```
+    fn dominant_sample_rate(&self) -> Option<Duration>;
+}
+
 #[derive(Error, Debug)]
 /// `RINEX` Parsing related errors
 pub enum Error {
@@ -321,17 +403,8 @@ impl Rinex {
          * all epochs share the same timescale,
          * by construction & definition.
          * No need to test other epochs */
-        if let Some(e) = self.epochs().get(0) {
+        if let Some(e) = self.epochs().collect::<Vec<Epoch>>().get(0) {
             Some(e.time_scale)
-        } else {
-            None
-        }
-    }
-
-    /// Forms timeseries from all Epochs contained in this record
-    pub fn timeseries(&self) -> Option<TimeSeries> {
-        if let Some(dt) = self.sampling_interval() {
-            Some(self.record.timeseries(dt))
         } else {
             None
         }
@@ -402,7 +475,7 @@ impl Rinex {
             types::Type::ObservationData
             | types::Type::NavigationData
             | types::Type::MeteoData
-            | types::Type::ClockData => self.epochs()[0],
+            | types::Type::ClockData => self.epochs().collect::<Vec<Epoch>>()[0],
             _ => todo!(), // other files require a dedicated procedure
         };
         if header.version.major < 3 {
@@ -628,119 +701,6 @@ impl Rinex {
         self.header.rinex_type == types::Type::ObservationData
     }
 
-    /// Returns `epoch` of first observation
-    pub fn first_epoch(&self) -> Option<Epoch> {
-        self.epochs().get(0).copied()
-    }
-
-    /// Returns `epoch` of last observation
-    pub fn last_epoch(&self) -> Option<Epoch> {
-        let epochs = self.epochs();
-        epochs.get(epochs.len() - 1).copied()
-    }
-
-    /// Returns sampling interval of this record
-    /// if such information is contained in file header.
-    ///
-    /// Example:
-    /// ```
-    /// use rinex::prelude::*;
-    /// let rnx = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O").unwrap();
-    /// assert_eq!(rnx.sampling_interval(), Some(Duration::from_seconds(30.0)));
-    /// ```
-    pub fn sampling_interval(&self) -> Option<Duration> {
-        if let Some(interval) = self.header.sampling_interval {
-            Some(interval)
-        } else {
-            if let Some(dominant) = self
-                .epoch_intervals()
-                .into_iter()
-                .max_by(|(_, x_pop), (_, y_pop)| x_pop.cmp(y_pop))
-            {
-                Some(dominant.0)
-            } else {
-                None
-            }
-        }
-    }
-
-    /// Epoch Interval Histogram analysis.
-    /// Non steady sample rates are present in IONEX but in practice
-    /// might be encountered in other RINEX formats too.  
-    /// This is most often highly dependent on receiver hardware
-    /// and receiving conditions.
-    /// ```
-    /// use rinex::prelude::*;
-    /// use std::collections::HashMap;
-    /// let rinex = Rinex::from_file("../test_resources/NAV/V3/AMEL00NLD_R_20210010000_01D_MN.rnx")
-    ///     .unwrap();
-    /// let histogram: HashMap<_, _> = [
-    ///     (Duration::from_seconds(15.0*60.0), 1),
-    ///     (Duration::from_seconds(4.0*3600.0 + 45.0*60.0), 2),
-    ///     (Duration::from_seconds(25.0*60.0), 1),
-    ///     (Duration::from_seconds(5.0*3600.0 + 30.0*60.0), 1),
-    /// ].into_iter()
-    ///     .collect();
-    /// assert_eq!(rinex.epoch_intervals(), histogram);
-    /// ```
-    pub fn epoch_intervals(&self) -> HashMap<Duration, u32> {
-        let mut histogram: HashMap<Duration, u32> = HashMap::new();
-        let epochs = self.epochs();
-        let mut prev_date = epochs[0];
-        for epoch in epochs.iter().skip(1) {
-            let dt = *epoch - prev_date;
-            if let Some(counter) = histogram.get_mut(&dt) {
-                *counter += 1;
-            } else {
-                histogram.insert(dt, 1);
-            }
-            prev_date = *epoch;
-        }
-        histogram
-    }
-
-    /// Returns [`Epoch`]s where unexpected data gap took place.   
-    /// Data gap is determined by comparing |e(k) - e(k-1)|,   
-    /// the instantaneous epoch interval, to the dominant sampling interval
-    /// determined by [Rinex::sampling_interval].
-    pub fn data_gaps(&self) -> Vec<(Epoch, Duration)> {
-        if let Some(interval) = self.sampling_interval() {
-            let epochs = self.epochs();
-            let mut prev = epochs[0];
-            epochs
-                .iter()
-                .skip(1)
-                .filter_map(|e| {
-                    if *e - prev > interval {
-                        let pprev = prev;
-                        prev = *e;
-                        Some((pprev, *e - pprev))
-                    } else {
-                        prev = *e;
-                        None
-                    }
-                })
-                .collect()
-        } else {
-            Vec::new()
-        }
-    }
-
-    /// Returns list of epoch where an anomaly is reported by the receiver.   
-    /// Refer to [epoch::EpochFlag] definitions to see all possible
-    /// receiver anomalies. This is only relevant on OBS RINEX.
-    pub fn epoch_anomalies(&self) -> Vec<Epoch> {
-        let mut ret: Vec<Epoch> = Vec::new();
-        if let Some(r) = self.record.as_obs() {
-            for ((epoch, flag), _) in r {
-                if !flag.is_ok() {
-                    ret.push(*epoch);
-                }
-            }
-        }
-        ret
-    }
-
     /// Returns `true` if self is a `merged` RINEX file,   
     /// meaning, this file is the combination of two RINEX files merged together.  
     /// This is determined by the presence of a custom yet somewhat standardized `FILE MERGE` comments
@@ -755,32 +715,12 @@ impl Rinex {
         false
     }
 
-    /// Returns list of epochs contained in self.
-    /// Faillible! if self is not iterated by `Epoch`.
-    pub fn epochs(&self) -> Vec<Epoch> {
-        if let Some(r) = self.record.as_obs() {
-            r.iter().map(|((k, _), _)| *k).collect()
-        } else if let Some(r) = self.record.as_nav() {
-            r.iter().map(|(k, _)| *k).collect()
-        } else if let Some(r) = self.record.as_meteo() {
-            r.iter().map(|(k, _)| *k).collect()
-        } else if let Some(r) = self.record.as_clock() {
-            r.iter().map(|(k, _)| *k).collect()
-        } else if let Some(r) = self.record.as_ionex() {
-            r.iter().map(|(k, _)| *k).collect()
-        } else {
-            panic!(
-                "cannot get an epoch iterator for \"{:?}\" RINEX",
-                self.header.rinex_type
-            );
-        }
-    }
-
-    /// Returns [`Epoch`]s where a loss of lock event happened.   
-    /// This is only relevant on OBS RINEX.
-    pub fn epoch_lock_loss(&self) -> Vec<Epoch> {
-        self.lli_and_mask(observation::LliFlags::LOCK_LOSS).epochs()
-    }
+    //TODO: move to ObsverationIter
+    // /// Returns [`Epoch`]s where a loss of lock event happened.
+    // /// This is only relevant on OBS RINEX.
+    // pub fn epoch_lock_loss(&self) -> Vec<Epoch> {
+    //     self.lli_and_mask(observation::LliFlags::LOCK_LOSS).epochs()
+    // }
 
     /// Removes all observations where receiver phase lock was lost.   
     /// This is only relevant on OBS RINEX.
@@ -1885,26 +1825,183 @@ impl Rinex {
     }
 }
 
-use meteo::Meteo;
+impl RinexIter for Rinex {
+    fn epochs(&self) -> Box<dyn Iterator<Item = Epoch> + '_> {
+        if let Some(r) = self.record.as_obs() {
+            Box::new(r.iter().map(|((k, _), _)| *k))
+        } else if let Some(r) = self.record.as_nav() {
+            Box::new(r.iter().map(|(k, _)| *k))
+        } else if let Some(r) = self.record.as_meteo() {
+            Box::new(r.iter().map(|(k, _)| *k))
+        } else if let Some(r) = self.record.as_clock() {
+            Box::new(r.iter().map(|(k, _)| *k))
+        } else if let Some(r) = self.record.as_ionex() {
+            Box::new(r.iter().map(|(k, _)| *k))
+        } else {
+            panic!(
+                "cannot get an epoch iterator for \"{:?}\" RINEX",
+                self.header.rinex_type
+            );
+        }
+    }
+
+    fn epoch_flags(&self) -> Box<dyn Iterator<Item = (Epoch, EpochFlag)> + '_> {
+        if let Some(r) = self.record.as_obs() {
+            Box::new(r.iter().map(|((e, f), _)| (*e, *f)))
+        } else {
+            panic!(
+                "cannot get an (epoch, flag) iterator on \"{:?}\" RINEX",
+                self.header.rinex_type
+            );
+        }
+    }
+
+    fn sv(&self) -> Box<dyn Iterator<Item = Sv> + '_> {
+        panic!("not yet");
+    }
+    fn sv_epoch(&self) -> Box<dyn Iterator<Item = (Epoch, Vec<Sv>)> + '_> {
+        panic!("not yet");
+    }
+
+    fn data_gaps(
+        &self,
+        tolerance: Option<Duration>,
+    ) -> Box<dyn Iterator<Item = (Epoch, Duration)> + '_> {
+        let sample_rate: Duration = match tolerance {
+            Some(dt) => dt, // user defined
+            None => {
+                match self.dominant_sample_rate() {
+                    Some(dt) => dt,
+                    None => {
+                        match self.sample_rate() {
+                            Some(dt) => dt,
+                            None => {
+                                // not enough information
+                                // this is probably not an Epoch iterated RINEX
+                                return Box::new(Vec::<(Epoch, Duration)>::new().into_iter());
+                            },
+                        }
+                    },
+                }
+            },
+        };
+
+        let mut last_kept: Option<Epoch> = None;
+
+        Box::new(self.epochs().filter_map(move |epoch| {
+            if let Some(mut last_kept) = last_kept {
+                let dt = epoch - last_kept;
+                if dt > sample_rate {
+                    Some((epoch, dt))
+                } else {
+                    // regular epoch progression
+                    last_kept = epoch;
+                    None
+                }
+            } else {
+                last_kept = Some(epoch);
+                None
+            }
+        }))
+    }
+
+    #[cfg(feature = "obs")]
+    fn epoch_anomalies(&self) -> Box<dyn Iterator<Item = (Epoch, EpochFlag)> + '_> {
+        Box::new(self.epoch_flags().filter_map(
+            |(e, f)| {
+                if !f.is_ok() {
+                    Some((e, f))
+                } else {
+                    None
+                }
+            },
+        ))
+    }
+}
+
+impl Sampling for Rinex {
+    fn first_epoch(&self) -> Option<Epoch> {
+        self.epochs().collect::<Vec<Epoch>>().get(0).copied()
+    }
+
+    fn last_epoch(&self) -> Option<Epoch> {
+        let epochs: Vec<_> = self.epochs().collect();
+        epochs.get(epochs.len() - 1).copied()
+    }
+
+    fn duration(&self) -> Option<Duration> {
+        let start = self.first_epoch()?;
+        let end = self.last_epoch()?;
+        Some(end - start)
+    }
+
+    fn timeseries(&self) -> Option<TimeSeries> {
+        let start = self.first_epoch()?;
+        let end = self.last_epoch()?;
+        let dt = self.dominant_sample_rate()?;
+        Some(TimeSeries::inclusive(start, end, dt))
+    }
+
+    fn sample_rate(&self) -> Option<Duration> {
+        self.header.sampling_interval
+    }
+
+    fn dominant_sample_rate(&self) -> Option<Duration> {
+        if let Some(dominant) = self
+            .sampling_histogram()
+            .into_iter()
+            .max_by(|(_, x_pop), (_, y_pop)| x_pop.cmp(y_pop))
+        {
+            Some(dominant.0)
+        } else {
+            None
+        }
+    }
+
+    fn sampling_histogram(&self) -> HashMap<Duration, usize> {
+        let mut prev: Option<Epoch> = None;
+        let mut histogram: HashMap<Duration, usize> = HashMap::new();
+
+        for epoch in self.epochs() {
+            if let Some(prev) = prev {
+                let dt = epoch - prev;
+                if let Some(population) = histogram.get_mut(&dt) {
+                    *population += 1;
+                } else {
+                    histogram.insert(dt, 1);
+                }
+            }
+            prev = Some(epoch);
+        }
+        histogram
+    }
+}
+
+use meteo::MeteoIter;
 
 /*
  * Meteo RINEX specific iterator
  */
-impl Meteo for Rinex {
+impl MeteoIter for Rinex {
     fn temperature(&self) -> Box<dyn Iterator<Item = (Epoch, f64)> + '_> {
-        if let Some(r) = self.record.as_meteo() {
-            Box::new(r.iter().flat_map(|(e, v)| {
-                v.iter().filter_map(|(k, v)| {
-                    if *k == Observable::Temperature {
-                        Some((*e, *v))
-                    } else {
-                        None
-                    }
-                })
-            }))
-        } else {
-            Box::new(Vec::<(Epoch, f64)>::new().into_iter())
-        }
+        Box::new(
+            self.record
+                .as_meteo()
+                .iter() // Iter on Option
+                .flat_map(|record| {
+                    // discard none
+                    // previous code
+                    record.iter().flat_map(|(epoch, v)| {
+                        v.iter().filter_map(|(k, value)| {
+                            if *k == Observable::Temperature {
+                                Some((*epoch, *value))
+                            } else {
+                                None
+                            }
+                        })
+                    })
+                }),
+        )
     }
     fn pressure(&self) -> Box<dyn Iterator<Item = (Epoch, f64)> + '_> {
         if let Some(r) = self.record.as_meteo() {
@@ -1981,43 +2078,6 @@ impl Meteo for Rinex {
             Box::new(Vec::<(Epoch, f64)>::new().into_iter())
         }
     }
-    fn rain_detected(&self) -> bool {
-        for (_, ri) in self.rain_increment() {
-            if ri > 0.0 {
-                return true;
-            }
-        }
-        false
-    }
-    fn accumulated_rain(&self) -> f64 {
-        let mut prev = 0.0_f64;
-        let mut acc = 0.0_f64;
-        for (index, (_, ri)) in self.rain_increment().skip(1).enumerate() {
-            if index == 0 {
-                acc = ri;
-            } else {
-                acc += ri - prev;
-            }
-            prev = ri;
-        }
-        acc
-    }
-    fn hail_detected(&self) -> bool {
-        if let Some(r) = self.record.as_meteo() {
-            for (_, observables) in r {
-                for (observ, value) in observables {
-                    if *observ == Observable::HailIndicator {
-                        if *value > 0.0 {
-                            return true;
-                        }
-                    }
-                }
-            }
-            false
-        } else {
-            false
-        }
-    }
     fn zenith_delay(&self) -> Box<dyn Iterator<Item = (Epoch, f64)> + '_> {
         if let Some(r) = self.record.as_meteo() {
             Box::new(r.iter().flat_map(|(e, v)| {
@@ -2065,6 +2125,51 @@ impl Meteo for Rinex {
     }
 }
 
+use meteo::Meteo;
+
+/*
+ * Meteo RINEX specific high level methods
+ */
+impl Meteo for Rinex {
+    fn rain_detected(&self) -> bool {
+        for (_, ri) in self.rain_increment() {
+            if ri > 0.0 {
+                return true;
+            }
+        }
+        false
+    }
+    fn accumulated_rain(&self) -> f64 {
+        let mut prev = 0.0_f64;
+        let mut acc = 0.0_f64;
+        for (index, (_, ri)) in self.rain_increment().skip(1).enumerate() {
+            if index == 0 {
+                acc = ri;
+            } else {
+                acc += ri - prev;
+            }
+            prev = ri;
+        }
+        acc
+    }
+    fn hail_detected(&self) -> bool {
+        if let Some(r) = self.record.as_meteo() {
+            for (_, observables) in r {
+                for (observ, value) in observables {
+                    if *observ == Observable::HailIndicator {
+                        if *value > 0.0 {
+                            return true;
+                        }
+                    }
+                }
+            }
+            false
+        } else {
+            false
+        }
+    }
+}
+
 impl Merge for Rinex {
     /// Merges `rhs` into `Self` without mutable access, at the expense of memcopies
     fn merge(&self, rhs: &Self) -> Result<Self, merge::Error> {
@@ -2075,32 +2180,34 @@ impl Merge for Rinex {
     /// Merges `rhs` into `Self` in place
     fn merge_mut(&mut self, rhs: &Self) -> Result<(), merge::Error> {
         self.header.merge_mut(&rhs.header)?;
-        if self.epochs().len() == 0 {
-            // self is empty
-            self.record = rhs.record.clone();
-            Ok(())
-        } else if rhs.epochs().len() == 0 {
-            // nothing to merge
-            Ok(())
-        } else {
-            // add special marker, ts: YYYYDDMM HHMMSS UTC
-            let now = hifitime::Epoch::now().expect("failed to retrieve system time");
-            let (y, m, d, hh, mm, ss, _) = now.to_gregorian_utc();
-            self.header.comments.push(format!(
-                "rustrnx-{:<20} FILE MERGE          {}{}{} {}{}{} {}",
-                env!("CARGO_PKG_VERSION"),
-                y + 1900,
-                m,
-                d,
-                hh,
-                mm,
-                ss,
-                now.time_scale
-            ));
-            // RINEX record merging
-            self.record.merge_mut(&rhs.record)?;
-            Ok(())
-        }
+        Ok(())
+        //TODO: needs to reapply
+        //if self.epochs().len() == 0 {
+        //    // self is empty
+        //    self.record = rhs.record.clone();
+        //    Ok(())
+        //} else if rhs.epochs().len() == 0 {
+        //    // nothing to merge
+        //    Ok(())
+        //} else {
+        //    // add special marker, ts: YYYYDDMM HHMMSS UTC
+        //    let now = hifitime::Epoch::now().expect("failed to retrieve system time");
+        //    let (y, m, d, hh, mm, ss, _) = now.to_gregorian_utc();
+        //    self.header.comments.push(format!(
+        //        "rustrnx-{:<20} FILE MERGE          {}{}{} {}{}{} {}",
+        //        env!("CARGO_PKG_VERSION"),
+        //        y + 1900,
+        //        m,
+        //        d,
+        //        hh,
+        //        mm,
+        //        ss,
+        //        now.time_scale
+        //    ));
+        //    // RINEX record merging
+        //    self.record.merge_mut(&rhs.record)?;
+        //    Ok(())
+        //}
     }
 }
 

@@ -34,7 +34,7 @@ pub enum Observable {
     ZenithDryDelay,
     /// Total zenith path delay (dry + wet) in mm
     ZenithTotalDelay,
-    /// Wind direction as azimuth in degrees
+    /// Wind direction azimuth in degrees
     WindDirection,
     /// Wind speed in m.s⁻¹
     WindSpeed,
