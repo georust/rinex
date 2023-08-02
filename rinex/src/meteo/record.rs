@@ -9,29 +9,23 @@ use std::str::FromStr;
 use thiserror::Error;
 
 /// Meteo RINEX Record content.
-/// Refer to the [crate::meteo::Meteo] trait to understand how to navigate
-/// and use Meteo data.
 /// Dataset is sorted by [`Epoch`] and by [`Observable`].
+/// Refer to the [crate::meteo::MeteoIter] trait to understand how to navigate
+/// Meteo records.  
+/// See the [crate::meteo::Meteo] trait for Meteo Data processing.
 /// ```
 /// use rinex::prelude::*;
+/// use rinex::meteo::MeteoIter;
 /// let rnx = Rinex::from_file("../test_resources/MET/V2/abvi0010.15m")
 ///    .unwrap();
-/// // grab record
-/// let record = rnx.record.as_meteo()
-///    .unwrap();
-/// for (epoch, observables) in record.iter() {
-///     for (observable, data) in observables.iter() {
-///         if *observable == Observable::Temperature {
-///             if *data > 20.0 { // °C
-///             }
-///         }
-///     }
+/// for (epoch, value) in rnx.temperature() {
+///    println!("{} : {} °C", epoch, value);
 /// }
 /// ```
 pub type Record = BTreeMap<Epoch, HashMap<Observable, f64>>;
 
 /*
- * Returns true if given line matches a new Meteo Record `epoch`.
+ * Returns true if given line matches a new Meteo Record Epoch.
  * We use this when browsing a RINEX file, to determine whether
  * we should initiate the parsing of a meteo record entry.
  */

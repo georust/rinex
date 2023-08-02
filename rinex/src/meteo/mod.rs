@@ -19,7 +19,7 @@ use crate::prelude::Epoch;
 
 /// Meteo RINEX record iteration methods.
 /// Faillible: if used on other RINEX types
-pub trait Meteo {
+pub trait MeteoIter {
     /// Returns temperature data iterator, values expressed in Celcius degrees
     /// ```
     /// use rinex::prelude::*;
@@ -91,6 +91,42 @@ pub trait Meteo {
     /// }
     /// ```
     fn rain_increment(&self) -> Box<dyn Iterator<Item = (Epoch, f64)> + '_>;
+    /// Returns Zenith dry delay, in mm
+    /// ```
+    /// use rinex::prelude::*;
+    /// use rinex::meteo::Meteo;
+    /// let mut rinex = Rinex::from_file(../test_resources/MET/V2/abvi0010.15m")
+    ///     .unwrap();
+    /// for (epoch, value) in rinex.zenith_dry_delay() {
+    ///     println!("ts: {}, value: {} %", epoch, value);
+    /// }
+    /// ```
+    fn zenith_dry_delay(&self) -> Box<dyn Iterator<Item = (Epoch, f64)> + '_>;
+    /// Returns Zenith wet delay, in mm
+    /// ```
+    /// use rinex::prelude::*;
+    /// use rinex::meteo::Meteo;
+    /// let mut rinex = Rinex::from_file(../test_resources/MET/V2/abvi0010.15m")
+    ///     .unwrap();
+    /// for (epoch, value) in rinex.zenith_wet_delay() {
+    ///     println!("ts: {}, value: {} %", epoch, value);
+    /// }
+    /// ```
+    fn zenith_wet_delay(&self) -> Box<dyn Iterator<Item = (Epoch, f64)> + '_>;
+    /// Returns Total (Wet + Dry) Zenith delay, in mm
+    /// ```
+    /// use rinex::prelude::*;
+    /// use rinex::meteo::Meteo;
+    /// let mut rinex = Rinex::from_file(../test_resources/MET/V2/abvi0010.15m")
+    ///     .unwrap();
+    /// for (epoch, value) in rinex.zenith_delay() {
+    ///     println!("ts: {}, value: {} %", epoch, value);
+    /// }
+    /// ```
+    fn zenith_delay(&self) -> Box<dyn Iterator<Item = (Epoch, f64)> + '_>;
+}
+
+pub trait Meteo {
     /// Returns total accumulated rain in tenth of mm, within this time frame
     /// ```
     /// use rinex::prelude::*;
@@ -130,37 +166,4 @@ pub trait Meteo {
     /// assert_eq!(rinex.hail_detected(), false);
     /// ```
     fn hail_detected(&self) -> bool;
-    /// Returns Zenith dry delay, in mm
-    /// ```
-    /// use rinex::prelude::*;
-    /// use rinex::meteo::Meteo;
-    /// let mut rinex = Rinex::from_file(../test_resources/MET/V2/abvi0010.15m")
-    ///     .unwrap();
-    /// for (epoch, value) in rinex.zenith_dry_delay() {
-    ///     println!("ts: {}, value: {} %", epoch, value);
-    /// }
-    /// ```
-    fn zenith_dry_delay(&self) -> Box<dyn Iterator<Item = (Epoch, f64)> + '_>;
-    /// Returns Zenith wet delay, in mm
-    /// ```
-    /// use rinex::prelude::*;
-    /// use rinex::meteo::Meteo;
-    /// let mut rinex = Rinex::from_file(../test_resources/MET/V2/abvi0010.15m")
-    ///     .unwrap();
-    /// for (epoch, value) in rinex.zenith_wet_delay() {
-    ///     println!("ts: {}, value: {} %", epoch, value);
-    /// }
-    /// ```
-    fn zenith_wet_delay(&self) -> Box<dyn Iterator<Item = (Epoch, f64)> + '_>;
-    /// Returns Total (Wet + Dry) Zenith delay, in mm
-    /// ```
-    /// use rinex::prelude::*;
-    /// use rinex::meteo::Meteo;
-    /// let mut rinex = Rinex::from_file(../test_resources/MET/V2/abvi0010.15m")
-    ///     .unwrap();
-    /// for (epoch, value) in rinex.zenith_delay() {
-    ///     println!("ts: {}, value: {} %", epoch, value);
-    /// }
-    /// ```
-    fn zenith_delay(&self) -> Box<dyn Iterator<Item = (Epoch, f64)> + '_>;
 }

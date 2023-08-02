@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod test {
-    use rinex::meteo::Meteo;
+    use rinex::meteo::{Meteo, MeteoIter};
     use rinex::prelude::*;
     use std::str::FromStr;
     #[test]
