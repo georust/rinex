@@ -2138,11 +2138,13 @@ impl MeteoIter for Rinex {
     }
 }
 
+/*
+ * Meteo RINEX specific methods
+ */
+#[cfg(feature = "meteo")]
 use meteo::Meteo;
 
-/*
- * Meteo RINEX specific high level methods
- */
+#[cfg(feature = "meteo")]
 impl Meteo for Rinex {
     fn rain_detected(&self) -> bool {
         for (_, ri) in self.rain_increment() {

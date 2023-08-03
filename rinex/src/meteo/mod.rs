@@ -122,6 +122,8 @@ pub trait MeteoIter {
     fn zenith_delay(&self) -> Box<dyn Iterator<Item = (Epoch, f64)> + '_>;
 }
 
+#[cfg(feature = "meteo")]
+#[cfg_attr(docrs, doc(cfg(feature = "meteo")))]
 pub trait Meteo {
     /// Returns total accumulated rain in tenth of mm, within this time frame
     /// ```

@@ -1,4 +1,5 @@
 #[cfg(test)]
+#[cfg(feature = "meteo")]
 mod test {
     use rinex::meteo::{Meteo, MeteoIter};
     use rinex::prelude::*;
