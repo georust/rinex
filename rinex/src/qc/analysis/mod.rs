@@ -1,9 +1,5 @@
 use super::{pretty_array, HtmlReport, QcOpts};
 use crate::prelude::*;
-
-#[cfg(feature = "processing")]
-use crate::preprocessing::TargetItem;
-
 use horrorshow::{helper::doctype, RenderBox};
 
 mod sv;

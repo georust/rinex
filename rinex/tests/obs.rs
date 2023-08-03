@@ -1,5 +1,6 @@
 #[cfg(test)]
 mod test {
+    use rinex::RinexIter;
     use rinex::{header::*, observation::*, prelude::*};
     use std::str::FromStr;
     /*
@@ -12,7 +13,10 @@ mod test {
         /*
          * Test epoch parsing and identification
          */
-        assert_eq!(rnx.epochs(), epochs);
+        assert!(
+            rnx.epochs().collect::<Vec<Epoch>>() == epochs,
+            "parsed wrong epoch content"
+        );
         /*
          * Test Record content
          */
@@ -563,7 +567,10 @@ mod test {
             Epoch::from_gregorian_utc(2022, 03, 04, 00, 28, 30, 00),
             Epoch::from_gregorian_utc(2022, 03, 04, 00, 57, 00, 00),
         ];
-        assert_eq!(rinex.epochs(), expected);
+        assert!(
+            rinex.epochs().collect::<Vec<Epoch>>() == expected,
+            "parsed wrong epoch content"
+        );
 
         let epoch = Epoch::from_gregorian_utc(2022, 03, 04, 0, 0, 0, 0);
         let e = record.get(&(epoch, EpochFlag::Ok));
@@ -710,7 +717,10 @@ mod test {
             Epoch::from_gregorian_utc(1995, 01, 01, 11, 00, 00, 00),
             Epoch::from_gregorian_utc(1995, 01, 01, 20, 44, 30, 00),
         ];
-        assert_eq!(rnx.epochs(), expected);
+        assert!(
+            rnx.epochs().collect::<Vec<Epoch>>() == expected,
+            "parsed wrong epoch content"
+        );
     }
     #[test]
     fn v2_ajac3550() {
@@ -719,7 +729,11 @@ mod test {
             Epoch::from_gregorian_utc(2021, 12, 21, 0, 0, 0, 0),
             Epoch::from_gregorian_utc(2021, 12, 21, 0, 0, 30, 0),
         ];
-        assert_eq!(rnx.epochs(), epochs);
+
+        assert!(
+            rnx.epochs().collect::<Vec<Epoch>>() == epochs,
+            "parsed wrong epoch content"
+        );
 
         let record = rnx.record.as_obs().unwrap();
 
@@ -864,7 +878,10 @@ mod test {
             Epoch::from_gregorian_utc(2022, 03, 04, 00, 01, 0, 0),
             Epoch::from_gregorian_utc(2022, 03, 04, 00, 52, 30, 0),
         ];
-        assert_eq!(rnx.epochs(), expected);
+        assert!(
+            rnx.epochs().collect::<Vec<Epoch>>() == expected,
+            "parsed wrong epoch content"
+        );
 
         let record = rnx.record.as_obs().unwrap();
         for (e_index, ((_e, flag), (clk_offset, vehicles))) in record.iter().enumerate() {

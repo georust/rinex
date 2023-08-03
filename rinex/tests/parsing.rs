@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod test {
     use rinex::prelude::*;
+    use rinex::RinexIter;
     #[test]
     fn test_parser() {
         let test_resources = env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/";
@@ -40,12 +41,12 @@ mod test {
                         },
                         "NAV" => {
                             assert!(rinex.is_navigation_rinex());
-                            assert!(rinex.epochs().len() > 0);
+                            assert!(rinex.epochs().collect::<Vec<Epoch>>().len() > 0);
                         },
                         "OBS" => {
                             assert!(rinex.header.obs.is_some());
                             assert!(rinex.is_observation_rinex());
-                            assert!(rinex.epochs().len() > 0);
+                            assert!(rinex.epochs().collect::<Vec<Epoch>>().len() > 0);
                             /*
                                                         let gf = rinex.observation_gf_combinations();
                                                         let nl = rinex.observation_nl_combinations();
@@ -75,20 +76,20 @@ mod test {
                         "CRNX" => {
                             assert!(rinex.header.obs.is_some());
                             assert!(rinex.is_observation_rinex());
-                            assert!(rinex.epochs().len() > 0);
+                            assert!(rinex.epochs().collect::<Vec<Epoch>>().len() > 0);
                         },
                         "MET" => {
                             //assert_eq!(rinex.header.obs.is_some(), true);
                             assert!(rinex.is_meteo_rinex());
-                            assert!(rinex.epochs().len() > 0);
+                            assert!(rinex.epochs().collect::<Vec<Epoch>>().len() > 0);
                         },
                         "CLK" => {
                             assert!(rinex.is_clocks_rinex());
-                            assert!(rinex.epochs().len() > 0);
+                            assert!(rinex.epochs().collect::<Vec<Epoch>>().len() > 0);
                         },
                         "IONEX" => {
                             assert!(rinex.is_ionex());
-                            assert!(rinex.epochs().len() > 0);
+                            assert!(rinex.epochs().collect::<Vec<Epoch>>().len() > 0);
                         },
                         _ => unreachable!(),
                     }

@@ -209,14 +209,6 @@ pub trait RinexIter {
     /// Use this to browse identify vehicles for each separate [`Epoch`].
     fn sv_epoch(&self) -> Box<dyn Iterator<Item = (Epoch, Vec<Sv>)> + '_>;
 
-    /// Returns an iterator over unexpected data gaps,
-    /// in the form ([`Epoch`], [`Duration`]), where
-    /// epoch is the starting datetime, and its related duration.
-    fn data_gaps(
-        &self,
-        tolerance: Option<Duration>,
-    ) -> Box<dyn Iterator<Item = (Epoch, Duration)> + '_>;
-
     #[cfg(feature = "obs")]
     #[cfg_attr(docrs, doc(cfg(feature = "obs")))]
     /// Returns an Iterator over all abnormal [`Epoch`]s
@@ -250,6 +242,7 @@ pub trait Sampling {
 
     /// Returns sample rate histogram analysis.
     /// ```
+    /// use rinex::Sampling;
     /// use rinex::prelude::*;
     /// use std::collections::HashMap;
     /// let rinex = Rinex::from_file("../test_resources/NAV/V3/AMEL00NLD_R_20210010000_01D_MN.rnx")
@@ -267,11 +260,55 @@ pub trait Sampling {
 
     /// Returns dominant sample rate
     /// ```
+    /// use rinex::Sampling;
     /// use rinex::prelude::*;
-    /// let rnx = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O").unwrap();
-    /// assert_eq!(rnx.sampling_histogram(), Some(Duration::from_seconds(30.0)));
+    /// let rnx = Rinex::from_file("../test_resources/MET/V2/abvi0010.15m")
+    ///     .unwrap();
+    /// assert_eq!(
+    ///     rnx.dominant_sample_rate(),
+    ///     Some(Duration::from_seconds(60.0)));
     /// ```
     fn dominant_sample_rate(&self) -> Option<Duration>;
+
+    /// Returns an iterator over unexpected data gaps,
+    /// in the form ([`Epoch`], [`Duration`]), where
+    /// epoch is the starting datetime, and its related duration.
+    /// ```
+    /// use rinex::Sampling;
+    /// use std::str::FromStr;
+    /// use rinex::prelude::{Rinex, Epoch, Duration};
+    /// let rinex = Rinex::from_file("../test_resources/MET/V2/abvi0010.15m")
+    ///     .unwrap();
+    ///
+    /// // when tolerance is set to None,
+    /// // the refenrece sample rate is [Self::dominant_sample_rate].
+    /// let mut tolerance : Option<Duration> = None;
+    /// let gaps : Vec<_> = rinex.data_gaps(tolerance).collect();
+    /// assert_eq!(
+    ///     gaps,
+    ///     vec![
+    ///         (Epoch::from_str("2015-01-01T09:00:00 UTC").unwrap(), Duration::from_seconds(8.0 * 3600.0 + 51.0 * 60.0)),
+    ///         (Epoch::from_str("2015-01-01T19:25:00 UTC").unwrap(), Duration::from_seconds(10.0 * 3600.0 + 21.0 * 60.0)),
+    ///         (Epoch::from_str("2015-01-01T22:55:00 UTC").unwrap(), Duration::from_seconds(3.0 * 3600.0 + 1.0 * 60.0)),
+    ///         (Epoch::from_str("2015-01-01T23:09:00 UTC").unwrap(), Duration::from_seconds(7.0 * 60.0)),
+    ///         (Epoch::from_str("2015-01-01T23:52:00 UTC").unwrap(), Duration::from_seconds(31.0 * 60.0)),
+    ///     ]);
+    ///
+    /// // with a tolerance, we tolerate the given gap duration
+    /// tolerance = Some(Duration::from_seconds(3600.0));
+    /// let gaps : Vec<_> = rinex.data_gaps(tolerance).collect();
+    /// assert_eq!(
+    ///     gaps,
+    ///     vec![
+    ///         (Epoch::from_str("2015-01-01T09:00:00 UTC").unwrap(), Duration::from_seconds(8.0 * 3600.0 + 51.0 * 60.0)),
+    ///         (Epoch::from_str("2015-01-01T19:25:00 UTC").unwrap(), Duration::from_seconds(10.0 * 3600.0 + 21.0 * 60.0)),
+    ///         (Epoch::from_str("2015-01-01T22:55:00 UTC").unwrap(), Duration::from_seconds(3.0 * 3600.0 + 1.0 * 60.0)),
+    ///     ]);
+    /// ```
+    fn data_gaps(
+        &self,
+        tolerance: Option<Duration>,
+    ) -> Box<dyn Iterator<Item = (Epoch, Duration)> + '_>;
 }
 
 #[derive(Error, Debug)]
@@ -1863,48 +1900,6 @@ impl RinexIter for Rinex {
         panic!("not yet");
     }
 
-    fn data_gaps(
-        &self,
-        tolerance: Option<Duration>,
-    ) -> Box<dyn Iterator<Item = (Epoch, Duration)> + '_> {
-        let sample_rate: Duration = match tolerance {
-            Some(dt) => dt, // user defined
-            None => {
-                match self.dominant_sample_rate() {
-                    Some(dt) => dt,
-                    None => {
-                        match self.sample_rate() {
-                            Some(dt) => dt,
-                            None => {
-                                // not enough information
-                                // this is probably not an Epoch iterated RINEX
-                                return Box::new(Vec::<(Epoch, Duration)>::new().into_iter());
-                            },
-                        }
-                    },
-                }
-            },
-        };
-
-        let mut last_kept: Option<Epoch> = None;
-
-        Box::new(self.epochs().filter_map(move |epoch| {
-            if let Some(mut last_kept) = last_kept {
-                let dt = epoch - last_kept;
-                if dt > sample_rate {
-                    Some((epoch, dt))
-                } else {
-                    // regular epoch progression
-                    last_kept = epoch;
-                    None
-                }
-            } else {
-                last_kept = Some(epoch);
-                None
-            }
-        }))
-    }
-
     #[cfg(feature = "obs")]
     fn epoch_anomalies(&self) -> Box<dyn Iterator<Item = (Epoch, EpochFlag)> + '_> {
         Box::new(self.epoch_flags().filter_map(
@@ -1975,6 +1970,47 @@ impl Sampling for Rinex {
         }
         histogram
     }
+
+    fn data_gaps(
+        &self,
+        tolerance: Option<Duration>,
+    ) -> Box<dyn Iterator<Item = (Epoch, Duration)> + '_> {
+        let sample_rate: Duration = match tolerance {
+            Some(dt) => dt, // user defined
+            None => {
+                match self.dominant_sample_rate() {
+                    Some(dt) => dt,
+                    None => {
+                        match self.sample_rate() {
+                            Some(dt) => dt,
+                            None => {
+                                // not enough information
+                                // this is probably not an Epoch iterated RINEX
+                                return Box::new(Vec::<(Epoch, Duration)>::new().into_iter());
+                            },
+                        }
+                    },
+                }
+            },
+        };
+
+        let mut prev_epoch: Option<Epoch> = None;
+
+        Box::new(self.epochs().filter_map(move |epoch| {
+            if prev_epoch.is_some() {
+                let dt = epoch - prev_epoch.unwrap();
+                prev_epoch = Some(epoch);
+                if dt > sample_rate {
+                    Some((epoch, dt))
+                } else {
+                    None
+                }
+            } else {
+                prev_epoch = Some(epoch); // first epoch
+                None
+            }
+        }))
+    }
 }
 
 use meteo::MeteoIter;
@@ -1984,144 +2020,121 @@ use meteo::MeteoIter;
  */
 impl MeteoIter for Rinex {
     fn temperature(&self) -> Box<dyn Iterator<Item = (Epoch, f64)> + '_> {
-        Box::new(
-            self.record
-                .as_meteo()
-                .iter() // Iter on Option
-                .flat_map(|record| {
-                    // discard none
-                    // previous code
-                    record.iter().flat_map(|(epoch, v)| {
-                        v.iter().filter_map(|(k, value)| {
-                            if *k == Observable::Temperature {
-                                Some((*epoch, *value))
-                            } else {
-                                None
-                            }
-                        })
-                    })
-                }),
-        )
+        Box::new(self.record.as_meteo().into_iter().flat_map(|record| {
+            record.iter().flat_map(|(epoch, v)| {
+                v.iter().filter_map(|(k, value)| {
+                    if *k == Observable::Temperature {
+                        Some((*epoch, *value))
+                    } else {
+                        None
+                    }
+                })
+            })
+        }))
     }
     fn pressure(&self) -> Box<dyn Iterator<Item = (Epoch, f64)> + '_> {
-        if let Some(r) = self.record.as_meteo() {
-            Box::new(r.iter().flat_map(|(e, v)| {
-                v.iter().filter_map(|(k, v)| {
+        Box::new(self.record.as_meteo().into_iter().flat_map(|record| {
+            record.iter().flat_map(|(epoch, v)| {
+                v.iter().filter_map(|(k, value)| {
                     if *k == Observable::Pressure {
-                        Some((*e, *v))
+                        Some((*epoch, *value))
                     } else {
                         None
                     }
                 })
-            }))
-        } else {
-            Box::new(Vec::<(Epoch, f64)>::new().into_iter())
-        }
+            })
+        }))
     }
     fn moisture(&self) -> Box<dyn Iterator<Item = (Epoch, f64)> + '_> {
-        if let Some(r) = self.record.as_meteo() {
-            Box::new(r.iter().flat_map(|(e, v)| {
-                v.iter().filter_map(|(k, v)| {
+        Box::new(self.record.as_meteo().into_iter().flat_map(|record| {
+            record.iter().flat_map(|(epoch, v)| {
+                v.iter().filter_map(|(k, value)| {
                     if *k == Observable::HumidityRate {
-                        Some((*e, *v))
+                        Some((*epoch, *value))
                     } else {
                         None
                     }
                 })
-            }))
-        } else {
-            Box::new(Vec::<(Epoch, f64)>::new().into_iter())
-        }
+            })
+        }))
     }
     fn wind_speed(&self) -> Box<dyn Iterator<Item = (Epoch, f64)> + '_> {
-        if let Some(r) = self.record.as_meteo() {
-            Box::new(r.iter().flat_map(|(e, v)| {
-                v.iter().filter_map(|(k, v)| {
+        Box::new(self.record.as_meteo().into_iter().flat_map(|record| {
+            record.iter().flat_map(|(epoch, v)| {
+                v.iter().filter_map(|(k, value)| {
                     if *k == Observable::WindSpeed {
-                        Some((*e, *v))
+                        Some((*epoch, *value))
                     } else {
                         None
                     }
                 })
-            }))
-        } else {
-            Box::new(Vec::<(Epoch, f64)>::new().into_iter())
-        }
+            })
+        }))
     }
     fn wind_direction(&self) -> Box<dyn Iterator<Item = (Epoch, f64)> + '_> {
-        if let Some(r) = self.record.as_meteo() {
-            Box::new(r.iter().flat_map(|(e, v)| {
-                v.iter().filter_map(|(k, v)| {
+        Box::new(self.record.as_meteo().into_iter().flat_map(|record| {
+            record.iter().flat_map(|(epoch, v)| {
+                v.iter().filter_map(|(k, value)| {
                     if *k == Observable::WindDirection {
-                        Some((*e, *v))
+                        Some((*epoch, *value))
                     } else {
                         None
                     }
                 })
-            }))
-        } else {
-            Box::new(Vec::<(Epoch, f64)>::new().into_iter())
-        }
+            })
+        }))
     }
     fn rain_increment(&self) -> Box<dyn Iterator<Item = (Epoch, f64)> + '_> {
-        if let Some(r) = self.record.as_meteo() {
-            Box::new(r.iter().flat_map(|(e, v)| {
-                v.iter().filter_map(|(k, v)| {
+        Box::new(self.record.as_meteo().into_iter().flat_map(|record| {
+            record.iter().flat_map(|(epoch, v)| {
+                v.iter().filter_map(|(k, value)| {
                     if *k == Observable::RainIncrement {
-                        Some((*e, *v))
+                        Some((*epoch, *value))
                     } else {
                         None
                     }
                 })
-            }))
-        } else {
-            Box::new(Vec::<(Epoch, f64)>::new().into_iter())
-        }
+            })
+        }))
     }
     fn zenith_delay(&self) -> Box<dyn Iterator<Item = (Epoch, f64)> + '_> {
-        if let Some(r) = self.record.as_meteo() {
-            Box::new(r.iter().flat_map(|(e, v)| {
-                v.iter().filter_map(|(k, v)| {
+        Box::new(self.record.as_meteo().into_iter().flat_map(|record| {
+            record.iter().flat_map(|(epoch, v)| {
+                v.iter().filter_map(|(k, value)| {
                     if *k == Observable::ZenithTotalDelay {
-                        Some((*e, *v))
+                        Some((*epoch, *value))
                     } else {
                         None
                     }
                 })
-            }))
-        } else {
-            Box::new(Vec::<(Epoch, f64)>::new().into_iter())
-        }
+            })
+        }))
     }
     fn zenith_dry_delay(&self) -> Box<dyn Iterator<Item = (Epoch, f64)> + '_> {
-        if let Some(r) = self.record.as_meteo() {
-            Box::new(r.iter().flat_map(|(e, v)| {
-                v.iter().filter_map(|(k, v)| {
+        Box::new(self.record.as_meteo().into_iter().flat_map(|record| {
+            record.iter().flat_map(|(epoch, v)| {
+                v.iter().filter_map(|(k, value)| {
                     if *k == Observable::ZenithDryDelay {
-                        Some((*e, *v))
+                        Some((*epoch, *value))
                     } else {
                         None
                     }
                 })
-            }))
-        } else {
-            Box::new(Vec::<(Epoch, f64)>::new().into_iter())
-        }
+            })
+        }))
     }
     fn zenith_wet_delay(&self) -> Box<dyn Iterator<Item = (Epoch, f64)> + '_> {
-        if let Some(r) = self.record.as_meteo() {
-            Box::new(r.iter().flat_map(|(e, v)| {
-                v.iter().filter_map(|(k, v)| {
+        Box::new(self.record.as_meteo().into_iter().flat_map(|record| {
+            record.iter().flat_map(|(epoch, v)| {
+                v.iter().filter_map(|(k, value)| {
                     if *k == Observable::ZenithWetDelay {
-                        Some((*e, *v))
+                        Some((*epoch, *value))
                     } else {
                         None
                     }
                 })
-            }))
-        } else {
-            Box::new(Vec::<(Epoch, f64)>::new().into_iter())
-        }
+            })
+        }))
     }
 }
 

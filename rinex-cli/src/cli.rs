@@ -49,10 +49,10 @@ impl Cli {
 Useful graph to determine vehicles of interest for specific operations.
 When both `--fp` and Navigation context (`--nav`) were provided, this 
 depicts shared epochs and vehicles between the two contexts."))
-                    .arg(Arg::new("epoch-hist")
-                        .long("epoch-hist")
+                    .arg(Arg::new("sampling-hist")
+                        .long("sampling-hist")
                         .action(ArgAction::SetTrue)
-                        .help("Epoch duration histogram analysis."))
+                        .help("Sample rate histogram analysis."))
                     .arg(Arg::new("header")
                         .long("header")
                         .action(ArgAction::SetTrue)
@@ -369,8 +369,8 @@ Refer to README"))
         self.matches.get_flag("sv-epoch")
     }
     /// Epoch interval (histogram) analysis
-    pub fn epoch_histogram(&self) -> bool {
-        self.matches.get_flag("epoch-hist")
+    pub fn sampling_histogram(&self) -> bool {
+        self.matches.get_flag("sampling-hist")
     }
     /// Phase /PR DCBs analysis requested
     pub fn dcb(&self) -> bool {

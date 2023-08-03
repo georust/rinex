@@ -3,6 +3,7 @@ mod test {
     use rinex::clocks;
     use rinex::clocks::record::{DataType, System};
     use rinex::prelude::*;
+    use rinex::RinexIter;
     #[test]
     fn v3_usno_example() {
         let test_resource =
@@ -31,7 +32,7 @@ mod test {
                 id: String::from("40451S003"),
             })
         );
-        assert_eq!(rinex.epochs().len(), 1);
+        assert_eq!(rinex.epochs().collect::<Vec<Epoch>>().len(), 1);
         let record = rinex.record.as_clock();
         assert_eq!(record.is_some(), true);
         let record = record.unwrap();
@@ -89,7 +90,7 @@ mod test {
                 name: String::from("USNO USING GIPSY/OASIS-II"),
             })
         );
-        assert_eq!(rinex.epochs().len(), 1);
+        assert_eq!(rinex.epochs().collect::<Vec<Epoch>>().len(), 1);
         let record = rinex.record.as_clock();
         assert_eq!(record.is_some(), true);
         let record = record.unwrap();
@@ -160,7 +161,7 @@ mod test {
                 name: String::from("IGSACC @ GA and MIT"),
             })
         );
-        assert_eq!(rinex.epochs().len(), 1);
+        assert_eq!(rinex.epochs().collect::<Vec<Epoch>>().len(), 1);
         let record = rinex.record.as_clock();
         assert_eq!(record.is_some(), true);
         //let record = record.unwrap();

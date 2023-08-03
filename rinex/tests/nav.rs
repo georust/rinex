@@ -3,6 +3,7 @@ mod test {
     use itertools::*;
     use rinex::navigation::*;
     use rinex::prelude::*;
+    use rinex::RinexIter;
     use std::str::FromStr;
     #[test]
     fn v2_amel0010_21g() {
@@ -175,7 +176,10 @@ mod test {
             Epoch::from_gregorian_utc(2021, 01, 01, 10, 10, 0, 0),
             Epoch::from_gregorian_utc(2021, 01, 01, 15, 40, 0, 0),
         ];
-        assert_eq!(rinex.epochs(), expected_epochs);
+        assert!(
+            rinex.epochs().collect::<Vec<Epoch>>() == expected_epochs,
+            "parsed wrong epoch content"
+        );
 
         for (_e, classes) in record.iter() {
             for (class, frames) in classes.iter() {
@@ -841,7 +845,10 @@ mod test {
             Epoch::from_gregorian_utc(2021, 01, 01, 08, 20, 00, 00),
         ];
         epochs.sort();
-        assert_eq!(rinex.epochs(), epochs);
+        assert!(
+            rinex.epochs().collect::<Vec<Epoch>>() == epochs,
+            "parsed wrong epoch content"
+        );
 
         let mut vehicles: Vec<Sv> = vec![
             Sv::from_str("C01").unwrap(),

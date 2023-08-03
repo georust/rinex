@@ -32,12 +32,16 @@ pub trait Decimate {
     /// by 2, we get {e_0, e_2, ..., e_k, e_k+2, ..}.
     /// Header sampling interval (if any) is automatically updated.
     /// ```
-    /// use rinex::prelude::*;
+    /// use rinex::RinexIter; // .epochs()
+    /// use rinex::prelude::*; // Rinex
     /// use rinex::preprocessing::Decimate;
     /// let mut rnx = Rinex::from_file("../test_resources/OBS/V2/delf0010.21o")
     ///     .unwrap();
-    /// assert_eq!(rnx.epochs().len(), 105);
-    /// assert_eq!(rnx.decimate_by_ratio(2).epochs().len(), 53);
+    /// let epochs: Vec<_> = rnx.epochs().collect();
+    /// assert_eq!(epochs.len(), 105);
+    /// let rnx = rnx.decimate_by_ratio(2);
+    /// let epochs: Vec<_> = rnx.epochs().collect();
+    /// assert_eq!(epochs.len(), 53);
     /// ```
     fn decimate_by_ratio(&self, r: u32) -> Self;
 
@@ -49,20 +53,23 @@ pub trait Decimate {
     /// within this minimal interval are discarded.
     /// Header sampling interval (if any) is automatically update.
     /// ```
+    /// use rinex::RinexIter;
     /// use rinex::prelude::*;
     /// use rinex::preprocessing::Decimate;
     /// let mut rinex = Rinex::from_file("../test_resources/NAV/V3/AMEL00NLD_R_20210010000_01D_MN.rnx")
     ///     .unwrap();
     ///
-    /// let initial_epochs = rinex.epochs();
+    /// let epochs: Vec<_> = rinex.epochs().collect();
     ///
     /// // reduce to 10s sampling interval
     /// rinex.decimate_by_interval_mut(Duration::from_seconds(10.0));
-    /// assert_eq!(rinex.epochs(), initial_epochs); // unchanged: dt is too short
+    /// let new_epochs : Vec<_> = rinex.epochs().collect();
+    /// assert_eq!(epochs, new_epochs); // unchanged: dt is too short
     ///
     /// // reduce to 1hour sampling interval
     /// rinex.decimate_by_interval_mut(Duration::from_hours(1.0));
-    /// assert_eq!(rinex.epochs().len(), initial_epochs.len()-2);
+    /// let new_epochs : Vec<_> = rinex.epochs().collect();
+    /// assert_eq!(new_epochs.len(), epochs.len() -2);
     /// ```
     fn decimate_by_interval(&self, dt: Duration) -> Self;
 

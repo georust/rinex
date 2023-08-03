@@ -2,6 +2,7 @@
 mod test {
     use rinex::meteo::{Meteo, MeteoIter};
     use rinex::prelude::*;
+    use rinex::RinexIter;
     use std::str::FromStr;
     #[test]
     fn v2_abvi0010_15m() {
@@ -75,7 +76,7 @@ mod test {
             ),
         ];
 
-        let epochs = rinex.epochs();
+        let epochs = rinex.epochs().collect::<Vec<Epoch>>();
 
         let record_values: Vec<Vec<(Epoch, f64)>> = vec![
             rinex.pressure().collect(),
@@ -86,17 +87,17 @@ mod test {
             rinex.rain_increment().collect(),
         ];
 
-        for (index, expected_values) in expected.iter().enumerate() {
+        for expected_values in expected {
             let (index, epoch, expected_values) = expected_values;
             let epoch = epoch.unwrap();
 
-            let content = epochs.get(*index as usize);
+            let content = epochs.get(index as usize);
             assert!(content.is_some(), "missing epoch {}", epoch);
 
             let content = content.unwrap();
             for (field_index, expected_value) in expected_values.iter().enumerate() {
                 let label = labels[field_index];
-                let value = record_values[field_index].get(*index as usize);
+                let value = record_values[field_index].get(index as usize);
                 assert!(
                     value.is_some(),
                     "{} : missing \"{}\" measurement",

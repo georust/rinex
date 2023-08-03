@@ -14,15 +14,19 @@ pub trait Split {
     /// and |e(k) >= epoch| ("inclusive after"), as right component.
     /// Fails if self is not indexed by `Epoch`.
     /// ```
-    /// use rinex::prelude::*;
-    /// use rinex::split::Split;
+    /// use rinex::Split; // .split()
+    /// use rinex::RinexIter; // .epochs()
+    /// use rinex::prelude::*; // Rinex
     /// let rnx = Rinex::from_file("../test_resources/OBS/V2/delf0010.21o")
     ///     .unwrap();
     /// let epoch = Epoch::from_gregorian_utc(2021, 01, 01, 0, 1, 00, 00);
     /// let (rnx_a, rnx_b) = rnx.split(epoch)
     ///     .unwrap();
-    /// assert_eq!(rnx_a.epochs().len(), 2);
-    /// assert_eq!(rnx_b.epochs().len(), rnx.epochs().len() - 2);
+    /// let epochs   : Vec<_> = rnx.epochs().collect();
+    /// let a_epochs : Vec<_> = rnx_a.epochs().collect();
+    /// let b_epochs : Vec<_> = rnx_b.epochs().collect();
+    /// assert_eq!(a_epochs.len(), 2);
+    /// assert_eq!(b_epochs.len(),  epochs.len() -2);
     /// ```
     fn split(&self, epoch: Epoch) -> Result<(Self, Self), Error>
     where

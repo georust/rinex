@@ -23,7 +23,7 @@ fn identification(rnx: &Rinex, pretty: bool, ops: Vec<&str>) {
             };
             println!("{}", content);
         } else if op.eq("epochs") {
-            let data: Vec<String> = rnx.epochs().iter().map(|e| e.to_string()).collect();
+            let data: Vec<String> = rnx.epochs().map(|e| e.to_string()).collect();
             let content = match pretty {
                 true => serde_json::to_string_pretty(&data).unwrap(),
                 false => serde_json::to_string(&data).unwrap(),
@@ -68,7 +68,7 @@ fn identification(rnx: &Rinex, pretty: bool, ops: Vec<&str>) {
             let data = &rnx.nav_message_types();
             println!("{:?}", data);
         } else if op.eq("anomalies") {
-            let data = &rnx.epoch_anomalies();
+            let data: Vec<_> = rnx.epoch_anomalies().collect();
             println!("{:#?}", data);
         }
     }
