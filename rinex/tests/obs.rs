@@ -1,6 +1,5 @@
 #[cfg(test)]
 mod test {
-    use rinex::RinexIter;
     use rinex::{header::*, observation::*, prelude::*};
     use std::str::FromStr;
     /*
@@ -14,7 +13,7 @@ mod test {
          * Test epoch parsing and identification
          */
         assert!(
-            rnx.epochs().collect::<Vec<Epoch>>() == epochs,
+            rnx.epoch().collect::<Vec<Epoch>>() == epochs,
             "parsed wrong epoch content"
         );
         /*
@@ -568,7 +567,7 @@ mod test {
             Epoch::from_gregorian_utc(2022, 03, 04, 00, 57, 00, 00),
         ];
         assert!(
-            rinex.epochs().collect::<Vec<Epoch>>() == expected,
+            rinex.epoch().collect::<Vec<Epoch>>() == expected,
             "parsed wrong epoch content"
         );
 
@@ -718,7 +717,7 @@ mod test {
             Epoch::from_gregorian_utc(1995, 01, 01, 20, 44, 30, 00),
         ];
         assert!(
-            rnx.epochs().collect::<Vec<Epoch>>() == expected,
+            rnx.epoch().collect::<Vec<Epoch>>() == expected,
             "parsed wrong epoch content"
         );
     }
@@ -731,7 +730,7 @@ mod test {
         ];
 
         assert!(
-            rnx.epochs().collect::<Vec<Epoch>>() == epochs,
+            rnx.epoch().collect::<Vec<Epoch>>() == epochs,
             "parsed wrong epoch content"
         );
 
@@ -879,7 +878,7 @@ mod test {
             Epoch::from_gregorian_utc(2022, 03, 04, 00, 52, 30, 0),
         ];
         assert!(
-            rnx.epochs().collect::<Vec<Epoch>>() == expected,
+            rnx.epoch().collect::<Vec<Epoch>>() == expected,
             "parsed wrong epoch content"
         );
 

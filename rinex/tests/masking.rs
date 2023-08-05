@@ -1,19 +1,20 @@
 #[cfg(test)]
 mod test {
+    use rinex::filter;
+    use rinex::prelude::*;
     use rinex::preprocessing::*;
-    use rinex::*;
     use std::str::FromStr;
     #[test]
     fn v3_duth0630_g01_g02_filter() {
         let mut rnx = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O").unwrap();
         rnx.filter_mut(filter!("G01,G03"));
-        assert_eq!(rnx.sv().len(), 2);
+        assert_eq!(rnx.sv().collect::<Vec<Sv>>().len(), 2);
     }
     #[test]
     fn v3_duth0630_gps_filter() {
         let mut rnx = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O").unwrap();
         rnx.filter_mut(filter!("GPS"));
-        assert_eq!(rnx.sv().len(), 12);
+        assert_eq!(rnx.sv().collect::<Vec<Sv>>().len(), 12);
     }
     //#[test]
     //fn v3_duth0630_gps_prn_filter() {

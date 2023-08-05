@@ -305,7 +305,7 @@ impl std::str::FromStr for MaskFilter {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::navigation::{FrameClass, MsgType};
+    use crate::navigation::{FrameClass, NavMsgType};
     use crate::prelude::*;
     use std::str::FromStr;
     #[test]
@@ -516,7 +516,7 @@ mod test {
             mask,
             MaskFilter {
                 operand: MaskOperand::Equals,
-                item: TargetItem::NavMsgItem(vec![MsgType::LNAV]),
+                item: TargetItem::NavMsgItem(vec![NavMsgType::LNAV]),
             }
         );
     }

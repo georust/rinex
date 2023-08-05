@@ -13,5 +13,81 @@ pub use ephemeris::Ephemeris;
 pub use health::{GeoHealth, GloHealth, Health, IrnssHealth};
 pub use ionmessage::{BdModel, IonMessage, KbModel, KbRegionCode, NgModel, NgRegionFlags};
 pub use orbits::OrbitItem;
-pub use record::{Frame, FrameClass, MsgType, Record};
+pub use record::{NavFrame, NavMsgType, Record};
 pub use stomessage::StoMessage;
+
+use crate::{epoch, sv};
+use thiserror::Error;
+
+/// Navigation Record Parsing Error
+#[derive(Error, Debug)]
+pub enum Error {
+    #[error("epoch is missing data")]
+    MissingData,
+    #[error("file operation error")]
+    FileIoError(#[from] std::io::Error),
+    #[error("failed to locate revision in db")]
+    OrbitRevision,
+    #[error("unknown nav frame class")]
+    UnknownFrameClass,
+    #[error("unknown nav message type")]
+    UnknownNavMsgType,
+    #[error("failed to parse msg type")]
+    SvError(#[from] sv::Error),
+    #[error("failed to parse orbit field")]
+    ParseOrbitError(#[from] orbits::OrbitItemError),
+    #[error("failed to parse sv::prn")]
+    ParseIntError(#[from] std::num::ParseIntError),
+    #[error("failed to parse sv clock fields")]
+    ParseFloatError(#[from] std::num::ParseFloatError),
+    #[error("failed to parse epoch")]
+    EpochError(#[from] epoch::Error),
+    #[error("failed to identify class/type")]
+    StrumError(#[from] strum::ParseError),
+    #[error("failed to parse EPH message")]
+    EphMessageError(#[from] ephemeris::Error),
+    #[error("failed to parse ION message")]
+    IonMessageError(#[from] ionmessage::Error),
+    #[error("failed to parse EOP message")]
+    EopMessageError(#[from] eopmessage::Error),
+    #[error("failed to parse STO message")]
+    StoMessageError(#[from] stomessage::Error),
+}
+
+/*
+ * Marker to identify which NAV frame follows in the record
+ */
+#[derive(Default, Debug, Copy, Clone, PartialEq, PartialOrd, Eq, Ord)]
+pub enum FrameClass {
+    #[default]
+    Ephemeris,
+    SystemTimeOffset,
+    EarthOrientation,
+    IonosphericModel,
+}
+
+impl std::fmt::Display for FrameClass {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Self::Ephemeris => f.write_str("EPH"),
+            Self::SystemTimeOffset => f.write_str("STO"),
+            Self::EarthOrientation => f.write_str("EOP"),
+            Self::IonosphericModel => f.write_str("ION"),
+        }
+    }
+}
+
+impl std::str::FromStr for FrameClass {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let c = s.to_uppercase();
+        let c = c.trim();
+        match c {
+            "EPH" => Ok(Self::Ephemeris),
+            "STO" => Ok(Self::SystemTimeOffset),
+            "EOP" => Ok(Self::EarthOrientation),
+            "ION" => Ok(Self::IonosphericModel),
+            _ => Err(Error::UnknownFrameClass),
+        }
+    }
+}

@@ -170,8 +170,8 @@ impl Record {
             },
             Type::NavigationData => {
                 let record = self.as_nav().unwrap();
-                for (epoch, classes) in record.iter() {
-                    if let Ok(epoch) = navigation::record::fmt_epoch(epoch, classes, header) {
+                for (epoch, frames) in record.iter() {
+                    if let Ok(epoch) = navigation::record::fmt_epoch(epoch, frames, header) {
                         let _ = write!(writer, "{}", epoch);
                     }
                 }
@@ -239,7 +239,7 @@ pub enum Error {
     #[error("file i/o error")]
     FileIoError(#[from] std::io::Error),
     #[error("failed to produce Navigation epoch")]
-    NavEpochError(#[from] navigation::record::Error),
+    NavEpochError(#[from] navigation::Error),
     #[error("failed to produce Clock epoch")]
     ClockEpochError(#[from] clocks::Error),
 }
@@ -379,32 +379,18 @@ pub fn parse_record(
                 match &header.rinex_type {
                     Type::NavigationData => {
                         let constellation = &header.constellation.unwrap();
-                        if let Ok((e, class, fr)) = navigation::record::parse_epoch(
+                        if let Ok((e, fr)) = navigation::record::parse_epoch(
                             header.version,
                             *constellation,
                             &epoch_content,
                         ) {
-                            if let Some(e) = nav_rec.get_mut(&e) {
+                            if let Some(frames) = nav_rec.get_mut(&e) {
                                 // epoch already encountered
-                                if let Some(frames) = e.get_mut(&class) {
-                                    // class already encountered for this epoch
-                                    frames.push(fr);
-                                } else {
-                                    // new class entry, for this epoch
-                                    let mut inner: Vec<navigation::Frame> = Vec::with_capacity(1);
-                                    inner.push(fr);
-                                    e.insert(class, inner);
-                                }
+                                // add new entry
+                                frames.push(fr);
                             } else {
                                 // new epoch: create entry entry
-                                let mut map: BTreeMap<
-                                    navigation::FrameClass,
-                                    Vec<navigation::Frame>,
-                                > = BTreeMap::new();
-                                let mut inner: Vec<navigation::Frame> = Vec::with_capacity(1);
-                                inner.push(fr);
-                                map.insert(class, inner);
-                                nav_rec.insert(e, map);
+                                nav_rec.insert(e, vec![fr]);
                             }
                             comment_ts = e.clone(); // for comments classification & management
                         }
@@ -527,28 +513,16 @@ pub fn parse_record(
     match &header.rinex_type {
         Type::NavigationData => {
             let constellation = &header.constellation.unwrap();
-            if let Ok((e, class, fr)) =
+            if let Ok((e, fr)) =
                 navigation::record::parse_epoch(header.version, *constellation, &epoch_content)
             {
-                if let Some(e) = nav_rec.get_mut(&e) {
+                if let Some(frames) = nav_rec.get_mut(&e) {
                     // epoch already encountered
-                    if let Some(frames) = e.get_mut(&class) {
-                        // class already encountered for this epoch
-                        frames.push(fr);
-                    } else {
-                        // new class entry, for this epoch
-                        let mut inner: Vec<navigation::Frame> = Vec::with_capacity(1);
-                        inner.push(fr);
-                        e.insert(class, inner);
-                    }
+                    // append new entry
+                    frames.push(fr);
                 } else {
-                    // new epoch: create entry entry
-                    let mut map: BTreeMap<navigation::FrameClass, Vec<navigation::Frame>> =
-                        BTreeMap::new();
-                    let mut inner: Vec<navigation::Frame> = Vec::with_capacity(1);
-                    inner.push(fr);
-                    map.insert(class, inner);
-                    nav_rec.insert(e, map);
+                    // new epoch: create entry
+                    nav_rec.insert(e, vec![fr]);
                 }
                 comment_ts = e.clone(); // for comments classification & management
             }

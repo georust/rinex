@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod test {
-    use rinex::RinexIter;
-    use rinex::{hatanaka::Decompressor, prelude::*, *};
+    use rinex::hatanaka::Decompressor;
+    use rinex::{observable, prelude::*};
     use std::collections::HashMap;
     use std::str::FromStr;
     #[test]
@@ -186,7 +186,7 @@ mod test {
             Epoch::from_gregorian_utc(2021, 01, 01, 00, 09, 00, 00),
         ];
         assert!(
-            rnx.epochs().collect::<Vec<Epoch>>() == epochs,
+            rnx.epoch().collect::<Vec<Epoch>>() == epochs,
             "Parsed wrong epoch content",
         );
 
@@ -387,7 +387,7 @@ mod test {
             Epoch::from_gregorian_utc(2021, 12, 21, 00, 12, 0, 0),
         ];
         assert!(
-            rnx.epochs().collect::<Vec<Epoch>>() == epochs,
+            rnx.epoch().collect::<Vec<Epoch>>() == epochs,
             "parsed wrong epoch content"
         );
         /*

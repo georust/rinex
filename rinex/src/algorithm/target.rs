@@ -1,6 +1,6 @@
 use crate::constellation;
 use crate::navigation;
-use crate::navigation::{orbits::NAV_ORBITS, FrameClass, MsgType};
+use crate::navigation::{orbits::NAV_ORBITS, FrameClass, NavMsgType};
 use crate::observable;
 use crate::observable::Observable;
 use crate::prelude::*;
@@ -33,7 +33,7 @@ pub enum Error {
     #[error("failed to parse constellation")]
     ConstellationParsingError,
     #[error("invalid nav item")]
-    InvalidNavItem(#[from] crate::navigation::record::Error),
+    InvalidNavItem(#[from] crate::navigation::Error),
     #[error("invalid observable item")]
     InvalidObsItem(#[from] crate::observable::Error),
     #[error("invalid duration description")]
@@ -65,7 +65,7 @@ pub enum TargetItem {
     /// List of Orbit fields item
     OrbitItem(Vec<String>),
     /// List of Navigation Messages
-    NavMsgItem(Vec<MsgType>),
+    NavMsgItem(Vec<NavMsgType>),
     /// List of Navigation Frame types
     NavFrameItem(Vec<FrameClass>),
     /// (Rx) ClockItem
@@ -176,9 +176,7 @@ pub(crate) fn parse_obs_list(items: Vec<&str>) -> Result<Vec<Observable>, observ
     Ok(ret)
 }
 
-pub(crate) fn parse_nav_frames(
-    items: Vec<&str>,
-) -> Result<Vec<FrameClass>, navigation::record::Error> {
+pub(crate) fn parse_nav_frames(items: Vec<&str>) -> Result<Vec<FrameClass>, navigation::Error> {
     let mut ret: Vec<FrameClass> = Vec::with_capacity(items.len());
     for item in items {
         let sv = FrameClass::from_str(item.trim())?;
@@ -187,10 +185,10 @@ pub(crate) fn parse_nav_frames(
     Ok(ret)
 }
 
-pub(crate) fn parse_nav_msg(items: Vec<&str>) -> Result<Vec<MsgType>, navigation::record::Error> {
-    let mut ret: Vec<MsgType> = Vec::with_capacity(items.len());
+pub(crate) fn parse_nav_msg(items: Vec<&str>) -> Result<Vec<NavMsgType>, navigation::Error> {
+    let mut ret: Vec<NavMsgType> = Vec::with_capacity(items.len());
     for item in items {
-        let msg = MsgType::from_str(item.trim())?;
+        let msg = NavMsgType::from_str(item.trim())?;
         ret.push(msg);
     }
     Ok(ret)
@@ -281,7 +279,7 @@ impl std::str::FromStr for TargetItem {
         /*
          * Navigation Msg
          */
-        } else if let Ok(_msg) = MsgType::from_str(items[0].trim()) {
+        } else if let Ok(_msg) = NavMsgType::from_str(items[0].trim()) {
             //TODO improve this:
             // do not test 1st entry only but all possible content
             Ok(Self::NavMsgItem(parse_nav_msg(items)?))
@@ -360,8 +358,8 @@ impl From<Vec<Constellation>> for TargetItem {
     }
 }
 
-impl From<MsgType> for TargetItem {
-    fn from(msg: MsgType) -> Self {
+impl From<NavMsgType> for TargetItem {
+    fn from(msg: NavMsgType) -> Self {
         Self::NavMsgItem(vec![msg])
     }
 }
@@ -417,7 +415,7 @@ mod test {
         assert_eq!(target, TargetItem::ObservableItem(vec![obs.clone()]));
         assert_eq!(TargetItem::from_str("L1C").unwrap(), target);
 
-        let msg = MsgType::LNAV;
+        let msg = NavMsgType::LNAV;
         let target: TargetItem = msg.into();
         assert_eq!(target, TargetItem::NavMsgItem(vec![msg]));
         assert_eq!(TargetItem::from_str("LNAV").unwrap(), target);

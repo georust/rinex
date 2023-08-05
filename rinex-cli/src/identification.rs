@@ -1,4 +1,5 @@
 use crate::{Cli, Context};
+use rinex::observation::ObservationIter;
 use rinex::*;
 
 /*

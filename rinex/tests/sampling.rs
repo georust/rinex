@@ -2,8 +2,6 @@
 mod sampling {
     use rinex::prelude::*;
     use rinex::preprocessing::*;
-    use rinex::RinexIter;
-    use rinex::Sampling;
     use std::collections::HashMap;
     use std::str::FromStr;
     #[test]
@@ -29,15 +27,15 @@ mod sampling {
         let mut rinex =
             Rinex::from_file("../test_resources/NAV/V3/AMEL00NLD_R_20210010000_01D_MN.rnx")
                 .unwrap();
-        let initial_epochs = rinex.epochs().collect::<Vec<Epoch>>();
+        let initial_epochs = rinex.epoch().collect::<Vec<Epoch>>();
         rinex.decimate_by_interval_mut(Duration::from_seconds(10.0));
         assert!(
-            rinex.epochs().collect::<Vec<Epoch>>() == initial_epochs,
+            rinex.epoch().collect::<Vec<Epoch>>() == initial_epochs,
             "decim with too small time interval failed"
         );
         rinex.decimate_by_interval_mut(Duration::from_hours(1.0));
         assert!(
-            rinex.epochs().collect::<Vec<Epoch>>().len() == initial_epochs.len() - 2,
+            rinex.epoch().collect::<Vec<Epoch>>().len() == initial_epochs.len() - 2,
             "failed to decimate to 1 hour epoch interval"
         );
     }
@@ -49,13 +47,13 @@ mod sampling {
 
         rinex.decimate_by_ratio_mut(2);
         assert!(
-            rinex.epochs().collect::<Vec<Epoch>>().len() == 3,
+            rinex.epoch().collect::<Vec<Epoch>>().len() == 3,
             "decim by 2 failed"
         );
 
         rinex.decimate_by_ratio_mut(2);
         assert!(
-            rinex.epochs().collect::<Vec<Epoch>>().len() == 2,
+            rinex.epoch().collect::<Vec<Epoch>>().len() == 2,
             "decim by 3 + 2 failed"
         );
     }

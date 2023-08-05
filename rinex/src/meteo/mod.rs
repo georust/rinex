@@ -17,9 +17,10 @@ pub struct HeaderFields {
 
 use crate::prelude::Epoch;
 
-/// Meteo RINEX record iteration methods.
-/// Faillible: if used on other RINEX types
-pub trait MeteoIter {
+/// Meteo RINEX record specific methods.
+#[cfg(feature = "meteo")]
+#[cfg_attr(docrs, doc(cfg(feature = "meteo")))]
+pub trait Meteo {
     /// Returns temperature data iterator, values expressed in Celcius degrees
     /// ```
     /// use rinex::prelude::*;
@@ -120,11 +121,6 @@ pub trait MeteoIter {
     /// }
     /// ```
     fn zenith_delay(&self) -> Box<dyn Iterator<Item = (Epoch, f64)> + '_>;
-}
-
-#[cfg(feature = "meteo")]
-#[cfg_attr(docrs, doc(cfg(feature = "meteo")))]
-pub trait Meteo {
     /// Returns total accumulated rain in tenth of mm, within this time frame
     /// ```
     /// use std::str::FromStr;

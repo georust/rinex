@@ -192,125 +192,6 @@ pub struct Rinex {
     pub record: record::Record,
 }
 
-pub trait RinexIter {
-    /// Returns [`Epoch`] iterator. This method will fail
-    /// if used on a RINEX type that is not iterated by [`Epoch`]
-    fn epochs(&self) -> Box<dyn Iterator<Item = Epoch> + '_>;
-
-    /// Returns ([`Epoch`] [`EpochFlag`]) iterator. This method will fail
-    /// if used on other types than OBS RINEX.
-    fn epoch_flags(&self) -> Box<dyn Iterator<Item = (Epoch, EpochFlag)> + '_>;
-
-    /// Returns Unique [`Sv`] iterator.
-    /// Use this to browse all identified vehicles.
-    fn sv(&self) -> Box<dyn Iterator<Item = Sv> + '_>;
-
-    /// Returns Unique [`Sv`] iterator per [`Epoch`].
-    /// Use this to browse identify vehicles for each separate [`Epoch`].
-    fn sv_epoch(&self) -> Box<dyn Iterator<Item = (Epoch, Vec<Sv>)> + '_>;
-
-    #[cfg(feature = "obs")]
-    #[cfg_attr(docrs, doc(cfg(feature = "obs")))]
-    /// Returns an Iterator over all abnormal [`Epoch`]s
-    /// and reports given event nature.  
-    /// Refer to [`epoch::EpochFlag`] for all possible events.  
-    /// This only applies to OBS RINEX.
-    fn epoch_anomalies(&self) -> Box<dyn Iterator<Item = (Epoch, EpochFlag)> + '_>;
-}
-
-pub trait Sampling {
-    /// Returns first [`Epoch`] encountered in time
-    fn first_epoch(&self) -> Option<Epoch>;
-
-    /// Returns last [`Epoch`] encountered in time
-    fn last_epoch(&self) -> Option<Epoch>;
-
-    /// Returns Duration of this RINEX
-    fn duration(&self) -> Option<Duration>;
-
-    /// Form a [`Timeseries`] iterator spanning [Self::duration]
-    /// with [Self::dominant_sample_rate] spacing
-    fn timeseries(&self) -> Option<TimeSeries>;
-
-    /// Returns sample rate of self.
-    /// For a RINEX, it is the value specified in the
-    /// file [`Header`]. In reality, [Self::dominant_sample_rate]
-    /// might differ, due to hardware issues or changes in receiving
-    /// conditions for example.
-    /// Non steady sample rates are common in IONEX files.
-    fn sample_rate(&self) -> Option<Duration>;
-
-    /// Returns sample rate histogram analysis.
-    /// ```
-    /// use rinex::Sampling;
-    /// use rinex::prelude::*;
-    /// use std::collections::HashMap;
-    /// let rinex = Rinex::from_file("../test_resources/NAV/V3/AMEL00NLD_R_20210010000_01D_MN.rnx")
-    ///     .unwrap();
-    /// let histogram: HashMap<_, _> = [
-    ///     (Duration::from_seconds(15.0*60.0), 1),
-    ///     (Duration::from_seconds(4.0*3600.0 + 45.0*60.0), 2),
-    ///     (Duration::from_seconds(25.0*60.0), 1),
-    ///     (Duration::from_seconds(5.0*3600.0 + 30.0*60.0), 1),
-    /// ].into_iter()
-    ///     .collect();
-    /// assert_eq!(rinex.sampling_histogram(), histogram);
-    /// ```
-    fn sampling_histogram(&self) -> HashMap<Duration, usize>;
-
-    /// Returns dominant sample rate
-    /// ```
-    /// use rinex::Sampling;
-    /// use rinex::prelude::*;
-    /// let rnx = Rinex::from_file("../test_resources/MET/V2/abvi0010.15m")
-    ///     .unwrap();
-    /// assert_eq!(
-    ///     rnx.dominant_sample_rate(),
-    ///     Some(Duration::from_seconds(60.0)));
-    /// ```
-    fn dominant_sample_rate(&self) -> Option<Duration>;
-
-    /// Returns an iterator over unexpected data gaps,
-    /// in the form ([`Epoch`], [`Duration`]), where
-    /// epoch is the starting datetime, and its related duration.
-    /// ```
-    /// use rinex::Sampling;
-    /// use std::str::FromStr;
-    /// use rinex::prelude::{Rinex, Epoch, Duration};
-    /// let rinex = Rinex::from_file("../test_resources/MET/V2/abvi0010.15m")
-    ///     .unwrap();
-    ///
-    /// // when tolerance is set to None,
-    /// // the refenrece sample rate is [Self::dominant_sample_rate].
-    /// let mut tolerance : Option<Duration> = None;
-    /// let gaps : Vec<_> = rinex.data_gaps(tolerance).collect();
-    /// assert_eq!(
-    ///     gaps,
-    ///     vec![
-    ///         (Epoch::from_str("2015-01-01T09:00:00 UTC").unwrap(), Duration::from_seconds(8.0 * 3600.0 + 51.0 * 60.0)),
-    ///         (Epoch::from_str("2015-01-01T19:25:00 UTC").unwrap(), Duration::from_seconds(10.0 * 3600.0 + 21.0 * 60.0)),
-    ///         (Epoch::from_str("2015-01-01T22:55:00 UTC").unwrap(), Duration::from_seconds(3.0 * 3600.0 + 1.0 * 60.0)),
-    ///         (Epoch::from_str("2015-01-01T23:09:00 UTC").unwrap(), Duration::from_seconds(7.0 * 60.0)),
-    ///         (Epoch::from_str("2015-01-01T23:52:00 UTC").unwrap(), Duration::from_seconds(31.0 * 60.0)),
-    ///     ]);
-    ///
-    /// // with a tolerance, we tolerate the given gap duration
-    /// tolerance = Some(Duration::from_seconds(3600.0));
-    /// let gaps : Vec<_> = rinex.data_gaps(tolerance).collect();
-    /// assert_eq!(
-    ///     gaps,
-    ///     vec![
-    ///         (Epoch::from_str("2015-01-01T09:00:00 UTC").unwrap(), Duration::from_seconds(8.0 * 3600.0 + 51.0 * 60.0)),
-    ///         (Epoch::from_str("2015-01-01T19:25:00 UTC").unwrap(), Duration::from_seconds(10.0 * 3600.0 + 21.0 * 60.0)),
-    ///         (Epoch::from_str("2015-01-01T22:55:00 UTC").unwrap(), Duration::from_seconds(3.0 * 3600.0 + 1.0 * 60.0)),
-    ///     ]);
-    /// ```
-    fn data_gaps(
-        &self,
-        tolerance: Option<Duration>,
-    ) -> Box<dyn Iterator<Item = (Epoch, Duration)> + '_>;
-}
-
 #[derive(Error, Debug)]
 /// `RINEX` Parsing related errors
 pub enum Error {
@@ -440,7 +321,7 @@ impl Rinex {
          * all epochs share the same timescale,
          * by construction & definition.
          * No need to test other epochs */
-        if let Some(e) = self.epochs().collect::<Vec<Epoch>>().get(0) {
+        if let Some(e) = self.epoch().collect::<Vec<Epoch>>().get(0) {
             Some(e.time_scale)
         } else {
             None
@@ -512,7 +393,7 @@ impl Rinex {
             types::Type::ObservationData
             | types::Type::NavigationData
             | types::Type::MeteoData
-            | types::Type::ClockData => self.epochs().collect::<Vec<Epoch>>()[0],
+            | types::Type::ClockData => self.epoch().collect::<Vec<Epoch>>()[0],
             _ => todo!(), // other files require a dedicated procedure
         };
         if header.version.major < 3 {
@@ -596,7 +477,7 @@ impl Rinex {
     /// some are mandatory.   
     /// Parses record (file body) for supported `RINEX` types.
     pub fn from_file(path: &str) -> Result<Rinex, Error> {
-        /* This will be required if we have make the BufferedReader Hatanaka compliant
+        /* This will be required if we ever make the BufferedReader Hatanaka compliant
         // Grab first 80 bytes to fully determine the BufferedReader attributes.
         // We use the `BufferedReader` wrapper for efficient file browsing (.lines())
         // and builtin CRINEX decompression
@@ -756,7 +637,7 @@ impl Rinex {
     // /// Returns [`Epoch`]s where a loss of lock event happened.
     // /// This is only relevant on OBS RINEX.
     // pub fn epoch_lock_loss(&self) -> Vec<Epoch> {
-    //     self.lli_and_mask(observation::LliFlags::LOCK_LOSS).epochs()
+    //     self.lli_and_mask(observation::LliFlags::LOCK_LOSS).epoch()
     // }
 
     /// Removes all observations where receiver phase lock was lost.   
@@ -768,6 +649,7 @@ impl Rinex {
     /// Lists all [`Constellation`] contained in record.    
     /// This applies to OBS, NAV and CLK RINEX.
     pub fn constellations(&self) -> Vec<Constellation> {
+        panic!("todo move to Iter constellation()");
         let mut ret: Vec<Constellation> = Vec::new();
         match self.header.constellation {
             Some(Constellation::Mixed) => {
@@ -780,18 +662,19 @@ impl Rinex {
                         }
                     }
                 } else if let Some(r) = self.record.as_nav() {
-                    for (_, classes) in r {
-                        for (class, frames) in classes {
-                            if *class == navigation::FrameClass::Ephemeris {
-                                for frame in frames {
-                                    let (_, sv, _) = frame.as_eph().unwrap();
-                                    if !ret.contains(&sv.constellation) {
-                                        ret.push(sv.constellation.clone());
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    panic!("rework");
+                    //for (_, classes) in r {
+                    //    for (class, frames) in classes {
+                    //        if *class == navigation::FrameClass::Ephemeris {
+                    //            for frame in frames {
+                    //                let (_, sv, _) = frame.as_eph().unwrap();
+                    //                if !ret.contains(&sv.constellation) {
+                    //                    ret.push(sv.constellation.clone());
+                    //                }
+                    //            }
+                    //        }
+                    //    }
+                    //}
                 } else if let Some(r) = self.record.as_clock() {
                     for (_, types) in r {
                         for (_, systems) in types {
@@ -814,24 +697,25 @@ impl Rinex {
     }
 
     pub fn retain_best_elevation_angles_mut(&mut self) {
-        let best_vehicles = self.space_vehicles_best_elevation_angle();
-        if let Some(record) = self.record.as_mut_nav() {
-            record.retain(|e, classes| {
-                let best = best_vehicles.get(e).unwrap();
-                classes.retain(|class, frames| {
-                    if *class == navigation::FrameClass::Ephemeris {
-                        frames.retain(|fr| {
-                            let (_, sv, _) = fr.as_eph().unwrap();
-                            best.contains(sv)
-                        });
-                        frames.len() > 0
-                    } else {
-                        false
-                    }
-                });
-                classes.len() > 0
-            });
-        }
+        panic!("rework");
+        //let best_vehicles = self.space_vehicles_best_elevation_angle();
+        //if let Some(record) = self.record.as_mut_nav() {
+        //    record.retain(|e, classes| {
+        //        let best = best_vehicles.get(e).unwrap();
+        //        classes.retain(|class, frames| {
+        //            if *class == navigation::FrameClass::Ephemeris {
+        //                frames.retain(|fr| {
+        //                    let (_, sv, _) = fr.as_eph().unwrap();
+        //                    best.contains(sv)
+        //                });
+        //                frames.len() > 0
+        //            } else {
+        //                false
+        //            }
+        //        });
+        //        classes.len() > 0
+        //    });
+        //}
     }
 
     /// Returns receiver clock offset, for all epoch that came with such information.
@@ -856,58 +740,6 @@ impl Rinex {
             }
         }
         map
-    }
-
-    /// Returns Sv (embedded) clock biases, in the form
-    /// (offset (s), drift (s.s⁻¹), drift rate (s.s⁻²)).   
-    /// This only applies to NAV RINEX with Ephemeric frames.
-    ///
-    /// Example:
-    /// ```
-    /// use rinex::*;
-    /// use std::str::FromStr; // filter!
-    /// use rinex::preprocessing::*; // .filter_mut()
-    ///
-    /// let mut rinex = Rinex::from_file("../test_resources/NAV/V3/CBW100NLD_R_20210010000_01D_MN.rnx")
-    ///     .unwrap();
-    /// rinex.filter_mut(filter!("G08,G07"));
-    ///
-    /// let sv_clock = rinex.sv_clock();
-    /// for (epoch, vehicles) in sv_clock {
-    ///     for (sv, (offset, dr, drr)) in vehicles {
-    ///         // sv: space vehicle
-    ///         // offset [s]
-    ///         // dr: clock drift [s.s⁻¹]
-    ///         // drr: clock drift rate [s.s⁻²]
-    ///     }
-    /// }
-    /// ```
-    pub fn sv_clock(&self) -> BTreeMap<Epoch, BTreeMap<Sv, (f64, f64, f64)>> {
-        let mut results: BTreeMap<Epoch, BTreeMap<Sv, (f64, f64, f64)>> = BTreeMap::new();
-        if let Some(r) = self.record.as_nav() {
-            for (e, classes) in r {
-                for (class, frames) in classes {
-                    if *class == navigation::FrameClass::Ephemeris {
-                        let mut map: BTreeMap<Sv, (f64, f64, f64)> = BTreeMap::new();
-                        for frame in frames {
-                            let (_, sv, ephemeris) = frame.as_eph().unwrap();
-                            map.insert(
-                                *sv,
-                                (
-                                    ephemeris.clock_bias,
-                                    ephemeris.clock_drift,
-                                    ephemeris.clock_drift_rate,
-                                ),
-                            );
-                        }
-                        if map.len() > 0 {
-                            results.insert(*e, map);
-                        }
-                    }
-                }
-            }
-        }
-        results
     }
 
     /// Returns list of observables, in the form
@@ -939,153 +771,32 @@ impl Rinex {
                 result.push(code.to_string())
             }
         } else if self.is_navigation_rinex() {
-            let record = self.record.as_nav().unwrap();
-            for (_, classes) in record.iter() {
-                for (class, frames) in classes.iter() {
-                    if *class == navigation::FrameClass::Ephemeris {
-                        for frame in frames.iter() {
-                            let (_, _, ephemeris) = frame.as_eph().unwrap();
-                            let orbits = &ephemeris.orbits;
-                            for key in orbits.keys() {
-                                if !result.contains(key) {
-                                    result.push(key.to_string())
-                                }
-                            }
-                        }
-                    } else if *class == navigation::FrameClass::SystemTimeOffset {
-                        for frame in frames.iter() {
-                            let (_, _, sto) = frame.as_sto().unwrap();
-                            if !result.contains(&sto.system.to_string()) {
-                                result.push(sto.system.clone())
-                            }
-                        }
-                    }
-                }
-            }
+            panic!("rework");
+            //    let record = self.record.as_nav().unwrap();
+            //    for (_, classes) in record.iter() {
+            //        for (class, frames) in classes.iter() {
+            //            if *class == navigation::FrameClass::Ephemeris {
+            //                for frame in frames.iter() {
+            //                    let (_, _, ephemeris) = frame.as_eph().unwrap();
+            //                    let orbits = &ephemeris.orbits;
+            //                    for key in orbits.keys() {
+            //                        if !result.contains(key) {
+            //                            result.push(key.to_string())
+            //                        }
+            //                    }
+            //                }
+            //            } else if *class == navigation::FrameClass::SystemTimeOffset {
+            //                for frame in frames.iter() {
+            //                    let (_, _, sto) = frame.as_sto().unwrap();
+            //                    if !result.contains(&sto.system.to_string()) {
+            //                        result.push(sto.system.clone())
+            //                    }
+            //                }
+            //            }
+            //        }
+            //    }
         }
         result
-    }
-
-    /// Returns all [Sv] identified in this file.   
-    /// For Clocks RINEX: returns list of Vehicles used as reference
-    /// in the record.
-    /// ```
-    /// use rinex::*;
-    /// use rinex::prelude::*;
-    /// use std::str::FromStr;
-    ///
-    /// let rnx = Rinex::from_file("../test_resources/OBS/V2/aopr0010.17o")
-    ///     .unwrap();
-    /// let vehicles = rnx.sv();
-    ///
-    /// assert_eq!(vehicles, vec![
-    ///     sv!("G01"), sv!("G03"), sv!("G06"),
-    ///     sv!("G07"), sv!("G08"), sv!("G09"),
-    ///     sv!("G11"), sv!("G14"), sv!("G16"),
-    ///     sv!("G17"), sv!("G19"), sv!("G22"),
-    ///     sv!("G23"), sv!("G26"), sv!("G27"),
-    ///     sv!("G28"), sv!("G30"), sv!("G31"),
-    ///     sv!("G32")]);
-    /// ```
-    pub fn sv(&self) -> Vec<Sv> {
-        let mut map: Vec<Sv> = Vec::new();
-        if let Some(r) = self.record.as_nav() {
-            for (_, classes) in r {
-                for (class, frames) in classes {
-                    if *class == navigation::FrameClass::Ephemeris {
-                        for frame in frames {
-                            let (_, sv, _) = frame.as_eph().unwrap();
-                            if !map.contains(&sv) {
-                                map.push(*sv);
-                            }
-                        }
-                    }
-                }
-            }
-        } else if let Some(r) = self.record.as_obs() {
-            for (_, (_, vehicles)) in r {
-                for (sv, _) in vehicles {
-                    if !map.contains(&sv) {
-                        map.push(*sv);
-                    }
-                }
-            }
-        } else if let Some(r) = self.record.as_clock() {
-            for (_, dtypes) in r {
-                for (_, systems) in dtypes {
-                    for (system, _) in systems {
-                        match system {
-                            clocks::System::Sv(sv) => {
-                                if !map.contains(sv) {
-                                    map.push(*sv);
-                                }
-                            },
-                            _ => {},
-                        }
-                    }
-                }
-            }
-        }
-        map.sort();
-        map
-    }
-
-    /// List all [Sv] per epoch of appearance.
-    /// ```
-    /// use rinex::prelude::*;
-    /// let rnx = Rinex::from_file("../test_resources/OBS/V2/aopr0010.17o")
-    ///     .unwrap();
-    ///
-    /// let data = rnx.sv_epoch();
-    ///
-    /// let first_epoch = Epoch::from_gregorian_utc(2017, 1, 1, 0, 0, 0, 0);
-    ///
-    /// let vehicles = data.get(&first_epoch)
-    ///     .unwrap();
-    /// assert_eq!(*vehicles, vec![
-    ///     Sv::new(Constellation::GPS, 03),
-    ///     Sv::new(Constellation::GPS, 08),
-    ///     Sv::new(Constellation::GPS, 14),
-    ///     Sv::new(Constellation::GPS, 16),
-    ///     Sv::new(Constellation::GPS, 22),
-    ///     Sv::new(Constellation::GPS, 23),
-    ///     Sv::new(Constellation::GPS, 26),
-    ///     Sv::new(Constellation::GPS, 27),
-    ///     Sv::new(Constellation::GPS, 31),
-    ///     Sv::new(Constellation::GPS, 32),
-    /// ]);
-    /// ```
-    pub fn sv_epoch(&self) -> BTreeMap<Epoch, Vec<Sv>> {
-        let mut map: BTreeMap<Epoch, Vec<Sv>> = BTreeMap::new();
-        if let Some(r) = self.record.as_nav() {
-            for (epoch, classes) in r {
-                let mut inner: Vec<Sv> = Vec::new();
-                for (class, frames) in classes.iter() {
-                    if *class == navigation::FrameClass::Ephemeris {
-                        for frame in frames {
-                            let (_, sv, _) = frame.as_eph().unwrap();
-                            inner.push(*sv);
-                        }
-                    }
-                }
-                if inner.len() > 0 {
-                    inner.sort();
-                    map.insert(*epoch, inner);
-                }
-            }
-        } else if let Some(r) = self.record.as_obs() {
-            for ((epoch, _), (_, vehicles)) in r {
-                let mut inner: Vec<Sv> = Vec::new();
-                for (sv, _) in vehicles.iter() {
-                    inner.push(*sv);
-                }
-                if inner.len() > 0 {
-                    inner.sort();
-                    map.insert(*epoch, inner);
-                }
-            }
-        }
-        map
     }
 
     /// List [clocks::record::System] (reference systems) contained in this CLK RINEX.   
@@ -1131,44 +842,45 @@ impl Rinex {
     }
 
     /// Lists identified [navigation::MsgType] in this NAV RINEX.
-    pub fn nav_message_types(&self) -> Vec<navigation::MsgType> {
-        let mut ret: Vec<navigation::MsgType> = Vec::new();
-        if let Some(record) = self.record.as_nav() {
-            for (_, classes) in record.iter() {
-                for (class, frames) in classes.iter() {
-                    if *class == navigation::FrameClass::Ephemeris {
-                        for fr in frames.iter() {
-                            let (msg, _, _) = fr.as_eph().unwrap();
-                            if !ret.contains(msg) {
-                                ret.push(*msg);
-                            }
-                        }
-                    } else if *class == navigation::FrameClass::SystemTimeOffset {
-                        for fr in frames.iter() {
-                            let (msg, _, _) = fr.as_sto().unwrap();
-                            if !ret.contains(msg) {
-                                ret.push(*msg);
-                            }
-                        }
-                    } else if *class == navigation::FrameClass::IonosphericModel {
-                        for fr in frames.iter() {
-                            let (msg, _, _) = fr.as_ion().unwrap();
-                            if !ret.contains(msg) {
-                                ret.push(*msg);
-                            }
-                        }
-                    } else if *class == navigation::FrameClass::EarthOrientation {
-                        for fr in frames.iter() {
-                            let (msg, _, _) = fr.as_eop().unwrap();
-                            if !ret.contains(msg) {
-                                ret.push(*msg);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        ret
+    pub fn nav_message_types(&self) -> Vec<navigation::NavMsgType> {
+        panic!("rework");
+        //let mut ret: Vec<navigation::MsgType> = Vec::new();
+        //if let Some(record) = self.record.as_nav() {
+        //    for (_, classes) in record.iter() {
+        //        for (class, frames) in classes.iter() {
+        //            if *class == navigation::FrameClass::Ephemeris {
+        //                for fr in frames.iter() {
+        //                    let (msg, _, _) = fr.as_eph().unwrap();
+        //                    if !ret.contains(msg) {
+        //                        ret.push(*msg);
+        //                    }
+        //                }
+        //            } else if *class == navigation::FrameClass::SystemTimeOffset {
+        //                for fr in frames.iter() {
+        //                    let (msg, _, _) = fr.as_sto().unwrap();
+        //                    if !ret.contains(msg) {
+        //                        ret.push(*msg);
+        //                    }
+        //                }
+        //            } else if *class == navigation::FrameClass::IonosphericModel {
+        //                for fr in frames.iter() {
+        //                    let (msg, _, _) = fr.as_ion().unwrap();
+        //                    if !ret.contains(msg) {
+        //                        ret.push(*msg);
+        //                    }
+        //                }
+        //            } else if *class == navigation::FrameClass::EarthOrientation {
+        //                for fr in frames.iter() {
+        //                    let (msg, _, _) = fr.as_eop().unwrap();
+        //                    if !ret.contains(msg) {
+        //                        ret.push(*msg);
+        //                    }
+        //                }
+        //            }
+        //        }
+        //    }
+        //}
+        //ret
     }
 
     /// Applies given AND mask in place, to all observations.
@@ -1300,140 +1012,27 @@ impl Rinex {
     /// This does not produce anything if self is not a modern Navigation record
     /// that contains such frames.
     pub fn navigation_system_time_offsets(&self) -> BTreeMap<Epoch, Vec<navigation::StoMessage>> {
-        if !self.is_navigation_rinex() {
-            return BTreeMap::new(); // nothing to browse
-        }
-        let mut results: BTreeMap<Epoch, Vec<navigation::StoMessage>> = BTreeMap::new();
-        let record = self.record.as_nav().unwrap();
-        for (e, classes) in record.iter() {
-            for (class, frames) in classes.iter() {
-                if *class == navigation::FrameClass::SystemTimeOffset {
-                    let mut inner: Vec<navigation::StoMessage> = Vec::new();
-                    for frame in frames.iter() {
-                        let (_, _, fr) = frame.as_sto().unwrap();
-                        inner.push(fr.clone())
-                    }
-                    if inner.len() > 0 {
-                        results.insert(*e, inner);
-                    }
-                }
-            }
-        }
-        results
-    }
-
-    /// Extracts from this Navigation record all Ionospheric Models, on a epoch basis,
-    /// regardless of their kind. This does not produce anything if
-    /// self is not a modern Navigation record that contains such models.
-    pub fn navigation_ionospheric_models(&self) -> BTreeMap<Epoch, Vec<navigation::IonMessage>> {
-        if !self.is_navigation_rinex() {
-            return BTreeMap::new(); // nothing to browse
-        }
-        let mut results: BTreeMap<Epoch, Vec<navigation::IonMessage>> = BTreeMap::new();
-        let record = self.record.as_nav().unwrap();
-        for (e, classes) in record.iter() {
-            for (class, frames) in classes.iter() {
-                if *class == navigation::FrameClass::IonosphericModel {
-                    let mut inner: Vec<navigation::IonMessage> = Vec::new();
-                    for frame in frames.iter() {
-                        let (_, _, fr) = frame.as_ion().unwrap();
-                        inner.push(fr.clone())
-                    }
-                    if inner.len() > 0 {
-                        results.insert(*e, inner);
-                    }
-                }
-            }
-        }
-        results
-    }
-
-    /// Extracts all Klobuchar Ionospheric models from this Navigation record.
-    /// This does not produce anything if self is not a modern Navigation record
-    /// that contains such models.
-    pub fn navigation_klobuchar_ionospheric_models(
-        &self,
-    ) -> BTreeMap<Epoch, Vec<navigation::KbModel>> {
-        if !self.is_navigation_rinex() {
-            return BTreeMap::new(); // nothing to browse
-        }
-        let mut results: BTreeMap<Epoch, Vec<navigation::KbModel>> = BTreeMap::new();
-        let record = self.record.as_nav().unwrap();
-        for (e, classes) in record.iter() {
-            for (class, frames) in classes.iter() {
-                if *class == navigation::FrameClass::IonosphericModel {
-                    let mut inner: Vec<navigation::KbModel> = Vec::new();
-                    for frame in frames.iter() {
-                        let (_, _, fr) = frame.as_ion().unwrap();
-                        if let Some(model) = fr.as_klobuchar() {
-                            inner.push(*model);
-                        }
-                    }
-                    if inner.len() > 0 {
-                        results.insert(*e, inner);
-                    }
-                }
-            }
-        }
-        results
-    }
-
-    /// Extracts all Nequick-G Ionospheric models from this Navigation record.
-    /// This does not produce anything if self is not a modern Navigation record
-    /// that contains such models.
-    pub fn navigation_nequickg_ionospheric_models(
-        &self,
-    ) -> BTreeMap<Epoch, Vec<navigation::NgModel>> {
-        if !self.is_navigation_rinex() {
-            return BTreeMap::new(); // nothing to browse
-        }
-        let mut results: BTreeMap<Epoch, Vec<navigation::NgModel>> = BTreeMap::new();
-        let record = self.record.as_nav().unwrap();
-        for (e, classes) in record.iter() {
-            for (class, frames) in classes.iter() {
-                if *class == navigation::FrameClass::IonosphericModel {
-                    let mut inner: Vec<navigation::NgModel> = Vec::new();
-                    for frame in frames.iter() {
-                        let (_, _, fr) = frame.as_ion().unwrap();
-                        if let Some(model) = fr.as_nequick_g() {
-                            inner.push(*model);
-                        }
-                    }
-                    if inner.len() > 0 {
-                        results.insert(*e, inner);
-                    }
-                }
-            }
-        }
-        results
-    }
-
-    /// Extracts all BDGIM Ionospheric models from this Navigation record.
-    /// This does not produce anything if self is not a modern Navigation record
-    /// that contains such models.
-    pub fn navigation_bdgim_ionospheric_models(&self) -> BTreeMap<Epoch, Vec<navigation::BdModel>> {
-        if !self.is_navigation_rinex() {
-            return BTreeMap::new(); // nothing to browse
-        }
-        let mut results: BTreeMap<Epoch, Vec<navigation::BdModel>> = BTreeMap::new();
-        let record = self.record.as_nav().unwrap();
-        for (e, classes) in record.iter() {
-            for (class, frames) in classes.iter() {
-                if *class == navigation::FrameClass::IonosphericModel {
-                    let mut inner: Vec<navigation::BdModel> = Vec::new();
-                    for frame in frames.iter() {
-                        let (_, _, fr) = frame.as_ion().unwrap();
-                        if let Some(model) = fr.as_bdgim() {
-                            inner.push(*model);
-                        }
-                    }
-                    if inner.len() > 0 {
-                        results.insert(*e, inner);
-                    }
-                }
-            }
-        }
-        results
+        panic!("rework");
+        //if !self.is_navigation_rinex() {
+        //    return BTreeMap::new(); // nothing to browse
+        //}
+        //let mut results: BTreeMap<Epoch, Vec<navigation::StoMessage>> = BTreeMap::new();
+        //let record = self.record.as_nav().unwrap();
+        //for (e, classes) in record.iter() {
+        //    for (class, frames) in classes.iter() {
+        //        if *class == navigation::FrameClass::SystemTimeOffset {
+        //            let mut inner: Vec<navigation::StoMessage> = Vec::new();
+        //            for frame in frames.iter() {
+        //                let (_, _, fr) = frame.as_sto().unwrap();
+        //                inner.push(fr.clone())
+        //            }
+        //            if inner.len() > 0 {
+        //                results.insert(*e, inner);
+        //            }
+        //        }
+        //    }
+        //}
+        //results
     }
     /// Aligns Phase observations at origin
     pub fn observation_phase_align_origin_mut(&mut self) {
@@ -1862,86 +1461,53 @@ impl Rinex {
     }
 }
 
-impl RinexIter for Rinex {
-    fn epochs(&self) -> Box<dyn Iterator<Item = Epoch> + '_> {
-        if let Some(r) = self.record.as_obs() {
-            Box::new(r.iter().map(|((k, _), _)| *k))
-        } else if let Some(r) = self.record.as_nav() {
-            Box::new(r.iter().map(|(k, _)| *k))
-        } else if let Some(r) = self.record.as_meteo() {
-            Box::new(r.iter().map(|(k, _)| *k))
-        } else if let Some(r) = self.record.as_clock() {
-            Box::new(r.iter().map(|(k, _)| *k))
-        } else if let Some(r) = self.record.as_ionex() {
-            Box::new(r.iter().map(|(k, _)| *k))
-        } else {
-            panic!(
-                "cannot get an epoch iterator for \"{:?}\" RINEX",
-                self.header.rinex_type
-            );
-        }
+/*
+ * Sampling related methods
+ */
+impl Rinex {
+    /// Returns first [`Epoch`] encountered in time
+    pub fn first_epoch(&self) -> Option<Epoch> {
+        self.epoch().collect::<Vec<Epoch>>().get(0).copied()
     }
 
-    fn epoch_flags(&self) -> Box<dyn Iterator<Item = (Epoch, EpochFlag)> + '_> {
-        if let Some(r) = self.record.as_obs() {
-            Box::new(r.iter().map(|((e, f), _)| (*e, *f)))
-        } else {
-            panic!(
-                "cannot get an (epoch, flag) iterator on \"{:?}\" RINEX",
-                self.header.rinex_type
-            );
-        }
-    }
-
-    fn sv(&self) -> Box<dyn Iterator<Item = Sv> + '_> {
-        panic!("not yet");
-    }
-    fn sv_epoch(&self) -> Box<dyn Iterator<Item = (Epoch, Vec<Sv>)> + '_> {
-        panic!("not yet");
-    }
-
-    #[cfg(feature = "obs")]
-    fn epoch_anomalies(&self) -> Box<dyn Iterator<Item = (Epoch, EpochFlag)> + '_> {
-        Box::new(self.epoch_flags().filter_map(
-            |(e, f)| {
-                if !f.is_ok() {
-                    Some((e, f))
-                } else {
-                    None
-                }
-            },
-        ))
-    }
-}
-
-impl Sampling for Rinex {
-    fn first_epoch(&self) -> Option<Epoch> {
-        self.epochs().collect::<Vec<Epoch>>().get(0).copied()
-    }
-
-    fn last_epoch(&self) -> Option<Epoch> {
-        let epochs: Vec<_> = self.epochs().collect();
+    /// Returns last [`Epoch`] encountered in time
+    pub fn last_epoch(&self) -> Option<Epoch> {
+        let epochs: Vec<_> = self.epoch().collect();
         epochs.get(epochs.len() - 1).copied()
     }
 
-    fn duration(&self) -> Option<Duration> {
+    /// Returns Duration of (time spanned by) this RINEX
+    pub fn duration(&self) -> Option<Duration> {
         let start = self.first_epoch()?;
         let end = self.last_epoch()?;
         Some(end - start)
     }
 
-    fn timeseries(&self) -> Option<TimeSeries> {
+    /// Form a [`Timeseries`] iterator spanning [Self::duration]
+    /// with [Self::dominant_sample_rate] spacing
+    pub fn timeseries(&self) -> Option<TimeSeries> {
         let start = self.first_epoch()?;
         let end = self.last_epoch()?;
         let dt = self.dominant_sample_rate()?;
         Some(TimeSeries::inclusive(start, end, dt))
     }
 
-    fn sample_rate(&self) -> Option<Duration> {
+    /// Returns sample rate used by the data receiver.
+    pub fn sample_rate(&self) -> Option<Duration> {
         self.header.sampling_interval
     }
 
-    fn dominant_sample_rate(&self) -> Option<Duration> {
+    /// Returns dominant sample rate
+    /// ```
+    /// use rinex::Sampling;
+    /// use rinex::prelude::*;
+    /// let rnx = Rinex::from_file("../test_resources/MET/V2/abvi0010.15m")
+    ///     .unwrap();
+    /// assert_eq!(
+    ///     rnx.dominant_sample_rate(),
+    ///     Some(Duration::from_seconds(60.0)));
+    /// ```
+    pub fn dominant_sample_rate(&self) -> Option<Duration> {
         if let Some(dominant) = self
             .sampling_histogram()
             .into_iter()
@@ -1953,11 +1519,26 @@ impl Sampling for Rinex {
         }
     }
 
-    fn sampling_histogram(&self) -> HashMap<Duration, usize> {
+    /// ```
+    /// use rinex::Sampling;
+    /// use rinex::prelude::*;
+    /// use std::collections::HashMap;
+    /// let rinex = Rinex::from_file("../test_resources/NAV/V3/AMEL00NLD_R_20210010000_01D_MN.rnx")
+    ///     .unwrap();
+    /// let histogram: HashMap<_, _> = [
+    ///     (Duration::from_seconds(15.0*60.0), 1),
+    ///     (Duration::from_seconds(4.0*3600.0 + 45.0*60.0), 2),
+    ///     (Duration::from_seconds(25.0*60.0), 1),
+    ///     (Duration::from_seconds(5.0*3600.0 + 30.0*60.0), 1),
+    /// ].into_iter()
+    ///     .collect();
+    /// assert_eq!(rinex.sampling_histogram(), histogram);
+    /// ```
+    pub fn sampling_histogram(&self) -> HashMap<Duration, usize> {
         let mut prev: Option<Epoch> = None;
         let mut histogram: HashMap<Duration, usize> = HashMap::new();
 
-        for epoch in self.epochs() {
+        for epoch in self.epoch() {
             if let Some(prev) = prev {
                 let dt = epoch - prev;
                 if let Some(population) = histogram.get_mut(&dt) {
@@ -1971,7 +1552,42 @@ impl Sampling for Rinex {
         histogram
     }
 
-    fn data_gaps(
+    /// Returns an iterator over unexpected data gaps,
+    /// in the form ([`Epoch`], [`Duration`]), where
+    /// epoch is the starting datetime, and its related duration.
+    /// ```
+    /// use rinex::Sampling;
+    /// use std::str::FromStr;
+    /// use rinex::prelude::{Rinex, Epoch, Duration};
+    /// let rinex = Rinex::from_file("../test_resources/MET/V2/abvi0010.15m")
+    ///     .unwrap();
+    ///
+    /// // when tolerance is set to None,
+    /// // the refenrece sample rate is [Self::dominant_sample_rate].
+    /// let mut tolerance : Option<Duration> = None;
+    /// let gaps : Vec<_> = rinex.data_gaps(tolerance).collect();
+    /// assert_eq!(
+    ///     gaps,
+    ///     vec![
+    ///         (Epoch::from_str("2015-01-01T09:00:00 UTC").unwrap(), Duration::from_seconds(8.0 * 3600.0 + 51.0 * 60.0)),
+    ///         (Epoch::from_str("2015-01-01T19:25:00 UTC").unwrap(), Duration::from_seconds(10.0 * 3600.0 + 21.0 * 60.0)),
+    ///         (Epoch::from_str("2015-01-01T22:55:00 UTC").unwrap(), Duration::from_seconds(3.0 * 3600.0 + 1.0 * 60.0)),
+    ///         (Epoch::from_str("2015-01-01T23:09:00 UTC").unwrap(), Duration::from_seconds(7.0 * 60.0)),
+    ///         (Epoch::from_str("2015-01-01T23:52:00 UTC").unwrap(), Duration::from_seconds(31.0 * 60.0)),
+    ///     ]);
+    ///
+    /// // with a tolerance, we tolerate the given gap duration
+    /// tolerance = Some(Duration::from_seconds(3600.0));
+    /// let gaps : Vec<_> = rinex.data_gaps(tolerance).collect();
+    /// assert_eq!(
+    ///     gaps,
+    ///     vec![
+    ///         (Epoch::from_str("2015-01-01T09:00:00 UTC").unwrap(), Duration::from_seconds(8.0 * 3600.0 + 51.0 * 60.0)),
+    ///         (Epoch::from_str("2015-01-01T19:25:00 UTC").unwrap(), Duration::from_seconds(10.0 * 3600.0 + 21.0 * 60.0)),
+    ///         (Epoch::from_str("2015-01-01T22:55:00 UTC").unwrap(), Duration::from_seconds(3.0 * 3600.0 + 1.0 * 60.0)),
+    ///     ]);
+    /// ```
+    pub fn data_gaps(
         &self,
         tolerance: Option<Duration>,
     ) -> Box<dyn Iterator<Item = (Epoch, Duration)> + '_> {
@@ -1996,7 +1612,7 @@ impl Sampling for Rinex {
 
         let mut prev_epoch: Option<Epoch> = None;
 
-        Box::new(self.epochs().filter_map(move |epoch| {
+        Box::new(self.epoch().filter_map(move |epoch| {
             if prev_epoch.is_some() {
                 let dt = epoch - prev_epoch.unwrap();
                 prev_epoch = Some(epoch);
@@ -2013,140 +1629,736 @@ impl Sampling for Rinex {
     }
 }
 
-use meteo::MeteoIter;
+use itertools::Itertools; //.sort()
 
 /*
- * Meteo RINEX specific iterator
+ * Methods that return an Iterator exclusively.
+ * These methods are used to browse data easily and efficiently.
+ * It includes Format dependent extraction methods : one per format.
  */
-impl MeteoIter for Rinex {
-    fn temperature(&self) -> Box<dyn Iterator<Item = (Epoch, f64)> + '_> {
-        Box::new(self.record.as_meteo().into_iter().flat_map(|record| {
-            record.iter().flat_map(|(epoch, v)| {
-                v.iter().filter_map(|(k, value)| {
-                    if *k == Observable::Temperature {
-                        Some((*epoch, *value))
-                    } else {
-                        None
-                    }
+impl Rinex {
+    pub fn epoch(&self) -> Box<dyn Iterator<Item = Epoch> + '_> {
+        if let Some(r) = self.record.as_obs() {
+            Box::new(r.iter().map(|((k, _), _)| *k))
+        } else if let Some(r) = self.record.as_nav() {
+            Box::new(r.iter().map(|(k, _)| *k))
+        } else if let Some(r) = self.record.as_meteo() {
+            Box::new(r.iter().map(|(k, _)| *k))
+        } else if let Some(r) = self.record.as_clock() {
+            Box::new(r.iter().map(|(k, _)| *k))
+        } else if let Some(r) = self.record.as_ionex() {
+            Box::new(r.iter().map(|(k, _)| *k))
+        } else {
+            panic!(
+                "cannot get an epoch iterator for \"{:?}\" RINEX",
+                self.header.rinex_type
+            );
+        }
+    }
+
+    /// Returns a unique [`Sv`] iterator, to navigate
+    /// all Satellite Vehicles encountered and identified.
+    /// This will panic if invoked on ATX, Meteo or IONEX records.
+    /// In case of Clock RINEX, the returns the list of vehicles
+    /// used as reference.
+    /// ```
+    /// use rinex::prelude::*;
+    /// use rinex::sv; // sv!
+    /// use std::str::FromStr; // sv!
+    ///
+    /// let rnx = Rinex::from_file("../test_resources/OBS/V2/aopr0010.17o")
+    ///     .unwrap();
+    /// let mut vehicles : Vec<_> = rnx.sv(); // to run comparison
+    /// vehicles.sort(); // to run comparison
+    ///
+    /// assert_eq!(vehicles, vec![
+    ///     sv!("G01"), sv!("G03"), sv!("G06"),
+    ///     sv!("G07"), sv!("G08"), sv!("G09"),
+    ///     sv!("G11"), sv!("G14"), sv!("G16"),
+    ///     sv!("G17"), sv!("G19"), sv!("G22"),
+    ///     sv!("G23"), sv!("G26"), sv!("G27"),
+    ///     sv!("G28"), sv!("G30"), sv!("G31"),
+    ///     sv!("G32")]);
+    /// ```
+    pub fn sv(&self) -> Box<dyn Iterator<Item = Sv> + '_> {
+        if let Some(record) = self.record.as_obs() {
+            Box::new(
+                // grab all vehicles identified through all Epochs
+                // and fold them into a unique list
+                record
+                    .into_iter()
+                    .map(|((epoch, _), (_clk, entries))| {
+                        let sv: Vec<Sv> = entries.keys().cloned().collect();
+                        sv
+                    })
+                    .fold(vec![], |mut list, new_items| {
+                        for new in new_items {
+                            if !list.contains(&new) {
+                                // create a unique list
+                                list.push(new);
+                            }
+                        }
+                        list
+                    })
+                    .into_iter(),
+            )
+        } else if let Some(record) = self.record.as_nav() {
+            Box::new(
+                // grab all vehicles through all epochs,
+                // fold them into a unique list
+                record
+                    .into_iter()
+                    .flat_map(|(_, frames)| {
+                        frames
+                            .iter()
+                            .filter_map(|fr| {
+                                if let Some((_, sv, _)) = fr.as_eph() {
+                                    Some(*sv)
+                                } else if let Some((_, sv, _)) = fr.as_eop() {
+                                    Some(*sv)
+                                } else if let Some((_, sv, _)) = fr.as_ion() {
+                                    Some(*sv)
+                                } else if let Some((_, sv, _)) = fr.as_sto() {
+                                    Some(*sv)
+                                } else {
+                                    None
+                                }
+                            })
+                            .fold(vec![], |mut list, sv| {
+                                list.push(sv);
+                                list
+                            })
+                            .into_iter()
+                    })
+                    .fold(vec![], |mut list, sv| {
+                        if !list.contains(&sv) {
+                            list.push(sv);
+                        }
+                        list
+                    })
+                    .into_iter(),
+            )
+        } else {
+            panic!(
+                ".sv() is not feasible on \"{:?}\" RINEX",
+                self.header.rinex_type
+            );
+        }
+        //} else if let Some(r) = self.record.as_obs() {
+        //    for (_, (_, vehicles)) in r {
+        //        for (sv, _) in vehicles {
+        //            if !map.contains(&sv) {
+        //                map.push(*sv);
+        //            }
+        //        }
+        //    }
+        //} else if let Some(r) = self.record.as_clock() {
+        //    for (_, dtypes) in r {
+        //        for (_, systems) in dtypes {
+        //            for (system, _) in systems {
+        //                match system {
+        //                    clocks::System::Sv(sv) => {
+        //                        if !map.contains(sv) {
+        //                            map.push(*sv);
+        //                        }
+        //                    },
+        //                    _ => {},
+        //                }
+        //            }
+        //        }
+        //    }
+        //}
+        //map.sort();
+        //map
+    }
+
+    /// List all [`Sv`] per epoch of appearance.
+    /// ```
+    /// use rinex::prelude::*;
+    /// let rnx = Rinex::from_file("../test_resources/OBS/V2/aopr0010.17o")
+    ///     .unwrap();
+    ///
+    /// let data = rnx.sv_epoch();
+    ///
+    /// let first_epoch = Epoch::from_gregorian_utc(2017, 1, 1, 0, 0, 0, 0);
+    ///
+    /// let vehicles = data.get(&first_epoch)
+    ///     .unwrap();
+    /// assert_eq!(*vehicles, vec![
+    ///     Sv::new(Constellation::GPS, 03),
+    ///     Sv::new(Constellation::GPS, 08),
+    ///     Sv::new(Constellation::GPS, 14),
+    ///     Sv::new(Constellation::GPS, 16),
+    ///     Sv::new(Constellation::GPS, 22),
+    ///     Sv::new(Constellation::GPS, 23),
+    ///     Sv::new(Constellation::GPS, 26),
+    ///     Sv::new(Constellation::GPS, 27),
+    ///     Sv::new(Constellation::GPS, 31),
+    ///     Sv::new(Constellation::GPS, 32),
+    /// ]);
+    /// ```
+    pub fn sv_epoch(&self) -> Box<dyn Iterator<Item = (Epoch, Vec<Sv>)> + '_> {
+        panic!("not yet");
+        //let mut map: BTreeMap<Epoch, Vec<Sv>> = BTreeMap::new();
+        //if let Some(r) = self.record.as_nav() {
+        //    for (epoch, classes) in r {
+        //        let mut inner: Vec<Sv> = Vec::new();
+        //        for (class, frames) in classes.iter() {
+        //            if *class == navigation::FrameClass::Ephemeris {
+        //                for frame in frames {
+        //                    let (_, sv, _) = frame.as_eph().unwrap();
+        //                    inner.push(*sv);
+        //                }
+        //            }
+        //        }
+        //        if inner.len() > 0 {
+        //            inner.sort();
+        //            map.insert(*epoch, inner);
+        //        }
+        //    }
+        //} else if let Some(r) = self.record.as_obs() {
+        //    for ((epoch, _), (_, vehicles)) in r {
+        //        let mut inner: Vec<Sv> = Vec::new();
+        //        for (sv, _) in vehicles.iter() {
+        //            inner.push(*sv);
+        //        }
+        //        if inner.len() > 0 {
+        //            inner.sort();
+        //            map.insert(*epoch, inner);
+        //        }
+        //    }
+        //}
+        //map
+    }
+    pub fn constellation(&self) -> Box<dyn Iterator<Item = Constellation> + '_> {
+        panic!("not yet");
+    }
+
+    /// Meteo RINEX record browsing method. Extracts data for this specific format.
+    /// Data is sorted by [`Epoch`] then by [`Observable`].
+    /// ```
+    /// use rinex::prelude::*;
+    /// let rnx = Rinex::from_file("../test_resources/MET/V2/abvi0010.15m")
+    ///    .unwrap();
+    /// for (epoch, observables) in rnx.meteo() {
+    ///     println!(" *** Epoch:  {} ****", epoch);
+    ///     for (observable, data) in observables {
+    ///         println!("{} : {}", observable, value);
+    ///     }
+    /// }
+    /// ```
+    fn meteo(&self) -> Box<dyn Iterator<Item = (&Epoch, &HashMap<Observable, f64>)> + '_> {
+        Box::new(
+            self.record
+                .as_meteo()
+                .into_iter()
+                .flat_map(|record| record.iter()),
+        )
+    }
+}
+
+#[cfg(feature = "nav")]
+use crate::navigation::{
+    BdModel, Ephemeris, FrameClass, IonMessage, KbModel, NavFrame, NavMsgType, NgModel,
+};
+
+#[cfg(feature = "nav")]
+use hifitime::Unit;
+
+#[cfg(feature = "nav")]
+use map_3d::ecef2geodetic;
+
+/*
+ * NAV RINEX specific methods: only available on crate feature.
+ * Either specific Iterators, or meaningful data we can extract.
+ */
+#[cfg(feature = "nav")]
+#[cfg_attr(docrs, doc(cfg(feature = "nav")))]
+impl Rinex {
+    /// Returns NAV frames interator (any types).
+    /// NAV record may contain several different types of frames.
+    /// ```
+    /// use rinex::prelude::*;
+    /// let rinex = Rinex::from_file("../test_resources/NAV/V2/amel0010.21g")
+    ///     .unwrap();
+    /// for (epoch, frames) in rinex.navigation() {
+    ///     for (class, frames) in frames {
+    ///         // this record only contains one kind of frames
+    ///         assert_eq!(*class, FrameClass::Ephemeris);
+    ///     }
+    /// }
+    /// let nav_frames: Vec<_> = rinex.navigation.collect();
+    /// assert_eq!(nav_frames.len(), 6);
+    /// ```
+    pub fn navigation(&self) -> Box<dyn Iterator<Item = (&Epoch, &Vec<NavFrame>)> + '_> {
+        Box::new(
+            self.record
+                .as_nav()
+                .into_iter()
+                .flat_map(|record| record.iter()),
+        )
+    }
+    /// Returns a Unique Iterator over [`NavMsgType`]s that were identified
+    /// ```
+    /// use rinex::prelude::*;
+    /// use rinex::navigation::NavMsgType;
+    /// let rinex = Rinex::from_file("../test_resources/NAV/V2/amel0010.21g")
+    ///     .unwrap();
+    /// let nav_msg : Vec<_> = rinex.nav_msg_type().collect();
+    /// assert_eq!(
+    ///     nav_msg,
+    ///     vec![NavMsgType::LNAV], // only Legacy NAV frames in this file
+    /// );
+    /// ```
+    pub fn nav_msg_type(&self) -> Box<dyn Iterator<Item = NavMsgType> + '_> {
+        Box::new(
+            self.navigation()
+                .map(|(e, frames)| {
+                    frames
+                        .into_iter()
+                        .filter_map(|fr| {
+                            if let Some((msg, _, _)) = fr.as_eph() {
+                                Some(*msg)
+                            } else if let Some((msg, _, _)) = fr.as_ion() {
+                                Some(*msg)
+                            } else if let Some((msg, _, _)) = fr.as_eop() {
+                                Some(*msg)
+                            } else if let Some((msg, _, _)) = fr.as_sto() {
+                                Some(*msg)
+                            } else {
+                                None
+                            }
+                        })
+                        .fold(vec![], |mut list, msg| {
+                            list.push(msg);
+                            list
+                        })
+                        .into_iter()
                 })
+                .fold(vec![], |mut list, items| {
+                    for item in items {
+                        if !list.contains(&item) {
+                            list.push(item); // create a unique list
+                        }
+                    }
+                    list
+                })
+                .into_iter(),
+        )
+    }
+    /// Returns Ephemeris frames interator.
+    /// ```
+    /// use rinex::prelude::*;
+    /// let rinex = Rinex::from_file("../test_resources/NAV/V2/amel0010.21g")
+    ///     .unwrap();
+    /// for (epoch, ephemeris) in rinex.ephemeris() {
+    ///     for ((msg, sv, data)) in ephemeris {
+    ///         // this record only contains Legacy NAV frames
+    ///         assert_eq!(*msg, MessageType::LNAV);
+    ///     }
+    /// }
+    /// ```
+    pub fn ephemeris(
+        &self,
+    ) -> Box<dyn Iterator<Item = (&Epoch, (&NavMsgType, &Sv, &Ephemeris))> + '_> {
+        Box::new(self.navigation().flat_map(|(e, frames)| {
+            frames.iter().filter_map(move |fr| {
+                if let Some((msg, sv, eph)) = fr.as_eph() {
+                    Some((e, (msg, sv, eph)))
+                } else {
+                    None
+                }
             })
         }))
     }
-    fn pressure(&self) -> Box<dyn Iterator<Item = (Epoch, f64)> + '_> {
-        Box::new(self.record.as_meteo().into_iter().flat_map(|record| {
-            record.iter().flat_map(|(epoch, v)| {
-                v.iter().filter_map(|(k, value)| {
-                    if *k == Observable::Pressure {
-                        Some((*epoch, *value))
-                    } else {
-                        None
-                    }
-                })
+    /// Returns iterator over Sv (embedded) clock offset (s), drift (s.s⁻¹) and
+    /// drift rate (s.s⁻²)
+    /// ```
+    /// use rinex::prelude::*;
+    /// let mut rinex = Rinex::from_file("../test_resources/NAV/V3/CBW100NLD_R_20210010000_01D_MN.rnx")
+    ///     .unwrap();
+    /// for (epoch, (sv, offset, clock_dr, clock_drr)) in rinex.sv_clock() {
+    ///     // sv: satellite vehicle
+    ///     // offset [s]
+    ///     // dr: clock drift [s.s⁻¹]
+    ///     // drr: clock drift rate [s.s⁻²]
+    /// }
+    /// ```
+    pub fn sv_clock(&self) -> Box<dyn Iterator<Item = (Epoch, (Sv, f64, f64, f64))> + '_> {
+        Box::new(self.ephemeris().map(|(e, (_, sv, data))| {
+            (
+                *e,
+                (
+                    *sv,
+                    data.clock_bias,
+                    data.clock_drift,
+                    data.clock_drift_rate,
+                ),
+            )
+        }))
+    }
+    /// Returns an Iterator over Sv position vectors,
+    /// expressed in meters ECEF for all Epochs.
+    /// ```
+    /// use rinex::prelude::*;
+    ///
+    /// let mut rinex =
+    ///     Rinex::from_file("../test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz")
+    ///         .unwrap();
+    ///
+    /// for (epoch, (sv, x, y, z)) in rinex.sv_position() {
+    ///     // sv: satellite vehicle
+    ///     // x: x(t) [m ECEF]
+    ///     // y: y(t) [m ECEF]
+    ///     // z: z(t) [m ECEF]
+    /// }
+    /// ```
+    pub fn sv_position(&self) -> Box<dyn Iterator<Item = (Epoch, (Sv, f64, f64, f64))> + '_> {
+        Box::new(self.ephemeris().filter_map(|(e, (_, sv, ephemeris))| {
+            if let Some((x, y, z)) = ephemeris.sv_position(*e) {
+                Some((*e, (*sv, x, y, z)))
+            } else {
+                // we might not be able to evaluate (x, y, z)
+                // for every single epoch, for example if some
+                // ephemeris parameters (Kepler, Perturbations)
+                // are missing for this epoch
+                None
+            }
+        }))
+    }
+    /// Returns an Iterator over Sv position vectors,
+    /// expressed as geodetic coordinates, with latitude and longitude
+    /// in decimal degrees.
+    /// ```
+    /// use rinex::prelude::*;
+    ///
+    /// let mut rinex =
+    ///     Rinex::from_file("../test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz")
+    ///         .unwrap();
+    ///
+    /// for (epoch, (sv, lat, lon, alt)) in rinex.sv_position_geo() {
+    ///     // sv: satellite vehicle
+    ///     // lat [ddeg]
+    ///     // lon [ddeg]
+    ///     // alt: [m ECEF]
+    /// }
+    /// ```
+    pub fn sv_position_geo(&self) -> Box<dyn Iterator<Item = (Epoch, (Sv, f64, f64, f64))> + '_> {
+        Box::new(self.sv_position().map(|(e, (sv, x, y, z))| {
+            let (lat, lon, alt) = ecef2geodetic(x, y, z, map_3d::Ellipsoid::WGS84);
+            (e, (sv, lat, lon, alt))
+        }))
+    }
+    /// Returns Iterator over Sv speed vectors, expressed in m/s ECEF.
+    /// ```
+    /// use rinex::prelude::*;
+    ///
+    /// let mut rinex =
+    ///     Rinex::from_file("../test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz")
+    ///         .unwrap();
+    ///
+    /// let sv_speeds = rinex.sv_speed();
+    /// for (sv, epochs) in sv_speeds {
+    ///     for (epoch, (sv_x, sv_y, sv_z)) in epochs {
+    ///     }
+    /// }
+    /// ```
+    pub fn sv_speed(&self) -> Box<dyn Iterator<Item = (Epoch, (Sv, f64, f64, f64))> + '_> {
+        todo!("sv_speed");
+        //Box::new(
+        //    self.sv_position()
+        //    self.sv_position()
+        //        .skip(1)
+        //)
+    }
+    /// Returns an Iterator over Sv elevation and azimuth angles,
+    /// both expressed in degrees.
+    /// A reference ground position must be known:
+    ///   - either it is defined in Self
+    ///   - otherwise it can be superceeded by user defined position
+    /// ```
+    /// use rinex::wgs84;
+    /// use rinex::prelude::*;
+    /// let ref_pos = wgs84!(3582105.291, 532589.7313, 5232754.8054);
+    ///
+    /// let rinex = Rinex::from_file("../test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz")
+    ///     .unwrap();
+    ///
+    /// let sv_angles = rinex.sv_elevation_azimuth(Some(ref_pos));
+    /// for (sv, epochs) in sv_angles {
+    ///     for (epoch, (elev, azim)) in epochs {
+    ///         // do something
+    ///     }
+    /// }
+    /// ```
+    pub fn sv_elevation_azimuth(
+        &self,
+        ref_position: Option<GroundPosition>,
+    ) -> Box<dyn Iterator<Item = (Epoch, (Sv, f64, f64))> + '_> {
+        //Box::new(
+        //)
+        todo!("sv_elev_azim");
+    }
+    /// Returns Ionosphere frames iterator.
+    pub fn ionosphere_models(
+        &self,
+    ) -> Box<dyn Iterator<Item = (&Epoch, (&NavMsgType, &Sv, &IonMessage))> + '_> {
+        Box::new(self.navigation().flat_map(|(e, frames)| {
+            frames.iter().filter_map(move |fr| {
+                if let Some((msg, sv, ion)) = fr.as_ion() {
+                    Some((e, (msg, sv, ion)))
+                } else {
+                    None
+                }
             })
         }))
     }
-    fn moisture(&self) -> Box<dyn Iterator<Item = (Epoch, f64)> + '_> {
-        Box::new(self.record.as_meteo().into_iter().flat_map(|record| {
-            record.iter().flat_map(|(epoch, v)| {
-                v.iter().filter_map(|(k, value)| {
-                    if *k == Observable::HumidityRate {
-                        Some((*epoch, *value))
-                    } else {
-                        None
-                    }
-                })
-            })
+    /// Returns Iterator over all Klobuchar Ionosphere model identified
+    /// ```
+    /// use rinex::prelude::*;
+    /// ```
+    pub fn klobuchar_models(&self) -> Box<dyn Iterator<Item = (Epoch, KbModel)> + '_> {
+        Box::new(self.ionosphere_models().filter_map(|(e, (_, _, ion))| {
+            if let Some(kb) = ion.as_klobuchar() {
+                Some((*e, *kb))
+            } else {
+                None
+            }
         }))
     }
-    fn wind_speed(&self) -> Box<dyn Iterator<Item = (Epoch, f64)> + '_> {
-        Box::new(self.record.as_meteo().into_iter().flat_map(|record| {
-            record.iter().flat_map(|(epoch, v)| {
-                v.iter().filter_map(|(k, value)| {
-                    if *k == Observable::WindSpeed {
-                        Some((*epoch, *value))
-                    } else {
-                        None
-                    }
-                })
-            })
+    /// Returns Iterator over all Nequick-G Ionosphere model identified
+    /// ```
+    /// use rinex::prelude::*;
+    /// ```
+    pub fn nequick_g_models(&self) -> Box<dyn Iterator<Item = (Epoch, NgModel)> + '_> {
+        Box::new(self.ionosphere_models().filter_map(|(e, (_, _, ion))| {
+            if let Some(model) = ion.as_nequick_g() {
+                Some((*e, *model))
+            } else {
+                None
+            }
         }))
     }
-    fn wind_direction(&self) -> Box<dyn Iterator<Item = (Epoch, f64)> + '_> {
-        Box::new(self.record.as_meteo().into_iter().flat_map(|record| {
-            record.iter().flat_map(|(epoch, v)| {
-                v.iter().filter_map(|(k, value)| {
-                    if *k == Observable::WindDirection {
-                        Some((*epoch, *value))
-                    } else {
-                        None
-                    }
-                })
-            })
-        }))
-    }
-    fn rain_increment(&self) -> Box<dyn Iterator<Item = (Epoch, f64)> + '_> {
-        Box::new(self.record.as_meteo().into_iter().flat_map(|record| {
-            record.iter().flat_map(|(epoch, v)| {
-                v.iter().filter_map(|(k, value)| {
-                    if *k == Observable::RainIncrement {
-                        Some((*epoch, *value))
-                    } else {
-                        None
-                    }
-                })
-            })
-        }))
-    }
-    fn zenith_delay(&self) -> Box<dyn Iterator<Item = (Epoch, f64)> + '_> {
-        Box::new(self.record.as_meteo().into_iter().flat_map(|record| {
-            record.iter().flat_map(|(epoch, v)| {
-                v.iter().filter_map(|(k, value)| {
-                    if *k == Observable::ZenithTotalDelay {
-                        Some((*epoch, *value))
-                    } else {
-                        None
-                    }
-                })
-            })
-        }))
-    }
-    fn zenith_dry_delay(&self) -> Box<dyn Iterator<Item = (Epoch, f64)> + '_> {
-        Box::new(self.record.as_meteo().into_iter().flat_map(|record| {
-            record.iter().flat_map(|(epoch, v)| {
-                v.iter().filter_map(|(k, value)| {
-                    if *k == Observable::ZenithDryDelay {
-                        Some((*epoch, *value))
-                    } else {
-                        None
-                    }
-                })
-            })
-        }))
-    }
-    fn zenith_wet_delay(&self) -> Box<dyn Iterator<Item = (Epoch, f64)> + '_> {
-        Box::new(self.record.as_meteo().into_iter().flat_map(|record| {
-            record.iter().flat_map(|(epoch, v)| {
-                v.iter().filter_map(|(k, value)| {
-                    if *k == Observable::ZenithWetDelay {
-                        Some((*epoch, *value))
-                    } else {
-                        None
-                    }
-                })
-            })
+    /// Returns Iterator over all BDGIM Ionosphere model identified
+    /// ```
+    /// use rinex::prelude::*;
+    /// ```
+    pub fn bdgim_models(&self) -> Box<dyn Iterator<Item = (Epoch, BdModel)> + '_> {
+        Box::new(self.ionosphere_models().filter_map(|(e, (_, _, ion))| {
+            if let Some(model) = ion.as_bdgim() {
+                Some((*e, *model))
+            } else {
+                None
+            }
         }))
     }
 }
 
 /*
- * Meteo RINEX specific methods
+ * Meteo RINEX specific methods: only available on crate feature.
+ * Either specific Iterators, or meaningful data we can extract.
  */
 #[cfg(feature = "meteo")]
-use meteo::Meteo;
-
-#[cfg(feature = "meteo")]
-impl Meteo for Rinex {
-    fn rain_detected(&self) -> bool {
+#[cfg_attr(docrs, doc(cfg(feature = "meteo")))]
+impl Rinex {
+    /// Returns temperature data iterator, values expressed in Celcius degrees
+    /// ```
+    /// use rinex::prelude::*;
+    /// let rinex = Rinex::from_file("../test_resources/MET/V2/abvi0010.15m")
+    ///     .unwrap();
+    /// for (epoch, tmp) in rinex.temperature() {
+    ///     println!("ts: {}, value: {} °C", epoch, tmp);
+    /// }
+    /// ```
+    pub fn temperature(&self) -> Box<dyn Iterator<Item = (Epoch, f64)> + '_> {
+        Box::new(self.meteo().flat_map(|(epoch, v)| {
+            v.iter().filter_map(|(k, value)| {
+                if *k == Observable::Temperature {
+                    Some((*epoch, *value))
+                } else {
+                    None
+                }
+            })
+        }))
+    }
+    /// Returns pressure data iterator, values expressed in hPa
+    /// ```
+    /// use rinex::prelude::*;
+    /// let rinex = Rinex::from_file("../test_resources/MET/V2/abvi0010.15m")
+    ///     .unwrap();
+    /// for (epoch, p) in rinex.pressure() {
+    ///     println!("ts: {}, value: {} hPa", epoch, p);
+    /// }
+    /// ```
+    pub fn pressure(&self) -> Box<dyn Iterator<Item = (Epoch, f64)> + '_> {
+        Box::new(self.meteo().flat_map(|(epoch, v)| {
+            v.iter().filter_map(|(k, value)| {
+                if *k == Observable::Pressure {
+                    Some((*epoch, *value))
+                } else {
+                    None
+                }
+            })
+        }))
+    }
+    /// Returns moisture rate iterator, values expressed in saturation rate percentage
+    /// ```
+    /// use rinex::prelude::*;
+    /// let rinex = Rinex::from_file("../test_resources/MET/V2/abvi0010.15m")
+    ///     .unwrap();
+    /// for (epoch, value) in rinex.moisture() {
+    ///     println!("ts: {}, value: {} %", epoch, value);
+    /// }
+    /// ```
+    pub fn moisture(&self) -> Box<dyn Iterator<Item = (Epoch, f64)> + '_> {
+        Box::new(self.meteo().flat_map(|(epoch, v)| {
+            v.iter().filter_map(|(k, value)| {
+                if *k == Observable::HumidityRate {
+                    Some((*epoch, *value))
+                } else {
+                    None
+                }
+            })
+        }))
+    }
+    /// Returns wind speed observations iterator, values in m/s
+    /// ```
+    /// use rinex::prelude::*;
+    /// use rinex::meteo::MeteoIter;
+    /// let rinex = Rinex::from_file("../test_resources/MET/V2/abvi0010.15m")
+    ///     .unwrap();
+    /// for (epoch, speed) in rinex.wind_speed() {
+    ///     println!("ts: {}, value: {} m/s", epoch, speed);
+    /// }
+    /// ```
+    pub fn wind_speed(&self) -> Box<dyn Iterator<Item = (Epoch, f64)> + '_> {
+        Box::new(self.meteo().flat_map(|(epoch, v)| {
+            v.iter().filter_map(|(k, value)| {
+                if *k == Observable::WindSpeed {
+                    Some((*epoch, *value))
+                } else {
+                    None
+                }
+            })
+        }))
+    }
+    /// Returns wind direction observations as azimuth in degrees
+    /// ```
+    /// use rinex::prelude::*;
+    /// let rinex = Rinex::from_file("../test_resources/MET/V2/abvi0010.15m")
+    ///     .unwrap();
+    /// for (epoch, azimuth) in rinex.wind_direction() {
+    ///     println!("ts: {}, azimuth: {}°", epoch, azimuth);
+    /// }
+    /// ```
+    pub fn wind_direction(&self) -> Box<dyn Iterator<Item = (Epoch, f64)> + '_> {
+        Box::new(self.meteo().flat_map(|(epoch, v)| {
+            v.iter().filter_map(|(k, value)| {
+                if *k == Observable::WindDirection {
+                    Some((*epoch, *value))
+                } else {
+                    None
+                }
+            })
+        }))
+    }
+    /// Returns rain increment observations iterator, values in tenth of mm.
+    /// Each value represents the accumulated rain drop in between two observations.
+    /// ```
+    /// use rinex::prelude::*;
+    /// let rinex = Rinex::from_file("../test_resources/MET/V2/abvi0010.15m")
+    ///     .unwrap();
+    /// for (epoch, ri) in rinex.rain_increment() {
+    ///     println!("ts: {}, accumulated: {} mm/10", epoch, ri);
+    /// }
+    /// ```
+    pub fn rain_increment(&self) -> Box<dyn Iterator<Item = (Epoch, f64)> + '_> {
+        Box::new(self.meteo().flat_map(|(epoch, v)| {
+            v.iter().filter_map(|(k, value)| {
+                if *k == Observable::RainIncrement {
+                    Some((*epoch, *value))
+                } else {
+                    None
+                }
+            })
+        }))
+    }
+    /// Returns total (wet+dry) Zenith delay, in mm
+    /// ```
+    /// use rinex::prelude::*;
+    /// use rinex::meteo::MeteoIter;
+    /// let mut rinex = Rinex::from_file("../test_resources/MET/V2/abvi0010.15m")
+    ///     .unwrap();
+    /// for (epoch, value) in rinex.zenith_delay() {
+    ///     println!("ts: {}, value: {} mm", epoch, value);
+    /// }
+    /// ```
+    pub fn zenith_delay(&self) -> Box<dyn Iterator<Item = (Epoch, f64)> + '_> {
+        Box::new(self.meteo().flat_map(|(epoch, v)| {
+            v.iter().filter_map(|(k, value)| {
+                if *k == Observable::ZenithTotalDelay {
+                    Some((*epoch, *value))
+                } else {
+                    None
+                }
+            })
+        }))
+    }
+    /// Returns Zenith dry delay, in mm
+    /// ```
+    /// use rinex::prelude::*;
+    /// use rinex::meteo::MeteoIter;
+    /// let mut rinex = Rinex::from_file("../test_resources/MET/V2/abvi0010.15m")
+    ///     .unwrap();
+    /// for (epoch, value) in rinex.zenith_dry_delay() {
+    ///     println!("ts: {}, value: {} mm", epoch, value);
+    /// }
+    /// ```
+    pub fn zenith_dry_delay(&self) -> Box<dyn Iterator<Item = (Epoch, f64)> + '_> {
+        Box::new(self.meteo().flat_map(|(epoch, v)| {
+            v.iter().filter_map(|(k, value)| {
+                if *k == Observable::ZenithDryDelay {
+                    Some((*epoch, *value))
+                } else {
+                    None
+                }
+            })
+        }))
+    }
+    /// Returns Zenith wet delay, in mm
+    /// ```
+    /// use rinex::prelude::*;
+    /// let mut rinex = Rinex::from_file("../test_resources/MET/V2/abvi0010.15m")
+    ///     .unwrap();
+    /// for (epoch, value) in rinex.zenith_wet_delay() {
+    ///     println!("ts: {}, value: {} mm", epoch, value);
+    /// }
+    /// ```
+    pub fn zenith_wet_delay(&self) -> Box<dyn Iterator<Item = (Epoch, f64)> + '_> {
+        Box::new(self.meteo().flat_map(|(epoch, v)| {
+            v.iter().filter_map(|(k, value)| {
+                if *k == Observable::ZenithWetDelay {
+                    Some((*epoch, *value))
+                } else {
+                    None
+                }
+            })
+        }))
+    }
+    /// Returns true if rain was detected during this time frame.
+    /// ```
+    /// use std::str::FromStr;
+    /// use rinex::{filter, Rinex};
+    /// use rinex::preprocessing::*; // .filter()
+    /// let rinex = Rinex::from_file("../test_resources/MET/V2/abvi0010.15m")
+    ///     .unwrap();
+    /// // cropping time frame requires the "processing" feature
+    /// let rinex = rinex
+    ///                 .filter(filter!(">= 2015-01-01T19:00:00 UTC"))
+    ///                 .filter(filter!(" < 2015-01-01T20:00:00 UTC"));
+    /// assert_eq!(rinex.rain_detected(), false);
+    /// ```
+    pub fn rain_detected(&self) -> bool {
         for (_, ri) in self.rain_increment() {
             if ri > 0.0 {
                 return true;
@@ -2154,7 +2366,21 @@ impl Meteo for Rinex {
         }
         false
     }
-    fn accumulated_rain(&self) -> f64 {
+    /// Returns total accumulated rain in tenth of mm, within this time frame
+    /// ```
+    /// use std::str::FromStr;
+    /// use rinex::{filter, Rinex};
+    /// use rinex::preprocessing::*; // .filter()
+    /// let rinex = Rinex::from_file("../test_resources/MET/V2/abvi0010.15m")
+    ///     .unwrap();
+    /// // cropping time frame requires the "processing" feature
+    /// let rinex = rinex
+    ///                 .filter(filter!(">= 2015-01-01T19:00:00 UTC"))
+    ///                 .filter(filter!(" < 2015-01-01T19:30:00 UTC"));
+    /// assert_eq!(rinex.accumulated_rain(), 0.0);
+    /// assert_eq!(rinex.rain_detected(), false);
+    /// ```
+    pub fn accumulated_rain(&self) -> f64 {
         let mut prev = 0.0_f64;
         let mut acc = 0.0_f64;
         for (index, (_, ri)) in self.rain_increment().skip(1).enumerate() {
@@ -2167,7 +2393,20 @@ impl Meteo for Rinex {
         }
         acc
     }
-    fn hail_detected(&self) -> bool {
+    /// Returns true if hail was detected during this time frame
+    /// ```
+    /// use std::str::FromStr;
+    /// use rinex::{filter, Rinex};
+    /// use rinex::preprocessing::*; // .filter()
+    /// let mut rinex = Rinex::from_file("../test_resources/MET/V2/abvi0010.15m")
+    ///     .unwrap();
+    /// // cropping time frame requires the "processing" feature
+    /// let rinex = rinex
+    ///                 .filter(filter!(">= 2015-01-01T19:00:00 UTC"))
+    ///                 .filter(filter!(" < 2015-01-01T20:00:00 UTC"));
+    /// assert_eq!(rinex.hail_detected(), false);
+    /// ```
+    pub fn hail_detected(&self) -> bool {
         if let Some(r) = self.record.as_meteo() {
             for (_, observables) in r {
                 for (observ, value) in observables {
@@ -2197,11 +2436,11 @@ impl Merge for Rinex {
         self.header.merge_mut(&rhs.header)?;
         Ok(())
         //TODO: needs to reapply
-        //if self.epochs().len() == 0 {
+        //if self.epoch().len() == 0 {
         //    // self is empty
         //    self.record = rhs.record.clone();
         //    Ok(())
-        //} else if rhs.epochs().len() == 0 {
+        //} else if rhs.epoch().len() == 0 {
         //    // nothing to merge
         //    Ok(())
         //} else {
@@ -2224,289 +2463,6 @@ impl Merge for Rinex {
         //    Ok(())
         //}
     }
-}
-
-#[cfg(feature = "nav")]
-use hifitime::Unit;
-
-#[cfg(feature = "nav")]
-use map_3d::ecef2geodetic;
-
-#[cfg(feature = "nav")]
-#[cfg_attr(docrs, doc(cfg(feature = "nav")))]
-impl Rinex {
-    /// Returns Sv position vectors, expressed in meters ECEF for all Epochs.
-    /// ```
-    /// use rinex::prelude::*;
-    ///
-    /// let mut rinex =
-    ///     Rinex::from_file("../test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz")
-    ///         .unwrap();
-    ///
-    /// let sv_positions = rinex.sv_position();
-    /// for (sv, epochs) in sv_positions {
-    ///     for (epoch, (sv_x, sv_y, sv_z)) in epochs {
-    ///     }
-    /// }
-    /// ```
-    pub fn sv_position(&self) -> HashMap<Sv, BTreeMap<Epoch, (f64, f64, f64)>> {
-        let mut ret: HashMap<Sv, BTreeMap<Epoch, (f64, f64, f64)>> = HashMap::new();
-        if let Some(record) = self.record.as_nav() {
-            for (epoch, classes) in record {
-                for (class, frames) in classes {
-                    if *class == navigation::FrameClass::Ephemeris {
-                        for fr in frames {
-                            let (_, sv, ephemeris) = fr.as_eph().unwrap();
-                            if let Some(sat_pos) = ephemeris.sv_position(*epoch) {
-                                if let Some(data) = ret.get_mut(sv) {
-                                    // epoch being built
-                                    data.insert(*epoch, sat_pos);
-                                } else {
-                                    // first vehicle for this epoch
-                                    let mut map: BTreeMap<Epoch, (f64, f64, f64)> = BTreeMap::new();
-                                    map.insert(*epoch, sat_pos);
-                                    ret.insert(*sv, map);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        ret
-    }
-
-    /// Returns Sv position vectors as geodetic WGS84 coordinates
-    /// expressed in decimal degrees, for all Epochs.
-    /// ```
-    /// use rinex::prelude::*;
-    ///
-    /// let mut rinex =
-    ///     Rinex::from_file("../test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz")
-    ///         .unwrap();
-    ///
-    /// let sv_positions = rinex.sv_position_geo();
-    /// for (sv, epochs) in sv_positions {
-    ///     for (epoch, (sv_lat, sv_lon, sv_alt)) in epochs {
-    ///     }
-    /// }
-    /// ```
-    pub fn sv_position_geo(&self) -> HashMap<Sv, BTreeMap<Epoch, (f64, f64, f64)>> {
-        let mut data = self.sv_position();
-        for (_, epochs) in data.iter_mut() {
-            for (_, (sv_x, sv_y, sv_z)) in epochs.iter_mut() {
-                let (lat, lon, alt) = ecef2geodetic(*sv_x, *sv_y, *sv_z, map_3d::Ellipsoid::WGS84);
-                *sv_x = lat;
-                *sv_y = lon;
-                *sv_z = alt;
-            }
-        }
-        data
-    }
-
-    /// Computes (Elevation, Azim) angles expressed in degrees,
-    /// for all Sv through all Epochs, by solving Kepler equations.
-    /// A reference ground position must be known:
-    ///   - either it is defined in Self
-    ///   - otherwise it can be superceeded by user defined position
-    /// ```
-    /// use rinex::*;
-    /// use rinex::prelude::*;
-    /// let ref_pos = wgs84!(3582105.291, 532589.7313, 5232754.8054);
-    ///
-    /// let rinex = Rinex::from_file("../test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz")
-    ///     .unwrap();
-    ///
-    /// let sv_angles = rinex.sv_elev_azim_angles(Some(ref_pos));
-    /// for (sv, epochs) in sv_angles {
-    ///     for (epoch, (elev, azim)) in epochs {
-    ///         // do something
-    ///     }
-    /// }
-    /// ```
-    pub fn sv_elev_azim_angles(
-        &self,
-        ref_pos: Option<GroundPosition>,
-    ) -> HashMap<Sv, BTreeMap<Epoch, (f64, f64)>> {
-        let mut ret: HashMap<Sv, BTreeMap<Epoch, (f64, f64)>> = HashMap::new();
-        let ref_pos = match ref_pos {
-            Some(pos) => pos,
-            None => {
-                match &self.header.ground_position {
-                    Some(pos) => pos.clone(),
-                    _ => return ret, // missing ground position
-                }
-            },
-        };
-        if let Some(record) = self.record.as_nav() {
-            for (epoch, classes) in record {
-                for (class, frames) in classes {
-                    if *class == navigation::FrameClass::Ephemeris {
-                        for fr in frames {
-                            let (_, sv, ephemeris) = fr.as_eph().unwrap();
-                            if let Some((el, az)) = ephemeris.sv_elev_azim(ref_pos, *epoch) {
-                                if let Some(data) = ret.get_mut(sv) {
-                                    data.insert(*epoch, (el, az));
-                                } else {
-                                    let mut map: BTreeMap<Epoch, (f64, f64)> = BTreeMap::new();
-                                    map.insert(*epoch, (el, az));
-                                    ret.insert(*sv, map);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        ret
-    }
-
-    /// Returns Sv instantaneous speed vectors, expressed in meters/sec ECEF
-    /// ```
-    /// use rinex::prelude::*;
-    ///
-    /// let mut rinex =
-    ///     Rinex::from_file("../test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz")
-    ///         .unwrap();
-    ///
-    /// let sv_speeds = rinex.sv_speed();
-    /// for (sv, epochs) in sv_speeds {
-    ///     for (epoch, (sv_x, sv_y, sv_z)) in epochs {
-    ///     }
-    /// }
-    /// ```
-    pub fn sv_speed(&self) -> HashMap<Sv, BTreeMap<Epoch, (f64, f64, f64)>> {
-        let mut ret: HashMap<Sv, BTreeMap<Epoch, (f64, f64, f64)>> = HashMap::new();
-        let mut prev_pos: HashMap<Sv, (Epoch, (f64, f64, f64))> = HashMap::new();
-        if let Some(record) = self.record.as_nav() {
-            for (epoch, classes) in record {
-                for (class, frames) in classes {
-                    if *class == navigation::FrameClass::Ephemeris {
-                        for fr in frames {
-                            let (_, sv, ephemeris) = fr.as_eph().unwrap();
-                            if let Some(sv_pos) = ephemeris.sv_position(*epoch) {
-                                if let Some((prev_epoch, prev_pos)) = prev_pos.get_mut(&sv) {
-                                    // compute
-                                    let dt = (*epoch - *prev_epoch).to_unit(Unit::Second);
-                                    let dx = (sv_pos.0 - prev_pos.0) / dt;
-                                    let dy = (sv_pos.1 - prev_pos.1) / dt;
-                                    let dz = (sv_pos.2 - prev_pos.2) / dt;
-                                    // append
-                                    if let Some(data) = ret.get_mut(&sv) {
-                                        data.insert(*epoch, (dx, dy, dz));
-                                    } else {
-                                        let mut map: BTreeMap<Epoch, (f64, f64, f64)> =
-                                            BTreeMap::new();
-                                        map.insert(*epoch, (dx, dy, dz));
-                                        ret.insert(*sv, map);
-                                    }
-
-                                    // update
-                                    *prev_epoch = *epoch;
-                                    *prev_pos = sv_pos;
-                                } else {
-                                    prev_pos.insert(*sv, (*epoch, sv_pos));
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        ret
-    }
-
-    /// Returns list of vehicles per constellation and on an epoch basis
-    /// that are closest to Zenith. This is basically a max() operation
-    /// on the elevation angle, per epoch and constellation.
-    /// This can only be computed on Navigation ephemeris.
-    pub fn space_vehicles_best_elevation_angle(&self) -> BTreeMap<Epoch, Vec<Sv>> {
-        let mut ret: BTreeMap<Epoch, Vec<Sv>> = BTreeMap::new();
-        if let Some(record) = self.record.as_nav() {
-            for (e, classes) in record.iter() {
-                let mut work: BTreeMap<Constellation, (f64, Sv)> = BTreeMap::new();
-                for (class, frames) in classes.iter() {
-                    if *class == navigation::FrameClass::Ephemeris {
-                        for frame in frames.iter() {
-                            let (_, sv, ephemeris) = frame.as_eph().unwrap();
-                            let orbits = &ephemeris.orbits;
-                            if let Some(elev) = orbits.get("e") {
-                                // got an elevation angle
-                                let elev = elev.as_f64().unwrap();
-                                if let Some((angle, v)) = work.get_mut(&sv.constellation) {
-                                    // already have data for this constellation
-                                    // how does this compare ?
-                                    if *angle < elev {
-                                        *angle = elev; // overwrite
-                                        *v = sv.clone(); // overwrite
-                                    }
-                                } else {
-                                    // new entry
-                                    work.insert(sv.constellation.clone(), (elev, sv.clone()));
-                                }
-                            }
-                        }
-                    }
-                }
-                // build result for this epoch
-                let mut inner: Vec<Sv> = Vec::new();
-                for (_, (_, sv)) in work.iter() {
-                    inner.push(*sv);
-                }
-                ret.insert(*e, inner.clone());
-            }
-        }
-        ret
-    }
-
-    /*
-        /// Computes and extracts from Navigation Data, all satellite
-        /// position, speed and accelerations, in ECEF, on an epoch basis
-        pub fn navigation_sat_speed_ecef(&self)
-            -> BTreeMap<Epoch, HashMap<Sv, ((f64,f64,f64), (f64,f64,f64), (f64,f64,f64))>> {
-            let mut ret: BTreeMap<Epoch, HashMap<Sv, ((f64,f64,f64), (f64,f64,f64), (f64,f64,f64))>> = BTreeMap::new();
-            let mut pdata: HashMap<Sv, (Epoch, (f64,f64,f64), (f64,f64,f64))> = HashMap::new();
-            if let Some(record) = self.record.as_nav() {
-                for (epoch, classes) in record {
-                    for (class, frames) in classes {
-                        if *class == navigation::FrameClass::Ephemeris {
-                            for fr in frames {
-                                let (_, sv, ephemeris) = fr.as_eph()
-                                    .unwrap();
-                                if let Some(sat_pos) = ephemeris.sat_pos_ecef(*epoch) {
-                                    if let Some(data) = ret.get_mut(epoch) {
-                                        // epoch being built
-                                        data.insert(*sv, sat_pos);
-                                    } else {
-                                        // first vehicle for this epoch
-                                        let mut map: HashMap<Sv, ((f64,f64,f64), (f64,f64,f64), (f64,f64,f64))> = HashMap::new();
-                                        if let Some((p_epoch, p_pos, p_speed)) = pdata.get(sv) {
-                                            // sv already encountered
-                                            // compute new speed
-                                            if let Some((dx, dy, dz)) = ephemeris.sat_speed_ecef(*epoch, *p_pos, *p_epoch) {
-
-                                            }
-                                            // compute new accell
-                                            if let Some((ddx, ddy, ddz)) = ephemeris.sat_accel_ecef(*epoch, *p_speed, *p_epoch) {
-
-                                            }
-                                            map.insert(*sv, (sat_pos, (0.0_f64, 0.0_f64, 0.0_f64), (0.0_f64, 0.0_f64, 0.0_f64));
-                                        } else {
-                                            // sv never encountered
-
-                                            map.insert(*sv, (sat_pos, (0.0_f64, 0.0_f64, 0.0_f64), (0.0_f64, 0.0_f64, 0.0_f64));
-                                        }
-                                        ret.insert(*epoch, map);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            ret
-        }
-    */
 }
 
 impl Split for Rinex {
@@ -2599,6 +2555,60 @@ impl Decimate for Rinex {
         let mut s = self.clone();
         s.decimate_match_mut(rhs);
         s
+    }
+}
+
+use crate::observation::ObservationIter;
+
+impl ObservationIter for Rinex {
+    fn epoch_flags(&self) -> Box<dyn Iterator<Item = (Epoch, EpochFlag)> + '_> {
+        Box::new(
+            self.record
+                .as_obs()
+                .into_iter()
+                .flat_map(|record| record.iter().map(|((ep, fl), _)| (*ep, *fl))),
+        )
+    }
+
+    fn epoch_anomalies(&self) -> Box<dyn Iterator<Item = (Epoch, EpochFlag)> + '_> {
+        Box::new(self.epoch_flags().filter_map(
+            |(e, f)| {
+                if !f.is_ok() {
+                    Some((e, f))
+                } else {
+                    None
+                }
+            },
+        ))
+    }
+
+    fn epoch_ok(&self) -> Box<dyn Iterator<Item = Epoch> + '_> {
+        Box::new(
+            self.epoch_flags()
+                .filter_map(|(e, f)| if f.is_ok() { Some(e) } else { None }),
+        )
+    }
+
+    fn epoch_cs(&self) -> Box<dyn Iterator<Item = Epoch> + '_> {
+        Box::new(self.epoch_flags().filter_map(|(e, f)| {
+            if f == EpochFlag::CycleSlip {
+                Some(e)
+            } else {
+                None
+            }
+        }))
+    }
+
+    fn rcvr_clock(&self) -> Box<dyn Iterator<Item = (Epoch, f64)> + '_> {
+        Box::new(self.record.as_obs().into_iter().flat_map(|r| {
+            r.iter().filter_map(|((e, _), (clk, _))| {
+                if let Some(clk) = clk {
+                    Some((*e, *clk))
+                } else {
+                    None
+                }
+            })
+        }))
     }
 }
 

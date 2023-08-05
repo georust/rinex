@@ -8,20 +8,9 @@ use std::collections::{BTreeMap, HashMap};
 use std::str::FromStr;
 use thiserror::Error;
 
-/// Meteo RINEX Record content.
-/// Dataset is sorted by [`Epoch`] and by [`Observable`].
-/// Refer to the [crate::meteo::MeteoIter] trait to understand how to navigate
-/// Meteo records.  
-/// See the [crate::meteo::Meteo] trait for Meteo Data processing.
-/// ```
-/// use rinex::prelude::*;
-/// use rinex::meteo::MeteoIter;
-/// let rnx = Rinex::from_file("../test_resources/MET/V2/abvi0010.15m")
-///    .unwrap();
-/// for (epoch, value) in rnx.temperature() {
-///    println!("{} : {} °C", epoch, value);
-/// }
-/// ```
+/*
+ * Meteo RINEX specific record type.
+ */
 pub type Record = BTreeMap<Epoch, HashMap<Observable, f64>>;
 
 /*

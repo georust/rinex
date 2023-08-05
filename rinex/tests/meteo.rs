@@ -1,9 +1,7 @@
 #[cfg(test)]
 #[cfg(feature = "meteo")]
 mod test {
-    use rinex::meteo::{Meteo, MeteoIter};
     use rinex::prelude::*;
-    use rinex::RinexIter;
     use std::str::FromStr;
     #[test]
     fn v2_abvi0010_15m() {
@@ -77,7 +75,7 @@ mod test {
             ),
         ];
 
-        let epochs = rinex.epochs().collect::<Vec<Epoch>>();
+        let epochs = rinex.epoch().collect::<Vec<Epoch>>();
 
         let record_values: Vec<Vec<(Epoch, f64)>> = vec![
             rinex.pressure().collect(),

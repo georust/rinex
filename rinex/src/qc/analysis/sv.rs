@@ -10,7 +10,7 @@ impl QcSvAnalysis {
     pub fn new(rnx: &Rinex, _nav: &Option<Rinex>, _opts: &QcOpts) -> Self {
         let sv = rnx.sv();
         Self {
-            sv: { sv.iter().map(|sv| sv.to_string()).collect() },
+            sv: { sv.map(|sv| sv.to_string()).collect() },
         }
     }
 }

@@ -15,7 +15,6 @@ pub trait Split {
     /// Fails if self is not indexed by `Epoch`.
     /// ```
     /// use rinex::Split; // .split()
-    /// use rinex::RinexIter; // .epochs()
     /// use rinex::prelude::*; // Rinex
     /// let rnx = Rinex::from_file("../test_resources/OBS/V2/delf0010.21o")
     ///     .unwrap();

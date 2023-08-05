@@ -1,9 +1,8 @@
 use hifitime::Unit;
 
 use super::QcOpts;
+use crate::observation::ObservationIter;
 use crate::prelude::*;
-use crate::RinexIter;
-use crate::Sampling;
 
 #[derive(Debug, Clone)]
 pub struct QcSamplingAnalysis {
