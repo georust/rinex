@@ -841,48 +841,6 @@ impl Rinex {
         ret
     }
 
-    /// Lists identified [navigation::MsgType] in this NAV RINEX.
-    pub fn nav_message_types(&self) -> Vec<navigation::NavMsgType> {
-        panic!("rework");
-        //let mut ret: Vec<navigation::MsgType> = Vec::new();
-        //if let Some(record) = self.record.as_nav() {
-        //    for (_, classes) in record.iter() {
-        //        for (class, frames) in classes.iter() {
-        //            if *class == navigation::FrameClass::Ephemeris {
-        //                for fr in frames.iter() {
-        //                    let (msg, _, _) = fr.as_eph().unwrap();
-        //                    if !ret.contains(msg) {
-        //                        ret.push(*msg);
-        //                    }
-        //                }
-        //            } else if *class == navigation::FrameClass::SystemTimeOffset {
-        //                for fr in frames.iter() {
-        //                    let (msg, _, _) = fr.as_sto().unwrap();
-        //                    if !ret.contains(msg) {
-        //                        ret.push(*msg);
-        //                    }
-        //                }
-        //            } else if *class == navigation::FrameClass::IonosphericModel {
-        //                for fr in frames.iter() {
-        //                    let (msg, _, _) = fr.as_ion().unwrap();
-        //                    if !ret.contains(msg) {
-        //                        ret.push(*msg);
-        //                    }
-        //                }
-        //            } else if *class == navigation::FrameClass::EarthOrientation {
-        //                for fr in frames.iter() {
-        //                    let (msg, _, _) = fr.as_eop().unwrap();
-        //                    if !ret.contains(msg) {
-        //                        ret.push(*msg);
-        //                    }
-        //                }
-        //            }
-        //        }
-        //    }
-        //}
-        //ret
-    }
-
     /// Applies given AND mask in place, to all observations.
     /// This has no effect on non observation records.
     /// This also drops observations that did not come with an LLI flag.  
@@ -1007,33 +965,6 @@ impl Rinex {
             s
         }
     */
-    /// Extracts all System Time Offset data
-    /// on a epoch basis, from this Navigation record.
-    /// This does not produce anything if self is not a modern Navigation record
-    /// that contains such frames.
-    pub fn navigation_system_time_offsets(&self) -> BTreeMap<Epoch, Vec<navigation::StoMessage>> {
-        panic!("rework");
-        //if !self.is_navigation_rinex() {
-        //    return BTreeMap::new(); // nothing to browse
-        //}
-        //let mut results: BTreeMap<Epoch, Vec<navigation::StoMessage>> = BTreeMap::new();
-        //let record = self.record.as_nav().unwrap();
-        //for (e, classes) in record.iter() {
-        //    for (class, frames) in classes.iter() {
-        //        if *class == navigation::FrameClass::SystemTimeOffset {
-        //            let mut inner: Vec<navigation::StoMessage> = Vec::new();
-        //            for frame in frames.iter() {
-        //                let (_, _, fr) = frame.as_sto().unwrap();
-        //                inner.push(fr.clone())
-        //            }
-        //            if inner.len() > 0 {
-        //                results.insert(*e, inner);
-        //            }
-        //        }
-        //    }
-        //}
-        //results
-    }
     /// Aligns Phase observations at origin
     pub fn observation_phase_align_origin_mut(&mut self) {
         let mut init_phases: HashMap<Sv, HashMap<Observable, f64>> = HashMap::new();
@@ -1859,7 +1790,7 @@ impl Rinex {
 
 #[cfg(feature = "nav")]
 use crate::navigation::{
-    BdModel, Ephemeris, FrameClass, IonMessage, KbModel, NavFrame, NavMsgType, NgModel,
+    BdModel, Ephemeris, FrameClass, IonMessage, StoMessage, KbModel, NavFrame, NavMsgType, NgModel,
 };
 
 #[cfg(feature = "nav")]
@@ -2150,6 +2081,20 @@ impl Rinex {
             } else {
                 None
             }
+        }))
+    }
+    /// Returns System Time Offset frames iterator
+    pub fn system_time_offset(
+        &self,
+    ) -> Box<dyn Iterator<Item = (&Epoch, (&NavMsgType, &Sv, &StoMessage))> + '_> {
+        Box::new(self.navigation().flat_map(|(e, frames)| {
+            frames.iter().filter_map(move |fr| {
+                if let Some((msg, sv, sto)) = fr.as_sto() {
+                    Some((e, (msg, sv, sto)))
+                } else {
+                    None
+                }
+            })
         }))
     }
 }
