@@ -646,58 +646,8 @@ impl Rinex {
         self.lli_and_mask_mut(observation::LliFlags::LOCK_LOSS)
     }
 
-    /// Lists all [`Constellation`] contained in record.    
-    /// This applies to OBS, NAV and CLK RINEX.
-    pub fn constellations(&self) -> Vec<Constellation> {
-        panic!("todo move to Iter constellation()");
-        let mut ret: Vec<Constellation> = Vec::new();
-        match self.header.constellation {
-            Some(Constellation::Mixed) => {
-                if let Some(r) = self.record.as_obs() {
-                    for (_e, (_clk, vehicles)) in r {
-                        for (sv, _) in vehicles {
-                            if !ret.contains(&sv.constellation) {
-                                ret.push(sv.constellation.clone());
-                            }
-                        }
-                    }
-                } else if let Some(r) = self.record.as_nav() {
-                    panic!("rework");
-                    //for (_, classes) in r {
-                    //    for (class, frames) in classes {
-                    //        if *class == navigation::FrameClass::Ephemeris {
-                    //            for frame in frames {
-                    //                let (_, sv, _) = frame.as_eph().unwrap();
-                    //                if !ret.contains(&sv.constellation) {
-                    //                    ret.push(sv.constellation.clone());
-                    //                }
-                    //            }
-                    //        }
-                    //    }
-                    //}
-                } else if let Some(r) = self.record.as_clock() {
-                    for (_, types) in r {
-                        for (_, systems) in types {
-                            for (system, _) in systems {
-                                if let Some(sv) = system.as_sv() {
-                                    if !ret.contains(&sv.constellation) {
-                                        ret.push(sv.constellation.clone());
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            },
-            Some(c) => ret.push(c),
-            None => {},
-        }
-        ret.sort();
-        ret
-    }
-
     pub fn retain_best_elevation_angles_mut(&mut self) {
-        panic!("rework");
+        unimplemented!("retain_best_elev: use preprocessing toolkit instead");
         //let best_vehicles = self.space_vehicles_best_elevation_angle();
         //if let Some(record) = self.record.as_mut_nav() {
         //    record.retain(|e, classes| {
@@ -716,63 +666,6 @@ impl Rinex {
         //        classes.len() > 0
         //    });
         //}
-    }
-
-    /// Returns list of observables, in the form
-    /// of standardized 3 letter codes, that can be found in this record.
-    /// This does not produce anything in case of ATX and IONEX records.
-    /// In case of NAV record:
-    ///    - Ephemeris frames: returns list of Orbits identifier,
-    ///    example: "iode", "cus"..
-    ///    - System Time Offset frames: list of Time Systems ("GAUT", "GAGP"..)
-    ///    - Ionospheric Models: does not apply
-    pub fn observables(&self) -> Vec<String> {
-        let mut result: Vec<String> = Vec::new();
-        if let Some(obs) = &self.header.obs {
-            for (constell, codes) in obs.codes.iter() {
-                for code in codes {
-                    result.push(format!(
-                        "{}:{}",
-                        constell.to_3_letter_code(),
-                        code.to_string()
-                    ))
-                }
-            }
-        } else if let Some(obs) = &self.header.meteo {
-            for code in obs.codes.iter() {
-                result.push(code.to_string())
-            }
-        } else if let Some(obs) = &self.header.clocks {
-            for code in obs.codes.iter() {
-                result.push(code.to_string())
-            }
-        } else if self.is_navigation_rinex() {
-            panic!("rework");
-            //    let record = self.record.as_nav().unwrap();
-            //    for (_, classes) in record.iter() {
-            //        for (class, frames) in classes.iter() {
-            //            if *class == navigation::FrameClass::Ephemeris {
-            //                for frame in frames.iter() {
-            //                    let (_, _, ephemeris) = frame.as_eph().unwrap();
-            //                    let orbits = &ephemeris.orbits;
-            //                    for key in orbits.keys() {
-            //                        if !result.contains(key) {
-            //                            result.push(key.to_string())
-            //                        }
-            //                    }
-            //                }
-            //            } else if *class == navigation::FrameClass::SystemTimeOffset {
-            //                for frame in frames.iter() {
-            //                    let (_, _, sto) = frame.as_sto().unwrap();
-            //                    if !result.contains(&sto.system.to_string()) {
-            //                        result.push(sto.system.clone())
-            //                    }
-            //                }
-            //            }
-            //        }
-            //    }
-        }
-        result
     }
 
     /// List [clocks::record::System] (reference systems) contained in this CLK RINEX.   
@@ -1533,8 +1426,6 @@ impl Rinex {
     }
 }
 
-use itertools::Itertools; //.sort()
-
 /*
  * Methods that return an Iterator exclusively.
  * These methods are used to browse data easily and efficiently.
@@ -1648,14 +1539,6 @@ impl Rinex {
                 self.header.rinex_type
             );
         }
-        //} else if let Some(r) = self.record.as_obs() {
-        //    for (_, (_, vehicles)) in r {
-        //        for (sv, _) in vehicles {
-        //            if !map.contains(&sv) {
-        //                map.push(*sv);
-        //            }
-        //        }
-        //    }
         //} else if let Some(r) = self.record.as_clock() {
         //    for (_, dtypes) in r {
         //        for (_, systems) in dtypes {
@@ -1735,10 +1618,68 @@ impl Rinex {
         //}
         //map
     }
+    /// Returns a (unique) Iterator over all identified [`Constellation`]s.
     pub fn constellation(&self) -> Box<dyn Iterator<Item = Constellation> + '_> {
-        panic!("rework");
+        // from .sv() (unique) iterator:
+        //  create a unique list of Constellations
+        Box::new(
+            self.sv()
+                .map(|sv| sv.constellation)
+                .fold(vec![], |mut list, constell| {
+                    if !list.contains(&constell) {
+                        list.push(constell);
+                    }
+                    list
+                })
+                .into_iter(),
+        )
     }
-
+    /// Returns a (unique) Iterator over all identified [`Observable`]s.
+    /// This will panic if invoked on other than OBS and Meteo RINEX.
+    pub fn observable(&self) -> Box<dyn Iterator<Item = &Observable> + '_> {
+        if let Some(_) = self.record.as_obs() {
+            Box::new(
+                self.observation()
+                    .map(|(_, (_, svnn))| {
+                        svnn.iter()
+                            .flat_map(|(_sv, observables)| observables.keys())
+                    })
+                    .fold(vec![], |mut list, items| {
+                        // create a unique list
+                        for item in items {
+                            if !list.contains(&item) {
+                                list.push(item);
+                            }
+                        }
+                        list
+                    })
+                    .into_iter(),
+            )
+        } else if let Some(_) = self.record.as_meteo() {
+            Box::new(
+                self.meteo()
+                    .map(|(_, observables)| {
+                        observables.keys()
+                        //.copied()
+                    })
+                    .fold(vec![], |mut list, items| {
+                        // create a unique list
+                        for item in items {
+                            if !list.contains(&item) {
+                                list.push(item);
+                            }
+                        }
+                        list
+                    })
+                    .into_iter(),
+            )
+        } else {
+            panic!(
+                ".observable() is not feasible on \"{:?}\" RINEX",
+                self.header.rinex_type
+            );
+        }
+    }
     /// Meteo RINEX record browsing method. Extracts data for this specific format.
     /// Data is sorted by [`Epoch`] then by [`Observable`].
     /// ```
@@ -1780,7 +1721,7 @@ impl Rinex {
     ///     assert!(clock_offset.is_none()); // we don't have an example for this, at the moment
     ///     for (sv, observations) in vehicles {
     ///         if *sv == sv!("E01") {
-    ///             for (observable, observation) in vehicles {
+    ///             for (observable, observation) in observations {
     ///                 if *observable == observable!("L1C") {
     ///                     if let Some(lli) = observation.lli {
     ///                         // A flag might be attached to each observation.
@@ -1914,12 +1855,12 @@ impl Rinex {
 
 #[cfg(feature = "nav")]
 use crate::navigation::{
-    BdModel, EopMessage, Ephemeris, FrameClass, IonMessage, KbModel, NavFrame, NavMsgType, NgModel,
-    StoMessage,
+    BdModel, EopMessage, Ephemeris, IonMessage, KbModel, NavFrame, NavMsgType, NgModel, StoMessage,
 };
 
-#[cfg(feature = "nav")]
-use hifitime::Unit;
+//#[cfg(feature = "nav")]
+//use hifitime::Unit;
+//.sv_speed()
 
 #[cfg(feature = "nav")]
 use map_3d::ecef2geodetic;
@@ -2016,7 +1957,7 @@ impl Rinex {
     ///     .unwrap();
     /// for (epoch, (msg, sv, data)) in rinex.ephemeris() {
     ///     // this record only contains Legacy NAV frames
-    ///     assert_eq!(*msg, NavMsgType::LNAV);
+    ///     assert_eq!(msg, NavMsgType::LNAV);
     /// }
     /// ```
     pub fn ephemeris(
@@ -2038,25 +1979,18 @@ impl Rinex {
     /// use rinex::prelude::*;
     /// let mut rinex = Rinex::from_file("../test_resources/NAV/V3/CBW100NLD_R_20210010000_01D_MN.rnx")
     ///     .unwrap();
-    /// for (epoch, (sv, offset, clock_dr, clock_drr)) in rinex.sv_clock() {
+    /// for (epoch, (sv, (offset, clock_dr, clock_drr))) in rinex.sv_clock() {
     ///     // sv: satellite vehicle
     ///     // offset [s]
     ///     // dr: clock drift [s.s⁻¹]
     ///     // drr: clock drift rate [s.s⁻²]
     /// }
     /// ```
-    pub fn sv_clock(&self) -> Box<dyn Iterator<Item = (Epoch, (Sv, f64, f64, f64))> + '_> {
-        Box::new(self.ephemeris().map(|(e, (_, sv, data))| {
-            (
-                *e,
-                (
-                    *sv,
-                    data.clock_bias,
-                    data.clock_drift,
-                    data.clock_drift_rate,
-                ),
-            )
-        }))
+    pub fn sv_clock(&self) -> Box<dyn Iterator<Item = (Epoch, (Sv, (f64, f64, f64)))> + '_> {
+        Box::new(
+            self.ephemeris()
+                .map(|(e, (_, sv, data))| (*e, (*sv, data.sv_clock()))),
+        )
     }
     /// Returns an Iterator over Sv position vectors,
     /// expressed in meters ECEF for all Epochs.
@@ -2118,11 +2052,11 @@ impl Rinex {
     ///     Rinex::from_file("../test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz")
     ///         .unwrap();
     ///
-    /// for (epoch, (sv, sv_x, sv_y, sv_z)) in rinex.sv_speed() {
-    ///     // sv_x : m/s
-    ///     // sv_y : m/s
-    ///     // sv_z : m/s
-    /// }
+    /// //for (epoch, (sv, sv_x, sv_y, sv_z)) in rinex.sv_speed() {
+    /// //    // sv_x : m/s
+    /// //    // sv_y : m/s
+    /// //    // sv_z : m/s
+    /// //}
     /// ```
     pub fn sv_speed(&self) -> Box<dyn Iterator<Item = (Epoch, (Sv, f64, f64, f64))> + '_> {
         todo!("sv_speed");
@@ -2135,8 +2069,9 @@ impl Rinex {
     /// Returns an Iterator over Sv elevation and azimuth angles,
     /// both expressed in degrees.
     /// A reference ground position must be known:
-    ///   - either it is defined in Self
+    ///   - either it is defined in [Header]
     ///   - otherwise it can be superceeded by user defined position
+    ///   - if none of these conditions are matched, method will panic
     /// ```
     /// use rinex::wgs84;
     /// use rinex::prelude::*;
@@ -2146,7 +2081,7 @@ impl Rinex {
     ///     .unwrap();
     ///
     /// let data = rinex.sv_elevation_azimuth(Some(ref_pos));
-    /// for (epoch, (sv, elev, azim)) in data {
+    /// for (epoch, (sv, (elev, azim))) in data {
     ///     // azim: azimuth in °
     ///     // elev: elevation in °
     /// }
@@ -2154,10 +2089,30 @@ impl Rinex {
     pub fn sv_elevation_azimuth(
         &self,
         ref_position: Option<GroundPosition>,
-    ) -> Box<dyn Iterator<Item = (Epoch, (Sv, f64, f64))> + '_> {
-        //Box::new(
-        //)
-        todo!("sv_elev_azim");
+    ) -> Box<dyn Iterator<Item = (Epoch, (Sv, (f64, f64)))> + '_> {
+        let ground_position = match ref_position {
+            Some(pos) => pos, // user value superceeds, in case it is passed
+            _ => {
+                // header must contain this information
+                // otherwise, calculation is not feasible
+                if let Some(pos) = self.header.ground_position {
+                    pos
+                } else {
+                    panic!("sv_elevation_azimuth(): needs a reference position");
+                }
+            },
+        };
+        Box::new(
+            self.ephemeris()
+                .filter_map(move |(epoch, (_, sv, ephemeris))| {
+                    if let Some((elev, azim)) = ephemeris.sv_elev_azim(ground_position, *epoch) {
+                        Some((*epoch, (*sv, (elev, azim))))
+                    } else {
+                        None // calculations may not be feasible,
+                             // mainly when mandatory ephemeris broadcasts are missing
+                    }
+                }),
+        )
     }
     /// Returns Ionosphere frames iterator.
     pub fn ionosphere_models(

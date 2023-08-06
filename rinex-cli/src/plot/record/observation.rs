@@ -4,7 +4,7 @@ use crate::{
 };
 use plotly::common::{Marker, MarkerSymbol, Mode, Visible};
 use rinex::{observation::*, prelude::*};
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 
 fn observable_to_physics(observable: &Observable) -> String {
     if observable.is_phase_observable() {
@@ -137,7 +137,7 @@ pub fn plot_observation(ctx: &Context, plot_ctx: &mut PlotContext) {
                         // grab elevation angle
                         let data: Vec<(Epoch, f64)> = nav
                             .sv_elevation_azimuth(ctx.ground_position)
-                            .map(|(epoch, (_sv, elev, _a))| (epoch, elev))
+                            .map(|(epoch, (_sv, (elev, _a)))| (epoch, elev))
                             .collect();
                         // plot (Epoch, Elev)
                         let epochs: Vec<Epoch> = data.iter().map(|(e, _)| *e).collect();

@@ -25,11 +25,12 @@ pub fn sv_epoch(ctx: &Context, plot_ctx: &mut PlotContext) {
     );
     plot_item.set_layout(layout);
 
-    let constellations = ctx.primary_rinex.constellations();
+    // markers/symbols: one per constellation system
+    let constellations: Vec<_> = ctx.primary_rinex.constellation().collect();
     let mut nb_markers = constellations.len();
 
     if let Some(ref nav) = ctx.nav_rinex {
-        let nav_constell = nav.constellations();
+        let nav_constell: Vec<_> = nav.constellation().collect();
         nb_markers += nav_constell.len();
     }
 
@@ -70,7 +71,7 @@ pub fn sv_epoch(ctx: &Context, plot_ctx: &mut PlotContext) {
 
     if let Some(ref nav) = ctx.nav_rinex {
         let data: Vec<_> = nav.sv_epoch().collect();
-        let nav_constell = nav.constellations();
+        let nav_constell: Vec<_> = nav.constellation().collect();
 
         for (sv_index, sv) in nav.sv().enumerate() {
             let epochs: Vec<Epoch> = data

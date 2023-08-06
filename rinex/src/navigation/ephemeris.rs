@@ -45,6 +45,7 @@ pub struct Ephemeris {
 #[cfg(feature = "nav")]
 #[derive(Default, Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
+#[cfg_attr(docrs, doc(cfg(feature = "nav")))]
 pub struct Kepler {
     /// sqrt(semi major axis) [sqrt(m)]
     pub a: f64,
@@ -63,6 +64,7 @@ pub struct Kepler {
 }
 
 #[cfg(feature = "nav")]
+#[cfg_attr(docrs, doc(cfg(feature = "nav")))]
 impl Kepler {
     /// Eearth mass * Gravitationnal field constant [m^3/s^2]
     pub const EARTH_GM_CONSTANT: f64 = 3.986004418E14_f64;
@@ -73,6 +75,7 @@ impl Kepler {
 /// Perturbation parameters
 #[cfg(feature = "nav")]
 #[derive(Default, Clone, Debug)]
+#[cfg_attr(docrs, doc(cfg(feature = "nav")))]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Perturbations {
     /// Mean motion difference from computed value [semicircles.s-1]

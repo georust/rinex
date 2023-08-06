@@ -14,6 +14,22 @@ mod test {
         assert_eq!(rinex.header.obs.is_none(), true);
         assert_eq!(rinex.header.meteo.is_some(), true);
 
+        let mut observables: Vec<_> = rinex.observable().collect();
+        observables.sort(); // for comparison
+
+        let mut expected: Vec<&Observable> = vec![
+            &Observable::Temperature,
+            &Observable::Pressure,
+            &Observable::RainIncrement,
+            &Observable::HumidityRate,
+            &Observable::WindSpeed,
+            &Observable::WindDirection,
+            &Observable::HailIndicator,
+        ];
+        expected.sort(); // for comparison
+
+        assert!(observables == expected, "parsed wrong observable content",);
+
         let labels = vec![
             "pressure",
             "temp",

@@ -37,17 +37,17 @@ fn identification(rnx: &Rinex, pretty: bool, ops: Vec<&str>) {
             };
             println!("{}", content);
         } else if op.eq("observables") {
-            let data = &rnx.observables();
+            let data: Vec<_> = rnx.observable().collect();
             let content = match pretty {
-                true => serde_json::to_string_pretty(data).unwrap(),
-                false => serde_json::to_string(data).unwrap(),
+                true => serde_json::to_string_pretty(&data).unwrap(),
+                false => serde_json::to_string(&data).unwrap(),
             };
             println!("{}", content);
         } else if op.eq("gnss") {
-            let data = &rnx.constellations();
+            let data: Vec<_> = rnx.constellation().collect();
             let content = match pretty {
-                true => serde_json::to_string_pretty(data).unwrap(),
-                false => serde_json::to_string(data).unwrap(),
+                true => serde_json::to_string_pretty(&data).unwrap(),
+                false => serde_json::to_string(&data).unwrap(),
             };
             println!("{}", content);
         } else if op.eq("ssi-range") {
@@ -58,12 +58,13 @@ fn identification(rnx: &Rinex, pretty: bool, ops: Vec<&str>) {
             };
             println!("{}", content);
         } else if op.eq("orbits") {
-            let data = &rnx.observables();
-            let content = match pretty {
-                true => serde_json::to_string_pretty(data).unwrap(),
-                false => serde_json::to_string(data).unwrap(),
-            };
-            println!("{}", content);
+            unimplemented!("nav::orbits");
+            //let data: Vec<_> = rnx.orbit_fields();
+            //let content = match pretty {
+            //    true => serde_json::to_string_pretty(&data).unwrap(),
+            //    false => serde_json::to_string(&data).unwrap(),
+            //};
+            //println!("{}", content);
         } else if op.eq("nav-msg") {
             let data: Vec<_> = rnx.nav_msg_type().collect();
             println!("{:?}", data);

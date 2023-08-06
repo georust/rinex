@@ -516,9 +516,8 @@ fn fmt_epoch_v4(epoch: &Epoch, data: &Vec<NavFrame>, header: &Header) -> Result<
                 "   {:14.13E} {:14.13E} {:14.13E} {:14.13E}\n",
                 sto.t_tm as f64, sto.a.0, sto.a.1, sto.a.2
             ));
-        } else if let Some(fr) = fr.as_eop() {
-            let (msg, sv, eop) = fr;
-            todo!("NAV V4: EOP: not available yet");
+        } else if let Some(_fr) = fr.as_eop() {
+            todo!("NAV V4: EOP: we have no example as of today");
             //(x, xr, xrr), (y, yr, yrr), t_tm, (dut, dutr, dutrr)) = frame.as_eop()
         }
         // EOP
@@ -1133,28 +1132,20 @@ impl Merge for Record {
     }
     /// Merges `rhs` into `Self`
     fn merge_mut(&mut self, rhs: &Self) -> Result<(), merge::Error> {
-        panic!("rework");
-        //for (rhs_epoch, rhs_classes) in rhs.iter() {
-        //    if let Some(lhs_classes) = self.get_mut(rhs_epoch) {
-        //        for (rhs_class, rhs_frames) in rhs_classes.iter() {
-        //            if let Some(lhs_frames) = lhs_classes.get_mut(rhs_class) {
-        //                for frame in rhs_frames {
-        //                    if !lhs_frames.contains(frame) {
-        //                        // complete new frame
-        //                        lhs_frames.push(frame.clone());
-        //                    }
-        //                }
-        //            } else {
-        //                // new frame class
-        //                lhs_classes.insert(*rhs_class, rhs_frames.clone());
-        //            }
-        //        }
-        //    } else {
-        //        // new epoch
-        //        self.insert(*rhs_epoch, rhs_classes.clone());
-        //    }
-        //}
-        //Ok(())
+        for (rhs_epoch, rhs_frames) in rhs {
+            if let Some(frames) = self.get_mut(&rhs_epoch) {
+                // this epoch already exists
+                for fr in rhs_frames {
+                    if !frames.contains(&fr) {
+                        frames.push(fr.clone()); // insert new NavFrame
+                    }
+                }
+            } else {
+                // insert new epoch
+                self.insert(*rhs_epoch, rhs_frames.clone());
+            }
+        }
+        Ok(())
     }
 }
 
@@ -1488,80 +1479,86 @@ impl Mask for Record {
  */
 #[cfg(feature = "processing")]
 fn decimate_data_subset(record: &mut Record, subset: &Record, target: &TargetItem) {
-    panic!("rework");
-    //match target {
-    //    TargetItem::SvItem(svs) => {
-    //        /*
-    //         * remove Sv data that should now be missing
-    //         */
-    //        for (epoch, classes) in record.iter_mut() {
-    //            if subset.get(epoch).is_none() {
-    //                // should be missing
-    //                for (class, frames) in classes.iter_mut() {
-    //                    if *class == FrameClass::Ephemeris {
-    //                        // does not apply to other frames @ the moment
-    //                        frames.retain(|fr| {
-    //                            let (_msg_type, sv, _ephemeris) = fr.as_eph().unwrap();
-    //                            svs.contains(sv)
-    //                        });
-    //                    }
-    //                }
-    //            }
-    //        }
-    //    },
-    //    TargetItem::ConstellationItem(constells_list) => {
-    //        /*
-    //         * Removes ephemeris frames that should now be missing
-    //         */
-    //        for (epoch, classes) in record.iter_mut() {
-    //            if subset.get(epoch).is_none() {
-    //                // should be missing
-    //                for (class, frames) in classes.iter_mut() {
-    //                    if *class == FrameClass::Ephemeris {
-    //                        // does not apply to other frames @ the moment
-    //                        frames.retain(|fr| {
-    //                            let (_msg_type, sv, _ephemeris) = fr.as_eph().unwrap();
-    //                            constells_list.contains(&sv.constellation)
-    //                        });
-    //                    }
-    //                }
-    //            }
-    //        }
-    //    },
-    //    TargetItem::OrbitItem(orbit_fields) => {
-    //        /*
-    //         * Removes ephemeris frames that should now be missing
-    //         */
-    //        for (epoch, classes) in record.iter_mut() {
-    //            if subset.get(epoch).is_none() {
-    //                // should be missing
-    //                for (class, frames) in classes.iter_mut() {
-    //                    if *class == FrameClass::Ephemeris {
-    //                        // does not apply to other frames @ the moment
-    //                        frames.retain_mut(|fr| {
-    //                            let (_msg_type, _sv, ephemeris) = fr.as_mut_eph().unwrap();
-    //                            ephemeris.orbits.retain(|k, _| orbit_fields.contains(&k));
-    //                            ephemeris.orbits.len() > 0
-    //                        });
-    //                    }
-    //                }
-    //            }
-    //        }
-    //    },
-    //    TargetItem::AzimuthItem(_azim) => {
-    //        unimplemented!("navigation:record:decimate_data_subset(azim)");
-    //    },
-    //    TargetItem::ElevationItem(_elev) => {
-    //        unimplemented!("navigation:record:decimate_data_subset(elev)");
-    //    },
-    //    TargetItem::NavFrameItem(_frame_classes) => {
-    //        unimplemented!("navigation:record:decimate_data_subset(navframe)");
-    //    },
-    //    TargetItem::NavMsgItem(_msg_types) => {
-    //        unimplemented!("navigation:record:decimate_data_subset(navmsg)");
-    //    },
-    //    _ => {}, // does not apply
-    //}
+    match target {
+        TargetItem::SvItem(svs) => {
+            /*
+             * remove Sv data that should now be missing
+             */
+            for (epoch, frames) in record.iter_mut() {
+                if subset.get(epoch).is_none() {
+                    // for specified targets, this should now be removed
+                    frames.retain(|fr| {
+                        if let Some((_, sv, _)) = fr.as_eph() {
+                            svs.contains(sv)
+                        } else if let Some((_, sv, _)) = fr.as_ion() {
+                            svs.contains(sv)
+                        } else if let Some((_, sv, _)) = fr.as_sto() {
+                            svs.contains(sv)
+                        } else if let Some((_, sv, _)) = fr.as_eop() {
+                            svs.contains(sv)
+                        } else {
+                            false // all cases already covered
+                        }
+                    });
+                }
+            }
+        },
+        TargetItem::ConstellationItem(constells_list) => {
+            /*
+             * Removes ephemeris frames that should now be missing
+             */
+            for (epoch, frames) in record.iter_mut() {
+                if subset.get(epoch).is_none() {
+                    // for specified targets, this should now be removed
+                    frames.retain(|fr| {
+                        if let Some((_, sv, _)) = fr.as_eph() {
+                            constells_list.contains(&sv.constellation)
+                        } else if let Some((_, sv, _)) = fr.as_ion() {
+                            constells_list.contains(&sv.constellation)
+                        } else if let Some((_, sv, _)) = fr.as_sto() {
+                            constells_list.contains(&sv.constellation)
+                        } else if let Some((_, sv, _)) = fr.as_eop() {
+                            constells_list.contains(&sv.constellation)
+                        } else {
+                            false // all cases already covered
+                        }
+                    });
+                }
+            }
+        },
+        TargetItem::OrbitItem(orbit_fields) => {
+            /*
+             * Removes ephemeris frames that should now be missing
+             */
+            for (epoch, frames) in record.iter_mut() {
+                if subset.get(epoch).is_none() {
+                    // for specified targets, this should now be removed
+                    frames.retain(|fr| {
+                        if let Some((_, _, data)) = fr.as_mut_eph() {
+                            data.orbits.retain(|k, _| orbit_fields.contains(&k));
+                            data.orbits.len() > 0
+                        } else {
+                            true // targetted specific orbit fields
+                                 // does not apply to other NavFrame types
+                        }
+                    });
+                }
+            }
+        },
+        TargetItem::AzimuthItem(_azim) => {
+            unimplemented!("navigation:record:decimate_data_subset(azim)");
+        },
+        TargetItem::ElevationItem(_elev) => {
+            unimplemented!("navigation:record:decimate_data_subset(elev)");
+        },
+        TargetItem::NavFrameItem(_frame_classes) => {
+            unimplemented!("navigation:record:decimate_data_subset(navframe)");
+        },
+        TargetItem::NavMsgItem(_msg_types) => {
+            unimplemented!("navigation:record:decimate_data_subset(navmsg)");
+        },
+        _ => {}, // does not apply
+    }
 }
 
 #[cfg(feature = "processing")]

@@ -60,7 +60,7 @@ mod test {
 
         assert!(sv == vehicles, "parsed wrong vehicle content",);
 
-        for (index, (e, frames)) in record.iter().enumerate() {
+        for (_e, frames) in rinex.navigation() {
             for fr in frames {
                 // test : only Ephemeris frames in old rinex
                 let fr = fr.as_eph();
@@ -75,9 +75,10 @@ mod test {
 
                 // test inner data
                 if sv.prn == 1 {
-                    assert_eq!(ephemeris.clock_bias, 7.282570004460E-5);
-                    assert_eq!(ephemeris.clock_drift, 0.0);
-                    assert_eq!(ephemeris.clock_drift_rate, 7.380000000000E+04);
+                    assert_eq!(
+                        ephemeris.sv_clock(),
+                        (7.282570004460E-5, 0.0, 7.380000000000E+04)
+                    );
                     let data = &ephemeris.orbits;
                     //assert_eq!(
                     //    ephemeris.sv_position(*e),

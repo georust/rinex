@@ -24,7 +24,7 @@ pub fn skyplot(ctx: &Context, plot_ctx: &mut PlotContext) {
         // Theta = azim
         let data: Vec<(Epoch, f64, f64)> = nav_rnx
             .sv_elevation_azimuth(ctx.ground_position)
-            .filter_map(|(epoch, (sv, elev, azi))| {
+            .filter_map(|(epoch, (sv, (elev, azi)))| {
                 if sv == svnn {
                     Some((epoch, elev, azi))
                 } else {
@@ -33,7 +33,7 @@ pub fn skyplot(ctx: &Context, plot_ctx: &mut PlotContext) {
             })
             .collect();
         let rho: Vec<f64> = data.iter().map(|(_e, rho, _theta)| *rho).collect();
-        let theta: Vec<f64> = data.iter().map(|(_e, rho, theta)| *theta).collect();
+        let theta: Vec<f64> = data.iter().map(|(_e, _rho, theta)| *theta).collect();
 
         //TODO: color gradient to emphasize day course
         let trace = ScatterPolar::new(theta, rho)
