@@ -21,9 +21,9 @@ pub trait Split {
     /// let epoch = Epoch::from_gregorian_utc(2021, 01, 01, 0, 1, 00, 00);
     /// let (rnx_a, rnx_b) = rnx.split(epoch)
     ///     .unwrap();
-    /// let epochs   : Vec<_> = rnx.epochs().collect();
-    /// let a_epochs : Vec<_> = rnx_a.epochs().collect();
-    /// let b_epochs : Vec<_> = rnx_b.epochs().collect();
+    /// let epochs   : Vec<_> = rnx.epoch().collect();
+    /// let a_epochs : Vec<_> = rnx_a.epoch().collect();
+    /// let b_epochs : Vec<_> = rnx_b.epoch().collect();
     /// assert_eq!(a_epochs.len(), 2);
     /// assert_eq!(b_epochs.len(),  epochs.len() -2);
     /// ```

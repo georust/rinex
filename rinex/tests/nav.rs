@@ -30,7 +30,7 @@ mod test {
 
         // Test: only Legacy Ephemeris frames in this record
         for (_, (msg, _, _)) in rinex.ephemeris() {
-            assert_eq!(*msg, NavMsgType::LNAV);
+            assert_eq!(msg, NavMsgType::LNAV);
         }
 
         let epochs = vec![
@@ -69,7 +69,7 @@ mod test {
                 // test : only Legacy frames in old rinex
                 let (msg, sv, ephemeris) = fr.unwrap();
                 assert!(
-                    *msg == NavMsgType::LNAV,
+                    msg == NavMsgType::LNAV,
                     "only LNAV frames are expected here"
                 );
 
@@ -241,7 +241,7 @@ mod test {
                 let (msg, sv, ephemeris) = fr.unwrap();
 
                 // test: only Legacy frames in V3
-                assert!(*msg == NavMsgType::LNAV, "only legacy frames expected here");
+                assert!(msg == NavMsgType::LNAV, "only legacy frames expected here");
 
                 // test some data
                 match sv.constellation {
@@ -1102,7 +1102,7 @@ mod test {
                             panic!("got unexpected QZSS vehicle \"{}\"", sv.prn)
                         }
                         assert_eq!(*e, Epoch::from_gregorian_utc(2022, 06, 08, 11, 00, 00, 00));
-                        assert_eq!(*msgtype, NavMsgType::LNAV);
+                        assert_eq!(msgtype, NavMsgType::LNAV);
                         assert_eq!(ephemeris.clock_bias, 1.080981455743E-04);
                         assert_eq!(ephemeris.clock_drift, 3.751665644813E-12);
                         assert_eq!(ephemeris.clock_drift_rate, 0.0);
@@ -1242,7 +1242,7 @@ mod test {
                 let fr = fr.as_eph();
                 assert!(fr.is_some(), "only ephemeris frames expected here");
                 let (msg, sv, data) = fr.unwrap();
-                assert!(*msg == NavMsgType::LNAV, "only lnav frame expected here");
+                assert!(msg == NavMsgType::LNAV, "only lnav frame expected here");
             }
         }
     }

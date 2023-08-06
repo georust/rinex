@@ -18,29 +18,6 @@ pub enum Error {
 }
 
 /// Earth Orientation Message
-/// ```
-/// use rinex::prelude::*;
-/// use rinex::navigation::*;
-/// let rnx = Rinex::from_file("../test_resources/NAV/V4/KMS300DNK_R_20221591000_01H_MN.rnx.gz")
-///     .unwrap();
-/// let record = rnx.record.as_nav()
-///     .unwrap();
-/// for (epoch, classes) in record {
-///     for (class, frames) in classes {
-///         // epochs may contain other frame classes
-///         if *class == FrameClass::EarthOrientation {
-///             for fr in frames {
-///                 let (msg_type, sv, eop) = fr.as_eop()
-///                     .unwrap(); // you're fine at this point
-///                 let (x, dxdt, ddxdt) = eop.x;
-///                 let (y, dydt, ddydt) = eop.y;
-///                 let t_tm = eop.t_tm;
-///                 let (u, dudt, ddudt) = eop.delta_ut1;
-///             }
-///         }
-///     }
-/// }
-/// ```
 #[derive(Debug, Clone, Default, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct EopMessage {

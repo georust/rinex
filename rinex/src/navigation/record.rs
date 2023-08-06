@@ -134,91 +134,65 @@ impl Default for NavFrame {
 
 impl NavFrame {
     /// Unwraps self, if possible, as ([`NavMsgType`], [`Sv`], [`Ephemeris`])
-    pub fn as_eph(&self) -> Option<(&NavMsgType, &Sv, &Ephemeris)> {
+    pub fn as_eph(&self) -> Option<(NavMsgType, &Sv, &Ephemeris)> {
         match self {
-            Self::Eph(msg, sv, eph) => Some((msg, sv, eph)),
+            Self::Eph(msg, sv, eph) => Some((*msg, sv, eph)),
             _ => None,
         }
     }
     /// Unwraps self, if possible, as mutable ([`NavMsgType`], [`Sv`], [`Ephemeris`])
-    pub fn as_mut_eph(&mut self) -> Option<(&mut NavMsgType, &mut Sv, &mut Ephemeris)> {
+    pub fn as_mut_eph(&mut self) -> Option<(NavMsgType, &mut Sv, &mut Ephemeris)> {
         match self {
-            Self::Eph(msg, sv, eph) => Some((msg, sv, eph)),
+            Self::Eph(msg, sv, eph) => Some((*msg, sv, eph)),
             _ => None,
         }
     }
     /// Unwraps self, if possible, as ([`NavMsgType`], [`Sv`], [`IonMessage`])
-    pub fn as_ion(&self) -> Option<(&NavMsgType, &Sv, &IonMessage)> {
+    pub fn as_ion(&self) -> Option<(NavMsgType, &Sv, &IonMessage)> {
         match self {
-            Self::Ion(msg, sv, fr) => Some((msg, sv, fr)),
+            Self::Ion(msg, sv, fr) => Some((*msg, sv, fr)),
             _ => None,
         }
     }
     /// Unwraps self, if possible, as mutable ([`NavMsgType`], [`Sv`], [`IonMessage`])
-    pub fn as_mut_ion(&mut self) -> Option<(&mut NavMsgType, &mut Sv, &mut IonMessage)> {
+    pub fn as_mut_ion(&mut self) -> Option<(NavMsgType, &mut Sv, &mut IonMessage)> {
         match self {
-            Self::Ion(msg, sv, fr) => Some((msg, sv, fr)),
+            Self::Ion(msg, sv, fr) => Some((*msg, sv, fr)),
             _ => None,
         }
     }
     /// Unwraps self, if possible, as ([`NavMsgType`], [`Sv`], [`EopMessage`])
-    pub fn as_eop(&self) -> Option<(&NavMsgType, &Sv, &EopMessage)> {
+    pub fn as_eop(&self) -> Option<(NavMsgType, &Sv, &EopMessage)> {
         match self {
-            Self::Eop(msg, sv, fr) => Some((msg, sv, fr)),
+            Self::Eop(msg, sv, fr) => Some((*msg, sv, fr)),
             _ => None,
         }
     }
     /// Unwraps self, if possible, as mutable ([`NavMsgType`], [`Sv`], [`EopMessage`])
-    pub fn as_mut_eop(&mut self) -> Option<(&mut NavMsgType, &mut Sv, &mut EopMessage)> {
+    pub fn as_mut_eop(&mut self) -> Option<(NavMsgType, &mut Sv, &mut EopMessage)> {
         match self {
-            Self::Eop(msg, sv, fr) => Some((msg, sv, fr)),
+            Self::Eop(msg, sv, fr) => Some((*msg, sv, fr)),
             _ => None,
         }
     }
     /// Unwraps self, if possible, as ([`NavMsgType`], [`Sv`], [`StoMessage`])
-    pub fn as_sto(&self) -> Option<(&NavMsgType, &Sv, &StoMessage)> {
+    pub fn as_sto(&self) -> Option<(NavMsgType, &Sv, &StoMessage)> {
         match self {
-            Self::Sto(msg, sv, fr) => Some((msg, sv, fr)),
+            Self::Sto(msg, sv, fr) => Some((*msg, sv, fr)),
             _ => None,
         }
     }
     /// Unwraps self, if possible, as mutable ([`NavMsgType`], [`Sv`], [`StoMessage`])
-    pub fn as_mut_sto(&mut self) -> Option<(&NavMsgType, &mut Sv, &mut StoMessage)> {
+    pub fn as_mut_sto(&mut self) -> Option<(NavMsgType, &mut Sv, &mut StoMessage)> {
         match self {
-            Self::Sto(msg, sv, fr) => Some((msg, sv, fr)),
+            Self::Sto(msg, sv, fr) => Some((*msg, sv, fr)),
             _ => None,
         }
     }
 }
 
-/// Navigation Record.
-/// Data is sorted by epoch, and by Frame class.
-/// ```
-/// use rinex::prelude::*;
-/// use rinex::navigation::*;
-/// let rnx = Rinex::from_file("../test_resources/NAV/V3/AMEL00NLD_R_20210010000_01D_MN.rnx")
-///     .unwrap();
-/// let record = rnx.record.as_nav()
-///     .unwrap();
-/// for (epoch, classes) in record {
-///     for (class, frames) in classes {
-///         if *class == FrameClass::Ephemeris {
-///             // Ephemeris are the most common Navigation Frames
-///             // Up until V3 they were the only existing frame type.
-///             // Refer to [ephemeris::Ephemeris] for an example of use
-///         }
-///         else if *class == FrameClass::IonosphericModel {
-///             // Modern Navigation frame, see [ionmessage::IonMessage]
-///         }
-///         else if *class == FrameClass::SystemTimeOffset {
-///             // Modern Navigation frame, see [stomessage::StoMessage]
-///         }
-///         else if *class == FrameClass::EarthOrientation {
-///             // Modern Navigation frame, see [eopmessage::EopMessage]
-///         }
-///     }
-/// }
-/// ```
+/// Navigation Record content:
+/// data is sorted by [`Epoch`] and wrapped in a [`NavFrame`]
 pub type Record = BTreeMap<Epoch, Vec<NavFrame>>;
 
 /// Returns true if given content matches the beginning of a
@@ -634,7 +608,7 @@ mod test {
         assert_eq!(fr.is_some(), true);
 
         let (msg_type, sv, ephemeris) = fr.unwrap();
-        assert_eq!(msg_type, &NavMsgType::LNAV);
+        assert_eq!(msg_type, NavMsgType::LNAV);
         assert_eq!(
             sv,
             &Sv {
@@ -736,7 +710,7 @@ mod test {
         assert_eq!(fr.is_some(), true);
 
         let (msg_type, sv, ephemeris) = fr.unwrap();
-        assert_eq!(msg_type, &NavMsgType::LNAV);
+        assert_eq!(msg_type, NavMsgType::LNAV);
         assert_eq!(
             sv,
             &Sv {
@@ -902,7 +876,7 @@ mod test {
         assert_eq!(fr.is_some(), true);
 
         let (msg_type, sv, ephemeris) = fr.unwrap();
-        assert_eq!(msg_type, &NavMsgType::LNAV);
+        assert_eq!(msg_type, NavMsgType::LNAV);
         assert_eq!(
             sv,
             &Sv {
@@ -1059,7 +1033,7 @@ mod test {
         let fr = frame.as_eph();
         assert_eq!(fr.is_some(), true);
         let (msg_type, sv, ephemeris) = fr.unwrap();
-        assert_eq!(msg_type, &NavMsgType::LNAV);
+        assert_eq!(msg_type, NavMsgType::LNAV);
         assert_eq!(
             sv,
             &Sv {

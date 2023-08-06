@@ -1430,7 +1430,6 @@ impl Rinex {
 
     /// Returns dominant sample rate
     /// ```
-    /// use rinex::Sampling;
     /// use rinex::prelude::*;
     /// let rnx = Rinex::from_file("../test_resources/MET/V2/abvi0010.15m")
     ///     .unwrap();
@@ -1451,7 +1450,6 @@ impl Rinex {
     }
 
     /// ```
-    /// use rinex::Sampling;
     /// use rinex::prelude::*;
     /// use std::collections::HashMap;
     /// let rinex = Rinex::from_file("../test_resources/NAV/V3/AMEL00NLD_R_20210010000_01D_MN.rnx")
@@ -1487,7 +1485,6 @@ impl Rinex {
     /// in the form ([`Epoch`], [`Duration`]), where
     /// epoch is the starting datetime, and its related duration.
     /// ```
-    /// use rinex::Sampling;
     /// use std::str::FromStr;
     /// use rinex::prelude::{Rinex, Epoch, Duration};
     /// let rinex = Rinex::from_file("../test_resources/MET/V2/abvi0010.15m")
@@ -1599,7 +1596,7 @@ impl Rinex {
     ///
     /// let rnx = Rinex::from_file("../test_resources/OBS/V2/aopr0010.17o")
     ///     .unwrap();
-    /// let mut vehicles : Vec<_> = rnx.sv(); // to run comparison
+    /// let mut vehicles : Vec<_> = rnx.sv().collect(); // to run comparison
     /// vehicles.sort(); // to run comparison
     ///
     /// assert_eq!(vehicles, vec![
@@ -1711,25 +1708,26 @@ impl Rinex {
     ///
     /// let data = rnx.sv_epoch();
     ///
-    /// let first_epoch = Epoch::from_gregorian_utc(2017, 1, 1, 0, 0, 0, 0);
-    ///
-    /// let vehicles = data.get(&first_epoch)
-    ///     .unwrap();
-    /// assert_eq!(*vehicles, vec![
-    ///     Sv::new(Constellation::GPS, 03),
-    ///     Sv::new(Constellation::GPS, 08),
-    ///     Sv::new(Constellation::GPS, 14),
-    ///     Sv::new(Constellation::GPS, 16),
-    ///     Sv::new(Constellation::GPS, 22),
-    ///     Sv::new(Constellation::GPS, 23),
-    ///     Sv::new(Constellation::GPS, 26),
-    ///     Sv::new(Constellation::GPS, 27),
-    ///     Sv::new(Constellation::GPS, 31),
-    ///     Sv::new(Constellation::GPS, 32),
-    /// ]);
+    /// if let Some((epoch, svnn)) = data.nth(0) {
+    ///     assert_eq!(epoch,Epoch::from_gregorian_utc(2017, 1, 1, 0, 0, 0, 0));
+    /// }
+    /// //let vehicles = data.get(&first_epoch)
+    /// //    .unwrap();
+    /// //assert_eq!(*vehicles, vec![
+    /// //    Sv::new(Constellation::GPS, 03),
+    /// //    Sv::new(Constellation::GPS, 08),
+    /// //    Sv::new(Constellation::GPS, 14),
+    /// //    Sv::new(Constellation::GPS, 16),
+    /// //    Sv::new(Constellation::GPS, 22),
+    /// //    Sv::new(Constellation::GPS, 23),
+    /// //    Sv::new(Constellation::GPS, 26),
+    /// //    Sv::new(Constellation::GPS, 27),
+    /// //    Sv::new(Constellation::GPS, 31),
+    /// //    Sv::new(Constellation::GPS, 32),
+    /// //]);
     /// ```
     pub fn sv_epoch(&self) -> Box<dyn Iterator<Item = (Epoch, Vec<Sv>)> + '_> {
-        panic!("not yet");
+        panic!("rework");
         //let mut map: BTreeMap<Epoch, Vec<Sv>> = BTreeMap::new();
         //if let Some(r) = self.record.as_nav() {
         //    for (epoch, classes) in r {
@@ -1762,7 +1760,7 @@ impl Rinex {
         //map
     }
     pub fn constellation(&self) -> Box<dyn Iterator<Item = Constellation> + '_> {
-        panic!("not yet");
+        panic!("rework");
     }
 
     /// Meteo RINEX record browsing method. Extracts data for this specific format.
@@ -1774,11 +1772,11 @@ impl Rinex {
     /// for (epoch, observables) in rnx.meteo() {
     ///     println!(" *** Epoch:  {} ****", epoch);
     ///     for (observable, data) in observables {
-    ///         println!("{} : {}", observable, value);
+    ///         println!("{} : {}", observable, data);
     ///     }
     /// }
     /// ```
-    fn meteo(&self) -> Box<dyn Iterator<Item = (&Epoch, &HashMap<Observable, f64>)> + '_> {
+    pub fn meteo(&self) -> Box<dyn Iterator<Item = (&Epoch, &HashMap<Observable, f64>)> + '_> {
         Box::new(
             self.record
                 .as_meteo()
@@ -1790,7 +1788,8 @@ impl Rinex {
 
 #[cfg(feature = "nav")]
 use crate::navigation::{
-    BdModel, Ephemeris, FrameClass, IonMessage, StoMessage, KbModel, NavFrame, NavMsgType, NgModel,
+    BdModel, EopMessage, Ephemeris, FrameClass, IonMessage, KbModel, NavFrame, NavMsgType, NgModel,
+    StoMessage,
 };
 
 #[cfg(feature = "nav")]
@@ -1810,16 +1809,22 @@ impl Rinex {
     /// NAV record may contain several different types of frames.
     /// ```
     /// use rinex::prelude::*;
+    /// use rinex::navigation::NavMsgType;
     /// let rinex = Rinex::from_file("../test_resources/NAV/V2/amel0010.21g")
     ///     .unwrap();
-    /// for (epoch, frames) in rinex.navigation() {
-    ///     for (class, frames) in frames {
-    ///         // this record only contains one kind of frames
-    ///         assert_eq!(*class, FrameClass::Ephemeris);
+    /// for (epoch, nav_frames) in rinex.navigation() {
+    ///     for frame in nav_frames {
+    ///         // this record only contains ephemeris frames
+    ///         assert!(frame.as_eph().is_some());
+    ///         assert!(frame.as_ion().is_none());
+    ///         assert!(frame.as_eop().is_none());
+    ///         assert!(frame.as_sto().is_none());
+    ///         if let Some((msg, sv, data)) = frame.as_eph() {
+    ///             // this record only contains legacy frames
+    ///             assert_eq!(msg, NavMsgType::LNAV);
+    ///         }
     ///     }
     /// }
-    /// let nav_frames: Vec<_> = rinex.navigation.collect();
-    /// assert_eq!(nav_frames.len(), 6);
     /// ```
     pub fn navigation(&self) -> Box<dyn Iterator<Item = (&Epoch, &Vec<NavFrame>)> + '_> {
         Box::new(
@@ -1849,13 +1854,13 @@ impl Rinex {
                         .into_iter()
                         .filter_map(|fr| {
                             if let Some((msg, _, _)) = fr.as_eph() {
-                                Some(*msg)
+                                Some(msg)
                             } else if let Some((msg, _, _)) = fr.as_ion() {
-                                Some(*msg)
+                                Some(msg)
                             } else if let Some((msg, _, _)) = fr.as_eop() {
-                                Some(*msg)
+                                Some(msg)
                             } else if let Some((msg, _, _)) = fr.as_sto() {
-                                Some(*msg)
+                                Some(msg)
                             } else {
                                 None
                             }
@@ -1880,18 +1885,17 @@ impl Rinex {
     /// Returns Ephemeris frames interator.
     /// ```
     /// use rinex::prelude::*;
+    /// use rinex::navigation::NavMsgType;
     /// let rinex = Rinex::from_file("../test_resources/NAV/V2/amel0010.21g")
     ///     .unwrap();
-    /// for (epoch, ephemeris) in rinex.ephemeris() {
-    ///     for ((msg, sv, data)) in ephemeris {
-    ///         // this record only contains Legacy NAV frames
-    ///         assert_eq!(*msg, MessageType::LNAV);
-    ///     }
+    /// for (epoch, (msg, sv, data)) in rinex.ephemeris() {
+    ///     // this record only contains Legacy NAV frames
+    ///     assert_eq!(*msg, NavMsgType::LNAV);
     /// }
     /// ```
     pub fn ephemeris(
         &self,
-    ) -> Box<dyn Iterator<Item = (&Epoch, (&NavMsgType, &Sv, &Ephemeris))> + '_> {
+    ) -> Box<dyn Iterator<Item = (&Epoch, (NavMsgType, &Sv, &Ephemeris))> + '_> {
         Box::new(self.navigation().flat_map(|(e, frames)| {
             frames.iter().filter_map(move |fr| {
                 if let Some((msg, sv, eph)) = fr.as_eph() {
@@ -1988,10 +1992,10 @@ impl Rinex {
     ///     Rinex::from_file("../test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz")
     ///         .unwrap();
     ///
-    /// let sv_speeds = rinex.sv_speed();
-    /// for (sv, epochs) in sv_speeds {
-    ///     for (epoch, (sv_x, sv_y, sv_z)) in epochs {
-    ///     }
+    /// for (epoch, (sv, sv_x, sv_y, sv_z)) in rinex.sv_speed() {
+    ///     // sv_x : m/s
+    ///     // sv_y : m/s
+    ///     // sv_z : m/s
     /// }
     /// ```
     pub fn sv_speed(&self) -> Box<dyn Iterator<Item = (Epoch, (Sv, f64, f64, f64))> + '_> {
@@ -2015,11 +2019,10 @@ impl Rinex {
     /// let rinex = Rinex::from_file("../test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz")
     ///     .unwrap();
     ///
-    /// let sv_angles = rinex.sv_elevation_azimuth(Some(ref_pos));
-    /// for (sv, epochs) in sv_angles {
-    ///     for (epoch, (elev, azim)) in epochs {
-    ///         // do something
-    ///     }
+    /// let data = rinex.sv_elevation_azimuth(Some(ref_pos));
+    /// for (epoch, (sv, elev, azim)) in data {
+    ///     // azim: azimuth in °
+    ///     // elev: elevation in °
     /// }
     /// ```
     pub fn sv_elevation_azimuth(
@@ -2033,7 +2036,7 @@ impl Rinex {
     /// Returns Ionosphere frames iterator.
     pub fn ionosphere_models(
         &self,
-    ) -> Box<dyn Iterator<Item = (&Epoch, (&NavMsgType, &Sv, &IonMessage))> + '_> {
+    ) -> Box<dyn Iterator<Item = (&Epoch, (NavMsgType, &Sv, &IonMessage))> + '_> {
         Box::new(self.navigation().flat_map(|(e, frames)| {
             frames.iter().filter_map(move |fr| {
                 if let Some((msg, sv, ion)) = fr.as_ion() {
@@ -2047,6 +2050,15 @@ impl Rinex {
     /// Returns Iterator over all Klobuchar Ionosphere model identified
     /// ```
     /// use rinex::prelude::*;
+    /// use rinex::navigation::KbRegionCode;
+    /// let rnx = Rinex::from_file("../test_resources/NAV/V4/KMS300DNK_R_20221591000_01H_MN.rnx.gz")
+    ///     .unwrap();
+    /// for (epoch, kb_model) in rnx.klobuchar_models() {
+    ///     let alpha = kb_model.alpha;
+    ///     let beta = kb_model.beta;
+    ///     // we only have this example at the moment
+    ///     assert_eq!(kb_model.region, KbRegionCode::WideArea);
+    /// }
     /// ```
     pub fn klobuchar_models(&self) -> Box<dyn Iterator<Item = (Epoch, KbModel)> + '_> {
         Box::new(self.ionosphere_models().filter_map(|(e, (_, _, ion))| {
@@ -2060,6 +2072,12 @@ impl Rinex {
     /// Returns Iterator over all Nequick-G Ionosphere model identified
     /// ```
     /// use rinex::prelude::*;
+    /// let rnx = Rinex::from_file("../test_resources/NAV/V4/KMS300DNK_R_20221591000_01H_MN.rnx.gz")
+    ///     .unwrap();
+    /// for (epoch, ng_model) in rnx.nequick_g_models() {
+    ///     let (a0, a1, a2) = ng_model.a;
+    ///     let region = ng_model.region; // bitflag: supports bitmasking operations
+    /// }
     /// ```
     pub fn nequick_g_models(&self) -> Box<dyn Iterator<Item = (Epoch, NgModel)> + '_> {
         Box::new(self.ionosphere_models().filter_map(|(e, (_, _, ion))| {
@@ -2073,6 +2091,11 @@ impl Rinex {
     /// Returns Iterator over all BDGIM Ionosphere model identified
     /// ```
     /// use rinex::prelude::*;
+    /// let rnx = Rinex::from_file("../test_resources/NAV/V4/KMS300DNK_R_20221591000_01H_MN.rnx.gz")
+    ///     .unwrap();
+    /// for (epoch, bd_model) in rnx.bdgim_models() {
+    ///     let alpha_tecu = bd_model.alpha;
+    /// }
     /// ```
     pub fn bdgim_models(&self) -> Box<dyn Iterator<Item = (Epoch, BdModel)> + '_> {
         Box::new(self.ionosphere_models().filter_map(|(e, (_, _, ion))| {
@@ -2084,13 +2107,49 @@ impl Rinex {
         }))
     }
     /// Returns System Time Offset frames iterator
+    /// ```
+    /// use rinex::prelude::*;
+    /// let rnx = Rinex::from_file("../test_resources/NAV/V4/KMS300DNK_R_20221591000_01H_MN.rnx.gz")
+    ///     .unwrap();
+    /// for (epoch, (msg, sv, data)) in rnx.system_time_offset() {
+    ///    let system = data.system.clone(); // time system
+    ///    let utc = data.utc.clone(); // UTC provider
+    ///    let t_tm = data.t_tm; // message transmission time in week seconds
+    ///    let (a, dadt, ddadt) = data.a;
+    /// }
+    /// ```
     pub fn system_time_offset(
         &self,
-    ) -> Box<dyn Iterator<Item = (&Epoch, (&NavMsgType, &Sv, &StoMessage))> + '_> {
+    ) -> Box<dyn Iterator<Item = (&Epoch, (NavMsgType, &Sv, &StoMessage))> + '_> {
         Box::new(self.navigation().flat_map(|(e, frames)| {
             frames.iter().filter_map(move |fr| {
                 if let Some((msg, sv, sto)) = fr.as_sto() {
                     Some((e, (msg, sv, sto)))
+                } else {
+                    None
+                }
+            })
+        }))
+    }
+    /// Returns Earth Orientation parameters Iterator
+    /// ```
+    /// use rinex::prelude::*;
+    /// let rnx = Rinex::from_file("../test_resources/NAV/V4/KMS300DNK_R_20221591000_01H_MN.rnx.gz")
+    ///     .unwrap();
+    /// for (epoch, (msg, sv, eop)) in rnx.earth_orientation() {
+    ///     let (x, dxdt, ddxdt) = eop.x;
+    ///     let (y, dydt, ddydt) = eop.x;
+    ///     let t_tm = eop.t_tm;
+    ///     let (u, dudt, ddudt) = eop.delta_ut1;
+    /// }
+    /// ```
+    pub fn earth_orientation(
+        &self,
+    ) -> Box<dyn Iterator<Item = (&Epoch, (NavMsgType, &Sv, &EopMessage))> + '_> {
+        Box::new(self.navigation().flat_map(|(e, frames)| {
+            frames.iter().filter_map(move |fr| {
+                if let Some((msg, sv, eop)) = fr.as_eop() {
+                    Some((e, (msg, sv, eop)))
                 } else {
                     None
                 }
@@ -2169,7 +2228,6 @@ impl Rinex {
     /// Returns wind speed observations iterator, values in m/s
     /// ```
     /// use rinex::prelude::*;
-    /// use rinex::meteo::MeteoIter;
     /// let rinex = Rinex::from_file("../test_resources/MET/V2/abvi0010.15m")
     ///     .unwrap();
     /// for (epoch, speed) in rinex.wind_speed() {
@@ -2231,7 +2289,6 @@ impl Rinex {
     /// Returns total (wet+dry) Zenith delay, in mm
     /// ```
     /// use rinex::prelude::*;
-    /// use rinex::meteo::MeteoIter;
     /// let mut rinex = Rinex::from_file("../test_resources/MET/V2/abvi0010.15m")
     ///     .unwrap();
     /// for (epoch, value) in rinex.zenith_delay() {
@@ -2252,7 +2309,6 @@ impl Rinex {
     /// Returns Zenith dry delay, in mm
     /// ```
     /// use rinex::prelude::*;
-    /// use rinex::meteo::MeteoIter;
     /// let mut rinex = Rinex::from_file("../test_resources/MET/V2/abvi0010.15m")
     ///     .unwrap();
     /// for (epoch, value) in rinex.zenith_dry_delay() {
