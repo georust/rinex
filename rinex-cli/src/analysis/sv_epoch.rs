@@ -35,8 +35,9 @@ pub fn sv_epoch(ctx: &Context, plot_ctx: &mut PlotContext) {
 
     let markers = generate_markers(nb_markers);
 
-    let data = ctx.primary_rinex.sv_epoch();
-    for (sv_index, sv) in ctx.primary_rinex.sv().iter().enumerate() {
+    let data: Vec<_> = ctx.primary_rinex.sv_epoch().collect();
+
+    for (sv_index, sv) in ctx.primary_rinex.sv().enumerate() {
         let epochs: Vec<Epoch> = data
             .iter()
             .filter_map(|(epoch, ssv)| {
@@ -68,10 +69,10 @@ pub fn sv_epoch(ctx: &Context, plot_ctx: &mut PlotContext) {
     }
 
     if let Some(ref nav) = ctx.nav_rinex {
-        let data = nav.sv_epoch();
+        let data: Vec<_> = nav.sv_epoch().collect();
         let nav_constell = nav.constellations();
 
-        for (sv_index, sv) in nav.sv().iter().enumerate() {
+        for (sv_index, sv) in nav.sv().enumerate() {
             let epochs: Vec<Epoch> = data
                 .iter()
                 .filter_map(|(epoch, ssv)| {

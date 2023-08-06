@@ -35,12 +35,6 @@ pub fn plot_observation(ctx: &Context, plot_ctx: &mut PlotContext) {
     let mut dataset: HashMap<String, HashMap<String, HashMap<Sv, Vec<(bool, Epoch, f64)>>>> =
         HashMap::new();
 
-    // augmented mode
-    let mut sat_angles: HashMap<Sv, BTreeMap<Epoch, (f64, f64)>> = HashMap::new();
-    if let Some(ref nav) = ctx.nav_rinex {
-        sat_angles = nav.sv_elev_azim_angles(ctx.ground_position);
-    }
-
     for ((epoch, _flag), (clock_offset, vehicles)) in record {
         if let Some(value) = clock_offset {
             clk_offset.push((*epoch, *value));
@@ -101,13 +95,16 @@ pub fn plot_observation(ctx: &Context, plot_ctx: &mut PlotContext) {
             _ => unreachable!(),
         };
 
-        if sat_angles.len() > 0 {
+        if let Some(_) = ctx.nav_rinex {
+            // Augmented context, we plot data on two Y axes
+            // one for physical observation, one for sat elevation
             plot_ctx.add_cartesian2d_2y_plot(
                 &format!("{} Observations", physics),
                 y_label,
                 "Elevation Angle [°]",
             );
         } else {
+            // standard mode: one axis
             plot_ctx.add_cartesian2d_plot(&format!("{} Observations", physics), y_label);
         }
 
@@ -135,10 +132,16 @@ pub fn plot_observation(ctx: &Context, plot_ctx: &mut PlotContext) {
 
                 if index == 0 && physics == "Signal Strength" {
                     // 1st Carrier encountered: plot Sv only once
-                    // we also only augment the SSI plot
-                    if let Some(epochs) = sat_angles.get(sv) {
-                        let elev: Vec<f64> = epochs.iter().map(|(_, (el, _azi))| *el).collect();
-                        let epochs: Vec<Epoch> = epochs.keys().map(|k| *k).collect();
+                    // we also only augment the SSI plot when NAV context is provided
+                    if let Some(ref nav) = ctx.nav_rinex {
+                        // grab elevation angle
+                        let data: Vec<(Epoch, f64)> = nav
+                            .sv_elevation_azimuth(ctx.ground_position)
+                            .map(|(epoch, (_sv, elev, _a))| (epoch, elev))
+                            .collect();
+                        // plot (Epoch, Elev)
+                        let epochs: Vec<Epoch> = data.iter().map(|(e, _)| *e).collect();
+                        let elev: Vec<f64> = data.iter().map(|(_, f)| *f).collect();
                         let trace = build_chart_epoch_axis(
                             &format!("Elev({})", sv),
                             Mode::LinesMarkers,

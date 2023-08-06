@@ -4,57 +4,54 @@ use plotly::{
     common::{Mode, Visible},
     ScatterPolar,
 };
+use rinex::prelude::Epoch;
+
 /*
  * Skyplot view
  */
 pub fn skyplot(ctx: &Context, plot_ctx: &mut PlotContext) {
     plot_ctx.add_polar2d_plot("Skyplot");
-    if let Some(ref nav) = ctx.nav_rinex {
-        /*
-         * "advanced" skyplot view,
-         * observations were provided
-         * color gradient emphasizes the SSI[dB]
-         */
-        let sat_angles = nav.sv_elev_azim_angles(ctx.ground_position);
-        for (index, (sv, epochs)) in sat_angles.iter().enumerate() {
-            let theta: Vec<f64> = epochs.iter().map(|(_, (_, azi))| *azi).collect();
-            let r: Vec<f64> = epochs.iter().map(|(_, (elev, _))| *elev).collect();
-            let trace = ScatterPolar::new(theta, r)
-                .mode(Mode::Markers)
-                .web_gl_mode(true)
-                .visible({
-                    if index < 4 {
-                        Visible::True
-                    } else {
-                        Visible::LegendOnly
-                    }
-                })
-                .connect_gaps(false)
-                .name(sv.to_string());
-            plot_ctx.add_trace(trace);
-        }
-    } else {
-        /*
-         * "simplified" skyplot view,
-         * color gradient emphasizes the epoch/timestamp
-         */
-        let sat_angles = ctx.primary_rinex.sv_elev_azim_angles(ctx.ground_position);
-        for (index, (sv, epochs)) in sat_angles.iter().enumerate() {
-            let theta: Vec<f64> = epochs.iter().map(|(_, (_, azi))| *azi).collect();
-            let r: Vec<f64> = epochs.iter().map(|(_, (elev, _))| *elev).collect();
-            let trace = ScatterPolar::new(theta, r)
-                .mode(Mode::Markers)
-                .web_gl_mode(true)
-                .visible({
-                    if index < 4 {
-                        Visible::True
-                    } else {
-                        Visible::LegendOnly
-                    }
-                })
-                .connect_gaps(false)
-                .name(sv.to_string());
-            plot_ctx.add_trace(trace);
-        }
+    // grab one nav file
+    let nav_rnx = match &ctx.nav_rinex {
+        Some(nav) => nav,
+        _ => &ctx.primary_rinex,
+    };
+
+    for (svnn_index, svnn) in nav_rnx.sv().enumerate() {
+        // per sv
+        // grab related elevation data
+        // Rho   = pi/2 - radian(elev)
+        // Theta = azim
+        let data: Vec<(Epoch, f64, f64)> = nav_rnx
+            .sv_elevation_azimuth(ctx.ground_position)
+            .filter_map(|(epoch, (sv, elev, azi))| {
+                if sv == svnn {
+                    Some((epoch, elev, azi))
+                } else {
+                    None
+                }
+            })
+            .collect();
+        let rho: Vec<f64> = data.iter().map(|(_e, rho, _theta)| *rho).collect();
+        let theta: Vec<f64> = data.iter().map(|(_e, rho, theta)| *theta).collect();
+
+        //TODO: color gradient to emphasize day course
+        let trace = ScatterPolar::new(theta, rho)
+            .mode(Mode::Markers)
+            .web_gl_mode(true)
+            .visible({
+                /*
+                 * Plot only first few dataset,
+                 * to improve performance when openning plots
+                 */
+                if svnn_index < 4 {
+                    Visible::True
+                } else {
+                    Visible::LegendOnly
+                }
+            })
+            .connect_gaps(false)
+            .name(svnn.to_string());
+        plot_ctx.add_trace(trace);
     }
 }

@@ -21,7 +21,6 @@ use rinex::{
     prelude::*,
     quality::*,
     split::Split,
-    RinexIter, Sampling,
 };
 
 use cli::Cli;

@@ -1,7 +1,6 @@
 use crate::{plot::PlotContext, Context};
 use plotly::Histogram;
 use rinex::prelude::*;
-use rinex::Sampling;
 
 /*
  * Sampling histogram
