@@ -1,7 +1,6 @@
 use hifitime::Unit;
 
 use super::QcOpts;
-use crate::observation::ObservationIter;
 use crate::prelude::*;
 
 #[derive(Debug, Clone)]

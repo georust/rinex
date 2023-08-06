@@ -125,43 +125,8 @@ impl ObservationData {
     }
 }
 
-/// Observation Record content.
-/// Measurements are sorted by [hifitime::Epoch],
-/// but unlike other RINEX records, a [epoch::EpochFlag] is associated to it.
-/// An epoch possibly comprises the receiver clock offset
-/// and a list of physical measurements, sorted by Space vehicle and observable.
-/// Phase data is preserved as is. You can use the origin alignment
-/// or offset/conversion methods later on if you have to.
-/// ```
-/// use rinex::*;
-/// // grab a CRINEX (compressed OBS RINEX)
-/// let rnx = Rinex::from_file("../test_resources/CRNX/V3/KUNZ00CZE.crx")
-///    .unwrap();
-/// // grab record
-/// let record = rnx.record.as_obs()
-///    .unwrap();
-/// // browse epochs
-/// for (epoch, (clock_offset, vehicles)) in record.iter() {
-///    if let Some(clock_offset) = clock_offset {
-///        // got clock offset @ given epoch
-///    }
-///    for (vehicle, observables) in vehicles.iter() {
-///        for (observable, observation) in observables.iter() {
-///            /// `observable` is a standard 3 letter string code
-///            /// main measurement is `observation.data` (f64)
-///            if let Some(lli) = observation.lli {
-///                // Sometimes observations have an LLI flag attached to them,
-///                // implemented in the form of a `bitflag`,
-///                // for convenient binary masking
-///
-///            }
-///            if let Some(snri) = observation.snr {
-///                // Sometimes observations come with an SSI indicator
-///            }
-///        }
-///    }
-/// }
-/// ```
+/// Observation Record content, sorted by [`Epoch`], per [`Sv`] and per
+/// [`Observable`].
 pub type Record = BTreeMap<
     (Epoch, EpochFlag),
     (

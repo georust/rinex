@@ -718,30 +718,6 @@ impl Rinex {
         //}
     }
 
-    /// Returns receiver clock offset, for all epoch that came with such information.
-    /// ```
-    /// use rinex::prelude::*;
-    /// let rnx = Rinex::from_file("../test_resources/OBS/V2/delf0010.21o")
-    ///     .unwrap();
-    /// let clock_offsets = rnx.observation_clock_offsets();
-    /// for ((epoch, flag), clk_offset) in clock_offsets {
-    ///     // epoch: [hifitime::Epoch]
-    ///     // flag: [epoch::EpochFlag]
-    ///     // clk_offset: receiver clock offset [s]
-    /// }
-    /// ```
-    pub fn observation_clock_offsets(&self) -> BTreeMap<(Epoch, EpochFlag), f64> {
-        let mut map: BTreeMap<(Epoch, EpochFlag), f64> = BTreeMap::new();
-        if let Some(r) = self.record.as_obs() {
-            for (epoch, (clk, _)) in r.iter() {
-                if let Some(clk) = clk {
-                    map.insert(*epoch, *clk);
-                }
-            }
-        }
-        map
-    }
-
     /// Returns list of observables, in the form
     /// of standardized 3 letter codes, that can be found in this record.
     /// This does not produce anything in case of ATX and IONEX records.
@@ -1706,7 +1682,7 @@ impl Rinex {
     /// let rnx = Rinex::from_file("../test_resources/OBS/V2/aopr0010.17o")
     ///     .unwrap();
     ///
-    /// let data = rnx.sv_epoch();
+    /// let mut data = rnx.sv_epoch();
     ///
     /// if let Some((epoch, svnn)) = data.nth(0) {
     ///     assert_eq!(epoch,Epoch::from_gregorian_utc(2017, 1, 1, 0, 0, 0, 0));
@@ -1783,6 +1759,156 @@ impl Rinex {
                 .into_iter()
                 .flat_map(|record| record.iter()),
         )
+    }
+    /// Returns Observation record iterator. Unlike other records,
+    /// an [`EpochFlag`] is attached to each individual [`Epoch`]
+    /// to either validated or invalidate it.
+    /// Clock receiver offset (in seconds), if present, are defined for each individual
+    /// [`Epoch`].
+    /// Phase data is preserved as exposed in the file, use the processing
+    /// methods in case you need to scale it, or align its origin (starting point) for example.
+    /// ```
+    /// use rinex::prelude::*;
+    /// use rinex::{observable, sv}; // macros
+    /// use std::str::FromStr; // observable!, sv!
+    ///
+    /// let rnx = Rinex::from_file("../test_resources/CRNX/V3/KUNZ00CZE.crx")
+    ///    .unwrap();
+    ///
+    /// for ((epoch, flag), (clock_offset, vehicles)) in rnx.observation() {
+    ///     assert!(flag.is_ok()); // no invalid epochs in this file
+    ///     assert!(clock_offset.is_none()); // we don't have an example for this, at the moment
+    ///     for (sv, observations) in vehicles {
+    ///         if *sv == sv!("E01") {
+    ///             for (observable, observation) in vehicles {
+    ///                 if *observable == observable!("L1C") {
+    ///                     if let Some(lli) = observation.lli {
+    ///                         // A flag might be attached to each observation.
+    ///                         // Implemented as `bitflag`, it supports bit masking operations
+    ///                     }
+    ///                     if let Some(snri) = observation.snr {
+    ///                         // SNR indicator might exist too
+    ///                     }
+    ///                 }
+    ///             }
+    ///         }
+    ///     }
+    /// }
+    /// ```
+    pub fn observation(
+        &self,
+    ) -> Box<
+        dyn Iterator<
+                Item = (
+                    &(Epoch, EpochFlag),
+                    &(
+                        Option<f64>,
+                        BTreeMap<Sv, HashMap<Observable, ObservationData>>,
+                    ),
+                ),
+            > + '_,
+    > {
+        Box::new(
+            self.record
+                .as_obs()
+                .into_iter()
+                .flat_map(|record| record.iter()),
+        )
+    }
+}
+
+/*
+ * OBS RINEX specific methods: only available on crate feature.
+ * Either specific Iterators, or meaningful data we can extract.
+ */
+#[cfg(feature = "obs")]
+use observation::ObservationData;
+
+#[cfg(feature = "obs")]
+#[cfg_attr(docrs, doc(cfg(feature = "obs")))]
+impl Rinex {
+    /// Returns ([`Epoch`] [`EpochFlag`]) iterator, where each {`EpochFlag`]
+    /// validates or invalidates related [`Epoch`]
+    /// ```
+    /// use rinex::prelude::Rinex;
+    /// let rnx = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
+    ///     .unwrap();
+    /// for (epoch, flag) in rnx.epoch_flag() {
+    ///     assert!(flag.is_ok()); // no invalid epoch
+    /// }
+    /// ```
+    pub fn epoch_flag(&self) -> Box<dyn Iterator<Item = (Epoch, EpochFlag)> + '_> {
+        Box::new(self.observation().map(|(e, _)| *e))
+    }
+    /// Returns an Iterator over all abnormal [`Epoch`]s
+    /// and reports given event nature.  
+    /// Refer to [`epoch::EpochFlag`] for all possible events.  
+    /// ```
+    /// use rinex::prelude::Rinex;
+    /// let rnx = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
+    ///     .unwrap();
+    /// ```
+    pub fn epoch_anomalies(&self) -> Box<dyn Iterator<Item = (Epoch, EpochFlag)> + '_> {
+        Box::new(self.epoch_flag().filter_map(
+            |(e, f)| {
+                if !f.is_ok() {
+                    Some((e, f))
+                } else {
+                    None
+                }
+            },
+        ))
+    }
+    /// Returns an iterator over all [`Epoch`]s that have
+    /// an [`EpochFlag::Ok`] flag attached to them
+    /// ```
+    /// use rinex::prelude::Rinex;
+    /// let rnx = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
+    ///     .unwrap();
+    /// ```
+    pub fn epoch_ok(&self) -> Box<dyn Iterator<Item = Epoch> + '_> {
+        Box::new(
+            self.epoch_flag()
+                .filter_map(|(e, f)| if f.is_ok() { Some(e) } else { None }),
+        )
+    }
+    /// Returns an iterator over all [`Epoch`]s where
+    /// a Cycle Slip is declared by the receiver
+    /// ```
+    /// use rinex::prelude::Rinex;
+    /// let rnx = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
+    ///     .unwrap();
+    /// ```
+    pub fn epoch_cs(&self) -> Box<dyn Iterator<Item = Epoch> + '_> {
+        Box::new(self.epoch_flag().filter_map(|(e, f)| {
+            if f == EpochFlag::CycleSlip {
+                Some(e)
+            } else {
+                None
+            }
+        }))
+    }
+    /// Returns an iterator over receiver clock offsets, expressed in seconds.
+    /// Such information is kind of rare (modern receivers?),
+    /// we don't have a compelling example yet.   
+    /// Also, this library aims at estimating the clock offset in future releases.
+    /// ```
+    /// use rinex::prelude::Rinex;
+    /// let rnx = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
+    ///     .unwrap();
+    /// for ((epoch, flag), clk) in rnx.recvr_clock() {
+    ///     // epoch: [hifitime::Epoch]
+    ///     // clk: receiver clock offset [s]
+    /// }
+    /// ```
+    pub fn recvr_clock(&self) -> Box<dyn Iterator<Item = ((Epoch, EpochFlag), f64)> + '_> {
+        Box::new(self.observation().filter_map(|(e, (clk, _))| {
+            if let Some(clk) = clk {
+                Some((*e, *clk))
+            } else {
+                None
+            }
+        }))
     }
 }
 
@@ -2556,60 +2682,6 @@ impl Decimate for Rinex {
         let mut s = self.clone();
         s.decimate_match_mut(rhs);
         s
-    }
-}
-
-use crate::observation::ObservationIter;
-
-impl ObservationIter for Rinex {
-    fn epoch_flags(&self) -> Box<dyn Iterator<Item = (Epoch, EpochFlag)> + '_> {
-        Box::new(
-            self.record
-                .as_obs()
-                .into_iter()
-                .flat_map(|record| record.iter().map(|((ep, fl), _)| (*ep, *fl))),
-        )
-    }
-
-    fn epoch_anomalies(&self) -> Box<dyn Iterator<Item = (Epoch, EpochFlag)> + '_> {
-        Box::new(self.epoch_flags().filter_map(
-            |(e, f)| {
-                if !f.is_ok() {
-                    Some((e, f))
-                } else {
-                    None
-                }
-            },
-        ))
-    }
-
-    fn epoch_ok(&self) -> Box<dyn Iterator<Item = Epoch> + '_> {
-        Box::new(
-            self.epoch_flags()
-                .filter_map(|(e, f)| if f.is_ok() { Some(e) } else { None }),
-        )
-    }
-
-    fn epoch_cs(&self) -> Box<dyn Iterator<Item = Epoch> + '_> {
-        Box::new(self.epoch_flags().filter_map(|(e, f)| {
-            if f == EpochFlag::CycleSlip {
-                Some(e)
-            } else {
-                None
-            }
-        }))
-    }
-
-    fn rcvr_clock(&self) -> Box<dyn Iterator<Item = (Epoch, f64)> + '_> {
-        Box::new(self.record.as_obs().into_iter().flat_map(|r| {
-            r.iter().filter_map(|((e, _), (clk, _))| {
-                if let Some(clk) = clk {
-                    Some((*e, *clk))
-                } else {
-                    None
-                }
-            })
-        }))
     }
 }
 

@@ -181,65 +181,6 @@ pub(crate) enum StatisticalOps {
     StdVar,
 }
 
-/// OBS RINEX specific iteration methods.
-pub trait ObservationIter {
-    /// Returns ([`Epoch`] [`EpochFlag`]) iterator, where each {`EpochFlag`]
-    /// validates or invalidates related [`Epoch`]
-    /// ```
-    /// use rinex::prelude::Rinex;
-    /// use rinex::observation::ObservationIter;
-    /// let rnx = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
-    ///     .unwrap();
-    /// ```
-    fn epoch_flags(&self) -> Box<dyn Iterator<Item = (Epoch, EpochFlag)> + '_>;
-
-    /// Returns an Iterator over all abnormal [`Epoch`]s
-    /// and reports given event nature.  
-    /// Refer to [`epoch::EpochFlag`] for all possible events.  
-    /// ```
-    /// use rinex::prelude::Rinex;
-    /// use rinex::observation::ObservationIter;
-    /// let rnx = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
-    ///     .unwrap();
-    /// ```
-    fn epoch_anomalies(&self) -> Box<dyn Iterator<Item = (Epoch, EpochFlag)> + '_>;
-
-    /// Returns an iterator over all [`Epoch`]s that have
-    /// an [`EpochFlag::Ok`] flag attached to them
-    /// ```
-    /// use rinex::prelude::Rinex;
-    /// use rinex::observation::ObservationIter;
-    /// let rnx = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
-    ///     .unwrap();
-    /// ```
-    fn epoch_ok(&self) -> Box<dyn Iterator<Item = Epoch> + '_>;
-
-    /// Returns an iterator over all [`Epoch`]s where
-    /// a Cycle Slip is declared by the receiver
-    /// ```
-    /// use rinex::prelude::Rinex;
-    /// use rinex::observation::ObservationIter;
-    /// let rnx = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
-    ///     .unwrap();
-    /// ```
-    fn epoch_cs(&self) -> Box<dyn Iterator<Item = Epoch> + '_>;
-
-    /// Returns an iterator over receiver clock offsets, expressed in seconds.
-    /// Such information is kind of rare (modern receivers?),
-    /// we don't have a compelling example yet.   
-    /// Also, this library aims at estimating the clock offset in future releases.
-    /// ```
-    /// use rinex::prelude::Rinex;
-    /// use rinex::observation::ObservationIter;
-    /// let rnx = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
-    ///     .unwrap();
-    /// for (epoch, clk) in rnx.recvr_clock() {
-    ///
-    /// }
-    /// ```
-    fn rcvr_clock(&self) -> Box<dyn Iterator<Item = (Epoch, f64)> + '_>;
-}
-
 #[cfg(feature = "obs")]
 use std::collections::BTreeMap;
 
