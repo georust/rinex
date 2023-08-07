@@ -6,10 +6,12 @@ use cli::{Cli, CliError};
 use log::{info, warn};
 
 use kml::{
-    types::{AltitudeMode, Coord, LineString},
+    types::{AltitudeMode, Coord, LineString, LinearRing},
     KmlDocument,
 };
 use std::collections::HashMap;
+
+
 
 //use std::io::Write;
 
@@ -30,10 +32,10 @@ fn main() -> Result<(), CliError> {
         )));
     }
 
-    let mut kml: KmlDocument<f64> = KmlDocument::default();
-    kml.version = cli.kml_version();
+    let mut kml_doc: KmlDocument<f64> = KmlDocument::default();
+    kml_doc.version = cli.kml_version();
     if let Some(attrs) = cli.kml_attributes() {
-        kml.attrs = attrs;
+        kml_doc.attrs = attrs;
     }
 
     let record = rinex.record.as_ionex().unwrap();
@@ -49,17 +51,22 @@ fn main() -> Result<(), CliError> {
             .collect::<HashMap<String, String>>();
 
         //test a linestring to describe equipoential TECu area
-        let linestring = Kml::LineString(LineString::<f64> {
+        let linestring = Kml::LinearRing(LinearRing::<f64> {
             coords: vec![
                 Coord {
-                    x: 0.0_f64,
-                    y: 1.0_f64,
-                    z: Some(2.0_f64),
+                    x: 4.119067147539055, 
+                    y: 43.73425044812969,
+                    z: None,
                 },
                 Coord {
-                    x: 0.0_f64,
-                    y: 1.0_f64,
-                    z: Some(2.0_f64),
+                    x: 4.11327766588697,
+                    y: 43.73124529989733,
+                    z: None,
+                },
+                Coord {
+                    x: 4.119067147539055,
+                    y: 43.73425044812969,
+                    z: None,
                 },
             ],
             extrude: false,
@@ -99,10 +106,14 @@ fn main() -> Result<(), CliError> {
             attrs: epoch_folder_attrs,
             elements: epoch_folder,
         };
-        kml.elements.push(epoch_folder);
+        // add folder to document
+        kml_doc.elements.push(epoch_folder);
     }
-    let kml = Kml::KmlDocument(kml);
+
+    // generate document
+    let kml = Kml::KmlDocument(kml_doc);
     writer.write(&kml)?;
     info!("kml generated");
+    
     Ok(())
 }
