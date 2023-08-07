@@ -143,26 +143,21 @@ impl std::ops::Not for MaskOperand {
 /// let mask = filter!("e <= 45.0"); // below 45°
 /// let filtered = rinex.filter(mask);
 ///
-/// // Retain only NAV RINEX Orbit fields you're interested in,
-/// // with an Orbit mask:
-/// let mask = filter!("iode,crs"); // retain only these fields,
-///                             // notice: case insensitive,
-///                             // notice: invalid orbit fields get dropped out
+/// // filter and orbit fields decimation is not possible at the moment
+/// // // Retain only NAV RINEX Orbit fields you're interested in,
+/// // // with an Orbit mask:
+/// // let mask = filter!("iode,crs"); // retain only these fields,
+/// //                             // notice: case insensitive,
+/// //                             // notice: invalid orbit fields get dropped out
+/// // let filtered = rinex.filter(mask);
+///
+/// // Retain legacy frames only
+/// let mask = filter!("lnav"); // Eq() is implied, "LNAV" recognized
 /// let filtered = rinex.filter(mask);
 ///
-/// // Three other NAV RINEX specific cases exist
-///
-/// // [1] : Orbit fields mask
-/// // To retain specific Orbit fields
-///
-/// // [2] : Message Type mask
-/// // For example: retain Legacy NAV frames only.
-/// // Any valid NavMessageType description works here
-/// let mask = filter!("lnav"); // Eq() is implied
-///
-/// // [3] : Frame type mask
-/// // For example: retain anything but Ephemeris and IonMessage frames with this.
-/// let mask = filter!("!=eph,ion"); // Not an Eq(): we must specify the operand
+/// // Retain modern frames only
+/// let mask = filter!("> lnav");
+/// let filtered = rinex.filter(mask);
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct MaskFilter {

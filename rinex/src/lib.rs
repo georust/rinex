@@ -1431,6 +1431,8 @@ impl Rinex {
  * These methods are used to browse data easily and efficiently.
  * It includes Format dependent extraction methods : one per format.
  */
+use itertools::Itertools; // .unique()
+
 impl Rinex {
     pub fn epoch(&self) -> Box<dyn Iterator<Item = Epoch> + '_> {
         if let Some(r) = self.record.as_obs() {
@@ -1586,53 +1588,84 @@ impl Rinex {
     /// //]);
     /// ```
     pub fn sv_epoch(&self) -> Box<dyn Iterator<Item = (Epoch, Vec<Sv>)> + '_> {
-        panic!("rework");
-        //let mut map: BTreeMap<Epoch, Vec<Sv>> = BTreeMap::new();
-        //if let Some(r) = self.record.as_nav() {
-        //    for (epoch, classes) in r {
-        //        let mut inner: Vec<Sv> = Vec::new();
-        //        for (class, frames) in classes.iter() {
-        //            if *class == navigation::FrameClass::Ephemeris {
-        //                for frame in frames {
-        //                    let (_, sv, _) = frame.as_eph().unwrap();
-        //                    inner.push(*sv);
-        //                }
-        //            }
-        //        }
-        //        if inner.len() > 0 {
-        //            inner.sort();
-        //            map.insert(*epoch, inner);
-        //        }
-        //    }
-        //} else if let Some(r) = self.record.as_obs() {
-        //    for ((epoch, _), (_, vehicles)) in r {
-        //        let mut inner: Vec<Sv> = Vec::new();
-        //        for (sv, _) in vehicles.iter() {
-        //            inner.push(*sv);
-        //        }
-        //        if inner.len() > 0 {
-        //            inner.sort();
-        //            map.insert(*epoch, inner);
-        //        }
-        //    }
-        //}
-        //map
+        if let Some(record) = self.record.as_obs() {
+            Box::new(
+                // grab all vehicles identified through all Epochs
+                // and fold them into individual lists
+                record.into_iter().map(|((epoch, _), (_clk, entries))| {
+                    (*epoch, entries.keys().unique().cloned().collect())
+                }),
+            )
+        } else if let Some(record) = self.record.as_nav() {
+            Box::new(
+                // grab all vehicles through all epochs,
+                // fold them into individual lists
+                record.into_iter().map(|(epoch, frames)| {
+                    (
+                        *epoch,
+                        frames
+                            .iter()
+                            .filter_map(|fr| {
+                                if let Some((_, sv, _)) = fr.as_eph() {
+                                    Some(*sv)
+                                } else if let Some((_, sv, _)) = fr.as_eop() {
+                                    Some(*sv)
+                                } else if let Some((_, sv, _)) = fr.as_ion() {
+                                    Some(*sv)
+                                } else if let Some((_, sv, _)) = fr.as_sto() {
+                                    Some(*sv)
+                                } else {
+                                    None
+                                }
+                            })
+                            .fold(vec![], |mut list, sv| {
+                                if !list.contains(&sv) {
+                                    list.push(sv);
+                                }
+                                list
+                            }),
+                    )
+                }),
+            )
+        } else {
+            panic!(
+                ".sv_epoch() is not feasible on \"{:?}\" RINEX",
+                self.header.rinex_type
+            );
+        }
     }
     /// Returns a (unique) Iterator over all identified [`Constellation`]s.
+    /// ```
+    /// use rinex::prelude::*;
+    /// let rnx = Rinex::from_file("../test_resources/OBS/V3/ACOR00ESP_R_20213550000_01D_30S_MO.rnx")
+    ///     .unwrap();
+    ///
+    /// let mut constellations : Vec<_> = rnx.constellation().collect();
+    /// let mut expected = vec![
+    ///     Constellation::GPS,
+    ///     Constellation::Glonass,
+    ///     Constellation::BeiDou,
+    ///     Constellation::Galileo,
+    /// ];
+    /// constellations.sort(); // to simplify comparison
+    /// expected.sort(); // comparison
+    /// assert_eq!(constellations, expected);
+    /// ```
     pub fn constellation(&self) -> Box<dyn Iterator<Item = Constellation> + '_> {
         // from .sv() (unique) iterator:
         //  create a unique list of Constellations
-        Box::new(
-            self.sv()
-                .map(|sv| sv.constellation)
-                .fold(vec![], |mut list, constell| {
-                    if !list.contains(&constell) {
-                        list.push(constell);
-                    }
-                    list
-                })
-                .into_iter(),
-        )
+        Box::new(self.sv().map(|sv| sv.constellation).unique())
+    }
+    /// Returns an Iterator over Unique Constellations, per Epoch
+    pub fn constellation_epoch(
+        &self,
+    ) -> Box<dyn Iterator<Item = (Epoch, Vec<Constellation>)> + '_> {
+        Box::new(self.sv_epoch().map(|(epoch, svnn)| {
+            (
+                epoch,
+                svnn.iter().map(|sv| sv.constellation).unique().collect(),
+            )
+        }))
     }
     /// Returns a (unique) Iterator over all identified [`Observable`]s.
     /// This will panic if invoked on other than OBS and Meteo RINEX.
