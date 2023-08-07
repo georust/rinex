@@ -1487,7 +1487,7 @@ impl Rinex {
                 // and fold them into a unique list
                 record
                     .into_iter()
-                    .map(|((epoch, _), (_clk, entries))| {
+                    .map(|((_, _), (_clk, entries))| {
                         let sv: Vec<Sv> = entries.keys().cloned().collect();
                         sv
                     })
@@ -1951,7 +1951,7 @@ impl Rinex {
     pub fn nav_msg_type(&self) -> Box<dyn Iterator<Item = NavMsgType> + '_> {
         Box::new(
             self.navigation()
-                .map(|(e, frames)| {
+                .map(|(_, frames)| {
                     frames
                         .into_iter()
                         .filter_map(|fr| {

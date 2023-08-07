@@ -1245,7 +1245,7 @@ fn mask_mut_equal(rec: &mut Record, target: TargetItem) {
                 frames.len() > 0
             });
         },
-        TargetItem::OrbitItem(filter) => {
+        TargetItem::OrbitItem(_filter) => {
             unimplemented!("orbititem filter");
             //self.retain(|_, frames| {
             //    frames.retain(|fr| {
@@ -1263,13 +1263,13 @@ fn mask_mut_equal(rec: &mut Record, target: TargetItem) {
         TargetItem::NavFrameItem(filter) => {
             rec.retain(|_, frames| {
                 frames.retain(|fr| {
-                    if let Some(fr) = fr.as_eph() {
+                    if let Some(_) = fr.as_eph() {
                         filter.contains(&FrameClass::Ephemeris)
-                    } else if let Some(fr) = fr.as_eop() {
+                    } else if let Some(_) = fr.as_eop() {
                         filter.contains(&FrameClass::EarthOrientation)
-                    } else if let Some(fr) = fr.as_ion() {
+                    } else if let Some(_) = fr.as_ion() {
                         filter.contains(&FrameClass::IonosphericModel)
-                    } else if let Some(fr) = fr.as_sto() {
+                    } else if let Some(_) = fr.as_sto() {
                         filter.contains(&FrameClass::SystemTimeOffset)
                     } else {
                         false
@@ -1341,7 +1341,7 @@ fn mask_mut_ineq(rec: &mut Record, target: TargetItem) {
                 frames.len() > 0
             });
         },
-        TargetItem::OrbitItem(filter) => {
+        TargetItem::OrbitItem(_filter) => {
             unimplemented!("orbititem filter");
             //rec.retain(|_, frames| {
             //    frames.retain(|fr| {
@@ -1359,13 +1359,13 @@ fn mask_mut_ineq(rec: &mut Record, target: TargetItem) {
         TargetItem::NavFrameItem(filter) => {
             rec.retain(|_, frames| {
                 frames.retain(|fr| {
-                    if let Some(fr) = fr.as_eph() {
+                    if let Some(_) = fr.as_eph() {
                         !filter.contains(&FrameClass::Ephemeris)
-                    } else if let Some(fr) = fr.as_eop() {
+                    } else if let Some(_) = fr.as_eop() {
                         !filter.contains(&FrameClass::EarthOrientation)
-                    } else if let Some(fr) = fr.as_ion() {
+                    } else if let Some(_) = fr.as_ion() {
                         !filter.contains(&FrameClass::IonosphericModel)
-                    } else if let Some(fr) = fr.as_sto() {
+                    } else if let Some(_) = fr.as_sto() {
                         !filter.contains(&FrameClass::SystemTimeOffset)
                     } else {
                         false
@@ -1449,9 +1449,164 @@ fn mask_mut_leq(rec: &mut Record, target: TargetItem) {
     }
 }
 
-fn mask_mut_lt(rec: &mut Record, target: TargetItem) {}
-fn mask_mut_gt(rec: &mut Record, target: TargetItem) {}
-fn mask_mut_geq(rec: &mut Record, target: TargetItem) {}
+fn mask_mut_lt(rec: &mut Record, target: TargetItem) {
+    match target {
+        TargetItem::EpochItem(epoch) => rec.retain(|e, _| *e < epoch),
+        TargetItem::SvItem(filter) => {
+            // for each constell, grab PRN#
+            let filter: Vec<_> = filter.iter().map(|sv| (sv.constellation, sv.prn)).collect();
+
+            rec.retain(|_, frames| {
+                frames.retain(|fr| {
+                    if let Some((_, sv, _)) = fr.as_eph() {
+                        let mut pass = false;
+                        for (constell, prn) in &filter {
+                            if *constell == sv.constellation {
+                                pass |= sv.prn < *prn;
+                            }
+                        }
+                        pass
+                    } else if let Some((_, sv, _)) = fr.as_ion() {
+                        let mut pass = false;
+                        for (constell, prn) in &filter {
+                            if *constell == sv.constellation {
+                                pass |= sv.prn < *prn;
+                            }
+                        }
+                        pass
+                    } else if let Some((_, sv, _)) = fr.as_eop() {
+                        let mut pass = false;
+                        for (constell, prn) in &filter {
+                            if *constell == sv.constellation {
+                                pass |= sv.prn < *prn;
+                            }
+                        }
+                        pass
+                    } else if let Some((_, sv, _)) = fr.as_sto() {
+                        let mut pass = false;
+                        for (constell, prn) in &filter {
+                            if *constell == sv.constellation {
+                                pass |= sv.prn < *prn;
+                            }
+                        }
+                        pass
+                    } else {
+                        // non existing
+                        false
+                    }
+                });
+                frames.len() > 0
+            });
+        },
+        _ => {}, // Other items: either not supported, or do not apply
+    }
+}
+
+fn mask_mut_gt(rec: &mut Record, target: TargetItem) {
+    match target {
+        TargetItem::EpochItem(epoch) => rec.retain(|e, _| *e > epoch),
+        TargetItem::SvItem(filter) => {
+            // for each constell, grab PRN#
+            let filter: Vec<_> = filter.iter().map(|sv| (sv.constellation, sv.prn)).collect();
+
+            rec.retain(|_, frames| {
+                frames.retain(|fr| {
+                    if let Some((_, sv, _)) = fr.as_eph() {
+                        let mut pass = false;
+                        for (constell, prn) in &filter {
+                            if *constell == sv.constellation {
+                                pass |= sv.prn > *prn;
+                            }
+                        }
+                        pass
+                    } else if let Some((_, sv, _)) = fr.as_ion() {
+                        let mut pass = false;
+                        for (constell, prn) in &filter {
+                            if *constell == sv.constellation {
+                                pass |= sv.prn > *prn;
+                            }
+                        }
+                        pass
+                    } else if let Some((_, sv, _)) = fr.as_eop() {
+                        let mut pass = false;
+                        for (constell, prn) in &filter {
+                            if *constell == sv.constellation {
+                                pass |= sv.prn > *prn;
+                            }
+                        }
+                        pass
+                    } else if let Some((_, sv, _)) = fr.as_sto() {
+                        let mut pass = false;
+                        for (constell, prn) in &filter {
+                            if *constell == sv.constellation {
+                                pass |= sv.prn > *prn;
+                            }
+                        }
+                        pass
+                    } else {
+                        // non existing
+                        false
+                    }
+                });
+                frames.len() > 0
+            });
+        },
+        _ => {}, // Other items: either not supported, or do not apply
+    }
+}
+
+fn mask_mut_geq(rec: &mut Record, target: TargetItem) {
+    match target {
+        TargetItem::EpochItem(epoch) => rec.retain(|e, _| *e >= epoch),
+        TargetItem::SvItem(filter) => {
+            // for each constell, grab PRN#
+            let filter: Vec<_> = filter.iter().map(|sv| (sv.constellation, sv.prn)).collect();
+
+            rec.retain(|_, frames| {
+                frames.retain(|fr| {
+                    if let Some((_, sv, _)) = fr.as_eph() {
+                        let mut pass = false;
+                        for (constell, prn) in &filter {
+                            if *constell == sv.constellation {
+                                pass |= sv.prn >= *prn;
+                            }
+                        }
+                        pass
+                    } else if let Some((_, sv, _)) = fr.as_ion() {
+                        let mut pass = false;
+                        for (constell, prn) in &filter {
+                            if *constell == sv.constellation {
+                                pass |= sv.prn >= *prn;
+                            }
+                        }
+                        pass
+                    } else if let Some((_, sv, _)) = fr.as_eop() {
+                        let mut pass = false;
+                        for (constell, prn) in &filter {
+                            if *constell == sv.constellation {
+                                pass |= sv.prn >= *prn;
+                            }
+                        }
+                        pass
+                    } else if let Some((_, sv, _)) = fr.as_sto() {
+                        let mut pass = false;
+                        for (constell, prn) in &filter {
+                            if *constell == sv.constellation {
+                                pass |= sv.prn >= *prn;
+                            }
+                        }
+                        pass
+                    } else {
+                        // non existing
+                        false
+                    }
+                });
+                frames.len() > 0
+            });
+        },
+        _ => {}, // Other items: either not supported, or do not apply
+    }
+}
 
 #[cfg(feature = "processing")]
 impl Mask for Record {
@@ -1524,7 +1679,7 @@ fn decimate_data_subset(record: &mut Record, subset: &Record, target: &TargetIte
                 }
             }
         },
-        TargetItem::OrbitItem(orbit_fields) => {
+        TargetItem::OrbitItem(_orbit_fields) => {
             /*
              * Removes ephemeris frames that should now be missing
              */
