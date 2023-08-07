@@ -132,7 +132,10 @@ macro_rules! hourly_session {
 /// stored as [record::Comments], without much application other than presenting
 /// all encountered data at the moment.   
 /// Following is an example of high level usage (mainly header fields).  
-/// For RINEX type dependent usage, refer to related [record::Record] definition.  
+/// For each RINEX type you get a method named after that type, which exposes
+/// the whole dataset, for example [`Self::meteo`] for Meteo RINEX.
+/// Other (high level information, calculations) are type dependent and
+/// contained in a specific crate feature.
 /// ```
 /// use rinex::prelude::*;
 /// let rnx = Rinex::from_file("../test_resources/OBS/V2/delf0010.21o")
@@ -1569,23 +1572,22 @@ impl Rinex {
     ///
     /// let mut data = rnx.sv_epoch();
     ///
-    /// if let Some((epoch, svnn)) = data.nth(0) {
+    /// if let Some((epoch, vehicles)) = data.nth(0) {
     ///     assert_eq!(epoch,Epoch::from_gregorian_utc(2017, 1, 1, 0, 0, 0, 0));
+    ///     let expected = vec![
+    ///         Sv::new(Constellation::GPS, 03),
+    ///         Sv::new(Constellation::GPS, 08),
+    ///         Sv::new(Constellation::GPS, 14),
+    ///         Sv::new(Constellation::GPS, 16),
+    ///         Sv::new(Constellation::GPS, 22),
+    ///         Sv::new(Constellation::GPS, 23),
+    ///         Sv::new(Constellation::GPS, 26),
+    ///         Sv::new(Constellation::GPS, 27),
+    ///         Sv::new(Constellation::GPS, 31),
+    ///         Sv::new(Constellation::GPS, 32),
+    ///     ];
+    ///     assert_eq!(*vehicles, expected);
     /// }
-    /// //let vehicles = data.get(&first_epoch)
-    /// //    .unwrap();
-    /// //assert_eq!(*vehicles, vec![
-    /// //    Sv::new(Constellation::GPS, 03),
-    /// //    Sv::new(Constellation::GPS, 08),
-    /// //    Sv::new(Constellation::GPS, 14),
-    /// //    Sv::new(Constellation::GPS, 16),
-    /// //    Sv::new(Constellation::GPS, 22),
-    /// //    Sv::new(Constellation::GPS, 23),
-    /// //    Sv::new(Constellation::GPS, 26),
-    /// //    Sv::new(Constellation::GPS, 27),
-    /// //    Sv::new(Constellation::GPS, 31),
-    /// //    Sv::new(Constellation::GPS, 32),
-    /// //]);
     /// ```
     pub fn sv_epoch(&self) -> Box<dyn Iterator<Item = (Epoch, Vec<Sv>)> + '_> {
         if let Some(record) = self.record.as_obs() {
