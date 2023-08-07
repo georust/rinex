@@ -2149,7 +2149,7 @@ impl Rinex {
                 }),
         )
     }
-    /// Returns Ionosphere frames iterator.
+    /// Returns [`IonMessage`] frames Iterator
     pub fn ionosphere_models(
         &self,
     ) -> Box<dyn Iterator<Item = (&Epoch, (NavMsgType, &Sv, &IonMessage))> + '_> {
@@ -2163,7 +2163,7 @@ impl Rinex {
             })
         }))
     }
-    /// Returns Iterator over all Klobuchar Ionosphere model identified
+    /// Returns [`KbModel`] Iterator
     /// ```
     /// use rinex::prelude::*;
     /// use rinex::navigation::KbRegionCode;
@@ -2185,7 +2185,7 @@ impl Rinex {
             }
         }))
     }
-    /// Returns Iterator over all Nequick-G Ionosphere model identified
+    /// Returns [`NgModel`] Iterator
     /// ```
     /// use rinex::prelude::*;
     /// let rnx = Rinex::from_file("../test_resources/NAV/V4/KMS300DNK_R_20221591000_01H_MN.rnx.gz")
@@ -2204,7 +2204,7 @@ impl Rinex {
             }
         }))
     }
-    /// Returns Iterator over all BDGIM Ionosphere model identified
+    /// Returns [`BdModel`] Iterator
     /// ```
     /// use rinex::prelude::*;
     /// let rnx = Rinex::from_file("../test_resources/NAV/V4/KMS300DNK_R_20221591000_01H_MN.rnx.gz")
@@ -2222,7 +2222,7 @@ impl Rinex {
             }
         }))
     }
-    /// Returns System Time Offset frames iterator
+    /// Returns [`StoMessage`] frames Iterator
     /// ```
     /// use rinex::prelude::*;
     /// let rnx = Rinex::from_file("../test_resources/NAV/V4/KMS300DNK_R_20221591000_01H_MN.rnx.gz")
@@ -2247,7 +2247,7 @@ impl Rinex {
             })
         }))
     }
-    /// Returns Earth Orientation parameters Iterator
+    /// Returns [`EopMessage`] frames Iterator
     /// ```
     /// use rinex::prelude::*;
     /// let rnx = Rinex::from_file("../test_resources/NAV/V4/KMS300DNK_R_20221591000_01H_MN.rnx.gz")
