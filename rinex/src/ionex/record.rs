@@ -1,12 +1,4 @@
-use crate::{
-    algorithm::{Filter, Interpolate, Mask, MaskFilter, MaskOperand, Preprocessing, TargetItem},
-    gnss_time::GnssTime,
-    merge,
-    merge::Merge,
-    prelude::*,
-    split,
-    split::Split,
-};
+use crate::{gnss_time::GnssTime, merge, merge::Merge, prelude::*, split, split::Split};
 
 use super::{grid, GridLinspace};
 
@@ -479,6 +471,10 @@ impl GnssTime for Record {
     }
 }
 
+#[cfg(feature = "processing")]
+use crate::preprocessing::*;
+
+#[cfg(feature = "processing")]
 impl Mask for Record {
     fn mask(&self, mask: MaskFilter) -> Self {
         let mut s = self.clone();
@@ -515,6 +511,7 @@ impl Mask for Record {
     }
 }
 
+#[cfg(feature = "processing")]
 impl Preprocessing for Record {
     fn filter(&self, f: Filter) -> Self {
         let mut s = self.clone();
@@ -531,6 +528,7 @@ impl Preprocessing for Record {
     }
 }
 
+#[cfg(feature = "processing")]
 impl Interpolate for Record {
     fn interpolate(&self, series: TimeSeries) -> Self {
         let mut s = self.clone();

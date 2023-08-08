@@ -1202,8 +1202,12 @@ impl GnssTime for Record {
 }
 
 #[cfg(feature = "processing")]
-use crate::preprocessing::*;
+use crate::preprocessing::{
+    Decimate, DecimationType, Filter, Interpolate, Mask, MaskFilter, MaskOperand, Preprocessing,
+    TargetItem,
+};
 
+#[cfg(feature = "processing")]
 fn mask_mut_equal(rec: &mut Record, target: TargetItem) {
     match target {
         TargetItem::EpochItem(epoch) => rec.retain(|e, _| *e == epoch),
@@ -1300,6 +1304,7 @@ fn mask_mut_equal(rec: &mut Record, target: TargetItem) {
     }
 }
 
+#[cfg(feature = "processing")]
 fn mask_mut_ineq(rec: &mut Record, target: TargetItem) {
     match target {
         TargetItem::EpochItem(epoch) => rec.retain(|e, _| *e != epoch),
@@ -1396,6 +1401,7 @@ fn mask_mut_ineq(rec: &mut Record, target: TargetItem) {
     }
 }
 
+#[cfg(feature = "processing")]
 fn mask_mut_leq(rec: &mut Record, target: TargetItem) {
     match target {
         TargetItem::EpochItem(epoch) => rec.retain(|e, _| *e <= epoch),
@@ -1449,6 +1455,7 @@ fn mask_mut_leq(rec: &mut Record, target: TargetItem) {
     }
 }
 
+#[cfg(feature = "processing")]
 fn mask_mut_lt(rec: &mut Record, target: TargetItem) {
     match target {
         TargetItem::EpochItem(epoch) => rec.retain(|e, _| *e < epoch),
@@ -1502,6 +1509,7 @@ fn mask_mut_lt(rec: &mut Record, target: TargetItem) {
     }
 }
 
+#[cfg(feature = "processing")]
 fn mask_mut_gt(rec: &mut Record, target: TargetItem) {
     match target {
         TargetItem::EpochItem(epoch) => rec.retain(|e, _| *e > epoch),
@@ -1555,6 +1563,7 @@ fn mask_mut_gt(rec: &mut Record, target: TargetItem) {
     }
 }
 
+#[cfg(feature = "processing")]
 fn mask_mut_geq(rec: &mut Record, target: TargetItem) {
     match target {
         TargetItem::EpochItem(epoch) => rec.retain(|e, _| *e >= epoch),

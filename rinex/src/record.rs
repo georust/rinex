@@ -6,7 +6,6 @@ use thiserror::Error;
 use serde::Serialize;
 
 use super::{
-    algorithm::{Filter, Preprocessing},
     antex, clocks,
     gnss_time::GnssTime,
     hatanaka::{Compressor, Decompressor},
@@ -723,6 +722,10 @@ impl GnssTime for Record {
     }
 }
 
+#[cfg(feature = "processing")]
+use crate::algorithm::{Filter, Preprocessing};
+
+#[cfg(feature = "processing")]
 impl Preprocessing for Record {
     fn filter(&self, f: Filter) -> Self {
         let mut s = self.clone();
@@ -744,8 +747,10 @@ impl Preprocessing for Record {
     }
 }
 
+#[cfg(feature = "processing")]
 use crate::algorithm::Decimate;
 
+#[cfg(feature = "processing")]
 impl Decimate for Record {
     fn decimate_by_ratio(&self, r: u32) -> Self {
         let mut s = self.clone();
