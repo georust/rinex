@@ -1,29 +1,40 @@
-RINEX crate
-===========
+# RINEX
 
 [![crates.io](https://img.shields.io/crates/v/rinex.svg)](https://crates.io/crates/rinex)
 [![rustc](https://img.shields.io/badge/rustc-1.61%2B-blue.svg)](https://img.shields.io/badge/rustc-1.61%2B-blue.svg)
-
-[![Rust](https://github.com/gwbres/rinex/actions/workflows/rust.yml/badge.svg)](https://github.com/gwbres/rinex/actions/workflows/rust.yml)
 [![crates.io](https://docs.rs/rinex/badge.svg)](https://docs.rs/rinex/badge.svg)
-[![crates.io](https://img.shields.io/crates/d/rinex.svg)](https://crates.io/crates/rinex) 
-[![License](https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square)](https://github.com/gwbres/rinex/blob/main/LICENSE-APACHE)
-[![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](https://github.com/gwbres/rinex/blob/main/LICENSE-MIT)
 
-## Parser
+*RINEX* is a *Georust* ecosystem that aims at supporting
+most common RINEX formats, for both data analysis and data production,
+without performance compromises.
 
-`RINEX` files contain a lot of data and this library is capable of parsing most of it.   
-To fully understand how to operate this library, refer
-to the official API, which provides useful information.
-You can also refer to the examples of use provided by the library.
+It aims at providing a modern and credible alternatives to tools like `teqc`
 
-## Production (writer)
+## File naming conventions
 
-Once a RINEX structure is parsed, it is possible to dump it into a file,
-and possibily rework it in the meantime.
+In this current form, the parser disregards file names and conventions. 
+We aim at providing methods that help generate files that respect the standards though.
 
-## File naming convention
+## Crate features
 
-This parser does not care about the RINEX file name.
-That means it is possible to parse a file    
-that does not respect standard naming conventions.
+One crate feature per supported RINEX format exists.   
+For example, `nav` enables RINEX Navigation specific methods.
+
+The `qc` feature enables a set of structures for RINEX file quality analysis.  
+
+The  `processing` feature enables the 
+[Preprocessing trait](https://docs.rs/rinex/latest/rinex/processing/trait.Preprocessing.html),
+to resample, filter and sort RINEX datasets prior further analysis.
+
+The `flate2` feature enables native gz decompression.  
+If this feature is not enabled, one must first uncompress .gz files prior parsing.
+
+The `sbas` feature enables one method to select appropriate augmentation system
+based on current location on Earth.
+
+## License
+
+Licensed under either 
+
+* Apache Version 2.0 ([LICENSE-APACHE](http://www.apache.org/licenses/LICENSE-2.0))
+* MIT ([LICENSE-MIT](http://opensource.org/licenses/MIT)

@@ -68,45 +68,6 @@ File formats
 - Glonass Time Scale is not known to this day.
 We cannot parse and apply system time corrections from other time scales into the glonass time scale.
 
-Features
-========
-
-Several compilation options, mostly to unlock heavy computations and advanced features
-
-* `serde` enables main RINEX structures serialization and deserialization 
-
-* `obs` unlocks several features:
-  - the [Observation trait](https://doc.rs/rinex/latest/rinex/observation/Observation.html) for 
-  quick & efficient statistical analysis on both OBS and Meteo records. Mainly serves Quality Check purposes.
-  - the [DCB trait](https://doc.rs/rinex/latest/rinex/observation/Dcb.html)
-  for Differential Code bias estimation
-  - the [MP trait](https://doc.rs/rinex/latest/rinex/observation/Dcb.html)
-  for Multi Path biases estimation
-  - the [Iono Delay](https://doc.rs/rinex/latest/rinex/observation/IonoDelay.html) 
-  estimator.
-
-* `nav` : unlocks advanced NAV features, like
-  - [Sv position](https://doc.rs/rinex/latest/rinex/navigation/Navigation.html) solver
-  - [Elevation and azimuth](https://doc.rs/rinex/latest/rinex/navigation/Navigation.html) angles solver
-
-* `processing` 
-  - unlocks the [Preprocessing package](https://doc.rs/rinex/latest/rinex/preprocessing.html),
-  which contains several methods to resample, downsample, filter and sort RINEX datasets.
-
-* `qc`: enables file Quality Check, ie., statistical analysis
-on RINEX files. Reports are generated in HTML.
-Complete QC is only feasible if you combine this feature to
-the related type feature, `obs` + `nav` is the typical combination.
-
-<img align="right" width="400" src="https://upload.wikimedia.org/wikipedia/commons/4/46/SBAS_Service_Areas.png">
-
-* `sbas`: SBAS (stationary augmentation systems) selection
-helper method, to select appropriate augmentation based on current
-location on Earth
-
-* `flate2`  
-allow native parsing of .gz compressed RINEX files. Otherwise, user must uncompress manually the `.gz` extension first.
-
 Benchmarking and lib performances
 =================================
 
