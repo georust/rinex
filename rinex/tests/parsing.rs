@@ -41,54 +41,54 @@ mod test {
                         "NAV" => {
                             assert!(rinex.is_navigation_rinex());
                             assert!(rinex.epoch().next().is_some());
+                            assert!(rinex.epoch().count() > 0); // all files have content
                         },
                         "OBS" => {
                             assert!(rinex.header.obs.is_some());
                             assert!(rinex.is_observation_rinex());
-                            assert!(rinex.epoch().collect::<Vec<Epoch>>().len() > 0);
-                            /*
-                                                        let gf = rinex.observation_gf_combinations();
-                                                        let nl = rinex.observation_nl_combinations();
-                                                        let wl = rinex.observation_wl_combinations();
-                                                        let mw = rinex.observation_mw_combinations();
+                            assert!(rinex.epoch().count() > 0); // all files have content
+                                                                /*
+                                                                                            let gf = rinex.observation_gf_combinations();
+                                                                                            let nl = rinex.observation_nl_combinations();
+                                                                                            let wl = rinex.observation_wl_combinations();
+                                                                                            let mw = rinex.observation_mw_combinations();
 
-                                                        let mut gf_combinations: Vec<_> = gf.keys().collect();
-                                                        let mut nl_combinations: Vec<_> = nl.keys().collect();
-                                                        let mut wl_combinations: Vec<_> = wl.keys().collect();
-                                                        let mut mw_combinations: Vec<_> = mw.keys().collect();
+                                                                                            let mut gf_combinations: Vec<_> = gf.keys().collect();
+                                                                                            let mut nl_combinations: Vec<_> = nl.keys().collect();
+                                                                                            let mut wl_combinations: Vec<_> = wl.keys().collect();
+                                                                                            let mut mw_combinations: Vec<_> = mw.keys().collect();
 
-                                                        gf_combinations.sort();
-                                                        nl_combinations.sort();
-                                                        wl_combinations.sort();
-                                                        mw_combinations.sort();
+                                                                                            gf_combinations.sort();
+                                                                                            nl_combinations.sort();
+                                                                                            wl_combinations.sort();
+                                                                                            mw_combinations.sort();
 
-                                                        assert_eq!(gf_combinations, nl_combinations);
-                                                        assert_eq!(gf_combinations, wl_combinations);
-                                                        assert_eq!(gf_combinations, mw_combinations);
+                                                                                            assert_eq!(gf_combinations, nl_combinations);
+                                                                                            assert_eq!(gf_combinations, wl_combinations);
+                                                                                            assert_eq!(gf_combinations, mw_combinations);
 
-                                                        assert_eq!(nl_combinations, wl_combinations);
-                                                        assert_eq!(nl_combinations, mw_combinations);
+                                                                                            assert_eq!(nl_combinations, wl_combinations);
+                                                                                            assert_eq!(nl_combinations, mw_combinations);
 
-                                                        assert_eq!(wl_combinations, mw_combinations);
-                            */
+                                                                                            assert_eq!(wl_combinations, mw_combinations);
+                                                                */
                         },
                         "CRNX" => {
                             assert!(rinex.header.obs.is_some());
                             assert!(rinex.is_observation_rinex());
-                            assert!(rinex.epoch().collect::<Vec<Epoch>>().len() > 0);
+                            assert!(rinex.epoch().count() > 0); // all files have content
                         },
                         "MET" => {
-                            //assert_eq!(rinex.header.obs.is_some(), true);
                             assert!(rinex.is_meteo_rinex());
-                            assert!(rinex.epoch().collect::<Vec<Epoch>>().len() > 0);
+                            assert!(rinex.epoch().count() > 0); // all files have content
                         },
                         "CLK" => {
                             assert!(rinex.is_clocks_rinex());
-                            assert!(rinex.epoch().next().is_some());
+                            assert!(rinex.epoch().count() > 0); // all files have content
                         },
                         "IONEX" => {
                             assert!(rinex.is_ionex());
-                            assert!(rinex.epoch().collect::<Vec<Epoch>>().len() > 0);
+                            assert!(rinex.epoch().count() > 0); // all files have content
                         },
                         _ => unreachable!(),
                     }

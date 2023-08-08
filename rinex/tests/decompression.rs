@@ -356,6 +356,16 @@ mod test {
             Epoch::from_gregorian_utc(2021, 12, 28, 01, 01, 00, 00)
         );
 
+        //assert!(
+        //    rinex.sv_epoch()
+        //        .sorted()
+        //        .eq(
+
+        //        )
+        //    ),
+        //    "sv_epoch() failed",
+        //);
+
         let epochs: Vec<Epoch> = vec![
             Epoch::from_gregorian_utc(2021, 12, 21, 00, 00, 0, 0),
             Epoch::from_gregorian_utc(2021, 12, 21, 00, 00, 30, 0),
@@ -383,7 +393,7 @@ mod test {
             Epoch::from_gregorian_utc(2021, 12, 21, 00, 11, 30, 0),
             Epoch::from_gregorian_utc(2021, 12, 21, 00, 12, 0, 0),
         ];
-        assert!(rnx.epoch().eq(epochs), "parsed wrong epoch content");
+        assert!(rnx.epoch().eq(epochs.clone()), "parsed wrong epoch content");
         /*
          * record test
          */
