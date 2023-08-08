@@ -61,7 +61,7 @@ pub trait Decimate {
     ///
     /// // reduce to 10s sampling interval
     /// rinex.decimate_by_interval_mut(Duration::from_seconds(10.0));
-    /// let new_epochs : Vec<_> = rinex.epoch().collect();
+    /// let new_epochs: Vec<_> = rinex.epoch().collect();
     /// assert_eq!(epochs, new_epochs); // unchanged: dt is too short
     ///
     /// // reduce to 1hour sampling interval
