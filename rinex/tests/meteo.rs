@@ -28,7 +28,7 @@ mod test {
         ];
         expected.sort(); // for comparison
 
-        assert!(observables == expected, "parsed wrong observable content",);
+        assert!(observables == expected, "parsed wrong observable content");
 
         let labels = vec![
             "pressure",
