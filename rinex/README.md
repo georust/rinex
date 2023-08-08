@@ -8,7 +8,7 @@
 most common RINEX formats, for both data analysis and data production,
 without performance compromises.
 
-It aims at providing a modern and credible alternatives to tools like `teqc`
+One of its objectives is to be a credible modern alternative to tools like `teqc`.
 
 ## File naming conventions
 
