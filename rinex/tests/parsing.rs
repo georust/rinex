@@ -84,7 +84,7 @@ mod test {
                         },
                         "CLK" => {
                             assert!(rinex.is_clocks_rinex());
-                            assert!(rinex.epoch().collect::<Vec<Epoch>>().len() > 0);
+                            assert!(rinex.epoch().next().is_some());
                         },
                         "IONEX" => {
                             assert!(rinex.is_ionex());
