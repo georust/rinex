@@ -42,7 +42,7 @@ pub fn skyplot(ctx: &Context, plot_ctx: &mut PlotContext) {
             .visible({
                 /*
                  * Plot only first few dataset,
-                 * to improve performance when openning plots
+                 * to improve performance when opening plots
                  */
                 if svnn_index < 4 {
                     Visible::True
