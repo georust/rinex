@@ -1366,32 +1366,32 @@ impl Rinex {
     ///     .unwrap();
     ///
     /// // when tolerance is set to None,
-    /// // the refenrece sample rate is [Self::dominant_sample_rate].
+    /// // the reference sample rate is [Self::dominant_sample_rate].
     /// let mut tolerance : Option<Duration> = None;
     /// let gaps : Vec<_> = rinex.data_gaps(tolerance).collect();
     /// assert!(
     ///     rinex.data_gaps(None).eq(
     ///         vec![
-    ///             (Epoch::from_str("2015-01-01T09:00:00 UTC").unwrap(), Duration::from_seconds(8.0 * 3600.0 + 51.0 * 60.0)),
-    ///             (Epoch::from_str("2015-01-01T19:25:00 UTC").unwrap(), Duration::from_seconds(10.0 * 3600.0 + 21.0 * 60.0)),
-    ///             (Epoch::from_str("2015-01-01T22:55:00 UTC").unwrap(), Duration::from_seconds(3.0 * 3600.0 + 1.0 * 60.0)),
-    ///             (Epoch::from_str("2015-01-01T23:09:00 UTC").unwrap(), Duration::from_seconds(7.0 * 60.0)),
-    ///             (Epoch::from_str("2015-01-01T23:52:00 UTC").unwrap(), Duration::from_seconds(31.0 * 60.0)),
+    ///             (Epoch::from_str("2015-01-01T00:09:00 UTC").unwrap(), Duration::from_seconds(8.0 * 3600.0 + 51.0 * 60.0)),
+    ///             (Epoch::from_str("2015-01-01T09:04:00 UTC").unwrap(), Duration::from_seconds(10.0 * 3600.0 + 21.0 * 60.0)),
+    ///             (Epoch::from_str("2015-01-01T19:54:00 UTC").unwrap(), Duration::from_seconds(3.0 * 3600.0 + 1.0 * 60.0)),
+    ///             (Epoch::from_str("2015-01-01T23:02:00 UTC").unwrap(), Duration::from_seconds(7.0 * 60.0)),
+    ///             (Epoch::from_str("2015-01-01T23:21:00 UTC").unwrap(), Duration::from_seconds(31.0 * 60.0)),
     ///         ]),
-    ///     "faulty sampling histogram analysis"
+    ///     "data_gaps(tol=None) failed"
     /// );
     ///
     /// // with a tolerance, we tolerate the given gap duration
     /// tolerance = Some(Duration::from_seconds(3600.0));
     /// let gaps : Vec<_> = rinex.data_gaps(tolerance).collect();
     /// assert!(
-    ///     rinex.data_gaps(Some(Duration::from_seconds(3600.0))).eq(
+    ///     rinex.data_gaps(Some(Duration::from_seconds(3.0 * 3600.0))).eq(
     ///         vec![
-    ///             (Epoch::from_str("2015-01-01T09:00:00 UTC").unwrap(), Duration::from_seconds(8.0 * 3600.0 + 51.0 * 60.0)),
-    ///             (Epoch::from_str("2015-01-01T19:25:00 UTC").unwrap(), Duration::from_seconds(10.0 * 3600.0 + 21.0 * 60.0)),
-    ///             (Epoch::from_str("2015-01-01T22:55:00 UTC").unwrap(), Duration::from_seconds(3.0 * 3600.0 + 1.0 * 60.0)),
+    ///             (Epoch::from_str("2015-01-01T00:09:00 UTC").unwrap(), Duration::from_seconds(8.0 * 3600.0 + 51.0 * 60.0)),
+    ///             (Epoch::from_str("2015-01-01T09:04:00 UTC").unwrap(), Duration::from_seconds(10.0 * 3600.0 + 21.0 * 60.0)),
+    ///             (Epoch::from_str("2015-01-01T19:54:00 UTC").unwrap(), Duration::from_seconds(3.0 * 3600.0 + 1.0 * 60.0)),
     ///         ]),
-    ///     "histogram with tolerance, failed"
+    ///     "data_gaps(tol=3h) failed"
     /// );
     /// ```
     pub fn data_gaps(
@@ -1416,23 +1416,19 @@ impl Rinex {
                 }
             },
         };
-
-        let mut prev_epoch: Option<Epoch> = None;
-
-        Box::new(self.epoch().filter_map(move |epoch| {
-            if prev_epoch.is_some() {
-                let dt = epoch - prev_epoch.unwrap();
-                prev_epoch = Some(epoch);
-                if dt > sample_rate {
-                    Some((epoch, dt))
-                } else {
-                    None
-                }
-            } else {
-                prev_epoch = Some(epoch); // first epoch
-                None
-            }
-        }))
+        Box::new(
+            self.epoch()
+                .zip(self.epoch().skip(1))
+                .filter_map(move |(ek, ekp1)| {
+                    let dt = ekp1 - ek; // gap
+                    if dt > sample_rate {
+                        // too large
+                        Some((ek, dt)) // retain starting datetime and gap duration
+                    } else {
+                        None
+                    }
+                }),
+        )
     }
 }
 
@@ -1537,13 +1533,14 @@ impl Rinex {
                             })
                             .into_iter()
                     })
-                    .fold(vec![], |mut list, sv| {
-                        if !list.contains(&sv) {
-                            list.push(sv);
-                        }
-                        list
-                    })
-                    .into_iter(),
+                    .unique(), /*.fold(vec![], |mut list, sv| {
+                                   if !list.contains(&sv) {
+                                       list.push(sv);
+                                   }
+                                   list
+                               })
+                               .into_iter(),
+                               */
             )
         } else {
             panic!(

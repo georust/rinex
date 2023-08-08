@@ -42,33 +42,31 @@ mod sampling {
     fn meteo() {
         let path = env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/MET/V2/abvi0010.15m";
         let rinex = Rinex::from_file(&path).unwrap();
-
         assert_eq!(
             rinex.dominant_sample_rate(),
             Some(Duration::from_seconds(60.0)),
         );
-
         assert!(
-            rinex.data_gaps(None).sorted().eq(vec![
+            rinex.data_gaps(None).eq(vec![
                 (
-                    Epoch::from_str("2015-01-01T09:00:00 UTC").unwrap(),
-                    Duration::from_seconds(8.0 * 3600.0 + 51.0 * 60.0)
+                    Epoch::from_str("2015-01-01T00:09:00 UTC").unwrap(),
+                    Duration::from_parts(0, 31860000000000),
                 ),
                 (
-                    Epoch::from_str("2015-01-01T19:25:00 UTC").unwrap(),
-                    Duration::from_seconds(10.0 * 3600.0 + 21.0 * 60.0)
+                    Epoch::from_str("2015-01-01T09:04:00 UTC").unwrap(),
+                    Duration::from_parts(0, 37260000000000),
                 ),
                 (
-                    Epoch::from_str("2015-01-01T22:55:00 UTC").unwrap(),
-                    Duration::from_seconds(3.0 * 3600.0 + 1.0 * 60.0)
+                    Epoch::from_str("2015-01-01T19:54:00 UTC").unwrap(),
+                    Duration::from_parts(0, 10860000000000),
                 ),
                 (
-                    Epoch::from_str("2015-01-01T23:09:00 UTC").unwrap(),
-                    Duration::from_seconds(7.0 * 60.0)
+                    Epoch::from_str("2015-01-01T23:02:00 UTC").unwrap(),
+                    Duration::from_parts(0, 420000000000),
                 ),
                 (
-                    Epoch::from_str("2015-01-01T23:52:00 UTC").unwrap(),
-                    Duration::from_seconds(31.0 * 60.0)
+                    Epoch::from_str("2015-01-01T23:21:00 UTC").unwrap(),
+                    Duration::from_parts(0, 1860000000000),
                 ),
             ]),
             "data_gaps(tol=None) failed",
@@ -76,46 +74,44 @@ mod sampling {
         assert!(
             rinex
                 .data_gaps(Some(Duration::from_seconds(10.0 * 60.0)))
-                .sorted()
                 .eq(vec![
                     (
-                        Epoch::from_str("2015-01-01T09:00:00 UTC").unwrap(),
-                        Duration::from_seconds(8.0 * 3600.0 + 51.0 * 60.0)
+                        Epoch::from_str("2015-01-01T00:09:00 UTC").unwrap(),
+                        Duration::from_parts(0, 31860000000000),
                     ),
                     (
-                        Epoch::from_str("2015-01-01T19:25:00 UTC").unwrap(),
-                        Duration::from_seconds(10.0 * 3600.0 + 21.0 * 60.0)
+                        Epoch::from_str("2015-01-01T09:04:00 UTC").unwrap(),
+                        Duration::from_parts(0, 37260000000000),
                     ),
                     (
-                        Epoch::from_str("2015-01-01T22:55:00 UTC").unwrap(),
-                        Duration::from_seconds(3.0 * 3600.0 + 1.0 * 60.0)
+                        Epoch::from_str("2015-01-01T19:54:00 UTC").unwrap(),
+                        Duration::from_parts(0, 10860000000000),
                     ),
                     (
-                        Epoch::from_str("2015-01-01T23:52:00 UTC").unwrap(),
-                        Duration::from_seconds(31.0 * 60.0)
+                        Epoch::from_str("2015-01-01T23:21:00 UTC").unwrap(),
+                        Duration::from_parts(0, 1860000000000),
                     ),
                 ]),
             "data_gaps(tol=10') failed",
         );
         assert!(
             rinex
-                .data_gaps(Some(Duration::from_seconds(3600.0)))
-                .sorted()
+                .data_gaps(Some(Duration::from_seconds(3.0 * 3600.0)))
                 .eq(vec![
                     (
-                        Epoch::from_str("2015-01-01T09:00:00 UTC").unwrap(),
-                        Duration::from_seconds(8.0 * 3600.0 + 51.0 * 60.0)
+                        Epoch::from_str("2015-01-01T00:09:00 UTC").unwrap(),
+                        Duration::from_parts(0, 31860000000000),
                     ),
                     (
-                        Epoch::from_str("2015-01-01T19:25:00 UTC").unwrap(),
-                        Duration::from_seconds(10.0 * 3600.0 + 21.0 * 60.0)
+                        Epoch::from_str("2015-01-01T09:04:00 UTC").unwrap(),
+                        Duration::from_parts(0, 37260000000000),
                     ),
                     (
-                        Epoch::from_str("2015-01-01T22:55:00 UTC").unwrap(),
-                        Duration::from_seconds(3.0 * 3600.0 + 1.0 * 60.0)
+                        Epoch::from_str("2015-01-01T19:54:00 UTC").unwrap(),
+                        Duration::from_parts(0, 10860000000000),
                     ),
                 ]),
-            "data_gaps(tol=1h) failed",
+            "data_gaps(tol=3h) failed",
         );
     }
 }
