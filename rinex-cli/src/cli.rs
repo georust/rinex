@@ -85,8 +85,8 @@ depicts shared epochs and vehicles between the two contexts."))
 					.arg(Arg::new("preprocessing")
 						.short('P')
 						.num_args(1..)
-						.help("Design preprocesing operations, as many as you want,
-to filter or resample data prior further analysis.
+						.help("Design preprocessing operations, like data filtering or resampling,
+prior further analysis. You can stack as many ops as you need.
 Refer to rinex-cli/doc/preprocessing.md to learn how to operate this interface."))
                 .next_help_heading("Observation RINEX")
                     .arg(Arg::new("observables")
