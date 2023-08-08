@@ -1273,7 +1273,7 @@ impl Rinex {
 
     /// Returns last [`Epoch`] encountered in time
     pub fn last_epoch(&self) -> Option<Epoch> {
-        let epochs: Vec<_> = self.epoch().collect();
+        self.epoch().last()
         epochs.get(epochs.len() - 1).copied()
     }
 
