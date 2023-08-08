@@ -85,30 +85,9 @@ depicts shared epochs and vehicles between the two contexts."))
 					.arg(Arg::new("preprocessing")
 						.short('P')
 						.num_args(1..)
-						.help("Apply a preprocessing filter. Refer to filter design section of the README."))
-                    .arg(Arg::new("resample-ratio")
-                        .long("resample-ratio")
-                        .short('r')
-                        .value_name("RATIO(u32)")
-                        .help("Downsample record content by given factor. 
-For example, \"--resample-ratio 2\" would keep one every other epoch"))
-                    .arg(Arg::new("resample-interval")
-                        .long("resample-interval")
-                        .short('i')
-                        .value_name("DURATION")
-                        .help("Shrinks record so adjacent epochs match 
-the |e(n)-e(n-1)| > interval condition. 
-Interval must be a valid \"HH:MM:SS\" duration description.
-Example: -i 00:10:00 will have all epochs spaced by at least 10 minutes."))
-                    .arg(Arg::new("time-window")
-                        .long("time-window")
-                        .value_name("Epoch(1), Epoch(N)")
-                        .short('w')
-                        .help("Center record content around specified epoch window. 
-All epochs that do not lie within the specified (start, end) 
-interval are dropped out. User must pass two valid Datetime description. Epochs are specified in UTC timescale.
-Example: -w \"2020-01-01 2020-01-02\" will restrict to 2020/01/01 midnight to 24hours.
-Example: -w \"2020-01-01 00:00:00 2020-01-01 01:00:00\" will restrict the first hour."))
+						.help("Design preprocessing operations, like data filtering or resampling,
+prior further analysis. You can stack as many ops as you need.
+Refer to rinex-cli/doc/preprocessing.md to learn how to operate this interface."))
                 .next_help_heading("Observation RINEX")
                     .arg(Arg::new("observables")
                         .long("observables")
@@ -398,25 +377,6 @@ Refer to README"))
             .iter()
             .filter(|x| self.matches.get_flag(x))
             .map(|x| *x)
-            .collect()
-    }
-    /// Returns true if at least one resampling op is to be performed
-    pub fn resampling(&self) -> bool {
-        self.matches.contains_id("resample-ratio")
-            | self.matches.contains_id("resample-interval")
-            | self.matches.contains_id("time-window")
-    }
-    pub fn resampling_ops(&self) -> Vec<(&str, &str)> {
-        // this order describes eventually the order of filtering operations
-        let flags = vec!["resample-ratio", "resample-interval", "time-window"];
-        flags
-            .iter()
-            .filter(|x| self.matches.contains_id(x))
-            .map(|id| {
-                let args = self.matches.get_one::<String>(id).unwrap();
-                (id, args.as_str())
-            })
-            .map(|(id, args)| (*id, args))
             .collect()
     }
     fn get_flag(&self, flag: &str) -> bool {
