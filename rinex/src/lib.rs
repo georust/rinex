@@ -1,7 +1,5 @@
-//! This library provides a set of tools to parse, analyze
-//! and process RINEX files.
-//! Refer to README and documentation hosted here
-//! <https://github.com/georust/rinex>
+#![doc(html_logo_url = "https://raw.githubusercontent.com/georust/meta/master/logo/logo.png")]
+#![doc = include_str!("../README.md")]
 #![cfg_attr(docrs, feature(doc_cfg))]
 
 pub mod antex;
