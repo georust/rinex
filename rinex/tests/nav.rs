@@ -21,13 +21,9 @@ mod test {
         assert_eq!(record.len(), 4);
 
         // Test: parsed correct amount of entries
-        let nav_content: Vec<_> = rinex.navigation().collect();
-        assert_eq!(nav_content.len(), 4);
-
+        assert_eq!(rinex.navigation().count(), 4);
         // Test: only Ephemeris in this record
-        let ephemeris: Vec<_> = rinex.ephemeris().collect();
-        assert_eq!(ephemeris.len(), 6);
-
+        assert_eq!(rinex.ephemeris().count(), 6);
         // Test: only Legacy Ephemeris frames in this record
         for (_, (msg, _, _)) in rinex.ephemeris() {
             assert_eq!(msg, NavMsgType::LNAV);
@@ -39,11 +35,7 @@ mod test {
             Epoch::from_gregorian_utc(2021, 01, 01, 11, 45, 0, 0),
             Epoch::from_gregorian_utc(2021, 01, 01, 16, 15, 0, 0),
         ];
-
-        assert!(
-            rinex.epoch().collect::<Vec<Epoch>>() == epochs,
-            "parsed wrong epoch content"
-        );
+        assert!(rinex.epoch().eq(epochs), "parsed wrong epoch content");
 
         let prn: Vec<u8> = vec![1, 2, 7, 3, 4, 5];
         let mut vehicles: Vec<Sv> = prn
@@ -53,12 +45,11 @@ mod test {
                 prn: *prn,
             })
             .collect();
-        vehicles.sort(); // for comparison
-
-        let mut sv: Vec<_> = rinex.sv().collect();
-        sv.sort(); // for comparison
-
-        assert!(sv == vehicles, "parsed wrong vehicle content",);
+        vehicles.sort(); // for comparison purposes
+        assert!(
+            rinex.sv().sorted().eq(vehicles),
+            "parsed wrong vehicle content",
+        );
 
         for (_e, frames) in rinex.navigation() {
             for fr in frames {
@@ -212,12 +203,7 @@ mod test {
             Epoch::from_gregorian_utc(2021, 01, 01, 10, 10, 0, 0),
             Epoch::from_gregorian_utc(2021, 01, 01, 15, 40, 0, 0),
         ];
-
-        assert!(
-            rinex.epoch().eq(epochs),
-            "parsed wrong epoch content"
-        );
-
+        assert!(rinex.epoch().eq(epochs), "parsed wrong epoch content");
         let mut vehicles = vec![
             sv!("c05"),
             sv!("c21"),
@@ -227,11 +213,7 @@ mod test {
             sv!("r19"),
         ];
         vehicles.sort(); // for comparison
-
-        let mut sv: Vec<_> = rinex.sv().collect();
-        sv.sort(); // for comparison
-
-        assert!(sv == vehicles, "parsed wrong sv content");
+        assert!(rinex.sv().sorted().eq(vehicles), "parsed wrong sv content");
 
         for (_e, frames) in record.iter() {
             for fr in frames {
@@ -1085,11 +1067,7 @@ mod test {
         .unique()
         .collect();
         vehicles.sort(); // for comparison
-
-        let mut sv: Vec<_> = rinex.sv().collect();
-        sv.sort();
-
-        assert!(vehicles == sv, "parsed wrong sv content");
+        assert!(rinex.sv().sorted().eq(vehicles), "parsed wrong sv content");
 
         let mut eop_count = 0;
         let mut ion_count = 0;
@@ -1205,13 +1183,16 @@ mod test {
             + "/../test_resources/NAV/V3/BRDC00GOP_R_20210010000_01D_MN.rnx.gz";
         let rinex = Rinex::from_file(&test_resource);
         assert_eq!(rinex.is_ok(), true);
+
         let rinex = rinex.unwrap();
         assert_eq!(rinex.is_navigation_rinex(), true);
         assert_eq!(rinex.header.obs.is_none(), true);
         assert_eq!(rinex.header.meteo.is_none(), true);
-        //assert_eq!(rinex.epoch().len(), 4);
+        assert_eq!(rinex.epoch().count(), 4);
+
         let record = rinex.record.as_nav();
         assert_eq!(record.is_some(), true);
+
         let record = record.unwrap();
         let mut epochs: Vec<Epoch> = vec![
             Epoch::from_gregorian_utc(2021, 01, 01, 00, 00, 00, 00),
@@ -1219,24 +1200,20 @@ mod test {
             Epoch::from_gregorian_utc(2021, 01, 01, 07, 15, 00, 00),
             Epoch::from_gregorian_utc(2021, 01, 01, 08, 20, 00, 00),
         ];
-        epochs.sort();
+        epochs.sort(); // for comparison purposes
         assert!(
-            rinex.epoch().collect::<Vec<Epoch>>() == epochs,
+            rinex.epoch().sorted().eq(epochs),
             "parsed wrong epoch content"
         );
 
         let mut vehicles: Vec<Sv> = vec![
-            Sv::from_str("C01").unwrap(),
-            Sv::from_str("S36").unwrap(),
-            Sv::from_str("R10").unwrap(),
             Sv::from_str("E03").unwrap(),
+            Sv::from_str("C01").unwrap(),
+            Sv::from_str("R10").unwrap(),
+            Sv::from_str("S36").unwrap(),
         ];
-        vehicles.sort();
-
-        let mut sv: Vec<_> = rinex.sv().collect();
-        sv.sort();
-
-        assert!(sv == vehicles, "parsed wrong sv content");
+        vehicles.sort(); // for comparison purposes
+        assert!(rinex.sv().sorted().eq(vehicles), "parsed wrong sv content");
 
         for (_, frames) in record {
             for fr in frames {

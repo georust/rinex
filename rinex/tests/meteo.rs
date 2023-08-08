@@ -141,18 +141,12 @@ mod test {
         ];
 
         for (test, iter, expected) in meteo_iters {
-            let v: Vec<_> = iter.collect();
-            if expected == 74 {
-                assert!(
-                    v.len() == expected,
-                    "\"{}\": parsed wrong amount of data",
-                    test
-                );
-            } else {
-                assert!(v.len() == expected, "\"{}\": parsed unexpected data", test);
-            }
+            assert!(
+                iter.count() == expected,
+                "\"{}\": parsed wrong amount of data",
+                test
+            );
         }
-
         assert_eq!(
             rinex.accumulated_rain(),
             0.0,

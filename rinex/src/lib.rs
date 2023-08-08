@@ -322,11 +322,7 @@ impl Rinex {
          * all epochs share the same timescale,
          * by construction & definition.
          * No need to test other epochs */
-        if let Some(e) = self.epoch().collect::<Vec<Epoch>>().get(0) {
-            Some(e.time_scale)
-        } else {
-            None
-        }
+        self.epoch().next().map(|e| e.time_scale)
     }
 
     /// Converts self into given timescale
@@ -1274,7 +1270,6 @@ impl Rinex {
     /// Returns last [`Epoch`] encountered in time
     pub fn last_epoch(&self) -> Option<Epoch> {
         self.epoch().last()
-        epochs.get(epochs.len() - 1).copied()
     }
 
     /// Returns Duration of (time spanned by) this RINEX
@@ -1364,26 +1359,30 @@ impl Rinex {
     /// // the refenrece sample rate is [Self::dominant_sample_rate].
     /// let mut tolerance : Option<Duration> = None;
     /// let gaps : Vec<_> = rinex.data_gaps(tolerance).collect();
-    /// assert_eq!(
-    ///     gaps,
-    ///     vec![
-    ///         (Epoch::from_str("2015-01-01T09:00:00 UTC").unwrap(), Duration::from_seconds(8.0 * 3600.0 + 51.0 * 60.0)),
-    ///         (Epoch::from_str("2015-01-01T19:25:00 UTC").unwrap(), Duration::from_seconds(10.0 * 3600.0 + 21.0 * 60.0)),
-    ///         (Epoch::from_str("2015-01-01T22:55:00 UTC").unwrap(), Duration::from_seconds(3.0 * 3600.0 + 1.0 * 60.0)),
-    ///         (Epoch::from_str("2015-01-01T23:09:00 UTC").unwrap(), Duration::from_seconds(7.0 * 60.0)),
-    ///         (Epoch::from_str("2015-01-01T23:52:00 UTC").unwrap(), Duration::from_seconds(31.0 * 60.0)),
-    ///     ]);
+    /// assert!(
+    ///     rinex.data_gaps(None).eq(
+    ///         vec![
+    ///             (Epoch::from_str("2015-01-01T09:00:00 UTC").unwrap(), Duration::from_seconds(8.0 * 3600.0 + 51.0 * 60.0)),
+    ///             (Epoch::from_str("2015-01-01T19:25:00 UTC").unwrap(), Duration::from_seconds(10.0 * 3600.0 + 21.0 * 60.0)),
+    ///             (Epoch::from_str("2015-01-01T22:55:00 UTC").unwrap(), Duration::from_seconds(3.0 * 3600.0 + 1.0 * 60.0)),
+    ///             (Epoch::from_str("2015-01-01T23:09:00 UTC").unwrap(), Duration::from_seconds(7.0 * 60.0)),
+    ///             (Epoch::from_str("2015-01-01T23:52:00 UTC").unwrap(), Duration::from_seconds(31.0 * 60.0)),
+    ///         ]),
+    ///     "faulty sampling histogram analysis"
+    /// );
     ///
     /// // with a tolerance, we tolerate the given gap duration
     /// tolerance = Some(Duration::from_seconds(3600.0));
     /// let gaps : Vec<_> = rinex.data_gaps(tolerance).collect();
-    /// assert_eq!(
-    ///     gaps,
-    ///     vec![
-    ///         (Epoch::from_str("2015-01-01T09:00:00 UTC").unwrap(), Duration::from_seconds(8.0 * 3600.0 + 51.0 * 60.0)),
-    ///         (Epoch::from_str("2015-01-01T19:25:00 UTC").unwrap(), Duration::from_seconds(10.0 * 3600.0 + 21.0 * 60.0)),
-    ///         (Epoch::from_str("2015-01-01T22:55:00 UTC").unwrap(), Duration::from_seconds(3.0 * 3600.0 + 1.0 * 60.0)),
-    ///     ]);
+    /// assert!(
+    ///     rinex.data_gaps(Some(Duration::from_seconds(3600.0))).eq(
+    ///         vec![
+    ///             (Epoch::from_str("2015-01-01T09:00:00 UTC").unwrap(), Duration::from_seconds(8.0 * 3600.0 + 51.0 * 60.0)),
+    ///             (Epoch::from_str("2015-01-01T19:25:00 UTC").unwrap(), Duration::from_seconds(10.0 * 3600.0 + 21.0 * 60.0)),
+    ///             (Epoch::from_str("2015-01-01T22:55:00 UTC").unwrap(), Duration::from_seconds(3.0 * 3600.0 + 1.0 * 60.0)),
+    ///         ]),
+    ///     "histogram with tolerance, failed"
+    /// );
     /// ```
     pub fn data_gaps(
         &self,

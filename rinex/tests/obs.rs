@@ -42,10 +42,7 @@ mod test {
         /*
          * Test epoch parsing and identification
          */
-        assert!(
-            rnx.epoch().eq(epochs),
-            "parsed wrong epoch content"
-        );
+        assert!(rnx.epoch().eq(epochs), "parsed wrong epoch content");
 
         let mut parsed_observables: Vec<Observable> = rnx.observable().cloned().collect();
         parsed_observables.sort();

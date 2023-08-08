@@ -30,8 +30,7 @@ pub fn sv_epoch(ctx: &Context, plot_ctx: &mut PlotContext) {
     let mut nb_markers = constellations.len();
 
     if let Some(ref nav) = ctx.nav_rinex {
-        let nav_constell: Vec<_> = nav.constellation().collect();
-        nb_markers += nav_constell.len();
+        nb_markers += nav.constellation().count();
     }
 
     let markers = generate_markers(nb_markers);

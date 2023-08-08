@@ -185,10 +185,7 @@ mod test {
             Epoch::from_gregorian_utc(2021, 01, 01, 00, 08, 30, 00),
             Epoch::from_gregorian_utc(2021, 01, 01, 00, 09, 00, 00),
         ];
-        assert!(
-            rnx.epoch().eq(epochs),
-            "Parsed wrong epoch content",
-        );
+        assert!(rnx.epoch().eq(epochs), "Parsed wrong epoch content",);
 
         let record = rnx.record.as_obs().unwrap();
 
@@ -386,10 +383,7 @@ mod test {
             Epoch::from_gregorian_utc(2021, 12, 21, 00, 11, 30, 0),
             Epoch::from_gregorian_utc(2021, 12, 21, 00, 12, 0, 0),
         ];
-        assert!(
-            rnx.epoch().eq(epochs),
-            "parsed wrong epoch content"
-        );
+        assert!(rnx.epoch().eq(epochs), "parsed wrong epoch content");
         /*
          * record test
          */
