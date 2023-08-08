@@ -43,7 +43,7 @@ mod test {
          * Test epoch parsing and identification
          */
         assert!(
-            rnx.epoch().collect::<Vec<Epoch>>() == epochs,
+            rnx.epoch().eq(epochs),
             "parsed wrong epoch content"
         );
 
