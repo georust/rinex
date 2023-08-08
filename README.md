@@ -68,35 +68,15 @@ File formats
 - Glonass Time Scale is not known to this day.
 We cannot parse and apply system time corrections from other time scales into the glonass time scale.
 
-Features
-========
-
-Several compilation options, mostly to unlock heavy computations and advanced features
+Crate features
+==============
 
 * `serde` enables main RINEX structures serialization and deserialization 
-
-* `obs` unlocks several features:
-  - the [Observation trait](https://doc.rs/rinex/latest/rinex/observation/Observation.html) for 
-  quick & efficient statistical analysis on both OBS and Meteo records. Mainly serves Quality Check purposes.
-  - the [DCB trait](https://doc.rs/rinex/latest/rinex/observation/Dcb.html)
-  for Differential Code bias estimation
-  - the [MP trait](https://doc.rs/rinex/latest/rinex/observation/Dcb.html)
-  for Multi Path biases estimation
-  - the [Iono Delay](https://doc.rs/rinex/latest/rinex/observation/IonoDelay.html) 
-  estimator.
-
-* `nav` : unlocks advanced NAV features, like
-  - [Sv position](https://doc.rs/rinex/latest/rinex/navigation/Navigation.html) solver
-  - [Elevation and azimuth](https://doc.rs/rinex/latest/rinex/navigation/Navigation.html) angles solver
-
-* `processing` 
-  - unlocks the [Preprocessing package](https://doc.rs/rinex/latest/rinex/preprocessing.html),
-  which contains several methods to resample, downsample, filter and sort RINEX datasets.
-
-* `qc`: enables file Quality Check, ie., statistical analysis
-on RINEX files. Reports are generated in HTML.
-Complete QC is only feasible if you combine this feature to
-the related type feature, `obs` + `nav` is the typical combination.
+* You have one crate feature per supported RINEX format, like `nav` for example
+which contains NAV RINEX  specific methods
+* `processing` enabled the [Preprocessing trait](https://docs.rs/rinex/latest/rinex/processing/trait.Preprocessing.html), to resample, filter and sort RINEX datasets prior further analysis
+* `qc` enables file Quality Checks, mainly statistical analysis on RINEX files,
+reported in HTML. A complete QC will most likely require both `qc` and related format(s) feature(s) 
 
 <img align="right" width="400" src="https://upload.wikimedia.org/wikipedia/commons/4/46/SBAS_Service_Areas.png">
 
@@ -107,8 +87,8 @@ location on Earth
 * `flate2`  
 allow native parsing of .gz compressed RINEX files. Otherwise, user must uncompress manually the `.gz` extension first.
 
-Benchmarking and lib performances
-=================================
+Benchmarking
+============
 
 Test           | Results 
 ---------------|-------------------------|
