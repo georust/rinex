@@ -14,7 +14,7 @@ mod test {
     fn v3_duth0630_gps_filter() {
         let mut rnx = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O").unwrap();
         rnx.filter_mut(filter!("GPS"));
-        assert_eq!(rnx.sv().collect::<Vec<Sv>>().len(), 12);
+        assert_eq!(rnx.sv().count(), 12);
     }
     //#[test]
     //fn v3_duth0630_gps_prn_filter() {
