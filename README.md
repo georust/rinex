@@ -68,25 +68,6 @@ File formats
 - Glonass Time Scale is not known to this day.
 We cannot parse and apply system time corrections from other time scales into the glonass time scale.
 
-Crate features
-==============
-
-* `serde` enables main RINEX structures serialization and deserialization 
-* You have one crate feature per supported RINEX format, like `nav` for example
-which contains NAV RINEX  specific methods
-* `processing` enabled the [Preprocessing trait](https://docs.rs/rinex/latest/rinex/processing/trait.Preprocessing.html), to resample, filter and sort RINEX datasets prior further analysis
-* `qc` enables file Quality Checks, mainly statistical analysis on RINEX files,
-reported in HTML. A complete QC will most likely require both `qc` and related format(s) feature(s) 
-
-<img align="right" width="400" src="https://upload.wikimedia.org/wikipedia/commons/4/46/SBAS_Service_Areas.png">
-
-* `sbas`: SBAS (stationary augmentation systems) selection
-helper method, to select appropriate augmentation based on current
-location on Earth
-
-* `flate2`  
-allow native parsing of .gz compressed RINEX files. Otherwise, user must uncompress manually the `.gz` extension first.
-
 Benchmarking
 ============
 
