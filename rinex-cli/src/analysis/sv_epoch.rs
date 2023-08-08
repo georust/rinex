@@ -25,18 +25,19 @@ pub fn sv_epoch(ctx: &Context, plot_ctx: &mut PlotContext) {
     );
     plot_item.set_layout(layout);
 
-    let constellations = ctx.primary_rinex.constellations();
+    // markers/symbols: one per constellation system
+    let constellations: Vec<_> = ctx.primary_rinex.constellation().collect();
     let mut nb_markers = constellations.len();
 
     if let Some(ref nav) = ctx.nav_rinex {
-        let nav_constell = nav.constellations();
-        nb_markers += nav_constell.len();
+        nb_markers += nav.constellation().count();
     }
 
     let markers = generate_markers(nb_markers);
 
-    let data = ctx.primary_rinex.sv_epoch();
-    for (sv_index, sv) in ctx.primary_rinex.sv().iter().enumerate() {
+    let data: Vec<_> = ctx.primary_rinex.sv_epoch().collect();
+
+    for (sv_index, sv) in ctx.primary_rinex.sv().enumerate() {
         let epochs: Vec<Epoch> = data
             .iter()
             .filter_map(|(epoch, ssv)| {
@@ -68,10 +69,10 @@ pub fn sv_epoch(ctx: &Context, plot_ctx: &mut PlotContext) {
     }
 
     if let Some(ref nav) = ctx.nav_rinex {
-        let data = nav.sv_epoch();
-        let nav_constell = nav.constellations();
+        let data: Vec<_> = nav.sv_epoch().collect();
+        let nav_constell: Vec<_> = nav.constellation().collect();
 
-        for (sv_index, sv) in nav.sv().iter().enumerate() {
+        for (sv_index, sv) in nav.sv().enumerate() {
             let epochs: Vec<Epoch> = data
                 .iter()
                 .filter_map(|(epoch, ssv)| {

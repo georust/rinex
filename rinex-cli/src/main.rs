@@ -70,9 +70,9 @@ pub fn main() -> Result<(), rinex::Error> {
     /*
      * Epoch histogram analysis
      */
-    if cli.epoch_histogram() {
-        info!("epoch histogram analysis");
-        analysis::epoch_histogram(&ctx, &mut plot_ctx);
+    if cli.sampling_histogram() {
+        info!("sample rate histogram analysis");
+        analysis::sampling::histogram(&ctx, &mut plot_ctx);
     }
     /*
      * DCB analysis requested
@@ -207,10 +207,16 @@ pub fn main() -> Result<(), rinex::Error> {
             .split(epoch)
             .expect("failed to split primary rinex file");
 
-        let name = format!("{}-{}.rnx", cli.input_path(), a.epochs()[0]);
+        let name: String = match a.first_epoch() {
+            Some(e) => format!("{}-{}.rnx", cli.input_path(), e),
+            None => format!("{}.rnx", cli.input_path()),
+        };
         fops::generate(&a, &name).expect(&format!("failed to generate \"{}\"", name));
 
-        let name = format!("{}-{}.rnx", cli.input_path(), b.epochs()[0]);
+        let name: String = match b.first_epoch() {
+            Some(e) => format!("{}-{}.rnx", cli.input_path(), e),
+            None => format!("{}.rnx", cli.input_path()),
+        };
         fops::generate(&b, &name).expect(&format!("failed to generate \"{}\"", name));
 
         // [*] stop here, special mode: no further analysis allowed

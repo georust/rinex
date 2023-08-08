@@ -282,9 +282,10 @@ pub struct QcObsAnalysis {
 
 impl QcObsAnalysis {
     pub fn new(rnx: &Rinex, _nav: &Option<Rinex>, opts: &QcOpts) -> Self {
-        let sv = rnx.sv();
+        let sv: Vec<_> = rnx.sv().collect();
         let obs = rnx.header.obs.as_ref().unwrap();
         let mut observables = obs.codes.clone();
+        // TODO: improve this .get(0)
         let observables = observables.get_mut(&sv[0].constellation).unwrap();
         let mut signals: Vec<Carrier> = Vec::new();
         let mut codes: Vec<String> = Vec::new();

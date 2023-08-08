@@ -1,6 +1,5 @@
 use crate::prelude::*;
 use horrorshow::{helper::doctype, RenderBox};
-use std::str::FromStr;
 use strum_macros::EnumString;
 
 mod opts;
@@ -59,8 +58,10 @@ pub enum Grade {
 pub struct QcReport<'a> {
     /// Configuration / options
     opts: QcOpts,
-    /// File name
+    /// Primary File name
     filename: String,
+    /// Identified constellations
+    constellations: Vec<Constellation>,
     /// RINEX context
     rinex: &'a Rinex,
     /// Navigation augmentation context
@@ -97,6 +98,11 @@ impl<'a> QcReport<'a> {
                 nav_rinex: nav_rinex.clone(),
                 analysis: vec![QcAnalysis::new(rnx, &nav_rinex, &opts)],
                 opts,
+                constellations: {
+                    //TODO: take secondary file into account,
+                    //      should filter/retain only common systems
+                    rnx.constellation().collect()
+                },
             }
         }
     }
@@ -127,7 +133,7 @@ impl<'a> QcReport<'a> {
 
         match opts.classification {
             QcClassification::GNSS => {
-                for gnss in rnx.constellations() {
+                for gnss in rnx.constellation() {
                     filter_targets.push(TargetItem::from(gnss));
                 }
             },
@@ -137,12 +143,10 @@ impl<'a> QcReport<'a> {
                 }
             },
             QcClassification::Physics => {
-                let mut observables = rnx.observables();
-                observables.sort(); // makes reportining nicer
+                let mut observables: Vec<_> = rnx.observable().map(|o| o.clone()).collect();
+                observables.sort(); // improves report rendering
                 for obsv in observables {
-                    if let Ok(obsv) = Observable::from_str(&obsv) {
-                        filter_targets.push(TargetItem::from(obsv));
-                    }
+                    filter_targets.push(TargetItem::from(obsv));
                 }
             },
         }
@@ -169,6 +173,11 @@ impl<'a> QcReport<'a> {
 
         Self {
             filename: filename.to_string(),
+            constellations: {
+                //TODO: take secondary file into account
+                //      should filter/retain common systems
+                rnx.constellation().collect()
+            },
             opts,
             rinex: rnx,
             analysis,
@@ -373,7 +382,7 @@ impl<'a> HtmlReport for QcReport<'a> {
                                 : "GNSS Constellations"
                             }
                             td {
-                                : pretty_array(&self.rinex.constellations())
+                                : pretty_array(&self.constellations)
                             }
                         }
                     }//header/tablebody

@@ -8,28 +8,13 @@ use std::collections::{BTreeMap, HashMap};
 use std::str::FromStr;
 use thiserror::Error;
 
-/// Meteo RINEX Record content.
-/// Dataset is sorted by [Epoch] and by [Observable].
-/// ```
-/// use rinex::prelude::*;
-/// let rnx = Rinex::from_file("../test_resources/MET/V2/abvi0010.15m")
-///    .unwrap();
-/// // grab record
-/// let record = rnx.record.as_meteo()
-///    .unwrap();
-/// for (epoch, observables) in record.iter() {
-///     for (observable, data) in observables.iter() {
-///         if *observable == Observable::Temperature {
-///             if *data > 20.0 { // °C
-///             }
-///         }
-///     }
-/// }
-/// ```
+/*
+ * Meteo RINEX specific record type.
+ */
 pub type Record = BTreeMap<Epoch, HashMap<Observable, f64>>;
 
 /*
- * Returns true if given line matches a new Meteo Record `epoch`.
+ * Returns true if given line matches a new Meteo Record Epoch.
  * We use this when browsing a RINEX file, to determine whether
  * we should initiate the parsing of a meteo record entry.
  */
@@ -84,8 +69,8 @@ pub(crate) fn parse_epoch(
     let (epoch, _) = epoch::parse(&line[0..offset])?;
 
     let codes = &header.meteo.as_ref().unwrap().codes;
-    let n_codes = codes.len();
-    let nb_lines: usize = num_integer::div_ceil(n_codes, 8).into();
+    let nb_codes = codes.len();
+    let nb_lines: usize = num_integer::div_ceil(nb_codes, 8).into();
     let mut code_index: usize = 0;
 
     for i in 0..nb_lines {
@@ -100,7 +85,7 @@ pub(crate) fn parse_epoch(
                 map.insert(code.clone(), obs);
             }
             code_index += 1;
-            if code_index >= n_codes {
+            if code_index >= nb_codes {
                 break;
             }
 

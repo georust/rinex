@@ -68,8 +68,8 @@ File formats
 - Glonass Time Scale is not known to this day.
 We cannot parse and apply system time corrections from other time scales into the glonass time scale.
 
-Benchmarking and lib performances
-=================================
+Benchmarking
+============
 
 Test           | Results 
 ---------------|-------------------------|

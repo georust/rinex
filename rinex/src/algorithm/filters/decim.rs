@@ -34,10 +34,11 @@ pub trait Decimate {
     /// ```
     /// use rinex::prelude::*;
     /// use rinex::preprocessing::Decimate;
-    /// let mut rnx = Rinex::from_file("../test_resources/OBS/V2/delf0010.21o")
+    /// let rnx = Rinex::from_file("../test_resources/OBS/V2/delf0010.21o")
     ///     .unwrap();
-    /// assert_eq!(rnx.epochs().len(), 105);
-    /// assert_eq!(rnx.decimate_by_ratio(2).epochs().len(), 53);
+    /// assert_eq!(rnx.epoch().count(), 105);
+    /// let rnx = rnx.decimate_by_ratio(2);
+    /// assert_eq!(rnx.epoch().count(), 53);
     /// ```
     fn decimate_by_ratio(&self, r: u32) -> Self;
 
@@ -54,15 +55,15 @@ pub trait Decimate {
     /// let mut rinex = Rinex::from_file("../test_resources/NAV/V3/AMEL00NLD_R_20210010000_01D_MN.rnx")
     ///     .unwrap();
     ///
-    /// let initial_epochs = rinex.epochs();
+    /// let initial_len = rinex.epoch().count();
     ///
     /// // reduce to 10s sampling interval
     /// rinex.decimate_by_interval_mut(Duration::from_seconds(10.0));
-    /// assert_eq!(rinex.epochs(), initial_epochs); // unchanged: dt is too short
+    /// assert_eq!(rinex.epoch().count(), initial_len); // unchanged: dt is too short
     ///
     /// // reduce to 1hour sampling interval
     /// rinex.decimate_by_interval_mut(Duration::from_hours(1.0));
-    /// assert_eq!(rinex.epochs().len(), initial_epochs.len()-2);
+    /// assert_eq!(rinex.epoch().count(), initial_len - 2);
     /// ```
     fn decimate_by_interval(&self, dt: Duration) -> Self;
 

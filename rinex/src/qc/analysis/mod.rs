@@ -1,9 +1,5 @@
 use super::{pretty_array, HtmlReport, QcOpts};
 use crate::prelude::*;
-
-#[cfg(feature = "processing")]
-use crate::preprocessing::TargetItem;
-
 use horrorshow::{helper::doctype, RenderBox};
 
 mod sv;
@@ -40,7 +36,7 @@ impl QcAnalysis {
     pub fn new(rnx: &Rinex, nav: &Option<Rinex>, opts: &QcOpts) -> Self {
         Self {
             sv: QcSvAnalysis::new(rnx, nav, opts),
-            sampling: QcSamplingAnalysis::new(rnx),
+            sampling: QcSamplingAnalysis::new(rnx, opts),
             #[cfg(feature = "obs")]
             observ: QcObsAnalysis::new(rnx, nav, opts),
         }

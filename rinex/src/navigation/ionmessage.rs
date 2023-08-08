@@ -230,40 +230,7 @@ impl BdModel {
     }
 }
 
-/// IonMessage. Several Ionospheric models exist
-/// ```
-/// use rinex::prelude::*;
-/// use rinex::navigation::*;
-/// let rnx = Rinex::from_file("../test_resources/NAV/V4/KMS300DNK_R_20221591000_01H_MN.rnx.gz")
-///     .unwrap();
-/// let record = rnx.record.as_nav()
-///     .unwrap();
-/// for (epoch, classes) in record {
-///     for (class, frames) in classes {
-///         // epochs may contain other frame classes
-///         if *class == FrameClass::IonosphericModel {
-///             for fr in frames {
-///                 let (msg_type, sv, model) = fr.as_ion()
-///                     .unwrap(); // you're fine at this point
-///                 // Several Ionospheric models exist
-///                 if let Some(kb) = model.as_klobuchar() {
-///                     // cf. [ionmessage::KbModel]
-///                     let alpha = kb.alpha;
-///                     let beta = kb.beta;
-///                     assert_eq!(kb.region, KbRegionCode::WideArea);
-///                 } else if let Some(ng) = model.as_nequick_g() {
-///                     // cf. [ionmessage::NbModel]
-///                     let (a0, a1, a2) = ng.a;
-///                     let region = ng.region; // bitflag, supports bitmasking conveniently
-///                 } else if let Some(bd) = model.as_bdgim() {
-///                     // cf. [ionmessage::BdModel)
-///                     let alpha_tequ = bd.alpha;
-///                 }
-///             }
-///         }
-///     }
-/// }
-/// ```
+/// IonMessage: wraps several ionospheric models
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum IonMessage {

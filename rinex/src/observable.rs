@@ -22,27 +22,26 @@ pub enum Observable {
     SSI(String),
     /// Pseudo range observation
     PseudoRange(String),
-    /// Pressure observation in `mBar`
+    /// Pressure observation in hPa
     Pressure,
-    /// Dry temperature measurement in `°C`
+    /// Dry temperature measurement in Celcius degrees
     Temperature,
-    /// Relative humidity measurement in `%`
+    /// Relative humidity measurement in %
     HumidityRate,
-    /// Wet Zenith Path delay in `mm`
+    /// Wet Zenith Path delay in mm
     ZenithWetDelay,
-    /// Zenith path delay, dry component in `mm`
+    /// Zenith path delay, dry component in mm
     ZenithDryDelay,
-    /// Total zenith path delay (dry + wet) in `mm`
+    /// Total zenith path delay (dry + wet) in mm
     ZenithTotalDelay,
-    /// Wind azimuth from where the wind blows, in degrees
-    WindAzimuth,
-    /// Wind speed in `m.s⁻¹`
+    /// Wind direction azimuth in degrees
+    WindDirection,
+    /// Wind speed in m.s⁻¹
     WindSpeed,
-    /// Rain Increment, i.e., rain accumulation
-    /// since previous measurement, in 10th of `mm`
+    /// Rain Increment: rain accumulation
+    /// since previous measurement, in 10th of mm
     RainIncrement,
-    /// Hail Indicator non zero: hail detected
-    /// since last measurement
+    /// Hail Indicator
     HailIndicator,
 }
 
@@ -103,7 +102,7 @@ impl std::fmt::Display for Observable {
             Self::ZenithWetDelay => write!(f, "ZW"),
             Self::ZenithDryDelay => write!(f, "ZD"),
             Self::ZenithTotalDelay => write!(f, "ZT"),
-            Self::WindAzimuth => write!(f, "WD"),
+            Self::WindDirection => write!(f, "WD"),
             Self::WindSpeed => write!(f, "WS"),
             Self::RainIncrement => write!(f, "RI"),
             Self::HailIndicator => write!(f, "HI"),
@@ -126,7 +125,7 @@ impl std::str::FromStr for Observable {
             "ZW" => Ok(Self::ZenithWetDelay),
             "ZD" => Ok(Self::ZenithDryDelay),
             "ZT" => Ok(Self::ZenithTotalDelay),
-            "WD" => Ok(Self::WindAzimuth),
+            "WD" => Ok(Self::WindDirection),
             "WS" => Ok(Self::WindSpeed),
             "RI" => Ok(Self::RainIncrement),
             "HI" => Ok(Self::HailIndicator),

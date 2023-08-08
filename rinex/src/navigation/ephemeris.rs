@@ -26,68 +26,7 @@ pub enum Error {
     ParseSvError(#[from] sv::Error),
 }
 
-/// Most common Navigation Frame content.
-/// ```
-/// use rinex::prelude::*;
-/// use rinex::navigation::*;
-/// let rnx = Rinex::from_file("../test_resources/NAV/V2/amel0010.21g")
-///     .unwrap();
-/// let record = rnx.record.as_nav()
-///     .unwrap();
-///
-/// // reference station (ground position) must be given somehow
-/// // to permit Sv position determination (see down below).
-/// // Usually this is contained in the file header (header.coords),
-/// // but that is not the case for this file
-/// let ref_pos = GroundPosition::from_ecef_wgs84((1.0_f64, 2.0_f64, 3.0_f64));
-///
-/// for (epoch, classes) in record {
-///     for (class, frames) in classes {
-///         for fr in frames {
-///             let (msg_type, sv, ephemeris) = fr.as_eph()
-///                 .unwrap(); // Until RINEX4, Ephemeris frames were the only
-///                     // existing frames. So you're fine with this naive assumption
-///             assert_eq!(*msg_type, MsgType::LNAV); // LNAV for Legacy NAV
-///                 // is the only existing value up until RINEX4.
-///                 // msg_type is truly only exploited in RINEX4 anyways.
-///
-///             // Ephemeris come with Sv embedded clock estimates
-///             // Sv Clock offset, or clock bias [s]
-///             // Sv Clock Drift (d(offset)/dt) [s.s¯¹]
-///             // Sv Clock Drift Rate (d(drift)/dt) [s.s¯²]
-///             let (clk_offset, clk_drift, clk_drift_r) = ephemeris.sv_clock();
-///
-///             // Orbits data (raw) access
-///             let orbits = &ephemeris.orbits;
-///             for (field, data) in orbits {
-///                 // Field is a high level description.
-///                 // Data is an [navigation::OrbitItem]
-///                 // Most data is to be interprated as floating point value
-///                 if field.eq("satPosX") {
-///                     let x = data.as_f64();
-///                 }
-///                 // Some high level enums exist, like Sv Health enums
-///                 if field.eq("health") {
-///                     if let Some(h) = data.as_glo_health() {
-///                         assert_eq!(h, GloHealth::Healthy);
-///                     }
-///                 }
-///                 // Another way to do this would be:
-///                 if let Some(h) = data.as_glo_health() {
-///                     assert_eq!(h, GloHealth::Healthy);
-///                 }
-///             }
-///             // index orbits directly, if you know what you're doing
-///             if let Some(x) = orbits.get("satPosX") {
-///                 if let Some(x) = x.as_f64() {
-///                     // these are Glonass Orbit Fields
-///                     let x = x.sqrt();
-///                 }
-///             }
-///         }
-///     }
-/// }
-/// ```
+/// Ephermeris NAV frame type
 #[derive(Default, Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Ephemeris {
@@ -106,6 +45,7 @@ pub struct Ephemeris {
 #[cfg(feature = "nav")]
 #[derive(Default, Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
+#[cfg_attr(docrs, doc(cfg(feature = "nav")))]
 pub struct Kepler {
     /// sqrt(semi major axis) [sqrt(m)]
     pub a: f64,
@@ -124,6 +64,7 @@ pub struct Kepler {
 }
 
 #[cfg(feature = "nav")]
+#[cfg_attr(docrs, doc(cfg(feature = "nav")))]
 impl Kepler {
     /// Eearth mass * Gravitationnal field constant [m^3/s^2]
     pub const EARTH_GM_CONSTANT: f64 = 3.986004418E14_f64;
@@ -134,6 +75,7 @@ impl Kepler {
 /// Perturbation parameters
 #[cfg(feature = "nav")]
 #[derive(Default, Clone, Debug)]
+#[cfg_attr(docrs, doc(cfg(feature = "nav")))]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Perturbations {
     /// Mean motion difference from computed value [semicircles.s-1]
