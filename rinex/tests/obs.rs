@@ -47,7 +47,7 @@ mod test {
             "parsed wrong epoch content"
         );
 
-        let mut parsed_observables: Vec<Observable> = rnx.observable().map(|o| o.clone()).collect();
+        let mut parsed_observables: Vec<Observable> = rnx.observable().cloned().collect();
         parsed_observables.sort();
 
         assert!(
