@@ -3,7 +3,6 @@ mod sampling {
     use itertools::Itertools;
     use rinex::prelude::*;
     use rinex::preprocessing::*;
-    use std::collections::HashMap;
     use std::str::FromStr;
     #[test]
     fn nav() {
@@ -11,18 +10,21 @@ mod sampling {
             + "/../test_resources/NAV/V3/AMEL00NLD_R_20210010000_01D_MN.rnx";
         let rinex = Rinex::from_file(&path).unwrap();
 
-        let histogram = rinex.sampling_histogram();
-        let expected: HashMap<_, _> = [
-            (Duration::from_seconds(15.0 * 60.0), 1),
-            (Duration::from_seconds(4.0 * 3600.0 + 45.0 * 60.0), 2),
-            (Duration::from_seconds(25.0 * 60.0), 1),
-            (Duration::from_seconds(5.0 * 3600.0 + 30.0 * 60.0), 1),
-        ]
-        .into_iter()
-        .collect();
+        println!("{:?}", rinex.epoch().sorted().collect::<Vec<_>>());
+        println!(
+            "{:?}",
+            rinex.sampling_histogram().sorted().collect::<Vec<_>>()
+        );
 
-        assert_eq!(histogram, expected);
-        assert_eq!(histogram.len(), expected.len());
+        assert!(
+            rinex.sampling_histogram().sorted().eq(vec![
+                (Duration::from_seconds(15.0 * 60.0), 1),
+                (Duration::from_seconds(25.0 * 60.0), 1),
+                (Duration::from_seconds(4.0 * 3600.0 + 45.0 * 60.0), 2),
+                (Duration::from_seconds(5.0 * 3600.0 + 30.0 * 60.0), 1),
+            ]),
+            "sampling_histogram failed"
+        );
 
         let initial_len = rinex.epoch().count();
         let decimated = rinex.decimate_by_interval(Duration::from_seconds(10.0));
@@ -44,8 +46,7 @@ mod sampling {
     }
     #[test]
     fn meteo() {
-        let path = env!("CARGO_MANIFEST_DIR").to_owned()
-            + "/../test_resources/MET/V2/abvi0010.15m";
+        let path = env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/MET/V2/abvi0010.15m";
         let rinex = Rinex::from_file(&path).unwrap();
 
         assert_eq!(

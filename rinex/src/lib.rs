@@ -1316,34 +1316,44 @@ impl Rinex {
 
     /// ```
     /// use rinex::prelude::*;
+    /// use itertools::Itertools;
     /// use std::collections::HashMap;
     /// let rinex = Rinex::from_file("../test_resources/NAV/V3/AMEL00NLD_R_20210010000_01D_MN.rnx")
     ///     .unwrap();
-    /// let histogram: HashMap<_, _> = [
-    ///     (Duration::from_seconds(15.0*60.0), 1),
-    ///     (Duration::from_seconds(4.0*3600.0 + 45.0*60.0), 2),
-    ///     (Duration::from_seconds(25.0*60.0), 1),
-    ///     (Duration::from_seconds(5.0*3600.0 + 30.0*60.0), 1),
-    /// ].into_iter()
-    ///     .collect();
-    /// assert_eq!(rinex.sampling_histogram(), histogram);
+    ///  assert!(
+    ///     rinex.sampling_histogram().sorted().eq(vec![
+    ///         (Duration::from_seconds(15.0 * 60.0), 1),
+    ///         (Duration::from_seconds(25.0 * 60.0), 1),
+    ///         (Duration::from_seconds(4.0 * 3600.0 + 45.0 * 60.0), 2),
+    ///         (Duration::from_seconds(5.0 * 3600.0 + 30.0 * 60.0), 1),
+    ///     ]),
+    ///     "sampling_histogram failed"
+    /// );
     /// ```
-    pub fn sampling_histogram(&self) -> HashMap<Duration, usize> {
-        let mut prev: Option<Epoch> = None;
-        let mut histogram: HashMap<Duration, usize> = HashMap::new();
-
-        for epoch in self.epoch() {
-            if let Some(prev) = prev {
-                let dt = epoch - prev;
-                if let Some(population) = histogram.get_mut(&dt) {
-                    *population += 1;
-                } else {
-                    histogram.insert(dt, 1);
-                }
-            }
-            prev = Some(epoch);
-        }
-        histogram
+    pub fn sampling_histogram(&self) -> Box<dyn Iterator<Item = (Duration, usize)> + '_> {
+        // compute dt = |e_k+1 - e_k| : instantaneous epoch delta
+        //              then compute an histogram on these intervals
+        Box::new(
+            self.epoch()
+                .zip(self.epoch().skip(1))
+                .map(|(ek, ekp1)| ekp1 - ek) // following step computes the histogram
+                // and at the same time performs a .unique() like filter
+                .fold(vec![], |mut list, dt| {
+                    let mut found = false;
+                    for (delta, pop) in list.iter_mut() {
+                        if *delta == dt {
+                            *pop += 1;
+                            found = true;
+                            break;
+                        }
+                    }
+                    if !found {
+                        list.push((dt, 1));
+                    }
+                    list
+                })
+                .into_iter(),
+        )
     }
 
     /// Returns an iterator over unexpected data gaps,
