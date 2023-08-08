@@ -8,7 +8,7 @@ mod test {
     fn v3_duth0630_g01_g02_filter() {
         let mut rnx = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O").unwrap();
         rnx.filter_mut(filter!("G01,G03"));
-        assert_eq!(rnx.sv().collect::<Vec<Sv>>().len(), 2);
+        assert_eq!(rnx.sv().count(), 2);
     }
     #[test]
     fn v3_duth0630_gps_filter() {
