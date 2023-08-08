@@ -13,7 +13,8 @@ One of its objectives is to be a credible modern alternative to tools like `teqc
 ## File naming conventions
 
 In this current form, the parser disregards file names and conventions. 
-We aim at providing methods that help generate files that respect the standards though.
+Although we aim at providing methods that help generate files that respect the standards,
+in file production context.
 
 ## Crate features
 
