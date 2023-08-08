@@ -89,7 +89,7 @@ mod test {
                 name: String::from("USNO USING GIPSY/OASIS-II"),
             })
         );
-        assert_eq!(rinex.epoch().collect::<Vec<Epoch>>().len(), 1);
+        assert_eq!(rinex.epoch().count(), 1);
         let record = rinex.record.as_clock();
         assert_eq!(record.is_some(), true);
         let record = record.unwrap();
