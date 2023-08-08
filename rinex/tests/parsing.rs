@@ -40,7 +40,7 @@ mod test {
                         },
                         "NAV" => {
                             assert!(rinex.is_navigation_rinex());
-                            assert!(rinex.epoch().collect::<Vec<Epoch>>().len() > 0);
+                            assert!(rinex.epoch().next().is_some());
                         },
                         "OBS" => {
                             assert!(rinex.header.obs.is_some());
