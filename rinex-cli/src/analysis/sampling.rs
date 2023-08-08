@@ -35,5 +35,6 @@ pub fn histogram(ctx: &Context, plot_ctx: &mut PlotContext) {
             .map(|(_, pop)| pop.to_string())
             .collect();
         let histogram = Histogram::new_xy(durations, populations).name("(NAV) Sampling Histogram");
+        plot_ctx.add_trace(histogram);
     }
 }
