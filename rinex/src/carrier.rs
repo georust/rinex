@@ -556,8 +556,10 @@ impl Carrier {
             Constellation::Galileo => match sv.prn {
                 1 => Ok(Self::E1),
                 2 => Ok(Self::E2),
-                5 => Ok(Self::E5),
+                5 => Ok(Self::E5a),
                 6 => Ok(Self::E6),
+                7 => Ok(Self::E5b),
+                8 => Ok(Self::E5),
                 _ => Ok(Self::E1),
             },
             Constellation::SBAS(_) | Constellation::Geo => match sv.prn {
@@ -570,12 +572,14 @@ impl Carrier {
                 2 => Ok(Self::E2),
                 5 => Ok(Self::E5),
                 6 => Ok(Self::E6),
+                7 => Ok(Self::E5b),
                 _ => Ok(Self::E1),
             },
             Constellation::QZSS => match sv.prn {
                 1 => Ok(Self::L1),
                 2 => Ok(Self::L2),
                 5 => Ok(Self::L5),
+                6 => Ok(Self::L6),
                 _ => Ok(Self::L1),
             },
             Constellation::IRNSS => match sv.prn {
