@@ -10,12 +10,6 @@ mod sampling {
             + "/../test_resources/NAV/V3/AMEL00NLD_R_20210010000_01D_MN.rnx";
         let rinex = Rinex::from_file(&path).unwrap();
 
-        println!("{:?}", rinex.epoch().sorted().collect::<Vec<_>>());
-        println!(
-            "{:?}",
-            rinex.sampling_histogram().sorted().collect::<Vec<_>>()
-        );
-
         assert!(
             rinex.sampling_histogram().sorted().eq(vec![
                 (Duration::from_seconds(15.0 * 60.0), 1),
