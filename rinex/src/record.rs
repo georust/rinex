@@ -384,14 +384,17 @@ pub fn parse_record(
                             *constellation,
                             &epoch_content,
                         ) {
-                            if let Some(frames) = nav_rec.get_mut(&e) {
-                                // epoch already encountered
-                                // add new entry
-                                frames.push(fr);
-                            } else {
-                                // new epoch: create entry entry
-                                nav_rec.insert(e, vec![fr]);
-                            }
+                            nav_rec
+                                .entry(e)
+                                .and_modify(|frames| frames.push(fr.clone()))
+                                .or_insert_with(|| vec![fr.clone()]);
+                            //    // epoch already encountered
+                            //    // add new entry
+                            //    frames.push(fr);
+                            //} else {
+                            //    // new epoch: create entry entry
+                            //    nav_rec.insert(e, vec![fr]);
+                            //}
                             comment_ts = e.clone(); // for comments classification & management
                         }
                     },
@@ -516,14 +519,10 @@ pub fn parse_record(
             if let Ok((e, fr)) =
                 navigation::record::parse_epoch(header.version, *constellation, &epoch_content)
             {
-                if let Some(frames) = nav_rec.get_mut(&e) {
-                    // epoch already encountered
-                    // append new entry
-                    frames.push(fr);
-                } else {
-                    // new epoch: create entry
-                    nav_rec.insert(e, vec![fr]);
-                }
+                nav_rec
+                    .entry(e)
+                    .and_modify(|current| current.push(fr.clone()))
+                    .or_insert_with(|| vec![fr.clone()]);
                 comment_ts = e.clone(); // for comments classification & management
             }
         },
