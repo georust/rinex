@@ -186,7 +186,7 @@ mod test {
             Epoch::from_gregorian_utc(2021, 01, 01, 00, 09, 00, 00),
         ];
         assert!(
-            rnx.epoch().collect::<Vec<Epoch>>() == epochs,
+            rnx.epoch().eq(epochs),
             "Parsed wrong epoch content",
         );
 
