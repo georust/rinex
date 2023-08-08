@@ -31,7 +31,7 @@ mod test {
                 id: String::from("40451S003"),
             })
         );
-        assert_eq!(rinex.epoch().collect::<Vec<Epoch>>().len(), 1);
+        assert_eq!(rinex.epoch().count(), 1);
         let record = rinex.record.as_clock();
         assert_eq!(record.is_some(), true);
         let record = record.unwrap();
