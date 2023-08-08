@@ -394,7 +394,7 @@ impl Rinex {
             types::Type::ObservationData
             | types::Type::NavigationData
             | types::Type::MeteoData
-            | types::Type::ClockData => self.epoch().collect::<Vec<Epoch>>()[0],
+            | types::Type::ClockData => self.epoch().next().unwrap(),
             _ => todo!(), // other files require a dedicated procedure
         };
         if header.version.major < 3 {
