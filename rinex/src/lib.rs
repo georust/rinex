@@ -2505,17 +2505,16 @@ impl Rinex {
     /// assert_eq!(rinex.rain_detected(), false);
     /// ```
     pub fn accumulated_rain(&self) -> f64 {
-        let mut prev = 0.0_f64;
-        let mut acc = 0.0_f64;
-        for (index, (_, ri)) in self.rain_increment().skip(1).enumerate() {
-            if index == 0 {
-                acc = ri;
-            } else {
-                acc += ri - prev;
-            }
-            prev = ri;
-        }
-        acc
+        self.rain_increment()
+            .zip(self.rain_increment().skip(1))
+            .fold(0_f64, |mut acc, ((_, rk), (_, rkp1))| {
+                if acc == 0.0_f64 {
+                    acc = rkp1; // we take r(0) as starting offset
+                } else {
+                    acc += rkp1 - rk; // then accumulate the deltas
+                }
+                acc
+            })
     }
     /// Returns true if hail was detected during this time frame
     /// ```
