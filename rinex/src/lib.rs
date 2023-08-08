@@ -1268,7 +1268,7 @@ impl Rinex {
 impl Rinex {
     /// Returns first [`Epoch`] encountered in time
     pub fn first_epoch(&self) -> Option<Epoch> {
-        self.epoch().collect::<Vec<Epoch>>().get(0).copied()
+        self.epoch().next()
     }
 
     /// Returns last [`Epoch`] encountered in time
