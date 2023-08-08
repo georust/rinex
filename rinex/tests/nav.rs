@@ -214,7 +214,7 @@ mod test {
         ];
 
         assert!(
-            rinex.epoch().collect::<Vec<Epoch>>() == epochs,
+            rinex.epoch().eq(epochs),
             "parsed wrong epoch content"
         );
 
