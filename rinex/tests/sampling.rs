@@ -53,7 +53,7 @@ mod sampling {
 
         rinex.decimate_by_ratio_mut(2);
         assert!(
-            rinex.epoch().collect::<Vec<Epoch>>().len() == 2,
+            rinex.epoch().count() == 2,
             "decim by 3 + 2 failed"
         );
     }
