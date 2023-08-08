@@ -230,7 +230,7 @@ impl BdModel {
     }
 }
 
-/// IonMessage : wraps several ionospheric models
+/// IonMessage: wraps several ionospheric models
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum IonMessage {
