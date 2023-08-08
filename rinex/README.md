@@ -4,7 +4,7 @@
 [![rustc](https://img.shields.io/badge/rustc-1.61%2B-blue.svg)](https://img.shields.io/badge/rustc-1.61%2B-blue.svg)
 [![crates.io](https://docs.rs/rinex/badge.svg)](https://docs.rs/rinex/badge.svg)
 
-*RINEX* is a *Georust* ecosystem that aims at supporting
+*RINEX* is a crate in the *GeoRust* ecosystem that aims at supporting
 most common RINEX formats, for both data analysis and data production,
 without performance compromises.
 
