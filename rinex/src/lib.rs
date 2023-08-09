@@ -1438,6 +1438,7 @@ impl Rinex {
  * It includes Format dependent extraction methods : one per format.
  */
 use itertools::Itertools; // .unique()
+use observation::ObservationData;
 
 impl Rinex {
     pub fn epoch(&self) -> Box<dyn Iterator<Item = Epoch> + '_> {
@@ -1801,8 +1802,6 @@ impl Rinex {
  * OBS RINEX specific methods: only available on crate feature.
  * Either specific Iterators, or meaningful data we can extract.
  */
-#[cfg(feature = "obs")]
-use observation::ObservationData;
 
 #[cfg(feature = "obs")]
 #[cfg_attr(docrs, doc(cfg(feature = "obs")))]
@@ -2649,8 +2648,10 @@ impl Preprocessing for Rinex {
     }
 }
 
+#[cfg(feature = "processing")]
 use crate::algorithm::Decimate;
 
+#[cfg(feature = "processing")]
 impl Decimate for Rinex {
     fn decimate_by_ratio(&self, r: u32) -> Self {
         let mut s = self.clone();
