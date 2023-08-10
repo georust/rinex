@@ -205,7 +205,7 @@ pub enum Error {
 }
 
 impl Rinex {
-    /// Builds a new `RINEX` struct from given header & body sections
+    /// Builds a new `RINEX` struct from given header & body sections.
     pub fn new(header: Header, record: record::Record) -> Rinex {
         Rinex {
             header,
@@ -214,7 +214,7 @@ impl Rinex {
         }
     }
 
-    /// Returns a copy of self with given header attributes
+    /// Returns a copy of self with given header attributes.
     pub fn with_header(&self, header: Header) -> Self {
         Rinex {
             header,
@@ -223,12 +223,12 @@ impl Rinex {
         }
     }
 
-    /// Replaces header section
+    /// Replaces header section.
     pub fn replace_header(&mut self, header: Header) {
         self.header = header.clone();
     }
 
-    /// Returns a copy of self with given internal record
+    /// Returns a copy of self with given internal record.
     pub fn with_record(&self, record: record::Record) -> Self {
         Rinex {
             header: self.header.clone(),
@@ -237,7 +237,7 @@ impl Rinex {
         }
     }
 
-    /// Replaces internal record
+    /// Replaces internal record.
     pub fn replace_record(&mut self, record: record::Record) {
         self.record = record.clone();
     }
@@ -264,7 +264,7 @@ impl Rinex {
         s
     }
 
-    /// [Rinex::rnx2crnx] mutable implementation
+    /// [`Self::rnx2crnx`] mutable implementation
     pub fn rnx2crnx_mut(&mut self) {
         if self.is_observation_rinex() {
             let mut crinex = Crinex::default();
@@ -285,7 +285,7 @@ impl Rinex {
         s
     }
 
-    /// [Rinex::rnx2crnx1] mutable implementation.
+    /// [`Self::rnx2crnx1`] mutable implementation.
     pub fn rnx2crnx1_mut(&mut self) {
         if self.is_observation_rinex() {
             self.header = self.header.with_crinex(Crinex {
@@ -305,7 +305,7 @@ impl Rinex {
         s
     }
 
-    /// [Rinex::rnx2crnx3] mutable implementation.
+    /// [`Self::rnx2crnx3`] mutable implementation.
     pub fn rnx2crnx3_mut(&mut self) {
         if self.is_observation_rinex() {
             self.header = self.header.with_crinex(Crinex {
@@ -316,7 +316,7 @@ impl Rinex {
         }
     }
 
-    /// Returns timescale used in this RINEX
+    /// Returns [`TimeScale`] used in this RINEX
     pub fn timescale(&self) -> Option<TimeScale> {
         /*
          * all epochs share the same timescale,
@@ -325,7 +325,7 @@ impl Rinex {
         self.epoch().next().map(|e| e.time_scale)
     }
 
-    /// Converts self into given timescale
+    /// Converts self into given [`TimeScale`]
     pub fn into_timescale(&mut self, ts: TimeScale) {
         self.record.convert_timescale(ts);
     }
@@ -1644,19 +1644,21 @@ impl Rinex {
     /// Returns a (unique) Iterator over all identified [`Constellation`]s.
     /// ```
     /// use rinex::prelude::*;
+    /// use itertools::Itertools; // .sorted()
     /// let rnx = Rinex::from_file("../test_resources/OBS/V3/ACOR00ESP_R_20213550000_01D_30S_MO.rnx")
     ///     .unwrap();
     ///
-    /// let mut constellations : Vec<_> = rnx.constellation().collect();
-    /// let mut expected = vec![
-    ///     Constellation::GPS,
-    ///     Constellation::Glonass,
-    ///     Constellation::BeiDou,
-    ///     Constellation::Galileo,
-    /// ];
-    /// constellations.sort(); // to simplify comparison
-    /// expected.sort(); // comparison
-    /// assert_eq!(constellations, expected);
+    /// assert!(
+    ///     rnx.constellation().sorted().eq(
+    ///         vec![
+    ///             Constellation::GPS,
+    ///             Constellation::Glonass,
+    ///             Constellation::BeiDou,
+    ///             Constellation::Galileo,
+    ///         ]
+    ///     ),
+    ///     "parsed wrong GNSS context",
+    /// );
     /// ```
     pub fn constellation(&self) -> Box<dyn Iterator<Item = Constellation> + '_> {
         // from .sv() (unique) iterator:
@@ -1945,10 +1947,11 @@ impl Rinex {
     /// use rinex::navigation::NavMsgType;
     /// let rinex = Rinex::from_file("../test_resources/NAV/V2/amel0010.21g")
     ///     .unwrap();
-    /// let nav_msg : Vec<_> = rinex.nav_msg_type().collect();
-    /// assert_eq!(
-    ///     nav_msg,
-    ///     vec![NavMsgType::LNAV], // only Legacy NAV frames in this file
+    /// assert!(
+    ///     rinex.nav_msg_type().eq(
+    ///         vec![NavMsgType::LNAV],
+    ///     ),
+    ///     "this file only contains legacy frames"
     /// );
     /// ```
     pub fn nav_msg_type(&self) -> Box<dyn Iterator<Item = NavMsgType> + '_> {
