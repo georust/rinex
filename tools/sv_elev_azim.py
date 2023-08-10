@@ -37,17 +37,6 @@ known_ref_positions = {
     "MOJN00DNK_R_20201770000_01D_MN.rnx.gz": (3628427.9118, 562059.0936, 5197872.2150),
 }
 
-def gr_to_rnx_key(key):
-    k = key.lowercase()
-    if k == "gpsweek":
-        return "gpsWeek"
-    elif k == "galweek":
-        return "galWeek"
-    elif k == "bdtweek":
-        return "bdtWeek"
-    else:
-        return k
-
 def is_gr_kepler_key(key):
     return key in gr_kepler_keys
 
@@ -76,35 +65,14 @@ def constell_t0(sv):
     #if sv[0] == 'G':
     return datetime(1980, 1, 6)
 
-def kepler2json(kepler):
-    desc = ""
-    keys = list(kepler.keys())
-    for key in keys[:-1]:
-        if is_gr_kepler_key(key):
-            desc += "\"{}\": {},".format(gr_to_rnx_key(key), kepler[key])
-    if is_gr_kepler_key(keys[-1]):
-        desc += "\"{}\": {}".format(gr_to_rnx_key(keys[-1]), kepler[keys[-1]])
-    desc += "}"
-    return desc
-
-def perturb2json(kepler):
-    desc = ""
-    keys = list(kepler.keys())
-    for key in keys[:-1]:
-        if is_gr_perturb_key(key):
-            desc += "\"{}\": {},".format(gr_to_rnx_key(key), kepler[key])
-    if is_gr_perturb_key(keys[-1]):
-        desc += "\"{}\": {}".format(gr_to_rnx_key(keys[-1]), kepler[keys[-1]])
-    desc += "}"
-    return desc
-
-def form_entry(fd, epoch, sv, ref_pos, ecef, elev, azi, kepler):
+def form_entry(fd, epoch, sv, week, ref_pos, ecef, elev, azi, kepler):
     fd.write("{\n")
     fd.write("  \"epoch\": \"{} UTC\",\n".format(epoch))
     fd.write("  \"sv\": {\n")
     fd.write("    \"prn\": {},\n".format(int(sv[1:])))
     fd.write("    \"constellation\": \"{}\"\n".format(sv_to_constell(sv[0])))
     fd.write("  },\n")
+    fd.write("  \"week\": {},\n".format(int(week)))
     fd.write("  \"ref_pos\": [{},{},{}],\n".format(ref_pos[0], ref_pos[1], ref_pos[2]))
     fd.write("  \"ecef\": [{},{},{}],\n".format(ecef[0], ecef[1], ecef[2]))
     fd.write("  \"elev\": {},\n".format(str(elev)))
@@ -128,7 +96,7 @@ def form_entry(fd, epoch, sv, ref_pos, ecef, elev, azi, kepler):
     fd.write("    \"cic\": {},\n".format(kepler["Cic"]))
     fd.write("    \"crs\": {},\n".format(kepler["Crs"]))
     fd.write("    \"crc\": {}\n".format(kepler["Crc"]))
-    fd.write("  },\n")
+    fd.write("  }\n")
     fd.write("}")
 
 def kepler_hasnan(kepler):
@@ -201,6 +169,13 @@ def main(argv):
                         if not kepler_hasnan(kepler):
                             # kepler struct fully defined, can determine (Elev°,Azim°)
                             # print(epoch, sv, "READY: ", kepler_ready(kepler), kepler)
+
+                            if sv_to_constell(sv) == "GPS":
+                                week = kepler["GPSWeek"]
+                            elif sv_to_constell(sv) == "GAL":
+                                week = kepler["GALWeek"]
+                            elif sv_to_constell(sv) == "BDS":
+                                week = kepler["BDTWeek"]
                             
                             tgnss = constell_t0(sv)
                             #tgnss += timedelta(weeks=kepler[sv_to_constell(sv) + "Week"])
@@ -228,6 +203,7 @@ def main(argv):
                                 fd, 
                                 epoch, 
                                 sv,
+                                week,
                                 known_ref_pos,
                                 expected_ecef,
                                 0.0, # elev

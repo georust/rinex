@@ -135,16 +135,16 @@ impl Ephemeris {
         //TODO:
         // cast/scalings per constellation ??
         if let Some(v) = self.orbits.get("gpsWeek") {
-            if let Some(f) = v.as_f64() {
-                return Some(f.round() as u32);
+            if let Some(f) = v.as_u32() {
+                return Some(f);
             }
         } else if let Some(v) = self.orbits.get("bdtWeek") {
-            if let Some(f) = v.as_f64() {
-                return Some(f.round() as u32);
+            if let Some(v) = v.as_u32() {
+                return Some(v);
             }
         } else if let Some(v) = self.orbits.get("galWeek") {
-            if let Some(f) = v.as_f64() {
-                return Some(f.round() as u32);
+            if let Some(v) = v.as_u32() {
+                return Some(v);
             }
         }
         None
@@ -263,16 +263,35 @@ impl Ephemeris {
         })
     }
     /*
+     * Inserts given orbit item
+     */
+    pub(crate) fn with_orbit(&self, key: &str, orbit: OrbitItem) -> Self {
+        let mut s = self.clone();
+        s.orbits.insert(key.to_string(), orbit);
+        s
+    }
+    /*
+     * Inserts Week Counter 
+     */
+    pub(crate) fn with_weeks(&self, week: u32, constellation: Constellation) -> Self {
+        match constellation {
+            Constellation::GPS => self.with_orbit("gpsWeek", OrbitItem::from(week)),
+            Constellation::BeiDou => self.with_orbit("bdtWeek", OrbitItem::from(week)),
+            Constellation::Galileo => self.with_orbit("galWeek", OrbitItem::from(week)),
+            _ => self.clone(),
+        }
+    }
+    /*
      * Inserts Kepler parameters
      */
     pub(crate) fn with_kepler(&self, kepler: Kepler) -> Self {
         let mut s = self.clone();
         s.set_orbit_f64("sqrta", kepler.a.sqrt());
         s.set_orbit_f64("e", kepler.e);
-        s.set_orbit_f64("i_0", kepler.i_0);
+        s.set_orbit_f64("i0", kepler.i_0);
         s.set_orbit_f64("omega", kepler.omega);
-        s.set_orbit_f64("omega_0", kepler.omega_0);
-        s.set_orbit_f64("m_0", kepler.m_0);
+        s.set_orbit_f64("omega0", kepler.omega_0);
+        s.set_orbit_f64("m0", kepler.m_0);
         s.set_orbit_f64("toe", kepler.toe);
         s
     }
@@ -735,27 +754,28 @@ mod test {
         assert!((z - 13435836.30353981).abs() < 1E-6);
     }
     use serde::Deserialize;
-    use crate::prelude::*;
     use super::{
         Ephemeris, Kepler, Perturbations,
     };
-    #[derive(Default, Debug, Deserialize)]
+    #[derive(Default, Debug, Clone, Deserialize)]
     struct Helper {
-        sv: Sv,
         #[serde(with = "epoch_serde")]
         epoch: Epoch,
-        perturbations: Perturbations,
-        kepler: Kepler,
-        ref_pos: GroundPosition,
-        ecef: (f64, f64, f64),
-        elev: f64,
+        sv: Sv,
         azi: f64,
+        elev: f64,
+        week: u32,
+        kepler: Kepler,
+        ecef: (f64, f64, f64),
+        ref_pos: GroundPosition,
+        perturbations: Perturbations,
     }
-    //fn helper_to_ephemeris(hp: Helper) -> Ephemeris {
-    //    Ephemeris::default()
-    //        .with_kepler(hp.kepler)
-    //        .with_perturbations(hp.perturbations)
-    //}
+    fn helper_to_ephemeris(hp: Helper) -> Ephemeris {
+        Ephemeris::default()
+            .with_kepler(hp.kepler)
+            .with_perturbations(hp.perturbations)
+            .with_weeks(hp.week, hp.sv.constellation)
+    }
     #[test]
     fn kepler() {
         let test_pool = env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources";
@@ -773,6 +793,27 @@ mod test {
         let helper = serde_json::from_str::<Helper>(&kepler);
         assert!(helper.is_ok(), "failed to parse kepler data");
         let helper = helper.unwrap();
+
+        // compute ourselves
+        let ephemeris = helper_to_ephemeris(helper.clone()); 
+
+        assert!(ephemeris.kepler().is_some(), "kepler params setup failed");
+        assert!(ephemeris.perturbations().is_some(), "orbit perturbations setup failed");
+        assert!(ephemeris.get_weeks().is_some(), "missing week counter, context is faulty");
+
+        let ecef = ephemeris.kepler2ecef(helper.epoch);
+        assert!(ecef.is_some(), "kepler2ecef should be feasible");
+        let ecef = ecef.unwrap();
+        let results = (
+            (ecef.0 - helper.ecef.0).abs(),
+            (ecef.1 - helper.ecef.1).abs(),
+            (ecef.2 - helper.ecef.2).abs(),
+        );
+        assert!(
+            results.0 < 1E-5 && results.1 < 1E-5 && results.2 < 1E-5,
+            "kepler2ecef() failed, expecting {:?} got {:?}", 
+            helper.ecef, 
+            ecef);
         
         //for fp in test_pool {
         //    println!("running kepler against model {}", test_pool);
