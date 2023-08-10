@@ -37,6 +37,57 @@ known_ref_positions = {
     "MOJN00DNK_R_20201770000_01D_MN.rnx.gz": (3628427.9118, 562059.0936, 5197872.2150),
 }
 
+def gr_to_rnx_key(key):
+    k = key.lowercase()
+    if k == "gpsweek":
+        return "gpsWeek"
+    elif k == "galweek":
+        return "galWeek"
+    elif k == "bdtweek":
+        return "bdtWeek"
+    else:
+        return k
+
+def is_gr_kepler_key(key):
+    return key in gr_kepler_keys
+
+def is_gr_perturb_key(key):
+    return key in gr_perturb_keys
+
+def kepler2json(kepler):
+    desc = ""
+    keys = list(kepler.keys())
+    for key in keys[:-1]:
+        if is_gr_kepler_key(key):
+            desc += "\"{}\": {},".format(gr_to_rnx_key(key), kepler[key])
+    if is_gr_kepler_key(keys[-1]):
+        desc += "\"{}\": {}".format(gr_to_rnx_key(keys[-1]), kepler[keys[-1]])
+    desc += "}"
+    return desc
+
+def perturb2json(kepler):
+    desc = ""
+    keys = list(kepler.keys())
+    for key in keys[:-1]:
+        if is_gr_perturb_key(key):
+            desc += "\"{}\": {},".format(gr_to_rnx_key(key), kepler[key])
+    if is_gr_perturb_key(keys[-1]):
+        desc += "\"{}\": {}".format(gr_to_rnx_key(keys[-1]), kepler[keys[-1]])
+    desc += "}"
+    return desc
+
+def form_entry(fd, epoch, sv, ref_pos, ecef, elev, azi, kepler):
+    fd.write("{\n")
+    fd.write("  \"epoch\": \"{} UTC\",\n".format(epoch))
+    fd.write("  \"sv\": {},\n".format(sv))
+    fd.write("  \"ref_pos\": {},\n".format(str(ref_pos)))
+    fd.write("  \"ecef\": [{},{},{}],\n".format(ecef[0], ecef[1], ecef[2]))
+    fd.write("  \"elev\": {},\n".format(str(elev)))
+    fd.write("  \"azi\": {}\n".format(str(azi)))
+    #fd.write("  \"kepler\": {}\n").format(kepler2json(kepler))
+    #fd.write("  \"perturbations\": {}\n").format(perturb2json(kepler))
+    fd.write("}")
+
 def kepler_hasnan(kepler):
     for key in kepler.keys():
         if math.isnan(kepler[key]):
@@ -62,6 +113,9 @@ def kepler_ready(kepler):
 
 def sv_is_glonass(sv):
     return sv[0] == 'R'
+
+def sv_is_sbas(sv):
+    return sv[0] == 'S'
 
 def sv_to_constell(sv):
     if sv[0] == 'G':
@@ -110,6 +164,8 @@ def main(argv):
                     for sv in vehicles:
                         if sv_is_glonass(sv):
                             continue # GLO: NOT YET
+                        if sv_is_sbas(sv):
+                            continue # GEO: NOT YET
                         if sv_to_constell(sv) is None:
                             continue # GNSS: not supported yet or unknown definition
 
@@ -144,10 +200,25 @@ def main(argv):
                             expected_ecef = list(gr.keplerian2ecef(struct))
                             expected_ecef = (expected_ecef[0][0], expected_ecef[1][0], expected_ecef[2][0])
 
-                            content = "epoch, {}, ref_pos, {}, expected, {}, sv, {}, ".format(epoch, str(known_ref_pos), str(expected_ecef), sv)
-                            for key in kepler.keys():
-                                content += "{}, {}, ".format(key, kepler[key])
-                            fd.write(content+"\n")
+                            # content = "epoch, {}, ref_pos, {}, expected, {}, sv, {}, ".format(epoch, str(known_ref_pos), str(expected_ecef), sv)
+                            #for key in kepler.keys():
+                            #    content += "{}, {}, ".format(key, kepler[key])
+                            form_entry(
+                                fd, 
+                                epoch, 
+                                sv,
+                                known_ref_pos,
+                                expected_ecef,
+                                0.0, # elev
+                                0.0, # azim
+                                kepler)
+                            
+                            if sv == vehicles[-1]:
+                                if epoch == epochs[-1]:
+                                    fd.write("\n")
+                                else:
+                                    fd.write(",\n")
+                            fd.write(",\n")
     return 0
 
 if __name__ == "__main__":

@@ -57,6 +57,12 @@ pub enum OrbitItem {
     IrnssHealth(health::IrnssHealth),
 }
 
+impl From<f64> for OrbitItem {
+    fn from(value: f64) -> Self {
+        Self::F64(value)
+    }
+}
+
 /// `OrbitItem` related errors
 #[derive(Error, Debug)]
 pub enum OrbitItemError {
