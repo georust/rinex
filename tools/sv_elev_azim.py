@@ -65,14 +65,14 @@ def constell_t0(sv):
     #if sv[0] == 'G':
     return datetime(1980, 1, 6)
 
-def form_entry(fd, epoch, sv, week, ref_pos, ecef, elev, azi, kepler):
+def form_entry(fd, epoch, sv, ref_pos, ecef, elev, azi, kepler):
     fd.write("{\n")
     fd.write("  \"epoch\": \"{} UTC\",\n".format(epoch))
     fd.write("  \"sv\": {\n")
     fd.write("    \"prn\": {},\n".format(int(sv[1:])))
     fd.write("    \"constellation\": \"{}\"\n".format(sv_to_constell(sv[0])))
     fd.write("  },\n")
-    fd.write("  \"week\": {},\n".format(int(week)))
+    fd.write("  \"week\": {},\n".format(int(kepler["week"])))
     fd.write("  \"ref_pos\": [{},{},{}],\n".format(ref_pos[0], ref_pos[1], ref_pos[2]))
     fd.write("  \"ecef\": [{},{},{}],\n".format(ecef[0], ecef[1], ecef[2]))
     fd.write("  \"elev\": {},\n".format(str(elev)))
@@ -117,7 +117,7 @@ def kepler_ready(kepler):
     if not(kepler_has_weekcounter(kepler)):
         return False
     for key in gr_kepler_fields:
-        if key != "Week": # week counter..
+        if key != "week": # week counter..
             if not(key in kepler):
                 return False # key is missing
     return True
@@ -161,11 +161,12 @@ def main(argv):
                         sv_data = data.sel(sv=sv)
                         kepler = {}
                         for field in gr_kepler_fields:
+                            value = sv_data.variables[field].values
                             if field == "Week":
                                 # week counter special case
-                                field = sv_to_constell(sv) + field 
-                            value = sv_data.variables[field].values
-                            kepler[field] = value
+                                kepler["week"] = value
+                            else:
+                                kepler[field] = value
                         if not kepler_hasnan(kepler):
                             # kepler struct fully defined, can determine (Elev°,Azim°)
                             # print(epoch, sv, "READY: ", kepler_ready(kepler), kepler)
