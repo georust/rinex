@@ -478,6 +478,29 @@ fn parse_orbits(
 }
 
 #[cfg(test)]
+#[cfg(feature = "nav")]
+mod epoch_serde {
+    use std::str::FromStr;
+    use crate::prelude::Epoch;
+    use serde::{self, Deserialize, Deserializer};
+    pub fn deserialize<'de, D>(deserializer: D)
+        -> Result<Epoch, D::Error>
+        where D: Deserializer<'de> 
+    {
+        let s: Option<String> = Option::deserialize(deserializer)?;
+        if let Some(s) = s {
+            if let Ok(e) = Epoch::from_str(&s) {
+                Ok(e)
+            } else {
+                panic!("failed to deserialize epoch");
+            }
+        } else {
+            panic!("failed to deserialize epoch");
+        }
+    }
+}
+
+#[cfg(test)]
 mod test {
     use super::*;
     fn build_orbits(
@@ -719,9 +742,10 @@ mod test {
     #[derive(Default, Debug, Deserialize)]
     struct Helper {
         sv: Sv,
-        //epoch: Epoch,
-        //perturbations: Perturbations,
-        //kepler: Kepler,
+        #[serde(with = "epoch_serde")]
+        epoch: Epoch,
+        perturbations: Perturbations,
+        kepler: Kepler,
         ref_pos: GroundPosition,
         ecef: (f64, f64, f64),
         elev: f64,
