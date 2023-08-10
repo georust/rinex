@@ -3,7 +3,7 @@ use map_3d::{deg2rad, ecef2geodetic, geodetic2ecef, rad2deg, Ellipsoid};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
-#[derive(Copy, Debug, Clone, PartialEq, PartialOrd)]
+#[derive(Default, Copy, Debug, Clone, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct GroundPosition(f64, f64, f64);
 
