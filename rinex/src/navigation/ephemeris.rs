@@ -44,20 +44,20 @@ pub struct Ephemeris {
 /// Kepler parameters
 #[cfg(feature = "nav")]
 #[derive(Default, Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Serialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(docrs, doc(cfg(feature = "nav")))]
 pub struct Kepler {
-    /// sqrt(semi major axis) [sqrt(m)]
+    /// semi major axis (m)
     pub a: f64,
-    /// Eccentricity [n.a]
+    /// Eccentricity (n.a)
     pub e: f64,
-    /// Inclination angle at reference time [semicircles]
+    /// Inclination angle at reference time (semicircles)
     pub i_0: f64,
-    /// Longitude of ascending node at reference time [semicircles]
+    /// Longitude of ascending node at reference time (semicircles)
     pub omega_0: f64,
-    /// Mean anomaly at reference time [semicircles]
+    /// Mean anomaly at reference time (semicircles)
     pub m_0: f64,
-    /// argument of perigee [semicircles]
+    /// argument of perigee (semicircles)
     pub omega: f64,
     /// time of issue of ephemeris
     pub toe: f64,
@@ -72,11 +72,11 @@ impl Kepler {
     pub const EARTH_OMEGA_E_WGS84: f64 = 7.2921151467E-5;
 }
 
-/// Perturbation parameters
+/// Orbit Perturbations
 #[cfg(feature = "nav")]
 #[derive(Default, Clone, Debug)]
 #[cfg_attr(docrs, doc(cfg(feature = "nav")))]
-#[cfg_attr(feature = "serde", derive(Serialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Perturbations {
     /// Mean motion difference from computed value [semicircles.s-1]
     pub dn: f64,
@@ -111,6 +111,23 @@ impl Ephemeris {
             v.as_f64()
         } else {
             None
+        }
+    }
+    /*
+     * Adds an orbit entry, mostly used when inserting
+     * Kepler, Perturbations parameters, not in the parsing workflow
+     * but in other workflows like testing
+     */
+    pub(crate) fn set_orbit_f64(&mut self, field: &str, value: f64) {
+        if let Some(orbit) = self.orbits.get_mut(field) {
+            // field exists
+            if let Some(mut v) = orbit.as_f64() {
+                // type does match
+                v = value;
+            }
+        } else {
+            // new field
+            self.orbits.insert(field.to_string(), OrbitItem::from(value));
         }
     }
     /// Retrieve week counter, if such field exists.
@@ -245,6 +262,20 @@ impl Ephemeris {
             toe: self.get_orbit_f64("toe")?,
         })
     }
+    /*
+     * Inserts Kepler parameters
+     */
+    pub(crate) fn with_kepler(&self, kepler: Kepler) -> Self {
+        let mut s = self.clone();
+        s.set_orbit_f64("sqrta", kepler.a.sqrt());
+        s.set_orbit_f64("e", kepler.e);
+        s.set_orbit_f64("i_0", kepler.i_0);
+        s.set_orbit_f64("omega", kepler.omega);
+        s.set_orbit_f64("omega_0", kepler.omega_0);
+        s.set_orbit_f64("m_0", kepler.m_0);
+        s.set_orbit_f64("toe", kepler.toe);
+        s
+    }
     /// Retrieves Orbit Perturbations parameters
     pub fn perturbations(&self) -> Option<Perturbations> {
         Some(Perturbations {
@@ -258,6 +289,22 @@ impl Ephemeris {
             i_dot: self.get_orbit_f64("idot")?,
             omega_dot: self.get_orbit_f64("omegaDot")?,
         })
+    }
+    /*
+     * Inserts Orbit perturbations
+     */
+    pub(crate) fn with_perturbations(&self, perturbations: Perturbations) -> Self {
+        let mut s = self.clone();
+        s.set_orbit_f64("cuc", perturbations.cuc);
+        s.set_orbit_f64("cus", perturbations.cus);
+        s.set_orbit_f64("cic", perturbations.cic);
+        s.set_orbit_f64("cis", perturbations.cis);
+        s.set_orbit_f64("crc", perturbations.crc);
+        s.set_orbit_f64("crs", perturbations.crs);
+        s.set_orbit_f64("deltaN", perturbations.dn);
+        s.set_orbit_f64("idot", perturbations.i_dot);
+        s.set_orbit_f64("omegaDot", perturbations.omega_dot);
+        s
     }
     /*
      * Manual calculations of satellite position vector, in ECEF.
@@ -663,5 +710,62 @@ mod test {
         assert!((x - -11840614.01333711).abs() < 1E-6);
         assert!((y - 19224209.93574417).abs() < 1E-6);
         assert!((z - 13435836.30353981).abs() < 1E-6);
+    }
+    use serde::Deserialize;
+    use crate::prelude::*;
+    use super::{
+        Ephemeris, Kepler, Perturbations,
+    };
+    #[derive(Default, Debug, Deserialize)]
+    struct Helper {
+        //sv: Sv,
+        //epoch: Epoch,
+        //perturbations: Perturbations,
+        //kepler: Kepler,
+        //ref_pos: GroundPosition,
+        ecef: (f64, f64, f64),
+        elev: f64,
+        azi: f64,
+    }
+    //fn helper_to_ephemeris(hp: Helper) -> Ephemeris {
+    //    Ephemeris::default()
+    //        .with_kepler(hp.kepler)
+    //        .with_perturbations(hp.perturbations)
+    //}
+    #[test]
+    fn kepler() {
+        let test_pool = env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources";
+        let nav_dir = test_pool.to_owned() + "/NAV";
+        let kep_dir = test_pool.to_owned() + "/kepler";
+
+        let rinex_path = nav_dir.to_owned() + "/V2/cbw10010.21n.gz";
+        let rinex = Rinex::from_file(&rinex_path).unwrap();
+        
+        let kepler_path = kep_dir.to_owned() + "/V2/cbw10010.21n.gz.txt";
+        let kepler = std::fs::read_to_string(&kepler_path);
+        assert!(kepler.is_ok(), "failed to read kepler data");
+        let kepler = kepler.unwrap();
+
+        let helper = serde_json::from_str::<Helper>(&kepler);
+        assert!(helper.is_ok(), "failed to parse kepler data");
+        let helper = helper.unwrap();
+        
+        //for fp in test_pool {
+        //    println!("running kepler against model {}", test_pool);
+        //    for readline in fp {
+        //        let hp: Helper = serde::deserialize(line)
+        //            .expect("failed to deserialize kepler test data");
+        //        let ephemeris = helper_to_ephemeris(hp);
+        //        let ecef = ephemeris.kepler2ecef(hp.epoch);
+        //        assert_eq!(ecef.is_some(), "failed to evaluate ECEF position vector for \"{}\"", hp.sv);
+        //        let ecef = ecef.unwrap();
+        //        assert!((ecef - hp.expected).abs() < 1E-5, "error on \"{}\" ECEF vector - expecting {}, got {}", hp.sv, hp.ecef, ecef);
+        //        let elev_azim = ephemeris.sv_elev_azim(Some(hp.ref_pos));
+        //        assert_eq!(elev_azim.is_some(), "failed to evaluate (elev, azim) angle vector for \"{}\"", hp.sv);
+        //        let (elev, azi) = elev_azim.unwrap();
+        //        assert!((elev - hp.elev).abs() < 1E-5, "error on \"{}\" Elevation angle - expecting {}, got {}", hp.sv, hp.elev, elev);
+        //        assert!((azi - hp.azi).abs() < 1E-5, "error on \"{}\" Azimuth angle - expecting {}, got {}", hp.sv, hp.azi, azi); 
+        //    }
+        //}
     }
 }
