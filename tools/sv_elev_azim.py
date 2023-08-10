@@ -80,7 +80,7 @@ def form_entry(fd, epoch, sv, ref_pos, ecef, elev, azi, kepler):
     fd.write("{\n")
     fd.write("  \"epoch\": \"{} UTC\",\n".format(epoch))
     fd.write("  \"sv\": {},\n".format(sv))
-    fd.write("  \"ref_pos\": {},\n".format(str(ref_pos)))
+    fd.write("  \"ref_pos\": [{},{},{}],\n".format(ref_pos[0], ref_pos[1], ref_pos[2]))
     fd.write("  \"ecef\": [{},{},{}],\n".format(ecef[0], ecef[1], ecef[2]))
     fd.write("  \"elev\": {},\n".format(str(elev)))
     fd.write("  \"azi\": {}\n".format(str(azi)))
