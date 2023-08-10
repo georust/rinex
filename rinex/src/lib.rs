@@ -1644,7 +1644,7 @@ impl Rinex {
     /// Returns a (unique) Iterator over all identified [`Constellation`]s.
     /// ```
     /// use rinex::prelude::*;
-    /// use itertools::Itertools; // .sorted() 
+    /// use itertools::Itertools; // .sorted()
     /// let rnx = Rinex::from_file("../test_resources/OBS/V3/ACOR00ESP_R_20213550000_01D_30S_MO.rnx")
     ///     .unwrap();
     ///
