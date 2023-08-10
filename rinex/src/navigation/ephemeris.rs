@@ -718,11 +718,11 @@ mod test {
     };
     #[derive(Default, Debug, Deserialize)]
     struct Helper {
-        //sv: Sv,
+        sv: Sv,
         //epoch: Epoch,
         //perturbations: Perturbations,
         //kepler: Kepler,
-        //ref_pos: GroundPosition,
+        ref_pos: GroundPosition,
         ecef: (f64, f64, f64),
         elev: f64,
         azi: f64,
