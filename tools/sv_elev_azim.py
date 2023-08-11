@@ -35,10 +35,6 @@ gr_kepler_fields = [
     "M0",
 ]
 
-known_ref_positions = {
-    "MOJN00DNK_R_20201770000_01D_MN.rnx.gz": (3628427.9118, 562059.0936, 5197872.2150),
-}
-
 def is_gr_kepler_key(key):
     return key in gr_kepler_keys
 
@@ -159,15 +155,7 @@ def main(argv):
             nav_path = base_dir + "/NAV/{}/{}".format(rev, fp)
             nav = gr.load(nav_path) 
 
-            known_ref_pos = None
-            for key in known_ref_positions.keys():
-                if key in nav_path:
-                    known_ref_pos = known_ref_positions[key]
-            
-            # if ref. position is not defined in this context,
-            # we use a realistic one
-            if known_ref_pos is None:
-                known_ref_pos = (-5.67841101e6, -2.49239629e7, 7.05651887e6)
+            ref_position = (3628427.9118, 562059.0936, 5197872.2150)
 
             txt_path = base_dir + "/gr/{}/{}.txt".format(rev, fp)
             with open(txt_path, "w") as fd:
@@ -210,14 +198,14 @@ def main(argv):
                             week_offset -= timedelta(weeks=weeks)
                             tgnss += week_offset 
 
-                            (xref, yref, zref) = known_ref_pos
+                            (xref, yref, zref) = ref_position 
                             struct = xarray.Dataset(
                                 kepler,
                                 attrs={
                                     "svtype": "G", 
-                                    "xref": xref, 
-                                    "yref": yref,
-                                    "zref": zref,
+                                    #"xref": xref, 
+                                    #"yref": yref,
+                                    #"zref": zref,
                                 },
                                 coords={"time": [tgnss]},
                             )
@@ -232,7 +220,7 @@ def main(argv):
                                 fd, 
                                 epoch, 
                                 sv,
-                                known_ref_pos,
+                                ref_position,
                                 expected_ecef,
                                 0.0, # elev
                                 0.0, # azim
