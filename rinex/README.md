@@ -1,7 +1,7 @@
 # RINEX
 
 [![crates.io](https://img.shields.io/crates/v/rinex.svg)](https://crates.io/crates/rinex)
-[![rustc](https://img.shields.io/badge/rustc-1.61%2B-blue.svg)](https://img.shields.io/badge/rustc-1.61%2B-blue.svg)
+[![rustc](https://img.shields.io/badge/rustc-1.64%2B-blue.svg)](https://img.shields.io/badge/rustc-1.64%2B-blue.svg)
 [![crates.io](https://docs.rs/rinex/badge.svg)](https://docs.rs/rinex/badge.svg)
 
 *RINEX* is a crate in the *GeoRust* ecosystem that aims at supporting
