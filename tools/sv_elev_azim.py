@@ -136,6 +136,8 @@ def main(argv):
         for fp in os.listdir(base_dir + "/NAV/{}".format(rev)):  
             nav_path = base_dir + "/NAV/{}/{}".format(rev, fp)
             nav = gr.load(nav_path) 
+            if "GALWeek" in nav:
+                print(nav["GALWeek"])
 
             known_ref_pos = None
             for key in known_ref_positions.keys():
@@ -159,10 +161,22 @@ def main(argv):
                             continue # GNSS: not supported yet or unknown definition
 
                         sv_data = data.sel(sv=sv)
+
+                        # week counter..
+                        if "GPSWeek" in sv_data:
+                            week = sv_data.variables["GPSWeek"].values
+                        elif "GALWeek" in sv_data:
+                            week = sv_data.variables["GALWeek"].values
+                        elif "BDTWeek" in sv_data:
+                            week = sv_data.variables["BDTWeek"].values
+                        else:
+                            # other cases dont exist
+                            week = None
+
                         kepler = {}
                         for field in gr_kepler_fields:
                             value = sv_data.variables[field].values
-                            if field == "Week":
+                            if "Week" in field:
                                 # week counter special case
                                 kepler["week"] = value
                             else:
