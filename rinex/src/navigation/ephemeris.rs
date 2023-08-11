@@ -136,8 +136,8 @@ impl Ephemeris {
         //TODO:
         // cast/scalings per constellation ??
         if let Some(v) = self.orbits.get("gpsWeek") {
-            if let Some(f) = v.as_u32() {
-                return Some(f);
+            if let Some(v) = v.as_u32() {
+                return Some(v);
             }
         } else if let Some(v) = self.orbits.get("bdtWeek") {
             if let Some(v) = v.as_u32() {
@@ -328,18 +328,18 @@ impl Ephemeris {
     }
     /*
      * Manual calculations of satellite position vector, in ECEF.
-     * `epoch`: orbit epoch
+     * `t_sv`: orbit epoch
      * TODO: this only works in GPS Time frame, need to support GAL/BDS/GLO
      * TODO: this only works in ECEF coordinates system, need to support GLO system
      */
-    pub(crate) fn kepler2ecef(&self, epoch: Epoch) -> Option<(f64, f64, f64)> {
+    pub(crate) fn kepler2ecef(&self, t_sv: Epoch) -> Option<(f64, f64, f64)> {
         let kepler = self.kepler()?;
         let perturbations = self.perturbations()?;
 
         let weeks = self.get_weeks()?;
         let t0 = GPST_REF_EPOCH + Duration::from_days((weeks * 7).into());
         let toe = t0 + Duration::from_seconds(kepler.toe as f64);
-        let t_k = (epoch - toe).to_seconds();
+        let t_k = (t_sv - toe).to_seconds();
 
         let n0 = (Kepler::EARTH_GM_CONSTANT / kepler.a.powf(3.0)).sqrt();
         let n = n0 + perturbations.dn;
@@ -529,10 +529,17 @@ mod test {
     ) -> HashMap<String, OrbitItem> {
         let mut map: HashMap<String, OrbitItem> = HashMap::with_capacity(descriptor.len());
         for (key, value) in descriptor.iter() {
-            map.insert(
-                key.to_string(),
-                OrbitItem::new("f64", value, constellation).unwrap(),
-            );
+            if key.contains("Week") {
+                map.insert(
+                    key.to_string(),
+                    OrbitItem::new("u32", value, constellation).unwrap(),
+                );
+            } else {
+                map.insert(
+                    key.to_string(),
+                    OrbitItem::new("f64", value, constellation).unwrap(),
+                );
+            }
         }
         map
     }
@@ -659,7 +666,7 @@ mod test {
     }
     #[cfg(feature = "nav")]
     #[test]
-    fn test_kepler2ecef() {
+    fn kepler2ecef() {
         let orbits = build_orbits(
             Constellation::GPS,
             vec![
@@ -695,16 +702,31 @@ mod test {
             -2.49239629e7_f64,
             7.05651887e6_f64,
         ));
-        let xyz = ephemeris.kepler2ecef(epoch);
-        let el_azim = ephemeris.sv_elev_azim(ref_pos, epoch);
 
-        assert!(xyz.is_some());
+        assert!(ephemeris.kepler().is_some(), "bad context definition");
+        assert!(ephemeris.get_weeks().is_some(), "bad context definition");
+        assert!(
+            ephemeris.perturbations().is_some(),
+            "bad context definition"
+        );
+
+        let xyz = ephemeris.kepler2ecef(epoch);
+        assert!(
+            xyz.is_some(),
+            "kepler2cef should be feasible in this context!"
+        );
+
         let (x, y, z) = xyz.unwrap();
         assert!((x - -5678509.38584636).abs() < 1E-6);
         assert!((y - -24923975.356725316).abs() < 1E-6);
         assert!((z - 7056393.437932).abs() < 1E-6);
 
-        assert!(el_azim.is_some());
+        let el_azim = ephemeris.sv_elev_azim(ref_pos, epoch);
+        assert!(
+            el_azim.is_some(),
+            "sv_elev_azim() should be feasible in this context!"
+        );
+
         let (elev, azim) = el_azim.unwrap();
         assert!(
             (elev - -0.23579324).abs() < 1E-3,
@@ -755,6 +777,7 @@ mod test {
         assert!((z - 13435836.30353981).abs() < 1E-6);
     }
     use super::{Ephemeris, Kepler, Perturbations};
+    use hifitime::Weekday;
     use serde::Deserialize;
     #[derive(Default, Debug, Clone, Deserialize)]
     struct Helper {
@@ -806,8 +829,32 @@ mod test {
             "missing week counter, context is faulty"
         );
 
-        let ecef = ephemeris.kepler2ecef(helper.epoch);
-        assert!(ecef.is_some(), "kepler2ecef should be feasible");
+        let week = helper.week;
+        let epoch = helper.epoch;
+        let prev_sunday = epoch.previous_weekday_at_midnight(Weekday::Monday);
+        let week_offset = (epoch - prev_sunday);
+
+        println!("Epoch: {}", helper.epoch);
+        println!("Previous SUnday: {}", prev_sunday);
+        println!("TOE: {}", helper.kepler.toe);
+        println!(
+            "week : {}, week offset: {}",
+            week,
+            week_offset.total_nanoseconds() / 1_000_000_000
+        );
+
+        let epoch = Epoch::from_time_of_week(
+            week,
+            week_offset.total_nanoseconds() as u64,
+            TimeScale::GPST,
+        );
+
+        let ecef = ephemeris.kepler2ecef(epoch);
+        assert!(
+            ecef.is_some(),
+            "kepler2ecef should be feasible with provided context"
+        );
+
         let ecef = ecef.unwrap();
         let results = (
             (ecef.0 - helper.ecef.0).abs(),
@@ -815,7 +862,7 @@ mod test {
             (ecef.2 - helper.ecef.2).abs(),
         );
         assert!(
-            results.0 < 1E-5 && results.1 < 1E-5 && results.2 < 1E-5,
+            results.0 < 1E-6 && results.1 < 1E-6 && results.2 < 1E-6,
             "kepler2ecef() failed, expecting {:?} got {:?}",
             helper.ecef,
             ecef

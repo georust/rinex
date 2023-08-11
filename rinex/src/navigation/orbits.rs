@@ -98,6 +98,11 @@ impl OrbitItem {
                 let float = f64::from_str(&content.replace("D", "e"))?;
                 Ok(OrbitItem::I8(float as i8))
             },
+            "u32" => {
+                // float->signed conversion
+                let float = f64::from_str(&content.replace("D", "e"))?;
+                Ok(OrbitItem::U32(float as u32))
+            },
             "f64" => Ok(OrbitItem::F64(f64::from_str(&content.replace("D", "e"))?)),
             "gloStatus" => {
                 // float->unsigned conversion

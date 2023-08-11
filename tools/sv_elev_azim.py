@@ -14,7 +14,9 @@ import georinex as gr
 from datetime import datetime, timedelta
 
 gr_kepler_fields = [
-    "Week",
+    "GPSWeek",
+    "BDTWeek",
+    "GALWeek",
     "Toe",
     "Eccentricity",
     "sqrtA",
@@ -46,6 +48,15 @@ def is_gr_perturb_key(key):
 def sv_is_glonass(sv):
     return sv[0] == 'R'
 
+def sv_is_galileo(sv):
+    return sv[0] == 'E'
+
+def sv_is_gps(sv):
+    return sv[0] == 'G'
+
+def sv_is_beidou(sv):
+    return sv[0] == 'C'
+
 def sv_is_sbas(sv):
     return sv[0] == 'S'
 
@@ -57,13 +68,21 @@ def sv_to_constell(sv):
     elif sv[0] == 'C':
         return "BDT"
     elif sv[0] == 'J':
-        return "GPS"
+        return "QZSS"
     else:
         return None
 
-def constell_t0(sv):
-    #if sv[0] == 'G':
-    return datetime(1980, 1, 6)
+def timescale_t0(sv):
+    if sv_is_gps(sv):
+        return datetime(1980, 1, 6)
+    elif sv_is_beidou(sv):
+        return datetime(1980, 1, 6) # TODO
+    elif sv_is_galileo(sv):
+        return datetime(1980, 1, 6) # TODO
+    elif sv_is_qzss(sv):
+        return datetime(1980, 1, 6)
+    else:
+        return None #will not happen
 
 def form_entry(fd, epoch, sv, ref_pos, ecef, elev, azi, kepler):
     fd.write("{\n")
@@ -72,7 +91,7 @@ def form_entry(fd, epoch, sv, ref_pos, ecef, elev, azi, kepler):
     fd.write("    \"prn\": {},\n".format(int(sv[1:])))
     fd.write("    \"constellation\": \"{}\"\n".format(sv_to_constell(sv[0])))
     fd.write("  },\n")
-    fd.write("  \"week\": {},\n".format(int(kepler["week"])))
+    fd.write("  \"week\": {},\n".format(int(kepler_weekcounter(kepler))))
     fd.write("  \"ref_pos\": [{},{},{}],\n".format(ref_pos[0], ref_pos[1], ref_pos[2]))
     fd.write("  \"ecef\": [{},{},{}],\n".format(ecef[0], ecef[1], ecef[2]))
     fd.write("  \"elev\": {},\n".format(str(elev)))
@@ -105,11 +124,14 @@ def kepler_hasnan(kepler):
             return True
     return False
 
+def kepler_weekcounter(kepler):
+    for k in ["GPSWeek", "GALWeek", "BDTWeek"]:
+        if k in kepler:
+            return int(kepler[k])
+    return None
+
 def kepler_has_weekcounter(kepler):
-    for wk in ["GPSWeek", "GALWeek", "BDTWeek"]:
-        if wk in kepler:
-            return True
-    return False
+    return kepler_weekcounter(kepler) is not None
 
 def kepler_ready(kepler):
     if kepler_hasnan(kepler):
@@ -117,7 +139,7 @@ def kepler_ready(kepler):
     if not(kepler_has_weekcounter(kepler)):
         return False
     for key in gr_kepler_fields:
-        if key != "week": # week counter..
+        if not "Week" in key: # already tested
             if not(key in kepler):
                 return False # key is missing
     return True
@@ -136,13 +158,14 @@ def main(argv):
         for fp in os.listdir(base_dir + "/NAV/{}".format(rev)):  
             nav_path = base_dir + "/NAV/{}/{}".format(rev, fp)
             nav = gr.load(nav_path) 
-            if "GALWeek" in nav:
-                print(nav["GALWeek"])
 
             known_ref_pos = None
             for key in known_ref_positions.keys():
                 if key in nav_path:
                     known_ref_pos = known_ref_positions[key]
+            
+            # if ref. position is not defined in this context,
+            # we use a realistic one
             if known_ref_pos is None:
                 known_ref_pos = (-5.67841101e6, -2.49239629e7, 7.05651887e6)
 
@@ -160,41 +183,32 @@ def main(argv):
                         if sv_to_constell(sv) is None:
                             continue # GNSS: not supported yet or unknown definition
 
-                        sv_data = data.sel(sv=sv)
+                        # temporary: ONLY on GPS
+                        if not sv_is_gps(sv):
+                            continue
 
-                        # week counter..
-                        if "GPSWeek" in sv_data:
-                            week = sv_data.variables["GPSWeek"].values
-                        elif "GALWeek" in sv_data:
-                            week = sv_data.variables["GALWeek"].values
-                        elif "BDTWeek" in sv_data:
-                            week = sv_data.variables["BDTWeek"].values
-                        else:
-                            # other cases dont exist
-                            week = None
+                        sv_data = data.sel(sv=sv)
 
                         kepler = {}
                         for field in gr_kepler_fields:
-                            value = sv_data.variables[field].values
-                            if "Week" in field:
-                                # week counter special case
-                                kepler["week"] = value
-                            else:
-                                kepler[field] = value
-                        if not kepler_hasnan(kepler):
-                            # kepler struct fully defined, can determine (Elev°,Azim°)
-                            # print(epoch, sv, "READY: ", kepler_ready(kepler), kepler)
+                            # week counter special case
+                            if field in sv_data:
+                                kepler[field] = sv_data.variables[field].values
 
-                            if sv_to_constell(sv) == "GPS":
-                                week = kepler["GPSWeek"]
-                            elif sv_to_constell(sv) == "GAL":
-                                week = kepler["GALWeek"]
-                            elif sv_to_constell(sv) == "BDS":
-                                week = kepler["BDTWeek"]
-                            
-                            tgnss = constell_t0(sv)
-                            #tgnss += timedelta(weeks=kepler[sv_to_constell(sv) + "Week"])
-                            #tgnss+= epoch - previous_sunday.midnight in seconds
+                        if kepler_ready(kepler):
+                            # kepler struct fully defined:
+                            # we have everything to determine
+                            # and space vehicle vectors, and elev° and azim °
+                            weeks = kepler_weekcounter(kepler)
+
+                            tgnss = timescale_t0(sv)
+                            tgnss += timedelta(weeks=weeks)
+
+                            # need offset within that week
+                            week_offset = epoch.astype("datetime64[us]").astype(datetime)
+                            week_offset -= timescale_t0(sv)
+                            week_offset -= timedelta(weeks=weeks)
+                            tgnss += week_offset 
 
                             (xref, yref, zref) = known_ref_pos
                             struct = xarray.Dataset(
@@ -218,7 +232,6 @@ def main(argv):
                                 fd, 
                                 epoch, 
                                 sv,
-                                week,
                                 known_ref_pos,
                                 expected_ecef,
                                 0.0, # elev
