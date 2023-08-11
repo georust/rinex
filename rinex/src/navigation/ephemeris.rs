@@ -127,7 +127,8 @@ impl Ephemeris {
             }
         } else {
             // new field
-            self.orbits.insert(field.to_string(), OrbitItem::from(value));
+            self.orbits
+                .insert(field.to_string(), OrbitItem::from(value));
         }
     }
     /// Retrieve week counter, if such field exists.
@@ -271,7 +272,7 @@ impl Ephemeris {
         s
     }
     /*
-     * Inserts Week Counter 
+     * Inserts Week Counter
      */
     pub(crate) fn with_weeks(&self, week: u32, constellation: Constellation) -> Self {
         match constellation {
@@ -499,12 +500,12 @@ fn parse_orbits(
 #[cfg(test)]
 #[cfg(feature = "nav")]
 mod epoch_serde {
-    use std::str::FromStr;
     use crate::prelude::Epoch;
     use serde::{self, Deserialize, Deserializer};
-    pub fn deserialize<'de, D>(deserializer: D)
-        -> Result<Epoch, D::Error>
-        where D: Deserializer<'de> 
+    use std::str::FromStr;
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Epoch, D::Error>
+    where
+        D: Deserializer<'de>,
     {
         let s: Option<String> = Option::deserialize(deserializer)?;
         if let Some(s) = s {
@@ -753,10 +754,8 @@ mod test {
         assert!((y - 19224209.93574417).abs() < 1E-6);
         assert!((z - 13435836.30353981).abs() < 1E-6);
     }
+    use super::{Ephemeris, Kepler, Perturbations};
     use serde::Deserialize;
-    use super::{
-        Ephemeris, Kepler, Perturbations,
-    };
     #[derive(Default, Debug, Clone, Deserialize)]
     struct Helper {
         #[serde(with = "epoch_serde")]
@@ -784,7 +783,7 @@ mod test {
 
         let rinex_path = nav_dir.to_owned() + "/V2/cbw10010.21n.gz";
         let rinex = Rinex::from_file(&rinex_path).unwrap();
-        
+
         let kepler_path = kep_dir.to_owned() + "/V2/cbw10010.21n.gz.txt";
         let kepler = std::fs::read_to_string(&kepler_path);
         assert!(kepler.is_ok(), "failed to read kepler data");
@@ -795,11 +794,17 @@ mod test {
         let helper = helper.unwrap();
 
         // compute ourselves
-        let ephemeris = helper_to_ephemeris(helper.clone()); 
+        let ephemeris = helper_to_ephemeris(helper.clone());
 
         assert!(ephemeris.kepler().is_some(), "kepler params setup failed");
-        assert!(ephemeris.perturbations().is_some(), "orbit perturbations setup failed");
-        assert!(ephemeris.get_weeks().is_some(), "missing week counter, context is faulty");
+        assert!(
+            ephemeris.perturbations().is_some(),
+            "orbit perturbations setup failed"
+        );
+        assert!(
+            ephemeris.get_weeks().is_some(),
+            "missing week counter, context is faulty"
+        );
 
         let ecef = ephemeris.kepler2ecef(helper.epoch);
         assert!(ecef.is_some(), "kepler2ecef should be feasible");
@@ -811,10 +816,11 @@ mod test {
         );
         assert!(
             results.0 < 1E-5 && results.1 < 1E-5 && results.2 < 1E-5,
-            "kepler2ecef() failed, expecting {:?} got {:?}", 
-            helper.ecef, 
-            ecef);
-        
+            "kepler2ecef() failed, expecting {:?} got {:?}",
+            helper.ecef,
+            ecef
+        );
+
         //for fp in test_pool {
         //    println!("running kepler against model {}", test_pool);
         //    for readline in fp {
@@ -829,7 +835,7 @@ mod test {
         //        assert_eq!(elev_azim.is_some(), "failed to evaluate (elev, azim) angle vector for \"{}\"", hp.sv);
         //        let (elev, azi) = elev_azim.unwrap();
         //        assert!((elev - hp.elev).abs() < 1E-5, "error on \"{}\" Elevation angle - expecting {}, got {}", hp.sv, hp.elev, elev);
-        //        assert!((azi - hp.azi).abs() < 1E-5, "error on \"{}\" Azimuth angle - expecting {}, got {}", hp.sv, hp.azi, azi); 
+        //        assert!((azi - hp.azi).abs() < 1E-5, "error on \"{}\" Azimuth angle - expecting {}, got {}", hp.sv, hp.azi, azi);
         //    }
         //}
     }

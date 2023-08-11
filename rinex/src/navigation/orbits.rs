@@ -39,7 +39,7 @@ pub enum OrbitItem {
     U8(u8),
     /// signed byte
     I8(i8),
-    /// unsigned 32 bit value 
+    /// unsigned 32 bit value
     U32(u32),
     /// double precision data
     F64(f64),
@@ -409,7 +409,7 @@ mod test {
         assert_eq!(e.as_f64().is_some(), true);
         let u = e.as_f64().unwrap();
         assert_eq!(u, 10.0_f64);
-        
+
         let e = OrbitItem::U32(1);
         assert_eq!(e.as_u8().is_none(), false);
         assert_eq!(e.as_u32().is_some(), true);
