@@ -34,7 +34,7 @@ When converting to KML, we round the TEC values and shrink it to N equipotential
 In other words, the granularity on the TEC visualization you get is max|tec|/N where max|tec|
 is the absolute maximal TEC value in given file, through all epochs and all altitudes.
 
-Another way to see this, is N defines the number of separate color the color map will be able to represent.
+Another way to see this, is N defines the number of distinct colors in the color map
 
 Visualizing KML maps
 ====================
