@@ -11,7 +11,8 @@ use rinex::prelude::Epoch;
  */
 pub fn skyplot(ctx: &Context, plot_ctx: &mut PlotContext) {
     plot_ctx.add_polar2d_plot("Skyplot");
-    // grab one nav file
+
+    // grab NAV context
     let nav_rnx = match &ctx.nav_rinex {
         Some(nav) => nav,
         _ => &ctx.primary_rinex,
@@ -20,25 +21,28 @@ pub fn skyplot(ctx: &Context, plot_ctx: &mut PlotContext) {
     for (svnn_index, svnn) in nav_rnx.sv().enumerate() {
         // per sv
         // grab related elevation data
-        // Rho   = pi/2 - radian(elev)
-        // Theta = azim
+        // Rho   = (pi/2 - radian(elev)) * 90°
+        // Theta = azim angle
         let data: Vec<(Epoch, f64, f64)> = nav_rnx
             .sv_elevation_azimuth(ctx.ground_position)
             .filter_map(|(epoch, (sv, (elev, azi)))| {
                 if sv == svnn {
-                    Some((epoch, elev, azi))
+                    let rho = elev; 
+                    let theta = azi; 
+                    Some((epoch, rho, theta))
                 } else {
                     None
                 }
             })
             .collect();
+
         let rho: Vec<f64> = data.iter().map(|(_e, rho, _theta)| *rho).collect();
         let theta: Vec<f64> = data.iter().map(|(_e, _rho, theta)| *theta).collect();
 
         //TODO: color gradient to emphasize day course
         let trace = ScatterPolar::new(theta, rho)
-            .mode(Mode::Markers)
-            .web_gl_mode(true)
+            .mode(Mode::LinesMarkers)
+            //.web_gl_mode(true)
             .visible({
                 /*
                  * Plot only first few dataset,

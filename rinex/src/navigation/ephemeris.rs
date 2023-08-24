@@ -342,9 +342,17 @@ impl Ephemeris {
         let mut t_sv = epoch.clone();
         
         match sv.constellation {
-            Constellation::GPS => {
+            Constellation::GPS | Constellation::QZSS=> {
                 t_sv.time_scale = TimeScale::GPST;
-                t_sv -= Duration::from_seconds(18.0); // GPST(t=0) initial offset
+                t_sv -= Duration::from_seconds(18.0); // GPST(t=0) number of leap seconds @ the time 
+            },
+            Constellation::Galileo => {
+                t_sv.time_scale = TimeScale::GST;
+                t_sv -= Duration::from_seconds(31.0); // GST(t=0) number of leap seconds @ the time 
+            },
+            Constellation::BeiDou => {
+                t_sv.time_scale = TimeScale::BDT;
+                t_sv -= Duration::from_seconds(32.0); // BDT(t=0) number of leap seconds @ the time 
             },
             _ => {}, // either not needed, or most probably not truly supported
         }
@@ -397,8 +405,8 @@ impl Ephemeris {
         if let Some(pos_x) = self.get_orbit_f64("satPosX") {
             if let Some(pos_y) = self.get_orbit_f64("satPosY") {
                 if let Some(pos_z) = self.get_orbit_f64("satPosZ") {
-                    //TODO PZ90 case
-                    //     add check for SBAS
+                    //TODO PZ90=>ECEF transform should be applied, in case of GLONASS
+                    //     need to check for GEO/SBAS
                     return Some((pos_x, pos_y, pos_z));
                 }
             }
@@ -406,7 +414,7 @@ impl Ephemeris {
         self.kepler2ecef(sv, epoch)
     }
     /*
-     * Computes elev, azim angles both in radians
+     * Computes elev, azim angles both in degrees
      */
     pub(crate) fn sv_elev_azim(
         &self,
