@@ -830,31 +830,14 @@ mod test {
         );
 
         let week = helper.week;
-        let epoch = helper.epoch;
-        let weekday = helper.epoch.weekday();
-        let week_offset = Duration::from_days(weekday as u8 as f64)
-            + Duration::from_hours(helper.epoch.hours() as f64)
-            + Duration::from_seconds(helper.epoch.minutes() as f64 * 60.0)
-            + Duration::from_seconds(helper.epoch.seconds() as f64)
-            + Duration::from_nanoseconds(helper.epoch.nanoseconds() as f64);
-
-        println!(
-            "Epoch: {} | Weekday: {}",
-            helper.epoch,
-            helper.epoch.weekday()
-        );
-        println!(
-            "week : {}, week offset: {}",
-            week,
-            week_offset.total_nanoseconds() / 1_000_000_000
-        );
-
-        let epoch = Epoch::from_time_of_week(
-            week,
-            week_offset.total_nanoseconds() as u64,
-            TimeScale::GPST,
-        );
-
+        
+        // Sv epoch represents a UTC time
+        // but we need a time within the vehicle time scale.
+        // Convert to said timescale, and remove possible initial offset (GNSSt=0)
+        let mut epoch = helper.epoch;
+        epoch.time_scale = TimeScale::GPST;
+        epoch -= Duration::from_seconds(18.0);
+        
         let ecef = ephemeris.kepler2ecef(epoch);
         assert!(
             ecef.is_some(),
@@ -866,9 +849,9 @@ mod test {
         let x_err = (ecef.0 - helper.ecef.0).abs();
         let y_err = (ecef.1 - helper.ecef.1).abs();
         let z_err = (ecef.2 - helper.ecef.2).abs();
-        assert!(x_err < 1E-2, "kepler2ecef: x_err too large: {}", x_err);
-        assert!(y_err < 1E-2, "kepler2ecef: y_err too large: {}", y_err);
-        assert!(z_err < 1E-2, "kepler2ecef: z_err too large: {}", z_err);
+        assert!(x_err < 1E-5, "kepler2ecef: x_err too large: {}", x_err);
+        assert!(y_err < 1E-5, "kepler2ecef: y_err too large: {}", y_err);
+        assert!(z_err < 1E-5, "kepler2ecef: z_err too large: {}", z_err);
         //for fp in test_pool {
         //    println!("running kepler against model {}", test_pool);
         //    for readline in fp {
