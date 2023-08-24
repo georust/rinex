@@ -809,7 +809,7 @@ mod test {
                 let v = v.unwrap();
                 assert_eq!(v, -0.940753471872e-09);
             // SPARE
-            } else if k.eq("bdtWeek") {
+            } else if k.eq("week") {
                 let v = v.as_u32();
                 assert_eq!(v.is_some(), true);
                 let v = v.unwrap();
@@ -979,7 +979,7 @@ mod test {
                 assert_eq!(v.is_some(), true);
                 let v = v.unwrap();
                 assert_eq!(v, 0.258000000000e+03);
-            } else if k.eq("galWeek") {
+            } else if k.eq("week") {
                 let v = v.as_u32();
                 assert_eq!(v.is_some(), true);
                 let v = v.unwrap();

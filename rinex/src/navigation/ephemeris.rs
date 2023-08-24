@@ -121,24 +121,9 @@ impl Ephemeris {
         self.orbits
             .insert(field.to_string(), OrbitItem::from(value));
     }
-    /// Retrieve week counter, if such field exists.
+    /// Retrieve week counter, if such data exists.
     pub fn get_weeks(&self) -> Option<u32> {
-        //TODO:
-        // cast/scalings per constellation ??
-        if let Some(v) = self.orbits.get("gpsWeek") {
-            if let Some(v) = v.as_u32() {
-                return Some(v);
-            }
-        } else if let Some(v) = self.orbits.get("bdtWeek") {
-            if let Some(v) = v.as_u32() {
-                return Some(v);
-            }
-        } else if let Some(v) = self.orbits.get("galWeek") {
-            if let Some(v) = v.as_u32() {
-                return Some(v);
-            }
-        }
-        None
+        self.orbits.get("week").and_then(|field| field.as_u32())
     }
     /*
      * Parses ephemeris from given line iterator
@@ -261,12 +246,7 @@ impl Ephemeris {
     }
     /// Creates new Ephemeris with given week counter
     pub fn with_weeks(&self, week: u32, constellation: Constellation) -> Self {
-        match constellation {
-            Constellation::GPS => self.with_orbit("gpsWeek", OrbitItem::from(week)),
-            Constellation::BeiDou => self.with_orbit("bdtWeek", OrbitItem::from(week)),
-            Constellation::Galileo => self.with_orbit("galWeek", OrbitItem::from(week)),
-            _ => self.clone(),
-        }
+        self.with_orbit("week", OrbitItem::from(week))
     }
     /// Creates new Ephemeris with given [`Kepler`] parameters
     pub fn with_kepler(&self, kepler: Kepler) -> Self {
