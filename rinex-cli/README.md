@@ -54,7 +54,7 @@ Sv orbit and Kepler information are used to enhance or allow further operations.
 
 Also, a skyplot view is then provided in the main analysis:
 
-<img align="center" width="450" src="https://github.com/georust/rinex/tree/kepler/doc/plots/skyplot.png">
+<img align="center" width="450" src="https://github.com/georust/rinex/blob/kepler/doc/plots/skyplot.png">
 
 ## Getting started
 
