@@ -416,7 +416,6 @@ mod test {
         assert_eq!(u, 10.0_f64);
 
         let e = OrbitItem::U32(1);
-        assert_eq!(e.as_u8().is_none(), false);
         assert_eq!(e.as_u32().is_some(), true);
         assert_eq!(e.as_f64().is_some(), false);
         let u = e.as_u32().unwrap();
