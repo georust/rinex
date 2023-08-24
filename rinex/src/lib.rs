@@ -2050,8 +2050,26 @@ impl Rinex {
     /// }
     /// ```
     pub fn sv_position(&self) -> Box<dyn Iterator<Item = (Epoch, (Sv, f64, f64, f64))> + '_> {
-        Box::new(self.ephemeris().filter_map(|(e, (_, sv, ephemeris))| {
-            if let Some((x, y, z)) = ephemeris.sv_position(*e) {
+        Box::new(self.ephemeris().filter_map(|(e, (_, sv, ephemeris))| 
+        {
+            // We need to convert UTC time to approriate GNSS timescale.
+            // Hifitime v4 will help here, but currently it is not feasible
+            let mut epoch = e.clone();
+            match sv.constellation {
+                Constellation::GPS => {
+                    epoch.time_scale = TimeScale::GPST;
+                    epoch -= Duration::from_seconds(18.0); // GPST(t=0) offset
+                },
+                Constellation::Galileo => {
+
+                },
+                Constellation::BeiDou => {
+
+                },
+                _ => {}, // either not needed or not truly supported yet
+            }
+
+            if let Some((x, y, z)) = ephemeris.sv_position(epoch) {
                 Some((*e, (*sv, x, y, z)))
             } else {
                 // we might not be able to evaluate (x, y, z)
