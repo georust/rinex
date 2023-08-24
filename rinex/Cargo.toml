@@ -1,6 +1,6 @@
 [package]
 name = "rinex"
-version = "0.11.0"
+version = "0.11.1"
 license = "MIT OR Apache-2.0"
 authors = ["Guillaume W. Bres <guillaume.bressaix@gmail.com>"]
 description = "Package to parse and analyze RINEX data"
@@ -10,7 +10,7 @@ keywords = ["rinex", "timing", "gps", "glonass", "galileo"]
 categories = ["science", "science::geo", "parsing"]
 edition = "2021"
 readme = "README.md"
-rust-version = "1.61"
+rust-version = "1.64"
 
 [features]
 default = [] # no features by default
