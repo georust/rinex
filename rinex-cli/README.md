@@ -47,6 +47,15 @@ if you know how to operate the preprocessing toolkit
 - [quality check](doc/qc.md): RINEX data quality analysis (mainly statistics and only on OBS RINEX at the moment)
 - other advanced operations are documented in the [processing](doc/processing.md) suite
 
+## NAV data special case
+
+When Navigation data are provided, either as primary file, or as Observation enhancer,
+Sv orbit and Kepler information are used to enhance or allow further operations.
+
+Also, a skyplot view is then provided in the main analysis:
+
+<img align="center" width="450" src="https://github.com/georust/rinex/tree/kepler/doc/plots/skyplot.png">
+
 ## Getting started
 
 Download the latest release for your architecture 
