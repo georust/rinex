@@ -115,21 +115,11 @@ impl Ephemeris {
     }
     /*
      * Adds an orbit entry, mostly used when inserting
-     * Kepler, Perturbations parameters, not in the parsing workflow
-     * but in other workflows like testing
+     * Kepler & Perturbations parameters in testing workflows.
      */
     pub(crate) fn set_orbit_f64(&mut self, field: &str, value: f64) {
-        if let Some(orbit) = self.orbits.get_mut(field) {
-            // field exists
-            if let Some(mut v) = orbit.as_f64() {
-                // type does match
-                v = value;
-            }
-        } else {
-            // new field
-            self.orbits
-                .insert(field.to_string(), OrbitItem::from(value));
-        }
+        self.orbits
+            .insert(field.to_string(), OrbitItem::from(value));
     }
     /// Retrieve week counter, if such field exists.
     pub fn get_weeks(&self) -> Option<u32> {
@@ -263,18 +253,14 @@ impl Ephemeris {
             toe: self.get_orbit_f64("toe")?,
         })
     }
-    /*
-     * Inserts given orbit item
-     */
-    pub(crate) fn with_orbit(&self, key: &str, orbit: OrbitItem) -> Self {
+    /// Creates new Ephemeris with given [`OrbitItem`]
+    pub fn with_orbit(&self, key: &str, orbit: OrbitItem) -> Self {
         let mut s = self.clone();
         s.orbits.insert(key.to_string(), orbit);
         s
     }
-    /*
-     * Inserts Week Counter
-     */
-    pub(crate) fn with_weeks(&self, week: u32, constellation: Constellation) -> Self {
+    /// Creates new Ephemeris with given week counter
+    pub fn with_weeks(&self, week: u32, constellation: Constellation) -> Self {
         match constellation {
             Constellation::GPS => self.with_orbit("gpsWeek", OrbitItem::from(week)),
             Constellation::BeiDou => self.with_orbit("bdtWeek", OrbitItem::from(week)),
@@ -282,10 +268,8 @@ impl Ephemeris {
             _ => self.clone(),
         }
     }
-    /*
-     * Inserts Kepler parameters
-     */
-    pub(crate) fn with_kepler(&self, kepler: Kepler) -> Self {
+    /// Creates new Ephemeris with given [`Kepler`] parameters
+    pub fn with_kepler(&self, kepler: Kepler) -> Self {
         let mut s = self.clone();
         s.set_orbit_f64("sqrta", kepler.a.sqrt());
         s.set_orbit_f64("e", kepler.e);
@@ -296,7 +280,7 @@ impl Ephemeris {
         s.set_orbit_f64("toe", kepler.toe);
         s
     }
-    /// Retrieves Orbit Perturbations parameters
+    /// Retrieves Orbit [Perturbations] parameters
     pub fn perturbations(&self) -> Option<Perturbations> {
         Some(Perturbations {
             cuc: self.get_orbit_f64("cuc")?,
@@ -310,10 +294,8 @@ impl Ephemeris {
             omega_dot: self.get_orbit_f64("omegaDot")?,
         })
     }
-    /*
-     * Inserts Orbit perturbations
-     */
-    pub(crate) fn with_perturbations(&self, perturbations: Perturbations) -> Self {
+    /// Creates new Ephemeris with given Orbit [Perturbations]
+    pub fn with_perturbations(&self, perturbations: Perturbations) -> Self {
         let mut s = self.clone();
         s.set_orbit_f64("cuc", perturbations.cuc);
         s.set_orbit_f64("cus", perturbations.cus);

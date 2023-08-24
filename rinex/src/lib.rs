@@ -22,10 +22,10 @@ pub mod sv;
 pub mod types;
 pub mod version;
 
+mod bibliography;
 mod ground_position;
 mod leap;
 mod observable;
-mod bibliography;
 
 #[macro_use]
 mod macros;

@@ -7,7 +7,7 @@ pub enum Bibliography {
     /// Kepler Solver on page 159.   
     /// Elevation and Azimuth angles determination, page 160.
     /// [DOI](http://perso.recherche.enac.fr/~julien.lesouple/fr/publication/thesis/THESIS.pdf?fbclid=IwAR3WlHm0eP7ygRzywbL07Ig-JawvsdCEdvz1umJJaRRXVO265J9cp931YyI)
-    JLe19
+    JLe19,
     /// ESA NAVIPedia: *Combining Pairs of signals and clock definitions*
     /// [DOI](https://gssc.esa.int/navipedia/index.php/Combining_pairs_of_signals_and_clock_definition)
     ESAGnssCombination,
