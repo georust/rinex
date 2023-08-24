@@ -42,7 +42,7 @@ pub fn skyplot(ctx: &Context, plot_ctx: &mut PlotContext) {
         //TODO: color gradient to emphasize day course
         let trace = ScatterPolar::new(theta, rho)
             .mode(Mode::LinesMarkers)
-            //.web_gl_mode(true)
+            .web_gl_mode(true)
             .visible({
                 /*
                  * Plot only first few dataset,
