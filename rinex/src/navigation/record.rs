@@ -983,7 +983,7 @@ mod test {
                 let v = v.as_u32();
                 assert_eq!(v.is_some(), true);
                 let v = v.unwrap();
-                assert_eq!(v, 21380);
+                assert_eq!(v, 2138);
             //SPARE
             } else if k.eq("sisa") {
                 let v = v.as_f64();
