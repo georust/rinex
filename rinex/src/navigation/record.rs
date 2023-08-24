@@ -810,10 +810,10 @@ mod test {
                 assert_eq!(v, -0.940753471872e-09);
             // SPARE
             } else if k.eq("bdtWeek") {
-                let v = v.as_f64();
+                let v = v.as_u32();
                 assert_eq!(v.is_some(), true);
                 let v = v.unwrap();
-                assert_eq!(v, 0.782000000000e+03);
+                assert_eq!(v, 782);
             //SPARE
             } else if k.eq("svAccuracy") {
                 let v = v.as_f64();
@@ -980,10 +980,10 @@ mod test {
                 let v = v.unwrap();
                 assert_eq!(v, 0.258000000000e+03);
             } else if k.eq("galWeek") {
-                let v = v.as_f64();
+                let v = v.as_u32();
                 assert_eq!(v.is_some(), true);
                 let v = v.unwrap();
-                assert_eq!(v, 0.213800000000e+04);
+                assert_eq!(v, 2138);
             //SPARE
             } else if k.eq("sisa") {
                 let v = v.as_f64();

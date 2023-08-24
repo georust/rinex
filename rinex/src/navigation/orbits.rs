@@ -39,8 +39,8 @@ pub enum OrbitItem {
     U8(u8),
     /// signed byte
     I8(i8),
-    /// single precision data
-    F32(f32),
+    /// unsigned 32 bit value
+    U32(u32),
     /// double precision data
     F64(f64),
     /// GPS/QZSS orbit/sv health indication
@@ -55,6 +55,18 @@ pub enum OrbitItem {
     GalHealth(health::GalHealth),
     /// IRNSS orbit/sv health indication
     IrnssHealth(health::IrnssHealth),
+}
+
+impl From<u32> for OrbitItem {
+    fn from(value: u32) -> Self {
+        Self::U32(value)
+    }
+}
+
+impl From<f64> for OrbitItem {
+    fn from(value: f64) -> Self {
+        Self::F64(value)
+    }
 }
 
 /// `OrbitItem` related errors
@@ -86,7 +98,11 @@ impl OrbitItem {
                 let float = f64::from_str(&content.replace("D", "e"))?;
                 Ok(OrbitItem::I8(float as i8))
             },
-            "f32" => Ok(OrbitItem::F32(f32::from_str(&content.replace("D", "e"))?)),
+            "u32" => {
+                // float->signed conversion
+                let float = f64::from_str(&content.replace("D", "e"))?;
+                Ok(OrbitItem::U32(float as u32))
+            },
             "f64" => Ok(OrbitItem::F64(f64::from_str(&content.replace("D", "e"))?)),
             "gloStatus" => {
                 // float->unsigned conversion
@@ -139,7 +155,7 @@ impl OrbitItem {
         match self {
             OrbitItem::U8(n) => format!("{:14.11E}", *n as f64),
             OrbitItem::I8(n) => format!("{:14.11E}", *n as f64),
-            OrbitItem::F32(f) => format!("{:14.11E}", f),
+            OrbitItem::U32(n) => format!("{:14.11E}", *n as f64),
             OrbitItem::F64(f) => format!("{:14.11E}", f),
             OrbitItem::Health(h) => format!("{:14.11E}", h),
             OrbitItem::GloHealth(h) => format!("{:14.11E}", h),
@@ -149,17 +165,17 @@ impl OrbitItem {
             OrbitItem::GloStatus(h) => format!("{:14.11E}", h.bits() as f64),
         }
     }
-    /// Unwraps OrbitItem as f32
-    pub fn as_f32(&self) -> Option<f32> {
-        match self {
-            OrbitItem::F32(f) => Some(f.clone()),
-            _ => None,
-        }
-    }
     /// Unwraps OrbitItem as f64
     pub fn as_f64(&self) -> Option<f64> {
         match self {
             OrbitItem::F64(f) => Some(f.clone()),
+            _ => None,
+        }
+    }
+    /// Unwraps self as u32 (if possible)
+    pub fn as_u32(&self) -> Option<u32> {
+        match self {
+            OrbitItem::U32(v) => Some(*v),
             _ => None,
         }
     }
@@ -388,21 +404,21 @@ mod test {
     fn test_db_item() {
         let e = OrbitItem::U8(10);
         assert_eq!(e.as_u8().is_some(), true);
-        assert_eq!(e.as_f32().is_some(), false);
+        assert_eq!(e.as_u32().is_some(), false);
         let u = e.as_u8().unwrap();
         assert_eq!(u, 10);
 
-        let e = OrbitItem::F32(10.0);
-        assert_eq!(e.as_u8().is_some(), false);
-        assert_eq!(e.as_f32().is_some(), true);
-        let u = e.as_f32().unwrap();
-        assert_eq!(u, 10.0_f32);
-
         let e = OrbitItem::F64(10.0);
         assert_eq!(e.as_u8().is_some(), false);
-        assert_eq!(e.as_f32().is_some(), false);
+        assert_eq!(e.as_u32().is_some(), false);
         assert_eq!(e.as_f64().is_some(), true);
         let u = e.as_f64().unwrap();
         assert_eq!(u, 10.0_f64);
+
+        let e = OrbitItem::U32(1);
+        assert_eq!(e.as_u32().is_some(), true);
+        assert_eq!(e.as_f64().is_some(), false);
+        let u = e.as_u32().unwrap();
+        assert_eq!(u, 1_u32);
     }
 }
