@@ -6,7 +6,7 @@ use cli::{Cli, CliError};
 use log::{info, warn};
 
 use kml::{
-    types::{AltitudeMode, Coord, LineString, LinearRing},
+    types::{AltitudeMode, Coord, LineString, LinearRing, Polygon, Placemark, Geometry},
     KmlDocument,
 };
 use std::collections::HashMap;
@@ -43,7 +43,7 @@ fn main() -> Result<(), CliError> {
     let mut buf = std::io::stdout().lock();
     let mut writer = KmlWriter::<_, f64>::from_writer(&mut buf);
 
-    //// We wrap each Epoch in separate "Folders"
+    // We wrap each Epoch in separate "Folders"
     for (epoch, (_map, _, _)) in record {
         let mut epoch_folder: Vec<Kml<f64>> = Vec::new();
         let epoch_folder_attrs = vec![(String::from("Epoch"), epoch.to_string())]
@@ -51,33 +51,62 @@ fn main() -> Result<(), CliError> {
             .collect::<HashMap<String, String>>();
 
         //test a linestring to describe equipoential TECu area
-        let linestring = Kml::LinearRing(LinearRing::<f64> {
-            coords: vec![
-                Coord {
-                    x: 4.119067147539055, 
-                    y: 43.73425044812969,
-                    z: None,
-                },
-                Coord {
-                    x: 4.11327766588697,
-                    y: 43.73124529989733,
-                    z: None,
-                },
-                Coord {
-                    x: 4.119067147539055,
-                    y: 43.73425044812969,
-                    z: None,
-                },
-            ],
+        let polygon = Polygon::<f64> {
+            inner: vec![],
+            outer: {
+                LinearRing::<f64> {
+                    coords: vec![
+                        Coord {
+                            x: 4.119067147539055, 
+                            y: 43.73425044812969,
+                            z: None,
+                        },
+                        Coord {
+                            x: 4.11327766588697,
+                            y: 43.73124529989733,
+                            z: None,
+                        },
+                        Coord {
+                            x: 4.119067147539055,
+                            y: 43.73425044812969,
+                            z: None,
+                        },
+                        Coord {
+                            x: 4.129067147539055,
+                            y: 44.73425044812969,
+                            z: None,
+                        },
+                        Coord {
+                            x: 4.109067147539055,
+                            y: 44.73425044812969,
+                            z: None,
+                        },
+                    ],
+                    extrude: false,
+                    tessellate: true,
+                    altitude_mode: AltitudeMode::RelativeToGround,
+                    attrs: vec![(String::from("name"), String::from("test"))]
+                    .into_iter()
+                    .collect(),
+                }
+            },
             extrude: false,
-            tessellate: false,
+            tessellate: true,
             altitude_mode: AltitudeMode::RelativeToGround,
-            attrs: vec![(String::from("Test"), String::from("test"))]
-                .into_iter()
-                .collect(),
-        });
+            attrs: vec![(String::from("name"), String::from("test"))]
+            .into_iter()
+            .collect(),
+        };
 
-        epoch_folder.push(linestring);
+        let placemark = Placemark::<f64> {
+            name: Some(String::from("This is a test")),
+            description: Some(String::from("Great description")),
+            geometry: Some(Geometry::Polygon(polygon)),
+            children: vec![],
+            attrs: HashMap::new(),
+        };
+
+        epoch_folder.push(Kml::Placemark(placemark));
 
         //    // We wrap equipotential TECu areas in
         //    // we wrap altitude levels in separate "Folders"
@@ -102,12 +131,15 @@ fn main() -> Result<(), CliError> {
         //        kml.elements.push(folder);
         //    }
         //folder_content..push(epoch_folder);
+
         let epoch_folder: Kml<f64> = Kml::Folder {
             attrs: epoch_folder_attrs,
             elements: epoch_folder,
         };
         // add folder to document
         kml_doc.elements.push(epoch_folder);
+
+        break;//TODO
     }
 
     // generate document
