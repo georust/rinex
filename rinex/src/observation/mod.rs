@@ -290,8 +290,7 @@ pub trait Observation {
 /// GNSS signal recombination trait.    
 /// Import this to recombine OBS RINEX with usual recombination methods.   
 /// This only applies to OBS RINEX records.  
-/// See this page for more information
-/// <https://github.com/gwbres/rinex/blob/main/rinex-cli/doc/gnss-combination.md>.
+/// Refer to Bibliography::ESAGnssCombination for more information.
 #[cfg(feature = "obs")]
 #[cfg_attr(docrs, doc(cfg(feature = "obs")))]
 pub trait Combine {
@@ -327,29 +326,29 @@ pub trait Combine {
     ) -> HashMap<(Observable, Observable), BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>;
 
     /// Perform Wide Lane recombination.   
-    /// See [Self::geo_free] for API example
+    /// See [Self::geo_free] for API example.
+    /// Refer to Bibliography::ESAGnssCombination.
     fn wide_lane(
         &self,
     ) -> HashMap<(Observable, Observable), BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>;
 
     /// Perform Narrow Lane recombination.   
-    /// See [Self::geo_free] for API example
+    /// See [Self::geo_free] for API example.
+    /// Refer to Bibliography::ESAGnssCombination.
     fn narrow_lane(
         &self,
     ) -> HashMap<(Observable, Observable), BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>;
 
     /// Perform Melbourne-Wübbena recombination.   
-    /// See [`Self::geo_free`] for API example
+    /// See [`Self::geo_free`] for API example.
+    /// Refer to Bibliography::ESAGnssCombination.
     fn melbourne_wubbena(
         &self,
     ) -> HashMap<(Observable, Observable), BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>;
 }
 
 /// GNSS code bias estimation trait.
-/// Refer to
-/// <http://navigation-office.esa.int/attachments_12649498_1_Reichel_5thGalSciCol_2015.pdf>
-/// and phase data model
-/// <https://github.com/georust/rinex/blob/main/rinex-cli/doc/gnss-combination.md>
+/// Refer to Bibliography::ESAGnssCombination
 #[cfg(feature = "obs")]
 #[cfg_attr(docrs, doc(cfg(feature = "obs")))]
 pub trait Dcb {
@@ -367,10 +366,7 @@ pub trait Dcb {
 }
 
 /// Multipath biases estimation.
-/// Refer to
-/// <http://navigation-office.esa.int/attachments_12649498_1_Reichel_5thGalSciCol_2015.pdf>
-/// or MP_i factors in phase data model
-/// <https://github.com/georust/rinex/blob/main/rinex-cli/doc/gnss-combination.md>.
+/// See <https://github.com/georust/rinex/blob/main/rinex-cli/doc/gnss-combination.md>.
 #[cfg(feature = "obs")]
 #[cfg_attr(docrs, doc(cfg(feature = "obs")))]
 pub trait Mp {

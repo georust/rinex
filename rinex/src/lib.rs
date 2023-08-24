@@ -25,6 +25,7 @@ pub mod version;
 mod ground_position;
 mod leap;
 mod observable;
+mod bibliography;
 
 #[macro_use]
 mod macros;
@@ -122,6 +123,9 @@ macro_rules! hourly_session {
         }
     };
 }
+
+#[cfg(doc)]
+pub use crate::bibliography::Bibliography;
 
 #[derive(Clone, Default, Debug, PartialEq)]
 /// `Rinex` describes a `RINEX` file, it comprises a [Header] section,
