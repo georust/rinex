@@ -10,7 +10,9 @@ import os
 import sys
 import math
 import xarray
+import numpy as np
 import georinex as gr
+from gnss_lib_py import ecef_to_el_az
 from datetime import datetime, timedelta
 
 gr_kepler_fields = [
@@ -90,8 +92,8 @@ def form_entry(fd, epoch, sv, ref_pos, ecef, elev, azi, kepler):
     fd.write("  \"week\": {},\n".format(int(kepler_weekcounter(kepler))))
     fd.write("  \"ref_pos\": [{},{},{}],\n".format(ref_pos[0], ref_pos[1], ref_pos[2]))
     fd.write("  \"ecef\": [{},{},{}],\n".format(ecef[0], ecef[1], ecef[2]))
-    fd.write("  \"elev\": {},\n".format(str(elev)))
-    fd.write("  \"azi\": {},\n".format(str(azi)))
+    fd.write("  \"elev\": {},\n".format(str(elev[0])))
+    fd.write("  \"azi\": {},\n".format(str(azi[0])))
     fd.write("  \"kepler\": {\n")
     fd.write("    \"a\": {},\n".format(math.pow(kepler["sqrtA"], 2)))
     fd.write("    \"e\": {},\n".format(kepler["Eccentricity"]))
@@ -146,15 +148,18 @@ def main(argv):
         return 0
     
     base_dir = argv[0]
+    debug = len(argv) > 1
+
     supported_rev = ["V2", "V3"]
 
     for rev in os.listdir(base_dir + "/NAV"):
         if not(rev in supported_rev):
             continue
+        
         for fp in os.listdir(base_dir + "/NAV/{}".format(rev)):  
             nav_path = base_dir + "/NAV/{}/{}".format(rev, fp)
-            # debug
-            # print("FILE: ", nav_path) 
+            if (debug):
+                print("FILE: ", nav_path) 
 
             nav = gr.load(nav_path) 
 
@@ -168,10 +173,16 @@ def main(argv):
                     data = nav.sel(time=epoch)
                     for sv in vehicles:
                         if sv_is_glonass(sv):
+                            if debug:
+                                print("Glonass: not supported yet")
                             continue # GLO: NOT YET
                         if sv_is_sbas(sv):
+                            if debug:
+                                print("Glonass: not supported yet")
                             continue # GEO: NOT YET
                         if sv_to_constell(sv) is None:
+                            if debug:
+                                print("Unknown constellation :", sv)
                             continue # GNSS: not supported yet or unknown definition
 
                         sv_data = data.sel(sv=sv)
@@ -182,8 +193,8 @@ def main(argv):
                             if field in sv_data:
                                 kepler[field] = sv_data.variables[field].values
 
-                        # debug 
-                        # print("sv: ", sv, "kepler ready", kepler_ready(kepler)) 
+                        if debug:
+                            print("sv: ", sv, "kepler ready", kepler_ready(kepler)) 
 
                         if kepler_ready(kepler):
                             # kepler struct fully defined:
@@ -205,9 +216,9 @@ def main(argv):
                                 kepler,
                                 attrs={
                                     "svtype": sv[0], 
-                                    #"xref": xref, 
-                                    #"yref": yref,
-                                    #"zref": zref,
+                                    # "xref": xref, 
+                                    # "yref": yref,
+                                    # "zref": zref,
                                 },
                                 coords={"time": [tgnss]},
                             )
@@ -215,17 +226,17 @@ def main(argv):
                             expected_ecef = list(gr.keplerian2ecef(struct))
                             expected_ecef = (expected_ecef[0][0], expected_ecef[1][0], expected_ecef[2][0])
 
-                            # content = "epoch, {}, ref_pos, {}, expected, {}, sv, {}, ".format(epoch, str(known_ref_pos), str(expected_ecef), sv)
-                            #for key in kepler.keys():
-                            #    content += "{}, {}, ".format(key, kepler[key])
+                            shape3d = np.asarray([[expected_ecef[0]], [expected_ecef[1]], [expected_ecef[2]]])
+                            (elev, azim) = ecef_to_el_az(np.asarray(ref_position), shape3d)
+
                             form_entry(
                                 fd, 
                                 epoch, 
                                 sv,
                                 ref_position,
                                 expected_ecef,
-                                0.0, # elev
-                                0.0, # azim
+                                elev,
+                                azim,
                                 kepler)
                             
                             if sv == vehicles[-1]:
