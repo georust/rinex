@@ -21,8 +21,8 @@ pub fn skyplot(ctx: &Context, plot_ctx: &mut PlotContext) {
     for (svnn_index, svnn) in nav_rnx.sv().enumerate() {
         // per sv
         // grab related elevation data
-        // Rho   = (pi/2 - radian(elev)) * 90°
-        // Theta = azim angle
+        // Rho   = degrees(elev)
+        // Theta = degrees(azim)
         let data: Vec<(Epoch, f64, f64)> = nav_rnx
             .sv_elevation_azimuth(ctx.ground_position)
             .filter_map(|(epoch, (sv, (elev, azi)))| {
