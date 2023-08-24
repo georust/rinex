@@ -153,6 +153,9 @@ def main(argv):
             continue
         for fp in os.listdir(base_dir + "/NAV/{}".format(rev)):  
             nav_path = base_dir + "/NAV/{}/{}".format(rev, fp)
+            # debug
+            # print("FILE: ", nav_path) 
+
             nav = gr.load(nav_path) 
 
             ref_position = (3628427.9118, 562059.0936, 5197872.2150)
@@ -171,10 +174,6 @@ def main(argv):
                         if sv_to_constell(sv) is None:
                             continue # GNSS: not supported yet or unknown definition
 
-                        # temporary: ONLY on GPS
-                        if not sv_is_gps(sv):
-                            continue
-
                         sv_data = data.sel(sv=sv)
 
                         kepler = {}
@@ -182,6 +181,9 @@ def main(argv):
                             # week counter special case
                             if field in sv_data:
                                 kepler[field] = sv_data.variables[field].values
+
+                        # debug 
+                        # print("sv: ", sv, "kepler ready", kepler_ready(kepler)) 
 
                         if kepler_ready(kepler):
                             # kepler struct fully defined:
@@ -202,7 +204,7 @@ def main(argv):
                             struct = xarray.Dataset(
                                 kepler,
                                 attrs={
-                                    "svtype": "G", 
+                                    "svtype": sv[0], 
                                     #"xref": xref, 
                                     #"yref": yref,
                                     #"zref": zref,
