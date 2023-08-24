@@ -2050,8 +2050,7 @@ impl Rinex {
     /// }
     /// ```
     pub fn sv_position(&self) -> Box<dyn Iterator<Item = (Epoch, (Sv, f64, f64, f64))> + '_> {
-        Box::new(self.ephemeris().filter_map(|(e, (_, sv, ephemeris))| 
-        {
+        Box::new(self.ephemeris().filter_map(|(e, (_, sv, ephemeris))| {
             if let Some((x, y, z)) = ephemeris.sv_position(sv, *e) {
                 Some((*e, (*sv, x, y, z)))
             } else {
@@ -2147,7 +2146,8 @@ impl Rinex {
         Box::new(
             self.ephemeris()
                 .filter_map(move |(epoch, (_, sv, ephemeris))| {
-                    if let Some((elev, azim)) = ephemeris.sv_elev_azim(sv, *epoch, ground_position) {
+                    if let Some((elev, azim)) = ephemeris.sv_elev_azim(sv, *epoch, ground_position)
+                    {
                         Some((*epoch, (*sv, (elev, azim))))
                     } else {
                         None // calculations may not be feasible,

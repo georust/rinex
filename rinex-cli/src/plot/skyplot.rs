@@ -27,8 +27,8 @@ pub fn skyplot(ctx: &Context, plot_ctx: &mut PlotContext) {
             .sv_elevation_azimuth(ctx.ground_position)
             .filter_map(|(epoch, (sv, (elev, azi)))| {
                 if sv == svnn {
-                    let rho = elev; 
-                    let theta = azi; 
+                    let rho = elev;
+                    let theta = azi;
                     Some((epoch, rho, theta))
                 } else {
                     None

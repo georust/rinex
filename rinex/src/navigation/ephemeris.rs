@@ -327,32 +327,32 @@ impl Ephemeris {
         s
     }
     /*
-     * Manual calculations of satellite position vector, in ECEF.
-     * `t_sv`: orbit epoch as parsed in RINEX.
-     * TODO: this is currently only verified in GPST
-             need to verify GST/BDT/IRNSST support
-     * NB: this should not be invoked on GLONASS and SBAS vehicles
-             for which all data is available and do not require computations,
-             but only coordinates transformation
-     * Source: https://ascelibrary.org/doi/pdf/10.1061/9780784411506.ap03
-     */
+    * Manual calculations of satellite position vector, in ECEF.
+    * `t_sv`: orbit epoch as parsed in RINEX.
+    * TODO: this is currently only verified in GPST
+            need to verify GST/BDT/IRNSST support
+    * NB: this should not be invoked on GLONASS and SBAS vehicles
+            for which all data is available and do not require computations,
+            but only coordinates transformation
+    * Source: https://ascelibrary.org/doi/pdf/10.1061/9780784411506.ap03
+    */
     pub(crate) fn kepler2ecef(&self, sv: &Sv, epoch: Epoch) -> Option<(f64, f64, f64)> {
-        // To form t_sv : we need to convert UTC time to GNSS time. 
+        // To form t_sv : we need to convert UTC time to GNSS time.
         // Hifitime v4, once released, will help here
         let mut t_sv = epoch.clone();
-        
+
         match sv.constellation {
-            Constellation::GPS | Constellation::QZSS=> {
+            Constellation::GPS | Constellation::QZSS => {
                 t_sv.time_scale = TimeScale::GPST;
-                t_sv -= Duration::from_seconds(18.0); // GPST(t=0) number of leap seconds @ the time 
+                t_sv -= Duration::from_seconds(18.0); // GPST(t=0) number of leap seconds @ the time
             },
             Constellation::Galileo => {
                 t_sv.time_scale = TimeScale::GST;
-                t_sv -= Duration::from_seconds(31.0); // GST(t=0) number of leap seconds @ the time 
+                t_sv -= Duration::from_seconds(31.0); // GST(t=0) number of leap seconds @ the time
             },
             Constellation::BeiDou => {
                 t_sv.time_scale = TimeScale::BDT;
-                t_sv -= Duration::from_seconds(32.0); // BDT(t=0) number of leap seconds @ the time 
+                t_sv -= Duration::from_seconds(32.0); // BDT(t=0) number of leap seconds @ the time
             },
             _ => {}, // either not needed, or most probably not truly supported
         }
@@ -421,35 +421,39 @@ impl Ephemeris {
         sv: &Sv,
         epoch: Epoch,
         reference: GroundPosition,
-    ) -> Option<(f64, f64)> 
-    {
+    ) -> Option<(f64, f64)> {
         let (sv_x, sv_y, sv_z) = self.sv_position(sv, epoch)?;
         let (ref_x, ref_y, ref_z) = reference.to_ecef_wgs84();
         // convert ref position to radians(lat, lon)
-        let (ref_lat, ref_lon, _) = map_3d::ecef2geodetic(ref_x, ref_y, ref_z, map_3d::Ellipsoid::WGS84);
+        let (ref_lat, ref_lon, _) =
+            map_3d::ecef2geodetic(ref_x, ref_y, ref_z, map_3d::Ellipsoid::WGS84);
 
         // ||sv - ref_pos|| pseudo range
         let a_i = (sv_x - ref_x, sv_y - ref_y, sv_z - ref_z);
         let norm = (a_i.0.powf(2.0) + a_i.1.powf(2.0) + a_i.2.powf(2.0)).sqrt();
         let a_i = (a_i.0 / norm, a_i.1 / norm, a_i.2 / norm);
-        
+
         // ECEF to VEN 3X3 transform matrix
         let ecef_to_ven = (
-            (ref_lat.cos() * ref_lon.cos(), 
-            ref_lat.cos() * ref_lon.sin(),
-            ref_lat.sin()),
-            (-ref_lon.sin(), ref_lon.cos(), 0.0_f64), 
-            (-ref_lat.sin() * ref_lon.cos(),
-            -ref_lat.sin() * ref_lon.sin(),
-            ref_lat.cos()),
+            (
+                ref_lat.cos() * ref_lon.cos(),
+                ref_lat.cos() * ref_lon.sin(),
+                ref_lat.sin(),
+            ),
+            (-ref_lon.sin(), ref_lon.cos(), 0.0_f64),
+            (
+                -ref_lat.sin() * ref_lon.cos(),
+                -ref_lat.sin() * ref_lon.sin(),
+                ref_lat.cos(),
+            ),
         );
         // ECEF to VEN transform
         let ven = (
-            (ecef_to_ven.0.0 * a_i.0 + ecef_to_ven.0.1 * a_i.1 + ecef_to_ven.0.2 * a_i.2),
-            (ecef_to_ven.1.0 * a_i.0 + ecef_to_ven.1.1 * a_i.1 + ecef_to_ven.1.2 * a_i.2),
-            (ecef_to_ven.2.0 * a_i.0 + ecef_to_ven.2.1 * a_i.1 + ecef_to_ven.2.2 * a_i.2),
+            (ecef_to_ven.0 .0 * a_i.0 + ecef_to_ven.0 .1 * a_i.1 + ecef_to_ven.0 .2 * a_i.2),
+            (ecef_to_ven.1 .0 * a_i.0 + ecef_to_ven.1 .1 * a_i.1 + ecef_to_ven.1 .2 * a_i.2),
+            (ecef_to_ven.2 .0 * a_i.0 + ecef_to_ven.2 .1 * a_i.1 + ecef_to_ven.2 .2 * a_i.2),
         );
-        let el = map_3d::rad2deg(std::f64::consts::PI/2.0 - ven.0.acos());
+        let el = map_3d::rad2deg(std::f64::consts::PI / 2.0 - ven.0.acos());
         let mut az = map_3d::rad2deg(ven.1.atan2(ven.2));
         if az < 0.0 {
             az += 360.0;
@@ -718,8 +722,8 @@ mod test {
     }
     #[test]
     fn kepler_gpst() {
-        let descriptors : Vec<&str> = vec![
-r#"
+        let descriptors: Vec<&str> = vec![
+            r#"
 {
   "epoch": "2020-12-31T23:59:44.000000000 UTC",
   "sv": {
@@ -752,7 +756,7 @@ r#"
     "crc": 262.65625
   }
 }"#,
-r#"
+            r#"
 {
   "epoch": "2021-01-02T00:00:00.000000000 UTC",
   "sv": {
@@ -785,7 +789,7 @@ r#"
     "crc": 367.125
   }
 }"#,
-r#"
+            r#"
 {
   "epoch": "2021-01-02T00:00:00.000000000 UTC",
   "sv": {
@@ -818,7 +822,7 @@ r#"
     "crc": 261.46875
   }
 }"#,
-r#"
+            r#"
 {
   "epoch": "2021-12-31T22:00:00.000000000 UTC",
   "sv": {
@@ -851,7 +855,7 @@ r#"
     "crc": 384.46875
   }
 }"#,
-r#"
+            r#"
 {
   "epoch": "2022-01-01T00:00:00.000000000 UTC",
   "sv": {
@@ -884,7 +888,7 @@ r#"
     "crc": 258.34375
   }
 }"#,
-r#"
+            r#"
 {
   "epoch": "2021-12-30T20:00:00.000000000 UTC",
   "sv": {
@@ -917,16 +921,19 @@ r#"
     "crc": 229.125
   }
 }"#,
-];
+        ];
         // test all descriptors
         for descriptor in descriptors {
             let helper = serde_json::from_str::<Helper>(descriptor);
             assert!(helper.is_ok(), "faulty test data description");
             let helper = helper.unwrap();
-            
-            // parse 
+
+            // parse
             let ephemeris = helper_to_ephemeris(helper.clone());
-            assert!(ephemeris.kepler().is_some(), "kepler parameters setup failed");
+            assert!(
+                ephemeris.kepler().is_some(),
+                "kepler parameters setup failed"
+            );
             assert!(
                 ephemeris.perturbations().is_some(),
                 "orbit perturbations setup failed"
@@ -953,7 +960,10 @@ r#"
             assert!(z_err < 1E-6, "kepler2ecef: z_err too large: {}", z_err);
 
             let el_az = ephemeris.sv_elev_azim(&helper.sv, helper.epoch, helper.ref_pos);
-            assert!(el_az.is_some(), "sv_elev_azim: should have been feasible in this context!");
+            assert!(
+                el_az.is_some(),
+                "sv_elev_azim: should have been feasible in this context!"
+            );
 
             let (elev, azim) = el_az.unwrap();
             let el_err = (elev - helper.elev).abs();
