@@ -799,75 +799,182 @@ mod test {
             .with_weeks(hp.week, hp.sv.constellation)
     }
     #[test]
-    fn kepler() {
-        let test_pool = env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources";
-        let nav_dir = test_pool.to_owned() + "/NAV";
-        let kep_dir = test_pool.to_owned() + "/kepler";
+    fn kepler_gpst() {
+        let descriptors : Vec<&str> = vec![
+r#"
+{
+  "epoch": "2020-12-31T23:59:44.000000000 UTC",
+  "sv": {
+    "prn": 7,
+    "constellation": "GPS"
+  },
+  "week": 2138,
+  "ref_pos": [3628427.9118,562059.0936,5197872.215],
+  "ecef": [605350.1978036277,-20286526.552827496,17200398.126797352],
+  "elev": 0.0,
+  "azi": 0.0,
+  "kepler": {
+    "a": 26559660.946231633,
+    "e": 0.0143113207305,
+    "i_0": 0.951953396771,
+    "omega_0": 2.33342477886,
+    "m_0": -1.67314469571,
+    "omega": -2.35693190038,
+    "toe": 431984.0
+  },
+  "perturbations": {
+    "dn": 2.543973073573274e-17,
+    "i_dot": -1.59292343205e-10,
+    "omega_dot": -8.03426303264e-09,
+    "cus": 5.50784170628e-06,
+    "cuc": -8.475035429e-07,
+    "cis": -8.00937414169e-08,
+    "cic": 2.21654772758e-07,
+    "crs": -15.09375,
+    "crc": 262.65625
+  }
+}"#,
 
-        let rinex_path = nav_dir.to_owned() + "/V2/cbw10010.21n.gz";
-        let rinex = Rinex::from_file(&rinex_path).unwrap();
+r#"
+{
+  "epoch": "2021-01-01T01:59:44.000000000 UTC",
+  "sv": {
+    "prn": 7,
+    "constellation": "GPS"
+  },
+  "week": 2138,
+  "ref_pos": [3628427.9118,562059.0936,5197872.215],
+  "ecef": [6124665.361151843,-25341221.78134381,-3087719.9812539914],
+  "elev": 0.0,
+  "azi": 0.0,
+  "kepler": {
+    "a": 26559648.010371435,
+    "e": 0.0143111802172,
+    "i_0": 0.951950378771,
+    "omega_0": 2.33336659568,
+    "m_0": -0.622963518211,
+    "omega": -2.3568869493,
+    "toe": 439184.0
+  },
+  "perturbations": {
+    "dn": 2.6576240887990403e-17,
+    "i_dot": -2.72154188075e-10,
+    "omega_dot": -8.38070590703e-09,
+    "cus": 5.91389834881e-06,
+    "cuc": -3.11061739922e-07,
+    "cis": 2.58907675743e-07,
+    "cic": 8.00937414169e-08,
+    "crs": -10.53125,
+    "crc": 260.84375
+  }
+}"#,
 
-        let kepler_path = kep_dir.to_owned() + "/V2/cbw10010.21n.gz.txt";
-        let kepler = std::fs::read_to_string(&kepler_path);
-        assert!(kepler.is_ok(), "failed to read kepler data");
-        let kepler = kepler.unwrap();
+r#"
+{
+  "epoch": "2021-01-01T04:00:00.000000000 UTC",
+  "sv": {
+    "prn": 19,
+    "constellation": "GPS"
+  },
+  "week": 2138,
+  "ref_pos": [3628427.9118,562059.0936,5197872.215],
+  "ecef": [-5561369.728261124,-15549993.872280158,20539811.112122867],
+  "elev": 0.0,
+  "azi": 0.0,
+  "kepler": {
+    "a": 26559729.538099837,
+    "e": 0.00898476294242,
+    "i_0": 0.981261620457,
+    "omega_0": -1.76073797193,
+    "m_0": -0.540745996333,
+    "omega": 1.7657240444,
+    "toe": 446400.0
+  },
+  "perturbations": {
+    "dn": 1.790950230587993e-17,
+    "i_dot": 3.09655755548e-10,
+    "omega_dot": -8.26141554969e-09,
+    "cus": 3.84822487831e-06,
+    "cuc": 6.19143247604e-06,
+    "cis": -3.91155481339e-08,
+    "cic": -1.00582838058e-07,
+    "crs": 117.375,
+    "crc": 318.03125
+  }
+}"#,
 
-        let helper = serde_json::from_str::<Helper>(&kepler);
-        assert!(helper.is_ok(), "failed to parse kepler data");
-        let helper = helper.unwrap();
+r#"
+{
+  "epoch": "2021-01-02T00:00:00.000000000 UTC",
+  "sv": {
+    "prn": 30,
+    "constellation": "GPS"
+  },
+  "week": 2138,
+  "ref_pos": [3628427.9118,562059.0936,5197872.215],
+  "ecef": [-8565700.261484932,-13909486.809253218,20957103.36075533],
+  "elev": 0.0,
+  "azi": 0.0,
+  "kepler": {
+    "a": 26561204.90386163,
+    "e": 0.00474791659508,
+    "i_0": 0.937190900254,
+    "omega_0": 2.35208528936,
+    "m_0": -1.64976237865,
+    "omega": -2.84623407963,
+    "toe": 518400.0
+  },
+  "perturbations": {
+    "dn": 2.9993768567594165e-17,
+    "i_dot": -7.00029159024e-11,
+    "omega_dot": -8.43535136624e-09,
+    "cus": 5.39235770702e-06,
+    "cuc": -6.07222318649e-07,
+    "cis": -2.421438694e-08,
+    "cic": 7.63684511185e-08,
+    "crs": -7.5,
+    "crc": 261.46875
+  }
+}"#,
+];
+        // test all descriptors
+        for descriptor in descriptors {
+            let helper = serde_json::from_str::<Helper>(descriptor);
+            assert!(helper.is_ok(), "faulty test data description");
+            let helper = helper.unwrap();
+            
+            // parse 
+            let ephemeris = helper_to_ephemeris(helper.clone());
+            assert!(ephemeris.kepler().is_some(), "kepler parameters setup failed");
+            assert!(
+                ephemeris.perturbations().is_some(),
+                "orbit perturbations setup failed"
+            );
+            assert!(
+                ephemeris.get_weeks().is_some(),
+                "missing week counter, context is faulty"
+            );
 
-        // compute ourselves
-        let ephemeris = helper_to_ephemeris(helper.clone());
+            // convert time to approriate time scale
+            let mut epoch = helper.epoch;
+            epoch.time_scale = TimeScale::GPST;
+            epoch -= Duration::from_seconds(18.0);
+            
+            // compute
+            let ecef = ephemeris.kepler2ecef(epoch);
+            assert!(
+                ecef.is_some(),
+                "kepler2ecef should be feasible with provided context"
+            );
 
-        assert!(ephemeris.kepler().is_some(), "kepler params setup failed");
-        assert!(
-            ephemeris.perturbations().is_some(),
-            "orbit perturbations setup failed"
-        );
-        assert!(
-            ephemeris.get_weeks().is_some(),
-            "missing week counter, context is faulty"
-        );
+            let ecef = ecef.unwrap();
 
-        let week = helper.week;
-        
-        // Sv epoch represents a UTC time
-        // but we need a time within the vehicle time scale.
-        // Convert to said timescale, and remove possible initial offset (GNSSt=0)
-        let mut epoch = helper.epoch;
-        epoch.time_scale = TimeScale::GPST;
-        epoch -= Duration::from_seconds(18.0);
-        
-        let ecef = ephemeris.kepler2ecef(epoch);
-        assert!(
-            ecef.is_some(),
-            "kepler2ecef should be feasible with provided context"
-        );
-
-        let ecef = ecef.unwrap();
-
-        let x_err = (ecef.0 - helper.ecef.0).abs();
-        let y_err = (ecef.1 - helper.ecef.1).abs();
-        let z_err = (ecef.2 - helper.ecef.2).abs();
-        assert!(x_err < 1E-5, "kepler2ecef: x_err too large: {}", x_err);
-        assert!(y_err < 1E-5, "kepler2ecef: y_err too large: {}", y_err);
-        assert!(z_err < 1E-5, "kepler2ecef: z_err too large: {}", z_err);
-        //for fp in test_pool {
-        //    println!("running kepler against model {}", test_pool);
-        //    for readline in fp {
-        //        let hp: Helper = serde::deserialize(line)
-        //            .expect("failed to deserialize kepler test data");
-        //        let ephemeris = helper_to_ephemeris(hp);
-        //        let ecef = ephemeris.kepler2ecef(hp.epoch);
-        //        assert_eq!(ecef.is_some(), "failed to evaluate ECEF position vector for \"{}\"", hp.sv);
-        //        let ecef = ecef.unwrap();
-        //        assert!((ecef - hp.expected).abs() < 1E-5, "error on \"{}\" ECEF vector - expecting {}, got {}", hp.sv, hp.ecef, ecef);
-        //        let elev_azim = ephemeris.sv_elev_azim(Some(hp.ref_pos));
-        //        assert_eq!(elev_azim.is_some(), "failed to evaluate (elev, azim) angle vector for \"{}\"", hp.sv);
-        //        let (elev, azi) = elev_azim.unwrap();
-        //        assert!((elev - hp.elev).abs() < 1E-5, "error on \"{}\" Elevation angle - expecting {}, got {}", hp.sv, hp.elev, elev);
-        //        assert!((azi - hp.azi).abs() < 1E-5, "error on \"{}\" Azimuth angle - expecting {}, got {}", hp.sv, hp.azi, azi);
-        //    }
-        //}
+            let x_err = (ecef.0 - helper.ecef.0).abs();
+            let y_err = (ecef.1 - helper.ecef.1).abs();
+            let z_err = (ecef.2 - helper.ecef.2).abs();
+            assert!(x_err < 1E-6, "kepler2ecef: x_err too large: {}", x_err);
+            assert!(y_err < 1E-6, "kepler2ecef: y_err too large: {}", y_err);
+            assert!(z_err < 1E-6, "kepler2ecef: z_err too large: {}", z_err);
+        }
     }
 }
