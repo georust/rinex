@@ -65,7 +65,7 @@ pub enum NavMsgType {
     D1D2,
     /// SBAS
     SBAS,
-    /// CNAV Civilian NAV message
+    /// GPS / QZSS Civilian NAV message
     CNAV,
     /// BeiDou CNV1 NAV message
     CNV1,
