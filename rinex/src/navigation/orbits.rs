@@ -337,7 +337,12 @@ mod test {
             (Constellation::QZSS, Version::new(4, 0), NavMsgType::CNAV),
             (Constellation::QZSS, Version::new(4, 0), NavMsgType::CNV2),
             (Constellation::BeiDou, Version::new(3, 0), NavMsgType::LNAV),
-            (Constellation::BeiDou, Version::new(4, 0), NavMsgType::LNAV),
+            (Constellation::BeiDou, Version::new(4, 0), NavMsgType::D1),
+            (Constellation::BeiDou, Version::new(4, 0), NavMsgType::D2),
+            (Constellation::BeiDou, Version::new(4, 0), NavMsgType::CNV1),
+            (Constellation::BeiDou, Version::new(4, 0), NavMsgType::CNV2),
+            (Constellation::BeiDou, Version::new(4, 0), NavMsgType::CNV3),
+            (Constellation::Geo, Version::new(4, 0), NavMsgType::SBAS),
         ] {
             let found = closest_nav_standards(constellation, rev, msg);
             assert!(
