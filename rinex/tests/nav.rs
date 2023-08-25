@@ -1376,7 +1376,8 @@ mod test {
                     }
                 },
                 Constellation::Geo => {
-                    // only
+                    // only SBAS frames with Geo/SBAS vehicles
+                    assert_eq!(msg, NavMsgType::SBAS, "expecting only SBAS messages here");
                 },
                 _ => {},
             }

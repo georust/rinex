@@ -172,7 +172,9 @@ impl Ephemeris {
         let clock_bias = f64::from_str(clk_bias.replace("D", "E").trim())?;
         let clock_drift = f64::from_str(clk_dr.replace("D", "E").trim())?;
         let clock_drift_rate = f64::from_str(clk_drr.replace("D", "E").trim())?;
-        let orbits = parse_orbits(version, sv.constellation, lines)?;
+        // parse orbits :
+        //  only Legacy Frames in V2 and V3 (old) RINEX
+        let orbits = parse_orbits(version, NavMsgType::LNAV, sv.constellation, lines)?;
         Ok((
             epoch,
             sv,
@@ -188,7 +190,10 @@ impl Ephemeris {
      * Parses ephemeris from given line iterator
      * RINEX V4 content specific method
      */
-    pub(crate) fn parse_v4(mut lines: std::str::Lines<'_>) -> Result<(Epoch, Sv, Self), Error> {
+    pub(crate) fn parse_v4(
+        msg: NavMsgType,
+        mut lines: std::str::Lines<'_>,
+    ) -> Result<(Epoch, Sv, Self), Error> {
         let line = match lines.next() {
             Some(l) => l,
             _ => return Err(Error::MissingData),
@@ -204,7 +209,12 @@ impl Ephemeris {
         let clock_bias = f64::from_str(clk_bias.replace("D", "E").trim())?;
         let clock_drift = f64::from_str(clk_dr.replace("D", "E").trim())?;
         let clock_drift_rate = f64::from_str(clk_drr.replace("D", "E").trim())?;
-        let orbits = parse_orbits(Version { major: 4, minor: 0 }, sv.constellation, lines)?;
+        let orbits = parse_orbits(
+            Version { major: 4, minor: 0 },
+            NavMsgType::LNAV,
+            sv.constellation,
+            lines,
+        )?;
         Ok((
             epoch,
             sv,
@@ -434,12 +444,13 @@ impl Ephemeris {
  */
 fn parse_orbits(
     version: Version,
+    msg: NavMsgType,
     constell: Constellation,
     lines: std::str::Lines<'_>,
 ) -> Result<HashMap<String, OrbitItem>, Error> {
     // Determine closest standards from DB
     // <=> data fields to parse
-    let nav_standards = match closest_nav_standards(constell, version, NavMsgType::LNAV) {
+    let nav_standards = match closest_nav_standards(constell, version, msg) {
         Some(v) => v,
         _ => return Err(Error::DataBaseRevisionError),
     };
@@ -558,7 +569,12 @@ mod test {
      1.839362331110e-10 2.580000000000e+02 2.111000000000e+03                   
      3.120000000000e+00 0.000000000000e+00-1.303851604462e-08 0.000000000000e+00
      3.555400000000e+05";
-        let orbits = parse_orbits(Version::new(3, 0), Constellation::Galileo, content.lines());
+        let orbits = parse_orbits(
+            Version::new(3, 0),
+            NavMsgType::LNAV,
+            Constellation::Galileo,
+            content.lines(),
+        );
         assert!(orbits.is_ok());
         let orbits = orbits.unwrap();
         let ephemeris = Ephemeris {
@@ -617,7 +633,12 @@ mod test {
      -.940753471872e-09  .000000000000e+00  .782000000000e+03  .000000000000e+00
       .200000000000e+01  .000000000000e+00 -.599999994133e-09 -.900000000000e-08
       .432000000000e+06  .000000000000e+00 0.000000000000e+00 0.000000000000e+00";
-        let orbits = parse_orbits(Version::new(3, 0), Constellation::BeiDou, content.lines());
+        let orbits = parse_orbits(
+            Version::new(3, 0),
+            NavMsgType::LNAV,
+            Constellation::BeiDou,
+            content.lines(),
+        );
         assert!(orbits.is_ok());
         let orbits = orbits.unwrap();
         let ephemeris = Ephemeris {
@@ -675,7 +696,12 @@ mod test {
             "   -1.488799804690D+03-2.196182250980D+00 3.725290298460D-09 0.000000000000D+00
     1.292880712890D+04-2.049269676210D+00 0.000000000000D+00 1.000000000000D+00
     2.193169775390D+04 1.059645652770D+00-9.313225746150D-10 0.000000000000D+00";
-        let orbits = parse_orbits(Version::new(2, 0), Constellation::Glonass, content.lines());
+        let orbits = parse_orbits(
+            Version::new(2, 0),
+            NavMsgType::LNAV,
+            Constellation::Glonass,
+            content.lines(),
+        );
         assert!(orbits.is_ok(), "failed to parse Glonass V2 orbits");
         let orbits = orbits.unwrap();
         let ephemeris = Ephemeris {
@@ -694,7 +720,12 @@ mod test {
             "      .783916601562e+04 -.423131942749e+00  .931322574615e-09  .000000000000e+00
      -.216949155273e+05  .145034790039e+01  .279396772385e-08  .300000000000e+01
       .109021518555e+05  .319181251526e+01  .000000000000e+00  .000000000000e+00";
-        let orbits = parse_orbits(Version::new(3, 0), Constellation::Glonass, content.lines());
+        let orbits = parse_orbits(
+            Version::new(3, 0),
+            NavMsgType::LNAV,
+            Constellation::Glonass,
+            content.lines(),
+        );
         assert!(orbits.is_ok(), "failed to parse Glonass V3 orbits");
         let orbits = orbits.unwrap();
         let ephemeris = Ephemeris {
@@ -713,7 +744,12 @@ mod test {
             "   -1.488799804690D+03                    3.725290298460D-09 0.000000000000D+00
     1.292880712890D+04-2.049269676210D+00 0.000000000000D+00 1.000000000000D+00
     2.193169775390D+04 1.059645652770D+00-9.313225746150D-10 0.000000000000D+00";
-        let orbits = parse_orbits(Version::new(2, 0), Constellation::Glonass, content.lines());
+        let orbits = parse_orbits(
+            Version::new(2, 0),
+            NavMsgType::LNAV,
+            Constellation::Glonass,
+            content.lines(),
+        );
         assert!(orbits.is_ok(), "failed to parse Glonass V2 orbits");
         let orbits = orbits.unwrap();
         let ephemeris = Ephemeris {
@@ -733,7 +769,12 @@ mod test {
             "      .783916601562e+04                    .931322574615e-09  .000000000000e+00
      -.216949155273e+05  .145034790039e+01  .279396772385e-08  .300000000000e+01
       .109021518555e+05  .319181251526e+01  .000000000000e+00  .000000000000e+00";
-        let orbits = parse_orbits(Version::new(3, 0), Constellation::Glonass, content.lines());
+        let orbits = parse_orbits(
+            Version::new(3, 0),
+            NavMsgType::LNAV,
+            Constellation::Glonass,
+            content.lines(),
+        );
         assert!(orbits.is_ok(), "failed to parse Glonass V3 orbits");
         let orbits = orbits.unwrap();
         let ephemeris = Ephemeris {

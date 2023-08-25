@@ -276,7 +276,7 @@ fn parse_v4_record_entry(content: &str) -> Result<(Epoch, NavFrame), Error> {
 
     let (epoch, fr): (Epoch, NavFrame) = match frame_class {
         FrameClass::Ephemeris => {
-            let (epoch, _, ephemeris) = Ephemeris::parse_v4(lines)?;
+            let (epoch, _, ephemeris) = Ephemeris::parse_v4(msg_type, lines)?;
             (epoch, NavFrame::Eph(msg_type, sv, ephemeris))
         },
         FrameClass::SystemTimeOffset => {

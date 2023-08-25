@@ -325,6 +325,8 @@ mod test {
             (Constellation::GPS, Version::new(1, 0), NavMsgType::LNAV),
             (Constellation::GPS, Version::new(2, 0), NavMsgType::LNAV),
             (Constellation::GPS, Version::new(4, 0), NavMsgType::LNAV),
+            (Constellation::GPS, Version::new(4, 0), NavMsgType::CNAV),
+            (Constellation::GPS, Version::new(4, 0), NavMsgType::CNV2),
             (Constellation::Glonass, Version::new(2, 0), NavMsgType::LNAV),
             (Constellation::Glonass, Version::new(3, 0), NavMsgType::LNAV),
             (Constellation::Galileo, Version::new(3, 0), NavMsgType::LNAV),

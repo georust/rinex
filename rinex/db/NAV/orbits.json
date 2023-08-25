@@ -179,7 +179,7 @@
         "version": {
             "major": 4
         },
-        "msg": "CNAV2",
+        "msg": "CNV2",
         "orbits": {
             "adot": "f64",
             "crs": "f64",
