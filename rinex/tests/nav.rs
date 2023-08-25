@@ -1359,29 +1359,50 @@ mod test {
         for (epoch, (msg, sv, ephemeris)) in rinex.ephemeris() {
             match sv.constellation {
                 Constellation::GPS | Constellation::QZSS => {
-                    // only CNAV, CNAV2 and Legacy NAV with GPS and QZSS
-                    if msg == NavMsgType::LNAV {
-                    } else if msg == NavMsgType::CNAV {
-                    } else if msg == NavMsgType::CNV2 {
-                    } else {
-                        panic!("parsed wrong GPS/QZSS V4 message type \"{}\"", msg);
-                    }
+                    let expected = vec![NavMsgType::LNAV, NavMsgType::CNAV, NavMsgType::CNV2];
+                    assert!(
+                        expected.contains(&msg),
+                        "parsed invalid GPS/QZSS V4 message \"{}\"",
+                        msg
+                    );
                 },
                 Constellation::Galileo => {
-                    // only FNAV or INAV NAV with Galileo
-                    if msg == NavMsgType::INAV {
-                    } else if msg == NavMsgType::FNAV {
-                    } else {
-                        panic!("parsed wrong Galileo V4 message type \"{}\"", msg);
-                    }
+                    let expected = vec![NavMsgType::FNAV, NavMsgType::INAV];
+                    assert!(
+                        expected.contains(&msg),
+                        "parsed invalid Galileo V4 message \"{}\"",
+                        msg
+                    );
+                },
+                Constellation::BeiDou => {
+                    let expected = vec![
+                        NavMsgType::D1,
+                        NavMsgType::D2,
+                        NavMsgType::CNV1,
+                        NavMsgType::CNV2,
+                        NavMsgType::CNV3,
+                    ];
+                    assert!(
+                        expected.contains(&msg),
+                        "parsed invalid BeiDou V4 message \"{}\"",
+                        msg
+                    );
                 },
                 Constellation::Glonass => {
-                    // only FDMA frames with Glonass vehicles
-                    assert_eq!(msg, NavMsgType::FDMA, "expecting only FDMA messages here");
+                    assert_eq!(
+                        msg,
+                        NavMsgType::FDMA,
+                        "parsed invalid Glonass V4 message \"{}\"",
+                        msg
+                    );
                 },
                 Constellation::Geo => {
-                    // only SBAS frames with Geo/SBAS vehicles
-                    assert_eq!(msg, NavMsgType::SBAS, "expecting only SBAS messages here");
+                    assert_eq!(
+                        msg,
+                        NavMsgType::SBAS,
+                        "parsed invalid SBAS V4 message \"{}\"",
+                        msg
+                    );
                 },
                 _ => {},
             }
