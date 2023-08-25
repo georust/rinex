@@ -411,40 +411,6 @@ mod test {
                 msg,
                 expected);
         }
-
-        // test downgraded matches
-        // test GPS 1.2 ==> 1.0
-        // let target = version::Version::new(1, 2);
-        // let found = closest_revision(Constellation::GPS, target);
-        // assert_eq!(found, Some(version::Version::new(1, 0)));
-        // // test GPS 1.3 ==> 1.0
-        // let target = version::Version::new(1, 3);
-        // let found = closest_revision(Constellation::GPS, target);
-        // assert_eq!(found, Some(version::Version::new(1, 0)));
-        // // test GPS 1.4 ==> 1.0
-        // let target = version::Version::new(1, 4);
-        // let found = closest_revision(Constellation::GPS, target);
-        // assert_eq!(found, Some(version::Version::new(1, 0)));
-        // // test GLO 4.2 ==> 4.0
-        // let target = version::Version::new(4, 2);
-        // let found = closest_revision(Constellation::Glonass, target);
-        // assert_eq!(found, Some(version::Version::new(4, 0)));
-        // // test GLO 1.4 ==> 1.0
-        // let target = version::Version::new(1, 4);
-        // let found = closest_revision(Constellation::Glonass, target);
-        // assert_eq!(found, Some(version::Version::new(1, 0)));
-        // // test BDS 1.0 ==> does not exist
-        // let target = version::Version::new(1, 0);
-        // let found = closest_revision(Constellation::BeiDou, target);
-        // assert_eq!(found, None);
-        // // test BDS 1.4 ==> does not exist
-        // let target = version::Version::new(1, 4);
-        // let found = closest_revision(Constellation::BeiDou, target);
-        // assert_eq!(found, None);
-        // // test BDS 2.0 ==> does not exist
-        // let target = version::Version::new(2, 0);
-        // let found = closest_revision(Constellation::BeiDou, target);
-        // assert_eq!(found, None);
     }
     #[test]
     fn test_db_item() {
