@@ -1358,13 +1358,13 @@ mod test {
 
         for (epoch, (msg, sv, ephemeris)) in rinex.ephemeris() {
             match sv.constellation {
-                Constellation::GPS => {
-                    // only CNAV, CNAV2 and Legacy NAV with GPS
+                Constellation::GPS | Constellation::QZSS => {
+                    // only CNAV, CNAV2 and Legacy NAV with GPS and QZSS
                     if msg == NavMsgType::LNAV {
                     } else if msg == NavMsgType::CNAV {
                     } else if msg == NavMsgType::CNV2 {
                     } else {
-                        panic!("parsed wrong GPS V4 message type \"{}\"", msg);
+                        panic!("parsed wrong GPS/QZSS V4 message type \"{}\"", msg);
                     }
                 },
                 Constellation::Galileo => {
@@ -1374,6 +1374,9 @@ mod test {
                     } else {
                         panic!("parsed wrong Galileo V4 message type \"{}\"", msg);
                     }
+                },
+                Constellation::Geo => {
+                    // only
                 },
                 _ => {},
             }
