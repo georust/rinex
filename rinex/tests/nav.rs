@@ -174,6 +174,47 @@ mod test {
         }
     }
     #[test]
+    #[cfg(feature = "flate2")]
+    fn v2_cbw10010_21n() {
+        let test_resources =
+            env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/NAV/V2/cbw10010.21n.gz";
+        let rinex = Rinex::from_file(&test_resources);
+        assert!(rinex.is_ok(), "failed to parse NAV/V2/cbw10010.21n.gz");
+        let rinex = rinex.unwrap();
+
+        // test inner data
+        for (e, frames) in rinex.navigation() {
+            for fr in frames {
+                // test : only Ephemeris frames in old rinex
+                let fr = fr.as_eph();
+                assert!(fr.is_some(), "parsed non ephemeris frame unexpectedly");
+
+                // test : only Legacy frames in old rinex
+                let (msg, sv, ephemeris) = fr.unwrap();
+                assert!(
+                    msg == NavMsgType::LNAV,
+                    "only LNAV frames are expected here"
+                );
+
+                if *e == Epoch::from_str("2020-12-31T23:59:44").unwrap() {
+                    if sv.prn == 7 {
+                        assert_eq!(
+                            ephemeris.sv_clock(),
+                            (4.204921424390E-6, 1.477928890380E-11, 0.0),
+                            "parsed wrong clock data"
+                        );
+
+                        assert_eq!(ephemeris.get_orbit_f64("iode"), Some(0.0_f64));
+                        assert_eq!(ephemeris.get_orbit_f64("m0"), Some(-1.673144695710));
+                        assert_eq!(ephemeris.get_orbit_f64("iodc"), Some(-1.117587089540E-8));
+                        assert_eq!(ephemeris.get_orbit_f64("t_tm"), Some(0.000000000000));
+                        assert_eq!(ephemeris.get_orbit_f64("fitInt"), Some(4.283760000000E5));
+                    }
+                }
+            }
+        }
+    }
+    #[test]
     fn v3_amel00nld_r_2021() {
         let test_resource = env!("CARGO_MANIFEST_DIR").to_owned()
             + "/../test_resources/NAV/V3/AMEL00NLD_R_20210010000_01D_MN.rnx";

@@ -438,38 +438,55 @@ fn parse_orbits(
         _ => return Err(Error::DataBaseRevisionError),
     };
 
+    //println!("FIELD : {:?} \n", nav_standards.items); // DEBUG
+
     let fields = &nav_standards.items;
 
     let mut key_index: usize = 0;
     let word_size: usize = 19;
     let mut map: HashMap<String, OrbitItem> = HashMap::new();
+
     for line in lines {
         // trim first few white spaces
         let mut line: &str = match version.major < 3 {
             true => &line[3..],
             false => &line[4..],
         };
-        let nb_missing = 4 - (line.len() / word_size);
+
+        let mut nb_missing = 4 - (line.len() / word_size);
         //println!("LINE \"{}\" | NB MISSING {}", line, nb_missing); //DEBUG
+
         loop {
             if line.len() == 0 {
                 key_index += nb_missing as usize;
                 break;
             }
+
             let (content, rem) = line.split_at(std::cmp::min(word_size, line.len()));
+
+            if content.trim().len() == 0 {
+                // omitted field
+                key_index += 1;
+                nb_missing -= 1;
+                line = rem.clone();
+                continue;
+            }
+
             if let Some((key, token)) = fields.get(key_index) {
-                /*println!(
-                    "Key \"{}\" | Token \"{}\" | Content \"{}\"",
-                    key,
-                    token,
-                    content.trim()
-                ); //DEBUG*/
+                //println!(
+                //    "Key \"{}\"(index: {}) | Token \"{}\" | Content \"{}\"",
+                //    key,
+                //    key_index,
+                //    token,
+                //    content.trim()
+                //); //DEBUG
                 if !key.contains(&"spare") {
                     if let Ok(item) = OrbitItem::new(token, content.trim(), constell) {
                         map.insert(key.to_string(), item);
                     }
                 }
             }
+
             key_index += 1;
             line = rem.clone();
         }
@@ -643,6 +660,84 @@ mod test {
 
         assert_eq!(ephemeris.get_orbit_f64("t_tm"), Some(0.432000000000e+06));
         assert_eq!(ephemeris.get_orbit_f64("aodc"), Some(0.0));
+    }
+    #[test]
+    fn glonass_orbit_v2() {
+        let content =
+            "   -1.488799804690D+03-2.196182250980D+00 3.725290298460D-09 0.000000000000D+00
+    1.292880712890D+04-2.049269676210D+00 0.000000000000D+00 1.000000000000D+00
+    2.193169775390D+04 1.059645652770D+00-9.313225746150D-10 0.000000000000D+00";
+        let orbits = parse_orbits(Version::new(2, 0), Constellation::Glonass, content.lines());
+        assert!(orbits.is_ok(), "failed to parse Glonass V2 orbits");
+        let orbits = orbits.unwrap();
+        let ephemeris = Ephemeris {
+            clock_bias: 0.0,
+            clock_drift: 0.0,
+            clock_drift_rate: 0.0,
+            orbits,
+        };
+        assert_eq!(ephemeris.get_orbit_f64("satPosX"), Some(-1.488799804690E3));
+        assert_eq!(ephemeris.get_orbit_f64("satPosY"), Some(1.292880712890E4));
+        assert_eq!(ephemeris.get_orbit_f64("satPosZ"), Some(2.193169775390E4));
+    }
+    #[test]
+    fn glonass_orbit_v3() {
+        let content =
+            "      .783916601562e+04 -.423131942749e+00  .931322574615e-09  .000000000000e+00
+     -.216949155273e+05  .145034790039e+01  .279396772385e-08  .300000000000e+01
+      .109021518555e+05  .319181251526e+01  .000000000000e+00  .000000000000e+00";
+        let orbits = parse_orbits(Version::new(3, 0), Constellation::Glonass, content.lines());
+        assert!(orbits.is_ok(), "failed to parse Glonass V3 orbits");
+        let orbits = orbits.unwrap();
+        let ephemeris = Ephemeris {
+            clock_bias: 0.0,
+            clock_drift: 0.0,
+            clock_drift_rate: 0.0,
+            orbits,
+        };
+        assert_eq!(ephemeris.get_orbit_f64("satPosX"), Some(0.783916601562E4));
+        assert_eq!(ephemeris.get_orbit_f64("satPosY"), Some(-0.216949155273E5));
+        assert_eq!(ephemeris.get_orbit_f64("satPosZ"), Some(0.109021518555E5));
+    }
+    #[test]
+    fn glonass_orbit_v2_missing_fields() {
+        let content =
+            "   -1.488799804690D+03                    3.725290298460D-09 0.000000000000D+00
+    1.292880712890D+04-2.049269676210D+00 0.000000000000D+00 1.000000000000D+00
+    2.193169775390D+04 1.059645652770D+00-9.313225746150D-10 0.000000000000D+00";
+        let orbits = parse_orbits(Version::new(2, 0), Constellation::Glonass, content.lines());
+        assert!(orbits.is_ok(), "failed to parse Glonass V2 orbits");
+        let orbits = orbits.unwrap();
+        let ephemeris = Ephemeris {
+            clock_bias: 0.0,
+            clock_drift: 0.0,
+            clock_drift_rate: 0.0,
+            orbits,
+        };
+        assert_eq!(ephemeris.get_orbit_f64("satPosX"), Some(-1.488799804690E3));
+        assert_eq!(ephemeris.get_orbit_f64("velX"), None);
+        assert_eq!(ephemeris.get_orbit_f64("satPosY"), Some(1.292880712890E4));
+        assert_eq!(ephemeris.get_orbit_f64("satPosZ"), Some(2.193169775390E4));
+    }
+    #[test]
+    fn glonass_orbit_v3_missing_fields() {
+        let content =
+            "      .783916601562e+04                    .931322574615e-09  .000000000000e+00
+     -.216949155273e+05  .145034790039e+01  .279396772385e-08  .300000000000e+01
+      .109021518555e+05  .319181251526e+01  .000000000000e+00  .000000000000e+00";
+        let orbits = parse_orbits(Version::new(3, 0), Constellation::Glonass, content.lines());
+        assert!(orbits.is_ok(), "failed to parse Glonass V3 orbits");
+        let orbits = orbits.unwrap();
+        let ephemeris = Ephemeris {
+            clock_bias: 0.0,
+            clock_drift: 0.0,
+            clock_drift_rate: 0.0,
+            orbits,
+        };
+        assert_eq!(ephemeris.get_orbit_f64("satPosX"), Some(0.783916601562E4));
+        assert_eq!(ephemeris.get_orbit_f64("velX"), None);
+        assert_eq!(ephemeris.get_orbit_f64("satPosY"), Some(-0.216949155273E5));
+        assert_eq!(ephemeris.get_orbit_f64("satPosZ"), Some(0.109021518555E5));
     }
     use super::{Ephemeris, Kepler, Perturbations};
     use serde::Deserialize;
