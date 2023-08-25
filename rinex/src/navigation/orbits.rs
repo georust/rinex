@@ -334,6 +334,8 @@ mod test {
             (Constellation::Galileo, Version::new(4, 0), NavMsgType::FNAV),
             (Constellation::QZSS, Version::new(3, 0), NavMsgType::LNAV),
             (Constellation::QZSS, Version::new(4, 0), NavMsgType::LNAV),
+            (Constellation::QZSS, Version::new(4, 0), NavMsgType::CNAV),
+            (Constellation::QZSS, Version::new(4, 0), NavMsgType::CNV2),
             (Constellation::BeiDou, Version::new(3, 0), NavMsgType::LNAV),
             (Constellation::BeiDou, Version::new(4, 0), NavMsgType::LNAV),
         ] {
