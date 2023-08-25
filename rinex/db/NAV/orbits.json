@@ -140,7 +140,7 @@
         "version": {
             "major": 4
         },
-        "msg": "CNAV",
+        "type": "CNAV",
         "orbits": {
             "adot": "f64",
             "crs": "f64",
@@ -179,7 +179,7 @@
         "version": {
             "major": 4
         },
-        "msg": "CNV2",
+        "type": "CNV2",
         "orbits": {
             "adot": "f64",
             "crs": "f64",
@@ -338,7 +338,7 @@
         "version": {
             "major": 4
         },
-        "msg": "INAV",
+        "type": "INAV",
         "orbits": {
             "iodnav": "f64",
             "crs": "f64",
@@ -372,7 +372,7 @@
         "version": {
             "major": 4
         },
-        "msg": "FNAV",
+        "type": "FNAV",
         "orbits": {
             "iodnav": "f64",
             "crs": "f64",

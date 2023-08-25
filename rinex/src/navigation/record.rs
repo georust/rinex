@@ -43,10 +43,11 @@ use super::{
 use hifitime::Duration;
 
 /// Navigation Message Types
-#[derive(Debug, Copy, Clone, PartialEq, PartialOrd, Eq, Ord)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, PartialOrd, Eq, Ord)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum NavMsgType {
     /// Legacy NAV
+    #[default]
     LNAV,
     /// FDMA
     FDMA,
@@ -70,12 +71,6 @@ pub enum NavMsgType {
     CNV2,
     /// CNVX special marker
     CNVX,
-}
-
-impl Default for NavMsgType {
-    fn default() -> Self {
-        Self::LNAV
-    }
 }
 
 impl std::fmt::Display for NavMsgType {
