@@ -119,7 +119,7 @@ impl Ephemeris {
             .insert(field.to_string(), OrbitItem::from(value));
     }
     /// Retrieve week counter, if such data exists.
-    pub fn get_weeks(&self) -> Option<u32> {
+    pub fn get_week(&self) -> Option<u32> {
         self.orbits.get("week").and_then(|field| field.as_u32())
     }
     /*
@@ -319,7 +319,7 @@ impl Ephemeris {
         let kepler = self.kepler()?;
         let perturbations = self.perturbations()?;
 
-        let weeks = self.get_weeks()?;
+        let weeks = self.get_week()?;
         let t0 = GPST_REF_EPOCH + Duration::from_days((weeks * 7).into());
         let toe = t0 + Duration::from_seconds(kepler.toe as f64);
         let t_k = (t_sv - toe).to_seconds();
@@ -467,7 +467,9 @@ fn parse_orbits(
             if content.trim().len() == 0 {
                 // omitted field
                 key_index += 1;
-                nb_missing -= 1;
+                if nb_missing > 0 {
+                    nb_missing -= 1;
+                }
                 line = rem.clone();
                 continue;
             }
@@ -584,7 +586,7 @@ mod test {
 
         assert_eq!(ephemeris.get_orbit_f64("idot"), Some(1.839362331110e-10));
         assert_eq!(ephemeris.get_orbit_f64("dataSrc"), Some(2.580000000000e+02));
-        assert_eq!(ephemeris.get_weeks(), Some(2111));
+        assert_eq!(ephemeris.get_week(), Some(2111));
 
         assert_eq!(ephemeris.get_orbit_f64("sisa"), Some(3.120000000000e+00));
         //assert_eq!(ephemeris.get_orbit_f64("health"), Some(0.000000000000e+00));
@@ -642,7 +644,7 @@ mod test {
         );
 
         assert_eq!(ephemeris.get_orbit_f64("idot"), Some(-0.940753471872e-09));
-        assert_eq!(ephemeris.get_weeks(), Some(782));
+        assert_eq!(ephemeris.get_week(), Some(782));
 
         assert_eq!(
             ephemeris.get_orbit_f64("svAccuracy"),
@@ -979,7 +981,7 @@ mod test {
                 "orbit perturbations setup failed"
             );
             assert!(
-                ephemeris.get_weeks().is_some(),
+                ephemeris.get_week().is_some(),
                 "missing week counter, context is faulty"
             );
 

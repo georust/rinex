@@ -204,11 +204,93 @@ mod test {
                             "parsed wrong clock data"
                         );
 
-                        assert_eq!(ephemeris.get_orbit_f64("iode"), Some(0.0_f64));
-                        assert_eq!(ephemeris.get_orbit_f64("m0"), Some(-1.673144695710));
-                        assert_eq!(ephemeris.get_orbit_f64("iodc"), Some(-1.117587089540E-8));
-                        assert_eq!(ephemeris.get_orbit_f64("t_tm"), Some(0.000000000000));
-                        assert_eq!(ephemeris.get_orbit_f64("fitInt"), Some(4.283760000000E5));
+                        for (field, data) in vec![
+                            ("iode", Some(0.0_f64)),
+                            ("crs", Some(-1.509375000000E1)),
+                            ("deltaN", Some(5.043781392540E-9)),
+                            ("m0", Some(-1.673144695710)),
+                            ("cuc", Some(-8.475035429000E-7)),
+                            ("e", Some(1.431132073050E-2)),
+                            ("cus", Some(5.507841706280E-6)),
+                            ("sqrta", Some(5.153606595990E3)),
+                            ("toe", Some(4.319840000000E5)),
+                            ("cic", Some(2.216547727580E-7)),
+                            ("omega0", Some(2.333424778860)),
+                            ("cis", Some(-8.009374141690E-8)),
+                            ("i0", Some(9.519533967710E-1)),
+                            ("crc", Some(2.626562500000E2)),
+                            ("omega", Some(-2.356931900380)),
+                            ("omegaDot", Some(-8.034263032640E-9)),
+                            ("idot", Some(-1.592923432050E-10)),
+                            ("l2Codes", Some(1.000000000000)),
+                            ("l2pDataFlag", Some(0.000000000000)),
+                            ("svAccuracy", Some(0.000000000000)),
+                            ("tgd", Some(-1.117587089540E-8)),
+                            ("iodc", Some(0.000000000000)),
+                            ("t_tm", Some(4.283760000000E5)),
+                        ] {
+                            let value = ephemeris.get_orbit_f64(field);
+                            assert!(value.is_some(), "missing orbit filed \"{}\"", field);
+                            assert_eq!(
+                                value, data,
+                                "parsed wrong \"{}\" value, expecting {:?} got {:?}",
+                                field, data, value
+                            );
+                        }
+                        assert!(
+                            ephemeris.get_orbit_f64("fitInt").is_none(),
+                            "parsed fitInt unexpectedly"
+                        );
+
+                        assert_eq!(ephemeris.get_week(), Some(2138));
+                    }
+                } else if *e == Epoch::from_str("2021-01-02T00:00:00").unwrap() {
+                    if sv.prn == 30 {
+                        assert_eq!(
+                            ephemeris.sv_clock(),
+                            (-3.621461801230E-04, -6.139089236970E-12, 0.000000000000),
+                            "parsed wrong clock data"
+                        );
+
+                        for (field, data) in vec![
+                            ("iode", Some(8.500000000000E1)),
+                            ("crs", Some(-7.500000000000)),
+                            ("deltaN", Some(5.476656696160E-9)),
+                            ("m0", Some(-1.649762378650)),
+                            ("cuc", Some(-6.072223186490E-7)),
+                            ("e", Some(4.747916595080E-3)),
+                            ("cus", Some(5.392357707020E-6)),
+                            ("sqrta", Some(5.153756387710E+3)),
+                            ("toe", Some(5.184000000000E+5)),
+                            ("cic", Some(7.636845111850E-8)),
+                            ("omega0", Some(2.352085289360E+00)),
+                            ("cis", Some(-2.421438694000E-8)),
+                            ("i0", Some(9.371909002540E-1)),
+                            ("crc", Some(2.614687500000E+2)),
+                            ("omega", Some(-2.846234079630)),
+                            ("omegaDot", Some(-8.435351366240E-9)),
+                            ("idot", Some(-7.000291590240E-11)),
+                            ("l2Codes", Some(1.000000000000)),
+                            ("l2pDataFlag", Some(0.0)),
+                            ("svAccuracy", Some(0.0)),
+                            ("tgd", Some(3.725290298460E-9)),
+                            ("iodc", Some(8.500000000000E1)),
+                            ("t_tm", Some(5.146680000000E5)),
+                        ] {
+                            let value = ephemeris.get_orbit_f64(field);
+                            assert!(value.is_some(), "missing orbit filed \"{}\"", field);
+                            assert_eq!(
+                                value, data,
+                                "parsed wrong \"{}\" value, expecting {:?} got {:?}",
+                                field, data, value
+                            );
+                        }
+                        assert!(
+                            ephemeris.get_orbit_f64("fitInt").is_none(),
+                            "parsed fitInt unexpectedly"
+                        );
+
+                        assert_eq!(ephemeris.get_week(), Some(2138));
                     }
                 }
             }
