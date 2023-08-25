@@ -278,6 +278,7 @@
         "version": {
             "major": 4
         },
+        "type": "FDMA",
         "orbits": {
             "satPosX": "f64",
             "velX": "f64",
