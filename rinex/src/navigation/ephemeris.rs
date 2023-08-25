@@ -1,7 +1,4 @@
-use super::{
-    orbits::{closest_revision, NAV_ORBITS},
-    OrbitItem,
-};
+use super::{orbits::closest_nav_standards, NavMsgType, OrbitItem};
 use crate::{epoch, prelude::*, sv, version::Version};
 
 use hifitime::GPST_REF_EPOCH;
@@ -245,7 +242,7 @@ impl Ephemeris {
         s
     }
     /// Creates new Ephemeris with given week counter
-    pub fn with_weeks(&self, week: u32, constellation: Constellation) -> Self {
+    pub fn with_week(&self, week: u32) -> Self {
         self.with_orbit("week", OrbitItem::from(week))
     }
     /// Creates new Ephemeris with given [`Kepler`] parameters
@@ -434,27 +431,14 @@ fn parse_orbits(
     constell: Constellation,
     lines: std::str::Lines<'_>,
 ) -> Result<HashMap<String, OrbitItem>, Error> {
-    // locate closest revision in db
-    let db_revision = match closest_revision(constell, version) {
+    // Determine closest standards from DB
+    // <=> data fields to parse
+    let nav_standards = match closest_nav_standards(constell, version, NavMsgType::LNAV) {
         Some(v) => v,
         _ => return Err(Error::DataBaseRevisionError),
     };
 
-    // retrieve db items / fields to parse
-    let items: Vec<_> = NAV_ORBITS
-        .iter()
-        .filter(|r| r.constellation == constell.to_3_letter_code())
-        .map(|r| {
-            r.revisions
-                .iter()
-                .filter(|r| // identified db revision
-                    u8::from_str_radix(r.major, 10).unwrap() == db_revision.major
-                    && u8::from_str_radix(r.minor, 10).unwrap() == db_revision.minor)
-                .map(|r| &r.items)
-                .flatten()
-        })
-        .flatten()
-        .collect();
+    let fields = &nav_standards.items;
 
     let mut key_index: usize = 0;
     let word_size: usize = 19;
@@ -473,7 +457,7 @@ fn parse_orbits(
                 break;
             }
             let (content, rem) = line.split_at(std::cmp::min(word_size, line.len()));
-            if let Some((key, token)) = items.get(key_index) {
+            if let Some((key, token)) = fields.get(key_index) {
                 /*println!(
                     "Key \"{}\" | Token \"{}\" | Content \"{}\"",
                     key,
@@ -661,7 +645,6 @@ mod test {
         assert_eq!(ephemeris.get_orbit_f64("aodc"), Some(0.0));
     }
     use super::{Ephemeris, Kepler, Perturbations};
-    use hifitime::Weekday;
     use serde::Deserialize;
     #[derive(Default, Debug, Clone, Deserialize)]
     struct Helper {
@@ -680,7 +663,7 @@ mod test {
         Ephemeris::default()
             .with_kepler(hp.kepler)
             .with_perturbations(hp.perturbations)
-            .with_weeks(hp.week, hp.sv.constellation)
+            .with_week(hp.week)
     }
     #[test]
     fn kepler_gpst() {
