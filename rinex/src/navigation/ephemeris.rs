@@ -361,12 +361,18 @@ impl Ephemeris {
      * Either by solving Kepler equations, or directly if such data is available.
      */
     pub(crate) fn sv_position(&self, sv: &Sv, epoch: Epoch) -> Option<(f64, f64, f64)> {
-        if let Some(pos_x) = self.get_orbit_f64("satPosX") {
-            if let Some(pos_y) = self.get_orbit_f64("satPosY") {
-                if let Some(pos_z) = self.get_orbit_f64("satPosZ") {
-                    //TODO PZ90=>ECEF transform should be applied, in case of GLONASS
-                    //     need to check for GEO/SBAS
-                    return Some((pos_x, pos_y, pos_z));
+        if let Some(pos_x_km) = self.get_orbit_f64("satPosX") {
+            if let Some(pos_y_km) = self.get_orbit_f64("satPosY") {
+                if let Some(pos_z_km) = self.get_orbit_f64("satPosZ") {
+                    /*
+                     * GLONASS + SBAS: position vector already available,
+                     *                 distances expressed in km ECEF
+                     */
+                    return Some((
+                        pos_x_km * 1000.0_f64,
+                        pos_y_km * 1000.0_f64,
+                        pos_z_km * 1000.0_f64,
+                    ));
                 }
             }
         }
