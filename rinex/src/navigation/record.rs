@@ -36,8 +36,8 @@ use crate::{
 };
 
 use super::{
-    orbits::{closest_revision, NAV_ORBITS},
-    BdModel, EopMessage, Ephemeris, IonMessage, KbModel, NgModel, StoMessage,
+    orbits::closest_nav_standards, BdModel, EopMessage, Ephemeris, IonMessage, KbModel, NgModel,
+    StoMessage,
 };
 
 use hifitime::Duration;
@@ -340,7 +340,9 @@ fn fmt_rework(major: u8, lines: &str) -> String {
     lines.to_string()
 }
 
-/// Writes given epoch into stream
+/*
+ * Writes given epoch into stream
+ */
 pub(crate) fn fmt_epoch(
     epoch: &Epoch,
     data: &Vec<NavFrame>,
@@ -384,30 +386,20 @@ fn fmt_epoch_v2v3(epoch: &Epoch, data: &Vec<NavFrame>, header: &Header) -> Resul
             if header.version.major == 3 {
                 lines.push_str("  ");
             }
-            // locate closest revision in db
-            let orbits_revision = match closest_revision(sv.constellation, header.version) {
-                Some(v) => v,
-                _ => return Err(Error::OrbitRevision),
-            };
-            // retrieve db items / fields to generate,
-            // for this revision
-            let orbits_standards: Vec<_> = NAV_ORBITS
-                .iter()
-                .filter(|r| r.constellation == sv.constellation.to_3_letter_code())
-                .map(|r| {
-                    r.revisions
-                            .iter()
-                            .filter(|r| // identified db revision
-                                u8::from_str_radix(r.major, 10).unwrap() == orbits_revision.major
-                                && u8::from_str_radix(r.minor, 10).unwrap() == orbits_revision.minor
-                            )
-                            .map(|r| &r.items)
-                            .flatten()
-                })
-                .flatten()
-                .collect();
+
+            // locate closest standards in DB
+            let closest_orbits_definition =
+                match closest_nav_standards(sv.constellation, header.version, NavMsgType::LNAV) {
+                    Some(v) => v,
+                    _ => return Err(Error::OrbitRevision),
+                };
+
             let nb_items_per_line = 4;
-            let mut chunks = orbits_standards.chunks_exact(nb_items_per_line).peekable();
+            let mut chunks = closest_orbits_definition
+                .items
+                .chunks_exact(nb_items_per_line)
+                .peekable();
+
             while let Some(chunk) = chunks.next() {
                 if chunks.peek().is_some() {
                     for (key, _) in chunk {
@@ -464,29 +456,16 @@ fn fmt_epoch_v4(epoch: &Epoch, data: &Vec<NavFrame>, header: &Header) -> Result<
                 "{:14.13E} {:14.13E} {:14.13E}\n",
                 ephemeris.clock_bias, ephemeris.clock_drift, ephemeris.clock_drift_rate
             ));
-            // locate closest revision in db
-            let orbits_revision = match closest_revision(sv.constellation, header.version) {
-                Some(v) => v,
-                _ => return Err(Error::OrbitRevision),
-            };
-            // retrieve db items / fields to generate,
-            // for this revision
-            let orbits_standards: Vec<_> = NAV_ORBITS
-                .iter()
-                .filter(|r| r.constellation == sv.constellation.to_3_letter_code())
-                .map(|r| {
-                    r.revisions
-                        .iter()
-                        .filter(|r| // identified db revision
-                            u8::from_str_radix(r.major, 10).unwrap() == orbits_revision.major
-                            && u8::from_str_radix(r.minor, 10).unwrap() == orbits_revision.minor)
-                        .map(|r| &r.items)
-                        .flatten()
-                })
-                .flatten()
-                .collect();
+
+            // locate closest revision in DB
+            let closest_orbits_definition =
+                match closest_nav_standards(sv.constellation, header.version, NavMsgType::LNAV) {
+                    Some(v) => v,
+                    _ => return Err(Error::OrbitRevision),
+                };
+
             let mut index = 0;
-            for (key, _) in orbits_standards.iter() {
+            for (key, _) in closest_orbits_definition.items.iter() {
                 index += 1;
                 if let Some(data) = ephemeris.orbits.get(*key) {
                     lines.push_str(&format!(" {}", data.to_string()));

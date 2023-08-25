@@ -1,11 +1,7 @@
-//! NAV Orbits description, spanning all revisions
-//! and constellations
-use crate::version;
-//use std::fmt::Display;
+//! NAV Orbits description, spanning all revisions and constellations
 use super::health;
-use crate::constellation::Constellation;
+use crate::version;
 use bitflags::bitflags;
-use itertools::Itertools;
 use std::str::FromStr;
 use thiserror::Error;
 
@@ -230,175 +226,185 @@ impl OrbitItem {
     }
 }
 
-/// Identifies closest (but older) revision contained in NAV database.   
-/// Closest content (in time) is used during record parsing to identify and sort data.
-/// Returns None if no database entries were found for requested constellation.
-/// Returns None if only newer revisions were identified: we prefer older revisions.
-pub fn closest_revision(
-    constell: Constellation,
-    desired_rev: version::Version,
-) -> Option<version::Version> {
-    let db = &NAV_ORBITS;
-    let revisions: Vec<_> = db
-        .iter() // match requested constellation
-        .filter(|rev| rev.constellation == constell.to_3_letter_code())
-        .map(|rev| &rev.revisions)
-        .flatten()
-        .collect();
-    if revisions.len() == 0 {
-        return None; // ---> constell not found in dB
-    }
-    let major_matches: Vec<_> = revisions
-        .iter()
-        .filter(|r| i8::from_str_radix(r.major, 10).unwrap() - desired_rev.major as i8 == 0)
-        .collect();
-    if major_matches.len() > 0 {
-        // --> desired_rev.major perfectly matched
-        // --> try to match desired_rev.minor perfectly
-        let minor_matches: Vec<_> = major_matches
+/*
+ * Identifies closest (but older) revision contained in NAV database.
+ * Closest content (in time) is used during record parsing to identify and sort data.
+ * Returns None
+ *   - if no database entries were found for requested constellation.
+ *   - or only newer revision exist : we prefer matching on older revisions
+ */
+pub(crate) fn closest_nav_standards(
+    constellation: Constellation,
+    revision: version::Version,
+    msg: NavMsgType,
+) -> Option<&'static NavHelper<'static>> {
+    let database = &NAV_ORBITS;
+    // start by trying to locate desired revision.
+    // On each mismatch, we decrement and try to match.
+    let (mut major, mut minor): (u8, u8) = revision.into();
+    loop {
+        // filter on both:
+        //  + Exact Constellation
+        //  + Exact NavMsgType
+        //  + Exact revision we're currently trying to locate
+        //    algorithm: decreasing, starting from desired revision
+        let items: Vec<_> = database
             .iter()
-            .filter(|r| i8::from_str_radix(r.minor, 10).unwrap() - desired_rev.minor as i8 == 0)
-            .collect();
-        if minor_matches.len() > 0 {
-            // [+] .major perfectly matched
-            // [+] .minor perfectly matched
-            //     -> item is unique (if dB declaration is correct)
-            //     -> return directly
-            let major = u8::from_str_radix(minor_matches[0].major, 10).unwrap();
-            let minor = u8::from_str_radix(minor_matches[0].minor, 10).unwrap();
-            Some(version::Version::new(major, minor))
-        } else {
-            // [+] .major perfectly matched
-            // [+] .minor not perfectly matched
-            //    --> use closest older minor revision
-            let mut to_sort: Vec<_> = major_matches
-                .iter()
-                .map(|r| {
-                    (
-                        u8::from_str_radix(r.major, 10).unwrap(), // to later build object
-                        u8::from_str_radix(r.minor, 10).unwrap(), // to later build object
-                        i8::from_str_radix(r.minor, 10).unwrap() - desired_rev.minor as i8, // for filter op
-                    )
-                })
-                .collect();
-            to_sort.sort_by(|a, b| b.2.cmp(&a.2)); // sort by delta value
-            let to_sort: Vec<_> = to_sort
-                .iter()
-                .filter(|r| r.2 < 0) // retain negative deltas : only older revisions
-                .collect();
-            Some(version::Version::new(to_sort[0].0, to_sort[0].1))
-        }
-    } else {
-        // ---> desired_rev.major not perfectly matched
-        // ----> use closest older major revision
-        let mut to_sort: Vec<_> = revisions
-            .iter()
-            .map(|r| {
-                (
-                    u8::from_str_radix(r.major, 10).unwrap(), // to later build object
-                    i8::from_str_radix(r.major, 10).unwrap() - desired_rev.major as i8, // for filter op
-                    u8::from_str_radix(r.minor, 10).unwrap(), // to later build object
-                    i8::from_str_radix(r.minor, 10).unwrap() - desired_rev.minor as i8, // for filter op
-                )
+            .filter(|item| {
+                item.constellation == constellation
+                    && item.msg == msg
+                    && item.version == Version::new(major, minor)
             })
             .collect();
-        to_sort.sort_by(|a, b| b.1.cmp(&a.1)); // sort by major delta value
-        let to_sort: Vec<_> = to_sort
-            .iter()
-            .filter(|r| r.1 < 0) // retain negative deltas only : only older revisions
-            .collect();
-        if to_sort.len() > 0 {
-            // one last case:
-            //   several minor revisions for given closest major revision
-            //   --> prefer highest value
-            let mut to_sort: Vec<_> = to_sort
-                .iter()
-                .duplicates_by(|r| r.1) // identical major deltas
-                .collect();
-            to_sort.sort_by(|a, b| b.3.cmp(&a.3)); // sort by minor deltas
-            let last = to_sort.last().unwrap();
-            Some(version::Version::new(last.0, last.2))
+
+        if items.len() == 0 {
+            if minor == 0 {
+                // we're done with this major
+                // -> downgrade to previous major
+                //    we start @ minor = 10, which is
+                //    larger than most revisions we know
+                if major == 0 {
+                    // we're done: browsed all possibilities
+                    break;
+                } else {
+                    major -= 1;
+                    minor = 10;
+                }
+            } else {
+                minor -= 1;
+            }
         } else {
-            None // only newer revisions available,
-                 // older revisions are always prefered
+            return Some(items[0]);
         }
-    }
+    } // loop
+    None
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
-    use std::str::FromStr;
     #[test]
-    fn test_db_orbits_sanity() {
-        for n in NAV_ORBITS.iter() {
-            let c = Constellation::from_str(n.constellation);
-            assert_eq!(c.is_ok(), true);
-            let c = c.unwrap();
-            for r in n.revisions.iter() {
-                let major = u8::from_str_radix(r.major, 10);
-                assert_eq!(major.is_ok(), true);
-                let minor = u8::from_str_radix(r.minor, 10);
-                assert_eq!(minor.is_ok(), true);
-                for item in r.items.iter() {
-                    let (k, v) = item;
-                    if !k.contains(&"spare") {
-                        let test = String::from("0.000E0"); // testdata
-                        let e = OrbitItem::new(v, &test, c);
-                        assert_eq!(e.is_ok(), true);
-                    }
+    fn orbit_database_sanity() {
+        for frame in NAV_ORBITS.iter() {
+            // Test data fields description
+            let constellation = frame.constellation;
+            for (key, value) in frame.items.iter() {
+                let fake_content: Option<String> = match value {
+                    &"f64" => Some(String::from("0.000")), // like we would parse it,
+                    &"u32" => Some(String::from("0.000")),
+                    &"u8" => Some(String::from("0.000")),
+                    &"spare" => None, // such fields are actually dropped
+                    _ => None,
+                };
+                if let Some(content) = fake_content {
+                    // Item construction, based on this descriptor, must work.
+                    // Like we use it when parsing..
+                    let e = OrbitItem::new(value, &content, constellation);
+                    assert!(
+                        e.is_ok() == true,
+                        "failed to build Orbit Item from (\"{}\", \"{}\", \"{}\")",
+                        key,
+                        value,
+                        constellation,
+                    );
                 }
             }
         }
     }
     #[test]
-    fn test_revision_finder() {
-        let found = closest_revision(Constellation::Mixed, version::Version::default());
-        assert_eq!(found, None); // Constellation::Mixed is not contained in db!
-                                 // test GPS 1.0
-        let target = version::Version::new(1, 0);
-        let found = closest_revision(Constellation::GPS, target);
-        assert_eq!(found, Some(version::Version::new(1, 0)));
-        // test GPS 4.0
-        let target = version::Version::new(4, 0);
-        let found = closest_revision(Constellation::GPS, target);
-        assert_eq!(found, Some(version::Version::new(4, 0)));
-        // test GPS 1.1 ==> 1.0
-        let target = version::Version::new(1, 1);
-        let found = closest_revision(Constellation::GPS, target);
-        assert_eq!(found, Some(version::Version::new(1, 0)));
-        // test GPS 1.2 ==> 1.0
-        let target = version::Version::new(1, 2);
-        let found = closest_revision(Constellation::GPS, target);
-        assert_eq!(found, Some(version::Version::new(1, 0)));
-        // test GPS 1.3 ==> 1.0
-        let target = version::Version::new(1, 3);
-        let found = closest_revision(Constellation::GPS, target);
-        assert_eq!(found, Some(version::Version::new(1, 0)));
-        // test GPS 1.4 ==> 1.0
-        let target = version::Version::new(1, 4);
-        let found = closest_revision(Constellation::GPS, target);
-        assert_eq!(found, Some(version::Version::new(1, 0)));
-        // test GLO 4.2 ==> 4.0
-        let target = version::Version::new(4, 2);
-        let found = closest_revision(Constellation::Glonass, target);
-        assert_eq!(found, Some(version::Version::new(4, 0)));
-        // test GLO 1.4 ==> 1.0
-        let target = version::Version::new(1, 4);
-        let found = closest_revision(Constellation::Glonass, target);
-        assert_eq!(found, Some(version::Version::new(1, 0)));
-        // test BDS 1.0 ==> does not exist
-        let target = version::Version::new(1, 0);
-        let found = closest_revision(Constellation::BeiDou, target);
-        assert_eq!(found, None);
-        // test BDS 1.4 ==> does not exist
-        let target = version::Version::new(1, 4);
-        let found = closest_revision(Constellation::BeiDou, target);
-        assert_eq!(found, None);
-        // test BDS 2.0 ==> does not exist
-        let target = version::Version::new(2, 0);
-        let found = closest_revision(Constellation::BeiDou, target);
-        assert_eq!(found, None);
+    fn nav_standards_finder() {
+        // Constellation::Mixed is not contained in db!
+        assert_eq!(
+            closest_nav_standards(Constellation::Mixed, Version::default(), NavMsgType::LNAV),
+            None,
+            "Mixed GNSS constellation is or should not exist in the DB"
+        );
+
+        // Test existing (exact match) entries
+        for (constellation, rev, msg) in vec![
+            (Constellation::GPS, Version::new(1, 0), NavMsgType::LNAV),
+            (Constellation::GPS, Version::new(2, 0), NavMsgType::LNAV),
+            (Constellation::GPS, Version::new(4, 0), NavMsgType::LNAV),
+            (Constellation::Glonass, Version::new(2, 0), NavMsgType::LNAV),
+            (Constellation::Glonass, Version::new(3, 0), NavMsgType::LNAV),
+            (Constellation::Galileo, Version::new(3, 0), NavMsgType::LNAV),
+            (Constellation::Galileo, Version::new(4, 0), NavMsgType::LNAV),
+            (Constellation::QZSS, Version::new(3, 0), NavMsgType::LNAV),
+            (Constellation::QZSS, Version::new(4, 0), NavMsgType::LNAV),
+            (Constellation::BeiDou, Version::new(3, 0), NavMsgType::LNAV),
+            (Constellation::BeiDou, Version::new(4, 0), NavMsgType::LNAV),
+        ] {
+            let found = closest_nav_standards(constellation, rev, msg);
+            assert!(
+                found.is_some(),
+                "should have identified {}:V{} ({}) frame that actually exists in DB",
+                constellation,
+                rev,
+                msg
+            );
+
+            let standards = found.unwrap();
+            assert!(
+                standards.constellation == constellation,
+                "bad constellation identified \"{}\", expecting \"{}\"",
+                constellation,
+                standards.constellation
+            );
+            assert!(
+                standards.version == rev,
+                "should have matched {} V{} exactly, because it exists in DB",
+                constellation,
+                rev,
+            );
+        }
+
+        // Test cases where the nearest revision is used, not that exact revision
+        for (constellation, desired, expected, msg) in vec![
+            (
+                Constellation::GPS,
+                Version::new(5, 0),
+                Version::new(4, 0),
+                NavMsgType::LNAV,
+            ),
+            (
+                Constellation::GPS,
+                Version::new(4, 1),
+                Version::new(4, 0),
+                NavMsgType::LNAV,
+            ),
+            (
+                Constellation::Glonass,
+                Version::new(3, 4),
+                Version::new(3, 0),
+                NavMsgType::LNAV,
+            ),
+        ] {
+            let found = closest_nav_standards(constellation, desired, msg);
+            assert!(
+                found.is_some(),
+                "should have converged for \"{}\" V\"{}\" (\"{}\") to nearest frame revision",
+                constellation,
+                desired,
+                msg
+            );
+
+            let standards = found.unwrap();
+
+            assert!(
+                standards.constellation == constellation,
+                "bad constellation identified \"{}\", expecting \"{}\"",
+                constellation,
+                standards.constellation
+            );
+
+            assert!(
+                standards.version == expected,
+                "closest_nav_standards() converged to wrong revision {}:{}({}) while \"{}\" was expected", 
+                constellation,
+                desired,
+                msg,
+                expected);
+        }
     }
     #[test]
     fn test_db_item() {
