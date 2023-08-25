@@ -264,6 +264,41 @@
         "version": {
             "major": 4
         },
+        "msg": "INAV",
+        "orbits": {
+            "iodnav": "f64",
+            "crs": "f64",
+            "deltaN": "f64",
+            "m0": "f64",
+            "cuc": "f64",
+            "e": "f64",
+            "cus": "f64",
+            "sqrta": "f64",
+            "toe": "f64",
+            "cic": "f64",
+            "omega0": "f64",
+            "cis": "f64",
+            "i0": "f64",
+            "crc": "f64",
+            "omega": "f64",
+            "omegaDot": "f64",
+            "idot": "f64",
+            "dataSrc": "f64",
+            "week": "u32",
+            "sisa": "f64",
+            "health": "health",
+            "bgdE5aE1": "f64",
+            "bgdE5bE1": "f64",
+            "spare3": "xxxx",
+            "t_tm": "f64"
+        }
+    },
+    {
+        "constellation": "GAL",
+        "version": {
+            "major": 4
+        },
+        "msg": "FNAV",
         "orbits": {
             "iodnav": "f64",
             "crs": "f64",

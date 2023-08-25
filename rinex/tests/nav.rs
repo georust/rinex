@@ -1347,4 +1347,36 @@ mod test {
             }
         }
     }
+    #[test]
+    #[cfg(feature = "flate2")]
+    fn v4_nav_messages() {
+        let test_resource = env!("CARGO_MANIFEST_DIR").to_owned()
+            + "/../test_resources/NAV/V4/KMS300DNK_R_20221591000_01H_MN.rnx.gz";
+        let rinex = Rinex::from_file(&test_resource);
+        assert_eq!(rinex.is_ok(), true);
+        let rinex = rinex.unwrap();
+
+        for (epoch, (msg, sv, ephemeris)) in rinex.ephemeris() {
+            match sv.constellation {
+                Constellation::GPS => {
+                    // only CNAV, CNAV2 and Legacy NAV with GPS
+                    if msg == NavMsgType::LNAV {
+                    } else if msg == NavMsgType::CNAV {
+                    } else if msg == NavMsgType::CNV2 {
+                    } else {
+                        panic!("parsed wrong GPS V4 message type \"{}\"", msg);
+                    }
+                },
+                Constellation::Galileo => {
+                    // only FNAV or INAV NAV with Galileo
+                    if msg == NavMsgType::INAV {
+                    } else if msg == NavMsgType::FNAV {
+                    } else {
+                        panic!("parsed wrong Galileo V4 message type \"{}\"", msg);
+                    }
+                },
+                _ => {},
+            }
+        }
+    }
 }
