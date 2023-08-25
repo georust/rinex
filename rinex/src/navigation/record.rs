@@ -64,6 +64,10 @@ pub enum NavMsgType {
     D1D2,
     /// SBAS
     SBAS,
+    /// CNAV Civilian NAV message
+    CNAV,
+    /// CNV2 Civilian NAV2 message
+    CNV2,
     /// CNVX special marker
     CNVX,
 }
@@ -86,6 +90,8 @@ impl std::fmt::Display for NavMsgType {
             Self::D2 => f.write_str("D2"),
             Self::D1D2 => f.write_str("D1D2"),
             Self::SBAS => f.write_str("SBAS"),
+            Self::CNAV => f.write_str("CNAV"),
+            Self::CNV2 => f.write_str("CNV2"),
             Self::CNVX => f.write_str("CNVX"),
         }
     }
@@ -106,6 +112,8 @@ impl std::str::FromStr for NavMsgType {
             "D2" => Ok(Self::D2),
             "D1D2" => Ok(Self::D1D2),
             "SBAS" => Ok(Self::SBAS),
+            "CNAV" => Ok(Self::CNAV),
+            "CNV2" => Ok(Self::CNV2),
             "CNVX" => Ok(Self::CNVX),
             _ => Err(Error::UnknownNavMsgType),
         }
