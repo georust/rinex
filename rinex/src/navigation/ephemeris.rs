@@ -209,12 +209,7 @@ impl Ephemeris {
         let clock_bias = f64::from_str(clk_bias.replace("D", "E").trim())?;
         let clock_drift = f64::from_str(clk_dr.replace("D", "E").trim())?;
         let clock_drift_rate = f64::from_str(clk_drr.replace("D", "E").trim())?;
-        let orbits = parse_orbits(
-            Version { major: 4, minor: 0 },
-            NavMsgType::LNAV,
-            sv.constellation,
-            lines,
-        )?;
+        let orbits = parse_orbits(Version { major: 4, minor: 0 }, msg, sv.constellation, lines)?;
         Ok((
             epoch,
             sv,

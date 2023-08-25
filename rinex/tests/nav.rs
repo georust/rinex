@@ -1375,6 +1375,10 @@ mod test {
                         panic!("parsed wrong Galileo V4 message type \"{}\"", msg);
                     }
                 },
+                Constellation::Glonass => {
+                    // only FDMA frames with Glonass vehicles
+                    assert_eq!(msg, NavMsgType::FDMA, "expecting only FDMA messages here");
+                },
                 Constellation::Geo => {
                     // only SBAS frames with Geo/SBAS vehicles
                     assert_eq!(msg, NavMsgType::SBAS, "expecting only SBAS messages here");
