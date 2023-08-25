@@ -89,13 +89,6 @@ pub struct NavHelper<'a> {
         }
         nav_file.write_all("      ],\n".as_bytes()).unwrap();
         nav_file.write_all("   }),\n".as_bytes()).unwrap();
-        //let rev_major = frame["version"]["major"]
-        //    .as_u64()
-        //    .unwrap()
-        //    as u8;
-        //nav_file
-        //    .write_all(key.as_str().as_bytes())
-        //    .unwrap();
     }
 
     nav_file
@@ -105,16 +98,6 @@ pub struct NavHelper<'a> {
     nav_file
         .write_all("}\n".as_bytes()) // lazy_static!
         .unwrap();
-
-    //        for k in content.keys() {
-    //            nav_file
-    //                .write_all(
-    //                    format!("                  (\"{}\",{}),\n", k, content[k]).as_bytes(),
-    //                )
-    //                .unwrap();
-    //        }
-    //        nav_file.write_all("            ]},\n".as_bytes()).unwrap();
-    //    }
 }
 
 fn main() {
