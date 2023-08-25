@@ -250,16 +250,10 @@ pub(crate) fn closest_nav_standards(
         //    algorithm: decreasing, starting from desired revision
         let items: Vec<_> = database
             .iter()
-            .filter_map(|item| {
-                let mut opt: Option<&NavHelper> = None;
-                if item.constellation == constellation {
-                    if item.msg == msg {
-                        if item.version == Version::new(major, minor) {
-                            opt = Some(item);
-                        }
-                    }
-                }
-                opt
+            .filter(|item| {
+                item.constellation == constellation
+                    && item.msg == msg
+                    && item.version == Version::new(major, minor)
             })
             .collect();
 
