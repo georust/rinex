@@ -47,14 +47,37 @@ if you know how to operate the preprocessing toolkit
 - [quality check](doc/qc.md): RINEX data quality analysis (mainly statistics and only on OBS RINEX at the moment)
 - other advanced operations are documented in the [processing](doc/processing.md) suite
 
-## NAV data special case
+## Data analysis 
 
-When Navigation data are provided, either as primary file, or as Observation enhancer,
-Sv orbit and Kepler information are used to enhance or allow further operations.
+This tool can perform sveral data analysis. Feasible operations
+depend on the context provided by the user.
 
-Also, a skyplot view is then provided in the main analysis:
+Based on the type of primary RINEX provided, the main report structure
+will differ: 
 
-<img align="center" width="450" src="https://github.com/georust/rinex/blob/kepler/doc/plots/skyplot.png">
+- OBS RINEX: all observed physics are depicted.
+See this SSI analysis as an example, which is only one type of physics present
+in OBS RINEX:
+
+<img align="center" width="450" src="https://github.com/georust/rinex/tree/main/doc/plots/esbc00dnk_ssi.png">
+
+- NAV RINEX: satellite vehicle clock data is depicted (bias and drift)
+
+<img align="center" width="450" src="https://github.com/georust/rinex/tree/main/doc/plots/sv_clocks.png">
+
+A skyplot view can be rendered, as long as at least one NAV RINEX file is present in the context. 
+But this requires the definition of a reference position on Earth: 
+either contained in the provided context (file header),
+or manually provided. Refer to the command line helper for more information.
+
+<img align="center" width="450" src="https://github.com/georust/rinex/tree/main/doc/plots/skyplot.png">
+
+`--qc` for Quality Check analysis was initially intended for OBS RINEX primary files
+(teqc legacy), but we intend to provide similar statistical analysis on other major RINEX types.
+
+Advanced analysis is only feasible when OBS RINEX is augmented with NAV RINEX,
+this is accomplished with the `--nav` flag, which allows stacking any
+amount of NAV RINEX files you want.
 
 ## Getting started
 
