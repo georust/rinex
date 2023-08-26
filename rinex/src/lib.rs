@@ -22,6 +22,7 @@ pub mod sv;
 pub mod types;
 pub mod version;
 
+mod bibliography;
 mod ground_position;
 mod leap;
 mod observable;
@@ -122,6 +123,9 @@ macro_rules! hourly_session {
         }
     };
 }
+
+#[cfg(docrs)]
+pub use bibliography::Bibliography;
 
 #[derive(Clone, Default, Debug, PartialEq)]
 /// `Rinex` describes a `RINEX` file, it comprises a [Header] section,

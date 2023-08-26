@@ -295,10 +295,7 @@ impl Ephemeris {
     * `t_sv`: orbit epoch as parsed in RINEX.
     * TODO: this is currently only verified in GPST
             need to verify GST/BDT/IRNSST support
-    * NB: this should not be invoked on GLONASS and SBAS vehicles
-            for which all data is available and do not require computations,
-            but only coordinates transformation
-    * Source: https://ascelibrary.org/doi/pdf/10.1061/9780784411506.ap03
+    * See [Bibliography::AsceAppendix3] and [Bibliography::JLe19]
     */
     pub(crate) fn kepler2ecef(&self, sv: &Sv, epoch: Epoch) -> Option<(f64, f64, f64)> {
         // To form t_sv : we need to convert UTC time to GNSS time.

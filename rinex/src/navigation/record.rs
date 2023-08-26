@@ -4,6 +4,9 @@ use regex::{Captures, Regex};
 use std::collections::BTreeMap;
 use std::str::FromStr;
 
+#[cfg(docrs)]
+use crate::Bibliography;
+
 /*
  * When formatting floating point number in Navigation RINEX,
  * exponent are expected to be in the %02d form,
@@ -42,7 +45,8 @@ use super::{
 
 use hifitime::Duration;
 
-/// Navigation Message Types
+/// Navigation Message Types.
+/// Refer to [Bibliography::RINEX4] definitions.
 #[derive(Default, Debug, Copy, Clone, PartialEq, PartialOrd, Eq, Ord)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum NavMsgType {
