@@ -1,4 +1,3 @@
-use crate::Context;
 use plotly::{
     common::{
         AxisSide,
@@ -18,6 +17,7 @@ use plotly::{
 mod record;
 use rand::Rng;
 use rinex::prelude::*;
+use rinex::quality::QcContext;
 
 mod context;
 pub use context::PlotContext;
@@ -383,20 +383,16 @@ pub fn build_chart_epoch_axis(
         .hover_info(HoverInfo::All)
 }
 
-pub fn plot_record(ctx: &Context, plot_ctx: &mut PlotContext) {
-    if ctx.primary_rinex.is_observation_rinex() {
-        record::plot_observation(&ctx, plot_ctx);
-    } else if ctx.primary_rinex.is_navigation_rinex() {
-        record::plot_navigation(&ctx.primary_rinex, plot_ctx);
-    } else if let Some(r) = ctx.primary_rinex.record.as_meteo() {
-        record::plot_meteo(plot_ctx, r);
-    } else if let Some(r) = ctx.primary_rinex.record.as_ionex() {
-        if let Some(borders) = ctx.primary_rinex.ionex_map_borders() {
-            record::plot_tec_map(plot_ctx, borders, r);
+pub fn plot_record(ctx: &QcContext, plot_ctx: &mut PlotContext) {
+    if ctx.primary_data().is_observation_rinex() {
+        record::plot_observation(ctx, plot_ctx);
+    } else if ctx.has_navigation_data() {
+        record::plot_navigation(ctx, plot_ctx);
+    } else if ctx.primary_data().is_meteo_rinex() {
+        record::plot_meteo(ctx, plot_ctx);
+    } else if ctx.primary_data().is_ionex() {
+        if let Some(borders) = ctx.primary_data().ionex_map_borders() {
+            record::plot_tec_map(ctx, borders, plot_ctx);
         }
-    }
-
-    if let Some(rinex) = &ctx.nav_rinex {
-        record::plot_navigation(&rinex, plot_ctx);
     }
 }

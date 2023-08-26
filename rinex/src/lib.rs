@@ -91,7 +91,7 @@ extern crate horrorshow;
 #[cfg(feature = "qc")]
 #[cfg_attr(docrs, doc(cfg(feature = "qc")))]
 pub mod quality {
-    pub use crate::qc::{HtmlReport, QcOpts, QcReport};
+    pub use crate::qc::{HtmlReport, QcContext, QcInputData, QcOpts, QcReport};
 }
 
 use carrier::Carrier;
@@ -521,7 +521,7 @@ impl Rinex {
     }
 
     /// Returns true if this is an ATX RINEX
-    pub fn is_antex_rinex(&self) -> bool {
+    pub fn is_antex(&self) -> bool {
         self.header.rinex_type == types::Type::AntennaData
     }
 

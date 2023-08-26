@@ -1,21 +1,21 @@
-use super::PlotContext;
-use crate::Context;
+use crate::plot::PlotContext;
 use plotly::{
     common::{Mode, Visible},
     ScatterPolar,
 };
 use rinex::prelude::Epoch;
+use rinex::quality::QcContext;
 
 /*
  * Skyplot view
  */
-pub fn skyplot(ctx: &Context, plot_ctx: &mut PlotContext) {
-    plot_ctx.add_polar2d_plot("Skyplot");
+pub fn skyplot(ctx: &QcContext, plot_context: &mut PlotContext) {
+    plot_context.add_polar2d_plot("Skyplot");
 
     // grab NAV context
-    let nav_rnx = match &ctx.nav_rinex {
+    let nav_rnx = match &ctx.navigation_data() {
         Some(nav) => nav,
-        _ => &ctx.primary_rinex,
+        _ => ctx.primary_data(),
     };
 
     for (svnn_index, svnn) in nav_rnx.sv().enumerate() {
@@ -24,7 +24,7 @@ pub fn skyplot(ctx: &Context, plot_ctx: &mut PlotContext) {
         // Rho   = degrees(elev)
         // Theta = degrees(azim)
         let data: Vec<(Epoch, f64, f64)> = nav_rnx
-            .sv_elevation_azimuth(ctx.ground_position)
+            .sv_elevation_azimuth(ctx.ground_position())
             .filter_map(|(epoch, (sv, (elev, azi)))| {
                 if sv == svnn {
                     let rho = elev;
@@ -56,6 +56,6 @@ pub fn skyplot(ctx: &Context, plot_ctx: &mut PlotContext) {
             })
             .connect_gaps(false)
             .name(svnn.to_string());
-        plot_ctx.add_trace(trace);
+        plot_context.add_trace(trace);
     }
 }

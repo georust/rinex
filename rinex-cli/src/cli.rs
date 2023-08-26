@@ -1,8 +1,8 @@
-use crate::fops::filename;
 use crate::parser::parse_epoch;
 use clap::{Arg, ArgAction, ArgMatches, ColorChoice, Command};
-use log::{error, info, warn};
-use rinex::{prelude::*, quality::QcOpts, Merge};
+use log::{error, info};
+use rinex::{prelude::*, quality::QcOpts};
+use std::path::Path;
 use std::str::FromStr;
 
 pub struct Cli {
@@ -254,12 +254,8 @@ Refer to README"))
         self.matches.get_one::<String>("filepath").unwrap() // mandatory flag
     }
     /// Returns output filepaths
-    pub fn output_path(&self) -> Option<&str> {
-        if let Some(args) = self.matches.get_one::<String>("output") {
-            Some(&args)
-        } else {
-            None
-        }
+    pub fn output_path(&self) -> Option<&String> {
+        self.matches.get_one::<String>("output")
     }
     pub fn mask_filters(&self) -> Vec<&String> {
         if let Some(filters) = self.matches.get_many::<String>("mask-filter") {
@@ -287,9 +283,20 @@ Refer to README"))
     }
     pub fn qc_config(&self) -> QcOpts {
         if let Some(path) = self.qc_config_path() {
-            let s = std::fs::read_to_string(path).expect(&format!("failed to read \"{}\"", path));
-            let opts: QcOpts = serde_json::from_str(&s).expect("faulty qc configuration");
-            opts
+            if let Ok(content) = std::fs::read_to_string(path) {
+                let opts = serde_json::from_str(&content);
+                if let Ok(opts) = opts {
+                    opts
+                } else {
+                    error!("failed to parse parameter file \"{}\"", path);
+                    info!("using default parameters");
+                    QcOpts::default()
+                }
+            } else {
+                error!("failed to read parameter file \"{}\"", path);
+                info!("using default parameters");
+                QcOpts::default()
+            }
         } else {
             QcOpts::default()
         }
@@ -390,19 +397,28 @@ Refer to README"))
     pub fn quiet(&self) -> bool {
         self.matches.get_flag("quiet")
     }
-    pub fn tiny_html(&self) -> bool {
-        self.matches.get_flag("tiny-html")
-    }
     pub fn cs_graph(&self) -> bool {
         self.matches.get_flag("cs")
     }
+    /*
+     * Returns possible file path to merge
+     */
+    pub fn merge_path(&self) -> Option<&Path> {
+        self.matches
+            .get_one::<String>("merge")
+            .and_then(|s| Some(Path::new(s)))
+    }
     /// Returns optionnal RINEX file to "merge"
     pub fn to_merge(&self) -> Option<Rinex> {
-        let fp = self.matches.get_one::<String>("merge")?;
-        if let Ok(rnx) = Rinex::from_file(&fp) {
-            Some(rnx)
+        if let Some(path) = self.merge_path() {
+            let path = path.to_str().unwrap();
+            if let Ok(rnx) = Rinex::from_file(path) {
+                Some(rnx)
+            } else {
+                error!("failed to parse \"{}\"", path);
+                None
+            }
         } else {
-            error!("failed to parse \"{}\"", filename(fp));
             None
         }
     }
@@ -423,52 +439,11 @@ Refer to README"))
         }
     }
     /// Returns optionnal Nav path, for enhanced capabilities
-    pub fn nav_paths(&self) -> Vec<&String> {
-        if let Some(paths) = self.matches.get_many::<String>("nav") {
-            paths.collect()
-        } else {
-            Vec::new()
-        }
+    pub fn nav_path(&self) -> Option<&String> {
+        self.matches.get_one::<String>("nav")
     }
-    /// Returns optionnal Navigation context
-    pub fn nav_context(&self) -> Option<Rinex> {
-        let mut nav_ctx: Option<Rinex> = None;
-        let paths = self.nav_paths();
-        for path in paths {
-            if let Ok(rnx) = Rinex::from_file(&path) {
-                if let Some(ref mut ctx) = nav_ctx {
-                    let _ = ctx.merge_mut(&rnx);
-                } else {
-                    trace!("(nav) augmentation: \"{}\"", filename(&path));
-                    nav_ctx = Some(rnx);
-                }
-            } else {
-                error!("failed to parse navigation file \"{}\"", filename(&path));
-            }
-        }
-        nav_ctx
-    }
-    fn atx_path(&self) -> Option<&String> {
-        if self.matches.contains_id("atx") {
-            self.matches.get_one::<String>("atx")
-        } else {
-            None
-        }
-    }
-    pub fn atx_context(&self) -> Option<Rinex> {
-        if let Some(path) = self.atx_path() {
-            if let Ok(rnx) = Rinex::from_file(&path) {
-                if rnx.is_antex_rinex() {
-                    info!("--atx context provided");
-                    return Some(rnx);
-                } else {
-                    warn!("--atx should be antenna rinex file");
-                }
-            } else {
-                error!("failed to parse atx file \"{}\"", filename(&path));
-            }
-        }
-        None
+    pub fn atx_path(&self) -> Option<&String> {
+        self.matches.get_one::<String>("atx")
     }
     fn manual_ecef(&self) -> Option<&String> {
         self.matches.get_one::<String>("antenna-ecef")

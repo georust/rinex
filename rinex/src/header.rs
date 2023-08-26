@@ -1802,6 +1802,51 @@ impl Merge for Header {
     }
 }
 
+#[cfg(feature = "qc")]
+use horrorshow::{helper::doctype, RenderBox};
+
+#[cfg(feature = "qc")]
+use crate::quality::HtmlReport;
+
+#[cfg(feature = "qc")]
+impl HtmlReport for Header {
+    fn to_html(&self) -> String {
+        format!(
+            "{}",
+            html! {
+                : doctype::HTML;
+                html {
+                    head {
+                        meta(content="text/html", charset="utf-8");
+                        meta(name="viewport", content="width=device-width, initial-scale=1");
+                        link(rel="stylesheet", href="https:////cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css");
+                        title {
+                            : "RINEX Header analysis"
+                        }
+                    }
+                    body {
+                        : self.to_inline_html()
+                    }
+                }
+            }
+        )
+    }
+    fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
+        box_html! {
+            @ if let Some(antenna) = &self.rcvr_antenna {
+                div(id="antenna") {
+                    : antenna.to_inline_html()
+                }
+            }
+            @ if let Some(rcvr) = &self.rcvr {
+                div(id="receiver") {
+                    : rcvr.to_inline_html()
+                }
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     #[test]

@@ -2,13 +2,27 @@
 use crate::plot::{build_chart_epoch_axis, PlotContext};
 use plotly::common::{Mode, Visible};
 use rinex::prelude::*;
+use rinex::quality::QcContext;
 
-pub fn plot_navigation(rinex: &Rinex, plot_ctx: &mut PlotContext) {
+pub fn plot_navigation(ctx: &QcContext, plot_context: &mut PlotContext) {
     /*
      * one plot (2 Y axes) for both Clock biases
      * and clock drift
      */
-    plot_ctx.add_cartesian2d_2y_plot("Sv Clock Bias", "Clock Bias [s]", "Clock Drift [s/s]");
+    plot_context.add_cartesian2d_2y_plot("Sv Clock Bias", "Clock Bias [s]", "Clock Drift [s/s]");
+
+    /*
+     * NB: this does not produce anything to this day,
+     *     even when invoked on primary OBS
+     *     because we're only plotting the rinex.clock_data() iterator
+     */
+    plot_nav_data(&ctx.primary_data(), plot_context);
+    if let Some(nav) = &ctx.navigation_data() {
+        plot_nav_data(nav, plot_context);
+    }
+}
+
+fn plot_nav_data(rinex: &Rinex, plot_ctx: &mut PlotContext) {
     let epochs: Vec<_> = rinex.epoch().collect();
 
     for (sv_index, sv) in rinex.sv().enumerate() {

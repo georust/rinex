@@ -1,15 +1,16 @@
-use crate::{Cli, Context};
+use crate::Cli;
+use rinex::quality::QcContext;
 use rinex::*;
 
 /*
  * Basic identification operations
  */
-pub fn rinex_identification(ctx: &Context, cli: &Cli) {
+pub fn rinex_identification(ctx: &QcContext, cli: &Cli) {
     let pretty = cli.pretty();
     let ops = cli.identification_ops();
-    identification(&ctx.primary_rinex, pretty, ops.clone());
 
-    if let Some(nav) = &ctx.nav_rinex {
+    identification(&ctx.primary_data(), pretty, ops.clone());
+    if let Some(nav) = &ctx.navigation_data() {
         identification(&nav, pretty, ops.clone());
     }
 }

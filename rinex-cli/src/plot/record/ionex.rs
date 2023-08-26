@@ -1,5 +1,5 @@
-use crate::plot::PlotContext;
 //use itertools::Itertools;
+use crate::plot::PlotContext;
 use plotly::{
     color::NamedColor,
     common::{Marker, MarkerSymbol}, //color::Rgba},
@@ -7,15 +7,17 @@ use plotly::{
     //scatter_mapbox::Fill,
     ScatterMapbox,
 };
-use rinex::ionex::*;
+use rinex::quality::QcContext;
 
 pub fn plot_tec_map(
-    plot_ctx: &mut PlotContext,
+    ctx: &QcContext,
     _borders: ((f64, f64), (f64, f64)),
-    record: &Record,
+    plot_ctx: &mut PlotContext,
 ) {
     let _cmap = colorous::TURBO;
     plot_ctx.add_world_map(MapboxStyle::OpenStreetMap, (32.5, -40.0), 1);
+
+    let record = ctx.primary_data().record.as_ionex().unwrap(); // cannot fail
 
     let mut grid_lat: Vec<f64> = Vec::new();
     let mut grid_lon: Vec<f64> = Vec::new();

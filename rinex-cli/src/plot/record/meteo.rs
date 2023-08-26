@@ -1,48 +1,63 @@
 use crate::plot::{build_chart_epoch_axis, PlotContext}; //generate_markers};
 use plotly::common::{Marker, MarkerSymbol, Mode};
-use rinex::{meteo::*, prelude::*};
-use std::collections::HashMap;
+use rinex::prelude::*;
+use rinex::quality::QcContext;
 
 /*
  * Plots Meteo RINEX
  */
-pub fn plot_meteo(plot_ctx: &mut PlotContext, record: &Record) {
+pub fn plot_meteo(ctx: &QcContext, plot_context: &mut PlotContext) {
     /*
      * 1 plot per physics
      */
-    let mut datasets: HashMap<String, Vec<(Epoch, f64)>> = HashMap::new();
-    for (epoch, observations) in record {
-        for (observable, observation) in observations {
-            if let Some(data) = datasets.get_mut(&observable.to_string()) {
-                data.push((*epoch, *observation));
-            } else {
-                datasets.insert(observable.to_string(), vec![(*epoch, *observation)]);
-            }
-        }
-    }
-
-    for (observable, data) in datasets {
-        let unit = match observable.as_str() {
-            "PR" => "hPa",
-            "TD" => "°C",
-            "HR" => "%",
-            "ZW" => "s",
-            "ZD" => "s",
-            "ZT" => "s",
-            "WD" => "°",
-            "WS" => "m/s",
-            "RI" => "%",
-            "HI" => "",
+    for observable in ctx.primary_data().observable() {
+        let unit = match observable {
+            Observable::Pressure => "hPa",
+            Observable::Temperature => "°C",
+            Observable::HumidityRate | Observable::RainIncrement => "%",
+            Observable::ZenithWetDelay
+            | Observable::ZenithDryDelay
+            | Observable::ZenithTotalDelay => "s",
+            Observable::WindDirection => "°",
+            Observable::WindSpeed => "m/s",
+            Observable::HailIndicator => "",
             _ => unreachable!(),
         };
-        plot_ctx.add_cartesian2d_plot(
+        plot_context.add_cartesian2d_plot(
             &format!("{} Observations", observable),
             &format!("{} [{}]", observable, unit),
         );
-        let data_x: Vec<Epoch> = data.iter().map(|(k, _)| *k).collect();
-        let data_y: Vec<f64> = data.iter().map(|(_, v)| *v).collect();
-        let trace = build_chart_epoch_axis(&observable, Mode::LinesMarkers, data_x, data_y)
-            .marker(Marker::new().symbol(MarkerSymbol::TriangleUp));
-        plot_ctx.add_trace(trace);
+        let data_x: Vec<_> = ctx
+            .primary_data()
+            .meteo()
+            .flat_map(|(e, observations)| {
+                observations.iter().filter_map(
+                    |(obs, value)| {
+                        if obs == observable {
+                            Some(*e)
+                        } else {
+                            None
+                        }
+                    },
+                )
+            })
+            .collect();
+        let data_y: Vec<_> = ctx
+            .primary_data()
+            .meteo()
+            .flat_map(|(e, observations)| {
+                observations.iter().filter_map(|(obs, value)| {
+                    if obs == observable {
+                        Some(*value)
+                    } else {
+                        None
+                    }
+                })
+            })
+            .collect();
+        let trace =
+            build_chart_epoch_axis(&observable.to_string(), Mode::LinesMarkers, data_x, data_y)
+                .marker(Marker::new().symbol(MarkerSymbol::TriangleUp));
+        plot_context.add_trace(trace);
     }
 }

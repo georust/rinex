@@ -1,8 +1,6 @@
-use crate::{
-    plot::{build_chart_epoch_axis, generate_markers, PlotContext},
-    Context,
-};
+use crate::plot::{build_chart_epoch_axis, generate_markers, PlotContext};
 use plotly::common::{Marker, MarkerSymbol, Mode, Visible};
+use rinex::quality::QcContext;
 use rinex::{observation::*, prelude::*};
 use std::collections::HashMap;
 
@@ -21,8 +19,8 @@ fn observable_to_physics(observable: &Observable) -> String {
 /*
  * Plots given Observation RINEX content
  */
-pub fn plot_observation(ctx: &Context, plot_ctx: &mut PlotContext) {
-    let record = ctx.primary_rinex.record.as_obs().unwrap();
+pub fn plot_observation(ctx: &QcContext, plot_context: &mut PlotContext) {
+    let record = ctx.primary_data().record.as_obs().unwrap(); // cannot fail
 
     let mut clk_offset: Vec<(Epoch, f64)> = Vec::new();
     // dataset
@@ -75,12 +73,12 @@ pub fn plot_observation(ctx: &Context, plot_ctx: &mut PlotContext) {
     }
 
     if clk_offset.len() > 0 {
-        plot_ctx.add_cartesian2d_plot("Receiver Clock Offset", "Clock Offset [s]");
+        plot_context.add_cartesian2d_plot("Receiver Clock Offset", "Clock Offset [s]");
         let data_x: Vec<Epoch> = clk_offset.iter().map(|(k, _)| *k).collect();
         let data_y: Vec<f64> = clk_offset.iter().map(|(_, v)| *v).collect();
         let trace = build_chart_epoch_axis("Clk Offset", Mode::LinesMarkers, data_x, data_y)
             .marker(Marker::new().symbol(MarkerSymbol::TriangleUp));
-        plot_ctx.add_trace(trace);
+        plot_context.add_trace(trace);
         trace!("receiver clock offsets");
     }
     /*
@@ -95,17 +93,17 @@ pub fn plot_observation(ctx: &Context, plot_ctx: &mut PlotContext) {
             _ => unreachable!(),
         };
 
-        if let Some(_) = ctx.nav_rinex {
+        if ctx.has_navigation_data() {
             // Augmented context, we plot data on two Y axes
             // one for physical observation, one for sat elevation
-            plot_ctx.add_cartesian2d_2y_plot(
+            plot_context.add_cartesian2d_2y_plot(
                 &format!("{} Observations", physics),
                 y_label,
                 "Elevation Angle [°]",
             );
         } else {
             // standard mode: one axis
-            plot_ctx.add_cartesian2d_plot(&format!("{} Observations", physics), y_label);
+            plot_context.add_cartesian2d_plot(&format!("{} Observations", physics), y_label);
         }
 
         let markers = generate_markers(carriers.len()); // one symbol per carrier
@@ -129,15 +127,15 @@ pub fn plot_observation(ctx: &Context, plot_ctx: &mut PlotContext) {
                         Visible::LegendOnly
                     }
                 });
-                plot_ctx.add_trace(trace);
+                plot_context.add_trace(trace);
 
                 if index == 0 && physics == "Signal Strength" {
                     // 1st Carrier encountered: plot Sv only once
                     // we also only augment the SSI plot when NAV context is provided
-                    if let Some(ref nav) = ctx.nav_rinex {
+                    if let Some(nav) = &ctx.navigation_data() {
                         // grab elevation angle
                         let data: Vec<(Epoch, f64)> = nav
-                            .sv_elevation_azimuth(ctx.ground_position)
+                            .sv_elevation_azimuth(ctx.ground_position())
                             .map(|(epoch, (_sv, (elev, _a)))| (epoch, elev))
                             .collect();
                         // plot (Epoch, Elev)
@@ -151,7 +149,7 @@ pub fn plot_observation(ctx: &Context, plot_ctx: &mut PlotContext) {
                         )
                         .marker(Marker::new().symbol(markers[index].clone()))
                         .visible(Visible::LegendOnly);
-                        plot_ctx.add_trace(trace);
+                        plot_context.add_trace(trace);
                     }
                 }
             }

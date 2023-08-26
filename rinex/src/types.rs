@@ -36,6 +36,19 @@ pub enum TypeError {
     UnknownType(String),
 }
 
+impl std::fmt::Display for Type {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Self::ObservationData => write!(fmt, "OBS DATA"),
+            Self::NavigationData => write!(fmt, "NAVIGATION DATA"),
+            Self::MeteoData => write!(fmt, "METEO DATA"),
+            Self::ClockData => write!(fmt, "CLOCK DATA"),
+            Self::AntennaData => write!(fmt, "ANTEX"),
+            Self::IonosphereMaps => write!(fmt, "IONOSPHERE MAPS"),
+        }
+    }
+}
+
 impl Type {
     /// Converts `Self` to RINEX file format
     pub fn to_string(&self, constell: Option<Constellation>) -> String {

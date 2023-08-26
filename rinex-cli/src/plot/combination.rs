@@ -7,15 +7,17 @@ use std::collections::{BTreeMap, HashMap};
  * Plot GNSS recombination
  */
 pub fn plot_gnss_recombination(
-    ctx: &mut PlotContext,
+    plot_context: &mut PlotContext,
     plot_title: &str,
     y_title: &str,
     data: &HashMap<(Observable, Observable), BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>,
 ) {
     // add a plot
-    ctx.add_cartesian2d_plot(plot_title, y_title);
+    plot_context.add_cartesian2d_plot(plot_title, y_title);
+
     // generate 1 marker per OP
     let markers = generate_markers(data.len());
+
     // plot all ops
     for (op_index, ((lhs_observable, ref_observable), vehicles)) in data.iter().enumerate() {
         for (sv, epochs) in vehicles {
@@ -35,7 +37,7 @@ pub fn plot_gnss_recombination(
                     Visible::LegendOnly
                 }
             });
-            ctx.add_trace(trace);
+            plot_context.add_trace(trace);
         }
     }
 }
@@ -44,13 +46,13 @@ pub fn plot_gnss_recombination(
  * Plot DCB analysis
  */
 pub fn plot_gnss_dcb(
-    ctx: &mut PlotContext,
+    plot_context: &mut PlotContext,
     plot_title: &str,
     y_title: &str,
     data: &HashMap<String, BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>,
 ) {
     // add a plot
-    ctx.add_cartesian2d_plot(plot_title, y_title);
+    plot_context.add_cartesian2d_plot(plot_title, y_title);
     // generate 1 marker per OP
     let markers = generate_markers(data.len());
     // plot all ops
@@ -67,7 +69,7 @@ pub fn plot_gnss_dcb(
                         Visible::LegendOnly
                     }
                 });
-            ctx.add_trace(trace);
+            plot_context.add_trace(trace);
         }
     }
 }
@@ -76,11 +78,11 @@ pub fn plot_gnss_dcb(
  * Plots Ionospheric delay detector
  */
 pub fn plot_iono_detector(
-    ctx: &mut PlotContext,
+    plot_context: &mut PlotContext,
     data: &HashMap<Observable, HashMap<Sv, BTreeMap<Epoch, f64>>>,
 ) {
     // add a plot
-    ctx.add_cartesian2d_plot(
+    plot_context.add_cartesian2d_plot(
         "Ionospheric Delay Detector",
         "Variations of Meters of delay",
     );
@@ -101,7 +103,7 @@ pub fn plot_iono_detector(
                             Visible::LegendOnly
                         }
                     });
-            ctx.add_trace(trace);
+            plot_context.add_trace(trace);
         }
     }
 }
