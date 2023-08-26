@@ -59,18 +59,18 @@ will differ:
 See this SSI analysis as an example, which is only one type of physics present
 in OBS RINEX:
 
-<img align="center" width="450" src="https://github.com/georust/rinex/tree/main/doc/plots/esbc00dnk_ssi.png">
+<img align="center" width="450" src="https://github.com/georust/rinex/blob/main/doc/plots/esbc00dnk_ssi.png">
 
 - NAV RINEX: satellite vehicle clock data is depicted (bias and drift)
 
-<img align="center" width="450" src="https://github.com/georust/rinex/tree/main/doc/plots/sv_clocks.png">
+<img align="center" width="450" src="https://github.com/georust/rinex/blob/main/doc/plots/sv_clocks.png">
 
 A skyplot view can be rendered, as long as at least one NAV RINEX file is present in the context. 
 But this requires the definition of a reference position on Earth: 
 either contained in the provided context (file header),
 or manually provided. Refer to the command line helper for more information.
 
-<img align="center" width="450" src="https://github.com/georust/rinex/tree/main/doc/plots/skyplot.png">
+<img align="center" width="450" src="https://github.com/georust/rinex/blob/main/doc/plots/skyplot.png">
 
 `--qc` for Quality Check analysis was initially intended for OBS RINEX primary files
 (teqc legacy), but we intend to provide similar statistical analysis on other major RINEX types.
