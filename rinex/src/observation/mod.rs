@@ -349,7 +349,7 @@ pub trait Combine {
 }
 
 /// GNSS code bias estimation trait.
-/// Refer to Bibliography::ESAGnssCombination
+/// Refer to [Bibliography::ESAGnssCombination] and [Bibliography::ESABookVol1].
 #[cfg(feature = "obs")]
 #[cfg_attr(docrs, doc(cfg(feature = "obs")))]
 pub trait Dcb {
