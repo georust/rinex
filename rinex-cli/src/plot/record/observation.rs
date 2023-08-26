@@ -121,6 +121,7 @@ pub fn plot_observation(ctx: &Context, plot_ctx: &mut PlotContext) {
                     data_y,
                 )
                 .marker(Marker::new().symbol(markers[index].clone()))
+                .web_gl_mode(true)
                 .visible({
                     if index < 1 {
                         Visible::True

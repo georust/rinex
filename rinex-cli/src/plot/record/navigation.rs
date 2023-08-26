@@ -43,6 +43,7 @@ pub fn plot_navigation(rinex: &Rinex, plot_ctx: &mut PlotContext) {
             epochs.clone(),
             sv_clock,
         )
+        .web_gl_mode(true)
         .visible({
             if sv_index == 0 {
                 /*
@@ -62,6 +63,7 @@ pub fn plot_navigation(rinex: &Rinex, plot_ctx: &mut PlotContext) {
             epochs.clone(),
             sv_drift,
         )
+        .web_gl_mode(true)
         .y_axis("y2")
         .visible({
             if sv_index == 0 {
