@@ -230,7 +230,7 @@ pub fn main() -> Result<(), rinex::Error> {
      */
     if skyplot_allowed(&ctx, qc_only) {
         plot::skyplot(&ctx, &mut plot_ctx);
-        info!("sky view generated");
+        info!("skyplot view generated");
     }
 
     /*
