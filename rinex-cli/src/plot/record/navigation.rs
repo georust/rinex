@@ -1,10 +1,7 @@
 //! Navigation record plotting
-use crate::{
-    plot::{build_chart_epoch_axis, generate_markers, PlotContext},
-    Context,
-};
-use plotly::common::{Marker, MarkerSymbol, Mode, Visible};
-use rinex::{navigation::*, prelude::*};
+use crate::plot::{build_chart_epoch_axis, PlotContext};
+use plotly::common::{Mode, Visible};
+use rinex::prelude::*;
 
 pub fn plot_navigation(rinex: &Rinex, plot_ctx: &mut PlotContext) {
     /*
