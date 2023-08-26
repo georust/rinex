@@ -331,21 +331,18 @@ pub trait Combine {
 
     /// Perform Wide Lane recombination.   
     /// See [Self::geo_free] for API example.
-    /// Refer to Bibliography::ESAGnssCombination.
     fn wide_lane(
         &self,
     ) -> HashMap<(Observable, Observable), BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>;
 
     /// Perform Narrow Lane recombination.   
     /// See [Self::geo_free] for API example.
-    /// Refer to Bibliography::ESAGnssCombination.
     fn narrow_lane(
         &self,
     ) -> HashMap<(Observable, Observable), BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>;
 
     /// Perform Melbourne-Wübbena recombination.   
     /// See [`Self::geo_free`] for API example.
-    /// Refer to Bibliography::ESAGnssCombination.
     fn melbourne_wubbena(
         &self,
     ) -> HashMap<(Observable, Observable), BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>;
