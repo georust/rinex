@@ -31,8 +31,8 @@ By default, all timestamps are in UTC with leap seconds correctly managed.
 This RINEX toolsuite is part of the [GeoRust community](https://github.com/georust),
 and we aim towards advanced geodesic and ionospheric analysis.
 
-RINEX files
-===========
+RINEX Standards
+===============
 
 | Type                       | Parser            | Writer              |  CLI                 | UBX                  |           Notes          |
 |----------------------------|-------------------|---------------------|----------------------|-------------------|-------------------------

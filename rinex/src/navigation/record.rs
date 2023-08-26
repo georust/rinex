@@ -42,7 +42,8 @@ use super::{
 
 use hifitime::Duration;
 
-/// Navigation Message Types
+/// Navigation Message Types.
+/// Refer to [Bibliography::RINEX4] definitions.
 #[derive(Default, Debug, Copy, Clone, PartialEq, PartialOrd, Eq, Ord)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum NavMsgType {

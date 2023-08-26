@@ -124,7 +124,7 @@ macro_rules! hourly_session {
     };
 }
 
-#[cfg(doc)]
+#[cfg(docrs)]
 pub use crate::bibliography::Bibliography;
 
 #[derive(Clone, Default, Debug, PartialEq)]
