@@ -3,10 +3,13 @@
 /// Current `RINEX` version supported to this day
 pub const SUPPORTED_VERSION: Version = Version { major: 4, minor: 0 };
 
+/// Version is used to describe RINEX standards revisions.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Version {
+    /// Version major number
     pub major: u8,
+    /// Version minor number
     pub minor: u8,
 }
 
@@ -20,6 +23,57 @@ impl Default for Version {
 impl std::fmt::Display for Version {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}.{}", self.major, self.minor)
+    }
+}
+
+impl std::ops::Add<u8> for Version {
+    type Output = Version;
+    fn add(self, major: u8) -> Version {
+        Version {
+            major: self.major + major,
+            minor: self.minor,
+        }
+    }
+}
+
+impl std::ops::AddAssign<u8> for Version {
+    fn add_assign(&mut self, major: u8) {
+        self.major += major;
+    }
+}
+
+impl std::ops::Sub<u8> for Version {
+    type Output = Version;
+    fn sub(self, major: u8) -> Version {
+        if major >= self.major {
+            // clamp @ V1.X
+            Version {
+                major: 1,
+                minor: self.minor,
+            }
+        } else {
+            Version {
+                major: self.major - major,
+                minor: self.minor,
+            }
+        }
+    }
+}
+
+impl std::ops::SubAssign<u8> for Version {
+    fn sub_assign(&mut self, major: u8) {
+        if major >= self.major {
+            // clamp @ V1.X
+            self.major = 1;
+        } else {
+            self.major -= major;
+        }
+    }
+}
+
+impl Into<(u8, u8)> for Version {
+    fn into(self) -> (u8, u8) {
+        (self.major, self.minor)
     }
 }
 
@@ -103,10 +157,22 @@ mod test {
         assert_eq!(version.is_supported(), false);
     }
     #[test]
-    fn test_comparison() {
+    fn version_comparison() {
         let v_a = Version::from_str("1.2").unwrap();
         let v_b = Version::from_str("3.02").unwrap();
         assert_eq!(v_b > v_a, true);
         assert_eq!(v_b == v_a, false);
+    }
+    #[test]
+    fn version_arithmetics() {
+        let version = Version::new(3, 2);
+        assert_eq!(version + 1, Version::new(4, 2));
+        assert_eq!(version + 2, Version::new(5, 2));
+        assert_eq!(version - 2, Version::new(1, 2));
+        assert_eq!(version - 3, Version::new(1, 2)); // clamped
+
+        let (maj, min): (u8, u8) = version.into();
+        assert_eq!(maj, 3);
+        assert_eq!(min, 2);
     }
 }

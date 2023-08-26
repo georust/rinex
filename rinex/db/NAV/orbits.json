@@ -1,10 +1,10 @@
-[{
-    "constellation": "GPS",
-    "revisions": [{
-        "revision": {
+[
+    {
+        "constellation": "GPS",
+        "version": {
             "major": 1
         },
-        "content": {
+        "orbits": {
             "iode": "f64",
             "crs": "f64",
             "deltaN": "f64",
@@ -23,7 +23,7 @@
             "omegaDot": "f64",
             "idot": "f64",
             "l2Codes": "f64",
-            "gpsWeek": "u32",
+            "week": "u32",
             "l2pDataFlag": "f64",
             "svAccuracy": "f64",
             "health": "health",
@@ -34,10 +34,11 @@
         }
     },
     {
-        "revision": {
+        "constellation": "GPS",
+        "version": {
             "major": 2
         },
-        "content": {
+        "orbits": {
             "iode": "f64",
             "crs": "f64",
             "deltaN": "f64",
@@ -56,7 +57,7 @@
             "omegaDot": "f64",
             "idot": "f64",
             "l2Codes": "f64",
-            "gpsWeek": "u32",
+            "week": "u32",
             "l2pDataFlag": "f64",
             "svAccuracy": "f64",
             "health": "health",
@@ -67,10 +68,11 @@
         }
     },
     {
-        "revision": {
+        "constellation": "GPS",
+        "version": {
             "major": 3
         },
-        "content": {
+        "orbits": {
             "iode": "f64",
             "crs": "f64",
             "deltaN": "f64",
@@ -89,7 +91,7 @@
             "omegaDot": "f64",
             "idot": "f64",
             "l2Codes": "f64",
-            "gpsWeek": "u32",
+            "week": "u32",
             "l2pDataFlag": "f64",
             "svAccuracy": "f64",
             "health": "health",
@@ -100,13 +102,49 @@
         }
     },
     {
-        "revision": {
+        "constellation": "GPS",
+        "version": {
             "major": 4
         },
-        "content": {
-            "adot": "f64",
+        "orbits": {
+            "iode": "f64",
             "crs": "f64",
             "deltaN": "f64",
+            "m0": "f64",
+            "cuc": "f64",
+            "e": "f64",
+            "cus": "f64",
+            "sqrta": "f64",
+            "toe": "f64",
+            "cic": "f64",
+            "omega0": "f64",
+            "cis": "f64",
+            "i0": "f64",
+            "crc": "f64",
+            "omega": "f64",
+            "omegaDot": "f64",
+            "idot": "f64",
+            "l2Codes": "f64",
+            "week": "u32",
+            "l2pDataFlag": "f64",
+            "svAccuracy": "f64",
+            "health": "health",
+            "tgd": "f64",
+            "iodc": "f64",
+            "t_tm": "f64",
+            "fitInt": "f64"
+        }
+    },
+    {
+        "constellation": "GPS",
+        "version": {
+            "major": 4
+        },
+        "type": "CNAV",
+        "orbits": {
+            "adot": "f64",
+            "crs": "f64",
+            "deltaN0": "f64",
             "m0": "f64",
             "cuc": "f64",
             "e": "f64",
@@ -121,11 +159,11 @@
             "omega": "f64",
             "omegaDot": "f64",
             "idot": "f64",
-            "deltaNDot": "f64",
+            "deltaN0Dot": "f64",
             "uraiNed0": "f64",
             "uraiNed1": "f64",
             "uraiEd": "f64",
-            "health": "health",
+            "svHealth": "f64",
             "tgd": "f64",
             "uraiNed2": "f64",
             "iscL1Ca": "f64",
@@ -135,72 +173,113 @@
             "t_tm": "f64",
             "wn_op": "f64"
         }
-    }]
-},
-{
-    "constellation": "GLO",
-    "revisions": [{
-        "revision": {
-            "major": 1
-        },
-        "content": {
-            "satPosX": "f64",
-            "velX": "f64",
-            "accelX": "f64",
-            "health": "health",
-            "satPosY": "f64",
-            "velY": "f64",
-            "accelY": "f64",
-            "channel": "i8",
-            "satPosZ": "f64",
-            "velZ": "f64",
-            "accelZ": "f64",
-            "ageOp": "f64"
-        }
     },
     {
-        "revision": {
-            "major": 2
-        },
-        "content": {
-            "satPosX": "f64",
-            "velX": "f64",
-            "accelX": "f64",
-            "health": "health",
-            "satPosY": "f64",
-            "velY": "f64",
-            "accelY": "f64",
-            "channel": "i8",
-            "satPosZ": "f64",
-            "velZ": "f64",
-            "accelZ": "f64",
-            "ageOp": "f64"
-        }
-    },
-    {
-        "revision": {
-            "major": 3
-        },
-        "content": {
-            "satPosX": "f64",
-            "velX": "f64",
-            "accelX": "f64",
-            "health": "health",
-            "satPosY": "f64",
-            "velY": "f64",
-            "accelY": "f64",
-            "channel": "i8",
-            "satPosZ": "f64",
-            "velZ": "f64",
-            "accelZ": "f64",
-            "ageOp": "f64"
-        }
-    },
-    {
-        "revision": {
+        "constellation": "GPS",
+        "version": {
             "major": 4
         },
-        "content": {
+        "type": "CNV2",
+        "orbits": {
+            "adot": "f64",
+            "crs": "f64",
+            "deltaN0": "f64",
+            "m0": "f64",
+            "cuc": "f64",
+            "e": "f64",
+            "cus": "f64",
+            "sqrta": "f64",
+            "t_op": "f64",
+            "cic": "f64",
+            "omega0": "f64",
+            "cis": "f64",
+            "i0": "f64",
+            "crc": "f64",
+            "omega": "f64",
+            "omegaDot": "f64",
+            "idot": "f64",
+            "deltaN0Dot": "f64",
+            "uraiNed0": "f64",
+            "uraiNed1": "f64",
+            "uraiEd": "f64",
+            "svHealth": "f64",
+            "tgd": "f64",
+            "uraiNed2": "f64",
+            "iscL1Ca": "f64",
+            "iscL2C": "f64",
+            "iscL5I5": "f64",
+            "iscL5Q5": "f64",
+            "t_tm": "f64",
+            "wn_op": "f64"
+        }
+    },
+    {
+        "constellation": "GLO",
+        "version": {
+            "major": 1
+        },
+        "orbits": {
+            "satPosX": "f64",
+            "velX": "f64",
+            "accelX": "f64",
+            "health": "health",
+            "satPosY": "f64",
+            "velY": "f64",
+            "accelY": "f64",
+            "channel": "i8",
+            "satPosZ": "f64",
+            "velZ": "f64",
+            "accelZ": "f64",
+            "ageOp": "f64"
+        }
+    },
+    {
+        "constellation": "GLO",
+        "version": {
+            "major": 2
+        },
+        "orbits": {
+            "satPosX": "f64",
+            "velX": "f64",
+            "accelX": "f64",
+            "health": "health",
+            "satPosY": "f64",
+            "velY": "f64",
+            "accelY": "f64",
+            "channel": "i8",
+            "satPosZ": "f64",
+            "velZ": "f64",
+            "accelZ": "f64",
+            "ageOp": "f64"
+        }
+    },
+    {
+        "constellation": "GLO",
+        "version": {
+            "major": 3
+        },
+        "orbits": {
+            "satPosX": "f64",
+            "velX": "f64",
+            "accelX": "f64",
+            "health": "health",
+            "satPosY": "f64",
+            "velY": "f64",
+            "accelY": "f64",
+            "channel": "i8",
+            "satPosZ": "f64",
+            "velZ": "f64",
+            "accelZ": "f64",
+            "ageOp": "f64"
+        }
+    },
+    {
+        "constellation": "GLO",
+        "version": {
+            "major": 4
+        },
+        "type": "FDMA",
+        "orbits": {
             "satPosX": "f64",
             "velX": "f64",
             "accelX": "f64",
@@ -218,15 +297,13 @@
             "urai": "f64",
 			"almanacHealth": "health"
         }
-    }]
-},
-{
-    "constellation": "GAL",
-    "revisions": [{
-        "revision": {
+    },  
+    {
+        "constellation": "GAL",
+        "version": {
             "major": 3
         },
-        "content": {
+        "orbits": {
             "iodnav": "f64",
             "crs": "f64",
             "deltaN": "f64",
@@ -245,7 +322,7 @@
             "omegaDot": "f64",
             "idot": "f64",
             "dataSrc": "f64",
-            "galWeek": "u32",
+            "week": "u32",
             "spare1": "xxxx",
             "sisa": "f64",
             "health": "health",
@@ -258,10 +335,12 @@
         }
     },
     {
-        "revision": {
+        "constellation": "GAL",
+        "version": {
             "major": 4
         },
-        "content": {
+        "type": "INAV",
+        "orbits": {
             "iodnav": "f64",
             "crs": "f64",
             "deltaN": "f64",
@@ -280,7 +359,7 @@
             "omegaDot": "f64",
             "idot": "f64",
             "dataSrc": "f64",
-            "galWeek": "u32",
+            "week": "u32",
             "sisa": "f64",
             "health": "health",
             "bgdE5aE1": "f64",
@@ -288,15 +367,47 @@
             "spare3": "xxxx",
             "t_tm": "f64"
         }
-    }]
-},
-{
-    "constellation": "QZS",
-    "revisions": [{
-        "revision": {
+    },
+    {
+        "constellation": "GAL",
+        "version": {
+            "major": 4
+        },
+        "type": "FNAV",
+        "orbits": {
+            "iodnav": "f64",
+            "crs": "f64",
+            "deltaN": "f64",
+            "m0": "f64",
+            "cuc": "f64",
+            "e": "f64",
+            "cus": "f64",
+            "sqrta": "f64",
+            "toe": "f64",
+            "cic": "f64",
+            "omega0": "f64",
+            "cis": "f64",
+            "i0": "f64",
+            "crc": "f64",
+            "omega": "f64",
+            "omegaDot": "f64",
+            "idot": "f64",
+            "dataSrc": "f64",
+            "week": "u32",
+            "sisa": "f64",
+            "health": "health",
+            "bgdE5aE1": "f64",
+            "bgdE5bE1": "f64",
+            "spare3": "xxxx",
+            "t_tm": "f64"
+        }
+    },
+    {
+        "constellation": "QZSS",
+        "version": {
             "major": 3
         },
-        "content": {
+        "orbits": {
             "iode": "f64",
             "crs": "f64",
             "deltaN": "f64",
@@ -315,7 +426,7 @@
             "omegaDot": "f64",
             "idot": "f64",
             "l2Codes": "f64",
-            "gpsWeek": "u32",
+            "week": "u32",
             "l2pDataFlag": "f64",
             "svAccuracy": "f64",
             "health": "f64",
@@ -326,10 +437,11 @@
         }
     },
     {
-        "revision": {
+        "constellation": "QZSS",
+        "version": {
             "major": 4
         },
-        "content": {
+        "orbits": {
             "iode": "f64",
             "crs": "f64",
             "deltaN": "f64",
@@ -348,24 +460,100 @@
             "omegaDot": "f64",
             "idot": "f64",
             "l2Codes": "f64",
-            "gpsWeek": "u32",
+            "week": "u32",
             "l2pDataFlag": "f64",
             "svAccuracy": "f64",
-            "health": "health",
+            "health": "f64",
             "tgd": "f64",
             "iodc": "f64",
             "t_tm": "f64",
             "fitInt": "f64"
         }
-    }]
-},
-{
-    "constellation": "BDS",
-    "revisions": [{
-        "revision": {
+    },
+    {
+        "constellation": "QZSS",
+        "version": {
+            "major": 4
+        },
+        "type": "CNAV",
+        "orbits": {
+            "adot": "f64",
+            "crs": "f64",
+            "deltaN0": "f64",
+            "m0": "f64",
+            "cuc": "f64",
+            "e": "f64",
+            "cus": "f64",
+            "sqrta": "f64",
+            "t_op": "f64",
+            "cic": "f64",
+            "omega0": "f64",
+            "cis": "f64",
+            "i0": "f64",
+            "crc": "f64",
+            "omega": "f64",
+            "omegaDot": "f64",
+            "idot": "f64",
+            "deltaN0Dot": "f64",
+            "uraiNed0": "f64",
+            "uraiNed1": "f64",
+            "uraiEd": "f64",
+            "svHealth": "f64",
+            "tgd": "f64",
+            "uraiNed2": "f64",
+            "iscL1Ca": "f64",
+            "iscL2C": "f64",
+            "iscL5I5": "f64",
+            "iscL5Q5": "f64",
+            "t_tm": "f64",
+            "wn_op": "f64"
+        }
+    },
+    {
+        "constellation": "QZSS",
+        "version": {
+            "major": 4
+        },
+        "type": "CNV2",
+        "orbits": {
+            "adot": "f64",
+            "crs": "f64",
+            "deltaN0": "f64",
+            "m0": "f64",
+            "cuc": "f64",
+            "e": "f64",
+            "cus": "f64",
+            "sqrta": "f64",
+            "t_op": "f64",
+            "cic": "f64",
+            "omega0": "f64",
+            "cis": "f64",
+            "i0": "f64",
+            "crc": "f64",
+            "omega": "f64",
+            "omegaDot": "f64",
+            "idot": "f64",
+            "deltaN0Dot": "f64",
+            "uraiNed0": "f64",
+            "uraiNed1": "f64",
+            "uraiEd": "f64",
+            "svHealth": "f64",
+            "tgd": "f64",
+            "uraiNed2": "f64",
+            "iscL1Ca": "f64",
+            "iscL2C": "f64",
+            "iscL5I5": "f64",
+            "iscL5Q5": "f64",
+            "t_tm": "f64",
+            "wn_op": "f64"
+        }
+    },
+    {
+        "constellation": "BeiDou",
+        "version": {
             "major": 3
         },
-        "content": {
+        "orbits": {
             "aode": "f64",
             "crs": "f64",
             "deltaN": "f64",
@@ -384,7 +572,7 @@
             "omegaDot": "f64",
             "idot": "f64",
             "spare1": "xxxx",
-            "bdtWeek": "u32",
+            "week": "u32",
             "spare2": "xxxx",
             "svAccuracy": "f64",
             "satH1": "f64",
@@ -397,10 +585,12 @@
         }
     },
     {
-        "revision": {
+        "constellation": "BeiDou",
+        "version": {
             "major": 4
         },
-        "content": {
+        "type": "D1",
+        "orbits": {
             "aode": "f64",
             "crs": "f64",
             "deltaN": "f64",
@@ -419,7 +609,7 @@
             "omegaDot": "f64",
             "idot": "f64",
             "spare1": "xxxx",
-            "bdtWeek": "u32",
+            "week": "u32",
             "spare2": "xxxx",
             "svAccuracy": "f64",
             "satH1": "f64",
@@ -428,15 +618,177 @@
             "t_tm": "f64",
             "aodc": "f64"
         }
-    }]
-},
-{
-    "constellation": "GEO",
-    "revisions": [{
-        "revision": {
+    },
+    {
+        "constellation": "BeiDou",
+        "version": {
+            "major": 4
+        },
+        "type": "D2",
+        "orbits": {
+            "aode": "f64",
+            "crs": "f64",
+            "deltaN": "f64",
+            "m0": "f64",
+            "cuc": "f64",
+            "e": "f64",
+            "cus": "f64",
+            "sqrta": "f64",
+            "toe": "f64",
+            "cic": "f64",
+            "omega0": "f64",
+            "cis": "f64",
+            "i0": "f64",
+            "crc": "f64",
+            "omega": "f64",
+            "omegaDot": "f64",
+            "idot": "f64",
+            "spare1": "xxxx",
+            "week": "u32",
+            "spare2": "xxxx",
+            "svAccuracy": "f64",
+            "satH1": "f64",
+            "tgdb1b3": "f64",
+            "tgdb2b3": "f64",
+            "t_tm": "f64",
+            "aodc": "f64"
+        }
+    },
+    {
+        "constellation": "BeiDou",
+        "version": {
+            "major": 4
+        },
+        "type": "CNV1",
+        "orbits": {
+            "adot": "f64",
+            "crs": "f64",
+            "deltaN0": "f64",
+            "m0": "f64",
+            "cuc": "f64",
+            "e": "f64",
+            "cus": "f64",
+            "sqrta": "f64",
+            "toe": "f64",
+            "cic": "f64",
+            "omega0": "f64",
+            "cis": "f64",
+            "i0": "f64",
+            "crc": "f64",
+            "omega": "f64",
+            "omegaDot": "f64",
+            "idot": "f64",
+            "deltaN0Dot": "f64",
+            "satType": "f64",
+            "sisa1_oe": "f64",
+            "sisa1_ocb": "f64",
+            "sisa1_oc1": "f64",
+            "sisa1_oc2": "f64",
+            "isc_b1cd": "f64",
+            "tgd_b1cp": "f64",
+            "tgd_b2ap": "f64",
+            "sismai": "f64",
+            "health": "f64",
+            "b1c": "f64",
+            "iodc": "f64",
+            "t_tm": "f64",
+            "spare": "xxx",
+            "spare": "xxx",
+            "iode": "f64"
+        }
+    },
+    {
+        "constellation": "BeiDou",
+        "version": {
+            "major": 4
+        },
+        "type": "CNV2",
+        "orbits": {
+            "adot": "f64",
+            "crs": "f64",
+            "deltaN0": "f64",
+            "m0": "f64",
+            "cuc": "f64",
+            "e": "f64",
+            "cus": "f64",
+            "sqrta": "f64",
+            "toe": "f64",
+            "cic": "f64",
+            "omega0": "f64",
+            "cis": "f64",
+            "i0": "f64",
+            "crc": "f64",
+            "omega": "f64",
+            "omegaDot": "f64",
+            "idot": "f64",
+            "deltaN0Dot": "f64",
+            "satType": "f64",
+            "sisa1_oe": "f64",
+            "sisa1_ocb": "f64",
+            "sisa1_oc1": "f64",
+            "sisa1_oc2": "f64",
+            "isc_b1cd": "f64",
+            "tgd_b1cp": "f64",
+            "tgd_b2ap": "f64",
+            "sismai": "f64",
+            "health": "f64",
+            "b1c": "f64",
+            "iodc": "f64",
+            "t_tm": "f64",
+            "spare": "xxx",
+            "spare": "xxx",
+            "iode": "f64"
+        }
+    },
+    {
+        "constellation": "BeiDou",
+        "version": {
+            "major": 4
+        },
+        "type": "CNV3",
+        "orbits": {
+            "adot": "f64",
+            "crs": "f64",
+            "deltaN0": "f64",
+            "m0": "f64",
+            "cuc": "f64",
+            "e": "f64",
+            "cus": "f64",
+            "sqrta": "f64",
+            "toe": "f64",
+            "cic": "f64",
+            "omega0": "f64",
+            "cis": "f64",
+            "i0": "f64",
+            "crc": "f64",
+            "omega": "f64",
+            "omegaDot": "f64",
+            "idot": "f64",
+            "deltaN0Dot": "f64",
+            "satType": "f64",
+            "sisa1_oe": "f64",
+            "sisa1_ocb": "f64",
+            "sisa1_oc1": "f64",
+            "sisa1_oc2": "f64",
+            "isc_b1cd": "f64",
+            "tgd_b1cp": "f64",
+            "tgd_b2ap": "f64",
+            "sismai": "f64",
+            "health": "f64",
+            "b1c": "f64",
+            "iodc": "f64",
+            "t_tm": "f64",
+            "spare": "xxx",
+            "spare": "xxx",
+            "iode": "f64"
+        }
+    },
+    {
+        "constellation": "GEO",
+        "version": {
             "major": 3
         },
-        "content": {
+        "orbits": {
             "satPosX": "f64",
             "velX": "f64",
             "accelX": "f64",
@@ -452,10 +804,12 @@
         }
     },
     {
-        "revision": {
+        "constellation": "GEO",
+        "version": {
             "major": 4
         },
-        "content": {
+        "type": "SBAS",
+        "orbits": {
             "satPosX": "f64",
             "velX": "f64",
             "accelX": "f64",
@@ -469,5 +823,5 @@
             "accelZ": "f64",
             "iodn": "f64"
         }
-    }]
-}]
+    }
+]

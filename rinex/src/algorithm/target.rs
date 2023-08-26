@@ -222,6 +222,8 @@ impl TargetItem {
     }
 }
 
+use itertools::Itertools;
+
 impl std::str::FromStr for TargetItem {
     type Err = Error;
     fn from_str(content: &str) -> Result<Self, Self::Err> {
@@ -284,30 +286,29 @@ impl std::str::FromStr for TargetItem {
             // do not test 1st entry only but all possible content
             Ok(Self::NavMsgItem(parse_nav_msg(items)?))
         } else {
-            // try to match an existing Orbit field
-            // For this, we browse all known Orbit fields and try to match one of them
-            let mut orbits: Vec<String> = Vec::new();
-
-            for orbit in NAV_ORBITS.iter() {
-                // need to browse all systems
-                for revision in orbit.revisions.iter() {
-                    // need to browse all revisions
-                    for (field, _type) in revision.items.iter() {
-                        for item in &items {
-                            // makes this case unsensitive
-                            // easier on the user end to describe Orbit fields he's interested in
-                            if item.to_ascii_lowercase().eq(field) {
-                                if !orbits.contains(&field.to_string()) {
-                                    orbits.push(field.to_string());
-                                }
-                            }
-                        }
+            // try to match existing Orbit field(s).
+            // To do so, we regroup all known Orbit fields, accross all NAV revisions,
+            // and filter out non matching data fields.
+            let matched_orbits: Vec<_> = NAV_ORBITS
+                .iter()
+                .flat_map(|entry| entry.items.clone())
+                .map(|(key, _value)| key) // we're not interested in matching keys here
+                .unique()
+                .filter(|k| {
+                    let mut found = false;
+                    for item in &items {
+                        // we use a lowercase comparison
+                        // to make filter description case insensitive.
+                        // Makes filter description much easier
+                        found |= item.to_ascii_lowercase().eq(k);
                     }
-                }
-            }
+                    found
+                })
+                .map(|s| s.to_string())
+                .collect();
 
-            if orbits.len() > 0 {
-                Ok(Self::OrbitItem(orbits))
+            if matched_orbits.len() > 0 {
+                Ok(Self::OrbitItem(matched_orbits))
             } else {
                 // not a single match
                 Err(Error::TypeGuessingError(c.to_string()))
@@ -447,6 +448,34 @@ mod test {
         let dt = Duration::from_str("1 d").unwrap();
         let target: TargetItem = dt.into();
         assert_eq!(target, TargetItem::DurationItem(dt));
+
+        // test Matching NAV orbits
+        for descriptor in vec![
+            "iode",
+            "crc",
+            "crs",
+            "health",
+            "iode,crc,crs",
+            "iode, crc, crs",
+        ] {
+            let target = TargetItem::from_str(descriptor);
+            assert!(
+                target.is_ok(),
+                "failed to parse TargetItem::OrbitItem from \"{}\"",
+                descriptor
+            );
+        }
+
+        // test non matching NAV orbits
+        for descriptor in vec!["oide", "ble", "blah, oide"] {
+            let target = TargetItem::from_str(descriptor);
+            assert!(
+                target.is_err(),
+                "false positive on TargetItem::OrbitItem from \"{}\", parsed {:?}",
+                descriptor,
+                target,
+            );
+        }
     }
     #[test]
     fn test_from_elevation() {

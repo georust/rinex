@@ -36,42 +36,45 @@ use crate::{
 };
 
 use super::{
-    orbits::{closest_revision, NAV_ORBITS},
-    BdModel, EopMessage, Ephemeris, IonMessage, KbModel, NgModel, StoMessage,
+    orbits::closest_nav_standards, BdModel, EopMessage, Ephemeris, IonMessage, KbModel, NgModel,
+    StoMessage,
 };
 
 use hifitime::Duration;
 
 /// Navigation Message Types
-#[derive(Debug, Copy, Clone, PartialEq, PartialOrd, Eq, Ord)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, PartialOrd, Eq, Ord)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum NavMsgType {
-    /// Legacy NAV
+    /// Legacy NAV message
+    #[default]
     LNAV,
-    /// FDMA
+    /// Glonass FDMA message
     FDMA,
-    /// FNAV
+    /// Galileo FNAV message
     FNAV,
-    /// INAV
+    /// Galileo INAV message
     INAV,
     /// IFNV,
     IFNV,
-    /// D1
+    /// BeiDou D1 NAV message
     D1,
-    /// D2
+    /// BeiDou D2 NAV message
     D2,
     /// D1D2
     D1D2,
     /// SBAS
     SBAS,
+    /// GPS / QZSS Civilian NAV message
+    CNAV,
+    /// BeiDou CNV1 NAV message
+    CNV1,
+    /// GPS / QZSS / BeiDou CNV2 Civilian NAV2 message
+    CNV2,
+    /// BeiDou CNV3 NAV message
+    CNV3,
     /// CNVX special marker
     CNVX,
-}
-
-impl Default for NavMsgType {
-    fn default() -> Self {
-        Self::LNAV
-    }
 }
 
 impl std::fmt::Display for NavMsgType {
@@ -86,6 +89,10 @@ impl std::fmt::Display for NavMsgType {
             Self::D2 => f.write_str("D2"),
             Self::D1D2 => f.write_str("D1D2"),
             Self::SBAS => f.write_str("SBAS"),
+            Self::CNAV => f.write_str("CNAV"),
+            Self::CNV1 => f.write_str("CNV1"),
+            Self::CNV2 => f.write_str("CNV2"),
+            Self::CNV3 => f.write_str("CNV3"),
             Self::CNVX => f.write_str("CNVX"),
         }
     }
@@ -106,6 +113,10 @@ impl std::str::FromStr for NavMsgType {
             "D2" => Ok(Self::D2),
             "D1D2" => Ok(Self::D1D2),
             "SBAS" => Ok(Self::SBAS),
+            "CNAV" => Ok(Self::CNAV),
+            "CNV1" => Ok(Self::CNV1),
+            "CNV2" => Ok(Self::CNV2),
+            "CNV3" => Ok(Self::CNV3),
             "CNVX" => Ok(Self::CNVX),
             _ => Err(Error::UnknownNavMsgType),
         }
@@ -268,7 +279,7 @@ fn parse_v4_record_entry(content: &str) -> Result<(Epoch, NavFrame), Error> {
 
     let (epoch, fr): (Epoch, NavFrame) = match frame_class {
         FrameClass::Ephemeris => {
-            let (epoch, _, ephemeris) = Ephemeris::parse_v4(lines)?;
+            let (epoch, _, ephemeris) = Ephemeris::parse_v4(msg_type, lines)?;
             (epoch, NavFrame::Eph(msg_type, sv, ephemeris))
         },
         FrameClass::SystemTimeOffset => {
@@ -340,7 +351,9 @@ fn fmt_rework(major: u8, lines: &str) -> String {
     lines.to_string()
 }
 
-/// Writes given epoch into stream
+/*
+ * Writes given epoch into stream
+ */
 pub(crate) fn fmt_epoch(
     epoch: &Epoch,
     data: &Vec<NavFrame>,
@@ -384,30 +397,20 @@ fn fmt_epoch_v2v3(epoch: &Epoch, data: &Vec<NavFrame>, header: &Header) -> Resul
             if header.version.major == 3 {
                 lines.push_str("  ");
             }
-            // locate closest revision in db
-            let orbits_revision = match closest_revision(sv.constellation, header.version) {
-                Some(v) => v,
-                _ => return Err(Error::OrbitRevision),
-            };
-            // retrieve db items / fields to generate,
-            // for this revision
-            let orbits_standards: Vec<_> = NAV_ORBITS
-                .iter()
-                .filter(|r| r.constellation == sv.constellation.to_3_letter_code())
-                .map(|r| {
-                    r.revisions
-                            .iter()
-                            .filter(|r| // identified db revision
-                                u8::from_str_radix(r.major, 10).unwrap() == orbits_revision.major
-                                && u8::from_str_radix(r.minor, 10).unwrap() == orbits_revision.minor
-                            )
-                            .map(|r| &r.items)
-                            .flatten()
-                })
-                .flatten()
-                .collect();
+
+            // locate closest standards in DB
+            let closest_orbits_definition =
+                match closest_nav_standards(sv.constellation, header.version, NavMsgType::LNAV) {
+                    Some(v) => v,
+                    _ => return Err(Error::OrbitRevision),
+                };
+
             let nb_items_per_line = 4;
-            let mut chunks = orbits_standards.chunks_exact(nb_items_per_line).peekable();
+            let mut chunks = closest_orbits_definition
+                .items
+                .chunks_exact(nb_items_per_line)
+                .peekable();
+
             while let Some(chunk) = chunks.next() {
                 if chunks.peek().is_some() {
                     for (key, _) in chunk {
@@ -464,29 +467,16 @@ fn fmt_epoch_v4(epoch: &Epoch, data: &Vec<NavFrame>, header: &Header) -> Result<
                 "{:14.13E} {:14.13E} {:14.13E}\n",
                 ephemeris.clock_bias, ephemeris.clock_drift, ephemeris.clock_drift_rate
             ));
-            // locate closest revision in db
-            let orbits_revision = match closest_revision(sv.constellation, header.version) {
-                Some(v) => v,
-                _ => return Err(Error::OrbitRevision),
-            };
-            // retrieve db items / fields to generate,
-            // for this revision
-            let orbits_standards: Vec<_> = NAV_ORBITS
-                .iter()
-                .filter(|r| r.constellation == sv.constellation.to_3_letter_code())
-                .map(|r| {
-                    r.revisions
-                        .iter()
-                        .filter(|r| // identified db revision
-                            u8::from_str_radix(r.major, 10).unwrap() == orbits_revision.major
-                            && u8::from_str_radix(r.minor, 10).unwrap() == orbits_revision.minor)
-                        .map(|r| &r.items)
-                        .flatten()
-                })
-                .flatten()
-                .collect();
+
+            // locate closest revision in DB
+            let closest_orbits_definition =
+                match closest_nav_standards(sv.constellation, header.version, NavMsgType::LNAV) {
+                    Some(v) => v,
+                    _ => return Err(Error::OrbitRevision),
+                };
+
             let mut index = 0;
-            for (key, _) in orbits_standards.iter() {
+            for (key, _) in closest_orbits_definition.items.iter() {
                 index += 1;
                 if let Some(data) = ephemeris.orbits.get(*key) {
                     lines.push_str(&format!(" {}", data.to_string()));
@@ -809,7 +799,7 @@ mod test {
                 let v = v.unwrap();
                 assert_eq!(v, -0.940753471872e-09);
             // SPARE
-            } else if k.eq("bdtWeek") {
+            } else if k.eq("week") {
                 let v = v.as_u32();
                 assert_eq!(v.is_some(), true);
                 let v = v.unwrap();
@@ -979,7 +969,7 @@ mod test {
                 assert_eq!(v.is_some(), true);
                 let v = v.unwrap();
                 assert_eq!(v, 0.258000000000e+03);
-            } else if k.eq("galWeek") {
+            } else if k.eq("week") {
                 let v = v.as_u32();
                 assert_eq!(v.is_some(), true);
                 let v = v.unwrap();

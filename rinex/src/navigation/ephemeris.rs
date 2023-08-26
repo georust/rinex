@@ -1,7 +1,4 @@
-use super::{
-    orbits::{closest_revision, NAV_ORBITS},
-    OrbitItem,
-};
+use super::{orbits::closest_nav_standards, NavMsgType, OrbitItem};
 use crate::{epoch, prelude::*, sv, version::Version};
 
 use hifitime::GPST_REF_EPOCH;
@@ -121,24 +118,9 @@ impl Ephemeris {
         self.orbits
             .insert(field.to_string(), OrbitItem::from(value));
     }
-    /// Retrieve week counter, if such field exists.
-    pub fn get_weeks(&self) -> Option<u32> {
-        //TODO:
-        // cast/scalings per constellation ??
-        if let Some(v) = self.orbits.get("gpsWeek") {
-            if let Some(v) = v.as_u32() {
-                return Some(v);
-            }
-        } else if let Some(v) = self.orbits.get("bdtWeek") {
-            if let Some(v) = v.as_u32() {
-                return Some(v);
-            }
-        } else if let Some(v) = self.orbits.get("galWeek") {
-            if let Some(v) = v.as_u32() {
-                return Some(v);
-            }
-        }
-        None
+    /// Retrieve week counter, if such data exists.
+    pub fn get_week(&self) -> Option<u32> {
+        self.orbits.get("week").and_then(|field| field.as_u32())
     }
     /*
      * Parses ephemeris from given line iterator
@@ -190,7 +172,9 @@ impl Ephemeris {
         let clock_bias = f64::from_str(clk_bias.replace("D", "E").trim())?;
         let clock_drift = f64::from_str(clk_dr.replace("D", "E").trim())?;
         let clock_drift_rate = f64::from_str(clk_drr.replace("D", "E").trim())?;
-        let orbits = parse_orbits(version, sv.constellation, lines)?;
+        // parse orbits :
+        //  only Legacy Frames in V2 and V3 (old) RINEX
+        let orbits = parse_orbits(version, NavMsgType::LNAV, sv.constellation, lines)?;
         Ok((
             epoch,
             sv,
@@ -206,7 +190,10 @@ impl Ephemeris {
      * Parses ephemeris from given line iterator
      * RINEX V4 content specific method
      */
-    pub(crate) fn parse_v4(mut lines: std::str::Lines<'_>) -> Result<(Epoch, Sv, Self), Error> {
+    pub(crate) fn parse_v4(
+        msg: NavMsgType,
+        mut lines: std::str::Lines<'_>,
+    ) -> Result<(Epoch, Sv, Self), Error> {
         let line = match lines.next() {
             Some(l) => l,
             _ => return Err(Error::MissingData),
@@ -222,7 +209,7 @@ impl Ephemeris {
         let clock_bias = f64::from_str(clk_bias.replace("D", "E").trim())?;
         let clock_drift = f64::from_str(clk_dr.replace("D", "E").trim())?;
         let clock_drift_rate = f64::from_str(clk_drr.replace("D", "E").trim())?;
-        let orbits = parse_orbits(Version { major: 4, minor: 0 }, sv.constellation, lines)?;
+        let orbits = parse_orbits(Version { major: 4, minor: 0 }, msg, sv.constellation, lines)?;
         Ok((
             epoch,
             sv,
@@ -260,13 +247,8 @@ impl Ephemeris {
         s
     }
     /// Creates new Ephemeris with given week counter
-    pub fn with_weeks(&self, week: u32, constellation: Constellation) -> Self {
-        match constellation {
-            Constellation::GPS => self.with_orbit("gpsWeek", OrbitItem::from(week)),
-            Constellation::BeiDou => self.with_orbit("bdtWeek", OrbitItem::from(week)),
-            Constellation::Galileo => self.with_orbit("galWeek", OrbitItem::from(week)),
-            _ => self.clone(),
-        }
+    pub fn with_week(&self, week: u32) -> Self {
+        self.with_orbit("week", OrbitItem::from(week))
     }
     /// Creates new Ephemeris with given [`Kepler`] parameters
     pub fn with_kepler(&self, kepler: Kepler) -> Self {
@@ -342,7 +324,7 @@ impl Ephemeris {
         let kepler = self.kepler()?;
         let perturbations = self.perturbations()?;
 
-        let weeks = self.get_weeks()?;
+        let weeks = self.get_week()?;
         let t0 = GPST_REF_EPOCH + Duration::from_days((weeks * 7).into());
         let toe = t0 + Duration::from_seconds(kepler.toe as f64);
         let t_k = (t_sv - toe).to_seconds();
@@ -384,12 +366,18 @@ impl Ephemeris {
      * Either by solving Kepler equations, or directly if such data is available.
      */
     pub(crate) fn sv_position(&self, sv: &Sv, epoch: Epoch) -> Option<(f64, f64, f64)> {
-        if let Some(pos_x) = self.get_orbit_f64("satPosX") {
-            if let Some(pos_y) = self.get_orbit_f64("satPosY") {
-                if let Some(pos_z) = self.get_orbit_f64("satPosZ") {
-                    //TODO PZ90=>ECEF transform should be applied, in case of GLONASS
-                    //     need to check for GEO/SBAS
-                    return Some((pos_x, pos_y, pos_z));
+        if let Some(pos_x_km) = self.get_orbit_f64("satPosX") {
+            if let Some(pos_y_km) = self.get_orbit_f64("satPosY") {
+                if let Some(pos_z_km) = self.get_orbit_f64("satPosZ") {
+                    /*
+                     * GLONASS + SBAS: position vector already available,
+                     *                 distances expressed in km ECEF
+                     */
+                    return Some((
+                        pos_x_km * 1000.0_f64,
+                        pos_y_km * 1000.0_f64,
+                        pos_z_km * 1000.0_f64,
+                    ));
                 }
             }
         }
@@ -451,61 +439,68 @@ impl Ephemeris {
  */
 fn parse_orbits(
     version: Version,
+    msg: NavMsgType,
     constell: Constellation,
     lines: std::str::Lines<'_>,
 ) -> Result<HashMap<String, OrbitItem>, Error> {
-    // locate closest revision in db
-    let db_revision = match closest_revision(constell, version) {
+    // Determine closest standards from DB
+    // <=> data fields to parse
+    let nav_standards = match closest_nav_standards(constell, version, msg) {
         Some(v) => v,
         _ => return Err(Error::DataBaseRevisionError),
     };
 
-    // retrieve db items / fields to parse
-    let items: Vec<_> = NAV_ORBITS
-        .iter()
-        .filter(|r| r.constellation == constell.to_3_letter_code())
-        .map(|r| {
-            r.revisions
-                .iter()
-                .filter(|r| // identified db revision
-                    u8::from_str_radix(r.major, 10).unwrap() == db_revision.major
-                    && u8::from_str_radix(r.minor, 10).unwrap() == db_revision.minor)
-                .map(|r| &r.items)
-                .flatten()
-        })
-        .flatten()
-        .collect();
+    //println!("FIELD : {:?} \n", nav_standards.items); // DEBUG
+
+    let fields = &nav_standards.items;
 
     let mut key_index: usize = 0;
     let word_size: usize = 19;
     let mut map: HashMap<String, OrbitItem> = HashMap::new();
+
     for line in lines {
         // trim first few white spaces
         let mut line: &str = match version.major < 3 {
             true => &line[3..],
             false => &line[4..],
         };
-        let nb_missing = 4 - (line.len() / word_size);
+
+        let mut nb_missing = 4 - (line.len() / word_size);
         //println!("LINE \"{}\" | NB MISSING {}", line, nb_missing); //DEBUG
+
         loop {
             if line.len() == 0 {
                 key_index += nb_missing as usize;
                 break;
             }
+
             let (content, rem) = line.split_at(std::cmp::min(word_size, line.len()));
-            if let Some((key, token)) = items.get(key_index) {
-                /*println!(
-                    "Key \"{}\" | Token \"{}\" | Content \"{}\"",
-                    key,
-                    token,
-                    content.trim()
-                ); //DEBUG*/
+
+            if content.trim().len() == 0 {
+                // omitted field
+                key_index += 1;
+                if nb_missing > 0 {
+                    nb_missing -= 1;
+                }
+                line = rem.clone();
+                continue;
+            }
+
+            if let Some((key, token)) = fields.get(key_index) {
+                //println!(
+                //    "Key \"{}\"(index: {}) | Token \"{}\" | Content \"{}\"",
+                //    key,
+                //    key_index,
+                //    token,
+                //    content.trim()
+                //); //DEBUG
                 if !key.contains(&"spare") {
                     if let Ok(item) = OrbitItem::new(token, content.trim(), constell) {
                         map.insert(key.to_string(), item);
                     }
                 }
             }
+
             key_index += 1;
             line = rem.clone();
         }
@@ -569,7 +564,12 @@ mod test {
      1.839362331110e-10 2.580000000000e+02 2.111000000000e+03                   
      3.120000000000e+00 0.000000000000e+00-1.303851604462e-08 0.000000000000e+00
      3.555400000000e+05";
-        let orbits = parse_orbits(Version::new(3, 0), Constellation::Galileo, content.lines());
+        let orbits = parse_orbits(
+            Version::new(3, 0),
+            NavMsgType::LNAV,
+            Constellation::Galileo,
+            content.lines(),
+        );
         assert!(orbits.is_ok());
         let orbits = orbits.unwrap();
         let ephemeris = Ephemeris {
@@ -603,7 +603,7 @@ mod test {
 
         assert_eq!(ephemeris.get_orbit_f64("idot"), Some(1.839362331110e-10));
         assert_eq!(ephemeris.get_orbit_f64("dataSrc"), Some(2.580000000000e+02));
-        assert_eq!(ephemeris.get_weeks(), Some(2111));
+        assert_eq!(ephemeris.get_week(), Some(2111));
 
         assert_eq!(ephemeris.get_orbit_f64("sisa"), Some(3.120000000000e+00));
         //assert_eq!(ephemeris.get_orbit_f64("health"), Some(0.000000000000e+00));
@@ -628,7 +628,12 @@ mod test {
      -.940753471872e-09  .000000000000e+00  .782000000000e+03  .000000000000e+00
       .200000000000e+01  .000000000000e+00 -.599999994133e-09 -.900000000000e-08
       .432000000000e+06  .000000000000e+00 0.000000000000e+00 0.000000000000e+00";
-        let orbits = parse_orbits(Version::new(3, 0), Constellation::BeiDou, content.lines());
+        let orbits = parse_orbits(
+            Version::new(3, 0),
+            NavMsgType::LNAV,
+            Constellation::BeiDou,
+            content.lines(),
+        );
         assert!(orbits.is_ok());
         let orbits = orbits.unwrap();
         let ephemeris = Ephemeris {
@@ -661,7 +666,7 @@ mod test {
         );
 
         assert_eq!(ephemeris.get_orbit_f64("idot"), Some(-0.940753471872e-09));
-        assert_eq!(ephemeris.get_weeks(), Some(782));
+        assert_eq!(ephemeris.get_week(), Some(782));
 
         assert_eq!(
             ephemeris.get_orbit_f64("svAccuracy"),
@@ -680,8 +685,105 @@ mod test {
         assert_eq!(ephemeris.get_orbit_f64("t_tm"), Some(0.432000000000e+06));
         assert_eq!(ephemeris.get_orbit_f64("aodc"), Some(0.0));
     }
+    #[test]
+    fn glonass_orbit_v2() {
+        let content =
+            "   -1.488799804690D+03-2.196182250980D+00 3.725290298460D-09 0.000000000000D+00
+    1.292880712890D+04-2.049269676210D+00 0.000000000000D+00 1.000000000000D+00
+    2.193169775390D+04 1.059645652770D+00-9.313225746150D-10 0.000000000000D+00";
+        let orbits = parse_orbits(
+            Version::new(2, 0),
+            NavMsgType::LNAV,
+            Constellation::Glonass,
+            content.lines(),
+        );
+        assert!(orbits.is_ok(), "failed to parse Glonass V2 orbits");
+        let orbits = orbits.unwrap();
+        let ephemeris = Ephemeris {
+            clock_bias: 0.0,
+            clock_drift: 0.0,
+            clock_drift_rate: 0.0,
+            orbits,
+        };
+        assert_eq!(ephemeris.get_orbit_f64("satPosX"), Some(-1.488799804690E3));
+        assert_eq!(ephemeris.get_orbit_f64("satPosY"), Some(1.292880712890E4));
+        assert_eq!(ephemeris.get_orbit_f64("satPosZ"), Some(2.193169775390E4));
+    }
+    #[test]
+    fn glonass_orbit_v3() {
+        let content =
+            "      .783916601562e+04 -.423131942749e+00  .931322574615e-09  .000000000000e+00
+     -.216949155273e+05  .145034790039e+01  .279396772385e-08  .300000000000e+01
+      .109021518555e+05  .319181251526e+01  .000000000000e+00  .000000000000e+00";
+        let orbits = parse_orbits(
+            Version::new(3, 0),
+            NavMsgType::LNAV,
+            Constellation::Glonass,
+            content.lines(),
+        );
+        assert!(orbits.is_ok(), "failed to parse Glonass V3 orbits");
+        let orbits = orbits.unwrap();
+        let ephemeris = Ephemeris {
+            clock_bias: 0.0,
+            clock_drift: 0.0,
+            clock_drift_rate: 0.0,
+            orbits,
+        };
+        assert_eq!(ephemeris.get_orbit_f64("satPosX"), Some(0.783916601562E4));
+        assert_eq!(ephemeris.get_orbit_f64("satPosY"), Some(-0.216949155273E5));
+        assert_eq!(ephemeris.get_orbit_f64("satPosZ"), Some(0.109021518555E5));
+    }
+    #[test]
+    fn glonass_orbit_v2_missing_fields() {
+        let content =
+            "   -1.488799804690D+03                    3.725290298460D-09 0.000000000000D+00
+    1.292880712890D+04-2.049269676210D+00 0.000000000000D+00 1.000000000000D+00
+    2.193169775390D+04 1.059645652770D+00-9.313225746150D-10 0.000000000000D+00";
+        let orbits = parse_orbits(
+            Version::new(2, 0),
+            NavMsgType::LNAV,
+            Constellation::Glonass,
+            content.lines(),
+        );
+        assert!(orbits.is_ok(), "failed to parse Glonass V2 orbits");
+        let orbits = orbits.unwrap();
+        let ephemeris = Ephemeris {
+            clock_bias: 0.0,
+            clock_drift: 0.0,
+            clock_drift_rate: 0.0,
+            orbits,
+        };
+        assert_eq!(ephemeris.get_orbit_f64("satPosX"), Some(-1.488799804690E3));
+        assert_eq!(ephemeris.get_orbit_f64("velX"), None);
+        assert_eq!(ephemeris.get_orbit_f64("satPosY"), Some(1.292880712890E4));
+        assert_eq!(ephemeris.get_orbit_f64("satPosZ"), Some(2.193169775390E4));
+    }
+    #[test]
+    fn glonass_orbit_v3_missing_fields() {
+        let content =
+            "      .783916601562e+04                    .931322574615e-09  .000000000000e+00
+     -.216949155273e+05  .145034790039e+01  .279396772385e-08  .300000000000e+01
+      .109021518555e+05  .319181251526e+01  .000000000000e+00  .000000000000e+00";
+        let orbits = parse_orbits(
+            Version::new(3, 0),
+            NavMsgType::LNAV,
+            Constellation::Glonass,
+            content.lines(),
+        );
+        assert!(orbits.is_ok(), "failed to parse Glonass V3 orbits");
+        let orbits = orbits.unwrap();
+        let ephemeris = Ephemeris {
+            clock_bias: 0.0,
+            clock_drift: 0.0,
+            clock_drift_rate: 0.0,
+            orbits,
+        };
+        assert_eq!(ephemeris.get_orbit_f64("satPosX"), Some(0.783916601562E4));
+        assert_eq!(ephemeris.get_orbit_f64("velX"), None);
+        assert_eq!(ephemeris.get_orbit_f64("satPosY"), Some(-0.216949155273E5));
+        assert_eq!(ephemeris.get_orbit_f64("satPosZ"), Some(0.109021518555E5));
+    }
     use super::{Ephemeris, Kepler, Perturbations};
-    use hifitime::Weekday;
     use serde::Deserialize;
     #[derive(Default, Debug, Clone, Deserialize)]
     struct Helper {
@@ -700,7 +802,7 @@ mod test {
         Ephemeris::default()
             .with_kepler(hp.kepler)
             .with_perturbations(hp.perturbations)
-            .with_weeks(hp.week, hp.sv.constellation)
+            .with_week(hp.week)
     }
     #[test]
     fn kepler_gpst() {
@@ -921,7 +1023,7 @@ mod test {
                 "orbit perturbations setup failed"
             );
             assert!(
-                ephemeris.get_weeks().is_some(),
+                ephemeris.get_week().is_some(),
                 "missing week counter, context is faulty"
             );
 
