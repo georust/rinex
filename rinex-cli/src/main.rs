@@ -35,6 +35,19 @@ extern crate log;
 use fops::{filename, open_with_web_browser};
 use std::io::Write;
 
+/*
+ * Returns true if Skyplot view if feasible
+ */
+fn skyplot_allowed(ctx: &Context, cli_qc_only: bool) -> bool {
+    let has_nav = ctx.primary_rinex.is_navigation_rinex() || ctx.nav_rinex.is_some();
+    let has_ref_position = ctx.ground_position.is_some();
+    if has_nav && !has_ref_position {
+        info!("Missing a reference position for the skyplot view.");
+        info!("See rinex-cli -h : antenna positions.");
+    }
+    has_nav && !cli_qc_only && has_ref_position
+}
+
 pub fn main() -> Result<(), rinex::Error> {
     pretty_env_logger::init_timed();
 
@@ -215,8 +228,7 @@ pub fn main() -> Result<(), rinex::Error> {
     /*
      * skyplot
      */
-    let skyplot = (ctx.primary_rinex.is_navigation_rinex() || ctx.nav_rinex.is_some()) && !qc_only;
-    if skyplot {
+    if skyplot_allowed(&ctx, qc_only) {
         plot::skyplot(&ctx, &mut plot_ctx);
         info!("sky view generated");
     }
