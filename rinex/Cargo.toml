@@ -35,7 +35,7 @@ num-derive = "0.4"
 num-traits = "0.2.15"
 regex = "1"
 thiserror = "1"
-bitflags = { version = "2.3", features = ["serde"] } 
+bitflags = { version = "2.4.0", features = ["serde"] } 
 lazy_static = "1.4"
 map_3d = "0.1.5"
 strum = "0.25"

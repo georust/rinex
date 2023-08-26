@@ -1,32 +1,56 @@
+//! Sv Health specifications
 use bitflags::bitflags;
 
-/// GNSS / GPS orbit health indication
-#[derive(Default, Debug, Clone, FromPrimitive, PartialEq, PartialOrd)]
+mod gps;
+pub use gps::GPSHealth;
+
+mod gal;
+pub use gal::GALHealth;
+
+mod qzss;
+pub use qzss::QZSSHealth;
+
+/// Sv Health indication
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum Health {
-    #[default]
-    Unhealthy = 0,
-    L1Healthy = 1,
-    L2Healthy = 2,
-    L1L2Healthy = 3,
-    L5Healthy = 4,
-    L1L5Healthy = 5,
-    L2L5Healthy = 6,
-    L1L2L5Healthy = 7,
+    /// GPS Sv Health indication
+    GPS(GPSHealth),
+    /// GAL Sv Health indication
+    GAL(GALHealth),
+    /// QZSS Sv Health indication
+    QZSS(QZSSHealth),
 }
 
+impl Default for Health {
+    fn default() -> Self {
+        Self::GPS(GPSHealth::default())
+    }
+}
+
+impl From<GPSHealth> for Health {
+    fn from(h: GPSHealth) -> Self {
+        Self::GPS(h)
+    }
+}
+
+impl From<GALHealth> for Health {
+    fn from(h: GALHealth) -> Self {
+        Self::GAL(h)
+    }
+}
+
+impl From<QZSSHealth> for Health {
+    fn from(h: QZSSHealth) -> Self {
+        Self::QZSS(h)
+    }
+}
+/*
+ * UpperExp formatter, used when generating a file
+ */
 impl std::fmt::UpperExp for Health {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match self {
-            Self::Unhealthy => 0.0_f64.fmt(f),
-            Self::L1Healthy => 1.0_f64.fmt(f),
-            Self::L2Healthy => 2.0_f64.fmt(f),
-            Self::L1L2Healthy => 3.0_f64.fmt(f),
-            Self::L5Healthy => 4.0_f64.fmt(f),
-            Self::L1L5Healthy => 5.0_f64.fmt(f),
-            Self::L2L5Healthy => 6.0_f64.fmt(f),
-            Self::L1L2L5Healthy => 7.0_f64.fmt(f),
-        }
+        todo!("health::upperExp");
     }
 }
 
@@ -84,23 +108,6 @@ impl std::fmt::UpperExp for GloHealth {
     }
 }
 
-bitflags! {
-    /// GAL orbit health indication
-    #[derive(Debug, Default, Copy, Clone)]
-    #[derive(PartialEq, PartialOrd)]
-    #[cfg_attr(feature = "serde", derive(Serialize))]
-    pub struct GalHealth: u8 {
-        const E1B_DVS = 0x01;
-        const E1B_HS0 = 0x02;
-        const E1B_HS1 = 0x04;
-        const E5A_DVS = 0x08;
-        const E5A_HS0 = 0x10;
-        const E5A_HS1 = 0x20;
-        const E5B_HS0 = 0x40;
-        const E5B_HS1 = 0x80;
-    }
-}
-
 #[cfg(test)]
 mod test {
     use super::*;
@@ -123,9 +130,5 @@ mod test {
     fn test_glo() {
         assert_eq!(GloHealth::default(), GloHealth::Unhealthy);
         assert_eq!(format!("{:E}", GloHealth::default()), "4E0");
-    }
-    #[test]
-    fn test_gal() {
-        assert_eq!(GalHealth::default(), GalHealth::empty());
     }
 }

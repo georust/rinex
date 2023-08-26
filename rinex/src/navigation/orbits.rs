@@ -1,9 +1,11 @@
 //! NAV Orbits description, spanning all revisions and constellations
-use super::health;
 use crate::version;
 use bitflags::bitflags;
 use std::str::FromStr;
 use thiserror::Error;
+
+use crate::navigation::health::GPSHealth;
+use crate::navigation::Health;
 
 include!(concat!(env!("OUT_DIR"), "/nav_orbits.rs"));
 
@@ -39,18 +41,10 @@ pub enum OrbitItem {
     U32(u32),
     /// double precision data
     F64(f64),
-    /// GPS/QZSS orbit/sv health indication
-    Health(health::Health),
-    /// GLO orbit/sv health indication
-    GloHealth(health::GloHealth),
+    /// Sv Health indication
+    Health(Health),
     /// GLO NAV4 Orbit7 status mask
     GloStatus(GloStatus),
-    /// GEO/SBAS orbit/sv health indication
-    GeoHealth(health::GeoHealth),
-    /// GAL orbit/sv health indication
-    GalHealth(health::GalHealth),
-    /// IRNSS orbit/sv health indication
-    IrnssHealth(health::IrnssHealth),
 }
 
 impl From<u32> for OrbitItem {
@@ -111,37 +105,15 @@ impl OrbitItem {
                 // float->unsigned conversion
                 let float = f64::from_str(&content.replace("D", "e"))?;
                 let unsigned = float as u32;
-                match constellation {
-                    Constellation::GPS | Constellation::QZSS => {
-                        let flag: health::Health = num::FromPrimitive::from_u32(unsigned)
-                            .unwrap_or(health::Health::default());
-                        Ok(OrbitItem::Health(flag))
+                let sv_health = match constellation {
+                    Constellation::GPS => {
+                        let gps = GPSHealth::default();
+                        Health::from(gps)
                     },
-                    Constellation::Glonass => {
-                        let flag: health::GloHealth = num::FromPrimitive::from_u32(unsigned)
-                            .unwrap_or(health::GloHealth::default());
-                        Ok(OrbitItem::GloHealth(flag))
-                    },
-                    Constellation::Galileo => {
-                        let flags = health::GalHealth::from_bits(unsigned as u8)
-                            .unwrap_or(health::GalHealth::empty());
-                        Ok(OrbitItem::GalHealth(flags))
-                    },
-                    Constellation::SBAS(_) | Constellation::Geo => {
-                        let flag: health::GeoHealth = num::FromPrimitive::from_u32(unsigned)
-                            .unwrap_or(health::GeoHealth::default());
-                        Ok(OrbitItem::GeoHealth(flag))
-                    },
-                    Constellation::IRNSS => {
-                        let flag: health::IrnssHealth = num::FromPrimitive::from_u32(unsigned)
-                            .unwrap_or(health::IrnssHealth::default());
-                        Ok(OrbitItem::IrnssHealth(flag))
-                    },
-                    _ => unreachable!(), // MIXED is not feasible here
-                                         // as we use the current vehicle's constellation,
-                                         // which is always defined
-                }
-            }, // "health"
+                    _ => Health::default(),
+                };
+                Ok(OrbitItem::Health(sv_health))
+            },
             _ => Err(OrbitItemError::UnknownTypeDescriptor(type_desc.to_string())),
         }
     }
@@ -154,10 +126,6 @@ impl OrbitItem {
             OrbitItem::U32(n) => format!("{:14.11E}", *n as f64),
             OrbitItem::F64(f) => format!("{:14.11E}", f),
             OrbitItem::Health(h) => format!("{:14.11E}", h),
-            OrbitItem::GloHealth(h) => format!("{:14.11E}", h),
-            OrbitItem::GeoHealth(h) => format!("{:14.11E}", h),
-            OrbitItem::IrnssHealth(h) => format!("{:14.11E}", h),
-            OrbitItem::GalHealth(h) => format!("{:14.11E}", h.bits() as f64),
             OrbitItem::GloStatus(h) => format!("{:14.11E}", h.bits() as f64),
         }
     }
@@ -189,38 +157,10 @@ impl OrbitItem {
             _ => None,
         }
     }
-    /// Unwraps Self as GPS/QZSS orbit Health indication
-    pub fn as_gps_health(&self) -> Option<health::Health> {
+    /// Unwraps Self as [`Health`]
+    pub fn as_health(&self) -> Option<Health> {
         match self {
             OrbitItem::Health(h) => Some(h.clone()),
-            _ => None,
-        }
-    }
-    /// Unwraps Self as GEO/SBAS orbit Health indication
-    pub fn as_geo_health(&self) -> Option<health::GeoHealth> {
-        match self {
-            OrbitItem::GeoHealth(h) => Some(h.clone()),
-            _ => None,
-        }
-    }
-    /// Unwraps Self as GLO orbit Health indication
-    pub fn as_glo_health(&self) -> Option<health::GloHealth> {
-        match self {
-            OrbitItem::GloHealth(h) => Some(h.clone()),
-            _ => None,
-        }
-    }
-    /// Unwraps Self as GAL orbit Health indication
-    pub fn as_gal_health(&self) -> Option<health::GalHealth> {
-        match self {
-            OrbitItem::GalHealth(h) => Some(h.clone()),
-            _ => None,
-        }
-    }
-    /// Unwraps Self as IRNSS orbit Health indication
-    pub fn as_irnss_health(&self) -> Option<health::IrnssHealth> {
-        match self {
-            OrbitItem::IrnssHealth(h) => Some(h.clone()),
             _ => None,
         }
     }

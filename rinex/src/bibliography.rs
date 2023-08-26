@@ -38,4 +38,7 @@ pub enum Bibliography {
     /// GNSS antennas*.
     /// [DOI](https://cdn.taoglas.com/wp-content/uploads/pdf/Multipath-Analysis-Using-Code-Minus-Carrier-Technique-in-GNSS-Antennas-_WhitePaper_VP__Final-1.pdf).
     MpTaoglas,
+    /// QZSS Signal and Constellation interface specifications.
+    /// [DOI](https://qzss.go.jp/en/technical/download/pdf/ps-is-qzss/is-qzss-pnt-004.pdf)
+    QzssPnt,
 }
