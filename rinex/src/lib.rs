@@ -125,7 +125,7 @@ macro_rules! hourly_session {
 }
 
 #[cfg(docrs)]
-pub use crate::bibliography::Bibliography;
+pub use bibliography::Bibliography;
 
 #[derive(Clone, Default, Debug, PartialEq)]
 /// `Rinex` describes a `RINEX` file, it comprises a [Header] section,

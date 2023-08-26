@@ -33,4 +33,9 @@ pub enum Bibliography {
     /// *A new Approach for GNSS Analysis in a Multi-GNSS and Multi-Signal Environment*.
     /// [DOI](https://www.degruyter.com/document/doi/10.2478/v10156-010-0023-2/pdf).
     GeoScienceJournal1,
+    /// V. Pinazo Garcia, N. Woodhouse:
+    /// *Multipath Analysis Using Code-Minus-Carrier technique in
+    /// GNSS antennas*.
+    /// [DOI](https://cdn.taoglas.com/wp-content/uploads/pdf/Multipath-Analysis-Using-Code-Minus-Carrier-Technique-in-GNSS-Antennas-_WhitePaper_VP__Final-1.pdf).
+    MpTaoglas,
 }

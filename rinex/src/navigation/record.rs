@@ -4,6 +4,9 @@ use regex::{Captures, Regex};
 use std::collections::BTreeMap;
 use std::str::FromStr;
 
+#[cfg(docrs)]
+use crate::Bibliography;
+
 /*
  * When formatting floating point number in Navigation RINEX,
  * exponent are expected to be in the %02d form,

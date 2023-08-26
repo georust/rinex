@@ -5,6 +5,9 @@ use std::collections::HashMap;
 pub mod record;
 mod snr;
 
+#[cfg(docrs)]
+use crate::Bibliography;
+
 pub use record::{LliFlags, ObservationData, Record};
 pub use snr::Snr;
 
@@ -290,7 +293,8 @@ pub trait Observation {
 /// GNSS signal recombination trait.    
 /// Import this to recombine OBS RINEX with usual recombination methods.   
 /// This only applies to OBS RINEX records.  
-/// Refer to Bibliography::ESAGnssCombination for more information.
+/// Refer to [Bibliography::ESAGnssCombination] and [Bibliography::ESABookVol1]
+/// for more information.
 #[cfg(feature = "obs")]
 #[cfg_attr(docrs, doc(cfg(feature = "obs")))]
 pub trait Combine {
@@ -366,7 +370,7 @@ pub trait Dcb {
 }
 
 /// Multipath biases estimation.
-/// See <https://github.com/georust/rinex/blob/main/rinex-cli/doc/gnss-combination.md>.
+/// Refer to [Bibliography::ESABookVol1] and [Bibliography::MpTaoglas].
 #[cfg(feature = "obs")]
 #[cfg_attr(docrs, doc(cfg(feature = "obs")))]
 pub trait Mp {
