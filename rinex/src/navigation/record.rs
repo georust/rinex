@@ -43,35 +43,38 @@ use super::{
 use hifitime::Duration;
 
 /// Navigation Message Types
-#[derive(Debug, Copy, Clone, PartialEq, PartialOrd, Eq, Ord)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, PartialOrd, Eq, Ord)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum NavMsgType {
-    /// Legacy NAV
+    /// Legacy NAV message
+    #[default]
     LNAV,
-    /// FDMA
+    /// Glonass FDMA message
     FDMA,
-    /// FNAV
+    /// Galileo FNAV message
     FNAV,
-    /// INAV
+    /// Galileo INAV message
     INAV,
     /// IFNV,
     IFNV,
-    /// D1
+    /// BeiDou D1 NAV message
     D1,
-    /// D2
+    /// BeiDou D2 NAV message
     D2,
     /// D1D2
     D1D2,
     /// SBAS
     SBAS,
+    /// GPS / QZSS Civilian NAV message
+    CNAV,
+    /// BeiDou CNV1 NAV message
+    CNV1,
+    /// GPS / QZSS / BeiDou CNV2 Civilian NAV2 message
+    CNV2,
+    /// BeiDou CNV3 NAV message
+    CNV3,
     /// CNVX special marker
     CNVX,
-}
-
-impl Default for NavMsgType {
-    fn default() -> Self {
-        Self::LNAV
-    }
 }
 
 impl std::fmt::Display for NavMsgType {
@@ -86,6 +89,10 @@ impl std::fmt::Display for NavMsgType {
             Self::D2 => f.write_str("D2"),
             Self::D1D2 => f.write_str("D1D2"),
             Self::SBAS => f.write_str("SBAS"),
+            Self::CNAV => f.write_str("CNAV"),
+            Self::CNV1 => f.write_str("CNV1"),
+            Self::CNV2 => f.write_str("CNV2"),
+            Self::CNV3 => f.write_str("CNV3"),
             Self::CNVX => f.write_str("CNVX"),
         }
     }
@@ -106,6 +113,10 @@ impl std::str::FromStr for NavMsgType {
             "D2" => Ok(Self::D2),
             "D1D2" => Ok(Self::D1D2),
             "SBAS" => Ok(Self::SBAS),
+            "CNAV" => Ok(Self::CNAV),
+            "CNV1" => Ok(Self::CNV1),
+            "CNV2" => Ok(Self::CNV2),
+            "CNV3" => Ok(Self::CNV3),
             "CNVX" => Ok(Self::CNVX),
             _ => Err(Error::UnknownNavMsgType),
         }
@@ -268,7 +279,7 @@ fn parse_v4_record_entry(content: &str) -> Result<(Epoch, NavFrame), Error> {
 
     let (epoch, fr): (Epoch, NavFrame) = match frame_class {
         FrameClass::Ephemeris => {
-            let (epoch, _, ephemeris) = Ephemeris::parse_v4(lines)?;
+            let (epoch, _, ephemeris) = Ephemeris::parse_v4(msg_type, lines)?;
             (epoch, NavFrame::Eph(msg_type, sv, ephemeris))
         },
         FrameClass::SystemTimeOffset => {

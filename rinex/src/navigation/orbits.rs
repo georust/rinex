@@ -240,7 +240,7 @@ pub(crate) fn closest_nav_standards(
 ) -> Option<&'static NavHelper<'static>> {
     let database = &NAV_ORBITS;
     // start by trying to locate desired revision.
-    // On each mismatch, we decrement and try to match.
+    // On each mismatch, we decrement and move on to next major/minor combination.
     let (mut major, mut minor): (u8, u8) = revision.into();
     loop {
         // filter on both:
@@ -325,14 +325,24 @@ mod test {
             (Constellation::GPS, Version::new(1, 0), NavMsgType::LNAV),
             (Constellation::GPS, Version::new(2, 0), NavMsgType::LNAV),
             (Constellation::GPS, Version::new(4, 0), NavMsgType::LNAV),
+            (Constellation::GPS, Version::new(4, 0), NavMsgType::CNAV),
+            (Constellation::GPS, Version::new(4, 0), NavMsgType::CNV2),
             (Constellation::Glonass, Version::new(2, 0), NavMsgType::LNAV),
             (Constellation::Glonass, Version::new(3, 0), NavMsgType::LNAV),
             (Constellation::Galileo, Version::new(3, 0), NavMsgType::LNAV),
-            (Constellation::Galileo, Version::new(4, 0), NavMsgType::LNAV),
+            (Constellation::Galileo, Version::new(4, 0), NavMsgType::INAV),
+            (Constellation::Galileo, Version::new(4, 0), NavMsgType::FNAV),
             (Constellation::QZSS, Version::new(3, 0), NavMsgType::LNAV),
             (Constellation::QZSS, Version::new(4, 0), NavMsgType::LNAV),
+            (Constellation::QZSS, Version::new(4, 0), NavMsgType::CNAV),
+            (Constellation::QZSS, Version::new(4, 0), NavMsgType::CNV2),
             (Constellation::BeiDou, Version::new(3, 0), NavMsgType::LNAV),
-            (Constellation::BeiDou, Version::new(4, 0), NavMsgType::LNAV),
+            (Constellation::BeiDou, Version::new(4, 0), NavMsgType::D1),
+            (Constellation::BeiDou, Version::new(4, 0), NavMsgType::D2),
+            (Constellation::BeiDou, Version::new(4, 0), NavMsgType::CNV1),
+            (Constellation::BeiDou, Version::new(4, 0), NavMsgType::CNV2),
+            (Constellation::BeiDou, Version::new(4, 0), NavMsgType::CNV3),
+            (Constellation::Geo, Version::new(4, 0), NavMsgType::SBAS),
         ] {
             let found = closest_nav_standards(constellation, rev, msg);
             assert!(

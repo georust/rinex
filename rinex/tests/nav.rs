@@ -1347,4 +1347,65 @@ mod test {
             }
         }
     }
+    #[test]
+    #[cfg(feature = "flate2")]
+    fn v4_nav_messages() {
+        let test_resource = env!("CARGO_MANIFEST_DIR").to_owned()
+            + "/../test_resources/NAV/V4/KMS300DNK_R_20221591000_01H_MN.rnx.gz";
+        let rinex = Rinex::from_file(&test_resource);
+        assert_eq!(rinex.is_ok(), true);
+        let rinex = rinex.unwrap();
+
+        for (epoch, (msg, sv, ephemeris)) in rinex.ephemeris() {
+            match sv.constellation {
+                Constellation::GPS | Constellation::QZSS => {
+                    let expected = vec![NavMsgType::LNAV, NavMsgType::CNAV, NavMsgType::CNV2];
+                    assert!(
+                        expected.contains(&msg),
+                        "parsed invalid GPS/QZSS V4 message \"{}\"",
+                        msg
+                    );
+                },
+                Constellation::Galileo => {
+                    let expected = vec![NavMsgType::FNAV, NavMsgType::INAV];
+                    assert!(
+                        expected.contains(&msg),
+                        "parsed invalid Galileo V4 message \"{}\"",
+                        msg
+                    );
+                },
+                Constellation::BeiDou => {
+                    let expected = vec![
+                        NavMsgType::D1,
+                        NavMsgType::D2,
+                        NavMsgType::CNV1,
+                        NavMsgType::CNV2,
+                        NavMsgType::CNV3,
+                    ];
+                    assert!(
+                        expected.contains(&msg),
+                        "parsed invalid BeiDou V4 message \"{}\"",
+                        msg
+                    );
+                },
+                Constellation::Glonass => {
+                    assert_eq!(
+                        msg,
+                        NavMsgType::FDMA,
+                        "parsed invalid Glonass V4 message \"{}\"",
+                        msg
+                    );
+                },
+                Constellation::Geo => {
+                    assert_eq!(
+                        msg,
+                        NavMsgType::SBAS,
+                        "parsed invalid SBAS V4 message \"{}\"",
+                        msg
+                    );
+                },
+                _ => {},
+            }
+        }
+    }
 }
