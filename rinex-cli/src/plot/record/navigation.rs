@@ -1,105 +1,83 @@
 //! Navigation record plotting
-use super::{build_chart, build_plot, PlotContext, Plot2d};
-use plotters::{chart::ChartState, coord::Shift, prelude::*};
+use crate::{
+    plot::{build_chart_epoch_axis, generate_markers, PlotContext},
+    Context,
+};
+use plotly::common::{Marker, MarkerSymbol, Mode, Visible};
 use rinex::{navigation::*, prelude::*};
-use std::collections::HashMap;
 
-pub fn build_context<'a>(dim: (u32, u32), record: &Record) -> PlotContext<'a> {
-    let mut e0: f64 = 0.0;
-    let mut t_axis: Vec<f64> = Vec::with_capacity(16384);
-    let mut plots: HashMap<String, DrawingArea<BitMapBackend, Shift>> = HashMap::with_capacity(4);
-    let _y_ranges: HashMap<String, (f64, f64)> = HashMap::new();
-    let mut charts: HashMap<String, ChartState<Plot2d>> = HashMap::new();
-    for (index, (e, classes)) in record.iter().enumerate() {
-        if index == 0 {
-            // store first epoch timestamp
-            // to scale x_axis proplery (avoids fuzzy rendering)
-            e0 = e.to_utc_seconds();
-        }
-        let t = e.to_utc_seconds() - e0;
-        t_axis.push(t as f64);
-        for (class, _) in classes {
-            if *class == FrameClass::Ephemeris {
-                let file = "clock-bias.png";
-                if plots.get(file).is_none() {
-                    let plot = build_plot(file, dim);
-                    plots.insert(file.to_string(), plot);
-                }
-                let file = "clock-drift.png";
-                if plots.get(file).is_none() {
-                    let plot = build_plot(file, dim);
-                    plots.insert(file.to_string(), plot);
-                }
-                let file = "clock-driftr.png";
-                if plots.get(file).is_none() {
-                    let plot = build_plot(file, dim);
-                    plots.insert(file.to_string(), plot);
-                }
-            } else {
-                println!("Non ephemeris frame cannot be plotted yet");
-            }
-        }
-    }
-    // Add one chart onto all plots
-    for (id, plot) in plots.iter() {
-        // scale this chart nicely
-        let chart = build_chart(id, t_axis.clone(), (-10.0E5, 10E5), plot);
-        charts.insert(id.to_string(), chart);
-    }
-    PlotContext {
-        t_axis,
-        plots,
-        charts,
-        dual_charts: HashMap::new(),
-    }
-}
+pub fn plot_navigation(rinex: &Rinex, plot_ctx: &mut PlotContext) {
+    /*
+     * one plot (2 Y axes) for both Clock biases
+     * and clock drift
+     */
+    plot_ctx.add_cartesian2d_2y_plot("Sv Clock Bias", "Clock Bias [s]", "Clock Drift [s/s]");
+    let epochs: Vec<_> = rinex.epoch().collect();
 
-pub fn plot(ctx: &mut PlotContext, record: &Record) {
-    let mut e0: f64 = 0.0;
-    let mut bias: HashMap<Sv, Vec<(f64, f64)>> = HashMap::new();
-    let mut drift: HashMap<Sv, Vec<(f64, f64)>> = HashMap::new();
-    let mut driftr: HashMap<Sv, Vec<(f64, f64)>> = HashMap::new();
-    for (index, (epoch, classes)) in record.iter().enumerate() {
-        if index == 0 {
-            e0 = epoch.to_utc_seconds();
-        }
-        let t = epoch.to_utc_seconds() - e0;
-        for (class, frames) in classes {
-            if *class == FrameClass::Ephemeris {
-                for frame in frames {
-                    if let Some((_, sv, eph)) = frame.as_eph() {
-                        if let Some(bias) = bias.get_mut(&sv) {
-                            bias.push((t as f64, eph.clock_bias));
-                        } else {
-                            bias.insert(*sv, vec![(t as f64, eph.clock_bias)]);
-                        }
-                        if let Some(drift) = drift.get_mut(&sv) {
-                            drift.push((t as f64, eph.clock_drift));
-                        } else {
-                            drift.insert(*sv, vec![(t as f64, eph.clock_drift)]);
-                        }
-                        if let Some(driftr) = driftr.get_mut(&sv) {
-                            driftr.push((t as f64, eph.clock_drift_rate));
-                        } else {
-                            driftr.insert(*sv, vec![(t as f64, eph.clock_drift_rate)]);
-                        }
+    for (sv_index, sv) in rinex.sv().enumerate() {
+        let sv_clock: Vec<_> = rinex
+            .sv_clock()
+            .filter_map(
+                |(_epoch, (svnn, (clk, _, _)))| {
+                    if svnn == sv {
+                        Some(clk)
+                    } else {
+                        None
                     }
-                }
+                },
+            )
+            .collect();
+        let sv_drift: Vec<_> = rinex
+            .sv_clock()
+            .filter_map(
+                |(_epoch, (svnn, (_, drift, _)))| {
+                    if svnn == sv {
+                        Some(drift)
+                    } else {
+                        None
+                    }
+                },
+            )
+            .collect();
+
+        let trace = build_chart_epoch_axis(
+            &format!("{}(clk)", sv),
+            Mode::LinesMarkers,
+            epochs.clone(),
+            sv_clock,
+        )
+        .visible({
+            if sv_index == 0 {
+                /*
+                 * Clock data differs too much,
+                 * looks better if we only present one by default
+                 */
+                Visible::True
+            } else {
+                Visible::LegendOnly
             }
-        }
+        });
+        plot_ctx.add_trace(trace);
+
+        let trace = build_chart_epoch_axis(
+            &format!("{}(drift)", sv),
+            Mode::LinesMarkers,
+            epochs.clone(),
+            sv_drift,
+        )
+        .y_axis("y2")
+        .visible({
+            if sv_index == 0 {
+                /*
+                 * Clock data differs too much,
+                 * looks better if we only present one by default
+                 */
+                Visible::True
+            } else {
+                Visible::LegendOnly
+            }
+        });
+        plot_ctx.add_trace(trace);
     }
-    let plot = ctx.plots.get("clock-bias.png").unwrap();
-    let mut chart = ctx
-        .charts
-        .get("clock-bias.png")
-        .unwrap()
-        .clone()
-        .restore(&plot);
-    for (_vehicle, bias) in bias {
-        chart
-            .draw_series(LineSeries::new(bias.iter().map(|point| *point), &BLACK))
-            .expect("failed to draw clock biases")
-            .label("Clock bias")
-            .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], BLACK));
-    }
+    trace!("navigation data plot");
 }

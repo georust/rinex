@@ -270,7 +270,6 @@ pub fn main() -> Result<(), rinex::Error> {
      */
     if qc {
         info!("qc - enabled");
-
         let mut qc_opts = cli.qc_config();
         /*
          * ground position:
