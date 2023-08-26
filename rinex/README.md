@@ -16,15 +16,25 @@ In this current form, the parser disregards file names and conventions.
 Although we aim at providing methods that help generate files that respect the standards,
 in file production context.
 
+## RINEX Standards
+
+This library was built to support RINEX V4 completely, but efforts
+were made to also support older revisions too.
+
+All revisions are supported when parsing. 
+Some restrictions still apply in file production context, see the 
+[front page table](https://github.com/georust/rinex/#rinex-standards).
+
 ## Crate features
 
 One crate feature per supported RINEX format exists.   
 For example, `nav` enables RINEX Navigation specific methods.
 
-The `qc` feature enables a set of structures for RINEX file quality analysis.  
+The `qc` feature enables [a set of structures](https://docs.rs/rinex/latest/rinex/quality/index.html)
+for RINEX file quality analysis.  
 
 The  `processing` feature enables the 
-[Preprocessing trait](https://docs.rs/rinex/latest/rinex/processing/trait.Preprocessing.html),
+[Preprocessing toolkit](https://docs.rs/rinex/latest/rinex/preprocessing/index.html)
 to resample, filter and sort RINEX datasets prior further analysis.
 
 The `flate2` feature enables native gz decompression.  
