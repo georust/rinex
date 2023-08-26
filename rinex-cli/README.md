@@ -49,8 +49,8 @@ if you know how to operate the preprocessing toolkit
 
 ## Data analysis 
 
-This tool can perform sveral data analysis. Feasible operations
-depend on the context provided by the user.
+This tool can perform several data analysis. Feasible operations
+are highly dependent on the context provided by the user.
 
 Based on the type of primary RINEX provided, the main report structure
 will differ: 
