@@ -29,7 +29,7 @@ This tool supports gzip compressed files but the file name must be terminated by
 
 ### Analysis and report files
 
-Reports and plots are rendered in HTML in the `rinex/rinex-cli/product` directory.  
+Reports and plots are rendered in HTML in the `rinex/rinex-cli/workspace` directory.  
 Analysis is named after the primary RINEX file.
 
 ## `teqc` operations
@@ -150,7 +150,7 @@ for every operation that did apply (correct command line description).
 `> record analysis` means the analysis is starting at this point.   
 The location of the graphs that were rendered (if any) is given.
 
-[rinex-cli/product](product/) is where all analysis reports
+[rinex-cli/workspace](workspace/) is where all analysis reports
 get generated. It is named after the main RINEX file (`-fp`) which
 allows preserving sessions for different files.
 

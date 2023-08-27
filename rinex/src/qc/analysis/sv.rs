@@ -7,8 +7,8 @@ pub struct QcSvAnalysis {
 }
 
 impl QcSvAnalysis {
-    pub fn new(rnx: &Rinex, _nav: &Option<Rinex>, _opts: &QcOpts) -> Self {
-        let sv = rnx.sv();
+    pub fn new(primary: &Rinex, _opts: &QcOpts) -> Self {
+        let sv = primary.sv();
         Self {
             sv: { sv.map(|sv| sv.to_string()).collect() },
         }

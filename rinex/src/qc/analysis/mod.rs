@@ -31,14 +31,13 @@ pub struct QcAnalysis {
 
 impl QcAnalysis {
     /// Creates a new Analysis Report from given RINEX context.  
-    ///   - `rnx` : primary file
-    ///   - `nav` : Optional secondary file to augment feasible anlysis
-    pub fn new(rnx: &Rinex, nav: &Option<Rinex>, opts: &QcOpts) -> Self {
+    /// primary : primary file
+    pub fn new(primary: &Rinex, nav: &Option<Rinex>, opts: &QcOpts) -> Self {
         Self {
-            sv: QcSvAnalysis::new(rnx, nav, opts),
-            sampling: QcSamplingAnalysis::new(rnx, opts),
+            sv: QcSvAnalysis::new(primary, opts),
+            sampling: QcSamplingAnalysis::new(primary, opts),
             #[cfg(feature = "obs")]
-            observ: QcObsAnalysis::new(rnx, nav, opts),
+            observ: QcObsAnalysis::new(primary, opts),
         }
     }
 }
@@ -69,36 +68,30 @@ impl HtmlReport for QcAnalysis {
         box_html! {
             div(id="analysis") {
                 div(id="sampling") {
+                    h3(class="title") {
+                        : "Sampling"
+                    }
                     table(class="table is-bordered") {
-                        thead {
-                            th {
-                                : "Sampling"
-                            }
-                        }
                         tbody {
                             : self.sampling.to_inline_html()
                         }
                     }
                 }
                 div(id="sv") {
+                    h3(class="title") {
+                        : "Sv"
+                    }
                     table(class="table is-bordered") {
-                        thead {
-                            th {
-                                : "Sv"
-                            }
-                        }
                         tbody {
                             : self.sv.to_inline_html()
                         }
                     }
                 }
                 div(id="observations") {
+                    h3(class="title") {
+                        : "Observations"
+                    }
                     table(class="table is-bordered") {
-                        thead {
-                            th {
-                                : "Observations"
-                            }
-                        }
                         tbody {
                             : self.observ.to_inline_html()
                         }

@@ -281,7 +281,7 @@ pub struct QcObsAnalysis {
 }
 
 impl QcObsAnalysis {
-    pub fn new(rnx: &Rinex, _nav: &Option<Rinex>, opts: &QcOpts) -> Self {
+    pub fn new(rnx: &Rinex, opts: &QcOpts) -> Self {
         let sv: Vec<_> = rnx.sv().collect();
         let obs = rnx.header.obs.as_ref().unwrap();
         let mut observables = obs.codes.clone();
@@ -489,7 +489,7 @@ use horrorshow::RenderBox;
 
 impl HtmlReport for QcObsAnalysis {
     fn to_html(&self) -> String {
-        todo!()
+        unreachable!("never used by itself")
     }
     fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
         box_html! {
@@ -531,11 +531,15 @@ impl HtmlReport for QcObsAnalysis {
                     }
                 }
             }
-            div(class="table-container") {
-                : report_anomalies(&self.anomalies)
+            tr {
+                table {
+                    : report_anomalies(&self.anomalies)
+                }
             }
-            div(class="epoch-completion") {
-                : report_epoch_completion(self.total_epochs, self.total_with_obs, &self.complete_epochs)
+            tr {
+                table {
+                    : report_epoch_completion(self.total_epochs, self.total_with_obs, &self.complete_epochs)
+                }
             }
             table(class="table is-bordered") {
                 thead {
@@ -575,8 +579,10 @@ impl HtmlReport for QcObsAnalysis {
                     }
                 }
             }
-            div(class="epoch-completion") {
-                : report_ssi_statistics(&self.ssi_stats)
+            tr {
+                table {
+                    : report_ssi_statistics(&self.ssi_stats)
+                }
             }
         }
     }

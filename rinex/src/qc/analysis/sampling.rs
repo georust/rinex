@@ -102,20 +102,29 @@ impl HtmlReport for QcSamplingAnalysis {
                     }
                 }
             }
-            div(class="table-container") {
-                table(class="table is-bordered") {
-                    thead {
-                        th {
-                            : "Gap analysis"
-                        }
+            tr {
+                th {
+                    : "Gap analysis"
+                }
+            }
+            @ if self.gaps.len() == 0 {
+                 tr {
+                    th {
+                        : "No Data Gaps detected"
                     }
-                    tbody {
-                        @ for (_epoch, _dt) in &self.gaps {
-
+                 }
+            } else {
+                @ for (epoch, dt) in &self.gaps {
+                    tr {
+                        td {
+                            : format!("Start : {}", epoch)
+                        }
+                        td {
+                            : format!("Duration: {}", dt)
                         }
                     }
                 }
-            }//table: gap analysis
+            }
         }
     }
 }

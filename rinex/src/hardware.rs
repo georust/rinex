@@ -90,6 +90,111 @@ impl Antenna {
     }
 }
 
+#[cfg(feature = "qc")]
+use horrorshow::RenderBox;
+
+#[cfg(feature = "qc")]
+use crate::quality::HtmlReport;
+
+#[cfg(feature = "qc")]
+impl HtmlReport for Antenna {
+    fn to_html(&self) -> String {
+        todo!("never used by itself");
+    }
+    fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
+        box_html! {
+            table(class="table is-bordered") {
+                tr {
+                    th {
+                        : "Antenna model"
+                    }
+                    th {
+                        : "SN#"
+                    }
+                    th {
+                        : "Base Coordinates"
+                    }
+                    th {
+                        : "Height"
+                    }
+                    th {
+                        : "Eccentricity"
+                    }
+                }
+                tr {
+                    td {
+                        : self.model.clone()
+                    }
+                    td {
+                        : self.sn.clone()
+                    }
+                    td {
+                        @ if let Some(coords) = self.coords {
+                            : format!("({}m, {}m, {}m) (ECEF)",
+                                coords.0, coords.1, coords.2)
+                        } else {
+                            : "Unknown"
+                        }
+                    }
+                    td {
+                        @ if let Some(h) = self.height {
+                            : format!("{} m", h)
+                        } else {
+                            : "Unknown"
+                        }
+                    }
+                    td {
+                        @ if let Some(north) = self.northern {
+                            @ if let Some(east) = self.eastern {
+                                : format!("{}m N, {}m E", north, east)
+                            } else {
+                                : "Unknown"
+                            }
+                        } else {
+                            : "Unknown"
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[cfg(feature = "qc")]
+impl HtmlReport for Rcvr {
+    fn to_html(&self) -> String {
+        todo!("never used by itself");
+    }
+    fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
+        box_html! {
+            table(class="table is-bordered") {
+                tr {
+                    th {
+                        : "Model"
+                    }
+                    th {
+                        : "SN#"
+                    }
+                    th {
+                        : "Firmware"
+                    }
+                }
+                tr {
+                    td {
+                        : self.model.clone()
+                    }
+                    td {
+                        : self.sn.clone()
+                    }
+                    td {
+                        : self.firmware.clone()
+                    }
+                }
+            }
+        }
+    }
+}
+
 /// Space vehicle antenna information,
 /// only exists in ANTEX records
 #[derive(Clone, Debug, Default, PartialEq)]

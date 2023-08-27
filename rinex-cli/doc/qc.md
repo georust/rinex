@@ -33,11 +33,9 @@ This allows for example Glonass and other NAV context to be correctly defined.
 1. `--fp [FILE]` for the Observation file
 2. `--nav [FILE1] [FILE2]..` : pass NAV contexts
 
-We will generate products in a dedicated folder.  
-
-The current behavior is to use the 
-[product](https://github.com/gwbres/rinex/tree/rinex-cli/product)
-folder to generate QC reports.
+We will generate products the
+[workspace](https://github.com/gwbres/rinex/tree/rinex-cli/workspace)
+folder, that includes QC reports.
 
 Unlike teqc, we do not support BINEX nor SP3 input data/files as of today.
 

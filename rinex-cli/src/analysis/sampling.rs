@@ -1,20 +1,21 @@
-use crate::{plot::PlotContext, Context};
+use crate::plot::PlotContext;
 use itertools::Itertools;
 use plotly::Histogram; //.sorted()
+use rinex::quality::QcContext;
 
 /*
  * Sampling histogram
  */
-pub fn histogram(ctx: &Context, plot_ctx: &mut PlotContext) {
+pub fn histogram(ctx: &QcContext, plot_ctx: &mut PlotContext) {
     plot_ctx.add_cartesian2d_plot("Sampling Histogram", "Count");
     let durations: Vec<_> = ctx
-        .primary_rinex
+        .primary_data()
         .sampling_histogram()
         .sorted()
         .map(|(dt, _)| dt.to_string())
         .collect();
     let populations: Vec<_> = ctx
-        .primary_rinex
+        .primary_data()
         .sampling_histogram()
         .sorted()
         .map(|(_, pop)| pop.to_string())
@@ -22,7 +23,7 @@ pub fn histogram(ctx: &Context, plot_ctx: &mut PlotContext) {
     let histogram = Histogram::new_xy(durations, populations).name("Sampling Histogram");
     plot_ctx.add_trace(histogram);
 
-    if let Some(ref nav) = ctx.nav_rinex {
+    if let Some(nav) = &ctx.navigation_data() {
         // Run similar analysis on NAV context
         let durations: Vec<_> = nav
             .sampling_histogram()

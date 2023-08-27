@@ -36,7 +36,7 @@ mod test {
 
                     match data {
                         "ATX" => {
-                            assert!(rinex.is_antex_rinex());
+                            assert!(rinex.is_antex());
                         },
                         "NAV" => {
                             assert!(rinex.is_navigation_rinex());

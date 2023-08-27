@@ -10,7 +10,7 @@ mod test {
         let rinex = Rinex::from_file(&test_resource);
         assert_eq!(rinex.is_ok(), true);
         let rinex = rinex.unwrap();
-        assert_eq!(rinex.is_antex_rinex(), true);
+        assert_eq!(rinex.is_antex(), true);
         let header = rinex.header;
         assert_eq!(header.version.major, 1);
         assert_eq!(header.version.minor, 4);

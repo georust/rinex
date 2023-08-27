@@ -1,6 +1,8 @@
-use crate::prelude::*;
 use horrorshow::{helper::doctype, RenderBox};
 use strum_macros::EnumString;
+
+mod context;
+pub use context::{QcContext, QcInputData};
 
 mod opts;
 pub use opts::{QcClassification, QcOpts};
@@ -50,75 +52,19 @@ pub enum Grade {
     GradeF,
 }
 
-#[derive(Debug, Clone)]
-//TODO: improve this structure's definition:
-//      we should only store all file header sections,
-//      not file bodies. They were already used when Vec<QcAnalysis>
-//      was built.
-pub struct QcReport<'a> {
-    /// Configuration / options
-    opts: QcOpts,
-    /// Primary File name
-    filename: String,
-    /// Identified constellations
-    constellations: Vec<Constellation>,
-    /// RINEX context
-    rinex: &'a Rinex,
-    /// Navigation augmentation context
-    nav_filenames: Vec<String>,
-    /// Navigation augmentation context
-    nav_rinex: Option<Rinex>,
-    /// All analysis that were performed, sorted by
-    /// opts.classification (if possible)
-    analysis: Vec<QcAnalysis>,
-}
+pub struct QcReport {}
 
-impl<'a> QcReport<'a> {
-    /// Builds a new basic QC Report using default options
-    pub fn basic(filename: &str, rnx: &'a Rinex) -> Self {
-        Self::new(filename, rnx, Vec::new(), None, QcOpts::default())
+impl QcReport {
+    #[cfg(not(feature = "processing"))]
+    fn build_analysis(ctx: &QcContext, opts: &QcOpts) -> Vec<QcAnalysis> {
+        vec![QcAnalysis::new(ctx, opts)]
     }
-    /// Builds a new QC Report, with possible complex RINEX context
-    pub fn new(
-        filename: &str,
-        rnx: &'a Rinex,
-        nav_filenames: Vec<String>, // possible augmentation fp
-        nav_rinex: Option<Rinex>,   // possiblement augmentation context
-        opts: QcOpts,
-    ) -> Self {
-        if cfg!(feature = "processing") {
-            // classification of the QC report is feasible
-            Self::make_sorted_report(filename, rnx, nav_filenames, nav_rinex, opts)
-        } else {
-            // classification is infeasible, create report as is
-            Self {
-                filename: filename.to_string(),
-                rinex: rnx,
-                nav_filenames,
-                nav_rinex: nav_rinex.clone(),
-                analysis: vec![QcAnalysis::new(rnx, &nav_rinex, &opts)],
-                opts,
-                constellations: {
-                    //TODO: take secondary file into account,
-                    //      should filter/retain only common systems
-                    rnx.constellation().collect()
-                },
-            }
-        }
-    }
-    #[cfg(feature = "processing")]
     /*
-     * When the "processing" feature is enabled
-     * we have the capacity to let the user classify the generated report
-     * per desired physics or other criteria
+     * When the "processing" feature is enabled,
+     * we can sort the report by desired physics or other criteria
      */
-    fn make_sorted_report(
-        filename: &str,
-        rnx: &'a Rinex,
-        nav_filenames: Vec<String>, // possible augmentation fp
-        nav_rinex: Option<Rinex>,   // possiblement augmentation context
-        opts: QcOpts,
-    ) -> Self {
+    #[cfg(feature = "processing")]
+    fn build_analysis(ctx: &QcContext, opts: &QcOpts) -> Vec<QcAnalysis> {
         // build analysis to perform
         let mut analysis: Vec<QcAnalysis> = Vec::new();
         /*
@@ -133,62 +79,49 @@ impl<'a> QcReport<'a> {
 
         match opts.classification {
             QcClassification::GNSS => {
-                for gnss in rnx.constellation() {
+                for gnss in ctx.primary_data().constellation() {
                     filter_targets.push(TargetItem::from(gnss));
                 }
             },
             QcClassification::Sv => {
-                for sv in rnx.sv() {
+                for sv in ctx.primary_data().sv() {
                     filter_targets.push(TargetItem::from(sv));
                 }
             },
             QcClassification::Physics => {
-                let mut observables: Vec<_> = rnx.observable().map(|o| o.clone()).collect();
+                let mut observables: Vec<_> =
+                    ctx.primary_data().observable().map(|o| o.clone()).collect();
                 observables.sort(); // improves report rendering
                 for obsv in observables {
                     filter_targets.push(TargetItem::from(obsv));
                 }
             },
         }
-
-        // apply all mask, and generate an analysis on such data set
+        // apply mask filters and generate an analysis on resulting data set
         for target in filter_targets {
             let mask = MaskFilter {
                 item: target,
                 operand: MaskOperand::Equals,
             };
 
-            // drop any other data set
-            let subset = rnx.filter(mask.clone().into());
-            // also apply it to other part of the RINEx context
-            let nav_subset = if let Some(nav) = &nav_rinex {
-                Some(nav.filter(mask.clone().into()))
+            let subset = ctx.primary.rinex.filter(mask.clone().into());
+
+            // also apply to possible NAV augmentation
+            let nav_subset = if let Some(nav) = &ctx.nav {
+                Some(nav.rinex.filter(mask.clone().into()))
             } else {
                 None
             };
 
-            // perform analysis on left overs
+            // perform analysis on these subsets
             analysis.push(QcAnalysis::new(&subset, &nav_subset, &opts));
         }
-
-        Self {
-            filename: filename.to_string(),
-            constellations: {
-                //TODO: take secondary file into account
-                //      should filter/retain common systems
-                rnx.constellation().collect()
-            },
-            opts,
-            rinex: rnx,
-            analysis,
-            nav_rinex,
-            nav_filenames,
-        }
+        analysis
     }
-}
-
-impl<'a> HtmlReport for QcReport<'a> {
-    fn to_html(&self) -> String {
+    /// Generates a Quality Check Report from provided Context and parametrization,
+    /// in html format.
+    pub fn html(context: QcContext, opts: QcOpts) -> String {
+        let analysis = Self::build_analysis(&context, &opts);
         format!(
             "{}",
             html! {
@@ -199,207 +132,71 @@ impl<'a> HtmlReport for QcReport<'a> {
                         meta(name="viewport", content="width=device-width, initial-scale=1");
                         link(rel="stylesheet", href="https:////cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css");
                         script(defer="true", src="https://use.fontawesome.com/releases/v5.3.1/js/all.js");
-                        title: format!("{}", self.filename);
+                        title: context.primary.path.file_name().unwrap().to_str().unwrap_or("Unknown");
                     }
                     body {
-                        : self.to_inline_html()
+                        div(id="version") {
+                            h2(class="title") {
+                                : "RINEX Quality Check summary"
+                            }
+                            table(class="table is-bordered") {
+                                tbody {
+                                    tr {
+                                        th {
+                                            : "Version"
+                                        }
+                                        td {
+                                            : format!("rust-rnx: v{}", env!("CARGO_PKG_VERSION"))
+                                        }
+                                    }
+                                }
+                            }
+                        }//div=header
+                        div(id="context") {
+                            h3(class="title") {
+                                : "Context"
+                            }
+                            table(class="table is-bordered") {
+                                tbody {
+                                    : context.to_inline_html()
+                                }
+                            }
+                        }//div=context
+                        div(id="parameters") {
+                            h3(class="title") {
+                                : "Parameters"
+                            }
+                            table(class="table is-bordered") {
+                                tbody {
+                                    : opts.to_inline_html()
+                                }
+                            }
+                        } //div=parameters
+                        div(id="header") {
+                            h3(class="title") {
+                                : "File Header"
+                            }
+                            table(class="table is-bordered") {
+                                tbody {
+                                    : context.primary_data().header.to_inline_html()
+                                }
+                            }
+                        }
+                        /*
+                         * Report all analysis that were performed
+                         */
+                        div(id="analysis") {
+                            @ for analysis in &analysis {
+                                table(class="table is-bordered") {
+                                    tbody {
+                                        : analysis.to_inline_html()
+                                    }
+                                }
+                            }
+                        }//div=analysis
                     }
                 }
             }
         )
-    }
-    fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
-        box_html! {
-            div(id="general") {
-                h3(class="title") {
-                    : "RINEX Quality Check summary"
-                }
-                div(id="file") {
-                    table(class="table is-bordered") {
-                        tbody {
-                            tr {
-                                th {
-                                    : "Version"
-                                }
-                                td {
-                                    : format!("rust-rnx: v{}", env!("CARGO_PKG_VERSION"))
-                                }
-                            }
-                            tr {
-                                th {
-                                    p {
-                                        : "Name"
-                                    }
-                                }
-                                td {
-                                    p {
-                                        : self.filename.to_string()
-                                    }
-                                    @ for fp in &self.nav_filenames {
-                                        p {
-                                            : fp.to_string()
-                                        }
-                                    }
-                                }
-                            }
-                            tr {
-                                th {
-                                    : "Type"
-                                }
-                                td {
-                                    @ if let Some(gnss) = self.rinex.header.constellation {
-                                        p {
-                                            : format!("{} {:?}", gnss, self.rinex.header.rinex_type)
-                                        }
-                                        @ if let Some(nav) = &self.nav_rinex {
-                                            @ if let Some(gnss) = nav.header.constellation {
-                                                p {
-                                                    : format!("{} {:?}", gnss, nav.header.rinex_type)
-                                                }
-                                            } else {
-                                                p {
-                                                    : format!("{:?} file", nav.header.rinex_type)
-                                                }
-                                            }
-                                        }
-                                    } else {
-                                        p {
-                                            : format!("{:?} file", self.rinex.header.rinex_type)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }//div="file"
-                div(id="parameters") {
-                    table(class="table is-bordered") {
-                        thead {
-                            th {
-                                : "Parameters"
-                            }
-                        }
-                        tbody {
-                            : self.opts.to_inline_html()
-                        }
-                    }
-                }//div="parameters"
-            }
-            div(id="header") {
-                table(class="table is-bordered") {
-                    thead {
-                        th {
-                            : "Header"
-                        }
-                    }//header/tablehead
-                    tbody {
-                        @if let Some(ant) = &self.rinex.header.rcvr_antenna {
-                            tr {
-                                th {
-                                    : "Antenna model"
-                                }
-                                th {
-                                    : "SN#"
-                                }
-                            }
-                            tr {
-                                td {
-                                    : ant.model.clone()
-                                }
-                                td {
-                                    : ant.model.clone()
-                                }
-                            }
-                        } else {
-                            tr {
-                                th {
-                                    : "Antenna"
-                                }
-                                td {
-                                    : "Unknown"
-                                }
-                            }
-                        }
-                        @if let Some(rcvr) = &self.rinex.header.rcvr {
-                            tr {
-                                th {
-                                    : "Receiver model"
-                                }
-                                th {
-                                    : "SN#"
-                                }
-                                th {
-                                    : "Firmware"
-                                }
-                            }
-                            tr {
-                                td {
-                                    : rcvr.model.clone()
-                                }
-                                td {
-                                    : rcvr.sn.clone()
-                                }
-                                td {
-                                    : rcvr.firmware.clone()
-                                }
-                            }
-                        }
-                        table(class="table is-bordered") {
-                            thead {
-                                th {
-                                    : "Antenna"
-                                }
-                            }
-                            tbody {
-                                tr {
-                                    th {
-                                        : "Header position"
-                                    }
-                                    @if let Some(ground_pos) = &self.rinex.header.ground_position {
-                                        : ground_pos.to_inline_html()
-                                    } else {
-                                        td {
-                                            : "Undefined"
-                                        }
-                                    }
-                                }
-                                tr {
-                                    th {
-                                        : "User defined position"
-                                    }
-                                    @ if let Some(ground_pos) = &self.opts.ground_position {
-                                        : ground_pos.to_inline_html()
-                                    } else {
-                                        td {
-                                            : "None"
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        table(class="table is-bordered") {
-                            th {
-                                : "GNSS Constellations"
-                            }
-                            td {
-                                : pretty_array(&self.constellations)
-                            }
-                        }
-                    }//header/tablebody
-                }//table
-            }//div=header
-            /*
-             * Report all analysis that were performed
-             */
-            div(id="analysis") {
-                @ for analysis in &self.analysis {
-                    table(class="table is-bordered") {
-                        tbody {
-                            : analysis.to_inline_html()
-                        }
-                    }
-                }
-            }
-        }
     }
 }

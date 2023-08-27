@@ -226,7 +226,7 @@ impl HtmlReport for QcOpts {
             }
             tr {
                 th {
-                    : "Elev. mask"
+                    : "Elevation mask"
                 }
                 @ if let Some(mask) = self.elev_mask {
                     td {

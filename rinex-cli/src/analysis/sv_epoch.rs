@@ -1,20 +1,18 @@
-use crate::{
-    plot::{build_chart_epoch_axis, generate_markers, PlotContext},
-    Context,
-};
+use crate::plot::{build_chart_epoch_axis, generate_markers, PlotContext};
 use ndarray::Array;
 use plotly::common::{Marker, Mode, Title, Visible};
 use plotly::layout::Axis;
-use rinex::prelude::*;
+use rinex::{prelude::*, quality::QcContext};
 
 /*
  * Sv per epoch analysis
  */
-pub fn sv_epoch(ctx: &Context, plot_ctx: &mut PlotContext) {
+pub fn sv_epoch(ctx: &QcContext, plot_ctx: &mut PlotContext) {
     plot_ctx.add_cartesian2d_plot("Sv per Epoch", "Sv(PRN#)");
     /*
      * plot customization
-     * dy axis: 1.0, since we're plotting PRN# here
+     * We're plotting PRN#, set dy to +/- 1
+     * for nicer rendition
      */
     let plot_item = plot_ctx.plot_item_mut().unwrap();
     let layout = plot_item.layout().clone().y_axis(
@@ -25,19 +23,20 @@ pub fn sv_epoch(ctx: &Context, plot_ctx: &mut PlotContext) {
     );
     plot_item.set_layout(layout);
 
-    // markers/symbols: one per constellation system
-    let constellations: Vec<_> = ctx.primary_rinex.constellation().collect();
+    // Design markers / symbols
+    //   one per constellation system
+    let constellations: Vec<_> = ctx.primary_data().constellation().collect();
     let mut nb_markers = constellations.len();
 
-    if let Some(ref nav) = ctx.nav_rinex {
+    if let Some(ref nav) = ctx.navigation_data() {
         nb_markers += nav.constellation().count();
     }
 
     let markers = generate_markers(nb_markers);
 
-    let data: Vec<_> = ctx.primary_rinex.sv_epoch().collect();
+    let data: Vec<_> = ctx.primary_data().sv_epoch().collect();
 
-    for (sv_index, sv) in ctx.primary_rinex.sv().enumerate() {
+    for (sv_index, sv) in ctx.primary_data().sv().enumerate() {
         let epochs: Vec<Epoch> = data
             .iter()
             .filter_map(|(epoch, ssv)| {
@@ -68,7 +67,7 @@ pub fn sv_epoch(ctx: &Context, plot_ctx: &mut PlotContext) {
         plot_ctx.add_trace(trace);
     }
 
-    if let Some(ref nav) = ctx.nav_rinex {
+    if let Some(nav) = &ctx.navigation_data() {
         let data: Vec<_> = nav.sv_epoch().collect();
         let nav_constell: Vec<_> = nav.constellation().collect();
 
