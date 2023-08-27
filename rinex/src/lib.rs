@@ -1874,9 +1874,8 @@ impl Rinex {
         }))
     }
     /// Returns an iterator over receiver clock offsets, expressed in seconds.
-    /// Such information is kind of rare (modern receivers?),
-    /// we don't have a compelling example yet.   
-    /// Also, this library aims at estimating the clock offset in future releases.
+    /// Such information is kind of rare (modern / dual frequency receivers?)
+    /// and we don't have a compelling example yet.
     /// ```
     /// use rinex::prelude::Rinex;
     /// let rnx = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
@@ -1893,6 +1892,137 @@ impl Rinex {
             } else {
                 None
             }
+        }))
+    }
+    /// Returns an iterator over raw phase data, expressed in whole cycles.
+    /// ```
+    /// use rinex::prelude::*;
+    /// use rinex::observable;
+    /// use std::str::FromStr;
+    ///
+    /// let rnx = Rinex::from_file("../test_resources/OBS/V2/AJAC3550.21O")
+    ///     .unwrap();
+    /// // example: design a L1 signal iterator
+    /// let phase_l1c = rnx.carrier_phase()
+    ///     .filter_map(|(e, sv, obs, value)| {
+    ///         if *obs == observable!("L1C") {
+    ///             Some((e, sv, value))
+    ///         } else {
+    ///             None
+    ///         }
+    ///     });
+    /// ```
+    pub fn carrier_phase(
+        &self,
+    ) -> Box<dyn Iterator<Item = ((Epoch, EpochFlag), Sv, &Observable, f64)> + '_> {
+        Box::new(self.observation().flat_map(|(e, (_, vehicles))| {
+            vehicles.iter().flat_map(|(sv, observations)| {
+                observations.iter().filter_map(|(obs, obsdata)| {
+                    if obs.is_phase_observable() {
+                        Some((*e, *sv, obs, obsdata.obs))
+                    } else {
+                        None
+                    }
+                })
+            })
+        }))
+    }
+    /// Returns an iterator over pseudo range observations.
+    /// ```
+    /// use rinex::prelude::*;
+    /// use rinex::observable;
+    /// use std::str::FromStr;
+    ///
+    /// let rnx = Rinex::from_file("../test_resources/OBS/V2/AJAC3550.21O")
+    ///     .unwrap();
+    /// // example: design a C1 pseudo range iterator
+    /// let c1 = rnx.pseudo_range()
+    ///     .filter_map(|(e, sv, obs, value)| {
+    ///         if *obs == observable!("C1") {
+    ///             Some((e, sv, value))
+    ///         } else {
+    ///             None
+    ///         }
+    ///     });
+    /// ```
+    pub fn pseudo_range(
+        &self,
+    ) -> Box<dyn Iterator<Item = ((Epoch, EpochFlag), Sv, &Observable, f64)> + '_> {
+        Box::new(self.observation().flat_map(|(e, (_, vehicles))| {
+            vehicles.iter().flat_map(|(sv, observations)| {
+                observations.iter().filter_map(|(obs, obsdata)| {
+                    if obs.is_pseudorange_observable() {
+                        Some((*e, *sv, obs, obsdata.obs))
+                    } else {
+                        None
+                    }
+                })
+            })
+        }))
+    }
+    /// Returns an iterator over doppler shifts. A positive doppler
+    /// means Sv is moving towards receiver.
+    /// ```
+    /// use rinex::prelude::*;
+    /// use rinex::observable;
+    /// use std::str::FromStr;
+    ///
+    /// let rnx = Rinex::from_file("../test_resources/OBS/V2/AJAC3550.21O")
+    ///     .unwrap();
+    /// // example: design a L1 signal doppler iterator
+    /// let doppler_l1 = rnx.doppler()
+    ///     .filter_map(|(e, sv, obs, value)| {
+    ///         if *obs == observable!("D1") {
+    ///             Some((e, sv, value))
+    ///         } else {
+    ///             None
+    ///         }
+    ///     });
+    /// ```
+    pub fn doppler(
+        &self,
+    ) -> Box<dyn Iterator<Item = ((Epoch, EpochFlag), Sv, &Observable, f64)> + '_> {
+        Box::new(self.observation().flat_map(|(e, (_, vehicles))| {
+            vehicles.iter().flat_map(|(sv, observations)| {
+                observations.iter().filter_map(|(obs, obsdata)| {
+                    if obs.is_doppler_observable() {
+                        Some((*e, *sv, obs, obsdata.obs))
+                    } else {
+                        None
+                    }
+                })
+            })
+        }))
+    }
+    /// Returns an iterator over signal strength observations.
+    /// ```
+    /// use rinex::prelude::*;
+    /// use rinex::observable;
+    /// use std::str::FromStr;
+    ///
+    /// let rnx = Rinex::from_file("../test_resources/OBS/V2/AJAC3550.21O")
+    ///     .unwrap();
+    /// // example: design a S1: L1 strength iterator
+    /// let ssi_l1 = rnx.ssi()
+    ///     .filter_map(|(e, sv, obs, value)| {
+    ///         if *obs == observable!("S1") {
+    ///             Some((e, sv, value))
+    ///         } else {
+    ///             None
+    ///         }
+    ///     });
+    /// ```
+    pub fn ssi(&self) -> Box<dyn Iterator<Item = ((Epoch, EpochFlag), Sv, &Observable, f64)> + '_> {
+        Box::new(self.observation().flat_map(|(e, (_, vehicles))| {
+            vehicles.iter().flat_map(|(sv, observations)| {
+                observations.iter().filter_map(|(obs, obsdata)| {
+                    if obs.is_ssi_observable() {
+                        Some((*e, *sv, obs, obsdata.obs))
+                    } else {
+                        None
+                    }
+                })
+            })
         }))
     }
 }

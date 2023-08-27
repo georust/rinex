@@ -1,5 +1,7 @@
 #[cfg(test)]
 mod test {
+    use rinex::observable;
+    use rinex::sv;
     use rinex::{header::*, observation::*, prelude::*};
     use std::str::FromStr;
     /*
@@ -774,6 +776,86 @@ mod test {
             rnx.epoch().collect::<Vec<Epoch>>() == epochs,
             "parsed wrong epoch content"
         );
+
+        let phase_l1c: Vec<_> = rnx
+            .carrier_phase()
+            .filter_map(|(e, sv, obs, value)| {
+                if *obs == observable!("L1C") {
+                    Some((e, sv, value))
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        for ((epoch, flag), sv, l1c) in phase_l1c {
+            assert!(flag.is_ok(), "faulty epoch flag");
+            if epoch == Epoch::from_str("2021-12-12T00:00:30 UTC").unwrap() {
+                if sv == sv!("G07") {
+                    assert_eq!(l1c, 131869667.223, "wrong L1C phase data");
+                } else if sv == sv!("E31") {
+                    assert_eq!(l1c, 108313833.964, "wrong L1C phase data");
+                } else if sv == sv!("E33") {
+                    assert_eq!(l1c, 106256338.827, "wrong L1C phase data");
+                } else if sv == sv!("S23") {
+                    assert_eq!(l1c, 200051837.090, "wrong L1C phase data");
+                } else if sv == sv!("S36") {
+                    assert_eq!(l1c, 197948874.430, "wrong L1C phase data");
+                }
+            } else if epoch == Epoch::from_str("2021-12-21T21:00:30 UTC").unwrap() {
+                if sv == sv!("G07") {
+                    assert_eq!(l1c, 131869667.223, "wrong L1C phase data");
+                } else if sv == sv!("E31") {
+                    assert_eq!(l1c, 108385729.352, "wrong L1C phase data");
+                } else if sv == sv!("E33") {
+                    assert_eq!(l1c, 106305408.320, "wrong L1C phase data");
+                } else if sv == sv!("S23") {
+                    assert_eq!(l1c, 200051746.696, "wrong L1C phase data");
+                } else if sv == sv!("S36") {
+                    assert_eq!(l1c, 197948914.912, "wrong L1C phase data");
+                }
+            }
+        }
+
+        let c1: Vec<_> = rnx
+            .pseudo_range()
+            .filter_map(|(e, sv, obs, value)| {
+                if *obs == observable!("C1") {
+                    Some((e, sv, value))
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        for ((epoch, flag), sv, l1c) in c1 {
+            assert!(flag.is_ok(), "faulty epoch flag");
+            if epoch == Epoch::from_str("2021-12-12T00:00:30 UTC").unwrap() {
+                if sv == sv!("G07") {
+                    assert_eq!(l1c, 25091572.300, "wrong C1 PR data");
+                } else if sv == sv!("E31") {
+                    assert_eq!(l1c, 25340551.060, "wrong C1 PR data");
+                } else if sv == sv!("E33") {
+                    assert_eq!(l1c, 27077081.020, "wrong C1 PR data");
+                } else if sv == sv!("S23") {
+                    assert_eq!(l1c, 38068603.000, "wrong C1 PR data");
+                } else if sv == sv!("S36") {
+                    assert_eq!(l1c, 37668418.660, "wrong C1 PR data");
+                }
+            } else if epoch == Epoch::from_str("2021-12-21T21:00:30 UTC").unwrap() {
+                if sv == sv!("G07") {
+                    assert_eq!(l1c, 25093963.200, "wrong C1 PR data");
+                } else if sv == sv!("E31") {
+                    assert_eq!(l1c, 27619715.620, "wrong C1 PR data");
+                } else if sv == sv!("E33") {
+                    assert_eq!(l1c, 27089585.300, "wrong C1 PR data");
+                } else if sv == sv!("S23") {
+                    assert_eq!(l1c, 38068585.920, "wrong C1 PR data");
+                } else if sv == sv!("S36") {
+                    assert_eq!(l1c, 37668426.040, "wrong C1 PR data");
+                }
+            }
+        }
 
         let record = rnx.record.as_obs().unwrap();
 
