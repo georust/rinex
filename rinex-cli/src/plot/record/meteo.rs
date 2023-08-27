@@ -32,7 +32,7 @@ pub fn plot_meteo(ctx: &QcContext, plot_context: &mut PlotContext) {
             .meteo()
             .flat_map(|(e, observations)| {
                 observations.iter().filter_map(
-                    |(obs, value)| {
+                    |(obs, _value)| {
                         if obs == observable {
                             Some(*e)
                         } else {
@@ -45,7 +45,7 @@ pub fn plot_meteo(ctx: &QcContext, plot_context: &mut PlotContext) {
         let data_y: Vec<_> = ctx
             .primary_data()
             .meteo()
-            .flat_map(|(e, observations)| {
+            .flat_map(|(_e, observations)| {
                 observations.iter().filter_map(|(obs, value)| {
                     if obs == observable {
                         Some(*value)

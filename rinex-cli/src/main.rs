@@ -6,7 +6,6 @@ mod analysis; // basic analysis
 mod cli; // command line interface
 pub mod fops; // file operation helpers
 mod identification; // high level identification/macros
-pub mod parser;
 mod plot; // plotting operations
 
 mod preprocessing;
@@ -351,6 +350,18 @@ pub fn main() -> Result<(), rinex::Error> {
         rnx_a
             .to_file(&path)
             .expect(&format!("failed to generate splitted file \"{}\"", path));
+
+        let file_suffix = rnx_b
+            .first_epoch()
+            .expect("failed to determine file suffix")
+            .to_string();
+
+        let path = format!(
+            "{}/{}-{}.txt",
+            workspace.to_string_lossy(),
+            file_stem,
+            file_suffix
+        );
 
         rnx_b
             .to_file(&path)

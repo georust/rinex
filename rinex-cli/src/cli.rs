@@ -1,4 +1,3 @@
-use crate::parser::parse_epoch;
 use clap::{Arg, ArgAction, ArgMatches, ColorChoice, Command};
 use log::{error, info};
 use rinex::{prelude::*, quality::QcOpts};
@@ -415,11 +414,11 @@ Refer to README"))
     /// Returns split operation args
     pub fn split(&self) -> Option<Epoch> {
         if self.matches.contains_id("split") {
-            if let Some(args) = self.matches.get_one::<String>("split") {
-                if let Ok(epoch) = parse_epoch(args) {
+            if let Some(s) = self.matches.get_one::<String>("split") {
+                if let Ok(epoch) = Epoch::from_str(s) {
                     Some(epoch)
                 } else {
-                    panic!("failed to parse [DATETIME]");
+                    panic!("failed to parse [EPOCH]");
                 }
             } else {
                 None
