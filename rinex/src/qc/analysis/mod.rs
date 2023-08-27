@@ -78,24 +78,20 @@ impl HtmlReport for QcAnalysis {
                     }
                 }
                 div(id="sv") {
+                    h3(class="title") {
+                        : "Sv"
+                    }
                     table(class="table is-bordered") {
-                        thead {
-                            th {
-                                : "Sv"
-                            }
-                        }
                         tbody {
                             : self.sv.to_inline_html()
                         }
                     }
                 }
                 div(id="observations") {
+                    h3(class="title") {
+                        : "Observations"
+                    }
                     table(class="table is-bordered") {
-                        thead {
-                            th {
-                                : "Observations"
-                            }
-                        }
                         tbody {
                             : self.observ.to_inline_html()
                         }

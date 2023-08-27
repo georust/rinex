@@ -531,11 +531,15 @@ impl HtmlReport for QcObsAnalysis {
                     }
                 }
             }
-            div(class="table-container") {
-                : report_anomalies(&self.anomalies)
+            tr {
+                table {
+                    : report_anomalies(&self.anomalies)
+                }
             }
-            div(class="epoch-completion") {
-                : report_epoch_completion(self.total_epochs, self.total_with_obs, &self.complete_epochs)
+            tr {
+                table {
+                    : report_epoch_completion(self.total_epochs, self.total_with_obs, &self.complete_epochs)
+                }
             }
             table(class="table is-bordered") {
                 thead {
@@ -575,8 +579,10 @@ impl HtmlReport for QcObsAnalysis {
                     }
                 }
             }
-            div(class="epoch-completion") {
-                : report_ssi_statistics(&self.ssi_stats)
+            tr {
+                table {
+                    : report_ssi_statistics(&self.ssi_stats)
+                }
             }
         }
     }
