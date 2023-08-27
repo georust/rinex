@@ -257,13 +257,6 @@ Refer to README"))
     pub fn output_path(&self) -> Option<&String> {
         self.matches.get_one::<String>("output")
     }
-    pub fn mask_filters(&self) -> Vec<&String> {
-        if let Some(filters) = self.matches.get_many::<String>("mask-filter") {
-            filters.collect()
-        } else {
-            Vec::new()
-        }
-    }
     pub fn preprocessing(&self) -> Vec<&String> {
         if let Some(filters) = self.matches.get_many::<String>("preprocessing") {
             filters.collect()
@@ -300,9 +293,6 @@ Refer to README"))
         } else {
             QcOpts::default()
         }
-    }
-    pub fn quality_check_separate(&self) -> bool {
-        self.matches.get_flag("qc-separate")
     }
     pub fn quality_check_only(&self) -> bool {
         self.matches.get_flag("qc-only")
