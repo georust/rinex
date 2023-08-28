@@ -61,17 +61,31 @@ mod test {
     use super::*;
     use std::str::FromStr;
     #[test]
-    fn test_from_str() {
-        let tests: Vec<&str> = vec!["C01", "C 3", "G33", "C254", "E4 ", "R 9"];
-        for t in tests {
-            assert!(Sv::from_str(t).is_ok());
+    fn from_str() {
+        for (descriptor, expected) in vec![
+            ("G01", Sv::new(Constellation::GPS, 1)),
+            ("G 1", Sv::new(Constellation::GPS, 1)),
+            ("G33", Sv::new(Constellation::GPS, 33)),
+            ("C01", Sv::new(Constellation::BeiDou, 1)),
+            ("C 3", Sv::new(Constellation::BeiDou, 3)),
+            ("R01", Sv::new(Constellation::Glonass, 1)),
+            ("R 1", Sv::new(Constellation::Glonass, 1)),
+            ("C254", Sv::new(Constellation::BeiDou, 254)),
+            ("E4 ", Sv::new(Constellation::Galileo, 4)),
+            ("R 9", Sv::new(Constellation::Glonass, 9)),
+            ("I 3", Sv::new(Constellation::IRNSS, 3)),
+            ("I16", Sv::new(Constellation::IRNSS, 16)),
+            ("S36", Sv::new(Constellation::Geo, 36)),
+            ("S 6", Sv::new(Constellation::Geo, 6)),
+        ] {
+            let sv = Sv::from_str(descriptor);
+            assert!(sv.is_ok(), "failed to parse sv from \"{}\"", descriptor);
+            let sv = sv.unwrap();
+            assert_eq!(
+                sv, expected,
+                "badly identified {} from \"{}\"",
+                sv, descriptor
+            );
         }
-        // SBAS vehicles
-        let sbas = Sv::from_str("S36");
-        assert!(sbas.is_ok());
-        assert_eq!(sbas.unwrap(), Sv::new(Constellation::Geo, 36));
-        let sbas = Sv::from_str("S23");
-        assert!(sbas.is_ok());
-        assert_eq!(sbas.unwrap(), Sv::new(Constellation::Geo, 23));
     }
 }

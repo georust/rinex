@@ -194,7 +194,7 @@ mod tests {
     use super::*;
     use std::str::FromStr;
     #[test]
-    fn test_from_1_letter_code() {
+    fn from_1_letter_code() {
         let c = Constellation::from_1_letter_code("G");
         assert_eq!(c.is_ok(), true);
         assert_eq!(c.unwrap(), Constellation::GPS);
@@ -215,7 +215,7 @@ mod tests {
         assert_eq!(c.is_err(), true);
     }
     #[test]
-    fn test_from_3_letter_code() {
+    fn from_3_letter_code() {
         let c = Constellation::from_3_letter_code("GPS");
         assert_eq!(c.is_ok(), true);
         assert_eq!(c.unwrap(), Constellation::GPS);
@@ -228,7 +228,7 @@ mod tests {
         assert_eq!(c.is_err(), true);
     }
     #[test]
-    fn test_augmentation() {
+    fn augmentation() {
         let c = Augmentation::from_str("WAAS");
         assert_eq!(c.is_ok(), true);
         assert_eq!(c.unwrap(), Augmentation::WAAS);
