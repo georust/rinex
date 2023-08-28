@@ -1046,7 +1046,6 @@ mod test {
     }
     #[cfg(feature = "flate2")]
     #[test]
-    #[cfg(feature = "flate2")]
     fn v3_esbc00dnk_r_2020() {
         let rnx =
             Rinex::from_file("../test_resources/CRNX/V3/ESBC00DNK_R_20201770000_01D_30S_MO.crx.gz")
@@ -1175,7 +1174,6 @@ mod test {
     }
     #[cfg(feature = "flate2")]
     #[test]
-    #[cfg(feature = "flate2")]
     fn v3_mojn00dnk_r_2020() {
         let rnx =
             Rinex::from_file("../test_resources/CRNX/V3/MOJN00DNK_R_20201770000_01D_30S_MO.crx.gz")
