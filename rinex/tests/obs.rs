@@ -1173,6 +1173,41 @@ mod test {
             values
         );
     }
+    #[cfg(feature = "flate2")]
+    #[test]
+    #[cfg(feature = "flate2")]
+    fn v3_mojn00dnk_r_2020() {
+        let rnx =
+            Rinex::from_file("../test_resources/CRNX/V3/MOJN00DNK_R_20201770000_01D_30S_MO.crx.gz")
+                .unwrap();
+        /*
+         * Test IRNSS vehicles
+         */
+        let mut irnss_sv: Vec<Sv> = rnx
+            .sv()
+            .filter_map(|sv| {
+                if (sv.constellation == Constellation::IRNSS) {
+                    Some(sv)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        irnss_sv.sort();
+
+        assert_eq!(
+            irnss_sv,
+            vec![
+                sv!("I01"),
+                sv!("I02"),
+                sv!("I04"),
+                sv!("I05"),
+                sv!("I06"),
+                sv!("I09")
+            ],
+            "IRNSS sv badly identified"
+        );
+    }
     /*
         #[test]
         fn obs_v3_duth0630_processing() {
