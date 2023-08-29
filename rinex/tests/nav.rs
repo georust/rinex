@@ -4,6 +4,7 @@ mod test {
     use rinex::navigation::*;
     use rinex::prelude::*;
     use rinex::sv;
+    use std::path::PathBuf;
     use std::str::FromStr;
     #[test]
     fn v2_amel0010_21g() {
@@ -1405,6 +1406,246 @@ mod test {
                     );
                 },
                 _ => {},
+            }
+        }
+    }
+    #[test]
+    #[cfg(feature = "flate2")]
+    fn v4_brd400dlr_s2023() {
+        let path = PathBuf::new()
+            .join(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join("test_resources")
+            .join("NAV")
+            .join("V4")
+            .join("BRD400DLR_S_20230710000_01D_MN.rnx.gz");
+        let rinex = Rinex::from_file(&path.to_string_lossy());
+        assert!(
+            rinex.is_ok(),
+            "failed to parse NAV/V4/BRD400DLR_S_20230710000_01D_MN.rnx.gz, error: {:?}",
+            rinex.err()
+        );
+        let rinex = rinex.unwrap();
+        for (epoch, (msg, sv, data)) in rinex.ephemeris() {
+            if *sv == sv!("G01") {
+                assert!(
+                    (msg == NavMsgType::LNAV) || (msg == NavMsgType::CNAV),
+                    "parsed bad ephemeris message {} for G01 {}",
+                    msg,
+                    epoch
+                );
+
+                if *epoch == Epoch::from_str("2023-03-12T12:00:00 UTC").unwrap() {
+                    assert_eq!(msg, NavMsgType::LNAV);
+                    assert_eq!(
+                        data.sv_clock(),
+                        (2.035847865045e-04, -3.865352482535e-12, 0.000000000000e+00)
+                    );
+                } else if *epoch == Epoch::from_str("2023-03-12T01:30:00 UTC").unwrap() {
+                    assert_eq!(msg, NavMsgType::CNAV);
+                    assert_eq!(
+                        data.sv_clock(),
+                        (2.037292579189e-04, -3.829825345747e-12, 0.000000000000e+00)
+                    );
+                } else if *epoch == Epoch::from_str("2023-03-12T12:23:00 UTC").unwrap() {
+                    assert_eq!(msg, NavMsgType::CNAV);
+                    assert_eq!(
+                        data.sv_clock(),
+                        (2.034264325630e-04, -3.819167204711e-12, 0.000000000000e+00)
+                    );
+                }
+            } else if *sv == sv!("C19") {
+                assert!(
+                    (msg == NavMsgType::D1)
+                        || (msg == NavMsgType::CNV1)
+                        || (msg == NavMsgType::CNV2),
+                    "parsed bad ephemeris message {} for C19 {}",
+                    msg,
+                    epoch
+                );
+
+                if *epoch == Epoch::from_str("2023-03-12T12:00:00 UTC").unwrap() {
+                    if msg == NavMsgType::CNV1 {
+                        assert_eq!(
+                            data.sv_clock(),
+                            (-8.956581004895e-04, -1.113775738304e-12, 0.000000000000e+00)
+                        );
+                    } else if msg == NavMsgType::CNV2 {
+                        assert_eq!(
+                            data.sv_clock(),
+                            (-8.956581004895e-04, -1.113775738304e-12, 0.000000000000e+00)
+                        );
+                    } else if msg == NavMsgType::D1 {
+                        assert_eq!(
+                            data.sv_clock(),
+                            (-8.956581586972e-04, -1.113775738304e-12, 0.000000000000e+00)
+                        );
+                    }
+                }
+            } else if *sv == sv!("J04") {
+                assert!(
+                    (msg == NavMsgType::LNAV)
+                        || (msg == NavMsgType::CNAV)
+                        || (msg == NavMsgType::CNV2),
+                    "parsed bad ephemeris message {} for J04 {}",
+                    msg,
+                    epoch
+                );
+                if *epoch == Epoch::from_str("2023-03-12T12:03:00 UTC").unwrap() {
+                    if msg == NavMsgType::LNAV {
+                        assert_eq!(
+                            data.sv_clock(),
+                            (9.417533874512e-05, 0.000000000000e+00, 0.000000000000e+00)
+                        );
+                    } else if msg == NavMsgType::CNAV {
+                        assert_eq!(
+                            data.sv_clock(),
+                            (9.417530964129e-05, -3.552713678801e-14, 0.000000000000e+00)
+                        );
+                    }
+                }
+            } else if *sv == sv!("I09") {
+                assert!(
+                    msg == NavMsgType::LNAV,
+                    "parsed bad ephemeris message {} for I09 {}",
+                    msg,
+                    epoch
+                );
+                if *epoch == Epoch::from_str("2023-03-12T20:05:36 UTC").unwrap() {
+                    assert_eq!(
+                        data.sv_clock(),
+                        (7.255990058184e-04, 1.716671249596e-11, 0.000000000000e+00)
+                    );
+                }
+            } else if *sv == sv!("R10") {
+                assert!(
+                    msg == NavMsgType::FDMA,
+                    "parsed bad ephemeris message {} for I09 {}",
+                    msg,
+                    epoch
+                );
+                if *epoch == Epoch::from_str("2023-03-12T01:45:00 UTC").unwrap() {
+                    assert_eq!(
+                        data.sv_clock(),
+                        (-9.130407124758e-05, 0.000000000000e+00, 5.430000000000e+03)
+                    );
+                }
+            }
+        }
+        for (epoch, (msg, sv, iondata)) in rinex.ionosphere_models() {
+            if *sv == sv!("G21") {
+                assert_eq!(msg, NavMsgType::LNAV);
+                if *epoch == Epoch::from_str("2023-03-12T00:08:54 UTC").unwrap() {
+                    let kb = iondata.as_klobuchar();
+                    assert!(kb.is_some());
+                    let kb = kb.unwrap();
+                    assert_eq!(
+                        kb.alpha,
+                        (
+                            2.887099981308e-08,
+                            7.450580596924e-09,
+                            -1.192092895508e-07,
+                            0.000000000000e+00
+                        )
+                    );
+                    assert_eq!(
+                        kb.beta,
+                        (
+                            1.331200000000e+05,
+                            0.000000000000e+00,
+                            -2.621440000000e+05,
+                            1.310720000000e+05
+                        )
+                    );
+                    assert_eq!(kb.region, KbRegionCode::WideArea);
+                } else if *epoch == Epoch::from_str("2023-03-12T23:41:24 UTC").unwrap() {
+                    let kb = iondata.as_klobuchar();
+                    assert!(kb.is_some());
+                    let kb = kb.unwrap();
+                    assert_eq!(
+                        kb.alpha,
+                        (
+                            2.887099981308e-08,
+                            7.450580596924e-09,
+                            -1.192092895508e-07,
+                            0.000000000000e+00
+                        )
+                    );
+                    assert_eq!(
+                        kb.beta,
+                        (
+                            1.331200000000e+05,
+                            0.000000000000e+00,
+                            -2.621440000000e+05,
+                            1.310720000000e+05
+                        )
+                    );
+                    assert_eq!(kb.region, KbRegionCode::WideArea);
+                }
+            } else if *sv == sv!("G21") {
+                assert_eq!(msg, NavMsgType::CNVX);
+            } else if *sv == sv!("J04") {
+                if *epoch == Epoch::from_str("2023-03-12T02:01:54 UTC").unwrap() {
+                    let kb = iondata.as_klobuchar();
+                    assert!(kb.is_some());
+                    let kb = kb.unwrap();
+                    assert_eq!(
+                        kb.alpha,
+                        (
+                            3.259629011154e-08,
+                            -1.490116119385e-08,
+                            -4.172325134277e-07,
+                            -1.788139343262e-07
+                        )
+                    );
+                    assert_eq!(
+                        kb.beta,
+                        (
+                            1.269760000000e+05,
+                            -1.474560000000e+05,
+                            1.310720000000e+05,
+                            2.490368000000e+06
+                        )
+                    );
+                    assert_eq!(kb.region, KbRegionCode::WideArea);
+                }
+            }
+        }
+        for (epoch, (msg, sv, eop)) in rinex.earth_orientation() {
+            if *sv == sv!("J04") {
+                assert_eq!(msg, NavMsgType::CNVX);
+                if *epoch == Epoch::from_str("2023-03-12T06:00:00 UTC").unwrap() {
+                    assert_eq!(
+                        eop.x,
+                        (-4.072475433350e-02, 2.493858337402e-04, 0.000000000000e+00)
+                    );
+                    assert_eq!(
+                        eop.y,
+                        (3.506240844727e-01, 3.324031829834e-03, 0.000000000000e+00)
+                    );
+                    assert_eq!(eop.t_tm, 18186);
+                    assert_eq!(
+                        eop.delta_ut1,
+                        (-1.924991607666e-02, -7.354915142059e-04, 0.000000000000e+00)
+                    );
+                }
+            } else if *sv == sv!("C30") {
+                assert_eq!(msg, NavMsgType::CNVX);
+                if *epoch == Epoch::from_str("2023-03-12T11:00:00 UTC").unwrap() {
+                    assert_eq!(
+                        eop.x,
+                        (-4.079341888428e-02, 6.389617919922e-04, 0.000000000000e+00)
+                    );
+                    assert_eq!(
+                        eop.y,
+                        (3.462553024292e-01, 2.998828887939e-03, 0.000000000000e+00)
+                    );
+                    assert_eq!(eop.t_tm, 60483);
+                    assert_eq!(
+                        eop.delta_ut1,
+                        (-1.820898056030e-02, -5.761086940765e-04, 0.000000000000e+00)
+                    );
+                }
             }
         }
     }

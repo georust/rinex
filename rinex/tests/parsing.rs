@@ -1,5 +1,6 @@
 #[cfg(test)]
 mod test {
+    use rinex::navigation::NavMsgType;
     use rinex::prelude::*;
     #[test]
     fn test_parser() {
@@ -42,6 +43,91 @@ mod test {
                             assert!(rinex.is_navigation_rinex());
                             assert!(rinex.epoch().next().is_some());
                             assert!(rinex.epoch().count() > 0); // all files have content
+                                                                /*
+                                                                 * Verify ION logical correctness
+                                                                 */
+                            for (_, (msg, sv, ion_msg)) in rinex.ionosphere_models() {
+                                match sv.constellation {
+                                    Constellation::GPS => {
+                                        assert!(
+                                            ion_msg.as_klobuchar().is_some(),
+                                            "only Kb models provided by GPS vehicles"
+                                        );
+                                    },
+                                    Constellation::QZSS => {
+                                        assert!(
+                                            ion_msg.as_klobuchar().is_some(),
+                                            "only Kb models provided by QZSS vehicles"
+                                        );
+                                    },
+                                    Constellation::BeiDou => match msg {
+                                        NavMsgType::D1D2 => {
+                                            assert!(
+                                                ion_msg.as_klobuchar().is_some(),
+                                                "BeiDou ({}) should be interpreted as Kb model",
+                                                msg
+                                            );
+                                        },
+                                        NavMsgType::CNVX => {
+                                            assert!(
+                                                ion_msg.as_bdgim().is_some(),
+                                                "BeiDou (CNVX) should be interpreted as Bd model"
+                                            );
+                                        },
+                                        _ => {
+                                            panic!(
+                                                "invalid message type \"{}\" for BeiDou ION frame",
+                                                msg
+                                            );
+                                        },
+                                    },
+                                    Constellation::IRNSS => {
+                                        assert!(
+                                            ion_msg.as_klobuchar().is_some(),
+                                            "only Kb models provided by NavIC/IRNSS vehicles"
+                                        );
+                                    },
+                                    Constellation::Galileo => {
+                                        assert!(
+                                            ion_msg.as_nequick_g().is_some(),
+                                            "only Ng models provided by GAL vehicles"
+                                        );
+                                    },
+                                    _ => {
+                                        panic!(
+                                            "incorrect constellation provider of an ION model: {}",
+                                            sv.constellation
+                                        );
+                                    },
+                                }
+                            }
+                            /*
+                             * Verify EOP logical correctness
+                             */
+                            for (_, (msg, sv, _)) in rinex.earth_orientation() {
+                                match sv.constellation {
+                                    Constellation::GPS | Constellation::QZSS | Constellation::IRNSS | Constellation::BeiDou => {},
+                                    _ => panic!("constellation \"{}\" not declared as eop frame provider, according to V4 specs", sv.constellation),
+                                }
+                                match msg {
+                                    NavMsgType::CNVX | NavMsgType::LNAV => {},
+                                    _ => panic!("bad msg identified for GPS vehicle: {}", msg),
+                                }
+                            }
+                            /*
+                             * Verify STO logical correctness
+                             */
+                            for (_, (msg, sv, _)) in rinex.system_time_offset() {
+                                match msg {
+                                    NavMsgType::LNAV
+                                    | NavMsgType::FDMA
+                                    | NavMsgType::IFNV
+                                    | NavMsgType::D1D2
+                                    | NavMsgType::SBAS
+                                    | NavMsgType::CNVX => {},
+                                    _ => panic!("bad \"{}\" message for STO frame", msg),
+                                }
+                            }
                         },
                         "OBS" => {
                             assert!(rinex.header.obs.is_some());
