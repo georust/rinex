@@ -258,9 +258,7 @@ impl Rinex {
     ///
     /// // convert to CRINEX
     /// let crinex = rinex.rnx2crnx();
-    /// // generate
-    /// crinex.to_file("test.crx")
-    ///     .unwrap();
+    /// assert!(crinex.to_file("test.crx").is_ok(), "failed to generate file");
     /// ```
     pub fn rnx2crnx(&self) -> Self {
         let mut s = self.clone();
