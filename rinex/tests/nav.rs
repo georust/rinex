@@ -1425,5 +1425,112 @@ mod test {
             "failed to parse NAV/V4/BRD400DLR_S_20230710000_01D_MN.rnx.gz, error: {:?}",
             rinex.err()
         );
+        let rinex = rinex.unwrap();
+        for (epoch, (msg, sv, data)) in rinex.ephemeris() {
+            if *sv == sv!("G01") {
+                assert!(
+                    (msg == NavMsgType::LNAV) || (msg == NavMsgType::CNAV),
+                    "parsed bad ephemeris message {} for G01 {}",
+                    msg,
+                    epoch
+                );
+
+                if *epoch == Epoch::from_str("2023-03-12T12:00:00 UTC").unwrap() {
+                    assert_eq!(msg, NavMsgType::LNAV);
+                    assert_eq!(
+                        data.sv_clock(),
+                        (2.035847865045e-04, -3.865352482535e-12, 0.000000000000e+00)
+                    );
+                } else if *epoch == Epoch::from_str("2023-03-12T01:30:00 UTC").unwrap() {
+                    assert_eq!(msg, NavMsgType::CNAV);
+                    assert_eq!(
+                        data.sv_clock(),
+                        (2.037292579189e-04, -3.829825345747e-12, 0.000000000000e+00)
+                    );
+                } else if *epoch == Epoch::from_str("2023-03-12T12:23:00 UTC").unwrap() {
+                    assert_eq!(msg, NavMsgType::CNAV);
+                    assert_eq!(
+                        data.sv_clock(),
+                        (2.034264325630e-04, -3.819167204711e-12, 0.000000000000e+00)
+                    );
+                }
+            } else if *sv == sv!("C19") {
+                assert!(
+                    (msg == NavMsgType::D1)
+                        || (msg == NavMsgType::CNV1)
+                        || (msg == NavMsgType::CNV2),
+                    "parsed bad ephemeris message {} for C19 {}",
+                    msg,
+                    epoch
+                );
+
+                if *epoch == Epoch::from_str("2023-03-12T12:00:00 UTC").unwrap() {
+                    if msg == NavMsgType::CNV1 {
+                        assert_eq!(
+                            data.sv_clock(),
+                            (-8.956581004895e-04, -1.113775738304e-12, 0.000000000000e+00)
+                        );
+                    } else if msg == NavMsgType::CNV2 {
+                        assert_eq!(
+                            data.sv_clock(),
+                            (-8.956581004895e-04, -1.113775738304e-12, 0.000000000000e+00)
+                        );
+                    } else if msg == NavMsgType::D1 {
+                        assert_eq!(
+                            data.sv_clock(),
+                            (-8.956581586972e-04, -1.113775738304e-12, 0.000000000000e+00)
+                        );
+                    }
+                }
+            } else if *sv == sv!("J04") {
+                assert!(
+                    (msg == NavMsgType::LNAV)
+                        || (msg == NavMsgType::CNAV)
+                        || (msg == NavMsgType::CNV2),
+                    "parsed bad ephemeris message {} for J04 {}",
+                    msg,
+                    epoch
+                );
+                if *epoch == Epoch::from_str("2023-03-12T12:03:00 UTC").unwrap() {
+                    if msg == NavMsgType::LNAV {
+                        assert_eq!(
+                            data.sv_clock(),
+                            (9.417533874512e-05, 0.000000000000e+00, 0.000000000000e+00)
+                        );
+                    } else if msg == NavMsgType::CNAV {
+                        assert_eq!(
+                            data.sv_clock(),
+                            (9.417530964129e-05, -3.552713678801e-14, 0.000000000000e+00)
+                        );
+                    }
+                }
+            } else if *sv == sv!("I09") {
+                assert!(
+                    msg == NavMsgType::LNAV,
+                    "parsed bad ephemeris message {} for I09 {}",
+                    msg,
+                    epoch
+                );
+                if *epoch == Epoch::from_str("2023-03-12T20:05:36 UTC").unwrap() {
+                    assert_eq!(
+                        data.sv_clock(),
+                        (7.255990058184e-04, 1.716671249596e-11, 0.000000000000e+00)
+                    );
+                }
+            } else if *sv == sv!("R10") {
+                assert!(
+                    msg == NavMsgType::FDMA,
+                    "parsed bad ephemeris message {} for I09 {}",
+                    msg,
+                    epoch
+                );
+                if *epoch == Epoch::from_str("2023-03-12T01:45:00 UTC").unwrap() {
+                    assert_eq!(
+                        data.sv_clock(),
+                        (-9.130407124758e-05, 0.000000000000e+00, 5.430000000000e+03)
+                    );
+                }
+            }
+        }
     }
 }
