@@ -1,88 +1,84 @@
-//! GAL Sv Health specifications
-use bitflags::bitflags;
+//! GAL SV Health specifications
 
-/// GAL Sv Health indication
-#[derive(Debug, Clone, PartialEq, PartialOrd)]
+/// GAL INAV & FNAV SV Health indication.
+/// See [Bibliography::RINEX3] for more information.
+#[derive(Default, Debug, Clone, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
-pub enum GALHealth {
-    /// GAL Legacy Sv Health indication
-    LNAV(LegacyHealth),
-    /// GAL INAV Sv Health indication
-    INAV(Health),
-    /// GAL FNAV Sv Health indication
-    FNAV(Health),
+pub struct GALHealth {
+    /// E1-B Data Validity Status
+    /// `false` = Navigation data valid
+    /// `true` = Working without guarantee
+    e1b_dvs: bool,
+    /// E1-B/C Signal Health Status
+    /// 0 = Signal OK
+    /// 1 = Signal out of service
+    /// 2 = Signal will be out of service
+    /// 3 = Signal Component currently in Test
+    e1b_hs: u8,
+    /// E5a Data Validity Status
+    /// `false` = Navigation data valid
+    /// `true` = Working without guarantee
+    e5a_dvs: bool,
+    /// E5a Signal Health Status
+    /// 0 = Signal OK
+    /// 1 = Signal out of service
+    /// 2 = Signal will be out of service
+    /// 3 = Signal Component currently in Test
+    e5a_hs: u8,
+    /// E5b Data Validity Status
+    /// `false` = Navigation data valid
+    /// `true` = Working without guarantee
+    e5b_dvs: bool,
+    /// E5b Signal Health Status
+    /// 0 = Signal OK
+    /// 1 = Signal out of service
+    /// 2 = Signal will be out of service
+    /// 3 = Signal Component currently in Test
+    e5b_hs: u8,
 }
 
-impl Default for GALHealth {
-    fn default() -> Self {
-        Self::LNAV(LegacyHealth::default())
-    }
-}
-
-impl GALHealth {
-    /// Unwraps self as [`LegacyHealth`] indicator
-    pub(crate) fn lnav(&self) -> Option<&LegacyHealth> {
-        match self {
-            Self::LNAV(h) => Some(h),
-            _ => None,
-        }
-    }
-    /// Unwraps self as [`Health`] indicator
-    pub(crate) fn fnav(&self) -> Option<&Health> {
-        match self {
-            Self::FNAV(h) => Some(h),
-            _ => None,
-        }
-    }
-    /// Unwraps self as [`Health`] indicator
-    pub(crate) fn inav(&self) -> Option<&Health> {
-        match self {
-            Self::INAV(h) => Some(h),
-            _ => None,
-        }
-    }
-}
-
-bitflags! {
-    /// GAL Legacy Sv Health indication.
-    /// See [Bibliography::RINEX3] for more information.
-    #[derive(Default, Debug, Clone, PartialEq, PartialOrd)]
-    #[cfg_attr(feature = "serde", derive(Serialize))]
-    pub struct LegacyHealth: u64 {
-        const E1B_DVS = 0x01;
-        const E1B_HS0 = 0x02;
-        const E1B_HS1 = 0x04;
-        const E5A_DVS = 0x08;
-        const E5A_HS0 = 0x10;
-        const E5A_HS1 = 0x20;
-        const E5B_HS0 = 0x40;
-        const E5B_HS1 = 0x80;
-    }
-}
-
-impl std::fmt::UpperExp for LegacyHealth {
+impl std::fmt::UpperExp for GALHealth {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{:e}", self.bits() as f32)
+        let value: u32 = u32::from(self);
+        write!(f, "{:e}", value as f32)
     }
 }
 
-bitflags! {
-    /// GAL FNAV and INAV Health indications.
-    /// See [Bibliography::RINEX4] for more information.
-    #[derive(Default, Debug, Clone, PartialEq, PartialOrd)]
-    #[cfg_attr(feature = "serde", derive(Serialize))]
-    pub struct Health: u64 {
-        const L1Healthy = 0x01;
-        const L2Healthy = 0x02;
-        const L5Healthy = 0x04;
+impl From<u32> for GALHealth {
+    fn from(value: u32) -> Self {
+        Self {
+            e1b_dvs: (value & 0b1) != 0,
+            e1b_hs: (value & 0b110 >> 1) as u8,
+            e5a_dvs: (value & 0b1000) != 0,
+            e5a_hs: (value & 0b110000 >> 4) as u8,
+            e5b_dvs: (value & 0b1000000) != 0,
+            e5b_hs: (value & 0b110000000 >> 7) as u8,
+        }
     }
 }
 
-#[cfg(test)]
-mod test {
-    use super::*;
-    #[test]
-    fn test_gal() {
-        assert_eq!(GalHealth::default(), GalHealth::empty());
+impl From<&GALHealth> for u32 {
+    fn from(value: &GALHealth) -> Self {
+        let mut ret: u32 = 0;
+
+        if value.e1b_dvs {
+            ret |= 0b1;
+        }
+
+        ret |= (value.e1b_hs as u32) & 0b11 << 1;
+
+        if value.e5a_dvs {
+            ret |= 0b1000;
+        }
+
+        ret |= (value.e5a_hs as u32) & 0b11 << 4;
+
+        if value.e5b_dvs {
+            ret |= 0b1000000;
+        }
+
+        ret |= (value.e5b_hs as u32) & 0b11 << 7;
+
+        ret
     }
 }
