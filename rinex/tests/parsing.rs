@@ -47,18 +47,20 @@ mod test {
                                                                  * Verify ION logical correctness
                                                                  */
                             for (_, (msg, sv, ion_msg)) in rinex.ionosphere_models() {
-                                if sv.constellation == Constellation::GPS {
-                                    assert!(
-                                        ion_msg.as_klobuchar().is_some(),
-                                        "only Kb models provided by GPS vehicles"
-                                    );
-                                } else if sv.constellation == Constellation::QZSS {
-                                    assert!(
-                                        ion_msg.as_klobuchar().is_some(),
-                                        "only Kb models provided by QZSS vehicles"
-                                    );
-                                } else if sv.constellation == Constellation::BeiDou {
-                                    match msg {
+                                match sv.constellation {
+                                    Constellation::GPS => {
+                                        assert!(
+                                            ion_msg.as_klobuchar().is_some(),
+                                            "only Kb models provided by GPS vehicles"
+                                        );
+                                    },
+                                    Constellation::QZSS => {
+                                        assert!(
+                                            ion_msg.as_klobuchar().is_some(),
+                                            "only Kb models provided by QZSS vehicles"
+                                        );
+                                    },
+                                    Constellation::BeiDou => match msg {
                                         NavMsgType::D1D2 => {
                                             assert!(
                                                 ion_msg.as_klobuchar().is_some(),
@@ -78,53 +80,53 @@ mod test {
                                                 msg
                                             );
                                         },
-                                    }
-                                } else if sv.constellation == Constellation::IRNSS {
-                                    assert!(
-                                        ion_msg.as_klobuchar().is_some(),
-                                        "only Kb models provided by NavIC/IRNSS vehicles"
-                                    );
-                                } else if sv.constellation == Constellation::Galileo {
-                                    assert!(
-                                        ion_msg.as_nequick_g().is_some(),
-                                        "only Ng models provided by GAL vehicles"
-                                    );
-                                } else {
-                                    panic!(
-                                        "incorrect constellation provider of an ION model: {}",
-                                        sv.constellation
-                                    );
+                                    },
+                                    Constellation::IRNSS => {
+                                        assert!(
+                                            ion_msg.as_klobuchar().is_some(),
+                                            "only Kb models provided by NavIC/IRNSS vehicles"
+                                        );
+                                    },
+                                    Constellation::Galileo => {
+                                        assert!(
+                                            ion_msg.as_nequick_g().is_some(),
+                                            "only Ng models provided by GAL vehicles"
+                                        );
+                                    },
+                                    _ => {
+                                        panic!(
+                                            "incorrect constellation provider of an ION model: {}",
+                                            sv.constellation
+                                        );
+                                    },
                                 }
                             }
                             /*
                              * Verify EOP logical correctness
                              */
                             for (_, (msg, sv, _)) in rinex.earth_orientation() {
-                                assert!(
-                                    (sv.constellation == Constellation::GPS)
-                                    || (sv.constellation == Constellation::QZSS)
-                                    || (sv.constellation == Constellation::IRNSS)
-                                    || (sv.constellation == Constellation::BeiDou), "constellation \"{}\" not declared as EOP frame provider, according to V4 specs", sv.constellation);
-                                assert!(
-                                    (msg == NavMsgType::CNVX) || (msg == NavMsgType::LNAV),
-                                    "bad msg identified for GPS vehicle: {}",
-                                    msg
-                                );
+                                match sv.constellation {
+                                    Constellation::GPS | Constellation::QZSS | Constellation::IRNSS | Constellation::BeiDou => {},
+                                    _ => panic!("constellation \"{}\" not declared as eop frame provider, according to V4 specs", sv.constellation),
+                                }
+                                match msg {
+                                    NavMsgType::CNVX | NavMsgType::LNAV => {},
+                                    _ => panic!("bad msg identified for GPS vehicle: {}", msg),
+                                }
                             }
                             /*
                              * Verify STO logical correctness
                              */
                             for (_, (msg, sv, _)) in rinex.system_time_offset() {
-                                assert!(
-                                    (msg == NavMsgType::LNAV)
-                                        || (msg == NavMsgType::FDMA)
-                                        || (msg == NavMsgType::IFNV)
-                                        || (msg == NavMsgType::D1D2)
-                                        || (msg == NavMsgType::SBAS)
-                                        || (msg == NavMsgType::CNVX),
-                                    "bad \"{}\" message for STO frame",
-                                    msg
-                                );
+                                match msg {
+                                    NavMsgType::LNAV
+                                    | NavMsgType::FDMA
+                                    | NavMsgType::IFNV
+                                    | NavMsgType::D1D2
+                                    | NavMsgType::SBAS
+                                    | NavMsgType::CNVX => {},
+                                    _ => panic!("bad \"{}\" message for STO frame", msg),
+                                }
                             }
                         },
                         "OBS" => {
