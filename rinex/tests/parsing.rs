@@ -68,7 +68,7 @@ mod test {
                                         },
                                         NavMsgType::CNVX => {
                                             assert!(
-                                                ion_msg.as_bdgim().is_some() == true,
+                                                ion_msg.as_bdgim().is_some(),
                                                 "BeiDou (CNVX) should be interpreted as Bd model"
                                             );
                                         },
