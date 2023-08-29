@@ -1532,5 +1532,6 @@ mod test {
                 }
             }
         }
+        for (epoch, (msg, sv, iondata)) in rinex.ionosphere_models() {}
     }
 }
