@@ -61,7 +61,7 @@ mod test {
                                     match msg {
                                         NavMsgType::D1D2 => {
                                             assert!(
-                                                ion_msg.as_klobuchar().is_some() == true,
+                                                ion_msg.as_klobuchar().is_some(),
                                                 "BeiDou ({}) should be interpreted as Kb model",
                                                 msg
                                             );
