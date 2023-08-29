@@ -15,7 +15,6 @@ rust-version = "1.64"
 [features]
 default = [] # no features by default
 sbas = ["geo", "wkt"]
-tests = [] # used to import shared methods for efficient CI/CD
 obs = ["statrs"]
 meteo = []
 nav = []

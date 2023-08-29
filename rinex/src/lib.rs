@@ -27,12 +27,11 @@ mod ground_position;
 mod leap;
 mod observable;
 
+#[cfg(test)]
+mod tests;
+
 #[macro_use]
 mod macros;
-
-#[cfg(feature = "tests")]
-#[cfg_attr(docrs, doc(cfg(feature = "tests")))]
-pub mod test_toolkit;
 
 extern crate num;
 

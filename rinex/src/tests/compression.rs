@@ -1,8 +1,8 @@
 #[cfg(test)]
 mod test {
-    use rinex::prelude::*;
+    use crate::prelude::*;
     use std::path::PathBuf;
-    use rinex::test_toolkit;
+    use crate::tests::toolkit::*;
     //#[test]
     fn crinex1() {
         let pool = vec![
@@ -48,7 +48,7 @@ mod test {
 
             // compare to CRINEX1 model
             let model = model.unwrap();
-            test_toolkit::compare_with_panic(
+            compare_with_panic(
                 &dut,
                 &model,
                 &format!("compression::crinx1::{}", rnx_path.to_string_lossy()),

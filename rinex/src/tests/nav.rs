@@ -1,9 +1,9 @@
 #[cfg(test)]
 mod test {
     use itertools::*;
-    use rinex::navigation::*;
-    use rinex::prelude::*;
-    use rinex::sv;
+    use crate::navigation::*;
+    use crate::prelude::*;
+    use crate::sv;
     use std::path::PathBuf;
     use std::str::FromStr;
     #[test]

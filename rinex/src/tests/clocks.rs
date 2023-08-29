@@ -1,8 +1,8 @@
 #[cfg(test)]
 mod test {
-    use rinex::clocks;
-    use rinex::clocks::record::{DataType, System};
-    use rinex::prelude::*;
+    use crate::clocks;
+    use crate::prelude::*;
+    use crate::clocks::record::{DataType, System};
     #[test]
     fn v3_usno_example() {
         let test_resource =

@@ -1,8 +1,8 @@
 #[cfg(test)]
 mod test {
-    use rinex::prelude::*;
+    use crate::prelude::*;
     use std::path::PathBuf;
-    use rinex::navigation::NavMsgType;
+    use crate::navigation::NavMsgType;
     #[test]
     fn test_parser() {
         let test_resources = PathBuf::new()

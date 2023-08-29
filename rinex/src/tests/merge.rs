@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod merge {
-    use rinex::prelude::*;
-    use rinex::Merge;
+    use crate::prelude::*;
+    use crate::Merge;
     use std::path::PathBuf;
     #[test]
     fn fail_on_type_mismatch() {
