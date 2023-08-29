@@ -6,3 +6,5 @@ Cargo.lock
 *.swp
 *.swo
 .DS_Store
+rinex/merge.rnx
+rinex/test.crx

@@ -4,7 +4,7 @@ mod merge {
     use rinex::Merge;
     use std::path::PathBuf;
     #[test]
-    fn merge_fail_on_type_mismatch() {
+    fn fail_on_type_mismatch() {
         let test_resources = PathBuf::new()
             .join(env!("CARGO_MANIFEST_DIR"))
             .join("..")
@@ -73,6 +73,7 @@ mod merge {
          */
         // assert_eq!(rnx, merged, "Merge::ops reciprocity");
 
-        let _ = std::fs::remove_file("merge.txt"); // remove file we just generated
+        // remove file we just generated
+        let _ = std::fs::remove_file("merge.txt");
     }
 }

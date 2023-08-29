@@ -114,8 +114,7 @@ pub trait Merge {
     /// assert_eq!(merged.header.version.minor, 11);
     /// assert_eq!(merged.header.program, "teqc  2019Feb25");
     /// // Resulting RINEX will therefore follow RINEX2 specifications
-    /// merged.to_file("merge.rnx")
-    ///     .unwrap();
+    /// assert!(merged.to_file("merge.rnx").is_ok(), "failed to merge file");
     /// ```
     fn merge(&self, rhs: &Self) -> Result<Self, Error>
     where
