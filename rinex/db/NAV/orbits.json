@@ -209,6 +209,10 @@
             "iscL2C": "f64",
             "iscL5I5": "f64",
             "iscL5Q5": "f64",
+            "iscL1Cd": "f64",
+            "iscL1Cp": "f64",
+            "spare1": "xxxx",
+            "spare2": "xxxx",
             "t_tm": "f64",
             "wn_op": "f64"
         }
@@ -295,9 +299,9 @@
             "status": "gloStatus",
             "L1L2GrpDelay": "f64",
             "urai": "f64",
-			"almanacHealth": "health"
+            "almanacHealth": "health"
         }
-    },  
+    },
     {
         "constellation": "GAL",
         "version": {
@@ -544,6 +548,10 @@
             "iscL2C": "f64",
             "iscL5I5": "f64",
             "iscL5Q5": "f64",
+            "iscL1Cd": "f64",
+            "iscL1Cp": "f64",
+            "spare1": "xxxx",
+            "spare2": "xxxx",
             "t_tm": "f64",
             "wn_op": "f64"
         }
@@ -680,20 +688,22 @@
             "idot": "f64",
             "deltaN0Dot": "f64",
             "satType": "f64",
+            "t_op": "f64",
             "sisa1_oe": "f64",
             "sisa1_ocb": "f64",
             "sisa1_oc1": "f64",
             "sisa1_oc2": "f64",
-            "isc_b1cd": "f64",
-            "tgd_b1cp": "f64",
-            "tgd_b2ap": "f64",
+            "iscB1Cd": "f64",
+            "spare1": "xxx",
+            "tgdB1Cp": "f64",
+            "tgdB2ap": "f64",
             "sismai": "f64",
             "health": "f64",
-            "b1c": "f64",
+            "integrityB1C": "f64",
             "iodc": "f64",
             "t_tm": "f64",
-            "spare": "xxx",
-            "spare": "xxx",
+            "spare2": "xxx",
+            "spare3": "xxx",
             "iode": "f64"
         }
     },
@@ -723,20 +733,22 @@
             "idot": "f64",
             "deltaN0Dot": "f64",
             "satType": "f64",
+            "t_op": "f64",
             "sisa1_oe": "f64",
             "sisa1_ocb": "f64",
             "sisa1_oc1": "f64",
             "sisa1_oc2": "f64",
-            "isc_b1cd": "f64",
-            "tgd_b1cp": "f64",
-            "tgd_b2ap": "f64",
+            "spare1": "xxx",
+            "iscB2ad": "f64",
+            "tgdB1Cp": "f64",
+            "tgdB2ap": "f64",
             "sismai": "f64",
             "health": "f64",
-            "b1c": "f64",
+            "integrityB2aB1C": "f64",
             "iodc": "f64",
             "t_tm": "f64",
-            "spare": "xxx",
-            "spare": "xxx",
+            "spare2": "xxx",
+            "spare3": "xxx",
             "iode": "f64"
         }
     },
@@ -766,21 +778,16 @@
             "idot": "f64",
             "deltaN0Dot": "f64",
             "satType": "f64",
+            "t_op": "f64",
             "sisa1_oe": "f64",
             "sisa1_ocb": "f64",
             "sisa1_oc1": "f64",
             "sisa1_oc2": "f64",
-            "isc_b1cd": "f64",
-            "tgd_b1cp": "f64",
-            "tgd_b2ap": "f64",
             "sismai": "f64",
             "health": "f64",
-            "b1c": "f64",
-            "iodc": "f64",
-            "t_tm": "f64",
-            "spare": "xxx",
-            "spare": "xxx",
-            "iode": "f64"
+            "integrityB2b": "f64",
+            "tgdB2bI": "f64",
+            "t_tm": "f64"
         }
     },
     {
