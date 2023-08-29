@@ -10,7 +10,7 @@ pub enum QZSSHealth {
     /// QZSS CNAV SV Health indication
     CNAV(CNAVHealth),
     /// QZSS CNV2 SV Health indication
-    CNV2(CNAVHealth),
+    CNV2(CNV2Health),
 }
 
 impl Default for QZSSHealth {
@@ -34,8 +34,8 @@ impl QZSSHealth {
             _ => None,
         }
     }
-    /// Unwraps self as [`CNAVHealth`] indicator
-    pub(crate) fn cnv2(&self) -> Option<&CNAVHealth> {
+    /// Unwraps self as [`CNV2Health`] indicator
+    pub(crate) fn cnv2(&self) -> Option<&CNV2Health> {
         match self {
             Self::CNV2(h) => Some(h),
             _ => None,
@@ -106,7 +106,7 @@ bitflags! {
 }
 
 bitflags! {
-    /// QZSS CNV2 Health indication.
+    /// QZSS CNAV-2 Health indication.
     /// See [Bibliography::RINEX4] and [Bibliography::QzssPnt] 5.4.1 for more information.
     /// for more information.
     #[derive(Default, Debug, Clone, PartialEq, PartialOrd)]
