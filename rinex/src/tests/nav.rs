@@ -1,9 +1,9 @@
 #[cfg(test)]
 mod test {
-    use itertools::*;
     use crate::navigation::*;
     use crate::prelude::*;
     use crate::sv;
+    use itertools::*;
     use std::path::PathBuf;
     use std::str::FromStr;
     #[test]

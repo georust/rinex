@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod test {
-    use crate::*;
     use crate::tests::toolkit::compare_with_panic;
+    use crate::*;
     fn testbench(path: &str) {
         // parse this file
         let rnx = Rinex::from_file(path).unwrap(); // already tested elsewhere

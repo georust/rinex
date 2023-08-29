@@ -1,8 +1,8 @@
 #[cfg(test)]
 mod test {
+    use crate::navigation::NavMsgType;
     use crate::prelude::*;
     use std::path::PathBuf;
-    use crate::navigation::NavMsgType;
     #[test]
     fn test_parser() {
         let test_resources = PathBuf::new()
@@ -10,9 +10,7 @@ mod test {
             .join("../test_resources");
         let test_data = vec!["ATX", "CLK", "CRNX", "MET", "NAV", "OBS", "IONEX"];
         for data in test_data {
-            let data_path = test_resources
-                .clone()
-                .join(data);
+            let data_path = test_resources.clone().join(data);
             for revision in std::fs::read_dir(data_path).unwrap() {
                 let rev = revision.unwrap();
                 let rev_path = rev.path();

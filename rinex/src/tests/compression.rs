@@ -1,8 +1,8 @@
 #[cfg(test)]
 mod test {
     use crate::prelude::*;
-    use std::path::PathBuf;
     use crate::tests::toolkit::*;
+    use std::path::PathBuf;
     //#[test]
     fn crinex1() {
         let pool = vec![
@@ -15,7 +15,7 @@ mod test {
         ];
         for duplet in pool {
             let (crnx_name, rnx_name) = duplet;
-            
+
             let crnx_path = PathBuf::new()
                 .join(env!("CARGO_MANIFEST_DIR"))
                 .join("CRNX/V1")

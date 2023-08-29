@@ -1,8 +1,8 @@
 #[cfg(test)]
 mod sampling {
-    use itertools::Itertools;
     use crate::prelude::*;
     use crate::preprocessing::*;
+    use itertools::Itertools;
     use std::str::FromStr;
     #[test]
     fn nav() {

@@ -1,8 +1,8 @@
 #[cfg(test)]
 mod test {
     use crate::clocks;
-    use crate::prelude::*;
     use crate::clocks::record::{DataType, System};
+    use crate::prelude::*;
     #[test]
     fn v3_usno_example() {
         let test_resource =
