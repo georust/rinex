@@ -1532,6 +1532,121 @@ mod test {
                 }
             }
         }
-        for (epoch, (msg, sv, iondata)) in rinex.ionosphere_models() {}
+        for (epoch, (msg, sv, iondata)) in rinex.ionosphere_models() {
+            if *sv == sv!("G21") {
+                assert_eq!(msg, NavMsgType::LNAV);
+                if *epoch == Epoch::from_str("2023-03-12T00:08:54 UTC").unwrap() {
+                    let kb = iondata.as_klobuchar();
+                    assert!(kb.is_some());
+                    let kb = kb.unwrap();
+                    assert_eq!(
+                        kb.alpha,
+                        (
+                            2.887099981308e-08,
+                            7.450580596924e-09,
+                            -1.192092895508e-07,
+                            0.000000000000e+00
+                        )
+                    );
+                    assert_eq!(
+                        kb.beta,
+                        (
+                            1.331200000000e+05,
+                            0.000000000000e+00,
+                            -2.621440000000e+05,
+                            1.310720000000e+05
+                        )
+                    );
+                    assert_eq!(kb.region, KbRegionCode::WideArea);
+                } else if *epoch == Epoch::from_str("2023-03-12T23:41:24 UTC").unwrap() {
+                    let kb = iondata.as_klobuchar();
+                    assert!(kb.is_some());
+                    let kb = kb.unwrap();
+                    assert_eq!(
+                        kb.alpha,
+                        (
+                            2.887099981308e-08,
+                            7.450580596924e-09,
+                            -1.192092895508e-07,
+                            0.000000000000e+00
+                        )
+                    );
+                    assert_eq!(
+                        kb.beta,
+                        (
+                            1.331200000000e+05,
+                            0.000000000000e+00,
+                            -2.621440000000e+05,
+                            1.310720000000e+05
+                        )
+                    );
+                    assert_eq!(kb.region, KbRegionCode::WideArea);
+                }
+            } else if *sv == sv!("G21") {
+                assert_eq!(msg, NavMsgType::CNVX);
+            } else if *sv == sv!("J04") {
+                if *epoch == Epoch::from_str("2023-03-12T02:01:54 UTC").unwrap() {
+                    let kb = iondata.as_klobuchar();
+                    assert!(kb.is_some());
+                    let kb = kb.unwrap();
+                    assert_eq!(
+                        kb.alpha,
+                        (
+                            3.259629011154e-08,
+                            -1.490116119385e-08,
+                            -4.172325134277e-07,
+                            -1.788139343262e-07
+                        )
+                    );
+                    assert_eq!(
+                        kb.beta,
+                        (
+                            1.269760000000e+05,
+                            -1.474560000000e+05,
+                            1.310720000000e+05,
+                            2.490368000000e+06
+                        )
+                    );
+                    assert_eq!(kb.region, KbRegionCode::WideArea);
+                }
+            }
+        }
+        for (epoch, (msg, sv, eop)) in rinex.earth_orientation() {
+            if *sv == sv!("J04") {
+                assert_eq!(msg, NavMsgType::CNVX);
+                if *epoch == Epoch::from_str("2023-03-12T06:00:00 UTC").unwrap() {
+                    assert_eq!(
+                        eop.x,
+                        (-4.072475433350e-02, 2.493858337402e-04, 0.000000000000e+00)
+                    );
+                    assert_eq!(
+                        eop.y,
+                        (3.506240844727e-01, 3.324031829834e-03, 0.000000000000e+00)
+                    );
+                    assert_eq!(eop.t_tm, 18186);
+                    assert_eq!(
+                        eop.delta_ut1,
+                        (-1.924991607666e-02, -7.354915142059e-04, 0.000000000000e+00)
+                    );
+                }
+            } else if *sv == sv!("C30") {
+                assert_eq!(msg, NavMsgType::CNVX);
+                if *epoch == Epoch::from_str("2023-03-12T11:00:00 UTC").unwrap() {
+                    assert_eq!(
+                        eop.x,
+                        (-4.079341888428e-02, 6.389617919922e-04, 0.000000000000e+00)
+                    );
+                    assert_eq!(
+                        eop.y,
+                        (3.462553024292e-01, 2.998828887939e-03, 0.000000000000e+00)
+                    );
+                    assert_eq!(eop.t_tm, 60483);
+                    assert_eq!(
+                        eop.delta_ut1,
+                        (-1.820898056030e-02, -5.761086940765e-04, 0.000000000000e+00)
+                    );
+                }
+            }
+        }
     }
 }
