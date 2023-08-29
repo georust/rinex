@@ -1,13 +1,18 @@
 #[cfg(test)]
 mod test {
-    use rinex::navigation::NavMsgType;
     use rinex::prelude::*;
+    use std::path::PathBuf;
+    use rinex::navigation::NavMsgType;
     #[test]
     fn test_parser() {
-        let test_resources = env!("CARGO_MANIFEST_DIR").to_owned() + "/../test_resources/";
+        let test_resources = PathBuf::new()
+            .join(env!("CARGO_MANIFEST_DIR"))
+            .join("../test_resources");
         let test_data = vec!["ATX", "CLK", "CRNX", "MET", "NAV", "OBS", "IONEX"];
         for data in test_data {
-            let data_path = std::path::PathBuf::from(test_resources.to_owned() + data);
+            let data_path = test_resources
+                .clone()
+                .join(data);
             for revision in std::fs::read_dir(data_path).unwrap() {
                 let rev = revision.unwrap();
                 let rev_path = rev.path();
