@@ -692,8 +692,8 @@
             "b1c": "f64",
             "iodc": "f64",
             "t_tm": "f64",
-            "spare": "xxx",
-            "spare": "xxx",
+            "spare1": "xxx",
+            "spare2": "xxx",
             "iode": "f64"
         }
     },
@@ -735,8 +735,8 @@
             "b1c": "f64",
             "iodc": "f64",
             "t_tm": "f64",
-            "spare": "xxx",
-            "spare": "xxx",
+            "spare1": "xxx",
+            "spare2": "xxx",
             "iode": "f64"
         }
     },
@@ -778,8 +778,8 @@
             "b1c": "f64",
             "iodc": "f64",
             "t_tm": "f64",
-            "spare": "xxx",
-            "spare": "xxx",
+            "spare1": "xxx",
+            "spare2": "xxx",
             "iode": "f64"
         }
     },
