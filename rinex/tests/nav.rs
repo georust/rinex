@@ -4,6 +4,7 @@ mod test {
     use rinex::navigation::*;
     use rinex::prelude::*;
     use rinex::sv;
+    use std::path::PathBuf;
     use std::str::FromStr;
     #[test]
     fn v2_amel0010_21g() {
@@ -1407,5 +1408,22 @@ mod test {
                 _ => {},
             }
         }
+    }
+    #[test]
+    #[cfg(feature = "flate2")]
+    fn v4_brd400dlr_s2023() {
+        let path = PathBuf::new()
+            .join(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join("test_resources")
+            .join("NAV")
+            .join("V4")
+            .join("BRD400DLR_S_20230710000_01D_MN.rnx.gz");
+        let rinex = Rinex::from_file(&path.to_string_lossy());
+        assert!(
+            rinex.is_ok(),
+            "failed to parse NAV/V4/BRD400DLR_S_20230710000_01D_MN.rnx.gz, error: {:?}",
+            rinex.err()
+        );
     }
 }
