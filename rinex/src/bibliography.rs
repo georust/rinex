@@ -38,7 +38,13 @@ pub enum Bibliography {
     /// GNSS antennas*.
     /// [DOI](https://cdn.taoglas.com/wp-content/uploads/pdf/Multipath-Analysis-Using-Code-Minus-Carrier-Technique-in-GNSS-Antennas-_WhitePaper_VP__Final-1.pdf).
     MpTaoglas,
-    /// QZSS Signal and Constellation interface specifications.
-    /// [DOI](https://qzss.go.jp/en/technical/download/pdf/ps-is-qzss/is-qzss-pnt-004.pdf)
-    QzssPnt,
+    /// Quasi-Zenith Satellite System Interface Specification Satellite Positioning, Navigation and Timing Service.
+    /// [DOI](https://qzss.go.jp/en/technical/download/pdf/ps-is-qzss/is-qzss-pnt-005.pdf)
+    IsQzssPnt,
+    /// NAVSTAR GPS Space Segment/Navigation User Segment Interfaces.
+    /// [DOI](https://www.gps.gov/technical/icwg/IS-GPS-200N.pdf)
+    IsGps200,
+    /// European GNSS (Galileo) Open Service Signal-In-Space Interface Control Document.
+    /// [DOI](https://www.gps.gov/technical/icwg/IS-GPS-200N.pdf)
+    GalOsSisIcd,
 }

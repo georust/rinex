@@ -1,44 +1,41 @@
-//! QZSS Sv Health specifications
+//! QZSS SV Health specifications
 use bitflags::bitflags;
 
-/// QZSS Sv Health indication
+/// QZSS SV Health indication
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum QZSSHealth {
-    /// QZSS Legacy Sv Health indication.
-    /// Refer to [Bibliography::QzssPnt] 5.4.1.
-    LNAV(LegacyHealth),
-    /// QZSS CNAV Sv Health indication.
-    /// Refer to [Bibliography::QzssPnt].
-    CNAV(CivilianHealth),
-    /// QZSS CNV2 Sv Health indication.
-    /// Refer to [Bibliography::QzssPnt].
-    CNV2(Civilian2Health),
+    /// QZSS Legacy SV Health indication
+    LNAV(LNAVHealth),
+    /// QZSS CNAV SV Health indication
+    CNAV(CNAVHealth),
+    /// QZSS CNV2 SV Health indication
+    CNV2(CNV2Health),
 }
 
 impl Default for QZSSHealth {
     fn default() -> Self {
-        Self::LNAV(LegacyHealth::default())
+        Self::LNAV(LNAVHealth::default())
     }
 }
 
 impl QZSSHealth {
-    /// Unwraps self as [`LegacyHealth`] indicator
-    pub(crate) fn lnav(&self) -> Option<&LegacyHealth> {
+    /// Unwraps self as [`LNAVHealth`] indicator
+    pub(crate) fn lnav(&self) -> Option<&LNAVHealth> {
         match self {
             Self::LNAV(h) => Some(h),
             _ => None,
         }
     }
-    /// Unwraps self as [`Health`] indicator
-    pub(crate) fn cnav(&self) -> Option<&CivilianHealth> {
+    /// Unwraps self as [`CNAVHealth`] indicator
+    pub(crate) fn cnav(&self) -> Option<&CNAVHealth> {
         match self {
             Self::CNAV(h) => Some(h),
             _ => None,
         }
     }
-    /// Unwraps self as [`Health`] indicator
-    pub(crate) fn cnv2(&self) -> Option<&Civilian2Health> {
+    /// Unwraps self as [`CNV2Health`] indicator
+    pub(crate) fn cnv2(&self) -> Option<&CNV2Health> {
         match self {
             Self::CNV2(h) => Some(h),
             _ => None,
@@ -47,48 +44,77 @@ impl QZSSHealth {
 }
 
 bitflags! {
-    /// QZSS Legacy Sv Health indication.
+    /// QZSS LNAV SV Health indication.
     /// See [Bibliography::RINEX3] and [Bibliography::QzssPnt] 5.4.1
     /// for more information.
     #[derive(Default, Debug, Clone, PartialEq, PartialOrd)]
     #[cfg_attr(feature = "serde", derive(Serialize))]
-    pub struct LegacyHealth: u64 {
-        const L1CA_B= 0x01 << 22;
-        const L1C_A = 0x01 << 21;
-        const L2    = 0x01 << 20;
-        const L5    = 0x01 << 19;
-        const L1C   = 0x01 << 18;
-        const L1C_B = 0x01 << 17;
-
+    pub struct LNAVHealth: u64 {
+        /// L1 Health
+        /// `false` = Healthy
+        /// `true` = Unhealthy
+        const L1    = 0x20;
+        /// L1 C/A Health
+        /// `false` = Healthy
+        /// `true` = Unhealthy
+        const L1_CA = 0x10;
+        /// L2 Health
+        /// `false` = Healthy
+        /// `true` = Unhealthy
+        const L2    = 0x08;
+        /// L5 Health
+        /// `false` = Healthy
+        /// `true` = Unhealthy
+        const L5    = 0x04;
+        /// L1C Health
+        /// `false` = Healthy
+        /// `true` = Unhealthy
+        const L1C   = 0x02;
+        /// L1 C/B Health
+        /// `false` = Healthy
+        /// `true` = Unhealthy
+        const L1_CB = 0x01;
     }
 }
 
-impl std::fmt::UpperExp for LegacyHealth {
+impl std::fmt::UpperExp for LNAVHealth {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{:e}", self.bits() as f32)
     }
 }
 
 bitflags! {
-    /// QZSS CNAV Health indications.
-    /// See [Bibliography::RINEX4] and [Bibliography::QzssPnt] 5.4.1
+    /// QZSS CNAV Health indication.
+    /// See [Bibliography::RINEX4] and [Bibliography::QzssPnt] 5.4.1 for more information.
     /// for more information.
     #[derive(Default, Debug, Clone, PartialEq, PartialOrd)]
     #[cfg_attr(feature = "serde", derive(Serialize))]
-    pub struct CivilianHealth: u64 {
-        const L5 = 0x01 << 54;
-        const L2 = 0x01 << 53;
-        const L1 = 0x01 << 52;
+    pub struct CNAVHealth: u8 {
+        /// L1 Health
+        /// `false` = Healthy
+        /// `true` = Unhealthy
+        const L1 = 0x01;
+        /// L2 Health
+        /// `false` = Healthy
+        /// `true` = Unhealthy
+        const L2 = 0x02;
+        /// L5 Health
+        /// `false` = Healthy
+        /// `true` = Unhealthy
+        const L5 = 0x04;
     }
 }
 
 bitflags! {
-    /// QZSS CNV2 Health indications.
-    /// See [Bibliography::RINEX4] and [Bibliography::QzssPnt] 5.4.1
+    /// QZSS CNAV-2 Health indication.
+    /// See [Bibliography::RINEX4] and [Bibliography::QzssPnt] 5.4.1 for more information.
     /// for more information.
     #[derive(Default, Debug, Clone, PartialEq, PartialOrd)]
     #[cfg_attr(feature = "serde", derive(Serialize))]
-    pub struct Civilian2Health: u64 {
+    pub struct CNV2Health: u8 {
+        /// L1C Health
+        /// `false` = Healthy
+        /// `true` = Unhealthy
         const L1C = 0x01;
     }
 }
