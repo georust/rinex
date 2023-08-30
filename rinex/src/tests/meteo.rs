@@ -1,5 +1,4 @@
 #[cfg(test)]
-#[cfg(feature = "meteo")]
 mod test {
     use crate::prelude::*;
     use std::str::FromStr;

@@ -7,7 +7,10 @@ mod compression;
 mod decompression;
 mod ionex;
 mod merge;
+
+#[cfg(feature = "meteo")]
 mod meteo;
+
 mod nav;
 mod obs;
 mod parsing;

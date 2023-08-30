@@ -3,7 +3,8 @@ mod test {
     use crate::prelude::*;
     use crate::tests::toolkit::*;
     use std::path::PathBuf;
-    //#[test]
+    #[test]
+    #[ignore]
     fn crinex1() {
         let pool = vec![
             ("AJAC3550.21D", "AJAC3550.21O"),
@@ -55,7 +56,8 @@ mod test {
             );
         }
     }
-    //#[test]
+    #[test]
+    #[ignore]
     fn crinex1_reciprocity() {
         let pool = vec![
             ("AJAC3550.21O"),
