@@ -391,7 +391,6 @@ pub fn main() -> Result<(), rinex::Error> {
         plot::skyplot(&ctx, &mut plot_ctx);
         info!("skyplot view generated");
     }
-
     /*
      * CS Detector
      */

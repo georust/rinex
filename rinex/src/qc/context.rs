@@ -75,6 +75,19 @@ impl QcContext {
             None
         }
     }
+    /// Returns true if provided context contains SP3 high precision
+    /// orbits data
+    pub fn has_sp3(&self) -> bool {
+        self.sp3.is_some()
+    }
+    /// Returns reference to SP3 data specifically
+    pub fn sp3_data(&self) -> Option<&SP3> {
+        if let Some(ref sp3) = self.sp3 {
+            Some(&sp3.sp3)
+        } else {
+            None
+        }
+    }
     /// Returns possible Reference position defined in this context.
     /// Usually the Receiver location in the laboratory.
     pub fn ground_position(&self) -> Option<GroundPosition> {
