@@ -1,8 +1,8 @@
 #[cfg(test)]
 mod test {
-    use rinex::antex::pcv::Pcv;
-    use rinex::antex::CalibrationMethod;
-    use rinex::prelude::*;
+    use crate::antex::pcv::Pcv;
+    use crate::antex::CalibrationMethod;
+    use crate::prelude::*;
     #[test]
     fn v1_trosar_25r4_leit_2020_09_23() {
         let test_resource = env!("CARGO_MANIFEST_DIR").to_owned()

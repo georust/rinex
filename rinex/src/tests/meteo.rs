@@ -1,7 +1,6 @@
 #[cfg(test)]
-#[cfg(feature = "meteo")]
 mod test {
-    use rinex::prelude::*;
+    use crate::prelude::*;
     use std::str::FromStr;
     #[test]
     fn v2_abvi0010_15m() {

@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod test {
-    use rinex::prelude::*;
+    use crate::prelude::*;
     #[test]
     fn v1_ckmg0020_22i() {
         let test_resource =

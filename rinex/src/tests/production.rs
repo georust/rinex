@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod test {
-    use rinex::*;
+    use crate::tests::toolkit::compare_with_panic;
+    use crate::*;
     fn testbench(path: &str) {
         // parse this file
         let rnx = Rinex::from_file(path).unwrap(); // already tested elsewhere
@@ -11,7 +12,7 @@ mod test {
         let copy = copy.unwrap();
         // run comparison
         if copy != rnx {
-            test_toolkit::compare_with_panic(&copy, &rnx, path);
+            compare_with_panic(&copy, &rnx, path);
         }
         // remove copy not to disturb other test browsers
         let _ = std::fs::remove_file(copy_path);

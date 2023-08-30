@@ -1,8 +1,8 @@
 #[cfg(test)]
 mod test {
-    use rinex::observable;
-    use rinex::sv;
-    use rinex::{header::*, observation::*, prelude::*};
+    use crate::observable;
+    use crate::sv;
+    use crate::{header::*, observation::*, prelude::*};
     use std::str::FromStr;
     /*
      * Helper: to create a list of observable

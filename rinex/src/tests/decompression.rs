@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod test {
-    use rinex::hatanaka::Decompressor;
-    use rinex::{observable, prelude::*};
+    use crate::hatanaka::Decompressor;
+    use crate::{observable, prelude::*};
     use std::collections::HashMap;
     use std::str::FromStr;
     #[test]
