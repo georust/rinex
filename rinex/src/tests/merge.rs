@@ -1,5 +1,5 @@
 #[cfg(test)]
-mod merge {
+mod test {
     use crate::prelude::*;
     use crate::Merge;
     use std::path::PathBuf;
