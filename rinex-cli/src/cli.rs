@@ -189,6 +189,11 @@ Ideally this information is contained in the file Header, but user can manually 
                         .action(ArgAction::SetTrue)
                         .help("Display clock biases (offset, drift, drift changes) per epoch and vehicle.
 -fp must be a NAV file"))
+                .next_help_heading("High Precision Orbit / Clock")
+                    .arg(Arg::new("--sp3")
+                        .long("sp3")
+                        .action(ArgAction::SetTrue)
+                        .help("Local SP3 file. Enhance given context with IGS high precision Orbit predictions."))
                 .next_help_heading("ANTEX / APC ")
                     .arg(Arg::new("--atx")
                         .long("atx")
@@ -433,6 +438,9 @@ Refer to README"))
     }
     pub fn atx_path(&self) -> Option<&String> {
         self.matches.get_one::<String>("atx")
+    }
+    pub fn sp3_path(&self) -> Option<&String> {
+        self.matches.get_one::<String>("sp3")
     }
     fn manual_ecef(&self) -> Option<&String> {
         self.matches.get_one::<String>("antenna-ecef")

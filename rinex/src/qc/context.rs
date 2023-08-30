@@ -5,6 +5,8 @@ use crate::prelude::GroundPosition;
 use crate::quality::HtmlReport;
 use crate::{Error, Rinex};
 
+use sp3::prelude::SP3;
+
 #[derive(Default, Debug, Clone)]
 pub struct QcInputData {
     /// File source path
@@ -23,6 +25,23 @@ impl QcInputData {
 }
 
 #[derive(Default, Debug, Clone)]
+pub struct QcInputSp3Data {
+    /// File source path
+    pub path: PathBuf,
+    /// File Data
+    pub sp3: SP3,
+}
+
+impl QcInputSp3Data {
+    pub fn new(path: &str) -> Result<Self, sp3::Errors> {
+        Ok(Self {
+            path: Path::new(path).to_path_buf(),
+            sp3: SP3::from_file(path)?,
+        })
+    }
+}
+
+#[derive(Default, Debug, Clone)]
 pub struct QcContext {
     /// Primary RINEX file
     pub primary: QcInputData,
@@ -30,6 +49,8 @@ pub struct QcContext {
     pub nav: Option<QcInputData>,
     /// Optionnal ATX data
     pub atx: Option<QcInputData>,
+    /// Optionnal SP3 data
+    pub sp3: Option<QcInputSp3Data>,
 }
 
 impl QcContext {

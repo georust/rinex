@@ -51,6 +51,8 @@ if you know how to operate the preprocessing toolkit
 
 This tool can perform several data analysis. Feasible operations
 are highly dependent on the context provided by the user.
+Refer to [this page](doc/file-combinations.md) to understand
+what minimal context should be provided, for the analysis you want to perform.
 
 Based on the type of primary RINEX provided, the main report structure
 will differ: 

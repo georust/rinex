@@ -103,6 +103,19 @@ fn create_context(cli: &Cli) -> QcContext {
                 None
             }
         },
+        sp3: {
+            if let Some(path) = cli.sp3_path() {
+                if let Ok(ctx) = QcInputSp3Data::new(path) {
+                    trace!("sp3 file \"{}\"", path);
+                    Some(ctx)
+                } else {
+                    error!("failed to parse sp3 file \"{}\"", path);
+                    None
+                }
+            } else {
+                None
+            }
+        },
     }
 }
 

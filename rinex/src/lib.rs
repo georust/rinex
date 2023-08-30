@@ -90,7 +90,7 @@ extern crate horrorshow;
 #[cfg(feature = "qc")]
 #[cfg_attr(docrs, doc(cfg(feature = "qc")))]
 pub mod quality {
-    pub use crate::qc::{HtmlReport, QcContext, QcInputData, QcOpts, QcReport};
+    pub use crate::qc::{HtmlReport, QcContext, QcInputData, QcInputSp3Data, QcOpts, QcReport};
 }
 
 use carrier::Carrier;
