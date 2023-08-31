@@ -395,4 +395,7 @@ pub fn plot_record(ctx: &QcContext, plot_ctx: &mut PlotContext) {
             record::plot_tec_map(ctx, borders, plot_ctx);
         }
     }
+    if ctx.has_sp3() {
+        record::plot_sp3(ctx, plot_ctx);
+    }
 }

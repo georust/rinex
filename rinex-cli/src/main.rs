@@ -29,6 +29,7 @@ extern crate pretty_env_logger;
 extern crate log;
 
 use fops::open_with_web_browser;
+use sp3::{prelude::SP3, Merge as SP3Merge};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
@@ -37,16 +38,21 @@ use std::path::{Path, PathBuf};
  * at the moment
  */
 fn workspace_path(ctx: &QcContext) -> PathBuf {
-    let primary_stem = ctx
+    let primary_stem: &str = ctx
         .primary_path()
         .file_stem()
         .expect("failed to determine Workspace")
         .to_str()
         .expect("failed to determine Workspace");
+    /*
+     * In case $FILENAME.RNX.gz gz compressed, we extract "$FILENAME".
+     * Can use .file_name() once https://github.com/rust-lang/rust/issues/86319  is stabilized
+     */
+    let primary_stem: Vec<&str> = primary_stem.split(".").collect();
 
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("workspace")
-        .join(primary_stem)
+        .join(primary_stem[0])
 }
 
 /*
@@ -101,6 +107,35 @@ fn create_context(cli: &Cli) -> QcContext {
                 }
             } else {
                 None
+            }
+        },
+        sp3: {
+            // Build SP3 context
+            let mut sp3: Option<SP3> = None;
+            if let Some(values) = cli.sp3_paths() {
+                for path in values {
+                    if let Ok(new) = SP3::from_file(path) {
+                        if let Some(ref mut sp3) = sp3 {
+                            match sp3.merge_mut(&new) {
+                                Ok(_) => trace!("sp3 file \"{}\"", path),
+                                Err(e) => error!("failed to parse sp3 file \"{}\" : {:?}", path, e),
+                            }
+                        } else {
+                            sp3 = Some(new);
+                            trace!("sp3 file \"{}\"", path);
+                        }
+                    } else {
+                        error!("failed to parse sp3 file \"{}\"", path);
+                    }
+                }
+            }
+            sp3
+        },
+        sp3_paths: {
+            if let Some(paths) = cli.sp3_paths() {
+                paths.map(|s| PathBuf::new().join(s)).collect()
+            } else {
+                vec![]
             }
         },
     }
@@ -378,7 +413,6 @@ pub fn main() -> Result<(), rinex::Error> {
         plot::skyplot(&ctx, &mut plot_ctx);
         info!("skyplot view generated");
     }
-
     /*
      * CS Detector
      */
