@@ -26,7 +26,11 @@ with the proper `-P` preprocessor command. Refer to related section.
 
 To analyze OBSERVATION Data, a primary file of this type should be passed
 to `--fp` (or `-f`). Like Meteo analysis, all physical observations can be visualized
-and an in depth statistcal analysis can be also performed with  `--qc`.  
+and an in depth statistical analysis can be also performed with  `--qc`.  
+
+Example of SSI visualization :
+
+<img align="center" width="450" src="https://github.com/georust/rinex/blob/main/doc/plots/esbc00dnk_ssi.png">
 
 OBS RINEX analysis can be augmented with NAVIGATION Data, by providing
 one file of this type with `--nav`.  
@@ -53,6 +57,13 @@ To analyze NAVIGATION Data, a primary file of this type should be passed
 to `--fp` (or `-f`). With this type of file, a skyplot view to visualize SV
 in the sky along the day course is drawn. SV embedded clock data is also visualized
 (both Clock bias and Clock Drift).
+
+Example of SV clock data visualization :
+
+<img align="center" width="450" src="https://github.com/georust/rinex/blob/main/doc/plots/sv_clocks.png">
+
+Skyplot view example : 
+<img align="center" width="450" src="https://github.com/georust/rinex/blob/main/doc/plots/skyplot.png">
 
 ## SP3 file analysis
 
