@@ -1,5 +1,5 @@
 use crate::plot::{build_chart_epoch_axis, generate_markers, PlotContext};
-use plotly::common::{Marker, MarkerSymbol, Mode, Visible};
+use plotly::common::{Mode, Visible};
 use rinex::prelude::Epoch;
 use rinex::quality::QcContext;
 /*
@@ -17,7 +17,7 @@ pub fn plot_sp3(ctx: &QcContext, plot_context: &mut PlotContext) {
         let data_x: Vec<Epoch> = sp3
             .sv_position()
             .filter_map(
-                |(epoch, svnn, (x, _, _))| {
+                |(epoch, svnn, (_x, _, _))| {
                     if svnn == sv {
                         Some(epoch)
                     } else {
@@ -29,7 +29,7 @@ pub fn plot_sp3(ctx: &QcContext, plot_context: &mut PlotContext) {
         let data_y: Vec<f64> = sp3
             .sv_position()
             .filter_map(
-                |(epoch, svnn, (x, _, _))| {
+                |(_epoch, svnn, (x, _, _))| {
                     if svnn == sv {
                         Some(x)
                     } else {
@@ -66,7 +66,7 @@ pub fn plot_sp3(ctx: &QcContext, plot_context: &mut PlotContext) {
         let data_y: Vec<f64> = sp3
             .sv_position()
             .filter_map(
-                |(epoch, svnn, (_, y, _))| {
+                |(_epoch, svnn, (_, y, _))| {
                     if svnn == sv {
                         Some(y)
                     } else {
@@ -103,7 +103,7 @@ pub fn plot_sp3(ctx: &QcContext, plot_context: &mut PlotContext) {
         let data_y: Vec<f64> = sp3
             .sv_position()
             .filter_map(
-                |(epoch, svnn, (_, _, z))| {
+                |(_epoch, svnn, (_, _, z))| {
                     if svnn == sv {
                         Some(z)
                     } else {

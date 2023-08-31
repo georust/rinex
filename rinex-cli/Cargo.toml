@@ -18,6 +18,7 @@ pretty_env_logger = "0.5"
 clap = { version = "4", features = ["derive", "color"] }
 rand = "0.8"
 serde_json = "1"
+sp3 = "0.0.8"
 rinex = { path = "../rinex", features = ["serde", "flate2", "sbas", "obs", "nav", "qc", "processing"] }
 thiserror = "1"
 itertools = "0.11"
@@ -26,4 +27,3 @@ map_3d = "0.1.5"
 ndarray = "0.15"
 colorous = "1.0"
 horrorshow = "0.8"
-sp3 = { path = "../../sp3" }
