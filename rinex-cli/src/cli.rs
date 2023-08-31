@@ -27,6 +27,23 @@ impl Cli {
                         .help("Input RINEX file")
                         .action(ArgAction::Append)
                         .required(true))
+                .next_help_heading("General")
+                    .arg(Arg::new("workspace")
+                        .short('w')
+                        .long("workspace")
+                        .value_name("[FOLDER]")
+                        .help("Customize workspace location (folder does not have to exist).
+The default workspace is rinex-cli/workspace"))
+                    .arg(Arg::new("quiet")
+                        .short('q')
+                        .long("quiet")
+                        .action(ArgAction::SetTrue)
+                        .help("Disable all terminal output. Also disables auto HTML reports opener."))
+                    .arg(Arg::new("pretty")
+                        .short('p')
+                        .long("pretty")
+                        .action(ArgAction::SetTrue)
+                        .help("Make terminal output more readable."))
                 .next_help_heading("Data identification")
                     .arg(Arg::new("epochs")
                         .long("epochs")
@@ -234,17 +251,7 @@ For example -fp was filtered and decimated, use --output to dump results into a 
                         .help("Custom header attributes, in case we're generating data.
 --custom-header must either be plain JSON or an external JSON descriptor.
 Refer to README"))
-                .next_help_heading("Terminal (options)")
-                    .arg(Arg::new("quiet")
-                        .short('q')
-                        .action(ArgAction::SetTrue)
-                        .help("Disable all terminal output. Disable auto HTML opener, on HTML rendering."))
-                    .arg(Arg::new("pretty")
-                        .short('p')
-                        .long("pretty")
-                        .action(ArgAction::SetTrue)
-                        .help("Make terminal output more readable"))
-                    .get_matches()
+                .get_matches()
             },
         }
     }
@@ -430,6 +437,10 @@ Refer to README"))
     /// Returns optionnal Nav path, for enhanced capabilities
     pub fn nav_path(&self) -> Option<&String> {
         self.matches.get_one::<String>("nav")
+    }
+    /// Returns WORKSPACE prefix to be used
+    pub fn workspace_prefix(&self) -> Option<&String> {
+        self.matches.get_one::<String>("workspace")
     }
     pub fn atx_path(&self) -> Option<&String> {
         self.matches.get_one::<String>("atx")

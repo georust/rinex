@@ -30,23 +30,31 @@ extern crate log;
 
 use fops::open_with_web_browser;
 use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 /*
  * Workspace location is fixed to rinex-cli/product/$primary
  * at the moment
  */
-fn workspace_path(ctx: &QcContext) -> PathBuf {
-    let primary_stem = ctx
+fn workspace_path(ctx: &QcContext, cli: &Cli) -> PathBuf {
+    let mut path = PathBuf::new();
+    if let Some(prefix) = cli.workspace_prefix() {
+        path.push(prefix);
+    } else {
+        path.push(env!("CARGO_MANIFEST_DIR"));
+        path.push("workspace");
+    }
+    /*
+     * grab file name
+     */
+    let primary_stem: &str = ctx
         .primary_path()
         .file_stem()
         .expect("failed to determine Workspace")
         .to_str()
         .expect("failed to determine Workspace");
-
-    Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("workspace")
-        .join(primary_stem)
+    let primary_stem: Vec<&str> = primary_stem.split(".").collect();
+    path.join(primary_stem[0])
 }
 
 /*
@@ -145,7 +153,7 @@ pub fn main() -> Result<(), rinex::Error> {
     let mut ctx = create_context(&cli);
 
     // Workspace
-    let workspace = workspace_path(&ctx);
+    let workspace = workspace_path(&ctx, &cli);
     info!("workspace is \"{}\"", workspace.to_string_lossy());
     create_workspace(workspace.clone());
 
@@ -401,7 +409,7 @@ pub fn main() -> Result<(), rinex::Error> {
      * Render Graphs (HTML)
      */
     if !qc_only {
-        let html_path = workspace_path(&ctx).join("graphs.html");
+        let html_path = workspace_path(&ctx, &cli).join("graphs.html");
         let html_path = html_path.to_str().unwrap();
 
         let mut html_fd = std::fs::File::create(html_path)
