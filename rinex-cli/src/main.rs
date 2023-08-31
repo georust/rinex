@@ -38,16 +38,21 @@ use std::path::{Path, PathBuf};
  * at the moment
  */
 fn workspace_path(ctx: &QcContext) -> PathBuf {
-    let primary_stem = ctx
+    let primary_stem: &str = ctx
         .primary_path()
         .file_stem()
         .expect("failed to determine Workspace")
         .to_str()
         .expect("failed to determine Workspace");
+    /*
+     * In case $FILENAME.RNX.gz gz compressed, we extract "$FILENAME".
+     * Can use .file_name() once https://github.com/rust-lang/rust/issues/86319  is stabilized
+     */
+    let primary_stem: Vec<&str> = primary_stem.split(".").collect();
 
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("workspace")
-        .join(primary_stem)
+        .join(primary_stem[0])
 }
 
 /*
