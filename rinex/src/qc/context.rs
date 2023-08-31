@@ -25,23 +25,6 @@ impl QcInputData {
 }
 
 #[derive(Default, Debug, Clone)]
-pub struct QcInputSp3Data {
-    /// File source path
-    pub path: PathBuf,
-    /// File Data
-    pub sp3: SP3,
-}
-
-impl QcInputSp3Data {
-    pub fn new(path: &str) -> Result<Self, sp3::Errors> {
-        Ok(Self {
-            path: Path::new(path).to_path_buf(),
-            sp3: SP3::from_file(path)?,
-        })
-    }
-}
-
-#[derive(Default, Debug, Clone)]
 pub struct QcContext {
     /// Primary RINEX file
     pub primary: QcInputData,
@@ -50,7 +33,9 @@ pub struct QcContext {
     /// Optionnal ATX data
     pub atx: Option<QcInputData>,
     /// Optionnal SP3 data
-    pub sp3: Option<QcInputSp3Data>,
+    pub sp3: Option<SP3>,
+    /// SP3 files path
+    pub sp3_paths: Vec<PathBuf>,
 }
 
 impl QcContext {
@@ -83,7 +68,7 @@ impl QcContext {
     /// Returns reference to SP3 data specifically
     pub fn sp3_data(&self) -> Option<&SP3> {
         if let Some(ref sp3) = self.sp3 {
-            Some(&sp3.sp3)
+            Some(&sp3)
         } else {
             None
         }

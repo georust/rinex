@@ -29,6 +29,7 @@ extern crate pretty_env_logger;
 extern crate log;
 
 use fops::open_with_web_browser;
+use sp3::{prelude::SP3, Merge as SP3Merge};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
@@ -104,16 +105,29 @@ fn create_context(cli: &Cli) -> QcContext {
             }
         },
         sp3: {
-            if let Some(path) = cli.sp3_path() {
-                if let Ok(ctx) = QcInputSp3Data::new(path) {
-                    trace!("sp3 file \"{}\"", path);
-                    Some(ctx)
-                } else {
-                    error!("failed to parse sp3 file \"{}\"", path);
-                    None
+            // Build SP3 context
+            let mut sp3: Option<SP3> = None;
+            if let Some(values) = cli.sp3_paths() {
+                for path in values {
+                    if let Ok(new) = SP3::from_file(path) {
+                        if let Some(ref mut sp3) = sp3 {
+                            match sp3.merge_mut(&new) {
+                                Ok(_) => trace!("sp3 file \"{}\"", path),
+                                Err(e) => error!("failed to parse sp3 file \"{}\" : {:?}", path, e),
+                            }
+                        }
+                    } else {
+                        error!("failed to parse sp3 file \"{}\"", path);
+                    }
                 }
+            }
+            sp3
+        },
+        sp3_paths: {
+            if let Some(paths) = cli.sp3_paths() {
+                paths.map(|s| PathBuf::new().join(s)).collect()
             } else {
-                None
+                vec![]
             }
         },
     }

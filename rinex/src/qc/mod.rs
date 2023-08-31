@@ -2,7 +2,7 @@ use horrorshow::{helper::doctype, RenderBox};
 use strum_macros::EnumString;
 
 mod context;
-pub use context::{QcContext, QcInputData, QcInputSp3Data};
+pub use context::{QcContext, QcInputData};
 
 mod opts;
 pub use opts::{QcClassification, QcOpts};
