@@ -38,7 +38,7 @@ pub fn plot_sp3(ctx: &QcContext, plot_context: &mut PlotContext) {
                 },
             )
             .collect();
-        let trace = build_chart_epoch_axis(&format!("{}", sv), Mode::LinesMarkers, data_x, data_y)
+        let trace = build_chart_epoch_axis(&format!("{}", sv), Mode::Markers, data_x, data_y)
             .web_gl_mode(true)
             .visible({
                 if sv_index < 4 {

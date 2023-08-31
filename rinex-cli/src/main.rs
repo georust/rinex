@@ -115,6 +115,9 @@ fn create_context(cli: &Cli) -> QcContext {
                                 Ok(_) => trace!("sp3 file \"{}\"", path),
                                 Err(e) => error!("failed to parse sp3 file \"{}\" : {:?}", path, e),
                             }
+                        } else {
+                            sp3 = Some(new);
+                            trace!("sp3 file \"{}\"", path);
                         }
                     } else {
                         error!("failed to parse sp3 file \"{}\"", path);
