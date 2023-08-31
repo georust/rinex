@@ -5,6 +5,8 @@ use crate::prelude::GroundPosition;
 use crate::quality::HtmlReport;
 use crate::{Error, Rinex};
 
+use sp3::prelude::SP3;
+
 #[derive(Default, Debug, Clone)]
 pub struct QcInputData {
     /// File source path
@@ -30,6 +32,10 @@ pub struct QcContext {
     pub nav: Option<QcInputData>,
     /// Optionnal ATX data
     pub atx: Option<QcInputData>,
+    /// Optionnal SP3 data
+    pub sp3: Option<SP3>,
+    /// SP3 files path
+    pub sp3_paths: Vec<PathBuf>,
 }
 
 impl QcContext {
@@ -50,6 +56,19 @@ impl QcContext {
     pub fn navigation_data(&self) -> Option<&Rinex> {
         if let Some(ref nav) = self.nav {
             Some(&nav.rinex)
+        } else {
+            None
+        }
+    }
+    /// Returns true if provided context contains SP3 high precision
+    /// orbits data
+    pub fn has_sp3(&self) -> bool {
+        self.sp3.is_some()
+    }
+    /// Returns reference to SP3 data specifically
+    pub fn sp3_data(&self) -> Option<&SP3> {
+        if let Some(ref sp3) = self.sp3 {
+            Some(&sp3)
         } else {
             None
         }
