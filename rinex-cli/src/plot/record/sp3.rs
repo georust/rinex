@@ -127,7 +127,7 @@ pub fn plot_sp3(ctx: &QcContext, plot_context: &mut PlotContext) {
     /*
      * Plot SV Clock data prediction
      */
-    plot_context.add_cartesian2d_plot("High Precision Clock (SP3)", "SV Clock Bias [s]");
+    plot_context.add_cartesian2d_plot("High Precision Clock (SP3)", "SV Clock Bias [us]");
     for (sv_index, sv) in sp3.sv().enumerate() {
         let data_x: Vec<Epoch> = sp3
             .sv_clock()
