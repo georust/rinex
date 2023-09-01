@@ -213,7 +213,8 @@ Ideally this information is contained in the file Header, but user can manually 
                         .num_args(1..)
                         .value_name("FILE")
                         .action(clap::ArgAction::Append)
-                        .help("Local SP3 file(s). Enhance given context with IGS high precision Orbit predictions."))
+                        .help("Local SP3 file. Enhance given context with IGS high precision Orbit predictions.
+Use --sp3 once per file. You can stack as many as you want."))
                 .next_help_heading("Antenna")
                     .arg(Arg::new("--atx")
                         .long("atx")
@@ -221,7 +222,7 @@ Ideally this information is contained in the file Header, but user can manually 
                         .value_name("[FILE]")
                         .action(ArgAction::Append)
                         .help("Local ANTEX file. Enhance given context with ANTEX Data.
-Use --nav once per file to add. You can stack as many as you want."))
+Use --atx once per file to add. You can stack as many as you want."))
                 .next_help_heading("Quality Check (QC)")
                     .arg(Arg::new("qc")
                         .long("qc")
