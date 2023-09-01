@@ -63,8 +63,8 @@ The default workspace is rinex-cli/workspace"))
                         .long("sv-epoch")
                         .action(ArgAction::SetTrue)
                         .help("Plot SV against Epoch.
-Useful graph to determine vehicles of interest for specific operations.
-Useful to determine common Epochs or compare sample rates in between --fp OBS and --nav NAV for example."))
+Useful to determine common Epochs or compare sample rates in between 
+--fp OBS and --nav NAV for example."))
                     .arg(Arg::new("sampling-hist")
                         .long("sampling-hist")
                         .action(ArgAction::SetTrue)
