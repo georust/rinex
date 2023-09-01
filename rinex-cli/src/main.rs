@@ -31,13 +31,23 @@ extern crate log;
 use fops::open_with_web_browser;
 use sp3::{prelude::SP3, Merge as SP3Merge};
 use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 /*
  * Workspace location is fixed to rinex-cli/product/$primary
  * at the moment
  */
-fn workspace_path(ctx: &QcContext) -> PathBuf {
+fn workspace_path(ctx: &QcContext, cli: &Cli) -> PathBuf {
+    let mut path = PathBuf::new();
+    if let Some(prefix) = cli.workspace_prefix() {
+        path.push(prefix);
+    } else {
+        path.push(env!("CARGO_MANIFEST_DIR"));
+        path.push("workspace");
+    }
+    /*
+     * grab file name
+     */
     let primary_stem: &str = ctx
         .primary_path()
         .file_stem()
@@ -49,10 +59,7 @@ fn workspace_path(ctx: &QcContext) -> PathBuf {
      * Can use .file_name() once https://github.com/rust-lang/rust/issues/86319  is stabilized
      */
     let primary_stem: Vec<&str> = primary_stem.split(".").collect();
-
-    Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("workspace")
-        .join(primary_stem[0])
+    path.join(primary_stem[0])
 }
 
 /*
@@ -180,7 +187,7 @@ pub fn main() -> Result<(), rinex::Error> {
     let mut ctx = create_context(&cli);
 
     // Workspace
-    let workspace = workspace_path(&ctx);
+    let workspace = workspace_path(&ctx, &cli);
     info!("workspace is \"{}\"", workspace.to_string_lossy());
     create_workspace(workspace.clone());
 
@@ -435,7 +442,7 @@ pub fn main() -> Result<(), rinex::Error> {
      * Render Graphs (HTML)
      */
     if !qc_only {
-        let html_path = workspace_path(&ctx).join("graphs.html");
+        let html_path = workspace_path(&ctx, &cli).join("graphs.html");
         let html_path = html_path.to_str().unwrap();
 
         let mut html_fd = std::fs::File::create(html_path)
