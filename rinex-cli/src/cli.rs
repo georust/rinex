@@ -217,7 +217,7 @@ Ideally this information is contained in the file Header, but user can manually 
                         .help("Local SP3 file. Enhance given context with IGS high precision Orbit predictions.
 Use --sp3 once per file. You can stack as many as you want."))
                 .next_help_heading("Antenna")
-                    .arg(Arg::new("--atx")
+                    .arg(Arg::new("atx")
                         .long("atx")
 						.num_args(1..)
                         .value_name("[FILE]")
