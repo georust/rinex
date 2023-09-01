@@ -64,6 +64,7 @@ pub mod prelude {
     pub use crate::header::Header;
     pub use crate::observable::Observable;
     pub use crate::sv::Sv;
+    pub use crate::types::Type as RinexType;
     pub use crate::Rinex;
     pub use hifitime::{Duration, Epoch, TimeScale, TimeSeries};
 }
@@ -90,7 +91,7 @@ extern crate horrorshow;
 #[cfg(feature = "qc")]
 #[cfg_attr(docrs, doc(cfg(feature = "qc")))]
 pub mod quality {
-    pub use crate::qc::{HtmlReport, QcContext, QcInputData, QcOpts, QcReport};
+    pub use crate::qc::{HtmlReport, QcContext, QcExtraData, QcOpts, QcPrimaryData, QcReport};
 }
 
 use carrier::Carrier;

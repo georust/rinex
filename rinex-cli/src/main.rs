@@ -15,6 +15,7 @@ use preprocessing::preprocess;
 use rinex::{
     merge::Merge,
     observation::{Combine, Dcb, IonoDelay, Mp},
+    prelude::RinexType,
     prelude::*,
     quality::*,
     split::Split,
@@ -28,26 +29,17 @@ extern crate pretty_env_logger;
 #[macro_use]
 extern crate log;
 
+use clap::parser::ValuesRef;
 use fops::open_with_web_browser;
 use sp3::{prelude::SP3, Merge as SP3Merge};
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /*
  * Workspace location is fixed to rinex-cli/product/$primary
  * at the moment
  */
-fn workspace_path(ctx: &QcContext, cli: &Cli) -> PathBuf {
-    let mut path = PathBuf::new();
-    if let Some(prefix) = cli.workspace_prefix() {
-        path.push(prefix);
-    } else {
-        path.push(env!("CARGO_MANIFEST_DIR"));
-        path.push("workspace");
-    }
-    /*
-     * grab file name
-     */
+fn workspace_path(ctx: &QcContext) -> PathBuf {
     let primary_stem: &str = ctx
         .primary_path()
         .file_stem()
@@ -59,7 +51,10 @@ fn workspace_path(ctx: &QcContext, cli: &Cli) -> PathBuf {
      * Can use .file_name() once https://github.com/rust-lang/rust/issues/86319  is stabilized
      */
     let primary_stem: Vec<&str> = primary_stem.split(".").collect();
-    path.join(primary_stem[0])
+
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("workspace")
+        .join(primary_stem[0])
 }
 
 /*
@@ -74,77 +69,95 @@ pub fn create_workspace(path: PathBuf) {
 }
 
 /*
+ * Macro to build QcExtraData of a specific RINEX Type
+ */
+fn build_extra_rinex_data(
+    paths: Option<ValuesRef<'_, String>>,
+    rtype: RinexType,
+    cmd: &str,
+) -> Option<QcExtraData<Rinex>> {
+    if let Some(paths) = paths {
+        let mut ctx = QcExtraData::<Rinex>::default();
+        for path in paths {
+            if let Ok(new) = Rinex::from_file(path) {
+                if new.header.rinex_type != rtype {
+                    error!("invalid {} RINEX", rtype);
+                    continue;
+                }
+                if ctx.paths().len() == 0 {
+                    // first file passed by user
+                    ctx = QcExtraData {
+                        paths: vec![Path::new(path).to_path_buf()],
+                        data: new.clone(),
+                    };
+                    trace!("{} file \"{}\"", rtype, path);
+                } else {
+                    match ctx.data_mut().merge_mut(&new) {
+                        Ok(_) => {
+                            trace!("{} file \"{}\"", rtype, path);
+                            ctx.paths.push(Path::new(path).to_path_buf());
+                        },
+                        Err(e) => error!("failed to parse nav file \"{}\" : {:?}", path, e),
+                    }
+                }
+            } else {
+                error!("{} should be valid {}", cmd, rtype);
+            }
+        }
+        Some(ctx)
+    } else {
+        None // no files provided by user
+    }
+}
+/*
+ * Macro to build QcExtraInput of type SP3 specifically
+ */
+fn build_extra_sp3_data(paths: Option<ValuesRef<'_, String>>) -> Option<QcExtraData<SP3>> {
+    if let Some(paths) = paths {
+        let mut ctx = QcExtraData::<SP3>::default();
+        for path in paths {
+            if let Ok(new) = SP3::from_file(path) {
+                if ctx.paths().len() == 0 {
+                    // first file passed by user
+                    ctx = QcExtraData {
+                        paths: vec![Path::new(path).to_path_buf()],
+                        data: new.clone(),
+                    };
+                    trace!("SP3 file \"{}\"", path);
+                } else {
+                    match ctx.data_mut().merge_mut(&new) {
+                        Ok(_) => {
+                            trace!("SP3 file \"{}\"", path);
+                            ctx.paths.push(Path::new(path).to_path_buf());
+                        },
+                        Err(e) => error!("failed to parse sp3 file \"{}\" : {:?}", path, e),
+                    }
+                }
+            } else {
+                error!("invalid --sp3 data");
+            }
+        }
+        Some(ctx)
+    } else {
+        None // no files provided by user
+    }
+}
+/*
  * Creates File/Data context defined by user.
  * Regroups all provided files/folders,
  */
 fn create_context(cli: &Cli) -> QcContext {
     QcContext {
-        primary: QcInputData::new(cli.input_path()).expect("failed to parse primary RINEX file"),
-        nav: {
-            if let Some(path) = cli.nav_path() {
-                if let Ok(ctx) = QcInputData::new(path) {
-                    if ctx.rinex.is_navigation_rinex() {
-                        trace!("nav augmentation \"{}\"", path);
-                        Some(ctx)
-                    } else {
-                        error!("--nav must be valid navigation data");
-                        None
-                    }
-                } else {
-                    error!("failed to parse nav augmentation \"{}\"", path);
-                    None
-                }
-            } else {
-                None
+        primary: {
+            let path = cli.input_path();
+            QcPrimaryData {
+                path: Path::new(path).to_path_buf(),
+                data: Rinex::from_file(path).expect("failed to parse primary RINEX file"),
             }
         },
-        atx: {
-            if let Some(path) = cli.atx_path() {
-                if let Ok(ctx) = QcInputData::new(path) {
-                    if ctx.rinex.is_antex() {
-                        trace!("atx data \"{}\"", path);
-                        Some(ctx)
-                    } else {
-                        error!("--atx should be valid antex data");
-                        None
-                    }
-                } else {
-                    error!("failed to parse atx data \"{}\"", path);
-                    None
-                }
-            } else {
-                None
-            }
-        },
-        sp3: {
-            // Build SP3 context
-            let mut sp3: Option<SP3> = None;
-            if let Some(values) = cli.sp3_paths() {
-                for path in values {
-                    if let Ok(new) = SP3::from_file(path) {
-                        if let Some(ref mut sp3) = sp3 {
-                            match sp3.merge_mut(&new) {
-                                Ok(_) => trace!("sp3 file \"{}\"", path),
-                                Err(e) => error!("failed to parse sp3 file \"{}\" : {:?}", path, e),
-                            }
-                        } else {
-                            sp3 = Some(new);
-                            trace!("sp3 file \"{}\"", path);
-                        }
-                    } else {
-                        error!("failed to parse sp3 file \"{}\"", path);
-                    }
-                }
-            }
-            sp3
-        },
-        sp3_paths: {
-            if let Some(paths) = cli.sp3_paths() {
-                paths.map(|s| PathBuf::new().join(s)).collect()
-            } else {
-                vec![]
-            }
-        },
+        nav: build_extra_rinex_data(cli.nav_paths(), RinexType::NavigationData, "--nav"),
+        atx: build_extra_rinex_data(cli.atx_paths(), RinexType::AntennaData, "--atx"),
+        sp3: build_extra_sp3_data(cli.sp3_paths()),
     }
 }
 
@@ -187,7 +200,7 @@ pub fn main() -> Result<(), rinex::Error> {
     let mut ctx = create_context(&cli);
 
     // Workspace
-    let workspace = workspace_path(&ctx, &cli);
+    let workspace = workspace_path(&ctx);
     info!("workspace is \"{}\"", workspace.to_string_lossy());
     create_workspace(workspace.clone());
 
@@ -360,7 +373,6 @@ pub fn main() -> Result<(), rinex::Error> {
         info!("\"{}\" has been generated", &path);
         return Ok(());
     }
-
     /*
      * SPLIT
      */
@@ -412,7 +424,6 @@ pub fn main() -> Result<(), rinex::Error> {
         // [*] stop here, special mode: no further analysis allowed
         return Ok(());
     }
-
     /*
      * skyplot
      */
@@ -428,7 +439,6 @@ pub fn main() -> Result<(), rinex::Error> {
         //let mut detector = CsDetector::default();
         //let cs = detector.cs_detection(&ctx.primary_rinex);
     }
-
     /*
      * Record analysis / visualization
      * analysis depends on the provided record type
@@ -437,12 +447,11 @@ pub fn main() -> Result<(), rinex::Error> {
         info!("entering record analysis");
         plot::plot_record(&ctx, &mut plot_ctx);
     }
-
     /*
      * Render Graphs (HTML)
      */
     if !qc_only {
-        let html_path = workspace_path(&ctx, &cli).join("graphs.html");
+        let html_path = workspace_path(&ctx).join("graphs.html");
         let html_path = html_path.to_str().unwrap();
 
         let mut html_fd = std::fs::File::create(html_path)

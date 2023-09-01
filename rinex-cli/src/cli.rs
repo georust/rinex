@@ -24,7 +24,7 @@ impl Cli {
                     .arg(Arg::new("filepath")
                         .short('f')
                         .long("fp")
-                        .value_name("FILE")
+                        .value_name("[FILE]")
                         .help("Input RINEX file")
                         .action(ArgAction::Append)
                         .required(true))
@@ -62,10 +62,9 @@ The default workspace is rinex-cli/workspace"))
                     .arg(Arg::new("sv-epoch")
                         .long("sv-epoch")
                         .action(ArgAction::SetTrue)
-                        .help("Plot Sv against Epoch.
+                        .help("Plot SV against Epoch.
 Useful graph to determine vehicles of interest for specific operations.
-When both `--fp` and Navigation context (`--nav`) were provided, this 
-depicts shared epochs and vehicles between the two contexts."))
+Useful to determine common Epochs or compare sample rates in between --fp OBS and --nav NAV for example."))
                     .arg(Arg::new("sampling-hist")
                         .long("sampling-hist")
                         .action(ArgAction::SetTrue)
@@ -179,9 +178,10 @@ If you're just interested in CS information, you probably just want `-qc` instea
                     .arg(Arg::new("nav")
                         .long("nav")
                         .num_args(1..)
-                        .value_name("FILE")
-                        .help("Augment `--fp` analysis with Navigation data.
-Most useful when combined to Observation RINEX. Enables the complete (full) `--qc` mode.")) 
+                        .value_name("[FILE]")
+                        .help("Local NAV RINEX file. Enhance given context with Navigation Data.
+Use --nav once per file to add. You can stack as many as you want.
+Most useful when combined to Observation RINEX. Enables complete `--qc` analysis with elevation mask taken into account.")) 
                     .arg(Arg::new("antenna-ecef")
                         .long("antenna-ecef")
                         .value_name("\"x,y,z\" coordinates in ECEF [m]")
@@ -213,12 +213,15 @@ Ideally this information is contained in the file Header, but user can manually 
                         .num_args(1..)
                         .value_name("FILE")
                         .action(clap::ArgAction::Append)
-                        .help("Local SP3 file. Enhance given context with IGS high precision Orbit predictions."))
-                .next_help_heading("ANTEX / APC ")
+                        .help("Local SP3 file(s). Enhance given context with IGS high precision Orbit predictions."))
+                .next_help_heading("Antenna")
                     .arg(Arg::new("--atx")
                         .long("atx")
-                        .action(ArgAction::SetTrue)
-                        .help("Local ANTEX file, allows APC corrections."))
+						.num_args(1..)
+                        .value_name("[FILE]")
+                        .action(ArgAction::Append)
+                        .help("Local ANTEX file. Enhance given context with ANTEX Data.
+Use --nav once per file to add. You can stack as many as you want."))
                 .next_help_heading("Quality Check (QC)")
                     .arg(Arg::new("qc")
                         .long("qc")
@@ -259,7 +262,7 @@ For example -fp was filtered and decimated, use --output to dump results into a 
                         .help("Custom header attributes, in case we're generating data.
 --custom-header must either be plain JSON or an external JSON descriptor.
 Refer to README"))
-                .get_matches()
+                    .get_matches()
             },
         }
     }
@@ -443,15 +446,11 @@ Refer to README"))
         }
     }
     /// Returns optionnal Nav path, for enhanced capabilities
-    pub fn nav_path(&self) -> Option<&String> {
-        self.matches.get_one::<String>("nav")
+    pub fn nav_paths(&self) -> Option<ValuesRef<'_, String>> {
+        self.matches.get_many::<String>("nav")
     }
-    /// Returns WORKSPACE prefix to be used
-    pub fn workspace_prefix(&self) -> Option<&String> {
-        self.matches.get_one::<String>("workspace")
-    }
-    pub fn atx_path(&self) -> Option<&String> {
-        self.matches.get_one::<String>("atx")
+    pub fn atx_paths(&self) -> Option<ValuesRef<'_, String>> {
+        self.matches.get_many::<String>("atx")
     }
     pub fn sp3_paths(&self) -> Option<ValuesRef<'_, String>> {
         self.matches.get_many::<String>("sp3")

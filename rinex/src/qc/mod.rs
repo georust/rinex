@@ -2,7 +2,7 @@ use horrorshow::{helper::doctype, RenderBox};
 use strum_macros::EnumString;
 
 mod context;
-pub use context::{QcContext, QcInputData};
+pub use context::{QcContext, QcExtraData, QcPrimaryData};
 
 mod opts;
 pub use opts::{QcClassification, QcOpts};
@@ -104,11 +104,11 @@ impl QcReport {
                 operand: MaskOperand::Equals,
             };
 
-            let subset = ctx.primary.rinex.filter(mask.clone().into());
+            let subset = ctx.primary_data().filter(mask.clone().into());
 
             // also apply to possible NAV augmentation
-            let nav_subset = if let Some(nav) = &ctx.nav {
-                Some(nav.rinex.filter(mask.clone().into()))
+            let nav_subset = if let Some(nav) = &ctx.navigation_data() {
+                Some(nav.filter(mask.clone().into()))
             } else {
                 None
             };

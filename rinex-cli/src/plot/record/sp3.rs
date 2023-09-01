@@ -1,4 +1,4 @@
-use crate::plot::{build_chart_epoch_axis, generate_markers, PlotContext};
+use crate::plot::{build_chart_epoch_axis, PlotContext};
 use plotly::common::{Mode, Visible};
 use rinex::prelude::Epoch;
 use rinex::quality::QcContext;

@@ -36,17 +36,17 @@ pub fn preprocess(ctx: &mut QcContext, cli: &Cli) {
 
     for filt in gnss_filters {
         let filt = Filter::from_str(filt).unwrap(); // cannot fail
-        ctx.primary.rinex.filter_mut(filt.clone());
-        if let Some(ref mut nav) = ctx.nav {
-            nav.rinex.filter_mut(filt.clone());
+        ctx.primary_data_mut().filter_mut(filt.clone());
+        if let Some(ref mut nav) = ctx.navigation_data_mut() {
+            nav.filter_mut(filt.clone());
         }
     }
 
     for filt_str in cli.preprocessing() {
         if let Ok(filt) = Filter::from_str(filt_str) {
-            ctx.primary.rinex.filter_mut(filt.clone());
-            if let Some(ref mut nav) = ctx.nav {
-                nav.rinex.filter_mut(filt.clone());
+            ctx.primary_data_mut().filter_mut(filt.clone());
+            if let Some(ref mut nav) = ctx.navigation_data_mut() {
+                nav.filter_mut(filt.clone());
             }
             trace!("applied filter \"{}\"", filt_str);
         } else {
