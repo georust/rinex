@@ -74,14 +74,14 @@ pub fn create_workspace(path: PathBuf) {
 fn build_extra_rinex_data(
     paths: Option<ValuesRef<'_, String>>,
     rtype: RinexType,
-    cmd: &str,
 ) -> Option<QcExtraData<Rinex>> {
     if let Some(paths) = paths {
         let mut ctx = QcExtraData::<Rinex>::default();
         for path in paths {
             if let Ok(new) = Rinex::from_file(path) {
                 if new.header.rinex_type != rtype {
-                    error!("invalid {} RINEX", rtype);
+                    let stem = Path::new(path).file_stem().unwrap();
+                    error!("\"{}\" : invalid {} RINEX", stem.to_string_lossy(), rtype);
                     continue;
                 }
                 if ctx.paths().len() == 0 {
@@ -101,7 +101,8 @@ fn build_extra_rinex_data(
                     }
                 }
             } else {
-                error!("{} should be valid {}", cmd, rtype);
+                let stem = Path::new(path).file_stem().unwrap();
+                error!("\"{}\" : invalid {} RINEX", stem.to_string_lossy(), rtype);
             }
         }
         Some(ctx)
@@ -134,7 +135,8 @@ fn build_extra_sp3_data(paths: Option<ValuesRef<'_, String>>) -> Option<QcExtraD
                     }
                 }
             } else {
-                error!("invalid --sp3 data");
+                let stem = Path::new(path).file_stem().unwrap();
+                error!("\"{}\" : invalid SP3", stem.to_string_lossy());
             }
         }
         Some(ctx)
@@ -155,8 +157,8 @@ fn create_context(cli: &Cli) -> QcContext {
                 data: Rinex::from_file(path).expect("failed to parse primary RINEX file"),
             }
         },
-        nav: build_extra_rinex_data(cli.nav_paths(), RinexType::NavigationData, "--nav"),
-        atx: build_extra_rinex_data(cli.atx_paths(), RinexType::AntennaData, "--atx"),
+        nav: build_extra_rinex_data(cli.nav_paths(), RinexType::NavigationData),
+        atx: build_extra_rinex_data(cli.atx_paths(), RinexType::AntennaData),
         sp3: build_extra_sp3_data(cli.sp3_paths()),
     }
 }
