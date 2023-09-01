@@ -204,10 +204,11 @@ impl HtmlReport for QcContext {
                     @ if self.nav_paths().len() == 0 {
                         : "None"
                     } else {
-                        : self.nav_paths()[0].file_name()
-                            .unwrap()
-                            .to_string_lossy()
-                            .to_string()
+                        @ for path in self.nav_paths() {
+                            br {
+                                : format!("{}", path.file_name().unwrap().to_string_lossy())
+                            }
+                        }
                     }
                 }
             }
@@ -219,10 +220,27 @@ impl HtmlReport for QcContext {
                     @ if self.atx_paths().len() == 0 {
                         : "None"
                     } else {
-                        : self.atx_paths()[0].file_name()
-                            .unwrap()
-                            .to_string_lossy()
-                            .to_string()
+                        @ for path in self.atx_paths() {
+                            br {
+                                : format!("{}", path.file_name().unwrap().to_string_lossy())
+                            }
+                        }
+                    }
+                }
+            }
+            tr {
+                td {
+                    : "SP3"
+                }
+                td {
+                    @ if self.sp3_paths().len() == 0 {
+                        : "None"
+                    } else {
+                        @ for path in self.sp3_paths() {
+                            br {
+                                : format!("{}", path.file_name().unwrap().to_string_lossy())
+                            }
+                        }
                     }
                 }
             }

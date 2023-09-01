@@ -179,6 +179,7 @@ If you're just interested in CS information, you probably just want `-qc` instea
                         .long("nav")
                         .num_args(1..)
                         .value_name("[FILE]")
+                        .action(ArgAction::Append)
                         .help("Local NAV RINEX file. Enhance given context with Navigation Data.
 Use --nav once per file to add. You can stack as many as you want.
 Most useful when combined to Observation RINEX. Enables complete `--qc` analysis with elevation mask taken into account.")) 
