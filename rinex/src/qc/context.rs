@@ -33,8 +33,8 @@ impl<T> QcExtraData<T> {
         &mut self.data
     }
     /// Returns list of files that created this context
-    pub fn paths(&self) -> Vec<PathBuf> {
-        self.paths.clone()
+    pub fn paths(&self) -> &[PathBuf] {
+        &self.paths
     }
 }
 
@@ -69,11 +69,11 @@ impl QcContext {
         self.primary.data.is_navigation_rinex() || self.nav.is_some()
     }
     /// Returns NAV files source path
-    pub fn nav_paths(&self) -> Vec<PathBuf> {
+    pub fn nav_paths(&self) -> Option<&[PathBuf]> {
         if let Some(ref nav) = self.nav {
-            nav.paths()
+            Some(nav.paths())
         } else {
-            vec![]
+            None
         }
     }
     /// Returns reference to navigation data specifically
@@ -106,11 +106,11 @@ impl QcContext {
         }
     }
     /// Returns SP3 files source path
-    pub fn sp3_paths(&self) -> Vec<PathBuf> {
+    pub fn sp3_paths(&self) -> Option<&[PathBuf]> {
         if let Some(ref sp3) = self.sp3 {
-            sp3.paths()
+            Some(sp3.paths())
         } else {
-            vec![]
+            None
         }
     }
     /// Returns true if provided context contains ATX RINEX Data
@@ -126,11 +126,11 @@ impl QcContext {
         }
     }
     /// Returns ATX files source path
-    pub fn atx_paths(&self) -> Vec<PathBuf> {
+    pub fn atx_paths(&self) -> Option<&[PathBuf]> {
         if let Some(ref atx) = self.atx {
-            atx.paths()
+            Some(atx.paths())
         } else {
-            vec![]
+            None
         }
     }
     /// Returns possible Reference position defined in this context.
@@ -201,10 +201,10 @@ impl HtmlReport for QcContext {
                     : "NAV Augmentation"
                 }
                 td {
-                    @ if self.nav_paths().len() == 0 {
+                    @ if self.nav_paths().is_none() {
                         : "None"
                     } else {
-                        @ for path in self.nav_paths() {
+                        @ for path in self.nav_paths().unwrap() {
                             br {
                                 : format!("{}", path.file_name().unwrap().to_string_lossy())
                             }
@@ -217,10 +217,10 @@ impl HtmlReport for QcContext {
                     : "ATX data"
                 }
                 td {
-                    @ if self.atx_paths().len() == 0 {
+                    @ if self.atx_paths().is_none() {
                         : "None"
                     } else {
-                        @ for path in self.atx_paths() {
+                        @ for path in self.atx_paths().unwrap() {
                             br {
                                 : format!("{}", path.file_name().unwrap().to_string_lossy())
                             }
@@ -233,10 +233,10 @@ impl HtmlReport for QcContext {
                     : "SP3"
                 }
                 td {
-                    @ if self.sp3_paths().len() == 0 {
+                    @ if self.sp3_paths().is_none() {
                         : "None"
                     } else {
-                        @ for path in self.sp3_paths() {
+                        @ for path in self.sp3_paths().unwrap() {
                             br {
                                 : format!("{}", path.file_name().unwrap().to_string_lossy())
                             }
