@@ -84,7 +84,7 @@ fn build_extra_rinex_data(
                     error!("\"{}\" : invalid {} RINEX", stem.to_string_lossy(), rtype);
                     continue;
                 }
-                if ctx.paths().len() == 0 {
+                if ctx.paths().is_empty() {
                     // first file passed by user
                     ctx = QcExtraData {
                         paths: vec![Path::new(path).to_path_buf()],
