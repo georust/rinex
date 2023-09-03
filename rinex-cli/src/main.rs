@@ -118,7 +118,7 @@ fn build_extra_sp3_data(paths: Option<ValuesRef<'_, String>>) -> Option<QcExtraD
         let mut ctx = QcExtraData::<SP3>::default();
         for path in paths {
             if let Ok(new) = SP3::from_file(path) {
-                if ctx.paths().len() == 0 {
+                if ctx.paths().is_empty() {
                     // first file passed by user
                     ctx = QcExtraData {
                         paths: vec![Path::new(path).to_path_buf()],
