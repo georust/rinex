@@ -1,61 +1,93 @@
 use horrorshow::{helper::doctype, RenderBox};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use crate::prelude::GroundPosition;
 use crate::quality::HtmlReport;
-use crate::{Error, Rinex};
+use crate::Rinex;
 
 use sp3::prelude::SP3;
 
 #[derive(Default, Debug, Clone)]
-pub struct QcInputData {
-    /// File source path
+pub struct QcPrimaryData {
+    /// Source path
     pub path: PathBuf,
-    /// File Data
-    pub rinex: Rinex,
+    /// Data
+    pub data: Rinex,
 }
 
-impl QcInputData {
-    pub fn new(path: &str) -> Result<Self, Error> {
-        Ok(Self {
-            path: Path::new(path).to_path_buf(),
-            rinex: Rinex::from_file(path)?,
-        })
+#[derive(Default, Debug, Clone)]
+pub struct QcExtraData<T> {
+    /// Source paths
+    pub paths: Vec<PathBuf>,
+    /// Data
+    pub data: T,
+}
+
+impl<T> QcExtraData<T> {
+    /// Returns reference to Inner Data
+    pub fn data(&self) -> &T {
+        &self.data
+    }
+    /// Returns mutable reference to Inner Data
+    pub fn data_mut(&mut self) -> &mut T {
+        &mut self.data
+    }
+    /// Returns list of files that created this context
+    pub fn paths(&self) -> &[PathBuf] {
+        &self.paths
     }
 }
 
 #[derive(Default, Debug, Clone)]
 pub struct QcContext {
-    /// Primary RINEX file
-    pub primary: QcInputData,
-    /// Optionnal NAV augmentation
-    pub nav: Option<QcInputData>,
-    /// Optionnal ATX data
-    pub atx: Option<QcInputData>,
-    /// Optionnal SP3 data
-    pub sp3: Option<SP3>,
-    /// SP3 files path
-    pub sp3_paths: Vec<PathBuf>,
+    /// Primary RINEX Data
+    pub primary: QcPrimaryData,
+    /// Optionnal NAV RINEX Data
+    pub nav: Option<QcExtraData<Rinex>>,
+    /// Optionnal ATX RINEX Data
+    pub atx: Option<QcExtraData<Rinex>>,
+    /// Optionnal SP3 Orbit Data
+    pub sp3: Option<QcExtraData<SP3>>,
 }
 
 impl QcContext {
     /// Returns reference to primary data
-    pub fn primary_data(&self) -> &Rinex {
-        &self.primary.rinex
-    }
-    /// Returns reference to primary data
     pub fn primary_path(&self) -> &PathBuf {
         &self.primary.path
+    }
+    /// Returns reference to primary data
+    pub fn primary_data(&self) -> &Rinex {
+        &self.primary.data
+    }
+    /// Returns mutable reference to primary data
+    pub fn primary_data_mut(&mut self) -> &mut Rinex {
+        &mut self.primary.data
     }
     /// Returns true if provided context contains
     /// navigation data, either as primary or subsidary data set.
     pub fn has_navigation_data(&self) -> bool {
-        self.primary.rinex.is_navigation_rinex() || self.nav.is_some()
+        self.primary.data.is_navigation_rinex() || self.nav.is_some()
+    }
+    /// Returns NAV files source path
+    pub fn nav_paths(&self) -> Option<&[PathBuf]> {
+        if let Some(ref nav) = self.nav {
+            Some(nav.paths())
+        } else {
+            None
+        }
     }
     /// Returns reference to navigation data specifically
     pub fn navigation_data(&self) -> Option<&Rinex> {
         if let Some(ref nav) = self.nav {
-            Some(&nav.rinex)
+            Some(&nav.data)
+        } else {
+            None
+        }
+    }
+    /// Returns mutable reference to navigation data specifically
+    pub fn navigation_data_mut(&mut self) -> Option<&mut Rinex> {
+        if let Some(ref mut nav) = self.nav {
+            Some(&mut nav.data)
         } else {
             None
         }
@@ -68,7 +100,35 @@ impl QcContext {
     /// Returns reference to SP3 data specifically
     pub fn sp3_data(&self) -> Option<&SP3> {
         if let Some(ref sp3) = self.sp3 {
-            Some(&sp3)
+            Some(&sp3.data())
+        } else {
+            None
+        }
+    }
+    /// Returns SP3 files source path
+    pub fn sp3_paths(&self) -> Option<&[PathBuf]> {
+        if let Some(ref sp3) = self.sp3 {
+            Some(sp3.paths())
+        } else {
+            None
+        }
+    }
+    /// Returns true if provided context contains ATX RINEX Data
+    pub fn has_atx(&self) -> bool {
+        self.atx.is_some()
+    }
+    /// Returns reference to ATX data specifically
+    pub fn atx_data(&self) -> Option<&Rinex> {
+        if let Some(ref atx) = self.atx {
+            Some(atx.data())
+        } else {
+            None
+        }
+    }
+    /// Returns ATX files source path
+    pub fn atx_paths(&self) -> Option<&[PathBuf]> {
+        if let Some(ref atx) = self.atx {
+            Some(atx.paths())
         } else {
             None
         }
@@ -76,11 +136,11 @@ impl QcContext {
     /// Returns possible Reference position defined in this context.
     /// Usually the Receiver location in the laboratory.
     pub fn ground_position(&self) -> Option<GroundPosition> {
-        if let Some(pos) = self.primary.rinex.header.ground_position {
+        if let Some(pos) = self.primary_data().header.ground_position {
             return Some(pos);
         }
-        if let Some(nav) = &self.nav {
-            if let Some(pos) = nav.rinex.header.ground_position {
+        if let Some(data) = self.navigation_data() {
+            if let Some(pos) = data.header.ground_position {
                 return Some(pos);
             }
         }
@@ -127,7 +187,7 @@ impl HtmlReport for QcContext {
             }
             tr {
                 td {
-                    : format!("Primary ({})", self.primary.rinex.header.rinex_type)
+                    : format!("Primary ({})", self.primary_data().header.rinex_type)
                 }
                 td {
                     : self.primary.path.file_name()
@@ -141,13 +201,14 @@ impl HtmlReport for QcContext {
                     : "NAV Augmentation"
                 }
                 td {
-                    @ if let Some(nav) = &self.nav {
-                        : nav.path.file_name()
-                            .unwrap()
-                            .to_string_lossy()
-                            .to_string()
-                    } else {
+                    @ if self.nav_paths().is_none() {
                         : "None"
+                    } else {
+                        @ for path in self.nav_paths().unwrap() {
+                            br {
+                                : format!("{}", path.file_name().unwrap().to_string_lossy())
+                            }
+                        }
                     }
                 }
             }
@@ -156,13 +217,30 @@ impl HtmlReport for QcContext {
                     : "ATX data"
                 }
                 td {
-                    @ if let Some(atx) = &self.atx {
-                        : atx.path.file_name()
-                            .unwrap()
-                            .to_string_lossy()
-                            .to_string()
-                    } else {
+                    @ if self.atx_paths().is_none() {
                         : "None"
+                    } else {
+                        @ for path in self.atx_paths().unwrap() {
+                            br {
+                                : format!("{}", path.file_name().unwrap().to_string_lossy())
+                            }
+                        }
+                    }
+                }
+            }
+            tr {
+                td {
+                    : "SP3"
+                }
+                td {
+                    @ if self.sp3_paths().is_none() {
+                        : "None"
+                    } else {
+                        @ for path in self.sp3_paths().unwrap() {
+                            br {
+                                : format!("{}", path.file_name().unwrap().to_string_lossy())
+                            }
+                        }
                     }
                 }
             }
