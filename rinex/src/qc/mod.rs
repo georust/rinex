@@ -153,30 +153,36 @@ impl QcReport {
                             }
                         }//div=header
                         div(id="context") {
-                            h3(class="title") {
-                                : "Context"
-                            }
                             table(class="table is-bordered") {
+                                thead {
+                                    th {
+                                        : "Context"
+                                    }
+                                }
                                 tbody {
                                     : context.to_inline_html()
                                 }
                             }
                         }//div=context
                         div(id="parameters") {
-                            h3(class="title") {
-                                : "Parameters"
-                            }
                             table(class="table is-bordered") {
+                                thead {
+                                    th {
+                                        : "Parameters"
+                                    }
+                                }
                                 tbody {
                                     : opts.to_inline_html()
                                 }
                             }
                         } //div=parameters
                         div(id="header") {
-                            h3(class="title") {
-                                : "File Header"
-                            }
                             table(class="table is-bordered") {
+                                thead {
+                                    th {
+                                        : "File Header"
+                                    }
+                                }
                                 tbody {
                                     : context.primary_data().header.to_inline_html()
                                 }
@@ -186,54 +192,32 @@ impl QcReport {
                          * Report all analysis that were performed
                          */
                         div(id="analysis") {
-                            @ if analysis.len() == 1 {
-                                /*
-                                 * Single analysis case
-                                 */
+                            /*
+                             * Report all analysis
+                             * and emphasize how they were sorted (self.opts.classfication)
+                             */
+                            @ for i in 0..analysis.len() {
                                 table(class="table is-bordered") {
                                     thead {
-                                        tr {
-                                            td {
-                                                : "Multi constellation analysis"
+                                        @ if opts.classification == QcClassification::GNSS {
+                                            th {
+                                                : format!("{} analysis", context.primary_data().constellation().nth(i).unwrap())
+                                            }
+                                        } else if opts.classification == QcClassification::Sv {
+                                            th {
+                                                : format!("{} analysis", context.primary_data().sv().nth(i).unwrap())
+                                            }
+
+                                        } else if opts.classification == QcClassification::Physics {
+                                            th {
+                                                : format!("{} analysis", context.primary_data().nth(i).unwrap())
                                             }
                                         }
                                     }
                                     tbody {
-                                        : analysis[0].to_inline_html()
+                                        : analysis[i].to_inline_html()
                                     }
                                 }
-                            } else {
-                                /*
-                                 * Report all analysis
-                                 * and emphasize how they were sorted (self.opts.classfication)
-                                 */
-                                //@ for i in 0..self.analysis.len() {
-                                //    table(class="table is-bordered") {
-                                //        @ match self.opts.classification {
-                                //            QcClassification::GNSS => {
-                                //                tr {
-                                //                    td {
-                                //                        : format!("{} analysis", self.constellation().nth(i).unwrap())
-                                //                    }
-                                //                }
-                                //            },
-                                //            QcClassification::Sv => {
-                                //                tr {
-                                //                    td {
-                                //                        : format!("{} analysis", self.sv().nth(i).unwrap())
-                                //                    }
-                                //                }
-                                //            },
-                                //            QcClassification::Physics => {
-                                //                tr {
-                                //                    td {
-                                //                        : format!("{} analysis", self.observable().nth(i).unwrap())
-                                //                    }
-                                //                }
-                                //            },
-                                //        }
-                                //    }
-                                //}
                             }
                         }//div=analysis
                     }

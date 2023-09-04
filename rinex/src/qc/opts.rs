@@ -119,7 +119,7 @@ impl Default for ProcessingOpts {
 }
 
 /// Qc Report classification method
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 /// Classify the QC report by desired data set
 pub enum QcClassification {

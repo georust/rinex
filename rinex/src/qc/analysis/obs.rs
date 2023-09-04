@@ -1,4 +1,5 @@
 use crate::{carrier, observation::Snr, prelude::*, Carrier};
+use itertools::Itertools;
 
 use super::{pretty_array, QcOpts};
 use std::collections::HashMap;
@@ -302,7 +303,7 @@ impl QcObsAnalysis {
 
         let mut observables: Vec<String> = rnx.observable().map(|obs| obs.to_string()).collect();
 
-        let mut signals: Vec<_> = rnx.carrier().collect();
+        let mut signals: Vec<_> = rnx.carrier().unique().collect();
         let mut codes: Vec<_> = rnx.code().map(|c| c.to_string()).collect();
 
         let cs_anomalies: Vec<_> = rnx
