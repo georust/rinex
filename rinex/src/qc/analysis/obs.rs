@@ -292,16 +292,11 @@ pub struct QcObsAnalysis {
 
 impl QcObsAnalysis {
     pub fn new(rnx: &Rinex, opts: &QcOpts) -> Self {
-        let has_doppler = rnx.observable().fold(|mut is_doppler, observables| {
-            for obs in observables {
-                is_doppler |= obs.is_doppler_observable();
-            }
-            is_doppler
-        });
+        let doppler_obs = rnx.observable().filter(|obs| obs.is_doppler_observable());
 
         let mut observables: Vec<String> = rnx.observable().map(|obs| obs.to_string()).collect();
 
-        let mut signals: Vec<_> = rnx.signal().collect();
+        let mut signals: Vec<_> = rnx.carrier().collect();
         let mut codes: Vec<_> = rnx.code().map(|c| c.to_string()).collect();
 
         let anomalies = rnx.epoch_anomalies();
@@ -460,7 +455,7 @@ impl QcObsAnalysis {
             codes,
             signals,
             observables,
-            has_doppler,
+            has_doppler: doppler_obs.count() > 0,
             cs_anomalies: {
                 anomalies
                     .filter_map(|(e, flag)| {
