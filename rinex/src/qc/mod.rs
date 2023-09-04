@@ -186,10 +186,56 @@ impl QcReport {
                          * Report all analysis that were performed
                          */
                         div(id="analysis") {
-                            @ for analysis in &analysis {
+                            @ if analysis.len() == 1 {
+                                /*
+                                 * Single analysis case
+                                 */
                                 table(class="table is-bordered") {
+                                    thead {
+                                        tr {
+                                            td {
+                                                : "Multi constellation analysis"
+                                            }
+                                        }
+                                    }
                                     tbody {
-                                        : analysis.to_inline_html()
+                                        : self.analysis[0].to_inline_html()
+                                    }
+                                }   
+                            } else {
+                                /*
+                                 * Report all analysis
+                                 * and emphasize how they were sorted (self.opts.classfication)
+                                 */
+                                @ for i in 0..self.analysis.len() {
+                                    table(class="table is-bordered") {
+                                        @ match self.opts.classification {
+                                            QcClassification::GNSS => {
+                                                tr {
+                                                    td {
+                                                        : format!("{} analysis", self.constellation().nth(i).unwrap())
+                                                    }
+                                                }
+                                            },
+                                            QcClassification::Sv => {
+                                                tr {
+                                                    td {
+                                                        : format!("{} analysis", self.sv().nth(i).unwrap())
+                                                    }
+                                                }
+                                            },
+                                            QcClassification::Physics => {
+                                                tr {
+                                                    td {
+                                                        : format!("{} analysis", self.observable().nth(i).unwrap())
+                                                    }
+                                                }
+                                            },
+                                        }
+
+                                        tbody {
+                                            : self.analysis[0].to_inline_html()
+                                        }
                                     }
                                 }
                             }

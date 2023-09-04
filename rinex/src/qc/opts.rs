@@ -161,6 +161,8 @@ pub struct QcOpts {
     pub gap_tolerance: Option<Duration>,
     /// Manually defined Ground position (ECEF)
     pub ground_position: Option<GroundPosition>,
+    /// Window duration to be used, during RX clock drift analysis
+    pub clock_drift_window: Duration,
 }
 
 impl QcOpts {
@@ -198,6 +200,7 @@ impl Default for QcOpts {
             min_snr_db: 20.0, // dB
             elev_mask: None,
             classification: QcClassification::default(),
+            clock_window: Duration::from_seconds(10.0 * 60.0),
         }
     }
 }

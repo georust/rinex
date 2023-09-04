@@ -92,13 +92,27 @@ impl HtmlReport for QcSamplingAnalysis {
                 th {
                     : "Sample rate"
                 }
+                th {
+                    : "Dominan Sample rate"
+                }
+            }
+            tr {
                 @ if let Some(rate) = self.sample_rate {
                     td {
                         : format!("{} ({:.3} Hz)", rate, 1.0 / rate.to_unit(Unit::Second))
                     }
                 } else {
                     td {
-                        : "Unknown"
+                        : "Not Specified"
+                    }
+                }
+                @ if let Some(rate) = self.dominant_sample_rate {
+                    td {
+                        : format!("{} ({:.3} Hz)", rate, 1.0 / rate.to_unit(Unit::Second))
+                    }
+                } else {
+                    td {
+                        : "Undetermined"
                     }
                 }
             }
@@ -107,7 +121,7 @@ impl HtmlReport for QcSamplingAnalysis {
                     : "Gap analysis"
                 }
             }
-            @ if self.gaps.len() == 0 {
+            @ if self.gaps.is_empty() {
                  tr {
                     th {
                         : "No Data Gaps detected"

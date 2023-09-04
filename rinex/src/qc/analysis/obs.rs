@@ -33,104 +33,94 @@ fn report_signals(list: &Vec<Carrier>) -> String {
 /*
  * Epoch anomalies formatter
  */
-fn report_anomalies(anomalies: &Vec<(Epoch, EpochFlag)>) -> Box<dyn RenderBox + '_> {
-    if anomalies.len() == 0 {
-        box_html! {
-            table(class="table is-bordered") {
-                th {
-                    : "Anomalies"
-                }
+fn report_anomalies(
+    cs: &Vec<Epoch>,
+    power: &Vec<Epoch>, 
+    other: &Vec<(Epoch, EpochFlag)>,
+) -> Box<dyn RenderBox + '_> {
+    box_html! {
+        table(class="table is-bordered") {
+            tr {
                 td {
-                    : "None"
+                    : "Power Failures"
                 }
             }
-        }
-    } else {
-        box_html! {
-            table(class="table is-bordered") {
-                thead {
+            @ if power.is_empty() {
+                tr {
                     th {
-                        : "Anomalies"
+                        : "None"
                     }
-                    th {
-                        : "Power failure"
-                    }
-                    th {
-                        : "Antenna movement detected"
-                    }
-                    th {
-                        : "Kinematic"
-                    }
-                    th {
-                        : "External event"
-                    }
-                    th {
-                        : "Cycle Slips"
+                } 
+            } else {
+                tr {
+                    td {
+                        : format!("{:?}", power)
                     }
                 }
-                tbody {
-                    @ for (epoch, _flag) in anomalies {
-                        tr {
-                            td {
-                                : epoch.to_string()
-                            }
-                            /*@match flag {
-                                EpochFlag::PowerFailure => {
-                                    td {
-                                        : "x"
-                                    }
-                                },
-                                EpochFlag::AntennaBeingMoved => {
-                                    td {
-                                        : ""
-                                    }
-                                    td {
-                                        : "x"
-                                    }
-                                },
-                                EpochFlag::NewSiteOccupation => {
-                                    td {
-                                        : ""
-                                    }
-                                    td {
-                                        : ""
-                                    }
-                                    td {
-                                        : "x"
-                                    }
-                                },
-                                EpochFlag::ExternalEvent => {
-                                    td {
-                                        : ""
-                                    }
-                                    td {
-                                        : ""
-                                    }
-                                    td {
-                                        : ""
-                                    }
-                                    td {
-                                        : "x"
-                                    }
-                                },
-                                EpochFlag::CycleSlip => {
-                                    td {
-                                        : ""
-                                    }
-                                    td {
-                                        : ""
-                                    }
-                                    td {
-                                        : ""
-                                    }
-                                    td {
-                                        : ""
-                                    }
-                                    td {
-                                        : "x"
-                                    }
-                                },
-                            }*/
+                tr {
+                    td {
+                        : "Longest"
+                    }
+                    td {
+                        : power_failures.max_by(|(_, d1), (_, d2)| d1.cmp(d2)).unwrap().to_string()
+                    }
+                    td {
+                        : "Average Power failure"
+                    }
+                    td {
+                        : "TODO"
+                    }
+                }
+            }
+            tr {
+                td {
+                    : "Cycle slip(s)"
+                }
+            }
+            tr {
+                @ if cs.is_empty() {
+                    th {
+                        : "None"
+                    }
+                } else {
+                    td {
+                        : format!("{:?}", cs)
+                    }
+                }
+            }
+            tr {
+                @ if other.is_empty() {
+                    th {
+                        : "Other anomalies"
+                    }
+                    th {
+                        : "None"
+                    }
+                } else {
+                    th {
+                        : "Other anomalies"
+                    }
+                    td {
+                        : "Epoch"
+                    }
+                    td {
+                        : "Event"
+                    }
+                    @ for (e, event) in other {
+                        td {
+                            : ""
+                        }
+                        td {
+                            : e.to_string()
+                        }
+                        @ if event == EpochFlag::AntennaBeingMoved {
+                            : "Antenna being moved"
+                        } else if event == EpochFlag::Kinematic {
+                            : "Kinematic"
+                        } else if event == EpochFlag::NewSiteOccupation {
+                            : "New Site Occupation"
+                        } else if event == EpochFlag::ExternalEvent {
+                            : "External Event"
                         }
                     }
                 }
@@ -249,6 +239,15 @@ fn report_ssi_statistics(
     }
 }
 
+fn derivative_dt(data: Vec<(Epoch, f64>), window: Duration) -> Vec<(Epoch, f64)> {
+    let mut acc = 0.0_f64;
+    let mut prev_epoch : Option<Epoch> = None
+    let mut ret: Vec<(Epoch, f64)> = Vec::new();
+    for (epoch, value) in data {
+        let dt = 
+    }
+}
+
 #[derive(Debug, Clone)]
 /// OBS RINEX specific QC analysis.  
 /// Full OBS RINEX analysis requires both the "obs" and "processing" features.
@@ -261,8 +260,12 @@ pub struct QcObsAnalysis {
     codes: Vec<String>,
     /// true if doppler observations were identified
     has_doppler: bool,
-    /// Abnormal events, by chronological epochs
-    anomalies: Vec<(Epoch, EpochFlag)>,
+    /// CS anomalies
+    cs_anomalies: Vec<Epoch>,
+    /// Epochs where power failures took place, and their duration
+    power_failures: Vec<Epoch>,
+    /// Other abnormal events, by chronological epochs
+    other_anomalies: Vec<(Epoch, EpochFlag)>,
     /// Total number of epochs identified
     total_epochs: usize,
     /// Epochs with at least 1 observation
@@ -275,31 +278,31 @@ pub struct QcObsAnalysis {
     #[cfg(feature = "obs")]
     /// SSi statistical analysis (mean, stddev, skew)
     ssi_stats: HashMap<Observable, (f64, f64, f64)>,
-    #[cfg(feature = "processing")]
-    /// Receiver clock drift analysis
-    clock_drift: Option<f64>,
+    /// RX clock drift
+    clock_drift: Vec<Epoch, f64>,
 }
 
 impl QcObsAnalysis {
     pub fn new(rnx: &Rinex, opts: &QcOpts) -> Self {
-        let sv: Vec<_> = rnx.sv().collect();
-        let obs = rnx.header.obs.as_ref().unwrap();
-        let mut observables = obs.codes.clone();
-        // TODO: improve this .get(0)
-        let observables = observables.get_mut(&sv[0].constellation).unwrap();
-        let mut signals: Vec<Carrier> = Vec::new();
-        let mut codes: Vec<String> = Vec::new();
-        let mut anomalies: Vec<(Epoch, EpochFlag)> = Vec::new();
-        let mut total_epochs: usize = 0;
+        let mut observables : Vec<_> = rnx.observable().collect();
+        let has_doppler = observables.iter()
+            .fold(|boolean, obs| {
+                boolean |= obs.is_doppler_observable()
+            });
+        let mut signals : Vec<_> = rnx.signal().collect();
+        let mut codes : Vec<_> = rnx.code().collect();
+        let anomalies = rnx.epoch_anomalies();
+
+        let mut total_epochs = self.epoch().count();
         let mut epoch_with_obs: Vec<Epoch> = Vec::new();
+        
         let mut complete_epochs: HashMap<Carrier, usize> = HashMap::new();
         let mut min_max_snr = (
             (Sv::default(), Epoch::default(), Snr::DbHz54),
             (Sv::default(), Epoch::default(), Snr::DbHz0),
         );
-        let mut ssi_stats: HashMap<Observable, (f64, f64, f64)> = HashMap::new();
 
-        let mut clock_drift: Option<f64> = None;
+        let mut ssi_stats: HashMap<Observable, (f64, f64, f64)> = HashMap::new();
 
         if let Some(rec) = rnx.record.as_obs() {
             let mask: Filter = Filter::from(MaskFilter {
@@ -307,34 +310,18 @@ impl QcObsAnalysis {
                 item: TargetItem::ClockItem,
             });
             let clk_data = rec.filter(mask);
-            //TODO: run analysis on smoothed derivative
-            //let der = clk_data.derivative();
-            //let mov = der.moving_average(Duration::from_seconds(600.0), None);
         }
 
         if let Some(r) = rnx.record.as_obs() {
             total_epochs = r.len();
             for ((epoch, flag), (clk, svs)) in r {
-                if let Some(_clk) = clk {}
 
-                if !flag.is_ok() {
-                    anomalies.push((*epoch, *flag));
-                }
                 for (sv, observables) in svs {
-                    if observables.len() > 0 && !epoch_with_obs.contains(&epoch) {
+                    if !observables.is_empty() {
                         epoch_with_obs.push(*epoch);
                     }
 
                     for (observable, observation) in observables {
-                        let code = observable.code().unwrap();
-                        let carrier = observable.carrier(sv.constellation).unwrap();
-                        if !signals.contains(&carrier) {
-                            signals.push(carrier);
-                        }
-                        if !codes.contains(&code) {
-                            codes.push(code);
-                        }
-
                         if let Some(snr) = observation.snr {
                             if snr < min_max_snr.0 .2 {
                                 min_max_snr.0 .0 = *sv;
@@ -350,7 +337,6 @@ impl QcObsAnalysis {
                     }
                 }
             }
-
             /*
              * Now that signals have been determined,
              * determine observation completion
@@ -449,28 +435,49 @@ impl QcObsAnalysis {
                 }
             }
         }
-
+        /*
+         * sort, prior reporting
+         */
         codes.sort();
-        signals.sort();
         observables.sort();
+        signals.sort();
 
         Self {
-            observables: { observables.iter().map(|v| v.to_string()).collect() },
-            has_doppler: {
-                let mut ret = false;
-                for obs in observables.iter() {
-                    if obs.is_doppler_observable() {
-                        ret = true;
-                        break;
-                    }
-                }
-                ret
-            },
             codes,
             signals,
-            anomalies,
+            observables,
+            has_doppler,
+            cs_anomalies: {
+                anomalies.filter(|(e, flag) {
+                    if flag == EpochFlag::CycleSlip {
+                        Some(e)
+                    } else {
+                        None
+                    }
+                }).collect()
+            },
+            power_failures: {
+                anomalies.filter(|(e, flag) {
+                    if flag == EpochFlag::PowerFailure {
+                        Some(e)
+                    } else {
+                        None
+                    }
+                })
+                .collect()
+            },
+            other_anomalies: {
+                anomalies.filter(|(e, flag) {
+                    if flag != EpochFlag::PowerFailure && flag != EpochFlag::CycleSlip {
+                        Some(e)
+                    } else {
+                        None
+                    }
+                })
+                .collect()
+            },
             total_epochs,
-            total_with_obs: epoch_with_obs.len(),
+            total_with_obs: epoch_with_obs.unique().len(),
             complete_epochs: {
                 let mut ret: Vec<(Carrier, usize)> =
                     complete_epochs.iter().map(|(k, v)| (*k, *v)).collect();
@@ -479,7 +486,12 @@ impl QcObsAnalysis {
             },
             min_max_snr,
             ssi_stats,
-            clock_drift,
+            clock_drift: {
+                let rx_clock : Vec<_> = rnx.recvr_clock()
+                    .collect();
+                let rx_clock_drift: Vec<(Epoch, f64)> = derivative_dt(rx_clock);
+                moving_average(rx_clock_drift, opts.clock_avg_window)
+            }
         }
     }
 }
@@ -533,7 +545,7 @@ impl HtmlReport for QcObsAnalysis {
             }
             tr {
                 table {
-                    : report_anomalies(&self.anomalies)
+                    : report_anomalies(&self.cs_anomalies, &self.power_failures, &self.other_anomalies)
                 }
             }
             tr {

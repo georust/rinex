@@ -1688,7 +1688,7 @@ impl Rinex {
                         svnn.iter()
                             .flat_map(|(_sv, observables)| observables.keys())
                     })
-                    .fold(vec![], |mut list, items| {
+                    /*.fold(vec![], |mut list, items| {
                         // create a unique list
                         for item in items {
                             if !list.contains(&item) {
@@ -1697,7 +1697,8 @@ impl Rinex {
                         }
                         list
                     })
-                    .into_iter(),
+                    .into_iter(),*/
+                    .unique()
             )
         } else if let Some(_) = self.record.as_meteo() {
             Box::new(
@@ -1810,6 +1811,47 @@ impl Rinex {
 #[cfg(feature = "obs")]
 #[cfg_attr(docrs, doc(cfg(feature = "obs")))]
 impl Rinex {
+    /// Returns a Unique Iterator over identified [`Carrier`]s
+    pub fn carrier(&self) -> Box<dyn Iterator<Item = Carrier>> {
+        Box::new(
+            self.observation()
+                .flat_map(|(_, (_, sv))| {
+                    sv.iter()
+                        .flat_map(|(_, obsvervations)| {
+                            observations
+                                .keys()
+                                .map(|observable| {
+                                    if let Ok(carrier) = observable.carrier(sv.constellation) {
+                                        Some(carrier)
+                                    } else {
+                                        None
+                                    }
+                                })
+                                .unique()
+                        })
+                })      
+        )
+    }
+    pub fn code(&self) -> Box<dyn Iterator<Item = Carrier>> {
+        Box::new(
+            self.observation()
+                .flat_map(|(_, (_, sv))| {
+                    sv.iter()
+                        .flat_map(|(_, obsvervations)| {
+                            observations
+                                .keys()
+                                .map(|observable| {
+                                    if let Ok(code) = observable.code() {
+                                        Some(code)
+                                    } else {
+                                        None   
+                                    }
+                                })
+                                .unique()
+                            })
+                    })
+        )
+    }
     /// Returns ([`Epoch`] [`EpochFlag`]) iterator, where each {`EpochFlag`]
     /// validates or invalidates related [`Epoch`]
     /// ```
