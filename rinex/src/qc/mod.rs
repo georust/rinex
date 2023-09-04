@@ -199,45 +199,41 @@ impl QcReport {
                                         }
                                     }
                                     tbody {
-                                        : self.analysis[0].to_inline_html()
+                                        : analysis[0].to_inline_html()
                                     }
-                                }   
+                                }
                             } else {
                                 /*
                                  * Report all analysis
                                  * and emphasize how they were sorted (self.opts.classfication)
                                  */
-                                @ for i in 0..self.analysis.len() {
-                                    table(class="table is-bordered") {
-                                        @ match self.opts.classification {
-                                            QcClassification::GNSS => {
-                                                tr {
-                                                    td {
-                                                        : format!("{} analysis", self.constellation().nth(i).unwrap())
-                                                    }
-                                                }
-                                            },
-                                            QcClassification::Sv => {
-                                                tr {
-                                                    td {
-                                                        : format!("{} analysis", self.sv().nth(i).unwrap())
-                                                    }
-                                                }
-                                            },
-                                            QcClassification::Physics => {
-                                                tr {
-                                                    td {
-                                                        : format!("{} analysis", self.observable().nth(i).unwrap())
-                                                    }
-                                                }
-                                            },
-                                        }
-
-                                        tbody {
-                                            : self.analysis[0].to_inline_html()
-                                        }
-                                    }
-                                }
+                                //@ for i in 0..self.analysis.len() {
+                                //    table(class="table is-bordered") {
+                                //        @ match self.opts.classification {
+                                //            QcClassification::GNSS => {
+                                //                tr {
+                                //                    td {
+                                //                        : format!("{} analysis", self.constellation().nth(i).unwrap())
+                                //                    }
+                                //                }
+                                //            },
+                                //            QcClassification::Sv => {
+                                //                tr {
+                                //                    td {
+                                //                        : format!("{} analysis", self.sv().nth(i).unwrap())
+                                //                    }
+                                //                }
+                                //            },
+                                //            QcClassification::Physics => {
+                                //                tr {
+                                //                    td {
+                                //                        : format!("{} analysis", self.observable().nth(i).unwrap())
+                                //                    }
+                                //                }
+                                //            },
+                                //        }
+                                //    }
+                                //}
                             }
                         }//div=analysis
                     }

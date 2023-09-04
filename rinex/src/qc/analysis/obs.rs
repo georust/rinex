@@ -35,7 +35,7 @@ fn report_signals(list: &Vec<Carrier>) -> String {
  */
 fn report_anomalies(
     cs: &Vec<Epoch>,
-    power: &Vec<Epoch>, 
+    power: &Vec<Epoch>,
     other: &Vec<(Epoch, EpochFlag)>,
 ) -> Box<dyn RenderBox + '_> {
     box_html! {
@@ -50,7 +50,7 @@ fn report_anomalies(
                     th {
                         : "None"
                     }
-                } 
+                }
             } else {
                 tr {
                     td {
@@ -62,7 +62,7 @@ fn report_anomalies(
                         : "Longest"
                     }
                     td {
-                        : power_failures.max_by(|(_, d1), (_, d2)| d1.cmp(d2)).unwrap().to_string()
+                        : power.iter().max_by(|(_, d1), (_, d2)| d1.cmp(d2)).unwrap().to_string()
                     }
                     td {
                         : "Average Power failure"
@@ -239,13 +239,20 @@ fn report_ssi_statistics(
     }
 }
 
-fn derivative_dt(data: Vec<(Epoch, f64>), window: Duration) -> Vec<(Epoch, f64)> {
+fn derivative_dt(data: Vec<(Epoch, f64)>) -> Vec<(Epoch, f64)> {
     let mut acc = 0.0_f64;
-    let mut prev_epoch : Option<Epoch> = None
+    let mut prev_epoch: Option<Epoch> = None;
     let mut ret: Vec<(Epoch, f64)> = Vec::new();
-    for (epoch, value) in data {
-        let dt = 
-    }
+    for (epoch, value) in data {}
+    ret
+}
+
+fn moving_average(data: Vec<(Epoch, f64)>, window: Duration) -> Vec<(Epoch, f64)> {
+    let mut acc = 0.0_f64;
+    let mut prev_epoch: Option<Epoch> = None;
+    let mut ret: Vec<(Epoch, f64)> = Vec::new();
+    for (epoch, value) in data {}
+    ret
 }
 
 #[derive(Debug, Clone)]
@@ -279,23 +286,24 @@ pub struct QcObsAnalysis {
     /// SSi statistical analysis (mean, stddev, skew)
     ssi_stats: HashMap<Observable, (f64, f64, f64)>,
     /// RX clock drift
-    clock_drift: Vec<Epoch, f64>,
+    clock_drift: Vec<(Epoch, f64)>,
 }
 
 impl QcObsAnalysis {
     pub fn new(rnx: &Rinex, opts: &QcOpts) -> Self {
-        let mut observables : Vec<_> = rnx.observable().collect();
-        let has_doppler = observables.iter()
-            .fold(|boolean, obs| {
-                boolean |= obs.is_doppler_observable()
-            });
-        let mut signals : Vec<_> = rnx.signal().collect();
-        let mut codes : Vec<_> = rnx.code().collect();
+        let mut observables: Vec<_> = rnx.observable().collect();
+        let has_doppler = observables
+            .iter()
+            .fold(|boolean, obs| boolean |= obs.is_doppler_observable());
+
+        let mut signals: Vec<_> = rnx.signal().collect();
+        let mut codes: Vec<_> = rnx.code().map(|c| c.to_string()).collect();
+
         let anomalies = rnx.epoch_anomalies();
 
-        let mut total_epochs = self.epoch().count();
+        let mut total_epochs = rnx.epoch().count();
         let mut epoch_with_obs: Vec<Epoch> = Vec::new();
-        
+
         let mut complete_epochs: HashMap<Carrier, usize> = HashMap::new();
         let mut min_max_snr = (
             (Sv::default(), Epoch::default(), Snr::DbHz54),
@@ -315,7 +323,6 @@ impl QcObsAnalysis {
         if let Some(r) = rnx.record.as_obs() {
             total_epochs = r.len();
             for ((epoch, flag), (clk, svs)) in r {
-
                 for (sv, observables) in svs {
                     if !observables.is_empty() {
                         epoch_with_obs.push(*epoch);
@@ -448,33 +455,37 @@ impl QcObsAnalysis {
             observables,
             has_doppler,
             cs_anomalies: {
-                anomalies.filter(|(e, flag) {
-                    if flag == EpochFlag::CycleSlip {
-                        Some(e)
-                    } else {
-                        None
-                    }
-                }).collect()
+                anomalies
+                    .filter(|(e, flag)| {
+                        if *flag == EpochFlag::CycleSlip {
+                            Some(e)
+                        } else {
+                            None
+                        }
+                    })
+                    .collect()
             },
             power_failures: {
-                anomalies.filter(|(e, flag) {
-                    if flag == EpochFlag::PowerFailure {
-                        Some(e)
-                    } else {
-                        None
-                    }
-                })
-                .collect()
+                anomalies
+                    .filter(|(e, flag)| {
+                        if *flag == EpochFlag::PowerFailure {
+                            Some(e)
+                        } else {
+                            None
+                        }
+                    })
+                    .collect()
             },
             other_anomalies: {
-                anomalies.filter(|(e, flag) {
-                    if flag != EpochFlag::PowerFailure && flag != EpochFlag::CycleSlip {
-                        Some(e)
-                    } else {
-                        None
-                    }
-                })
-                .collect()
+                anomalies
+                    .filter(|(e, flag)| {
+                        if *flag != EpochFlag::PowerFailure && *flag != EpochFlag::CycleSlip {
+                            Some(e)
+                        } else {
+                            None
+                        }
+                    })
+                    .collect()
             },
             total_epochs,
             total_with_obs: epoch_with_obs.unique().len(),
@@ -487,11 +498,10 @@ impl QcObsAnalysis {
             min_max_snr,
             ssi_stats,
             clock_drift: {
-                let rx_clock : Vec<_> = rnx.recvr_clock()
-                    .collect();
+                let rx_clock: Vec<_> = rnx.recvr_clock().collect();
                 let rx_clock_drift: Vec<(Epoch, f64)> = derivative_dt(rx_clock);
-                moving_average(rx_clock_drift, opts.clock_avg_window)
-            }
+                moving_average(rx_clock_drift, opts.clock_drift_window)
+            },
         }
     }
 }
