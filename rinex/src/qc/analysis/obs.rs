@@ -33,11 +33,11 @@ fn report_signals(list: &Vec<Carrier>) -> String {
 /*
  * Epoch anomalies formatter
  */
-fn report_anomalies(
-    cs: &Vec<Epoch>,
-    power: &Vec<Epoch>,
-    other: &Vec<(Epoch, EpochFlag)>,
-) -> Box<dyn RenderBox + '_> {
+fn report_anomalies<'a>(
+    cs: &'a Vec<Epoch>,
+    power: &'a Vec<Epoch>,
+    other: &'a Vec<(Epoch, EpochFlag)>,
+) -> Box<dyn RenderBox + 'a> {
     box_html! {
         table(class="table is-bordered") {
             tr {
@@ -114,15 +114,28 @@ fn report_anomalies(
                         td {
                             : e.to_string()
                         }
-                        @ if *event == EpochFlag::AntennaBeingMoved {
-                            : "Antenna being moved"
-                        //} else if *event == EpochFlag::Kinematic {
-                        //    : "Kinematic"
-                        } else if *event == EpochFlag::NewSiteOccupation {
-                            : "New Site Occupation"
-                        } else if *event == EpochFlag::ExternalEvent {
-                            : "External Event"
-                        }
+                        //@ match event {
+                        //    EpochFlag::AntennaBeingMoved => {
+                        //        td {
+                        //            : "Antenna being moved"
+                        //        }
+                        //    },
+                        //    _ => {},
+                        //}
+                        //        }
+                        //td {
+                        //    @ match event {
+                        //        EpochFlag::NewSiteOccupation => {
+                        //            : "New Site Occupation"
+                        //        }
+                        //        EpochFlag::ExternalEvent => {
+                        //            : "External Event"
+                        //        }
+                        //        _ => {
+                        //            : "Other"
+                        //        }
+                        //    }
+                        //}
                     }
                 }
             }
@@ -248,14 +261,6 @@ fn derivative_dt(data: Vec<(Epoch, f64)>) -> Vec<(Epoch, f64)> {
     ret
 }
 
-fn moving_average(data: Vec<(Epoch, f64)>, window: Duration) -> Vec<(Epoch, f64)> {
-    let mut acc = 0.0_f64;
-    let mut prev_epoch: Option<Epoch> = None;
-    let mut ret: Vec<(Epoch, f64)> = Vec::new();
-    for (epoch, value) in data {}
-    ret
-}
-
 #[derive(Debug, Clone)]
 /// OBS RINEX specific QC analysis.  
 /// Full OBS RINEX analysis requires both the "obs" and "processing" features.
@@ -286,6 +291,7 @@ pub struct QcObsAnalysis {
     #[cfg(feature = "obs")]
     /// SSi statistical analysis (mean, stddev, skew)
     ssi_stats: HashMap<Observable, (f64, f64, f64)>,
+    #[cfg(feature = "obs")]
     /// RX clock drift
     clock_drift: Vec<(Epoch, f64)>,
 }
@@ -299,7 +305,38 @@ impl QcObsAnalysis {
         let mut signals: Vec<_> = rnx.carrier().collect();
         let mut codes: Vec<_> = rnx.code().map(|c| c.to_string()).collect();
 
-        let anomalies = rnx.epoch_anomalies();
+        let cs_anomalies: Vec<_> = rnx
+            .epoch_anomalies()
+            .filter_map(|(e, flag)| {
+                if flag == EpochFlag::CycleSlip {
+                    Some(e)
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        let power_failures: Vec<_> = rnx
+            .epoch_anomalies()
+            .filter_map(|(e, flag)| {
+                if flag == EpochFlag::PowerFailure {
+                    Some(e)
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        let other_anomalies: Vec<_> = rnx
+            .epoch_anomalies()
+            .filter_map(|(e, flag)| {
+                if flag != EpochFlag::PowerFailure && flag != EpochFlag::CycleSlip {
+                    Some((e, flag))
+                } else {
+                    None
+                }
+            })
+            .collect();
 
         let mut total_epochs = rnx.epoch().count();
         let mut epoch_with_obs: Vec<Epoch> = Vec::new();
@@ -456,39 +493,9 @@ impl QcObsAnalysis {
             signals,
             observables,
             has_doppler: doppler_obs.count() > 0,
-            cs_anomalies: {
-                anomalies
-                    .filter_map(|(e, flag)| {
-                        if flag == EpochFlag::CycleSlip {
-                            Some(e)
-                        } else {
-                            None
-                        }
-                    })
-                    .collect()
-            },
-            power_failures: {
-                anomalies
-                    .filter_map(|(e, flag)| {
-                        if flag == EpochFlag::PowerFailure {
-                            Some(e)
-                        } else {
-                            None
-                        }
-                    })
-                    .collect()
-            },
-            other_anomalies: {
-                anomalies
-                    .filter_map(|(e, flag)| {
-                        if flag != EpochFlag::PowerFailure && flag != EpochFlag::CycleSlip {
-                            Some((e, flag))
-                        } else {
-                            None
-                        }
-                    })
-                    .collect()
-            },
+            cs_anomalies,
+            power_failures,
+            other_anomalies,
             total_epochs,
             total_with_obs: epoch_with_obs.len(),
             complete_epochs: {
@@ -505,7 +512,8 @@ impl QcObsAnalysis {
                     .map(|((e, flag), value)| (e, value))
                     .collect();
                 let rx_clock_drift: Vec<(Epoch, f64)> = derivative_dt(rx_clock);
-                moving_average(rx_clock_drift, opts.clock_drift_window)
+                let mov = Averager::mov(opts.clock_drift_window);
+                mov.eval(rx_clock_drift)
             },
         }
     }

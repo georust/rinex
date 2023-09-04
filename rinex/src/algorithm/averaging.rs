@@ -1,58 +1,43 @@
-use crate::prelude::*;
+use hifitime::{Duration, Epoch};
 
-pub enum AverageType {
-    MovingAverage,
-    Exponential,
-    Cummulative,
+fn moving_average<T: std::default::Default>(
+    data: Vec<(Epoch, T)>,
+    window: Duration,
+) -> Vec<(Epoch, T)> {
+    let mut acc = T::default();
+    let mut prev_epoch: Option<Epoch> = None;
+    let mut ret: Vec<(Epoch, T)> = Vec::new();
+    for (epoch, value) in data {}
+    ret
 }
 
-pub struct Averager {
-    buffer: Vec<f64>,
-    next_epoch: Option<Epoch>,
-    window: Duration,
-    avgtype: AverageType,
+#[derive(Debug, Clone, Copy)]
+pub enum Averager {
+    MovingAverage(Duration),
+}
+
+impl Default for Averager {
+    fn default() -> Self {
+        Self::MovingAverage(Duration::from_seconds(600.0_f64))
+    }
 }
 
 impl Averager {
-    pub fn new(window: Duration) -> Self {
-        Self {
-            buffer: Vec::new(),
-            next_epoch: None,
-            window,
-        }
+    pub fn mov(window: Duration) -> Self {
+        Self::MovingAverage(window)
     }
-    pub fn average(&mut self, data: (f64, Epoch)) -> Option<f64> {
-        match self.avgtype {
-            AverageType::MovingAverage => self.moving_average(data),
-            AverageType::Exponential => self.moving_average(data),
-            AverageType::Cummulative => self.moving_average(data),
+    pub fn eval<T: std::default::Default>(&self, input: Vec<(Epoch, T)>) -> Vec<(Epoch, T)> {
+        match self {
+            Self::MovingAverage(dt) => moving_average(input, *dt),
         }
-    }
-    pub fn moving_average(&mut self, data: (f64, Epoch)) -> Option<f64> {
-        self.buffer.push(data.0);
-        if self.next_epoch.is_none() {
-            self.next_epoch = Some(data.1 + self.window);
-        }
-        if let Some(next_epoch) = self.next_epoch {
-            if data.1 >= next_epoch {
-                self.next_epoch = Some(data.1 + self.window);
-                let mut avg = 0.0_f64;
-                for b in &self.buffer {
-                    avg += b;
-                }
-                let ret = avg / self.buffer.len() as f64;
-                self.buffer.clear();
-                return Some(ret);
-            }
-        }
-        None
     }
 }
 
 #[cfg(test)]
 mod test {
+    use super::*;
     #[test]
     fn test_moving_average() {
-     
+        let mov = Averager::mov(Duration::from_seconds(10.0_f64));
     }
 }

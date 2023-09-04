@@ -1811,7 +1811,7 @@ impl Rinex {
 #[cfg_attr(docrs, doc(cfg(feature = "obs")))]
 impl Rinex {
     /// Returns a Unique Iterator over identified [`Carrier`]s
-    pub fn carrier(&self) -> Box<dyn Iterator<Item = Carrier>> {
+    pub fn carrier(&self) -> Box<dyn Iterator<Item = Carrier> + '_> {
         Box::new(self.observation().flat_map(|(_, (_, sv))| {
             sv.iter().flat_map(|(sv, observations)| {
                 observations
@@ -1833,7 +1833,7 @@ impl Rinex {
             })
         }))
     }
-    pub fn code(&self) -> Box<dyn Iterator<Item = String>> {
+    pub fn code(&self) -> Box<dyn Iterator<Item = String> + '_> {
         Box::new(
             self.observation()
                 .flat_map(|(_, (_, sv))| {
