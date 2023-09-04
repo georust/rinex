@@ -162,6 +162,7 @@ pub struct QcOpts {
     /// Manually defined Ground position (ECEF)
     pub ground_position: Option<GroundPosition>,
     /// Window duration to be used, during RX clock drift analysis
+    #[serde(default = "default_drift_window")]
     pub clock_drift_window: Duration,
 }
 
@@ -192,6 +193,10 @@ impl QcOpts {
     }
 }
 
+fn default_drift_window() -> Duration {
+    Duration::from_seconds(3600.0)
+}
+
 impl Default for QcOpts {
     fn default() -> Self {
         Self {
@@ -200,7 +205,7 @@ impl Default for QcOpts {
             min_snr_db: 20.0, // dB
             elev_mask: None,
             classification: QcClassification::default(),
-            clock_drift_window: Duration::from_seconds(3600.0),
+            clock_drift_window: default_drift_window(),
         }
     }
 }
