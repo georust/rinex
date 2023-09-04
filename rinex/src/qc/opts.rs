@@ -200,7 +200,7 @@ impl Default for QcOpts {
             min_snr_db: 20.0, // dB
             elev_mask: None,
             classification: QcClassification::default(),
-            clock_window: Duration::from_seconds(10.0 * 60.0),
+            clock_drift_window: Duration::from_seconds(3600.0),
         }
     }
 }
@@ -253,6 +253,14 @@ impl HtmlReport for QcOpts {
                     th {
                         : "No tolerance"
                     }
+                }
+            }
+            tr {
+                th {
+                    : "Clock Drift Window"
+                }
+                td {
+                    : self.clock_drift_window.to_string()
                 }
             }
         }

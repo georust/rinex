@@ -1813,7 +1813,7 @@ impl Rinex {
     /// Returns a Unique Iterator over identified [`Carrier`]s
     pub fn carrier(&self) -> Box<dyn Iterator<Item = Carrier>> {
         Box::new(self.observation().flat_map(|(_, (_, sv))| {
-            sv.iter().flat_map(|(_, observations)| {
+            sv.iter().flat_map(|(sv, observations)| {
                 observations
                     .keys()
                     .filter_map(|observable| {
