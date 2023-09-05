@@ -11,3 +11,4 @@ pub use filters::{
 };
 
 pub use averaging::Averager;
+pub use derivative::Derivative;

@@ -30,6 +30,7 @@ impl Derivative {
         Self { order }
     }
     pub fn eval<T: std::ops::Sub<Output = T> + std::marker::Copy>(
+        &self,
         input: Vec<(Epoch, T)>,
     ) -> Vec<(Epoch, T)> {
         let mut buf: Vec<(Epoch, T)> = Vec::with_capacity(input.len());

@@ -471,8 +471,6 @@ pub fn main() -> Result<(), rinex::Error> {
      */
     if qc {
         info!("entering qc mode");
-        let mut qc_opts = cli.qc_config();
-
         /*
          * QC Config / versus command line
          * let the possibility to define some parameters

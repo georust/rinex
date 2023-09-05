@@ -32,6 +32,34 @@ fn report_signals(list: &Vec<Carrier>) -> String {
 }
 
 /*
+ * Report RX Clock drift analysis
+ */
+fn report_clock_drift(data: &Vec<(Epoch, f64)>) -> Box<dyn RenderBox + '_> {
+    box_html! {
+        table(class="table is-bordered") {
+            tr {
+                th {
+                    : "Epoch"
+                }
+                th {
+                    : "Mean Clock drift [s/s]"
+                }
+            }
+            @ for (epoch, drift) in data {
+                tr {
+                    td {
+                        : epoch.to_string()
+                    }
+                    td {
+                        : format!("{:e}", drift)
+                    }
+                }
+            }
+        }
+    }
+}
+
+/*
  * Epoch anomalies formatter
  */
 fn report_anomalies<'a>(
@@ -309,14 +337,6 @@ fn report_ssi_statistics(
     }
 }
 
-fn derivative_dt(data: Vec<(Epoch, f64)>) -> Vec<(Epoch, f64)> {
-    let mut acc = 0.0_f64;
-    let mut prev_epoch: Option<Epoch> = None;
-    let mut ret: Vec<(Epoch, f64)> = Vec::new();
-    for (epoch, value) in data {}
-    ret
-}
-
 #[derive(Debug, Clone)]
 /// OBS RINEX specific QC analysis.  
 /// Full OBS RINEX analysis requires both the "obs" and "processing" features.
@@ -570,7 +590,8 @@ impl QcObsAnalysis {
                     .recvr_clock()
                     .map(|((e, flag), value)| (e, value))
                     .collect();
-                let rx_clock_drift: Vec<(Epoch, f64)> = derivative_dt(rx_clock);
+                let der = Derivative::new(1);
+                let rx_clock_drift: Vec<(Epoch, f64)> = der.eval(rx_clock);
                 let mov = Averager::mov(opts.clock_drift_window);
                 mov.eval(rx_clock_drift)
             },
@@ -644,6 +665,18 @@ impl HtmlReport for QcObsAnalysis {
                     }
                     tbody {
                         : report_snr_analysis(self.min_snr, self.max_snr, &self.ssi_stats)
+                    }
+                }
+            }
+            tr {
+                table {
+                    thead {
+                        th {
+                            : "(RX) Clock Drift"
+                        }
+                    }
+                    tbody {
+                        : report_clock_drift(&self.clock_drift)
                     }
                 }
             }
