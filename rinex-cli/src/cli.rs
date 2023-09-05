@@ -298,6 +298,7 @@ Refer to README"))
             if let Ok(content) = std::fs::read_to_string(path) {
                 let opts = serde_json::from_str(&content);
                 if let Ok(opts) = opts {
+                    info!("qc parameter file \"{}\"", path);
                     opts
                 } else {
                     error!("failed to parse parameter file \"{}\"", path);

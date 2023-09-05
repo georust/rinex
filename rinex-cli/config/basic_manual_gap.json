@@ -1,7 +1,0 @@
-{
-	"reporting": "PerConstellation",
-	"statistical": {
-		"window": "10%"	
-	},
-	"manual_gap": "1O seconds"
-}
