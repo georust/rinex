@@ -1,4 +1,4 @@
 {
     "classification": "Sv",
-    "min_snr_db": 25.0
+    "gap_tolerance": "1 h"
 }
