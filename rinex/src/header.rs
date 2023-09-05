@@ -1833,14 +1833,32 @@ impl HtmlReport for Header {
     }
     fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
         box_html! {
-            @ if let Some(antenna) = &self.rcvr_antenna {
-                div(id="antenna") {
-                    : antenna.to_inline_html()
+            tr {
+                th {
+                    : "Antenna"
+                }
+                @ if let Some(antenna) = &self.rcvr_antenna {
+                    td {
+                        : antenna.to_inline_html()
+                    }
+                } else {
+                    td {
+                        : "No information"
+                    }
                 }
             }
-            @ if let Some(rcvr) = &self.rcvr {
-                div(id="receiver") {
-                    : rcvr.to_inline_html()
+            tr {
+                th {
+                    : "Receiver"
+                }
+                @ if let Some(rcvr) = &self.rcvr {
+                    td {
+                        : rcvr.to_inline_html()
+                    }
+                } else {
+                    td {
+                        : "No information"
+                    }
                 }
             }
         }

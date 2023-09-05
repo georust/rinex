@@ -153,7 +153,7 @@ impl QcReport {
                             }
                         }//div=header
                         div(id="context") {
-                            table(class="table is-bordered") {
+                            table(class="table is-bordered; style=\"margin-bottom: 20px\"") {
                                 thead {
                                     th {
                                         : "Context"
@@ -165,7 +165,7 @@ impl QcReport {
                             }
                         }//div=context
                         div(id="parameters") {
-                            table(class="table is-bordered") {
+                            table(class="table is-bordered; style=\"margin-bottom: 20px\"") {
                                 thead {
                                     th {
                                         : "Parameters"
@@ -177,12 +177,7 @@ impl QcReport {
                             }
                         } //div=parameters
                         div(id="header") {
-                            table(class="table is-bordered") {
-                                thead {
-                                    th {
-                                        : "File Header"
-                                    }
-                                }
+                            table(class="table is-bordered; style=\"margin-bottom: 20px\"") {
                                 tbody {
                                     : context.primary_data().header.to_inline_html()
                                 }
@@ -197,7 +192,7 @@ impl QcReport {
                              * and emphasize how they were sorted (self.opts.classfication)
                              */
                             @ for i in 0..analysis.len() {
-                                table(class="table is-bordered") {
+                                table(class="table is-bordered; style=\"margin-bottom: 20px\"") {
                                     thead {
                                         @ if opts.classification == QcClassification::GNSS {
                                             th {
@@ -210,7 +205,7 @@ impl QcReport {
 
                                         } else if opts.classification == QcClassification::Physics {
                                             th {
-                                                : format!("{} analysis", context.primary_data().nth(i).unwrap())
+                                                : format!("{} analysis", context.primary_data().observable().nth(i).unwrap())
                                             }
                                         }
                                     }

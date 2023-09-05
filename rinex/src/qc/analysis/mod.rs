@@ -66,32 +66,38 @@ impl HtmlReport for QcAnalysis {
     }
     fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
         box_html! {
-            div(id="analysis") {
+            div(id="analysis; style=\"display: flex; flex-direction: column; gap: 30px\"") {
                 div(id="sampling") {
-                    h3(class="title") {
-                        : "Sampling"
-                    }
-                    table(class="table is-bordered") {
+                    table(class="table is-bordered; style=\"margin-bottom: 30px\"") {
+                        thead {
+                            th {
+                                : "Sampling"
+                            }
+                        }
                         tbody {
                             : self.sampling.to_inline_html()
                         }
                     }
                 }
                 div(id="sv") {
-                    h3(class="title") {
-                        : "Sv"
-                    }
-                    table(class="table is-bordered") {
+                    table(class="table is-bordered; style=\"margin-bottom: 30px\"") {
+                        thead {
+                            th {
+                                : "Sv"
+                            }
+                        }
                         tbody {
                             : self.sv.to_inline_html()
                         }
                     }
                 }
                 div(id="observations") {
-                    h3(class="title") {
-                        : "Observations"
-                    }
-                    table(class="table is-bordered") {
+                    table(class="table is-bordered; style=\"margin-bottom: 30px\"") {
+                        thead {
+                            th {
+                                : "Observations"
+                            }
+                        }
                         tbody {
                             : self.observ.to_inline_html()
                         }
