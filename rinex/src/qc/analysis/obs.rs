@@ -36,22 +36,28 @@ fn report_signals(list: &Vec<Carrier>) -> String {
  */
 fn report_clock_drift(data: &Vec<(Epoch, f64)>) -> Box<dyn RenderBox + '_> {
     box_html! {
-        table(class="table is-bordered") {
-            tr {
-                th {
-                    : "Epoch"
-                }
-                th {
-                    : "Mean Clock drift [s/s]"
-                }
+        @ if data.is_empty() {
+            td {
+                : "Unfeasible (Data Missing)"
             }
-            @ for (epoch, drift) in data {
+        } else {
+            table(class="table is-bordered") {
                 tr {
-                    td {
-                        : epoch.to_string()
+                    th {
+                        : "Epoch"
                     }
-                    td {
-                        : format!("{:e}", drift)
+                    th {
+                        : "Mean Clock drift [s/s]"
+                    }
+                }
+                @ for (epoch, drift) in data {
+                    tr {
+                        td {
+                            : epoch.to_string()
+                        }
+                        td {
+                            : format!("{:e}", drift)
+                        }
                     }
                 }
             }
@@ -486,7 +492,6 @@ impl QcObsAnalysis {
                                 continue; // phase should have SNR information attached to it
                             }
                         }
-
                         /*
                          * Signal condition
                          */
@@ -533,7 +538,6 @@ impl QcObsAnalysis {
                     }
                 }
             }
-
             /*
              * SSI statistical analysis
              */
@@ -657,25 +661,21 @@ impl HtmlReport for QcObsAnalysis {
                 }
             }
             tr {
-                table {
-                    thead {
-                        th {
-                            : "SNR"
-                        }
-                    }
-                    tbody {
-                        : report_snr_analysis(self.min_snr, self.max_snr, &self.ssi_stats)
-                    }
+                th {
+                    : "SNR"
                 }
             }
             tr {
                 table {
-                    thead {
-                        th {
-                            : "(RX) Clock Drift"
-                        }
-                    }
-                    tbody {
+                    : report_snr_analysis(self.min_snr, self.max_snr, &self.ssi_stats)
+                }
+            }
+            tr {
+                th {
+                    : "(RX) Clock Drift"
+                }
+                td {
+                    table {
                         : report_clock_drift(&self.clock_drift)
                     }
                 }
