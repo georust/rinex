@@ -41,102 +41,100 @@ fn report_anomalies<'a>(
 ) -> Box<dyn RenderBox + 'a> {
     box_html! {
         table(class="table is-bordered") {
-            tr {
-                td {
-                    : "Power Failures"
+            thead {
+                th {
+                    : "Anomalies"
                 }
             }
-            @ if power.is_empty() {
+            tbody {
                 tr {
                     th {
-                        : "None"
+                        : "Power Failures"
+                    }
+                    @ if power.is_empty() {
+                        td {
+                            : "None"
+                        }
+                    } else {
+                        td {
+                            : format!("{:?}", power)
+                        }
+                        tr {
+                            th {
+                                : "Longest"
+                            }
+                            td {
+                                //: power.iter().max_by(|(_, d1), (_, d2)| d1.cmp(d2)).unwrap().to_string()
+                                : "TODO"
+                            }
+                            td {
+                                : "Average Power failure"
+                            }
+                            td {
+                                : "TODO"
+                            }
+                        }
                     }
                 }
-            } else {
                 tr {
-                    td {
-                        : format!("{:?}", power)
-                    }
-                }
-                tr {
-                    td {
-                        : "Longest"
-                    }
-                    td {
-                        //: power.iter().max_by(|(_, d1), (_, d2)| d1.cmp(d2)).unwrap().to_string()
-                        : "TODO"
-                    }
-                    td {
-                        : "Average Power failure"
-                    }
-                    td {
-                        : "TODO"
-                    }
-                }
-            }
-            tr {
-                td {
-                    : "Cycle slip(s)"
-                }
-            }
-            tr {
-                @ if cs.is_empty() {
                     th {
-                        : "None"
+                        : "Cycle slip(s)"
                     }
-                } else {
-                    td {
-                        : format!("{:?}", cs)
+                    @ if cs.is_empty() {
+                        td {
+                            : "None"
+                        }
+                    } else {
+                        td {
+                            : format!("{:?}", cs)
+                        }
                     }
                 }
-            }
-            tr {
-                @ if other.is_empty() {
+                tr {
                     th {
                         : "Other anomalies"
                     }
-                    th {
-                        : "None"
-                    }
-                } else {
-                    th {
-                        : "Other anomalies"
-                    }
-                    td {
-                        : "Epoch"
-                    }
-                    td {
-                        : "Event"
-                    }
-                    @ for (e, event) in other {
+                    @ if other.is_empty() {
                         td {
-                            : ""
+                            : "None"
+                        }
+                    } else {
+                        td {
+                            : "Epoch"
                         }
                         td {
-                            : e.to_string()
+                            : "Event"
                         }
-                        //@ match event {
-                        //    EpochFlag::AntennaBeingMoved => {
-                        //        td {
-                        //            : "Antenna being moved"
-                        //        }
-                        //    },
-                        //    _ => {},
-                        //}
-                        //        }
-                        //td {
-                        //    @ match event {
-                        //        EpochFlag::NewSiteOccupation => {
-                        //            : "New Site Occupation"
-                        //        }
-                        //        EpochFlag::ExternalEvent => {
-                        //            : "External Event"
-                        //        }
-                        //        _ => {
-                        //            : "Other"
-                        //        }
-                        //    }
-                        //}
+                        @ for (e, event) in other {
+                            td {
+                                : ""
+                            }
+                            td {
+                                : e.to_string()
+                            }
+                            //@ match event {
+                            //    EpochFlag::AntennaBeingMoved => {
+                            //        td {
+                            //            : "Antenna being moved"
+                            //        }
+                            //    },
+                            //    _ => {},
+                            //}
+                            //        }
+                            //td {
+                            //    @ match event {
+                            //        EpochFlag::NewSiteOccupation => {
+                            //            : "New Site Occupation"
+                            //        }
+                            //        EpochFlag::ExternalEvent => {
+                            //            : "External Event"
+                            //        }
+                            //        _ => {
+                            //            : "Other"
+                            //        }
+                            //    }
+                            //}
+                        }
                     }
                 }
             }
@@ -157,10 +155,15 @@ fn report_epoch_completion(
 ) -> Box<dyn RenderBox + '_> {
     box_html! {
         table(class="table is-bordered") {
+            thead {
+                th {
+                    : "Epochs"
+                }
+            }
             tbody {
                 tr {
                     th {
-                        : "Total Epochs"
+                        : "Total#"
                     }
                     td {
                         : total.to_string()
@@ -193,6 +196,58 @@ fn report_epoch_completion(
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+/*
+ * SNR analysis report
+ */
+fn report_snr_analysis(
+    min: (Sv, Epoch, Snr),
+    max: (Sv, Epoch, Snr),
+    ssi_stats: &HashMap<Observable, (f64, f64, f64)>,
+) -> Box<dyn RenderBox + '_> {
+    box_html! {
+        tr {
+            th {
+                : "Minimum"
+            }
+            td {
+                p {
+                    : min.0.to_string()
+                }
+                p {
+                    : format!("{:e}", min.2)
+                }
+                p {
+                    : format!("@{}", min.1)
+                }
+            }
+        }
+        tr {
+            th {
+                : "Best"
+            }
+            td {
+                p {
+                    : max.0.to_string()
+                }
+                p {
+                    : format!("{:e}", max.2)
+                }
+                p {
+                    : format!("@{}", max.1)
+                }
+            }
+        }
+        tr {
+            th {
+                : "SSI Statistics"
+            }
+            td {
+                : report_ssi_statistics(ssi_stats)
             }
         }
     }
@@ -287,8 +342,11 @@ pub struct QcObsAnalysis {
     /// Complete epochs, with respect to given signal
     complete_epochs: Vec<(Carrier, usize)>,
     #[cfg(feature = "obs")]
-    /// Min. Max. SNR (sv @ epoch)
-    min_max_snr: ((Sv, Epoch, Snr), (Sv, Epoch, Snr)),
+    /// Min. SNR (sv @ epoch)
+    min_snr: (Sv, Epoch, Snr),
+    #[cfg(feature = "obs")]
+    /// Max. SNR (sv @ epoch)
+    max_snr: (Sv, Epoch, Snr),
     #[cfg(feature = "obs")]
     /// SSi statistical analysis (mean, stddev, skew)
     ssi_stats: HashMap<Observable, (f64, f64, f64)>,
@@ -343,10 +401,9 @@ impl QcObsAnalysis {
         let mut epoch_with_obs: Vec<Epoch> = Vec::new();
 
         let mut complete_epochs: HashMap<Carrier, usize> = HashMap::new();
-        let mut min_max_snr = (
-            (Sv::default(), Epoch::default(), Snr::DbHz54),
-            (Sv::default(), Epoch::default(), Snr::DbHz0),
-        );
+
+        let mut min_snr = (Sv::default(), Epoch::default(), Snr::DbHz54);
+        let mut max_snr = (Sv::default(), Epoch::default(), Snr::DbHz0);
 
         let mut ssi_stats: HashMap<Observable, (f64, f64, f64)> = HashMap::new();
 
@@ -370,15 +427,15 @@ impl QcObsAnalysis {
 
                     for (observable, observation) in observables {
                         if let Some(snr) = observation.snr {
-                            if snr < min_max_snr.0 .2 {
-                                min_max_snr.0 .0 = *sv;
-                                min_max_snr.0 .1 = *epoch;
-                                min_max_snr.0 .2 = snr;
+                            if snr < min_snr.2 {
+                                min_snr.0 = *sv;
+                                min_snr.1 = *epoch;
+                                min_snr.2 = snr;
                             }
-                            if snr > min_max_snr.1 .2 {
-                                min_max_snr.1 .0 = *sv;
-                                min_max_snr.1 .1 = *epoch;
-                                min_max_snr.1 .2 = snr;
+                            if snr > max_snr.2 {
+                                max_snr.0 = *sv;
+                                max_snr.1 = *epoch;
+                                max_snr.2 = snr;
                             }
                         }
                     }
@@ -505,7 +562,8 @@ impl QcObsAnalysis {
                 ret.sort();
                 ret
             },
-            min_max_snr,
+            min_snr,
+            max_snr,
             ssi_stats,
             clock_drift: {
                 let rx_clock: Vec<_> = rnx
@@ -577,47 +635,16 @@ impl HtmlReport for QcObsAnalysis {
                     : report_epoch_completion(self.total_epochs, self.total_with_obs, &self.complete_epochs)
                 }
             }
-            table(class="table is-bordered") {
-                thead {
-                    tr {
-                        th {
-                            : "Worst SNR"
-                        }
-                        th {
-                            : "Best SNR"
-                        }
-                    }
-                }
-                tbody {
-                    tr {
-                        td {
-                            p {
-                                :  self.min_max_snr.0.0.to_string()
-                            }
-                            b {
-                                : format!("{:e}", self.min_max_snr.0.2)
-                            }
-                            p {
-                                : format!("@{}", self.min_max_snr.0.1)
-                            }
-                        }
-                        td {
-                            p {
-                                :  self.min_max_snr.1.0.to_string()
-                            }
-                            b {
-                                : format!("{:e}", self.min_max_snr.1.2)
-                            }
-                            p {
-                                : format!("@{}", self.min_max_snr.1.1)
-                            }
-                        }
-                    }
-                }
-            }
             tr {
                 table {
-                    : report_ssi_statistics(&self.ssi_stats)
+                    thead {
+                        th {
+                            : "SNR"
+                        }
+                    }
+                    tbody {
+                        : report_snr_analysis(self.min_snr, self.max_snr, &self.ssi_stats)
+                    }
                 }
             }
         }

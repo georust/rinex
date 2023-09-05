@@ -1,4 +1,4 @@
-use super::{pretty_array, QcOpts};
+use super::{pretty_array, table_lengthy_td, QcOpts};
 use crate::prelude::*;
 
 #[derive(Debug, Clone)]

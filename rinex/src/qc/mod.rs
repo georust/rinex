@@ -14,6 +14,35 @@ use analysis::QcAnalysis;
 use crate::preprocessing::*;
 
 /*
+ * Methods used when reporting lenghty vectors or data subsets in a table.
+ * Makes tables cleaner and nicer by wrapping string content, into several paragraphs.
+ */
+pub(crate) fn table_lengthy_td<A: std::fmt::Display>(
+    list: &Vec<A>,
+    max_items: usize,
+) -> Box<dyn RenderBox + '_> {
+    let mut content = String::with_capacity(64 * max_items);
+    let mut paragraphs: Vec<String> = Vec::new();
+
+    for i in 0..list.len() {
+        content.push_str(&format!("{}, ", list[i]));
+        if i.rem_euclid(max_items) == 0 {
+            paragraphs.push(content.clone());
+            content.clear();
+        } else if i == list.len() - 1 {
+            paragraphs.push(content.clone());
+        }
+    }
+    box_html! {
+        @ for paragraph in paragraphs {
+            p {
+                : paragraph.to_string()
+            }
+        }
+    }
+}
+
+/*
  * Array (CSV) pretty formatter
  */
 pub(crate) fn pretty_array<A: std::fmt::Display>(list: &Vec<A>) -> String {
@@ -139,7 +168,7 @@ impl QcReport {
                             h2(class="title") {
                                 : "RINEX Quality Check summary"
                             }
-                            table(class="table is-bordered") {
+                            table(class="table is-bordered; style=\"margin-bottom: 20px\"") {
                                 tbody {
                                     tr {
                                         th {
