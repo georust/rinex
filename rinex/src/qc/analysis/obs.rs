@@ -4,6 +4,8 @@ use itertools::Itertools;
 use super::{pretty_array, QcOpts};
 use std::collections::HashMap;
 
+use statrs::statistics::Statistics;
+
 #[cfg(feature = "processing")]
 use crate::preprocessing::*; // include preprocessing toolkit when feasible,
                              // for complete analysis
@@ -229,50 +231,25 @@ fn report_epoch_completion(
 /*
  * SNR analysis report
  */
-fn report_snr_analysis(
-    min: (Sv, Epoch, Snr),
-    max: (Sv, Epoch, Snr),
-    ssi_stats: &HashMap<Observable, (f64, f64, f64)>,
+fn report_snr_statistics(
+    snr_stats: &HashMap<Observable, ((Epoch, f64), (Epoch, f64))>,
 ) -> Box<dyn RenderBox + '_> {
     box_html! {
-        tr {
-            th {
-                : "Minimum"
-            }
-            td {
-                p {
-                    : min.0.to_string()
-                }
-                p {
-                    : format!("{:e}", min.2)
-                }
-                p {
-                    : format!("@{}", min.1)
+        @ for (observable, _) in snr_stats {
+            tr {
+                th {
+                    : observable.to_string()
                 }
             }
         }
         tr {
             th {
-                : "Best"
+                : "Worst"
             }
-            td {
-                p {
-                    : max.0.to_string()
+            @ for (_, (min, _)) in snr_stats {
+                td {
+                    : format!("{:e} @{}", min.0, min.1)
                 }
-                p {
-                    : format!("{:e}", max.2)
-                }
-                p {
-                    : format!("@{}", max.1)
-                }
-            }
-        }
-        tr {
-            th {
-                : "SSI Statistics"
-            }
-            td {
-                : report_ssi_statistics(ssi_stats)
             }
         }
     }
@@ -281,9 +258,7 @@ fn report_snr_analysis(
 /*
  * Reports statistical analysis results for SSx observations
  */
-fn report_ssi_statistics(
-    ssi_stats: &HashMap<Observable, (f64, f64, f64)>,
-) -> Box<dyn RenderBox + '_> {
+fn report_ssi_statistics(ssi_stats: &HashMap<Observable, (f64, f64)>) -> Box<dyn RenderBox + '_> {
     box_html! {
         table(class="table is-bordered") {
             thead {
@@ -303,7 +278,7 @@ fn report_ssi_statistics(
                     th {
                         : "Mean"
                     }
-                    @ for (_, (mean, _, _)) in ssi_stats {
+                    @ for (_, (mean, _)) in ssi_stats {
                         td {
                             : format!("{:.3} dB", mean)
                         }
@@ -313,19 +288,9 @@ fn report_ssi_statistics(
                     th {
                         : "Deviation" // (&#x03C3;)"
                     }
-                    @ for (_, (_, sigma, _)) in ssi_stats {
+                    @ for (_, (_, std)) in ssi_stats {
                         td {
-                            : format!("{:.3} dB", sigma)
-                        }
-                    }
-                }
-                tr {
-                    th {
-                        : "Skewness" //(&#x03BC; / &#x03C3;&#x03B3;)"
-                    }
-                    @ for (_, (_, _, sk)) in ssi_stats {
-                        td {
-                            : format!("{:.3}", sk)
+                            : format!("{:.3} dB", std)
                         }
                     }
                 }
@@ -359,14 +324,11 @@ pub struct QcObsAnalysis {
     /// Complete epochs, with respect to given signal
     complete_epochs: Vec<(Carrier, usize)>,
     #[cfg(feature = "obs")]
-    /// Min. SNR (sv @ epoch)
-    min_snr: (Sv, Epoch, Snr),
+    /// Min. & Max. SNR (signal @ epoch)
+    snr_stats: HashMap<Observable, ((Epoch, f64), (Epoch, f64))>,
     #[cfg(feature = "obs")]
-    /// Max. SNR (sv @ epoch)
-    max_snr: (Sv, Epoch, Snr),
-    #[cfg(feature = "obs")]
-    /// SSi statistical analysis (mean, stddev, skew)
-    ssi_stats: HashMap<Observable, (f64, f64, f64)>,
+    /// SSI statistical analysis (mean, stddev)
+    ssi_stats: HashMap<Observable, (f64, f64)>,
     #[cfg(feature = "obs")]
     /// RX clock drift
     clock_drift: Vec<(Epoch, f64)>,
@@ -416,21 +378,7 @@ impl QcObsAnalysis {
 
         let mut total_epochs = rnx.epoch().count();
         let mut epoch_with_obs: Vec<Epoch> = Vec::new();
-
         let mut complete_epochs: HashMap<Carrier, usize> = HashMap::new();
-
-        let mut min_snr = (Sv::default(), Epoch::default(), Snr::DbHz54);
-        let mut max_snr = (Sv::default(), Epoch::default(), Snr::DbHz0);
-
-        let mut ssi_stats: HashMap<Observable, (f64, f64, f64)> = HashMap::new();
-
-        if let Some(rec) = rnx.record.as_obs() {
-            let mask: Filter = Filter::from(MaskFilter {
-                operand: MaskOperand::Equals,
-                item: TargetItem::ClockItem,
-            });
-            let clk_data = rec.filter(mask);
-        }
 
         if let Some(r) = rnx.record.as_obs() {
             total_epochs = r.len();
@@ -439,21 +387,6 @@ impl QcObsAnalysis {
                     if !observables.is_empty() {
                         if !epoch_with_obs.contains(&epoch) {
                             epoch_with_obs.push(*epoch);
-                        }
-                    }
-
-                    for (observable, observation) in observables {
-                        if let Some(snr) = observation.snr {
-                            if snr < min_snr.2 {
-                                min_snr.0 = *sv;
-                                min_snr.1 = *epoch;
-                                min_snr.2 = snr;
-                            }
-                            if snr > max_snr.2 {
-                                max_snr.0 = *sv;
-                                max_snr.1 = *epoch;
-                                max_snr.2 = snr;
-                            }
                         }
                     }
                 }
@@ -529,31 +462,49 @@ impl QcObsAnalysis {
                     }
                 }
             }
-            /*
-             * SSI statistical analysis
-             */
-            let mut mean_ssi: HashMap<_, _> = r.mean_observable();
-            mean_ssi.retain(|obs, _| obs.is_ssi_observable());
-            for (obs, mean) in mean_ssi {
-                ssi_stats.insert(obs.clone(), (mean, 0.0_f64, 0.0_f64));
-            }
-
-            let mut stddev_ssi: HashMap<_, _> = r.mean_observable(); // TODO r.stddev_observable();
-            stddev_ssi.retain(|obs, _| obs.is_ssi_observable());
-            for (obs, stddev) in stddev_ssi {
-                if let Some((_, dev, _)) = ssi_stats.get_mut(&obs) {
-                    *dev = stddev;
-                }
-            }
-
-            let mut skew_ssi: HashMap<_, _> = r.mean_observable(); // TODO r.skewness_observable();
-            skew_ssi.retain(|obs, _| obs.is_ssi_observable());
-            for (obs, skew) in skew_ssi {
-                if let Some((_, _, sk)) = ssi_stats.get_mut(&obs) {
-                    *sk = skew;
-                }
+        }
+        // append ssi: drop vehicle differentiation
+        let mut ssi: HashMap<Observable, Vec<f64>> = HashMap::new();
+        for (_, _, obs, value) in rnx.ssi() {
+            if let Some(values) = ssi.get_mut(&obs) {
+                values.push(value);
+            } else {
+                ssi.insert(obs.clone(), vec![value]);
             }
         }
+        /*
+         * SSI statistical analysis: {mean, stddev,}
+         * per signal: we do not differentiate vehicles
+         */
+        let ssi_stats: HashMap<Observable, (f64, f64)> = ssi
+            .iter()
+            .map(|(obs, values)| (obs.clone(), (values.mean(), values.std_dev())))
+            .collect();
+        // append snr: drop vehicle differentiation
+        let mut snr: HashMap<Observable, Vec<(Epoch, f64)>> = HashMap::new();
+        for (e, _, obs, value) in rnx.snr() {
+            let value_f64: f64 = (value as u8).into();
+            if let Some(values) = snr.get_mut(&obs) {
+                values.push((e.0, value_f64));
+            } else {
+                snr.insert(obs.clone(), vec![(e.0, value_f64)]);
+            }
+        }
+        /*
+         * SNR analysis: {min, max}
+         * per signal: we do not differentiate vehicles
+         */
+        let snr_stats: HashMap<Observable, ((Epoch, f64), (Epoch, f64))> = snr
+            .iter()
+            .map(|(obs, values)| {
+                let min = Statistics::min(values.1);
+                let max = Statistics::max(values.1);
+                (
+                    obs.clone(),
+                    ((Epoch::default(), min), (Epoch::default(), max)),
+                )
+            })
+            .collect();
         /*
          * sort, prior reporting
          */
@@ -577,8 +528,7 @@ impl QcObsAnalysis {
                 ret.sort();
                 ret
             },
-            min_snr,
-            max_snr,
+            snr_stats,
             ssi_stats,
             clock_drift: {
                 let rx_clock: Vec<_> = rnx
@@ -673,7 +623,19 @@ impl HtmlReport for QcObsAnalysis {
                         }
                     }
                     tbody {
-                        : report_snr_analysis(self.min_snr, self.max_snr, &self.ssi_stats)
+                        : report_snr_statistics(&self.snr_stats)
+                    }
+                }
+            }
+            tr {
+                table(class="table is-bordered") {
+                    thead {
+                        th {
+                            : "SSI"
+                        }
+                    }
+                    tbody {
+                        : report_ssi_statistics(&self.ssi_stats)
                     }
                 }
             }

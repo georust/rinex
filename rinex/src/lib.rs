@@ -1802,11 +1802,13 @@ impl Rinex {
     }
 }
 
+#[cfg(feature = "obs")]
+use crate::observation::Snr;
+
 /*
  * OBS RINEX specific methods: only available on crate feature.
  * Either specific Iterators, or meaningful data we can extract.
  */
-
 #[cfg(feature = "obs")]
 #[cfg_attr(docrs, doc(cfg(feature = "obs")))]
 impl Rinex {
@@ -2052,6 +2054,21 @@ impl Rinex {
                 observations.iter().filter_map(|(obs, obsdata)| {
                     if obs.is_ssi_observable() {
                         Some((*e, *sv, obs, obsdata.obs))
+                    } else {
+                        None
+                    }
+                })
+            })
+        }))
+    }
+    /// Returns an Iterator over signal SNR indications.
+    /// All observation that did not come with such indication are filtered out.
+    pub fn snr(&self) -> Box<dyn Iterator<Item = ((Epoch, EpochFlag), Sv, &Observable, Snr)> + '_> {
+        Box::new(self.observation().flat_map(|(e, (_, vehicles))| {
+            vehicles.iter().flat_map(|(sv, observations)| {
+                observations.iter().filter_map(|(obs, obsdata)| {
+                    if let Some(snr) = obsdata.snr {
+                        Some((*e, *sv, obs, snr))
                     } else {
                         None
                     }
@@ -2848,82 +2865,6 @@ impl Decimate for Rinex {
         let mut s = self.clone();
         s.decimate_match_mut(rhs);
         s
-    }
-}
-
-#[cfg(feature = "obs")]
-use crate::observation::Observation;
-
-#[cfg(feature = "obs")]
-#[cfg_attr(docrs, doc(cfg(feature = "obs")))]
-impl Observation for Rinex {
-    fn min(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
-        if let Some(r) = self.record.as_obs() {
-            r.min()
-        } else {
-            (None, HashMap::new())
-        }
-    }
-    fn min_observable(&self) -> HashMap<Observable, f64> {
-        if let Some(r) = self.record.as_obs() {
-            r.min_observable()
-        } else if let Some(r) = self.record.as_meteo() {
-            r.min_observable()
-        } else {
-            HashMap::new()
-        }
-    }
-    fn max(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
-        if let Some(r) = self.record.as_obs() {
-            r.max()
-        } else {
-            (None, HashMap::new())
-        }
-    }
-    fn max_observable(&self) -> HashMap<Observable, f64> {
-        if let Some(r) = self.record.as_obs() {
-            r.max_observable()
-        } else if let Some(r) = self.record.as_meteo() {
-            r.max_observable()
-        } else {
-            HashMap::new()
-        }
-    }
-    fn mean(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
-        if let Some(r) = self.record.as_obs() {
-            r.mean()
-        } else {
-            (None, HashMap::new())
-        }
-    }
-    fn mean_observable(&self) -> HashMap<Observable, f64> {
-        if let Some(r) = self.record.as_obs() {
-            r.mean_observable()
-        } else if let Some(r) = self.record.as_meteo() {
-            r.mean_observable()
-        } else {
-            HashMap::new()
-        }
-    }
-    fn std_dev(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
-        if let Some(r) = self.record.as_obs() {
-            r.std_dev()
-        } else {
-            (None, HashMap::new())
-        }
-    }
-    fn std_dev_observable(&self) -> HashMap<Observable, f64> {
-        HashMap::new()
-    }
-    fn std_var(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
-        if let Some(r) = self.record.as_obs() {
-            r.std_var()
-        } else {
-            (None, HashMap::new())
-        }
-    }
-    fn std_var_observable(&self) -> HashMap<Observable, f64> {
-        HashMap::new()
     }
 }
 

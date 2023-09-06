@@ -15,11 +15,11 @@ rust-version = "1.64"
 [features]
 default = [] # no features by default
 sbas = ["geo", "wkt"]
-obs = ["statrs"]
+obs = []
 meteo = []
 nav = []
 processing = []
-qc = ["horrorshow", "processing", "sp3"] # rinex Quality Check (mainly OBS RINEX) 
+qc = ["horrorshow", "processing", "sp3", "statrs"] # rinex Quality Check (mainly OBS RINEX) 
 
 [package.metadata.docs.rs]
 all-features = true
