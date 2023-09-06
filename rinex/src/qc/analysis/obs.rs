@@ -37,8 +37,15 @@ fn report_signals(list: &Vec<Carrier>) -> String {
 fn report_clock_drift(data: &Vec<(Epoch, f64)>) -> Box<dyn RenderBox + '_> {
     box_html! {
         @ if data.is_empty() {
-            td {
-                : "Unfeasible (Data Missing)"
+            table(class="table is-bordered") {
+                tr {
+                    th {
+                        : "Unfeasible"
+                    }
+                    td {
+                        : "Missing Data"
+                    }
+                }
             }
         } else {
             table(class="table is-bordered") {
@@ -74,13 +81,6 @@ fn report_anomalies<'a>(
     other: &'a Vec<(Epoch, EpochFlag)>,
 ) -> Box<dyn RenderBox + 'a> {
     box_html! {
-        table(class="table is-bordered") {
-            thead {
-                th {
-                    : "Anomalies"
-                }
-            }
-            tbody {
                 tr {
                     th {
                         : "Power Failures"
@@ -171,8 +171,6 @@ fn report_anomalies<'a>(
                         }
                     }
                 }
-            }
-        }
     }
 }
 
@@ -189,12 +187,6 @@ fn report_epoch_completion(
 ) -> Box<dyn RenderBox + '_> {
     box_html! {
         table(class="table is-bordered") {
-            thead {
-                th {
-                    : "Epochs"
-                }
-            }
-            tbody {
                 tr {
                     th {
                         : "Total#"
@@ -230,7 +222,6 @@ fn report_epoch_completion(
                         }
                     }
                 }
-            }
         }
     }
 }
@@ -651,31 +642,49 @@ impl HtmlReport for QcObsAnalysis {
                 }
             }
             tr {
-                table {
-                    : report_anomalies(&self.cs_anomalies, &self.power_failures, &self.other_anomalies)
+                table(class="table is-bordered") {
+                    thead {
+                        th {
+                            : "Anomalies"
+                        }
+                    }
+                    tbody {
+                        : report_anomalies(&self.cs_anomalies, &self.power_failures, &self.other_anomalies)
+                    }
                 }
             }
             tr {
-                table {
-                    : report_epoch_completion(self.total_epochs, self.total_with_obs, &self.complete_epochs)
+                table(class="table is-bordered") {
+                    thead {
+                        th {
+                            : "Epochs"
+                        }
+                    }
+                    tbody {
+                        : report_epoch_completion(self.total_epochs, self.total_with_obs, &self.complete_epochs)
+                    }
                 }
             }
             tr {
-                th {
-                    : "SNR"
+                table(class="table is-bordered") {
+                    thead {
+                        th {
+                            : "SNR"
+                        }
+                    }
+                    tbody {
+                        : report_snr_analysis(self.min_snr, self.max_snr, &self.ssi_stats)
+                    }
                 }
             }
             tr {
-                table {
-                    : report_snr_analysis(self.min_snr, self.max_snr, &self.ssi_stats)
-                }
-            }
-            tr {
-                th {
-                    : "(RX) Clock Drift"
-                }
-                td {
-                    table {
+                table(class="table is-bordered") {
+                    thead {
+                        th {
+                            : "(RX) Clock Drift"
+                        }
+                    }
+                    tbody {
                         : report_clock_drift(&self.clock_drift)
                     }
                 }

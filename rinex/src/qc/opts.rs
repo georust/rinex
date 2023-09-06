@@ -251,11 +251,11 @@ impl HtmlReport for QcOpts {
                     : "Data gap"
                 }
                 @ if let Some(tol) = self.gap_tolerance {
-                    th {
-                        : format!("Tolerance: ({})", tol)
+                    td {
+                        : format!("{} tolerance", tol)
                     }
                 } else {
-                    th {
+                    td {
                         : "No tolerance"
                     }
                 }

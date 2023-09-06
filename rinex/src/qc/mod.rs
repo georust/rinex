@@ -207,6 +207,11 @@ impl QcReport {
                         } //div=parameters
                         div(id="header") {
                             table(class="table is-bordered; style=\"margin-bottom: 20px\"") {
+                                thead {
+                                    th {
+                                        : "File Header"
+                                    }
+                                }
                                 tbody {
                                     : context.primary_data().header.to_inline_html()
                                 }
