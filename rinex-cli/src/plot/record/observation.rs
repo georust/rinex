@@ -1,7 +1,7 @@
 use crate::plot::{build_chart_epoch_axis, generate_markers, PlotContext};
 use plotly::common::{Marker, MarkerSymbol, Mode, Visible};
-use rinex::quality::QcContext;
 use rinex::{observation::*, prelude::*};
+use rinex_qc::QcContext;
 use std::collections::HashMap;
 
 fn observable_to_physics(observable: &Observable) -> String {

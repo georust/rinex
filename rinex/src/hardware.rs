@@ -94,12 +94,12 @@ impl Antenna {
 use horrorshow::RenderBox;
 
 #[cfg(feature = "qc")]
-use crate::quality::HtmlReport;
+use rinex_qc_traits::HtmlReport;
 
 #[cfg(feature = "qc")]
 impl HtmlReport for Antenna {
     fn to_html(&self) -> String {
-        todo!("never used by itself");
+        panic!("cannot render hardware::antenna on its own");
     }
     fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
         box_html! {
@@ -163,7 +163,7 @@ impl HtmlReport for Antenna {
 #[cfg(feature = "qc")]
 impl HtmlReport for Rcvr {
     fn to_html(&self) -> String {
-        todo!("never used by itself");
+        panic!("cannot render hardware::receiver on its own");
     }
     fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
         box_html! {

@@ -1,7 +1,7 @@
 use crate::plot::{build_chart_epoch_axis, PlotContext};
 use plotly::common::{Mode, Visible};
 use rinex::prelude::Epoch;
-use rinex::quality::QcContext;
+use rinex_qc::QcContext;
 /*
  * Plots High Precision Orbit and Clock data
  * provided in the form of an SP3 file

@@ -17,9 +17,10 @@ use rinex::{
     observation::{Combine, Dcb, IonoDelay, Mp},
     prelude::RinexType,
     prelude::*,
-    quality::*,
     split::Split,
 };
+
+use rinex_qc::*;
 
 use cli::Cli;
 use identification::rinex_identification;

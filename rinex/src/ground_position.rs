@@ -33,7 +33,7 @@ impl std::fmt::Display for GroundPosition {
 }
 
 #[cfg(feature = "qc")]
-use crate::quality::HtmlReport;
+use rinex_qc_traits::HtmlReport;
 
 #[cfg(feature = "qc")]
 use horrorshow::RenderBox;

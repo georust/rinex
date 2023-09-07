@@ -1,7 +1,7 @@
 use crate::plot::{build_chart_epoch_axis, PlotContext}; //generate_markers};
 use plotly::common::{Marker, MarkerSymbol, Mode};
 use rinex::prelude::*;
-use rinex::quality::QcContext;
+use rinex_qc::QcContext;
 
 /*
  * Plots Meteo RINEX

@@ -2,7 +2,7 @@
 use crate::plot::{build_chart_epoch_axis, PlotContext};
 use plotly::common::{Mode, Visible};
 use rinex::prelude::*;
-use rinex::quality::QcContext;
+use rinex_qc::QcContext;
 
 pub fn plot_navigation(ctx: &QcContext, plot_context: &mut PlotContext) {
     /*

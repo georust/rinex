@@ -17,7 +17,7 @@ use plotly::{
 mod record;
 use rand::Rng;
 use rinex::prelude::*;
-use rinex::quality::QcContext;
+use rinex_qc::QcContext;
 
 mod context;
 pub use context::PlotContext;

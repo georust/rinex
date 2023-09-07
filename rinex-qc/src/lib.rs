@@ -1,17 +1,17 @@
-use horrorshow::{helper::doctype, RenderBox};
-use strum_macros::EnumString;
-
-mod context;
-pub use context::{QcContext, QcExtraData, QcPrimaryData};
+//! RINEX Quality analysis library
+//use strum_macros::EnumString;
+use horrorshow::helper::doctype;
+use horrorshow::html; // RenderBox};
+use rinex_qc_traits::HtmlReport;
 
 mod opts;
 pub use opts::{QcClassification, QcOpts};
 
+mod context;
+pub use context::{QcContext, QcExtraData, QcPrimaryData};
+
 mod analysis;
 use analysis::QcAnalysis;
-
-#[cfg(feature = "processing")]
-use crate::preprocessing::*;
 
 /*
  * Methods used when reporting lenghty vectors or data subsets in a table.
@@ -55,45 +55,11 @@ pub(crate) fn pretty_array<A: std::fmt::Display>(list: &Vec<A>) -> String {
     s
 }
 
-pub trait HtmlReport {
-    /// Renders self to HTML
-    fn to_html(&self) -> String;
-    /// Renders self to embedded HTML
-    fn to_inline_html(&self) -> Box<dyn RenderBox + '_>;
-}
-
-#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, EnumString)]
-pub enum Grade {
-    #[strum(serialize = "A++")]
-    GradeApp,
-    #[strum(serialize = "A+")]
-    GradeAp,
-    #[strum(serialize = "A")]
-    GradeA,
-    #[strum(serialize = "B")]
-    GradeB,
-    #[strum(serialize = "C")]
-    GradeC,
-    #[strum(serialize = "D")]
-    GradeD,
-    #[strum(serialize = "E")]
-    GradeE,
-    #[strum(serialize = "F")]
-    GradeF,
-}
+use rinex::preprocessing::{MaskFilter, MaskOperand, Preprocessing, TargetItem};
 
 pub struct QcReport {}
 
 impl QcReport {
-    #[cfg(not(feature = "processing"))]
-    fn build_analysis(ctx: &QcContext, opts: &QcOpts) -> Vec<QcAnalysis> {
-        vec![QcAnalysis::new(ctx, opts)]
-    }
-    /*
-     * When the "processing" feature is enabled,
-     * we can sort the report by desired physics or other criteria
-     */
-    #[cfg(feature = "processing")]
     fn build_analysis(ctx: &QcContext, opts: &QcOpts) -> Vec<QcAnalysis> {
         // build analysis to perform
         let mut analysis: Vec<QcAnalysis> = Vec::new();
@@ -176,7 +142,7 @@ impl QcReport {
                                             : "Version"
                                         }
                                         td {
-                                            : format!("rust-rnx: v{}", env!("CARGO_PKG_VERSION"))
+                                            : format!("rinex-qc: v{}", env!("CARGO_PKG_VERSION"))
                                         }
                                     }
                                 }

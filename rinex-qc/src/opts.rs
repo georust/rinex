@@ -1,79 +1,20 @@
-use super::HtmlReport;
-use crate::prelude::*;
-use crate::{geodetic, wgs84, GroundPosition};
+use rinex::prelude::*;
+use rinex::{geodetic, wgs84};
+use rinex_qc_traits::HtmlReport;
 
-use horrorshow::RenderBox;
+use horrorshow::{box_html, RenderBox};
 
-#[cfg(feature = "serde")]
-use std::str::FromStr;
+// #[cfg(feature = "serde")]
+// use std::str::FromStr;
 
 #[cfg(feature = "serde")]
 use serde::{
-    de::Error,
+    //de::Error,
     //Serializer,
     Deserialize,
-    Deserializer,
+    //Deserializer,
     Serialize,
 };
-
-#[derive(Clone, Debug)]
-pub enum SlotError {
-    ParsingError,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum Slot {
-    Duration(Duration),
-    Percentage(f64),
-}
-
-impl Default for Slot {
-    fn default() -> Self {
-        Self::Percentage(25.0)
-    }
-}
-
-impl std::str::FromStr for Slot {
-    type Err = SlotError;
-    fn from_str(content: &str) -> Result<Self, Self::Err> {
-        let c = content.trim();
-        if let Ok(dt) = Duration::from_str(c) {
-            Ok(Self::Duration(dt))
-        } else if let Ok(f) = f64::from_str(c) {
-            Ok(Self::Percentage(f))
-        } else {
-            Err(SlotError::ParsingError)
-        }
-    }
-}
-
-#[cfg(feature = "serde")]
-impl<'de> Deserialize<'de> for Slot {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let s = String::deserialize(deserializer)?;
-        if let Ok(dt) = Duration::from_str(s.trim()) {
-            Ok(Self::Duration(dt))
-        } else {
-            let f = f64::from_str(&s.replace("%", "").trim()).map_err(D::Error::custom)?;
-            Ok(Self::Percentage(f))
-        }
-    }
-}
-/*
-    fn serialize<S>(slot: Slot, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let s = match slot {
-            Slot::Percentage(f) => f.to_string(),
-            Slot::Duration(dt) => dt.to_string(),
-        };
-        serializer.serialize_str(&s)
-    }
-*/
 
 #[derive(Default, Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -83,13 +24,6 @@ pub enum CsStrategy {
     Study,
     /// Study CS events and repair them
     StudyAndRepair,
-}
-
-#[derive(Default, Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Deserialize))]
-pub struct StatisticsOpts {
-    /// Window/slot duration, on which we evaluate all statistics
-    pub window: Slot,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -145,7 +79,6 @@ impl std::fmt::Display for QcClassification {
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(Deserialize))]
 pub struct QcOpts {
-    #[cfg(feature = "processing")]
     #[cfg_attr(feature = "serde", serde(default))]
     #[cfg_attr(docs, doc(cfg(feature = "processing")))]
     pub classification: QcClassification,
@@ -162,12 +95,11 @@ pub struct QcOpts {
     /// Manually defined Ground position (ECEF)
     pub ground_position: Option<GroundPosition>,
     /// Window duration to be used, during RX clock drift analysis
-    #[serde(default = "default_drift_window")]
+    #[cfg_attr(feature = "serde", serde(default = "default_drift_window"))]
     pub clock_drift_window: Duration,
 }
 
 impl QcOpts {
-    #[cfg(feature = "processing")]
     pub fn with_classification(&self, classification: QcClassification) -> Self {
         let mut s = self.clone();
         s.classification = classification;
@@ -212,7 +144,7 @@ impl Default for QcOpts {
 
 impl HtmlReport for QcOpts {
     fn to_html(&self) -> String {
-        todo!()
+        panic!("qcopts cannot be rendered on its own")
     }
     fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
         box_html! {

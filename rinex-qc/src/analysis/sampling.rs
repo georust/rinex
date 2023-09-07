@@ -1,7 +1,8 @@
 use hifitime::Unit;
+use horrorshow::box_html;
+use rinex::prelude::{Duration, Epoch, EpochFlag, Rinex};
 
-use super::QcOpts;
-use crate::prelude::*;
+use crate::QcOpts;
 
 #[derive(Debug, Clone)]
 pub struct QcSamplingAnalysis {
@@ -19,8 +20,6 @@ pub struct QcSamplingAnalysis {
     pub gaps: Vec<(Epoch, Duration)>,
     /// Epoch anomalies such as
     /// possible receiver loss of lock, bad conditions..
-    #[cfg(feature = "obs")]
-    #[cfg_attr(docrs, doc(cfg(feature = "obs")))]
     pub anomalies: Vec<(Epoch, EpochFlag)>,
 }
 
@@ -33,14 +32,13 @@ impl QcSamplingAnalysis {
             sample_rate: rnx.sample_rate(),
             dominant_sample_rate: rnx.dominant_sample_rate(),
             gaps: rnx.data_gaps(opts.gap_tolerance).collect(),
-            #[cfg(feature = "obs")]
             anomalies: rnx.epoch_anomalies().collect(),
         }
     }
 }
 
-use crate::qc::HtmlReport;
 use horrorshow::RenderBox;
+use rinex_qc_traits::HtmlReport;
 
 impl HtmlReport for QcSamplingAnalysis {
     fn to_html(&self) -> String {

@@ -2,7 +2,8 @@ use crate::plot::{build_chart_epoch_axis, generate_markers, PlotContext};
 use ndarray::Array;
 use plotly::common::{Marker, Mode, Title, Visible};
 use plotly::layout::Axis;
-use rinex::{prelude::*, quality::QcContext};
+use rinex::prelude::*;
+use rinex_qc::QcContext;
 
 /*
  * Sv per epoch analysis
