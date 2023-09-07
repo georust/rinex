@@ -19,9 +19,6 @@ default = [] # no features by default
 all-features = true
 rustdoc-args = ["--cfg", "docrs", "--generate-link-to-definition"]
 
-[build-dependencies]
-serde_json = { version = "1.0", features = ["preserve_order"] }
-
 [dependencies]
 serde = { version = "1.0", optional = true, default-features = false, features = ["derive"] }
 hifitime = "3.8"
@@ -33,3 +30,6 @@ statrs = "0.16"
 sp3 = { version = "1.0.0", features = ["serde"] }
 rinex-qc-traits = { path = "../qc-traits" }
 rinex = { path = "../rinex", features = ["obs", "nav", "qc", "processing"] }
+
+[dev-dependencies]
+serde_json = "1"
