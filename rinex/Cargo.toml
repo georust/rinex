@@ -19,7 +19,7 @@ obs = []
 meteo = []
 nav = []
 processing = []
-qc = ["rinex-qc-traits"] # rinex Quality Check (mainly OBS RINEX) 
+qc = ["rinex-qc-traits", "horrorshow"] # rinex Quality Check (mainly OBS RINEX) 
 
 [package.metadata.docs.rs]
 all-features = true

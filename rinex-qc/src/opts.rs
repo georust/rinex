@@ -95,7 +95,7 @@ pub struct QcOpts {
     /// Manually defined Ground position (ECEF)
     pub ground_position: Option<GroundPosition>,
     /// Window duration to be used, during RX clock drift analysis
-    #[serde(default = "default_drift_window")]
+    #[cfg_attr(feature = "serde", serde(default = "default_drift_window"))]
     pub clock_drift_window: Duration,
 }
 

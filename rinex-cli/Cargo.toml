@@ -19,7 +19,7 @@ clap = { version = "4", features = ["derive", "color"] }
 rand = "0.8"
 serde_json = "1"
 sp3 = { version = "1.0.0", features = ["serde", "flate2"] }
-rinex-qc = { path = "../rinex-qc" }
+rinex-qc = { path = "../rinex-qc", features = ["serde"] }
 rinex = { path = "../rinex", features = ["serde", "flate2", "sbas", "obs", "nav", "qc", "processing"] }
 thiserror = "1"
 itertools = "0.11"
