@@ -13,6 +13,56 @@ pub use context::{QcContext, QcPrimaryData, QcExtraData};
 mod analysis;
 use analysis::QcAnalysis;
 
+/*
+ * Methods used when reporting lenghty vectors or data subsets in a table.
+ * Makes tables cleaner and nicer by wrapping string content, into several paragraphs.
+ *
+pub(crate) fn table_lengthy_td<A: std::fmt::Display>(
+    list: &Vec<A>,
+    max_items: usize,
+) -> Box<dyn RenderBox + '_> {
+    let mut content = String::with_capacity(64 * max_items);
+    let mut paragraphs: Vec<String> = Vec::new();
+
+    for i in 0..list.len() {
+        content.push_str(&format!("{}, ", list[i]));
+        if i.rem_euclid(max_items) == 0 {
+            paragraphs.push(content.clone());
+            content.clear();
+        } else if i == list.len() - 1 {
+            paragraphs.push(content.clone());
+        }
+    }
+    box_html! {
+        @ for paragraph in paragraphs {
+            p {
+                : paragraph.to_string()
+            }
+        }
+    }
+}
+*/
+
+/*
+ * Array (CSV) pretty formatter
+ */
+pub(crate) fn pretty_array<A: std::fmt::Display>(list: &Vec<A>) -> String {
+    let mut s = String::with_capacity(8 * list.len());
+    for index in 0..list.len() - 1 {
+        s.push_str(&format!("{}, ", list[index]));
+    }
+    s.push_str(&list[list.len() - 1].to_string());
+    s
+}
+
+pub trait HtmlReport {
+    /// Renders self to HTML
+    fn to_html(&self) -> String;
+    /// Renders self to embedded HTML
+    fn to_inline_html(&self) -> Box<dyn RenderBox + '_>;
+}
+
+>>>>>>> main:rinex/src/qc/mod.rs
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, EnumString)]
 pub enum Grade {
     #[strum(serialize = "A++")]
