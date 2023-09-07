@@ -1,7 +1,7 @@
-use rinex::prelude::*;
-use rinex_qc_traits::HtmlReport;
 use crate::{pretty_array, QcOpts};
-use horrorshow::{html, box_html, helper::doctype, RenderBox}; //table_lengthy_td
+use horrorshow::{box_html, helper::doctype, html, RenderBox};
+use rinex::prelude::*;
+use rinex_qc_traits::HtmlReport; //table_lengthy_td
 
 mod sv;
 
@@ -10,8 +10,8 @@ use obs::QcObsAnalysis;
 
 mod sampling;
 
-use sv::QcSvAnalysis;
 use sampling::QcSamplingAnalysis;
+use sv::QcSvAnalysis;
 
 #[derive(Debug, Clone)]
 /// RINEX File Quality analysis report

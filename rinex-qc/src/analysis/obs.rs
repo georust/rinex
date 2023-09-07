@@ -1,15 +1,15 @@
-use std::str::FromStr;
+use horrorshow::{box_html, RenderBox};
 use itertools::Itertools;
 use std::collections::HashMap;
-use horrorshow::{box_html, RenderBox};
+use std::str::FromStr;
 
 use crate::{pretty_array, QcOpts};
 
-use rinex::observation::Snr;
-use rinex::preprocessing::Derivative;
 use rinex::carrier;
 use rinex::carrier::Carrier;
-use rinex::prelude::{Rinex, Epoch, EpochFlag, Observable};
+use rinex::observation::Snr;
+use rinex::prelude::{Epoch, EpochFlag, Observable, Rinex};
+use rinex::preprocessing::Derivative;
 
 use rinex_qc_traits::HtmlReport;
 use statrs::statistics::Statistics;

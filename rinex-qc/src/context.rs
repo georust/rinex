@@ -1,7 +1,7 @@
-use std::path::PathBuf;
+use horrorshow::{box_html, helper::doctype, html, RenderBox};
+use rinex::prelude::{GroundPosition, Rinex};
 use rinex_qc_traits::HtmlReport;
-use rinex::prelude::{Rinex, GroundPosition};
-use horrorshow::{html, box_html, helper::doctype, RenderBox};
+use std::path::PathBuf;
 
 use sp3::prelude::SP3;
 

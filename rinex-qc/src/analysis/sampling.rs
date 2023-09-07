@@ -1,6 +1,6 @@
 use hifitime::Unit;
 use horrorshow::box_html;
-use rinex::prelude::{Rinex, Epoch, EpochFlag, Duration};
+use rinex::prelude::{Duration, Epoch, EpochFlag, Rinex};
 
 use crate::QcOpts;
 

@@ -1,8 +1,8 @@
-use rinex::{geodetic, wgs84};
 use rinex::prelude::*;
+use rinex::{geodetic, wgs84};
 use rinex_qc_traits::HtmlReport;
 
-use horrorshow::{RenderBox, box_html};
+use horrorshow::{box_html, RenderBox};
 
 // #[cfg(feature = "serde")]
 // use std::str::FromStr;

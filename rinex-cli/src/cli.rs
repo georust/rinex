@@ -1,8 +1,8 @@
 use clap::parser::ValuesRef;
 use clap::{Arg, ArgAction, ArgMatches, ColorChoice, Command};
 use log::{error, info};
-use rinex_qc::QcOpts;
 use rinex::prelude::*;
+use rinex_qc::QcOpts;
 use std::path::Path;
 use std::str::FromStr;
 

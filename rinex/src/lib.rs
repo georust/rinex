@@ -84,9 +84,9 @@ pub mod preprocessing {
 #[macro_use]
 extern crate horrorshow;
 
-use prelude::*;
 use carrier::Carrier;
 use gnss_time::GnssTime;
+use prelude::*;
 
 pub use merge::Merge;
 pub use split::Split;

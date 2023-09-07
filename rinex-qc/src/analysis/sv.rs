@@ -1,8 +1,8 @@
 use super::{pretty_array, QcOpts};
 use rinex::prelude::Rinex;
 
-use rinex_qc_traits::HtmlReport;
 use horrorshow::{box_html, RenderBox};
+use rinex_qc_traits::HtmlReport;
 
 #[derive(Debug, Clone)]
 pub struct QcSvAnalysis {

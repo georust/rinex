@@ -1,14 +1,14 @@
 //! RINEX Quality analysis library
 //use strum_macros::EnumString;
-use horrorshow::html; // RenderBox};
 use horrorshow::helper::doctype;
+use horrorshow::html; // RenderBox};
 use rinex_qc_traits::HtmlReport;
 
 mod opts;
-pub use opts::{QcOpts, QcClassification};
+pub use opts::{QcClassification, QcOpts};
 
 mod context;
-pub use context::{QcContext, QcPrimaryData, QcExtraData};
+pub use context::{QcContext, QcExtraData, QcPrimaryData};
 
 mod analysis;
 use analysis::QcAnalysis;
@@ -55,7 +55,7 @@ pub(crate) fn pretty_array<A: std::fmt::Display>(list: &Vec<A>) -> String {
     s
 }
 
-use rinex::preprocessing::{Preprocessing, MaskFilter, MaskOperand, TargetItem};
+use rinex::preprocessing::{MaskFilter, MaskOperand, Preprocessing, TargetItem};
 
 pub struct QcReport {}
 

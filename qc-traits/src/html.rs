@@ -7,5 +7,5 @@ pub trait HtmlReport {
     fn to_html(&self) -> String;
     /// Renders self as an HTML node
     /// to embed within external HTML.
-    fn to_inline_html(&self) -> Box<dyn RenderBox +'_>;
+    fn to_inline_html(&self) -> Box<dyn RenderBox + '_>;
 }
