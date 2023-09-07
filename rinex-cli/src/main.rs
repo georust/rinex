@@ -195,6 +195,7 @@ pub fn main() -> Result<(), rinex::Error> {
     let quiet = cli.quiet();
     let qc_only = cli.quality_check_only();
     let qc = cli.quality_check() || qc_only;
+    let positioning = cli.positioning();
 
     // Initiate plot context
     let mut plot_ctx = PlotContext::new();
@@ -230,12 +231,12 @@ pub fn main() -> Result<(), rinex::Error> {
     /*
      * print more info on possible solver to deploy
      */
-    if let Ok(solver) = solver {
+    if let Ok(ref solver) = solver {
         info!(
             "provided context is compatible with {} position solver",
             solver.solver
         );
-        if !cli.positioning() {
+        if !positioning {
             warn!("position solver currently turned off");
         }
     } else {
@@ -513,7 +514,7 @@ pub fn main() -> Result<(), rinex::Error> {
         info!("Elevation mask        : {:?}", qc_opts.elev_mask);
         info!("Sampling gap tolerance: {:?}", qc_opts.gap_tolerance);
 
-        let html_report = QcReport::html(ctx, qc_opts);
+        let html_report = QcReport::html(&ctx, qc_opts);
 
         let report_path = workspace.join("report.html");
         let mut report_fd = std::fs::File::create(&report_path).expect(&format!(
@@ -526,6 +527,18 @@ pub fn main() -> Result<(), rinex::Error> {
         info!("qc report $WORSPACE/report.html has been generated");
         if !quiet {
             open_with_web_browser(&report_path.to_string_lossy());
+        }
+    }
+    if let Ok(ref mut solver) = solver {
+        // position solver is feasible, with provided context
+        if positioning {
+            // apply the eclipse filter
+            solver.eclipse_filter_mut(&mut ctx);
+            info!("%%%%%%%%% {} Position Solver %%%%%%%%%", solver.solver);
+            let (position, time) = solver.run();
+            // info!("%%%%%%%%% Iteration : {} %%%%%%%%%%%", iteration +1);
+            info!("%%%%%%%%% Position : {:?}, Time: {:?}", position, time);
+            // iteration += 1;
         }
     }
     Ok(())

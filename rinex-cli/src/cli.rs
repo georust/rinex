@@ -224,15 +224,6 @@ Use --sp3 once per file. You can stack as many as you want."))
                         .action(ArgAction::Append)
                         .help("Local ANTEX file. Enhance given context with ANTEX Data.
 Use --atx once per file to add. You can stack as many as you want."))
-                .next_help_heading("(Precise) Positioning")
-                    .arg(Arg::new("positioning")
-                        .short('p')
-                        .action(ArgAction::SetTrue)
-                        .help("Activate GNSS receiver position solver.
-This is only possible if provided context is sufficient.
-Depending on provided context, either SPP (high accuracy) or PPP (ultra high accuracy)
-method is deployed.
-As this involves quite heavy computations, it is turned off by default."))
                 .next_help_heading("Quality Check (QC)")
                     .arg(Arg::new("qc")
                         .long("qc")
@@ -248,6 +239,16 @@ The summary report by default is integrated to the global HTML report."))
                         .long("qc-only")
                         .action(ArgAction::SetTrue)
                         .help("Enables QC mode and ensures no other analysis are performed (quickest qc rendition)."))
+                .next_help_heading("Position Solver")
+                    .arg(Arg::new("positioning")
+                        .short('p')
+                        .long("positioning")
+                        .action(ArgAction::SetTrue)
+                        .help("Activate GNSS receiver position solver.
+This is only possible if provided context is sufficient.
+Depending on provided context, either SPP (high accuracy) or PPP (ultra high accuracy)
+method is deployed.
+This is turned of by default, because it involves quite heavy computations."))
                 .next_help_heading("File operations")
                     .arg(Arg::new("merge")
                         .short('m')
