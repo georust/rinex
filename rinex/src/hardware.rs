@@ -106,7 +106,7 @@ impl HtmlReport for Antenna {
             table(class="table is-bordered") {
                 tr {
                     th {
-                        : "Antenna model"
+                        : "Model"
                     }
                     th {
                         : "SN#"
@@ -167,7 +167,7 @@ impl HtmlReport for Rcvr {
     }
     fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
         box_html! {
-            table(class="table is-bordered") {
+            table(class="table is-bordered; style=\"margin-bottom: 20px\"") {
                 tr {
                     th {
                         : "Model"

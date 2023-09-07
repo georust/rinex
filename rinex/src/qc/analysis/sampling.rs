@@ -90,15 +90,29 @@ impl HtmlReport for QcSamplingAnalysis {
             }
             tr {
                 th {
-                    : "Sample rate"
+                    : "Sample rate (Header)"
                 }
                 @ if let Some(rate) = self.sample_rate {
                     td {
                         : format!("{} ({:.3} Hz)", rate, 1.0 / rate.to_unit(Unit::Second))
                     }
                 } else {
+                    th {
+                        : "Unspecified"
+                    }
+                }
+            }
+            tr {
+                th {
+                    : "Dominant Sample rate"
+                }
+                @ if let Some(rate) = self.dominant_sample_rate {
                     td {
-                        : "Unknown"
+                        : format!("{} ({:.3} Hz)", rate, 1.0 / rate.to_unit(Unit::Second))
+                    }
+                } else {
+                    th {
+                        : "Undetermined"
                     }
                 }
             }
@@ -106,21 +120,19 @@ impl HtmlReport for QcSamplingAnalysis {
                 th {
                     : "Gap analysis"
                 }
-            }
-            @ if self.gaps.len() == 0 {
-                 tr {
+
+                @ if self.gaps.is_empty() {
                     th {
-                        : "No Data Gaps detected"
+                        : "No gaps detected"
                     }
-                 }
-            } else {
-                @ for (epoch, dt) in &self.gaps {
+                } else {
                     tr {
                         td {
-                            : format!("Start : {}", epoch)
-                        }
-                        td {
-                            : format!("Duration: {}", dt)
+                            @ for (epoch, dt) in &self.gaps {
+                                p {
+                                    : format!("Start : {}, Duration: {}", epoch, dt)
+                                }
+                            }
                         }
                     }
                 }

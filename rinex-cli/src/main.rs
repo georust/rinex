@@ -270,18 +270,18 @@ pub fn main() -> Result<(), rinex::Error> {
      * Code Multipath analysis
      */
     if cli.multipath() {
-        let data = ctx
-            .primary_data()
-            .observation_phase_align_origin()
-            .observation_phase_carrier_cycles()
-            .mp();
-        plot::plot_gnss_dcb(
-            &mut plot_ctx,
-            "Code Multipath Biases",
-            "Meters of delay",
-            &data,
-        );
-        info!("--mp analysis");
+        //let data = ctx
+        //    .primary_data()
+        //    .observation_phase_align_origin()
+        //    .observation_phase_carrier_cycles()
+        //    .mp();
+        //plot::plot_gnss_dcb(
+        //    &mut plot_ctx,
+        //    "Code Multipath Biases",
+        //    "Meters of delay",
+        //    &data,
+        //);
+        warn!("--mp analysis not available yet");
     }
     /*
      * [GF] recombination visualization requested
@@ -471,8 +471,6 @@ pub fn main() -> Result<(), rinex::Error> {
      */
     if qc {
         info!("entering qc mode");
-        let mut qc_opts = cli.qc_config();
-
         /*
          * QC Config / versus command line
          * let the possibility to define some parameters

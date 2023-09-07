@@ -1184,7 +1184,7 @@ mod test {
         let mut irnss_sv: Vec<Sv> = rnx
             .sv()
             .filter_map(|sv| {
-                if (sv.constellation == Constellation::IRNSS) {
+                if sv.constellation == Constellation::IRNSS {
                     Some(sv)
                 } else {
                     None

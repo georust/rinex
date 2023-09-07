@@ -985,36 +985,6 @@ impl Rinex {
         }
     */
     /*
-        /// Extracts Raw Carrier Phase observations,
-        /// from this Observation record, on an epoch basis an per space vehicle.
-        /// Does not produce anything if self is not an Observation RINEX.
-        pub fn observation_phase(&self) -> BTreeMap<(Epoch, EpochFlag), HashMap<Sv, Vec<(String, f64)>>> {
-            let mut ret: BTreeMap<Epoch, BTreeMap<Sv, Vec<(String, f64)>>> = BTreeMap::new();
-            if let Some(r) = self.record.as_obs() {
-                for ((e, _), (_, sv)) in record.iter() {
-                    let mut map: BTreeMap<Sv, Vec<(String, f64)>> = BTreeMap::new();
-                    for (sv, obs) in sv.iter() {
-                        let mut v: Vec<(String, f64)> = Vec::new();
-                        for (observable, data) in obs.iter() {
-                            if observable.is_phase_observation() {
-                                v.push((code.clone(), data.obs));
-                            }
-                        }
-                        if v.len() > 0 {
-                            // did come with at least 1 Phase obs
-                            map.insert(*sv, v);
-                        }
-                    }
-                    if map.len() > 0 {
-                        // did produce something
-                        results.insert(*e, map);
-                    }
-                }
-            }
-            ret
-        }
-    */
-    /*
         /// Extracts Carrier phases without Ionospheric path delay contributions,
         /// by extracting [carrier_phases] and using the differential (dual frequency) compensation.
         /// We can only compute such information if carrier phase was evaluted
@@ -1802,14 +1772,52 @@ impl Rinex {
     }
 }
 
+#[cfg(feature = "obs")]
+use crate::observation::Snr;
+
 /*
  * OBS RINEX specific methods: only available on crate feature.
  * Either specific Iterators, or meaningful data we can extract.
  */
-
 #[cfg(feature = "obs")]
 #[cfg_attr(docrs, doc(cfg(feature = "obs")))]
 impl Rinex {
+    /// Returns a Unique Iterator over identified [`Carrier`]s
+    pub fn carrier(&self) -> Box<dyn Iterator<Item = Carrier> + '_> {
+        Box::new(self.observation().flat_map(|(_, (_, sv))| {
+            sv.iter().flat_map(|(sv, observations)| {
+                observations
+                    .keys()
+                    .filter_map(|observable| {
+                        if let Ok(carrier) = observable.carrier(sv.constellation) {
+                            Some(carrier)
+                        } else {
+                            None
+                        }
+                    })
+                    .fold(vec![], |mut list, item| {
+                        if !list.contains(&item) {
+                            list.push(item);
+                        }
+                        list
+                    })
+                    .into_iter()
+            })
+        }))
+    }
+    pub fn code(&self) -> Box<dyn Iterator<Item = String> + '_> {
+        Box::new(
+            self.observation()
+                .flat_map(|(_, (_, sv))| {
+                    sv.iter().flat_map(|(_, observations)| {
+                        observations
+                            .keys()
+                            .filter_map(|observable| observable.code())
+                    })
+                })
+                .unique(),
+        )
+    }
     /// Returns ([`Epoch`] [`EpochFlag`]) iterator, where each {`EpochFlag`]
     /// validates or invalidates related [`Epoch`]
     /// ```
@@ -2016,6 +2024,21 @@ impl Rinex {
                 observations.iter().filter_map(|(obs, obsdata)| {
                     if obs.is_ssi_observable() {
                         Some((*e, *sv, obs, obsdata.obs))
+                    } else {
+                        None
+                    }
+                })
+            })
+        }))
+    }
+    /// Returns an Iterator over signal SNR indications.
+    /// All observation that did not come with such indication are filtered out.
+    pub fn snr(&self) -> Box<dyn Iterator<Item = ((Epoch, EpochFlag), Sv, &Observable, Snr)> + '_> {
+        Box::new(self.observation().flat_map(|(e, (_, vehicles))| {
+            vehicles.iter().flat_map(|(sv, observations)| {
+                observations.iter().filter_map(|(obs, obsdata)| {
+                    if let Some(snr) = obsdata.snr {
+                        Some((*e, *sv, obs, snr))
                     } else {
                         None
                     }
@@ -2816,82 +2839,6 @@ impl Decimate for Rinex {
 }
 
 #[cfg(feature = "obs")]
-use crate::observation::Observation;
-
-#[cfg(feature = "obs")]
-#[cfg_attr(docrs, doc(cfg(feature = "obs")))]
-impl Observation for Rinex {
-    fn min(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
-        if let Some(r) = self.record.as_obs() {
-            r.min()
-        } else {
-            (None, HashMap::new())
-        }
-    }
-    fn min_observable(&self) -> HashMap<Observable, f64> {
-        if let Some(r) = self.record.as_obs() {
-            r.min_observable()
-        } else if let Some(r) = self.record.as_meteo() {
-            r.min_observable()
-        } else {
-            HashMap::new()
-        }
-    }
-    fn max(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
-        if let Some(r) = self.record.as_obs() {
-            r.max()
-        } else {
-            (None, HashMap::new())
-        }
-    }
-    fn max_observable(&self) -> HashMap<Observable, f64> {
-        if let Some(r) = self.record.as_obs() {
-            r.max_observable()
-        } else if let Some(r) = self.record.as_meteo() {
-            r.max_observable()
-        } else {
-            HashMap::new()
-        }
-    }
-    fn mean(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
-        if let Some(r) = self.record.as_obs() {
-            r.mean()
-        } else {
-            (None, HashMap::new())
-        }
-    }
-    fn mean_observable(&self) -> HashMap<Observable, f64> {
-        if let Some(r) = self.record.as_obs() {
-            r.mean_observable()
-        } else if let Some(r) = self.record.as_meteo() {
-            r.mean_observable()
-        } else {
-            HashMap::new()
-        }
-    }
-    fn std_dev(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
-        if let Some(r) = self.record.as_obs() {
-            r.std_dev()
-        } else {
-            (None, HashMap::new())
-        }
-    }
-    fn std_dev_observable(&self) -> HashMap<Observable, f64> {
-        HashMap::new()
-    }
-    fn std_var(&self) -> (Option<f64>, HashMap<Sv, HashMap<Observable, f64>>) {
-        if let Some(r) = self.record.as_obs() {
-            r.std_var()
-        } else {
-            (None, HashMap::new())
-        }
-    }
-    fn std_var_observable(&self) -> HashMap<Observable, f64> {
-        HashMap::new()
-    }
-}
-
-#[cfg(feature = "obs")]
 use observation::Dcb;
 
 #[cfg(feature = "obs")]
@@ -2905,19 +2852,88 @@ impl Dcb for Rinex {
     }
 }
 
-#[cfg(feature = "obs")]
-use observation::Mp;
-
-#[cfg(feature = "obs")]
-impl Mp for Rinex {
-    fn mp(&self) -> HashMap<String, BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
-        if let Some(r) = self.record.as_obs() {
-            r.dcb()
-        } else {
-            panic!("wrong rinex type");
-        }
-    }
-}
+//#[cfg(feature = "obs")]
+//use observation::Mp;
+//
+//#[cfg(feature = "obs")]
+//impl Mp for Rinex {
+//    fn mp(&self) -> HashMap<String, BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>> {
+//        /*
+//         * Determine mean value of all observed Phase and Pseudo Range
+//         * observations, for all Sv
+//         */
+//        let mut mean: HashMap<Sv, HashMap<Observable, f64>> = HashMap::new();
+//        /*
+//         * Associate a Phase code to all PR codes
+//         */
+//        let mut associations: HashMap<Observable, Observable> = HashMap::new();
+//
+//        let pr_codes: Vec<Observable> = self.observable()
+//            .filter_map(|obs|
+//                if obs.is_pseudorange_observable() {
+//                    Some(obs.clone())
+//                } else {
+//                    None
+//                })
+//            .collect();
+//
+//        for observable in self.observable() {
+//            if !observable.is_phase_observable() {
+//                if !observable.is_pseudorange_observable() {
+//                    continue;
+//                }
+//            }
+//            // code associations (for future combianations)
+//            if observable.is_phase_observable() {
+//                for pr_code in &pr_codes {
+//
+//                }
+//            }
+//
+//            for sv in self.sv() {
+//                /*
+//                 * average phase values
+//                 */
+//                let phases: Vec<f64> = self.carrier_phase()
+//                    .filter_map(|(_, svnn, obs, ph)| {
+//                        if sv == svnn && observable == obs {
+//                            Some(ph)
+//                        } else {
+//                            None
+//                        }
+//                    })
+//                    .collect();
+//                if let Some(data) = mean.get_mut(&sv) {
+//                    data.insert(observable.clone(), phases.mean());
+//                } else {
+//                    let mut map: HashMap<Observable, f64> = HashMap::new();
+//                    map.insert(observable.clone(), phases.mean());
+//                    mean.insert(sv, map);
+//                }
+//                /*
+//                 * average PR values
+//                 */
+//                let pr: Vec<f64> = self.pseudo_range()
+//                    .filter_map(|(_, svnn, obs, pr)| {
+//                        if sv == svnn && observable == obs {
+//                            Some(pr)
+//                        } else {
+//                            None
+//                        }
+//                    })
+//                    .collect();
+//                if let Some(data) = mean.get_mut(&sv) {
+//                    data.insert(observable.clone(), pr.mean());
+//                } else {
+//                    let mut map: HashMap<Observable, f64> = HashMap::new();
+//                    map.insert(observable.clone(), pr.mean());
+//                    mean.insert(sv, map);
+//                }
+//            }
+//        }
+//        HashMap::new()
+//    }
+//}
 
 #[cfg(feature = "obs")]
 use observation::Combine;

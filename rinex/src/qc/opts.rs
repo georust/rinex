@@ -119,7 +119,7 @@ impl Default for ProcessingOpts {
 }
 
 /// Qc Report classification method
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 /// Classify the QC report by desired data set
 pub enum QcClassification {
@@ -161,6 +161,9 @@ pub struct QcOpts {
     pub gap_tolerance: Option<Duration>,
     /// Manually defined Ground position (ECEF)
     pub ground_position: Option<GroundPosition>,
+    /// Window duration to be used, during RX clock drift analysis
+    #[serde(default = "default_drift_window")]
+    pub clock_drift_window: Duration,
 }
 
 impl QcOpts {
@@ -190,6 +193,10 @@ impl QcOpts {
     }
 }
 
+fn default_drift_window() -> Duration {
+    Duration::from_seconds(3600.0)
+}
+
 impl Default for QcOpts {
     fn default() -> Self {
         Self {
@@ -198,6 +205,7 @@ impl Default for QcOpts {
             min_snr_db: 20.0, // dB
             elev_mask: None,
             classification: QcClassification::default(),
+            clock_drift_window: default_drift_window(),
         }
     }
 }
@@ -243,13 +251,21 @@ impl HtmlReport for QcOpts {
                     : "Data gap"
                 }
                 @ if let Some(tol) = self.gap_tolerance {
-                    th {
-                        : format!("Tolerance: ({})", tol)
+                    td {
+                        : format!("{} tolerance", tol)
                     }
                 } else {
-                    th {
+                    td {
                         : "No tolerance"
                     }
+                }
+            }
+            tr {
+                th {
+                    : "Clock Drift Window"
+                }
+                td {
+                    : self.clock_drift_window.to_string()
                 }
             }
         }

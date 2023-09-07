@@ -14,6 +14,36 @@ use analysis::QcAnalysis;
 use crate::preprocessing::*;
 
 /*
+ * Methods used when reporting lenghty vectors or data subsets in a table.
+ * Makes tables cleaner and nicer by wrapping string content, into several paragraphs.
+ *
+pub(crate) fn table_lengthy_td<A: std::fmt::Display>(
+    list: &Vec<A>,
+    max_items: usize,
+) -> Box<dyn RenderBox + '_> {
+    let mut content = String::with_capacity(64 * max_items);
+    let mut paragraphs: Vec<String> = Vec::new();
+
+    for i in 0..list.len() {
+        content.push_str(&format!("{}, ", list[i]));
+        if i.rem_euclid(max_items) == 0 {
+            paragraphs.push(content.clone());
+            content.clear();
+        } else if i == list.len() - 1 {
+            paragraphs.push(content.clone());
+        }
+    }
+    box_html! {
+        @ for paragraph in paragraphs {
+            p {
+                : paragraph.to_string()
+            }
+        }
+    }
+}
+*/
+
+/*
  * Array (CSV) pretty formatter
  */
 pub(crate) fn pretty_array<A: std::fmt::Display>(list: &Vec<A>) -> String {
@@ -139,7 +169,7 @@ impl QcReport {
                             h2(class="title") {
                                 : "RINEX Quality Check summary"
                             }
-                            table(class="table is-bordered") {
+                            table(class="table is-bordered; style=\"margin-bottom: 20px\"") {
                                 tbody {
                                     tr {
                                         th {
@@ -153,30 +183,36 @@ impl QcReport {
                             }
                         }//div=header
                         div(id="context") {
-                            h3(class="title") {
-                                : "Context"
-                            }
-                            table(class="table is-bordered") {
+                            table(class="table is-bordered; style=\"margin-bottom: 20px\"") {
+                                thead {
+                                    th {
+                                        : "Context"
+                                    }
+                                }
                                 tbody {
                                     : context.to_inline_html()
                                 }
                             }
                         }//div=context
                         div(id="parameters") {
-                            h3(class="title") {
-                                : "Parameters"
-                            }
-                            table(class="table is-bordered") {
+                            table(class="table is-bordered; style=\"margin-bottom: 20px\"") {
+                                thead {
+                                    th {
+                                        : "Parameters"
+                                    }
+                                }
                                 tbody {
                                     : opts.to_inline_html()
                                 }
                             }
                         } //div=parameters
                         div(id="header") {
-                            h3(class="title") {
-                                : "File Header"
-                            }
-                            table(class="table is-bordered") {
+                            table(class="table is-bordered; style=\"margin-bottom: 20px\"") {
+                                thead {
+                                    th {
+                                        : "File Header"
+                                    }
+                                }
                                 tbody {
                                     : context.primary_data().header.to_inline_html()
                                 }
@@ -186,10 +222,30 @@ impl QcReport {
                          * Report all analysis that were performed
                          */
                         div(id="analysis") {
-                            @ for analysis in &analysis {
-                                table(class="table is-bordered") {
+                            /*
+                             * Report all analysis
+                             * and emphasize how they were sorted (self.opts.classfication)
+                             */
+                            @ for i in 0..analysis.len() {
+                                table(class="table is-bordered; style=\"margin-bottom: 20px\"") {
+                                    thead {
+                                        @ if opts.classification == QcClassification::GNSS {
+                                            th {
+                                                : format!("{} analysis", context.primary_data().constellation().nth(i).unwrap())
+                                            }
+                                        } else if opts.classification == QcClassification::Sv {
+                                            th {
+                                                : format!("{} analysis", context.primary_data().sv().nth(i).unwrap())
+                                            }
+
+                                        } else if opts.classification == QcClassification::Physics {
+                                            th {
+                                                : format!("{} analysis", context.primary_data().observable().nth(i).unwrap())
+                                            }
+                                        }
+                                    }
                                     tbody {
-                                        : analysis.to_inline_html()
+                                        : analysis[i].to_inline_html()
                                     }
                                 }
                             }
