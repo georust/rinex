@@ -1,6 +1,8 @@
 use crate::{carrier, observation::Snr, prelude::*, Carrier};
 use itertools::Itertools;
 use std::str::FromStr;
+use horrorshow::RenderBox;
+use rinex_qc_traits::HtmlReport;
 
 use super::{pretty_array, QcOpts};
 use std::collections::HashMap;
@@ -574,9 +576,6 @@ impl QcObsAnalysis {
         }
     }
 }
-
-use crate::qc::HtmlReport;
-use horrorshow::RenderBox;
 
 impl HtmlReport for QcObsAnalysis {
     fn to_html(&self) -> String {

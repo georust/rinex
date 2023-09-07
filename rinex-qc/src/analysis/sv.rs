@@ -1,5 +1,8 @@
+use crate::prelude::*;
 use super::{pretty_array, QcOpts};
-use crate::prelude::*; //table_lengthy_td
+
+use horrorshow::RenderBox;
+use rinex_qc_traits::HtmlReport;
 
 #[derive(Debug, Clone)]
 pub struct QcSvAnalysis {
@@ -14,9 +17,6 @@ impl QcSvAnalysis {
         }
     }
 }
-
-use crate::qc::HtmlReport;
-use horrorshow::RenderBox;
 
 impl HtmlReport for QcSvAnalysis {
     fn to_html(&self) -> String {

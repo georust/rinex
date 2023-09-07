@@ -1,9 +1,9 @@
-use horrorshow::{helper::doctype, RenderBox};
 use std::path::PathBuf;
+use rinex_qc_traits::HtmlReport;
+use horrorshow::{helper::doctype, RenderBox};
 
-use crate::prelude::GroundPosition;
-use crate::quality::HtmlReport;
 use crate::Rinex;
+use crate::prelude::GroundPosition;
 
 use sp3::prelude::SP3;
 

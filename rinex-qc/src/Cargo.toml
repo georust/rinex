@@ -1,0 +1,39 @@
+[package]
+name = "rinex-qc"
+version = "0.1.0"
+license = "MIT OR Apache-2.0"
+authors = ["Guillaume W. Bres <guillaume.bressaix@gmail.com>"]
+description = "Package to parse and analyze RINEX data"
+homepage = "https://github.com/georust/rinex"
+repository = "https://github.com/georust/rinex"
+keywords = ["rinex", "timing", "gps", "glonass", "galileo"]
+categories = ["science", "science::geo", "parsing"]
+edition = "2021"
+readme = "README.md"
+rust-version = "1.64"
+
+[features]
+default = [] # no features by default
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docrs", "--generate-link-to-definition"]
+
+[build-dependencies]
+serde_json = { version = "1.0", features = ["preserve_order"] }
+
+[dependencies]
+serde = { version = "1.0", optional = true, default-features = false, features = ["derive"] }
+horrorshow = { version = "0.8" }
+statrs = { version = "0.16", optional = true }
+sp3 = { version = "1.0.0", optional = true, features = ["serde", "flate2"] }
+rinex-qc-traits = { path = "../qc-traits", optional = true }
+rinex = { path = "../rinex", features = ["obs", "nav", "qc", "processing"] }
+
+[dev-dependencies]
+serde_json = "1"
+criterion = "0.5"
+
+[[bench]]
+name = "benchmark"
+harness = false

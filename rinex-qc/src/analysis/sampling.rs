@@ -39,8 +39,8 @@ impl QcSamplingAnalysis {
     }
 }
 
-use crate::qc::HtmlReport;
 use horrorshow::RenderBox;
+use rinex_qc_traits::HtmlReport;
 
 impl HtmlReport for QcSamplingAnalysis {
     fn to_html(&self) -> String {
