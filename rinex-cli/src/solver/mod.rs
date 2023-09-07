@@ -1,3 +1,4 @@
+use nyx_space::md::prelude::{Bodies, Cosm, LightTimeCalc};
 use rinex::prelude::{Epoch, Sv};
 use rinex::preprocessing::{Filter, Preprocessing};
 use rinex_qc::QcContext;
@@ -69,10 +70,6 @@ pub(crate) struct Solver {
     pub estimated_time: Epoch,
 }
 
-use nyx_space::md::prelude::Bodies;
-use nyx_space::md::prelude::Cosm;
-use nyx_space::md::prelude::LightTimeCalc;
-
 impl Solver {
     pub fn from(context: &QcContext) -> Result<Self, Error> {
         let solver = SolverType::from(context)?;
@@ -114,20 +111,38 @@ impl Solver {
     /*
      * Returns Epoch starting and possible ending of Eclipse condition
      */
-    fn eclipses(
-        ctx: &QcContext,
-        sun: &HashMap<Epoch, (f64, f64, f64)>,
-    ) -> HashMap<Sv, (Epoch, Option<Epoch>)> {
+    fn eclipses(&self, ctx: &QcContext) -> HashMap<Sv, (Epoch, Option<Epoch>)> {
         let mut ret: HashMap<Sv, (Epoch, Option<Epoch>)> = HashMap::new();
-        if let Some(nav) = ctx.navigation_data() {
+        if let Some(sp3) = ctx.sp3_data() {
+            for (epoch, sv, (pos_x_km, pos_y_km, pos_z_km)) in sp3.sv_position() {
+                let (pos_x, pos_y, pos_z) =
+                    (pos_x_km / 1000.0, pos_y_km / 1000.0, pos_z_km / 1000.0);
+                let (sun_x_km, sun_y_km, sun_z_km) = self.sun.get(&epoch).unwrap();
+                let (sun_x, sun_y, sun_z) =
+                    (sun_x_km / 1000.0, sun_y_km / 1000.0, sun_z_km / 1000.0);
+                let dot = sun_x * pos_x + sun_y * pos_y + sun_z * pos_z;
+                let norm_sv = pos_x.powi(2) + pos_y.powi(2) + pos_z.powi(2);
+                let norm_sun = sun_x.powi(2) + sun_y.powi(2) + sun_z.powi(2);
+                let cos_phi = dot / norm_sv / norm_sun;
+            }
+        } else if let Some(nav) = ctx.navigation_data() {
             for (epoch, (sv, pos_x, pos_y, pos_z)) in nav.sv_position() {}
         }
         ret
     }
+    /*
+     * Strip context from Sv that are in eclipse condition
+     */
     pub fn eclipse_filter_mut(&self, ctx: &mut QcContext) {
-        let eclipses = Self::eclipses(ctx, &self.sun);
-        for (sv, (start, end)) in eclipses {}
-        let filt = Filter::from_str("=gps").unwrap();
-        ctx.primary_data_mut().filter_mut(filt);
+        let eclipses = self.eclipses(ctx);
+        for (sv, (start, end)) in eclipses {
+            // design interval filter
+            let filt = Filter::from_str(&format!("<{}", start)).unwrap();
+            ctx.primary_data_mut().filter_mut(filt);
+            if let Some(end) = end {
+                let filt = Filter::from_str(&format!(">{}", end)).unwrap();
+                ctx.primary_data_mut().filter_mut(filt);
+            }
+        }
     }
 }
