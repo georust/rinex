@@ -1,5 +1,5 @@
-use super::{pretty_array, table_lengthy_td, QcOpts};
-use crate::prelude::*;
+use super::{pretty_array, QcOpts};
+use crate::prelude::*; //table_lengthy_td
 
 #[derive(Debug, Clone)]
 pub struct QcSvAnalysis {

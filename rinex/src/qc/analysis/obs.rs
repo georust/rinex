@@ -11,9 +11,6 @@ use statrs::statistics::Statistics;
 use crate::preprocessing::*; // include preprocessing toolkit when feasible,
                              // for complete analysis
 
-#[cfg(feature = "obs")]
-use crate::observation::Observation; // having this feature unlocks full OBS RINEX analysis
-
 /*
  * GNSS signal special formatting
  */
@@ -84,96 +81,91 @@ fn report_anomalies<'a>(
     other: &'a Vec<(Epoch, EpochFlag)>,
 ) -> Box<dyn RenderBox + 'a> {
     box_html! {
-                tr {
-                    th {
-                        : "Power Failures"
-                    }
-                    @ if power.is_empty() {
-                        td {
-                            : "None"
-                        }
-                    } else {
-                        td {
-                            : format!("{:?}", power)
-                        }
-                        tr {
-                            th {
-                                : "Longest"
-                            }
-                            td {
-                                //: power.iter().max_by(|(_, d1), (_, d2)| d1.cmp(d2)).unwrap().to_string()
-                                : "TODO"
-                            }
-                            td {
-                                : "Average Power failure"
-                            }
-                            td {
-                                : "TODO"
-                            }
-                        }
-                    }
+        tr {
+            th {
+                : "Power Failures"
+            }
+            @ if power.is_empty() {
+                td {
+                    : "None"
+                }
+            } else {
+                td {
+                    : format!("{:?}", power)
                 }
                 tr {
                     th {
-                        : "Cycle slip(s)"
+                        : "Longest"
                     }
-                    @ if cs.is_empty() {
+                    td {
+                        //: power.iter().max_by(|(_, d1), (_, d2)| d1.cmp(d2)).unwrap().to_string()
+                        : "TODO"
+                    }
+                    td {
+                        : "Average Duration"
+                    }
+                    td {
+                        : "TODO"
+                    }
+                }
+            }
+        }
+        tr {
+            th {
+                : "Cycle slip(s)"
+            }
+            @ if cs.is_empty() {
+                td {
+                    : "None"
+                }
+            } else {
+                td {
+                    : format!("{:?}", cs)
+                }
+            }
+        }
+        tr {
+            th {
+                : "Other anomalies"
+            }
+            @ if other.is_empty() {
+                td {
+                    : "None"
+                }
+            } else {
+                td {
+                    : "Epoch"
+                }
+                td {
+                    : "Event"
+                }
+                @ for (e, event) in other {
+                    td {
+                        : ""
+                    }
+                    td {
+                        : format!("{}", e)
+                    }
+                    @ if *event == EpochFlag::AntennaBeingMoved {
                         td {
-                            : "None"
+                            : "Antenna Being Moved"
+                        }
+                    } else if *event == EpochFlag::NewSiteOccupation {
+                        td {
+                            : "New Site Occupation"
+                        }
+                    } else if *event == EpochFlag::ExternalEvent {
+                        td {
+                            : "External Event"
                         }
                     } else {
                         td {
-                            : format!("{:?}", cs)
+                            : "Other"
                         }
                     }
                 }
-                tr {
-                    th {
-                        : "Other anomalies"
-                    }
-                    @ if other.is_empty() {
-                        td {
-                            : "None"
-                        }
-                    } else {
-                        td {
-                            : "Epoch"
-                        }
-                        td {
-                            : "Event"
-                        }
-                        @ for (e, event) in other {
-                            td {
-                                : ""
-                            }
-                            td {
-                                : e.to_string()
-                            }
-                            //@ match event {
-                            //    EpochFlag::AntennaBeingMoved => {
-                            //        td {
-                            //            : "Antenna being moved"
-                            //        }
-                            //    },
-                            //    _ => {},
-                            //}
-                            //        }
-                            //td {
-                            //    @ match event {
-                            //        EpochFlag::NewSiteOccupation => {
-                            //            : "New Site Occupation"
-                            //        }
-                            //        EpochFlag::ExternalEvent => {
-                            //            : "External Event"
-                            //        }
-                            //        _ => {
-                            //            : "Other"
-                            //        }
-                            //    }
-                            //}
-                        }
-                    }
-                }
+            }
+        }
     }
 }
 
@@ -419,8 +411,8 @@ impl QcObsAnalysis {
 
         if let Some(r) = rnx.record.as_obs() {
             total_epochs = r.len();
-            for ((epoch, flag), (clk, svs)) in r {
-                for (sv, observables) in svs {
+            for ((epoch, _flag), (_clk, svs)) in r {
+                for (_sv, observables) in svs {
                     if !observables.is_empty() {
                         if !epoch_with_obs.contains(&epoch) {
                             epoch_with_obs.push(*epoch);
@@ -533,13 +525,13 @@ impl QcObsAnalysis {
          */
         let mut snr_stats: HashMap<Observable, ((Epoch, f64), (Epoch, f64))> = HashMap::new();
         for (obs, data) in snr {
-            let values: Vec<f64> = data.iter().map(|(e, value)| *value).collect();
+            let values: Vec<f64> = data.iter().map(|(_e, value)| *value).collect();
             let min = values.clone().min();
             println!("MIN: {}", min);
-            let epoch_min = data.iter().find(|(e, value)| *value == min).unwrap().0;
+            let epoch_min = data.iter().find(|(_e, value)| *value == min).unwrap().0;
             let max = values.clone().max();
             println!("MAX: {}", max);
-            let epoch_max = data.iter().find(|(e, value)| *value == max).unwrap().0;
+            let epoch_max = data.iter().find(|(_e, value)| *value == max).unwrap().0;
             snr_stats.insert(obs, ((epoch_min, min), (epoch_max, max)));
         }
         /*
@@ -570,12 +562,14 @@ impl QcObsAnalysis {
             clock_drift: {
                 let rx_clock: Vec<_> = rnx
                     .recvr_clock()
-                    .map(|((e, flag), value)| (e, value))
+                    .map(|((e, _flag), value)| (e, value))
                     .collect();
                 let der = Derivative::new(1);
                 let rx_clock_drift: Vec<(Epoch, f64)> = der.eval(rx_clock);
-                let mov = Averager::mov(opts.clock_drift_window);
-                mov.eval(rx_clock_drift)
+                //TODO
+                //let mov = Averager::mov(opts.clock_drift_window);
+                //mov.eval(rx_clock_drift)
+                rx_clock_drift
             },
         }
     }

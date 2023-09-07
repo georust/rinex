@@ -1,4 +1,4 @@
-mod averaging;
+//mod averaging;
 mod derivative;
 mod filters;
 mod target;
@@ -10,5 +10,5 @@ pub use filters::{
     Mask, MaskFilter, MaskOperand, Preprocessing, Smooth, SmoothingFilter, SmoothingType,
 };
 
-pub use averaging::Averager;
+//pub use averaging::Averager;
 pub use derivative::Derivative;

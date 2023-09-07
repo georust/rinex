@@ -1,6 +1,6 @@
-use super::{pretty_array, table_lengthy_td, HtmlReport, QcOpts};
+use super::{pretty_array, HtmlReport, QcOpts};
 use crate::prelude::*;
-use horrorshow::{helper::doctype, RenderBox};
+use horrorshow::{helper::doctype, RenderBox}; //table_lengthy_td
 
 mod sv;
 

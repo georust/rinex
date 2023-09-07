@@ -16,7 +16,7 @@ use crate::preprocessing::*;
 /*
  * Methods used when reporting lenghty vectors or data subsets in a table.
  * Makes tables cleaner and nicer by wrapping string content, into several paragraphs.
- */
+ *
 pub(crate) fn table_lengthy_td<A: std::fmt::Display>(
     list: &Vec<A>,
     max_items: usize,
@@ -41,6 +41,7 @@ pub(crate) fn table_lengthy_td<A: std::fmt::Display>(
         }
     }
 }
+*/
 
 /*
  * Array (CSV) pretty formatter
