@@ -1,18 +1,18 @@
-use rinex::{geodetic, wgs84, GroundPosition};
+use rinex::{geodetic, wgs84};
 use rinex::prelude::*;
 use rinex_qc_traits::HtmlReport;
 
-use horrorshow::RenderBox;
+use horrorshow::{RenderBox, box_html};
 
-#[cfg(feature = "serde")]
-use std::str::FromStr;
+// #[cfg(feature = "serde")]
+// use std::str::FromStr;
 
 #[cfg(feature = "serde")]
 use serde::{
-    de::Error,
+    //de::Error,
     //Serializer,
     Deserialize,
-    Deserializer,
+    //Deserializer,
     Serialize,
 };
 
@@ -79,7 +79,6 @@ impl std::fmt::Display for QcClassification {
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(Deserialize))]
 pub struct QcOpts {
-    #[cfg(feature = "processing")]
     #[cfg_attr(feature = "serde", serde(default))]
     #[cfg_attr(docs, doc(cfg(feature = "processing")))]
     pub classification: QcClassification,
@@ -101,7 +100,6 @@ pub struct QcOpts {
 }
 
 impl QcOpts {
-    #[cfg(feature = "processing")]
     pub fn with_classification(&self, classification: QcClassification) -> Self {
         let mut s = self.clone();
         s.classification = classification;
@@ -146,7 +144,7 @@ impl Default for QcOpts {
 
 impl HtmlReport for QcOpts {
     fn to_html(&self) -> String {
-        todo!()
+        panic!("qcopts cannot be rendered on its own")
     }
     fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
         box_html! {

@@ -7,7 +7,7 @@ use plotly::{
     //scatter_mapbox::Fill,
     ScatterMapbox,
 };
-use rinex::quality::QcContext;
+use rinex_qc::QcContext;
 
 pub fn plot_tec_map(
     ctx: &QcContext,

@@ -1,16 +1,17 @@
 //! RINEX Quality analysis library
 use strum_macros::EnumString;
-use rinex_qc_traits::HtmlReport;
+use horrorshow::html;
 use horrorshow::helper::doctype;
+use rinex_qc_traits::HtmlReport;
 
 mod opts;
 pub use opts::{QcOpts, QcClassification};
 
 mod context;
-pub use::context::{QcContext, QcPrimaryData, QcExtraData};
+pub use context::{QcContext, QcPrimaryData, QcExtraData};
 
 mod analysis;
-use analysis::Analysis;
+use analysis::QcAnalysis;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, EnumString)]
 pub enum Grade {
@@ -73,6 +74,8 @@ pub(crate) fn pretty_array<A: std::fmt::Display>(list: &Vec<A>) -> String {
     s.push_str(&list[list.len() - 1].to_string());
     s
 }
+
+use rinex::preprocessing::{Preprocessing, MaskFilter, MaskOperand, TargetItem};
 
 pub struct QcReport {}
 

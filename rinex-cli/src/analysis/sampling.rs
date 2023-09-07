@@ -1,7 +1,7 @@
 use crate::plot::PlotContext;
 use itertools::Itertools;
 use plotly::Histogram; //.sorted()
-use rinex::quality::QcContext;
+use rinex_qc::QcContext;
 
 /*
  * Sampling histogram

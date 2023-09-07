@@ -1,17 +1,18 @@
-use crate::{carrier, observation::Snr, prelude::*, Carrier};
-use itertools::Itertools;
 use std::str::FromStr;
-use horrorshow::RenderBox;
-use rinex_qc_traits::HtmlReport;
-
-use super::{pretty_array, QcOpts};
+use itertools::Itertools;
 use std::collections::HashMap;
+use horrorshow::{box_html, RenderBox};
 
+use crate::{pretty_array, QcOpts};
+
+use rinex::observation::Snr;
+use rinex::preprocessing::Derivative;
+use rinex::carrier;
+use rinex::carrier::Carrier;
+use rinex::prelude::{Rinex, Epoch, EpochFlag, Observable};
+
+use rinex_qc_traits::HtmlReport;
 use statrs::statistics::Statistics;
-
-#[cfg(feature = "processing")]
-use crate::preprocessing::*; // include preprocessing toolkit when feasible,
-                             // for complete analysis
 
 /*
  * GNSS signal special formatting
@@ -354,13 +355,10 @@ pub struct QcObsAnalysis {
     total_with_obs: usize,
     /// Complete epochs, with respect to given signal
     complete_epochs: Vec<(Carrier, usize)>,
-    #[cfg(feature = "obs")]
     /// Min. & Max. SNR (signal @ epoch)
     snr_stats: HashMap<Observable, ((Epoch, f64), (Epoch, f64))>,
-    #[cfg(feature = "obs")]
     /// SSI statistical analysis (mean, stddev)
     ssi_stats: HashMap<Observable, (f64, f64)>,
-    #[cfg(feature = "obs")]
     /// RX clock drift
     clock_drift: Vec<(Epoch, f64)>,
 }
@@ -529,10 +527,8 @@ impl QcObsAnalysis {
         for (obs, data) in snr {
             let values: Vec<f64> = data.iter().map(|(_e, value)| *value).collect();
             let min = values.clone().min();
-            println!("MIN: {}", min);
             let epoch_min = data.iter().find(|(_e, value)| *value == min).unwrap().0;
             let max = values.clone().max();
-            println!("MAX: {}", max);
             let epoch_max = data.iter().find(|(_e, value)| *value == max).unwrap().0;
             snr_stats.insert(obs, ((epoch_min, min), (epoch_max, max)));
         }

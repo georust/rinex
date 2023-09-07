@@ -1,6 +1,6 @@
 use crate::plot::{build_chart_epoch_axis, generate_markers, PlotContext};
 use plotly::common::{Marker, MarkerSymbol, Mode, Visible};
-use rinex::quality::QcContext;
+use rinex_qc::QcContext;
 use rinex::{observation::*, prelude::*};
 use std::collections::HashMap;
 

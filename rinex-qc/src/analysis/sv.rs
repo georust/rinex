@@ -1,8 +1,8 @@
-use crate::prelude::*;
 use super::{pretty_array, QcOpts};
+use rinex::prelude::Rinex;
 
-use horrorshow::RenderBox;
 use rinex_qc_traits::HtmlReport;
+use horrorshow::{box_html, RenderBox};
 
 #[derive(Debug, Clone)]
 pub struct QcSvAnalysis {
@@ -20,7 +20,7 @@ impl QcSvAnalysis {
 
 impl HtmlReport for QcSvAnalysis {
     fn to_html(&self) -> String {
-        todo!()
+        panic!("sv analysis cannot be rendered on its own")
     }
     fn to_inline_html(&self) -> Box<dyn RenderBox + '_> {
         box_html! {

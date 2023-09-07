@@ -1,6 +1,6 @@
 use crate::Cli;
-use rinex::quality::QcContext;
 use rinex::*;
+use rinex_qc::QcContext;
 
 /*
  * Basic identification operations

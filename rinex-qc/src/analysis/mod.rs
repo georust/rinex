@@ -1,7 +1,7 @@
-use crate::prelude::*;
+use rinex::prelude::*;
 use rinex_qc_traits::HtmlReport;
-use super::{pretty_array, QcOpts};
-use horrorshow::{helper::doctype, RenderBox}; //table_lengthy_td
+use crate::{pretty_array, QcOpts};
+use horrorshow::{html, box_html, helper::doctype, RenderBox}; //table_lengthy_td
 
 mod sv;
 
@@ -37,7 +37,6 @@ impl QcAnalysis {
         Self {
             sv: QcSvAnalysis::new(primary, opts),
             sampling: QcSamplingAnalysis::new(primary, opts),
-            #[cfg(feature = "obs")]
             observ: QcObsAnalysis::new(primary, opts),
         }
     }

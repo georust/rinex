@@ -4,7 +4,7 @@ use std::str::FromStr;
 use thiserror::Error;
 
 lazy_static! {
-    pub(crate) static ref KNOWN_CODES: Vec<&'static str> = vec![
+    pub static ref KNOWN_CODES: Vec<&'static str> = vec![
         "1A", "1B", "1C", "1D", "1E", "1L", "1M", "1P", "1S", "1W", "1X", "1Z", "2C", "2D", "2L",
         "2M", "2P", "2S", "2W", "3I", "3X", "3Q", "4A", "4B", "4X", "5A", "5B", "5C", "5D", "5I",
         "5P", "5Q", "5X", "6A", "6B", "6C", "6D", "6E", "6I", "6P", "6Q", "6X", "6Z", "7D", "7I",

@@ -81,22 +81,12 @@ pub mod preprocessing {
 }
 
 #[cfg(feature = "qc")]
-mod qc;
-
-#[cfg(feature = "qc")]
 #[macro_use]
 extern crate horrorshow;
 
-/// Quality analysis package: mainly statistical analysis on OBS RINEX
-#[cfg(feature = "qc")]
-#[cfg_attr(docrs, doc(cfg(feature = "qc")))]
-pub mod quality {
-    pub use crate::qc::{HtmlReport, QcContext, QcExtraData, QcOpts, QcPrimaryData, QcReport};
-}
-
+use prelude::*;
 use carrier::Carrier;
 use gnss_time::GnssTime;
-use prelude::*;
 
 pub use merge::Merge;
 pub use split::Split;

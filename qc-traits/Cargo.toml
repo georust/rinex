@@ -1,0 +1,21 @@
+[package]
+name = "rinex-qc-traits"
+version = "0.1.0"
+license = "MIT OR Apache-2.0"
+authors = ["Guillaume W. Bres <guillaume.bressaix@gmail.com>"]
+description = "RINEX quality analysis specific traits"
+homepage = "https://github.com/georust/rinex"
+repository = "https://github.com/georust/rinex"
+keywords = ["rinex", "timing", "gps", "glonass", "galileo"]
+categories = ["science", "science::geo", "parsing"]
+edition = "2021"
+
+[features]
+default = [] # no features by default
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docrs", "--generate-link-to-definition"]
+
+[dependencies]
+horrorshow = "0.8"
