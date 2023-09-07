@@ -142,7 +142,7 @@ impl QcReport {
                                             : "Version"
                                         }
                                         td {
-                                            : format!("rust-rnx: v{}", env!("CARGO_PKG_VERSION"))
+                                            : format!("rinex-qc: v{}", env!("CARGO_PKG_VERSION"))
                                         }
                                     }
                                 }
