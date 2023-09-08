@@ -1,9 +1,7 @@
 use nyx_space::md::prelude::{Bodies, Cosm, LightTimeCalc};
-use rinex::prelude::{Epoch, Sv};
-use rinex::preprocessing::{Filter, Preprocessing};
+use rinex::prelude::{Duration, Epoch, Sv};
 use rinex_qc::QcContext;
 use std::collections::HashMap;
-use std::str::FromStr;
 use thiserror::Error;
 
 #[derive(Debug, Clone, Copy, Error)]
@@ -96,52 +94,130 @@ impl Solver {
         };
         let cosm = Cosm::de438();
         let sun_body = Bodies::Sun;
-        let earth_j2000 = cosm.frame("EME2000");
+        let eme_j2000 = cosm.frame("EME2000");
         for epoch in epochs {
-            let orbit = cosm.celestial_state(
-                sun_body.ephem_path(),
-                epoch,
-                earth_j2000,
-                LightTimeCalc::None,
-            );
+            let orbit =
+                cosm.celestial_state(sun_body.ephem_path(), epoch, eme_j2000, LightTimeCalc::None);
             ret.insert(epoch, (orbit.x_km, orbit.y_km, orbit.z_km));
         }
         ret
     }
     /*
-     * Returns Epoch starting and possible ending of Eclipse condition
+     * Computes celestial angle condition
      */
-    fn eclipses(&self, ctx: &QcContext) -> HashMap<Sv, (Epoch, Option<Epoch>)> {
-        let mut ret: HashMap<Sv, (Epoch, Option<Epoch>)> = HashMap::new();
-        if let Some(sp3) = ctx.sp3_data() {
-            for (epoch, sv, (pos_x_km, pos_y_km, pos_z_km)) in sp3.sv_position() {
-                let (pos_x, pos_y, pos_z) =
-                    (pos_x_km / 1000.0, pos_y_km / 1000.0, pos_z_km / 1000.0);
-                let (sun_x_km, sun_y_km, sun_z_km) = self.sun.get(&epoch).unwrap();
-                let (sun_x, sun_y, sun_z) =
-                    (sun_x_km / 1000.0, sun_y_km / 1000.0, sun_z_km / 1000.0);
-                let dot = sun_x * pos_x + sun_y * pos_y + sun_z * pos_z;
-                let norm_sv = pos_x.powi(2) + pos_y.powi(2) + pos_z.powi(2);
-                let norm_sun = sun_x.powi(2) + sun_y.powi(2) + sun_z.powi(2);
-                let cos_phi = dot / norm_sv / norm_sun;
+    fn eclipsed(&self, x: f64, y: f64, z: f64, e: Epoch) -> bool {
+        let mean_equatorial = 6378137.0_f64;
+        let (sun_x_km, sun_y_km, sun_z_km) = self.sun.get(&e).unwrap();
+        let (sun_x, sun_y, sun_z) = (sun_x_km / 1000.0, sun_y_km / 1000.0, sun_z_km / 1000.0);
+        let dot = sun_x * x + sun_y * y + sun_z * z;
+        let norm_sv = (x.powi(2) + y.powi(2) + z.powi(2)).sqrt();
+        let norm_sun = (sun_x.powi(2) + sun_y.powi(2) + sun_z.powi(2)).sqrt();
+        let cos_phi = dot / norm_sv / norm_sun;
+        let azim = norm_sv * (1.0 - cos_phi.powi(2)).sqrt();
+        cos_phi < 0.0 && azim < mean_equatorial
+    }
+    /*
+     * Returns Eclipse Start/End Epoch and related vehicle identity
+     */
+    fn eclipses(
+        &self,
+        ctx: &QcContext,
+        min_dt: Duration,
+    ) -> HashMap<Sv, (Option<Epoch>, Option<Epoch>)> {
+        let mut rising: HashMap<Sv, Epoch> = HashMap::new();
+        let mut ret: HashMap<Sv, (Option<Epoch>, Option<Epoch>)> = HashMap::new();
+
+        let sv_positions: Vec<(Epoch, Sv, (f64, f64, f64))> = match ctx.sp3_data() {
+            Some(sp3) => sp3
+                .sv_position()
+                .map(|(e, sv, (x, y, z))| {
+                    (e, sv, (x / 1000.0, y / 1000.0, z / 1000.0)) // sp3 in km
+                })
+                .collect(),
+            _ => ctx.navigation_data().unwrap().sv_position().collect(),
+        };
+
+        for (epoch, sv, (x, y, z)) in sv_positions {
+            let eclipsed = self.eclipsed(x, y, z, epoch);
+            if eclipsed && ret.get_mut(&sv).is_none() {
+                // start of eclipse
+                ret.insert(sv, (Some(epoch), None));
+                debug!("{}: start of eclipse @{}", sv, epoch);
+            } else if !eclipsed {
+                if ret.get_mut(&sv).is_some() {
+                    if rising.get_mut(&sv).is_none() {
+                        // end of eclipse starting
+                        rising.insert(sv, epoch);
+                    } else {
+                        let start = rising.get(&sv).unwrap();
+                        if let Some((beginning, None)) = ret.get(&sv) {
+                            if epoch - *start > min_dt {
+                                // end of eclipse
+                                debug!("{}: end of eclipse @{}", sv, epoch);
+                                ret.insert(sv, (*beginning, Some(epoch)));
+                            }
+                        }
+                    }
+                } else {
+                    if rising.get_mut(&sv).is_none() {
+                        // end of eclipse starting
+                        rising.insert(sv, epoch);
+                    } else {
+                        let start = rising.get(&sv).unwrap();
+                        if let Some((beginning, None)) = ret.get(&sv) {
+                            if epoch - *start > min_dt {
+                                debug!("{}: end of eclipse @{}", sv, epoch);
+                                ret.insert(sv, (*beginning, Some(epoch)));
+                            }
+                        }
+                    }
+                }
             }
-        } else if let Some(nav) = ctx.navigation_data() {
-            for (epoch, (sv, pos_x, pos_y, pos_z)) in nav.sv_position() {}
         }
         ret
     }
     /*
-     * Strip context from Sv that are in eclipse condition
+     * Remove all Sv that are in Eclipse::umbra condition
      */
     pub fn eclipse_filter_mut(&self, ctx: &mut QcContext) {
-        let eclipses = self.eclipses(ctx);
+        let eclipses = self.eclipses(ctx, Duration::from_seconds(30.0 * 60.0));
         for (sv, (start, end)) in eclipses {
             // design interval filter
-            let filt = Filter::from_str(&format!("<{}", start)).unwrap();
-            ctx.primary_data_mut().filter_mut(filt);
-            if let Some(end) = end {
-                let filt = Filter::from_str(&format!(">{}", end)).unwrap();
-                ctx.primary_data_mut().filter_mut(filt);
+            let record = ctx
+                .primary_data_mut()
+                .record
+                .as_mut_obs()
+                .expect("primary file should be OBS");
+            match start {
+                Some(start) => match end {
+                    Some(end) => {
+                        record.retain(|(e, _), (_, vehicles)| {
+                            vehicles.retain(|svnn, _| {
+                                if *svnn == sv {
+                                    *e < start || *e > end
+                                } else {
+                                    true
+                                }
+                            });
+                            vehicles.len() > 0
+                        });
+                    },
+                    _ => {
+                        record.retain(|(e, _), (_, vehicles)| {
+                            vehicles.retain(|svnn, _| if *svnn == sv { *e < start } else { true });
+                            vehicles.len() > 0
+                        });
+                    },
+                },
+                _ => match end {
+                    Some(end) => {
+                        record.retain(|(e, _), (_, vehicles)| {
+                            vehicles.retain(|svnn, _| if *svnn == sv { *e > end } else { true });
+                            vehicles.len() > 0
+                        });
+                    },
+                    _ => {},
+                },
             }
         }
     }

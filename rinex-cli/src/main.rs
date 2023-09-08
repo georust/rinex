@@ -30,6 +30,8 @@ use identification::rinex_identification;
 use plot::PlotContext;
 
 extern crate pretty_env_logger;
+use pretty_env_logger::env_logger::Builder;
+
 #[macro_use]
 extern crate log;
 
@@ -188,7 +190,11 @@ fn skyplot_allowed(ctx: &QcContext, cli: &Cli) -> bool {
 }
 
 pub fn main() -> Result<(), rinex::Error> {
-    pretty_env_logger::init_timed();
+    let mut builder = Builder::from_default_env();
+    builder
+        .format_timestamp_secs()
+        .format_module_path(false)
+        .init();
 
     // Cli
     let cli = Cli::new();

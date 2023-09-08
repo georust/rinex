@@ -2194,10 +2194,10 @@ impl Rinex {
     ///     // z: z(t) [m ECEF]
     /// }
     /// ```
-    pub fn sv_position(&self) -> Box<dyn Iterator<Item = (Epoch, (Sv, f64, f64, f64))> + '_> {
+    pub fn sv_position(&self) -> Box<dyn Iterator<Item = (Epoch, Sv, (f64, f64, f64))> + '_> {
         Box::new(self.ephemeris().filter_map(|(e, (_, sv, ephemeris))| {
             if let Some((x, y, z)) = ephemeris.sv_position(sv, *e) {
-                Some((*e, (*sv, x, y, z)))
+                Some((*e, *sv, (x, y, z)))
             } else {
                 // we might not be able to evaluate (x, y, z)
                 // for every single epoch, for example if some
@@ -2224,10 +2224,10 @@ impl Rinex {
     ///     // alt: [m ECEF]
     /// }
     /// ```
-    pub fn sv_position_geo(&self) -> Box<dyn Iterator<Item = (Epoch, (Sv, f64, f64, f64))> + '_> {
-        Box::new(self.sv_position().map(|(e, (sv, x, y, z))| {
+    pub fn sv_position_geo(&self) -> Box<dyn Iterator<Item = (Epoch, Sv, (f64, f64, f64))> + '_> {
+        Box::new(self.sv_position().map(|(e, sv, (x, y, z))| {
             let (lat, lon, alt) = ecef2geodetic(x, y, z, map_3d::Ellipsoid::WGS84);
-            (e, (sv, lat, lon, alt))
+            (e, sv, (lat, lon, alt))
         }))
     }
     /// Returns Iterator over Sv speed vectors, expressed in m/s ECEF.
@@ -2244,7 +2244,7 @@ impl Rinex {
     /// //    // sv_z : m/s
     /// //}
     /// ```
-    pub fn sv_speed(&self) -> Box<dyn Iterator<Item = (Epoch, (Sv, f64, f64, f64))> + '_> {
+    pub fn sv_speed(&self) -> Box<dyn Iterator<Item = (Epoch, Sv, (f64, f64, f64))> + '_> {
         todo!("sv_speed");
         //Box::new(
         //    self.sv_position()
