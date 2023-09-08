@@ -2165,17 +2165,17 @@ impl Rinex {
     /// use rinex::prelude::*;
     /// let mut rinex = Rinex::from_file("../test_resources/NAV/V3/CBW100NLD_R_20210010000_01D_MN.rnx")
     ///     .unwrap();
-    /// for (epoch, (sv, (offset, clock_dr, clock_drr))) in rinex.sv_clock() {
+    /// for (epoch, sv, (offset, drift, drift_rate)) in rinex.sv_clock() {
     ///     // sv: satellite vehicle
     ///     // offset [s]
-    ///     // dr: clock drift [s.s⁻¹]
-    ///     // drr: clock drift rate [s.s⁻²]
+    ///     // clock drift [s.s⁻¹]
+    ///     // clock drift rate [s.s⁻²]
     /// }
     /// ```
-    pub fn sv_clock(&self) -> Box<dyn Iterator<Item = (Epoch, (Sv, (f64, f64, f64)))> + '_> {
+    pub fn sv_clock(&self) -> Box<dyn Iterator<Item = (Epoch, Sv, (f64, f64, f64))> + '_> {
         Box::new(
             self.ephemeris()
-                .map(|(e, (_, sv, data))| (*e, (*sv, data.sv_clock()))),
+                .map(|(e, (_, sv, data))| (*e, *sv, data.sv_clock())),
         )
     }
     /// Returns an Iterator over Sv position vectors,

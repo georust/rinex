@@ -1,3 +1,4 @@
+use nyx_space::cosmic::SPEED_OF_LIGHT;
 use nyx_space::md::prelude::{Bodies, Cosm, LightTimeCalc};
 use rinex::prelude::{Duration, Epoch, Sv};
 use rinex_qc::QcContext;
@@ -60,6 +61,9 @@ pub(crate) struct Solver {
     opts: SolverOpts,
     /// Earth/Sun vector, for each NAV Epoch
     sun: HashMap<Epoch, (f64, f64, f64)>,
+    /// Whether this solver is initiated (ready to iterate) or not
+    initiated: bool,
+    t_tx: Vec<(Sv, Epoch, Epoch)>,
     /// Type of solver implemented
     pub solver: SolverType,
     /// Current position estimate
@@ -72,15 +76,87 @@ impl Solver {
     pub fn from(context: &QcContext) -> Result<Self, Error> {
         let solver = SolverType::from(context)?;
         Ok(Self {
-            opts: SolverOpts::default(),
             solver,
+            t_tx: vec![],
+            initiated: false,
+            opts: SolverOpts::default(),
             sun: Self::sun_vector3d(context, solver),
             estimated_pos: (0.0_f64, 0.0_f64, 0.0_f64),
             estimated_time: Epoch::default(),
         })
     }
-    pub fn run(&mut self) -> ((f64, f64, f64), Epoch) {
+    pub fn run(&mut self, ctx: &mut QcContext) -> ((f64, f64, f64), Epoch) {
+        if !self.initiated {
+            self.sun = Self::sun_vector3d(ctx, self.solver);
+            self.eclipse_filter(ctx);
+            self.t_tx = Self::sv_transmission_time(ctx).collect();
+            self.initiated = true;
+            trace!("{} solver initiated", self.solver);
+        }
         (self.estimated_pos, self.estimated_time)
+    }
+    /*
+     * Returns Sv clock data from given context
+     */
+    fn sv_clock(ctx: &QcContext) -> Box<dyn Iterator<Item = (Epoch, Sv, f64)> +'_> {
+        match ctx.sp3_data() {
+            Some(sp3) => Box::new(sp3
+                .sv_clock()),
+            _ => Box::new(ctx.navigation_data()
+                .unwrap()
+                .sv_clock()
+                .map(|(e, sv, (clk, _, _))| {
+                    (e, sv, clk)
+                })),
+        }
+    }
+    /*
+     * Returns Sv positions from given context
+     */
+    fn sv_position(ctx: &QcContext) -> Vec<(Epoch, Sv, (f64, f64, f64))> {
+        match ctx.sp3_data() {
+            Some(sp3) => sp3
+                .sv_position()
+                .map(|(e, sv, (x, y, z))| {
+                    (e, sv, (x / 1000.0, y / 1000.0, z / 1000.0)) // sp3 in km
+                })
+                .collect(),
+            _ => ctx.navigation_data().unwrap().sv_position().collect(),
+        }
+    }
+    /*
+     * Iterators over each individual Sv T_tx transmission time
+     * in the form (Sv, T_tx, T_rx) where T are expressed as hifitime::Epoch
+     */
+    fn sv_transmission_time(ctx: &QcContext) -> Box<dyn Iterator<Item = (Sv, Epoch, Epoch)> + '_> {
+        Box::new(
+        Self::sv_clock(ctx)
+            .filter_map(|(t_rx, sv, sv_clk)| {
+                // need one pseudo range observation 
+                // for this Sv @ this epoch
+                let mut pr = ctx
+                    .primary_data()
+                    .pseudo_range()
+                    .filter_map(|((e, flag), svnn, _, value)| {
+                        if e == t_rx && flag.is_ok() && svnn == sv {
+                            Some(value)
+                        } else {
+                            None
+                        }
+                    })
+                    .take(1); // dont care about signals : just need one
+                if let Some(pr) = pr.next() {
+                    let t_tx = t_rx.to_duration().to_seconds() - pr / SPEED_OF_LIGHT - sv_clk; 
+                    let t_tx = Epoch::from_duration(Duration::from_seconds(t_tx), t_rx.time_scale);
+                    debug!("t_rx: {} | t_tx {}", t_rx, t_tx);
+                    Some((sv, t_tx, t_rx))
+                } else {
+                    debug!("{} @{} - missing pseudo range observation", sv, t_rx);
+                    None
+                }
+
+            })
+        )
     }
     /*
      * Evaluates Sun/Earth vector, <!> expressed in Km <!>
@@ -127,17 +203,7 @@ impl Solver {
         let mut rising: HashMap<Sv, Epoch> = HashMap::new();
         let mut ret: HashMap<Sv, (Option<Epoch>, Option<Epoch>)> = HashMap::new();
 
-        let sv_positions: Vec<(Epoch, Sv, (f64, f64, f64))> = match ctx.sp3_data() {
-            Some(sp3) => sp3
-                .sv_position()
-                .map(|(e, sv, (x, y, z))| {
-                    (e, sv, (x / 1000.0, y / 1000.0, z / 1000.0)) // sp3 in km
-                })
-                .collect(),
-            _ => ctx.navigation_data().unwrap().sv_position().collect(),
-        };
-
-        for (epoch, sv, (x, y, z)) in sv_positions {
+        for (epoch, sv, (x, y, z)) in Self::sv_position(ctx) {
             let eclipsed = self.eclipsed(x, y, z, epoch);
             if eclipsed && ret.get_mut(&sv).is_none() {
                 // start of eclipse
@@ -179,7 +245,7 @@ impl Solver {
     /*
      * Remove all Sv that are in Eclipse::umbra condition
      */
-    pub fn eclipse_filter_mut(&self, ctx: &mut QcContext) {
+    fn eclipse_filter(&self, ctx: &mut QcContext) {
         let eclipses = self.eclipses(ctx, Duration::from_seconds(30.0 * 60.0));
         for (sv, (start, end)) in eclipses {
             // design interval filter

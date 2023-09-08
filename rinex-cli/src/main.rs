@@ -538,10 +538,8 @@ pub fn main() -> Result<(), rinex::Error> {
     if let Ok(ref mut solver) = solver {
         // position solver is feasible, with provided context
         if positioning {
-            // apply the eclipse filter
-            solver.eclipse_filter_mut(&mut ctx);
             info!("%%%%%%%%% {} Position Solver %%%%%%%%%", solver.solver);
-            let (position, time) = solver.run();
+            let (position, time) = solver.run(&mut ctx);
             // info!("%%%%%%%%% Iteration : {} %%%%%%%%%%%", iteration +1);
             info!("%%%%%%%%% Position : {:?}, Time: {:?}", position, time);
             // iteration += 1;

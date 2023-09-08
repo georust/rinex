@@ -29,7 +29,7 @@ fn plot_nav_data(rinex: &Rinex, plot_ctx: &mut PlotContext) {
         let sv_clock: Vec<_> = rinex
             .sv_clock()
             .filter_map(
-                |(_epoch, (svnn, (clk, _, _)))| {
+                |(_epoch, svnn, (clk, _, _))| {
                     if svnn == sv {
                         Some(clk)
                     } else {
@@ -41,7 +41,7 @@ fn plot_nav_data(rinex: &Rinex, plot_ctx: &mut PlotContext) {
         let sv_drift: Vec<_> = rinex
             .sv_clock()
             .filter_map(
-                |(_epoch, (svnn, (_, drift, _)))| {
+                |(_epoch, svnn, (_, drift, _))| {
                     if svnn == sv {
                         Some(drift)
                     } else {
