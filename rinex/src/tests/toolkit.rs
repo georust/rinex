@@ -1,4 +1,15 @@
 use crate::*;
+use rand::{distributions::Alphanumeric, Rng};
+/*
+ * Tool to generate random names when we need to produce a file
+ */
+pub fn random_name(size: usize) -> String {
+    rand::thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(size)
+        .map(char::from)
+        .collect()
+}
 /*
  * OBS RINEX thorough comparison
  */
