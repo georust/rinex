@@ -1292,30 +1292,28 @@ impl Rinex {
     ///     "sampling_histogram failed"
     /// );
     /// ```
-    pub fn sampling_histogram(&self) -> Box<dyn Iterator<Item = (Duration, usize)> + '_> {
+    pub fn sampling_histogram(&self) -> impl Iterator<Item = (Duration, usize)> {
         // compute dt = |e_k+1 - e_k| : instantaneous epoch delta
         //              then compute an histogram on these intervals
-        Box::new(
-            self.epoch()
-                .zip(self.epoch().skip(1))
-                .map(|(ek, ekp1)| ekp1 - ek) // following step computes the histogram
-                // and at the same time performs a .unique() like filter
-                .fold(vec![], |mut list, dt| {
-                    let mut found = false;
-                    for (delta, pop) in list.iter_mut() {
-                        if *delta == dt {
-                            *pop += 1;
-                            found = true;
-                            break;
-                        }
+        self.epoch()
+            .zip(self.epoch().skip(1))
+            .map(|(ek, ekp1)| ekp1 - ek) // following step computes the histogram
+            // and at the same time performs a .unique() like filter
+            .fold(vec![], |mut list, dt| {
+                let mut found = false;
+                for (delta, pop) in list.iter_mut() {
+                    if *delta == dt {
+                        *pop += 1;
+                        found = true;
+                        break;
                     }
-                    if !found {
-                        list.push((dt, 1));
-                    }
-                    list
-                })
-                .into_iter(),
-        )
+                }
+                if !found {
+                    list.push((dt, 1));
+                }
+                list
+            })
+            .into_iter()
     }
 
     /// Returns an iterator over unexpected data gaps,
@@ -1421,7 +1419,6 @@ impl Rinex {
             );
         }
     }
-
     /// Returns a unique [`Sv`] iterator, to navigate
     /// all Satellite Vehicles encountered and identified.
     /// This will panic if invoked on ATX, Meteo or IONEX records.
@@ -1530,7 +1527,6 @@ impl Rinex {
         //map.sort();
         //map
     }
-
     /// List all [`Sv`] per epoch of appearance.
     /// ```
     /// use rinex::prelude::*;
@@ -1622,61 +1618,55 @@ impl Rinex {
     ///     "parsed wrong GNSS context",
     /// );
     /// ```
-    pub fn constellation(&self) -> Box<dyn Iterator<Item = Constellation> + '_> {
+    pub fn constellation(&self) -> impl Iterator<Item = Constellation> + '_ {
         // from .sv() (unique) iterator:
         //  create a unique list of Constellations
-        Box::new(self.sv().map(|sv| sv.constellation).unique())
+        self.sv().map(|sv| sv.constellation).unique()
     }
     /// Returns an Iterator over Unique Constellations, per Epoch
-    pub fn constellation_epoch(
-        &self,
-    ) -> Box<dyn Iterator<Item = (Epoch, Vec<Constellation>)> + '_> {
-        Box::new(self.sv_epoch().map(|(epoch, svnn)| {
+    pub fn constellation_epoch(&self) -> impl Iterator<Item = (Epoch, Vec<Constellation>)> + '_ {
+        self.sv_epoch().map(|(epoch, svnn)| {
             (
                 epoch,
                 svnn.iter().map(|sv| sv.constellation).unique().collect(),
             )
-        }))
+        })
     }
     /// Returns a (unique) Iterator over all identified [`Observable`]s.
     /// This will panic if invoked on other than OBS and Meteo RINEX.
-    pub fn observable(&self) -> Box<dyn Iterator<Item = &Observable> + '_> {
+    pub fn observable(&self) -> impl Iterator<Item = &Observable> + '_ {
         if let Some(_) = self.record.as_obs() {
-            Box::new(
-                self.observation()
-                    .map(|(_, (_, svnn))| {
-                        svnn.iter()
-                            .flat_map(|(_sv, observables)| observables.keys())
-                    })
-                    .fold(vec![], |mut list, items| {
-                        // create a unique list
-                        for item in items {
-                            if !list.contains(&item) {
-                                list.push(item);
-                            }
+            self.observation()
+                .map(|(_, (_, svnn))| {
+                    svnn.iter()
+                        .flat_map(|(_sv, observables)| observables.keys())
+                })
+                .fold(vec![], |mut list, items| {
+                    // create a unique list
+                    for item in items {
+                        if !list.contains(&item) {
+                            list.push(item);
                         }
-                        list
-                    })
-                    .into_iter(),
-            )
+                    }
+                    list
+                })
+                .into_iter()
         } else if let Some(_) = self.record.as_meteo() {
-            Box::new(
-                self.meteo()
-                    .map(|(_, observables)| {
-                        observables.keys()
-                        //.copied()
-                    })
-                    .fold(vec![], |mut list, items| {
-                        // create a unique list
-                        for item in items {
-                            if !list.contains(&item) {
-                                list.push(item);
-                            }
+            self.meteo()
+                .map(|(_, observables)| {
+                    observables.keys()
+                    //.copied()
+                })
+                .fold(vec![], |mut list, items| {
+                    // create a unique list
+                    for item in items {
+                        if !list.contains(&item) {
+                            list.push(item);
                         }
-                        list
-                    })
-                    .into_iter(),
-            )
+                    }
+                    list
+                })
+                .into_iter()
         } else {
             panic!(
                 ".observable() is not feasible on \"{:?}\" RINEX",
@@ -1697,13 +1687,11 @@ impl Rinex {
     ///     }
     /// }
     /// ```
-    pub fn meteo(&self) -> Box<dyn Iterator<Item = (&Epoch, &HashMap<Observable, f64>)> + '_> {
-        Box::new(
-            self.record
-                .as_meteo()
-                .into_iter()
-                .flat_map(|record| record.iter()),
-        )
+    pub fn meteo(&self) -> impl Iterator<Item = (&Epoch, &HashMap<Observable, f64>)> {
+        self.record
+            .as_meteo()
+            .into_iter()
+            .flat_map(|record| record.iter())
     }
     /// Returns Observation record iterator. Unlike other records,
     /// an [`EpochFlag`] is attached to each individual [`Epoch`]
@@ -1742,23 +1730,19 @@ impl Rinex {
     /// ```
     pub fn observation(
         &self,
-    ) -> Box<
-        dyn Iterator<
-                Item = (
-                    &(Epoch, EpochFlag),
-                    &(
-                        Option<f64>,
-                        BTreeMap<Sv, HashMap<Observable, ObservationData>>,
-                    ),
-                ),
-            > + '_,
-    > {
-        Box::new(
-            self.record
-                .as_obs()
-                .into_iter()
-                .flat_map(|record| record.iter()),
-        )
+    ) -> impl Iterator<
+        Item = (
+            &(Epoch, EpochFlag),
+            &(
+                Option<f64>,
+                BTreeMap<Sv, HashMap<Observable, ObservationData>>,
+            ),
+        ),
+    > + '_ {
+        self.record
+            .as_obs()
+            .into_iter()
+            .flat_map(|record| record.iter())
     }
 }
 
@@ -1818,8 +1802,8 @@ impl Rinex {
     ///     assert!(flag.is_ok()); // no invalid epoch
     /// }
     /// ```
-    pub fn epoch_flag(&self) -> Box<dyn Iterator<Item = (Epoch, EpochFlag)> + '_> {
-        Box::new(self.observation().map(|(e, _)| *e))
+    pub fn epoch_flag(&self) -> impl Iterator<Item = (Epoch, EpochFlag)> + '_ {
+        self.observation().map(|(e, _)| *e)
     }
     /// Returns an Iterator over all abnormal [`Epoch`]s
     /// and reports given event nature.  
@@ -1829,16 +1813,9 @@ impl Rinex {
     /// let rnx = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
     ///     .unwrap();
     /// ```
-    pub fn epoch_anomalies(&self) -> Box<dyn Iterator<Item = (Epoch, EpochFlag)> + '_> {
-        Box::new(self.epoch_flag().filter_map(
-            |(e, f)| {
-                if !f.is_ok() {
-                    Some((e, f))
-                } else {
-                    None
-                }
-            },
-        ))
+    pub fn epoch_anomalies(&self) -> impl Iterator<Item = (Epoch, EpochFlag)> + '_ {
+        self.epoch_flag()
+            .filter_map(|(e, f)| if !f.is_ok() { Some((e, f)) } else { None })
     }
     /// Returns an iterator over all [`Epoch`]s that have
     /// an [`EpochFlag::Ok`] flag attached to them
@@ -1847,11 +1824,9 @@ impl Rinex {
     /// let rnx = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
     ///     .unwrap();
     /// ```
-    pub fn epoch_ok(&self) -> Box<dyn Iterator<Item = Epoch> + '_> {
-        Box::new(
-            self.epoch_flag()
-                .filter_map(|(e, f)| if f.is_ok() { Some(e) } else { None }),
-        )
+    pub fn epoch_ok(&self) -> impl Iterator<Item = Epoch> + '_ {
+        self.epoch_flag()
+            .filter_map(|(e, f)| if f.is_ok() { Some(e) } else { None })
     }
     /// Returns an iterator over all [`Epoch`]s where
     /// a Cycle Slip is declared by the receiver
@@ -1860,14 +1835,14 @@ impl Rinex {
     /// let rnx = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
     ///     .unwrap();
     /// ```
-    pub fn epoch_cs(&self) -> Box<dyn Iterator<Item = Epoch> + '_> {
-        Box::new(self.epoch_flag().filter_map(|(e, f)| {
+    pub fn epoch_cs(&self) -> impl Iterator<Item = Epoch> + '_ {
+        self.epoch_flag().filter_map(|(e, f)| {
             if f == EpochFlag::CycleSlip {
                 Some(e)
             } else {
                 None
             }
-        }))
+        })
     }
     /// Returns an iterator over receiver clock offsets, expressed in seconds.
     /// Such information is kind of rare (modern / dual frequency receivers?)
@@ -1881,14 +1856,14 @@ impl Rinex {
     ///     // clk: receiver clock offset [s]
     /// }
     /// ```
-    pub fn recvr_clock(&self) -> Box<dyn Iterator<Item = ((Epoch, EpochFlag), f64)> + '_> {
-        Box::new(self.observation().filter_map(|(e, (clk, _))| {
+    pub fn recvr_clock(&self) -> impl Iterator<Item = ((Epoch, EpochFlag), f64)> + '_ {
+        self.observation().filter_map(|(e, (clk, _))| {
             if let Some(clk) = clk {
                 Some((*e, *clk))
             } else {
                 None
             }
-        }))
+        })
     }
     /// Returns an iterator over raw phase data, expressed in whole cycles.
     /// ```
@@ -1910,8 +1885,8 @@ impl Rinex {
     /// ```
     pub fn carrier_phase(
         &self,
-    ) -> Box<dyn Iterator<Item = ((Epoch, EpochFlag), Sv, &Observable, f64)> + '_> {
-        Box::new(self.observation().flat_map(|(e, (_, vehicles))| {
+    ) -> impl Iterator<Item = ((Epoch, EpochFlag), Sv, &Observable, f64)> + '_ {
+        self.observation().flat_map(|(e, (_, vehicles))| {
             vehicles.iter().flat_map(|(sv, observations)| {
                 observations.iter().filter_map(|(obs, obsdata)| {
                     if obs.is_phase_observable() {
@@ -1921,7 +1896,7 @@ impl Rinex {
                     }
                 })
             })
-        }))
+        })
     }
     /// Returns an iterator over pseudo range observations.
     /// ```
@@ -1943,8 +1918,8 @@ impl Rinex {
     /// ```
     pub fn pseudo_range(
         &self,
-    ) -> Box<dyn Iterator<Item = ((Epoch, EpochFlag), Sv, &Observable, f64)> + '_> {
-        Box::new(self.observation().flat_map(|(e, (_, vehicles))| {
+    ) -> impl Iterator<Item = ((Epoch, EpochFlag), Sv, &Observable, f64)> + '_ {
+        self.observation().flat_map(|(e, (_, vehicles))| {
             vehicles.iter().flat_map(|(sv, observations)| {
                 observations.iter().filter_map(|(obs, obsdata)| {
                     if obs.is_pseudorange_observable() {
@@ -1954,7 +1929,7 @@ impl Rinex {
                     }
                 })
             })
-        }))
+        })
     }
     /// Returns an iterator over doppler shifts. A positive doppler
     /// means Sv is moving towards receiver.
@@ -1975,10 +1950,8 @@ impl Rinex {
     ///         }
     ///     });
     /// ```
-    pub fn doppler(
-        &self,
-    ) -> Box<dyn Iterator<Item = ((Epoch, EpochFlag), Sv, &Observable, f64)> + '_> {
-        Box::new(self.observation().flat_map(|(e, (_, vehicles))| {
+    pub fn doppler(&self) -> impl Iterator<Item = ((Epoch, EpochFlag), Sv, &Observable, f64)> + '_ {
+        self.observation().flat_map(|(e, (_, vehicles))| {
             vehicles.iter().flat_map(|(sv, observations)| {
                 observations.iter().filter_map(|(obs, obsdata)| {
                     if obs.is_doppler_observable() {
@@ -1988,7 +1961,7 @@ impl Rinex {
                     }
                 })
             })
-        }))
+        })
     }
     /// Returns an iterator over signal strength observations.
     /// ```
@@ -2008,8 +1981,8 @@ impl Rinex {
     ///         }
     ///     });
     /// ```
-    pub fn ssi(&self) -> Box<dyn Iterator<Item = ((Epoch, EpochFlag), Sv, &Observable, f64)> + '_> {
-        Box::new(self.observation().flat_map(|(e, (_, vehicles))| {
+    pub fn ssi(&self) -> impl Iterator<Item = ((Epoch, EpochFlag), Sv, &Observable, f64)> + '_ {
+        self.observation().flat_map(|(e, (_, vehicles))| {
             vehicles.iter().flat_map(|(sv, observations)| {
                 observations.iter().filter_map(|(obs, obsdata)| {
                     if obs.is_ssi_observable() {
@@ -2019,7 +1992,7 @@ impl Rinex {
                     }
                 })
             })
-        }))
+        })
     }
     /// Returns an Iterator over signal SNR indications.
     /// All observation that did not come with such indication are filtered out.
@@ -2442,8 +2415,8 @@ impl Rinex {
     ///     println!("ts: {}, value: {} °C", epoch, tmp);
     /// }
     /// ```
-    pub fn temperature(&self) -> Box<dyn Iterator<Item = (Epoch, f64)> + '_> {
-        Box::new(self.meteo().flat_map(|(epoch, v)| {
+    pub fn temperature(&self) -> impl Iterator<Item = (Epoch, f64)> + '_ {
+        self.meteo().flat_map(|(epoch, v)| {
             v.iter().filter_map(|(k, value)| {
                 if *k == Observable::Temperature {
                     Some((*epoch, *value))
@@ -2451,7 +2424,7 @@ impl Rinex {
                     None
                 }
             })
-        }))
+        })
     }
     /// Returns pressure data iterator, values expressed in hPa
     /// ```
@@ -2462,8 +2435,8 @@ impl Rinex {
     ///     println!("ts: {}, value: {} hPa", epoch, p);
     /// }
     /// ```
-    pub fn pressure(&self) -> Box<dyn Iterator<Item = (Epoch, f64)> + '_> {
-        Box::new(self.meteo().flat_map(|(epoch, v)| {
+    pub fn pressure(&self) -> impl Iterator<Item = (Epoch, f64)> + '_ {
+        self.meteo().flat_map(|(epoch, v)| {
             v.iter().filter_map(|(k, value)| {
                 if *k == Observable::Pressure {
                     Some((*epoch, *value))
@@ -2471,7 +2444,7 @@ impl Rinex {
                     None
                 }
             })
-        }))
+        })
     }
     /// Returns moisture rate iterator, values expressed in saturation rate percentage
     /// ```
@@ -2482,8 +2455,8 @@ impl Rinex {
     ///     println!("ts: {}, value: {} %", epoch, value);
     /// }
     /// ```
-    pub fn moisture(&self) -> Box<dyn Iterator<Item = (Epoch, f64)> + '_> {
-        Box::new(self.meteo().flat_map(|(epoch, v)| {
+    pub fn moisture(&self) -> impl Iterator<Item = (Epoch, f64)> + '_ {
+        self.meteo().flat_map(|(epoch, v)| {
             v.iter().filter_map(|(k, value)| {
                 if *k == Observable::HumidityRate {
                     Some((*epoch, *value))
@@ -2491,7 +2464,7 @@ impl Rinex {
                     None
                 }
             })
-        }))
+        })
     }
     /// Returns wind speed observations iterator, values in m/s
     /// ```
@@ -2502,8 +2475,8 @@ impl Rinex {
     ///     println!("ts: {}, value: {} m/s", epoch, speed);
     /// }
     /// ```
-    pub fn wind_speed(&self) -> Box<dyn Iterator<Item = (Epoch, f64)> + '_> {
-        Box::new(self.meteo().flat_map(|(epoch, v)| {
+    pub fn wind_speed(&self) -> impl Iterator<Item = (Epoch, f64)> + '_ {
+        self.meteo().flat_map(|(epoch, v)| {
             v.iter().filter_map(|(k, value)| {
                 if *k == Observable::WindSpeed {
                     Some((*epoch, *value))
@@ -2511,7 +2484,7 @@ impl Rinex {
                     None
                 }
             })
-        }))
+        })
     }
     /// Returns wind direction observations as azimuth in degrees
     /// ```
@@ -2522,8 +2495,8 @@ impl Rinex {
     ///     println!("ts: {}, azimuth: {}°", epoch, azimuth);
     /// }
     /// ```
-    pub fn wind_direction(&self) -> Box<dyn Iterator<Item = (Epoch, f64)> + '_> {
-        Box::new(self.meteo().flat_map(|(epoch, v)| {
+    pub fn wind_direction(&self) -> impl Iterator<Item = (Epoch, f64)> + '_ {
+        self.meteo().flat_map(|(epoch, v)| {
             v.iter().filter_map(|(k, value)| {
                 if *k == Observable::WindDirection {
                     Some((*epoch, *value))
@@ -2531,7 +2504,7 @@ impl Rinex {
                     None
                 }
             })
-        }))
+        })
     }
     /// Returns rain increment observations iterator, values in tenth of mm.
     /// Each value represents the accumulated rain drop in between two observations.
@@ -2543,8 +2516,8 @@ impl Rinex {
     ///     println!("ts: {}, accumulated: {} mm/10", epoch, ri);
     /// }
     /// ```
-    pub fn rain_increment(&self) -> Box<dyn Iterator<Item = (Epoch, f64)> + '_> {
-        Box::new(self.meteo().flat_map(|(epoch, v)| {
+    pub fn rain_increment(&self) -> impl Iterator<Item = (Epoch, f64)> + '_ {
+        self.meteo().flat_map(|(epoch, v)| {
             v.iter().filter_map(|(k, value)| {
                 if *k == Observable::RainIncrement {
                     Some((*epoch, *value))
@@ -2552,7 +2525,7 @@ impl Rinex {
                     None
                 }
             })
-        }))
+        })
     }
     /// Returns total (wet+dry) Zenith delay, in mm
     /// ```
@@ -2563,8 +2536,8 @@ impl Rinex {
     ///     println!("ts: {}, value: {} mm", epoch, value);
     /// }
     /// ```
-    pub fn zenith_delay(&self) -> Box<dyn Iterator<Item = (Epoch, f64)> + '_> {
-        Box::new(self.meteo().flat_map(|(epoch, v)| {
+    pub fn zenith_delay(&self) -> impl Iterator<Item = (Epoch, f64)> + '_ {
+        self.meteo().flat_map(|(epoch, v)| {
             v.iter().filter_map(|(k, value)| {
                 if *k == Observable::ZenithTotalDelay {
                     Some((*epoch, *value))
@@ -2572,7 +2545,7 @@ impl Rinex {
                     None
                 }
             })
-        }))
+        })
     }
     /// Returns Zenith dry delay, in mm
     /// ```
@@ -2583,8 +2556,8 @@ impl Rinex {
     ///     println!("ts: {}, value: {} mm", epoch, value);
     /// }
     /// ```
-    pub fn zenith_dry_delay(&self) -> Box<dyn Iterator<Item = (Epoch, f64)> + '_> {
-        Box::new(self.meteo().flat_map(|(epoch, v)| {
+    pub fn zenith_dry_delay(&self) -> impl Iterator<Item = (Epoch, f64)> + '_ {
+        self.meteo().flat_map(|(epoch, v)| {
             v.iter().filter_map(|(k, value)| {
                 if *k == Observable::ZenithDryDelay {
                     Some((*epoch, *value))
@@ -2592,7 +2565,7 @@ impl Rinex {
                     None
                 }
             })
-        }))
+        })
     }
     /// Returns Zenith wet delay, in mm
     /// ```
@@ -2603,8 +2576,8 @@ impl Rinex {
     ///     println!("ts: {}, value: {} mm", epoch, value);
     /// }
     /// ```
-    pub fn zenith_wet_delay(&self) -> Box<dyn Iterator<Item = (Epoch, f64)> + '_> {
-        Box::new(self.meteo().flat_map(|(epoch, v)| {
+    pub fn zenith_wet_delay(&self) -> impl Iterator<Item = (Epoch, f64)> + '_ {
+        self.meteo().flat_map(|(epoch, v)| {
             v.iter().filter_map(|(k, value)| {
                 if *k == Observable::ZenithWetDelay {
                     Some((*epoch, *value))
@@ -2612,7 +2585,7 @@ impl Rinex {
                     None
                 }
             })
-        }))
+        })
     }
     /// Returns true if rain was detected during this time frame.
     /// ```
