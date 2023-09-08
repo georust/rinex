@@ -1,5 +1,6 @@
+use crate::prelude::Constellation;
 use crate::types::Type;
-use hifitime::Epoch;
+use hifitime::{Duration, Epoch, TimeScale};
 use std::str::FromStr;
 use thiserror::Error;
 
@@ -204,6 +205,34 @@ pub(crate) fn parse(s: &str) -> Result<(Epoch, EpochFlag), Error> {
     }
 }
 
+pub(crate) fn parse_in_timescale(
+    s: &str,
+    constellation: Constellation,
+) -> Result<(Epoch, EpochFlag), Error> {
+    /*
+     * Interprated as UTC
+     */
+    let (mut epoch, flag) = parse(s)?;
+    /*
+     * Until Hifitime's API offer other means to do that can kind of construction..
+     */
+    match constellation {
+        Constellation::GPS | Constellation::QZSS => {
+            epoch.time_scale = TimeScale::GPST;
+            epoch -= Duration::from_seconds(18.0); // GPST(t=0) leap
+        },
+        Constellation::Galileo => {
+            epoch.time_scale = TimeScale::GST;
+            epoch -= Duration::from_seconds(31.0); // GST(t=0) leap
+        },
+        Constellation::BeiDou => {
+            epoch.time_scale = TimeScale::BDT;
+            epoch -= Duration::from_seconds(32.0); // BDT(t=0) leap
+        },
+        _ => {}, // not really supported as of today
+    }
+    Ok((epoch, flag))
+}
 #[cfg(test)]
 mod test {
     use super::*;

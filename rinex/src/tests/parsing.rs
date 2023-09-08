@@ -46,9 +46,31 @@ mod test {
                             assert!(rinex.is_navigation_rinex());
                             assert!(rinex.epoch().next().is_some());
                             assert!(rinex.epoch().count() > 0); // all files have content
-                                                                /*
-                                                                 * Verify ION logical correctness
-                                                                 */
+                            assert!(rinex.navigation().count() > 0); // all files have content
+                                                                     /*
+                                                                      * Verify interpreted time scale, for all Sv
+                                                                      */
+                            for (e, (_, sv, _)) in rinex.ephemeris() {
+                                match sv.constellation {
+                                    Constellation::GPS | Constellation::QZSS => assert!(
+                                        e.time_scale == TimeScale::GPST,
+                                        "wrong {} timescale for {}",
+                                        e.time_scale,
+                                        sv
+                                    ),
+                                    Constellation::Galileo => assert!(
+                                        e.time_scale == TimeScale::GST,
+                                        "wrong {} timescale for {}",
+                                        e.time_scale,
+                                        sv
+                                    ),
+                                    // Constellation::BeiDou => assert!(e.time_scale == TimeScale::BDT, "wrong {} timescale for {}", e.time_scale, sv),
+                                    _ => {}, //TODO
+                                }
+                            }
+                            /*
+                             * Verify ION logical correctness
+                             */
                             for (_, (msg, sv, ion_msg)) in rinex.ionosphere_models() {
                                 match sv.constellation {
                                     Constellation::GPS => {
@@ -136,31 +158,35 @@ mod test {
                             assert!(rinex.header.obs.is_some());
                             assert!(rinex.is_observation_rinex());
                             assert!(rinex.epoch().count() > 0); // all files have content
-                                                                /*
-                                                                                            let gf = rinex.observation_gf_combinations();
-                                                                                            let nl = rinex.observation_nl_combinations();
-                                                                                            let wl = rinex.observation_wl_combinations();
-                                                                                            let mw = rinex.observation_mw_combinations();
+                            assert!(rinex.observation().count() > 0); // all files have content
+                                                                      /*
+                                                                       * test interpreted time scale
+                                                                       */
+                            /*
+                                                        let gf = rinex.observation_gf_combinations();
+                                                        let nl = rinex.observation_nl_combinations();
+                                                        let wl = rinex.observation_wl_combinations();
+                                                        let mw = rinex.observation_mw_combinations();
 
-                                                                                            let mut gf_combinations: Vec<_> = gf.keys().collect();
-                                                                                            let mut nl_combinations: Vec<_> = nl.keys().collect();
-                                                                                            let mut wl_combinations: Vec<_> = wl.keys().collect();
-                                                                                            let mut mw_combinations: Vec<_> = mw.keys().collect();
+                                                        let mut gf_combinations: Vec<_> = gf.keys().collect();
+                                                        let mut nl_combinations: Vec<_> = nl.keys().collect();
+                                                        let mut wl_combinations: Vec<_> = wl.keys().collect();
+                                                        let mut mw_combinations: Vec<_> = mw.keys().collect();
 
-                                                                                            gf_combinations.sort();
-                                                                                            nl_combinations.sort();
-                                                                                            wl_combinations.sort();
-                                                                                            mw_combinations.sort();
+                                                        gf_combinations.sort();
+                                                        nl_combinations.sort();
+                                                        wl_combinations.sort();
+                                                        mw_combinations.sort();
 
-                                                                                            assert_eq!(gf_combinations, nl_combinations);
-                                                                                            assert_eq!(gf_combinations, wl_combinations);
-                                                                                            assert_eq!(gf_combinations, mw_combinations);
+                                                        assert_eq!(gf_combinations, nl_combinations);
+                                                        assert_eq!(gf_combinations, wl_combinations);
+                                                        assert_eq!(gf_combinations, mw_combinations);
 
-                                                                                            assert_eq!(nl_combinations, wl_combinations);
-                                                                                            assert_eq!(nl_combinations, mw_combinations);
+                                                        assert_eq!(nl_combinations, wl_combinations);
+                                                        assert_eq!(nl_combinations, mw_combinations);
 
-                                                                                            assert_eq!(wl_combinations, mw_combinations);
-                                                                */
+                                                        assert_eq!(wl_combinations, mw_combinations);
+                            */
                         },
                         "CRNX" => {
                             assert!(rinex.header.obs.is_some());
@@ -170,6 +196,14 @@ mod test {
                         "MET" => {
                             assert!(rinex.is_meteo_rinex());
                             assert!(rinex.epoch().count() > 0); // all files have content
+                            assert!(rinex.meteo().count() > 0); // all files have content
+                            for (e, _) in rinex.meteo() {
+                                assert!(
+                                    e.time_scale == TimeScale::UTC,
+                                    "wrong {} time scale for a METEO RINEX",
+                                    e.time_scale
+                                );
+                            }
                         },
                         "CLK" => {
                             assert!(rinex.is_clocks_rinex());

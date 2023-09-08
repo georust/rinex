@@ -349,6 +349,8 @@ impl Rinex {
                     clock_offset_applied: params.clock_offset_applied,
                     dcb_compensations: params.dcb_compensations.clone(),
                     scalings: params.scalings.clone(),
+                    time_of_first_obs: params.time_of_first_obs,
+                    time_of_last_obs: params.time_of_last_obs,
                 });
         }
     }

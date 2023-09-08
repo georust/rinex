@@ -13,6 +13,7 @@ use crate::{
     Observable,
 };
 
+use hifitime::Epoch;
 use std::io::prelude::*;
 use std::str::FromStr;
 use strum_macros::EnumString;
@@ -601,6 +602,12 @@ impl Header {
                 // + source of corrections (url)
                 // <o repeated for each satellite system
                 // <o blank field when no corrections applied
+            } else if marker.contains("TIME OF FIRST OBS") {
+                let time_of_first_obs = Self::parse_time_of_obs(content)?;
+                observation = observation.with_time_of_first_obs(time_of_first_obs);
+            } else if marker.contains("TIME OF LAST OBS") {
+                let time_of_last_obs = Self::parse_time_of_obs(content)?;
+                observation = observation.with_time_of_last_obs(time_of_last_obs);
             } else if marker.contains("TYPES OF OBS") {
                 // these observations can serve both Observation & Meteo RINEX
                 let (_, content) = content.split_at(6);
@@ -1077,6 +1084,14 @@ impl Header {
                 if let Some(d0) = &self.obs {
                     if let Some(d1) = &header.obs {
                         Some(observation::HeaderFields {
+                            time_of_first_obs: std::cmp::min(
+                                d0.time_of_first_obs,
+                                d1.time_of_first_obs,
+                            ),
+                            time_of_last_obs: std::cmp::max(
+                                d0.time_of_last_obs,
+                                d1.time_of_last_obs,
+                            ),
                             crinex: d0.crinex.clone(),
                             codes: {
                                 let mut map = d0.codes.clone();
@@ -1365,6 +1380,10 @@ impl Header {
         let mut s = self.clone();
         s.obs = Some(fields);
         s
+    }
+
+    fn parse_time_of_obs(content: &str) -> Result<Epoch, Error> {
+        Ok(Epoch::default())
     }
 }
 

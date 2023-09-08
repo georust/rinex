@@ -146,28 +146,32 @@ impl Ephemeris {
 
         let (svnn, rem) = line.split_at(svnn_offset);
         let (date, rem) = rem.split_at(date_offset);
-        let (epoch, _) = epoch::parse(date.trim())?;
         let (clk_bias, rem) = rem.split_at(19);
         let (clk_dr, clk_drr) = rem.split_at(19);
 
-        let sv: Sv = match version.major {
+        let mut sv = Sv::default();
+        let mut epoch = Epoch::default();
+
+        match version.major {
             1 | 2 => {
                 match constellation {
                     Constellation::Mixed => {
                         // not sure that even exists
-                        Sv::from_str(svnn.trim())?
+                        sv = Sv::from_str(svnn.trim())?
                     },
                     _ => {
-                        Sv {
-                            constellation, // constellation.clone(),
-                            prn: u8::from_str_radix(svnn.trim(), 10)?,
-                        }
+                        sv.constellation = constellation;
+                        sv.prn = u8::from_str_radix(svnn.trim(), 10)?;
                     },
                 }
             },
-            3 => Sv::from_str(svnn.trim())?,
-            _ => unreachable!(),
+            3 => {
+                sv = Sv::from_str(svnn.trim())?;
+            },
+            _ => unreachable!("V4 is treated in a dedicated method"),
         };
+
+        let (epoch, _) = epoch::parse_in_timescale(date.trim(), sv.constellation)?;
 
         let clock_bias = f64::from_str(clk_bias.replace("D", "E").trim())?;
         let clock_drift = f64::from_str(clk_dr.replace("D", "E").trim())?;
@@ -202,7 +206,7 @@ impl Ephemeris {
         let (svnn, rem) = line.split_at(4);
         let sv = Sv::from_str(svnn.trim())?;
         let (epoch, rem) = rem.split_at(19);
-        let (epoch, _) = epoch::parse(epoch.trim())?;
+        let (epoch, _) = epoch::parse_in_timescale(epoch.trim(), sv.constellation)?;
 
         let (clk_bias, rem) = rem.split_at(19);
         let (clk_dr, clk_drr) = rem.split_at(19);
@@ -302,21 +306,21 @@ impl Ephemeris {
         // Hifitime v4, once released, will help here
         let mut t_sv = epoch.clone();
 
-        match sv.constellation {
-            Constellation::GPS | Constellation::QZSS => {
-                t_sv.time_scale = TimeScale::GPST;
-                t_sv -= Duration::from_seconds(18.0); // GPST(t=0) number of leap seconds @ the time
-            },
-            Constellation::Galileo => {
-                t_sv.time_scale = TimeScale::GST;
-                t_sv -= Duration::from_seconds(31.0); // GST(t=0) number of leap seconds @ the time
-            },
-            Constellation::BeiDou => {
-                t_sv.time_scale = TimeScale::BDT;
-                t_sv -= Duration::from_seconds(32.0); // BDT(t=0) number of leap seconds @ the time
-            },
-            _ => {}, // either not needed, or most probably not truly supported
-        }
+        //match sv.constellation {
+        //    Constellation::GPS | Constellation::QZSS => {
+        //        t_sv.time_scale = TimeScale::GPST;
+        //        t_sv -= Duration::from_seconds(18.0); // GPST(t=0) number of leap seconds @ the time
+        //    },
+        //    Constellation::Galileo => {
+        //        t_sv.time_scale = TimeScale::GST;
+        //        t_sv -= Duration::from_seconds(31.0); // GST(t=0) number of leap seconds @ the time
+        //    },
+        //    Constellation::BeiDou => {
+        //        t_sv.time_scale = TimeScale::BDT;
+        //        t_sv -= Duration::from_seconds(32.0); // BDT(t=0) number of leap seconds @ the time
+        //    },
+        //    _ => {}, // either not needed, or most probably not truly supported
+        //}
 
         let kepler = self.kepler()?;
         let perturbations = self.perturbations()?;
