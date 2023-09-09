@@ -202,10 +202,6 @@ pub enum ParsingError {
     LeapParsingError(#[from] leap::Error),
     #[error("failed to parse antenna / receiver infos")]
     AntennaRcvrError(#[from] std::io::Error),
-    #[error("failed to parse integer value")]
-    ParseIntError(#[from] std::num::ParseIntError),
-    #[error("failed to parse float value")]
-    ParseFloatError(#[from] std::num::ParseFloatError),
     #[error("failed to parse ANTEX fields")]
     AntexParsingError(#[from] antex::record::Error),
     #[error("failed to parse PCV field")]
@@ -218,6 +214,10 @@ pub enum ParsingError {
     CrinexHeader(String, String),
     #[error("failed to parse datetime {0} field from \"{1}\"")]
     DateTimeParsing(String, String),
+    #[error("failed to parse {0} integer value from \"{1}\"")]
+    ParseIntError(String, String),
+    #[error("failed to parse {0} float value from \"{1}\"")]
+    ParseFloatError(String, String),
 }
 
 fn parse_formatted_month(content: &str) -> Result<u8, ParsingError> {
@@ -239,6 +239,15 @@ fn parse_formatted_month(content: &str) -> Result<u8, ParsingError> {
             content.to_string(),
         )),
     }
+}
+
+/*
+ * Generates a ParsingError::ParseIntError(x, y)
+ */
+macro_rules! parse_int_error {
+    ($field: expr, $content: expr) => {
+        ParsingError::ParseIntError(String::from($field), $content.to_string())
+    };
 }
 
 impl Header {
@@ -568,6 +577,26 @@ impl Header {
                 dcb_compensations.push(dcb);
             } else if marker.contains("SYS / SCALE FACTOR") {
                 let (gnss, rem) = content.split_at(2);
+                let gnss = Constellation::from_str(gnss.trim())?;
+
+                let (factor, rem) = rem.split_at(6);
+                let factor = factor.trim();
+
+                let scaling = u32::from_str_radix(factor, 10)
+                    .or(Err(parse_int_error!("SYS / SCALE FACTOR", factor)))?;
+
+                let (num, rem) = rem.split_at(3);
+                /*
+                 * parse first line
+                 */
+                let mut len = rem.len();
+                let mut rem = rem.clone();
+
+                while len > 0 {
+                    let (observable, r) = rem.split_at(4);
+                    rem = r.clone();
+                    len = rem.len();
+                }
             } else if marker.contains("SENSOR MOD/TYPE/ACC") {
                 if let Ok(sensor) = meteo::sensor::Sensor::from_str(content) {
                     meteo.sensors.push(sensor)
@@ -727,9 +756,10 @@ impl Header {
                 //TODO
             } else if marker.contains("RCV CLOCK OFFS APPL") {
                 let value = content.split_at(20).0.trim();
-                if let Ok(n) = i32::from_str_radix(value, 10) {
-                    observation.clock_offset_applied = n > 0;
-                }
+                let n = i32::from_str_radix(value, 10)
+                    .or(Err(parse_int_error!("RCV CLOCK OFFS APPL", value)))?;
+
+                observation.clock_offset_applied = n > 0;
             } else if marker.contains("# OF SATELLITES") {
                 // ---> we don't need this info,
                 //     user can determine it by analyzing the record
@@ -821,7 +851,10 @@ impl Header {
                 });
             } else if marker.contains("# / TYPES OF DATA") {
                 let (n, r) = content.split_at(6);
-                let n = u8::from_str_radix(n.trim(), 10)?;
+                let n = n.trim();
+                let n =
+                    u8::from_str_radix(n, 10).or(Err(parse_int_error!("# / TYPES OF DATA", n)))?;
+
                 let mut rem = r.clone();
                 for _ in 0..n {
                     let (code, r) = rem.split_at(6);

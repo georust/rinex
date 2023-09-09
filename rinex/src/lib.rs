@@ -1948,7 +1948,7 @@ impl Rinex {
                             // apply a scaling, if any, otherwise : leave data untouched
                             // to preserve its precision
                             if let Some(scaling) = header.scaling(&sv.constellation, observable) {
-                                Some((*e, *sv, observable, obsdata.obs / scaling))
+                                Some((*e, *sv, observable, obsdata.obs / *scaling as f64))
                             } else {
                                 Some((*e, *sv, observable, obsdata.obs))
                             }
