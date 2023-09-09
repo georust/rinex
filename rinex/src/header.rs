@@ -208,8 +208,6 @@ pub enum ParsingError {
     ParsePcvError(#[from] antex::pcv::Error),
     #[error("unknown ionex reference")]
     UnknownReferenceIonex(#[from] ionex::system::Error),
-    #[error("faulty ionex grid definition")]
-    IonexGridError(#[from] ionex::grid::Error),
     #[error("invalid crinex header \"{0}\": \"{1}\"")]
     CrinexHeader(String, String),
     #[error("failed to parse datetime {0} field from \"{1}\"")]
@@ -218,6 +216,10 @@ pub enum ParsingError {
     ParseIntError(String, String),
     #[error("failed to parse {0} float value from \"{1}\"")]
     ParseFloatError(String, String),
+    #[error("failed to parse ionex grid {0} from \"{1}\"")]
+    InvalidIonexGrid(String, String),
+    #[error("invalid ionex grid definition")]
+    InvalidIonexGridDefinition(#[from] ionex::grid::Error),
 }
 
 fn parse_formatted_month(content: &str) -> Result<u8, ParsingError> {
@@ -247,6 +249,24 @@ fn parse_formatted_month(content: &str) -> Result<u8, ParsingError> {
 macro_rules! parse_int_error {
     ($field: expr, $content: expr) => {
         ParsingError::ParseIntError(String::from($field), $content.to_string())
+    };
+}
+
+/*
+ * Generates a ParsingError::ParseFloatError(x, y)
+ */
+macro_rules! parse_float_error {
+    ($field: expr, $content: expr) => {
+        ParsingError::ParseFloatError(String::from($field), $content.to_string())
+    };
+}
+
+/*
+ * Generates a ParsingError::InvalidIonexGridError(x, y)
+ */
+macro_rules! grid_format_error {
+    ($field: expr, $content: expr) => {
+        ParsingError::InvalidIonexGrid(String::from($field), $content.to_string())
     };
 }
 
@@ -967,51 +987,92 @@ impl Header {
             } else if marker.contains("HGT1 / HGT2 / DHGT") {
                 let items: Vec<&str> = content.split_ascii_whitespace().collect();
                 if items.len() == 3 {
-                    if let Ok(start) = f64::from_str(items[0].trim()) {
-                        if let Ok(end) = f64::from_str(items[1].trim()) {
-                            if let Ok(spacing) = f64::from_str(items[2].trim()) {
-                                let grid = match spacing == 0.0 {
-                                    true => {
-                                        // special case, 2D fixed altitude
-                                        ionex::GridLinspace {
-                                            // avoid verifying the Linspace in this case
-                                            start,
-                                            end,
-                                            spacing: 0.0,
-                                        }
-                                    },
-                                    _ => ionex::GridLinspace::new(start, end, spacing)?,
-                                };
-                                ionex = ionex.with_altitude_grid(grid);
+                    let start = items[0].trim();
+                    let start = f64::from_str(start).or(Err(parse_float_error!(
+                        "ionex (alt) grid first coordinates",
+                        start
+                    )))?;
+
+                    let end = items[1].trim();
+                    let end = f64::from_str(end).or(Err(parse_float_error!(
+                        "ionex (alt) grid last coordinates",
+                        end
+                    )))?;
+
+                    let spacing = items[2].trim();
+                    let spacing = f64::from_str(spacing).or(Err(parse_float_error!(
+                        "ionex (alt) grid coordinates spacing",
+                        spacing
+                    )))?;
+
+                    let grid = match spacing == 0.0 {
+                        true => {
+                            // special case, 2D fixed altitude
+                            ionex::GridLinspace {
+                                // avoid verifying the Linspace in this case
+                                start,
+                                end,
+                                spacing: 0.0,
                             }
-                        }
-                    }
+                        },
+                        _ => ionex::GridLinspace::new(start, end, spacing)?,
+                    };
+
+                    ionex = ionex.with_altitude_grid(grid);
+                } else {
+                    return Err(grid_format_error!("HGT1 / HGT2 / DGHT", content));
                 }
             } else if marker.contains("LAT1 / LAT2 / DLAT") {
                 let items: Vec<&str> = content.split_ascii_whitespace().collect();
                 if items.len() == 3 {
-                    if let Ok(start) = f64::from_str(items[0].trim()) {
-                        if let Ok(end) = f64::from_str(items[1].trim()) {
-                            if let Ok(spacing) = f64::from_str(items[2].trim()) {
-                                ionex = ionex.with_latitude_grid(ionex::GridLinspace::new(
-                                    start, end, spacing,
-                                )?);
-                            }
-                        }
-                    }
+                    let start = items[0].trim();
+                    let start = f64::from_str(start).or(Err(parse_float_error!(
+                        "ionex (lat) grid first coordinates",
+                        start
+                    )))?;
+
+                    let end = items[1].trim();
+                    let end = f64::from_str(end).or(Err(parse_float_error!(
+                        "ionex (lat) grid last coordinates",
+                        end
+                    )))?;
+
+                    let spacing = items[2].trim();
+                    let spacing = f64::from_str(spacing).or(Err(parse_float_error!(
+                        "ionex (lat) grid coordinates spacing",
+                        spacing
+                    )))?;
+
+                    ionex =
+                        ionex.with_latitude_grid(ionex::GridLinspace::new(start, end, spacing)?);
+                } else {
+                    return Err(grid_format_error!("LAT1 / LAT2 / DLAT", content));
                 }
             } else if marker.contains("LON1 / LON2 / DLON") {
                 let items: Vec<&str> = content.split_ascii_whitespace().collect();
                 if items.len() == 3 {
-                    if let Ok(start) = f64::from_str(items[0].trim()) {
-                        if let Ok(end) = f64::from_str(items[1].trim()) {
-                            if let Ok(spacing) = f64::from_str(items[2].trim()) {
-                                ionex = ionex.with_longitude_grid(ionex::GridLinspace::new(
-                                    start, end, spacing,
-                                )?);
-                            }
-                        }
-                    }
+                    let start = items[0].trim();
+                    let start = f64::from_str(start).or(Err(parse_float_error!(
+                        "ionex (lon) grid first coordinates",
+                        start
+                    )))?;
+
+                    let end = items[1].trim();
+                    let end = f64::from_str(end).or(Err(parse_float_error!(
+                        "ionex (lon) grid last coordinates",
+                        end
+                    )))?;
+
+                    let spacing = items[2].trim();
+                    let spacing = f64::from_str(spacing).or(Err(parse_float_error!(
+                        "ionex (lon) grid coordinates spacing",
+                        spacing
+                    )))?;
+
+                    ionex =
+                        ionex.with_longitude_grid(ionex::GridLinspace::new(start, end, spacing)?);
+                } else {
+                    return Err(grid_format_error!("LON1 / LON2 / DLON", content));
                 }
             } else if marker.contains("PRN / BIAS / RMS") {
                 // differential PR code analysis
