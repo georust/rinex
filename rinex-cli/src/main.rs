@@ -11,9 +11,6 @@ mod plot; // plotting operations
 mod preprocessing;
 use preprocessing::preprocess;
 
-mod solver;
-use solver::Solver;
-
 //use horrorshow::Template;
 use rinex::{
     merge::Merge,
@@ -205,8 +202,6 @@ pub fn main() -> Result<(), rinex::Error> {
     // Build file context
     let mut ctx = create_context(&cli);
 
-    let mut solver = Solver::from(&ctx);
-
     // Workspace
     let workspace = workspace_path(&ctx);
     info!("workspace is \"{}\"", workspace.to_string_lossy());
@@ -226,20 +221,6 @@ pub fn main() -> Result<(), rinex::Error> {
         info!("using reference position {}", pos);
     } else {
         info!("no reference position given or identified");
-    }
-    /*
-     * print more info on possible solver to deploy
-     */
-    if let Ok(solver) = solver {
-        info!(
-            "provided context is compatible with {} position solver",
-            solver.solver
-        );
-        if !cli.positioning() {
-            warn!("position solver currently turned off");
-        }
-    } else {
-        info!("context is not sufficient for any position solving method");
     }
 
     /*
