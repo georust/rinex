@@ -21,11 +21,12 @@ use thiserror::Error;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, PartialEq, Eq, EnumString)]
+#[derive(Default, Clone, Debug, PartialEq, Eq, EnumString)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum MarkerType {
     /// Earth fixed & high precision
     #[strum(serialize = "GEODETIC", serialize = "Geodetic")]
+    #[default]
     Geodetic,
     /// Earth fixed & low precision
     #[strum(serialize = "NON GEODETIC", serialize = "NonGeodetic")]
@@ -66,12 +67,6 @@ pub enum MarkerType {
     /// Human being carrying a receiver
     #[strum(serialize = "HUMAN", serialize = "Human")]
     Human,
-}
-
-impl Default for MarkerType {
-    fn default() -> Self {
-        Self::Geodetic
-    }
 }
 
 /// DCB compensation description
