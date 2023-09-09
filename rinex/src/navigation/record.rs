@@ -1370,7 +1370,7 @@ fn mask_mut_ineq(rec: &mut Record, target: TargetItem) {
                         false
                     }
                 });
-                frames.len() > 0
+                !frames.is_empty()
             });
         },
         TargetItem::NavMsgItem(filter) => {
@@ -1388,7 +1388,7 @@ fn mask_mut_ineq(rec: &mut Record, target: TargetItem) {
                         false
                     }
                 });
-                frames.len() > 0
+                !frames.is_empty()
             });
         },
         _ => {}, // Other items: either not supported, or do not apply
@@ -1442,7 +1442,7 @@ fn mask_mut_leq(rec: &mut Record, target: TargetItem) {
                         false
                     }
                 });
-                frames.len() > 0
+                !frames.is_empty()
             });
         },
         _ => {}, // Other items: either not supported, or do not apply
@@ -1496,7 +1496,7 @@ fn mask_mut_lt(rec: &mut Record, target: TargetItem) {
                         false
                     }
                 });
-                frames.len() > 0
+                !frames.is_empty()
             });
         },
         _ => {}, // Other items: either not supported, or do not apply

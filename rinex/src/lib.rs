@@ -227,7 +227,7 @@ impl Rinex {
         Rinex {
             header: self.header.clone(),
             comments: self.comments.clone(),
-            record: record,
+            record,
         }
     }
 
@@ -1229,9 +1229,9 @@ impl Rinex {
                         false
                     }
                 });
-                systems.len() > 0
+                !systems.is_empty()
             });
-            dtypes.len() > 0
+            !dtypes.is_empty()
         })
     }
     /// Writes self into given file.   
@@ -1586,7 +1586,7 @@ impl Rinex {
             Box::new(
                 // grab all vehicles identified through all Epochs
                 // and fold them into individual lists
-                record.into_iter().map(|((epoch, _), (_clk, entries))| {
+                record.iter().map(|((epoch, _), (_clk, entries))| {
                     (*epoch, entries.keys().unique().cloned().collect())
                 }),
             )
@@ -1594,7 +1594,7 @@ impl Rinex {
             Box::new(
                 // grab all vehicles through all epochs,
                 // fold them into individual lists
-                record.into_iter().map(|(epoch, frames)| {
+                record.iter().map(|(epoch, frames)| {
                     (
                         *epoch,
                         frames
