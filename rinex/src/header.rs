@@ -206,6 +206,10 @@ pub enum ParsingError {
     UnknownReferenceIonex(#[from] ionex::system::Error),
     #[error("faulty ionex grid definition")]
     IonexGridError(#[from] ionex::grid::Error),
+    #[error("invalid crinex header \"{0}\": \"{1}\"")]
+    CrinexHeader(String, String),
+    #[error("failed to parse datetime {} field from \"{1}\"")]
+    DateTimeParsing(String, String),
 }
 
 impl Default for Header {
@@ -317,24 +321,47 @@ impl Header {
                 let (_, remainder) = remainder.split_at(20);
                 let date = remainder.split_at(20).0.trim();
                 let items: Vec<&str> = date.split_ascii_whitespace().collect();
-                if items.len() == 2 {
-                    let date: Vec<&str> = items[0].split("-").collect();
-                    let time: Vec<&str> = items[1].split(":").collect();
-                    if let Ok(d) = u8::from_str_radix(date[0], 10) {
-                        let month = from_b_fmt_month!(date[1]);
-                        if let Ok(mut y) = i32::from_str_radix(date[2].trim(), 10) {
-                            if let Ok(h) = u8::from_str_radix(time[0].trim(), 10) {
-                                if let Ok(m) = u8::from_str_radix(time[1].trim(), 10) {
-                                    if let Some(crinex) = &mut observation.crinex {
-                                        y += 2000;
-                                        let date =
-                                            Epoch::from_gregorian_utc(y, month, d, h, m, 0, 0);
-                                        *crinex = crinex.with_prog(prog.trim()).with_date(date);
-                                    }
-                                }
-                            }
-                        }
-                    }
+                if items.len() != 2 {
+                    return Err(ParsingError::CrinexHeader(
+                        String::from("CRINEX PROG/DATE"),
+                        content.to_string(),
+                    ));
+                }
+
+                let date: Vec<&str> = items[0].split("-").collect();
+                let time: Vec<&str> = items[1].split(":").collect();
+
+                let day = date[0].trim();
+                let day = u8::from_str_radix(day, 10).or(Err(ParsingError::DateTimeParsing(
+                    String::from("day"),
+                    day.to_string(),
+                )))?;
+
+                let month = date[1].trim();
+                let month = from_b_fmt_month!(month);
+
+                let y = date[2].trim();
+                let mut y = i32::from_str_radix(y, 10).or(Err(ParsingError::DateTimeParsing(
+                    String::from("year"),
+                    y.to_string(),
+                )))?;
+
+                let h = time[0].trim();
+                let h = u8::from_str_radix(h, 10).or(Err(ParsingError::DateTimeParsing(
+                    String::from("hour"),
+                    h.to_string(),
+                )))?;
+
+                let m = time[1].trim();
+                let m = u8::from_str_radix(m, 10).or(Err(ParsingError::DateTimeParsing(
+                    String::from("minute"),
+                    m.to_string(),
+                )))?;
+
+                if let Some(crinex) = &mut observation.crinex {
+                    y += 2000;
+                    let date = Epoch::from_gregorian_utc(y, month, day, h, m, 0, 0);
+                    *crinex = crinex.with_prog(prog.trim()).with_date(date);
                 }
 
             ////////////////////////////////////////
