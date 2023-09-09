@@ -129,13 +129,9 @@ impl HeaderFields {
     }
     /// Returns given scaling to apply for given GNSS system
     /// and given observation. Returns 1.0 by default, so it always applies
-    pub fn scaling(&self, c: &Constellation, observable: Observable) -> f64 {
-        if let Some(scalings) = self.scalings.get(c) {
-            if let Some(scaling) = scalings.get(&observable) {
-                return *scaling;
-            }
-        }
-        1.0
+    pub(crate) fn scaling(&self, c: &Constellation, observable: &Observable) -> Option<&f64> {
+        let scalings = self.scalings.get(c)?;
+        scalings.get(observable)
     }
 
     /// Emphasize that DCB is compensated for

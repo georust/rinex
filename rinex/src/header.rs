@@ -208,7 +208,7 @@ pub enum ParsingError {
     IonexGridError(#[from] ionex::grid::Error),
     #[error("invalid crinex header \"{0}\": \"{1}\"")]
     CrinexHeader(String, String),
-    #[error("failed to parse datetime {} field from \"{1}\"")]
+    #[error("failed to parse datetime {0} field from \"{1}\"")]
     DateTimeParsing(String, String),
 }
 

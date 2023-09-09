@@ -1710,8 +1710,10 @@ impl Rinex {
     /// to either validated or invalidate it.
     /// Clock receiver offset (in seconds), if present, are defined for each individual
     /// [`Epoch`].
-    /// Phase data is preserved as exposed in the file, use the processing
-    /// methods in case you need to scale it, or align its origin (starting point) for example.
+    /// Phase data is exposed as raw / unscaled data: therefore incorrect
+    /// values in case of High Precision RINEX. Prefer the dedicated 
+    /// [Self::carrier_phase] iterator. In any case, you should always
+    /// prefer the iteration method of the type of data you're interested in.
     /// ```
     /// use rinex::prelude::*;
     /// use rinex::{observable, sv}; // macros
@@ -1753,11 +1755,11 @@ impl Rinex {
                 ),
             > + '_,
     > {
-        Box::new(
-            self.record
-                .as_obs()
-                .into_iter()
-                .flat_map(|record| record.iter()),
+            Box::new(
+                self.record
+                    .as_obs()
+                    .into_iter()
+                    .flat_map(|record| record.iter())
         )
     }
 }
@@ -1890,7 +1892,9 @@ impl Rinex {
             }
         }))
     }
-    /// Returns an iterator over raw phase data, expressed in whole cycles.
+    /// Returns an iterator over phase data, expressed in (whole) carrier cycles.
+    /// If Self is a High Precision RINEX (scaled RINEX), data is correctly scaled.
+    /// High precision RINEX allows up to 100 pico carrier cycle precision.
     /// ```
     /// use rinex::prelude::*;
     /// use rinex::observable;
@@ -1913,9 +1917,19 @@ impl Rinex {
     ) -> Box<dyn Iterator<Item = ((Epoch, EpochFlag), Sv, &Observable, f64)> + '_> {
         Box::new(self.observation().flat_map(|(e, (_, vehicles))| {
             vehicles.iter().flat_map(|(sv, observations)| {
-                observations.iter().filter_map(|(obs, obsdata)| {
-                    if obs.is_phase_observable() {
-                        Some((*e, *sv, obs, obsdata.obs))
+                observations.iter().filter_map(|(observable, obsdata)| {
+                    if observable.is_phase_observable() {
+                        if let Some(header) = &self.header.obs {
+                            // apply a scaling, if any, otherwise : leave data untouched
+                            // to preserve its precision
+                            if let Some(scaling) = header.scaling(&sv.constellation, observable) {
+                                Some((*e, *sv, observable, obsdata.obs / scaling))
+                            } else {
+                                Some((*e, *sv, observable, obsdata.obs))
+                            }
+                        } else {
+                            Some((*e, *sv, observable, obsdata.obs))
+                        }
                     } else {
                         None
                     }
