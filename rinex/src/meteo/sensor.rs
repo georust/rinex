@@ -22,8 +22,8 @@ pub struct Sensor {
 
 #[derive(Error, Debug)]
 pub enum ParseSensorError {
-    #[error("failed to identify observable")]
-    ParseObservableError(#[from] observable::Error),
+    #[error("observable parsing error")]
+    ObservableParsingErro(#[from] observable::ParsingError),
     #[error("failed to parse accuracy field")]
     ParseFloatError(#[from] std::num::ParseFloatError),
 }

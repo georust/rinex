@@ -41,7 +41,7 @@ impl std::str::FromStr for Receiver {
         Ok(Receiver {
             station: station.trim().to_string(),
             constellation: {
-                if let Ok(c) = Constellation::from_1_letter_code(constellation.trim()) {
+                if let Ok(c) = Constellation::from_str(constellation.trim()) {
                     Some(c)
                 } else {
                     None

@@ -191,7 +191,7 @@ pub struct Rinex {
 /// `RINEX` Parsing related errors
 pub enum Error {
     #[error("header parsing error")]
-    HeaderError(#[from] header::Error),
+    HeaderParsingError(#[from] header::ParsingError),
     #[error("record parsing error")]
     RecordError(#[from] record::Error),
     #[error("file i/o error")]
@@ -227,7 +227,7 @@ impl Rinex {
         Rinex {
             header: self.header.clone(),
             comments: self.comments.clone(),
-            record: record,
+            record,
         }
     }
 
@@ -347,7 +347,6 @@ impl Rinex {
                     crinex: None,
                     codes: params.codes.clone(),
                     clock_offset_applied: params.clock_offset_applied,
-                    dcb_compensations: params.dcb_compensations.clone(),
                     scalings: params.scalings.clone(),
                 });
         }
@@ -607,7 +606,33 @@ impl Rinex {
     pub fn is_observation_rinex(&self) -> bool {
         self.header.rinex_type == types::Type::ObservationData
     }
+    /// Returns true if Differential Code Biases (DCBs)
+    /// are compensated for, in this file, for this GNSS constellation.
+    /// DCBs are biases due to tiny frequency differences,
+    /// in both the SV embedded code generator, and receiver PLL.
+    /// If this is true, that means all code signals received in from
+    /// all SV within that constellation, have intrinsinc DCB compensation.
+    /// In very high precision and specific applications, you then do not have
+    /// to deal with their compensation yourself.
+    pub fn dcb_compensation(&self, constellation: Constellation) -> bool {
+        self.header
+            .dcb_compensations
+            .iter()
+            .filter(|dcb| dcb.constellation == constellation)
+            .count()
+            > 0
+    }
 
+    /// Returns true if Antenna Phase Center variations are compensated
+    /// for in this file. Useful for high precision application.
+    pub fn pcv_compensation(&self, constellation: Constellation) -> bool {
+        self.header
+            .pcv_compensations
+            .iter()
+            .filter(|pcv| pcv.constellation == constellation)
+            .count()
+            > 0
+    }
     /// Returns `true` if self is a `merged` RINEX file,   
     /// meaning, this file is the combination of two RINEX files merged together.  
     /// This is determined by the presence of a custom yet somewhat standardized `FILE MERGE` comments
@@ -684,13 +709,10 @@ impl Rinex {
             for (_, dtypes) in r {
                 for (_, systems) in dtypes {
                     for (system, _) in systems {
-                        match system {
-                            clocks::System::Station(station) => {
-                                if !ret.contains(station) {
-                                    ret.push(station.clone());
-                                }
-                            },
-                            _ => {},
+                        if let clocks::System::Station(station) = system {
+                            if !ret.contains(station) {
+                                ret.push(station.clone());
+                            }
                         }
                     }
                 }
@@ -831,7 +853,7 @@ impl Rinex {
                 for (sv, observations) in vehicles.iter_mut() {
                     for (observable, data) in observations.iter_mut() {
                         if observable.is_phase_observable() {
-                            if let Some(init_phase) = init_phases.get_mut(&sv) {
+                            if let Some(init_phase) = init_phases.get_mut(sv) {
                                 if init_phase.get(observable).is_none() {
                                     init_phase.insert(observable.clone(), data.obs);
                                 }
@@ -840,7 +862,7 @@ impl Rinex {
                                 map.insert(observable.clone(), data.obs);
                                 init_phases.insert(*sv, map);
                             }
-                            data.obs -= init_phases.get(&sv).unwrap().get(observable).unwrap();
+                            data.obs -= init_phases.get(sv).unwrap().get(observable).unwrap();
                         }
                     }
                 }
@@ -1204,9 +1226,9 @@ impl Rinex {
                         false
                     }
                 });
-                systems.len() > 0
+                !systems.is_empty()
             });
-            dtypes.len() > 0
+            !dtypes.is_empty()
         })
     }
     /// Writes self into given file.   
@@ -1214,7 +1236,7 @@ impl Rinex {
     /// Record: refer to supported RINEX types
     pub fn to_file(&self, path: &str) -> Result<(), Error> {
         let mut writer = BufferedWriter::new(path)?;
-        write!(writer, "{}", self.header.to_string())?;
+        write!(writer, "{}", self.header);
         self.record.to_file(&self.header, &mut writer)?;
         Ok(())
     }
@@ -1265,15 +1287,9 @@ impl Rinex {
     ///     Some(Duration::from_seconds(60.0)));
     /// ```
     pub fn dominant_sample_rate(&self) -> Option<Duration> {
-        if let Some(dominant) = self
-            .sampling_histogram()
-            .into_iter()
+        self.sampling_histogram()
             .max_by(|(_, x_pop), (_, y_pop)| x_pop.cmp(y_pop))
-        {
-            Some(dominant.0)
-        } else {
-            None
-        }
+            .map(|dominant| dominant.0)
     }
 
     /// ```
@@ -1452,7 +1468,7 @@ impl Rinex {
                 // grab all vehicles identified through all Epochs
                 // and fold them into a unique list
                 record
-                    .into_iter()
+                    .iter()
                     .map(|((_, _), (_clk, entries))| {
                         let sv: Vec<Sv> = entries.keys().cloned().collect();
                         sv
@@ -1561,7 +1577,7 @@ impl Rinex {
             Box::new(
                 // grab all vehicles identified through all Epochs
                 // and fold them into individual lists
-                record.into_iter().map(|((epoch, _), (_clk, entries))| {
+                record.iter().map(|((epoch, _), (_clk, entries))| {
                     (*epoch, entries.keys().unique().cloned().collect())
                 }),
             )
@@ -1569,7 +1585,7 @@ impl Rinex {
             Box::new(
                 // grab all vehicles through all epochs,
                 // fold them into individual lists
-                record.into_iter().map(|(epoch, frames)| {
+                record.iter().map(|(epoch, frames)| {
                     (
                         *epoch,
                         frames
@@ -1641,7 +1657,7 @@ impl Rinex {
     /// Returns a (unique) Iterator over all identified [`Observable`]s.
     /// This will panic if invoked on other than OBS and Meteo RINEX.
     pub fn observable(&self) -> Box<dyn Iterator<Item = &Observable> + '_> {
-        if let Some(_) = self.record.as_obs() {
+        if self.record.as_obs().is_some() {
             Box::new(
                 self.observation()
                     .map(|(_, (_, svnn))| {
@@ -1659,7 +1675,7 @@ impl Rinex {
                     })
                     .into_iter(),
             )
-        } else if let Some(_) = self.record.as_meteo() {
+        } else if self.record.as_meteo().is_some() {
             Box::new(
                 self.meteo()
                     .map(|(_, observables)| {
@@ -1710,8 +1726,10 @@ impl Rinex {
     /// to either validated or invalidate it.
     /// Clock receiver offset (in seconds), if present, are defined for each individual
     /// [`Epoch`].
-    /// Phase data is preserved as exposed in the file, use the processing
-    /// methods in case you need to scale it, or align its origin (starting point) for example.
+    /// Phase data is exposed as raw / unscaled data: therefore incorrect
+    /// values in case of High Precision RINEX. Prefer the dedicated
+    /// [Self::carrier_phase] iterator. In any case, you should always
+    /// prefer the iteration method of the type of data you're interested in.
     /// ```
     /// use rinex::prelude::*;
     /// use rinex::{observable, sv}; // macros
@@ -1882,15 +1900,14 @@ impl Rinex {
     /// }
     /// ```
     pub fn recvr_clock(&self) -> Box<dyn Iterator<Item = ((Epoch, EpochFlag), f64)> + '_> {
-        Box::new(self.observation().filter_map(|(e, (clk, _))| {
-            if let Some(clk) = clk {
-                Some((*e, *clk))
-            } else {
-                None
-            }
-        }))
+        Box::new(
+            self.observation()
+                .filter_map(|(e, (clk, _))| clk.as_ref().map(|clk| (*e, *clk))),
+        )
     }
-    /// Returns an iterator over raw phase data, expressed in whole cycles.
+    /// Returns an iterator over phase data, expressed in (whole) carrier cycles.
+    /// If Self is a High Precision RINEX (scaled RINEX), data is correctly scaled.
+    /// High precision RINEX allows up to 100 pico carrier cycle precision.
     /// ```
     /// use rinex::prelude::*;
     /// use rinex::observable;
@@ -1913,9 +1930,21 @@ impl Rinex {
     ) -> Box<dyn Iterator<Item = ((Epoch, EpochFlag), Sv, &Observable, f64)> + '_> {
         Box::new(self.observation().flat_map(|(e, (_, vehicles))| {
             vehicles.iter().flat_map(|(sv, observations)| {
-                observations.iter().filter_map(|(obs, obsdata)| {
-                    if obs.is_phase_observable() {
-                        Some((*e, *sv, obs, obsdata.obs))
+                observations.iter().filter_map(|(observable, obsdata)| {
+                    if observable.is_phase_observable() {
+                        if let Some(header) = &self.header.obs {
+                            // apply a scaling, if any, otherwise : leave data untouched
+                            // to preserve its precision
+                            if let Some(scaling) =
+                                header.scaling(sv.constellation, observable.clone())
+                            {
+                                Some((*e, *sv, observable, obsdata.obs / *scaling as f64))
+                            } else {
+                                Some((*e, *sv, observable, obsdata.obs))
+                            }
+                        } else {
+                            Some((*e, *sv, observable, obsdata.obs))
+                        }
                     } else {
                         None
                     }
@@ -2026,13 +2055,9 @@ impl Rinex {
     pub fn snr(&self) -> Box<dyn Iterator<Item = ((Epoch, EpochFlag), Sv, &Observable, Snr)> + '_> {
         Box::new(self.observation().flat_map(|(e, (_, vehicles))| {
             vehicles.iter().flat_map(|(sv, observations)| {
-                observations.iter().filter_map(|(obs, obsdata)| {
-                    if let Some(snr) = obsdata.snr {
-                        Some((*e, *sv, obs, snr))
-                    } else {
-                        None
-                    }
-                })
+                observations
+                    .iter()
+                    .filter_map(|(obs, obsdata)| obsdata.snr.map(|snr| (*e, *sv, obs, snr)))
             })
         }))
     }
@@ -2329,13 +2354,10 @@ impl Rinex {
     /// }
     /// ```
     pub fn klobuchar_models(&self) -> Box<dyn Iterator<Item = (Epoch, KbModel)> + '_> {
-        Box::new(self.ionosphere_models().filter_map(|(e, (_, _, ion))| {
-            if let Some(kb) = ion.as_klobuchar() {
-                Some((*e, *kb))
-            } else {
-                None
-            }
-        }))
+        Box::new(
+            self.ionosphere_models()
+                .filter_map(|(e, (_, _, ion))| ion.as_klobuchar().map(|model| (*e, *model))),
+        )
     }
     /// Returns [`NgModel`] Iterator
     /// ```
@@ -2348,13 +2370,10 @@ impl Rinex {
     /// }
     /// ```
     pub fn nequick_g_models(&self) -> Box<dyn Iterator<Item = (Epoch, NgModel)> + '_> {
-        Box::new(self.ionosphere_models().filter_map(|(e, (_, _, ion))| {
-            if let Some(model) = ion.as_nequick_g() {
-                Some((*e, *model))
-            } else {
-                None
-            }
-        }))
+        Box::new(
+            self.ionosphere_models()
+                .filter_map(|(e, (_, _, ion))| ion.as_nequick_g().map(|model| (*e, *model))),
+        )
     }
     /// Returns [`BdModel`] Iterator
     /// ```
@@ -2366,13 +2385,10 @@ impl Rinex {
     /// }
     /// ```
     pub fn bdgim_models(&self) -> Box<dyn Iterator<Item = (Epoch, BdModel)> + '_> {
-        Box::new(self.ionosphere_models().filter_map(|(e, (_, _, ion))| {
-            if let Some(model) = ion.as_bdgim() {
-                Some((*e, *model))
-            } else {
-                None
-            }
-        }))
+        Box::new(
+            self.ionosphere_models()
+                .filter_map(|(e, (_, _, ion))| ion.as_bdgim().map(|model| (*e, *model))),
+        )
     }
     /// Returns [`StoMessage`] frames Iterator
     /// ```

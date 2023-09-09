@@ -75,8 +75,8 @@ pub enum Error {
     ParseError(String),
     //#[error("unable to identify glonass channel from \"{0}\"")]
     //ParseIntError(#[from] std::num::ParseIntError),
-    #[error("unable to identify constellation + carrier code")]
-    SvError(#[from] sv::Error),
+    #[error("sv parsing error")]
+    SvParsing(#[from] sv::ParsingError),
     #[error("carrier::from_observable unrecognized \"{0}\"")]
     UnknownObservable(String),
 }

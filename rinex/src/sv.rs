@@ -17,11 +17,11 @@ pub struct Sv {
 
 /// ̀`Sv` parsing & identification related errors
 #[derive(Error, Debug, Clone, PartialEq)]
-pub enum Error {
-    #[error("unknown constellation")]
-    ConstellationError(#[from] constellation::Error),
-    #[error("failed to parse prn")]
-    ParseIntError(#[from] std::num::ParseIntError),
+pub enum ParsingError {
+    #[error("constellation parsing error")]
+    ConstellationParsing(#[from] constellation::ParsingError),
+    #[error("sv prn# parsing error")]
+    PRNParsing(#[from] std::num::ParseIntError),
 }
 
 impl Sv {
@@ -32,7 +32,7 @@ impl Sv {
 }
 
 impl std::str::FromStr for Sv {
-    type Err = Error;
+    type Err = ParsingError;
     /// Builds an `Sv` from XYY identification code.   
     /// code should strictly follow rinex conventions.   
     /// This method tolerates trailing whitespaces

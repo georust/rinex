@@ -40,8 +40,8 @@ pub enum Error {
     MalformedEpochBody,
     #[error("numdiff error")]
     NumDiffError(#[from] numdiff::Error),
-    #[error("failed to identify sat. vehicle")]
-    SvError(#[from] sv::Error),
+    #[error("sv parsing error")]
+    SvParsing(#[from] sv::ParsingError),
     #[error("failed to parse integer number")]
     ParseIntError(#[from] std::num::ParseIntError),
 }

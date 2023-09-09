@@ -24,18 +24,18 @@ pub enum Error {
     InvalidAzimuthAngleDescription,
     #[error("bad snr description")]
     InvalidSNRDescription,
-    #[error("failed to parse sv")]
-    SvParingError(#[from] sv::Error),
-    #[error("failed to parse constellation")]
-    ConstellationParingError(#[from] constellation::Error),
+    #[error("sv parsing error")]
+    SvParing(#[from] sv::ParsingError),
+    #[error("constellation parsing error")]
+    ConstellationParing(#[from] constellation::ParsingError),
     #[error("failed to parse epoch flag")]
     EpochFlagParsingError(#[from] crate::epoch::flag::Error),
     #[error("failed to parse constellation")]
     ConstellationParsingError,
     #[error("invalid nav item")]
     InvalidNavItem(#[from] crate::navigation::Error),
-    #[error("invalid observable item")]
-    InvalidObsItem(#[from] crate::observable::Error),
+    #[error("observable parsing error")]
+    ObservableParsing(#[from] observable::ParsingError),
     #[error("invalid duration description")]
     InvalidDurationItem(#[from] hifitime::Errors),
 }
@@ -147,7 +147,7 @@ impl std::ops::BitOr for TargetItem {
     }
 }
 
-pub(crate) fn parse_sv_list(items: Vec<&str>) -> Result<Vec<Sv>, sv::Error> {
+pub(crate) fn parse_sv_list(items: Vec<&str>) -> Result<Vec<Sv>, sv::ParsingError> {
     let mut ret: Vec<Sv> = Vec::with_capacity(items.len());
     for item in items {
         let sv = Sv::from_str(item.trim())?;
@@ -158,7 +158,7 @@ pub(crate) fn parse_sv_list(items: Vec<&str>) -> Result<Vec<Sv>, sv::Error> {
 
 pub(crate) fn parse_gnss_list(
     items: Vec<&str>,
-) -> Result<Vec<Constellation>, constellation::Error> {
+) -> Result<Vec<Constellation>, constellation::ParsingError> {
     let mut ret: Vec<Constellation> = Vec::with_capacity(items.len());
     for item in items {
         let c = Constellation::from_str(item.trim())?;
@@ -167,7 +167,9 @@ pub(crate) fn parse_gnss_list(
     Ok(ret)
 }
 
-pub(crate) fn parse_obs_list(items: Vec<&str>) -> Result<Vec<Observable>, observable::Error> {
+pub(crate) fn parse_obs_list(
+    items: Vec<&str>,
+) -> Result<Vec<Observable>, observable::ParsingError> {
     let mut ret: Vec<Observable> = Vec::with_capacity(items.len());
     for item in items {
         let obs = Observable::from_str(item.trim())?;

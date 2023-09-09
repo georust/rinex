@@ -35,9 +35,8 @@ impl Cli {
                         .long("quiet")
                         .action(ArgAction::SetTrue)
                         .help("Disable all terminal output. Also disables auto HTML reports opener."))
-                    .arg(Arg::new("pretty")
-                        .short('p')
-                        .long("pretty")
+                    .arg(Arg::new("readable")
+                        .short('r')
                         .action(ArgAction::SetTrue)
                         .help("Make terminal output more readable."))
                     .arg(Arg::new("workspace")
@@ -400,9 +399,9 @@ Refer to README"))
     fn get_flag(&self, flag: &str) -> bool {
         self.matches.get_flag(flag)
     }
-    /// returns true if --pretty was passed
-    pub fn pretty(&self) -> bool {
-        self.get_flag("pretty")
+    /// returns true if pretty JSON is requested
+    pub fn readable_json(&self) -> bool {
+        self.get_flag("readable")
     }
     /// Returns true if quiet mode is activated
     pub fn quiet(&self) -> bool {

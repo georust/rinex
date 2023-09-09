@@ -2,11 +2,12 @@ use crate::{carrier, Carrier, Constellation};
 use thiserror::Error;
 
 #[derive(Error, Debug, Clone, PartialEq)]
-pub enum Error {
-    #[error("unknown observable")]
-    UnknownObservable,
-    #[error("malformed observable")]
-    MalformedDescriptor,
+/// Observable Parsing errors
+pub enum ParsingError {
+    #[error("unknown observable \"{0}\"")]
+    UnknownObservable(String),
+    #[error("malformed observable \"{0}\"")]
+    MalformedDescriptor(String),
 }
 
 /// Observable describes all possible observations,
@@ -114,7 +115,7 @@ impl std::fmt::Display for Observable {
 }
 
 impl std::str::FromStr for Observable {
-    type Err = Error;
+    type Err = ParsingError;
     fn from_str(content: &str) -> Result<Self, Self::Err> {
         let content = content.to_uppercase();
         let content = content.trim();
@@ -141,10 +142,10 @@ impl std::str::FromStr for Observable {
                     } else if content.starts_with("D") {
                         Ok(Self::Doppler(content.to_string()))
                     } else {
-                        Err(Error::UnknownObservable)
+                        Err(ParsingError::UnknownObservable(content.to_string()))
                     }
                 } else {
-                    Err(Error::MalformedDescriptor)
+                    Err(ParsingError::MalformedDescriptor(content.to_string()))
                 }
             },
         }

@@ -19,8 +19,8 @@ pub enum Error {
     ParseIntError(#[from] std::num::ParseIntError),
     #[error("failed to parse epoch")]
     EpochError(#[from] epoch::Error),
-    #[error("failed to identify sat vehicle")]
-    ParseSvError(#[from] sv::Error),
+    #[error("sv parsing error")]
+    SvParsing(#[from] sv::ParsingError),
 }
 
 /// Ephermeris NAV frame type
