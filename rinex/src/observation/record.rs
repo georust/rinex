@@ -15,8 +15,8 @@ use hifitime::Duration;
 pub enum Error {
     #[error("failed to parse epoch")]
     EpochError(#[from] epoch::Error),
-    #[error("failed to identify constellation")]
-    ConstellationError(#[from] constellation::Error),
+    #[error("constellation parsing error")]
+    ConstellationParsing(#[from] constellation::ParsingError),
     #[error("failed to parse sv")]
     SvError(#[from] sv::Error),
     #[error("failed to parse integer number")]

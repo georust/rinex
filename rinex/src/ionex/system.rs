@@ -6,10 +6,10 @@ use thiserror::Error;
 /// Reference System parsing error
 #[derive(Error, Debug)]
 pub enum Error {
-    #[error("unknown gnss constellation")]
-    ConstellationError(#[from] constellation::Error),
     #[error("unknown reference system")]
     UnknownRefSystem,
+    #[error("constellation parsing error")]
+    ConstellationParsing(#[from] constellation::ParsingError),
 }
 
 /// RefSystem "Reference System" describes either reference GNSS

@@ -174,18 +174,18 @@ pub struct Header {
 
 #[derive(Error, Debug)]
 pub enum ParsingError {
-    #[error("version \"{0}\" is not supported")]
-    VersionNotSupported(String),
     #[error("failed to parse version from \"{0}\"")]
     VersionParsing(String),
+    #[error("version \"{0}\" is not supported")]
+    VersionNotSupported(String),
     #[error("unknown RINEX type \"{0}\"")]
     TypeParsing(String),
     #[error("unknown marker type \"{0}\"")]
     MarkerType(String),
-    #[error("line \"{0}\" should begin with Rinex version \"x.yy\"")]
-    VersionFormatError(String),
-    #[error("constellation error")]
-    ConstellationError(#[from] constellation::Error),
+    #[error("failed to parse observable")]
+    ObservableParsing(#[from] observable::ParsingError),
+    #[error("constellation parsing error")]
+    ConstellationParsing(#[from] constellation::ParsingError),
     #[error("failed to parse leap from \"{0}\"")]
     LeapParsingError(#[from] leap::Error),
     #[error("failed to parse antenna / receiver infos")]
@@ -303,12 +303,11 @@ impl Header {
             } else if marker.contains("CRINEX VERS") {
                 let version = content.split_at(20).0;
                 let version = version.trim();
-                let crinex_revision = Version::from_str(version)
-                    .or(Err(ParsingError::VersionParsing(format!("CRINEX VERS: \"{}\"", version))))?;
-                
-                observation.crinex =
-                    Some(Crinex::default().with_version(crinex_revision));
+                let crinex_revision = Version::from_str(version).or(Err(
+                    ParsingError::VersionParsing(format!("CRINEX VERS: \"{}\"", version)),
+                ))?;
 
+                observation.crinex = Some(Crinex::default().with_version(crinex_revision));
             } else if marker.contains("CRINEX PROG / DATE") {
                 let (prog, remainder) = content.split_at(20);
                 let (_, remainder) = remainder.split_at(20);
@@ -340,14 +339,14 @@ impl Header {
             } else if marker.contains("ANTEX VERSION / SYST") {
                 let (vers, system) = content.split_at(8);
                 let vers = vers.trim();
-                version = Version::from_str(vers)
-                    .or(Err(ParsingError::VersionParsing(format!("ANTEX VERSION / SYST: \"{}\"", vers))))?;
+                version = Version::from_str(vers).or(Err(ParsingError::VersionParsing(
+                    format!("ANTEX VERSION / SYST: \"{}\"", vers),
+                )))?;
 
                 if let Ok(constell) = Constellation::from_str(system.trim()) {
                     constellation = Some(constell)
                 }
                 rinex_type = Type::AntennaData;
-
             } else if marker.contains("PCV TYPE / REFANT") {
                 let (pcv_str, rem) = content.split_at(20);
                 let (rel_type, rem) = rem.split_at(20);
@@ -410,10 +409,11 @@ impl Header {
                 let (vers_str, rem) = line.split_at(20);
                 let (type_str, rem) = rem.split_at(20);
                 let (system_str, _) = rem.split_at(20);
-                
+
                 let vers_str = vers_str.trim();
-                version = Version::from_str(vers_str)
-                    .or(Err(ParsingError::VersionParsing(format!("IONEX VERSION / TYPE : \"{}\"", vers_str))))?;
+                version = Version::from_str(vers_str).or(Err(ParsingError::VersionParsing(
+                    format!("IONEX VERSION / TYPE : \"{}\"", vers_str),
+                )))?;
 
                 rinex_type = Type::from_str(type_str.trim())?;
                 let ref_system = ionex::RefSystem::from_str(system_str.trim())?;
@@ -447,13 +447,13 @@ impl Header {
                  * Parse version descriptor
                  */
                 let vers = vers.trim();
-                version = Version::from_str(vers)
-                    .or(Err(ParsingError::VersionParsing(format!("RINEX VERSION / TYPE \"{}\"", vers.to_string()))))?;
+                version = Version::from_str(vers).or(Err(ParsingError::VersionParsing(
+                    format!("RINEX VERSION / TYPE \"{}\"", vers.to_string()),
+                )))?;
 
                 if !version.is_supported() {
                     return Err(ParsingError::VersionNotSupported(vers.to_string()));
                 }
-
             } else if marker.contains("PGM / RUN BY / DATE") {
                 let (pgm, rem) = line.split_at(20);
                 program = pgm.trim().to_string();
@@ -468,7 +468,6 @@ impl Header {
                 station = content.split_at(20).0.trim().to_string()
             } else if marker.contains("MARKER NUMBER") {
                 station_id = content.split_at(20).0.trim().to_string()
-            
             } else if marker.contains("MARKER TYPE") {
                 let code = content.split_at(20).0.trim();
                 if let Ok(marker) = MarkerType::from_str(code) {
@@ -476,12 +475,10 @@ impl Header {
                 } else {
                     return Err(ParsingError::MarkerType(code.to_string()));
                 }
-            
             } else if marker.contains("OBSERVER / AGENCY") {
                 let (obs, ag) = content.split_at(20);
                 observer = obs.trim().to_string();
                 agency = ag.trim().to_string();
-
             } else if marker.contains("REC # / TYPE / VERS") {
                 if let Ok(receiver) = Rcvr::from_str(content) {
                     rcvr = Some(receiver)
@@ -500,19 +497,23 @@ impl Header {
                     meteo.sensors.push(sensor)
                 }
             } else if marker.contains("SENSOR POS XYZ/H") {
-                let (x_str, rem) = content.split_at(14);
-                let (y_str, rem) = rem.split_at(14);
-                let (z_str, rem) = rem.split_at(14);
-                let (h_str, phys_str) = rem.split_at(14);
-                if let Ok(observable) = Observable::from_str(phys_str.trim()) {
-                    for sensor in meteo.sensors.iter_mut() {
-                        if sensor.observable == observable {
-                            if let Ok(x) = f64::from_str(x_str.trim()) {
-                                if let Ok(y) = f64::from_str(y_str.trim()) {
-                                    if let Ok(z) = f64::from_str(z_str.trim()) {
-                                        if let Ok(h) = f64::from_str(h_str.trim()) {
-                                            *sensor = sensor.with_position((x, y, z, h))
-                                        }
+                /*
+                 * Meteo: sensor position information
+                 */
+                let (x, rem) = content.split_at(14);
+                let (y, rem) = rem.split_at(14);
+                let (z, rem) = rem.split_at(14);
+                let (h, phys) = rem.split_at(14);
+                let phys = phys.trim();
+                let observable = Observable::from_str(phys)?;
+
+                for sensor in meteo.sensors.iter_mut() {
+                    if sensor.observable == observable {
+                        if let Ok(x) = f64::from_str(x.trim()) {
+                            if let Ok(y) = f64::from_str(y.trim()) {
+                                if let Ok(z) = f64::from_str(z.trim()) {
+                                    if let Ok(h) = f64::from_str(h.trim()) {
+                                        *sensor = sensor.with_position((x, y, z, h))
                                     }
                                 }
                             }

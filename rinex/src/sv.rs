@@ -19,7 +19,7 @@ pub struct Sv {
 #[derive(Error, Debug, Clone, PartialEq)]
 pub enum Error {
     #[error("unknown constellation")]
-    ConstellationError(#[from] constellation::Error),
+    ConstellationError(#[from] constellation::ParsingError),
     #[error("failed to parse prn")]
     ParseIntError(#[from] std::num::ParseIntError),
 }
