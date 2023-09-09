@@ -224,15 +224,6 @@ Use --sp3 once per file. You can stack as many as you want."))
                         .action(ArgAction::Append)
                         .help("Local ANTEX file. Enhance given context with ANTEX Data.
 Use --atx once per file to add. You can stack as many as you want."))
-                .next_help_heading("(Precise) Positioning")
-                    .arg(Arg::new("positioning")
-                        .short('p')
-                        .action(ArgAction::SetTrue)
-                        .help("Activate GNSS receiver position solver.
-This is only possible if provided context is sufficient.
-Depending on provided context, either SPP (high accuracy) or PPP (ultra high accuracy)
-method is deployed.
-As this involves quite heavy computations, it is turned off by default."))
                 .next_help_heading("Quality Check (QC)")
                     .arg(Arg::new("qc")
                         .long("qc")
@@ -411,10 +402,6 @@ Refer to README"))
     /// returns true if pretty JSON is requested
     pub fn readable_json(&self) -> bool {
         self.get_flag("readable")
-    }
-    /// Returns true if positioning solver is requested
-    pub fn positioning(&self) -> bool {
-        self.get_flag("positioning")
     }
     /// Returns true if quiet mode is activated
     pub fn quiet(&self) -> bool {
