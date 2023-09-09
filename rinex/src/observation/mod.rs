@@ -97,18 +97,6 @@ impl std::fmt::Display for Crinex {
     }
 }
 
-/// DCB Compensation description
-#[derive(Debug, Clone, Default, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct DcbCompensation {
-    /// Program used for DCBs evaluation and compensation
-    pub program: String,
-    /// Constellation to which this compensation applies to
-    pub constellation: Constellation,
-    /// URL: source of corrections
-    pub url: String,
-}
-
 /// Describes known marker types
 /// Observation Record specific header fields
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -120,8 +108,6 @@ pub struct HeaderFields {
     pub codes: HashMap<Constellation, Vec<Observable>>,
     /// True if local clock drift is compensated for
     pub clock_offset_applied: bool,
-    /// DCBs compensation per constellation basis
-    pub dcb_compensations: Vec<DcbCompensation>,
     /// Optionnal data scalings
     pub scalings: HashMap<Constellation, HashMap<Observable, f64>>,
 }
@@ -144,11 +130,6 @@ impl HeaderFields {
     pub(crate) fn scaling(&self, c: &Constellation, observable: &Observable) -> Option<&f64> {
         let scalings = self.scalings.get(c)?;
         scalings.get(observable)
-    }
-
-    /// Emphasize that DCB is compensated for
-    pub fn append_dcb_compensation(&mut self, dcb: DcbCompensation) {
-        self.dcb_compensations.push(dcb);
     }
 }
 

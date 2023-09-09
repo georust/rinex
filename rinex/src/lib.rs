@@ -347,7 +347,6 @@ impl Rinex {
                     crinex: None,
                     codes: params.codes.clone(),
                     clock_offset_applied: params.clock_offset_applied,
-                    dcb_compensations: params.dcb_compensations.clone(),
                     scalings: params.scalings.clone(),
                 });
         }
@@ -616,17 +615,24 @@ impl Rinex {
     /// In very high precision and specific applications, you then do not have
     /// to deal with their compensation yourself.
     pub fn dcb_compensation(&self, constellation: Constellation) -> bool {
-        if let Some(obs) = &self.header.obs {
-            obs.dcb_compensations
-                .iter()
-                .filter(|dcb| dcb.constellation == constellation)
-                .count()
-                > 0
-        } else {
-            false
-        }
+        self.header
+            .dcb_compensations
+            .iter()
+            .filter(|dcb| dcb.constellation == constellation)
+            .count()
+            > 0
     }
 
+    /// Returns true if Antenna Phase Center variations are compensated
+    /// for in this file. Useful for high precision application.
+    pub fn pcv_compensation(&self, constellation: Constellation) -> bool {
+        self.header
+            .pcv_compensations
+            .iter()
+            .filter(|pcv| pcv.constellation == constellation)
+            .count()
+            > 0
+    }
     /// Returns `true` if self is a `merged` RINEX file,   
     /// meaning, this file is the combination of two RINEX files merged together.  
     /// This is determined by the presence of a custom yet somewhat standardized `FILE MERGE` comments

@@ -6,7 +6,7 @@ use crate::{
     ground_position::GroundPosition,
     hardware::{Antenna, Rcvr, SvAntenna},
     ionex, leap, meteo, observation,
-    observation::{Crinex, DcbCompensation},
+    observation::Crinex,
     reader::BufferedReader,
     types::Type,
     version::Version,
@@ -74,8 +74,32 @@ impl Default for MarkerType {
     }
 }
 
+/// DCB compensation description
+#[derive(Debug, Clone, Default, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct DcbCompensation {
+    /// Program used for DCBs evaluation and compensation
+    pub program: String,
+    /// Constellation to which this compensation applies to
+    pub constellation: Constellation,
+    /// URL: source of corrections
+    pub url: String,
+}
+
+/// PCV compensation description
+#[derive(Debug, Clone, Default, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct PcvCompensation {
+    /// Program used for PCVs evaluation and compensation
+    pub program: String,
+    /// Constellation to which this compensation applies to
+    pub constellation: Constellation,
+    /// URL: source of corrections
+    pub url: String,
+}
+
 /// Describes `RINEX` file header
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Header {
     /// revision for this `RINEX`
@@ -135,6 +159,10 @@ pub struct Header {
     /// attached to a specifid Sv, only exists in ANTEX records
     #[cfg_attr(feature = "serde", serde(default))]
     pub sv_antenna: Option<SvAntenna>,
+    /// Possible DCBs compensation information
+    pub dcb_compensations: Vec<DcbCompensation>,
+    /// Possible PCVs compensation information
+    pub pcv_compensations: Vec<PcvCompensation>,
     /// Observation record specific fields
     #[cfg_attr(feature = "serde", serde(default))]
     pub obs: Option<observation::HeaderFields>,
@@ -206,44 +234,10 @@ fn parse_formatted_month(content: &str) -> Result<u8, ParsingError> {
         "Oct" => Ok(10),
         "Nov" => Ok(11),
         "Dec" => Ok(12),
-        _ => Err(ParsingError::DateTimeParsing(String::from("month"), content.to_string())),
-    }
-}
-
-impl Default for Header {
-    fn default() -> Header {
-        Header {
-            version: Version::default(),
-            rinex_type: Type::default(),
-            constellation: Some(Constellation::default()),
-            comments: Vec::new(),
-            program: "rust-rinex".to_string(),
-            run_by: String::new(),
-            date: String::new(),
-            station: String::new(),
-            station_id: String::new(),
-            observer: String::new(),
-            agency: String::new(),
-            marker_type: None,
-            station_url: String::new(),
-            doi: None,
-            license: None,
-            glo_channels: HashMap::new(),
-            leap: None,
-            gps_utc_delta: None,
-            rcvr: None,
-            rcvr_antenna: None,
-            sv_antenna: None,
-            ground_position: None,
-            wavelengths: None,
-            data_scaling: None,
-            sampling_interval: None,
-            obs: None,
-            meteo: None,
-            clocks: None,
-            antex: None,
-            ionex: None,
-        }
+        _ => Err(ParsingError::DateTimeParsing(
+            String::from("month"),
+            content.to_string(),
+        )),
     }
 }
 
@@ -272,6 +266,8 @@ impl Header {
         let mut leap: Option<leap::Leap> = None;
         let mut sampling_interval: Option<Duration> = None;
         let mut ground_position: Option<GroundPosition> = None;
+        let mut dcb_compensations: Vec<DcbCompensation> = Vec::new();
+        let mut pcv_compensations: Vec<PcvCompensation> = Vec::new();
         // RINEX specific fields
         let mut current_constell: Option<Constellation> = None;
         let mut observation = observation::HeaderFields::default();
@@ -512,6 +508,35 @@ impl Header {
                 if let Ok(receiver) = Rcvr::from_str(content) {
                     rcvr = Some(receiver)
                 }
+            } else if marker.contains("SYS / PCVS APPLIED") {
+                let (gnss, rem) = content.split_at(2);
+                let (program, rem) = rem.split_at(18);
+                let (url, _) = rem.split_at(40);
+
+                let gnss = gnss.trim();
+                let gnss = Constellation::from_str(gnss.trim())?;
+
+                let pcv = PcvCompensation {
+                    program: {
+                        let program = program.trim();
+                        if program.eq("") {
+                            String::from("Unknown")
+                        } else {
+                            program.to_string()
+                        }
+                    },
+                    constellation: gnss.clone(),
+                    url: {
+                        let url = url.trim();
+                        if url.eq("") {
+                            String::from("Unknown")
+                        } else {
+                            url.to_string()
+                        }
+                    },
+                };
+
+                pcv_compensations.push(pcv);
             } else if marker.contains("SYS / DCBS APPLIED") {
                 let (gnss, rem) = content.split_at(2);
                 let (program, rem) = rem.split_at(18);
@@ -539,10 +564,10 @@ impl Header {
                         }
                     },
                 };
-                observation.append_dcb_compensation(dcb);
+
+                dcb_compensations.push(dcb);
             } else if marker.contains("SYS / SCALE FACTOR") {
-                /*let (system, rem) = content.split_at(2);
-                let (factor, rem) = rem.split_at(5);*/
+                let (gnss, rem) = content.split_at(2);
             } else if marker.contains("SENSOR MOD/TYPE/ACC") {
                 if let Ok(sensor) = meteo::sensor::Sensor::from_str(content) {
                     meteo.sensors.push(sensor)
@@ -981,6 +1006,8 @@ impl Header {
             glo_channels,
             leap,
             ground_position,
+            dcb_compensations,
+            pcv_compensations,
             wavelengths: None,
             gps_utc_delta: None,
             sampling_interval,
@@ -1086,6 +1113,53 @@ impl Header {
             agency: self.agency.clone(),
             license: self.license.clone(),
             doi: self.doi.clone(),
+            dcb_compensations: {
+                /*
+                 * DCBs compensations are marked, only if
+                 * both compensated for in A & B.
+                 * In this case, resulting data, for a given constellation,
+                 * is still 100% compensated for.
+                 */
+                if self.dcb_compensations.len() == 0 || header.dcb_compensations.len() == 0 {
+                    Vec::new() // drop everything
+                } else {
+                    let rhs_constellations: Vec<_> = header
+                        .dcb_compensations
+                        .iter()
+                        .map(|dcb| dcb.constellation.clone())
+                        .collect();
+                    let mut dcbs: Vec<DcbCompensation> = self
+                        .dcb_compensations
+                        .clone()
+                        .iter()
+                        .filter(|dcb| rhs_constellations.contains(&dcb.constellation))
+                        .map(|dcb| dcb.clone())
+                        .collect();
+                    dcbs
+                }
+            },
+            pcv_compensations: {
+                /*
+                 * Same logic as .dcb_compensations
+                 */
+                if self.pcv_compensations.len() == 0 || header.pcv_compensations.len() == 0 {
+                    Vec::new() // drop everything
+                } else {
+                    let rhs_constellations: Vec<_> = header
+                        .pcv_compensations
+                        .iter()
+                        .map(|pcv| pcv.constellation.clone())
+                        .collect();
+                    let mut pcvs: Vec<PcvCompensation> = self
+                        .pcv_compensations
+                        .clone()
+                        .iter()
+                        .filter(|pcv| rhs_constellations.contains(&pcv.constellation))
+                        .map(|pcv| pcv.clone())
+                        .collect();
+                    pcvs
+                }
+            },
             marker_type: {
                 if let Some(mtype) = &self.marker_type {
                     Some(mtype.clone())
@@ -1206,8 +1280,7 @@ impl Header {
                             },
                             clock_offset_applied: d0.clock_offset_applied
                                 && d1.clock_offset_applied,
-                            scalings: HashMap::new(),      //TODO
-                            dcb_compensations: Vec::new(), //TODO
+                            scalings: HashMap::new(), //TODO
                         })
                     } else {
                         Some(d0.clone())
@@ -1985,7 +2058,11 @@ mod test {
             let month = parse_formatted_month(desc);
             assert!(month.is_ok(), "failed to parse month from \"{}\"", desc);
             let month = month.unwrap();
-            assert_eq!(month, expected, "failed to parse correct month number from \"{}\"", desc);
+            assert_eq!(
+                month, expected,
+                "failed to parse correct month number from \"{}\"",
+                desc
+            );
         }
     }
 }
