@@ -604,7 +604,7 @@ impl Header {
                         .or(Err(parse_int_error!("SYS / SCALE FACTOR", factor)))?;
 
                     let (_num, rem) = rem.split_at(3);
-                    
+
                     // parse end of line
                     let mut len = rem.len();
                     let mut rem = rem.clone();
@@ -620,7 +620,6 @@ impl Header {
                     }
                     scaling_count += 1;
                 }
-
             } else if marker.contains("SENSOR MOD/TYPE/ACC") {
                 if let Ok(sensor) = meteo::sensor::Sensor::from_str(content) {
                     meteo.sensors.push(sensor)
