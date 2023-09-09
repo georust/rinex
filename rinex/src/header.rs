@@ -18,26 +18,6 @@ use std::str::FromStr;
 use strum_macros::EnumString;
 use thiserror::Error;
 
-macro_rules! from_b_fmt_month {
-    ($m: expr) => {
-        match $m {
-            "Jan" => 1,
-            "Feb" => 2,
-            "Mar" => 3,
-            "Apr" => 4,
-            "May" => 5,
-            "Jun" => 6,
-            "Jul" => 7,
-            "Aug" => 8,
-            "Sep" => 9,
-            "Oct" => 10,
-            "Nov" => 11,
-            "Dec" => 12,
-            _ => 1,
-        }
-    };
-}
-
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
@@ -212,6 +192,24 @@ pub enum ParsingError {
     DateTimeParsing(String, String),
 }
 
+fn parse_formatted_month(content: &str) -> Result<u8, ParsingError> {
+    match content {
+        "Jan" => Ok(1),
+        "Feb" => Ok(2),
+        "Mar" => Ok(3),
+        "Apr" => Ok(4),
+        "May" => Ok(5),
+        "Jun" => Ok(6),
+        "Jul" => Ok(7),
+        "Aug" => Ok(8),
+        "Sep" => Ok(9),
+        "Oct" => Ok(10),
+        "Nov" => Ok(11),
+        "Dec" => Ok(12),
+        _ => Err(ParsingError::DateTimeParsing(String::from("month"), content.to_string())),
+    }
+}
+
 impl Default for Header {
     fn default() -> Header {
         Header {
@@ -338,7 +336,7 @@ impl Header {
                 )))?;
 
                 let month = date[1].trim();
-                let month = from_b_fmt_month!(month);
+                let month = parse_formatted_month(month)?;
 
                 let y = date[2].trim();
                 let mut y = i32::from_str_radix(y, 10).or(Err(ParsingError::DateTimeParsing(
@@ -1980,12 +1978,14 @@ impl HtmlReport for Header {
 
 #[cfg(test)]
 mod test {
+    use super::parse_formatted_month;
     #[test]
-    fn test_from_b_fmt_month() {
-        assert_eq!(from_b_fmt_month!("Jan"), 1);
-        assert_eq!(from_b_fmt_month!("Feb"), 2);
-        assert_eq!(from_b_fmt_month!("Mar"), 3);
-        assert_eq!(from_b_fmt_month!("Nov"), 11);
-        assert_eq!(from_b_fmt_month!("Dec"), 12);
+    fn formatted_month_parser() {
+        for (desc, expected) in vec![("Jan", 1), ("Feb", 2), ("Mar", 3), ("Nov", 11), ("Dec", 12)] {
+            let month = parse_formatted_month(desc);
+            assert!(month.is_ok(), "failed to parse month from \"{}\"", desc);
+            let month = month.unwrap();
+            assert_eq!(month, expected, "failed to parse correct month number from \"{}\"", desc);
+        }
     }
 }
