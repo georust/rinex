@@ -174,8 +174,6 @@ pub struct Header {
 
 #[derive(Error, Debug)]
 pub enum Error {
-    #[error("CRINEX related content mismatch")]
-    CrinexFormatError,
     #[error("RINEX version is not supported '{0}'")]
     VersionNotSupported(String),
     #[error("Line \"{0}\" should begin with Rinex version \"x.yy\"")]
