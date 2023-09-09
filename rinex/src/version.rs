@@ -1,4 +1,5 @@
 //! `RINEX` revision description
+use thiserror::Error;
 
 /// Current `RINEX` version supported to this day
 pub const SUPPORTED_VERSION: Version = Version { major: 4, minor: 0 };
@@ -11,6 +12,14 @@ pub struct Version {
     pub major: u8,
     /// Version minor number
     pub minor: u8,
+}
+
+#[derive(Clone, Debug, Error)]
+pub enum ParsingError {
+    #[error("non supported version \"{0}\"")]
+    NotSupported(String),
+    #[error("failed to parse version")]
+    ParseIntError(#[from] std::num::ParseIntError),
 }
 
 impl Default for Version {
@@ -78,7 +87,7 @@ impl Into<(u8, u8)> for Version {
 }
 
 impl std::str::FromStr for Version {
-    type Err = std::num::ParseIntError;
+    type Err = ParsingError; 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.contains(".") {
             true => {

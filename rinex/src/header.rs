@@ -173,9 +173,11 @@ pub struct Header {
 }
 
 #[derive(Error, Debug)]
-pub enum Error {
-    #[error("RINEX version is not supported '{0}'")]
+pub enum ParsingError {
+    #[error("version \"{0}\" is not supported")]
     VersionNotSupported(String),
+    #[error("failed to parse version from \"{0}\"")]
+    VersionParsing(String),
     #[error("Line \"{0}\" should begin with Rinex version \"x.yy\"")]
     VersionFormatError(String),
     #[error("rinex type error")]
@@ -239,7 +241,7 @@ impl Default for Header {
 
 impl Header {
     /// Builds a `Header` from stream reader
-    pub fn new(reader: &mut BufferedReader) -> Result<Header, Error> {
+    pub fn new(reader: &mut BufferedReader) -> Result<Header, ParsingError> {
         let mut rinex_type = Type::default();
         let mut constellation: Option<Constellation> = None;
         let mut version = Version::default();
@@ -298,8 +300,13 @@ impl Header {
             /////////////////////////////////////
             } else if marker.contains("CRINEX VERS") {
                 let version = content.split_at(20).0;
+                let version = version.trim();
+                let crinex_revision = Version::from_str(version)
+                    .or(Err(ParsingError::VersionParsing(format!("CRINEX VERS: \"{}\"", version))))?;
+                
                 observation.crinex =
-                    Some(Crinex::default().with_version(Version::from_str(version.trim())?));
+                    Some(Crinex::default().with_version(crinex_revision));
+
             } else if marker.contains("CRINEX PROG / DATE") {
                 let (prog, remainder) = content.split_at(20);
                 let (_, remainder) = remainder.split_at(20);
@@ -330,11 +337,15 @@ impl Header {
             ////////////////////////////////////////
             } else if marker.contains("ANTEX VERSION / SYST") {
                 let (vers, system) = content.split_at(8);
-                version = Version::from_str(vers.trim())?;
+                let vers = vers.trim();
+                version = Version::from_str(vers)
+                    .or(Err(ParsingError::VersionParsing(format!("ANTEX VERSION / SYST: \"{}\"", vers))))?;
+
                 if let Ok(constell) = Constellation::from_str(system.trim()) {
                     constellation = Some(constell)
                 }
                 rinex_type = Type::AntennaData;
+
             } else if marker.contains("PCV TYPE / REFANT") {
                 let (pcv_str, rem) = content.split_at(20);
                 let (rel_type, rem) = rem.split_at(20);
@@ -397,7 +408,11 @@ impl Header {
                 let (vers_str, rem) = line.split_at(20);
                 let (type_str, rem) = rem.split_at(20);
                 let (system_str, _) = rem.split_at(20);
-                version = Version::from_str(vers_str.trim())?;
+                
+                let vers_str = vers_str.trim();
+                version = Version::from_str(vers_str)
+                    .or(Err(ParsingError::VersionParsing(format!("IONEX VERSION / TYPE : \"{}\"", vers_str))))?;
+
                 rinex_type = Type::from_str(type_str.trim())?;
                 let ref_system = ionex::RefSystem::from_str(system_str.trim())?;
                 ionex = ionex.with_reference_system(ref_system);
@@ -427,10 +442,18 @@ impl Header {
                         constellation = Some(constell)
                     }
                 }
-                version = Version::from_str(vers.trim())?;
+                
+                /*
+                 * Parse version descriptor
+                 */
+                let vers = vers.trim();
+                version = Version::from_str(vers)
+                    .or(Err(ParsingError::VersionParsing(format!("RINEX VERSION / TYPE \"{}\"", vers.to_string()))))?;
+
                 if !version.is_supported() {
-                    return Err(Error::VersionNotSupported(vers.to_string()));
+                    return Err(ParsingError::VersionNotSupported(vers.to_string()));
                 }
+
             } else if marker.contains("PGM / RUN BY / DATE") {
                 let (pgm, rem) = line.split_at(20);
                 program = pgm.trim().to_string();

@@ -191,7 +191,7 @@ pub struct Rinex {
 /// `RINEX` Parsing related errors
 pub enum Error {
     #[error("header parsing error")]
-    HeaderError(#[from] header::Error),
+    HeaderParsingError(#[from] header::ParsingError),
     #[error("record parsing error")]
     RecordError(#[from] record::Error),
     #[error("file i/o error")]
