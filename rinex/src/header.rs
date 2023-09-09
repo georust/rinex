@@ -180,6 +180,8 @@ pub enum ParsingError {
     VersionParsing(String),
     #[error("unknown RINEX type \"{0}\"")]
     TypeParsing(String),
+    #[error("unknown marker type \"{0}\"")]
+    MarkerType(String),
     #[error("line \"{0}\" should begin with Rinex version \"x.yy\"")]
     VersionFormatError(String),
     #[error("constellation error")]
@@ -435,14 +437,12 @@ impl Header {
                 } else if type_str.contains("METEOROLOGICAL DATA") {
                     // these files are not tied to a constellation system,
                     // therefore, do not have this field
-                    constellation = None
                 } else {
                     // regular files
                     if let Ok(constell) = Constellation::from_str(constell_str.trim()) {
                         constellation = Some(constell)
                     }
                 }
-                
                 /*
                  * Parse version descriptor
                  */
@@ -468,15 +468,20 @@ impl Header {
                 station = content.split_at(20).0.trim().to_string()
             } else if marker.contains("MARKER NUMBER") {
                 station_id = content.split_at(20).0.trim().to_string()
+            
             } else if marker.contains("MARKER TYPE") {
                 let code = content.split_at(20).0.trim();
                 if let Ok(marker) = MarkerType::from_str(code) {
                     marker_type = Some(marker)
+                } else {
+                    return Err(ParsingError::MarkerType(code.to_string()));
                 }
+            
             } else if marker.contains("OBSERVER / AGENCY") {
                 let (obs, ag) = content.split_at(20);
                 observer = obs.trim().to_string();
-                agency = ag.trim().to_string()
+                agency = ag.trim().to_string();
+
             } else if marker.contains("REC # / TYPE / VERS") {
                 if let Ok(receiver) = Rcvr::from_str(content) {
                     rcvr = Some(receiver)
