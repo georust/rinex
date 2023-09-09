@@ -607,6 +607,25 @@ impl Rinex {
     pub fn is_observation_rinex(&self) -> bool {
         self.header.rinex_type == types::Type::ObservationData
     }
+    /// Returns true if Differential Code Biases (DCBs)
+    /// are compensated for, in this file, for this GNSS constellation.
+    /// DCBs are biases due to tiny frequency differences,
+    /// in both the SV embedded code generator, and receiver PLL.
+    /// If this is true, that means all code signals received in from
+    /// all SV within that constellation, have intrinsinc DCB compensation.
+    /// In very high precision and specific applications, you then do not have
+    /// to deal with their compensation yourself.
+    pub fn dcb_compensation(&self, constellation: Constellation) -> bool {
+        if let Some(obs) = &self.header.obs {
+            obs.dcb_compensations
+                .iter()
+                .filter(|dcb| dcb.constellation == constellation)
+                .count()
+                > 0
+        } else {
+            false
+        }
+    }
 
     /// Returns `true` if self is a `merged` RINEX file,   
     /// meaning, this file is the combination of two RINEX files merged together.  
@@ -1711,7 +1730,7 @@ impl Rinex {
     /// Clock receiver offset (in seconds), if present, are defined for each individual
     /// [`Epoch`].
     /// Phase data is exposed as raw / unscaled data: therefore incorrect
-    /// values in case of High Precision RINEX. Prefer the dedicated 
+    /// values in case of High Precision RINEX. Prefer the dedicated
     /// [Self::carrier_phase] iterator. In any case, you should always
     /// prefer the iteration method of the type of data you're interested in.
     /// ```
@@ -1755,11 +1774,11 @@ impl Rinex {
                 ),
             > + '_,
     > {
-            Box::new(
-                self.record
-                    .as_obs()
-                    .into_iter()
-                    .flat_map(|record| record.iter())
+        Box::new(
+            self.record
+                .as_obs()
+                .into_iter()
+                .flat_map(|record| record.iter()),
         )
     }
 }

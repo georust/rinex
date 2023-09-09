@@ -97,6 +97,18 @@ impl std::fmt::Display for Crinex {
     }
 }
 
+/// DCB Compensation description
+#[derive(Debug, Clone, Default, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct DcbCompensation {
+    /// Program used for DCBs evaluation and compensation
+    pub program: String,
+    /// Constellation to which this compensation applies to
+    pub constellation: Constellation,
+    /// URL: source of corrections
+    pub url: String,
+}
+
 /// Describes known marker types
 /// Observation Record specific header fields
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -109,7 +121,7 @@ pub struct HeaderFields {
     /// True if local clock drift is compensated for
     pub clock_offset_applied: bool,
     /// DCBs compensation per constellation basis
-    pub dcb_compensations: Vec<Constellation>,
+    pub dcb_compensations: Vec<DcbCompensation>,
     /// Optionnal data scalings
     pub scalings: HashMap<Constellation, HashMap<Observable, f64>>,
 }
@@ -135,38 +147,8 @@ impl HeaderFields {
     }
 
     /// Emphasize that DCB is compensated for
-    pub fn with_dcb_compensation(&self, c: Constellation) -> Self {
-        let mut s = self.clone();
-        s.dcb_compensations.push(c);
-        s
-    }
-    /// Returns true if DCB compensation was applied for given constellation.
-    /// If constellation is None: we test against all encountered constellation
-    pub fn dcb_compensation(&self, c: Option<Constellation>) -> bool {
-        if let Some(c) = c {
-            for comp in &self.dcb_compensations {
-                if *comp == c {
-                    return true;
-                }
-            }
-            false
-        } else {
-            for (cst, _) in &self.codes {
-                // all encountered constellations
-                let mut found = false;
-                for ccst in &self.dcb_compensations {
-                    // all compensated constellations
-                    if ccst == cst {
-                        found = true;
-                        break;
-                    }
-                }
-                if !found {
-                    return false;
-                }
-            }
-            true
-        }
+    pub fn append_dcb_compensation(&mut self, dcb: DcbCompensation) {
+        self.dcb_compensations.push(dcb);
     }
 }
 

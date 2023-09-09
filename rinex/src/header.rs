@@ -6,7 +6,7 @@ use crate::{
     ground_position::GroundPosition,
     hardware::{Antenna, Rcvr, SvAntenna},
     ionex, leap, meteo, observation,
-    observation::Crinex,
+    observation::{Crinex, DcbCompensation},
     reader::BufferedReader,
     types::Type,
     version::Version,
@@ -515,11 +515,33 @@ impl Header {
                     rcvr = Some(receiver)
                 }
             } else if marker.contains("SYS / DCBS APPLIED") {
-                let (system, rem) = content.split_at(2);
-                let (_program, _url) = rem.split_at(18);
-                if let Ok(gnss) = Constellation::from_str(system.trim()) {
-                    observation.with_dcb_compensation(gnss);
-                }
+                let (gnss, rem) = content.split_at(2);
+                let (program, rem) = rem.split_at(18);
+                let (url, _) = rem.split_at(40);
+
+                let gnss = gnss.trim();
+                let gnss = Constellation::from_str(gnss.trim())?;
+
+                let dcb = DcbCompensation {
+                    program: {
+                        let program = program.trim();
+                        if program.eq("") {
+                            String::from("Unknown")
+                        } else {
+                            program.to_string()
+                        }
+                    },
+                    constellation: gnss.clone(),
+                    url: {
+                        let url = url.trim();
+                        if url.eq("") {
+                            String::from("Unknown")
+                        } else {
+                            url.to_string()
+                        }
+                    },
+                };
+                observation.append_dcb_compensation(dcb);
             } else if marker.contains("SYS / SCALE FACTOR") {
                 /*let (system, rem) = content.split_at(2);
                 let (factor, rem) = rem.split_at(5);*/
