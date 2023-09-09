@@ -292,6 +292,7 @@ impl Header {
         let mut ground_position: Option<GroundPosition> = None;
         let mut dcb_compensations: Vec<DcbCompensation> = Vec::new();
         let mut pcv_compensations: Vec<PcvCompensation> = Vec::new();
+        let mut scaling_count = 0_16;
         // RINEX specific fields
         let mut current_constell: Option<Constellation> = None;
         let mut observation = observation::HeaderFields::default();
@@ -591,27 +592,35 @@ impl Header {
 
                 dcb_compensations.push(dcb);
             } else if marker.contains("SYS / SCALE FACTOR") {
-                let (gnss, rem) = content.split_at(2);
-                let gnss = Constellation::from_str(gnss.trim())?;
+                //TODO: conclude other lines parsing
+                if scaling_count == 0 {
+                    // parsing first line
+                    let (gnss, rem) = content.split_at(2);
+                    let gnss = Constellation::from_str(gnss.trim())?;
 
-                let (factor, rem) = rem.split_at(6);
-                let factor = factor.trim();
+                    let (factor, rem) = rem.split_at(6);
+                    let factor = factor.trim();
+                    let scaling = u16::from_str_radix(factor, 10)
+                        .or(Err(parse_int_error!("SYS / SCALE FACTOR", factor)))?;
 
-                let scaling = u32::from_str_radix(factor, 10)
-                    .or(Err(parse_int_error!("SYS / SCALE FACTOR", factor)))?;
+                    let (_num, rem) = rem.split_at(3);
+                    
+                    // parse end of line
+                    let mut len = rem.len();
+                    let mut rem = rem.clone();
 
-                let (num, rem) = rem.split_at(3);
-                /*
-                 * parse first line
-                 */
-                let mut len = rem.len();
-                let mut rem = rem.clone();
-
-                while len > 0 {
-                    let (observable, r) = rem.split_at(4);
-                    rem = r.clone();
-                    len = rem.len();
+                    while len > 0 {
+                        let (observable, r) = rem.split_at(4);
+                        let observable = Observable::from_str(observable.trim())?;
+                        // latch scaling value
+                        observation.insert_scaling(gnss, observable, scaling);
+                        // continue
+                        rem = r.clone();
+                        len = rem.len();
+                    }
+                    scaling_count += 1;
                 }
+
             } else if marker.contains("SENSOR MOD/TYPE/ACC") {
                 if let Ok(sensor) = meteo::sensor::Sensor::from_str(content) {
                     meteo.sensors.push(sensor)
@@ -1217,7 +1226,7 @@ impl Header {
                         .iter()
                         .map(|dcb| dcb.constellation.clone())
                         .collect();
-                    let mut dcbs: Vec<DcbCompensation> = self
+                    let dcbs: Vec<DcbCompensation> = self
                         .dcb_compensations
                         .clone()
                         .iter()
@@ -1239,7 +1248,7 @@ impl Header {
                         .iter()
                         .map(|pcv| pcv.constellation.clone())
                         .collect();
-                    let mut pcvs: Vec<PcvCompensation> = self
+                    let pcvs: Vec<PcvCompensation> = self
                         .pcv_compensations
                         .clone()
                         .iter()
