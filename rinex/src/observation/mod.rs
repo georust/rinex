@@ -109,7 +109,7 @@ pub struct HeaderFields {
     /// True if local clock drift is compensated for
     pub clock_offset_applied: bool,
     /// Optionnal data scalings
-    pub scalings: HashMap<Constellation, HashMap<Observable, u16>>,
+    pub scalings: HashMap<(Constellation, Observable), u16>,
 }
 
 impl HeaderFields {
@@ -120,19 +120,12 @@ impl HeaderFields {
         observable: Observable,
         scaling: u16,
     ) {
-        if let Some(scalings) = self.scalings.get_mut(&c) {
-            scalings.insert(observable, scaling);
-        } else {
-            let mut map: HashMap<Observable, u16> = HashMap::new();
-            map.insert(observable, scaling);
-            self.scalings.insert(c, map);
-        }
+        self.scalings.insert((c, observable), scaling);
     }
     /// Returns given scaling to apply for given GNSS system
     /// and given observation. Returns 1.0 by default, so it always applies
-    pub(crate) fn scaling(&self, c: &Constellation, observable: &Observable) -> Option<&u16> {
-        let scalings = self.scalings.get(c)?;
-        scalings.get(observable)
+    pub(crate) fn scaling(&self, c: Constellation, observable: Observable) -> Option<&u16> {
+        self.scalings.get(&(c, observable))
     }
 }
 
