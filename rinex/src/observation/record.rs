@@ -1684,10 +1684,10 @@ impl Dcb for Record {
         for (epoch, (_, vehicles)) in self {
             for (sv, observations) in vehicles {
                 for (lhs_observable, lhs_observation) in observations {
-                    if !lhs_observable.is_phase_observable() {
-                        if !lhs_observable.is_pseudorange_observable() {
-                            continue;
-                        }
+                    if !lhs_observable.is_phase_observable()
+                        && !lhs_observable.is_pseudorange_observable()
+                    {
+                        continue;
                     }
                     let lhs_code = lhs_observable.to_string();
                     let lhs_carrier = &lhs_code[1..2];

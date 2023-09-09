@@ -292,7 +292,7 @@ impl Header {
         let mut ground_position: Option<GroundPosition> = None;
         let mut dcb_compensations: Vec<DcbCompensation> = Vec::new();
         let mut pcv_compensations: Vec<PcvCompensation> = Vec::new();
-        let mut scaling_count = 0_16;
+        let mut scaling_count = 0_u16;
         // RINEX specific fields
         let mut current_constell: Option<Constellation> = None;
         let mut observation = observation::HeaderFields::default();
@@ -1084,7 +1084,7 @@ impl Header {
         }
 
         Ok(Header {
-            version: version,
+            version,
             rinex_type,
             constellation,
             comments,

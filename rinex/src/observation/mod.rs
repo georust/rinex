@@ -151,7 +151,7 @@ pub trait Combine {
     /// use rinex::observation::*;
     ///
     /// let rinex = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
-    ///		.unwrap();
+    ///    .unwrap();
     ///
     /// let gf = rinex.geo_free();
     /// for ((ref_observable, rhs_observable), data) in gf {
@@ -202,7 +202,7 @@ pub trait Dcb {
     /// use rinex::observation::*; // .dcb()
     ///
     /// let rinex = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
-    ///		.unwrap();
+    ///    .unwrap();
     /// let dcb = rinex.dcb();
     /// ```
     fn dcb(&self) -> HashMap<String, BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>;
