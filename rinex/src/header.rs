@@ -508,20 +508,37 @@ impl Header {
                 let (y, rem) = rem.split_at(14);
                 let (z, rem) = rem.split_at(14);
                 let (h, phys) = rem.split_at(14);
+                
                 let phys = phys.trim();
                 let observable = Observable::from_str(phys)?;
 
+                let x = x.trim();
+                let x = f64::from_str(x).or(Err(ParsingError::CoordinatesParsing(
+                    String::from("SENSOR POS X"),
+                    x.to_string(),
+                )))?;
+
+                let y = y.trim();
+                let y = f64::from_str(y).or(Err(ParsingError::CoordinatesParsing(
+                    String::from("SENSOR POS Y"),
+                    y.to_string(),
+                )))?;
+
+                let z = z.trim();
+                let z = f64::from_str(z).or(Err(ParsingError::CoordinatesParsing(
+                    String::from("SENSOR POS Z"),
+                    z.to_string(),
+                )))?;
+
+                let h = h.trim();
+                let h = f64::from_str(h).or(Err(ParsingError::CoordinatesParsing(
+                    String::from("SENSOR POS H"),
+                    h.to_string(),
+                )))?;
+
                 for sensor in meteo.sensors.iter_mut() {
                     if sensor.observable == observable {
-                        if let Ok(x) = f64::from_str(x.trim()) {
-                            if let Ok(y) = f64::from_str(y.trim()) {
-                                if let Ok(z) = f64::from_str(z.trim()) {
-                                    if let Ok(h) = f64::from_str(h.trim()) {
-                                        *sensor = sensor.with_position((x, y, z, h))
-                                    }
-                                }
-                            }
-                        }
+                        *sensor = sensor.with_position((x, y, z, h))
                     }
                 }
             } else if marker.contains("LEAP SECOND") {
