@@ -17,8 +17,8 @@ pub enum Error {
     EpochError(#[from] epoch::Error),
     #[error("constellation parsing error")]
     ConstellationParsing(#[from] constellation::ParsingError),
-    #[error("failed to parse sv")]
-    SvError(#[from] sv::Error),
+    #[error("sv parsing error")]
+    SvParsing(#[from] sv::ParsingError),
     #[error("failed to parse integer number")]
     ParseIntError(#[from] std::num::ParseIntError),
     #[error("failed to parse float number")]

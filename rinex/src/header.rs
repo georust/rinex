@@ -508,7 +508,7 @@ impl Header {
                 let (y, rem) = rem.split_at(14);
                 let (z, rem) = rem.split_at(14);
                 let (h, phys) = rem.split_at(14);
-                
+
                 let phys = phys.trim();
                 let observable = Observable::from_str(phys)?;
 

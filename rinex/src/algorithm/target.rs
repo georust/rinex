@@ -24,8 +24,8 @@ pub enum Error {
     InvalidAzimuthAngleDescription,
     #[error("bad snr description")]
     InvalidSNRDescription,
-    #[error("failed to parse sv")]
-    SvParingError(#[from] sv::Error),
+    #[error("sv parsing error")]
+    SvParing(#[from] sv::ParsingError),
     #[error("constellation parsing error")]
     ConstellationParing(#[from] constellation::ParsingError),
     #[error("failed to parse epoch flag")]
@@ -147,7 +147,7 @@ impl std::ops::BitOr for TargetItem {
     }
 }
 
-pub(crate) fn parse_sv_list(items: Vec<&str>) -> Result<Vec<Sv>, sv::Error> {
+pub(crate) fn parse_sv_list(items: Vec<&str>) -> Result<Vec<Sv>, sv::ParsingError> {
     let mut ret: Vec<Sv> = Vec::with_capacity(items.len());
     for item in items {
         let sv = Sv::from_str(item.trim())?;
