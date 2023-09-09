@@ -8,7 +8,7 @@ use crate::{
     ionex, leap, meteo, observation,
     observation::Crinex,
     reader::BufferedReader,
-    types::{Type, TypeError},
+    types::Type,
     version::Version,
     Observable,
 };
@@ -178,10 +178,10 @@ pub enum ParsingError {
     VersionNotSupported(String),
     #[error("failed to parse version from \"{0}\"")]
     VersionParsing(String),
-    #[error("Line \"{0}\" should begin with Rinex version \"x.yy\"")]
+    #[error("unknown RINEX type \"{0}\"")]
+    TypeParsing(String),
+    #[error("line \"{0}\" should begin with Rinex version \"x.yy\"")]
     VersionFormatError(String),
-    #[error("rinex type error")]
-    TypeError(#[from] TypeError),
     #[error("constellation error")]
     ConstellationError(#[from] constellation::Error),
     #[error("failed to parse leap from \"{0}\"")]

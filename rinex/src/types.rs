@@ -1,6 +1,6 @@
-//! `RINEX` files type description
-use super::Constellation;
-use thiserror::Error;
+//! `RINEX` types description
+use crate::header::ParsingError;
+use crate::prelude::Constellation;
 
 /// Describes all known `RINEX` file types
 #[derive(Default, Copy, Clone, PartialEq, Debug)]
@@ -27,13 +27,6 @@ pub enum Type {
     /// Users interested in such calibrations / conversions / calculations,
     /// should use this parser as a mean to extract the antenna coefficients solely
     AntennaData,
-}
-
-#[derive(Error, Debug)]
-/// `Type` related errors
-pub enum TypeError {
-    #[error("Unknown RINEX type identifier \"{0}\"")]
-    UnknownType(String),
 }
 
 impl std::fmt::Display for Type {
@@ -67,7 +60,7 @@ impl Type {
 }
 
 impl std::str::FromStr for Type {
-    type Err = TypeError;
+    type Err = ParsingError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if s.eq("NAVIGATION DATA") {
             Ok(Self::NavigationData)
@@ -84,7 +77,7 @@ impl std::str::FromStr for Type {
         } else if s.eq("IONOSPHERE MAPS") {
             Ok(Self::IonosphereMaps)
         } else {
-            Err(TypeError::UnknownType(String::from(s)))
+            Err(ParsingError::TypeParsing(String::from(s)))
         }
     }
 }
