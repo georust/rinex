@@ -186,6 +186,10 @@ pub enum ParsingError {
     ObservableParsing(#[from] observable::ParsingError),
     #[error("constellation parsing error")]
     ConstellationParsing(#[from] constellation::ParsingError),
+    #[error("timescale parsing error")]
+    TimescaleParsing(String),
+    #[error("failed to parse \"{0}\" coordinates from \"{1}\"")]
+    CoordinatesParsing(String, String),
     #[error("failed to parse leap from \"{0}\"")]
     LeapParsingError(#[from] leap::Error),
     #[error("failed to parse antenna / receiver infos")]
@@ -542,13 +546,25 @@ impl Header {
             } else if marker.contains("APPROX POSITION XYZ") {
                 // station base coordinates
                 let items: Vec<&str> = content.split_ascii_whitespace().collect();
-                if let Ok(x) = f64::from_str(items[0].trim()) {
-                    if let Ok(y) = f64::from_str(items[1].trim()) {
-                        if let Ok(z) = f64::from_str(items[2].trim()) {
-                            ground_position = Some(GroundPosition::from_ecef_wgs84((x, y, z)));
-                        }
-                    }
-                }
+                let x = items[0].trim();
+                let x = f64::from_str(x).or(Err(ParsingError::CoordinatesParsing(
+                    String::from("APPROX POSITION X"),
+                    x.to_string(),
+                )))?;
+
+                let y = items[1].trim();
+                let y = f64::from_str(y).or(Err(ParsingError::CoordinatesParsing(
+                    String::from("APPROX POSITION Y"),
+                    y.to_string(),
+                )))?;
+
+                let z = items[2].trim();
+                let z = f64::from_str(z).or(Err(ParsingError::CoordinatesParsing(
+                    String::from("APPROX POSITION Z"),
+                    z.to_string(),
+                )))?;
+
+                ground_position = Some(GroundPosition::from_ecef_wgs84((x, y, z)));
             } else if marker.contains("ANT # / TYPE") {
                 let (model, rem) = content.split_at(20);
                 let (sn, _) = rem.split_at(20);
@@ -564,17 +580,29 @@ impl Header {
             } else if marker.contains("ANTENNA: DELTA X/Y/Z") {
                 // Antenna Base/Reference Coordinates
                 let items: Vec<&str> = content.split_ascii_whitespace().collect();
-                if let Ok(x) = f64::from_str(items[0].trim()) {
-                    if let Ok(y) = f64::from_str(items[1].trim()) {
-                        if let Ok(z) = f64::from_str(items[2].trim()) {
-                            if let Some(a) = &mut rcvr_antenna {
-                                *a = a.with_base_coordinates((x, y, z));
-                            } else {
-                                rcvr_antenna =
-                                    Some(Antenna::default().with_base_coordinates((x, y, z)));
-                            }
-                        }
-                    }
+
+                let x = items[0].trim();
+                let x = f64::from_str(x).or(Err(ParsingError::CoordinatesParsing(
+                    String::from("ANTENNA DELTA X"),
+                    x.to_string(),
+                )))?;
+
+                let y = items[1].trim();
+                let y = f64::from_str(y).or(Err(ParsingError::CoordinatesParsing(
+                    String::from("ANTENNA DELTA Y"),
+                    y.to_string(),
+                )))?;
+
+                let z = items[2].trim();
+                let z = f64::from_str(z).or(Err(ParsingError::CoordinatesParsing(
+                    String::from("ANTENNA DELTA Z"),
+                    z.to_string(),
+                )))?;
+
+                if let Some(ant) = &mut rcvr_antenna {
+                    *ant = ant.with_base_coordinates((x, y, z));
+                } else {
+                    rcvr_antenna = Some(Antenna::default().with_base_coordinates((x, y, z)));
                 }
             } else if marker.contains("ANTENNA: DELTA H/E/N") {
                 // Antenna H/E/N eccentricity components
@@ -766,17 +794,9 @@ impl Header {
                 //}
             } else if marker.contains("TIME SYSTEM ID") {
                 let timescale = content.trim();
-                if let Ok(ts) = TimeScale::from_str(content.trim()) {
-                    clocks = clocks.with_timescale(ts);
-                } else {
-                    if timescale.eq("GPS") {
-                        clocks = clocks.with_timescale(TimeScale::GPST);
-                    } else if timescale.eq("GAL") {
-                        clocks = clocks.with_timescale(TimeScale::GST);
-                    } else if timescale.eq("BDS") {
-                        clocks = clocks.with_timescale(TimeScale::BDT);
-                    }
-                }
+                let ts = TimeScale::from_str(timescale)
+                    .or(Err(ParsingError::TimescaleParsing(timescale.to_string())))?;
+                clocks = clocks.with_timescale(ts);
             } else if marker.contains("DELTA-UTC") {
                 //TODO
                 //0.931322574615D-09 0.355271367880D-14   233472     1930 DELTA-UTC: A0,A1,T,W
