@@ -172,9 +172,9 @@ fn create_context(cli: &Cli) -> QcContext {
  * Returns true if Skyplot view if feasible
  */
 fn skyplot_allowed(ctx: &QcContext, cli: &Cli) -> bool {
-    if cli.quality_check_only() {
+    if cli.quality_check_only() || cli.positioning_only() {
         /*
-         * Special mode: no plots allowed
+         * Special modes: no plots allowed
          */
         return false;
     }
@@ -198,9 +198,12 @@ pub fn main() -> Result<(), rinex::Error> {
     // Cli
     let cli = Cli::new();
     let quiet = cli.quiet();
+    
     let qc_only = cli.quality_check_only();
     let qc = cli.quality_check() || qc_only;
-    let positioning = cli.positioning();
+    
+    let positioning_only = cli.positioning_only();
+    let positioning = cli.positioning() || positioning_only;
 
     // Initiate plot context
     let mut plot_ctx = PlotContext::new();
@@ -471,14 +474,14 @@ pub fn main() -> Result<(), rinex::Error> {
      * Record analysis / visualization
      * analysis depends on the provided record type
      */
-    if !qc_only {
+    if !qc_only && !positioning_only {
         info!("entering record analysis");
         plot::plot_record(&ctx, &mut plot_ctx);
     }
     /*
      * Render Graphs (HTML)
      */
-    if !qc_only {
+    if !qc_only && !positioning_only {
         let html_path = workspace_path(&ctx).join("graphs.html");
         let html_path = html_path.to_str().unwrap();
 
@@ -491,7 +494,6 @@ pub fn main() -> Result<(), rinex::Error> {
             open_with_web_browser(&html_path);
         }
     }
-
     /*
      * QC Mode
      */

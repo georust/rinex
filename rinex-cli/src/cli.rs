@@ -238,7 +238,7 @@ The summary report by default is integrated to the global HTML report."))
                     .arg(Arg::new("qc-only")
                         .long("qc-only")
                         .action(ArgAction::SetTrue)
-                        .help("Enables QC mode and ensures no other analysis are performed (quickest qc rendition)."))
+                        .help("Activates QC mode and disables all other features: quickest qc rendition."))
                 .next_help_heading("Position Solver")
                     .arg(Arg::new("positioning")
                         .short('p')
@@ -249,6 +249,10 @@ This is only possible if provided context is sufficient.
 Depending on provided context, either SPP (high accuracy) or PPP (ultra high accuracy)
 method is deployed.
 This is turned of by default, because it involves quite heavy computations."))
+                    .arg(Arg::new("positioning-only")
+                        .long("pos-only")
+                        .action(ArgAction::SetTrue)
+                        .help("Activates GNSS position solver, disables all other modes: most performant solver.")) 
                 .next_help_heading("File operations")
                     .arg(Arg::new("merge")
                         .short('m')
@@ -420,6 +424,9 @@ Refer to README"))
     /// Returns true if position solver is enabled
     pub fn positioning(&self) -> bool {
         self.matches.get_flag("positioning")
+    }
+    pub fn positioning_only(&self) -> bool {
+        self.matches.get_flag("positioning-only")
     }
     pub fn cs_graph(&self) -> bool {
         self.matches.get_flag("cs")
