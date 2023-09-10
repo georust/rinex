@@ -37,9 +37,9 @@ extern crate log;
 use clap::parser::ValuesRef;
 use fops::open_with_web_browser;
 use sp3::{prelude::SP3, Merge as SP3Merge};
+use std::collections::HashMap;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::collections::HashMap;
 
 /*
  * Workspace location is fixed to rinex-cli/product/$primary
@@ -201,10 +201,10 @@ pub fn main() -> Result<(), rinex::Error> {
     // Cli
     let cli = Cli::new();
     let quiet = cli.quiet();
-    
+
     let qc_only = cli.quality_check_only();
     let qc = cli.quality_check() || qc_only;
-    
+
     let positioning_only = cli.positioning_only();
     let positioning = cli.positioning() || positioning_only;
 
@@ -263,7 +263,7 @@ pub fn main() -> Result<(), rinex::Error> {
      * we will need interpolated SV
      * do that now that possible uninteresting data has been removed
      */
-    ctx.sv_orbit_interpolation(); 
+    ctx.sv_orbit_interpolation();
     /*
      * Basic file identification
      */

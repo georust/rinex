@@ -2061,6 +2061,39 @@ impl Rinex {
             })
         }))
     }
+    /// Returns an Iterator over "complete" Epochs.
+    /// "Complete" Epochs are Epochs were both Phase and Pseudo Range
+    /// observations are present on two carriers, sane sampling conditions are met
+    /// and an optional minimal SNR criteria is met (disregarded if None).
+    pub fn complete_epoch(
+        &self,
+        min_snr: Option<Snr>,
+    ) -> Box<dyn Iterator<Item = (Epoch, Vec<Sv>)> + '_> {
+        Box::new(
+            self.observation()
+                .filter_map(|((e, flag), (_, vehicles))| {
+                    if flag.is_ok() {
+                        let mut list: Vec<Sv> = Vec::new();
+                        for (sv, observables) in vehicles {
+                            let mut has_pr = false;
+                            let mut has_ph = false;
+                            let mut criteria_met = true;
+                            for (observable, observation) in observables {
+                                has_ph |= observable.is_phase_observable();
+                                has_pr |= observable.is_pseudorange_observable();
+                            }
+                            if has_ph && has_pr && criteria_met {
+                                list.push(*sv);
+                            }
+                        }
+                        Some((*e, list))
+                    } else {
+                        None
+                    }
+                })
+                .filter(|(sv, list)| !list.is_empty()),
+        )
+    }
 }
 
 #[cfg(feature = "nav")]
