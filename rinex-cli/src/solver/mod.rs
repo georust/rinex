@@ -98,16 +98,15 @@ impl Solver {
     /*
      * Returns Sv clock data from given context
      */
-    fn sv_clock(ctx: &QcContext) -> Box<dyn Iterator<Item = (Epoch, Sv, f64)> +'_> {
+    fn sv_clock(ctx: &QcContext) -> Box<dyn Iterator<Item = (Epoch, Sv, f64)> + '_> {
         match ctx.sp3_data() {
-            Some(sp3) => Box::new(sp3
-                .sv_clock()),
-            _ => Box::new(ctx.navigation_data()
-                .unwrap()
-                .sv_clock()
-                .map(|(e, sv, (clk, _, _))| {
-                    (e, sv, clk)
-                })),
+            Some(sp3) => Box::new(sp3.sv_clock()),
+            _ => Box::new(
+                ctx.navigation_data()
+                    .unwrap()
+                    .sv_clock()
+                    .map(|(e, sv, (clk, _, _))| (e, sv, clk)),
+            ),
         }
     }
     /*
@@ -129,34 +128,30 @@ impl Solver {
      * in the form (Sv, T_tx, T_rx) where T are expressed as hifitime::Epoch
      */
     fn sv_transmission_time(ctx: &QcContext) -> Box<dyn Iterator<Item = (Sv, Epoch, Epoch)> + '_> {
-        Box::new(
-        Self::sv_clock(ctx)
-            .filter_map(|(t_rx, sv, sv_clk)| {
-                // need one pseudo range observation 
-                // for this Sv @ this epoch
-                let mut pr = ctx
-                    .primary_data()
-                    .pseudo_range()
-                    .filter_map(|((e, flag), svnn, _, value)| {
-                        if e == t_rx && flag.is_ok() && svnn == sv {
-                            Some(value)
-                        } else {
-                            None
-                        }
-                    })
-                    .take(1); // dont care about signals : just need one
-                if let Some(pr) = pr.next() {
-                    let t_tx = t_rx.to_duration().to_seconds() - pr / SPEED_OF_LIGHT - sv_clk; 
-                    let t_tx = Epoch::from_duration(Duration::from_seconds(t_tx), t_rx.time_scale);
-                    debug!("t_rx: {} | t_tx {}", t_rx, t_tx);
-                    Some((sv, t_tx, t_rx))
-                } else {
-                    debug!("{} @{} - missing pseudo range observation", sv, t_rx);
-                    None
-                }
-
-            })
-        )
+        Box::new(Self::sv_clock(ctx).filter_map(|(t_rx, sv, sv_clk)| {
+            // need one pseudo range observation
+            // for this Sv @ this epoch
+            let mut pr = ctx
+                .primary_data()
+                .pseudo_range()
+                .filter_map(|((e, flag), svnn, _, value)| {
+                    if e == t_rx && flag.is_ok() && svnn == sv {
+                        Some(value)
+                    } else {
+                        None
+                    }
+                })
+                .take(1); // dont care about signals : just need one
+            if let Some(pr) = pr.next() {
+                let t_tx = t_rx.to_duration().to_seconds() - pr / SPEED_OF_LIGHT - sv_clk;
+                let t_tx = Epoch::from_duration(Duration::from_seconds(t_tx), t_rx.time_scale);
+                debug!("t_rx: {} | t_tx {}", t_rx, t_tx);
+                Some((sv, t_tx, t_rx))
+            } else {
+                debug!("{} @{} - missing pseudo range observation", sv, t_rx);
+                None
+            }
+        }))
     }
     /*
      * Evaluates Sun/Earth vector, <!> expressed in Km <!>

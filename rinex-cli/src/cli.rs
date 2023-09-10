@@ -417,6 +417,10 @@ Refer to README"))
     pub fn quiet(&self) -> bool {
         self.matches.get_flag("quiet")
     }
+    /// Returns true if position solver is enabled
+    pub fn positioning(&self) -> bool {
+        self.matches.get_flag("positioning")
+    }
     pub fn cs_graph(&self) -> bool {
         self.matches.get_flag("cs")
     }

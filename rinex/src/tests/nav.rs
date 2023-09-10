@@ -1649,4 +1649,95 @@ mod test {
             }
         }
     }
+    #[test]
+    #[cfg(feature = "flate2")]
+    #[cfg(feature = "nav")]
+    fn sv_interp() {
+        let path = PathBuf::new()
+            .join(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join("test_resources")
+            .join("NAV")
+            .join("V3")
+            .join("MOJN00DNK_R_20201770000_01D_MN.rnx.gz");
+        let rinex = Rinex::from_file(&path.to_string_lossy());
+        assert!(
+            rinex.is_ok(),
+            "failed to parse NAV/V3/MOJN00DNK_R_20201770000_01D_MN.rnx.gz, error: {:?}",
+            rinex.err()
+        );
+        let rinex = rinex.unwrap();
+        let first_epoch = rinex.first_epoch().expect("failed to determine 1st epoch");
+        let last_epoch = rinex.last_epoch().expect("failed to determine last epoch");
+        let dt = rinex.dominant_sample_rate().unwrap();
+        let total_epochs = rinex.epoch().count();
+
+        for (order, max_error) in vec![(7, 1E-1_f64), (9, 1.0E-2_64), (11, 0.5E-3_f64)] {
+            let tmin = first_epoch + (order / 2) * dt;
+            let tmax = last_epoch - (order / 2) * dt;
+            println!("running Interp({}) testbench..", order);
+            for (index, epoch) in rinex.epoch().enumerate() {
+                let feasible = epoch > tmin && epoch <= tmax;
+                let interpolated = rinex.sv_position_interpolate(epoch, order as usize);
+                let achieved = interpolated.len() > 0;
+                //DEBUG
+                // println!("tmin: {} | tmax: {} | epoch: {} | feasible : {} | achieved: {}", tmin, tmax, epoch, feasible, achieved);
+                //if feasible {
+                //    assert!(
+                //        achieved == feasible,
+                //        "interpolation should have been feasible @ epoch {}",
+                //        epoch,
+                //    );
+                //} else {
+                //    assert!(
+                //        achieved == feasible,
+                //        "interpolation should not have been feasible @ epoch {}",
+                //        epoch,
+                //    );
+                //}
+                /*
+                 * test interpolation errors
+                 */
+                for (sv, (x, y, z)) in interpolated {
+                    let truth = rinex.sv_position().find(|(t, svnn, (sv_x, sv_y, sv_z))| {
+                        *svnn == sv && *t == epoch && x == *sv_x && y == *sv_y && z == *sv_z
+                    });
+                    if let Some(truth) = truth {
+                        let err = (
+                            (x - truth.2 .0).abs() * 1.0E3, // error in km
+                            (y - truth.2 .1).abs() * 1.0E3,
+                            (z - truth.2 .2).abs() * 1.0E3,
+                        );
+                        assert!(
+                            err.0 < max_error,
+                            "x error too large: {} for Interp({}) for {} @ Epoch {}/{}",
+                            err.0,
+                            order,
+                            sv,
+                            index,
+                            total_epochs,
+                        );
+                        assert!(
+                            err.1 < max_error,
+                            "y error too large: {} for Interp({}) for {} @ Epoch {}/{}",
+                            err.1,
+                            order,
+                            sv,
+                            index,
+                            total_epochs,
+                        );
+                        assert!(
+                            err.2 < max_error,
+                            "z error too large: {} for Interp({}) for {} @ Epoch {}/{}",
+                            err.2,
+                            order,
+                            sv,
+                            index,
+                            total_epochs,
+                        );
+                    }
+                }
+            }
+        }
+    }
 }

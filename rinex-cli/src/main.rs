@@ -7,6 +7,7 @@ mod cli; // command line interface
 pub mod fops; // file operation helpers
 mod identification; // high level identification/macros
 mod plot; // plotting operations
+mod solver; // position solver
 
 mod preprocessing;
 use preprocessing::preprocess;
@@ -25,6 +26,7 @@ use rinex_qc::*;
 use cli::Cli;
 use identification::rinex_identification;
 use plot::PlotContext;
+use solver::Solver;
 
 extern crate pretty_env_logger;
 use pretty_env_logger::env_logger::Builder;
@@ -208,6 +210,9 @@ pub fn main() -> Result<(), rinex::Error> {
 
     // Build file context
     let mut ctx = create_context(&cli);
+
+    // Position solver
+    let mut solver = Solver::from(&ctx);
 
     // Workspace
     let workspace = workspace_path(&ctx);

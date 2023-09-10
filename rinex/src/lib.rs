@@ -2212,7 +2212,7 @@ impl Rinex {
     ///     Rinex::from_file("../test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz")
     ///         .unwrap();
     ///
-    /// for (epoch, (sv, x, y, z)) in rinex.sv_position() {
+    /// for (epoch, sv, (x, y, z)) in rinex.sv_position() {
     ///     // sv: satellite vehicle
     ///     // x: x(t) [m ECEF]
     ///     // y: y(t) [m ECEF]
@@ -2224,13 +2224,110 @@ impl Rinex {
             if let Some((x, y, z)) = ephemeris.sv_position(sv, *e) {
                 Some((*e, *sv, (x, y, z)))
             } else {
-                // we might not be able to evaluate (x, y, z)
-                // for every single epoch, for example if some
-                // ephemeris parameters (Kepler, Perturbations)
-                // are missing for this epoch
+                // non feasible calculations.
+                // most likely due to missing Keplerian parameters,
+                // at this Epoch
                 None
             }
         }))
+    }
+    /// Interpolates SV positions at desired Epoch `t`.
+    /// An interpolation order of at least 7 is recommended.
+    /// Operation is not feasible if sampling interval cannot be determined.
+    /// In ideal scenarios, Broadcast Ephemeris are complete and evenly spaced in time:
+    ///   - the first Epoch we an interpolate is ](N +1)/2 * τ; ...]
+    ///   - the last Epoch we an interpolate is  [..;  T - (N +1)/2 * τ]
+    /// where N is the interpolation order, τ the broadcast interval and T
+    /// the last broadcast message received.
+    /// In order to minimize interpolation errors, we design a continuous time window
+    /// spanning [t - order /2; t + order/2+1]. Operation might also be not feasible,
+    /// if Ephemeris are interrupted and we can't have a continuous window.
+    /// See [Bibliography::Japhet2021].
+    pub fn sv_position_interpolate(&self, t: Epoch, order: usize) -> HashMap<Sv, (f64, f64, f64)> {
+        let odd_order = order % 2 > 0;
+        let mut ret: HashMap<Sv, (f64, f64, f64)> = HashMap::new();
+
+        let dt = match self.sample_rate() {
+            Some(dt) => dt,
+            None => match self.dominant_sample_rate() {
+                Some(dt) => dt,
+                None => {
+                    /*
+                     * Can't determine anything: not enough information
+                     */
+                    return ret;
+                },
+            },
+        };
+
+        let sv_position: Vec<_> = self.sv_position().collect();
+
+        for sv in self.sv() {
+            let sv_position: Vec<_> = sv_position
+                .iter()
+                .filter_map(
+                    |(e, svnn, pos)| {
+                        if *svnn == sv {
+                            Some((*e, *pos))
+                        } else {
+                            None
+                        }
+                    },
+                )
+                .collect();
+            /*
+             * Determine cloesest Epoch in time
+             */
+            let center = match sv_position.iter().find(|(e, _)| (*e - t).abs() < dt) {
+                Some(center) => center,
+                None => {
+                    /*
+                     * Failed to determine central Epoch for this SV
+                     * empty data set: should not happen
+                     */
+                    continue;
+                },
+            };
+
+            // println!("CENTRAL EPOCH: {:?}", center); // DEBUG
+            let center_pos = match sv_position.iter().position(|(e, _)| *e == center.0) {
+                Some(center) => center,
+                None => {
+                    /* will never happen at this point */
+                    continue;
+                },
+            };
+
+            let (min_before, min_after): (usize, usize) = match odd_order {
+                true => ((order + 1) / 2, (order + 1) / 2),
+                false => (order / 2, order / 2 + 1),
+            };
+
+            if center_pos < min_before || sv_position.len() - center_pos < min_after {
+                /* can't design time window */
+                continue;
+            }
+
+            let mut polynomials = (0.0_f64, 0.0_f64, 0.0_f64);
+            let offset = center_pos - min_before;
+
+            for i in 0..order + 1 {
+                let mut li = 1.0_f64;
+                let (e_i, (x_i, y_i, z_i)) = sv_position[offset + i];
+                for j in 0..order + 1 {
+                    let (e_j, _) = sv_position[offset + j];
+                    if j != i {
+                        li *= (t - e_j).to_seconds();
+                        li /= (e_i - e_j).to_seconds();
+                    }
+                }
+                polynomials.0 += x_i * li;
+                polynomials.1 += y_i * li;
+                polynomials.2 += z_i * li;
+                ret.insert(sv, polynomials);
+            }
+        }
+        ret
     }
     /// Returns an Iterator over Sv position vectors,
     /// expressed as geodetic coordinates, with latitude and longitude
@@ -2242,7 +2339,7 @@ impl Rinex {
     ///     Rinex::from_file("../test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz")
     ///         .unwrap();
     ///
-    /// for (epoch, (sv, lat, lon, alt)) in rinex.sv_position_geo() {
+    /// for (epoch, sv, (lat, lon, alt)) in rinex.sv_position_geo() {
     ///     // sv: satellite vehicle
     ///     // lat [ddeg]
     ///     // lon [ddeg]
@@ -2263,7 +2360,7 @@ impl Rinex {
     ///     Rinex::from_file("../test_resources/NAV/V3/ESBC00DNK_R_20201770000_01D_MN.rnx.gz")
     ///         .unwrap();
     ///
-    /// //for (epoch, (sv, sv_x, sv_y, sv_z)) in rinex.sv_speed() {
+    /// //for (epoch, sv, (sv_x, sv_y, sv_z)) in rinex.sv_speed() {
     /// //    // sv_x : m/s
     /// //    // sv_y : m/s
     /// //    // sv_z : m/s
