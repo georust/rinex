@@ -155,7 +155,7 @@ impl QcContext {
         for ((e, _flag), sv, observ, data) in self.primary_data().carrier_phase() {
             // make it smart :
             // if orbit already exit do not interpolate
-            // this will make things much quicker for high quality productions (sync'ed NAV + OBS)
+            // this will make things much quicker for high quality data products
             let found = self
                 .sv_position()
                 .into_iter()

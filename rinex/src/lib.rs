@@ -2068,22 +2068,48 @@ impl Rinex {
     pub fn complete_epoch(
         &self,
         min_snr: Option<Snr>,
-    ) -> Box<dyn Iterator<Item = (Epoch, Vec<Sv>)> + '_> {
+    ) -> Box<dyn Iterator<Item = (Epoch, Vec<(Sv, Carrier)>)> + '_> {
         Box::new(
             self.observation()
                 .filter_map(|((e, flag), (_, vehicles))| {
                     if flag.is_ok() {
-                        let mut list: Vec<Sv> = Vec::new();
+                        let mut list: Vec<(Sv, Carrier)> = Vec::new();
                         for (sv, observables) in vehicles {
-                            let mut has_pr = false;
-                            let mut has_ph = false;
+                            let mut l1_pr_ph = (false, false);
+                            let mut lx_pr_ph: HashMap<Carrier, (bool, bool)> = HashMap::new();
                             let mut criteria_met = true;
                             for (observable, observation) in observables {
-                                has_ph |= observable.is_phase_observable();
-                                has_pr |= observable.is_pseudorange_observable();
+                                if !observable.is_phase_observable()
+                                    && !observable.is_pseudorange_observable()
+                                {
+                                    continue; // not interesting here
+                                }
+                                let carrier_code = &observable.to_string()[1..2];
+                                let carrier =
+                                    Carrier::from_observable(sv.constellation, observable)
+                                        .unwrap_or(Carrier::default());
+                                if carrier == Carrier::L1 {
+                                    l1_pr_ph.0 |= observable.is_pseudorange_observable();
+                                    l1_pr_ph.1 |= observable.is_phase_observable();
+                                } else {
+                                    if let Some((lx_pr, lx_ph)) = lx_pr_ph.get_mut(&carrier) {
+                                        *lx_pr |= observable.is_pseudorange_observable();
+                                        *lx_ph |= observable.is_phase_observable();
+                                    } else {
+                                        if observable.is_pseudorange_observable() {
+                                            lx_pr_ph.insert(carrier, (true, false));
+                                        } else if observable.is_phase_observable() {
+                                            lx_pr_ph.insert(carrier, (false, true));
+                                        }
+                                    }
+                                }
                             }
-                            if has_ph && has_pr && criteria_met {
-                                list.push(*sv);
+                            if l1_pr_ph == (true, true) {
+                                for (carrier, (pr, ph)) in lx_pr_ph {
+                                    if pr == true && ph == true {
+                                        list.push((*sv, carrier));
+                                    }
+                                }
                             }
                         }
                         Some((*e, list))
