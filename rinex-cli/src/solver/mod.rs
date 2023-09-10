@@ -1,5 +1,5 @@
 use nyx_space::cosmic::SPEED_OF_LIGHT;
-use nyx_space::md::prelude::{Bodies, Cosm, LightTimeCalc};
+use nyx_space::md::prelude::{Arc, Bodies, Cosm, LightTimeCalc};
 use rinex::prelude::{Duration, Epoch, Sv};
 use rinex_qc::QcContext;
 use std::collections::HashMap;
@@ -55,8 +55,10 @@ impl SolverType {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug)]
 pub(crate) struct Solver {
+    /// Cosmic model
+    cosmic: Arc<Cosm>,
     /// Solver parametrization
     opts: SolverOpts,
     /// Earth/Sun vector, for each NAV Epoch
@@ -76,11 +78,12 @@ impl Solver {
     pub fn from(context: &QcContext) -> Result<Self, Error> {
         let solver = SolverType::from(context)?;
         Ok(Self {
+            cosmic: Cosm::de438(),
             solver,
             t_tx: vec![],
             initiated: false,
             opts: SolverOpts::default(),
-            sun: Self::sun_vector3d(context, solver),
+            sun: HashMap::new(),
             estimated_pos: (0.0_f64, 0.0_f64, 0.0_f64),
             estimated_time: Epoch::default(),
         })
@@ -100,8 +103,7 @@ impl Solver {
             );
 
             // 1: eclipse filte
-            trace!("Earth / Sun vector evaluation..");
-            self.sun = Self::sun_vector3d(ctx, self.solver);
+            self.eval_sun_vector3d(ctx);
             trace!("applying eclipse filter..");
             self.eclipse_filter(ctx);
 
@@ -166,21 +168,24 @@ impl Solver {
      * Evaluates Sun/Earth vector, <!> expressed in Km <!>
      * for all SV NAV Epochs in provided context
      */
-    fn sun_vector3d(ctx: &QcContext, solver: SolverType) -> HashMap<Epoch, (f64, f64, f64)> {
+    fn eval_sun_vector3d(&mut self, ctx: &QcContext) {
+        trace!("Earth / Sun vector evaluation..");
         let mut ret: HashMap<Epoch, (f64, f64, f64)> = HashMap::new();
-        let epochs: Vec<Epoch> = match solver {
+        let epochs: Vec<Epoch> = match self.solver {
             SolverType::SPP => ctx.navigation_data().unwrap().epoch().collect(),
             SolverType::PPP => ctx.sp3_data().unwrap().epoch().collect(),
         };
-        let cosm = Cosm::de438();
         let sun_body = Bodies::Sun;
-        let eme_j2000 = cosm.frame("EME2000");
+        let eme_j2000 = self.cosmic.frame("EME2000");
         for epoch in epochs {
-            let orbit =
-                cosm.celestial_state(sun_body.ephem_path(), epoch, eme_j2000, LightTimeCalc::None);
-            ret.insert(epoch, (orbit.x_km, orbit.y_km, orbit.z_km));
+            let orbit = self.cosmic.celestial_state(
+                sun_body.ephem_path(),
+                epoch,
+                eme_j2000,
+                LightTimeCalc::None,
+            );
+            self.sun.insert(epoch, (orbit.x_km, orbit.y_km, orbit.z_km));
         }
-        ret
     }
     /*
      * Computes celestial angle condition
