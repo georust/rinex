@@ -197,10 +197,10 @@ pub(crate) fn parse_map(header: &mut Header, content: &str) -> Result<(usize, Ep
                         let mut value = v as f64;
                         value *= 10.0_f64.powf(ionex.exponent as f64);
                         map.push(MapPoint {
-                            latitude: latitude,
+                            latitude,
                             longitude: linspace.start + linspace.spacing * ptr as f64,
-                            altitude: altitude,
-                            value: value,
+                            altitude,
+                            value,
                         });
                         ptr += 1;
                     }
@@ -215,10 +215,10 @@ pub(crate) fn parse_map(header: &mut Header, content: &str) -> Result<(usize, Ep
                     let mut value = v as f64;
                     value *= 10.0_f64.powf(ionex.exponent as f64);
                     map.push(MapPoint {
-                        latitude: latitude,
+                        latitude,
                         longitude: linspace.start + linspace.spacing * ptr as f64,
-                        altitude: altitude,
-                        value: value,
+                        altitude,
+                        value,
                     });
                     ptr += 1;
                 }

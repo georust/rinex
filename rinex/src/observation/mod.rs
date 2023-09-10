@@ -108,69 +108,24 @@ pub struct HeaderFields {
     pub codes: HashMap<Constellation, Vec<Observable>>,
     /// True if local clock drift is compensated for
     pub clock_offset_applied: bool,
-    /// DCBs compensation per constellation basis
-    pub dcb_compensations: Vec<Constellation>,
     /// Optionnal data scalings
-    pub scalings: HashMap<Constellation, HashMap<Observable, f64>>,
+    pub scalings: HashMap<(Constellation, Observable), u16>,
 }
 
 impl HeaderFields {
-    /// Add an optionnal data scaling
-    pub fn with_scaling(&self, c: Constellation, observable: Observable, scaling: f64) -> Self {
-        let mut s = self.clone();
-        if let Some(scalings) = s.scalings.get_mut(&c) {
-            scalings.insert(observable, scaling);
-        } else {
-            let mut map: HashMap<Observable, f64> = HashMap::new();
-            map.insert(observable, scaling);
-            s.scalings.insert(c, map);
-        }
-        s
+    /// Insert a data scaling
+    pub(crate) fn insert_scaling(
+        &mut self,
+        c: Constellation,
+        observable: Observable,
+        scaling: u16,
+    ) {
+        self.scalings.insert((c, observable), scaling);
     }
     /// Returns given scaling to apply for given GNSS system
     /// and given observation. Returns 1.0 by default, so it always applies
-    pub fn scaling(&self, c: &Constellation, observable: Observable) -> f64 {
-        if let Some(scalings) = self.scalings.get(c) {
-            if let Some(scaling) = scalings.get(&observable) {
-                return *scaling;
-            }
-        }
-        1.0
-    }
-
-    /// Emphasize that DCB is compensated for
-    pub fn with_dcb_compensation(&self, c: Constellation) -> Self {
-        let mut s = self.clone();
-        s.dcb_compensations.push(c);
-        s
-    }
-    /// Returns true if DCB compensation was applied for given constellation.
-    /// If constellation is None: we test against all encountered constellation
-    pub fn dcb_compensation(&self, c: Option<Constellation>) -> bool {
-        if let Some(c) = c {
-            for comp in &self.dcb_compensations {
-                if *comp == c {
-                    return true;
-                }
-            }
-            false
-        } else {
-            for (cst, _) in &self.codes {
-                // all encountered constellations
-                let mut found = false;
-                for ccst in &self.dcb_compensations {
-                    // all compensated constellations
-                    if ccst == cst {
-                        found = true;
-                        break;
-                    }
-                }
-                if !found {
-                    return false;
-                }
-            }
-            true
-        }
+    pub(crate) fn scaling(&self, c: Constellation, observable: Observable) -> Option<&u16> {
+        self.scalings.get(&(c, observable))
     }
 }
 
@@ -196,7 +151,7 @@ pub trait Combine {
     /// use rinex::observation::*;
     ///
     /// let rinex = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
-    ///		.unwrap();
+    ///    .unwrap();
     ///
     /// let gf = rinex.geo_free();
     /// for ((ref_observable, rhs_observable), data) in gf {
@@ -247,7 +202,7 @@ pub trait Dcb {
     /// use rinex::observation::*; // .dcb()
     ///
     /// let rinex = Rinex::from_file("../test_resources/OBS/V3/DUTH0630.22O")
-    ///		.unwrap();
+    ///    .unwrap();
     /// let dcb = rinex.dcb();
     /// ```
     fn dcb(&self) -> HashMap<String, BTreeMap<Sv, BTreeMap<(Epoch, EpochFlag), f64>>>;

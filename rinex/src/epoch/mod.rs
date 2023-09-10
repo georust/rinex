@@ -127,10 +127,8 @@ pub(crate) fn format(epoch: Epoch, flag: Option<EpochFlag>, t: Type, revision: u
  */
 pub(crate) fn parse(s: &str) -> Result<(Epoch, EpochFlag), Error> {
     let items: Vec<&str> = s.split_ascii_whitespace().collect();
-    if items.len() != 6 {
-        if items.len() != 7 {
-            return Err(Error::FormatError);
-        }
+    if items.len() != 6 && items.len() != 7 {
+        return Err(Error::FormatError);
     }
     if let Ok(mut y) = i32::from_str_radix(items[0], 10) {
         if y < 100 {

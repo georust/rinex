@@ -31,7 +31,7 @@ impl std::str::FromStr for TimeSystem {
         } else if content.eq("TAI") {
             Ok(Self::TAI)
         } else {
-            if let Ok(c) = Constellation::from_1_letter_code(content) {
+            if let Ok(c) = Constellation::from_str(content) {
                 Ok(Self::GNSS(c))
             } else {
                 Err(TimeSystemError::UnknownSystem(content.to_string()))

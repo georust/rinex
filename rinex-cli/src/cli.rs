@@ -413,10 +413,6 @@ Refer to README"))
     pub fn readable_json(&self) -> bool {
         self.get_flag("readable")
     }
-    /// Returns true if positioning solver is requested
-    pub fn positioning(&self) -> bool {
-        self.get_flag("positioning")
-    }
     /// Returns true if quiet mode is activated
     pub fn quiet(&self) -> bool {
         self.matches.get_flag("quiet")

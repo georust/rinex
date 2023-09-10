@@ -8,7 +8,7 @@ use crate::{
     ionex, leap, meteo, observation,
     observation::Crinex,
     reader::BufferedReader,
-    types::{Type, TypeError},
+    types::Type,
     version::Version,
     Observable,
 };
@@ -18,34 +18,15 @@ use std::str::FromStr;
 use strum_macros::EnumString;
 use thiserror::Error;
 
-macro_rules! from_b_fmt_month {
-    ($m: expr) => {
-        match $m {
-            "Jan" => 1,
-            "Feb" => 2,
-            "Mar" => 3,
-            "Apr" => 4,
-            "May" => 5,
-            "Jun" => 6,
-            "Jul" => 7,
-            "Aug" => 8,
-            "Sep" => 9,
-            "Oct" => 10,
-            "Nov" => 11,
-            "Dec" => 12,
-            _ => 1,
-        }
-    };
-}
-
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, PartialEq, Eq, EnumString)]
+#[derive(Default, Clone, Debug, PartialEq, Eq, EnumString)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum MarkerType {
     /// Earth fixed & high precision
     #[strum(serialize = "GEODETIC", serialize = "Geodetic")]
+    #[default]
     Geodetic,
     /// Earth fixed & low precision
     #[strum(serialize = "NON GEODETIC", serialize = "NonGeodetic")]
@@ -88,14 +69,32 @@ pub enum MarkerType {
     Human,
 }
 
-impl Default for MarkerType {
-    fn default() -> Self {
-        Self::Geodetic
-    }
+/// DCB compensation description
+#[derive(Debug, Clone, Default, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct DcbCompensation {
+    /// Program used for DCBs evaluation and compensation
+    pub program: String,
+    /// Constellation to which this compensation applies to
+    pub constellation: Constellation,
+    /// URL: source of corrections
+    pub url: String,
+}
+
+/// PCV compensation description
+#[derive(Debug, Clone, Default, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct PcvCompensation {
+    /// Program used for PCVs evaluation and compensation
+    pub program: String,
+    /// Constellation to which this compensation applies to
+    pub constellation: Constellation,
+    /// URL: source of corrections
+    pub url: String,
 }
 
 /// Describes `RINEX` file header
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Header {
     /// revision for this `RINEX`
@@ -155,6 +154,10 @@ pub struct Header {
     /// attached to a specifid Sv, only exists in ANTEX records
     #[cfg_attr(feature = "serde", serde(default))]
     pub sv_antenna: Option<SvAntenna>,
+    /// Possible DCBs compensation information
+    pub dcb_compensations: Vec<DcbCompensation>,
+    /// Possible PCVs compensation information
+    pub pcv_compensations: Vec<PcvCompensation>,
     /// Observation record specific fields
     #[cfg_attr(feature = "serde", serde(default))]
     pub obs: Option<observation::HeaderFields>,
@@ -173,75 +176,98 @@ pub struct Header {
 }
 
 #[derive(Error, Debug)]
-pub enum Error {
-    #[error("CRINEX related content mismatch")]
-    CrinexFormatError,
-    #[error("RINEX version is not supported '{0}'")]
+pub enum ParsingError {
+    #[error("failed to parse version from \"{0}\"")]
+    VersionParsing(String),
+    #[error("version \"{0}\" is not supported")]
     VersionNotSupported(String),
-    #[error("Line \"{0}\" should begin with Rinex version \"x.yy\"")]
-    VersionFormatError(String),
-    #[error("rinex type error")]
-    TypeError(#[from] TypeError),
-    #[error("constellation error")]
-    ConstellationError(#[from] constellation::Error),
+    #[error("unknown RINEX type \"{0}\"")]
+    TypeParsing(String),
+    #[error("unknown marker type \"{0}\"")]
+    MarkerType(String),
+    #[error("failed to parse observable")]
+    ObservableParsing(#[from] observable::ParsingError),
+    #[error("constellation parsing error")]
+    ConstellationParsing(#[from] constellation::ParsingError),
+    #[error("timescale parsing error")]
+    TimescaleParsing(String),
+    #[error("failed to parse \"{0}\" coordinates from \"{1}\"")]
+    CoordinatesParsing(String, String),
     #[error("failed to parse leap from \"{0}\"")]
     LeapParsingError(#[from] leap::Error),
     #[error("failed to parse antenna / receiver infos")]
     AntennaRcvrError(#[from] std::io::Error),
-    #[error("failed to parse integer value")]
-    ParseIntError(#[from] std::num::ParseIntError),
-    #[error("failed to parse float value")]
-    ParseFloatError(#[from] std::num::ParseFloatError),
     #[error("failed to parse ANTEX fields")]
     AntexParsingError(#[from] antex::record::Error),
     #[error("failed to parse PCV field")]
     ParsePcvError(#[from] antex::pcv::Error),
     #[error("unknown ionex reference")]
     UnknownReferenceIonex(#[from] ionex::system::Error),
-    #[error("faulty ionex grid definition")]
-    IonexGridError(#[from] ionex::grid::Error),
+    #[error("invalid crinex header \"{0}\": \"{1}\"")]
+    CrinexHeader(String, String),
+    #[error("failed to parse datetime {0} field from \"{1}\"")]
+    DateTimeParsing(String, String),
+    #[error("failed to parse {0} integer value from \"{1}\"")]
+    ParseIntError(String, String),
+    #[error("failed to parse {0} float value from \"{1}\"")]
+    ParseFloatError(String, String),
+    #[error("failed to parse ionex grid {0} from \"{1}\"")]
+    InvalidIonexGrid(String, String),
+    #[error("invalid ionex grid definition")]
+    InvalidIonexGridDefinition(#[from] ionex::grid::Error),
 }
 
-impl Default for Header {
-    fn default() -> Header {
-        Header {
-            version: Version::default(),
-            rinex_type: Type::default(),
-            constellation: Some(Constellation::default()),
-            comments: Vec::new(),
-            program: "rust-rinex".to_string(),
-            run_by: String::new(),
-            date: String::new(),
-            station: String::new(),
-            station_id: String::new(),
-            observer: String::new(),
-            agency: String::new(),
-            marker_type: None,
-            station_url: String::new(),
-            doi: None,
-            license: None,
-            glo_channels: HashMap::new(),
-            leap: None,
-            gps_utc_delta: None,
-            rcvr: None,
-            rcvr_antenna: None,
-            sv_antenna: None,
-            ground_position: None,
-            wavelengths: None,
-            data_scaling: None,
-            sampling_interval: None,
-            obs: None,
-            meteo: None,
-            clocks: None,
-            antex: None,
-            ionex: None,
-        }
+fn parse_formatted_month(content: &str) -> Result<u8, ParsingError> {
+    match content {
+        "Jan" => Ok(1),
+        "Feb" => Ok(2),
+        "Mar" => Ok(3),
+        "Apr" => Ok(4),
+        "May" => Ok(5),
+        "Jun" => Ok(6),
+        "Jul" => Ok(7),
+        "Aug" => Ok(8),
+        "Sep" => Ok(9),
+        "Oct" => Ok(10),
+        "Nov" => Ok(11),
+        "Dec" => Ok(12),
+        _ => Err(ParsingError::DateTimeParsing(
+            String::from("month"),
+            content.to_string(),
+        )),
     }
+}
+
+/*
+ * Generates a ParsingError::ParseIntError(x, y)
+ */
+macro_rules! parse_int_error {
+    ($field: expr, $content: expr) => {
+        ParsingError::ParseIntError(String::from($field), $content.to_string())
+    };
+}
+
+/*
+ * Generates a ParsingError::ParseFloatError(x, y)
+ */
+macro_rules! parse_float_error {
+    ($field: expr, $content: expr) => {
+        ParsingError::ParseFloatError(String::from($field), $content.to_string())
+    };
+}
+
+/*
+ * Generates a ParsingError::InvalidIonexGridError(x, y)
+ */
+macro_rules! grid_format_error {
+    ($field: expr, $content: expr) => {
+        ParsingError::InvalidIonexGrid(String::from($field), $content.to_string())
+    };
 }
 
 impl Header {
     /// Builds a `Header` from stream reader
-    pub fn new(reader: &mut BufferedReader) -> Result<Header, Error> {
+    pub fn new(reader: &mut BufferedReader) -> Result<Header, ParsingError> {
         let mut rinex_type = Type::default();
         let mut constellation: Option<Constellation> = None;
         let mut version = Version::default();
@@ -264,6 +290,9 @@ impl Header {
         let mut leap: Option<leap::Leap> = None;
         let mut sampling_interval: Option<Duration> = None;
         let mut ground_position: Option<GroundPosition> = None;
+        let mut dcb_compensations: Vec<DcbCompensation> = Vec::new();
+        let mut pcv_compensations: Vec<PcvCompensation> = Vec::new();
+        let mut scaling_count = 0_u16;
         // RINEX specific fields
         let mut current_constell: Option<Constellation> = None;
         let mut observation = observation::HeaderFields::default();
@@ -300,31 +329,58 @@ impl Header {
             /////////////////////////////////////
             } else if marker.contains("CRINEX VERS") {
                 let version = content.split_at(20).0;
-                observation.crinex =
-                    Some(Crinex::default().with_version(Version::from_str(version.trim())?));
+                let version = version.trim();
+                let crinex_revision = Version::from_str(version).or(Err(
+                    ParsingError::VersionParsing(format!("CRINEX VERS: \"{}\"", version)),
+                ))?;
+
+                observation.crinex = Some(Crinex::default().with_version(crinex_revision));
             } else if marker.contains("CRINEX PROG / DATE") {
                 let (prog, remainder) = content.split_at(20);
                 let (_, remainder) = remainder.split_at(20);
                 let date = remainder.split_at(20).0.trim();
                 let items: Vec<&str> = date.split_ascii_whitespace().collect();
-                if items.len() == 2 {
-                    let date: Vec<&str> = items[0].split("-").collect();
-                    let time: Vec<&str> = items[1].split(":").collect();
-                    if let Ok(d) = u8::from_str_radix(date[0], 10) {
-                        let month = from_b_fmt_month!(date[1]);
-                        if let Ok(mut y) = i32::from_str_radix(date[2].trim(), 10) {
-                            if let Ok(h) = u8::from_str_radix(time[0].trim(), 10) {
-                                if let Ok(m) = u8::from_str_radix(time[1].trim(), 10) {
-                                    if let Some(crinex) = &mut observation.crinex {
-                                        y += 2000;
-                                        let date =
-                                            Epoch::from_gregorian_utc(y, month, d, h, m, 0, 0);
-                                        *crinex = crinex.with_prog(prog.trim()).with_date(date);
-                                    }
-                                }
-                            }
-                        }
-                    }
+                if items.len() != 2 {
+                    return Err(ParsingError::CrinexHeader(
+                        String::from("CRINEX PROG/DATE"),
+                        content.to_string(),
+                    ));
+                }
+
+                let date: Vec<&str> = items[0].split("-").collect();
+                let time: Vec<&str> = items[1].split(":").collect();
+
+                let day = date[0].trim();
+                let day = u8::from_str_radix(day, 10).or(Err(ParsingError::DateTimeParsing(
+                    String::from("day"),
+                    day.to_string(),
+                )))?;
+
+                let month = date[1].trim();
+                let month = parse_formatted_month(month)?;
+
+                let y = date[2].trim();
+                let mut y = i32::from_str_radix(y, 10).or(Err(ParsingError::DateTimeParsing(
+                    String::from("year"),
+                    y.to_string(),
+                )))?;
+
+                let h = time[0].trim();
+                let h = u8::from_str_radix(h, 10).or(Err(ParsingError::DateTimeParsing(
+                    String::from("hour"),
+                    h.to_string(),
+                )))?;
+
+                let m = time[1].trim();
+                let m = u8::from_str_radix(m, 10).or(Err(ParsingError::DateTimeParsing(
+                    String::from("minute"),
+                    m.to_string(),
+                )))?;
+
+                if let Some(crinex) = &mut observation.crinex {
+                    y += 2000;
+                    let date = Epoch::from_gregorian_utc(y, month, day, h, m, 0, 0);
+                    *crinex = crinex.with_prog(prog.trim()).with_date(date);
                 }
 
             ////////////////////////////////////////
@@ -332,7 +388,11 @@ impl Header {
             ////////////////////////////////////////
             } else if marker.contains("ANTEX VERSION / SYST") {
                 let (vers, system) = content.split_at(8);
-                version = Version::from_str(vers.trim())?;
+                let vers = vers.trim();
+                version = Version::from_str(vers).or(Err(ParsingError::VersionParsing(
+                    format!("ANTEX VERSION / SYST: \"{}\"", vers),
+                )))?;
+
                 if let Ok(constell) = Constellation::from_str(system.trim()) {
                     constellation = Some(constell)
                 }
@@ -399,7 +459,12 @@ impl Header {
                 let (vers_str, rem) = line.split_at(20);
                 let (type_str, rem) = rem.split_at(20);
                 let (system_str, _) = rem.split_at(20);
-                version = Version::from_str(vers_str.trim())?;
+
+                let vers_str = vers_str.trim();
+                version = Version::from_str(vers_str).or(Err(ParsingError::VersionParsing(
+                    format!("IONEX VERSION / TYPE : \"{}\"", vers_str),
+                )))?;
+
                 rinex_type = Type::from_str(type_str.trim())?;
                 let ref_system = ionex::RefSystem::from_str(system_str.trim())?;
                 ionex = ionex.with_reference_system(ref_system);
@@ -422,16 +487,22 @@ impl Header {
                 } else if type_str.contains("METEOROLOGICAL DATA") {
                     // these files are not tied to a constellation system,
                     // therefore, do not have this field
-                    constellation = None
                 } else {
                     // regular files
                     if let Ok(constell) = Constellation::from_str(constell_str.trim()) {
                         constellation = Some(constell)
                     }
                 }
-                version = Version::from_str(vers.trim())?;
+                /*
+                 * Parse version descriptor
+                 */
+                let vers = vers.trim();
+                version = Version::from_str(vers).or(Err(ParsingError::VersionParsing(
+                    format!("RINEX VERSION / TYPE \"{}\"", vers.to_string()),
+                )))?;
+
                 if !version.is_supported() {
-                    return Err(Error::VersionNotSupported(vers.to_string()));
+                    return Err(ParsingError::VersionNotSupported(vers.to_string()));
                 }
             } else if marker.contains("PGM / RUN BY / DATE") {
                 let (pgm, rem) = line.split_at(20);
@@ -451,46 +522,147 @@ impl Header {
                 let code = content.split_at(20).0.trim();
                 if let Ok(marker) = MarkerType::from_str(code) {
                     marker_type = Some(marker)
+                } else {
+                    return Err(ParsingError::MarkerType(code.to_string()));
                 }
             } else if marker.contains("OBSERVER / AGENCY") {
                 let (obs, ag) = content.split_at(20);
                 observer = obs.trim().to_string();
-                agency = ag.trim().to_string()
+                agency = ag.trim().to_string();
             } else if marker.contains("REC # / TYPE / VERS") {
                 if let Ok(receiver) = Rcvr::from_str(content) {
                     rcvr = Some(receiver)
                 }
+            } else if marker.contains("SYS / PCVS APPLIED") {
+                let (gnss, rem) = content.split_at(2);
+                let (program, rem) = rem.split_at(18);
+                let (url, _) = rem.split_at(40);
+
+                let gnss = gnss.trim();
+                let gnss = Constellation::from_str(gnss.trim())?;
+
+                let pcv = PcvCompensation {
+                    program: {
+                        let program = program.trim();
+                        if program.eq("") {
+                            String::from("Unknown")
+                        } else {
+                            program.to_string()
+                        }
+                    },
+                    constellation: gnss.clone(),
+                    url: {
+                        let url = url.trim();
+                        if url.eq("") {
+                            String::from("Unknown")
+                        } else {
+                            url.to_string()
+                        }
+                    },
+                };
+
+                pcv_compensations.push(pcv);
             } else if marker.contains("SYS / DCBS APPLIED") {
-                let (system, rem) = content.split_at(2);
-                let (_program, _url) = rem.split_at(18);
-                if let Ok(gnss) = Constellation::from_str(system.trim()) {
-                    observation.with_dcb_compensation(gnss);
-                }
+                let (gnss, rem) = content.split_at(2);
+                let (program, rem) = rem.split_at(18);
+                let (url, _) = rem.split_at(40);
+
+                let gnss = gnss.trim();
+                let gnss = Constellation::from_str(gnss.trim())?;
+
+                let dcb = DcbCompensation {
+                    program: {
+                        let program = program.trim();
+                        if program.eq("") {
+                            String::from("Unknown")
+                        } else {
+                            program.to_string()
+                        }
+                    },
+                    constellation: gnss.clone(),
+                    url: {
+                        let url = url.trim();
+                        if url.eq("") {
+                            String::from("Unknown")
+                        } else {
+                            url.to_string()
+                        }
+                    },
+                };
+
+                dcb_compensations.push(dcb);
             } else if marker.contains("SYS / SCALE FACTOR") {
-                /*let (system, rem) = content.split_at(2);
-                let (factor, rem) = rem.split_at(5);*/
+                //TODO: conclude other lines parsing
+                if scaling_count == 0 {
+                    // parsing first line
+                    let (gnss, rem) = content.split_at(2);
+                    let gnss = Constellation::from_str(gnss.trim())?;
+
+                    let (factor, rem) = rem.split_at(6);
+                    let factor = factor.trim();
+                    let scaling = u16::from_str_radix(factor, 10)
+                        .or(Err(parse_int_error!("SYS / SCALE FACTOR", factor)))?;
+
+                    let (_num, rem) = rem.split_at(3);
+
+                    // parse end of line
+                    let mut len = rem.len();
+                    let mut rem = rem.clone();
+
+                    while len > 0 {
+                        let (observable, r) = rem.split_at(4);
+                        let observable = Observable::from_str(observable.trim())?;
+                        // latch scaling value
+                        observation.insert_scaling(gnss, observable, scaling);
+                        // continue
+                        rem = r.clone();
+                        len = rem.len();
+                    }
+                    scaling_count += 1;
+                }
             } else if marker.contains("SENSOR MOD/TYPE/ACC") {
                 if let Ok(sensor) = meteo::sensor::Sensor::from_str(content) {
                     meteo.sensors.push(sensor)
                 }
             } else if marker.contains("SENSOR POS XYZ/H") {
-                let (x_str, rem) = content.split_at(14);
-                let (y_str, rem) = rem.split_at(14);
-                let (z_str, rem) = rem.split_at(14);
-                let (h_str, phys_str) = rem.split_at(14);
-                if let Ok(observable) = Observable::from_str(phys_str.trim()) {
-                    for sensor in meteo.sensors.iter_mut() {
-                        if sensor.observable == observable {
-                            if let Ok(x) = f64::from_str(x_str.trim()) {
-                                if let Ok(y) = f64::from_str(y_str.trim()) {
-                                    if let Ok(z) = f64::from_str(z_str.trim()) {
-                                        if let Ok(h) = f64::from_str(h_str.trim()) {
-                                            *sensor = sensor.with_position((x, y, z, h))
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                /*
+                 * Meteo: sensor position information
+                 */
+                let (x, rem) = content.split_at(14);
+                let (y, rem) = rem.split_at(14);
+                let (z, rem) = rem.split_at(14);
+                let (h, phys) = rem.split_at(14);
+
+                let phys = phys.trim();
+                let observable = Observable::from_str(phys)?;
+
+                let x = x.trim();
+                let x = f64::from_str(x).or(Err(ParsingError::CoordinatesParsing(
+                    String::from("SENSOR POS X"),
+                    x.to_string(),
+                )))?;
+
+                let y = y.trim();
+                let y = f64::from_str(y).or(Err(ParsingError::CoordinatesParsing(
+                    String::from("SENSOR POS Y"),
+                    y.to_string(),
+                )))?;
+
+                let z = z.trim();
+                let z = f64::from_str(z).or(Err(ParsingError::CoordinatesParsing(
+                    String::from("SENSOR POS Z"),
+                    z.to_string(),
+                )))?;
+
+                let h = h.trim();
+                let h = f64::from_str(h).or(Err(ParsingError::CoordinatesParsing(
+                    String::from("SENSOR POS H"),
+                    h.to_string(),
+                )))?;
+
+                for sensor in meteo.sensors.iter_mut() {
+                    if sensor.observable == observable {
+                        *sensor = sensor.with_position((x, y, z, h))
                     }
                 }
             } else if marker.contains("LEAP SECOND") {
@@ -515,13 +687,25 @@ impl Header {
             } else if marker.contains("APPROX POSITION XYZ") {
                 // station base coordinates
                 let items: Vec<&str> = content.split_ascii_whitespace().collect();
-                if let Ok(x) = f64::from_str(items[0].trim()) {
-                    if let Ok(y) = f64::from_str(items[1].trim()) {
-                        if let Ok(z) = f64::from_str(items[2].trim()) {
-                            ground_position = Some(GroundPosition::from_ecef_wgs84((x, y, z)));
-                        }
-                    }
-                }
+                let x = items[0].trim();
+                let x = f64::from_str(x).or(Err(ParsingError::CoordinatesParsing(
+                    String::from("APPROX POSITION X"),
+                    x.to_string(),
+                )))?;
+
+                let y = items[1].trim();
+                let y = f64::from_str(y).or(Err(ParsingError::CoordinatesParsing(
+                    String::from("APPROX POSITION Y"),
+                    y.to_string(),
+                )))?;
+
+                let z = items[2].trim();
+                let z = f64::from_str(z).or(Err(ParsingError::CoordinatesParsing(
+                    String::from("APPROX POSITION Z"),
+                    z.to_string(),
+                )))?;
+
+                ground_position = Some(GroundPosition::from_ecef_wgs84((x, y, z)));
             } else if marker.contains("ANT # / TYPE") {
                 let (model, rem) = content.split_at(20);
                 let (sn, _) = rem.split_at(20);
@@ -537,17 +721,29 @@ impl Header {
             } else if marker.contains("ANTENNA: DELTA X/Y/Z") {
                 // Antenna Base/Reference Coordinates
                 let items: Vec<&str> = content.split_ascii_whitespace().collect();
-                if let Ok(x) = f64::from_str(items[0].trim()) {
-                    if let Ok(y) = f64::from_str(items[1].trim()) {
-                        if let Ok(z) = f64::from_str(items[2].trim()) {
-                            if let Some(a) = &mut rcvr_antenna {
-                                *a = a.with_base_coordinates((x, y, z));
-                            } else {
-                                rcvr_antenna =
-                                    Some(Antenna::default().with_base_coordinates((x, y, z)));
-                            }
-                        }
-                    }
+
+                let x = items[0].trim();
+                let x = f64::from_str(x).or(Err(ParsingError::CoordinatesParsing(
+                    String::from("ANTENNA DELTA X"),
+                    x.to_string(),
+                )))?;
+
+                let y = items[1].trim();
+                let y = f64::from_str(y).or(Err(ParsingError::CoordinatesParsing(
+                    String::from("ANTENNA DELTA Y"),
+                    y.to_string(),
+                )))?;
+
+                let z = items[2].trim();
+                let z = f64::from_str(z).or(Err(ParsingError::CoordinatesParsing(
+                    String::from("ANTENNA DELTA Z"),
+                    z.to_string(),
+                )))?;
+
+                if let Some(ant) = &mut rcvr_antenna {
+                    *ant = ant.with_base_coordinates((x, y, z));
+                } else {
+                    rcvr_antenna = Some(Antenna::default().with_base_coordinates((x, y, z)));
                 }
             } else if marker.contains("ANTENNA: DELTA H/E/N") {
                 // Antenna H/E/N eccentricity components
@@ -583,9 +779,10 @@ impl Header {
                 //TODO
             } else if marker.contains("RCV CLOCK OFFS APPL") {
                 let value = content.split_at(20).0.trim();
-                if let Ok(n) = i32::from_str_radix(value, 10) {
-                    observation.clock_offset_applied = n > 0;
-                }
+                let n = i32::from_str_radix(value, 10)
+                    .or(Err(parse_int_error!("RCV CLOCK OFFS APPL", value)))?;
+
+                observation.clock_offset_applied = n > 0;
             } else if marker.contains("# OF SATELLITES") {
                 // ---> we don't need this info,
                 //     user can determine it by analyzing the record
@@ -677,7 +874,10 @@ impl Header {
                 });
             } else if marker.contains("# / TYPES OF DATA") {
                 let (n, r) = content.split_at(6);
-                let n = u8::from_str_radix(n.trim(), 10)?;
+                let n = n.trim();
+                let n =
+                    u8::from_str_radix(n, 10).or(Err(parse_int_error!("# / TYPES OF DATA", n)))?;
+
                 let mut rem = r.clone();
                 for _ in 0..n {
                     let (code, r) = rem.split_at(6);
@@ -739,17 +939,9 @@ impl Header {
                 //}
             } else if marker.contains("TIME SYSTEM ID") {
                 let timescale = content.trim();
-                if let Ok(ts) = TimeScale::from_str(content.trim()) {
-                    clocks = clocks.with_timescale(ts);
-                } else {
-                    if timescale.eq("GPS") {
-                        clocks = clocks.with_timescale(TimeScale::GPST);
-                    } else if timescale.eq("GAL") {
-                        clocks = clocks.with_timescale(TimeScale::GST);
-                    } else if timescale.eq("BDS") {
-                        clocks = clocks.with_timescale(TimeScale::BDT);
-                    }
-                }
+                let ts = TimeScale::from_str(timescale)
+                    .or(Err(ParsingError::TimescaleParsing(timescale.to_string())))?;
+                clocks = clocks.with_timescale(ts);
             } else if marker.contains("DELTA-UTC") {
                 //TODO
                 //0.931322574615D-09 0.355271367880D-14   233472     1930 DELTA-UTC: A0,A1,T,W
@@ -798,51 +990,92 @@ impl Header {
             } else if marker.contains("HGT1 / HGT2 / DHGT") {
                 let items: Vec<&str> = content.split_ascii_whitespace().collect();
                 if items.len() == 3 {
-                    if let Ok(start) = f64::from_str(items[0].trim()) {
-                        if let Ok(end) = f64::from_str(items[1].trim()) {
-                            if let Ok(spacing) = f64::from_str(items[2].trim()) {
-                                let grid = match spacing == 0.0 {
-                                    true => {
-                                        // special case, 2D fixed altitude
-                                        ionex::GridLinspace {
-                                            // avoid verifying the Linspace in this case
-                                            start,
-                                            end,
-                                            spacing: 0.0,
-                                        }
-                                    },
-                                    _ => ionex::GridLinspace::new(start, end, spacing)?,
-                                };
-                                ionex = ionex.with_altitude_grid(grid);
+                    let start = items[0].trim();
+                    let start = f64::from_str(start).or(Err(parse_float_error!(
+                        "ionex (alt) grid first coordinates",
+                        start
+                    )))?;
+
+                    let end = items[1].trim();
+                    let end = f64::from_str(end).or(Err(parse_float_error!(
+                        "ionex (alt) grid last coordinates",
+                        end
+                    )))?;
+
+                    let spacing = items[2].trim();
+                    let spacing = f64::from_str(spacing).or(Err(parse_float_error!(
+                        "ionex (alt) grid coordinates spacing",
+                        spacing
+                    )))?;
+
+                    let grid = match spacing == 0.0 {
+                        true => {
+                            // special case, 2D fixed altitude
+                            ionex::GridLinspace {
+                                // avoid verifying the Linspace in this case
+                                start,
+                                end,
+                                spacing: 0.0,
                             }
-                        }
-                    }
+                        },
+                        _ => ionex::GridLinspace::new(start, end, spacing)?,
+                    };
+
+                    ionex = ionex.with_altitude_grid(grid);
+                } else {
+                    return Err(grid_format_error!("HGT1 / HGT2 / DGHT", content));
                 }
             } else if marker.contains("LAT1 / LAT2 / DLAT") {
                 let items: Vec<&str> = content.split_ascii_whitespace().collect();
                 if items.len() == 3 {
-                    if let Ok(start) = f64::from_str(items[0].trim()) {
-                        if let Ok(end) = f64::from_str(items[1].trim()) {
-                            if let Ok(spacing) = f64::from_str(items[2].trim()) {
-                                ionex = ionex.with_latitude_grid(ionex::GridLinspace::new(
-                                    start, end, spacing,
-                                )?);
-                            }
-                        }
-                    }
+                    let start = items[0].trim();
+                    let start = f64::from_str(start).or(Err(parse_float_error!(
+                        "ionex (lat) grid first coordinates",
+                        start
+                    )))?;
+
+                    let end = items[1].trim();
+                    let end = f64::from_str(end).or(Err(parse_float_error!(
+                        "ionex (lat) grid last coordinates",
+                        end
+                    )))?;
+
+                    let spacing = items[2].trim();
+                    let spacing = f64::from_str(spacing).or(Err(parse_float_error!(
+                        "ionex (lat) grid coordinates spacing",
+                        spacing
+                    )))?;
+
+                    ionex =
+                        ionex.with_latitude_grid(ionex::GridLinspace::new(start, end, spacing)?);
+                } else {
+                    return Err(grid_format_error!("LAT1 / LAT2 / DLAT", content));
                 }
             } else if marker.contains("LON1 / LON2 / DLON") {
                 let items: Vec<&str> = content.split_ascii_whitespace().collect();
                 if items.len() == 3 {
-                    if let Ok(start) = f64::from_str(items[0].trim()) {
-                        if let Ok(end) = f64::from_str(items[1].trim()) {
-                            if let Ok(spacing) = f64::from_str(items[2].trim()) {
-                                ionex = ionex.with_longitude_grid(ionex::GridLinspace::new(
-                                    start, end, spacing,
-                                )?);
-                            }
-                        }
-                    }
+                    let start = items[0].trim();
+                    let start = f64::from_str(start).or(Err(parse_float_error!(
+                        "ionex (lon) grid first coordinates",
+                        start
+                    )))?;
+
+                    let end = items[1].trim();
+                    let end = f64::from_str(end).or(Err(parse_float_error!(
+                        "ionex (lon) grid last coordinates",
+                        end
+                    )))?;
+
+                    let spacing = items[2].trim();
+                    let spacing = f64::from_str(spacing).or(Err(parse_float_error!(
+                        "ionex (lon) grid coordinates spacing",
+                        spacing
+                    )))?;
+
+                    ionex =
+                        ionex.with_longitude_grid(ionex::GridLinspace::new(start, end, spacing)?);
+                } else {
+                    return Err(grid_format_error!("LON1 / LON2 / DLON", content));
                 }
             } else if marker.contains("PRN / BIAS / RMS") {
                 // differential PR code analysis
@@ -851,7 +1084,7 @@ impl Header {
         }
 
         Ok(Header {
-            version: version,
+            version,
             rinex_type,
             constellation,
             comments,
@@ -870,6 +1103,8 @@ impl Header {
             glo_channels,
             leap,
             ground_position,
+            dcb_compensations,
+            pcv_compensations,
             wavelengths: None,
             gps_utc_delta: None,
             sampling_interval,
@@ -975,6 +1210,53 @@ impl Header {
             agency: self.agency.clone(),
             license: self.license.clone(),
             doi: self.doi.clone(),
+            dcb_compensations: {
+                /*
+                 * DCBs compensations are marked, only if
+                 * both compensated for in A & B.
+                 * In this case, resulting data, for a given constellation,
+                 * is still 100% compensated for.
+                 */
+                if self.dcb_compensations.len() == 0 || header.dcb_compensations.len() == 0 {
+                    Vec::new() // drop everything
+                } else {
+                    let rhs_constellations: Vec<_> = header
+                        .dcb_compensations
+                        .iter()
+                        .map(|dcb| dcb.constellation.clone())
+                        .collect();
+                    let dcbs: Vec<DcbCompensation> = self
+                        .dcb_compensations
+                        .clone()
+                        .iter()
+                        .filter(|dcb| rhs_constellations.contains(&dcb.constellation))
+                        .map(|dcb| dcb.clone())
+                        .collect();
+                    dcbs
+                }
+            },
+            pcv_compensations: {
+                /*
+                 * Same logic as .dcb_compensations
+                 */
+                if self.pcv_compensations.len() == 0 || header.pcv_compensations.len() == 0 {
+                    Vec::new() // drop everything
+                } else {
+                    let rhs_constellations: Vec<_> = header
+                        .pcv_compensations
+                        .iter()
+                        .map(|pcv| pcv.constellation.clone())
+                        .collect();
+                    let pcvs: Vec<PcvCompensation> = self
+                        .pcv_compensations
+                        .clone()
+                        .iter()
+                        .filter(|pcv| rhs_constellations.contains(&pcv.constellation))
+                        .map(|pcv| pcv.clone())
+                        .collect();
+                    pcvs
+                }
+            },
             marker_type: {
                 if let Some(mtype) = &self.marker_type {
                     Some(mtype.clone())
@@ -1095,8 +1377,7 @@ impl Header {
                             },
                             clock_offset_applied: d0.clock_offset_applied
                                 && d1.clock_offset_applied,
-                            scalings: HashMap::new(),      //TODO
-                            dcb_compensations: Vec::new(), //TODO
+                            scalings: HashMap::new(), //TODO
                         })
                     } else {
                         Some(d0.clone())
@@ -1867,12 +2148,18 @@ impl HtmlReport for Header {
 
 #[cfg(test)]
 mod test {
+    use super::parse_formatted_month;
     #[test]
-    fn test_from_b_fmt_month() {
-        assert_eq!(from_b_fmt_month!("Jan"), 1);
-        assert_eq!(from_b_fmt_month!("Feb"), 2);
-        assert_eq!(from_b_fmt_month!("Mar"), 3);
-        assert_eq!(from_b_fmt_month!("Nov"), 11);
-        assert_eq!(from_b_fmt_month!("Dec"), 12);
+    fn formatted_month_parser() {
+        for (desc, expected) in vec![("Jan", 1), ("Feb", 2), ("Mar", 3), ("Nov", 11), ("Dec", 12)] {
+            let month = parse_formatted_month(desc);
+            assert!(month.is_ok(), "failed to parse month from \"{}\"", desc);
+            let month = month.unwrap();
+            assert_eq!(
+                month, expected,
+                "failed to parse correct month number from \"{}\"",
+                desc
+            );
+        }
     }
 }

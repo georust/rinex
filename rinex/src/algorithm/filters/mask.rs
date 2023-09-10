@@ -222,12 +222,10 @@ impl std::str::FromStr for MaskFilter {
                     operand_offset = Some(i);
                     break;
                 }
-            } else {
-                if let Ok(op) = MaskOperand::from_str(&cleanedup[i..i + 1]) {
-                    operand = Some(op.clone());
-                    operand_offset = Some(i);
-                    break;
-                }
+            } else if let Ok(op) = MaskOperand::from_str(&cleanedup[i..i + 1]) {
+                operand = Some(op.clone());
+                operand_offset = Some(i);
+                break;
             }
         }
 

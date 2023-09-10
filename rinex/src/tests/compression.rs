@@ -81,8 +81,10 @@ mod test {
             let rnx = rnx.unwrap();
             let compressed = rnx.rnx2crnx1();
 
+            let tmp_path = format!("test-{}.crx", random_name(8));
+
             assert!(
-                compressed.to_file("test.crx").is_ok(),
+                compressed.to_file(&tmp_path).is_ok(),
                 "{}{}",
                 "failed to format compressed rinex",
                 testfile
@@ -98,7 +100,7 @@ mod test {
             );
 
             // remove generated file
-            let _ = std::fs::remove_file("test.crx");
+            let _ = std::fs::remove_file(&tmp_path);
         }
     }
 }

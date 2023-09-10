@@ -152,10 +152,7 @@ pub(crate) fn parse_epoch(
     let (dtype, rem) = line.split_at(3);
     let data_type = DataType::from_str(dtype.trim())?; // must pass
     let mut rem = rem.clone();
-    let limit = Version {
-        major: 3,
-        minor: 04,
-    };
+    let limit = Version { major: 3, minor: 4 };
 
     let system: System = match version < limit {
         true => {

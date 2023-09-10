@@ -198,14 +198,14 @@ impl Sinex {
                                 bias_description = bias_description.with_time_system(system)
                             },
                             "RECEIVER_CLOCK_REFERENCE_GNSS" => {
-                                if let Ok(c) = Constellation::from_1_letter_code(content.trim()) {
+                                if let Ok(c) = Constellation::from_str(content.trim()) {
                                     bias_description = bias_description.with_rcvr_clock_ref(c)
                                 }
                             },
                             "SATELLITE_CLOCK_REFERENCE_OBSERVABLES" => {
                                 let items: Vec<&str> =
                                     content.trim().split_ascii_whitespace().collect();
-                                if let Ok(c) = Constellation::from_1_letter_code(items[0]) {
+                                if let Ok(c) = Constellation::from_str(items[0]) {
                                     if items.len() == 1 {
                                         // --> no observable given
                                         let mut map: HashMap<Constellation, Vec<String>> =
