@@ -87,14 +87,31 @@ impl Solver {
     }
     pub fn run(&mut self, ctx: &mut QcContext) -> ((f64, f64, f64), Epoch) {
         if !self.initiated {
-            // 1: eclipse filter
+            // 0: NB: only "complete" Epochs are preserved from now on
+            //        this reduces nb of Epochs to interpolate
+            trace!("\"complete\" epoch filter..");
+            let total = ctx.primary_data().epoch().count();
+            ctx.complete_epoch_filter_mut(None);
+            let total_dropped = total - ctx.primary_data().epoch().count();
+            trace!(
+                "dropped a total of {}/{} \"incomplete\" epochs",
+                total_dropped,
+                total
+            );
+
+            // 1: eclipse filte
+            trace!("Earth / Sun vector evaluation..");
             self.sun = Self::sun_vector3d(ctx, self.solver);
+            trace!("applying eclipse filter..");
             self.eclipse_filter(ctx);
-            // 2: interpolate if needed
+
+            // 2: interpolate: if need be
             if !ctx.interpolated {
-                ctx.sv_orbit_interpolation();
+                trace!("orbit interpolation..");
+                ctx.orbit_interpolation_mut();
             }
-            // 3: t_tx
+
+            // 3: t_tx evaluation
             self.t_tx = Self::sv_transmission_time(ctx).collect();
             self.initiated = true;
             trace!("{} solver initiated", self.solver);

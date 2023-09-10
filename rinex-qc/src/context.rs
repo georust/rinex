@@ -3,6 +3,8 @@ use rinex_qc_traits::HtmlReport;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
+use rinex::carrier::Carrier;
+use rinex::observation::Snr;
 use rinex::prelude::{Epoch, GroundPosition, Rinex, Sv};
 use sp3::prelude::SP3;
 
@@ -149,9 +151,45 @@ impl QcContext {
         }
         None
     }
-    /// Request SV Orbit interpolation
-    pub fn sv_orbit_interpolation(&mut self) {
-        /* TODO: only interpolate on "complete" OBS Epochs */
+    /// Removes "incomplete" Epochs from OBS Data
+    pub fn complete_epoch_filter_mut(&mut self, min_snr: Option<Snr>) {
+        let total = self.primary_data().epoch().count();
+        let complete_epochs: Vec<_> = self.primary_data().complete_epoch(min_snr).collect();
+        if let Some(rec) = self.primary_data_mut().record.as_mut_obs() {
+            rec.retain(|(epoch, _), (_, sv)| {
+                let epoch_is_complete = complete_epochs.iter().find(|(e, sv_carriers)| e == epoch);
+
+                if epoch_is_complete.is_none() {
+                    false
+                } else {
+                    let (_, sv_carriers) = epoch_is_complete.unwrap();
+                    sv.retain(|sv, observables| {
+                        let carriers: Vec<Carrier> = sv_carriers
+                            .iter()
+                            .filter_map(
+                                |(svnn, carrier)| {
+                                    if sv == svnn {
+                                        Some(*carrier)
+                                    } else {
+                                        None
+                                    }
+                                },
+                            )
+                            .collect();
+                        observables.retain(|obs, _| {
+                            let carrier = Carrier::from_observable(sv.constellation, obs)
+                                .unwrap_or(Carrier::default());
+                            carriers.contains(&carrier)
+                        });
+                        !observables.is_empty()
+                    });
+                    !sv.is_empty()
+                }
+            });
+        }
+    }
+    /// Performs SV Orbit interpolation
+    pub fn orbit_interpolation_mut(&mut self) {
         for ((e, _flag), sv, observ, data) in self.primary_data().carrier_phase() {
             // make it smart :
             // if orbit already exit do not interpolate

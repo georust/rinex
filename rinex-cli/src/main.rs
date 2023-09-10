@@ -259,12 +259,6 @@ pub fn main() -> Result<(), rinex::Error> {
      */
     preprocess(&mut ctx, &cli);
     /*
-     * in either -q or -p modes,
-     * we will need interpolated SV
-     * do that now that possible uninteresting data has been removed
-     */
-    ctx.sv_orbit_interpolation();
-    /*
      * Basic file identification
      */
     if cli.identification() {
