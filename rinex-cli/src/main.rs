@@ -39,6 +39,7 @@ use fops::open_with_web_browser;
 use sp3::{prelude::SP3, Merge as SP3Merge};
 use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::collections::HashMap;
 
 /*
  * Workspace location is fixed to rinex-cli/product/$primary
@@ -165,6 +166,8 @@ fn create_context(cli: &Cli) -> QcContext {
         nav: build_extra_rinex_data(cli.nav_paths(), RinexType::NavigationData),
         atx: build_extra_rinex_data(cli.atx_paths(), RinexType::AntennaData),
         sp3: build_extra_sp3_data(cli.sp3_paths()),
+        orbits: HashMap::new(),
+        interpolated: false,
     }
 }
 
@@ -211,7 +214,7 @@ pub fn main() -> Result<(), rinex::Error> {
     // Initiate QC parameters
     let mut qc_opts = cli.qc_config();
 
-    // Build file context
+    // Build context
     let mut ctx = create_context(&cli);
 
     // Position solver
@@ -255,7 +258,12 @@ pub fn main() -> Result<(), rinex::Error> {
      * Preprocessing
      */
     preprocess(&mut ctx, &cli);
-
+    /*
+     * in either -q or -p modes,
+     * we will need interpolated SV
+     * do that now that possible uninteresting data has been removed
+     */
+    ctx.sv_orbit_interpolation(); 
     /*
      * Basic file identification
      */
@@ -263,7 +271,6 @@ pub fn main() -> Result<(), rinex::Error> {
         rinex_identification(&ctx, &cli);
         return Ok(()); // not proceeding further, in this mode
     }
-
     /*
      * SV per Epoch analysis requested
      */

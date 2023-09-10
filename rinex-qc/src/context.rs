@@ -1,9 +1,10 @@
 use horrorshow::{box_html, helper::doctype, html, RenderBox};
-use rinex::prelude::{GroundPosition, Rinex};
-use rinex_qc_traits::HtmlReport;
 use std::path::PathBuf;
+use std::collections::HashMap;
+use rinex_qc_traits::HtmlReport;
 
 use sp3::prelude::SP3;
+use rinex::prelude::{Epoch, Sv, GroundPosition, Rinex};
 
 #[derive(Default, Debug, Clone)]
 pub struct QcPrimaryData {
@@ -46,6 +47,10 @@ pub struct QcContext {
     pub atx: Option<QcExtraData<Rinex>>,
     /// Optionnal SP3 Orbit Data
     pub sp3: Option<QcExtraData<SP3>>,
+    // Interpolated orbits 
+    pub orbits: HashMap<(Sv, Epoch), (f64, f64, f64)>,
+    /// true if orbits have been interpolated
+    pub interpolated: bool,
 }
 
 impl QcContext {
@@ -143,6 +148,40 @@ impl QcContext {
             }
         }
         None
+    }
+    /// Request SV Orbit interpolation
+    pub fn sv_orbit_interpolation(&mut self) {
+        /* TODO: only interpolate on "complete" OBS Epochs */
+        for ((e, _flag), sv, observ, data) in self.primary_data().carrier_phase() {
+            // make it smart : 
+            // if orbit already exit do not interpolate
+            // this will make things much quicker for high quality productions (sync'ed NAV + OBS) 
+            let found = self.sv_position()
+                .into_iter()
+                .find(|(sv_e, svnn, _)| *sv_e == e && *svnn == sv);
+            if found.is_none() {
+                if let Some(sp3) = self.sp3_data() {
+                } else if let Some(nav) = self.navigation_data() {
+                }
+            }
+        }
+        self.interpolated = true;
+    }
+    /// Returns (unique) Iterator over SV orbit (3D positions)
+    /// to be used in this context
+    pub fn sv_position(&self) -> Vec<(Epoch, Sv, (f64, f64, f64))> {
+        match self.sp3_data() {
+            Some(sp3) => sp3
+                .sv_position()
+                .collect(),
+            _ => self.navigation_data()
+                .unwrap()
+                .sv_position()
+                .map(|(e, sv, (x, y, z))| {
+                    (e, sv, (x / 1000.0, y / 1000.0, z / 1000.0)) // match SP3 format
+                })
+                .collect(),
+        }
     }
 }
 

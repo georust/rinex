@@ -87,8 +87,14 @@ impl Solver {
     }
     pub fn run(&mut self, ctx: &mut QcContext) -> ((f64, f64, f64), Epoch) {
         if !self.initiated {
+            // 1: eclipse filter
             self.sun = Self::sun_vector3d(ctx, self.solver);
             self.eclipse_filter(ctx);
+            // 2: interpolate if needed
+            if !ctx.interpolated {
+                ctx.sv_orbit_interpolation();
+            }
+            // 3: t_tx
             self.t_tx = Self::sv_transmission_time(ctx).collect();
             self.initiated = true;
             trace!("{} solver initiated", self.solver);
@@ -107,20 +113,6 @@ impl Solver {
                     .sv_clock()
                     .map(|(e, sv, (clk, _, _))| (e, sv, clk)),
             ),
-        }
-    }
-    /*
-     * Returns Sv positions from given context
-     */
-    fn sv_position(ctx: &QcContext) -> Vec<(Epoch, Sv, (f64, f64, f64))> {
-        match ctx.sp3_data() {
-            Some(sp3) => sp3
-                .sv_position()
-                .map(|(e, sv, (x, y, z))| {
-                    (e, sv, (x / 1000.0, y / 1000.0, z / 1000.0)) // sp3 in km
-                })
-                .collect(),
-            _ => ctx.navigation_data().unwrap().sv_position().collect(),
         }
     }
     /*
@@ -198,7 +190,7 @@ impl Solver {
         let mut rising: HashMap<Sv, Epoch> = HashMap::new();
         let mut ret: HashMap<Sv, (Option<Epoch>, Option<Epoch>)> = HashMap::new();
 
-        for (epoch, sv, (x, y, z)) in Self::sv_position(ctx) {
+        for (epoch, sv, (x, y, z)) in ctx.sv_position() {
             let eclipsed = self.eclipsed(x, y, z, epoch);
             if eclipsed && ret.get_mut(&sv).is_none() {
                 // start of eclipse
