@@ -36,8 +36,6 @@ pub enum Carrier {
     G3,
     /// E1: GAL
     E1,
-    /// E2: GAL
-    E2,
     /// E5: GAL (E5a + E5b)
     E5,
     /// E5a: GAL E5a
@@ -92,7 +90,6 @@ impl std::fmt::Display for Carrier {
             Self::L6 => write!(f, "L6"),
             Self::G3 => write!(f, "L3"),
             Self::E1 => write!(f, "E1"),
-            Self::E2 => write!(f, "E2"),
             Self::E5 | Self::E5a | Self::E5b => write!(f, "E5"),
             Self::E6 => write!(f, "E6"),
             Self::S => write!(f, "S"),
@@ -127,8 +124,6 @@ impl std::str::FromStr for Carrier {
             Ok(Self::L6)
         } else if content.eq("E1") {
             Ok(Self::E1)
-        } else if content.eq("E2") {
-            Ok(Self::E2)
         } else if content.eq("E5") {
             Ok(Self::E5)
         } else if content.eq("E6") {
@@ -177,7 +172,7 @@ impl Carrier {
     pub fn frequency_mhz(&self) -> f64 {
         match self {
             Self::L1 | Self::E1 => 1575.42_f64,
-            Self::L2 | Self::E2 => 1227.60_f64,
+            Self::L2 => 1227.60_f64,
             Self::L6 | Self::E6 => 1278.750_f64,
             Self::L5 => 1176.45_f64,
             Self::E5 => 1191.795_f64,
@@ -213,7 +208,7 @@ impl Carrier {
     pub fn bandwidth_mhz(&self) -> f64 {
         match self {
             Self::L1 | Self::G1(_) | Self::G1a | Self::E1 => 15.345_f64,
-            Self::L2 | Self::G2(_) | Self::G2a | Self::E2 => 11.0_f64,
+            Self::L2 | Self::G2(_) | Self::G2a => 11.0_f64,
             Self::L5 | Self::E5 | Self::E5a | Self::E5b => 12.5_f64,
             Self::G3 => todo!("G3 bandwidth is not known to this day"),
             Self::E6 => todo!("E6 bandwidth is not known to this day"),
@@ -226,7 +221,74 @@ impl Carrier {
             Self::B3 | Self::B3A => todo!("B3X bandwidth is not known to this day"),
         }
     }
-
+    ///// Returns the code length (signal period) expressed in seconds,
+    ///// for a signal carrier of given constellation. This is mostly used
+    ///// in fractional pseudo range determination.
+    //pub fn code_length(&self, constellation: Constellation) -> f64 {
+    //    match constellation {
+    //        Constellation::GPS => {
+    //            match self {
+    //                Self::L1 => 20.0E-3,
+    //                Self::L2 => 1.0_f64, //TODO
+    //                Self::L5 => 1.0E-3,
+    //                _ => 1.0_f64, // does not apply
+    //            },
+    //        },
+    //        Constellation::QZSS => {
+    //            match self {
+    //                Self::L1 => 1.0E-3,
+    //                Self::L2 => 20.0E-3,
+    //                Self::L5 => 1.0E-3, //TODO
+    //                Self::L6 => 10.0E-3,
+    //                _ => 1.0_f64, // does not apply
+    //            },
+    //        },
+    //        Constellation::GEO | Constellation::SBAS(_) => {
+    //            match self {
+    //                Self::L1 => 20.0E-3,
+    //                Self::L5 => 1.0E-3,
+    //                _ => 1.0_f64, // does not apply
+    //        },
+    //        Constellation::BeiDou => {
+    //            match self {
+    //                Self::B1A => 1.0_f64, //TODO
+    //                Self::B1I => 1.0E-3,
+    //                Self::B1C => 1.0_f64, //TODO
+    //                Self::B2 => 1.0_f64, //TODO
+    //                Self::B2A => 10.0E-3,
+    //                Self::B2I => 1.0_f64, //TODO
+    //                Self::B2B => 1.0_f64, //TODO
+    //                Self::B3 => 1.0_f64, //TODO
+    //                Self::B3A => 1.0_f64, //TODO
+    //                _ => 1.0_f64, // does not apply
+    //            }
+    //        },
+    //        Constellation::Galileo => {
+    //            match self {
+    //                Self::E1 => 4.0E-3,
+    //                Self::E5 => 10.0E-3,
+    //                Self::E5a => 10.0E-3,
+    //                Self::E5b => 10.0E-3,
+    //                Self::E6 => 50.0E-3,
+    //                _ => 1.0_f64, // does not apply
+    //            }
+    //        },
+    //        Constellation::Glonass => {
+    //            match self {
+    //                Self::G1 | Self::G1(_) => 1.0_f64, //TODO
+    //                Self::G2 | Self::G2(_) => 1.0_f64, //TODO
+    //                Self::G3 => 1.0_f64, //TODO
+    //                _ => 1.0_f64, // does not apply
+    //            }
+    //        },
+    //        Constellation::IRNSS => {
+    //            match self {
+    //                Self::S => 1.0_f64, // TODO
+    //                _ => 1.0_f64, // does not apply
+    //            }
+    //        },
+    //    }
+    //}
     /// Converts to exact Glonass carrier
     pub fn with_glonass_offset(&self, offset: i8) -> Self {
         match self {
@@ -555,7 +617,6 @@ impl Carrier {
             },
             Constellation::Galileo => match sv.prn {
                 1 => Ok(Self::E1),
-                2 => Ok(Self::E2),
                 5 => Ok(Self::E5a),
                 6 => Ok(Self::E6),
                 7 => Ok(Self::E5b),

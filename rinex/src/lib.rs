@@ -1985,6 +1985,20 @@ impl Rinex {
             })
         }))
     }
+    /// Returns an Iterator over fractional pseudo range observations
+    pub fn pseudo_range_fract(
+        &self,
+    ) -> Box<dyn Iterator<Item = ((Epoch, EpochFlag), Sv, &Observable, f64)> + '_> {
+        Box::new(self.pseudo_range().filter_map(|(e, sv, observable, pr)| {
+            if let Ok(carrier) = Carrier::from_observable(sv.constellation, observable) {
+                let t = carrier.code_length(sv.constellation);
+                let c = 299792458_f64; // speed of light
+                Some((e, sv, observable, pr / c / t))
+            } else {
+                None
+            }
+        }))
+    }
     /// Returns an iterator over doppler shifts. A positive doppler
     /// means Sv is moving towards receiver.
     /// ```

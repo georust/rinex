@@ -151,49 +151,47 @@ impl QcContext {
         }
         None
     }
-    /// Removes "incomplete" Epochs from OBS Data
-    pub fn complete_epoch_filter_mut(&mut self, min_snr: Option<Snr>) {
-        let total = self.primary_data().epoch().count();
-        let complete_epochs: Vec<_> = self.primary_data().complete_epoch(min_snr).collect();
-        if let Some(rec) = self.primary_data_mut().record.as_mut_obs() {
-            rec.retain(|(epoch, _), (_, sv)| {
-                let epoch_is_complete = complete_epochs.iter().find(|(e, sv_carriers)| e == epoch);
+    // /// Removes "incomplete" Epochs from OBS Data
+    // pub fn complete_epoch_filter(&mut self, min_snr: Option<Snr>) {
+    //     let total = self.primary_data().epoch().count();
+    //     let complete_epochs: Vec<_> = self.primary_data().complete_epoch(min_snr).collect();
+    //     if let Some(rec) = self.primary_data_mut().record.as_mut_obs() {
+    //         rec.retain(|(epoch, _), (_, sv)| {
+    //             let epoch_is_complete = complete_epochs.iter().find(|(e, sv_carriers)| e == epoch);
 
-                if epoch_is_complete.is_none() {
-                    false
-                } else {
-                    let (_, sv_carriers) = epoch_is_complete.unwrap();
-                    sv.retain(|sv, observables| {
-                        let carriers: Vec<Carrier> = sv_carriers
-                            .iter()
-                            .filter_map(
-                                |(svnn, carrier)| {
-                                    if sv == svnn {
-                                        Some(*carrier)
-                                    } else {
-                                        None
-                                    }
-                                },
-                            )
-                            .collect();
-                        observables.retain(|obs, _| {
-                            let carrier = Carrier::from_observable(sv.constellation, obs)
-                                .unwrap_or(Carrier::default());
-                            carriers.contains(&carrier)
-                        });
-                        !observables.is_empty()
-                    });
-                    !sv.is_empty()
-                }
-            });
-        }
-    }
+    //             if epoch_is_complete.is_none() {
+    //                 false
+    //             } else {
+    //                 let (_, sv_carriers) = epoch_is_complete.unwrap();
+    //                 sv.retain(|sv, observables| {
+    //                     let carriers: Vec<Carrier> = sv_carriers
+    //                         .iter()
+    //                         .filter_map(
+    //                             |(svnn, carrier)| {
+    //                                 if sv == svnn {
+    //                                     Some(*carrier)
+    //                                 } else {
+    //                                     None
+    //                                 }
+    //                             },
+    //                         )
+    //                         .collect();
+    //                     observables.retain(|obs, _| {
+    //                         let carrier = Carrier::from_observable(sv.constellation, obs)
+    //                             .unwrap_or(Carrier::default());
+    //                         carriers.contains(&carrier)
+    //                     });
+    //                     !observables.is_empty()
+    //                 });
+    //                 !sv.is_empty()
+    //             }
+    //         });
+    //     }
+    // }
     /// Performs SV Orbit interpolation
-    pub fn orbit_interpolation_mut(&mut self, order: usize, min_snr: Option<Snr>) {
+    pub fn orbit_interpolation(&mut self, order: usize, min_snr: Option<Snr>) {
         /* NB: interpolate Complete Epochs only */
-        let complete_epoch: Vec<_> = self.primary_data()
-            .complete_epoch(min_snr)
-            .collect();
+        let complete_epoch: Vec<_> = self.primary_data().complete_epoch(min_snr).collect();
         for (e, sv_signals) in complete_epoch {
             for (sv, carrier) in sv_signals {
                 // if orbit already exists: do not interpolate
@@ -226,7 +224,7 @@ impl QcContext {
     /// to be used in this context
     pub fn sv_position(&self) -> Vec<(Epoch, Sv, (f64, f64, f64))> {
         if self.interpolated {
-            panic!("not yet");
+            self.orbits.iter().collect()
         } else {
             match self.sp3_data() {
                 Some(sp3) => sp3.sv_position().collect(),

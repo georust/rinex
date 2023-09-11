@@ -92,24 +92,24 @@ impl Solver {
         if !self.initiated {
             // 0: NB: only "complete" Epochs are preserved from now on
             //        this reduces nb of Epochs to interpolate
-            trace!("\"complete\" epoch filter..");
-            let total = ctx.primary_data().epoch().count();
-            ctx.complete_epoch_filter_mut(None);
-            let total_dropped = total - ctx.primary_data().epoch().count();
-            trace!(
-                "dropped a total of {}/{} \"incomplete\" epochs",
-                total_dropped,
-                total
-            );
+            // trace!("\"complete\" epoch filter..");
+            // let total = ctx.primary_data().epoch().count();
+            // ctx.complete_epoch_filter_mut(None);
+            // let total_dropped = total - ctx.primary_data().epoch().count();
+            // trace!(
+            //     "dropped a total of {}/{} \"incomplete\" epochs",
+            //     total_dropped,
+            //     total
+            // );
 
-            // 1: eclipse filte
+            // 1: eclipse filter
             self.eval_sun_vector3d(ctx);
             self.eclipse_filter(ctx);
 
             // 2: interpolate: if need be
             if !ctx.interpolated {
                 trace!("orbit interpolation..");
-                ctx.orbit_interpolation_mut(7, None);
+                ctx.orbit_interpolation(7, None);
                 //TODO could be nice to have some kind of timing/perf evaluation here
                 //     and also total number of required interpolations
             }

@@ -92,6 +92,189 @@ impl Observable {
     pub fn carrier(&self, c: Constellation) -> Result<Carrier, carrier::Error> {
         Carrier::from_observable(c, self)
     }
+    /// Returns the code length, expressed in seconds,
+    /// of self: a valid Pseudo Range observable.
+    pub fn code_length(&self, c: Constellation) -> Option<f64> {
+        match c {
+            Constellation::GPS => {
+                match self {
+                    Self::PseudoRange(code) => {
+                        match code.as_ref() {
+                            "C1" => Some(1.0_f64),  //TODO
+                            "C1C" => Some(1.0_f64), // TODO
+                            "C1L" => Some(1.0_f64), // TODO
+                            "C1X" => Some(1.0_f64), // TODO
+                            "C1P" => Some(1.0_f64), // TODO,
+                            "C1W" => Some(1.0_f64), // TODO
+                            "C1Y" => Some(1.0_f64), // TODO
+                            "C1M" => Some(1.0_f64), // TODO
+                            "C2" => Some(1.0_f64),  //TODO
+                            "C2D" => Some(1.0_f64), //TODO
+                            "C2S" => Some(1.0_f64), //TODO
+                            "C2L" => Some(1.0_f64), //TODO
+                            "C2X" => Some(1.0_f64), //TODO
+                            "C2P" => Some(1.0_f64), //TODO
+                            "C2W" => Some(1.0_f64), //TODO
+                            "C2Y" => Some(1.0_f64), //TODO
+                            "C2M" => Some(1.0_f64), //TODO
+                            _ => None,              // does not apply
+                        }
+                    },
+                    _ => None, // invalid: not a pseudo range
+                }
+            },
+            Constellation::QZSS => {
+                match self {
+                    Self::PseudoRange(code) => {
+                        match code.as_ref() {
+                            "C1" => Some(1.0_f64),  // TODO
+                            "C1C" => Some(1.0_f64), // TODO
+                            "C1L" => Some(1.0_f64), // TODO
+                            "C1X" => Some(1.0_f64), // TODO
+                            "C1P" => Some(1.0_f64), // TODO,
+                            "C1W" => Some(1.0_f64), // TODO
+                            "C1Y" => Some(1.0_f64), // TODO
+                            "C1M" => Some(1.0_f64), // TODO
+                            "C2" => Some(1.0_f64),  //TODO
+                            "C2S" => Some(1.0_f64), //TODO
+                            "C2L" => Some(1.0_f64), //TODO
+                            "C2X" => Some(1.0_f64), //TODO
+                            "C5" => Some(1.0_f64),  //TODO
+                            "C5I" => Some(1.0_f64), //TODO
+                            "C5P" => Some(1.0_f64), //TODO
+                            "C5Q" => Some(1.0_f64), //TODO
+                            "C5X" => Some(1.0_f64), //TODO
+                            "C5Z" => Some(1.0_f64), //TODO
+                            "C6" => Some(1.0_f64),  //TODO
+                            "C6S" => Some(1.0_f64), //TODO
+                            "C6L" => Some(1.0_f64), //TODO
+                            "C6X" => Some(1.0_f64), //TODO
+                            "C6E" => Some(1.0_f64), //TODO
+                            "C6S" => Some(1.0_f64), //TODO
+                            _ => None,              // does not apply
+                        }
+                    },
+                    _ => None, // invalid: not a pseudo range
+                }
+            },
+            Constellation::BeiDou => {
+                match self {
+                    Self::PseudoRange(code) => {
+                        match code.as_ref() {
+                            "C1" => Some(1.0_f64),
+                            "C2I" => Some(1.0_f64),
+                            "C2X" => Some(1.0_f64),
+                            "C1D" => Some(1.0_f64),
+                            "C1P" => Some(1.0_f64),
+                            "C1X" => Some(1.0_f64),
+                            "C1S" => Some(1.0_f64),
+                            "C1L" => Some(1.0_f64),
+                            "C1Z" => Some(1.0_f64),
+                            "C5D" => Some(1.0_f64),
+                            "C5P" => Some(1.0_f64),
+                            "C5X" => Some(1.0_f64),
+                            "C2" => Some(1.0_f64),
+                            "C7I" => Some(1.0_f64),
+                            "C7Q" => Some(1.0_f64),
+                            "C7X" => Some(1.0_f64),
+                            "C7D" => Some(1.0_f64),
+                            "C7P" => Some(1.0_f64),
+                            "C7Z" => Some(1.0_f64),
+                            "C8D" => Some(1.0_f64),
+                            "C8P" => Some(1.0_f64),
+                            "C8X" => Some(1.0_f64),
+                            "C6I" => Some(1.0_f64),
+                            "C6Q" => Some(1.0_f64),
+                            "C6X" => Some(1.0_f64),
+                            "C6D" => Some(1.0_f64),
+                            "C6P" => Some(1.0_f64),
+                            "C6Z" => Some(1.0_f64),
+                            _ => None, // does not apply
+                        }
+                    },
+                    _ => None, // invalid : not a pseudo range
+                }
+            },
+            Constellation::Galileo => {
+                match self {
+                    Self::PseudoRange(code) => {
+                        match code.as_ref() {
+                            "C1" => Some(1.0_f64),  // TODO
+                            "C1A" => Some(1.0_f64), // TODO
+                            "C1B" => Some(1.0_f64), // TODO
+                            "C1C" => Some(1.0_f64), // TODO
+                            "C1X" => Some(1.0_f64), // TODO
+                            "C1Z" => Some(1.0_f64), // TODO
+                            "C5I" => Some(1.0_f64), // TODO
+                            "C5Q" => Some(1.0_f64), // TODO
+                            "C5X" => Some(1.0_f64), // TODO
+                            "C7I" => Some(1.0_f64), // TODO
+                            "C7Q" => Some(1.0_f64), // TODO
+                            "C7X" => Some(1.0_f64), // TODO
+                            "C5" => Some(1.0_f64),  // TODO
+                            "C8I" => Some(1.0_f64), // TODO
+                            "C8Q" => Some(1.0_f64), // TODO
+                            "C8X" => Some(1.0_f64), // TODO
+                            "C6" => Some(1.0_f64),  // TODO
+                            "C6A" => Some(1.0_f64), // TODO
+                            "C6B" => Some(1.0_f64), // TODO
+                            "C6C" => Some(1.0_f64), // TODO
+                            "C6X" => Some(1.0_f64), // TODO
+                            "C6Z" => Some(1.0_f64), // TODO
+                            _ => None,
+                        }
+                    },
+                    _ => None, // invalid: not a pseudo range
+                }
+            },
+            Constellation::GEO | Constellation::SBAS(_) => {
+                match self {
+                    Self::PseudoRange(code) => {
+                        match code.as_ref() {
+                            "C1" => Some(1.0_f64),  // TODO
+                            "C1C" => Some(1.0_f64), // TODO
+                            "C5" => Some(1.0_f64),  // TODO
+                            "C5I" => Some(1.0_f64), // TODO
+                            "C5Q" => Some(1.0_f64), // TODO
+                            "C5X" => Some(1.0_f64), // TODO
+                            _ => None,
+                        }
+                    },
+                    _ => None, // invalid: not a pseudo range
+                }
+            },
+            Constellation::Glonass => {
+                match self {
+                    Self::PseudoRange(code) => {
+                        match code.as_ref() {
+                            "C1" => Some(1.0_f64),  // TODO
+                            "C1C" => Some(1.0_f64), // TODO
+                            "C1P" => Some(1.0_f64), // TODO
+                            "C4A" => Some(1.0_f64), // TODO
+                            "C4C" => Some(1.0_f64), // TODO
+                            "C5I" => Some(1.0_f64), // TODO
+                            "C5Q" => Some(1.0_f64), // TODO
+                            "C5X" => Some(1.0_f64), // TODO
+                            _ => None,
+                        }
+                    },
+                    _ => None, // invalid: not a pseudo range
+                }
+            },
+            Constellation::IRNSS => {
+                match self {
+                    Self::PseudoRange(code) => {
+                        match code.as_ref() {
+                            "S" => Some(1.0_f64), //TODO
+                            _ => None,            // invalid
+                        }
+                    },
+                    _ => None, // invalid : not a pseudo range
+                }
+            },
+            _ => None,
+        }
+    }
 }
 
 impl std::fmt::Display for Observable {
